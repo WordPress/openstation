@@ -3047,6 +3047,47 @@ add_filter( 'desktop_mode_sticky_notes_available', '__return_false' );
 
 ---
 
+## Built-in widgets
+
+### `desktop_mode_heartbeat_widget_eager_css` — Experimental *(filter, since 0.18.0)*
+
+Whether to eagerly enqueue the Heartbeat widget's stylesheet on a Desktop
+Mode SHELL request (chromeless iframes and classic-admin pages never get
+it). Defaults to `true`: the JS bundle stays lazy, but the ~0.66 KB
+gzipped CSS rides the shell page so the widget never flashes unstyled
+while its lazily-injected script loads.
+
+```php
+apply_filters( 'desktop_mode_heartbeat_widget_eager_css', bool $eager );
+```
+
+**Example — skip the stylesheet on sites that never use the widget:**
+
+```php
+add_filter( 'desktop_mode_heartbeat_widget_eager_css', '__return_false' );
+```
+
+- **Param** `bool $eager` — default `true` once the desktop-mode + chromeless gates have passed.
+- **Return** `bool` — coerced with `(bool)`.
+
+---
+
+### `desktop_mode_wapuu_widget_eager_css` — Experimental *(filter, since 0.32.0)*
+
+Same contract as `desktop_mode_heartbeat_widget_eager_css`, for the Wapuu
+pet widget's stylesheet (`assets/js/widget-wapuu[.min].css`): eagerly
+enqueued on shell requests so the widget card + balloons never flash
+unstyled; return `false` to opt out.
+
+```php
+apply_filters( 'desktop_mode_wapuu_widget_eager_css', bool $eager );
+```
+
+- **Param** `bool $eager` — default `true` once the desktop-mode + chromeless gates have passed.
+- **Return** `bool` — coerced with `(bool)`.
+
+---
+
 ## Asset loading
 
 ### `desktop_mode_preload_hints` — Stable *(filter, since 0.8.9)*

@@ -4,7 +4,7 @@
  * Ported from the original pet demo's `js/wapuu-pet.js` and retyped
  * against `pixi.js` v8. This is *just the pet*, and he stays put: he
  * breathes, blinks, follows the cursor with his eyes, twitches his
- * ears, wags his tail, hops in place now and then, and dozes off when
+ * ears, wags his tail, and dozes off when
  * left alone. Click him for a pet (hearts!).
  *
  * Deliberately removed from the source demo:
@@ -13,16 +13,52 @@
  *   - grabbing Wapuu and tossing him *inside* the card,
  *   - all horizontal movement (roaming). The whole WIDGET is draggable
  *     instead (framework chrome); Wapuu himself never walks sideways.
+ *   - the random idle jump (distracting). The in-place jump remains,
+ *     but only on request via the public API (`jump()`).
  *
- * The vertical JUMP is kept (in place). The tail sway is slowed from
- * the source — see the `tailSpd` note — which whipped "ultra fast" when
- * Wapuu got excited.
+ * The tail sway is slowed from the source — see the `tailSpd` note —
+ * which whipped "ultra fast" when Wapuu got excited.
  *
  * @since 0.19.0
  */
 
 import type { Application, Container, Graphics, Ticker } from 'pixi.js';
+import { __ } from '../../i18n';
 import type { WapuuParts } from './rig';
+import {
+	appendChatMessage,
+	createAskBalloon,
+	createBalloon,
+	createTypingIndicator,
+	fitBalloon,
+	markAskSent,
+	refreshChatThread,
+	updateChatTail,
+} from './balloons';
+import type {
+	BalloonType,
+	TailSide,
+	WapuuChatMessage,
+	WapuuChatSession,
+} from './balloons';
+
+/** What the WordPress ball is currently showing. */
+export type BallMode = 'w' | 'question';
+
+/** Where a tap landed on Wapuu. */
+export type ClickTarget = 'ball' | 'body' | 'none';
+
+/** Options for {@link PetController.chat}. */
+export interface WapuuChatOptions {
+	/** Seed thread, OpenAI chat format. */
+	messages?: WapuuChatMessage[];
+	/** Input placeholder. */
+	placeholder?: string;
+	/** Called with each message the user sends. */
+	onSend?: ( text: string ) => void;
+	/** Called once when the chat closes (explicitly or replaced). */
+	onClose?: () => void;
+}
 
 /** The `pixi.js` module namespace, resolved at runtime from `window.PIXI`. */
 type Pixi = typeof import( 'pixi.js' );
@@ -42,6 +78,70 @@ export interface PetController {
 	setPointer( clientX: number, clientY: number ): void;
 	/** Pointer left the widget — eyes drift back to neutral. */
 	clearPointer(): void;
+	/**
+	 * Pop a comic balloon above Wapuu's head. Replaces any balloon
+	 * currently showing. Wakes Wapuu.
+	 *
+	 * @param text       Short message or an emoji.
+	 * @param type       `'speak'` | `'yell'` | `'think'`.
+	 * @param durationMs How long to hold before fading (default 2600).
+	 */
+	say( text: string, type: BalloonType, durationMs?: number ): void;
+	/**
+	 * Pop a chat-styled balloon — a message thread + an integrated text
+	 * box — and wait for a reply. `opts.messages` (OpenAI chat format,
+	 * incl. assistant `tool_calls` and `role: 'tool'` results) seeds the
+	 * thread; `prompt` is appended as a final assistant message. Stays
+	 * open (no auto-dismiss) until the user submits (Enter / send) or
+	 * cancels (Escape); a submitted reply is appended to the thread,
+	 * then the balloon lingers `durationMs` (default 1800) and fades.
+	 * Resolves with the typed text, or `null` if cancelled or replaced.
+	 * Keeps Wapuu awake and still (no idle hop / doze) while open.
+	 *
+	 * @param prompt Question appended to the thread.
+	 * @param opts   `messages` seed thread; `durationMs` post-submit
+	 *               linger; `placeholder` text.
+	 */
+	ask(
+		prompt: string,
+		opts?: {
+			durationMs?: number;
+			placeholder?: string;
+			messages?: WapuuChatMessage[];
+		},
+	): Promise< string | null >;
+	/**
+	 * Open a PERSISTENT chat balloon for back-and-forth. Returns a
+	 * session handle: each user message arrives via `opts.onSend`, the
+	 * caller pushes responses with `session.append(...)`, and the
+	 * balloon stays open until `session.close()`. Unlike {@link ask},
+	 * the input stays usable across turns and nothing auto-fades.
+	 */
+	chat( opts?: WapuuChatOptions ): WapuuChatSession;
+	/**
+	 * Classify where a tap landed: the WordPress BALL (the W/? help
+	 * button), Wapuu's BODY, or neither.
+	 */
+	getClickTarget( clientX: number, clientY: number ): ClickTarget;
+	/** What the ball is currently showing (`'w'` or `'question'`). */
+	getBallMode(): BallMode;
+	/**
+	 * Swap the ball between the W logo and the "?" — the current glyph
+	 * shrinks away, the other pops in (same painted-on-sphere style).
+	 */
+	setBallMode( mode: BallMode ): void;
+	/**
+	 * Hover affordance for the ball button: gently scales the W/? up
+	 * while the pointer is over the ball (paired with a pointer cursor)
+	 * so it reads as clickable.
+	 */
+	setBallHover( on: boolean ): void;
+	/** Make Wapuu do an in-place jump (squash, arc, land-bounce). */
+	jump(): void;
+	/** Send Wapuu to sleep (eyes close, slow breath, zZz). */
+	sleep(): void;
+	/** Wake Wapuu up. */
+	wake(): void;
 }
 
 /** What Wapuu is doing right now. */
@@ -137,9 +237,52 @@ export interface PetDeps {
 export function startWapuuPet( deps: PetDeps ): PetController {
 	const { app, parts, root, pixi, stage, card } = deps;
 
+	// The ground shadow is drawn ONCE at unit size; the tick only touches
+	// its (cheap) transform + alpha — rebuilding the Graphics every frame
+	// re-tessellated for no reason.
 	const shadow: Graphics = new pixi.Graphics();
+	shadow.ellipse( 0, 0, 118, 24 ).fill( { color: 0x2a3550, alpha: 0.2 } );
 	const fx: Container = new pixi.Container();
 	app.stage.addChild( shadow, root, fx );
+	// Scratch Points for per-frame coordinate transforms (no allocations).
+	const lookIn = new pixi.Point();
+	const lookOut = new pixi.Point();
+
+	// Geometry reads are cached per FRAME: getBoundingClientRect forces
+	// layout, and several paths (eye tracking per pointermove, balloon
+	// positioning, hit tests) used to issue one per call/event. The tick
+	// invalidates the cache once per frame.
+	let cachedCanvasRect: DOMRect | null = null;
+	let cachedLayerRect: DOMRect | null = null;
+	const canvasRect = (): DOMRect => {
+		if ( ! cachedCanvasRect ) {
+			cachedCanvasRect = (
+				app.canvas as unknown as HTMLCanvasElement
+			).getBoundingClientRect();
+		}
+		return cachedCanvasRect;
+	};
+	const layerRectOf = (): DOMRect => {
+		if ( ! cachedLayerRect ) {
+			cachedLayerRect = balloonLayer.getBoundingClientRect();
+		}
+		return cachedLayerRect;
+	};
+
+	// Balloons are an HTML overlay (not drawn in PixiJS) so one can host
+	// real content — the chat text box — and so DOM opacity fades the
+	// whole balloon uniformly. It mounts INSIDE the desktop area (like
+	// the snap-preview does) at z-index 99: above the wallpaper/widget
+	// layer, but under the window stack (windows start at z 100) — a
+	// balloon never covers a focused window. Mounting on <body> wouldn't
+	// work: the whole shell is one z-100 stacking context, so any
+	// body-level sibling is either above ALL of it or below ALL of it.
+	// `pointer-events: none` (CSS) keeps dragging Wapuu working.
+	const balloonLayer = document.createElement( 'div' );
+	balloonLayer.className = 'wapuu-balloon-layer';
+	(
+		document.getElementById( 'desktop-mode-area' ) ?? document.body
+	).appendChild( balloonLayer );
 
 	const resolution = (): number => app.renderer.resolution;
 	const W = (): number => app.renderer.width / resolution();
@@ -165,6 +308,24 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		eyeRx: parts.eyeR.position.x,
 		eyeRy: parts.eyeR.position.y,
 	};
+
+	// Soft glow ring around the WordPress ball — breathes occasionally
+	// as a "this is interactive" cue. Inserted at index 0 of the body
+	// bone so it paints BEHIND the sphere and only the overhang shows
+	// as a rim of light. Concentric fading strokes ≈ a cheap blur.
+	const halo: Graphics = new pixi.Graphics();
+	[ 8, 15, 23 ].forEach( ( grow, i ) => {
+		halo.circle( 0, 0, parts.ball.radius + grow );
+		halo.stroke( {
+			color: 0xbdeaff,
+			width: 9 - i * 2,
+			alpha: 0.45 - i * 0.12,
+		} );
+	} );
+	// parts.ball is root-local; the halo lives in the body bone.
+	halo.position.set( parts.ball.x, parts.ball.y - REST.bodyY );
+	halo.alpha = 0;
+	parts.body.addChildAt( halo, 0 );
 
 	// ---- tweens ----
 	const tweens: Tween[] = [];
@@ -203,8 +364,13 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 	let asleep = false;
 	let state: PetState = 'idle';
 	let nextEarTwitch = rand( 2.5, 6 );
-	let nextJump = rand( 4, 9 );
-	const pointer = { x: 0, y: 0, has: false };
+	// Help-discovery cues: the periodic W→?→W wink and the halo breath.
+	let nextAdvert = rand( 26, 38 );
+	let nextHaloPulse = rand( 8, 14 );
+	// Pointer state: handlers store CLIENT coords only (no layout reads
+	// on the hot pointermove path); the tick converts to canvas-local
+	// once per frame via the cached rect.
+	const pointer = { clientX: 0, clientY: 0, x: 0, y: 0, has: false };
 	let excite = 0;
 	let breathSpeed = 1;
 	let hopOffset = 0;
@@ -233,6 +399,27 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 	let zHandle: ReturnType< typeof setTimeout > | undefined;
 	let petEndHandle: ReturnType< typeof setTimeout > | undefined;
 	let happyEyesHandle: ReturnType< typeof setTimeout > | undefined;
+	let balloonHandle: ReturnType< typeof setTimeout > | undefined;
+	let focusHandle: ReturnType< typeof setTimeout > | undefined;
+	let activeBalloon: HTMLElement | null = null;
+	let balloonScale = 1;
+	// Offset (element px) of the balloon's tail tip — pinned to the head.
+	let balloonTip = { x: 0, y: 0 };
+	// Which edge the tail grows from: bottom-tail balloons hover ABOVE
+	// Wapuu; right-tail balloons (the chat) sit NEXT to him.
+	let balloonSide: TailSide = 'bottom';
+	// Visual extent that hangs BELOW the element box (the chat's input
+	// bar is absolutely positioned below the bubble) — folded into the
+	// viewport clamp so the bar never falls off-screen.
+	let balloonExtraBottom = 0;
+	// While an `ask` balloon waits for input, Wapuu holds still (no idle
+	// hop / doze) so the text box doesn't drift, and `pendingAskCancel`
+	// resolves the pending promise (as null) if the balloon is cleared.
+	let asking = false;
+	let pendingAskCancel: ( () => void ) | null = null;
+	// Called when the active balloon is cleared by ANYTHING (a new
+	// balloon, unmount) so a live chat session learns it was closed.
+	let balloonClearedCb: ( () => void ) | null = null;
 
 	function wake(): void {
 		if ( asleep ) {
@@ -249,6 +436,7 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 	}
 	function interacted(): void {
 		idleTime = 0;
+		nextAdvert = rand( 26, 38 );
 		wake();
 	}
 	function busy(): boolean {
@@ -318,7 +506,9 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		happyEyes( 0.7 );
 		excite = 1;
 		tailKick = 1;
-		spawnHearts( rand( 1, 2 ) );
+		// An integer 1 or 2 — `rand(1, 2)` returned a float in (1, 2),
+		// which the `i < n` loop read as "always 2 hearts".
+		spawnHearts( Math.random() < 0.5 ? 1 : 2 );
 		killTag( 'petsquish' );
 		tween( {
 			dur: 0.5,
@@ -352,6 +542,11 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 			return;
 		}
 		killTag( 'act' );
+		// Same hazard as pet(): killing an in-flight hop tween skips its
+		// onComplete, so reset what it drove — otherwise a jump() followed
+		// by sleep() leaves Wapuu dozing in mid-air.
+		hopOffset = 0;
+		squashY = 1;
 		state = 'sleep';
 		asleep = true;
 		// Closed but clearly visible — 0.08 squished the small eyes to an
@@ -365,7 +560,12 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		if ( ! asleep ) {
 			return;
 		}
-		spawnZ();
+		// Skip spawning while the tab is hidden: the rAF-driven ticker is
+		// frozen there, so spawned z's would pile up un-animated (and
+		// un-destroyed) until refocus. The chain keeps polling cheaply.
+		if ( ! document.hidden ) {
+			spawnZ();
+		}
 		zHandle = setTimeout( scheduleZ, 1400 );
 	}
 
@@ -435,18 +635,670 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		} );
 	}
 
+	// ================= BALLOONS =================
+	// Pin the balloon's bottom-centre (its anchor) just above Wapuu's
+	// head. `world.x` / `root.y` are PixiJS stage coords, which map 1:1
+	// to the canvas-local CSS pixels the balloon layer lives in (under
+	// autoDensity), so no conversion is needed.
+	// Last values painted to the balloon — positionBalloon runs every
+	// frame, but writes (style + the tail's SVG path) only happen when an
+	// input actually changed. Skipping the writes keeps the layout clean,
+	// so the per-frame reads stay cheap (no forced reflow interleave).
+	const balloonPaint = { left: NaN, top: NaN, scale: NaN, tailX: NaN, tailY: NaN };
+	function positionBalloon(): void {
+		const el = activeBalloon;
+		if ( ! el ) {
+			return;
+		}
+		// Map Wapuu's anchors (canvas-local stage coords) to viewport
+		// coords via the canvas's on-screen rect (frame-cached), so the
+		// area-level balloon lines up even though it lives outside the
+		// clipped card.
+		const rect = canvasRect();
+		const a = parts.anchors;
+		let headX: number;
+		let headY: number;
+		if ( balloonSide === 'right' ) {
+			// Chat balloon sits NEXT to Wapuu, raised a touch above his
+			// head line. Anchored to the STABLE groundY — not the live
+			// root.y, which bobs with the breath cycle — so the balloon
+			// holds still while the user types (it still follows the
+			// widget when the card is dragged, via the canvas rect).
+			headX = rect.left + world.x + a.chatSide.x * baseScale;
+			headY = rect.top + groundY + a.chatSide.y * baseScale;
+		} else {
+			// Comic balloons hover ABOVE him, nudged up-left of his head.
+			headX = rect.left + world.x + a.headTop.x * baseScale - 60;
+			headY = rect.top + root.y + a.headTop.y * baseScale - 20;
+		}
+		// Place the element so its tail tip sits at the anchor; the
+		// transform-origin (set to the tip in fitBalloon) keeps the tip
+		// pinned through the pop/fade scale. Coords are layer-local
+		// (balloons are absolute children of the layer), so subtract the
+		// layer's own viewport offset.
+		const layerRect = layerRectOf();
+		let left = headX - balloonTip.x - layerRect.left;
+		let top = headY - balloonTip.y - layerRect.top;
+		// Smart clamp: keep the WHOLE balloon (incl. the chat's input bar
+		// that hangs below) inside the visible layer, so it never runs
+		// off-screen when Wapuu sits near an edge. Sizes are at scale 1
+		// (the resting state); during the smaller pop the box is well
+		// within these bounds anyway.
+		const margin = 10;
+		const w = el.offsetWidth;
+		const h = el.offsetHeight + balloonExtraBottom;
+		left = clamp( left, margin, Math.max( margin, layerRect.width - w - margin ) );
+		top = clamp( top, margin, Math.max( margin, layerRect.height - h - margin ) );
+		// Quantise to 0.1px and dirty-check before touching the DOM.
+		left = Math.round( left * 10 ) / 10;
+		top = Math.round( top * 10 ) / 10;
+		const scale = Math.round( balloonScale * 1000 ) / 1000;
+		if (
+			left !== balloonPaint.left ||
+			top !== balloonPaint.top ||
+			scale !== balloonPaint.scale
+		) {
+			balloonPaint.left = left;
+			balloonPaint.top = top;
+			balloonPaint.scale = scale;
+			el.style.left = `${ left }px`;
+			el.style.top = `${ top }px`;
+			el.style.transform = `scale(${ scale })`;
+		}
+
+		// Dynamic notch: aim the chat bubble's tail at Wapuu's MOUTH —
+		// it points right at him wherever the bubble sits (raised,
+		// clamped at a screen edge) and follows his breathing. Mouth in
+		// viewport coords → element-local, compensating for the pop scale
+		// (transform-origin is the virtual tip = balloonTip). The path is
+		// only rewritten when the aim actually moved (≥ 0.5px).
+		if ( balloonSide === 'right' ) {
+			const mouthX = rect.left + world.x + a.mouth.x * baseScale;
+			const mouthY = rect.top + root.y + a.mouth.y * baseScale;
+			const rawX = mouthX - layerRect.left - left;
+			const rawY = mouthY - layerRect.top - top;
+			const s = balloonScale || 1;
+			const lx =
+				Math.round( ( balloonTip.x + ( rawX - balloonTip.x ) / s ) * 2 ) / 2;
+			const ly =
+				Math.round( ( balloonTip.y + ( rawY - balloonTip.y ) / s ) * 2 ) / 2;
+			if ( lx !== balloonPaint.tailX || ly !== balloonPaint.tailY ) {
+				balloonPaint.tailX = lx;
+				balloonPaint.tailY = ly;
+				updateChatTail( el, lx, ly );
+			}
+		}
+	}
+	function clearBalloon(): void {
+		clearTimeout( balloonHandle );
+		clearTimeout( focusHandle );
+		killTag( 'balloon' );
+		asking = false;
+		// A fresh balloon element must get its first paint even if it
+		// computes to the same spot as the last one.
+		balloonPaint.left = NaN;
+		balloonPaint.top = NaN;
+		balloonPaint.scale = NaN;
+		balloonPaint.tailX = NaN;
+		balloonPaint.tailY = NaN;
+		// Resolve a still-pending ask (as cancelled) before we drop it.
+		if ( pendingAskCancel ) {
+			const cancel = pendingAskCancel;
+			pendingAskCancel = null;
+			cancel();
+		}
+		// Notify a live chat session that it's gone.
+		if ( balloonClearedCb ) {
+			const cb = balloonClearedCb;
+			balloonClearedCb = null;
+			cb();
+		}
+		if ( activeBalloon ) {
+			activeBalloon.remove();
+			activeBalloon = null;
+		}
+	}
+	// Fade a balloon out, then clear it. Shared by say's linger, ask's
+	// linger, and the chat session's close().
+	function fadeOutBalloon( el: HTMLElement ): void {
+		tween( {
+			dur: 0.4,
+			tag: 'balloon',
+			ease: E.outCubic,
+			onUpdate( p ) {
+				balloonScale = 1 + 0.12 * p;
+				el.style.opacity = String( 1 - p );
+			},
+			onComplete() {
+				if ( activeBalloon === el ) {
+					clearBalloon();
+				}
+			},
+		} );
+	}
+	// Pop a balloon in (scale + fade up). We animate the ROOT element's
+	// opacity so the whole balloon (shape + tail/dots + text) fades as
+	// one group — no per-layer alpha double-composite. Shared by every
+	// balloon kind.
+	function popInBalloon( el: HTMLElement ): void {
+		balloonScale = 0.4;
+		tween( {
+			dur: 0.32,
+			tag: 'balloon',
+			ease: E.outBack,
+			onUpdate( p ) {
+				balloonScale = 0.4 + 0.6 * p;
+				el.style.opacity = String( Math.min( 1, p * 1.6 ) );
+			},
+		} );
+	}
+	// The chat input bar hangs BELOW the balloon box (absolute, 12px gap
+	// — see styles.css). Measure its real extent instead of hardcoding,
+	// so a CSS tweak can't silently desync the viewport clamp.
+	function measureBalloonExtraBottom( el: HTMLElement ): number {
+		const row = el.querySelector< HTMLElement >( '.wapuu-chat__row' );
+		return row ? 12 + row.offsetHeight : 0;
+	}
+	function say( text: string, type: BalloonType, durationMs = 2600 ): void {
+		interacted();
+		clearBalloon();
+		const el = createBalloon( type, text );
+		el.style.opacity = '0';
+		// Append first so the content is measurable, then fit the SVG
+		// shape to it and learn where the tail tip lands.
+		balloonLayer.appendChild( el );
+		balloonSide = 'bottom';
+		balloonExtraBottom = 0;
+		balloonTip = fitBalloon( el, type );
+		activeBalloon = el;
+		positionBalloon();
+		popInBalloon( el );
+		// Hold, then fade out + drift up a touch.
+		balloonHandle = setTimeout( () => {
+			if ( activeBalloon === el ) {
+				fadeOutBalloon( el );
+			}
+		}, durationMs );
+	}
+
+	function ask(
+		prompt: string,
+		opts?: {
+			durationMs?: number;
+			placeholder?: string;
+			messages?: WapuuChatMessage[];
+		},
+	): Promise< string | null > {
+		interacted();
+		clearBalloon();
+		const askParts = createAskBalloon(
+			prompt || '',
+			opts?.placeholder || __( 'Type a reply…' ),
+			opts?.messages || [],
+		);
+		const { el, input, send } = askParts;
+		el.style.opacity = '0';
+		balloonLayer.appendChild( el );
+		balloonSide = 'right'; // the chat sits NEXT to Wapuu
+		balloonTip = fitBalloon( el, 'speak', 'right' );
+		balloonExtraBottom = measureBalloonExtraBottom( el );
+		refreshChatThread( askParts ); // now in the DOM: scroll + hint
+		activeBalloon = el;
+		asking = true; // hold still + stay awake while waiting for input
+		positionBalloon();
+		popInBalloon( el );
+		// Focus the field once it has popped in.
+		focusHandle = setTimeout( () => {
+			try {
+				input.focus( { preventScroll: true } );
+			} catch {
+				// Focus is best-effort.
+			}
+		}, 60 );
+
+		return new Promise< string | null >( ( resolve ) => {
+			let settled = false;
+			const settle = ( value: string | null ): void => {
+				if ( settled ) {
+					return;
+				}
+				settled = true;
+				pendingAskCancel = null;
+				resolve( value );
+			};
+			// A new balloon / unmount clears this one → resolve null.
+			pendingAskCancel = () => settle( null );
+
+			// Resolve, then linger + fade out. `asking` stays true until
+			// the balloon actually clears (clearBalloon flips it), so
+			// Wapuu doesn't resume hopping while the chat is on screen.
+			const endAsk = ( value: string | null, linger: number ): void => {
+				if ( settled ) {
+					return;
+				}
+				settle( value );
+				balloonHandle = setTimeout( () => {
+					if ( activeBalloon === el ) {
+						fadeOutBalloon( el );
+					}
+				}, Math.max( 0, linger ) );
+			};
+
+			const submit = (): void => {
+				const value = input.value.trim();
+				if ( ! value || settled ) {
+					return;
+				}
+				input.value = '';
+				input.disabled = true;
+				markAskSent( askParts );
+				// Drop the reply straight into its real slot and re-fit the
+				// bubble instantly — no cross-element flight to mis-land.
+				// The chip itself does a quick rise-and-fade in place (CSS
+				// `--enter`), so it reads as "sent" while staying exact.
+				appendChatMessage( askParts, { role: 'user', content: value } );
+				(
+					askParts.thread.lastElementChild as HTMLElement | null
+				)?.classList.add( 'wapuu-chat__msg--enter' );
+				balloonTip = fitBalloon( el, 'speak', 'right' );
+				refreshChatThread( askParts );
+				positionBalloon();
+				endAsk( value, opts?.durationMs ?? 1800 );
+			};
+			send.addEventListener( 'click', submit );
+			input.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
+				if ( e.key === 'Enter' ) {
+					e.preventDefault();
+					e.stopPropagation();
+					submit();
+				} else if ( e.key === 'Escape' ) {
+					e.preventDefault();
+					e.stopPropagation();
+					endAsk( null, 0 ); // cancel → fade right away
+				}
+			} );
+		} );
+	}
+
+	function chat( opts?: WapuuChatOptions ): WapuuChatSession {
+		interacted();
+		clearBalloon();
+		const askParts = createAskBalloon(
+			'',
+			opts?.placeholder || __( 'Message…' ),
+			opts?.messages || [],
+		);
+		const { el, input, send } = askParts;
+		el.style.opacity = '0';
+		balloonLayer.appendChild( el );
+		balloonSide = 'right';
+		balloonTip = fitBalloon( el, 'speak', 'right' );
+		balloonExtraBottom = measureBalloonExtraBottom( el );
+		refreshChatThread( askParts );
+		activeBalloon = el;
+		asking = true; // chat holds Wapuu still + awake the whole time
+		positionBalloon();
+		popInBalloon( el );
+		focusHandle = setTimeout( () => {
+			try {
+				input.focus( { preventScroll: true } );
+			} catch {
+				// Focus is best-effort.
+			}
+		}, 60 );
+
+		let typingEl: HTMLElement | null = null;
+		let closed = false;
+		const isLive = (): boolean => ! closed && activeBalloon === el;
+
+		// Re-fit the bubble around the thread + re-pin + scroll. `animate`
+		// gives the newest chip its quick rise-and-fade.
+		const repaint = ( animate: boolean ): void => {
+			if ( animate ) {
+				(
+					askParts.thread.lastElementChild as HTMLElement | null
+				)?.classList.add( 'wapuu-chat__msg--enter' );
+			}
+			balloonTip = fitBalloon( el, 'speak', 'right' );
+			refreshChatThread( askParts );
+			positionBalloon();
+		};
+
+		// Teardown hooks (backdrop listener, context menu) registered
+		// below — markClosed runs them all however the chat ends.
+		const sessionCleanups: Array< () => void > = [];
+		const markClosed = (): void => {
+			if ( closed ) {
+				return;
+			}
+			closed = true;
+			asking = false;
+			for ( const fn of sessionCleanups.splice( 0 ) ) {
+				try {
+					fn();
+				} catch {
+					// Best-effort.
+				}
+			}
+			opts?.onClose?.();
+		};
+		// External clear (a `say`, unmount, …) closes the session too.
+		balloonClearedCb = markClosed;
+
+		// One insertion path for both append flavours: keeps the
+		// typing indicator pinned to the bottom across inserts.
+		const insertMessages = ( messages: WapuuChatMessage[] ): void => {
+			if ( ! isLive() ) {
+				return;
+			}
+			typingEl?.remove();
+			for ( const m of messages ) {
+				appendChatMessage( askParts, m );
+			}
+			if ( typingEl ) {
+				askParts.thread.appendChild( typingEl );
+			}
+			repaint( true );
+		};
+
+		const session: WapuuChatSession = {
+			append( msg ) {
+				insertMessages( [ msg ] );
+			},
+			appendMany( messages ) {
+				insertMessages( messages );
+			},
+			setTyping( on ) {
+				if ( ! isLive() ) {
+					return;
+				}
+				if ( on && ! typingEl ) {
+					typingEl = createTypingIndicator();
+					askParts.thread.appendChild( typingEl );
+					repaint( false );
+				} else if ( ! on && typingEl ) {
+					typingEl.remove();
+					typingEl = null;
+					repaint( false );
+				}
+			},
+			clear() {
+				if ( ! isLive() ) {
+					return;
+				}
+				typingEl?.remove();
+				typingEl = null;
+				askParts.thread.replaceChildren();
+				repaint( false );
+			},
+			close() {
+				if ( closed ) {
+					return;
+				}
+				balloonClearedCb = null; // we own the teardown now
+				markClosed();
+				if ( activeBalloon === el ) {
+					fadeOutBalloon( el );
+				}
+			},
+		};
+
+		const submit = (): void => {
+			const value = input.value.trim();
+			if ( ! value || ! isLive() ) {
+				return;
+			}
+			input.value = '';
+			typingEl?.remove();
+			appendChatMessage( askParts, { role: 'user', content: value } );
+			if ( typingEl ) {
+				askParts.thread.appendChild( typingEl );
+			}
+			repaint( true );
+			opts?.onSend?.( value ); // caller responds via session.append
+		};
+		send.addEventListener( 'click', submit );
+		input.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
+			if ( e.key === 'Enter' ) {
+				e.preventDefault();
+				e.stopPropagation();
+				submit();
+			} else if ( e.key === 'Escape' ) {
+				e.preventDefault();
+				e.stopPropagation();
+				session.close();
+			}
+		} );
+
+		// Backdrop close: a pointerdown anywhere OUTSIDE the chat closes
+		// it (and the index-side onClose restores the W). Clicks on the
+		// widget card are exempt — the card's own handlers manage those
+		// (closing here too would make the ball click close-then-reopen).
+		// Clicks inside the chat's context menu are exempt as well.
+		const onBackdropDown = ( ev: PointerEvent ): void => {
+			const tgt = ev.target as HTMLElement | null;
+			if (
+				! tgt ||
+				el.contains( tgt ) ||
+				( card && card.contains( tgt ) ) ||
+				tgt.closest?.( '.wapuu-chat__menu' )
+			) {
+				return;
+			}
+			session.close();
+		};
+		document.addEventListener( 'pointerdown', onBackdropDown, true );
+		sessionCleanups.push( () =>
+			document.removeEventListener( 'pointerdown', onBackdropDown, true ),
+		);
+
+		// Right-click on the chat → context menu: Clear chat / Close
+		// chat. Same `<wpd-context-menu>` pattern as the heartbeat
+		// widget (the elements are defined by the main desktop bundle).
+		let closeOpenMenu: ( () => void ) | null = null;
+		const openChatMenu = ( ev: MouseEvent ): void => {
+			ev.preventDefault();
+			ev.stopPropagation();
+			closeOpenMenu?.();
+			document
+				.querySelectorAll( '.wapuu-chat__menu' )
+				.forEach( ( n ) => n.remove() );
+
+			const menu = document.createElement( 'wpd-context-menu' );
+			menu.className = 'wapuu-chat__menu';
+			menu.setAttribute( 'open', '' );
+			menu.style.position = 'fixed';
+			menu.style.left = `${ ev.clientX }px`;
+			menu.style.top = `${ ev.clientY }px`;
+			menu.style.zIndex = '10500';
+
+			const makeOption = ( value: string, label: string ): HTMLElement => {
+				const o = document.createElement( 'wpd-context-menu-option' );
+				o.setAttribute( 'value', value );
+				o.textContent = label;
+				return o;
+			};
+			menu.appendChild( makeOption( 'clear', __( 'Clear chat' ) ) );
+			menu.appendChild( makeOption( 'close', __( 'Close chat' ) ) );
+
+			const closeMenu = (): void => {
+				closeOpenMenu = null;
+				menu.remove();
+				document.removeEventListener( 'pointerdown', onOutside, true );
+				document.removeEventListener( 'keydown', onKey, true );
+			};
+			closeOpenMenu = closeMenu;
+			const onOutside = ( e2: Event ): void => {
+				if ( ! menu.contains( e2.target as Node ) ) {
+					closeMenu();
+				}
+			};
+			const onKey = ( e2: KeyboardEvent ): void => {
+				if ( e2.key === 'Escape' ) {
+					closeMenu();
+				}
+			};
+			menu.addEventListener( 'wpd-context-menu-pick', ( e2: Event ) => {
+				const value = ( e2 as CustomEvent< { value?: string } > ).detail
+					?.value;
+				closeMenu();
+				if ( value === 'clear' ) {
+					session.clear();
+				} else if ( value === 'close' ) {
+					session.close();
+				}
+			} );
+
+			document.body.appendChild( menu );
+			// Clamp to the viewport.
+			const rect = menu.getBoundingClientRect();
+			if ( rect.right > window.innerWidth ) {
+				menu.style.left = `${ Math.max( 4, window.innerWidth - rect.width - 8 ) }px`;
+			}
+			if ( rect.bottom > window.innerHeight ) {
+				menu.style.top = `${ Math.max( 4, window.innerHeight - rect.height - 8 ) }px`;
+			}
+			document.addEventListener( 'pointerdown', onOutside, true );
+			document.addEventListener( 'keydown', onKey, true );
+		};
+		el.addEventListener( 'contextmenu', openChatMenu );
+		sessionCleanups.push( () => {
+			el.removeEventListener( 'contextmenu', openChatMenu );
+			// closeMenu (not just node removal) so the menu's document-
+			// level capture listeners can't outlive the session.
+			closeOpenMenu?.();
+		} );
+
+		return session;
+	}
+
+	// ================= BALL BUTTON (W ⇄ ?) =================
+	let ballMode: BallMode = 'w';
+	function getBallMode(): BallMode {
+		return ballMode;
+	}
+	// The raw glyph swap (shrink current, pop the other in). Used by
+	// setBallMode AND by the idle "wink" advert, which must not count
+	// as an interaction (it can fire while Wapuu sleeps).
+	function swapBallGlyph( mode: BallMode ): void {
+		if ( mode === ballMode ) {
+			return;
+		}
+		ballMode = mode;
+		const show = mode === 'question' ? parts.question : parts.logo;
+		const hide = mode === 'question' ? parts.logo : parts.question;
+		killTag( 'ballmode' );
+		// Tween from the glyphs' CURRENT scales — a swap can interrupt an
+		// in-flight swap (e.g. a tap racing the advert wink's restore),
+		// and hardcoded 1→0 / 0→1 endpoints made the first frame snap.
+		const hideFrom = hide.scale.x;
+		const showFrom = show.scale.x;
+		tween( {
+			dur: 0.16,
+			tag: 'ballmode',
+			ease: E.outCubic,
+			onUpdate( p ) {
+				hide.scale.set( hideFrom * ( 1 - p ) );
+			},
+			onComplete() {
+				hide.scale.set( 0 );
+				tween( {
+					dur: 0.3,
+					tag: 'ballmode',
+					ease: E.outBack,
+					onUpdate( p ) {
+						show.scale.set( showFrom + ( 1 - showFrom ) * p );
+					},
+					onComplete() {
+						show.scale.set( 1 );
+					},
+				} );
+			},
+		} );
+	}
+	function setBallMode( mode: BallMode ): void {
+		if ( mode === ballMode ) {
+			return;
+		}
+		interacted();
+		swapBallGlyph( mode );
+	}
+	// Idle advert — "psst, I can help": briefly wink the W to "?" and
+	// back. Skipped whenever the "?" is already meaningful (chat open).
+	let advertHandle: ReturnType< typeof setTimeout > | undefined;
+	function advertWink(): void {
+		if ( ballMode !== 'w' || asking ) {
+			return;
+		}
+		swapBallGlyph( 'question' );
+		advertHandle = setTimeout( () => {
+			// Restore — unless the user opened the chat mid-wink.
+			if ( ballMode === 'question' && ! asking ) {
+				swapBallGlyph( 'w' );
+			}
+		}, 1300 );
+	}
+
+	let ballHovered = false;
+	const ballBaseX = parts.ballButton.position.x;
+	function setBallHover( on: boolean ): void {
+		if ( on === ballHovered ) {
+			return;
+		}
+		ballHovered = on;
+		const fromScale = parts.ballButton.scale.x;
+		const toScale = on ? 1.12 : 1;
+		// The grown disc's LEFT edge would collide with the blue ball's
+		// black stroke, so the hover also nudges the button slightly
+		// RIGHT (away from that edge); it slides back on leave. ~8 rig
+		// px ≈ a couple of on-screen px at widget scale.
+		const fromX = parts.ballButton.position.x;
+		const toX = ballBaseX + ( on ? 8 : 0 );
+		killTag( 'ballhover' );
+		tween( {
+			dur: 0.16,
+			tag: 'ballhover',
+			ease: E.outCubic,
+			onUpdate( p ) {
+				parts.ballButton.scale.set(
+					fromScale + ( toScale - fromScale ) * p,
+				);
+				parts.ballButton.position.x = fromX + ( toX - fromX ) * p;
+			},
+		} );
+	}
+
+	/** Map a client point to root-local rig coords (pre-baseScale). */
+	function toRigLocal( clientX: number, clientY: number ): { x: number; y: number } {
+		const r = canvasRect();
+		return {
+			x: ( clientX - r.left - world.x ) / baseScale,
+			y: ( clientY - r.top - root.y ) / baseScale,
+		};
+	}
+	function getClickTarget( clientX: number, clientY: number ): ClickTarget {
+		const p = toRigLocal( clientX, clientY );
+		const hit = parts.anchors.bodyHit;
+		// Ball first — it sits inside the body circle.
+		if ( Math.hypot( p.x - parts.ball.x, p.y - parts.ball.y ) <= parts.ball.radius ) {
+			return 'ball';
+		}
+		if ( Math.hypot( p.x - hit.x, p.y - hit.y ) <= hit.radius ) {
+			return 'body';
+		}
+		return 'none';
+	}
+
 	// ================= INPUT =================
 	// PixiJS processes no pointer events — the framework's transparent
 	// chrome overlay sits above the canvas and owns the whole-widget
 	// drag. The widget (index.ts) forwards tap=pet + pointer-tracking
-	// into these two feeders.
+	// into these two feeders. setPointer stores CLIENT coords only —
+	// pointermove can outpace the frame rate, so no geometry reads here;
+	// the tick converts once per frame via the cached canvas rect.
 	function setPointer( clientX: number, clientY: number ): void {
-		const canvas = app.canvas as unknown as HTMLCanvasElement;
-		const r = canvas.getBoundingClientRect();
-		// PixiJS global coords are logical (CSS) px under autoDensity, so
-		// client-minus-rect maps straight onto the rig's coordinate space.
-		pointer.x = clientX - r.left;
-		pointer.y = clientY - r.top;
+		pointer.clientX = clientX;
+		pointer.clientY = clientY;
 		pointer.has = true;
 		idleTime = 0;
 		wake();
@@ -459,6 +1311,16 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 	const tick = ( ticker: Ticker ): void => {
 		const dt = Math.min( ticker.deltaMS / 1000, 0.05 );
 		t += dt;
+
+		// New frame: drop the cached geometry, convert the latest pointer
+		// position once (instead of once per pointermove event).
+		cachedCanvasRect = null;
+		cachedLayerRect = null;
+		if ( pointer.has ) {
+			const r = canvasRect();
+			pointer.x = pointer.clientX - r.left;
+			pointer.y = pointer.clientY - r.top;
+		}
 
 		for ( let i = tweens.length - 1; i >= 0; i-- ) {
 			const tw = tweens[ i ];
@@ -485,7 +1347,13 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 			!! card &&
 			card.classList.contains( 'desktop-mode-widgets__card--dragging' );
 		if ( dragging && card ) {
-			const left = card.getBoundingClientRect().left;
+			// The framework drag writes the card's inline `left` each
+			// pointermove — read THAT (no layout) instead of forcing a
+			// reflow with getBoundingClientRect mid-drag.
+			const styleLeft = parseFloat( card.style.left );
+			const left = Number.isNaN( styleLeft )
+				? card.getBoundingClientRect().left
+				: styleLeft;
 			if ( cardTracking ) {
 				dragVX = left - prevCardX;
 			}
@@ -504,7 +1372,7 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		// ---- idle timers ----
 		if ( state === 'idle' ) {
 			idleTime += dt;
-			if ( ! asleep && idleTime > 8.5 ) {
+			if ( ! asleep && ! asking && idleTime > 8.5 ) {
 				sleep();
 			}
 			nextEarTwitch -= dt;
@@ -522,11 +1390,48 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 					},
 				} );
 			}
-			// Occasional in-place jump — the only locomotion left.
-			nextJump -= dt;
-			if ( ! asleep && nextJump <= 0 ) {
-				nextJump = rand( 5, 11 );
-				hop();
+			// (No random idle jump — it read as distracting. The jump
+			// stays available programmatically via the public API.)
+		}
+
+		// ---- help-discovery cues ----
+		// Deliberately OUTSIDE the idle gate: Wapuu dozes off after just
+		// 8.5s, and these cues exist for the passive VIEWER — gating them
+		// on `state === 'idle'` froze their countdowns exactly when they
+		// mattered. They run while idle OR asleep, never mid-chat and
+		// never while the tab is hidden (frozen ticker would queue them).
+		if (
+			( state === 'idle' || state === 'sleep' ) &&
+			! asking &&
+			! document.hidden
+		) {
+			// Advert: every ~30s the W winks to "?" and back.
+			if ( ballMode === 'w' ) {
+				nextAdvert -= dt;
+				if ( nextAdvert <= 0 ) {
+					nextAdvert = rand( 26, 38 );
+					advertWink();
+				}
+			}
+			// Halo breath: a soft glow ring swells around the ball now
+			// and then — same "psst, this is clickable" channel.
+			nextHaloPulse -= dt;
+			if ( nextHaloPulse <= 0 ) {
+				nextHaloPulse = rand( 9, 16 );
+				killTag( 'halo' );
+				tween( {
+					dur: 1.6,
+					tag: 'halo',
+					ease: E.linear,
+					onUpdate( p ) {
+						halo.alpha = Math.sin( p * Math.PI ) * 0.55;
+						halo.scale.set( 1 + p * 0.1 );
+					},
+					onComplete() {
+						halo.alpha = 0;
+						halo.scale.set( 1 );
+					},
+				} );
 			}
 		}
 
@@ -585,19 +1490,33 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		parts.earL.rotation = lerp( parts.earL.rotation, earBob + earTw.L, 0.3 );
 		parts.earR.rotation = lerp( parts.earR.rotation, -earBob + earTw.R, 0.3 );
 
-		// Eyes: blink scale + cursor look.
+		// Eyes: blink scale + cursor look. While the pointer hovers the
+		// ball button, Wapuu glances DOWN at his own ball instead —
+		// directing the user's attention to the thing under their cursor.
 		const oy = eyes.open * eyes.blink;
 		if ( ! asleep ) {
-			const lp = root.toLocal( {
-				x: pointer.has ? pointer.x : world.x,
-				y: pointer.has ? pointer.y : renderY - 300,
-			} );
-			eyes.look.x = lerp( eyes.look.x, clamp( lp.x / 320, -1, 1 ) * 5, 0.15 );
-			eyes.look.y = lerp(
-				eyes.look.y,
-				clamp( ( lp.y + 150 ) / 360, -1, 1 ) * 4,
-				0.15,
-			);
+			if ( ballHovered ) {
+				eyes.look.x = lerp( eyes.look.x, -4, 0.2 );
+				eyes.look.y = lerp( eyes.look.y, 4, 0.2 );
+			} else {
+				// Scratch Points — toLocal with an out-param avoids two
+				// object allocations per frame in this always-on path.
+				lookIn.set(
+					pointer.has ? pointer.x : world.x,
+					pointer.has ? pointer.y : renderY - 300,
+				);
+				const lp = root.toLocal( lookIn, undefined, lookOut );
+				eyes.look.x = lerp(
+					eyes.look.x,
+					clamp( lp.x / 320, -1, 1 ) * 5,
+					0.15,
+				);
+				eyes.look.y = lerp(
+					eyes.look.y,
+					clamp( ( lp.y + 150 ) / 360, -1, 1 ) * 4,
+					0.15,
+				);
+			}
 		}
 		parts.eyeL.position.set( REST.eyeLx + eyes.look.x, REST.eyeLy + eyes.look.y );
 		parts.eyeR.position.set( REST.eyeRx + eyes.look.x, REST.eyeRy + eyes.look.y );
@@ -609,13 +1528,18 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		parts.eyeR.scale.set( eyeX, eyeY );
 
 		// ---- shadow ----
+		// Transform + alpha only — the ellipse was drawn once at setup;
+		// rebuilding the Graphics each frame re-tessellated for nothing.
 		const airborne = clamp( groundY - world.y + hopOffset + petBob, 0, 320 );
 		const k = clamp( 1 - airborne / 360, 0.35, 1 );
-		shadow.clear();
-		shadow
-			.ellipse( 0, 0, 118 * baseScale * k, 24 * baseScale * k )
-			.fill( { color: 0x2a3550, alpha: 0.2 * k } );
+		shadow.scale.set( baseScale * k );
+		shadow.alpha = k;
 		shadow.position.set( world.x, groundY + 64 * baseScale );
+
+		// Keep any active balloon hovering above Wapuu's head.
+		if ( activeBalloon ) {
+			positionBalloon();
+		}
 	};
 	app.ticker.add( tick );
 
@@ -648,11 +1572,24 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 			clearTimeout( zHandle );
 			clearTimeout( petEndHandle );
 			clearTimeout( happyEyesHandle );
+			clearTimeout( advertHandle );
+			clearBalloon();
 			tweens.length = 0;
 			fx.removeChildren().forEach( ( c ) => c.destroy() );
+			balloonLayer.remove();
 		},
 		pet,
 		setPointer,
 		clearPointer,
+		say,
+		ask,
+		chat,
+		getClickTarget,
+		getBallMode,
+		setBallMode,
+		setBallHover,
+		jump: hop,
+		sleep,
+		wake,
 	};
 }

@@ -58,6 +58,7 @@ defined( 'ABSPATH' ) || exit;
 - [Connect to an external service via OAuth — `desktop_mode_register_oauth_relay()`](./oauth-relay.md)
 - [Share state across multi-bundle plugins — `wp.desktop.createSharedStore()`](./shared-store.md)
 - [Track who's around — `wp.desktop.presence`](./presence.md)
+- [Make Wapuu your notifier + helper — `wp.desktop.wapuu`](./wapuu.md)
 - [Surface a custom "Install as App" button](./pwa-install.md)
 - [Send a notification — `wp.desktop.notify()`](./notify.md)
 - [Show a banner at the top of a window — `desktop_mode_register_window_notice()`](./window-notice.md)

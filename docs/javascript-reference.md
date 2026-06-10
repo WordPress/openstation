@@ -1267,6 +1267,70 @@ The server-side `desktop_mode_presence_visible_users` filter gates which users s
 
 ---
 
+### `wapuu` — Experimental *(since 0.32.0)*
+
+The Wapuu pet widget's public interface — comic balloons, a one-shot question box, a persistent chat, and his tricks. Present ONLY while a Wapuu widget is mounted on the desktop (the user adds it from the widget picker): guard with `wp.desktop.wapuu?.…`. Action methods are safe no-ops when Wapuu is missing; `chat()` returns an inert session.
+
+Balloons are HTML rendered above the canvas but UNDER the window stack — they never cover a focused window — and they track Wapuu (the chat bubble's tail re-aims at his mouth every frame). One balloon lives at a time: opening a new one replaces the current (a replaced live chat fires its `onClose`).
+
+```javascript
+// --- Comic balloons --------------------------------------------------
+wp.desktop.wapuu?.say( 'Hello! 👋' );                   // rounded bubble
+wp.desktop.wapuu?.yell( 'Deploy finished! 🚀' );        // spiky burst
+wp.desktop.wapuu?.think( 'hmm…' );                      // thought cloud
+wp.desktop.wapuu?.say( '🎉', { type: 'yell', durationMs: 4000 } );
+
+// --- One-shot question ------------------------------------------------
+const reply = await wp.desktop.wapuu?.ask( 'Post title?', {
+    placeholder: 'Type a title…',
+    durationMs: 1800,        // post-submit linger before fading
+    messages: [ /* optional seed thread — OpenAI format, see below */ ],
+} );
+// reply: the submitted string, or null when cancelled (Escape) /
+// replaced by another balloon.
+
+// --- Persistent chat (back-and-forth) ---------------------------------
+const session = wp.desktop.wapuu.chat( {
+    placeholder: 'Ask Wapuu anything…',
+    messages: [ { role: 'assistant', content: 'Hi! How can I help?' } ],
+    onSend: async ( text ) => {
+        session.setTyping( true );          // three-dot indicator
+        const answer = await myBackend( text );
+        session.setTyping( false );
+        session.append( { role: 'assistant', content: answer } );
+    },
+    onClose: () => {
+        // User dismissed: Escape, a click on the desktop backdrop,
+        // the ball button, or another balloon replaced the chat.
+    },
+} );
+// session.append( msg )       — push one message into the thread
+// session.appendMany( msgs )  — push several at once
+// session.setTyping( on )     — toggle the "typing…" chip
+// session.clear()             — empty the thread, keep the chat open
+// session.close()             — fade out (fires onClose)
+
+// --- Actions -----------------------------------------------------------
+wp.desktop.wapuu?.jump();    // in-place hop: squash → arc → land-bounce
+wp.desktop.wapuu?.pet();     // happy squish + tail kick + hearts
+wp.desktop.wapuu?.sleep();   // eyes close, slow breath, zZz
+wp.desktop.wapuu?.wake();
+
+// --- The ball button (the W on his WordPress ball) ----------------------
+wp.desktop.wapuu?.getBallMode();              // 'w' | 'question'
+wp.desktop.wapuu?.setBallMode( 'question' );  // animated glyph swap
+```
+
+**Messages use the OpenAI chat format.** `messages` (seed) and `session.append()` take `{ role, content }` with `role: 'user' | 'assistant' | 'system' | 'tool'`. Assistant messages may carry `tool_calls` (`{ type: 'function', function: { name, arguments } }`); calls and `role: 'tool'` results render as compact machine chips in the thread.
+
+**Chat UX, built in:** the thread scrolls past ~5 messages (thin scrollbar + top edge fade), Enter sends, Escape closes, a click on the desktop backdrop closes (clicks on the widget itself don't), right-click on the balloon offers *Clear chat* / *Close chat*, and a sent message slides into the thread with the bubble growing around it.
+
+**The ball button:** clicking the WordPress ball on Wapuu opens the chat and swaps the W to a "?" while it's open; closing restores the W. `setBallMode` drives the same swap programmatically — e.g. flag "help available" during onboarding. Idle discovery cues (the periodic W→?→W wink and the glow-ring pulse) are built into the widget.
+
+**See also:** [`docs/examples/wapuu.md`](./examples/wapuu.md) for an end-to-end recipe.
+
+---
+
 ### `createSharedStore( key, initialState )` — Stable *(since 0.5.5)*
 
 Cross-bundle reactive state primitive. Every plugin in Desktop Mode is typically built as its own Vite IIFE bundle, and module-level state defined in one bundle is **invisible** to another bundle even when both import the same source file — each bundle ends up with its own compiled copy. `createSharedStore` solves this by attaching state to a window-level slot keyed by the string you pass; the first call with a given key creates the store, every subsequent call (in any bundle) returns the SAME store. Mutations propagate; subscribers from any bundle fire on any mutation.

@@ -490,8 +490,16 @@ async function mountWithPixi(
 		// posts-window/categories-mindmap.ts and posts-window/tags-
 		// cloud.ts — calling `app.destroy()` while another Pixi.
 		// Application is on the page (e.g. the Content Graph window)
-		// corrupts the surviving app's batcher pipe map. Detach the
-		// canvas and let the page GC reclaim once references drop.
+		// corrupts the surviving app's batcher pipe map. PARK the
+		// Application's own auto-started render loop (removing `tick`
+		// above only removed OUR callback — the renderer kept painting
+		// the detached scene every frame), then detach the canvas and
+		// let the page GC reclaim once references drop.
+		try {
+			app.ticker?.stop();
+		} catch {
+			// Best-effort.
+		}
 		try {
 			( app as unknown as { canvas?: { remove(): void } } ).canvas?.remove();
 		} catch {

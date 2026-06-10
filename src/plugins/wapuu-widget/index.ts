@@ -27,10 +27,73 @@ import { __ } from '../../i18n';
 import { buildWapuu } from './rig';
 import { startWapuuPet } from './pet';
 import type { PetController } from './pet';
+import type { BallMode, WapuuChatOptions } from './pet';
+import type {
+	BalloonType,
+	WapuuChatMessage,
+	WapuuChatSession,
+} from './balloons';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 /** Widget id — must match the PHP `desktop_mode_register_widget()` id. */
 const WIDGET_ID = 'desktop-mode/wapuu';
+
+/**
+ * The public interface other Desktop Mode components use to send Wapuu
+ * a message: `window.wp.desktop.wapuu.say( '…' )`. Published while a
+ * Wapuu widget is mounted; callers guard with `wp.desktop.wapuu?.…`.
+ */
+export interface WapuuPublicApi {
+	/** Pop a balloon. `opts.type` defaults to `'speak'`. */
+	say( text: string, opts?: { type?: BalloonType; durationMs?: number } ): void;
+	/** Shout — a spiky burst balloon. */
+	yell( text: string, opts?: { durationMs?: number } ): void;
+	/** Think — a cloud balloon. */
+	think( text: string, opts?: { durationMs?: number } ): void;
+	/**
+	 * Ask — a chat-styled balloon: a message thread + a text box.
+	 * `opts.messages` (OpenAI chat format — `role`/`content`, assistant
+	 * `tool_calls`, `role: 'tool'` results) seeds the thread; `prompt`
+	 * is appended as a final assistant message. Resolves with the typed
+	 * reply (or `null` if cancelled). Stays open until the user
+	 * submits; then lingers `opts.durationMs` (default 1800) and fades.
+	 */
+	ask(
+		prompt: string,
+		opts?: {
+			durationMs?: number;
+			placeholder?: string;
+			messages?: WapuuChatMessage[];
+		},
+	): Promise< string | null >;
+	/**
+	 * Chat — open a PERSISTENT back-and-forth chat. Returns a session
+	 * handle: read each user message via `opts.onSend`, push responses
+	 * with `session.append(...)` / `session.setTyping(...)`, and keep it
+	 * open until `session.close()`.
+	 */
+	chat( opts?: WapuuChatOptions ): WapuuChatSession;
+	/** Make Wapuu do an in-place jump (squash, arc, land-bounce). */
+	jump(): void;
+	/** Pet Wapuu — happy squish, tail kick, hearts. */
+	pet(): void;
+	/** Send Wapuu to sleep (eyes close, slow breath, zZz). */
+	sleep(): void;
+	/** Wake Wapuu up. */
+	wake(): void;
+	/** What the ball button shows: the W logo or the "?" . */
+	getBallMode(): BallMode;
+	/** Swap the ball glyph (`'w'` | `'question'`) with the pop animation. */
+	setBallMode( mode: BallMode ): void;
+}
+
+/** Balloon styles cycled on body clicks (demo only — to be removed). */
+const TEST_STEPS: BalloonType[] = [ 'speak', 'yell', 'think' ];
+/** Nice emojis cycled through on each click (the API test). */
+const TEST_EMOJIS = [
+	'👋', '🎉', '❤️', '✨', '🍕', '🚀', '⭐', '😎',
+	'🥳', '💡', '🔥', '🌈', '🍩', '👀', '🌮', '🐶',
+];
 
 declare global {
 	interface Window {
@@ -77,7 +140,7 @@ function renderFallback( container: HTMLElement, message: string ): void {
  */
 const mount = async (
 	container: HTMLElement,
-	_ctx: WidgetContext,
+	ctx: WidgetContext,
 ): Promise< WidgetTeardown > => {
 	try {
 		await loadPixi();
@@ -85,15 +148,16 @@ const mount = async (
 		renderFallback( container, ( e as Error ).message );
 		return () => undefined;
 	}
-	return mountWithPixi( container );
+	return mountWithPixi( container, ctx );
 };
 
 async function mountWithPixi(
 	container: HTMLElement,
+	ctx: WidgetContext,
 ): Promise< WidgetTeardown > {
 	const pixi = window.PIXI;
 	if ( ! pixi ) {
-		renderFallback( container, 'PIXI not available.' );
+		renderFallback( container, __( 'Wapuu could not wake up.' ) );
 		return () => undefined;
 	}
 
@@ -144,6 +208,62 @@ async function mountWithPixi(
 		};
 	}
 
+	// Public interface: any Desktop Mode component can send Wapuu a
+	// message via `wp.desktop.wapuu`. Published while this widget is
+	// mounted (callers guard with `?.`), removed on unmount.
+	const api: WapuuPublicApi = {
+		say: ( text, opts ) =>
+			controller?.say( text, opts?.type ?? 'speak', opts?.durationMs ),
+		yell: ( text, opts ) => controller?.say( text, 'yell', opts?.durationMs ),
+		think: ( text, opts ) => controller?.say( text, 'think', opts?.durationMs ),
+		ask: ( prompt, opts ) =>
+			controller?.ask( prompt, opts ) ?? Promise.resolve( null ),
+		chat: ( opts ) => {
+			if ( controller ) {
+				return controller.chat( opts );
+			}
+			// No live Wapuu — a no-op session so callers don't crash.
+			const noop: WapuuChatSession = {
+				append: () => undefined,
+				appendMany: () => undefined,
+				setTyping: () => undefined,
+				clear: () => undefined,
+				close: () => undefined,
+			};
+			return noop;
+		},
+		jump: () => controller?.jump(),
+		pet: () => controller?.pet(),
+		sleep: () => controller?.sleep(),
+		wake: () => controller?.wake(),
+		getBallMode: () => controller?.getBallMode() ?? 'w',
+		setBallMode: ( mode ) => controller?.setBallMode( mode ),
+	};
+	// Publish through the framework's registerNamespace when available
+	// (reserved-name guard + the documented mechanism), falling back to
+	// a plain write. Capture whatever was there before: teardown RESTORES
+	// it instead of blind-deleting, so a stale slow mount that resolves
+	// after a newer one can't strip the live widget's API (the
+	// remove-while-loading → re-add race).
+	const wpDesktop = (
+		window as unknown as {
+			wp?: {
+				desktop?: Record< string, unknown > & {
+					registerNamespace?: ( name: string, value: unknown ) => void;
+				};
+			};
+		}
+	).wp?.desktop;
+	const prevWapuu = wpDesktop ? wpDesktop.wapuu : undefined;
+	if ( wpDesktop ) {
+		if ( typeof wpDesktop.registerNamespace === 'function' ) {
+			wpDesktop.registerNamespace( 'wapuu', api );
+		} else {
+			wpDesktop.wapuu = api;
+		}
+	}
+	let testStep = 0;
+
 	// Pointer wiring. The framework already attaches the whole-widget
 	// drag to the chrome; for Wapuu the stylesheet stretches that chrome
 	// over the ENTIRE card (a transparent overlay above the canvas), so
@@ -152,14 +272,29 @@ async function mountWithPixi(
 	// a pet — so the two never fight.
 	const chrome =
 		card?.querySelector< HTMLElement >( '.desktop-mode-widgets__chrome' ) ?? null;
-	const TAP_SLOP = 5;
+	// Tap-vs-drag uses MAX displacement during the press (tracked on
+	// pointermove), matching frame.ts's drag-commit threshold — a drag
+	// that loops back near its origin must NOT also count as a tap.
+	// frame.ts commits a drag at squared distance >= 25.
+	const TAP_SLOP_SQ = 25;
+	let pressing = false;
 	let downX = 0;
 	let downY = 0;
+	let pressMaxSq = 0;
 	const onChromeDown = ( e: PointerEvent ): void => {
+		if ( e.button !== 0 ) {
+			return; // primary button only — right/middle are not taps
+		}
+		pressing = true;
 		downX = e.clientX;
 		downY = e.clientY;
+		pressMaxSq = 0;
 	};
 	const onChromeUp = ( e: PointerEvent ): void => {
+		if ( e.button !== 0 || ! pressing ) {
+			return;
+		}
+		pressing = false;
 		const target = e.target as HTMLElement | null;
 		// Buttons (close / re-dock) are their own controls — never a pet.
 		if (
@@ -169,15 +304,98 @@ async function mountWithPixi(
 		) {
 			return;
 		}
-		const moved =
-			Math.hypot( e.clientX - downX, e.clientY - downY ) > TAP_SLOP;
-		if ( ! moved ) {
-			controller?.pet();
+		const dx = e.clientX - downX;
+		const dy = e.clientY - downY;
+		pressMaxSq = Math.max( pressMaxSq, dx * dx + dy * dy );
+		if ( pressMaxSq >= TAP_SLOP_SQ || ! controller ) {
+			return; // it was (also) a drag — never a tap
+		}
+		const hit = controller.getClickTarget( e.clientX, e.clientY );
+		if ( hit === 'ball' ) {
+			// The WordPress ball is the HELP BUTTON — the core entry.
+			// One tap: the W flips to "?" and the chat opens; tapping the
+			// "?" (or Escape / backdrop) closes it and restores the W.
+			handleBallTap();
+		} else if ( hit === 'body' ) {
+			// Body tap: pet. The balloon-style demo cycle is SKIPPED
+			// while a chat is open — say() replaces the active balloon,
+			// which would silently destroy the conversation.
+			controller.pet();
+			if ( ! ballChat ) {
+				const step = TEST_STEPS[ testStep % TEST_STEPS.length ];
+				const emoji = TEST_EMOJIS[ testStep % TEST_EMOJIS.length ];
+				testStep += 1;
+				api.say( emoji, { type: step } );
+			}
+		}
+	};
+
+	// Live chat opened from the ball — one at a time. ONE click does it
+	// all: the W flips to "?" (the "help is active" state) AND the chat
+	// opens immediately — no second tap needed. Tapping the "?" (or
+	// Escape) closes the chat and restores the W.
+	let ballChat: WapuuChatSession | null = null;
+	const handleBallTap = (): void => {
+		if ( ! controller ) {
+			return;
+		}
+		if ( ballChat ) {
+			ballChat.close(); // onClose restores the W
+			return;
+		}
+		controller.setBallMode( 'question' );
+		const session = api.chat( {
+			placeholder: __( 'Ask Wapuu anything…' ),
+			messages: [
+				{ role: 'assistant', content: __( 'Hi! 👋 How can I help?' ) },
+			],
+			onSend: ( text ) => {
+				// Demo responder — echoes after a "typing…" beat. The real
+				// integration will route this to the AI copilot.
+				session.setTyping( true );
+				window.setTimeout( () => {
+					session.setTyping( false );
+					session.append( {
+						role: 'assistant',
+						content: `You said: "${ text }" 🐶`,
+					} );
+				}, 900 );
+			},
+			onClose: () => {
+				ballChat = null;
+				controller?.setBallMode( 'w' );
+			},
+		} );
+		ballChat = session;
+	};
+	// Hover cue: over the ball the cursor flips to a pointer and the
+	// W/? scales up slightly — the ball reads as a clickable button.
+	// While pressed, this same stream tracks the press's MAX displacement
+	// for the tap-vs-drag decision in onChromeUp.
+	const onChromeHover = ( e: PointerEvent ): void => {
+		if ( pressing ) {
+			const dx = e.clientX - downX;
+			const dy = e.clientY - downY;
+			pressMaxSq = Math.max( pressMaxSq, dx * dx + dy * dy );
+		}
+		const overBall =
+			controller?.getClickTarget( e.clientX, e.clientY ) === 'ball';
+		controller?.setBallHover( overBall );
+		if ( chrome ) {
+			chrome.style.cursor = overBall ? 'pointer' : '';
+		}
+	};
+	const onChromeLeave = (): void => {
+		controller?.setBallHover( false );
+		if ( chrome ) {
+			chrome.style.cursor = '';
 		}
 	};
 	if ( chrome ) {
 		chrome.addEventListener( 'pointerdown', onChromeDown );
 		chrome.addEventListener( 'pointerup', onChromeUp );
+		chrome.addEventListener( 'pointermove', onChromeHover );
+		chrome.addEventListener( 'pointerleave', onChromeLeave );
 	}
 
 	// Eye-look tracks the cursor ANYWHERE on screen (like the original
@@ -189,11 +407,36 @@ async function mountWithPixi(
 		controller?.setPointer( e.clientX, e.clientY );
 	document.addEventListener( 'pointermove', onDocPointerMove, { passive: true } );
 
+	// First-run hint: once per user (persisted via the widget storage),
+	// Wapuu pops a little speak balloon pointing out the ball button.
+	let hintHandle: number | undefined;
+	if ( ! ctx.storage.get< boolean >( 'ballHintShown' ) ) {
+		ctx.storage.set( 'ballHintShown', true );
+		hintHandle = window.setTimeout( () => {
+			api.say( __( 'Click my ball to chat! 💬' ), { durationMs: 4500 } );
+		}, 1400 );
+	}
+
 	return () => {
+		window.clearTimeout( hintHandle );
 		document.removeEventListener( 'pointermove', onDocPointerMove );
 		if ( chrome ) {
 			chrome.removeEventListener( 'pointerdown', onChromeDown );
 			chrome.removeEventListener( 'pointerup', onChromeUp );
+			chrome.removeEventListener( 'pointermove', onChromeHover );
+			chrome.removeEventListener( 'pointerleave', onChromeLeave );
+			chrome.style.cursor = '';
+		}
+		// Withdraw the public interface — only if it's still ours, and by
+		// RESTORING the previous value: if a newer mount published its API
+		// while this (stale) one was still loading, the newer API is the
+		// previous value and survives this teardown.
+		if ( wpDesktop && wpDesktop.wapuu === api ) {
+			if ( prevWapuu !== undefined ) {
+				wpDesktop.wapuu = prevWapuu;
+			} else {
+				delete wpDesktop.wapuu;
+			}
 		}
 		controller?.destroy();
 		stopAndDetach( app );

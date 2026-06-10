@@ -128,3 +128,373 @@
 	text-align: center;
 	padding: 12px;
 }
+
+/* ============================ Balloons ============================ */
+/* Comic balloons are an HTML overlay above the canvas. The layer sits
+ * above the canvas but stays click-through, so dragging Wapuu still
+ * works. Fading happens on the single `.wapuu-balloon` element's
+ * opacity, so the whole balloon (shape + tail/dots + text) composites
+ * as one group — no per-layer alpha-summing. */
+.wapuu-balloon-layer {
+	/* Mounted INSIDE #desktop-mode-area (like the snap-preview) so its
+	 * z-index interleaves with the window stack: 99 sits just UNDER the
+	 * windows (which start at z 100) but above the wallpaper/widget
+	 * layer — a balloon never covers a focused window. The fixed layer
+	 * spans the viewport; balloons are absolute children positioned in
+	 * layer-local coords (the engine subtracts the layer's offset). */
+	position: fixed;
+	inset: 0;
+	z-index: 99;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.wapuu-balloon {
+	/* Size + transform-origin (the tail tip) + left/top/scale are all set
+	 * by the engine; it pins the tail tip to Wapuu's head so the body
+	 * floats up and to the side. Absolute within the layer. */
+	position: absolute;
+	will-change: transform, opacity;
+	font-family: "Baloo 2", "Nunito", system-ui, sans-serif;
+	/* Layered shadow: a tight contact shadow + a wide soft ambient one —
+	 * reads "floating paper", not "hard sticker". */
+	filter:
+		drop-shadow( 0 2px 2px rgba( 20, 24, 38, 0.14 ) )
+		drop-shadow( 0 12px 22px rgba( 20, 24, 38, 0.2 ) );
+}
+
+/* The CHAT balloon is a real interactive surface: pointer events on the
+ * whole element, so a click on the bubble's body/tail counts as INSIDE
+ * (the backdrop-close only fires for genuine outside clicks) and the
+ * right-click menu works anywhere on the balloon. Transient `say`
+ * balloons stay click-through. */
+.wapuu-balloon--ask {
+	pointer-events: auto;
+}
+
+/* Overview mode hides the widget column (and Wapuu) — hide his balloons
+ * with it, or an orphaned (and interactive!) chat floats over the
+ * overview UI. visibility also disables the children's pointer-events. */
+.desktop-mode-area--overview .wapuu-balloon-layer {
+	visibility: hidden;
+}
+
+/* The comic shape — an inline SVG sized to the content (see balloons.ts).
+ * It sits behind the message and may overshoot the box (burst spikes,
+ * cloud scallops), so overflow stays visible. */
+.wapuu-balloon__shape {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+}
+.wapuu-balloon__shape svg {
+	display: block;
+	overflow: visible;
+	/* Stretch with the element box (paths use preserveAspectRatio:none)
+	 * so transitioning the element's width/height animates the bubble. */
+	width: 100%;
+	height: 100%;
+}
+
+/* NOTE: the chat balloon re-fits its box INSTANTLY on send (the engine
+ * sets width/height to the new size) — exact, no trajectory to miss. A
+ * CSS width/height transition here detaches the tail mid-resize and
+ * flickers, so don't add one. The "sent" motion is the chip's own quick
+ * rise-and-fade below. */
+
+/* A just-sent message rises into its slot and fades in — fast, in
+ * place, always exact (no cross-element flight). */
+@keyframes wapuu-chat-enter {
+	from {
+		opacity: 0;
+		transform: translateY( 12px ) scale( 0.97 );
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.wapuu-chat__msg--enter {
+	animation: wapuu-chat-enter 0.16s cubic-bezier( 0.2, 0.8, 0.3, 1 ) both;
+}
+
+/* The message. Measured in normal flow first (so the SVG can be sized to
+ * it), then positioned over the shape by fitBalloon. Transparent — the
+ * SVG draws the bubble. */
+.wapuu-balloon__content {
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	/* Minimum balloon size — big enough to hold a text box later, and the
+	 * reason balloons must draw outside the small card. */
+	min-width: 280px;
+	min-height: 140px;
+	max-width: 380px;
+	text-align: center;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.25;
+	color: #2b2b33;
+	white-space: pre-wrap;
+}
+
+/* Short messages — an emoji, "!?", one word — render big and proud
+ * instead of floating tiny in the white box. */
+.wapuu-balloon__content--big {
+	font-size: 62px;
+	line-height: 1.1;
+}
+
+/* ---- ask: a mini chat — thread in the bubble, input bar below it ---- */
+.wapuu-balloon--ask .wapuu-balloon__content {
+	flex-direction: column;
+	padding: 2px 4px;
+	white-space: normal;
+	min-height: 0; /* the thread sets the height, not the 140px floor */
+}
+/* The message thread — scrolls past ~5 messages so the bubble doesn't
+ * grow unbounded. Pointer events back on for that scroll, and a thin
+ * always-styled scrollbar so the pane reads as scrollable. */
+.wapuu-chat__thread {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	width: 100%;
+	max-height: 320px;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	pointer-events: auto;
+	/* Reserve the scrollbar gutter so chips never sit under it, plus a
+	 * little extra right padding so the right-aligned (user) chip keeps
+	 * a clear gap from the bar. */
+	scrollbar-gutter: stable;
+	padding: 2px 10px 2px 2px;
+	scrollbar-width: thin;
+	scrollbar-color: rgba( 43, 43, 51, 0.3 ) transparent;
+}
+.wapuu-chat__thread::-webkit-scrollbar {
+	width: 6px;
+}
+.wapuu-chat__thread::-webkit-scrollbar-thumb {
+	background: rgba( 43, 43, 51, 0.3 );
+	border-radius: 3px;
+}
+.wapuu-chat__thread:empty {
+	display: none;
+}
+/* When the thread actually overflows, fade its top edge — the universal
+ * "there's more above" affordance (class toggled by refreshChatThread). */
+.wapuu-chat__thread--scrollable {
+	mask-image: linear-gradient(
+		to bottom,
+		transparent 0,
+		#000 22px,
+		#000 100%
+	);
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		transparent 0,
+		#000 22px,
+		#000 100%
+	);
+}
+/* The input bar — a floating pill BELOW the bubble (outside the SVG
+ * shape), matching the bubble's ink so it reads as part of the balloon.
+ * Width tracks the bubble body via --wapuu-bubble-w (set by fitBalloon). */
+.wapuu-chat__row {
+	position: absolute;
+	top: calc( 100% + 12px );
+	left: 0;
+	width: var( --wapuu-bubble-w, 100% );
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 5px 5px 8px;
+	background: #fff;
+	border: 2.5px solid #2b2b33;
+	border-radius: 999px;
+	pointer-events: auto;
+}
+/* Inside the bar the input goes naked — the bar IS the field. */
+.wapuu-chat__row .wapuu-balloon__input {
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	padding: 7px 10px;
+}
+.wapuu-chat__row .wapuu-balloon__input:focus {
+	border: none;
+	background: transparent;
+	box-shadow: none;
+}
+/* Chat chips — assistant left, user right, the classic layout, with a
+ * squared-off corner pointing at the sender. */
+.wapuu-chat__msg {
+	max-width: 86%;
+	padding: 8px 13px;
+	border-radius: 15px;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.35;
+	text-align: start;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+.wapuu-chat__msg--assistant {
+	align-self: flex-start;
+	background: rgba( 30, 36, 58, 0.07 );
+	border-end-start-radius: 4px;
+}
+.wapuu-chat__msg--user {
+	align-self: flex-end;
+	background: #0a83b0;
+	color: #fff;
+	border-end-end-radius: 4px;
+}
+.wapuu-chat__msg--system {
+	align-self: center;
+	max-width: 100%;
+	padding: 0 6px;
+	background: transparent;
+	color: rgba( 43, 43, 51, 0.5 );
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+}
+/* Tool activity — calls and results — read as machine chips: dashed
+ * accent outline, compact monospace. */
+.wapuu-chat__msg--tool-call,
+.wapuu-chat__msg--tool {
+	align-self: flex-start;
+	max-width: 100%;
+	padding: 6px 11px;
+	background: rgba( 10, 131, 176, 0.07 );
+	border: 1.5px dashed rgba( 10, 131, 176, 0.45 );
+	border-radius: 10px;
+	color: #0a6c92;
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1.4;
+}
+.wapuu-chat__tool-name {
+	font-weight: 800;
+}
+/* "typing…" — three bouncing dots in an assistant chip. */
+.wapuu-chat__typing {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 11px 14px;
+}
+.wapuu-chat__typing span {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: rgba( 43, 43, 51, 0.45 );
+	animation: wapuu-typing 1s infinite ease-in-out;
+}
+.wapuu-chat__typing span:nth-child( 2 ) {
+	animation-delay: 0.15s;
+}
+.wapuu-chat__typing span:nth-child( 3 ) {
+	animation-delay: 0.3s;
+}
+@keyframes wapuu-typing {
+	0%,
+	60%,
+	100% {
+		transform: translateY( 0 );
+		opacity: 0.45;
+	}
+	30% {
+		transform: translateY( -4px );
+		opacity: 0.9;
+	}
+}
+/* A soft inset pill that reads as part of the bubble's paper — light
+ * grey well, no harsh border, a friendly focus ring. Only the field +
+ * send button opt back into pointer events (the rest of the balloon
+ * layer stays click-through). */
+.wapuu-balloon__input {
+	flex: 1 1 auto;
+	min-width: 0;
+	pointer-events: auto;
+	border: 2px solid transparent;
+	border-radius: 999px;
+	background: rgba( 30, 36, 58, 0.07 );
+	box-shadow: inset 0 1px 2px rgba( 30, 36, 58, 0.1 );
+	font-family: inherit;
+	font-size: 17px;
+	font-weight: 600;
+	color: #2b2b33;
+	text-align: start;
+	outline: none;
+	padding: 9px 16px;
+	transition:
+		background-color 0.15s ease,
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+.wapuu-balloon__input::placeholder {
+	color: rgba( 43, 43, 51, 0.42 );
+	font-weight: 600;
+}
+.wapuu-balloon__input:focus {
+	background: #fff;
+	border-color: #0a83b0;
+	box-shadow:
+		inset 0 1px 2px rgba( 30, 36, 58, 0.06 ),
+		0 0 0 3px rgba( 10, 131, 176, 0.18 );
+}
+.wapuu-balloon__input:disabled {
+	color: rgba( 43, 43, 51, 0.6 );
+	background: rgba( 30, 36, 58, 0.04 );
+	box-shadow: none;
+}
+.wapuu-balloon__send {
+	flex: 0 0 auto;
+	pointer-events: auto;
+	width: 40px;
+	height: 40px;
+	border: none;
+	border-radius: 50%;
+	background: #0a83b0;
+	color: #fff;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 2px 6px rgba( 10, 131, 176, 0.4 );
+	transition:
+		background-color 0.15s ease,
+		transform 0.1s ease,
+		box-shadow 0.15s ease;
+}
+.wapuu-balloon__send svg {
+	display: block;
+	margin-inline-start: -2px; /* optically centre the tilted plane */
+}
+.wapuu-balloon__send:hover {
+	background: #096f95;
+	transform: translateY( -1px );
+	box-shadow: 0 4px 10px rgba( 10, 131, 176, 0.45 );
+}
+.wapuu-balloon__send:active {
+	transform: scale( 0.92 );
+}
+/* Sent — the button turns green with a check; the plane margin tweak
+ * no longer applies. */
+.wapuu-balloon--sent .wapuu-balloon__send {
+	background: #2fa86b;
+	box-shadow: 0 2px 6px rgba( 47, 168, 107, 0.4 );
+	cursor: default;
+	transform: none;
+}
+.wapuu-balloon--sent .wapuu-balloon__send svg {
+	margin-inline-start: 0;
+}

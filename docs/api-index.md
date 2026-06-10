@@ -77,6 +77,23 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable *(0.5.5)* |
 | `presence` | `PresenceApi` | Stable *(0.5.5)* |
 
+### Wapuu pet — present only while the Wapuu widget is mounted
+
+| Member | Signature | Status |
+|---|---|---|
+| `wapuu.say` | `( text: string, opts?: { type?: 'speak' \| 'yell' \| 'think'; durationMs?: number } ) => void` | Experimental *(0.32.0)* |
+| `wapuu.yell` | `( text: string, opts?: { durationMs?: number } ) => void` | Experimental *(0.32.0)* |
+| `wapuu.think` | `( text: string, opts?: { durationMs?: number } ) => void` | Experimental *(0.32.0)* |
+| `wapuu.ask` | `( prompt: string, opts?: { durationMs?; placeholder?; messages? } ) => Promise<string \| null>` | Experimental *(0.32.0)* |
+| `wapuu.chat` | `( opts?: { messages?; placeholder?; onSend?; onClose? } ) => WapuuChatSession` | Experimental *(0.32.0)* |
+| `WapuuChatSession` | `append( msg )` / `appendMany( msgs )` / `setTyping( on )` / `clear()` / `close()` | Experimental *(0.32.0)* |
+| `wapuu.jump` | `() => void` | Experimental *(0.32.0)* |
+| `wapuu.pet` | `() => void` | Experimental *(0.32.0)* |
+| `wapuu.sleep` | `() => void` | Experimental *(0.32.0)* |
+| `wapuu.wake` | `() => void` | Experimental *(0.32.0)* |
+| `wapuu.getBallMode` | `() => 'w' \| 'question'` | Experimental *(0.32.0)* |
+| `wapuu.setBallMode` | `( mode: 'w' \| 'question' ) => void` | Experimental *(0.32.0)* |
+
 ### Commands, palettes, AI, settings
 
 | Member | Signature | Status |
