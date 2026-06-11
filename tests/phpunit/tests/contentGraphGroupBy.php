@@ -233,6 +233,36 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_galaxy_payload_fields_populated() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_author'  => self::$author_a_id,
+				'post_status'  => 'publish',
+				'post_type'    => 'post',
+				'post_content' => 'one two three four five six seven eight nine ten',
+				'post_date'    => '2024-03-15 10:00:00',
+			)
+		);
+		// Add a comment so comment_count is exercised. Approved so
+		// `wp_update_comment_count_now` increments the post column.
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $post_id,
+				'comment_approved' => '1',
+			)
+		);
+
+		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$node    = $this->find_node( $payload, $post_id );
+
+		$this->assertArrayHasKey( 'comment_count', $node );
+		$this->assertSame( 1, (int) $node['comment_count'] );
+		$this->assertArrayHasKey( 'word_count', $node );
+		$this->assertGreaterThanOrEqual( 10, (int) $node['word_count'] );
+		$this->assertArrayHasKey( 'modified_ts', $node );
+		$this->assertGreaterThan( 0, (int) $node['modified_ts'] );
+	}
+
 	/**
 	 * @param array $payload
 	 * @param int   $post_id

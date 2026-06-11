@@ -30,7 +30,7 @@ defined( 'ABSPATH' ) || exit;
 // previous schema (e.g. missing per-node `contributor_ids`) and
 // surface as runtime errors on the client. Each bump is a one-time
 // cache miss for every site that updates the plugin.
-const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX = 'desktop_mode_cg2_';
+const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX = 'desktop_mode_cg3_';
 const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
 
 /**
@@ -47,7 +47,8 @@ const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
  *         slug: string, edit_url: string,
  *         author_id: int, contributor_ids: int[],
  *         year: int, year_month: string,
- *         category_ids: int[], tag_ids: int[]
+ *         category_ids: int[], tag_ids: int[],
+ *         comment_count: int, word_count: int, modified_ts: int
  *     }>,
  *     edges: array<int, array{ from: int, to: int }>,
  *     groups: array{
@@ -138,6 +139,20 @@ function desktop_mode_content_graph_build( array $types ) {
 			);
 		}
 
+		// Word count for the Galaxy view's brightness encoding. Strip
+		// shortcodes + tags first so a 200-word post drowning in HTML
+		// markup doesn't read as a 2000-word post. `str_word_count` is
+		// locale-aware enough for our needs (we only use it as a relative
+		// brightness signal, not for editorial display).
+		$plain      = wp_strip_all_tags( strip_shortcodes( (string) $row->post_content ), true );
+		$word_count = $plain === '' ? 0 : (int) str_word_count( $plain );
+		// Modified-time as unix ts (GMT). The Galaxy view's "Recent" tab
+		// filters on `now - 30 days`; comparing seconds is faster + safer
+		// across the wire than parsing a date string client-side.
+		$modified_ts = isset( $row->post_modified_gmt ) && '' !== $row->post_modified_gmt
+			? (int) mysql2date( 'U', (string) $row->post_modified_gmt . ' UTC', false )
+			: 0;
+
 		$node = array(
 			'id'              => $id,
 			'type'            => (string) $row->post_type,
@@ -151,6 +166,9 @@ function desktop_mode_content_graph_build( array $types ) {
 			'year_month'      => $year_month,
 			'category_ids'    => $post_cats,
 			'tag_ids'         => $post_tags,
+			'comment_count'   => (int) ( isset( $row->comment_count ) ? $row->comment_count : 0 ),
+			'word_count'      => $word_count,
+			'modified_ts'     => $modified_ts,
 		);
 		$nodes[]            = $node;
 		$nodes_by_id[ $id ] = true;
@@ -259,22 +277,39 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
  */
 function desktop_mode_content_graph_cache_key( array $types ) {
 	global $wpdb;
-	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	$placeholders    = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	// Hash MUST match the set of rows fetched in
+	// `desktop_mode_content_graph_fetch_rows()` — including this user's
+	// own drafts when logged in, so cache invalidates on draft edits too.
+	$current_user_id = (int) get_current_user_id();
+	$status_sql      = "post_status IN ( 'publish', 'private' )";
+	$draft_args      = array();
+	if ( $current_user_id > 0 ) {
+		$status_sql   = '( post_status IN ( \'publish\', \'private\' ) OR ( post_status = \'draft\' AND post_author = %d ) )';
+		$draft_args[] = $current_user_id;
+	}
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$hash = (string) $wpdb->get_var(
 		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is a static literal selected above.
 			"SELECT MD5( GROUP_CONCAT( CONCAT( ID, ':', post_modified_gmt ) ORDER BY ID ) )
 			 FROM {$wpdb->posts}
-			 WHERE post_status IN ( 'publish', 'private' )
+			 WHERE {$status_sql}
 			 AND post_type IN ( {$placeholders} )",
-			$types
+			array_merge( $draft_args, $types )
 		)
 	);
 	// phpcs:enable
 	if ( '' === $hash || null === $hash ) {
 		$hash = 'empty';
 	}
-	return DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX . substr( md5( implode( ',', $types ) . '|' . $hash ), 0, 24 );
+	// Bucket the cache key by user so two editors see independently-built
+	// payloads (their own drafts won't bleed into each other's view).
+	return DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX . substr(
+		md5( implode( ',', $types ) . '|u' . $current_user_id . '|' . $hash ),
+		0,
+		24
+	);
 }
 
 /**
@@ -291,14 +326,25 @@ function desktop_mode_content_graph_fetch_rows( array $types ) {
 	global $wpdb;
 	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	// Include the current user's own drafts so the Galaxy view's
+	// "Drafts" tab has something to surface without exposing other
+	// users' unpublished work. Other-user drafts stay invisible.
+	$current_user_id = (int) get_current_user_id();
+	$status_sql      = "post_status IN ( 'publish', 'private' )";
+	$draft_args      = array();
+	if ( $current_user_id > 0 ) {
+		$status_sql   = '( post_status IN ( \'publish\', \'private\' ) OR ( post_status = \'draft\' AND post_author = %d ) )';
+		$draft_args[] = $current_user_id;
+	}
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is a static literal selected above.
+			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date, post_modified_gmt, comment_count
 			 FROM {$wpdb->posts}
-			 WHERE post_status IN ( 'publish', 'private' )
+			 WHERE {$status_sql}
 			 AND post_type IN ( {$placeholders} )
 			 ORDER BY post_date DESC",
-			$types
+			array_merge( $draft_args, $types )
 		)
 	);
 	// phpcs:enable
