@@ -3,6 +3,7 @@
 /desktop-mode.zip
 /dist/
 /tests/phpunit/.phpunit.result.cache
+/.scratch/
 
 # Vite build output under assets/js/ — regenerate locally with `npm run
 # build`. Adding a new bundle in vite.config.js does not require updating

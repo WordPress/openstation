@@ -632,6 +632,27 @@ function desktop_mode_render_welcome_dialog() {
 		document.removeEventListener( 'keydown', onKey );
 	}
 
+	// Rebuilds an absolute URL onto the origin the admin page was actually
+	// loaded from. `rest_url()` / `admin_url()` are pinned to `site_url()`,
+	// but the admin may be viewed through a different origin — a reverse
+	// proxy, a Flexible-SSL edge, a mapped multisite domain, or simply an
+	// HTTPS dev proxy in front of an HTTP site. POSTing the *absolute*
+	// site_url URL from such a page is cross-origin (and mixed-content when
+	// the page is HTTPS and site_url is HTTP); the browser blocks it, the
+	// dismissal never reaches the server, and the dialog re-renders on every
+	// page load. Reissuing the request to `window.location.origin` keeps it
+	// same-origin — where the logged-in cookie (domain-scoped, not
+	// port-scoped) and the `wp_rest` nonce (session-bound, origin-agnostic)
+	// are both valid.
+	function sameOrigin( url ) {
+		try {
+			var parsed = new URL( url, window.location.href );
+			return window.location.origin + parsed.pathname + parsed.search;
+		} catch ( e ) {
+			return url;
+		}
+	}
+
 	function persist() {
 		// Fire-and-forget. The seen-intros endpoint always returns the
 		// post-mutation list, but we don't need it here; if the request
@@ -639,24 +660,40 @@ function desktop_mode_render_welcome_dialog() {
 		// again next page load — exactly the behavior a user would
 		// expect from a "save my dismissal" call that didn't reach the
 		// server.
-		//
-		// `keepalive: true` keeps the POST alive across the navigation
-		// that "Enable it now" triggers — otherwise the redirect into the
-		// shell can abort the in-flight request and the dismissal is lost.
-		// (The `desktop_mode_is_enabled()` gate already stops the dialog
-		// re-rendering in the shell, but this keeps the seen-state correct
-		// for the classic admin too, e.g. if the user switches back.)
+		var url     = sameOrigin( cfg.url );
+		var payload = JSON.stringify( { slug: cfg.slug } );
+
+		// Prefer `navigator.sendBeacon`: it is queued by the browser and
+		// survives the navigation that "Enable it now" triggers without the
+		// keepalive caveats, and it is inherently same-origin-credentialed.
+		// The `wp_rest` nonce rides along as `_wpnonce` (REST cookie auth
+		// reads it from `$_REQUEST`), and the Blob's `application/json` type
+		// lets the REST server parse the `slug` body param.
+		try {
+			if ( navigator.sendBeacon ) {
+				var beaconUrl = url +
+					( url.indexOf( '?' ) === -1 ? '?' : '&' ) +
+					'_wpnonce=' + encodeURIComponent( cfg.nonce );
+				var blob = new Blob( [ payload ], { type: 'application/json' } );
+				if ( navigator.sendBeacon( beaconUrl, blob ) ) {
+					return;
+				}
+			}
+		} catch ( e ) {}
+
+		// Fallback: `keepalive: true` keeps the POST alive across the
+		// "Enable it now" redirect on browsers without sendBeacon.
 		try {
 			var headers = { 'Content-Type': 'application/json' };
 			if ( cfg.nonce ) {
 				headers[ 'X-WP-Nonce' ] = cfg.nonce;
 			}
-			fetch( cfg.url, {
+			fetch( url, {
 				method: 'POST',
 				credentials: 'same-origin',
 				keepalive: true,
 				headers: headers,
-				body: JSON.stringify( { slug: cfg.slug } ),
+				body: payload,
 			} ).catch( function () {} );
 		} catch ( e ) {}
 	}
@@ -688,7 +725,7 @@ function desktop_mode_render_welcome_dialog() {
 		form.append( 'nonce', cfg.ajaxNonce );
 		form.append( 'enabled', '1' );
 
-		fetch( cfg.ajaxUrl, {
+		fetch( sameOrigin( cfg.ajaxUrl ), {
 			method: 'POST',
 			credentials: 'same-origin',
 			body: form,

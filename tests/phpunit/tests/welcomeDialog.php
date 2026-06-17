@@ -83,4 +83,35 @@ class Tests_DesktopMode_WelcomeDialog extends WP_UnitTestCase {
 
 		$this->assertFalse( desktop_mode_should_show_welcome_dialog() );
 	}
+
+	/**
+	 * Regression: the dismissal must be sent to the origin the admin page was
+	 * actually loaded from, not the absolute `site_url()` origin. When the
+	 * admin is viewed through a different origin (reverse proxy, Flexible-SSL
+	 * edge, mapped multisite domain, or an HTTPS dev proxy in front of an HTTP
+	 * site), POSTing the absolute URL is cross-origin / mixed-content, the
+	 * browser blocks it, the slug is never recorded, and the dialog re-renders
+	 * on every classic-admin page load. Guard the same-origin reconstruction
+	 * (and the `sendBeacon` delivery that survives the "Enable it now"
+	 * navigation) so neither can silently regress.
+	 *
+	 * @covers ::desktop_mode_render_welcome_dialog
+	 */
+	public function test_dismissal_is_sent_same_origin() {
+		ob_start();
+		desktop_mode_render_welcome_dialog();
+		$markup = ob_get_clean();
+
+		$this->assertNotEmpty( $markup, 'The dialog should render for a fresh classic-admin user.' );
+		$this->assertStringContainsString(
+			'window.location.origin',
+			$markup,
+			'The dismissal request must be reissued onto the current browsing origin.'
+		);
+		$this->assertStringContainsString(
+			'sendBeacon',
+			$markup,
+			'The dismissal should use sendBeacon so it survives the "Enable it now" navigation.'
+		);
+	}
 }
