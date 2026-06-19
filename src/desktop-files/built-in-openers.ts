@@ -536,4 +536,53 @@ export function registerBuiltInFileOpeners(): void {
 			},
 		},
 	} );
+
+	// Agent placements — opening one routes into the agent's
+	// dossier in My WordPress (auto-opens the window if it's
+	// closed). The desktop-mode-my-wordpress native window listens
+	// for the `desktop-mode.open-agent` action and navigates.
+	registerOpener( {
+		id: 'desktop-mode-agent-opener',
+		label: 'Open agent dossier',
+		types: [ 'agent' ],
+		isDefault: true,
+		sort: 10,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile ) => {
+				const ref = file.ref();
+				const agentId = ref ? Number.parseInt( ref, 10 ) : 0;
+				if ( ! Number.isFinite( agentId ) || agentId <= 0 ) {
+					return;
+				}
+				// Open the My WordPress window if it isn't, then ask
+				// it to navigate into the agent via a doAction the
+				// bundle listens for.
+				const open = (
+					window as unknown as {
+						wp?: { desktop?: { openWindow?: ( id: string ) => unknown } };
+					}
+				).wp?.desktop?.openWindow;
+				if ( typeof open === 'function' ) {
+					void open( 'desktop-mode-my-wordpress' );
+				}
+				// The bundle's `desktop-mode.agents.navigate-into`
+				// listener (in `src/my-wordpress/index.ts`) handles
+				// the route switch — fires on every dispatch, so
+				// works whether the window opens fresh or was
+				// already mounted.
+				const hooks = (
+					window as unknown as {
+						wp?: { hooks?: { doAction?: ( name: string, payload: unknown ) => void } };
+					}
+				).wp?.hooks;
+				if ( hooks?.doAction ) {
+					hooks.doAction( 'desktop-mode.agents.navigate-into', {
+						agentId,
+						title: file.title(),
+					} );
+				}
+			},
+		},
+	} );
 }

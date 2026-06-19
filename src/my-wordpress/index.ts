@@ -16,7 +16,7 @@
  */
 
 import { __, _n, sprintf } from '../i18n';
-import { applyFilters, doAction } from '../hooks';
+import { addAction, applyFilters, doAction } from '../hooks';
 import {
 	attachIconCanvasMenu,
 	type SortMode,
@@ -36,6 +36,12 @@ import {
 import { renderListToolbar } from './list-toolbar';
 import { renderMediaList } from './media-list';
 import { renderMediaDetail } from './media-detail';
+import { renderAgentsKind } from './agents-renderer';
+import { listAgents } from './agents-rest';
+import {
+	attachSendToOption,
+	init as initAgentsSendTo,
+} from '../agents-send-to';
 import {
 	clearFootprintTarget,
 	openUserFootprintWindow,
@@ -293,6 +299,20 @@ function navigate(
 		return;
 	}
 	if ( route.kind === 'detail' ) {
+		// Non-post entity kinds (agents, plugin-registered shapes)
+		// own their own detail UI — delegate to the registered
+		// renderer instead of the post-shaped REST + `appendPostArticle`
+		// path. Built-in entities (posts, pages, media) declare
+		// `kind: 'post'` / `'media'` and use the dedicated post-detail
+		// flow below.
+		if ( entity.kind && entity.kind !== 'post' && entity.kind !== 'media' ) {
+			const renderer = getEntityRenderer( entity.kind );
+			if ( renderer ) {
+				const host = makeRenderHost( state );
+				renderer( host, entity );
+				return;
+			}
+		}
 		renderDetail( state, entity, route.postId, route.postTitle );
 		return;
 	}
@@ -570,29 +590,61 @@ function renderRoot( state: RenderState ): void {
 	// is `?per_page=1&_fields=id` — payload size of one id, total
 	// served via `X-WP-Total`. Failures fall through silently
 	// (the bare label is still useful).
+	//
+	// The `agents` kind is a client-side UX mock with no REST
+	// endpoint, so we paint its count from the static mock array
+	// instead of issuing a doomed fetch (which would otherwise
+	// 404 and leave the tile suffix-less).
+	const paintCountSuffix = ( entityId: string, total: number ): void => {
+		if ( state.route.kind !== 'root' ) {
+			return;
+		}
+		const tile = tilesByEntity.get( entityId );
+		if ( ! tile ) {
+			return;
+		}
+		const label = tile.querySelector< HTMLElement >(
+			'.desktop-mode-file-tile__label',
+		);
+		if ( label ) {
+			const entity = cfg.entities.find( ( e ) => e.id === entityId );
+			if ( entity ) {
+				label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
+			}
+		}
+	};
+	state.body.appendChild( grid );
+
+	// Now that the grid is attached to the document, the per-tile
+	// `<wpd-tile>` `connectedCallback` has fired and the `__label`
+	// span exists — only then can the count suffix paint deterministic-
+	// ally. Async fetch callbacks resolve later than this, so they
+	// were always safe.
 	cfg.entities.forEach( ( entity ) => {
+		if ( entity.kind === 'agents' ) {
+			// Agents have their own REST adapter (the wp_users/
+			// wp_guideline join doesn't expose X-WP-Total). When the
+			// substrate is gated off we skip the round-trip — the
+			// folder tile paints without a count.
+			if ( ! cfg.agentsConfig?.enabled ) {
+				return;
+			}
+			void listAgents()
+				.then( ( agents ) =>
+					paintCountSuffix( entity.id, agents.length ),
+				)
+				.catch( () => {
+					// Silent — the unsuffixed label still works.
+				} );
+			return;
+		}
 		void fetchEntityTotal( entity )
-			.then( ( total ) => {
-				if ( state.route.kind !== 'root' ) {
-					return; // Navigated away — don't paint stale.
-				}
-				const tile = tilesByEntity.get( entity.id );
-				if ( ! tile ) {
-					return;
-				}
-				const label = tile.querySelector< HTMLElement >(
-					'.desktop-mode-file-tile__label',
-				);
-				if ( label ) {
-					label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
-				}
-			} )
+			.then( ( total ) => paintCountSuffix( entity.id, total ) )
 			.catch( () => {
 				// Silent — the unsuffixed label still works.
 			} );
 	} );
 
-	state.body.appendChild( grid );
 	const menu = attachIconCanvasMenu( grid, {
 		scope: 'my-wordpress:root',
 		onSort: ( mode ) => layout.sort( mode ),
@@ -631,11 +683,23 @@ function buildIconTile( spec: {
 	// `__tile` modifier stays in the class list so the section-
 	// specific CSS (selection ring, locked, status ribbon) keeps
 	// applying.
+	//
+	// `sanitizeClass` is only valid for dashicons-style icons
+	// (`dashicons-foo-bar`). The shared `renderIcon` helper also
+	// understands `data:image/(svg+xml|png|…);base64,…` URIs and
+	// `http(s)://…` URLs — passing those through the class
+	// sanitizer would strip every `:` `/` `+` `=` `;`, mangling
+	// the icon string and forcing `renderIcon` to fall back to
+	// its letter-badge ("AG" for "Agents", etc.). Skip the
+	// sanitizer for those shapes so the icon reaches `renderIcon`
+	// intact.
 	return buildTileFromSpec( {
 		type: spec.role === 'folder' ? 'folder' : '__my-wordpress-entry',
 		ref: spec.label,
 		label: spec.label,
-		icon: sanitizeClass( spec.icon ),
+		icon: isIconPassthrough( spec.icon )
+			? spec.icon
+			: sanitizeClass( spec.icon ),
 		role: spec.role,
 		extraClasses: [
 			'desktop-mode-my-wordpress__tile',
@@ -644,6 +708,22 @@ function buildIconTile( spec: {
 				: 'desktop-mode-my-wordpress__tile--entry',
 		],
 	} );
+}
+
+/**
+ * Whether an icon string is a data URI or http(s) URL — both shapes
+ * `renderIcon` paints directly and must not be passed through the
+ * class-name sanitizer.
+ */
+function isIconPassthrough( icon: string ): boolean {
+	if ( typeof icon !== 'string' || icon === '' ) {
+		return false;
+	}
+	return (
+		icon.startsWith( 'data:' ) ||
+		icon.startsWith( 'http://' ) ||
+		icon.startsWith( 'https://' )
+	);
 }
 
 function renderError( state: RenderState, message: string ): void {
@@ -3498,8 +3578,28 @@ function openTileMenu(
 		addOption( o.id, o.label, o.icon, o.danger );
 	}
 
+	// Append the "Send to…" agent submenu after every other option.
+	// The helper is a no-op when no agent accepts this entity kind,
+	// so it can't accidentally clutter menus on agentless sites.
+	attachSendToOption(
+		menu,
+		{
+			entityId: entity.id,
+			kind: entity.kind ?? 'post',
+			item: item as unknown as Record< string, unknown >,
+		},
+		{
+			onPick: () => closeAnyTileMenu(),
+		},
+	);
+
 	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
+		// The send-to parent option opens its own submenu — don't
+		// dismiss the parent menu, let the helper handle it.
+		if ( detail.id === 'desktop-mode-agent-send-to' ) {
+			return;
+		}
 		closeAnyTileMenu();
 		if ( detail.id === 'open' ) {
 			openEditor( entity, item.id, title );
@@ -4396,26 +4496,75 @@ function openUserTileMenu(
 	// Footprint is the primary (double-click) action; profile is the
 	// classic editor, demoted to "Show profile" to mirror the preview
 	// pane's button labels.
-	addOption(
-		'footprint',
-		__( 'View activity footprint', 'desktop-mode' ),
-		'dashicons-chart-area',
-	);
-	addOption(
-		'open-profile',
-		__( 'Show profile', 'desktop-mode' ),
-		'dashicons-id-alt',
-	);
-	if ( item.link ) {
-		addOption(
-			'author-archive',
-			__( 'View author archive', 'desktop-mode' ),
-			'dashicons-external',
-		);
+	interface UserMenuOption {
+		id: string;
+		label: string;
+		icon: string;
+		danger?: boolean;
+		onSelect?: ( () => void ) | null;
 	}
+	const baseOptions: UserMenuOption[] = [
+		{
+			id: 'footprint',
+			label: __( 'View activity footprint', 'desktop-mode' ),
+			icon: 'dashicons-chart-area',
+		},
+		{
+			id: 'open-profile',
+			label: __( 'Show profile', 'desktop-mode' ),
+			icon: 'dashicons-id-alt',
+		},
+	];
+	if ( item.link ) {
+		baseOptions.push( {
+			id: 'author-archive',
+			label: __( 'View author archive', 'desktop-mode' ),
+			icon: 'dashicons-external',
+		} );
+	}
+
+	// Run the same `desktop-mode.my-wordpress.tile-context-menu`
+	// filter as the post / page / media tile menus so plugin-supplied
+	// entries (notably the Agents "Send to…" rows) appear on user
+	// tiles too. Without this hop, plugin authors had to register
+	// against the static user menu separately.
+	const ctxFilter = {
+		entityId: entity.id,
+		kind: entity.kind ?? 'user',
+		item: item as unknown as Record< string, unknown >,
+	};
+	const options = applyFilters<
+		UserMenuOption[],
+		[ typeof ctxFilter ]
+	>(
+		'desktop-mode.my-wordpress.tile-context-menu',
+		baseOptions,
+		ctxFilter,
+	);
+	const finalOptions = Array.isArray( options ) ? options : baseOptions;
+	for ( const o of finalOptions ) {
+		addOption( o.id, o.label, o.icon );
+	}
+
+	// Send-to submenu for the user kind. Skipped automatically when no
+	// agent accepts the `user` entity kind.
+	attachSendToOption(
+		menu,
+		{
+			entityId: entity.id,
+			kind: entity.kind ?? 'user',
+			item: item as unknown as Record< string, unknown >,
+		},
+		{
+			onPick: () => closeAnyTileMenu(),
+		},
+	);
 
 	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string } > ).detail;
+		if ( detail.id === 'desktop-mode-agent-send-to' ) {
+			return;
+		}
 		closeAnyTileMenu();
 		if ( detail.id === 'footprint' ) {
 			navigate( state, {
@@ -4432,6 +4581,19 @@ function openUserTileMenu(
 		}
 		if ( detail.id === 'author-archive' && item.link ) {
 			window.open( item.link, '_blank', 'noopener,noreferrer' );
+			return;
+		}
+		const match = finalOptions.find( ( o ) => o.id === detail.id );
+		if ( match && typeof match.onSelect === 'function' ) {
+			try {
+				match.onSelect();
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					`[my-wordpress] user tile-context-menu '${ detail.id }' onSelect threw:`,
+					err,
+				);
+			}
 		}
 	} );
 
@@ -6070,6 +6232,20 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 
 const callback: RenderCallback = ( body ) => {
 	try {
+		// Seed the cross-bundle send-to cache from the My WordPress
+		// window-config payload. `init()` is idempotent across
+		// bundles thanks to the shared store — subsequent calls from
+		// the Posts / Pages / Users windows don't overwrite this
+		// pre-seeded cache.
+		const cfg = getConfigOrNull();
+		if ( cfg ) {
+			initAgentsSendTo( {
+				restRoot: cfg.restRoot,
+				restNonce: cfg.restNonce,
+				initialTargets: cfg.agentsConfig?.sendToTargets,
+				windowId: WINDOW_ID,
+			} );
+		}
 		return renderInto( body );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
@@ -6077,6 +6253,14 @@ const callback: RenderCallback = ( body ) => {
 		return undefined;
 	}
 };
+
+function getConfigOrNull(): ReturnType< typeof getConfig > | null {
+	try {
+		return getConfig();
+	} catch ( _err ) {
+		return null;
+	}
+}
 
 window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
 window.desktopModeNativeWindows[ WINDOW_ID ] = callback;
@@ -6090,6 +6274,31 @@ registerEntityKind( 'user', ( host, entity ) => {
 	renderUserEntityList( asRenderState( host ), entity );
 } );
 registerEntityKind( 'media', renderMediaList );
+registerEntityKind( 'agents', renderAgentsKind );
+
+// External "open this agent's dossier" entry point — fired by the
+// desktop-files agent opener (clicking an agent placement on the
+// wallpaper / in a folder) and by anything else that wants to deep-
+// link into an agent (commands, palette entries, third-party
+// plugins). Routes through `openDetail` so the window auto-opens if
+// it isn't already, and the pending-route plumbing handles the
+// case where the bundle hasn't mounted yet.
+addAction(
+	'desktop-mode.agents.navigate-into',
+	'desktop-mode/my-wordpress',
+	( payload: unknown ) => {
+		const data = payload as { agentId?: unknown; title?: unknown } | null;
+		const agentId = Number( data?.agentId ?? 0 );
+		if ( ! Number.isFinite( agentId ) || agentId <= 0 ) {
+			return;
+		}
+		openDetail( {
+			entityId: 'agents',
+			postId: agentId,
+			postTitle: typeof data?.title === 'string' ? data.title : `Agent #${ agentId }`,
+		} );
+	},
+);
 
 /**
  * Recover the internal `RenderState` from an `EntityRenderHost`.

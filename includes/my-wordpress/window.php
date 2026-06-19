@@ -66,6 +66,41 @@ function desktop_mode_my_wordpress_user_can_use() {
  *                 'restPath', 'kind' )`. `restPath` is appended to
  *                 the `restRoot` config to derive the list URL.
  */
+/**
+ * Inline-SVG bot glyph used by the Agents entity tile. Returns a
+ * `data:image/svg+xml;base64,…` URI so the shared `renderIcon`
+ * helper (`src/icon.ts`) paints it via the existing SVG-data-URI
+ * branch without any tile/icon plumbing changes.
+ *
+ * Color is hard-coded to the WordPress admin accent blue (`#2271b1`)
+ * because data-URI SVGs are loaded as a CSS background-image, which
+ * does not inherit `currentColor`. The Agents surface is a UX mock,
+ * so a single brand-coloured glyph is acceptable for now; if the
+ * section graduates to production we can switch to a CSS-mask
+ * approach for theme-aware tinting.
+ *
+ * @since 0.22.0
+ *
+ * @return string Data URI.
+ */
+function desktop_mode_my_wordpress_agents_icon() {
+	// Keep this SVG byte-identical to the `BOT_ICON_SVG` constant in
+	// `src/my-wordpress/agents-mock.ts` so the section folder tile
+	// (painted from this PHP descriptor) and the individual agent
+	// tiles (painted from the JS constant) read as the same glyph.
+	$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1d2327" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+		. '<circle cx="12" cy="3.25" r="0.95" fill="#1d2327"/>'
+		. '<line x1="12" y1="4.25" x2="12" y2="7"/>'
+		. '<rect x="4" y="7" width="16" height="12" rx="2.5"/>'
+		. '<line x1="2" y1="12.5" x2="4" y2="12.5"/>'
+		. '<line x1="20" y1="12.5" x2="22" y2="12.5"/>'
+		. '<circle cx="9" cy="12" r="1.15" fill="#1d2327"/>'
+		. '<circle cx="15" cy="12" r="1.15" fill="#1d2327"/>'
+		. '<path d="M9.25 15.5 Q12 17 14.75 15.5"/>'
+		. '</svg>';
+	return 'data:image/svg+xml;base64,' . base64_encode( $svg );
+}
+
 function desktop_mode_my_wordpress_entities() {
 	$entities = array(
 		array(
@@ -95,6 +130,25 @@ function desktop_mode_my_wordpress_entities() {
 			'icon'     => 'dashicons-admin-media',
 			'restPath' => 'wp/v2/media',
 			'kind'     => 'media',
+		),
+		array(
+			'id'       => 'agents',
+			'label'    => __( 'Agents', 'desktop-mode' ),
+			// Inline SVG bot — the shared `renderIcon` helper
+			// (assets/js/desktop.min.js) already understands the
+			// `data:image/svg+xml;base64,…` shape, so no client-side
+			// plumbing changes are needed to paint this on the root
+			// folder tile or in breadcrumbs.
+			'icon'     => desktop_mode_my_wordpress_agents_icon(),
+			// Real storage at `/desktop-mode/v1/agents` — see
+			// `includes/agents/rest.php`. The agents renderer
+			// orchestrates its own fetches (the join across
+			// wp_users / wp_guideline / user-meta isn't a vanilla
+			// list endpoint) and ignores `restPath` for now; the
+			// value is set non-empty so future generic plumbing can
+			// participate.
+			'restPath' => 'desktop-mode/v1/agents',
+			'kind'     => 'agents',
 		),
 	);
 
@@ -189,6 +243,9 @@ function desktop_mode_my_wordpress_register_window() {
 			'previewActions'  => function_exists( 'desktop_mode_my_wordpress_collect_preview_actions' )
 				? desktop_mode_my_wordpress_collect_preview_actions()
 				: array(),
+			'agentsConfig'    => function_exists( 'desktop_mode_agents_window_config' )
+				? desktop_mode_agents_window_config()
+				: array( 'enabled' => false ),
 		),
 	);
 

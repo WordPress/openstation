@@ -297,6 +297,7 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			{ name: 'wpd-table-sort-change', description: 'Header click cycled the sort.' },
 			{ name: 'wpd-table-selection-change', description: 'Selection set changed.' },
 			{ name: 'wpd-table-row-click', description: 'Body row clicked (skips data-noclick descendants).' },
+			{ name: 'wpd-table-row-contextmenu', description: 'Body row right-clicked. `{ row, index, originalEvent, clientX, clientY }`. Listener decides whether to preventDefault and open a custom menu.' },
 			{ name: 'wpd-table-expand-change', description: 'Sub-table toggled.' },
 		],
 		slots: [
@@ -1313,6 +1314,9 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		tr.addEventListener( 'click', ( e: Event ) => {
 			this._onRowClick( row, rowIndex, e );
 		} );
+		tr.addEventListener( 'contextmenu', ( e: Event ) => {
+			this._onRowContextMenu( row, rowIndex, e as MouseEvent );
+		} );
 		for ( let i = 0; i < cols.length; i++ ) {
 			tr.appendChild(
 				this._buildBodyCell( cols[ i ], i, row, rowIndex, stickyN ),
@@ -1471,6 +1475,28 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			}
 		}
 		this.emit( 'wpd-table-row-click', { row, index, originalEvent: e } );
+	}
+
+	private _onRowContextMenu( row: T, index: number, e: MouseEvent ): void {
+		const path = ( e as MouseEvent & { composedPath?: () => EventTarget[] } ).composedPath?.() ?? [];
+		for ( const node of path ) {
+			if ( node instanceof Element && node.hasAttribute( 'data-noclick' ) ) {
+				return;
+			}
+			if ( node === this ) {
+				break;
+			}
+		}
+		// Plugins / surfaces decide whether to preventDefault and
+		// build a custom menu. We don't pre-emptively suppress the
+		// native context menu — that's the consumer's call.
+		this.emit( 'wpd-table-row-contextmenu', {
+			row,
+			index,
+			originalEvent: e,
+			clientX: e.clientX,
+			clientY: e.clientY,
+		} );
 	}
 
 	private _toggleRow( index: number, row: T, e: Event ): void {

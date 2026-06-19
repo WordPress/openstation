@@ -29,4 +29,10 @@ export function registerBuiltInFileTypes(): void {
 	registerType( { type: 'bookmark', label: 'Bookmark', sort: 60 } );
 	registerType( { type: 'link', label: 'Web link', sort: 70 } );
 	registerType( { type: 'embed', label: 'Embedded web window', sort: 80 } );
+	// Desktop Mode agents — drag any agent tile from My WordPress to
+	// the wallpaper / a folder to spawn a placement that opens the
+	// agent's dossier on click. See `src/my-wordpress/agents-renderer.ts`
+	// for the dragstart payload + `src/agents-opener.ts` for the
+	// opener that routes the click into My WordPress's detail route.
+	registerType( { type: 'agent', label: 'Agent', sort: 35 } );
 }

@@ -13,6 +13,7 @@
  */
 
 import { applyFilters, doAction } from '../hooks';
+import { attachSendToOption } from '../agents-send-to';
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { attachDismissable } from './dismissable';
 import type { RestPlacementShape } from './rest';
@@ -121,8 +122,33 @@ function openTileMenuImmediate(
 		menu.appendChild( opt );
 	}
 
+	// Send-to agent submenu — bottom of the menu, after every plugin
+	// + built-in entry. No-op when no agent accepts this kind.
+	const sendKind = placementKindForAgent( placement );
+	if ( sendKind ) {
+		attachSendToOption(
+			menu,
+			{
+				entityId: sendKind,
+				kind: sendKind,
+				item: {
+					id: placement.file.ref,
+					title: placement.file.title,
+					type: placement.file.type,
+				},
+			},
+			{
+				onPick: () => closeTileMenu(),
+			},
+		);
+	}
+
 	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { id: string; value: string } > ).detail;
+		// Send-to parent opens its own submenu and dismisses itself.
+		if ( detail.id === 'desktop-mode-agent-send-to' ) {
+			return;
+		}
 		const item = itemById.get( detail.id );
 		if ( ! item ) {
 			return;
@@ -155,4 +181,30 @@ function openTileMenuImmediate(
 
 function sanitizeClass( raw: string ): string {
 	return raw.replace( /[^a-zA-Z0-9_-]/g, '' );
+}
+
+/**
+ * Project a `RestPlacementShape` into the entity kind agents accept.
+ * Returns `null` for placements that can't be sent (folders,
+ * shortcuts, plugin tiles).
+ */
+function placementKindForAgent( placement: RestPlacementShape ): string | null {
+	const fileType = ( placement.file as { type?: string } ).type;
+	if ( ! fileType ) {
+		return null;
+	}
+	if ( fileType === 'folder' || fileType === 'shortcut' ) {
+		return null;
+	}
+	if ( fileType === 'post' ) {
+		const pt = ( placement.file as { postType?: string } ).postType;
+		if ( typeof pt === 'string' && pt ) {
+			return pt;
+		}
+		return 'post';
+	}
+	if ( fileType === 'attachment' ) {
+		return 'media';
+	}
+	return fileType;
 }

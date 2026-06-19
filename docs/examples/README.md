@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 - [Gate desktop mode by role](./gate-by-role.md)
 - [React to window events](./react-to-window-events.md)
 - [My WordPress — add a preview-pane action button](./my-wordpress-media-action.md)
+- [Agents — read and write `wp_guideline`-backed agents](./agents.md)
 - [Window lifecycle hooks (one subscriber per state)](./window-lifecycle.md)
 - [Custom arrange-menu action](./arrange-action.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)
