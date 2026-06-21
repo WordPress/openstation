@@ -460,6 +460,17 @@ const TARGETS = {
 		iifeName: 'desktopModeSiteViewsWidget',
 	},
 
+	'widget-jazz-quote': {
+		entry:    'src/plugins/jazz-quote-widget/index.ts',
+		fileBase: 'widget-jazz-quote',
+		iifeName: 'desktopModeJazzQuoteWidget',
+	},
+	'widget-starter': {
+		entry:    'src/plugins/starter-widget/index.ts',
+		fileBase: 'widget-starter',
+		iifeName: 'desktopModeStarterWidget',
+	},
+
 };
 
 export default defineConfig( ( { mode } ) => {

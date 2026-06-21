@@ -75,6 +75,8 @@ require_once DESKTOP_MODE_DIR . 'includes/widgets/heartbeat.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-comments.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-post-stats.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-site-views.php';
+require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-jazz-quote.php';
+require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-starter.php';
 require_once DESKTOP_MODE_DIR . 'includes/render.php';
 require_once DESKTOP_MODE_DIR . 'includes/extended-options.php';
 require_once DESKTOP_MODE_DIR . 'includes/oauth-relay.php';

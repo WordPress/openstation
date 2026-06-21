@@ -65,7 +65,9 @@
 		"i18n": "npm run extract:i18n && npm run build:i18n",
 		"build:widget-recent-comments": "DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode development && DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode production",
 		"build:widget-post-stats": "DESKTOP_MODE_TARGET=widget-post-stats vite build --mode development && DESKTOP_MODE_TARGET=widget-post-stats vite build --mode production",
-		"build:widget-site-views": "DESKTOP_MODE_TARGET=widget-site-views vite build --mode development && DESKTOP_MODE_TARGET=widget-site-views vite build --mode production"
+		"build:widget-site-views": "DESKTOP_MODE_TARGET=widget-site-views vite build --mode development && DESKTOP_MODE_TARGET=widget-site-views vite build --mode production",
+		"build:widget-jazz-quote": "DESKTOP_MODE_TARGET=widget-jazz-quote vite build --mode development && DESKTOP_MODE_TARGET=widget-jazz-quote vite build --mode production",
+		"build:widget-starter": "DESKTOP_MODE_TARGET=widget-starter vite build --mode development && DESKTOP_MODE_TARGET=widget-starter vite build --mode production"
 	},
 	"devDependencies": {
 		"@automattic/wp-babel-makepot": "^1.2.0",
