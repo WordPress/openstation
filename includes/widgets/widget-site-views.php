@@ -2,23 +2,12 @@
 /**
  * Desktop Mode — Site Views Widget.
  *
- * Sparkline graph of page views over the last 7 days, plus a total
- * and a week-over-week delta arrow (up green / down red / flat grey).
- *
- * Data source priority:
- *   1. Jetpack Stats REST  /jetpack/v4/stats/visits?unit=day&quantity=14
- *   2. Meta key fallback via /desktop-mode/v1/site-views-meta
- *      (reads _post_views_YYYY-MM-DD meta keys written by post-views plugins)
- *
- * If neither source has data, the widget shows a clear message rather
- * than failing silently.
+ * Sparkline graph of page views over the last 7 days with
+ * week-over-week delta. Tries Jetpack Stats first, falls back
+ * to a _post_views_YYYY-MM-DD meta-key aggregator.
  *
  * Refresh: every 10 minutes.
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
- *
- * This file ships as a reference/example implementation.
- * Copy it into your own plugin and replace the yourplugin_ prefix
- * and text domain before use.
  *
  * @package WPDesktopMode
  * @since   0.26.0
@@ -28,8 +17,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the REST endpoint that aggregates per-post view counts
- * from the _post_views_YYYY-MM-DD meta key. Used as the plain-WP
- * fallback when Jetpack Stats is not available.
+ * from the _post_views_YYYY-MM-DD meta key (plain-WP fallback).
  *
  * Route: GET /desktop-mode/v1/site-views-meta
  * Permission: edit_posts.
@@ -90,7 +78,7 @@ function desktop_mode_site_views_meta_callback( $request ) {
 }
 
 /**
- * Register the JS asset.
+ * Register the JS + CSS assets.
  *
  * @since 0.26.0
  */
@@ -98,7 +86,15 @@ function desktop_mode_register_site_views_widget_assets() {
 	$suffix  = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
 	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
 
-	$js_path = DESKTOP_MODE_DIR . 'assets/js/widget-site-views' . $suffix . '.js';
+	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-site-views' . $suffix . '.js';
+	$css_path = DESKTOP_MODE_DIR . 'assets/js/widget-site-views' . $suffix . '.css';
+
+	wp_register_style(
+		'desktop-mode-site-views-widget',
+		DESKTOP_MODE_URL . 'assets/js/widget-site-views' . $suffix . '.css',
+		array(),
+		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
+	);
 
 	wp_register_script(
 		'desktop-mode-site-views-widget',
@@ -109,6 +105,22 @@ function desktop_mode_register_site_views_widget_assets() {
 	);
 }
 add_action( 'init', 'desktop_mode_register_site_views_widget_assets', 5 );
+
+/**
+ * Eagerly enqueue the CSS on shell pages.
+ *
+ * @since 0.26.0
+ */
+function desktop_mode_enqueue_site_views_widget_styles() {
+	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+		return;
+	}
+	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	wp_enqueue_style( 'desktop-mode-site-views-widget' );
+}
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_site_views_widget_styles', 20 );
 
 /**
  * Register the widget definition.

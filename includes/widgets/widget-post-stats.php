@@ -3,17 +3,10 @@
  * Desktop Mode — Post Stats Widget.
  *
  * Bar chart of posts published per month for the last 6 months,
- * broken down by published / draft / pending status. Drawn on a
- * <canvas> element with vanilla JS — no charting library dependency.
- * Counts come from the WP REST API  /wp/v2/posts  endpoint (no
- * custom REST route needed, so it works on any standard WP install).
+ * broken down by published / draft / pending status.
  *
  * Refresh: every 5 minutes.
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
- *
- * This file ships as a reference/example implementation.
- * Copy it into your own plugin and replace the yourplugin_ prefix
- * and text domain before use.
  *
  * @package WPDesktopMode
  * @since   0.26.0
@@ -22,7 +15,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the JS asset.
+ * Register the JS + CSS assets.
  *
  * @since 0.26.0
  */
@@ -30,7 +23,15 @@ function desktop_mode_register_post_stats_widget_assets() {
 	$suffix  = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
 	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
 
-	$js_path = DESKTOP_MODE_DIR . 'assets/js/widget-post-stats' . $suffix . '.js';
+	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-post-stats' . $suffix . '.js';
+	$css_path = DESKTOP_MODE_DIR . 'assets/js/widget-post-stats' . $suffix . '.css';
+
+	wp_register_style(
+		'desktop-mode-post-stats-widget',
+		DESKTOP_MODE_URL . 'assets/js/widget-post-stats' . $suffix . '.css',
+		array(),
+		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
+	);
 
 	wp_register_script(
 		'desktop-mode-post-stats-widget',
@@ -41,6 +42,22 @@ function desktop_mode_register_post_stats_widget_assets() {
 	);
 }
 add_action( 'init', 'desktop_mode_register_post_stats_widget_assets', 5 );
+
+/**
+ * Eagerly enqueue the CSS on shell pages.
+ *
+ * @since 0.26.0
+ */
+function desktop_mode_enqueue_post_stats_widget_styles() {
+	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+		return;
+	}
+	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	wp_enqueue_style( 'desktop-mode-post-stats-widget' );
+}
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_post_stats_widget_styles', 20 );
 
 /**
  * Register the widget definition.

@@ -87,9 +87,35 @@ async function fetchPosts(): Promise< PostStub[] > {
 	return all;
 }
 
+/**
+ * Safe rounded rect — falls back to a plain rect on older browsers
+ * that don't have CanvasRenderingContext2D.roundRect().
+ */
+function safeRoundRect(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	r: number,
+): void {
+	if ( typeof ( ctx as unknown as { roundRect?: unknown } ).roundRect === 'function' ) {
+		( ctx as unknown as { roundRect: ( x: number, y: number, w: number, h: number, r: number ) => void } )
+			.roundRect( x, y, w, h, r );
+	} else {
+		// Fallback: plain rectangle
+		ctx.rect( x, y, w, h );
+	}
+}
+
 function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 	const dpr  = window.devicePixelRatio || 1;
 	const rect = canvas.getBoundingClientRect();
+
+	// Guard: canvas has no layout yet — skip this frame.
+	// The ResizeObserver will fire again once it has real dimensions.
+	if ( rect.width === 0 || rect.height === 0 ) return;
+
 	canvas.width  = Math.round( rect.width  * dpr );
 	canvas.height = Math.round( rect.height * dpr );
 	const ctx = canvas.getContext( '2d' );
@@ -101,10 +127,13 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 	const PAD = { top: 18, right: 10, bottom: 22, left: 28 };
 	const chartW = W - PAD.left - PAD.right;
 	const chartH = H - PAD.top  - PAD.bottom;
+
+	if ( chartW <= 0 || chartH <= 0 ) return;
+
 	const maxVal = Math.max( 1, ...buckets.map( ( b ) => b.published + b.pending + b.draft ) );
 	const barGroupW = chartW / buckets.length;
 	const barPad    = barGroupW * 0.2;
-	const barW      = barGroupW - barPad * 2;
+	const barW      = Math.max( 1, barGroupW - barPad * 2 );
 
 	// Gridlines
 	ctx.strokeStyle = 'rgba(0,0,0,0.07)';
@@ -123,8 +152,8 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 
 	// Bars
 	for ( let i = 0; i < buckets.length; i++ ) {
-		const b   = buckets[ i ];
-		const x   = PAD.left + barGroupW * i + barPad;
+		const b    = buckets[ i ];
+		const x    = PAD.left + barGroupW * i + barPad;
 		let   yTop = PAD.top + chartH;
 
 		for ( const seg of [
@@ -137,8 +166,7 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 			yTop -= segH;
 			ctx.fillStyle = seg.color;
 			ctx.beginPath();
-			( ctx as unknown as { roundRect: ( x: number, y: number, w: number, h: number, r: number[] ) => void } )
-				.roundRect( x, yTop, barW, segH, [ 2, 2, 0, 0 ] );
+			safeRoundRect( ctx, x, yTop, barW, segH, 2 );
 			ctx.fill();
 		}
 
@@ -152,14 +180,18 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 function renderUI( container: HTMLElement, buckets: Bucket[], total: number, error: boolean ): HTMLCanvasElement | null {
 	container.innerHTML = '';
 
+	// Header — two separate elements so flex spacing keeps them apart.
 	const header = document.createElement( 'div' );
 	header.className = 'dm-poststats__header';
+
 	const title = document.createElement( 'span' );
 	title.className = 'dm-poststats__title';
 	title.textContent = 'Post Stats';
+
 	const totalEl = document.createElement( 'span' );
 	totalEl.className = 'dm-poststats__total';
 	totalEl.textContent = error ? '' : `${ total } post${ total !== 1 ? 's' : '' } in 6 mo`;
+
 	header.appendChild( title );
 	header.appendChild( totalEl );
 	container.appendChild( header );
@@ -181,6 +213,7 @@ function renderUI( container: HTMLElement, buckets: Bucket[], total: number, err
 
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'dm-poststats__canvas-wrap';
+
 	const canvas = document.createElement( 'canvas' );
 	canvas.className = 'dm-poststats__canvas';
 	wrap.appendChild( canvas );
@@ -227,14 +260,21 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 			}
 			const total = posts.length;
 			if ( destroyed ) return;
+
 			const canvas = renderUI( container, buckets, total, false );
 			if ( canvas ) {
-				requestAnimationFrame( () => drawChart( canvas, buckets ) );
 				ro?.disconnect();
 				ro = new ResizeObserver( () => {
 					if ( ! destroyed ) drawChart( canvas, buckets );
 				} );
+				// Observe the wrapper so we see real layout dimensions.
 				ro.observe( canvas.parentElement! );
+
+				// Draw after a short delay to let the browser complete
+				// flex layout and give the canvas real dimensions.
+				setTimeout( () => {
+					if ( ! destroyed ) drawChart( canvas, buckets );
+				}, 50 );
 			}
 		} catch {
 			if ( ! destroyed ) renderUI( container, buildBuckets(), 0, true );

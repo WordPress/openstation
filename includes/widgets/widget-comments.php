@@ -11,10 +11,6 @@
  * Refresh: every 60 seconds via setInterval.
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
  *
- * This file ships as a reference/example implementation.
- * Copy it into your own plugin and replace the yourplugin_ prefix
- * and text domain before use.
- *
  * @package WPDesktopMode
  * @since   0.26.0
  */
@@ -22,7 +18,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register the JS asset.
+ * Register the JS + CSS assets.
  *
  * @since 0.26.0
  */
@@ -30,17 +26,42 @@ function desktop_mode_register_comments_widget_assets() {
 	$suffix  = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
 	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
 
-	$js_path = DESKTOP_MODE_DIR . 'assets/js/widget-comments' . $suffix . '.js';
+	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-recent-comments' . $suffix . '.js';
+	$css_path = DESKTOP_MODE_DIR . 'assets/js/widget-recent-comments' . $suffix . '.css';
+
+	wp_register_style(
+		'desktop-mode-comments-widget',
+		DESKTOP_MODE_URL . 'assets/js/widget-recent-comments' . $suffix . '.css',
+		array(),
+		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
+	);
 
 	wp_register_script(
 		'desktop-mode-comments-widget',
-		DESKTOP_MODE_URL . 'assets/js/widget-comments' . $suffix . '.js',
+		DESKTOP_MODE_URL . 'assets/js/widget-recent-comments' . $suffix . '.js',
 		array( 'wp-api-fetch' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
 }
 add_action( 'init', 'desktop_mode_register_comments_widget_assets', 5 );
+
+/**
+ * Eagerly enqueue the CSS on shell pages so there is no flash of
+ * unstyled content while the lazy JS bundle loads.
+ *
+ * @since 0.26.0
+ */
+function desktop_mode_enqueue_comments_widget_styles() {
+	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+		return;
+	}
+	if ( function_exists( 'desktop_mode_is_chromeless_request' ) && desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	wp_enqueue_style( 'desktop-mode-comments-widget' );
+}
+add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_comments_widget_styles', 20 );
 
 /**
  * Register the widget definition.
