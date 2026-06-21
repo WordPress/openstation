@@ -62,7 +62,10 @@
 		"check:plugin": "wp-env run cli wp plugin check desktop-mode",
 		"build:i18n": "bin/build-i18n.sh",
 		"extract:i18n": "bin/extract-i18n.sh",
-		"i18n": "npm run extract:i18n && npm run build:i18n"
+		"i18n": "npm run extract:i18n && npm run build:i18n",
+		"build:widget-recent-comments": "DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode development && DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode production",
+		"build:widget-post-stats": "DESKTOP_MODE_TARGET=widget-post-stats vite build --mode development && DESKTOP_MODE_TARGET=widget-post-stats vite build --mode production",
+		"build:widget-site-views": "DESKTOP_MODE_TARGET=widget-site-views vite build --mode development && DESKTOP_MODE_TARGET=widget-site-views vite build --mode production"
 	},
 	"devDependencies": {
 		"@automattic/wp-babel-makepot": "^1.2.0",

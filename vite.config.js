@@ -444,6 +444,22 @@ const TARGETS = {
 		fileBase: 'widget-heartbeat',
 		iifeName: 'desktopModeHeartbeatWidget',
 	},
+	'widget-recent-comments': {
+		entry:    'src/plugins/recent-comments-widget/index.ts',
+		fileBase: 'widget-recent-comments',
+		iifeName: 'desktopModeRecentCommentsWidget',
+	},
+	'widget-post-stats': {
+		entry:    'src/plugins/post-stats-widget/index.ts',
+		fileBase: 'widget-post-stats',
+		iifeName: 'desktopModePostStatsWidget',
+	},
+	'widget-site-views': {
+		entry:    'src/plugins/site-views-widget/index.ts',
+		fileBase: 'widget-site-views',
+		iifeName: 'desktopModeSiteViewsWidget',
+	},
+
 };
 
 export default defineConfig( ( { mode } ) => {
