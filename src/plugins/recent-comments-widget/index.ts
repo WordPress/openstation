@@ -14,9 +14,9 @@ import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-const WIDGET_ID  = 'desktop-mode/recent-comments';
+const WIDGET_ID = 'desktop-mode/recent-comments';
 const REFRESH_MS = 60_000;
-const LIMIT      = 8;
+const LIMIT = 8;
 
 interface CommentRow {
 	id: number;
@@ -34,9 +34,9 @@ interface CommentRow {
 
 const STATUS_META: Record< string, { label: string; color: string } > = {
 	approved: { label: 'Approved', color: '#22c55e' },
-	hold:     { label: 'Pending',  color: '#f59e0b' },
-	spam:     { label: 'Spam',     color: '#ef4444' },
-	trash:    { label: 'Trash',    color: '#9ca3af' },
+	hold: { label: 'Pending', color: '#f59e0b' },
+	spam: { label: 'Spam', color: '#ef4444' },
+	trash: { label: 'Trash', color: '#9ca3af' },
 };
 
 function timeAgo( isoUtc: string ): string {
@@ -44,9 +44,15 @@ function timeAgo( isoUtc: string ): string {
 	// the Date constructor treats it as UTC rather than local time.
 	const ts = isoUtc.endsWith( 'Z' ) ? isoUtc : isoUtc + 'Z';
 	const secs = Math.floor( ( Date.now() - new Date( ts ).getTime() ) / 1000 );
-	if ( secs < 60 )    return secs + 's ago';
-	if ( secs < 3600 )  return Math.floor( secs / 60 ) + 'm ago';
-	if ( secs < 86400 ) return Math.floor( secs / 3600 ) + 'h ago';
+	if ( secs < 60 ) {
+		return secs + 's ago';
+	}
+	if ( secs < 3600 ) {
+		return Math.floor( secs / 60 ) + 'm ago';
+	}
+	if ( secs < 86400 ) {
+		return Math.floor( secs / 3600 ) + 'h ago';
+	}
 	return Math.floor( secs / 86400 ) + 'd ago';
 }
 
@@ -61,7 +67,9 @@ async function fetchComments(): Promise< CommentRow[] > {
 		{ credentials: 'same-origin' },
 		{ source: 'desktop-mode/recent-comments', silent: true },
 	);
-	if ( ! res.ok ) throw new Error( `HTTP ${ res.status }` );
+	if ( ! res.ok ) {
+		throw new Error( `HTTP ${ res.status }` );
+	}
 	return res.json() as Promise< CommentRow[] >;
 }
 
@@ -150,19 +158,27 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 	let destroyed = false;
 	let intervalId: ReturnType< typeof setInterval > | null = null;
 	const refresh = async (): Promise< void > => {
-		if ( destroyed ) return;
+		if ( destroyed ) {
+			return;
+		}
 		try {
 			const comments = await fetchComments();
-			if ( ! destroyed ) render( container, comments, false );
+			if ( ! destroyed ) {
+				render( container, comments, false );
+			}
 		} catch {
-			if ( ! destroyed ) render( container, null, true );
+			if ( ! destroyed ) {
+				render( container, null, true );
+			}
 		}
 	};
 	await refresh();
 	intervalId = setInterval( refresh, REFRESH_MS );
 	return () => {
 		destroyed = true;
-		if ( intervalId !== null ) clearInterval( intervalId );
+		if ( intervalId !== null ) {
+			clearInterval( intervalId );
+		}
 	};
 };
 

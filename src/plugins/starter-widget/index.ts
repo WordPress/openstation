@@ -58,7 +58,6 @@ import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 //
 const WIDGET_ID = 'desktop-mode/starter';
 
-
 // =============================================================================
 // STEP 2 — THE MOUNT FUNCTION
 // =============================================================================
@@ -84,7 +83,6 @@ const mount = async (
 	container: HTMLElement,
 	ctx: WidgetContext,
 ): Promise< WidgetTeardown > => {
-
 	// -------------------------------------------------------------------------
 	// STEP 2a — DECLARE `destroyed` AT THE VERY TOP
 	// -------------------------------------------------------------------------
@@ -145,7 +143,7 @@ const mount = async (
 
 	const onClick = (): void => {
 		const current = ctx.storage.get< number >( 'clicks' ) ?? 0;
-		const next    = current + 1;
+		const next = current + 1;
 		ctx.storage.set( 'clicks', next );
 		counter.textContent = `Clicked ${ next } ${ next === 1 ? 'time' : 'times' }`;
 	};
@@ -168,39 +166,38 @@ const mount = async (
 	// Pass source: 'yourplugin/widget-name' so the devtools activity panel
 	// can attribute requests to your widget by name.
 	//
-	const root_url = ( window as unknown as { wpApiSettings?: { root?: string } } )
+	const rootUrl = ( window as unknown as { wpApiSettings?: { root?: string } } )
 		.wpApiSettings?.root ?? '/wp-json/';
 
 	const loadData = async (): Promise< void > => {
-		if ( destroyed ) return;
-
+		if ( destroyed ) {
+			return;
+		}
 		try {
 			const res = await trackedFetch(
-				root_url.replace( /\/$/, '' ) +
+				rootUrl.replace( /\/$/, '' ) +
 					'/wp/v2/posts?per_page=1&orderby=date&order=desc&_fields=id,title',
 				{ credentials: 'same-origin' },
 				{ source: 'desktop-mode/starter', silent: true },
 			);
-
 			// Check destroyed after EVERY await, not just before the request.
 			// The widget may have been removed while the network request was in
 			// flight. Without this check you write to a detached DOM element.
-			if ( destroyed ) return;
-
+			if ( destroyed ) {
+				return;
+			}
 			if ( ! res.ok ) {
 				body.textContent = 'Could not load posts (' + res.status + ').';
 				return;
 			}
-
 			const posts = await res.json() as Array< { title: { rendered: string } } >;
-
 			// Check again after the second await (res.json() is also async).
-			if ( destroyed ) return;
-
+			if ( destroyed ) {
+				return;
+			}
 			body.textContent = posts.length > 0
 				? 'Latest post: ' + posts[ 0 ].title.rendered
 				: 'No posts found.';
-
 		} catch {
 			if ( ! destroyed ) {
 				body.textContent = 'Could not load data.';
@@ -213,11 +210,16 @@ const mount = async (
 	// -------------------------------------------------------------------------
 	// STEP 2e — POLLING WITH setInterval
 	// -------------------------------------------------------------------------
-	// Store the interval handle so you can clear it in the teardown.
-	// An interval that is never cleared keeps firing after the widget is removed.
+	// Store the interval handle in a variable so you can clear it in the
+	// teardown. An interval that is never cleared keeps firing after the
+	// widget is removed, making network requests nobody will ever see.
+	//
+	// Choose your interval carefully:
+	//   Comments / notifications  → 60 seconds is reasonable
+	//   Stats / charts            → 5–10 minutes
+	//   Slow-changing content     → longer is better for performance
 	//
 	const intervalId = setInterval( loadData, 60_000 );
-
 
 	// =============================================================================
 	// STEP 3 — RETURN A TEARDOWN FUNCTION
@@ -241,7 +243,6 @@ const mount = async (
 	};
 };
 
-
 // =============================================================================
 // STEP 4 — REGISTER ON THE GLOBAL
 // =============================================================================
@@ -258,7 +259,6 @@ const w = window as unknown as {
 };
 w.desktopModeWidgets = w.desktopModeWidgets ?? {};
 w.desktopModeWidgets[ WIDGET_ID ] = mount;
-
 
 // =============================================================================
 // STEPS 5–8 — WIRING UP THE REST OF THE SYSTEM

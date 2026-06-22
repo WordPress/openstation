@@ -20,7 +20,7 @@ import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-const WIDGET_ID  = 'desktop-mode/site-views';
+const WIDGET_ID = 'desktop-mode/site-views';
 const REFRESH_MS = 10 * 60_000;
 
 interface DayRow { date: string; views: number }
@@ -44,14 +44,20 @@ async function tryJetpack(): Promise< DayRow[] | null > {
 			{ credentials: 'same-origin' },
 			{ source: 'desktop-mode/site-views-jetpack', silent: true },
 		);
-		if ( ! res.ok ) return null;
+		if ( ! res.ok ) {
+			return null;
+		}
 		const data = await res.json() as { data?: [ number, number ][] };
-		if ( ! Array.isArray( data?.data ) ) return null;
+		if ( ! Array.isArray( data?.data ) ) {
+			return null;
+		}
 		return data.data.map( ( [ ts, views ] ) => ( {
-			date:  new Date( ts * 1000 ).toISOString().slice( 0, 10 ),
+			date: new Date( ts * 1000 ).toISOString().slice( 0, 10 ),
 			views: views || 0,
 		} ) );
-	} catch { return null; }
+	} catch {
+		return null;
+	}
 }
 
 async function tryMeta(): Promise< DayRow[] | null > {
@@ -61,25 +67,37 @@ async function tryMeta(): Promise< DayRow[] | null > {
 			{ credentials: 'same-origin' },
 			{ source: 'desktop-mode/site-views-meta', silent: true },
 		);
-		if ( ! res.ok ) return null;
+		if ( ! res.ok ) {
+			return null;
+		}
 		const data = await res.json() as { has_data?: boolean; days?: DayRow[] };
-		if ( ! data?.has_data ) return null;
+		if ( ! data?.has_data ) {
+			return null;
+		}
 		return data.days ?? null;
-	} catch { return null; }
+	} catch {
+		return null;
+	}
 }
 
 async function fetchViewData(): Promise< ViewResult > {
 	const jetpack = await tryJetpack();
-	if ( jetpack?.length ) return { source: 'jetpack', days: jetpack };
+	if ( jetpack?.length ) {
+		return { source: 'jetpack', days: jetpack };
+	}
 	const meta = await tryMeta();
-	if ( meta?.length ) return { source: 'meta', days: meta };
+	if ( meta?.length ) {
+		return { source: 'meta', days: meta };
+	}
 	return { source: 'none', days: [] };
 }
 
 function buildSparkPath( values: number[], W: number, H: number, pad: number ): {
 	line: string; area: string; pts: [ number, number ][];
 } | null {
-	if ( values.length < 2 ) return null;
+	if ( values.length < 2 ) {
+		return null;
+	}
 	const max = Math.max( 1, ...values );
 	const pts: [ number, number ][] = values.map( ( v, i ) => [
 		pad + ( ( W - pad * 2 ) / ( values.length - 1 ) ) * i,
@@ -212,22 +230,30 @@ function renderUI( container: HTMLElement, result: ViewResult | null, error: boo
 }
 
 const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< WidgetTeardown > => {
-	let destroyed  = false;
+	let destroyed = false;
 	let intervalId: ReturnType< typeof setInterval > | null = null;
 	const refresh = async (): Promise< void > => {
-		if ( destroyed ) return;
+		if ( destroyed ) {
+			return;
+		}
 		try {
 			const result = await fetchViewData();
-			if ( ! destroyed ) renderUI( container, result, false );
+			if ( ! destroyed ) {
+				renderUI( container, result, false );
+			}
 		} catch {
-			if ( ! destroyed ) renderUI( container, null, true );
+			if ( ! destroyed ) {
+				renderUI( container, null, true );
+			}
 		}
 	};
 	await refresh();
 	intervalId = setInterval( refresh, REFRESH_MS );
 	return () => {
 		destroyed = true;
-		if ( intervalId !== null ) clearInterval( intervalId );
+		if ( intervalId !== null ) {
+			clearInterval( intervalId );
+		}
 	};
 };
 
