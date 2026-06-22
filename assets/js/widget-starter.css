@@ -1,0 +1,58 @@
+/*
+ * Desktop Mode — Starter Widget styles.
+ *
+ * Keep widget CSS minimal and use the CSS custom properties
+ * Desktop Mode sets on the card body — they handle dark/light
+ * theme automatically so your widget never needs to.
+ *
+ * Available variables (set by the shell on .desktop-mode-widgets__card-body):
+ *   --wpd-color-text          Main text colour
+ *   --wpd-color-text-subtle   Muted / secondary text
+ *   --wpd-color-border        Divider / border colour
+ *   --wpd-color-accent        Brand blue for highlights
+ *   --wpd-color-surface       Card background (glass)
+ */
+
+.dm-starter {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	height: 100%;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-size: 13px;
+	color: var(--wpd-color-text, #1a1a1a);
+}
+
+.dm-starter__title {
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--wpd-color-text-subtle, #6b7280);
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--wpd-color-border, #e5e7eb);
+	flex-shrink: 0;
+}
+
+.dm-starter__body {
+	flex: 1;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--wpd-color-text, #1a1a1a);
+	min-width: 0;
+}
+
+.dm-starter__counter {
+	flex-shrink: 0;
+	background: var(--wpd-color-accent, #3b82f6);
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	padding: 6px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: opacity 0.15s ease;
+}
+.dm-starter__counter:hover { opacity: 0.85; }
+.dm-starter__counter:active { opacity: 0.7; }

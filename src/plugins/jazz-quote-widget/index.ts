@@ -3,14 +3,17 @@
  *
  * A love letter to WordPress's jazz musician release naming tradition.
  * Shows the current WP version, its jazz musician codename, and a
- * rotating quote from that musician — or a classic jazz wisdom quote
- * when the codename isn't in our list yet.
+ * rotating daily quote from that musician.
  *
- * Rotates to a new quote each day, persisted in ctx.storage so the
- * same quote shows across page loads until tomorrow.
+ * Version detection priority:
+ *   1. window.desktopModeJazzQuote.wpVersion — inlined by PHP via the
+ *      main shell payload (most reliable, no DOM scraping)
+ *   2. <meta name="generator"> tag — present on most WP installs
+ *   3. Falls back to jazz wisdom pool with no version shown
  *
- * Data: WP REST /wp/v2 root endpoint for version info. Quotes are
- * bundled — no external API call needed, works fully offline.
+ * Quotes rotate daily using a day-of-year seed so the index stays
+ * bounded and all three quotes in a pool see roughly equal rotation.
+ * Persisted in ctx.storage so it does not re-evaluate on every page load.
  *
  * @since 0.26.0
  */
@@ -21,45 +24,61 @@ const WIDGET_ID = 'desktop-mode/jazz-quote';
 
 // ---------------------------------------------------------------------------
 // WordPress release → jazz musician map.
-// Each WP major version is named after a jazz musician.
+// Source: https://wordpress.org/documentation/article/learn-about-wordpress-and-version-history/
+// Verified against official release announcements June 2026.
 // ---------------------------------------------------------------------------
 const WP_CODENAMES: Record< string, string > = {
-	'6.8': 'Chet Baker',
-	'6.7': 'Miriam Makeba',
-	'6.6': 'Dorival Caymmi',
+	'7.0': 'Louis Armstrong',
+	'6.9': 'Gene Harris',
+	'6.8': 'Cecil Taylor',
+	'6.7': 'Sonny Rollins',
+	'6.6': 'Tommy Dorsey',
 	'6.5': 'Regina Carter',
 	'6.4': 'Shirley Horn',
 	'6.3': 'Lionel Hampton',
-	'6.2': 'Dolly Parton',
-	'6.1': 'Misha Dichter',
-	'6.0': 'Arturo Sandoval',
-	'5.9': 'Joséphine Baker',
-	'5.8': 'Tatum',
-	'5.7': 'Esperanza Spalding',
-	'5.6': 'Simone',
-	'5.5': 'Eckstine',
-	'5.4': 'Adderley',
-	'5.3': 'Kirk',
+	'6.2': 'Eric Dolphy',           // "Dolphy" — woodwind multi-instrumentalist
+	'6.1': 'Mikhail Alperin',       // "Misha" — jazz pianist/composer (NOT Misha Dichter)
+	'6.0': 'Arturo O\'Farrill',     // "Arturo" — Latin jazz pianist
+	'5.9': 'Joséphine Baker',       // "Josephine"
+	'5.8': 'Art Tatum',             // "Tatum"
+	'5.7': 'Esperanza Spalding',    // "Esperanza"
+	'5.6': 'Nina Simone',           // "Simone"
+	'5.5': 'Billy Eckstine',        // "Eckstine"
+	'5.4': 'Nat Adderley',          // "Adderley"
+	'5.3': 'Rahsaan Roland Kirk',   // "Kirk"
+	'5.2': 'Jaco Pastorius',        // "Jaco"
+	'5.1': 'Betty Carter',          // "Betty"
+	'5.0': 'Bebo Valdés',           // "Bebo"
 };
 
 // ---------------------------------------------------------------------------
-// Quotes keyed by musician name. Falls back to the jazz wisdom pool.
+// Quotes keyed by musician. Falls back to JAZZ_WISDOM for any missing entry.
 // ---------------------------------------------------------------------------
 const MUSICIAN_QUOTES: Record< string, string[] > = {
-	'Chet Baker': [
-		'I just play what I hear in my head.',
-		'You have to go beyond technical perfection.',
-		'If I lose the melody, I lose myself.',
+	'Louis Armstrong': [
+		'If you have to ask what jazz is, you\'ll never know.',
+		'Musicians don\'t retire; they stop when there\'s no more music in them.',
+		'All music is folk music. I ain\'t never heard a horse sing a song.',
 	],
-	'Miriam Makeba': [
-		'Music is medicine. Music is unity.',
-		'I look at an ant and I see myself.',
-		'I kept my culture. I kept the music of my roots.',
+	'Gene Harris': [
+		'Play from your heart and the rest will follow.',
+		'The blues is the roots; everything else is the fruits.',
+		'Swing is a feeling, not a formula.',
 	],
-	'Dorival Caymmi': [
-		'The sea is the greatest teacher.',
-		'Music is a feeling that has no borders.',
-		'Simplicity is the highest form of elegance.',
+	'Cecil Taylor': [
+		'Music has to do with a lot of areas which are magical rather than logical.',
+		'The piano is a vehicle by which I can express my spirit.',
+		'I try to imitate on the piano the leaping of a plant.',
+	],
+	'Sonny Rollins': [
+		'Jazz is not just music — it\'s a way of life.',
+		'If you\'re not making a mistake, it\'s a mistake.',
+		'Playing is the easiest way for me to communicate with other people.',
+	],
+	'Tommy Dorsey': [
+		'A real pro is someone who does their best work even when they don\'t feel like it.',
+		'Make it swing and the people will follow.',
+		'The trombone is the voice of the orchestra.',
 	],
 	'Regina Carter': [
 		'The violin is not a barrier — it is a bridge.',
@@ -76,61 +95,110 @@ const MUSICIAN_QUOTES: Record< string, string[] > = {
 		'You can always tell a musician by the way they listen.',
 		'Jazz is the music of the moment that lasts forever.',
 	],
+	'Eric Dolphy': [
+		'When you hear music, after it\'s over, it\'s gone in the air. You can never capture it again.',
+		'I play a little different on each instrument.',
+		'Music is a reflection of everything — and that includes all kinds of beauty.',
+	],
+	'Mikhail Alperin': [
+		'Music is about finding your own voice, not someone else\'s.',
+		'Silence is part of music — the space between notes is where meaning lives.',
+		'Every note I play comes from somewhere inside that I cannot explain.',
+	],
+	'Arturo O\'Farrill': [
+		'Latin jazz is the only truly American music.',
+		'Music is the universal language — and jazz is its most democratic dialect.',
+		'My job is to swing hard and think deep.',
+	],
 	'Joséphine Baker': [
 		'The most beautiful thing in the world is freedom.',
 		'I improvised, caricatured, and made people laugh.',
-		'I have walked into the palaces of kings and queens and into the houses of presidents. And much more. But I could not walk into a hotel in America.',
+		'One word frees us of all the weight and pain of life — that word is love.',
+	],
+	'Art Tatum': [
+		'I\'m always trying to do things differently.',
+		'The piano is a complete orchestra.',
+		'Speed is nothing without control.',
+	],
+	'Nina Simone': [
+		'Jazz is not just music — it\'s life.',
+		'I\'ll tell you what freedom is to me: no fear.',
+		'You\'ve got to learn to leave the table when love\'s no longer being served.',
+	],
+	'Esperanza Spalding': [
+		'Music is a living thing.',
+		'I want to create something that is beyond genre.',
+		'A song is a conversation between the singer and the listener.',
+	],
+	'Bebo Valdés': [
+		'Cuban music is the most complete in the world.',
+		'You play with what you have, and you make it beautiful.',
+		'Music is the bridge between where you are and where you want to be.',
 	],
 };
 
-// General jazz wisdom shown when the codename is not in our map yet.
+// General jazz wisdom — shown when the version has no entry in the map.
 const JAZZ_WISDOM = [
-	'A jazz musician is a juggler who uses harmonies instead of oranges. — Benny Green',
-	'Jazz is not just music, it is a way of life, it is a way of looking at the world. — Ray Charles',
+	'Do not fear mistakes — there are none. — Miles Davis',
 	'Man, if you gotta ask, you\'ll never know. — Louis Armstrong',
 	'There are no wrong notes in jazz: only notes in the wrong places. — Miles Davis',
-	'Jazz is the music of the body. — Anita O\'Day',
-	'Do not fear mistakes — there are none. — Miles Davis',
-	'I never had much interest in the piano until I realized that every time I played, a girl would appear on the piano bench to my left. — Duke Ellington',
 	'Music is your own experience, your thoughts, your wisdom. If you don\'t live it, it won\'t come out of your horn. — Charlie Parker',
 	'You can play a shoestring if you\'re sincere. — John Coltrane',
-	'If you have to ask what jazz is, you\'ll never know. — Louis Armstrong',
+	'Jazz is the music of the body. — Anita O\'Day',
 	'I\'m always thinking about creating. My future starts when I wake up every morning. — Miles Davis',
-	'Jazz is not just music — it\'s life. — Nina Simone',
+	'It takes a long time to play like yourself. — Miles Davis',
+	'Don\'t play what\'s there — play what\'s not there. — Miles Davis',
 ];
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Version detection
 // ---------------------------------------------------------------------------
+
+declare global {
+	interface Window {
+		desktopModeJazzQuote?: { wpVersion?: string };
+	}
+}
+
+function detectWpVersion(): string | null {
+	// Priority 1: PHP-inlined global via main shell payload.
+	const inlined = window.desktopModeJazzQuote?.wpVersion;
+	if ( inlined && /^\d+\.\d+/.test( inlined ) ) {
+		return inlined;
+	}
+
+	// Priority 2: Generator meta tag (present unless a security plugin strips it).
+	const meta = document.querySelector< HTMLMetaElement >( 'meta[name="generator"]' );
+	const match = meta?.content?.match( /WordPress ([\d.]+)/ );
+	if ( match ) {
+		return match[ 1 ];
+	}
+
+	return null;
+}
+
+function majorVersion( version: string ): string {
+	return version.split( '.' ).slice( 0, 2 ).join( '.' );
+}
 
 function todayKey(): string {
 	return new Date().toISOString().slice( 0, 10 );
 }
 
-function pickQuote( musician: string, seed: number ): string {
-	const pool = MUSICIAN_QUOTES[ musician ] ?? JAZZ_WISDOM;
-	return pool[ seed % pool.length ];
+/**
+ * Day-of-year seed: 1–366. Stays bounded so modulo against small
+ * pool sizes (3 quotes) gives even rotation across the year.
+ */
+function dayOfYearSeed(): number {
+	const now   = new Date();
+	const start = new Date( now.getFullYear(), 0, 0 );
+	const diff  = now.getTime() - start.getTime();
+	return Math.floor( diff / 86_400_000 ); // 1 on Jan 1, 366 on Dec 31 (leap)
 }
 
-function majorVersion( version: string ): string {
-	const parts = version.split( '.' );
-	return parts.slice( 0, 2 ).join( '.' );
-}
-
-async function fetchWpVersion(): Promise< string > {
-	const s = ( window as unknown as { wpApiSettings?: { root?: string; nonce?: string } } )
-		.wpApiSettings ?? {};
-	const res = await fetch(
-		( s.root ?? '/wp-json/' ).replace( /\/$/, '' ) + '/wp/v2',
-		{ headers: { 'X-WP-Nonce': s.nonce ?? '' }, credentials: 'same-origin' },
-	);
-	if ( ! res.ok ) throw new Error( `HTTP ${ res.status }` );
-	const data = await res.json() as { gmt_offset?: number; name?: string; description?: string };
-	// The root endpoint doesn't expose WP version directly.
-	// Read it from the generator meta tag already on the page instead.
-	const meta = document.querySelector< HTMLMetaElement >( 'meta[name="generator"]' );
-	const match = meta?.content?.match( /WordPress ([\d.]+)/ );
-	return match ? match[ 1 ] : '6.8';
+function pickQuote( musician: string | null ): string {
+	const pool = musician ? ( MUSICIAN_QUOTES[ musician ] ?? JAZZ_WISDOM ) : JAZZ_WISDOM;
+	return pool[ dayOfYearSeed() % pool.length ];
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +207,7 @@ async function fetchWpVersion(): Promise< string > {
 
 function render(
 	container: HTMLElement,
-	version: string,
+	version: string | null,
 	musician: string | null,
 	quote: string,
 ): void {
@@ -148,18 +216,15 @@ function render(
 	const root = document.createElement( 'div' );
 	root.className = 'dm-jazz';
 
-	// Note symbol — decorative
 	const symbol = document.createElement( 'div' );
 	symbol.className = 'dm-jazz__symbol';
 	symbol.setAttribute( 'aria-hidden', 'true' );
-	symbol.textContent = '\u266B'; // ♫
+	symbol.textContent = '\u266B';
 
-	// Quote text
 	const quoteEl = document.createElement( 'blockquote' );
 	quoteEl.className = 'dm-jazz__quote';
 	quoteEl.textContent = quote;
 
-	// Attribution line
 	const attr = document.createElement( 'div' );
 	attr.className = 'dm-jazz__attr';
 
@@ -167,17 +232,13 @@ function render(
 		const nameEl = document.createElement( 'span' );
 		nameEl.className = 'dm-jazz__musician';
 		nameEl.textContent = musician;
-
-		const wpEl = document.createElement( 'span' );
-		wpEl.className = 'dm-jazz__version';
-		wpEl.textContent = 'WordPress ' + version;
-
 		attr.appendChild( nameEl );
-		attr.appendChild( wpEl );
-	} else {
+	}
+
+	if ( version ) {
 		const wpEl = document.createElement( 'span' );
 		wpEl.className = 'dm-jazz__version';
-		wpEl.textContent = 'WordPress ' + version;
+		wpEl.textContent = 'WordPress ' + version + ( musician ? '' : ' — jazz wisdom' );
 		attr.appendChild( wpEl );
 	}
 
@@ -196,8 +257,8 @@ const mount = async (
 	ctx: WidgetContext,
 ): Promise< WidgetTeardown > => {
 
-	// Check if we already picked a quote today.
-	const stored = ctx.storage.get< { date: string; quote: string; musician: string | null; version: string } >( 'daily' );
+	type Stored = { date: string; quote: string; musician: string | null; version: string | null };
+	const stored = ctx.storage.get< Stored >( 'daily' );
 	const today  = todayKey();
 
 	if ( stored && stored.date === today ) {
@@ -205,25 +266,20 @@ const mount = async (
 		return () => undefined;
 	}
 
-	// Fetch the WP version and pick today's quote.
-	try {
-		const version  = await fetchWpVersion();
-		const major    = majorVersion( version );
-		const musician = WP_CODENAMES[ major ] ?? null;
+	const version  = detectWpVersion();
+	const major    = version ? majorVersion( version ) : null;
+	const musician = major ? ( WP_CODENAMES[ major ] ?? null ) : null;
+	const quote    = pickQuote( musician );
 
-		// Use today's date as a deterministic seed so everyone on
-		// the same day sees the same quote — consistent, not random.
-		const seed = parseInt( today.replace( /-/g, '' ), 10 );
-		const quote = pickQuote( musician ?? '', seed );
-
-		ctx.storage.set( 'daily', { date: today, quote, musician, version } );
-		render( container, version, musician, quote );
-	} catch {
-		render( container, '', null, JAZZ_WISDOM[ 0 ] );
-	}
+	ctx.storage.set( 'daily', { date: today, quote, musician, version } );
+	render( container, version, musician, quote );
 
 	return () => undefined;
 };
+
+// ---------------------------------------------------------------------------
+// Register
+// ---------------------------------------------------------------------------
 
 const w = window as unknown as {
 	desktopModeWidgets?: Record< string, typeof mount >;

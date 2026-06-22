@@ -12,7 +12,6 @@
 	line-height: 1;
 	opacity: 0.25;
 	flex-shrink: 0;
-	/* Subtle animation — gently pulses like a slow breath */
 	animation: dm-jazz-pulse 4s ease-in-out infinite;
 }
 
@@ -25,11 +24,12 @@
 	flex: 1;
 	margin: 0;
 	padding: 0;
-	font-size: clamp( 11px, 2.5cqw, 13px );
+	/* clamp with px only — cqw requires container-type on the parent
+	   which the shell card body does not set. */
+	font-size: clamp( 11px, 1.8vw, 13px );
 	line-height: 1.55;
 	font-style: italic;
 	color: var(--wpd-color-text, #e2e8f0);
-	/* Gentle fade-in so the quote doesn't pop on mount */
 	animation: dm-jazz-fadein 0.6s ease both;
 }
 

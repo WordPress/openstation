@@ -54,6 +54,13 @@ const mount = async (
 ): Promise< WidgetTeardown > => {
 
 	// -----------------------------------------------------------------------
+	// Declare destroyed at the very top of mount so every async path
+	// below can reference it correctly. This is the most important pattern
+	// to get right — check destroyed immediately after EVERY await.
+	// -----------------------------------------------------------------------
+	let destroyed = false;
+
+	// -----------------------------------------------------------------------
 	// Render your initial UI.
 	// Keep DOM creation simple — no framework needed for small widgets.
 	// -----------------------------------------------------------------------
@@ -93,20 +100,26 @@ const mount = async (
 	// -----------------------------------------------------------------------
 	// Fetch data from the WP REST API.
 	// Always use the nonce from wpApiSettings for authenticated requests.
+	//
+	// IMPORTANT: check `destroyed` immediately after every `await` —
+	// not just before the fetch starts. The widget may have been removed
+	// while the request was in flight.
 	// -----------------------------------------------------------------------
 	const s = ( window as unknown as { wpApiSettings?: { root?: string; nonce?: string } } )
 		.wpApiSettings ?? {};
 
-	let destroyed = false;
-
 	const loadData = async (): Promise< void > => {
+		if ( destroyed ) return;
 		try {
 			const res = await fetch(
 				( s.root ?? '/wp-json/' ).replace( /\/$/, '' ) + '/wp/v2/posts?per_page=1&_fields=title',
 				{ headers: { 'X-WP-Nonce': s.nonce ?? '' }, credentials: 'same-origin' },
 			);
-			if ( ! res.ok || destroyed ) return;
+			// Check destroyed after EVERY await — not just before the request.
+			if ( destroyed ) return;
+			if ( ! res.ok ) return;
 			const posts = await res.json() as Array< { title: { rendered: string } } >;
+			// Check again after the second await (res.json()).
 			if ( destroyed ) return;
 			if ( posts.length > 0 ) {
 				body.textContent = 'Latest: ' + posts[ 0 ].title.rendered;

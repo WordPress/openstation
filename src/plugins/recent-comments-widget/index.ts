@@ -21,7 +21,10 @@ interface CommentRow {
 	id: number;
 	status: 'approved' | 'hold' | 'spam' | 'trash';
 	author_name: string;
-	date: string;
+	// date is site-local; date_gmt is UTC. Always use date_gmt for
+	// time-ago calculations so the result is accurate regardless of
+	// the site's timezone setting.
+	date_gmt: string;
 	post: number;
 	_embedded?: {
 		up?: Array<{ title?: { rendered?: string } }>;
@@ -35,8 +38,11 @@ const STATUS_META: Record< string, { label: string; color: string } > = {
 	trash:    { label: 'Trash',    color: '#9ca3af' },
 };
 
-function timeAgo( iso: string ): string {
-	const secs = Math.floor( ( Date.now() - new Date( iso ).getTime() ) / 1000 );
+function timeAgo( isoUtc: string ): string {
+	// isoUtc is a UTC timestamp from date_gmt — append Z if missing so
+	// the Date constructor treats it as UTC rather than local time.
+	const ts = isoUtc.endsWith( 'Z' ) ? isoUtc : isoUtc + 'Z';
+	const secs = Math.floor( ( Date.now() - new Date( ts ).getTime() ) / 1000 );
 	if ( secs < 60 )    return secs + 's ago';
 	if ( secs < 3600 )  return Math.floor( secs / 60 ) + 'm ago';
 	if ( secs < 86400 ) return Math.floor( secs / 3600 ) + 'h ago';
@@ -117,7 +123,7 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 
 		const time = document.createElement( 'span' );
 		time.className = 'dm-comments__time';
-		time.textContent = timeAgo( c.date );
+		time.textContent = timeAgo( c.date_gmt );
 
 		meta.appendChild( author );
 		meta.appendChild( statusEl );

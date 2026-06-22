@@ -88,8 +88,8 @@ async function fetchPosts(): Promise< PostStub[] > {
 }
 
 /**
- * Safe rounded rect — falls back to a plain rect on older browsers
- * that don't have CanvasRenderingContext2D.roundRect().
+ * Safe rounded rect — falls back to a plain rect on browsers that do
+ * not support CanvasRenderingContext2D.roundRect() (Safari < 15.4).
  */
 function safeRoundRect(
 	ctx: CanvasRenderingContext2D,
@@ -103,7 +103,6 @@ function safeRoundRect(
 		( ctx as unknown as { roundRect: ( x: number, y: number, w: number, h: number, r: number ) => void } )
 			.roundRect( x, y, w, h, r );
 	} else {
-		// Fallback: plain rectangle
 		ctx.rect( x, y, w, h );
 	}
 }
@@ -112,8 +111,8 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 	const dpr  = window.devicePixelRatio || 1;
 	const rect = canvas.getBoundingClientRect();
 
-	// Guard: canvas has no layout yet — skip this frame.
-	// The ResizeObserver will fire again once it has real dimensions.
+	// Skip if layout has not settled yet. ResizeObserver will fire again
+	// once the canvas wrapper has real dimensions.
 	if ( rect.width === 0 || rect.height === 0 ) return;
 
 	canvas.width  = Math.round( rect.width  * dpr );
@@ -180,7 +179,6 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 function renderUI( container: HTMLElement, buckets: Bucket[], total: number, error: boolean ): HTMLCanvasElement | null {
 	container.innerHTML = '';
 
-	// Header — two separate elements so flex spacing keeps them apart.
 	const header = document.createElement( 'div' );
 	header.className = 'dm-poststats__header';
 
@@ -264,17 +262,19 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 			const canvas = renderUI( container, buckets, total, false );
 			if ( canvas ) {
 				ro?.disconnect();
-				ro = new ResizeObserver( () => {
-					if ( ! destroyed ) drawChart( canvas, buckets );
-				} );
-				// Observe the wrapper so we see real layout dimensions.
-				ro.observe( canvas.parentElement! );
 
-				// Draw after a short delay to let the browser complete
-				// flex layout and give the canvas real dimensions.
-				setTimeout( () => {
-					if ( ! destroyed ) drawChart( canvas, buckets );
-				}, 50 );
+				// Use ResizeObserver exclusively for the initial draw and all
+				// subsequent redraws. Removed the fragile setTimeout(50) approach
+				// — ResizeObserver fires as soon as the element has layout, which
+				// is the correct signal regardless of machine speed.
+				ro = new ResizeObserver( ( entries ) => {
+					if ( destroyed ) return;
+					const entry = entries[ 0 ];
+					if ( entry && entry.contentRect.width > 0 && entry.contentRect.height > 0 ) {
+						drawChart( canvas, buckets );
+					}
+				} );
+				ro.observe( canvas.parentElement! );
 			}
 		} catch {
 			if ( ! destroyed ) renderUI( container, buildBuckets(), 0, true );

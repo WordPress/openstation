@@ -114,9 +114,20 @@ function renderUI( container: HTMLElement, result: ViewResult | null, error: boo
 	}
 
 	if ( ! result || result.source === 'none' || result.days.length === 0 ) {
+		// Build the no-source message using DOM rather than innerHTML
+		// to keep the codebase consistent and avoid the innerHTML pattern.
 		const ns = document.createElement( 'div' );
 		ns.className = 'dm-views__no-source';
-		ns.innerHTML = '<p>No stats source found. Activate Jetpack Stats or a post-views plugin that writes <code>_post_views_YYYY-MM-DD</code> meta keys.</p>';
+
+		const p = document.createElement( 'p' );
+		p.textContent = 'No stats source found. Activate Jetpack Stats or a post-views plugin that writes ';
+
+		const code = document.createElement( 'code' );
+		code.textContent = '_post_views_YYYY-MM-DD';
+
+		p.appendChild( code );
+		p.appendChild( document.createTextNode( ' meta keys.' ) );
+		ns.appendChild( p );
 		container.appendChild( ns );
 		return;
 	}
@@ -140,9 +151,16 @@ function renderUI( container: HTMLElement, result: ViewResult | null, error: boo
 		deltaEl.textContent = '\u2014';
 	} else {
 		const pct = Math.round( ( ( thisTotal - prevTotal ) / prevTotal ) * 100 );
-		if ( pct > 0 ) { deltaEl.classList.add( 'dm-views__delta--up' );   deltaEl.textContent = '\u2191 ' + pct + '%'; }
-		else if ( pct < 0 ) { deltaEl.classList.add( 'dm-views__delta--down' ); deltaEl.textContent = '\u2193 ' + Math.abs( pct ) + '%'; }
-		else { deltaEl.classList.add( 'dm-views__delta--flat' ); deltaEl.textContent = '\u2192 0%'; }
+		if ( pct > 0 ) {
+			deltaEl.classList.add( 'dm-views__delta--up' );
+			deltaEl.textContent = '\u2191 ' + pct + '%';
+		} else if ( pct < 0 ) {
+			deltaEl.classList.add( 'dm-views__delta--down' );
+			deltaEl.textContent = '\u2193 ' + Math.abs( pct ) + '%';
+		} else {
+			deltaEl.classList.add( 'dm-views__delta--flat' );
+			deltaEl.textContent = '\u2192 0%';
+		}
 	}
 
 	const label = document.createElement( 'span' );

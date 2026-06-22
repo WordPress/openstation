@@ -29,7 +29,8 @@
 	min-width: 0;
 }
 .dm-views__total {
-	font-size: clamp( 18px, 5cqw, 26px );
+	/* cqw requires container-type on parent — use vw as proxy for card width */
+	font-size: clamp( 18px, 3vw, 26px );
 	font-weight: 700;
 	line-height: 1;
 }
@@ -81,6 +82,13 @@
 	color: var(--wpd-color-text-subtle, #9ca3af);
 	line-height: 1.5;
 	text-align: center;
+}
+.dm-views__no-source code {
+	font-family: ui-monospace, "Cascadia Code", monospace;
+	font-size: 9px;
+	background: rgba(0,0,0,0.15);
+	border-radius: 3px;
+	padding: 0 3px;
 }
 .dm-views__error {
 	color: #ef4444;
