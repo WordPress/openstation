@@ -12,6 +12,7 @@
  * @since 0.26.0
  */
 import './styles.css';
+import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 const WIDGET_ID   = 'desktop-mode/post-stats';
@@ -58,8 +59,8 @@ function buildBuckets(): Bucket[] {
 }
 
 async function fetchPosts(): Promise< PostStub[] > {
-	const s = ( window as unknown as { wpApiSettings?: { root?: string; nonce?: string } } )
-		.wpApiSettings ?? {};
+	const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
+		.wpApiSettings?.root ?? '/wp-json/';
 	const cutoff = new Date();
 	cutoff.setMonth( cutoff.getMonth() - MONTHS_BACK );
 	cutoff.setDate( 1 );
@@ -71,10 +72,14 @@ async function fetchPosts(): Promise< PostStub[] > {
 		let page = 1;
 		let total = Infinity;
 		while ( all.length < 200 && ( page - 1 ) * 100 < total ) {
-			const res = await fetch(
-				( s.root ?? '/wp-json/' ).replace( /\/$/, '' ) +
+			// trackedFetch handles nonce injection automatically — no manual
+			// X-WP-Nonce header needed. silent: true suppresses the activity
+			// bus pulse since this is a background poll.
+			const res = await trackedFetch(
+				root.replace( /\/$/, '' ) +
 					`/wp/v2/posts?per_page=100&page=${ page }&status=${ status }&after=${ encodeURIComponent( after ) }&_fields=id,date,status`,
-				{ headers: { 'X-WP-Nonce': s.nonce ?? '' }, credentials: 'same-origin' },
+				{ credentials: 'same-origin' },
+				{ source: 'desktop-mode/post-stats', silent: true },
 			);
 			if ( ! res.ok ) break;
 			total = parseInt( res.headers.get( 'X-WP-Total' ) ?? '0', 10 );
@@ -262,11 +267,6 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 			const canvas = renderUI( container, buckets, total, false );
 			if ( canvas ) {
 				ro?.disconnect();
-
-				// Use ResizeObserver exclusively for the initial draw and all
-				// subsequent redraws. Removed the fragile setTimeout(50) approach
-				// — ResizeObserver fires as soon as the element has layout, which
-				// is the correct signal regardless of machine speed.
 				ro = new ResizeObserver( ( entries ) => {
 					if ( destroyed ) return;
 					const entry = entries[ 0 ];

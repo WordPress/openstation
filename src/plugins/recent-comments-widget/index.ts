@@ -11,6 +11,7 @@
  * @since 0.26.0
  */
 import './styles.css';
+import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 const WIDGET_ID  = 'desktop-mode/recent-comments';
@@ -50,12 +51,15 @@ function timeAgo( isoUtc: string ): string {
 }
 
 async function fetchComments(): Promise< CommentRow[] > {
-	const s = ( window as unknown as { wpApiSettings?: { root?: string; nonce?: string } } )
-		.wpApiSettings ?? {};
-	const res = await fetch(
-		( s.root ?? '/wp-json/' ).replace( /\/$/, '' ) +
+	const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
+		.wpApiSettings?.root ?? '/wp-json/';
+	// trackedFetch routes through the framework so requests feed the
+	// loading spinner + activity bus and the nonce is injected automatically.
+	const res = await trackedFetch(
+		root.replace( /\/$/, '' ) +
 			`/wp/v2/comments?per_page=${ LIMIT }&orderby=date&order=desc&_embed=up`,
-		{ headers: { 'X-WP-Nonce': s.nonce ?? '' }, credentials: 'same-origin' },
+		{ credentials: 'same-origin' },
+		{ source: 'desktop-mode/recent-comments', silent: true },
 	);
 	if ( ! res.ok ) throw new Error( `HTTP ${ res.status }` );
 	return res.json() as Promise< CommentRow[] >;

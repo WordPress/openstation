@@ -15,7 +15,7 @@
  * -------------------------------------------
  * 1. Copy this folder (src/plugins/starter-widget/) to src/plugins/my-widget/
  * 2. Copy includes/widgets/widget-starter.php to includes/widgets/widget-my.php
- * 3. Find every occurrence of "starter" and "STARTER" and replace with your name
+ * 3. Find every occurrence of "starter" and replace with your widget name
  * 4. Find the WIDGET_ID constant below and give it a unique namespaced slug
  * 5. Add a Vite target + npm build script (see the bottom of this file)
  * 6. Require your new PHP file in desktop-mode.php
@@ -39,6 +39,7 @@
  * @since 0.26.0
  */
 import './styles.css';
+import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 // =============================================================================
@@ -109,15 +110,13 @@ const mount = async (
 	const root = document.createElement( 'div' );
 	root.className = 'dm-starter';
 
-	// A header bar — small, uppercase, using the subtle text colour CSS var.
 	const header = document.createElement( 'div' );
 	header.className = 'dm-starter__header';
 	header.textContent = 'Starter Widget';
 
-	// A body area where you display your content.
 	const body = document.createElement( 'div' );
 	body.className = 'dm-starter__body';
-	body.textContent = 'Loading…';
+	body.textContent = 'Loading\u2026';
 
 	root.appendChild( header );
 	root.appendChild( body );
@@ -145,8 +144,6 @@ const mount = async (
 	counter.textContent = `Clicked ${ clickCount } ${ clickCount === 1 ? 'time' : 'times' }`;
 
 	const onClick = (): void => {
-		// Always re-read from storage before incrementing — another tab
-		// might have updated the value since this tab last wrote it.
 		const current = ctx.storage.get< number >( 'clicks' ) ?? 0;
 		const next    = current + 1;
 		ctx.storage.set( 'clicks', next );
@@ -158,37 +155,36 @@ const mount = async (
 	// -------------------------------------------------------------------------
 	// STEP 2d — FETCH DATA FROM THE WP REST API
 	// -------------------------------------------------------------------------
-	// wpApiSettings is injected by WordPress on every admin page. It gives you:
-	//   wpApiSettings.root   — the REST root URL, e.g. https://example.com/wp-json/
-	//   wpApiSettings.nonce  — the nonce for authenticated requests
+	// Always use trackedFetch from '../../tracked-fetch', never raw fetch().
 	//
-	// Always pass the nonce as X-WP-Nonce. Without it, authenticated endpoints
-	// (posts, users, comments) return 401 Unauthorized for non-public content.
+	// Why: the repo's ESLint config bans raw fetch() calls (no-restricted-syntax
+	// rule). trackedFetch routes requests through the framework so they feed the
+	// loading spinner + activity bus. It also injects the REST nonce
+	// (X-WP-Nonce) automatically via injectRestNonce — no manual header needed.
 	//
-	// The replace(/\/$/, '') strips a trailing slash from root so your path
-	// concatenation never produces double slashes.
+	// Pass silent: true for background polls the user did not initiate, so
+	// they do not see a spurious loading indicator on every refresh tick.
 	//
-	const s = ( window as unknown as { wpApiSettings?: { root?: string; nonce?: string } } )
-		.wpApiSettings ?? {};
+	// Pass source: 'yourplugin/widget-name' so the devtools activity panel
+	// can attribute requests to your widget by name.
+	//
+	const root_url = ( window as unknown as { wpApiSettings?: { root?: string } } )
+		.wpApiSettings?.root ?? '/wp-json/';
 
 	const loadData = async (): Promise< void > => {
-		// Guard at the start of every async function that touches the DOM.
 		if ( destroyed ) return;
 
 		try {
-			const res = await fetch(
-				( s.root ?? '/wp-json/' ).replace( /\/$/, '' ) +
+			const res = await trackedFetch(
+				root_url.replace( /\/$/, '' ) +
 					'/wp/v2/posts?per_page=1&orderby=date&order=desc&_fields=id,title',
-				{
-					headers: { 'X-WP-Nonce': s.nonce ?? '' },
-					credentials: 'same-origin',
-				},
+				{ credentials: 'same-origin' },
+				{ source: 'desktop-mode/starter', silent: true },
 			);
 
 			// Check destroyed after EVERY await, not just before the request.
-			// The user may have removed the widget while the network request
-			// was in flight. Without this check you would write to a detached
-			// DOM element — a silent memory leak.
+			// The widget may have been removed while the network request was in
+			// flight. Without this check you write to a detached DOM element.
 			if ( destroyed ) return;
 
 			if ( ! res.ok ) {
@@ -206,27 +202,19 @@ const mount = async (
 				: 'No posts found.';
 
 		} catch {
-			// Network error, JSON parse failure, etc.
 			if ( ! destroyed ) {
 				body.textContent = 'Could not load data.';
 			}
 		}
 	};
 
-	// Run an immediate fetch so the widget shows real content on first mount.
 	await loadData();
 
 	// -------------------------------------------------------------------------
 	// STEP 2e — POLLING WITH setInterval
 	// -------------------------------------------------------------------------
-	// Store the interval handle in a variable so you can clear it in the
-	// teardown. An interval that is never cleared will keep firing after the
-	// widget is removed, making network requests nobody will ever see.
-	//
-	// Choose your interval carefully:
-	//   Comments / notifications  → 60 seconds is reasonable
-	//   Stats / charts            → 5–10 minutes
-	//   Slow-changing content     → longer is better for performance
+	// Store the interval handle so you can clear it in the teardown.
+	// An interval that is never cleared keeps firing after the widget is removed.
 	//
 	const intervalId = setInterval( loadData, 60_000 );
 
@@ -246,17 +234,10 @@ const mount = async (
 	//   observer.disconnect()          for ResizeObserver, MutationObserver, etc.
 	//   element.removeEventListener()  for every listener you attached
 	//
-	// Setting destroyed = true first ensures any in-flight async operations
-	// (fetches, setTimeout callbacks) bail out when they next check the flag.
-	//
 	return () => {
 		destroyed = true;
 		clearInterval( intervalId );
 		counter.removeEventListener( 'click', onClick );
-		// If you used a ResizeObserver, disconnect it here:
-		//   ro.disconnect();
-		// If you used requestAnimationFrame, cancel it:
-		//   cancelAnimationFrame( rafId );
 	};
 };
 
@@ -265,13 +246,12 @@ const mount = async (
 // STEP 4 — REGISTER ON THE GLOBAL
 // =============================================================================
 //
-// The shell's server-sync (src/widgets/server-sync.ts) loads your script
-// bundle lazily when the picker opens or the widget mounts. After loading,
-// it looks for window.desktopModeWidgets[ your_id ] and calls it as the
-// mount function.
+// The shell's server-sync loads your script bundle lazily when the picker
+// opens or the widget mounts, then looks for window.desktopModeWidgets[ id ]
+// and calls it as the mount function.
 //
 // This must happen at module evaluation time (top level, not inside mount).
-// The key here must exactly match WIDGET_ID and your PHP registration id.
+// The key must exactly match WIDGET_ID and your PHP registration id.
 //
 const w = window as unknown as {
 	desktopModeWidgets?: Record< string, typeof mount >;
@@ -285,46 +265,22 @@ w.desktopModeWidgets[ WIDGET_ID ] = mount;
 // =============================================================================
 //
 // STEP 5 — Create your PHP file
-// Copy includes/widgets/widget-starter.php to includes/widgets/widget-my.php
-// Change every occurrence of:
-//   "starter"         → your widget name  (e.g. "trending-posts")
-//   "desktop-mode/starter" → your widget id (e.g. "myplugin/trending-posts")
-//   label/description/icon → your widget's picker metadata
+//   Copy includes/widgets/widget-starter.php → includes/widgets/widget-my.php
+//   Replace "starter" with your name throughout. Update label/description/icon.
 //
-//
-// STEP 6 — Require the PHP file in desktop-mode.php
-// Find the block of require_once lines for widgets and add:
+// STEP 6 — Require it in desktop-mode.php
 //   require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-my.php';
 //
-//
-// STEP 7 — Add a Vite build target in vite.config.js
-// Inside the TARGETS object, add a new entry:
-//
+// STEP 7 — Add a Vite target in vite.config.js (inside the TARGETS object):
 //   'widget-my': {
 //       entry:    'src/plugins/my-widget/index.ts',
 //       fileBase: 'widget-my',
 //       iifeName: 'desktopModeMyWidget',
 //   },
 //
-// The fileBase controls the output filenames:
-//   assets/js/widget-my.js       (development)
-//   assets/js/widget-my.min.js   (production)
-//   assets/js/widget-my.css      (development)
-//   assets/js/widget-my.min.css  (production)
+// STEP 8 — Add a build script in package.json (inside "scripts"):
+//   "build:widget-my": "DESKTOP_MODE_TARGET=widget-my vite build --mode development
+//       && DESKTOP_MODE_TARGET=widget-my vite build --mode production"
 //
-// The iifeName is the global variable Vite wraps the bundle in. It only
-// needs to be unique — nothing outside the bundle reads it by name.
-//
-//
-// STEP 8 — Add a build script in package.json
-// Inside "scripts", add:
-//
-//   "build:widget-my": "DESKTOP_MODE_TARGET=widget-my vite build
-//       --mode development && DESKTOP_MODE_TARGET=widget-my vite build
-//       --mode production"
-//
-// Then build your widget:
-//   npm run build:widget-my
-//
-// On your next browser reload the widget will appear in the picker.
+// Then: npm run build:widget-my
 // =============================================================================

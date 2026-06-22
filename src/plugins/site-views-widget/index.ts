@@ -17,6 +17,7 @@
  * @since 0.26.0
  */
 import './styles.css';
+import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
 const WIDGET_ID  = 'desktop-mode/site-views';
@@ -35,16 +36,14 @@ function apiRoot(): string {
 	const s = ( window as unknown as { wpApiSettings?: { root?: string } } ).wpApiSettings ?? {};
 	return ( s.root ?? '/wp-json/' ).replace( /\/$/, '' );
 }
-function apiNonce(): string {
-	return ( window as unknown as { wpApiSettings?: { nonce?: string } } )
-		.wpApiSettings?.nonce ?? '';
-}
 
 async function tryJetpack(): Promise< DayRow[] | null > {
 	try {
-		const res = await fetch( apiRoot() + '/jetpack/v4/stats/visits?unit=day&quantity=14', {
-			headers: { 'X-WP-Nonce': apiNonce() }, credentials: 'same-origin',
-		} );
+		const res = await trackedFetch(
+			apiRoot() + '/jetpack/v4/stats/visits?unit=day&quantity=14',
+			{ credentials: 'same-origin' },
+			{ source: 'desktop-mode/site-views-jetpack', silent: true },
+		);
 		if ( ! res.ok ) return null;
 		const data = await res.json() as { data?: [ number, number ][] };
 		if ( ! Array.isArray( data?.data ) ) return null;
@@ -57,9 +56,11 @@ async function tryJetpack(): Promise< DayRow[] | null > {
 
 async function tryMeta(): Promise< DayRow[] | null > {
 	try {
-		const res = await fetch( apiRoot() + '/desktop-mode/v1/site-views-meta', {
-			headers: { 'X-WP-Nonce': apiNonce() }, credentials: 'same-origin',
-		} );
+		const res = await trackedFetch(
+			apiRoot() + '/desktop-mode/v1/site-views-meta',
+			{ credentials: 'same-origin' },
+			{ source: 'desktop-mode/site-views-meta', silent: true },
+		);
 		if ( ! res.ok ) return null;
 		const data = await res.json() as { has_data?: boolean; days?: DayRow[] };
 		if ( ! data?.has_data ) return null;
@@ -114,17 +115,12 @@ function renderUI( container: HTMLElement, result: ViewResult | null, error: boo
 	}
 
 	if ( ! result || result.source === 'none' || result.days.length === 0 ) {
-		// Build the no-source message using DOM rather than innerHTML
-		// to keep the codebase consistent and avoid the innerHTML pattern.
 		const ns = document.createElement( 'div' );
 		ns.className = 'dm-views__no-source';
-
 		const p = document.createElement( 'p' );
 		p.textContent = 'No stats source found. Activate Jetpack Stats or a post-views plugin that writes ';
-
 		const code = document.createElement( 'code' );
 		code.textContent = '_post_views_YYYY-MM-DD';
-
 		p.appendChild( code );
 		p.appendChild( document.createTextNode( ' meta keys.' ) );
 		ns.appendChild( p );

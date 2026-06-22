@@ -28,6 +28,7 @@ defined( 'ABSPATH' ) || exit;
 - [Register a custom unfocused-window effect (Experimental)](./custom-unfocus-effect.md)
 - [Inject data into `desktopModeConfig`](./inject-shell-config.md)
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
+- [Register a widget — polling, storage, canvas charts](./register-widget.md)
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)
 - [Programmatic AI Copilot — `wp.desktop.ai.ask()`](./ai-ask.md)
