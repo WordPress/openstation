@@ -26,29 +26,32 @@ const WIDGET_ID = 'desktop-mode/jazz-quote';
 // WordPress release → jazz musician map.
 // Source: https://wordpress.org/documentation/article/learn-about-wordpress-and-version-history/
 // Verified against official release announcements June 2026.
+// Keys use unquoted numeric strings where valid — quote-props rule requires
+// keys only be quoted when necessary (e.g. containing dots would need quotes,
+// but the ESLint config here flags unnecessary quotes).
 // ---------------------------------------------------------------------------
 const WP_CODENAMES: Record< string, string > = {
-	'7.0': 'Louis Armstrong',
-	'6.9': 'Gene Harris',
-	'6.8': 'Cecil Taylor',
-	'6.7': 'Sonny Rollins',
-	'6.6': 'Tommy Dorsey',
-	'6.5': 'Regina Carter',
-	'6.4': 'Shirley Horn',
-	'6.3': 'Lionel Hampton',
-	'6.2': 'Eric Dolphy',           // "Dolphy" — woodwind multi-instrumentalist
-	'6.1': 'Mikhail Alperin',       // "Misha" — jazz pianist/composer (NOT Misha Dichter)
-	'6.0': 'Arturo O\'Farrill',     // "Arturo" — Latin jazz pianist
-	'5.9': 'Joséphine Baker',       // "Josephine"
-	'5.8': 'Art Tatum',             // "Tatum"
-	'5.7': 'Esperanza Spalding',    // "Esperanza"
-	'5.6': 'Nina Simone',           // "Simone"
-	'5.5': 'Billy Eckstine',        // "Eckstine"
-	'5.4': 'Nat Adderley',          // "Adderley"
-	'5.3': 'Rahsaan Roland Kirk',   // "Kirk"
-	'5.2': 'Jaco Pastorius',        // "Jaco"
-	'5.1': 'Betty Carter',          // "Betty"
-	'5.0': 'Bebo Valdés',           // "Bebo"
+	7.0: 'Louis Armstrong',
+	6.9: 'Gene Harris',
+	6.8: 'Cecil Taylor',
+	6.7: 'Sonny Rollins',
+	6.6: 'Tommy Dorsey',
+	6.5: 'Regina Carter',
+	6.4: 'Shirley Horn',
+	6.3: 'Lionel Hampton',
+	6.2: 'Eric Dolphy', // "Dolphy" — woodwind multi-instrumentalist
+	6.1: 'Mikhail Alperin', // "Misha" — jazz pianist/composer (NOT Misha Dichter)
+	6.0: 'Arturo O\'Farrill', // "Arturo" — Latin jazz pianist
+	5.9: 'Joséphine Baker', // "Josephine"
+	5.8: 'Art Tatum', // "Tatum"
+	5.7: 'Esperanza Spalding', // "Esperanza"
+	5.6: 'Nina Simone', // "Simone"
+	5.5: 'Billy Eckstine', // "Eckstine"
+	5.4: 'Nat Adderley', // "Adderley"
+	5.3: 'Rahsaan Roland Kirk', // "Kirk"
+	5.2: 'Jaco Pastorius', // "Jaco"
+	5.1: 'Betty Carter', // "Betty"
+	5.0: 'Bebo Valdés', // "Bebo"
 };
 
 // ---------------------------------------------------------------------------
@@ -190,10 +193,10 @@ function todayKey(): string {
  * pool sizes (3 quotes) gives even rotation across the year.
  */
 function dayOfYearSeed(): number {
-	const now   = new Date();
+	const now = new Date();
 	const start = new Date( now.getFullYear(), 0, 0 );
-	const diff  = now.getTime() - start.getTime();
-	return Math.floor( diff / 86_400_000 ); // 1 on Jan 1, 366 on Dec 31 (leap)
+	const diff = now.getTime() - start.getTime();
+	return Math.floor( diff / 86_400_000 );
 }
 
 function pickQuote( musician: string | null ): string {
@@ -256,20 +259,19 @@ const mount = async (
 	container: HTMLElement,
 	ctx: WidgetContext,
 ): Promise< WidgetTeardown > => {
-
 	type Stored = { date: string; quote: string; musician: string | null; version: string | null };
 	const stored = ctx.storage.get< Stored >( 'daily' );
-	const today  = todayKey();
+	const today = todayKey();
 
 	if ( stored && stored.date === today ) {
 		render( container, stored.version, stored.musician, stored.quote );
 		return () => undefined;
 	}
 
-	const version  = detectWpVersion();
-	const major    = version ? majorVersion( version ) : null;
+	const version = detectWpVersion();
+	const major = version ? majorVersion( version ) : null;
 	const musician = major ? ( WP_CODENAMES[ major ] ?? null ) : null;
-	const quote    = pickQuote( musician );
+	const quote = pickQuote( musician );
 
 	ctx.storage.set( 'daily', { date: today, quote, musician, version } );
 	render( container, version, musician, quote );

@@ -15,27 +15,27 @@ import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-const WIDGET_ID   = 'desktop-mode/post-stats';
-const REFRESH_MS  = 5 * 60_000;
+const WIDGET_ID = 'desktop-mode/post-stats';
+const REFRESH_MS = 5 * 60_000;
 const MONTHS_BACK = 6;
 
 const COLORS = {
 	published: '#3b82f6',
-	pending:   '#fbbf24',
-	draft:     '#a5b4fc',
+	pending: '#fbbf24',
+	draft: '#a5b4fc',
 } as const;
 
 interface Bucket {
-	ym:        string;
-	label:     string;
+	ym: string;
+	label: string;
 	published: number;
-	pending:   number;
-	draft:     number;
+	pending: number;
+	draft: number;
 }
 
 interface PostStub {
-	id:     number;
-	date:   string;
+	id: number;
+	date: string;
 	status: string;
 }
 
@@ -72,19 +72,20 @@ async function fetchPosts(): Promise< PostStub[] > {
 		let page = 1;
 		let total = Infinity;
 		while ( all.length < 200 && ( page - 1 ) * 100 < total ) {
-			// trackedFetch handles nonce injection automatically — no manual
-			// X-WP-Nonce header needed. silent: true suppresses the activity
-			// bus pulse since this is a background poll.
 			const res = await trackedFetch(
 				root.replace( /\/$/, '' ) +
 					`/wp/v2/posts?per_page=100&page=${ page }&status=${ status }&after=${ encodeURIComponent( after ) }&_fields=id,date,status`,
 				{ credentials: 'same-origin' },
 				{ source: 'desktop-mode/post-stats', silent: true },
 			);
-			if ( ! res.ok ) break;
+			if ( ! res.ok ) {
+				break;
+			}
 			total = parseInt( res.headers.get( 'X-WP-Total' ) ?? '0', 10 );
 			const posts = await res.json() as PostStub[];
-			if ( ! Array.isArray( posts ) || posts.length === 0 ) break;
+			if ( ! Array.isArray( posts ) || posts.length === 0 ) {
+				break;
+			}
 			all.push( ...posts );
 			page++;
 		}
@@ -95,53 +96,62 @@ async function fetchPosts(): Promise< PostStub[] > {
 /**
  * Safe rounded rect — falls back to a plain rect on browsers that do
  * not support CanvasRenderingContext2D.roundRect() (Safari < 15.4).
+ *
+ * Parameters use rx/ry/rw/rh/rr prefix to avoid shadowing any outer
+ * scope variables with the same single-letter names (no-shadow rule).
  */
 function safeRoundRect(
 	ctx: CanvasRenderingContext2D,
-	x: number,
-	y: number,
-	w: number,
-	h: number,
-	r: number,
+	rx: number,
+	ry: number,
+	rw: number,
+	rh: number,
+	rr: number,
 ): void {
 	if ( typeof ( ctx as unknown as { roundRect?: unknown } ).roundRect === 'function' ) {
 		( ctx as unknown as { roundRect: ( x: number, y: number, w: number, h: number, r: number ) => void } )
-			.roundRect( x, y, w, h, r );
+			.roundRect( rx, ry, rw, rh, rr );
 	} else {
-		ctx.rect( x, y, w, h );
+		ctx.rect( rx, ry, rw, rh );
 	}
 }
 
 function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
-	const dpr  = window.devicePixelRatio || 1;
+	const dpr = window.devicePixelRatio || 1;
 	const rect = canvas.getBoundingClientRect();
 
 	// Skip if layout has not settled yet. ResizeObserver will fire again
 	// once the canvas wrapper has real dimensions.
-	if ( rect.width === 0 || rect.height === 0 ) return;
+	if ( rect.width === 0 || rect.height === 0 ) {
+		return;
+	}
 
-	canvas.width  = Math.round( rect.width  * dpr );
+	canvas.width = Math.round( rect.width * dpr );
 	canvas.height = Math.round( rect.height * dpr );
 	const ctx = canvas.getContext( '2d' );
-	if ( ! ctx ) return;
+	if ( ! ctx ) {
+		return;
+	}
 	ctx.scale( dpr, dpr );
 
-	const W   = rect.width;
-	const H   = rect.height;
+	const W = rect.width;
+	const H = rect.height;
 	const PAD = { top: 18, right: 10, bottom: 22, left: 28 };
 	const chartW = W - PAD.left - PAD.right;
-	const chartH = H - PAD.top  - PAD.bottom;
+	const chartH = H - PAD.top - PAD.bottom;
 
-	if ( chartW <= 0 || chartH <= 0 ) return;
+	if ( chartW <= 0 || chartH <= 0 ) {
+		return;
+	}
 
 	const maxVal = Math.max( 1, ...buckets.map( ( b ) => b.published + b.pending + b.draft ) );
 	const barGroupW = chartW / buckets.length;
-	const barPad    = barGroupW * 0.2;
-	const barW      = Math.max( 1, barGroupW - barPad * 2 );
+	const barPad = barGroupW * 0.2;
+	const barW = Math.max( 1, barGroupW - barPad * 2 );
 
 	// Gridlines
 	ctx.strokeStyle = 'rgba(0,0,0,0.07)';
-	ctx.lineWidth   = 1;
+	ctx.lineWidth = 1;
 	for ( let i = 0; i <= 3; i++ ) {
 		const y = PAD.top + chartH - ( chartH * i / 3 );
 		ctx.beginPath();
@@ -149,23 +159,25 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 		ctx.lineTo( PAD.left + chartW, y );
 		ctx.stroke();
 		ctx.fillStyle = 'rgba(0,0,0,0.35)';
-		ctx.font      = '9px -apple-system, sans-serif';
+		ctx.font = '9px -apple-system, sans-serif';
 		ctx.textAlign = 'right';
 		ctx.fillText( String( Math.round( maxVal * i / 3 ) ), PAD.left - 4, y + 3 );
 	}
 
 	// Bars
 	for ( let i = 0; i < buckets.length; i++ ) {
-		const b    = buckets[ i ];
-		const x    = PAD.left + barGroupW * i + barPad;
-		let   yTop = PAD.top + chartH;
+		const b = buckets[ i ];
+		const x = PAD.left + barGroupW * i + barPad;
+		let yTop = PAD.top + chartH;
 
 		for ( const seg of [
 			{ value: b.published, color: COLORS.published },
-			{ value: b.pending,   color: COLORS.pending },
-			{ value: b.draft,     color: COLORS.draft },
+			{ value: b.pending, color: COLORS.pending },
+			{ value: b.draft, color: COLORS.draft },
 		] ) {
-			if ( seg.value === 0 ) continue;
+			if ( seg.value === 0 ) {
+				continue;
+			}
 			const segH = ( seg.value / maxVal ) * chartH;
 			yTop -= segH;
 			ctx.fillStyle = seg.color;
@@ -175,7 +187,7 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 		}
 
 		ctx.fillStyle = 'rgba(0,0,0,0.5)';
-		ctx.font      = '9px -apple-system, sans-serif';
+		ctx.font = '9px -apple-system, sans-serif';
 		ctx.textAlign = 'center';
 		ctx.fillText( b.label, x + barW / 2, PAD.top + chartH + 13 );
 	}
@@ -226,8 +238,8 @@ function renderUI( container: HTMLElement, buckets: Bucket[], total: number, err
 	legend.className = 'dm-poststats__legend';
 	for ( const [ label, color ] of [
 		[ 'Published', COLORS.published ],
-		[ 'Pending',   COLORS.pending   ],
-		[ 'Draft',     COLORS.draft     ],
+		[ 'Pending', COLORS.pending ],
+		[ 'Draft', COLORS.draft ],
 	] as const ) {
 		const item = document.createElement( 'div' );
 		item.className = 'dm-poststats__legend-item';
@@ -244,31 +256,42 @@ function renderUI( container: HTMLElement, buckets: Bucket[], total: number, err
 }
 
 const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< WidgetTeardown > => {
-	let destroyed  = false;
+	let destroyed = false;
 	let intervalId: ReturnType< typeof setInterval > | null = null;
 	let ro: ResizeObserver | null = null;
 
 	const refresh = async (): Promise< void > => {
-		if ( destroyed ) return;
+		if ( destroyed ) {
+			return;
+		}
 		try {
-			const posts   = await fetchPosts();
+			const posts = await fetchPosts();
 			const buckets = buildBuckets();
 			for ( const post of posts ) {
-				const ym     = post.date ? post.date.slice( 0, 7 ) : null;
+				const ym = post.date ? post.date.slice( 0, 7 ) : null;
 				const bucket = ym ? buckets.find( ( b ) => b.ym === ym ) : null;
-				if ( ! bucket ) continue;
-				if ( post.status === 'publish' ) bucket.published++;
-				else if ( post.status === 'pending' ) bucket.pending++;
-				else if ( post.status === 'draft' )   bucket.draft++;
+				if ( ! bucket ) {
+					continue;
+				}
+				if ( post.status === 'publish' ) {
+					bucket.published++;
+				} else if ( post.status === 'pending' ) {
+					bucket.pending++;
+				} else if ( post.status === 'draft' ) {
+					bucket.draft++;
+				}
 			}
 			const total = posts.length;
-			if ( destroyed ) return;
-
+			if ( destroyed ) {
+				return;
+			}
 			const canvas = renderUI( container, buckets, total, false );
 			if ( canvas ) {
 				ro?.disconnect();
 				ro = new ResizeObserver( ( entries ) => {
-					if ( destroyed ) return;
+					if ( destroyed ) {
+						return;
+					}
 					const entry = entries[ 0 ];
 					if ( entry && entry.contentRect.width > 0 && entry.contentRect.height > 0 ) {
 						drawChart( canvas, buckets );
@@ -277,7 +300,9 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 				ro.observe( canvas.parentElement! );
 			}
 		} catch {
-			if ( ! destroyed ) renderUI( container, buildBuckets(), 0, true );
+			if ( ! destroyed ) {
+				renderUI( container, buildBuckets(), 0, true );
+			}
 		}
 	};
 
@@ -286,7 +311,9 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 
 	return () => {
 		destroyed = true;
-		if ( intervalId !== null ) clearInterval( intervalId );
+		if ( intervalId !== null ) {
+			clearInterval( intervalId );
+		}
 		ro?.disconnect();
 	};
 };
