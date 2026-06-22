@@ -22,6 +22,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 13. **[Progressive Web App (PWA)](./pwa.md)** — *Stable (since 0.8.0).* Web app manifest, service worker (root-scope, narrow fetch handler), install affordance, and `wp.desktop.notify()` for local notifications. Phase-4 Web Push wiring lands later without breaking the v1 call surface.
 14. **[Migration 0.7 → 0.8.1](./migration-0.7-to-0.8.1.md)** — what landed in the architecture-0.8.1 refactor: the `@core` / `@api` / `@protocol` / `@layout` / `@ui` path aliases, the registry / server-sync / api-client primitives, the public-API facade home, and the PHP slicing of `helpers.php` / `components.php` / `render.php`. Read once before adopting any of the new modules in your plugin.
 15. **[Migration — AI comment-only + native search (0.11.0)](./migration-ai-comment-only.md)** — the AI Copilot is scoped to comment spam scoring; post/term auto-analysis and its hooks are removed, the assistant now finds content with native keyword search, and the bulk `/ai/reindex` endpoint is gone. Read if you depended on any `desktop_mode_ai_*post*` / `*term*` hook or the reindex route.
+16. **[Register a widget — polling, storage, canvas charts](./register-widget.md)**
 
 ## Conventions used in this docs folder
 
