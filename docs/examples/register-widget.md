@@ -4,47 +4,46 @@ Widgets are passive cards in the right-side column — or floating freely on
 the desktop if `movable: true`. They are for glanceable, persistent content:
 a clock, a comment queue, a stats chart. Not launchers, not interactive tools.
 
-This recipe walks through the minimum viable widget and then covers the common
-patterns (polling, storage, resize-aware canvas).
-
 ---
 
-## Minimum viable widget
+## Recipe 1 — Minimum viable widget
 
-**PHP** — `includes/widgets/widget-hello.php`
+The smallest complete example. A PHP file registers the widget metadata and
+script handle; a TypeScript file declares the mount callback.
+
+**my-plugin.php**
 
 ```php
 <?php
+/** Plugin Name: My Widget Plugin */
 defined( 'ABSPATH' ) || exit;
 
 function myplugin_register_hello_widget_assets() {
-    $suffix  = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
-    $version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
+    $version = '1.0.0';
 
-    $js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-hello' . $suffix . '.js';
-    $css_path = DESKTOP_MODE_DIR . 'assets/js/widget-hello' . $suffix . '.css';
-
-    // Register CSS — eagerly enqueued on shell pages below so the first
-    // render is not unstyled.
+    // Register CSS eagerly — the JS loads lazily but the stylesheet needs to
+    // be in the DOM before the first render to avoid a flash of unstyled content.
     wp_register_style(
         'myplugin-hello-widget',
-        plugin_dir_url( __FILE__ ) . 'assets/js/widget-hello' . $suffix . '.css',
+        plugin_dir_url( __FILE__ ) . 'assets/js/widget-hello.min.css',
         array(),
-        file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
+        $version
     );
 
-    // Register JS — the shell's server-sync loads it lazily when the widget
-    // mounts. Do NOT use wp_enqueue_script() here or it loads on every page.
+    // Register JS — do NOT enqueue it directly. The shell's server-sync
+    // loads this bundle lazily when the widget picker opens or the widget
+    // mounts. Using wp_enqueue_script() here would load it on every admin page.
     wp_register_script(
         'myplugin-hello-widget',
-        plugin_dir_url( __FILE__ ) . 'assets/js/widget-hello' . $suffix . '.js',
+        plugin_dir_url( __FILE__ ) . 'assets/js/widget-hello.min.js',
         array(),
-        file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
+        $version,
         true
     );
 }
 add_action( 'init', 'myplugin_register_hello_widget_assets', 5 );
 
+// Eagerly enqueue the CSS on Desktop Mode shell pages only.
 function myplugin_enqueue_hello_widget_styles() {
     if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
         return;
@@ -56,6 +55,7 @@ function myplugin_enqueue_hello_widget_styles() {
 }
 add_action( 'admin_enqueue_scripts', 'myplugin_enqueue_hello_widget_styles', 20 );
 
+// Announce the widget to Desktop Mode so it appears in the picker.
 function myplugin_register_hello_widget() {
     if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
         return;
@@ -76,21 +76,16 @@ function myplugin_register_hello_widget() {
 add_action( 'init', 'myplugin_register_hello_widget', 6 );
 ```
 
-Require the file in `desktop-mode.php` after the other widget requires:
-
-```php
-require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-hello.php';
-```
-
----
-
-**TypeScript** — `src/plugins/hello-widget/index.ts`
+**src/plugins/hello-widget/index.ts**
 
 ```ts
 import './styles.css';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-const WIDGET_ID = 'myplugin/hello';  // must match PHP registration id exactly
+// Must match the id passed to desktop_mode_register_widget() in PHP exactly.
+// Do not rename this after users have the widget enabled — it is the
+// localStorage key for their preference and renaming it resets everyone.
+const WIDGET_ID = 'myplugin/hello';
 
 const mount = (
     container: HTMLElement,
@@ -101,7 +96,7 @@ const mount = (
     p.textContent = 'Hello from my widget!';
     container.appendChild( p );
 
-    // Return a teardown — always required even if there is nothing to clean up.
+    // Return a teardown — always required even with nothing to clean up.
     return () => undefined;
 };
 
@@ -134,53 +129,56 @@ Then build:
 npm run build:widget-hello
 ```
 
+The widget appears in the picker immediately after the next page load.
+
 ---
 
-## Making REST API calls
+## Recipe 2 — Polling with REST data
 
-Use `trackedFetch` from `../../tracked-fetch` — never raw `fetch()`. The
-repo's ESLint config bans raw `fetch()` calls (`no-restricted-syntax` rule).
-`trackedFetch` routes requests through the framework so they feed the loading
-spinner and activity bus. It also injects the REST nonce automatically via
-`injectRestNonce` — no manual `X-WP-Nonce` header needed.
+Fetches the latest post title on mount and refreshes every minute.
 
-Pass `silent: true` for background polls the user did not initiate.
-Pass `source` so the devtools activity panel can attribute requests by name.
+Always use `trackedFetch` from `../../tracked-fetch` — never raw `fetch()`.
+The repo's ESLint config bans raw `fetch()` calls. `trackedFetch` routes
+requests through the framework (loading spinner, activity bus) and injects
+the REST nonce automatically — no manual `X-WP-Nonce` header needed.
 
 ```ts
 import { trackedFetch } from '../../tracked-fetch';
+import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
-    .wpApiSettings?.root ?? '/wp-json/';
+const WIDGET_ID = 'myplugin/latest-post';
 
-const res = await trackedFetch(
-    root.replace( /\/$/, '' ) + '/wp/v2/posts?per_page=5&_fields=id,title',
-    { credentials: 'same-origin' },
-    { source: 'myplugin/hello', silent: true },
-);
-if ( ! res.ok ) throw new Error( `HTTP ${ res.status }` );
-const posts = await res.json();
-```
+const mount = async (
+    container: HTMLElement,
+    _ctx: WidgetContext,
+): Promise< WidgetTeardown > => {
+    // Declare destroyed at the very top. Check it after every await —
+    // the widget may be removed while a network request is in flight.
+    let destroyed = false;
 
----
+    const body = document.createElement( 'p' );
+    body.textContent = 'Loading\u2026';
+    container.appendChild( body );
 
-## Polling with setInterval
-
-Declare `destroyed` at the very top of `mount` and check it after every
-`await`. The widget may be removed while a request is in flight.
-
-```ts
-const mount = async ( container, _ctx ): Promise< WidgetTeardown > => {
-    let destroyed = false;  // declare first — check after every await
+    const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
+        .wpApiSettings?.root ?? '/wp-json/';
 
     const refresh = async () => {
         if ( destroyed ) return;
-        const res = await trackedFetch( '...', {}, { silent: true } );
-        if ( destroyed ) return;          // check after every await
-        if ( ! res.ok ) return;
-        const data = await res.json();
-        if ( destroyed ) return;          // check after the second await too
-        // update the DOM...
+        try {
+            const res = await trackedFetch(
+                root.replace( /\/$/, '' ) + '/wp/v2/posts?per_page=1&_fields=title',
+                { credentials: 'same-origin' },
+                { source: 'myplugin/latest-post', silent: true },
+            );
+            if ( destroyed ) return;         // check after every await
+            if ( ! res.ok ) return;
+            const posts = await res.json() as Array< { title: { rendered: string } } >;
+            if ( destroyed ) return;         // check after the second await too
+            body.textContent = posts[ 0 ]?.title.rendered ?? 'No posts found.';
+        } catch {
+            if ( ! destroyed ) body.textContent = 'Could not load data.';
+        }
     };
 
     await refresh();
@@ -191,29 +189,41 @@ const mount = async ( container, _ctx ): Promise< WidgetTeardown > => {
         clearInterval( intervalId );
     };
 };
+
+const w = window as unknown as {
+    desktopModeWidgets?: Record< string, typeof mount >;
+};
+w.desktopModeWidgets = w.desktopModeWidgets ?? {};
+w.desktopModeWidgets[ WIDGET_ID ] = mount;
 ```
 
 ---
 
-## Persisting user preferences
+## Recipe 3 — Persisting user preferences
 
 `ctx.storage` is a namespaced `localStorage` wrapper. Keys are scoped to
-your widget id so two widgets can both use `'preferences'` without collision.
-All methods are best-effort — quota exceeded or private browsing makes `set`
-a silent no-op and `get` return `null`.
+your widget id automatically so two widgets can both use `'preferences'`
+without colliding.
 
 ```ts
-// Read — returns null when the key does not exist yet.
-const count = ctx.storage.get< number >( 'count' ) ?? 0;
+const mount = async ( container: HTMLElement, ctx: WidgetContext ) => {
+    // get() returns null when the key does not exist yet.
+    // Always provide a fallback — storage may be unavailable
+    // (private browsing, quota exceeded).
+    const count = ctx.storage.get< number >( 'clicks' ) ?? 0;
 
-// Write
-ctx.storage.set( 'count', count + 1 );
+    const btn = document.createElement( 'button' );
+    btn.textContent = `Clicked ${ count } times`;
 
-// Remove one key
-ctx.storage.remove( 'count' );
+    btn.addEventListener( 'click', () => {
+        const next = ( ctx.storage.get< number >( 'clicks' ) ?? 0 ) + 1;
+        ctx.storage.set( 'clicks', next );
+        btn.textContent = `Clicked ${ next } times`;
+    } );
 
-// Clear all keys for this widget
-ctx.storage.clear();
+    container.appendChild( btn );
+    return () => undefined;
+};
 ```
 
 Values round-trip through `JSON.stringify` / `JSON.parse`. Plain objects,
@@ -222,40 +232,50 @@ convert them first (`date.toISOString()`, `Array.from( map )`).
 
 ---
 
-## Resize-aware canvas chart
+## Recipe 4 — Resize-aware canvas chart
 
-Use `ResizeObserver` to trigger the initial draw and all redraws. Check
-`entry.contentRect` is non-zero — the canvas may not have layout yet when
-`mount` first runs. Do not use `setTimeout` as a workaround.
+Use `ResizeObserver` to trigger the initial draw and all subsequent redraws.
+Check `entry.contentRect` is non-zero before drawing — the canvas may not
+have layout yet when `mount` first runs. Never use `setTimeout` as a
+workaround for waiting on layout.
 
 ```ts
-let ro: ResizeObserver | null = null;
+const mount = async ( container: HTMLElement, _ctx: WidgetContext ) => {
+    let destroyed = false;
+    let ro: ResizeObserver | null = null;
 
-const drawChart = ( canvas: HTMLCanvasElement ) => {
-    const rect = canvas.getBoundingClientRect();
-    if ( rect.width === 0 || rect.height === 0 ) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width  = Math.round( rect.width  * dpr );
-    canvas.height = Math.round( rect.height * dpr );
-    const ctx = canvas.getContext( '2d' );
-    if ( ! ctx ) return;
-    ctx.scale( dpr, dpr );
-    // ... draw
-};
+    const wrap = document.createElement( 'div' );
+    wrap.style.cssText = 'flex:1; min-height:0;';
+    const canvas = document.createElement( 'canvas' );
+    canvas.style.cssText = 'display:block; width:100%; height:100%;';
+    wrap.appendChild( canvas );
+    container.appendChild( wrap );
 
-ro = new ResizeObserver( ( entries ) => {
-    if ( destroyed ) return;
-    const entry = entries[ 0 ];
-    if ( entry && entry.contentRect.width > 0 ) {
-        drawChart( canvas );
-    }
-} );
-ro.observe( canvas.parentElement! );
+    const draw = () => {
+        const rect = canvas.getBoundingClientRect();
+        if ( rect.width === 0 || rect.height === 0 ) return;  // not laid out yet
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width  = Math.round( rect.width  * dpr );
+        canvas.height = Math.round( rect.height * dpr );
+        const ctx = canvas.getContext( '2d' );
+        if ( ! ctx ) return;
+        ctx.scale( dpr, dpr );
+        // ... your drawing code here
+    };
 
-// In teardown:
-return () => {
-    destroyed = true;
-    ro?.disconnect();
+    // ResizeObserver fires as soon as the element has real layout dimensions.
+    // This handles both the initial draw and any subsequent resizes.
+    ro = new ResizeObserver( ( entries ) => {
+        if ( destroyed ) return;
+        const entry = entries[ 0 ];
+        if ( entry && entry.contentRect.width > 0 ) draw();
+    } );
+    ro.observe( wrap );
+
+    return () => {
+        destroyed = true;
+        ro?.disconnect();
+    };
 };
 ```
 
@@ -269,19 +289,19 @@ All sizes are pixels, passed to `desktop_mode_register_widget()`:
 |---|---|
 | `min_width` | Smallest width the user can drag the card to |
 | `min_height` | Smallest height the user can drag the card to |
-| `max_width` | Optional ceiling on user-driven width resize |
-| `max_height` | Optional ceiling on user-driven height resize |
+| `max_width` | Optional ceiling on user-driven resize |
+| `max_height` | Optional ceiling on user-driven resize |
 | `default_width` | Starting width when first added as a floating widget |
 | `default_height` | Starting height when first added as a floating widget |
 
 `movable: true` lets the user drag the widget off the column.
-`resizable: true` adds resize handles (`movable: true` gives all 8;
-column-docked widgets only get a bottom-edge handle).
+`resizable: true` adds resize handles — `movable: true` gives all 8 corner
+and edge handles; column-docked widgets get a bottom-edge handle only.
 
 ---
 
-## Full reference implementation
+## See also
 
-See `src/plugins/starter-widget/index.ts` and
-`includes/widgets/widget-starter.php` — a heavily commented skeleton covering
-every pattern above in a single working widget.
+- [Hooks reference — `desktop_mode_register_widget()`](../hooks-reference.md) — full argument reference, error codes, and lifecycle actions.
+- [JavaScript reference — `wp.desktop.registerWidget()`](../javascript-reference.md) — the client-side equivalent.
+- [Starter widget source](../../src/plugins/starter-widget/index.ts) — a heavily commented skeleton covering every pattern above in a single working widget.
