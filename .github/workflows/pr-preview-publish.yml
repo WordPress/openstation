@@ -38,7 +38,7 @@ jobs:
 
       - name: Resolve PR from trusted workflow_run data
         id: meta
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             // The `pr-meta` artifact is written by the fork-controlled build
@@ -78,7 +78,7 @@ jobs:
           artifact-source-run-id: ${{ github.event.workflow_run.id }}
 
       - name: Build blueprint
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         id: blueprint
         env:
           ARTIFACT_URL: ${{ steps.expose.outputs.artifact-url }}
