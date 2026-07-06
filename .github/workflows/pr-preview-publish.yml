@@ -93,7 +93,7 @@ jobs:
           result-encoding: string
 
       - name: Post preview to PR
-        uses: WordPress/action-wp-playground-pr-preview@06d6a7e5e287101f5a496ef3361aa07967448813 # v2.0.1
+        uses: WordPress/action-wp-playground-pr-preview@43fc435558bc6cee69f5b214d6b8ca4f9f80c31d # v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           blueprint: ${{ steps.blueprint.outputs.result }}
