@@ -193,9 +193,8 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 	}
 }
 
-function renderUI( container: HTMLElement, buckets: Bucket[], total: number, error: boolean ): HTMLCanvasElement | null {
-	container.innerHTML = '';
-
+// Renders the header + error/empty state. Returns container for chaining.
+function renderHeader( container: HTMLElement, total: number, error: boolean ): void {
 	const header = document.createElement( 'div' );
 	header.className = 'dm-poststats__header';
 
@@ -210,22 +209,10 @@ function renderUI( container: HTMLElement, buckets: Bucket[], total: number, err
 	header.appendChild( title );
 	header.appendChild( totalEl );
 	container.appendChild( header );
+}
 
-	if ( error ) {
-		const errEl = document.createElement( 'div' );
-		errEl.className = 'dm-poststats__error';
-		errEl.textContent = 'Could not load post data.';
-		container.appendChild( errEl );
-		return null;
-	}
-	if ( total === 0 ) {
-		const empty = document.createElement( 'div' );
-		empty.className = 'dm-poststats__empty';
-		empty.textContent = 'No posts in the last 6 months.';
-		container.appendChild( empty );
-		return null;
-	}
-
+// Renders the canvas + legend. Only called when we have data to show.
+function renderChart( container: HTMLElement, buckets: Bucket[] ): HTMLCanvasElement {
 	const wrap = document.createElement( 'div' );
 	wrap.className = 'dm-poststats__canvas-wrap';
 
@@ -285,23 +272,40 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 			if ( destroyed ) {
 				return;
 			}
-			const canvas = renderUI( container, buckets, total, false );
-			if ( canvas ) {
-				ro?.disconnect();
-				ro = new ResizeObserver( ( entries ) => {
-					if ( destroyed ) {
-						return;
-					}
-					const entry = entries[ 0 ];
-					if ( entry && entry.contentRect.width > 0 && entry.contentRect.height > 0 ) {
-						drawChart( canvas, buckets );
-					}
-				} );
-				ro.observe( canvas.parentElement! );
+
+			container.innerHTML = '';
+			renderHeader( container, total, false );
+
+			if ( total === 0 ) {
+				const empty = document.createElement( 'div' );
+				empty.className = 'dm-poststats__empty';
+				empty.textContent = 'No posts in the last 6 months.';
+				container.appendChild( empty );
+				return;
 			}
+
+			// Only reaches here when total > 0, so buckets is always used.
+			const canvas = renderChart( container, buckets );
+			ro?.disconnect();
+			ro = new ResizeObserver( ( entries ) => {
+				if ( destroyed ) {
+					return;
+				}
+				const entry = entries[ 0 ];
+				if ( entry && entry.contentRect.width > 0 && entry.contentRect.height > 0 ) {
+					drawChart( canvas, buckets );
+				}
+			} );
+			ro.observe( canvas.parentElement! );
+
 		} catch {
 			if ( ! destroyed ) {
-				renderUI( container, buildBuckets(), 0, true );
+				container.innerHTML = '';
+				renderHeader( container, 0, true );
+				const errEl = document.createElement( 'div' );
+				errEl.className = 'dm-poststats__error';
+				errEl.textContent = 'Could not load post data.';
+				container.appendChild( errEl );
 			}
 		}
 	};
