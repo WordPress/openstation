@@ -120,8 +120,6 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 	const dpr = window.devicePixelRatio || 1;
 	const rect = canvas.getBoundingClientRect();
 
-	// Skip if layout has not settled yet. ResizeObserver will fire again
-	// once the canvas wrapper has real dimensions.
 	if ( rect.width === 0 || rect.height === 0 ) {
 		return;
 	}
@@ -149,7 +147,6 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 	const barPad = barGroupW * 0.2;
 	const barW = Math.max( 1, barGroupW - barPad * 2 );
 
-	// Gridlines
 	ctx.strokeStyle = 'rgba(0,0,0,0.07)';
 	ctx.lineWidth = 1;
 	for ( let i = 0; i <= 3; i++ ) {
@@ -164,7 +161,6 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 		ctx.fillText( String( Math.round( maxVal * i / 3 ) ), PAD.left - 4, y + 3 );
 	}
 
-	// Bars
 	for ( let i = 0; i < buckets.length; i++ ) {
 		const b = buckets[ i ];
 		const x = PAD.left + barGroupW * i + barPad;
@@ -193,34 +189,21 @@ function drawChart( canvas: HTMLCanvasElement, buckets: Bucket[] ): void {
 	}
 }
 
-// Renders the header + error/empty state. Returns container for chaining.
 function renderHeader( container: HTMLElement, total: number, error: boolean ): void {
 	const header = document.createElement( 'div' );
 	header.className = 'dm-poststats__header';
-
 	const title = document.createElement( 'span' );
 	title.className = 'dm-poststats__title';
 	title.textContent = 'Post Stats';
-
 	const totalEl = document.createElement( 'span' );
 	totalEl.className = 'dm-poststats__total';
 	totalEl.textContent = error ? '' : `${ total } post${ total !== 1 ? 's' : '' } in 6 mo`;
-
 	header.appendChild( title );
 	header.appendChild( totalEl );
 	container.appendChild( header );
 }
 
-// Renders the canvas + legend. Only called when we have data to show.
-function renderChart( container: HTMLElement, buckets: Bucket[] ): HTMLCanvasElement {
-	const wrap = document.createElement( 'div' );
-	wrap.className = 'dm-poststats__canvas-wrap';
-
-	const canvas = document.createElement( 'canvas' );
-	canvas.className = 'dm-poststats__canvas';
-	wrap.appendChild( canvas );
-	container.appendChild( wrap );
-
+function buildLegend( container: HTMLElement ): void {
 	const legend = document.createElement( 'div' );
 	legend.className = 'dm-poststats__legend';
 	for ( const [ label, color ] of [
@@ -238,8 +221,6 @@ function renderChart( container: HTMLElement, buckets: Bucket[] ): HTMLCanvasEle
 		legend.appendChild( item );
 	}
 	container.appendChild( legend );
-
-	return canvas;
 }
 
 const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< WidgetTeardown > => {
@@ -272,10 +253,8 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 			if ( destroyed ) {
 				return;
 			}
-
 			container.innerHTML = '';
 			renderHeader( container, total, false );
-
 			if ( total === 0 ) {
 				const empty = document.createElement( 'div' );
 				empty.className = 'dm-poststats__empty';
@@ -283,9 +262,13 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 				container.appendChild( empty );
 				return;
 			}
-
-			// Only reaches here when total > 0, so buckets is always used.
-			const canvas = renderChart( container, buckets );
+			const wrap = document.createElement( 'div' );
+			wrap.className = 'dm-poststats__canvas-wrap';
+			const canvas = document.createElement( 'canvas' );
+			canvas.className = 'dm-poststats__canvas';
+			wrap.appendChild( canvas );
+			container.appendChild( wrap );
+			buildLegend( container );
 			ro?.disconnect();
 			ro = new ResizeObserver( ( entries ) => {
 				if ( destroyed ) {
@@ -296,8 +279,7 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 					drawChart( canvas, buckets );
 				}
 			} );
-			ro.observe( canvas.parentElement! );
-
+			ro.observe( wrap );
 		} catch {
 			if ( ! destroyed ) {
 				container.innerHTML = '';
