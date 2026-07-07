@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
  * Register the five enrichment fields on the `plugin` REST resource.
  *
  * @since 0.9.0
- * @since 0.21.0 Added `desktop_mode_auto_update`.
+ * @since 0.8.6 Added `desktop_mode_auto_update`.
  */
 function desktop_mode_plugins_window_register_rest_fields() {
 	register_rest_field(
@@ -118,7 +118,7 @@ add_action( 'rest_api_init', 'desktop_mode_plugins_window_register_rest_fields' 
  * This helper re-appends `.php` when missing so callers can use the
  * result as a transient/option key or filesystem path directly.
  *
- * @since 0.18.0
+ * @since 0.8.3
  *
  * @param array $row Core REST plugin row.
  * @return string Plugin file (e.g. `"elementor/elementor.php"`), or `''`
@@ -153,7 +153,7 @@ function desktop_mode_plugins_window_row_plugin_file( $row ) {
  * many times per request should additionally guard with their own
  * static so they don't pay the transient-read overhead per row.
  *
- * @since 0.18.0
+ * @since 0.8.3
  * @since 0.8.5 Accepts a `$force` flag — set by the in-window Refresh
  *               button via `?desktop_mode_force_refresh=1`. Bypasses
  *               the 12h throttle and runs `wp_clean_plugins_cache( true )`
@@ -178,7 +178,7 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = fa
 	 * explicit force-refresh path so hosts that block wp.org calls
 	 * outright keep that posture even when the user clicks Refresh.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.3
 	 * @since 0.8.5 `$force` parameter added so filter callbacks can
 	 *               distinguish opportunistic refreshes from explicit
 	 *               user-initiated ones.
@@ -485,7 +485,8 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
 	 * plugin's own folder ships an icon at a conventional path) or the
 	 * wp.org `ps.w.org/<slug>/assets/icon.svg` URL. The JS receiver
 	 * walks a candidate chain on `<img>` error (`icon.svg` → 256 PNG →
-	 * 128 PNG) only when the URL matches the wp.org SVN pattern;
+	 * 256 GIF → 128 PNG → 128 GIF) only when the URL matches the
+	 * wp.org SVN pattern;
 	 * custom URLs and local URLs are one-shot, then placeholder.
 	 *
 	 * @since 0.9.0
@@ -700,7 +701,7 @@ function desktop_mode_plugins_window_compute_dir_size_kb( $dir ) {
  * `wp_is_auto_update_enabled_for_type( 'plugin' )` flag, which depends
  * on admin-only includes — see `desktop_mode_plugins_window_auto_updates_enabled()`.
  *
- * @since 0.21.0
+ * @since 0.8.6
  *
  * @param array $row Core REST plugin row.
  * @return array{enabled:bool,forced:bool|null,supported:bool}

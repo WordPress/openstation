@@ -16,7 +16,7 @@
  * user's environment.
  *
  * @package DesktopModePhpMyAdmin
- * @since   0.19.0
+ * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Absolute filesystem path to the bundled phpMyAdmin distribution.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return string
  */
@@ -37,7 +37,7 @@ function desktop_mode_phpmyadmin_vendor_dir() {
  *
  * Trailing slash kept off so callers can append `/index.php` cleanly.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return string
  */
@@ -48,7 +48,7 @@ function desktop_mode_phpmyadmin_vendor_url() {
 /**
  * Whether the current request runs in a local development environment.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return bool
  */
@@ -59,7 +59,7 @@ function desktop_mode_phpmyadmin_environment_allowed() {
 /**
  * Whether the bundled phpMyAdmin distribution is present on disk.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return bool
  */
@@ -72,26 +72,29 @@ function desktop_mode_phpmyadmin_vendor_present() {
  *
  * Composite gate — local env, vendor present, `manage_options`.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return bool
  */
 function desktop_mode_phpmyadmin_user_can_use() {
-	$can = desktop_mode_phpmyadmin_environment_allowed()
-		&& desktop_mode_phpmyadmin_vendor_present()
-		&& current_user_can( 'manage_options' );
+	$hard_gates = desktop_mode_phpmyadmin_environment_allowed()
+		&& desktop_mode_phpmyadmin_vendor_present();
+
+	$can = $hard_gates && current_user_can( 'manage_options' );
 
 	/**
 	 * Filter whether the current user can see/use the phpMyAdmin shortcut.
 	 *
-	 * Note: the local-env and vendor-present gates are non-negotiable
-	 * security gates; this filter can only narrow further, not bypass them.
+	 * Note: the filter may adjust who can use the shortcut, but the
+	 * local-env and vendor-present gates are non-negotiable security
+	 * gates — they are re-asserted after the filter runs, so a filter
+	 * cannot bypass them.
 	 *
-	 * @since 0.19.0
+	 * @since 0.6.0
 	 *
 	 * @param bool $can Default: local env + vendor present + manage_options.
 	 */
-	return (bool) apply_filters( 'desktop_mode_phpmyadmin_user_can_use', $can );
+	return $hard_gates && (bool) apply_filters( 'desktop_mode_phpmyadmin_user_can_use', $can );
 }
 
 /**
@@ -103,7 +106,7 @@ function desktop_mode_phpmyadmin_user_can_use() {
  * attributes are kept on the legacy `wpdc-` spelling because the
  * prebuilt JS bundle queries them by exactly those selectors.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_phpmyadmin_render_template() {
 	?>
@@ -120,7 +123,7 @@ function desktop_mode_phpmyadmin_render_template() {
  * Whether this WordPress install uses the sqlite-database-integration
  * plugin (i.e. SQLite, not MySQL/MariaDB).
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return bool
  */
@@ -149,7 +152,7 @@ function desktop_mode_phpmyadmin_using_sqlite() {
  * this function restores from it when SQLite isn't in use and our
  * adapter is currently installed.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_phpmyadmin_install_config() {
 	$vendor = desktop_mode_phpmyadmin_vendor_dir();
@@ -190,13 +193,13 @@ function desktop_mode_phpmyadmin_install_config() {
  * its `window.wpDesktopPhpMyAdminConfig` config inline — see
  * {@see desktop_mode_phpmyadmin_serve_bundle()} for why.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_phpmyadmin_register_assets() {
 	wp_register_style(
 		'desktop-mode-phpmyadmin',
 		DESKTOP_MODE_PHPMYADMIN_URL . 'assets/css/phpmyadmin.css',
-		array( 'wp-desktop-variables', 'dashicons' ),
+		array( 'desktop-mode-variables', 'dashicons' ),
 		DESKTOP_MODE_PHPMYADMIN_VERSION
 	);
 
@@ -208,7 +211,7 @@ function desktop_mode_phpmyadmin_register_assets() {
 	wp_register_script(
 		'desktop-mode-phpmyadmin',
 		$bundle_url,
-		array( 'wp-i18n', 'wp-desktop' ),
+		array( 'wp-i18n', 'desktop-mode' ),
 		DESKTOP_MODE_PHPMYADMIN_VERSION,
 		true
 	);
@@ -227,7 +230,7 @@ function desktop_mode_phpmyadmin_register_assets() {
  * the prebuilt bundle hardcodes them — renaming would require
  * rebuilding from source.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_phpmyadmin_serve_bundle() {
 	if ( ! desktop_mode_phpmyadmin_user_can_use() ) {
@@ -264,7 +267,7 @@ function desktop_mode_phpmyadmin_serve_bundle() {
  * No-op when the composite gate fails. Hooked at priority 20 so the
  * native-window registry has been bootstrapped by desktop-mode core.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_phpmyadmin_register_window() {
 	if ( ! desktop_mode_phpmyadmin_user_can_use() ) {
@@ -284,7 +287,7 @@ function desktop_mode_phpmyadmin_register_window() {
 			'height'       => 720,
 			'min_width'    => 640,
 			'min_height'   => 400,
-			'placement'    => 'taskbar',
+			'placement'    => 'dock',
 			'capabilities' => array( 'manage_options' ),
 		)
 	);
@@ -313,7 +316,7 @@ function desktop_mode_phpmyadmin_register_window() {
  * The CSS has to be in place before the template is cloned so the
  * loading state renders correctly.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_phpmyadmin_enqueue_style() {
 	if ( ! desktop_mode_phpmyadmin_user_can_use() ) {
@@ -325,7 +328,7 @@ function desktop_mode_phpmyadmin_enqueue_style() {
 /**
  * Wire the UI surface to Desktop Mode once we know it's loaded.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 function desktop_mode_phpmyadmin_maybe_init_ui() {
 	if ( ! function_exists( 'desktop_mode_register_window' ) ) {

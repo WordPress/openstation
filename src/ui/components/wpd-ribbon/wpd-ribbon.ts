@@ -24,7 +24,7 @@
  * Slot contents flow through to the rotated banner. Keep the label
  * short — the visible slice is ~80px wide and tightly cropped.
  *
- * @since 0.20.0
+ * @since 0.8.6
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -53,7 +53,7 @@ export class WpdRibbon extends Component {
 		summary:
 			'45° corner ribbon. Wraps the top-end (default), top-start, bottom-end, or bottom-start corner of its positioned parent. The host owns clipping + rotation; consumers only set position-relative on the parent and drop a label inside.',
 		status: 'experimental',
-		since: '0.20.0',
+		since: '0.8.6',
 		props: [
 			{
 				name: 'placement',

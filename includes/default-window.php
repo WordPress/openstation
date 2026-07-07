@@ -110,15 +110,16 @@ function desktop_mode_set_default_window( $user_id, $url ) {
 }
 
 /**
- * Only accept URLs that resolve to a same-origin `wp-admin/` path. A
- * stricter net than `esc_url_raw` because the value flows back into
+ * Accept either a `native:<slug>` marker for a registered native
+ * window, or a URL that resolves to a same-origin `wp-admin/` path.
+ * A stricter net than `esc_url_raw` because the value flows back into
  * the portal-entry redirect — we don't want an attacker's CSRF-seeded
  * preference to hijack the user into an off-site landing page.
  *
  * @since 0.6.0
  *
  * @param string $url Raw input.
- * @return string Fully-qualified URL, or empty string if rejected.
+ * @return string Fully-qualified admin URL or `native:<slug>` marker, or empty string if rejected.
  */
 function desktop_mode_validate_default_window_url( $url ) {
 	$url = trim( (string) $url );

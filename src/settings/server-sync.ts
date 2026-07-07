@@ -25,7 +25,7 @@
  *     Plugins using neither mechanism keep their tabs until the next
  *     page reload (graceful backwards-compat).
  *
- * @since 0.17.0
+ * @since 0.5.1
  */
 
 import { doAction, HOOKS } from './../hooks';

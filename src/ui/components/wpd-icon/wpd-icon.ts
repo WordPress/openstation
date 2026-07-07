@@ -20,7 +20,7 @@
  * since web-component shadow roots inherit fonts from the host
  * document, no extra `@font-face` is needed.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -41,7 +41,7 @@ export class WpdIcon extends Component {
 		summary:
 			'Dashicon wrapper that inherits theme colour + sizing from its context. Accepts either the dashicon suffix ("calculator") or the full class ("dashicons-calculator"). Marked aria-hidden; wrap in a button/link with its own label for accessible use.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'name',

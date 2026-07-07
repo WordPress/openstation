@@ -8,6 +8,11 @@
  * single REST call) AND MUST report `remaining > 0` so the client
  * can iterate.
  *
+ * Also covers `desktop_mode_recycle_bin_count()` capability scoping —
+ * the badge count must mirror the per-item `edit_post` gate the list
+ * applies, never disclosing the global trash total to users who can't
+ * see those items.
+ *
  * @package WordPress
  * @subpackage UnitTests
  *
@@ -16,9 +21,13 @@
 class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 
 	protected static $admin_id;
+	protected static $author_id;
+	protected static $subscriber_id;
 
 	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
-		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$author_id     = $factory->user->create( array( 'role' => 'author' ) );
+		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 	}
 
 	public function set_up() {
@@ -126,5 +135,63 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 		// Zero or negative should not freeze — clamp to 1.
 		$this->assertSame( 1, $result['purged'] );
 		$this->assertSame( 2, $result['remaining'] );
+	}
+
+	private function trash_post_as( int $author_id, string $title ): int {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_status' => 'publish',
+				'post_author' => $author_id,
+				'post_title'  => $title,
+			)
+		);
+		wp_trash_post( $post_id );
+		return $post_id;
+	}
+
+	/**
+	 * @covers ::desktop_mode_recycle_bin_count
+	 */
+	public function test_count_is_global_for_users_with_edit_others_posts() {
+		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
+		$this->trash_post_as( self::$admin_id, 'admin-trash-2' );
+		$this->trash_post_as( self::$author_id, 'author-trash-1' );
+
+		wp_set_current_user( self::$admin_id );
+
+		$this->assertSame( 3, desktop_mode_recycle_bin_count() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_recycle_bin_count
+	 */
+	public function test_count_is_author_scoped_without_edit_others_posts() {
+		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
+		$this->trash_post_as( self::$admin_id, 'admin-trash-2' );
+		$this->trash_post_as( self::$author_id, 'author-trash-1' );
+
+		wp_set_current_user( self::$author_id );
+
+		$this->assertSame(
+			1,
+			desktop_mode_recycle_bin_count(),
+			'Authors should only see their own trashed posts counted, not the global total.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_recycle_bin_count
+	 */
+	public function test_count_is_zero_for_users_without_edit_posts() {
+		$this->trash_post_as( self::$admin_id, 'admin-trash-1' );
+		$this->trash_post_as( self::$author_id, 'author-trash-1' );
+
+		wp_set_current_user( self::$subscriber_id );
+
+		$this->assertSame(
+			0,
+			desktop_mode_recycle_bin_count(),
+			'Subscribers must not learn the global trash total from the badge count.'
+		);
 	}
 }

@@ -1,6 +1,6 @@
 # Render a list without losing clicks — `renderKeyedList()`
 
-**Stable** — shipped 0.22.10.
+**Stable** — shipped 0.6.0.
 
 If your plugin paints a list (chat rows, log entries, badges, search
 results, anything observable) into a DOM container, and the data can
@@ -114,5 +114,5 @@ function clearKeyedList( host: HTMLElement ): void;
 
 ## Related
 
-- [`docs/messaging.md`](../messaging.md) — uses this internally for
-  the conversation list.
+- [`docs/javascript-reference.md`](../javascript-reference.md) — the
+  `wp.desktop.renderKeyedList()` / `clearKeyedList()` API reference.

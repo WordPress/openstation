@@ -18,7 +18,7 @@
  * `<wpd-chip>`). `defineComponent()` is idempotent.
  *
  * @public
- * @since 0.19.0
+ * @since 0.8.3
  */
 
 import { __, sprintf } from '../i18n';
@@ -84,7 +84,7 @@ interface ShellApi {
 	showToast?: ( opts: {
 		message: string;
 		duration?: number;
-		actions?: Array< { label: string; onClick: () => void } >;
+		action?: { label: string; onClick: () => void };
 	} ) => void;
 	confirm?: ( opts: ConfirmOptions ) => Promise< boolean >;
 	openWindow?: ( opts: { id: string } ) => void;
@@ -106,11 +106,11 @@ function getApi(): ShellApi | undefined {
 function showToast(
 	message: string,
 	duration = 4000,
-	actions?: Array< { label: string; onClick: () => void } >,
+	action?: { label: string; onClick: () => void },
 ): void {
 	const api = getApi();
 	if ( api?.showToast ) {
-		api.showToast( { message, duration, actions } );
+		api.showToast( { message, duration, action } );
 		return;
 	}
 	// eslint-disable-next-line no-console
@@ -1534,14 +1534,12 @@ async function runBulk(
 			showToast(
 				actionPastTense( action, result.processed.length ),
 				8000,
-				[
-					{
-						label: __( 'Undo' ),
-						onClick: () => {
-							void undoLast( cfg, refresh, state.tab );
-						},
+				{
+					label: __( 'Undo' ),
+					onClick: () => {
+						void undoLast( cfg, refresh, state.tab );
 					},
-				],
+				},
 			);
 		} else {
 			showToast( actionPastTense( action, result.processed.length ) );

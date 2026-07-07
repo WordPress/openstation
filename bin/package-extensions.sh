@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # Build WordPress-installable plugin zips for every extension under
-# extensions/. One zip per extension, written to the repo root by
-# default (or to a directory passed as $1).
+# extensions/. One zip per extension, written to dist/ by default
+# (or to a directory passed as $1).
 #
 # Why not `git archive --format=zip` directly? Git's zip output stores
 # Unix mode 0600 for files / 0700 for dirs — after extraction by the

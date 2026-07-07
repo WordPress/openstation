@@ -15,7 +15,7 @@
  * callbacks are there for custom renderers that don't want to
  * re-implement window-manager plumbing.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import { Dock } from '../dock';

@@ -94,7 +94,7 @@ export class WpdFlyout extends Component {
 	static help = {
 		title: 'Flyout',
 		summary:
-			'Window-scoped sliding card. Lives `position: absolute` inside a window body, slides in from the configured edge with margins on every side, captures the click target as the trigger for restore-on-close, traps focus while open, and dismisses on Escape / pointerdown-outside / `[data-flyout-close]` click / imperative `open`-removal — all firing one `wpd-flyout-dismiss` event with a `reason` discriminator.',
+			'Window-scoped sliding card. Lives `position: absolute` inside a window body, slides in from the configured edge with margins on every side, captures the previously-focused element as the trigger for restore-on-close, traps focus while open, and dismisses on Escape / pointerdown-outside / `[data-flyout-close]` click / imperative `open`-removal — all firing one `wpd-flyout-dismiss` event with a `reason` discriminator.',
 		status: 'experimental',
 		since: '0.8.2',
 		props: [

@@ -6,7 +6,7 @@
  * user can defer ("Decide later") to keep the invite in the
  * pending list without re-prompting until next heartbeat tick.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 
 import { openPendingInviteModal } from './share-settings-modal';

@@ -30,7 +30,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
   - **Stable** — shipping today, backwards-compatible inside the current major version.
   - **Experimental** — shipping but signature may change.
   - **Planned** — reserved name, not yet fired. Do not rely on it.
-- **Code examples** are complete, drop-in, and use `desktop_mode_` / `desktop_mode_` prefixes as they would in a real plugin.
+- **Code examples** are complete, drop-in, and use `my_plugin_` / `my-plugin` prefixes as they would in a real plugin.
 - **PHP examples** assume a plugin file with `defined( 'ABSPATH' ) || exit;` at the top.
 - **Versions** — features are tagged `@since` with the desktop-mode plugin version that introduced them, not the WordPress version.
 

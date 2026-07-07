@@ -14,10 +14,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Returns the AI settings block for a given user.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int $user_id
- * @return array{ enabled: bool, provider: string, apiKey: string }
+ * @return array{ enabled: bool, provider: string, apiKey: string, apiKeys: array<string,string> }
+ *               `apiKey` is the legacy single-key field; `apiKeys` maps provider id → key.
  */
 function desktop_mode_ai_get_settings( $user_id ) {
 	$os = desktop_mode_get_os_settings( (int) $user_id );
@@ -39,7 +40,7 @@ function desktop_mode_ai_get_settings( $user_id ) {
  *   1. Platform-wide settings (wp_options) — enabled by any admin.
  *   2. Per-user settings (user meta) — personal override.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int $user_id
  * @return bool
@@ -76,7 +77,7 @@ function desktop_mode_ai_is_enabled( $user_id ) {
  * Order: explicit `apiKeys[provider]` → legacy `apiKey` (only when the
  * provider is `openai`, since that's what the legacy field meant) → ''.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param array  $settings    `apiKeys` and `apiKey` carrying settings block.
  * @param string $provider_id Provider id to resolve for.
@@ -104,7 +105,7 @@ function desktop_mode_ai_resolve_key_for_provider( array $settings, $provider_id
  * platform-wide key so anonymous contexts (cron, WP-CLI, anonymous
  * comments) always have a key available when the admin has configured one.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int $user_id
  * @return string API key, or empty string if none configured.

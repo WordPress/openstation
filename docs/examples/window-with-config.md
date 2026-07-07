@@ -39,7 +39,7 @@ add_action( 'init', function () {
         return;
     }
 
-    desktop_mode_register_window( 'my-plugin/cron', array(
+    desktop_mode_register_window( 'my-plugin-cron', array(
         'title'    => __( 'Cron Jobs', 'my-plugin' ),
         'icon'     => 'dashicons-clock',
         'template' => 'my_plugin_render_cron_template',
@@ -55,11 +55,15 @@ add_action( 'init', function () {
 }, 20 );
 ```
 
+PHP window ids pass through `sanitize_key()` — lowercase letters, digits,
+`-` and `_` only; everything else (including `/`) is stripped. Pick an id
+that survives sanitization unchanged, or the JS lookups below won't match.
+
 In the bundle:
 
 ```js
 ( function () {
-    const cfg = wp.desktop.getWindowConfig( 'my-plugin/cron' );
+    const cfg = wp.desktop.getWindowConfig( 'my-plugin-cron' );
     if ( ! cfg ) {
         // Plugin not registered (capability gate, hook order, etc.) —
         // bail rather than throwing.
@@ -67,7 +71,7 @@ In the bundle:
     }
 
     window.desktopModeNativeWindows ??= {};
-    window.desktopModeNativeWindows[ 'my-plugin/cron' ] = ( body ) => {
+    window.desktopModeNativeWindows[ 'my-plugin-cron' ] = async ( body ) => {
         const events = await fetch( cfg.eventsUrl, {
             headers: { 'X-WP-Nonce': cfg.restNonce },
         } ).then( ( r ) => r.json() );
@@ -93,7 +97,7 @@ When you suspect config didn't reach the page, ask the framework
 directly:
 
 ```js
-wp.desktop.debug.window( 'my-plugin/cron' )
+wp.desktop.debug.window( 'my-plugin-cron' )
 // → { id, scriptHandle, scriptUrl, loadPath: 'eager'|'lazy'|'unknown',
 //     tagInDom, configPresent, extras: { … } }
 ```

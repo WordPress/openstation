@@ -27,7 +27,7 @@ const DESKTOP_MODE_STICKY_NOTES_TAXONOMY  = 'wp_guideline_type';
  * the shell skips booting the sticky-notes layer entirely and the
  * Heartbeat handler short-circuits.
  *
- * @since 0.11.0
+ * @since 0.9.1
  *
  * @return bool True when both the guideline CPT and taxonomy are registered.
  */
@@ -41,7 +41,7 @@ function desktop_mode_sticky_notes_is_available() {
 	 * Lets a site force sticky notes off (return `false`) or wire the
 	 * layer up to a different guidelines-compatible backend.
 	 *
-	 * @since 0.11.0
+	 * @since 0.9.1
 	 *
 	 * @param bool $available Whether the guideline CPT + taxonomy are registered.
 	 */
@@ -51,7 +51,7 @@ function desktop_mode_sticky_notes_is_available() {
 /**
  * Add sticky-note deltas to the Heartbeat response.
  *
- * @since 0.21.0
+ * @since 0.8.8
  *
  * @param array $response Pre-filtered response.
  * @param array $data     Client-sent payload.
@@ -98,7 +98,7 @@ add_filter( 'heartbeat_received', 'desktop_mode_sticky_notes_heartbeat_received'
 /**
  * Compute sticky-note Heartbeat deltas.
  *
- * @since 0.21.0
+ * @since 0.8.8
  *
  * @param int   $sticky_term_id Sticky term id.
  * @param int[] $known_ids      Guideline ids currently known by the client.
@@ -139,7 +139,7 @@ function desktop_mode_sticky_notes_compute_heartbeat_delta( $sticky_term_id, $kn
 /**
  * Query sticky guideline ids modified since the client's high-water mark.
  *
- * @since 0.21.0
+ * @since 0.8.8
  *
  * @param int $sticky_term_id Sticky term id.
  * @param int $version        Last-seen modified timestamp in milliseconds.
@@ -183,7 +183,7 @@ function desktop_mode_sticky_notes_query_changed_ids( $sticky_term_id, $version,
 /**
  * Return the subset of known ids that still point at visible sticky notes.
  *
- * @since 0.21.0
+ * @since 0.8.8
  *
  * @param int   $sticky_term_id Sticky term id.
  * @param int[] $known_ids      Client-known guideline ids.
@@ -227,7 +227,7 @@ function desktop_mode_sticky_notes_alive_known_ids( $sticky_term_id, $known_ids 
 /**
  * Shape a guideline like the Gutenberg REST endpoint's edit context.
  *
- * @since 0.21.0
+ * @since 0.8.8
  *
  * @param WP_Post $post Guideline post.
  * @return array
@@ -265,7 +265,7 @@ function desktop_mode_sticky_notes_shape_guideline( $post ) {
 /**
  * Modified timestamp in milliseconds, derived from GMT post time.
  *
- * @since 0.21.0
+ * @since 0.8.8
  *
  * @param WP_Post $post Post.
  * @return int

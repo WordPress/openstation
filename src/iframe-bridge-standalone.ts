@@ -15,11 +15,11 @@
  *      the parent shell auto-injects this bundle via `<script src>`
  *      after the iframe loads (same-origin only).
  *
- * The chromeless bridge embedded in `includes/render.php` ships its
- * own copy of the same logic inline so chromeless wp-admin pages
- * don't need a separate enqueue. Keep the two in sync — any change
- * here must be mirrored there (search for `desktop-mode-bridge-` in
- * `render.php`).
+ * The chromeless bridge embedded in `includes/render/chromeless-bridge.php`
+ * ships its own copy of the same logic inline so chromeless wp-admin
+ * pages don't need a separate enqueue. Keep the two in sync — any
+ * change here must be mirrored there (search for `desktop-mode-bridge-`
+ * in `chromeless-bridge.php`).
  *
  * Built by Vite to:
  *   - `assets/js/iframe-bridge.js`     (development)
@@ -27,7 +27,7 @@
  *
  * **Do not hand-edit the built JS — only this TS source.**
  *
- * @since 0.18.0
+ * @since 0.5.2
  */
 
 interface ConnectionRecord {
@@ -90,14 +90,14 @@ interface IframeApi {
 	 * (e.g. `wp.desktop.iframe.publish('focus-changed', {windowId:
 	 * wp.desktop.iframe.windowId})`).
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.8
 	 */
 	readonly windowId: string | null;
 	/**
 	 * Resolve once `windowId` is populated by the first handshake.
 	 * Resolves immediately if already known.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.8
 	 */
 	whenWindowId(): Promise< string >;
 	/**
@@ -127,7 +127,7 @@ interface IframeApi {
 	 *     inherited a different origin, sandboxed iframes, PWA
 	 *     wrappers loading desktop-mode in a foreign frame.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.8
 	 */
 	isParentReachable(): boolean;
 }
@@ -237,7 +237,7 @@ interface IframeWp {
 			typeof data.connectionId === 'string'
 		) {
 			// The parent's handshake carries the host window id since
-			// 0.22.0. Stash it so `wp.desktop.iframe.windowId` and
+			// 0.8.8. Stash it so `wp.desktop.iframe.windowId` and
 			// `whenWindowId()` can serve callers that need to know
 			// which native window opened this iframe.
 			const tw = ( data as { targetWindowId?: unknown } ).targetWindowId;

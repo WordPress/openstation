@@ -12,7 +12,7 @@
  * bar because the effect list is open-ended — plugins append, and a
  * dropdown scales past the two shipped choices.
  *
- * @since 0.26.0
+ * @since 0.9.1
  */
 
 import { __ } from '../../i18n';

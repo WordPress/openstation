@@ -35,7 +35,7 @@ const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
  * Captures a topic label and summary plus the `harmful` and `spam`
  * booleans that drive the comments-window spam score.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return array
  */
@@ -67,7 +67,7 @@ function desktop_mode_ai_schema_comment() {
 	/**
 	 * Filters the JSON Schema used for comment AI analysis.
 	 *
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 *
 	 * @param array $schema The JSON Schema array.
 	 */
@@ -84,7 +84,7 @@ function desktop_mode_ai_schema_comment() {
  * The parent post's title is included so the model can judge `spam`
  * (off-topic detection requires knowing what the post is about).
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param WP_Comment $comment
  * @return array Chat messages array.
@@ -114,7 +114,7 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
 	/**
 	 * Filters the user message sent to OpenAI for comment analysis.
 	 *
-	 * @since 0.14.0
+	 * @since 0.5.0
 	 *
 	 * @param string     $user_text The composed user message.
 	 * @param WP_Comment $comment   The comment being analyzed.
@@ -144,7 +144,7 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
  * parameter is retained for call-site/signature stability but only
  * `'comment'` is supported — any other value is a no-op that returns false.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $entity_type Only `'comment'` is supported.
  * @param int    $entity_id   Comment ID.
@@ -169,7 +169,7 @@ function desktop_mode_ai_save_meta( $entity_type, $entity_id, array $analysis ) 
  * Only `'comment'` is supported (see {@see desktop_mode_ai_save_meta}); any
  * other `$entity_type` returns null.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param string $entity_type Only `'comment'` is supported.
  * @param int    $entity_id   Comment ID.

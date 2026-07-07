@@ -45,7 +45,7 @@ defined( 'ABSPATH' ) || exit;
  * ) );
  * ```
  *
- * @since 0.11.0
+ * @since 0.8.1
  *
  * @param string $id   Icon id. Must be a kebab-case-ish slug.
  * @param array  $args {
@@ -202,11 +202,11 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 	 * Does NOT fire when `desktop_mode_register_icon()` returns a
 	 * `WP_Error`.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.2
 	 *
 	 * @param string $id    The icon id.
 	 * @param array  $entry The stored registry entry (id, title,
-	 *                      icon, window, url, position).
+	 *                      icon, window, url, position, pinned).
 	 */
 	do_action( 'desktop_mode_icon_registered', $id, $entry );
 
@@ -218,7 +218,7 @@ function desktop_mode_register_icon( $id, $args = array() ) {
  * {@see desktop_mode_register_icon()}. Same static-store pattern as
  * the widget + native-window + wallpaper registries.
  *
- * @since 0.11.0
+ * @since 0.8.1
  * @internal
  */
 function desktop_mode_desktop_icon_registry( $id = '', $entry = null ) {
@@ -267,7 +267,7 @@ function desktop_mode_unregister_icon( $id ) {
  * entries registered by others — mirrors the wallpaper payload
  * builder's filter discipline.
  *
- * @since 0.11.0
+ * @since 0.8.1
  *
  * @return array[]
  */
@@ -281,9 +281,9 @@ function desktop_mode_build_desktop_icons_payload() {
 	 * Filters the full desktop-icon registry before it ships to the
 	 * shell. Each entry is the shape stored by
 	 * `desktop_mode_register_icon()` (`id`, `title`, `icon`, `window`,
-	 * `url`, `position`). Return a reordered / filtered array.
+	 * `url`, `position`, `pinned`). Return a reordered / filtered array.
 	 *
-	 * @since 0.11.0
+	 * @since 0.5.2
 	 *
 	 * @param array[] $registry The registered icon entries.
 	 */

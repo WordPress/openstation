@@ -1,6 +1,6 @@
 # OS-file drop
 
-**Status:** Experimental · **Since:** 0.30.0
+**Status:** Experimental · **Since:** 0.8.6
 
 Desktop Mode catches files dragged from the host operating system
 (macOS Finder, Windows Explorer, Linux Nautilus) onto **any**
@@ -8,9 +8,10 @@ surface in the shell — the wallpaper, a folder window, a native
 window, or a chromeless admin iframe — and routes them through
 a confirmation dialog before uploading to the Media Library.
 
-The dialog opens with every field pre-filled (`title`, `alt_text`,
+The dialog opens with every field pre-filled (`title`, `altText`,
 `caption`, `description`, `filename`) but every field is editable
-before upload.
+before upload. (`altText` is sent to `wp/v2/media` as the
+`alt_text` multipart field.)
 
 ## What the user sees
 
@@ -38,9 +39,9 @@ on `window.wp.hooks`). All hook names live on
 | `desktop-mode.drop.files-rejected` | action | `{ rejections: DropRejection[], context: DropContext }` — files that failed the allow-list. |
 | `desktop-mode.drop.dialog-fields` | filter | `(entry: DropFileEntry, ctx) => DropFileEntry` — mutate the per-file defaults the dialog shows. |
 | `desktop-mode.drop.before-upload` | filter | `({ file, mime, fields }, ctx) => payload \| null` — last chance to swap the file or cancel (returning `null`). |
-| `desktop-mode.drop.upload-started` | action | _Since 0.31.0._ `{ file, fields, context, abort: () => void }` — XHR is open and about to `send()`. Call `abort()` to cancel mid-flight; the manager will reject with `UploadAbortedError`. |
-| `desktop-mode.drop.upload-progress` | action | _Since 0.31.0._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` tick. A synthetic 100% event is fired on `upload.load`. |
-| `desktop-mode.drop.after-upload` | action | `{ file: File, result: DropUploadResult, fields, context }` — `file` (since 0.31.0) carries the same `File` ref as `upload-started`, so per-file UI can match by identity. |
+| `desktop-mode.drop.upload-started` | action | _Since 0.8.6._ `{ file, fields, context, abort: () => void }` — XHR is open and about to `send()`. Call `abort()` to cancel mid-flight; the manager will reject with `UploadAbortedError`. |
+| `desktop-mode.drop.upload-progress` | action | _Since 0.8.6._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` tick. A synthetic 100% event is fired on `upload.load`. |
+| `desktop-mode.drop.after-upload` | action | `{ file: File, result: DropUploadResult, fields, context }` — `file` (since 0.8.6) carries the same `File` ref as `upload-started`, so per-file UI can match by identity. |
 | `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `file` is the post-`before-upload` identity, same as the other lifecycle hooks. `error.name === 'UploadAbortedError'` for a caller-cancelled upload. |
 
 `DropContext.surface` is one of `'wallpaper' | 'window' |
@@ -87,10 +88,10 @@ plugin can place the new attachment there) by reading
 the multipart payload yourself.
 
 ```js
-import { FILE_DROP_HOOKS } from '@wp-desktop-mode/os-file-drop';
+const { HOOKS } = window.wp.desktop;
 
 wp.hooks.addFilter(
-    FILE_DROP_HOOKS.BEFORE_UPLOAD,
+    HOOKS.FILE_DROP_BEFORE_UPLOAD,
     'my-plugin/stamp-folder',
     ( payload, ctx ) => {
         if ( ctx.surface !== 'folder' && ctx.surface !== 'window' ) {
@@ -118,7 +119,7 @@ endpoint that should handle that file type.
 
 ```js
 wp.hooks.addFilter(
-    FILE_DROP_HOOKS.BEFORE_UPLOAD,
+    HOOKS.FILE_DROP_BEFORE_UPLOAD,
     'my-plugin/csv-importer',
     ( payload, ctx ) => {
         if ( payload.mime !== 'text/csv' ) {
@@ -146,12 +147,12 @@ the canonical consumer; plugins that want a different UI can:
 Minimal example — a per-window in-iframe progress bar:
 
 ```js
-import { FILE_DROP_HOOKS } from '@wp-desktop-mode/os-file-drop';
+const { HOOKS } = window.wp.desktop;
 
 const bars = new Map(); // file → <wpd-progress-bar>
 
 wp.hooks.addAction(
-    FILE_DROP_HOOKS.UPLOAD_STARTED,
+    HOOKS.FILE_DROP_UPLOAD_STARTED,
     'my-plugin/progress',
     ( { file, fields } ) => {
         const bar = document.createElement( 'wpd-progress-bar' );
@@ -164,7 +165,7 @@ wp.hooks.addAction(
 );
 
 wp.hooks.addAction(
-    FILE_DROP_HOOKS.UPLOAD_PROGRESS,
+    HOOKS.FILE_DROP_UPLOAD_PROGRESS,
     'my-plugin/progress',
     ( { file, loaded, total, indeterminate } ) => {
         const bar = bars.get( file );
@@ -180,7 +181,7 @@ wp.hooks.addAction(
 );
 
 wp.hooks.addAction(
-    FILE_DROP_HOOKS.AFTER_UPLOAD,
+    HOOKS.FILE_DROP_AFTER_UPLOAD,
     'my-plugin/progress',
     ( { file } ) => {
         // Match on the `File` reference itself — two drops of

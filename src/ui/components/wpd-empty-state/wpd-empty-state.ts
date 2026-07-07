@@ -24,7 +24,7 @@
  *   - `cta`  — optional call-to-action row below the description.
  *   - default — any additional content.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -40,7 +40,7 @@ export class WpdEmptyState extends Component {
 		summary:
 			'Centered placeholder for "nothing here yet" UI: icon + heading + description + optional CTA. A canonical shape so empty states look consistent across the shell.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'icon',

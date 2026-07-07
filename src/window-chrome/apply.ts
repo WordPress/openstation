@@ -10,7 +10,7 @@
  *     when a plugin registers / unregisters a theme; the shell
  *     invokes this for every open window so live activation paints
  *     immediately.
- *   - **On runtime mutation** — `wp.desktop.window.applyTheme()` calls
+ *   - **On runtime mutation** — `wp.desktop.applyWindowTheme()` calls
  *     this directly with explicit overrides bypassing the registry.
  *
  * Tokens previously written by the shell are tracked in a
@@ -44,8 +44,9 @@ const applied = new WeakMap< HTMLElement, AppliedThemeRecord >();
 /**
  * Resolve the active theme tokens for a window. Resolution order:
  *
- *   1. Explicit override (`override` argument) — used by
- *      `applyTheme()` runtime API and by `WindowConfig.appearance.theme`.
+ *   1. Explicit override (`override` argument) — used by the
+ *      `setAppearanceTheme()` / `wp.desktop.applyWindowTheme()`
+ *      runtime APIs and by `WindowConfig.appearance.theme`.
  *      Inline tokens (`override.tokens`) bypass the registry entirely;
  *      a `themeId` reference looks the theme up.
  *   2. Highest-priority registered theme whose `match` returns true.
@@ -69,8 +70,7 @@ export function resolveActiveTheme(
 		themeId = null;
 		tokens = { ...override.tokens };
 	} else if ( override && 'themeId' in override && override.themeId ) {
-		// Lookup by id. We import lazily to dodge a TS module-graph cycle
-		// when `apply.ts` is imported from inside the registry barrel.
+		// Lookup by id via the registry's list accessor.
 		const list = resolveByThemeId( override.themeId );
 		if ( list ) {
 			themeId = list.id;

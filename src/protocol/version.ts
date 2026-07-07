@@ -1,8 +1,9 @@
 /**
  * Desktop Mode bridge protocol version.
  *
- * Outgoing messages from this build identify themselves with this
- * version so peers (other iframes, native windows, third-party
+ * Reserved version constant for the bridge protocol. Messages do
+ * not yet carry it; once outgoing messages are stamped with this
+ * value, peers (other iframes, native windows, third-party
  * extensions) can negotiate or warn on incompatibility.
  *
  * Bumping rules (independent of the plugin version):

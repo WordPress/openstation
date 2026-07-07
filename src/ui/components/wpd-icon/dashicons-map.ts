@@ -25,7 +25,7 @@
  * console noise).
  *
  * @public
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 let _cache: Map< string, string > | null = null;
@@ -119,7 +119,7 @@ function buildMap(): Map< string, string > {
  * automatically; this is exported for ad-hoc DOM construction
  * where pulling in the component is overkill.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 export function resolveDashicon( name: string ): string | null {
 	if ( ! _cache ) {
@@ -137,7 +137,7 @@ export function resolveDashicon( name: string ): string | null {
  * scripts that boot before the dashicons sheet has parsed don't
  * end up with a permanently empty cache.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 export function refreshDashiconCache(): void {
 	_cache = buildMap();

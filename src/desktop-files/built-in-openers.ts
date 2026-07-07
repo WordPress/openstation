@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — built-in JS openers for the seven file types.
+ * Desktop Mode — built-in JS openers for the built-in file types.
  *
  * Mirrors `includes/desktop-files/built-in-openers.php` — same
  * ids, same labels, same `isDefault` flags. The PHP side ships
@@ -45,6 +45,32 @@ function adminBase(): string {
 	const cfg = ( window.wp as { desktop?: { config?: ConfigShape } } | undefined )?.desktop?.config;
 	const url = cfg?.adminUrl ?? '/wp-admin/';
 	return url.endsWith( '/' ) ? url : `${ url }/`;
+}
+
+/**
+ * The server-sanitized URL of a bookmark/link tile, or `''`.
+ *
+ * The PHP `serialize()` for these types runs the stored ref
+ * through `esc_url_raw()` and ships the result as `shape.url` —
+ * read that field (like the preview pane does) instead of the
+ * raw `ref()`. Re-validate the protocol client-side as well so a
+ * shape mangled after the fact can't smuggle a `javascript:` or
+ * `data:` URL into `window.open`.
+ */
+function sanitizedWebUrl( file: DesktopFile ): string {
+	const url = typeof file.shape.url === 'string' ? file.shape.url : '';
+	if ( ! url ) {
+		return '';
+	}
+	try {
+		const parsed = new URL( url, window.location.href );
+		if ( parsed.protocol !== 'http:' && parsed.protocol !== 'https:' ) {
+			return '';
+		}
+	} catch {
+		return '';
+	}
+	return url;
 }
 
 export function registerBuiltInFileOpeners(): void {
@@ -492,7 +518,7 @@ export function registerBuiltInFileOpeners(): void {
 		handler: {
 			kind: 'js',
 			open: ( file: DesktopFile ) => {
-				const url = file.ref();
+				const url = sanitizedWebUrl( file );
 				if ( ! url ) {
 					return;
 				}
@@ -514,7 +540,7 @@ export function registerBuiltInFileOpeners(): void {
 		handler: {
 			kind: 'js',
 			open: ( file: DesktopFile ) => {
-				const url = file.ref();
+				const url = sanitizedWebUrl( file );
 				if ( ! url ) {
 					return;
 				}

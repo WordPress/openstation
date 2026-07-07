@@ -23,7 +23,7 @@
  * The tab's `render` callback lives JS-side — the PHP layer only
  * ferries identity and metadata.
  *
- * @since 0.17.0
+ * @since 0.5.1
  * @package WPDesktopMode
  */
 
@@ -48,7 +48,7 @@ defined( 'ABSPATH' ) || exit;
  * desktop_mode_register_settings_tab_script( 'my-plugin-settings' );
  * ```
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
@@ -67,7 +67,7 @@ function desktop_mode_register_settings_tab_script( $handle ) {
 	/**
 	 * Fires after a desktop settings-tab script handle is registered.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 *
 	 * @param string $handle The registered script handle.
 	 */
@@ -98,7 +98,7 @@ function desktop_mode_register_settings_tab_script( $handle ) {
  * Implicitly registers the `script` handle via
  * `desktop_mode_register_settings_tab_script()` when provided.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @param array $args {
  *     @type string $id         Unique tab id, `[a-z0-9_-]+`. Required.
@@ -153,13 +153,13 @@ function desktop_mode_register_settings_tab( $args = array() ) {
 	desktop_mode_desktop_settings_tab_registry( $id, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		desktop_mode_desktop_settings_tab_script_registry( $entry['script'], true );
+		desktop_mode_register_settings_tab_script( $entry['script'] );
 	}
 
 	/**
 	 * Fires after a desktop settings tab is successfully registered.
 	 *
-	 * @since 0.17.0
+	 * @since 0.5.1
 	 *
 	 * @param string $id    The tab id.
 	 * @param array  $entry The stored registry entry.
@@ -173,7 +173,7 @@ function desktop_mode_register_settings_tab( $args = array() ) {
  * Internal module-level registry for settings-tab script handles
  * declared via {@see desktop_mode_register_settings_tab_script()}.
  *
- * @since 0.17.0
+ * @since 0.5.1
  * @internal
  *
  * @param string    $handle Script handle to read or write.
@@ -200,7 +200,7 @@ function desktop_mode_desktop_settings_tab_script_registry( $handle = '', $value
  * Test-only: clear the registry between PHPUnit cases. See
  * {@see desktop_mode_flush_script_handle_registries()}.
  *
- * @since 0.18.0
+ * @since 0.5.2
  */
 function desktop_mode_flush_desktop_settings_tab_script_registry() {
 	desktop_mode_desktop_settings_tab_script_registry( '__flush__' );
@@ -210,7 +210,7 @@ function desktop_mode_flush_desktop_settings_tab_script_registry() {
  * Internal module-level registry for tabs declared via
  * {@see desktop_mode_register_settings_tab()}.
  *
- * @since 0.17.0
+ * @since 0.5.1
  * @internal
  *
  * @param string     $id    Tab id to read or write.
@@ -234,9 +234,9 @@ function desktop_mode_desktop_settings_tab_registry( $id = '', $entry = null ) {
  * aren't currently enqueued resolve to an empty URL and are dropped —
  * matches the command-scripts payload builder.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
- * @return array[] List of `{ handle, scriptUrl }` entries.
+ * @return array[] List of `{ handle, scriptUrl, scriptBefore, scriptAfter, scriptL10n, scriptTranslations }` entries.
  */
 function desktop_mode_build_desktop_settings_tab_scripts_payload() {
 	$registry = desktop_mode_desktop_settings_tab_script_registry();
@@ -279,7 +279,7 @@ function desktop_mode_build_desktop_settings_tab_scripts_payload() {
  * unregister tabs attributable to a script handle that just left the
  * `serverSettingsTabScripts` payload.
  *
- * @since 0.17.0
+ * @since 0.5.1
  *
  * @return array[]
  */

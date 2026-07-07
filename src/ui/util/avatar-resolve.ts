@@ -28,7 +28,7 @@
  * Non-Gravatar URLs (BuddyPress, custom plugin avatars, …) skip the
  * probe and pass through unchanged.
  *
- * @since 0.19.0
+ * @since 0.8.3
  */
 
 const gravatarCache = new Map<

@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
  * {@see desktop_mode_register_window_tab()} returns
  * `desktop_mode_reserved_tab_value` when they try.
  *
- * @since 0.11.0
+ * @since 0.8.1
  */
 const DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB = 'main';
 
@@ -72,7 +72,7 @@ const DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB = 'main';
  * ) );
  * ```
  *
- * @since 0.11.0
+ * @since 0.8.1
  *
  * @param string $window_id Id of the native window this tab belongs to.
  * @param array  $args {
@@ -200,7 +200,7 @@ function desktop_mode_register_window_tab( $window_id, $args = array() ) {
 	 * Does NOT fire when `desktop_mode_register_window_tab()` returns
 	 * a `WP_Error`.
 	 *
-	 * @since 0.11.0
+	 * @since 0.8.1
 	 *
 	 * @param string $window_id The window this tab belongs to.
 	 * @param string $value     The tab value.
@@ -217,7 +217,7 @@ function desktop_mode_register_window_tab( $window_id, $args = array() ) {
  * `$value` to read a single entry; pass both `$window_id` and
  * `$value` empty to get the full registry.
  *
- * @since 0.11.0
+ * @since 0.8.1
  * @internal
  *
  * @param string     $window_id Window id (or '' to read everything).
@@ -258,7 +258,7 @@ function desktop_mode_desktop_window_tab_registry( $window_id = '', $value = '',
  * can reorder, hide, or relabel tabs another plugin registered —
  * mirrors the `desktop_mode_wallpapers` filter discipline.
  *
- * @since 0.11.0
+ * @since 0.8.1
  *
  * @param string $window_id Window id.
  * @return array[]
@@ -291,7 +291,8 @@ function desktop_mode_get_native_window_tabs( $window_id ) {
 	);
 
 	// Additional tabs sorted by position. Values are trusted — they
-	// come from sanitize_key() at registration time.
+	// were validated against /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ at
+	// registration time (sanitize_key would strip the namespace slash).
 	$sorted = array_values( $extras );
 	usort( $sorted, static function ( $a, $b ) {
 		if ( $a['position'] === $b['position'] ) {
@@ -319,7 +320,7 @@ function desktop_mode_get_native_window_tabs( $window_id ) {
 	 * callback; replacing it at filter time is supported but
 	 * unusual — prefer updating the window registration itself.
 	 *
-	 * @since 0.11.0
+	 * @since 0.8.1
 	 *
 	 * @param array[] $tabs      Ordered tab descriptors.
 	 * @param string  $window_id Window id.

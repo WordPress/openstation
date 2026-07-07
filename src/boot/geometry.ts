@@ -46,16 +46,15 @@ export function findDockEntryForUrl(
 
 /**
  * Clamp a persisted window's geometry to fit inside the current
- * desktop area, preserving the window's aspect ratio when the
- * saved size exceeds the area. Handles the ultrawide-to-laptop
- * transition gracefully:
+ * desktop area. Handles the ultrawide-to-laptop transition
+ * gracefully:
  *
  *   - A window that sat at x=2800 on a 3440px desktop gets pulled
  *     back onto the smaller viewport.
- *   - A window bigger than the viewport is scaled down, not
- *     cropped.
+ *   - A window bigger than the viewport is shrunk to fit (each
+ *     axis clamped independently — aspect ratio is not preserved).
  *   - Negative positions (shouldn't happen but defend anyway)
- *     become 0.
+ *     clamp to the 12px margin.
  *
  * Returns a plain geometry object — caller applies it to the
  * `WindowConfig`.

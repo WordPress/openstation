@@ -100,7 +100,7 @@ desktop_mode_register_window( 'converter', array(
                     <wpd-display
                         col="4"
                         data-role="result"
-                        size="large"
+                        size="xl"
                     >0</wpd-display>
                 </wpd-row>
             </wpd-panel>
@@ -198,7 +198,7 @@ Inline HTML keeps working the same as any other HTML element — `<wpd-stack sty
 
 ### Components that declare their own spacing props
 
-`<wpd-body>`, `<wpd-panel>`, and `<wpd-number-field>` still declare their own `padding` prop that routes through a CSS custom property (`--wpd-body-padding`, `--wpd-panel-padding`). Both paths coexist:
+`<wpd-body>`, `<wpd-panel>`, and `<wpd-stack>` still declare their own `padding` prop that routes through a CSS custom property (`--wpd-body-padding`, `--wpd-panel-padding`, `--wpd-stack-padding`). Both paths coexist:
 
 - `<wpd-body padding="0">` — uses the component's own prop, sets `--wpd-body-padding: 0px`.
 - `<wpd-body style="padding: 0">` (or `'style' => [ 'padding' => 0 ]`) — sets inline `style="padding: 0"`, wins via specificity.
@@ -275,7 +275,7 @@ The host keeps `id="my-brand-picker"`, the inner `<select>` gets `id="my-brand-p
 - `<wpd-row>` uses CSS grid under the hood — standard browser behaviour for keyboard navigation and screen readers applies to its children.
 - Auto-id guarantees that input controls have a stable `id` and a real `<label for>` pairing inside the shadow root — both silence Chrome's "form field needs an id or name" warning and give screen readers a proper accessible name.
 
-## `<wpd-ribbon>` — corner ribbon decoration *(experimental, since 0.20.0)*
+## `<wpd-ribbon>` — corner ribbon decoration *(experimental, since 0.8.6)*
 
 A 45° banner that wraps a corner of its parent — the classic "FEATURED / NEW / BETA / SALE" stamp on a card. The component owns its own clipping geometry; consumers only need to make the parent a positioned containing block.
 

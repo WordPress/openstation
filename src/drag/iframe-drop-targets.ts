@@ -43,7 +43,7 @@
  *     DevTools' inline styles) with no caching or specificity
  *     surface.
  *
- * @since 0.22.0
+ * @since 0.8.7
  */
 
 import { addAction, HOOKS } from '../hooks';
@@ -399,7 +399,7 @@ function onDragEnd(): void {
  * wiring is broken.
  *
  * @public
- * @since 0.22.0
+ * @since 0.8.7
  */
 export function installIframeDropTargets( dragManager: DragManagerApi ): void {
 	if ( _installed ) {

@@ -26,7 +26,7 @@
  *   - **Click empty space** → close the focused chip + post fan.
  *
  * @public
- * @since 0.16.0
+ * @since 0.7.2
  */
 
 import { __, sprintf } from '../i18n';

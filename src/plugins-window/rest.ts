@@ -414,7 +414,7 @@ export interface UpdatePluginResult {
  * through `enqueueUpdateJob` to serialize.
  *
  * @public
- * @since 0.18.0
+ * @since 0.8.3
  */
 export async function updateInstalledPlugin(
 	plugin: InstalledPlugin,
@@ -461,7 +461,7 @@ export async function updateInstalledPlugin(
  * new value.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export async function toggleAutoUpdate(
 	plugin: InstalledPlugin,

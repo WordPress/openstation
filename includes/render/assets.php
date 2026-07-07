@@ -642,7 +642,7 @@ function desktop_mode_print_preload_hints() {
 	 * paint.
 	 *
 	 * @since 0.8.9
-	 * @since 0.11.0 Entries may carry a `rel` key (`preload` | `prefetch`).
+	 * @since 0.9.1 Entries may carry a `rel` key (`preload` | `prefetch`).
 	 *
 	 * @param array $hints Default hints (main bundle + base CSS as
 	 *                     `preload`; window-system + shell-overlays as

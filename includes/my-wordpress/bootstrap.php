@@ -3,8 +3,8 @@
  * Desktop Mode — "My WordPress" module bootstrap.
  *
  * Pinned virtual folder on the desktop wallpaper that opens a native
- * file-explorer window for browsing WordPress entities (Phase 1:
- * Posts and Pages). Future phases add Comments, Users, Tags,
+ * file-explorer window for browsing WordPress entities (Posts,
+ * Pages, Users, and Media today). Future phases add Comments, Tags,
  * Categories, Themes, and Plugins as additional sub-folders.
  *
  * @package WPDesktopMode

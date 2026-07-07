@@ -33,7 +33,7 @@
  * the outer container that fills the window. The two compose
  * naturally — a body hosts one or more panels.
  *
- * @since 0.12.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -48,7 +48,7 @@ export class WpdBody extends Component {
 		summary:
 			'Top-level native-window body wrapper. Fills the parent, stacks children in a flex column, and optionally owns the scrollable region so overflowing content scrolls inside the body rather than the window frame.',
 		status: 'stable',
-		since: '0.12.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

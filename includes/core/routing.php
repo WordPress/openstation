@@ -15,16 +15,16 @@
  * always present by the time WordPress wants them.
  *
  * Functions in this file:
+ *   - {@see desktop_mode_url_is_same_admin()}      — same-origin admin URL predicate
+ *   - {@see desktop_mode_resolve_admin_target()}   — admin filename → URL resolver
+ *   - {@see desktop_mode_admin_target_allowlist()} — wp-admin filename allowlist
+ *   - {@see desktop_mode_is_chromeless_request()}  — chromeless request detection
+ *   - {@see desktop_mode_is_classic_request()}     — classic-override request detection
  *   - {@see desktop_mode_chromeless_hide_admin_bar()} — `show_admin_bar` filter
  *   - {@see desktop_mode_chromeless_suppress_admin_bar()} — `admin_init` action
  *   - {@see desktop_mode_chromeless_preserve_redirect()} — `wp_redirect` filter
  *   - {@see desktop_mode_classic_preserve_redirect()}    — `wp_redirect` filter
  *   - {@see desktop_mode_is_admin_redirect_target()}     — internal predicate
- *
- * The chromeless / classic *request-detection* helpers
- * (`desktop_mode_is_chromeless_request()`,
- * `desktop_mode_is_classic_request()`) still live in
- * `helpers.php` for now — moving them is the next phase-6 cut.
  *
  * @package Desktop_Mode
  * @since   0.8.1
@@ -43,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
  * An empty string returns false — a missing URL is never
  * "same-origin admin" for the purposes of any caller.
  *
- * @since 0.11.0
+ * @since 0.8.1
  *
  * @param string $url URL to test.
  * @return bool
@@ -88,7 +88,7 @@ function desktop_mode_url_is_same_admin( $url ) {
  * `custom_admin_page.php` if a plugin named something that way;
  * the explicit allowlist closes that.
  *
- * @since 0.11.0
+ * @since 0.8.1
  *
  * @param string $file Bare admin filename (no path, no query string).
  * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
@@ -306,7 +306,7 @@ function desktop_mode_is_chromeless_request() {
 		 * reverse proxy strips the `Sec-Fetch-*` headers and they
 		 * can't be trusted.
 		 *
-		 * @since 0.18.0
+		 * @since 0.8.1
 		 *
 		 * @param bool $allow Default true.
 		 */

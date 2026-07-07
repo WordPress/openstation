@@ -9,10 +9,11 @@
  * messages, which produced ~23 separate inline catalogues that
  * drifted as new variants were added. The protocol has its own
  * folder now so the contract has one obvious home, can be
- * versioned via {@link PROTOCOL_VERSION}, and consumers reach for
- * the {@link isBridgeEventFromIframe} / {@link isBridgeEventToIframe}
- * type guards from `@protocol/guards` instead of hand-checking
- * literals.
+ * versioned via {@link PROTOCOL_VERSION}, and new code should reach
+ * for the {@link isBridgeEventFromIframe} /
+ * {@link isBridgeEventToIframe} type guards from `@protocol/guards`
+ * instead of hand-checking literals (most existing consumers still
+ * hand-check; adoption is incremental).
  *
  * **Backwards compatibility.** `src/types.ts` continues to re-export
  * `BridgeEventFromIframe` and `BridgeEventToIframe` so existing
@@ -79,6 +80,7 @@ export type BridgeEventToIframe =
 	| {
 		type: 'desktop-mode-bridge-handshake';
 		connectionId: string;
+		targetWindowId?: string;
 		topics: string[];
 	}
 	| {
@@ -98,7 +100,12 @@ export type BridgeEvent = BridgeEventFromIframe | BridgeEventToIframe;
 /** Discriminator: the `type` literal of every bridge message. */
 export type BridgeEventType = BridgeEvent[ 'type' ];
 
-/** All `desktop-mode-*` message-type strings recognised by this build. */
+/**
+ * The `desktop-mode-*` message-type strings covered by the typed
+ * `BridgeEvent` union. NOT exhaustive — several bridge messages
+ * (window-send/publish, iframe-admin-link, iframe-error,
+ * iframe-network, chrome-*, …) are not yet catalogued here.
+ */
 export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	// From iframe.
 	'desktop-mode-title-change',

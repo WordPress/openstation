@@ -117,7 +117,7 @@ add_action( 'in_admin_header', 'desktop_mode_render_shell', 5 );
  * window snapshot before unload, so window positions / open
  * windows are preserved across the reload.
  *
- * @since 0.18.5
+ * @since 0.8.3
  */
 function desktop_mode_parent_auth_check_recovery_script() {
 	if (

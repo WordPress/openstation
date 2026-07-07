@@ -43,7 +43,7 @@
  * Every event bubbles and `composed: true`, so listeners can live
  * anywhere in the tree including the shadow of a parent component.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -78,7 +78,7 @@ export class WpdKey extends Component {
 		summary:
 			'Semantic key cap — a press-sensitive tile that fires wpd-key on click AND when the matching event.key/event.code is pressed anywhere on the document. Use for calculators, on-screen keyboards, synths, and keybinding demos.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'key',

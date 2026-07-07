@@ -98,7 +98,7 @@ flavour fits.
 | `desktop-mode-window-blurred`     | `{ windowId, focusedTo }`  *(since 0.5.5)* |
 | `desktop-mode-window-closing`     | `{ windowId, element }` |
 | `desktop-mode-window-closed`      | `{ windowId }` |
-| `desktop-mode-window-changed`     | `{ windowId, reason, state }` |
+| `desktop-mode-window-changed`     | `{ windowId?: string, reason: 'moved' \| 'resized' \| 'state' \| 'cascade' \| 'tile', state?: WindowState }` — batch-arrange dispatches (`'cascade'` / `'tile'`) omit `windowId`/`state` |
 
 Same payloads on `wp.hooks` actions:
 `HOOKS.WINDOW_OPENED`, `…_FOCUSED`, `…_BLURRED`, `…_CLOSED`,
@@ -251,8 +251,10 @@ mirrors here so plugins can subscribe through one unified API:
 |---|---|---|
 | `desktop-mode/toast-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-show on every `showToast()`. |
 | `desktop-mode/toast-shown` | No (post-render) | After the toast lands in the DOM. |
-| `desktop-mode/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` / `dock.setAttention()`. |
-| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` (since 0.24.0) so a single subscriber can compose across surfaces. |
+| `desktop-mode/notification-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-render on every `wp.desktop.notify()`. |
+| `desktop-mode/notification-shown` | No (post-render) | After the notification (or its toast fallback) renders — payload carries `fallback: 'toast' \| null`. |
+| `desktop-mode/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` (which then routes the filtered result to the rails' `setAttention()`). Direct `dock.setAttention()` calls bypass the filter. |
+| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` (since 0.6.0) so a single subscriber can compose across surfaces. |
 | `desktop-mode/open-requested` | No | Every `wp.desktop.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
 | `desktop-mode/presence-changed` | No | Every presence transition (mirror of the `desktop-mode-presence-changed` CustomEvent). |
 | `desktop-mode/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
@@ -338,11 +340,11 @@ function repaintBadge() {
     const active  = wp.desktop.windowManager.isActive( WINDOW_ID );
     const visible = active ? 0 : total;
     // Plugin's policy. The rails just render whatever we pass.
-    // Three calls; the rail that owns the id paints, the others
-    // silently no-op. One activity event fires.
-    wp.desktop.dock?.setBadge?.(    WINDOW_ID, visible );
-    wp.desktop.taskbar?.setBadge?.( WINDOW_ID, visible );
-    wp.desktop.icons?.setBadge?.(   WINDOW_ID, visible );
+    // The rail that owns the id paints, the others silently
+    // no-op. One activity event fires.
+    wp.desktop.dock?.setBadge?.(     WINDOW_ID, visible );
+    wp.desktop.sideDock?.setBadge?.( WINDOW_ID, visible );
+    wp.desktop.icons?.setBadge?.(    WINDOW_ID, visible );
 }
 
 // React to either axis changing.
@@ -358,6 +360,15 @@ wp.desktop.activity.subscribe( 'inbox/unread-changed', repaintBadge );
 );
 repaintBadge(); // initial paint
 ```
+
+**There is no `wp.desktop.taskbar` accessor.** The three badge
+rails are `wp.desktop.dock` (the primary bottom rail),
+`wp.desktop.sideDock` (the Classic-layout left rail — `null` in
+Unified / Spatial), and `wp.desktop.icons` (wallpaper shortcuts).
+The `rail` discriminator on emitted events is a separate axis:
+the bottom-anchored primary dock stamps `rail: 'taskbar'` onto
+the events it emits (e.g. `desktop-mode/badge-changed`), while
+`sideDock` stamps `rail: 'dock'` and the icon rail `rail: 'icon'`.
 
 ## What NOT to do (anti-patterns)
 

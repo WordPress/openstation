@@ -26,7 +26,7 @@
  * are dropped. Same-origin admin scripts can still forge messages,
  * but the browser's same-origin boundary is the real defence.
  *
- * @since 0.22.0
+ * @since 0.8.7
  */
 
 // ---------------------------------------------------------------------
@@ -322,7 +322,7 @@ function isDropMsg( m: unknown ): m is DropMsg {
  * never reaches the parent's `onBridgeDrop`. This stash + native
  * handler is the iframe-side catch.
  *
- * @since 0.22.0
+ * @since 0.8.7
  */
 let stashedBridgePayload: DragBridgePayload | null = null;
 

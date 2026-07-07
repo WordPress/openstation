@@ -1,54 +1,61 @@
 === Desktop Mode ===
 Contributors: automattic, allterraindeveloper, epeicher
-Tags: desktop, admin, ui, productivity, ai
+Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.9.2
+Stable tag: 0.9.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Reimagines the WordPress admin as a desktop OS with draggable windows and a dock. Per-user opt-in. By Automattic.
+Turn wp-admin into a desktop OS — windows, dock, virtual desktops, and an AI assistant. Per-user opt-in, zero Core changes. By Automattic.
 
 == Description ==
 
-Desktop Mode renders /wp-admin as a desktop operating system. Admin screens open as draggable, resizable, minimizable windows on a desktop, with a left-edge dock built from the admin menu. The classic admin stays untouched for everyone else, and deactivating the plugin restores vanilla Core exactly.
+**Your WordPress admin, reimagined as a desktop.** Every admin screen opens as a draggable, resizable window — edit a post, browse the Media Library, and moderate comments side by side instead of one page at a time.
 
-Built and maintained by [Automattic](https://automattic.com) — the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr. Zero Core patches: every feature is wired through public WordPress hooks.
+https://www.youtube.com/watch?v=jii_gGbqUx4
 
-= Highlights =
+Desktop Mode is opt-in per user: one click in the admin bar switches you in, one click switches you back. Nobody else on the site sees any change, and deactivating the plugin restores the classic admin exactly. Zero Core patches — every feature runs through public WordPress hooks.
 
-* **Per-user opt-in.** An admin-bar toggle flips a user-meta flag; nobody else sees any change.
-* **Window system.** Iframe windows load admin pages chromelessly. Native windows render directly in the parent DOM via a public registration API. Both share drag, resize, minimize, maximize, fullscreen, and detach-to-new-tab.
-* **Dock + taskbar.** Left-edge dock for core menus; bottom macOS-style pill taskbar for plugin menus. Letter-badge icon fallback for plugins without icon art.
-* **Virtual desktops ("Spaces").** Multiple desktops per user, each with its own window set. Overview grid surfaces the Spaces switcher and thumbnails.
-* **Arrange & snap.** Cascade, Tile, Overview, Snap-to-grid. Plugins contribute custom entries.
-* **Wallpaper & widget registries.** Server- and client-side registration. CSS presets plus canvas (WebGL/2D) wallpapers with collision-aware surface data for snow/rain/physics effects.
-* **Desktop icons.** Wallpaper-layer shortcuts that open native windows or admin URLs.
-* **AI Copilot (optional).** Cmd+K palette backed by an agentic loop with built-in search tools. Disabled until you supply an API key. See "External services" below.
-* **Slash commands & palettes.** Public registration APIs for plugin authors.
-* **Cross-frame drag bridge.** Media-library attachments drag across iframe boundaries.
-* **Session persistence.** Window stack (including desktops, focus, state) restored across reloads.
-* **i18n.** Full gettext coverage across PHP and TypeScript; Spanish translation shipped.
+Built and maintained by [Automattic](https://automattic.com), the company behind WordPress.com, Jetpack, WooCommerce, and Tumblr.
 
-= For plugin authors =
+= A real desktop =
 
-Desktop Mode is built to be extended. Every significant behavior is hookable — add a desktop icon, register a dock item, gate desktop mode by role, react to window events, or register a native window, all from your own plugin with zero patches here.
+* **Windows** — drag, resize, minimize, maximize, snap, tile. Every admin page works, including plugin pages.
+* **Dock & taskbar** — the admin menu becomes an icon dock; open windows live in a macOS-style taskbar.
+* **Virtual desktops (Spaces)** — one desktop for writing, another for the store, another for moderation.
+* **Files on the desktop** — drop posts, media, and links onto the wallpaper, organize them into folders, trash them to a Recycle Bin.
+* **Session restore** — reload the browser and every window comes back exactly where you left it.
 
-Comprehensive PHP and JavaScript hook surface, plus stable `desktop_mode_register_*` functions for windows, widgets, wallpapers, icons, window tabs, commands, settings tabs, and AI tools. See the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
+= Make it yours =
+
+* **Wallpapers** — color presets, animated scenes, or your own image.
+* **Widgets & desktop icons** — pin live widgets and shortcuts to the wallpaper; plugins can register their own.
+
+= Superpowers =
+
+* **AI Assistant (optional)** — press Cmd+K and ask *"Which post had the comment asking for the recipe?"* It searches your own content. Off by default; see "External services" below.
+* **Content Graph** — an interactive, zoomable map of how your posts, pages, and products link together.
+* **Cross-window drag & drop** — drag an image from the Media Library window straight into the editor in another window.
+* **Command palette** — the full WordPress command palette plus slash commands from plugins, all under Cmd+K.
+
+= Built to be extended =
+
+Every significant behavior is hookable. Register windows, dock items, wallpapers, widgets, desktop icons, commands, settings tabs, and AI tools from your own plugin — stable `desktop_mode_register_*` PHP APIs, a typed JavaScript API, and copy-paste examples in the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
 
 = External services =
 
-This plugin's optional **AI Copilot** sends data to **OpenAI** (`https://api.openai.com/v1/responses`) when, and only when, an administrator configures an OpenAI API key in **Settings → AI**. With no key configured, no external requests are made.
+This plugin's optional **AI Assistant** sends data to **OpenAI** (`https://api.openai.com/v1/responses`) when, and only when, an administrator configures an OpenAI API key in **Settings → AI**. With no key configured, no external requests are made.
 
-When the AI Copilot is enabled and a user invokes it (via Cmd+K or the slash-command palette):
+When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-command palette):
 
 * **What is sent:** the user's prompt, the conversation history for the active session, the chosen model identifier (e.g. `gpt-4o-mini`), and tool-call metadata. The plugin's built-in tools (`search_posts`, `search_pages`, `search_comments`) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to OpenAI as part of the agentic loop.
 * **When it is sent:** on user-initiated AI requests, and (if enabled) on comment-save hooks for spam analysis. Comment spam analysis runs server-side as part of the comment-insert flow. Posts, pages, and taxonomy terms are not sent automatically.
-* **Why it is sent:** to obtain model completions and tool-call decisions that drive the AI Copilot.
+* **Why it is sent:** to obtain model completions and tool-call decisions that drive the AI Assistant.
 * **Who provides the service:** OpenAI, L.L.C. — see the [OpenAI Terms of Use](https://openai.com/policies/row-terms-of-use/) and the [OpenAI Privacy Policy](https://openai.com/policies/row-privacy-policy/).
 
-The AI Copilot's provider layer is also extensible: third-party plugins may register additional providers via `desktop_mode_register_ai_provider()`. Those providers may send data to other endpoints; review each plugin's own privacy disclosure separately.
+The AI Assistant's provider layer is also extensible: third-party plugins may register additional providers via `desktop_mode_register_ai_provider()`. Those providers may send data to other endpoints; review each plugin's own privacy disclosure separately.
 
 No other external services are contacted by this plugin.
 
@@ -59,7 +66,7 @@ No other external services are contacted by this plugin.
 3. Click the **desktop** icon in the admin bar's top-right corner. The admin reloads inside the desktop shell.
 4. Click the same icon again at any time to return to the classic admin.
 
-= Optional: enable the AI Copilot =
+= Optional: enable the AI Assistant =
 
 1. Open **Settings → AI** inside desktop mode.
 2. Paste an OpenAI API key and pick a model.
@@ -73,7 +80,7 @@ No. The classic admin is untouched until a user toggles desktop mode on for them
 
 = Does the plugin require an external service to function? =
 
-No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and all extension APIs work entirely on-site. The AI Copilot is the only feature that contacts an external service, and it is disabled until an administrator configures an API key. See "External services" in the description.
+No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and all extension APIs work entirely on-site. The AI Assistant is the only feature that contacts an external service, and it is disabled until an administrator configures an API key. See "External services" in the description.
 
 = Does it patch WordPress core? =
 
@@ -89,11 +96,13 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 
 == Screenshots ==
 
-1. The desktop shell — wallpaper, dock, taskbar, and a window with the admin loaded inside it.
-2. Multiple windows open across virtual desktops (Spaces).
-3. The AI Copilot Cmd+K palette in action.
-4. Custom wallpapers and widgets registered by a plugin.
-5. The Arrange menu — Cascade, Tile, Overview, Snap to grid.
+1. Real multitasking — Users, Media, and content editing open side by side as windows.
+2. Your admin, your desktop — custom wallpapers and live widgets registered by plugins.
+3. The AI Assistant (Cmd+K) answers questions about your own posts, pages, and comments.
+4. Content Graph — an interactive map of how your content links together.
+5. OS Settings — pick a wallpaper preset, an animated scene, or upload your own image.
+6. Files on the desktop — drag posts, media, and links onto the wallpaper and into folders.
+7. The Recycle Bin collects trashed posts, media, folders, and shortcuts in one window.
 
 == Credits ==
 
@@ -106,6 +115,10 @@ The plugin bundles the following third-party JavaScript library, loaded on deman
 * **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, and built-in canvas wallpapers (e.g. the animated WordPress logo). PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 == Changelog ==
+
+= 0.9.3 =
+* Rewrite WordPress.org plugin page, leaner copy, video embed, screenshots
+* Review: doc/comment accuracy, security hardening, and cleanups across the plugin
 
 = 0.9.2 =
 * Persist welcome-dialog dismissal when Desktop Mode is disabled

@@ -31,13 +31,14 @@
  *
  * Public JS surface (since 0.8.2):
  *
- *   const { tokens } = await wp.desktop.startOAuth( 'example' );
+ *   const { ok, service } = await wp.desktop.startOAuth( 'example' );
+ *   // Tokens stay server-side — persisted by your `on_success` callback.
  *
  * REST routes:
  *
  *   POST /desktop-mode/v1/oauth/start    body: { service: string }
  *     → { authorize_url: string, state: string }
- *   GET  /desktop-mode/v1/oauth/callback ?service&code&state
+ *   GET  /desktop-mode/v1/oauth/callback ?code&state&error
  *     → HTML page that postMessages the opener and closes
  *
  * @package Desktop_Mode
@@ -208,7 +209,8 @@ function desktop_mode_unregister_oauth_relay( $service ) {
 
 /**
  * The redirect URI the popup posts back to. Same for every service —
- * `service` is carried as a query arg.
+ * the framework recovers the service from the state transient, so no
+ * service query arg is needed.
  *
  * @since 0.8.2
  *
@@ -220,7 +222,8 @@ function desktop_mode_oauth_redirect_uri() {
 
 /**
  * Generate a fresh state nonce, persist it in a transient keyed by
- * `user_id + state`, and return the value the popup will round-trip.
+ * the state value (with `user_id` + `service` stored in the transient
+ * payload), and return the value the popup will round-trip.
  *
  * @since 0.8.2
  *
@@ -495,7 +498,7 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
  * @return string
  */
 function desktop_mode_oauth_build_callback_html( array $payload ) {
-	// `JSON_HEX_TAG` escapes `<` and `>` as `<` / `>` so a
+	// `JSON_HEX_TAG` escapes `<` and `>` as `\u003C` / `\u003E` so a
 	// `</script>` smuggled into any string value can't terminate the
 	// script block early. `JSON_UNESCAPED_SLASHES` keeps URLs
 	// readable in DevTools.
@@ -578,7 +581,7 @@ function desktop_mode_oauth_render_callback_html( array $payload ) {
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: text/html; charset=utf-8' );
 		}
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is esc_js()-escaped during build in `desktop_mode_oauth_build_callback_html`.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is wp_json_encode( …, JSON_HEX_TAG )-escaped during build in `desktop_mode_oauth_build_callback_html`.
 		echo $html;
 		// `true` tells WP_REST_Server we already served the response,
 		// short-circuiting the json-encode + `echo` path that follows.

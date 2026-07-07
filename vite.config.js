@@ -1,22 +1,18 @@
 /**
  * Vite configuration for the WP Desktop Mode plugin.
  *
- * Builds two TypeScript entries into IIFE bundles:
+ * Builds the TypeScript entries listed in the `TARGETS` map below into
+ * IIFE bundle pairs under `assets/js/`:
  *
- *   `src/desktop.ts` →
- *     - `assets/js/desktop.js`     (development, unminified — loaded when SCRIPT_DEBUG is true)
- *     - `assets/js/desktop.min.js` (production, esbuild-minified — loaded otherwise)
- *
- *   `src/iframe-bridge-standalone.ts` →
- *     - `assets/js/iframe-bridge.js`     (development)
- *     - `assets/js/iframe-bridge.min.js` (production)
+ *   `<fileBase>.js`     (development, unminified — loaded when SCRIPT_DEBUG is true)
+ *   `<fileBase>.min.js` (production, esbuild-minified — loaded otherwise)
  *
  * Which entry the current invocation builds is controlled by the
- * `DESKTOP_MODE_TARGET` env var (`desktop` — default — or `iframe-bridge`).
- * `npm run build` runs Vite four times (two targets × two modes).
+ * `DESKTOP_MODE_TARGET` env var (`desktop` is the default). `npm run build`
+ * invokes every target — one `build:<target>` script per entry in
+ * `package.json`, each running Vite twice (dev + prod mode).
  * `npm run dev` watches and rebuilds the unminified `desktop` bundle
- * only — iframe-bridge changes are rare so a one-shot
- * `npm run build:iframe-bridge` covers them.
+ * only — other targets need a one-shot `npm run build:<target>`.
  *
  * **Source policy:** `assets/js/*.js` is build output. NEVER hand-edit
  * those files — only edit the TS sources under `src/` and run a build.

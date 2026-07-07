@@ -21,7 +21,7 @@
  *
  *   - `wpd-modal-cancel` — ESC, click-outside, close button.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -39,7 +39,7 @@ export class WpdModal extends Component {
 		summary:
 			'Overlay container with title, body, and footer slots. Handles ESC, click-outside, focus trap. Use for rich modal flows that go beyond a yes/no confirm.',
 		status: 'experimental',
-		since: '0.18.0',
+		since: '0.8.5',
 		props: [
 			{ name: 'open', type: 'boolean attribute', description: 'Mounts the dialog visible.' },
 			{ name: 'title', type: 'string', description: 'Heading shown at the top of the dialog.' },

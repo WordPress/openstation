@@ -1,6 +1,6 @@
 # Folder sharing
 
-**Status:** Experimental (since 0.18.0). The hooks, schema, and
+**Status:** Experimental (since 0.8.5). The hooks, schema, and
 REST contract may change in minor releases — track this doc.
 
 ## What it is
@@ -187,9 +187,10 @@ Resolution rule, expressed as `desktop_mode_files_share_user_state()`:
 - `principal_type='role'` → state from the decisions row for
   `(share_id, user_id)`, defaulting to `'pending'` when absent.
 
-Pre-0.18.0 sites kept share lists in `wp_desktop_mode_folders.share_meta`
-as JSON. A one-shot migration (`desktop_mode_files_migrate_share_meta_to_shares`)
-backfills them into the new tables as `state='accepted'` rows.
+Pre-0.8.5 sites kept share lists in `wp_desktop_mode_folders.share_meta`
+as JSON. Those lists are NOT migrated; the column is retained for
+diagnostics only and is never consulted for visibility. Owners
+must re-invite recipients through the shares API.
 
 ### Why `target_type`?
 
@@ -223,7 +224,10 @@ returns the union of:
 2. **share_mode='all'** folders the viewer doesn't own.
 3. **Accepted shares** matching the viewer — direct user grant OR
    any role the viewer holds.
-4. **Legacy `share_meta`** rows (back-compat for pre-0.18 data).
+
+`share_meta` on the folders row is diagnostic-only and is never
+consulted for visibility (a legacy fallback was deliberately
+dropped because it re-granted access to revoked recipients).
 
 Filtered via `desktop_mode_files_visible_folders` (priority 5) and
 `desktop_mode_files_user_can_see_folder` (per-row decision).
@@ -268,6 +272,16 @@ the server returns 409 with a structured body:
     }
 }
 ```
+
+The 409 body is **viewer-scoped**. The actor's identity and the
+parent folder's id/name are included only when the requesting
+viewer is in the same collaboration scope as the actor — they own
+the row, own the parent folder, or hold at least read access to
+the parent folder via the shares table. For any other viewer the
+`actor` degrades to `{ "id": 0, "name": "", "avatar": "" }` and
+`current.parentId` / `current.parentName` degrade to `0` / `""`,
+so a write attempt can't be used to enumerate other users'
+display names or folder names.
 
 The JS client throws `FilesConflictError` and the layer surfaces a
 toast: *"Alice moved this to 'Backlog' just now. [View folder]"*.
@@ -322,30 +336,40 @@ POST   /desktop-mode/v1/files/folders/{id}/shares/{shareId}/deny
 POST   /desktop-mode/v1/files/folders/{id}/leave       ← recipient-initiated
 
 GET    /desktop-mode/v1/files/users/search?q=&exclude=
+
+POST   /desktop-mode/v1/files/folder-sharing-tables/purge   ← `manage_options` only
 ```
 
-All require `desktop_mode_is_enabled` + logged-in. Share-management
-mutations (POST/PATCH/DELETE on `/shares`) are gated by
-`desktop_mode_files_share_can_manage` (owner-only by default).
-`/leave` is open to any logged-in user who is currently a recipient
-of the folder. `/users/search` requires `edit_posts`.
+All require `desktop_mode_is_enabled` + logged-in. Every share
+route (including `/leave`) additionally requires the viewer's
+folder-sharing OS Setting to be on; when it is off the routes
+answer 404 (indistinguishable from the feature not being
+installed). Share-management mutations (POST/PATCH/DELETE on
+`/shares`) are gated by `desktop_mode_files_share_can_manage`
+(owner-only by default). `/leave` is open to any logged-in user
+who is currently a recipient of the folder. `/users/search`
+requires `edit_posts`. The table-purge route is a destructive
+site-admin cleanup (drops the folder-sharing tables) and requires
+`manage_options`.
 
 ## Hooks
 
-See [hooks-reference.md](hooks-reference.md#folder-sharing-since-0180-experimental).
+See [hooks-reference.md](hooks-reference.md#folder-sharing-since-085-experimental).
 
 ## JS surface
 
-The `wp.desktop.activity` bus publishes:
+To react to share changes today, subscribe to the shares store —
+a `createSharedStore( 'desktop-files/shares' )` slot updated by
+the heartbeat ingest.
+
+**Planned** — `wp.desktop.activity` channels for the share
+lifecycle are not yet published:
 
 - `desktop-mode/folder-share-invited`
 - `desktop-mode/folder-share-accepted`
 - `desktop-mode/folder-share-denied`
 - `desktop-mode/folder-share-revoked`
 - `desktop-mode/folder-share-capability-changed`
-
-The shares store is a `createSharedStore( 'desktop-files/shares' )`
-slot; subscribe to its updates to react.
 
 Programmatic entry points (from `src/desktop-files/rest.ts`):
 

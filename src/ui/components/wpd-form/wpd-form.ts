@@ -65,7 +65,7 @@
  * - `reset(): void` — restores every field to its initial-load value, fires `wpd-form-reset`
  * - `submit(): void` — programmatic submit (same path as the button click)
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import {
@@ -107,7 +107,7 @@ export class WpdForm extends Component {
 		summary:
 			'Container-query-driven responsive form. Auto-collects named fields, validates required, exposes setError / setFieldInvalid / setBusy / reset, fires wpd-form-submit with the collected values map.',
 		status: 'experimental',
-		since: '0.18.0',
+		since: '0.8.1',
 		props: [
 			{
 				name: 'submit-label',
@@ -144,7 +144,7 @@ export class WpdForm extends Component {
 				type: 'boolean attribute',
 				default: 'true',
 				description:
-					'Whether the reset button is rendered. Set to "false" / omit the attribute to hide it.',
+					'Whether the reset button is rendered. Rendered by default; pass the literal `show-reset="false"` to hide it — omitting the attribute keeps it visible.',
 			},
 			{
 				name: 'align',
@@ -205,8 +205,8 @@ export class WpdForm extends Component {
 
 		// Capture initial values one microtask later so slotted
 		// `<wpd-*>` children have had a chance to upgrade and apply
-		// their own `value` attributes. A second-pass capture on the
-		// `slotchange` event covers slotted children added later.
+		// their own `value` attributes. The capture runs exactly once
+		// per connection — fields mounted later are not snapshotted.
 		queueMicrotask( () => this._captureInitialValues() );
 
 		// Listen for descendant input events so we can re-broadcast
@@ -254,10 +254,9 @@ export class WpdForm extends Component {
 		const busy =
 			( this as unknown as { busy: string | null } ).busy !== null;
 		// `show-reset` defaults to TRUE: the reset button is opt-out.
-		// Pass `show-reset="false"` (or omit the prop entirely AND
-		// pass the literal string "false") to hide. We honor both
-		// the attribute-absent + attribute-set-to-"false" forms so
-		// callers can disable it from PHP without rendering tricks.
+		// Only the literal string "false" hides it — omitting the
+		// attribute keeps the button visible. The string form lets
+		// callers disable it from PHP without rendering tricks.
 		const showResetRaw = ( this as unknown as {
 			'show-reset': string | null;
 		} )[ 'show-reset' ];
@@ -489,10 +488,11 @@ export class WpdForm extends Component {
 		}
 		const fields = this._namedFields();
 		if ( fields.length === 0 ) {
-			// No fields yet — try again next microtask (e.g. when
-			// the framework is hydrating slotted children async).
-			// We bail out after a few attempts to avoid leaking a
-			// recurring task on an empty form.
+			// No fields yet (e.g. the framework is hydrating slotted
+			// children async). Bail without marking `_captured` —
+			// nothing re-schedules the capture within this connection,
+			// so late-mounted fields are not snapshotted; the next
+			// `connectedCallback` is the only retry.
 			return;
 		}
 		for ( const field of fields ) {

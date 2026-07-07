@@ -25,7 +25,7 @@
  *      from the title so the same plugin gets the same swatch
  *      across reloads.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import { hashTitleToHue } from './ui/util/hash-hue';
@@ -52,7 +52,7 @@ export interface RenderIconOptions {
  * the result.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement {
 	const className = opts.className ?? '';

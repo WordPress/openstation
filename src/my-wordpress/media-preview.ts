@@ -18,7 +18,7 @@
  * `desktop-mode.my-wordpress.preview-extras` action.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 
 import { __ } from '../i18n';
@@ -48,7 +48,7 @@ const MIME_DASHICON_MAP: Array< { test: RegExp; icon: string } > = [
  * Pick a dashicon for the given MIME type.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export function dashiconForMime( mime: string ): string {
 	for ( const entry of MIME_DASHICON_MAP ) {
@@ -245,7 +245,7 @@ function buildMetadataGrid( media: MediaListItem ): HTMLElement {
  * passing each registered subscriber a host element for the named
  * slot so they can append arbitrary DOM.
  *
- * @since 0.21.0
+ * @since 0.8.6
  */
 function fireSlot(
 	host: HTMLElement,
@@ -270,7 +270,7 @@ function fireSlot(
  * Resolve which action descriptors apply to the given context and
  * call the JS-filter so plugins can attach handlers / hide entries.
  *
- * @since 0.21.0
+ * @since 0.8.6
  */
 export function resolvePreviewActions(
 	descriptors: MediaPreviewAction[],
@@ -352,7 +352,7 @@ function buildActionRow(
  * existing content under `host`.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export function renderMediaPreview(
 	host: HTMLElement,

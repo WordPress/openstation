@@ -1,8 +1,7 @@
 /**
  * Desktop Mode — Dock rail renderer barrel.
  *
- * Public re-exports so plugin authors only need one import path,
- * mirroring `src/submenu/index.ts`.
+ * Public re-exports so plugin authors only need one import path.
  */
 
 export {

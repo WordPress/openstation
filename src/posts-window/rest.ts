@@ -14,7 +14,7 @@
  * bound to one window's localized config blob. Each registry entry
  * in `./index.ts` builds its own client at mount time and threads
  * it into render code through closures. This replaces the
- * pre-0.18.x module-level `_activeWindowId` singleton, which
+ * pre-0.8.3 module-level `_activeWindowId` singleton, which
  * silently drifted whenever a sibling window opened (notably the
  * Users window opening User-edit) and caused REST calls to read
  * the wrong window's config — observed as
@@ -43,7 +43,7 @@ export interface PostsWindowConfig {
 	 * on Posts-window configs registered before 0.18 (treated as
 	 * `'posts'`).
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	mode?: 'posts' | 'pages' | 'users';
 	/**
@@ -52,7 +52,7 @@ export interface PostsWindowConfig {
 	 * variant. Falls back to `mode` (or `'posts'` if `mode` is also
 	 * absent) so legacy Posts configs keep working unchanged.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	introSlug?: string;
 	/**
@@ -61,14 +61,14 @@ export interface PostsWindowConfig {
 	 * only — the title cell paints a "Front page" badge on the row
 	 * matching this id.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	frontPageId?: number;
 	/**
 	 * Page id assigned as the blog-posts page (`page_for_posts`), or
 	 * `0` when unset. Same pattern as {@link frontPageId}.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	postsPageId?: number;
 	/**
@@ -77,7 +77,7 @@ export interface PostsWindowConfig {
 	 * names instead of raw filenames. Falls back to the slug when a
 	 * theme registers a template the table doesn't yet know.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	pageTemplates?: Record< string, string >;
 	// ─── Users window only ───────────────────────────────────────────
@@ -171,14 +171,14 @@ export interface PostListItem {
 	 * returns `0`. Optional so legacy callers don't need to add the
 	 * field to their `_fields` whitelist.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	parent?: number;
 	/**
 	 * `menu_order` field (also primarily used by Pages). Optional for
 	 * the same reason as {@link parent}.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	menu_order?: number;
 	/** URL-friendly slug. Optional — Posts callers may not include it. */
@@ -196,7 +196,7 @@ export interface PostListItem {
 	 * `includes/pages-window/window.php`. Absent for callers that
 	 * don't include the field in `_fields`.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 */
 	desktop_mode_comment_count?: number;
 	comment_status: 'open' | 'closed';
@@ -349,7 +349,7 @@ interface RequestResult< T > {
  * bundle (Posts + Pages, Users + User-edit) cannot read each
  * other's config or steal each other's title-bar spinner.
  *
- * @since 0.18.x
+ * @since 0.8.3
  */
 export interface PostsWindowClient {
 	readonly windowId: string;
@@ -454,7 +454,7 @@ function broadcastTermChange(
  *                 `getConfig()` reads key off this id, and every fetch is
  *                 attributed to it via `trackedFetch`'s `windowId` option.
  *
- * @since 0.18.x
+ * @since 0.8.3
  */
 export function createPostsWindowClient(
 	windowId: string,

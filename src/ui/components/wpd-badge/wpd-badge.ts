@@ -12,7 +12,7 @@
  *
  *   <wpd-badge tone="success">Attached</wpd-badge>
  *   <wpd-badge tone="danger">Errored</wpd-badge>
- *   <wpd-badge tone="info" no-dot>v0.18.0</wpd-badge>
+ *   <wpd-badge tone="info" no-dot>v0.6.0</wpd-badge>
  *
  * @since 0.6.0
  */

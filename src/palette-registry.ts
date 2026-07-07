@@ -23,7 +23,7 @@
  * Single-palette case degenerates cleanly: Cmd+K opens, Cmd+K again
  * closes (because cycling past the last lands on "nothing open").
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 
 /**

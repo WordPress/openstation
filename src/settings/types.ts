@@ -31,7 +31,7 @@ export type DockPlacementId = 'left' | 'right' | 'bottom';
  *   icons on the wallpaper. One `Dock` instance, plus synthesized
  *   desktop icons.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 export type DesktopLayoutId = 'classic' | 'unified' | 'spatial';
 
@@ -68,7 +68,7 @@ export type AiProviderId = string;
  * surfaces to the user as "Lost connection to the assistant". Power users
  * on hosts known to support SSE can opt in.
  *
- * @since 0.18.1
+ * @since 0.6.0
  */
 export type AiTransportId = 'sse' | 'off';
 
@@ -83,7 +83,7 @@ export interface AiSettings {
 	/**
 	 * Live-progress transport. See {@link AiTransportId}. Default `off`.
 	 *
-	 * @since 0.18.1
+	 * @since 0.6.0
 	 */
 	transport: AiTransportId;
 }
@@ -109,7 +109,7 @@ export interface OsSettingsState {
 	 * registry; missing or invalid falls back to `'default'` (the
 	 * built-in icon-strip renderer).
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	dockRailRenderer: string;
 	/**
@@ -118,7 +118,7 @@ export interface OsSettingsState {
 	 * is treated as `'none'` by the engine until/if a matching effect
 	 * registers. Default `'darken'`.
 	 *
-	 * @since 0.26.0
+	 * @since 0.9.1
 	 */
 	unfocusEffect: string;
 	customGradient: CustomGradient;
@@ -151,7 +151,7 @@ export interface OsSettingsState {
 	 * intermediate filter cooperates, and the perceived benefit
 	 * over 15 s is negligible.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	heartbeatRate: 15 | 30 | 45 | 60;
 	nativePostsEnabled: boolean;
@@ -172,7 +172,7 @@ export interface OsSettingsState {
 	 * chromeless iframe. Defaults on — see the matching default in
 	 * `constants.ts`.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	nativePagesEnabled: boolean;
 	/**
@@ -184,7 +184,7 @@ export interface OsSettingsState {
 	 * users, with mutation actions appearing only when the matching
 	 * `edit_users` / `promote_users` / `delete_users` caps are present.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	nativeUsersEnabled: boolean;
 	/**
@@ -207,7 +207,7 @@ export interface OsSettingsState {
 	 * iframe. Defaults on. Capability-gated on the server (`edit_posts`);
 	 * bulk + reply actions further cap-gate inside the bundle.
 	 *
-	 * @since 0.19.0
+	 * @since 0.8.3
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
@@ -227,7 +227,7 @@ export interface OsSettingsState {
 	 * it out-of-the-box and let people who find it noisy toggle it
 	 * off.
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 */
 	showPostStatusRibbons: boolean;
 	/**
@@ -245,7 +245,7 @@ export interface OsSettingsState {
 	 * Independent of the destructive "Delete folder sharing data"
 	 * admin action, which drops the tables site-wide.
 	 *
-	 * @since 0.18.x
+	 * @since 0.8.5
 	 */
 	foldersSharingEnabled: boolean;
 	/**
@@ -263,7 +263,7 @@ export interface OsSettingsState {
 	 * `'both'`, and the right-click menu stores it explicitly, so a
 	 * "show on both rails" choice survives a reload.
 	 *
-	 * @since 0.25.0
+	 * @since 0.8.2
 	 */
 	itemVisibility: Record< string, ItemVisibility >;
 	/**
@@ -272,7 +272,7 @@ export interface OsSettingsState {
 	 * after the listed ones. Unknown ids (deactivated plugin) survive
 	 * the round-trip in case the plugin comes back.
 	 *
-	 * @since 0.25.0
+	 * @since 0.8.2
 	 */
 	dockOrder: string[];
 	/**
@@ -288,7 +288,7 @@ export interface OsSettingsState {
 	 * dock item is no longer registered) survive the round-trip in
 	 * case the plugin reactivates. Capped at 256 entries.
 	 *
-	 * @since 0.20.0
+	 * @since 0.8.6
 	 */
 	dockPromotedPositions: Record< string, { x: number; y: number } >;
 }
@@ -297,7 +297,7 @@ export interface OsSettingsState {
  * Allowed values for {@link OsSettingsState.itemVisibility}. See the
  * field docblock for semantics.
  *
- * @since 0.25.0
+ * @since 0.8.2
  */
 export type ItemVisibility = 'both' | 'dock' | 'desktop' | 'hidden';
 

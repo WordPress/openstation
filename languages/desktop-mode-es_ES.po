@@ -4,7 +4,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Desktop Mode 0.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/alcazaba-plugin\n"
-"POT-Creation-Date: 2026-06-18T07:46:04+00:00\n"
+"POT-Creation-Date: 2026-07-06T16:56:01+00:00\n"
 "PO-Revision-Date: 2026-04-19 20:42+0200\n"
 "Last-Translator: Desktop Mode team\n"
 "Language-Team: Español\n"
@@ -197,7 +197,7 @@ msgstr ""
 
 #: src/comments-window/index.ts:1001 src/content-graph/panel.ts:427
 #: src/content-graph/panel.ts:568 src/content-graph/satellites.ts:335
-#: src/my-wordpress/index.ts:508 src/my-wordpress/index.ts:1664
+#: src/my-wordpress/index.ts:508 src/my-wordpress/index.ts:1662
 #: src/plugins-window/installed-view.ts:323 src/posts-window/index.ts:524
 msgid "Author"
 msgstr ""
@@ -207,19 +207,19 @@ msgid "Show author insights"
 msgstr ""
 
 #: src/comments-window/index.ts:1044 src/comments-window/index.ts:1368
-#: src/my-wordpress/index.ts:2195 src/my-wordpress/index.ts:2230
-#: src/my-wordpress/index.ts:2255 src/my-wordpress/index.ts:2355
-#: src/plugins-window/flyout-detail.ts:519
+#: src/my-wordpress/index.ts:2192 src/my-wordpress/index.ts:2227
+#: src/my-wordpress/index.ts:2252 src/my-wordpress/index.ts:2352
+#: src/plugins-window/flyout-detail.ts:523
 #: src/plugins-window/installed-detail.ts:1065
 #: includes/desktop-files/types/class-desktop-mode-comment-file.php:29
-#: includes/recycle-bin/store.php:459
+#: includes/recycle-bin/store.php:504
 msgid "Anonymous"
 msgstr ""
 
 #: src/comments-window/index.ts:1058 src/content-graph/panel.ts:832
 #: src/content-graph/panel.ts:841 src/content-graph/panel.ts:870
 #: includes/desktop-files/built-in-types.php:51
-#: includes/recycle-bin/store.php:478
+#: includes/recycle-bin/store.php:523
 msgid "Comment"
 msgstr ""
 
@@ -285,7 +285,7 @@ msgid "Write a reply…"
 msgstr ""
 
 #: src/comments-window/index.ts:1414 src/comments-window/index.ts:1486
-#: src/item-visibility-menu.ts:461 src/my-wordpress/index.ts:3645
+#: src/item-visibility-menu.ts:461 src/my-wordpress/index.ts:3642
 #: src/my-wordpress/media-list.ts:370 src/plugins-window/upload-dialog.ts:135
 #: src/plugins-window/upload-dialog.ts:330
 #: src/posts-window/categories-mindmap.ts:2364
@@ -400,21 +400,21 @@ msgstr ""
 msgid "Could not load replies."
 msgstr "No se pudieron cargar tus medios."
 
-#: src/comments-window/index.ts:1539
+#: src/comments-window/index.ts:1538
 msgid "Undo"
 msgstr ""
 
 #. %s: bulk action name (e.g. "approve", "spam").
-#: src/comments-window/index.ts:1566
+#: src/comments-window/index.ts:1564
 #, fuzzy
 msgid "Bulk %s failed."
 msgstr "Error al subir."
 
-#: src/comments-window/index.ts:1582
+#: src/comments-window/index.ts:1580
 msgid "Undone."
 msgstr ""
 
-#: src/comments-window/index.ts:1586
+#: src/comments-window/index.ts:1584
 #, fuzzy
 msgid "Undo failed."
 msgstr "Error al subir."
@@ -553,7 +553,7 @@ msgstr ""
 
 #: src/content-graph/panel.ts:410 src/content-graph/panel.ts:711
 #: src/desktop-files/preview.ts:484 src/my-wordpress/index.ts:512
-#: src/my-wordpress/index.ts:3033 src/posts-window/index.ts:569
+#: src/my-wordpress/index.ts:3030 src/posts-window/index.ts:569
 #: src/posts-window/user-edit-render.ts:1037
 #: src/posts-window/users-render.ts:472 includes/comments-window/window.php:111
 #: includes/recycle-bin/window.php:56
@@ -566,13 +566,13 @@ msgstr ""
 
 #: src/content-graph/panel.ts:412 src/content-graph/panel.ts:881
 #: includes/desktop-files/built-in-types.php:33
-#: includes/my-wordpress/window.php:94 includes/recycle-bin/store.php:557
+#: includes/my-wordpress/window.php:95 includes/recycle-bin/store.php:602
 #: includes/recycle-bin/window.php:52
 msgid "Media"
 msgstr ""
 
 #: src/content-graph/panel.ts:413 src/my-wordpress/index.ts:520
-#: src/my-wordpress/index.ts:1765
+#: src/my-wordpress/index.ts:1763
 msgid "Revisions"
 msgstr ""
 
@@ -609,24 +609,24 @@ msgstr ""
 msgid "About"
 msgstr ""
 
-#: src/content-graph/panel.ts:609 src/my-wordpress/index.ts:2476
-#: src/my-wordpress/index.ts:2779 src/posts-window/user-edit-render.ts:309
+#: src/content-graph/panel.ts:609 src/my-wordpress/index.ts:2473
+#: src/my-wordpress/index.ts:2776 src/posts-window/user-edit-render.ts:309
 #: includes/users-window/window.php:159
 msgid "Website"
 msgstr ""
 
 #: src/content-graph/panel.ts:621 src/content-graph/panel.ts:709
 #: src/content-graph/panel.ts:723 src/desktop-files/preview.ts:403
-#: src/desktop-files/preview.ts:478 src/my-wordpress/index.ts:2614
-#: src/my-wordpress/index.ts:3020 src/posts-window/user-edit-render.ts:1022
-#: src/posts-window/users-render.ts:469 includes/my-wordpress/window.php:73
+#: src/desktop-files/preview.ts:478 src/my-wordpress/index.ts:2611
+#: src/my-wordpress/index.ts:3017 src/posts-window/user-edit-render.ts:1022
+#: src/posts-window/users-render.ts:469 includes/my-wordpress/window.php:74
 #: includes/posts-window/window.php:177 includes/recycle-bin/window.php:40
 msgid "Posts"
 msgstr ""
 
 #: src/content-graph/panel.ts:622 src/desktop-files/preview.ts:409
-#: src/my-wordpress/index.ts:2627 src/posts-window/users-render.ts:470
-#: includes/my-wordpress/window.php:80 includes/pages-window/window.php:134
+#: src/my-wordpress/index.ts:2624 src/posts-window/users-render.ts:470
+#: includes/my-wordpress/window.php:81 includes/pages-window/window.php:134
 #: includes/recycle-bin/window.php:41
 msgid "Pages"
 msgstr ""
@@ -636,12 +636,12 @@ msgid "CPT"
 msgstr ""
 
 #: src/content-graph/panel.ts:625 src/desktop-files/preview.ts:415
-#: src/my-wordpress/index.ts:2640
+#: src/my-wordpress/index.ts:2637
 msgid "Comments received"
 msgstr ""
 
-#: src/content-graph/panel.ts:629 src/my-wordpress/index.ts:4783
-#: src/my-wordpress/index.ts:2647
+#: src/content-graph/panel.ts:629 src/my-wordpress/index.ts:4780
+#: src/my-wordpress/index.ts:2644
 msgid "Comments left"
 msgstr ""
 
@@ -649,11 +649,11 @@ msgstr ""
 msgid "Top topics"
 msgstr ""
 
-#: src/content-graph/panel.ts:648 src/my-wordpress/index.ts:2889
+#: src/content-graph/panel.ts:648 src/my-wordpress/index.ts:2886
 msgid "First published"
 msgstr ""
 
-#: src/content-graph/panel.ts:652 src/my-wordpress/index.ts:2895
+#: src/content-graph/panel.ts:652 src/my-wordpress/index.ts:2892
 msgid "Last published"
 msgstr ""
 
@@ -675,7 +675,7 @@ msgid "Description"
 msgstr ""
 
 #: src/content-graph/panel.ts:715 src/desktop-files/preview.ts:490
-#: src/my-wordpress/index.ts:3040
+#: src/my-wordpress/index.ts:3037
 msgid "Authors"
 msgstr ""
 
@@ -687,7 +687,7 @@ msgstr ""
 msgid "Co-occurring"
 msgstr ""
 
-#: src/content-graph/panel.ts:753 src/my-wordpress/index.ts:3245
+#: src/content-graph/panel.ts:753 src/my-wordpress/index.ts:3242
 msgid "First post"
 msgstr ""
 
@@ -735,15 +735,15 @@ msgstr ""
 msgid "Loading details…"
 msgstr "Subiendo…"
 
-#: src/content-graph/panel.ts:1244 src/my-wordpress/index.ts:1844
-#: src/my-wordpress/index.ts:1923
+#: src/content-graph/panel.ts:1244 src/my-wordpress/index.ts:1841
+#: src/my-wordpress/index.ts:1920
 #, fuzzy
 msgid "Loading…"
 msgstr "Subiendo…"
 
 #. 1: taxonomy label (e.g. Category, Tag). 2: post count for the term.
 #. 1: month label, 2: post count.
-#: src/content-graph/satellites.ts:356 src/my-wordpress/index.ts:2858
+#: src/content-graph/satellites.ts:356 src/my-wordpress/index.ts:2855
 msgid "%1$s · %2$d posts"
 msgstr ""
 
@@ -850,37 +850,37 @@ msgstr ""
 msgid "The underlying entity is no longer available."
 msgstr ""
 
-#: src/desktop-files/preview.ts:747 src/my-wordpress/index.ts:900
-#: src/my-wordpress/index.ts:1009 src/my-wordpress/index.ts:1449
-#: src/my-wordpress/index.ts:1625 src/my-wordpress/index.ts:1941
-#: src/my-wordpress/index.ts:3914 src/my-wordpress/index.ts:4017
-#: src/my-wordpress/index.ts:3655 src/my-wordpress/media-list.ts:600
+#: src/desktop-files/preview.ts:747 src/my-wordpress/index.ts:899
+#: src/my-wordpress/index.ts:1008 src/my-wordpress/index.ts:1447
+#: src/my-wordpress/index.ts:1623 src/my-wordpress/index.ts:1938
+#: src/my-wordpress/index.ts:3911 src/my-wordpress/index.ts:4014
+#: src/my-wordpress/index.ts:3652 src/my-wordpress/media-list.ts:600
 #: src/my-wordpress/media-list.ts:699
 msgid "Unknown error."
 msgstr ""
 
-#: src/desktop-files/preview.ts:776 src/my-wordpress/index.ts:1892
+#: src/desktop-files/preview.ts:776 src/my-wordpress/index.ts:1889
 msgid "Select an item to preview it here."
 msgstr ""
 
-#: src/desktop-files/preview.ts:269 src/my-wordpress/index.ts:1506
+#: src/desktop-files/preview.ts:269 src/my-wordpress/index.ts:1504
 msgid "Explore details"
 msgstr ""
 
-#: src/desktop-files/preview.ts:270 src/my-wordpress/index.ts:1507
+#: src/desktop-files/preview.ts:270 src/my-wordpress/index.ts:1505
 msgid ""
 "See author, comments, categories, tags, attached media, and revisions for "
 "this entry."
 msgstr ""
 
-#: src/desktop-files/preview.ts:290 src/my-wordpress/index.ts:1519
-#: src/my-wordpress/index.ts:3461 src/my-wordpress/media-detail.ts:166
+#: src/desktop-files/preview.ts:290 src/my-wordpress/index.ts:1517
+#: src/my-wordpress/index.ts:3458 src/my-wordpress/media-detail.ts:166
 #, fuzzy
 msgid "Open in editor"
 msgstr "Abrir en una nueva pestaña del navegador"
 
-#: src/desktop-files/recycle-bin-targets.ts:156 src/my-wordpress/index.ts:3471
-#: src/my-wordpress/index.ts:3638 src/my-wordpress/index.ts:3644
+#: src/desktop-files/recycle-bin-targets.ts:157 src/my-wordpress/index.ts:3468
+#: src/my-wordpress/index.ts:3635 src/my-wordpress/index.ts:3641
 msgid "Move to Trash"
 msgstr ""
 
@@ -1047,7 +1047,7 @@ msgid ""
 "the Plugins screen."
 msgstr ""
 
-#: src/item-visibility-menu.ts:460 src/plugins-window/flyout-detail.ts:586
+#: src/item-visibility-menu.ts:460 src/plugins-window/flyout-detail.ts:590
 #: src/plugins-window/installed-view.ts:628
 #: src/plugins-window/installed-view.ts:711
 msgid "Deactivate"
@@ -1066,7 +1066,7 @@ msgstr ""
 
 #. %s: plugin title.
 #. %s: plugin name
-#: src/item-visibility-menu.ts:548 src/plugins-window/flyout-detail.ts:705
+#: src/item-visibility-menu.ts:548 src/plugins-window/flyout-detail.ts:709
 #: src/plugins-window/installed-view.ts:870
 msgid "%s deactivated."
 msgstr ""
@@ -1076,7 +1076,7 @@ msgid "Unknown entity type."
 msgstr ""
 
 #: src/my-wordpress/index.ts:423 src/my-wordpress/index.ts:425
-#: includes/my-wordpress/window.php:171 includes/my-wordpress/window.php:212
+#: includes/my-wordpress/window.php:172 includes/my-wordpress/window.php:213
 #, fuzzy
 msgid "My WordPress"
 msgstr "Azul WordPress"
@@ -1096,515 +1096,515 @@ msgstr ""
 msgid "Tags"
 msgstr ""
 
-#: src/my-wordpress/index.ts:518 src/my-wordpress/index.ts:1746
-#: src/my-wordpress/index.ts:1756
+#: src/my-wordpress/index.ts:518 src/my-wordpress/index.ts:1744
+#: src/my-wordpress/index.ts:1754
 #, fuzzy
 msgid "Attached media"
 msgstr "Buscar medios"
 
 #. %s is a lowercased entity-type label (e.g. "posts", "pages").
-#: src/my-wordpress/index.ts:709
+#: src/my-wordpress/index.ts:708
 #, fuzzy
 msgid "Search %s…"
 msgstr "Buscar medios"
 
 #. %s is an entity-type label (e.g. "Posts", "Pages").
-#: src/my-wordpress/index.ts:714
+#: src/my-wordpress/index.ts:713
 #, fuzzy
 msgid "Search %s"
 msgstr "Buscar medios"
 
-#: src/my-wordpress/index.ts:746 src/my-wordpress/index.ts:979
-#: src/my-wordpress/index.ts:3669
+#: src/my-wordpress/index.ts:745 src/my-wordpress/index.ts:978
+#: src/my-wordpress/index.ts:3666
 msgid "Select an entry to preview it here."
 msgstr ""
 
 #. 1: visible item count, 2: total item count.
-#: src/my-wordpress/index.ts:797 src/my-wordpress/media-list.ts:74
+#: src/my-wordpress/index.ts:796 src/my-wordpress/media-list.ts:74
 msgid "%1$d of %2$d items"
 msgstr ""
 
 #. 1: current page, 2: total pages.
-#: src/my-wordpress/index.ts:816 src/my-wordpress/index.ts:3834
+#: src/my-wordpress/index.ts:815 src/my-wordpress/index.ts:3831
 #: src/my-wordpress/media-list.ts:101
 msgid "Page %1$d of %2$d"
 msgstr ""
 
 #. 1: search query, 2: lowercased entity-type label.
-#: src/my-wordpress/index.ts:1063
+#: src/my-wordpress/index.ts:1062
 msgid "No %2$s match \"%1$s\"."
 msgstr ""
 
 #. %s is an entity-type label (e.g. "Posts", "Pages").
-#: src/my-wordpress/index.ts:1070
+#: src/my-wordpress/index.ts:1069
 msgid "No %s yet."
 msgstr ""
 
-#: src/my-wordpress/index.ts:1178 src/my-wordpress/index.ts:5246
+#: src/my-wordpress/index.ts:1177 src/my-wordpress/index.ts:5243
 #: src/my-wordpress/media-list.ts:128 src/my-wordpress/media-list.ts:430
 #: src/my-wordpress/media-preview.ts:375 src/posts-window/index.ts:1213
 #: includes/desktop-files/types/class-desktop-mode-post-file.php:38
-#: includes/user-edit-window/rest.php:512
-#: includes/user-edit-window/rest.php:539
+#: includes/user-edit-window/rest.php:551
+#: includes/user-edit-window/rest.php:578
 msgid "(no title)"
 msgstr ""
 
 #. 1: post title, 2: name of the user who has the post locked.
-#: src/my-wordpress/index.ts:1238
+#: src/my-wordpress/index.ts:1237
 msgid "%1$s — currently being edited by %2$s"
 msgstr ""
 
 #. %s is the user name currently editing the post.
-#: src/my-wordpress/index.ts:1327 src/posts-window/index.ts:1283
+#: src/my-wordpress/index.ts:1325 src/posts-window/index.ts:1283
 msgid "%s is currently editing"
 msgstr ""
 
 #. %s is an author display name.
-#: src/my-wordpress/index.ts:1661
+#: src/my-wordpress/index.ts:1659
 msgid "Author · %s"
 msgstr ""
 
 #. %d is a count of additional contributor users.
-#: src/my-wordpress/index.ts:1681
+#: src/my-wordpress/index.ts:1679
 msgid "Contributors · %d"
 msgid_plural "Contributors · %d"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %d is a comment count.
-#: src/my-wordpress/index.ts:1704
+#: src/my-wordpress/index.ts:1702
 msgid "Comments · %d"
 msgid_plural "Comments · %d"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %d is a category count.
-#: src/my-wordpress/index.ts:1719
+#: src/my-wordpress/index.ts:1717
 msgid "Categories · %d"
 msgid_plural "Categories · %d"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %d is a tag count.
-#: src/my-wordpress/index.ts:1734
+#: src/my-wordpress/index.ts:1732
 msgid "Tags · %d"
 msgid_plural "Tags · %d"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:2047
+#: src/my-wordpress/index.ts:2044
 msgid "No comments on this post yet."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2049
+#: src/my-wordpress/index.ts:2046
 msgid "No categories assigned."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2051
+#: src/my-wordpress/index.ts:2048
 msgid "No tags assigned."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2053
+#: src/my-wordpress/index.ts:2050
 msgid "No media attached to this post."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2055
+#: src/my-wordpress/index.ts:2052
 msgid "No revisions yet."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2057
+#: src/my-wordpress/index.ts:2054
 msgid "No author available."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2059
+#: src/my-wordpress/index.ts:2056
 msgid "No additional contributors."
 msgstr ""
 
-#: src/my-wordpress/index.ts:2061
+#: src/my-wordpress/index.ts:2058
 msgid "Nothing to show."
 msgstr ""
 
 #. %d is a comment count for a particular author.
-#: src/my-wordpress/index.ts:2450
+#: src/my-wordpress/index.ts:2447
 msgid "%d comment site-wide"
 msgid_plural "%d comments site-wide"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:2468 src/my-wordpress/index.ts:2771
-#: src/my-wordpress/index.ts:4746
+#: src/my-wordpress/index.ts:2465 src/my-wordpress/index.ts:2768
+#: src/my-wordpress/index.ts:4743
 msgid "Author archive"
 msgstr ""
 
-#: src/my-wordpress/index.ts:2484
+#: src/my-wordpress/index.ts:2481
 msgid "Moderate"
 msgstr ""
 
-#: src/my-wordpress/index.ts:2845
+#: src/my-wordpress/index.ts:2842
 msgid "Activity (last 12 months)"
 msgstr ""
 
-#: src/my-wordpress/index.ts:2883
+#: src/my-wordpress/index.ts:2880
 msgid "Member since"
 msgstr ""
 
 #. %s is the name of the parent category.
-#: src/my-wordpress/index.ts:3216
+#: src/my-wordpress/index.ts:3213
 msgid "in %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3230
+#: src/my-wordpress/index.ts:3227
 msgid "View archive"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3251
+#: src/my-wordpress/index.ts:3248
 msgid "Last post"
 msgstr ""
 
 #. %s is a formatted date.
-#: src/my-wordpress/index.ts:3350
+#: src/my-wordpress/index.ts:3347
 msgid "Saved %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3369
+#: src/my-wordpress/index.ts:3366
 msgid "This revision has no rendered content."
 msgstr ""
 
-#: src/my-wordpress/index.ts:3370
+#: src/my-wordpress/index.ts:3367
 msgid ""
 "Couldn’t load the revision content. You may not have permission to view it."
 msgstr ""
 
-#: src/my-wordpress/index.ts:3466 src/my-wordpress/media-list.ts:230
+#: src/my-wordpress/index.ts:3463 src/my-wordpress/media-list.ts:230
 msgid "Navigate into"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3740
+#: src/my-wordpress/index.ts:3737
 #, fuzzy
 msgid "Search users…"
 msgstr "Buscar medios"
 
-#: src/my-wordpress/index.ts:3741
+#: src/my-wordpress/index.ts:3738
 #, fuzzy
 msgid "Search users"
 msgstr "Buscar medios"
 
-#: src/my-wordpress/index.ts:3771 src/my-wordpress/index.ts:3978
+#: src/my-wordpress/index.ts:3768 src/my-wordpress/index.ts:3975
 msgid "Select a user to see their profile here."
 msgstr ""
 
 #. 1: visible user count, 2: total user count.
-#: src/my-wordpress/index.ts:3815
+#: src/my-wordpress/index.ts:3812
 msgid "%1$d of %2$d users"
 msgstr ""
 
 #. %s is the user-entered search query.
-#: src/my-wordpress/index.ts:3887 src/my-wordpress/index.ts:3990
+#: src/my-wordpress/index.ts:3884 src/my-wordpress/index.ts:3987
 msgid "No users match \"%s\"."
 msgstr ""
 
-#: src/my-wordpress/index.ts:3890 src/my-wordpress/index.ts:3993
+#: src/my-wordpress/index.ts:3887 src/my-wordpress/index.ts:3990
 msgid "No users to show."
 msgstr ""
 
 #. %d is a count of posts authored.
 #. %d is a count of posts authored by a user.
 #. %d is a post count.
-#: src/my-wordpress/index.ts:4116 src/my-wordpress/index.ts:4244
-#: src/my-wordpress/index.ts:3089
+#: src/my-wordpress/index.ts:4113 src/my-wordpress/index.ts:4241
+#: src/my-wordpress/index.ts:3086
 msgid "%d post"
 msgid_plural "%d posts"
 msgstr[0] ""
 msgstr[1] ""
 
 #. %s is a relative or absolute date.
-#: src/my-wordpress/index.ts:4253
+#: src/my-wordpress/index.ts:4250
 msgid "Last published %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4401 src/my-wordpress/index.ts:4336
+#: src/my-wordpress/index.ts:4398 src/my-wordpress/index.ts:4333
 #: includes/my-wordpress/users-list-footprint.php:85
 msgid "View activity footprint"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4406 src/my-wordpress/index.ts:5314
-#: src/my-wordpress/index.ts:4353
+#: src/my-wordpress/index.ts:4403 src/my-wordpress/index.ts:5311
+#: src/my-wordpress/index.ts:4350
 msgid "Show profile"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4412 src/my-wordpress/index.ts:5301
+#: src/my-wordpress/index.ts:4409 src/my-wordpress/index.ts:5298
 msgid "View author archive"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4543 includes/user-edit-window/window.php:136
+#: src/my-wordpress/index.ts:4540 includes/user-edit-window/window.php:138
 msgid "Edit user"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4601
+#: src/my-wordpress/index.ts:4598
 msgid "Loading footprint…"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4620
+#: src/my-wordpress/index.ts:4617
 #, fuzzy
 msgid "Could not load footprint."
 msgstr "No se pudieron cargar tus medios."
 
 #. 1: post total, 2: comment total.
-#: src/my-wordpress/index.ts:4659
+#: src/my-wordpress/index.ts:4656
 msgid "%1$d posts · %2$d comments tracked"
 msgstr ""
 
 #. 1: window-start date, 2: window-end date.
-#: src/my-wordpress/index.ts:4673
+#: src/my-wordpress/index.ts:4670
 msgid "Window %1$s → %2$s"
 msgstr ""
 
 #. %s is a year-month label like "January 2023".
-#: src/my-wordpress/index.ts:4732
+#: src/my-wordpress/index.ts:4729
 msgid "Member since %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4766
+#: src/my-wordpress/index.ts:4763
 msgid "Total content"
 msgstr ""
 
 #. 1: post count, 2: page count.
-#: src/my-wordpress/index.ts:4770
+#: src/my-wordpress/index.ts:4767
 msgid "%1$d posts · %2$d pages"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4795
+#: src/my-wordpress/index.ts:4792
 #, fuzzy
 msgid "Updates"
 msgstr "Añadir %s"
 
-#: src/my-wordpress/index.ts:4796
+#: src/my-wordpress/index.ts:4793
 msgid "Saves on existing posts"
 msgstr ""
 
 #. 1: start date, 2: end date.
-#: src/my-wordpress/index.ts:4806
+#: src/my-wordpress/index.ts:4803
 msgid "%1$s → %2$s"
 msgstr ""
 
 #. %d is the length in days of the user's longest publishing streak.
 #. %d is the length in days of the user's current active streak.
-#: src/my-wordpress/index.ts:4815 src/my-wordpress/index.ts:4830
+#: src/my-wordpress/index.ts:4812 src/my-wordpress/index.ts:4827
 msgid "%d day"
 msgid_plural "%d days"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:4822
+#: src/my-wordpress/index.ts:4819
 msgid "Longest streak"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4833
+#: src/my-wordpress/index.ts:4830
 msgid "Current streak"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4835
+#: src/my-wordpress/index.ts:4832
 msgid "No activity today"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4836
+#: src/my-wordpress/index.ts:4833
 msgid "Including today"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4860
+#: src/my-wordpress/index.ts:4857
 msgid "A year of activity"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4902
+#: src/my-wordpress/index.ts:4899
 msgid "No activity recorded in the last year."
 msgstr ""
 
 #. 1: date, 2: post count, 3: comment count, 4: update (re-save) count.
-#: src/my-wordpress/index.ts:5000
+#: src/my-wordpress/index.ts:4997
 msgid "%1$s — %2$d posts, %3$d comments, %4$d updates"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5020
+#: src/my-wordpress/index.ts:5017
 msgid "Less"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5029
+#: src/my-wordpress/index.ts:5026
 msgid "More"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5043
+#: src/my-wordpress/index.ts:5040
 msgid "Publishing rhythm"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5054
+#: src/my-wordpress/index.ts:5051
 msgid "By weekday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5057 src/my-wordpress/index.ts:5063
+#: src/my-wordpress/index.ts:5054 src/my-wordpress/index.ts:5060
 msgid "S"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5058
+#: src/my-wordpress/index.ts:5055
 msgid "M"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5059 src/my-wordpress/index.ts:5061
+#: src/my-wordpress/index.ts:5056 src/my-wordpress/index.ts:5058
 #, fuzzy
 msgid "T"
 msgstr "Hasta"
 
-#: src/my-wordpress/index.ts:5060
+#: src/my-wordpress/index.ts:5057
 msgid "W"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5062
+#: src/my-wordpress/index.ts:5059
 msgid "F"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5066
+#: src/my-wordpress/index.ts:5063
 msgid "Sunday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5067
+#: src/my-wordpress/index.ts:5064
 msgid "Monday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5068
+#: src/my-wordpress/index.ts:5065
 msgid "Tuesday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5069
+#: src/my-wordpress/index.ts:5066
 msgid "Wednesday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5070
+#: src/my-wordpress/index.ts:5067
 msgid "Thursday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5071
+#: src/my-wordpress/index.ts:5068
 msgid "Friday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5072
+#: src/my-wordpress/index.ts:5069
 msgid "Saturday"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5084
+#: src/my-wordpress/index.ts:5081
 msgid "By hour of day (site time)"
 msgstr ""
 
 #. %d is an hour of the day (0-23).
-#: src/my-wordpress/index.ts:5115
+#: src/my-wordpress/index.ts:5112
 msgid "%d:00"
 msgstr ""
 
 #. 1: bucket label, 2: count.
-#: src/my-wordpress/index.ts:5144
+#: src/my-wordpress/index.ts:5141
 msgid "%1$s · %2$d"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5179
+#: src/my-wordpress/index.ts:5176
 msgid "Most prolific month"
 msgstr ""
 
 #. %d is a post count.
-#: src/my-wordpress/index.ts:5191
+#: src/my-wordpress/index.ts:5188
 msgid "%d post published — their personal record."
 msgid_plural "%d posts published — their personal record."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:5211 src/posts-window/user-edit-render.ts:874
+#: src/my-wordpress/index.ts:5208 src/posts-window/user-edit-render.ts:874
 msgid "Recent activity"
 msgstr ""
 
-#: src/my-wordpress/index.ts:5217
+#: src/my-wordpress/index.ts:5214
 msgid "Nothing to show yet."
 msgstr ""
 
 #. %s is a post title the user commented on.
-#: src/my-wordpress/index.ts:5255
+#: src/my-wordpress/index.ts:5252
 msgid "Commented on “%s”"
 msgstr ""
 
 #. %s is the post title the user re-saved.
-#: src/my-wordpress/index.ts:5261
+#: src/my-wordpress/index.ts:5258
 #, fuzzy
 msgid "Updated “%s”"
 msgstr "Añadir %s"
 
 #. %s is the parent comment's author name.
-#: src/my-wordpress/index.ts:2273
+#: src/my-wordpress/index.ts:2270
 msgid "In reply to %s"
 msgstr ""
 
-#: src/my-wordpress/index.ts:2298
+#: src/my-wordpress/index.ts:2295
 msgid "On post"
 msgstr ""
 
 #. %d is the number of direct replies to a comment.
-#: src/my-wordpress/index.ts:2332
+#: src/my-wordpress/index.ts:2329
 msgid "Reply (%d)"
 msgid_plural "Replies (%d)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/my-wordpress/index.ts:2380
+#: src/my-wordpress/index.ts:2377
 msgid "IP"
 msgstr ""
 
-#: src/my-wordpress/index.ts:2388
+#: src/my-wordpress/index.ts:2385
 msgid "User agent"
 msgstr ""
 
 #. %d is a published-post count.
 #. %d is a published-page count.
-#: src/my-wordpress/index.ts:2618 src/my-wordpress/index.ts:2631
-#: src/my-wordpress/index.ts:3024
+#: src/my-wordpress/index.ts:2615 src/my-wordpress/index.ts:2628
+#: src/my-wordpress/index.ts:3021
 msgid "%d published"
 msgstr ""
 
-#: src/my-wordpress/index.ts:2670 src/my-wordpress/index.ts:3106
+#: src/my-wordpress/index.ts:2667 src/my-wordpress/index.ts:3103
 #: src/posts-window/user-edit-render.ts:1171
 msgid "Recent posts"
 msgstr ""
 
-#: src/my-wordpress/index.ts:2697
+#: src/my-wordpress/index.ts:2694
 msgid "Top categories & tags"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3042
+#: src/my-wordpress/index.ts:3039
 msgid "one contributor"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3065
+#: src/my-wordpress/index.ts:3062
 msgid "Top contributors"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3137
+#: src/my-wordpress/index.ts:3134
 msgid "Often paired tags"
 msgstr ""
 
-#: src/my-wordpress/index.ts:3138
+#: src/my-wordpress/index.ts:3135
 #, fuzzy
 msgid "Often paired categories"
 msgstr "No se pudieron cargar tus medios."
 
 #. %s is the entity id (e.g. 'posts').
-#: src/my-wordpress/index.ts:3617
+#: src/my-wordpress/index.ts:3614
 msgid "Unknown My WordPress entity: %s"
 msgstr ""
 
 #. %s is the entry title.
-#: src/my-wordpress/index.ts:3641
+#: src/my-wordpress/index.ts:3638
 msgid "Move \"%s\" to Trash?"
 msgstr ""
 
-#: src/my-wordpress/index.ts:4337
+#: src/my-wordpress/index.ts:4334
 msgid "Open the full activity footprint surface for this user."
 msgstr ""
 
-#: src/my-wordpress/index.ts:4354
+#: src/my-wordpress/index.ts:4351
 msgid "Open this user’s profile editor in a new window."
 msgstr ""
 
@@ -1695,8 +1695,8 @@ msgstr "Error al subir."
 msgid "“%s” will be permanently deleted. This cannot be undone."
 msgstr ""
 
-#: src/my-wordpress/media-list.ts:369 src/plugins-window/flyout-detail.ts:600
-#: src/plugins-window/flyout-detail.ts:737
+#: src/my-wordpress/media-list.ts:369 src/plugins-window/flyout-detail.ts:604
+#: src/plugins-window/flyout-detail.ts:741
 #: src/plugins-window/installed-view.ts:637
 #: src/plugins-window/installed-view.ts:722
 #: src/plugins-window/installed-view.ts:904
@@ -1802,7 +1802,7 @@ msgstr ""
 
 #: src/plugins-window/browse-view.ts:352
 #: src/plugins-window/featured-view.ts:167
-#: src/plugins-window/flyout-detail.ts:620
+#: src/plugins-window/flyout-detail.ts:624
 #, fuzzy
 msgid "Installing…"
 msgstr "Subiendo…"
@@ -1810,14 +1810,14 @@ msgstr "Subiendo…"
 #. %s: plugin name
 #: src/plugins-window/browse-view.ts:369
 #: src/plugins-window/featured-view.ts:175
-#: src/plugins-window/flyout-detail.ts:626
+#: src/plugins-window/flyout-detail.ts:630
 msgid "Installed %s."
 msgstr ""
 
 #. %s: error message
 #: src/plugins-window/browse-view.ts:389
 #: src/plugins-window/featured-view.ts:195
-#: src/plugins-window/flyout-detail.ts:646
+#: src/plugins-window/flyout-detail.ts:650
 msgid "Install failed: %s"
 msgstr ""
 
@@ -1830,7 +1830,7 @@ msgstr "Subiendo…"
 #. %s: plugin name
 #: src/plugins-window/browse-view.ts:410
 #: src/plugins-window/featured-view.ts:216
-#: src/plugins-window/flyout-detail.ts:664
+#: src/plugins-window/flyout-detail.ts:668
 #: src/plugins-window/installed-view.ts:819
 #: src/plugins-window/upload-dialog.ts:454
 msgid "%s activated."
@@ -1839,7 +1839,7 @@ msgstr ""
 #. %s: error message
 #: src/plugins-window/browse-view.ts:437
 #: src/plugins-window/featured-view.ts:241
-#: src/plugins-window/flyout-detail.ts:676
+#: src/plugins-window/flyout-detail.ts:680
 #: src/plugins-window/installed-view.ts:837
 msgid "Activation failed: %s"
 msgstr ""
@@ -1880,13 +1880,13 @@ msgstr ""
 msgid "Active"
 msgstr ""
 
-#: src/plugins-window/card.ts:180 src/plugins-window/flyout-detail.ts:592
+#: src/plugins-window/card.ts:180 src/plugins-window/flyout-detail.ts:596
 #: src/plugins-window/installed-view.ts:621
 #: src/plugins-window/installed-view.ts:701
 msgid "Activate"
 msgstr ""
 
-#: src/plugins-window/card.ts:188 src/plugins-window/flyout-detail.ts:607
+#: src/plugins-window/card.ts:188 src/plugins-window/flyout-detail.ts:611
 #: src/plugins-window/upload-dialog.ts:138
 msgid "Install"
 msgstr ""
@@ -2006,62 +2006,62 @@ msgstr ""
 msgid "This plugin doesn’t ship screenshots."
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:475
+#: src/plugins-window/flyout-detail.ts:479
 msgid "No ratings yet."
 msgstr ""
 
 #. %d: number of stars (1–5)
-#: src/plugins-window/flyout-detail.ts:488
+#: src/plugins-window/flyout-detail.ts:492
 msgid "%d ★"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:537
+#: src/plugins-window/flyout-detail.ts:541
 msgid "Read on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:574
+#: src/plugins-window/flyout-detail.ts:578
 msgid "View on WordPress.org ↗"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:693
+#: src/plugins-window/flyout-detail.ts:697
 #: src/plugins-window/installed-view.ts:858
 #: src/plugins-window/installed-view.ts:1228
 msgid "Desktop Mode deactivated. Reloading…"
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/flyout-detail.ts:715
+#: src/plugins-window/flyout-detail.ts:719
 #: src/plugins-window/installed-view.ts:885
 msgid "Deactivation failed: %s"
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:728
+#: src/plugins-window/flyout-detail.ts:732
 #: src/plugins-window/installed-view.ts:895
 msgid "Delete plugin?"
 msgstr ""
 
 #. %s: plugin name
-#: src/plugins-window/flyout-detail.ts:731
+#: src/plugins-window/flyout-detail.ts:735
 #: src/plugins-window/installed-view.ts:898
 msgid ""
 "Permanently delete %s? Its files will be removed from disk. This cannot be "
 "undone."
 msgstr ""
 
-#: src/plugins-window/flyout-detail.ts:748
+#: src/plugins-window/flyout-detail.ts:752
 #: src/plugins-window/installed-view.ts:918
 #: src/plugins-window/installed-view.ts:1227
 msgid "Desktop Mode deleted. Reloading…"
 msgstr ""
 
 #. %s: plugin name
-#: src/plugins-window/flyout-detail.ts:760
+#: src/plugins-window/flyout-detail.ts:764
 #: src/plugins-window/installed-view.ts:930
 msgid "%s deleted."
 msgstr ""
 
 #. %s: error message
-#: src/plugins-window/flyout-detail.ts:770
+#: src/plugins-window/flyout-detail.ts:774
 #: src/plugins-window/installed-view.ts:944
 #, fuzzy
 msgid "Delete failed: %s"
@@ -3364,7 +3364,7 @@ msgstr ""
 
 #: src/posts-window/user-edit-render.ts:350
 #: src/posts-window/users-render.ts:1355
-#: includes/user-edit-window/window.php:177
+#: includes/user-edit-window/window.php:179
 #, fuzzy
 msgid "Site default"
 msgstr "Predeterminada"
@@ -3610,12 +3610,12 @@ msgid "Email address is not valid."
 msgstr ""
 
 #: src/posts-window/user-edit-render.ts:1531
-#: src/posts-window/users-render.ts:1497 includes/users-window/rest.php:545
+#: src/posts-window/users-render.ts:1497 includes/users-window/rest.php:550
 msgid "That email is already in use."
 msgstr ""
 
 #: src/posts-window/user-edit-render.ts:1533
-#: src/posts-window/users-render.ts:1506 includes/users-window/rest.php:568
+#: src/posts-window/users-render.ts:1506 includes/users-window/rest.php:573
 #, fuzzy
 msgid "You are not allowed to assign that role."
 msgstr ""
@@ -3672,7 +3672,7 @@ msgid "Application password revoked."
 msgstr ""
 
 #: src/posts-window/user-edit-render.ts:1983
-#: includes/user-edit-window/rest.php:244
+#: includes/user-edit-window/rest.php:279
 msgid "Application password name is required."
 msgstr ""
 
@@ -3845,15 +3845,15 @@ msgstr ""
 msgid "User created — welcome email sent to %s."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1493 includes/users-window/rest.php:538
+#: src/posts-window/users-render.ts:1493 includes/users-window/rest.php:543
 msgid "That username is already in use."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1500 includes/users-window/rest.php:524
+#: src/posts-window/users-render.ts:1500 includes/users-window/rest.php:529
 msgid "Username is not valid."
 msgstr ""
 
-#: src/posts-window/users-render.ts:1503 includes/users-window/rest.php:531
+#: src/posts-window/users-render.ts:1503 includes/users-window/rest.php:536
 msgid "A valid email address is required."
 msgstr ""
 
@@ -3902,32 +3902,32 @@ msgid "Could not load users. Try Refresh."
 msgstr ""
 
 #. %s: site name
-#: src/pwa/install.ts:163
+#: src/pwa/install.ts:165
 msgid "Installed %s as an app."
 msgstr ""
 
 #. %s: site name
-#: src/pwa/install.ts:189
+#: src/pwa/install.ts:191
 msgid "Install %s as an app"
 msgstr ""
 
-#: src/pwa/install.ts:221
+#: src/pwa/install.ts:223
 msgid "Install cancelled."
 msgstr ""
 
 #. %s: site name
-#: src/pwa/install.ts:239
+#: src/pwa/install.ts:241
 msgid "%s is already installed. Open it from your apps menu or home screen."
 msgstr ""
 
-#: src/pwa/install.ts:255
+#: src/pwa/install.ts:257
 msgid ""
 "Install isn't available — another plugin's service worker is active on this "
 "site. A site admin can opt in by setting the "
 "desktop_mode_pwa_force_replace_sw filter to true."
 msgstr ""
 
-#: src/pwa/install.ts:263
+#: src/pwa/install.ts:265
 msgid ""
 "Install isn't available right now. Keep using the page; if it still doesn't "
 "appear, the app may already be installed in this browser."
@@ -4013,7 +4013,7 @@ msgid "Compact"
 msgstr "Compacta"
 
 #: src/settings/labels.ts:42 src/settings/sections/help.ts:249
-#: includes/user-edit-window/window.php:117
+#: includes/user-edit-window/window.php:119
 msgid "Default"
 msgstr "Predeterminada"
 
@@ -4835,7 +4835,7 @@ msgid "Maximize"
 msgstr "Maximizar"
 
 #: src/window-chrome/controls/built-ins.ts:65 src/window/index.ts:1802
-#: includes/admin-bar.php:71 includes/admin-bar.php:757
+#: includes/admin-bar.php:71 includes/admin-bar.php:762
 msgid "Enter fullscreen"
 msgstr "Entrar en pantalla completa"
 
@@ -4871,8 +4871,8 @@ msgstr "Abrir en una nueva pestaña del navegador"
 msgid "%s sub-pages"
 msgstr "Subpáginas de %s"
 
-#: src/window/index.ts:1802 includes/admin-bar.php:756
-#: includes/admin-bar.php:758
+#: src/window/index.ts:1802 includes/admin-bar.php:761
+#: includes/admin-bar.php:763
 msgid "Exit fullscreen"
 msgstr "Salir de pantalla completa"
 
@@ -5006,133 +5006,133 @@ msgstr ""
 msgid "Open AI Assistant (Cmd+K)"
 msgstr ""
 
-#: includes/admin-bar.php:271 includes/admin-bar.php:772
+#: includes/admin-bar.php:273 includes/admin-bar.php:777
 #, fuzzy
 msgid "Keyboard shortcuts"
 msgstr "Escritorio 1"
 
-#: includes/admin-bar.php:296
+#: includes/admin-bar.php:298
 msgid "Open the Bug Report window"
 msgstr ""
 
-#: includes/admin-bar.php:755
+#: includes/admin-bar.php:760
 #, fuzzy
 msgid "Fullscreen"
 msgstr "Salir de pantalla completa"
 
-#: includes/admin-bar.php:774
+#: includes/admin-bar.php:779
 msgid "Desktops & Overview"
 msgstr ""
 
-#: includes/admin-bar.php:776
+#: includes/admin-bar.php:781
 msgid "Key"
 msgstr ""
 
-#: includes/admin-bar.php:777
+#: includes/admin-bar.php:782
 #, fuzzy
 msgid "Outside overview"
 msgstr "Vista general"
 
-#: includes/admin-bar.php:778
+#: includes/admin-bar.php:783
 #, fuzzy
 msgid "Inside overview"
 msgstr "Vista general"
 
-#: includes/admin-bar.php:779
+#: includes/admin-bar.php:784
 #, fuzzy
 msgid "In Show Desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: includes/admin-bar.php:784
+#: includes/admin-bar.php:789
 msgid "Previous desktop (wraps)"
 msgstr ""
 
-#: includes/admin-bar.php:785
+#: includes/admin-bar.php:790
 msgid "Previous desktop (grid + top-bar update)"
 msgstr ""
 
-#: includes/admin-bar.php:786
+#: includes/admin-bar.php:791
 #, fuzzy
 msgid "Previous desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: includes/admin-bar.php:790
+#: includes/admin-bar.php:795
 msgid "Next desktop (wraps)"
 msgstr ""
 
-#: includes/admin-bar.php:791
+#: includes/admin-bar.php:796
 msgid "Next desktop (grid + top-bar update)"
 msgstr ""
 
-#: includes/admin-bar.php:792
+#: includes/admin-bar.php:797
 #, fuzzy
 msgid "Next desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: includes/admin-bar.php:796
+#: includes/admin-bar.php:801
 #, fuzzy
 msgid "Enter Overview"
 msgstr "Vista general"
 
-#: includes/admin-bar.php:797
+#: includes/admin-bar.php:802
 msgid "Exit Overview onto active desktop"
 msgstr ""
 
-#: includes/admin-bar.php:798
+#: includes/admin-bar.php:803
 msgid "Restore windows (exit Show Desktop)"
 msgstr ""
 
-#: includes/admin-bar.php:802 includes/admin-bar.php:804
+#: includes/admin-bar.php:807 includes/admin-bar.php:809
 #, fuzzy
 msgid "Toggle Show Desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: includes/admin-bar.php:803
+#: includes/admin-bar.php:808
 msgid "Exit Overview (no minimize)"
 msgstr ""
 
-#: includes/admin-bar.php:808
+#: includes/admin-bar.php:813
 #, fuzzy
 msgid "(in overview)"
 msgstr "Vista general"
 
-#: includes/admin-bar.php:810
+#: includes/admin-bar.php:815
 msgid "Commit current desktop, exit overview"
 msgstr ""
 
-#: includes/admin-bar.php:816
+#: includes/admin-bar.php:821
 msgid "Windows & palette"
 msgstr ""
 
-#: includes/admin-bar.php:820
+#: includes/admin-bar.php:825
 msgid "Cycle to the next window on the active desktop."
 msgstr ""
 
-#: includes/admin-bar.php:824
+#: includes/admin-bar.php:829
 msgid "Cycle to the previous window on the active desktop."
 msgstr ""
 
-#: includes/admin-bar.php:828
+#: includes/admin-bar.php:833
 msgid "Open the command palette / Ask AI overlay."
 msgstr ""
 
-#: includes/admin-bar.php:832
+#: includes/admin-bar.php:837
 msgid "Exit Overview (or Snap Overview) without changing window state."
 msgstr ""
 
-#: includes/ai-copilot/tools-registry.php:97
+#: includes/ai-copilot/tools-registry.php:100
 msgid "AI tool registration requires a `name` matching [a-z0-9_]{1,64}."
 msgstr ""
 
-#: includes/ai-copilot/tools-registry.php:104
+#: includes/ai-copilot/tools-registry.php:107
 msgid "AI tool registration requires a non-empty `description`."
 msgstr ""
 
-#: includes/ai-copilot/tools-registry.php:111
+#: includes/ai-copilot/tools-registry.php:114
 msgid "AI tool registration requires a callable `handler`."
 msgstr ""
 
-#: includes/ai-copilot/tools-registry.php:118
+#: includes/ai-copilot/tools-registry.php:121
 msgid "AI tool `parameters` must be a JSON-Schema object."
 msgstr ""
 
@@ -5156,15 +5156,21 @@ msgstr ""
 msgid "Parent comment not found."
 msgstr ""
 
-#: includes/comments-window/rest.php:233
+#: includes/comments-window/rest.php:236
+#, fuzzy
+msgid "You are not allowed to reply to comments on this post."
+msgstr ""
+"Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
+
+#: includes/comments-window/rest.php:244
 msgid "Reply cannot be empty."
 msgstr ""
 
-#: includes/comments-window/rest.php:242
+#: includes/comments-window/rest.php:253
 msgid "You must be logged in to reply."
 msgstr ""
 
-#: includes/comments-window/rest.php:295
+#: includes/comments-window/rest.php:306
 msgid "Invalid author email."
 msgstr ""
 
@@ -5246,14 +5252,14 @@ msgid "Akismet verdict if the plugin is installed (null otherwise)."
 msgstr ""
 
 #. translators: %s: the attempted tag name.
-#: includes/components.php:98
+#: includes/components.php:100
 #, php-format
 msgid ""
 "desktop_mode_component() only accepts tags with the wpd- prefix; got \"%s\"."
 msgstr ""
 
 #. translators: 1: attribute name, 2: tag name.
-#: includes/components.php:147
+#: includes/components.php:149
 #, php-format
 msgid ""
 "Attribute \"%1$s\" on <%2$s> received a non-scalar value (array/object). "
@@ -5261,11 +5267,11 @@ msgid ""
 "strings, booleans, or null. The attribute was skipped."
 msgstr ""
 
-#: includes/content-graph/rest.php:146
+#: includes/content-graph/rest.php:213
 msgid "Post not found."
 msgstr ""
 
-#: includes/content-graph/rest.php:153
+#: includes/content-graph/rest.php:220
 msgid "Insufficient permissions."
 msgstr ""
 
@@ -5274,7 +5280,7 @@ msgid "Content Graph"
 msgstr ""
 
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:1430
+#: includes/core/payload.php:1404
 #, php-format
 msgid ""
 "%1$s script handle \"%2$s\" is not registered with WordPress (no "
@@ -5297,16 +5303,16 @@ msgstr ""
 msgid "Admin target does not exist."
 msgstr ""
 
-#: includes/default-window.php:200
+#: includes/default-window.php:201
 msgid "Admin URL to open on portal entry, or null to disable."
 msgstr ""
 "URL de administración a abrir al entrar al portal, o null para desactivar."
 
-#: includes/default-window.php:244
+#: includes/default-window.php:245
 msgid "The `url` parameter must be a string or null."
 msgstr "El parámetro «url» debe ser una cadena o null."
 
-#: includes/default-window.php:253
+#: includes/default-window.php:254
 msgid "The URL is not a valid same-origin wp-admin URL."
 msgstr "La URL no es válida o no pertenece al mismo origen de wp-admin."
 
@@ -5355,8 +5361,8 @@ msgid "Taxonomy term"
 msgstr ""
 
 #: includes/desktop-files/built-in-types.php:63
+#: includes/desktop-files/types/class-desktop-mode-folder-file.php:32
 #: includes/desktop-files/types/class-desktop-mode-folder-file.php:34
-#: includes/desktop-files/types/class-desktop-mode-folder-file.php:36
 msgid "Folder"
 msgstr ""
 
@@ -5372,53 +5378,53 @@ msgstr ""
 msgid "Embedded web window"
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:49
-#: includes/desktop-files/store.php:48
+#: includes/desktop-files/folders-store.php:50
+#: includes/desktop-files/store.php:50
 msgid "A user id is required."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:60
+#: includes/desktop-files/folders-store.php:61
 msgid "Folder name is required."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:66
-#: includes/desktop-files/folders-store.php:138
+#: includes/desktop-files/folders-store.php:67
+#: includes/desktop-files/folders-store.php:139
 msgid "Invalid share mode."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:81
+#: includes/desktop-files/folders-store.php:82
 msgid "Failed to create folder."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:117
-#: includes/desktop-files/folders-store.php:296
-#: includes/desktop-files/rest.php:422 includes/desktop-files/rest.php:724
+#: includes/desktop-files/folders-store.php:118
+#: includes/desktop-files/folders-store.php:297
+#: includes/desktop-files/rest.php:446 includes/desktop-files/rest.php:777
 #: includes/desktop-files/shares-store.php:781
-#: includes/desktop-files/trash.php:668 includes/desktop-files/trash.php:814
+#: includes/desktop-files/trash.php:662 includes/desktop-files/trash.php:808
 msgid "Folder not found."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:120
+#: includes/desktop-files/folders-store.php:121
 msgid "You cannot edit this folder."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:129
+#: includes/desktop-files/folders-store.php:130
 msgid "Folder name cannot be empty."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:158
+#: includes/desktop-files/folders-store.php:159
 msgid "Failed to update folder."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:299
+#: includes/desktop-files/folders-store.php:300
 msgid "You cannot delete this folder."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:333
+#: includes/desktop-files/folders-store.php:334
 msgid "A plugin blocked this folder from being deleted."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:566
+#: includes/desktop-files/folders-store.php:572
 msgid "Failed to delete folder."
 msgstr ""
 
@@ -5463,41 +5469,45 @@ msgstr ""
 msgid "`class` must extend `Desktop_Mode_File`."
 msgstr ""
 
-#: includes/desktop-files/rest.php:35
+#: includes/desktop-files/rest.php:59
 msgid "You must be logged in."
 msgstr ""
 
-#: includes/desktop-files/rest.php:38 includes/recycle-bin/rest.php:155
+#: includes/desktop-files/rest.php:62 includes/recycle-bin/rest.php:156
 msgid "Desktop mode is not enabled for this user."
 msgstr ""
 
-#: includes/desktop-files/rest.php:64
+#: includes/desktop-files/rest.php:88
 msgid "No route was found matching the URL and request method."
 msgstr ""
 
-#: includes/desktop-files/rest.php:83
+#: includes/desktop-files/rest.php:107
 #, fuzzy
 msgid "You do not have permission to perform this action."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/rest.php:339 includes/desktop-files/store.php:233
-#: includes/desktop-files/store.php:381 includes/desktop-files/trash.php:392
-#: includes/desktop-files/trash.php:486
+#: includes/desktop-files/rest.php:363 includes/desktop-files/store.php:238
+#: includes/desktop-files/store.php:386 includes/desktop-files/trash.php:386
+#: includes/desktop-files/trash.php:480
 msgid "Placement not found."
 msgstr ""
 
-#: includes/desktop-files/rest.php:660
+#: includes/desktop-files/rest.php:536
+msgid "Restricted item"
+msgstr ""
+
+#: includes/desktop-files/rest.php:713
 msgid "This row was changed by another session."
 msgstr ""
 
-#: includes/desktop-files/rest.php:720
+#: includes/desktop-files/rest.php:773
 #, fuzzy
 msgid "You cannot view shares for this folder."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/rest.php:780
+#: includes/desktop-files/rest.php:833
 #: includes/desktop-files/shares-store.php:440
 #: includes/desktop-files/shares-store.php:511
 #: includes/desktop-files/shares-store.php:643
@@ -5505,13 +5515,13 @@ msgstr ""
 msgid "Share not found."
 msgstr ""
 
-#: includes/desktop-files/rest.php:787
+#: includes/desktop-files/rest.php:840
 #, fuzzy
 msgid "Share not found in this folder."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/rest.php:973
+#: includes/desktop-files/rest.php:1026
 #, fuzzy
 msgid "You cannot search users."
 msgstr "No se pudieron cargar tus medios: %s"
@@ -5569,7 +5579,7 @@ msgid "This invite was denied."
 msgstr ""
 
 #: includes/desktop-files/shares-store.php:777
-#: includes/desktop-files/store.php:228
+#: includes/desktop-files/store.php:233
 msgid "Invalid arguments."
 msgstr ""
 
@@ -5583,120 +5593,120 @@ msgid "You do not have access to this folder."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/store.php:52
+#: includes/desktop-files/store.php:54
 msgid "Unknown file type."
 msgstr ""
 
-#: includes/desktop-files/store.php:71
+#: includes/desktop-files/store.php:73
 #, fuzzy
 msgid "You are not allowed to place this file."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/store.php:86 includes/desktop-files/store.php:280
+#: includes/desktop-files/store.php:88 includes/desktop-files/store.php:285
 #, fuzzy
 msgid "You only have read access to that folder."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/store.php:157
+#: includes/desktop-files/store.php:159
 msgid "Failed to write placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:252 includes/desktop-files/store.php:260
+#: includes/desktop-files/store.php:257 includes/desktop-files/store.php:265
 #, fuzzy
 msgid "You only have read access to this folder."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/store.php:267
+#: includes/desktop-files/store.php:272
 #, fuzzy
 msgid "You cannot edit this placement."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/store.php:306
+#: includes/desktop-files/store.php:311
 msgid "A folder cannot be placed inside itself or one of its descendants."
 msgstr ""
 
-#: includes/desktop-files/store.php:346
+#: includes/desktop-files/store.php:351
 msgid "Failed to update placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:394
+#: includes/desktop-files/store.php:399
 #, fuzzy
 msgid "You cannot remove this placement."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/store.php:400
+#: includes/desktop-files/store.php:405
 msgid "Failed to remove placement."
 msgstr ""
 
-#: includes/desktop-files/trash.php:402
+#: includes/desktop-files/trash.php:396
 #, fuzzy
 msgid "You do not have permission to trash this item."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/trash.php:443
+#: includes/desktop-files/trash.php:437
 msgid "Failed to write trash row."
 msgstr ""
 
-#: includes/desktop-files/trash.php:496
+#: includes/desktop-files/trash.php:490
 #, fuzzy
 msgid "You do not have permission to restore this item."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/trash.php:607
+#: includes/desktop-files/trash.php:601
 #, fuzzy
 msgid "You do not have permission to delete this item."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/trash.php:678
+#: includes/desktop-files/trash.php:672
 msgid "You do not have permission to trash this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:728
+#: includes/desktop-files/trash.php:722
 msgid "Failed to trash folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:824
+#: includes/desktop-files/trash.php:818
 #, fuzzy
 msgid "You do not have permission to restore this folder."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/desktop-files/trash.php:985
+#: includes/desktop-files/trash.php:979
 msgid "You do not have permission to delete this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:1161
+#: includes/desktop-files/trash.php:1155
 #, fuzzy
 msgid "Desktop shortcut"
 msgstr "Escritorio 1"
 
 #. translators: %s: file-type slug like 'post', 'attachment'.
-#: includes/desktop-files/trash.php:1164
+#: includes/desktop-files/trash.php:1158
 #, fuzzy, php-format
 msgid "%s on desktop"
 msgstr "Añadir nuevo escritorio"
 
-#: includes/desktop-files/trash.php:1189
+#: includes/desktop-files/trash.php:1183
 msgid "URL"
 msgstr ""
 
 #. translators: %d: number of items inside the trashed folder.
-#: includes/desktop-files/trash.php:1219
+#: includes/desktop-files/trash.php:1213
 #, php-format
 msgid "Folder · %d item inside"
 msgid_plural "Folder · %d items inside"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/desktop-files/trash.php:1222
+#: includes/desktop-files/trash.php:1216
 msgid "Folder · empty"
 msgstr ""
 
@@ -5765,7 +5775,7 @@ msgid ""
 msgstr ""
 
 #: includes/my-wordpress/comment-stats.php:66
-#: includes/recycle-bin/store.php:725 includes/recycle-bin/store.php:845
+#: includes/recycle-bin/store.php:770 includes/recycle-bin/store.php:892
 msgid "Comment not found."
 msgstr ""
 
@@ -5775,18 +5785,19 @@ msgid "You do not have permission to view this comment."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/my-wordpress/lock.php:266
+#: includes/my-wordpress/lock.php:280
 msgid "Active edit-lock holder, or null when the post is not locked."
 msgstr ""
 
-#: includes/my-wordpress/lock.php:289
+#: includes/my-wordpress/lock.php:303
 msgid ""
 "Additional contributor users beyond the primary author. Sourced from Co-"
-"Authors Plus when present, plus anything plugins return via "
-"`desktop_mode_my_wordpress_post_contributors`."
+"Authors Plus when present, revision authors, the `_edit_last` meta, plus "
+"anything plugins return via `desktop_mode_my_wordpress_post_contributors`. "
+"Empty for requesters who cannot edit the post."
 msgstr ""
 
-#: includes/my-wordpress/media-usage.php:151
+#: includes/my-wordpress/media-usage.php:155
 msgid "Attachment not found."
 msgstr ""
 
@@ -5799,10 +5810,10 @@ msgstr ""
 msgid "Term not found."
 msgstr ""
 
-#: includes/my-wordpress/user-footprint.php:96
-#: includes/my-wordpress/user-stats.php:68
-#: includes/user-edit-window/rest.php:295 includes/users-window/rest.php:275
-#: includes/users-window/rest.php:341
+#: includes/my-wordpress/user-footprint.php:100
+#: includes/my-wordpress/user-stats.php:69
+#: includes/user-edit-window/rest.php:334 includes/users-window/rest.php:280
+#: includes/users-window/rest.php:346
 msgid "User not found."
 msgstr ""
 
@@ -5826,55 +5837,55 @@ msgstr ""
 msgid "ISO-8601 of latest publish; empty when the user has none."
 msgstr ""
 
-#: includes/my-wordpress/window.php:87 includes/users-window/window.php:257
+#: includes/my-wordpress/window.php:88 includes/users-window/window.php:257
 msgid "Users"
 msgstr ""
 
-#: includes/oauth-relay.php:93
+#: includes/oauth-relay.php:94
 msgid "OAuth relay registration requires a non-empty service slug."
 msgstr ""
 
 #. translators: %s: missing field name.
-#: includes/oauth-relay.php:113
+#: includes/oauth-relay.php:114
 #, php-format
 msgid "OAuth relay registration requires a non-empty `%s`."
 msgstr ""
 
-#: includes/oauth-relay.php:122
+#: includes/oauth-relay.php:123
 msgid "OAuth relay registration requires a callable `on_success` handler."
 msgstr ""
 
-#: includes/oauth-relay.php:132
+#: includes/oauth-relay.php:133
 msgid "OAuth relay `authorize_url` and `token_url` must be valid http(s) URLs."
 msgstr ""
 
-#: includes/oauth-relay.php:292
+#: includes/oauth-relay.php:295
 msgid "No OAuth relay is registered for that service."
 msgstr ""
 
-#: includes/oauth-relay.php:301
+#: includes/oauth-relay.php:304
 msgid "Current user lacks the capability required to start this OAuth flow."
 msgstr ""
 
-#: includes/oauth-relay.php:369
+#: includes/oauth-relay.php:372
 msgid "OAuth state nonce missing, expired, or already used."
 msgstr ""
 
-#: includes/oauth-relay.php:389
+#: includes/oauth-relay.php:392
 msgid "OAuth relay is no longer registered for that service."
 msgstr ""
 
-#: includes/oauth-relay.php:398
+#: includes/oauth-relay.php:401
 msgid "OAuth callback did not return an authorization code."
 msgstr ""
 
 #. translators: %d: HTTP status code.
-#: includes/oauth-relay.php:434
+#: includes/oauth-relay.php:437
 #, php-format
 msgid "Token exchange failed with HTTP %d."
 msgstr ""
 
-#: includes/oauth-relay.php:608
+#: includes/oauth-relay.php:611
 msgid "You must be logged in to start an OAuth flow."
 msgstr ""
 
@@ -5899,56 +5910,56 @@ msgstr ""
 msgid "Total non-trashed comments on this page."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:52
+#: includes/plugins-window/ajax.php:54
 msgid "Security check failed. Refresh the window and try again."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:59 includes/seen-intros.php:233
+#: includes/plugins-window/ajax.php:61 includes/seen-intros.php:233
 #, fuzzy
 msgid "You are not allowed to do that."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/plugins-window/ajax.php:256 includes/plugins-window/ajax.php:343
+#: includes/plugins-window/ajax.php:258 includes/plugins-window/ajax.php:345
 msgid "Missing plugin slug."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:606
+#: includes/plugins-window/ajax.php:608
 msgid "No file received. Pick a .zip and try again."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:619
+#: includes/plugins-window/ajax.php:621
 #, fuzzy
 msgid "Upload payload is malformed."
 msgstr "Error al subir."
 
 #. translators: %d: PHP UPLOAD_ERR_* code.
-#: includes/plugins-window/ajax.php:632
+#: includes/plugins-window/ajax.php:634
 #, php-format
 msgid "Upload failed (error %d). Try again."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:646
+#: includes/plugins-window/ajax.php:648
 msgid "Plugin uploads must be a .zip file."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:660
+#: includes/plugins-window/ajax.php:662
 msgid "Refused: temporary upload path is not trusted."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:686
+#: includes/plugins-window/ajax.php:688
 msgid ""
 "Plugin upgrader is unavailable in this context. Reload the page and try "
 "again."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:733
+#: includes/plugins-window/ajax.php:735
 msgid ""
 "A plugin with the same folder name is already installed. Replace it to "
 "continue."
 msgstr ""
 
-#: includes/plugins-window/ajax.php:759
+#: includes/plugins-window/ajax.php:761
 msgid "Plugin install failed."
 msgstr ""
 
@@ -6028,66 +6039,66 @@ msgid "Whether this term is the taxonomy's default (fallback) term."
 msgstr ""
 
 #. translators: %s: site name
-#: includes/pwa.php:273
+#: includes/pwa.php:275
 #, php-format
 msgid "%s — installed as a desktop app."
 msgstr ""
 
-#: includes/recycle-bin/rest.php:148
+#: includes/recycle-bin/rest.php:149
 msgid "Sorry, you must be logged in."
 msgstr ""
 
 #. translators: 1: comment author. 2: parent post title.
-#: includes/recycle-bin/store.php:464
+#: includes/recycle-bin/store.php:509
 #, php-format
 msgid "%1$s on %2$s"
 msgstr ""
 
-#: includes/recycle-bin/store.php:673 includes/recycle-bin/store.php:788
+#: includes/recycle-bin/store.php:718 includes/recycle-bin/store.php:833
 msgid "Item not found."
 msgstr ""
 
-#: includes/recycle-bin/store.php:676 includes/recycle-bin/store.php:791
+#: includes/recycle-bin/store.php:721 includes/recycle-bin/store.php:836
 msgid "Item is not in the trash."
 msgstr ""
 
-#: includes/recycle-bin/store.php:679
+#: includes/recycle-bin/store.php:724
 #, fuzzy
 msgid "You are not allowed to restore this item."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/recycle-bin/store.php:694
+#: includes/recycle-bin/store.php:739
 msgid "Failed to restore item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:728 includes/recycle-bin/store.php:848
+#: includes/recycle-bin/store.php:773 includes/recycle-bin/store.php:895
 msgid "Comment is not in the trash."
 msgstr ""
 
-#: includes/recycle-bin/store.php:731
+#: includes/recycle-bin/store.php:776
 #, fuzzy
 msgid "You are not allowed to restore this comment."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/recycle-bin/store.php:746
+#: includes/recycle-bin/store.php:791
 msgid "Failed to restore comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:794
+#: includes/recycle-bin/store.php:839
 msgid "You are not allowed to permanently delete this item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:816
+#: includes/recycle-bin/store.php:863
 msgid "Failed to permanently delete item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:851
+#: includes/recycle-bin/store.php:898
 msgid "You are not allowed to permanently delete this comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:867
+#: includes/recycle-bin/store.php:914
 msgid "Failed to permanently delete comment."
 msgstr ""
 
@@ -6196,17 +6207,17 @@ msgid ""
 "def."
 msgstr ""
 
-#: includes/registries/widgets.php:90
+#: includes/registries/widgets.php:94
 msgid "Widget id is required."
 msgstr ""
 
 #. translators: %s: capability slug.
-#: includes/registries/widgets.php:117
+#: includes/registries/widgets.php:121
 #, php-format
 msgid "Current user lacks the %s capability required to register this widget."
 msgstr ""
 
-#: includes/registries/widgets.php:131
+#: includes/registries/widgets.php:135
 msgid "Widget registration requires a non-empty `label`."
 msgstr ""
 
@@ -6320,42 +6331,46 @@ msgstr ""
 msgid "Session manager unavailable."
 msgstr ""
 
-#: includes/user-edit-window/rest.php:235
-#: includes/user-edit-window/rest.php:267
+#: includes/user-edit-window/rest.php:242
+msgid "Application passwords are not available for this user."
+msgstr ""
+
+#: includes/user-edit-window/rest.php:266
+#: includes/user-edit-window/rest.php:302
 msgid "Application passwords are not available on this site."
 msgstr ""
 
-#: includes/users-window/rest.php:186 includes/users-window/rest.php:412
+#: includes/users-window/rest.php:191 includes/users-window/rest.php:417
 msgid "No user ids supplied."
 msgstr ""
 
-#: includes/users-window/rest.php:200
+#: includes/users-window/rest.php:205
 #, fuzzy
 msgid "You are not allowed to assign this role."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/users-window/rest.php:282
+#: includes/users-window/rest.php:287
 #, fuzzy
 msgid "You are not allowed to send a password reset for this user."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/users-window/rest.php:300
+#: includes/users-window/rest.php:305
 msgid "A reset email was already sent recently. Try again in a minute."
 msgstr ""
 
-#: includes/users-window/rest.php:348
+#: includes/users-window/rest.php:353
 #, fuzzy
 msgid "You are not allowed to email this user."
 msgstr ""
 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
 
-#: includes/users-window/rest.php:364
+#: includes/users-window/rest.php:369
 msgid "A welcome email was already sent recently. Try again in a minute."
 msgstr ""
 
-#: includes/users-window/rest.php:517
+#: includes/users-window/rest.php:522
 msgid "Username is required."
 msgstr ""
 
@@ -6436,55 +6451,55 @@ msgstr ""
 msgid "Send the new user an email about their account"
 msgstr ""
 
-#: includes/users-window/window.php:493
+#: includes/users-window/window.php:498
 msgid "Per-user content stats: published post / page / comment counts."
 msgstr ""
 
-#: includes/users-window/window.php:514
+#: includes/users-window/window.php:525
 msgid ""
 "UTC unix timestamp of this user’s last successful login, or null when never "
 "recorded."
 msgstr ""
 
-#: includes/users-window/window.php:534
+#: includes/users-window/window.php:551
 msgid "Live presence status: online / inactive / offline."
 msgstr ""
 
-#: includes/users-window/window.php:556
+#: includes/users-window/window.php:573
 msgid "Whether the requester can edit this user."
 msgstr ""
 
-#: includes/users-window/window.php:577
+#: includes/users-window/window.php:594
 msgid "Role slugs the requester can assign to this user."
 msgstr ""
 
 #. translators: %s is the site's current locale (e.g. "en_US").
-#: includes/users-window/window.php:603
+#: includes/users-window/window.php:620
 #, php-format
 msgid "Site default — %s"
 msgstr ""
 
-#: includes/wallpapers.php:33
+#: includes/wallpapers.php:35
 msgid "Graphite"
 msgstr "Grafito"
 
-#: includes/wallpapers.php:38
+#: includes/wallpapers.php:40
 msgid "Aurora"
 msgstr "Aurora"
 
-#: includes/wallpapers.php:43
+#: includes/wallpapers.php:45
 msgid "Sunset"
 msgstr "Atardecer"
 
-#: includes/wallpapers.php:48
+#: includes/wallpapers.php:50
 msgid "Forest"
 msgstr "Bosque"
 
-#: includes/wallpapers.php:53
+#: includes/wallpapers.php:55
 msgid "Mono"
 msgstr "Monocromo"
 
-#: includes/wallpapers.php:74
+#: includes/wallpapers.php:76
 msgid "Animated WordPress Logo"
 msgstr ""
 
@@ -6560,11 +6575,11 @@ msgstr ""
 msgid "Prefer to switch yourself? Click %s in the top-right of your admin bar."
 msgstr ""
 
-#: includes/widgets/heartbeat.php:63
+#: includes/widgets/heartbeat.php:66
 msgid "Heartbeat"
 msgstr ""
 
-#: includes/widgets/heartbeat.php:64
+#: includes/widgets/heartbeat.php:67
 msgid ""
 "A gently beating heart that pulses with the WordPress Heartbeat. The bar "
 "fills as the next tick approaches."

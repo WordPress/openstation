@@ -32,7 +32,7 @@
  * driver — its lifecycle is owned by the source/destination iframes,
  * not the parent shell.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 /**
@@ -66,7 +66,7 @@ export interface GhostConfig {
 	 * messages for the framework payload types (`'shortcut'` /
 	 * `'desktop-file'`); pass `hidden: true` to opt out.
 	 *
-	 * @since 0.20.0
+	 * @since 0.8.2
 	 */
 	hint?: GhostHintConfig;
 }
@@ -140,7 +140,7 @@ export interface DropTarget {
 	 * differs from a generic placement — e.g. the recycle bin shows
 	 * "Move to Trash" instead of "create shortcut".
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.9
 	 */
 	acceptLabel?: string;
 }

@@ -27,7 +27,7 @@
  * aggregates on every form interaction.
  *
  * @package WPDesktopMode
- * @since   0.18.0
+ * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function desktop_mode_user_edit_window_register_rest_routes() {
 	register_rest_route(
@@ -74,7 +74,7 @@ add_action( 'rest_api_init', 'desktop_mode_user_edit_window_register_rest_routes
  * classic profile.php save) but the REST controller ignores
  * `meta.rich_editing` etc. on update.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function desktop_mode_user_edit_window_register_meta() {
 	$keys = array(
@@ -113,7 +113,7 @@ add_action( 'init', 'desktop_mode_user_edit_window_register_meta' );
  * else (current device kept). Mirrors the WP-core
  * `destroy-sessions` AJAX action.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function desktop_mode_user_edit_window_destroy_sessions_route() {
 	register_rest_route(
@@ -170,7 +170,7 @@ function desktop_mode_user_edit_window_rest_destroy_sessions( $req ) {
  * Thin wrappers over `WP_Application_Passwords` so the form has a
  * single REST surface to talk to.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function desktop_mode_user_edit_window_app_passwords_routes() {
 	register_rest_route(
@@ -219,11 +219,42 @@ function desktop_mode_user_edit_window_app_passwords_routes() {
 }
 add_action( 'rest_api_init', 'desktop_mode_user_edit_window_app_passwords_routes' );
 
+/**
+ * Enforce core's application-password availability policy for a
+ * target user. Mirrors `WP_REST_Application_Passwords_Controller`'s
+ * permission check: every operation is rejected when the feature is
+ * disabled site-wide (`wp_is_application_passwords_available()`) or
+ * for the target user
+ * (`wp_is_application_passwords_available_for_user()`) — both of
+ * which are filterable by security plugins.
+ *
+ * @param int $user_id Target user id.
+ * @return WP_Error|null Error when unavailable, null when allowed.
+ */
+function desktop_mode_user_edit_window_app_pw_unavailable( $user_id ) {
+	if (
+		! function_exists( 'wp_is_application_passwords_available' )
+		|| ! wp_is_application_passwords_available()
+		|| ! wp_is_application_passwords_available_for_user( (int) $user_id )
+	) {
+		return new WP_Error(
+			'desktop_mode_users_app_pw_unavailable',
+			__( 'Application passwords are not available for this user.', 'desktop-mode' ),
+			array( 'status' => 501 )
+		);
+	}
+	return null;
+}
+
 function desktop_mode_user_edit_window_rest_app_pw_list( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return rest_ensure_response( array( 'items' => array() ) );
 	}
 	$id = (int) $req->get_param( 'id' );
+	$unavailable = desktop_mode_user_edit_window_app_pw_unavailable( $id );
+	if ( is_wp_error( $unavailable ) ) {
+		return $unavailable;
+	}
 	$apps = (array) WP_Application_Passwords::get_user_application_passwords( $id );
 	return rest_ensure_response( array( 'items' => $apps ) );
 }
@@ -237,6 +268,10 @@ function desktop_mode_user_edit_window_rest_app_pw_create( $req ) {
 		);
 	}
 	$id   = (int) $req->get_param( 'id' );
+	$unavailable = desktop_mode_user_edit_window_app_pw_unavailable( $id );
+	if ( is_wp_error( $unavailable ) ) {
+		return $unavailable;
+	}
 	$name = sanitize_text_field( (string) $req->get_param( 'name' ) );
 	if ( '' === $name ) {
 		return new WP_Error(
@@ -269,6 +304,10 @@ function desktop_mode_user_edit_window_rest_app_pw_revoke( $req ) {
 		);
 	}
 	$id   = (int) $req->get_param( 'id' );
+	$unavailable = desktop_mode_user_edit_window_app_pw_unavailable( $id );
+	if ( is_wp_error( $unavailable ) ) {
+		return $unavailable;
+	}
 	$uuid = (string) $req->get_param( 'uuid' );
 	$ok = WP_Application_Passwords::delete_application_password( $id, $uuid );
 	if ( is_wp_error( $ok ) ) {
@@ -281,7 +320,7 @@ function desktop_mode_user_edit_window_rest_app_pw_revoke( $req ) {
 /**
  * `GET /users/<id>/insights` callback.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -364,7 +403,7 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
 	 * tolerates unknown keys — they're surfaced as plugin tiles
 	 * when they match the expected shape.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 *
 	 * @param array   $payload Insights payload.
 	 * @param WP_User $user    Target user.
@@ -381,7 +420,7 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
  * can call it directly from a custom REST route or admin notice
  * without going through the HTTP cycle.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param WP_User $user
  * @return array
@@ -566,6 +605,15 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 	if ( class_exists( 'WP_Session_Tokens' ) ) {
 		$manager = WP_Session_Tokens::get_instance( $id );
 		$current_token = wp_get_session_token();
+		// The meta blob's keys are *verifiers* — hashes of the raw
+		// cookie token (`WP_Session_Tokens::hash_token()`), so hash
+		// the current token the same way before comparing.
+		$current_verifier = '';
+		if ( $current_token ) {
+			$current_verifier = function_exists( 'hash' )
+				? hash( 'sha256', $current_token )
+				: sha1( $current_token );
+		}
 		// `get_all` returns the tokens-as-array but doesn't expose
 		// the token id — peek into the meta blob via the user meta
 		// key directly so we can flag the "current" session.
@@ -587,7 +635,7 @@ function desktop_mode_user_edit_window_compute_insights( WP_User $user ) {
 				'login'      => isset( $info['login'] ) ? (int) $info['login'] : 0,
 				'ip'         => isset( $info['ip'] ) ? (string) $info['ip'] : '',
 				'ua'         => isset( $info['ua'] ) ? (string) $info['ua'] : '',
-				'current'    => $current_token && $current_token === $hash,
+				'current'    => '' !== $current_verifier && $current_verifier === $hash,
 			);
 		}
 		unset( $manager ); // unused but instantiated for symmetry / future use.

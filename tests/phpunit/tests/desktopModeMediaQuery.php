@@ -168,6 +168,61 @@ class Tests_DesktopMode_MediaQuery extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Anonymous filtered requests must never trigger the backfill —
+	 * `/wp/v2/media` is publicly readable, and an unauthenticated GET
+	 * carrying the dimension params must not cause database writes.
+	 *
+	 * @covers ::desktop_mode_filter_media_by_dimensions
+	 */
+	public function test_rest_media_query_skips_backfill_for_anonymous_requests() {
+		$attachment_id = $this->make_attachment( 1920, 1080 );
+		delete_post_meta( $attachment_id, DESKTOP_MODE_META_WIDTH );
+		delete_post_meta( $attachment_id, DESKTOP_MODE_META_HEIGHT );
+
+		wp_set_current_user( 0 );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/media' );
+		$request->set_param( 'desktop_mode_min_width', 1 );
+		$request->set_param( 'media_type', 'image' );
+
+		$response = rest_do_request( $request );
+		$this->assertSame( 200, $response->get_status() );
+
+		// No write happened: the attachment is still unstamped and the
+		// completion flag was not touched.
+		$this->assertSame(
+			'',
+			get_post_meta( $attachment_id, DESKTOP_MODE_META_WIDTH, true )
+		);
+		$this->assertFalse( get_option( DESKTOP_MODE_BACKFILL_DONE_OPTION ) );
+	}
+
+	/**
+	 * Logged-in filtered requests still run the opportunistic backfill.
+	 *
+	 * @covers ::desktop_mode_filter_media_by_dimensions
+	 */
+	public function test_rest_media_query_runs_backfill_for_logged_in_users() {
+		$attachment_id = $this->make_attachment( 1920, 1080 );
+		delete_post_meta( $attachment_id, DESKTOP_MODE_META_WIDTH );
+		delete_post_meta( $attachment_id, DESKTOP_MODE_META_HEIGHT );
+
+		wp_set_current_user( self::$admin_id );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/media' );
+		$request->set_param( 'desktop_mode_min_width', 1 );
+		$request->set_param( 'media_type', 'image' );
+
+		$response = rest_do_request( $request );
+		$this->assertSame( 200, $response->get_status() );
+
+		$this->assertSame(
+			'1920',
+			get_post_meta( $attachment_id, DESKTOP_MODE_META_WIDTH, true )
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_backfill_media_dimensions
 	 */
 	public function test_backfill_stamps_attachments_without_dimension_meta() {

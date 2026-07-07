@@ -12,7 +12,7 @@
  * loading indicator + the activity bus.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -63,7 +63,7 @@ async function readErrorMessage(
  * from a single round-trip per page.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export async function fetchMediaPage(
 	entity: MyWordPressEntity,
@@ -74,7 +74,7 @@ export async function fetchMediaPage(
 		 * Optional search query. Passed verbatim to `/wp/v2/media` as
 		 * `?search=…`, which matches attachment titles + filenames.
 		 *
-		 * @since 0.22.0
+		 * @since 0.8.7
 		 */
 		search?: string;
 		signal?: AbortSignal;
@@ -189,7 +189,7 @@ export async function deleteMediaItem( mediaId: number ): Promise< void > {
  * given attachment.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export async function fetchMediaUsage( mediaId: number ): Promise< MediaUsage > {
 	const cfg = getConfig();

@@ -22,7 +22,7 @@
  * lazy `window-system[.min].js` bundle and the main `desktop.ts`
  * bundle share the same `Map` of entries.
  *
- * @since 0.22.0
+ * @since 0.8.6
  */
 
 import { createSharedStore } from './shared-store';

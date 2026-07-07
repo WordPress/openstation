@@ -25,7 +25,7 @@
  * file, no runtime bundle impact. Consumers get the typings; nothing
  * from this file ends up in their compiled output.
  *
- * @since 0.23.0
+ * @since 0.6.0
  */
 
 import type { WpDesktopPublicApi } from './desktop';

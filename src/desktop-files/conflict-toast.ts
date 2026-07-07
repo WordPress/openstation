@@ -7,7 +7,7 @@
  * a "View folder" action that hops the breadcrumb stack to the
  * row's new parent.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 
 import { showToast } from '../toast';

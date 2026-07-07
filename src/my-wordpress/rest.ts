@@ -70,7 +70,7 @@ interface ListParams {
 	 * collection's indexed columns (`post_title` + `post_content` for
 	 * posts; see the per-fetcher comments below for the others).
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	search?: string;
 	/**
@@ -78,7 +78,7 @@ interface ListParams {
 	 * when the user types a new search query before the previous
 	 * round-trip lands.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	signal?: AbortSignal;
 }
@@ -278,7 +278,7 @@ export async function fetchEntityTotal(
  * bits internally, so the fall-through doesn't leak data.
  *
  * @public
- * @since 0.20.0
+ * @since 0.8.2
  */
 export async function fetchUserList(
 	entity: MyWordPressEntity,
@@ -290,7 +290,7 @@ export async function fetchUserList(
 		 * `?search=…`, which matches against user_login, user_nicename,
 		 * user_email, user_url, and display_name.
 		 *
-		 * @since 0.22.0
+		 * @since 0.8.7
 		 */
 		search?: string;
 		signal?: AbortSignal;
@@ -352,7 +352,7 @@ export async function fetchUserList(
  * `/desktop-mode/v1/user-footprint/<id>`.
  *
  * @public
- * @since 0.20.0
+ * @since 0.8.2
  */
 export function fetchUserFootprint(
 	userId: number,
@@ -369,7 +369,7 @@ export function fetchUserFootprint(
  * for posts.
  *
  * @public
- * @since 0.20.0
+ * @since 0.8.2
  */
 export function buildEditUserUrl( id: number ): string {
 	const cfg = getConfig();

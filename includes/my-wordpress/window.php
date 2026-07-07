@@ -5,9 +5,9 @@
  * Native window with id `desktop-mode-my-wordpress`, opened from a
  * pinned desktop icon that always sits in the top-left of the grid
  * (`pinned: true`, `position: -1`). The bundle renders a two-pane
- * file-explorer UI with breadcrumb navigation: root shows Posts and
- * Pages folder tiles, and clicking either drills into an
- * infinite-scroll list of entities with a rendered HTML preview pane.
+ * file-explorer UI with breadcrumb navigation: root shows Posts,
+ * Pages, Users, and Media folder tiles, and clicking one drills into
+ * an infinite-scroll list of entities with a per-kind preview pane.
  *
  * Filterable surface (mirrors the recycle-bin / posts-window modules):
  *
@@ -48,17 +48,18 @@ function desktop_mode_my_wordpress_user_can_use() {
 }
 
 /**
- * Build the entity list shipped to the bundle. Posts, Pages, and —
- * since 0.20.0 — Users. Future phases add Comments, Tags,
- * Categories, Themes, and Plugins.
+ * Build the entity list shipped to the bundle. Posts, Pages, Users
+ * (since 0.8.2), and Media (since 0.8.6). Future phases add
+ * Comments, Tags, Categories, Themes, and Plugins.
  *
  * The optional `kind` field tells the bundle how to render entries
  * of this entity: `'post'` (default) renders the standard
  * title/excerpt/featured-image tile and the rendered-HTML preview;
  * `'user'` renders an avatar + display-name tile and routes to the
- * user dossier preview. Plugins extending the entity list with a
- * post-shaped collection can omit the field; user-shaped
- * collections must set `'user'`.
+ * user dossier preview; `'media'` renders a thumbnail-grid tile and
+ * routes to the media preview pane. Plugins extending the entity
+ * list with a post-shaped collection can omit the field; user- and
+ * media-shaped collections must set `'user'` / `'media'`.
  *
  * @since 0.8.0
  *

@@ -20,12 +20,16 @@
  *
  * **The pattern.** Plain mutate-then-notify. No immutable-update
  * plumbing, no reducer enum, no dependencies. The store gives you
- * four things:
+ * six things:
  *
  *   - `state` — the live mutable object. Mutate it directly.
+ *   - `getState()` — read-only view of `state`. Same reference,
+ *     narrower type.
  *   - `notify()` — call after mutating to wake subscribers.
  *   - `subscribe( cb )` — register a listener. Returns an
  *     unsubscribe function.
+ *   - `setState( patch )` — merge a flat patch into `state` and
+ *     notify in one call.
  *   - `reset()` — restore the initial state and clear listeners.
  *     Mainly for tests.
  *
@@ -66,9 +70,10 @@ export interface SharedStore< T > {
 	 */
 	getState(): Readonly< T >;
 	/**
-	 * Wake every subscriber. Idempotent within a tick — no
-	 * batching, no microtask deferral; calls run synchronously
-	 * inline with whatever code triggered the mutation.
+	 * Wake every subscriber. No batching, no microtask deferral —
+	 * every call runs all subscribers synchronously inline with
+	 * whatever code triggered the mutation, so N calls produce N
+	 * invocations.
 	 */
 	notify(): void;
 	/**
@@ -103,7 +108,7 @@ export interface SharedStore< T > {
 	 * Only valid for object-shaped state. Primitive-shaped stores
 	 * still use the `state` setter path.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 *
 	 * @param patch Partial state to merge into `state`.
 	 */

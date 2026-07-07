@@ -1,6 +1,6 @@
 {
 	"name": "desktop-mode",
-	"version": "0.9.2",
+	"version": "0.9.3",
 	"private": true,
 	"type": "module",
 	"description": "WordPress admin as a desktop OS — draggable, resizable windows on a desktop with a dock.",

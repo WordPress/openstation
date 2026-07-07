@@ -6,7 +6,8 @@
  * tooling) do not drag every component module into their bundle.
  *
  * Keep in sync with the components actually defined under
- * `src/ui/components/`. The order matches `index.ts`.
+ * `src/ui/components/`. The order matches the export order in
+ * `index.ts`.
  *
  * @since 0.8.4
  */
@@ -55,6 +56,8 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-key',
 	'wpd-code',
 	'wpd-badge',
+	'wpd-ribbon',
+	'wpd-tile',
 	'wpd-log',
 	'wpd-steps',
 	'wpd-step',
@@ -70,5 +73,7 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-category-picker',
 	'wpd-crumb-chain',
 	'wpd-card',
+	'wpd-rating-summary',
 	'wpd-notice',
+	'wpd-progress-bar',
 ] as const;

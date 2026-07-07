@@ -6,7 +6,7 @@
  * handling. Every HTTP call from the window goes through here so
  * credentials/nonce/loading-state plumbing stays in one place.
  *
- * @since 0.19.0
+ * @since 0.6.0
  */
 
 import { trackedFetch } from '../tracked-fetch';

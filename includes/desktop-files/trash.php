@@ -33,6 +33,24 @@ defined( 'ABSPATH' ) || exit;
  * ================================================================== */
 
 /**
+ * Default ownership check shared by every trash / restore / purge
+ * capability gate: the acting user must be the row's `owner_id`.
+ *
+ * @since 0.8.0
+ * @access private
+ *
+ * @param int   $user_id Acting user.
+ * @param array $row     Placement or folder row.
+ * @return bool
+ */
+function desktop_mode_files_user_owns_row( $user_id, $row ) {
+	$user_id = (int) $user_id;
+	return ( $user_id > 0 )
+		&& isset( $row['owner_id'] )
+		&& (int) $row['owner_id'] === $user_id;
+}
+
+/**
  * Whether the given user can trash a placement they own. Defaults
  * to ownership; plugins can broaden via filter.
  *
@@ -43,10 +61,6 @@ defined( 'ABSPATH' ) || exit;
  * @return bool
  */
 function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
-	$user_id = (int) $user_id;
-	$can     = ( $user_id > 0 )
-		&& isset( $row['owner_id'] )
-		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * Filter whether the user can trash this placement.
 	 *
@@ -58,8 +72,8 @@ function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
 	 */
 	return (bool) apply_filters(
 		'desktop_mode_files_user_can_trash_placement',
-		$can,
-		$user_id,
+		desktop_mode_files_user_owns_row( $user_id, $row ),
+		(int) $user_id,
 		$row
 	);
 }
@@ -74,10 +88,6 @@ function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
  * @return bool
  */
 function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
-	$user_id = (int) $user_id;
-	$can     = ( $user_id > 0 )
-		&& isset( $row['owner_id'] )
-		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * @since 0.8.0
 	 *
@@ -87,8 +97,8 @@ function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
 	 */
 	return (bool) apply_filters(
 		'desktop_mode_files_user_can_restore_placement',
-		$can,
-		$user_id,
+		desktop_mode_files_user_owns_row( $user_id, $row ),
+		(int) $user_id,
 		$row
 	);
 }
@@ -99,10 +109,6 @@ function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
  * @since 0.8.0
  */
 function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
-	$user_id = (int) $user_id;
-	$can     = ( $user_id > 0 )
-		&& isset( $row['owner_id'] )
-		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * @since 0.8.0
 	 *
@@ -112,8 +118,8 @@ function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
 	 */
 	return (bool) apply_filters(
 		'desktop_mode_files_user_can_purge_placement',
-		$can,
-		$user_id,
+		desktop_mode_files_user_owns_row( $user_id, $row ),
+		(int) $user_id,
 		$row
 	);
 }
@@ -124,10 +130,6 @@ function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
  * @since 0.8.0
  */
 function desktop_mode_files_user_can_trash_folder( $user_id, $row ) {
-	$user_id = (int) $user_id;
-	$can     = ( $user_id > 0 )
-		&& isset( $row['owner_id'] )
-		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * @since 0.8.0
 	 *
@@ -137,8 +139,8 @@ function desktop_mode_files_user_can_trash_folder( $user_id, $row ) {
 	 */
 	return (bool) apply_filters(
 		'desktop_mode_files_user_can_trash_folder',
-		$can,
-		$user_id,
+		desktop_mode_files_user_owns_row( $user_id, $row ),
+		(int) $user_id,
 		$row
 	);
 }
@@ -149,10 +151,6 @@ function desktop_mode_files_user_can_trash_folder( $user_id, $row ) {
  * @since 0.8.0
  */
 function desktop_mode_files_user_can_restore_folder( $user_id, $row ) {
-	$user_id = (int) $user_id;
-	$can     = ( $user_id > 0 )
-		&& isset( $row['owner_id'] )
-		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * @since 0.8.0
 	 *
@@ -162,8 +160,8 @@ function desktop_mode_files_user_can_restore_folder( $user_id, $row ) {
 	 */
 	return (bool) apply_filters(
 		'desktop_mode_files_user_can_restore_folder',
-		$can,
-		$user_id,
+		desktop_mode_files_user_owns_row( $user_id, $row ),
+		(int) $user_id,
 		$row
 	);
 }
@@ -174,10 +172,6 @@ function desktop_mode_files_user_can_restore_folder( $user_id, $row ) {
  * @since 0.8.0
  */
 function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
-	$user_id = (int) $user_id;
-	$can     = ( $user_id > 0 )
-		&& isset( $row['owner_id'] )
-		&& (int) $row['owner_id'] === $user_id;
 	/**
 	 * @since 0.8.0
 	 *
@@ -187,8 +181,8 @@ function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
 	 */
 	return (bool) apply_filters(
 		'desktop_mode_files_user_can_purge_folder',
-		$can,
-		$user_id,
+		desktop_mode_files_user_owns_row( $user_id, $row ),
+		(int) $user_id,
 		$row
 	);
 }

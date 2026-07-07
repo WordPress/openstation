@@ -13,7 +13,7 @@
  * iframe window from being silently routed to the wallpaper
  * underneath.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import type { DragPayload, DropTarget } from './types';

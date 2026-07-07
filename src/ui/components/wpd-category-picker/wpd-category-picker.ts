@@ -25,10 +25,11 @@
  *     rolls back on REST failure).
  *   - `wpd-categories-open` / `…-close` — popover lifecycle.
  *
- * The chip-row tooltip carries the full breadcrumb path for each
- * selected term ("Tech › Web Dev › Frontend"), built from the term
- * tree at render time so a category renamed elsewhere updates the
- * chip on next refresh.
+ * Selected terms render as `<wpd-crumb-chain>` breadcrumb chains —
+ * one chain per leaf selection, walking root → leaf through the
+ * selected ancestors ("Tech › Web Dev › Frontend") — built from the
+ * term tree at render time so a category renamed elsewhere updates
+ * the chain on next refresh.
  *
  * @public
  * @since 0.8.0
@@ -113,7 +114,8 @@ export class WpdCategoryPicker extends Component {
 				name: 'add-label',
 				type: 'string',
 				default: 'Categorize',
-				description: 'Trigger button label.',
+				description:
+					'Currently inert — labeled the dedicated trigger button, which was replaced by the click-to-open cell. Parsed but unused.',
 			},
 			{
 				name: 'disabled',
@@ -124,7 +126,7 @@ export class WpdCategoryPicker extends Component {
 				name: 'readonly',
 				type: 'boolean attribute',
 				description:
-					'Hides the trigger and the dismiss buttons on chips. Same as setting both `disabled` and bypassing the popover.',
+					'Prevents opening the picker and hides the per-segment remove buttons on the crumb chains.',
 			},
 			{
 				name: 'open',
@@ -143,7 +145,7 @@ export class WpdCategoryPicker extends Component {
 				type: 'integer (string)',
 				default: '2',
 				description:
-					'Number of selected chips to render before collapsing the rest into a "+N" overflow chip. The overflow chip doubles as the picker trigger.',
+					'Currently inert — configured the "+N" overflow chip, which was replaced by the crumb-chain rendering. Parsed but unused.',
 			},
 		],
 		events: [
@@ -166,7 +168,7 @@ export class WpdCategoryPicker extends Component {
 			{
 				name: 'wpd-categories-create',
 				description:
-					'Fires when the user submits the inline create-child input. Consumer is expected to POST to the taxonomy REST endpoint, append the new term to `items`, and (optionally) auto-select it by adding the new id to `value`. Picker shows a per-row spinner while `creating-pending` is set.',
+					'Fires when the user submits the inline create-child input. Consumer is expected to POST to the taxonomy REST endpoint, append the new term to `items`, and (optionally) auto-select it by adding the new id to `value`. Picker shows a per-row spinner while the create is in flight; the consumer clears it by calling `picker.endCreating( parent )` on success or `picker.failCreating( parent )` on error.',
 				detail: '{ name: string; parent: number }',
 			},
 			{
@@ -382,10 +384,6 @@ export class WpdCategoryPicker extends Component {
 	 * mental model ("filed under Tech/Web Dev/Frontend AND
 	 * Tech/Web Dev/Backend") without the ambiguity of merged-tree
 	 * visualizations.
-	 *
-	 * Each chain's hue is hashed from the root name; segments
-	 * inside the chain step their lightness from root (~38%) to
-	 * leaf (~58%) so the eye reads the gradient direction.
 	 */
 	private _buildChains(
 		selectedItems: WpdCategoryItem[],

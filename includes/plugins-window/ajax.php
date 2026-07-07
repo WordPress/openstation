@@ -17,6 +17,8 @@
  *   wp_ajax_desktop_mode_plugins_info     — `plugins_api( 'plugin_information' )`
  *   wp_ajax_desktop_mode_plugins_reviews  — wp.org reviews scrape (DOMDocument)
  *   wp_ajax_desktop_mode_plugins_upload   — `Plugin_Upgrader::install()` from $_FILES
+ *   wp_ajax_desktop_mode_plugins_featured — curated + requires_plugins-discovered
+ *                                           gallery (`plugins_api`)
  *
  * Install-by-slug is handled by Core's existing `wp_ajax_install_plugin`
  * — the JS calls it directly with the standard `'updates'` nonce. We
@@ -819,7 +821,7 @@ add_action( 'wp_ajax_desktop_mode_plugins_upload', 'desktop_mode_plugins_window_
  * `plugins_api( 'plugin_information' )` so the card has up-to-date
  * icons, descriptions, and install counts without us caching them.
  *
- * @since 0.20.0
+ * @since 0.8.6
  *
  * @return string[] List of wp.org plugin slugs.
  */
@@ -839,7 +841,7 @@ function desktop_mode_plugins_window_featured_slugs() {
 	 * own Desktop-Mode-aware add-ons. Order is preserved — the first
 	 * slug renders first in the gallery.
 	 *
-	 * @since 0.20.0
+	 * @since 0.8.6
 	 *
 	 * @param string[] $slugs Plugin slugs.
 	 */
@@ -871,14 +873,14 @@ function desktop_mode_plugins_window_featured_slugs() {
  *   2. Auto-discovered slugs from `plugins_api( 'query_plugins' )` whose
  *      `requires_plugins` array contains `desktop-mode`. wp.org has no
  *      server-side filter for this today, so we run a broad query and
- *      filter client-side server-side. Deduped against the curated set.
+ *      filter server-side. Deduped against the curated set.
  *
  * Body params: (none)
  *
  * Cached for 1h. Failures cached for 15m so a flaky wp.org doesn't
  * hammer the API on every tab open.
  *
- * @since 0.20.0
+ * @since 0.8.6
  */
 function desktop_mode_plugins_window_ajax_featured() {
 	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
@@ -938,7 +940,7 @@ function desktop_mode_plugins_window_ajax_featured() {
 		);
 		if ( is_wp_error( $info ) || ! is_object( $info ) ) {
 			// Skip — a curated slug that 404s shouldn't tank the whole
-			// tab. Logged via WP_Error so debug builds can spot it.
+			// tab.
 			continue;
 		}
 		$row             = (array) $info;
@@ -1003,7 +1005,7 @@ function desktop_mode_plugins_window_ajax_featured() {
 	 * private plugins not on wp.org), or to enforce a hard cap on the
 	 * response.
 	 *
-	 * @since 0.20.0
+	 * @since 0.8.6
 	 *
 	 * @param array $payload  `{ plugins: [...], info: {...} }`.
 	 * @param array $curated  Curated slug list.

@@ -2,7 +2,7 @@
 
 Every desktop window's title bar has a small **modem-style activity LED** sitting between the icon and the title. At rest it's a hollow ring tinted with the user's accent color — a calm "alive, ready" affordance. While work is in flight it blinks like a 1990s data modem; on success it briefly fills in green; on failure it goes solid red with the error message as a tooltip.
 
-> Status: **Experimental** since 0.8.0.
+> Status: `wp.desktop.fetch` is **Stable**; `Window.trackActivity`, `Window.markActivity`, and `<wpd-save-status>` are **Experimental** — all since 0.8.0.
 
 ## The shortest possible adoption
 
@@ -78,7 +78,7 @@ await win.trackActivity( ( async () => {
 } )() );
 ```
 
-Returns the Promise unchanged so callers can chain. The minimum 1.8s saving-display floor still applies, so even a 100ms operation shows a full modem cycle.
+Returns the Promise unchanged so callers can chain. The minimum 1.2s saving-display floor still applies, so even a 100ms operation shows a full modem cycle.
 
 ## Streaming / event-driven flows
 
@@ -122,15 +122,15 @@ await Promise.all( [
 ] );
 ```
 
-The terminal phase reflects the **last settled outcome**. A burst of 5 successful fetches followed by 1 error reads "failed" — surface the bad news; the user wants to know.
+The terminal phase reflects the **burst as a whole** — if any tracked operation in the burst failed, the indicator settles on "failed" (with the most recent error as the tooltip), even when the last operation succeeded. A burst of 5 successful fetches followed by 1 error reads "failed" — surface the bad news; the user wants to know.
 
 ## Subtle UX choices the framework already made
 
-**Minimum 1.8s saving display** — even a 50ms fetch holds the saving phase for ~1.8s so the modem-blink animation has time to register. Concurrent fetches that re-start within the floor cancel any deferred settle, so chained operations keep blinking smoothly without dropping into "saved" between calls.
+**Minimum 1.2s saving display** — even a 50ms fetch holds the saving phase for ~1.2s so the modem-blink animation has time to register. Concurrent fetches that re-start within the floor cancel any deferred settle, so chained operations keep blinking smoothly without dropping into "saved" between calls.
 
 **Always-on idle ring** — at rest, the dot is a 12px hollow circle with a 2px border tinted by the user's accent (`color-mix(in srgb, var(--wp-admin-theme-color) 55%, transparent)`). It looks like a real modem's "ready" LED — quietly present, not flashing, not invisible.
 
-**Drift-by-design animation** — the modem stutter cycles at 1.8s, the soft-glow halo at 2.4s. The two periods are coprime, so the LCM puts the next true cycle repeat at 21.6s — the pattern never reads as a metronome.
+**Drift-by-design animation** — the modem stutter cycles at 1.8s, the soft-glow halo at 2.4s; the offset periods mean the combined pattern only truly repeats every 7.2s, so it never reads as a metronome.
 
 **Reduced-motion** — users with `prefers-reduced-motion: reduce` get a calm solid-on dot during saving (no animation, same affordance).
 
@@ -157,5 +157,5 @@ function trackedXhr( url, body, win ) {
 
 ## See also
 
-- [`docs/javascript-reference.md`](../javascript-reference.md#wpdesktopfetch--input-init-opts---experimental-since-080) — full API surface.
-- [`<wpd-save-status>`](./components-reference.md#wpd-save-status) — the standalone component the title-bar indicator uses. Drop one anywhere (panel headers, plugin own settings forms, custom toolbars) — it auto-listens to a configurable CustomEvent and renders the same modem dot.
+- [`docs/javascript-reference.md`](../javascript-reference.md#wpdesktopfetch-input-init-opts---stable-since-080) — full API surface.
+- [`<wpd-save-status>`](../components-reference.md#display--feedback) — the standalone component the title-bar indicator uses. Drop one anywhere (panel headers, plugin own settings forms, custom toolbars) — it auto-listens to a configurable CustomEvent and renders the same modem dot.

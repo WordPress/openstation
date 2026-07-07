@@ -18,7 +18,7 @@
  * handler sets it before invoking `openById`.
  *
  * @public
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import { __, sprintf } from '../i18n';
@@ -132,7 +132,7 @@ interface WpdSelectElement extends HTMLElement {
 
 /**
  * Profile sub-tab in the Users window. The standalone-window
- * entry point was removed in 0.18.0 — see `mountProfileFormAt`,
+ * entry point was removed in 0.8.1 — see `mountProfileFormAt`,
  * `mountProfileAsideAt`, `mountProfileActivityAt` below for the
  * canonical mount surface.
  */
@@ -153,7 +153,7 @@ interface WpdSelectElement extends HTMLElement {
  * the host element) so re-firing on a different user is the
  * canonical "switch user" gesture.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 export async function mountProfileFormAt(
 	host: HTMLElement,

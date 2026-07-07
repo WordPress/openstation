@@ -18,7 +18,7 @@
  * just lets the user click a button that fails the REST call.
  *
  * @public
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import { __, sprintf } from '../i18n';
@@ -1319,7 +1319,7 @@ interface WpdFormElement extends HTMLElement {
  *
  * Idempotent — safe to call on every render.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function mountAddUserForm(
 	body: HTMLElement,
@@ -1547,7 +1547,7 @@ function optionalString( value: unknown ): string | undefined {
  * default character set with symbols enabled. Used by the Add User
  * form's "Generate strong password" button.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function generateStrongPassword( length: number ): string {
 	const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';

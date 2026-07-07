@@ -17,7 +17,7 @@ import type { AskFn } from '../ai/ask';
  * and the real `AiAssistant` class (in the lazy-loaded
  * `ai-assistant` bundle).
  *
- * @since 0.14.0
+ * @since 0.8.4
  */
 export interface AiAssistantApi {
 	open(): void;
@@ -28,7 +28,7 @@ export interface AiAssistantApi {
 	 * Programmatic access to the AI Copilot — same endpoint the
 	 * overlay uses. Wired by `desktop.ts` via {@link AiAssistantStubMethods.attachAsk}.
 	 *
-	 * @since 0.17.0
+	 * @since 0.8.4
 	 */
 	ask: AskFn;
 }

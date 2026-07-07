@@ -16,7 +16,7 @@
  * Missing key in the visibility map means "no override" — item appears
  * on its native rail and nowhere else.
  *
- * @since 0.25.0
+ * @since 0.8.2
  */
 
 import type { DockItem } from '../dock';
@@ -125,7 +125,7 @@ export function applyDockPlacement(
 	 * icon's `window` field is in this set, skip the synthesis —
 	 * the dock would otherwise paint the same target twice.
 	 *
-	 * @since 0.25.0
+	 * @since 0.8.2
 	 */
 	dockedNativeWindows?: ReadonlySet< string >,
 ): DockItem[] {
@@ -262,9 +262,9 @@ export function applyOrder< T extends { id: string } >(
 
 /**
  * Build the union list shown in the OS Settings → Apps & Icons tab.
- * Dock items first (preserving server order), then desktop icons that
- * don't share an id with a dock item. The resolved `placement` on
- * each entry is what the picker pre-selects.
+ * Union of dock items and desktop icons (dock wins on id collisions),
+ * sorted alphabetically by display title for the flat picker. The
+ * resolved `placement` on each entry is what the picker pre-selects.
  */
 export function listPlaceableItems(
 	dockItems: DockItem[],

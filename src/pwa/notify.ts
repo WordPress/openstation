@@ -77,7 +77,9 @@ export interface NotifyIntent extends NotifyOptions {
  *
  * Behaviour matrix:
  *
- *   - permission `'granted'`     → real Notification, fire-and-forget.
+ *   - permission `'granted'`     → real Notification, fire-and-forget;
+ *                                  if the constructor throws (e.g. a
+ *                                  gesture requirement) → toast fallback.
  *   - permission `'default'`     → ask + then `'granted'` path; on
  *                                  decline falls through to toast.
  *   - permission `'denied'`      → toast fallback.
@@ -133,6 +135,9 @@ export function notify( options: NotifyOptions ): () => void {
 	const perm = Notification.permission;
 	if ( perm === 'granted' ) {
 		dismissNative = renderNative( intent );
+		if ( ! dismissNative ) {
+			fallback();
+		}
 		return dismiss;
 	}
 	if ( perm === 'denied' ) {
@@ -147,6 +152,9 @@ export function notify( options: NotifyOptions ): () => void {
 		if ( result === 'granted' ) {
 			updatePwaState( { notificationsEnabled: true } );
 			dismissNative = renderNative( intent );
+			if ( ! dismissNative ) {
+				fallback();
+			}
 			return;
 		}
 		fallback();
@@ -155,7 +163,7 @@ export function notify( options: NotifyOptions ): () => void {
 	return dismiss;
 }
 
-function renderNative( intent: NotifyIntent ): () => void {
+function renderNative( intent: NotifyIntent ): ( () => void ) | null {
 	let n: Notification | null = null;
 	try {
 		n = new Notification( intent.title, {
@@ -166,12 +174,13 @@ function renderNative( intent: NotifyIntent ): () => void {
 		} );
 	} catch ( err ) {
 		// Some browsers throw when calling `new Notification` directly
-		// from a non-user gesture (e.g. Safari on iOS). Drop to toast
-		// silently — same outcome as a denied permission.
+		// from a non-user gesture (e.g. Safari on iOS). Return `null`
+		// so notify() falls back to the toast surface (which also
+		// publishes `notification-shown` with `fallback: 'toast'`).
 		if ( typeof console !== 'undefined' ) {
 			console.warn( '[desktop-mode] Notification ctor threw:', err );
 		}
-		return () => undefined;
+		return null;
 	}
 
 	if ( intent.onClick ) {

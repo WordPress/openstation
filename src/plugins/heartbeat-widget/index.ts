@@ -11,7 +11,7 @@
  * The bundle's only side effect is publishing a mount callback on
  * `window.desktopModeWidgets[ 'desktop-mode/heartbeat' ]`.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 
 // Side-effect CSS import — Vite emits a separate

@@ -14,7 +14,7 @@
  * typing.
  *
  * @public
- * @since 0.18.0
+ * @since 0.7.0
  */
 
 import {
@@ -101,8 +101,8 @@ function detectContext( textBefore: string ): EditorContext | null {
  * Hooks complete *inside* a quoted string — `insertText` is the
  * raw hook name (no quotes); the editor's existing quote stays.
  * Functions complete in PHP code — `insertText` is the function
- * name with `($1)` so the snippet's tab-stop lands inside the
- * parens for the next argument.
+ * name with `($0)` so the snippet's final tab-stop lands inside
+ * the parens for the next argument.
  */
 function entryToCompletionItem(
 	monaco: typeof Monaco,
@@ -241,8 +241,9 @@ function registerStatelessProviders( monaco: typeof Monaco ): void {
 
 			// Don't bombard the server on every keystroke — wait
 			// until the user has typed at least 2 chars. Hook
-			// context is more permissive (1 char, since the dropdown
-			// is the only signal of what hooks exist).
+			// context has no minimum: completions fire as soon as
+			// the quote opens, since the dropdown is the only
+			// signal of what hooks exist.
 			const minLen = ctx.kind === 'hook' ? 0 : 2;
 			if ( ctx.prefix.length < minLen ) {
 				return { suggestions: [] };
@@ -364,8 +365,9 @@ function registerStatelessProviders( monaco: typeof Monaco ): void {
  *      that's a workspace symbol we can navigate to.
  *   2. Ask the host (index.ts) to open the file as a tab. The host
  *      returns the now-existing Monaco model.
- *   3. Return a `Location` pointing at line 1 of that model — Monaco
- *      switches the editor to it and scrolls there.
+ *   3. Return a `Location` pointing at the symbol's declaration line
+ *      of that model — Monaco switches the editor to it and scrolls
+ *      there.
  *
  * For WP-core symbols the source is a `wp-includes/foo.php` file
  * outside the workspace, so we don't try to navigate. Hover docs +

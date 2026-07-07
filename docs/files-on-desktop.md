@@ -2,7 +2,7 @@
 
 **Status:** Experimental (since 0.9.0).
 
-The Files-on-the-Desktop system lets users place WordPress entities — posts, users, media, terms, comments, bookmarks — on their desktop wallpaper, organize them inside folders, and (in later phases) share folders with other users via Heartbeat-driven sync. Plugin authors extend the system by registering their own file types through the same surface the seven built-ins use.
+The Files-on-the-Desktop system lets users place WordPress entities — posts, users, media, terms, comments, bookmarks — on their desktop wallpaper, organize them inside folders, and (in later phases) share folders with other users via Heartbeat-driven sync. Plugin authors extend the system by registering their own file types through the same surface the ten built-ins use.
 
 This is an evolving feature. Phase 0 (this document's current scope) establishes the registry and the `Desktop_Mode_File` base class. Future phases layer in:
 
@@ -10,10 +10,10 @@ This is an evolving feature. Phase 0 (this document's current scope) establishes
 |---|---|
 | 1 | File-opener registry + per-user associations *(landed)* |
 | 2 | Custom-table schema + REST + store *(landed)* |
-| 3 | Desktop UI: tile rendering, in-desktop drag *(landed; folder windows deferred to Phase 4)* |
+| 3 | Desktop UI: tile rendering, in-desktop drag *(landed)* |
 | 4 | Wallpaper context menu (replaces "minimize all" click) *(landed)* |
 | 5 | OS Settings → File Associations tab *(landed)* |
-| 6 | Folder sharing (private / users / roles / all) + Heartbeat sync *(landed; share dialog UI deferred)* |
+| 6 | Folder sharing (private / users / roles / all) + Heartbeat sync *(landed)* |
 | 7 | Drag from Recycle Bin onto the desktop *(landed as "Pin to desktop"; HTML5 drag UX is a follow-up)* |
 
 Each phase ships independently and is documented as it lands.
@@ -24,7 +24,7 @@ A **file** on the desktop is a `Desktop_Mode_File` subclass adapting one WordPre
 
 ### Files are references, not copies
 
-A placement is a **reference** to a WordPress entity, not a copy of it. Removing a placement (`DELETE /placements/<id>` or `desktop_mode_files_remove()`) drops the placement row only — the underlying post, user, attachment, comment, or term is **never** touched. Folder deletion cascades placements via tombstones but still leaves referenced entities intact. This is asserted in `Tests_DesktopMode_FilesStore::test_remove_does_not_delete_underlying_entity` and is the core safety contract of the system. Plugins that want a "delete the post too" flow must call `wp_delete_post()` (or equivalent) themselves — the framework will not do it for them.
+A placement is a **reference** to a WordPress entity, not a copy of it. Removing a placement drops the placement row only — the underlying post, user, attachment, comment, or term is **never** touched. The REST `DELETE /placements/<id>` defaults to a soft-trash into the recycle bin (restorable); `?force=1` permanently purges the row, and `desktop_mode_files_remove()` is the hard-remove PHP API. Folder deletion cascades placements via tombstones but still leaves referenced entities intact. This is asserted in `Tests_DesktopMode_FilesStore::test_remove_does_not_delete_underlying_entity` and is the core safety contract of the system. Plugins that want a "delete the post too" flow must call `wp_delete_post()` (or equivalent) themselves — the framework will not do it for them.
 
 A **file type** is a slug that points the registry at the right subclass. The built-ins are:
 
@@ -36,13 +36,14 @@ A **file type** is a slug that points the registry at the right subclass. The bu
 | `term` | `Desktop_Mode_Term_File` | `"<taxonomy>:<term_id>"` |
 | `comment` | `Desktop_Mode_Comment_File` | comment id |
 | `folder` | `Desktop_Mode_Folder_File` | folder row id (Phase 2) |
+| `shortcut` | `Desktop_Mode_Shortcut_File` | shortcut id; serialized shape carries `shortcutWindow` (registered native-window id) or `shortcutUrl` |
 | `bookmark` | `Desktop_Mode_Bookmark_File` | URL string |
 | `link` | `Desktop_Mode_Link_File` | URL string — opens in a new browser tab |
 | `embed` | `Desktop_Mode_Embed_File` | URL string — opens in an iframe-backed desktop window; geometry persists on `placement.meta.window` |
 
 `link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name` (set by the wallpaper-menu "New URL" entry) — the tile renderer prefers it over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
 
-`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl` (since 0.20.0). The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes; the cap keeps `meta` blobs small. Plugins can short-circuit or override the resolved value via the `desktop_mode_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
+`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl` (since 0.8.2). The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes, enforced during the download via `limit_response_size` (WP_Http stops reading one byte over the cap, and the truncated over-cap body is then rejected by the size check — never buffered whole); the cap keeps `meta` blobs small. The step-1 page-HTML fetch is itself capped at 1 MB (`DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES`). Plugins can short-circuit or override the resolved value via the `desktop_mode_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
 
 `page` and any custom post type collapse into `post`; `category` and `post_tag` collapse into `term`. UI labels per concrete post type / taxonomy come from the `desktop_mode_file_serialize` filter — there's no need to register a separate type for every CPT.
 
@@ -210,7 +211,7 @@ wp.desktop.files.registerOpener( {
 Three handler kinds:
 
 - `url` — handler returns a URL; the framework opens it in a chromeless iframe window via `wp.desktop.windowManager.open`. Optional `windowId(file)` and `title(file)` overrides.
-- `window` — handler points at a `desktop_mode_register_window`-registered native-window id, with optional per-file `config(file)` (consumed by the window via `wp.desktop.getWindowConfig`).
+- `window` — handler points at a `desktop_mode_register_window`-registered native-window id, with optional per-file `config(file)`. **Caveat:** the computed config is currently dropped by the shell's opener wiring (it opens the window by id without forwarding the config), so it never reaches `wp.desktop.getWindowConfig` — don't rely on per-file config delivery yet.
 - `js` — handler runs free-form code in the shell context. Useful for modals, quick-actions, "preview" affordances.
 
 ### Built-in openers
@@ -222,11 +223,13 @@ Three handler kinds:
 | `wp-user-profile` | `user` | `url` | `user-edit.php?user_id=…` |
 | `wp-term-editor` | `term` | `url` | `term.php?taxonomy=…&tag_ID=…` |
 | `wp-comment-editor` | `comment` | `url` | `comment.php?action=editcomment&c=…` |
-| `browser-navigate` | `bookmark` | `js` | `window.open(url, '_blank', 'noopener,noreferrer')` |
-| `desktop-mode-link-opener` | `link` | `js` | `window.open(url, '_blank', 'noopener,noreferrer')` |
+| `browser-navigate` | `bookmark` | `js` | `window.open(url, '_blank', 'noopener,noreferrer')` — `url` is the server-sanitized `url` field from the serialized shape (the `esc_url_raw()` output), not the raw placement ref, and the protocol is re-validated client-side (http/https only) before opening. |
+| `desktop-mode-link-opener` | `link` | `js` | Same as `browser-navigate`: server-sanitized `shape.url`, http/https re-validated, then `window.open(url, '_blank', 'noopener,noreferrer')`. |
 | `desktop-mode-embed-opener` | `embed` | `js` | Opens an iframe-backed window at `url`. Reads `placement.meta.window` for restored geometry, clamps it to the current desktop area, and persists subsequent drag-end / resize-end back to `placement.meta.window` via REST. |
+| `desktop-mode-folder-window` | `folder` | `js` | Opens a native folder window (breadcrumbs, tile grid, preview pane, status bar). |
+| `desktop-mode-shortcut-opener` | `shortcut` | `js` | Opens the shortcut's registered native window (`shortcutWindow`) or its URL (`shortcutUrl`) in a desktop window — external origins fall back to a new browser tab. |
 
-The `folder` type doesn't ship a built-in opener yet — it lands in Phase 3 alongside the folder native window.
+The `desktop-mode-folder-window` and `desktop-mode-shortcut-opener` openers are registered JS-side only — unlike the other eight, they have no entry in the PHP metadata mirror (`includes/desktop-files/built-in-openers.php`), so don't expect them in `desktop_mode_get_file_openers()`.
 
 ### Opening a file
 
@@ -235,7 +238,7 @@ const file = wp.desktop.files.resolve( shape ); // shape from server
 wp.desktop.files.open( file ); // returns Promise< boolean >
 ```
 
-The dispatcher fires `desktop-mode.files.opening` before invoking the handler and `desktop-mode.files.opened` after success (or `desktop-mode.files.open-failed` on no-opener / handler-throw). All three actions carry `{ file, openerId, kind }` so plugins can observe.
+The dispatcher fires `desktop-mode.files.opening` before invoking the handler and `desktop-mode.files.opened` after success (or `desktop-mode.files.open-failed` on no-opener / handler-throw). `opening` carries `{ file, openerId }`, `opened` carries `{ file, openerId, kind }`, and `open-failed` carries `{ reason, type, ref, openerId?, error? }` (see the hooks table above).
 
 ### User associations
 
@@ -260,7 +263,7 @@ Three tables back the system, created via `dbDelta` on plugin activation and ref
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `{prefix}desktop_mode_file_placements` | One row per placed tile | `user_id`, `parent_id`, `file_type`, `file_ref`, `x`, `y`, `sort_order`, `updated_at_ms`, `meta` (JSON) |
+| `{prefix}desktop_mode_file_placements` | One row per placed tile | `owner_id`, `parent_id`, `file_type`, `file_ref`, `x`, `y`, `sort_order`, `updated_at_ms`, `meta` (JSON) |
 | `{prefix}desktop_mode_folders` | Folder rows | `owner_id`, `name`, `share_mode`, `share_meta` (JSON), `updated_at_ms` |
 | `{prefix}desktop_mode_file_tombstones` | Removal ledger for delta sync | `kind` (`placement` / `folder`), `ref_id`, `removed_at_ms` |
 
@@ -275,11 +278,11 @@ All under `/wp-json/desktop-mode/v1/files`. Permission gate: logged-in + desktop
 | `GET` | `/placements?folder=<id>` | List the viewer's placements under `<id>` (0 = desktop root). |
 | `POST` | `/placements` | `{ parentId?, type, ref, x?, y?, sortOrder?, meta? }` |
 | `PATCH` | `/placements/<id>` | `{ parentId?, x?, y?, sortOrder?, meta? }` |
-| `DELETE` | `/placements/<id>` | Remove. |
+| `DELETE` | `/placements/<id>` | Soft-trash to the recycle bin (restorable). Pass `?force=1` to permanently purge. |
 | `GET` | `/folders` | List folders the viewer owns (Phase 6 expands to shared folders). |
 | `POST` | `/folders` | `{ name, shareMode?, shareMeta? }` |
 | `PATCH` | `/folders/<id>` | `{ name?, shareMode?, shareMeta? }` |
-| `DELETE` | `/folders/<id>` | Removes the folder + cascades placements (each tombstone'd). |
+| `DELETE` | `/folders/<id>` | Soft-trash the folder + cascades child placements (restorable). `?force=1` permanently deletes the folder and the cascaded placements. |
 | `PUT` | `/associations` | Replace the viewer's `{ type → openerId }` map (Phase 5 settings tab writer). |
 
 ### PHP store API
@@ -356,7 +359,7 @@ A `FilesLayer` is the renderer that mounts on a host element (the `#desktop-mode
 
 The class names and `data-*` attributes are part of the stable contract. The tile is built with `buildTile()` in `src/desktop-files/file-tile.ts`.
 
-### Drag *(reworked in 0.18.0)*
+### Drag *(reworked in 0.8.1)*
 
 Drag is owned end-to-end by the centralized `DragManager`
 (`wp.desktop.dragManager`). A tile's `pointerdown` calls
@@ -365,7 +368,7 @@ own document-level pointermove / pointerup / pointercancel listeners
 and drives the gesture from there. Tiles do NOT call `setPointerCapture`
 — pointer capture is incompatible with HTML5 `dragstart` detection on
 draggable elements (the My WordPress entity-tile drag-out bug, fixed
-in 0.18.0).
+in 0.8.1).
 
 Lifecycle:
 
@@ -412,7 +415,7 @@ all stripped from the document). Plugins observing the bus see
 `document` CustomEvents — `desktop-mode.drag.{start,move,enter,leave,
 rejected,commit,cancel,end}`.
 
-Visual feedback *(strengthened in 0.20.0)*: while a drag is in
+Visual feedback *(strengthened in 0.8.1)*: while a drag is in
 flight the manager sets three attributes on `document.body` so
 shell CSS can coordinate without each surface having to subscribe
 to the CustomEvents:
@@ -451,7 +454,7 @@ intentional rather than buggy.
 Legacy: HTML5 drag (`setShortcutDragPayload` /
 `hasShortcutPayload` / `readShortcutPayload`) remains exported from
 `drag-shortcut.ts` for plugins that emit cross-window drags via
-`dataTransfer`, but is `@deprecated since 0.18.0`. New code uses the
+`dataTransfer`, but is `@deprecated since 0.8.1`. New code uses the
 manager.
 
 ### Open
@@ -474,7 +477,7 @@ doAction( 'desktop-mode.tile.rendered', { tile: HTMLElement } );
 
 `tile-rendered` is the canonical hook for plugin decorations (badges, status dots, drag handles) on the **desktop-files** surface. The layer's fingerprint cache preserves your decoration across no-op repaints; you only need to re-apply on `tile-rendered`.
 
-Use the generic `desktop-mode.tile.*` pair when you want to decorate tiles **everywhere** (My WordPress sections, drill-in usage grids, any future surface using `<wpd-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** since 0.9.0 (placement-shaped) and **Experimental** since 0.21.0 (generic).
+Use the generic `desktop-mode.tile.*` pair when you want to decorate tiles **everywhere** (My WordPress sections, drill-in usage grids, any future surface using `<wpd-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** since 0.9.0 (placement-shaped) and **Experimental** since 0.8.6 (generic).
 
 ### Public API
 
@@ -494,6 +497,8 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 | Id | Label | Behavior |
 |---|---|---|
 | `create-folder` | New folder | Prompts for a name, then `POST /folders`. |
+| `new-url` | New URL | Prompts for a name + URL, then `POST /placements` with a `link` placement (the tile opens the URL in a new browser tab). |
+| `sort-by` | Sort by | Submenu with checkable options: Name (A → Z), Name (Z → A), Date (newest first), Date (oldest first); re-sorts the desktop icons. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
 | `os-settings` | OS Settings | Opens the OS Settings window. |
 
@@ -552,8 +557,7 @@ doAction( 'desktop-mode.wallpaper-context-menu.activated', { id: string, callbac
 - Folders owned by `$user_id`.
 - Folders not owned by them whose `share_mode` resolves true for them:
   - `'all'` — every desktop-mode user.
-  - `'users'` — `$user_id` is in `share_meta.users`.
-  - `'roles'` — `$user_id` has any role in `share_meta.roles`.
+  - `'users'` / `'roles'` — resolved through the shares + decisions tables via `desktop_mode_folder_share_user_capability()`: an accepted user-principal share, or an accepted per-user decision on a role-principal share (see [folder-sharing.md](folder-sharing.md)). `share_meta` on the folders row is diagnostic only — it is never consulted for visibility.
 
 Plugins can register a custom share mode by adding it to `desktop_mode_files_share_modes` and computing the per-folder decision via `desktop_mode_files_user_can_see_folder`.
 
@@ -567,6 +571,7 @@ Wire format:
 data.desktop_mode_files_subscribe = {
     folderVersions: { '<folderId>': lastSeenUpdatedAtMs, … },
     placementsVersion: lastSeenUpdatedAtMs,
+    sharesVersion: lastSeenInviteMs, // highwater of invitedAtMs across received invites
 };
 ```
 
@@ -577,10 +582,13 @@ response.desktop_mode_files = {
     placements: [ RestPlacementShape, … ], // upserts since placementsVersion
     folders:    [ RestFolderShape, … ],    // upserts (incl. share-mode flips)
     removed:    { placements: number[], folders: number[] }, // tombstone ids
+    shares:     { pending: [ /* ShareShape + folderName / ownerId / ownerName / ownerAvatar */ ] },
     serverTimeMs: number,
     truncated: boolean,
 };
 ```
+
+Pending share invites ride the same heartbeat — `shares.pending` carries every undecided invite newer than `sharesVersion`, each share shape enriched with `folderName`, `ownerId`, `ownerName`, and `ownerAvatar` for the invite banner. See [folder-sharing.md](folder-sharing.md) for the accept/deny opt-in flow.
 
 The client merges upserts via the existing store helpers with `source: 'remote'`, so plugins listening to `desktop-mode-files-changed` can disambiguate between local edits and incoming sync.
 
@@ -588,7 +596,7 @@ When `truncated: true`, the framework issues a one-shot REST resync of every hyd
 
 ### Setting share mode
 
-The Phase-6 ship is data-path only — the kebab dialog UI lands once folder native windows arrive. Today plugins (or admin REST tools) set sharing via the existing endpoint:
+Interactive sharing goes through the in-shell Share dialog — the folder tile's context menu ("Share folder…" / "Manage sharing…") or the folder window's title-bar Share button — backed by the `/files/folders/<id>/shares` REST routes; see [folder-sharing.md](folder-sharing.md). Plugins (or admin REST tools) can still set sharing programmatically via the low-level folders endpoint:
 
 ```
 PATCH /wp-json/desktop-mode/v1/files/folders/<id>
@@ -602,11 +610,7 @@ The `desktop_mode_folder_shared` action fires whenever `share_mode` or `share_me
 
 ## What's NOT here yet
 
-- Folder native windows + the kebab "Share…" dialog.
 - Drag-from-Recycle-Bin via HTML5 native drag (the "Pin to desktop" toolbar button ships the equivalent action today).
-- The wallpaper-click context menu (Phase 4).
-- File associations UI (Phase 5).
-- Folder sharing + cross-user sync (Phase 6).
-- Drag from the Recycle Bin (Phase 7).
+- The folder-sharing v1 non-goals — owner transfer, sharing of non-folder file types, cascade share grants (sub-folders need their own grant), recipient-side rename of a shared folder. See [folder-sharing.md](folder-sharing.md).
 
-If you need any of these today, watch the changelog for the relevant phase to land — the registry shape from Phase 0 is forwards-compatible with every later phase.
+If you need any of these today, watch the changelog — the registry shape from Phase 0 is forwards-compatible with every later phase.

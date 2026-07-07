@@ -118,7 +118,7 @@ export function unregister( id: string ): void {
  * is torn down (or can be left to self-clean via `isConnected`
  * checks inside the callback).
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param cb Listener to invoke on change.
  * @return Unsubscribe function.

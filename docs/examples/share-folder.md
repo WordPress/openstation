@@ -93,17 +93,10 @@ add_filter( 'desktop_mode_files_share_user_query_args', function ( $args, $req_p
 
 ## React from JS
 
-Every store mutation publishes to the activity bus:
-
-```js
-wp.desktop.activity.subscribe( 'desktop-mode/folder-share-accepted', ( payload ) => {
-    // payload: { folderId, shareId, principalType, principalRef, capability }
-    console.log( 'Accepted invite for folder', payload.folderId );
-} );
-```
-
-The cross-bundle shares store lives at the slot
-`'desktop-files/shares'`:
+Share state lives in the cross-bundle shares store at the slot
+`'desktop-files/shares'` — subscribe to it to react to share
+lifecycle changes (new pending invites, accepts, revokes) from
+any bundle:
 
 ```ts
 import { createSharedStore } from '...';
@@ -158,8 +151,9 @@ semantics.
 ## Veto a folder delete (confirmation prompts, audit guards)
 
 `desktop_mode_files_can_delete_folder` runs after the ownership
-check and before the cascade. Return `false` or a `WP_Error` to
-block — anything else lets the cascade proceed.
+check and before the cascade. Return a `WP_Error` or anything
+other than `true` to block — the cascade proceeds only when the
+filter resolves to exactly `true` (the default).
 
 ```php
 add_filter(
@@ -238,4 +232,4 @@ next heartbeat tick — no extra work needed for live UI sync.
 ## See also
 
 - [folder-sharing.md](../folder-sharing.md) — full architecture.
-- [hooks-reference.md](../hooks-reference.md#folder-sharing-since-0180-experimental).
+- [hooks-reference.md](../hooks-reference.md#folder-sharing-since-085-experimental).

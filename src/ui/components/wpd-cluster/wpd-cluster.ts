@@ -19,7 +19,7 @@
  * Children wrap to a new line when the container narrows, so a
  * cluster in a resizable window degrades gracefully.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -34,7 +34,7 @@ export class WpdCluster extends Component {
 		summary:
 			'Horizontal flex layout with a gap + wrap. The sibling of <wpd-stack> — use it for rows of controls (button groups, toolbars). Children wrap gracefully when the container narrows.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

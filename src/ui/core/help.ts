@@ -18,7 +18,7 @@
  * a fallback rendering built from `static props`; the descriptor is
  * how authors enrich that baseline.
  *
- * @since 0.16.0
+ * @since 0.5.1
  */
 
 import type { TemplateResult } from './html';

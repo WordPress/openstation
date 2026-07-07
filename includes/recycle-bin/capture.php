@@ -21,7 +21,7 @@
  *     external storage, etc.).
  *
  * @package WPDesktopMode
- * @since   0.19.0
+ * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,7 +34,7 @@ defined( 'ABSPATH' ) || exit;
  * filter pipeline, so a plugin that wants a single audit log can
  * subscribe once.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @return string[]
  */
@@ -44,10 +44,11 @@ function desktop_mode_recycle_bin_capture_post_types() {
 	/**
 	 * Filter the post types the recycle bin tracks.
 	 *
-	 * Returning a list excluding `attachment` disables the soft-delete
-	 * interception entirely — vanilla WordPress media deletion resumes.
+	 * Returning a list excluding `attachment` stops the bin from
+	 * stamping and listing trashed attachments; it does not change how
+	 * WordPress deletes media (that is governed by `MEDIA_TRASH`).
 	 *
-	 * @since 0.19.0
+	 * @since 0.6.0
 	 *
 	 * @param string[] $types Post types whose deletions the recycle bin tracks.
 	 */
@@ -64,7 +65,7 @@ function desktop_mode_recycle_bin_capture_post_types() {
  * include the user id — we stash that ourselves under a private meta
  * key so the table can show "deleted by Alice".
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @param int $post_id Post being trashed.
  */
@@ -87,7 +88,7 @@ function desktop_mode_recycle_bin_on_trash_post( $post_id ) {
  * bin, and gets cleaned up by core when the post is permanently
  * deleted via the standard postmeta cascade.
  *
- * @since 0.19.0
+ * @since 0.6.0
  *
  * @param int $post_id Post id being captured.
  */
@@ -104,7 +105,7 @@ function desktop_mode_recycle_bin_record_capture( $post_id ) {
 	 * Use this to mirror the event into an external audit log or to
 	 * extend the captured payload with custom postmeta.
 	 *
-	 * @since 0.19.0
+	 * @since 0.6.0
 	 *
 	 * @param int    $post_id Post id that was captured.
 	 * @param int    $user_id User id who triggered the capture.
@@ -123,7 +124,7 @@ add_action( 'wp_trash_post', 'desktop_mode_recycle_bin_on_trash_post', 10, 1 );
  * anything (core already routes to a real trash status), just
  * stamp the moment so the bin can show "by Alice, 5 minutes ago".
  *
- * @since 0.21.0
+ * @since 0.6.0
  *
  * @param int $comment_id Comment about to be trashed.
  */
@@ -138,7 +139,7 @@ function desktop_mode_recycle_bin_on_trash_comment( $comment_id ) {
 	/**
 	 * Fires after the recycle bin records a comment capture.
 	 *
-	 * @since 0.21.0
+	 * @since 0.6.0
 	 *
 	 * @param int    $comment_id Comment id that was captured.
 	 * @param int    $user_id    User id who triggered the capture.

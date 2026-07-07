@@ -1,6 +1,6 @@
 # The native-window render `ctx`
 
-Native windows registered via `desktop_mode_register_window()` (or `wp.desktop.registerWindow()`) get a `render` callback. *Since 0.8.2* the callback receives a second `ctx` argument carrying window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, the `markLoading`/`markReady` loading-overlay controls, and the channel API.
+Native windows registered via `desktop_mode_register_window()` (or `wp.desktop.registerWindow()`) get a `render` callback. The callback has received a second `ctx` argument since 0.5.5 (the channel API; `ctx.window.markLoading`/`markReady` followed in 0.6.0). *Since 0.8.2* the ctx also carries the rest of the window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, and top-level `markLoading`/`markReady` aliases for the loading-overlay controls.
 
 ```ts
 render: (
@@ -24,13 +24,13 @@ Legacy unary callbacks (`render: ( body ) => …`) keep working — the second a
 | `window.send( channel, payload? )` | typed pub | Publish on this window's channel — every `Window.on(channel, cb)` subscriber sees it. |
 | `window.on( channel, cb )` | typed sub | Subscribe to messages sent FROM outside via `Window.send()`. |
 
-`markLoading` / `markReady` exist both at the top level (`ctx.markLoading()`) and under `ctx.window` (`ctx.window.markLoading()`). The top-level shape exists for `{ markLoading, markReady, signal, onResize }` destructuring; `ctx.window.*` is the original 0.5.5 surface and stays.
+`markLoading` / `markReady` exist both at the top level (`ctx.markLoading()`) and under `ctx.window` (`ctx.window.markLoading()`). The top-level shape exists for `{ markLoading, markReady, signal, onResize }` destructuring; `ctx.window` is the original surface and stays — `send`/`on` since 0.5.5, `markLoading`/`markReady` since 0.6.0.
 
 ## Recipe — feed reader that cancels on close, pauses while hidden
 
 ```ts
 window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
-window.desktopModeNativeWindows[ 'my-feed/inbox' ] = async (
+window.desktopModeNativeWindows[ 'my-feed-inbox' ] = async (
     body,
     { signal, onResize, onHide, onShow, markLoading, markReady, window: ch },
 ) => {
@@ -87,7 +87,7 @@ The user's render-returned teardown runs AFTER the closing animation. So async p
 ## Backwards compatibility
 
 - Existing unary `( body ) => …` callbacks: continue to work. JS ignores the extra arg.
-- Existing 0.5.5 callers using `ctx.window.markLoading()`: still work — that surface is unchanged.
+- Existing callers using `ctx.window.markLoading()` (the 0.6.0 surface): still work — that surface is unchanged.
 - `WindowConfig.onResize` (registration-time field): still fires alongside `ctx.onResize`. Use whichever fits your code shape — the registration-time field is an inline bag for plugins that prefer not to subscribe inside the render body.
 
 ## See also

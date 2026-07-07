@@ -22,7 +22,7 @@
  * wallpaper leaving, the apply path falls back to a built-in
  * default rather than leaving a dead id in place.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { doAction, HOOKS } from './../hooks';
@@ -67,6 +67,9 @@ export function createWallpaperRegistrySync(
 				id: entry.id,
 				error: err,
 			} );
+			// Don't mark the URL as loaded — a transient load failure
+			// should be re-fetched on the next sync.
+			return;
 		}
 		loadedScripts.add( entry.scriptUrl );
 	};

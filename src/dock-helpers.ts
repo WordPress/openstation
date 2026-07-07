@@ -9,7 +9,7 @@
  * the same hook surface in two lines instead of re-implementing the
  * filter chain.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from './hooks';
@@ -37,7 +37,7 @@ import type {
  * ```
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function applyTileClasses(
 	baseClasses: string[],
@@ -68,7 +68,7 @@ export function applyTileClasses(
  * for full hook compatibility.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function applyTileElement(
 	tile: HTMLElement,
@@ -98,7 +98,7 @@ export function applyTileElement(
  * to display.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function applyTileTooltip(
 	label: string,
@@ -128,7 +128,7 @@ export function applyTileTooltip(
  * (IntersectionObserver, getBoundingClientRect-driven animations).
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function dispatchTileRendered(
 	el: HTMLElement,
@@ -154,7 +154,7 @@ export function dispatchTileRendered(
  * decoration state and to apply bulk treatments after a sweep.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function dispatchBeforeRender( ctx: DockRenderContext ): void {
 	doAction( HOOKS.DOCK_BEFORE_RENDER, ctx );
@@ -190,7 +190,7 @@ const customSelectors = new Set< string >();
  * the result of this helper.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function isDockElement( target: EventTarget | null ): boolean {
 	if ( ! target || typeof ( target as Element ).closest !== 'function' ) {
@@ -218,7 +218,7 @@ export function isDockElement( target: EventTarget | null ): boolean {
  * Returns an unregister function. Idempotent.
  *
  * @public
- * @since 0.18.0
+ * @since 0.6.0
  */
 export function registerDockSelector( selector: string ): () => void {
 	if ( typeof selector !== 'string' || selector.trim() === '' ) {

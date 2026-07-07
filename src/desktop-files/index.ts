@@ -1,8 +1,8 @@
 /**
  * Desktop Mode — Files-on-the-desktop entry point.
  *
- * Importing this module side-effect registers the seven built-in
- * file types and the seven built-in openers with their respective
+ * Importing this module side-effect registers the ten built-in
+ * file types and the ten built-in openers with their respective
  * registries, then exposes the public API on `wp.desktop.files`.
  *
  * Higher phases extend this module with the REST/store layer

@@ -8,7 +8,7 @@
  * Pages do.
  *
  * @public
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import { __ } from '../i18n';

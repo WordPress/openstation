@@ -1,0 +1,7 @@
+# Keep the commit-SHA pins in .github/workflows/ up to date via PRs.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

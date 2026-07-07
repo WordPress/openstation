@@ -80,11 +80,37 @@ abstract class Desktop_Mode_Extension_Rest {
 	/**
 	 * Hook callback — registers every route declared by
 	 * {@see routes()} under the namespace.
+	 *
+	 * Handles both shapes `register_rest_route()` accepts: a
+	 * single endpoint array (top-level `callback`) and a
+	 * numerically-indexed list of endpoint arrays (one per HTTP
+	 * method). Each endpoint missing a `permission_callback`
+	 * gets {@see check_caps()}.
 	 */
 	public function register_routes(): void {
 		foreach ( $this->routes() as $route => $args ) {
-			if ( empty( $args['permission_callback'] ) ) {
-				$args['permission_callback'] = array( $this, 'check_caps' );
+			if ( isset( $args['callback'] ) ) {
+				// Single-endpoint shape.
+				if ( empty( $args['permission_callback'] ) ) {
+					$args['permission_callback'] = array( $this, 'check_caps' );
+				}
+			} else {
+				/*
+				 * Multi-endpoint shape — one endpoint array per
+				 * HTTP method, keyed numerically. Core treats
+				 * non-numeric keys (e.g. the shared `args` key)
+				 * as route options, so gate each numeric entry
+				 * individually; a top-level permission_callback
+				 * would be ignored per endpoint.
+				 */
+				foreach ( $args as $key => $endpoint ) {
+					if ( ! is_numeric( $key ) || ! is_array( $endpoint ) ) {
+						continue;
+					}
+					if ( empty( $endpoint['permission_callback'] ) ) {
+						$args[ $key ]['permission_callback'] = array( $this, 'check_caps' );
+					}
+				}
 			}
 			register_rest_route(
 				$this->namespace(),
@@ -96,7 +122,8 @@ abstract class Desktop_Mode_Extension_Rest {
 
 	/**
 	 * Default permission callback. Logged-in users with all
-	 * required caps pass; everyone else gets a 403.
+	 * required caps pass; logged-out users get a 401 and
+	 * logged-in users missing any required cap get a 403.
 	 *
 	 * @return true|WP_Error
 	 */

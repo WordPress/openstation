@@ -249,8 +249,8 @@ function desktop_mode_build_dock_items() {
  * a CSS class, or a CSS `url()` background without further escaping.
  *
  * @since 0.4.0
- * @since 0.11.0 Rejected `data:` URIs outright (regression — see 0.18.x).
- * @since 0.18.x Re-allowed `data:image/svg+xml{;base64,|,}` so plugin
+ * @since 0.8.1 Rejected `data:` URIs outright (regression — see 0.8.1).
+ * @since 0.8.1 Re-allowed `data:image/svg+xml{;base64,|,}` so plugin
  *               icons (Yoast, WooCommerce, Jetpack, etc.) appear on the
  *               dock instead of collapsing to the gear fallback.
  *               Other `data:` schemes still rejected.
@@ -469,7 +469,7 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
  *   4. Exclude Desktop Mode itself — deactivating from inside the shell
  *      is handled by the plugins-window's self-deactivate path.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param string $menu_slug The menu slug from `$menu[$i][2]` (e.g. `woocommerce`,
  *                          `admin.php?page=jetpack`, `edit.php?post_type=foo`).
@@ -566,7 +566,7 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
  * has no entry (extremely rare — would mean the plugin file isn't
  * installed but somehow registered a menu).
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param string $plugin_file Plugin file relative to `WP_PLUGIN_DIR`.
  * @return string Display name.
@@ -589,7 +589,7 @@ function desktop_mode_plugin_display_name( $plugin_file ) {
  * path isn't under the plugins directory, or doesn't match any active
  * plugin folder.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param string $file Absolute filesystem path.
  * @return string|null Plugin file (`<folder>/<file>.php`) or null.
@@ -627,7 +627,7 @@ function desktop_mode_plugin_file_for_path( $file ) {
  * file, then map that file to an active plugin via
  * {@see desktop_mode_plugin_file_for_path()}.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param mixed $callback A WP-style callback.
  * @return string|null Plugin file or null.
@@ -643,7 +643,7 @@ function desktop_mode_plugin_file_for_callback( $callback ) {
  * wrapped admin_menu callbacks installed by
  * {@see desktop_mode_install_menu_attribution_tracker()}.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @return array<string,string>
  */
@@ -682,7 +682,7 @@ function &desktop_mode_menu_attribution_map() {
  * Idempotent — runs at most once per request via a static `$installed`
  * flag.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @return void
  */
@@ -809,7 +809,7 @@ add_action( '_user_admin_menu', 'desktop_mode_install_menu_attribution_tracker',
  * The list intentionally drops `admin.php` so plugin-registered
  * top-level pages can still be resolved.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param string $base Slug with query string already stripped.
  * @return bool True when the base filename is a Core admin handler.
@@ -863,7 +863,7 @@ function desktop_mode_is_pure_core_file( $base ) {
  * registered type is builtin, or when the registrant lives outside
  * `WP_PLUGIN_DIR` (theme-registered or mu-plugin).
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param string $slug Menu slug.
  * @return string|null Plugin file or null.
@@ -900,7 +900,7 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
  * non-builtin type has an entry. Stored in a static so repeated
  * lookups during a single request don't trigger the populator twice.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @return array{post_type: array<string,string>, taxonomy: array<string,string>}
  */
@@ -927,7 +927,7 @@ function &desktop_mode_get_typed_plugin_map() {
  * to a `get_plugins()` entry. Cheap — the backtrace is bounded to 12
  * frames and runs once per type registration, all during `init`.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param string $type_or_post_type Type name (CPT or taxonomy).
  * @param string $kind              Either `'post_type'` or `'taxonomy'`.
@@ -971,7 +971,7 @@ function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
  * `register_post_type()` / `register_taxonomy()` calls without
  * forcing Core to load its admin include earlier than it would.
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @return string|null Plugin file or null.
  */
@@ -1017,7 +1017,7 @@ add_action(
  * the callback shape isn't reflectable (rare — e.g. an invocable object
  * whose `__invoke` lives in PHP core).
  *
- * @since 0.27.0
+ * @since 0.8.6
  *
  * @param mixed $callback A callback as stored in `WP_Hook::$callbacks[$prio][$id]['function']`.
  * @return string|null Absolute filesystem path of the declaring file, or null.
@@ -1132,67 +1132,41 @@ function desktop_mode_build_menu_payload() {
 
 	$dock = array_merge( $core, $plugin );
 
-	return array(
-		'dockItems'        => $dock,
-		'nativeWindows'    => desktop_mode_build_native_windows_payload(),
-		'serverWidgets'    => function_exists( 'desktop_mode_build_desktop_widgets_payload' )
-			? desktop_mode_build_desktop_widgets_payload()
-			: array(),
-		'serverWallpapers' => function_exists( 'desktop_mode_build_desktop_wallpapers_payload' )
-			? desktop_mode_build_desktop_wallpapers_payload()
-			: array(),
-		'serverCommandScripts' => function_exists( 'desktop_mode_build_desktop_command_scripts_payload' )
-			? desktop_mode_build_desktop_command_scripts_payload()
-			: array(),
-		'serverCommands'   => function_exists( 'desktop_mode_build_desktop_commands_payload' )
-			? desktop_mode_build_desktop_commands_payload()
-			: array(),
-		'serverSettingsTabScripts' => function_exists( 'desktop_mode_build_desktop_settings_tab_scripts_payload' )
-			? desktop_mode_build_desktop_settings_tab_scripts_payload()
-			: array(),
-		'serverSettingsTabs' => function_exists( 'desktop_mode_build_desktop_settings_tabs_payload' )
-			? desktop_mode_build_desktop_settings_tabs_payload()
-			: array(),
-		'serverDockRailRendererScripts' => function_exists( 'desktop_mode_build_dock_rail_renderer_scripts_payload' )
-			? desktop_mode_build_dock_rail_renderer_scripts_payload()
-			: array(),
-		'serverTitleBarButtonScripts' => function_exists( 'desktop_mode_build_desktop_titlebar_button_scripts_payload' )
-			? desktop_mode_build_desktop_titlebar_button_scripts_payload()
-			: array(),
-		'serverUnfocusEffectScripts' => function_exists( 'desktop_mode_build_desktop_unfocus_effect_scripts_payload' )
-			? desktop_mode_build_desktop_unfocus_effect_scripts_payload()
-			: array(),
-		'serverWindowThemeScripts'  => function_exists( 'desktop_mode_build_window_theme_scripts_payload' )
-			? desktop_mode_build_window_theme_scripts_payload()
-			: array(),
-		'serverWindowThemes'        => function_exists( 'desktop_mode_build_window_themes_payload' )
-			? desktop_mode_build_window_themes_payload()
-			: array(),
-		'serverWindowControlScripts' => function_exists( 'desktop_mode_build_window_control_scripts_payload' )
-			? desktop_mode_build_window_control_scripts_payload()
-			: array(),
-		'serverWindowControls'      => function_exists( 'desktop_mode_build_window_controls_payload' )
-			? desktop_mode_build_window_controls_payload()
-			: array(),
-		'serverWindowSlotScripts'   => function_exists( 'desktop_mode_build_window_slot_scripts_payload' )
-			? desktop_mode_build_window_slot_scripts_payload()
-			: array(),
-		'serverWindowSlots'         => function_exists( 'desktop_mode_build_window_slots_payload' )
-			? desktop_mode_build_window_slots_payload()
-			: array(),
-		'serverWindowChromeScripts' => function_exists( 'desktop_mode_build_window_chrome_scripts_payload' )
-			? desktop_mode_build_window_chrome_scripts_payload()
-			: array(),
-		'serverWindowChromes'       => function_exists( 'desktop_mode_build_window_chromes_payload' )
-			? desktop_mode_build_window_chromes_payload()
-			: array(),
-		'serverWindowNotices'       => function_exists( 'desktop_mode_build_window_notices_payload' )
-			? desktop_mode_build_window_notices_payload()
-			: array(),
-		'desktopIcons'     => function_exists( 'desktop_mode_build_desktop_icons_payload' )
-			? desktop_mode_build_desktop_icons_payload()
-			: array(),
+	$payload = array(
+		'dockItems'     => $dock,
+		'nativeWindows' => desktop_mode_build_native_windows_payload(),
 	);
+
+	// Optional per-surface payload builders — each module ships a
+	// zero-arg `desktop_mode_build_*_payload()`; modules that aren't
+	// loaded this request contribute an empty array.
+	$builders = array(
+		'serverWidgets'                 => 'desktop_mode_build_desktop_widgets_payload',
+		'serverWallpapers'              => 'desktop_mode_build_desktop_wallpapers_payload',
+		'serverCommandScripts'          => 'desktop_mode_build_desktop_command_scripts_payload',
+		'serverCommands'                => 'desktop_mode_build_desktop_commands_payload',
+		'serverSettingsTabScripts'      => 'desktop_mode_build_desktop_settings_tab_scripts_payload',
+		'serverSettingsTabs'            => 'desktop_mode_build_desktop_settings_tabs_payload',
+		'serverDockRailRendererScripts' => 'desktop_mode_build_dock_rail_renderer_scripts_payload',
+		'serverTitleBarButtonScripts'   => 'desktop_mode_build_desktop_titlebar_button_scripts_payload',
+		'serverUnfocusEffectScripts'    => 'desktop_mode_build_desktop_unfocus_effect_scripts_payload',
+		'serverWindowThemeScripts'      => 'desktop_mode_build_window_theme_scripts_payload',
+		'serverWindowThemes'            => 'desktop_mode_build_window_themes_payload',
+		'serverWindowControlScripts'    => 'desktop_mode_build_window_control_scripts_payload',
+		'serverWindowControls'          => 'desktop_mode_build_window_controls_payload',
+		'serverWindowSlotScripts'       => 'desktop_mode_build_window_slot_scripts_payload',
+		'serverWindowSlots'             => 'desktop_mode_build_window_slots_payload',
+		'serverWindowChromeScripts'     => 'desktop_mode_build_window_chrome_scripts_payload',
+		'serverWindowChromes'           => 'desktop_mode_build_window_chromes_payload',
+		'serverWindowNotices'           => 'desktop_mode_build_window_notices_payload',
+		'desktopIcons'                  => 'desktop_mode_build_desktop_icons_payload',
+	);
+
+	foreach ( $builders as $key => $builder ) {
+		$payload[ $key ] = function_exists( $builder ) ? $builder() : array();
+	}
+
+	return $payload;
 }
 
 /**
@@ -1230,7 +1204,7 @@ function desktop_mode_build_menu_payload() {
  * need identical handle→payload plumbing to power mid-session dynamic
  * script loading without the `wp_print_scripts` lifecycle.
  *
- * @since 0.10.0
+ * @since 0.8.1
  * @since 0.6.0 Returns full payload (was `string` URL only). Renamed
  *              from `desktop_mode_resolve_script_url`.
  *
@@ -1338,7 +1312,7 @@ function desktop_mode_resolve_script_payload( $handle ) {
  * blobs attached to the handle so the shell can replay the same data
  * the print pipeline would have written.
  *
- * @since 0.18.1
+ * @since 0.8.1
  *
  * @param string $handle WP style handle.
  * @return array{ url:string, inline:string[] } Payload (empty `url` on miss).
@@ -1402,7 +1376,7 @@ function desktop_mode_resolve_style_payload( $handle ) {
  * tests), so undeduped notices spam the error log AND trip
  * `expectedIncorrectUsage` assertions in unrelated tests.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param string $function_name `desktop_mode_register_*_script` — passed verbatim to `_doing_it_wrong`.
  * @param string $kind          Human label: `Command`, `Settings-tab`, `Title-bar button`.
@@ -1431,7 +1405,7 @@ function desktop_mode_warn_unresolvable_script_handle( $function_name, $kind, $h
 			esc_html( $kind ),
 			esc_html( $handle )
 		),
-		'0.18.0'
+		'0.8.1'
 	);
 }
 
@@ -1441,48 +1415,32 @@ function desktop_mode_warn_unresolvable_script_handle( $function_name, $kind, $h
  * `set_up` so prior tests' synthetic handles can't leak into
  * later assertions about payload shape.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 function desktop_mode_flush_script_handle_registries() {
-	if ( function_exists( 'desktop_mode_flush_desktop_command_script_registry' ) ) {
-		desktop_mode_flush_desktop_command_script_registry();
+	$flushers = array(
+		'desktop_mode_flush_desktop_command_script_registry',
+		'desktop_mode_flush_desktop_settings_tab_script_registry',
+		'desktop_mode_flush_dock_rail_renderer_script_registry',
+		'desktop_mode_flush_desktop_titlebar_button_script_registry',
+		'desktop_mode_flush_desktop_unfocus_effect_script_registry',
+		'desktop_mode_flush_window_theme_script_registry',
+		'desktop_mode_flush_window_theme_registry',
+		'desktop_mode_flush_window_control_script_registry',
+		'desktop_mode_flush_window_control_registry',
+		'desktop_mode_flush_window_slot_script_registry',
+		'desktop_mode_flush_window_slot_registry',
+		'desktop_mode_flush_window_chrome_script_registry',
+		'desktop_mode_flush_window_chrome_registry',
+		'desktop_mode_flush_window_notice_registry',
+	);
+
+	foreach ( $flushers as $flusher ) {
+		if ( function_exists( $flusher ) ) {
+			$flusher();
+		}
 	}
-	if ( function_exists( 'desktop_mode_flush_desktop_settings_tab_script_registry' ) ) {
-		desktop_mode_flush_desktop_settings_tab_script_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_desktop_titlebar_button_script_registry' ) ) {
-		desktop_mode_flush_desktop_titlebar_button_script_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_desktop_unfocus_effect_script_registry' ) ) {
-		desktop_mode_flush_desktop_unfocus_effect_script_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_theme_script_registry' ) ) {
-		desktop_mode_flush_window_theme_script_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_theme_registry' ) ) {
-		desktop_mode_flush_window_theme_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_control_script_registry' ) ) {
-		desktop_mode_flush_window_control_script_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_control_registry' ) ) {
-		desktop_mode_flush_window_control_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_slot_script_registry' ) ) {
-		desktop_mode_flush_window_slot_script_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_slot_registry' ) ) {
-		desktop_mode_flush_window_slot_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_chrome_script_registry' ) ) {
-		desktop_mode_flush_window_chrome_script_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_chrome_registry' ) ) {
-		desktop_mode_flush_window_chrome_registry();
-	}
-	if ( function_exists( 'desktop_mode_flush_window_notice_registry' ) ) {
-		desktop_mode_flush_window_notice_registry();
-	}
+
 	desktop_mode_warn_unresolvable_script_handle( '', '', '__flush__' );
 }
 
@@ -1496,7 +1454,7 @@ function desktop_mode_flush_script_handle_registries() {
  * mid-session activations can load the plugin's JS dynamically
  * without a full shell reload).
  *
- * @since 0.10.0
+ * @since 0.8.1
  *
  * @return array[]
  */
@@ -1560,16 +1518,10 @@ function desktop_mode_build_native_windows_payload() {
 		$tab_descriptors = array();
 		if ( function_exists( 'desktop_mode_get_native_window_tabs' ) ) {
 			foreach ( desktop_mode_get_native_window_tabs( $entry['id'] ) as $tab ) {
-				$tab_payload                 = '' !== $tab['script']
-					? desktop_mode_resolve_script_payload( $tab['script'] )
-					: array(
-						'url'          => '',
-						'before'       => array(),
-						'after'        => array(),
-						'l10n'         => array(),
-						'translations' => '',
-					);
-				$tab_descriptors[]           = array(
+				// The resolver returns the empty payload shape itself
+				// for an empty handle — no need to hand-write it here.
+				$tab_payload       = desktop_mode_resolve_script_payload( $tab['script'] );
+				$tab_descriptors[] = array(
 					'value'             => $tab['value'],
 					'label'             => $tab['label'],
 					'isMain'            => $tab['is_main'],

@@ -1,6 +1,6 @@
 # Development guide
 
-This file is for people working **on** `desktop-mode` — the plugin itself, not plugins that extend it. If you want to extend the shell, start with [`docs/getting-started.md`](docs/getting-started.md).
+This file is for people working **on** `desktop-mode` — the plugin itself, not plugins that extend it. If you want to extend the shell, start with [`docs/getting-started.md`](./getting-started.md).
 
 ## Dev loop
 
@@ -8,7 +8,7 @@ This file is for people working **on** `desktop-mode` — the plugin itself, not
 npm install                # one-time
 npm run dev                # watch: rebuilds assets/js/desktop.js on save
 npm run lint               # ESLint — our CI runs this
-npm run test:js            # Vitest — 180+ tests
+npm run test:js            # Vitest — the full JS suite (jsdom)
 npm run test:js:watch      # Vitest in watch mode
 npm run build              # produces both assets/js/desktop{,.min}.js
 
@@ -34,10 +34,33 @@ src/
 ├── hooks.ts                 # @wordpress/hooks bridge + the typed HOOKS
 │                            #   enum that names every event we fire.
 ├── types.ts                 # Window / session / config interfaces.
+├── shared-store.ts          # Cross-bundle reactive state primitive
+│                            #   (`wp.desktop.createSharedStore`).
+├── tracked-fetch.ts         # Cross-bundle bridge to `wp.desktop.fetch`.
 ├── window/                  # Window class + its pointer / chrome / tabs
 │                            #   / iframe-bridge / menu helpers.
 ├── window-manager/          # WindowManager + desktops + arrange + snap
 │                            #   + overview helpers.
+├── window-system/           # Lazy window-system bundle (entry + loader);
+│                            #   `WindowManager.open()` awaits it before
+│                            #   constructing any Window.
+├── window-chrome/           # Window-chrome customization framework
+│                            #   (themes, controls, slots).
+├── shell-overlays/          # Lazy bundle for toasts, confirm dialogs,
+│                            #   and context menus (entry + loader).
+├── commands/                # Command registration: server-sync, shell
+│                            #   harvester, iframe bridge.
+├── presence/                # Presence store (`wp.desktop.presence`).
+├── pwa/                     # PWA: install, notify, service worker.
+├── desktop-files/           # Files/folders on the wallpaper
+│                            #   (`wp.desktop.files`).
+├── recycle-bin/             # Feature windows — one directory per
+├── posts-window/            #   window, each compiled to its own
+├── plugins-window/          #   lazy Vite bundle (see the `build:*`
+├── comments-window/         #   scripts in package.json).
+├── my-wordpress/
+├── content-graph/
+├── ai-assistant/
 ├── wallpapers/              # Registry, layer, built-ins, types, vendor
 │                            #   script loader.
 ├── widgets/                 # Registry, layer, picker, frame
@@ -60,6 +83,12 @@ src/
 ├── utils.ts                 # urlMatchKey, deriveWindowId, sanitize*.
 └── i18n.ts                  # Thin wrapper around window.wp.i18n.
 ```
+
+The tree above is curated, not exhaustive — `src/` holds many more
+single-purpose modules and feature directories (drag bridge, devtools,
+sticky notes, …). Run `ls src/` for the full picture; the shipped
+bundles (and the TS entry behind each) are the `build:*` scripts in
+`package.json`, resolved via `DESKTOP_MODE_TARGET` in `vite.config.js`.
 
 ## Public vs internal
 
@@ -143,8 +172,9 @@ Strings flow through three files per locale in `languages/`:
 - `desktop-mode-{locale}-{handle}.json` — JS translation bundles.
   WordPress's `wp_set_script_translations()` looks up these files by
   the script handle, NOT by source-file hash, because we pass a path
-  argument from `includes/assets.php`. Today the only handle with a
-  populated bundle is `desktop-mode` (the main shell); see
+  argument from `includes/assets.php`. Today three handles have
+  populated bundles — `desktop-mode` (the main shell),
+  `desktop-mode-posts-window`, and `desktop-mode-recycle-bin`; see
   `bin/build-i18n.sh` for the handle to source-prefix map.
 
 The two-step pipeline is:
@@ -183,7 +213,7 @@ file churn in the release commit:
 ## Where things are tested
 
 - **Vitest** — `tests/vitest/*.test.ts` + colocated
-  `src/ui/components/*/*.test.ts`. Runs in jsdom. ~200 tests.
+  `src/**/*.test.ts`. Runs in jsdom.
 - **PHPUnit** — `tests/phpunit/tests/*.php`. Tagged `@group desktop-mode`.
   Runs inside wp-env's `tests-cli` container (PHPUnit 9.6 +
   phpunit-polyfills). Configured in `.wp-env.json` + `composer.json`.

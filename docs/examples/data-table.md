@@ -2,7 +2,7 @@
 
 `<wpd-table>` is the data-grid primitive: assign a `columns` descriptor and a `data` array and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns, sticky header, custom cell renderers, a loading skeleton, and a slottable empty state.
 
-> Status: **Experimental** since 0.18.0. The component shape is stable; the named events / filter kinds may grow.
+> Status: **Experimental** since 0.6.0. The component shape is stable; the named events / filter kinds may grow.
 
 ## Minimum viable table
 
@@ -27,11 +27,9 @@ That's the entire happy path. Everything below is opt-in.
 
 ## TypeScript usage
 
-`WpdTable` is generic over the row type — narrow it for type-safe `render` and `sortValue` callbacks:
+The `WpdTable` class is generic over the row type, but it is not yet on the **Stable** export list of the `desktop-mode` package (see [Importing the classes](../components-reference.md#importing-the-classes-for-typescript)) — there is no class or type import for it. Until it joins that list, declare the slice of the element API you use as a local structural type; the property contract below is the documented surface:
 
 ```ts
-import type { WpdTable, WpdTableColumn } from 'desktop-mode/ui';
-
 interface User extends Record< string, unknown > {
     name: string;
     email: string;
@@ -39,14 +37,30 @@ interface User extends Record< string, unknown > {
     logins: number;
 }
 
-const columns: WpdTableColumn< User >[] = [
+interface UserColumn {
+    key: string;
+    label?: string;
+    filter?: boolean | 'text' | 'select';
+    sortable?: boolean;
+    align?: 'start' | 'center' | 'end';
+    sortValue?: ( row: User, value: unknown ) => unknown;
+    render?: ( value: unknown, row: User, index: number ) => string | Node;
+}
+
+type UserTable = HTMLElement & {
+    columns: UserColumn[];
+    data: User[];
+    getRowId: ( row: User, index: number ) => string | number;
+};
+
+const columns: UserColumn[] = [
     { key: 'name',   label: 'Name',   filter: 'text', sortable: true },
     { key: 'email',  label: 'Email',  filter: 'text' },
     { key: 'role',   label: 'Role',   filter: 'select' },
     { key: 'logins', label: 'Logins', align: 'end', sortable: true },
 ];
 
-const table = document.querySelector< WpdTable< User > >( '#users' )!;
+const table = document.querySelector< UserTable >( '#users' )!;
 table.columns = columns;
 table.data    = users;
 table.getRowId = ( row ) => row.email; // stable id for selection
@@ -167,7 +181,7 @@ Set `subTable( row, index )` and an expander column is auto-prepended. Return an
 
 - `null` / `undefined` — no children for this row (no caret).
 - `{ columns, data, subTable? }` — a nested `<wpd-table>` is rendered. Sub-tables can themselves declare a `subTable` for unlimited nesting.
-- A `Node` or `html\`\`` template — fully custom expanded content.
+- A `Node` — fully custom expanded content (build it with `document.createElement` or by cloning a `<template>`).
 
 ```js
 table.subTable = ( order ) => order.items?.length
@@ -222,30 +236,43 @@ The `empty` attribute is the text fallback. For richer empty states (button, ill
 <wpd-table id="orders">
     <div slot="empty">
         <p>No orders yet.</p>
-        <wpd-button @click=${ openWizard }>Create your first order</wpd-button>
+        <wpd-button id="orders-cta">Create your first order</wpd-button>
     </div>
 </wpd-table>
+```
+
+```js
+document.getElementById( 'orders-cta' ).addEventListener( 'click', openWizard );
 ```
 
 The slotted content shows whenever `data.length === 0` OR every row got filtered out. If you want different empty states for "no data" vs "no matches," check `table.filters` from your handler and swap the slotted children accordingly.
 
 ## Custom cell renderers
 
-`column.render( value, row, index )` returns a string, an `HTMLElement`, or an `html\`\`` template:
+`column.render( value, row, index )` returns a string (rendered as text via `textContent`, so it's XSS-safe) or a `Node`. The `html\`\`` tagged-template helper the component sources use internally is not part of the package's public exports, so plugin code builds nodes with `document.createElement`:
 
 ```js
-import { html } from 'desktop-mode/ui';
-
 table.columns = [
     { key: 'avatar', label: '', width: '32px',
-      render: ( v ) => html`<img src=${ v } width="24" height="24" />` },
+      render: ( v ) => {
+          const img = document.createElement( 'img' );
+          img.src = String( v );
+          img.width = 24;
+          img.height = 24;
+          return img;
+      } },
     { key: 'name',   label: 'Name' },
     { key: 'status', label: 'Status',
-      render: ( v ) => html`<wpd-badge tone=${ v === 'active' ? 'success' : 'warning' }>${ v }</wpd-badge>` },
+      render: ( v ) => {
+          const badge = document.createElement( 'wpd-badge' );
+          badge.setAttribute( 'tone', v === 'active' ? 'success' : 'warning' );
+          badge.textContent = String( v );
+          return badge;
+      } },
 ];
 ```
 
-**Best practice — pick one return shape per column.** Mixing `string` and `Node` and `html\`\`` across columns is legal but harder to read at a glance. For a "show a string with one inline tweak" cell, prefer `html\`...\``; for "build a complex node tree imperatively," prefer `document.createElement`. If you find yourself returning all three from the same `render` based on a runtime check, that's usually a smell that the column wants splitting.
+**Best practice — pick one return shape per column.** Mixing `string` and `Node` across columns is legal but harder to read at a glance. For plain text, return a string; for anything with markup, build the node imperatively with `document.createElement`. If you find yourself returning both from the same `render` based on a runtime check, that's usually a smell that the column wants splitting.
 
 ## Row clicks
 
@@ -259,7 +286,13 @@ table.addEventListener( 'wpd-table-row-click', ( e ) => {
 Clicks on filter inputs, the expander button, and selection checkboxes do **not** fire `wpd-table-row-click` — they're marked `data-noclick`. Mark any of your own interactive cell content the same way to opt out:
 
 ```js
-render: ( v, row ) => html`<button data-noclick @click=${ () => del( row.id ) }>×</button>`
+render: ( v, row ) => {
+    const btn = document.createElement( 'button' );
+    btn.dataset.noclick = '';
+    btn.textContent = '×';
+    btn.addEventListener( 'click', () => del( row.id ) );
+    return btn;
+}
 ```
 
 ## Editable cells

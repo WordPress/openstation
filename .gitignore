@@ -13,6 +13,9 @@
 !/assets/js/admin-bar.js
 !/assets/js/media-library-enhanced.js
 
+# Vite bundle-visualizer reports (`${fileBase}.report.html`) — dev-only.
+/assets/js/*.report.html
+
 .DS_Store
 
 # Default output file of macOS/BSD `script(1)` — a terminal session

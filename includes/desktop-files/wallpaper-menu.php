@@ -7,8 +7,8 @@
  * filtering the array — empty by default, so no menu items
  * arrive from the server unless plugins add them.
  *
- * The four built-in items (Create folder, Show desktop, OS
- * Settings, Wallpapers) are JS-defined inside the shell — they
+ * The built-in items (Create folder, New URL, Sort by, Show
+ * desktop, OS Settings) are JS-defined inside the shell — they
  * need access to closures we'd lose across the wire. Server
  * items take a `callbackId` string the JS bundle resolves in
  * its `serverCallbacks` map; plugins that don't ship a JS

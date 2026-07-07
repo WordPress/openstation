@@ -16,7 +16,7 @@
  * window id, and renaming would break public consumers.
  *
  * @package DesktopModeCodeEditor
- * @since   0.22.0
+ * @since   0.7.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * URL the JS bundle hands to Monaco's AMD loader.
  *
- * @since 0.22.0
+ * @since 0.7.0
  *
  * @return string
  */
@@ -41,14 +41,14 @@ function desktop_mode_code_editor_monaco_vendor_url() {
  * so the editor config is baked into the response body. The CSS is a
  * normal static stylesheet.
  *
- * @since 0.22.0
+ * @since 0.7.0
  */
 function desktop_mode_code_editor_register_assets() {
 	$css_path = DESKTOP_MODE_CODE_EDITOR_DIR . 'assets/css/code-editor.css';
 	wp_register_style(
 		'desktop-mode-code-editor',
 		DESKTOP_MODE_CODE_EDITOR_URL . 'assets/css/code-editor.css',
-		array( 'wp-desktop-variables', 'dashicons' ),
+		array( 'desktop-mode-variables', 'dashicons' ),
 		// CSS iterates faster than the bundle; cache-bust on mtime so a
 		// fresh stylesheet always lands without a plugin version bump.
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : DESKTOP_MODE_CODE_EDITOR_VERSION
@@ -85,7 +85,7 @@ function desktop_mode_code_editor_register_assets() {
  * `Vary: Cookie` + `nocache_headers()` ensure each session gets its
  * own nonce — cached responses are never shared across users.
  *
- * @since 0.22.0
+ * @since 0.7.0
  */
 function desktop_mode_code_editor_serve_bundle() {
 	if ( ! desktop_mode_code_editor_user_can_use() ) {
@@ -129,11 +129,11 @@ function desktop_mode_code_editor_serve_bundle() {
  * Echoes the Code Editor window's static template.
  *
  * The shell wraps whatever we emit inside its own
- * `<template id="wpdm-native-window-wpdc-editor">`, then on every
+ * `<template id="desktop-mode-native-window-wpdc-editor">`, then on every
  * window open it clones that template into the window body BEFORE
  * invoking our JS render callback.
  *
- * @since 0.22.0
+ * @since 0.7.0
  */
 function desktop_mode_code_editor_render_template() {
 	ob_start();
@@ -155,7 +155,7 @@ function desktop_mode_code_editor_render_template() {
 	 * `desktop_mode_code_editor_mount_selector` filter) and you can
 	 * restyle / restructure everything else.
 	 *
-	 * @since 0.22.0
+	 * @since 0.7.0
 	 *
 	 * @param string $html Default template HTML.
 	 */
@@ -169,7 +169,7 @@ function desktop_mode_code_editor_render_template() {
  * without `edit_plugins`. We hook on `init` (priority 20) so the
  * native-window registry has been bootstrapped by the framework.
  *
- * @since 0.22.0
+ * @since 0.7.0
  */
 function desktop_mode_code_editor_register_window() {
 	if ( ! desktop_mode_code_editor_user_can_use() ) {
@@ -192,7 +192,7 @@ function desktop_mode_code_editor_register_window() {
 	/**
 	 * Filter args used to register the Code Editor native window.
 	 *
-	 * @since 0.22.0
+	 * @since 0.7.0
 	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
@@ -216,7 +216,7 @@ function desktop_mode_code_editor_register_window() {
 	/**
 	 * Filter args used to register the Code Editor desktop icon.
 	 *
-	 * @since 0.22.0
+	 * @since 0.7.0
 	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
@@ -233,7 +233,7 @@ function desktop_mode_code_editor_register_window() {
  * by the native-window sync; the CSS is cheap to ship to every
  * desktop-mode page load.
  *
- * @since 0.22.0
+ * @since 0.7.0
  */
 function desktop_mode_code_editor_enqueue_style() {
 	if ( ! desktop_mode_code_editor_user_can_use() ) {
@@ -248,7 +248,7 @@ function desktop_mode_code_editor_enqueue_style() {
  * No-ops cleanly when Desktop Mode is missing — REST routes still
  * register so any consumer that relies on them keeps working.
  *
- * @since 0.22.0
+ * @since 0.7.0
  */
 function desktop_mode_code_editor_maybe_init_ui() {
 	if ( ! function_exists( 'desktop_mode_register_window' ) ) {

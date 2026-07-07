@@ -22,6 +22,7 @@
 /AGENTS.md          export-ignore
 
 # Source + build config (assets/js/*.js is the shipped output)
+/assets/js/*.report.html export-ignore
 /src/               export-ignore
 /tsconfig.json      export-ignore
 /vite.config.js     export-ignore

@@ -8,8 +8,9 @@
  * shell drives the agentic loop and observability without knowing which
  * vendor is on the other end.
  *
- * Registration timing: hook `desktop_mode_ai_register_providers` (fires on
- * `init` at default priority). Plugins can also call
+ * Registration timing: hook `desktop_mode_ai_register_providers` (fired
+ * lazily, once per request, on the first provider lookup — see
+ * desktop_mode_ai_ensure_providers_registered()). Plugins can also call
  * {@see desktop_mode_register_ai_provider()} at any time before the first
  * dispatch — the registry is just an in-memory map.
  *
@@ -41,7 +42,7 @@
  *   )
  *
  * @package WPDesktopMode
- * @since 0.18.0
+ * @since 0.5.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -67,7 +68,7 @@ const DESKTOP_MODE_AI_PROVIDER_REQUIRED_CALLBACKS = array(
  * as a static inside this function. Pass an array action to mutate
  * (`set`, `unset`, `clear`); omit to read.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param string|null $action 'set' | 'unset' | 'clear' | null.
  * @param string      $id     Provider id.
@@ -95,7 +96,7 @@ function desktop_mode_ai_providers_storage( $action = null, $id = '', $def = nul
 /**
  * Register an AI provider.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param string $id   Lowercase provider slug (e.g. 'openai', 'anthropic').
  *                     Validated with `sanitize_key()`.
@@ -137,7 +138,7 @@ function desktop_mode_register_ai_provider( $id, array $args ) {
 	/**
 	 * Fires after a provider has been registered. Useful for telemetry.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 *
 	 * @param string $id  Provider id.
 	 * @param array  $def Stored provider definition.
@@ -150,7 +151,7 @@ function desktop_mode_register_ai_provider( $id, array $args ) {
 /**
  * Unregister a provider.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param string $id Provider id.
  * @return bool True if a provider was removed.
@@ -176,7 +177,7 @@ function desktop_mode_unregister_ai_provider( $id ) {
  * providers. We fire it lazily on first lookup so registration order
  * doesn't depend on plugin load order.
  *
- * @since 0.18.0
+ * @since 0.5.2
  */
 function desktop_mode_ai_ensure_providers_registered() {
 	static $fired = false;
@@ -188,7 +189,7 @@ function desktop_mode_ai_ensure_providers_registered() {
 	/**
 	 * Provider registration action — register any custom providers here.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 */
 	do_action( 'desktop_mode_ai_register_providers' );
 }
@@ -203,7 +204,7 @@ function desktop_mode_ai_ensure_providers_registered() {
  * Used by `desktop_mode_shell_config` to populate the OS Settings provider
  * picker so the dropdown reflects whatever any plugin has registered.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @return array<int, array{ id:string, label:string, description:string, api_key_label:string, api_key_link:string, capabilities:array }>
  */
@@ -225,7 +226,7 @@ function desktop_mode_ai_get_providers_for_config() {
 /**
  * Returns all currently-registered providers.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @return array<string, array> Map of provider id → definition.
  */
@@ -237,7 +238,7 @@ function desktop_mode_ai_get_providers() {
 /**
  * Returns a single provider by id.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param string $id Provider id.
  * @return array|null Provider definition, or null if unregistered.
@@ -261,7 +262,7 @@ function desktop_mode_ai_get_provider( $id ) {
  * a plugin can pin a specific provider per-request (e.g., based on
  * request_id, query content, or admin capability).
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param int $user_id User id (0 for anonymous contexts).
  * @return string Provider id. Always a string; may not point at a
@@ -293,7 +294,7 @@ function desktop_mode_ai_get_active_provider_id( $user_id ) {
 	/**
 	 * Filter the resolved active-provider id.
 	 *
-	 * @since 0.18.0
+	 * @since 0.5.2
 	 *
 	 * @param string $candidate Resolved provider id.
 	 * @param int    $user_id   User id (0 for anonymous).
@@ -304,7 +305,7 @@ function desktop_mode_ai_get_active_provider_id( $user_id ) {
 /**
  * Returns the active provider definition for a given user, or WP_Error.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param int $user_id
  * @return array|WP_Error
@@ -330,7 +331,7 @@ function desktop_mode_ai_get_active_provider( $user_id ) {
 /**
  * Build an opaque turn-input object via the active provider.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param int    $user_id User id (used to resolve active provider).
  * @param string $kind    'user_message' | 'tool_results'.
@@ -348,7 +349,7 @@ function desktop_mode_ai_provider_make_turn_input( $user_id, $kind, $payload ) {
 /**
  * Run one turn of the agentic loop via the active provider.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param int        $user_id      User id.
  * @param string     $api_key      Provider API key.
@@ -408,7 +409,7 @@ function desktop_mode_ai_provider_agentic_call(
 /**
  * Run a single-shot structured-output request via the active provider.
  *
- * @since 0.18.0
+ * @since 0.5.2
  *
  * @param int    $user_id     User id.
  * @param string $api_key     Provider API key.

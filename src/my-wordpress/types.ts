@@ -51,7 +51,7 @@ export interface MyWordPressConfig {
 	 * post tiles, so the default (`48`) is higher than the post
 	 * default. Filterable server-side via `desktop_mode_my_wordpress_window_args`.
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 */
 	mediaPerPage?: number;
 	/**
@@ -60,7 +60,7 @@ export interface MyWordPressConfig {
 	 * gated — never present here unless the current user can run
 	 * the action.
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 */
 	previewActions?: MediaPreviewAction[];
 }
@@ -72,7 +72,7 @@ export interface MyWordPressConfig {
  * `desktop-mode.my-wordpress.preview-actions` filter.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export interface MediaPreviewAction {
 	id: string;
@@ -105,7 +105,7 @@ export interface MediaPreviewAction {
  * - `footer` — below the action button row
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export type MediaPreviewSlot = 'header' | 'meta' | 'footer';
 
@@ -113,7 +113,7 @@ export type MediaPreviewSlot = 'header' | 'meta' | 'footer';
  * Context object passed to every preview-action handler.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export interface MediaPreviewActionContext {
 	/** Entity id (`'media'`, `'posts'`, `'users'`, …). */
@@ -142,7 +142,7 @@ export interface EntityListItem {
 	/**
 	 * Publication status — `'publish' | 'draft' | 'pending' |
 	 * 'private' | 'future' | 'trash'`. Surfaced on the list response
-	 * since 0.21.0 so tiles can paint a status ribbon for non-
+	 * since 0.8.6 so tiles can paint a status ribbon for non-
 	 * published rows.
 	 */
 	status?: string;
@@ -185,7 +185,7 @@ export interface EntityDetail {
 	 * the regex-based `extractContentMediaIds` is a fallback for
 	 * older API responses that don't carry this.
 	 *
-	 * @since 0.21.0
+	 * @since 0.8.6
 	 */
 	desktop_mode_attached_media?: number[];
 	_links?: Record< string, Array< { href: string; count?: number } > >;
@@ -220,7 +220,7 @@ export interface ListResult {
  * `desktop_mode_summary` REST field — enough to paint a rich
  * tile without an extra round-trip per row.
  *
- * @since 0.20.0
+ * @since 0.8.2
  */
 export interface UserListItem {
 	id: number;
@@ -249,7 +249,7 @@ export interface UserListResult {
  * `/desktop-mode/v1/user-footprint/<id>`. Drives the right-click
  * "View activity footprint" surface.
  *
- * @since 0.20.0
+ * @since 0.8.2
  */
 export interface UserFootprint {
 	profile: {
@@ -378,7 +378,7 @@ export type Route =
  * fields the My WordPress media grid + preview pane consume.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export interface MediaListItem {
 	id: number;
@@ -418,7 +418,7 @@ export interface MediaListResult {
  * `/desktop-mode/v1/media-usage/<id>`.
  *
  * @public
- * @since 0.21.0
+ * @since 0.8.6
  */
 export interface MediaUsage {
 	media: {

@@ -106,7 +106,7 @@ export function snapToEmptyCell(
  * is the right order for "clean up" / sort. Both share the
  * `cellKey()` occupancy convention.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 export function nextRowMajorCell(
 	occupied: Set< string >,

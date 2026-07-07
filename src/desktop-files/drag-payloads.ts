@@ -18,7 +18,7 @@
  * Both shapes are framework-internal but stable for plugin authors
  * who want to register their own drop targets that accept these.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import type { RestPlacementShape } from './rest';
@@ -39,7 +39,7 @@ export interface DesktopFileDragData {
 	 * gets the same `<a href>` insertion as dragging from My
 	 * WordPress.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	bridgePayload?: DragBridgePayload;
 }
@@ -62,7 +62,7 @@ export interface ShortcutDragData {
 	 * belongs to. `kind` alone is ambiguous — both Posts and Pages
 	 * carry `kind: 'post'` but have different REST paths.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	entityId?: string;
 	/**
@@ -74,7 +74,7 @@ export interface ShortcutDragData {
 	 * placement purposes; they just don't trigger any iframe-side
 	 * drop behavior.
 	 *
-	 * @since 0.22.0
+	 * @since 0.8.7
 	 */
 	bridgePayload?: DragBridgePayload;
 }

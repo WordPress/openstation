@@ -12,7 +12,8 @@
  * scope is parsed with `DOMDocument`, every `<a href>` is scanned, and
  * each href is resolved with `url_to_postid()`. We cache the full
  * `{ nodes, edges }` tuple in a transient keyed on the requested
- * `types` plus a hash of the relevant rows' `post_modified_gmt`. Any
+ * `types`, the viewer's private-post privilege tier, plus a hash of
+ * the relevant rows' `post_modified_gmt`. Any
  * change to a participating post invalidates the hash, so save_post
  * implicitly refreshes the graph the next time it's requested. We
  * also explicitly bust the cache on `save_post` and `deleted_post` so
@@ -248,9 +249,71 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
 }
 
 /**
+ * Build the SQL WHERE fragment (plus its `prepare()` values and a
+ * cache-key signature) scoping graph rows to posts the current user
+ * is allowed to read.
+ *
+ * Published posts are always in scope. Private posts of a type are
+ * only included when the user holds that type's `read_private_posts`
+ * capability; for the remaining types the user still sees their OWN
+ * private posts (mirroring core's `WP_Query` status semantics for
+ * logged-in users).
+ *
+ * The `key` element encodes the resulting privilege tier (and, when
+ * the own-author clause is active, the user id) so cached payloads
+ * are never served across privilege levels.
+ *
+ * @since 0.9.2
+ *
+ * @param string[] $types Already normalized.
+ * @return array{ where: string, values: array, key: string }
+ */
+function desktop_mode_content_graph_visibility_sql( array $types ) {
+	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	$values       = $types;
+
+	$priv_types = array();
+	foreach ( $types as $type ) {
+		$type_obj = get_post_type_object( $type );
+		$cap      = ( $type_obj && ! empty( $type_obj->cap->read_private_posts ) )
+			? $type_obj->cap->read_private_posts
+			: 'read_private_posts';
+		if ( current_user_can( $cap ) ) {
+			$priv_types[] = $type;
+		}
+	}
+
+	$status_clauses = array( "post_status = 'publish'" );
+	$key_parts      = array( 'priv=' . implode( ',', $priv_types ) );
+
+	if ( ! empty( $priv_types ) ) {
+		$priv_placeholders = implode( ',', array_fill( 0, count( $priv_types ), '%s' ) );
+		$status_clauses[]  = "( post_status = 'private' AND post_type IN ( {$priv_placeholders} ) )";
+		$values            = array_merge( $values, $priv_types );
+	}
+
+	$user_id = get_current_user_id();
+	if ( $user_id > 0 && count( $priv_types ) < count( $types ) ) {
+		$status_clauses[] = "( post_status = 'private' AND post_author = %d )";
+		$values[]         = $user_id;
+		$key_parts[]      = 'own=' . $user_id;
+	}
+
+	$where = "post_type IN ( {$placeholders} ) AND ( " . implode( ' OR ', $status_clauses ) . ' )';
+
+	return array(
+		'where'  => $where,
+		'values' => $values,
+		'key'    => implode( '|', $key_parts ),
+	);
+}
+
+/**
  * Cache key for `{ nodes, edges }` for a given type set. Includes a
  * short hash of the participating rows' post_modified_gmt so any
- * relevant edit busts the cache implicitly.
+ * relevant edit busts the cache implicitly, plus the viewer's
+ * privilege-tier signature so a payload built for a user who can read
+ * private posts is never served to one who can't (and vice versa).
  *
  * @since 0.8.2
  *
@@ -259,28 +322,32 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
  */
 function desktop_mode_content_graph_cache_key( array $types ) {
 	global $wpdb;
-	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	$visibility = desktop_mode_content_graph_visibility_sql( $types );
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$hash = (string) $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MD5( GROUP_CONCAT( CONCAT( ID, ':', post_modified_gmt ) ORDER BY ID ) )
 			 FROM {$wpdb->posts}
-			 WHERE post_status IN ( 'publish', 'private' )
-			 AND post_type IN ( {$placeholders} )",
-			$types
+			 WHERE {$visibility['where']}",
+			$visibility['values']
 		)
 	);
 	// phpcs:enable
 	if ( '' === $hash || null === $hash ) {
 		$hash = 'empty';
 	}
-	return DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX . substr( md5( implode( ',', $types ) . '|' . $hash ), 0, 24 );
+	return DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX . substr( md5( implode( ',', $types ) . '|' . $visibility['key'] . '|' . $hash ), 0, 24 );
 }
 
 /**
  * Fetch the participating posts in a single query. Returns full rows
  * (including `post_content`) so the link extractor can run without N+1
  * `get_post()` calls.
+ *
+ * Rows are scoped to what the current user can read: published posts,
+ * plus private posts only where the user holds the type's
+ * `read_private_posts` capability (or authored the post). See
+ * `desktop_mode_content_graph_visibility_sql()`.
  *
  * @since 0.8.2
  *
@@ -289,16 +356,15 @@ function desktop_mode_content_graph_cache_key( array $types ) {
  */
 function desktop_mode_content_graph_fetch_rows( array $types ) {
 	global $wpdb;
-	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	$visibility = desktop_mode_content_graph_visibility_sql( $types );
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date
 			 FROM {$wpdb->posts}
-			 WHERE post_status IN ( 'publish', 'private' )
-			 AND post_type IN ( {$placeholders} )
+			 WHERE {$visibility['where']}
 			 ORDER BY post_date DESC",
-			$types
+			$visibility['values']
 		)
 	);
 	// phpcs:enable

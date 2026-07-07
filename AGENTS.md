@@ -32,7 +32,9 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 
 **`assets/js/*.js` is build output. Treat it as if it were `dist/`.**
 
-Every shipped JS bundle has a TypeScript source under `src/`. The active build targets (and their TS entries) are listed in `package.json` under the `build:*` scripts; `npm run build` runs them all. The actual entry file for each target is in `vite.config.js`, selected by the `DESKTOP_MODE_TARGET` env var.
+Every built JS bundle has a TypeScript source under `src/`. The active build targets (and their TS entries) are listed in `package.json` under the `build:*` scripts; `npm run build` runs them all. The actual entry file for each target is in `vite.config.js`, selected by the `DESKTOP_MODE_TARGET` env var.
+
+Two hand-written files are the exception and stay tracked in git: `assets/js/admin-bar.js` and `assets/js/media-library-enhanced.js` (see the re-includes in `.gitignore`) — edit those directly; everything else under `assets/js/` is build output.
 
 Process for any JS change:
 
@@ -129,7 +131,7 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 - **Read before speculating.** When asked how a mechanism works (refresh flow, hook order, bridge protocol), grep the code first. Hand-waving gets caught.
 - **Don't implement architectural changes unilaterally.** PHP API additions, payload shape changes, and new registry-sync modules are all load-bearing for plugin authors. Propose, get the green light, then code.
 - **Let the user test before committing.** Sync to local dev, wait for verification, then commit. Avoid the eager-push trail of partial fixes.
-- **Plugin Check** runs in CI as the `plugin-check` job (uses `wordpress/plugin-check-action@v1`, currently `ignore-warnings: true` while we baseline). For local runs: `npm run env:start` then `npm run check:plugin`. Don't add it to a pre-commit hook, it needs a live WP/WP-CLI and is too slow per-commit.
+- **Plugin Check** runs in CI as the `plugin-check` job (runs `wp plugin check` inside its own wp-env — a dedicated `.wp-env.plugin-check.json` generated in `ci.yml` that mounts the built zip — with `--ignore-warnings` plus an `--ignore-codes` baseline; the `wordpress/plugin-check-action@v1` path was dropped because its zip source hangs `wp-env start` on GitHub runners, see the comment in `ci.yml`). For local runs: `npm run env:start` then `npm run check:plugin`. Don't add it to a pre-commit hook, it needs a live WP/WP-CLI and is too slow per-commit.
 
 ---
 
@@ -139,24 +141,30 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 
 When the user installs or activates a plugin, the **chromeless bridge** inside the `plugins.php` iframe postMessages `desktop-mode-plugins-changed` to the parent shell with a **payload captured in real admin context** (plugins that gate `admin_menu` on `is_admin()` at load time register correctly there; a REST roundtrip from the shell cannot replicate that, so don't try).
 
-Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
+Payload shape (`desktop_mode_build_menu_payload()` in `includes/core/payload.php` builds it, `includes/render/chromeless-bridge.php` emits it, `src/menu-refresh-apply.ts` owns the consumer contract — `createApplyPayload()` there returns the `applyPayload` function that `src/boot/menu-refresh.ts` wires up):
 
 ```
-{ dockItems, taskbarItems, nativeWindows, serverWidgets, serverWallpapers,
+{ dockItems, nativeWindows, serverWidgets, serverWallpapers,
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
-  serverTitleBarButtonScripts,
+  serverDockRailRendererScripts, serverTitleBarButtonScripts,
+  serverUnfocusEffectScripts,
+  serverWindowThemeScripts, serverWindowThemes,
+  serverWindowControlScripts, serverWindowControls,
+  serverWindowSlotScripts, serverWindowSlots,
+  serverWindowChromeScripts, serverWindowChromes,
+  serverWindowNotices,
   desktopIcons }
 ```
 
-- **PHP-declared** things are in the payload: dock, taskbar, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
+- **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.desktopModeWallpapers[id]` / `window.desktopModeWidgets[id]`). The sync reads the def and registers it.
 - **Commands** use the same pattern via `desktop_mode_register_command_script( $handle )` (primary, minimum-ceremony) or `desktop_mode_register_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate, graceful backwards-compat.
-- **OS Settings tabs** use the same pattern via `desktop_mode_register_settings_tab_script( $handle )` (primary) or `desktop_mode_register_settings_tab( $args )` (optional, id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, ai=20, extended=30, help=40) are interleaved with the registry in `src/settings/index.ts` `renderPanel()` and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
+- **OS Settings tabs** use the same pattern via `desktop_mode_register_settings_tab_script( $handle )` (primary) or `desktop_mode_register_settings_tab( $args )` (optional, id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, ai=20, apps-icons=22, features=25, effects=27, extended=30, help=40 — extended/help admin-only, plus About pinned last) are interleaved with the registry in `src/settings/panel.ts` `renderOsSettingsPanel()` (lazy-loaded by the `renderPanel()` stub in `src/settings/index.ts`) and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
 - **AI Copilot extensibility** lives on a different axis from the live-refresh payloads, it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus a persistent server-tool registry in `includes/ai-copilot/tools-registry.php`. Two distinct registration surfaces: `desktop_mode_register_ai_tool( $args )` for PHP-dispatched tools (handler runs server-side, capability-gated, never visible to users who lack the cap), and client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `desktop_mode_ai_{search_started,tool_called,search_completed,search_error,tool_registered}`, every call carries a shared `request_id` UUID for trace correlation. `wp.desktop.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side, the server only emits a slug+args intent; the client invokes.
 - **Palettes** (`registerPalette`) are the remaining JS-registered-only gap. No server-side opt-in yet; a new plugin's palette won't appear until F5. Same fix shape as commands if/when needed: `desktop_mode_register_palette_script( $handle )` + payload key + clone the sync module.
 
-**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`desktop_mode_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `applyPayload()` in `desktop.ts`. Don't invent a different mechanism.
+**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`desktop_mode_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `createApplyPayload()` in `src/menu-refresh-apply.ts`. Don't invent a different mechanism.
 
 ### Event-driven framework
 

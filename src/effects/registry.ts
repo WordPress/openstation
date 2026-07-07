@@ -17,7 +17,7 @@
  * its own empty copy and the engine would never hear about effects the
  * panel registered.
  *
- * @since 0.26.0
+ * @since 0.9.1
  */
 
 import { applyFilters, HOOKS } from '../hooks';

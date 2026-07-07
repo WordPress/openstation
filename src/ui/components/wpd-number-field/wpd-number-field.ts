@@ -29,7 +29,7 @@
  * directly — this component deliberately drops non-finite input
  * from its event stream.
  *
- * @since 0.11.0
+ * @since 0.5.0
  */
 
 import {
@@ -61,7 +61,7 @@ export class WpdNumberField extends Component {
 		summary:
 			'Labelled numeric input. Wraps <wpd-text-field> semantics but forces type="number" and emits already-parsed numbers, clamping to min/max on commit.',
 		status: 'stable',
-		since: '0.11.0',
+		since: '0.5.0',
 		props: [
 			{ name: 'label', type: 'string', description: 'Visible label above the input.' },
 			{ name: 'value', type: 'number (string)', description: 'Current numeric value; two-way reflected.' },

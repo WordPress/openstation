@@ -11,8 +11,8 @@
  *
  * Writes:
  *   - localStorage: synchronous, every `saveState()` call.
- *   - User meta (REST): debounced 1 500 ms after the last change via
- *     `scheduleSyncToServer()`. The JS layer fires `saveState()` on every
+ *   - User meta (REST): debounced 250 ms after the last change via
+ *     `_scheduleSyncToServer()`. The JS layer fires `saveState()` on every
  *     preference change so the debounce collapse rapid edits (e.g. dragging
  *     the gradient angle slider) into a single network request.
  */

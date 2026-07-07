@@ -6,7 +6,7 @@
  * attribution they need.
  *
  * @public
- * @since 0.19.0
+ * @since 0.8.3
  */
 
 import { trackedFetch } from '../tracked-fetch';

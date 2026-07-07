@@ -93,8 +93,8 @@ export const styles = css`
 		/* Slow, sparse cadence — a real modem's data LED isn't a
 		 * strobe. Two tracks at slightly-different periods drift
 		 * against each other so the pattern never reads as
-		 * metronomic; LCM puts the next true cycle repeat at
-		 * roughly 18s. */
+		 * metronomic; the combined pattern only truly repeats every
+		 * 7.2s (the LCM of the 1.8s and 2.4s periods). */
 		animation:
 			wpd-save-status-modem-stutter 1.8s ease-in-out infinite,
 			wpd-save-status-modem-glow    2.4s ease-in-out infinite;

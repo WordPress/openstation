@@ -1,6 +1,6 @@
 # Example: native Posts window
 
-A `<wpd-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-IN Beta as of 0.10.0** (was opt-out in 0.8.0–0.9.0) — fresh installs use the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
+A `<wpd-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-IN Beta as of 0.9.1** (was opt-out in 0.8.0–0.9.0) — fresh installs use the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
 
 > Status: **Experimental** since 0.8.0. Hook names are stable; the JS column-filter shape may grow.
 
@@ -28,6 +28,8 @@ Future native windows (Pages, Media, Users) register themselves with one line �
 
 ## Register your own URL → native-window remap
 
+> Status: **Planned** — `wp.desktop.registerNativeUrlRemap` is not yet exposed on the public `wp.desktop` surface (as of 0.9.1 it remains internal). The snippet below shows the intended shape.
+
 ```js
 const unsub = wp.desktop.registerNativeUrlRemap( {
     id: 'myplugin-pages',
@@ -41,7 +43,7 @@ const unsub = wp.desktop.registerNativeUrlRemap( {
 
 Returning `false` from `enabled` (or returning `false` from `matches`) lets the click fall through to the iframe path. Returning a `nativeWindowId` that isn't registered for the current user (cap-gated, opt-in-gated) also falls through — `openById()` reports `false` and the registry walks on.
 
-> The `wp.desktop.registerNativeUrlRemap` public API will be exposed in 0.9.0; today, this same primitive is consumed internally by the bundled Posts window.
+> Today this same primitive is consumed internally by the bundled Posts window (`src/native-url-remap.ts`); the public `wp.desktop.registerNativeUrlRemap` facade has not shipped yet.
 
 ## Filter the column descriptors
 
@@ -112,7 +114,7 @@ wp.hooks.addFilter(
         {
             key: 'desktop_mode_comment_count',
             label: 'Comments',
-            sortable: true,                         // server orderby=comment_count
+            sortable: false,
             width: '110px',
             align: 'end',
             render: ( _v, row ) => {
@@ -129,7 +131,7 @@ wp.hooks.addFilter(
 );
 ```
 
-That's it. The column appears in every Posts window load, sorts via the server (`orderby=comment_count` is supported by core), and never makes a second round-trip per row.
+That's it. The column appears in every Posts window load and never makes a second round-trip per row. Note that plugin columns can't sort server-side: the Posts window maps unknown column keys to `orderby=date`, and core's `/wp/v2` collections don't accept `orderby=comment_count` anyway.
 
 ## Add a bulk action
 
@@ -256,12 +258,14 @@ The `opened` action's `ctx` is the same `PostsWindowContext` passed to bulk-acti
 ## Restrict who sees the window
 
 ```php
-add_filter( 'desktop_mode_posts_window_user_can_use', function ( $can, $user_id ) {
+add_filter( 'desktop_mode_posts_window_user_can_register', function ( $can, $user_id ) {
     return $can && user_can( $user_id, 'edit_others_posts' );
 }, 10, 2 );
 ```
 
-The default gate is `edit_posts` AND the user has flipped the toggle on. Returning `false` here forces the classic chromeless `edit.php` iframe to remain the destination.
+The default gate is `edit_posts`. Returning `false` here skips the window registration entirely — `openById()` reports `false`, the remap registry walks on, and the classic chromeless `edit.php` iframe remains the destination.
+
+Don't reach for `desktop_mode_posts_window_user_can_use` here: that filter is the *combined* informational check (capability AND the opt-in toggle) for callers that need the combined answer — it has no routing effect. Registration gates on `user_can_register`; the runtime dock-click swap gates on the JS-side `nativePostsEnabled` settings snapshot.
 
 ## Point the window at a CPT
 
@@ -304,7 +308,8 @@ The recycle bin window is already a subscriber — that's how trashing 12 posts 
 ## Hooks reference (Experimental, 0.8.0)
 
 PHP:
-- `desktop_mode_posts_window_user_can_use( $can, $user_id )` — gate. Default: `edit_posts` AND the user has turned the opt-in toggle on.
+- `desktop_mode_posts_window_user_can_register( $can, $user_id )` — the registration gate. Default: `edit_posts`. Returning `false` skips registration entirely, so every click falls through to the chromeless `edit.php` iframe.
+- `desktop_mode_posts_window_user_can_use( $can, $user_id )` — the combined informational check: capability AND the user has turned the opt-in toggle on. No routing effect; for callers that need the combined answer (analytics, an arrange-menu entry).
 - `desktop_mode_posts_window_args( $args )` — args passed to `desktop_mode_register_window()` (title, icon, dimensions, config blob).
 - `desktop_mode_posts_window_template_html( $html )` — the rendered template HTML before `wp_kses`.
 - `desktop_mode_posts_window_query_args( $args )` — outbound REST query params (`_fields`, `_embed`, `post_type`).

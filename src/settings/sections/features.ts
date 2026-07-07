@@ -8,7 +8,7 @@
  *
  * The tab renders two sections: a "Beta features" group holding the
  * opt-in native-window toggles (Posts, Pages, Users, Plugins,
- * Comments — all off by default as of 0.10.0), and the general
+ * Comments — all off by default as of 0.9.1), and the general
  * "Features" group below it. As more per-user feature flags land they
  * slot into the matching section so the tab grows by one row at a
  * time, not one tab at a time.

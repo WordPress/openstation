@@ -10,6 +10,7 @@
  *
  * Public PHP surface (all filterable):
  *
+ *   - desktop_mode_users_window_user_can_register
  *   - desktop_mode_users_window_user_can_use
  *   - desktop_mode_users_window_args
  *   - desktop_mode_users_window_template_html

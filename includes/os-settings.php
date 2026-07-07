@@ -44,7 +44,7 @@ const DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS = array( 'sse', 'off' );
  * sanitization no longer gates the field against this list (the active-provider
  * resolver does the existence check at lookup time).
  *
- * @deprecated 0.18.0 Kept for backwards compatibility; use the provider registry.
+ * @deprecated 0.5.2 Kept for backwards compatibility; use the provider registry.
  */
 const DESKTOP_MODE_OS_SETTINGS_AI_PROVIDERS = array( 'openai' );
 
@@ -54,7 +54,7 @@ const DESKTOP_MODE_OS_SETTINGS_AI_PROVIDERS = array( 'openai' );
  * Mirrors the TypeScript `DEFAULTS` constant so a fresh user account
  * gets the same starting state in both environments.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return array
  */
@@ -83,12 +83,13 @@ function desktop_mode_default_os_settings() {
 		// Per-user opt-IN for the native Posts window. When true,
 		// clicking the Posts dock tile opens the `<wpd-table>`-driven
 		// native window instead of the chromeless `edit.php` iframe.
-		// Default OFF as of 0.10.0 — the native windows are now opt-in
+		// Default OFF as of 0.9.1 — the native windows are now opt-in
 		// Beta. Fresh installs land on the classic iframe; users turn
 		// this on in OS Settings → Features → Beta features to try it.
 		// Per-user override of the WordPress Heartbeat interval, in
-		// seconds. 60s matches Core's "idle" default; values below
-		// 15 force a lower `minimalInterval` too. See
+		// seconds. 60s matches Core's "idle" default; the allowed
+		// rates (15/30/45/60) all sit at or above Core's 15 s
+		// `minimalInterval` floor. See
 		// `desktop_mode_apply_heartbeat_rate_setting` for the
 		// `heartbeat_settings` filter that applies this.
 		'heartbeatRate'               => 60,
@@ -171,7 +172,7 @@ function desktop_mode_default_os_settings() {
  * Always returns a fully-shaped array so the JS side doesn't need to
  * defend against partial or missing keys.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int $user_id The user ID.
  * @return array
@@ -193,7 +194,7 @@ function desktop_mode_get_os_settings( $user_id ) {
 /**
  * Saves sanitized OS settings for a user.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param int   $user_id  The user ID.
  * @param mixed $settings Raw settings payload from the client.
@@ -216,7 +217,7 @@ function desktop_mode_save_os_settings( $user_id, $settings ) {
  * partial save (e.g., only accent changed) merges cleanly with the
  * defaults rather than wiping unset fields.
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param mixed $raw Raw settings from the client or user meta.
  * @return array Sanitized settings.
@@ -251,11 +252,6 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (string) $raw['desktopLayout']
 		: $defaults['desktopLayout'];
 
-	// Submenu renderer id — accept any sanitize_key()-clean string.
-	// We don't gate on a server-side allow-list because renderers
-	// register from JS at runtime; existence is checked by the
-	// client at resolve time and falls back to `'default'` when
-	// missing.
 	// Dock rail renderer id — accept any sanitize_key()-clean
 	// string. JS-side registry resolves at use time and falls back
 	// to `'default'` when the picked renderer isn't registered.
@@ -561,7 +557,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 /**
  * Registers the REST routes for OS settings.
  *
- * @since 0.14.0
+ * @since 0.5.0
  */
 function desktop_mode_register_os_settings_rest_routes() {
 	register_rest_route(
@@ -607,7 +603,7 @@ function desktop_mode_rest_os_settings_permission() {
 /**
  * GET /desktop-mode/v1/os-settings
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @return WP_REST_Response
  */
@@ -618,7 +614,7 @@ function desktop_mode_rest_get_os_settings() {
 /**
  * POST /desktop-mode/v1/os-settings
  *
- * @since 0.14.0
+ * @since 0.5.0
  *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
@@ -633,15 +629,14 @@ function desktop_mode_rest_save_os_settings( WP_REST_Request $request ) {
 /**
  * Apply the per-user Heartbeat-rate preference to the
  * `heartbeat_settings` Core filter. WordPress reads these settings
- * once at page load to size both the initial AJAX interval and the
- * floor (`minimalInterval`) that prevents JS from speeding things
- * up. We mirror both so a 5-second rate actually fires every five
- * seconds (Core's default floor is 15).
+ * once at page load. We set `interval` only; the allowed rates
+ * (15/30/45/60 s) all sit at or above Core's 15 s
+ * `minimalInterval` floor, so the floor never needs overriding.
  *
  * Only applies to users with Desktop Mode enabled — non-desktop
  * sessions keep Core's defaults. Anonymous requests skip too.
  *
- * @since 0.18.0
+ * @since 0.8.5
  *
  * @param array $settings Filtered Heartbeat settings.
  * @return array

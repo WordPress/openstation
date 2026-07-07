@@ -47,7 +47,7 @@ Browser tab
 ├── Parent shell  (wp-admin, desktop class on body)
 │   ├── Admin bar            — classic WP toolbar + desktop-mode toggle
 │   ├── Dock                 — unified rail (core + plugin menus from $menu)
-│   │                           placement (left / right / bottom) = user pref
+│   │                           placement (left / right / bottom) = desktop layout
 │   └── Desktop area         — wallpaper; hosts windows + desktop icons
 │       ├── Window A         — <iframe src="edit.php?desktop_mode_chromeless=1">
 │       ├── Window B         — <iframe src="upload.php?desktop_mode_chromeless=1">
@@ -70,11 +70,13 @@ Key server-side entry points:
 | File | Purpose |
 |---|---|
 | `desktop-mode.php` | Plugin bootstrap — loads the `includes/` files. |
-| `includes/helpers.php` | `desktop_mode_is_enabled()`, `desktop_mode_is_chromeless_request()`, dock builder, chromeless admin-bar suppression. |
+| `includes/helpers.php` | `desktop_mode_is_enabled()`, the `desktop_mode_rest_require_enabled()` REST gate, misc shared helpers (default wallpaper, registration errors). |
+| `includes/core/routing.php` | Chromeless / classic request detection (`desktop_mode_is_chromeless_request()`), admin-target allowlist, chromeless admin-bar suppression, redirect preservation. |
+| `includes/core/payload.php` | Dock builder (`desktop_mode_build_dock_items()`) plus menu / native-window payload assembly. |
 | `includes/ajax.php` | `desktop_mode_ajax_save()` — the `wp_ajax_save-desktop-mode` endpoint. |
 | `includes/admin-bar.php` | Toggle node + inline JS click handler. |
 | `includes/assets.php` | Registers CSS/JS handles on `init`. |
-| `includes/render.php` | Shell markup, chromeless bridge emission, body classes. |
+| `includes/render.php` | Umbrella loader for `includes/render/` — body classes, asset enqueueing, shell markup, chromeless bridge, classic link interceptor. |
 | `includes/portal.php` | Portal URL (`/desktop-mode/`) and redirect rules. |
 | `includes/session.php` | REST endpoints for saving/restoring the per-user window session. |
 
@@ -98,8 +100,8 @@ OS Settings → Appearance lets the user pick one of three top-level layouts. Th
 
 | Mode | Default? | Bottom dock | Left side dock (`wp.desktop.sideDock`) | Wallpaper icons |
 |---|---|---|---|---|
-| **Classic** | ✅ since 0.18.0 | Plugin-contributed top-level menus (`isCore: false`) | Core admin menus (Dashboard, Posts, Media, Settings, …) | Plugin-registered icons only |
-| **Unified** | — *(was the default in 0.17.x)* | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
+| **Classic** | ✅ since 0.6.0 | Plugin-contributed top-level menus (`isCore: false`) | Core admin menus (Dashboard, Posts, Media, Settings, …) | Plugin-registered icons only |
+| **Unified** | — | Every menu sharing one rail | — *(no side dock)* | Plugin-registered icons only |
 | **Spatial** | — | Plugin menus only | — *(no side dock)* | Plugin-registered icons + **synthesized core icons** (one per core menu, prefixed `dock-core:`) |
 
 A user-meta value (`desktopLayout` inside the OS Settings JSON blob, REST-synced via the existing `/wp-json/desktop-mode/v1/os-settings` endpoint) is the persistence layer. The dispatcher partitions the live dock-items list by the `isCore` flag the menu builder already stamps on every entry; no PHP API additions were needed for the layout modes.
@@ -141,7 +143,7 @@ See [`docs/dock-customization.md`](./dock-customization.md) for the plugin-autho
 
 Used for **every existing admin page**. Zero plugin changes required — the chromeless request strips chrome and the iframe does the rest. Trade-off: no direct DOM access between parent and iframe (so cross-frame communication is `postMessage`-only).
 
-### Native windows (shipped — 0.11.0)
+### Native windows (shipped — 0.5.2)
 
 Registered via `desktop_mode_register_window()` (PHP) or `wp.desktop.registerWindow()` (JS). Content renders **directly in the parent DOM** — no iframe, direct shell access, lower overhead. Good for lightweight tools (color picker, settings panels, quick notes) and for anything that wants to participate in cross-window interactions directly.
 
@@ -177,7 +179,7 @@ We also extend Core's `/wp/v2/media` endpoint with two opt-in query parameters s
 - `desktop_mode_min_width=<int>`  — only return images at least this many pixels wide.
 - `desktop_mode_min_height=<int>` — only return images at least this many pixels tall.
 
-Both params are purely additive — omitting them keeps the endpoint's default behavior untouched. Implementation lives in `includes/media-query.php`: every new upload gets stamped with two flat numeric post-meta keys (`_desktop_mode_width`, `_desktop_mode_height`) via `wp_generate_attachment_metadata` / `wp_update_attachment_metadata`, and the params translate into a `WP_Meta_Query` NUMERIC `>=` clause. Pre-existing attachments are backfilled opportunistically — each filtered REST request stamps up to 50 unstamped images — so a site upgrading into this feature starts seeing real filtered results within a few picker opens rather than requiring a CLI run. Once every image has been stamped, the `desktop_mode_media_dims_backfilled` site option flips to `1` and the sweep query is skipped from then on.
+Both params are purely additive — omitting them keeps the endpoint's default behavior untouched. Implementation lives in `includes/media-query.php`: every new upload gets stamped with two flat numeric post-meta keys (`_desktop_mode_width`, `_desktop_mode_height`) via `wp_generate_attachment_metadata` / `wp_update_attachment_metadata`, and the params translate into a `WP_Meta_Query` NUMERIC `>=` clause. Pre-existing attachments are backfilled opportunistically — each filtered REST request from a **logged-in** user stamps up to 50 unstamped images (anonymous requests can still use the dimension filters, but never trigger the backfill writes) — so a site upgrading into this feature starts seeing real filtered results within a few picker opens rather than requiring a CLI run. Once every image has been stamped, the `desktop_mode_media_dims_backfilled` site option flips to `1` and the sweep query is skipped from then on.
 
 ## Command palette bridge (Cmd+K, hijacked)
 
@@ -185,7 +187,7 @@ WordPress 6.4+ ships a command palette via `@wordpress/commands` — the one tha
 
 This is a deliberate hack — there is no public API on `@wordpress/commands` for a parent frame to read and invoke commands from a child iframe. The implementation lives in two places:
 
-- **Iframe side** (`includes/render.php`, chromeless bridge script):
+- **Iframe side** (`includes/render/chromeless-bridge.php`):
   1. A capture-phase `keydown` handler `preventDefault`s Cmd/Ctrl+K and posts `desktop-mode-palette-cycle` to the parent. No more "native palette flashes before ours wins the race."
   2. A React component is mounted into a hidden div (via `wp.element.createRoot`). It `useSelect`s `getCommandLoaders(true)` and `getCommands(true)` from `core/commands`; one child component per loader invokes the loader's hook under a legal render context. Results are collected into a ref-based bucket (state would setState-loop — every hook call returns a fresh array reference).
   3. Callbacks are NOT executed to classify navigation commands. `Location.prototype.href` is non-configurable so a sandbox can't intercept `location.href = X` without real navigation — an earlier attempt cascaded into infinite window spawning. We now match `Function.prototype.toString()` against a string-literal regex instead. Computed URLs fall back to `action`.
@@ -204,12 +206,20 @@ Each harvested command is tagged `eager: true` so it surfaces in the palette wit
 
 ## CSS layering
 
+Core layering only — feature windows ship their own per-feature sheets
+(`os-settings.css`, `posts-window.css`, `recycle-bin.css`, `ai-assistant.css`,
+`desktop-files.css`, `effects.css`, …), all registered in `includes/assets.php`.
+
 ```
 assets/css/
 ├── variables.css    — Custom properties, color-scheme aware.
 ├── desktop.css      — Shell layout; hides classic chrome via body.desktop-mode-active.
-├── windows.css      — Window chrome, animations, states.
-├── dock.css         — Left-edge dock.
+├── windows.css      — Window chrome, animations, states (with the window-chrome.css,
+│                      window-states.css, and window-overview.css companions).
+├── dock.css         — Dock rail; keyed by data-desktop-mode-dock-placement
+│                      (left / right / bottom). Placement derives from the desktop
+│                      layout chosen in OS Settings (default "classic" = left side
+│                      dock + bottom dock). dock-peek.css covers auto-hide peeking.
 └── chromeless.css   — Loaded INSIDE iframes; scoped to body.desktop-mode-chromeless.
 ```
 
@@ -217,7 +227,7 @@ Never edit Core's `common.css` or color scheme files. Everything we need is expo
 
 ## What's shipped vs. what comes next
 
-**Shipped** — unified dock with left / right / bottom placement (user preference in OS Settings; default bottom), multi-window orchestration + session restore, virtual desktops / Spaces (0.6), wallpaper registry (0.6), widget registry (0.7), overview + arrange + snap (0.8–0.9), native windows and tabs (0.10–0.11), AI assistant + slash commands + palette registry (0.13–0.14), cross-frame drag bridge for Media Library (0.14), OS Settings native window, accent + custom-gradient editor, toast notifications, iframe observability (`iframe-ready` / `iframe-error` / `iframe-network-completed`), letter-badge icon fallback, batch `closeAll()` with protection filter, primary-desktop filter, iframe command-palette bridge (0.16 — harvests `@wordpress/commands` from the focused window into the shell palette; see "Command palette bridge" above), Gutenberg `wp_guideline` sticky artifacts as draggable per-desktop sticky notes when the `wp_guideline_type` taxonomy exposes an `artifact`/`artifacts` → `sticky` term, with REST boot hydration plus Heartbeat deltas for cross-tab updates. Because sticky notes ride on Gutenberg's Guidelines experiment (opt-in, 22.7+), the shell only boots the layer when that CPT + taxonomy are registered — gated server-side by `desktop_mode_sticky_notes_is_available()` (filter `desktop_mode_sticky_notes_available`) and surfaced to the client as `desktopModeConfig.stickyNotes.available`, so a site without the experiment never fires the 404-prone REST probes.
+**Shipped** — unified dock with left / right / bottom placement (derived from the desktop layout chosen in OS Settings; the default "classic" layout pairs a left side dock with a bottom dock), multi-window orchestration + session restore, virtual desktops / Spaces (0.6), wallpaper registry (0.6), widget registry (0.7), overview + arrange + snap (0.8–0.9), native windows and tabs (0.10–0.11), AI assistant + slash commands + palette registry (0.13–0.14), cross-frame drag bridge for Media Library (0.14), OS Settings native window, accent + custom-gradient editor, toast notifications, iframe observability (`iframe-ready` / `iframe-error` / `iframe-network-completed`), letter-badge icon fallback, batch `closeAll()` with protection filter, primary-desktop filter, iframe command-palette bridge (0.16 — harvests `@wordpress/commands` from the focused window into the shell palette; see "Command palette bridge" above), Gutenberg `wp_guideline` sticky artifacts as draggable per-desktop sticky notes when the `wp_guideline_type` taxonomy exposes an `artifact`/`artifacts` → `sticky` term, with REST boot hydration plus Heartbeat deltas for cross-tab updates. Because sticky notes ride on Gutenberg's Guidelines experiment (opt-in, 22.7+), the shell only boots the layer when that CPT + taxonomy are registered — gated server-side by `desktop_mode_sticky_notes_is_available()` (filter `desktop_mode_sticky_notes_available`) and surfaced to the client as `desktopModeConfig.stickyNotes.available`, so a site without the experiment never fires the 404-prone REST probes.
 
 **Coming up**
 

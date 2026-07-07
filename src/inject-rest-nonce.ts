@@ -31,7 +31,7 @@
  * per-action `_wpnonce` parameters with different action strings;
  * the `wp_rest` nonce wouldn't validate there.
  *
- * @since 0.20.0
+ * @since 0.8.2
  */
 
 const NONCE_HEADER = 'X-WP-Nonce';

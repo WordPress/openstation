@@ -15,7 +15,7 @@
  *   - bypass the opt-in entirely on a managed install
  *
  * @package WPDesktopMode
- * @since   0.18.0
+ * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  * a runtime, JS-side gate (handled by the URL → native-window remap
  * registry) so flipping the setting takes effect immediately.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -42,7 +42,7 @@ function desktop_mode_pages_window_user_can_register( $user_id = null ) {
 	 * "should the dock click use the native window?" is the JS-side
 	 * `nativePagesEnabled` flag.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 *
 	 * @param bool $can     Default: `edit_pages` capability.
 	 * @param int  $user_id User being checked.
@@ -60,7 +60,7 @@ function desktop_mode_pages_window_user_can_register( $user_id = null ) {
  * remap reads the OS-settings snapshot directly. This helper is for
  * any caller that wants the combined answer.
  *
- * @since 0.18.0
+ * @since 0.8.1
  *
  * @param int|null $user_id Optional.
  * @return bool
@@ -82,7 +82,7 @@ function desktop_mode_pages_window_user_can_use( $user_id = null ) {
 	 * Filter whether the current user has opted into the native Pages
 	 * experience.
 	 *
-	 * @since 0.18.0
+	 * @since 0.8.1
 	 *
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.

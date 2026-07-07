@@ -13,7 +13,7 @@
  *
  * Activated once on boot from `src/desktop-files/index.ts`.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 
 import { addFilter, addAction } from '../hooks';

@@ -10,7 +10,7 @@
  * `wp.desktop.dragBridge` (`src/drag-bridge.ts`) — that's a payload
  * channel, separate from this gesture manager.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 export { DragManager } from './manager';

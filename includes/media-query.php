@@ -116,7 +116,12 @@ function desktop_mode_filter_media_by_dimensions( $args, $request ) {
 	// Chip away at any remaining unstamped attachments before the query
 	// runs, so a site upgrading into this feature gets useful results on
 	// roughly the first few picker opens rather than after a CLI run.
-	desktop_mode_backfill_media_dimensions( DESKTOP_MODE_MEDIA_BACKFILL_BATCH );
+	// Logged-in users only — anonymous REST readers can still use the
+	// dimension filters, but must never trigger database writes (or the
+	// NOT EXISTS sweep query) on a public, unauthenticated endpoint.
+	if ( is_user_logged_in() ) {
+		desktop_mode_backfill_media_dimensions( DESKTOP_MODE_MEDIA_BACKFILL_BATCH );
+	}
 
 	$meta_query = isset( $args['meta_query'] ) && is_array( $args['meta_query'] )
 		? $args['meta_query']

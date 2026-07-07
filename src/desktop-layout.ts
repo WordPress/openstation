@@ -8,7 +8,7 @@
  *   menus (`!isCore`). A side dock on the left edge holds core admin
  *   menus (`isCore`). Default for new installs.
  * - **Unified** — a single bottom `Dock` instance with every menu
- *   sharing one rail. (Pre-0.18.0 default; one-click away.)
+ *   sharing one rail. (Pre-0.6.0 default; one-click away.)
  * - **Spatial** — a single bottom `Dock` instance with plugin menus
  *   only. Core menus are synthesized into desktop-icon entries and
  *   handed to `renderDesktopIcons` so they appear on the wallpaper.
@@ -27,7 +27,7 @@
  * Lives separate from `desktop.ts` so the partitioning logic is
  * testable without booting the whole shell.
  *
- * @since 0.18.0
+ * @since 0.6.0
  */
 
 import type {
@@ -157,7 +157,7 @@ export interface LayoutDispatcher {
 	 * {@link getSystemTile} to fetch the underlying `SystemDockItem`
 	 * with its `onOpen` / `isOpen` callbacks.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	listSystemTiles(): Array< {
 		id: string;
@@ -170,7 +170,7 @@ export interface LayoutDispatcher {
 	 * `SystemDockItem` so callers can invoke `onOpen()` directly.
 	 * Returns `null` for unknown ids.
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	getSystemTile( id: string ): SystemDockItem | null;
 	/**
@@ -180,7 +180,7 @@ export interface LayoutDispatcher {
 	 * layout's primary rail only sees `!isCore` items via
 	 * mount-deps; this returns every item).
 	 *
-	 * @since 0.18.0
+	 * @since 0.6.0
 	 */
 	getMenuItems(): DockItem[];
 	/**
@@ -188,7 +188,7 @@ export interface LayoutDispatcher {
 	 * rail. Called when `itemVisibility` or `dockOrder` changes — both
 	 * the dock contents and the desktop-icons grid may shift.
 	 *
-	 * @since 0.25.0
+	 * @since 0.8.2
 	 */
 	refresh(): void;
 	/** Tear down all docks. Called on shell unload (or in tests). */
@@ -482,11 +482,11 @@ export function createLayoutDispatcher(
 		orientation,
 		windowManager: deps.windowManager,
 		adminUrl: deps.adminUrl,
-		// `openItem` / `openSubmenuPick` / `openSystemItem` /
-		// `requestSubmenu` are routing callbacks for custom
-		// renderers. They mirror exactly what the default renderer
-		// (`Dock.openPage` / `Dock.openSubmenuPick`) does internally
-		// — same `deriveWindowId(url, adminUrl)` call, same window-
+		// `openItem` / `openSubmenuPick` / `openSystemItem` are
+		// routing callbacks for custom renderers. They mirror
+		// exactly what the default renderer (`Dock.openPage` /
+		// `Dock.openSubmenuPick`) does internally — same
+		// `deriveWindowId(url, adminUrl)` call, same window-
 		// config shape — so a custom renderer addresses the same
 		// window with the same id at runtime. Switching renderer
 		// mid-session doesn't lose the user's open windows.

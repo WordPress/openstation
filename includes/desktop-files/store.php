@@ -14,8 +14,10 @@
  * `desktop_mode_files_can_place` (filter) and the file's
  * `Desktop_Mode_File::can_read()` before writing.
  *
- * Tombstones are written for every successful remove / move-out
- * so the Phase-6 Heartbeat delta knows what to send.
+ * Tombstones are written only for permanent removals (hard
+ * deletes); soft-trash and moves are surfaced to clients via
+ * `updated_at_ms` / `trashed_at_ms` in the Heartbeat delta — see
+ * desktop_mode_files_write_tombstone() for the invariant.
  *
  * @package WPDesktopMode
  * @since   0.9.0
@@ -209,8 +211,11 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 }
 
 /**
- * Move / mutate a placement. Pass `null` for fields that should
- * stay untouched.
+ * Move / mutate a placement. Omit keys that should stay untouched.
+ * For `parent_id`, `x`, `y`, `sort_order` a `null` value is treated
+ * the same as omitting the key; for `meta`, an explicit
+ * `meta => null` CLEARS the column (keyed on array_key_exists) —
+ * omit the key to preserve it.
  *
  * @since 0.9.0
  *
@@ -798,7 +803,7 @@ function desktop_mode_files_normalize_placement_row( $row ) {
  * `desktop_mode_files_compute_heartbeat_delta`. A tombstone on a
  * soft-trashed row lingers past restore and tells clients the row
  * is gone while it is in fact alive — see the "shared folder
- * disappears on refresh" bug fixed in 0.18.x.
+ * disappears on refresh" bug fixed in 0.8.5.
  *
  * Pair every revival path (`desktop_mode_files_restore_placement`,
  * `desktop_mode_files_restore_folder`, and the duplicate-key
@@ -834,7 +839,7 @@ function desktop_mode_files_write_tombstone( $kind, $ref ) {
  *
  * Idempotent — running it on a ref with no tombstones is a no-op.
  *
- * @since 0.18.0
+ * @since 0.8.5
  *
  * @param string $kind 'placement' | 'folder'.
  * @param int    $ref_id Row id whose tombstones should be dropped.
@@ -873,7 +878,9 @@ function desktop_mode_files_prune_tombstones() {
 add_action( 'desktop_mode_files_daily_prune', 'desktop_mode_files_prune_tombstones' );
 
 /**
- * Schedule the daily prune on activation.
+ * Schedule the daily prune. Hooked on `init` and idempotent via
+ * wp_next_scheduled(), so a manual file-copy install (no activation
+ * hook) still gets the cron event.
  *
  * @since 0.9.0
  */
@@ -902,7 +909,7 @@ add_action( 'init', 'desktop_mode_files_schedule_prune' );
  * cursor we've already seen, we treat it as a cycle and reject, so a
  * corrupted history can't drive this function into an infinite loop.
  *
- * @since 0.20.0
+ * @since 0.8.6
  *
  * @param int $user_id          Acting user.
  * @param int $moving_folder_id Folder being moved (its `folders.id`).

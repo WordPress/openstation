@@ -17,7 +17,7 @@
  * going through the PHP helper — are untouched by this sync and
  * keep their existing self-managed lifecycle.
  *
- * @since 0.10.0
+ * @since 0.5.0
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -75,6 +75,9 @@ export function createWidgetRegistrySync(
 				id: entry.id,
 				error: err,
 			} );
+			// Don't mark the URL as loaded — a transient load failure
+			// should be re-fetched on the next sync.
+			return;
 		}
 		loadedScripts.add( entry.scriptUrl );
 	};

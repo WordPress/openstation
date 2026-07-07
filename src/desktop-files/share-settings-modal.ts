@@ -6,7 +6,7 @@
  * folder's share list. Owner-only; the caller is expected to
  * have gated on ownership before calling.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 
 import { showToast } from '../toast';
@@ -52,7 +52,7 @@ interface OpenOptions {
  * selected segment becomes the accent color, unselected text is
  * a high-contrast rgba(255,255,255,…) muted.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 function buildCapSegmented(
 	initial: 'read' | 'write',
@@ -95,7 +95,7 @@ function buildCapSegmented(
  * but with explicit CSS-variable overrides for legibility on
  * the dark surface.
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 function buildIconButton(
 	label: string,
@@ -446,7 +446,7 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
  * Accept / Deny / Decide later. Returns when the user makes
  * a decision (or dismisses without deciding).
  *
- * @since 0.18.0
+ * @since 0.8.5
  */
 export function openPendingInviteModal( invite: {
 	id: number;

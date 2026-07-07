@@ -9,7 +9,7 @@
  * current desktop area — a window saved on a 4K monitor still
  * fits when the user comes back on a laptop.
  *
- * @since 0.18.0
+ * @since 0.8.1
  */
 
 import { addAction, removeAction, HOOKS } from '../hooks';

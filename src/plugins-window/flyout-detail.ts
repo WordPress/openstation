@@ -454,6 +454,10 @@ function buildScreenshots(
 		if ( shot.caption ) {
 			const cap = document.createElement( 'figcaption' );
 			cap.innerHTML = sanitizeHtml( shot.caption );
+			cap.querySelectorAll( 'a' ).forEach( ( a ) => {
+				a.setAttribute( 'target', '_blank' );
+				a.setAttribute( 'rel', 'noopener nofollow' );
+			} );
 			fig.appendChild( cap );
 		}
 		wrap.appendChild( fig );
@@ -784,9 +788,29 @@ function button( label: string, variant: string ): HTMLElement {
 }
 
 /**
+ * True when the URL carries no scheme (relative) or an allow-listed one
+ * (http, https, mailto, tel). Browsers strip ASCII control characters and
+ * whitespace before resolving a URL, so `java\tscript:` and `JavaScript:`
+ * both reach the engine as `javascript:` — normalize the same way before
+ * reading the scheme.
+ */
+function isSafeUrl( raw: string ): boolean {
+	const cleaned = Array.from( raw )
+		.filter( ( ch ) => ch.charCodeAt( 0 ) > 0x20 )
+		.join( '' )
+		.toLowerCase();
+	const scheme = cleaned.match( /^([a-z][a-z0-9+.-]*):/ );
+	if ( ! scheme ) {
+		return true;
+	}
+	return [ 'http', 'https', 'mailto', 'tel' ].includes( scheme[ 1 ] );
+}
+
+/**
  * Permissive HTML allow-list for `description` / `changelog` / `faq`
  * sections. Strips scripts, iframes, event handlers; keeps headings,
- * paragraphs, lists, links, images, code blocks.
+ * paragraphs, lists, links, images, code blocks. Link and image URLs
+ * must pass {@link isSafeUrl} or the attribute is removed.
  */
 function sanitizeHtml( html: string ): string {
 	const allowed = new Set( [
@@ -868,13 +892,13 @@ function sanitizeHtml( html: string ): string {
 			}
 			if ( current.tagName === 'A' ) {
 				const href = current.getAttribute( 'href' ) ?? '';
-				if ( href.startsWith( 'javascript:' ) ) {
+				if ( href && ! isSafeUrl( href ) ) {
 					current.removeAttribute( 'href' );
 				}
 			}
 			if ( current.tagName === 'IMG' ) {
 				const src = current.getAttribute( 'src' ) ?? '';
-				if ( src.startsWith( 'javascript:' ) ) {
+				if ( src && ! isSafeUrl( src ) ) {
 					current.removeAttribute( 'src' );
 				}
 			}
