@@ -625,6 +625,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  * --------------------------------------------------------------- */
 
 .desktop-mode-widgets {
+	border-radius: 14px;
 	position: absolute;
 	top: 16px;
 	bottom: 16px;
@@ -661,6 +662,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+	padding: 4px;
 }
 
 /*
@@ -673,6 +675,12 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .desktop-mode-widgets__card {
 	position: relative;
 	padding: 0;
+	/* Column layout so the body can flex-shrink and scroll when the
+	 * frame writes a fixed inline height (floating / resized cards).
+	 * Without this the body keeps its natural height and content
+	 * spills past the card's rounded bottom edge. */
+	display: flex;
+	flex-direction: column;
 	pointer-events: auto;
 	background: rgba( 20, 20, 22, 0.55 );
 	backdrop-filter: blur( 18px ) saturate( 140% );
@@ -684,13 +692,14 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 		0 8px 28px rgba( 0, 0, 0, 0.35 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
 	transition:
-		transform 0.18s ease,
 		box-shadow 0.18s ease,
 		opacity 0.18s ease;
 }
 
+/* Hover feedback is shadow-only — no transform. Cards must feel
+ * anchored; a hover nudge reads as the widget drifting under the
+ * pointer (and fought the user's chosen position on floating cards). */
 .desktop-mode-widgets__card:hover {
-	transform: translateX( -2px );
 	box-shadow:
 		0 12px 36px rgba( 0, 0, 0, 0.45 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
@@ -699,6 +708,10 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .desktop-mode-widgets__card-body {
 	padding: 16px;
 	min-height: 48px;
+	flex: 1 1 auto;
+	overflow-x: hidden;
+	overflow-y: auto;
+	scrollbar-width: thin;
 }
 
 .desktop-mode-widgets__card-close {
@@ -742,6 +755,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
  */
 .desktop-mode-widgets__chrome {
 	display: flex;
+	flex-shrink: 0;
 	align-items: center;
 	gap: 8px;
 	padding: 6px 8px;
@@ -845,16 +859,11 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 
 /*
  * Floating widgets — absolute-positioned, inline top/left/width/height
- * written by the frame. The hover translate-X effect would fight the
- * user's chosen position, so disable it.
+ * written by the frame.
  */
 .desktop-mode-widgets__card--floating {
 	position: absolute;
 	margin: 0;
-}
-
-.desktop-mode-widgets__card--floating:hover {
-	transform: none;
 }
 
 .desktop-mode-widgets__card--dragging,
@@ -941,11 +950,13 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 }
 
 /*
- * Non-movable resizable widgets only expose the bottom-edge handle —
- * width stays locked to the column width. Hide the other seven so the
- * cursor doesn't lie about what's interactive.
+ * Only floating cards expose the full 8-direction handle set. A
+ * column-docked card — non-movable OR movable-but-not-yet-liberated —
+ * resizes on the height axis alone (the frame ignores every other
+ * direction while docked), so hide all handles except the bottom
+ * edge and the cursor never lies about what's interactive.
  */
-.desktop-mode-widgets__card--resizable:not( .desktop-mode-widgets__card--movable ) .desktop-mode-widgets__resize:not( .desktop-mode-widgets__resize--s ) {
+.desktop-mode-widgets__card--resizable:not( .desktop-mode-widgets__card--floating ) .desktop-mode-widgets__resize:not( .desktop-mode-widgets__resize--s ) {
 	display: none;
 }
 

@@ -1,7 +1,7 @@
 /**
  * Desktop Mode — Widget persistence.
  *
- * Two separate localStorage records:
+ * Three separate localStorage records:
  *
  *   - `desktop-mode-widgets`           — ordered list of enabled widget
  *                                      ids (today's format; unchanged
@@ -12,6 +12,13 @@
  *                                      liberated from the column.
  *                                      Missing keys mean "still docked
  *                                      in the column."
+ *   - `desktop-mode-widgets-docked-heights` — per-id height (px) for
+ *                                      resizable widgets the user has
+ *                                      height-resized while docked.
+ *                                      Kept apart from the geometry
+ *                                      record because a geometry
+ *                                      entry's mere presence marks a
+ *                                      widget as floating at boot.
  *
  * Each record writes-through independently so a quota failure in one
  * doesn't corrupt the other.
@@ -23,6 +30,7 @@ import type { WidgetGeometry } from './types';
 
 const IDS_KEY = 'desktop-mode-widgets';
 const GEOMETRY_KEY = 'desktop-mode-widgets-geometry';
+const DOCKED_HEIGHTS_KEY = 'desktop-mode-widgets-docked-heights';
 
 /**
  * Raw read so callers can distinguish "never saved" (null) from
@@ -90,6 +98,41 @@ export function saveGeometry(
 ): void {
 	try {
 		window.localStorage.setItem( GEOMETRY_KEY, JSON.stringify( geometry ) );
+	} catch {
+		/* best-effort */
+	}
+}
+
+export function loadDockedHeights(): Record< string, number > {
+	try {
+		const raw = window.localStorage.getItem( DOCKED_HEIGHTS_KEY );
+		if ( ! raw ) {
+			return {};
+		}
+		const parsed = JSON.parse( raw );
+		if ( ! parsed || typeof parsed !== 'object' ) {
+			return {};
+		}
+		const out: Record< string, number > = {};
+		for ( const [ id, value ] of Object.entries( parsed ) ) {
+			if ( typeof value === 'number' && Number.isFinite( value ) && value > 0 ) {
+				out[ id ] = value;
+			}
+		}
+		return out;
+	} catch {
+		return {};
+	}
+}
+
+export function saveDockedHeights(
+	heights: Record< string, number >,
+): void {
+	try {
+		window.localStorage.setItem(
+			DOCKED_HEIGHTS_KEY,
+			JSON.stringify( heights ),
+		);
 	} catch {
 		/* best-effort */
 	}

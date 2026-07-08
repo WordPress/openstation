@@ -123,6 +123,9 @@ describe( 'widgets/layer', () => {
 		try {
 			window.localStorage.removeItem( 'desktop-mode-widgets' );
 			window.localStorage.removeItem( 'desktop-mode-widgets-geometry' );
+			window.localStorage.removeItem(
+				'desktop-mode-widgets-docked-heights',
+			);
 		} catch {
 			/* jsdom */
 		}
@@ -583,6 +586,235 @@ describe( 'widgets/layer', () => {
 		expect( docked.width ).toBe( 300 );
 		expect( docked.x ).toBe( 100 );
 		expect( docked.height ).toBe( 400 );
+	} );
+
+	test( 're-docking then resizing keeps the card in the column (no stale floating state)', async () => {
+		// Reproduces the "widget fully disappears while playing with
+		// drag / resize / re-attach" bug. The frame used to track
+		// floating state in a closure boolean that the layer's redock
+		// never reset — after re-docking, a resize still took the
+		// floating code path and wrote desktop-area coordinates into
+		// left/top on a relatively-positioned column card, flinging
+		// it off-screen with no error.
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'redock-rs',
+			label: 'Redock resize',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			resizable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["redock-rs"]' );
+		window.localStorage.setItem(
+			'desktop-mode-widgets-geometry',
+			JSON.stringify( {
+				'redock-rs': { x: 400, y: 300, width: 300, height: 200 },
+			} ),
+		);
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		// Floating cards mount into the floating host (host's parent,
+		// i.e. document.body in this harness), not the column.
+		const card = document.querySelector< HTMLElement >(
+			'[data-widget-id="redock-rs"]',
+		)!;
+		expect( card ).toBeTruthy();
+		expect(
+			card.classList.contains( 'desktop-mode-widgets__card--floating' ),
+		).toBe( true );
+
+		// Put it back in the column.
+		layer.redock( 'redock-rs' );
+		expect(
+			card.classList.contains( 'desktop-mode-widgets__card--floating' ),
+		).toBe( false );
+		expect( card.style.left ).toBe( '' );
+
+		// Now resize from the bottom edge, as a user would. Stub the
+		// rects jsdom won't compute: the card sits at the column's
+		// on-screen position (x≈1200) inside a 1536-wide desktop.
+		card.getBoundingClientRect = (): DOMRect => ( {
+			x: 1200, y: 40, width: 300, height: 200,
+			top: 40, left: 1200, right: 1500, bottom: 240,
+			toJSON: () => ( {} ),
+		} );
+		document.body.getBoundingClientRect = (): DOMRect => ( {
+			x: 0, y: 0, width: 1536, height: 800,
+			top: 0, left: 0, right: 1536, bottom: 800,
+			toJSON: () => ( {} ),
+		} );
+		const ptr = ( type: string, x: number, y: number ): Event => {
+			const e = new Event( type, { bubbles: true } );
+			Object.defineProperty( e, 'pointerId', { value: 1 } );
+			Object.defineProperty( e, 'button', { value: 0 } );
+			Object.defineProperty( e, 'clientX', { value: x } );
+			Object.defineProperty( e, 'clientY', { value: y } );
+			return e;
+		};
+		const handle = card.querySelector< HTMLElement >(
+			'.desktop-mode-widgets__resize--s',
+		)!;
+		( handle as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
+		( handle as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
+		handle.dispatchEvent( ptr( 'pointerdown', 1350, 240 ) );
+		handle.dispatchEvent( ptr( 'pointermove', 1350, 300 ) );
+		handle.dispatchEvent( ptr( 'pointerup', 1350, 300 ) );
+
+		// Height resize works…
+		expect( card.style.height ).toBe( '260px' );
+		// …but position must be untouched — before the fix left/top
+		// were written with desktop-area coords (left: 1200px on a
+		// position: relative card → off-screen).
+		expect( card.style.left ).toBe( '' );
+		expect( card.style.top ).toBe( '' );
+		// And no geometry record persists: a record marks the widget
+		// as floating on the next boot and would teleport it out of
+		// the column.
+		const geom = JSON.parse(
+			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) ||
+				'{}',
+		);
+		expect( geom[ 'redock-rs' ] ).toBeUndefined();
+
+		layer.disposeAll();
+	} );
+
+	test( 'docked height resize persists and re-applies on the next boot', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'dock-rs',
+			label: 'Dock resize',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			resizable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["dock-rs"]' );
+
+		const layer = new WidgetLayer( host, '' );
+		layer.hydrate();
+		const card = host.querySelector< HTMLElement >(
+			'[data-widget-id="dock-rs"]',
+		)!;
+		expect( card ).toBeTruthy();
+
+		// Stub the rects jsdom won't compute. `offsetHeight` mirrors
+		// the inline style the resize writes, like a real layout would.
+		card.getBoundingClientRect = (): DOMRect => ( {
+			x: 1200, y: 40, width: 300, height: 200,
+			top: 40, left: 1200, right: 1500, bottom: 240,
+			toJSON: () => ( {} ),
+		} );
+		Object.defineProperty( card, 'offsetHeight', {
+			configurable: true,
+			get: () => parseFloat( card.style.height ) || 200,
+		} );
+		document.body.getBoundingClientRect = (): DOMRect => ( {
+			x: 0, y: 0, width: 1536, height: 800,
+			top: 0, left: 0, right: 1536, bottom: 800,
+			toJSON: () => ( {} ),
+		} );
+		const ptr = ( type: string, x: number, y: number ): Event => {
+			const e = new Event( type, { bubbles: true } );
+			Object.defineProperty( e, 'pointerId', { value: 1 } );
+			Object.defineProperty( e, 'button', { value: 0 } );
+			Object.defineProperty( e, 'clientX', { value: x } );
+			Object.defineProperty( e, 'clientY', { value: y } );
+			return e;
+		};
+		const handle = card.querySelector< HTMLElement >(
+			'.desktop-mode-widgets__resize--s',
+		)!;
+		( handle as unknown as { setPointerCapture: () => void } ).setPointerCapture = () => undefined;
+		( handle as unknown as { releasePointerCapture: () => void } ).releasePointerCapture = () => undefined;
+		handle.dispatchEvent( ptr( 'pointerdown', 1350, 240 ) );
+		handle.dispatchEvent( ptr( 'pointermove', 1350, 300 ) );
+		handle.dispatchEvent( ptr( 'pointerup', 1350, 300 ) );
+
+		expect( card.style.height ).toBe( '260px' );
+		const saved = JSON.parse(
+			window.localStorage.getItem(
+				'desktop-mode-widgets-docked-heights',
+			) || '{}',
+		);
+		expect( saved[ 'dock-rs' ] ).toBe( 260 );
+		// No floating-geometry record — the card must boot docked.
+		const geom = JSON.parse(
+			window.localStorage.getItem( 'desktop-mode-widgets-geometry' ) ||
+				'{}',
+		);
+		expect( geom[ 'dock-rs' ] ).toBeUndefined();
+
+		layer.disposeAll();
+
+		// Fresh boot (F5 equivalent): height re-applies, still docked.
+		const layer2 = new WidgetLayer( host, '' );
+		layer2.hydrate();
+		const card2 = host.querySelector< HTMLElement >(
+			'[data-widget-id="dock-rs"]',
+		)!;
+		expect( card2.style.height ).toBe( '260px' );
+		expect(
+			card2.classList.contains( 'desktop-mode-widgets__card--floating' ),
+		).toBe( false );
+		layer2.disposeAll();
+	} );
+
+	test( 'persisted off-screen geometry is clamped back into view at mount', async () => {
+		const registry = await import( '../../src/widgets/registry' );
+		const { WidgetLayer } = await import( '../../src/widgets/layer' );
+		registry.register( {
+			id: 'lost',
+			label: 'Lost',
+			description: '',
+			icon: 'dashicons-star-filled',
+			movable: true,
+			mount: () => () => undefined,
+		} );
+		window.localStorage.setItem( 'desktop-mode-widgets', '["lost"]' );
+		// Coordinates far outside any plausible desktop — e.g. written
+		// by the stale-floating bug or a much larger prior screen.
+		window.localStorage.setItem(
+			'desktop-mode-widgets-geometry',
+			JSON.stringify( {
+				lost: { x: 5000, y: 4000, width: 300, height: 200 },
+			} ),
+		);
+		// The floating host (document.body here) must report a laid-out
+		// size for the mount-time clamp to engage.
+		Object.defineProperty( document.body, 'clientWidth', {
+			value: 1000,
+			configurable: true,
+		} );
+		Object.defineProperty( document.body, 'clientHeight', {
+			value: 600,
+			configurable: true,
+		} );
+
+		try {
+			const layer = new WidgetLayer( host, '' );
+			layer.hydrate();
+			const card = document.querySelector< HTMLElement >(
+				'[data-widget-id="lost"]',
+			)!;
+			// Clamped to parent bounds minus the 20px margin — the card
+			// is on-screen and grabbable again.
+			expect( card.style.left ).toBe( `${ 1000 - 300 - 20 }px` );
+			expect( card.style.top ).toBe( `${ 600 - 200 - 20 }px` );
+			layer.disposeAll();
+		} finally {
+			// Don't leak the stubbed body metrics into later tests.
+			delete ( document.body as unknown as Record< string, unknown > )
+				.clientWidth;
+			delete ( document.body as unknown as Record< string, unknown > )
+				.clientHeight;
+		}
 	} );
 
 	test( 'add-then-remove before async mount resolves discards the stale mount', async () => {

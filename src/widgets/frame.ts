@@ -67,9 +67,16 @@ export interface FrameHandlers {
 	 * Fired after the user finishes a drag or resize — handler
 	 * persists + fires hooks. Called with the current geometry in
 	 * desktop-area-local coordinates; handler is free to clamp /
-	 * reject.
+	 * reject. Only fires for floating cards.
 	 */
 	onGeometryChanged( geometry: WidgetGeometry ): void;
+	/**
+	 * Fired after the user finishes a height resize on a DOCKED
+	 * (column) card. Kept separate from `onGeometryChanged` because
+	 * docked cards persist only their height — a full geometry
+	 * record would mark the widget as floating on the next boot.
+	 */
+	onDockedHeightChanged( height: number ): void;
 	/**
 	 * Fired the first time a column-docked movable widget is dragged
 	 * (the "liberate" transition). Handler should re-parent the card
@@ -96,6 +103,12 @@ export interface FrameContext {
 	floatingParent: HTMLElement;
 	/** Persisted geometry for this id, or undefined for column-docked. */
 	geometry: WidgetGeometry | undefined;
+	/**
+	 * Persisted column-mode height for this id, or undefined for
+	 * natural (content-driven) height. Only applied when the card
+	 * mounts docked AND the widget is resizable.
+	 */
+	dockedHeight?: number;
 }
 
 export interface Frame {
@@ -143,13 +156,33 @@ export function buildFrame(
 
 	// Pre-apply saved geometry if the widget is already floating. The
 	// caller (layer) handles which parent to insert into — we just
-	// own the inline styles.
-	let isFloating = false;
+	// own the inline styles. Persisted coordinates are clamped to the
+	// current parent bounds so a stale entry (smaller screen, an old
+	// bug's leftovers) can never mount the card off-screen where the
+	// user has no way to grab it back.
 	if ( ctx.geometry ) {
-		applyGeometry( card, ctx.geometry );
+		applyGeometry(
+			card,
+			clampGeometryToParent( ctx.geometry, ctx.floatingParent ),
+		);
 		card.classList.add( FLOATING_CLASS );
-		isFloating = true;
+	} else if ( resizable && typeof ctx.dockedHeight === 'number' ) {
+		// Docked card with a persisted height resize — re-apply it,
+		// clamped to the def's current limits in case the widget's
+		// min/max changed between sessions.
+		card.style.height = `${ clampDockedHeight( ctx.dockedHeight, def ) }px`;
 	}
+
+	/**
+	 * Floating state is derived from the `--floating` class — the
+	 * single source of truth the layer also writes to on redock. A
+	 * closure boolean here previously went stale when the layer
+	 * re-docked the card (the frame was never told), so the next
+	 * resize wrote desktop-area left/top offsets onto a relatively-
+	 * positioned column card and flung it off-screen.
+	 */
+	const isFloating = (): boolean =>
+		card.classList.contains( FLOATING_CLASS );
 
 	// Resize handles — always built for resizable widgets, but only
 	// the ones that match the movable state are visible (CSS hides
@@ -164,7 +197,7 @@ export function buildFrame(
 			handle.dataset.dir = dir;
 			card.appendChild( handle );
 			resizeCleanups.push(
-				attachResize( card, handle, dir, def, ctx, handlers, () => isFloating ),
+				attachResize( card, handle, dir, def, ctx, handlers, isFloating ),
 			);
 		}
 	}
@@ -179,9 +212,7 @@ export function buildFrame(
 			'.desktop-mode-widgets__chrome',
 		);
 		if ( chrome ) {
-			dragCleanup = attachDrag( card, chrome, def, ctx, handlers, ( next ) => {
-				isFloating = next;
-			} );
+			dragCleanup = attachDrag( card, chrome, def, ctx, handlers );
 		}
 	}
 
@@ -323,7 +354,6 @@ function attachDrag(
 	def: WidgetDef,
 	ctx: FrameContext,
 	handlers: FrameHandlers,
-	setFloating: ( next: boolean ) => void,
 ): () => void {
 	let pointerId: number | null = null;
 	let startX = 0;
@@ -400,7 +430,6 @@ function attachDrag(
 			};
 			applyGeometry( card, initial );
 			card.classList.add( FLOATING_CLASS );
-			setFloating( true );
 			handlers.onLiberate( initial );
 			// Re-read the inline styles — the applyGeometry call
 			// above just wrote them. Without this, the first
@@ -566,7 +595,15 @@ function attachResize(
 		}
 		pointerId = null;
 		card.classList.remove( RESIZING_CLASS );
-		handlers.onGeometryChanged( currentGeometry( card ) );
+		// Floating and docked resizes persist through DIFFERENT
+		// channels: a geometry record's presence is what marks a
+		// widget as floating on the next boot, so a docked height
+		// resize must never write one — it persists height alone.
+		if ( isFloating() ) {
+			handlers.onGeometryChanged( currentGeometry( card ) );
+		} else {
+			handlers.onDockedHeightChanged( card.offsetHeight );
+		}
 	};
 
 	handle.addEventListener( 'pointerdown', onDown );
@@ -611,6 +648,46 @@ function currentGeometry( card: HTMLElement ): WidgetGeometry {
 		width: card.offsetWidth,
 		height: card.offsetHeight,
 	};
+}
+
+/**
+ * Clamp a persisted docked height to the def's current min/max —
+ * the stored value was clamped at resize time, but the widget's
+ * declared limits may have changed between sessions.
+ */
+function clampDockedHeight( height: number, def: WidgetDef ): number {
+	return clamp(
+		height,
+		def.minHeight ?? DEFAULT_MIN_HEIGHT,
+		def.maxHeight ?? Infinity,
+	);
+}
+
+/**
+ * Clamp a persisted geometry's position into the parent's bounds
+ * before mounting. Guards against stale localStorage entries — a
+ * smaller screen than last session, or coordinates written by an
+ * older buggy build — mounting the card off-screen where the user
+ * can never grab it back. Size is left untouched; only the position
+ * is pulled back into view.
+ */
+function clampGeometryToParent(
+	geometry: WidgetGeometry,
+	parent: HTMLElement,
+): WidgetGeometry {
+	// Parent not laid out yet (zero size) — clamping against it would
+	// snap everything to the origin. Trust the persisted values.
+	if ( ! parent.clientWidth || ! parent.clientHeight ) {
+		return geometry;
+	}
+	const clamped = clampToParent(
+		geometry.x,
+		geometry.y,
+		geometry.width,
+		geometry.height,
+		parent,
+	);
+	return { ...geometry, x: clamped.x, y: clamped.y };
 }
 
 function clampToParent(

@@ -3179,7 +3179,7 @@ wp.desktop.registerWidget( {
 } );
 ```
 
-User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Removing a widget clears its stored geometry so a re-add starts docked in the column again.
+User-placed geometry (position + size of liberated widgets) persists per-user in `localStorage` under `desktop-mode-widgets-geometry`. Height resizes made while a resizable widget is docked in the column persist separately under `desktop-mode-widgets-docked-heights` (height only — column widgets have no free position, and a full geometry record would mark the widget as floating at boot). Removing a widget clears both records so a re-add starts docked at its natural height.
 
 ##### `wp.desktop.widgets.redock( id )` — Stable since 0.6.0
 

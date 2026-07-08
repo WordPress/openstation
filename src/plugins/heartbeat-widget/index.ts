@@ -277,8 +277,8 @@ async function mountWithPixi(
 	// Soft halo behind the heart (pulses with glow), the heart
 	// itself in the middle, and a centred WP logo sprite on top.
 	const halo: Graphics = buildHalo( pixi );
-	const heart: Container = buildHeart( pixi );
-	const logo: Sprite = buildLogoSprite( pixi, logoUrl( ctx ) );
+	const { view: heart, body: heartBody } = buildHeart( pixi );
+	const logo: Container = buildLogoSprite( pixi, logoUrl( ctx ) );
 	app.stage.addChild( halo );
 	app.stage.addChild( heart );
 	heart.addChild( logo );
@@ -399,8 +399,11 @@ async function mountWithPixi(
 
 		// Color tint: blend toward the lighter "beating" hue with
 		// the big-beat envelope so the colour and the scale move
-		// together.
-		( heart as unknown as { tint: number } ).tint = lerpColor(
+		// together. Tint ONLY the gradient body sprite — tinting the
+		// whole heart container multiplied the white WP logo and the
+		// specular highlights down to the body's own red, camouflaging
+		// them against the heart (the "barely visible W" bug).
+		heartBody.tint = lerpColor(
 			HEART_COLOR_REST,
 			HEART_COLOR_BEAT,
 			Math.min( 1, glow * 0.6 + bigBeatT * 0.4 ),
@@ -601,11 +604,11 @@ function buildHalo( pixi: typeof import( 'pixi.js' ) ): Graphics {
 }
 
 /**
- * Parametric heart curve. Bounding box for the unscaled formula:
- *   x ∈ [-16, 16]   →   width  = 32
- *   y ∈ [-15, 9]    →   height = 24
- * That's already a slightly wider-than-tall heart (4:3). We add a
- * small x-axis stretch (× 1.08) so the silhouette reads
+ * Parametric heart curve. Bounding box for the unscaled formula
+ * (y negated for screen coords, so +y is the bottom tip):
+ *   x ∈ [-17.28, 17.28]   →   width  ≈ 34.6  (incl. the 1.08 stretch)
+ *   y ∈ [-11.92, 17.00]   →   height ≈ 28.9
+ * We add a small x-axis stretch (× 1.08) so the silhouette reads
  * unambiguously wider — closer to a Hallmark heart than a
  * mathematically pure one. Y is left alone; per-layer Y offsets
  * are gone (they were stretching the silhouette in the old
@@ -629,7 +632,15 @@ function heartPath( scaleMul = 1 ): number[] {
 	return pts;
 }
 
-function buildHeart( pixi: typeof import( 'pixi.js' ) ): Container {
+/**
+ * Build the heart. Returns the container (`view`) plus the gradient
+ * body sprite (`body`) so the ticker can tint the body alone — the
+ * highlights, outline, and logo must stay untinted or they dissolve
+ * into the body color.
+ */
+function buildHeart(
+	pixi: typeof import( 'pixi.js' ),
+): { view: Container; body: Sprite } {
 	const wrap = new pixi.Container();
 	const bounds = heartBoundingY();
 
@@ -657,6 +668,10 @@ function buildHeart( pixi: typeof import( 'pixi.js' ) ): Container {
 	gradientSprite.height = heartHeight;
 	gradientSprite.x = -overscan / 2;
 	gradientSprite.y = bounds.minY;
+
+	// Start at the resting tint so the first painted frame matches
+	// what the ticker will keep writing.
+	gradientSprite.tint = HEART_COLOR_REST;
 
 	const mask = new pixi.Graphics();
 	mask.poly( heartPath( 1.0 ) );
@@ -698,19 +713,33 @@ function buildHeart( pixi: typeof import( 'pixi.js' ) ): Container {
 	outline.stroke( { color: 0xffffff, alpha: 0.18, width: 1 } );
 	wrap.addChild( outline );
 
-	return wrap;
+	return { view: wrap, body: gradientSprite };
 }
 
 /**
  * Vertical span of the heart path in local pixels — used to size
  * the gradient sprite exactly.
+ *
+ * Derived from the sampled path itself rather than hardcoded: a
+ * previous hand-computed range (−15…+9) undershot the curve's real
+ * extent (−11.92…+17.0), so the gradient sprite ended ~28% above
+ * the heart's bottom tip — the mask had nothing to reveal there
+ * except the black drop-shadow, painting the tip as a flat dark
+ * band with a hard horizontal seam.
  */
 function heartBoundingY(): { minY: number; maxY: number } {
-	const s = HEART_SIZE / 17;
-	return {
-		minY: -15 * s,
-		maxY: 9 * s,
-	};
+	const pts = heartPath( 1.0 );
+	let minY = Infinity;
+	let maxY = -Infinity;
+	for ( let i = 1; i < pts.length; i += 2 ) {
+		if ( pts[ i ] < minY ) {
+			minY = pts[ i ];
+		}
+		if ( pts[ i ] > maxY ) {
+			maxY = pts[ i ];
+		}
+	}
+	return { minY, maxY };
 }
 
 /**
@@ -741,31 +770,104 @@ function makeGradientCanvas(): HTMLCanvasElement {
 function buildLogoSprite(
 	pixi: typeof import( 'pixi.js' ),
 	url: string,
-): Sprite {
-	const sprite = new pixi.Sprite();
-	sprite.anchor.set( 0.5 );
-	sprite.alpha = 0.95;
+): Container {
+	const wrap = new pixi.Container();
 	// Visual centre — pulled a touch BELOW the heart's geometric
 	// midline so the W mark sits in the meaty mid-body of the
 	// heart rather than floating between the upper lobes. The
 	// optical centre of a heart shape is below its geometric one
 	// because the lobes are visually heavier than the V-cleft.
-	sprite.y = HEART_SIZE * 0.08;
+	wrap.y = HEART_SIZE * 0.08;
+
+	// Soft drop shadow — a dark copy of the mark nudged down. The
+	// white glyph alone sat directly on the mid-body reds and could
+	// wash out; the shadow gives every stroke a dark edge to read
+	// against, whatever the current beat tint.
+	const shadow = new pixi.Sprite();
+	shadow.anchor.set( 0.5 );
+	shadow.tint = HEART_PALETTE.rim;
+	shadow.alpha = 0.6;
+	shadow.y = HEART_SIZE * 0.035;
+	wrap.addChild( shadow );
+
+	const mark = new pixi.Sprite();
+	mark.anchor.set( 0.5 );
+	wrap.addChild( mark );
 
 	const targetWidth = HEART_SIZE * 0.92;
-	pixi.Assets
-		.load( url )
-		.then( ( texture: Texture ) => {
-			sprite.texture = texture;
-			const scale = targetWidth / Math.max( 1, texture.width );
-			sprite.scale.set( scale );
+	// The source PNG is 1000 × 1000 but renders at ~48 CSS px. Sampling
+	// that big texture directly leaves the GPU's linear filter (no
+	// mipmaps in PIXI v8 by default) to skip most texels at ~20×
+	// minification — visibly pixelated edges. Rasterize once to a
+	// canvas at the exact display size instead, so the GPU samples
+	// near 1:1 and the mark stays crisp.
+	const img = new Image();
+	img.src = url;
+	img
+		.decode()
+		.then( () => {
+			const resolution = Math.min( window.devicePixelRatio || 1, 2 );
+			// ×1.7 headroom keeps the mark sharp at the big-beat peak
+			// (heart scales to ×1.55 plus the squish overshoot).
+			const widthPx = Math.ceil( targetWidth * resolution * 1.7 );
+			const canvas = rasterizeLogo( img, widthPx );
+			const texture: Texture = pixi.Texture.from( canvas );
+			const scale = targetWidth / canvas.width;
+			shadow.texture = texture;
+			shadow.scale.set( scale );
+			mark.texture = texture;
+			mark.scale.set( scale );
 		} )
 		.catch( () => {
 			// PNG missing or CSP block — heart still looks fine
 			// without the logo.
 		} );
 
-	return sprite;
+	return wrap;
+}
+
+/**
+ * Downscale the logo image to `widthPx` via canvas, halving in steps.
+ * A single drawImage from 1000 px straight to ~160 px undersamples on
+ * some engines (Firefox ignores `imageSmoothingQuality`) and shimmers;
+ * step-halving to ≤ 2× the target first keeps every stage within the
+ * filter's window, then the final draw lands on the exact size.
+ */
+function rasterizeLogo(
+	img: HTMLImageElement,
+	widthPx: number,
+): HTMLCanvasElement {
+	let src: HTMLImageElement | HTMLCanvasElement = img;
+	let w = img.naturalWidth;
+	let h = img.naturalHeight;
+	while ( w / 2 >= widthPx * 2 ) {
+		w = Math.round( w / 2 );
+		h = Math.round( h / 2 );
+		const step = document.createElement( 'canvas' );
+		step.width = w;
+		step.height = h;
+		const g = step.getContext( '2d' );
+		if ( ! g ) {
+			break;
+		}
+		g.imageSmoothingEnabled = true;
+		g.imageSmoothingQuality = 'high';
+		g.drawImage( src, 0, 0, w, h );
+		src = step;
+	}
+	const out = document.createElement( 'canvas' );
+	out.width = Math.max( 1, widthPx );
+	out.height = Math.max(
+		1,
+		Math.round( ( widthPx * img.naturalHeight ) / Math.max( 1, img.naturalWidth ) ),
+	);
+	const g = out.getContext( '2d' );
+	if ( g ) {
+		g.imageSmoothingEnabled = true;
+		g.imageSmoothingQuality = 'high';
+		g.drawImage( src, 0, 0, out.width, out.height );
+	}
+	return out;
 }
 
 function wpHeartbeatInterval(): number {
