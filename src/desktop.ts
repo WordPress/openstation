@@ -170,6 +170,7 @@ import { bootStickyNotes } from './sticky-notes';
 // boot-time consumer reaches the same captured value — see the import
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
+import { setupDevModeWidgetGate } from './widgets/dev-mode-gate';
 import {
 	installDefaultDockRailRenderer,
 	type DockRailRenderer,
@@ -1819,6 +1820,14 @@ function init(): void {
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
+
+	// Starter Widget developer-mode gate — must install its
+	// `desktop-mode.widgets` filter before `widgetLayer.hydrate()`
+	// runs below so a previously-placed Starter instance doesn't
+	// mount when developer mode is off.
+	if ( widgetLayer ) {
+		setupDevModeWidgetGate( { osSettings, layer: widgetLayer } );
+	}
 
 	// AI Assistant — main bundle ships a tiny stub matching the same
 	// AiAssistantApi contract. The 38 kB implementation lives in its

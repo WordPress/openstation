@@ -192,6 +192,7 @@ export const DEFAULTS: OsSettingsState = {
 	nativeCommentsEnabled: false,
 	showDesktopOnWallpaperClick: false,
 	showPostStatusRibbons: true,
+	developerModeEnabled: false,
 	foldersSharingEnabled: true,
 	itemVisibility: {},
 	dockOrder: [],

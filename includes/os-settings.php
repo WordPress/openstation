@@ -128,6 +128,12 @@ function desktop_mode_default_os_settings() {
 		// scheduled). On by default — surfaces unpublished work at
 		// a glance. Per-user.
 		'showPostStatusRibbons'       => true,
+		// Unlocks developer-facing surfaces meant for plugin
+		// authors: the Starter Widget appears in the add-widget
+		// picker, and the OS Settings → Components tab runs its
+		// intentional missing-import-warner demo. Off by default.
+		// Per-user.
+		'developerModeEnabled'        => false,
 		// Per-user opt-OUT for the folder-sharing feature. Defaults
 		// ON. When false:
 		// - The Share button, share-settings modal, "Leave shared
@@ -430,6 +436,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['showPostStatusRibbons']
 		: $defaults['showPostStatusRibbons'];
 
+	$developer_mode_enabled = isset( $raw['developerModeEnabled'] )
+		? (bool) $raw['developerModeEnabled']
+		: $defaults['developerModeEnabled'];
+
 	$folders_sharing_enabled = isset( $raw['foldersSharingEnabled'] )
 		? (bool) $raw['foldersSharingEnabled']
 		: $defaults['foldersSharingEnabled'];
@@ -547,6 +557,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativeCommentsEnabled'       => $native_comments_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
+		'developerModeEnabled'        => $developer_mode_enabled,
 		'foldersSharingEnabled'       => $folders_sharing_enabled,
 		'itemVisibility'              => $item_visibility,
 		'dockOrder'                   => $dock_order,

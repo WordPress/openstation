@@ -400,6 +400,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof patch.foldersSharingEnabled === 'boolean' ) {
 				osSettings.state.foldersSharingEnabled = patch.foldersSharingEnabled;
 			}
+			if ( typeof patch.developerModeEnabled === 'boolean' ) {
+				osSettings.state.developerModeEnabled = patch.developerModeEnabled;
+			}
 			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
 				osSettings.state.nativePostsHiddenColumns =
 					patch.nativePostsHiddenColumns
