@@ -37,7 +37,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OS Settings — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `desktop_mode_mode_init`, `desktop_mode_shell_before` / `_after`, and the `desktop_mode_shell_config` filter are the main extension points.
 
 - **Window system — iframe + native**
-  Iframe windows load admin pages with `?wp_desktop=1` (chromeless mode). Native windows render directly in the parent DOM via `desktop_mode_register_window()` / `wp.desktop.registerWindow()` — multi-tab native windows are supported through `desktop_mode_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
+  Iframe windows load admin pages with `?desktop_mode_chromeless=1` (chromeless mode). Native windows render directly in the parent DOM via `desktop_mode_register_window()` / `wp.desktop.registerWindow()` — multi-tab native windows are supported through `desktop_mode_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
 
 - **Dock**
   One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is the user's OS Settings preference. Core menus are ordered before plugin menus; per-item hiding via `desktop_mode_dock_placement` (`'hidden'`). Per-item multi-window support via `desktop_mode_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
