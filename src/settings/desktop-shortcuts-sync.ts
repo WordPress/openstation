@@ -4,7 +4,7 @@
  * onto the wallpaper grid and server-registered desktop icons can
  * be hidden from it.
  *
- * Two flows:
+ * Three flows:
  *
  * 1. **Promote a dock item to the desktop.** For every admin-menu
  *    item whose visibility is `'desktop'` or `'both'`, upsert a
@@ -21,12 +21,27 @@
  *    this module re-applies on every change, so the icon disappears
  *    again immediately.
  *
+ * 3. **Spatial layout core icons.** When `desktopLayout === 'spatial'`,
+ *    every core admin-menu item (`isCore: true`) that isn't
+ *    explicitly hidden also gets a synthetic shortcut placement —
+ *    Spatial treats the wallpaper as the "core surface". This is the
+ *    files-layer equivalent of the `dock-core:*` icons the legacy
+ *    `renderDesktopIcons()` grid synthesizes; that grid is hidden by
+ *    CSS whenever the files layer is mounted (see
+ *    `desktop-files.css`'s `:has(...)` rule), so without this flow
+ *    Spatial's core icons render into a permanently invisible div.
+ *    Leaving Spatial removes these placements again, but — unlike an
+ *    explicit user demotion — does *not* prune the item's persisted
+ *    drag position, so a dragged core icon reappears where the user
+ *    left it if they switch back to Spatial later.
+ *
  * Synthetic placements aren't persisted via the files REST layer;
  * they live only in the JS store. The sources of truth are
- * `itemVisibility` (promotion) and `dockPromotedPositions`
- * (positions), both in the OS Settings user meta — so promotion
- * *and* the user's last-dragged position survive reloads; this
- * module restores both on every sync.
+ * `itemVisibility` (promotion), `dockPromotedPositions` (positions),
+ * and `desktopLayout` (whether core items synthesize), all in the OS
+ * Settings user meta — so promotion, layout choice, *and* the user's
+ * last-dragged position survive reloads; this module restores all of
+ * them on every sync.
  *
  * @since 0.8.2
  */
@@ -34,7 +49,8 @@
 import { filesApi } from '../desktop-files';
 import type { RestPlacementShape } from '../desktop-files/rest';
 import type { DesktopConfig, DesktopIconServerEntry, DockItemConfig } from '../types';
-import type { ItemVisibility, OsSettingsState } from './types';
+import { resolvePlacement } from './item-placement';
+import type { DesktopLayoutId, ItemVisibility, OsSettingsState } from './types';
 import type { OsSettingsSnapshot } from './registry';
 
 /** Marker on `placement.meta` for shortcuts we synthesized. */
@@ -97,6 +113,7 @@ function readDockItems(): DockItemConfig[] {
 					url: string;
 					badge?: number;
 					submenu?: { title: string; url: string }[];
+					isCore?: boolean;
 				} >;
 			};
 		};
@@ -110,6 +127,7 @@ function readDockItems(): DockItemConfig[] {
 			url: i.url,
 			badge: i.badge ?? 0,
 			submenu: i.submenu ?? [],
+			isCore: i.isCore,
 		} ) );
 	}
 	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
@@ -188,11 +206,15 @@ function prunePromotedPositions( ids: string[] ): void {
  * {@link OsSettingsState.itemVisibility} map. The `positions`
  * argument is the matching `dockPromotedPositions` map — synth
  * placements built from a previously-dragged dock item land at the
- * stored coords instead of (0, 0).
+ * stored coords instead of (0, 0). The `layout` argument is the
+ * current `desktopLayout` — when `'spatial'`, core dock items are
+ * also synthesized onto the wallpaper (see flow 3 in the module doc
+ * comment).
  */
 export function syncShortcutsWithVisibility(
 	visibility: Record< string, ItemVisibility >,
 	positions: Record< string, { x: number; y: number } > = {},
+	layout?: DesktopLayoutId,
 ): void {
 	if ( reentrant ) {
 		return;
@@ -201,6 +223,9 @@ export function syncShortcutsWithVisibility(
 	try {
 		const dockItems = readDockItems();
 		const serverIcons = readServerIcons();
+		const dockItemsById = new Map< string, DockItemConfig >(
+			dockItems.map( ( item ) => [ item.id, item ] ),
+		);
 
 		const state = filesApi.store.getState();
 		const root = state.placementsByFolder.get( 0 ) ?? [];
@@ -233,11 +258,19 @@ export function syncShortcutsWithVisibility(
 			}
 		}
 
-		// 1. Promote dock items.
+		// 1. Promote dock items — explicit user promotion (any layout),
+		//    plus every core item while the layout is Spatial (the
+		//    wallpaper is Spatial's "core surface").
 		const desiredSynth = new Set< string >();
 		for ( const item of dockItems ) {
-			const placement = visibility[ item.id ];
-			if ( placement === 'desktop' || placement === 'both' ) {
+			const resolved = resolvePlacement( item.id, 'dock', visibility );
+			const explicitlyPromoted =
+				resolved === 'desktop' || resolved === 'both';
+			const spatialCore =
+				layout === 'spatial' &&
+				Boolean( item.isCore ) &&
+				( resolved === 'dock' || resolved === 'both' );
+			if ( explicitlyPromoted || spatialCore ) {
 				desiredSynth.add( item.id );
 				if ( ! currentSynth.has( item.id ) ) {
 					filesApi.store.upsertPlacement(
@@ -246,16 +279,24 @@ export function syncShortcutsWithVisibility(
 				}
 			}
 		}
-		// Remove synthetic placements that are no longer wanted, and
-		// prune their persisted drag position so stale coordinates can't
-		// leak or silently resurrect on a future re-promote.
+		// Remove synthetic placements that are no longer wanted. Prune
+		// their persisted drag position too — unless the removal is
+		// solely because a core item's Spatial-only synthesis just
+		// switched off (leaving Spatial, or the layout not being
+		// Spatial yet on this sync), in which case the user's arranged
+		// position must survive a round-trip back to Spatial.
 		const positionsToPrune: string[] = [];
 		for ( const [ sourceId, p ] of currentSynth ) {
-			if ( ! desiredSynth.has( sourceId ) ) {
-				filesApi.store.removePlacement( p.id );
-				if ( positions[ sourceId ] ) {
-					positionsToPrune.push( sourceId );
-				}
+			if ( desiredSynth.has( sourceId ) ) {
+				continue;
+			}
+			filesApi.store.removePlacement( p.id );
+			const sourceItem = dockItemsById.get( sourceId );
+			const wasOnlySpatialCore =
+				Boolean( sourceItem?.isCore ) &&
+				visibility[ sourceId ] === undefined;
+			if ( positions[ sourceId ] && ! wasOnlySpatialCore ) {
+				positionsToPrune.push( sourceId );
 			}
 		}
 		if ( positionsToPrune.length > 0 ) {
@@ -315,19 +356,26 @@ export function syncShortcutsWithVisibility(
  * `getPositions` returns the persisted `dockPromotedPositions` map
  * (defaults to an empty record when the caller doesn't supply one,
  * for backwards-compat with older boot paths that didn't know about
- * the field yet).
+ * the field yet). `getLayout` returns the current `desktopLayout`
+ * (defaults to `undefined`, i.e. never Spatial-synthesize, for the
+ * same backwards-compat reason).
  *
  * Returns a teardown function for tests / hot-reload.
  */
 export function installShortcutsSync(
 	getVisibility: () => Record< string, ItemVisibility >,
 	getPositions: () => Record< string, { x: number; y: number } > = () => ( {} ),
+	getLayout: () => DesktopLayoutId | undefined = () => undefined,
 ): () => void {
 	// Initial reconciliation — runs on a microtask so any
 	// just-mounted desktop icons from the server hydration are in
 	// the store before we filter.
 	queueMicrotask( () =>
-		syncShortcutsWithVisibility( getVisibility(), getPositions() ),
+		syncShortcutsWithVisibility(
+			getVisibility(),
+			getPositions(),
+			getLayout(),
+		),
 	);
 
 	// Re-run on every store change so server-driven hydration
@@ -335,7 +383,11 @@ export function installShortcutsSync(
 	// filtered. The reentrancy guard prevents our own writes from
 	// triggering an infinite loop.
 	const off = filesApi.store.subscribe( () => {
-		syncShortcutsWithVisibility( getVisibility(), getPositions() );
+		syncShortcutsWithVisibility(
+			getVisibility(),
+			getPositions(),
+			getLayout(),
+		);
 	} );
 
 	return off;
