@@ -3488,6 +3488,7 @@ type WallpaperDef =
           id: string;
           label: string;
           preview: string;            // CSS `background` value for the swatch
+          description?: string;       // Plain text, shown in OS Settings when selected (since 0.9.4)
           value?: string;             // Applied to --desktop-mode-bg
           resolveValue?: ( ctx: WallpaperContext ) => string;  // Dynamic alternative
           renderEditor?: WallpaperEditor;
@@ -3497,6 +3498,7 @@ type WallpaperDef =
           id: string;
           label: string;
           preview: string;            // CSS `background` for the swatch (pre-mount)
+          description?: string;       // Plain text, shown in OS Settings when selected (since 0.9.4)
           mount: ( container: HTMLElement, ctx: WallpaperContext ) =>
                   ( () => void ) | Promise<() => void>;
           renderEditor?: WallpaperEditor;
@@ -3510,6 +3512,8 @@ interface WallpaperContext {
 }
 ```
 
+**`description`** — *Experimental (since 0.9.4).* A sentence or two shown in a styled card under the OS Settings picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `desktop_mode_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
+
 ### Minimal CSS wallpaper
 
 ```javascript
@@ -3520,6 +3524,7 @@ wp.desktop.ready( () => {
         type: 'css',
         value: 'linear-gradient(180deg, #0ea5e9, #1e3a8a)',
         preview: 'linear-gradient(180deg, #0ea5e9, #1e3a8a)',
+        description: 'Sea-surface blues fading into deep water.',
     } );
 } );
 ```

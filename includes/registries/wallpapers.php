@@ -79,6 +79,11 @@ defined( 'ABSPATH' ) || exit;
  *                                  publishes the def on the global.
  *                                  Required for `canvas` type;
  *                                  optional for `css`.
+ *     @type string   $description  Plain-text description shown in OS
+ *                                  Settings when the wallpaper is the
+ *                                  active selection — what it is, where
+ *                                  its data comes from, the story behind
+ *                                  it. Optional. Since 0.9.4.
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
  *                                  `WP_Error desktop_mode_capability_denied`.
@@ -100,6 +105,7 @@ function desktop_mode_register_wallpaper( $id, $args = array() ) {
 		'type'         => 'canvas',
 		'value'        => '',
 		'script'       => '',
+		'description'  => '',
 		'capabilities' => array(),
 	);
 	$args = wp_parse_args( $args, $defaults );
@@ -149,12 +155,15 @@ function desktop_mode_register_wallpaper( $id, $args = array() ) {
 	}
 
 	$entry = array(
-		'id'      => $id,
-		'label'   => (string) $args['label'],
-		'preview' => (string) $args['preview'],
-		'type'    => $type,
-		'value'   => $value,
-		'script'  => (string) $args['script'],
+		'id'          => $id,
+		'label'       => (string) $args['label'],
+		'preview'     => (string) $args['preview'],
+		'type'        => $type,
+		'value'       => $value,
+		'script'      => (string) $args['script'],
+		// Plain text by contract — the shell renders it as text, never
+		// as HTML, so strip tags here rather than trusting every caller.
+		'description' => sanitize_textarea_field( (string) $args['description'] ),
 	);
 	desktop_mode_desktop_wallpaper_registry( $id, $entry );
 
@@ -235,6 +244,7 @@ function desktop_mode_build_desktop_wallpapers_payload() {
 			'preview'           => isset( $entry['preview'] ) ? (string) $entry['preview'] : '',
 			'type'              => isset( $entry['type'] ) ? (string) $entry['type'] : 'canvas',
 			'value'             => isset( $entry['value'] ) ? (string) $entry['value'] : '',
+			'description'       => isset( $entry['description'] ) ? (string) $entry['description'] : '',
 			'scriptUrl'         => $payload['url'],
 			'scriptHandle'      => $handle,
 			'scriptBefore'      => $payload['before'],

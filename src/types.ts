@@ -901,6 +901,14 @@ export interface DesktopWallpaperServerEntry {
 	 * @since 0.5.0
 	 */
 	value: string;
+	/**
+	 * Optional plain-text description shown in OS Settings when the
+	 * wallpaper is the active selection. The shell overlays it onto the
+	 * JS def when the def itself doesn't carry one.
+	 *
+	 * @since 0.9.4
+	 */
+	description?: string;
 	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */

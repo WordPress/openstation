@@ -140,4 +140,49 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 		$entry = desktop_mode_desktop_wallpaper_registry( 'test-default' );
 		$this->assertSame( '#abcdef', $entry['value'] );
 	}
+
+	/**
+	 * @covers ::desktop_mode_register_wallpaper
+	 */
+	public function test_description_is_stored_sanitized_and_defaults_empty() {
+		desktop_mode_register_wallpaper( 'test-described', array(
+			'label'       => 'Described',
+			'preview'     => '#123456',
+			'type'        => 'css',
+			'description' => "A calm <script>alert(1)</script>backdrop\nfor focused work.",
+		) );
+		$entry = desktop_mode_desktop_wallpaper_registry( 'test-described' );
+		// Plain text by contract: tags stripped, no scripts survive.
+		$this->assertStringNotContainsString( '<script>', $entry['description'] );
+		$this->assertStringContainsString( 'A calm', $entry['description'] );
+		$this->assertStringContainsString( 'backdrop', $entry['description'] );
+
+		desktop_mode_register_wallpaper( 'test-undescribed', array(
+			'label'   => 'Silent',
+			'preview' => '#654321',
+			'type'    => 'css',
+		) );
+		$silent = desktop_mode_desktop_wallpaper_registry( 'test-undescribed' );
+		$this->assertSame( '', $silent['description'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_build_desktop_wallpapers_payload
+	 */
+	public function test_payload_carries_descriptions_for_builtins() {
+		$payload = desktop_mode_build_desktop_wallpapers_payload();
+		$by_id   = array();
+		foreach ( $payload as $entry ) {
+			$by_id[ $entry['id'] ] = $entry;
+		}
+
+		// Every built-in ships a non-empty description…
+		foreach ( array( 'dark', 'aurora', 'sunset', 'forest', 'mono', 'wp-animated-logo', 'wp-living-tree' ) as $id ) {
+			$this->assertArrayHasKey( $id, $by_id );
+			$this->assertNotSame( '', $by_id[ $id ]['description'], "{$id} should carry a description" );
+		}
+		// …and the Living Tree's is the open-source tribute.
+		$this->assertStringContainsString( 'Matt Mullenweg', $by_id['wp-living-tree']['description'] );
+		$this->assertStringContainsString( 'open source', $by_id['wp-living-tree']['description'] );
+	}
 }

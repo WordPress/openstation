@@ -1101,7 +1101,9 @@ add_filter( 'desktop_mode_default_wallpaper', fn () => 'aurora' );
 
 ### `desktop_mode_wallpapers` — Stable
 
-Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `desktop_mode_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
+Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `desktop_mode_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`, `description`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
+
+`description` — *Experimental (since 0.9.4).* Optional plain-text copy shown in OS Settings when the wallpaper is the active selection (a styled card under the picker grid). Sanitized with `sanitize_textarea_field()` at registration; the shell renders it as text, never HTML. When the wallpaper's JS def also sets `description`, the JS value wins — the server value is an overlay for defs that don't carry one.
 
 Mirrors the client-side `desktop-mode.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
 

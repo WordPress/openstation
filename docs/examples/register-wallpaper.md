@@ -38,11 +38,14 @@ wp.desktop.ready( () => {
         type: 'css',
         value: 'linear-gradient(180deg, #0ea5e9, #1e3a8a)',
         preview: 'linear-gradient(180deg, #0ea5e9, #1e3a8a)',
+        description: 'Sea-surface blues fading into deep water.',
     } );
 } );
 ```
 
 The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--desktop-mode-bg` and persists the user's selection to `localStorage`.
+
+`description` (optional, since 0.9.4) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `desktop_mode_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
 
 ---
 

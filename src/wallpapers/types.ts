@@ -80,6 +80,20 @@ interface WallpaperDefBase {
 	 */
 	preview: string;
 	/**
+	 * Optional plain-text description shown in OS Settings when this
+	 * wallpaper is the active selection — a sentence or two about what
+	 * the wallpaper is, where its data comes from, or the story behind
+	 * it. Plain text only (no HTML); rendered by the shell in a styled
+	 * card under the picker grid.
+	 *
+	 * Server-registered wallpapers can pass `description` to
+	 * `desktop_mode_register_wallpaper()` instead — the shell overlays
+	 * it onto the def if the JS side didn't set one.
+	 *
+	 * @since 0.9.4
+	 */
+	description?: string;
+	/**
 	 * Optional in-panel editor, revealed in OS Settings when this
 	 * wallpaper is selected.
 	 */

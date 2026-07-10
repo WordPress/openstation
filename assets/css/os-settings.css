@@ -155,6 +155,69 @@
 }
 
 /*
+ * Wallpaper description slot — a card that slides in below the swatch
+ * grid describing the ACTIVE wallpaper (its story, where its data comes
+ * from). Same 0fr → 1fr collapse as the editor slot; TS drives
+ * `[data-expanded]` from `syncWallpaperDescription()`.
+ */
+.desktop-mode-os-settings__wallpaper-description-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.desktop-mode-os-settings__wallpaper-description-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.desktop-mode-os-settings__wallpaper-description-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-description {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	padding: 12px 14px;
+	background: color-mix(in srgb, var(--desktop-mode-accent, #2271b1) 6%, #fff);
+	border: 1px solid #dcdcde;
+	border-inline-start: 3px solid var(--desktop-mode-accent, #2271b1);
+	border-radius: 6px;
+}
+
+.desktop-mode-os-settings__wallpaper-description-icon {
+	margin-top: 2px;
+	color: var(--desktop-mode-accent, #2271b1);
+	flex-shrink: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-description-text {
+	min-width: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-description-text strong {
+	display: block;
+	margin-bottom: 2px;
+	font-size: 13px;
+	color: #1d2327;
+}
+
+.desktop-mode-os-settings__wallpaper-description-text p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.55;
+	color: #50575e;
+}
+
+/*
  * Custom-gradient editor fills the inner slot. Kept as a separate
  * class (vs. scoping to __editor-slot-inner) so a future plugin
  * renderEditor can opt out of these per-control rules.
