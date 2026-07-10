@@ -22,6 +22,13 @@ export interface PixiContainer {
 	destroy( opts?: unknown ): void;
 	visible: boolean;
 	zIndex: number;
+	/**
+	 * Pixi v8 render-group caching: bake this subtree into a texture so
+	 * static, geometry-heavy content (the turf, the settled skeleton)
+	 * costs one quad per frame instead of thousands of vertices.
+	 * Optional in the type so a stale vendor bundle degrades gracefully.
+	 */
+	cacheAsTexture?: ( enabled: boolean ) => void;
 }
 
 export interface PixiStrokeStyle {

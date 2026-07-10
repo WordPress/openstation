@@ -357,15 +357,21 @@ export class LeafGenerator {
 			if ( reveal <= 0 ) {
 				continue;
 			}
-			// Foliage takes the FULL wind (the wood underneath takes ~30%)
-			// plus an independent per-leaf shimmer — leaves are what a
-			// breeze visibly animates on a real tree, not the limbs.
+			// Foliage carries the whole wind story (the wood is static) —
+			// tuft sway plus an independent per-leaf shimmer. Back-layer
+			// silhouette leaves ride the tuft only: their flutter is
+			// invisible behind the wood, so we don't pay for it.
 			const w = wind.sample( cluster.center.x, cluster.center.y, t );
 			const cxNow = cluster.center.x + w.x * cluster.compliance;
 			const cyNow = cluster.center.y + w.y * cluster.compliance;
 			for ( const leaf of cluster.leaves ) {
-				const shimmer = cluster.compliance;
 				leaf.sprite.alpha = leaf.alphaMax * reveal;
+				if ( leaf.behind ) {
+					leaf.sprite.x = cxNow + leaf.dx;
+					leaf.sprite.y = cyNow + leaf.dy;
+					continue;
+				}
+				const shimmer = cluster.compliance;
 				leaf.sprite.x =
 					cxNow + leaf.dx + Math.sin( t * 2.8 + leaf.phase ) * 2.4 * shimmer;
 				leaf.sprite.y =

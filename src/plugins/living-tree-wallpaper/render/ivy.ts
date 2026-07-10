@@ -105,6 +105,7 @@ export class IvyLayer {
 		rng: () => number,
 	): void {
 		this.clear();
+		this.settled = false;
 		if ( nodes.length < 2 || structure01 <= 0 ) {
 			return;
 		}
@@ -161,19 +162,29 @@ export class IvyLayer {
 		}
 	}
 
+	/** True once every leaf has finished fading in. */
+	private settled = false;
+
 	/**
-	 * Fade in + a barely-there shimmer (trunk wood doesn't sway).
+	 * Fade in, then go fully static — ivy hugs wood that doesn't sway,
+	 * and per-frame work on ~200 settled sprites is money for nothing.
 	 *
 	 * @param dt Delta time (seconds).
 	 * @param t  Elapsed scene time (seconds).
 	 */
 	public update( dt: number, t: number ): void {
+		void t;
+		if ( this.settled ) {
+			return;
+		}
+		let pending = false;
 		for ( const leaf of this.leaves ) {
 			if ( leaf.sprite.alpha < leaf.alphaMax ) {
 				leaf.sprite.alpha = Math.min( leaf.alphaMax, leaf.sprite.alpha + dt * 0.7 );
+				pending = true;
 			}
-			leaf.sprite.rotation += Math.sin( t * 1.8 + leaf.phase ) * 0.0008;
 		}
+		this.settled = ! pending && this.leaves.length > 0;
 	}
 
 	private clear(): void {

@@ -6,8 +6,10 @@
  *
  *   1. soil mounds — soft radial-gradient sprites (no hard rims);
  *   2. a contact shadow hugging the trunk base;
- *   3. GRASS — hundreds of individually-drawn curved blades, grouped
- *      into clumps that sway gently around their own roots in the wind;
+ *   3. GRASS — thousands of individually-drawn curved blades filling
+ *      the whole ground region, tessellated ONCE into a single static
+ *      Graphics (the swaying-clump version cost a live scene-graph
+ *      object per clump and made steady-state frames expensive);
  *   4. a few fallen leaves settled near the trunk — the residue of the
  *      canopy's leaf-shed.
  *
@@ -95,16 +97,8 @@ export interface GroundBuildOptions {
 	trunkBase: number;
 	/** SEO health, 0..1 — green meadow ↔ dry straw. */
 	health01: number;
-	/** Wind hormone, 0..1 — sway amplitude for the grass clumps. */
-	wind01: number;
 	/** Site identity (`siteUrl|siteName`) — seeds the meadow layout. */
 	siteKey: string;
-}
-
-interface Clump {
-	container: PixiContainer;
-	phase: number;
-	amplitude: number;
 }
 
 export class GroundLayer {
@@ -113,9 +107,8 @@ export class GroundLayer {
 	private gradientTexture: PixiTexture | null = null;
 	private leafTexture: PixiTexture | null = null;
 	private readonly mounds: PixiSprite[] = [];
-	private readonly clumps: Clump[] = [];
+	private turf: PixiGraphics | null = null;
 	private readonly litter: PixiSprite[] = [];
-	private windStrength = 0;
 
 	/**
 	 * @param layer The ground layer (bottom of the tree body).
@@ -133,7 +126,6 @@ export class GroundLayer {
 	 */
 	public build( opts: GroundBuildOptions ): void {
 		this.clear();
-		this.windStrength = Math.min( 1, Math.max( 0, opts.wind01 ) );
 		const rng = mulberry32( hash32( `${ opts.siteKey }|ground` ) );
 		this.gradientTexture = this.gradientTexture ?? buildGroundGradientTexture( this.pixi );
 
@@ -179,6 +171,14 @@ export class GroundLayer {
 		// darker; front rows brighter and slightly taller), the last row
 		// rooting just past the canvas bottom so its blades reach up into
 		// view — soil never shows between rows.
+		//
+		// The whole field is STATIC and draws into ONE Graphics: ~13k
+		// blades tessellate once at build and cost a single scene-graph
+		// object per frame afterwards. (An earlier version kept a
+		// container per clump so the turf could sway; ~460 live Graphics
+		// objects made the wallpaper's steady-state frame noticeably
+		// expensive — the swaying canopy carries the wind story fine.)
+		const turf = new this.pixi.Graphics();
 		const fieldDepth = Math.max( 24, opts.coverDepth + 10 );
 		const rowStep = 10;
 		const rowCount = Math.max( 3, Math.ceil( fieldDepth / rowStep ) + 1 );
@@ -192,21 +192,21 @@ export class GroundLayer {
 				const spread =
 					-meadowHalf + ( c + 0.5 ) * slotWidth + ( rng() - 0.5 ) * slotWidth * 0.8;
 				const baseY = r * rowStep + rng() * rowStep * 0.7;
-				const container = new this.pixi.Container();
-				container.x = spread;
-				container.y = baseY;
-
-				const g = new this.pixi.Graphics();
-				this.drawClumpBlades( g, rng, shade( grass, tone ), sizeScale );
-				container.addChild( g );
-				this.layer.addChild( container );
-				this.clumps.push( {
-					container,
-					phase: rng() * Math.PI * 2,
-					amplitude: 0.012 + rng() * 0.014,
-				} );
+				this.drawClumpBlades(
+					turf,
+					rng,
+					shade( grass, tone ),
+					sizeScale,
+					spread,
+					baseY,
+				);
 			}
 		}
+		this.layer.addChild( turf );
+		// Bake the blade field: from here on the whole turf is ONE quad
+		// per frame instead of ~13k stroked curves.
+		turf.cacheAsTexture?.( true );
+		this.turf = turf;
 
 		// ── 4. Fallen leaves settled near the trunk. ─────────────────────
 		this.leafTexture = this.leafTexture ?? buildLeafTexture( this.pixi );
@@ -232,31 +232,34 @@ export class GroundLayer {
 	}
 
 	/**
-	 * Draw one clump's blades into its Graphics: curved strokes leaning
-	 * from a shared root, back blades darker, front blades brighter.
+	 * Draw one clump's blades into the shared turf Graphics: curved
+	 * strokes leaning from a shared root at (`originX`, `originY`), back
+	 * blades darker, front blades brighter.
 	 */
 	private drawClumpBlades(
 		g: PixiGraphics,
 		rng: () => number,
 		grass: number,
-		sizeScale = 1,
+		sizeScale: number,
+		originX: number,
+		originY: number,
 	): void {
 		for ( let b = 0; b < BLADES_PER_CLUMP; b++ ) {
-			const rootX = ( rng() * 2 - 1 ) * 42;
+			const rootX = originX + ( rng() * 2 - 1 ) * 42;
 			const height = ( 9 + rng() * 19 ) * sizeScale;
 			const lean = ( rng() * 2 - 1 ) * 11;
 			const midLean = lean * 0.35 + ( rng() * 2 - 1 ) * 2;
 			// Depth cue: early (back) blades dark, later (front) bright.
 			const depth = b / BLADES_PER_CLUMP;
 			const color = shade( grass, 0.45 + depth * 0.6 + rng() * 0.1 );
-			g.moveTo( rootX, 2 )
+			g.moveTo( rootX, originY + 2 )
 				.bezierCurveTo(
 					rootX + midLean,
-					-height * 0.45,
+					originY - height * 0.45,
 					rootX + lean * 0.8,
-					-height * 0.8,
+					originY - height * 0.8,
 					rootX + lean,
-					-height,
+					originY - height,
 				)
 				.stroke( {
 					color,
@@ -267,32 +270,17 @@ export class GroundLayer {
 		}
 	}
 
-	/**
-	 * Sway the clumps around their roots — subtle, wind-scaled.
-	 *
-	 * @param t Elapsed scene time (seconds).
-	 */
-	public update( t: number ): void {
-		if ( this.windStrength <= 0 ) {
-			return;
-		}
-		for ( const clump of this.clumps ) {
-			clump.container.rotation =
-				Math.sin( t * 1.3 + clump.phase ) * clump.amplitude * this.windStrength;
-		}
-	}
-
 	private clear(): void {
 		for ( const sprite of this.mounds ) {
 			this.layer.removeChild( sprite );
 			sprite.destroy();
 		}
 		this.mounds.length = 0;
-		for ( const clump of this.clumps ) {
-			this.layer.removeChild( clump.container );
-			clump.container.destroy( { children: true } );
+		if ( this.turf ) {
+			this.layer.removeChild( this.turf );
+			this.turf.destroy();
+			this.turf = null;
 		}
-		this.clumps.length = 0;
 		for ( const sprite of this.litter ) {
 			this.layer.removeChild( sprite );
 			sprite.destroy();

@@ -51,7 +51,7 @@ import { GroundLayer } from './render/ground';
 import { IvyLayer } from './render/ivy';
 import { LeafGenerator } from './render/leaves';
 import { LianaSystem } from './render/lianas';
-import type { BranchNode, SceneHandle, TreeSnapshot, Vec2 } from './types';
+import type { BranchNode, SceneHandle, TreeSnapshot } from './types';
 import { WindField } from './wind';
 
 interface SceneOptions {
@@ -240,7 +240,6 @@ export async function mountScene(
 			coverDepth: Math.max( 0, canvasH - treeRoot.y ) / scale + 8,
 			trunkBase: currentTrunkBase(),
 			health01: hormones.health01,
-			wind01: prefersReducedMotion ? 0 : hormones.wind01,
 			siteKey: `${ dna.siteUrl }|${ dna.siteName }`,
 		} );
 	};
@@ -294,23 +293,14 @@ export async function mountScene(
 	let decorated = false;
 	let animating = ! prefersReducedMotion;
 
-	// Wood is stiff: branches take only a fraction of the wind the
-	// foliage takes. Real trees sway their leaves far more than their
-	// limbs — the earlier 1:1 coupling read as rubber branches with
-	// stuck-on leaves.
-	const BRANCH_WIND_FACTOR = 0.3;
-	const displaceNode = ( node: BranchNode ): Vec2 => {
-		const w = wind.sample( node.pos.x, node.pos.y, t );
-		return {
-			x: w.x * node.compliance * BRANCH_WIND_FACTOR,
-			y: w.y * node.compliance * BRANCH_WIND_FACTOR,
-		};
-	};
-
 	/** Once the reveal settles: girth, canopy, blossom, lianas, fireflies. */
 	const decorate = (): void => {
 		decorated = true;
 		computeGirth( revealed, currentTrunkBase() );
+		// The skeleton is final for this DNA — bake it: one textured quad
+		// per frame instead of re-drawing every ribbon's vertices.
+		drawBranches( branchGraphics, currentChains(), revealed, null );
+		branchGraphics.cacheAsTexture?.( true );
 		leaves.populate( revealed, hormones, palette, dna, rng );
 		falling.setSources( leaves.sources( 48 ) );
 		ivy.populate( revealed, hormones.structure01, rng );
@@ -336,6 +326,8 @@ export async function mountScene(
 	// frame (a 24h cycle moves imperceptibly frame-to-frame), while the
 	// stars twinkle every frame.
 	let skyClock = 0;
+	let foliageFlip = false;
+	let foliageDt = 0;
 	const tick = ( ticker: { deltaTime: number } ): void => {
 		if ( ! animating ) {
 			return;
@@ -366,13 +358,25 @@ export async function mountScene(
 		if ( ! decorated ) {
 			decorate();
 		}
-		// Steady state: wind sways the skeleton; decoration breathes.
-		drawBranches( branchGraphics, currentChains(), revealed, displaceNode );
-		ground.update( t );
-		leaves.update( dt, wind, t );
+		// Steady state: the WOOD and the TURF are static — re-tessellating
+		// the skeleton's ribbons (and rotating hundreds of grass clumps)
+		// every frame was the wallpaper's whole CPU bill. The foliage
+		// carries the wind: leaves flutter, blossom breathes, vines pulse,
+		// fireflies drift — all sprite-transform updates the GPU batches.
+		//
+		// The two BIG sprite loops (canopy leaves, blossom) run at 30 Hz —
+		// alternate frames, accumulated dt — which halves the remaining JS
+		// cost and is imperceptible for organic flutter. The small loops
+		// (fallers, fireflies, vines, ivy fade) stay at full rate.
+		foliageDt += dt;
+		foliageFlip = ! foliageFlip;
+		if ( foliageFlip ) {
+			leaves.update( foliageDt, wind, t );
+			bloom.update( foliageDt, t, ( x, y ) => wind.sample( x, y, t ) );
+			foliageDt = 0;
+		}
 		falling.update( dt, wind, t );
 		ivy.update( dt, t );
-		bloom.update( dt, t, ( x, y ) => wind.sample( x, y, t ) );
 		lianas.update( dt, t );
 		fireflies.update( dt, t );
 	};
@@ -409,6 +413,9 @@ export async function mountScene(
 		wind.setStrength( prefersReducedMotion ? 0 : hormones.wind01 );
 		// Regrow the canonical skeleton (same seed → identical tree unless
 		// the tuner edited the seed inputs) and re-gate the reveal by age.
+		// Growth is about to redraw the skeleton frame by frame — release
+		// the baked texture until the new tree settles (decorate re-bakes).
+		branchGraphics.cacheAsTexture?.( false );
 		fullNodes = growCanonical();
 		depthCap = maxDepthForAge( hormones.age01 );
 		targetCount = revealCountForAge(

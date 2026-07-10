@@ -263,9 +263,10 @@ its target and applies the wind displacement (× per-leaf compliance).
   regions that share those tags. Purely decorative overlay.
   `build( cooc, diversity01 )` then `update( dt )`.
 - **`GroundLayer`** — the meadow: soil mounds (soft gradient sprites), a
-  contact shadow, hundreds of individually-drawn grass blades in clumps
-  that sway around their own roots with the wind, and a few fallen
-  leaves near the trunk. Grass colour runs through the same
+  contact shadow, a full-coverage turf of thousands of individually-
+  drawn grass blades (STATIC — tessellated once into a single Graphics;
+  see the performance note), and a few fallen leaves near the trunk.
+  Grass colour runs through the same
   `leafColor()` health ramp as the canopy — poor SEO dries the lawn too.
   Layout draws from its own seeded stream (`<seed>|ground`), stable per
   site and isolated from the skeleton's PRNG.
@@ -308,7 +309,7 @@ if growing:
 leaves.update( dt, wind )    // colour / size ease toward target
 bloom.update( dt )
 lianas.update( dt )
-wind.apply( t )              // displace branches + leaves by compliance · windField
+wind.apply( t )              // displace FOLIAGE by compliance · windField (wood + turf stay static — see notes)
 fireflies.update( dt )
 renderer.draw()
 ```
@@ -364,7 +365,12 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   (steeper than a gentle sag gets damped hard) and stall-pruning
   (unreachable low attractors are dropped rather than chain-chased).
 - **Branch rendering.** Tapered rounded strokes into one `Graphics`,
-  redrawn only while the skeleton changes or wind is non-zero. Colour
+  redrawn only while the skeleton changes (growth / tuner regrow) —
+  NEVER per frame. The wood and the turf are static at steady state;
+  re-tessellating the ribbon skeleton every frame (and rotating hundreds
+  of grass-clump containers) was the wallpaper's whole CPU bill. The
+  foliage carries the wind — leaves, blossom, vines, fireflies are all
+  sprite-transform updates the GPU batches cheaply. Colour
   lightens with compliance (dark trunk → warm extremities).
 - **Decoration randomness.** The skeleton and leaf/bloom/liana placement
   draw from the seeded PRNG (same site → same canopy). Firefly wander
