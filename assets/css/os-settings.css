@@ -183,9 +183,6 @@
 }
 
 .desktop-mode-os-settings__wallpaper-description {
-	display: flex;
-	gap: 12px;
-	align-items: flex-start;
 	padding: 12px 14px;
 	background: color-mix(in srgb, var(--desktop-mode-accent, #2271b1) 6%, #fff);
 	border: 1px solid #dcdcde;
@@ -193,24 +190,25 @@
 	border-radius: 6px;
 }
 
+/* Glyph sits inline, right before the wallpaper's name. */
+.desktop-mode-os-settings__wallpaper-description-header {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-bottom: 4px;
+}
+
 .desktop-mode-os-settings__wallpaper-description-icon {
-	margin-top: 2px;
 	color: var(--desktop-mode-accent, #2271b1);
 	flex-shrink: 0;
 }
 
-.desktop-mode-os-settings__wallpaper-description-text {
-	min-width: 0;
-}
-
-.desktop-mode-os-settings__wallpaper-description-text strong {
-	display: block;
-	margin-bottom: 2px;
+.desktop-mode-os-settings__wallpaper-description-header strong {
 	font-size: 13px;
 	color: #1d2327;
 }
 
-.desktop-mode-os-settings__wallpaper-description-text p {
+.desktop-mode-os-settings__wallpaper-description p {
 	margin: 0;
 	font-size: 12px;
 	line-height: 1.55;

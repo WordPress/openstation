@@ -142,14 +142,14 @@ export function syncWallpaperDescription(
 	render(
 		html`
 			<div class="desktop-mode-os-settings__wallpaper-description">
-				<wpd-icon
-					class="desktop-mode-os-settings__wallpaper-description-icon"
-					name=${ def.type === 'canvas' ? 'star-filled' : 'art' }
-				></wpd-icon>
-				<div class="desktop-mode-os-settings__wallpaper-description-text">
+				<div class="desktop-mode-os-settings__wallpaper-description-header">
+					<wpd-icon
+						class="desktop-mode-os-settings__wallpaper-description-icon"
+						name=${ def.type === 'canvas' ? 'star-filled' : 'art' }
+					></wpd-icon>
 					<strong>${ def.label }</strong>
-					<p>${ text }</p>
 				</div>
+				<p>${ text }</p>
 			</div>
 		`,
 		inner,
