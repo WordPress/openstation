@@ -351,9 +351,11 @@ export class SkyLayer {
 		this.groundLine = groundLine ?? this.height * 0.94;
 		this.gradient.scale.x = this.width / 8;
 		this.gradient.scale.y = this.height / 256;
-		// The texture's opaque region starts ~22% in; anchor the band so
-		// full opacity lands AT the ground line and runs past the bottom.
-		const bandTop = this.groundLine - this.height * 0.045;
+		// The band's transparent→opaque ramp must hide INSIDE the turf:
+		// start it barely above the ground line so the grass blades (which
+		// reach well past it) fully cover the blend — starting higher
+		// painted a visible dark smear across the sky above the lawn.
+		const bandTop = this.groundLine - 10;
 		this.earth.x = 0;
 		this.earth.y = bandTop;
 		this.earth.scale.x = this.width / 8;
