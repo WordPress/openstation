@@ -19,4 +19,12 @@ export const styles = css`
 		accent-color: var( --wp-admin-theme-color, #2271b1 );
 		cursor: pointer;
 	}
+	:host( [ disabled ] ) {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	:host( [ disabled ] ) label,
+	:host( [ disabled ] ) input[ type='checkbox' ] {
+		cursor: not-allowed;
+	}
 `;

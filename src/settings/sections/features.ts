@@ -36,6 +36,18 @@ interface ShellConfigSnapshot {
 		enabled: boolean;
 		providerConfigured: boolean;
 	} | null;
+	/** AI assistant availability + per-user toggle. */
+	aiAssistant?: {
+		available: boolean;
+		/** Baseline text-generation gate (comment scoring mirror). */
+		providerConfigured: boolean;
+		/** Stricter text-gen + function-calling gate (the assistant). */
+		assistantProviderConfigured: boolean;
+		enabled: boolean;
+		connectorsUrl: string;
+	} | null;
+	/** REST endpoint to re-check AI provider availability without a reload. */
+	aiStatusUrl?: string;
 	currentUserIsAdmin?: boolean;
 	/**
 	 * Base URL for the files REST namespace
@@ -247,6 +259,129 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onAiAssistantToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.ai = { ...ctx.state.ai, enabled: checked };
+		ctx.save();
+		paint();
+	};
+
+	// Re-check provider availability from the server. Called after the user
+	// returns from Settings → Connectors so the toggle un-gates without a reload.
+	const refreshAiStatus = async (): Promise< void > => {
+		const ai = shellCfg?.aiAssistant;
+		if ( ! ai || ! shellCfg?.aiStatusUrl ) {
+			return;
+		}
+		try {
+			const res = await trackedFetch(
+				shellCfg.aiStatusUrl,
+				{
+					credentials: 'same-origin',
+					headers: { 'X-WP-Nonce': shellCfg.restNonce ?? '' },
+				},
+				{ source: 'os-settings/ai-status', silent: true },
+			);
+			if ( ! res.ok ) {
+				return;
+			}
+			const json = ( await res.json() ) as {
+				available?: boolean;
+				providerConfigured?: boolean;
+				assistantProviderConfigured?: boolean;
+			};
+			const changed =
+				ai.available !== ( json.available === true ) ||
+				ai.assistantProviderConfigured !==
+					( json.assistantProviderConfigured === true );
+			ai.available = json.available === true;
+			ai.providerConfigured = json.providerConfigured === true;
+			ai.assistantProviderConfigured =
+				json.assistantProviderConfigured === true;
+			// Keep the comments-AI mirror in sync too — it gates on the baseline
+			// text-generation provider, not the assistant's function-calling gate.
+			aiState.providerConfigured = ai.providerConfigured;
+			paint();
+			// Let the shell re-gate the Cmd+K palette + admin-bar icon, which
+			// depend on the assistant's (function-calling) provider gate.
+			if ( changed ) {
+				document.dispatchEvent(
+					new CustomEvent( 'desktop-mode-ai-status-changed' ),
+				);
+			}
+		} catch {
+			// Non-fatal — the toggle stays gated until the next check/reload.
+		}
+	};
+
+	// Re-probe provider status whenever OS Settings regains focus, so the
+	// toggle gates/un-gates without a reload after the user connects OR
+	// disconnects a provider in Settings → Connectors (or any other path).
+	// Guarded by an in-flight flag and torn down when the section leaves the DOM.
+	let statusInFlight = false;
+	const onOsSettingsFocus = ( e: Event ): void => {
+		if (
+			( e as CustomEvent ).detail?.windowId !== 'desktop-mode-os-settings'
+		) {
+			return;
+		}
+		if ( statusInFlight ) {
+			return;
+		}
+		statusInFlight = true;
+		void refreshAiStatus().finally( () => {
+			statusInFlight = false;
+		} );
+	};
+	document.addEventListener( 'desktop-mode-window-focused', onOsSettingsFocus );
+	const statusCleanup = new MutationObserver( () => {
+		if ( ! wrapper.isConnected ) {
+			document.removeEventListener(
+				'desktop-mode-window-focused',
+				onOsSettingsFocus,
+			);
+			statusCleanup.disconnect();
+		}
+	} );
+	statusCleanup.observe( document.body, { childList: true, subtree: true } );
+
+	const onOpenConnectors = (): void => {
+		const url = shellCfg?.aiAssistant?.connectorsUrl ?? '';
+		if ( ! url ) {
+			return;
+		}
+		const desktop = (
+			window as unknown as {
+				wp?: {
+					desktop?: {
+						deriveWindowId?: ( u: string ) => string;
+						windowManager?: {
+							open?: ( c: {
+								id: string;
+								url: string;
+								title: string;
+								icon?: string;
+							} ) => void;
+						};
+					};
+				};
+			}
+		).wp?.desktop;
+		if ( desktop?.windowManager?.open ) {
+			const id = desktop.deriveWindowId
+				? desktop.deriveWindowId( url )
+				: url;
+			desktop.windowManager.open( {
+				id,
+				url,
+				title: __( 'Connectors' ),
+				icon: 'dashicons-admin-settings',
+			} );
+		} else {
+			window.open( url, '_blank', 'noopener' );
+		}
+	};
+
 	let resetting = false;
 	const onResetIntros = async (): Promise< void > => {
 		if ( resetting ) {
@@ -375,6 +510,44 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						'Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.',
 					) }
 				>
+					${ shellCfg?.aiAssistant?.available
+						? html`
+								<div class="desktop-mode-features__item">
+									<wpd-checkbox-label
+										label=${ __( 'AI assistant' ) }
+										?checked=${ ctx.state.ai.enabled }
+										?disabled=${ ! shellCfg.aiAssistant.assistantProviderConfigured }
+										@wpd-checkbox-change=${ onAiAssistantToggle }
+									></wpd-checkbox-label>
+									<p class="desktop-mode-features__hint">
+										${ __(
+											'Adds an assistant powered by AI that finds your content and navigates wp-admin with plain-language questions. Off by default.',
+										) }
+									</p>
+									${ ! shellCfg.aiAssistant.assistantProviderConfigured
+										? html`
+												<wpd-notice tone="warning" not-dismissible>
+													${ __(
+														'This feature requires an AI provider configured in',
+													) }
+													<a
+														href=${ shellCfg
+															.aiAssistant
+															.connectorsUrl }
+														@click=${ ( e: Event ) => {
+															e.preventDefault();
+															onOpenConnectors();
+														} }
+														>${ __(
+															'Settings → Connectors',
+														) }</a
+													>.
+												</wpd-notice>
+											`
+										: '' }
+								</div>
+							`
+						: '' }
 					${ shellCfg?.commentsAi
 						? html`
 							<div class="desktop-mode-features__item">
@@ -385,14 +558,25 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 									@wpd-checkbox-change=${ onCommentsAiToggle }
 								></wpd-checkbox-label>
 								<p class="desktop-mode-features__hint">
-									${ aiState.providerConfigured
-										? __(
-											'When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.',
-										)
-										: __(
-											'Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival.',
-										) }
+									${ __(
+										'Scores every new comment for spam and hostility, folding the result into the spam confidence shown in the Comments window. Site-wide, off by default.',
+									) }
 								</p>
+								${ ! aiState.providerConfigured
+									? html`
+											<wpd-notice tone="warning" not-dismissible>
+												${ __( 'This feature requires an AI provider configured in' ) }
+												<a
+													href=${ shellCfg?.aiAssistant?.connectorsUrl ?? '' }
+													@click=${ ( e: Event ) => {
+														e.preventDefault();
+														onOpenConnectors();
+													} }
+													>${ __( 'Settings → Connectors' ) }</a
+												>.
+											</wpd-notice>
+										`
+								: '' }
 							</div>
 						`
 						: '' }

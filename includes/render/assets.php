@@ -473,9 +473,14 @@ function desktop_mode_enqueue_assets() {
 			),
 			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
-			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? desktop_mode_ai_get_platform_settings() : null,
-			'aiPlatformSettingsUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/ai/platform-settings' ) ),
-			'aiProviders'           => desktop_mode_ai_get_providers_for_config(),
+			// AI assistant availability + per-user toggle. Drives whether the
+			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.
+			'aiAssistant'           => function_exists( 'desktop_mode_ai_assistant_config' )
+				? desktop_mode_ai_assistant_config()
+				: null,
+			// Lets the Features tab re-check provider availability without a
+			// reload after a connector is configured in Settings → Connectors.
+			'aiStatusUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
 			// Comments-window AI moderation toggle — surfaced at the

@@ -1,10 +1,13 @@
 <?php
 /**
- * Desktop Mode — AI Copilot settings helpers.
+ * Desktop Mode — AI Copilot settings + capability helpers.
  *
- * Thin wrappers around `desktop_mode_get_os_settings()` scoped to the AI block.
- * All other copilot modules call these instead of reading user meta
- * directly so the key path is one place to change.
+ * The Copilot no longer stores credentials of its own. WordPress 7.0 owns
+ * provider credentials (Settings → Connectors) and model routing
+ * (`wp_ai_client_prompt()`, which injects the configured key automatically).
+ * These helpers therefore only carry the per-user "AI assistant" preference
+ * (a toggle + an optional provider preference) and expose the Core capability
+ * signals the shell uses to decide whether to surface the assistant at all.
  *
  * @package WPDesktopMode
  */
@@ -14,31 +17,135 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Returns the AI settings block for a given user.
  *
+ * `enabled` defaults to `false`: the assistant is opt-in, turned on from
+ * OS Settings → Features (and only enable-able once a provider is configured).
+ * Provider + model selection is left entirely to the Core AI Client.
+ *
  * @since 0.5.0
  *
  * @param int $user_id
- * @return array{ enabled: bool, provider: string, apiKey: string, apiKeys: array<string,string> }
- *               `apiKey` is the legacy single-key field; `apiKeys` maps provider id → key.
+ * @return array{ enabled: bool }
  */
 function desktop_mode_ai_get_settings( $user_id ) {
 	$os = desktop_mode_get_os_settings( (int) $user_id );
-	$defaults = array(
-		'enabled'  => false,
-		'provider' => 'openai',
-		'apiKey'   => '',
-		'apiKeys'  => array(),
-	);
 	$ai = isset( $os['ai'] ) && is_array( $os['ai'] ) ? $os['ai'] : array();
-	return array_merge( $defaults, $ai );
+	return array(
+		'enabled' => isset( $ai['enabled'] ) ? (bool) $ai['enabled'] : false,
+	);
 }
 
 /**
- * Whether AI processing is active — checks platform settings first,
- * then falls back to the user's personal settings.
+ * Whether the Core AI primitives the Copilot depends on are present.
  *
- * Priority:
- *   1. Platform-wide settings (wp_options) — enabled by any admin.
- *   2. Per-user settings (user meta) — personal override.
+ * The assistant is built on the AI Client (generation), the Connectors API
+ * (credentials) and the Abilities API (tools, adopted in a follow-up). When
+ * any of these is missing — e.g. WordPress < 7.0, or AI disabled site-wide
+ * via `wp_supports_ai()` — the shell hides the assistant entirely.
+ *
+ * @since 0.9.4
+ *
+ * @return bool
+ */
+function desktop_mode_ai_is_available() {
+	return function_exists( 'wp_ai_client_prompt' )
+		&& function_exists( 'wp_get_connectors' )
+		&& function_exists( 'wp_register_ability' )
+		&& function_exists( 'wp_supports_ai' )
+		&& wp_supports_ai();
+}
+
+/**
+ * Whether a text-generation provider is configured and usable.
+ *
+ * The baseline capability gate: a no-network, deterministic
+ * `is_supported_for_text_generation()` probe against the AI Client registry
+ * (which Core populates from the configured Connectors). This is what plain
+ * text-generation features — e.g. comment scoring, which only needs structured
+ * text output — gate on. The agentic assistant needs more; see
+ * {@see desktop_mode_ai_assistant_provider_configured()}.
+ *
+ * Credentials are supplied by Core from the configured Connector; no API request
+ * is made.
+ *
+ * @since 0.9.4
+ *
+ * @return bool
+ */
+function desktop_mode_ai_provider_configured() {
+	if ( ! desktop_mode_ai_is_available() ) {
+		return false;
+	}
+	return (bool) wp_ai_client_prompt( 'test' )->is_supported_for_text_generation();
+}
+
+/**
+ * Whether a provider that can actually run the agentic assistant is configured.
+ *
+ * Follows the AI Client feature-detection guidance: rather than probing a bare
+ * builder, we configure it the way the assistant actually calls the client —
+ * with a function declaration — before the (no-network, deterministic)
+ * `is_supported_for_text_generation()` check. `ModelRequirements::fromPromptData()`
+ * turns the attached declaration into a `functionDeclarations` requirement, so
+ * the check passes only when an available model supports text generation *and*
+ * function calling — the two capabilities the tool loop depends on.
+ *
+ * Falls back to the plain text-generation gate when the SDK's FunctionDeclaration
+ * class isn't present (e.g. older WordPress).
+ *
+ * @since 0.9.4
+ *
+ * @return bool
+ */
+function desktop_mode_ai_assistant_provider_configured() {
+	if ( ! desktop_mode_ai_is_available() ) {
+		return false;
+	}
+
+	$probe = desktop_mode_ai_capability_probe_declaration();
+	if ( ! $probe ) {
+		return desktop_mode_ai_provider_configured();
+	}
+
+	return (bool) wp_ai_client_prompt( 'test' )
+		->using_function_declarations( $probe )
+		->is_supported_for_text_generation();
+}
+
+/**
+ * Builds a throwaway function declaration used only for capability detection.
+ *
+ * Mirrors the shape of the Copilot's real tool declarations so the AI Client's
+ * support check additionally requires function-calling capability. Returns null
+ * when the SDK class isn't available, letting the caller fall back to a plain
+ * text-generation check.
+ *
+ * @since 0.9.4
+ *
+ * @return object|null A `FunctionDeclaration`, or null.
+ */
+function desktop_mode_ai_capability_probe_declaration() {
+	$class = '\WordPress\AiClient\Tools\DTO\FunctionDeclaration';
+	if ( ! class_exists( $class ) ) {
+		return null;
+	}
+	try {
+		return new $class(
+			'capability_probe',
+			'Feature-detection probe; never invoked.',
+			null
+		);
+	} catch ( \Throwable $e ) {
+		return null;
+	}
+}
+
+/**
+ * Whether the AI assistant is active for a given user.
+ *
+ * This is purely the per-user toggle (default off, opt-in). Availability of the Core
+ * APIs and whether a provider key is set are separate, orthogonal checks
+ * ({@see desktop_mode_ai_is_available()} / {@see desktop_mode_ai_provider_configured()})
+ * so callers can distinguish "user turned it off" from "not set up yet".
  *
  * @since 0.5.0
  *
@@ -46,84 +153,90 @@ function desktop_mode_ai_get_settings( $user_id ) {
  * @return bool
  */
 function desktop_mode_ai_is_enabled( $user_id ) {
-	$user_id  = (int) $user_id;
-	$platform = desktop_mode_ai_get_platform_settings();
-	$active   = function_exists( 'desktop_mode_ai_get_active_provider_id' )
-		? desktop_mode_ai_get_active_provider_id( $user_id )
-		: 'openai';
+	$ai = desktop_mode_ai_get_settings( (int) $user_id );
+	return ! empty( $ai['enabled'] );
+}
 
-	// 1. Platform key — works for any user, including anonymous contexts.
-	// Resolve via the per-provider map first, then fall back to the
-	// legacy single `apiKey` field (which is treated as the openai key).
-	if ( ! empty( $platform['enabled'] ) && '' !== desktop_mode_ai_resolve_key_for_provider( $platform, $active ) ) {
-		return true;
+/**
+ * Builds the `aiAssistant` shell-config payload for a user.
+ *
+ * The client uses this to decide whether to surface the Cmd+K assistant and
+ * its admin-bar icon at all (`available`) and the user's own on/off toggle
+ * (`enabled`). Two capability gates are reported separately:
+ *
+ * - `assistantProviderConfigured` — a provider that supports text generation
+ *   *and* function calling (what the agentic assistant needs). Gates the Cmd+K
+ *   assistant, its admin-bar icon, and the "AI assistant" toggle in Features.
+ * - `providerConfigured` — the baseline text-generation gate. Comment scoring
+ *   (which only needs text output) gates on this; the client uses it for the
+ *   "Score new comments with AI" mirror.
+ *
+ * Provider + model selection is delegated to the Core AI Client, so there is no
+ * per-user preference to carry here.
+ *
+ * @since 0.9.4
+ *
+ * @param int|null $user_id Defaults to the current user.
+ * @return array{ available: bool, providerConfigured: bool, assistantProviderConfigured: bool, enabled: bool, connectorsUrl: string }
+ */
+function desktop_mode_ai_assistant_config( $user_id = null ) {
+	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
+
+	$connectors_url = admin_url( 'options-connectors.php' );
+
+	if ( ! desktop_mode_ai_is_available() ) {
+		return array(
+			'available'                   => false,
+			'providerConfigured'          => false,
+			'assistantProviderConfigured' => false,
+			'enabled'                     => false,
+			'connectorsUrl'               => $connectors_url,
+		);
 	}
 
-	// 2. Per-user override.
 	$ai = desktop_mode_ai_get_settings( $user_id );
-	if ( empty( $ai['enabled'] ) ) {
-		return false;
-	}
-	if ( '' === desktop_mode_ai_resolve_key_for_provider( $ai, $active ) ) {
-		return false;
-	}
 
-	return true;
+	return array(
+		'available'                   => true,
+		'providerConfigured'          => desktop_mode_ai_provider_configured(),
+		'assistantProviderConfigured' => desktop_mode_ai_assistant_provider_configured(),
+		'enabled'                     => (bool) $ai['enabled'],
+		'connectorsUrl'               => $connectors_url,
+	);
 }
 
 /**
- * Resolve which key — from a settings block — applies to a given provider.
+ * REST: GET `desktop-mode/v1/ai/status`.
  *
- * Order: explicit `apiKeys[provider]` → legacy `apiKey` (only when the
- * provider is `openai`, since that's what the legacy field meant) → ''.
+ * Returns the current {@see desktop_mode_ai_assistant_config()} so the shell
+ * can re-check provider availability without a page reload — e.g. after the
+ * user configures an AI provider in Settings → Connectors.
  *
- * @since 0.5.2
- *
- * @param array  $settings    `apiKeys` and `apiKey` carrying settings block.
- * @param string $provider_id Provider id to resolve for.
- * @return string Trimmed API key, or '' if none.
+ * @since 0.9.4
  */
-function desktop_mode_ai_resolve_key_for_provider( array $settings, $provider_id ) {
-	$provider_id = (string) $provider_id;
-	$keys        = isset( $settings['apiKeys'] ) && is_array( $settings['apiKeys'] ) ? $settings['apiKeys'] : array();
-
-	if ( isset( $keys[ $provider_id ] ) && is_string( $keys[ $provider_id ] ) && '' !== $keys[ $provider_id ] ) {
-		return (string) $keys[ $provider_id ];
-	}
-
-	if ( 'openai' === $provider_id && isset( $settings['apiKey'] ) && is_string( $settings['apiKey'] ) && '' !== $settings['apiKey'] ) {
-		return (string) $settings['apiKey'];
-	}
-
-	return '';
+function desktop_mode_register_ai_status_rest_route() {
+	register_rest_route(
+		'desktop-mode/v1',
+		'/ai/status',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'desktop_mode_rest_ai_status',
+			'permission_callback' => static function () {
+				return is_user_logged_in() && current_user_can( 'read' );
+			},
+		)
+	);
 }
+add_action( 'rest_api_init', 'desktop_mode_register_ai_status_rest_route' );
 
 /**
- * Returns the API key to use for a given user.
+ * REST handler for the AI status probe.
  *
- * Per-user key takes precedence (personal override); falls back to the
- * platform-wide key so anonymous contexts (cron, WP-CLI, anonymous
- * comments) always have a key available when the admin has configured one.
+ * @since 0.9.4
  *
- * @since 0.5.0
- *
- * @param int $user_id
- * @return string API key, or empty string if none configured.
+ * @return WP_REST_Response
  */
-function desktop_mode_ai_get_api_key( $user_id ) {
-	$user_id = (int) $user_id;
-	$active  = function_exists( 'desktop_mode_ai_get_active_provider_id' )
-		? desktop_mode_ai_get_active_provider_id( $user_id )
-		: 'openai';
-
-	// Per-user override takes precedence.
-	$ai  = desktop_mode_ai_get_settings( $user_id );
-	$key = desktop_mode_ai_resolve_key_for_provider( $ai, $active );
-	if ( '' !== $key ) {
-		return $key;
-	}
-
-	// Fall back to platform key.
-	$platform = desktop_mode_ai_get_platform_settings();
-	return desktop_mode_ai_resolve_key_for_provider( $platform, $active );
+function desktop_mode_rest_ai_status() {
+	return rest_ensure_response( desktop_mode_ai_assistant_config() );
 }
+

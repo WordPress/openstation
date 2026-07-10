@@ -114,30 +114,43 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_default_os_settings
 	 */
-	public function test_default_ai_transport_is_off() {
+	public function test_default_ai_assistant_is_opt_in() {
 		$defaults = desktop_mode_default_os_settings();
-		$this->assertArrayHasKey( 'transport', $defaults['ai'] );
-		$this->assertSame( 'off', $defaults['ai']['transport'] );
+		$this->assertFalse( $defaults['ai']['enabled'] );
 	}
 
 	/**
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
-	public function test_sanitize_keeps_known_ai_transport() {
+	public function test_sanitize_keeps_ai_enabled_toggle() {
 		$clean = desktop_mode_sanitize_os_settings(
-			array( 'ai' => array( 'transport' => 'sse' ) )
+			array( 'ai' => array( 'enabled' => true ) )
 		);
-		$this->assertSame( 'sse', $clean['ai']['transport'] );
+		$this->assertTrue( $clean['ai']['enabled'] );
 	}
 
 	/**
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
-	public function test_sanitize_rejects_unknown_ai_transport() {
+	public function test_sanitize_drops_legacy_ai_credential_and_preference_fields() {
 		$clean = desktop_mode_sanitize_os_settings(
-			array( 'ai' => array( 'transport' => 'websocket' ) )
+			array(
+				'ai' => array(
+					'enabled'   => true,
+					'apiKey'    => 'sk-secret',
+					'apiKeys'   => array( 'openai' => 'sk-x' ),
+					'transport' => 'sse',
+					'provider'  => 'openai',
+					'model'     => 'gpt-4o',
+				),
+			)
 		);
-		$this->assertSame( 'off', $clean['ai']['transport'] );
+		$this->assertTrue( $clean['ai']['enabled'] );
+		$this->assertArrayNotHasKey( 'apiKey', $clean['ai'] );
+		$this->assertArrayNotHasKey( 'apiKeys', $clean['ai'] );
+		$this->assertArrayNotHasKey( 'transport', $clean['ai'] );
+		$this->assertArrayNotHasKey( 'provider', $clean['ai'] );
+		$this->assertArrayNotHasKey( 'model', $clean['ai'] );
 	}
 
 	// ────────────────────────────────────────────────────────────────

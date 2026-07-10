@@ -1280,130 +1280,15 @@ apply_filters( 'desktop_mode_wallpaper_context_menu_items', array[] $items );
 
 The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
 
-The shell ships with a built-in **OpenAI** provider (Responses API). Other providers are pluggable — see [`desktop_mode_register_ai_provider`](#desktop_mode_register_ai_provider-args--experimental-php-function-since-052) below.
+Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
-### `desktop_mode_register_ai_provider( $args )` — Experimental (PHP function, since 0.5.2)
-
-Register an alternative AI back-end (Anthropic, Gemini, a local LLM, …). Each provider supplies three callables that fully encapsulate its wire format; the shell drives the agentic loop, observability, and tool dispatch unchanged.
-
-```php
-desktop_mode_register_ai_provider( string $id, array $args ): true|WP_Error
-```
-
-`$args`:
-
-| Key | Type | Required | Notes |
-|---|---|---|---|
-| `label` | `string` | optional | Human-readable display name. |
-| `description` | `string` | optional | Shown under the picker. |
-| `api_key_label` | `string` | optional | Label for the API-key field in OS Settings → AI. |
-| `api_key_link` | `string` | optional | URL where the user obtains a key. |
-| `default_model` | `string` | optional | Model id used when `desktop_mode_ai_model` returns ''. |
-| `capabilities` | `string[]` | optional | Informational tags (e.g., `tools`, `structured_output`). |
-| `make_turn_input` | `callable` | **required** | Builds an opaque turn-input the shell hands to `agentic_call` next turn. |
-| `agentic_call` | `callable` | **required** | One turn of the agentic loop. |
-| `structured_request` | `callable` | **required** | Single-shot structured-output request. |
-
-Required callable signatures:
-
-```php
-// $kind: 'user_message' | 'tool_results'
-// payload: string for 'user_message'; array of [{call_id, output (json string)}, …] for 'tool_results'.
-function make_turn_input( string $kind, mixed $payload ): mixed;
-
-// Returns array{ text:?string, function_calls: array, next_state: mixed, raw: mixed }
-// or WP_Error. function_calls items: { name, call_id, arguments (json string) }.
-function agentic_call(
-    string $api_key,
-    mixed  $turn_input,
-    array  $tools,
-    ?array $text_format,
-    string $instructions,
-    mixed  $state
-): array|WP_Error;
-
-function structured_request(
-    string $api_key,
-    array  $messages,    // [ { role, content }, … ]
-    array  $schema,       // JSON Schema
-    string $schema_name,
-    string $model         // '' → use the provider's default_model
-): array|WP_Error;
-```
-
-Hook `desktop_mode_ai_register_providers` (fires lazily on first lookup) for registration:
-
-```php
-add_action( 'desktop_mode_ai_register_providers', function () {
-    desktop_mode_register_ai_provider( 'anthropic', array(
-        'label'              => 'Anthropic Claude',
-        'api_key_label'      => 'Anthropic API key',
-        'api_key_link'       => 'https://console.anthropic.com/settings/keys',
-        'default_model'      => 'claude-sonnet-4-6',
-        'make_turn_input'    => 'my_anthropic_make_turn_input',
-        'agentic_call'       => 'my_anthropic_agentic_call',
-        'structured_request' => 'my_anthropic_structured_request',
-    ) );
-} );
-```
-
-See [`docs/examples/register-ai-provider.md`](./examples/register-ai-provider.md) for a worked example.
-
-### `desktop_mode_unregister_ai_provider( $id )` — Experimental (PHP function, since 0.5.2)
-
-Removes a provider from the registry. Returns `true` if a provider was removed, `false` if the id was unknown.
-
-### `desktop_mode_ai_register_providers` — Experimental (since 0.5.2)
-
-Action fired exactly once per request, the first time the registry is read. Hook it to call `desktop_mode_register_ai_provider()`.
-
-```php
-do_action( 'desktop_mode_ai_register_providers' );
-```
-
-### `desktop_mode_ai_provider_registered` — Experimental (since 0.5.2)
-
-Fires after a provider has been successfully registered.
-
-```php
-do_action( 'desktop_mode_ai_provider_registered', string $id, array $def );
-```
-
-### `desktop_mode_ai_active_provider` — Experimental (since 0.5.2)
-
-Filter the resolved active-provider id. Useful for per-request pinning (e.g., based on capability or query content).
-
-```php
-apply_filters( 'desktop_mode_ai_active_provider', string $provider_id, int $user_id );
-```
-
-```php
-// Force admins to use Anthropic; everyone else stays on the default.
-add_filter( 'desktop_mode_ai_active_provider', function ( $id, $user_id ) {
-    return user_can( $user_id, 'manage_options' ) ? 'anthropic' : $id;
-}, 10, 2 );
-```
-
-
-### `desktop_mode_ai_model` — Stable
-
-Overrides the model used per schema. Defaults to `'gpt-5.4-nano'` (`DESKTOP_MODE_AI_DEFAULT_MODEL`). `$schema_name` identifies the call site: `'agentic_search'` for the assistant's agentic search loop, `'comment_analysis'` for comment analysis.
-
-```php
-apply_filters( 'desktop_mode_ai_model', string $model, string $schema_name );
-```
-
-```php
-add_filter( 'desktop_mode_ai_model', function ( $model, $schema ) {
-    return 'agentic_search' === $schema ? 'gpt-4o' : $model;
-}, 10, 2 );
-```
+> **Removed in 0.9.4.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `desktop_mode_register_ai_provider()` / `desktop_mode_unregister_ai_provider()`, the actions `desktop_mode_ai_register_providers` / `desktop_mode_ai_provider_registered`, and the filters `desktop_mode_ai_active_provider` / `desktop_mode_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below and `desktop_mode_register_ai_tool()` are unaffected.
 
 > **Removed in 0.9.1.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
 ### `desktop_mode_ai_schema_comment` — Experimental
 
-Mutate the JSON Schema handed to OpenAI for structured-output comment analysis. Use this to add custom fields (compliance flags, sentiment buckets, …) the model should populate alongside the built-in `spam` / `harmful` verdict.
+Mutate the JSON Schema handed to the provider for structured-output comment analysis. Use this to add custom fields (compliance flags, sentiment buckets, …) the model should populate alongside the built-in `spam` / `harmful` verdict.
 
 ```php
 apply_filters( 'desktop_mode_ai_schema_comment', array $schema );

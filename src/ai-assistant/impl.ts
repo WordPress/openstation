@@ -974,17 +974,17 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	/**
-	 * Open OS Settings on the AI tab so the user can enable AI in one
-	 * click from the "AI features are not enabled" error state. Closes
-	 * the assistant first so the settings window isn't hidden behind
+	 * Open OS Settings on the Features tab so the user can turn the
+	 * assistant on in one click from the "assistant is off" error state.
+	 * Closes the assistant first so the settings window isn't hidden behind
 	 * it, and drops the stored focus target so closing doesn't bounce
 	 * focus back to the launcher away from the settings window.
 	 */
-	private _openAiSettings(): void {
+	private _openAssistantSettings(): void {
 		const shell = this._getDesktopShell();
 		this._previousFocus = null;
 		this.close();
-		shell?.openOsSettings?.( { tabId: 'ai' } );
+		shell?.openOsSettings?.( { tabId: 'features' } );
 	}
 
 	private _openInLegacyWindow( url: string, title: string, icon?: string ): void {
@@ -1365,21 +1365,20 @@ export class AiAssistant implements AiAssistantApi {
 	private _showError( message: string, code?: string ): void {
 		this._resultsEl.hidden = false;
 
-		// The "AI not enabled" case is recoverable in one click, so we
-		// turn the "OS Settings → AI Settings" mention in the message
-		// into an inline link that opens OS Settings on the AI tab.
-		// Keyed on the server error code, not the wording, so the
-		// affordance survives copy tweaks; the regex spans whatever sits
-		// between the two anchors (arrow, spacing) and falls back to a
-		// trailing link if the phrase is absent.
+		// The "assistant is off" case is recoverable in one click, so we
+		// turn the "OS Settings → Features" mention in the message into an
+		// inline link that opens OS Settings on the Features tab. Keyed on
+		// the server error code, not the wording, so the affordance survives
+		// copy tweaks; the regex spans whatever sits between the two anchors
+		// (arrow, spacing) and falls back to a trailing link if absent.
 		if ( code === 'desktop_mode_ai_disabled' ) {
 			const escaped = this._esc( message );
 			const linkify = ( text: string ) =>
 				`<button type="button" class="desktop-mode-ai__settings-link">${ text }</button>`;
-			const phrase = /OS Settings.*?AI Settings/;
+			const phrase = /OS Settings.*?Features/;
 			const withLink = phrase.test( escaped )
 				? escaped.replace( phrase, ( match ) => linkify( match ) )
-				: `${ escaped } ${ linkify( 'AI Settings' ) }`;
+				: `${ escaped } ${ linkify( 'Features' ) }`;
 			this._resultsEl.innerHTML = `
 				<div class="desktop-mode-ai__state desktop-mode-ai__state--error">
 					<span>${ withLink }</span>
@@ -1387,7 +1386,7 @@ export class AiAssistant implements AiAssistantApi {
 			`;
 			this._resultsEl
 				.querySelector< HTMLButtonElement >( '.desktop-mode-ai__settings-link' )
-				?.addEventListener( 'click', () => this._openAiSettings() );
+				?.addEventListener( 'click', () => this._openAssistantSettings() );
 			return;
 		}
 

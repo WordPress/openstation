@@ -44,6 +44,7 @@ import '../ui/components/wpd-button/wpd-button';
 import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
 import '../ui/components/wpd-color-field/wpd-color-field';
 import '../ui/components/wpd-empty-state/wpd-empty-state';
+import '../ui/components/wpd-notice/wpd-notice';
 import '../ui/components/wpd-panel/wpd-panel';
 import '../ui/components/wpd-range-field/wpd-range-field';
 import '../ui/components/wpd-section/wpd-section';
@@ -59,7 +60,6 @@ import type { DesktopSettingsTab } from './registry';
 import { listSettingsTabs, subscribeSettingsTabs } from './registry';
 import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
-import { buildAiSection } from './sections/ai';
 import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
@@ -186,14 +186,6 @@ export function renderOsSettingsPanel(
 					${ buildDockSizeSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
 				</wpd-panel>
-			</wpd-tabpanel>`,
-		},
-		{
-			id: 'ai',
-			order: 20,
-			tab: html`<wpd-tab value="ai">${ __( 'AI Settings' ) }</wpd-tab>`,
-			panel: html`<wpd-tabpanel for="ai">
-				<wpd-panel>${ buildAiSection( ctx ) }</wpd-panel>
 			</wpd-tabpanel>`,
 		},
 		{
