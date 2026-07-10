@@ -88,6 +88,18 @@ export interface MenuRefreshDeps {
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/**
+	 * Re-run the files-layer shortcut reconciliation
+	 * (`syncShortcutsWithVisibility`) against the freshly-applied dock
+	 * items. Keeps Spatial's synthesized core icons (and ordinary
+	 * user-promoted shortcuts) current when a plugin activation or
+	 * deactivation changes the core/plugin menu split live, instead of
+	 * only refreshing on the next OS Settings change.
+	 *
+	 * Optional so older callers/tests that don't wire the files layer
+	 * keep working unchanged.
+	 */
+	syncShortcuts?: () => void;
 }
 
 /**
@@ -181,6 +193,7 @@ export function createApplyPayload(
 		syncServerUnfocusEffects,
 		syncServerDockRailRenderers,
 		renderIcons,
+		syncShortcuts,
 	} = deps;
 
 	return function applyPayload( payload: MenuRefreshPayload ): void {
@@ -216,6 +229,11 @@ export function createApplyPayload(
 			prevDockItems as ReadonlyArray< { id?: unknown } > | undefined,
 			dockItems as ReadonlyArray< { id?: unknown } >,
 		);
+		// Re-sync files-layer shortcuts against the new dock-item list —
+		// covers Spatial's synthesized core icons and ordinary promoted
+		// shortcuts when a plugin activation/deactivation changes which
+		// items exist, without waiting for the next OS Settings change.
+		syncShortcuts?.();
 
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added

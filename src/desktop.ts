@@ -170,6 +170,7 @@ import { bootStickyNotes } from './sticky-notes';
 // boot-time consumer reaches the same captured value — see the import
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
+import { setupDevModeWidgetGate } from './widgets/dev-mode-gate';
 import {
 	installDefaultDockRailRenderer,
 	type DockRailRenderer,
@@ -1818,6 +1819,14 @@ function init(): void {
 	);
 	osSettings.apply();
 
+	// Starter Widget developer-mode gate — must install its
+	// `desktop-mode.widgets` filter before `widgetLayer.hydrate()`
+	// runs below so a previously-placed Starter instance doesn't
+	// mount when developer mode is off.
+	if ( widgetLayer ) {
+		setupDevModeWidgetGate( { osSettings, layer: widgetLayer } );
+	}
+
 	// AI Assistant — main bundle ships a tiny stub matching the same
 	// AiAssistantApi contract. The 38 kB implementation lives in its
 	// own `ai-assistant[.min].js` bundle and is `<script>`-injected on
@@ -3046,6 +3055,14 @@ function init(): void {
 		syncServerUnfocusEffects,
 		syncServerDockRailRenderers,
 		renderIcons,
+		syncShortcuts: () => {
+			const snapshot = osSettings.getOsSettingsSnapshot();
+			syncShortcutsWithVisibility(
+				snapshot.itemVisibility,
+				snapshot.dockPromotedPositions,
+				snapshot.desktopLayout,
+			);
+		},
 	} );
 
 	// Live desktop-layout sync: when the user picks a new layout
@@ -3082,10 +3099,14 @@ function init(): void {
 		}
 		// Bring the files-layer placements in line with the new
 		// visibility map — promotes dock items onto the wallpaper
-		// and removes hidden server icons from the grid.
+		// and removes hidden server icons from the grid. Passing the
+		// layout lets Spatial synthesize its core-menu icons onto the
+		// same visible surface (and removes them again on switching
+		// away from Spatial).
 		syncShortcutsWithVisibility(
 			snapshot.itemVisibility,
 			snapshot.dockPromotedPositions,
+			snapshot.desktopLayout,
 		);
 		// Cross-bundle SSOT publish — feature bundles + third-party
 		// plugins that imported `@layout` see the change without
@@ -3100,6 +3121,7 @@ function init(): void {
 	installShortcutsSync(
 		() => osSettings.getOsSettingsSnapshot().itemVisibility,
 		() => osSettings.getOsSettingsSnapshot().dockPromotedPositions,
+		() => osSettings.getOsSettingsSnapshot().desktopLayout,
 	);
 
 	// Initial publish so any consumer that reads `getCurrentLayout()`

@@ -176,6 +176,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showPostStatusRibbons === 'boolean'
 				? parsed.showPostStatusRibbons
 				: DEFAULTS.showPostStatusRibbons,
+		developerModeEnabled:
+			typeof parsed.developerModeEnabled === 'boolean'
+				? parsed.developerModeEnabled
+				: DEFAULTS.developerModeEnabled,
 		foldersSharingEnabled:
 			typeof parsed.foldersSharingEnabled === 'boolean'
 				? parsed.foldersSharingEnabled

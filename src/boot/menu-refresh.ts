@@ -74,6 +74,8 @@ export interface MenuRefreshDeps {
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/** See `MenuRefreshDeps.syncShortcuts` in `../menu-refresh-apply`. */
+	syncShortcuts?: () => void;
 }
 
 /**
@@ -99,6 +101,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerUnfocusEffects,
 		syncServerDockRailRenderers,
 		renderIcons,
+		syncShortcuts,
 	} = deps;
 
 	const applyPayload = createApplyPayload( {
@@ -114,6 +117,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerUnfocusEffects,
 		syncServerDockRailRenderers,
 		renderIcons,
+		syncShortcuts,
 	} );
 
 	window.addEventListener( 'message', ( e: MessageEvent ) => {

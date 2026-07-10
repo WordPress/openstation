@@ -308,4 +308,49 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 			$clean['dockOrder']
 		);
 	}
+
+	// ────────────────────────────────────────────────────────────────
+	// developerModeEnabled — per-user gate for developer-facing
+	// surfaces (Starter Widget in the add-widget picker, Components
+	// tab missing-import-warner demo). Off by default.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_developer_mode_is_off() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertArrayHasKey( 'developerModeEnabled', $defaults );
+		$this->assertFalse( $defaults['developerModeEnabled'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_developer_mode_enabled_true() {
+		$clean = desktop_mode_sanitize_os_settings( array( 'developerModeEnabled' => true ) );
+		$this->assertTrue( $clean['developerModeEnabled'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_to_default_when_developer_mode_missing() {
+		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$this->assertFalse( $clean['developerModeEnabled'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_save_os_settings
+	 * @covers ::desktop_mode_get_os_settings
+	 */
+	public function test_user_meta_round_trip_keeps_developer_mode_enabled() {
+		$user_id = self::factory()->user->create();
+		desktop_mode_save_os_settings(
+			$user_id,
+			array( 'developerModeEnabled' => true )
+		);
+		$loaded = desktop_mode_get_os_settings( $user_id );
+		$this->assertTrue( $loaded['developerModeEnabled'] );
+	}
 }

@@ -346,6 +346,17 @@ export function createLayoutDispatcher(
 		// admin menu lives in the bottom dock, and duplicating them on
 		// the wallpaper would create two paths to the same screen.
 		//
+		// NOTE: on shells where the files layer is mounted (0.9.0+),
+		// `.desktop-mode-icons` — the container `deps.renderIcons()`
+		// paints into — is hidden by CSS (see `desktop-files.css`'s
+		// `:has(...)` rule), since the files layer is the actual
+		// visible wallpaper surface. The synthesis below still runs
+		// (and matters for shells without a files layer), but the
+		// user-visible equivalent for Spatial's core icons is produced
+		// separately by `syncShortcutsWithVisibility()` in
+		// `settings/desktop-shortcuts-sync.ts`, which pushes the same
+		// core items into the files store as shortcut placements.
+		//
 		// Two classes of server icon MUST survive the Spatial layout,
 		// or the layout choice silently eats them:
 		//   1. Framework-owned `pinned` icons (e.g. My WordPress). These

@@ -216,6 +216,17 @@ export interface OsSettingsState {
 	 */
 	showPostStatusRibbons: boolean;
 	/**
+	 * When true, unlocks developer-facing surfaces meant for plugin
+	 * authors rather than end users: the Starter Widget appears in
+	 * the add-widget picker, and the OS Settings → Components tab
+	 * runs its intentional missing-import-warner demo (console
+	 * banner + three deliberate console.errors). Defaults to
+	 * `false` so regular users don't see developer noise. Per-user.
+	 *
+	 * @since 0.9.4
+	 */
+	developerModeEnabled: boolean;
+	/**
 	 * Per-user kill switch for the folder-sharing feature. Defaults
 	 * to `true`. When `false`, every share-related surface is
 	 * suppressed in this user's shell:

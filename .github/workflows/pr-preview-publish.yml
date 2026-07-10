@@ -38,7 +38,7 @@ jobs:
 
       - name: Resolve PR from trusted workflow_run data
         id: meta
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             // The `pr-meta` artifact is written by the fork-controlled build
@@ -68,7 +68,7 @@ jobs:
 
       - name: Expose built artifact on a public URL
         id: expose
-        uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@06d6a7e5e287101f5a496ef3361aa07967448813 # v2.0.1
+        uses: WordPress/action-wp-playground-pr-preview/.github/actions/expose-artifact-on-public-url@43fc435558bc6cee69f5b214d6b8ca4f9f80c31d # v3
         with:
           artifact-name: 'built-plugin'
           artifact-filename: 'desktop-mode.zip'
@@ -78,7 +78,7 @@ jobs:
           artifact-source-run-id: ${{ github.event.workflow_run.id }}
 
       - name: Build blueprint
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         id: blueprint
         env:
           ARTIFACT_URL: ${{ steps.expose.outputs.artifact-url }}
@@ -93,7 +93,7 @@ jobs:
           result-encoding: string
 
       - name: Post preview to PR
-        uses: WordPress/action-wp-playground-pr-preview@06d6a7e5e287101f5a496ef3361aa07967448813 # v2.0.1
+        uses: WordPress/action-wp-playground-pr-preview@43fc435558bc6cee69f5b214d6b8ca4f9f80c31d # v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           blueprint: ${{ steps.blueprint.outputs.result }}

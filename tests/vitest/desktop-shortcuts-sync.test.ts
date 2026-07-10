@@ -41,11 +41,36 @@ function placement( id: number, ref: string ): import('../../src/desktop-files/r
 	};
 }
 
-function installDesktopConfig( icons: Array< { id: string; title: string; icon: string; url: string; window: string; position: number } > ): void {
+type TestDockItem = {
+	id: string;
+	title: string;
+	icon: string;
+	url: string;
+	badge?: number;
+	submenu?: { title: string; url: string }[];
+	isCore?: boolean;
+};
+
+function installDesktopConfig(
+	icons: Array< { id: string; title: string; icon: string; url: string; window: string; position: number } >,
+	dockItems: TestDockItem[] = [],
+): void {
 	( window as unknown as { desktopModeConfig: unknown } ).desktopModeConfig = {
 		desktopIcons: icons,
-		dockItems: [],
+		dockItems,
 	};
+}
+
+function stubOsSettings(
+	dockPromotedPositions: Record< string, { x: number; y: number } > = {},
+): { updateOsSettings: ReturnType< typeof vi.fn > } {
+	const updateOsSettings = vi.fn();
+	const w = window as unknown as { wp?: { desktop?: Record< string, unknown > } };
+	w.wp = w.wp ?? {};
+	w.wp.desktop = w.wp.desktop ?? {};
+	w.wp.desktop.getOsSettings = () => ( { dockPromotedPositions } );
+	w.wp.desktop.updateOsSettings = updateOsSettings;
+	return { updateOsSettings };
 }
 
 describe( 'syncShortcutsWithVisibility — server-icon visibility round-trip', () => {
@@ -124,5 +149,154 @@ describe( 'syncShortcutsWithVisibility — server-icon visibility round-trip', (
 		} );
 		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
 		expect( rows.map( ( r ) => r.id ) ).toContain( 13 );
+	} );
+} );
+
+describe( 'syncShortcutsWithVisibility — spatial layout core icons', () => {
+	const CORE_ITEM: TestDockItem = {
+		id: 'menu-posts',
+		title: 'Posts',
+		icon: 'dashicons-admin-post',
+		url: 'edit.php',
+		isCore: true,
+	};
+	const PLUGIN_ITEM: TestDockItem = {
+		id: 'menu-woocommerce',
+		title: 'WooCommerce',
+		icon: 'dashicons-cart',
+		url: 'admin.php?page=wc-admin',
+		isCore: false,
+	};
+
+	beforeEach( () => {
+		installHooksStub();
+	} );
+
+	afterEach( () => {
+		clearHooksStub();
+		delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
+		delete ( window as unknown as { wp?: unknown } ).wp;
+	} );
+
+	test( 'layout=spatial synthesizes core dock items only, not plugin items', async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [], [ CORE_ITEM, PLUGIN_ITEM ] );
+
+		sync.syncShortcutsWithVisibility( {}, {}, 'spatial' );
+
+		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+		expect( rows.length ).toBe( 1 );
+		expect( rows[ 0 ].file.ref ).toBe( 'dock-promoted:menu-posts' );
+	} );
+
+	test( 'switching layout away from spatial removes the synthesized core icon, other placements untouched', async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [ {
+			id: 'desktop-mode-my-wordpress',
+			title: 'My WordPress',
+			icon: 'dashicons-wordpress',
+			url: '',
+			window: 'desktop-mode-my-wordpress',
+			position: 100,
+		} ], [ CORE_ITEM, PLUGIN_ITEM ] );
+
+		// Seed a server icon placement, as REST hydration would.
+		store.setFolderPlacements( 0, [
+			placement( 42, 'desktop-mode-my-wordpress' ),
+		] );
+
+		// Enter spatial: core icon synthesized, promote the plugin item
+		// explicitly too, server icon stays as-is.
+		sync.syncShortcutsWithVisibility(
+			{ 'menu-woocommerce': 'both' },
+			{},
+			'spatial',
+		);
+		let rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+		expect( rows.map( ( r ) => r.file.ref ) ).toEqual(
+			expect.arrayContaining( [
+				'dock-promoted:menu-posts',
+				'dock-promoted:menu-woocommerce',
+				'desktop-mode-my-wordpress',
+			] ),
+		);
+		expect( rows.length ).toBe( 3 );
+
+		// Leave spatial: core synth removed; explicit promotion + server
+		// icon survive untouched.
+		sync.syncShortcutsWithVisibility(
+			{ 'menu-woocommerce': 'both' },
+			{},
+			'classic',
+		);
+		rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+		expect( rows.map( ( r ) => r.file.ref ) ).toEqual(
+			expect.arrayContaining( [
+				'dock-promoted:menu-woocommerce',
+				'desktop-mode-my-wordpress',
+			] ),
+		);
+		expect( rows.length ).toBe( 2 );
+	} );
+
+	test( "'hidden' override on a core item suppresses spatial synthesis; 'both' dedupes to one placement", async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [], [ CORE_ITEM ] );
+
+		sync.syncShortcutsWithVisibility(
+			{ 'menu-posts': 'hidden' },
+			{},
+			'spatial',
+		);
+		expect(
+			store.getFilesState().placementsByFolder.get( 0 ) ?? [],
+		).toHaveLength( 0 );
+
+		sync.syncShortcutsWithVisibility(
+			{ 'menu-posts': 'both' },
+			{},
+			'spatial',
+		);
+		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+		expect( rows.length ).toBe( 1 );
+		expect( rows[ 0 ].file.ref ).toBe( 'dock-promoted:menu-posts' );
+	} );
+
+	test( 'leaving spatial preserves the dragged position; explicit hidden demotion prunes it', async () => {
+		const { sync, store } = await load();
+		store.__resetFilesStoreForTests();
+		installDesktopConfig( [], [ CORE_ITEM ] );
+		const positions = { 'menu-posts': { x: 96, y: 96 } };
+		const { updateOsSettings } = stubOsSettings( positions );
+
+		sync.syncShortcutsWithVisibility( {}, positions, 'spatial' );
+		expect(
+			( store.getFilesState().placementsByFolder.get( 0 ) ?? [] )[ 0 ]?.x,
+		).toBe( 96 );
+
+		// Leave spatial with no explicit override — position must survive.
+		sync.syncShortcutsWithVisibility( {}, positions, 'classic' );
+		expect( updateOsSettings ).not.toHaveBeenCalled();
+
+		// Re-enter spatial — the icon reappears at the saved position.
+		sync.syncShortcutsWithVisibility( {}, positions, 'spatial' );
+		const rows = store.getFilesState().placementsByFolder.get( 0 ) ?? [];
+		expect( rows.length ).toBe( 1 );
+		expect( rows[ 0 ].x ).toBe( 96 );
+
+		// Now demote explicitly — the position must be pruned.
+		sync.syncShortcutsWithVisibility(
+			{ 'menu-posts': 'hidden' },
+			positions,
+			'spatial',
+		);
+		expect( updateOsSettings ).toHaveBeenCalledTimes( 1 );
+		const patch = updateOsSettings.mock.calls[ 0 ][ 0 ] as {
+			dockPromotedPositions: Record< string, unknown >;
+		};
+		expect( patch.dockPromotedPositions[ 'menu-posts' ] ).toBeUndefined();
 	} );
 } );

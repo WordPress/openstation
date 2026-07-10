@@ -71,6 +71,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		titleBarButtons: ReturnType< typeof vi.fn >;
 	};
 	renderIcons: ReturnType< typeof vi.fn >;
+	syncShortcuts: ReturnType< typeof vi.fn >;
 } {
 	const dock = makeDock();
 	const desktopArea = document.createElement( 'div' );
@@ -85,6 +86,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		dockRailRenderers: vi.fn().mockResolvedValue( undefined ),
 	};
 	const renderIcons = vi.fn();
+	const syncShortcuts = vi.fn();
 
 	const deps: MenuRefreshDeps = {
 		applyDockItems: ( items ) => dock.replaceItems( items ),
@@ -98,9 +100,10 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		syncServerTitleBarButtons: syncs.titleBarButtons,
 		syncServerDockRailRenderers: syncs.dockRailRenderers,
 		renderIcons,
+		syncShortcuts,
 		...overrides,
 	};
-	return { deps, dock, desktopArea, config, syncs, renderIcons };
+	return { deps, dock, desktopArea, config, syncs, renderIcons, syncShortcuts };
 }
 
 const MIN_DOCK = [ { id: 'dashboard', title: 'Dashboard' } ] as const;
@@ -115,7 +118,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 
 	test( 'no-ops when dockItems is missing or empty (degraded REST response)', () => {
-		const { deps, dock, syncs, renderIcons } = makeDeps();
+		const { deps, dock, syncs, renderIcons, syncShortcuts } = makeDeps();
 		const apply = createApplyPayload( deps );
 
 		apply( {} );
@@ -124,6 +127,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( dock.replaceItems ).not.toHaveBeenCalled();
 		expect( syncs.nativeWindows ).not.toHaveBeenCalled();
 		expect( renderIcons ).not.toHaveBeenCalled();
+		expect( syncShortcuts ).not.toHaveBeenCalled();
 	} );
 
 	test( 'rebuilds the dock from a fresh dockItems array', () => {
@@ -136,6 +140,27 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( dock.replaceItems ).toHaveBeenCalledTimes( 1 );
 		expect( dock.replaceItems ).toHaveBeenCalledWith( items );
 		expect( config.dockItems ).toBe( items );
+	} );
+
+	// Spatial's core-icon synthesis (and ordinary promoted shortcuts)
+	// must stay current when a plugin activation/deactivation changes
+	// the dock-item list live — otherwise the files-layer shortcut set
+	// only refreshes on the next OS Settings change.
+	test( 'syncShortcuts runs after a fresh dockItems array is applied', () => {
+		const { deps, dock, syncShortcuts } = makeDeps();
+		const apply = createApplyPayload( deps );
+
+		apply( { dockItems: [ ...MIN_DOCK ] } );
+
+		expect( syncShortcuts ).toHaveBeenCalledTimes( 1 );
+		expect( dock.replaceItems ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'syncShortcuts is optional — omitting it does not throw', () => {
+		const { deps } = makeDeps( { syncShortcuts: undefined } );
+		const apply = createApplyPayload( deps );
+
+		expect( () => apply( { dockItems: [ ...MIN_DOCK ] } ) ).not.toThrow();
 	} );
 
 	test( 'forwards every server-* array to its dedicated sync', () => {

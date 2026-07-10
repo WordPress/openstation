@@ -236,7 +236,7 @@ export function renderOsSettingsPanel(
 			order: 40,
 			tab: html`<wpd-tab value="help">${ __( 'Components' ) }</wpd-tab>`,
 			panel: html`<wpd-tabpanel for="help">
-				<wpd-panel>${ buildHelpSection() }</wpd-panel>
+				<wpd-panel>${ buildHelpSection( ctx ) }</wpd-panel>
 			</wpd-tabpanel>`,
 		} );
 	}

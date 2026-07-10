@@ -132,6 +132,15 @@ export interface OsSettingsSnapshot {
 	 */
 	foldersSharingEnabled: boolean;
 	/**
+	 * When true, unlocks developer-facing surfaces meant for plugin
+	 * authors: the Starter Widget appears in the add-widget picker,
+	 * and the OS Settings → Components tab runs its intentional
+	 * missing-import-warner demo. Defaults to `false`. Per-user.
+	 *
+	 * @since 0.9.4
+	 */
+	developerModeEnabled: boolean;
+	/**
 	 * Per-item placement preferences. Map of item id → one of
 	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean
 	 * "use the item's native rail." See
