@@ -69,11 +69,13 @@ function desktop_mode_comments_ai_is_enabled() {
 }
 
 /**
- * On every new comment, queue an AI analysis job — but only when the
- * site has the Comments AI toggle on AND a text-generation provider is
+ * On every new or edited comment, queue an AI analysis job — but only when
+ * the site has the Comments AI toggle on AND a text-generation provider is
  * configured in Settings → Connectors. Idempotent: the AI job pipeline
- * dedupes on `comment_<id>`, so a re-fire from `edit_comment` doesn't
- * double-spend tokens.
+ * dedupes on `comment_<id>` while a job is pending, so overlapping fires
+ * (e.g. `wp_insert_comment` + a quick `edit_comment`) don't double-spend
+ * tokens, while an edit after a prior verdict re-analyzes to keep the
+ * spam-confidence meta fresh.
  *
  * This is the sole scheduler for comment analysis: the assistant being
  * enabled no longer triggers analysis on its own (comment scoring is an
@@ -81,7 +83,7 @@ function desktop_mode_comments_ai_is_enabled() {
  *
  * @since 0.8.3
  *
- * @param int $comment_id Newly-inserted comment id.
+ * @param int $comment_id The comment id (from `wp_insert_comment` or `edit_comment`).
  */
 function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
@@ -125,6 +127,9 @@ function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 	);
 }
 add_action( 'wp_insert_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
+// Re-analyze on edit so the spam-confidence meta stays fresh under normal
+// moderation flows (the verdict filter always trusts the latest analysis).
+add_action( 'edit_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
 
 /**
  * Fold the AI verdict into the per-row spam-confidence score.
