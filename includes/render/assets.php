@@ -490,7 +490,16 @@ function desktop_mode_enqueue_assets() {
 			// endpoint the comments-window config exposes; state is
 			// `null` for non-admins (the UI hides the row entirely).
 			'commentsAiUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
-			'commentsAi'            => current_user_can( 'manage_options' )
+			// Non-null only for admins on a site where the Core AI stack is
+			// present. Comment scoring routes through the AI Client (WP 7.0+),
+			// so on older WordPress the whole row is hidden — same as the
+			// assistant toggle — rather than shown disabled pointing at a
+			// Settings → Connectors screen that doesn't exist there.
+			'commentsAi'            => (
+				current_user_can( 'manage_options' )
+				&& function_exists( 'desktop_mode_ai_is_available' )
+				&& desktop_mode_ai_is_available()
+			)
 				? array(
 					'enabled'            => function_exists( 'desktop_mode_comments_ai_is_enabled' )
 						? desktop_mode_comments_ai_is_enabled()
