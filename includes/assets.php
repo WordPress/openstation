@@ -11,6 +11,46 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Cache-buster for a stylesheet that `@import`s sub-sheets: the max
+ * `filemtime` across the file AND everything it (transitively) imports.
+ * Sub-sheet URLs carry no `?ver=` of their own, so the parent's stamp is
+ * the only cache key the browser ever sees for the subtree — it must
+ * move when any member changes.
+ *
+ * @since 0.9.4
+ *
+ * @param string $relative Stylesheet path relative to the plugin dir.
+ * @param string $fallback Version to use when the file is missing.
+ * @return string Version string.
+ */
+function desktop_mode_css_subtree_version( $relative, $fallback ) {
+	$root = DESKTOP_MODE_DIR . $relative;
+	if ( ! file_exists( $root ) ) {
+		return (string) $fallback;
+	}
+	$max   = (int) filemtime( $root );
+	$queue = array( $root );
+	$seen  = array( $root => true );
+	while ( ! empty( $queue ) ) {
+		$file = array_pop( $queue );
+		$css  = (string) file_get_contents( $file );
+		if ( ! preg_match_all( '/@import\s+url\(\s*["\']?([^"\')\s]+)["\']?\s*\)/i', $css, $matches ) ) {
+			continue;
+		}
+		foreach ( $matches[1] as $import ) {
+			$path = dirname( $file ) . '/' . $import;
+			if ( ! file_exists( $path ) || isset( $seen[ $path ] ) ) {
+				continue;
+			}
+			$seen[ $path ] = true;
+			$max           = max( $max, (int) filemtime( $path ) );
+			$queue[]       = $path;
+		}
+	}
+	return (string) $max;
+}
+
+/**
  * Registers the desktop mode CSS and JS handles.
  *
  * @since 0.1.0
@@ -32,6 +72,7 @@ function desktop_mode_register_assets() {
 		$path = DESKTOP_MODE_DIR . $relative;
 		return file_exists( $path ) ? (string) filemtime( $path ) : $version;
 	};
+
 
 	// Styles.
 	wp_register_style(
@@ -58,15 +99,23 @@ function desktop_mode_register_assets() {
 	// than plugin version bumps. Without an mtime stamp the browser
 	// keeps `?ver=<plugin-version>` valid for the whole release cycle
 	// and the user keeps seeing yesterday's CSS even after a hard
-	// reload. Stamps the parent `windows.css` only; the @imports inside
-	// (`window-chrome.css`, `window-states.css`, …) inherit the cache
-	// directive from the parent fetch, so a busted `windows.css` busts
-	// the whole subtree.
+	// reload.
+	//
+	// The stamp covers the whole `@import` SUBTREE, not just the parent
+	// file: `windows.css` imports `window-chrome.css`,
+	// `os-settings.css`, … and those sub-sheet URLs carry no `?ver=` of
+	// their own. Stamping only the parent meant an edit to a sub-sheet
+	// never changed any URL the browser knew about, so users kept
+	// yesterday's rules until an unrelated parent edit came along
+	// (exactly how the wallpaper-description card shipped with stale
+	// layout). The subtree max-mtime busts the parent whenever ANY
+	// sub-sheet changes; the re-parsed parent then re-requests the
+	// sub-sheets, whose fresh mtimes fail heuristic-cache reuse.
 	wp_register_style(
 		'desktop-mode-windows',
 		DESKTOP_MODE_URL . 'assets/css/windows.css',
 		array( 'desktop-mode-variables', 'dashicons' ),
-		$built_version( 'assets/css/windows.css' )
+		desktop_mode_css_subtree_version( 'assets/css/windows.css', $version )
 	);
 	wp_register_style(
 		'desktop-mode-dock',
