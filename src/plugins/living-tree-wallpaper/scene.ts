@@ -229,15 +229,21 @@ export async function mountScene(
 	// tree's extent and its greens dry out with `health01`.
 	const ground = new GroundLayer( groundLayer, pixi );
 	const buildGround = (): void => {
+		const scale = treeRoot.scale.x || 1;
+		const canvasW = app.canvas.clientWidth || container.clientWidth || 800;
+		const canvasH = app.canvas.clientHeight || container.clientHeight || 600;
 		ground.build( {
 			span: finalExtent().halfWidth * 1.3 + 80,
+			coverHalfWidth: canvasW / ( 2 * scale ) + 40,
+			// Ground-line → canvas-bottom depth, in reference units: the
+			// turf fills all of it.
+			coverDepth: Math.max( 0, canvasH - treeRoot.y ) / scale + 8,
 			trunkBase: currentTrunkBase(),
 			health01: hormones.health01,
 			wind01: prefersReducedMotion ? 0 : hormones.wind01,
 			siteKey: `${ dna.siteUrl }|${ dna.siteName }`,
 		} );
 	};
-	buildGround();
 
 	const branchGraphics = buildBranchMesh( revealed, pixi );
 	branchLayer.addChild( branchGraphics );
@@ -264,7 +270,6 @@ export async function mountScene(
 	const fit = (): void => {
 		const w = app.canvas.clientWidth || container.clientWidth || 800;
 		const h = app.canvas.clientHeight || container.clientHeight || 600;
-		sky.resize( w, h );
 		const extent = finalExtent();
 		const scale = Math.min(
 			( h * 0.84 ) / Math.max( 160, extent.height ),
@@ -275,9 +280,12 @@ export async function mountScene(
 		treeRoot.scale.set( scale );
 		treeRoot.x = w / 2;
 		treeRoot.y = h - Math.max( 12, h * 0.04 );
+		// The sky's opaque earth band tracks the tree's ground line.
+		sky.resize( w, h, treeRoot.y - 4 * scale );
 	};
 	fit();
 	refreshSky();
+	buildGround();
 	const resizeObserver = new ResizeObserver( () => fit() );
 	resizeObserver.observe( container );
 
@@ -419,9 +427,9 @@ export async function mountScene(
 		bloom.apply( 0, [], rng );
 		lianas.build( [], 0, [], rng );
 		fireflies.setCount( 0 );
-		buildGround();
 		fit();
 		refreshSky();
+		buildGround();
 		drawBranches( branchGraphics, currentChains(), revealed, null );
 		if ( instant || prefersReducedMotion ) {
 			growInstantly();

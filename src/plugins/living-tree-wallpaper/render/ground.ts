@@ -80,6 +80,17 @@ function buildGroundGradientTexture( pixi: PixiNamespace ): PixiTexture {
 export interface GroundBuildOptions {
 	/** Meadow half-width in reference units. */
 	span: number;
+	/**
+	 * Half the visible canvas width in reference units — the meadow
+	 * always reaches the screen edges, however wide the desktop is.
+	 */
+	coverHalfWidth: number;
+	/**
+	 * Depth of the visible ground region in reference units (from the
+	 * ground line to the canvas bottom). The turf FILLS this — rows of
+	 * clumps all the way down, so no bare soil is ever visible.
+	 */
+	coverDepth: number;
 	/** Trunk-base radius — sizes the contact shadow + clear patch. */
 	trunkBase: number;
 	/** SEO health, 0..1 — green meadow ↔ dry straw. */
@@ -130,6 +141,8 @@ export class GroundLayer {
 		// Soil sits DEEP below the grass tone — the dark base is what
 		// grounds the whole scene against the sky gradient.
 		const soil = shade( grass, 0.16 );
+		// The lawn runs to the screen edges no matter how the tree fits.
+		const meadowHalf = Math.max( opts.span * 1.15, opts.coverHalfWidth );
 
 		// ── 1. Soil mounds — broad, layered, softly overlapping. ─────────
 		const mound = (
@@ -151,9 +164,9 @@ export class GroundLayer {
 			this.layer.addChild( sprite );
 			this.mounds.push( sprite );
 		};
-		mound( soil, 0.95, opts.span * 2.8, 130, 0, 22 );
-		mound( shade( grass, 0.34 ), 0.75, opts.span * 1.7, 70, -opts.span * 0.12, 8 );
-		mound( shade( grass, 0.28 ), 0.7, opts.span * 1.2, 56, opts.span * 0.24, 12 );
+		mound( soil, 0.95, meadowHalf * 2.6, 130, 0, 22 );
+		mound( shade( grass, 0.34 ), 0.75, meadowHalf * 1.7, 70, -meadowHalf * 0.12, 8 );
+		mound( shade( grass, 0.28 ), 0.7, meadowHalf * 1.2, 56, meadowHalf * 0.24, 12 );
 		// 2. Contact shadow at the trunk.
 		mound( 0x000000, 0.45, opts.trunkBase * 10 + 60, 30, 0, 4 );
 
@@ -161,27 +174,38 @@ export class GroundLayer {
 		// roots. Denser near the tree, thinning toward the meadow's edge.
 		// Stratified placement: one clump per horizontal slot (+ jitter)
 		// so the lawn is CONTINUOUS — random draws bunched clumps in the
-		// middle and left bald gaps at the edges.
-		const clumpCount = Math.max( 16, Math.round( opts.span / 22 ) );
-		const meadowHalf = opts.span * 1.15;
-		const slotWidth = ( meadowHalf * 2 ) / clumpCount;
-		for ( let c = 0; c < clumpCount; c++ ) {
-			const spread =
-				-meadowHalf + ( c + 0.5 ) * slotWidth + ( rng() - 0.5 ) * slotWidth * 0.8;
-			const baseY = 2 + rng() * 12;
-			const container = new this.pixi.Container();
-			container.x = spread;
-			container.y = baseY;
+		// middle and left bald gaps at the edges. Rows of clumps FILL the
+		// ground region top to bottom (painter's order: back rows first,
+		// darker; front rows brighter and slightly taller), the last row
+		// rooting just past the canvas bottom so its blades reach up into
+		// view — soil never shows between rows.
+		const fieldDepth = Math.max( 24, opts.coverDepth + 10 );
+		const rowStep = 10;
+		const rowCount = Math.max( 3, Math.ceil( fieldDepth / rowStep ) + 1 );
+		for ( let r = 0; r < rowCount; r++ ) {
+			const depth01 = rowCount === 1 ? 1 : r / ( rowCount - 1 );
+			const tone = 0.5 + depth01 * 0.55;
+			const sizeScale = 0.78 + depth01 * 0.3;
+			const clumpCount = Math.max( 20, Math.round( meadowHalf / 26 ) );
+			const slotWidth = ( meadowHalf * 2 ) / clumpCount;
+			for ( let c = 0; c < clumpCount; c++ ) {
+				const spread =
+					-meadowHalf + ( c + 0.5 ) * slotWidth + ( rng() - 0.5 ) * slotWidth * 0.8;
+				const baseY = r * rowStep + rng() * rowStep * 0.7;
+				const container = new this.pixi.Container();
+				container.x = spread;
+				container.y = baseY;
 
-			const g = new this.pixi.Graphics();
-			this.drawClumpBlades( g, rng, grass );
-			container.addChild( g );
-			this.layer.addChild( container );
-			this.clumps.push( {
-				container,
-				phase: rng() * Math.PI * 2,
-				amplitude: 0.012 + rng() * 0.014,
-			} );
+				const g = new this.pixi.Graphics();
+				this.drawClumpBlades( g, rng, shade( grass, tone ), sizeScale );
+				container.addChild( g );
+				this.layer.addChild( container );
+				this.clumps.push( {
+					container,
+					phase: rng() * Math.PI * 2,
+					amplitude: 0.012 + rng() * 0.014,
+				} );
+			}
 		}
 
 		// ── 4. Fallen leaves settled near the trunk. ─────────────────────
@@ -201,7 +225,7 @@ export class GroundLayer {
 			// where brown-on-dark would vanish.
 			const side = rng() < 0.5 ? -1 : 1;
 			sprite.x = side * ( opts.trunkBase * 3 + 30 + rng() * ( opts.trunkBase * 5 + 70 ) );
-			sprite.y = 6 + rng() * 10;
+			sprite.y = 8 + rng() * Math.max( 10, opts.coverDepth * 0.6 );
 			this.layer.addChild( sprite );
 			this.litter.push( sprite );
 		}
@@ -215,10 +239,11 @@ export class GroundLayer {
 		g: PixiGraphics,
 		rng: () => number,
 		grass: number,
+		sizeScale = 1,
 	): void {
 		for ( let b = 0; b < BLADES_PER_CLUMP; b++ ) {
-			const rootX = ( rng() * 2 - 1 ) * 34;
-			const height = 9 + rng() * 19;
+			const rootX = ( rng() * 2 - 1 ) * 42;
+			const height = ( 9 + rng() * 19 ) * sizeScale;
 			const lean = ( rng() * 2 - 1 ) * 11;
 			const midLean = lean * 0.35 + ( rng() * 2 - 1 ) * 2;
 			// Depth cue: early (back) blades dark, later (front) bright.

@@ -204,6 +204,36 @@ function buildDiscTexture( pixi: PixiNamespace ): PixiTexture {
 	return pixi.Texture.from( canvas );
 }
 
+/**
+ * Vertical soil gradient: transparent at the top (soft horizon blend)
+ * → opaque white below. Tinted per time-of-day, it is the OPAQUE earth
+ * band under the meadow — without it the sky gradient showed through
+ * between grass blades and the ground read as "uncoloured".
+ */
+function buildEarthTexture( pixi: PixiNamespace ): PixiTexture {
+	const w = 8;
+	const h = 128;
+	const canvas = document.createElement( 'canvas' );
+	canvas.width = w;
+	canvas.height = h;
+	const ctx = canvas.getContext( '2d' );
+	if ( ! ctx ) {
+		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
+	}
+	const gradient = ctx.createLinearGradient( 0, 0, 0, h );
+	gradient.addColorStop( 0, 'rgba(255, 255, 255, 0)' );
+	gradient.addColorStop( 0.22, 'rgba(255, 255, 255, 0.85)' );
+	gradient.addColorStop( 0.45, 'rgba(255, 255, 255, 1)' );
+	gradient.addColorStop( 1, 'rgba(255, 255, 255, 1)' );
+	ctx.fillStyle = gradient;
+	ctx.fillRect( 0, 0, w, h );
+	return pixi.Texture.from( canvas );
+}
+
+/** Earth tint at midday / deep night — mossy loam, moonlit loam. */
+const EARTH_DAY = 0x3a4a2c;
+const EARTH_NIGHT = 0x10150c;
+
 /** Small soft star dot. */
 function buildStarTexture( pixi: PixiNamespace ): PixiTexture {
 	const size = 16;
@@ -247,6 +277,8 @@ export class SkyLayer {
 	private readonly root: PixiContainer;
 	private gradient: PixiSprite;
 	private gradientTexture: PixiTexture;
+	private readonly earthTexture: PixiTexture;
+	private readonly earth: PixiSprite;
 	private readonly discTexture: PixiTexture;
 	private readonly starTexture: PixiTexture;
 	private readonly sun: PixiSprite;
@@ -255,6 +287,7 @@ export class SkyLayer {
 	private readonly stars: Star[] = [];
 	private width = 1;
 	private height = 1;
+	private groundLine = 1;
 	private starAlpha = 0;
 
 	constructor( pixi: PixiNamespace, parent: PixiContainer ) {
@@ -265,6 +298,13 @@ export class SkyLayer {
 		this.gradientTexture = buildGradientTexture( pixi, 0x0d1226, 0x141a30, 0x22283e );
 		this.gradient = new pixi.Sprite( this.gradientTexture );
 		this.root.addChild( this.gradient );
+
+		// Opaque earth band from the ground line to the bottom edge —
+		// full-width, so no sky ever shows through the meadow.
+		this.earthTexture = buildEarthTexture( pixi );
+		this.earth = new pixi.Sprite( this.earthTexture );
+		this.earth.tint = EARTH_NIGHT;
+		this.root.addChild( this.earth );
 
 		this.discTexture = buildDiscTexture( pixi );
 		this.starTexture = buildStarTexture( pixi );
@@ -296,12 +336,28 @@ export class SkyLayer {
 		this.root.addChild( this.moon );
 	}
 
-	/** Resize to cover the canvas and reposition everything. */
-	public resize( width: number, height: number ): void {
+	/**
+	 * Resize to cover the canvas and reposition everything.
+	 *
+	 * @param width      Canvas width (CSS px).
+	 * @param height     Canvas height (CSS px).
+	 * @param groundLine Y of the tree's ground line; the earth band's
+	 *                   soft top edge blends in just above it. Defaults
+	 *                   near the bottom.
+	 */
+	public resize( width: number, height: number, groundLine?: number ): void {
 		this.width = Math.max( 1, width );
 		this.height = Math.max( 1, height );
+		this.groundLine = groundLine ?? this.height * 0.94;
 		this.gradient.scale.x = this.width / 8;
 		this.gradient.scale.y = this.height / 256;
+		// The texture's opaque region starts ~22% in; anchor the band so
+		// full opacity lands AT the ground line and runs past the bottom.
+		const bandTop = this.groundLine - this.height * 0.045;
+		this.earth.x = 0;
+		this.earth.y = bandTop;
+		this.earth.scale.x = this.width / 8;
+		this.earth.scale.y = Math.max( 0.4, ( this.height - bandTop + 8 ) / 128 );
 		for ( const star of this.stars ) {
 			star.sprite.x = star.x01 * this.width;
 			star.sprite.y = star.y01 * this.height;
@@ -319,6 +375,10 @@ export class SkyLayer {
 
 		this.starAlpha = state.starAlpha;
 		this.starRoot.alpha = state.starAlpha;
+
+		// Earth follows the ambient light: mossy loam by day, near-black
+		// moonlit ground at night.
+		this.earth.tint = lerpColor( EARTH_NIGHT, EARTH_DAY, state.light01 );
 
 		const discSize = Math.max( 70, Math.min( this.width, this.height ) * 0.16 );
 		this.sun.tint = 0xfff2c4;
@@ -350,6 +410,7 @@ export class SkyLayer {
 		this.root.destroy( { children: true } );
 		try {
 			this.gradientTexture.destroy( true );
+			this.earthTexture.destroy( true );
 			this.discTexture.destroy( true );
 			this.starTexture.destroy( true );
 		} catch {
