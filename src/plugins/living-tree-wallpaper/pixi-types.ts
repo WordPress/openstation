@@ -29,6 +29,8 @@ export interface PixiContainer {
 	 * Optional in the type so a stale vendor bundle degrades gracefully.
 	 */
 	cacheAsTexture?: ( enabled: boolean ) => void;
+	/** Transform origin — rotation/scale pivot in local space. */
+	pivot?: { set( x: number, y: number ): void };
 }
 
 export interface PixiStrokeStyle {

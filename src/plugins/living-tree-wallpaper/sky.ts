@@ -65,6 +65,14 @@ export interface SkyState {
 	sunY01: number;
 	moonX01: number;
 	moonY01: number;
+	/**
+	 * Diurnal rotation of the star field (radians): one full turn per
+	 * 24h around a pole below the horizon, so stars arc east → west
+	 * overhead exactly like the sun and moon do. Imperceptible in real
+	 * time (0.25°/min, as in the real sky), obvious when scrubbing the
+	 * tuner's time slider.
+	 */
+	starAngle: number;
 }
 
 function clamp01( v: number ): number {
@@ -137,6 +145,7 @@ export function skyForTime( hours: number ): SkyState {
 		sunY01: 0.86 - Math.sin( sunT * Math.PI ) * 0.64,
 		moonX01: moonH,
 		moonY01: 0.82 - Math.sin( moonH * Math.PI ) * 0.6,
+		starAngle: ( h / 24 ) * Math.PI * 2,
 	};
 }
 
@@ -290,11 +299,13 @@ function buildBrightStarTexture( pixi: PixiNamespace ): PixiTexture {
 
 /**
  * A soft cumulus puff: overlapping radial gradients with a flatter,
- * slightly darker base — tiled at varied scales it reads as a cloud.
+ * slightly darker base. The canvas carries generous padding — every
+ * lobe's gradient must reach zero WELL inside the bitmap, or the sprite
+ * shows hard horizontal cuts at its top/bottom edges.
  */
 function buildCloudTexture( pixi: PixiNamespace ): PixiTexture {
-	const w = 220;
-	const h = 90;
+	const w = 280;
+	const h = 190;
 	const canvas = document.createElement( 'canvas' );
 	canvas.width = w;
 	canvas.height = h;
@@ -302,26 +313,29 @@ function buildCloudTexture( pixi: PixiNamespace ): PixiTexture {
 	if ( ! ctx ) {
 		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
 	}
+	// Positions in unit space of the PADDED canvas; radii sized so that
+	// centre + radius stays ≥ 18px away from every edge.
 	const lobes: Array< [ number, number, number, number ] > = [
-		[ 0.32, 0.62, 0.3, 0.85 ],
-		[ 0.5, 0.45, 0.36, 0.9 ],
-		[ 0.68, 0.6, 0.3, 0.85 ],
-		[ 0.44, 0.68, 0.26, 0.8 ],
-		[ 0.6, 0.7, 0.24, 0.75 ],
-		[ 0.2, 0.72, 0.2, 0.6 ],
-		[ 0.82, 0.72, 0.18, 0.55 ],
+		[ 0.36, 0.52, 0.19, 0.85 ],
+		[ 0.5, 0.42, 0.22, 0.9 ],
+		[ 0.64, 0.5, 0.19, 0.85 ],
+		[ 0.44, 0.58, 0.17, 0.8 ],
+		[ 0.58, 0.6, 0.15, 0.75 ],
+		[ 0.28, 0.6, 0.13, 0.6 ],
+		[ 0.72, 0.6, 0.12, 0.55 ],
 	];
 	for ( const [ lx, ly, lr, la ] of lobes ) {
+		const radius = lr * h;
 		const gradient = ctx.createRadialGradient(
 			lx * w,
 			ly * h,
 			1,
 			lx * w,
 			ly * h,
-			lr * h * 2,
+			radius,
 		);
 		gradient.addColorStop( 0, `rgba(255, 255, 255, ${ la })` );
-		gradient.addColorStop( 0.65, `rgba(255, 255, 255, ${ la * 0.45 })` );
+		gradient.addColorStop( 0.6, `rgba(255, 255, 255, ${ la * 0.45 })` );
 		gradient.addColorStop( 1, 'rgba(255, 255, 255, 0)' );
 		ctx.fillStyle = gradient;
 		ctx.fillRect( 0, 0, w, h );
@@ -329,13 +343,45 @@ function buildCloudTexture( pixi: PixiNamespace ): PixiTexture {
 	return pixi.Texture.from( canvas );
 }
 
+/** Shooting-star streak: a thin white line fading toward its tail. */
+function buildStreakTexture( pixi: PixiNamespace ): PixiTexture {
+	const w = 72;
+	const h = 4;
+	const canvas = document.createElement( 'canvas' );
+	canvas.width = w;
+	canvas.height = h;
+	const ctx = canvas.getContext( '2d' );
+	if ( ! ctx ) {
+		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
+	}
+	const gradient = ctx.createLinearGradient( 0, 0, w, 0 );
+	gradient.addColorStop( 0, 'rgba(255, 255, 255, 0)' );
+	gradient.addColorStop( 0.75, 'rgba(255, 255, 255, 0.55)' );
+	gradient.addColorStop( 1, 'rgba(255, 255, 255, 1)' );
+	ctx.fillStyle = gradient;
+	ctx.fillRect( 0, 0, w, h );
+	return pixi.Texture.from( canvas );
+}
+
 interface Star {
 	sprite: PixiSprite;
-	x01: number;
-	y01: number;
+	/** Polar placement around the celestial pole (see layoutStars). */
+	theta: number;
+	/** Radius as a fraction of the field radius. */
+	r01: number;
 	phase: number;
 	baseAlpha: number;
 	twinkle: number;
+}
+
+interface ShootingStar {
+	sprite: PixiSprite;
+	active: boolean;
+	x: number;
+	y: number;
+	vx: number;
+	vy: number;
+	life: number;
 }
 
 interface Cloud {
@@ -350,14 +396,23 @@ interface Cloud {
 	width: number;
 }
 
-/** Number of stars in the night field — many small ones read as a sky. */
-const STAR_COUNT = 170;
+/**
+ * Number of stars in the night field. The field is a full DISC around
+ * the celestial pole (it wheels through 2π per day), and the visible
+ * sky is only ~a fifth of that disc — so the population is sized for
+ * ~120 stars on screen at any rotation.
+ */
+const STAR_COUNT = 650;
 
 /** Fraction of stars that are bright 4-ray ones. */
-const BRIGHT_STAR_RATIO = 0.08;
+const BRIGHT_STAR_RATIO = 0.12;
 
 /** Drifting clouds. */
 const CLOUD_COUNT = 5;
+
+/** Max simultaneous shooting stars; ~2 spawn per minute after dark. */
+const SHOOTING_STAR_POOL = 2;
+const SHOOTING_STARS_PER_MINUTE = 2;
 
 /**
  * The sky backdrop layer. Lives in screen space at the very back of the
@@ -378,8 +433,10 @@ export class SkyLayer {
 	private readonly cloudTexture: PixiTexture;
 	private readonly sun: PixiSprite;
 	private readonly moon: PixiSprite;
+	private readonly streakTexture: PixiTexture;
 	private readonly starRoot: PixiContainer;
 	private readonly stars: Star[] = [];
+	private readonly shooting: ShootingStar[] = [];
 	private readonly cloudRoot: PixiContainer;
 	private readonly clouds: Cloud[] = [];
 	private width = 1;
@@ -387,6 +444,7 @@ export class SkyLayer {
 	private groundLine = 1;
 	private starAlpha = 0;
 	private cloudLight = 1;
+	private lastTickT = 0;
 
 	constructor( pixi: PixiNamespace, parent: PixiContainer ) {
 		this.pixi = pixi;
@@ -397,18 +455,15 @@ export class SkyLayer {
 		this.gradient = new pixi.Sprite( this.gradientTexture );
 		this.root.addChild( this.gradient );
 
-		// Opaque earth band from the ground line to the bottom edge —
-		// full-width, so no sky ever shows through the meadow.
-		this.earthTexture = buildEarthTexture( pixi );
-		this.earth = new pixi.Sprite( this.earthTexture );
-		this.earth.tint = EARTH_NIGHT;
-		this.root.addChild( this.earth );
-
 		this.discTexture = buildDiscTexture( pixi );
 		this.starTexture = buildStarTexture( pixi );
 		this.brightStarTexture = buildBrightStarTexture( pixi );
 		this.cloudTexture = buildCloudTexture( pixi );
+		this.streakTexture = buildStreakTexture( pixi );
 
+		// Stars render BEFORE the earth band: the field is a full disc
+		// around the celestial pole, and the band is the horizon that
+		// naturally hides whatever has "set".
 		this.starRoot = new pixi.Container();
 		this.root.addChild( this.starRoot );
 		for ( let i = 0; i < STAR_COUNT; i++ ) {
@@ -421,20 +476,47 @@ export class SkyLayer {
 			);
 			sprite.anchor.set( 0.5 );
 			const scale = bright
-				? 0.5 + Math.random() * 0.45
-				: 0.15 + Math.random() * 0.35;
+				? 0.6 + Math.random() * 0.4
+				: 0.3 + Math.random() * 0.42;
 			sprite.scale.set( scale );
 			this.starRoot.addChild( sprite );
+			// Uniform over a disc (sqrt for area-uniformity) — the field
+			// must cover every rotation angle, since it wheels through a
+			// full turn per day.
 			this.stars.push( {
 				sprite,
-				x01: Math.random(),
-				// Stars sit in the upper ~68% of the sky.
-				y01: Math.random() * 0.68,
+				theta: Math.random() * Math.PI * 2,
+				r01: Math.sqrt( Math.random() ),
 				phase: Math.random() * Math.PI * 2,
-				baseAlpha: bright ? 0.75 + Math.random() * 0.25 : 0.35 + Math.random() * 0.55,
+				baseAlpha: bright ? 0.9 + Math.random() * 0.1 : 0.55 + Math.random() * 0.45,
 				twinkle: 0.4 + Math.random() * 2.2,
 			} );
 		}
+
+		// Shooting stars — pooled streak sprites, ~2/min after dark.
+		for ( let i = 0; i < SHOOTING_STAR_POOL; i++ ) {
+			const sprite = new pixi.Sprite( this.streakTexture );
+			sprite.anchor.set( 0.5 );
+			sprite.visible = false;
+			this.root.addChild( sprite );
+			this.shooting.push( {
+				sprite,
+				active: false,
+				x: 0,
+				y: 0,
+				vx: 0,
+				vy: 0,
+				life: 0,
+			} );
+		}
+
+		// Opaque earth band from the ground line to the bottom edge —
+		// full-width, so no sky ever shows through the meadow (and the
+		// horizon that swallows setting stars).
+		this.earthTexture = buildEarthTexture( pixi );
+		this.earth = new pixi.Sprite( this.earthTexture );
+		this.earth.tint = EARTH_NIGHT;
+		this.root.addChild( this.earth );
 
 		// Clouds — the flat gradient sky needed WEATHER. They drift
 		// slowly across, wrap around, and all but vanish after dark.
@@ -505,11 +587,28 @@ export class SkyLayer {
 		this.earth.y = bandTop;
 		this.earth.scale.x = this.width / 8;
 		this.earth.scale.y = Math.max( 0.4, ( this.height - bandTop + 8 ) / 128 );
-		for ( const star of this.stars ) {
-			star.sprite.x = star.x01 * this.width;
-			star.sprite.y = star.y01 * this.height;
-		}
+		this.layoutStars();
 		this.layoutClouds( 0 );
+	}
+
+	/**
+	 * Place the star field as a disc around the celestial pole — a point
+	 * below the horizon's centre, so rotating the field arcs the stars
+	 * east → west overhead exactly like the sun. The container's pivot
+	 * sits on the pole; `applyState` only touches `rotation`.
+	 */
+	private layoutStars(): void {
+		const poleX = this.width * 0.5;
+		const poleY = this.height * 1.3;
+		// Reach the top corners from the pole with margin to spare.
+		const fieldRadius = Math.hypot( this.width * 0.5, poleY ) + 40;
+		this.starRoot.pivot?.set( poleX, poleY );
+		this.starRoot.x = poleX;
+		this.starRoot.y = poleY;
+		for ( const star of this.stars ) {
+			star.sprite.x = poleX + Math.cos( star.theta ) * star.r01 * fieldRadius;
+			star.sprite.y = poleY + Math.sin( star.theta ) * star.r01 * fieldRadius;
+		}
 	}
 
 	/** Apply a sky state — colours, luminaries, star opacity (slow cadence). */
@@ -523,6 +622,9 @@ export class SkyLayer {
 
 		this.starAlpha = state.starAlpha;
 		this.starRoot.alpha = state.starAlpha;
+		// Diurnal wheel: the whole field turns around the pole with the
+		// clock (2π per day — real-sky slow, tuner-slider visible).
+		this.starRoot.rotation = state.starAngle;
 
 		// Earth follows the ambient light: mossy loam by day, near-black
 		// moonlit ground at night.
@@ -555,15 +657,58 @@ export class SkyLayer {
 		this.moon.alpha = state.moonAlpha * 0.95;
 	}
 
-	/** Twinkle the stars + drift the clouds (cheap; every frame). */
+	/**
+	 * Twinkle the stars, drift the clouds, fly the shooting stars
+	 * (cheap; every frame).
+	 */
 	public tick( t: number ): void {
 		this.layoutClouds( t );
 		if ( this.starAlpha <= 0.01 ) {
+			this.lastTickT = t;
 			return;
 		}
+		const dt = Math.min( 0.1, Math.max( 0, t - this.lastTickT ) );
+		this.lastTickT = t;
 		for ( const star of this.stars ) {
-			const flick = 0.55 + 0.45 * Math.sin( t * star.twinkle + star.phase );
+			// Shallow twinkle: stars shimmer, they don't blink out.
+			const flick = 0.8 + 0.2 * Math.sin( t * star.twinkle + star.phase );
 			star.sprite.alpha = star.baseAlpha * flick;
+		}
+
+		// Shooting stars: only after dark, ~2/min on average, short
+		// diagonal streaks that burn out in half a second.
+		if ( this.starAlpha > 0.3 && Math.random() < dt * ( SHOOTING_STARS_PER_MINUTE / 60 ) ) {
+			const meteor = this.shooting.find( ( m ) => ! m.active );
+			if ( meteor ) {
+				meteor.active = true;
+				meteor.life = 0.5;
+				meteor.x = this.width * ( 0.1 + Math.random() * 0.8 );
+				meteor.y = this.height * ( 0.05 + Math.random() * 0.3 );
+				const angle =
+					Math.PI * 0.25 +
+					Math.random() * Math.PI * 0.5 +
+					( Math.random() < 0.5 ? Math.PI * 0.5 : 0 );
+				const speed = 900 + Math.random() * 500;
+				meteor.vx = Math.cos( angle ) * speed * ( Math.random() < 0.5 ? -1 : 1 );
+				meteor.vy = Math.abs( Math.sin( angle ) ) * speed * 0.45;
+				meteor.sprite.rotation = Math.atan2( meteor.vy, meteor.vx );
+				meteor.sprite.visible = true;
+			}
+		}
+		for ( const meteor of this.shooting ) {
+			if ( ! meteor.active ) {
+				continue;
+			}
+			meteor.life -= dt;
+			meteor.x += meteor.vx * dt;
+			meteor.y += meteor.vy * dt;
+			meteor.sprite.x = meteor.x;
+			meteor.sprite.y = meteor.y;
+			meteor.sprite.alpha = Math.max( 0, meteor.life / 0.5 ) * this.starAlpha;
+			if ( meteor.life <= 0 || meteor.y > this.groundLine ) {
+				meteor.active = false;
+				meteor.sprite.visible = false;
+			}
 		}
 	}
 
@@ -577,6 +722,7 @@ export class SkyLayer {
 			this.starTexture.destroy( true );
 			this.brightStarTexture.destroy( true );
 			this.cloudTexture.destroy( true );
+			this.streakTexture.destroy( true );
 		} catch {
 			/* already released with the container */
 		}

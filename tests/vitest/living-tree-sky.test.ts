@@ -48,6 +48,15 @@ describe( 'living-tree skyForTime', () => {
 		expect( skyForTime( 25 ) ).toEqual( skyForTime( 1 ) );
 		expect( skyForTime( -1 ) ).toEqual( skyForTime( 23 ) );
 	} );
+
+	test( 'the star field wheels one full turn per day, like the sun', () => {
+		expect( skyForTime( 0 ).starAngle ).toBe( 0 );
+		expect( skyForTime( 12 ).starAngle ).toBeCloseTo( Math.PI, 10 );
+		// Monotone across the night: the sky never spins backwards.
+		expect( skyForTime( 23 ).starAngle ).toBeGreaterThan(
+			skyForTime( 22 ).starAngle,
+		);
+	} );
 } );
 
 describe( 'living-tree currentHour', () => {
