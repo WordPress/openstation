@@ -11,10 +11,16 @@
  * @since 0.9.4
  */
 
+import { hash32 } from './rng';
 import type { HuePartition, TreeSnapshot } from './types';
 
-/** Canopy base hue — a lush leaf green. */
+/**
+ * Canopy base hue — a lush leaf green, shifted ±12° per SITE (from the
+ * identity seed) so two blogs never wear the exact same green. Part of
+ * what makes each site's tree an individual, not a template.
+ */
 const BASE_HUE = 105;
+const BASE_HUE_IDENTITY_SPREAD = 24;
 
 /**
  * Full spread of the hue band at diversity 1 (degrees). Wide enough that
@@ -73,11 +79,16 @@ export function buildCategoryPalette( snapshot: TreeSnapshot ): HuePartition {
 	const terms = Math.max( 0, snapshot.totalCategories ) + Math.max( 0, snapshot.totalTags );
 	const richness = terms / ( terms + 30 ); // saturating, mirrors diversity01
 	const spread = MAX_SPREAD * richness;
+	// Per-site identity: the same seed inputs that shape the skeleton
+	// nudge the canopy's base green.
+	const identity = hash32( `${ snapshot.siteUrl }|${ snapshot.siteName }` );
+	const baseHue =
+		BASE_HUE - BASE_HUE_IDENTITY_SPREAD / 2 + ( identity % ( BASE_HUE_IDENTITY_SPREAD + 1 ) );
 
 	const bands: Array< { id: number; hue: number } > = [];
 	for ( let i = 0; i < n; i++ ) {
 		const t = n === 1 ? 0.5 : i / ( n - 1 );
-		bands.push( { id: i, hue: BASE_HUE + ( t - 0.5 ) * spread } );
+		bands.push( { id: i, hue: baseHue + ( t - 0.5 ) * spread } );
 	}
 
 	return {

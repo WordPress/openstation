@@ -64,15 +64,19 @@ table in A.4).
 ## A.2 Determinism
 
 ```
-seed = hash32( siteUrl + '|' + installEpoch )
+seed = hash32( siteUrl + '|' + siteName + '|' + installEpoch )
 PRNG = mulberry32( seed )
 ```
 
 - **Same site → same skeleton** on every page load. The skeleton is a pure
   function of the seed plus the age/vigour hormones.
 - **Different sites → different trees**, even with identical metrics. Two
-  installations with the same number of posts must never look identical —
-  the seed differs because `siteUrl`/`installEpoch` differ.
+  installations with the same number of posts must never look identical.
+  The blog NAME is part of the seed on purpose: two blogs can share a URL
+  shape (two localhost installs, staging clones) and still must grow
+  distinct individuals. The same identity also nudges each site's base
+  canopy green (±12°), and the envelope jitter is wide (height ±12%,
+  crown ±18%) so sites differ in stature, not just in branch layout.
 
 Every stochastic choice in the morphology layer draws from this single
 seeded PRNG so the whole skeleton is reproducible. The `rng.ts` module
@@ -269,6 +273,11 @@ its target and applies the wind displacement (× per-leaf compliance).
 - **`FireflyLayer`** — `spark` particles in a `ParticleContainer` with
   additive glow, drifting through the canopy; the count follows live
   presence. `setCount( n )` then `update( dt )`.
+- **`FallingLeaves`** — every few seconds one leaf detaches from a real
+  canopy position (same tint/size as the tuft it left), tumbles down
+  through the wind, and fades into the grass. Sparse by design (≤5
+  airborne). Ambient motion like the fireflies — `Math.random()` timing,
+  no DNA involvement, nothing falls under reduced motion.
 
 ---
 
@@ -372,7 +381,10 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   Features → Enable developer mode* ON, clicking the trunk **20 times**
   (gaps under 2.5 s) opens a slider panel over every snapshot metric —
   age, posts, pages, terms, comments, presence, traffic, health,
-  performance — regrowing the tree instantly on each drag. Client-side
-  preview only: nothing is persisted, the server snapshot is untouched,
-  and the panel never appears while developer mode is off. Source:
+  performance — regrowing the tree instantly on each drag, plus a
+  **time-of-day slider** (0:00–24:00) that scrubs the sky/luminosity
+  cycle live; its `live` button (and closing the panel) hands the clock
+  back to local time. Client-side preview only: nothing is persisted,
+  the server snapshot is untouched, and the panel never appears while
+  developer mode is off. Source:
   `src/plugins/living-tree-wallpaper/debug-panel.ts`.

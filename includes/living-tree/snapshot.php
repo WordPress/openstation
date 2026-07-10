@@ -7,6 +7,11 @@
  * small tag co-occurrence edge list, and branch hints — never the full
  * post list. The client turns this into hormones and never sees rows.
  *
+ * `siteUrl` + `siteName` + `installEpoch` together form the determinism
+ * seed. The site NAME is deliberately part of it: two different blogs can
+ * share a URL shape (two installs on localhost, staging clones), and
+ * their trees must still be individuals.
+ *
  * The response is cached in a transient (TTL 6h) and invalidated whenever
  * content changes (`save_post` / `deleted_post` / `comment_post`).
  *
@@ -121,6 +126,7 @@ function desktop_mode_living_tree_build_snapshot() {
 
 	$snapshot = array(
 		'siteUrl'         => (string) home_url(),
+		'siteName'        => (string) get_bloginfo( 'name' ),
 		'installEpoch'    => desktop_mode_living_tree_install_epoch(),
 		'siteAgeDays'     => desktop_mode_living_tree_site_age_days(),
 		'totalPosts'      => isset( $posts->publish ) ? (int) $posts->publish : 0,

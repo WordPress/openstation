@@ -28,6 +28,7 @@ import {
 	revealSkeleton,
 } from '../../src/plugins/living-tree-wallpaper/growth/reveal';
 import { GrowthSimulator } from '../../src/plugins/living-tree-wallpaper/growth/space-colonization';
+import { buildCategoryPalette } from '../../src/plugins/living-tree-wallpaper/palette';
 import { computeIvyBudget } from '../../src/plugins/living-tree-wallpaper/render/ivy';
 import { computeLeafBudget } from '../../src/plugins/living-tree-wallpaper/render/leaves';
 import { hash32, mulberry32 } from '../../src/plugins/living-tree-wallpaper/rng';
@@ -40,6 +41,7 @@ import type {
 function snapshot( overrides: Partial< TreeSnapshot > = {} ): TreeSnapshot {
 	return {
 		siteUrl: 'https://example.com',
+		siteName: 'Example Blog',
 		installEpoch: 1_700_000_000,
 		siteAgeDays: 0,
 		totalPosts: 0,
@@ -74,7 +76,8 @@ const dense = snapshot( {
 } );
 
 function seededRng( s: TreeSnapshot ): () => number {
-	return mulberry32( hash32( `${ s.siteUrl }|${ s.installEpoch }` ) );
+	// Must mirror the scene's seed EXACTLY (url | name | epoch).
+	return mulberry32( hash32( `${ s.siteUrl }|${ s.siteName }|${ s.installEpoch }` ) );
 }
 
 /** The canonical (mature) skeleton for a snapshot's seed. */
@@ -177,6 +180,20 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const siteB = snapshot( { siteAgeDays: 365, siteUrl: 'https://other.example' } );
 		expect( reveal( siteA ).map( ( n ) => n.pos ) ).not.toEqual(
 			reveal( siteB ).map( ( n ) => n.pos ),
+		);
+	} );
+
+	test( 'two blogs on the SAME URL diverge by site name (seed + canopy hue)', () => {
+		// The localhost / staging-clone case: identical URLs and epochs,
+		// different blog names → different individuals.
+		const blogA = snapshot( { siteAgeDays: 365, siteName: 'Coffee Notes' } );
+		const blogB = snapshot( { siteAgeDays: 365, siteName: 'Trail Journal' } );
+		expect( reveal( blogA ).map( ( n ) => n.pos ) ).not.toEqual(
+			reveal( blogB ).map( ( n ) => n.pos ),
+		);
+		// Their base greens differ too.
+		expect( buildCategoryPalette( blogA ).hueForCategory( 0 ) ).not.toBe(
+			buildCategoryPalette( blogB ).hueForCategory( 0 ),
 		);
 	} );
 

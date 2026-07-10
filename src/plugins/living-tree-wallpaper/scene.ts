@@ -18,12 +18,10 @@
  */
 
 import {
-	createClickCounter,
+	createTrunkClickGesture,
 	isDeveloperModeEnabled,
 	isTrunkHit,
 	openDebugPanel,
-	TUNER_CLICK_THRESHOLD,
-	TUNER_CLICK_WINDOW_MS,
 } from './debug-panel';
 import { buildHormones } from './dna';
 import {
@@ -52,6 +50,7 @@ import {
 	type BranchChain,
 } from './render/branch-mesh';
 import { BloomEngine } from './render/bloom';
+import { FallingLeaves } from './render/falling';
 import { FireflyLayer } from './render/fireflies';
 import { IvyLayer } from './render/ivy';
 import { LeafGenerator } from './render/leaves';
@@ -109,6 +108,7 @@ function buildGroundGradientTexture(
 function sproutSnapshot(): TreeSnapshot {
 	return {
 		siteUrl: window.location.origin,
+		siteName: document.title || '',
 		installEpoch: 0,
 		siteAgeDays: 0,
 		totalPosts: 0,
@@ -167,7 +167,7 @@ export async function mountScene(
 	// few more nodes: gradual, monotone growth with no daily reshuffle.
 	let dna = snapshot ?? sproutSnapshot();
 	let hormones = buildHormones( dna );
-	let rng = mulberry32( hash32( `${ dna.siteUrl }|${ dna.installEpoch }` ) );
+	let rng = mulberry32( hash32( `${ dna.siteUrl }|${ dna.siteName }|${ dna.installEpoch }` ) );
 	let envelope = buildEnvelope( hormones.age01, hormones.vigor01, rng );
 	let cfg = buildGrowthConfig( envelope, hormones.vigor01 );
 	let palette = buildCategoryPalette( dna );
@@ -310,6 +310,7 @@ export async function mountScene(
 		return chains;
 	};
 	const leaves = new LeafGenerator( canopyBackLayer, leafLayer, pixi );
+	const falling = new FallingLeaves( leafLayer, pixi );
 	const ivy = new IvyLayer( ivyLayer, pixi );
 	const bloom = new BloomEngine( flowerLayer, pixi );
 	const lianas = new LianaSystem( lianaLayer, pixi );
@@ -362,6 +363,7 @@ export async function mountScene(
 		decorated = true;
 		computeGirth( revealed, currentTrunkBase() );
 		leaves.populate( revealed, hormones, palette, dna, rng );
+		falling.setSources( leaves.sources( 48 ) );
 		ivy.populate( revealed, hormones.structure01, rng );
 		bloom.apply( hormones.bloom01, leaves.placements(), rng );
 		lianas.build(
@@ -418,6 +420,7 @@ export async function mountScene(
 		// Steady state: wind sways the skeleton; decoration breathes.
 		drawBranches( branchGraphics, currentChains(), revealed, displaceNode );
 		leaves.update( dt, wind, t );
+		falling.update( dt, wind, t );
 		ivy.update( dt, t );
 		bloom.update( dt, t, ( x, y ) => wind.sample( x, y, t ) );
 		lianas.update( dt, t );
@@ -449,7 +452,7 @@ export async function mountScene(
 	const applyDna = ( next: TreeSnapshot, instant: boolean ): void => {
 		dna = next;
 		hormones = buildHormones( dna );
-		rng = mulberry32( hash32( `${ dna.siteUrl }|${ dna.installEpoch }` ) );
+		rng = mulberry32( hash32( `${ dna.siteUrl }|${ dna.siteName }|${ dna.installEpoch }` ) );
 		envelope = buildEnvelope( hormones.age01, hormones.vigor01, rng );
 		cfg = buildGrowthConfig( envelope, hormones.vigor01 );
 		palette = buildCategoryPalette( dna );
@@ -469,6 +472,7 @@ export async function mountScene(
 		decorated = false;
 		// Strip the previous tree's decoration so the new one grows bare.
 		leaves.populate( [], hormones, palette, dna, rng );
+		falling.setSources( [] );
 		ivy.populate( [], 0, rng );
 		bloom.apply( 0, [], rng );
 		lianas.build( [], 0, [], rng );
@@ -496,42 +500,59 @@ export async function mountScene(
 	// ── Hidden DNA tuner (developer mode only): 20 trunk clicks. ────────
 	// The wallpaper layer is pointer-events:none, so clicks are observed
 	// at the window and hit-tested geometrically against the trunk column.
-	const clickCounter = createClickCounter(
-		TUNER_CLICK_THRESHOLD,
-		TUNER_CLICK_WINDOW_MS,
-	);
-	let disposeTuner: ( () => void ) | null = null;
-	const onWindowClick = ( event: MouseEvent ): void => {
-		if ( disposeTuner || ! isDeveloperModeEnabled() ) {
-			return;
+	/** Set / clear the debug time-of-day override the sky reads. */
+	const setHourOverride = ( hour: number | null ): void => {
+		const w = window as unknown as {
+			desktopModeLivingTreeHourOverride?: number;
+		};
+		if ( hour === null ) {
+			delete w.desktopModeLivingTreeHourOverride;
+		} else {
+			w.desktopModeLivingTreeHourOverride = hour;
 		}
-		const rect = app.canvas.getBoundingClientRect();
-		const scale = treeRoot.scale.x || 1;
-		const lx = ( event.clientX - rect.left - treeRoot.x ) / scale;
-		const ly = ( event.clientY - rect.top - treeRoot.y ) / scale;
+	};
+	let disposeTuner: ( () => void ) | null = null;
+	const onWindowClick = createTrunkClickGesture( {
+		isEnabled: () => ! disposeTuner && isDeveloperModeEnabled(),
+		toLocal: ( clientX, clientY ) => {
+			const rect = app.canvas.getBoundingClientRect();
+			const scale = treeRoot.scale.x || 1;
+			return {
+				lx: ( clientX - rect.left - treeRoot.x ) / scale,
+				ly: ( clientY - rect.top - treeRoot.y ) / scale,
+			};
+		},
 		// Hit-test against the REVEALED tree's proportions, not the
 		// mature canonical envelope — a sapling's trunk is short.
-		const extent = finalExtent();
-		const hitEnvelope = {
-			...envelope,
-			heightMax: extent.height,
-			trunkBaseGirth: currentTrunkBase(),
-		};
-		if ( ! isTrunkHit( lx, ly, hitEnvelope ) ) {
-			clickCounter.reset();
-			return;
-		}
-		if ( ! clickCounter.hit( Date.now() ) ) {
-			return;
-		}
-		disposeTuner = openDebugPanel( {
-			snapshot: dna,
-			onChange: ( edited ) => applyDna( edited, true ),
-			onClose: () => {
-				disposeTuner = null;
-			},
-		} );
-	};
+		isHit: ( lx, ly ) => {
+			const extent = finalExtent();
+			return isTrunkHit( lx, ly, {
+				...envelope,
+				heightMax: extent.height,
+				trunkBaseGirth: currentTrunkBase(),
+			} );
+		},
+		onTrigger: () => {
+			disposeTuner = openDebugPanel( {
+				snapshot: dna,
+				hour: currentHour(),
+				onChange: ( edited ) => applyDna( edited, true ),
+				onHourChange: ( hour ) => {
+					setHourOverride( hour );
+					refreshSky();
+					if ( prefersReducedMotion ) {
+						app.renderer.render( app.stage );
+					}
+				},
+				onClose: () => {
+					disposeTuner = null;
+					// Closing the tuner hands the sky back to the real clock.
+					setHourOverride( null );
+					refreshSky();
+				},
+			} );
+		},
+	} );
 	window.addEventListener( 'click', onWindowClick );
 
 	return {
@@ -540,10 +561,12 @@ export async function mountScene(
 			if ( disposeTuner ) {
 				disposeTuner();
 				disposeTuner = null;
+				setHourOverride( null );
 			}
 			resizeObserver.disconnect();
 			app.ticker.stop();
 			leaves.destroy();
+			falling.destroy();
 			ivy.destroy();
 			bloom.destroy();
 			fireflies.destroy();

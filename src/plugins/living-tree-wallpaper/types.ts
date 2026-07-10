@@ -64,9 +64,15 @@ export interface TagCooccurrence {
  * sees individual rows.
  */
 export interface TreeSnapshot {
-	/** Site URL — half the determinism seed. */
+	/** Site URL — part of the determinism seed. */
 	siteUrl: string;
-	/** Install epoch (unix seconds) — the other half of the seed. */
+	/**
+	 * Site (blog) name — part of the determinism seed, so two blogs that
+	 * share a URL shape (localhost installs, staging clones) still grow
+	 * distinct individuals.
+	 */
+	siteName: string;
+	/** Install epoch (unix seconds) — the rest of the seed. */
 	installEpoch: number;
 	/** Days since the site's oldest content / admin registration. */
 	siteAgeDays: number;

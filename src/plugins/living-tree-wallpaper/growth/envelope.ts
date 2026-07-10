@@ -114,10 +114,11 @@ export function buildEnvelope(
 	void age01;
 	void vigor01;
 
-	// ±6% deterministic jitter so two sites still differ a touch in
-	// proportion (their seeds differ).
-	const heightMax = MATURE_HEIGHT * ( 0.94 + rng() * 0.12 );
-	const crownRadius = MATURE_CROWN_RADIUS * ( 0.94 + rng() * 0.12 );
+	// Wide deterministic jitter — each site is an INDIVIDUAL: some grow
+	// tall and narrow, some low and spreading. (±6% was tried first and
+	// every site's tree read as the same template.)
+	const heightMax = MATURE_HEIGHT * ( 0.88 + rng() * 0.24 );
+	const crownRadius = MATURE_CROWN_RADIUS * ( 0.82 + rng() * 0.36 );
 
 	return {
 		heightMax,

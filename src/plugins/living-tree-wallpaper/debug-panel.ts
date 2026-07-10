@@ -17,6 +17,7 @@
  */
 
 import { buildHormones } from './dna';
+import { currentHour } from './sky';
 import type { Envelope, TreeSnapshot } from './types';
 
 /** Trunk clicks required to open the tuner. */
@@ -119,6 +120,48 @@ export function isTrunkHit( lx: number, ly: number, env: Envelope ): boolean {
 	return Math.abs( lx ) <= halfWidth && ly <= 6 && ly >= -env.heightMax * 0.55;
 }
 
+export interface TrunkClickGestureOptions {
+	/** Gate checked per click (developer mode ON, panel not already open). */
+	isEnabled: () => boolean;
+	/** Map a client-space click to tree reference space. */
+	toLocal: ( clientX: number, clientY: number ) => { lx: number; ly: number };
+	/** Whether a reference-space point lands on the trunk column. */
+	isHit: ( lx: number, ly: number ) => boolean;
+	/** Fired exactly once per completed 20-click run. */
+	onTrigger: () => void;
+	/** Clock override for tests. Defaults to `Date.now`. */
+	now?: () => number;
+}
+
+/**
+ * The full easter-egg gesture as one testable unit: N consecutive trunk
+ * clicks (each within the timeout window) fire `onTrigger`; a click off
+ * the trunk resets the run; a disabled gate ignores clicks entirely.
+ * The scene wires the returned listener to window `click`.
+ *
+ * @param opts Gesture dependencies (gate, hit-test, trigger, clock).
+ * @return A `click` listener taking any `{ clientX, clientY }` event.
+ */
+export function createTrunkClickGesture(
+	opts: TrunkClickGestureOptions,
+): ( event: { clientX: number; clientY: number } ) => void {
+	const counter = createClickCounter( TUNER_CLICK_THRESHOLD, TUNER_CLICK_WINDOW_MS );
+	const now = opts.now ?? Date.now;
+	return ( event ) => {
+		if ( ! opts.isEnabled() ) {
+			return;
+		}
+		const { lx, ly } = opts.toLocal( event.clientX, event.clientY );
+		if ( ! opts.isHit( lx, ly ) ) {
+			counter.reset();
+			return;
+		}
+		if ( counter.hit( now() ) ) {
+			opts.onTrigger();
+		}
+	};
+}
+
 function formatValue( def: SliderDef, value: number ): string {
 	return def.step < 1 ? value.toFixed( 2 ) : String( Math.round( value ) );
 }
@@ -141,6 +184,23 @@ export interface DebugPanelOptions {
 	onChange: ( next: TreeSnapshot ) => void;
 	/** Fired when the user closes the panel via its own button. */
 	onClose: () => void;
+	/** Initial value for the time-of-day slider (fractional hours). */
+	hour?: number;
+	/**
+	 * When provided, the panel grows a time-of-day slider (0..24) that
+	 * fires on every move — `null` means "back to the live clock". The
+	 * caller owns the override + sky refresh.
+	 */
+	onHourChange?: ( hour: number | null ) => void;
+}
+
+/** Format fractional hours as HH:MM for the slider readout. */
+function formatHour( hours: number ): string {
+	const h = Math.floor( hours );
+	const m = Math.round( ( hours - h ) * 60 );
+	const hh = String( ( h + Math.floor( m / 60 ) ) % 24 ).padStart( 2, '0' );
+	const mm = String( m % 60 ).padStart( 2, '0' );
+	return `${ hh }:${ mm }`;
 }
 
 /**
@@ -206,6 +266,59 @@ export function openDebugPanel( opts: DebugPanelOptions ): () => void {
 		'margin-bottom:10px;word-break:break-word';
 	hormones.textContent = hormoneLine( state );
 	panel.appendChild( hormones );
+
+	// Time-of-day override — drives the sky + tree luminosity live. Not a
+	// snapshot field: it fires straight through (no debounce; a sky
+	// retint is cheap) and "live" hands the clock back to local time.
+	if ( opts.onHourChange ) {
+		const onHourChange = opts.onHourChange;
+		const row = document.createElement( 'label' );
+		row.style.cssText =
+			'display:block;margin-bottom:10px;padding-bottom:10px;' +
+			'border-bottom:1px solid rgba(255, 255, 255, 0.1)';
+		const caption = document.createElement( 'div' );
+		caption.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+		const name = document.createElement( 'span' );
+		name.textContent = 'Time of day';
+		const right = document.createElement( 'span' );
+		right.style.cssText = 'display:flex;align-items:center;gap:6px';
+		const value = document.createElement( 'span' );
+		value.style.cssText = 'color:#9aa3b2;font-variant-numeric:tabular-nums';
+		const liveButton = document.createElement( 'button' );
+		liveButton.type = 'button';
+		liveButton.textContent = 'live';
+		liveButton.setAttribute( 'aria-label', 'Follow the real clock again' );
+		liveButton.style.cssText =
+			'background:rgba(255, 255, 255, 0.1);border:1px solid rgba(255, 255, 255, 0.2);' +
+			'border-radius:6px;color:#cfd6e0;cursor:pointer;font-size:10px;padding:1px 7px';
+		right.appendChild( value );
+		right.appendChild( liveButton );
+		caption.appendChild( name );
+		caption.appendChild( right );
+
+		const input = document.createElement( 'input' );
+		input.type = 'range';
+		input.min = '0';
+		input.max = '24';
+		input.step = '0.05';
+		input.dataset.livingTreeHour = '1';
+		input.value = String( opts.hour ?? 12 );
+		value.textContent = formatHour( Number( input.value ) );
+		input.style.cssText = 'width:100%;margin:2px 0 0;accent-color:#e8c56f';
+		input.addEventListener( 'input', () => {
+			value.textContent = formatHour( Number( input.value ) );
+			onHourChange( Number( input.value ) );
+		} );
+		liveButton.addEventListener( 'click', () => {
+			onHourChange( null );
+			input.value = String( currentHour() );
+			value.textContent = formatHour( Number( input.value ) );
+		} );
+
+		row.appendChild( caption );
+		row.appendChild( input );
+		panel.appendChild( row );
+	}
 
 	const schedule = (): void => {
 		if ( pending !== null ) {

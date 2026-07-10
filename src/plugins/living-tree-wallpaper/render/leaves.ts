@@ -28,16 +28,16 @@ import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../p
 import type { BranchNode, Hormones, HuePartition, TreeSnapshot, Vec2 } from '../types';
 import type { WindField } from '../wind';
 
-/** LOD bounds — a sprout wears a handful, an oak up to 2400. */
+/** LOD bounds — a sprout wears a handful, an oak up to 3200. */
 const MIN_LEAVES = 6;
-const MAX_LEAVES = 2400;
+const MAX_LEAVES = 3200;
 
 /**
  * Target leaves per tuft (soft — clamped by anchor points + budget).
  * Modest so the canopy is many overlapping tufts spread along the
  * branches rather than a few pom-poms at the tips.
  */
-const LEAVES_PER_CLUSTER = 8;
+const LEAVES_PER_CLUSTER = 10;
 
 /** Crown hue sectors — each category owns an angular wedge (see below). */
 const HUE_SECTORS = 24;
@@ -100,8 +100,9 @@ function shade( color: number, f: number ): number {
 /**
  * Rasterize a single leaf: a pointed blade with a lit tip, shaded base,
  * and a faint centre vein. Drawn white so per-sprite tint colours it.
+ * Exported — the falling-leaves layer shares the exact same blade.
  */
-function buildLeafTexture( pixi: PixiNamespace ): PixiTexture {
+export function buildLeafTexture( pixi: PixiNamespace ): PixiTexture {
 	const size = LEAF_TEX_SIZE;
 	const canvas = document.createElement( 'canvas' );
 	canvas.width = size;
@@ -240,7 +241,7 @@ export class LeafGenerator {
 		const vigorFill = 0.7 + 0.3 * Math.min( 1, Math.max( 0, hormones.vigor01 ) );
 		const vitality = Math.min( 1, Math.max( 0, hormones.vitality01 ) );
 		const budget = Math.min(
-			Math.round( computeLeafBudget( hormones.foliage01 ) * vigorFill * 1.6 ),
+			Math.round( computeLeafBudget( hormones.foliage01 ) * vigorFill * 1.9 ),
 			points.length * LEAVES_PER_CLUSTER * 2,
 		);
 		// EVERY shoot gets a tuft when the budget allows — full coverage
@@ -388,6 +389,38 @@ export class LeafGenerator {
 	/** Number of live leaf sprites (observability + tests). */
 	public count(): number {
 		return this.leafCount;
+	}
+
+	/**
+	 * A sample of real canopy leaves (position / tint / size) — the
+	 * falling-leaves layer detaches copies of THESE, so a drifting leaf
+	 * always matches the canopy it left.
+	 *
+	 * @param cap Max samples to return, spread evenly across the canopy.
+	 */
+	public sources( cap: number ): Array< { x: number; y: number; tint: number; size: number } > {
+		const all: Array< { x: number; y: number; tint: number; size: number } > = [];
+		for ( const cluster of this.clusters ) {
+			for ( const leaf of cluster.leaves ) {
+				if ( ! leaf.behind ) {
+					all.push( {
+						x: cluster.center.x + leaf.dx,
+						y: cluster.center.y + leaf.dy,
+						tint: leaf.sprite.tint,
+						size: leaf.sprite.scale.x * LEAF_TEX_SIZE,
+					} );
+				}
+			}
+		}
+		if ( all.length <= cap ) {
+			return all;
+		}
+		const step = all.length / cap;
+		const out: Array< { x: number; y: number; tint: number; size: number } > = [];
+		for ( let i = 0; i < cap; i++ ) {
+			out.push( all[ Math.floor( i * step ) ] );
+		}
+		return out;
 	}
 
 	private clear(): void {

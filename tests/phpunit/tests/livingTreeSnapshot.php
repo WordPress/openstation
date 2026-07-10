@@ -30,6 +30,7 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 		$this->assertIsArray( $snapshot );
 		$expected_keys = array(
 			'siteUrl',
+			'siteName',
 			'installEpoch',
 			'siteAgeDays',
 			'totalPosts',
@@ -57,6 +58,10 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 
 		$this->assertNotEmpty( $snapshot['siteUrl'] );
 		$this->assertIsString( $snapshot['siteUrl'] );
+		// The blog name is part of the determinism seed — two blogs sharing
+		// a URL shape (localhost installs) must still grow distinct trees.
+		$this->assertIsString( $snapshot['siteName'] );
+		$this->assertSame( get_bloginfo( 'name' ), $snapshot['siteName'] );
 
 		// Age is a non-negative whole number — the master clock never runs
 		// backwards.
