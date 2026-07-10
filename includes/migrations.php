@@ -175,9 +175,10 @@ function desktop_mode_migrate_unschedule_post_term_ai() {
  *
  * WordPress 7.0 owns provider credentials (Settings → Connectors), so the
  * copilot no longer stores keys of its own. Remove the platform key option and
- * strip the now-unused key/provider/transport fields from every user's stored
- * OS settings so no secret is left behind. The remaining `ai` fields
- * (`enabled`, `provider` preference) are backfilled from defaults on next read.
+ * strip the now-unused key / provider / model / transport fields from every
+ * user's stored OS settings so no secret is left behind. The only `ai` field
+ * that remains is `enabled` (the per-user assistant toggle), backfilled from
+ * defaults on next read.
  *
  * @since 0.9.4
  *

@@ -101,7 +101,10 @@ function desktop_mode_ai_tool_result_message( array $tool_outputs ) {
  *
  * @since 0.9.4
  *
- * @param int        $user_id       User the request is attributed to.
+ * @param int        $user_id       Requesting user id. Currently unused — the
+ *                                  provider comes from Connectors and no
+ *                                  per-user preference is applied; retained for
+ *                                  signature stability and future attribution.
  * @param array      $messages      Ordered conversation as SDK Message objects.
  * @param array      $tool_defs     Tool definitions to advertise.
  * @param array|null $answer_schema JSON Schema for the final answer, or null.

@@ -5,9 +5,10 @@
  * The Copilot no longer stores credentials of its own. WordPress 7.0 owns
  * provider credentials (Settings → Connectors) and model routing
  * (`wp_ai_client_prompt()`, which injects the configured key automatically).
- * These helpers therefore only carry the per-user "AI assistant" preference
- * (a toggle + an optional provider preference) and expose the Core capability
- * signals the shell uses to decide whether to surface the assistant at all.
+ * These helpers therefore only carry the per-user "AI assistant" toggle
+ * (`ai.enabled`) and expose the Core capability signals the shell uses to
+ * decide whether to surface the assistant at all. Provider + model selection
+ * is delegated entirely to the Core AI Client — nothing is persisted here.
  *
  * @package WPDesktopMode
  */

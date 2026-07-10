@@ -105,20 +105,17 @@ function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 		return;
 	}
 
-	if ( ! function_exists( 'desktop_mode_ai_resolve_user_id' )
-		|| ! function_exists( 'desktop_mode_ai_is_enabled' )
-		|| ! function_exists( 'desktop_mode_ai_schedule_job' )
-	) {
+	if ( ! function_exists( 'desktop_mode_ai_schedule_job' ) ) {
 		return;
 	}
 
+	// Comment scoring is a site-wide moderation feature: it is gated ONLY by
+	// the "Score new comments with AI" toggle + a configured Connector, never
+	// by any user's per-user assistant toggle. The user id below is passed
+	// through purely for attribution/observability — the analysis job reads
+	// none of it (the provider comes from Connectors), so the commenter's own
+	// id (0 for anonymous) is fine.
 	$user_id = (int) $comment->user_id;
-	if ( $user_id <= 0 || ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		$user_id = (int) desktop_mode_ai_resolve_user_id();
-	}
-	if ( $user_id <= 0 || ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		return;
-	}
 
 	desktop_mode_ai_schedule_job(
 		'desktop_mode_ai_analyze_comment',

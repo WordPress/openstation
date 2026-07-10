@@ -85,7 +85,10 @@ add_action( 'desktop_mode_ai_analyze_comment', 'desktop_mode_ai_job_analyze_comm
  * @since 0.9.4
  *
  * @param WP_Comment $comment The comment to analyze.
- * @param int        $user_id User the request is attributed to.
+ * @param int        $user_id Requesting user id. Currently unused — the builder
+ *                            is built from the prompt alone and the provider
+ *                            comes from Connectors; retained for signature
+ *                            stability and future attribution.
  * @return array|WP_Error Structured `{ topic, ai_summary, harmful, spam }` or an error.
  */
 function desktop_mode_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
