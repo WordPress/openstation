@@ -262,6 +262,13 @@ its target and applies the wind displacement (× per-leaf compliance).
   (`K = f( diversity01 )`, capped) → luminous bezier filaments between crown
   regions that share those tags. Purely decorative overlay.
   `build( cooc, diversity01 )` then `update( dt )`.
+- **`GroundLayer`** — the meadow: soil mounds (soft gradient sprites), a
+  contact shadow, hundreds of individually-drawn grass blades in clumps
+  that sway around their own roots with the wind, and a few fallen
+  leaves near the trunk. Grass colour runs through the same
+  `leafColor()` health ramp as the canopy — poor SEO dries the lawn too.
+  Layout draws from its own seeded stream (`<seed>|ground`), stable per
+  site and isolated from the skeleton's PRNG.
 - **`IvyLayer`** — pages render as trunk ivy: small dark evergreen leaves
   on exactly the thick wood the canopy's leaf placer disqualifies,
   climbing bottom→up with `structure01`. Pure decoration; replaced an

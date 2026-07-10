@@ -35,12 +35,7 @@ import { GrowthSimulator } from './growth/space-colonization';
 import { computeGirth } from './growth/girth';
 import { countWithinDepth, revealSkeleton } from './growth/reveal';
 import { buildCategoryPalette } from './palette';
-import {
-	getPixi,
-	type PixiApp,
-	type PixiContainer,
-	type PixiSprite,
-} from './pixi-types';
+import { getPixi, type PixiApp, type PixiContainer } from './pixi-types';
 import { hash32, mulberry32 } from './rng';
 import { currentHour, skyForTime, SkyLayer } from './sky';
 import {
@@ -52,6 +47,7 @@ import {
 import { BloomEngine } from './render/bloom';
 import { FallingLeaves } from './render/falling';
 import { FireflyLayer } from './render/fireflies';
+import { GroundLayer } from './render/ground';
 import { IvyLayer } from './render/ivy';
 import { LeafGenerator } from './render/leaves';
 import { LianaSystem } from './render/lianas';
@@ -71,38 +67,6 @@ interface SceneOptions {
  * sprite covers the whole canvas, so this is just a no-flash fallback.
  */
 const BACKDROP_CSS = '#141a2e';
-
-/**
- * Rasterize a soft elliptical gradient once (white core → transparent
- * rim); tinted sprites of it build the ground mound and contact shadow
- * with zero banding and no hard ellipse edges.
- */
-function buildGroundGradientTexture(
-	pixi: import( './pixi-types' ).PixiNamespace,
-): import( './pixi-types' ).PixiTexture {
-	const w = 256;
-	const h = 96;
-	const canvas = document.createElement( 'canvas' );
-	canvas.width = w;
-	canvas.height = h;
-	const ctx = canvas.getContext( '2d' );
-	if ( ! ctx ) {
-		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
-	}
-	const gradient = ctx.createRadialGradient( w / 2, h / 2, 1, w / 2, h / 2, w / 2 );
-	gradient.addColorStop( 0, 'rgba(255, 255, 255, 0.9)' );
-	gradient.addColorStop( 0.5, 'rgba(255, 255, 255, 0.5)' );
-	gradient.addColorStop( 0.8, 'rgba(255, 255, 255, 0.16)' );
-	gradient.addColorStop( 1, 'rgba(255, 255, 255, 0)' );
-	ctx.save();
-	ctx.translate( w / 2, h / 2 );
-	ctx.scale( 1, h / w );
-	ctx.translate( -w / 2, -h / 2 );
-	ctx.fillStyle = gradient;
-	ctx.fillRect( -w, -h, w * 3, h * 3 );
-	ctx.restore();
-	return pixi.Texture.from( canvas );
-}
 
 /** Fallback DNA when the snapshot fetch failed: an anonymous sprout. */
 function sproutSnapshot(): TreeSnapshot {
@@ -259,42 +223,19 @@ export async function mountScene(
 		fireflyLayer.alpha = 0.15 + 0.85 * ( 1 - state.light01 );
 	};
 
-	// The ground the tree stands on: layered soft gradient sprites — a
-	// broad dusk-grass mound, a moss ring, and a tight contact shadow at
-	// the trunk. No hard ellipse rims anywhere. Rebuilt on every
-	// `applyDna()` because span + shadow scale with the envelope.
-	const groundTexture = buildGroundGradientTexture( pixi );
-	const groundSprites: PixiSprite[] = [];
+	// The meadow the tree stands in: soil mounds, per-blade grass clumps
+	// swaying in the wind, a contact shadow, and fallen leaves near the
+	// trunk. Rebuilt on every `applyDna()` — its span scales with the
+	// tree's extent and its greens dry out with `health01`.
+	const ground = new GroundLayer( groundLayer, pixi );
 	const buildGround = (): void => {
-		for ( const sprite of groundSprites ) {
-			groundLayer.removeChild( sprite );
-			sprite.destroy();
-		}
-		groundSprites.length = 0;
-		const groundSpan = finalExtent().halfWidth * 1.3 + 80;
-		const addGroundSprite = (
-			tint: number,
-			alpha: number,
-			w: number,
-			h: number,
-			x: number,
-			y: number,
-		): void => {
-			const sprite = new pixi.Sprite( groundTexture );
-			sprite.anchor.set( 0.5 );
-			sprite.tint = tint;
-			sprite.alpha = alpha;
-			sprite.scale.x = w / 256;
-			sprite.scale.y = h / 96;
-			sprite.x = x;
-			sprite.y = y;
-			groundLayer.addChild( sprite );
-			groundSprites.push( sprite );
-		};
-		addGroundSprite( 0x131c0c, 0.95, groundSpan * 2.7, 120, 0, 20 );
-		addGroundSprite( 0x2a3d1a, 0.55, groundSpan * 1.5, 62, -groundSpan * 0.1, 8 );
-		addGroundSprite( 0x1c2a12, 0.5, groundSpan * 1.1, 48, groundSpan * 0.22, 12 );
-		addGroundSprite( 0x000000, 0.5, currentTrunkBase() * 10 + 60, 30, 0, 4 );
+		ground.build( {
+			span: finalExtent().halfWidth * 1.3 + 80,
+			trunkBase: currentTrunkBase(),
+			health01: hormones.health01,
+			wind01: prefersReducedMotion ? 0 : hormones.wind01,
+			siteKey: `${ dna.siteUrl }|${ dna.siteName }`,
+		} );
 	};
 	buildGround();
 
@@ -419,6 +360,7 @@ export async function mountScene(
 		}
 		// Steady state: wind sways the skeleton; decoration breathes.
 		drawBranches( branchGraphics, currentChains(), revealed, displaceNode );
+		ground.update( t );
 		leaves.update( dt, wind, t );
 		falling.update( dt, wind, t );
 		ivy.update( dt, t );
@@ -571,13 +513,9 @@ export async function mountScene(
 			bloom.destroy();
 			fireflies.destroy();
 			lianas.destroy();
+			ground.destroy();
 			sky.destroy();
 			app.destroy( true, { children: true, texture: true } );
-			try {
-				groundTexture.destroy( true );
-			} catch {
-				/* already released by app.destroy when texture:true is set */
-			}
 			container.style.background = priorBackground;
 		},
 		setAnimating( playing: boolean ): void {
