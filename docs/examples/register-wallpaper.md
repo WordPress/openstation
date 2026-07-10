@@ -176,7 +176,16 @@ wp.hooks.addFilter(
 
 ---
 
+## A canvas wallpaper driven by REST data
+
+A canvas wallpaper doesn't have to be self-contained — it can pull site data over REST at mount time and shape itself from it. The built-in **Living Tree** wallpaper (`wp-living-tree`) is the reference for this pattern: on mount it fetches `desktop-mode/v1/living-tree/snapshot` through `wp.desktop.fetch` (so the request feeds the activity bus), turns the compact site "DNA" into normalised parameters, and renders a growing tree with PixiJS. Its algorithm is fully specified in [`../living-tree-algorithm.md`](../living-tree-algorithm.md), and the source under `src/plugins/living-tree-wallpaper/` is a good skeleton to copy: `index.ts` (fetch + publish the def), `scene.ts` (PixiJS app, layers, ticker, teardown), plus a narrow `pixi-types.ts` so the bundle never imports `pixi.js` directly.
+
+The one rule worth stealing: **fetch through the framework, never raw `fetch()`** — use `trackedFetch` (in-bundle) or `window.wp.desktop.fetch` (external), with `{ silent: true }` for a background pull the user didn't initiate.
+
+---
+
 ## Reference
 
 - [Hooks catalog](../javascript-reference.md#4-hooks--desktop-mode) — every `desktop-mode.*` hook with its payload shape.
 - [Wallpaper registration API](../javascript-reference.md#5-wallpaper-registration-api) — full `WallpaperDef` type.
+- [The Living Tree — algorithm definition](../living-tree-algorithm.md) — a worked canvas-wallpaper spec that consumes REST site data.

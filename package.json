@@ -27,7 +27,7 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "DESKTOP_MODE_TARGET=iframe-bridge vite build --mode development && DESKTOP_MODE_TARGET=iframe-bridge vite build --mode production",
 		"build:gutenberg-drop-receiver": "DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode development && DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode production",
@@ -39,6 +39,7 @@
 		"build:content-graph": "DESKTOP_MODE_TARGET=content-graph vite build --mode development && DESKTOP_MODE_TARGET=content-graph vite build --mode production",
 		"build:ai-assistant": "DESKTOP_MODE_TARGET=ai-assistant vite build --mode development && DESKTOP_MODE_TARGET=ai-assistant vite build --mode production",
 		"build:animated-logo-wallpaper": "DESKTOP_MODE_TARGET=animated-logo-wallpaper vite build --mode development && DESKTOP_MODE_TARGET=animated-logo-wallpaper vite build --mode production",
+		"build:living-tree-wallpaper": "DESKTOP_MODE_TARGET=living-tree-wallpaper vite build --mode development && DESKTOP_MODE_TARGET=living-tree-wallpaper vite build --mode production",
 		"build:about-scene": "DESKTOP_MODE_TARGET=about-scene vite build --mode development && DESKTOP_MODE_TARGET=about-scene vite build --mode production",
 		"build:os-settings-panel": "DESKTOP_MODE_TARGET=os-settings-panel vite build --mode development && DESKTOP_MODE_TARGET=os-settings-panel vite build --mode production",
 		"build:shell-overlays": "DESKTOP_MODE_TARGET=shell-overlays vite build --mode development && DESKTOP_MODE_TARGET=shell-overlays vite build --mode production",

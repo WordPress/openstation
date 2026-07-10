@@ -381,6 +381,17 @@ const TARGETS = {
 		fileBase: 'animated-logo-wallpaper',
 		iifeName: 'desktopModeAnimatedLogoWallpaper',
 	},
+	// Living Tree wallpaper — built-in canvas wallpaper that renders the
+	// site as a growing plant organism (posts=leaves, comments=flowers,
+	// tags=lianas, users=fireflies, traffic=wind). PixiJS-driven, lazy-
+	// loaded by the wallpaper server-sync when selected. Publishes the
+	// `WallpaperDef` on `window.desktopModeWallpapers['wp-living-tree']`.
+	// See docs/living-tree-algorithm.md.
+	'living-tree-wallpaper': {
+		entry:    'src/plugins/living-tree-wallpaper/index.ts',
+		fileBase: 'living-tree-wallpaper',
+		iifeName: 'desktopModeLivingTreeWallpaper',
+	},
 	// About-scene — the PixiJS particle scene rendered inside OS
 	// Settings → About. ~25 kB of code that only ever runs after the
 	// user explicitly opens that tab. Loaded by the main-bundle

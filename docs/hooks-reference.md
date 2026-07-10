@@ -2778,6 +2778,43 @@ Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_regist
 
 ---
 
+## Living Tree wallpaper (since 0.9.4)
+
+The `wp-living-tree` canvas wallpaper renders the site as a growing plant organism. WordPress emits only *hormones* (age, vigour, health, diversity, bloom…) via a compact REST snapshot; the JS growth simulator decides all geometry. The full algorithm is documented in [`living-tree-algorithm.md`](./living-tree-algorithm.md).
+
+Server module: `includes/living-tree/`. Exposes one REST route and one gate filter.
+
+### REST — `GET desktop-mode/v1/living-tree/snapshot` — Experimental
+
+Returns the compact site DNA (the `TreeSnapshot` shape): aggregate counts, install epoch, a small tag co-occurrence edge list, and per-year branch hints — never the full post list. Cached in the `desktop_mode_living_tree_snapshot` transient (TTL 6h), invalidated on `save_post` / `deleted_post` / `comment_post`.
+
+### `desktop_mode_living_tree_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_user_can_use', bool $can ): bool
+```
+
+Permission gate for the snapshot endpoint. Default `current_user_can( 'read' )` — anyone who can see the admin can see their own site's wallpaper. Widen or restrict as needed.
+
+### `desktop_mode_living_tree_snapshot` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_snapshot', array $snapshot ): array
+```
+
+The full snapshot before it is cached and served. Keep the shape intact — the JS client trusts this contract — and keep it aggregates-only (the golden rule: hormones, never geometry).
+
+### `desktop_mode_living_tree_seo_health` / `desktop_mode_living_tree_performance` — Experimental (filters)
+
+```php
+apply_filters( 'desktop_mode_living_tree_seo_health', float $health );       // default 0.7
+apply_filters( 'desktop_mode_living_tree_performance', float $performance ); // default 0.8
+```
+
+The two hormones WordPress cannot cheaply self-measure. `seo_health` (0..1) drives the canopy's colour temperature — green → yellow → red → grey; `performance` (0..1) throttles growth vigour. SEO / monitoring plugins with real telemetry should hook these; values are clamped to [0, 1].
+
+---
+
 ## Presence
 
 Framework-level presence tracking. Storage in
