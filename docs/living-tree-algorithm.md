@@ -366,11 +366,16 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   (unreachable low attractors are dropped rather than chain-chased).
 - **Branch rendering.** Tapered rounded strokes into one `Graphics`,
   redrawn only while the skeleton changes (growth / tuner regrow) —
-  NEVER per frame. The wood and the turf are static at steady state;
-  re-tessellating the ribbon skeleton every frame (and rotating hundreds
-  of grass-clump containers) was the wallpaper's whole CPU bill. The
-  foliage carries the wind — leaves, blossom, vines, fireflies are all
-  sprite-transform updates the GPU batches cheaply. Colour
+  NEVER per frame. The wood and the turf are static at steady state AND
+  baked with `cacheAsTexture` (one textured quad each per frame instead
+  of thousands of vertices); the bake is released during regrowth and
+  re-applied when the tree settles. Re-tessellating the ribbon skeleton
+  every frame (and rotating hundreds of grass-clump containers) was the
+  wallpaper's whole CPU bill. The foliage carries the wind — leaves,
+  blossom, vines, fireflies are sprite-transform updates the GPU batches
+  cheaply, with the two big loops (canopy, blossom) ticking at 30 Hz.
+  Measured on the software rasterizer (worst case): 133 ms → 33 ms per
+  frame. Colour
   lightens with compliance (dark trunk → warm extremities).
 - **Decoration randomness.** The skeleton and leaf/bloom/liana placement
   draw from the seeded PRNG (same site → same canopy). Firefly wander
