@@ -234,9 +234,13 @@ function buildEarthTexture( pixi: PixiNamespace ): PixiTexture {
 const EARTH_DAY = 0x3a4a2c;
 const EARTH_NIGHT = 0x10150c;
 
-/** Small soft star dot. */
+/**
+ * A star is a PINPOINT: a hard 1–2px core with a very tight falloff.
+ * (The first pass reused a soft 16px glow and the night sky read as
+ * floating peas.) Bright stars get a subtle 4-ray sparkle.
+ */
 function buildStarTexture( pixi: PixiNamespace ): PixiTexture {
-	const size = 16;
+	const size = 8;
 	const canvas = document.createElement( 'canvas' );
 	canvas.width = size;
 	canvas.height = size;
@@ -247,10 +251,81 @@ function buildStarTexture( pixi: PixiNamespace ): PixiTexture {
 	const c = size / 2;
 	const gradient = ctx.createRadialGradient( c, c, 0, c, c, c );
 	gradient.addColorStop( 0, 'rgba(255, 255, 255, 1)' );
+	gradient.addColorStop( 0.25, 'rgba(255, 255, 255, 0.9)' );
+	gradient.addColorStop( 0.5, 'rgba(255, 255, 255, 0.15)' );
+	gradient.addColorStop( 1, 'rgba(255, 255, 255, 0)' );
+	ctx.fillStyle = gradient;
+	ctx.fillRect( 0, 0, size, size );
+	return pixi.Texture.from( canvas );
+}
+
+/** Rare bright star: pinpoint core + faint 4-ray sparkle. */
+function buildBrightStarTexture( pixi: PixiNamespace ): PixiTexture {
+	const size = 24;
+	const canvas = document.createElement( 'canvas' );
+	canvas.width = size;
+	canvas.height = size;
+	const ctx = canvas.getContext( '2d' );
+	if ( ! ctx ) {
+		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
+	}
+	const c = size / 2;
+	const gradient = ctx.createRadialGradient( c, c, 0, c, c, 4 );
+	gradient.addColorStop( 0, 'rgba(255, 255, 255, 1)' );
 	gradient.addColorStop( 0.5, 'rgba(255, 255, 255, 0.5)' );
 	gradient.addColorStop( 1, 'rgba(255, 255, 255, 0)' );
 	ctx.fillStyle = gradient;
 	ctx.fillRect( 0, 0, size, size );
+	// Diffraction rays.
+	ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+	ctx.lineWidth = 1;
+	ctx.beginPath();
+	ctx.moveTo( c, 1 );
+	ctx.lineTo( c, size - 1 );
+	ctx.moveTo( 1, c );
+	ctx.lineTo( size - 1, c );
+	ctx.stroke();
+	return pixi.Texture.from( canvas );
+}
+
+/**
+ * A soft cumulus puff: overlapping radial gradients with a flatter,
+ * slightly darker base — tiled at varied scales it reads as a cloud.
+ */
+function buildCloudTexture( pixi: PixiNamespace ): PixiTexture {
+	const w = 220;
+	const h = 90;
+	const canvas = document.createElement( 'canvas' );
+	canvas.width = w;
+	canvas.height = h;
+	const ctx = canvas.getContext( '2d' );
+	if ( ! ctx ) {
+		throw new Error( '[living-tree-wallpaper] 2D canvas context unavailable.' );
+	}
+	const lobes: Array< [ number, number, number, number ] > = [
+		[ 0.32, 0.62, 0.3, 0.85 ],
+		[ 0.5, 0.45, 0.36, 0.9 ],
+		[ 0.68, 0.6, 0.3, 0.85 ],
+		[ 0.44, 0.68, 0.26, 0.8 ],
+		[ 0.6, 0.7, 0.24, 0.75 ],
+		[ 0.2, 0.72, 0.2, 0.6 ],
+		[ 0.82, 0.72, 0.18, 0.55 ],
+	];
+	for ( const [ lx, ly, lr, la ] of lobes ) {
+		const gradient = ctx.createRadialGradient(
+			lx * w,
+			ly * h,
+			1,
+			lx * w,
+			ly * h,
+			lr * h * 2,
+		);
+		gradient.addColorStop( 0, `rgba(255, 255, 255, ${ la })` );
+		gradient.addColorStop( 0.65, `rgba(255, 255, 255, ${ la * 0.45 })` );
+		gradient.addColorStop( 1, 'rgba(255, 255, 255, 0)' );
+		ctx.fillStyle = gradient;
+		ctx.fillRect( 0, 0, w, h );
+	}
 	return pixi.Texture.from( canvas );
 }
 
@@ -263,8 +338,26 @@ interface Star {
 	twinkle: number;
 }
 
-/** Number of stars in the night field. */
-const STAR_COUNT = 110;
+interface Cloud {
+	sprite: PixiSprite;
+	/** Vertical position, fraction of sky height. */
+	y01: number;
+	/** Horizontal drift speed, px/s at 1500px width. */
+	speed: number;
+	baseAlpha: number;
+	/** Initial offset so clouds don't start in a row. */
+	offset01: number;
+	width: number;
+}
+
+/** Number of stars in the night field — many small ones read as a sky. */
+const STAR_COUNT = 170;
+
+/** Fraction of stars that are bright 4-ray ones. */
+const BRIGHT_STAR_RATIO = 0.08;
+
+/** Drifting clouds. */
+const CLOUD_COUNT = 5;
 
 /**
  * The sky backdrop layer. Lives in screen space at the very back of the
@@ -281,14 +374,19 @@ export class SkyLayer {
 	private readonly earth: PixiSprite;
 	private readonly discTexture: PixiTexture;
 	private readonly starTexture: PixiTexture;
+	private readonly brightStarTexture: PixiTexture;
+	private readonly cloudTexture: PixiTexture;
 	private readonly sun: PixiSprite;
 	private readonly moon: PixiSprite;
 	private readonly starRoot: PixiContainer;
 	private readonly stars: Star[] = [];
+	private readonly cloudRoot: PixiContainer;
+	private readonly clouds: Cloud[] = [];
 	private width = 1;
 	private height = 1;
 	private groundLine = 1;
 	private starAlpha = 0;
+	private cloudLight = 1;
 
 	constructor( pixi: PixiNamespace, parent: PixiContainer ) {
 		this.pixi = pixi;
@@ -308,13 +406,23 @@ export class SkyLayer {
 
 		this.discTexture = buildDiscTexture( pixi );
 		this.starTexture = buildStarTexture( pixi );
+		this.brightStarTexture = buildBrightStarTexture( pixi );
+		this.cloudTexture = buildCloudTexture( pixi );
 
 		this.starRoot = new pixi.Container();
 		this.root.addChild( this.starRoot );
 		for ( let i = 0; i < STAR_COUNT; i++ ) {
-			const sprite = new pixi.Sprite( this.starTexture );
+			// Mostly pinpoints (1–4px on screen); a handful of bright
+			// 4-ray stars anchor the field the way real skies have a few
+			// first-magnitude stars.
+			const bright = Math.random() < BRIGHT_STAR_RATIO;
+			const sprite = new pixi.Sprite(
+				bright ? this.brightStarTexture : this.starTexture,
+			);
 			sprite.anchor.set( 0.5 );
-			const scale = 0.25 + Math.random() * 0.7;
+			const scale = bright
+				? 0.5 + Math.random() * 0.45
+				: 0.15 + Math.random() * 0.35;
 			sprite.scale.set( scale );
 			this.starRoot.addChild( sprite );
 			this.stars.push( {
@@ -323,8 +431,29 @@ export class SkyLayer {
 				// Stars sit in the upper ~68% of the sky.
 				y01: Math.random() * 0.68,
 				phase: Math.random() * Math.PI * 2,
-				baseAlpha: 0.4 + Math.random() * 0.6,
+				baseAlpha: bright ? 0.75 + Math.random() * 0.25 : 0.35 + Math.random() * 0.55,
 				twinkle: 0.4 + Math.random() * 2.2,
+			} );
+		}
+
+		// Clouds — the flat gradient sky needed WEATHER. They drift
+		// slowly across, wrap around, and all but vanish after dark.
+		this.cloudRoot = new pixi.Container();
+		this.root.addChild( this.cloudRoot );
+		for ( let i = 0; i < CLOUD_COUNT; i++ ) {
+			const sprite = new pixi.Sprite( this.cloudTexture );
+			sprite.anchor.set( 0.5 );
+			const stretch = 0.9 + Math.random() * 1.4;
+			sprite.scale.x = stretch;
+			sprite.scale.y = 0.7 + Math.random() * 0.5;
+			this.cloudRoot.addChild( sprite );
+			this.clouds.push( {
+				sprite,
+				y01: 0.06 + Math.random() * 0.38,
+				speed: 3 + Math.random() * 5,
+				baseAlpha: 0.35 + Math.random() * 0.3,
+				offset01: ( i + Math.random() ) / CLOUD_COUNT,
+				width: 220 * stretch,
 			} );
 		}
 
@@ -334,6 +463,22 @@ export class SkyLayer {
 		this.moon.anchor.set( 0.5 );
 		this.root.addChild( this.sun );
 		this.root.addChild( this.moon );
+		this.layoutClouds( 0 );
+	}
+
+	/**
+	 * Position the clouds for time `t` — stateless (pure function of t)
+	 * so pauses, reduced motion, and resizes all land on a valid layout.
+	 */
+	private layoutClouds( t: number ): void {
+		for ( const cloud of this.clouds ) {
+			const span = this.width + cloud.width * 2;
+			const travelled =
+				( cloud.offset01 * span + t * cloud.speed * ( this.width / 1500 ) ) % span;
+			cloud.sprite.x = travelled - cloud.width;
+			cloud.sprite.y = cloud.y01 * this.height;
+			cloud.sprite.alpha = cloud.baseAlpha * this.cloudLight;
+		}
 	}
 
 	/**
@@ -364,6 +509,7 @@ export class SkyLayer {
 			star.sprite.x = star.x01 * this.width;
 			star.sprite.y = star.y01 * this.height;
 		}
+		this.layoutClouds( 0 );
 	}
 
 	/** Apply a sky state — colours, luminaries, star opacity (slow cadence). */
@@ -382,8 +528,21 @@ export class SkyLayer {
 		// moonlit ground at night.
 		this.earth.tint = lerpColor( EARTH_NIGHT, EARTH_DAY, state.light01 );
 
+		// Clouds: bright white by day, faint blue-grey ghosts by night.
+		this.cloudLight = 0.12 + 0.88 * state.light01;
+		for ( const cloud of this.clouds ) {
+			cloud.sprite.tint = lerpColor( 0x39415e, 0xffffff, state.light01 );
+			cloud.sprite.alpha = cloud.baseAlpha * this.cloudLight;
+		}
+
 		const discSize = Math.max( 70, Math.min( this.width, this.height ) * 0.16 );
-		this.sun.tint = 0xfff2c4;
+		// The sun warms as it drops: pale gold at noon, ember at the
+		// horizon — the altitude IS the colour cue for dawn/dusk.
+		const altitude01 = Math.min(
+			1,
+			Math.max( 0, ( 0.86 - state.sunY01 ) / 0.64 ),
+		);
+		this.sun.tint = lerpColor( 0xffab5e, 0xfff2c4, altitude01 );
 		this.sun.scale.set( ( discSize * 1.4 ) / 128 );
 		this.sun.x = state.sunX01 * this.width;
 		this.sun.y = state.sunY01 * this.height;
@@ -396,8 +555,9 @@ export class SkyLayer {
 		this.moon.alpha = state.moonAlpha * 0.95;
 	}
 
-	/** Twinkle the stars (cheap; safe to call every frame). */
+	/** Twinkle the stars + drift the clouds (cheap; every frame). */
 	public tick( t: number ): void {
+		this.layoutClouds( t );
 		if ( this.starAlpha <= 0.01 ) {
 			return;
 		}
@@ -415,6 +575,8 @@ export class SkyLayer {
 			this.earthTexture.destroy( true );
 			this.discTexture.destroy( true );
 			this.starTexture.destroy( true );
+			this.brightStarTexture.destroy( true );
+			this.cloudTexture.destroy( true );
 		} catch {
 			/* already released with the container */
 		}
