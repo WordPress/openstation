@@ -94,28 +94,52 @@ export class BloomEngine {
 		// pink or outshouts its own leaves.
 		const perCluster = 1 + Math.round( fraction * 2 );
 		const count = Math.min( 140, Math.round( placements.length * fraction * perCluster ) );
+		// Poisson-ish spacing: anchor density peaks at branch crotches,
+		// and unspaced random picks stacked flowers there into a pink
+		// pom-pom. Reject candidates that land too close to a placed
+		// flower (few attempts each; giving up just drops one blossom).
+		const placed: Vec2[] = [];
+		const MIN_GAP = 26;
+		const MIN_GAP_SQ = MIN_GAP * MIN_GAP;
 		for ( let i = 0; i < count; i++ ) {
-			const p = placements[ Math.floor( rng() * placements.length ) ];
-			const spread = ( p.radius ?? 12 ) * 0.7;
-			const sprite = new this.pixi.Sprite( this.texture );
-			sprite.anchor.set( 0.5 );
-			sprite.tint = FLOWER_TINTS[ Math.floor( rng() * FLOWER_TINTS.length ) ];
-			// Blossom scales with its tuft so flowers stay proportionate
-			// on both a sapling and a mature reference-space tree.
-			const scale = ( ( p.radius ?? 12 ) * ( 0.32 + rng() * 0.22 ) ) / FLOWER_TEX_SIZE;
-			sprite.scale.set( scale );
-			sprite.alpha = 0;
-			this.layer.addChild( sprite );
-			this.flowers.push( {
-				sprite,
-				base: {
+			let base: Vec2 | null = null;
+			for ( let attempt = 0; attempt < 4 && ! base; attempt++ ) {
+				const p = placements[ Math.floor( rng() * placements.length ) ];
+				const spread = ( p.radius ?? 12 ) * 1.3;
+				const candidate = {
 					x: p.pos.x + ( rng() * 2 - 1 ) * spread,
 					y: p.pos.y + ( rng() * 2 - 1 ) * spread * 0.8,
-				},
-				compliance: p.compliance,
-				phase: rng() * Math.PI * 2,
-				scale,
-			} );
+					compliance: p.compliance,
+					radius: p.radius ?? 12,
+				};
+				const crowded = placed.some( ( q ) => {
+					const dx = q.x - candidate.x;
+					const dy = q.y - candidate.y;
+					return dx * dx + dy * dy < MIN_GAP_SQ;
+				} );
+				if ( ! crowded ) {
+					base = candidate;
+					const sprite = new this.pixi.Sprite( this.texture );
+					sprite.anchor.set( 0.5 );
+					sprite.tint =
+						FLOWER_TINTS[ Math.floor( rng() * FLOWER_TINTS.length ) ];
+					// Blossom scales with its tuft so flowers stay
+					// proportionate on a sapling and a mature tree alike.
+					const scale =
+						( candidate.radius * ( 0.32 + rng() * 0.22 ) ) / FLOWER_TEX_SIZE;
+					sprite.scale.set( scale );
+					sprite.alpha = 0;
+					this.layer.addChild( sprite );
+					placed.push( { x: candidate.x, y: candidate.y } );
+					this.flowers.push( {
+						sprite,
+						base: { x: candidate.x, y: candidate.y },
+						compliance: candidate.compliance,
+						phase: rng() * Math.PI * 2,
+						scale,
+					} );
+				}
+			}
 		}
 	}
 

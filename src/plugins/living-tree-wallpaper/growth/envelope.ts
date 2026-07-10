@@ -50,9 +50,10 @@ const MATURE_TRUNK_GIRTH = 26.5;
 /**
  * Auxin sources in the mature crown. Dense on purpose — a rich cloud
  * yields the fine interior twigs that let foliage clothe the whole
- * canopy, not just its rim.
+ * canopy, not just its rim, and every twig is a leaf anchor: interior
+ * density here is what removes "empty" patches inside the crown.
  */
-const MATURE_ATTRACTOR_BUDGET = 620;
+const MATURE_ATTRACTOR_BUDGET = 860;
 
 /**
  * Branching levels unlocked at a given age (§A.4 table).
@@ -192,11 +193,11 @@ export function buildGrowthConfig(
 		// enough to pull secondary shoots out of it — this is where the
 		// fine interior twigs (and therefore full-canopy foliage) come
 		// from. A generous radius mows the cloud down into bare chains.
-		killRadius: segLen * 0.95,
+		killRadius: segLen * 0.82,
 		jitter: 0.22,
 		tropism: 0.28,
 		droop: 0.02,
-		maxNodes: Math.max( 6, Math.round( env.attractorBudget * 1.8 ) ),
+		maxNodes: Math.max( 6, Math.round( env.attractorBudget * 2 ) ),
 		growthRate: 3 + Math.round( 7 * Math.min( 1, Math.max( 0, vigor01 ) ) ),
 	};
 }
