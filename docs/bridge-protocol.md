@@ -90,6 +90,14 @@ The forwarder listens in **bubble phase** at the iframe's `document`, so any in-
 
 Only drops where neither bail fires (the empty page background, or an inner handler that never called `preventDefault()`) escalate to the shell.
 
+### Drag-hover heartbeat — `desktop-mode-drag-hover`
+
+*(since 0.9.4)* Native drag events don't cross iframe boundaries, so when the user holds any drag (an OS file, an image lifted off another admin page, a text selection) over an iframe window, the parent shell can't see the hover. Both bridges (inline chromeless + standalone) forward a throttled heartbeat while `dragover` fires inside the iframe, so the shell's focus-on-drag-hover module can raise the hovered window after its ~250 ms dwell (see the `desktop-mode.window.focus-on-drag-hover` filter in `javascript-reference.md`).
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-drag-hover` | iframe → parent | `{ payloadType: 'os-file' \| 'external' }` | "A drag is currently hovering me." Throttled to one message per 150 ms. Purely observational — the forwarder never calls `preventDefault()` and carries no coordinates or payload data; the parent resolves the hovered window from `MessageEvent.source` (the sender iframe **is** the hovered window). The parent resets its hover state when heartbeats stop (~1 s watchdog), so no end message exists or is needed. |
+
 ### Pre-close unsaved-changes query — `desktop-mode-bridge-beforeunload-*`
 
 *(since 0.9.4)* Before tearing down an iframe-backed (non-native) window, `Window.close()` gives the page inside a chance to veto — the same protection a real browser tab close gets from the page's `beforeunload` handler, which a same-origin admin iframe never triggers on its own (there's no real navigation happening).

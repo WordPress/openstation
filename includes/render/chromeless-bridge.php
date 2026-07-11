@@ -1381,6 +1381,45 @@ function desktop_mode_chromeless_bridge_script() {
 	}, false );
 
 	/*
+	 * Drag-hover forwarder. Native drag events don't cross iframe
+	 * boundaries, so when the user holds ANY drag (an OS file, an
+	 * image lifted off another admin page, a text selection) over
+	 * this window, the parent shell has no idea the window is being
+	 * hovered. Forward a throttled, payload-free heartbeat so the
+	 * shell's focus-on-drag-hover module
+	 * (`src/drag/focus-window-on-drag-hover.ts`) can raise this
+	 * window after its dwell. Purely observational — no
+	 * `preventDefault()`, no interference with in-page drop zones.
+	 * The parent identifies the hovered window from the message
+	 * source, so no coordinates travel.
+	 *
+	 * Sentinel-guarded: the standalone bridge bundle
+	 * (`iframe-bridge-standalone.ts`) installs the same forwarder,
+	 * and unlike the drop forwarder above there is no
+	 * `defaultPrevented` handshake to dedupe a double install.
+	 */
+	if ( ! window.__desktopModeDragHoverForwarderInstalled ) {
+		window.__desktopModeDragHoverForwarderInstalled = true;
+		var dragHoverLastSent = 0;
+		document.addEventListener( 'dragover', function ( ev ) {
+			var now = Date.now();
+			if ( now - dragHoverLastSent < 150 ) {
+				return;
+			}
+			dragHoverLastSent = now;
+			try {
+				window.parent.postMessage(
+					{
+						type: 'desktop-mode-drag-hover',
+						payloadType: bridgeHasFiles( ev ) ? 'os-file' : 'external',
+					},
+					window.location.origin
+				);
+			} catch ( err ) { /* cross-origin parent; swallow */ }
+		}, true );
+	}
+
+	/*
 	 * Cmd+K / Ctrl+K forwarder — single-press, unconditional.
 	 *
 	 * Native keydown events don't cross iframe boundaries. Inside a

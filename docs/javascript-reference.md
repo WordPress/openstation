@@ -330,6 +330,19 @@ postMessages and the `desktop-mode-cross-frame-drag-start` /
 payload channel) are a separate, lower-level surface and remain
 Stable since 0.5.0.
 
+**Focus follows the drag** *(since 0.9.4)*: while a drag is in
+flight — any drag, whatever its source or payload: a DragManager
+session, a cross-iframe bridge drag (Media Library), an OS file, an
+image or text selection lifted from anywhere — the window under the
+cursor is raised (focused) after a ~250 ms hover dwell, macOS
+spring-loading style, so the drop target comes forward. Sweeping
+across a window without resting on it does not raise it. Drags
+hovering an iframe window from outside a bridge session are detected
+via the `desktop-mode-drag-hover` heartbeat the chromeless bridge
+forwards (see `bridge-protocol.md`). Plugins can veto per activation
+via the `desktop-mode.window.focus-on-drag-hover` filter (see the
+[window lifecycle hooks table](#window-lifecycle)).
+
 ### `wp.desktop.dragBridge` — cross-iframe drag — Stable *(since 0.6.0)*
 
 The bridge is the postMessage channel that lets shell-side drags
@@ -3234,6 +3247,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 | `desktop-mode.window.fullscreen-entered` | action | Stable | `{ windowId, element }` |
 | `desktop-mode.window.fullscreen-exited` | action | Stable | `{ windowId, element }` |
 | `desktop-mode.window.auto-exit-fullscreen` | filter | Stable *(0.8.6)* | `( shouldExit: boolean, ctx: { windowId, focusedTo } ) => boolean` — decides whether a fullscreen window should auto-exit when focus moves elsewhere. Default `true`. Return `false` to keep persistent-fullscreen surfaces (slideshow, video, game) in fullscreen across focus changes. |
+| `desktop-mode.window.focus-on-drag-hover` | filter | Stable *(0.9.4)* | `( shouldFocus: boolean, ctx: { windowId, payloadType } ) => boolean` — decides whether the window under the cursor is raised (focused) after a ~250 ms hover dwell during any drag. `payloadType` is the DragManager payload's `type` slug (`'desktop-file'`, `'shortcut'`, plugin-defined), the bridge payload's `kind` (`'attachment'`, `'post'`, `'user'`), `'os-file'` for OS file drags, or `'external'` for any other native drag. Default `true`. Return `false` to keep HUD/palette/pinned-reference windows from stealing z-order during drags. |
 | `desktop-mode.window.drag-start` | action | Stable | `{ windowId }` |
 | `desktop-mode.window.drag-end` | action | Stable | `{ windowId, x, y }` |
 | `desktop-mode.window.moved` | action | Stable | `{ windowId, x, y }` — fires with drag-end |

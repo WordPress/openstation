@@ -133,6 +133,7 @@ import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import { DragManager, type DragManagerApi, DRAG_EVENTS } from './drag';
 import { installIframeDropTargets } from './drag/iframe-drop-targets';
+import { installFocusWindowOnDragHover } from './drag/focus-window-on-drag-hover';
 import {
 	type DesktopCommand,
 } from './commands';
@@ -1943,6 +1944,12 @@ function init(): void {
 	// idle: drop targets only matter when the user actually
 	// drags something, which can't happen before init() returns.
 	scheduleIdleBoot( () => installIframeDropTargets( dragManager ) );
+
+	// Focus-on-drag-hover — raises the window under the cursor after
+	// a short dwell during a drag, so the drop target comes forward.
+	// Listens to the DRAG_EVENTS CustomEvents; only needs the
+	// WindowManager as its focus host, not the DragManager.
+	scheduleIdleBoot( () => installFocusWindowOnDragHover( manager ) );
 
 	// Surface a toast when an iframe receiver (Gutenberg drop-
 	// receiver today) reports a failed insert — most commonly a

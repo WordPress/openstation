@@ -491,6 +491,32 @@ export const HOOKS = {
 	 */
 	WINDOW_AUTO_EXIT_FULLSCREEN: 'desktop-mode.window.auto-exit-fullscreen',
 	/**
+	 * Filter, decides whether the window under the cursor is raised
+	 * (focused) after a short hover dwell during a drag — any drag,
+	 * whatever its source: a shell DragManager session, a
+	 * cross-iframe bridge drag, an OS file, or an arbitrary native
+	 * HTML5 drag.
+	 *
+	 * Default is `true`: dragging a payload over a background window
+	 * and resting there for ~250 ms brings it forward, so the user
+	 * can see the drop target they're aiming at (macOS spring-loading
+	 * style). Plugins whose windows must never steal z-order during a
+	 * drag — pinned reference panels, HUD/palette windows — can
+	 * return `false` for their window id.
+	 *
+	 * Signature:
+	 *
+	 *     ( shouldFocus: boolean, ctx: {
+	 *         windowId: string,     // the hovered window
+	 *         payloadType: string,  // DragManager payload `type`,
+	 *                               // bridge payload `kind`,
+	 *                               // 'os-file', or 'external'
+	 *     } ) => boolean
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_FOCUS_ON_DRAG_HOVER: 'desktop-mode.window.focus-on-drag-hover',
+	/**
 	 * Action, fires at most once per animation frame during an
 	 * active drag or resize with the live geometry. Payload: `{
 	 * windowId: string, x: number, y: number, width: number,
