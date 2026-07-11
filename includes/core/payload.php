@@ -1610,8 +1610,18 @@ function desktop_mode_menu_item_url( $slug ) {
 	// Strip path traversal sequences.
 	$slug = str_replace( '..', '', $slug );
 
-	// Direct file reference (e.g., 'edit.php', 'upload.php').
-	if ( false !== strpos( $slug, '.php' ) ) {
+	global $_parent_pages;
+
+	// Direct file reference (e.g., 'edit.php', 'upload.php') — but
+	// NOT a registered plugin page that merely looks like one.
+	// Legacy file-path slugs (WP-Sweep's 'wp-sweep/admin.php',
+	// registered via add_management_page()) contain '.php' yet are
+	// page slugs, not admin-root files; `$_parent_pages` is keyed by
+	// the raw registered slug, so a hit there routes the slug to the
+	// canonical resolver below (→ `tools.php?page=wp-sweep/admin.php`,
+	// byte-identical to what core's menu_page_url() builds) instead
+	// of a 404 at `admin_url( 'wp-sweep/admin.php' )`.
+	if ( false !== strpos( $slug, '.php' ) && ! isset( $_parent_pages[ $slug ] ) ) {
 		return esc_url_raw( admin_url( $slug ) );
 	}
 
@@ -1646,7 +1656,6 @@ function desktop_mode_menu_item_url( $slug ) {
 	//   3. Slug not registered at all → fall back to `admin.php`
 	//      so the URL still targets a real dispatcher (matches the
 	//      pre-resolver behavior callers depended on).
-	global $_parent_pages;
 	$host = 'admin.php?page=' . rawurlencode( $slug );
 	if ( isset( $_parent_pages[ $slug ] ) ) {
 		$parent_slug = $_parent_pages[ $slug ];

@@ -36,6 +36,7 @@ import {
 import { renderPlacementPreview, renderPreviewEmpty } from './preview';
 import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
+import { findMenuEntryForUrl } from './menu-entry';
 
 interface ConfigShape {
 	adminUrl?: string;
@@ -491,12 +492,22 @@ export function registerBuiltInFileOpeners(): void {
 						const id = adminUrl
 							? deriveWindowId( u.toString(), adminUrl )
 							: `desktop-icon-${ file.ref() }`;
+						// Enrich with the matching admin-menu entry so
+						// the window gets the same submenu tab strip /
+						// parent-tab / multi behavior as a dock open.
+						// Without this, Spatial-layout core tiles (and
+						// any dock-promoted shortcut) opened windows
+						// with no tab strip at all.
+						const entry = findMenuEntryForUrl( u.toString() );
 						wp.windowManager.open( {
 							id,
 							baseId: id,
 							url: u.toString(),
+							parentUrl: entry?.url ?? u.toString(),
 							title: file.title(),
 							icon: file.icon(),
+							submenu: entry?.submenu,
+							multi: !! entry?.multi,
 						} );
 					} catch {
 						// Malformed URL — silently ignore. The

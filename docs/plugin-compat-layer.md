@@ -96,6 +96,14 @@ Some plugins register WordPress admin menu entries in shapes that our dock can't
 
 **Plugins this addresses**: every wc-admin React route (Customers, Analytics, Marketing, …); also Yoast SEO and other plugins that pack paths into menu slugs.
 
+### Legacy file-path menu slugs (`vendor/file.php`)
+
+Old-school plugins register their admin page with a file-path slug — `add_management_page( …, 'wp-sweep/admin.php' )` — instead of a plain slug. The slug contains `.php`, so a naive "does it look like an admin file?" test routes it to `admin_url( 'wp-sweep/admin.php' )`, a 404. WordPress actually serves the page at `tools.php?page=wp-sweep/admin.php` (the slug is a key in the `$_parent_pages` global, exactly like a plain plugin-page slug).
+
+**Fix**: both URL resolvers — `desktop_mode_menu_item_url()` (dock / window tabs) and `desktop_mode_build_command_menu_map()` (command palette) — check `$_parent_pages` for the raw slug **before** the direct-file test. A registered slug goes through the canonical `menu_page_url()`-style resolution regardless of what characters it contains; only unregistered `.php` slugs are treated as real files under `wp-admin/`.
+
+**Plugins this addresses**: WP-Sweep; any plugin still using the pre-3.0-era file-path registration style.
+
 ### `esc_url_raw()` for JSON contexts
 
 Dock URLs flow into the shell config as JSON, then end up assigned to `iframe.src` / `window.location.href`. Browsers do **not** decode `&#038;` HTML entities in those JS string contexts.

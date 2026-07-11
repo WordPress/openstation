@@ -821,7 +821,7 @@ add_filter( 'style_loader_tag', 'desktop_mode_defer_non_critical_styles', 10, 4 
  * @return array<int, array{label:string, url:string, name:string}>
  */
 function desktop_mode_build_command_menu_map() {
-	global $menu, $submenu;
+	global $menu, $submenu, $_parent_pages;
 	if ( ! is_array( $menu ) ) {
 		return array();
 	}
@@ -868,7 +868,10 @@ function desktop_mode_build_command_menu_map() {
 		$menu_label = $extract_root_text( $menu_item[0] );
 		$menu_slug  = $menu_item[2];
 		$menu_url   = '';
-		if ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) {
+		// Registered plugin pages win over the direct-file test: a
+		// legacy file-path slug ('wp-sweep/admin.php') matches the
+		// `.php` regex yet must route through menu_page_url().
+		if ( ! isset( $_parent_pages[ $menu_slug ] ) && ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) ) {
 			$menu_url = $menu_slug;
 		} elseif ( ! empty( menu_page_url( $menu_slug, false ) ) ) {
 			$menu_url = menu_page_url( $menu_slug, false );
@@ -891,7 +894,8 @@ function desktop_mode_build_command_menu_map() {
 				$submenu_label = $extract_root_text( $submenu_item[0] );
 				$submenu_slug  = $submenu_item[2];
 				$submenu_url   = '';
-				if ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) {
+				// Same registered-page-first rule as the top-level loop.
+				if ( ! isset( $_parent_pages[ $submenu_slug ] ) && ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) ) {
 					$submenu_url = $submenu_slug;
 				} elseif ( ! empty( menu_page_url( $submenu_slug, false ) ) ) {
 					$submenu_url = menu_page_url( $submenu_slug, false );
