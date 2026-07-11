@@ -2806,14 +2806,29 @@ apply_filters( 'desktop_mode_living_tree_snapshot', array $snapshot ): array
 
 The full snapshot before it is cached and served. Keep the shape intact — the JS client trusts this contract — and keep it aggregates-only (the golden rule: hormones, never geometry).
 
-### `desktop_mode_living_tree_seo_health` / `desktop_mode_living_tree_performance` — Experimental (filters)
+### `desktop_mode_living_tree_seo_health` — Experimental (filter)
 
 ```php
-apply_filters( 'desktop_mode_living_tree_seo_health', float $health );       // default 0.7
-apply_filters( 'desktop_mode_living_tree_performance', float $performance ); // default 0.8
+apply_filters( 'desktop_mode_living_tree_seo_health', float $health ); // default 0.7
 ```
 
-The two hormones WordPress cannot cheaply self-measure. `seo_health` (0..1) drives the canopy's colour temperature — green → yellow → red → grey; `performance` (0..1) throttles growth vigour. SEO / monitoring plugins with real telemetry should hook these; values are clamped to [0, 1].
+The SEO-health hormone (0..1) — drives the canopy's colour temperature: green → yellow → red → grey. **Known gap:** unlike `traffic` and `performance`, this hormone has no first-party source yet — WordPress ships nothing SEO-shaped to read, so it sits at a neutral 0.7 unless a plugin hooks this filter. The planned future source is aggregating the per-post scores SEO plugins keep in post-meta into a site-wide average; until that lands, this filter is the only integration point. Values are clamped to [0, 1].
+
+### `desktop_mode_living_tree_performance` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_performance', float $performance );
+```
+
+The growth-vigour hormone (0..1). *(Since 0.9.5)* the default is derived from core's own **Site Health** tallies: WordPress runs every Site Health test on a weekly cron and persists the counts in the `health-check-site-status-result` transient; the tree starts at 1.0, subtracts 0.15 per critical issue and 0.04 per recommendation, clamped to [0.2, 1] — a clean install grows vigorously, a neglected one visibly slows but never fully stalls. When the transient doesn't exist yet (brand-new site, weekly cron hasn't fired, Site Health never opened) the default falls back to 0.8. Note Site Health measures broad install health (PHP version, HTTPS, updates, object caching…), not raw runtime speed — the right flavour for growth vigour. Monitoring plugins with real telemetry can hook this filter as the final word; values are clamped to [0, 1].
+
+### `desktop_mode_living_tree_traffic` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_traffic', int $views ): int
+```
+
+The recent-traffic hormone (drives the wind — canopy sway amplitude and frequency). The default value follows the same source ladder as the site-views widget: **Jetpack Stats** (last 14 days of visits via `WPCOM_Stats::get_visits()`) when Jetpack is available, else the sum of the `_post_views_YYYY-MM-DD` post-meta convention over the same window, else `0` (a windless day). Analytics plugins with their own counters should hook this and return their real 14-day view count; the value is clamped non-negative. *(Since 0.9.5 — before that, only the post-views meta was read.)*
 
 ---
 

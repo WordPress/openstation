@@ -69,6 +69,10 @@
  */
 .desktop-mode-os-settings__swatch-label {
 	display: inline-block;
+	/* Sit above the live-preview overlay (z-index 0) — the caption
+	 * must stay readable over a moving canvas. */
+	position: relative;
+	z-index: 1;
 	padding: 3px 10px;
 	font-size: 11px;
 	font-weight: 600;
@@ -83,6 +87,31 @@
 	 * on the parent already gives a gap, but this keeps things
 	 * consistent if the parent padding is ever tuned. */
 	pointer-events: none;
+}
+
+/*
+ * Live wallpaper preview — an overlay div slotted into a wallpaper
+ * `<wpd-swatch>` by the preview manager (see
+ * settings/sections/wallpaper-previews.ts). Fills the tile button
+ * (which is position: relative in the component's shadow styles) and
+ * paints between the CSS `preview` background and the label chip.
+ * pointer-events: none so the tile button keeps receiving the click.
+ */
+.desktop-mode-os-settings__wallpaper-live-preview {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	/* Match the swatch button's rounding so canvas corners don't
+	 * poke out of the tile. */
+	border-radius: 8px;
+}
+
+.desktop-mode-os-settings__wallpaper-live-preview canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 /* Accent swatches now render as `<wpd-swatch>` via `<wpd-swatch-grid>`.

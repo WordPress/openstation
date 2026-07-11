@@ -16,6 +16,10 @@ import {
 import type { OsSettingsState, SettingsCtx } from '../types';
 import { isPromise } from '../utils';
 import { buildCustomImageSection } from './custom-image';
+import {
+	createWallpaperPreviewManager,
+	type WallpaperPreviewManager,
+} from './wallpaper-previews';
 
 /** Compose the current custom-gradient CSS value from state. */
 export function customGradientCss( state: OsSettingsState ): string {
@@ -333,6 +337,15 @@ function syncGradientPreviewSwatch(
 	}
 }
 
+/**
+ * The live-preview manager for the CURRENT wallpaper section build.
+ * Module-level so a panel re-render (Reset to defaults, tab registry
+ * change) disposes the previous build's previews before creating the
+ * next — the old wrapper is silently dropped from the DOM on that
+ * path, and nothing else would release its WebGL contexts.
+ */
+let activePreviewManager: WallpaperPreviewManager | null = null;
+
 export function buildWallpaperSection(
 	ctx: SettingsCtx,
 	body: HTMLElement,
@@ -377,6 +390,13 @@ export function buildWallpaperSection(
 	// section are DOM refs threaded in as nodes.
 	const customImageSection = buildCustomImageSection( ctx, body );
 	const wrapper = document.createElement( 'div' );
+
+	// One preview manager per section build; the previous build's
+	// manager (if any) is disposed so its previews can't leak.
+	activePreviewManager?.dispose();
+	const previewManager = createWallpaperPreviewManager( wrapper );
+	activePreviewManager = previewManager;
+
 	const paint = (): void =>
 		render(
 			html`
@@ -414,6 +434,7 @@ export function buildWallpaperSection(
 			wrapper,
 		);
 	paint();
+	previewManager.sync();
 
 	// Initial editor + description state — mounted for the active
 	// wallpaper before the section enters the live DOM so the expansion
@@ -436,9 +457,11 @@ export function buildWallpaperSection(
 	const unsubscribe = registry.subscribe( () => {
 		if ( ! wrapper.isConnected ) {
 			unsubscribe();
+			previewManager.dispose();
 			return;
 		}
 		paint();
+		previewManager.sync();
 		// Re-sync the editor + description slots too, in case the
 		// currently active wallpaper's def just arrived (plugin
 		// activation with the user's saved selection pointing at the

@@ -67,15 +67,117 @@ function desktop_mode_living_tree_site_age_days() {
 }
 
 /**
- * Recent traffic signal: the `_post_views_YYYY-MM-DD` post-meta summed
- * over the last 14 days — the same aggregation the site-views widget
- * uses. Sites without a view counter simply report 0 (a windless day).
+ * Recent traffic signal, resolved with the same source ladder the
+ * site-views widget uses: Jetpack Stats first, then the
+ * `_post_views_YYYY-MM-DD` post-meta convention — both summed over the
+ * last 14 days. Sites with neither simply report 0 (a windless day).
+ *
+ * The final value passes through the `desktop_mode_living_tree_traffic`
+ * filter so analytics plugins with their own counters can feed the
+ * real number in.
  *
  * @since 0.9.4
  *
  * @return int Recent view sum. >= 0.
  */
 function desktop_mode_living_tree_traffic() {
+	$views = desktop_mode_living_tree_jetpack_visits();
+	if ( null === $views ) {
+		$views = desktop_mode_living_tree_meta_views();
+	}
+
+	/**
+	 * Filter the Living Tree traffic hormone source. Return a
+	 * non-negative view count for the last ~14 days — it drives the
+	 * wind (canopy sway amplitude / frequency).
+	 *
+	 * @since 0.9.5
+	 *
+	 * @param int $views Views in the window. Default: Jetpack Stats
+	 *                   when available, else the `_post_views_*` meta
+	 *                   sum, else 0.
+	 */
+	$views = (int) apply_filters( 'desktop_mode_living_tree_traffic', $views );
+	return max( 0, $views );
+}
+
+/**
+ * Last-14-days visits from Jetpack Stats, or `null` when unavailable.
+ *
+ * Reads through `Automattic\Jetpack\Stats\WPCOM_Stats::get_visits()` —
+ * the same WPCOM endpoint the `jetpack/v4/stats/visits` REST route
+ * (used by the site-views widget's client) proxies, but callable
+ * server-side without a per-user capability check, so the snapshot's
+ * transient cache holds the same value no matter which user primes it.
+ * Any failure — Jetpack absent, no `get_visits` method, WP_Error,
+ * unexpected payload — returns `null` and the caller falls back to the
+ * post-views meta. A successful `0` is trusted (a quiet site is a
+ * valid answer), matching the widget's source-ladder semantics.
+ *
+ * @since 0.9.5
+ *
+ * @return int|null Views over the last 14 days, or null when Jetpack
+ *                  Stats can't answer.
+ */
+function desktop_mode_living_tree_jetpack_visits() {
+	if ( ! class_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats' ) ) {
+		return null;
+	}
+	$wpcom_stats = new \Automattic\Jetpack\Stats\WPCOM_Stats();
+	if ( ! method_exists( $wpcom_stats, 'get_visits' ) ) {
+		return null;
+	}
+
+	try {
+		$stats = $wpcom_stats->get_visits(
+			array(
+				'unit'     => 'day',
+				'quantity' => 14,
+			)
+		);
+	} catch ( \Throwable $e ) {
+		return null;
+	}
+	if ( is_wp_error( $stats ) ) {
+		return null;
+	}
+
+	// Jetpack versions differ on object-vs-assoc-array decoding —
+	// normalise to arrays before reading.
+	$stats = json_decode( wp_json_encode( $stats ), true );
+	if ( ! is_array( $stats ) || empty( $stats['data'] ) || ! is_array( $stats['data'] ) ) {
+		return null;
+	}
+
+	// Rows are positional per the response's `fields` list — usually
+	// array( 'period', 'views' ). Locate 'views' rather than assuming.
+	$views_index = 1;
+	if ( isset( $stats['fields'] ) && is_array( $stats['fields'] ) ) {
+		$idx = array_search( 'views', $stats['fields'], true );
+		if ( false !== $idx ) {
+			$views_index = (int) $idx;
+		}
+	}
+
+	$total = 0;
+	foreach ( $stats['data'] as $row ) {
+		if ( is_array( $row ) && isset( $row[ $views_index ] ) && is_numeric( $row[ $views_index ] ) ) {
+			$total += (int) $row[ $views_index ];
+		}
+	}
+	return $total;
+}
+
+/**
+ * Last-14-days view sum from the `_post_views_YYYY-MM-DD` post-meta
+ * convention — the plain-WP fallback shared with the site-views
+ * widget. Sites without a view-counter plugin report 0.
+ *
+ * @since 0.9.5
+ *
+ * @return int Recent view sum. >= 0.
+ */
+function desktop_mode_living_tree_meta_views() {
 	global $wpdb;
 
 	$total = 0;
@@ -119,10 +221,14 @@ function desktop_mode_living_tree_active_users() {
 /**
  * SEO / site-health score, normalised 0..1.
  *
- * There is no cheap first-party score to read synchronously (Site Health
- * tests are async and expensive), so the default is a healthy 0.7 and
- * the filter is the integration point — an SEO or monitoring plugin that
- * *does* know the site's health can feed the real value in.
+ * KNOWN GAP: unlike `traffic` (Jetpack Stats → post-views meta) and
+ * `performance` (core Site Health tallies), this hormone still has no
+ * first-party source — WordPress ships nothing SEO-shaped to read, so
+ * the default is a healthy 0.7 and the filter is the only integration
+ * point. Candidate future source: aggregate the per-post scores that
+ * SEO plugins store in post-meta into a site-wide average. Until then,
+ * an SEO or monitoring plugin that *does* know the site's health can
+ * feed the real value in via the filter.
  *
  * @since 0.9.4
  *
@@ -145,24 +251,84 @@ function desktop_mode_living_tree_seo_health() {
 /**
  * Performance headroom, normalised 0..1 (1 = plenty, 0 = under load).
  *
- * Same story as the health score: no synchronous first-party signal, so
- * a comfortable default plus a filter for plugins with real telemetry.
+ * Sourced from core's own Site Health tallies when available (see
+ * {@see desktop_mode_living_tree_site_health_performance()}), falling
+ * back to a comfortable 0.8 until the weekly Site Health cron has run
+ * at least once. The filter remains the integration point for plugins
+ * with real runtime telemetry.
  *
  * @since 0.9.4
  *
  * @return float Performance score in [0, 1].
  */
 function desktop_mode_living_tree_performance() {
+	$performance = desktop_mode_living_tree_site_health_performance();
+	if ( null === $performance ) {
+		$performance = 0.8;
+	}
+
 	/**
 	 * Filter the Living Tree performance hormone source. Return 0..1 —
 	 * it throttles growth vigour.
 	 *
 	 * @since 0.9.4
 	 *
-	 * @param float $performance Default 0.8.
+	 * @param float $performance Default: a composite of core's Site
+	 *                           Health issue counts when the
+	 *                           `health-check-site-status-result`
+	 *                           transient exists, else 0.8.
 	 */
-	$performance = (float) apply_filters( 'desktop_mode_living_tree_performance', 0.8 );
+	$performance = (float) apply_filters( 'desktop_mode_living_tree_performance', $performance );
 	return min( 1.0, max( 0.0, $performance ) );
+}
+
+/**
+ * Performance composite from core's Site Health tallies, or `null`
+ * when unavailable.
+ *
+ * WordPress runs every Site Health test on a weekly cron
+ * (`wp_site_health_scheduled_check`) and persists the tallies in the
+ * `health-check-site-status-result` transient as JSON counts
+ * (`good` / `recommended` / `critical`) — the same source the
+ * dashboard's Site Health widget reads. Mapping: start at 1.0,
+ * subtract 0.15 per critical issue and 0.04 per recommendation, clamp
+ * to [0.2, 1] — a clean install grows vigorously, a neglected one
+ * visibly slows down but never fully stalls.
+ *
+ * Site Health measures broad install health (PHP version, HTTPS,
+ * updates, object caching…), not pure runtime speed — the right
+ * flavour for a "growth vigour" hormone. The transient is absent on a
+ * brand-new site until the weekly cron first fires or someone opens
+ * the Site Health screen; callers fall back to the 0.8 default then.
+ *
+ * @since 0.9.5
+ *
+ * @return float|null Composite in [0.2, 1], or null when the Site
+ *                    Health tallies aren't available (yet).
+ */
+function desktop_mode_living_tree_site_health_performance() {
+	$raw = get_transient( 'health-check-site-status-result' );
+	if ( is_string( $raw ) && '' !== $raw ) {
+		$counts = json_decode( $raw, true );
+	} elseif ( is_array( $raw ) ) {
+		// Defensive: some object-cache drop-ins hand back the decoded
+		// array. Core itself always stores a JSON string.
+		$counts = $raw;
+	} else {
+		return null;
+	}
+
+	if ( ! is_array( $counts )
+		|| ( ! isset( $counts['critical'] ) && ! isset( $counts['recommended'] ) && ! isset( $counts['good'] ) )
+	) {
+		return null;
+	}
+
+	$critical    = max( 0, (int) ( $counts['critical'] ?? 0 ) );
+	$recommended = max( 0, (int) ( $counts['recommended'] ?? 0 ) );
+
+	$score = 1.0 - ( 0.15 * $critical ) - ( 0.04 * $recommended );
+	return min( 1.0, max( 0.2, $score ) );
 }
 
 /**

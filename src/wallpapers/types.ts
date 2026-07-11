@@ -59,6 +59,51 @@ export type WallpaperMountResult = WallpaperTeardown | Promise<WallpaperTeardown
 export type WallpaperEditor = ( container: HTMLElement, ctx: WallpaperContext ) => WallpaperMountResult;
 
 /**
+ * Context object passed to {@link WallpaperPreview} callbacks —
+ * everything {@link WallpaperContext} carries, plus the preview
+ * parameters and the tile's pixel size so the wallpaper can pick a
+ * cheap resolution.
+ *
+ * @since 0.9.5
+ */
+export interface WallpaperPreviewContext extends WallpaperContext {
+	/**
+	 * Free-form preview parameters. Seeded from the def's
+	 * `previewParams`, then run through the
+	 * `desktop-mode.wallpaper.preview-params` filter so plugins and
+	 * site owners can override what the preview depicts (e.g. force a
+	 * mature Living Tree on a day-old site). The wallpaper owns the
+	 * keys' meaning; unknown keys must be ignored.
+	 */
+	params: Record< string, unknown >;
+	/** Tile content width in CSS px at mount time. */
+	width: number;
+	/** Tile content height in CSS px at mount time. */
+	height: number;
+}
+
+/**
+ * Optional live preview rendered INSIDE the wallpaper's swatch tile in
+ * OS Settings. Without it, canvas wallpapers preview as their static
+ * CSS `preview` string — a flat gradient standing in for a living
+ * scene. With it, the picker lazily mounts the real thing (or a cheap
+ * facsimile) into the tile when it scrolls into view, and tears it
+ * down when it leaves.
+ *
+ * Contract mirrors `mount`: return a teardown (sync or via Promise)
+ * that releases every resource. Keep it light — previews share the
+ * page's limited WebGL context budget, so the shell caps how many run
+ * concurrently and falls back to the CSS `preview` beyond the cap.
+ * Honor `ctx.prefersReducedMotion` by rendering a static frame.
+ *
+ * @since 0.9.5
+ */
+export type WallpaperPreview = (
+	container: HTMLElement,
+	ctx: WallpaperPreviewContext,
+) => WallpaperMountResult;
+
+/**
  * Shared fields on every wallpaper definition — identification, a
  * preview value for the swatch grid in OS Settings, and the optional
  * editor callback.
@@ -98,6 +143,25 @@ interface WallpaperDefBase {
 	 * wallpaper is selected.
 	 */
 	renderEditor?: WallpaperEditor;
+	/**
+	 * Optional live preview mounted inside the swatch tile in OS
+	 * Settings. The CSS `preview` string still paints first (and stays
+	 * as the fallback when the preview fails, is over the concurrency
+	 * cap, or the browser lacks IntersectionObserver).
+	 *
+	 * @since 0.9.5
+	 */
+	renderPreview?: WallpaperPreview;
+	/**
+	 * Author-declared default parameters for `renderPreview`, exposed
+	 * to `ctx.params` after the `desktop-mode.wallpaper.preview-params`
+	 * filter runs. Use them for anything the preview should idealize —
+	 * e.g. the Living Tree previews a grown tree regardless of the real
+	 * site's age.
+	 *
+	 * @since 0.9.5
+	 */
+	previewParams?: Record< string, unknown >;
 }
 
 /**

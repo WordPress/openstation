@@ -91,7 +91,14 @@ export interface PixiApp {
 	};
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-	destroy( clearStage?: boolean, opts?: unknown ): void;
+	/**
+	 * First arg is Pixi's `RendererDestroyOptions`. Pass an options
+	 * object (e.g. `{ removeView: true }`), never a literal `true` —
+	 * `true` triggers `releaseGlobalResources()`, which wipes Pixi's
+	 * page-global texture/object pools out from under every OTHER live
+	 * Application (active wallpaper vs. OS Settings preview).
+	 */
+	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 
 export interface PixiNamespace {

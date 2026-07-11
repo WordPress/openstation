@@ -3091,6 +3091,7 @@ if ( wp.desktop.isReady() ) {
 | `desktop-mode.wallpaper.unmounting` | action | Stable | `{ id }` |
 | `desktop-mode.wallpaper.mount-failed` | action | Stable | `{ id, error }` |
 | `desktop-mode.wallpaper.visibility` | action | Stable | `{ id, state: 'visible' \| 'hidden' }` |
+| `desktop-mode.wallpaper.preview-params` | filter | Experimental *(since 0.9.5)* | `Record<string, unknown> → Record<string, unknown>`, second arg `wallpaperId` — override a wallpaper's live-preview parameters before its `renderPreview` runs |
 | `desktop-mode.wallpaper.surfaces` | filter | Stable | `WallpaperSurface[] → WallpaperSurface[]` — see below |
 
 #### Arrange & Overview
@@ -3492,6 +3493,8 @@ type WallpaperDef =
           value?: string;             // Applied to --desktop-mode-bg
           resolveValue?: ( ctx: WallpaperContext ) => string;  // Dynamic alternative
           renderEditor?: WallpaperEditor;
+          renderPreview?: WallpaperPreview;              // Live tile preview (since 0.9.5)
+          previewParams?: Record<string, unknown>;       // Preview defaults (since 0.9.5)
       }
     | {
           type: 'canvas';
@@ -3502,6 +3505,8 @@ type WallpaperDef =
           mount: ( container: HTMLElement, ctx: WallpaperContext ) =>
                   ( () => void ) | Promise<() => void>;
           renderEditor?: WallpaperEditor;
+          renderPreview?: WallpaperPreview;              // Live tile preview (since 0.9.5)
+          previewParams?: Record<string, unknown>;       // Preview defaults (since 0.9.5)
       };
 
 interface WallpaperContext {
@@ -3510,6 +3515,16 @@ interface WallpaperContext {
     prefersReducedMotion: boolean;
     visible: boolean;                 // current document visibility
 }
+
+// Passed to renderPreview (since 0.9.5).
+interface WallpaperPreviewContext extends WallpaperContext {
+    params: Record<string, unknown>;  // previewParams after the preview-params filter
+    width: number;                    // tile content size in CSS px at mount time
+    height: number;
+}
+
+type WallpaperPreview = ( container: HTMLElement, ctx: WallpaperPreviewContext ) =>
+        ( () => void ) | Promise<() => void>;
 ```
 
 **`description`** — *Experimental (since 0.9.4).* A sentence or two shown in a styled card under the OS Settings picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `desktop_mode_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
@@ -3552,13 +3567,15 @@ wp.desktop.ready( () => {
                 app.ticker.stop();
             }
 
-            return () => app.destroy( true );
+            return () => app.destroy( { removeView: true } );
         },
     } );
 } );
 ```
 
 Unknown module ids fail loudly via `desktop-mode.wallpaper.mount-failed` — no silent non-activations.
+
+**Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OS Settings live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
 
 ### Registering your own module
 
@@ -3603,6 +3620,58 @@ wp.desktop.registerWallpaper( {
     },
 } );
 ```
+
+### `renderPreview` — live tile previews *(Experimental, since 0.9.5)*
+
+Without `renderPreview`, a canvas wallpaper's swatch in the OS Settings picker is just its static CSS `preview` string — a flat gradient standing in for a living scene. With it, the picker mounts a live preview directly inside the tile.
+
+The shell owns the lifecycle so previews stay cheap:
+
+- **Lazy** — the preview mounts only when the tile is actually visible (IntersectionObserver), and tears down when the tile scrolls away, the settings tab is switched, or the panel closes. Every torn-down or failed state falls back to the CSS `preview` string.
+- **Capped** — at most 4 live previews run concurrently (WebGL contexts are a scarce per-page resource, shared with the active wallpaper). Tiles beyond the cap keep the CSS fallback until a slot frees up.
+- **Declared dependencies work** — the def's `needs: [...]` modules are loaded before `renderPreview` fires, exactly like `mount`.
+- **Reduced motion is your job** — when `ctx.prefersReducedMotion` is true, render a still frame; don't start a ticker.
+
+`ctx.params` is the parametrization hook: the def's `previewParams` seed, run through the `desktop-mode.wallpaper.preview-params` filter. Use it for anything the preview should idealize instead of mirroring the real site. The built-in Living Tree is the canonical case — its real mount grows the tree from the site's actual age and content, which on a day-old site is a bare sprout; its preview instead renders a showcase snapshot (`{ siteAgeDays: 540, totalPosts: 120, … }`) so the picker always shows what the wallpaper can become.
+
+```javascript
+wp.desktop.registerWallpaper( {
+    id: 'my-plugin/starfield',
+    label: 'Starfield',
+    type: 'canvas',
+    preview: '#050510',                       // instant paint + fallback
+    needs: [ 'pixijs' ],
+    previewParams: { starCount: 400 },        // preview-only knobs
+    mount: async ( container, ctx ) => { /* the real thing */ },
+    renderPreview: async ( container, ctx ) => {
+        const app = new window.PIXI.Application();
+        await app.init( { resizeTo: container, resolution: 1 } );
+        container.appendChild( app.canvas );
+        drawStars( app, Number( ctx.params.starCount ) || 400 );
+        if ( ctx.prefersReducedMotion ) {
+            app.render();                     // one still frame
+            app.ticker.stop();
+        }
+        return () => app.destroy( { removeView: true } );
+    },
+} );
+```
+
+Overriding another wallpaper's preview parameters from a plugin (or a devtools console):
+
+```javascript
+// Preview the Living Tree as a brand-new site instead of the showcase.
+wp.hooks.addFilter(
+    'desktop-mode.wallpaper.preview-params',
+    'my-plugin/sprout-preview',
+    ( params, wallpaperId ) =>
+        wallpaperId === 'wp-living-tree'
+            ? { ...params, siteAgeDays: 0, totalPosts: 0 }
+            : params
+);
+```
+
+The same fields work on `type: 'css'` defs too (rarely needed — a CSS wallpaper's `preview` string usually IS the wallpaper).
 
 ### `window.wp.desktop` members
 

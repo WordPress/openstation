@@ -179,6 +179,12 @@ export const HOOKS = {
 	WALLPAPER_MOUNT_FAILED: 'desktop-mode.wallpaper.mount-failed',
 	/** Action mirroring document.visibilitychange for active canvas wallpapers. */
 	WALLPAPER_VISIBILITY: 'desktop-mode.wallpaper.visibility',
+	/**
+	 * Filter, receives a wallpaper's preview params (seeded from the
+	 * def's `previewParams`) before its `renderPreview` runs in the OS
+	 * Settings picker. Args: `( params, wallpaperId )`.
+	 */
+	WALLPAPER_PREVIEW_PARAMS: 'desktop-mode.wallpaper.preview-params',
 
 	// ------------------------------------------------------------------
 	// Observability — iframe errors, iframe network, shell-side errors,

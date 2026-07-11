@@ -17,6 +17,7 @@
 import type {
 	WallpaperContext,
 	WallpaperDef,
+	WallpaperPreviewContext,
 	WallpaperTeardown,
 } from '../../wallpapers/types';
 import { trackedFetch } from '../../tracked-fetch';
@@ -63,11 +64,90 @@ async function fetchSnapshot(): Promise< TreeSnapshot | null > {
 	}
 }
 
+/**
+ * Default preview parameters — a site in its prime, so the OS Settings
+ * tile shows what the wallpaper can become rather than the sprout a
+ * day-old site would render. Every key is overridable through the
+ * `desktop-mode.wallpaper.preview-params` filter; non-numeric
+ * overrides fall back to these values.
+ */
+const PREVIEW_PARAMS: Record< string, number > = {
+	siteAgeDays: 540,
+	totalPosts: 120,
+	totalPages: 8,
+	totalCategories: 6,
+	totalTags: 24,
+	totalComments: 260,
+	activeUsers: 3,
+	traffic: 420,
+	seoHealth: 0.85,
+	performance: 0.9,
+};
+
+/** Read a numeric param, falling back to the showcase default. */
+function numParam( params: Record< string, unknown >, key: string ): number {
+	const value = params[ key ];
+	return typeof value === 'number' && Number.isFinite( value )
+		? value
+		: PREVIEW_PARAMS[ key ];
+}
+
+/**
+ * Build the synthetic snapshot the preview grows from. No REST fetch —
+ * the preview must work offline, instantly, and identically on every
+ * site regardless of its real age. The seed (`siteUrl` + `siteName` +
+ * `installEpoch`) is held constant so the preview individual is stable
+ * across opens; the metrics come from params.
+ */
+function showcaseSnapshot(
+	params: Record< string, unknown >,
+): TreeSnapshot {
+	return {
+		siteUrl: window.location.origin,
+		siteName:
+			typeof params.siteName === 'string' && params.siteName !== ''
+				? params.siteName
+				: 'living-tree-preview',
+		installEpoch: 0,
+		siteAgeDays: numParam( params, 'siteAgeDays' ),
+		totalPosts: numParam( params, 'totalPosts' ),
+		totalPages: numParam( params, 'totalPages' ),
+		totalCategories: numParam( params, 'totalCategories' ),
+		totalTags: numParam( params, 'totalTags' ),
+		totalComments: numParam( params, 'totalComments' ),
+		activeUsers: numParam( params, 'activeUsers' ),
+		traffic: numParam( params, 'traffic' ),
+		seoHealth: numParam( params, 'seoHealth' ),
+		performance: numParam( params, 'performance' ),
+		branches: [],
+		tagCooccurrence: [],
+	};
+}
+
 const def: WallpaperDef = {
 	id: WALLPAPER_ID,
 	label: 'Living Tree',
 	type: 'canvas',
 	preview: PREVIEW,
+	previewParams: PREVIEW_PARAMS,
+	/**
+	 * Live tile preview for the OS Settings picker. Grows a showcase
+	 * tree from {@link showcaseSnapshot} — never the real site DNA, so
+	 * a brand-new site still previews the wallpaper at full glory. The
+	 * reveal animation plays at normal speed (a mature tree grows in a
+	 * couple of seconds), which doubles as the preview's motion.
+	 */
+	renderPreview: async (
+		container: HTMLElement,
+		ctx: WallpaperPreviewContext,
+	): Promise< WallpaperTeardown > => {
+		const scene = await mountScene( {
+			container,
+			snapshot: showcaseSnapshot( ctx.params ),
+			prefersReducedMotion: ctx.prefersReducedMotion,
+		} );
+		return (): void => scene.destroy();
+	},
 	needs: [ 'pixijs' ],
 	mount: async (
 		container: HTMLElement,

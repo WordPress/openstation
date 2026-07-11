@@ -227,6 +227,42 @@ describe( 'living-tree gradual growth (no daily reshuffle)', () => {
 		}
 	} );
 
+	test( 'the sapling regime: a first-month site is a sprout/sapling, not a tree', () => {
+		// Day 1 must be indistinguishable from a sprout…
+		expect( ageCurve( 1 ) ).toBeLessThan( 0.005 );
+		// …a month in reads as a small sapling (the §A.4 depth cap
+		// bounds its structure on top of this)…
+		expect( ageCurve( 30 ) ).toBeGreaterThan( 0.08 );
+		expect( ageCurve( 30 ) ).toBeLessThan( 0.16 );
+		// …and past the linear/log crossover (~5 months) the curve IS
+		// the raw log curve, so established sites render as before.
+		expect( ageCurve( 365 ) ).toBeCloseTo(
+			Math.log1p( 365 ) / Math.log1p( 3650 ),
+			10,
+		);
+	} );
+
+	test( 'the first days each visibly grow the seedling — no dead flatline', () => {
+		// Regression: the earlier smoothstep ramp started quadratically
+		// flat, pinning days 0–10 at the 2-node sprout. The linear
+		// sapling clock must add nodes every couple of days.
+		let prev = revealCountForAge( 800, ageCurve( 1 ) );
+		for ( const days of [ 3, 5, 7, 9, 11 ] ) {
+			const count = revealCountForAge( 800, ageCurve( days ) );
+			expect( count ).toBeGreaterThan( prev );
+			prev = count;
+		}
+	} );
+
+	test( 'ageCurve is strictly monotone through the sapling/log crossover', () => {
+		let prev = -1;
+		for ( let days = 0; days <= 400; days += 5 ) {
+			const v = ageCurve( days );
+			expect( v ).toBeGreaterThan( prev );
+			prev = v;
+		}
+	} );
+
 	test( 'revealCountForAge is monotone in age', () => {
 		let prev = 0;
 		for ( const days of [ 0, 10, 60, 200, 800, 2000, 5000 ] ) {

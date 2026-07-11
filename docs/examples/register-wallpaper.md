@@ -71,7 +71,7 @@ wp.desktop.ready( () => {
             if ( ctx.prefersReducedMotion ) {
                 app.ticker.stop();
                 drawStillFrame( app );
-                return () => app.destroy( true );
+                return () => app.destroy( { removeView: true } );
             }
 
             // Pause on tab-hidden via the shell's visibility action.
@@ -93,12 +93,14 @@ wp.desktop.ready( () => {
                     'desktop-mode.wallpaper.visibility',
                     'my-plugin/particles-visibility'
                 );
-                app.destroy( true );
+                app.destroy( { removeView: true } );
             };
         },
     } );
 } );
 ```
+
+> **Never call `app.destroy( true )`.** In PixiJS v8 a literal `true` as the first argument runs `releaseGlobalResources()`, which clears Pixi's *page-global* texture and object pools — corrupting every **other** live Application on the page (the OS Settings live previews, other canvas wallpapers, any plugin's Pixi window). Symptoms are crash loops in `Batcher.break()` and teardown throws in `TexturePool.returnTexture()`. Use `app.destroy( { removeView: true } )` — same canvas cleanup, no global wipe.
 
 ### Shipping your own module
 
@@ -164,6 +166,52 @@ wp.desktop.ready( () => {
 
 ---
 
+## Recipe 4 — A live preview in the picker tile *(since 0.9.5)*
+
+A canvas wallpaper's `preview` string is a static stand-in. Ship `renderPreview` and the OS Settings picker mounts the real thing (or a cheap facsimile) inside the swatch tile — lazily, only while the tile is visible, capped at 4 concurrent previews page-wide, with the CSS `preview` as the fallback for every failure mode.
+
+`ctx.params` parametrizes what the preview depicts: it's your def's `previewParams` after the `desktop-mode.wallpaper.preview-params` filter. Use it when the honest render would look wrong in a thumbnail — the built-in Living Tree previews a 540-day-old showcase site so a day-old install doesn't advertise the wallpaper as a bare sprout.
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerWallpaper( {
+        id: 'my-plugin/aquarium',
+        label: 'Aquarium',
+        type: 'canvas',
+        preview: '#04263b',                 // instant paint + fallback
+        needs: [ 'pixijs' ],                // loaded before renderPreview too
+        previewParams: { fishCount: 12 },   // idealized for the tile
+        mount: async ( container, ctx ) => { /* the real thing */ },
+        renderPreview: async ( container, ctx ) => {
+            const app = new window.PIXI.Application();
+            await app.init( { resizeTo: container, resolution: 1 } );
+            container.appendChild( app.canvas );
+            swim( app, Number( ctx.params.fishCount ) || 12 );
+            if ( ctx.prefersReducedMotion ) {
+                app.render();               // one still frame, no ticker
+                app.ticker.stop();
+            }
+            return () => app.destroy( { removeView: true } );
+        },
+    } );
+} );
+```
+
+Site owners and plugins can re-parametrize any wallpaper's preview without touching its code:
+
+```javascript
+wp.hooks.addFilter(
+    'desktop-mode.wallpaper.preview-params',
+    'my-plugin/more-fish',
+    ( params, wallpaperId ) =>
+        wallpaperId === 'my-plugin/aquarium'
+            ? { ...params, fishCount: 40 }
+            : params
+);
+```
+
+---
+
 ## Removing or reordering built-ins
 
 The `desktop-mode.wallpapers` filter receives the full list — add, remove, or reorder in one shot.
@@ -190,5 +238,5 @@ The one rule worth stealing: **fetch through the framework, never raw `fetch()`*
 ## Reference
 
 - [Hooks catalog](../javascript-reference.md#4-hooks--desktop-mode) — every `desktop-mode.*` hook with its payload shape.
-- [Wallpaper registration API](../javascript-reference.md#5-wallpaper-registration-api) — full `WallpaperDef` type.
+- [Wallpaper registration API](../javascript-reference.md#5-wallpaper-registration-api) — full `WallpaperDef` type, including `renderPreview` / `previewParams`.
 - [The Living Tree — algorithm definition](../living-tree-algorithm.md) — a worked canvas-wallpaper spec that consumes REST site data.

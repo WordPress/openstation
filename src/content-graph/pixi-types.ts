@@ -105,7 +105,13 @@ export interface PixiApp {
 	};
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-	destroy( clearStage?: boolean, opts?: unknown ): void;
+	/**
+	 * First arg is Pixi's `RendererDestroyOptions`. Pass an options
+	 * object, never a literal `true` — `true` triggers
+	 * `releaseGlobalResources()` and corrupts every other live
+	 * Application on the page.
+	 */
+	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 
 export interface PixiNamespace {

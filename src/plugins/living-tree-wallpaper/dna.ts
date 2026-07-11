@@ -18,6 +18,23 @@ import type { Hormones, TreeSnapshot } from './types';
 /** Days after which the age curve saturates (10 years). */
 const AGE_SATURATION_DAYS = 3650;
 
+/**
+ * Master-clock ticks per day for a young site: the sapling regime.
+ *
+ * The raw log curve alone put a day-old site at ~8% of the clock and a
+ * month-old one at ~42% — sprout to TREE overnight. A smoothstep damp
+ * was tried first and had the opposite failure: its quadratic start
+ * left days 0–10 pinned at the 2-node sprout, no visible growth at
+ * all. The fix is a LINEAR clock — `days × this constant` — taken via
+ * `min()` against the log curve. Every early day advances the clock by
+ * the same step (a node or two of new growth, plainly visible on a
+ * seedling), a month in reads as a small sapling (~12% of the clock,
+ * with the §A.4 depth cap keeping it low and simple), and the linear
+ * ramp crosses the log curve at ~5 months — from there the raw log
+ * regime takes over unchanged.
+ */
+const SAPLING_CLOCK_PER_DAY = 1 / 250;
+
 /** Clamp to the unit interval. */
 function clamp01( v: number ): number {
 	return Math.min( 1, Math.max( 0, v ) );
@@ -29,9 +46,21 @@ function sat( v: number, k: number ): number {
 }
 
 /**
- * Saturating logarithmic age curve — the master clock. Fast change in the
- * early days, flattening as the site matures so extra age past ~10y buys
- * texture, not height.
+ * Saturating logarithmic age curve — the master clock, with a linear
+ * sapling regime for young sites.
+ *
+ * `min()` of two monotone curves:
+ *
+ *   - `days × SAPLING_CLOCK_PER_DAY` — wins for roughly the first five
+ *     months. Steady day-by-day growth: day 1 a sprout, every early
+ *     day visibly adds a node or two, a month in reads as a small
+ *     sapling.
+ *   - the raw saturating log curve — wins from ~5 months on: fast
+ *     through the first years, flattening so extra age past ~10y buys
+ *     texture, not height.
+ *
+ * Monotone across the whole domain (min of two increasing curves),
+ * which is what `maxDepthForAge`'s day-threshold comparisons rely on.
  *
  * @param days Site age in days.
  * @return Normalised age, 0..1.
@@ -40,7 +69,10 @@ export function ageCurve( days: number ): number {
 	if ( days <= 0 ) {
 		return 0;
 	}
-	return clamp01( Math.log1p( days ) / Math.log1p( AGE_SATURATION_DAYS ) );
+	const log01 = clamp01(
+		Math.log1p( days ) / Math.log1p( AGE_SATURATION_DAYS ),
+	);
+	return Math.min( log01, days * SAPLING_CLOCK_PER_DAY );
 }
 
 /**

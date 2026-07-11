@@ -65,6 +65,15 @@ const CONFIG = {
 	/** Fraction of the smaller shell dimension the logo is allowed to occupy. */
 	logoShellFraction: 0.72,
 	/**
+	 * Logo width (CSS px) at which particle sprites render at their
+	 * authored `spriteScale*` size. Below it, sprite scale shrinks
+	 * proportionally — in a small container (an OS Settings preview
+	 * tile) desktop-sized additive sprites pile into a single blown-out
+	 * white blob instead of a legible particle logo. Never scales UP
+	 * past 1× so full-desktop mounts look exactly as before.
+	 */
+	spriteReferenceWidth: 700,
+	/**
 	 * Spring stiffness — how hard a particle pulls back to its home.
 	 * Lower = slower, floatier return. At 0.015 the natural-frequency
 	 * period is ~50 frames (~0.85 s at 60 fps), so particles visibly
@@ -247,6 +256,10 @@ export async function mountScene(
 	// grid of identical dots reads as sterile; a field with subtle
 	// variation reads as organic.
 	const sprites: Sprite[] = new Array( n );
+	// Authored per-particle scale, before the layout-size factor —
+	// computeLayout() multiplies this by the current sprite factor so
+	// resizes re-derive from the pristine value instead of compounding.
+	const baseScale = new Float32Array( n );
 	for ( let i = 0; i < n; i++ ) {
 		const sprite: Sprite = new pixi.Sprite( brushTexture );
 		sprite.anchor.set( 0.5 );
@@ -256,6 +269,7 @@ export async function mountScene(
 		const scale =
 			CONFIG.spriteScaleMin +
 			Math.random() * ( CONFIG.spriteScaleMax - CONFIG.spriteScaleMin );
+		baseScale[ i ] = scale;
 		sprite.scale.set( scale );
 		sprite.alpha =
 			CONFIG.spriteAlphaMin +
@@ -279,7 +293,15 @@ export async function mountScene(
 		logoOffsetX = ( w - target ) / 2;
 		logoOffsetY = ( h - target ) / 2;
 
+		// Shrink sprites in step with the logo below the reference
+		// width (small containers — preview tiles); never above 1×.
+		const spriteFactor = Math.min(
+			1,
+			target / CONFIG.spriteReferenceWidth,
+		);
+
 		for ( let i = 0; i < n; i++ ) {
+			sprites[ i ].scale.set( baseScale[ i ] * spriteFactor );
 			homeX[ i ] = logoOffsetX + homes[ i ][ 0 ] * logoScale;
 			homeY[ i ] = logoOffsetY + homes[ i ][ 1 ] * logoScale;
 			// First layout seeds current positions to home; subsequent
@@ -402,7 +424,11 @@ export async function mountScene(
 			// Destroy the app first so the renderer stops referencing
 			// the brush texture; THEN release the texture explicitly
 			// so its backing canvas doesn't linger in GPU memory.
-			app.destroy( true, {
+			// `{ removeView: true }`, NEVER `true`: a literal `true`
+			// runs `releaseGlobalResources()`, wiping Pixi's
+			// page-global pools out from under every other live
+			// Application (active wallpaper vs. OS Settings preview).
+			app.destroy( { removeView: true }, {
 				children: true,
 				texture: true,
 				textureSource: true,

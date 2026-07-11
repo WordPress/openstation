@@ -85,7 +85,13 @@ interface PixiApp {
 	ticker?: { stop(): void };
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-	destroy( clearStage?: boolean, opts?: unknown ): void;
+	/**
+	 * First arg is Pixi's `RendererDestroyOptions`. Pass an options
+	 * object, never a literal `true` — `true` triggers
+	 * `releaseGlobalResources()` and corrupts every other live
+	 * Application on the page.
+	 */
+	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 interface PixiText extends PixiContainer {
 	text: string;
@@ -2403,22 +2409,20 @@ export async function mountTagsCloud(
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
 		document.removeEventListener( 'click', onDocClickSearch );
-		// Same Pixi v8 multi-Application destroy race as
-		// `categories-mindmap.ts` — calling `app.destroy()` while
-		// another live Pixi.Application is on the page (e.g. the
-		// Content Graph window) corrupts the surviving app's batcher
-		// pipe map. Stop, detach, let GC reclaim. See the mindmap
-		// comment for the full diagnosis and the alternatives that
-		// don't work.
+		// The old "multi-Application destroy race" was really
+		// `app.destroy( true, … )` triggering Pixi's
+		// `releaseGlobalResources()` (see `categories-mindmap.ts`).
+		// Destroying with `{ removeView: true }` skips the global
+		// release, so a full, leak-free destroy is safe again.
 		try {
 			app.ticker?.stop();
 		} catch {
 			// Best-effort.
 		}
 		try {
-			app.canvas?.remove();
+			app.destroy( { removeView: true }, { children: true } );
 		} catch {
-			// Best-effort.
+			// Best-effort — Pixi sometimes throws on teardown races.
 		}
 		host.replaceChildren();
 		host.classList.remove( 'wpd-tagcloud' );

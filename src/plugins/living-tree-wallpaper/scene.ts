@@ -530,7 +530,14 @@ export async function mountScene(
 			lianas.destroy();
 			ground.destroy();
 			sky.destroy();
-			app.destroy( true, { children: true, texture: true } );
+			// `{ removeView: true }`, NEVER `true`: a literal `true` makes
+			// Pixi's renderer run `releaseGlobalResources()`, wiping the
+			// PAGE-GLOBAL TexturePool / BigPool singletons that every other
+			// live Application shares — with the wallpaper AND its OS
+			// Settings preview both mounted, destroying one corrupted the
+			// other (batcher crash-looping in rAF, teardown throwing in
+			// `returnTexture`).
+			app.destroy( { removeView: true }, { children: true, texture: true } );
 			container.style.background = priorBackground;
 		},
 		setAnimating( playing: boolean ): void {

@@ -19,6 +19,7 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		delete_transient( 'desktop_mode_living_tree_snapshot' );
+		delete_transient( 'health-check-site-status-result' );
 	}
 
 	/**
@@ -218,5 +219,219 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 		$snapshot = desktop_mode_living_tree_build_snapshot();
 		remove_filter( 'desktop_mode_living_tree_snapshot', $filter );
 		$this->assertSame( 0.25, $snapshot['seoHealth'] );
+	}
+
+	/**
+	 * Load the WPCOM_Stats stub (unless real Jetpack is present) and
+	 * reset its script so each test starts from the erroring default —
+	 * which behaves exactly like "no Jetpack" (meta fallback).
+	 */
+	private function load_wpcom_stats_stub() {
+		if ( ! class_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats' ) ) {
+			require_once dirname( __DIR__ ) . '/stubs/class-wpcom-stats-stub.php';
+		}
+		if ( property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$last_args       = null;
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_traffic
+	 */
+	public function test_traffic_sums_recent_post_views_meta() {
+		$this->load_wpcom_stats_stub();
+		$post_id = self::factory()->post->create();
+		$today   = current_time( 'Y-m-d' );
+		add_post_meta( $post_id, '_post_views_' . $today, 12 );
+		add_post_meta(
+			$post_id,
+			'_post_views_' . gmdate( 'Y-m-d', strtotime( $today . ' -3 days' ) ),
+			5
+		);
+		// Outside the 14-day window — must not count.
+		add_post_meta(
+			$post_id,
+			'_post_views_' . gmdate( 'Y-m-d', strtotime( $today . ' -20 days' ) ),
+			100
+		);
+
+		$this->assertSame( 17, desktop_mode_living_tree_traffic() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_traffic
+	 * @covers ::desktop_mode_living_tree_jetpack_visits
+	 */
+	public function test_traffic_prefers_jetpack_visits_over_the_meta_fallback() {
+		$this->load_wpcom_stats_stub();
+		if ( ! property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
+			$this->markTestSkipped( 'Real Jetpack is loaded; the scriptable stub is unavailable.' );
+		}
+
+		// Meta says 50 — Jetpack must win anyway (same ladder as the
+		// site-views widget).
+		$post_id = self::factory()->post->create();
+		add_post_meta( $post_id, '_post_views_' . current_time( 'Y-m-d' ), 50 );
+
+		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
+			'unit'   => 'day',
+			'fields' => array( 'period', 'views' ),
+			'data'   => array(
+				array( '2026-07-09', 3 ),
+				array( '2026-07-10', 4 ),
+				array( '2026-07-11', '2' ), // Numeric strings ship too.
+			),
+		);
+		try {
+			$this->assertSame( 9, desktop_mode_living_tree_traffic() );
+			$this->assertSame(
+				array(
+					'unit'     => 'day',
+					'quantity' => 14,
+				),
+				\Automattic\Jetpack\Stats\WPCOM_Stats::$last_args
+			);
+		} finally {
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_jetpack_visits
+	 */
+	public function test_traffic_honours_the_fields_order_of_the_jetpack_payload() {
+		$this->load_wpcom_stats_stub();
+		if ( ! property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
+			$this->markTestSkipped( 'Real Jetpack is loaded; the scriptable stub is unavailable.' );
+		}
+
+		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array(
+			'fields' => array( 'views', 'period' ),
+			'data'   => array( array( 7, '2026-07-11' ), array( 6, '2026-07-10' ) ),
+		);
+		try {
+			$this->assertSame( 13, desktop_mode_living_tree_traffic() );
+		} finally {
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_traffic
+	 * @covers ::desktop_mode_living_tree_jetpack_visits
+	 */
+	public function test_traffic_falls_back_to_meta_when_jetpack_errors_or_misbehaves() {
+		$this->load_wpcom_stats_stub();
+		if ( ! property_exists( '\Automattic\Jetpack\Stats\WPCOM_Stats', 'visits_response' ) ) {
+			$this->markTestSkipped( 'Real Jetpack is loaded; the scriptable stub is unavailable.' );
+		}
+
+		$post_id = self::factory()->post->create();
+		add_post_meta( $post_id, '_post_views_' . current_time( 'Y-m-d' ), 8 );
+
+		// Default script → WP_Error → fallback.
+		$this->assertSame( 8, desktop_mode_living_tree_traffic() );
+
+		// Garbage payload (no data rows) → fallback too.
+		\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = array( 'unexpected' => true );
+		try {
+			$this->assertSame( 8, desktop_mode_living_tree_traffic() );
+		} finally {
+			\Automattic\Jetpack\Stats\WPCOM_Stats::$visits_response = null;
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_performance
+	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 */
+	public function test_performance_defaults_when_site_health_has_never_run() {
+		$this->assertSame( 0.8, desktop_mode_living_tree_performance() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_performance
+	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 */
+	public function test_performance_composes_site_health_tallies() {
+		// Core's weekly cron stores the tallies as a JSON string.
+		set_transient(
+			'health-check-site-status-result',
+			wp_json_encode(
+				array(
+					'good'        => 15,
+					'recommended' => 2,
+					'critical'    => 1,
+				)
+			)
+		);
+		// 1.0 − 0.15·1 − 0.04·2 = 0.77.
+		$this->assertEqualsWithDelta( 0.77, desktop_mode_living_tree_performance(), 0.0001 );
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 */
+	public function test_performance_is_floored_so_a_broken_site_never_fully_stalls() {
+		set_transient(
+			'health-check-site-status-result',
+			wp_json_encode(
+				array(
+					'good'        => 0,
+					'recommended' => 10,
+					'critical'    => 10,
+				)
+			)
+		);
+		$this->assertSame( 0.2, desktop_mode_living_tree_performance() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_site_health_performance
+	 */
+	public function test_performance_falls_back_on_garbage_tallies() {
+		set_transient( 'health-check-site-status-result', 'not json at all' );
+		$this->assertSame( 0.8, desktop_mode_living_tree_performance() );
+
+		set_transient( 'health-check-site-status-result', wp_json_encode( array( 'surprise' => 1 ) ) );
+		$this->assertSame( 0.8, desktop_mode_living_tree_performance() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_performance
+	 */
+	public function test_performance_filter_is_the_final_word() {
+		set_transient(
+			'health-check-site-status-result',
+			wp_json_encode(
+				array(
+					'good'        => 20,
+					'recommended' => 0,
+					'critical'    => 0,
+				)
+			)
+		);
+		$filter = static function () {
+			return 0.33;
+		};
+		add_filter( 'desktop_mode_living_tree_performance', $filter );
+		$performance = desktop_mode_living_tree_performance();
+		remove_filter( 'desktop_mode_living_tree_performance', $filter );
+		$this->assertSame( 0.33, $performance );
+	}
+
+	/**
+	 * @covers ::desktop_mode_living_tree_traffic
+	 */
+	public function test_traffic_filter_is_the_final_word() {
+		$this->load_wpcom_stats_stub();
+		$filter = static function () {
+			return 4321;
+		};
+		add_filter( 'desktop_mode_living_tree_traffic', $filter );
+		$traffic = desktop_mode_living_tree_traffic();
+		remove_filter( 'desktop_mode_living_tree_traffic', $filter );
+		$this->assertSame( 4321, $traffic );
 	}
 }

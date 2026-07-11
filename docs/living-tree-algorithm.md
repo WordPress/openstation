@@ -108,9 +108,24 @@ count).
 
 ### `ageCurve`
 
-A saturating logarithmic curve: fast change in the early days, flattening as
-the site ages so a 10-year-old site and a 12-year-old site look similar in
-*scale* (extra age past ~10y buys texture, not height — see A.4).
+The `min()` of two monotone regimes:
+
+- **Sapling regime (linear)** — `days / 250`, which wins for roughly the
+  first five months. The raw log curve alone rockets early (a day-old site
+  sat at ~8% of the master clock, a month-old one at ~42% — sprout to full
+  tree overnight), and a smoothstep damp tried first had the opposite
+  failure — its quadratically-flat start pinned days 0–10 at the 2-node
+  sprout. The linear clock advances the same small step every day: each
+  early day visibly adds a node or two, day 30 reads as a small sapling
+  (~12% of the clock, with the A.4 depth cap bounding its structure on top).
+- **Log regime** — the saturating logarithmic curve, which wins from ~5
+  months on: fast through the first years, flattening as the site ages so a
+  10-year-old site and a 12-year-old site look similar in *scale* (extra age
+  past ~10y buys texture, not height — see A.4).
+
+Monotone across the whole domain — the depth-unlock table in A.4 compares
+through the same curve, so level thresholds stay pinned to their configured
+day counts regardless of the curve's shape.
 
 ### `vigor01`
 
@@ -380,11 +395,17 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
 - **Decoration randomness.** The skeleton and leaf/bloom/liana placement
   draw from the seeded PRNG (same site → same canopy). Firefly wander
   uses `Math.random()` — fireflies are live presence, not DNA.
-- **Health defaults.** `seoHealth` / `performance` have no cheap
-  synchronous first-party source, so PHP serves healthy defaults (0.7 /
-  0.8) behind the `desktop_mode_living_tree_seo_health` /
-  `desktop_mode_living_tree_performance` filters — monitoring / SEO
-  plugins feed real telemetry in.
+- **Health sources.** `performance` reads core's own Site Health
+  tallies (the weekly-cron `health-check-site-status-result` transient:
+  1.0 minus 0.15 per critical and 0.04 per recommendation, clamped to
+  [0.2, 1]), falling back to 0.8 until the first tally exists.
+  `seoHealth` is the remaining gap: WordPress ships nothing SEO-shaped
+  to read, so PHP serves a healthy 0.7 default — the planned future
+  source is aggregating the per-post scores SEO plugins keep in
+  post-meta. Both pass through their
+  `desktop_mode_living_tree_seo_health` /
+  `desktop_mode_living_tree_performance` filters so monitoring / SEO
+  plugins can feed real telemetry in.
 - **Time-of-day sky.** The backdrop tracks the viewer's LOCAL clock
   through a 24-hour cycle (`src/plugins/living-tree-wallpaper/sky.ts`):
   starry night → pre-dawn → sunrise → midday → golden afternoon → dusk.
