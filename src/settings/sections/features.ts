@@ -6,10 +6,10 @@
  * `OsSettingsState` via `ctx.save()` — no dedicated REST endpoint;
  * the existing OS-settings sync debounces the write to user meta.
  *
- * The tab renders two sections: a "Beta features" group holding the
- * opt-in native-window toggles (Posts, Pages, Users, Plugins,
- * Comments — all off by default as of 0.9.1), and the general
- * "Features" group below it. As more per-user feature flags land they
+ * The tab renders two sections: the general "Features" group first,
+ * then a "Beta features" group below it holding the opt-in
+ * native-window toggles (Posts, Pages, Users, Plugins, Comments — all
+ * off by default as of 0.9.1). As more per-user feature flags land they
  * slot into the matching section so the tab grows by one row at a
  * time, not one tab at a time.
  *
@@ -445,73 +445,6 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		render(
 			html`
 				<wpd-section
-					heading=${ __( 'Beta features' ) }
-					description=${ __(
-						'Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.',
-					) }
-				>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Posts window' ) }
-							?checked=${ ctx.state.nativePostsEnabled }
-							@wpd-checkbox-change=${ onNativePostsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Pages window' ) }
-							?checked=${ ctx.state.nativePagesEnabled }
-							@wpd-checkbox-change=${ onNativePagesToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Users window' ) }
-							?checked=${ ctx.state.nativeUsersEnabled }
-							@wpd-checkbox-change=${ onNativeUsersToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Plugins window' ) }
-							?checked=${ ctx.state.nativePluginsEnabled }
-							@wpd-checkbox-change=${ onNativePluginsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Comments window' ) }
-							?checked=${ ctx.state.nativeCommentsEnabled }
-							@wpd-checkbox-change=${ onNativeCommentsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for a redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo).',
-							) }
-						</p>
-					</div>
-				</wpd-section>
-				<wpd-section
 					heading=${ __( 'Features' ) }
 					description=${ __(
 						'Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.',
@@ -693,6 +626,73 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						<p class="desktop-mode-features__hint">
 							${ __(
 								'Re-shows the one-time introduction dialog the next time you open each redesigned native window.',
+							) }
+						</p>
+					</div>
+				</wpd-section>
+				<wpd-section
+					heading=${ __( 'Beta features' ) }
+					description=${ __(
+						'Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.',
+					) }
+				>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Posts window' ) }
+							?checked=${ ctx.state.nativePostsEnabled }
+							@wpd-checkbox-change=${ onNativePostsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Pages window' ) }
+							?checked=${ ctx.state.nativePagesEnabled }
+							@wpd-checkbox-change=${ onNativePagesToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Users window' ) }
+							?checked=${ ctx.state.nativeUsersEnabled }
+							@wpd-checkbox-change=${ onNativeUsersToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Plugins window' ) }
+							?checked=${ ctx.state.nativePluginsEnabled }
+							@wpd-checkbox-change=${ onNativePluginsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Comments window' ) }
+							?checked=${ ctx.state.nativeCommentsEnabled }
+							@wpd-checkbox-change=${ onNativeCommentsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for a redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo).',
 							) }
 						</p>
 					</div>
