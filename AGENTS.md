@@ -148,7 +148,7 @@ Payload shape (`desktop_mode_build_menu_payload()` in `includes/core/payload.php
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
   serverDockRailRendererScripts, serverTitleBarButtonScripts,
-  serverUnfocusEffectScripts,
+  serverUnfocusEffectScripts, serverWindowLinkRendererScripts,
   serverWindowThemeScripts, serverWindowThemes,
   serverWindowControlScripts, serverWindowControls,
   serverWindowSlotScripts, serverWindowSlots,

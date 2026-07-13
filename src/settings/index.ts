@@ -185,6 +185,8 @@ export class OsSettings implements SettingsCtx {
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
 			unfocusEffect: this.state.unfocusEffect,
+			windowLinkRenderer: this.state.windowLinkRenderer,
+			windowLinkVisibility: this.state.windowLinkVisibility,
 			ai: { ...this.state.ai },
 			nativePostsEnabled: this.state.nativePostsEnabled,
 			nativePostsHiddenColumns: this.state.nativePostsHiddenColumns.slice(),

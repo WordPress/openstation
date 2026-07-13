@@ -88,6 +88,12 @@ import {
 	registerUnfocusEffect,
 	unregisterUnfocusEffect,
 } from '../effects/registry';
+import { relationsApi } from '../window-links/engine';
+import {
+	listWindowLinkRenderers,
+	registerWindowLinkRenderer,
+	unregisterWindowLinkRenderer,
+} from '../window-links/renderer-registry';
 import {
 	listWindowThemes,
 	registerWindowTheme,
@@ -190,6 +196,9 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerUnfocusEffect', 'unregisterUnfocusEffect', 'listUnfocusEffects',
+	'relations',
+	'registerWindowLinkRenderer', 'unregisterWindowLinkRenderer',
+	'listWindowLinkRenderers',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
 	'applyWindowTheme',
 	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
@@ -379,6 +388,17 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof patch.dockRailRenderer === 'string' ) {
 				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
 			}
+			if ( typeof patch.windowLinkRenderer === 'string' ) {
+				osSettings.state.windowLinkRenderer = patch.windowLinkRenderer;
+			}
+			if (
+				patch.windowLinkVisibility === 'focus' ||
+				patch.windowLinkVisibility === 'always' ||
+				patch.windowLinkVisibility === 'off'
+			) {
+				osSettings.state.windowLinkVisibility =
+					patch.windowLinkVisibility;
+			}
 			if ( patch.ai && typeof patch.ai === 'object' ) {
 				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
 			}
@@ -514,6 +534,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerUnfocusEffect,
 		unregisterUnfocusEffect,
 		listUnfocusEffects,
+		relations: relationsApi,
+		registerWindowLinkRenderer,
+		unregisterWindowLinkRenderer,
+		listWindowLinkRenderers,
 		registerWindowTheme,
 		unregisterWindowTheme,
 		listWindowThemes,

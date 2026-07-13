@@ -1,0 +1,176 @@
+# Window links — relate windows and restyle the ties *(Experimental, since 0.9.4)*
+
+Open a post and two of its comments in three windows and the desktop draws **arrowed splines** from each comment window to the post window — the arrowhead points at the window the content *belongs to*. Two open posts whose contents hyperlink each other get a **single spline with arrowheads on both ends**. Focusing any member of a group **raises the whole group** (related windows surface just below the focused one, without stealing focus), lifts the splines along with it so no unrelated window covers them, and marks the relatives with a subtle outline. The user tunes all of this in **OS Settings → Effects → Window links** (link style; show *always* — the default — / *when focused* / *off*).
+
+Core content relates automatically: post/page/CPT editors announce themselves as roots (plus the posts their content hyperlinks), comment-edit and attached-media screens arrive pre-rooted at their parent post (resolved server-side by the chromeless bridge — the URL alone can't answer "which post does comment 45 belong to").
+
+**Direction semantics** — the engine derives typed, directed edges from the identities; renderers just draw them:
+
+| Edge kind | Derived from | Arrow |
+|---|---|---|
+| `child-root` | a ref with `root` pointing at an open root window | single head, at the root |
+| `reference` | a ref whose `links` include an object another open window shows | single head, at the referenced window |
+| `reference` + `bidirectional: true` | two windows referencing each other (merged into one edge) | heads at both ends |
+
+Three extension surfaces, smallest first.
+
+## 1. Declare relations for your own windows (JS)
+
+Any window can carry a **content identity**. A ref *without* `root` IS a root; a ref *with* `root` joins that root's group as a child. Namespace your `type` (`vendor/sub-type`).
+
+```javascript
+// At open time, on the window config…
+wp.desktop.registerWindow( {
+    id: 'acme-order-77',
+    title: 'Order #77',
+    render: renderOrder,
+    content: { type: 'acme/order', id: 77, root: { type: 'acme/customer', id: 12 } },
+} );
+
+// …or any time later:
+wp.desktop.relations.set( 'acme-customer-12', { type: 'acme/customer', id: 12 } );
+```
+
+The moment both windows are open, the tie draws — no further wiring. Query and react:
+
+```javascript
+wp.desktop.relations.groups();            // → [ { key: 'acme/customer:12', rootWindowIds, children } ]
+wp.desktop.relations.edges();             // → [ { fromWindowId, toWindowId, kind, bidirectional } ]
+wp.desktop.relations.related( windowId ); // → tied window ids (group members + reference endpoints)
+
+document.addEventListener( 'desktop-mode-window-link-groups-changed', ( e ) => {
+    console.log( 'relations changed:', e.detail.groups );
+} );
+```
+
+To tie two windows without a parent/child hierarchy, use `links` — mutual links render as one bidirectional arrow:
+
+```javascript
+wp.desktop.relations.set( windowA, { type: 'post', id: 1, links: [ { type: 'post', id: 2 } ] } );
+wp.desktop.relations.set( windowB, { type: 'post', id: 2, links: [ { type: 'post', id: 1 } ] } );
+```
+
+## 2. Announce identity for your own admin screen (PHP)
+
+Iframe windows get their identity from the chromeless bridge. Add your screen via the `desktop_mode_window_content_identity` filter — it runs in real admin context, so you can resolve parents the URL doesn't carry:
+
+```php
+add_filter( 'desktop_mode_window_content_identity', function ( $identity, $screen ) {
+    if ( $screen && 'acme_order_page' === $screen->id && isset( $_GET['order'] ) ) {
+        $order = acme_get_order( absint( $_GET['order'] ) );
+        if ( $order ) {
+            return array(
+                'type'  => 'acme/order',
+                'id'    => $order->id,
+                'label' => $order->title,
+                'root'  => array( 'type' => 'acme/customer', 'id' => $order->customer_id ),
+            );
+        }
+    }
+    return $identity;
+}, 10, 2 );
+```
+
+Return `null` to suppress detection for a screen. The bridge re-announces on every iframe navigation, so identities never go stale.
+
+## 3. Replace the renderer — draw the ties your way
+
+The default `svg-splines` renderer registers through the same public API yours will use. One renderer is active at a time; the user picks it in OS Settings.
+
+```javascript
+wp.desktop.registerWindowLinkRenderer( {
+    id: 'acme/dotted-lines',
+    label: 'Dotted lines',
+    description: 'Straight dotted connectors between related windows.',
+    owner: 'acme-link-renderer', // script handle → live-unregister on deactivation
+    mount: ( ctx ) => {
+        const svg = document.createElementNS( 'http://www.w3.org/2000/svg', 'svg' );
+        svg.style.width = svg.style.height = '100%';
+        ctx.container.appendChild( svg );
+
+        const draw = ( frame ) => {
+            svg.replaceChildren();
+            // frame.edges already encodes direction + bidirectional
+            // merging — iterate it rather than re-deriving from groups.
+            for ( const edge of frame.edges ) {
+                if ( ! edge.from || ! edge.to ) {
+                    continue; // null rect = minimized / other desktop
+                }
+                const line = document.createElementNS( svg.namespaceURI, 'line' );
+                line.setAttribute( 'x1', edge.from.x + edge.from.width / 2 );
+                line.setAttribute( 'y1', edge.from.y + edge.from.height / 2 );
+                line.setAttribute( 'x2', edge.to.x + edge.to.width / 2 );
+                line.setAttribute( 'y2', edge.to.y + edge.to.height / 2 );
+                line.setAttribute( 'stroke', 'var(--desktop-mode-window-link-color)' );
+                line.setAttribute( 'stroke-dasharray', edge.kind === 'reference' ? '4 4' : '' );
+                // edge.bidirectional / edge.focused are yours to style —
+                // the built-in uses <marker> arrowheads and an active class.
+                svg.appendChild( line );
+            }
+        };
+
+        const off = ctx.onFrame( draw ); // rAF-coalesced: live drag/resize + membership changes
+        draw( ctx.getFrame() );
+        return () => {
+            off();
+            svg.remove();
+        };
+    },
+} );
+```
+
+`ctx.container` is the shell's link layer — absolutely positioned over the desktop, `pointer-events: none`, stacked **behind** the windows. You own its children; return a teardown that removes them.
+
+**Canvas / PixiJS sketch** — pull instead of push: append your `<canvas>` to `ctx.container`, run your own ticker, and read `ctx.getFrame()` per tick.
+
+```javascript
+wp.desktop.registerWindowLinkRenderer( {
+    id: 'acme/pixi-links',
+    label: 'Pixi links',
+    mount: async ( ctx ) => {
+        await wp.desktop.loadModules( [ 'pixijs' ] ); // shared vendor loader — see content-graph
+        const app = new window.PIXI.Application();
+        await app.init( { backgroundAlpha: 0, resizeTo: ctx.container } );
+        ctx.container.appendChild( app.canvas );
+
+        const g = new window.PIXI.Graphics();
+        app.stage.addChild( g );
+        app.ticker.add( () => {
+            g.clear();
+            for ( const edge of ctx.getFrame().edges ) {
+                /* …stroke your curve from edge.from to edge.to,
+                   arrowheads per edge.kind / edge.bidirectional… */
+            }
+        } );
+        return () => app.destroy( true );
+    },
+} );
+```
+
+### Load it live on plugin activation (PHP)
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'acme-link-renderer',
+        plugins_url( 'js/link-renderer.js', __FILE__ ),
+        array( 'desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'acme-link-renderer' );
+} );
+desktop_mode_register_window_link_renderer_script( 'acme-link-renderer' );
+```
+
+Your renderer appears in the OS Settings selector the moment the plugin activates — no reload. With `owner` set (above), deactivation live-unregisters it; if it was the active pick, the shell falls back to `svg-splines`.
+
+## Styling knobs
+
+The built-in splines read CSS custom properties — restyle without replacing the renderer: `--desktop-mode-window-link-color`, `--desktop-mode-window-link-color-active` (focused group), `--desktop-mode-window-link-width`, and `--desktop-mode-window-link-accent` (the related-window outline stamped as `desktop-mode-window--linked`).
+
+## Related
+
+- [`javascript-reference.md`](../javascript-reference.md) — `wp.desktop.relations`, `registerWindowLinkRenderer`, frame shapes, events, JS filters (including `desktop-mode.window-links.content` to rewrite identities and `desktop-mode.window-links.renderer` to force-swap the active renderer).
+- [`hooks-reference.md`](../hooks-reference.md) — `desktop_mode_window_content_identity`, `desktop_mode_register_window_link_renderer_script()`.
+- [`bridge-protocol.md`](../bridge-protocol.md) — the `desktop-mode-content-identity` message.

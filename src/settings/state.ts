@@ -129,6 +129,20 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_/-]+$/.test( parsed.unfocusEffect )
 				? parsed.unfocusEffect
 				: DEFAULTS.unfocusEffect,
+		// Window-link renderer — same id charset as unfocus effects;
+		// the render host resolves at use time and falls back to the
+		// built-in `svg-splines` for unknown ids.
+		windowLinkRenderer:
+			typeof parsed.windowLinkRenderer === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.windowLinkRenderer )
+				? parsed.windowLinkRenderer
+				: DEFAULTS.windowLinkRenderer,
+		windowLinkVisibility:
+			parsed.windowLinkVisibility === 'focus' ||
+			parsed.windowLinkVisibility === 'always' ||
+			parsed.windowLinkVisibility === 'off'
+				? parsed.windowLinkVisibility
+				: DEFAULTS.windowLinkVisibility,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
 		libraryHdOnly:

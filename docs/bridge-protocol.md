@@ -62,6 +62,14 @@ Both sides validate `event.origin` against `window.location.origin` (or the ifra
 
 Native (non-iframe) windows skip postMessage entirely — `Window.send` and the render's `windowApi.send` reach the parent / native channel-bus registries directly. Plugin authors don't need to know the window's render strategy; the framework picks the right delivery path.
 
+### Content-identity announcement — `desktop-mode-content-identity` *(since 0.9.4)*
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-content-identity` | iframe → parent | `{ identity: WindowContentRef \| null }` | Which object this admin page shows — `{ type, id, label?, root?, links? }`, resolved server-side in real admin context (post/page/CPT editors are roots and carry their content's internal hyperlinks as `links`; comment-edit and attached-media screens arrive pre-rooted at their parent post; the `desktop_mode_window_content_identity` PHP filter extends detection). Feeds `wp.desktop.relations` and the window-link visuals. |
+
+Emitted on **every** chromeless page load, **including `identity: null`** — a full-page navigation away from an identified screen must clear the stale identity, and since every iframe navigation re-runs `admin_footer`, that same emission doubles as the re-announce-on-navigate path. It fires at the very TOP of the bridge script (right after the top-frame escape hatch, before any feature block) so a page-specific runtime failure elsewhere in the bridge can never cost the shell its window relations — unlike `desktop-mode-ready`, which intentionally posts last. See [`docs/examples/window-links.md`](./examples/window-links.md).
+
 ### Connection bridge — `desktop-mode-bridge-*`
 
 | Type | Direction | Carries | Purpose |

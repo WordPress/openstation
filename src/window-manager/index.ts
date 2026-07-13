@@ -995,6 +995,38 @@ export class WindowManager {
 		doAction( HOOKS.WINDOW_FOCUSED, focusedDetail );
 	}
 
+	/**
+	 * Raise a window to just below the top of the stack WITHOUT
+	 * changing focus — the focused window stays on top and keeps
+	 * keyboard/visual focus; the raised window surfaces above
+	 * everything else. No focus/blur events fire (this is a silent
+	 * restack, not a focus change).
+	 *
+	 * Used by the window-links feature to bring a relation group
+	 * forward when one of its members is focused; available to
+	 * plugins for any "surface my companion window" affordance.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param windowId Window to raise. Unknown ids and the focused
+	 *                 window itself are no-ops.
+	 */
+	public raise( windowId: string ): void {
+		const win = this.getById( windowId );
+		if ( ! win || this._stack.length < 2 ) {
+			return;
+		}
+		const idx = this._stack.indexOf( win );
+		if ( idx === -1 || idx === this._stack.length - 1 ) {
+			return;
+		}
+		this._stack.splice( idx, 1 );
+		this._stack.splice( this._stack.length - 1, 0, win );
+		this._stack.forEach( ( w, i ) => {
+			w.setZIndex( BASE_Z_INDEX + i );
+		} );
+	}
+
 	/** Remove a window from the stack and DOM. */
 	private remove( win: Window ): void {
 		const idx = this._stack.indexOf( win );

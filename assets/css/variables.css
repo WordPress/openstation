@@ -97,6 +97,21 @@
 	--desktop-mode-z-dock: 200;
 	--desktop-mode-z-adminbar: 9991;
 	--desktop-mode-z-fullscreen: 99999;
+	/* Window-link layer — above widgets (z 1), behind windows (z 100+). */
+	--desktop-mode-z-window-links: 50;
+
+	/*
+	 * Window-link ties (relation splines between windows). The accent
+	 * follows the admin color scheme; alpha keeps the resting lines
+	 * quiet against any wallpaper. Overridable per scheme or by
+	 * plugins/themes without touching the renderer.
+	 *
+	 * @since 0.9.4
+	 */
+	--desktop-mode-window-link-color: color-mix(in srgb, var(--wp-admin-theme-color, #2271b1) 55%, transparent);
+	--desktop-mode-window-link-color-active: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-window-link-width: 1.5px;
+	--desktop-mode-window-link-accent: var(--wp-admin-theme-color, #2271b1);
 }
 
 /*

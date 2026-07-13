@@ -121,6 +121,22 @@ export interface OsSettingsState {
 	 * @since 0.9.1
 	 */
 	unfocusEffect: string;
+	/**
+	 * Active window-link renderer id. Resolves through the window-link
+	 * renderer registry; `'none'` disables the visuals, an unknown id
+	 * falls back to the built-in `'svg-splines'`.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkRenderer: string;
+	/**
+	 * When window-link ties are visible: `'always'` (the default),
+	 * `'focus'` (only while a relation-group member is focused), or
+	 * `'off'`.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkVisibility: 'focus' | 'always' | 'off';
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
 	/**

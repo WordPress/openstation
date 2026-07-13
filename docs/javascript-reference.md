@@ -571,6 +571,7 @@ Exposed instance of the `WindowManager` class.
 manager.open( config ): Promise< Window >;
 manager.openNew( config ): Promise< Window >;
 manager.focus( win: Window ): void;
+manager.raise( windowId: string ): void;                                 // since 0.9.4 — restack to just below the top WITHOUT focusing; no focus/blur events
 
 // Lookup
 manager.getById( id: string ): Window | undefined;
@@ -2057,6 +2058,86 @@ The raw `desktop-mode.unfocus-effects` JS filter receives the registry array on 
 ### `unregisterUnfocusEffect( id )` / `listUnfocusEffects()` — Experimental  *(since 0.9.1)*
 
 Remove an effect by id, or read the current list (post-filter). `listUnfocusEffects()` always includes the built-ins (`darken`, `frost`, `grayscale`) unless a filter removed them.
+
+---
+
+### `wp.desktop.relations` — Experimental  *(since 0.9.4)*
+
+Window content relations: which piece of content each window shows, and how windows group around a shared **root** (a post edit window is the root; its comment / media windows are children). The shell draws visual ties between group members — see [`registerWindowLinkRenderer`](#registerwindowlinkrenderer-def--experimental-since-094) for the pluggable rendering and [`docs/examples/window-links.md`](./examples/window-links.md) for recipes.
+
+**`WindowContentRef`** — the per-window identity record:
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `string` | Object type: any post type slug, `comment`, `media`, or your namespaced `vendor/order`. Must match `/^[a-z0-9_/-]+$/`. |
+| `id` | `number \| string` | Object id. |
+| `root` | `{ type, id }` | Optional. The root object this window's content belongs to. Omit when this window IS the root. |
+| `links` | `Array<{ type, id }>` | Optional. Outbound references from this content to OTHER objects (a post's internal hyperlinks; the bridge fills these for post editors automatically, capped at 32). Draws directed `reference` ties without re-rooting anything. |
+| `label` | `string` | Optional human label for renderers/tooltips. |
+| `source` | `'config' \| 'bridge' \| 'api'` | Stamped by the engine — never set it yourself. |
+
+**API:**
+
+| Method | Returns | Notes |
+|---|---|---|
+| `get( windowId )` | `WindowContentRef \| undefined` | Current identity of a window. |
+| `set( windowId, ref \| null )` | `void` | Set or clear an identity. Throws a `RegistrationError` on a malformed ref. The `desktop-mode.window-links.content` JS filter runs on every set. |
+| `groups()` | `WindowLinkGroup[]` | Every relation group: `{ key, root, rootWindowIds, children }`. `rootWindowIds` is focus-recency ordered and may be empty (children open, root closed). The `desktop-mode.window-links.groups` filter applies on every read. |
+| `edges()` | `WindowLinkEdge[]` | The derived directed ties between open windows — `{ fromWindowId, toWindowId, kind: 'child-root' \| 'reference', bidirectional }`. `child-root` points a child at its root ("belongs to", single arrowhead); `reference` points at a window showing something this content `links` to; mutual references merge into ONE edge with `bidirectional: true` (arrowheads both ends). The `desktop-mode.window-links.edges` filter applies on every read. This is what the render host feeds to the active renderer. |
+| `groupOf( windowId )` | `WindowLinkGroup \| undefined` | The group a window belongs to. |
+| `related( windowId )` | `string[]` | The other window ids tied to this one — same-group members plus reference-edge endpoints. |
+| `subscribe( cb )` | `() => void` | Fires on identity/membership changes; returns an unsubscribe. |
+
+**How identities arrive** (any of the three):
+
+1. **Automatically** — the chromeless bridge announces the identity of every admin iframe page ([`desktop-mode-content-identity`](./bridge-protocol.md)), resolved server-side in real admin context: post/page/CPT editors are roots; comment-edit and attached-media screens arrive pre-rooted at their parent post. PHP plugins extend this via the `desktop_mode_window_content_identity` filter (see [hooks-reference](./hooks-reference.md)).
+2. **At open time** — `WindowConfig.content?: WindowContentRef` seeds the identity the moment a window opens (native windows, session restores).
+3. **Programmatically** — `wp.desktop.relations.set( windowId, ref )`.
+
+```javascript
+wp.desktop.relations.set( myWindowId, {
+    type: 'acme/order',
+    id: 77,
+    root: { type: 'acme/customer', id: 12 },
+    label: 'Order #77',
+} );
+wp.desktop.relations.related( myWindowId ); // → sibling window ids
+```
+
+**Events** — both dispatched as document CustomEvents and on the hook bus:
+
+| CustomEvent | Hook | Detail |
+|---|---|---|
+| `desktop-mode-window-content-changed` | `desktop-mode.window-links.content-changed` | `{ windowId, content, previous, source }` |
+| `desktop-mode-window-link-groups-changed` | `desktop-mode.window-links.groups-changed` | `{ groups }` — fires on MEMBERSHIP change only, never on move/resize or focus reorder. |
+
+**JS filters:** `desktop-mode.window-links.content` (`( ref, { windowId, source } ) => ref | null` — rewrite or suppress an identity as it's set), `desktop-mode.window-links.groups` (reshape the computed group list on read), `desktop-mode.window-links.edges` (reshape the derived directed-edge list on read — add, drop, or redirect ties), `desktop-mode.window-links.renderers` (the renderer registry list), `desktop-mode.window-links.renderer` (`( id ) => id` — force-swap the active renderer without touching the user's setting).
+
+### `registerWindowLinkRenderer( def )` — Experimental  *(since 0.9.4)*
+
+Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved arrows on a `pointer-events: none` layer *behind* the windows: one arrowhead pointing a child at its root, both ends for mutual references) registers through this same hook. The user picks the active renderer in **OS Settings → Effects → Window links**; only one renderer is mounted at a time.
+
+**`WindowLinkRendererDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique, `/^[a-z0-9_/-]+$/`; namespace yours `vendor/sub-id`. `none` is reserved. |
+| `label` | `string` | Shown in the OS Settings selector. |
+| `description` | `string` | Optional, shown under the selector. |
+| `mount` | `( ctx ) => teardown` | Mount into the link layer; return (or resolve to) a teardown. |
+| `owner` | `string` | Optional script handle for live unregistration on plugin deactivation. |
+
+**`WindowLinkRendererContext`** (the `ctx` handed to `mount`): `container` (the shell's link layer element — you own its children), `getFrame()` (pull the current `WindowLinkFrame` snapshot), `onFrame( cb )` (push subscription — fires rAF-coalesced during window drag/resize and on group-structure changes; returns an unsubscribe).
+
+**`WindowLinkFrame`**: `{ groups, edges, container: { width, height } }`. **`edges` is what renderers should iterate** — `[ { fromWindowId, toWindowId, kind, bidirectional, focused, from, to } ]` with direction and mutual-merging already resolved; `from`/`to` are `{ x, y, width, height }` rects relative to the layer, `null` when that endpoint is minimized / on another virtual desktop (skip the edge). `groups` (`[ { key, root, members: [ { windowId, role, content, rect, focused, state } ] } ]`) remains available for renderers that want group-level visuals (hulls, badges).
+
+The dual pull/push contract makes SVG/DOM **and** canvas/Pixi renderers first-class: DOM renderers redraw in `onFrame`; a Pixi renderer appends its canvas to `container`, runs its own ticker, and polls `getFrame()` (load Pixi via `wp.desktop.loadModules( [ 'pixijs' ] )`). See [`docs/examples/window-links.md`](./examples/window-links.md) for both shapes, plus the PHP `desktop_mode_register_window_link_renderer_script()` opt-in that live-loads your renderer on plugin activation.
+
+The user's choices persist in the `windowLinkRenderer` OS-settings key (renderer id or `'none'`; default `'svg-splines'`; unknown ids fall back to the built-in) and `windowLinkVisibility` (`'always'` — the default — `'focus'` — show only while a group member is focused — or `'off'`), both readable via `getOsSettings()`. While a group member is focused, the render host also stamps `desktop-mode-window--linked` on its relative windows (a subtle outline, themeable via `--desktop-mode-window-link-accent`) and **raises the whole group** — every tied window surfaces to just below the focused one via `windowManager.raise()` (a silent restack; no focus events, minimized windows stay minimized) — and the link layer itself lifts to the group's z-floor so the ties ride above unrelated windows instead of being covered by them. Focus an unrelated window and the layer drops back behind everything.
+
+### `unregisterWindowLinkRenderer( id )` / `listWindowLinkRenderers()` — Experimental  *(since 0.9.4)*
+
+Remove a renderer by id, or read the current list (post-filter). `listWindowLinkRenderers()` always includes the built-in `svg-splines` unless a filter removed it.
 
 ---
 

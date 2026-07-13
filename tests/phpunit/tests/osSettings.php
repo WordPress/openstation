@@ -340,4 +340,86 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$loaded = desktop_mode_get_os_settings( $user_id );
 		$this->assertTrue( $loaded['developerModeEnabled'] );
 	}
+
+	// ────────────────────────────────────────────────────────────────
+	// windowLinkRenderer / windowLinkVisibility — how (and when) the
+	// relation ties between related windows are drawn. Renderer ids
+	// follow the JS registry charset (slashes for vendor/sub-id);
+	// visibility is a small closed set.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_window_link_settings() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertSame( 'svg-splines', $defaults['windowLinkRenderer'] );
+		$this->assertSame( 'always', $defaults['windowLinkVisibility'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_namespaced_window_link_renderer() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowLinkRenderer' => 'vendor/pixi-lasers' )
+		);
+		$this->assertSame( 'vendor/pixi-lasers', $clean['windowLinkRenderer'] );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowLinkRenderer' => 'none' )
+		);
+		$this->assertSame( 'none', $clean['windowLinkRenderer'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_strips_bad_window_link_renderer_chars() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowLinkRenderer' => 'SVG Splines!<script>' )
+		);
+		// Uppercase folds, everything outside [a-z0-9_/-] drops.
+		$this->assertSame( 'svgsplinesscript', $clean['windowLinkRenderer'] );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowLinkRenderer' => '!!!' )
+		);
+		$this->assertSame( 'svg-splines', $clean['windowLinkRenderer'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_window_link_visibility_is_allow_listed() {
+		foreach ( array( 'focus', 'always', 'off' ) as $mode ) {
+			$clean = desktop_mode_sanitize_os_settings(
+				array( 'windowLinkVisibility' => $mode )
+			);
+			$this->assertSame( $mode, $clean['windowLinkVisibility'] );
+		}
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowLinkVisibility' => 'sometimes' )
+		);
+		$this->assertSame( 'always', $clean['windowLinkVisibility'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_save_os_settings
+	 * @covers ::desktop_mode_get_os_settings
+	 */
+	public function test_user_meta_round_trip_keeps_window_link_settings() {
+		$user_id = self::factory()->user->create();
+		desktop_mode_save_os_settings(
+			$user_id,
+			array(
+				'windowLinkRenderer'   => 'vendor/pixi-lasers',
+				'windowLinkVisibility' => 'always',
+			)
+		);
+		$loaded = desktop_mode_get_os_settings( $user_id );
+		$this->assertSame( 'vendor/pixi-lasers', $loaded['windowLinkRenderer'] );
+		$this->assertSame( 'always', $loaded['windowLinkVisibility'] );
+	}
 }

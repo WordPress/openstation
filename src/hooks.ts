@@ -1141,6 +1141,88 @@ export const HOOKS = {
 	IFRAME_CONNECTION_REQUEST: 'desktop-mode.iframe.connection-request',
 
 	// ------------------------------------------------------------------
+	// Window content relations & link renderers (since 0.9.4). A window
+	// may carry a content identity ("I am comment 45 of post 123");
+	// windows resolving to the same root form a relation group, and a
+	// pluggable renderer draws the ties on the desktop. Engine:
+	// `src/window-links/engine.ts`; registry:
+	// `src/window-links/renderer-registry.ts`. See
+	// `docs/examples/window-links.md`.
+	// ------------------------------------------------------------------
+	/**
+	 * Action — fires when a window's content identity is set, replaced,
+	 * or cleared. Payload: `{ windowId: string, content:
+	 * WindowContentRef | null, previous: WindowContentRef | null,
+	 * source: 'config' | 'bridge' | 'api' }`. The matching
+	 * `desktop-mode-window-content-changed` CustomEvent dispatches on
+	 * `document` with the same payload.
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_CONTENT_CHANGED: 'desktop-mode.window-links.content-changed',
+	/**
+	 * Action — fires when relation-group MEMBERSHIP changes (a window
+	 * gained/lost an identity, or a member window opened/closed).
+	 * Payload: `{ groups: WindowLinkGroup[] }`. Deliberately NOT fired
+	 * on move/resize (renderers get live geometry through their frame
+	 * subscription) nor on focus-recency reordering. The matching
+	 * `desktop-mode-window-link-groups-changed` CustomEvent dispatches
+	 * on `document` with the same payload.
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_LINK_GROUPS_CHANGED: 'desktop-mode.window-links.groups-changed',
+	/**
+	 * Filter — applied to every content identity as it is set, before
+	 * storage. Signature: `( ref: WindowContentRef | null, ctx: {
+	 * windowId: string, source: 'config' | 'bridge' | 'api' } ) =>
+	 * WindowContentRef | null`. Return `null` to suppress the identity,
+	 * or a rewritten ref to remap it (e.g. point a custom object type
+	 * at your own root scheme).
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_LINKS_CONTENT: 'desktop-mode.window-links.content',
+	/**
+	 * Filter — applied to the computed relation-group list on every
+	 * read (`wp.desktop.relations.groups()`). Signature:
+	 * `( groups: WindowLinkGroup[] ) => WindowLinkGroup[]`. Merge,
+	 * split, or inject groups here.
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_LINK_GROUPS: 'desktop-mode.window-links.groups',
+	/**
+	 * Filter — applied to the derived directed-edge list on every read
+	 * (`wp.desktop.relations.edges()`). Signature: `( edges:
+	 * WindowLinkEdge[] ) => WindowLinkEdge[]` where each edge is
+	 * `{ fromWindowId, toWindowId, kind: 'child-root' | 'reference',
+	 * bidirectional }`. Add, drop, or redirect ties here — this is
+	 * what the render host feeds to the active renderer.
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_LINK_EDGES: 'desktop-mode.window-links.edges',
+	/**
+	 * Filter — applied to the registered window-link renderer list on
+	 * every read (`wp.desktop.listWindowLinkRenderers()`). Signature:
+	 * `( defs: WindowLinkRendererDef[] ) => WindowLinkRendererDef[]`.
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_LINK_RENDERERS: 'desktop-mode.window-links.renderers',
+	/**
+	 * Filter — applied to the resolved ACTIVE renderer id after the OS
+	 * Settings selection is read, before the registry lookup.
+	 * Signature: `( id: string ) => string`. Return a different
+	 * registered id (or `'none'`) to force-swap the renderer without
+	 * touching the user's setting.
+	 *
+	 * @since 0.9.4
+	 */
+	WINDOW_LINK_RENDERER: 'desktop-mode.window-links.renderer',
+
+	// ------------------------------------------------------------------
 	// OS-file drop manager (since 0.30.0). Catches files dragged from
 	// the user's host OS (Finder / Explorer / Nautilus) onto any
 	// desktop-mode surface and routes them through a confirmation

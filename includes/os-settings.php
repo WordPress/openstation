@@ -66,6 +66,13 @@ function desktop_mode_default_os_settings() {
 		'desktopLayout'               => 'classic',
 		'dockRailRenderer'            => 'default',
 		'unfocusEffect'               => 'darken',
+		// Window-link renderer id — how relation ties between windows
+		// are drawn (see includes/window-links.php). `svg-splines` is
+		// the shipped built-in; `none` disables the visuals.
+		'windowLinkRenderer'          => 'svg-splines',
+		// When the ties are visible: 'always' (default), 'focus' (only
+		// while a group member is focused), or 'off'.
+		'windowLinkVisibility'        => 'always',
 		'customGradient'              => array(
 			'from'  => '#2271b1',
 			'to'    => '#7c3aed',
@@ -282,6 +289,27 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		if ( '' !== $slug ) {
 			$unfocus_effect = $slug;
 		}
+	}
+
+	// Window-link renderer id — same id charset as unfocus effects
+	// (slashes allowed for `vendor/sub-id`). No allow-list: the JS
+	// render host resolves at use time and falls back to the built-in
+	// `svg-splines` when the picked renderer isn't registered.
+	$window_link_renderer = $defaults['windowLinkRenderer'];
+	if ( isset( $raw['windowLinkRenderer'] ) && is_string( $raw['windowLinkRenderer'] ) ) {
+		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['windowLinkRenderer'] ) );
+		if ( '' !== $slug ) {
+			$window_link_renderer = $slug;
+		}
+	}
+
+	// Window-link visibility — small closed set.
+	$window_link_visibility = $defaults['windowLinkVisibility'];
+	if (
+		isset( $raw['windowLinkVisibility'] )
+		&& in_array( $raw['windowLinkVisibility'], array( 'focus', 'always', 'off' ), true )
+	) {
+		$window_link_visibility = $raw['windowLinkVisibility'];
 	}
 
 	// Custom gradient — { from, to: valid hex; angle: int 0–360 }.
@@ -544,6 +572,8 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
 		'unfocusEffect'               => $unfocus_effect,
+		'windowLinkRenderer'          => $window_link_renderer,
+		'windowLinkVisibility'        => $window_link_visibility,
 		'customGradient'              => $custom_gradient,
 		'customImage'                 => $custom_image,
 		'libraryHdOnly'               => $library_hd_only,

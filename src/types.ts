@@ -4,6 +4,11 @@
  * @since 0.5.0
  */
 
+// Type-only cross-import — erased at compile time, so the mutual
+// reference with `window-links/types.ts` (which imports WindowState
+// from here) is safe.
+import type { WindowContentRef } from './window-links/types';
+
 /**
  * Window state enum.
  */
@@ -219,6 +224,18 @@ export interface WindowConfig {
 	 * @since 0.6.0
 	 */
 	ownerHandle?: string;
+	/**
+	 * Open-time content identity — the piece of content this window
+	 * shows, and (through `content.root`) the relation group it
+	 * belongs to. Seeds `wp.desktop.relations` the moment the window
+	 * opens; for iframe admin pages the chromeless bridge later
+	 * announces the authoritative identity and overwrites this seed.
+	 * See `src/window-links/types.ts` and
+	 * `docs/examples/window-links.md`.
+	 *
+	 * @since 0.9.4
+	 */
+	content?: WindowContentRef;
 	/**
 	 * Per-window appearance overrides — themes (CSS variables),
 	 * controls (close / minimize / maximize layout + custom buttons),
@@ -1085,6 +1102,28 @@ export interface DesktopUnfocusEffectScriptServerEntry {
 }
 
 /**
+ * Server-declared window-link renderer script entry. One per
+ * `desktop_mode_register_window_link_renderer_script()` call. The
+ * shell injects each `scriptUrl` on mid-session activation; the
+ * loaded script calls `wp.desktop.registerWindowLinkRenderer()` and
+ * the registry subscriber surfaces the renderer in OS Settings →
+ * Effects → Window links without an F5.
+ *
+ * @public
+ * @since 0.9.4
+ */
+export interface DesktopWindowLinkRendererScriptServerEntry {
+	/** WordPress script handle — doubles as the renderer `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
+	scriptTranslations?: string;
+}
+
+/**
  * Server-declared window-theme script entry. One per
  * `desktop_mode_register_window_theme_script()` call. The shell
  * injects each `scriptUrl` on mid-session activation; the loaded
@@ -1607,6 +1646,17 @@ export interface DesktopConfig {
 	 * @since 0.9.1
 	 */
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_window_link_renderer_script()`. Shell
+	 * injects each URL on boot and on mid-session activation so
+	 * newly-installed plugins surface their window-link renderer in OS
+	 * Settings → Effects → Window links live. Owner-tagged
+	 * registrations live-unregister on deactivation.
+	 *
+	 * @since 0.9.4
+	 */
+	serverWindowLinkRendererScripts?: DesktopWindowLinkRendererScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_window_theme_script()`. The shell loads

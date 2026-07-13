@@ -1,0 +1,93 @@
+/**
+ * Window links — visual ties between related windows.
+ *
+ * The link layer sits inside `#desktop-mode-area`, absolutely
+ * positioned over the whole desktop, BETWEEN the widget layer (z 1)
+ * and the windows (z 100+): the splines read as wires on the desk,
+ * visible in the gaps between windows and never over their content.
+ * `pointer-events: none` throughout — the layer must never steal a
+ * click from the desktop or a window.
+ *
+ * Tuning knobs live in `variables.css` as
+ * `--desktop-mode-window-link-*`; the SVG structure comes from the
+ * built-in `svg-splines` renderer (`src/window-links/renderers/`).
+ * Third-party renderers mount their own children into the same layer
+ * and are free to ignore all of this.
+ *
+ * @since 0.9.4
+ */
+
+.desktop-mode-window-links {
+	position: absolute;
+	inset: 0;
+	z-index: var(--desktop-mode-z-window-links, 50);
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.25s ease;
+}
+
+/*
+ * Toggled by the render host per the `windowLinkVisibility` OS
+ * setting: always on under `always`, tracking group focus under
+ * `focus`. The fade lives here so every renderer inherits it.
+ */
+.desktop-mode-window-links--visible {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.desktop-mode-window-links {
+		transition: none;
+	}
+}
+
+.desktop-mode-window-links__svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.desktop-mode-window-link__path {
+	fill: none;
+	/* Static fallback first — `color-mix()` needs Chrome 111+; on older
+	   engines the second declaration is invalid at computed-value time
+	   and the fallback wins (same posture as the titlebar colors). */
+	stroke: rgba(34, 113, 177, 0.55);
+	stroke: var(--desktop-mode-window-link-color);
+	stroke-width: var(--desktop-mode-window-link-width, 1.5px);
+	stroke-linecap: round;
+}
+
+/*
+ * Arrowhead tips (inside <defs><marker>). Two variants because a
+ * marker can't read the class of the path referencing it — the
+ * renderer swaps marker-end/-start between them on focus. Direction:
+ * one head pointing at the root/referenced window; bidirectional
+ * reference edges get heads on both ends.
+ */
+.desktop-mode-window-link__arrow {
+	fill: rgba(34, 113, 177, 0.55);
+	fill: var(--desktop-mode-window-link-color);
+}
+
+.desktop-mode-window-link__arrow--active {
+	fill: var(--desktop-mode-window-link-color-active, var(--wp-admin-theme-color, #2271b1));
+}
+
+/* Edges touching the focused window get the emphasized stroke. */
+.desktop-mode-window-link--active .desktop-mode-window-link__path {
+	stroke: var(--desktop-mode-window-link-color-active, var(--wp-admin-theme-color, #2271b1));
+	stroke-width: calc(var(--desktop-mode-window-link-width, 1.5px) + 0.5px);
+}
+
+/*
+ * Related-window chrome cue — stamped by the render host on every
+ * OTHER member of the focused window's relation group. An outline
+ * (not box-shadow) so it composes with the window's elevation shadow
+ * instead of replacing it; it follows the window's border-radius on
+ * every modern engine.
+ */
+.desktop-mode-window--linked {
+	outline: 1px solid var(--desktop-mode-window-link-accent, var(--wp-admin-theme-color, #2271b1));
+	outline-offset: 1px;
+}

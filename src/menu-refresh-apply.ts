@@ -26,6 +26,7 @@ import type {
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
+	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
@@ -46,6 +47,7 @@ export interface MenuRefreshPayload {
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
 	serverUnfocusEffectScripts?: unknown;
+	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
 	desktopIcons?: unknown;
 }
@@ -83,6 +85,9 @@ export interface MenuRefreshDeps {
 	) => Promise< void >;
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
+	) => Promise< void >;
+	syncServerWindowLinkRenderers: (
+		scripts: DesktopWindowLinkRendererScriptServerEntry[],
 	) => Promise< void >;
 	syncServerDockRailRenderers: (
 		scripts: DesktopDockRailRendererScriptServerEntry[],
@@ -191,6 +196,7 @@ export function createApplyPayload(
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		renderIcons,
 		syncShortcuts,
@@ -208,6 +214,8 @@ export function createApplyPayload(
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
 		const serverUnfocusEffectScripts = payload.serverUnfocusEffectScripts;
+		const serverWindowLinkRendererScripts =
+			payload.serverWindowLinkRendererScripts;
 		const serverWindowNotices = payload.serverWindowNotices;
 		const desktopIcons = payload.desktopIcons;
 
@@ -337,6 +345,19 @@ export function createApplyPayload(
 			);
 			config.serverUnfocusEffectScripts =
 				serverUnfocusEffectScripts as DesktopConfig[ 'serverUnfocusEffectScripts' ];
+		}
+
+		// Window-link renderer sync — same shape. Loads plugin renderer
+		// scripts on activation (their `registerWindowLinkRenderer()`
+		// surfaces in OS Settings → Effects → Window links and the
+		// render host remounts if it affects the active pick);
+		// owner-tagged sweep on deactivation.
+		if ( Array.isArray( serverWindowLinkRendererScripts ) ) {
+			void syncServerWindowLinkRenderers(
+				serverWindowLinkRendererScripts as DesktopWindowLinkRendererScriptServerEntry[],
+			);
+			config.serverWindowLinkRendererScripts =
+				serverWindowLinkRendererScripts as DesktopConfig[ 'serverWindowLinkRendererScripts' ];
 		}
 
 		// Dock rail renderer sync — load plugin renderer scripts on

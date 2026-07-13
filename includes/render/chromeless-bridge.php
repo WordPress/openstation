@@ -297,6 +297,17 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 	}
 
+	// Content identity — which object this admin page shows ("comment 45
+	// of post 123"). Built here, in real admin context, because the URL
+	// alone can't resolve relations like comment → parent post. Always
+	// emitted (including `null`) so navigating an iframe from an
+	// identified page to an unidentified one clears the stale identity
+	// in the parent's relations engine.
+	$content_identity_json = wp_json_encode( desktop_mode_build_content_identity() );
+	if ( false === $content_identity_json ) {
+		$content_identity_json = 'null';
+	}
+
 	// Emit via wp_print_inline_script_tag so CSP nonces and `<script>`
 	// attribute hygiene go through Core rather than being hand-rolled.
 	$js = <<<'JS'
@@ -323,6 +334,33 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 		return;
 	}
+
+	/*
+	 * Content-identity announcement. The server resolved which object
+	 * this page shows (post / comment / attachment, plus the root post
+	 * a child belongs to) while it still had real admin context; hand
+	 * it to the parent's relations engine. Deliberately posted even
+	 * when the identity is null — a full-page navigation away from an
+	 * identified screen must CLEAR the stale identity, and every
+	 * navigation re-runs admin_footer, so this doubles as the
+	 * re-announce-on-navigate path.
+	 *
+	 * Posted FIRST, right after the top-frame escape hatch, because it
+	 * depends on nothing else in this script: a page-specific runtime
+	 * failure in any of the feature blocks below (screen-meta harvest,
+	 * command scan, link interceptor, …) must not cost the shell its
+	 * window relations. The `desktop-mode-ready` signal intentionally
+	 * stays LAST — it means "every listener below is wired".
+	 */
+	try {
+		window.parent.postMessage(
+			{
+				type: 'desktop-mode-content-identity',
+				identity: /*__DESKTOP_MODE_CONTENT_IDENTITY__*/
+			},
+			window.location.origin
+		);
+	} catch ( _err ) { /* parent gone or cross-origin */ }
 
 	/*
 	 * Observability — iframe error + network capture.
@@ -2843,6 +2881,7 @@ JS;
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
 	$js = str_replace( '/*__DESKTOP_MODE_MENU_PAYLOAD__*/', $menu_payload_json, $js );
+	$js = str_replace( '/*__DESKTOP_MODE_CONTENT_IDENTITY__*/', $content_identity_json, $js );
 
 	wp_print_inline_script_tag( $js );
 }

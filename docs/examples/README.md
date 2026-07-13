@@ -26,6 +26,7 @@ defined( 'ABSPATH' ) || exit;
 - [Window slots — replace icon, title, banners above/below the title bar](./window-slot.md)
 - [Custom window chrome — full title-bar replacement (Experimental)](./custom-chrome.md)
 - [Register a custom unfocused-window effect (Experimental)](./custom-unfocus-effect.md)
+- [Window links — relate windows and restyle the ties (Experimental)](./window-links.md)
 - [Inject data into `desktopModeConfig`](./inject-shell-config.md)
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
 - [Register a widget — polling, storage, canvas charts](./register-widget.md)

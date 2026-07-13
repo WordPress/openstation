@@ -60,6 +60,19 @@ export interface OsSettingsSnapshot {
 	 * @since 0.9.1
 	 */
 	unfocusEffect: string;
+	/**
+	 * Active window-link renderer id; `'none'` disables the visuals,
+	 * unknown ids fall back to the built-in `'svg-splines'`.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkRenderer: string;
+	/**
+	 * When window-link ties show: `'focus'` | `'always'` | `'off'`.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkVisibility: 'focus' | 'always' | 'off';
 	ai: {
 		enabled: boolean;
 		provider: string;

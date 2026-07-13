@@ -35,6 +35,7 @@ import type {
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
+	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	NativeWindowServerEntry,
@@ -70,6 +71,9 @@ export interface MenuRefreshDeps {
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
 	) => Promise< void >;
+	syncServerWindowLinkRenderers: (
+		scripts: DesktopWindowLinkRendererScriptServerEntry[],
+	) => Promise< void >;
 	syncServerDockRailRenderers: (
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
@@ -99,6 +103,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		renderIcons,
 		syncShortcuts,
@@ -115,6 +120,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		renderIcons,
 		syncShortcuts,
@@ -138,6 +144,7 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				serverDockRailRendererScripts?: unknown;
 				serverTitleBarButtonScripts?: unknown;
 				serverUnfocusEffectScripts?: unknown;
+				serverWindowLinkRendererScripts?: unknown;
 				desktopIcons?: unknown;
 			};
 		} | null;

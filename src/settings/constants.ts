@@ -152,6 +152,8 @@ export const DEFAULTS: OsSettingsState = {
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
 	unfocusEffect: 'darken',
+	windowLinkRenderer: 'svg-splines',
+	windowLinkVisibility: 'always',
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',
