@@ -36,6 +36,12 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// second row in the Posts window just refocuses the first post's
 	// window instead of opening the new one.
 	'post',
+	// The comment ID on `comment.php?action=editcomment&c=X` — the exact
+	// analogue of `post` above. Without it every comment-edit URL
+	// collapses to `comment-php`, so opening a second comment replaces
+	// the first comment's window instead of opening its own (and the
+	// window-links ties can only ever point at one comment at a time).
+	'c',
 	// Site-editor entity path: `site-editor.php?p=/wp_template_part/
 	// twentytwentyfive//footer-columns`. Each template / template
 	// part / pattern / navigation entity is a distinct "page" from
