@@ -841,6 +841,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 *   - themes.php          — theme switch (rare but can add menus).
 	 */
 	var __DESKTOP_MODE_MENU_PAYLOAD__ = /*__DESKTOP_MODE_MENU_PAYLOAD__*/;
+	var __DESKTOP_MODE_MENU_SIG__ = /*__DESKTOP_MODE_MENU_SIG__*/;
 	/*
 	 * Icon harvest from the iframe's authoritative #adminmenu.
 	 *
@@ -941,6 +942,22 @@ function desktop_mode_chromeless_bridge_script() {
 				{
 					type: 'desktop-mode-plugins-changed',
 					payload: __DESKTOP_MODE_MENU_PAYLOAD__
+				},
+				window.location.origin
+			);
+		} else if ( __DESKTOP_MODE_MENU_SIG__ ) {
+			/*
+			 * No full payload on this page — but we still ship the cheap
+			 * menu signature so the shell can notice a menu change that
+			 * happened somewhere off the plugins/themes/update path (a
+			 * CPT registered via a settings tool, a plugin that adds a
+			 * menu on save, …) and spend a refresh probe only then.
+			 * GH#325.
+			 */
+			window.parent.postMessage(
+				{
+					type: 'desktop-mode-menu-signature',
+					sig: __DESKTOP_MODE_MENU_SIG__
 				},
 				window.location.origin
 			);
@@ -2837,12 +2854,29 @@ function desktop_mode_chromeless_bridge_script() {
 } )();
 JS;
 
+	// On pages that don't carry a full payload, ship the lightweight
+	// menu signature so the shell can detect an off-allowlist menu
+	// change (e.g. a CPT registered via a settings tool) and refresh
+	// only then. The full payload already embeds its own `menuSig`, so
+	// there's no point recomputing it when one is being sent. GH#325.
+	$menu_sig_json = 'null';
+	if ( 'null' === $menu_payload_json ) {
+		$menu_sig = desktop_mode_menu_signature();
+		if ( '' !== $menu_sig ) {
+			$encoded_sig = wp_json_encode( $menu_sig );
+			if ( false !== $encoded_sig ) {
+				$menu_sig_json = $encoded_sig;
+			}
+		}
+	}
+
 	// Substitute the server-built menu payload into the bridge
 	// script. `wp_json_encode` guarantees safe JSON output — no need
 	// for an additional escape pass. When the page isn't on our
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
 	$js = str_replace( '/*__DESKTOP_MODE_MENU_PAYLOAD__*/', $menu_payload_json, $js );
+	$js = str_replace( '/*__DESKTOP_MODE_MENU_SIG__*/', $menu_sig_json, $js );
 
 	wp_print_inline_script_tag( $js );
 }

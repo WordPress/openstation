@@ -1517,6 +1517,16 @@ export interface DesktopConfig {
 	/** The active color scheme slug. */
 	colorScheme: string;
 	/**
+	 * Baseline fingerprint of the admin menu at boot. The live
+	 * menu-refresh pipeline seeds its last-known signature from this so
+	 * an off-allowlist menu change (e.g. a custom post type registered
+	 * through a settings tool) is detected against the boot state
+	 * without a wasted refresh probe. Empty string when unavailable.
+	 *
+	 * @since 0.9.4
+	 */
+	menuSig?: string;
+	/**
 	 * Dock items derived from the admin menu. Core WordPress pages
 	 * (Dashboard, Posts, Plugins, Users, Settings, CPTs) are ordered
 	 * first; plugin-contributed top-level menus (`admin.php?page=*`)

@@ -1166,7 +1166,89 @@ function desktop_mode_build_menu_payload() {
 		$payload[ $key ] = function_exists( $builder ) ? $builder() : array();
 	}
 
+	// A cheap structural fingerprint of the admin menu the shell uses to
+	// decide whether a live refresh is warranted. Shipped in every full
+	// payload so the shell can seed / update its last-known signature
+	// without recomputing it client-side (which would risk drift from
+	// the server's capability-gated view). See
+	// desktop_mode_menu_signature().
+	$payload['menuSig'] = desktop_mode_menu_signature();
+
 	return $payload;
+}
+
+/**
+ * Cheap structural fingerprint of the current admin menu.
+ *
+ * The chromeless bridge emits the *full* menu payload only from the
+ * handful of pages whose completion commonly mutates the admin menu
+ * (activation / install / theme switch). That leaves a gap: a custom
+ * post type registered through a settings-based tool (CPT UI, Pods,
+ * ACF, …) saves on its own `admin.php?page=…` / `options.php` screen,
+ * none of which is in that list, so the new top-level menu never
+ * reaches the live dock until a full browser reload rebuilds the shell
+ * (GH#325).
+ *
+ * Building the full payload on *every* chromeless page just to catch
+ * that case would be wasteful — most navigations don't touch the menu.
+ * Instead every chromeless page ships this lightweight signature; the
+ * shell compares it against its last-known value and only spends a
+ * `wp.desktop.refreshMenu()` probe when it actually changed.
+ *
+ * The hash covers the capability-passing top-level + submenu slugs and
+ * their (badge-stripped) titles — i.e. exactly the add / remove /
+ * rename events the dock cares about. Transient badge counts (update
+ * notifications, moderation queues) are stripped so they don't churn
+ * the signature; those have their own refresh path.
+ *
+ * @since 0.9.4
+ *
+ * @return string 32-char md5 fingerprint, or '' when the menu is
+ *                unavailable (non-admin context).
+ */
+function desktop_mode_menu_signature() {
+	global $menu, $submenu;
+
+	if ( empty( $menu ) || ! is_array( $menu ) ) {
+		return '';
+	}
+
+	$clean_title = static function ( $raw ) {
+		// Mirror desktop_mode_build_dock_items(): drop badge spans first,
+		// then any remaining markup, so update counts don't move the hash.
+		$stripped = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $raw );
+		return trim( wp_strip_all_tags( (string) $stripped ) );
+	};
+
+	$parts = array();
+
+	foreach ( $menu as $item ) {
+		if ( empty( $item[2] ) ) {
+			continue;
+		}
+		if ( ! empty( $item[4] ) && false !== strpos( $item[4], 'wp-menu-separator' ) ) {
+			continue;
+		}
+		if ( ! empty( $item[1] ) && ! current_user_can( $item[1] ) ) {
+			continue;
+		}
+
+		$slug    = (string) $item[2];
+		$parts[] = $slug . '|' . $clean_title( $item[0] ?? '' );
+
+		if ( empty( $submenu[ $slug ] ) || ! is_array( $submenu[ $slug ] ) ) {
+			continue;
+		}
+		foreach ( $submenu[ $slug ] as $sub_item ) {
+			if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
+				continue;
+			}
+			$parts[] = "\t" . ( isset( $sub_item[2] ) ? (string) $sub_item[2] : '' )
+				. '|' . $clean_title( $sub_item[0] ?? '' );
+		}
+	}
+
+	return md5( implode( "\n", $parts ) );
 }
 
 /**

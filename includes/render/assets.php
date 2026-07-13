@@ -389,6 +389,10 @@ function desktop_mode_enqueue_assets() {
 			'adminUrl'         => esc_url( admin_url() ),
 			'colorScheme'      => sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' ),
 			'dockItems'        => $dock_items,
+			// Baseline menu fingerprint. The shell seeds its last-known
+			// signature from this so the first off-allowlist menu change
+			// (vs. this boot state) is caught without a wasted probe. GH#325.
+			'menuSig'          => isset( $menu_payload['menuSig'] ) ? (string) $menu_payload['menuSig'] : '',
 			'nativeWindows'    => $native_windows,
 			'serverWidgets'    => $server_widgets,
 			'serverWallpapers' => $server_wallpapers,

@@ -120,40 +120,15 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncShortcuts,
 	} );
 
-	window.addEventListener( 'message', ( e: MessageEvent ) => {
-		if ( e.origin !== INITIAL_ORIGIN ) {
-			return;
-		}
-		const data = e.data as {
-			type?: string;
-			payload?: {
-				dockItems?: unknown;
-				nativeWindows?: unknown;
-				serverWidgets?: unknown;
-				serverWallpapers?: unknown;
-				serverCommandScripts?: unknown;
-				serverCommands?: unknown;
-				serverSettingsTabScripts?: unknown;
-				serverSettingsTabs?: unknown;
-				serverDockRailRendererScripts?: unknown;
-				serverTitleBarButtonScripts?: unknown;
-				serverUnfocusEffectScripts?: unknown;
-				desktopIcons?: unknown;
-			};
-		} | null;
-		if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
-			return;
-		}
-
-		// The chromeless bridge always embeds a fresh menu payload
-		// captured from real admin context — plugins that gate
-		// `admin_menu` on `is_admin()` at load time registered
-		// normally there. Messages without a payload are stale /
-		// out-of-spec and ignored.
-		if ( data.payload ) {
-			applyPayload( data.payload );
-		}
-	} );
+	// Last-known admin-menu fingerprint. Seeded from the boot config so
+	// the first off-allowlist menu change (vs. boot state) is detected
+	// without a wasted probe. Updated whenever a full payload lands (it
+	// carries its own `menuSig`) or a lighter signature message arrives.
+	let lastMenuSig: string =
+		typeof config.menuSig === 'string' ? config.menuSig : '';
+	// Guard so a burst of signature messages (rapid window navigation)
+	// can't spawn overlapping refresh probes for the same change.
+	let sigRefreshInFlight = false;
 
 	const refresh = (): Promise< void > => {
 		if ( ! config.adminUrl ) {
@@ -206,9 +181,9 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
 					return;
 				}
-				// The shell-wide listener registered above will apply
-				// the payload. We just need to know the probe
-				// completed so we can dispose the iframe.
+				// The shell-wide `message` listener applies the payload
+				// (and adopts its signature). Here we just need to know
+				// the probe completed so we can dispose the iframe.
 				cleanup();
 			};
 
@@ -224,6 +199,77 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			document.body.appendChild( iframe );
 		} );
 	};
+
+	window.addEventListener( 'message', ( e: MessageEvent ) => {
+		if ( e.origin !== INITIAL_ORIGIN ) {
+			return;
+		}
+		const data = e.data as {
+			type?: string;
+			sig?: unknown;
+			payload?: {
+				dockItems?: unknown;
+				nativeWindows?: unknown;
+				serverWidgets?: unknown;
+				serverWallpapers?: unknown;
+				serverCommandScripts?: unknown;
+				serverCommands?: unknown;
+				serverSettingsTabScripts?: unknown;
+				serverSettingsTabs?: unknown;
+				serverDockRailRendererScripts?: unknown;
+				serverTitleBarButtonScripts?: unknown;
+				serverUnfocusEffectScripts?: unknown;
+				desktopIcons?: unknown;
+				menuSig?: unknown;
+			};
+		} | null;
+		if ( ! data ) {
+			return;
+		}
+
+		if ( data.type === 'desktop-mode-plugins-changed' ) {
+			// The chromeless bridge always embeds a fresh menu payload
+			// captured from real admin context — plugins that gate
+			// `admin_menu` on `is_admin()` at load time registered
+			// normally there. Messages without a payload are stale /
+			// out-of-spec and ignored.
+			if ( data.payload ) {
+				applyPayload( data.payload );
+				// The payload carries the authoritative signature for the
+				// state we just applied — adopt it so a later signature
+				// message for the same menu doesn't trigger a redundant
+				// refresh.
+				if ( typeof data.payload.menuSig === 'string' ) {
+					lastMenuSig = data.payload.menuSig;
+				}
+			}
+			return;
+		}
+
+		if ( data.type === 'desktop-mode-menu-signature' ) {
+			// A chromeless page off the full-payload allowlist reported
+			// its menu fingerprint. If it differs from what we last knew,
+			// the admin menu changed somewhere we don't otherwise watch
+			// (a CPT registered via a settings tool, a plugin that adds a
+			// menu on save) — spend one refresh probe to reconcile. GH#325.
+			const sig = data.sig;
+			if (
+				typeof sig === 'string' &&
+				sig !== '' &&
+				sig !== lastMenuSig &&
+				! sigRefreshInFlight
+			) {
+				// Adopt optimistically so repeat reports of the SAME new
+				// signature don't each queue a probe; a genuinely newer
+				// signature still gets through once this one settles.
+				lastMenuSig = sig;
+				sigRefreshInFlight = true;
+				void refresh().finally( () => {
+					sigRefreshInFlight = false;
+				} );
+			}
+		}
+	} );
 
 	return refresh;
 }
