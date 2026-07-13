@@ -473,9 +473,14 @@ function desktop_mode_enqueue_assets() {
 			),
 			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
-			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? desktop_mode_ai_get_platform_settings() : null,
-			'aiPlatformSettingsUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/ai/platform-settings' ) ),
-			'aiProviders'           => desktop_mode_ai_get_providers_for_config(),
+			// AI assistant availability + per-user toggle. Drives whether the
+			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.
+			'aiAssistant'           => function_exists( 'desktop_mode_ai_assistant_config' )
+				? desktop_mode_ai_assistant_config()
+				: null,
+			// Lets the Features tab re-check provider availability without a
+			// reload after a connector is configured in Settings → Connectors.
+			'aiStatusUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
 			// Comments-window AI moderation toggle — surfaced at the
@@ -485,7 +490,16 @@ function desktop_mode_enqueue_assets() {
 			// endpoint the comments-window config exposes; state is
 			// `null` for non-admins (the UI hides the row entirely).
 			'commentsAiUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
-			'commentsAi'            => current_user_can( 'manage_options' )
+			// Non-null only for admins on a site where the Core AI stack is
+			// present. Comment scoring routes through the AI Client (WP 7.0+),
+			// so on older WordPress the whole row is hidden — same as the
+			// assistant toggle — rather than shown disabled pointing at a
+			// Settings → Connectors screen that doesn't exist there.
+			'commentsAi'            => (
+				current_user_can( 'manage_options' )
+				&& function_exists( 'desktop_mode_ai_is_available' )
+				&& desktop_mode_ai_is_available()
+			)
 				? array(
 					'enabled'            => function_exists( 'desktop_mode_comments_ai_is_enabled' )
 						? desktop_mode_comments_ai_is_enabled()

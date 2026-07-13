@@ -2,14 +2,15 @@
 /**
  * Desktop Mode — AI Copilot WP-Cron jobs.
  *
- * Registers the async comment-analysis hook that calls OpenAI and stores
- * the spam/harmful verdict. The job is scheduled by the comment hook in
- * `hooks.php` with a short delay so it runs outside the HTTP request that
- * triggered the comment — keeping moderation snappy even when the OpenAI
- * API is slow.
+ * Registers the async comment-analysis hook that scores a comment for
+ * spam/harmful content and stores the verdict in comment meta. The job is
+ * scheduled by the Comments-window moderation feature (which is opt-in and
+ * off by default) with a short delay so it runs outside the HTTP request that
+ * triggered the comment.
  *
- * Comment analysis is the only auto-analysis the copilot performs; posts,
- * pages, and terms are no longer analyzed.
+ * Generation routes through the WordPress AI Client (`wp_ai_client_prompt()`),
+ * which sources credentials from Settings → Connectors — the copilot never
+ * handles an API key.
  *
  * Hook name:
  *   desktop_mode_ai_analyze_comment  ($comment_id, $user_id)
@@ -29,13 +30,16 @@ defined( 'ABSPATH' ) || exit;
  * @since 0.5.0
  *
  * @param int $comment_id The comment ID.
- * @param int $user_id    The ID of the user whose API key to use.
+ * @param int $user_id    The user to attribute the request to.
  */
 function desktop_mode_ai_job_analyze_comment( $comment_id, $user_id ) {
 	$comment_id = (int) $comment_id;
 	$user_id    = (int) $user_id;
 
-	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
+	// No usable text-generation provider is configured in Connectors — nothing
+	// to do. The scheduler already checks this, but the job runs async so we
+	// re-check to avoid emitting failed requests if the provider was removed.
+	if ( ! desktop_mode_ai_provider_configured() ) {
 		return;
 	}
 
@@ -44,11 +48,7 @@ function desktop_mode_ai_job_analyze_comment( $comment_id, $user_id ) {
 		return;
 	}
 
-	$api_key  = desktop_mode_ai_get_api_key( $user_id );
-	$messages = desktop_mode_ai_messages_for_comment( $comment );
-	$schema   = desktop_mode_ai_schema_comment();
-
-	$result = desktop_mode_ai_provider_structured_request( $user_id, $api_key, $messages, $schema, 'comment_analysis' );
+	$result = desktop_mode_ai_analyze_comment_now( $comment, $user_id );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -74,3 +74,53 @@ function desktop_mode_ai_job_analyze_comment( $comment_id, $user_id ) {
 	do_action( 'desktop_mode_ai_comment_analyzed', $comment_id, $result, $comment );
 }
 add_action( 'desktop_mode_ai_analyze_comment', 'desktop_mode_ai_job_analyze_comment', 10, 2 );
+
+/**
+ * Runs the structured comment analysis through the AI Client.
+ *
+ * Converts the chat-style prompt from {@see desktop_mode_ai_messages_for_comment()}
+ * into a system instruction + user prompt, requests JSON constrained to the
+ * comment schema, and decodes the result.
+ *
+ * @since 0.9.4
+ *
+ * @param WP_Comment $comment The comment to analyze.
+ * @param int        $user_id Requesting user id. Currently unused — the builder
+ *                            is built from the prompt alone and the provider
+ *                            comes from Connectors; retained for signature
+ *                            stability and future attribution.
+ * @return array|WP_Error Structured `{ topic, ai_summary, harmful, spam }` or an error.
+ */
+function desktop_mode_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
+	$messages = desktop_mode_ai_messages_for_comment( $comment );
+	$schema   = desktop_mode_ai_schema_comment();
+
+	$system = '';
+	$prompt = '';
+	foreach ( $messages as $message ) {
+		$role = isset( $message['role'] ) ? $message['role'] : '';
+		if ( 'system' === $role ) {
+			$system = (string) $message['content'];
+		} elseif ( 'user' === $role ) {
+			$prompt = (string) $message['content'];
+		}
+	}
+
+	$builder = wp_ai_client_prompt( $prompt );
+	if ( '' !== $system ) {
+		$builder = $builder->using_system_instruction( $system );
+	}
+	// Provider + model are chosen by the Core AI Client; Desktop Mode pins neither.
+
+	$json = $builder->as_json_response( $schema )->generate_text();
+	if ( is_wp_error( $json ) ) {
+		return $json;
+	}
+
+	$result = json_decode( (string) $json, true );
+	if ( ! is_array( $result ) ) {
+		return new WP_Error( 'desktop_mode_ai_bad_json', 'The AI response was not valid JSON.' );
+	}
+
+	return $result;
+}

@@ -32,7 +32,6 @@ defined( 'ABSPATH' ) || exit;
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)
 - [Programmatic AI Copilot — `wp.desktop.ai.ask()`](./ai-ask.md)
-- [Register a custom AI provider (Anthropic / Gemini / local LLM)](./register-ai-provider.md)
 - [Connect to a window — title-bar button + iframe pub/sub](./connect-to-window.md)
 - [Iframe-initiated window opens — open/talk to a sibling window from inside a chromeless iframe](./iframe-initiated-window.md)
 - [Native window with tabs (auto-swap pattern)](./native-window-with-tabs.md)
