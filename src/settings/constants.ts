@@ -154,6 +154,9 @@ export const DEFAULTS: OsSettingsState = {
 	unfocusEffect: 'darken',
 	windowLinkRenderer: 'svg-splines',
 	windowLinkVisibility: 'always',
+	windowLinksEnabled: true,
+	windowLinkRaiseOnFocus: true,
+	windowLinkHighlight: true,
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',

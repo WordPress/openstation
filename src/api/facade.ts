@@ -399,6 +399,17 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				osSettings.state.windowLinkVisibility =
 					patch.windowLinkVisibility;
 			}
+			if ( typeof patch.windowLinksEnabled === 'boolean' ) {
+				osSettings.state.windowLinksEnabled = patch.windowLinksEnabled;
+			}
+			if ( typeof patch.windowLinkRaiseOnFocus === 'boolean' ) {
+				osSettings.state.windowLinkRaiseOnFocus =
+					patch.windowLinkRaiseOnFocus;
+			}
+			if ( typeof patch.windowLinkHighlight === 'boolean' ) {
+				osSettings.state.windowLinkHighlight =
+					patch.windowLinkHighlight;
+			}
 			if ( patch.ai && typeof patch.ai === 'object' ) {
 				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
 			}

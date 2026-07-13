@@ -1,16 +1,19 @@
 # Window links — relate windows and restyle the ties *(Experimental, since 0.9.4)*
 
-Open a post and two of its comments in three windows and the desktop draws **arrowed splines** from each comment window to the post window — the arrowhead points at the window the content *belongs to*. Two open posts whose contents hyperlink each other get a **single spline with arrowheads on both ends**. Focusing any member of a group **raises the whole group** (related windows surface just below the focused one, without stealing focus), lifts the splines along with it so no unrelated window covers them, and marks the relatives with a subtle outline. The user tunes all of this in **OS Settings → Effects → Window links** (link style; show *always* — the default — / *when focused* / *off*).
+Open a post and two of its comments in three windows and the desktop draws **arrowed splines** from each comment window to the post window — the arrowhead points at the window the content *belongs to*. Two open posts whose contents hyperlink each other get a **single spline with arrowheads on both ends**. Focusing any member of a group **raises the whole group** (related windows surface just below the focused one, without stealing focus), lifts the splines along with it so no unrelated window covers them, and marks the relatives with a subtle outline. The user tunes all of this in two places: **OS Settings → Features → Window links** (master on/off, bring-related-to-front, highlight-related) and **OS Settings → Effects → Window links** (link style; show *always* — the default — / *when focused* / *off*).
 
-Core content relates automatically: post/page/CPT editors announce themselves as roots (plus the posts their content hyperlinks), comment-edit and attached-media screens arrive pre-rooted at their parent post (resolved server-side by the chromeless bridge — the URL alone can't answer "which post does comment 45 belong to").
+Core content relates automatically: post/page/CPT editors announce themselves as roots — plus, as outbound references, the posts their content hyperlinks, the media embedded in their content (`wp-image-{id}`, which catches inserted-but-never-attached images), their featured image, and their assigned categories/tags (`term/{taxonomy}`). Comment-edit screens, attached-media screens (both the classic editor and the `upload.php?item=N` grid detail), arrive pre-rooted at their parent post, and term edit screens (`term.php`) are roots that assigned posts point at — all resolved server-side by the chromeless bridge, since the URL alone can't answer "which post does comment 45 belong to".
 
-**Direction semantics** — the engine derives typed, directed edges from the identities; renderers just draw them:
+**Direction semantics** — one deliberate reading, applied everywhere: **the arrow points at the thing its source belongs to or refers to** (relational structure — never "which window opened which"). The engine derives typed, directed edges from the identities; renderers just draw them:
 
 | Edge kind | Derived from | Arrow |
 |---|---|---|
-| `child-root` | a ref with `root` pointing at an open root window | single head, at the root |
-| `reference` | a ref whose `links` include an object another open window shows | single head, at the referenced window |
+| `child-root` | a ref with `root` pointing at an open root window | single head, at the root — *comment → post* |
+| `child-root` | a `links` entry with `rel: 'child'` (the declarer announces something that belongs to IT — a post's embedded/featured media, which only the post knows about) | single head, at the DECLARER — *media → post* |
+| `reference` | a plain `links` entry (`rel` omitted / `'references'`) | single head, at the referenced window — *post → term*, *post A → post B (hyperlink)* |
 | `reference` + `bidirectional: true` | two windows referencing each other (merged into one edge) | heads at both ends |
+
+The two `child-root` rows are the same visible relationship expressed from either side — attached media roots itself at the post; merely-inserted media is declared by the post via `rel: 'child'`. Both draw *media → post*, so the arrow never flips over an invisible technicality like attachment state.
 
 Three extension surfaces, smallest first.
 

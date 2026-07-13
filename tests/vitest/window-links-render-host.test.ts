@@ -70,11 +70,17 @@ function makeOsSettings(
 	overrides: Partial< {
 		windowLinkRenderer: string;
 		windowLinkVisibility: string;
+		windowLinksEnabled: boolean;
+		windowLinkRaiseOnFocus: boolean;
+		windowLinkHighlight: boolean;
 	} > = {},
 ) {
 	const snapshot = {
 		windowLinkRenderer: 'svg-splines',
 		windowLinkVisibility: 'focus',
+		windowLinksEnabled: true,
+		windowLinkRaiseOnFocus: true,
+		windowLinkHighlight: true,
 		...overrides,
 	};
 	const listeners = new Set< ( s: unknown ) => void >();
@@ -138,6 +144,12 @@ afterEach( () => {
 	vi.restoreAllMocks();
 } );
 
+const BOTH_LAYERS_PATH =
+	'#desktop-mode-window-links .desktop-mode-window-link__path, ' +
+	'#desktop-mode-window-links-elevated .desktop-mode-window-link__path';
+const BOTH_LAYERS_SVG =
+	'#desktop-mode-window-links svg, #desktop-mode-window-links-elevated svg';
+
 describe( 'window-link render host — end-to-end (jsdom)', () => {
 	test( 'post + comment identities produce a mounted layer with an arrowed spline', async () => {
 		const { engine, host } = await loadModules();
@@ -178,8 +190,11 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 			'desktop-mode-widgets',
 		);
 
-		const path = layer!.querySelector( '.desktop-mode-window-link__path' );
+		// The edge touches the FOCUSED comment window → it draws on the
+		// elevated sibling layer.
+		const path = document.querySelector( BOTH_LAYERS_PATH );
 		expect( path ).not.toBeNull();
+		expect( path!.closest( '#desktop-mode-window-links-elevated' ) ).not.toBeNull();
 		expect( path!.getAttribute( 'd' ) ).toMatch( /^M .+ C .+/ );
 		// Arrow points at the post (edge target).
 		expect( path!.getAttribute( 'marker-end' ) ).toMatch( /^url\(#/ );
@@ -225,7 +240,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		flushRaf();
 
 		const path = document.querySelector(
-			'#desktop-mode-window-links .desktop-mode-window-link__path',
+			BOTH_LAYERS_PATH,
 		)!;
 		const dBefore = path.getAttribute( 'd' );
 
@@ -272,7 +287,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		flushRaf();
 
 		expect(
-			document.querySelector( '#desktop-mode-window-links svg' ),
+			document.querySelector( BOTH_LAYERS_SVG ),
 		).toBeNull();
 
 		// Flip to 'always' (nothing focused) — mounts and shows.
@@ -366,13 +381,19 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		} );
 		flushRaf();
 
-		const layer = document.getElementById( 'desktop-mode-window-links' )!;
-		// Focused (comment) group's lowest member is the post at z 100 —
-		// the layer matches it, rising above the stranger at z 101?
-		// No: it EQUALS the group's floor, and the raise (mocked here)
-		// would have pushed the stranger below in production. What we
-		// assert is the mechanism: layer z tracks the group's minimum.
-		expect( layer.style.zIndex ).toBe( '100' );
+		const layer = document.getElementById(
+			'desktop-mode-window-links-elevated',
+		)!;
+		// The ELEVATED layer rides at the group's CEILING (comment at
+		// z 102) so the focused window's ties draw over the stranger at
+		// z 101 AND over the group's own lower members. The base layer
+		// never moves; the top window still paints above the elevated
+		// layer (equal z, later in the DOM).
+		expect( layer.style.zIndex ).toBe( '102' );
+		expect(
+			document.getElementById( 'desktop-mode-window-links' )!.style
+				.zIndex,
+		).toBe( '' );
 
 		// Focus moves to the unrelated window — elevation resets to the
 		// stylesheet default (inline style cleared).
@@ -381,6 +402,91 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		hooks.doAction( HOOKS.WINDOW_FOCUSED, { windowId: 'stranger' } );
 
 		expect( layer.style.zIndex ).toBe( '' );
+	} );
+
+	test( 'the Features master switch gates everything; re-enabling mounts live', async () => {
+		const { engine, host } = await loadModules();
+		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );
+		const commentWin = makeWin(
+			'comment-win',
+			{ x: 300, y: 300, width: 100, height: 100 },
+			true,
+		);
+		const manager = makeManager( [ postWin, commentWin ] );
+		const osSettings = makeOsSettings( { windowLinksEnabled: false } );
+
+		engine.startWindowLinksEngine( { manager } );
+		host.startWindowLinkRenderHost( {
+			manager: manager as never,
+			osSettings: osSettings as never,
+		} );
+		engine.setWindowContent( 'post-win', { type: 'post', id: 1 } );
+		engine.setWindowContent( 'comment-win', {
+			type: 'comment',
+			id: 9,
+			root: { type: 'post', id: 1 },
+		} );
+		flushRaf();
+
+		// Disabled: no renderer, no raise, no highlight.
+		expect(
+			document.querySelector( BOTH_LAYERS_SVG ),
+		).toBeNull();
+		expect( manager.raise ).not.toHaveBeenCalled();
+		expect(
+			postWin.element.classList.contains( 'desktop-mode-window--linked' ),
+		).toBe( false );
+
+		// Flip the master switch back on — mounts without a reload.
+		osSettings._update( { windowLinksEnabled: true } );
+		flushRaf();
+		expect(
+			document.querySelector(
+				BOTH_LAYERS_PATH,
+			),
+		).not.toBeNull();
+	} );
+
+	test( 'the raise and highlight switches gate their behaviors independently', async () => {
+		const { engine, host } = await loadModules();
+		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );
+		const commentWin = makeWin(
+			'comment-win',
+			{ x: 300, y: 300, width: 100, height: 100 },
+			true,
+		);
+		const manager = makeManager( [ postWin, commentWin ] );
+		const osSettings = makeOsSettings( {
+			windowLinkRaiseOnFocus: false,
+			windowLinkHighlight: false,
+		} );
+
+		engine.startWindowLinksEngine( { manager } );
+		host.startWindowLinkRenderHost( {
+			manager: manager as never,
+			osSettings: osSettings as never,
+		} );
+		engine.setWindowContent( 'post-win', { type: 'post', id: 1 } );
+		engine.setWindowContent( 'comment-win', {
+			type: 'comment',
+			id: 9,
+			root: { type: 'post', id: 1 },
+		} );
+		flushRaf();
+
+		// The splines still draw…
+		expect(
+			document.querySelector(
+				BOTH_LAYERS_PATH,
+			),
+		).not.toBeNull();
+
+		// …but neither group behavior fires.
+		hooks.doAction( HOOKS.WINDOW_FOCUSED, { windowId: 'comment-win' } );
+		expect( manager.raise ).not.toHaveBeenCalled();
+		expect(
+			postWin.element.classList.contains( 'desktop-mode-window--linked' ),
+		).toBe( false );
 	} );
 
 	test( 'closing the child window clears its edge and unmounts the renderer', async () => {
@@ -408,7 +514,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		flushRaf();
 		expect(
 			document.querySelector(
-				'#desktop-mode-window-links .desktop-mode-window-link__path',
+				BOTH_LAYERS_PATH,
 			),
 		).not.toBeNull();
 
@@ -420,7 +526,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 
 		expect(
 			document.querySelector(
-				'#desktop-mode-window-links .desktop-mode-window-link__path',
+				BOTH_LAYERS_PATH,
 			),
 		).toBeNull();
 	} );

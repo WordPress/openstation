@@ -97,18 +97,58 @@ function desktop_mode_build_content_identity() {
 					'label' => get_the_title( $post ),
 				);
 
-				// Outbound references — the internal hyperlinks inside
-				// this post's content, resolved to post ids. When a
-				// window showing a linked post is open, the shell draws
-				// a directed tie toward it (mutual links collapse into
-				// one bidirectional arrow). Reuses the content-graph
-				// extractor; guarded because that module is a separate
-				// include.
+				// Outbound references — internal hyperlinks, embedded
+				// media, and assigned terms. When a window showing a
+				// referenced object is open, the shell draws a directed
+				// tie toward it (mutual links collapse into one
+				// bidirectional arrow).
 				$links = desktop_mode_window_links_extract_references( $post );
 				if ( ! empty( $links ) ) {
 					$identity['links'] = $links;
 				}
 			}
+		}
+	} elseif ( 'upload.php' === $pagenow ) {
+		// Media Library grid with a details modal open —
+		// `upload.php?item=N`. The classic attachment-edit screen
+		// (`post.php` on an attachment) is handled above; this covers
+		// the far more common grid path. Only the item present at page
+		// load is announced — the modal navigates client-side without
+		// reloading, which is fine for the primary "open this media"
+		// flow the shell produces.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+		$item_id = isset( $_GET['item'] ) ? absint( $_GET['item'] ) : 0;
+		$item    = $item_id ? get_post( $item_id ) : null;
+		if ( $item instanceof WP_Post && 'attachment' === $item->post_type ) {
+			$identity = array(
+				'type'  => 'media',
+				'id'    => (int) $item->ID,
+				'label' => get_the_title( $item ),
+			);
+
+			$parent_id   = (int) $item->post_parent;
+			$parent_type = $parent_id ? get_post_type( $parent_id ) : false;
+			if ( $parent_type ) {
+				$identity['root'] = array(
+					'type' => sanitize_key( $parent_type ),
+					'id'   => $parent_id,
+				);
+			}
+		}
+	} elseif ( 'term.php' === $pagenow ) {
+		// Term edit screen — `term.php?taxonomy=category&tag_ID=N`.
+		// A term is its own root (`term/{taxonomy}`); posts assigned to
+		// it reference it through their identity's `links`, so an open
+		// post window and its category/tag window tie together.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+		$term_id = isset( $_GET['tag_ID'] ) ? absint( $_GET['tag_ID'] ) : 0;
+		$term    = $term_id ? get_term( $term_id ) : null;
+		if ( $term instanceof WP_Term ) {
+			$identity = array(
+				'type'  => 'term/' . sanitize_key( $term->taxonomy ),
+				'id'    => (int) $term->term_id,
+				'label' => $term->name,
+			);
 		}
 	}
 
@@ -130,11 +170,24 @@ function desktop_mode_build_content_identity() {
 }
 
 /**
- * Resolve a post's outbound internal references for the identity's
- * `links` array: every `<a href>` in `post_content` that points at
- * another post on this site, as `array( 'type' => ..., 'id' => ... )`
- * entries. Attachments and self-references are skipped; the list is
- * capped so a link-farm post can't flood the shell.
+ * Resolve a post's outbound references for the identity's `links`
+ * array — everything this post's window should tie to when a window
+ * showing it is open:
+ *
+ *  1. Internal hyperlinks in `post_content` that resolve to another
+ *     post (via the content-graph extractor). Attachment pages and
+ *     self-links are skipped.
+ *  2. Media EMBEDDED in the content, harvested from the
+ *     `wp-image-{id}` class both the block and classic editors stamp
+ *     on inserted images. Deliberate: inserting an existing library
+ *     image does NOT set `post_parent` (only uploading while editing
+ *     attaches), so parent-based linking alone misses most in-content
+ *     media.
+ *  3. Assigned terms of every public taxonomy, as `term/{taxonomy}`
+ *     refs — ties the post to open category/tag windows.
+ *
+ * Deduped by type:id and capped so a link-farm post can't flood the
+ * shell.
  *
  * @since 0.9.4
  *
@@ -142,26 +195,77 @@ function desktop_mode_build_content_identity() {
  * @return array[] Reference entries, possibly empty.
  */
 function desktop_mode_window_links_extract_references( $post ) {
-	if ( ! function_exists( 'desktop_mode_content_graph_extract_internal_links' ) ) {
-		return array();
+	$links = array();
+	$seen  = array();
+	$push  = static function ( $type, $id, $rel = '' ) use ( &$links, &$seen ) {
+		$key = $type . ':' . $id;
+		if ( isset( $seen[ $key ] ) || count( $links ) >= 64 ) {
+			return;
+		}
+		$seen[ $key ] = true;
+		$entry        = array(
+			'type' => $type,
+			'id'   => (int) $id,
+		);
+		if ( 'child' === $rel ) {
+			// Arrow semantics: `child` reverses the tie — the linked
+			// object BELONGS TO this post (arrow media → post), unlike
+			// the default `references` (arrow post → target).
+			$entry['rel'] = 'child';
+		}
+		$links[] = $entry;
+	};
+
+	// 1. Internal hyperlinks → posts. Guarded: the content-graph
+	// extractor lives in a separate include.
+	if ( function_exists( 'desktop_mode_content_graph_extract_internal_links' ) ) {
+		$ids = desktop_mode_content_graph_extract_internal_links( (string) $post->post_content );
+		foreach ( array_slice( $ids, 0, 32 ) as $target_id ) {
+			$target_id = (int) $target_id;
+			if ( $target_id === (int) $post->ID ) {
+				continue;
+			}
+			$target_type = get_post_type( $target_id );
+			if ( ! $target_type || 'attachment' === $target_type ) {
+				continue;
+			}
+			$push( sanitize_key( $target_type ), $target_id );
+		}
 	}
 
-	$links = array();
-	$ids   = desktop_mode_content_graph_extract_internal_links( (string) $post->post_content );
-	foreach ( array_slice( $ids, 0, 32 ) as $target_id ) {
-		$target_id = (int) $target_id;
-		if ( $target_id === (int) $post->ID ) {
-			continue;
+	// 2. Embedded media — `wp-image-{id}` classes — plus the featured
+	// image, which never appears in `post_content` at all. Declared as
+	// `child` refs: the image BELONGS TO the post, so the arrow runs
+	// media → post, matching attached media (`post_parent` roots) —
+	// the same visible relationship must never flip direction over an
+	// invisible technicality like attachment state.
+	if ( preg_match_all( '/\bwp-image-(\d+)\b/', (string) $post->post_content, $matches ) ) {
+		foreach ( array_slice( array_unique( $matches[1] ), 0, 32 ) as $media_id ) {
+			$media_id = (int) $media_id;
+			if ( $media_id > 0 && 'attachment' === get_post_type( $media_id ) ) {
+				$push( 'media', $media_id, 'child' );
+			}
 		}
-		$target_type = get_post_type( $target_id );
-		if ( ! $target_type || 'attachment' === $target_type ) {
-			continue;
-		}
-		$links[] = array(
-			'type' => sanitize_key( $target_type ),
-			'id'   => $target_id,
-		);
 	}
+	$thumbnail_id = (int) get_post_thumbnail_id( $post );
+	if ( $thumbnail_id > 0 && 'attachment' === get_post_type( $thumbnail_id ) ) {
+		$push( 'media', $thumbnail_id, 'child' );
+	}
+
+	// 3. Assigned terms of public taxonomies.
+	foreach ( get_object_taxonomies( $post, 'objects' ) as $taxonomy ) {
+		if ( empty( $taxonomy->public ) ) {
+			continue;
+		}
+		$terms = get_the_terms( $post, $taxonomy->name );
+		if ( ! is_array( $terms ) ) {
+			continue;
+		}
+		foreach ( array_slice( $terms, 0, 32 ) as $term ) {
+			$push( 'term/' . sanitize_key( $taxonomy->name ), (int) $term->term_id );
+		}
+	}
+
 	return $links;
 }
 

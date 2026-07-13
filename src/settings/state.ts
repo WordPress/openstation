@@ -140,6 +140,18 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			parsed.windowLinkVisibility === 'off'
 				? parsed.windowLinkVisibility
 				: DEFAULTS.windowLinkVisibility,
+		windowLinksEnabled:
+			typeof parsed.windowLinksEnabled === 'boolean'
+				? parsed.windowLinksEnabled
+				: DEFAULTS.windowLinksEnabled,
+		windowLinkRaiseOnFocus:
+			typeof parsed.windowLinkRaiseOnFocus === 'boolean'
+				? parsed.windowLinkRaiseOnFocus
+				: DEFAULTS.windowLinkRaiseOnFocus,
+		windowLinkHighlight:
+			typeof parsed.windowLinkHighlight === 'boolean'
+				? parsed.windowLinkHighlight
+				: DEFAULTS.windowLinkHighlight,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
 		libraryHdOnly:

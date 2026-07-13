@@ -93,6 +93,7 @@ export function startWindowLinkRenderHost( {
 
 	let snapshot = osSettings.getOsSettingsSnapshot();
 	let layer: HTMLElement | null = null;
+	let elevatedLayer: HTMLElement | null = null;
 	let mountedId: string | null = null;
 	let teardown: ( () => void ) | null = null;
 	/** Guards async mounts racing an unmount / renderer swap. */
@@ -174,6 +175,14 @@ export function startWindowLinkRenderHost( {
 
 		// The drawable ties — direction and mutual-merge already
 		// resolved by the engine; here we only attach live geometry.
+		const zOf = ( win: DesktopWindow ): number | null => {
+			const z = Number.parseInt(
+				win.element?.style.zIndex || '',
+				10,
+			);
+			return Number.isFinite( z ) ? z : null;
+		};
+		const focusedId = manager.getFocused()?.id ?? null;
 		const edges: WindowLinkFrame[ 'edges' ] = [];
 		for ( const edge of listWindowLinkEdges() ) {
 			const fromWin = manager.getById( edge.fromWindowId );
@@ -181,20 +190,50 @@ export function startWindowLinkRenderHost( {
 			if ( ! fromWin || ! toWin ) {
 				continue;
 			}
+			const focused =
+				fromWin.isFocused() || toWin.isFocused();
 			edges.push( {
 				fromWindowId: edge.fromWindowId,
 				toWindowId: edge.toWindowId,
 				kind: edge.kind,
 				bidirectional: edge.bidirectional,
-				focused: fromWin.isFocused() || toWin.isFocused(),
+				focused,
 				from: rectOf( fromWin ),
 				to: rectOf( toWin ),
+				fromZIndex: zOf( fromWin ),
+				toZIndex: zOf( toWin ),
+				// Only ties TOUCHING the focused window ride the
+				// elevated layer — an edge between two unfocused
+				// windows must never draw over a window that happens
+				// to share a group with the focused one.
+				elevated:
+					focusedId !== null &&
+					( edge.fromWindowId === focusedId ||
+						edge.toWindowId === focusedId ),
+			} );
+		}
+
+		// EVERY visible window is a potential occluder for the
+		// visible-edge anchoring — group membership doesn't matter,
+		// an unrelated window covering a member's border hides it
+		// just the same.
+		const obstacles: WindowLinkFrame[ 'obstacles' ] = [];
+		for ( const win of manager.getAll() ) {
+			const rect = rectOf( win );
+			if ( ! rect ) {
+				continue;
+			}
+			obstacles.push( {
+				windowId: win.id,
+				rect,
+				zIndex: zOf( win ) ?? 0,
 			} );
 		}
 
 		return {
 			groups,
 			edges,
+			obstacles,
 			container: {
 				width: layer?.offsetWidth ?? 0,
 				height: layer?.offsetHeight ?? 0,
@@ -233,7 +272,7 @@ export function startWindowLinkRenderHost( {
 	// ------------------------------------------------------------------
 
 	const ensureLayer = (): HTMLElement | null => {
-		if ( layer && layer.isConnected ) {
+		if ( layer && layer.isConnected && elevatedLayer?.isConnected ) {
 			return layer;
 		}
 		const area = document.getElementById( 'desktop-mode-area' );
@@ -244,13 +283,23 @@ export function startWindowLinkRenderHost( {
 		layer.id = LAYER_ID;
 		layer.className = 'desktop-mode-window-links';
 		layer.setAttribute( 'aria-hidden', 'true' );
+		// A SIBLING (not a child): the base layer's own z-index makes
+		// it a stacking context, so a child could never rise above the
+		// windows no matter its z. The host lifts THIS layer to the
+		// focused group's ceiling; the base layer never moves.
+		elevatedLayer = document.createElement( 'div' );
+		elevatedLayer.id = `${ LAYER_ID }-elevated`;
+		elevatedLayer.className =
+			'desktop-mode-window-links desktop-mode-window-links--elevated';
+		elevatedLayer.setAttribute( 'aria-hidden', 'true' );
 		// After the widget layer so DOM order mirrors the z-order
 		// (widgets z 1 → links z 50 → windows z 100+).
 		const widgets = document.getElementById( 'desktop-mode-widgets' );
 		if ( widgets && widgets.parentElement === area ) {
+			widgets.insertAdjacentElement( 'afterend', elevatedLayer );
 			widgets.insertAdjacentElement( 'afterend', layer );
 		} else {
-			area.prepend( layer );
+			area.prepend( layer, elevatedLayer );
 		}
 		return layer;
 	};
@@ -298,18 +347,20 @@ export function startWindowLinkRenderHost( {
 		// Belt-and-braces: whatever the renderer left behind goes with
 		// it, same safety net the wallpaper mount path uses.
 		layer?.replaceChildren();
+		elevatedLayer?.replaceChildren();
 	};
 
 	const mountRenderer = ( id: string ): void => {
 		const def = getWindowLinkRenderer( id );
 		const host = ensureLayer();
-		if ( ! def || ! host ) {
+		if ( ! def || ! host || ! elevatedLayer ) {
 			return;
 		}
 		mountedId = id;
 		const token = ++mountToken;
 		const ctx: WindowLinkRendererContext = {
 			container: host,
+			elevatedContainer: elevatedLayer,
 			getFrame: buildFrame,
 			onFrame: ( cb ) => {
 				frameSubscribers.add( cb );
@@ -373,15 +424,20 @@ export function startWindowLinkRenderHost( {
 		return new Set( getRelatedWindowIds( focused.id ) );
 	};
 
+	/** The feature master switch (OS Settings → Features). */
+	const isEnabled = (): boolean => snapshot.windowLinksEnabled !== false;
+
 	const applyVisibility = (): void => {
 		if ( ! layer ) {
 			return;
 		}
 		const visible =
-			snapshot.windowLinkVisibility === 'always' ||
-			( snapshot.windowLinkVisibility === 'focus' &&
-				focusedNeighbors().size > 0 );
+			isEnabled() &&
+			( snapshot.windowLinkVisibility === 'always' ||
+				( snapshot.windowLinkVisibility === 'focus' &&
+					focusedNeighbors().size > 0 ) );
 		layer.classList.toggle( VISIBLE_CLASS, visible );
+		elevatedLayer?.classList.toggle( VISIBLE_CLASS, visible );
 	};
 
 	/**
@@ -391,7 +447,11 @@ export function startWindowLinkRenderHost( {
 	 * a group, see the whole group."
 	 */
 	const raiseRelated = (): void => {
-		if ( snapshot.windowLinkVisibility === 'off' ) {
+		if (
+			! isEnabled() ||
+			snapshot.windowLinkRaiseOnFocus === false ||
+			snapshot.windowLinkVisibility === 'off'
+		) {
 			return;
 		}
 		for ( const id of focusedNeighbors() ) {
@@ -403,18 +463,19 @@ export function startWindowLinkRenderHost( {
 	};
 
 	/**
-	 * Ride the link layer along with the raised group: while a group
-	 * member is focused, the layer's z-index lifts to match the LOWEST
-	 * window of the group — above every unrelated window (which
-	 * {@link raiseRelated} just pushed below the group), still under
-	 * the group's own windows (equal z, but windows come later in the
-	 * DOM, so they paint on top). Without this, an unrelated window
-	 * sitting between two group members would cover their spline.
-	 * Cleared back to the stylesheet default (behind all windows) when
-	 * focus leaves the group.
+	 * Ride the ELEVATED layer along with the raised group: while a
+	 * group member is focused, that layer's z-index lifts to match the
+	 * HIGHEST window of the group, so the focused window's own ties
+	 * (the only ones renderers put there — `edge.elevated`) draw over
+	 * every other window, while the top window itself still paints
+	 * above them (equal z, later in the DOM). Edges anchor on window
+	 * borders, so nothing crosses the top window's content — its
+	 * arrowheads sit right at its edge. The BASE layer never moves;
+	 * ties between unfocused windows stay behind everything. Cleared
+	 * back to the stylesheet default when focus leaves the group.
 	 */
 	const applyLayerElevation = (): void => {
-		if ( ! layer ) {
+		if ( ! elevatedLayer ) {
 			return;
 		}
 		const focused = manager.getFocused();
@@ -422,12 +483,13 @@ export function startWindowLinkRenderHost( {
 		if (
 			! focused ||
 			related.size === 0 ||
+			! isEnabled() ||
 			snapshot.windowLinkVisibility === 'off'
 		) {
-			layer.style.zIndex = '';
+			elevatedLayer.style.zIndex = '';
 			return;
 		}
-		let minZ = Infinity;
+		let maxZ = -Infinity;
 		for ( const id of [ focused.id, ...related ] ) {
 			const win = manager.getById( id );
 			const el = win?.element;
@@ -436,14 +498,18 @@ export function startWindowLinkRenderHost( {
 			}
 			const z = Number.parseInt( el.style.zIndex || '', 10 );
 			if ( Number.isFinite( z ) ) {
-				minZ = Math.min( minZ, z );
+				maxZ = Math.max( maxZ, z );
 			}
 		}
-		layer.style.zIndex = Number.isFinite( minZ ) ? String( minZ ) : '';
+		elevatedLayer.style.zIndex = Number.isFinite( maxZ )
+			? String( maxZ )
+			: '';
 	};
 
 	const applyLinkedHighlight = (): void => {
 		const next =
+			isEnabled() &&
+			snapshot.windowLinkHighlight !== false &&
 			snapshot.windowLinkVisibility !== 'off'
 				? focusedNeighbors()
 				: new Set< string >();
@@ -469,7 +535,9 @@ export function startWindowLinkRenderHost( {
 
 	const recompute = (): void => {
 		const wantedId =
-			snapshot.windowLinkVisibility !== 'off' && isRenderable()
+			isEnabled() &&
+			snapshot.windowLinkVisibility !== 'off' &&
+			isRenderable()
 				? resolveRendererId()
 				: WINDOW_LINK_RENDERER_NONE;
 
@@ -551,14 +619,19 @@ export function startWindowLinkRenderHost( {
 	// A renderer arriving (plugin activated live) or departing.
 	subscribeWindowLinkRenderers( recompute );
 
-	// The user picked a different renderer or visibility in OS Settings.
+	// The user changed a window-links setting — renderer or visibility
+	// in Effects, or the feature/behavior switches in Features.
 	osSettings.subscribeOsSettings( ( next ) => {
 		const rendererChanged =
 			next.windowLinkRenderer !== snapshot.windowLinkRenderer;
-		const visibilityChanged =
-			next.windowLinkVisibility !== snapshot.windowLinkVisibility;
+		const anyChanged =
+			rendererChanged ||
+			next.windowLinkVisibility !== snapshot.windowLinkVisibility ||
+			next.windowLinksEnabled !== snapshot.windowLinksEnabled ||
+			next.windowLinkRaiseOnFocus !== snapshot.windowLinkRaiseOnFocus ||
+			next.windowLinkHighlight !== snapshot.windowLinkHighlight;
 		snapshot = next;
-		if ( rendererChanged || visibilityChanged ) {
+		if ( anyChanged ) {
 			if ( rendererChanged && mountedId ) {
 				// Force the remount path even if the resolved id ends
 				// up identical after filters — cheap, and keeps the

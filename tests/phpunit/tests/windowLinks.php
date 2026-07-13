@@ -29,7 +29,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		unset( $_GET['c'], $GLOBALS['pagenow'], $GLOBALS['post'] );
+		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $GLOBALS['pagenow'], $GLOBALS['post'] );
 		remove_all_filters( 'desktop_mode_window_content_identity' );
 		parent::tear_down();
 	}
@@ -275,12 +275,12 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 
 		$identity = desktop_mode_build_content_identity();
 
-		$this->assertSame(
+		// The hyperlinked post is referenced; the default category
+		// (Uncategorized) rides along as a term ref — filter by type.
+		$this->assertContains(
 			array(
-				array(
-					'type' => 'post',
-					'id'   => $target_id,
-				),
+				'type' => 'post',
+				'id'   => $target_id,
 			),
 			$identity['links']
 		);
@@ -292,10 +292,167 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	public function test_reference_extraction_skips_self_links() {
 		$post_id = self::factory()->post->create();
 		$post    = get_post( $post_id );
-		// Self-link only — nothing to reference.
+		// Self-link only — no post refs may survive (term refs from the
+		// default category are expected and fine).
 		$post->post_content = '<a href="' . get_permalink( $post_id ) . '">me</a>';
 
-		$this->assertSame( array(), desktop_mode_window_links_extract_references( $post ) );
+		$post_refs = array_filter(
+			desktop_mode_window_links_extract_references( $post ),
+			static function ( $ref ) {
+				return 'post' === $ref['type'];
+			}
+		);
+		$this->assertSame( array(), $post_refs );
+	}
+
+	/**
+	 * Media EMBEDDED in content (wp-image-{id}) is referenced even when
+	 * unattached — inserting a library image never sets post_parent, so
+	 * this is the path most in-content media relies on.
+	 *
+	 * @covers ::desktop_mode_window_links_extract_references
+	 */
+	public function test_reference_extraction_includes_embedded_media() {
+		$attachment_id = self::factory()->attachment->create_object(
+			'embedded.jpg',
+			0,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+		$post_id = self::factory()->post->create(
+			array(
+				'post_content' => '<img class="alignnone wp-image-' . $attachment_id . '" src="x.jpg" /> and a bogus <span class="wp-image-999999"></span>',
+			)
+		);
+
+		$links = desktop_mode_window_links_extract_references( get_post( $post_id ) );
+
+		$this->assertContains(
+			array(
+				'type' => 'media',
+				'id'   => $attachment_id,
+				'rel'  => 'child',
+			),
+			$links
+		);
+		// The non-attachment id is dropped.
+		foreach ( $links as $ref ) {
+			$this->assertNotSame( 999999, $ref['id'] );
+		}
+	}
+
+	/**
+	 * The featured image never appears in post_content — it must be
+	 * referenced via `_thumbnail_id`.
+	 *
+	 * @covers ::desktop_mode_window_links_extract_references
+	 */
+	public function test_reference_extraction_includes_featured_image() {
+		$attachment_id = self::factory()->attachment->create_object(
+			'featured.jpg',
+			0,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+		$post_id = self::factory()->post->create();
+		set_post_thumbnail( $post_id, $attachment_id );
+
+		$links = desktop_mode_window_links_extract_references( get_post( $post_id ) );
+
+		$this->assertContains(
+			array(
+				'type' => 'media',
+				'id'   => $attachment_id,
+				'rel'  => 'child',
+			),
+			$links
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_window_links_extract_references
+	 */
+	public function test_reference_extraction_includes_assigned_terms() {
+		$term_id = self::factory()->category->create( array( 'name' => 'Consoles' ) );
+		$post_id = self::factory()->post->create();
+		wp_set_post_categories( $post_id, array( $term_id ) );
+
+		$links = desktop_mode_window_links_extract_references( get_post( $post_id ) );
+
+		$this->assertContains(
+			array(
+				'type' => 'term/category',
+				'id'   => $term_id,
+			),
+			$links
+		);
+	}
+
+	/**
+	 * The Media Library grid path — `upload.php?item=N` — announces the
+	 * media identity, rooted at its parent when attached.
+	 *
+	 * @covers ::desktop_mode_build_content_identity
+	 */
+	public function test_upload_grid_item_identity() {
+		$post_id       = self::factory()->post->create();
+		$attachment_id = self::factory()->attachment->create_object(
+			'grid.jpg',
+			$post_id,
+			array(
+				'post_mime_type' => 'image/jpeg',
+				'post_title'     => 'Grid Photo',
+			)
+		);
+
+		$GLOBALS['pagenow'] = 'upload.php';
+		$_GET['item']       = (string) $attachment_id;
+		set_current_screen( 'upload' );
+
+		$identity = desktop_mode_build_content_identity();
+
+		$this->assertSame( 'media', $identity['type'] );
+		$this->assertSame( $attachment_id, $identity['id'] );
+		$this->assertSame(
+			array(
+				'type' => 'post',
+				'id'   => $post_id,
+			),
+			$identity['root']
+		);
+
+		unset( $_GET['item'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_build_content_identity
+	 */
+	public function test_upload_grid_without_item_yields_null() {
+		$GLOBALS['pagenow'] = 'upload.php';
+		set_current_screen( 'upload' );
+
+		$this->assertNull( desktop_mode_build_content_identity() );
+	}
+
+	/**
+	 * The term edit screen is its own root — posts assigned to the term
+	 * reference it via their `links`.
+	 *
+	 * @covers ::desktop_mode_build_content_identity
+	 */
+	public function test_term_edit_screen_identity() {
+		$term_id = self::factory()->category->create( array( 'name' => 'Consoles' ) );
+
+		$GLOBALS['pagenow'] = 'term.php';
+		$_GET['tag_ID']     = (string) $term_id;
+		set_current_screen( 'edit-category' );
+
+		$identity = desktop_mode_build_content_identity();
+
+		$this->assertSame( 'term/category', $identity['type'] );
+		$this->assertSame( $term_id, $identity['id'] );
+		$this->assertSame( 'Consoles', $identity['label'] );
+		$this->assertArrayNotHasKey( 'root', $identity );
+
+		unset( $_GET['tag_ID'] );
 	}
 
 	// ────────────────────────────────────────────────────────────────

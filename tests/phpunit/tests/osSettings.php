@@ -435,4 +435,49 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$this->assertSame( 'vendor/pixi-lasers', $loaded['windowLinkRenderer'] );
 		$this->assertSame( 'always', $loaded['windowLinkVisibility'] );
 	}
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_window_links_feature_switches_default_on_and_sanitize() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertTrue( $defaults['windowLinksEnabled'] );
+		$this->assertTrue( $defaults['windowLinkRaiseOnFocus'] );
+		$this->assertTrue( $defaults['windowLinkHighlight'] );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'windowLinksEnabled'     => false,
+				'windowLinkRaiseOnFocus' => 0,
+				'windowLinkHighlight'    => '1',
+			)
+		);
+		$this->assertFalse( $clean['windowLinksEnabled'] );
+		$this->assertFalse( $clean['windowLinkRaiseOnFocus'] );
+		$this->assertTrue( $clean['windowLinkHighlight'] );
+
+		// Missing keys fall back to defaults.
+		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$this->assertTrue( $clean['windowLinksEnabled'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_save_os_settings
+	 * @covers ::desktop_mode_get_os_settings
+	 */
+	public function test_user_meta_round_trip_keeps_window_links_feature_switches() {
+		$user_id = self::factory()->user->create();
+		desktop_mode_save_os_settings(
+			$user_id,
+			array(
+				'windowLinksEnabled'     => false,
+				'windowLinkRaiseOnFocus' => false,
+			)
+		);
+		$loaded = desktop_mode_get_os_settings( $user_id );
+		$this->assertFalse( $loaded['windowLinksEnabled'] );
+		$this->assertFalse( $loaded['windowLinkRaiseOnFocus'] );
+		$this->assertTrue( $loaded['windowLinkHighlight'] );
+	}
 }

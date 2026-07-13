@@ -147,10 +147,13 @@ function validateRef( ref: unknown ): string[] {
 							!! l &&
 							typeof l === 'object' &&
 							isValidType( l.type ) &&
-							isValidId( l.id ),
+							isValidId( l.id ) &&
+							( l.rel === undefined ||
+								l.rel === 'references' ||
+								l.rel === 'child' ),
 					) ),
 			message:
-				'when present, must be an array of { type, id } entries',
+				"when present, must be an array of { type, id, rel?: 'references'|'child' } entries",
 		},
 	] );
 }
@@ -172,10 +175,17 @@ function normalizeRef(
 		};
 	}
 	if ( Array.isArray( ref.links ) && ref.links.length > 0 ) {
-		next.links = ref.links.slice( 0, MAX_LINKS ).map( ( l ) => ( {
-			type: l.type.trim().toLowerCase(),
-			id: l.id,
-		} ) );
+		next.links = ref.links.slice( 0, MAX_LINKS ).map( ( l ) => {
+			const entry: NonNullable< WindowContentRef[ 'links' ] >[ number ] =
+				{
+					type: l.type.trim().toLowerCase(),
+					id: l.id,
+				};
+			if ( l.rel === 'child' ) {
+				entry.rel = 'child';
+			}
+			return entry;
+		} );
 	}
 	if ( typeof ref.label === 'string' && ref.label !== '' ) {
 		next.label = ref.label;
@@ -191,7 +201,9 @@ function refSignature( ref: WindowContentRef | null ): string {
 	return [
 		keyOf( ref ),
 		rootKeyOf( ref ),
-		...( ref.links ?? [] ).map( keyOf ),
+		...( ref.links ?? [] ).map(
+			( l ) => keyOf( l ) + ( l.rel === 'child' ? '!child' : '' ),
+		),
 	].join( '|' );
 }
 
@@ -437,6 +449,23 @@ export function listWindowLinkEdges(): WindowLinkEdge[] {
 			if ( ! target || target === windowId ) {
 				continue;
 			}
+			if ( link.rel === 'child' ) {
+				// The linked object belongs to THIS window's content
+				// (media embedded in a post) — same direction as a
+				// root tie: target → declarer, "belongs to" arrow.
+				// Upgrades a plain reference already on that pair.
+				const key = directedKey( target, windowId );
+				const existing = edges.get( key );
+				if ( ! existing || existing.kind !== 'child-root' ) {
+					edges.set( key, {
+						fromWindowId: target,
+						toWindowId: windowId,
+						kind: 'child-root',
+						bidirectional: false,
+					} );
+				}
+				continue;
+			}
 			const key = directedKey( windowId, target );
 			// `child-root` wins over `reference` on the same directed
 			// pair — "belongs to" subsumes "links to".
@@ -451,7 +480,10 @@ export function listWindowLinkEdges(): WindowLinkEdge[] {
 		}
 	}
 
-	// Collapse mutual reference pairs into one bidirectional edge.
+	// Collapse mutual reference pairs into one bidirectional edge, and
+	// let a child-root edge absorb a reverse reference on the same
+	// pair — media attached to AND embedded in a post would otherwise
+	// draw two opposite splines between the same two windows.
 	const merged: WindowLinkEdge[] = [];
 	const dropped = new Set< string >();
 	for ( const [ key, edge ] of edges ) {
@@ -460,16 +492,17 @@ export function listWindowLinkEdges(): WindowLinkEdge[] {
 		}
 		const reverseKey = directedKey( edge.toWindowId, edge.fromWindowId );
 		const reverse = edges.get( reverseKey );
-		if (
-			reverse &&
-			edge.kind === 'reference' &&
-			reverse.kind === 'reference'
-		) {
-			dropped.add( reverseKey );
-			merged.push( { ...edge, bidirectional: true } );
-		} else {
-			merged.push( edge );
+		if ( reverse && edge.kind === 'reference' ) {
+			if ( reverse.kind === 'reference' ) {
+				dropped.add( reverseKey );
+				merged.push( { ...edge, bidirectional: true } );
+				continue;
+			}
+			// Reverse is child-root — "belongs to" subsumes "links
+			// to"; skip this reference and let the child-root stand.
+			continue;
 		}
+		merged.push( edge );
 	}
 
 	const filtered = applyFilters< WindowLinkEdge[] >(

@@ -102,13 +102,18 @@
 
 	/*
 	 * Window-link ties (relation splines between windows). The accent
-	 * follows the admin color scheme; alpha keeps the resting lines
-	 * quiet against any wallpaper. Overridable per scheme or by
-	 * plugins/themes without touching the renderer.
+	 * follows the admin color scheme. Solid colors only — the resting
+	 * dimming is done with stroke-opacity/fill-opacity in
+	 * window-links.css, NOT color-mix(): an unresolvable color-mix()
+	 * inside a custom property makes the consuming declaration invalid
+	 * at computed-value time, which turns SVG strokes invisible and
+	 * marker fills black (the written rgba() fallback declaration is
+	 * already gone from the cascade by then). Overridable per scheme
+	 * or by plugins/themes without touching the renderer.
 	 *
 	 * @since 0.9.4
 	 */
-	--desktop-mode-window-link-color: color-mix(in srgb, var(--wp-admin-theme-color, #2271b1) 55%, transparent);
+	--desktop-mode-window-link-color: var(--wp-admin-theme-color, #2271b1);
 	--desktop-mode-window-link-color-active: var(--wp-admin-theme-color, #2271b1);
 	--desktop-mode-window-link-width: 1.5px;
 	--desktop-mode-window-link-accent: var(--wp-admin-theme-color, #2271b1);

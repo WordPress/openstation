@@ -27,6 +27,17 @@
 
 import { __ } from '../../i18n';
 import { registerWindowLinkRenderer } from '../renderer-registry';
+import {
+	anchorOnBorder,
+	centerOf,
+	closestBorderAnchors,
+	controlPoint,
+	isPointVisible,
+	visibleBorderAnchor,
+	type LinkAnchor,
+	type LinkObstacle,
+	type LinkRect,
+} from '../geometry';
 import type { WindowLinkFrame } from '../types';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -37,70 +48,39 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  */
 let _mountSeq = 0;
 
-interface Rect {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-}
-
 interface EdgeElements {
 	group: SVGGElement;
 	path: SVGPathElement;
 }
 
 /**
- * Intersection of the segment `center(rect) → toward` with the rect's
- * border, so splines anchor on window edges instead of starting under
- * the window body. Falls back to the center when the segment is
- * degenerate (concentric windows).
+ * Best anchor for an edge endpoint. The classic center-ray border
+ * intersection wins while it is actually VISIBLE — that keeps several
+ * ties fanning naturally into the same window instead of piling onto
+ * one midpoint. When that point is covered by a higher window (the
+ * cascaded-comments case), the anchor relocates to the midpoint of
+ * the closest visible border stretch, so the tie starts where the
+ * user can see the window. A fully covered window falls back to the
+ * classic anchor — the tie then honestly emerges from under the pile.
  */
-function anchorOnBorder(
-	rect: Rect,
+function endpointAnchor(
+	rect: LinkRect,
+	zIndex: number | null,
+	windowId: string,
+	obstacles: LinkObstacle[],
 	toward: { x: number; y: number },
-): { x: number; y: number; side: 'left' | 'right' | 'top' | 'bottom' } {
-	const cx = rect.x + rect.width / 2;
-	const cy = rect.y + rect.height / 2;
-	const dx = toward.x - cx;
-	const dy = toward.y - cy;
-	if ( dx === 0 && dy === 0 ) {
-		return { x: cx, y: cy, side: 'right' };
+): LinkAnchor {
+	const classic = anchorOnBorder( rect, toward );
+	if (
+		zIndex === null ||
+		isPointVisible( classic, zIndex, obstacles, windowId )
+	) {
+		return classic;
 	}
-	// Scale factor to the first border hit along each axis.
-	const sx = dx !== 0 ? rect.width / 2 / Math.abs( dx ) : Infinity;
-	const sy = dy !== 0 ? rect.height / 2 / Math.abs( dy ) : Infinity;
-	const s = Math.min( sx, sy );
-	const x = cx + dx * s;
-	const y = cy + dy * s;
-	let side: 'left' | 'right' | 'top' | 'bottom';
-	if ( sx <= sy ) {
-		side = dx > 0 ? 'right' : 'left';
-	} else {
-		side = dy > 0 ? 'bottom' : 'top';
-	}
-	return { x, y, side };
-}
-
-/** Control-point offset along the anchor's outward edge normal. */
-function controlPoint(
-	anchor: { x: number; y: number; side: string },
-	distance: number,
-): { x: number; y: number } {
-	const k = Math.min( 160, Math.max( 24, 0.4 * distance ) );
-	switch ( anchor.side ) {
-		case 'left':
-			return { x: anchor.x - k, y: anchor.y };
-		case 'right':
-			return { x: anchor.x + k, y: anchor.y };
-		case 'top':
-			return { x: anchor.x, y: anchor.y - k };
-		default:
-			return { x: anchor.x, y: anchor.y + k };
-	}
-}
-
-function centerOf( rect: Rect ): { x: number; y: number } {
-	return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+	return (
+		visibleBorderAnchor( rect, zIndex, obstacles, windowId, toward ) ??
+		classic
+	);
 }
 
 /**
@@ -148,23 +128,49 @@ registerWindowLinkRenderer( {
 		'Curved arrows between related windows — a single arrowhead points a comment or media window at its post; windows that reference each other get arrows on both ends.',
 	),
 	mount: ( ctx ) => {
-		const svg = document.createElementNS( SVG_NS, 'svg' );
-		svg.classList.add( 'desktop-mode-window-links__svg' );
-		ctx.container.appendChild( svg );
-		const markers = buildMarkers(
-			svg,
-			`desktop-mode-window-link-${ ++_mountSeq }`,
-		);
+		// Two drawing surfaces: the base layer (always behind windows)
+		// and the elevated layer the host lifts to the focused group's
+		// ceiling. Each edge routes by `edge.elevated`, so only the
+		// focused window's ties ride above other windows. Markers are
+		// per-surface (a marker reference can't cross <svg> roots).
+		const seq = ++_mountSeq;
+		const buildSurface = (
+			container: HTMLElement,
+			suffix: string,
+		): { svg: SVGSVGElement; markers: { normal: string; active: string } } => {
+			const svg = document.createElementNS( SVG_NS, 'svg' );
+			svg.classList.add( 'desktop-mode-window-links__svg' );
+			container.appendChild( svg );
+			return {
+				svg,
+				markers: buildMarkers(
+					svg,
+					`desktop-mode-window-link-${ seq }${ suffix }`,
+				),
+			};
+		};
+		const surfaces = {
+			base: buildSurface( ctx.container, '' ),
+			elevated: buildSurface( ctx.elevatedContainer, '-elevated' ),
+		};
 
-		const edges = new Map< string, EdgeElements >();
+		const edges = new Map<
+			string,
+			EdgeElements & { surface: 'base' | 'elevated' }
+		>();
 
 		const draw = ( frame: WindowLinkFrame ): void => {
-			svg.setAttribute( 'width', String( frame.container.width ) );
-			svg.setAttribute( 'height', String( frame.container.height ) );
-			svg.setAttribute(
-				'viewBox',
-				`0 0 ${ frame.container.width } ${ frame.container.height }`,
-			);
+			for ( const { svg } of [ surfaces.base, surfaces.elevated ] ) {
+				svg.setAttribute( 'width', String( frame.container.width ) );
+				svg.setAttribute(
+					'height',
+					String( frame.container.height ),
+				);
+				svg.setAttribute(
+					'viewBox',
+					`0 0 ${ frame.container.width } ${ frame.container.height }`,
+				);
+			}
 
 			const seen = new Set< string >();
 			for ( const edge of frame.edges ) {
@@ -174,22 +180,84 @@ registerWindowLinkRenderer( {
 				const key = `${ edge.fromWindowId }→${ edge.toWindowId }:${ edge.kind }`;
 				seen.add( key );
 
+				const surfaceName = edge.elevated ? 'elevated' : 'base';
 				let el = edges.get( key );
+				if ( el && el.surface !== surfaceName ) {
+					// The edge switched layers (focus moved onto / off
+					// one of its endpoints) — rebuild it on the other
+					// surface; markers differ per surface.
+					el.group.remove();
+					edges.delete( key );
+					el = undefined;
+				}
 				if ( ! el ) {
 					const group = document.createElementNS( SVG_NS, 'g' );
 					group.classList.add( 'desktop-mode-window-link' );
 					const path = document.createElementNS( SVG_NS, 'path' );
 					path.classList.add( 'desktop-mode-window-link__path' );
 					group.appendChild( path );
-					svg.appendChild( group );
-					el = { group, path };
+					surfaces[ surfaceName ].svg.appendChild( group );
+					el = { group, path, surface: surfaceName };
 					edges.set( key, el );
 				}
 
-				const fromCenter = centerOf( edge.from );
-				const toCenter = centerOf( edge.to );
-				const start = anchorOnBorder( edge.from, toCenter );
-				const end = anchorOnBorder( edge.to, fromCenter );
+				const obstacles = frame.obstacles ?? [];
+				// Anchor preference, per endpoint: (1) the SHORTEST
+				// edge-to-edge connection between the two windows —
+				// when that point is actually visible; (2) otherwise
+				// the occlusion-aware chain (classic center-ray while
+				// visible, else the closest visible border stretch).
+				const shortest = closestBorderAnchors( edge.from, edge.to );
+				const visibleAt = (
+					anchor: LinkAnchor,
+					zIndex: number | null,
+					windowId: string,
+				): boolean =>
+					zIndex === null ||
+					isPointVisible( anchor, zIndex, obstacles, windowId );
+
+				let start: LinkAnchor | null = null;
+				if (
+					shortest &&
+					visibleAt(
+						shortest.from,
+						edge.fromZIndex,
+						edge.fromWindowId,
+					)
+				) {
+					start = shortest.from;
+				}
+				if ( ! start ) {
+					start = endpointAnchor(
+						edge.from,
+						edge.fromZIndex,
+						edge.fromWindowId,
+						obstacles,
+						shortest
+							? { x: shortest.to.x, y: shortest.to.y }
+							: centerOf( edge.to ),
+					);
+				}
+
+				let end: LinkAnchor | null = null;
+				if (
+					shortest &&
+					visibleAt( shortest.to, edge.toZIndex, edge.toWindowId )
+				) {
+					end = shortest.to;
+				}
+				if ( ! end ) {
+					end = endpointAnchor(
+						edge.to,
+						edge.toZIndex,
+						edge.toWindowId,
+						obstacles,
+						// Aim the target anchor at the resolved source
+						// anchor so the curve's two ends agree when
+						// either moved off the shortest pair.
+						{ x: start.x, y: start.y },
+					);
+				}
 				const distance = Math.hypot(
 					end.x - start.x,
 					end.y - start.y,
@@ -205,6 +273,7 @@ registerWindowLinkRenderer( {
 				// Direction: the arrow always points at the edge target
 				// (`to` — the root / referenced window); bidirectional
 				// reference edges get a second head at the start.
+				const markers = surfaces[ el.surface ].markers;
 				const marker = edge.focused ? markers.active : markers.normal;
 				el.path.setAttribute( 'marker-end', `url(#${ marker })` );
 				if ( edge.bidirectional ) {
@@ -237,7 +306,8 @@ registerWindowLinkRenderer( {
 		return () => {
 			unsubscribe();
 			edges.clear();
-			svg.remove();
+			surfaces.base.svg.remove();
+			surfaces.elevated.svg.remove();
 		};
 	},
 } );

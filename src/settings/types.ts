@@ -122,6 +122,28 @@ export interface OsSettingsState {
 	 * @since 0.9.4
 	 */
 	windowLinkVisibility: 'focus' | 'always' | 'off';
+	/**
+	 * Master switch for the window-links feature (OS Settings →
+	 * Features). Off unmounts the visuals and disables the group
+	 * behaviors; the style knobs keep their values. Default on.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinksEnabled: boolean;
+	/**
+	 * Focusing a relation-group member raises its related windows to
+	 * just below it. Default on.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkRaiseOnFocus: boolean;
+	/**
+	 * Related windows of the focused member get a subtle outline.
+	 * Default on.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkHighlight: boolean;
 	customGradient: CustomGradient;
 	customImage: CustomImage | null;
 	/**

@@ -49,15 +49,26 @@ export interface WindowContentRef {
 	/**
 	 * Outbound references from this window's content to OTHER objects
 	 * — e.g. the internal hyperlinks inside a post's content, resolved
-	 * server-side by the chromeless bridge. When a window showing a
-	 * referenced object is open, the engine derives a directed
-	 * `reference` edge toward it; two windows referencing each other
-	 * collapse into one bidirectional edge. Not part of group
+	 * server-side by the chromeless bridge. Not part of group
 	 * membership — links draw ties without re-rooting anything.
+	 *
+	 * ARROW SEMANTICS (single, deliberate reading — relational
+	 * structure, never navigation history): an arrow points at the
+	 * thing its source belongs to or refers to.
+	 *
+	 *  - `rel: 'references'` (the default): "my content points at
+	 *    that" — the edge runs from THIS window to the referenced one
+	 *    (a post hyperlinking another post). Mutual references merge
+	 *    into one bidirectional edge.
+	 *  - `rel: 'child'`: "that belongs to ME" — the edge runs from the
+	 *    referenced window to THIS one, exactly like a `root` tie
+	 *    (media embedded in a post is the post's child, even though
+	 *    only the post knows about the relationship at announce time).
 	 */
 	links?: Array< {
 		type: string;
 		id: number | string;
+		rel?: 'references' | 'child';
 	} >;
 	/**
 	 * Optional human-readable label (post title, comment excerpt) for
@@ -163,6 +174,29 @@ export interface WindowLinkFrame {
 		focused: boolean;
 		from: { x: number; y: number; width: number; height: number } | null;
 		to: { x: number; y: number; width: number; height: number } | null;
+		/** Endpoint stacking positions, for occlusion-aware anchoring. */
+		fromZIndex: number | null;
+		toZIndex: number | null;
+		/**
+		 * True when this edge touches the FOCUSED window — renderers
+		 * should draw it into `ctx.elevatedContainer` so it rides above
+		 * the other windows while the group is surfaced. Every other
+		 * edge belongs in `ctx.container`, behind the windows.
+		 */
+		elevated: boolean;
+	} >;
+	/**
+	 * Every visible window on the desk (group member or not), with its
+	 * stacking position — the occluder set for visible-edge anchoring
+	 * (see `src/window-links/geometry.ts`). Renderers that anchor on
+	 * window borders should prefer a border stretch not covered by a
+	 * higher window, so a tie never appears to sprout from a window
+	 * that is merely hiding its real endpoint.
+	 */
+	obstacles: Array< {
+		windowId: string;
+		rect: { x: number; y: number; width: number; height: number };
+		zIndex: number;
 	} >;
 	/** Current size of the link layer, for sizing an SVG or canvas. */
 	container: {
@@ -178,12 +212,21 @@ export interface WindowLinkFrame {
  */
 export interface WindowLinkRendererContext {
 	/**
-	 * The shell's link layer — absolutely positioned over the desktop
-	 * area, `pointer-events: none`, stacked between the widget layer
-	 * and the windows. The renderer owns its children; the host wipes
-	 * them after teardown as a safety net.
+	 * The shell's BASE link layer — absolutely positioned over the
+	 * desktop area, `pointer-events: none`, stacked between the widget
+	 * layer and the windows (always behind every window). The renderer
+	 * owns its children; the host wipes them after teardown as a
+	 * safety net.
 	 */
 	container: HTMLElement;
+	/**
+	 * A sibling layer the host lifts to the focused group's z-ceiling
+	 * (and drops back when focus leaves the group). Draw an edge here
+	 * when `edge.elevated` is true so the focused window's ties stay
+	 * visible above other windows; ignore it entirely to keep the old
+	 * everything-behind-windows behavior.
+	 */
+	elevatedContainer: HTMLElement;
 	/** Pull the current frame snapshot. */
 	getFrame: () => WindowLinkFrame;
 	/**

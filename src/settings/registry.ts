@@ -73,6 +73,12 @@ export interface OsSettingsSnapshot {
 	 * @since 0.9.4
 	 */
 	windowLinkVisibility: 'focus' | 'always' | 'off';
+	/** Master switch for the window-links feature. Default on. @since 0.9.4 */
+	windowLinksEnabled: boolean;
+	/** Raise related windows when a group member is focused. @since 0.9.4 */
+	windowLinkRaiseOnFocus: boolean;
+	/** Outline related windows of the focused member. @since 0.9.4 */
+	windowLinkHighlight: boolean;
 	/**
 	 * AI assistant preference. `enabled` is the per-user on/off toggle
 	 * (opt-in, default off). Credentials live in WordPress Core's Settings →

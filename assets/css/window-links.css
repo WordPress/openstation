@@ -2,9 +2,11 @@
  * Window links — visual ties between related windows.
  *
  * The link layer sits inside `#desktop-mode-area`, absolutely
- * positioned over the whole desktop, BETWEEN the widget layer (z 1)
- * and the windows (z 100+): the splines read as wires on the desk,
- * visible in the gaps between windows and never over their content.
+ * positioned over the whole desktop. At rest it stacks BETWEEN the
+ * widget layer (z 1) and the windows (z 100+) — wires on the desk,
+ * visible in the gaps. While a relation-group member is focused, the
+ * render host lifts the layer to the group's z-ceiling via an inline
+ * z-index so the ties draw over every window except the top one.
  * `pointer-events: none` throughout — the layer must never steal a
  * click from the desktop or a window.
  *
@@ -49,11 +51,14 @@
 
 .desktop-mode-window-link__path {
 	fill: none;
-	/* Static fallback first — `color-mix()` needs Chrome 111+; on older
-	   engines the second declaration is invalid at computed-value time
-	   and the fallback wins (same posture as the titlebar colors). */
-	stroke: rgba(34, 113, 177, 0.55);
-	stroke: var(--desktop-mode-window-link-color);
+	/* Solid scheme color + opacity for the resting dimming. No
+	   color-mix() anywhere in this chain: when a custom property's
+	   value can't resolve, the consuming declaration goes invalid at
+	   computed-value time and an SVG stroke resets to `none` —
+	   invisible lines under floating black arrowheads. The var()
+	   fallback covers a missing token outright. */
+	stroke: var(--desktop-mode-window-link-color, #2271b1);
+	stroke-opacity: 0.55;
 	stroke-width: var(--desktop-mode-window-link-width, 1.5px);
 	stroke-linecap: round;
 }
@@ -66,17 +71,19 @@
  * reference edges get heads on both ends.
  */
 .desktop-mode-window-link__arrow {
-	fill: rgba(34, 113, 177, 0.55);
-	fill: var(--desktop-mode-window-link-color);
+	fill: var(--desktop-mode-window-link-color, #2271b1);
+	fill-opacity: 0.55;
 }
 
 .desktop-mode-window-link__arrow--active {
-	fill: var(--desktop-mode-window-link-color-active, var(--wp-admin-theme-color, #2271b1));
+	fill: var(--desktop-mode-window-link-color-active, #2271b1);
+	fill-opacity: 1;
 }
 
 /* Edges touching the focused window get the emphasized stroke. */
 .desktop-mode-window-link--active .desktop-mode-window-link__path {
-	stroke: var(--desktop-mode-window-link-color-active, var(--wp-admin-theme-color, #2271b1));
+	stroke: var(--desktop-mode-window-link-color-active, #2271b1);
+	stroke-opacity: 1;
 	stroke-width: calc(var(--desktop-mode-window-link-width, 1.5px) + 0.5px);
 }
 

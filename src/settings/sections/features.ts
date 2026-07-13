@@ -129,6 +129,30 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onWindowLinksToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowLinksEnabled = checked;
+		ctx.save();
+		ctx.apply();
+		paint();
+	};
+
+	const onWindowLinkRaiseToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowLinkRaiseOnFocus = checked;
+		ctx.save();
+		ctx.apply();
+		paint();
+	};
+
+	const onWindowLinkHighlightToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowLinkHighlight = checked;
+		ctx.save();
+		ctx.apply();
+		paint();
+	};
+
 	const onShowPostStatusRibbonsToggle = ( e: Event ): void => {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.showPostStatusRibbons = checked;
@@ -520,6 +544,44 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 							</div>
 						`
 						: '' }
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Window links' ) }
+							?checked=${ ctx.state.windowLinksEnabled }
+							@wpd-checkbox-change=${ onWindowLinksToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Draws arrowed connector lines between windows showing related content — a post and its comments or media, or two posts that link to each other. The line style and when the lines show live in Effects → Window links. On by default.',
+							) }
+						</p>
+						<div class="desktop-mode-features__item">
+							<wpd-checkbox-label
+								label=${ __( 'Bring related windows to front' ) }
+								?checked=${ ctx.state.windowLinkRaiseOnFocus }
+								?disabled=${ ! ctx.state.windowLinksEnabled }
+								@wpd-checkbox-change=${ onWindowLinkRaiseToggle }
+							></wpd-checkbox-label>
+							<p class="desktop-mode-features__hint">
+								${ __(
+									'Clicking any window of a related group surfaces the whole group — the other members rise to just below the one you clicked, without stealing focus.',
+								) }
+							</p>
+						</div>
+						<div class="desktop-mode-features__item">
+							<wpd-checkbox-label
+								label=${ __( 'Highlight related windows' ) }
+								?checked=${ ctx.state.windowLinkHighlight }
+								?disabled=${ ! ctx.state.windowLinksEnabled }
+								@wpd-checkbox-change=${ onWindowLinkHighlightToggle }
+							></wpd-checkbox-label>
+							<p class="desktop-mode-features__hint">
+								${ __(
+									'While a group member is focused, its related windows get a subtle accent outline so the family is recognizable at a glance.',
+								) }
+							</p>
+						</div>
+					</div>
 					<div class="desktop-mode-features__item">
 						<wpd-checkbox-label
 							label=${ __(

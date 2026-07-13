@@ -296,6 +296,72 @@ describe( 'edges', () => {
 		expect( edges[ 0 ].bidirectional ).toBe( true );
 	} );
 
+	test( 'ARROW SEMANTICS: every edge points at what its source belongs to / refers to', async () => {
+		// The single, deliberate reading (relational structure, never
+		// navigation history). This test IS the semantics contract:
+		//   comment  → post   (belongs to)
+		//   media    → post   (belongs to — declared via rel:'child',
+		//                      the post announces its embedded media)
+		//   post     → term   (belongs to the category)
+		//   post A   → post B (A's content references B)
+		const { setWindowContent, listWindowLinkEdges } = await load();
+
+		setWindowContent( 'post-win', {
+			type: 'post',
+			id: 1,
+			links: [
+				{ type: 'media', id: 7, rel: 'child' },
+				{ type: 'term/category', id: 3 },
+				{ type: 'post', id: 2 },
+			],
+		} );
+		setWindowContent( 'comment-win', {
+			type: 'comment',
+			id: 9,
+			root: { type: 'post', id: 1 },
+		} );
+		setWindowContent( 'media-win', { type: 'media', id: 7 } );
+		setWindowContent( 'term-win', { type: 'term/category', id: 3 } );
+		setWindowContent( 'other-post-win', { type: 'post', id: 2 } );
+
+		const edges = listWindowLinkEdges().map(
+			( e ) => `${ e.fromWindowId }→${ e.toWindowId }:${ e.kind }`,
+		);
+		expect( edges.sort() ).toEqual( [
+			'comment-win→post-win:child-root',
+			'media-win→post-win:child-root',
+			'post-win→other-post-win:reference',
+			'post-win→term-win:reference',
+		] );
+	} );
+
+	test( 'a child-root edge absorbs the REVERSE reference on the same pair', async () => {
+		// Media attached to the post (child-root media→post) AND
+		// embedded in its content (reference post→media): one spline,
+		// not two opposite ones.
+		const { setWindowContent, listWindowLinkEdges } = await load();
+
+		setWindowContent( 'post-win', {
+			type: 'post',
+			id: 1,
+			links: [ { type: 'media', id: 7 } ],
+		} );
+		setWindowContent( 'media-win', {
+			type: 'media',
+			id: 7,
+			root: { type: 'post', id: 1 },
+		} );
+
+		expect( listWindowLinkEdges() ).toEqual( [
+			{
+				fromWindowId: 'media-win',
+				toWindowId: 'post-win',
+				kind: 'child-root',
+				bidirectional: false,
+			},
+		] );
+	} );
+
 	test( 'child-root wins over a reference on the same directed pair', async () => {
 		const { setWindowContent, listWindowLinkEdges } = await load();
 
