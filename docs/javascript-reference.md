@@ -68,7 +68,9 @@ document.addEventListener( 'desktop-mode-window-opened', ( e ) => {
 ---
 
 ### `desktop-mode-window-reopened` — Stable
-Fires when `wp.desktop.openWindow(id)` (or `windowManager.open(...)`) is called for a `baseId` whose window already exists on the active desktop. The framework just focuses + restores the existing window — the render callback does NOT re-run, and `desktop-mode-window-opened` does NOT fire again. This event is the unambiguous "user requested an open while already open" signal — exactly once per `open()` call on an existing instance.
+Fires when `wp.desktop.openWindow(id)` (or `windowManager.open(...)`) is called for a `baseId` whose window already exists on the active desktop. The framework focuses + restores the existing window — the render callback does NOT re-run, and `desktop-mode-window-opened` does NOT fire again. This event is the unambiguous "user requested an open while already open" signal — exactly once per `open()` call on an existing instance.
+
+Since 0.9.4 the reuse is **URL-aware**: when the `open()` call carries a URL the window is not already showing — and it isn't the window's home / dock landing URL — the framework also navigates the existing iframe to that URL in place (so e.g. `plugins.php?action=activate&plugin=…&_wpnonce=…` actually runs instead of being dropped by a bare focus). The `navigated` flag in the detail reports which path was taken.
 
 Plugins that hold per-window state (e.g. the code editor's active file) should listen here to re-orient the existing window's content to whatever the caller wants to show. The open call is synchronous, so any state the caller sets BEFORE invoking `openWindow` is already in place when this fires.
 
@@ -84,10 +86,12 @@ document.addEventListener( 'desktop-mode-window-reopened', ( e ) => {
 **`detail` shape:**
 
 ```typescript
-{ windowId: string, baseId: string, wasMinimized: boolean }
+{ windowId: string, baseId: string, wasMinimized: boolean, navigated: boolean }
 ```
 
 `wasMinimized` reflects the state at the moment of the call, BEFORE the framework's automatic restore-from-minimized happens. Useful for animating "popped from the dock".
+
+`navigated` *(since 0.9.4)* is `true` when the open request carried a URL the window wasn't already showing and the framework navigated the existing iframe to it in place. Always `false` for native windows and for re-opens that resolve to a plain focus.
 
 ---
 
@@ -666,6 +670,8 @@ document.addEventListener( 'desktop-mode-init', () => {
 ```
 
 Calling `open()` with an id (or `baseId`) that's already on screen focuses the existing window and restores it if minimized.
+
+**URL-aware reuse** *(since 0.9.4)*: focusing is the whole story only when the requested URL is one the window is already showing — its live iframe URL, the URL it was opened with, or its home / dock landing URL (`parentUrl`); the comparison ignores the chromeless / portal flags, `_wp_http_referer`, and param order. Any *other* URL is treated as a real navigation request: the existing iframe navigates to it in place (via `location.assign()`, so in-frame Back still works) instead of the URL being silently dropped. This is what makes action links routed through `open()` — e.g. the post-install **Activate** link `plugins.php?action=activate&plugin=…&_wpnonce=…` while a Plugins window is already open — actually execute. Dock clicks keep their old behavior: clicking a tile whose window has sub-navigated only focuses it (the tile's URL is the window's home URL), never yanks it back to the landing page. The `desktop-mode-window-reopened` detail reports the outcome via `navigated`.
 
 **Title-bar actions menu (iframe windows).** Every iframe-backed window renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
 
@@ -1320,7 +1326,7 @@ wp.desktop.onWindow(
 
 interface WindowLifecycleHandlers {
     opened?:            () => void;
-    reopened?:          ( e: { baseId, wasMinimized } ) => void;
+    reopened?:          ( e: { baseId, wasMinimized, navigated } ) => void;
     focused?:           () => void;
     blurred?:           ( e: { focusedTo } ) => void;
     closing?:           ( e: { element } ) => void;
@@ -2327,8 +2333,8 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled, provider, apiKey, transport } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `transport` is `'sse' \| 'off'` (default `'off'`) — the user's preferred live-progress transport for AI search; SSE is opt-in because some hosts block long-lived `text/event-stream` connections. `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
-| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user edits the AI key in the adjacent AI tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Changed in 0.9.4:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
 // Use `wp.desktop.ready()` (not `addAction( 'desktop-mode.init', … )`) —
@@ -2359,14 +2365,14 @@ wp.desktop.ready( () => {
                 </wpd-section>
             `;
 
-            // Read current AI settings configured in the adjacent AI tab.
-            const { apiKey } = ctx.getOsSettings().ai;
-            console.log( 'current OpenAI key length:', apiKey.length );
+            // Read the current AI assistant preference (Features tab).
+            const { enabled } = ctx.getOsSettings().ai;
+            console.log( 'assistant on:', enabled );
 
             // Re-read when the user edits settings elsewhere in the
             // panel. Unsubscribe on next re-render / window close.
             const off = ctx.subscribeOsSettings( ( next ) => {
-                console.log( 'settings changed — new key len:', next.ai.apiKey.length );
+                console.log( 'settings changed — assistant on:', next.ai.enabled );
             } );
 
             // Clean up if the body is detached (window closed, reset clicked).
@@ -3219,7 +3225,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 |---|---|---|---|
 | `desktop-mode.window.geometry` | filter | Stable *(0.8.6)* | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
 | `desktop-mode.window.opened` | action | Stable | `{ windowId, page, title, url }` |
-| `desktop-mode.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized }` — fires when `openWindow()` is called for an already-open window |
+| `desktop-mode.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated }` — fires when `openWindow()` is called for an already-open window; `navigated` *(0.9.4)* is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place |
 | `desktop-mode.window.content-loading` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
 | `desktop-mode.window.content-loaded` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading → ready transition (iframe `load` / `desktop-mode-ready`, native render Promise resolves, or `markContentLoaded()`). Edge-triggered. |
 | `desktop-mode.window.loading-overlay` | filter | Stable *(0.6.0)* | `(host: HTMLElement, ctx: { windowId, config }) → HTMLElement`. Receives the default overlay element (or whatever a per-window `config.loading.render` produced) and may mutate it or return a replacement. Plugins use this to brand every window's loader, swap the spinner preset, append status text. |
