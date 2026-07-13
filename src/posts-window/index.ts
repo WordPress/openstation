@@ -2563,9 +2563,10 @@ export async function renderPostsWindow(
 			return;
 		}
 		if ( target.closest( NEW_BTN ) ) {
+			const isPages = cfg.mode === 'pages';
 			openAdminUrl( cfg.newPostUrl, {
-				title: __( 'Add New Post' ),
-				icon: 'dashicons-admin-post',
+				title: isPages ? __( 'Add New Page' ) : __( 'Add New Post' ),
+				icon: isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
 			} );
 			return;
 		}
