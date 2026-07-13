@@ -165,6 +165,39 @@ export function urlMatchKey( url: string ): string {
 }
 
 /**
+ * Returns a comparable identity key for deciding whether a
+ * `windowManager.open()` call that matched an existing window is a
+ * plain re-focus or a request to show a DIFFERENT URL in that window.
+ *
+ * Broader than {@link urlMatchKey}: besides the chromeless / portal
+ * flags it also drops `_wp_http_referer` (the shell stamps that onto
+ * cross-window links purely as a redirect hint — see
+ * `stampSourceReferer` in `src/window/iframe-bridge.ts`) and sorts
+ * the remaining params so semantically-equal URLs compare equal
+ * regardless of param order. Everything else — `action`, `_wpnonce`,
+ * `paged`, `s`, … — stays significant: an action URL (e.g.
+ * `plugins.php?action=activate&plugin=…&_wpnonce=…`) and its landing
+ * page (`plugins.php`) must NOT collapse to the same key.
+ *
+ * Falls back to the raw URL if parsing fails — the caller just sees
+ * a stricter equality check than desired, not a crash.
+ *
+ * @since 0.9.4
+ */
+export function urlReuseKey( url: string ): string {
+	try {
+		const parsed = new URL( url, window.location.origin );
+		parsed.searchParams.delete( 'desktop_mode_chromeless' );
+		parsed.searchParams.delete( 'desktop_mode_portal' );
+		parsed.searchParams.delete( '_wp_http_referer' );
+		parsed.searchParams.sort();
+		return parsed.pathname.replace( /\/+$/, '' ) + '?' + parsed.searchParams.toString();
+	} catch {
+		return url;
+	}
+}
+
+/**
  * Sanitize an SVG string before injecting it via `innerHTML`.
  *
  * The iframe command bridge forwards `@wordpress/icons` React elements

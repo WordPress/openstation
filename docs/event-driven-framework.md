@@ -104,7 +104,7 @@ flavour fits.
 | CustomEvent | Detail |
 |---|---|
 | `desktop-mode-window-opened`      | `{ windowId, page, title, url }` |
-| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized }` |
+| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated }` — `navigated` *(0.9.4)*: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place |
 | `desktop-mode-window-focused`     | `{ windowId }` |
 | `desktop-mode-window-blurred`     | `{ windowId, focusedTo }`  *(since 0.5.5)* |
 | `desktop-mode-window-closing`     | `{ windowId, element }` |

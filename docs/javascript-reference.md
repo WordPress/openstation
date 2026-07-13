@@ -68,7 +68,9 @@ document.addEventListener( 'desktop-mode-window-opened', ( e ) => {
 ---
 
 ### `desktop-mode-window-reopened` — Stable
-Fires when `wp.desktop.openWindow(id)` (or `windowManager.open(...)`) is called for a `baseId` whose window already exists on the active desktop. The framework just focuses + restores the existing window — the render callback does NOT re-run, and `desktop-mode-window-opened` does NOT fire again. This event is the unambiguous "user requested an open while already open" signal — exactly once per `open()` call on an existing instance.
+Fires when `wp.desktop.openWindow(id)` (or `windowManager.open(...)`) is called for a `baseId` whose window already exists on the active desktop. The framework focuses + restores the existing window — the render callback does NOT re-run, and `desktop-mode-window-opened` does NOT fire again. This event is the unambiguous "user requested an open while already open" signal — exactly once per `open()` call on an existing instance.
+
+Since 0.9.4 the reuse is **URL-aware**: when the `open()` call carries a URL the window is not already showing — and it isn't the window's home / dock landing URL — the framework also navigates the existing iframe to that URL in place (so e.g. `plugins.php?action=activate&plugin=…&_wpnonce=…` actually runs instead of being dropped by a bare focus). The `navigated` flag in the detail reports which path was taken.
 
 Plugins that hold per-window state (e.g. the code editor's active file) should listen here to re-orient the existing window's content to whatever the caller wants to show. The open call is synchronous, so any state the caller sets BEFORE invoking `openWindow` is already in place when this fires.
 
@@ -84,10 +86,12 @@ document.addEventListener( 'desktop-mode-window-reopened', ( e ) => {
 **`detail` shape:**
 
 ```typescript
-{ windowId: string, baseId: string, wasMinimized: boolean }
+{ windowId: string, baseId: string, wasMinimized: boolean, navigated: boolean }
 ```
 
 `wasMinimized` reflects the state at the moment of the call, BEFORE the framework's automatic restore-from-minimized happens. Useful for animating "popped from the dock".
+
+`navigated` *(since 0.9.4)* is `true` when the open request carried a URL the window wasn't already showing and the framework navigated the existing iframe to it in place. Always `false` for native windows and for re-opens that resolve to a plain focus.
 
 ---
 
@@ -666,6 +670,8 @@ document.addEventListener( 'desktop-mode-init', () => {
 ```
 
 Calling `open()` with an id (or `baseId`) that's already on screen focuses the existing window and restores it if minimized.
+
+**URL-aware reuse** *(since 0.9.4)*: focusing is the whole story only when the requested URL is one the window is already showing — its live iframe URL, the URL it was opened with, or its home / dock landing URL (`parentUrl`); the comparison ignores the chromeless / portal flags, `_wp_http_referer`, and param order. Any *other* URL is treated as a real navigation request: the existing iframe navigates to it in place (via `location.assign()`, so in-frame Back still works) instead of the URL being silently dropped. This is what makes action links routed through `open()` — e.g. the post-install **Activate** link `plugins.php?action=activate&plugin=…&_wpnonce=…` while a Plugins window is already open — actually execute. Dock clicks keep their old behavior: clicking a tile whose window has sub-navigated only focuses it (the tile's URL is the window's home URL), never yanks it back to the landing page. The `desktop-mode-window-reopened` detail reports the outcome via `navigated`.
 
 **Title-bar actions menu (iframe windows).** Every iframe-backed window renders a three-dots actions menu on the leading edge of its title bar. Built-in items:
 
@@ -1320,7 +1326,7 @@ wp.desktop.onWindow(
 
 interface WindowLifecycleHandlers {
     opened?:            () => void;
-    reopened?:          ( e: { baseId, wasMinimized } ) => void;
+    reopened?:          ( e: { baseId, wasMinimized, navigated } ) => void;
     focused?:           () => void;
     blurred?:           ( e: { focusedTo } ) => void;
     closing?:           ( e: { element } ) => void;
@@ -3218,7 +3224,7 @@ All window actions include at minimum `{ windowId: string }` — additional fiel
 |---|---|---|---|
 | `desktop-mode.window.geometry` | filter | Stable *(0.8.6)* | `( geometry, ctx ) => geometry` — last call before `WindowConfig` is baked. See [the geometry filter section below](#window-geometry-filter) for the contract and a recipe. |
 | `desktop-mode.window.opened` | action | Stable | `{ windowId, page, title, url }` |
-| `desktop-mode.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized }` — fires when `openWindow()` is called for an already-open window |
+| `desktop-mode.window.reopened` | action | Stable | `{ windowId, baseId, wasMinimized, navigated }` — fires when `openWindow()` is called for an already-open window; `navigated` *(0.9.4)* is `true` when the request carried a URL the window wasn't showing and the framework navigated the existing iframe to it in place |
 | `desktop-mode.window.content-loading` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading entry edge (construction + every `markContentLoading()`). Edge-triggered. |
 | `desktop-mode.window.content-loaded` | action | Stable *(0.6.0)* | `{ windowId }` — fires on the loading → ready transition (iframe `load` / `desktop-mode-ready`, native render Promise resolves, or `markContentLoaded()`). Edge-triggered. |
 | `desktop-mode.window.loading-overlay` | filter | Stable *(0.6.0)* | `(host: HTMLElement, ctx: { windowId, config }) → HTMLElement`. Receives the default overlay element (or whatever a per-window `config.loading.render` produced) and may mutate it or return a replacement. Plugins use this to brand every window's loader, swap the spinner preset, append status text. |
