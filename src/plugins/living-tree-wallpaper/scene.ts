@@ -9,7 +9,7 @@
  *
  * Flow: grow (SCA iterations per frame, bottom→top, ~3–6 s) → settle →
  * leaf-out (staggered fade) → steady state where only wind, fireflies,
- * flowers, and lianas animate.
+ * flowers, and butterflies animate.
  *
  * Assumes `window.PIXI` is defined — the wallpaper def declares
  * `needs: ['pixijs']`, so the shell loads it before mount.
@@ -34,7 +34,7 @@ import {
 import { GrowthSimulator } from './growth/space-colonization';
 import { computeGirth } from './growth/girth';
 import { countWithinDepth, revealSkeleton } from './growth/reveal';
-import { buildCategoryPalette } from './palette';
+import { canopyHue } from './palette';
 import { getPixi, type PixiApp, type PixiContainer } from './pixi-types';
 import { hash32, mulberry32 } from './rng';
 import { currentHour, skyForTime, SkyLayer } from './sky';
@@ -45,12 +45,13 @@ import {
 	type BranchChain,
 } from './render/branch-mesh';
 import { BloomEngine } from './render/bloom';
+import { ButterflyLayer } from './render/butterflies';
 import { FallingLeaves } from './render/falling';
 import { FireflyLayer } from './render/fireflies';
+import { FlowerField } from './render/flowers';
 import { GroundLayer } from './render/ground';
 import { IvyLayer } from './render/ivy';
 import { LeafGenerator } from './render/leaves';
-import { LianaSystem } from './render/lianas';
 import type { BranchNode, SceneHandle, TreeSnapshot } from './types';
 import { WindField } from './wind';
 
@@ -85,7 +86,6 @@ function sproutSnapshot(): TreeSnapshot {
 		seoHealth: 0.7,
 		performance: 0.8,
 		branches: [],
-		tagCooccurrence: [],
 	};
 }
 
@@ -134,7 +134,7 @@ export async function mountScene(
 	let rng = mulberry32( hash32( `${ dna.siteUrl }|${ dna.siteName }|${ dna.installEpoch }` ) );
 	let envelope = buildEnvelope( hormones.age01, hormones.vigor01, rng );
 	let cfg = buildGrowthConfig( envelope, hormones.vigor01 );
-	let palette = buildCategoryPalette( dna );
+	let canopy = canopyHue( `${ dna.siteUrl }|${ dna.siteName }` );
 	const wind = new WindField();
 	wind.setStrength( prefersReducedMotion ? 0 : hormones.wind01 );
 
@@ -190,24 +190,25 @@ export async function mountScene(
 	const treeRoot: PixiContainer = new pixi.Container();
 	const treeBody: PixiContainer = new pixi.Container();
 	const groundLayer: PixiContainer = new pixi.Container();
-	const lianaLayer: PixiContainer = new pixi.Container();
+	const flowerFieldLayer: PixiContainer = new pixi.Container();
 	const canopyBackLayer: PixiContainer = new pixi.Container();
 	const branchLayer: PixiContainer = new pixi.Container();
 	const ivyLayer: PixiContainer = new pixi.Container();
 	const leafLayer: PixiContainer = new pixi.Container();
 	const flowerLayer: PixiContainer = new pixi.Container();
+	// Butterflies fly in FRONT of the whole plant — they're the meadow's
+	// live layer, and behind the foliage their flap disappears.
+	const butterflyLayer: PixiContainer = new pixi.Container();
 	const fireflyLayer: PixiContainer = new pixi.Container();
-	// Lianas drape OVER the wood (under the lit leaves) — behind the
-	// branches they vanished into the canopy mass and tags read as
-	// contributing nothing.
 	treeBody.addChild(
 		groundLayer,
+		flowerFieldLayer,
 		canopyBackLayer,
 		branchLayer,
-		lianaLayer,
 		ivyLayer,
 		leafLayer,
 		flowerLayer,
+		butterflyLayer,
 	);
 	treeRoot.addChild( treeBody, fireflyLayer );
 	app.stage.addChild( treeRoot );
@@ -228,18 +229,33 @@ export async function mountScene(
 	// trunk. Rebuilt on every `applyDna()` — its span scales with the
 	// tree's extent and its greens dry out with `health01`.
 	const ground = new GroundLayer( groundLayer, pixi );
+	const flowerField = new FlowerField( flowerFieldLayer, pixi );
+	/** Meadow depth (ground line → canvas bottom) — butterflies roam it. */
+	let meadowDepth = 20;
 	const buildGround = (): void => {
 		const scale = treeRoot.scale.x || 1;
 		const canvasW = app.canvas.clientWidth || container.clientWidth || 800;
 		const canvasH = app.canvas.clientHeight || container.clientHeight || 600;
+		const span = finalExtent().halfWidth * 1.3 + 80;
+		const coverHalfWidth = canvasW / ( 2 * scale ) + 40;
+		// Ground-line → canvas-bottom depth, in reference units: the
+		// turf fills all of it.
+		meadowDepth = Math.max( 0, canvasH - treeRoot.y ) / scale + 8;
 		ground.build( {
-			span: finalExtent().halfWidth * 1.3 + 80,
-			coverHalfWidth: canvasW / ( 2 * scale ) + 40,
-			// Ground-line → canvas-bottom depth, in reference units: the
-			// turf fills all of it.
-			coverDepth: Math.max( 0, canvasH - treeRoot.y ) / scale + 8,
+			span,
+			coverHalfWidth,
+			coverDepth: meadowDepth,
 			trunkBase: currentTrunkBase(),
 			health01: hormones.health01,
+			siteKey: `${ dna.siteUrl }|${ dna.siteName }`,
+		} );
+		// The category wildflowers grow in the same meadow, clustered in
+		// per-category patches near the tree.
+		flowerField.build( {
+			categories: dna.totalCategories,
+			fieldHalf: Math.min( coverHalfWidth * 0.95, span * 1.35 + 90 ),
+			coverDepth: meadowDepth,
+			trunkBase: currentTrunkBase(),
 			siteKey: `${ dna.siteUrl }|${ dna.siteName }`,
 		} );
 	};
@@ -259,7 +275,7 @@ export async function mountScene(
 	const falling = new FallingLeaves( leafLayer, pixi );
 	const ivy = new IvyLayer( ivyLayer, pixi );
 	const bloom = new BloomEngine( flowerLayer, pixi );
-	const lianas = new LianaSystem( lianaLayer, pixi );
+	const butterflies = new ButterflyLayer( butterflyLayer, pixi );
 	const fireflies = new FireflyLayer( fireflyLayer, pixi );
 
 	// ── Fit the reference space to the canvas (resize = transform only). ─
@@ -293,7 +309,7 @@ export async function mountScene(
 	let decorated = false;
 	let animating = ! prefersReducedMotion;
 
-	/** Once the reveal settles: girth, canopy, blossom, lianas, fireflies. */
+	/** Once the reveal settles: girth, canopy, blossom, butterflies, fireflies. */
 	const decorate = (): void => {
 		decorated = true;
 		computeGirth( revealed, currentTrunkBase() );
@@ -301,17 +317,24 @@ export async function mountScene(
 		// per frame instead of re-drawing every ribbon's vertices.
 		drawBranches( branchGraphics, currentChains(), revealed, null );
 		branchGraphics.cacheAsTexture?.( true );
-		leaves.populate( revealed, hormones, palette, dna, rng );
+		leaves.populate( revealed, hormones, canopy, dna, rng );
 		falling.setSources( leaves.sources( 48 ) );
 		ivy.populate( revealed, hormones.structure01, rng );
 		bloom.apply( hormones.bloom01, leaves.placements(), rng );
-		lianas.build(
-			dna.tagCooccurrence,
-			hormones.diversity01,
-			leaves.placements().map( ( p ) => p.pos ),
+		const extent = finalExtent();
+		// Tag butterflies work the category wildflowers; their open-air
+		// waypoints span the meadow and the lower crown.
+		butterflies.populate(
+			dna.totalTags,
+			flowerField.targets(),
+			{
+				minX: -extent.halfWidth,
+				maxX: extent.halfWidth,
+				minY: -extent.height * 0.55,
+				maxY: Math.max( 4, meadowDepth * 0.6 ),
+			},
 			rng,
 		);
-		const extent = finalExtent();
 		fireflies.setBounds( {
 			minX: -extent.halfWidth,
 			maxX: extent.halfWidth,
@@ -361,23 +384,26 @@ export async function mountScene(
 		// Steady state: the WOOD and the TURF are static — re-tessellating
 		// the skeleton's ribbons (and rotating hundreds of grass clumps)
 		// every frame was the wallpaper's whole CPU bill. The foliage
-		// carries the wind: leaves flutter, blossom breathes, vines pulse,
-		// fireflies drift — all sprite-transform updates the GPU batches.
+		// carries the wind: leaves flutter, blossom breathes, wildflowers
+		// sway, fireflies drift — all sprite-transform updates the GPU
+		// batches.
 		//
-		// The two BIG sprite loops (canopy leaves, blossom) run at 30 Hz —
-		// alternate frames, accumulated dt — which halves the remaining JS
-		// cost and is imperceptible for organic flutter. The small loops
-		// (fallers, fireflies, vines, ivy fade) stay at full rate.
+		// The BIG sprite loops (canopy leaves, blossom, wildflowers) run
+		// at 30 Hz — alternate frames, accumulated dt — which halves the
+		// remaining JS cost and is imperceptible for organic flutter. The
+		// small loops (fallers, fireflies, butterflies, ivy fade) stay at
+		// full rate; the butterflies' wing-flap needs it.
 		foliageDt += dt;
 		foliageFlip = ! foliageFlip;
 		if ( foliageFlip ) {
 			leaves.update( foliageDt, wind, t );
 			bloom.update( foliageDt, t, ( x, y ) => wind.sample( x, y, t ) );
+			flowerField.update( foliageDt, t, ( x, y ) => wind.sample( x, y, t ) );
 			foliageDt = 0;
 		}
 		falling.update( dt, wind, t );
 		ivy.update( dt, t );
-		lianas.update( dt, t );
+		butterflies.update( dt, t );
 		fireflies.update( dt, t );
 	};
 
@@ -394,7 +420,7 @@ export async function mountScene(
 		leaves.update( 60, wind, t );
 		ivy.update( 60, t );
 		bloom.update( 60, t, () => ( { x: 0, y: 0 } ) );
-		lianas.update( 0, t );
+		flowerField.update( 60, t, () => ( { x: 0, y: 0 } ) );
 	};
 
 	/**
@@ -409,7 +435,7 @@ export async function mountScene(
 		rng = mulberry32( hash32( `${ dna.siteUrl }|${ dna.siteName }|${ dna.installEpoch }` ) );
 		envelope = buildEnvelope( hormones.age01, hormones.vigor01, rng );
 		cfg = buildGrowthConfig( envelope, hormones.vigor01 );
-		palette = buildCategoryPalette( dna );
+		canopy = canopyHue( `${ dna.siteUrl }|${ dna.siteName }` );
 		wind.setStrength( prefersReducedMotion ? 0 : hormones.wind01 );
 		// Regrow the canonical skeleton (same seed → identical tree unless
 		// the tuner edited the seed inputs) and re-gate the reveal by age.
@@ -428,11 +454,11 @@ export async function mountScene(
 		chainNodeCount = -1;
 		decorated = false;
 		// Strip the previous tree's decoration so the new one grows bare.
-		leaves.populate( [], hormones, palette, dna, rng );
+		leaves.populate( [], hormones, canopy, dna, rng );
 		falling.setSources( [] );
 		ivy.populate( [], 0, rng );
 		bloom.apply( 0, [], rng );
-		lianas.build( [], 0, [], rng );
+		butterflies.clear();
 		fireflies.setCount( 0 );
 		fit();
 		refreshSky();
@@ -526,8 +552,9 @@ export async function mountScene(
 			falling.destroy();
 			ivy.destroy();
 			bloom.destroy();
+			butterflies.destroy();
 			fireflies.destroy();
-			lianas.destroy();
+			flowerField.destroy();
 			ground.destroy();
 			sky.destroy();
 			// `{ removeView: true }`, NEVER `true`: a literal `true` makes

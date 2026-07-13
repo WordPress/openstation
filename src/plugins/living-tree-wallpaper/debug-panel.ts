@@ -171,7 +171,7 @@ function hormoneLine( snapshot: TreeSnapshot ): string {
 	const f = ( v: number ): string => v.toFixed( 2 );
 	return (
 		`age ${ f( h.age01 ) } · vigor ${ f( h.vigor01 ) } · foliage ${ f( h.foliage01 ) } · ` +
-		`health ${ f( h.health01 ) } · div ${ f( h.diversity01 ) } · bloom ${ f( h.bloom01 ) } · ` +
+		`health ${ f( h.health01 ) } · bloom ${ f( h.bloom01 ) } · ` +
 		`struct ${ f( h.structure01 ) } · vitality ${ f( h.vitality01 ) } · ` +
 		`wind ${ f( h.wind01 ) } · spark ${ h.spark }`
 	);

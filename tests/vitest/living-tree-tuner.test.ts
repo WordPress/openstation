@@ -37,7 +37,6 @@ function snapshot(): TreeSnapshot {
 		seoHealth: 0.7,
 		performance: 0.8,
 		branches: [],
-		tagCooccurrence: [],
 	};
 }
 

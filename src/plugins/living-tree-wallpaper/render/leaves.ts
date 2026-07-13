@@ -15,8 +15,10 @@
  * the wood and is gone.)
  *
  * The LOD cap (`computeLeafBudget( foliage01 )`) bounds total leaf
- * sprites; `postsPerLeaf` folds the surplus in. Colour value comes from
- * `health01` (green → yellow → red → grey), size from `log( visits )`,
+ * sprites; `postsPerLeaf` folds the surplus in. Hue is the site's own
+ * canopy green (`canopyHue`) with small per-tuft variation — natural
+ * foliage, not a data legend. Colour value comes from `health01`
+ * (green → yellow → red → grey), size from `log( visits )`,
  * fullness/brightness from `vitality01`. Tufts fade in staggered once
  * growth settles. See `docs/living-tree-algorithm.md` §A.7.
  *
@@ -25,7 +27,7 @@
 
 import { leafColor } from '../palette';
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';
-import type { BranchNode, Hormones, HuePartition, TreeSnapshot, Vec2 } from '../types';
+import type { BranchNode, Hormones, TreeSnapshot, Vec2 } from '../types';
 import type { WindField } from '../wind';
 
 /** LOD bounds — a sprout wears a handful, an oak up to 3200. */
@@ -39,8 +41,12 @@ const MAX_LEAVES = 3200;
  */
 const LEAVES_PER_CLUSTER = 10;
 
-/** Crown hue sectors — each category owns an angular wedge (see below). */
-const HUE_SECTORS = 24;
+/**
+ * Natural per-tuft hue variation around the canopy base green (degrees).
+ * Real foliage isn't one flat colour — but the variation is random and
+ * subtle, never a data mapping.
+ */
+const TUFT_HUE_JITTER = 9;
 
 /**
  * Wood no thicker than this carries leaves. Relative to the trunk —
@@ -256,14 +262,14 @@ export class LeafGenerator {
 	 *
 	 * @param nodes    The revealed skeleton (radius filled by computeGirth).
 	 * @param hormones Foliage / health / vigour / vitality drive the look.
-	 * @param palette  Category → hue partition.
+	 * @param baseHue  The site's canopy green (`canopyHue`), 0..360.
 	 * @param snapshot The snapshot (post/visit aggregates size the leaves).
 	 * @param rng      Seeded PRNG so a reload keeps the same canopy.
 	 */
 	public populate(
 		nodes: BranchNode[],
 		hormones: Hormones,
-		palette: HuePartition,
+		baseHue: number,
 		snapshot: TreeSnapshot,
 		rng: () => number,
 	): void {
@@ -387,9 +393,6 @@ export class LeafGenerator {
 			[ order[ i ], order[ j ] ] = [ order[ j ], order[ i ] ];
 		}
 
-		// The crown centroid anchors the category wedges below.
-		const crownCy = -treeHeight * 0.62;
-
 		// Fuller sites grow fuller tufts: radius swells with foliage01 so
 		// neighbouring tufts overlap and merge into one continuous canopy
 		// mass instead of leaf sleeves along the wood.
@@ -402,13 +405,11 @@ export class LeafGenerator {
 				x: anchor.x + ( rng() * 2 - 1 ) * 6 * leafScale,
 				y: anchor.y + ( rng() * 2 - 1 ) * 6 * leafScale - clusterRadius * 0.2,
 			};
-			// Categories are VISIBLE as colour regions: each category owns
-			// an angular wedge of the crown around its centroid, so a
-			// multi-category site reads as distinct-hued patches (a
-			// category's content lives together), never confetti.
-			const angle01 =
-				( Math.atan2( center.y - crownCy, center.x ) + Math.PI ) / ( 2 * Math.PI );
-			const hue = palette.hueForCategory( Math.floor( angle01 * HUE_SECTORS ) );
+			// Natural variation only: every tuft leans a few degrees off
+			// the site's base green. (Categories used to paint the crown
+			// in hue wedges — unrealistic; they bloom as meadow
+			// wildflowers now.)
+			const hue = baseHue + ( rng() * 2 - 1 ) * TUFT_HUE_JITTER;
 			const clusterAge = rng() * Math.max( 30, snapshot.siteAgeDays );
 			const baseColor = leafColor( hue, hormones.health01, clusterAge );
 
@@ -520,7 +521,7 @@ export class LeafGenerator {
 		}
 	}
 
-	/** Tuft placements — the bloom + liana layers anchor to these. */
+	/** Tuft placements — the blossom layer anchors to these. */
 	public placements(): Array< { pos: Vec2; compliance: number; radius: number } > {
 		return this.clusters.map( ( cluster ) => ( {
 			pos: cluster.center,

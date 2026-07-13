@@ -332,57 +332,6 @@ function desktop_mode_living_tree_site_health_performance() {
 }
 
 /**
- * Top tag co-occurrence edges for the liana overlay.
- *
- * The strongest `$limit` pairs of tags that appear together on the same
- * posts, as `array( 'a' => term_id, 'b' => term_id, 'weight' =>
- * shared_post_count )`, weight-descending. Compact by construction —
- * never the full matrix. One grouped self-join, capped.
- *
- * @since 0.9.4
- *
- * @param int $limit Maximum number of edges. Default 40.
- * @return array[] List of co-occurrence edges.
- */
-function desktop_mode_living_tree_tag_cooccurrence( $limit = 40 ) {
-	global $wpdb;
-
-	$limit = max( 0, min( 100, (int) $limit ) );
-	if ( 0 === $limit ) {
-		return array();
-	}
-
-	$rows = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT tt1.term_id AS a, tt2.term_id AS b, COUNT(*) AS weight
-			FROM {$wpdb->term_relationships} tr1
-			INNER JOIN {$wpdb->term_relationships} tr2
-				ON tr1.object_id = tr2.object_id
-			INNER JOIN {$wpdb->term_taxonomy} tt1
-				ON tr1.term_taxonomy_id = tt1.term_taxonomy_id AND tt1.taxonomy = 'post_tag'
-			INNER JOIN {$wpdb->term_taxonomy} tt2
-				ON tr2.term_taxonomy_id = tt2.term_taxonomy_id AND tt2.taxonomy = 'post_tag'
-			WHERE tt1.term_id < tt2.term_id
-			GROUP BY tt1.term_id, tt2.term_id
-			ORDER BY weight DESC, a ASC, b ASC
-			LIMIT %d",
-			$limit
-		),
-		ARRAY_A
-	);
-
-	$out = array();
-	foreach ( (array) $rows as $row ) {
-		$out[] = array(
-			'a'      => (int) $row['a'],
-			'b'      => (int) $row['b'],
-			'weight' => (int) $row['weight'],
-		);
-	}
-	return $out;
-}
-
-/**
  * Compact per-region structural hints (the `branches` array): published
  * posts grouped by year, each year mapped to a depth/girth/length hint
  * normalised against the busiest year. This is DNA, not geometry — the

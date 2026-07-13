@@ -44,7 +44,6 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 			'seoHealth',
 			'performance',
 			'branches',
-			'tagCooccurrence',
 		);
 		foreach ( $expected_keys as $key ) {
 			$this->assertArrayHasKey( $key, $snapshot, "missing snapshot key: {$key}" );
@@ -81,25 +80,6 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 
 		// Compact DNA collections are arrays (never a full post list).
 		$this->assertIsArray( $snapshot['branches'] );
-		$this->assertIsArray( $snapshot['tagCooccurrence'] );
-	}
-
-	/**
-	 * The golden rule at the server boundary: the snapshot is aggregates
-	 * only — it must never carry per-post identities or coordinates.
-	 *
-	 * @covers ::desktop_mode_living_tree_build_snapshot
-	 */
-	public function test_snapshot_tag_cooccurrence_edges_are_compact() {
-		$edges = desktop_mode_living_tree_build_snapshot()['tagCooccurrence'];
-		$this->assertIsArray( $edges );
-		// Empty is valid for the stub; when populated, each edge is a
-		// compact { a, b, weight } triple — no post rows.
-		foreach ( $edges as $edge ) {
-			$this->assertArrayHasKey( 'a', $edge );
-			$this->assertArrayHasKey( 'b', $edge );
-			$this->assertArrayHasKey( 'weight', $edge );
-		}
 	}
 
 	/**
@@ -170,27 +150,6 @@ class Tests_DesktopMode_LivingTreeSnapshot extends WP_UnitTestCase {
 		// The tests factory always seeds an admin user, so an epoch exists.
 		$this->assertGreaterThan( 0, $first );
 		$this->assertGreaterThanOrEqual( 0, desktop_mode_living_tree_site_age_days() );
-	}
-
-	/**
-	 * @covers ::desktop_mode_living_tree_tag_cooccurrence
-	 */
-	public function test_tag_cooccurrence_finds_shared_tags_and_stays_compact() {
-		$post_a = self::factory()->post->create( array( 'post_status' => 'publish' ) );
-		$post_b = self::factory()->post->create( array( 'post_status' => 'publish' ) );
-		wp_set_post_tags( $post_a, array( 'alpha', 'beta' ) );
-		wp_set_post_tags( $post_b, array( 'alpha', 'beta', 'gamma' ) );
-
-		$edges = desktop_mode_living_tree_tag_cooccurrence( 10 );
-		$this->assertNotEmpty( $edges );
-		$this->assertLessThanOrEqual( 10, count( $edges ) );
-
-		// alpha+beta co-occur on two posts — that pair leads the list.
-		$this->assertSame( 2, $edges[0]['weight'] );
-		$this->assertLessThan( $edges[0]['b'], $edges[0]['a'], 'edges are normalised a < b' );
-
-		// Compactness: each edge is exactly { a, b, weight }.
-		$this->assertSame( array( 'a', 'b', 'weight' ), array_keys( $edges[0] ) );
 	}
 
 	/**

@@ -10,14 +10,15 @@
 The Living Tree is an animated desktop wallpaper (Desktop Mode) that renders
 the site as a **living plant organism**. Its shape is the visual fingerprint
 of the site's life: a tree that grows from the ground up, with **leaves**
-(posts), **flowers** (comments), **glowing lianas** (tags), **fireflies**
-(online users), and **wind** (traffic). An empty WordPress should read as a
-*sprout*; a ten-year-old site as a *frondose oak*.
+(posts), **blossom** (comments), **meadow wildflowers** (categories),
+**butterflies** (tags), **fireflies** (online users), and **wind**
+(traffic). An empty WordPress should read as a *sprout*; a ten-year-old site
+as a *frondose oak* standing in a flowering meadow.
 
 It is **not interactive**: no zoom, no pan. The camera is fixed to the
 desktop. Once the tree has finished growing, the only permanent animation is
-the **wind** swaying branches and leaves, plus the fireflies and a slow color
-easing.
+the **wind** swaying branches, leaves, and wildflowers, plus the butterflies,
+the fireflies, and a slow color easing.
 
 ---
 
@@ -50,7 +51,7 @@ The system is split into two layers with very different update cadences.
 | Layer | What it is | Cadence | Owner |
 |---|---|---|---|
 | **Morphology** | The skeleton: trunk + branches. | Slow, structural. Grows once, bottom→top, frame by frame, then settles. | Space Colonization, seeded deterministically per site, bounded by an **age-dependent envelope**. |
-| **Content** | The decoration: leaves, flowers, lianas, fireflies, colour. | Fast, volatile. Repositioned / recoloured without touching the skeleton. | The hormones feed this layer directly. |
+| **Content** | The decoration: leaves, blossom, wildflowers, butterflies, fireflies, colour. | Fast, volatile. Repositioned / recoloured without touching the skeleton. | The hormones feed this layer directly. |
 
 WordPress **only** feeds the CONTENT layer and **modulates** MORPHOLOGY
 parameters via hormones. It never positions a branch.
@@ -99,12 +100,17 @@ count).
 | `vigor01` | Energy: `f( posts, comments, traffic, users − errors − cpu )`. | Growth speed, branching density. |
 | `foliage01` | Post count, saturating and LOD-capped. | Canopy fill. |
 | `health01` | SEO / site health. | Leaf colour temperature and vitality. |
-| `diversity01` | Normalised entropy of the category+tag distribution. | Chromatic variance, number of lianas. |
 | `bloom01` | Comment density (comments / post). | Fraction of leaves that flower. |
 | `wind01` | Traffic. | Wind amplitude / frequency. |
 | `structure01` | Pages (evergreen content). | Trunk ivy — an evergreen cloak climbing the trunk + heavy boughs (coverage height + density). |
 | `vitality01` | Performance. | Canopy turgor — leaf fullness + brightness. |
 | `spark` | Active (online) users. | Number of fireflies (visible at night). |
+
+Two decoration budgets sit beside the hormones, each a pure saturating
+function of one aggregate count: `computeFlowerCount( totalCategories )`
+(meadow wildflowers) and `computeButterflyCount( totalTags )`
+(butterflies). Like the hormones they only ever touch decoration, never
+the skeleton.
 
 ### `ageCurve`
 
@@ -254,10 +260,11 @@ drives the wind: tips sway, the trunk stays still.
   there is no zoom, this is a **fixed LOD cap** — no split-on-zoom.
 - Leaves seek **terminal nodes** (highest `compliance` / most "light");
   distributed along branch length with jitter.
-- **Hue** from the category palette: categories partition the hue space
-  (`buildCategoryPalette`); each leaf inherits the hue of its cluster's
-  dominant category. 2000 categories → many mixed hues across the canopy →
-  still a tree.
+- **Hue** is the site's own canopy green (`canopyHue`, ±12° per identity)
+  with small random per-tuft variation — natural foliage, never a data
+  legend. (An earlier design partitioned the crown into per-category hue
+  wedges; real trees don't grow in colour sectors, so categories moved to
+  the meadow wildflowers — A.8.)
 - **Colour value = `health01` / SEO:** green (high) → yellow → red → grey
   (dead). **Size = `log( visits )`.** A very old post → desaturated / curled
   (dry).
@@ -267,16 +274,32 @@ its target and applies the wind displacement (× per-leaf compliance).
 
 ---
 
-## A.8 Flowers, lianas, wind, fireflies
+## A.8 Blossom, wildflowers, butterflies, wind, fireflies
 
 - **`BloomEngine`** — fraction of leaves that flower = `bloom01`; a leaf with
   high comment density is promoted to a flower (petals drawn with `Graphics`).
   `apply( bloom01 )` selects the set; `update( dt )` animates the bloom.
-- **`LianaSystem`** — tags do **not** create branches; they build
-  *connections*. A tag **co-occurrence graph** → top-K edges
-  (`K = f( diversity01 )`, capped) → luminous bezier filaments between crown
-  regions that share those tags. Purely decorative overlay.
-  `build( cooc, diversity01 )` then `update( dt )`.
+- **`FlowerField`** — categories bloom as **meadow wildflowers**: each
+  category reads as a patch of one species + colour (four hand-drawn
+  species — daisy, poppy, bellflower, cosmos — rasterized once per
+  species+colour combo) growing in the grass around the trunk. One
+  category is already a small cluster; `computeFlowerCount()` saturates
+  hard (cap 80) so 2000 categories is a flowerbed, never a sprite storm.
+  Every flower is ONE sprite anchored at its stem base, bending with the
+  wind like a single stalk. Layout draws from its own seeded stream
+  (`<seed>|flowers`). `build( opts )` then `update( dt, t, displace )`;
+  `targets()` exposes the flower heads as butterfly waypoints.
+- **`ButterflyLayer`** — tags do **not** create branches; they
+  *cross-pollinate*. Tags render as **butterflies working the category
+  wildflowers**: flying flower to flower, perching with slow wing-pumps,
+  banking with their own flight. `computeButterflyCount( totalTags )`
+  saturates at 8; wing-colour variety grows with the population. One
+  sprite each — the flap is a `scale.x` fold along the body axis. They
+  live inside the tree body, so night dims them exactly as the fireflies
+  wake: butterflies by day, fireflies by night. Colours and first perches
+  draw from the seeded PRNG; the wandering itself is `Math.random()`,
+  like the fireflies — flight is live behaviour, not DNA.
+  `populate( totalTags, targets, roam, rng )` then `update( dt, t )`.
 - **`GroundLayer`** — the meadow: soil mounds (soft gradient sprites), a
   contact shadow, a full-coverage turf of thousands of individually-
   drawn grass blades (STATIC — tessellated once into a single Graphics;
@@ -323,14 +346,15 @@ if growing:
 
 leaves.update( dt, wind )    // colour / size ease toward target
 bloom.update( dt )
-lianas.update( dt )
+flowerField.update( dt )     // wildflower sway (30 Hz with the canopy)
+butterflies.update( dt )     // full rate — the wing-flap needs it
 wind.apply( t )              // displace FOLIAGE by compliance · windField (wood + turf stay static — see notes)
 fireflies.update( dt )
 renderer.draw()
 ```
 
-Growth runs **once** (sprout → settled). After that, only wind + fireflies +
-slow colour easing animate. On a data refresh (`trackedFetch` re-poll) the
+Growth runs **once** (sprout → settled). After that, only wind +
+butterflies + fireflies + slow colour easing animate. On a data refresh (`trackedFetch` re-poll) the
 hormones re-point and the decoration re-eases; the skeleton only re-grows if
 **age** crosses a level threshold (A.4).
 
@@ -339,7 +363,7 @@ hormones re-point and the decoration re-eases; the skeleton only re-grows if
 ## A.11 Render layers (PIXI containers, back → front)
 
 ```
-lianas · branches (ribbon mesh) · leaves (ParticleContainer) · flowers · fireflies (additive)
+ground · wildflowers · branches (ribbon mesh) · leaves (ParticleContainer) · blossom · butterflies · fireflies (additive)
 ```
 
 No camera zoom / pan. Fixed fit to the desktop. A `ResizeObserver` re-fits the
@@ -353,9 +377,9 @@ skeleton topology are unchanged).
 The wallpaper fetches a `TreeSnapshot` from
 `GET desktop-mode/v1/living-tree/snapshot` (see
 `includes/living-tree/snapshot.php`). The snapshot is **compact DNA, not the
-database**: aggregate counts, a small `tagCooccurrence` edge list, and a
-`branches` hint — never the full post list. The client turns the snapshot
-into hormones and never sees individual rows.
+database**: aggregate counts and a `branches` hint — never the full post
+list. The client turns the snapshot into hormones and never sees
+individual rows.
 
 Permission defaults to `current_user_can( 'read' )`, filterable via
 `desktop_mode_living_tree_user_can_use`. The response is cached in a transient
@@ -387,14 +411,16 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   re-applied when the tree settles. Re-tessellating the ribbon skeleton
   every frame (and rotating hundreds of grass-clump containers) was the
   wallpaper's whole CPU bill. The foliage carries the wind — leaves,
-  blossom, vines, fireflies are sprite-transform updates the GPU batches
-  cheaply, with the two big loops (canopy, blossom) ticking at 30 Hz.
+  blossom, wildflowers, butterflies, fireflies are sprite-transform
+  updates the GPU batches cheaply, with the big loops (canopy, blossom,
+  wildflowers) ticking at 30 Hz.
   Measured on the software rasterizer (worst case): 133 ms → 33 ms per
   frame. Colour
   lightens with compliance (dark trunk → warm extremities).
-- **Decoration randomness.** The skeleton and leaf/bloom/liana placement
-  draw from the seeded PRNG (same site → same canopy). Firefly wander
-  uses `Math.random()` — fireflies are live presence, not DNA.
+- **Decoration randomness.** The skeleton and leaf/bloom/wildflower
+  placement draw from the seeded PRNG (same site → same canopy and
+  meadow). Firefly wander and butterfly flight use `Math.random()` —
+  live behaviour, not DNA.
 - **Health sources.** `performance` reads core's own Site Health
   tallies (the weekly-cron `health-check-site-status-result` transient:
   1.0 minus 0.15 per critical and 0.04 per recommendation, clamped to

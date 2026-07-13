@@ -1,18 +1,18 @@
 /**
- * The Living Tree — category palette + leaf colour.
+ * The Living Tree — canopy colour.
  *
- * Categories partition a hue band; each leaf inherits the hue of its
- * cluster's dominant category. Diversity controls how wide the band is:
- * a one-category site reads as a uniform green canopy, a folksonomy
- * spreads toward the full wheel. Leaf *value* comes from `health01`
- * (SEO): green → yellow → red → grey, desaturating with content age.
- * See `docs/living-tree-algorithm.md` §A.7.
+ * The canopy wears a NATURAL green: one base hue per site (shifted per
+ * identity so two blogs never wear the exact same green) with small
+ * random per-tuft variation, the way real foliage varies. Leaf *value*
+ * comes from `health01` (SEO): green → yellow → red → grey, desaturating
+ * with content age. Categories no longer tint the crown — they bloom as
+ * wildflowers in the meadow instead (`render/flowers.ts`). See
+ * `docs/living-tree-algorithm.md` §A.7.
  *
  * @since 0.9.4
  */
 
 import { hash32 } from './rng';
-import type { HuePartition, TreeSnapshot } from './types';
 
 /**
  * Canopy base hue — a lush leaf green, shifted ±12° per SITE (from the
@@ -21,14 +21,6 @@ import type { HuePartition, TreeSnapshot } from './types';
  */
 const BASE_HUE = 105;
 const BASE_HUE_IDENTITY_SPREAD = 24;
-
-/**
- * Full spread of the hue band at diversity 1 (degrees). Wide enough that
- * a taxonomy-rich site reads as visibly distinct colour regions (spring
- * golds through greens into blue-teals) while staying inside foliage-
- * plausible hues — varied canopy, not confetti.
- */
-const MAX_SPREAD = 150;
 
 function clamp01( v: number ): number {
 	return Math.min( 1, Math.max( 0, v ) );
@@ -67,44 +59,27 @@ function hslToRgb( h: number, s: number, l: number ): number {
 }
 
 /**
- * Build the category → hue partition from a snapshot's category count.
- * The band is centred on leaf green and widens with taxonomy richness,
- * so 2000 categories → many mixed hues across the canopy → still a tree.
+ * The site's canopy base hue (0..360). Pure function of the identity
+ * key (`siteUrl|siteName`) — the same inputs that seed the skeleton —
+ * so a site's green is as much its fingerprint as its silhouette.
  *
- * @param snapshot The tree snapshot (category/tag counts feed the spread).
- * @return A {@link HuePartition} resolving category ids to hues.
+ * @param siteKey The identity key, `siteUrl|siteName`.
+ * @return Base canopy hue in degrees.
  */
-export function buildCategoryPalette( snapshot: TreeSnapshot ): HuePartition {
-	const n = Math.min( 24, Math.max( 1, snapshot.totalCategories ) );
-	const terms = Math.max( 0, snapshot.totalCategories ) + Math.max( 0, snapshot.totalTags );
-	const richness = terms / ( terms + 30 ); // saturating, mirrors diversity01
-	const spread = MAX_SPREAD * richness;
-	// Per-site identity: the same seed inputs that shape the skeleton
-	// nudge the canopy's base green.
-	const identity = hash32( `${ snapshot.siteUrl }|${ snapshot.siteName }` );
-	const baseHue =
-		BASE_HUE - BASE_HUE_IDENTITY_SPREAD / 2 + ( identity % ( BASE_HUE_IDENTITY_SPREAD + 1 ) );
-
-	const bands: Array< { id: number; hue: number } > = [];
-	for ( let i = 0; i < n; i++ ) {
-		const t = n === 1 ? 0.5 : i / ( n - 1 );
-		bands.push( { id: i, hue: baseHue + ( t - 0.5 ) * spread } );
-	}
-
-	return {
-		bands,
-		hueForCategory( categoryId: number ): number {
-			const idx = ( ( categoryId % n ) + n ) % n;
-			return bands[ idx ].hue;
-		},
-	};
+export function canopyHue( siteKey: string ): number {
+	const identity = hash32( siteKey );
+	return (
+		BASE_HUE -
+		BASE_HUE_IDENTITY_SPREAD / 2 +
+		( identity % ( BASE_HUE_IDENTITY_SPREAD + 1 ) )
+	);
 }
 
 /**
  * Compute a leaf's packed 0xRRGGBB colour from its hue, health, and the
  * age of the content it represents.
  *
- * Health walks the vitality ramp: 1 → the category hue at full
+ * Health walks the vitality ramp: 1 → the canopy hue at full
  * saturation, ~0.5 → shifted toward yellow, ~0.25 → red-orange, → 0 →
  * grey. Old content dries out (desaturates + darkens).
  *
@@ -116,7 +91,7 @@ export function buildCategoryPalette( snapshot: TreeSnapshot ): HuePartition {
 export function leafColor( hue: number, health01: number, ageDays: number ): number {
 	const health = clamp01( health01 );
 	// Below the healthy band the hue slides toward the warm end (60 =
-	// yellow, 20 = red-orange) regardless of category.
+	// yellow, 20 = red-orange) regardless of the canopy hue.
 	const effectiveHue = health >= 0.7 ? hue : 20 + ( hue - 20 ) * ( health / 0.7 );
 	let s = 0.3 + 0.42 * health;
 	let l = 0.32 + 0.18 * health;

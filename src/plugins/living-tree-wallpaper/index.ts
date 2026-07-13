@@ -120,7 +120,6 @@ function showcaseSnapshot(
 		seoHealth: numParam( params, 'seoHealth' ),
 		performance: numParam( params, 'performance' ),
 		branches: [],
-		tagCooccurrence: [],
 	};
 }
 

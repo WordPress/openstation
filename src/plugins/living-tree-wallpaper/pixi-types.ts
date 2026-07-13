@@ -69,7 +69,7 @@ export interface PixiSprite extends PixiContainer {
 	tint: number;
 	blendMode: string;
 	texture: PixiTexture;
-	anchor: { set( v: number ): void };
+	anchor: { set( x: number, y?: number ): void };
 }
 
 export interface PixiTicker {

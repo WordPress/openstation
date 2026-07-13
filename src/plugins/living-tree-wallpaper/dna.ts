@@ -102,12 +102,6 @@ export function buildHormones( snapshot: TreeSnapshot ): Hormones {
 	// Bloom follows conversation density, not volume: comments per post.
 	const bloom01 = clamp01( sat( comments / Math.max( 1, posts ), 4 ) );
 
-	// Diversity approximates taxonomy entropy from term counts — a site
-	// with one category reads monochrome, a folksonomy reads iridescent.
-	const diversity01 = clamp01(
-		sat( Math.max( 0, snapshot.totalCategories ) + Math.max( 0, snapshot.totalTags ), 30 ),
-	);
-
 	// Wind keeps a gentle floor so the tree always feels alive, scaling
 	// up with traffic.
 	const wind01 = clamp01( 0.2 + 0.8 * sat( traffic, 5000 ) );
@@ -119,7 +113,6 @@ export function buildHormones( snapshot: TreeSnapshot ): Hormones {
 		vigor01,
 		foliage01: clamp01( sat( posts, 150 ) ),
 		health01: clamp01( snapshot.seoHealth ),
-		diversity01,
 		bloom01,
 		wind01,
 		// Pages are the site's evergreen scaffolding → structural mass.

@@ -5,8 +5,7 @@
  * `docs/living-tree-algorithm.md`. WordPress emits a {@link TreeSnapshot}
  * (raw metrics + compact DNA); {@link Hormones} is the only crossing into
  * the growth simulator; {@link Envelope} + {@link BranchNode} are the
- * morphology layer; {@link LeafDNA} / {@link HuePartition} feed the
- * decoration layer.
+ * morphology layer; {@link LeafDNA} feeds the decoration layer.
  *
  * @since 0.9.4
  */
@@ -36,7 +35,7 @@ export interface BranchDNA {
  * aggregates, never a full post row.
  */
 export interface LeafDNA {
-	/** Hue (0..360) inherited from the leaf's dominant category cluster. */
+	/** Hue (0..360) — the site's canopy green with natural variation. */
 	hue: number;
 	/** Vitality, 0..1 — from `health01` / SEO. Drives green→yellow→red→grey. */
 	health01: number;
@@ -44,17 +43,6 @@ export interface LeafDNA {
 	ageDays: number;
 	/** View count for the cluster — drives leaf size via `log( visits )`. */
 	visits: number;
-}
-
-/**
- * One edge of the tag co-occurrence graph the {@link LianaSystem} draws
- * filaments from. `a` / `b` are term ids; `weight` is the number of posts
- * that carry both tags.
- */
-export interface TagCooccurrence {
-	a: number;
-	b: number;
-	weight: number;
 }
 
 /**
@@ -91,8 +79,6 @@ export interface TreeSnapshot {
 	performance: number;
 	/** Compact per-region structural hints. */
 	branches: BranchDNA[];
-	/** Top tag co-occurrence edges for the liana overlay. */
-	tagCooccurrence: TagCooccurrence[];
 }
 
 /**
@@ -109,8 +95,6 @@ export interface Hormones {
 	foliage01: number;
 	/** Leaf colour temperature / vitality. */
 	health01: number;
-	/** Chromatic variance + liana count. */
-	diversity01: number;
 	/** Fraction of leaves that flower. */
 	bloom01: number;
 	/** Wind amplitude / frequency. */
@@ -194,17 +178,6 @@ export interface GrowthConfig {
 	maxNodes: number;
 	/** Nodes added per frame (from `vigor01`). */
 	growthRate: number;
-}
-
-/**
- * Category → hue partition. Categories carve up the hue wheel so every
- * leaf inherits the hue of its cluster's dominant category.
- */
-export interface HuePartition {
-	/** Hue bands, one per category, in registration order. */
-	bands: Array< { id: number; hue: number } >;
-	/** Resolve a category id to its hue (0..360). Falls back for unknown ids. */
-	hueForCategory( categoryId: number ): number;
 }
 
 /**

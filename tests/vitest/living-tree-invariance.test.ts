@@ -28,7 +28,9 @@ import {
 	revealSkeleton,
 } from '../../src/plugins/living-tree-wallpaper/growth/reveal';
 import { GrowthSimulator } from '../../src/plugins/living-tree-wallpaper/growth/space-colonization';
-import { buildCategoryPalette } from '../../src/plugins/living-tree-wallpaper/palette';
+import { canopyHue } from '../../src/plugins/living-tree-wallpaper/palette';
+import { computeButterflyCount } from '../../src/plugins/living-tree-wallpaper/render/butterflies';
+import { computeFlowerCount } from '../../src/plugins/living-tree-wallpaper/render/flowers';
 import { computeIvyBudget } from '../../src/plugins/living-tree-wallpaper/render/ivy';
 import { computeLeafBudget } from '../../src/plugins/living-tree-wallpaper/render/leaves';
 import { hash32, mulberry32 } from '../../src/plugins/living-tree-wallpaper/rng';
@@ -54,7 +56,6 @@ function snapshot( overrides: Partial< TreeSnapshot > = {} ): TreeSnapshot {
 		seoHealth: 0.7,
 		performance: 0.8,
 		branches: [],
-		tagCooccurrence: [],
 		...overrides,
 	};
 }
@@ -114,7 +115,6 @@ describe( 'living-tree hormones', () => {
 			'vigor01',
 			'foliage01',
 			'health01',
-			'diversity01',
 			'bloom01',
 			'wind01',
 			'structure01',
@@ -156,6 +156,14 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 		const budgetSparse = computeLeafBudget( buildHormones( sparse ).foliage01 );
 		const budgetDense = computeLeafBudget( buildHormones( dense ).foliage01 );
 		expect( budgetDense ).toBeGreaterThan( budgetSparse );
+		// Taxonomy differences surface in the meadow, not the skeleton:
+		// more categories → more wildflowers, more tags → more butterflies.
+		expect( computeFlowerCount( dense.totalCategories ) ).toBeGreaterThan(
+			computeFlowerCount( sparse.totalCategories ),
+		);
+		expect( computeButterflyCount( dense.totalTags ) ).toBeGreaterThan(
+			computeButterflyCount( sparse.totalTags ),
+		);
 	} );
 
 	test( 'pages buy trunk ivy, monotonically, without touching geometry', () => {
@@ -192,8 +200,8 @@ describe( 'living-tree topological invariance (the golden rule)', () => {
 			reveal( blogB ).map( ( n ) => n.pos ),
 		);
 		// Their base greens differ too.
-		expect( buildCategoryPalette( blogA ).hueForCategory( 0 ) ).not.toBe(
-			buildCategoryPalette( blogB ).hueForCategory( 0 ),
+		expect( canopyHue( `${ blogA.siteUrl }|${ blogA.siteName }` ) ).not.toBe(
+			canopyHue( `${ blogB.siteUrl }|${ blogB.siteName }` ),
 		);
 	} );
 

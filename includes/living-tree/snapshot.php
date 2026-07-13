@@ -3,9 +3,9 @@
  * Desktop Mode — Living Tree: REST snapshot endpoint.
  *
  * One route: `GET desktop-mode/v1/living-tree/snapshot`. Returns the
- * compact site DNA (`TreeSnapshot` in the JS types) — aggregate counts, a
- * small tag co-occurrence edge list, and branch hints — never the full
- * post list. The client turns this into hormones and never sees rows.
+ * compact site DNA (`TreeSnapshot` in the JS types) — aggregate counts
+ * and branch hints — never the full post list. The client turns this
+ * into hormones and never sees rows.
  *
  * `siteUrl` + `siteName` + `installEpoch` together form the determinism
  * seed. The site NAME is deliberately part of it: two different blogs can
@@ -139,7 +139,6 @@ function desktop_mode_living_tree_build_snapshot() {
 		'seoHealth'       => desktop_mode_living_tree_seo_health(),
 		'performance'     => desktop_mode_living_tree_performance(),
 		'branches'        => desktop_mode_living_tree_branch_dna(),
-		'tagCooccurrence' => desktop_mode_living_tree_tag_cooccurrence(),
 	);
 
 	/**
