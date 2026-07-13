@@ -1399,7 +1399,7 @@ interface ActivityApi {
 
 | Channel | Direction | Payload | Filterable? |
 |---|---|---|---|
-| `desktop-mode/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action` to rewrite. |
+| `desktop-mode/toast-requested` | Pre-show — `showToast()` calls run through this. | `{ message, action?, duration?, persistent?, source?, meta?, cancel? }` | **Yes.** Set `cancel: true` to drop the toast. Mutate `message`/`duration`/`action`/`persistent` to rewrite. |
 | `desktop-mode/toast-shown` | Fire-and-forget — fires after the toast lands in the DOM. | Same shape as above. | No (filtering is too late). |
 | `desktop-mode/window-attention-requested` | Pre-attention — `Window.requestAttention()` runs through this filter, then routes the filtered result to the rails' `setAttention()`; direct `dock.setAttention()` / `taskbar.setAttention()` calls bypass it. | `{ windowId, mode, durationMs?, intensity?, source?, cancel? }` | **Yes.** Set `cancel: true` for DND. Mutate `mode`/`durationMs`/`intensity` to scale the animation. |
 | `desktop-mode/badge-changed` | Fire-and-forget — every `setBadge()` on dock / taskbar / icons mirrors here on every change. | `{ itemId, count, rail?: 'dock' \| 'taskbar' \| 'icon' }` *(rail since 0.6.0)* | No. |
@@ -1521,26 +1521,37 @@ wp.desktop.subscribe( 'posts/updated', ( { id } ) => {
 
 ### `showToast( opts )` — Stable *(since 0.6.0)*
 
-Show a transient top-of-shell toast. Returns a dismiss callback the caller can invoke early — useful when the state the toast was reporting changes (e.g. dismiss "X arrived" toasts the moment the related window mounts).
+Show a top-of-shell toast. Returns a dismiss callback the caller can invoke early — useful when the state the toast was reporting changes (e.g. dismiss "X arrived" toasts the moment the related window mounts).
 
 ```typescript
 wp.desktop.showToast( {
     message: string;
-    duration?: number;                                     // ms; default 4000
+    duration?: number;                                     // ms; default 4000. Ignored when persistent.
     action?: { label: string; onClick: () => void };       // optional CTA
+    persistent?: boolean;                                  // since 0.9.3 — never auto-dismiss
 } ): () => void;
 ```
 
 ```javascript
+// Transient (default) — auto-dismisses after `duration`.
 const dismiss = wp.desktop.showToast( {
     message: 'Saved',
     duration: 3000,
     action: { label: 'Undo', onClick: () => undo() },
 } );
 
-// Tear it down early if the underlying state changes:
-windowOpenedCallback( () => dismiss() );
+// Persistent — never auto-dismisses; stays until the user acts on it
+// or a caller invokes the returned dismiss fn. This is how the shell
+// surfaces a pending WordPress core update (once, instead of the
+// per-window nag). Pair with an `action` so there's a way to act.
+const clear = wp.desktop.showToast( {
+    message: 'WordPress 7.0.2 is available.',
+    persistent: true,
+    action: { label: 'Update now', onClick: () => openUpdateScreen() },
+} );
 ```
+
+A `persistent` toast has no auto-dismiss timer and no close button — clear it via the action button (which dismisses on click) or the returned dismiss callback. `duration` is ignored when `persistent` is set.
 
 Routes through the `desktop-mode/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
 

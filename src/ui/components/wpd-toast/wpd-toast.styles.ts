@@ -30,9 +30,15 @@ export const toastStyles = css`
 		padding: 10px 14px;
 		background: #1d2327;
 		color: #fff;
-		border-radius: 8px;
-		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.2 ),
-			0 2px 6px rgba( 0, 0, 0, 0.1 );
+		border-radius: 10px;
+		/* Hairline light border + inset top highlight so the toast
+		 * reads as a distinct surface when it overlaps the (also dark)
+		 * widget cards behind it — matching the widget-card treatment.
+		 * The deeper drop shadow lifts it off the wallpaper. */
+		border: 1px solid rgba( 255, 255, 255, 0.12 );
+		box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.4 ),
+			0 2px 6px rgba( 0, 0, 0, 0.18 ),
+			inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
 		font-size: 13px;
 		line-height: 1.4;
 		opacity: 0;

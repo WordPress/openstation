@@ -390,6 +390,43 @@ function desktop_mode_chromeless_suppress_admin_bar() {
 add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
 
 /**
+ * Suppresses WordPress core's global update / maintenance nags inside
+ * chromeless iframes.
+ *
+ * Core hooks `update_nag()` — the "WordPress X.Y is available! Please
+ * update now." banner — onto both `admin_notices` and
+ * `network_admin_notices` at priority 3, and `maintenance_nag()` at
+ * priority 10. Because every Desktop Mode window is an independent
+ * admin request, those banners paint once per open window — the same
+ * nag duplicated across the Dashboard, Posts, Tools, … windows (the
+ * duplication users see when several windows are open).
+ *
+ * We detach them inside chromeless requests so the shell can surface
+ * the update exactly once as a single persistent, dismissible toast
+ * (see `desktop_mode_get_core_update()` in
+ * `includes/update-notice.php`), rather than N times.
+ *
+ * Mirrors {@see desktop_mode_chromeless_suppress_admin_bar()} — same
+ * `admin_init` timing (the core `add_action()` calls run at
+ * include-time, before `admin_init`) and same chromeless gate. Only
+ * the update/maintenance nags are targeted; plugin-registered
+ * `admin_notices` are left untouched so a plugin's own in-window
+ * messaging still reaches the user.
+ *
+ * @since 0.9.3
+ */
+function desktop_mode_chromeless_suppress_update_nags() {
+	if ( ! desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	remove_action( 'admin_notices', 'update_nag', 3 );
+	remove_action( 'network_admin_notices', 'update_nag', 3 );
+	remove_action( 'admin_notices', 'maintenance_nag', 10 );
+	remove_action( 'network_admin_notices', 'maintenance_nag', 10 );
+}
+add_action( 'admin_init', 'desktop_mode_chromeless_suppress_update_nags' );
+
+/**
  * Preserves the `desktop_mode_chromeless` flag through admin
  * redirects.
  *

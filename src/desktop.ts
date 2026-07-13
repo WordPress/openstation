@@ -170,6 +170,7 @@ import { bootStickyNotes } from './sticky-notes';
 // boot-time consumer reaches the same captured value — see the import
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
+import { maybeShowUpdateToast } from './update-notice';
 import { setupDevModeWidgetGate } from './widgets/dev-mode-gate';
 import {
 	installDefaultDockRailRenderer,
@@ -3211,6 +3212,27 @@ function init(): void {
 	setFilesUserAssociations(
 		( config.userFileAssociations as Record< string, string > | undefined ) ?? {},
 	);
+
+	// Surface a pending WordPress core update as a single persistent,
+	// dismissible toast — the desktop-native replacement for core's
+	// per-window update nag (suppressed inside windows server-side).
+	// Reuses the in-shell link open path so "Update now" lands on the
+	// update screen as a window.
+	maybeShowUpdateToast( {
+		update: config.coreUpdate,
+		openUrl: ( { url, title } ) => {
+			if ( tryNativeUrlRemap( url ) ) {
+				return;
+			}
+			void manager.open( {
+				id: 'update-core',
+				baseId: 'update-core',
+				url,
+				title,
+				icon: 'dashicons-update',
+			} );
+		},
+	} );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,

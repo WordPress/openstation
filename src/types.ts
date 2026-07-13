@@ -1906,6 +1906,16 @@ export interface DesktopConfig {
 	 */
 	toastTypes?: ToastTypeDef[];
 	/**
+	 * Pending WordPress core update, if one is available and the
+	 * current user can `update_core`. Computed server-side by
+	 * `desktop_mode_get_core_update()`; the shell surfaces it once as
+	 * a persistent, dismissible toast (replacing core's per-window
+	 * update nag). `null` / omitted when no update is pending.
+	 *
+	 * @since 0.9.3
+	 */
+	coreUpdate?: { version: string; url: string } | null;
+	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `desktop_mode_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.

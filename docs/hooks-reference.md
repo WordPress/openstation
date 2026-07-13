@@ -2931,6 +2931,31 @@ Actions / filters:
 
 See [`docs/examples/window-notice.md`](examples/window-notice.md).
 
+### Core-update toast — `desktop_mode_core_update_notice` — Experimental (filter) *(since 0.9.3)*
+
+WordPress core prints "WordPress X is available!" on every admin
+screen. Desktop Mode detaches that per-window nag inside chromeless
+windows (`desktop_mode_chromeless_suppress_update_nags()`) and surfaces
+the update **once**, as a single persistent, dismissible toast in the
+shell. `desktop_mode_get_core_update()` computes the descriptor from
+WordPress's authoritative update state (`update_core`-gated) and ships
+it in the shell config as `coreUpdate`.
+
+```php
+/**
+ * @param array{version:string,url:string}|null $update Descriptor, or null.
+ * @return array{version:string,url:string}|null
+ */
+apply_filters( 'desktop_mode_core_update_notice', $update );
+```
+
+Return `null` to suppress the desktop update toast entirely — useful
+for sites that manage core updates out-of-band:
+
+```php
+add_filter( 'desktop_mode_core_update_notice', '__return_null' );
+```
+
 ---
 
 ## Progressive Web App (since 0.8.0)

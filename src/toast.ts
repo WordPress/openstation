@@ -45,8 +45,21 @@ export interface ToastOptions {
 		label: string;
 		onClick: () => void;
 	};
-	/** How long the toast stays visible, in milliseconds. */
+	/**
+	 * How long the toast stays visible, in milliseconds. Ignored
+	 * when {@link ToastOptions.persistent} is `true`.
+	 */
 	duration?: number;
+	/**
+	 * When `true`, the toast never auto-dismisses — it stays until a
+	 * caller invokes the returned dismiss function or the user acts on
+	 * the toast's own action button. Use for standing status the user
+	 * must act on (e.g. "a WordPress update is available"), not
+	 * ephemeral confirmations. Overrides `duration`.
+	 *
+	 * @since 0.9.3
+	 */
+	persistent?: boolean;
 }
 
 /**
@@ -163,10 +176,15 @@ function renderToast( intent: ToastIntent ): () => void {
 		toast.setAttribute( 'state', 'in' );
 	} );
 
-	dismissTimer = window.setTimeout(
-		dismiss,
-		intent.duration ?? DEFAULT_DURATION_MS,
-	) as unknown as number;
+	// Persistent toasts never auto-dismiss — they stay until the user
+	// closes them (dismissible ×) or a caller invokes the returned
+	// dismiss fn.
+	if ( ! intent.persistent ) {
+		dismissTimer = window.setTimeout(
+			dismiss,
+			intent.duration ?? DEFAULT_DURATION_MS,
+		) as unknown as number;
+	}
 
 	// Fire-and-forget broadcast that a toast went up. Audit /
 	// telemetry plugins subscribe; the toast renderer doesn't wait
