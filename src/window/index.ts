@@ -40,7 +40,11 @@ import {
 // inventory lives in `src/shell-overlays/entry.ts`.
 
 import { _buildNativeRenderContext } from './../native-windows';
-import { createWindowElement, updateFullscreenBodyClass } from './dom';
+import {
+	createWindowElement,
+	updateFullscreenBodyClass,
+	withChromelessParam,
+} from './dom';
 import { handleWindowMessage } from './iframe-bridge';
 import {
 	buttonsForWindow,
@@ -1939,6 +1943,52 @@ export class Window {
 			windowId: this.id,
 			url: reloadedUrl,
 		} );
+	}
+
+	/**
+	 * Navigate the window's primary iframe to a new admin URL.
+	 *
+	 * Used by `WindowManager.open()` when a caller re-opens an
+	 * existing window with a URL it isn't already showing — e.g. the
+	 * post-install "Activate" link
+	 * (`plugins.php?action=activate&plugin=…&_wpnonce=…`) clicked
+	 * while a Plugins window is already open. The URL gets the
+	 * chromeless flag appended via `withChromelessParam()`, which
+	 * doubles as the same-origin gate. Navigation prefers
+	 * `location.assign()` so the iframe keeps a real session-history
+	 * entry (Back still works), falling back to `iframe.src` when the
+	 * content window is torn down or inaccessible.
+	 *
+	 * Returns `true` when a navigation was started, `false` for
+	 * native windows, missing iframes, or cross-origin URLs.
+	 *
+	 * @since 0.9.4
+	 */
+	public navigateTo( url: string ): boolean {
+		if ( this.config.native || ! this.iframe ) {
+			return false;
+		}
+		const target = withChromelessParam( url );
+		if ( ! target ) {
+			return false;
+		}
+		// Arm the loading overlay before re-pointing the iframe — the
+		// same affordance the submenu tab strip shows for in-place
+		// navigation. Cleared by `desktop-mode-ready` / the iframe
+		// `load` event, exactly like a fresh open.
+		this.markContentLoading();
+		const inner = this.iframe.contentWindow;
+		if ( inner ) {
+			try {
+				inner.location.assign( target );
+				return true;
+			} catch {
+				// Torn-down frame — fall through to the never-throwing
+				// `src` assignment.
+			}
+		}
+		this.iframe.src = target;
+		return true;
 	}
 
 	/**

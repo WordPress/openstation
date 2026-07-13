@@ -76,6 +76,23 @@ describe( 'utils/deriveWindowId', () => {
 		expect( first ).toBe( 'post-php-post-123' );
 	} );
 
+	test( 'separates individual comment edit URLs by the `c` query arg', () => {
+		// Regression: without `c` in the identity set, every
+		// comment.php?action=editcomment&c=X URL collapses to
+		// `comment-php`, so opening a second comment replaces the first
+		// comment's window instead of opening its own.
+		const first = deriveWindowId(
+			`${ ADMIN }comment.php?action=editcomment&c=500`,
+			ADMIN,
+		);
+		const second = deriveWindowId(
+			`${ ADMIN }comment.php?action=editcomment&c=501`,
+			ADMIN,
+		);
+		expect( first ).not.toBe( second );
+		expect( first ).toBe( 'comment-php-c-500' );
+	} );
+
 	test( 'separates plugin-routed pages by the `page` query arg', () => {
 		const one = deriveWindowId(
 			`${ ADMIN }admin.php?page=my-plugin`,

@@ -1811,8 +1811,6 @@ function init(): void {
 			restNonce: config.restNonce,
 			canUpload: !! config.canUpload,
 			isAdmin: !! config.currentUserIsAdmin,
-			aiPlatformSettings: config.aiPlatformSettings ?? null,
-			aiPlatformSettingsUrl: config.aiPlatformSettingsUrl ?? '',
 			extendedOptions: config.extendedOptions ?? null,
 			extendedOptionsUrl: config.extendedOptionsUrl ?? '',
 			osSettingsPanelBundleUrl: config.osSettingsPanelBundleUrl ?? '',
@@ -1842,10 +1840,10 @@ function init(): void {
 			aiSearchUrl: config.aiSearchUrl ?? '',
 			aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 			restNonce: config.restNonce,
-			// Transport picker lives in OS Settings → AI Settings. Read
-			// live (not captured at construction) so a change applies on
-			// the next search without a page reload.
-			getTransport: () => osSettings.getOsSettingsSnapshot().ai.transport,
+			// Progress streaming is on by default now that the per-user
+			// transport picker is gone; the assistant falls back gracefully
+			// if the host drops the SSE connection.
+			getTransport: () => 'sse',
 		},
 		config.aiAssistantBundleUrl ?? '',
 	);
@@ -1966,13 +1964,45 @@ function init(): void {
 	// and install the single global shortcut. Other plugins can register
 	// more palettes via wp.desktop.registerPalette and Cmd+K cycles
 	// through them in registration order.
-	registerPalette( {
-		id: 'desktop-mode-ai-assistant',
-		label: 'AI Assistant',
-		open: () => aiAssistant.open(),
-		close: () => aiAssistant.close(),
-		isOpen: () => aiAssistant.isOpen,
-	} );
+	//
+	// The assistant is *active* only when the Core AI primitives are present, a
+	// provider is configured in Settings → Connectors, AND the per-user toggle
+	// is on. Both the Cmd+K palette and the admin-bar "Ask AI" icon follow this
+	// live (no reload): we register/unregister the palette and toggle the
+	// `desktop-mode-ai-enabled` body class (which controls the icon's CSS
+	// visibility) whenever the toggle changes or a provider is (dis)connected.
+	const aiAvailable = config.aiAssistant?.available === true;
+	const isAiAssistantActive = () =>
+		aiAvailable &&
+		config.aiAssistant?.assistantProviderConfigured === true &&
+		osSettings.getOsSettingsSnapshot().ai.enabled !== false;
+
+	let unregisterAiPalette: ( () => void ) | null = null;
+	const syncAiAssistant = () => {
+		const active = isAiAssistantActive();
+		document.body.classList.toggle( 'desktop-mode-ai-enabled', active );
+		if ( active && ! unregisterAiPalette ) {
+			unregisterAiPalette = registerPalette( {
+				id: 'desktop-mode-ai-assistant',
+				label: 'AI Assistant',
+				open: () => aiAssistant.open(),
+				close: () => aiAssistant.close(),
+				isOpen: () => aiAssistant.isOpen,
+			} );
+		} else if ( ! active && unregisterAiPalette ) {
+			aiAssistant.close();
+			unregisterAiPalette();
+			unregisterAiPalette = null;
+		}
+	};
+	syncAiAssistant();
+	// Re-sync when the user flips the assistant toggle in OS Settings, or when
+	// a provider is connected/disconnected (Features tab dispatches this after
+	// re-probing provider status).
+	osSettings.subscribeOsSettings( () => syncAiAssistant() );
+	document.addEventListener( 'desktop-mode-ai-status-changed', () =>
+		syncAiAssistant(),
+	);
 	installPaletteShortcut();
 	installWindowSwitcherShortcut( manager );
 	installDesktopArrowShortcuts( manager );
@@ -2010,6 +2040,9 @@ function init(): void {
 	// palette that happens to be open is dismissed first — matches the
 	// single-palette-at-a-time invariant the cycle maintains.
 	document.addEventListener( 'desktop-mode-open-ai', () => {
+		if ( ! isAiAssistantActive() ) {
+			return;
+		}
 		openPaletteOnly( 'desktop-mode-ai-assistant' );
 	} );
 

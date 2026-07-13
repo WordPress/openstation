@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 /** Meta key used to store the per-comment AI analysis. */
 const DESKTOP_MODE_AI_META_KEY = '_desktop_mode_ai_analysis';
 
-/** Max characters of comment text sent to OpenAI. */
+/** Max characters of comment text sent to the provider. */
 const DESKTOP_MODE_AI_CONTENT_MAX_CHARS = 3000;
 
 // ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
 	$user_text .= "- The `topic` and `ai_summary` fields MUST capture the tone and sentiment so that search queries like \"negative comment\", \"angry reader\", or \"spam\" return the correct results.";
 
 	/**
-	 * Filters the user message sent to OpenAI for comment analysis.
+	 * Filters the user message sent to the provider for comment analysis.
 	 *
 	 * @since 0.5.0
 	 *
@@ -148,7 +148,7 @@ function desktop_mode_ai_messages_for_comment( WP_Comment $comment ) {
  *
  * @param string $entity_type Only `'comment'` is supported.
  * @param int    $entity_id   Comment ID.
- * @param array  $analysis    The structured output array from OpenAI.
+ * @param array  $analysis    The structured output array from the provider.
  * @return bool
  */
 function desktop_mode_ai_save_meta( $entity_type, $entity_id, array $analysis ) {
