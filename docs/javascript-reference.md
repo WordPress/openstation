@@ -2408,8 +2408,8 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled, provider, apiKey, transport } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `transport` is `'sse' \| 'off'` (default `'off'`) — the user's preferred live-progress transport for AI search; SSE is opt-in because some hosts block long-lived `text/event-stream` connections. `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. Read-only; returns a defensive copy. Equivalent to what the built-in AI tab sees. |
-| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user edits the AI key in the adjacent AI tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Changed in 0.9.4:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
 // Use `wp.desktop.ready()` (not `addAction( 'desktop-mode.init', … )`) —
@@ -2440,14 +2440,14 @@ wp.desktop.ready( () => {
                 </wpd-section>
             `;
 
-            // Read current AI settings configured in the adjacent AI tab.
-            const { apiKey } = ctx.getOsSettings().ai;
-            console.log( 'current OpenAI key length:', apiKey.length );
+            // Read the current AI assistant preference (Features tab).
+            const { enabled } = ctx.getOsSettings().ai;
+            console.log( 'assistant on:', enabled );
 
             // Re-read when the user edits settings elsewhere in the
             // panel. Unsubscribe on next re-render / window close.
             const off = ctx.subscribeOsSettings( ( next ) => {
-                console.log( 'settings changed — new key len:', next.ai.apiKey.length );
+                console.log( 'settings changed — assistant on:', next.ai.enabled );
             } );
 
             // Clean up if the body is detached (window closed, reset clicked).

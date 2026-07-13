@@ -235,7 +235,12 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 	// AI Assistant trigger — shown when desktop mode is active AND the
 	// current user has AI features configured. Clicking (or pressing
 	// Cmd+K anywhere) opens the spotlight-style AI overlay.
-	if ( $is_active && function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
+	// Rendered whenever the AI APIs are available; its visibility is driven by
+	// the `desktop-mode-ai-enabled` body class (set server-side in
+	// body-classes.php, toggled live by the shell when the user flips the
+	// assistant toggle) so no reload is needed to show/hide it.
+	if ( $is_active
+		&& function_exists( 'desktop_mode_ai_is_available' ) && desktop_mode_ai_is_available() ) {
 		// Use dashicons-admin-comments (speech bubble) — same rendering
 		// path as the toggle + arrange buttons, no SVG / HTML parsing
 		// issues in the admin-bar context. The ⌘K badge is added via
@@ -345,6 +350,13 @@ function desktop_mode_enqueue_toggle_assets() {
 			justify-content: center;
 			width: 20px;
 			height: 20px;
+		}
+
+		/* Ask AI button shows only when the per-user assistant toggle is on.
+		   The body class is set server-side and toggled live by the shell, so
+		   enabling/disabling the assistant needs no reload. */
+		body:not( .desktop-mode-ai-enabled ) #wpadminbar #wp-admin-bar-desktop-ai-assistant {
+			display: none;
 		}
 
 		#wp-admin-bar-desktop-mode-toggle .ab-icon.dashicons,

@@ -67,4 +67,26 @@ class Tests_DesktopMode_CommentsAiSpamScore extends WP_UnitTestCase {
 
 		$this->assertSame( 42, (int) $score );
 	}
+
+	/**
+	 * The scheduler is wired to both new comments and edits, so an edit
+	 * re-analyzes and the stored verdict stays fresh under moderation.
+	 *
+	 * Guards against the edit path being dropped (it was previously carried
+	 * by the now-removed `desktop_mode_ai_on_comment_change`).
+	 *
+	 * @covers ::desktop_mode_comments_ai_on_new_comment
+	 */
+	public function test_scheduler_hooked_on_insert_and_edit() {
+		$this->assertSame(
+			25,
+			has_action( 'wp_insert_comment', 'desktop_mode_comments_ai_on_new_comment' ),
+			'New comments should schedule analysis.'
+		);
+		$this->assertSame(
+			25,
+			has_action( 'edit_comment', 'desktop_mode_comments_ai_on_new_comment' ),
+			'Edited comments should re-schedule analysis.'
+		);
+	}
 }
