@@ -1910,7 +1910,7 @@ Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model eve
 **Security notes.**
 
 1. The server never executes a client-harvested command — it returns `{ answer_type: 'tool_call', tool: { slug, args } }` and the client invokes `run()` locally. The model can't reach through to any server-side code via this path.
-2. For server-side tools, use [`desktop_mode_register_ai_tool()`](./hooks-reference.md#desktop_mode_register_ai_tool-args--experimental-php-function-since-052). Handlers are capability-gated and the registry is invisible to callers who don't have the cap.
+2. For server-side tools, register a WordPress [ability](https://developer.wordpress.org/) with `wp_register_ability()` and add it to the Copilot via the [`desktop_mode_ai_abilities`](./hooks-reference.md#desktop_mode_ai_abilities--stable-since-095) filter. Its `permission_callback` gates execution and input/output are schema-validated by Core.
 3. Command `description` is fed to the model verbatim — treat it as untrusted surface for plugin authors exactly as you'd treat any other plugin string.
 
 **Natural-language replies — `followUp: true`**

@@ -1282,7 +1282,9 @@ The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses enti
 
 Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
-> **Removed in 0.9.4.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `desktop_mode_register_ai_provider()` / `desktop_mode_unregister_ai_provider()`, the actions `desktop_mode_ai_register_providers` / `desktop_mode_ai_provider_registered`, and the filters `desktop_mode_ai_active_provider` / `desktop_mode_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below and `desktop_mode_register_ai_tool()` are unaffected.
+> **Removed in 0.9.4.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `desktop_mode_register_ai_provider()` / `desktop_mode_unregister_ai_provider()`, the actions `desktop_mode_ai_register_providers` / `desktop_mode_ai_provider_registered`, and the filters `desktop_mode_ai_active_provider` / `desktop_mode_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below are unaffected.
+
+> **Removed / changed in 0.9.5.** The built-in Copilot tools are now WordPress [Abilities](https://developer.wordpress.org/) (category `desktop-mode`), so the PHP tool registry is gone: `desktop_mode_register_ai_tool()` and the `desktop_mode_ai_tool_registered` action no longer exist — register a `wp_register_ability()` and add it via the new [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-095) filter instead. The `desktop_mode_ai_model` filter was **re-introduced** (it had been removed in 0.9.4) with new semantics: a soft model preference fed to the AI Client — see below.
 
 > **Removed in 0.9.1.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
@@ -1379,7 +1381,7 @@ apply_filters( 'desktop_mode_ai_request', array $extra, array $core );
 
 ### `desktop_mode_ai_tools` — Stable
 
-Transforms the full tool list (built-in search + PHP-registered + client commands) once per run, just before it goes to OpenAI. Add tools, remove tools, rewrite descriptions.
+Transforms the full tool list (built-in ability tools + client commands) once per run, just before it goes to the provider. Add tools, remove tools, rewrite descriptions. (To add a server-dispatched tool, prefer registering an ability + the [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-095) filter, which also handles dispatch + permission.)
 
 ```php
 apply_filters( 'desktop_mode_ai_tools', array $tools, array $context );
@@ -1409,7 +1411,7 @@ add_filter( 'desktop_mode_ai_command_allowed', function ( $entry, $slug, $ctx ) 
 
 ### `desktop_mode_ai_tool_result` — Stable
 
-Transform a tool's result on its way back to the model. Fires for **every** tool — built-in search_*, PHP-registered via `desktop_mode_register_ai_tool()`, and command tools alike.
+Transform a tool's result on its way back to the model. Fires for **every** built-in ability tool (search_*, list_admin_pages, …) as it returns.
 
 ```php
 apply_filters( 'desktop_mode_ai_tool_result', array $result, string $tool_name, array $args, array $context );
@@ -1427,23 +1429,15 @@ apply_filters( 'desktop_mode_ai_answer', array $answer, array $context );
 
 ### `desktop_mode_ai_followup_outcome_max_chars` — Stable
 
-Caps the size of the serialised tool result the follow-up leg sends to OpenAI. Default `4000` characters — enough for a status string, a small result list, or a short error envelope. Set `0` to disable truncation (not recommended — a buggy or malicious plugin that returns a 5 MB blob would then inflate token usage unbounded).
+Caps the size of the serialised tool result the follow-up leg sends to the provider. Default `4000` characters — enough for a status string, a small result list, or a short error envelope. Set `0` to disable truncation (not recommended — a buggy or malicious plugin that returns a 5 MB blob would then inflate token usage unbounded).
 
 ```php
 apply_filters( 'desktop_mode_ai_followup_outcome_max_chars', int $max_chars );
 ```
 
-### `desktop_mode_ai_tool_registered` — Stable
-
-Fires after `desktop_mode_register_ai_tool()` successfully stores a tool definition. Does not fire on `WP_Error`.
-
-```php
-do_action( 'desktop_mode_ai_tool_registered', string $name, array $entry );
-```
-
 ### `desktop_mode_ai_search_started` — Stable
 
-Fires once per `/ai/search` invocation, after validation, before any OpenAI call. First anchor of the observability trio.
+Fires once per `/ai/search` invocation, after validation, before any provider call. First anchor of the observability trio.
 
 ```php
 do_action( 'desktop_mode_ai_search_started', array $context );
@@ -1454,7 +1448,7 @@ do_action( 'desktop_mode_ai_search_started', array $context );
 
 ### `desktop_mode_ai_tool_called` — Stable
 
-Fires each time a tool runs — search_*, PHP-registered, or a command tool short-circuit.
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped.
 
 ```php
 do_action( 'desktop_mode_ai_tool_called', array $payload );
@@ -1467,51 +1461,46 @@ Fires after the final answer is composed (every success path). Observability par
 
 ```php
 do_action( 'desktop_mode_ai_search_completed', array $payload );
-// $payload = { query, user_id, request_id, answer_type, iterations }
+// $payload = { query, user_id, request_id, answer_type, iterations, usage, model }
 ```
+
+`usage` is the summed token usage across every turn — `{ prompt, completion, total }` (integers) — and `model` is the last model the AI Client resolved — `{ id, name }`. Either may be `null` when the provider didn't report it.
 
 ### `desktop_mode_ai_search_error` — Stable
 
-Fires on any `WP_Error` from the search / follow-up run (provider failure, response-parse failure, etc.) or on a tool handler exception. REST permission denials do NOT fire it — REST core rejects those requests before the route callback runs. Includes the `request_id` so subscribers can correlate with `desktop_mode_ai_search_started`.
+Fires on any `WP_Error` from the search / follow-up run (provider failure, response-parse failure, etc.) and when an ability's `execute()` returns a `WP_Error` (permission denied, invalid input/output). REST permission denials do NOT fire it — REST core rejects those requests before the route callback runs. Includes the `request_id` so subscribers can correlate with `desktop_mode_ai_search_started`.
 
 ```php
 do_action( 'desktop_mode_ai_search_error', array $error );
 // $error = { code, message, data, user_id?, request_id? }
 ```
 
-On the tool-exception path the action additionally receives `string $tool_name` and `Throwable $e` — register with `add_action( ..., 10, 3 )` to receive them.
+On an ability-execution failure the payload is `{ stage: 'tool_execute', tool_name, error, message, user_id, request_id }` — the failed tool call is surfaced to the model as a clean error result (never a fatal), so the agent can recover.
 
 ---
 
-### `desktop_mode_register_ai_tool( $args )` — Experimental (PHP function, since 0.5.2)
+### `desktop_mode_ai_model` — Stable (since 0.9.5)
 
-Register a server-dispatched AI tool. Tool handlers run on the server, return a JSON-serialisable array, and the result is fed straight back to the OpenAI agent loop. This is the right home for integrations that are inherently server-side: site-health checks, order lookups, WP-CLI wrappers, database-heavy queries.
+Express a **soft** model preference for the Copilot's generation. Return a model id or an ordered list of ids; they're passed to the AI Client's `->using_model_preference()`, which tries them in order and falls back to its own choice if none is available. Empty (the default) means fully automatic. Credentials + provider still come from Settings → Connectors.
 
 ```php
-desktop_mode_register_ai_tool( array(
-    'name'             => 'list_recent_orders',
-    'description'      => 'List the site\'s most recent WooCommerce orders.',
-    'parameters'       => array(
-        'type'       => 'object',
-        'properties' => array(
-            'limit'  => array( 'type' => 'integer' ),
-            'status' => array( 'type' => 'string', 'enum' => array( 'processing', 'completed' ) ),
-        ),
-        'required'   => array( 'limit' ),
-    ),
-    'handler'          => 'my_plugin_list_orders',
-    'capability'       => 'manage_woocommerce',
-    'progress_message' => 'Checking recent orders…',
-) );
-
-function my_plugin_list_orders( array $args, int $user_id ) : array {
-    return array( 'orders' => array( /* ... */ ) );
-}
+add_filter( 'desktop_mode_ai_model', function ( $models, $user_id ) {
+    return 'claude-sonnet-4-5';           // or [ 'claude-sonnet-4-5', 'gpt-4o' ]
+}, 10, 2 );
 ```
 
-Handler signature: `function( array $args, int $user_id ): array|WP_Error`. A `WP_Error` return, or a thrown exception, is caught automatically — the error envelope goes back to the model as the tool result so the agent can try something else. Only thrown exceptions additionally fire `desktop_mode_ai_search_error`; a `WP_Error` return is treated as a handled outcome and does not fire the action. Never surfaces raw exception messages to the user.
+### `desktop_mode_ai_abilities` — Stable (since 0.9.5)
 
-`capability` is enforced **before** the tool is visible to the model — unauthorised users never see it exists.
+Add your own tools to the Copilot. The built-in tools are WordPress [Abilities](https://developer.wordpress.org/) in the `desktop-mode` category (`search_posts`, `search_comments`, `list_admin_pages`, …), listed at `GET /wp-abilities/v1/abilities`. To add one, register an ability with `wp_register_ability()` on `wp_abilities_api_init`, then append its fully-namespaced name here. The agent loop advertises it to the model and dispatches calls through `wp_get_ability()->execute()`, so its `permission_callback` and input/output schemas are enforced by Core.
+
+```php
+add_filter( 'desktop_mode_ai_abilities', function ( array $names ) {
+    $names[] = 'my-plugin/list-recent-orders';
+    return $names;
+} );
+```
+
+> This is the replacement for the removed `desktop_mode_register_ai_tool()`. See [`examples/ai-ask.md`](examples/ai-ask.md) for a full ability recipe (registration + filter).
 
 ---
 

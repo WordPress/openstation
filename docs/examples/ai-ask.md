@@ -74,7 +74,7 @@ const res = await wp.desktop.ai.ask( 'hey turn on the lights', {
 
 One-shot mode (`followUp: false`, the default) sets `res.message` to whatever the command's `run()` returned. That's fine for short status strings, but if your command returns an object (`{ total: 42, breakdown: [...] }`) or if you're building a voice / chat surface that expects conversational replies, `followUp: true` lets the AI compose a sentence in the voice of your system prompt.
 
-Cost: one extra OpenAI round-trip per command invocation. Latency roughly doubles. For one-tap UI buttons, leave `followUp` off; for anything that talks back to the user, turn it on.
+Cost: one extra provider round-trip per command invocation. Latency roughly doubles. For one-tap UI buttons, leave `followUp` off; for anything that talks back to the user, turn it on.
 
 If the second leg fails (network, API), `ask()` does **not** throw — you get the one-shot `message` as a fallback and `res.toolCall.result` is preserved. The command ran regardless.
 
@@ -120,44 +120,57 @@ await wp.desktop.ai.ask( 'status?', {
 
 Non-admin callers sending `mode: 'replace'` get a silent downgrade to append — text is never lost.
 
-## 4. PHP-side: register a server-dispatched tool
+## 4. PHP-side: register a server-dispatched tool (WordPress ability)
 
-When the tool's logic is inherently server-side (database lookups, WooCommerce, WP-CLI wrappers), skip the command path and register directly:
+When the tool's logic is inherently server-side (database lookups, WooCommerce, WP-CLI wrappers), skip the command path and register a WordPress [ability](https://developer.wordpress.org/). The Copilot's own built-in tools are abilities too (category `desktop-mode`, listed at `GET /wp-abilities/v1/abilities`). Two steps: register the ability, then add its name to the Copilot's tool list.
 
 ```php
-add_action( 'init', function () {
-    desktop_mode_register_ai_tool( array(
-        'name'             => 'list_recent_orders',
-        'description'      => 'Return the N most recent WooCommerce orders.',
-        'parameters'       => array(
-            'type'       => 'object',
-            'properties' => array(
-                'limit' => array( 'type' => 'integer', 'maximum' => 20 ),
+// 1. Register the ability. permission_callback + schemas are enforced by Core
+//    inside execute(); a denial or bad input becomes a clean tool error.
+add_action( 'wp_abilities_api_init', function () {
+    wp_register_ability( 'my-plugin/list-recent-orders', array(
+        'label'               => __( 'List recent orders', 'my-plugin' ),
+        'description'         => 'Return the N most recent WooCommerce orders, newest first.',
+        'category'            => 'desktop-mode', // or your own registered category
+        'input_schema'        => array(
+            'type'                 => 'object',
+            'additionalProperties' => false,
+            'required'             => array( 'limit' ),
+            'properties'           => array(
+                'limit' => array(
+                    'type'        => 'integer',
+                    'description' => 'How many orders to return (1-20).',
+                ),
             ),
-            'required'   => array( 'limit' ),
         ),
-        'handler'          => 'my_plugin_list_orders',
-        'capability'       => 'manage_woocommerce',
-        'progress_message' => 'Checking recent orders…',
+        'output_schema'       => array( 'type' => 'object', 'additionalProperties' => true ),
+        'permission_callback' => function () {
+            return current_user_can( 'manage_woocommerce' );
+        },
+        'execute_callback'    => function ( $input ) {
+            $limit  = min( 20, max( 1, (int) ( $input['limit'] ?? 5 ) ) );
+            $orders = wc_get_orders( array( 'limit' => $limit ) );
+            return array(
+                'orders' => array_map( static function ( $o ) {
+                    return array(
+                        'id'     => $o->get_id(),
+                        'status' => $o->get_status(),
+                        'total'  => (float) $o->get_total(),
+                    );
+                }, $orders ),
+            );
+        },
     ) );
 } );
 
-function my_plugin_list_orders( array $args, int $user_id ) : array {
-    $limit = min( 20, max( 1, (int) ( $args['limit'] ?? 5 ) ) );
-    $orders = wc_get_orders( array( 'limit' => $limit ) );
-    return array(
-        'orders' => array_map( static function ( $o ) {
-            return array(
-                'id'     => $o->get_id(),
-                'status' => $o->get_status(),
-                'total'  => (float) $o->get_total(),
-            );
-        }, $orders ),
-    );
-}
+// 2. Offer it to the Copilot as a tool.
+add_filter( 'desktop_mode_ai_abilities', function ( array $names ) {
+    $names[] = 'my-plugin/list-recent-orders';
+    return $names;
+} );
 ```
 
-No JS required. The tool shows up to OpenAI automatically on every user who has the `manage_woocommerce` cap; others never see it exists.
+No JS required. The agent loop advertises the ability to the model and dispatches calls through `wp_get_ability()->execute()`, so users without `manage_woocommerce` get a clean permission error instead of a result. (This replaces the removed `desktop_mode_register_ai_tool()`.)
 
 ## 5. Observability
 
@@ -175,7 +188,8 @@ add_action( 'desktop_mode_ai_tool_called', function ( $ctx ) {
 } );
 
 add_action( 'desktop_mode_ai_search_completed', function ( $ctx ) {
-    // { query, user_id, request_id, answer_type, iterations }
+    // { query, user_id, request_id, answer_type, iterations, usage, model }
+    // usage = { prompt, completion, total } tokens; model = { id, name } (or null).
     my_logger()->info( 'ai.completed', $ctx );
 } );
 

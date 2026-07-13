@@ -24,7 +24,27 @@ class Tests_DesktopMode_AiAbilities extends WP_UnitTestCase {
 
 	public function tear_down() {
 		remove_all_filters( 'desktop_mode_ai_model' );
+		remove_all_filters( 'desktop_mode_ai_abilities' );
 		parent::tear_down();
+	}
+
+	/**
+	 * A third-party ability can be offered to the Copilot via the
+	 * `desktop_mode_ai_abilities` filter — the extension point that replaced
+	 * `desktop_mode_register_ai_tool()`. Duplicates are collapsed.
+	 *
+	 * @covers ::desktop_mode_ai_search_ability_names
+	 */
+	public function test_ability_list_is_filterable() {
+		add_filter( 'desktop_mode_ai_abilities', static function ( $names ) {
+			$names[] = 'my-plugin/do-thing';
+			$names[] = 'desktop-mode/search-posts'; // duplicate, should collapse.
+			return $names;
+		} );
+
+		$names = desktop_mode_ai_search_ability_names();
+		$this->assertContains( 'my-plugin/do-thing', $names );
+		$this->assertSame( array_values( array_unique( $names ) ), $names, 'No duplicate ability names.' );
 	}
 
 	/**

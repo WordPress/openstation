@@ -54,7 +54,7 @@ add_action( 'wp_abilities_api_categories_init', 'desktop_mode_ai_register_abilit
  * @return string[] Fully-namespaced ability names.
  */
 function desktop_mode_ai_search_ability_names() {
-	return array(
+	$names = array(
 		'desktop-mode/search-posts',
 		'desktop-mode/search-pages',
 		'desktop-mode/search-comments',
@@ -63,6 +63,24 @@ function desktop_mode_ai_search_ability_names() {
 		'desktop-mode/search-wporg-plugins',
 		'desktop-mode/get-php-error-log',
 	);
+
+	/**
+	 * Filters the ability names the Copilot offers the model as tools.
+	 *
+	 * This is the extension point that replaces the removed
+	 * `desktop_mode_register_ai_tool()`: register your own ability with
+	 * `wp_register_ability()` (on `wp_abilities_api_init`), then append its
+	 * name here. The agent loop advertises it and dispatches calls through
+	 * `wp_get_ability()->execute()`, so its `permission_callback` and
+	 * input/output schemas are enforced by Core.
+	 *
+	 * @since 0.9.5
+	 *
+	 * @param string[] $names Fully-namespaced ability names, in offer order.
+	 */
+	$names = (array) apply_filters( 'desktop_mode_ai_abilities', $names );
+
+	return array_values( array_unique( array_filter( array_map( 'strval', $names ) ) ) );
 }
 
 /**

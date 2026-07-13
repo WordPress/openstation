@@ -21,7 +21,9 @@ The Copilot is available only on sites where the Connectors API, the Abilities A
 | Platform key option `desktop_mode_ai_platform` + `desktop-mode/v1/ai/platform-settings` REST route | Keys are stored + validated by Core in Settings → Connectors. |
 | `desktop_mode_ai_get_api_key()`, `desktop_mode_ai_resolve_key_for_provider()`, `desktop_mode_ai_get_platform_settings()`, `desktop_mode_ai_get_providers*()` | New capability helpers: `desktop_mode_ai_is_available()`, `desktop_mode_ai_provider_configured()` (baseline text generation) and `desktop_mode_ai_assistant_provider_configured()` (text generation + function calling). |
 
-**Preserved:** the `/ai/search` loop's extensibility surface — `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,tools,tool_result,answer,request}` filters and the `desktop_mode_ai_{search_started,tool_called,search_completed,search_error}` observability actions — and `desktop_mode_register_ai_tool()`. These continue to work; tools are advertised to the AI Client as function declarations. (A follow-up change migrates tools to the Abilities API.)
+**Preserved:** the `/ai/search` loop's extensibility surface — `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,tools,tool_result,answer,request}` filters and the `desktop_mode_ai_{search_started,tool_called,search_completed,search_error}` observability actions.
+
+**Tools → Abilities (0.9.5):** the built-in Copilot tools are now WordPress [Abilities](https://developer.wordpress.org/) (category `desktop-mode`, listed at `GET /wp-abilities/v1/abilities`) and generation runs through the AI Client. `desktop_mode_register_ai_tool()` and the `desktop_mode_ai_tool_registered` action were **removed** — register a `wp_register_ability()` on `wp_abilities_api_init` and add its name via the new `desktop_mode_ai_abilities` filter (see [`examples/ai-ask.md`](examples/ai-ask.md)). A new `desktop_mode_ai_model` filter expresses a soft model preference, and `desktop_mode_ai_search_completed` now carries `usage` + `model`.
 
 ## Removed — JavaScript
 
@@ -36,4 +38,5 @@ On upgrade, a one-time migration deletes the `desktop_mode_ai_platform` option a
 ## What you need to do
 
 - **Site owners:** add a provider in **Settings → Connectors**. Until then the assistant opens with a setup prompt and comment scoring stays inert.
-- **Plugin authors** who registered a custom provider: register it with the Core AI Client / Connectors instead. Tool registrations via `desktop_mode_register_ai_tool()` need no change.
+- **Plugin authors** who registered a custom provider: register it with the Core AI Client / Connectors instead.
+- **Plugin authors** who registered a server-dispatched tool via `desktop_mode_register_ai_tool()`: that function was removed. Register a `wp_register_ability()` on `wp_abilities_api_init` (with `input_schema`, `permission_callback`, `execute_callback`) and append its name via the `desktop_mode_ai_abilities` filter — see [`examples/ai-ask.md`](examples/ai-ask.md).
