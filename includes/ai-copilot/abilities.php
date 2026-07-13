@@ -66,6 +66,27 @@ function desktop_mode_ai_search_ability_names() {
 }
 
 /**
+ * The model-facing tool name for an ability — the ability name with its
+ * namespace stripped and dashes turned into underscores. By design this
+ * reproduces the Copilot's historical tool names (`desktop-mode/search-posts`
+ * → `search_posts`), so progress labels, the system prompt, and the answer
+ * schema keep referring to the same names across the abilities migration.
+ *
+ * @since 0.9.5
+ *
+ * @param string $ability_name Fully-namespaced ability name.
+ * @return string
+ */
+function desktop_mode_ai_ability_tool_name( $ability_name ) {
+	$slug = (string) $ability_name;
+	$pos  = strpos( $slug, '/' );
+	if ( false !== $pos ) {
+		$slug = substr( $slug, $pos + 1 );
+	}
+	return str_replace( '-', '_', $slug );
+}
+
+/**
  * Permission callback: any logged-in user who can read the site.
  *
  * Mirrors the read-only search/navigation tools, which were ungated beyond the

@@ -6,10 +6,9 @@
  * and the comment-scoring job use to generate. Credentials are injected by
  * Core from the configured Connector — nothing here ever handles an API key.
  *
- * The search loop keeps its own tool registry for now (built-in +
- * `desktop_mode_register_ai_tool()` + client command tools), passed to the
- * model as raw function declarations and dispatched by the loop itself. A
- * follow-up change migrates those tools to the Abilities API.
+ * The search loop advertises its tools — built-in WordPress Abilities (see
+ * abilities.php) plus client command tools — as function declarations, and
+ * dispatches ability calls through `wp_get_ability()->execute()`.
  *
  * All SDK classes referenced here ship with WordPress 7.0+. The `use`
  * statements are compile-time aliases only; every call site is reached solely
@@ -109,7 +108,7 @@ function desktop_mode_ai_tool_result_message( array $tool_outputs ) {
  * @param array      $tool_defs     Tool definitions to advertise.
  * @param array|null $answer_schema JSON Schema for the final answer, or null.
  * @param string     $instructions  System instruction.
- * @return array{ text: ?string, function_calls: array, message: mixed }|WP_Error
+ * @return array{ text: ?string, function_calls: array, message: mixed, usage: ?array, model: ?array }|WP_Error
  */
 function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool_defs, $answer_schema, $instructions ) {
 	$builder = wp_ai_client_prompt( $messages );
@@ -118,9 +117,14 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
 		$builder = $builder->using_system_instruction( $instructions );
 	}
 
-	// Provider + model selection is delegated entirely to the Core AI Client;
-	// Desktop Mode does not pin either. Credentials come from the configured
-	// Connector, injected by Core.
+	// Provider selection is delegated to the Core AI Client (Connector-backed).
+	// Integrators may still express a soft model preference via the
+	// `desktop_mode_ai_model` filter — a list of model ids the AI Client tries
+	// in order, falling back to its own choice if none is available.
+	$model_pref = desktop_mode_ai_model_preference( (int) $user_id );
+	if ( ! empty( $model_pref ) ) {
+		$builder = $builder->using_model_preference( ...$model_pref );
+	}
 
 	$declarations = desktop_mode_ai_build_function_declarations( $tool_defs );
 	if ( ! empty( $declarations ) ) {
@@ -167,5 +171,83 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
 		'text'           => $text,
 		'function_calls' => $function_calls,
 		'message'        => $message,
+		'usage'          => desktop_mode_ai_result_token_usage( $result ),
+		'model'          => desktop_mode_ai_result_model_metadata( $result ),
 	);
+}
+
+/**
+ * The per-user soft model preference for a generation request.
+ *
+ * Empty by default (the AI Client chooses). Integrators return one or more
+ * model ids — tried in order via `->using_model_preference()`, with the AI
+ * Client's own fallback if none is available.
+ *
+ * @since 0.9.5
+ *
+ * @param int $user_id Requesting user id.
+ * @return string[] Model ids, in preference order.
+ */
+function desktop_mode_ai_model_preference( $user_id ) {
+	/**
+	 * Filters the Copilot's preferred model id(s).
+	 *
+	 * @since 0.9.5
+	 *
+	 * @param string|string[] $models  Model id, or ordered list of ids. Empty = automatic.
+	 * @param int             $user_id Requesting user id.
+	 */
+	$models = apply_filters( 'desktop_mode_ai_model', array(), (int) $user_id );
+
+	if ( is_string( $models ) ) {
+		$models = '' === $models ? array() : array( $models );
+	}
+	if ( ! is_array( $models ) ) {
+		return array();
+	}
+
+	return array_values( array_filter( array_map( 'strval', $models ), static function ( $id ) {
+		return '' !== $id;
+	} ) );
+}
+
+/**
+ * Extracts normalized token usage from a generation result.
+ *
+ * @since 0.9.5
+ *
+ * @param mixed $result GenerativeAiResult.
+ * @return array{ prompt: int, completion: int, total: int }|null
+ */
+function desktop_mode_ai_result_token_usage( $result ) {
+	try {
+		$usage = $result->getTokenUsage();
+		return array(
+			'prompt'     => (int) $usage->getPromptTokens(),
+			'completion' => (int) $usage->getCompletionTokens(),
+			'total'      => (int) $usage->getTotalTokens(),
+		);
+	} catch ( \Throwable $e ) {
+		return null;
+	}
+}
+
+/**
+ * Extracts the resolved model's id + name from a generation result.
+ *
+ * @since 0.9.5
+ *
+ * @param mixed $result GenerativeAiResult.
+ * @return array{ id: string, name: string }|null
+ */
+function desktop_mode_ai_result_model_metadata( $result ) {
+	try {
+		$model = $result->getModelMetadata();
+		return array(
+			'id'   => (string) $model->getId(),
+			'name' => (string) $model->getName(),
+		);
+	} catch ( \Throwable $e ) {
+		return null;
+	}
 }

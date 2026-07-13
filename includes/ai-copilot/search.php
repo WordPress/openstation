@@ -13,9 +13,9 @@
  * distils from the request, then returns up to 10 matching entities with
  * their real title + content excerpt for the model to compare to the
  * user's description. No AI pre-analysis is required — every published
- * post/page/comment is findable. PHP-registered tools
- * (desktop_mode_register_ai_tool()) and client command tools are merged
- * into the same loop.
+ * post/page/comment is findable. The built-in tools are WordPress Abilities
+ * (see abilities.php); client command tools are advertised alongside them and
+ * dispatched by the same loop.
  *
  * Focused tools instead of one routing parameter:
  *   - "I remember a comment where someone said congratulations…" → agent
@@ -42,137 +42,6 @@ const DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS = 10;
 
 /** Entities fetched per tool-call round. */
 const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
-
-// ---------------------------------------------------------------------------
-// Tool definitions — one per entity type so the model picks semantically
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the built-in tool definitions — four content-search tools
- * (search_posts, search_pages, search_comments, search_comments_by_post),
- * admin navigation (list_admin_pages), WordPress.org plugin search
- * (search_wporg_plugins), and the error-log tail (get_php_error_log) — as
- * an array ready for the provider `tools` field. Providing focused tools
- * (rather than one with an entity_type parameter) lets the model reason
- * about the query — "someone said X" → search_comments; "I published a
- * post about Y" → search_posts — without needing an explicit routing hint
- * from the user or the system prompt.
- *
- * Each tool schema sets `additionalProperties: false` with an explicit
- * `required` list so the model cannot hallucinate extra arguments.
- *
- * @since 0.5.0
- *
- * @return array[]
- */
-function desktop_mode_ai_search_tool_definitions() {
-	// Neutral tool-definition shape: `type`, `name`, `description`, and
-	// `parameters` sit at the top level. desktop_mode_ai_build_function_declarations()
-	// turns these into AI Client FunctionDeclaration objects.
-	$query_offset_param = array(
-		'type'                 => 'object',
-		'additionalProperties' => false,
-		'required'             => array( 'query', 'offset' ),
-		'properties'           => array(
-			'query'  => array(
-				'type'        => 'string',
-				'description' => 'Keyword search terms matched against the title and content (WordPress native search). Distil the user\'s request to the essential nouns — e.g. for "that post I wrote about making paella" pass "paella". Avoid stop-words and full sentences.',
-			),
-			'offset' => array(
-				'type'        => 'integer',
-				'description' => 'Zero-based starting position. Use 0 for the first batch, 10 for the second, and so on.',
-			),
-		),
-	);
-
-	return array(
-		array(
-			'type'        => 'function',
-			'name'        => 'search_posts',
-			'description' => 'Keyword-searches published WordPress blog posts by title and content (WordPress native search). Use this when the user is looking for content they or someone else wrote as a post or article. Pass the key search terms as `query`. Returns up to 10 matching posts with their title, a content excerpt, date, and URLs. If has_more is true, call again with the next offset.',
-			'parameters'  => $query_offset_param,
-		),
-		array(
-			'type'        => 'function',
-			'name'        => 'search_pages',
-			'description' => 'Keyword-searches published WordPress pages (About, Contact, Services, Portfolio, etc.) by title and content. Use this when the user is looking for a static page, landing page, or informational page on the site. Pass the key search terms as `query`. Returns up to 10 matching pages with their title, a content excerpt, and URLs. If has_more is true, call again with the next offset.',
-			'parameters'  => $query_offset_param,
-		),
-		array(
-			'type'        => 'function',
-			'name'        => 'search_comments',
-			'description' => 'Keyword-searches approved WordPress comments across ALL posts by their text (WordPress native search). Use this when the user remembers something a reader said but does not know which post it was on. Pass the distinctive words from the comment as `query`. Returns up to 10 matching comments with an excerpt, parent post title, and URLs. If has_more is true, call again with the next offset.',
-			'parameters'  => $query_offset_param,
-		),
-		array(
-			'type'        => 'function',
-			'name'        => 'search_comments_by_post',
-			'description' => 'Keyword-searches approved comments on a SPECIFIC post by its WordPress ID. Use this when you have already identified a post (via search_posts) and the user\'s query also mentions something a reader said on that post — e.g. "I remember a comment on my Málaga post asking about the Alcazaba at night." Call search_posts first to find the post ID, then call this tool with that ID and the distinctive words as `query`. Much more precise than search_comments when the parent post is known. If has_more is true, call again with the next offset.',
-			'parameters'  => array(
-				'type'                 => 'object',
-				'additionalProperties' => false,
-				'required'             => array( 'post_id', 'query', 'offset' ),
-				'properties'           => array(
-					'post_id' => array(
-						'type'        => 'integer',
-						'description' => 'The WordPress ID of the post whose comments should be searched. Obtain this from a prior search_posts call.',
-					),
-					'query'   => array(
-						'type'        => 'string',
-						'description' => 'Keyword search terms matched against the comment text. Pass the distinctive words the user remembers; use an empty string to list the post\'s comments without keyword filtering.',
-					),
-					'offset'  => array(
-						'type'        => 'integer',
-						'description' => 'Zero-based starting position. Use 0 for the first batch, 10 for the second, and so on.',
-					),
-				),
-			),
-		),
-		array(
-			'type'        => 'function',
-			'name'        => 'list_admin_pages',
-			'description' => 'Returns the full catalog of WordPress admin (wp-admin) destinations — pages for managing posts, categories, users, plugins, themes, settings, etc. Call this when the user asks "where can I find X?", "how do I get to Y?", "where are the settings for Z?" — any navigational question about the admin UI. Once you have the catalog, select the 1-3 most relevant entries for the user\'s query and include them in your answer under admin_links with answer_type="navigation". The catalog is small and stable so one call is enough.',
-			'parameters'  => array(
-				'type'                 => 'object',
-				'additionalProperties' => false,
-				'required'             => array(),
-				'properties'           => new stdClass(),
-			),
-		),
-		array(
-			'type'        => 'function',
-			'name'        => 'search_wporg_plugins',
-			'description' => 'Searches the official WordPress.org plugin directory. Use this when the user asks for a plugin recommendation — e.g. "is there a plugin for SEO?", "find me a backup plugin", "a caching plugin", "form builder". Returns up to 10 plugins with name, description, rating, active install count, and an admin URL that opens the plugin-info / install screen directly. Present the results as admin_links with answer_type="navigation", titled "Plugin Name · 5M+ installs · 4.8★".',
-			'parameters'  => array(
-				'type'                 => 'object',
-				'additionalProperties' => false,
-				'required'             => array( 'query' ),
-				'properties'           => array(
-					'query' => array(
-						'type'        => 'string',
-						'description' => 'Plain-language search terms — e.g. "seo", "backup", "caching", "woocommerce", "contact form".',
-					),
-				),
-			),
-		),
-		array(
-			'type'        => 'function',
-			'name'        => 'get_php_error_log',
-			'description' => 'Reads the most recent entries from the site\'s PHP error log — typically wp-content/debug.log when WP_DEBUG_LOG is enabled, or the path set by the PHP error_log directive. Use this when the user asks "are there any errors?", "check the logs", "what went wrong?", or is troubleshooting a white screen / 500. Each entry is parsed into { timestamp, level, message } so you can summarise them. Administrators only — the tool returns an error for non-admins.',
-			'parameters'  => array(
-				'type'                 => 'object',
-				'additionalProperties' => false,
-				'required'             => array( 'lines' ),
-				'properties'           => array(
-					'lines' => array(
-						'type'        => 'integer',
-						'description' => 'How many recent log lines to return (1-500). Use 20-50 for a quick look, 100-200 for wider context.',
-					),
-				),
-			),
-		),
-	);
-}
 
 /**
  * Returns the catalog of common WordPress admin destinations.
@@ -847,24 +716,38 @@ The message field is always a friendly sentence or two shown directly to the use
 	);
 
 	// -----------------------------------------------------------------------
-	// Tool assembly — built-in search/navigation + PHP-registered +
-	// client-supplied command tools.
+	// Tool assembly — built-in search/navigation abilities + client-supplied
+	// command tools.
+	//
+	// Built-in tools are WordPress Abilities API abilities. Each is advertised
+	// to the model as a function declaration named after the ability (namespace
+	// stripped), and $ability_by_tool maps that name back to the ability so the
+	// agent loop can resolve + execute() it (permission + input/output
+	// validation happen inside execute()).
 	// -----------------------------------------------------------------------
-	$builtin_tools = desktop_mode_ai_search_tool_definitions();
+	$ability_by_tool = array();
+	$builtin_tools   = array();
 
-	// PHP-registered tools (capability-filtered for the current user).
-	$registered_entries = function_exists( 'desktop_mode_get_registered_ai_tools_for_user' )
-		? desktop_mode_get_registered_ai_tools_for_user( $user_id )
-		: array();
+	foreach ( desktop_mode_ai_search_ability_names() as $ability_name ) {
+		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
+		if ( ! $ability instanceof WP_Ability ) {
+			continue;
+		}
 
-	// Track registered + command tool maps so the agent loop can
-	// dispatch without re-walking the registry on every iteration.
-	$registered_by_name = array();
-	foreach ( $registered_entries as $entry ) {
-		$registered_by_name[ (string) $entry['name'] ] = $entry;
+		$tool_name                     = desktop_mode_ai_ability_tool_name( $ability_name );
+		$ability_by_tool[ $tool_name ] = $ability_name;
+		$valid_tools[]                 = $tool_name;
+
+		$input_schema    = $ability->get_input_schema();
+		$builtin_tools[] = array(
+			'type'        => 'function',
+			'name'        => $tool_name,
+			'description' => (string) $ability->get_description(),
+			'parameters'  => ! empty( $input_schema )
+				? $input_schema
+				: array( 'type' => 'object', 'properties' => (object) array() ),
+		);
 	}
-
-	$registered_defs = array_map( 'desktop_mode_ai_tool_entry_to_definition', $registered_entries );
 
 	// Command tools — namespaced as `command_<slug>` on the server so
 	// they can't collide with built-in tool names. Each takes a single
@@ -944,12 +827,12 @@ The message field is always a friendly sentence or two shown directly to the use
 		array( 'user_id' => $user_id, 'request_id' => $request_id )
 	);
 
-	$tools = array_merge( $builtin_tools, $registered_defs, $command_defs );
+	$tools = array_merge( $builtin_tools, $command_defs );
 
 	/**
-	 * Transform the full tool list (built-in + PHP-registered + command)
-	 * just before it goes to the provider. Fires once per run — changes apply
-	 * to every iteration in the agent loop.
+	 * Transform the full tool list (built-in abilities + command tools) just
+	 * before it goes to the provider. Fires once per run — changes apply to
+	 * every iteration in the agent loop.
 	 *
 	 * @since 0.5.1
 	 *
@@ -962,14 +845,9 @@ The message field is always a friendly sentence or two shown directly to the use
 		array( 'user_id' => $user_id, 'request_id' => $request_id, 'query' => $query )
 	);
 
-	// Widen the permitted-tools list to include everything we just
-	// assembled — the agent loop rejects any `function_call` whose
-	// name isn't in here.
-	foreach ( $registered_defs as $def ) {
-		if ( isset( $def['name'] ) ) {
-			$valid_tools[] = (string) $def['name'];
-		}
-	}
+	// Widen the permitted-tools list with the command tools — the agent loop
+	// rejects any `function_call` whose name isn't in here (built-in ability
+	// names were added above).
 	foreach ( $command_defs as $def ) {
 		if ( isset( $def['name'] ) ) {
 			$valid_tools[] = (string) $def['name'];
@@ -998,6 +876,25 @@ The message field is always a friendly sentence or two shown directly to the use
 	$last_offset   = $start_offset;
 	$last_has_more = true;
 	$iterations    = 0;
+
+	// Accumulate token usage across every turn and remember the last model the
+	// AI Client resolved, for the `desktop_mode_ai_search_completed` payload.
+	$total_usage  = array( 'prompt' => 0, 'completion' => 0, 'total' => 0 );
+	$last_model   = null;
+	$accrue_usage = static function ( $turn ) use ( &$total_usage, &$last_model ) {
+		if ( ! is_array( $turn ) ) {
+			return;
+		}
+		if ( isset( $turn['usage'] ) && is_array( $turn['usage'] ) ) {
+			$total_usage['prompt']     += (int) ( $turn['usage']['prompt'] ?? 0 );
+			$total_usage['completion'] += (int) ( $turn['usage']['completion'] ?? 0 );
+			$total_usage['total']      += (int) ( $turn['usage']['total'] ?? 0 );
+		}
+		if ( isset( $turn['model'] ) && is_array( $turn['model'] ) ) {
+			$last_model = $turn['model'];
+		}
+	};
+	$accrue_usage( $turn );
 
 	// -----------------------------------------------------------------------
 	// Agentic loop — each iteration either executes tool calls or returns
@@ -1076,6 +973,8 @@ The message field is always a friendly sentence or two shown directly to the use
 					'request_id'  => $request_id,
 					'answer_type' => $final['answer_type'] ?? 'chat',
 					'iterations'  => $final['iterations'] ?? 0,
+					'usage'       => $total_usage,
+					'model'       => $last_model,
 				)
 			);
 
@@ -1141,6 +1040,8 @@ The message field is always a friendly sentence or two shown directly to the use
 					'request_id'  => $request_id,
 					'answer_type' => 'tool_call',
 					'iterations'  => $final['iterations'] ?? 0,
+					'usage'       => $total_usage,
+					'model'       => $last_model,
 				)
 			);
 
@@ -1168,19 +1069,10 @@ The message field is always a friendly sentence or two shown directly to the use
 			$args   = is_array( $raw ) ? $raw : array();
 			$offset = max( 0, (int) ( $args['offset'] ?? 0 ) );
 
-			// Registered PHP-dispatched tool — handler lives in the
-			// plugin's `desktop_mode_register_ai_tool()` entry. Capability
-			// was already checked at list-assembly time.
-			$is_registered = isset( $registered_by_name[ $tool_name ] );
-
-			$progress_msg = $is_registered
-				? ( (string) ( $registered_by_name[ $tool_name ]['progress_message'] ?? '' ) ?: 'Working…' )
-				: desktop_mode_ai_progress_message( $tool_name );
-
 			$emit( array(
 				'phase'   => 'tool_call',
 				'tool'    => $tool_name,
-				'message' => $progress_msg,
+				'message' => desktop_mode_ai_progress_message( $tool_name ),
 			) );
 
 			do_action(
@@ -1193,18 +1085,38 @@ The message field is always a friendly sentence or two shown directly to the use
 				)
 			);
 
-			if ( $is_registered ) {
-				$batch = desktop_mode_ai_invoke_registered_tool(
-					$registered_by_name[ $tool_name ],
-					$args,
-					$user_id
+			// Resolve + run the ability. execute() runs the permission_callback
+			// and validates input/output; a denial or bad input comes back as a
+			// WP_Error, which we surface to the model as a clean tool error
+			// (never a fatal) and report on the observability channel.
+			$ability = wp_get_ability( $ability_by_tool[ $tool_name ] );
+			$result  = $ability instanceof WP_Ability
+				? $ability->execute( $args )
+				: new WP_Error( 'desktop_mode_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
+
+			if ( is_wp_error( $result ) ) {
+				do_action(
+					'desktop_mode_ai_search_error',
+					array(
+						'stage'      => 'tool_execute',
+						'tool_name'  => $tool_name,
+						'error'      => $result->get_error_code(),
+						'message'    => $result->get_error_message(),
+						'user_id'    => $user_id,
+						'request_id' => $request_id,
+					)
+				);
+				$batch = array(
+					'error'      => $result->get_error_message(),
+					'error_code' => $result->get_error_code(),
 				);
 			} else {
-				$batch = desktop_mode_ai_search_dispatch_tool( $tool_name, $args );
-				$last_tool     = $tool_name;
-				$last_offset   = $offset;
-				$last_has_more = (bool) ( $batch['has_more'] ?? false );
+				$batch = is_array( $result ) ? $result : array( 'result' => $result );
 			}
+
+			$last_tool     = $tool_name;
+			$last_offset   = $offset;
+			$last_has_more = (bool) ( $batch['has_more'] ?? false );
 
 			/**
 			 * Transform a tool result before it goes back to the
@@ -1244,6 +1156,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
 		}
+		$accrue_usage( $turn );
 	}
 
 	// -----------------------------------------------------------------------
@@ -1290,6 +1203,8 @@ The message field is always a friendly sentence or two shown directly to the use
 			'request_id'  => $request_id,
 			'answer_type' => 'chat',
 			'iterations'  => DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS,
+			'usage'       => $total_usage,
+			'model'       => $last_model,
 		)
 	);
 
