@@ -32,6 +32,7 @@ import type {
 	WindowState,
 } from '../types';
 import type { Window } from '../window';
+import { urlReuseKey } from '../utils';
 import {
 	ensureWindowSystemLoaded,
 	windowSystemBundleUrl,
@@ -436,6 +437,15 @@ export class WindowManager {
 	 * dock icon while a window is already open focuses the
 	 * most-recent instance rather than creating a twin.
 	 *
+	 * URL-aware reuse: when the matched window is NOT already showing
+	 * the requested URL (and the request isn't for the window's home
+	 * / dock landing URL), the existing iframe navigates to it in
+	 * place — an action URL like
+	 * `plugins.php?action=activate&…&_wpnonce=…` actually runs
+	 * instead of being dropped by a bare focus. The
+	 * `desktop-mode-window-reopened` event reports which path was
+	 * taken via its `navigated` flag.
+	 *
 	 * To force a brand-new instance alongside an existing one, use
 	 * {@link openNew}.
 	 */
@@ -487,6 +497,31 @@ export class WindowManager {
 			if ( wasMinimized ) {
 				existing.restore();
 			}
+			// URL-aware reuse. Focusing alone only satisfies the
+			// caller when the window is already showing the requested
+			// URL — or when the request is for the window's "home"
+			// URL (a dock / menu click on an already-open,
+			// sub-navigated window must NOT yank it back to its
+			// landing page). Any other URL is a real navigation the
+			// user expects to run in this window. The canonical
+			// failure before this check: the post-install "Activate"
+			// link (`plugins.php?action=activate&plugin=…&_wpnonce=…`)
+			// clicked while a Plugins window was already open focused
+			// that window and silently dropped the activation.
+			let navigated = false;
+			if ( ! existing.config.native ) {
+				const requestedKey = urlReuseKey( config.url );
+				const alreadyThere =
+					requestedKey === urlReuseKey( existing.getCurrentUrl() ) ||
+					requestedKey === urlReuseKey( existing.config.url || '' ) ||
+					requestedKey ===
+						urlReuseKey(
+							existing.config.parentUrl ?? existing.config.url ?? '',
+						);
+				if ( ! alreadyThere ) {
+					navigated = existing.navigateTo( config.url );
+				}
+			}
 			// Plugins (messages, code-editor, …) routinely call
 			// `wp.desktop.openWindow(id)` to "switch the window to
 			// this state" — selecting a conversation, opening a file,
@@ -504,6 +539,7 @@ export class WindowManager {
 				windowId: existing.id,
 				baseId,
 				wasMinimized,
+				navigated,
 			};
 			document.dispatchEvent(
 				new CustomEvent( 'desktop-mode-window-reopened', { detail: reopenedDetail } ),

@@ -68,23 +68,22 @@ export interface OsSettingsSnapshot {
 	 */
 	windowLinkRenderer: string;
 	/**
-	 * When window-link ties show: `'focus'` | `'always'` | `'off'`.
+	 * When window-link ties show: `'always'` | `'focus'` | `'off'`.
 	 *
 	 * @since 0.9.4
 	 */
 	windowLinkVisibility: 'focus' | 'always' | 'off';
+	/**
+	 * AI assistant preference. `enabled` is the per-user on/off toggle
+	 * (opt-in, default off). Credentials live in WordPress Core's Settings →
+	 * Connectors and provider + model selection is delegated to the Core AI
+	 * Client, so no preference is carried here.
+	 *
+	 * @since 0.9.4 Dropped `apiKey` / `transport` (and the short-lived
+	 *        `provider` / `model` preferences).
+	 */
 	ai: {
 		enabled: boolean;
-		provider: string;
-		apiKey: string;
-		/**
-		 * Live-progress transport for AI search: `'sse' | 'off'`. Default
-		 * `'off'`. Surfaced so a third-party AI tab can read the user's
-		 * preferred transport without rebuilding the picker.
-		 *
-		 * @since 0.6.0
-		 */
-		transport: 'sse' | 'off';
 	};
 	/**
 	 * Per-user opt-in for the native Posts window. When true, clicking

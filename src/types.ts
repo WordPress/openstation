@@ -1993,6 +1993,19 @@ export interface DesktopConfig {
 	 */
 	aiSearchStreamUrl?: string;
 	/**
+	 * AI assistant availability + per-user state. Governs whether the Cmd+K
+	 * assistant and its admin-bar icon appear, and the setup placeholder.
+	 * `null` when the AI Copilot module isn't loaded.
+	 * @since 0.9.4
+	 */
+	aiAssistant?: import( './settings/types' ).AiAssistantConfig | null;
+	/**
+	 * REST endpoint to re-check AI provider availability without a reload
+	 * (used by OS Settings → Features after a connector is configured).
+	 * @since 0.9.4
+	 */
+	aiStatusUrl?: string;
+	/**
 	 * Fully-qualified URL of the lazy-loaded AI Assistant bundle —
 	 * the script `<script>`-injected by the main-bundle stub on the
 	 * user's first invocation. PHP picks `.js` vs `.min.js` based on
@@ -2043,17 +2056,6 @@ export interface DesktopConfig {
 	 * @since 0.8.4
 	 */
 	windowSystemBundleUrl?: string;
-	/**
-	 * Platform-wide AI settings — only present for admins (null for
-	 * non-admin users so the key is never leaked in the page source).
-	 * @since 0.5.0
-	 */
-	aiPlatformSettings?: { enabled: boolean; provider: string; apiKey: string } | null;
-	/**
-	 * REST endpoint for reading/writing platform AI settings (admin only).
-	 * @since 0.5.0
-	 */
-	aiPlatformSettingsUrl?: string;
 	/**
 	 * Whether the current user has the `manage_options` capability.
 	 * @since 0.5.0

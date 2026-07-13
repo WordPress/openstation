@@ -28,10 +28,14 @@ defined( 'ABSPATH' ) || exit;
  *   analyzes comments for spam, and the assistant finds content via native
  *   WordPress search). Unschedules any queued `desktop_mode_ai_analyze_post`
  *   / `desktop_mode_ai_analyze_term` cron events left over from prior versions.
+ * - 3: the copilot dropped its self-managed AI credentials in favour of
+ *   WordPress 7.0 Connectors. Deletes the platform key option and strips the
+ *   per-user `apiKey` / `apiKeys` / `provider` / `transport` fields from the
+ *   stored OS settings so no provider secret lingers in the database.
  *
  * @since 0.9.1
  */
-const DESKTOP_MODE_MIGRATION_VERSION = 2;
+const DESKTOP_MODE_MIGRATION_VERSION = 3;
 
 /** Option storing the highest migration version that has run. autoload=no. */
 const DESKTOP_MODE_MIGRATION_OPTION = 'desktop_mode_migration_version';
@@ -75,6 +79,10 @@ function desktop_mode_run_pending_migrations( $from ) {
 
 	if ( $from < 2 ) {
 		desktop_mode_migrate_unschedule_post_term_ai();
+	}
+
+	if ( $from < 3 ) {
+		desktop_mode_migrate_delete_ai_keys();
 	}
 }
 
@@ -160,4 +168,55 @@ function desktop_mode_migrate_os_settings_optin() {
 function desktop_mode_migrate_unschedule_post_term_ai() {
 	wp_unschedule_hook( 'desktop_mode_ai_analyze_post' );
 	wp_unschedule_hook( 'desktop_mode_ai_analyze_term' );
+}
+
+/**
+ * Migration 3 — delete self-managed AI credentials.
+ *
+ * WordPress 7.0 owns provider credentials (Settings → Connectors), so the
+ * copilot no longer stores keys of its own. Remove the platform key option and
+ * strip the now-unused key / provider / model / transport fields from every
+ * user's stored OS settings so no secret is left behind. The only `ai` field
+ * that remains is `enabled` (the per-user assistant toggle), backfilled from
+ * defaults on next read.
+ *
+ * @since 0.9.4
+ *
+ * @return void
+ */
+function desktop_mode_migrate_delete_ai_keys() {
+	// Platform-wide key option (formerly `desktop_mode_ai_platform`).
+	delete_option( 'desktop_mode_ai_platform' );
+
+	$user_ids = get_users(
+		array(
+			'fields'       => 'ID',
+			'meta_key'     => DESKTOP_MODE_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; guarded to run once.
+			'meta_compare' => 'EXISTS',
+		)
+	);
+
+	foreach ( $user_ids as $user_id ) {
+		$raw = get_user_meta( (int) $user_id, DESKTOP_MODE_OS_SETTINGS_META_KEY, true );
+		if ( ! is_array( $raw ) || ! isset( $raw['ai'] ) || ! is_array( $raw['ai'] ) ) {
+			continue;
+		}
+
+		// Strip every legacy AI field: the self-managed credentials/transport,
+		// plus the `provider` / `model` preferences — provider + model selection
+		// is now delegated entirely to the Core AI Client.
+		$changed = false;
+		foreach ( array( 'apiKey', 'apiKeys', 'transport', 'provider', 'model' ) as $stale ) {
+			if ( array_key_exists( $stale, $raw['ai'] ) ) {
+				unset( $raw['ai'][ $stale ] );
+				$changed = true;
+			}
+		}
+
+		if ( ! $changed ) {
+			continue;
+		}
+
+		desktop_mode_save_os_settings( (int) $user_id, $raw );
+	}
 }

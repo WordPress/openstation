@@ -49,53 +49,38 @@ export interface CustomImage {
 }
 
 /**
- * AI provider id. Kept as a plain string so new providers can be added
- * without touching the sanitization ladder — the picker is driven by the
- * runtime list in `desktopModeConfig.aiProviders`, populated by every
- * plugin that calls `desktop_mode_register_ai_provider()`.
+ * AI assistant preferences.
+ *
+ * Credentials live in WordPress Core's Settings → Connectors and provider +
+ * model selection is delegated to the Core AI Client, so the only per-user
+ * state is the on/off toggle (opt-in, default off).
  */
-export type AiProviderId = string;
-
-/**
- * Live-progress transport for the AI Copilot search.
- *
- * - `sse` — Server-Sent Events. Real-time progress ticks; preferred where the
- *   host allows long-lived `text/event-stream` connections.
- * - `off` — single REST request, no progress ticks. Works everywhere; the
- *   user sees "Thinking…" until the final answer arrives.
- *
- * Default `off` because some hosts silently drop SSE mid-stream, which
- * surfaces to the user as "Lost connection to the assistant". Power users
- * on hosts known to support SSE can opt in.
- *
- * @since 0.6.0
- */
-export type AiTransportId = 'sse' | 'off';
-
-/** AI integration preferences — provider choice + per-provider API keys. */
 export interface AiSettings {
 	enabled: boolean;
-	provider: AiProviderId;
-	/** Legacy single-key field; treated as the OpenAI key for backwards compat. */
-	apiKey: string;
-	/** Per-provider key map. Falls back to `apiKey` for `openai`. */
-	apiKeys: Record< string, string >;
-	/**
-	 * Live-progress transport. See {@link AiTransportId}. Default `off`.
-	 *
-	 * @since 0.6.0
-	 */
-	transport: AiTransportId;
 }
 
-/** Provider entry surfaced via `desktopModeConfig.aiProviders`. */
-export interface AiProviderEntry {
-	id: string;
-	label: string;
-	description: string;
-	api_key_label: string;
-	api_key_link: string;
-	capabilities: string[];
+/**
+ * `desktopModeConfig.aiAssistant` — availability + per-user state the shell
+ * uses to gate the Cmd+K assistant and its admin-bar icon.
+ */
+export interface AiAssistantConfig {
+	/** Core Connectors + Abilities APIs present. When false the assistant is hidden. */
+	available: boolean;
+	/**
+	 * Baseline: a text-generation provider is configured in Settings →
+	 * Connectors. Comment scoring (text output only) gates on this.
+	 */
+	providerConfigured: boolean;
+	/**
+	 * Stricter: a configured provider supports text generation *and* function
+	 * calling — what the agentic assistant needs. Gates the Cmd+K assistant,
+	 * its admin-bar icon, and the "AI assistant" toggle.
+	 */
+	assistantProviderConfigured: boolean;
+	/** Per-user toggle (opt-in, default off). */
+	enabled: boolean;
+	/** Absolute URL of the Settings → Connectors admin screen. */
+	connectorsUrl: string;
 }
 
 /** Shape of the persisted settings. Defaults merged on load. */
@@ -355,15 +340,6 @@ export interface OsSettingsConfig {
 	canUpload: boolean;
 	/** Whether the current user has manage_options capability. */
 	isAdmin: boolean;
-	/** Platform-wide AI settings — null for non-admins. */
-	aiPlatformSettings: {
-		enabled: boolean;
-		provider: string;
-		apiKey: string;
-		apiKeys?: Record< string, string >;
-	} | null;
-	/** REST endpoint for reading/writing platform AI settings. */
-	aiPlatformSettingsUrl: string;
 	/** Platform-wide extended options — null for non-admins. */
 	extendedOptions: {
 		media_library_enhanced: boolean;

@@ -1,6 +1,6 @@
 <?php
 /**
- * Desktop Mode — AI Copilot content search via OpenAI tool use.
+ * Desktop Mode — AI Copilot content search via the provider tool use.
  *
  * Agentic search loop: the user describes something in natural language and
  * the agent calls focused tools, choosing the right one based on query
@@ -52,7 +52,7 @@ const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
  * (search_posts, search_pages, search_comments, search_comments_by_post),
  * admin navigation (list_admin_pages), WordPress.org plugin search
  * (search_wporg_plugins), and the error-log tail (get_php_error_log) — as
- * an array ready for the OpenAI `tools` field. Providing focused tools
+ * an array ready for the provider `tools` field. Providing focused tools
  * (rather than one with an entity_type parameter) lets the model reason
  * about the query — "someone said X" → search_comments; "I published a
  * post about Y" → search_posts — without needing an explicit routing hint
@@ -66,8 +66,9 @@ const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
  * @return array[]
  */
 function desktop_mode_ai_search_tool_definitions() {
-	// Responses API tool definitions are FLAT — no nested `function` wrapper.
-	// The `type`, `name`, `description`, and `parameters` sit at the top level.
+	// Neutral tool-definition shape: `type`, `name`, `description`, and
+	// `parameters` sit at the top level. desktop_mode_ai_build_function_declarations()
+	// turns these into AI Client FunctionDeclaration objects.
 	$query_offset_param = array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -709,7 +710,6 @@ function desktop_mode_ai_search_resumable_tools() {
  *
  * @since 0.5.0
  *
- * @param string      $api_key      OpenAI API key.
  * @param string      $query        User's natural-language search.
  * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
  * @param int         $start_offset Offset to resume from (0 for fresh).
@@ -717,7 +717,7 @@ function desktop_mode_ai_search_resumable_tools() {
  * @param array       $extra        Extensibility context (command tools, prompt overrides, …).
  * @return array|WP_Error
  */
-function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
+function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset = 0, $on_progress = null, array $extra = array() ) {
 	/**
 	 * Progress emitter — sends a tick to the caller if they provided a
 	 * callable; no-op otherwise. Callers use this to render real-time
@@ -752,7 +752,7 @@ function desktop_mode_ai_run_search( $api_key, $query, $initial_tool = null, $st
 
 	/**
 	 * Fires once per `/ai/search` invocation, after validation and
-	 * before any OpenAI call. First anchor in the observability trio
+	 * before any the provider call. First anchor in the observability trio
 	 * (`desktop_mode_ai_search_started` / `desktop_mode_ai_tool_called`
 	 * / `desktop_mode_ai_search_completed`).
 	 *
@@ -948,12 +948,12 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	/**
 	 * Transform the full tool list (built-in + PHP-registered + command)
-	 * just before it goes to OpenAI. Fires once per run — changes apply
+	 * just before it goes to the provider. Fires once per run — changes apply
 	 * to every iteration in the agent loop.
 	 *
 	 * @since 0.5.1
 	 *
-	 * @param array $tools   Full OpenAI tool definitions array.
+	 * @param array $tools   Full the provider tool definitions array.
 	 * @param array $context { user_id, request_id, query }.
 	 */
 	$tools = (array) apply_filters(
@@ -976,41 +976,24 @@ The message field is always a friendly sentence or two shown directly to the use
 		}
 	}
 
-	$text_format = array(
-		'type'   => 'json_schema',
-		'name'   => 'search_answer',
-		'strict' => true,
-		'schema' => desktop_mode_ai_search_answer_schema(),
-	);
+	$answer_schema = desktop_mode_ai_search_answer_schema();
 
 	$emit( array( 'phase' => 'start', 'message' => 'Thinking about your question…' ) );
 
 	// -----------------------------------------------------------------------
-	// First call — user query as input, instructions as system guidance.
-	// Dispatched through the active provider (default: OpenAI). State is
-	// opaque to the loop — providers stash whatever continuation token
-	// they need (OpenAI: previous_response_id; others may use nothing).
+	// First call — user query as the sole message, instructions as system
+	// guidance. Generation routes through the WordPress AI Client; the tools
+	// are advertised as function declarations and dispatched by this loop.
+	// The full ordered conversation is rebuilt and re-sent each turn.
 	// -----------------------------------------------------------------------
-	$turn_input = desktop_mode_ai_provider_make_turn_input( $user_id, 'user_message', $query );
-	if ( is_wp_error( $turn_input ) ) {
-		return $turn_input;
-	}
+	$messages = array( desktop_mode_ai_user_text_message( $query ) );
 
-	$turn = desktop_mode_ai_provider_agentic_call(
-		$user_id,
-		$api_key,
-		$turn_input,
-		$tools,
-		$text_format,
-		$instructions,
-		null
-	);
+	$turn = desktop_mode_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
 
 	if ( is_wp_error( $turn ) ) {
 		return $turn;
 	}
 
-	$state         = $turn['next_state'];
 	$last_tool     = $initial_tool ?? 'search_posts';
 	$last_offset   = $start_offset;
 	$last_has_more = true;
@@ -1018,8 +1001,8 @@ The message field is always a friendly sentence or two shown directly to the use
 
 	// -----------------------------------------------------------------------
 	// Agentic loop — each iteration either executes tool calls or returns
-	// the final answer. We use `previous_response_id` so OpenAI manages the
-	// conversation state; we only send what's new each turn.
+	// the final answer. The full ordered conversation (user query, assistant
+	// turns, tool results) is accumulated in $messages and re-sent each turn.
 	// -----------------------------------------------------------------------
 	for ( $i = 0; $i < DESKTOP_MODE_AI_SEARCH_MAX_ITERATIONS; $i++ ) {
 		$function_calls = is_array( $turn['function_calls'] ?? null ) ? $turn['function_calls'] : array();
@@ -1029,15 +1012,11 @@ The message field is always a friendly sentence or two shown directly to the use
 			$emit( array( 'phase' => 'composing', 'message' => 'Putting together your answer…' ) );
 			$text = $turn['text'] ?? null;
 			if ( ! is_string( $text ) ) {
-				// Log the raw output so mismatches in the provider response
-				// shape are visible without having to re-run with a debugger.
-				$raw = is_array( $turn['raw'] ?? null ) ? $turn['raw'] : array();
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( '[WP Desktop Mode AI] Unexpected output shape: ' . wp_json_encode( $raw ) );
+				error_log( '[WP Desktop Mode AI] AI Client returned no text in the final turn.' );
 				return new WP_Error(
 					'desktop_mode_ai_empty',
-					'AI provider returned no text in the final turn.',
-					array( 'raw' => $raw )
+					'The AI provider returned no text in the final turn.'
 				);
 			}
 
@@ -1109,7 +1088,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		// If the model emitted `command_<slug>`, we return immediately with
 		// `answer_type: 'tool_call'` — the client owns the command's `run()`
 		// function (lives in plugin JS) and executes it locally. We do NOT
-		// send anything else back to OpenAI this turn — would burn tokens
+		// send anything else back to the provider this turn — would burn tokens
 		// for a no-op second response.
 		// -------------------------------------------------------------------
 		$command_tool_call = null;
@@ -1168,10 +1147,9 @@ The message field is always a friendly sentence or two shown directly to the use
 			return $final;
 		}
 
-		// Execute each tool call and collect results in the registry's
-		// normalized shape — `{ call_id, output (json string) }`. The
-		// provider's `make_turn_input('tool_results', …)` reshapes them
-		// for the underlying API.
+		// Execute each tool call and collect results as
+		// `{ call_id, name, response }` — turned into FunctionResponse parts
+		// for the next turn by desktop_mode_ai_tool_result_message().
 		$tool_outputs = array();
 		foreach ( $function_calls as $fc ) {
 			$tool_name = $fc['name'] ?? '';
@@ -1179,8 +1157,9 @@ The message field is always a friendly sentence or two shown directly to the use
 
 			if ( ! in_array( $tool_name, $valid_tools, true ) ) {
 				$tool_outputs[] = array(
-					'call_id' => $call_id,
-					'output'  => wp_json_encode( array( 'error' => "Unknown tool '{$tool_name}'." ) ),
+					'call_id'  => $call_id,
+					'name'     => $tool_name,
+					'response' => array( 'error' => "Unknown tool '{$tool_name}'." ),
 				);
 				continue;
 			}
@@ -1247,37 +1226,24 @@ The message field is always a friendly sentence or two shown directly to the use
 			);
 
 			$tool_outputs[] = array(
-				'call_id' => $call_id,
-				'output'  => wp_json_encode( $batch ),
+				'call_id'  => $call_id,
+				'name'     => $tool_name,
+				'response' => $batch,
 			);
 		}
 
 		$iterations++;
 
-		// Next turn — only send the tool results. Providers that support
-		// server-side context chaining (OpenAI's previous_response_id)
-		// use the opaque $state we threaded through; others can read
-		// the tool results and append them to whatever history they keep.
-		$turn_input = desktop_mode_ai_provider_make_turn_input( $user_id, 'tool_results', $tool_outputs );
-		if ( is_wp_error( $turn_input ) ) {
-			return $turn_input;
-		}
+		// Next turn — append the assistant's tool-call turn and our tool
+		// results to the conversation, then regenerate with the full history.
+		$messages[] = $turn['message'];
+		$messages[] = desktop_mode_ai_tool_result_message( $tool_outputs );
 
-		$turn = desktop_mode_ai_provider_agentic_call(
-			$user_id,
-			$api_key,
-			$turn_input,
-			$tools,
-			$text_format,
-			'',
-			$state
-		);
+		$turn = desktop_mode_ai_client_generate( $user_id, $messages, $tools, $answer_schema, $instructions );
 
 		if ( is_wp_error( $turn ) ) {
 			return $turn;
 		}
-
-		$state = $turn['next_state'] ?? $state;
 	}
 
 	// -----------------------------------------------------------------------
@@ -1445,7 +1411,6 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
  *
  * @since 0.5.1
  *
- * @param string $api_key   OpenAI API key.
  * @param string $query     Original user query.
  * @param array  $tool      { slug, args } — what ran.
  * @param array  $outcome   Tool result payload. Opaque — JSON-encoded
@@ -1456,7 +1421,7 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
  *                          system-prompt overrides.
  * @return array|WP_Error   `{ answer_type: 'chat', message, … }` or error.
  */
-function desktop_mode_ai_run_followup( $api_key, $query, array $tool, array $outcome, array $extra = array() ) {
+function desktop_mode_ai_run_followup( $query, array $tool, array $outcome, array $extra = array() ) {
 	$user_id    = isset( $extra['user_id'] ) ? (int) $extra['user_id'] : get_current_user_id();
 	$request_id = isset( $extra['request_id'] ) && is_string( $extra['request_id'] ) && $extra['request_id'] !== ''
 		? (string) $extra['request_id']
@@ -1511,14 +1476,14 @@ Rules:
 	}
 
 	// Bound the outcome payload so a malicious or buggy plugin that
-	// returns a 5MB blob can't inflate OpenAI token usage without
+	// returns a 5MB blob can't inflate the provider token usage without
 	// bound. 4 KB is enough for a status string, a small result list,
 	// or a short error envelope — anything bigger gets truncated with
 	// a marker so the model knows the tail was dropped.
 	//
 	// `mb_*` variants so truncation on a multibyte boundary
 	// (Japanese / emoji / accented UTF-8) can't produce invalid JSON
-	// that OpenAI would reject. Falls back to byte-level substr when
+	// that the provider would reject. Falls back to byte-level substr when
 	// mbstring is unavailable (rare but possible on minimal PHP
 	// builds).
 	$max_outcome_len = (int) apply_filters( 'desktop_mode_ai_followup_outcome_max_chars', 4000 );
@@ -1553,19 +1518,12 @@ Rules:
 		)
 	);
 
-	$turn_input = desktop_mode_ai_provider_make_turn_input( $user_id, 'user_message', $user_message );
-	if ( is_wp_error( $turn_input ) ) {
-		return $turn_input;
-	}
-
-	$turn = desktop_mode_ai_provider_agentic_call(
+	$turn = desktop_mode_ai_client_generate(
 		$user_id,
-		$api_key,
-		$turn_input,
-		array(),  // no tools — we want a plain reply
-		null,     // no JSON schema — free-form text
-		$instructions,
-		null
+		array( desktop_mode_ai_user_text_message( $user_message ) ),
+		array(), // no tools — we want a plain reply
+		null,    // no JSON schema — free-form text
+		$instructions
 	);
 
 	if ( is_wp_error( $turn ) ) {
@@ -1586,7 +1544,7 @@ Rules:
 	$text     = $turn['text'] ?? null;
 	$fallback = false;
 	if ( ! is_string( $text ) || '' === trim( $text ) ) {
-		// Graceful degrade — if OpenAI returned nothing usable, fall
+		// Graceful degrade — if the provider returned nothing usable, fall
 		// back to a generic confirmation so the caller always has a
 		// message to show. Better than returning an error and losing
 		// the fact that the command *did* run. We flag the degrade so
@@ -1721,7 +1679,7 @@ function desktop_mode_register_ai_search_rest_route() {
 				// Follow-up leg of the agentic command-dispatch flow.
 				// When present, the endpoint SKIPS the agent loop entirely
 				// and runs a single-turn "summarise this outcome" call
-				// through OpenAI instead. The client sends this on the
+				// through the provider instead. The client sends this on the
 				// second leg of `ask( q, { tools: 'aiCallable', followUp: true } )`.
 				'follow_up' => array(
 					'required' => false,
@@ -1745,14 +1703,21 @@ function desktop_mode_rest_ai_search_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
 		return new WP_Error(
 			'desktop_mode_ai_forbidden',
-			'You must be logged in to use the AI search.',
+			'You must be logged in to use the AI assistant.',
 			array( 'status' => 403 )
+		);
+	}
+	if ( ! desktop_mode_ai_is_available() ) {
+		return new WP_Error(
+			'desktop_mode_ai_unavailable',
+			'The AI assistant is unavailable on this site.',
+			array( 'status' => 503 )
 		);
 	}
 	if ( ! desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
 		return new WP_Error(
 			'desktop_mode_ai_disabled',
-			'AI features are not enabled. Enable them in OS Settings → AI Settings.',
+			'The AI assistant is turned off. Enable it in OS Settings → Features.',
 			array( 'status' => 403 )
 		);
 	}
@@ -1769,7 +1734,6 @@ function desktop_mode_rest_ai_search_permission() {
  */
 function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 	$user_id      = get_current_user_id();
-	$api_key      = desktop_mode_ai_get_api_key( $user_id );
 	$query        = $request->get_param( 'query' );
 	$resume_tool  = $request->get_param( 'resume_tool' );
 	$start_offset = $request->get_param( 'start_offset' );
@@ -1814,9 +1778,9 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 		$outcome = isset( $follow_up['result'] )
 			? ( is_array( $follow_up['result'] ) ? $follow_up['result'] : array( 'value' => $follow_up['result'] ) )
 			: array();
-		$result = desktop_mode_ai_run_followup( $api_key, $query, $tool, $outcome, $extra );
+		$result = desktop_mode_ai_run_followup( $query, $tool, $outcome, $extra );
 	} else {
-		$result = desktop_mode_ai_run_search( $api_key, $query, $resume_tool, $start_offset, null, $extra );
+		$result = desktop_mode_ai_run_search( $query, $resume_tool, $start_offset, null, $extra );
 	}
 
 	if ( is_wp_error( $result ) ) {
@@ -2070,7 +2034,7 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
  */
 function desktop_mode_ai_parse_log_line( $line ) {
 	// Cap individual messages so a runaway stack trace doesn't balloon
-	// the payload sent to OpenAI.
+	// the payload sent to the provider.
 	$line = mb_substr( $line, 0, 600 );
 
 	$entry = array(
@@ -2165,6 +2129,10 @@ function desktop_mode_ai_ajax_search_stream() {
 		exit;
 	}
 	$user_id = get_current_user_id();
+	if ( ! desktop_mode_ai_is_available() ) {
+		status_header( 503 );
+		exit;
+	}
 	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
 		status_header( 403 );
 		exit;
@@ -2210,13 +2178,10 @@ function desktop_mode_ai_ajax_search_stream() {
 	};
 
 	// Initial tick so the EventSource opens immediately and the JS can
-	// start showing "Thinking…" without waiting for the first OpenAI call.
+	// start showing "Thinking…" without waiting for the first model call.
 	$emit( array( 'event' => 'open' ) );
 
-	$api_key = desktop_mode_ai_get_api_key( $user_id );
-
 	$result = desktop_mode_ai_run_search(
-		$api_key,
 		$query,
 		$resume_tool,
 		$start_offset,

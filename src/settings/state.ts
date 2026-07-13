@@ -19,8 +19,6 @@
 
 import type { DesktopConfig } from '../types';
 import {
-	getAiProviders,
-	AI_TRANSPORTS,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
@@ -31,7 +29,6 @@ import {
 import type {
 	AccentId,
 	AiSettings,
-	AiTransportId,
 	CustomGradient,
 	CustomImage,
 	DesktopLayoutId,
@@ -353,7 +350,7 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		...state,
 		customGradient: { ...state.customGradient },
 		customImage: state.customImage ? { ...state.customImage } : null,
-		ai: { ...state.ai, apiKeys: { ...state.ai.apiKeys } },
+		ai: { ...state.ai },
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
 		dockOrder: state.dockOrder.slice(),
@@ -576,36 +573,11 @@ export function structuredDefaults(): OsSettingsState {
 
 export function sanitizeAi( raw: unknown ): AiSettings {
 	if ( ! raw || typeof raw !== 'object' ) {
-		return { ...DEFAULTS.ai, apiKeys: {} };
+		return { ...DEFAULTS.ai };
 	}
-	const { enabled, provider, apiKey, apiKeys, transport } = raw as Partial< AiSettings >;
-	const known = getAiProviders();
-	const validProvider =
-		typeof provider === 'string' && known.some( ( p ) => p.id === provider )
-			? provider
-			: DEFAULTS.ai.provider;
-
-	const cleanKeys: Record< string, string > = {};
-	if ( apiKeys && typeof apiKeys === 'object' ) {
-		for ( const [ pid, val ] of Object.entries( apiKeys ) ) {
-			if ( typeof val === 'string' ) {
-				cleanKeys[ pid ] = val.slice( 0, 512 );
-			}
-		}
-	}
-
-	const validTransport: AiTransportId =
-		typeof transport === 'string' &&
-		AI_TRANSPORTS.some( ( t ) => t.id === transport )
-			? ( transport as AiTransportId )
-			: DEFAULTS.ai.transport;
-
+	const { enabled } = raw as Partial< AiSettings >;
 	return {
 		enabled: typeof enabled === 'boolean' ? enabled : DEFAULTS.ai.enabled,
-		provider: validProvider,
-		apiKey: typeof apiKey === 'string' ? apiKey : DEFAULTS.ai.apiKey,
-		apiKeys: cleanKeys,
-		transport: validTransport,
 	};
 }
 

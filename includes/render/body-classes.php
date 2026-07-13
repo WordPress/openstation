@@ -40,7 +40,20 @@ function desktop_mode_admin_body_classes( $classes ) {
 	}
 
 	if ( desktop_mode_is_enabled() ) {
-		return ltrim( $classes . ' desktop-mode-active' );
+		$classes = ltrim( $classes . ' desktop-mode-active' );
+
+		// Initial state for the "Ask AI" admin-bar button. The shell toggles
+		// this class live when the user flips the assistant setting or a
+		// provider is (dis)connected, so the button appears/disappears without
+		// a reload. Requires a function-calling-capable provider (what the
+		// agentic assistant needs) as well as the per-user toggle.
+		if ( function_exists( 'desktop_mode_ai_is_available' ) && desktop_mode_ai_is_available()
+			&& function_exists( 'desktop_mode_ai_assistant_provider_configured' ) && desktop_mode_ai_assistant_provider_configured()
+			&& function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
+			$classes .= ' desktop-mode-ai-enabled';
+		}
+
+		return $classes;
 	}
 
 	return $classes;

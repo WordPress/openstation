@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Tools registered here are *PHP-dispatched* — the tool's `handler`
  * runs on the server, returns a JSON-serialisable array, and the
- * result is fed straight back to the OpenAI agent loop. This is the
+ * result is fed straight back to the provider agent loop. This is the
  * right home for integrations that are inherently server-side:
  * site-health checks, WooCommerce lookups, WP-CLI wrappers, any
  * database-heavy query.
@@ -63,7 +63,7 @@ defined( 'ABSPATH' ) || exit;
  *     @type string   $description      One-line description shown to the model as part of the tool spec.
  *                                       Required.
  *     @type array    $parameters       JSON-Schema object describing the tool's arguments. Follow the
- *                                       OpenAI function-calling shape — `{ type: "object", properties: {...},
+ *                                       the provider function-calling shape — `{ type: "object", properties: {...},
  *                                       required: [...] }`. Default `{ type: "object", properties: {} }`
  *                                       for tools that take no arguments (in PHP, use `(object) array()` or
  *                                       `new stdClass()` for `properties` so it JSON-encodes as an object,
@@ -182,7 +182,7 @@ function desktop_mode_desktop_ai_tool_registry( $name = '', $entry = null ) {
  * @param int $user_id User whose capabilities gate visibility.
  * @return array[] List of tool entries with `handler` still attached —
  *                 the caller is expected to strip `handler` before
- *                 sending the definitions to OpenAI.
+ *                 sending the definitions to the provider.
  */
 function desktop_mode_get_registered_ai_tools_for_user( $user_id ) {
 	$registry = desktop_mode_desktop_ai_tool_registry();
@@ -203,13 +203,13 @@ function desktop_mode_get_registered_ai_tools_for_user( $user_id ) {
 }
 
 /**
- * Project a registered tool entry into the OpenAI function-calling
+ * Project a registered tool entry into the provider function-calling
  * tool definition shape. Strips the handler + internal metadata.
  *
  * @since 0.5.1
  *
  * @param array $entry Registry entry.
- * @return array OpenAI tool definition.
+ * @return array the provider tool definition.
  */
 function desktop_mode_ai_tool_entry_to_definition( array $entry ) {
 	return array(
