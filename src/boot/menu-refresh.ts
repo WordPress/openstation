@@ -120,10 +120,12 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncShortcuts,
 	} );
 
-	// Last-known admin-menu fingerprint. Seeded from the boot config so
-	// the first off-allowlist menu change (vs. boot state) is detected
-	// without a wasted probe. Updated whenever a full payload lands (it
-	// carries its own `menuSig`) or a lighter signature message arrives.
+	// Fingerprint of the admin menu the dock currently reflects. Seeded
+	// from the boot config so the first off-allowlist menu change (vs.
+	// boot state) is detected without a wasted probe, and thereafter
+	// updated only when a full payload is applied (it carries its own
+	// `menuSig`). Signature messages are compared against it but never
+	// mutate it — see the handler below.
 	let lastMenuSig: string =
 		typeof config.menuSig === 'string' ? config.menuSig : '';
 	// Guard so a burst of signature messages (rapid window navigation)
@@ -248,10 +250,19 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 
 		if ( data.type === 'desktop-mode-menu-signature' ) {
 			// A chromeless page off the full-payload allowlist reported
-			// its menu fingerprint. If it differs from what we last knew,
-			// the admin menu changed somewhere we don't otherwise watch
-			// (a CPT registered via a settings tool, a plugin that adds a
-			// menu on save) — spend one refresh probe to reconcile. GH#325.
+			// its menu fingerprint. If it differs from the state the dock
+			// currently reflects, the admin menu changed somewhere we
+			// don't otherwise watch (a CPT registered via a settings tool,
+			// a plugin that adds a menu on save) — spend one refresh probe
+			// to reconcile. GH#325.
+			//
+			// `lastMenuSig` is deliberately NOT updated here: it tracks the
+			// state the dock actually reflects, so it moves only when a
+			// payload is applied (the branch above, or the probe's own
+			// payload). The in-flight guard collapses a burst of reports
+			// into a single probe; leaving `lastMenuSig` untouched means a
+			// probe that times out is retried on the next navigation
+			// rather than silently swallowed.
 			const sig = data.sig;
 			if (
 				typeof sig === 'string' &&
@@ -259,10 +270,6 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				sig !== lastMenuSig &&
 				! sigRefreshInFlight
 			) {
-				// Adopt optimistically so repeat reports of the SAME new
-				// signature don't each queue a probe; a genuinely newer
-				// signature still gets through once this one settles.
-				lastMenuSig = sig;
 				sigRefreshInFlight = true;
 				void refresh().finally( () => {
 					sigRefreshInFlight = false;
