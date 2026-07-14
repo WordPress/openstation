@@ -49,13 +49,11 @@ export const styles = css`
 		border-radius: 10px; overflow: hidden; z-index: 3;
 		box-shadow: 0 8px 20px rgba( 0, 0, 0, 0.5 ), inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
 	}
-	/* The release art is a landscape "[square sleeve | record]" image;
-	 * anchoring the cover to the left extracts exactly the sleeve square
-	 * (its side == the image height), regardless of the source's overall
-	 * aspect ratio. The synthetic disc emerges over the record side. */
-	.cover img {
-		width: 100%; height: 100%; object-fit: cover; object-position: left center;
-		display: block;
+	/* The sleeve is painted into a canvas by the component: it trims any
+	 * uniform white frame the release art may ship, then draws the left
+	 * square (the sleeve; the record is to its right). */
+	.cover-canvas {
+		width: 100%; height: 100%; display: block;
 	}
 	.cover .spine {
 		position: absolute; top: 0; bottom: 0; right: 0; width: 5px; z-index: 2;

@@ -111,7 +111,7 @@ export class WpdReleaseCard extends Component {
 					<div class="sheen"></div>
 				</div>
 				<div class="cover">
-					<img class="cover-img" alt="" />
+					<canvas class="cover-canvas"></canvas>
 					<span class="spine"></span>
 				</div>
 			</div>
@@ -130,10 +130,10 @@ export class WpdReleaseCard extends Component {
 		`;
 	}
 
-	/** Wire the sleeve image (CORS-enabled) once the shadow DOM exists. */
+	/** Load the art (CORS-enabled) and paint the sleeve once the shadow DOM exists. */
 	private _setupCover(): void {
-		const img = this.shadowRoot?.querySelector< HTMLImageElement >( '.cover-img' );
-		if ( ! img ) {
+		const canvas = this.shadowRoot?.querySelector< HTMLCanvasElement >( '.cover-canvas' );
+		if ( ! canvas ) {
 			if ( this._coverTries++ < 5 ) {
 				requestAnimationFrame( () => this._setupCover() );
 			}
@@ -143,84 +143,151 @@ export class WpdReleaseCard extends Component {
 		if ( ! art ) {
 			return;
 		}
+		const img = new Image();
 		img.crossOrigin = 'anonymous';
-		img.addEventListener( 'load', () => this._extractAccent( img ), { once: true } );
+		img.addEventListener( 'load', () => this._paintSleeve( img, canvas ), { once: true } );
 		img.src = art;
 	}
 
 	/**
-	 * Derive the accent from the sleeve's dominant vivid color. Samples
-	 * the left square (the sleeve) of the art, quantizes, and picks the
-	 * most-covered saturated hue. No-op if an explicit accent was set or
-	 * the canvas can't be read (tainted / unsupported).
+	 * Paint the square sleeve into the cover canvas, and derive the
+	 * accent from it. Release art isn't visually consistent — most
+	 * covers bleed to the edge, but some ship a uniform white frame
+	 * around the artwork. We trim that frame first, then take the left
+	 * square (the sleeve; the record is to its right), so both styles
+	 * crop cleanly. No-op if the canvas can't be read (tainted / unsupported).
 	 */
-	private _extractAccent( img: HTMLImageElement ): void {
-		if ( this.getAttribute( 'accent' ) ) {
-			return;
-		}
+	private _paintSleeve( img: HTMLImageElement, canvas: HTMLCanvasElement ): void {
 		try {
-			const side = Math.min( img.naturalWidth || 0, img.naturalHeight || 0 );
-			if ( ! side ) {
+			const w = img.naturalWidth || 0;
+			const h = img.naturalHeight || 0;
+			if ( ! w || ! h ) {
 				return;
 			}
-			const size = 24;
-			const canvas = document.createElement( 'canvas' );
+			const work = document.createElement( 'canvas' );
+			work.width = w;
+			work.height = h;
+			const wctx = work.getContext( '2d' );
+			if ( ! wctx ) {
+				return;
+			}
+			wctx.drawImage( img, 0, 0 );
+			const data = wctx.getImageData( 0, 0, w, h ).data;
+
+			// Trim a uniform (near-)white frame if present. Full-bleed art
+			// has non-white edges, so nothing is trimmed.
+			const isWhite = ( x: number, y: number ): boolean => {
+				const i = ( y * w + x ) * 4;
+				return (
+					data[ i ] > 248 &&
+					data[ i + 1 ] > 248 &&
+					data[ i + 2 ] > 248 &&
+					data[ i + 3 ] > 200
+				);
+			};
+			const rowWhite = ( y: number ): boolean => {
+				for ( let x = 0; x < w; x += 2 ) {
+					if ( ! isWhite( x, y ) ) {
+						return false;
+					}
+				}
+				return true;
+			};
+			const colWhite = ( x: number ): boolean => {
+				for ( let y = 0; y < h; y += 2 ) {
+					if ( ! isWhite( x, y ) ) {
+						return false;
+					}
+				}
+				return true;
+			};
+			let top = 0;
+			while ( top < h - 1 && rowWhite( top ) ) {
+				top++;
+			}
+			let bottom = h - 1;
+			while ( bottom > top && rowWhite( bottom ) ) {
+				bottom--;
+			}
+			let left = 0;
+			while ( left < w - 1 && colWhite( left ) ) {
+				left++;
+			}
+			let right = w - 1;
+			while ( right > left && colWhite( right ) ) {
+				right--;
+			}
+
+			// Sleeve = the left square of the trimmed artwork.
+			const side = Math.max( 1, Math.min( right - left + 1, bottom - top + 1 ) );
+			const size = 320;
 			canvas.width = size;
 			canvas.height = size;
 			const ctx = canvas.getContext( '2d' );
 			if ( ! ctx ) {
 				return;
 			}
-			// The sleeve is the left square (side === image height).
-			ctx.drawImage( img, 0, 0, side, side, 0, 0, size, size );
-			const { data } = ctx.getImageData( 0, 0, size, size );
+			ctx.drawImage( img, left, top, side, side, 0, 0, size, size );
 
-			const buckets = new Map< string, ColorBucket >();
-			let best: ColorBucket | null = null;
-			let bestScore = -1;
-			for ( let i = 0; i < data.length; i += 4 ) {
-				const r = data[ i ];
-				const g = data[ i + 1 ];
-				const b = data[ i + 2 ];
-				if ( data[ i + 3 ] < 200 ) {
-					continue;
-				}
-				const max = Math.max( r, g, b );
-				const min = Math.min( r, g, b );
-				const v = max / 255;
-				const s = max === 0 ? 0 : ( max - min ) / max;
-				// Skip near-black (record/graphics) and grey/near-white.
-				if ( v < 0.2 || s < 0.25 ) {
-					continue;
-				}
-				const key = `${ Math.floor( r / 16 ) },${ Math.floor( g / 16 ) },${ Math.floor( b / 16 ) }`;
-				let bucket = buckets.get( key );
-				if ( ! bucket ) {
-					bucket = { r: 0, g: 0, b: 0, n: 0, score: 0 };
-					buckets.set( key, bucket );
-				}
-				bucket.r += r;
-				bucket.g += g;
-				bucket.b += b;
-				bucket.n += 1;
-				bucket.score += s * v;
-				if ( bucket.score > bestScore ) {
-					bestScore = bucket.score;
-					best = bucket;
-				}
-			}
-			if ( ! best ) {
-				return;
-			}
-			const r = Math.round( best.r / best.n );
-			const g = Math.round( best.g / best.n );
-			const b = Math.round( best.b / best.n );
-			const lum = ( 0.299 * r + 0.587 * g + 0.114 * b ) / 255;
-			this.style.setProperty( '--accent', `rgb(${ r }, ${ g }, ${ b })` );
-			this.style.setProperty( '--accent-ink', lum > 0.6 ? '#1a1a1a' : '#ffffff' );
+			this._extractAccent( ctx, size );
 		} catch {
-			// Tainted canvas or unsupported context — keep the default accent.
+			// Tainted canvas or unsupported context — leave it blank / default.
 		}
+	}
+
+	/**
+	 * Derive the accent from the painted sleeve's dominant vivid color:
+	 * quantize, then pick the most-covered saturated hue. No-op if an
+	 * explicit accent was supplied.
+	 */
+	private _extractAccent( ctx: CanvasRenderingContext2D, size: number ): void {
+		if ( this.getAttribute( 'accent' ) ) {
+			return;
+		}
+		const { data } = ctx.getImageData( 0, 0, size, size );
+		const buckets = new Map< string, ColorBucket >();
+		let best: ColorBucket | null = null;
+		let bestScore = -1;
+		for ( let i = 0; i < data.length; i += 4 ) {
+			const r = data[ i ];
+			const g = data[ i + 1 ];
+			const b = data[ i + 2 ];
+			if ( data[ i + 3 ] < 200 ) {
+				continue;
+			}
+			const max = Math.max( r, g, b );
+			const min = Math.min( r, g, b );
+			const v = max / 255;
+			const s = max === 0 ? 0 : ( max - min ) / max;
+			// Skip near-black (record/graphics) and grey/near-white.
+			if ( v < 0.2 || s < 0.25 ) {
+				continue;
+			}
+			const key = `${ Math.floor( r / 16 ) },${ Math.floor( g / 16 ) },${ Math.floor( b / 16 ) }`;
+			let bucket = buckets.get( key );
+			if ( ! bucket ) {
+				bucket = { r: 0, g: 0, b: 0, n: 0, score: 0 };
+				buckets.set( key, bucket );
+			}
+			bucket.r += r;
+			bucket.g += g;
+			bucket.b += b;
+			bucket.n += 1;
+			bucket.score += s * v;
+			if ( bucket.score > bestScore ) {
+				bestScore = bucket.score;
+				best = bucket;
+			}
+		}
+		if ( ! best ) {
+			return;
+		}
+		const r = Math.round( best.r / best.n );
+		const g = Math.round( best.g / best.n );
+		const b = Math.round( best.b / best.n );
+		const lum = ( 0.299 * r + 0.587 * g + 0.114 * b ) / 255;
+		this.style.setProperty( '--accent', `rgb(${ r }, ${ g }, ${ b })` );
+		this.style.setProperty( '--accent-ink', lum > 0.6 ? '#1a1a1a' : '#ffffff' );
 	}
 
 	private _onUpdate( e: Event ): void {

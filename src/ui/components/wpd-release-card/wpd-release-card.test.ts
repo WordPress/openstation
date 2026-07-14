@@ -52,16 +52,14 @@ describe( '<wpd-release-card>', () => {
 		expect( msg ).not.toContain( '"' );
 	} );
 
-	test( 'wires the sleeve image with CORS + src (for accent sampling)', async () => {
+	test( 'renders the sleeve canvas the art is painted into', async () => {
 		const card = mount( {
 			art: 'https://example.com/7.0.png',
 			version: '7.0',
 			branch: '7.0',
 		} );
 		await tick();
-		const img = card.shadowRoot!.querySelector( '.cover-img' ) as HTMLImageElement;
-		expect( img.getAttribute( 'crossorigin' ) ).toBe( 'anonymous' );
-		expect( img.getAttribute( 'src' ) ).toBe( 'https://example.com/7.0.png' );
+		expect( card.shadowRoot!.querySelector( '.cover-canvas' ) ).not.toBeNull();
 	} );
 
 	test( 'an explicit accent attribute is mirrored onto the host', async () => {
