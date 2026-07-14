@@ -2983,7 +2983,7 @@ export async function mountCategoriesMindmap(
 			countEl.className = 'wpd-mindmap__search-meta';
 			countEl.textContent = sprintf(
 				/* translators: %d: number of posts assigned to a category. */
-				__( '%d posts' ),
+				_n( '%d post', '%d posts', n.count ),
 				n.count,
 			);
 			btn.appendChild( nameEl );
