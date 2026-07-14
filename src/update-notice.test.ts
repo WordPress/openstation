@@ -65,16 +65,17 @@ describe( 'maybeShowUpdate', () => {
 
 	test( 'art resolves + loads → vinyl, codename shown when crossing', async () => {
 		await maybeShowUpdate( {
-			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
+			update: { version: '7.0', available: '7.0.1', branch: '7.0', url: '/u', crossing: true },
 			openUrl, resolveArt, loadImage,
 		} );
 		expect( toastMock ).not.toHaveBeenCalled();
 		expect( resolveArt ).toHaveBeenCalledWith( '7.0' );
 		const c = lastCard();
-		expect( c.version ).toBe( '7.0' );
+		expect( c.version ).toBe( '7.0' ); // display = branch when crossing
 		expect( c.name ).toBe( 'Armstrong' );
 		expect( c.artUrl ).toBe( ART.artUrl );
-		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0' );
+		// Dismissal keyed on the exact available version, not the branch.
+		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0.1' );
 	} );
 
 	test( 'same-branch minor → vinyl, exact version, no codename', async () => {
@@ -108,15 +109,24 @@ describe( 'maybeShowUpdate', () => {
 		expect( toastMock ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	test( 'skips (and never fetches) when the release was already dismissed', async () => {
-		markNoticeDismissed( 'desktop-mode/core-update:7.0' );
+	test( 'skips (and never fetches) when that exact version was dismissed', async () => {
+		markNoticeDismissed( 'desktop-mode/core-update:6.5.1' );
 		await maybeShowUpdate( {
-			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
+			update: { version: '6.5.1', available: '6.5.1', branch: '6.5', url: '/u', crossing: false },
 			openUrl, resolveArt, loadImage,
 		} );
 		expect( cardMock ).not.toHaveBeenCalled();
 		expect( toastMock ).not.toHaveBeenCalled();
 		expect( resolveArt ).not.toHaveBeenCalled();
+	} );
+
+	test( 'a newer point release shows after an older one was dismissed', async () => {
+		markNoticeDismissed( 'desktop-mode/core-update:6.5.1' );
+		await maybeShowUpdate( {
+			update: { version: '6.5.2', available: '6.5.2', branch: '6.5', url: '/u', crossing: false },
+			openUrl, resolveArt, loadImage,
+		} );
+		expect( lastCard().version ).toBe( '6.5.2' );
 	} );
 
 	test( 'both surfaces open the update screen', async () => {

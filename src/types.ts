@@ -1919,7 +1919,9 @@ export interface DesktopConfig {
 	coreUpdate?: {
 		/** Version shown in the message — major branch when crossing, else exact. */
 		version: string;
-		/** Major branch (e.g. `7.0`) — the art + dismissal key. */
+		/** Exact available version — the dismissal key (a newer point release re-notifies). */
+		available?: string;
+		/** Major branch (e.g. `7.0`) — the art key. */
 		branch?: string;
 		url: string;
 		/** True when moving into a new major (the shell then shows the codename). */

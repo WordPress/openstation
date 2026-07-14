@@ -61,6 +61,7 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		$update = desktop_mode_get_core_update();
 		$this->assertIsArray( $update );
 		$this->assertArrayHasKey( 'version', $update );
+		$this->assertArrayHasKey( 'available', $update );
 		$this->assertArrayHasKey( 'branch', $update );
 		$this->assertArrayHasKey( 'crossing', $update );
 		$this->assertStringContainsString( 'update-core.php', $update['url'] );
@@ -87,7 +88,8 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		$this->fake_core_update( '8.0.1' );
 
 		$update = desktop_mode_get_core_update();
-		$this->assertSame( '8.0', $update['version'] ); // branch, not 8.0.1
+		$this->assertSame( '8.0', $update['version'] );      // display = branch
+		$this->assertSame( '8.0.1', $update['available'] );  // exact, for dismissal
 		$this->assertSame( '8.0', $update['branch'] );
 		$this->assertTrue( $update['crossing'] );
 	}
@@ -104,6 +106,7 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 
 		$update = desktop_mode_get_core_update();
 		$this->assertSame( '7.0.2', $update['version'] );
+		$this->assertSame( '7.0.2', $update['available'] );
 		$this->assertSame( '7.0', $update['branch'] );
 		$this->assertFalse( $update['crossing'] );
 	}

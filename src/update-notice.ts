@@ -38,7 +38,9 @@ import { __, sprintf } from './i18n';
 export interface CoreUpdateInfo {
 	/** Message version — major branch when crossing, else exact version. */
 	version: string;
-	/** Major branch (e.g. `7.0`) — the art + dismissal key. */
+	/** Exact available version — the dismissal key (a newer point release re-notifies). */
+	available?: string;
+	/** Major branch (e.g. `7.0`) — the art key. */
 	branch?: string;
 	url: string;
 	/** True when moving into a new major (→ show the codename). */
@@ -96,7 +98,13 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 			? update.branch
 			: version;
 	const crossing = update.crossing === true;
-	const dismissKey = `desktop-mode/core-update:${ branch }`;
+	// Key dismissal on the exact available version, so dismissing 7.0.1
+	// doesn't also hide a later 7.0.2 (a newer release is a new notice).
+	const exact =
+		typeof update.available === 'string' && update.available
+			? update.available
+			: version;
+	const dismissKey = `desktop-mode/core-update:${ exact }`;
 	if ( isNoticeDismissed( dismissKey ) ) {
 		return;
 	}

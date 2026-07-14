@@ -116,14 +116,17 @@ function desktop_mode_get_core_update() {
 	$update = array(
 		// Crossing a major shows the major version (+ codename, added
 		// client-side); a same-branch minor shows the exact version.
-		'version'  => $crossing ? $branch : $available,
-		'branch'   => $branch,
+		'version'   => $crossing ? $branch : $available,
+		// The exact available version — the client keys the "dismissed"
+		// state on this, so a newer point release re-notifies.
+		'available' => $available,
+		'branch'    => $branch,
 		// `self_admin_url()` resolves to the network update screen on
 		// multisite (where `update_core` is a super-admin action) and
 		// the site update screen otherwise — matching where the
 		// capability actually lets the user act.
-		'url'      => self_admin_url( 'update-core.php' ),
-		'crossing' => $crossing,
+		'url'       => self_admin_url( 'update-core.php' ),
+		'crossing'  => $crossing,
 	);
 
 	/**
