@@ -1089,7 +1089,7 @@ The message field is always a friendly sentence or two shown directly to the use
 			// and validates input/output; a denial or bad input comes back as a
 			// WP_Error, which we surface to the model as a clean tool error
 			// (never a fatal) and report on the observability channel.
-			$ability = wp_get_ability( $ability_by_tool[ $tool_name ] );
+			$ability = isset( $ability_by_tool[ $tool_name ] ) ? wp_get_ability( $ability_by_tool[ $tool_name ] ) : null;
 			$result  = $ability instanceof WP_Ability
 				? $ability->execute( $args )
 				: new WP_Error( 'desktop_mode_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
@@ -1119,8 +1119,9 @@ The message field is always a friendly sentence or two shown directly to the use
 			$last_has_more = (bool) ( $batch['has_more'] ?? false );
 
 			/**
-			 * Transform a tool result before it goes back to the
-			 * model. Fires for every tool, built-in and registered.
+			 * Transform a tool result before it goes back to the model.
+			 * Fires for every ability-dispatched tool (including error
+			 * envelopes from a failed execute()).
 			 *
 			 * @since 0.5.1
 			 *

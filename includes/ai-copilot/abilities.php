@@ -101,7 +101,12 @@ function desktop_mode_ai_ability_tool_name( $ability_name ) {
 	if ( false !== $pos ) {
 		$slug = substr( $slug, $pos + 1 );
 	}
-	return str_replace( '-', '_', $slug );
+	// This becomes the model-facing function name; most function-calling
+	// providers only accept [a-z0-9_], so normalize anything else (a
+	// third-party ability may carry extra slashes or mixed case).
+	$slug = strtolower( str_replace( '-', '_', $slug ) );
+	$slug = preg_replace( '/[^a-z0-9_]+/', '_', $slug );
+	return trim( (string) $slug, '_' );
 }
 
 /**

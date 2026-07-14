@@ -98,6 +98,10 @@ class Tests_DesktopMode_AiAbilities extends WP_UnitTestCase {
 		$this->assertSame( 'search_posts', desktop_mode_ai_ability_tool_name( 'desktop-mode/search-posts' ) );
 		$this->assertSame( 'search_comments_by_post', desktop_mode_ai_ability_tool_name( 'desktop-mode/search-comments-by-post' ) );
 		$this->assertSame( 'get_php_error_log', desktop_mode_ai_ability_tool_name( 'desktop-mode/get-php-error-log' ) );
+
+		// Third-party names are normalized to a provider-safe [a-z0-9_] shape.
+		$this->assertSame( 'sub_do_thing', desktop_mode_ai_ability_tool_name( 'My-Plugin/sub/Do.Thing' ) );
+		$this->assertMatchesRegularExpression( '/^[a-z0-9_]+$/', desktop_mode_ai_ability_tool_name( 'x/A B!C' ) );
 	}
 
 	/**
