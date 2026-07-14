@@ -170,7 +170,7 @@ add_filter( 'desktop_mode_ai_abilities', function ( array $names ) {
 } );
 ```
 
-No JS required. The agent loop advertises the ability to the model and dispatches calls through `wp_get_ability()->execute()`, so users without `manage_woocommerce` get a clean permission error instead of a result. (This replaces the removed `desktop_mode_register_ai_tool()`.)
+No JS required. The agent loop advertises the ability to the model and dispatches calls through `wp_get_ability()->execute()`, so users without `manage_woocommerce` get a clean permission error instead of a result.
 
 ## 5. Observability
 

@@ -1284,7 +1284,7 @@ Credentials and model routing are owned by **WordPress 7.0 Core**: configure a p
 
 > **Removed in 0.9.4.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `desktop_mode_register_ai_provider()` / `desktop_mode_unregister_ai_provider()`, the actions `desktop_mode_ai_register_providers` / `desktop_mode_ai_provider_registered`, and the filter `desktop_mode_ai_active_provider` (the old provider-selecting `desktop_mode_ai_model` filter is gone too — the name is reused for a different purpose below). The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below are unaffected.
 
-> **Removed / changed in 0.9.4.** The built-in Copilot tools are now WordPress [Abilities](https://developer.wordpress.org/) (category `desktop-mode`), so the PHP tool registry is gone: `desktop_mode_register_ai_tool()` and the `desktop_mode_ai_tool_registered` action no longer exist — register a `wp_register_ability()` and add it via the new [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-094) filter instead. The `desktop_mode_ai_model` filter name is **repurposed**: the old provider-selecting filter (≤ 0.9.3) is gone, and the name now expresses a soft model preference fed to the AI Client — see below.
+> The built-in Copilot tools are WordPress [Abilities](https://developer.wordpress.org/) in the `desktop-mode` category, listed at `GET /wp-abilities/v1/abilities`. Add your own with the [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-094) filter, and express a soft model preference with [`desktop_mode_ai_model`](#desktop_mode_ai_model--stable-since-094) — both documented below.
 
 > **Removed in 0.9.1.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
@@ -1500,7 +1500,7 @@ add_filter( 'desktop_mode_ai_abilities', function ( array $names ) {
 } );
 ```
 
-> This is the replacement for the removed `desktop_mode_register_ai_tool()`. See [`examples/ai-ask.md`](examples/ai-ask.md) for a full ability recipe (registration + filter).
+> See [`examples/ai-ask.md`](examples/ai-ask.md) for a full ability recipe (registration + filter).
 
 ---
 
