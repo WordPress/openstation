@@ -23,7 +23,7 @@
  * @since 0.8.2
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import {
 	fetchCommentStats,
 	fetchTermStats,
@@ -1159,7 +1159,7 @@ export function renderPanel(
 			'desktop-mode-content-graph__panel-section-label';
 		labelEl.textContent = sprintf(
 			/* translators: %d: number of comment replies. */
-			__( 'Replies (%d)' ),
+			_n( 'Reply (%d)', 'Replies (%d)', replies.length ),
 			replies.length,
 		);
 		wrap.appendChild( labelEl );
