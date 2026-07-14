@@ -23,7 +23,8 @@ export const styles = css`
 		border-radius: 14px;
 		color: #fff;
 		font-family: var( --desktop-mode-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif );
-		background: #15161b;
+		/* Mid-slate so the near-black vinyl reads against the card. */
+		background: #34373f;
 		border: 1px solid rgba( 255, 255, 255, 0.14 );
 		box-shadow:
 			0 16px 40px rgba( 0, 0, 0, 0.55 ),
