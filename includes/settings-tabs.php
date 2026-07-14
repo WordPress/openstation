@@ -108,7 +108,7 @@ function desktop_mode_register_settings_tab_script( $handle ) {
  *                              (`manage_options` → admin-only; anything
  *                              else → visible to everyone). Default empty.
  *     @type int    $order      Sort order relative to built-in tabs
- *                              (appearance=10, ai=20, extended=30,
+ *                              (appearance=10, ai=20, features=25,
  *                              help=40). Default 100 (appended).
  *     @type string $script     WP script handle providing the
  *                              `registerSettingsTab()` call.

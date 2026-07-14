@@ -2406,7 +2406,7 @@ See [`docs/examples/connect-to-window.md`](./examples/connect-to-window.md) for 
 
 ### `registerSettingsTab( def )` — Stable *(since 0.5.2)*
 
-Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Icons, Features, Effects, Extended Options, Components, About — and renders its body via your `render( body, ctx )` callback.
+Register a tab in the OS Settings window. The tab is appended (or sorted-in by `order`) alongside the built-in tabs — Appearance, AI Settings, Apps & Icons, Features, Effects, Components, About — and renders its body via your `render( body, ctx )` callback.
 
 **Definition shape:**
 
@@ -2415,7 +2415,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. |
 | `label` | `string` | yes | Tab label. |
 | `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
-| `order` | `number` | no | Default `100`. Built-ins: appearance=10, ai=20, apps-icons=22, features=25, effects=27, extended=30, help=40 (Extended Options and Components are admin-only; About is pinned last with a sentinel order). |
+| `order` | `number` | no | Default `100`. Built-ins: appearance=10, ai=20, apps-icons=22, features=25, effects=27, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
 | `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `desktop_mode_register_settings_tab_script()`. |
 | `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
 
@@ -2631,7 +2631,7 @@ Open (or focus, if already open) the shell's OS Settings window. Routes through 
 wp.desktop.openOsSettings();
 ```
 
-Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'apps-icons'`, `'features'`, `'effects'`, `'extended'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. The tab is selected before the window opens, and if OS Settings is already open the live tab strip switches in place:
+Pass `{ tabId }` to land directly on a specific settings tab. The built-in tab ids are `'appearance'`, `'ai'`, `'apps-icons'`, `'features'`, `'effects'`, `'help'`, and `'about'`; a tab registered via `registerSettingsTab()` is addressable by its own id. (`'extended'` is accepted as a legacy alias for `'features'` — the Extended Options tab merged into the Features tab in 0.9.5.) The tab is selected before the window opens, and if OS Settings is already open the live tab strip switches in place:
 
 ```js
 // Deep-link straight to the AI Settings tab.
@@ -3069,6 +3069,24 @@ Each `HarvestedCommand` carries a `kind` field the iframe computes by **statical
         url?: string;
     }>;
 }
+```
+
+#### `desktop-mode-plugins-changed` — Stable
+
+Carries a full menu payload harvested from real admin context. Emitted by the chromeless bridge when the iframe lands on a page whose completion commonly mutates the admin menu (`plugins.php`, `plugin-install.php`, `update.php`, `themes.php`), and by the hidden refresh probe [`wp.desktop.refreshMenu()`](#refreshmenu) spawns. The shell diffs the payload against its prior snapshot by `id` and repaints only the registries that actually changed (dock, native windows, widgets, …) — no browser reload. The payload also carries `menuSig`, its own [menu signature](#desktop-mode-menu-signature--stable-since-094), which the shell adopts as its last-known value.
+
+```typescript
+{ type: 'desktop-mode-plugins-changed'; payload: { dockItems: unknown[]; nativeWindows: unknown[]; /* … */ menuSig: string } }
+```
+
+#### `desktop-mode-menu-signature` — Stable *(since 0.9.4)*
+
+A lightweight structural fingerprint of the admin menu, emitted by the chromeless bridge on **every** chromeless admin page that does *not* already carry a full `desktop-mode-plugins-changed` payload. The shell compares `sig` against its last-known value (seeded from `desktopModeConfig.menuSig` at boot, updated on every applied payload) and — only when it differs — spends one [`wp.desktop.refreshMenu()`](#refreshmenu) probe to reconcile the dock.
+
+This closes the gap where a custom post type registered through a settings tool (CPT UI, Pods, ACF, …) saves on its own `admin.php?page=…` / `options.php` screen — none of which is on the full-payload allowlist — so the new menu item never reached the live dock until a full browser reload (GH#325). An unchanged menu costs nothing beyond the tiny message; a full harvest happens only on a real change.
+
+```typescript
+{ type: 'desktop-mode-menu-signature'; sig: string }
 ```
 
 ---
@@ -3716,7 +3734,7 @@ wp.desktop.registerWallpaper( {
 | `ready( cb )` | Stable *(since 0.5.1)* | **Recommended bootstrap entry point.** Run `cb` after `desktop-mode.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
 | `whenReady( cb )` | Stable | Original name for `ready( cb )` — same behaviour; keep using it if you've already adopted it. |
 | `isReady()` | Stable | Synchronous boolean — has `desktop-mode.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
-| `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation; manual calls spawn a hidden iframe at `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1` whose server-side handler short-circuits the response with the fresh menu payload (a `<script>` that postMessages `desktop-mode-plugins-changed`) without rendering admin-header / admin-footer — resolves in milliseconds. The full chromeless bridge still emits the same payload when the iframe lands on a real admin page (`plugins.php` etc.). |
+| `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation, and (since 0.9.4) whenever a chromeless page reports a [`desktop-mode-menu-signature`](#desktop-mode-menu-signature--stable-since-094) that differs from the shell's last-known value — so a custom post type added via a settings tool surfaces without a browser reload (GH#325). Manual calls spawn a hidden iframe at `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1` whose server-side handler short-circuits the response with the fresh menu payload (a `<script>` that postMessages `desktop-mode-plugins-changed`) without rendering admin-header / admin-footer — resolves in milliseconds. The full chromeless bridge still emits the same payload when the iframe lands on a real admin page (`plugins.php` etc.). |
 | `setDefaultWindow( url \| null )` | Stable | Update the user's "open on startup" preference (`null` clears it). Async — persists through the REST endpoint; on success updates `config.defaultWindow` in place and dispatches the [`desktop-mode-default-window-changed`](#desktop-mode-default-window-changed--stable-since-070) CustomEvent on `document`. |
 | `openNewWindow( id, opts? )` | Stable *(since 0.8.3)* | Spawn a brand-new instance of a registered native window, even when one is already open. See [`wp.desktop.openNewWindow`](#wpdesktopopennewwindow-id-opts---stable-since-083). |
 | `cloneTemplate( templateOrId )` | Stable | Clone a `<template>` element's contents into a fresh `DocumentFragment`. Accepts the element's DOM id or the element itself; throws if the reference doesn't resolve to a template. `desktop_mode_register_window()` plugins don't need it — the shell pre-clones the declared template into the window body — it's for advanced re-cloning / custom hydration. |

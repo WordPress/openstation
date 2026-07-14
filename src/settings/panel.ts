@@ -2,8 +2,8 @@
  * Desktop Mode — OS Settings panel renderer (lazy bundle).
  *
  * Holds the entire OS Settings UI: tab strip, section builders for
- * every built-in tab (Appearance / AI / Features / Apps & Icons /
- * Extended / Help / About), wallpaper picker + editor host, and the
+ * every built-in tab (Appearance / Apps & Icons / Features / Effects /
+ * Components / About), wallpaper picker + editor host, and the
  * Reset button. None of this is needed before the user clicks the
  * Settings dock icon, so it ships in its own Vite target
  * (`os-settings-panel[.min].js`) and gets `<script>`-injected on
@@ -195,7 +195,10 @@ export function renderOsSettingsPanel(
 				>${ __( 'Features' ) }</wpd-tab
 			>`,
 			panel: html`<wpd-tabpanel for="features">
-				<wpd-panel>${ buildFeaturesSection( ctx ) }</wpd-panel>
+				<wpd-panel>
+					${ buildFeaturesSection( ctx ) }
+					${ isAdmin ? buildExtendedSection( ctx ) : '' }
+				</wpd-panel>
 			</wpd-tabpanel>`,
 		},
 		{
@@ -221,16 +224,6 @@ export function renderOsSettingsPanel(
 	];
 
 	if ( isAdmin ) {
-		rows.push( {
-			id: 'extended',
-			order: 30,
-			tab: html`<wpd-tab value="extended"
-				>${ __( 'Extended Options' ) }</wpd-tab
-			>`,
-			panel: html`<wpd-tabpanel for="extended">
-				<wpd-panel>${ buildExtendedSection( ctx ) }</wpd-panel>
-			</wpd-tabpanel>`,
-		} );
 		rows.push( {
 			id: 'help',
 			order: 40,

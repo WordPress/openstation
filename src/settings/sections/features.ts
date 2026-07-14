@@ -1,17 +1,19 @@
 /**
  * Features section — per-user opt-ins for Desktop Mode behaviors.
  *
- * Visible to every user (no admin gate at the tab level), unlike the
- * Extended Options tab which is admin-only. Toggles here mutate
- * `OsSettingsState` via `ctx.save()` — no dedicated REST endpoint;
- * the existing OS-settings sync debounces the write to user meta.
+ * Visible to every user (no admin gate at the tab level). Toggles here
+ * mutate `OsSettingsState` via `ctx.save()` — no dedicated REST
+ * endpoint; the existing OS-settings sync debounces the write to user
+ * meta.
  *
  * The tab renders two sections: the general "Features" group first,
  * then a "Beta features" group below it holding the opt-in
  * native-window toggles (Posts, Pages, Users, Plugins, Comments — all
  * off by default as of 0.9.1). As more per-user feature flags land they
  * slot into the matching section so the tab grows by one row at a
- * time, not one tab at a time.
+ * time, not one tab at a time. For admins the panel appends a third,
+ * admin-only "Extended options" section (site-wide toggles — see
+ * `./extended`) below these two.
  *
  * The save indicator (`<wpd-save-status auto>`) hooks the same
  * `desktop-mode-os-settings-save-lifecycle` CustomEvent the panel

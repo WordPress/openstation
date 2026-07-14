@@ -382,6 +382,11 @@
 	text-overflow: ellipsis;
 }
 
+.desktop-mode-overview-top-bar__tile-wrapper {
+	position: relative;
+	display: inline-block;
+}
+
 .desktop-mode-overview-top-bar__tile-close {
 	position: absolute;
 	top: 4px;
@@ -400,10 +405,15 @@
 		opacity 0.15s ease,
 		background-color 0.15s ease,
 		color 0.15s ease;
+	border: none;
+	padding: 0;
 }
 
-.desktop-mode-overview-top-bar__tile:hover
-	.desktop-mode-overview-top-bar__tile-close {
+.desktop-mode-overview-top-bar__tile-wrapper:hover
+	.desktop-mode-overview-top-bar__tile-close,
+.desktop-mode-overview-top-bar__tile-wrapper:focus-within
+	.desktop-mode-overview-top-bar__tile-close,
+.desktop-mode-overview-top-bar__tile-close:focus-visible {
 	opacity: 1;
 }
 
@@ -414,13 +424,11 @@
 
 /*
  * Hide the close X when there's only one tile left — the tile
- * counts both real desktops AND the trailing "+", so "only one
- * desktop" means exactly two tiles in the list.
+ * list contains both desktop wrappers AND the trailing "+".
+ * So "only one desktop" means exactly one wrapper in the list.
  */
 .desktop-mode-overview-top-bar__list:has(
-		.desktop-mode-overview-top-bar__tile:not(
-				.desktop-mode-overview-top-bar__tile--add
-			):only-of-type
+		.desktop-mode-overview-top-bar__tile-wrapper:only-of-type
 	)
 	.desktop-mode-overview-top-bar__tile-close {
 	display: none;

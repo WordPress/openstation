@@ -587,7 +587,9 @@ desktop_mode_register_settings_tab( array(
 **Built-in tab orders** (for reference when picking `order`):
 - `appearance` = 10
 - `ai` = 20
-- `extended` = 30
+- `apps-icons` = 22
+- `features` = 25
+- `effects` = 27
 - `help` = 40
 - Third-party default = 100 (appended after built-ins)
 

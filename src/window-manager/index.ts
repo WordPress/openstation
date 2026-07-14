@@ -64,7 +64,7 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
-import { enterOverview, exitOverview } from './overview';
+import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 
 /** Base z-index for desktop windows. */
@@ -255,6 +255,22 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _overviewAddTileFocused = false;
+	/**
+	 * Handle of the pending "grid animation settled" timer scheduled
+	 * by `enterOverview()`. Tracked so `destroy()` can cancel it —
+	 * otherwise a caller that discards the manager mid-transition
+	 * leaves a real `setTimeout` that fires later and reaches for
+	 * globals (`window.wp.hooks`) that may already be torn down.
+	 * @internal
+	 */
+	public _overviewEnterTimeoutId: number | null = null;
+	/**
+	 * Handle of the pending "exit animation settled" timer scheduled
+	 * by `exitOverview()`. Same rationale as
+	 * {@link _overviewEnterTimeoutId}.
+	 * @internal
+	 */
+	public _overviewExitTimeoutId: number | null = null;
 
 	// ---- Snap-zone state (edge-snap + split overview) ----
 
@@ -1543,6 +1559,27 @@ export class WindowManager {
 	}
 	public exitOverview( selected?: Window, maximize = false ): void {
 		exitOverview( this, selected, maximize );
+	}
+
+	/**
+	 * Release resources this instance owns outside its own DOM
+	 * subtree: the document-level overview key handler and any
+	 * pending overview transition timers. Removing `desktop` from the
+	 * DOM does not reach either of those — a caller discarding a
+	 * manager instance (tests; a future SPA-style unmount) that skips
+	 * this leaves a real `setTimeout` to fire later and reach for
+	 * globals that may already be gone, plus a `keydown` listener on
+	 * `document` that keeps responding on behalf of a manager nothing
+	 * else references.
+	 *
+	 * Safe to call unconditionally — a no-op when overview was never
+	 * entered or was already cleanly exited.
+	 */
+	public destroy(): void {
+		if ( this._overviewActive ) {
+			exitOverview( this );
+		}
+		cancelOverviewTimers( this );
 	}
 
 	/**

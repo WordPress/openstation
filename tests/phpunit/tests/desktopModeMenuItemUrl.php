@@ -200,4 +200,39 @@ class Tests_DesktopMode_MenuItemUrl extends WP_UnitTestCase {
 		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
 		$this->assertSame( 'wc-admin', $args['page'] );
 	}
+
+	/**
+	 * Legacy file-path slugs — WP-Sweep registers its Tools page as
+	 * `add_management_page( …, 'wp-sweep/admin.php' )`: the slug
+	 * contains `.php` yet is a registered plugin page, not an
+	 * admin-root file. The registered-page check must win over the
+	 * direct-file branch — otherwise the dock links the Sweep tab to
+	 * a 404 at `wp-admin/wp-sweep/admin.php` instead of the page
+	 * WordPress actually serves at `tools.php?page=wp-sweep/admin.php`.
+	 */
+	public function test_routes_registered_file_path_slug_through_php_parent() {
+		global $_parent_pages;
+		$_parent_pages['wp-sweep/admin.php'] = 'tools.php';
+
+		$result = desktop_mode_menu_item_url( 'wp-sweep/admin.php' );
+
+		$this->assertStringContainsString( 'tools.php', $result );
+		$this->assertStringNotContainsString( admin_url( 'wp-sweep/admin.php' ), $result );
+		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
+		$this->assertSame( 'wp-sweep/admin.php', $args['page'] );
+
+		unset( $_parent_pages['wp-sweep/admin.php'] );
+	}
+
+	/**
+	 * A file-path slug with NO `$_parent_pages` registration keeps
+	 * the direct-file behavior — it really is a file under
+	 * `wp-admin/` (e.g. `network/sites.php`-style references).
+	 */
+	public function test_unregistered_file_path_slug_still_routes_as_direct_file() {
+		$this->assertSame(
+			esc_url_raw( admin_url( 'network/sites.php' ) ),
+			desktop_mode_menu_item_url( 'network/sites.php' )
+		);
+	}
 }
