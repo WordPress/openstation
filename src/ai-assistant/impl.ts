@@ -1414,7 +1414,9 @@ export class AiAssistant implements AiAssistantApi {
 				// `_runCommand` bails out early while `_isSearching`, so
 				// defer the dispatch to a microtask — by then the search
 				// flow has reset its state and the command runs cleanly.
-				queueMicrotask( () => void this._runCommand( cmd, '' ) );
+				// Pass the raw intent as args so argument-taking commands can
+				// parse it (navigation/action commands ignore it).
+				queueMicrotask( () => void this._runCommand( cmd, intent ) );
 			} else {
 				this._showError( `I couldn't find an admin command for "${ intent }".` );
 			}

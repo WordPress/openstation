@@ -22,7 +22,7 @@ const CTX: CommandContext = {
 	confirm: async () => true,
 };
 
-const SLUGS = [ 'global-add-new-post', 'global-all-posts', 'global-manage-plugins', 'global-switch-theme' ];
+const SLUGS = [ 'global-add-new-post', 'global-all-posts', 'global-manage-plugins', 'global-switch-theme', 'global-new-entry' ];
 
 function seed(): void {
 	registerCommand( { slug: 'global-add-new-post', label: 'Add new post', run: () => {} } );
@@ -67,5 +67,37 @@ describe( 'runCommandByIntent', () => {
 		seed();
 		const result = await runCommandByIntent( 'order a pizza', CTX );
 		expect( result ).toHaveProperty( 'error' );
+	} );
+
+	test( 'passes the raw intent through as args', async () => {
+		const run = vi.fn( () => {} );
+		registerCommand( { slug: 'global-manage-plugins', label: 'Manage plugins', run } );
+
+		await runCommandByIntent( 'manage plugins', CTX );
+		expect( run ).toHaveBeenCalledWith( 'manage plugins', CTX );
+	} );
+
+	test( 'catches a throwing command and returns an error envelope', async () => {
+		registerCommand( {
+			slug: 'global-manage-plugins',
+			label: 'Manage plugins',
+			run: () => {
+				throw new Error( 'boom' );
+			},
+		} );
+
+		const result = await runCommandByIntent( 'manage plugins', CTX );
+		expect( result ).toHaveProperty( 'error' );
+		expect( ( result as { error: string } ).error ).toContain( 'boom' );
+	} );
+} );
+
+describe( 'matchCommandByIntent — localization', () => {
+	test( 'tokenizes non-ASCII labels and intents', () => {
+		registerCommand( { slug: 'global-new-entry', label: 'Añadir entrada', run: () => {} } );
+		registerCommand( { slug: 'global-manage-plugins', label: 'Gestionar plugins', run: () => {} } );
+
+		const cmd = matchCommandByIntent( 'añadir una entrada' );
+		expect( cmd?.slug ).toBe( 'global-new-entry' );
 	} );
 } );

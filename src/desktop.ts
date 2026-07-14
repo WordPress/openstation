@@ -2121,8 +2121,13 @@ function init(): void {
 			if ( ! isAiAssistantActive() ) {
 				return;
 			}
-			const target = e.target as Element | null;
-			if ( ! target?.closest( '#wp-admin-bar-command-palette' ) ) {
+			// `MouseEvent.target` isn't always an Element (text nodes, etc.),
+			// so guard before calling `closest()`.
+			const target = e.target;
+			if (
+				! ( target instanceof Element ) ||
+				! target.closest( '#wp-admin-bar-command-palette' )
+			) {
 				return;
 			}
 			e.preventDefault();

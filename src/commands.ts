@@ -452,7 +452,9 @@ const INTENT_STOP_WORDS = new Set( [
  * @since 0.9.5
  */
 export function matchCommandByIntent( intent: string ): DesktopCommand | null {
-	const words = ( intent.toLowerCase().match( /[a-z0-9]+/g ) ?? [] );
+	// Unicode-aware: `\p{L}\p{N}` keeps non-ASCII letters/digits so localized
+	// command labels and non-English intents still tokenize.
+	const words = ( intent.toLowerCase().match( /[\p{L}\p{N}]+/gu ) ?? [] );
 	if ( words.length === 0 ) {
 		return null;
 	}
@@ -499,7 +501,15 @@ export async function runCommandByIntent(
 	if ( ! cmd ) {
 		return { error: `No admin command matched "${ intent }".` };
 	}
-	return cmd.run( '', ctx );
+	// Pass the raw intent through as args so argument-taking commands can parse
+	// it (most harvested navigation/action commands ignore args). A throw from
+	// the handler becomes a structured error instead of rejecting the caller.
+	try {
+		return await Promise.resolve( cmd.run( intent, ctx ) );
+	} catch ( err ) {
+		const message = err instanceof Error ? err.message : String( err );
+		return { error: `Command /${ cmd.slug } failed: ${ message }` };
+	}
 }
 
 /**
