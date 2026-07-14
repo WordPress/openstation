@@ -73,6 +73,8 @@ const TEMPLATE = `
 	</div>
 `;
 
+const createPlacement = vi.fn();
+
 describe( 'recycle-bin selection identity', () => {
 	let body: HTMLElement;
 	let table: WpdTable< RecycleBinItem >;
@@ -80,7 +82,10 @@ describe( 'recycle-bin selection identity', () => {
 	beforeEach( async () => {
 		vi.clearAllMocks();
 		( window as unknown as { wp: unknown } ).wp = {
-			desktop: { confirm: async () => true },
+			desktop: {
+				confirm: async () => true,
+				files: { rest: { createPlacement } },
+			},
 		};
 		mocks.fetchList.mockResolvedValue( {
 			items: [
@@ -196,5 +201,74 @@ describe( 'recycle-bin selection identity', () => {
 		expect( mocks.purgeItems ).toHaveBeenCalledWith( [
 			{ id: 5, type: 'post' },
 		] );
+	} );
+
+	test( 'a selected row hidden by a DATA-driven filter mismatch is not purgeable', async () => {
+		const postCb = table.shadowRoot!.querySelector< HTMLInputElement >(
+			'tr[data-row-id="post:5"] input.select-row-checkbox',
+		)!;
+		postCb.checked = true;
+		postCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await settle();
+
+		// Programmatic filter assignment does NOT fire
+		// `wpd-table-filter-change` — this simulates a data-driven
+		// visibility change (e.g. a realtime refresh replaced the row
+		// with a title that no longer matches an already-active column
+		// filter). The selected post is now hidden but still in `data`.
+		table.filters = { title: 'comment' };
+		await settle();
+
+		body
+			.querySelector( '[data-desktop-mode-recycle-bin-purge-selected]' )!
+			.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		await settle();
+
+		// Nothing visible was selected → no confirm, no purge.
+		expect( mocks.purgeItems ).not.toHaveBeenCalled();
+	} );
+
+	test( 'pin-to-desktop restores per ref and never places a same-id item whose restore failed', async () => {
+		// Post #5 restores fine; comment #5 is refused. A batched
+		// restore's bare-numeric `ok: [5]` could not tell these apart.
+		mocks.restoreItems.mockImplementation(
+			async ( refs: Array< { id: number; type: string } > ) =>
+				refs[ 0 ].type === 'post'
+					? { ok: [ 5 ], errors: [] }
+					: {
+						ok: [],
+						errors: [
+							{ id: 5, code: 'forbidden', message: 'nope' },
+						],
+					},
+		);
+
+		for ( const key of [ 'post:5', 'comment:5' ] ) {
+			const cb = table.shadowRoot!.querySelector< HTMLInputElement >(
+				`tr[data-row-id="${ key }"] input.select-row-checkbox`,
+			)!;
+			cb.checked = true;
+			cb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		}
+		await settle();
+
+		body
+			.querySelector( '[data-desktop-mode-recycle-bin-pin-to-desktop]' )!
+			.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		await settle();
+
+		// One restore call per ref (unambiguous success signal)…
+		expect( mocks.restoreItems ).toHaveBeenCalledTimes( 2 );
+		expect( mocks.restoreItems ).toHaveBeenNthCalledWith( 1, [
+			{ id: 5, type: 'post' },
+		] );
+		expect( mocks.restoreItems ).toHaveBeenNthCalledWith( 2, [
+			{ id: 5, type: 'comment' },
+		] );
+		// …and only the successfully restored post gets a tile.
+		expect( createPlacement ).toHaveBeenCalledTimes( 1 );
+		expect( createPlacement ).toHaveBeenCalledWith(
+			expect.objectContaining( { type: 'post', ref: '5' } ),
+		);
 	} );
 } );

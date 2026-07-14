@@ -1017,11 +1017,13 @@ export async function renderUsersWindow(
 				if ( ! role ) {
 					return;
 				}
-				// Read the selection at CLICK time — the `ids` captured
-				// when the bulk bar was painted can go stale (a live
-				// `patchUserRow` can drop a row from the table without
-				// firing a selection-change repaint). The confirm count
-				// and the REST payload must describe the same set.
+				// Read the selection at CLICK time rather than reusing
+				// the `ids` captured when the bulk bar was painted —
+				// defensive hygiene so the confirm count and the REST
+				// payload always describe the same set, independent of
+				// when the bar was last repainted or of future callers
+				// of the silent `selection` setter (which emits no
+				// selection-change).
 				const targetIds = Array.from(
 					table.selection ?? [],
 				).map( ( id ) => Number( id ) );

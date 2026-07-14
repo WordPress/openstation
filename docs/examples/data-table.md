@@ -334,7 +334,8 @@ If editing is the primary use case, request a first-class `column.editor` API �
 | `select(id)` / `deselect(id)` | Mutate the selection by id. |
 | `selectAll()` / `clearSelection()` | Bulk operations (multi-mode). `selectAll()` selects only the rows passing the active client-side filters. |
 | `selection` | Get/set the selection set. |
-| `selectedRows` | Resolved row objects matching `selection`. |
+| `selectedRows` | Resolved row objects matching `selection` (resolves against the full `data` buffer). |
+| `visibleRows` | Rows passing the active client-side filters — the set `selectAll()` operates on. Destructive bulk consumers should resolve `selection` against this, not `data`. |
 | `getRowId` | Stable-id extractor (default: index). |
 | `sort` | Get/set the active `{ key, direction }` (or `null`). |
 | `filters` | Get/set the filter map. |
@@ -395,7 +396,7 @@ If editing is the primary use case, request a first-class `column.editor` API �
 - **Editable cells losing focus.** Reassigning `table.data` on every keystroke triggers a full body repaint — the new `<input>` is a different element, so focus is lost. Commit on blur/Enter, or hold edits in a side buffer until save.
 - **Selection going stale on data refresh.** Without `getRowId`, ids are array indices — selections drift if rows reorder. Set `getRowId = ( row ) => row.id` whenever rows have a natural identifier.
 - **Colliding ids across mixed row kinds.** Two rows whose `getRowId` returns the same value are one row as far as selection is concerned — ticking one ticks both. Qualify the id (``( row ) => `${ row.type }:${ row.id }` ``) when a list mixes entities from independent id sequences.
-- **Stale selection feeding destructive bulk actions.** Selection survives `data` reassignment by design. If your bulk actions read `table.selection` (trash, delete…), call `clearSelection()` whenever the query (page, search, filter) changes, or resolve the selection against the currently rendered rows before acting.
+- **Stale selection feeding destructive bulk actions.** Selection survives `data` reassignment by design. If your bulk actions read `table.selection` (trash, delete…), call `clearSelection()` whenever the query (page, search, filter) changes, **and** resolve the selection against `table.visibleRows` (not `data`) before acting — a data-driven change can hide a selected row without any filter event firing, and rows the user can't see must never be swept into a destructive action.
 
 ## See also
 

@@ -508,6 +508,25 @@ describe( '<wpd-table>', () => {
 		expect( headerCb.indeterminate ).toBe( false );
 	} );
 
+	test( 'visibleRows returns only rows passing the active client-side filters', async () => {
+		host.innerHTML = `<wpd-table></wpd-table>`;
+		await tick();
+		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
+		table.columns = sampleColumns;
+		table.data = sampleData;
+		await tick();
+		expect( table.visibleRows.length ).toBe( 3 );
+
+		table.filters = { role: 'admin' };
+		await tick();
+		expect( table.visibleRows.map( ( r ) => r.name ) ).toEqual( [
+			'Alice',
+			'Carol',
+		] );
+		// The full buffer is untouched.
+		expect( table.data.length ).toBe( 3 );
+	} );
+
 	test( 'header select-all tri-state tracks visible rows, not the full buffer', async () => {
 		host.innerHTML = `<wpd-table selectable="multi"></wpd-table>`;
 		await tick();

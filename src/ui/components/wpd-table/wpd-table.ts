@@ -418,6 +418,26 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		return out;
 	}
 
+	/**
+	 * The rows currently visible — i.e. passing the active client-side
+	 * filters, in data order. This is the row set `selectAll()` and
+	 * the header select-all tri-state operate on.
+	 *
+	 * Destructive bulk consumers should resolve `selection` against
+	 * THIS list rather than `data`: selection deliberately survives
+	 * `data` reassignment, and a data-driven change (a realtime
+	 * refresh editing a row so it no longer matches an active filter)
+	 * can hide a selected row without any filter event firing. Rows
+	 * the user cannot see must never be swept into a destructive
+	 * action. See `collectSelectedItems()` in src/recycle-bin/index.ts
+	 * for the canonical consumer.
+	 *
+	 * @since 0.9.4
+	 */
+	get visibleRows(): T[] {
+		return this._filteredRows().map( ( entry ) => entry.row );
+	}
+
 	/** Stable row-id extractor. Default is row index. */
 	get getRowId(): WpdTableGetRowId< T > {
 		return this._getRowId;

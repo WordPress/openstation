@@ -763,6 +763,17 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		}
 		table.data = filterRows( state.rows );
 		paintUpdateCount();
+		// Rebuild the bulk bar from the LIVE selection + fresh rows.
+		// Reassigning `data` emits no selection-change, so without
+		// this a background reload/mergeRow (broadcast-driven) leaves
+		// the bulk buttons holding closures over stale row snapshots —
+		// e.g. a "Delete N" button still offering a plugin that was
+		// just activated elsewhere. Repainting here re-resolves the
+		// selection against current state.rows every time the table
+		// repaints.
+		paintBulkBar(
+			Array.from( table.selection ?? [] ).map( String ),
+		);
 	}
 
 	/**

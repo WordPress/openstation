@@ -1560,10 +1560,12 @@ async function runBulk(
 			counts: result.counts,
 		} );
 		updateDockBadge( result.counts.pending );
-		// refresh() clears the table selection after the new data
-		// lands, so the acted-on ids can't linger as phantoms in the
-		// next bulk action; clearSelection() emits
-		// `wpd-table-selection-change`, which hides the bulk bar.
+		// Clear BEFORE the refresh, not just via refresh()'s own
+		// post-assignment clear: if the follow-up fetch fails, the
+		// bulk action still completed and the acted-on ids must not
+		// linger in the bulk bar. clearSelection() emits
+		// `wpd-table-selection-change`, which hides the bar.
+		state.table?.clearSelection();
 		await refresh( state.tab, { force: true } );
 	} catch ( err ) {
 		/* translators: %s: bulk action name (e.g. "approve", "spam"). */
@@ -1618,7 +1620,12 @@ function moveFocus( state: PanelState, direction: 1 | -1 ): void {
 	if ( ! nextId ) {
 		return;
 	}
-	state.table.selection = [ nextId ];
+	// clearSelection() + select() rather than assigning `selection`:
+	// the bare setter emits no `wpd-table-selection-change`, so the
+	// "N selected" chip and bulk bar would silently desync from the
+	// keyboard cursor — while a / s / d act on the real selection.
+	state.table.clearSelection();
+	state.table.select( nextId );
 	const tr = state.tableHost?.querySelector< HTMLElement >(
 		`tr[data-row-id="${ nextId }"]`,
 	);
