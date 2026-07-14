@@ -47,6 +47,77 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		$this->assertIsArray( $update );
 		$this->assertSame( '9.9.9', $update['version'] );
 		$this->assertStringContainsString( 'update-core.php', $update['url'] );
+		$this->assertArrayHasKey( 'major', $update );
+		$this->assertArrayHasKey( 'release', $update );
+	}
+
+	/**
+	 * @covers ::desktop_mode_is_major_update
+	 */
+	public function test_major_update_detection() {
+		$this->assertTrue( desktop_mode_is_major_update( '6.9.2', '7.0' ) );
+		$this->assertTrue( desktop_mode_is_major_update( '6.8', '6.9' ) );
+		$this->assertFalse( desktop_mode_is_major_update( '7.0', '7.0.2' ) );
+		$this->assertFalse( desktop_mode_is_major_update( '7.0', '7.0' ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_get_core_update
+	 */
+	public function test_descriptor_flags_major_for_new_branch() {
+		wp_set_current_user( self::$admin_id );
+		// A version far above any test-WP branch is always a major.
+		$this->fake_core_update( '99.9' );
+
+		$update = desktop_mode_get_core_update();
+		$this->assertTrue( $update['major'] );
+		// No bundled art for 99.9 → release is null (toast fallback).
+		$this->assertNull( $update['release'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_core_update_release
+	 */
+	public function test_release_registry_resolves_bundled_art() {
+		$release = desktop_mode_core_update_release( '7.0' );
+		$this->assertIsArray( $release );
+		$this->assertSame( 'Armstrong', $release['name'] );
+		$this->assertStringContainsString( 'assets/releases/7.0.jpg', $release['artUrl'] );
+		$this->assertNotEmpty( $release['accent'] );
+		$this->assertNotEmpty( $release['accentInk'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_core_update_release
+	 */
+	public function test_release_registry_null_for_unknown_version() {
+		$this->assertNull( desktop_mode_core_update_release( '99.9' ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_core_update_release
+	 */
+	public function test_release_filter_can_supply_art() {
+		add_filter(
+			'desktop_mode_core_update_release',
+			static function ( $release, $version, $key ) {
+				if ( '99.9' === $key ) {
+					return array(
+						'name'      => 'Custom',
+						'artUrl'    => 'https://example.com/art.jpg',
+						'accent'    => '#123456',
+						'accentInk' => '#ffffff',
+					);
+				}
+				return $release;
+			},
+			10,
+			3
+		);
+		$release = desktop_mode_core_update_release( '99.9' );
+		$this->assertSame( 'Custom', $release['name'] );
+
+		remove_all_filters( 'desktop_mode_core_update_release' );
 	}
 
 	/**

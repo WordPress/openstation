@@ -1553,6 +1553,8 @@ const clear = wp.desktop.showToast( {
 
 A `persistent` toast has no auto-dismiss timer and no close button — clear it via the action button (which dismisses on click) or the returned dismiss callback. `duration` is ignored when `persistent` is set.
 
+> **Core-update notice.** The persistent toast is the shell's fallback surface for a pending core update (minor releases, or a major without art). For a **major** release with known art the shell instead shows `<wpd-release-card>` — the release's album sleeve with a CSS-drawn vinyl sliding out. Both are driven by the server-computed `config.coreUpdate` descriptor (`{ version, url, major, release }`) and the `desktop_mode_core_update_notice` / `desktop_mode_core_update_release` PHP filters — see the [Hooks Reference](hooks-reference.md).
+
 Routes through the `desktop-mode/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
 
 ---

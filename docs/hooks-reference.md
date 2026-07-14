@@ -2931,29 +2931,54 @@ Actions / filters:
 
 See [`docs/examples/window-notice.md`](examples/window-notice.md).
 
-### Core-update toast — `desktop_mode_core_update_notice` — Experimental (filter) *(since 0.9.3)*
+### Core-update notice — Experimental (filters) *(since 0.9.3)*
 
 WordPress core prints "WordPress X is available!" on every admin
 screen. Desktop Mode detaches that per-window nag inside chromeless
 windows (`desktop_mode_chromeless_suppress_update_nags()`) and surfaces
-the update **once**, as a single persistent, dismissible toast in the
-shell. `desktop_mode_get_core_update()` computes the descriptor from
-WordPress's authoritative update state (`update_core`-gated) and ships
-it in the shell config as `coreUpdate`.
+the update **once** in the shell. `desktop_mode_get_core_update()`
+computes the descriptor from WordPress's authoritative update state
+(`update_core`-gated) and ships it in the shell config as `coreUpdate`.
+The shell then chooses the surface: for a **major** release with known
+art it shows the `<wpd-release-card>` vinyl moment (the release's album
+sleeve with the record sliding out); otherwise a plain persistent
+toast.
+
+**`desktop_mode_core_update_notice`** — filter the whole descriptor.
+Return `null` to suppress the desktop update notice entirely (e.g. on
+sites that manage core updates out-of-band):
 
 ```php
 /**
- * @param array{version:string,url:string}|null $update Descriptor, or null.
- * @return array{version:string,url:string}|null
+ * @param array{version:string,url:string,major:bool,release:?array}|null $update
+ * @return array{version:string,url:string,major:bool,release:?array}|null
  */
-apply_filters( 'desktop_mode_core_update_notice', $update );
+add_filter( 'desktop_mode_core_update_notice', '__return_null' );
 ```
 
-Return `null` to suppress the desktop update toast entirely — useful
-for sites that manage core updates out-of-band:
+**`desktop_mode_core_update_release`** — filter the release art for a
+major. The plugin bundles art for shipped releases (Armstrong 7.0, Gene
+6.9, …) under `assets/releases/<X.Y>.jpg`; use this to add art for a
+newer release before the plugin bundles it, override an entry, or
+return `null` to fall back to the plain toast.
 
 ```php
-add_filter( 'desktop_mode_core_update_notice', '__return_null' );
+/**
+ * @param array|null $release {name, artUrl, accent, accentInk} or null.
+ * @param string     $version Full available version (e.g. "7.1").
+ * @param string     $key     X.Y branch key (e.g. "7.1").
+ */
+add_filter( 'desktop_mode_core_update_release', function ( $release, $version, $key ) {
+	if ( '7.1' === $key ) {
+		return array(
+			'name'      => 'Blakey',
+			'artUrl'    => 'https://example.com/7.1-cover.jpg', // square cover
+			'accent'    => '#c0392b',
+			'accentInk' => '#ffffff',
+		);
+	}
+	return $release;
+}, 10, 3 );
 ```
 
 ---

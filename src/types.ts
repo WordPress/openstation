@@ -1908,13 +1908,25 @@ export interface DesktopConfig {
 	/**
 	 * Pending WordPress core update, if one is available and the
 	 * current user can `update_core`. Computed server-side by
-	 * `desktop_mode_get_core_update()`; the shell surfaces it once as
-	 * a persistent, dismissible toast (replacing core's per-window
-	 * update nag). `null` / omitted when no update is pending.
+	 * `desktop_mode_get_core_update()`; the shell surfaces it once
+	 * (replacing core's per-window update nag) — a `<wpd-release-card>`
+	 * vinyl moment for a major release with known art, or a plain
+	 * persistent toast otherwise. `null` / omitted when no update is
+	 * pending.
 	 *
 	 * @since 0.9.3
 	 */
-	coreUpdate?: { version: string; url: string } | null;
+	coreUpdate?: {
+		version: string;
+		url: string;
+		major?: boolean;
+		release?: {
+			name: string;
+			artUrl: string;
+			accent: string;
+			accentInk: string;
+		} | null;
+	} | null;
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `desktop_mode_default_wallpaper`. Optional — an

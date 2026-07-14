@@ -170,7 +170,7 @@ import { bootStickyNotes } from './sticky-notes';
 // boot-time consumer reaches the same captured value — see the import
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
-import { maybeShowUpdateToast } from './update-notice';
+import { maybeShowUpdate } from './update-notice';
 import { setupDevModeWidgetGate } from './widgets/dev-mode-gate';
 import {
 	installDefaultDockRailRenderer,
@@ -3213,12 +3213,13 @@ function init(): void {
 		( config.userFileAssociations as Record< string, string > | undefined ) ?? {},
 	);
 
-	// Surface a pending WordPress core update as a single persistent,
-	// dismissible toast — the desktop-native replacement for core's
+	// Surface a pending WordPress core update as a single notification —
+	// the vinyl release-card moment for a major with art, else a plain
+	// persistent toast. The desktop-native replacement for core's
 	// per-window update nag (suppressed inside windows server-side).
 	// Reuses the in-shell link open path so "Update now" lands on the
 	// update screen as a window.
-	maybeShowUpdateToast( {
+	maybeShowUpdate( {
 		update: config.coreUpdate,
 		openUrl: ( { url, title } ) => {
 			if ( tryNativeUrlRemap( url ) ) {

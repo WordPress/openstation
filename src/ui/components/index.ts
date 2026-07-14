@@ -94,6 +94,7 @@ export { WpdRatingSummary } from './wpd-rating-summary/wpd-rating-summary';
 export type { WpdRatingBuckets } from './wpd-rating-summary/wpd-rating-summary';
 export { WpdNotice } from './wpd-notice/wpd-notice';
 export type { WpdNoticeTone } from './wpd-notice/wpd-notice';
+export { WpdReleaseCard } from './wpd-release-card/wpd-release-card';
 export { WpdProgressBar } from './wpd-progress-bar/wpd-progress-bar';
 export type { WpdProgressTone } from './wpd-progress-bar/wpd-progress-bar';
 

@@ -1,33 +1,51 @@
 /**
- * Core-update toast — the shell-side half of the update-nag hijack.
+ * Core-update notification — the shell-side half of the update-nag
+ * hijack.
  *
  * WordPress core repeats "WordPress X is available!" on every admin
  * screen; the plugin detaches that nag inside every window (PHP) and
- * ships a compact `{ version, url }` descriptor in the shell config as
- * `coreUpdate`. This module turns that descriptor into a single
- * persistent toast in the desktop shell — one card, not one per
- * window.
+ * ships a descriptor in the shell config as `coreUpdate`. This module
+ * turns that descriptor into a single notification — one, not one per
+ * window — choosing the surface by how big the release is:
  *
- * The toast is **not** dismissible: like core's own nag it stays until
- * the update is actually addressed. Clicking "Update now" opens the
- * update screen and clears the toast; if the user navigates away
- * without updating, it returns on the next shell load. Once the update
- * is installed the server stops shipping `coreUpdate`, so the toast
- * simply doesn't appear.
+ *   - **Major release with art** → the `<wpd-release-card>` vinyl
+ *     moment (the release's own album sleeve with the record sliding
+ *     out). WordPress ships this art every major.
+ *   - **Everything else** (minors, or a major we don't have art for)
+ *     → a plain persistent toast.
+ *
+ * Both are non-dismissible: like core's own nag they stay until the
+ * update is addressed. "Update now" opens the update screen and clears
+ * the notification; if the user navigates away without updating it
+ * returns on the next shell load. Once installed the server stops
+ * shipping `coreUpdate`, so nothing appears.
  *
  * @since 0.9.3
  */
 
 import { showToast } from './toast';
+import { showReleaseCard } from './release-card';
 import { __, sprintf } from './i18n';
+
+/** Release-art descriptor for a major update (from the PHP registry). */
+export interface CoreUpdateRelease {
+	name: string;
+	artUrl: string;
+	accent: string;
+	accentInk: string;
+}
 
 /** Compact core-update descriptor shipped in the shell config. */
 export interface CoreUpdateInfo {
 	version: string;
 	url: string;
+	/** New X.Y branch relative to the installed version. */
+	major?: boolean;
+	/** Release art for a major, when known; `null`/absent otherwise. */
+	release?: CoreUpdateRelease | null;
 }
 
-/** Dependencies the toast needs from the shell. */
+/** Dependencies the notification needs from the shell. */
 export interface UpdateNoticeDeps {
 	/** The `config.coreUpdate` value (may be absent / null). */
 	update: CoreUpdateInfo | null | undefined;
@@ -36,9 +54,11 @@ export interface UpdateNoticeDeps {
 }
 
 /**
- * Show the core-update toast if an update is pending. No-op otherwise.
+ * Show the core-update notification if an update is pending — the vinyl
+ * release card for a major with art, the plain toast otherwise. No-op
+ * when there's nothing to show.
  */
-export function maybeShowUpdateToast( deps: UpdateNoticeDeps ): void {
+export function maybeShowUpdate( deps: UpdateNoticeDeps ): void {
 	const { update, openUrl } = deps;
 	if (
 		! update ||
@@ -50,17 +70,37 @@ export function maybeShowUpdateToast( deps: UpdateNoticeDeps ): void {
 		return;
 	}
 
+	const openUpdateScreen = (): void =>
+		openUrl( { url: update.url, title: __( 'WordPress Updates' ) } );
+
+	// Major release with known art → the album-sleeve vinyl moment.
+	const release = update.release;
+	if (
+		update.major &&
+		release &&
+		typeof release.artUrl === 'string' &&
+		release.artUrl
+	) {
+		showReleaseCard( {
+			version: update.version,
+			name: typeof release.name === 'string' ? release.name : '',
+			artUrl: release.artUrl,
+			accent: typeof release.accent === 'string' ? release.accent : '#2271b1',
+			accentInk:
+				typeof release.accentInk === 'string' ? release.accentInk : '#ffffff',
+			onUpdate: openUpdateScreen,
+		} );
+		return;
+	}
+
+	// Everything else → the plain persistent, non-dismissible toast.
 	showToast( {
 		/* translators: %s: WordPress version number. */
 		message: sprintf( __( 'WordPress %s is available.' ), update.version ),
 		persistent: true,
 		action: {
 			label: __( 'Update now' ),
-			onClick: () =>
-				openUrl( {
-					url: update.url,
-					title: __( 'WordPress Updates' ),
-				} ),
+			onClick: openUpdateScreen,
 		},
 	} );
 }
