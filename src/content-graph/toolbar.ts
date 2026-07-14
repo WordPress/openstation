@@ -18,7 +18,7 @@
  * @since 0.8.2
  */
 
-import { __ } from '../i18n';
+import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { joinRestUrl } from '../rest-url';
 // Side-effect imports register the `<wpd-*>` custom elements this
@@ -125,18 +125,6 @@ export function renderToolbar(
 	// caring which row is currently mounted.
 	let visibleCountEl: HTMLSpanElement | null = null;
 
-	const handleDocClick = ( ev: Event ): void => {
-		// Search dropdowns are local to each rebuild; the listener is
-		// only here so the search input wrapper can decide to close.
-		// Forward via a custom event so the active row can react.
-		modeRow.dispatchEvent(
-			new CustomEvent( 'desktop-mode-content-graph-doc-click', {
-				detail: ev.target,
-			} ),
-		);
-	};
-	document.addEventListener( 'click', handleDocClick );
-
 	// Wrap the host callbacks so the toolbar can track the active facet
 	// across mode-row rebuilds without the host needing to know.
 	const trackedCallbacks: ToolbarCallbacks = {
@@ -178,19 +166,20 @@ export function renderToolbar(
 			}
 			// Right-aligned widget below the canvas-overlay tab strip;
 			// mirrors the reference image's "X of Y visible" readout.
-			visibleCountEl.replaceChildren();
-			const strong = document.createElement( 'strong' );
-			strong.textContent = String( visible );
-			const tail = document.createTextNode(
-				/* translators: %d: total number of nodes loaded into the graph. */
-				' ' + __( 'of' ) + ' ' + String( total ) + ' ' + __( 'visible' ),
+			// One translatable template (not concatenated fragments) so
+			// translators can reorder; the template is escaped before
+			// our own <strong> markup is substituted in.
+			visibleCountEl.innerHTML = sprintf(
+				/* translators: 1: number of visible posts. 2: total number of posts loaded. */
+				escapeHtml( __( '%1$s of %2$s visible' ) ),
+				'<strong>' + String( visible ) + '</strong>',
+				String( total ),
 			);
-			visibleCountEl.appendChild( strong );
-			visibleCountEl.appendChild( tail );
 		},
 		getView: () => view,
 		destroy: () => {
-			document.removeEventListener( 'click', handleDocClick );
+			// All toolbar listeners are element-scoped and die with the
+			// host DOM — nothing document-level to detach.
 		},
 	};
 }
@@ -300,7 +289,10 @@ function renderGalaxyChrome(
 	const zoom = document.createElement( 'wpd-range-field' );
 	zoom.setAttribute( 'label', __( 'Zoom' ) );
 	zoom.setAttribute( 'value', '100' );
-	zoom.setAttribute( 'min', '50' );
+	// Floor of 10% — a grouped fit-to-view regularly settles well below
+	// 50% (ZOOM_MIN in the scene is 8%), and a slider floor far above
+	// the fitted scale made the first slider touch jump the camera ~5×.
+	zoom.setAttribute( 'min', '10' );
 	zoom.setAttribute( 'max', '400' );
 	zoom.setAttribute( 'step', '5' );
 	zoom.setAttribute( 'suffix', '%' );

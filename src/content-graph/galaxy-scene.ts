@@ -32,7 +32,7 @@
  * @since 0.9.2
  */
 
-import { __ } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import {
 	getPixi,
 	type DesktopApiLike,
@@ -223,7 +223,13 @@ export class GalaxyScene {
 		// doesn't try to render through a dead context.
 		app.canvas.addEventListener( 'webglcontextlost', ( ev: Event ) => {
 			ev.preventDefault();
-			app.ticker.stop();
+			try {
+				app.ticker.stop();
+			} catch {
+				// `destroy()` itself releases the WebGL context, which
+				// fires this event after the ticker is already torn
+				// down — nothing left to stop.
+			}
 		} );
 
 		this.world = new pixi.Container();
@@ -388,6 +394,11 @@ export class GalaxyScene {
 	}
 
 	setZoom( zoom: number ): void {
+		// Slider input is manual navigation, same as wheel/drag — cancel
+		// auto-fit-follow, otherwise fitToView() overwrites the scale
+		// every frame for the rest of the follow window and the slider
+		// appears dead.
+		this.fitFollowFrames = 0;
 		const clamped = Math.max( ZOOM_MIN, Math.min( ZOOM_MAX, zoom ) );
 		this.cameraTarget.scale = clamped;
 	}
@@ -468,8 +479,15 @@ export class GalaxyScene {
 	}
 
 	destroy(): void {
-		this.app?.ticker.remove( this.tick );
-		this.app?.ticker.stop();
+		// Park the ticker FIRST — same ordering as `GraphScene.destroy()`:
+		// the ticker auto-renders every frame, and destroying children
+		// while a render is still scheduled crashes the batched renderer.
+		try {
+			this.app?.ticker.remove( this.tick );
+			this.app?.ticker.stop();
+		} catch {
+			// Ignore — destroy is best-effort.
+		}
 		this.tearDownNodes();
 		this.resizeObserver?.disconnect();
 		this.resizeObserver = null;
@@ -486,16 +504,18 @@ export class GalaxyScene {
 		} catch {
 			// Texture might already be gone if the WebGL context was lost.
 		}
-		// IMPORTANT: do NOT call `this.app.destroy()`. The Pixi v8
-		// batched renderer can hit a "Cannot read properties of null
-		// (reading 'clear')" race when an unrelated Pixi app destroys
-		// concurrently (e.g. a tags-cloud window the user just closed).
-		// Stopping the ticker + detaching the canvas frees the heavy
-		// state; GC reclaims the rest at a safe time.
+		// Release the Application (and its WebGL context) for real.
+		// Browsers cap live WebGL contexts per page (~16) and evict the
+		// oldest when the cap is hit — every Graph⇄Galaxy toggle mounts
+		// a fresh Application, so leaking contexts here eventually
+		// kills an unrelated Pixi window. With the ticker parked above,
+		// the v8 batched-renderer teardown race doesn't bite; the
+		// try/catch absorbs the residual cases (same recipe as
+		// `GraphScene.destroy()`).
 		try {
-			this.app?.canvas.remove();
+			this.app?.destroy( true, { children: true } );
 		} catch {
-			// Canvas already detached — fine.
+			// Pixi sometimes throws on teardown races — best-effort.
 		}
 		this.host.classList.remove( 'is-galaxy' );
 	}
@@ -779,18 +799,23 @@ export class GalaxyScene {
 				const dot = this.dotViews.get( id );
 				return dot && dot.sprite.visible;
 			} ).length;
+			const countText = sprintf(
+				/* translators: %s: number of posts in the cluster. */
+				_n( '%s post', '%s posts', visible ),
+				String( visible ),
+			);
 			// The newline between the spans keeps screen-reader output
 			// ("News 142 posts") from running the name into the count;
 			// visually the flex-column stacking ignores it.
 			lab.el.innerHTML =
 				`<span class="desktop-mode-content-graph__galaxy-label-name">${ escapeHtml( lab.name ) }</span>\n` +
-				`<span class="desktop-mode-content-graph__galaxy-label-count">${ visible } ${ escapeHtml( visible === 1 ? __( 'post' ) : __( 'posts' ) ) }</span>`;
+				`<span class="desktop-mode-content-graph__galaxy-label-count">${ escapeHtml( countText ) }</span>`;
 		}
 	}
 
 	private refreshEncodings(): void {
 		// Color: tint each dot to its group key (when a group is active),
-		// or fall back to the unmagrouped tint. Multi-membership posts
+		// or fall back to the ungrouped tint. Multi-membership posts
 		// (e.g. two-category post) take the first key — a cheap, stable
 		// pick that keeps the dot visually anchored to ONE cluster even
 		// as the simulation balances it between centroids.
@@ -833,6 +858,10 @@ export class GalaxyScene {
 				sparkle.blendMode = 'add';
 				sparkle.tint = isFocusKin ? 0xffffff : view.sprite.tint;
 				sparkle.eventMode = 'none';
+				// Inherit the dot's filter state — focusing a node that
+				// the active tab / min-comments filter hides (possible
+				// via search) must not paint a sparkle over empty space.
+				sparkle.visible = view.sprite.visible;
 				this.twinkleLayer.addChild( sparkle );
 				view.twinkle = sparkle;
 			} else if ( ! shouldTwinkle && view.twinkle ) {
@@ -957,8 +986,26 @@ export class GalaxyScene {
 			const camX = w.x;
 			const camY = w.y;
 			const camS = w.scale.x;
+			// Nebulae and labels share the same cluster keys and member
+			// lists — compute each centroid (an O(m log m) percentile
+			// sort) once per frame instead of twice.
+			const centroids = new Map<
+				string,
+				{ x: number; y: number; radius: number } | null
+			>();
+			const centroidFor = (
+				key: string,
+				memberIds: number[],
+			): { x: number; y: number; radius: number } | null => {
+				let c = centroids.get( key );
+				if ( c === undefined ) {
+					c = this.centroidOf( memberIds );
+					centroids.set( key, c );
+				}
+				return c;
+			};
 			for ( const neb of this.nebulae.values() ) {
-				const c = this.centroidOf( neb.memberIds );
+				const c = centroidFor( neb.key, neb.memberIds );
 				if ( ! c || reveal <= 0 ) {
 					neb.sprite.visible = false;
 					continue;
@@ -977,7 +1024,7 @@ export class GalaxyScene {
 				neb.sprite.scale.set( k );
 			}
 			for ( const lab of this.labels.values() ) {
-				const c = this.centroidOf( lab.memberIds );
+				const c = centroidFor( lab.key, lab.memberIds );
 				if ( ! c || reveal <= 0 ) {
 					lab.el.style.display = 'none';
 					continue;

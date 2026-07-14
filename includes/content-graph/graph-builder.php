@@ -149,9 +149,16 @@ function desktop_mode_content_graph_build( array $types ) {
 		// Modified-time as unix ts (GMT). The Galaxy view's "Recent" tab
 		// filters on `now - 30 days`; comparing seconds is faster + safer
 		// across the wire than parsing a date string client-side.
-		$modified_ts = isset( $row->post_modified_gmt ) && '' !== $row->post_modified_gmt
-			? (int) mysql2date( 'U', (string) $row->post_modified_gmt . ' UTC', false )
-			: 0;
+		// Never-updated drafts carry a zero-date `post_modified_gmt`
+		// (WordPress only stamps the GMT columns on update), so fall
+		// back to the local `post_date` — for a fresh draft the two
+		// describe the same instant. Without this, brand-new drafts
+		// never twinkle and never qualify for the "Recent" tab.
+		$modified_gmt = isset( $row->post_modified_gmt ) ? (string) $row->post_modified_gmt : '';
+		if ( '' === $modified_gmt || '0000-00-00 00:00:00' === $modified_gmt ) {
+			$modified_gmt = (string) get_gmt_from_date( (string) $row->post_date );
+		}
+		$modified_ts = (int) mysql2date( 'U', $modified_gmt . ' UTC', false );
 
 		$node = array(
 			'id'              => $id,
@@ -277,21 +284,17 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
  */
 function desktop_mode_content_graph_cache_key( array $types ) {
 	global $wpdb;
-	$placeholders    = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
 	// Hash MUST match the set of rows fetched in
 	// `desktop_mode_content_graph_fetch_rows()` — including this user's
 	// own drafts when logged in, so cache invalidates on draft edits too.
-	$current_user_id = (int) get_current_user_id();
-	$status_sql      = "post_status IN ( 'publish', 'private' )";
-	$draft_args      = array();
-	if ( $current_user_id > 0 ) {
-		$status_sql   = '( post_status IN ( \'publish\', \'private\' ) OR ( post_status = \'draft\' AND post_author = %d ) )';
-		$draft_args[] = $current_user_id;
-	}
+	// The shared status-clause helper keeps the two row sets in lockstep.
+	list( $status_sql, $draft_args ) = desktop_mode_content_graph_status_clause();
+	$current_user_id                 = (int) get_current_user_id();
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$hash = (string) $wpdb->get_var(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is a static literal selected above.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is composed of literals in desktop_mode_content_graph_status_clause().
 			"SELECT MD5( GROUP_CONCAT( CONCAT( ID, ':', post_modified_gmt ) ORDER BY ID ) )
 			 FROM {$wpdb->posts}
 			 WHERE {$status_sql}
@@ -313,6 +316,30 @@ function desktop_mode_content_graph_cache_key( array $types ) {
 }
 
 /**
+ * Post-status WHERE clause shared by the cache-key hash and the row
+ * fetch. Published + private posts for everyone, plus the current
+ * user's own drafts when logged in (other users' drafts must never
+ * surface). The two call sites MUST select the same row set — the
+ * cache key hashes exactly the rows the fetch would return — which is
+ * why the clause lives in one place.
+ *
+ * @since 0.9.2
+ *
+ * @return array{0: string, 1: int[]} SQL fragment (may contain a `%d`
+ *                                    placeholder) + its prepare() args.
+ */
+function desktop_mode_content_graph_status_clause() {
+	$current_user_id = (int) get_current_user_id();
+	if ( $current_user_id > 0 ) {
+		return array(
+			"( post_status IN ( 'publish', 'private' ) OR ( post_status = 'draft' AND post_author = %d ) )",
+			array( $current_user_id ),
+		);
+	}
+	return array( "post_status IN ( 'publish', 'private' )", array() );
+}
+
+/**
  * Fetch the participating posts in a single query. Returns full rows
  * (including `post_content`) so the link extractor can run without N+1
  * `get_post()` calls.
@@ -325,20 +352,14 @@ function desktop_mode_content_graph_cache_key( array $types ) {
 function desktop_mode_content_graph_fetch_rows( array $types ) {
 	global $wpdb;
 	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
-	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	// Include the current user's own drafts so the Galaxy view's
 	// "Drafts" tab has something to surface without exposing other
 	// users' unpublished work. Other-user drafts stay invisible.
-	$current_user_id = (int) get_current_user_id();
-	$status_sql      = "post_status IN ( 'publish', 'private' )";
-	$draft_args      = array();
-	if ( $current_user_id > 0 ) {
-		$status_sql   = '( post_status IN ( \'publish\', \'private\' ) OR ( post_status = \'draft\' AND post_author = %d ) )';
-		$draft_args[] = $current_user_id;
-	}
+	list( $status_sql, $draft_args ) = desktop_mode_content_graph_status_clause();
+	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is a static literal selected above.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is composed of literals in desktop_mode_content_graph_status_clause().
 			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date, post_modified_gmt, comment_count
 			 FROM {$wpdb->posts}
 			 WHERE {$status_sql}

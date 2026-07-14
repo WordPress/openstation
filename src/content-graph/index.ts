@@ -225,6 +225,16 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		buildToolbarCallbacks(),
 	);
 
+	// Guards the async mount pipeline. `scene.mount()` awaits module
+	// loading + `app.init()`, so a rapid Graph⇄Galaxy⇄Graph toggle (or
+	// a window close) can land while a mount is still in flight. Each
+	// mount takes a generation ticket; if a newer mount (or `abort()`)
+	// supersedes it before it resolves, the stale scene destroys itself
+	// instead of being assigned — otherwise two live Pixi Applications
+	// coexist with stacked canvases, or a leaked scene ticks forever
+	// after the window closed.
+	let mountGeneration = 0;
+
 	const swapView = async ( next: ContentGraphView ): Promise< void > => {
 		if ( next === activeScene.view ) {
 			return;
@@ -243,12 +253,18 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		}
 		stageHost.classList.remove( 'is-galaxy' );
 		activeScene.view = next;
+		let mounted: boolean;
 		try {
-			await mountActiveScene();
+			mounted = await mountActiveScene();
 		} catch ( err ) {
 			stageHost.textContent = __( 'Could not initialise the graph renderer.' );
 			// eslint-disable-next-line no-console
 			console.warn( '[content-graph] scene swap failed', err );
+			return;
+		}
+		if ( ! mounted ) {
+			// Superseded by a newer swap (or the window closed) while
+			// mounting — the winning call restores its own state.
 			return;
 		}
 		// Restore data + grouping into the new scene. Read through
@@ -270,7 +286,16 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 
 	const getScene = (): ActiveScene => activeScene;
 
-	const mountActiveScene = async (): Promise< void > => {
+	/**
+	 * Mount the scene matching `activeScene.view`. Resolves `true` when
+	 * the scene was assigned, `false` when the mount lost its generation
+	 * race (a newer mount started, or the window aborted) — in that case
+	 * the freshly-built scene is destroyed here and nothing is assigned.
+	 */
+	const mountActiveScene = async (): Promise< boolean > => {
+		const generation = ++mountGeneration;
+		const isStale = (): boolean =>
+			aborted || generation !== mountGeneration;
 		if ( activeScene.view === 'galaxy' ) {
 			const scene = new GalaxyScene( stageHost, {
 				onNodeClick: ( node ) => {
@@ -286,8 +311,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 				},
 			} );
 			await scene.mount( desktopApi );
+			if ( isStale() ) {
+				scene.destroy();
+				return false;
+			}
 			activeScene.galaxy = scene;
-			return;
+			return true;
 		}
 		const scene = new GraphScene(
 			stageHost,
@@ -309,7 +338,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			cfg.postTypes,
 		);
 		await scene.mount( desktopApi );
+		if ( isStale() ) {
+			scene.destroy();
+			return false;
+		}
 		activeScene.graph = scene;
+		return true;
 	};
 
 	try {
