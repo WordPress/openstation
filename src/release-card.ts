@@ -1,7 +1,7 @@
 /**
  * The major-release update moment — an album sleeve with a CSS-drawn
- * vinyl that slides out and spins, dismissible with a record-back-into-
- * the-sleeve + collapse-into-the-Updates-icon animation.
+ * vinyl that slides out and spins. Dismissible via a close button that
+ * fades it out.
  *
  * Plain module (not a web component): a single-use, feature-specific
  * surface that only the update-notice picker mounts, so it builds its DOM
@@ -126,12 +126,6 @@ const STYLES = `
 }
 .dm-rc__btn:hover { filter: brightness( 1.12 ); }
 .dm-rc__btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.dm-release-card[ data-collapsing ] .dm-rc__disc-wrap {
-	animation: none;
-	transition: transform 0.42s cubic-bezier( 0.4, 0, 1, 1 );
-	transform: translateX( -84px );
-}
-.dm-release-card[ data-collapsing ] .dm-rc__close { opacity: 0; }
 @media ( prefers-reduced-motion: reduce ) {
 	.dm-release-card, .dm-rc__disc-wrap, .dm-rc__disc, .dm-rc__meta { animation: none !important; }
 	.dm-rc__disc-wrap { transform: translateX( 0 ); }
@@ -386,8 +380,7 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 		root.remove();
 	};
 
-	// Close button → animated dismiss (record back to sleeve, then collapse
-	// into the Updates icon) + persist so it won't reappear.
+	// Close button → fade out + persist so it won't reappear.
 	( root.querySelector( '.dm-rc__close' ) as HTMLButtonElement ).addEventListener(
 		'click',
 		( e ) => {
@@ -406,8 +399,13 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 				return;
 			}
 			done = true;
-			root.setAttribute( 'data-collapsing', '' ); // stage 1: record returns
-			timer = window.setTimeout( () => collapseToTarget( root ), 420 );
+			// Clear the entrance animation so the inline opacity applies.
+			root.style.animation = 'none';
+			root.style.transition = 'opacity 0.2s ease';
+			requestAnimationFrame( () => {
+				root.style.opacity = '0';
+			} );
+			timer = window.setTimeout( () => root.remove(), 240 );
 		},
 	);
 
@@ -419,48 +417,4 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 	} );
 
 	return removeNow;
-}
-
-/** Stage 2: collapse the card into the admin-bar Updates icon (or a fallback). */
-function collapseToTarget( root: HTMLElement ): void {
-	if ( ! root.isConnected ) {
-		return;
-	}
-	const card = root.getBoundingClientRect();
-	const cx = card.left + card.width / 2;
-	const cy = card.top + card.height / 2;
-
-	const target =
-		document.getElementById( 'wp-admin-bar-updates' ) ||
-		document.getElementById( 'wpadminbar' );
-	let tx = window.innerWidth - 40;
-	let ty = 16;
-	if ( target ) {
-		const r = target.getBoundingClientRect();
-		tx = r.left + r.width / 2;
-		ty = r.top + r.height / 2;
-		if ( typeof target.animate === 'function' ) {
-			target.animate(
-				[
-					{ transform: 'scale(1)' },
-					{ transform: 'scale(1.3)' },
-					{ transform: 'scale(1)' },
-				],
-				{ duration: 420, delay: 380, easing: 'cubic-bezier(0.3,1.4,0.4,1)' },
-			);
-		}
-	}
-
-	root.style.animation = 'none';
-	root.style.transformOrigin = 'center center';
-	root.style.transition =
-		'transform 0.5s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.45s ease 0.05s';
-	requestAnimationFrame( () => {
-		root.style.transform = `translate(${ Math.round( tx - cx ) }px, ${ Math.round( ty - cy ) }px) scale(0.04)`;
-		root.style.opacity = '0';
-	} );
-
-	const remove = (): void => root.remove();
-	root.addEventListener( 'transitionend', remove, { once: true } );
-	window.setTimeout( remove, 700 );
 }

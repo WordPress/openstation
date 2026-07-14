@@ -65,11 +65,13 @@ describe( 'showReleaseCard', () => {
 		expect( document.querySelector( '.dm-release-card' ) ).toBeNull();
 	} );
 
-	test( 'close button persists the dismissal and starts the collapse', () => {
+	test( 'close button persists the dismissal and fades the card out', () => {
 		const { root } = open();
 		( root.querySelector( '.dm-rc__close' ) as HTMLButtonElement ).click();
 		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0' ) ).toBe( true );
-		expect( root.hasAttribute( 'data-collapsing' ) ).toBe( true );
+		// Fade started: entrance animation cleared + opacity transition set.
+		expect( root.style.animation ).toBe( 'none' );
+		expect( root.style.transition ).toContain( 'opacity' );
 	} );
 
 	test( 'the returned dismiss removes the card without persisting', () => {
