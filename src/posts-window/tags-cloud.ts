@@ -2331,7 +2331,7 @@ export async function mountTagsCloud(
 			countEl.className = 'wpd-tagcloud__search-meta';
 			countEl.textContent = sprintf(
 				/* translators: %d: number of posts assigned to a tag. */
-				__( '%d posts' ),
+				_n( '%d post', '%d posts', t.count ),
 				t.count,
 			);
 			btn.appendChild( nameEl );
