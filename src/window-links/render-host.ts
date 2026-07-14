@@ -134,6 +134,28 @@ export function startWindowLinkRenderHost( {
 		};
 	};
 
+	/**
+	 * Geometry for LINK drawing — like {@link rectOf}, but windows
+	 * snapped into split view are treated as not drawable (`null`,
+	 * the same signal minimized windows send). A half-screen tile
+	 * has no free border to anchor on: its edges are flush with the
+	 * desktop bounds and the split seam, so a spline either crosses
+	 * the partner window or re-anchors on the screen edge — noise,
+	 * not information. Snapped windows still participate as
+	 * OBSTACLES (they occlude other windows' borders just fine).
+	 */
+	const drawableRectOf = (
+		win: DesktopWindow,
+	): { x: number; y: number; width: number; height: number } | null => {
+		if (
+			win.state === 'snapped-left' ||
+			win.state === 'snapped-right'
+		) {
+			return null;
+		}
+		return rectOf( win );
+	};
+
 	const buildFrame = (): WindowLinkFrame => {
 		const groups: WindowLinkFrame[ 'groups' ] = [];
 		for ( const group of listWindowLinkGroups() ) {
@@ -158,7 +180,7 @@ export function startWindowLinkRenderHost( {
 					windowId,
 					role,
 					content,
-					rect: rectOf( win ),
+					rect: drawableRectOf( win ),
 					focused: win.isFocused(),
 					state: win.state,
 				} );
@@ -199,8 +221,8 @@ export function startWindowLinkRenderHost( {
 				kind: edge.kind,
 				bidirectional: edge.bidirectional,
 				focused,
-				from: rectOf( fromWin ),
-				to: rectOf( toWin ),
+				from: drawableRectOf( fromWin ),
+				to: drawableRectOf( toWin ),
 				fromZIndex: zOf( fromWin ),
 				toZIndex: zOf( toWin ),
 				// Only ties TOUCHING the focused window ride the
@@ -578,7 +600,12 @@ export function startWindowLinkRenderHost( {
 	);
 
 	// Settled geometry / state transitions — anything that moves a
-	// window without going through the live-drag pipeline.
+	// window without going through the live-drag pipeline. The two
+	// snap hooks matter for split view: a snap commit (edge drag or
+	// split-overview partner pick) writes its geometry AFTER the drag
+	// session ended, so without them the last drag frame would go
+	// stale — and the just-snapped window's ties must disappear (see
+	// `drawableRectOf`).
 	for ( const hook of [
 		HOOKS.WINDOW_MOVED,
 		HOOKS.WINDOW_RESIZED,
@@ -588,6 +615,8 @@ export function startWindowLinkRenderHost( {
 		HOOKS.WINDOW_UNMAXIMIZED,
 		HOOKS.WINDOW_FULLSCREEN_ENTERED,
 		HOOKS.WINDOW_FULLSCREEN_EXITED,
+		HOOKS.SNAP_ZONE_COMMITTED,
+		HOOKS.SNAP_SPLIT_FILLED,
 		HOOKS.DESKTOP_SWITCHED,
 		HOOKS.SHELL_RESIZED,
 	] ) {

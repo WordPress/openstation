@@ -544,6 +544,68 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		).toBe( false );
 	} );
 
+	test( 'split view hides the ties: snapped windows draw no edges until dragged back out', async () => {
+		// Regression (DESKMOD-24): two related windows tiled
+		// side-by-side left the spline crossing the split seam (or
+		// re-anchored on the screen edge, over a window's content).
+		// Snapped windows must send the same "not drawable" signal as
+		// minimized ones.
+		const { engine, host } = await loadModules();
+		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 700, height: 900 } );
+		const commentWin = makeWin(
+			'comment-win',
+			{ x: 700, y: 0, width: 700, height: 900 },
+			true,
+		);
+		const manager = makeManager( [ postWin, commentWin ] );
+
+		engine.startWindowLinksEngine( { manager } );
+		host.startWindowLinkRenderHost( {
+			manager: manager as never,
+			osSettings: makeOsSettings( {
+				windowLinkVisibility: 'always',
+			} ) as never,
+		} );
+		engine.setWindowContent( 'post-win', { type: 'post', id: 1 } );
+		engine.setWindowContent( 'comment-win', {
+			type: 'comment',
+			id: 9,
+			root: { type: 'post', id: 1 },
+		} );
+		flushRaf();
+		expect( document.querySelector( BOTH_LAYERS_PATH ) ).not.toBeNull();
+
+		// Snap both into split view. The snap commit fires its own
+		// hook (the drag session is already over when the geometry
+		// lands) — the host must refresh the frame from it.
+		postWin.state = 'snapped-left';
+		hooks.doAction( HOOKS.SNAP_ZONE_COMMITTED, {
+			windowId: 'post-win',
+			zone: 'left',
+		} );
+		commentWin.state = 'snapped-right';
+		hooks.doAction( HOOKS.SNAP_SPLIT_FILLED, {
+			windowId: 'comment-win',
+			zone: 'right',
+		} );
+		flushRaf();
+		expect( document.querySelector( BOTH_LAYERS_PATH ) ).toBeNull();
+
+		// One window dragged back out — the OTHER is still a
+		// half-screen tile with no free border, so the tie stays
+		// hidden.
+		postWin.state = 'normal';
+		hooks.doAction( HOOKS.WINDOW_MOVED, { windowId: 'post-win', x: 100, y: 100 } );
+		flushRaf();
+		expect( document.querySelector( BOTH_LAYERS_PATH ) ).toBeNull();
+
+		// Both floating again — the tie reappears.
+		commentWin.state = 'normal';
+		hooks.doAction( HOOKS.WINDOW_MOVED, { windowId: 'comment-win', x: 400, y: 200 } );
+		flushRaf();
+		expect( document.querySelector( BOTH_LAYERS_PATH ) ).not.toBeNull();
+	} );
+
 	test( 'closing the child window clears its edge and unmounts the renderer', async () => {
 		const { engine, host } = await loadModules();
 		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );

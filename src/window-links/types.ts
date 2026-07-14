@@ -144,8 +144,10 @@ export interface WindowLinkFrame {
 			/**
 			 * Window geometry relative to the link layer (which shares
 			 * `#desktop-mode-area` as offset parent with the windows).
-			 * `null` when the window is minimized, on another virtual
-			 * desktop, or otherwise not visible — skip its edges.
+			 * `null` when the window is minimized, snapped into split
+			 * view (`snapped-left` / `snapped-right` — a half-screen
+			 * tile draws no ties), on another virtual desktop, or
+			 * otherwise not visible — skip its edges.
 			 */
 			rect: {
 				x: number;
@@ -162,8 +164,9 @@ export interface WindowLinkFrame {
 	 * renderers should iterate — it already encodes direction
 	 * (`child-root` points at the root; `reference` points at the
 	 * referenced window; `bidirectional` reference pairs are merged).
-	 * A `null` rect on either end means that endpoint isn't visible
-	 * (minimized / other desktop) — skip the edge.
+	 * A `null` rect on either end means that endpoint isn't drawable
+	 * (minimized / snapped into split view / other desktop) — skip
+	 * the edge.
 	 */
 	edges: Array< {
 		fromWindowId: string;

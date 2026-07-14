@@ -97,7 +97,7 @@ wp.desktop.registerWindowLinkRenderer( {
             // merging — iterate it rather than re-deriving from groups.
             for ( const edge of frame.edges ) {
                 if ( ! edge.from || ! edge.to ) {
-                    continue; // null rect = minimized / other desktop
+                    continue; // null rect = minimized / split view / other desktop
                 }
                 const line = document.createElementNS( svg.namespaceURI, 'line' );
                 line.setAttribute( 'x1', edge.from.x + edge.from.width / 2 );

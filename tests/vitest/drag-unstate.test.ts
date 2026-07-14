@@ -234,6 +234,53 @@ describe( 'drag auto-unstate', () => {
 		cleanup();
 	} );
 
+	test( 'un-snap from SNAPPED-LEFT clamps the anchor at the edge — no drag dead zone', () => {
+		// Regression (DESKMOD-24): a snapped-LEFT window whose saved
+		// floating width exceeds the half-screen used to re-anchor at
+		// a NEGATIVE left. The drag offsets derived from that
+		// unclamped position, so the move-loop clamp pinned the window
+		// at x=0 until the cursor had traveled the whole overshoot —
+		// the window slid along the left edge instead of following
+		// the pointer.
+		const handle = mountWindow( baseConfig() );
+		const { win, cleanup } = handle;
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { /* noop */ } } );
+		// Snapped-left title bar spans the LEFT HALF of a 1600 px
+		// desktop area.
+		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 800, bottom: 40,
+				width: 800, height: 40, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+
+		win.state = 'snapped-left';
+		win.element.classList.add( 'desktop-mode-window--snapped-left' );
+		win.element.style.left = '0px';
+		win.element.style.top = '0px';
+		win.element.style.width = '800px';
+		win.element.style.height = '900px';
+		// Saved floating width (1200) is WIDER than the half-screen
+		// (800) — the mid-bar grab ratio would anchor left at
+		// 420 - 0.5 * 1200 = -180 without the clamp.
+		win._savedGeometry = { x: 40, y: 40, width: 1200, height: 700 };
+
+		handleDragStart( win, fakePointer( win._titleBar, 400, 20 ) );
+		fakeMove( win._titleBar, 400, 20, 20, 0 );
+
+		// The un-state committed at the clamped edge, not off-screen.
+		expect( win.state ).toBe( 'normal' );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( 0 );
+
+		// The VERY NEXT move must translate 1:1 — cursor +100 px right
+		// puts the window at left=100. Before the fix the offset math
+		// kept x negative (clamped back to 0) until the cursor passed
+		// the whole -180 px overshoot.
+		fakeMove( win._titleBar, 400, 20, 120, 0 );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( 100 );
+		cleanup();
+	} );
+
 	test( 'drag from maximized WITHOUT saved geometry falls back to 60% of parent', () => {
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
