@@ -1579,7 +1579,7 @@ export class AiAssistant implements AiAssistantApi {
 				<div class="desktop-mode-ai__results" hidden></div>
 				<div class="desktop-mode-ai__footer">
 					<span class="desktop-mode-ai__footer-hint">
-						Your assistant for finding content and navigating wp-admin
+						Your assistant for finding content, getting around wp-admin, and more
 					</span>
 					<span class="desktop-mode-ai__footer-keys" aria-hidden="true">
 						<kbd>&#8629;</kbd> ask
