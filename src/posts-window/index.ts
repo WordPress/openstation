@@ -21,7 +21,7 @@
  * @since 0.8.0
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { showPostsIntroDialog } from './intro-dialog';
@@ -821,7 +821,7 @@ function buildCommentsCell( row: PostListItem ): HTMLElement {
 	cell.setAttribute(
 		'aria-label',
 		// translators: %d is the comment count for a row.
-		`${ sprintf( __( '%d comments' ), count ) }`,
+		`${ sprintf( _n( '%d comment', '%d comments', count ), count ) }`,
 	);
 	return cell;
 }
