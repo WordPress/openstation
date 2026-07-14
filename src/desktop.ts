@@ -906,7 +906,7 @@ export interface WpDesktopPublicApi {
 	 * ```
 	 *
 	 * Built-in tab orders for reference: appearance=10, ai=20,
-	 * apps-icons=22, features=25, effects=27, extended=30, help=40
+	 * apps-icons=22, features=25, effects=27, help=40
 	 * (About is pinned last with a sentinel order).
 	 *
 	 * @since 0.5.1
@@ -2417,6 +2417,11 @@ function init(): void {
 	 * @since 0.5.2
 	 */
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
+		// The Extended Options tab merged into Features in 0.9.5 —
+		// keep documented deep-links to the old tab id working.
+		if ( opts.tabId === 'extended' ) {
+			opts = { ...opts, tabId: 'features' };
+		}
 		if ( opts.tabId ) {
 			osSettings.activeTabId = opts.tabId;
 		}
