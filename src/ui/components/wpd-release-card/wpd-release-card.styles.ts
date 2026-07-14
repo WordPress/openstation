@@ -75,7 +75,7 @@ export const styles = css`
 			repeating-radial-gradient( circle at 50% 50%, rgba( 255, 255, 255, 0.05 ) 0 1px, rgba( 0, 0, 0, 0 ) 1px 2.4px ),
 			radial-gradient( circle at 50% 50%, #1a1a1e 0 11%, #0a0a0c 12% 62%, #050506 100% );
 		/* Inner shadows only — these are radially symmetric, so they don't
-		 * betray the spin. The drop shadow is on `.disc-wrap` (non-rotating). */
+		 * betray the spin. The drop shadow is on the disc-wrap (non-rotating). */
 		box-shadow:
 			inset 0 0 26px rgba( 0, 0, 0, 0.9 ),
 			inset 0 0 0 1px rgba( 255, 255, 255, 0.05 );
