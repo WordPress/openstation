@@ -40,6 +40,18 @@ let gradientSeq = 0;
 /** Which edge of a speak bubble the tail grows from. */
 export type TailSide = 'bottom' | 'right';
 
+/**
+ * Mirror flags for edge-aware placement. The engine flips a balloon to
+ * whichever side of Wapuu actually has room: `mirrorX` swaps which
+ * horizontal edge the tail grows from, `mirrorY` hangs the balloon
+ * BELOW its anchor (tail pointing up). Only the DRAWING mirrors — the
+ * HTML content stays unflipped and readable.
+ */
+export interface BalloonMirror {
+	mirrorX?: boolean;
+	mirrorY?: boolean;
+}
+
 /** A built shape: SVG markup, element size, where the content + tip go. */
 interface Shape {
 	width: number;
@@ -48,9 +60,17 @@ interface Shape {
 	contentY: number;
 	tipX: number;
 	tipY: number;
-	svg: string;
+	/** Shape markup, pre-`<svg>` wrap ({@link build} may mirror it first). */
+	inner: string;
+	/** Gradient id the markup references ({@link svgWrap} defines it). */
+	gid: string;
 	/** Width of the bubble BODY (excludes a right-side tail). */
 	bodyWidth?: number;
+}
+
+/** A shape wrapped into its final `<svg>` markup. */
+interface FittedShape extends Shape {
+	svg: string;
 }
 
 const f = ( n: number ): string => n.toFixed( 1 );
@@ -60,7 +80,13 @@ const f = ( n: number ): string => n.toFixed( 1 );
  * (`url(#…)` referenced by the shapes) — flat white reads clinical;
  * a faint falloff reads like paper.
  */
-function svgWrap( w: number, h: number, inner: string, gid: string ): string {
+function svgWrap(
+	w: number,
+	h: number,
+	inner: string,
+	gid: string,
+	flipGradient = false,
+): string {
 	// `preserveAspectRatio="none"` + the stylesheet's `width/height:
 	// 100%` make the SVG stretch with the element box, so a CSS
 	// transition on the element's size animates the bubble smoothly
@@ -68,9 +94,14 @@ function svgWrap( w: number, h: number, inner: string, gid: string ): string {
 	// userSpaceOnUse so EVERY path in the svg (e.g. the chat bubble and
 	// its separately-drawn tail) samples the same vertical ramp — a
 	// per-path bounding-box gradient would visibly seam at the tail.
+	// When the markup sits inside a vertical-mirror <g> (see build),
+	// userSpaceOnUse coords resolve in that FLIPPED space — swap the
+	// ramp ends so the balloon stays lit from the visual top.
+	const y1 = flipGradient ? f( h ) : '0';
+	const y2 = flipGradient ? '0' : f( h );
 	return (
 		`<svg viewBox="0 0 ${ f( w ) } ${ f( h ) }" width="${ f( w ) }" height="${ f( h ) }" preserveAspectRatio="none">` +
-		`<defs><linearGradient id="${ gid }" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="${ f( h ) }">` +
+		`<defs><linearGradient id="${ gid }" gradientUnits="userSpaceOnUse" x1="0" y1="${ y1 }" x2="0" y2="${ y2 }">` +
 		'<stop offset="0" stop-color="#ffffff"/>' +
 		'<stop offset="1" stop-color="#edf0f6"/>' +
 		'</linearGradient></defs>' +
@@ -117,7 +148,8 @@ function shapeSpeakRight( cw: number, ch: number ): Shape {
 		tipX: bw + 46,
 		tipY: bh * 0.95,
 		bodyWidth: bw,
-		svg: svgWrap( bw, bh, body, gid ),
+		inner: body,
+		gid,
 	};
 }
 
@@ -194,6 +226,10 @@ export function updateChatTail( el: HTMLElement, tx: number, ty: number ): void 
 		return;
 	}
 	const r = Math.min( 24, bh / 2.5 );
+	// A mirrored bubble's path lives in flipped drawing space (see
+	// build) — convert the element-local target into that space; the
+	// spliced horn then mirrors back out visually on the correct edge.
+	const ax = el.dataset.wapuuMirrorX === '1' ? bw - tx : tx;
 	// Attach span on the STRAIGHT part of the right edge — clear of both
 	// rounded corners so the splice never collides with a corner arc.
 	const half = Math.min( 15, ( bh - 2 * r - 8 ) / 2 );
@@ -201,7 +237,7 @@ export function updateChatTail( el: HTMLElement, tx: number, ty: number ): void 
 	// Tip: a SHORT horn that gestures toward the target. Its length is
 	// capped absolutely (it never stretches all the way to the mouth) —
 	// long horns read awkwardly and invade Wapuu's render.
-	const vx = tx - bw;
+	const vx = ax - bw;
 	const vy = ty - cy;
 	const len = Math.hypot( vx, vy ) || 1;
 	const hornLen = Math.max( 18, Math.min( 44, len - 30 ) );
@@ -287,7 +323,8 @@ function shapeSpeak( cw: number, ch: number ): Shape {
 		contentY: padY,
 		tipX,
 		tipY,
-		svg: svgWrap( w, h, `<path d="${ d }" ${ inkAttrs( gid ) }/>`, gid ),
+		inner: `<path d="${ d }" ${ inkAttrs( gid ) }/>`,
+		gid,
 	};
 }
 
@@ -342,7 +379,8 @@ function shapeYell( cw: number, ch: number ): Shape {
 		contentY: padY,
 		tipX: cx,
 		tipY: h,
-		svg: svgWrap( bw, h, back + front, gid ),
+		inner: back + front,
+		gid,
 	};
 }
 
@@ -390,7 +428,8 @@ function shapeThink( cw: number, ch: number ): Shape {
 		contentY: padY,
 		tipX: bw * 0.72,
 		tipY: bh + 38,
-		svg: svgWrap( w, h, cloud + dot1 + dot2, gid ),
+		inner: cloud + dot1 + dot2,
+		gid,
 	};
 }
 
@@ -399,14 +438,40 @@ function build(
 	cw: number,
 	ch: number,
 	tailSide: TailSide,
-): Shape {
+	mirror: BalloonMirror = {},
+): FittedShape {
+	let s: Shape;
 	if ( type === 'yell' ) {
-		return shapeYell( cw, ch );
+		s = shapeYell( cw, ch );
+	} else if ( type === 'think' ) {
+		s = shapeThink( cw, ch );
+	} else {
+		s = tailSide === 'right' ? shapeSpeakRight( cw, ch ) : shapeSpeak( cw, ch );
 	}
-	if ( type === 'think' ) {
-		return shapeThink( cw, ch );
+	const mx = !! mirror.mirrorX;
+	const my = !! mirror.mirrorY;
+	let inner = s.inner;
+	if ( mx || my ) {
+		// Mirror the DRAWING wholesale with one <g> transform, so every
+		// shape builder stays mirror-agnostic. The HTML content is laid
+		// over it unmirrored (text must stay readable) — its box and the
+		// tail tip are reflected numerically instead.
+		inner =
+			`<g transform="translate(${ mx ? f( s.width ) : 0 } ${
+				my ? f( s.height ) : 0
+			}) scale(${ mx ? -1 : 1 } ${ my ? -1 : 1 })">` +
+			inner +
+			'</g>';
+		if ( mx ) {
+			s.tipX = s.width - s.tipX;
+			s.contentX = s.width - s.contentX - cw;
+		}
+		if ( my ) {
+			s.tipY = s.height - s.tipY;
+			s.contentY = s.height - s.contentY - ch;
+		}
 	}
-	return tailSide === 'right' ? shapeSpeakRight( cw, ch ) : shapeSpeak( cw, ch );
+	return { ...s, inner, svg: svgWrap( s.width, s.height, inner, s.gid, my ) };
 }
 
 /**
@@ -649,11 +714,13 @@ export function createAskBalloon(
  * @param el       The balloon element from {@link createBalloon}.
  * @param type     Balloon style.
  * @param tailSide Which edge a speak tail grows from (default bottom).
+ * @param mirror   Edge-aware flips (see {@link BalloonMirror}).
  */
 export function fitBalloon(
 	el: HTMLElement,
 	type: BalloonType,
 	tailSide: TailSide = 'bottom',
+	mirror: BalloonMirror = {},
 ): { x: number; y: number } {
 	const content = el.querySelector< HTMLElement >( '.wapuu-balloon__content' );
 	if ( ! content ) {
@@ -662,7 +729,16 @@ export function fitBalloon(
 	// Idempotent: a chat balloon re-fits after a message is appended so
 	// the bubble grows around the thread — drop the previous shape.
 	el.querySelector( '.wapuu-balloon__shape' )?.remove();
-	const shape = build( type, content.offsetWidth, content.offsetHeight, tailSide );
+	const shape = build(
+		type,
+		content.offsetWidth,
+		content.offsetHeight,
+		tailSide,
+		mirror,
+	);
+	// Flag for the tail aimer: updateChatTail converts its element-local
+	// target into the mirrored drawing space.
+	el.dataset.wapuuMirrorX = mirror.mirrorX ? '1' : '0';
 	// The bubble body width (sans tail) — the ask input bar matches it.
 	el.style.setProperty(
 		'--wapuu-bubble-w',

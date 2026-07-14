@@ -405,9 +405,23 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 	let balloonScale = 1;
 	// Offset (element px) of the balloon's tail tip — pinned to the head.
 	let balloonTip = { x: 0, y: 0 };
+	// The UNMIRRORED tail-tip offset — the edge-aware side picker derives
+	// both candidate placements (canonical and flipped) from this.
+	let balloonTipBase = { x: 0, y: 0 };
 	// Which edge the tail grows from: bottom-tail balloons hover ABOVE
 	// Wapuu; right-tail balloons (the chat) sit NEXT to him.
 	let balloonSide: TailSide = 'bottom';
+	// The active balloon's style — needed to re-fit its SVG shape when
+	// the edge-aware placement flips sides.
+	let balloonType: BalloonType = 'speak';
+	// Edge-aware mirror state: mirrorX flips which side of Wapuu the
+	// balloon sits on; mirrorY drops a comic balloon BELOW him (tail
+	// pointing up) when the widget is parked against the top edge.
+	let balloonMirrorX = false;
+	let balloonMirrorY = false;
+	// Gap between Wapuu's feet (root origin) and a below-anchored
+	// balloon's tail tip.
+	const BALLOON_BELOW_GAP = 28;
 	// Visual extent that hangs BELOW the element box (the chat's input
 	// bar is absolutely positioned below the bubble) — folded into the
 	// viewport clamp so the bar never falls off-screen.
@@ -645,6 +659,29 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 	// input actually changed. Skipping the writes keeps the layout clean,
 	// so the per-frame reads stay cheap (no forced reflow interleave).
 	const balloonPaint = { left: NaN, top: NaN, scale: NaN, tailX: NaN, tailY: NaN };
+	// Fit the active balloon's SVG shape with the current mirror state
+	// and refresh both tip offsets (the live one used for painting and
+	// the unmirrored base the side picker reasons from).
+	function fitActiveBalloon( el: HTMLElement ): void {
+		balloonTip = fitBalloon( el, balloonType, balloonSide, {
+			mirrorX: balloonMirrorX,
+			mirrorY: balloonMirrorY,
+		} );
+		balloonTipBase = {
+			x: balloonMirrorX ? el.offsetWidth - balloonTip.x : balloonTip.x,
+			y: balloonMirrorY ? el.offsetHeight - balloonTip.y : balloonTip.y,
+		};
+	}
+	// How far a box at `pos` (layer-local) pokes past the layer on either
+	// side — 0 when it fits with `margin` to spare.
+	const balloonOverflow = ( pos: number, size: number, limit: number, margin: number ): number =>
+		Math.max( 0, margin - pos ) +
+		Math.max( 0, pos + size - ( limit - margin ) );
+	// Prefer the canonical side; mirror only when it overflows the layer
+	// and the flipped side is meaningfully better (the slack keeps the
+	// choice from flapping around the break-even point mid-drag).
+	const pickMirror = ( overNormal: number, overMirrored: number ): boolean =>
+		overNormal > 4 && overMirrored + 8 < overNormal;
 	function positionBalloon(): void {
 		const el = activeBalloon;
 		if ( ! el ) {
@@ -655,38 +692,102 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		// area-level balloon lines up even though it lives outside the
 		// clipped card.
 		const rect = canvasRect();
+		const layerRect = layerRectOf();
 		const a = parts.anchors;
+		const margin = 10;
+		const w = el.offsetWidth;
+		const h = el.offsetHeight + balloonExtraBottom;
+
+		// ---- edge awareness ----
+		// Pick which side of Wapuu the balloon lives on from the space
+		// actually available, so a widget parked against a screen edge
+		// gets its balloon flipped INTO the viewport instead of clamped
+		// over Wapuu's face (or pushed off-screen). Decided from STABLE
+		// anchors (groundY, not the bobbing root.y) so the choice can't
+		// flap with the breath cycle — it only moves when the widget is
+		// dragged or the layout changes.
+		const cx = rect.left - layerRect.left + world.x;
+		const cy = rect.top - layerRect.top + groundY;
+		let wantX: boolean;
+		let wantY = false;
+		if ( balloonSide === 'right' ) {
+			// Chat: beside Wapuu — flip to his right when the left side
+			// can't fit the bubble. (Vertical stays clamp-only: the chat
+			// tail re-aims dynamically, so a raised bubble still reads.)
+			const leftN = cx + a.chatSide.x * baseScale - balloonTipBase.x;
+			const leftM =
+				cx - a.chatSide.x * baseScale - ( w - balloonTipBase.x );
+			wantX = pickMirror(
+				balloonOverflow( leftN, w, layerRect.width, margin ),
+				balloonOverflow( leftM, w, layerRect.width, margin ),
+			);
+		} else {
+			// Comic: above Wapuu, extending up-left — flip horizontally
+			// when the left side is tight, and drop BELOW him when the
+			// sky above is too short (widget docked at the top edge).
+			const leftN =
+				cx + a.headTop.x * baseScale - 60 - balloonTipBase.x;
+			const leftM =
+				cx + a.headTop.x * baseScale + 60 - ( w - balloonTipBase.x );
+			wantX = pickMirror(
+				balloonOverflow( leftN, w, layerRect.width, margin ),
+				balloonOverflow( leftM, w, layerRect.width, margin ),
+			);
+			const topN =
+				cy + a.headTop.y * baseScale - 20 - balloonTipBase.y;
+			const topM =
+				cy +
+				BALLOON_BELOW_GAP -
+				( el.offsetHeight - balloonTipBase.y );
+			wantY = pickMirror(
+				balloonOverflow( topN, h, layerRect.height, margin ),
+				balloonOverflow( topM, h, layerRect.height, margin ),
+			);
+		}
+		if ( wantX !== balloonMirrorX || wantY !== balloonMirrorY ) {
+			balloonMirrorX = wantX;
+			balloonMirrorY = wantY;
+			fitActiveBalloon( el );
+			// The rebuilt shape must repaint (and the chat tail re-aim)
+			// even if left/top land on the same values.
+			balloonPaint.left = NaN;
+			balloonPaint.tailX = NaN;
+		}
+
 		let headX: number;
 		let headY: number;
 		if ( balloonSide === 'right' ) {
-			// Chat balloon sits NEXT to Wapuu, raised a touch above his
-			// head line. Anchored to the STABLE groundY — not the live
-			// root.y, which bobs with the breath cycle — so the balloon
-			// holds still while the user types (it still follows the
-			// widget when the card is dragged, via the canvas rect).
-			headX = rect.left + world.x + a.chatSide.x * baseScale;
+			// Chat balloon sits NEXT to Wapuu (on whichever side has
+			// room), raised a touch above his head line. Anchored to the
+			// STABLE groundY — not the live root.y, which bobs with the
+			// breath cycle — so the balloon holds still while the user
+			// types (it still follows the widget when the card is
+			// dragged, via the canvas rect).
+			const sideX = balloonMirrorX ? -a.chatSide.x : a.chatSide.x;
+			headX = rect.left + world.x + sideX * baseScale;
 			headY = rect.top + groundY + a.chatSide.y * baseScale;
 		} else {
-			// Comic balloons hover ABOVE him, nudged up-left of his head.
-			headX = rect.left + world.x + a.headTop.x * baseScale - 60;
-			headY = rect.top + root.y + a.headTop.y * baseScale - 20;
+			// Comic balloons hover ABOVE him, nudged up-left of his head
+			// (mirrored X: up-right; mirrored Y: they hang below his
+			// feet, tail pointing up at him).
+			const nudge = balloonMirrorX ? 60 : -60;
+			headX = rect.left + world.x + a.headTop.x * baseScale + nudge;
+			headY = balloonMirrorY
+				? rect.top + root.y + BALLOON_BELOW_GAP
+				: rect.top + root.y + a.headTop.y * baseScale - 20;
 		}
 		// Place the element so its tail tip sits at the anchor; the
 		// transform-origin (set to the tip in fitBalloon) keeps the tip
 		// pinned through the pop/fade scale. Coords are layer-local
 		// (balloons are absolute children of the layer), so subtract the
 		// layer's own viewport offset.
-		const layerRect = layerRectOf();
 		let left = headX - balloonTip.x - layerRect.left;
 		let top = headY - balloonTip.y - layerRect.top;
-		// Smart clamp: keep the WHOLE balloon (incl. the chat's input bar
-		// that hangs below) inside the visible layer, so it never runs
-		// off-screen when Wapuu sits near an edge. Sizes are at scale 1
-		// (the resting state); during the smaller pop the box is well
-		// within these bounds anyway.
-		const margin = 10;
-		const w = el.offsetWidth;
-		const h = el.offsetHeight + balloonExtraBottom;
+		// Smart clamp (final guard): keep the WHOLE balloon (incl. the
+		// chat's input bar that hangs below) inside the visible layer, so
+		// it never runs off-screen when Wapuu sits near an edge. Sizes
+		// are at scale 1 (the resting state); during the smaller pop the
+		// box is well within these bounds anyway.
 		left = clamp( left, margin, Math.max( margin, layerRect.width - w - margin ) );
 		top = clamp( top, margin, Math.max( margin, layerRect.height - h - margin ) );
 		// Quantise to 0.1px and dirty-check before touching the DOM.
@@ -808,8 +909,11 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		// shape to it and learn where the tail tip lands.
 		balloonLayer.appendChild( el );
 		balloonSide = 'bottom';
+		balloonType = type;
+		balloonMirrorX = false;
+		balloonMirrorY = false;
 		balloonExtraBottom = 0;
-		balloonTip = fitBalloon( el, type );
+		fitActiveBalloon( el );
 		activeBalloon = el;
 		positionBalloon();
 		popInBalloon( el );
@@ -840,7 +944,10 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		el.style.opacity = '0';
 		balloonLayer.appendChild( el );
 		balloonSide = 'right'; // the chat sits NEXT to Wapuu
-		balloonTip = fitBalloon( el, 'speak', 'right' );
+		balloonType = 'speak';
+		balloonMirrorX = false;
+		balloonMirrorY = false;
+		fitActiveBalloon( el );
 		balloonExtraBottom = measureBalloonExtraBottom( el );
 		refreshChatThread( askParts ); // now in the DOM: scroll + hint
 		activeBalloon = el;
@@ -900,7 +1007,7 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 				(
 					askParts.thread.lastElementChild as HTMLElement | null
 				)?.classList.add( 'wapuu-chat__msg--enter' );
-				balloonTip = fitBalloon( el, 'speak', 'right' );
+				fitActiveBalloon( el );
 				refreshChatThread( askParts );
 				positionBalloon();
 				endAsk( value, opts?.durationMs ?? 1800 );
@@ -932,7 +1039,10 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 		el.style.opacity = '0';
 		balloonLayer.appendChild( el );
 		balloonSide = 'right';
-		balloonTip = fitBalloon( el, 'speak', 'right' );
+		balloonType = 'speak';
+		balloonMirrorX = false;
+		balloonMirrorY = false;
+		fitActiveBalloon( el );
 		balloonExtraBottom = measureBalloonExtraBottom( el );
 		refreshChatThread( askParts );
 		activeBalloon = el;
@@ -959,7 +1069,7 @@ export function startWapuuPet( deps: PetDeps ): PetController {
 					askParts.thread.lastElementChild as HTMLElement | null
 				)?.classList.add( 'wapuu-chat__msg--enter' );
 			}
-			balloonTip = fitBalloon( el, 'speak', 'right' );
+			fitActiveBalloon( el );
 			refreshChatThread( askParts );
 			positionBalloon();
 		};
