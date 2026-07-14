@@ -232,6 +232,13 @@ export function installPaletteShortcut(): void {
 			if ( e.shiftKey || e.altKey ) {
 				return;
 			}
+			// Only claim Cmd+K when we actually have a palette to open
+			// (e.g. the AI assistant when its override toggle is on). With
+			// none registered, fall through so WordPress Core's command
+			// palette keeps working — overriding it is opt-in.
+			if ( palettes.length === 0 ) {
+				return;
+			}
 			e.preventDefault();
 			e.stopImmediatePropagation();
 			cyclePalettes();

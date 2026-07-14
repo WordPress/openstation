@@ -480,14 +480,14 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						? html`
 								<div class="desktop-mode-features__item">
 									<wpd-checkbox-label
-										label=${ __( 'AI assistant' ) }
+										label=${ __( 'Override command palette with AI assistant' ) }
 										?checked=${ ctx.state.ai.enabled }
 										?disabled=${ ! shellCfg.aiAssistant.assistantProviderConfigured }
 										@wpd-checkbox-change=${ onAiAssistantToggle }
 									></wpd-checkbox-label>
 									<p class="desktop-mode-features__hint">
 										${ __(
-											'Adds an assistant powered by AI that finds your content, gets around wp-admin, and answers questions about your site — all in plain language. Off by default.',
+											'Makes ⌘K (Ctrl+K) open an AI assistant instead of the WordPress command palette. Ask in plain language to find content, get around wp-admin, run commands, and answer questions about your site. Off by default.',
 										) }
 									</p>
 									${ ! shellCfg.aiAssistant.assistantProviderConfigured

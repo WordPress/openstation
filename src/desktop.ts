@@ -2023,11 +2023,11 @@ function init(): void {
 	// through them in registration order.
 	//
 	// The assistant is *active* only when the Core AI primitives are present, a
-	// provider is configured in Settings → Connectors, AND the per-user toggle
-	// is on. Both the Cmd+K palette and the admin-bar "Ask AI" icon follow this
-	// live (no reload): we register/unregister the palette and toggle the
-	// `desktop-mode-ai-enabled` body class (which controls the icon's CSS
-	// visibility) whenever the toggle changes or a provider is (dis)connected.
+	// provider is configured in Settings → Connectors, AND the per-user
+	// "Override command palette with AI assistant" toggle is on. When active it
+	// registers as the Cmd+K palette and hijacks Core's ⌘K icon; we (un)register
+	// the palette live (no reload) whenever the toggle changes or a provider is
+	// (dis)connected.
 	const aiAvailable = config.aiAssistant?.available === true;
 	const isAiAssistantActive = () =>
 		aiAvailable &&
@@ -2037,7 +2037,6 @@ function init(): void {
 	let unregisterAiPalette: ( () => void ) | null = null;
 	const syncAiAssistant = () => {
 		const active = isAiAssistantActive();
-		document.body.classList.toggle( 'desktop-mode-ai-enabled', active );
 		if ( active && ! unregisterAiPalette ) {
 			unregisterAiPalette = registerPalette( {
 				id: 'desktop-mode-ai-assistant',
@@ -2102,6 +2101,30 @@ function init(): void {
 		}
 		openPaletteOnly( 'desktop-mode-ai-assistant' );
 	} );
+
+	// Override toggle on → hijack WordPress Core's ⌘K command-palette icon
+	// (#wp-admin-bar-command-palette) so a click opens our assistant instead
+	// of Core's palette. Capture phase + stopImmediatePropagation runs before
+	// Core's own click handler, so the assistant becomes the single ⌘K entry
+	// point (paired with the keyboard suppression in installPaletteShortcut).
+	// When the toggle is off, isAiAssistantActive() is false and Core's icon
+	// behaves normally.
+	document.addEventListener(
+		'click',
+		( e: MouseEvent ) => {
+			if ( ! isAiAssistantActive() ) {
+				return;
+			}
+			const target = e.target as Element | null;
+			if ( ! target?.closest( '#wp-admin-bar-command-palette' ) ) {
+				return;
+			}
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			openPaletteOnly( 'desktop-mode-ai-assistant' );
+		},
+		true,
+	);
 
 	// Dock(s) + desktop icons — managed by the layout dispatcher.
 	// User picks one of three layouts in OS Settings → Appearance:

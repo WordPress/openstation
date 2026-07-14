@@ -25,6 +25,7 @@ import {
 	filterCommands,
 	findCommand,
 	listEagerCommands,
+	matchCommandByIntent,
 	parseCommandInput,
 	subscribeCommands,
 	type CommandContext,
@@ -171,7 +172,7 @@ export type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AskFn } from '../ai/ask';
 
-type AnswerType = 'entity' | 'navigation' | 'chat';
+type AnswerType = 'entity' | 'navigation' | 'chat' | 'tool_call';
 
 interface SearchResult {
 	answer_type: AnswerType;
@@ -181,6 +182,8 @@ interface SearchResult {
 	iterations: number;
 	exhausted: boolean;
 	continue: ContinueHint | null;
+	/** Present on `answer_type: 'tool_call'` — a client-run command intent. */
+	tool?: { slug: string; args: string };
 }
 
 interface EntityDetail {
@@ -1398,6 +1401,20 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	private _showResult( query: string, data: SearchResult ): void {
+		// `run_command` tool call — the model chose to run a command palette
+		// action. Resolve the intent against the local registry and run it
+		// through the normal command path (gating, context, rendering).
+		if ( data.answer_type === 'tool_call' && data.tool?.slug === '__run_command__' ) {
+			const intent = data.tool.args ?? '';
+			const cmd = matchCommandByIntent( intent );
+			if ( cmd ) {
+				void this._runCommand( cmd, '' );
+			} else {
+				this._showError( `I couldn't find an admin command for "${ intent }".` );
+			}
+			return;
+		}
+
 		this._resultsEl.hidden = false;
 
 		// Assistant-styled message bubble appears at the top of every
