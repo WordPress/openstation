@@ -1408,7 +1408,13 @@ export class AiAssistant implements AiAssistantApi {
 			const intent = data.tool.args ?? '';
 			const cmd = matchCommandByIntent( intent );
 			if ( cmd ) {
-				void this._runCommand( cmd, '' );
+				// `_showResult` runs *inside* the search flow, where
+				// `_isSearching` is still true (the stream's `finish()` /
+				// the fetch's `finally` reset it only after this returns).
+				// `_runCommand` bails out early while `_isSearching`, so
+				// defer the dispatch to a microtask — by then the search
+				// flow has reset its state and the command runs cleanly.
+				queueMicrotask( () => void this._runCommand( cmd, '' ) );
 			} else {
 				this._showError( `I couldn't find an admin command for "${ intent }".` );
 			}
