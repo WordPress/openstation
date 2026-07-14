@@ -85,5 +85,21 @@ function desktop_mode_register_builtin_wallpapers() {
 		'script'      => 'desktop-mode-animated-logo-wallpaper',
 		'description' => __( 'Thousands of luminous particles holding the shape of the WordPress W. Sweep your cursor through and they scatter like sand, then drift home again.', 'desktop-mode' ),
 	) );
+
+	// Snow — built-in PixiJS canvas wallpaper. The preview gradient
+	// must match the default backdrop the JS side paints behind the
+	// canvas (`backdropCss()` in `src/plugins/snow-wallpaper/settings.ts`)
+	// — the swatch renders before the wallpaper script has ever
+	// loaded, so a mismatch would show one sky in the picker and a
+	// different one once selected. First built-in wallpaper with a
+	// `renderConfig` settings dialog (wind, snowflake count, flake
+	// size, background colour).
+	desktop_mode_register_wallpaper( 'wp-snow', array(
+		'label'       => __( 'Snow', 'desktop-mode' ),
+		'preview'     => 'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
+		'type'        => 'canvas',
+		'script'      => 'desktop-mode-snow-wallpaper',
+		'description' => __( 'Snow falling over a midnight sky. Flakes settle on the top edge of every window, pile into little drifts, then quietly melt away. Open the wallpaper settings to tune the wind, the snowfall, the flake size, and the colour of the night.', 'desktop-mode' ),
+	) );
 }
 add_action( 'init', 'desktop_mode_register_builtin_wallpapers', 5 );

@@ -42,6 +42,7 @@
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import * as registry from '../wallpapers/registry';
+import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
@@ -279,6 +280,13 @@ export class OsSettings implements SettingsCtx {
 		if ( ! shell ) {
 			return;
 		}
+
+		// Mirror the persisted per-wallpaper settings into the shared
+		// runtime store BEFORE the layer mounts anything, so the mount's
+		// `ctx.settings` reads the user's saved values. apply() runs on
+		// boot, on every settings change, and after a save-failure
+		// rollback — re-seeding on each covers all three paths.
+		seedWallpaperSettings( this.state.wallpaperSettings );
 
 		// Wallpaper — look up in the registry. Fall back to the
 		// server-declared default id (via `desktop_mode_default_wallpaper`)

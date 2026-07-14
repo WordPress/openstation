@@ -185,6 +185,16 @@ export const HOOKS = {
 	 * Settings picker. Args: `( params, wallpaperId )`.
 	 */
 	WALLPAPER_PREVIEW_PARAMS: 'desktop-mode.wallpaper.preview-params',
+	/**
+	 * Action, fires after a wallpaper's persisted settings change (the
+	 * user edited them through the wallpaper's config dialog in OS
+	 * Settings). Payload: `{ id, settings }` — the wallpaper id and the
+	 * full post-merge settings object. A mounted wallpaper subscribes to
+	 * live-apply changes without a remount.
+	 *
+	 * @since 0.9.5
+	 */
+	WALLPAPER_SETTINGS_CHANGED: 'desktop-mode.wallpaper.settings-changed',
 
 	// ------------------------------------------------------------------
 	// Observability — iframe errors, iframe network, shell-side errors,

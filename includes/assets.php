@@ -364,6 +364,28 @@ function desktop_mode_register_assets() {
 		true
 	);
 
+	// `desktop-mode-snow-wallpaper` — built-in PixiJS canvas
+	// wallpaper: snowfall that accumulates on window tops and melts
+	// away. Same lazy-load path as the animated logo: the wallpaper
+	// `server-sync` injects this handle when the user selects the
+	// `wp-snow` wallpaper (or opens OS Settings → Wallpaper and the
+	// picker pulls the def in). The bundle's only side effect is
+	// publishing the `WallpaperDef` on
+	// `window.desktopModeWallpapers['wp-snow']`.
+	$snow_js = DESKTOP_MODE_DIR . 'assets/js/snow-wallpaper' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-snow-wallpaper',
+		DESKTOP_MODE_URL . 'assets/js/snow-wallpaper' . $suffix . '.js',
+		array( 'wp-hooks', 'wp-i18n' ),
+		file_exists( $snow_js ) ? (string) filemtime( $snow_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-snow-wallpaper',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
 	// `desktop-mode-ai-assistant` — AI Copilot spotlight overlay,
 	// moved out of `desktop.min.js` in 0.8.4. The main bundle ships a
 	// stub matching the public `wp.desktop.ai` contract; the stub

@@ -3220,6 +3220,7 @@ if ( wp.desktop.isReady() ) {
 | `desktop-mode.wallpaper.mount-failed` | action | Stable | `{ id, error }` |
 | `desktop-mode.wallpaper.visibility` | action | Stable | `{ id, state: 'visible' \| 'hidden' }` |
 | `desktop-mode.wallpaper.preview-params` | filter | Experimental *(since 0.9.5)* | `Record<string, unknown> → Record<string, unknown>`, second arg `wallpaperId` — override a wallpaper's live-preview parameters before its `renderPreview` runs |
+| `desktop-mode.wallpaper.settings-changed` | action | Experimental *(since 0.9.5)* | `{ id, settings }` — the user edited the wallpaper's settings through its `renderConfig` dialog; `settings` is the full post-merge bag. Mounted wallpapers live-apply from here |
 | `desktop-mode.wallpaper.surfaces` | filter | Stable | `WallpaperSurface[] → WallpaperSurface[]` — see below |
 
 #### Arrange & Overview
@@ -3337,7 +3338,7 @@ Equivalent legacy entry point: `wp.desktop.widgetLayer?.redock( id )`. New code 
 | `desktop-mode.widget.added` | action | Stable | `{ id }` — user added via the picker |
 | `desktop-mode.widget.removed` | action | Stable | `{ id }` — user removed via the card's × |
 
-The `ctx` argument exposes `{ id, pluginUrl, storage }` — `storage` is a per-widget key/value store auto-namespaced in `localStorage` (`desktop-mode.widget.<id>.<key>`), so two widgets can both persist a `layout` key without colliding. (Canvas wallpapers receive a different context: `{ id, pluginUrl, prefersReducedMotion, visible }`.) Enabled widgets persist per-user in `localStorage` (`desktop-mode-widgets`).
+The `ctx` argument exposes `{ id, pluginUrl, storage }` — `storage` is a per-widget key/value store auto-namespaced in `localStorage` (`desktop-mode.widget.<id>.<key>`), so two widgets can both persist a `layout` key without colliding. (Canvas wallpapers receive a different context: `{ id, pluginUrl, prefersReducedMotion, visible, settings }`.) Enabled widgets persist per-user in `localStorage` (`desktop-mode-widgets`).
 
 #### Window lifecycle
 
@@ -3624,6 +3625,7 @@ type WallpaperDef =
           renderEditor?: WallpaperEditor;
           renderPreview?: WallpaperPreview;              // Live tile preview (since 0.9.5)
           previewParams?: Record<string, unknown>;       // Preview defaults (since 0.9.5)
+          renderConfig?: WallpaperConfig;                // Settings dialog (since 0.9.5)
       }
     | {
           type: 'canvas';
@@ -3636,6 +3638,7 @@ type WallpaperDef =
           renderEditor?: WallpaperEditor;
           renderPreview?: WallpaperPreview;              // Live tile preview (since 0.9.5)
           previewParams?: Record<string, unknown>;       // Preview defaults (since 0.9.5)
+          renderConfig?: WallpaperConfig;                // Settings dialog (since 0.9.5)
       };
 
 interface WallpaperContext {
@@ -3643,6 +3646,7 @@ interface WallpaperContext {
     pluginUrl: string;                // no trailing slash
     prefersReducedMotion: boolean;
     visible: boolean;                 // current document visibility
+    settings: Record<string, unknown>; // persisted per-wallpaper settings (since 0.9.5)
 }
 
 // Passed to renderPreview (since 0.9.5).
@@ -3653,6 +3657,14 @@ interface WallpaperPreviewContext extends WallpaperContext {
 }
 
 type WallpaperPreview = ( container: HTMLElement, ctx: WallpaperPreviewContext ) =>
+        ( () => void ) | Promise<() => void>;
+
+// Passed to renderConfig (since 0.9.5).
+interface WallpaperConfigContext extends WallpaperContext {
+    setSettings( partial: Record<string, string | number | boolean> ): void;
+}
+
+type WallpaperConfig = ( container: HTMLElement, ctx: WallpaperConfigContext ) =>
         ( () => void ) | Promise<() => void>;
 ```
 
@@ -3801,6 +3813,68 @@ wp.hooks.addFilter(
 ```
 
 The same fields work on `type: 'css'` defs too (rarely needed — a CSS wallpaper's `preview` string usually IS the wallpaper).
+
+### `renderConfig` — the wallpaper settings dialog *(Experimental, since 0.9.5)*
+
+Wallpapers with real tunables (particle counts, palettes, physics) can ship a `renderConfig` callback. When the wallpaper is the active selection in OS Settings, a **"Wallpaper settings"** button appears below the picker grid; clicking it opens a `<wpd-modal>` whose body is handed to your callback. Wallpapers without `renderConfig` show no button — the surface is invisible unless you opt in.
+
+Contrast with `renderEditor`: the editor is an always-visible inline panel below the grid (right for one or two controls the user plays with constantly, like the custom gradient's colours); `renderConfig` is a modal for a fuller settings form that would crowd the panel.
+
+The shell owns everything except the form:
+
+- **Chrome** — title (`<label> settings`), focus trap, ESC / click-outside, a Done button. Your callback renders only the controls, and returns a teardown (sync or via Promise) that runs when the dialog closes.
+- **Persistence** — `ctx.setSettings( partial )` merges into the wallpaper's settings bag and saves through the normal OS Settings pipeline (localStorage + debounced user-meta sync, so values follow the user across devices). Scalar values only (`string | number | boolean`) — anything else is dropped by the server-side sanitizer. The bag round-trips through PHP capped at 64 wallpapers × 32 keys, strings at 256 chars.
+- **Read-back** — every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) carries `ctx.settings`: the persisted bag, empty object when never configured. Treat the values as untrusted; clamp to your own defaults.
+- **Live apply** — each `setSettings` fires the `desktop-mode.wallpaper.settings-changed` action with `{ id, settings }` (the full post-merge bag). A mounted wallpaper subscribes and applies the change in place — no remount, so the dialog behaves as a live tuning panel.
+
+```javascript
+window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
+    id: 'my-plugin/aquarium',
+    label: 'Aquarium',
+    type: 'canvas',
+    preview: '#03252e',
+    needs: [ 'pixijs' ],
+
+    mount: async ( container, ctx ) => {
+        const fishCount = Number( ctx.settings.fishCount ) || 12;
+        const scene = await buildScene( container, fishCount );
+
+        const onSettings = ( detail ) => {
+            if ( detail?.id !== 'my-plugin/aquarium' ) {
+                return;
+            }
+            scene.setFishCount( Number( detail.settings.fishCount ) || 12 );
+        };
+        wp.hooks.addAction(
+            'desktop-mode.wallpaper.settings-changed',
+            'my-plugin/aquarium-live',
+            onSettings
+        );
+        return () => {
+            wp.hooks.removeAction(
+                'desktop-mode.wallpaper.settings-changed',
+                'my-plugin/aquarium-live'
+            );
+            scene.destroy();
+        };
+    },
+
+    renderConfig: ( container, ctx ) => {
+        const field = document.createElement( 'wpd-range-field' );
+        field.setAttribute( 'label', 'Fish' );
+        field.setAttribute( 'min', '1' );
+        field.setAttribute( 'max', '60' );
+        field.setAttribute( 'value', String( Number( ctx.settings.fishCount ) || 12 ) );
+        field.addEventListener( 'wpd-range-change', ( e ) => {
+            ctx.setSettings( { fishCount: e.detail.value } );   // persists + fires the action
+        } );
+        container.appendChild( field );
+        return () => {};
+    },
+};
+```
+
+The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-tree consumer — wind, snowflake count, flake size, and backdrop colour, all applied live.
 
 ### `window.wp.desktop` members
 

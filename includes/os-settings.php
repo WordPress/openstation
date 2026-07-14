@@ -64,6 +64,13 @@ function desktop_mode_default_os_settings() {
 			'angle' => 135,
 		),
 		'customImage'                 => null,
+		// Per-wallpaper settings bags, keyed by wallpaper id — the
+		// values a wallpaper's `renderConfig` dialog writes (e.g. the
+		// Snow wallpaper's wind / particle count / flake size /
+		// background). Scalar values only; the wallpaper owns the keys'
+		// meaning. Missing ids mean "never configured" — the wallpaper
+		// falls back to its defaults. Capped at 64 wallpapers × 32 keys.
+		'wallpaperSettings'           => array(),
 		'libraryHdOnly'               => true,
 		'ai'                          => array(
 			'enabled' => false,    // AI assistant is opt-in; enabled from OS Settings → Features once a provider is configured.
@@ -338,6 +345,59 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		}
 	}
 
+	// wallpaperSettings — map<wallpaper id, map<key, scalar>>. Wallpaper
+	// ids follow the same charset as unfocus-effect ids (slashes allowed
+	// for `vendor/sub-id` namespacing); setting keys follow the JS
+	// identifier-ish charset wallpaper authors use (camelCase, hyphens,
+	// underscores). Values must be scalar — booleans and numbers pass
+	// through typed, strings are sanitized and length-capped. Unknown
+	// wallpaper ids are kept (a deactivated wallpaper plugin's settings
+	// should survive reactivation). Capped at 64 ids × 32 keys.
+	$wallpaper_settings = array();
+	if ( isset( $raw['wallpaperSettings'] ) && is_array( $raw['wallpaperSettings'] ) ) {
+		$id_count = 0;
+		foreach ( $raw['wallpaperSettings'] as $wp_id => $bag ) {
+			if ( $id_count >= 64 ) {
+				break;
+			}
+			if ( ! is_string( $wp_id ) || '' === $wp_id || ! is_array( $bag ) ) {
+				continue;
+			}
+			$wp_slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $wp_id ) );
+			if ( '' === $wp_slug ) {
+				continue;
+			}
+			$clean_bag = array();
+			$key_count = 0;
+			foreach ( $bag as $key => $value ) {
+				if ( $key_count >= 32 ) {
+					break;
+				}
+				if ( ! is_string( $key ) || '' === $key || ! preg_match( '/^[a-zA-Z0-9_-]+$/', $key ) ) {
+					continue;
+				}
+				if ( is_bool( $value ) ) {
+					$clean_bag[ $key ] = $value;
+				} elseif ( is_int( $value ) || is_float( $value ) ) {
+					if ( ! is_finite( (float) $value ) ) {
+						continue;
+					}
+					$clean_bag[ $key ] = $value;
+				} elseif ( is_string( $value ) ) {
+					$clean_bag[ $key ] = mb_substr( sanitize_text_field( $value ), 0, 256 );
+				} else {
+					continue;
+				}
+				++$key_count;
+			}
+			if ( empty( $clean_bag ) ) {
+				continue;
+			}
+			$wallpaper_settings[ $wp_slug ] = $clean_bag;
+			++$id_count;
+		}
+	}
+
 	// Library HD only — boolean.
 	$library_hd_only = isset( $raw['libraryHdOnly'] ) ? (bool) $raw['libraryHdOnly'] : $defaults['libraryHdOnly'];
 
@@ -531,6 +591,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'windowLinkHighlight'         => $window_link_highlight,
 		'customGradient'              => $custom_gradient,
 		'customImage'                 => $custom_image,
+		'wallpaperSettings'           => $wallpaper_settings,
 		'libraryHdOnly'               => $library_hd_only,
 		'ai'                          => $ai,
 		'heartbeatRate'               => $heartbeat_rate,

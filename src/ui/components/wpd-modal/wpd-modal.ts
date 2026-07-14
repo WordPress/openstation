@@ -37,7 +37,7 @@ export class WpdModal extends Component {
 	static help = {
 		title: 'Modal overlay',
 		summary:
-			'Overlay container with title, body, and footer slots. Handles ESC, click-outside, focus trap. Use for rich modal flows that go beyond a yes/no confirm.',
+			'Overlay container with title, body, and footer slots. Handles ESC, click-outside, focus trap. Use for rich modal flows that go beyond a yes/no confirm. The dialog surface is dark and re-points the shared surface tokens (--desktop-mode-text/-muted/-border, --wpd-button-bg-hover) so wpd-* controls slotted into it resolve readable dark-surface colors automatically.',
 		status: 'experimental',
 		since: '0.8.5',
 		props: [

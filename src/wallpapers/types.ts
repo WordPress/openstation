@@ -37,6 +37,20 @@ export interface WallpaperContext {
 	 * asset paths — e.g. `${ctx.pluginUrl}/assets/vendor/pixi.min.js`.
 	 */
 	pluginUrl: string;
+	/**
+	 * The current user's persisted settings for this wallpaper — the
+	 * values last written through the wallpaper's `renderConfig` dialog
+	 * (empty object when the wallpaper has never been configured). The
+	 * wallpaper owns the keys' meaning; treat every value as untrusted
+	 * and fall back to defaults for missing/invalid entries.
+	 *
+	 * This is a snapshot taken when the context was created. To follow
+	 * changes while mounted, subscribe to the
+	 * `desktop-mode.wallpaper.settings-changed` action.
+	 *
+	 * @since 0.9.5
+	 */
+	settings: Record< string, unknown >;
 }
 
 /**
@@ -104,6 +118,53 @@ export type WallpaperPreview = (
 ) => WallpaperMountResult;
 
 /**
+ * Context object passed to {@link WallpaperConfig} callbacks —
+ * everything {@link WallpaperContext} carries, plus the write half of
+ * the settings surface.
+ *
+ * @since 0.9.5
+ */
+export interface WallpaperConfigContext extends WallpaperContext {
+	/**
+	 * Merge a partial settings object into the wallpaper's persisted
+	 * settings. The shell persists the result through the OS Settings
+	 * save pipeline (localStorage + debounced user-meta sync) and fires
+	 * the `desktop-mode.wallpaper.settings-changed` action with the
+	 * post-merge object, so a mounted instance of the wallpaper can
+	 * live-apply without a remount.
+	 *
+	 * Values must be scalars (string | number | boolean) — anything
+	 * else is dropped by the server-side sanitizer on the next load.
+	 */
+	setSettings( partial: Record< string, string | number | boolean > ): void;
+}
+
+/**
+ * Optional settings dialog for the wallpaper, opened from the
+ * "Wallpaper settings" button in OS Settings (the button only renders
+ * for the selected wallpaper and only when its def carries this
+ * callback). The shell owns the dialog chrome (`<wpd-modal>`, focus
+ * trap, close/done affordances); the callback renders the form
+ * controls into the dialog body it receives.
+ *
+ * Contract mirrors `mount`: return a teardown (sync or via Promise)
+ * that releases anything the form wired up. The teardown runs when
+ * the dialog closes.
+ *
+ * Distinct from {@link WallpaperEditor} on purpose: `renderEditor` is
+ * an always-visible inline panel below the picker grid (good for one
+ * or two controls the user plays with constantly, like the custom
+ * gradient's colors); `renderConfig` is a modal for a fuller settings
+ * form that would crowd the panel.
+ *
+ * @since 0.9.5
+ */
+export type WallpaperConfig = (
+	container: HTMLElement,
+	ctx: WallpaperConfigContext,
+) => WallpaperMountResult;
+
+/**
  * Shared fields on every wallpaper definition — identification, a
  * preview value for the swatch grid in OS Settings, and the optional
  * editor callback.
@@ -152,6 +213,14 @@ interface WallpaperDefBase {
 	 * @since 0.9.5
 	 */
 	renderPreview?: WallpaperPreview;
+	/**
+	 * Optional settings dialog, opened from the "Wallpaper settings"
+	 * button OS Settings shows for the selected wallpaper. Wallpapers
+	 * without this callback show no button. See {@link WallpaperConfig}.
+	 *
+	 * @since 0.9.5
+	 */
+	renderConfig?: WallpaperConfig;
 	/**
 	 * Author-declared default parameters for `renderPreview`, exposed
 	 * to `ctx.params` after the `desktop-mode.wallpaper.preview-params`

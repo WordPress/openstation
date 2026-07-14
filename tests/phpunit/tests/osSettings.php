@@ -480,4 +480,129 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$this->assertFalse( $loaded['windowLinkRaiseOnFocus'] );
 		$this->assertTrue( $loaded['windowLinkHighlight'] );
 	}
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_includes_empty_wallpaper_settings() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertArrayHasKey( 'wallpaperSettings', $defaults );
+		$this->assertSame( array(), $defaults['wallpaperSettings'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_well_formed_wallpaper_settings() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'wallpaperSettings' => array(
+					'wp-snow'         => array(
+						'wind'          => 40,
+						'particleCount' => 900,
+						'flakeSize'     => 12.5,
+						'background'    => '#123456',
+						'enabled'       => true,
+					),
+					// Namespaced ids (`vendor/sub-id`) keep the slash.
+					'vendor/aquarium' => array( 'fishCount' => 7 ),
+				),
+			)
+		);
+		$this->assertSame( 40, $clean['wallpaperSettings']['wp-snow']['wind'] );
+		$this->assertSame( 900, $clean['wallpaperSettings']['wp-snow']['particleCount'] );
+		$this->assertSame( 12.5, $clean['wallpaperSettings']['wp-snow']['flakeSize'] );
+		$this->assertSame( '#123456', $clean['wallpaperSettings']['wp-snow']['background'] );
+		$this->assertTrue( $clean['wallpaperSettings']['wp-snow']['enabled'] );
+		$this->assertSame( 7, $clean['wallpaperSettings']['vendor/aquarium']['fishCount'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_drops_malformed_wallpaper_settings() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'wallpaperSettings' => array(
+					// Non-scalar values are dropped; the bag survives if
+					// anything valid remains.
+					'wp-snow'   => array(
+						'wind'   => 10,
+						'nested' => array( 'evil' => true ),
+					),
+					// Bags with nothing valid are dropped entirely.
+					'wp-empty'  => array( 'cb' => array( 1, 2 ) ),
+					// Chars outside the id charset are stripped (same
+					// normalization as unfocus-effect ids).
+					'<script>'  => array( 'x' => 1 ),
+					// Non-array bags are dropped.
+					'wp-string' => 'not-a-bag',
+				),
+			)
+		);
+		$this->assertSame( array( 'wind' => 10 ), $clean['wallpaperSettings']['wp-snow'] );
+		$this->assertArrayNotHasKey( 'wp-empty', $clean['wallpaperSettings'] );
+		$this->assertArrayNotHasKey( 'wp-string', $clean['wallpaperSettings'] );
+		$this->assertArrayHasKey( 'script', $clean['wallpaperSettings'] );
+		$this->assertCount( 2, $clean['wallpaperSettings'] );
+
+		// Non-array payload falls back to the default empty map.
+		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaperSettings' => 'bogus' ) );
+		$this->assertSame( array(), $clean['wallpaperSettings'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_caps_and_trims_wallpaper_settings() {
+		// String values are length-capped at 256 characters.
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'wallpaperSettings' => array(
+					'wp-snow' => array( 'label' => str_repeat( 'a', 300 ) ),
+				),
+			)
+		);
+		$this->assertSame( 256, strlen( $clean['wallpaperSettings']['wp-snow']['label'] ) );
+
+		// Wallpaper ids cap at 64 entries.
+		$many = array();
+		for ( $i = 0; $i < 70; $i++ ) {
+			$many[ 'wp-' . $i ] = array( 'x' => $i );
+		}
+		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaperSettings' => $many ) );
+		$this->assertCount( 64, $clean['wallpaperSettings'] );
+
+		// Keys per bag cap at 32.
+		$bag = array();
+		for ( $i = 0; $i < 40; $i++ ) {
+			$bag[ 'k' . $i ] = $i;
+		}
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'wallpaperSettings' => array( 'wp-snow' => $bag ) )
+		);
+		$this->assertCount( 32, $clean['wallpaperSettings']['wp-snow'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_save_os_settings
+	 * @covers ::desktop_mode_get_os_settings
+	 */
+	public function test_user_meta_round_trip_keeps_wallpaper_settings() {
+		$user_id = self::factory()->user->create();
+		desktop_mode_save_os_settings(
+			$user_id,
+			array(
+				'wallpaperSettings' => array(
+					'wp-snow' => array(
+						'wind'       => 55,
+						'background' => '#0c1a36',
+					),
+				),
+			)
+		);
+		$loaded = desktop_mode_get_os_settings( $user_id );
+		$this->assertSame( 55, $loaded['wallpaperSettings']['wp-snow']['wind'] );
+		$this->assertSame( '#0c1a36', $loaded['wallpaperSettings']['wp-snow']['background'] );
+	}
 }

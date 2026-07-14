@@ -163,6 +163,7 @@ export const DEFAULTS: OsSettingsState = {
 		angle: 135,
 	},
 	customImage: null,
+	wallpaperSettings: {},
 	libraryHdOnly: true,
 	ai: {
 		enabled: false,

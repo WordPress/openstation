@@ -17,6 +17,7 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { loadModules } from '../modules/registry';
+import { getWallpaperSettings } from './settings-store';
 import type {
 	CanvasWallpaperDef,
 	CssWallpaperDef,
@@ -35,6 +36,7 @@ export function createContext(
 		pluginUrl,
 		prefersReducedMotion: prefersReducedMotion(),
 		visible: ! document.hidden,
+		settings: getWallpaperSettings( id ),
 	};
 }
 

@@ -154,6 +154,7 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 				: DEFAULTS.windowLinkHighlight,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
+		wallpaperSettings: sanitizeWallpaperSettings( parsed.wallpaperSettings ),
 		libraryHdOnly:
 			typeof parsed.libraryHdOnly === 'boolean'
 				? parsed.libraryHdOnly
@@ -216,6 +217,80 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			parsed.dockPromotedPositions,
 		),
 	};
+}
+
+/**
+ * Coerce an untrusted `wallpaperSettings` value into per-wallpaper
+ * scalar bags. Non-scalar values are dropped; ids follow the
+ * wallpaper-id charset (`vendor/sub-id` slashes allowed, mirroring
+ * the unfocus-effect ids); keys follow the JS identifier-ish charset
+ * wallpaper authors use (`camelCase`, hyphens, underscores). Capped
+ * at 64 wallpapers × 32 keys with 256-char string values so a
+ * corrupted server payload can't bloat the cell.
+ */
+export function sanitizeWallpaperSettings(
+	raw: unknown,
+): Record< string, Record< string, string | number | boolean > > {
+	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
+		return {};
+	}
+	const out: Record<
+		string,
+		Record< string, string | number | boolean >
+	> = {};
+	let idCount = 0;
+	for ( const [ id, bag ] of Object.entries(
+		raw as Record< string, unknown >,
+	) ) {
+		if ( idCount >= 64 ) {
+			break;
+		}
+		if (
+			typeof id !== 'string' ||
+			id === '' ||
+			! /^[a-z0-9_/-]+$/.test( id )
+		) {
+			continue;
+		}
+		if ( ! bag || typeof bag !== 'object' || Array.isArray( bag ) ) {
+			continue;
+		}
+		const clean: Record< string, string | number | boolean > = {};
+		let keyCount = 0;
+		for ( const [ key, value ] of Object.entries(
+			bag as Record< string, unknown >,
+		) ) {
+			if ( keyCount >= 32 ) {
+				break;
+			}
+			if (
+				typeof key !== 'string' ||
+				key === '' ||
+				! /^[a-zA-Z0-9_-]+$/.test( key )
+			) {
+				continue;
+			}
+			if ( typeof value === 'boolean' ) {
+				clean[ key ] = value;
+			} else if (
+				typeof value === 'number' &&
+				Number.isFinite( value )
+			) {
+				clean[ key ] = value;
+			} else if ( typeof value === 'string' ) {
+				clean[ key ] = value.slice( 0, 256 );
+			} else {
+				continue;
+			}
+			keyCount++;
+		}
+		if ( keyCount === 0 ) {
+			continue;
+		}
+		out[ id ] = clean;
+		idCount++;
+	}
+	return out;
 }
 
 function sanitizeItemVisibility(
@@ -362,6 +437,12 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		...state,
 		customGradient: { ...state.customGradient },
 		customImage: state.customImage ? { ...state.customImage } : null,
+		wallpaperSettings: Object.fromEntries(
+			Object.entries( state.wallpaperSettings ).map( ( [ k, v ] ) => [
+				k,
+				{ ...v },
+			] ),
+		),
 		ai: { ...state.ai },
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
@@ -565,6 +646,7 @@ export function structuredDefaults(): OsSettingsState {
 		...DEFAULTS,
 		customGradient: { ...DEFAULTS.customGradient },
 		customImage: null,
+		wallpaperSettings: { ...DEFAULTS.wallpaperSettings },
 		ai: { ...DEFAULTS.ai },
 		// Clone the collection fields too. A shallow `...DEFAULTS`
 		// aliases these nested objects, so a later in-place mutation

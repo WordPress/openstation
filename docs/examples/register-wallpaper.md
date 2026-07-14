@@ -212,6 +212,63 @@ wp.hooks.addFilter(
 
 ---
 
+## Recipe 5 — A settings dialog with persisted values *(since 0.9.5)*
+
+`renderEditor` (Recipe 3) is an inline panel and owns its own state. For a fuller settings form with **persistence for free**, ship `renderConfig` instead: OS Settings shows a "Wallpaper settings" button for your wallpaper (only when selected, only because you opted in), clicking it opens a `<wpd-modal>` with your form inside, and `ctx.setSettings()` saves through the user's OS Settings (localStorage + user meta — values follow the user across devices).
+
+Every wallpaper context (`mount`, `renderPreview`, `renderEditor`, `renderConfig`) reads the persisted bag back as `ctx.settings`. Each `setSettings` call also fires the `desktop-mode.wallpaper.settings-changed` action with the full post-merge bag, so a mounted wallpaper applies edits live — the dialog doubles as a tuning panel.
+
+```javascript
+window.desktopModeWallpapers[ 'my-plugin/aquarium' ] = {
+    id: 'my-plugin/aquarium',
+    label: 'Aquarium',
+    type: 'canvas',
+    preview: '#04263b',
+    needs: [ 'pixijs' ],
+
+    mount: async ( container, ctx ) => {
+        // Untrusted read-back: clamp to your defaults.
+        const scene = await swim( container, Number( ctx.settings.fishCount ) || 12 );
+
+        const onSettings = ( detail ) => {
+            if ( detail?.id !== 'my-plugin/aquarium' ) {
+                return;
+            }
+            scene.setFishCount( Number( detail.settings.fishCount ) || 12 );
+        };
+        wp.hooks.addAction(
+            'desktop-mode.wallpaper.settings-changed',
+            'my-plugin/aquarium-live',
+            onSettings
+        );
+        return () => {
+            wp.hooks.removeAction(
+                'desktop-mode.wallpaper.settings-changed',
+                'my-plugin/aquarium-live'
+            );
+            scene.destroy();
+        };
+    },
+
+    renderConfig: ( container, ctx ) => {
+        const field = document.createElement( 'wpd-range-field' );
+        field.setAttribute( 'label', 'Fish' );
+        field.setAttribute( 'min', '1' );
+        field.setAttribute( 'max', '60' );
+        field.setAttribute( 'value', String( Number( ctx.settings.fishCount ) || 12 ) );
+        field.addEventListener( 'wpd-range-change', ( e ) => {
+            ctx.setSettings( { fishCount: e.detail.value } );  // persists + fires the action
+        } );
+        container.appendChild( field );
+        return () => {};
+    },
+};
+```
+
+Scalar values only (`string | number | boolean`) — the server-side sanitizer drops anything else, and caps the bag at 32 keys (strings at 256 chars). The built-in Snow wallpaper (`wp-snow`, `src/plugins/snow-wallpaper/`) is the in-tree reference: wind, snowflake count, flake size, and backdrop colour, all live-applied.
+
+---
+
 ## Removing or reordering built-ins
 
 The `desktop-mode.wallpapers` filter receives the full list — add, remove, or reorder in one shot.
@@ -238,5 +295,5 @@ The one rule worth stealing: **fetch through the framework, never raw `fetch()`*
 ## Reference
 
 - [Hooks catalog](../javascript-reference.md#4-hooks--desktop-mode) — every `desktop-mode.*` hook with its payload shape.
-- [Wallpaper registration API](../javascript-reference.md#5-wallpaper-registration-api) — full `WallpaperDef` type, including `renderPreview` / `previewParams`.
+- [Wallpaper registration API](../javascript-reference.md#5-wallpaper-registration-api) — full `WallpaperDef` type, including `renderPreview` / `previewParams` / `renderConfig`.
 - [The Living Tree — algorithm definition](../living-tree-algorithm.md) — a worked canvas-wallpaper spec that consumes REST site data.

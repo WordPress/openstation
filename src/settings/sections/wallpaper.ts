@@ -5,10 +5,21 @@
  * over the OS Settings state they render from.
  */
 
-import { __ } from '../../i18n';
+import { __, sprintf } from '../../i18n';
 import { html, render } from '../../ui/core';
 import * as registry from '../../wallpapers/registry';
-import type { WallpaperDef, WallpaperTeardown } from '../../wallpapers/types';
+import {
+	getWallpaperSettings,
+	publishWallpaperSettings,
+	type WallpaperSettings,
+} from '../../wallpapers/settings-store';
+import type {
+	WallpaperConfigContext,
+	WallpaperDef,
+	WallpaperTeardown,
+} from '../../wallpapers/types';
+import '../../ui/components/wpd-modal/wpd-modal';
+import '../../ui/components/wpd-button/wpd-button';
 import {
 	CUSTOM_GRADIENT_ID,
 	CUSTOM_IMAGE_ID,
@@ -118,6 +129,185 @@ export function selectWallpaper(
 	if ( slot ) {
 		syncWallpaperDescription( ctx, slot );
 	}
+	const configSlot = body.querySelector<HTMLElement>(
+		'.desktop-mode-os-settings__wallpaper-config-slot',
+	);
+	if ( configSlot ) {
+		syncWallpaperConfigButton( ctx, configSlot );
+	}
+}
+
+/**
+ * Render (or collapse) the "Wallpaper settings" button for the active
+ * selection. Only wallpapers whose def carries `renderConfig` get the
+ * button — for everything else the slot stays collapsed, so the
+ * surface is invisible unless the wallpaper opted in.
+ *
+ * @since 0.9.5
+ */
+export function syncWallpaperConfigButton(
+	ctx: SettingsCtx,
+	slot: HTMLElement,
+): void {
+	const inner = slot.firstElementChild as HTMLElement | null;
+	if ( ! inner ) {
+		return;
+	}
+	const def = registry.get( ctx.state.wallpaper );
+	if ( ! def || typeof def.renderConfig !== 'function' ) {
+		slot.dataset.expanded = 'false';
+		slot.style.marginTop = '';
+		return;
+	}
+	// The expanded margin also lives in os-settings.css, but this
+	// surface is reached by lazy-loaded JS in long-lived sessions
+	// whose stylesheet predates it — inline the one load-bearing
+	// spacing rule so the button never renders flush against the
+	// description card above it.
+	slot.style.marginTop = '12px';
+	render(
+		html`
+			<div class="desktop-mode-os-settings__wallpaper-config">
+				<wpd-button
+					variant="secondary"
+					@click=${ () => openWallpaperConfigDialog( ctx, def ) }
+				>
+					<wpd-icon name="admin-generic"></wpd-icon>
+					${ __( 'Wallpaper settings' ) }
+				</wpd-button>
+			</div>
+		`,
+		inner,
+	);
+	slot.dataset.expanded = 'true';
+}
+
+/**
+ * Open the wallpaper's settings dialog: a `<wpd-modal>` on
+ * `document.body` whose body is handed to the def's `renderConfig`.
+ * The shell owns the chrome (title, focus trap, Done button, ESC /
+ * click-outside); the wallpaper owns the form.
+ *
+ * The config context's `setSettings` merges into the persisted
+ * per-wallpaper bag, saves through the normal OS Settings pipeline,
+ * and publishes to the shared store — which fires
+ * `desktop-mode.wallpaper.settings-changed` so a mounted instance of
+ * the wallpaper live-applies without a remount.
+ *
+ * @since 0.9.5
+ */
+export function openWallpaperConfigDialog(
+	ctx: SettingsCtx,
+	def: WallpaperDef,
+): void {
+	if ( typeof def.renderConfig !== 'function' ) {
+		return;
+	}
+
+	const modal = document.createElement( 'wpd-modal' );
+	modal.setAttribute( 'size', 'sm' );
+	modal.setAttribute(
+		'title',
+		sprintf(
+			/* translators: %s: wallpaper name. */
+			__( '%s settings' ),
+			def.label,
+		),
+	);
+
+	const body = document.createElement( 'div' );
+	body.className = 'desktop-mode-os-settings__wallpaper-config-form';
+	// Same class exists in os-settings.css, but the dialog opens from
+	// lazy-loaded JS in sessions whose stylesheet may predate this
+	// surface — without the column layout the fields flow inline and
+	// the form is unreadable. Inline the critical rules so the dialog
+	// is correct in every session; the stylesheet adds the finish.
+	body.style.display = 'flex';
+	body.style.flexDirection = 'column';
+	body.style.gap = '14px';
+	modal.appendChild( body );
+
+	const done = document.createElement( 'wpd-button' );
+	done.setAttribute( 'slot', 'footer' );
+	done.setAttribute( 'variant', 'primary' );
+	done.textContent = __( 'Done' );
+	modal.appendChild( done );
+
+	let configTeardown: WallpaperTeardown | null = null;
+	let closed = false;
+	const close = (): void => {
+		if ( closed ) {
+			return;
+		}
+		closed = true;
+		if ( configTeardown ) {
+			try {
+				configTeardown();
+			} catch ( err ) {
+				if ( typeof console !== 'undefined' ) {
+					console.error(
+						`[desktop-mode] Wallpaper "${ def.id }" config teardown threw:`,
+						err,
+					);
+				}
+			}
+			configTeardown = null;
+		}
+		modal.remove();
+	};
+	done.addEventListener( 'click', close );
+	modal.addEventListener( 'wpd-modal-cancel', close );
+
+	const configCtx: WallpaperConfigContext = {
+		id: def.id,
+		pluginUrl: '',
+		prefersReducedMotion:
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia( '( prefers-reduced-motion: reduce )' ).matches,
+		visible: ! document.hidden,
+		settings: getWallpaperSettings( def.id ),
+		setSettings: ( partial ) => {
+			const merged: WallpaperSettings = {
+				...( ctx.state.wallpaperSettings[ def.id ] ?? {} ),
+				...partial,
+			};
+			ctx.state.wallpaperSettings[ def.id ] = merged;
+			ctx.save();
+			publishWallpaperSettings( def.id, merged );
+		},
+	};
+
+	document.body.appendChild( modal );
+	modal.setAttribute( 'open', '' );
+
+	try {
+		const result = def.renderConfig( body, configCtx );
+		if ( isPromise( result ) ) {
+			result.then( ( teardown: WallpaperTeardown ) => {
+				if ( closed ) {
+					// The user closed the dialog before the async render
+					// resolved — release immediately.
+					try {
+						teardown();
+					} catch {
+						/* best-effort */
+					}
+					return;
+				}
+				configTeardown = teardown;
+			} );
+		} else {
+			configTeardown = result;
+		}
+	} catch ( err ) {
+		if ( typeof console !== 'undefined' ) {
+			console.error(
+				`[desktop-mode] Wallpaper "${ def.id }" renderConfig threw:`,
+				err,
+			);
+		}
+		close();
+	}
 }
 
 /**
@@ -212,6 +402,7 @@ export function syncEditorSlot(
 			typeof window.matchMedia === 'function' &&
 			window.matchMedia( '( prefers-reduced-motion: reduce )' ).matches,
 		visible: ! document.hidden,
+		settings: getWallpaperSettings( def.id ),
 	};
 
 	try {
@@ -375,6 +566,17 @@ export function buildWallpaperSection(
 		'desktop-mode-os-settings__wallpaper-description-slot-inner';
 	descriptionSlot.appendChild( descriptionInner );
 
+	// Config slot: same collapsing pattern, hosting the "Wallpaper
+	// settings" button when the selected wallpaper ships a
+	// `renderConfig` dialog (see syncWallpaperConfigButton).
+	const configSlot = document.createElement( 'div' );
+	configSlot.className = 'desktop-mode-os-settings__wallpaper-config-slot';
+	configSlot.dataset.expanded = 'false';
+	const configInner = document.createElement( 'div' );
+	configInner.className =
+		'desktop-mode-os-settings__wallpaper-config-slot-inner';
+	configSlot.appendChild( configInner );
+
 	const onPick = ( e: Event ): void => {
 		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
 		const def = registry.get( id );
@@ -428,7 +630,8 @@ export function buildWallpaperSection(
 								</wpd-swatch>`,
 		) }
 					</div>
-					${ descriptionSlot } ${ editorSlot } ${ customImageSection }
+					${ descriptionSlot } ${ configSlot } ${ editorSlot }
+					${ customImageSection }
 				</wpd-section>
 			`,
 			wrapper,
@@ -444,6 +647,7 @@ export function buildWallpaperSection(
 		syncEditorSlot( ctx, editorSlot, editorInner, active );
 	}
 	syncWallpaperDescription( ctx, descriptionSlot );
+	syncWallpaperConfigButton( ctx, configSlot );
 
 	// Live-update when plugins register or unregister wallpapers
 	// mid-session. The server-sync module fires register()/unregister()
@@ -471,6 +675,7 @@ export function buildWallpaperSection(
 			syncEditorSlot( ctx, editorSlot, editorInner, now );
 		}
 		syncWallpaperDescription( ctx, descriptionSlot );
+		syncWallpaperConfigButton( ctx, configSlot );
 	} );
 
 	return wrapper;

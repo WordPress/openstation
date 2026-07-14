@@ -177,12 +177,36 @@ class Tests_DesktopMode_Wallpapers extends WP_UnitTestCase {
 		}
 
 		// Every built-in ships a non-empty description…
-		foreach ( array( 'dark', 'aurora', 'sunset', 'forest', 'mono', 'wp-animated-logo', 'wp-living-tree' ) as $id ) {
+		foreach ( array( 'dark', 'aurora', 'sunset', 'forest', 'mono', 'wp-animated-logo', 'wp-living-tree', 'wp-snow' ) as $id ) {
 			$this->assertArrayHasKey( $id, $by_id );
 			$this->assertNotSame( '', $by_id[ $id ]['description'], "{$id} should carry a description" );
 		}
 		// …and the Living Tree's is the open-source tribute.
 		$this->assertStringContainsString( 'Matt Mullenweg', $by_id['wp-living-tree']['description'] );
 		$this->assertStringContainsString( 'open source', $by_id['wp-living-tree']['description'] );
+	}
+
+	/**
+	 * The Snow wallpaper is a canvas built-in: it must declare its
+	 * script handle (the def with `mount` / `renderConfig` is published
+	 * on the JS global by that script), and its picker swatch must
+	 * match the default backdrop the JS side paints — the swatch
+	 * renders before the wallpaper script has ever loaded, so a
+	 * mismatch would show one sky in the picker and a different one
+	 * once selected.
+	 *
+	 * @covers ::desktop_mode_register_builtin_wallpapers
+	 */
+	public function test_snow_builtin_is_canvas_with_script_and_backdrop_preview() {
+		$snow = desktop_mode_desktop_wallpaper_registry( 'wp-snow' );
+
+		$this->assertIsArray( $snow );
+		$this->assertSame( 'canvas', $snow['type'] );
+		$this->assertSame( 'desktop-mode-snow-wallpaper', $snow['script'] );
+		$this->assertTrue( wp_script_is( 'desktop-mode-snow-wallpaper', 'registered' ) );
+		$this->assertSame(
+			'linear-gradient(180deg, #0c1a36 0%, #1d355e 55%, #425d8a 100%)',
+			$snow['preview']
+		);
 	}
 }

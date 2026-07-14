@@ -10,6 +10,24 @@ export const modalStyles = css`
 		background: rgba( 0, 0, 0, 0.45 );
 		backdrop-filter: blur( 2px );
 		z-index: 10000;
+
+		/* The dialog surface is dark regardless of the admin color
+		   scheme, but the shared surface tokens the component kit
+		   reads (labels, value readouts, control borders) default to
+		   light-admin values — near-black text and gray hairlines
+		   that vanish on this background. Re-point them here so both
+		   shadow internals AND slotted light-DOM content (custom
+		   properties cross the slot boundary) resolve readable
+		   dark-surface colors. Anything can still override per
+		   instance — these carry normal cascade specificity. */
+		--desktop-mode-text: #f0f0f1;
+		--desktop-mode-text-muted: #bbc1c7;
+		--desktop-mode-muted: #a7aaad;
+		--desktop-mode-muted-fg: #a7aaad;
+		--desktop-mode-border: rgba( 255, 255, 255, 0.25 );
+		/* Ghost/secondary button hover washes — the light-surface
+		   defaults are black-on-black here. */
+		--wpd-button-bg-hover: rgba( 255, 255, 255, 0.08 );
 	}
 
 	:host( [ open ] ) {

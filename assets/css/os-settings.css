@@ -245,6 +245,59 @@
 }
 
 /*
+ * Wallpaper config slot — hosts the "Wallpaper settings" button when
+ * the ACTIVE wallpaper ships a `renderConfig` dialog. Same 0fr → 1fr
+ * collapse as the slots above; TS drives `[data-expanded]` from
+ * `syncWallpaperConfigButton()`.
+ */
+.desktop-mode-os-settings__wallpaper-config-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.desktop-mode-os-settings__wallpaper-config-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.desktop-mode-os-settings__wallpaper-config-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-config wpd-icon {
+	margin-inline-end: 4px;
+}
+
+/*
+ * Wallpaper config dialog body — the container `renderConfig` renders
+ * into inside the `<wpd-modal>`. A simple vertical rhythm; each
+ * `<wpd-*>` field owns its own label / control styling. The critical
+ * column rules are ALSO inlined by the dialog opener (long-lived
+ * sessions can lazy-load the dialog with a stylesheet that predates
+ * this block); keep the two in sync.
+ */
+.desktop-mode-os-settings__wallpaper-config-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+/* Bare buttons in a config form (Reset to defaults and friends) are
+ * actions, not fields — don't stretch them to the column width. */
+.desktop-mode-os-settings__wallpaper-config-form > wpd-button {
+	align-self: flex-start;
+}
+
+/*
  * Custom-gradient editor fills the inner slot. Kept as a separate
  * class (vs. scoping to __editor-slot-inner) so a future plugin
  * renderEditor can opt out of these per-control rules.
@@ -587,6 +640,7 @@
  * --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
 	.desktop-mode-os-settings__editor-slot,
+	.desktop-mode-os-settings__wallpaper-config-slot,
 	.desktop-mode-os-settings__upload-tile,
 	.desktop-mode-os-settings__library-tile,
 	wpd-swatch {

@@ -45,7 +45,7 @@ export const styles = css`
 		cursor: not-allowed;
 	}
 	button:hover:not( :disabled ) {
-		background: rgba( 0, 0, 0, 0.04 );
+		background: var( --wpd-button-bg-hover, rgba( 0, 0, 0, 0.04 ) );
 	}
 	/* Primary */
 	:host( [ variant='primary' ] ) button {

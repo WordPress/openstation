@@ -392,6 +392,17 @@ const TARGETS = {
 		fileBase: 'living-tree-wallpaper',
 		iifeName: 'desktopModeLivingTreeWallpaper',
 	},
+	// Snow wallpaper — built-in canvas wallpaper: PixiJS snowfall that
+	// accumulates on window tops (via `wp.desktop.getWallpaperSurfaces`)
+	// and melts away. Lazy-loaded by the wallpaper server-sync when
+	// selected. Publishes the `WallpaperDef` on
+	// `window.desktopModeWallpapers['wp-snow']`; first built-in
+	// consumer of the `renderConfig` wallpaper-settings dialog.
+	'snow-wallpaper': {
+		entry:    'src/plugins/snow-wallpaper/index.ts',
+		fileBase: 'snow-wallpaper',
+		iifeName: 'desktopModeSnowWallpaper',
+	},
 	// About-scene — the PixiJS particle scene rendered inside OS
 	// Settings → About. ~25 kB of code that only ever runs after the
 	// user explicitly opens that tab. Loaded by the main-bundle

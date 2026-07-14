@@ -24,6 +24,7 @@
 
 import { applyFilters, HOOKS } from '../../hooks';
 import * as registry from '../../wallpapers/registry';
+import { getWallpaperSettings } from '../../wallpapers/settings-store';
 import type {
 	WallpaperDef,
 	WallpaperPreviewContext,
@@ -246,6 +247,7 @@ export function createWallpaperPreviewManager(
 			pluginUrl: pluginUrl(),
 			prefersReducedMotion: prefersReducedMotion(),
 			visible: ! document.hidden,
+			settings: getWallpaperSettings( def.id ),
 			params: previewParams( def ),
 			width: p.mountWidth,
 			height: p.mountHeight,
