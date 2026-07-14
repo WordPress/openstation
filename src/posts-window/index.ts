@@ -2418,6 +2418,18 @@ export async function renderPostsWindow(
 		);
 	};
 
+	// A query change (page, search, status, sort, column filters)
+	// replaces the result set, but `<wpd-table>` keeps selected ids
+	// across `data` reassignment — and bulk actions consume the raw
+	// selection (`ctx.getSelectedIds()`), not the visible rows. Left
+	// alone, off-page ids ride silently into the next bulk action.
+	// Called from every query-changing handler; deliberately NOT from
+	// refresh() itself so background broadcast-driven reloads don't
+	// wipe a selection the user is in the middle of building.
+	const clearSelectionOnQueryChange = (): void => {
+		table.clearSelection();
+	};
+
 	const buildParams = (): PostsListParams => ( {
 		page: view.page,
 		perPage: view.perPage,
@@ -2534,6 +2546,7 @@ export async function renderPostsWindow(
 		const value = ( e as CustomEvent< { value: string } > ).detail?.value ?? '';
 		view.status = value;
 		goToFirstPage();
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 
@@ -2548,6 +2561,7 @@ export async function renderPostsWindow(
 			}
 			view.searchDebounce = window.setTimeout( () => {
 				goToFirstPage();
+				clearSelectionOnQueryChange();
 				void refresh();
 			}, SEARCH_DEBOUNCE_MS );
 		},
@@ -2573,6 +2587,7 @@ export async function renderPostsWindow(
 		if ( target.closest( PREV ) ) {
 			if ( view.page > 1 ) {
 				view.page -= 1;
+				clearSelectionOnQueryChange();
 				void refresh();
 			}
 			return;
@@ -2580,6 +2595,7 @@ export async function renderPostsWindow(
 		if ( target.closest( NEXT ) ) {
 			if ( view.page < totalPages ) {
 				view.page += 1;
+				clearSelectionOnQueryChange();
 				void refresh();
 			}
 		}
@@ -2611,6 +2627,7 @@ export async function renderPostsWindow(
 		}
 		view.perPage = next;
 		goToFirstPage();
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 
@@ -2629,6 +2646,7 @@ export async function renderPostsWindow(
 			view.orderby = mapColumnToOrderby( detail.sort.key );
 			view.order = detail.sort.direction;
 		}
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 
@@ -2660,6 +2678,7 @@ export async function renderPostsWindow(
 		view.author = nextAuthor;
 		view.tag = nextTag;
 		view.page = 1;
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 

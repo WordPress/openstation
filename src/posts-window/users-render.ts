@@ -867,6 +867,15 @@ export async function renderUsersWindow(
 		perPageEl.value = String( view.perPage );
 	}
 
+	// A query change (page, search, status, per-page) replaces the
+	// result set, but `<wpd-table>` keeps selected ids across `data`
+	// reassignment — and the bulk role apply consumes the raw
+	// selection. Left alone, off-page ids ride silently into the next
+	// bulk action. Called from every query-changing handler.
+	const clearSelectionOnQueryChange = (): void => {
+		table.clearSelection();
+	};
+
 	const indicator = root.querySelector< HTMLElement >( PAGE_INDICATOR );
 	const prevBtn = root.querySelector< HTMLButtonElement >( PREV );
 	const nextBtn = root.querySelector< HTMLButtonElement >( NEXT );
@@ -888,6 +897,7 @@ export async function renderUsersWindow(
 			const detail = ( e as CustomEvent< { value: string } > ).detail;
 			view.status = detail?.value ?? '';
 			view.page = 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		} );
 	}
@@ -902,6 +912,7 @@ export async function renderUsersWindow(
 			view.searchDebounce = window.setTimeout( () => {
 				view.search = searchEl.value.trim();
 				view.page = 1;
+				clearSelectionOnQueryChange();
 				void refresh();
 			}, SEARCH_DEBOUNCE_MS );
 		} );
@@ -942,6 +953,7 @@ export async function renderUsersWindow(
 		if ( Number.isFinite( n ) && n > 0 ) {
 			view.perPage = n;
 			view.page = 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		}
 	} );
@@ -1045,6 +1057,11 @@ export async function renderUsersWindow(
 				} else {
 					notifyToast( __( 'No users updated.' ), { kind: 'error' } );
 				}
+				// The action is complete — drop the selection so a second
+				// Apply can't silently re-target the same (possibly now
+				// off-page) user set. Emits selection-change, which hides
+				// the bulk bar.
+				table.clearSelection();
 				void refresh();
 			} );
 
@@ -1059,12 +1076,14 @@ export async function renderUsersWindow(
 	prevBtn?.addEventListener( 'click', () => {
 		if ( view.page > 1 ) {
 			view.page -= 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		}
 	} );
 	nextBtn?.addEventListener( 'click', () => {
 		if ( view.page < totalPages ) {
 			view.page += 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		}
 	} );

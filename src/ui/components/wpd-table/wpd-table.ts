@@ -573,14 +573,20 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		this._syncSelectionDom( [ id ] );
 	}
 
-	/** Select every row currently in `data` (multi-mode only). */
+	/** Select every visible row — the rows passing the active client-side filters (multi-mode only). */
 	selectAll(): void {
 		if ( this._readSelectable() !== 'multi' ) {
 			return;
 		}
-		this._data.forEach( ( row, i ) =>
-			this._selection.add( this._getRowId( row, i ) ),
-		);
+		// Only the rows the user can see. Selecting the full `_data`
+		// buffer would let the header checkbox silently sweep rows a
+		// client-side column filter is hiding — and a destructive bulk
+		// action would then hit rows the user never saw. Tables without
+		// client-side filters are unaffected (`_filteredRows()` returns
+		// the full buffer).
+		for ( const { row, index } of this._filteredRows() ) {
+			this._selection.add( this._getRowId( row, index ) );
+		}
 		this._emitSelectionChange();
 		this._syncSelectionDom( 'all' );
 	}
@@ -661,11 +667,9 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 			'thead .select-all-checkbox',
 		);
 		if ( headerCb ) {
-			const total = this._data.length;
-			const selectedCount = this._countSelectedInData();
-			headerCb.checked = total > 0 && selectedCount === total;
-			headerCb.indeterminate =
-				selectedCount > 0 && selectedCount < total;
+			const { total, selected } = this._visibleSelectionStats();
+			headerCb.checked = total > 0 && selected === total;
+			headerCb.indeterminate = selected > 0 && selected < total;
 		}
 	}
 
@@ -1020,10 +1024,9 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 				cb.className = 'select-all-checkbox';
 				cb.setAttribute( 'data-noclick', '' );
 				cb.setAttribute( 'aria-label', 'Select all rows' );
-				const total = this._data.length;
-				const selectedCount = this._countSelectedInData();
-				cb.checked = total > 0 && selectedCount === total;
-				cb.indeterminate = selectedCount > 0 && selectedCount < total;
+				const { total, selected } = this._visibleSelectionStats();
+				cb.checked = total > 0 && selected === total;
+				cb.indeterminate = selected > 0 && selected < total;
 				cb.addEventListener( 'change', () => {
 					if ( cb.checked ) {
 						this.selectAll();
@@ -1588,14 +1591,23 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 		return Array.from( seen ).sort();
 	}
 
-	private _countSelectedInData(): number {
-		let n = 0;
-		this._data.forEach( ( row, i ) => {
-			if ( this._selection.has( this._getRowId( row, i ) ) ) {
-				n++;
+	/**
+	 * Selection stats over the VISIBLE (client-side-filtered) rows —
+	 * the same set `selectAll()` operates on. The header select-all
+	 * tri-state derives from these so "checked" always means "every
+	 * row the user can see is selected", even while ids of currently
+	 * hidden rows linger in the selection set.
+	 */
+	private _visibleSelectionStats(): { total: number; selected: number } {
+		let total = 0;
+		let selected = 0;
+		for ( const { row, index } of this._filteredRows() ) {
+			total++;
+			if ( this._selection.has( this._getRowId( row, index ) ) ) {
+				selected++;
 			}
-		} );
-		return n;
+		}
+		return { total, selected };
 	}
 
 	// ------------------------------------------------------------------

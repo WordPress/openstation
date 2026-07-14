@@ -676,6 +676,13 @@ async function renderCommentsWindow( body: HTMLElement ): Promise< void > {
 			// into it; see the matching note in wirePanel().
 			await customElements.whenDefined( 'wpd-table' );
 			state.table.data = state.rows;
+			// `<wpd-table>` keeps its selection set across `data`
+			// reassignment, and bulk actions here act on the RAW
+			// selected ids (not resolved through the visible rows) —
+			// so ids from the previous result set would silently ride
+			// into the next moderation action. Every data replacement
+			// starts with a clean selection.
+			state.table.clearSelection();
 			updatePager( state );
 			if ( tab === 'pending' && ! opts.force ) {
 				if ( lastSeenPending === 0 ) {
@@ -1283,6 +1290,10 @@ async function reloadActivePanel( state: PanelState ): Promise< void > {
 		state.totalPages = result.totalPages;
 		await customElements.whenDefined( 'wpd-table' );
 		state.table.data = state.rows;
+		// See the matching note in refresh(): stale selected ids must
+		// not survive a data replacement (pagination, search, manual
+		// refresh) — they'd be swept into the next bulk action.
+		state.table.clearSelection();
 		updatePager( state );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
@@ -1549,16 +1560,11 @@ async function runBulk(
 			counts: result.counts,
 		} );
 		updateDockBadge( result.counts.pending );
+		// refresh() clears the table selection after the new data
+		// lands, so the acted-on ids can't linger as phantoms in the
+		// next bulk action; clearSelection() emits
+		// `wpd-table-selection-change`, which hides the bulk bar.
 		await refresh( state.tab, { force: true } );
-		// The acted-on rows have left (or changed in) the current tab, but
-		// `<wpd-table>` deliberately keeps its selection set across data
-		// refreshes (stale ids are only hidden at paint time — see
-		// wpd-table.ts). Left alone, those ids linger in `table.selection`,
-		// so the next row the user picks reads as "2 selected" and a
-		// follow-up bulk action operates on the phantom id too. Reset the
-		// selection here; clearSelection() emits `wpd-table-selection-change`,
-		// which refreshes the "N selected" chip and hides the bulk bar.
-		state.table?.clearSelection();
 	} catch ( err ) {
 		/* translators: %s: bulk action name (e.g. "approve", "spam"). */
 		const fallback = sprintf( __( 'Bulk %s failed.' ), action );

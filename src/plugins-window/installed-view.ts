@@ -181,6 +181,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	statusFilter.addEventListener( 'wpd-pick', ( ev: Event ) => {
 		const detail = ( ev as CustomEvent< { value: string } > ).detail;
 		state.statusFilter = detail?.value ?? '';
+		// `<wpd-table>` keeps selected ids across `data` reassignment,
+		// so a plugin ticked under the previous filter would stay
+		// selected while hidden — and ride silently into the next bulk
+		// action (bulk Delete included). Start each view clean.
+		table.clearSelection();
 		paintTable();
 	} );
 
@@ -195,6 +200,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		window.clearTimeout( searchDebounce );
 		searchDebounce = window.setTimeout( () => {
 			state.search = value;
+			// Same rationale as the status-filter handler above.
+			table.clearSelection();
 			paintTable();
 		}, 200 );
 	} );

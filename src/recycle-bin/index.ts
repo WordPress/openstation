@@ -210,8 +210,10 @@ function itemsFingerprint( items: RecycleBinItem[] ): string {
 	// Sort first — server order can vary on ties (same `modified`
 	// timestamp). Comparing the sorted projection makes the
 	// fingerprint stable against ordering churn.
+	// Type-qualified like getRowId — post #5 and comment #5 are
+	// distinct items and must produce distinct fingerprint parts.
 	const parts = items
-		.map( ( i ) => `${ i.id }:${ i.deleted_at }` )
+		.map( ( i ) => `${ i.type }:${ i.id }:${ i.deleted_at }` )
 		.sort();
 	return parts.join( '|' );
 }
@@ -512,7 +514,14 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	currentRowActionPurge = ( ref ) => void handlePurge( [ ref ] );
 
 	table.columns = buildColumns();
-	table.getRowId = ( row ) => row.id;
+	// Composite identity — the bin mixes entity types whose numeric id
+	// sequences are independent (comments live in wp_comments; posts /
+	// pages / attachments in wp_posts; placements / folders / shortcuts
+	// in their own tables), so post #5 and comment #5 routinely coexist
+	// in the list. A bare `row.id` would give both rows the SAME
+	// selection key: ticking one would select — and bulk-purge — the
+	// other. Qualifying with the type makes identity unambiguous.
+	table.getRowId = ( row ) => `${ row.type }:${ row.id }`;
 	// No `fileTypeForRow` here on purpose: trashed items are
 	// for restoring, not for pinning to the desktop. The Pin to
 	// Desktop toolbar action still covers the rare "I want both
@@ -637,13 +646,15 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	// Each selection entry resolves back to the row so we know its
-	// `type` — bulk handlers send `[{id, type}]` to the server.
+	// `type` — bulk handlers send `[{id, type}]` to the server. Keys
+	// are the composite `type:id` produced by getRowId above; matching
+	// on the bare numeric id would fan one selected row out to every
+	// same-id row of another type.
 	const collectSelectedItems = (): RecycleBinItemRef[] => {
-		const sel = Array.from( table.selection ?? [] );
-		const idSet = new Set( sel.map( ( id ) => Number( id ) ) );
+		const sel = new Set( Array.from( table.selection ?? [], String ) );
 		const out: RecycleBinItemRef[] = [];
 		for ( const row of table.data ?? [] ) {
-			if ( idSet.has( row.id ) ) {
+			if ( sel.has( `${ row.type }:${ row.id }` ) ) {
 				out.push( { id: row.id, type: row.type } );
 			}
 		}
@@ -881,6 +892,11 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	root.querySelector( FILTER )?.addEventListener( 'wpd-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { value: string } > ).detail;
 		state.filter = ( detail?.value ?? '' ) as BinState[ 'filter' ];
+		// The result set is about to change wholesale. `<wpd-table>`
+		// keeps selected ids across `data` reassignment, so ids picked
+		// under the previous filter would linger invisibly and resurface
+		// checked when the user switches back. Start the new view clean.
+		table.clearSelection();
 		void refresh();
 	} );
 
@@ -892,6 +908,8 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			window.clearTimeout( state.searchDebounce );
 		}
 		state.searchDebounce = window.setTimeout( () => {
+			// Same rationale as the type-filter handler above.
+			table.clearSelection();
 			void refresh();
 		}, 250 );
 	} );
