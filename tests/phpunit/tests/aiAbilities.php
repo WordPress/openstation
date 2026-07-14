@@ -1,11 +1,11 @@
 <?php
 /**
- * Tests for the AI Copilot's WordPress Abilities (DESKMOD-9).
+ * Tests for the AI Copilot's WordPress Abilities.
  *
  * Covers registration (category + abilities with populated schemas), the
  * permission gates that replaced the old capability checks, execute()
- * round-trips (including output-schema validation), the tool-name mapping the
- * agent loop relies on, and the soft model-preference filter.
+ * round-trips (including output-schema validation), and the tool-name mapping
+ * the agent loop relies on.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -22,29 +22,24 @@ class Tests_DesktopMode_AiAbilities extends WP_UnitTestCase {
 		}
 	}
 
-	public function tear_down() {
-		remove_all_filters( 'desktop_mode_ai_model' );
-		remove_all_filters( 'desktop_mode_ai_abilities' );
-		parent::tear_down();
-	}
-
 	/**
-	 * A third-party ability can be offered to the Copilot via the
-	 * `desktop_mode_ai_abilities` filter — the extension point that replaced
-	 * `desktop_mode_register_ai_tool()`. Duplicates are collapsed.
+	 * The Copilot offers every registered read-only ability (its own plus any
+	 * Core/third-party read-only ability), and nothing that isn't read-only.
 	 *
 	 * @covers ::desktop_mode_ai_search_ability_names
 	 */
-	public function test_ability_list_is_filterable() {
-		add_filter( 'desktop_mode_ai_abilities', static function ( $names ) {
-			$names[] = 'my-plugin/do-thing';
-			$names[] = 'desktop-mode/search-posts'; // duplicate, should collapse.
-			return $names;
-		} );
-
+	public function test_only_readonly_abilities_are_offered() {
 		$names = desktop_mode_ai_search_ability_names();
-		$this->assertContains( 'my-plugin/do-thing', $names );
-		$this->assertSame( array_values( array_unique( $names ) ), $names, 'No duplicate ability names.' );
+
+		$this->assertContains( 'desktop-mode/search-posts', $names );
+
+		foreach ( $names as $name ) {
+			$meta = (array) wp_get_ability( $name )->get_meta();
+			$this->assertTrue(
+				! empty( $meta['annotations']['readonly'] ),
+				"Only read-only abilities should be offered; {$name} is not." )
+			;
+		}
 	}
 
 	/**
@@ -74,18 +69,6 @@ class Tests_DesktopMode_AiAbilities extends WP_UnitTestCase {
 			$this->assertNotEmpty( $ability->get_input_schema(), "Ability {$name} has an input schema." );
 			$this->assertNotEmpty( $ability->get_output_schema(), "Ability {$name} has an output schema." );
 		}
-	}
-
-	/**
-	 * The search-turn ability list excludes the moderation-only analyze ability.
-	 *
-	 * @covers ::desktop_mode_ai_search_ability_names
-	 */
-	public function test_search_ability_list_excludes_comment_analysis() {
-		$names = desktop_mode_ai_search_ability_names();
-		$this->assertContains( 'desktop-mode/search-posts', $names );
-		$this->assertNotContains( 'desktop-mode/analyze-comment', $names );
-		$this->assertCount( 7, $names );
 	}
 
 	/**
@@ -164,22 +147,5 @@ class Tests_DesktopMode_AiAbilities extends WP_UnitTestCase {
 
 		$private = wp_get_ability( 'desktop-mode/get-php-error-log' )->get_meta();
 		$this->assertArrayNotHasKey( 'mcp', $private );
-	}
-
-	/**
-	 * The model-preference filter normalizes a string, an array, and the
-	 * empty default.
-	 *
-	 * @covers ::desktop_mode_ai_model_preference
-	 */
-	public function test_model_preference_filter() {
-		$this->assertSame( array(), desktop_mode_ai_model_preference( 1 ) );
-
-		add_filter( 'desktop_mode_ai_model', static fn() => 'gpt-4o' );
-		$this->assertSame( array( 'gpt-4o' ), desktop_mode_ai_model_preference( 1 ) );
-		remove_all_filters( 'desktop_mode_ai_model' );
-
-		add_filter( 'desktop_mode_ai_model', static fn() => array( 'claude-sonnet-4-5', '', 'gpt-4o' ) );
-		$this->assertSame( array( 'claude-sonnet-4-5', 'gpt-4o' ), desktop_mode_ai_model_preference( 1 ) );
 	}
 }

@@ -122,11 +122,9 @@ Non-admin callers sending `mode: 'replace'` get a silent downgrade to append —
 
 ## 4. PHP-side: register a server-dispatched tool (WordPress ability)
 
-When the tool's logic is inherently server-side (database lookups, WooCommerce, WP-CLI wrappers), skip the command path and register a WordPress [ability](https://developer.wordpress.org/). The Copilot's own built-in tools are abilities too (category `desktop-mode`, listed at `GET /wp-abilities/v1/abilities`). Two steps: register the ability, then add its name to the Copilot's tool list.
+When the tool's logic is inherently server-side (database lookups, WooCommerce, WP-CLI wrappers), skip the command path and register a [WordPress Ability](https://developer.wordpress.org/apis/abilities-api/). The Copilot offers the model every **read-only** ability on the site — its own built-ins plus yours — so there's just one step: register a read-only ability.
 
 ```php
-// 1. Register the ability. permission_callback + schemas are enforced by Core
-//    inside execute(); a denial or bad input becomes a clean tool error.
 add_action( 'wp_abilities_api_init', function () {
     wp_register_ability( 'my-plugin/list-recent-orders', array(
         'label'               => __( 'List recent orders', 'my-plugin' ),
@@ -144,6 +142,10 @@ add_action( 'wp_abilities_api_init', function () {
             ),
         ),
         'output_schema'       => array( 'type' => 'object', 'additionalProperties' => true ),
+        // Mark it read-only so the assistant offers it (only read-only
+        // abilities are advertised — a search turn can be steered by
+        // attacker-controlled content).
+        'meta'                => array( 'annotations' => array( 'readonly' => true ) ),
         'permission_callback' => function () {
             return current_user_can( 'manage_woocommerce' );
         },
@@ -162,15 +164,9 @@ add_action( 'wp_abilities_api_init', function () {
         },
     ) );
 } );
-
-// 2. Offer it to the Copilot as a tool.
-add_filter( 'desktop_mode_ai_abilities', function ( array $names ) {
-    $names[] = 'my-plugin/list-recent-orders';
-    return $names;
-} );
 ```
 
-No JS required. The agent loop advertises the ability to the model and dispatches calls through `wp_get_ability()->execute()`, so users without `manage_woocommerce` get a clean permission error instead of a result.
+No JS required, and no opt-in step. The agent loop advertises the ability to the model and dispatches calls through `wp_get_ability()->execute()`, so users without `manage_woocommerce` get a clean permission error instead of a result.
 
 ## 5. Observability
 

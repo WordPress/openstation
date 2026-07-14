@@ -2,10 +2,11 @@
 /**
  * Desktop Mode — AI Copilot abilities.
  *
- * DESKMOD-9: the Copilot's tools are WordPress Abilities API abilities. Core's
- * AI Client turns them into tool/function declarations (`using_abilities()`),
- * and a `WP_AI_Client_Ability_Function_Resolver` runs them — permission checks
- * and input validation happen inside `WP_Ability::execute()`.
+ * The Copilot's tools are WordPress Abilities API abilities: the agent loop
+ * offers the model every registered read-only ability (see
+ * {@see desktop_mode_ai_search_ability_names()}) and runs a chosen one through
+ * `wp_get_ability()->execute()` — permission checks and input validation
+ * happen inside `WP_Ability::execute()`.
  *
  * Every ability's `execute_callback` delegates to the existing query handlers
  * (via {@see desktop_mode_ai_search_dispatch_tool()} / the comment scorer) so
@@ -45,42 +46,42 @@ function desktop_mode_ai_register_ability_category() {
 add_action( 'wp_abilities_api_categories_init', 'desktop_mode_ai_register_ability_category' );
 
 /**
- * The Copilot ability names offered to the model during a search turn, in a
- * stable order. Comment analysis is intentionally excluded — it is run by the
- * moderation pipeline, not chosen by the model mid-search.
+ * The ability names the Copilot offers the model as tools.
+ *
+ * Every registered ability marked read-only (`meta.annotations.readonly`) is
+ * offered — the Copilot's own search/navigation abilities, plus any read-only
+ * ability registered by Core or another plugin. No opt-in: register a
+ * read-only ability and the assistant can use it; its `permission_callback`
+ * still gates execution.
+ *
+ * Only read-only abilities are advertised on purpose: a search turn can be
+ * driven by attacker-controlled content (comment / post text that lands in a
+ * tool result), so the model is never handed an ability that could change the
+ * site.
  *
  * @since 0.9.4
  *
  * @return string[] Fully-namespaced ability names.
  */
 function desktop_mode_ai_search_ability_names() {
-	$names = array(
-		'desktop-mode/search-posts',
-		'desktop-mode/search-pages',
-		'desktop-mode/search-comments',
-		'desktop-mode/search-comments-by-post',
-		'desktop-mode/list-admin-pages',
-		'desktop-mode/search-wporg-plugins',
-		'desktop-mode/get-php-error-log',
-	);
+	if ( ! function_exists( 'wp_get_abilities' ) ) {
+		return array();
+	}
 
-	/**
-	 * Filters the ability names the Copilot offers the model as tools.
-	 *
-	 * This is the extension point that replaces the removed
-	 * `desktop_mode_register_ai_tool()`: register your own ability with
-	 * `wp_register_ability()` (on `wp_abilities_api_init`), then append its
-	 * name here. The agent loop advertises it and dispatches calls through
-	 * `wp_get_ability()->execute()`, so its `permission_callback` and
-	 * input/output schemas are enforced by Core.
-	 *
-	 * @since 0.9.4
-	 *
-	 * @param string[] $names Fully-namespaced ability names, in offer order.
-	 */
-	$names = (array) apply_filters( 'desktop_mode_ai_abilities', $names );
+	$names = array();
+	foreach ( wp_get_abilities() as $ability ) {
+		if ( ! $ability instanceof WP_Ability ) {
+			continue;
+		}
+		$meta        = (array) $ability->get_meta();
+		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+		if ( empty( $annotations['readonly'] ) ) {
+			continue;
+		}
+		$names[] = (string) $ability->get_name();
+	}
 
-	return array_values( array_unique( array_filter( array_map( 'strval', $names ) ) ) );
+	return $names;
 }
 
 /**
