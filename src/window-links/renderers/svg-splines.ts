@@ -2,13 +2,17 @@
  * Desktop Mode — Built-in `svg-splines` window-link renderer.
  *
  * Draws one cubic-Bézier spline per derived edge of the relation
- * graph, with direction encoded as arrowheads:
+ * graph, terminated by circular endpoint dots. Circles are
+ * rotation-invariant, so a tie meeting a window border at any angle
+ * looks the same — arrowheads needed tangent orientation and read
+ * wrong whenever the spline approached an edge at a skewed angle.
+ * Direction survives as dot SIZE:
  *
  *  - `child-root` edges (a comment window → its post's window) carry
- *    a single arrowhead pointing at the root window — "belongs to";
- *  - `reference` edges (a post hyperlinking another open post) point
- *    at the referenced window; MUTUAL references arrive from the
- *    engine as one `bidirectional` edge and get arrowheads at both
+ *    the LARGER dot on the root window — "belongs to";
+ *  - `reference` edges (a post hyperlinking another open post) carry
+ *    it on the referenced window; MUTUAL references arrive from the
+ *    engine as one `bidirectional` edge and get large dots at both
  *    ends.
  *
  * Paths are keyed and reused across frames — per-frame work is only
@@ -84,48 +88,72 @@ function endpointAnchor(
 }
 
 /**
- * Build the `<defs>` arrowhead markers. Two variants (resting /
- * active) because a `<marker>` can't read its referencing path's
- * class; `orient="auto-start-reverse"` lets one marker serve both
- * `marker-end` and a flipped `marker-start` on bidirectional edges.
+ * Marker ids for both endpoint sizes, resting and active.
+ */
+interface EndpointMarkers {
+	/** Larger dot — the edge TARGET (root / referenced window). */
+	dot: { normal: string; active: string };
+	/** Smaller dot — the edge source. */
+	port: { normal: string; active: string };
+}
+
+/**
+ * Build the `<defs>` endpoint markers: circles, centered ON the path
+ * endpoint (which the geometry places on the window border), so each
+ * tie ends in a "port" half over the window edge. Circles need no
+ * `orient` — that's the point: they look identical from every
+ * approach angle. Resting / active variants exist because a
+ * `<marker>` can't read its referencing path's class.
  */
 function buildMarkers(
 	svg: SVGSVGElement,
 	idBase: string,
-): { normal: string; active: string } {
+): EndpointMarkers {
 	const defs = document.createElementNS( SVG_NS, 'defs' );
-	const make = ( suffix: string, className: string ): string => {
+	const make = (
+		suffix: string,
+		className: string,
+		size: string,
+	): string => {
 		const id = `${ idBase }-${ suffix }`;
 		const marker = document.createElementNS( SVG_NS, 'marker' );
 		marker.setAttribute( 'id', id );
 		marker.setAttribute( 'viewBox', '0 0 10 10' );
-		marker.setAttribute( 'refX', '9' );
+		marker.setAttribute( 'refX', '5' );
 		marker.setAttribute( 'refY', '5' );
-		marker.setAttribute( 'markerWidth', '7' );
-		marker.setAttribute( 'markerHeight', '7' );
-		marker.setAttribute( 'orient', 'auto-start-reverse' );
+		marker.setAttribute( 'markerWidth', size );
+		marker.setAttribute( 'markerHeight', size );
 		marker.setAttribute( 'markerUnits', 'strokeWidth' );
-		const tip = document.createElementNS( SVG_NS, 'path' );
-		tip.setAttribute( 'd', 'M 0 1 L 9 5 L 0 9 z' );
+		const tip = document.createElementNS( SVG_NS, 'circle' );
+		tip.setAttribute( 'cx', '5' );
+		tip.setAttribute( 'cy', '5' );
+		tip.setAttribute( 'r', '4' );
 		tip.classList.add( className );
 		marker.appendChild( tip );
 		defs.appendChild( marker );
 		return id;
 	};
-	const normal = make( 'arrow', 'desktop-mode-window-link__arrow' );
-	const active = make(
-		'arrow-active',
-		'desktop-mode-window-link__arrow--active',
-	);
+	const endpoint = 'desktop-mode-window-link__endpoint';
+	const active = `${ endpoint }--active`;
+	const markers: EndpointMarkers = {
+		dot: {
+			normal: make( 'dot', endpoint, '7' ),
+			active: make( 'dot-active', active, '7' ),
+		},
+		port: {
+			normal: make( 'port', endpoint, '4.5' ),
+			active: make( 'port-active', active, '4.5' ),
+		},
+	};
 	svg.appendChild( defs );
-	return { normal, active };
+	return markers;
 }
 
 registerWindowLinkRenderer( {
 	id: 'svg-splines',
 	label: __( 'Splines' ),
 	description: __(
-		'Curved arrows between related windows — a single arrowhead points a comment or media window at its post; windows that reference each other get arrows on both ends.',
+		'Curved connectors between related windows, ending in circular dots — the larger dot sits on the window the content belongs to; windows that reference each other get large dots on both ends.',
 	),
 	mount: ( ctx ) => {
 		// Two drawing surfaces: the base layer (always behind windows)
@@ -137,7 +165,7 @@ registerWindowLinkRenderer( {
 		const buildSurface = (
 			container: HTMLElement,
 			suffix: string,
-		): { svg: SVGSVGElement; markers: { normal: string; active: string } } => {
+		): { svg: SVGSVGElement; markers: EndpointMarkers } => {
 			const svg = document.createElementNS( SVG_NS, 'svg' );
 			svg.classList.add( 'desktop-mode-window-links__svg' );
 			container.appendChild( svg );
@@ -270,20 +298,24 @@ registerWindowLinkRenderer( {
 					`M ${ start.x } ${ start.y } C ${ c1.x } ${ c1.y }, ${ c2.x } ${ c2.y }, ${ end.x } ${ end.y }`,
 				);
 
-				// Direction: the arrow always points at the edge target
-				// (`to` — the root / referenced window); bidirectional
-				// reference edges get a second head at the start.
+				// Direction as dot size: the LARGE dot always sits on the
+				// edge target (`to` — the root / referenced window), the
+				// small one on the source; bidirectional reference edges
+				// get the large dot at both ends.
 				const markers = surfaces[ el.surface ].markers;
-				const marker = edge.focused ? markers.active : markers.normal;
-				el.path.setAttribute( 'marker-end', `url(#${ marker })` );
-				if ( edge.bidirectional ) {
-					el.path.setAttribute(
-						'marker-start',
-						`url(#${ marker })`,
-					);
-				} else {
-					el.path.removeAttribute( 'marker-start' );
-				}
+				const variant = edge.focused ? 'active' : 'normal';
+				el.path.setAttribute(
+					'marker-end',
+					`url(#${ markers.dot[ variant ] })`,
+				);
+				el.path.setAttribute(
+					'marker-start',
+					`url(#${
+						edge.bidirectional
+							? markers.dot[ variant ]
+							: markers.port[ variant ]
+					})`,
+				);
 				el.group.classList.toggle(
 					'desktop-mode-window-link--active',
 					edge.focused,

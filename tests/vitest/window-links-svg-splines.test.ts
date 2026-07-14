@@ -3,10 +3,11 @@
  * (`src/window-links/renderers/svg-splines.ts`):
  *
  *   - self-registration through the public registry
- *   - one keyed `<g>` + arrowed `<path>` per edge, REUSED across
- *     frames (only `d` updates)
- *   - direction: `marker-end` always (arrow at the target window);
- *     `marker-start` only on bidirectional reference edges
+ *   - one keyed `<g>` + dot-terminated `<path>` per edge, REUSED
+ *     across frames (only `d` updates)
+ *   - direction as dot size: the large `dot` marker at the target
+ *     window, the small `port` marker at the source; bidirectional
+ *     reference edges get the large dot at both ends
  *   - a `null` endpoint rect (minimized / other desktop) draws nothing
  *   - stale edges are removed when structure changes
  *   - focused edges swap to the active marker + class
@@ -118,7 +119,7 @@ afterEach( () => {
 } );
 
 describe( 'svg-splines renderer', () => {
-	test( 'draws one keyed edge group per drawable edge, arrow at the target', async () => {
+	test( 'draws one keyed edge group per drawable edge, large dot at the target', async () => {
 		const h = await mount(
 			frameWith( [
 				edge(),
@@ -136,14 +137,21 @@ describe( 'svg-splines renderer', () => {
 		).toHaveLength( 2 );
 		const path = svg!.querySelector( '.desktop-mode-window-link__path' )!;
 		expect( path.getAttribute( 'd' ) ).toMatch( /^M .+ C .+/ );
-		// Single-direction edge: arrowhead at the root end only.
-		expect( path.getAttribute( 'marker-end' ) ).toMatch( /^url\(#/ );
-		expect( path.getAttribute( 'marker-start' ) ).toBeNull();
-		// Marker defs exist.
-		expect( svg!.querySelectorAll( 'defs marker' ) ).toHaveLength( 2 );
+		// Single-direction edge: large dot at the root end, small port
+		// at the source end.
+		expect( path.getAttribute( 'marker-end' ) ).toMatch( /-dot\)$/ );
+		expect( path.getAttribute( 'marker-start' ) ).toMatch( /-port\)$/ );
+		// Marker defs: dot + port, each with an active variant — all
+		// circles (no orientation, so no skewed-angle artifacts).
+		const markers = svg!.querySelectorAll( 'defs marker' );
+		expect( markers ).toHaveLength( 4 );
+		for ( const marker of Array.from( markers ) ) {
+			expect( marker.querySelector( 'circle' ) ).not.toBeNull();
+			expect( marker.getAttribute( 'orient' ) ).toBeNull();
+		}
 	} );
 
-	test( 'bidirectional reference edges carry arrowheads at both ends', async () => {
+	test( 'bidirectional reference edges carry the large dot at both ends', async () => {
 		const h = await mount(
 			frameWith( [
 				edge( { kind: 'reference', bidirectional: true } ),
@@ -153,7 +161,7 @@ describe( 'svg-splines renderer', () => {
 		const path = h.container.querySelector(
 			'.desktop-mode-window-link__path',
 		)!;
-		expect( path.getAttribute( 'marker-end' ) ).toMatch( /^url\(#/ );
+		expect( path.getAttribute( 'marker-end' ) ).toMatch( /-dot\)$/ );
 		expect( path.getAttribute( 'marker-start' ) ).toBe(
 			path.getAttribute( 'marker-end' ),
 		);
@@ -217,7 +225,10 @@ describe( 'svg-splines renderer', () => {
 			'.desktop-mode-window-link--active .desktop-mode-window-link__path',
 		)!;
 		expect( active ).not.toBeNull();
-		expect( active.getAttribute( 'marker-end' ) ).toMatch( /arrow-active/ );
+		expect( active.getAttribute( 'marker-end' ) ).toMatch( /dot-active/ );
+		expect( active.getAttribute( 'marker-start' ) ).toMatch(
+			/port-active/,
+		);
 
 		h.emit( frameWith( [ edge( { focused: false } ) ] ) );
 		expect(
@@ -227,7 +238,7 @@ describe( 'svg-splines renderer', () => {
 			h.container
 				.querySelector( '.desktop-mode-window-link__path' )!
 				.getAttribute( 'marker-end' ),
-		).not.toMatch( /arrow-active/ );
+		).not.toMatch( /dot-active/ );
 	} );
 
 	test( 'an occluded anchor relocates to the visible border stretch', async () => {

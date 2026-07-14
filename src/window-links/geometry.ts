@@ -42,8 +42,8 @@ export interface LinkAnchor {
 
 /**
  * Minimum visible border stretch (px) worth anchoring on — anything
- * shorter can't fit an arrowhead without visually clipping into the
- * neighboring occluder.
+ * shorter can't fit an endpoint marker without visually clipping into
+ * the neighboring occluder.
  */
 export const MIN_VISIBLE_SEGMENT = 16;
 
@@ -120,8 +120,8 @@ export function anchorOnBorder(
 /**
  * Is a border point visible — i.e. NOT covered by any window stacked
  * above the point's own window? Containment is inclusive: a point on
- * an occluder's exact edge counts as covered (the arrowhead would
- * already clip into it).
+ * an occluder's exact edge counts as covered (the endpoint marker
+ * would already clip into it).
  */
 export function isPointVisible(
 	point: { x: number; y: number },

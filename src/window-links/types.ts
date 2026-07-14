@@ -52,8 +52,8 @@ export interface WindowContentRef {
 	 * server-side by the chromeless bridge. Not part of group
 	 * membership — links draw ties without re-rooting anything.
 	 *
-	 * ARROW SEMANTICS (single, deliberate reading — relational
-	 * structure, never navigation history): an arrow points at the
+	 * DIRECTION SEMANTICS (single, deliberate reading — relational
+	 * structure, never navigation history): an edge points at the
 	 * thing its source belongs to or refers to.
 	 *
 	 *  - `rel: 'references'` (the default): "my content points at
@@ -115,12 +115,12 @@ export interface WindowLinkGroup {
  * relations engine from the stored content identities:
  *
  *  - `child-root` — the `from` window's content belongs to the `to`
- *    window's content (comment → its post). Renderers draw these with
- *    a single arrowhead at the root end.
+ *    window's content (comment → its post). The built-in renderer
+ *    marks the root end with its larger endpoint dot.
  *  - `reference` — the `from` window's content links to the `to`
  *    window's content (a post hyperlinking another post). Mutual
  *    references collapse into ONE edge with `bidirectional: true`;
- *    renderers draw arrowheads at both ends.
+ *    the built-in renderer puts the larger dot at both ends.
  */
 export interface WindowLinkEdge {
 	fromWindowId: string;
