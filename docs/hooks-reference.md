@@ -2944,7 +2944,7 @@ computes the descriptor from WordPress's authoritative update state
 The release **art + codename** are resolved on the **client** (from the
 wordpress.org/news announcement's featured image, cached in
 `localStorage`) — so the notification appears once, already as the
-`<wpd-release-card>` vinyl with its art loaded and accent sampled from
+release-card vinyl with its art loaded and accent sampled from
 the sleeve, rather than flashing a placeholder while art loads. When no
 art can be resolved (unknown release / offline) it falls back to a plain
 persistent toast. Wording follows the descriptor: crossing into a new

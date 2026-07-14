@@ -76,5 +76,4 @@ export const WPD_COMPONENT_TAGS = [
 	'wpd-rating-summary',
 	'wpd-notice',
 	'wpd-progress-bar',
-	'wpd-release-card',
 ] as const;

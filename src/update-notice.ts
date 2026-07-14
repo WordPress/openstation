@@ -7,7 +7,7 @@
  * release art client-side and surfaces a single notification — one, not
  * one per window:
  *
- *   - **Art resolves** → the `<wpd-release-card>` vinyl moment (the
+ *   - **Art resolves** → the release-card vinyl moment (the
  *     release's album sleeve with the record sliding out). We wait for
  *     the art to load first, so it appears once, already painted — no
  *     temporary toast.

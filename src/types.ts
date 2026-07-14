@@ -1910,7 +1910,7 @@ export interface DesktopConfig {
 	 * current user can `update_core`. Computed server-side by
 	 * `desktop_mode_get_core_update()`; the shell resolves the release
 	 * art client-side and surfaces it once (replacing core's per-window
-	 * update nag) — a `<wpd-release-card>` vinyl once art loads, or a
+	 * update nag) — the release-card vinyl once art loads, or a
 	 * plain persistent toast otherwise. `null` / omitted when no update
 	 * is pending.
 	 *
