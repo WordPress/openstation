@@ -1,13 +1,9 @@
 <?php
 /**
- * Tests for the core-update toast pipeline:
+ * Tests for the core-update descriptor + the in-window nag suppressor.
  *
- *   - `desktop_mode_get_core_update()` — the server-side descriptor
- *     (capability gating, update-state reading, the
- *     `desktop_mode_core_update_notice` filter).
- *   - `desktop_mode_chromeless_suppress_update_nags()` — the in-window
- *     nag suppressor.
- *   - that the descriptor lands in the shell config as `coreUpdate`.
+ * Release art + codename are resolved on the client now, so PHP only
+ * reports the update relationship: `{ version, branch, url, crossing }`.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -33,185 +29,7 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		unset( $_GET['desktop_mode_chromeless'] );
 		remove_all_filters( 'desktop_mode_core_update_notice' );
-		remove_all_filters( 'desktop_mode_core_update_release' );
-		remove_all_filters( 'pre_http_request' );
-		foreach ( array( '7.0', '9.9', '5.5' ) as $k ) {
-			delete_transient( 'desktop_mode_release_art_' . $k );
-		}
 		parent::tear_down();
-	}
-
-	/**
-	 * @covers ::desktop_mode_get_core_update
-	 */
-	public function test_returns_descriptor_when_update_available() {
-		wp_set_current_user( self::$admin_id );
-		$this->fake_core_update( '99.9' );
-
-		$update = desktop_mode_get_core_update();
-		$this->assertIsArray( $update );
-		$this->assertStringContainsString( 'update-core.php', $update['url'] );
-		$this->assertArrayHasKey( 'version', $update );
-		$this->assertArrayHasKey( 'name', $update );
-		$this->assertArrayHasKey( 'branch', $update );
-		$this->assertArrayHasKey( 'release', $update );
-		// No art known for 99.9 → release null (toast fallback).
-		$this->assertNull( $update['release'] );
-	}
-
-	/**
-	 * @covers ::desktop_mode_is_major_update
-	 */
-	public function test_major_update_detection() {
-		$this->assertTrue( desktop_mode_is_major_update( '6.9.2', '7.0' ) );
-		$this->assertTrue( desktop_mode_is_major_update( '6.8', '6.9' ) );
-		$this->assertFalse( desktop_mode_is_major_update( '7.0', '7.0.2' ) );
-		$this->assertFalse( desktop_mode_is_major_update( '7.0', '7.0' ) );
-	}
-
-	/**
-	 * Crossing into a new major (e.g. 6.9 → 7.0 / 7.0.1) shows the major
-	 * branch version + codename, with that major's art.
-	 *
-	 * @covers ::desktop_mode_get_core_update
-	 */
-	public function test_crossing_major_shows_branch_and_codename() {
-		wp_set_current_user( self::$admin_id );
-		$this->fake_core_update( '8.0.1' ); // installed 7.0.x → crosses into 8.0
-		add_filter(
-			'desktop_mode_core_update_release',
-			static function ( $r, $v, $key ) {
-				return '8.0' === $key
-					? array( 'name' => 'Blakey', 'artUrl' => 'https://x/8.0.png' )
-					: $r;
-			},
-			10,
-			3
-		);
-
-		$update = desktop_mode_get_core_update();
-		$this->assertSame( '8.0', $update['version'] ); // major branch, not 8.0.1
-		$this->assertSame( 'Blakey', $update['name'] ); // codename shown
-		$this->assertSame( '8.0', $update['branch'] );
-		$this->assertIsArray( $update['release'] );
-		$this->assertSame( 'https://x/8.0.png', $update['release']['artUrl'] );
-	}
-
-	/**
-	 * A same-branch minor (7.0 → 7.0.2) shows the exact version with no
-	 * codename, but still shows the vinyl using the major's art.
-	 *
-	 * @covers ::desktop_mode_get_core_update
-	 */
-	public function test_same_branch_minor_shows_exact_version_no_codename() {
-		wp_set_current_user( self::$admin_id );
-		$this->fake_core_update( '7.0.2' ); // installed 7.0.x → same 7.0 branch
-		add_filter(
-			'desktop_mode_core_update_release',
-			static function ( $r, $v, $key ) {
-				return '7.0' === $key
-					? array( 'name' => 'Armstrong', 'artUrl' => 'https://x/7.0.png' )
-					: $r;
-			},
-			10,
-			3
-		);
-
-		$update = desktop_mode_get_core_update();
-		$this->assertSame( '7.0.2', $update['version'] ); // exact version
-		$this->assertSame( '', $update['name'] );         // no codename
-		$this->assertSame( '7.0', $update['branch'] );
-		$this->assertIsArray( $update['release'] );        // vinyl still shows
-	}
-
-	/**
-	 * @covers ::desktop_mode_parse_release_post
-	 */
-	public function test_parse_matches_major_announcement() {
-		$post = $this->news_post( 'WordPress 7.0 “Armstrong”', 'https://i0.wp.com/x/7.0.png' );
-		$release = desktop_mode_parse_release_post( $post, '7.0' );
-		$this->assertIsArray( $release );
-		$this->assertSame( 'Armstrong', $release['name'] );
-		$this->assertSame( 'https://i0.wp.com/x/7.0.png', $release['artUrl'] );
-	}
-
-	/**
-	 * @covers ::desktop_mode_parse_release_post
-	 */
-	public function test_parse_rejects_maintenance_release() {
-		$post = $this->news_post( 'WordPress 7.0.1 Maintenance Release', 'https://x/m.png' );
-		$this->assertNull( desktop_mode_parse_release_post( $post, '7.0' ) );
-	}
-
-	/**
-	 * @covers ::desktop_mode_fetch_release_art
-	 */
-	public function test_fetch_resolves_art_from_news_api_and_caches() {
-		$this->mock_news_http(
-			array(
-				// Maintenance post first — must be skipped for the major.
-				$this->news_post( 'WordPress 7.0.1 Maintenance Release', 'https://x/m.png' ),
-				$this->news_post( 'WordPress 7.0 “Armstrong”', 'https://i0.wp.com/x/7.0.png' ),
-			)
-		);
-
-		desktop_mode_fetch_release_art( '7.0' );
-
-		$cached = get_transient( 'desktop_mode_release_art_7.0' );
-		$this->assertIsArray( $cached );
-		$this->assertSame( 'Armstrong', $cached['name'] );
-		$this->assertSame( 'https://i0.wp.com/x/7.0.png', $cached['artUrl'] );
-
-		// The public resolver now returns it straight from cache (no fetch).
-		$release = desktop_mode_core_update_release( '7.0' );
-		$this->assertSame( 'Armstrong', $release['name'] );
-	}
-
-	/**
-	 * @covers ::desktop_mode_fetch_release_art
-	 */
-	public function test_fetch_caches_miss_when_no_announcement() {
-		$this->mock_news_http( array( $this->news_post( 'An unrelated post', '' ) ) );
-
-		desktop_mode_fetch_release_art( '9.9' );
-
-		$this->assertSame( 'none', get_transient( 'desktop_mode_release_art_9.9' ) );
-		$this->assertNull( desktop_mode_core_update_release( '9.9' ) );
-	}
-
-	/**
-	 * @covers ::desktop_mode_core_update_release
-	 */
-	public function test_release_null_on_cold_cache() {
-		// Nothing cached, no HTTP mock → resolver returns null and
-		// schedules a background fetch it can't complete synchronously.
-		$this->assertNull( desktop_mode_core_update_release( '5.5' ) );
-	}
-
-	/**
-	 * @covers ::desktop_mode_core_update_release
-	 */
-	public function test_release_filter_can_supply_art() {
-		add_filter(
-			'desktop_mode_core_update_release',
-			static function ( $release, $version, $key ) {
-				if ( '99.9' === $key ) {
-					return array(
-						'name'      => 'Custom',
-						'artUrl'    => 'https://example.com/art.jpg',
-						'accent'    => '#123456',
-						'accentInk' => '#ffffff',
-					);
-				}
-				return $release;
-			},
-			10,
-			3
-		);
-		$release = desktop_mode_core_update_release( '99.9' );
-		$this->assertSame( 'Custom', $release['name'] );
-
-		remove_all_filters( 'desktop_mode_core_update_release' );
 	}
 
 	/**
@@ -230,37 +48,75 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber );
 		$this->fake_core_update( '9.9.9' );
-
 		$this->assertNull( desktop_mode_get_core_update() );
 	}
 
 	/**
 	 * @covers ::desktop_mode_get_core_update
 	 */
-	public function test_filter_can_suppress_the_toast() {
+	public function test_descriptor_shape() {
+		wp_set_current_user( self::$admin_id );
+		$this->fake_core_update( '99.9' );
+
+		$update = desktop_mode_get_core_update();
+		$this->assertIsArray( $update );
+		$this->assertArrayHasKey( 'version', $update );
+		$this->assertArrayHasKey( 'branch', $update );
+		$this->assertArrayHasKey( 'crossing', $update );
+		$this->assertStringContainsString( 'update-core.php', $update['url'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_is_major_update
+	 */
+	public function test_major_update_detection() {
+		$this->assertTrue( desktop_mode_is_major_update( '6.9.2', '7.0' ) );
+		$this->assertTrue( desktop_mode_is_major_update( '6.8', '6.9' ) );
+		$this->assertFalse( desktop_mode_is_major_update( '7.0', '7.0.2' ) );
+		$this->assertFalse( desktop_mode_is_major_update( '7.0', '7.0' ) );
+	}
+
+	/**
+	 * Crossing into a new major (installed 7.0.x → 8.0.1) reports the
+	 * major branch as the display version and flags `crossing`.
+	 *
+	 * @covers ::desktop_mode_get_core_update
+	 */
+	public function test_crossing_major() {
+		wp_set_current_user( self::$admin_id );
+		$this->fake_core_update( '8.0.1' );
+
+		$update = desktop_mode_get_core_update();
+		$this->assertSame( '8.0', $update['version'] ); // branch, not 8.0.1
+		$this->assertSame( '8.0', $update['branch'] );
+		$this->assertTrue( $update['crossing'] );
+	}
+
+	/**
+	 * A same-branch minor (7.0.x → 7.0.2) reports the exact version and
+	 * is not crossing.
+	 *
+	 * @covers ::desktop_mode_get_core_update
+	 */
+	public function test_same_branch_minor() {
+		wp_set_current_user( self::$admin_id );
+		$this->fake_core_update( '7.0.2' );
+
+		$update = desktop_mode_get_core_update();
+		$this->assertSame( '7.0.2', $update['version'] );
+		$this->assertSame( '7.0', $update['branch'] );
+		$this->assertFalse( $update['crossing'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_get_core_update
+	 */
+	public function test_notice_filter_can_suppress() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '9.9.9' );
 		add_filter( 'desktop_mode_core_update_notice', '__return_null' );
 
 		$this->assertNull( desktop_mode_get_core_update() );
-	}
-
-	/**
-	 * @covers ::desktop_mode_get_core_update
-	 */
-	public function test_filter_can_mutate_the_descriptor() {
-		wp_set_current_user( self::$admin_id );
-		$this->fake_core_update( '9.9.9' );
-		add_filter(
-			'desktop_mode_core_update_notice',
-			static function ( $update ) {
-				$update['version'] = '9.9.9-custom';
-				return $update;
-			}
-		);
-
-		$update = desktop_mode_get_core_update();
-		$this->assertSame( '9.9.9-custom', $update['version'] );
 	}
 
 	/**
@@ -299,59 +155,6 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		$this->assertNotFalse( has_action( 'admin_notices', 'update_nag' ) );
 
 		remove_action( 'admin_notices', 'update_nag', 3 );
-	}
-
-	/**
-	 * Build a minimal news-feed REST post (with an embedded featured
-	 * image) for the parser/fetcher tests.
-	 *
-	 * @param string $title Post title (rendered).
-	 * @param string $art   Featured-image URL, or '' for none.
-	 * @return array
-	 */
-	private function news_post( $title, $art ) {
-		$embedded = array();
-		if ( '' !== $art ) {
-			$embedded = array(
-				'wp:featuredmedia' => array(
-					array(
-						'source_url'    => $art,
-						'media_details' => array(
-							'sizes' => array(
-								'medium_large' => array( 'source_url' => $art ),
-							),
-						),
-					),
-				),
-			);
-		}
-		return array(
-			'title'     => array( 'rendered' => $title ),
-			'_embedded' => $embedded,
-		);
-	}
-
-	/**
-	 * Short-circuit the wordpress.org/news request with a canned post
-	 * list so the fetcher runs without real HTTP.
-	 *
-	 * @param array $posts Decoded posts to return as the response body.
-	 */
-	private function mock_news_http( $posts ) {
-		add_filter(
-			'pre_http_request',
-			static function ( $pre, $args, $url ) use ( $posts ) {
-				if ( false !== strpos( (string) $url, 'wordpress.org/news/wp-json' ) ) {
-					return array(
-						'response' => array( 'code' => 200 ),
-						'body'     => wp_json_encode( $posts ),
-					);
-				}
-				return $pre;
-			},
-			10,
-			3
-		);
 	}
 
 	/**

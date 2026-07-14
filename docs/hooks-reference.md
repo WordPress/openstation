@@ -2931,7 +2931,7 @@ Actions / filters:
 
 See [`docs/examples/window-notice.md`](examples/window-notice.md).
 
-### Core-update notice — Experimental (filters) *(since 0.9.3)*
+### Core-update notice — `desktop_mode_core_update_notice` — Experimental (filter) *(since 0.9.3)*
 
 WordPress core prints "WordPress X is available!" on every admin
 screen. Desktop Mode detaches that per-window nag inside chromeless
@@ -2939,54 +2939,28 @@ windows (`desktop_mode_chromeless_suppress_update_nags()`) and surfaces
 the update **once** in the shell. `desktop_mode_get_core_update()`
 computes the descriptor from WordPress's authoritative update state
 (`update_core`-gated) and ships it in the shell config as `coreUpdate`
-(`{ version, name, branch, url, release }`). The shell then chooses the
-surface: when the update's **branch has release art** it shows the
-`<wpd-release-card>` vinyl moment (the release's album sleeve with the
-record sliding out, accent sampled from the art) — for any update in
-that branch, including a minor, which reuses its major's art; otherwise
-a plain persistent toast. The wording follows the descriptor: crossing
-into a new major shows the branch version + codename ("WordPress 7.0
-"Armstrong" is available"); a same-branch minor shows the exact version
-with no codename ("WordPress 7.0.1 is available").
+(`{ version, branch, url, crossing }`).
 
-**`desktop_mode_core_update_notice`** — filter the whole descriptor.
-Return `null` to suppress the desktop update notice entirely (e.g. on
-sites that manage core updates out-of-band):
+The release **art + codename** are resolved on the **client** (from the
+wordpress.org/news announcement's featured image, cached in
+`localStorage`) — so the notification appears once, already as the
+`<wpd-release-card>` vinyl with its art loaded and accent sampled from
+the sleeve, rather than flashing a placeholder while art loads. When no
+art can be resolved (unknown release / offline) it falls back to a plain
+persistent toast. Wording follows the descriptor: crossing into a new
+major shows the branch version + codename ("WordPress 7.0 "Armstrong" is
+available"); a same-branch minor shows the exact version, no codename.
+
+Filter the whole descriptor — return `null` to suppress the desktop
+update notice entirely (e.g. on sites that manage core updates
+out-of-band):
 
 ```php
 /**
- * @param array{version:string,name:string,branch:string,url:string,release:?array}|null $update
- * @return array{version:string,url:string,major:bool,release:?array}|null
+ * @param array{version:string,branch:string,url:string,crossing:bool}|null $update
+ * @return array{version:string,branch:string,url:string,crossing:bool}|null
  */
 add_filter( 'desktop_mode_core_update_notice', '__return_null' );
-```
-
-**`desktop_mode_core_update_release`** — filter the release art for a
-major. The plugin resolves art **live** from the wordpress.org/news
-feed (the release announcement's featured image), fetched in the
-background and cached — so past and future releases work without a
-plugin update. Use this filter to supply art for a release the feed
-hasn't announced yet, override the resolved entry (e.g. a per-release
-accent color), or return `null` (on sites that can't reach
-wordpress.org) to fall back to the plain toast.
-
-```php
-/**
- * @param array|null $release {name, artUrl, accent, accentInk} or null.
- * @param string     $version Full available version (e.g. "7.1").
- * @param string     $key     X.Y branch key (e.g. "7.1").
- */
-add_filter( 'desktop_mode_core_update_release', function ( $release, $version, $key ) {
-	if ( '7.1' === $key ) {
-		return array(
-			'name'      => 'Blakey',
-			'artUrl'    => 'https://example.com/7.1-cover.jpg', // square cover
-			'accent'    => '#c0392b',
-			'accentInk' => '#ffffff',
-		);
-	}
-	return $release;
-}, 10, 3 );
 ```
 
 ---

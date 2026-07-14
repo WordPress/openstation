@@ -1908,28 +1908,22 @@ export interface DesktopConfig {
 	/**
 	 * Pending WordPress core update, if one is available and the
 	 * current user can `update_core`. Computed server-side by
-	 * `desktop_mode_get_core_update()`; the shell surfaces it once
-	 * (replacing core's per-window update nag) — a `<wpd-release-card>`
-	 * vinyl moment for a major release with known art, or a plain
-	 * persistent toast otherwise. `null` / omitted when no update is
-	 * pending.
+	 * `desktop_mode_get_core_update()`; the shell resolves the release
+	 * art client-side and surfaces it once (replacing core's per-window
+	 * update nag) — a `<wpd-release-card>` vinyl once art loads, or a
+	 * plain persistent toast otherwise. `null` / omitted when no update
+	 * is pending.
 	 *
 	 * @since 0.9.3
 	 */
 	coreUpdate?: {
 		/** Version shown in the message — major branch when crossing, else exact. */
 		version: string;
-		/** Release codename, shown only when crossing into a new major. */
-		name?: string;
-		/** Major branch (e.g. `7.0`) — the record label + art key. */
+		/** Major branch (e.g. `7.0`) — the art + dismissal key. */
 		branch?: string;
 		url: string;
-		release?: {
-			artUrl: string;
-			/** Optional accent override; otherwise derived from the art. */
-			accent?: string;
-			accentInk?: string;
-		} | null;
+		/** True when moving into a new major (the shell then shows the codename). */
+		crossing?: boolean;
 	} | null;
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable

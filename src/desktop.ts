@@ -3214,12 +3214,13 @@ function init(): void {
 	);
 
 	// Surface a pending WordPress core update as a single notification —
-	// the vinyl release-card moment for a major with art, else a plain
+	// the vinyl release-card moment once its art resolves, else a plain
 	// persistent toast. The desktop-native replacement for core's
 	// per-window update nag (suppressed inside windows server-side).
-	// Reuses the in-shell link open path so "Update now" lands on the
-	// update screen as a window.
-	maybeShowUpdate( {
+	// Async (resolves art from wordpress.org); fire-and-forget. Reuses
+	// the in-shell link open path so "Update now" lands on the update
+	// screen as a window.
+	void maybeShowUpdate( {
 		update: config.coreUpdate,
 		openUrl: ( { url, title } ) => {
 			if ( tryNativeUrlRemap( url ) ) {

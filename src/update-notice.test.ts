@@ -1,7 +1,8 @@
 /**
- * Tests for `maybeShowUpdate()` — the core-update notification picker —
- * and `updateMessage()`. `showToast` / `showReleaseCard` are mocked so
- * we assert which surface is chosen and with what wording.
+ * Tests for `maybeShowUpdate()` — the async core-update notification
+ * picker — and `updateMessage()`. `showToast` / `showReleaseCard` are
+ * mocked; the art resolver + image preloader are injected as fakes so we
+ * assert which surface is chosen without touching the network.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -24,23 +25,29 @@ function lastCard(): ReleaseCardOptions {
 	return cardMock.mock.calls[ cardMock.mock.calls.length - 1 ][ 0 ] as ReleaseCardOptions;
 }
 
-const ART = { artUrl: 'https://example.com/7.0.png' };
+const ART = { name: 'Armstrong', artUrl: 'https://example.com/7.0.png' };
+const resolveArt = vi.fn(
+	async (): Promise< { name: string; artUrl: string } | null > => ART,
+);
+const loadImage = vi.fn( async () => true );
 
 beforeEach( () => {
 	localStorage.clear();
 	toastMock.mockClear();
 	cardMock.mockClear();
 	openUrl.mockClear();
+	resolveArt.mockClear().mockResolvedValue( ART );
+	loadImage.mockClear().mockResolvedValue( true );
 } );
 afterEach( () => localStorage.clear() );
 
 describe( 'updateMessage', () => {
-	test( 'includes the codename when crossing a major', () => {
+	test( 'includes the codename when given one', () => {
 		expect( updateMessage( '7.0', 'Armstrong' ) ).toBe(
 			'WordPress 7.0 "Armstrong" is available.',
 		);
 	} );
-	test( 'omits the codename for a same-branch minor', () => {
+	test( 'omits the codename when empty', () => {
 		expect( updateMessage( '7.0.1', '' ) ).toBe(
 			'WordPress 7.0.1 is available.',
 		);
@@ -48,96 +55,84 @@ describe( 'updateMessage', () => {
 } );
 
 describe( 'maybeShowUpdate', () => {
-	test( 'no-op when there is no pending update', () => {
-		maybeShowUpdate( { update: null, openUrl } );
-		maybeShowUpdate( { update: undefined, openUrl } );
-		maybeShowUpdate( { update: { version: '', url: '/x' }, openUrl } );
+	test( 'no-op when there is no pending update', async () => {
+		await maybeShowUpdate( { update: null, openUrl, resolveArt, loadImage } );
+		await maybeShowUpdate( { update: { version: '', url: '/x' }, openUrl, resolveArt, loadImage } );
 		expect( toastMock ).not.toHaveBeenCalled();
 		expect( cardMock ).not.toHaveBeenCalled();
+		expect( resolveArt ).not.toHaveBeenCalled();
 	} );
 
-	// 6.9 → 7.0 (or 7.0.1): crossing a major → vinyl, message shows the
-	// major branch + codename.
-	test( 'crossing a major with art → vinyl showing branch + codename', () => {
-		maybeShowUpdate( {
-			update: { version: '7.0', name: 'Armstrong', branch: '7.0', url: '/u', release: ART },
-			openUrl,
+	test( 'art resolves + loads → vinyl, codename shown when crossing', async () => {
+		await maybeShowUpdate( {
+			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
+			openUrl, resolveArt, loadImage,
 		} );
 		expect( toastMock ).not.toHaveBeenCalled();
+		expect( resolveArt ).toHaveBeenCalledWith( '7.0' );
 		const c = lastCard();
 		expect( c.version ).toBe( '7.0' );
 		expect( c.name ).toBe( 'Armstrong' );
-		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0' );
 		expect( c.artUrl ).toBe( ART.artUrl );
-		expect( c.accent ).toBeUndefined(); // derived from art
+		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0' );
 	} );
 
-	// 6.9 → 7.0.1: still crossing 7.0 → message shows "7.0 Armstrong",
-	// art is the 7.0 branch art (server sets version=branch, name=codename).
-	test( 'crossing to a minor of a new major → shows the major + codename', () => {
-		maybeShowUpdate( {
-			update: { version: '7.0', name: 'Armstrong', branch: '7.0', url: '/u', release: ART },
-			openUrl,
+	test( 'same-branch minor → vinyl, exact version, no codename', async () => {
+		await maybeShowUpdate( {
+			update: { version: '7.0.1', branch: '7.0', url: '/u', crossing: false },
+			openUrl, resolveArt, loadImage,
 		} );
-		expect( lastCard().version ).toBe( '7.0' );
-		expect( lastCard().name ).toBe( 'Armstrong' );
-	} );
-
-	// 7.0 → 7.0.1: same branch → vinyl still shows (branch art), message
-	// is the exact version with no codename.
-	test( 'same-branch minor with art → vinyl, exact version, no codename', () => {
-		maybeShowUpdate( {
-			update: { version: '7.0.1', name: '', branch: '7.0', url: '/u', release: ART },
-			openUrl,
-		} );
-		expect( toastMock ).not.toHaveBeenCalled();
 		const c = lastCard();
 		expect( c.version ).toBe( '7.0.1' );
-		expect( c.name ).toBe( '' );
-		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0' );
+		expect( c.name ).toBe( '' ); // not crossing → no codename
 	} );
 
-	test( 'skips the vinyl when the release was already dismissed', () => {
+	test( 'no art → plain toast (no temporary flash: toast only when art is unavailable)', async () => {
+		resolveArt.mockResolvedValue( null );
+		await maybeShowUpdate( {
+			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
+			openUrl, resolveArt, loadImage,
+		} );
+		expect( cardMock ).not.toHaveBeenCalled();
+		expect( lastToast().message ).toBe( 'WordPress 7.0 is available.' );
+		expect( lastToast().persistent ).toBe( true );
+	} );
+
+	test( 'art resolves but image fails to load → toast fallback', async () => {
+		loadImage.mockResolvedValue( false );
+		await maybeShowUpdate( {
+			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
+			openUrl, resolveArt, loadImage,
+		} );
+		expect( cardMock ).not.toHaveBeenCalled();
+		expect( toastMock ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'skips (and never fetches) when the release was already dismissed', async () => {
 		markNoticeDismissed( 'desktop-mode/core-update:7.0' );
-		maybeShowUpdate( {
-			update: { version: '7.0', name: 'Armstrong', branch: '7.0', url: '/u', release: ART },
-			openUrl,
+		await maybeShowUpdate( {
+			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
+			openUrl, resolveArt, loadImage,
 		} );
 		expect( cardMock ).not.toHaveBeenCalled();
 		expect( toastMock ).not.toHaveBeenCalled();
+		expect( resolveArt ).not.toHaveBeenCalled();
 	} );
 
-	test( 'no art → plain toast with the same wording rules', () => {
-		maybeShowUpdate( {
-			update: { version: '7.0', name: 'Armstrong', branch: '7.0', url: '/u', release: null },
-			openUrl,
+	test( 'both surfaces open the update screen', async () => {
+		await maybeShowUpdate( {
+			update: { version: '7.0', branch: '7.0', url: '/wp-admin/update-core.php', crossing: true },
+			openUrl, resolveArt, loadImage,
 		} );
-		expect( cardMock ).not.toHaveBeenCalled();
-		expect( lastToast().message ).toBe( 'WordPress 7.0 "Armstrong" is available.' );
-
-		toastMock.mockClear();
-		maybeShowUpdate( { update: { version: '7.0.1', name: '', branch: '7.0', url: '/u' }, openUrl } );
-		expect( lastToast().message ).toBe( 'WordPress 7.0.1 is available.' );
-	} );
-
-	test( 'an explicit accent override is passed through to the card', () => {
-		maybeShowUpdate( {
-			update: {
-				version: '7.0', name: 'Armstrong', branch: '7.0', url: '/u',
-				release: { artUrl: ART.artUrl, accent: '#123456', accentInk: '#fff' },
-			},
-			openUrl,
-		} );
-		expect( lastCard().accent ).toBe( '#123456' );
-	} );
-
-	test( 'both surfaces open the update screen', () => {
-		maybeShowUpdate( { update: { version: '7.0', name: 'Armstrong', branch: '7.0', url: '/wp-admin/update-core.php', release: ART }, openUrl } );
 		lastCard().onUpdate();
 		expect( openUrl.mock.calls[ 0 ][ 0 ].url ).toBe( '/wp-admin/update-core.php' );
 
 		openUrl.mockClear();
-		maybeShowUpdate( { update: { version: '7.0.1', name: '', branch: '7.0', url: '/wp-admin/update-core.php' }, openUrl } );
+		resolveArt.mockResolvedValue( null );
+		await maybeShowUpdate( {
+			update: { version: '7.0.1', branch: '7.0', url: '/wp-admin/update-core.php', crossing: false },
+			openUrl, resolveArt, loadImage,
+		} );
 		lastToast().action!.onClick();
 		expect( openUrl.mock.calls[ 0 ][ 0 ].url ).toBe( '/wp-admin/update-core.php' );
 	} );

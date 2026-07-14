@@ -2,63 +2,59 @@
  * Core-update notification — the shell-side half of the update-nag
  * hijack.
  *
- * WordPress core repeats "WordPress X is available!" on every admin
- * screen; the plugin detaches that nag inside every window (PHP) and
- * ships a descriptor in the shell config as `coreUpdate`. This module
- * turns that descriptor into a single notification — one, not one per
- * window:
+ * The server reports *that* a core update is pending (`config.coreUpdate`
+ * = `{ version, branch, url, crossing }`); this module resolves the
+ * release art client-side and surfaces a single notification — one, not
+ * one per window:
  *
- *   - **Branch has release art** → the `<wpd-release-card>` vinyl moment
- *     (the release's album sleeve with the record sliding out). Shown
- *     for any update in that branch, including a minor (the minor reuses
- *     its major's art).
- *   - **No art** → a plain persistent toast.
+ *   - **Art resolves** → the `<wpd-release-card>` vinyl moment (the
+ *     release's album sleeve with the record sliding out). We wait for
+ *     the art to load first, so it appears once, already painted — no
+ *     temporary toast.
+ *   - **No art** (unknown release / offline) → a plain persistent toast.
  *
- * The message wording comes straight from the descriptor: crossing into
- * a new major shows the branch version + codename ("WordPress 7.0
- * 'Armstrong' is available"); a same-branch minor shows the exact
- * version with no codename ("WordPress 7.0.1 is available").
+ * Wording follows the descriptor: crossing into a new major shows the
+ * branch version + codename ("WordPress 7.0 'Armstrong' is available");
+ * a same-branch minor shows the exact version, no codename.
  *
- * Both are non-dismissible: like core's own nag they stay until the
- * update is addressed. "Update now" opens the update screen and clears
- * the notification; once installed the server stops shipping
- * `coreUpdate`, so nothing appears.
+ * Both are non-dismissible via auto-timeout; the vinyl has a close button
+ * whose dismissal is persisted (per branch), and a dismissed release is
+ * skipped here.
  *
  * @since 0.9.3
  */
 
 import { showToast } from './toast';
 import { showReleaseCard } from './release-card';
+import {
+	resolveReleaseArt,
+	preloadImage,
+	type ReleaseArt,
+} from './release-art';
 import { isNoticeDismissed } from './ui/components/wpd-notice/storage';
 import { __, sprintf } from './i18n';
-
-/** Release-art descriptor for a branch (from the PHP resolver). */
-export interface CoreUpdateRelease {
-	artUrl: string;
-	/** Optional accent override; otherwise derived from the art. */
-	accent?: string;
-	accentInk?: string;
-}
 
 /** Compact core-update descriptor shipped in the shell config. */
 export interface CoreUpdateInfo {
 	/** Message version — major branch when crossing, else exact version. */
 	version: string;
-	/** Release codename — shown only when crossing into a new major. */
-	name?: string;
-	/** Major branch (e.g. `7.0`) — the record label. */
+	/** Major branch (e.g. `7.0`) — the art + dismissal key. */
 	branch?: string;
 	url: string;
-	/** Branch album art, or null/absent → plain toast. */
-	release?: CoreUpdateRelease | null;
+	/** True when moving into a new major (→ show the codename). */
+	crossing?: boolean;
 }
 
-/** Dependencies the notification needs from the shell. */
+/** Dependencies the notification needs from the shell (art/preload injectable for tests). */
 export interface UpdateNoticeDeps {
 	/** The `config.coreUpdate` value (may be absent / null). */
 	update: CoreUpdateInfo | null | undefined;
 	/** Open an admin URL as a window (the "Update now" action). */
 	openUrl: ( args: { url: string; title: string } ) => void;
+	/** Resolve release art for a branch. Defaults to the news-feed resolver. */
+	resolveArt?: ( branch: string ) => Promise< ReleaseArt | null >;
+	/** Preload an image, resolving true when ready. Defaults to the real preloader. */
+	loadImage?: ( url: string ) => Promise< boolean >;
 }
 
 /**
@@ -78,9 +74,11 @@ export function updateMessage( version: string, name: string ): string {
 
 /**
  * Show the core-update notification if an update is pending — the vinyl
- * release card when the branch has art, the plain toast otherwise.
+ * release card once its art is fetched + loaded, the plain toast if no
+ * art is available. No-op when there's nothing to show or the release
+ * was already dismissed.
  */
-export function maybeShowUpdate( deps: UpdateNoticeDeps ): void {
+export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void > {
 	const { update, openUrl } = deps;
 	if (
 		! update ||
@@ -92,39 +90,40 @@ export function maybeShowUpdate( deps: UpdateNoticeDeps ): void {
 		return;
 	}
 
-	const name = typeof update.name === 'string' ? update.name : '';
+	const version = update.version;
 	const branch =
 		typeof update.branch === 'string' && update.branch
 			? update.branch
-			: update.version;
+			: version;
+	const crossing = update.crossing === true;
 	const dismissKey = `desktop-mode/core-update:${ branch }`;
+	if ( isNoticeDismissed( dismissKey ) ) {
+		return;
+	}
+
 	const openUpdateScreen = (): void =>
 		openUrl( { url: update.url, title: __( 'WordPress Updates' ) } );
 
-	// Branch art available → the album-sleeve vinyl moment (major or
-	// minor within a branch that has art). Skip entirely if the user has
-	// dismissed this release.
-	const release = update.release;
-	if ( release && typeof release.artUrl === 'string' && release.artUrl ) {
-		if ( isNoticeDismissed( dismissKey ) ) {
-			return;
-		}
+	const resolveArt = deps.resolveArt ?? resolveReleaseArt;
+	const load = deps.loadImage ?? preloadImage;
+
+	// Resolve + preload the art before showing anything, so the vinyl
+	// appears once (already painted) instead of flashing a toast first.
+	const art = await resolveArt( branch );
+	if ( art && art.artUrl && ( await load( art.artUrl ) ) ) {
 		showReleaseCard( {
-			version: update.version,
-			name,
-			artUrl: release.artUrl,
+			version,
+			name: crossing ? art.name : '',
+			artUrl: art.artUrl,
 			dismissKey,
-			accent: typeof release.accent === 'string' ? release.accent : undefined,
-			accentInk:
-				typeof release.accentInk === 'string' ? release.accentInk : undefined,
 			onUpdate: openUpdateScreen,
 		} );
 		return;
 	}
 
-	// No art → the plain persistent, non-dismissible toast.
+	// No art (unknown release / offline / image failed) → plain toast.
 	showToast( {
-		message: updateMessage( update.version, name ),
+		message: updateMessage( version, '' ),
 		persistent: true,
 		action: {
 			label: __( 'Update now' ),
