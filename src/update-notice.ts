@@ -29,6 +29,7 @@
 
 import { showToast } from './toast';
 import { showReleaseCard } from './release-card';
+import { isNoticeDismissed } from './ui/components/wpd-notice/storage';
 import { __, sprintf } from './i18n';
 
 /** Release-art descriptor for a branch (from the PHP resolver). */
@@ -92,21 +93,27 @@ export function maybeShowUpdate( deps: UpdateNoticeDeps ): void {
 	}
 
 	const name = typeof update.name === 'string' ? update.name : '';
+	const branch =
+		typeof update.branch === 'string' && update.branch
+			? update.branch
+			: update.version;
+	const dismissKey = `desktop-mode/core-update:${ branch }`;
 	const openUpdateScreen = (): void =>
 		openUrl( { url: update.url, title: __( 'WordPress Updates' ) } );
 
 	// Branch art available → the album-sleeve vinyl moment (major or
-	// minor within a branch that has art).
+	// minor within a branch that has art). Skip entirely if the user has
+	// dismissed this release.
 	const release = update.release;
 	if ( release && typeof release.artUrl === 'string' && release.artUrl ) {
+		if ( isNoticeDismissed( dismissKey ) ) {
+			return;
+		}
 		showReleaseCard( {
 			version: update.version,
 			name,
-			branch:
-				typeof update.branch === 'string' && update.branch
-					? update.branch
-					: update.version,
 			artUrl: release.artUrl,
+			dismissKey,
 			accent: typeof release.accent === 'string' ? release.accent : undefined,
 			accentInk:
 				typeof release.accentInk === 'string' ? release.accentInk : undefined,

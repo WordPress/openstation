@@ -83,4 +83,17 @@ describe( '<wpd-release-card>', () => {
 		( card.shadowRoot!.querySelector( '.btn' ) as HTMLButtonElement ).click();
 		expect( fired ).toBe( true );
 	} );
+
+	test( 'the close button emits wpd-release-dismiss and starts the collapse', async () => {
+		const card = mount( { art: 'https://example.com/7.0.png', version: '7.0' } );
+		await tick();
+		let fired = false;
+		card.addEventListener( 'wpd-release-dismiss', () => {
+			fired = true;
+		} );
+		( card.shadowRoot!.querySelector( '.close' ) as HTMLButtonElement ).click();
+		expect( fired ).toBe( true );
+		// Stage 1 kicks off synchronously: the record returns to the sleeve.
+		expect( card.hasAttribute( 'collapsing' ) ).toBe( true );
+	} );
 } );

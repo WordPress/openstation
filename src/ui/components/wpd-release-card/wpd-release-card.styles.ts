@@ -17,6 +17,7 @@ import { css } from '../../core';
 export const styles = css`
 	:host {
 		display: block;
+		position: relative;
 		box-sizing: border-box;
 		width: 268px;
 		padding: 11px;
@@ -42,6 +43,17 @@ export const styles = css`
 		from { opacity: 0; transform: translateY( -16px ) scale( 0.96 ); }
 		to   { opacity: 1; transform: none; }
 	}
+
+	.close {
+		position: absolute; top: 9px; right: 9px; z-index: 10;
+		width: 22px; height: 22px; padding: 0; border: none; border-radius: 50%;
+		display: inline-flex; align-items: center; justify-content: center;
+		background: rgba( 0, 0, 0, 0.5 ); color: #fff; opacity: 0.72; cursor: pointer;
+		transition: opacity 0.12s ease, background-color 0.12s ease;
+	}
+	.close:hover { opacity: 1; background: rgba( 0, 0, 0, 0.7 ); }
+	.close:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 2px; }
+	.close svg { width: 11px; height: 11px; }
 
 	.art { position: relative; height: 150px; }
 
@@ -111,6 +123,16 @@ export const styles = css`
 	}
 	.btn:hover { filter: brightness( 1.12 ); }
 	.btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+	/* Dismiss — stage 1: the record slides back into the sleeve. The card
+	 * collapse toward the admin-bar Updates icon (stage 2) is driven with
+	 * an inline transform by the component (the target is dynamic). */
+	:host( [ collapsing ] ) .disc-wrap {
+		animation: none;
+		transition: transform 0.42s cubic-bezier( 0.4, 0, 1, 1 );
+		transform: translateX( -84px );
+	}
+	:host( [ collapsing ] ) .close { opacity: 0; }
 
 	@media ( prefers-reduced-motion: reduce ) {
 		:host, .disc-wrap, .disc, .meta { animation: none !important; }

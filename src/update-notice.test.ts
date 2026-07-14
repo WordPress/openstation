@@ -4,10 +4,11 @@
  * we assert which surface is chosen and with what wording.
  */
 
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { maybeShowUpdate, updateMessage } from './update-notice';
 import { showToast, type ToastOptions } from './toast';
 import { showReleaseCard, type ReleaseCardOptions } from './release-card';
+import { markNoticeDismissed } from './ui/components/wpd-notice/storage';
 
 vi.mock( './toast', () => ( { showToast: vi.fn() } ) );
 vi.mock( './release-card', () => ( { showReleaseCard: vi.fn() } ) );
@@ -26,10 +27,12 @@ function lastCard(): ReleaseCardOptions {
 const ART = { artUrl: 'https://example.com/7.0.png' };
 
 beforeEach( () => {
+	localStorage.clear();
 	toastMock.mockClear();
 	cardMock.mockClear();
 	openUrl.mockClear();
 } );
+afterEach( () => localStorage.clear() );
 
 describe( 'updateMessage', () => {
 	test( 'includes the codename when crossing a major', () => {
@@ -64,7 +67,7 @@ describe( 'maybeShowUpdate', () => {
 		const c = lastCard();
 		expect( c.version ).toBe( '7.0' );
 		expect( c.name ).toBe( 'Armstrong' );
-		expect( c.branch ).toBe( '7.0' );
+		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0' );
 		expect( c.artUrl ).toBe( ART.artUrl );
 		expect( c.accent ).toBeUndefined(); // derived from art
 	} );
@@ -91,7 +94,17 @@ describe( 'maybeShowUpdate', () => {
 		const c = lastCard();
 		expect( c.version ).toBe( '7.0.1' );
 		expect( c.name ).toBe( '' );
-		expect( c.branch ).toBe( '7.0' );
+		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0' );
+	} );
+
+	test( 'skips the vinyl when the release was already dismissed', () => {
+		markNoticeDismissed( 'desktop-mode/core-update:7.0' );
+		maybeShowUpdate( {
+			update: { version: '7.0', name: 'Armstrong', branch: '7.0', url: '/u', release: ART },
+			openUrl,
+		} );
+		expect( cardMock ).not.toHaveBeenCalled();
+		expect( toastMock ).not.toHaveBeenCalled();
 	} );
 
 	test( 'no art → plain toast with the same wording rules', () => {

@@ -43,6 +43,8 @@ export class WpdReleaseCard extends Component {
 	static styles = [ styles ];
 
 	private _coverTries = 0;
+	private _dismissed = false;
+	private _dismissTimer: number | null = null;
 
 	static help = {
 		title: 'Release card',
@@ -59,6 +61,7 @@ export class WpdReleaseCard extends Component {
 		],
 		events: [
 			{ name: 'wpd-release-update', description: 'Fires when the "Update now" button is clicked.', detail: '{}' },
+			{ name: 'wpd-release-dismiss', description: 'Fires when the close button is clicked (before the collapse animation).', detail: '{}' },
 		],
 		cssProps: [
 			{ name: '--accent', description: 'Record-label + button color (derived from the art, or set via `accent`).' },
@@ -97,6 +100,22 @@ export class WpdReleaseCard extends Component {
 		const suffix = name ? ` "${ name }"` : '';
 
 		return html`
+			<button
+				type="button"
+				class="close"
+				aria-label="Dismiss"
+				@click=${ ( e: Event ) => this._onClose( e ) }
+			>
+				<svg viewBox="0 0 14 14" aria-hidden="true">
+					<path
+						d="M3 3 L11 11 M11 3 L3 11"
+						stroke="currentColor"
+						stroke-width="1.7"
+						stroke-linecap="round"
+						fill="none"
+					></path>
+				</svg>
+			</button>
 			<div class="art">
 				<div class="disc-wrap">
 					<div class="disc">
@@ -294,6 +313,97 @@ export class WpdReleaseCard extends Component {
 		e.preventDefault();
 		e.stopPropagation();
 		this.emit( 'wpd-release-update', {} );
+	}
+
+	private _onClose( e: Event ): void {
+		e.preventDefault();
+		e.stopPropagation();
+		this._dismiss();
+	}
+
+	/**
+	 * Dismiss with a two-stage animation: the record slides back into the
+	 * sleeve, then the whole card collapses into the admin-bar Updates
+	 * icon. Emits `wpd-release-dismiss` immediately (so the shell can
+	 * persist the dismissal) and removes itself when the animation ends.
+	 * Under reduced motion it just removes itself.
+	 */
+	private _dismiss(): void {
+		if ( this._dismissed ) {
+			return;
+		}
+		this._dismissed = true;
+		this.emit( 'wpd-release-dismiss', {} );
+
+		const reduce =
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+		if ( reduce ) {
+			this.remove();
+			return;
+		}
+
+		// Stage 1: the record returns behind the sleeve.
+		this.setAttribute( 'collapsing', '' );
+		// Stage 2: after it's back in, collapse toward the Updates icon.
+		this._dismissTimer = window.setTimeout( () => this._collapseToTarget(), 420 );
+	}
+
+	/** Collapse the card into the admin-bar Updates icon (or a sensible fallback). */
+	private _collapseToTarget(): void {
+		if ( ! this.isConnected ) {
+			return;
+		}
+		const card = this.getBoundingClientRect();
+		const cx = card.left + card.width / 2;
+		const cy = card.top + card.height / 2;
+
+		// Target: the WordPress admin-bar "Updates" node; fall back to the
+		// admin bar's right edge, then to the top-right corner.
+		const target =
+			document.getElementById( 'wp-admin-bar-updates' ) ||
+			document.getElementById( 'wpadminbar' );
+		let tx = window.innerWidth - 40;
+		let ty = 16;
+		if ( target ) {
+			const r = target.getBoundingClientRect();
+			tx = r.left + r.width / 2;
+			ty = r.top + r.height / 2;
+			// A little acknowledgement bounce on the icon it flew into.
+			if ( typeof target.animate === 'function' ) {
+				target.animate(
+					[
+						{ transform: 'scale(1)' },
+						{ transform: 'scale(1.3)' },
+						{ transform: 'scale(1)' },
+					],
+					{ duration: 420, delay: 380, easing: 'cubic-bezier(0.3,1.4,0.4,1)' },
+				);
+			}
+		}
+
+		// Clear the entrance animation so the inline transform applies.
+		this.style.animation = 'none';
+		this.style.transformOrigin = 'center center';
+		this.style.transition =
+			'transform 0.5s cubic-bezier(0.5, 0, 0.75, 0), opacity 0.45s ease 0.05s';
+		requestAnimationFrame( () => {
+			this.style.transform = `translate(${ Math.round( tx - cx ) }px, ${ Math.round( ty - cy ) }px) scale(0.04)`;
+			this.style.opacity = '0';
+		} );
+
+		const done = (): void => this.remove();
+		this.addEventListener( 'transitionend', done, { once: true } );
+		this._dismissTimer = window.setTimeout( done, 700 );
+	}
+
+	disconnectedCallback(): void {
+		// Cancel any in-flight dismiss animation timer so it can't fire
+		// after the card is gone.
+		if ( this._dismissTimer !== null ) {
+			clearTimeout( this._dismissTimer );
+			this._dismissTimer = null;
+		}
 	}
 }
 defineComponent( 'wpd-release-card', WpdReleaseCard );
