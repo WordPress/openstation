@@ -29,8 +29,13 @@ export const styles = css`
 			0 16px 40px rgba( 0, 0, 0, 0.55 ),
 			0 3px 8px rgba( 0, 0, 0, 0.3 ),
 			inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
-		--accent: #ef5a3c;
-		--accent-ink: #171717;
+		/* Classic cream vinyl label by default — reads well over any
+		 * release's sleeve. A release can override via the accent
+		 * attributes for a per-release color match. */
+		--accent: #efe6d3;
+		--accent-ink: #1a1a1a;
+		/* "Update now" CTA — WordPress blue, independent of the sleeve. */
+		--wpd-release-btn: #2271b1;
 		animation: cardIn 0.5s cubic-bezier( 0.2, 1.2, 0.35, 1 ) both;
 	}
 	@keyframes cardIn {
@@ -45,7 +50,14 @@ export const styles = css`
 		border-radius: 10px; overflow: hidden; z-index: 3;
 		box-shadow: 0 8px 20px rgba( 0, 0, 0, 0.5 ), inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
 	}
-	.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+	/* The release art is a landscape "[square sleeve | record]" image;
+	 * anchoring the cover to the left extracts exactly the sleeve square
+	 * (its side == the image height), regardless of the source's overall
+	 * aspect ratio. The synthetic disc emerges over the record side. */
+	.cover img {
+		width: 100%; height: 100%; object-fit: cover; object-position: left center;
+		display: block;
+	}
 	.cover .spine {
 		position: absolute; top: 0; bottom: 0; right: 0; width: 5px; z-index: 2;
 		background: linear-gradient( 90deg, rgba( 0, 0, 0, 0.35 ), rgba( 0, 0, 0, 0 ) );
@@ -105,7 +117,7 @@ export const styles = css`
 	.mtext .rel { color: var( --accent ); }
 	.btn {
 		flex-shrink: 0; padding: 7px 12px; border: none; border-radius: 7px;
-		color: #fff; background: var( --accent ); font: inherit; font-size: 12px; font-weight: 600;
+		color: #fff; background: var( --wpd-release-btn ); font: inherit; font-size: 12px; font-weight: 600;
 		cursor: pointer; box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.3 ); transition: filter 0.12s;
 	}
 	.btn:hover { filter: brightness( 1.12 ); }

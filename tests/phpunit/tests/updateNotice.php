@@ -33,6 +33,11 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		unset( $_GET['desktop_mode_chromeless'] );
 		remove_all_filters( 'desktop_mode_core_update_notice' );
+		remove_all_filters( 'desktop_mode_core_update_release' );
+		remove_all_filters( 'pre_http_request' );
+		foreach ( array( '7.0', '9.9', '5.5' ) as $k ) {
+			delete_transient( 'desktop_mode_release_art_' . $k );
+		}
 		parent::tear_down();
 	}
 
@@ -76,22 +81,68 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_core_update_release
+	 * @covers ::desktop_mode_parse_release_post
 	 */
-	public function test_release_registry_resolves_bundled_art() {
-		$release = desktop_mode_core_update_release( '7.0' );
+	public function test_parse_matches_major_announcement() {
+		$post = $this->news_post( 'WordPress 7.0 “Armstrong”', 'https://i0.wp.com/x/7.0.png' );
+		$release = desktop_mode_parse_release_post( $post, '7.0' );
 		$this->assertIsArray( $release );
 		$this->assertSame( 'Armstrong', $release['name'] );
-		$this->assertStringContainsString( 'assets/releases/7.0.jpg', $release['artUrl'] );
+		$this->assertSame( 'https://i0.wp.com/x/7.0.png', $release['artUrl'] );
 		$this->assertNotEmpty( $release['accent'] );
-		$this->assertNotEmpty( $release['accentInk'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_parse_release_post
+	 */
+	public function test_parse_rejects_maintenance_release() {
+		$post = $this->news_post( 'WordPress 7.0.1 Maintenance Release', 'https://x/m.png' );
+		$this->assertNull( desktop_mode_parse_release_post( $post, '7.0' ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_fetch_release_art
+	 */
+	public function test_fetch_resolves_art_from_news_api_and_caches() {
+		$this->mock_news_http(
+			array(
+				// Maintenance post first — must be skipped for the major.
+				$this->news_post( 'WordPress 7.0.1 Maintenance Release', 'https://x/m.png' ),
+				$this->news_post( 'WordPress 7.0 “Armstrong”', 'https://i0.wp.com/x/7.0.png' ),
+			)
+		);
+
+		desktop_mode_fetch_release_art( '7.0' );
+
+		$cached = get_transient( 'desktop_mode_release_art_7.0' );
+		$this->assertIsArray( $cached );
+		$this->assertSame( 'Armstrong', $cached['name'] );
+		$this->assertSame( 'https://i0.wp.com/x/7.0.png', $cached['artUrl'] );
+
+		// The public resolver now returns it straight from cache (no fetch).
+		$release = desktop_mode_core_update_release( '7.0' );
+		$this->assertSame( 'Armstrong', $release['name'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_fetch_release_art
+	 */
+	public function test_fetch_caches_miss_when_no_announcement() {
+		$this->mock_news_http( array( $this->news_post( 'An unrelated post', '' ) ) );
+
+		desktop_mode_fetch_release_art( '9.9' );
+
+		$this->assertSame( 'none', get_transient( 'desktop_mode_release_art_9.9' ) );
+		$this->assertNull( desktop_mode_core_update_release( '9.9' ) );
 	}
 
 	/**
 	 * @covers ::desktop_mode_core_update_release
 	 */
-	public function test_release_registry_null_for_unknown_version() {
-		$this->assertNull( desktop_mode_core_update_release( '99.9' ) );
+	public function test_release_null_on_cold_cache() {
+		// Nothing cached, no HTTP mock → resolver returns null and
+		// schedules a background fetch it can't complete synchronously.
+		$this->assertNull( desktop_mode_core_update_release( '5.5' ) );
 	}
 
 	/**
@@ -205,6 +256,59 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		$this->assertNotFalse( has_action( 'admin_notices', 'update_nag' ) );
 
 		remove_action( 'admin_notices', 'update_nag', 3 );
+	}
+
+	/**
+	 * Build a minimal news-feed REST post (with an embedded featured
+	 * image) for the parser/fetcher tests.
+	 *
+	 * @param string $title Post title (rendered).
+	 * @param string $art   Featured-image URL, or '' for none.
+	 * @return array
+	 */
+	private function news_post( $title, $art ) {
+		$embedded = array();
+		if ( '' !== $art ) {
+			$embedded = array(
+				'wp:featuredmedia' => array(
+					array(
+						'source_url'    => $art,
+						'media_details' => array(
+							'sizes' => array(
+								'medium_large' => array( 'source_url' => $art ),
+							),
+						),
+					),
+				),
+			);
+		}
+		return array(
+			'title'     => array( 'rendered' => $title ),
+			'_embedded' => $embedded,
+		);
+	}
+
+	/**
+	 * Short-circuit the wordpress.org/news request with a canned post
+	 * list so the fetcher runs without real HTTP.
+	 *
+	 * @param array $posts Decoded posts to return as the response body.
+	 */
+	private function mock_news_http( $posts ) {
+		add_filter(
+			'pre_http_request',
+			static function ( $pre, $args, $url ) use ( $posts ) {
+				if ( false !== strpos( (string) $url, 'wordpress.org/news/wp-json' ) ) {
+					return array(
+						'response' => array( 'code' => 200 ),
+						'body'     => wp_json_encode( $posts ),
+					);
+				}
+				return $pre;
+			},
+			10,
+			3
+		);
 	}
 
 	/**

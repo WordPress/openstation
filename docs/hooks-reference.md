@@ -2957,10 +2957,13 @@ add_filter( 'desktop_mode_core_update_notice', '__return_null' );
 ```
 
 **`desktop_mode_core_update_release`** — filter the release art for a
-major. The plugin bundles art for shipped releases (Armstrong 7.0, Gene
-6.9, …) under `assets/releases/<X.Y>.jpg`; use this to add art for a
-newer release before the plugin bundles it, override an entry, or
-return `null` to fall back to the plain toast.
+major. The plugin resolves art **live** from the wordpress.org/news
+feed (the release announcement's featured image), fetched in the
+background and cached — so past and future releases work without a
+plugin update. Use this filter to supply art for a release the feed
+hasn't announced yet, override the resolved entry (e.g. a per-release
+accent color), or return `null` (on sites that can't reach
+wordpress.org) to fall back to the plain toast.
 
 ```php
 /**

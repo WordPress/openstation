@@ -85,9 +85,12 @@ export function maybeShowUpdate( deps: UpdateNoticeDeps ): void {
 			version: update.version,
 			name: typeof release.name === 'string' ? release.name : '',
 			artUrl: release.artUrl,
-			accent: typeof release.accent === 'string' ? release.accent : '#2271b1',
+			// Defaults match the component's classic cream vinyl label;
+			// the PHP `desktop_mode_core_update_release` filter can supply
+			// a per-release color match.
+			accent: typeof release.accent === 'string' ? release.accent : '#efe6d3',
 			accentInk:
-				typeof release.accentInk === 'string' ? release.accentInk : '#ffffff',
+				typeof release.accentInk === 'string' ? release.accentInk : '#1a1a1a',
 			onUpdate: openUpdateScreen,
 		} );
 		return;
