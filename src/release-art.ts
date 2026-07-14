@@ -24,7 +24,9 @@ export interface ReleaseArt {
 	artUrl: string;
 }
 
-const CACHE_PREFIX = 'desktop-mode/release-art:';
+// The `v2` segment versions the cache — bump it when the resolution logic
+// changes so stale hits/misses from an older algorithm are discarded.
+const CACHE_PREFIX = 'desktop-mode/release-art:v2:';
 const MISS_TTL_MS = 6 * 60 * 60 * 1000; // retry a miss after 6h
 
 function str( v: unknown ): string {
@@ -139,10 +141,13 @@ export async function resolveReleaseArt(
 	}
 
 	try {
+		// per_page=100 (the REST max): an older branch's announcement can
+		// sit well below the newer maintenance posts / betas that also
+		// match the version in a relevance-ranked search.
 		const url =
 			'https://wordpress.org/news/wp-json/wp/v2/posts?search=' +
 			encodeURIComponent( branch ) +
-			'&per_page=20&_embed=1';
+			'&per_page=100&_embed=1';
 		const res = await trackedFetch(
 			url,
 			{ credentials: 'omit' },
