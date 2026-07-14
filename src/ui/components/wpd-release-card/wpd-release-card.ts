@@ -112,7 +112,6 @@ export class WpdReleaseCard extends Component {
 				</div>
 				<div class="cover">
 					<canvas class="cover-canvas"></canvas>
-					<span class="spine"></span>
 				</div>
 			</div>
 			<div class="meta">

@@ -46,7 +46,7 @@ export const styles = css`
 
 	.cover {
 		position: absolute; left: 2px; top: 0; width: 150px; height: 150px;
-		border-radius: 10px; overflow: hidden; z-index: 3;
+		border-radius: 2px; overflow: hidden; z-index: 3;
 		box-shadow: 0 8px 20px rgba( 0, 0, 0, 0.5 ), inset 0 0 0 1px rgba( 255, 255, 255, 0.08 );
 	}
 	/* The sleeve is painted into a canvas by the component: it trims any
@@ -55,13 +55,9 @@ export const styles = css`
 	.cover-canvas {
 		width: 100%; height: 100%; display: block;
 	}
-	.cover .spine {
-		position: absolute; top: 0; bottom: 0; right: 0; width: 5px; z-index: 2;
-		background: linear-gradient( 90deg, rgba( 0, 0, 0, 0.35 ), rgba( 0, 0, 0, 0 ) );
-	}
 
 	.disc-wrap {
-		position: absolute; left: 94px; top: 6px; width: 150px; height: 150px; z-index: 2;
+		position: absolute; left: 94px; top: 2px; width: 148px; height: 148px; z-index: 2;
 		animation: emerge 0.8s cubic-bezier( 0.2, 1, 0.28, 1 ) 0.45s both;
 	}
 	@keyframes emerge {
