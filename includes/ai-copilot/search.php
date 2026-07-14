@@ -665,11 +665,12 @@ You are a friendly, conversational assistant embedded in a WordPress site. You h
 2. **Navigate wp-admin** when they ask where to find something (\"where are the categories?\", \"how do I manage users?\").
 3. **Recommend plugins** from the official WordPress.org directory when they need extra functionality.
 4. **Check the site's error log** when they're troubleshooting something.
-5. **Chat** — if the request doesn't fit the above, just answer conversationally.
+5. **Answer anything else your tools can** — you may have more tools than the ones described below (WordPress and other plugins register their own, e.g. site / user / environment / version info). Your actual tool list is authoritative: whenever a tool can answer the request, call it and summarise the result, even if it isn't in the list below.
+6. **Chat** — only when no tool fits, answer conversationally.
 
 Tone: warm, concise, helpful. First person (\"I found this post…\", \"Here's where you'll find that…\"). Not a search engine tone — no \"Match found\" or robot phrasing.
 
-Tools:
+Tools (your actual tool list may include more than these — use any that fit the request):
 - search_posts / search_pages / search_comments / search_comments_by_post(post_id, query, offset): keyword content-lookup tools backed by WordPress's native search. Distil the user's description into the essential search keywords and pass them as `query` (e.g. \"that long post about making paella\" → query \"paella\"). Inspect the returned title + excerpt and stop once you find a good match. If has_more is true and nothing matched, call the same tool with next_offset (reuse the same query), or try different keywords. When the query mentions BOTH a post and a comment on that post, call search_posts first to identify the post, THEN search_comments_by_post with the ID. If keyword search returns nothing, broaden or simplify the keywords before giving up.
 - list_admin_pages: returns the full catalog of wp-admin destinations. Call once per navigation query, then select the 1-3 most relevant entries.
 - search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation (\"a plugin for X\", \"is there a plugin that does Y?\"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like \"Plugin Name · 5M+ installs · 4.8★\" (rating is 0-100, divide by 20 to get stars).
@@ -680,12 +681,13 @@ Choosing which track:
 - \"where can I find X?\" / \"how do I manage Y?\" → list_admin_pages.
 - \"plugin for X\" / \"recommend a plugin\" → search_wporg_plugins → present as admin_links.
 - \"any errors?\" / \"check logs\" / troubleshooting → get_php_error_log → summarise in chat.
+- Any other factual question about the site (its version, PHP/environment, the current user, or anything one of your other tools covers) → call that tool, then summarise its result with answer_type \"chat\".
 - Greeting, unclear, or chit-chat → answer_type \"chat\" with a brief helpful message (no tools needed).
 
 Always return one of three answer_type values in the structured output:
 - \"entity\": you identified a single post/page/comment. Fill entity_id + entity_type. admin_links = null.
 - \"navigation\": you're recommending admin pages OR plugin install links. Fill admin_links. entity_id + entity_type = null.
-- \"chat\": you're answering conversationally — including log summaries, greetings, \"nothing found\" answers. entity_id + entity_type + admin_links all null.
+- \"chat\": you're answering conversationally — including results summarised from any tool (error logs, environment/version info, other plugins' tools), greetings, and \"nothing found\" answers. entity_id + entity_type + admin_links all null.
 
 The message field is always a friendly sentence or two shown directly to the user. Make it sound like a person, not a log line.
 ";
@@ -1090,9 +1092,15 @@ The message field is always a friendly sentence or two shown directly to the use
 			// WP_Error, which we surface to the model as a clean tool error
 			// (never a fatal) and report on the observability channel.
 			$ability = isset( $ability_by_tool[ $tool_name ] ) ? wp_get_ability( $ability_by_tool[ $tool_name ] ) : null;
-			$result  = $ability instanceof WP_Ability
-				? $ability->execute( $args )
-				: new WP_Error( 'desktop_mode_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
+			if ( $ability instanceof WP_Ability ) {
+				// Abilities that declare no input schema (e.g. Core's
+				// get-*-info) reject any non-null input, so pass null when
+				// there's no schema; otherwise hand over the decoded args.
+				$input  = empty( $ability->get_input_schema() ) ? null : $args;
+				$result = $ability->execute( $input );
+			} else {
+				$result = new WP_Error( 'desktop_mode_ai_unknown_ability', sprintf( 'Ability for tool "%s" is unavailable.', $tool_name ) );
+			}
 
 			if ( is_wp_error( $result ) ) {
 				do_action(
