@@ -207,6 +207,16 @@ Each harvested command is tagged `eager: true` so it surfaces in the palette wit
 
 **Caveats.** Gutenberg block-level loader hooks are tightly coupled to current editor state; invoking a stale closure after the editor re-renders can no-op. The harvester re-runs on every React re-render, so in practice the cache is fresh, but don't expect the bridge to work if the iframe page hasn't booted its editor yet. Non-Gutenberg admin screens generally expose no contextual commands, so the palette falls back to its AI suggestions view when the focused window's registry is empty.
 
+### Overriding Core's ⌘K with the AI assistant
+
+WordPress 7.0 adds its own command-palette admin-bar icon (`#wp-admin-bar-command-palette`) and a global ⌘K keybinding, so the shell offers an opt-in toggle — **OS Settings → Features → "Override command palette with AI assistant"** (`ai.enabled`, off by default, provider-gated). When on, the AI assistant becomes the single ⌘K entry point:
+
+- The keyboard is already handled by `installPaletteShortcut()` (a capture-phase `keydown` that `stopImmediatePropagation()`s Core's binding). It now only claims ⌘K when a palette is *registered* — so with the override off, Core's palette keeps working.
+- The assistant registers itself as that palette (`registerPalette('desktop-mode-ai-assistant')`) when active.
+- Core's admin-bar ⌘K icon is intercepted with a capture-phase `click` listener (`src/desktop.ts`) that opens the assistant. There is **no** separate "Ask AI" button anymore — the ⌘K icon is the only affordance. (Core's palette has no PHP hooks yet, so both are interceptions, not filters.)
+
+**Running commands from the assistant.** The `/ai/search` loop offers one extra tool, `run_command`, described so the model reaches for it to *act* ("create a new post", "manage plugins") rather than just find. On a call the server returns an `answer_type: 'tool_call'` with `{ slug: '__run_command__', args: <intent> }`; the browser resolves the intent against the harvested command registry via `matchCommandByIntent()` and runs the best match through the normal command path (`runCommandByIntent()`). So the assistant can invoke every command the palette knows — Core's baseline plus anything plugins register — on top of the read-only [Abilities](hooks-reference.md) it already calls.
+
 ## CSS layering
 
 Core layering only — feature windows ship their own per-feature sheets
