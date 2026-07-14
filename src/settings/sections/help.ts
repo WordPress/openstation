@@ -8,8 +8,8 @@
  * `static props`, so the tab is useful on day one and grows richer as
  * authors fill in descriptors.
  *
- * Admin-gated alongside Extended Options — surfacing the component
- * library to every editor would be noise. The descriptors live next
+ * Admin-gated — surfacing the component library to every editor
+ * would be noise. The descriptors live next
  * to their components so renaming a prop forces a descriptor update
  * in the same diff (no separate docs file to drift).
  *
