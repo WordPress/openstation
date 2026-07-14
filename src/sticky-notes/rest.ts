@@ -175,6 +175,51 @@ export async function saveStickyNote(
 	return noteFromGuideline( guideline );
 }
 
+/**
+ * Move a sticky note to the Trash.
+ *
+ * Uses the standard REST trash (DELETE without `force`) rather than a
+ * permanent delete so an accidental removal stays recoverable — the
+ * delete toast's "Undo" calls {@link restoreStickyNote}. Because
+ * {@link fetchStickyNotes} only queries `status: 'private'`, a trashed
+ * note never re-hydrates onto the desktop (GH#344).
+ */
+export async function deleteStickyNote(
+	config: StickyNotesRestConfig,
+	guidelineId: number,
+): Promise< void > {
+	await requestJson< RestStickyGuideline >(
+		config,
+		`wp/v2/guidelines/${ guidelineId }`,
+		{ method: 'DELETE' },
+		false,
+	);
+}
+
+/**
+ * Restore a trashed sticky note by flipping its status back to
+ * `private` — the inverse of {@link deleteStickyNote}, wired to the
+ * delete toast's Undo action.
+ */
+export async function restoreStickyNote(
+	config: StickyNotesRestConfig,
+	guidelineId: number,
+): Promise< StickyNote > {
+	const guideline = await requestJson< RestStickyGuideline >(
+		config,
+		`wp/v2/guidelines/${ guidelineId }`,
+		{
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify( { status: 'private' } ),
+		},
+		false,
+	);
+	return noteFromGuideline( guideline );
+}
+
 export function buildGuidelineEditUrl(
 	adminUrl: string,
 	guidelineId: number,

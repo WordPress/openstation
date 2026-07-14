@@ -16,8 +16,25 @@ import {
 	titleField,
 	titleForBody,
 } from '../../src/sticky-notes/text';
-import { buildGuidelineEditUrl, pickStickyTerms } from '../../src/sticky-notes/rest';
+import {
+	buildGuidelineEditUrl,
+	deleteStickyNote,
+	pickStickyTerms,
+} from '../../src/sticky-notes/rest';
 import type { StickyNote } from '../../src/sticky-notes/types';
+
+// The delete tests exercise the layer's trash path; stub only the two
+// network calls it makes so no real REST round-trip is needed. Everything
+// else in the REST module (used by the helper tests) stays real.
+vi.mock( '../../src/sticky-notes/rest', async ( importActual ) => {
+	const actual =
+		await importActual< typeof import('../../src/sticky-notes/rest') >();
+	return {
+		...actual,
+		deleteStickyNote: vi.fn().mockResolvedValue( undefined ),
+		restoreStickyNote: vi.fn(),
+	};
+} );
 
 interface HeartbeatHandlers {
 	'heartbeat-send'?: ( e: unknown, data: Record< string, unknown > ) => void;
@@ -387,6 +404,81 @@ describe( 'sticky notes REST helpers', () => {
 	test( 'buildGuidelineEditUrl points at the CPT edit screen', () => {
 		expect( buildGuidelineEditUrl( 'https://example.test/wp-admin/', 42 ) )
 			.toBe( 'https://example.test/wp-admin/post.php?post=42&action=edit' );
+	} );
+} );
+
+describe( 'sticky notes delete (GH#344)', () => {
+	function makeLayer( host: HTMLElement ): StickyNotesLayer {
+		return new StickyNotesLayer( {
+			host,
+			config: { adminUrl: 'https://example.test/wp-admin/' },
+			openArtifact: vi.fn(),
+		} );
+	}
+
+	function clickDelete( host: HTMLElement ): void {
+		const close = host.querySelector( '.desktop-mode-sticky-note__close' );
+		close?.dispatchEvent(
+			new CustomEvent( 'wpd-button-activate', { bubbles: true } ),
+		);
+	}
+
+	test( 'the × button trashes the note and evicts it from the desktop', async () => {
+		const host = createSizedHost();
+		const layer = makeLayer( host );
+		const priv = layer as unknown as {
+			upsert: ( note: StickyNote, index: number ) => { element: HTMLElement };
+		};
+		priv.upsert( stickyNote( 5, 5000 ), 0 );
+		expect( host.querySelectorAll( '.desktop-mode-sticky-note' ) ).toHaveLength(
+			1,
+		);
+
+		clickDelete( host );
+
+		await vi.waitFor( () =>
+			expect(
+				host.querySelectorAll( '.desktop-mode-sticky-note' ),
+			).toHaveLength( 0 ),
+		);
+		expect( vi.mocked( deleteStickyNote ) ).toHaveBeenCalledWith(
+			expect.objectContaining( {
+				adminUrl: 'https://example.test/wp-admin/',
+			} ),
+			5,
+		);
+
+		host.remove();
+	} );
+
+	test( 'a deleted note is not re-added by a stale heartbeat echo', async () => {
+		const host = createSizedHost();
+		const layer = makeLayer( host );
+		const priv = layer as unknown as {
+			upsert: ( note: StickyNote, index: number ) => { element: HTMLElement };
+			applyHeartbeatPayload: ( payload: {
+				notes?: Array< { id: number; title?: { raw?: string } } >;
+			} ) => void;
+		};
+		priv.upsert( stickyNote( 7, 7000 ), 0 );
+
+		clickDelete( host );
+		await vi.waitFor( () =>
+			expect(
+				host.querySelectorAll( '.desktop-mode-sticky-note' ),
+			).toHaveLength( 0 ),
+		);
+
+		// A heartbeat tick that still lists the just-deleted note must not
+		// resurrect it — this is exactly the reappearance the fix targets.
+		priv.applyHeartbeatPayload( {
+			notes: [ { id: 7, title: { raw: 'Sticky 7' } } ],
+		} );
+		expect( host.querySelectorAll( '.desktop-mode-sticky-note' ) ).toHaveLength(
+			0,
+		);
+
+		host.remove();
 	} );
 } );
 

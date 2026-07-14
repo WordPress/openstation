@@ -1,12 +1,14 @@
 import { addAction, addFilter, HOOKS } from '../hooks';
-import { __ } from '../i18n';
+import { __, sprintf } from '../i18n';
 import '../ui/components/wpd-save-status/wpd-save-status';
 import '../ui/components/wpd-textarea/wpd-textarea';
 import '../ui/components/wpd-window-button/wpd-window-button';
 import {
 	buildGuidelineEditUrl,
+	deleteStickyNote,
 	fetchStickyNotes,
 	resolveStickyTerms,
+	restoreStickyNote,
 	saveStickyNote,
 	type StickyNotesRestConfig,
 } from './rest';
@@ -48,6 +50,19 @@ type WpdTextareaElement = HTMLElement & {
 	focusInput?: () => void;
 };
 
+/** Minimal view of the shell toast API used for the delete + Undo toast. */
+type StickyToastWindow = Window & {
+	wp?: {
+		desktop?: {
+			showToast?: ( opts: {
+				message: string;
+				duration?: number;
+				action?: { label: string; onClick: () => void };
+			} ) => unknown;
+		};
+	};
+};
+
 const GEOMETRY_KEY = 'desktop-mode-sticky-notes-geometry';
 const DEFAULT_WIDTH = 264;
 const DEFAULT_HEIGHT = 176;
@@ -70,6 +85,13 @@ export class StickyNotesLayer {
 	private desktopHooksInstalled = false;
 	private highWaterMs = 0;
 	private zIndexCounter = 0;
+	/**
+	 * Guideline ids the user deleted this session. A trash request and the
+	 * heartbeat/reload it races against can overlap, so we ignore any echo
+	 * that still lists a dismissed id until the removal has propagated
+	 * (GH#344). Cleared for an id when its delete is undone.
+	 */
+	private dismissedIds = new Set< number >();
 
 	constructor( options: StickyNotesLayerOptions ) {
 		this.host = options.host;
@@ -334,6 +356,71 @@ export class StickyNotesLayer {
 		}
 	}
 
+	/**
+	 * Delete a sticky note for good: evict it from the desktop, trash the
+	 * backing `wp_guideline` post, and offer an Undo. The controller must
+	 * already carry a `guidelineId` (the caller persists a not-yet-saved
+	 * note first) so there's a server row to trash — otherwise the note
+	 * would resurrect on the next heartbeat / reload (GH#344).
+	 */
+	async deleteController( controller: StickyNoteController ): Promise< void > {
+		const note = { ...controller.note };
+		const id = note.guidelineId;
+		this.forget( controller );
+		if ( id === null ) {
+			// Never persisted (offline / save failed) — there's no server
+			// row to trash, and nothing that can bring it back.
+			return;
+		}
+		this.dismissedIds.add( id );
+		try {
+			await deleteStickyNote( this.config, id );
+			this.showDeletedToast( note, id );
+		} catch ( error ) {
+			// Trash failed — the note still lives server-side, so put it
+			// back on the desktop and surface the reason.
+			this.dismissedIds.delete( id );
+			this.upsertRemote( note );
+			this.notifyError(
+				error instanceof Error
+					? error.message
+					: __( 'Could not delete sticky note.' ),
+			);
+		}
+	}
+
+	private showDeletedToast( note: StickyNote, id: number ): void {
+		const api = ( window as StickyToastWindow ).wp?.desktop;
+		if ( ! api?.showToast ) {
+			return;
+		}
+		const title = note.title || DEFAULT_STICKY_TITLE;
+		api.showToast( {
+			/* translators: %s: sticky note title. */
+			message: sprintf( __( '“%s” deleted' ), title ),
+			duration: 6000,
+			action: {
+				label: __( 'Undo' ),
+				onClick: () => void this.restoreNote( id ),
+			},
+		} );
+	}
+
+	private async restoreNote( id: number ): Promise< void > {
+		this.dismissedIds.delete( id );
+		try {
+			const restored = await restoreStickyNote( this.config, id );
+			this.ensureRoot();
+			this.upsertRemote( restored );
+		} catch ( error ) {
+			this.notifyError(
+				error instanceof Error
+					? error.message
+					: __( 'Could not restore sticky note.' ),
+			);
+		}
+	}
+
 	replaceControllerKey( oldKey: string, controller: StickyNoteController ): void {
 		const newKey = noteKey( controller.note );
 		this.controllers.delete( oldKey );
@@ -369,7 +456,16 @@ export class StickyNotesLayer {
 		return geometry;
 	}
 
-	private upsertRemote( note: StickyNote ): StickyNoteController {
+	private upsertRemote( note: StickyNote ): StickyNoteController | null {
+		if (
+			note.guidelineId !== null &&
+			this.dismissedIds.has( note.guidelineId )
+		) {
+			// Deleted locally this session — ignore a stale heartbeat /
+			// reload echo that still lists it until the trash propagates
+			// (GH#344). Undoing the delete clears the id first.
+			return null;
+		}
 		const key = noteKey( note );
 		const existing = this.controllers.get( key );
 		if ( existing ) {
@@ -517,6 +613,7 @@ class StickyNoteController {
 	private geometryTimer: number | null = null;
 	private saving = false;
 	private saveAgain = false;
+	private saveInFlight: Promise< void > | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private disposed = false;
 
@@ -627,9 +724,9 @@ class StickyNoteController {
 		const close = document.createElement( 'wpd-window-button' );
 		close.setAttribute( 'icon', 'close' );
 		close.setAttribute( 'danger', '' );
-		close.setAttribute( 'title', __( 'Hide sticky note' ) );
+		close.setAttribute( 'title', __( 'Delete sticky note' ) );
 		close.className = 'desktop-mode-sticky-note__close';
-		close.addEventListener( 'wpd-button-activate', () => this.close() );
+		close.addEventListener( 'wpd-button-activate', () => this.requestDelete() );
 
 		header.append( grip, this.titleEl, this.statusEl, this.openButton, close );
 		header.addEventListener( 'pointerdown', ( event ) => this.startDrag( event ) );
@@ -667,7 +764,15 @@ class StickyNoteController {
 		this.openButton.setAttribute( 'aria-disabled', disabled ? 'true' : 'false' );
 	}
 
-	private close(): void {
+	private requestDelete(): void {
+		// Fire-and-forget from the button handler; the async path persists
+		// the note (if needed) then trashes it (GH#344).
+		void this.deleteFlow();
+	}
+
+	private async deleteFlow(): Promise< void > {
+		// An empty note that was never persisted has no server row — just
+		// drop it locally; nothing can bring it back.
 		if (
 			this.note.guidelineId === null &&
 			this.note.body.trim().length === 0
@@ -675,8 +780,26 @@ class StickyNoteController {
 			this.layer.forget( this );
 			return;
 		}
-		this.flushSave();
-		this.layer.forget( this );
+		// Otherwise ensure the note is persisted first so there's a row to
+		// trash — a note created and closed inside the save debounce (or
+		// mid-save) may not have an id yet. Persist BEFORE forgetting so
+		// the resolved id lands on `this.note` while the controller is
+		// still live.
+		await this.ensurePersisted();
+		await this.layer.deleteController( this );
+	}
+
+	private async ensurePersisted(): Promise< void > {
+		if ( this.saveTimer !== null ) {
+			window.clearTimeout( this.saveTimer );
+			this.saveTimer = null;
+		}
+		if (
+			this.note.guidelineId === null &&
+			this.note.body.trim().length > 0
+		) {
+			await this.save();
+		}
 	}
 
 	private scheduleSave(): void {
@@ -709,14 +832,23 @@ class StickyNoteController {
 		}
 	}
 
-	private async save(): Promise< void > {
+	private save(): Promise< void > {
 		if ( this.saving ) {
+			// Coalesce into the running save and hand callers the in-flight
+			// promise, so a delete can await a real `guidelineId` before it
+			// trashes the note (GH#344). The `finally` reschedules a
+			// follow-up when the body changed again.
 			this.saveAgain = true;
 			this.setPhase( 'pending' );
-			return;
+			return this.saveInFlight ?? Promise.resolve();
 		}
 		this.saving = true;
 		this.setPhase( 'saving' );
+		this.saveInFlight = this.persist();
+		return this.saveInFlight;
+	}
+
+	private async persist(): Promise< void > {
 		const bodyAtSave = this.note.body;
 		try {
 			const saved = await this.layer.save( {
@@ -753,6 +885,7 @@ class StickyNoteController {
 			this.layer.notifyError( message );
 		} finally {
 			this.saving = false;
+			this.saveInFlight = null;
 			if ( ! this.disposed && this.saveAgain ) {
 				this.saveAgain = false;
 				this.scheduleSave();
