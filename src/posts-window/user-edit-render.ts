@@ -1052,7 +1052,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	if ( stats.daysSinceRegistration !== null ) {
 		memberValue = sprintf(
 			// translators: %d is a number of days.
-			__( '%d days' ),
+			_n( '%d day', '%d days', stats.daysSinceRegistration ),
 			stats.daysSinceRegistration,
 		);
 	}
