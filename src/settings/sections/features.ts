@@ -461,7 +461,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 									></wpd-checkbox-label>
 									<p class="desktop-mode-features__hint">
 										${ __(
-											'Adds an assistant powered by AI that finds your content and navigates wp-admin with plain-language questions. Off by default.',
+											'Adds an assistant powered by AI that finds your content, gets around wp-admin, and answers questions about your site — all in plain language. Off by default.',
 										) }
 									</p>
 									${ ! shellCfg.aiAssistant.assistantProviderConfigured
