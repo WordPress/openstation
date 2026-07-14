@@ -116,6 +116,7 @@ The plugin bundles the following third-party JavaScript library, loaded on deman
 
 = 0.9.4 =
 * AI Copilot now uses WordPress 7.0 providers: configure a provider once in Settings → Connectors and the assistant uses it — no more per-plugin keys
+* AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`desktop_mode_register_ai_tool()` was removed)
 * Removed the OS Settings → AI tab; the per-user "AI assistant" toggle now lives in OS Settings → Features next to "Score new comments with AI"
 * Requires WordPress 7.0 for the AI assistant only; on older WordPress the assistant is hidden and the rest of Desktop Mode is unaffected
 * Stored AI keys are deleted from the database on upgrade

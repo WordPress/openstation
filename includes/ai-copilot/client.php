@@ -183,7 +183,7 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
  * model ids — tried in order via `->using_model_preference()`, with the AI
  * Client's own fallback if none is available.
  *
- * @since 0.9.5
+ * @since 0.9.4
  *
  * @param int $user_id Requesting user id.
  * @return string[] Model ids, in preference order.
@@ -192,7 +192,7 @@ function desktop_mode_ai_model_preference( $user_id ) {
 	/**
 	 * Filters the Copilot's preferred model id(s).
 	 *
-	 * @since 0.9.5
+	 * @since 0.9.4
 	 *
 	 * @param string|string[] $models  Model id, or ordered list of ids. Empty = automatic.
 	 * @param int             $user_id Requesting user id.
@@ -214,7 +214,7 @@ function desktop_mode_ai_model_preference( $user_id ) {
 /**
  * Extracts normalized token usage from a generation result.
  *
- * @since 0.9.5
+ * @since 0.9.4
  *
  * @param mixed $result GenerativeAiResult.
  * @return array{ prompt: int, completion: int, total: int }|null
@@ -235,7 +235,7 @@ function desktop_mode_ai_result_token_usage( $result ) {
 /**
  * Extracts the resolved model's id + name from a generation result.
  *
- * @since 0.9.5
+ * @since 0.9.4
  *
  * @param mixed $result GenerativeAiResult.
  * @return array{ id: string, name: string }|null

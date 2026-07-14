@@ -1282,9 +1282,9 @@ The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses enti
 
 Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
-> **Removed in 0.9.4.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `desktop_mode_register_ai_provider()` / `desktop_mode_unregister_ai_provider()`, the actions `desktop_mode_ai_register_providers` / `desktop_mode_ai_provider_registered`, and the filters `desktop_mode_ai_active_provider` / `desktop_mode_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below are unaffected.
+> **Removed in 0.9.4.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `desktop_mode_register_ai_provider()` / `desktop_mode_unregister_ai_provider()`, the actions `desktop_mode_ai_register_providers` / `desktop_mode_ai_provider_registered`, and the filter `desktop_mode_ai_active_provider` (the old provider-selecting `desktop_mode_ai_model` filter is gone too — the name is reused for a different purpose below). The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below are unaffected.
 
-> **Removed / changed in 0.9.5.** The built-in Copilot tools are now WordPress [Abilities](https://developer.wordpress.org/) (category `desktop-mode`), so the PHP tool registry is gone: `desktop_mode_register_ai_tool()` and the `desktop_mode_ai_tool_registered` action no longer exist — register a `wp_register_ability()` and add it via the new [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-095) filter instead. The `desktop_mode_ai_model` filter was **re-introduced** (it had been removed in 0.9.4) with new semantics: a soft model preference fed to the AI Client — see below.
+> **Removed / changed in 0.9.4.** The built-in Copilot tools are now WordPress [Abilities](https://developer.wordpress.org/) (category `desktop-mode`), so the PHP tool registry is gone: `desktop_mode_register_ai_tool()` and the `desktop_mode_ai_tool_registered` action no longer exist — register a `wp_register_ability()` and add it via the new [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-094) filter instead. The `desktop_mode_ai_model` filter name is **repurposed**: the old provider-selecting filter (≤ 0.9.3) is gone, and the name now expresses a soft model preference fed to the AI Client — see below.
 
 > **Removed in 0.9.1.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
@@ -1381,7 +1381,7 @@ apply_filters( 'desktop_mode_ai_request', array $extra, array $core );
 
 ### `desktop_mode_ai_tools` — Stable
 
-Transforms the full tool list (built-in ability tools + client commands) once per run, just before it goes to the provider. Add tools, remove tools, rewrite descriptions. (To add a server-dispatched tool, prefer registering an ability + the [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-095) filter, which also handles dispatch + permission.)
+Transforms the full tool list (built-in ability tools + client commands) once per run, just before it goes to the provider. Add tools, remove tools, rewrite descriptions. (To add a server-dispatched tool, prefer registering an ability + the [`desktop_mode_ai_abilities`](#desktop_mode_ai_abilities--stable-since-094) filter, which also handles dispatch + permission.)
 
 ```php
 apply_filters( 'desktop_mode_ai_tools', array $tools, array $context );
@@ -1479,7 +1479,7 @@ On an ability-execution failure the payload is `{ stage: 'tool_execute', tool_na
 
 ---
 
-### `desktop_mode_ai_model` — Stable (since 0.9.5)
+### `desktop_mode_ai_model` — Stable (since 0.9.4)
 
 Express a **soft** model preference for the Copilot's generation. Return a model id or an ordered list of ids; they're passed to the AI Client's `->using_model_preference()`, which tries them in order and falls back to its own choice if none is available. Empty (the default) means fully automatic. Credentials + provider still come from Settings → Connectors.
 
@@ -1489,7 +1489,7 @@ add_filter( 'desktop_mode_ai_model', function ( $models, $user_id ) {
 }, 10, 2 );
 ```
 
-### `desktop_mode_ai_abilities` — Stable (since 0.9.5)
+### `desktop_mode_ai_abilities` — Stable (since 0.9.4)
 
 Add your own tools to the Copilot. The built-in tools are WordPress [Abilities](https://developer.wordpress.org/) in the `desktop-mode` category (`search_posts`, `search_comments`, `list_admin_pages`, …), listed at `GET /wp-abilities/v1/abilities`. To add one, register an ability with `wp_register_ability()` on `wp_abilities_api_init`, then append its fully-namespaced name here. The agent loop advertises it to the model and dispatches calls through `wp_get_ability()->execute()`, so its `permission_callback` and input/output schemas are enforced by Core.
 
