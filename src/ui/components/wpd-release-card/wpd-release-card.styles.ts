@@ -59,6 +59,10 @@ export const styles = css`
 
 	.disc-wrap {
 		position: absolute; left: 94px; top: 2px; width: 148px; height: 148px; z-index: 2;
+		/* The drop shadow lives here (round, non-rotating) so it stays put
+		 * while the disc spins inside — a rotating shadow reads as fake. */
+		border-radius: 50%;
+		box-shadow: 0 14px 26px rgba( 0, 0, 0, 0.6 );
 		animation: emerge 0.8s cubic-bezier( 0.2, 1, 0.28, 1 ) 0.45s both;
 	}
 	@keyframes emerge {
@@ -70,8 +74,9 @@ export const styles = css`
 		background:
 			repeating-radial-gradient( circle at 50% 50%, rgba( 255, 255, 255, 0.05 ) 0 1px, rgba( 0, 0, 0, 0 ) 1px 2.4px ),
 			radial-gradient( circle at 50% 50%, #1a1a1e 0 11%, #0a0a0c 12% 62%, #050506 100% );
+		/* Inner shadows only — these are radially symmetric, so they don't
+		 * betray the spin. The drop shadow is on `.disc-wrap` (non-rotating). */
 		box-shadow:
-			0 14px 26px rgba( 0, 0, 0, 0.6 ),
 			inset 0 0 26px rgba( 0, 0, 0, 0.9 ),
 			inset 0 0 0 1px rgba( 255, 255, 255, 0.05 );
 		animation: settle 2.5s cubic-bezier( 0.12, 0.72, 0.16, 1 ) 0.45s both;
