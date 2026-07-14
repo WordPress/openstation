@@ -21,7 +21,7 @@
  * @since 0.8.3
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 // Side-effect imports — register the `<wpd-*>` components this
@@ -1078,7 +1078,11 @@ function buildColumns(
 				tog.className = 'desktop-mode-comments__replies-toggle';
 				tog.textContent = sprintf(
 					/* translators: %d: number of direct replies. */
-					__( '+ %d replies' ),
+					_n(
+						'+ %d reply',
+						'+ %d replies',
+						row.desktop_mode_replies_count,
+					),
 					row.desktop_mode_replies_count,
 				);
 				tog.addEventListener( 'click', ( e ) => {
