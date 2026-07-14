@@ -24,7 +24,7 @@
  * @since 0.8.0
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { type PostsWindowClient, type TermRow } from './rest';
@@ -2544,7 +2544,11 @@ export async function mountCategoriesMindmap(
 		meta.className = 'wpd-mindmap__sidebar-meta';
 		meta.textContent = sprintf(
 			/* translators: %d: post count. */
-			__( '%d posts in this category.' ),
+			_n(
+				'%d post in this category.',
+				'%d posts in this category.',
+				node.count,
+			),
 			node.count,
 		);
 		sidebar.appendChild( meta );
