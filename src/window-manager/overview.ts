@@ -344,12 +344,31 @@ export function enterOverview( mgr: WindowManager ): void {
 
 	// Signal "entered" after the grid animation settles. Matches the
 	// 280 ms transform transition — plugins listening here can safely
-	// read final layout positions.
-	window.setTimeout( () => {
+	// read final layout positions. Handle is tracked so `destroy()`
+	// can cancel it if the manager is discarded before it fires.
+	mgr._overviewEnterTimeoutId = window.setTimeout( () => {
+		mgr._overviewEnterTimeoutId = null;
 		if ( mgr._overviewActive ) {
 			doAction( HOOKS.OVERVIEW_ENTERED, {} );
 		}
-	}, 300 );
+	}, 300 ) as unknown as number;
+}
+
+/**
+ * Cancel any pending overview transition timers without running their
+ * callbacks. Called from `WindowManager.destroy()` so a discarded
+ * manager can never fire a delayed `doAction()` that reaches for
+ * globals torn down after the manager itself.
+ */
+export function cancelOverviewTimers( mgr: WindowManager ): void {
+	if ( mgr._overviewEnterTimeoutId !== null ) {
+		window.clearTimeout( mgr._overviewEnterTimeoutId );
+		mgr._overviewEnterTimeoutId = null;
+	}
+	if ( mgr._overviewExitTimeoutId !== null ) {
+		window.clearTimeout( mgr._overviewExitTimeoutId );
+		mgr._overviewExitTimeoutId = null;
+	}
 }
 
 /** Build the overview top bar — a tile per virtual desktop plus "+". */
@@ -640,9 +659,12 @@ export function exitOverview(
 
 	// After the animation completes, strip the per-window overview
 	// class (kept in place through the transition for the
-	// transform-origin reason noted above) and the labels.
+	// transform-origin reason noted above) and the labels. Handle is
+	// tracked so `destroy()` can cancel it if the manager is
+	// discarded before it fires.
 	const ANIMATION_MS = 280;
-	window.setTimeout( () => {
+	mgr._overviewExitTimeoutId = window.setTimeout( () => {
+		mgr._overviewExitTimeoutId = null;
 		for ( const w of mgr._stack ) {
 			w.element.classList.remove( 'desktop-mode-window--overview' );
 		}
@@ -672,7 +694,7 @@ export function exitOverview(
 			windowId: selected && maximize ? selected.id : undefined,
 			reason: selected && maximize ? 'select' : 'cancel',
 		} );
-	}, ANIMATION_MS );
+	}, ANIMATION_MS ) as unknown as number;
 
 	if ( mgr._overviewPointerDownHandler ) {
 		mgr._desktop.removeEventListener(

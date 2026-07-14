@@ -9,7 +9,7 @@
  *   - migration target picks the left neighbour by default
  *   - the desktop-mode.desktop.* action firings
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
 	clearHooksStub,
@@ -62,6 +62,12 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	afterEach( async () => {
+		// Several tests enter overview without explicitly exiting it.
+		// `manager.destroy()` cancels the pending overview transition
+		// timers (and, if still active, runs a synchronous exit) so
+		// none of them fire later and reach for `window.wp.hooks`
+		// after `clearHooksStub()` below has removed it.
+		manager.destroy();
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -469,5 +475,87 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		expect( manager.toggleShowDesktop() ).toBe( false );
 		expect( b.state ).toBe( 'normal' );
+	} );
+} );
+
+describe( 'WindowManager — destroy()', async () => {
+	let hooks: FakeWpHooks;
+	let desktopArea: HTMLElement;
+	let manager: WindowManager;
+
+	beforeEach( async () => {
+		hooks = installHooksStub();
+		desktopArea = document.createElement( 'div' );
+		Object.defineProperty( desktopArea, 'getBoundingClientRect', {
+			value: () =>
+				( {
+					left: 0,
+					top: 0,
+					right: 1600,
+					bottom: 900,
+					width: 1600,
+					height: 900,
+					x: 0,
+					y: 0,
+					toJSON: () => ( {} ),
+				} ) as DOMRect,
+		} );
+		Object.defineProperty( desktopArea, 'clientWidth', { value: 1600, configurable: true } );
+		Object.defineProperty( desktopArea, 'clientHeight', { value: 900, configurable: true } );
+		document.body.appendChild( desktopArea );
+		manager = new WindowManager( desktopArea );
+	} );
+
+	afterEach( async () => {
+		vi.useRealTimers();
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktopArea.remove();
+		clearHooksStub();
+	} );
+
+	test( 'cancels the pending "entered" timer left by an un-exited enterOverview()', async () => {
+		vi.useFakeTimers();
+		manager.enterOverview();
+		expect( manager._overviewEnterTimeoutId ).not.toBeNull();
+
+		manager.destroy();
+		expect( manager._overviewEnterTimeoutId ).toBeNull();
+
+		// Removing `window.wp.hooks` proves the cancelled timer never
+		// fires — a leaked one would throw reaching for it here, which
+		// is exactly the flake this regression test guards against.
+		clearHooksStub();
+		vi.advanceTimersByTime( 1000 );
+	} );
+
+	test( 'cancels the pending "exited" timer left by an un-awaited exitOverview()', async () => {
+		vi.useFakeTimers();
+		manager.enterOverview();
+		vi.advanceTimersByTime( 1000 );
+		manager.exitOverview();
+		expect( manager._overviewExitTimeoutId ).not.toBeNull();
+
+		manager.destroy();
+		expect( manager._overviewExitTimeoutId ).toBeNull();
+
+		clearHooksStub();
+		vi.advanceTimersByTime( 1000 );
+	} );
+
+	test( 'synchronously exits overview when destroyed mid-session', async () => {
+		manager.enterOverview();
+		expect( manager._overviewActive ).toBe( true );
+
+		manager.destroy();
+
+		expect( manager._overviewActive ).toBe( false );
+		expect( hooks.didAction( 'desktop-mode.overview.exiting' ) ).toBe( 1 );
+	} );
+
+	test( 'is a no-op when overview was never entered', async () => {
+		expect( () => manager.destroy() ).not.toThrow();
+		expect( manager._overviewActive ).toBe( false );
 	} );
 } );
