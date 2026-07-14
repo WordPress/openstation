@@ -2037,6 +2037,12 @@ function init(): void {
 	let unregisterAiPalette: ( () => void ) | null = null;
 	const syncAiAssistant = () => {
 		const active = isAiAssistantActive();
+		// Drives the CSS that shows/hides Core's ⌘K command-palette admin-bar
+		// icon: it's the assistant's entry point when active, and a dead
+		// button otherwise (Core's palette is suppressed shell-wide), so it's
+		// hidden when the assistant is off. Server-rendered initially in
+		// body-classes.php to avoid a flash; kept in sync live here.
+		document.body.classList.toggle( 'desktop-mode-ai-active', active );
 		if ( active && ! unregisterAiPalette ) {
 			unregisterAiPalette = registerPalette( {
 				id: 'desktop-mode-ai-assistant',

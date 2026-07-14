@@ -298,6 +298,17 @@ function desktop_mode_enqueue_toggle_assets() {
 	}
 
 	$css = '
+		/* Hide WordPress Core\'s ⌘K command-palette icon in the desktop shell
+		   unless the AI assistant is on. In the shell Core\'s palette is
+		   suppressed (its commands are harvested and it hard-navigates out of
+		   the window model), so the icon would be a dead button. When the
+		   assistant is active it becomes its ⌘K entry point — a capture-phase
+		   click interceptor in the shell opens the assistant instead. The
+		   `desktop-mode-ai-active` class is server-rendered (body-classes.php)
+		   and kept live by the shell. */
+		body.desktop-mode-active:not(.desktop-mode-ai-active) #wpadminbar #wp-admin-bar-command-palette {
+			display: none;
+		}
 		#wpadminbar #wp-admin-bar-desktop-mode-toggle > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-layout-menu > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-fullscreen > .ab-item,

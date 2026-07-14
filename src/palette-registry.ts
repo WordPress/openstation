@@ -232,13 +232,13 @@ export function installPaletteShortcut(): void {
 			if ( e.shiftKey || e.altKey ) {
 				return;
 			}
-			// Only claim Cmd+K when we actually have a palette to open
-			// (e.g. the AI assistant when its override toggle is on). With
-			// none registered, fall through so WordPress Core's command
-			// palette keeps working — overriding it is opt-in.
-			if ( palettes.length === 0 ) {
-				return;
-			}
+			// Always claim Cmd+K inside the desktop shell — Core's command
+			// palette is never the right UI here (its commands are harvested
+			// into the shell and its own callbacks hard-navigate out of the
+			// window model), so we suppress it unconditionally. When a palette
+			// is registered (the AI assistant, when its toggle is on) we open
+			// it; when none is, `cyclePalettes()` no-ops and Cmd+K does
+			// nothing — the shell simply has no command palette.
 			e.preventDefault();
 			e.stopImmediatePropagation();
 			cyclePalettes();
