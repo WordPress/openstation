@@ -157,11 +157,21 @@ function renderToast( intent: ToastIntent ): () => void {
 		}, FADE_OUT_MS );
 	};
 
-	// Enter animation — flip `state` to `'in'` on the next frame so
-	// the browser has painted the initial (hidden) state first.
-	requestAnimationFrame( () => {
-		toast.setAttribute( 'state', 'in' );
-	} );
+	// Enter animation — flip `state` to `'in'` after the browser has
+	// painted the initial (hidden) state so the CSS transition runs.
+	// `requestAnimationFrame` provides that paint on a visible tab, but
+	// it is PAUSED while the tab is hidden (backgrounded) — which would
+	// strand the toast at `opacity: 0` and it could even hit its dismiss
+	// timer before ever showing. A `setTimeout` still fires when the tab
+	// is hidden, so pair the two: whichever runs first flips the state,
+	// the other is a harmless no-op.
+	const enter = (): void => {
+		if ( ! dismissed ) {
+			toast.setAttribute( 'state', 'in' );
+		}
+	};
+	requestAnimationFrame( enter );
+	window.setTimeout( enter, 50 );
 
 	dismissTimer = window.setTimeout(
 		dismiss,
