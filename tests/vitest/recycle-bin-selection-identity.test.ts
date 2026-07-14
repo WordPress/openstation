@@ -130,6 +130,55 @@ describe( 'recycle-bin selection identity', () => {
 		expect( Array.from( table.selection ) ).toEqual( [ 'post:5' ] );
 	} );
 
+	test( 'changing a client-side column filter clears the selection', async () => {
+		const postCb = table.shadowRoot!.querySelector< HTMLInputElement >(
+			'tr[data-row-id="post:5"] input.select-row-checkbox',
+		)!;
+		postCb.checked = true;
+		postCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await settle();
+		expect( table.selection.size ).toBe( 1 );
+
+		// Type into the Title column filter — the previously selected
+		// row may now be hidden while still present in `data`, so the
+		// app must drop the selection rather than let it ride into a
+		// bulk purge the user can't see.
+		const input = table.shadowRoot!.querySelector< HTMLInputElement >(
+			'.filter-input',
+		)!;
+		input.value = 'comment';
+		input.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+		await settle();
+
+		expect( table.selection.size ).toBe( 0 );
+	} );
+
+	test( 'a refresh prunes selection keys whose row left the list', async () => {
+		const postCb = table.shadowRoot!.querySelector< HTMLInputElement >(
+			'tr[data-row-id="post:5"] input.select-row-checkbox',
+		)!;
+		postCb.checked = true;
+		postCb.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		await settle();
+		expect( Array.from( table.selection ) ).toEqual( [ 'post:5' ] );
+
+		// Someone else purges post #5; a realtime-driven refresh
+		// replaces the list. The ghost key must not linger in the
+		// selection (it would overcount the bulk bar).
+		mocks.fetchList.mockResolvedValue( {
+			items: [
+				makeItem( { id: 5, type: 'comment', title: 'Trashed comment' } ),
+			],
+			total: 1,
+		} );
+		body
+			.querySelector( '[data-desktop-mode-recycle-bin-refresh]' )!
+			.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		await settle();
+
+		expect( table.selection.size ).toBe( 0 );
+	} );
+
 	test( 'bulk "Delete forever" purges only the selected {id, type} pair', async () => {
 		const postCb = table.shadowRoot!.querySelector< HTMLInputElement >(
 			'tr[data-row-id="post:5"] input.select-row-checkbox',

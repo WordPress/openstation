@@ -585,6 +585,21 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				table.data = items;
 				currentFingerprint = next;
 				cachedItems = items;
+				// Prune selection keys whose row left the list (purged /
+				// restored elsewhere, surfaced by a realtime refresh).
+				// `collectSelectedItems()` already ignores keys with no
+				// matching row, so this is not load-bearing for safety —
+				// it keeps the bulk bar's "N selected" count truthful
+				// instead of overcounting ghosts. Selections of rows
+				// still present are deliberately preserved.
+				const present = new Set(
+					items.map( ( i ) => `${ i.type }:${ i.id }` ),
+				);
+				const kept = Array.from( table.selection ?? [], String )
+					.filter( ( key ) => present.has( key ) );
+				if ( kept.length !== ( table.selection?.size ?? 0 ) ) {
+					table.selection = kept;
+				}
 			} else {
 				// Fingerprint unchanged — keep DOM as-is, just
 				// refresh the cache reference so it survives
@@ -825,10 +840,15 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	const handleEmpty = async (): Promise< void > => {
+		// The server's empty endpoint purges the ENTIRE bin — it takes
+		// no type/search scope (see desktop_mode_recycle_bin_empty()).
+		// The confirm copy must say so; claiming "the current view"
+		// while a filter is active would purge items the user filtered
+		// out of sight.
 		const ok = await wpdConfirmGlobal( {
 			title: __( 'Empty bin?' ),
 			message: __(
-				'Empty the recycle bin? Every item visible in the current view will be permanently deleted.',
+				'Permanently delete ALL items in the recycle bin? This includes every type and any items hidden by the current filter or search. This cannot be undone.',
 			),
 			confirmLabel: __( 'Empty bin' ),
 			danger: true,
@@ -952,6 +972,16 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	table.addEventListener( 'wpd-table-selection-change', () => {
 		refreshBulkBar();
+	} );
+
+	// The Title / "By" columns declare client-side `filter: 'text'`
+	// filters. A row ticked BEFORE the user types into one stays
+	// selected while hidden — and it's still in `table.data`, so
+	// `collectSelectedItems()` would sweep it into a bulk purge the
+	// user can't see coming. Same hygiene as the toolbar filter /
+	// search: any visibility change starts with a clean selection.
+	table.addEventListener( 'wpd-table-filter-change', () => {
+		table.clearSelection();
 	} );
 
 	// Default sort: most-recently-deleted first. Users can change it.

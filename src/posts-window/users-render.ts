@@ -1017,12 +1017,23 @@ export async function renderUsersWindow(
 				if ( ! role ) {
 					return;
 				}
+				// Read the selection at CLICK time — the `ids` captured
+				// when the bulk bar was painted can go stale (a live
+				// `patchUserRow` can drop a row from the table without
+				// firing a selection-change repaint). The confirm count
+				// and the REST payload must describe the same set.
+				const targetIds = Array.from(
+					table.selection ?? [],
+				).map( ( id ) => Number( id ) );
+				if ( targetIds.length === 0 ) {
+					return;
+				}
 				const ok = await wpdConfirmGlobal( {
 					title: __( 'Change role for selected users?' ),
 					message: sprintf(
 						// translators: %1$d is a user count, %2$s is a role label.
 						__( "Set %1$d user(s)' role to %2$s?" ),
-						ids.length,
+						targetIds.length,
 						assignable[ role ],
 					),
 					confirmLabel: __( 'Set role' ),
@@ -1030,20 +1041,22 @@ export async function renderUsersWindow(
 				if ( ! ok ) {
 					return;
 				}
-				const out = await client.bulkSetRole( ids, role ).catch( ( err ) => {
-					notifyToast(
-						String( ( err as Error ).message ?? err ),
-						{ kind: 'error' },
-					);
-					return null;
-				} );
+				const out = await client
+					.bulkSetRole( targetIds, role )
+					.catch( ( err ) => {
+						notifyToast(
+							String( ( err as Error ).message ?? err ),
+							{ kind: 'error' },
+						);
+						return null;
+					} );
 				if ( ! out ) {
 					return;
 				}
 				const successes = Object.values( out.results ).filter(
 					( r ) => r.ok,
 				).length;
-				const failures = ids.length - successes;
+				const failures = targetIds.length - successes;
 				if ( successes > 0 ) {
 					notifyToast(
 						sprintf(
