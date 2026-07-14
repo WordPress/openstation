@@ -566,7 +566,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 							></wpd-checkbox-label>
 							<p class="desktop-mode-features__hint">
 								${ __(
-									'Clicking any window of a related group surfaces the whole group — the other members rise to just below the one you clicked, without stealing focus.',
+									'Clicking a window surfaces the windows directly tied to it — a parent brings up all of its children, a child brings up its parent — rising to just below the one you clicked, without stealing focus.',
 								) }
 							</p>
 						</div>
@@ -579,7 +579,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 							></wpd-checkbox-label>
 							<p class="desktop-mode-features__hint">
 								${ __(
-									'While a group member is focused, its related windows get a subtle accent outline so the family is recognizable at a glance.',
+									'While a group member is focused, its related windows get an accent outline and a soft glow so the family is recognizable at a glance.',
 								) }
 							</p>
 						</div>

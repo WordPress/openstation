@@ -55,7 +55,7 @@
 	   color-mix() anywhere in this chain: when a custom property's
 	   value can't resolve, the consuming declaration goes invalid at
 	   computed-value time and an SVG stroke resets to `none` —
-	   invisible lines under floating black arrowheads. The var()
+	   invisible lines under floating black endpoint markers. The var()
 	   fallback covers a missing token outright. */
 	stroke: var(--desktop-mode-window-link-color, #2271b1);
 	stroke-opacity: 0.55;
@@ -64,18 +64,20 @@
 }
 
 /*
- * Arrowhead tips (inside <defs><marker>). Two variants because a
- * marker can't read the class of the path referencing it — the
- * renderer swaps marker-end/-start between them on focus. Direction:
- * one head pointing at the root/referenced window; bidirectional
- * reference edges get heads on both ends.
+ * Endpoint dots (inside <defs><marker>). Circles rather than
+ * arrowheads — rotation-invariant, so a tie meeting a border at any
+ * angle looks right. Two variants because a marker can't read the
+ * class of the path referencing it — the renderer swaps
+ * marker-end/-start between them on focus. Direction survives as
+ * size: the larger dot sits on the root/referenced window;
+ * bidirectional reference edges get large dots on both ends.
  */
-.desktop-mode-window-link__arrow {
+.desktop-mode-window-link__endpoint {
 	fill: var(--desktop-mode-window-link-color, #2271b1);
 	fill-opacity: 0.55;
 }
 
-.desktop-mode-window-link__arrow--active {
+.desktop-mode-window-link__endpoint--active {
 	fill: var(--desktop-mode-window-link-color-active, #2271b1);
 	fill-opacity: 1;
 }
@@ -89,12 +91,23 @@
 
 /*
  * Related-window chrome cue — stamped by the render host on every
- * OTHER member of the focused window's relation group. An outline
- * (not box-shadow) so it composes with the window's elevation shadow
- * instead of replacing it; it follows the window's border-radius on
- * every modern engine.
+ * OTHER member of the focused window's relation group. Two parts:
+ *
+ *  - an accent outline (follows the window's border-radius on every
+ *    modern engine);
+ *  - a soft halo. box-shadow is one property, so the window's
+ *    elevation shadow is re-declared behind the glow — dropping it
+ *    would flatten linked windows against the wallpaper. A linked
+ *    window is by definition not the focused one, so the unfocused
+ *    elevation token is the right one to compose with.
+ *
+ * The base window chrome already transitions box-shadow, so the halo
+ * fades in and out with focus changes for free.
  */
 .desktop-mode-window--linked {
-	outline: 1px solid var(--desktop-mode-window-link-accent, var(--wp-admin-theme-color, #2271b1));
+	outline: 2px solid var(--desktop-mode-window-link-accent, var(--wp-admin-theme-color, #2271b1));
 	outline-offset: 1px;
+	box-shadow:
+		0 0 18px 4px var(--desktop-mode-window-link-glow, rgba(34, 113, 177, 0.45)),
+		var(--desktop-mode-window-shadow);
 }

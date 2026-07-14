@@ -196,7 +196,7 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		expect( path ).not.toBeNull();
 		expect( path!.closest( '#desktop-mode-window-links-elevated' ) ).not.toBeNull();
 		expect( path!.getAttribute( 'd' ) ).toMatch( /^M .+ C .+/ );
-		// Arrow points at the post (edge target).
+		// The large endpoint dot sits on the post (edge target).
 		expect( path!.getAttribute( 'marker-end' ) ).toMatch( /^url\(#/ );
 
 		// Focused member → layer visible under the 'focus' policy.
@@ -303,14 +303,19 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		).toBe( true );
 	} );
 
-	test( 'focusing a group member raises its related windows (not itself, not minimized)', async () => {
+	test( 'focusing the ROOT raises every child (not itself, not minimized ones)', async () => {
 		const { engine, host } = await loadModules();
-		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );
-		const commentWin = makeWin(
-			'comment-win',
-			{ x: 300, y: 300, width: 100, height: 100 },
+		const postWin = makeWin(
+			'post-win',
+			{ x: 0, y: 0, width: 100, height: 100 },
 			true,
 		);
+		const commentWin = makeWin( 'comment-win', {
+			x: 300,
+			y: 300,
+			width: 100,
+			height: 100,
+		} );
 		const minimizedWin = makeWin( 'media-win', {
 			x: 500,
 			y: 100,
@@ -338,13 +343,63 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		} );
 		manager.raise.mockClear();
 
+		hooks.doAction( HOOKS.WINDOW_FOCUSED, { windowId: 'post-win' } );
+
+		const raised = manager.raise.mock.calls.map( ( c ) => c[ 0 ] );
+		expect( raised ).toContain( 'comment-win' );
+		expect( raised ).not.toContain( 'post-win' );
+		// Minimized relatives stay minimized — never raised.
+		expect( raised ).not.toContain( 'media-win' );
+	} );
+
+	test( 'focusing a CHILD raises its parent but not its siblings', async () => {
+		const { engine, host } = await loadModules();
+		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );
+		const commentWin = makeWin(
+			'comment-win',
+			{ x: 300, y: 300, width: 100, height: 100 },
+			true,
+		);
+		const siblingWin = makeWin( 'sibling-win', {
+			x: 500,
+			y: 100,
+			width: 100,
+			height: 100,
+		} );
+		const manager = makeManager( [ postWin, commentWin, siblingWin ] );
+
+		engine.startWindowLinksEngine( { manager } );
+		host.startWindowLinkRenderHost( {
+			manager: manager as never,
+			osSettings: makeOsSettings() as never,
+		} );
+		engine.setWindowContent( 'post-win', { type: 'post', id: 1 } );
+		engine.setWindowContent( 'comment-win', {
+			type: 'comment',
+			id: 9,
+			root: { type: 'post', id: 1 },
+		} );
+		engine.setWindowContent( 'sibling-win', {
+			type: 'comment',
+			id: 10,
+			root: { type: 'post', id: 1 },
+		} );
+		manager.raise.mockClear();
+
 		hooks.doAction( HOOKS.WINDOW_FOCUSED, { windowId: 'comment-win' } );
 
 		const raised = manager.raise.mock.calls.map( ( c ) => c[ 0 ] );
 		expect( raised ).toContain( 'post-win' );
 		expect( raised ).not.toContain( 'comment-win' );
-		// Minimized relatives stay minimized — never raised.
-		expect( raised ).not.toContain( 'media-win' );
+		// The sibling shares the group but carries no edge to the
+		// focused child — it stays where it is.
+		expect( raised ).not.toContain( 'sibling-win' );
+		// …while the chrome highlight still marks the whole group.
+		expect(
+			siblingWin.element.classList.contains(
+				'desktop-mode-window--linked',
+			),
+		).toBe( true );
 	} );
 
 	test( 'focusing a group member lifts the layer to the group; blur to outsider resets it', async () => {

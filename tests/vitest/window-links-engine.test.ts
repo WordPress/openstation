@@ -230,6 +230,48 @@ describe( 'grouping', () => {
 		expect( getRelatedWindowIds( 'c1' ) ).toEqual( [ 'post-win' ] );
 		expect( getRelatedWindowIds( 'stranger' ) ).toEqual( [] );
 	} );
+
+	test( 'directly-related excludes group siblings but keeps parent, children, and reference peers', async () => {
+		const {
+			setWindowContent,
+			getDirectlyRelatedWindowIds,
+			getRelatedWindowIds,
+		} = await load();
+
+		setWindowContent( 'post-win', {
+			type: 'post',
+			id: 123,
+			links: [ { type: 'term/category', id: 7 } ],
+		} );
+		setWindowContent( 'c1', {
+			type: 'comment',
+			id: 45,
+			root: { type: 'post', id: 123 },
+		} );
+		setWindowContent( 'c2', {
+			type: 'comment',
+			id: 46,
+			root: { type: 'post', id: 123 },
+		} );
+		setWindowContent( 'term-win', { type: 'term/category', id: 7 } );
+
+		// The root sees every child plus its reference peer.
+		expect( getDirectlyRelatedWindowIds( 'post-win' ).sort() ).toEqual( [
+			'c1',
+			'c2',
+			'term-win',
+		] );
+		// A child sees its parent — NOT its sibling.
+		expect( getDirectlyRelatedWindowIds( 'c1' ) ).toEqual( [
+			'post-win',
+		] );
+		// …while the group-wide query still includes the sibling.
+		expect( getRelatedWindowIds( 'c1' ).sort() ).toEqual( [
+			'c2',
+			'post-win',
+		] );
+		expect( getDirectlyRelatedWindowIds( 'stranger' ) ).toEqual( [] );
+	} );
 } );
 
 describe( 'edges', () => {

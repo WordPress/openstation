@@ -401,6 +401,31 @@ export function getRelatedWindowIds( windowId: string ): string[] {
 }
 
 /**
+ * Ids of the windows DIRECTLY tied to this one — the endpoints of the
+ * derived edges it participates in: its root ("parent") when it's a
+ * child, its children when it's a root, and its reference peers.
+ *
+ * Unlike {@link getRelatedWindowIds} this excludes mere group
+ * siblings: two comments of the same post share a group but no edge.
+ * The render host's raise-on-focus uses this so focusing a child
+ * surfaces its parent — not the whole sibling cohort — while focusing
+ * the root still surfaces every child (each child carries an edge to
+ * it).
+ */
+export function getDirectlyRelatedWindowIds( windowId: string ): string[] {
+	const related = new Set< string >();
+	for ( const edge of listWindowLinkEdges() ) {
+		if ( edge.fromWindowId === windowId ) {
+			related.add( edge.toWindowId );
+		} else if ( edge.toWindowId === windowId ) {
+			related.add( edge.fromWindowId );
+		}
+	}
+	related.delete( windowId );
+	return Array.from( related );
+}
+
+/**
  * Derive the directed edges between open windows, with the
  * `desktop-mode.window-links.edges` filter applied:
  *

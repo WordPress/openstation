@@ -2089,7 +2089,7 @@ Window content relations: which piece of content each window shows, and how wind
 | `get( windowId )` | `WindowContentRef \| undefined` | Current identity of a window. |
 | `set( windowId, ref \| null )` | `void` | Set or clear an identity. Throws a `RegistrationError` on a malformed ref. The `desktop-mode.window-links.content` JS filter runs on every set. |
 | `groups()` | `WindowLinkGroup[]` | Every relation group: `{ key, root, rootWindowIds, children }`. `rootWindowIds` is focus-recency ordered and may be empty (children open, root closed). The `desktop-mode.window-links.groups` filter applies on every read. |
-| `edges()` | `WindowLinkEdge[]` | The derived directed ties between open windows — `{ fromWindowId, toWindowId, kind: 'child-root' \| 'reference', bidirectional }`. `child-root` points a child at its root ("belongs to", single arrowhead); `reference` points at a window showing something this content `links` to; mutual references merge into ONE edge with `bidirectional: true` (arrowheads both ends). The `desktop-mode.window-links.edges` filter applies on every read. This is what the render host feeds to the active renderer. |
+| `edges()` | `WindowLinkEdge[]` | The derived directed ties between open windows — `{ fromWindowId, toWindowId, kind: 'child-root' \| 'reference', bidirectional }`. `child-root` points a child at its root ("belongs to" — the built-in renderer puts its larger endpoint dot there); `reference` points at a window showing something this content `links` to; mutual references merge into ONE edge with `bidirectional: true` (large dots at both ends). The `desktop-mode.window-links.edges` filter applies on every read. This is what the render host feeds to the active renderer. |
 | `groupOf( windowId )` | `WindowLinkGroup \| undefined` | The group a window belongs to. |
 | `related( windowId )` | `string[]` | The other window ids tied to this one — same-group members plus reference-edge endpoints. |
 | `subscribe( cb )` | `() => void` | Fires on identity/membership changes; returns an unsubscribe. |
@@ -2121,7 +2121,7 @@ wp.desktop.relations.related( myWindowId ); // → sibling window ids
 
 ### `registerWindowLinkRenderer( def )` — Experimental  *(since 0.9.4)*
 
-Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved arrows on a `pointer-events: none` layer *behind* the windows: one arrowhead pointing a child at its root, both ends for mutual references) registers through this same hook. The user picks the active renderer in **OS Settings → Effects → Window links**; only one renderer is mounted at a time.
+Register (or replace) a **window-link renderer** — how the relation ties between related windows are drawn. The built-in `svg-splines` (curved connectors terminated by circular dots on a `pointer-events: none` layer *behind* the windows: the larger dot marks a child's root, both ends large for mutual references — circles are rotation-invariant, so ties look right at any approach angle) registers through this same hook. The user picks the active renderer in **OS Settings → Effects → Window links**; only one renderer is mounted at a time.
 
 **`WindowLinkRendererDef`:**
 
@@ -2144,12 +2144,12 @@ The user's choices persist in OS-settings keys, all readable via `getOsSettings(
 | Key | Values | Where |
 |---|---|---|
 | `windowLinksEnabled` | `boolean` (default `true`) — master switch; off unmounts the visuals and disables the group behaviors | Features |
-| `windowLinkRaiseOnFocus` | `boolean` (default `true`) — raise related windows when a group member is focused | Features |
-| `windowLinkHighlight` | `boolean` (default `true`) — outline related windows of the focused member | Features |
+| `windowLinkRaiseOnFocus` | `boolean` (default `true`) — raise directly-tied windows when a group member is focused | Features |
+| `windowLinkHighlight` | `boolean` (default `true`) — outline + glow on related windows of the focused member | Features |
 | `windowLinkRenderer` | renderer id or `'none'` (default `'svg-splines'`; unknown ids fall back to the built-in) | Effects |
 | `windowLinkVisibility` | `'always'` (default) \| `'focus'` \| `'off'` | Effects |
 
-While a group member is focused (and the switches allow it), the render host stamps `desktop-mode-window--linked` on its relative windows (a subtle outline, themeable via `--desktop-mode-window-link-accent`) and **raises the whole group** — every tied window surfaces to just below the focused one via `windowManager.raise()` (a silent restack; no focus events, minimized windows stay minimized) — and the ELEVATED link layer lifts to the group's z-ceiling so the ties **touching the focused window** draw over every other window, the group's own lower members included (a root-focused group shows its lines across the children); only the top window paints above them, and since edges anchor on window borders its arrowheads sit right at its edge. Ties between two unfocused windows stay on the base layer, behind everything — an edge never draws over a window just because that window shares a group with the focused one. Focus a window with no ties and both layers rest behind all windows.
+While a group member is focused (and the switches allow it), the render host stamps `desktop-mode-window--linked` on its relative windows (an accent outline plus a soft halo, themeable via `--desktop-mode-window-link-accent` / `--desktop-mode-window-link-glow`) and **raises the windows directly tied to it** via `windowManager.raise()` (a silent restack; no focus events, minimized windows stay minimized). The raise is direction-aware, following the derived edges rather than raw group membership: focusing the **root** surfaces every child and reference peer (each carries an edge to it); focusing a **child** surfaces its parent and reference peers only — its siblings share the group (and still get the highlight) but stay where they are. And the ELEVATED link layer lifts to the group's z-ceiling so the ties **touching the focused window** draw over every other window, the group's own lower members included (a root-focused group shows its lines across the children); only the top window paints above them, and since edges anchor on window borders its endpoint dots sit right on its edge. Ties between two unfocused windows stay on the base layer, behind everything — an edge never draws over a window just because that window shares a group with the focused one. Focus a window with no ties and both layers rest behind all windows.
 
 ### `unregisterWindowLinkRenderer( id )` / `listWindowLinkRenderers()` — Experimental  *(since 0.9.4)*
 

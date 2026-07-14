@@ -29,6 +29,7 @@
 
 import { addAction, applyFilters, doAction, HOOKS } from '../hooks';
 import {
+	getDirectlyRelatedWindowIds,
 	getRelatedWindowIds,
 	getWindowContent,
 	listWindowLinkEdges,
@@ -441,10 +442,14 @@ export function startWindowLinkRenderHost( {
 	};
 
 	/**
-	 * Surface the focused window's relation group: every tied window
-	 * raises to just below the focused one (silent restack — no focus
-	 * events, minimized windows stay minimized). "Click one window of
-	 * a group, see the whole group."
+	 * Surface the windows DIRECTLY tied to the focused one (silent
+	 * restack — no focus events, minimized windows stay minimized).
+	 * Direction-aware via the derived edges: focusing the ROOT pulls
+	 * up every child (each child carries an edge to it); focusing a
+	 * CHILD pulls up its parent and reference peers only — its
+	 * siblings share a group but no edge, and yanking the whole
+	 * cohort forward for a click on one comment buried the rest of
+	 * the desktop.
 	 */
 	const raiseRelated = (): void => {
 		if (
@@ -454,7 +459,11 @@ export function startWindowLinkRenderHost( {
 		) {
 			return;
 		}
-		for ( const id of focusedNeighbors() ) {
+		const focused = manager.getFocused();
+		if ( ! focused ) {
+			return;
+		}
+		for ( const id of getDirectlyRelatedWindowIds( focused.id ) ) {
 			const win = manager.getById( id );
 			if ( win && win.state !== 'minimized' ) {
 				manager.raise( id );
@@ -470,7 +479,7 @@ export function startWindowLinkRenderHost( {
 	 * every other window, while the top window itself still paints
 	 * above them (equal z, later in the DOM). Edges anchor on window
 	 * borders, so nothing crosses the top window's content — its
-	 * arrowheads sit right at its edge. The BASE layer never moves;
+	 * endpoint dots sit right on its edge. The BASE layer never moves;
 	 * ties between unfocused windows stay behind everything. Cleared
 	 * back to the stylesheet default when focus leaves the group.
 	 */

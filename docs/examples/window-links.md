@@ -1,19 +1,19 @@
 # Window links — relate windows and restyle the ties *(Experimental, since 0.9.4)*
 
-Open a post and two of its comments in three windows and the desktop draws **arrowed splines** from each comment window to the post window — the arrowhead points at the window the content *belongs to*. Two open posts whose contents hyperlink each other get a **single spline with arrowheads on both ends**. Focusing any member of a group **raises the whole group** (related windows surface just below the focused one, without stealing focus), lifts the splines along with it so no unrelated window covers them, and marks the relatives with a subtle outline. The user tunes all of this in two places: **OS Settings → Features → Window links** (master on/off, bring-related-to-front, highlight-related) and **OS Settings → Effects → Window links** (link style; show *always* — the default — / *when focused* / *off*).
+Open a post and two of its comments in three windows and the desktop draws **splines terminated by circular dots** from each comment window to the post window — the **larger dot** sits on the window the content *belongs to* (dots are rotation-invariant, so a tie meeting a border at any angle looks right — arrowheads read wrong on skewed approaches). Two open posts whose contents hyperlink each other get a **single spline with large dots on both ends**. Focusing a window **raises the windows directly tied to it** (they surface just below the focused one, without stealing focus): the root pulls up all of its children; a child pulls up its parent, not its siblings. The splines lift along with them so no unrelated window covers them, and every relative is marked with an accent outline plus a soft glow. The user tunes all of this in two places: **OS Settings → Features → Window links** (master on/off, bring-related-to-front, highlight-related) and **OS Settings → Effects → Window links** (link style; show *always* — the default — / *when focused* / *off*).
 
 Core content relates automatically: post/page/CPT editors announce themselves as roots — plus, as outbound references, the posts their content hyperlinks, the media embedded in their content (`wp-image-{id}`, which catches inserted-but-never-attached images), their featured image, and their assigned categories/tags (`term/{taxonomy}`). Comment-edit screens, attached-media screens (both the classic editor and the `upload.php?item=N` grid detail), arrive pre-rooted at their parent post, and term edit screens (`term.php`) are roots that assigned posts point at — all resolved server-side by the chromeless bridge, since the URL alone can't answer "which post does comment 45 belong to".
 
-**Direction semantics** — one deliberate reading, applied everywhere: **the arrow points at the thing its source belongs to or refers to** (relational structure — never "which window opened which"). The engine derives typed, directed edges from the identities; renderers just draw them:
+**Direction semantics** — one deliberate reading, applied everywhere: **the edge points at the thing its source belongs to or refers to** (relational structure — never "which window opened which"). The engine derives typed, directed edges from the identities; the built-in renderer encodes the direction as dot size (larger dot on the target):
 
-| Edge kind | Derived from | Arrow |
+| Edge kind | Derived from | Endpoint dots |
 |---|---|---|
-| `child-root` | a ref with `root` pointing at an open root window | single head, at the root — *comment → post* |
-| `child-root` | a `links` entry with `rel: 'child'` (the declarer announces something that belongs to IT — a post's embedded/featured media, which only the post knows about) | single head, at the DECLARER — *media → post* |
-| `reference` | a plain `links` entry (`rel` omitted / `'references'`) | single head, at the referenced window — *post → term*, *post A → post B (hyperlink)* |
-| `reference` + `bidirectional: true` | two windows referencing each other (merged into one edge) | heads at both ends |
+| `child-root` | a ref with `root` pointing at an open root window | large dot at the root — *comment → post* |
+| `child-root` | a `links` entry with `rel: 'child'` (the declarer announces something that belongs to IT — a post's embedded/featured media, which only the post knows about) | large dot at the DECLARER — *media → post* |
+| `reference` | a plain `links` entry (`rel` omitted / `'references'`) | large dot at the referenced window — *post → term*, *post A → post B (hyperlink)* |
+| `reference` + `bidirectional: true` | two windows referencing each other (merged into one edge) | large dots at both ends |
 
-The two `child-root` rows are the same visible relationship expressed from either side — attached media roots itself at the post; merely-inserted media is declared by the post via `rel: 'child'`. Both draw *media → post*, so the arrow never flips over an invisible technicality like attachment state.
+The two `child-root` rows are the same visible relationship expressed from either side — attached media roots itself at the post; merely-inserted media is declared by the post via `rel: 'child'`. Both draw *media → post*, so the direction never flips over an invisible technicality like attachment state.
 
 Three extension surfaces, smallest first.
 
@@ -46,7 +46,7 @@ document.addEventListener( 'desktop-mode-window-link-groups-changed', ( e ) => {
 } );
 ```
 
-To tie two windows without a parent/child hierarchy, use `links` — mutual links render as one bidirectional arrow:
+To tie two windows without a parent/child hierarchy, use `links` — mutual links render as one bidirectional tie (large dots at both ends):
 
 ```javascript
 wp.desktop.relations.set( windowA, { type: 'post', id: 1, links: [ { type: 'post', id: 2 } ] } );
@@ -107,7 +107,7 @@ wp.desktop.registerWindowLinkRenderer( {
                 line.setAttribute( 'stroke', 'var(--desktop-mode-window-link-color)' );
                 line.setAttribute( 'stroke-dasharray', edge.kind === 'reference' ? '4 4' : '' );
                 // edge.bidirectional / edge.focused are yours to style —
-                // the built-in uses <marker> arrowheads and an active class.
+                // the built-in uses <marker> endpoint dots and an active class.
                 svg.appendChild( line );
             }
         };
@@ -142,7 +142,7 @@ wp.desktop.registerWindowLinkRenderer( {
             g.clear();
             for ( const edge of ctx.getFrame().edges ) {
                 /* …stroke your curve from edge.from to edge.to,
-                   arrowheads per edge.kind / edge.bidirectional… */
+                   endpoint markers per edge.kind / edge.bidirectional… */
             }
         } );
         return () => app.destroy( true );
@@ -170,7 +170,7 @@ Your renderer appears in the OS Settings selector the moment the plugin activate
 
 ## Styling knobs
 
-The built-in splines read CSS custom properties — restyle without replacing the renderer: `--desktop-mode-window-link-color`, `--desktop-mode-window-link-color-active` (focused group), `--desktop-mode-window-link-width`, and `--desktop-mode-window-link-accent` (the related-window outline stamped as `desktop-mode-window--linked`).
+The built-in splines read CSS custom properties — restyle without replacing the renderer: `--desktop-mode-window-link-color`, `--desktop-mode-window-link-color-active` (focused group), `--desktop-mode-window-link-width`, `--desktop-mode-window-link-accent` (the related-window outline stamped as `desktop-mode-window--linked`), and `--desktop-mode-window-link-glow` (the soft halo behind those windows — a literal color-with-alpha, not a `color-mix()`, so a failed resolve can't invalidate the composed box-shadow).
 
 ## Related
 
