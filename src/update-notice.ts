@@ -6,19 +6,23 @@
  * screen; the plugin detaches that nag inside every window (PHP) and
  * ships a descriptor in the shell config as `coreUpdate`. This module
  * turns that descriptor into a single notification — one, not one per
- * window — choosing the surface by how big the release is:
+ * window:
  *
- *   - **Major release with art** → the `<wpd-release-card>` vinyl
- *     moment (the release's own album sleeve with the record sliding
- *     out). WordPress ships this art every major.
- *   - **Everything else** (minors, or a major we don't have art for)
- *     → a plain persistent toast.
+ *   - **Branch has release art** → the `<wpd-release-card>` vinyl moment
+ *     (the release's album sleeve with the record sliding out). Shown
+ *     for any update in that branch, including a minor (the minor reuses
+ *     its major's art).
+ *   - **No art** → a plain persistent toast.
+ *
+ * The message wording comes straight from the descriptor: crossing into
+ * a new major shows the branch version + codename ("WordPress 7.0
+ * 'Armstrong' is available"); a same-branch minor shows the exact
+ * version with no codename ("WordPress 7.0.1 is available").
  *
  * Both are non-dismissible: like core's own nag they stay until the
  * update is addressed. "Update now" opens the update screen and clears
- * the notification; if the user navigates away without updating it
- * returns on the next shell load. Once installed the server stops
- * shipping `coreUpdate`, so nothing appears.
+ * the notification; once installed the server stops shipping
+ * `coreUpdate`, so nothing appears.
  *
  * @since 0.9.3
  */
@@ -27,21 +31,24 @@ import { showToast } from './toast';
 import { showReleaseCard } from './release-card';
 import { __, sprintf } from './i18n';
 
-/** Release-art descriptor for a major update (from the PHP registry). */
+/** Release-art descriptor for a branch (from the PHP resolver). */
 export interface CoreUpdateRelease {
-	name: string;
 	artUrl: string;
-	accent: string;
-	accentInk: string;
+	/** Optional accent override; otherwise derived from the art. */
+	accent?: string;
+	accentInk?: string;
 }
 
 /** Compact core-update descriptor shipped in the shell config. */
 export interface CoreUpdateInfo {
+	/** Message version — major branch when crossing, else exact version. */
 	version: string;
+	/** Release codename — shown only when crossing into a new major. */
+	name?: string;
+	/** Major branch (e.g. `7.0`) — the record label. */
+	branch?: string;
 	url: string;
-	/** New X.Y branch relative to the installed version. */
-	major?: boolean;
-	/** Release art for a major, when known; `null`/absent otherwise. */
+	/** Branch album art, or null/absent → plain toast. */
 	release?: CoreUpdateRelease | null;
 }
 
@@ -54,9 +61,23 @@ export interface UpdateNoticeDeps {
 }
 
 /**
+ * "WordPress X is available." — with the codename when one is present
+ * ("WordPress 7.0 "Armstrong" is available.").
+ */
+export function updateMessage( version: string, name: string ): string {
+	if ( name ) {
+		/* translators: 1: WordPress version, 2: release codename. */
+		const withName = __( 'WordPress %1$s "%2$s" is available.' );
+		return sprintf( withName, version, name );
+	}
+	/* translators: %s: WordPress version. */
+	const versionOnly = __( 'WordPress %s is available.' );
+	return sprintf( versionOnly, version );
+}
+
+/**
  * Show the core-update notification if an update is pending — the vinyl
- * release card for a major with art, the plain toast otherwise. No-op
- * when there's nothing to show.
+ * release card when the branch has art, the plain toast otherwise.
  */
 export function maybeShowUpdate( deps: UpdateNoticeDeps ): void {
 	const { update, openUrl } = deps;
@@ -70,36 +91,33 @@ export function maybeShowUpdate( deps: UpdateNoticeDeps ): void {
 		return;
 	}
 
+	const name = typeof update.name === 'string' ? update.name : '';
 	const openUpdateScreen = (): void =>
 		openUrl( { url: update.url, title: __( 'WordPress Updates' ) } );
 
-	// Major release with known art → the album-sleeve vinyl moment.
+	// Branch art available → the album-sleeve vinyl moment (major or
+	// minor within a branch that has art).
 	const release = update.release;
-	if (
-		update.major &&
-		release &&
-		typeof release.artUrl === 'string' &&
-		release.artUrl
-	) {
+	if ( release && typeof release.artUrl === 'string' && release.artUrl ) {
 		showReleaseCard( {
 			version: update.version,
-			name: typeof release.name === 'string' ? release.name : '',
+			name,
+			branch:
+				typeof update.branch === 'string' && update.branch
+					? update.branch
+					: update.version,
 			artUrl: release.artUrl,
-			// Defaults match the component's classic cream vinyl label;
-			// the PHP `desktop_mode_core_update_release` filter can supply
-			// a per-release color match.
-			accent: typeof release.accent === 'string' ? release.accent : '#efe6d3',
+			accent: typeof release.accent === 'string' ? release.accent : undefined,
 			accentInk:
-				typeof release.accentInk === 'string' ? release.accentInk : '#1a1a1a',
+				typeof release.accentInk === 'string' ? release.accentInk : undefined,
 			onUpdate: openUpdateScreen,
 		} );
 		return;
 	}
 
-	// Everything else → the plain persistent, non-dismissible toast.
+	// No art → the plain persistent, non-dismissible toast.
 	showToast( {
-		/* translators: %s: WordPress version number. */
-		message: sprintf( __( 'WordPress %s is available.' ), update.version ),
+		message: updateMessage( update.version, name ),
 		persistent: true,
 		action: {
 			label: __( 'Update now' ),

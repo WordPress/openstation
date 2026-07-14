@@ -46,14 +46,17 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 	 */
 	public function test_returns_descriptor_when_update_available() {
 		wp_set_current_user( self::$admin_id );
-		$this->fake_core_update( '9.9.9' );
+		$this->fake_core_update( '99.9' );
 
 		$update = desktop_mode_get_core_update();
 		$this->assertIsArray( $update );
-		$this->assertSame( '9.9.9', $update['version'] );
 		$this->assertStringContainsString( 'update-core.php', $update['url'] );
-		$this->assertArrayHasKey( 'major', $update );
+		$this->assertArrayHasKey( 'version', $update );
+		$this->assertArrayHasKey( 'name', $update );
+		$this->assertArrayHasKey( 'branch', $update );
 		$this->assertArrayHasKey( 'release', $update );
+		// No art known for 99.9 → release null (toast fallback).
+		$this->assertNull( $update['release'] );
 	}
 
 	/**
@@ -67,17 +70,58 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Crossing into a new major (e.g. 6.9 → 7.0 / 7.0.1) shows the major
+	 * branch version + codename, with that major's art.
+	 *
 	 * @covers ::desktop_mode_get_core_update
 	 */
-	public function test_descriptor_flags_major_for_new_branch() {
+	public function test_crossing_major_shows_branch_and_codename() {
 		wp_set_current_user( self::$admin_id );
-		// A version far above any test-WP branch is always a major.
-		$this->fake_core_update( '99.9' );
+		$this->fake_core_update( '8.0.1' ); // installed 7.0.x → crosses into 8.0
+		add_filter(
+			'desktop_mode_core_update_release',
+			static function ( $r, $v, $key ) {
+				return '8.0' === $key
+					? array( 'name' => 'Blakey', 'artUrl' => 'https://x/8.0.png' )
+					: $r;
+			},
+			10,
+			3
+		);
 
 		$update = desktop_mode_get_core_update();
-		$this->assertTrue( $update['major'] );
-		// No bundled art for 99.9 → release is null (toast fallback).
-		$this->assertNull( $update['release'] );
+		$this->assertSame( '8.0', $update['version'] ); // major branch, not 8.0.1
+		$this->assertSame( 'Blakey', $update['name'] ); // codename shown
+		$this->assertSame( '8.0', $update['branch'] );
+		$this->assertIsArray( $update['release'] );
+		$this->assertSame( 'https://x/8.0.png', $update['release']['artUrl'] );
+	}
+
+	/**
+	 * A same-branch minor (7.0 → 7.0.2) shows the exact version with no
+	 * codename, but still shows the vinyl using the major's art.
+	 *
+	 * @covers ::desktop_mode_get_core_update
+	 */
+	public function test_same_branch_minor_shows_exact_version_no_codename() {
+		wp_set_current_user( self::$admin_id );
+		$this->fake_core_update( '7.0.2' ); // installed 7.0.x → same 7.0 branch
+		add_filter(
+			'desktop_mode_core_update_release',
+			static function ( $r, $v, $key ) {
+				return '7.0' === $key
+					? array( 'name' => 'Armstrong', 'artUrl' => 'https://x/7.0.png' )
+					: $r;
+			},
+			10,
+			3
+		);
+
+		$update = desktop_mode_get_core_update();
+		$this->assertSame( '7.0.2', $update['version'] ); // exact version
+		$this->assertSame( '', $update['name'] );         // no codename
+		$this->assertSame( '7.0', $update['branch'] );
+		$this->assertIsArray( $update['release'] );        // vinyl still shows
 	}
 
 	/**
@@ -89,7 +133,6 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		$this->assertIsArray( $release );
 		$this->assertSame( 'Armstrong', $release['name'] );
 		$this->assertSame( 'https://i0.wp.com/x/7.0.png', $release['artUrl'] );
-		$this->assertNotEmpty( $release['accent'] );
 	}
 
 	/**

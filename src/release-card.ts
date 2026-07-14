@@ -15,11 +15,16 @@
 import './ui/components/wpd-release-card/wpd-release-card';
 
 export interface ReleaseCardOptions {
+	/** Version shown in the message (branch when crossing, else exact). */
 	version: string;
+	/** Release codename — shown in the message only when non-empty. */
 	name: string;
+	/** Major branch (e.g. `7.0`) — the record label. */
+	branch: string;
 	artUrl: string;
-	accent: string;
-	accentInk: string;
+	/** Optional accent override; omit to derive it from the art. */
+	accent?: string;
+	accentInk?: string;
 	/** Invoked when the user clicks "Update now". */
 	onUpdate: () => void;
 }
@@ -57,8 +62,15 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 	card.setAttribute( 'art', opts.artUrl );
 	card.setAttribute( 'version', opts.version );
 	card.setAttribute( 'name', opts.name );
-	card.setAttribute( 'accent', opts.accent );
-	card.setAttribute( 'accent-ink', opts.accentInk );
+	card.setAttribute( 'branch', opts.branch );
+	// Only set the accent attributes when explicitly provided — otherwise
+	// the component derives the accent from the sleeve art.
+	if ( opts.accent ) {
+		card.setAttribute( 'accent', opts.accent );
+	}
+	if ( opts.accentInk ) {
+		card.setAttribute( 'accent-ink', opts.accentInk );
+	}
 	card.style.pointerEvents = 'auto';
 
 	let dismissed = false;

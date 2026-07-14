@@ -29,13 +29,12 @@ export const styles = css`
 			0 16px 40px rgba( 0, 0, 0, 0.55 ),
 			0 3px 8px rgba( 0, 0, 0, 0.3 ),
 			inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
-		/* Classic cream vinyl label by default — reads well over any
-		 * release's sleeve. A release can override via the accent
-		 * attributes for a per-release color match. */
-		--accent: #efe6d3;
-		--accent-ink: #1a1a1a;
-		/* "Update now" CTA — WordPress blue, independent of the sleeve. */
-		--wpd-release-btn: #2271b1;
+		/* Accent tints the record label + the "Update now" button. It
+		 * defaults to WordPress blue and is replaced at runtime with the
+		 * sleeve's dominant color (extracted from the art), unless the
+		 * release filter supplies an explicit accent. */
+		--accent: #2271b1;
+		--accent-ink: #ffffff;
 		animation: cardIn 0.5s cubic-bezier( 0.2, 1.2, 0.35, 1 ) both;
 	}
 	@keyframes cardIn {
@@ -114,10 +113,9 @@ export const styles = css`
 	@keyframes fade { to { opacity: 1; } }
 	.mtext { flex: 1; font-size: 13px; line-height: 1.35; color: #fff; }
 	.mtext b { font-weight: 650; }
-	.mtext .rel { color: var( --accent ); }
 	.btn {
 		flex-shrink: 0; padding: 7px 12px; border: none; border-radius: 7px;
-		color: #fff; background: var( --wpd-release-btn ); font: inherit; font-size: 12px; font-weight: 600;
+		color: var( --accent-ink ); background: var( --accent ); font: inherit; font-size: 12px; font-weight: 600;
 		cursor: pointer; box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.3 ); transition: filter 0.12s;
 	}
 	.btn:hover { filter: brightness( 1.12 ); }

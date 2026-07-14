@@ -225,15 +225,12 @@ function desktop_mode_parse_release_post( $post, $key ) {
 		return null;
 	}
 
+	// Just the codename + art. The accent color is derived from the art
+	// itself in the shell (the sleeve's dominant color); a filter can
+	// still add `accent`/`accentInk` to force a specific match.
 	return array(
-		'name'      => trim( $m[1] ),
-		'artUrl'    => esc_url_raw( $art ),
-		// A classic cream vinyl label reads well over any release's
-		// sleeve; the "Update now" button uses the WordPress blue set in
-		// the component. Override both via the filter for a per-release
-		// color match.
-		'accent'    => '#efe6d3',
-		'accentInk' => '#1a1a1a',
+		'name'   => trim( $m[1] ),
+		'artUrl' => esc_url_raw( $art ),
 	);
 }
 
@@ -271,9 +268,22 @@ function desktop_mode_pick_media_size( $post ) {
  * see the notice. Returns `null` when no upgrade is pending or the user
  * lacks the capability.
  *
+ * The shape carries what the shell needs to render either surface:
+ *
+ *   - `version` — the version to show in the message. When the update
+ *     crosses into a new major (e.g. 6.9 → 7.0.1) this is the major
+ *     branch (`7.0`); within the same branch (7.0 → 7.0.1) it's the
+ *     exact version (`7.0.1`).
+ *   - `name` — the release codename, shown only when crossing into a
+ *     new major (`Armstrong`); empty for a same-branch minor.
+ *   - `branch` — the major branch (`7.0`), used for the record label +
+ *     to resolve the art (a minor reuses its major's album art).
+ *   - `release` — `{ artUrl }` for the branch, or `null` (→ plain
+ *     toast). The accent color is derived from the art in the shell.
+ *
  * @since 0.9.3
  *
- * @return array{version:string,url:string,major:bool,release:?array}|null
+ * @return array{version:string,name:string,branch:string,url:string,release:?array}|null
  */
 function desktop_mode_get_core_update() {
 	if ( ! current_user_can( 'update_core' ) ) {
@@ -295,24 +305,43 @@ function desktop_mode_get_core_update() {
 		return null;
 	}
 
-	$version = isset( $cur->current ) ? (string) $cur->current : '';
-	if ( '' === $version ) {
+	$available = isset( $cur->current ) ? (string) $cur->current : '';
+	if ( '' === $available ) {
 		return null;
 	}
 
-	$major = desktop_mode_is_major_update( get_bloginfo( 'version' ), $version );
+	$branch   = desktop_mode_release_branch( $available );
+	$crossing = desktop_mode_is_major_update( get_bloginfo( 'version' ), $available );
+
+	// Art is the major-branch album art — a minor reuses its major's
+	// sleeve. Resolved for both crossing and same-branch updates so the
+	// vinyl shows either way (when art is available).
+	$rel     = desktop_mode_core_update_release( $branch );
+	$release = null;
+	if ( is_array( $rel ) && ! empty( $rel['artUrl'] ) ) {
+		$release = array( 'artUrl' => $rel['artUrl'] );
+		// Honor an accent supplied by the release filter; otherwise the
+		// shell derives it from the art.
+		if ( ! empty( $rel['accent'] ) ) {
+			$release['accent'] = $rel['accent'];
+		}
+		if ( ! empty( $rel['accentInk'] ) ) {
+			$release['accentInk'] = $rel['accentInk'];
+		}
+	}
 
 	$update = array(
-		'version' => $version,
+		// Crossing a major shows the major version + codename; a
+		// same-branch minor shows the exact version, no codename.
+		'version' => $crossing ? $branch : $available,
+		'name'    => ( $crossing && is_array( $rel ) && ! empty( $rel['name'] ) ) ? $rel['name'] : '',
+		'branch'  => $branch,
 		// `self_admin_url()` resolves to the network update screen on
 		// multisite (where `update_core` is a super-admin action) and
 		// the site update screen otherwise — matching where the
 		// capability actually lets the user act.
 		'url'     => self_admin_url( 'update-core.php' ),
-		'major'   => $major,
-		// Release art only matters for a major; the shell ignores it
-		// for minors and shows the plain toast.
-		'release' => $major ? desktop_mode_core_update_release( $version ) : null,
+		'release' => $release,
 	);
 
 	/**
@@ -324,7 +353,7 @@ function desktop_mode_get_core_update() {
 	 *
 	 * @since 0.9.3
 	 *
-	 * @param array{version:string,url:string,major:bool,release:?array}|null $update The descriptor.
+	 * @param array{version:string,name:string,branch:string,url:string,release:?array}|null $update The descriptor.
 	 */
 	$update = apply_filters( 'desktop_mode_core_update_notice', $update );
 

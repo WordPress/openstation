@@ -2938,11 +2938,16 @@ screen. Desktop Mode detaches that per-window nag inside chromeless
 windows (`desktop_mode_chromeless_suppress_update_nags()`) and surfaces
 the update **once** in the shell. `desktop_mode_get_core_update()`
 computes the descriptor from WordPress's authoritative update state
-(`update_core`-gated) and ships it in the shell config as `coreUpdate`.
-The shell then chooses the surface: for a **major** release with known
-art it shows the `<wpd-release-card>` vinyl moment (the release's album
-sleeve with the record sliding out); otherwise a plain persistent
-toast.
+(`update_core`-gated) and ships it in the shell config as `coreUpdate`
+(`{ version, name, branch, url, release }`). The shell then chooses the
+surface: when the update's **branch has release art** it shows the
+`<wpd-release-card>` vinyl moment (the release's album sleeve with the
+record sliding out, accent sampled from the art) — for any update in
+that branch, including a minor, which reuses its major's art; otherwise
+a plain persistent toast. The wording follows the descriptor: crossing
+into a new major shows the branch version + codename ("WordPress 7.0
+"Armstrong" is available"); a same-branch minor shows the exact version
+with no codename ("WordPress 7.0.1 is available").
 
 **`desktop_mode_core_update_notice`** — filter the whole descriptor.
 Return `null` to suppress the desktop update notice entirely (e.g. on
@@ -2950,7 +2955,7 @@ sites that manage core updates out-of-band):
 
 ```php
 /**
- * @param array{version:string,url:string,major:bool,release:?array}|null $update
+ * @param array{version:string,name:string,branch:string,url:string,release:?array}|null $update
  * @return array{version:string,url:string,major:bool,release:?array}|null
  */
 add_filter( 'desktop_mode_core_update_notice', '__return_null' );

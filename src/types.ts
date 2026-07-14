@@ -1917,14 +1917,18 @@ export interface DesktopConfig {
 	 * @since 0.9.3
 	 */
 	coreUpdate?: {
+		/** Version shown in the message — major branch when crossing, else exact. */
 		version: string;
+		/** Release codename, shown only when crossing into a new major. */
+		name?: string;
+		/** Major branch (e.g. `7.0`) — the record label + art key. */
+		branch?: string;
 		url: string;
-		major?: boolean;
 		release?: {
-			name: string;
 			artUrl: string;
-			accent: string;
-			accentInk: string;
+			/** Optional accent override; otherwise derived from the art. */
+			accent?: string;
+			accentInk?: string;
 		} | null;
 	} | null;
 	/**
