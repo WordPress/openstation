@@ -18,7 +18,7 @@ export const styles = css`
 	:host {
 		display: block;
 		box-sizing: border-box;
-		width: 240px;
+		width: 268px;
 		padding: 11px;
 		border-radius: 14px;
 		color: #fff;
@@ -81,19 +81,10 @@ export const styles = css`
 	}
 	.label {
 		position: absolute; inset: 34%; border-radius: 50%; display: grid; place-items: center;
-		text-align: center; line-height: 1;
 		background: var( --accent ); color: var( --accent-ink );
 		box-shadow: inset 0 0 0 2px rgba( 0, 0, 0, 0.18 ), 0 1px 2px rgba( 0, 0, 0, 0.4 );
 	}
-	.label .lw { font-weight: 800; font-size: 15px; letter-spacing: 0.02em; }
-	.label .lv {
-		font-family: var( --wpd-mono, ui-monospace, Menlo, Consolas, monospace );
-		font-size: 8.5px; margin-top: 2px; opacity: 0.85;
-	}
-	.hole {
-		position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; margin: -2.5px;
-		border-radius: 50%; background: #0a0a0c; box-shadow: 0 0 0 1px rgba( 255, 255, 255, 0.15 ); z-index: 2;
-	}
+	.label svg { width: 60%; height: 60%; display: block; }
 	.sheen {
 		position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 3;
 		background: linear-gradient( 118deg, rgba( 255, 255, 255, 0.18 ) 0%, transparent 24%, transparent 74%, rgba( 255, 255, 255, 0.1 ) 100% );

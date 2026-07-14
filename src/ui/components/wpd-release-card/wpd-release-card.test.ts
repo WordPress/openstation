@@ -21,16 +21,16 @@ describe( '<wpd-release-card>', () => {
 		return el;
 	}
 
-	test( 'label shows the branch and the message shows version + codename', async () => {
+	test( 'renders the WordPress logo label; message shows version + codename', async () => {
 		const card = mount( {
 			art: 'https://example.com/7.0.png',
 			version: '7.0',
 			name: 'Armstrong',
-			branch: '7.0',
 		} );
 		await tick();
 		const sr = card.shadowRoot!;
-		expect( sr.querySelector( '.label .lv' )!.textContent ).toContain( '7.0' );
+		// The record label is the WordPress logo, not text.
+		expect( sr.querySelector( '.label svg' ) ).not.toBeNull();
 		const msg = sr.querySelector( '.mtext' )!.textContent || '';
 		expect( msg ).toContain( '7.0' );
 		expect( msg ).toContain( 'Armstrong' );
@@ -42,12 +42,9 @@ describe( '<wpd-release-card>', () => {
 			art: 'https://example.com/7.0.png',
 			version: '7.0.1',
 			name: '',
-			branch: '7.0',
 		} );
 		await tick();
-		const sr = card.shadowRoot!;
-		expect( sr.querySelector( '.label .lv' )!.textContent ).toContain( '7.0' );
-		const msg = sr.querySelector( '.mtext' )!.textContent || '';
+		const msg = card.shadowRoot!.querySelector( '.mtext' )!.textContent || '';
 		expect( msg ).toContain( '7.0.1' );
 		expect( msg ).not.toContain( '"' );
 	} );

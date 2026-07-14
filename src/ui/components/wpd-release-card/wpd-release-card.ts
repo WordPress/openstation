@@ -39,7 +39,7 @@ interface ColorBucket {
 }
 
 export class WpdReleaseCard extends Component {
-	static props = [ 'art', 'version', 'name', 'branch', 'accent', 'accentInk' ] as const;
+	static props = [ 'art', 'version', 'name', 'accent', 'accentInk' ] as const;
 	static styles = [ styles ];
 
 	private _coverTries = 0;
@@ -54,7 +54,6 @@ export class WpdReleaseCard extends Component {
 			{ name: 'art', type: 'string', description: 'URL of the release art (landscape; the left square is used as the sleeve).' },
 			{ name: 'version', type: 'string', description: 'Version shown in the message (major branch when crossing, else exact).' },
 			{ name: 'name', type: 'string', description: 'Release codename shown in the message; omit for a same-branch minor.' },
-			{ name: 'branch', type: 'string', description: 'Major branch (e.g. "7.0") shown on the record label.' },
 			{ name: 'accent', type: 'string', description: 'Optional accent override for the label + button; omit to derive it from the art.' },
 			{ name: 'accent-ink', type: 'string', description: 'Optional text color over the accent.' },
 		],
@@ -67,7 +66,7 @@ export class WpdReleaseCard extends Component {
 		],
 		example: html`
 			<wpd-release-card
-				art="https://example.com/7.0.png" version="7.0" name="Armstrong" branch="7.0"
+				art="https://example.com/7.0.png" version="7.0" name="Armstrong"
 			></wpd-release-card>
 		`,
 	} as const;
@@ -95,7 +94,6 @@ export class WpdReleaseCard extends Component {
 	protected render() {
 		const version = this.getAttribute( 'version' ) ?? '';
 		const name = this.getAttribute( 'name' ) ?? '';
-		const branch = this.getAttribute( 'branch' ) || version;
 		const suffix = name ? ` "${ name }"` : '';
 
 		return html`
@@ -103,10 +101,13 @@ export class WpdReleaseCard extends Component {
 				<div class="disc-wrap">
 					<div class="disc">
 						<div class="label">
-							<span class="lw">W</span>
-							<span class="lv">${ branch }</span>
+							<svg viewBox="0 0 122.52 122.523" aria-hidden="true">
+								<path
+									fill="currentColor"
+									d="M8.708 61.26c0 20.802 12.089 38.779 29.619 47.298L13.258 39.872a52.352 52.352 0 0 0-4.55 21.388zm87.892-2.652c0-6.495-2.333-10.993-4.334-14.494-2.664-4.329-5.161-7.995-5.161-12.324 0-4.831 3.664-9.328 8.825-9.328.233 0 .454.029.681.042-9.35-8.566-21.807-13.796-35.489-13.796-18.36 0-34.513 9.42-43.91 23.688 1.233.037 2.395.063 3.382.063 5.497 0 14.006-.667 14.006-.667 2.833-.167 3.167 3.994.337 4.329 0 0-2.847.335-6.015.501l19.138 56.925 11.502-34.493-8.187-22.432c-2.831-.166-5.51-.501-5.51-.501-2.831-.167-2.499-4.496.332-4.329 0 0 8.679.667 13.843.667 5.496 0 14.006-.667 14.006-.667 2.835-.167 3.168 3.994.337 4.329 0 0-2.852.335-6.015.501l18.992 56.494 5.242-17.517c2.272-7.269 4.001-12.49 4.001-16.989zm-34.404 7.223l-15.768 45.819a52.552 52.552 0 0 0 14.807 2.136c6.309 0 12.36-1.091 17.996-3.075a4.617 4.617 0 0 1-.374-.724L62.196 65.831zm45.192-29.81c.226 1.674.354 3.471.354 5.404 0 5.333-.996 11.328-3.996 18.824l-16.053 46.413c15.624-9.111 26.133-26.038 26.133-45.426.001-9.137-2.333-17.729-6.438-25.215zM61.262 0C27.483 0 0 27.481 0 61.26c0 33.783 27.483 61.263 61.262 61.263 33.778 0 61.265-27.48 61.265-61.263C122.526 27.481 95.04 0 61.262 0zm0 119.715c-32.23 0-58.453-26.223-58.453-58.455 0-32.23 26.222-58.451 58.453-58.451 32.229 0 58.45 26.221 58.45 58.451 0 32.232-26.221 58.455-58.45 58.455z"
+								/>
+							</svg>
 						</div>
-						<span class="hole"></span>
 					</div>
 					<div class="sheen"></div>
 				</div>
