@@ -56,6 +56,11 @@ describe( 'resolveReleaseArt', () => {
 		const first = await resolveReleaseArt( '7.0' );
 		expect( first ).toEqual( { name: 'Armstrong', artUrl: 'https://i0.wp.com/7.0.png' } );
 		expect( fetchMock ).toHaveBeenCalledTimes( 1 );
+		// The request is trimmed to the fields the parser reads; the
+		// full-fat feed (no `_fields`) weighs ~1.3 MB per branch.
+		const url = fetchMock.mock.calls[ 0 ][ 0 ] as string;
+		expect( url ).toContain( '_fields=title,_links,_embedded' );
+		expect( url ).toContain( '_embed=wp:featuredmedia' );
 
 		const second = await resolveReleaseArt( '7.0' );
 		expect( second ).toEqual( first );

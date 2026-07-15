@@ -132,11 +132,16 @@ export async function resolveReleaseArt(
 	try {
 		// per_page=100 (the REST max): an older branch's announcement can
 		// sit well below the newer maintenance posts / betas that also
-		// match the version in a relevance-ranked search.
+		// match the version in a relevance-ranked search. `_fields` +
+		// `_embed=wp:featuredmedia` trim each post to the title and
+		// featured image we actually read; without them the response
+		// carries the full rendered content of 100 posts (~1.3 MB vs
+		// ~115 KB). `_links` must stay in `_fields` (the REST API only
+		// embeds relations whose links survive the field filter).
 		const url =
 			'https://wordpress.org/news/wp-json/wp/v2/posts?search=' +
 			encodeURIComponent( branch ) +
-			'&per_page=100&_embed=1';
+			'&per_page=100&_fields=title,_links,_embedded&_embed=wp:featuredmedia';
 		const res = await trackedFetch(
 			url,
 			{ credentials: 'omit' },
