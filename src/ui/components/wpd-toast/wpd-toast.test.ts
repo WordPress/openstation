@@ -55,6 +55,34 @@ describe( '<wpd-toast>', () => {
 		expect( fired ).toBe( true );
 	} );
 
+	test( 'no dismissible → close button rendered hidden', async () => {
+		host.innerHTML = `<wpd-toast>Hello</wpd-toast>`;
+		await tick();
+		const toast = host.querySelector( 'wpd-toast' )!;
+		const close = toast.shadowRoot!.querySelector(
+			'.wpd-toast__close',
+		) as HTMLButtonElement;
+		expect( close.hasAttribute( 'hidden' ) ).toBe( true );
+	} );
+
+	test( 'dismissible surfaces the close button + click emits wpd-toast-dismiss', async () => {
+		host.innerHTML = `<wpd-toast dismissible>Update available</wpd-toast>`;
+		await tick();
+		const toast = host.querySelector( 'wpd-toast' )!;
+		const close = toast.shadowRoot!.querySelector(
+			'.wpd-toast__close',
+		) as HTMLButtonElement;
+		expect( close.hasAttribute( 'hidden' ) ).toBe( false );
+		expect( close.getAttribute( 'aria-label' ) ).toBe( 'Dismiss' );
+
+		let fired = false;
+		toast.addEventListener( 'wpd-toast-dismiss', () => {
+			fired = true;
+		} );
+		close.click();
+		expect( fired ).toBe( true );
+	} );
+
 	test( 'role=status set on connection', async () => {
 		host.innerHTML = `<wpd-toast>Hi</wpd-toast>`;
 		await tick();

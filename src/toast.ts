@@ -58,6 +58,21 @@ export interface ToastOptions {
 	 * @since 0.9.4
 	 */
 	persistent?: boolean;
+	/**
+	 * When `true`, renders a close (×) button that dismisses the toast.
+	 * Pair it with `persistent` so the user has a way to close a toast
+	 * that would otherwise never leave.
+	 *
+	 * @since 0.9.4
+	 */
+	dismissible?: boolean;
+	/**
+	 * Called when the user dismisses the toast via the close button —
+	 * e.g. to persist the dismissal so it doesn't reappear.
+	 *
+	 * @since 0.9.4
+	 */
+	onDismiss?: () => void;
 }
 
 /**
@@ -145,6 +160,14 @@ function renderToast( intent: ToastIntent ): () => void {
 		toast.setAttribute( 'action', intent.action.label );
 		toast.addEventListener( 'wpd-toast-action', () => {
 			intent.action?.onClick();
+			dismiss();
+		} );
+	}
+
+	if ( intent.dismissible ) {
+		toast.setAttribute( 'dismissible', '' );
+		toast.addEventListener( 'wpd-toast-dismiss', () => {
+			intent.onDismiss?.();
 			dismiss();
 		} );
 	}

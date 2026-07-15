@@ -9,7 +9,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { maybeShowUpdate, updateMessage } from './update-notice';
 import { showToast, type ToastOptions } from './toast';
 import { showReleaseCard, type ReleaseCardOptions } from './release-card';
-import { markNoticeDismissed } from './ui/components/wpd-notice/storage';
+import {
+	markNoticeDismissed,
+	isNoticeDismissed,
+} from './ui/components/wpd-notice/storage';
 
 vi.mock( './toast', () => ( { showToast: vi.fn() } ) );
 vi.mock( './release-card', () => ( { showReleaseCard: vi.fn() } ) );
@@ -96,6 +99,18 @@ describe( 'maybeShowUpdate', () => {
 		expect( cardMock ).not.toHaveBeenCalled();
 		expect( lastToast().message ).toBe( 'WordPress 7.0 is available.' );
 		expect( lastToast().persistent ).toBe( true );
+		expect( lastToast().dismissible ).toBe( true );
+	} );
+
+	test( 'dismissing the fallback toast persists on the exact-version key', async () => {
+		resolveArt.mockResolvedValue( null );
+		await maybeShowUpdate( {
+			update: { version: '7.0.1', available: '7.0.1', branch: '7.0', url: '/u', crossing: false },
+			openUrl, resolveArt, loadImage,
+		} );
+		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1' ) ).toBe( false );
+		lastToast().onDismiss!();
+		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1' ) ).toBe( true );
 	} );
 
 	test( 'art resolves but image fails to load → toast fallback', async () => {

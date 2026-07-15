@@ -73,6 +73,19 @@ export const toastStyles = css`
 		outline: 2px solid rgba( 255, 255, 255, 0.6 );
 		outline-offset: 2px;
 	}
+	.wpd-toast__close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 4px;
+		border-radius: 6px;
+		background: transparent;
+		color: rgba( 255, 255, 255, 0.7 );
+	}
+	.wpd-toast__close:hover {
+		background: rgba( 255, 255, 255, 0.14 );
+		color: #fff;
+	}
 	@media ( prefers-reduced-motion: reduce ) {
 		:host {
 			transition-duration: 0.01ms;

@@ -13,7 +13,10 @@ import {
 	preloadImage,
 	type ReleaseArt,
 } from './release-art';
-import { isNoticeDismissed } from './ui/components/wpd-notice/storage';
+import {
+	isNoticeDismissed,
+	markNoticeDismissed,
+} from './ui/components/wpd-notice/storage';
 import { __, sprintf } from './i18n';
 
 /** Compact core-update descriptor shipped in the shell config. */
@@ -111,9 +114,13 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 	}
 
 	// No art (unknown release / offline / image failed) → plain toast.
+	// Dismissible + persisted on the same key as the card, so closing it
+	// keeps it closed for this exact version.
 	showToast( {
 		message: updateMessage( version, '' ),
 		persistent: true,
+		dismissible: true,
+		onDismiss: () => markNoticeDismissed( dismissKey ),
 		action: {
 			label: __( 'Update now' ),
 			onClick: openUpdateScreen,

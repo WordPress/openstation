@@ -1528,7 +1528,9 @@ wp.desktop.showToast( {
     message: string;
     duration?: number;                                     // ms; default 4000. Ignored when persistent.
     action?: { label: string; onClick: () => void };       // optional CTA
-    persistent?: boolean;                                  // since 0.9.3 — never auto-dismiss
+    persistent?: boolean;                                  // since 0.9.4 — never auto-dismiss
+    dismissible?: boolean;                                 // since 0.9.4 — show a close (×) button
+    onDismiss?: () => void;                                // since 0.9.4 — called when × is clicked
 } ): () => void;
 ```
 
@@ -1543,15 +1545,18 @@ const dismiss = wp.desktop.showToast( {
 // Persistent — never auto-dismisses; stays until the user acts on it
 // or a caller invokes the returned dismiss fn. This is how the shell
 // surfaces a pending WordPress core update (once, instead of the
-// per-window nag). Pair with an `action` so there's a way to act.
+// per-window nag). Add `dismissible` for a close (×) button, and
+// `onDismiss` to persist the fact it was closed.
 const clear = wp.desktop.showToast( {
     message: 'WordPress 7.0.2 is available.',
     persistent: true,
+    dismissible: true,
+    onDismiss: () => rememberDismissed(),
     action: { label: 'Update now', onClick: () => openUpdateScreen() },
 } );
 ```
 
-A `persistent` toast has no auto-dismiss timer and no close button — clear it via the action button (which dismisses on click) or the returned dismiss callback. `duration` is ignored when `persistent` is set.
+A `persistent` toast has no auto-dismiss timer — clear it via the action button (which dismisses on click), the close (×) button when `dismissible` is set, or the returned dismiss callback. `duration` is ignored when `persistent` is set.
 
 Routes through the `desktop-mode/toast-requested` activity filter before painting; plugins can register a filter that returns `null` (or sets `cancel: true`) to suppress, or mutates the payload to amplify / quiet the toast.
 
