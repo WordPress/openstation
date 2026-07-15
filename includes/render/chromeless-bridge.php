@@ -1160,6 +1160,19 @@ function desktop_mode_chromeless_bridge_script() {
 		 * which is what users perceive as "Install Now keeps loading and
 		 * opens a new tab". Skip these classes so updates.js's bubble
 		 * handler runs as core intended.
+		 *
+		 * The plugins-list-table row action "Delete" is the same story
+		 * with a different marker: a bare `a.delete` inside a
+		 * `tr[data-plugin]` (updates.js binds `[data-plugin] a.delete`;
+		 * the network themes list is `.themes-php.network-admin
+		 * a.delete`) — it never carries the `delete-plugin` /
+		 * `delete-theme` classes of the card-style buttons above.
+		 * Hijacking it navigated the iframe to the link's no-JS
+		 * bulk-delete fallback WHILE updates.js's AJAX delete was
+		 * already running: `wp.updates.beforeunload` raised a native
+		 * "Leave site?" prompt, and leaving landed on a delete
+		 * confirmation screen for a plugin whose files the AJAX call
+		 * had just removed — an empty "You are about to remove:" list.
 		 */
 		if (
 			link.classList.contains( 'install-now' ) ||
@@ -1167,7 +1180,11 @@ function desktop_mode_chromeless_bridge_script() {
 			link.classList.contains( 'update-now' ) ||
 			link.classList.contains( 'delete-plugin' ) ||
 			link.classList.contains( 'delete-theme' ) ||
-			link.classList.contains( 'install-theme' )
+			link.classList.contains( 'install-theme' ) ||
+			( link.classList.contains( 'delete' ) &&
+				( link.closest( '[data-plugin]' ) ||
+					( document.body.classList.contains( 'themes-php' ) &&
+						document.body.classList.contains( 'network-admin' ) ) ) )
 		) {
 			return;
 		}

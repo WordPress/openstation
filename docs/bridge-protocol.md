@@ -180,6 +180,8 @@ Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispat
 
 Modifier-key clicks (cmd / ctrl / shift / alt, middle-click, `target="_blank"`, `target` other than `_self`, `download` attribute) short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab path runs unchanged.
 
+Links owned by core's `wp-admin/js/updates.js` are also left alone: the card-style `install-now` / `update-link` / `update-now` / `delete-plugin` / `delete-theme` / `install-theme` buttons, the plugins-list-table row Delete (`[data-plugin] a.delete`), and the network themes row Delete (`.themes-php.network-admin a.delete`). updates.js `preventDefault`s these itself and runs an in-place AJAX operation; if the bridge hijacked them, the parent-driven navigation would race the AJAX call (a `wp.updates.beforeunload` "Leave site?" prompt followed by the no-JS fallback screen for an already-deleted plugin).
+
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `desktop_mode_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `desktop-mode-iframe-admin-form-submit` message.
 
 ## Activity-footprint launcher inside chromeless iframes — Stable *(since 0.9.1)*
