@@ -1,20 +1,9 @@
 /**
- * Client-side resolution of a WordPress release's album art + codename.
+ * Resolves a release's album art + codename from its wordpress.org/news
+ * announcement (titled `WordPress <X.Y> "Codename"`), cached in
+ * `localStorage` per branch.
  *
- * The server only tells the shell *that* a core update is pending (see
- * `includes/update-notice.php`); the release art lives on the
- * wordpress.org/news announcement, which we fetch here so the update
- * notification can appear once — already as the vinyl, with art loaded —
- * rather than flashing a placeholder toast while the art warms up.
- *
- * The announcement post is titled `WordPress <X.Y> "Codename"`; we
- * search the feed for the branch, match that shape (which excludes
- * maintenance releases and unrelated posts), and take the post's
- * featured image. Results are cached in `localStorage` per branch — hits
- * indefinitely (art doesn't change), misses briefly so a just-published
- * release is picked up soon.
- *
- * @since 0.9.3
+ * @since 0.9.4
  */
 
 import { trackedFetch } from './tracked-fetch';

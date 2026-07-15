@@ -2931,36 +2931,12 @@ Actions / filters:
 
 See [`docs/examples/window-notice.md`](examples/window-notice.md).
 
-### Core-update notice — `desktop_mode_core_update_notice` — Experimental (filter) *(since 0.9.3)*
+### Core-update notice — `desktop_mode_show_core_update_notice` — Experimental (filter) *(since 0.9.4)*
 
-WordPress core prints "WordPress X is available!" on every admin
-screen. Desktop Mode detaches that per-window nag inside chromeless
-windows (`desktop_mode_chromeless_suppress_update_nags()`) and surfaces
-the update **once** in the shell. `desktop_mode_get_core_update()`
-computes the descriptor from WordPress's authoritative update state
-(`update_core`-gated) and ships it in the shell config as `coreUpdate`
-(`{ version, available, branch, url, crossing }`).
-
-The release **art + codename** are resolved on the **client** (from the
-wordpress.org/news announcement's featured image, cached in
-`localStorage`) — so the notification appears once, already as the
-release-card vinyl with its art loaded and accent sampled from
-the sleeve, rather than flashing a placeholder while art loads. When no
-art can be resolved (unknown release / offline) it falls back to a plain
-persistent toast. Wording follows the descriptor: crossing into a new
-major shows the branch version + codename ("WordPress 7.0 "Armstrong" is
-available"); a same-branch minor shows the exact version, no codename.
-
-Filter the whole descriptor — return `null` to suppress the desktop
-update notice entirely (e.g. on sites that manage core updates
-out-of-band):
+Return `false` to turn off the desktop core-update notification (defaults to `true`):
 
 ```php
-/**
- * @param array{version:string,available:string,branch:string,url:string,crossing:bool}|null $update
- * @return array{version:string,available:string,branch:string,url:string,crossing:bool}|null
- */
-add_filter( 'desktop_mode_core_update_notice', '__return_null' );
+add_filter( 'desktop_mode_show_core_update_notice', '__return_false' );
 ```
 
 ---

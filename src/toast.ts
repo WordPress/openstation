@@ -51,13 +51,11 @@ export interface ToastOptions {
 	 */
 	duration?: number;
 	/**
-	 * When `true`, the toast never auto-dismisses — it stays until a
-	 * caller invokes the returned dismiss function or the user acts on
-	 * the toast's own action button. Use for standing status the user
-	 * must act on (e.g. "a WordPress update is available"), not
-	 * ephemeral confirmations. Overrides `duration`.
+	 * When `true`, the toast never auto-dismisses — it stays until the
+	 * action button is clicked or the returned dismiss function is
+	 * called. Overrides `duration`.
 	 *
-	 * @since 0.9.3
+	 * @since 0.9.4
 	 */
 	persistent?: boolean;
 }

@@ -1906,15 +1906,11 @@ export interface DesktopConfig {
 	 */
 	toastTypes?: ToastTypeDef[];
 	/**
-	 * Pending WordPress core update, if one is available and the
-	 * current user can `update_core`. Computed server-side by
-	 * `desktop_mode_get_core_update()`; the shell resolves the release
-	 * art client-side and surfaces it once (replacing core's per-window
-	 * update nag) — the release-card vinyl once art loads, or a
-	 * plain persistent toast otherwise. `null` / omitted when no update
-	 * is pending.
+	 * Pending WordPress core update (from `desktop_mode_get_core_update()`),
+	 * or `null`/omitted when none is pending. The shell resolves the art
+	 * and renders it — see `src/update-notice.ts`.
 	 *
-	 * @since 0.9.3
+	 * @since 0.9.4
 	 */
 	coreUpdate?: {
 		/** Version shown in the message — major branch when crossing, else exact. */

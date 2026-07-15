@@ -1,22 +1,13 @@
 /**
- * The major-release update moment — an album sleeve with a CSS-drawn
- * vinyl that slides out and spins. Dismissible via a close button that
- * fades it out.
+ * The vinyl release card — an album sleeve (the release art) with a
+ * CSS-drawn record that slides out; the close button fades it away.
  *
- * Plain module (not a web component): a single-use, feature-specific
- * surface that only the update-notice picker mounts, so it builds its DOM
- * directly and injects one scoped stylesheet (everything under
- * `.dm-release-card`) rather than paying for a custom element + shadow
- * DOM. `showReleaseCard()` mounts it into a singleton top-right host and
- * returns a programmatic dismiss (no animation, e.g. once the update is
- * installed); the close button runs the animation and persists the
- * dismissal (keyed by `dismissKey`).
+ * A plain module, not a web component: it's an internal, single-use
+ * surface, so it builds its own DOM and injects one scoped stylesheet
+ * (`.dm-release-card`). `showReleaseCard()` mounts it and returns a
+ * dismiss callback.
  *
- * The flat release art is used only as the square sleeve — the record is
- * drawn in CSS, and its accent is sampled from the sleeve — see
- * `paintSleeve()`. Under `prefers-reduced-motion` there's no choreography.
- *
- * @since 0.9.3
+ * @since 0.9.4
  */
 
 import { markNoticeDismissed } from './ui/components/wpd-notice/storage';

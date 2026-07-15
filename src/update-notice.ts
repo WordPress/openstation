@@ -1,27 +1,9 @@
 /**
- * Core-update notification — the shell-side half of the update-nag
- * hijack.
+ * Turns the server's `coreUpdate` into a single shell notification:
+ * resolves the release art (async) and shows the vinyl release card once
+ * it's loaded, or a plain toast when no art is available.
  *
- * The server reports *that* a core update is pending (`config.coreUpdate`
- * = `{ version, available, branch, url, crossing }`); this module resolves the
- * release art client-side and surfaces a single notification — one, not
- * one per window:
- *
- *   - **Art resolves** → the release-card vinyl moment (the
- *     release's album sleeve with the record sliding out). We wait for
- *     the art to load first, so it appears once, already painted — no
- *     temporary toast.
- *   - **No art** (unknown release / offline) → a plain persistent toast.
- *
- * Wording follows the descriptor: crossing into a new major shows the
- * branch version + codename ("WordPress 7.0 'Armstrong' is available");
- * a same-branch minor shows the exact version, no codename.
- *
- * Both are non-dismissible via auto-timeout; the vinyl has a close button
- * whose dismissal is persisted (per branch), and a dismissed release is
- * skipped here.
- *
- * @since 0.9.3
+ * @since 0.9.4
  */
 
 import { showToast } from './toast';

@@ -28,7 +28,7 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 		delete_site_transient( 'update_core' );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		unset( $_GET['desktop_mode_chromeless'] );
-		remove_all_filters( 'desktop_mode_core_update_notice' );
+		remove_all_filters( 'desktop_mode_show_core_update_notice' );
 		parent::tear_down();
 	}
 
@@ -117,7 +117,7 @@ class Tests_DesktopMode_UpdateNotice extends WP_UnitTestCase {
 	public function test_notice_filter_can_suppress() {
 		wp_set_current_user( self::$admin_id );
 		$this->fake_core_update( '9.9.9' );
-		add_filter( 'desktop_mode_core_update_notice', '__return_null' );
+		add_filter( 'desktop_mode_show_core_update_notice', '__return_false' );
 
 		$this->assertNull( desktop_mode_get_core_update() );
 	}
