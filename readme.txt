@@ -114,12 +114,27 @@ The plugin bundles the following third-party JavaScript library, loaded on deman
 
 == Changelog ==
 
-= 0.9.4 =
+= 0.9.5 =
 * AI Copilot now uses WordPress 7.0 providers: configure a provider once in Settings → Connectors and the assistant uses it — no more per-plugin keys
 * AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`desktop_mode_register_ai_tool()` was removed)
 * Removed the OS Settings → AI tab; the per-user "AI assistant" toggle now lives in OS Settings → Features next to "Score new comments with AI"
 * Requires WordPress 7.0 for the AI assistant only; on older WordPress the assistant is hidden and the rest of Desktop Mode is unaffected
 * Stored AI keys are deleted from the database on upgrade
+* Five new built-in widgets: Recent Comments, Post Stats, Site Views, Jazz Quote, and Starter
+* Widgets can now be resized, and docked widget heights persist across sessions
+* Two new wallpapers, Living Tree and Snow, plus per-wallpaper settings dialogs
+* Window links: windows showing related content are visually connected, with pluggable link renderers for plugin authors
+* Spring-loading: hovering a window while dragging anything brings it to the front
+* New developer mode setting (OS Settings → Features) unlocks developer-facing surfaces
+* WordPress update notices now surface once in the desktop shell instead of repeating in every window
+* Desktop shortcuts stay in sync and core icons follow the spatial layout
+* Extended options merged into the OS Settings → Features tab
+* Fixed selection bugs that could point destructive actions at the wrong files
+* Closing a window with unsaved changes now warns instead of silently losing work
+* Fixed windows and dock state leaking across virtual desktops
+* Fixed Overview keyboard navigation and focus trapping
+* The dock now refreshes live when a plugin registers a new post type
+* Fixed dock icon alignment, "Add New" window titles and icons, and count-label pluralization
 
 = 0.9.3 =
 * Rewrite WordPress.org plugin page, leaner copy, video embed, screenshots

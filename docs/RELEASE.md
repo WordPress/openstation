@@ -8,12 +8,12 @@ Maintainer guide. Users install by downloading `/releases/latest/download/deskto
 ./bin/release.sh 0.5.0
 ```
 
-Refreshes translation files (`npm run i18n`), drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes and **pauses interactively** so you can curate it (press Enter when done), bumps all four version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if the tree is dirty, you're not on trunk, local trunk is out of sync with origin, or CI fails. Resumable — re-running after a mid-flow failure picks up where it left off.
+Refreshes translation files (`npm run i18n`), drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes and **pauses interactively** so you can curate it (press Enter when done), then **shows the final changelog block and requires an explicit `y` to continue** — on every path, including `--skip-changelog` and resumed runs, and with a loud warning if the block is missing. After confirmation it bumps all four version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if the tree is dirty, you're not on trunk, local trunk is out of sync with origin, CI fails, or the changelog isn't confirmed. Resumable — re-running after a mid-flow failure picks up where it left off.
 
 Flags:
 
 - `--skip-i18n` — skip the translation-file refresh. Use for hotfix releases where you don't want `.pot`/`.po`/`.json` churn in the bump commit.
-- `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log.
+- `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log. The interactive changelog confirmation still runs; only the drafting step is skipped.
 - `--dry-run-changelog` — print the changelog draft that would be inserted into `readme.txt`, then exit without modifying any files or pushing.
 
 The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `desktop-mode.zip` attached.
