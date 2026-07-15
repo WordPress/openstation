@@ -1,11 +1,11 @@
 /**
- * Tests for `maybeShowCoreNotices()` — the shell surfacing of the server's
- * `coreNotices`. `showToast` is mocked so we assert what gets rendered without
- * touching the DOM.
+ * Tests for `maybeShowNotices()` — the shell surfacing of the server's
+ * `coreNotices` / `pluginNotices`. `showToast` is mocked so we assert what
+ * gets rendered without touching the DOM.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { maybeShowCoreNotices, type CoreNotice } from './core-notices';
+import { maybeShowNotices, type ShellNotice } from './core-notices';
 import { showToast, type ToastOptions } from './toast';
 import {
 	markNoticeDismissed,
@@ -31,7 +31,7 @@ beforeEach( () => {
 } );
 afterEach( () => localStorage.clear() );
 
-const NOTICE: CoreNotice = {
+const NOTICE: ShellNotice = {
 	id: 'maintenance',
 	message: 'An automated WordPress update failed to complete.',
 	actionLabel: 'Retry update',
@@ -39,14 +39,14 @@ const NOTICE: CoreNotice = {
 	dismissible: false,
 };
 
-describe( 'maybeShowCoreNotices', () => {
+describe( 'maybeShowNotices', () => {
 	test( 'no-op when notices is absent or not an array', () => {
-		maybeShowCoreNotices( { notices: undefined, openUrl } );
+		maybeShowNotices( { notices: undefined, openUrl } );
 		expect( toastMock ).not.toHaveBeenCalled();
 	} );
 
 	test( 'shows one persistent toast per notice', () => {
-		maybeShowCoreNotices( {
+		maybeShowNotices( {
 			notices: [
 				NOTICE,
 				{ id: 'recovery-mode', message: 'You are in recovery mode.' },
@@ -59,7 +59,7 @@ describe( 'maybeShowCoreNotices', () => {
 	} );
 
 	test( 'wires the action to openUrl', () => {
-		maybeShowCoreNotices( { notices: [ NOTICE ], openUrl } );
+		maybeShowNotices( { notices: [ NOTICE ], openUrl } );
 		lastToast().action!.onClick();
 		expect( openUrl ).toHaveBeenCalledWith( {
 			url: '/wp-admin/update-core.php',
@@ -68,7 +68,7 @@ describe( 'maybeShowCoreNotices', () => {
 	} );
 
 	test( 'a notice without a full action has no action button', () => {
-		maybeShowCoreNotices( {
+		maybeShowNotices( {
 			notices: [ { id: 'x', message: 'msg', actionLabel: 'Go' } ],
 			openUrl,
 		} );
@@ -76,7 +76,7 @@ describe( 'maybeShowCoreNotices', () => {
 	} );
 
 	test( 'dismissible notice: toast is dismissible and onDismiss persists', () => {
-		maybeShowCoreNotices( {
+		maybeShowNotices( {
 			notices: [ { ...NOTICE, id: 'default-password', dismissible: true } ],
 			openUrl,
 		} );
@@ -92,7 +92,7 @@ describe( 'maybeShowCoreNotices', () => {
 
 	test( 'skips a dismissible notice that was already dismissed', () => {
 		markNoticeDismissed( 'desktop-mode/core-notice:default-password' );
-		maybeShowCoreNotices( {
+		maybeShowNotices( {
 			notices: [ { ...NOTICE, id: 'default-password', dismissible: true } ],
 			openUrl,
 		} );
@@ -101,16 +101,33 @@ describe( 'maybeShowCoreNotices', () => {
 
 	test( 'a non-dismissible notice always shows, even if its key was marked', () => {
 		markNoticeDismissed( 'desktop-mode/core-notice:maintenance' );
-		maybeShowCoreNotices( { notices: [ NOTICE ], openUrl } );
+		maybeShowNotices( { notices: [ NOTICE ], openUrl } );
 		expect( toastMock ).toHaveBeenCalledTimes( 1 );
 		expect( lastToast().dismissible ).toBe( false );
 	} );
 
+	test( 'keyPrefix namespaces the dismissal key (core vs plugin)', () => {
+		// A plugin notice dismissed under `plugin-notice:` must not be hidden
+		// by a same-id `core-notice:` dismissal, and vice-versa.
+		markNoticeDismissed( 'desktop-mode/core-notice:shared' );
+		maybeShowNotices( {
+			notices: [ { id: 'shared', message: 'plugin', dismissible: true } ],
+			openUrl,
+			keyPrefix: 'plugin-notice',
+		} );
+		expect( toastMock ).toHaveBeenCalledTimes( 1 );
+
+		lastToast().onDismiss!();
+		expect(
+			isNoticeDismissed( 'desktop-mode/plugin-notice:shared' ),
+		).toBe( true );
+	} );
+
 	test( 'skips malformed entries (missing id or message)', () => {
-		maybeShowCoreNotices( {
+		maybeShowNotices( {
 			notices: [
-				{ id: '', message: 'no id' } as CoreNotice,
-				{ id: 'y', message: '' } as CoreNotice,
+				{ id: '', message: 'no id' } as ShellNotice,
+				{ id: 'y', message: '' } as ShellNotice,
 				NOTICE,
 			],
 			openUrl,

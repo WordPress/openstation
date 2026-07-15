@@ -73,6 +73,7 @@ require_once DESKTOP_MODE_DIR . 'includes/window-chrome.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-notices.php';
 require_once DESKTOP_MODE_DIR . 'includes/update-notice.php';
 require_once DESKTOP_MODE_DIR . 'includes/core-notices.php';
+require_once DESKTOP_MODE_DIR . 'includes/plugin-notices.php';
 require_once DESKTOP_MODE_DIR . 'includes/wallpapers.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/heartbeat.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-comments.php';

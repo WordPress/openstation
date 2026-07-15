@@ -10,7 +10,9 @@ authoritative state, never by scraping notice HTML.
 
 **Scope:** Core notices only. We deliberately do not hijack plugin
 `admin_notices` — their screen-gating is arbitrary PHP we can't classify, and
-they may be intentionally contextual.
+they may be intentionally contextual. The one exception is a small, opt-in
+[allowlist of shared *library* notices](#allowlisted-pluginlibrary-notices)
+(e.g. Action Scheduler) — see below.
 
 ## Method
 
@@ -108,3 +110,21 @@ open window, so it always surfaces once.
   multisite test environment. Same pattern applies: add a builder gated on
   `is_multisite()` + `upgrade_network`, and a `remove_action()` on both
   `admin_notices` and `network_admin_notices`.
+
+## Allowlisted plugin/library notices
+
+Arbitrary plugin `admin_notices` stay untouched. The exception is a narrow,
+opt-in allowlist ([`includes/plugin-notices.php`]) for shared **libraries** —
+bundled across many plugins, printed globally, and re-derivable from their own
+state. These aren't a single plugin's contextual UX; they're infrastructure
+warnings that duplicate per window exactly like the core nags. Same pattern:
+detach in-window (`desktop_mode_chromeless_suppress_plugin_notices()`),
+re-derive (`desktop_mode_get_plugin_notices()`, filterable via
+`desktop_mode_plugin_notices`), surface once. Adding a library is a new builder
+plus a `remove_action()`; the bar is "shared library, re-derivable, global."
+
+[`includes/plugin-notices.php`]: ../includes/plugin-notices.php
+
+| Library | Notice | Re-derived from | Desktop surface |
+|---|---|---|---|
+| **Action Scheduler** (WooCommerce, Jetpack, …) | "N past-due actions found; something may be wrong." Printed on `admin_notices` with no throttle while past-due actions exist, so it repeats in every window. | `ActionScheduler_Store::instance()->query_actions()` for pending actions older than the threshold — mirrors `ActionScheduler_AdminView::check_pastdue_actions()`, including its filters, so the count matches. | Dismissible toast → `tools.php?page=action-scheduler&status=past-due` |

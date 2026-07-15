@@ -179,7 +179,7 @@ import { bootStickyNotes } from './sticky-notes';
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
 import { maybeShowUpdate } from './update-notice';
-import { maybeShowCoreNotices } from './core-notices';
+import { maybeShowNotices } from './core-notices';
 import { setupDevModeWidgetGate } from './widgets/dev-mode-gate';
 import {
 	installDefaultDockRailRenderer,
@@ -3356,26 +3356,30 @@ function init(): void {
 		},
 	} );
 	// Surface the remaining global core notices (maintenance, recovery mode,
-	// default password, …) once each as a shell toast — the desktop-native
+	// default password, …) plus the allowlisted plugin/library notices (e.g.
+	// Action Scheduler) once each as a shell toast — the desktop-native
 	// replacement for the per-window nags suppressed server-side. Each action
 	// opens its target admin screen as a window.
-	maybeShowCoreNotices( {
-		notices: config.coreNotices,
-		openUrl: ( { url, title } ) => {
-			if ( tryNativeUrlRemap( url ) ) {
-				return;
-			}
-			const page = ( url.split( '?' )[ 0 ].split( '/' ).pop() || 'window' )
-				.replace( /\.php$/, '' );
-			const baseId = `admin-${ page }`;
-			void manager.open( {
-				id: baseId,
-				baseId,
-				url,
-				title,
-				icon: 'dashicons-info',
-			} );
-		},
+	const openNoticeUrl = ( { url, title }: { url: string; title: string } ): void => {
+		if ( tryNativeUrlRemap( url ) ) {
+			return;
+		}
+		const page = ( url.split( '?' )[ 0 ].split( '/' ).pop() || 'window' )
+			.replace( /\.php$/, '' );
+		const baseId = `admin-${ page }`;
+		void manager.open( {
+			id: baseId,
+			baseId,
+			url,
+			title,
+			icon: 'dashicons-info',
+		} );
+	};
+	maybeShowNotices( { notices: config.coreNotices, openUrl: openNoticeUrl } );
+	maybeShowNotices( {
+		notices: config.pluginNotices,
+		openUrl: openNoticeUrl,
+		keyPrefix: 'plugin-notice',
 	} );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {

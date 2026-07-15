@@ -1,9 +1,9 @@
 /**
- * Surfaces the server's `coreNotices` — the global WordPress Core admin
- * notices (other than the update nag) that would otherwise repeat in every
- * window — as a single shell toast each. The descriptors are re-derived from
- * authoritative state server-side; this just renders them. See
- * docs/core-notices-audit.md.
+ * Surfaces server-derived global admin notices — the WordPress Core notices
+ * (other than the update nag) plus the allowlisted plugin/library notices —
+ * that would otherwise repeat in every window, as a single shell toast each.
+ * The descriptors are re-derived from authoritative state server-side; this
+ * just renders them. See docs/core-notices-audit.md.
  *
  * @since 0.9.4
  */
@@ -14,8 +14,8 @@ import {
 	markNoticeDismissed,
 } from './ui/components/wpd-notice/storage';
 
-/** A single core-notice descriptor from `config.coreNotices`. */
-export interface CoreNotice {
+/** A single notice descriptor from `config.coreNotices` / `config.pluginNotices`. */
+export interface ShellNotice {
 	/** Stable notice id — the per-notice dismissal key. */
 	id: string;
 	/** Human-readable message (already translated server-side). */
@@ -29,19 +29,24 @@ export interface CoreNotice {
 }
 
 /** Dependencies the surfacing needs from the shell. */
-export interface CoreNoticesDeps {
-	/** The `config.coreNotices` value (may be absent). */
-	notices: CoreNotice[] | undefined;
+export interface ShellNoticesDeps {
+	/** The notice descriptors (may be absent). */
+	notices: ShellNotice[] | undefined;
 	/** Open an admin URL as a window (the notice's action). */
 	openUrl: ( args: { url: string; title: string } ) => void;
+	/**
+	 * localStorage key namespace for dismissal, keeping core / plugin notice
+	 * ids from colliding. Defaults to `core-notice`.
+	 */
+	keyPrefix?: string;
 }
 
 /**
- * Show each pending core notice once as a persistent toast. Dismissible
- * notices that were already dismissed (locally) are skipped.
+ * Show each pending notice once as a persistent toast. Dismissible notices
+ * that were already dismissed (locally) are skipped.
  */
-export function maybeShowCoreNotices( deps: CoreNoticesDeps ): void {
-	const { notices, openUrl } = deps;
+export function maybeShowNotices( deps: ShellNoticesDeps ): void {
+	const { notices, openUrl, keyPrefix = 'core-notice' } = deps;
 	if ( ! Array.isArray( notices ) ) {
 		return;
 	}
@@ -57,7 +62,7 @@ export function maybeShowCoreNotices( deps: CoreNoticesDeps ): void {
 			continue;
 		}
 
-		const dismissKey = `desktop-mode/core-notice:${ notice.id }`;
+		const dismissKey = `desktop-mode/${ keyPrefix }:${ notice.id }`;
 		if ( notice.dismissible && isNoticeDismissed( dismissKey ) ) {
 			continue;
 		}

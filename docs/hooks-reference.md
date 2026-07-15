@@ -2939,6 +2939,20 @@ add_filter( 'desktop_mode_core_notices', static function ( array $notices ) {
 } );
 ```
 
+### Plugin/library notices — `desktop_mode_plugin_notices` — Experimental (filter) *(since 0.9.4)*
+
+A small opt-in allowlist of shared **library** notices that also render globally
+(e.g. Action Scheduler's "past-due actions" warning, bundled by WooCommerce and
+others) gets the same treatment: detached in-window, re-derived from state,
+surfaced once. Arbitrary plugin `admin_notices` are *not* touched — only the
+allowlisted libraries. Same descriptor shape as `desktop_mode_core_notices`;
+return an empty array to suppress them all. See
+[Core global admin-notice audit](core-notices-audit.md).
+
+```php
+add_filter( 'desktop_mode_plugin_notices', '__return_empty_array' );
+```
+
 ---
 
 ## Progressive Web App (since 0.8.0)
