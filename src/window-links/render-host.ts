@@ -16,7 +16,9 @@
  *     vanished (plugin deactivated);
  *   - the visibility policy (`windowLinkVisibility` OS setting):
  *     `'focus'` fades the layer in while a group member is focused,
- *     `'always'` keeps it shown, `'off'` never mounts;
+ *     `'always'` keeps it shown, `'off'` never mounts; either way the
+ *     layers hide while Overview runs (thumbnails are CSS transforms
+ *     the offset-based frame geometry can't see);
  *   - frame production: one rAF-coalesced pipeline collapsing
  *     per-frame drag geometry (`HOOKS.WINDOW_BOUNDS_CHANGED`),
  *     settled move/resize/state hooks, and group-membership changes
@@ -102,6 +104,16 @@ export function startWindowLinkRenderHost( {
 	const frameSubscribers = new Set<( frame: WindowLinkFrame ) => void >();
 	let framePending = false;
 	const linkedWindows = new Set< string >();
+	/**
+	 * Overview (Exposé) lays windows out as scaled CSS-transform
+	 * thumbnails, but the frame geometry reads `offset*` metrics —
+	 * which transforms don't touch — so during the mode every tie
+	 * would keep pointing at the pre-overview positions. The layers
+	 * hide for the mode's whole lifetime instead: fade out as the
+	 * thumbnails animate, fade back in once `OVERVIEW_EXITED` confirms
+	 * the windows have settled back on their real geometry.
+	 */
+	let overviewActive = false;
 
 	// ------------------------------------------------------------------
 	// Frame production
@@ -455,6 +467,7 @@ export function startWindowLinkRenderHost( {
 			return;
 		}
 		const visible =
+			! overviewActive &&
 			isEnabled() &&
 			( snapshot.windowLinkVisibility === 'always' ||
 				( snapshot.windowLinkVisibility === 'focus' &&
@@ -647,6 +660,32 @@ export function startWindowLinkRenderHost( {
 			applyVisibility();
 			applyLinkedHighlight();
 			applyLayerElevation();
+			emitFrame();
+		},
+	);
+
+	// Overview (Exposé) — hide the layers while it runs (see the
+	// `overviewActive` declaration). ENTERING (not ENTERED) so the
+	// fade-out runs alongside the thumbnail animation; EXITED fires
+	// after the exit animation settles, so the re-shown ties anchor on
+	// real geometry, never mid-flight thumbnails.
+	addAction(
+		HOOKS.OVERVIEW_ENTERING,
+		'desktop-mode/window-links-overview',
+		() => {
+			overviewActive = true;
+			applyVisibility();
+		},
+	);
+	addAction(
+		HOOKS.OVERVIEW_EXITED,
+		'desktop-mode/window-links-overview',
+		() => {
+			overviewActive = false;
+			applyVisibility();
+			// A fresh frame: selecting a thumbnail may have maximized
+			// it, and any mid-overview churn (a window closed from the
+			// grid) settled while the layer was hidden.
 			emitFrame();
 		},
 	);

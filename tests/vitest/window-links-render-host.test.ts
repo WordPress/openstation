@@ -606,6 +606,60 @@ describe( 'window-link render host — end-to-end (jsdom)', () => {
 		expect( document.querySelector( BOTH_LAYERS_PATH ) ).not.toBeNull();
 	} );
 
+	test( 'overview hides the layers while it runs; exit re-shows them', async () => {
+		// Overview lays windows out as scaled CSS-transform thumbnails,
+		// invisible to the offset-based frame geometry — ties would
+		// keep pointing at the pre-overview positions. The layers hide
+		// from OVERVIEW_ENTERING (fade races the thumbnail animation)
+		// until OVERVIEW_EXITED (fires after the exit animation
+		// settles).
+		const { engine, host } = await loadModules();
+		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );
+		const commentWin = makeWin(
+			'comment-win',
+			{ x: 300, y: 300, width: 100, height: 100 },
+			true,
+		);
+		const manager = makeManager( [ postWin, commentWin ] );
+
+		engine.startWindowLinksEngine( { manager } );
+		host.startWindowLinkRenderHost( {
+			manager: manager as never,
+			osSettings: makeOsSettings( {
+				windowLinkVisibility: 'always',
+			} ) as never,
+		} );
+		engine.setWindowContent( 'post-win', { type: 'post', id: 1 } );
+		engine.setWindowContent( 'comment-win', {
+			type: 'comment',
+			id: 9,
+			root: { type: 'post', id: 1 },
+		} );
+		flushRaf();
+
+		const layer = document.getElementById( 'desktop-mode-window-links' )!;
+		const elevated = document.getElementById(
+			'desktop-mode-window-links-elevated',
+		)!;
+		const VISIBLE = 'desktop-mode-window-links--visible';
+		expect( layer.classList.contains( VISIBLE ) ).toBe( true );
+		expect( elevated.classList.contains( VISIBLE ) ).toBe( true );
+
+		hooks.doAction( HOOKS.OVERVIEW_ENTERING, {} );
+		expect( layer.classList.contains( VISIBLE ) ).toBe( false );
+		expect( elevated.classList.contains( VISIBLE ) ).toBe( false );
+
+		// Mid-overview recomputes (a settings change, membership churn)
+		// must not resurface the layer while the mode is active.
+		hooks.doAction( HOOKS.WINDOW_FOCUSED, { windowId: 'comment-win' } );
+		expect( layer.classList.contains( VISIBLE ) ).toBe( false );
+
+		hooks.doAction( HOOKS.OVERVIEW_EXITED, {} );
+		flushRaf();
+		expect( layer.classList.contains( VISIBLE ) ).toBe( true );
+		expect( elevated.classList.contains( VISIBLE ) ).toBe( true );
+	} );
+
 	test( 'closing the child window clears its edge and unmounts the renderer', async () => {
 		const { engine, host } = await loadModules();
 		const postWin = makeWin( 'post-win', { x: 0, y: 0, width: 100, height: 100 } );
