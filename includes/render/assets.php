@@ -420,6 +420,7 @@ function desktop_mode_enqueue_assets() {
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),
 			'coreUpdate'       => desktop_mode_get_core_update(),
+			'coreNotices'      => desktop_mode_get_core_notices(),
 			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),
 			'session'          => desktop_mode_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),

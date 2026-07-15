@@ -179,6 +179,7 @@ import { bootStickyNotes } from './sticky-notes';
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
 import { maybeShowUpdate } from './update-notice';
+import { maybeShowCoreNotices } from './core-notices';
 import { setupDevModeWidgetGate } from './widgets/dev-mode-gate';
 import {
 	installDefaultDockRailRenderer,
@@ -3351,6 +3352,28 @@ function init(): void {
 				url,
 				title,
 				icon: 'dashicons-update',
+			} );
+		},
+	} );
+	// Surface the remaining global core notices (maintenance, recovery mode,
+	// default password, …) once each as a shell toast — the desktop-native
+	// replacement for the per-window nags suppressed server-side. Each action
+	// opens its target admin screen as a window.
+	maybeShowCoreNotices( {
+		notices: config.coreNotices,
+		openUrl: ( { url, title } ) => {
+			if ( tryNativeUrlRemap( url ) ) {
+				return;
+			}
+			const page = ( url.split( '?' )[ 0 ].split( '/' ).pop() || 'window' )
+				.replace( /\.php$/, '' );
+			const baseId = `admin-${ page }`;
+			void manager.open( {
+				id: baseId,
+				baseId,
+				url,
+				title,
+				icon: 'dashicons-info',
 			} );
 		},
 	} );

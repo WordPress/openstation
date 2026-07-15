@@ -1992,6 +1992,27 @@ export interface DesktopConfig {
 		crossing?: boolean;
 	} | null;
 	/**
+	 * The remaining global WordPress Core admin notices, re-derived from
+	 * server state so the shell can surface each once instead of letting them
+	 * repeat per window. The update nag is `coreUpdate` above; these are the
+	 * rest (maintenance, recovery mode, default password, …). See
+	 * `src/core-notices.ts` and docs/core-notices-audit.md.
+	 *
+	 * @since 0.9.4
+	 */
+	coreNotices?: Array< {
+		/** Stable notice id — the per-notice dismissal key. */
+		id: string;
+		/** Human-readable message (already translated server-side). */
+		message: string;
+		/** Optional action-button label. */
+		actionLabel?: string;
+		/** Admin URL the action opens as a window. */
+		actionUrl?: string;
+		/** Whether the toast shows a close button (dismissal persists locally). */
+		dismissible?: boolean;
+	} >;
+	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `desktop_mode_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.

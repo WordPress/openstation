@@ -2919,6 +2919,26 @@ Return `false` to turn off the desktop core-update notification (defaults to `tr
 add_filter( 'desktop_mode_show_core_update_notice', '__return_false' );
 ```
 
+### Core notices — `desktop_mode_core_notices` — Experimental (filter) *(since 0.9.4)*
+
+The other global WordPress Core admin notices (maintenance / failed update,
+recovery mode, default-password, force-deactivated plugins, paused
+plugins/themes) are detached inside desktop windows and re-derived from server
+state so the shell surfaces each **once** as a toast. This filter receives the
+array of descriptors (`{ id, message, actionLabel, actionUrl, dismissible }`) —
+return an empty array to suppress them all, or unset entries by `id`. See
+[Core global admin-notice audit](core-notices-audit.md).
+
+```php
+// Drop the "you're using an auto-generated password" notice only.
+add_filter( 'desktop_mode_core_notices', static function ( array $notices ) {
+    return array_values( array_filter(
+        $notices,
+        static fn ( $n ) => 'default-password' !== $n['id']
+    ) );
+} );
+```
+
 ---
 
 ## Progressive Web App (since 0.8.0)

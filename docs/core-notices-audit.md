@@ -66,23 +66,45 @@ Candidates from the issue that turned out not to be global notices:
 | Single-site database-update-required | A **redirect** to `upgrade.php`, not a notice (the multisite variant `site_admin_notice` *is* a notice — in scope above) |
 | Plugin/theme "update available" counts | Menu **bubbles**, not notices |
 
-## Proposed implementation (Part 2)
+## Implementation
 
-The parent shipped a single `coreUpdate` config key. Generalizing to the eight
-in-scope notices calls for a small, core-only state-derivation layer rather than
-eight bespoke paths:
+The parent shipped a single `coreUpdate` config key; the rest are handled by a
+small, core-only state-derivation layer:
 
-1. **Suppress in-window** — extend `desktop_mode_chromeless_suppress_update_nags()`
-   with targeted `remove_action()` for each in-scope callback (keep the CSS
-   `.update-nag` net as backstop).
-2. **Derive once** — a `desktop_mode_get_core_notices()` builder returning an
-   array of `{ id, level, message, action?, dismissible?, dismissKey? }`
-   descriptors, each computed from the authoritative state in the table above,
-   capability-gated exactly as Core gates them.
-3. **Surface once** — ship the array in the shell config and have a client
-   module render each as a shell toast (reusing the `dismissible` / `persistent`
-   toast support from the parent), keyed for per-notice dismissal.
+1. **Suppress in-window** — `desktop_mode_chromeless_suppress_core_notices()`
+   ([`includes/core/routing.php`]) targets each in-scope callback with
+   `remove_action()`, alongside the update/maintenance nags handled by
+   `desktop_mode_chromeless_suppress_update_nags()`.
+2. **Derive once** — `desktop_mode_get_core_notices()`
+   ([`includes/core-notices.php`]) returns an array of
+   `{ id, message, actionLabel, actionUrl, dismissible }` descriptors, each
+   re-derived from the authoritative state in the table above and
+   capability-gated exactly as Core gates it. Filterable via
+   `desktop_mode_core_notices`.
+3. **Surface once** — the array ships in the shell config as `coreNotices`, and
+   `maybeShowCoreNotices()` ([`src/core-notices.ts`]) renders each as a
+   persistent shell toast, keyed `desktop-mode/core-notice:<id>` for per-notice
+   dismissal.
 
-Each row's capability gate and screen exclusion (e.g. don't surface
-`paused_plugins_notice` when the active window *is* `plugins.php`) carries over
-from Core verbatim.
+[`includes/core/routing.php`]: ../includes/core/routing.php
+[`includes/core-notices.php`]: ../includes/core-notices.php
+[`src/core-notices.ts`]: ../src/core-notices.ts
+
+**Dismissibility.** Notices whose state clears itself (`maintenance`,
+`recovery-mode`, `paused-*`) are non-dismissible — they vanish when re-derived.
+`default-password` is dismissible (matching Core's "No thanks" link).
+`deactivated-plugins` is dismissible because Core clears its option as it prints
+the in-window notice; since the shell suppresses that callback, the state would
+otherwise persist indefinitely. Dismissal is persisted client-side
+(`localStorage`), so it is per-browser.
+
+**Screen exclusion doesn't apply.** Core hides e.g. `paused_plugins_notice` on
+`plugins.php` because you're already there; the shell toast is orthogonal to any
+open window, so it always surfaces once.
+
+### Not yet implemented
+
+- `site_admin_notice` (multisite network DB upgrade) — deferred; needs a
+  multisite test environment. Same pattern applies: add a builder gated on
+  `is_multisite()` + `upgrade_network`, and a `remove_action()` on both
+  `admin_notices` and `network_admin_notices`.

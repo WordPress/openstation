@@ -408,6 +408,27 @@ function desktop_mode_chromeless_suppress_update_nags() {
 add_action( 'admin_init', 'desktop_mode_chromeless_suppress_update_nags' );
 
 /**
+ * Detaches the remaining global core admin notices inside chromeless iframes
+ * so they don't repeat in every window — the shell re-derives and surfaces
+ * each once (see `desktop_mode_get_core_notices()` and
+ * docs/core-notices-audit.md). The update / maintenance nags are handled by
+ * `desktop_mode_chromeless_suppress_update_nags()`.
+ *
+ * @since 0.9.4
+ */
+function desktop_mode_chromeless_suppress_core_notices() {
+	if ( ! desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	remove_action( 'admin_notices', 'wp_recovery_mode_nag', 1 );
+	remove_action( 'admin_notices', 'default_password_nag' );
+	remove_action( 'admin_notices', 'deactivated_plugins_notice', 5 );
+	remove_action( 'admin_notices', 'paused_plugins_notice', 5 );
+	remove_action( 'admin_notices', 'paused_themes_notice', 5 );
+}
+add_action( 'admin_init', 'desktop_mode_chromeless_suppress_core_notices' );
+
+/**
  * Preserves the `desktop_mode_chromeless` flag through admin
  * redirects.
  *
