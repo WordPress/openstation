@@ -76,6 +76,8 @@ function desktop_mode_release_branch( $version ) {
  *     crosses into a new major (6.9 → 7.0 / 7.0.1) this is the major
  *     branch (`7.0`); within the same branch (7.0 → 7.0.1) it's the
  *     exact version (`7.0.1`).
+ *   - `available` — the exact available version; the client keys the
+ *     "dismissed" state on it, so a newer point release re-notifies.
  *   - `branch`  — the major branch (`7.0`); the client resolves art +
  *     codename for it.
  *   - `crossing` — `true` when moving into a new major. The client only
@@ -83,7 +85,7 @@ function desktop_mode_release_branch( $version ) {
  *
  * @since 0.9.3
  *
- * @return array{version:string,branch:string,url:string,crossing:bool}|null
+ * @return array{version:string,available:string,branch:string,url:string,crossing:bool}|null
  */
 function desktop_mode_get_core_update() {
 	if ( ! current_user_can( 'update_core' ) ) {
@@ -138,7 +140,7 @@ function desktop_mode_get_core_update() {
 	 *
 	 * @since 0.9.3
 	 *
-	 * @param array{version:string,branch:string,url:string,crossing:bool}|null $update The descriptor.
+	 * @param array{version:string,available:string,branch:string,url:string,crossing:bool}|null $update The descriptor.
 	 */
 	$update = apply_filters( 'desktop_mode_core_update_notice', $update );
 

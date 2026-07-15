@@ -23,10 +23,8 @@ import { markNoticeDismissed } from './ui/components/wpd-notice/storage';
 import { __ } from './i18n';
 
 export interface ReleaseCardOptions {
-	/** Version shown in the message (branch when crossing, else exact). */
-	version: string;
-	/** Release codename — shown in the message only when non-empty. */
-	name: string;
+	/** Full, already-translated message (e.g. `WordPress 7.0 "Armstrong" is available.`). */
+	message: string;
 	artUrl: string;
 	/** Persistence key — the dismissal is recorded under this id. */
 	dismissKey: string;
@@ -175,7 +173,8 @@ function ensureHost(): HTMLElement {
  * it. Release art isn't visually consistent — most covers bleed to the
  * edge, some ship a uniform white frame — so we trim that frame first,
  * then take the left square (the sleeve; the record is to its right).
- * No-op if the canvas can't be read (tainted / unsupported).
+ * The sleeve is always drawn; the trim + accent are best-effort and skipped
+ * if the canvas pixels can't be read (tainted / unsupported).
  */
 function paintSleeve(
 	root: HTMLElement,
@@ -188,12 +187,29 @@ function paintSleeve(
 	img.addEventListener(
 		'load',
 		() => {
+			const w = img.naturalWidth || 0;
+			const h = img.naturalHeight || 0;
+			if ( ! w || ! h ) {
+				return;
+			}
+			const size = 320;
+			canvas.width = size;
+			canvas.height = size;
+			const ctx = canvas.getContext( '2d' );
+			if ( ! ctx ) {
+				return;
+			}
+
+			// Baseline: draw the left square unconditionally so the sleeve is
+			// always visible (drawing a cross-origin image is fine even when
+			// reading its pixels isn't).
+			const baseSide = Math.min( w, h );
+			ctx.drawImage( img, 0, 0, baseSide, baseSide, 0, 0, size, size );
+
+			// Refine, best-effort: trim any uniform white frame + sample the
+			// accent. Both need readable pixel data — if that throws (tainted
+			// canvas), the baseline sleeve above stays.
 			try {
-				const w = img.naturalWidth || 0;
-				const h = img.naturalHeight || 0;
-				if ( ! w || ! h ) {
-					return;
-				}
 				const work = document.createElement( 'canvas' );
 				work.width = w;
 				work.height = h;
@@ -247,20 +263,15 @@ function paintSleeve(
 				}
 
 				const side = Math.max( 1, Math.min( right - left + 1, bottom - top + 1 ) );
-				const size = 320;
-				canvas.width = size;
-				canvas.height = size;
-				const ctx = canvas.getContext( '2d' );
-				if ( ! ctx ) {
-					return;
-				}
+				// Redraw with the trimmed crop, replacing the baseline.
+				ctx.clearRect( 0, 0, size, size );
 				ctx.drawImage( img, left, top, side, side, 0, 0, size, size );
 
 				if ( ! hasExplicitAccent ) {
 					extractAccent( root, ctx, size );
 				}
 			} catch {
-				// Tainted canvas or unsupported context — leave it blank / default.
+				// Pixel reads not allowed (tainted canvas) — keep the baseline sleeve.
 			}
 		},
 		{ once: true },
@@ -339,7 +350,7 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 		root.style.setProperty( '--accent-ink', opts.accentInk );
 	}
 	root.innerHTML =
-		`<button type="button" class="dm-rc__close" aria-label="Dismiss">${ CLOSE_ICON }</button>` +
+		`<button type="button" class="dm-rc__close">${ CLOSE_ICON }</button>` +
 		'<div class="dm-rc__art">' +
 		'<div class="dm-rc__disc-wrap"><div class="dm-rc__disc">' +
 		`<div class="dm-rc__label">${ WP_LOGO }</div>` +
@@ -349,13 +360,12 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 		'<div class="dm-rc__meta"><span class="dm-rc__text"></span>' +
 		'<button type="button" class="dm-rc__btn"></button></div>';
 
-	// Message + button label as text (never interpolate version/name into HTML).
-	const textEl = root.querySelector( '.dm-rc__text' ) as HTMLElement;
-	textEl.append( 'WordPress ' );
-	const strong = document.createElement( 'b' );
-	strong.textContent = opts.version;
-	textEl.append( strong );
-	textEl.append( `${ opts.name ? ` "${ opts.name }"` : '' } ${ __( 'is available.' ) }` );
+	// Message + labels as text (never interpolate untrusted content into HTML,
+	// and keep the whole sentence in one translated string).
+	( root.querySelector( '.dm-rc__text' ) as HTMLElement ).textContent = opts.message;
+
+	const closeBtn = root.querySelector( '.dm-rc__close' ) as HTMLButtonElement;
+	closeBtn.setAttribute( 'aria-label', __( 'Dismiss' ) );
 
 	const updateBtn = root.querySelector( '.dm-rc__btn' ) as HTMLButtonElement;
 	updateBtn.textContent = __( 'Update now' );
@@ -381,7 +391,7 @@ export function showReleaseCard( opts: ReleaseCardOptions ): () => void {
 	};
 
 	// Close button → fade out + persist so it won't reappear.
-	( root.querySelector( '.dm-rc__close' ) as HTMLButtonElement ).addEventListener(
+	closeBtn.addEventListener(
 		'click',
 		( e ) => {
 			e.preventDefault();

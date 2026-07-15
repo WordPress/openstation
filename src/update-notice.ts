@@ -3,7 +3,7 @@
  * hijack.
  *
  * The server reports *that* a core update is pending (`config.coreUpdate`
- * = `{ version, branch, url, crossing }`); this module resolves the
+ * = `{ version, available, branch, url, crossing }`); this module resolves the
  * release art client-side and surfaces a single notification — one, not
  * one per window:
  *
@@ -120,8 +120,7 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 	const art = await resolveArt( branch );
 	if ( art && art.artUrl && ( await load( art.artUrl ) ) ) {
 		showReleaseCard( {
-			version,
-			name: crossing ? art.name : '',
+			message: updateMessage( version, crossing ? art.name : '' ),
 			artUrl: art.artUrl,
 			dismissKey,
 			onUpdate: openUpdateScreen,

@@ -71,8 +71,8 @@ describe( 'maybeShowUpdate', () => {
 		expect( toastMock ).not.toHaveBeenCalled();
 		expect( resolveArt ).toHaveBeenCalledWith( '7.0' );
 		const c = lastCard();
-		expect( c.version ).toBe( '7.0' ); // display = branch when crossing
-		expect( c.name ).toBe( 'Armstrong' );
+		// Crossing → branch version + codename in the message.
+		expect( c.message ).toBe( 'WordPress 7.0 "Armstrong" is available.' );
 		expect( c.artUrl ).toBe( ART.artUrl );
 		// Dismissal keyed on the exact available version, not the branch.
 		expect( c.dismissKey ).toBe( 'desktop-mode/core-update:7.0.1' );
@@ -83,9 +83,8 @@ describe( 'maybeShowUpdate', () => {
 			update: { version: '7.0.1', branch: '7.0', url: '/u', crossing: false },
 			openUrl, resolveArt, loadImage,
 		} );
-		const c = lastCard();
-		expect( c.version ).toBe( '7.0.1' );
-		expect( c.name ).toBe( '' ); // not crossing → no codename
+		// Not crossing → exact version, no codename.
+		expect( lastCard().message ).toBe( 'WordPress 7.0.1 is available.' );
 	} );
 
 	test( 'no art → plain toast (no temporary flash: toast only when art is unavailable)', async () => {
@@ -126,7 +125,7 @@ describe( 'maybeShowUpdate', () => {
 			update: { version: '6.5.2', available: '6.5.2', branch: '6.5', url: '/u', crossing: false },
 			openUrl, resolveArt, loadImage,
 		} );
-		expect( lastCard().version ).toBe( '6.5.2' );
+		expect( lastCard().message ).toBe( 'WordPress 6.5.2 is available.' );
 	} );
 
 	test( 'both surfaces open the update screen', async () => {

@@ -13,8 +13,7 @@ function open( over: Partial< ReleaseCardOptions > = {} ): {
 	root: HTMLElement;
 } {
 	const dismiss = showReleaseCard( {
-		version: '7.0',
-		name: 'Armstrong',
+		message: 'WordPress 7.0 "Armstrong" is available.',
 		artUrl: 'https://example.com/7.0.png',
 		dismissKey: 'desktop-mode/core-update:7.0',
 		onUpdate: () => undefined,
@@ -32,23 +31,22 @@ afterEach( () => {
 } );
 
 describe( 'showReleaseCard', () => {
-	test( 'mounts the card with the WordPress-logo label and version + codename', () => {
+	test( 'mounts the card with the WordPress-logo label and the given message', () => {
 		const { root } = open();
 		expect( root ).not.toBeNull();
 		expect( root.querySelector( '.dm-rc__label svg' ) ).not.toBeNull();
 		expect( root.querySelector( '.dm-rc__canvas' ) ).not.toBeNull();
-		const msg = root.querySelector( '.dm-rc__text' )!.textContent || '';
-		expect( msg ).toContain( '7.0' );
-		expect( msg ).toContain( 'Armstrong' );
-		expect( msg ).toContain( 'is available' );
+		expect( root.querySelector( '.dm-rc__text' )!.textContent ).toBe(
+			'WordPress 7.0 "Armstrong" is available.',
+		);
 		expect( root.querySelector( '.dm-rc__btn' )!.textContent ).toBeTruthy();
 	} );
 
-	test( 'same-branch minor: exact version, no codename', () => {
-		const { root } = open( { version: '7.0.1', name: '' } );
-		const msg = root.querySelector( '.dm-rc__text' )!.textContent || '';
-		expect( msg ).toContain( '7.0.1' );
-		expect( msg ).not.toContain( '"' );
+	test( 'renders the message as plain text (no HTML injection)', () => {
+		const { root } = open( { message: 'WordPress 7.0.1 is available.' } );
+		expect( root.querySelector( '.dm-rc__text' )!.textContent ).toBe(
+			'WordPress 7.0.1 is available.',
+		);
 	} );
 
 	test( 'an explicit accent is applied to the card', () => {

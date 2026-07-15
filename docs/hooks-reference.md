@@ -2939,7 +2939,7 @@ windows (`desktop_mode_chromeless_suppress_update_nags()`) and surfaces
 the update **once** in the shell. `desktop_mode_get_core_update()`
 computes the descriptor from WordPress's authoritative update state
 (`update_core`-gated) and ships it in the shell config as `coreUpdate`
-(`{ version, branch, url, crossing }`).
+(`{ version, available, branch, url, crossing }`).
 
 The release **art + codename** are resolved on the **client** (from the
 wordpress.org/news announcement's featured image, cached in
@@ -2957,8 +2957,8 @@ out-of-band):
 
 ```php
 /**
- * @param array{version:string,branch:string,url:string,crossing:bool}|null $update
- * @return array{version:string,branch:string,url:string,crossing:bool}|null
+ * @param array{version:string,available:string,branch:string,url:string,crossing:bool}|null $update
+ * @return array{version:string,available:string,branch:string,url:string,crossing:bool}|null
  */
 add_filter( 'desktop_mode_core_update_notice', '__return_null' );
 ```

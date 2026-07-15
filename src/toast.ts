@@ -177,8 +177,8 @@ function renderToast( intent: ToastIntent ): () => void {
 	} );
 
 	// Persistent toasts never auto-dismiss — they stay until the user
-	// closes them (dismissible ×) or a caller invokes the returned
-	// dismiss fn.
+	// clicks the action button (if any) or a caller invokes the returned
+	// dismiss fn. `<wpd-toast>` has no close button of its own.
 	if ( ! intent.persistent ) {
 		dismissTimer = window.setTimeout(
 			dismiss,
