@@ -2,11 +2,6 @@
  * The vinyl release card — an album sleeve (the release art) with a
  * CSS-drawn record that slides out; the close button fades it away.
  *
- * A plain module, not a web component: it's an internal, single-use
- * surface, so it builds its own DOM and injects one scoped stylesheet
- * (`.dm-release-card`). `showReleaseCard()` mounts it and returns a
- * dismiss callback.
- *
  * @since 0.9.4
  */
 

@@ -13,9 +13,9 @@ export interface ReleaseArt {
 	artUrl: string;
 }
 
-// The `v2` segment versions the cache — bump it when the resolution logic
+// The `v1` segment versions the cache — bump it when the resolution logic
 // changes so stale hits/misses from an older algorithm are discarded.
-const CACHE_PREFIX = 'desktop-mode/release-art:v2:';
+const CACHE_PREFIX = 'desktop-mode/release-art:v1:';
 const MISS_TTL_MS = 6 * 60 * 60 * 1000; // retry a miss after 6h
 
 function str( v: unknown ): string {

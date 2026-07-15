@@ -392,8 +392,7 @@ add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
 /**
  * Detaches core's update / maintenance nags inside chromeless iframes so
  * they don't repeat in every window — the shell surfaces the update once
- * instead (see `desktop_mode_get_core_update()`). Only these core nags are
- * targeted; plugin `admin_notices` are left alone.
+ * instead.
  *
  * @since 0.9.4
  */
