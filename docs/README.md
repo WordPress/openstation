@@ -24,6 +24,7 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 15. **[Migration — AI comment-only + native search (0.11.0)](./migration-ai-comment-only.md)** — the AI Copilot is scoped to comment spam scoring; post/term auto-analysis and its hooks are removed, the assistant now finds content with native keyword search, and the bulk `/ai/reindex` endpoint is gone. Read if you depended on any `desktop_mode_ai_*post*` / `*term*` hook or the reindex route.
 16. **[Register a widget — polling, storage, canvas charts](./register-widget.md)**
 17. **[The Living Tree — algorithm definition](./living-tree-algorithm.md)** — *Experimental (since 0.9.4).* The full normative spec for the `wp-living-tree` canvas wallpaper: WordPress emits hormones, the biology (Space Colonization) decides geometry inside age-bounded morphological constraints. Read before touching any part of the wallpaper.
+18. **[Core global admin-notice audit](./core-notices-audit.md)** — *internals doc.* Every WordPress Core notice that renders globally in admin, with its hook/priority, source, screen-gating, re-derivable state, and proposed desktop surface. The checklist behind detaching each per-window nag and surfacing it once in the shell. Read before extending `desktop_mode_chromeless_suppress_update_nags()` or the core-notice surfacing.
 
 ## Conventions used in this docs folder
 
