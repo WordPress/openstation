@@ -1895,6 +1895,15 @@ function init(): void {
 			// transport picker is gone; the assistant falls back gracefully
 			// if the host drops the SSE connection.
 			getTransport: () => 'sse',
+			// AI mode is usable when the APIs are present and a provider is
+			// configured; the Commands palette works regardless. Read live so
+			// connecting a provider or flipping the "AI assistant" toggle takes
+			// effect on the next open — no reload.
+			isAiAvailable: () =>
+				config.aiAssistant?.available === true &&
+				config.aiAssistant?.assistantProviderConfigured === true,
+			isOverrideEnabled: () =>
+				osSettings.getOsSettingsSnapshot().ai.enabled !== false,
 		},
 		config.aiAssistantBundleUrl ?? '',
 	);
@@ -2017,54 +2026,24 @@ function init(): void {
 		} );
 	} );
 
-	// Register the AI Assistant as the first (default) Cmd+K palette
-	// and install the single global shortcut. Other plugins can register
-	// more palettes via wp.desktop.registerPalette and Cmd+K cycles
-	// through them in registration order.
+	// Register the AI Assistant as the first (default) Cmd+K palette and
+	// install the single global shortcut. Other plugins can register more
+	// palettes via wp.desktop.registerPalette and Cmd+K cycles through them in
+	// registration order.
 	//
-	// The assistant is *active* only when the Core AI primitives are present, a
-	// provider is configured in Settings → Connectors, AND the per-user
-	// "Override command palette with AI assistant" toggle is on. When active it
-	// registers as the Cmd+K palette and hijacks Core's ⌘K icon; we (un)register
-	// the palette live (no reload) whenever the toggle changes or a provider is
-	// (dis)connected.
-	const aiAvailable = config.aiAssistant?.available === true;
-	const isAiAssistantActive = () =>
-		aiAvailable &&
-		config.aiAssistant?.assistantProviderConfigured === true &&
-		osSettings.getOsSettingsSnapshot().ai.enabled !== false;
-
-	let unregisterAiPalette: ( () => void ) | null = null;
-	const syncAiAssistant = () => {
-		const active = isAiAssistantActive();
-		// Drives the CSS that shows/hides Core's ⌘K command-palette admin-bar
-		// icon: it's the assistant's entry point when active, and a dead
-		// button otherwise (Core's palette is suppressed shell-wide), so it's
-		// hidden when the assistant is off. Server-rendered initially in
-		// body-classes.php to avoid a flash; kept in sync live here.
-		document.body.classList.toggle( 'desktop-mode-ai-active', active );
-		if ( active && ! unregisterAiPalette ) {
-			unregisterAiPalette = registerPalette( {
-				id: 'desktop-mode-ai-assistant',
-				label: 'AI Assistant',
-				open: () => aiAssistant.open(),
-				close: () => aiAssistant.close(),
-				isOpen: () => aiAssistant.isOpen,
-			} );
-		} else if ( ! active && unregisterAiPalette ) {
-			aiAssistant.close();
-			unregisterAiPalette();
-			unregisterAiPalette = null;
-		}
-	};
-	syncAiAssistant();
-	// Re-sync when the user flips the assistant toggle in OS Settings, or when
-	// a provider is connected/disconnected (Features tab dispatches this after
-	// re-probing provider status).
-	osSettings.subscribeOsSettings( () => syncAiAssistant() );
-	document.addEventListener( 'desktop-mode-ai-status-changed', () =>
-		syncAiAssistant(),
-	);
+	// The assistant is ALWAYS the shell's ⌘K palette: Commands mode is a
+	// command palette that works with no AI, and AI mode layers on when a
+	// provider is configured. So we register it once and leave it — the
+	// overlay picks its default mode (Commands vs Ask AI) from the "AI
+	// assistant" toggle + provider status each time it opens (see
+	// AiAssistantConfig). Core's palette stays suppressed shell-wide regardless.
+	registerPalette( {
+		id: 'desktop-mode-ai-assistant',
+		label: 'AI Assistant',
+		open: () => aiAssistant.open(),
+		close: () => aiAssistant.close(),
+		isOpen: () => aiAssistant.isOpen,
+	} );
 	installPaletteShortcut();
 	installWindowSwitcherShortcut( manager );
 	installDesktopArrowShortcuts( manager );
@@ -2102,25 +2081,18 @@ function init(): void {
 	// palette that happens to be open is dismissed first — matches the
 	// single-palette-at-a-time invariant the cycle maintains.
 	document.addEventListener( 'desktop-mode-open-ai', () => {
-		if ( ! isAiAssistantActive() ) {
-			return;
-		}
 		openPaletteOnly( 'desktop-mode-ai-assistant' );
 	} );
 
-	// Override toggle on → hijack WordPress Core's ⌘K command-palette icon
+	// Hijack WordPress Core's ⌘K command-palette icon
 	// (#wp-admin-bar-command-palette) so a click opens our assistant instead
 	// of Core's palette. Capture phase + stopImmediatePropagation runs before
-	// Core's own click handler, so the assistant becomes the single ⌘K entry
-	// point (paired with the keyboard suppression in installPaletteShortcut).
-	// When the toggle is off, isAiAssistantActive() is false and Core's icon
-	// behaves normally.
+	// Core's own click handler, so the assistant is the single ⌘K entry point
+	// (paired with the keyboard suppression in installPaletteShortcut). The
+	// assistant is always the ⌘K surface, so this always intercepts.
 	document.addEventListener(
 		'click',
 		( e: MouseEvent ) => {
-			if ( ! isAiAssistantActive() ) {
-				return;
-			}
 			// `MouseEvent.target` isn't always an Element (text nodes, etc.),
 			// so guard before calling `closest()`.
 			const target = e.target;

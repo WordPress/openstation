@@ -675,12 +675,10 @@ Tools (your actual tool list may include more than these — use any that fit th
 - list_admin_pages: returns the full catalog of wp-admin destinations. Call once per navigation query, then select the 1-3 most relevant entries.
 - search_wporg_plugins(query): searches the official WordPress.org plugin directory. Use when the user asks for a plugin recommendation (\"a plugin for X\", \"is there a plugin that does Y?\"). Returns up to 10 plugins with ratings, install counts, and admin install URLs. Present the best 3-5 as admin_links with titles like \"Plugin Name · 5M+ installs · 4.8★\" (rating is 0-100, divide by 20 to get stars).
 - get_php_error_log(lines): reads the tail of the site's PHP error log. Admin-only (the tool itself checks). Use when the user asks \"any errors?\", \"check the logs\", \"what's broken?\", troubleshooting. Each entry has { timestamp, level, message }. Summarise the most important errors (Fatal > Warning > Notice) in your message; don't copy-paste everything.
-- run_command(command): runs a WordPress command-palette action in the user's browser — create/edit content, manage plugins/themes, change settings, open a specific admin screen, plus commands other plugins add. Use it when the user wants to DO something or go somewhere and act (\"create a new post\", \"take me to plugins\", \"switch theme\"), not just find existing content. After it runs, confirm briefly with answer_type \"chat\".
 
 Choosing which track:
 - \"I remember a post/page/comment about X\" → the corresponding search_* tool.
-- \"where can I find X?\" / \"how do I manage Y?\" → list_admin_pages.
-- \"create/add/new …\", \"take me to …\", \"open …\", \"switch/activate …\", or any request to perform an action → run_command.
+- \"where can I find X?\", \"how do I manage Y?\", \"create/add/new …\", \"take me to …\", \"open …\", \"switch/activate …\", or any navigate/do intent → list_admin_pages, then suggest the 1-3 best destinations as admin_links (answer_type \"navigation\"). You suggest the link; the user opens it — never assume it's opened.
 - \"plugin for X\" / \"recommend a plugin\" → search_wporg_plugins → present as admin_links.
 - \"any errors?\" / \"check logs\" / troubleshooting → get_php_error_log → summarise in chat.
 - Any other factual question about the site (its version, PHP/environment, the current user, or anything one of your other tools covers) → call that tool, then summarise its result with answer_type \"chat\".
@@ -831,31 +829,7 @@ The message field is always a friendly sentence or two shown directly to the use
 		array( 'user_id' => $user_id, 'request_id' => $request_id )
 	);
 
-	// `run_command` — a single client-dispatched tool that lets the model run
-	// any WordPress command palette command (Core's + plugins'). The model
-	// passes the user's intent in plain language; the browser fuzzy-matches the
-	// command registry and runs the best match. Offered on every run so the
-	// assistant can *act* (create a post, manage plugins, open a screen), not
-	// just find + navigate.
-	$run_command_tool = array(
-		'type'        => 'function',
-		'name'        => 'run_command',
-		'description' => 'Run a WordPress admin command on the user\'s behalf — e.g. create a new post or page, manage plugins or themes, change a setting, or open a specific admin screen — including commands other plugins register in the command palette. Use this when the user wants to DO something or go somewhere and act, rather than just find existing content. Pass the intent in plain language as `command` (e.g. "create a new post", "manage plugins", "switch theme"). The command runs in the user\'s browser; if none matches you\'ll get an error to relay.',
-		'parameters'  => array(
-			'type'                 => 'object',
-			'additionalProperties' => false,
-			'required'             => array( 'command' ),
-			'properties'           => array(
-				'command' => array(
-					'type'        => 'string',
-					'description' => 'What the user wants to do, in plain language — matched against the command palette.',
-				),
-			),
-		),
-	);
-
-	$tools           = array_merge( $builtin_tools, array( $run_command_tool ), $command_defs );
-	$valid_tools[]   = 'run_command';
+	$tools = array_merge( $builtin_tools, $command_defs );
 
 	/**
 	 * Transform the full tool list (built-in abilities + command tools) just
@@ -1021,16 +995,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		$command_tool_call = null;
 		foreach ( $function_calls as $fc ) {
 			$name = (string) ( $fc['name'] ?? '' );
-			if ( 'run_command' === $name ) {
-				// Client resolves the intent against its command registry.
-				$raw               = json_decode( $fc['arguments'] ?? '{}', true );
-				$decoded           = is_array( $raw ) ? $raw : array();
-				$command_tool_call = array(
-					'slug' => '__run_command__',
-					'args' => isset( $decoded['command'] ) ? (string) $decoded['command'] : '',
-				);
-				break;
-			}
 			if ( isset( $command_tools_by_name[ $name ] ) ) {
 				$raw     = json_decode( $fc['arguments'] ?? '{}', true );
 				$decoded = is_array( $raw ) ? $raw : array();

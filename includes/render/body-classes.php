@@ -40,22 +40,7 @@ function desktop_mode_admin_body_classes( $classes ) {
 	}
 
 	if ( desktop_mode_is_enabled() ) {
-		$classes .= ' desktop-mode-active';
-
-		// Tag the initial render so the CSS that hides Core's ⌘K
-		// command-palette icon knows the assistant's state without waiting
-		// for the shell JS to boot (avoids a flash of the dead icon). The
-		// shell keeps this class in sync live when the toggle flips.
-		if ( function_exists( 'desktop_mode_ai_assistant_config' ) ) {
-			$ai_cfg = desktop_mode_ai_assistant_config();
-			if ( ! empty( $ai_cfg['available'] )
-				&& ! empty( $ai_cfg['assistantProviderConfigured'] )
-				&& ! empty( $ai_cfg['enabled'] ) ) {
-				$classes .= ' desktop-mode-ai-active';
-			}
-		}
-
-		return ltrim( $classes );
+		return ltrim( $classes . ' desktop-mode-active' );
 	}
 
 	return $classes;

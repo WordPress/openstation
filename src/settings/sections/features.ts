@@ -23,7 +23,16 @@
  * @since 0.8.0
  */
 
-import { __ } from '../../i18n';
+import { __, sprintf } from '../../i18n';
+
+// Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
+const SHORTCUT_KEY =
+	typeof navigator !== 'undefined' &&
+	/Mac|iPhone|iPad|iPod/i.test(
+		navigator.platform || navigator.userAgent || '',
+	)
+		? '⌘K'
+		: 'Ctrl+K';
 import { trackedFetch } from '../../tracked-fetch';
 import { html, render } from '../../ui/core';
 import type { SettingsCtx } from '../types';
@@ -486,8 +495,12 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 										@wpd-checkbox-change=${ onAiAssistantToggle }
 									></wpd-checkbox-label>
 									<p class="desktop-mode-features__hint">
-										${ __(
-											'Opens with ⌘K (Ctrl+K). Ask in plain language to find content, get around wp-admin, run commands, and answer questions about your site. Off by default.',
+										${ sprintf(
+											/* translators: %s: keyboard shortcut, e.g. ⌘K or Ctrl+K */
+											__(
+												'Adds an AI mode to the %s site assistant. Ask in plain language to find content, get around wp-admin, and answer questions about your site. Off by default.',
+											),
+											SHORTCUT_KEY,
 										) }
 									</p>
 									${ ! shellCfg.aiAssistant.assistantProviderConfigured

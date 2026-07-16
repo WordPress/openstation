@@ -26,7 +26,6 @@
 import {
 	listAiCallableCommands,
 	findCommand,
-	runCommandByIntent,
 	type CommandContext,
 	type CommandResult,
 	type CommandAdminLink,
@@ -335,14 +334,6 @@ export function createAsk( deps: AskDeps ) {
 	> => {
 		const slug = payload.tool?.slug ?? '';
 		const args = payload.tool?.args ?? '';
-
-		// `run_command` — the model passed a natural-language intent; resolve
-		// it against the local command registry and run the best match.
-		if ( slug === '__run_command__' ) {
-			const ctx: CommandContext = opts.commandContext ?? deps.fallbackContext();
-			const result = await runCommandByIntent( args, ctx );
-			return { ok: true, slug, args, result };
-		}
 
 		const cmd = findCommand( slug );
 		if ( ! cmd ) {

@@ -95,7 +95,7 @@ interface SWGlobal {
 // concise.
 const sw = globalThis as unknown as SWGlobal;
 
-const VERSION = '0.9.4-pwa-6';
+const VERSION = '0.8.0-pwa-5';
 const STATIC_CACHE = `desktop-mode-static-${ VERSION }`;
 const RUNTIME_CACHE = `desktop-mode-runtime-${ VERSION }`;
 const OFFLINE_URL = '/desktop-mode/?offline=1';
