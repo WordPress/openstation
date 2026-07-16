@@ -1780,12 +1780,16 @@ The Recycle Bin stamps who-deleted-what-when metadata on posts, pages, attachmen
 
 ### `desktop_mode_recycle_bin_capture_post_types` — Experimental (filter)
 
-Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]`. Returning a list excluding `attachment` stops the bin from stamping and listing trashed attachments; it does not change how WordPress deletes media (that is governed by `MEDIA_TRASH`).
+Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]` **plus every non-builtin post type registered with `show_ui => true`** (since 0.9.6) — so custom post types with an admin UI surface in the bin out of the box, with their own singular label and menu Dashicon on the row. Per-item visibility still gates on `edit_post`, so the list never shows a user rows they couldn't manage.
+
+Remove a type here to keep its trash out of the bin, or add a headless (`show_ui => false`) type to opt it in — the pinned-notes feature opts its `wpd_note` CPT in exactly this way (with owner-only gates layered via `desktop_mode_recycle_bin_user_can_view` / `_restore` / `_purge`; see `includes/notes/recycle-bin.php` for the reference wiring).
+
+Returning a list excluding `attachment` stops the bin from stamping and listing trashed attachments; it does not change how WordPress deletes media (that is governed by `MEDIA_TRASH`).
 
 ```php
+// Keep a state-machine CPT's trash out of the bin.
 add_filter( 'desktop_mode_recycle_bin_capture_post_types', function ( $types ) {
-    $types[] = 'product';
-    return $types;
+    return array_diff( $types, array( 'shop_order' ) );
 } );
 ```
 

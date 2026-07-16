@@ -587,7 +587,20 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 		$icon     = 'dashicons-admin-page';
 		$subtitle = wp_trim_words( wp_strip_all_tags( (string) $post->post_content ), 18, '…' );
 	} else {
-		$icon = 'dashicons-media-default';
+		// Custom post types: reuse the type's own menu Dashicon when it
+		// registered one, so a trashed product row reads as a product
+		// instead of a generic file. Content excerpt as the subtitle,
+		// same as posts.
+		$icon          = 'dashicons-media-default';
+		$post_type_obj = get_post_type_object( $type );
+		if (
+			$post_type_obj
+			&& is_string( $post_type_obj->menu_icon )
+			&& str_starts_with( $post_type_obj->menu_icon, 'dashicons-' )
+		) {
+			$icon = $post_type_obj->menu_icon;
+		}
+		$subtitle = wp_trim_words( wp_strip_all_tags( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
 	}
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;
