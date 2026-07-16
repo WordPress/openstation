@@ -214,6 +214,17 @@ function desktop_mode_register_assets() {
 		file_exists( $desktop_files_css ) ? (string) filemtime( $desktop_files_css ) : $version
 	);
 
+	// Pinned-notes layer styles (paper, pushpin, pastel tokens, pin
+	// animations). Same `filemtime` cache-bust posture as the other
+	// fast-iterating feature stylesheets above.
+	$notes_css = DESKTOP_MODE_DIR . 'assets/css/notes.css';
+	wp_register_style(
+		'desktop-mode-notes',
+		DESKTOP_MODE_URL . 'assets/css/notes.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $notes_css ) ? (string) filemtime( $notes_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action

@@ -1816,6 +1816,14 @@ export interface DesktopConfig {
 	 */
 	filesUrl?: string;
 	/**
+	 * Base REST URL for the pinned-notes endpoints
+	 * (`/desktop-mode/v1/notes`). The notes layer only boots when
+	 * this is present.
+	 *
+	 * @since 0.9.6
+	 */
+	notesUrl?: string;
+	/**
 	 * Roles eligible to appear in the folder Share Settings role
 	 * picker. Server applies `desktop_mode_files_share_eligible_roles`
 	 * before serializing — default = roles with `edit_posts`.

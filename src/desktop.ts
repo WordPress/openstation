@@ -173,6 +173,7 @@ import {
 	syncShortcutsWithVisibility,
 } from './settings/desktop-shortcuts-sync';
 import { bootStickyNotes } from './sticky-notes';
+import { bootNotes } from './notes';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
 // boot-time consumer reaches the same captured value — see the import
@@ -3290,6 +3291,18 @@ function init(): void {
 				icon: 'dashicons-edit-page',
 			} );
 		},
+		onError: ( message ) => {
+			showToast( { message } );
+		},
+	} );
+
+	// Pinned notes — CPT-backed paper notes pinned to the wallpaper
+	// with a pushpin. Composes its REST client, the wall layer, and
+	// the drop routes (wallpaper create/reposition via the canvas
+	// payload seam, recycle-bin trash via the bin payload seam).
+	bootNotes( {
+		host: desktopArea,
+		config,
 		onError: ( message ) => {
 			showToast( { message } );
 		},

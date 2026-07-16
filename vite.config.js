@@ -488,6 +488,14 @@ const TARGETS = {
 		fileBase: 'widget-starter',
 		iifeName: 'desktopModeStarterWidget',
 	},
+	// Note Pad widget — the pinned-notes composer. Ships JS + a
+	// co-located `styles.css` chunk (`widget-notes[.min].css`) that
+	// `includes/widgets/widget-notes.php` registers.
+	'widget-notes': {
+		entry:    'src/plugins/notes-widget/index.ts',
+		fileBase: 'widget-notes',
+		iifeName: 'desktopModeNotesWidget',
+	},
 
 };
 

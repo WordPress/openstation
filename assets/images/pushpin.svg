@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<!--
+	"Pushpin 2" by randoogle — https://openclipart.org/detail/33601 — public domain.
+	Modified for Desktop Mode: metadata stripped; BOTH baked shadows removed
+	(the large cast-shadow ellipse and the sheared blurred lobe under the head)
+	because the pinned-notes CSS paints its own dynamic shadow that animates
+	during pin pull-out / insertion.
+	Needle-tip anchor: (75, 65) in the 131.64x123.82 viewBox = 57.0% / 52.5%.
+	Keep in sync with PIN_TIP_X/Y in src/notes/pin.ts and the transform-origin
+	in assets/css/notes.css.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 131.64 123.82" version="1.0">
+  <defs>
+    <linearGradient id="linearGradient3228">
+      <stop stop-color="#fff" offset="0"/>
+      <stop stop-color="#fff" stop-opacity="0" offset="1"/>
+    </linearGradient>
+    <filter id="filter4015" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="0.33662797"/>
+    </filter>
+    <radialGradient id="radialGradient4030" gradientUnits="userSpaceOnUse" cy="4.6951" cx="305.98" r="8.9206">
+      <stop stop-color="#f60000" offset="0"/>
+      <stop stop-color="#b30000" offset="1"/>
+    </radialGradient>
+    <radialGradient id="radialGradient4034" gradientUnits="userSpaceOnUse" cy="4.6951" cx="302.83" r="8.9206">
+      <stop stop-color="#7f0000" stop-opacity=".58407" offset="0"/>
+      <stop stop-color="#840000" stop-opacity=".49804" offset=".66667"/>
+      <stop stop-opacity="0" offset="1"/>
+    </radialGradient>
+    <radialGradient id="radialGradient4036" xlink:href="#linearGradient3228" gradientUnits="userSpaceOnUse" cy="228.65" cx="537.75" gradientTransform="matrix(-4.0973 2.6711 -10.635 -16.503 5102.7 2861.5)" r=".74646"/>
+    <radialGradient id="radialGradient4038" gradientUnits="userSpaceOnUse" cy="3.251" cx="302.66" gradientTransform="matrix(.75426 .68023 -.67730 .80831 77.596 -205.09)" r="8.9206">
+      <stop stop-color="#d43500" offset="0"/>
+      <stop stop-color="#d42400" offset=".48052"/>
+      <stop stop-color="#d40000" offset=".73611"/>
+      <stop stop-color="#950000" offset="1"/>
+    </radialGradient>
+    <radialGradient id="radialGradient4040" xlink:href="#linearGradient3228" gradientUnits="userSpaceOnUse" cy="228.65" cx="537.75" gradientTransform="matrix(5.8281 -3.599 17.872 21.975 -6695.6 -2611.2)" r=".74646"/>
+  </defs>
+  <g transform="translate(-399.13 -466.21)">
+    <g>
+      <path transform="matrix(3.4214 0 0 3.4413 -545.23 495.42)" fill="url(#radialGradient4030)" d="m311.75 4.6951a8.9206 8.9206 0 1 1 -17.841 0 8.9206 8.9206 0 1 1 17.841 0z"/>
+      <path filter="url(#filter4015)" transform="matrix(2.1108 0 0 2.1231 -144.39 495.36)" fill="url(#radialGradient4034)" d="m311.75 4.6951a8.9206 8.9206 0 1 1 -17.841 0 8.9206 8.9206 0 1 1 17.841 0z"/>
+      <path opacity=".74038" fill-rule="evenodd" fill="url(#radialGradient4036)" d="m474.2 531.26c-6.4976-5.2202-8.2466-8.1777-7.2576-14.181 2.8176 7.7769 6.9716 13.737 7.2576 14.181z"/>
+      <path transform="matrix(2.3962 .18197 0 2.4872 -216.26 421.67)" fill="url(#radialGradient4038)" d="m311.75 4.6951a8.9206 8.9206 0 1 1 -17.841 0 8.9206 8.9206 0 1 1 17.841 0z"/>
+      <path fill-rule="evenodd" fill="url(#radialGradient4040)" d="m514.32 468.93c10.35 6.9283 13.318 10.867 12.538 18.896-5.1338-10.371-12.058-18.305-12.538-18.896z"/>
+    </g>
+  </g>
+</svg>

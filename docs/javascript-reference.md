@@ -347,6 +347,36 @@ forwards (see `bridge-protocol.md`). Plugins can veto per activation
 via the `desktop-mode.window.focus-on-drag-hover` filter (see the
 [window lifecycle hooks table](#window-lifecycle)).
 
+### Pinned-note drag payloads — Experimental *(since 0.9.6)*
+
+The pinned-notes feature (the Note Pad widget + the wallpaper notes
+layer) rides the DragManager with two payload `type` slugs:
+
+| `payload.type` | Source | `payload.data` shape |
+| --- | --- | --- |
+| `'note-draft'` | The Note Pad widget's top sheet being torn off | `{ text: string, color: string, isPublic: boolean }` |
+| `'note'` | An existing pinned note carried by its pushpin | `{ noteId: number, canEdit: boolean, updatedAtMs: number }` |
+
+Both are consumed by the wallpaper canvas target (create / reposition
+— wallpaper root only) and, for `'note'`, by the recycle-bin targets
+(soft-trash with Undo; `accept` is gated on `data.canEdit`). Plugin
+drop targets can filter on these slugs like any other payload type.
+
+One companion CustomEvent (document-level):
+
+```javascript
+// A note was created outside the layer (the widget's keyboard
+// "Pin to desktop" path POSTs from its own bundle) — the layer
+// listens and pins it with the insertion animation.
+document.addEventListener( 'desktop-mode-note-created', ( e ) => {
+    // e.detail.note — the REST `Note` shape from /desktop-mode/v1/notes.
+} );
+```
+
+The REST base is surfaced to the shell as `desktopModeConfig.notesUrl`
+(`/desktop-mode/v1/notes`); the notes layer only boots when it is
+present.
+
 ### `wp.desktop.dragBridge` — cross-iframe drag — Stable *(since 0.6.0)*
 
 The bridge is the postMessage channel that lets shell-side drags
@@ -3923,7 +3953,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `getOsSettings()` | Stable | Defensive copy of the persisted OS Settings snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
 | `subscribeOsSettings( cb )` | Stable | Subscribe to OS Settings changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
 | `updateOsSettings( patch, opts? )` | Stable *(since 0.7.2)* | Patch + persist the OS Settings state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable-since-072). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean, since 0.9.1 — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist). Filterable server-side via `desktop_mode_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean, since 0.9.1 — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string, since 0.9.6 — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present). Filterable server-side via `desktop_mode_shell_config`. |
 
 ### System tiles
 

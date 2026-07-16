@@ -91,6 +91,7 @@ function desktop_mode_enqueue_assets() {
 	wp_enqueue_style( 'desktop-mode-ai-assistant' );
 	wp_enqueue_style( 'desktop-mode-bug-report' );
 	wp_enqueue_style( 'desktop-mode-files' );
+	wp_enqueue_style( 'desktop-mode-notes' );
 
 	// JS.
 	wp_enqueue_script( 'desktop-mode' );
@@ -416,6 +417,9 @@ function desktop_mode_enqueue_assets() {
 			'serverFileOpeners'      => $server_file_openers,
 			'userFileAssociations'   => $user_file_associations,
 			'filesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/files' ) ),
+			// Pinned-notes REST base (`includes/notes/rest.php`). The
+			// notes layer boots only when this is present.
+			'notesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/notes' ) ),
 			'serverWallpaperMenuItems' => $server_wallpaper_menu_items,
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),

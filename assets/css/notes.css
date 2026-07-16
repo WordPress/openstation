@@ -1,0 +1,480 @@
+/**
+ * Desktop Mode — Pinned notes.
+ *
+ * Paper notes pinned to the wallpaper with a pushpin. Deliberately
+ * differentiated from the window-like Guidelines sticky cards
+ * (`.desktop-mode-sticky-note`): no chrome header, no border, no
+ * resize handle — a pin, a paper, ink.
+ *
+ * The pastel tokens are shared with the Note Pad widget
+ * (`widget-notes.css` consumes them) — keep the slug list in sync
+ * with `desktop_mode_notes_colors()` (PHP) and `src/notes/colors.ts`.
+ */
+
+/* ------------------------------------------------------------------
+   Pastel paper tokens — light, then dimmed dark-scheme variants
+   ------------------------------------------------------------------ */
+
+:root {
+	--dm-note-hand-font: "Marker Felt", "Noteworthy", "Segoe Print",
+		"Ink Free", "Comic Sans MS", "Chalkboard SE", cursive;
+
+	--dm-note-butter: #fff3a6;
+	--dm-note-butter-deep: #f4df7c;
+	--dm-note-butter-ink: #4d4419;
+	--dm-note-blush: #ffd9e0;
+	--dm-note-blush-deep: #f5b8c6;
+	--dm-note-blush-ink: #5c2733;
+	--dm-note-sky: #cde9ff;
+	--dm-note-sky-deep: #a9d3f2;
+	--dm-note-sky-ink: #1d3d57;
+	--dm-note-mint: #d4f5dc;
+	--dm-note-mint-deep: #aee3bd;
+	--dm-note-mint-ink: #1e4d2e;
+	--dm-note-lilac: #e6ddff;
+	--dm-note-lilac-deep: #c9bbf0;
+	--dm-note-lilac-ink: #3c2d63;
+	--dm-note-peach: #ffe1c4;
+	--dm-note-peach-deep: #f3c49a;
+	--dm-note-peach-ink: #5c3517;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--dm-note-butter: #ddc984;
+		--dm-note-butter-deep: #c3ae63;
+		--dm-note-butter-ink: #33290b;
+		--dm-note-blush: #e3b3bd;
+		--dm-note-blush-deep: #cc93a1;
+		--dm-note-blush-ink: #3d1119;
+		--dm-note-sky: #a8c9e0;
+		--dm-note-sky-deep: #88afc9;
+		--dm-note-sky-ink: #0e2436;
+		--dm-note-mint: #aed6ba;
+		--dm-note-mint-deep: #8fbf9e;
+		--dm-note-mint-ink: #123420;
+		--dm-note-lilac: #c2b4e3;
+		--dm-note-lilac-deep: #a695cc;
+		--dm-note-lilac-ink: #241548;
+		--dm-note-peach: #e0bd97;
+		--dm-note-peach-deep: #c9a178;
+		--dm-note-peach-ink: #3a1f07;
+	}
+}
+
+/* Per-element paper binding: any element carrying data-note-color
+   (pinned notes, the ghost, the Note Pad's sheets) resolves the
+   generic --dm-note-paper/-deep/-ink triple from its slug. */
+[data-note-color="butter"] {
+	--dm-note-paper: var(--dm-note-butter);
+	--dm-note-paper-deep: var(--dm-note-butter-deep);
+	--dm-note-ink: var(--dm-note-butter-ink);
+}
+
+[data-note-color="blush"] {
+	--dm-note-paper: var(--dm-note-blush);
+	--dm-note-paper-deep: var(--dm-note-blush-deep);
+	--dm-note-ink: var(--dm-note-blush-ink);
+}
+
+[data-note-color="sky"] {
+	--dm-note-paper: var(--dm-note-sky);
+	--dm-note-paper-deep: var(--dm-note-sky-deep);
+	--dm-note-ink: var(--dm-note-sky-ink);
+}
+
+[data-note-color="mint"] {
+	--dm-note-paper: var(--dm-note-mint);
+	--dm-note-paper-deep: var(--dm-note-mint-deep);
+	--dm-note-ink: var(--dm-note-mint-ink);
+}
+
+[data-note-color="lilac"] {
+	--dm-note-paper: var(--dm-note-lilac);
+	--dm-note-paper-deep: var(--dm-note-lilac-deep);
+	--dm-note-ink: var(--dm-note-lilac-ink);
+}
+
+[data-note-color="peach"] {
+	--dm-note-paper: var(--dm-note-peach);
+	--dm-note-paper-deep: var(--dm-note-peach-deep);
+	--dm-note-ink: var(--dm-note-peach-ink);
+}
+
+[data-note-color] {
+	/* Static fallback first; color-mix() where supported. */
+	--dm-note-ink-soft: rgba(0, 0, 0, 0.55);
+	--dm-note-ink-soft: color-mix(
+		in srgb,
+		var(--dm-note-ink) 62%,
+		var(--dm-note-paper)
+	);
+}
+
+/* ------------------------------------------------------------------
+   Layer root
+   ------------------------------------------------------------------ */
+
+.desktop-mode-notes {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+}
+
+/* Mission-control style overview hides the wall, like the sticky
+   layer does. */
+.desktop-mode-area--overview .desktop-mode-notes {
+	display: none;
+}
+
+.desktop-mode-notes__live {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+}
+
+/* ------------------------------------------------------------------
+   The pinned note
+   ------------------------------------------------------------------ */
+
+.desktop-mode-pinned-note {
+	position: absolute;
+	width: 208px;
+	pointer-events: auto;
+	transform: rotate(var(--dm-note-rot, 0deg));
+	/* The note hangs FROM the pin. */
+	transform-origin: calc(50% + var(--dm-pin-dx, 0px)) 14px;
+}
+
+.desktop-mode-pinned-note__paper {
+	position: relative;
+	min-height: 190px;
+	max-height: 320px;
+	display: flex;
+	flex-direction: column;
+	padding: 24px 14px 14px;
+	background:
+		radial-gradient(
+			90px 50px at calc(50% + var(--dm-pin-dx, 0px)) 0,
+			rgba(255, 255, 255, 0.45),
+			transparent 70%
+		),
+		linear-gradient(
+			174deg,
+			color-mix(in srgb, var(--dm-note-paper, #fff3a6) 88%, #fff) 0%,
+			var(--dm-note-paper, #fff3a6) 46%,
+			var(--dm-note-paper-deep, #f4df7c) 100%
+		);
+	color: var(--dm-note-ink, #4d4419);
+	border-radius: 2px; /* paper, not UI card */
+	box-shadow:
+		0 1px 2px rgba(0, 0, 0, 0.18),
+		0 10px 22px -6px rgba(0, 0, 0, 0.28),
+		inset 0 1px 0 rgba(255, 255, 255, 0.35);
+	transition: box-shadow 200ms ease-out;
+}
+
+/* Focus = the paper lifts a hair; never an outline rectangle. */
+.desktop-mode-pinned-note:focus-within .desktop-mode-pinned-note__paper {
+	box-shadow:
+		0 2px 3px rgba(0, 0, 0, 0.18),
+		0 12px 26px -6px rgba(0, 0, 0, 0.34),
+		inset 0 1px 0 rgba(255, 255, 255, 0.35),
+		inset 0 -2px 0
+			color-mix(
+				in srgb,
+				var(--wp-admin-theme-color, #3858e9) 55%,
+				transparent
+			);
+}
+
+/* ------------------------------------------------------------------
+   The pushpin
+   ------------------------------------------------------------------ */
+
+.desktop-mode-pinned-note__pin {
+	position: absolute;
+	/* Needle tip lands at (50% + dx, 10px) of the note. Tip fractions
+	   from assets/images/pushpin.svg: 57.0% / 52.5%. Keep the pixel
+	   constants in sync with PIN_WIDTH / PIN_HEIGHT in src/notes/pin.ts. */
+	left: calc(50% + var(--dm-pin-dx, 0px) - 56px * 0.57);
+	top: calc(10px - 52px * 0.525);
+	width: 56px;
+	height: 56px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	z-index: 2;
+	cursor: grab;
+	transform: rotate(var(--dm-pin-rot, 0deg));
+	transform-origin: 57% 52.5%;
+	touch-action: none;
+}
+
+.desktop-mode-pinned-note__pin:active {
+	cursor: grabbing;
+}
+
+.desktop-mode-pinned-note__pin:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: 3px;
+	border-radius: 50%;
+}
+
+.desktop-mode-pinned-note__pin-img {
+	display: block;
+	width: 56px;
+	height: 52px;
+	pointer-events: none;
+}
+
+/* Other users' pins are steel — scenery, not a handle. */
+.desktop-mode-pinned-note[data-owner="other"] .desktop-mode-pinned-note__pin {
+	cursor: default;
+	pointer-events: none;
+	transform: rotate(var(--dm-pin-rot, 0deg)) scale(0.9);
+}
+
+.desktop-mode-pinned-note[data-owner="other"] .desktop-mode-pinned-note__pin-img {
+	filter: saturate(0.12) brightness(1.08) contrast(0.95);
+}
+
+/* ------------------------------------------------------------------
+   Owner chrome — hover/focus-revealed
+   ------------------------------------------------------------------ */
+
+.desktop-mode-pinned-note__meta {
+	position: absolute;
+	inset-inline: 8px;
+	top: 6px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	height: 26px;
+	opacity: 0;
+	transition: opacity 150ms ease-out;
+	z-index: 1;
+}
+
+.desktop-mode-pinned-note:hover .desktop-mode-pinned-note__meta,
+.desktop-mode-pinned-note:focus-within .desktop-mode-pinned-note__meta {
+	opacity: 1;
+}
+
+/* Color dot: painted in the NEXT color — the affordance shows the
+   outcome. */
+.desktop-mode-pinned-note__color-dot {
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 1px solid rgba(0, 0, 0, 0.15);
+	border-radius: 50%;
+	background: var(--dm-note-next-paper, #fff);
+	cursor: pointer;
+	transition: transform 140ms ease-out;
+}
+
+.desktop-mode-pinned-note__color-dot:hover {
+	transform: scale(1.25);
+}
+
+.desktop-mode-pinned-note__color-dot:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: 2px;
+}
+
+.desktop-mode-pinned-note__visibility {
+	--wpd-btn-color: var(--dm-note-ink-soft);
+	opacity: 0.75;
+}
+
+.desktop-mode-pinned-note__visibility:hover {
+	opacity: 1;
+}
+
+.desktop-mode-pinned-note__visibility .dashicons {
+	/* Match the color-cycle dot (20px) — the lock/globe was too easy
+	   to miss at dashicons' default size. */
+	font-size: 20px;
+	width: 20px;
+	height: 20px;
+	color: var(--dm-note-ink, #4d4419);
+}
+
+/* ------------------------------------------------------------------
+   Ink
+   ------------------------------------------------------------------ */
+
+.desktop-mode-pinned-note__editor {
+	flex: 1 1 auto;
+	font-family: var(--dm-note-hand-font);
+}
+
+.desktop-mode-pinned-note__editor::part(textarea) {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--dm-note-ink, #4d4419);
+	caret-color: var(--dm-note-ink, #4d4419);
+	font-family: var(--dm-note-hand-font);
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+.desktop-mode-pinned-note__body {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	font-family: var(--dm-note-hand-font);
+	font-size: 14px;
+	line-height: 1.45;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+	user-select: text;
+}
+
+.desktop-mode-pinned-note__body::selection {
+	background: var(--dm-note-paper-deep, #f4df7c);
+}
+
+.desktop-mode-pinned-note__footer {
+	display: flex;
+	justify-content: flex-start;
+	min-height: 16px;
+}
+
+.desktop-mode-pinned-note__status {
+	opacity: 0.6;
+}
+
+/* Author sticker on read-only public notes — always visible. */
+.desktop-mode-pinned-note__attribution {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	align-self: flex-start;
+	margin-top: 8px;
+	padding: 2px 8px 2px 3px;
+	border: 1px solid var(--dm-note-paper-deep, #f4df7c);
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--dm-note-paper, #fff3a6) 70%, #fff);
+	font-size: 11px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+		sans-serif;
+	color: var(--dm-note-ink-soft, rgba(0, 0, 0, 0.55));
+}
+
+/* ------------------------------------------------------------------
+   Drag states
+   ------------------------------------------------------------------ */
+
+/* The imprint: while the pin is out, the real note stays as a faint
+   "where it was" mark. Class stamped by the DragManager at lift. */
+.desktop-mode-pinned-note.desktop-mode-file-tile--dragging {
+	opacity: 0.18;
+	filter: saturate(0.3);
+}
+
+.desktop-mode-pinned-note.desktop-mode-file-tile--dragging .desktop-mode-pinned-note__paper {
+	box-shadow: none;
+}
+
+/* Keyboard move mode: carried look on the real note. */
+.desktop-mode-pinned-note--move-mode .desktop-mode-pinned-note__paper {
+	box-shadow:
+		0 3px 5px rgba(0, 0, 0, 0.2),
+		0 26px 48px -10px rgba(0, 0, 0, 0.42),
+		inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* The ghost — the note you're carrying by its pin. The DragManager
+   owns the ROOT's transform; the pendulum owns the swing wrapper. */
+.desktop-mode-pinned-note-ghost {
+	position: relative;
+}
+
+.desktop-mode-pinned-note-ghost__swing {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+.desktop-mode-pinned-note-ghost .desktop-mode-pinned-note__pin {
+	pointer-events: none;
+}
+
+.desktop-mode-pinned-note-ghost__paper {
+	/* Clearly airborne. */
+	transform: scale(1.04) rotate(2.5deg);
+	transform-origin: 50% 14px;
+	box-shadow:
+		0 3px 5px rgba(0, 0, 0, 0.18),
+		0 26px 48px -10px rgba(0, 0, 0, 0.42),
+		inset 0 1px 0 rgba(255, 255, 255, 0.35);
+	min-height: 160px;
+	padding: 24px 14px 14px;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	background:
+		radial-gradient(
+			90px 50px at 50% 0,
+			rgba(255, 255, 255, 0.45),
+			transparent 70%
+		),
+		linear-gradient(
+			174deg,
+			color-mix(in srgb, var(--dm-note-paper, #fff3a6) 88%, #fff) 0%,
+			var(--dm-note-paper, #fff3a6) 46%,
+			var(--dm-note-paper-deep, #f4df7c) 100%
+		);
+	color: var(--dm-note-ink, #4d4419);
+	border-radius: 2px;
+}
+
+/* Over the recycle bin: the paper knows what's coming. */
+.desktop-mode-pinned-note-ghost--doom .desktop-mode-pinned-note-ghost__paper {
+	transform: scale(0.88);
+	filter: saturate(0.75) brightness(0.95);
+	animation: dm-note-doom-shiver 180ms ease-in-out infinite alternate;
+}
+
+@keyframes dm-note-doom-shiver {
+	from {
+		rotate: -1.5deg;
+	}
+
+	to {
+		rotate: 1.5deg;
+	}
+}
+
+/* The one-shot "thunk" ripple at the pin anchor. */
+.desktop-mode-pinned-note__ripple {
+	position: absolute;
+	left: calc(50% + var(--dm-pin-dx, 0px) - 4px);
+	top: 6px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	pointer-events: none;
+	z-index: 3;
+}
+
+/* ------------------------------------------------------------------
+   Reduced motion
+   ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+	.desktop-mode-pinned-note__paper,
+	.dm-notes-pad__sheet {
+		transition: none;
+	}
+
+	.desktop-mode-pinned-note-ghost--doom .desktop-mode-pinned-note-ghost__paper {
+		animation: none;
+		transform: scale(0.92);
+	}
+}

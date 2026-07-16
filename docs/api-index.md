@@ -194,6 +194,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `desktop-mode-open-ai` *(plugin-dispatched; the shell listens)* | Experimental *(0.7.0)* |
 | `desktop-mode-intros-reset` | Experimental *(0.8.3)* |
 | `desktop-mode-my-wordpress-entity-trashed` | Experimental *(0.8.9)* |
+| `desktop-mode-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental *(0.9.6)* |
 
 ---
 

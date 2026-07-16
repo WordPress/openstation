@@ -44,6 +44,7 @@ import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
 import type { DragBridgePayload } from '../drag-bridge';
 import { isConflict, showConflictToast } from './conflict-toast';
+import { canvasPayloadAccepts, canvasPayloadDrop } from './canvas-payloads';
 import type { DragManagerApi, DragSession, DropTarget } from '../drag';
 import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
 import type {
@@ -702,7 +703,12 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		element: host,
 		accept: ( payload ) => {
 			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
-				return false;
+				// Payload types this layer doesn't own (e.g. the
+				// pinned-notes `'note'` / `'note-draft'` drags) can be
+				// claimed by a registered canvas payload handler — the
+				// registry keys drop targets by element, so features
+				// that want the wallpaper route through this target.
+				return canvasPayloadAccepts( payload, { folderId, host } );
 			}
 			// Folder-cycle preflight for drops onto a folder
 			// window's canvas. The wallpaper root (`folderId === 0`)
@@ -726,7 +732,15 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		},
 		onEnter: ( session ) => {
 			host.setAttribute( 'data-files-drop-active', '' );
-			installCanvasDropPreview( session );
+			// The grid-cell drop preview only makes sense for the
+			// tile payloads this layer owns — handler-owned payloads
+			// (pinned notes) place freely, no snap.
+			if (
+				session.payload.type === 'desktop-file' ||
+				session.payload.type === 'shortcut'
+			) {
+				installCanvasDropPreview( session );
+			}
 		},
 		onLeave: () => {
 			host.removeAttribute( 'data-files-drop-active' );
@@ -735,6 +749,13 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		onDrop: ( session, ev ) => {
 			host.removeAttribute( 'data-files-drop-active' );
 			teardownCanvasDropPreview();
+			if (
+				session.payload.type !== 'desktop-file' &&
+				session.payload.type !== 'shortcut'
+			) {
+				canvasPayloadDrop( session, ev, { folderId, host } );
+				return;
+			}
 			const rect = container.getBoundingClientRect();
 			// Subtract the grab offset so we snap based on where the
 			// tile's TOP-LEFT would land, not where the cursor is. The
