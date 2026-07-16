@@ -235,10 +235,9 @@ export function installPaletteShortcut(): void {
 			// Always claim Cmd+K inside the desktop shell — Core's command
 			// palette is never the right UI here (its commands are harvested
 			// into the shell and its own callbacks hard-navigate out of the
-			// window model), so we suppress it unconditionally. When a palette
-			// is registered (the AI assistant, when its toggle is on) we open
-			// it; when none is, `cyclePalettes()` no-ops and Cmd+K does
-			// nothing — the shell simply has no command palette.
+			// window model), so we suppress it unconditionally. The assistant
+			// registers itself as a palette at boot and stays registered, so
+			// `cyclePalettes()` opens it.
 			e.preventDefault();
 			e.stopImmediatePropagation();
 			cyclePalettes();

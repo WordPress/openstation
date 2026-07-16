@@ -2076,10 +2076,11 @@ function init(): void {
 		} ).install();
 	} );
 
-	// Admin-bar "Ask AI" button and programmatic `desktop-mode-open-ai`
-	// dispatches now route through openPaletteOnly so any other plugin
-	// palette that happens to be open is dismissed first — matches the
-	// single-palette-at-a-time invariant the cycle maintains.
+	// Programmatic `desktop-mode-open-ai` dispatches route through
+	// openPaletteOnly so any other plugin palette that happens to be open is
+	// dismissed first — matches the single-palette-at-a-time invariant the
+	// cycle maintains. (The Core ⌘K icon hijack below is the other entry
+	// point; there is no separate "Ask AI" button anymore.)
 	document.addEventListener( 'desktop-mode-open-ai', () => {
 		openPaletteOnly( 'desktop-mode-ai-assistant' );
 	} );

@@ -24,6 +24,11 @@
  */
 
 import { __, sprintf } from '../../i18n';
+import { trackedFetch } from '../../tracked-fetch';
+import { html, render } from '../../ui/core';
+import type { SettingsCtx } from '../types';
+import { wpdConfirm } from '../../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import { showToast } from '../../toast';
 
 // Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
 const SHORTCUT_KEY =
@@ -33,11 +38,6 @@ const SHORTCUT_KEY =
 	)
 		? '⌘K'
 		: 'Ctrl+K';
-import { trackedFetch } from '../../tracked-fetch';
-import { html, render } from '../../ui/core';
-import type { SettingsCtx } from '../types';
-import { wpdConfirm } from '../../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
-import { showToast } from '../../toast';
 
 interface ShellConfigSnapshot {
 	seenIntrosUrl?: string;
