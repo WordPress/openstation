@@ -130,6 +130,7 @@ class Tests_DesktopMode_CoreNotices extends WP_UnitTestCase {
 
 		foreach ( $notices as $notice ) {
 			$this->assertArrayHasKey( 'id', $notice );
+			$this->assertArrayHasKey( 'title', $notice );
 			$this->assertArrayHasKey( 'message', $notice );
 			$this->assertArrayHasKey( 'actionLabel', $notice );
 			$this->assertArrayHasKey( 'actionUrl', $notice );

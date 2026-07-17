@@ -58,11 +58,12 @@ function desktop_mode_get_core_notices() {
  * @since 0.9.4
  *
  * @param array $notice Partial descriptor with at least `id` + `message`.
- * @return array{id:string,message:string,actionLabel:string,actionUrl:string,dismissible:bool}
+ * @return array{id:string,title:string,message:string,actionLabel:string,actionUrl:string,dismissible:bool}
  */
 function desktop_mode_core_notice( array $notice ) {
 	return array(
 		'id'          => (string) $notice['id'],
+		'title'       => isset( $notice['title'] ) ? (string) $notice['title'] : '',
 		'message'     => (string) $notice['message'],
 		'actionLabel' => isset( $notice['actionLabel'] ) ? (string) $notice['actionLabel'] : '',
 		'actionUrl'   => isset( $notice['actionUrl'] ) ? (string) $notice['actionUrl'] : '',
@@ -99,6 +100,7 @@ function desktop_mode_core_notice_maintenance() {
 	return desktop_mode_core_notice(
 		array(
 			'id'          => 'maintenance',
+			'title'       => __( 'WordPress Updates', 'desktop-mode' ),
 			'message'     => $can
 				? __( 'An automated WordPress update failed to complete.', 'desktop-mode' )
 				: __( 'An automated WordPress update failed to complete. Please notify the site administrator.', 'desktop-mode' ),
@@ -128,6 +130,7 @@ function desktop_mode_core_notice_recovery_mode() {
 	return desktop_mode_core_notice(
 		array(
 			'id'          => 'recovery-mode',
+			'title'       => __( 'Recovery Mode', 'desktop-mode' ),
 			'message'     => __( 'You are in recovery mode. There may be an error with a theme or plugin.', 'desktop-mode' ),
 			'actionLabel' => __( 'Exit recovery mode', 'desktop-mode' ),
 			'actionUrl'   => $url,
@@ -151,6 +154,7 @@ function desktop_mode_core_notice_default_password() {
 	return desktop_mode_core_notice(
 		array(
 			'id'          => 'default-password',
+			'title'       => __( 'Profile', 'desktop-mode' ),
 			'message'     => __( 'You are using an auto-generated password. Would you like to change it?', 'desktop-mode' ),
 			'actionLabel' => __( 'Change password', 'desktop-mode' ),
 			'actionUrl'   => self_admin_url( 'profile.php#password' ),
@@ -161,9 +165,9 @@ function desktop_mode_core_notice_default_password() {
 
 /**
  * Plugins force-deactivated on a WordPress upgrade — mirrors
- * `deactivated_plugins_notice()`. Core clears the option as it prints the
- * in-window notice; because the shell suppresses that callback, the state
- * would otherwise persist forever, so this one is dismissible.
+ * `deactivated_plugins_notice()`. Core only clears the option when its own
+ * notice callback prints, which the shell can't be relied on to trigger, so
+ * this one is dismissible to guarantee the user can clear it.
  *
  * @since 0.9.4
  *
@@ -192,6 +196,7 @@ function desktop_mode_core_notice_deactivated_plugins() {
 	return desktop_mode_core_notice(
 		array(
 			'id'          => 'deactivated-plugins',
+			'title'       => __( 'Plugins', 'desktop-mode' ),
 			'message'     => sprintf(
 				/* translators: %s: comma-separated list of plugin names. */
 				__( 'Deactivated during a WordPress upgrade for incompatibility: %s.', 'desktop-mode' ),
@@ -224,6 +229,7 @@ function desktop_mode_core_notice_paused_plugins() {
 	return desktop_mode_core_notice(
 		array(
 			'id'          => 'paused-plugins',
+			'title'       => __( 'Plugins', 'desktop-mode' ),
 			'message'     => __( 'One or more plugins failed to load properly.', 'desktop-mode' ),
 			'actionLabel' => __( 'Go to Plugins', 'desktop-mode' ),
 			'actionUrl'   => self_admin_url( 'plugins.php?plugin_status=paused' ),
@@ -251,6 +257,7 @@ function desktop_mode_core_notice_paused_themes() {
 	return desktop_mode_core_notice(
 		array(
 			'id'          => 'paused-themes',
+			'title'       => __( 'Themes', 'desktop-mode' ),
 			'message'     => __( 'One or more themes failed to load properly.', 'desktop-mode' ),
 			'actionLabel' => __( 'Go to Themes', 'desktop-mode' ),
 			'actionUrl'   => self_admin_url( 'themes.php' ),

@@ -108,6 +108,7 @@ function desktop_mode_plugin_notice_action_scheduler() {
 
 	return array(
 		'id'          => 'action-scheduler-pastdue',
+		'title'       => __( 'Scheduled Actions', 'desktop-mode' ),
 		'message'     => sprintf(
 			/* translators: %d: number of past-due scheduled actions. */
 			_n(

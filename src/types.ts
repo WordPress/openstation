@@ -2003,6 +2003,8 @@ export interface DesktopConfig {
 	coreNotices?: Array< {
 		/** Stable notice id — the per-notice dismissal key. */
 		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
 		/** Human-readable message (already translated server-side). */
 		message: string;
 		/** Optional action-button label. */
@@ -2022,6 +2024,8 @@ export interface DesktopConfig {
 	pluginNotices?: Array< {
 		/** Stable notice id — the per-notice dismissal key. */
 		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
 		/** Human-readable message (already translated server-side). */
 		message: string;
 		/** Optional action-button label. */

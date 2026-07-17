@@ -58,7 +58,19 @@ describe( 'maybeShowNotices', () => {
 		expect( toastAt( 0 ).persistent ).toBe( true );
 	} );
 
-	test( 'wires the action to openUrl', () => {
+	test( 'wires the action to openUrl, using the notice title for the window', () => {
+		maybeShowNotices( {
+			notices: [ { ...NOTICE, title: 'WordPress Updates' } ],
+			openUrl,
+		} );
+		lastToast().action!.onClick();
+		expect( openUrl ).toHaveBeenCalledWith( {
+			url: '/wp-admin/update-core.php',
+			title: 'WordPress Updates', // window title, not the button label
+		} );
+	} );
+
+	test( 'window title falls back to the action label when no title is given', () => {
 		maybeShowNotices( { notices: [ NOTICE ], openUrl } );
 		lastToast().action!.onClick();
 		expect( openUrl ).toHaveBeenCalledWith( {

@@ -79,7 +79,7 @@ small, core-only state-derivation layer:
    `desktop_mode_chromeless_suppress_update_nags()`.
 2. **Derive once** — `desktop_mode_get_core_notices()`
    ([`includes/core-notices.php`]) returns an array of
-   `{ id, message, actionLabel, actionUrl, dismissible }` descriptors, each
+   `{ id, title, message, actionLabel, actionUrl, dismissible }` descriptors, each
    re-derived from the authoritative state in the table above and
    capability-gated exactly as Core gates it. Filterable via
    `desktop_mode_core_notices`.
@@ -95,10 +95,9 @@ small, core-only state-derivation layer:
 **Dismissibility.** Notices whose state clears itself (`maintenance`,
 `recovery-mode`, `paused-*`) are non-dismissible — they vanish when re-derived.
 `default-password` is dismissible (matching Core's "No thanks" link).
-`deactivated-plugins` is dismissible because Core clears its option as it prints
-the in-window notice; since the shell suppresses that callback, the state would
-otherwise persist indefinitely. Dismissal is persisted client-side
-(`localStorage`), so it is per-browser.
+`deactivated-plugins` is dismissible because Core only clears its option when
+its own notice callback prints, which the shell can't be relied on to trigger.
+Dismissal is persisted client-side (`localStorage`), so it is per-browser.
 
 **Screen exclusion doesn't apply.** Core hides e.g. `paused_plugins_notice` on
 `plugins.php` because you're already there; the shell toast is orthogonal to any

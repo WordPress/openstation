@@ -18,6 +18,8 @@ import {
 export interface ShellNotice {
 	/** Stable notice id — the per-notice dismissal key. */
 	id: string;
+	/** Window title for the action target (falls back to the action label). */
+	title?: string;
 	/** Human-readable message (already translated server-side). */
 	message: string;
 	/** Optional action-button label. */
@@ -69,11 +71,14 @@ export function maybeShowNotices( deps: ShellNoticesDeps ): void {
 
 		const label = notice.actionLabel;
 		const actionUrl = notice.actionUrl;
+		// The window title is the target screen's name; the button keeps its
+		// own label ("Go to Plugins"), which shouldn't leak into the title.
+		const windowTitle = notice.title || label || '';
 		let action: { label: string; onClick: () => void } | undefined;
 		if ( label && actionUrl ) {
 			action = {
 				label,
-				onClick: () => openUrl( { url: actionUrl, title: label } ),
+				onClick: () => openUrl( { url: actionUrl, title: windowTitle } ),
 			};
 		}
 

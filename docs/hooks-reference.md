@@ -2925,7 +2925,7 @@ The other global WordPress Core admin notices (maintenance / failed update,
 recovery mode, default-password, force-deactivated plugins, paused
 plugins/themes) are detached inside desktop windows and re-derived from server
 state so the shell surfaces each **once** as a toast. This filter receives the
-array of descriptors (`{ id, message, actionLabel, actionUrl, dismissible }`) —
+array of descriptors (`{ id, title, message, actionLabel, actionUrl, dismissible }`) —
 return an empty array to suppress them all, or unset entries by `id`. See
 [Core global admin-notice audit](core-notices-audit.md).
 
