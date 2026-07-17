@@ -2011,8 +2011,6 @@ export interface DesktopConfig {
 		actionLabel?: string;
 		/** Admin URL the action opens as a window. */
 		actionUrl?: string;
-		/** Whether the toast shows a close button (dismissal persists locally). */
-		dismissible?: boolean;
 	} >;
 	/**
 	 * Allowlisted plugin/library global admin notices (e.g. Action Scheduler's
@@ -2032,8 +2030,6 @@ export interface DesktopConfig {
 		actionLabel?: string;
 		/** Admin URL the action opens as a window. */
 		actionUrl?: string;
-		/** Whether the toast shows a close button (dismissal persists locally). */
-		dismissible?: boolean;
 	} >;
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable

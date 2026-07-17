@@ -79,7 +79,7 @@ small, core-only state-derivation layer:
    `desktop_mode_chromeless_suppress_update_nags()`.
 2. **Derive once** — `desktop_mode_get_core_notices()`
    ([`includes/core-notices.php`]) returns an array of
-   `{ id, title, message, actionLabel, actionUrl, dismissible }` descriptors, each
+   `{ id, title, message, actionLabel, actionUrl }` descriptors, each
    re-derived from the authoritative state in the table above and
    capability-gated exactly as Core gates it. Filterable via
    `desktop_mode_core_notices`.
@@ -92,12 +92,12 @@ small, core-only state-derivation layer:
 [`includes/core-notices.php`]: ../includes/core-notices.php
 [`src/core-notices.ts`]: ../src/core-notices.ts
 
-**Dismissibility.** Notices whose state clears itself (`maintenance`,
-`recovery-mode`, `paused-*`) are non-dismissible — they vanish when re-derived.
-`default-password` is dismissible (matching Core's "No thanks" link).
-`deactivated-plugins` is dismissible because Core only clears its option when
-its own notice callback prints, which the shell can't be relied on to trigger.
-Dismissal is persisted client-side (`localStorage`), so it is per-browser.
+**Dismissibility.** Every notice renders as a **persistent, dismissible**
+toast: persistent because these report conditions the user should act on (never
+auto-dismissed after a timeout), dismissible because a persistent toast must
+always have a way to be closed — a toast is never permanent. Dismissal is keyed
+`desktop-mode/<core|plugin>-notice:<id>` and persisted client-side
+(`localStorage`), so it is per-browser and per-notice.
 
 **Screen exclusion doesn't apply.** Core hides e.g. `paused_plugins_notice` on
 `plugins.php` because you're already there; the shell toast is orthogonal to any

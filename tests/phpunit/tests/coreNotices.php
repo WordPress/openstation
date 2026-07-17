@@ -46,7 +46,6 @@ class Tests_DesktopMode_CoreNotices extends WP_UnitTestCase {
 		$notice = desktop_mode_core_notice_maintenance();
 		$this->assertIsArray( $notice );
 		$this->assertSame( 'maintenance', $notice['id'] );
-		$this->assertFalse( $notice['dismissible'] );
 		// Admin can update_core → gets the retry action.
 		$this->assertStringContainsString( 'update-core.php', $notice['actionUrl'] );
 	}
@@ -61,13 +60,12 @@ class Tests_DesktopMode_CoreNotices extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_core_notice_default_password
 	 */
-	public function test_default_password_notice_is_dismissible() {
+	public function test_default_password_notice() {
 		update_user_option( self::$admin_id, 'default_password_nag', true );
 
 		$notice = desktop_mode_core_notice_default_password();
 		$this->assertIsArray( $notice );
 		$this->assertSame( 'default-password', $notice['id'] );
-		$this->assertTrue( $notice['dismissible'] );
 		$this->assertStringContainsString( 'profile.php', $notice['actionUrl'] );
 	}
 
@@ -93,7 +91,6 @@ class Tests_DesktopMode_CoreNotices extends WP_UnitTestCase {
 		$notice = desktop_mode_core_notice_deactivated_plugins();
 		$this->assertIsArray( $notice );
 		$this->assertSame( 'deactivated-plugins', $notice['id'] );
-		$this->assertTrue( $notice['dismissible'] );
 		$this->assertStringContainsString( 'Acme Widget', $notice['message'] );
 		$this->assertStringContainsString( 'Beta Tool', $notice['message'] );
 	}
@@ -134,7 +131,6 @@ class Tests_DesktopMode_CoreNotices extends WP_UnitTestCase {
 			$this->assertArrayHasKey( 'message', $notice );
 			$this->assertArrayHasKey( 'actionLabel', $notice );
 			$this->assertArrayHasKey( 'actionUrl', $notice );
-			$this->assertArrayHasKey( 'dismissible', $notice );
 		}
 	}
 

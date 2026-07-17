@@ -93,7 +93,6 @@ class Tests_DesktopMode_PluginNotices extends WP_UnitTestCase {
 		$notice = desktop_mode_plugin_notice_action_scheduler();
 		$this->assertIsArray( $notice );
 		$this->assertSame( 'action-scheduler-pastdue', $notice['id'] );
-		$this->assertTrue( $notice['dismissible'] );
 		$this->assertStringContainsString( '15', $notice['message'] );
 		$this->assertStringContainsString( 'action-scheduler', $notice['actionUrl'] );
 		$this->assertStringContainsString( 'past-due', $notice['actionUrl'] );

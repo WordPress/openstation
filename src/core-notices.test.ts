@@ -36,7 +36,6 @@ const NOTICE: ShellNotice = {
 	message: 'An automated WordPress update failed to complete.',
 	actionLabel: 'Retry update',
 	actionUrl: '/wp-admin/update-core.php',
-	dismissible: false,
 };
 
 describe( 'maybeShowNotices', () => {
@@ -45,7 +44,7 @@ describe( 'maybeShowNotices', () => {
 		expect( toastMock ).not.toHaveBeenCalled();
 	} );
 
-	test( 'shows one persistent toast per notice', () => {
+	test( 'shows one persistent, dismissible toast per notice', () => {
 		maybeShowNotices( {
 			notices: [
 				NOTICE,
@@ -55,7 +54,11 @@ describe( 'maybeShowNotices', () => {
 		} );
 		expect( toastMock ).toHaveBeenCalledTimes( 2 );
 		expect( toastAt( 0 ).message ).toBe( NOTICE.message );
+		// Every shell notice is persistent + dismissible — never permanent.
 		expect( toastAt( 0 ).persistent ).toBe( true );
+		expect( toastAt( 0 ).dismissible ).toBe( true );
+		expect( toastAt( 1 ).persistent ).toBe( true );
+		expect( toastAt( 1 ).dismissible ).toBe( true );
 	} );
 
 	test( 'wires the action to openUrl, using the notice title for the window', () => {
@@ -87,35 +90,21 @@ describe( 'maybeShowNotices', () => {
 		expect( lastToast().action ).toBeUndefined();
 	} );
 
-	test( 'dismissible notice: toast is dismissible and onDismiss persists', () => {
-		maybeShowNotices( {
-			notices: [ { ...NOTICE, id: 'default-password', dismissible: true } ],
-			openUrl,
-		} );
-		expect( lastToast().dismissible ).toBe( true );
+	test( 'onDismiss persists the dismissal', () => {
+		maybeShowNotices( { notices: [ NOTICE ], openUrl } );
 		expect(
-			isNoticeDismissed( 'desktop-mode/core-notice:default-password' ),
+			isNoticeDismissed( 'desktop-mode/core-notice:maintenance' ),
 		).toBe( false );
 		lastToast().onDismiss!();
 		expect(
-			isNoticeDismissed( 'desktop-mode/core-notice:default-password' ),
+			isNoticeDismissed( 'desktop-mode/core-notice:maintenance' ),
 		).toBe( true );
 	} );
 
-	test( 'skips a dismissible notice that was already dismissed', () => {
-		markNoticeDismissed( 'desktop-mode/core-notice:default-password' );
-		maybeShowNotices( {
-			notices: [ { ...NOTICE, id: 'default-password', dismissible: true } ],
-			openUrl,
-		} );
-		expect( toastMock ).not.toHaveBeenCalled();
-	} );
-
-	test( 'a non-dismissible notice always shows, even if its key was marked', () => {
+	test( 'skips a notice that was already dismissed', () => {
 		markNoticeDismissed( 'desktop-mode/core-notice:maintenance' );
 		maybeShowNotices( { notices: [ NOTICE ], openUrl } );
-		expect( toastMock ).toHaveBeenCalledTimes( 1 );
-		expect( lastToast().dismissible ).toBe( false );
+		expect( toastMock ).not.toHaveBeenCalled();
 	} );
 
 	test( 'keyPrefix namespaces the dismissal key (core vs plugin)', () => {
@@ -123,7 +112,7 @@ describe( 'maybeShowNotices', () => {
 		// by a same-id `core-notice:` dismissal, and vice-versa.
 		markNoticeDismissed( 'desktop-mode/core-notice:shared' );
 		maybeShowNotices( {
-			notices: [ { id: 'shared', message: 'plugin', dismissible: true } ],
+			notices: [ { id: 'shared', message: 'plugin' } ],
 			openUrl,
 			keyPrefix: 'plugin-notice',
 		} );

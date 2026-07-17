@@ -14,14 +14,14 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * The in-scope global core notices for the current user, as shell
- * descriptors. Each descriptor is
- * `{ id, message, actionLabel?, actionUrl?, dismissible }`, re-derived from
- * authoritative state (never scraped) and capability-gated exactly as Core
- * gates the underlying notice.
+ * descriptors. Each descriptor is `{ id, title, message, actionLabel?,
+ * actionUrl? }`, re-derived from authoritative state (never scraped) and
+ * capability-gated exactly as Core gates the underlying notice. The shell
+ * renders each as a persistent, dismissible toast.
  *
  * @since 0.9.4
  *
- * @return array<int,array{id:string,message:string,actionLabel:string,actionUrl:string,dismissible:bool}>
+ * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
 function desktop_mode_get_core_notices() {
 	$builders = array(
@@ -58,7 +58,7 @@ function desktop_mode_get_core_notices() {
  * @since 0.9.4
  *
  * @param array $notice Partial descriptor with at least `id` + `message`.
- * @return array{id:string,title:string,message:string,actionLabel:string,actionUrl:string,dismissible:bool}
+ * @return array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}
  */
 function desktop_mode_core_notice( array $notice ) {
 	return array(
@@ -67,13 +67,11 @@ function desktop_mode_core_notice( array $notice ) {
 		'message'     => (string) $notice['message'],
 		'actionLabel' => isset( $notice['actionLabel'] ) ? (string) $notice['actionLabel'] : '',
 		'actionUrl'   => isset( $notice['actionUrl'] ) ? (string) $notice['actionUrl'] : '',
-		'dismissible' => ! empty( $notice['dismissible'] ),
 	);
 }
 
 /**
  * Interrupted / failed automated core update — mirrors `maintenance_nag()`.
- * Clears itself when the update completes, so it isn't dismissible.
  *
  * @since 0.9.4
  *
@@ -111,8 +109,7 @@ function desktop_mode_core_notice_maintenance() {
 }
 
 /**
- * Site is in recovery mode — mirrors `wp_recovery_mode_nag()`. Clears itself
- * on exit, so it isn't dismissible.
+ * Site is in recovery mode — mirrors `wp_recovery_mode_nag()`.
  *
  * @since 0.9.4
  *
@@ -140,7 +137,7 @@ function desktop_mode_core_notice_recovery_mode() {
 
 /**
  * User is still on their auto-generated password — mirrors
- * `default_password_nag()`. Dismissible, matching Core's "No thanks" link.
+ * `default_password_nag()`.
  *
  * @since 0.9.4
  *
@@ -158,16 +155,13 @@ function desktop_mode_core_notice_default_password() {
 			'message'     => __( 'You are using an auto-generated password. Would you like to change it?', 'desktop-mode' ),
 			'actionLabel' => __( 'Change password', 'desktop-mode' ),
 			'actionUrl'   => self_admin_url( 'profile.php#password' ),
-			'dismissible' => true,
 		)
 	);
 }
 
 /**
  * Plugins force-deactivated on a WordPress upgrade — mirrors
- * `deactivated_plugins_notice()`. Core only clears the option when its own
- * notice callback prints, which the shell can't be relied on to trigger, so
- * this one is dismissible to guarantee the user can clear it.
+ * `deactivated_plugins_notice()`.
  *
  * @since 0.9.4
  *
@@ -204,14 +198,12 @@ function desktop_mode_core_notice_deactivated_plugins() {
 			),
 			'actionLabel' => __( 'View plugins', 'desktop-mode' ),
 			'actionUrl'   => self_admin_url( 'plugins.php?plugin_status=inactive' ),
-			'dismissible' => true,
 		)
 	);
 }
 
 /**
- * Plugins paused by recovery mode — mirrors `paused_plugins_notice()`. Clears
- * itself on recovery-mode exit, so it isn't dismissible.
+ * Plugins paused by recovery mode — mirrors `paused_plugins_notice()`.
  *
  * @since 0.9.4
  *
@@ -238,8 +230,7 @@ function desktop_mode_core_notice_paused_plugins() {
 }
 
 /**
- * Themes paused by recovery mode — mirrors `paused_themes_notice()`. Clears
- * itself on recovery-mode exit, so it isn't dismissible.
+ * Themes paused by recovery mode — mirrors `paused_themes_notice()`.
  *
  * @since 0.9.4
  *

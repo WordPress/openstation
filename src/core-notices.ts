@@ -26,8 +26,6 @@ export interface ShellNotice {
 	actionLabel?: string;
 	/** Admin URL the action opens as a window. */
 	actionUrl?: string;
-	/** Whether the toast is dismissible (dismissal persists locally). */
-	dismissible?: boolean;
 }
 
 /** Dependencies the surfacing needs from the shell. */
@@ -44,8 +42,10 @@ export interface ShellNoticesDeps {
 }
 
 /**
- * Show each pending notice once as a persistent toast. Dismissible notices
- * that were already dismissed (locally) are skipped.
+ * Show each pending notice once. Every notice is a persistent, dismissible
+ * toast — persistent because these report conditions the user should act on
+ * (never auto-dismissed), dismissible because a persistent toast must always
+ * have a way to be closed. Notices dismissed earlier (locally) are skipped.
  */
 export function maybeShowNotices( deps: ShellNoticesDeps ): void {
 	const { notices, openUrl, keyPrefix = 'core-notice' } = deps;
@@ -65,7 +65,7 @@ export function maybeShowNotices( deps: ShellNoticesDeps ): void {
 		}
 
 		const dismissKey = `desktop-mode/${ keyPrefix }:${ notice.id }`;
-		if ( notice.dismissible && isNoticeDismissed( dismissKey ) ) {
+		if ( isNoticeDismissed( dismissKey ) ) {
 			continue;
 		}
 
@@ -85,10 +85,8 @@ export function maybeShowNotices( deps: ShellNoticesDeps ): void {
 		showToast( {
 			message: notice.message,
 			persistent: true,
-			dismissible: !! notice.dismissible,
-			onDismiss: notice.dismissible
-				? () => markNoticeDismissed( dismissKey )
-				: undefined,
+			dismissible: true,
+			onDismiss: () => markNoticeDismissed( dismissKey ),
 			action,
 		} );
 	}

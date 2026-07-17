@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @since 0.9.4
  *
- * @return array<int,array{id:string,message:string,actionLabel:string,actionUrl:string,dismissible:bool}>
+ * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
 function desktop_mode_get_plugin_notices() {
 	$builders = array(
@@ -121,7 +121,6 @@ function desktop_mode_plugin_notice_action_scheduler() {
 		),
 		'actionLabel' => __( 'View actions', 'desktop-mode' ),
 		'actionUrl'   => $url,
-		'dismissible' => true,
 	);
 }
 
