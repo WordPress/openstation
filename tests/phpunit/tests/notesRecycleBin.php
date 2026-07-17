@@ -123,6 +123,42 @@ class Tests_DesktopMode_NotesRecycleBin extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::desktop_mode_recycle_bin_plain_text
+	 * @covers ::desktop_mode_recycle_bin_shape_item
+	 */
+	public function test_titles_with_apostrophes_are_not_entity_encoded() {
+		// Regression: wptexturize (the_title filter) encodes the
+		// apostrophe as &#8217;, and the bin table renders titles as
+		// plain text, so the user saw the literal entity.
+		$note_id = $this->create_trashed_note(
+			self::$owner_id,
+			"Don't forget to feed the cat"
+		);
+
+		$item = desktop_mode_recycle_bin_shape_item( get_post( $note_id ) );
+		$this->assertStringNotContainsString( '&#', $item['title'] );
+		$this->assertStringNotContainsString( '&#', $item['subtitle'] );
+		$this->assertStringContainsString( 'forget to feed the cat', $item['title'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_notes_recycle_bin_item
+	 */
+	public function test_unstamped_trashed_notes_fall_back_to_the_owner_as_deleter() {
+		$note_id = $this->create_trashed_note( self::$owner_id, 'legacy trash' );
+		// Simulate a note trashed before capture existed (or via
+		// WP-CLI/cron with no logged-in user): no who-deleted stamp.
+		delete_post_meta( $note_id, '_desktop_mode_trash_user_id' );
+
+		$item = desktop_mode_recycle_bin_shape_item( get_post( $note_id ) );
+		$this->assertSame( self::$owner_id, $item['deleted_by_id'] );
+		$this->assertSame(
+			get_userdata( self::$owner_id )->display_name,
+			$item['deleted_by']
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_notes_recycle_bin_gate
 	 */
 	public function test_admins_do_not_see_other_users_trashed_notes() {

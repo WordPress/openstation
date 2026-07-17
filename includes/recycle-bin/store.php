@@ -498,7 +498,7 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 	}
 
 	$parent      = $comment->comment_post_ID ? get_post( (int) $comment->comment_post_ID ) : null;
-	$parent_text = $parent ? get_the_title( $parent ) : '';
+	$parent_text = $parent ? desktop_mode_recycle_bin_plain_text( get_the_title( $parent ) ) : '';
 	$author      = $comment->comment_author
 		? (string) $comment->comment_author
 		: __( 'Anonymous', 'desktop-mode' );
@@ -512,7 +512,7 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 		)
 		: $author;
 
-	$subtitle = wp_trim_words( wp_strip_all_tags( (string) $comment->comment_content ), 18, '…' );
+	$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $comment->comment_content ), 18, '…' );
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;
 	$user_name = $user ? $user->display_name : '';
@@ -546,6 +546,29 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 }
 
 /**
+ * Collapse a title/subtitle to plain text for the wire.
+ *
+ * `get_the_title()` runs the `the_title` filter chain, and
+ * `wptexturize` in it encodes punctuation as numeric entities
+ * (apostrophe → `&#8217;`, quotes, dashes) — correct for HTML
+ * output, wrong for the bin table, which renders every cell via
+ * `textContent` and would show the literal entity. Strip tags first,
+ * then decode entities back to characters.
+ *
+ * @since 0.9.6
+ *
+ * @param string $text Raw filtered text.
+ * @return string
+ */
+function desktop_mode_recycle_bin_plain_text( $text ) {
+	return html_entity_decode(
+		wp_strip_all_tags( (string) $text ),
+		ENT_QUOTES,
+		get_bloginfo( 'charset' )
+	);
+}
+
+/**
  * Shape one WP_Post into the JSON the JS table consumes.
  *
  * @since 0.6.0
@@ -564,7 +587,7 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 	}
 
 	$type     = (string) $post->post_type;
-	$title    = (string) get_the_title( $post );
+	$title    = desktop_mode_recycle_bin_plain_text( (string) get_the_title( $post ) );
 	$mime     = (string) $post->post_mime_type;
 	$preview  = '';
 	$icon     = '';
@@ -582,10 +605,10 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 		$subtitle = $mime;
 	} elseif ( 'post' === $type ) {
 		$icon     = 'dashicons-admin-post';
-		$subtitle = wp_trim_words( wp_strip_all_tags( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
+		$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
 	} elseif ( 'page' === $type ) {
 		$icon     = 'dashicons-admin-page';
-		$subtitle = wp_trim_words( wp_strip_all_tags( (string) $post->post_content ), 18, '…' );
+		$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
 	} else {
 		// Custom post types: reuse the type's own menu Dashicon when it
 		// registered one, so a trashed product row reads as a product
@@ -600,7 +623,7 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 		) {
 			$icon = $post_type_obj->menu_icon;
 		}
-		$subtitle = wp_trim_words( wp_strip_all_tags( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
+		$subtitle = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_excerpt ?: (string) $post->post_content ), 18, '…' );
 	}
 
 	$user      = $user_id ? get_userdata( $user_id ) : false;

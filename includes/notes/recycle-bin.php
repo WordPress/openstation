@@ -97,10 +97,25 @@ function desktop_mode_notes_recycle_bin_item( $item, $post ) {
 	}
 	$item['type_label'] = __( 'Note', 'desktop-mode' );
 	$item['icon']       = 'dashicons-sticky';
-	$item['subtitle']   = wp_trim_words( wp_strip_all_tags( (string) $post->post_content ), 18, '…' );
+	$item['subtitle']   = wp_trim_words( desktop_mode_recycle_bin_plain_text( (string) $post->post_content ), 18, '…' );
 	// Notes have no admin edit screen — a chromeless post.php iframe
 	// would 403 on the headless CPT.
 	$item['edit_link'] = '';
+
+	// "Deleted by" fallback. The bin's who-deleted stamp is written at
+	// trash time, so notes trashed before wpd_note joined the capture
+	// list (or trashed with no logged-in user: WP-CLI, cron) have none.
+	// For notes the owner is the only principal who can trash, so
+	// attributing an unstamped row to the author is correct by
+	// construction. Display-time only — nothing is written back.
+	if ( '' === (string) $item['deleted_by'] ) {
+		$owner = get_userdata( (int) $post->post_author );
+		if ( $owner instanceof WP_User ) {
+			$item['deleted_by']    = $owner->display_name;
+			$item['deleted_by_id'] = (int) $post->post_author;
+		}
+	}
+
 	return $item;
 }
 add_filter( 'desktop_mode_recycle_bin_item', 'desktop_mode_notes_recycle_bin_item', 10, 2 );
