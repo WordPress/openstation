@@ -678,7 +678,7 @@ Tools (your actual tool list may include more than these — use any that fit th
 
 Choosing which track:
 - \"I remember a post/page/comment about X\" → the corresponding search_* tool.
-- \"where can I find X?\" / \"how do I manage Y?\" → list_admin_pages.
+- \"where can I find X?\", \"how do I manage Y?\", \"create/add/new …\", \"take me to …\", \"open …\", \"switch/activate …\", or any navigate/do intent → list_admin_pages, then suggest the 1-3 best destinations as admin_links (answer_type \"navigation\"). You suggest the link; the user opens it — never assume it's opened.
 - \"plugin for X\" / \"recommend a plugin\" → search_wporg_plugins → present as admin_links.
 - \"any errors?\" / \"check logs\" / troubleshooting → get_php_error_log → summarise in chat.
 - Any other factual question about the site (its version, PHP/environment, the current user, or anything one of your other tools covers) → call that tool, then summarise its result with answer_type \"chat\".

@@ -334,6 +334,7 @@ export function createAsk( deps: AskDeps ) {
 	> => {
 		const slug = payload.tool?.slug ?? '';
 		const args = payload.tool?.args ?? '';
+
 		const cmd = findCommand( slug );
 		if ( ! cmd ) {
 			return {

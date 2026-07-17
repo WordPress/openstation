@@ -207,6 +207,17 @@ Each harvested command is tagged `eager: true` so it surfaces in the palette wit
 
 **Caveats.** Gutenberg block-level loader hooks are tightly coupled to current editor state; invoking a stale closure after the editor re-renders can no-op. The harvester re-runs on every React re-render, so in practice the cache is fresh, but don't expect the bridge to work if the iframe page hasn't booted its editor yet. Non-Gutenberg admin screens generally expose no contextual commands, so the palette falls back to its AI suggestions view when the focused window's registry is empty.
 
+### The AI assistant as the shell's ⌘K palette
+
+WordPress 7.0 adds its own command-palette admin-bar icon (`#wp-admin-bar-command-palette`) and a global ⌘K keybinding. In the desktop shell Core's palette is never the right UI — its commands are harvested (above) and its own callbacks hard-navigate via `document.location`, unloading the shell out of the window model — so the shell **suppresses it unconditionally** (both the in-iframe keydown in the chromeless bridge and `installPaletteShortcut()` at the shell level). The shell's ⌘K surface is instead the assistant, which is **always registered** (`registerPalette('desktop-mode-ai-assistant')`), so ⌘K always opens it and Core's admin-bar icon (intercepted with a capture-phase `click` listener in `src/desktop.ts`) routes to it too.
+
+**Two modes.** The overlay (`src/ai-assistant/impl.ts`, titled "Site Assistant") is a superset of the command palette:
+
+- **Commands** — a command palette over the shared registry (`src/commands.ts`): typing filters live, empty input lists *every* command (contextual iframe commands pinned first), and picking one runs it. Always available — pure client, no AI, no server call.
+- **Ask AI** — natural-language questions routed through `/ai/search` (read-only [Abilities](hooks-reference.md) + content search). It **suggests** (answers, entity cards, `admin_links` the user clicks) and never auto-runs a command. Offered only when a provider is configured *and* the toggle is on.
+
+A **mode switch** in the header flips between them (replacing the `/` shortcut); it appears only when Ask AI is available. Each mode keeps its own input draft, and the last AI answer is re-shown when returning to Ask AI. The **OS Settings → Features → "AI assistant"** toggle (`ai.enabled`, off by default, provider-gated) enables Ask AI and makes it the default mode on open (off → Commands). The overlay reads provider status + the toggle live via `AiAssistantConfig.isAiAvailable()` / `isOverrideEnabled()`, so connecting a provider or flipping the toggle takes effect on the next open without a reload.
+
 ## CSS layering
 
 Core layering only — feature windows ship their own per-feature sheets
