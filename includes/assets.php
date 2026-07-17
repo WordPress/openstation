@@ -214,6 +214,24 @@ function desktop_mode_register_assets() {
 		file_exists( $desktop_files_css ) ? (string) filemtime( $desktop_files_css ) : $version
 	);
 
+	// Games hub window (launcher grid, scoreboard, challenges) +
+	// per-game styles. Same `filemtime` cache-bust posture as the
+	// other fast-iterating feature stylesheets.
+	$games_css = DESKTOP_MODE_DIR . 'assets/css/games.css';
+	wp_register_style(
+		'desktop-mode-games',
+		DESKTOP_MODE_URL . 'assets/css/games.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $games_css ) ? (string) filemtime( $games_css ) : $version
+	);
+	$game_inkfall_css = DESKTOP_MODE_DIR . 'assets/css/game-inkfall.css';
+	wp_register_style(
+		'desktop-mode-game-inkfall',
+		DESKTOP_MODE_URL . 'assets/css/game-inkfall.css',
+		array( 'desktop-mode-variables' ),
+		file_exists( $game_inkfall_css ) ? (string) filemtime( $game_inkfall_css ) : $version
+	);
+
 	// Pinned-notes layer styles (paper, pushpin, pastel tokens, pin
 	// animations). Same `filemtime` cache-bust posture as the other
 	// fast-iterating feature stylesheets above.
@@ -298,6 +316,44 @@ function desktop_mode_register_assets() {
 	);
 	wp_set_script_translations(
 		'desktop-mode-recycle-bin',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-games` — bundle for the Games hub native window
+	// (launcher grid, scoreboard, challenges client). Lazy-loaded by
+	// the native-window sync the first time the hub opens; registers a
+	// render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-games']`.
+	// `heartbeat` + `jquery` — the challenges client rides the
+	// WordPress Heartbeat bus for live delivery.
+	$games_js = DESKTOP_MODE_DIR . 'assets/js/games' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-games',
+		DESKTOP_MODE_URL . 'assets/js/games' . $suffix . '.js',
+		array( 'wp-i18n', 'heartbeat', 'jquery' ),
+		file_exists( $games_js ) ? (string) filemtime( $games_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-games',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-game-inkfall` — the Inkfall game bundle. Loaded
+	// lazily by the games framework on first launch; publishes the
+	// game def on `window.desktopModeGames.inkfall`.
+	$game_inkfall_js = DESKTOP_MODE_DIR . 'assets/js/game-inkfall' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-game-inkfall',
+		DESKTOP_MODE_URL . 'assets/js/game-inkfall' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $game_inkfall_js ) ? (string) filemtime( $game_inkfall_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-game-inkfall',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);

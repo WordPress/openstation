@@ -65,6 +65,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `widgetLayer` | `WidgetLayer \| null` | Stable |
 | `registerWidget` | `( def: WidgetDef ) => void` | Stable |
 | `registerWallpaper` | `( def: WallpaperDef ) => void` | Stable |
+| `wallpaper` | `WallpaperSuspendApi` *(`suspend( reason )` / `resume( reason )` / `isSuspended()` — refcounted wallpaper pause)* | Experimental *(0.9.6)* |
+| `games` | `GamesApi` *(`register` / `unregister` / `list` / `get` / `subscribe` / `launch` — desktop games + unified scoreboard)* | Experimental *(0.9.6)* |
 
 ### Cross-bundle / cross-window state
 

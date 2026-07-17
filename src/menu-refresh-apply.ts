@@ -25,6 +25,7 @@ import type {
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
+	DesktopGameServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
 	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
@@ -49,6 +50,7 @@ export interface MenuRefreshPayload {
 	serverUnfocusEffectScripts?: unknown;
 	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
+	serverGames?: unknown;
 	desktopIcons?: unknown;
 }
 
@@ -92,6 +94,7 @@ export interface MenuRefreshDeps {
 	syncServerDockRailRenderers: (
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
+	syncServerGames: ( list: DesktopGameServerEntry[] ) => Promise< void >;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
 	 * Re-run the files-layer shortcut reconciliation
@@ -198,6 +201,7 @@ export function createApplyPayload(
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
+		syncServerGames,
 		renderIcons,
 		syncShortcuts,
 	} = deps;
@@ -217,6 +221,7 @@ export function createApplyPayload(
 		const serverWindowLinkRendererScripts =
 			payload.serverWindowLinkRendererScripts;
 		const serverWindowNotices = payload.serverWindowNotices;
+		const serverGames = payload.serverGames;
 		const desktopIcons = payload.desktopIcons;
 
 		// Guard: an empty `dockItems` list is NEVER legitimate —
@@ -285,6 +290,16 @@ export function createApplyPayload(
 			);
 			config.serverWallpapers =
 				serverWallpapers as DesktopConfig[ 'serverWallpapers' ];
+		}
+
+		// Games-registry sync — stub registration only (game scripts
+		// load lazily on first launch). New plugin games surface in
+		// the Games window without a reload; deactivated ones leave
+		// the launcher grid + scoreboard tabs.
+		if ( Array.isArray( serverGames ) ) {
+			void syncServerGames( serverGames as DesktopGameServerEntry[] );
+			config.serverGames =
+				serverGames as DesktopConfig[ 'serverGames' ];
 		}
 
 		// Command-palette sync — loads plugin-contributed command

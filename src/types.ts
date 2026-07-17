@@ -941,6 +941,44 @@ export interface DesktopWallpaperServerEntry {
 }
 
 /**
+ * Server-declared game entry passed from PHP via `serverGames`.
+ * One entry per `desktop_mode_register_game()` call.
+ *
+ * Unlike wallpapers, game scripts are NOT loaded on sync — the
+ * metadata here is enough to paint the Games launcher grid and the
+ * scoreboard tabs; `scriptUrl` is fetched lazily on first launch
+ * and publishes the full `GameDef` (with its `render` callback) on
+ * `window.desktopModeGames[ id ]`.
+ *
+ * @public
+ * @since 0.9.6
+ */
+export interface DesktopGameServerEntry {
+	id: string;
+	title: string;
+	/** Plain-text launcher-tile description. */
+	description: string;
+	/** Dashicon class, http(s) URL, or `data:` URI. */
+	icon: string;
+	/** Scoreboard column declarations, in display order. */
+	scoreColumns: Array< {
+		key: string;
+		label: string;
+		type: 'number' | 'time' | 'text';
+	} >;
+	/** Arbitrary server-declared config blob handed to the game's launch context. */
+	config: Record< string, unknown >;
+	/** Absolute URL of the game's (lazily loaded) script. */
+	scriptUrl: string;
+	/** WordPress script handle (informational). */
+	scriptHandle: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
+	scriptTranslations?: string;
+}
+
+/**
  * Server-declared command-script entry passed from PHP via
  * `serverCommandScripts`. One entry per
  * `desktop_mode_register_command_script()` call (or indirectly via
@@ -1605,6 +1643,15 @@ export interface DesktopConfig {
 	 * current selection.
 	 */
 	serverWallpapers: DesktopWallpaperServerEntry[];
+	/**
+	 * Server-declared games (from `desktop_mode_register_game()`).
+	 * Sync registers metadata-only stubs so the Games window and
+	 * scoreboard paint without downloading game code; the script is
+	 * loaded lazily on first launch.
+	 *
+	 * @since 0.9.6
+	 */
+	serverGames?: DesktopGameServerEntry[];
 	/**
 	 * Script handles opted-in via `desktop_mode_register_command_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so

@@ -1,0 +1,227 @@
+/**
+ * Inkfall — game window styles.
+ *
+ * Scoped to `.inkfall`. The play area is a Pixi canvas painting a
+ * notebook page; the HUD and overlays are DOM layered above it.
+ */
+
+.inkfall {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: #efe9da;
+	overflow: hidden;
+}
+
+.inkfall__hud {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 8px 14px;
+	background: rgba( 43, 58, 85, 0.92 );
+	color: #f7f3e8;
+	font-variant-numeric: tabular-nums;
+	font-size: 13px;
+}
+
+.inkfall__hud-score {
+	font-weight: 700;
+}
+
+.inkfall__hud-streak {
+	color: #ffd166;
+	font-weight: 700;
+	min-width: 2.5em;
+}
+
+.inkfall__hud-lives {
+	letter-spacing: 3px;
+	color: #e8a1a1;
+}
+
+.inkfall__hud-level {
+	color: #bcd4e6;
+}
+
+.inkfall__hud-ribbon {
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: #8e44ad;
+	color: #fff;
+	font-weight: 600;
+}
+
+/* Always the HUD's last child — pinned to the far end. */
+.inkfall__hud-sound {
+	margin-inline-start: auto;
+	padding: 2px 6px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.inkfall__hud-sound:hover,
+.inkfall__hud-sound:focus-visible {
+	background: rgba( 247, 243, 232, 0.18 );
+}
+
+.inkfall__stage {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+}
+
+.inkfall__canvas {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* Focus anchor for keyboard capture — visually gone, still focusable. */
+.inkfall__key-capture {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	border: 0;
+	padding: 0;
+	pointer-events: none;
+}
+
+.inkfall__overlay {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	background: rgba( 43, 58, 85, 0.55 );
+	cursor: pointer;
+	z-index: 5;
+}
+
+.inkfall__overlay[hidden] {
+	display: none;
+}
+
+.inkfall__overlay-message {
+	margin: 0;
+	padding: 14px 22px;
+	border-radius: 10px;
+	background: #f7f3e8;
+	color: #2b3a55;
+	font-size: 16px;
+	font-family: Georgia, "Times New Roman", serif;
+	box-shadow: 0 8px 30px rgba( 0, 0, 0, 0.25 );
+}
+
+.inkfall__over-panel {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	padding: 24px 32px;
+	border-radius: 12px;
+	background: #f7f3e8;
+	color: #2b3a55;
+	font-family: Georgia, "Times New Roman", serif;
+	box-shadow: 0 8px 30px rgba( 0, 0, 0, 0.25 );
+	cursor: default;
+	text-align: center;
+}
+
+.inkfall__over-heading {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 700;
+}
+
+.inkfall__over-stats {
+	margin: 0;
+	font-size: 14px;
+}
+
+.inkfall__over-save {
+	margin: 0;
+	font-size: 12px;
+	color: #6b7280;
+}
+
+.inkfall__over-actions {
+	display: flex;
+	gap: 10px;
+	margin-block-start: 6px;
+}
+
+.inkfall__button {
+	padding: 6px 16px;
+	border-radius: 8px;
+	border: 1px solid #2b3a55;
+	background: transparent;
+	color: #2b3a55;
+	font: inherit;
+	cursor: pointer;
+}
+
+.inkfall__button--primary {
+	background: #2b3a55;
+	color: #f7f3e8;
+}
+
+.inkfall__button:hover {
+	filter: brightness( 1.15 );
+}
+
+/* Pre-game difficulty menu. */
+
+.inkfall__menu {
+	cursor: default;
+}
+
+.inkfall__menu-options {
+	display: flex;
+	gap: 12px;
+	margin-block-start: 4px;
+}
+
+.inkfall__menu-option {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	min-width: 130px;
+	padding: 14px 16px;
+	border-radius: 10px;
+	border: 1px solid rgba( 43, 58, 85, 0.35 );
+	background: #fff;
+	color: #2b3a55;
+	font: inherit;
+	cursor: pointer;
+	transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.inkfall__menu-option:hover,
+.inkfall__menu-option:focus-visible {
+	transform: translateY( -2px );
+	box-shadow: 0 6px 18px rgba( 0, 0, 0, 0.18 );
+}
+
+.inkfall__menu-option--current {
+	border-color: #2b3a55;
+	box-shadow: inset 0 0 0 1px #2b3a55;
+}
+
+.inkfall__menu-option-label {
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.inkfall__menu-option-hint {
+	font-size: 12px;
+	color: #6b7280;
+	max-width: 150px;
+}

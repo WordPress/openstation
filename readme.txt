@@ -110,7 +110,15 @@ Desktop Mode is brought to you by [Automattic](https://automattic.com). The plug
 
 The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:
 
-* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, and built-in canvas wallpapers (e.g. the animated WordPress logo). PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+
+= Data files =
+
+The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated from the following sources (attribution also ships in the file's header):
+
+* **[FrequencyWords](https://github.com/hermitdave/FrequencyWords)** by Hermit Dave (CC-BY-SA 4.0) — English word-frequency ranking derived from the OpenSubtitles corpus.
+* **[english-words](https://github.com/dwyl/english-words)** by dwyl (Unlicense) — used as a validity filter.
+* **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
 

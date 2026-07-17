@@ -51,7 +51,11 @@ import {
 	type WpHooks,
 } from './hooks';
 import { WallpaperLayer } from './wallpapers/layer';
+import type { WallpaperSuspendApi } from './wallpapers/layer';
+import type { GamesApi } from './games/api';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
+import { createGamesRegistrySync } from './games/server-sync';
+import { bootGamesChallenges } from './games/challenges-client';
 import { createCommandRegistrySync } from './commands/server-sync';
 import { createSettingsTabRegistrySync } from './settings/server-sync';
 import {
@@ -505,6 +509,31 @@ export interface WpDesktopPublicApi {
 	isActive: () => boolean;
 	/** Convenience: register a wallpaper via `desktop-mode.wallpapers` filter. */
 	registerWallpaper: ( def: WallpaperDef ) => void;
+	/**
+	 * Wallpaper suspend/resume — pause the animated wallpaper while a
+	 * foreground surface (a game, a heavy canvas tool) renders its own
+	 * scene. Refcounted per reason string: hold with
+	 * `wallpaper.suspend( 'my-plugin/thing' )`, release the same reason
+	 * with `resume()`. While suspended the shell freezes the current
+	 * frame into a bitmap overlay (best-effort) and re-emits
+	 * {@link HOOKS.WALLPAPER_VISIBILITY} with the effective state so
+	 * mounted scenes stop their tickers; {@link HOOKS.WALLPAPER_SUSPEND}
+	 * fires on every suspended/resumed transition.
+	 *
+	 * @since 0.9.6
+	 */
+	wallpaper: WallpaperSuspendApi;
+	/**
+	 * Desktop games surface. `register()` adds a game to the shared
+	 * registry (launcher grid + scoreboard tabs repaint live);
+	 * `launch()` opens a game in its native window, suspending the
+	 * wallpaper for the duration. Scores/challenges persist only for
+	 * games also registered server-side via
+	 * `desktop_mode_register_game()`.
+	 *
+	 * @since 0.9.6
+	 */
+	games: GamesApi;
 	/** Convenience: register a widget via `desktop-mode.widgets` filter. */
 	registerWidget: ( def: import( './widgets/types' ).WidgetDef ) => void;
 	/**
@@ -2808,6 +2837,17 @@ function init(): void {
 		Array.isArray( config.serverWallpapers ) ? config.serverWallpapers : [],
 	);
 
+	// Games-registry sync — same lifecycle pattern, one deliberate
+	// deviation: game scripts are NOT loaded on sync. The payload's
+	// metadata registers as a stub (enough for the Games window's
+	// launcher grid + scoreboard tabs); `launchGame()` fetches the
+	// script the first time someone plays. See
+	// `src/games/server-sync.ts` for the rationale.
+	const syncServerGames = createGamesRegistrySync();
+	void syncServerGames(
+		Array.isArray( config.serverGames ) ? config.serverGames : [],
+	);
+
 	// Command-palette sync — mirrors the widget / wallpaper pattern for
 	// slash-commands registered by plugins via
 	// `desktop_mode_register_command_script()`. Loads each opted-in
@@ -3149,6 +3189,7 @@ function init(): void {
 		syncServerUnfocusEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
+		syncServerGames,
 		renderIcons,
 		syncShortcuts: () => {
 			const snapshot = osSettings.getOsSettingsSnapshot();
@@ -3250,6 +3291,11 @@ function init(): void {
 		dragManager,
 		connect: connectionBridge.connect,
 		getConnection: connectionBridge.getConnection,
+		wallpaperSuspend: {
+			suspend: ( reason: string ) => wallpaperLayer?.suspend( reason ),
+			resume: ( reason: string ) => wallpaperLayer?.resume( reason ),
+			isSuspended: () => wallpaperLayer?.isSuspended() ?? false,
+		},
 		config,
 	} );
 	installPublicApi( desktopApi );
@@ -3267,6 +3313,14 @@ function init(): void {
 	// contributor / subscriber. Idempotent — safe to run twice
 	// if init() ever fires again.
 	bootHeartbeatBus();
+
+	// Challenge delivery rides the bus above — lives in the main
+	// bundle (like the recycle-bin badge) so an incoming challenge
+	// notifies the user even when the Games window never opened this
+	// session.
+	bootGamesChallenges( {
+		currentUserId: Number( config.currentUserId ) || 0,
+	} );
 
 	// Subscribe to heartbeat-driven nonce refresh so cached
 	// `restNonce` values in `window.desktopModeConfig` and

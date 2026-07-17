@@ -29,6 +29,7 @@ defined( 'ABSPATH' ) || exit;
 - [Window links — relate windows and restyle the ties (Experimental)](./window-links.md)
 - [Inject data into `desktopModeConfig`](./inject-shell-config.md)
 - [Register a wallpaper (CSS + canvas)](./register-wallpaper.md)
+- [Register a game — launcher tile, scoreboard, challenges (Experimental)](./register-game.md)
 - [Register a widget — polling, storage, canvas charts](./register-widget.md)
 - [Register a desktop icon (Jorvy)](./register-icon.md)
 - [Register a slash-command for the AI palette](./register-command.md)

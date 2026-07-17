@@ -325,6 +325,25 @@ const TARGETS = {
 		fileBase: 'content-graph',
 		iifeName: 'desktopModeContentGraph',
 	},
+	// Games hub — launcher grid + scoreboard + challenges client.
+	// Registers a render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-games']`; the
+	// games registry itself is shared cross-bundle via
+	// `createSharedStore`. `<wpd-*>` tags come from the main bundle.
+	games: {
+		entry:    'src/games/entry.ts',
+		fileBase: 'games',
+		iifeName: 'desktopModeGames',
+	},
+	// Inkfall — the built-in typing game. Lazy-loaded by the games
+	// framework on first launch; publishes its GameDef on
+	// `window.desktopModeGames.inkfall`. Loads PixiJS through the
+	// module registry like content-graph / the canvas wallpapers.
+	'game-inkfall': {
+		entry:    'src/games/inkfall/index.ts',
+		fileBase: 'game-inkfall',
+		iifeName: 'desktopModeGameInkfall',
+	},
 	// Service worker — own bundle so it can be served from a stable
 	// path with the `Service-Worker-Allowed: /` header. The IIFE
 	// wrapper is harmless inside a SW context: top-level

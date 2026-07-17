@@ -167,6 +167,13 @@ export const HOOKS = {
 
 	/** Filter, receives the wallpaper registry array. */
 	WALLPAPERS: 'desktop-mode.wallpapers',
+	/**
+	 * Filter, receives the games registry array (`GameRegistryEntry[]`)
+	 * on every read. Mirrors the PHP-side `desktop_mode_games` filter.
+	 *
+	 * @since 0.9.6
+	 */
+	GAMES: 'desktop-mode.games',
 	/** Filter, receives the unfocused-window effect registry array. */
 	UNFOCUS_EFFECTS: 'desktop-mode.unfocus-effects',
 	/** Action before a canvas wallpaper mounts. */
@@ -179,6 +186,18 @@ export const HOOKS = {
 	WALLPAPER_MOUNT_FAILED: 'desktop-mode.wallpaper.mount-failed',
 	/** Action mirroring document.visibilitychange for active canvas wallpapers. */
 	WALLPAPER_VISIBILITY: 'desktop-mode.wallpaper.visibility',
+	/**
+	 * Action, fires when the wallpaper enters or leaves the suspended
+	 * state (`wp.desktop.wallpaper.suspend()/resume()` — e.g. while a
+	 * game is running). Payload: `{ id, suspended, reasons }` — the
+	 * active canvas wallpaper id (or null), whether the layer is now
+	 * suspended, and the currently-held reason strings. Suspension also
+	 * re-emits `WALLPAPER_VISIBILITY` with the effective state, so
+	 * wallpapers that only wire the visibility action pause for free.
+	 *
+	 * @since 0.9.6
+	 */
+	WALLPAPER_SUSPEND: 'desktop-mode.wallpaper.suspend',
 	/**
 	 * Filter, receives a wallpaper's preview params (seeded from the
 	 * def's `previewParams`) before its `renderPreview` runs in the OS

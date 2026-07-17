@@ -97,6 +97,7 @@ require_once DESKTOP_MODE_DIR . 'includes/comments-window/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/my-wordpress/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/content-graph/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/living-tree/bootstrap.php';
+require_once DESKTOP_MODE_DIR . 'includes/games/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/pwa.php';
 require_once DESKTOP_MODE_DIR . 'includes/compat/divi.php';
 

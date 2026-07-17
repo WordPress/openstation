@@ -155,6 +155,8 @@ import type { DragBridgeApi } from '../drag-bridge';
 import type { DragManagerApi } from '../drag';
 import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
+import type { WallpaperSuspendApi } from '../wallpapers/layer';
+import { gamesApi } from '../games/api';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -177,7 +179,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
 	'cloneTemplate', 'onWindow', 'createInfiniteList', 'startOAuth',
 	'repaintLoadingOverlays',
-	'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
+	'loadVendorScript', 'getWallpaperSurfaces', 'wallpaper', 'games',
+	'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'dragManager', 'registerCommand',
 	'unregisterCommand', 'listCommands',
@@ -245,6 +248,7 @@ export interface BuildPublicApiDeps {
 	dragManager: DragManagerApi;
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	getConnection: ( connectionId: string ) => WindowConnection | null;
+	wallpaperSuspend: WallpaperSuspendApi;
 	config: DesktopConfig;
 }
 
@@ -280,6 +284,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		dragManager,
 		connect,
 		getConnection,
+		wallpaperSuspend,
 		config,
 	} = deps;
 
@@ -320,6 +325,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		},
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
+		wallpaper: wallpaperSuspend,
+		games: gamesApi,
 		registerWindow,
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,

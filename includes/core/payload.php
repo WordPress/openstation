@@ -1160,6 +1160,7 @@ function desktop_mode_build_menu_payload() {
 		'serverWindowChromeScripts'       => 'desktop_mode_build_window_chrome_scripts_payload',
 		'serverWindowChromes'             => 'desktop_mode_build_window_chromes_payload',
 		'serverWindowNotices'             => 'desktop_mode_build_window_notices_payload',
+		'serverGames'                     => 'desktop_mode_build_desktop_games_payload',
 		'desktopIcons'                    => 'desktop_mode_build_desktop_icons_payload',
 	);
 

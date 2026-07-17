@@ -1542,6 +1542,72 @@ const off = wp.desktop.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
 
 ---
 
+### `wp.desktop.wallpaper` — suspend / resume — Experimental *(since 0.9.6)*
+
+Pause the animated wallpaper while a foreground surface (a game, a heavy canvas tool) renders its own scene, without tearing the wallpaper down.
+
+```typescript
+interface WallpaperSuspendApi {
+    suspend( reason: string ): void;   // hold a reason (refcounted)
+    resume( reason: string ): void;    // release one hold on the reason
+    isSuspended(): boolean;            // any reason currently held?
+}
+```
+
+Refcounted per reason string: two `suspend( 'my-plugin/thing' )` calls need two `resume( 'my-plugin/thing' )` calls; distinct reasons stack independently. On the first held reason the shell freezes the current frame into a bitmap overlay (best-effort — WebGL capture can fail on some drivers, in which case the stopped canvas simply keeps its last frame) and re-emits **`desktop-mode.wallpaper.visibility`** with the *effective* state (`document.hidden || suspended`), so every wallpaper that wires the standard visibility action pauses its ticker with zero changes. A tab re-focus while suspended keeps reporting `hidden` — suspension wins. The scene is never destroyed.
+
+The precise signal is the companion action **`desktop-mode.wallpaper.suspend`** *(Experimental, since 0.9.6)*, fired on every suspended/resumed transition with `{ id, suspended, reasons }` (`id` = active canvas wallpaper id or `null`; `reasons` = currently held reason strings). Wallpapers that want to distinguish "tab hidden" from "game running" subscribe to it via `wp.desktop.hooks`.
+
+The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around every game window automatically.
+
+---
+
+### `wp.desktop.games` — Experimental *(since 0.9.6)*
+
+The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.
+
+```typescript
+interface GamesApi {
+    register( entry: GameRegistryEntry ): void;
+    unregister( id: string ): void;
+    list(): GameRegistryEntry[];              // `desktop-mode.games` filter applied
+    get( id: string ): GameRegistryEntry | undefined;
+    subscribe( cb: () => void ): () => void;  // registry-change listener
+    launch( id: string, opts?: { challenge?: GameChallengeContext } ): Promise< void >;
+}
+```
+
+**Registration model.** The canonical path is PHP: `desktop_mode_register_game( $id, $args )` declares the discovery metadata (title, icon, description, `score_columns`, `config`) plus a `script` handle. The shell registers a metadata **stub** at boot — enough to paint the hub tile and the game's scoreboard — and `launch()` loads the script lazily on first play. The loaded script publishes the full def on the global:
+
+```javascript
+// Inside the game bundle (window.desktopModeGames is the games
+// analogue of window.desktopModeWallpapers):
+window.desktopModeGames = window.desktopModeGames || {};
+window.desktopModeGames[ 'my-plugin-puzzle' ] = {
+    id:           'my-plugin-puzzle',
+    title:        'Puzzle',
+    icon:         'dashicons-screenoptions',
+    scoreColumns: [ { key: 'score', label: 'Score', type: 'number' } ],
+    window:       { width: 800, height: 600 },   // hosting-window sizing
+    render( ctx ) {                              // runs once per window open
+        // ctx: { windowId, container, config, challenge?, submitScore, close }
+        return () => { /* teardown — runs on every close path */ };
+    },
+};
+```
+
+`render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `desktop-mode-game-<id>` (no dock tile).
+
+JS-only registrations (passing `render` directly to `register()`) work for the launcher, but scores/challenges only persist for games also registered server-side — the REST routes 404 unknown ids.
+
+The registry mirrors onto the **`desktop-mode.games`** JS filter (constant `HOOKS.GAMES`), applied on every `list()` read.
+
+**Heartbeat channel.** Challenges deliver live over the shared bus: the shell contributes `desktop_mode_games_subscribe: { challengesVersion: <lastSeenUpdatedAtMs> }` on every tick and the server answers with `desktop_mode_games: { challenges: GameChallengeRow[], serverTimeMs, truncated }` — version-gated (quiet ticks carry nothing) and capped via the `desktop_mode_games_heartbeat_max_rows` PHP filter. Recipients of a fresh challenge get a browser notification (toast fallback) + a persistent **Accept & Play** toast; challengers are notified when their challenge completes.
+
+**Config global.** The Games hub bundle reads `window.desktopModeGamesConfig` (`restNonce`, `gamesUrlBase`, `challengesUrl`, `usersSearchUrl`), localized onto the `desktop-mode-games` handle.
+
+---
+
 ### `broadcast` / `subscribe` — Stable *(since 0.6.0)*
 
 Cross-window pub/sub. Fan-out fan-in primitive — any module can publish on a topic and every subscriber (in the parent shell, in any open iframe) receives the payload. Distinct from `wp.desktop.activity` in two ways: it crosses iframe boundaries, and it has no `<plugin>/<event>` typing — topics are free-form strings.
