@@ -488,10 +488,10 @@ export class NoteController {
 			const convert = document.createElement( 'wpd-window-button' );
 			convert.className = 'desktop-mode-pinned-note__convert';
 			convert.innerHTML = ICON_POST;
-			convert.setAttribute(
-				'title',
-				__( 'Convert to a draft post', 'desktop-mode' ),
-			);
+			const convertLabel = __( 'Convert to a draft post', 'desktop-mode' );
+			convert.setAttribute( 'title', convertLabel );
+			// Icon-only button — give screen readers an accessible name.
+			convert.setAttribute( 'aria-label', convertLabel );
 			convert.addEventListener( 'wpd-button-activate', () =>
 				this.layer.convertNote( this.note ),
 			);

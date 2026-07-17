@@ -64,20 +64,20 @@ export function registerTilePayloadHandler(
 }
 
 /**
- * The accept-chip label for the first handler that applies to this
- * tile, or `undefined` when none does. The files layer sets this as the
- * tile target's static `acceptLabel`; it only ever surfaces while a
- * payload the handler also accepts hovers the tile.
+ * The accept-chip label for the handler registered for `type`, when it
+ * applies to this tile — or `undefined` otherwise. Keyed by payload type
+ * (like `tilePayloadAccepts`) so the chip always reflects the handler
+ * that actually accepted the hovered payload, never a different type's
+ * handler that happens to also claim the tile. The files layer reads
+ * this per-hover (via a getter) so a handler registered after the tile
+ * mounted is picked up without a repaint.
  */
 export function tilePayloadAcceptLabel(
+	type: string,
 	ctx: TilePayloadContext,
 ): string | undefined {
-	for ( const handler of handlers.values() ) {
-		if ( handler.appliesTo( ctx ) ) {
-			return handler.acceptLabel;
-		}
-	}
-	return undefined;
+	const handler = handlers.get( type );
+	return handler && handler.appliesTo( ctx ) ? handler.acceptLabel : undefined;
 }
 
 /** Consulted by the tile target's `accept` for a concrete payload. */

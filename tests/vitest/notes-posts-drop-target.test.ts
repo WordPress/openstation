@@ -183,14 +183,14 @@ describe( 'notes → posts dock drop target', () => {
 		};
 
 		// Posts list → claimed + accepted; Pages / Media → not claimed.
-		expect( tilePayloadAcceptLabel( shortcut( '/wp-admin/edit.php' ) ) ).toBe(
+		expect( tilePayloadAcceptLabel( 'note', shortcut( '/wp-admin/edit.php' ) ) ).toBe(
 			'Convert to post',
 		);
 		expect( tilePayloadAccepts( notePayload, shortcut( '/wp-admin/edit.php' ) ) ).toBe( true );
 		expect(
 			tilePayloadAccepts( notePayload, shortcut( '/wp-admin/edit.php?post_type=page' ) ),
 		).toBe( false );
-		expect( tilePayloadAcceptLabel( shortcut( '/wp-admin/upload.php' ) ) ).toBeUndefined();
+		expect( tilePayloadAcceptLabel( 'note', shortcut( '/wp-admin/upload.php' ) ) ).toBeUndefined();
 
 		// Drop over the Posts shortcut converts the dragged note.
 		tilePayloadDrop(

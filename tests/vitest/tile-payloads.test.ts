@@ -55,7 +55,10 @@ describe( 'tile-payload seam', () => {
 
 		expect( tilePayloadAccepts( notePayload, ctx ) ).toBe( true );
 		expect( tilePayloadAccepts( filePayload, ctx ) ).toBe( false );
-		expect( tilePayloadAcceptLabel( ctx ) ).toBe( 'Convert to post' );
+		expect( tilePayloadAcceptLabel( 'note', ctx ) ).toBe( 'Convert to post' );
+		// Keyed by payload type: a type with no handler has no label,
+		// even on a tile another handler claims.
+		expect( tilePayloadAcceptLabel( 'desktop-file', ctx ) ).toBeUndefined();
 	} );
 
 	test( 'rejects on tiles the handler does not claim (appliesTo false)', () => {
@@ -70,7 +73,25 @@ describe( 'tile-payload seam', () => {
 		};
 		const notePayload = { type: 'note', source: document.body, data: { canEdit: true } };
 		expect( tilePayloadAccepts( notePayload, otherTile ) ).toBe( false );
-		expect( tilePayloadAcceptLabel( otherTile ) ).toBeUndefined();
+		expect( tilePayloadAcceptLabel( 'note', otherTile ) ).toBeUndefined();
+	} );
+
+	test( 'label is payload-type-aware when two handlers claim the same tile', () => {
+		registerTilePayloadHandler( 'note', {
+			appliesTo: () => true,
+			acceptLabel: 'Convert to post',
+			accept: () => true,
+			onDrop: vi.fn(),
+		} );
+		registerTilePayloadHandler( 'widget', {
+			appliesTo: () => true,
+			acceptLabel: 'Add as widget',
+			accept: () => true,
+			onDrop: vi.fn(),
+		} );
+		const ctx: TilePayloadContext = { placement: placement( '/wp-admin/edit.php' ) };
+		expect( tilePayloadAcceptLabel( 'note', ctx ) ).toBe( 'Convert to post' );
+		expect( tilePayloadAcceptLabel( 'widget', ctx ) ).toBe( 'Add as widget' );
 	} );
 
 	test( 'drop dispatches to the handler; returns false when unhandled', () => {

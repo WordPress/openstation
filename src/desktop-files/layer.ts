@@ -1610,15 +1610,24 @@ function registerTileRejectTarget(
 	placement: RestPlacementShape,
 ): () => void {
 	const ctx = { placement };
+	// The manager calls `accept( payload )` and then reads `acceptLabel`
+	// in the same hover pass, so recording the hovered type here lets the
+	// getter below return the label for the exact handler that accepted —
+	// and recompute each hover, so a handler registered after this tile
+	// mounted still gets the right chip.
+	let hoveredType: string | null = null;
 	return dragManager.registerDropTarget( {
 		id: `desktop-mode-files-tile-${ placement.id }-reject`,
 		element: tile,
-		// Static label picked from whichever seam handler claims this
-		// placement; only ever surfaces while a payload it also accepts
-		// hovers the tile (the manager shows the accept chip only when
-		// `accept` returns true).
-		acceptLabel: tilePayloadAcceptLabel( ctx ),
-		accept: ( payload ) => tilePayloadAccepts( payload, ctx ),
+		get acceptLabel() {
+			return hoveredType
+				? tilePayloadAcceptLabel( hoveredType, ctx )
+				: undefined;
+		},
+		accept: ( payload ) => {
+			hoveredType = payload.type;
+			return tilePayloadAccepts( payload, ctx );
+		},
 		onEnter: () => {
 			tile.classList.add( `${ TILE_CLASS }--drop-target` );
 		},
