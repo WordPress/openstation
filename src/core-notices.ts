@@ -5,7 +5,7 @@
  * The descriptors are re-derived from authoritative state server-side; this
  * just renders them.
  *
- * @since 0.9.4
+ * @since 0.9.6
  */
 
 import { showToast } from './toast';

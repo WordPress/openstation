@@ -2919,7 +2919,7 @@ Return `false` to turn off the desktop core-update notification (defaults to `tr
 add_filter( 'desktop_mode_show_core_update_notice', '__return_false' );
 ```
 
-### Core notices — `desktop_mode_core_notices` — Experimental (filter) *(since 0.9.4)*
+### Core notices — `desktop_mode_core_notices` — Experimental (filter) *(since 0.9.6)*
 
 The other global WordPress Core admin notices (maintenance / failed update,
 recovery mode, default-password, force-deactivated plugins, paused
@@ -2938,7 +2938,7 @@ add_filter( 'desktop_mode_core_notices', static function ( array $notices ) {
 } );
 ```
 
-### Plugin/library notices — `desktop_mode_plugin_notices` — Experimental (filter) *(since 0.9.4)*
+### Plugin/library notices — `desktop_mode_plugin_notices` — Experimental (filter) *(since 0.9.6)*
 
 A small opt-in allowlist of shared **library** notices that also render globally
 (e.g. Action Scheduler's "past-due actions" warning, bundled by WooCommerce and

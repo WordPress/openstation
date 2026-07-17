@@ -413,7 +413,7 @@ add_action( 'admin_init', 'desktop_mode_chromeless_suppress_update_nags' );
  * each once (see `desktop_mode_get_core_notices()`). The update / maintenance
  * nags are handled by `desktop_mode_chromeless_suppress_update_nags()`.
  *
- * @since 0.9.4
+ * @since 0.9.6
  */
 function desktop_mode_chromeless_suppress_core_notices() {
 	if ( ! desktop_mode_is_chromeless_request() ) {

@@ -5,7 +5,7 @@
  * shell can surface each once. The update nag is handled separately (see
  * update-notice.php); this covers the rest.
  *
- * @since 0.9.4
+ * @since 0.9.6
  * @package DesktopMode
  */
 
@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  * capability-gated exactly as Core gates the underlying notice. The shell
  * renders each as a persistent, dismissible toast.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
@@ -44,7 +44,7 @@ function desktop_mode_get_core_notices() {
 	 * Filters the core notices surfaced once in the desktop shell. Return an
 	 * empty array to suppress them all, or unset individual entries by `id`.
 	 *
-	 * @since 0.9.4
+	 * @since 0.9.6
 	 *
 	 * @param array $notices List of notice descriptors.
 	 */
@@ -54,7 +54,7 @@ function desktop_mode_get_core_notices() {
 /**
  * Normalizes a notice descriptor, filling optional fields.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @param array $notice Partial descriptor with at least `id` + `message`.
  * @return array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}
@@ -72,7 +72,7 @@ function desktop_mode_core_notice( array $notice ) {
 /**
  * Interrupted / failed automated core update — mirrors `maintenance_nag()`.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @return array|null
  */
@@ -110,7 +110,7 @@ function desktop_mode_core_notice_maintenance() {
 /**
  * Site is in recovery mode — mirrors `wp_recovery_mode_nag()`.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @return array|null
  */
@@ -138,7 +138,7 @@ function desktop_mode_core_notice_recovery_mode() {
  * User is still on their auto-generated password — mirrors
  * `default_password_nag()`.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @return array|null
  */
@@ -162,7 +162,7 @@ function desktop_mode_core_notice_default_password() {
  * Plugins force-deactivated on a WordPress upgrade — mirrors
  * `deactivated_plugins_notice()`.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @return array|null
  */
@@ -204,7 +204,7 @@ function desktop_mode_core_notice_deactivated_plugins() {
 /**
  * Plugins paused by recovery mode — mirrors `paused_plugins_notice()`.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @return array|null
  */
@@ -231,7 +231,7 @@ function desktop_mode_core_notice_paused_plugins() {
 /**
  * Themes paused by recovery mode — mirrors `paused_themes_notice()`.
  *
- * @since 0.9.4
+ * @since 0.9.6
  *
  * @return array|null
  */

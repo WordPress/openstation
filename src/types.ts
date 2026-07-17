@@ -1998,7 +1998,7 @@ export interface DesktopConfig {
 	 * rest (maintenance, recovery mode, default password, …). See
 	 * `src/core-notices.ts`.
 	 *
-	 * @since 0.9.4
+	 * @since 0.9.6
 	 */
 	coreNotices?: Array< {
 		/** Stable notice id — the per-notice dismissal key. */
@@ -2017,7 +2017,7 @@ export interface DesktopConfig {
 	 * past-due warning), re-derived from state and surfaced once — same shape
 	 * and treatment as {@link coreNotices}.
 	 *
-	 * @since 0.9.4
+	 * @since 0.9.6
 	 */
 	pluginNotices?: Array< {
 		/** Stable notice id — the per-notice dismissal key. */
