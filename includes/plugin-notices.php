@@ -138,11 +138,13 @@ function desktop_mode_chromeless_suppress_plugin_notices() {
 
 	// Action Scheduler registers the notice as an instance method on its
 	// `ActionScheduler_AdminView` singleton (during `init`, before this runs).
+	// Detect the actual priority it registered at rather than assuming 10.
 	if ( class_exists( 'ActionScheduler_AdminView' ) ) {
-		remove_action(
-			'admin_notices',
-			array( ActionScheduler_AdminView::instance(), 'maybe_check_pastdue_actions' )
-		);
+		$callback = array( ActionScheduler_AdminView::instance(), 'maybe_check_pastdue_actions' );
+		$priority = has_action( 'admin_notices', $callback );
+		if ( false !== $priority ) {
+			remove_action( 'admin_notices', $callback, $priority );
+		}
 	}
 }
 add_action( 'admin_init', 'desktop_mode_chromeless_suppress_plugin_notices' );

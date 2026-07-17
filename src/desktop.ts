@@ -3364,9 +3364,9 @@ function init(): void {
 		if ( tryNativeUrlRemap( url ) ) {
 			return;
 		}
-		const page = ( url.split( '?' )[ 0 ].split( '/' ).pop() || 'window' )
-			.replace( /\.php$/, '' );
-		const baseId = `admin-${ page }`;
+		// Canonical URL→window-id derivation — handles fragments/nonces and
+		// keeps ids slug-safe, matching how windows are opened elsewhere.
+		const baseId = deriveWindowId( url, config.adminUrl );
 		void manager.open( {
 			id: baseId,
 			baseId,
