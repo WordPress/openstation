@@ -22,7 +22,12 @@ interface FakeDesktop {
 		resume: ReturnType< typeof vi.fn >;
 	};
 	loadVendorScript: ReturnType< typeof vi.fn >;
-	windowManager: { getById: ReturnType< typeof vi.fn > };
+	windowManager: {
+		getById: ReturnType< typeof vi.fn >;
+		getByBaseId?: ReturnType< typeof vi.fn >;
+		getActiveDesktopId?: ReturnType< typeof vi.fn >;
+		switchDesktop?: ReturnType< typeof vi.fn >;
+	};
 	fetch: ReturnType< typeof vi.fn >;
 	config: { restUrl: string; restNonce: string };
 }
@@ -153,6 +158,49 @@ describe( 'games/launch.ts', () => {
 		expect( fake.wallpaper.suspend ).not.toHaveBeenCalled();
 		// It still routes through registerWindow so the existing
 		// window gets focused.
+		expect( fake.registerWindow ).toHaveBeenCalled();
+	} );
+
+	test( 'an instance on another virtual desktop switches Spaces first', async () => {
+		const { registry, launch } = await loadModules();
+		registerGame( registry );
+		// The running game lives on desktop-2; the user launches from
+		// desktop-1. Without the switch, manager.open() (which only
+		// reuses windows on the ACTIVE desktop) would mint a blank
+		// `-2` copy with the focus path's no-op render.
+		fake.windowManager.getByBaseId = vi.fn().mockReturnValue( {
+			close: vi.fn(),
+			config: { desktopId: 'desktop-2' },
+		} );
+		fake.windowManager.getActiveDesktopId = vi
+			.fn()
+			.mockReturnValue( 'desktop-1' );
+		fake.windowManager.switchDesktop = vi.fn();
+
+		await launch.launchGame( 'test-game' );
+
+		expect( fake.windowManager.switchDesktop ).toHaveBeenCalledWith(
+			'desktop-2',
+		);
+		expect( fake.wallpaper.suspend ).not.toHaveBeenCalled();
+		expect( fake.registerWindow ).toHaveBeenCalled();
+	} );
+
+	test( 'an instance on the ACTIVE desktop does not switch', async () => {
+		const { registry, launch } = await loadModules();
+		registerGame( registry );
+		fake.windowManager.getByBaseId = vi.fn().mockReturnValue( {
+			close: vi.fn(),
+			config: { desktopId: 'desktop-1' },
+		} );
+		fake.windowManager.getActiveDesktopId = vi
+			.fn()
+			.mockReturnValue( 'desktop-1' );
+		fake.windowManager.switchDesktop = vi.fn();
+
+		await launch.launchGame( 'test-game' );
+
+		expect( fake.windowManager.switchDesktop ).not.toHaveBeenCalled();
 		expect( fake.registerWindow ).toHaveBeenCalled();
 	} );
 

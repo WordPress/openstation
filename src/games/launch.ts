@@ -64,8 +64,16 @@ interface DesktopGlobal {
 		},
 	) => Promise< void >;
 	windowManager?: {
-		getById: ( id: string ) => { close: () => void } | undefined;
+		getById: ( id: string ) => GameWindowLike | undefined;
+		getByBaseId?: ( baseId: string ) => GameWindowLike | undefined;
+		getActiveDesktopId?: () => string;
+		switchDesktop?: ( id: string ) => void;
 	};
+}
+
+interface GameWindowLike {
+	close: () => void;
+	config?: { desktopId?: string };
 }
 
 function desktopGlobal(): DesktopGlobal {
@@ -158,8 +166,27 @@ export async function launchGame(
 	// Refcounted + reason-scoped, so re-launching an already-open
 	// game (registerWindow focuses the existing window without a
 	// second `closed` event) must not double-suspend: bail out
-	// before suspending when the window is already open.
-	if ( desktop.windowManager?.getById( windowId ) ) {
+	// before suspending when the window is already open — on ANY
+	// virtual desktop, since the suspend hold is global.
+	const manager = desktop.windowManager;
+	const existing =
+		manager?.getByBaseId?.( windowId ) ?? manager?.getById( windowId );
+	if ( existing ) {
+		// `manager.open()` only reuses a window on the ACTIVE desktop
+		// (`getByBaseIdOnActiveDesktop`); if the running instance
+		// lives on another Space, calling registerWindow from here
+		// would mint a blank `desktop-mode-game-<id>-2` copy with the
+		// no-op render below and no suspend wiring. Switch to the
+		// instance's desktop first so the focus path is the one that
+		// runs.
+		const winDesktop = existing.config?.desktopId;
+		if (
+			winDesktop &&
+			manager?.switchDesktop &&
+			winDesktop !== manager?.getActiveDesktopId?.()
+		) {
+			manager.switchDesktop( winDesktop );
+		}
 		void desktop.registerWindow( {
 			id: windowId,
 			title: entry.title,
