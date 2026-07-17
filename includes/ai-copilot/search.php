@@ -564,6 +564,59 @@ function desktop_mode_ai_search_resumable_tools() {
 }
 
 /**
+ * Projects a tool's `parameters` schema onto the provider-supported subset.
+ *
+ * The Abilities API (and plugin-supplied tools) may use the full breadth of JSON
+ * Schema, but the provider's tool-schema validator does not — and it rejects the
+ * whole request, not just the offending tool, so ONE tool with a
+ * legal-but-unsupported schema makes the entire assistant return a 400 before the
+ * model runs. Three shapes that are valid JSON Schema, but rejected here, have
+ * been seen in the wild (see the linked issue):
+ *
+ *   1. `type` as an array, e.g. ['object','null'] — an ability's GET/null
+ *      run-path. The provider wants the literal string "object" at the top level.
+ *   2. A top-level `oneOf` / `anyOf` / `allOf`, e.g. "post_id OR slug". Rejected
+ *      with "does not support oneOf, allOf, or anyOf at the top level".
+ *   3. `properties` as an empty PHP array, which encodes to JSON as `[]` where an
+ *      object schema needs `{}`.
+ *
+ * This reshapes only the copy advertised to the model. The ability itself is
+ * untouched: `WP_Ability::execute()` still validates arguments against the real
+ * schema and `permission_callback` still gates execution, so nothing loses
+ * enforcement — the model is simply told the constraint in prose (the tool
+ * description) instead of in a schema construct the provider can't parse. Only
+ * the TOP level is constrained; a combinator nested inside a property is a real
+ * constraint the provider accepts, so it is left intact.
+ *
+ * @since 0.9.6
+ *
+ * @param mixed $schema A tool parameters schema (array), or empty/non-array.
+ * @return array A provider-safe object schema for a tool `parameters` block.
+ */
+function desktop_mode_ai_normalize_tool_schema( $schema ) {
+	if ( ! is_array( $schema ) || empty( $schema ) ) {
+		return array(
+			'type'       => 'object',
+			'properties' => (object) array(),
+		);
+	}
+
+	// Top-level tool parameters must be the literal "object", never a union.
+	$schema['type'] = 'object';
+
+	// Strip top-level combinators — the provider rejects them outright, and one
+	// such tool 400s the whole request. Nested combinators are left alone.
+	unset( $schema['oneOf'], $schema['allOf'], $schema['anyOf'] );
+
+	// An empty PHP array encodes as `[]`; an object schema's properties need `{}`.
+	if ( isset( $schema['properties'] ) && array() === $schema['properties'] ) {
+		$schema['properties'] = (object) array();
+	}
+
+	return $schema;
+}
+
+/**
  * Runs the agentic content-search loop.
  *
  * The model receives focused tools — search_posts, search_pages,
@@ -846,6 +899,19 @@ The message field is always a friendly sentence or two shown directly to the use
 		$tools,
 		array( 'user_id' => $user_id, 'request_id' => $request_id, 'query' => $query )
 	);
+
+	// Normalize every tool's schema onto the provider-supported subset, AFTER the
+	// filter so it covers the complete list the provider will receive — built-in
+	// abilities, command tools, and anything a plugin injected. One tool with a
+	// legal-but-unsupported schema otherwise 400s the entire request, not just its
+	// own tool. Only the model-facing copy is reshaped; abilities still validate
+	// arguments against their real schema in execute(). Idempotent, so a plugin
+	// that already normalizes on the filter above is unaffected.
+	foreach ( $tools as $ti => $tool ) {
+		if ( is_array( $tool ) && isset( $tool['parameters'] ) ) {
+			$tools[ $ti ]['parameters'] = desktop_mode_ai_normalize_tool_schema( $tool['parameters'] );
+		}
+	}
 
 	// Widen the permitted-tools list with the command tools — the agent loop
 	// rejects any `function_call` whose name isn't in here (built-in ability
