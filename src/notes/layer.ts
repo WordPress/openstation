@@ -372,7 +372,7 @@ export class NoteController {
 		this.element.setAttribute(
 			'aria-label',
 			note.canEdit
-				? __( 'Sticky note', 'desktop-mode' )
+				? __( 'Pinned note', 'desktop-mode' )
 				: sprintf(
 					/* translators: %s: note author display name. */
 					__( 'Note by %s', 'desktop-mode' ),
