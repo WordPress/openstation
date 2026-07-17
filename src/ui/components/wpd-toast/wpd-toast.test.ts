@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import './wpd-toast';
+import { toastStyles } from './wpd-toast.styles';
 
 const tick = (): Promise<void> => Promise.resolve();
 
@@ -63,6 +64,15 @@ describe( '<wpd-toast>', () => {
 			'.wpd-toast__close',
 		) as HTMLButtonElement;
 		expect( close.hasAttribute( 'hidden' ) ).toBe( true );
+	} );
+
+	test( 'stylesheet actually hides a [hidden] button (author display must not win)', () => {
+		// The close button sets `display`, which would override the UA
+		// `[hidden]{display:none}` unless the stylesheet re-hides it — else
+		// every persistent toast shows a × regardless of `dismissible`.
+		expect( toastStyles.cssText ).toMatch(
+			/button\[\s*hidden\s*\]\s*{[^}]*display:\s*none/,
+		);
 	} );
 
 	test( 'dismissible surfaces the close button + click emits wpd-toast-dismiss', async () => {
