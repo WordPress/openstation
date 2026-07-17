@@ -168,6 +168,24 @@ export function restoreNote( id: number ): Promise< Note > {
 	return call< Note >( `/${ id }/restore`, { method: 'POST' } );
 }
 
+/** Result of converting a note into a draft post. */
+export interface ConvertNoteResult {
+	/** The (now-trashed) source note id. */
+	noteId: number;
+	/** The new draft post id. */
+	postId: number;
+	/** Absolute admin edit URL for the draft (`post.php?post=…&action=edit`). */
+	editUrl: string;
+}
+
+/**
+ * Convert a note into a draft post. The server spawns the draft, trashes
+ * the note, and links the two so `restoreNote` reverses both sides.
+ */
+export function convertNote( id: number ): Promise< ConvertNoteResult > {
+	return call< ConvertNoteResult >( `/${ id }/convert`, { method: 'POST' } );
+}
+
 /** Test-only. */
 export function __resetNotesRestForTests(): void {
 	deps = null;

@@ -11,6 +11,9 @@
  *   PATCH  /notes/(?P<id>\d+)         Partial update — owner only.
  *   DELETE /notes/(?P<id>\d+)         Soft-trash — owner only.
  *   POST   /notes/(?P<id>\d+)/restore Untrash (Undo toast) — owner only.
+ *   POST   /notes/(?P<id>\d+)/convert Spawn a draft post from the note,
+ *                                     then trash the note — owner only,
+ *                                     requires the `edit_posts` cap.
  *
  * Ownership model: a note belongs to its `post_author`, and ONLY the
  * owner may mutate it — deliberately including administrators. Public
@@ -114,6 +117,16 @@ function desktop_mode_notes_register_rest_routes() {
 			'methods'             => WP_REST_Server::CREATABLE,
 			'permission_callback' => 'desktop_mode_notes_rest_permission',
 			'callback'            => 'desktop_mode_notes_rest_restore',
+		)
+	);
+
+	register_rest_route(
+		$ns,
+		'/notes/(?P<id>\d+)/convert',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'permission_callback' => 'desktop_mode_notes_rest_permission',
+			'callback'            => 'desktop_mode_notes_rest_convert',
 		)
 	);
 }
@@ -479,5 +492,137 @@ function desktop_mode_notes_rest_restore( $request ) {
 		return new WP_Error( 'desktop_mode_notes_restore_failed', __( 'Could not restore the note.', 'desktop-mode' ), array( 'status' => 500 ) );
 	}
 
+	// If this note was trashed by a "convert to post" action, undoing
+	// the conversion must also discard the draft it spawned — otherwise
+	// Undo would leave the note back on the wall AND a stray draft. The
+	// link is written by the convert route (`_wpd_note_converted_post`)
+	// and consumed once here. Only a still-present draft is trashed; a
+	// draft the user already published or trashed themselves is left be.
+	$converted_post_id = (int) get_post_meta( $post->ID, '_wpd_note_converted_post', true );
+	if ( $converted_post_id > 0 ) {
+		delete_post_meta( $post->ID, '_wpd_note_converted_post' );
+		$draft = get_post( $converted_post_id );
+		if ( $draft instanceof WP_Post && 'draft' === $draft->post_status ) {
+			wp_trash_post( $converted_post_id );
+		}
+	}
+
 	return rest_ensure_response( desktop_mode_notes_prepare( get_post( $post->ID ) ) );
+}
+
+/**
+ * Convert a note's plain text into Gutenberg paragraph-block markup.
+ *
+ * Blank lines split paragraphs; single newlines within a paragraph
+ * become `<br>`. The result lands clean in the block editor rather
+ * than as one classic-HTML blob.
+ *
+ * @since 0.9.6
+ *
+ * @param string $text Note text.
+ * @return string Serialized block markup (empty string for empty text).
+ */
+function desktop_mode_notes_text_to_blocks( $text ) {
+	$text       = str_replace( array( "\r\n", "\r" ), "\n", (string) $text );
+	$paragraphs = preg_split( '/\n{2,}/', trim( $text ) );
+	$blocks     = array();
+	foreach ( $paragraphs as $paragraph ) {
+		$paragraph = trim( $paragraph, "\n" );
+		if ( '' === $paragraph ) {
+			continue;
+		}
+		$html     = nl2br( esc_html( $paragraph ), false );
+		$blocks[] = "<!-- wp:paragraph -->\n<p>{$html}</p>\n<!-- /wp:paragraph -->";
+	}
+	return implode( "\n\n", $blocks );
+}
+
+/**
+ * POST /notes/:id/convert — spawn a draft post from a note, then trash
+ * the note. Owner only, and the owner must be able to author posts.
+ *
+ * The note is trashed (not hard-deleted) and linked to its new draft
+ * via `_wpd_note_converted_post` so the standard restore route can undo
+ * both sides of the conversion (see `desktop_mode_notes_rest_restore`).
+ *
+ * @since 0.9.6
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function desktop_mode_notes_rest_convert( $request ) {
+	$post = desktop_mode_notes_get_note( $request['id'] );
+	if ( is_wp_error( $post ) ) {
+		return $post;
+	}
+	$owner = desktop_mode_notes_require_owner( $post );
+	if ( is_wp_error( $owner ) ) {
+		return $owner;
+	}
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		return new WP_Error( 'desktop_mode_notes_cannot_create_posts', __( 'You are not allowed to create posts.', 'desktop-mode' ), array( 'status' => 403 ) );
+	}
+
+	$text  = (string) get_post_field( 'post_content', $post, 'raw' );
+	$title = desktop_mode_notes_derive_title( $text );
+
+	/**
+	 * Filters the arguments used to create the draft post from a note.
+	 *
+	 * Hook here to change the post type/status, assign a category or
+	 * author, or wrap the body in different block markup.
+	 *
+	 * @since 0.9.6
+	 *
+	 * @param array           $post_args Args passed to `wp_insert_post()`.
+	 * @param WP_Post         $post      The source note.
+	 * @param WP_REST_Request $request   The convert request.
+	 */
+	$post_args = apply_filters(
+		'desktop_mode_notes_convert_post_args',
+		array(
+			'post_type'    => 'post',
+			'post_status'  => 'draft',
+			'post_author'  => (int) $post->post_author,
+			'post_title'   => $title,
+			'post_content' => desktop_mode_notes_text_to_blocks( $text ),
+		),
+		$post,
+		$request
+	);
+
+	$new_post_id = wp_insert_post( $post_args, true );
+	if ( is_wp_error( $new_post_id ) ) {
+		$new_post_id->add_data( array( 'status' => 500 ) );
+		return $new_post_id;
+	}
+
+	// Link the note to its draft BEFORE trashing so restore can reverse
+	// both sides. If the trash fails, roll the draft back so a failed
+	// conversion never leaves an orphan draft behind.
+	update_post_meta( $post->ID, '_wpd_note_converted_post', (int) $new_post_id );
+	if ( ! wp_trash_post( $post->ID ) ) {
+		wp_delete_post( $new_post_id, true );
+		delete_post_meta( $post->ID, '_wpd_note_converted_post' );
+		return new WP_Error( 'desktop_mode_notes_convert_failed', __( 'Could not convert the note to a post.', 'desktop-mode' ), array( 'status' => 500 ) );
+	}
+
+	/**
+	 * Fires after a note has been converted to a draft post.
+	 *
+	 * @since 0.9.6
+	 *
+	 * @param int             $new_post_id The draft post id.
+	 * @param WP_Post         $post        The source note (now trashed).
+	 * @param WP_REST_Request $request     The convert request.
+	 */
+	do_action( 'desktop_mode_notes_converted', (int) $new_post_id, $post, $request );
+
+	return rest_ensure_response(
+		array(
+			'noteId'  => (int) $post->ID,
+			'postId'  => (int) $new_post_id,
+			'editUrl' => (string) get_edit_post_link( $new_post_id, 'raw' ),
+		)
+	);
 }

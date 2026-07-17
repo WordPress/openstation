@@ -334,6 +334,128 @@ class Tests_DesktopMode_NotesRest extends WP_UnitTestCase {
 		$this->assertSame( 404, $resp->get_error_data()['status'] );
 	}
 
+	private function convert_request( $id ) {
+		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/notes/' . $id . '/convert' );
+		$request->set_param( 'id', $id );
+		return $request;
+	}
+
+	/**
+	 * @covers ::desktop_mode_notes_rest_convert
+	 * @covers ::desktop_mode_notes_text_to_blocks
+	 */
+	public function test_convert_spawns_draft_and_trashes_note() {
+		$note = $this->create_note( array( 'text' => "First para\nsame para\n\nSecond para" ) );
+
+		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		$this->assertNotWPError( $resp );
+		$data = $resp->get_data();
+
+		$this->assertSame( $note['id'], $data['noteId'] );
+		$this->assertGreaterThan( 0, $data['postId'] );
+		$this->assertNotEmpty( $data['editUrl'] );
+
+		// The note is trashed and linked to its draft.
+		$this->assertSame( 'trash', get_post_status( $note['id'] ) );
+		$this->assertSame(
+			$data['postId'],
+			(int) get_post_meta( $note['id'], '_wpd_note_converted_post', true )
+		);
+
+		// The draft is a real post, owned by the note author, titled from
+		// the first line, with the body as separate paragraph blocks.
+		$draft = get_post( $data['postId'] );
+		$this->assertSame( 'post', $draft->post_type );
+		$this->assertSame( 'draft', $draft->post_status );
+		$this->assertSame( self::$owner_id, (int) $draft->post_author );
+		$this->assertSame( 'First para', $draft->post_title );
+		$this->assertStringContainsString( '<!-- wp:paragraph -->', $draft->post_content );
+		$this->assertSame( 2, substr_count( $draft->post_content, '<!-- wp:paragraph -->' ) );
+		// A single newline within a paragraph becomes a <br> (nl2br keeps
+		// the trailing newline).
+		$this->assertMatchesRegularExpression( '/First para<br>\s*same para/', $draft->post_content );
+	}
+
+	/**
+	 * @covers ::desktop_mode_notes_rest_convert
+	 */
+	public function test_convert_requires_edit_posts_capability() {
+		$note = $this->create_note();
+
+		// A subscriber has desktop mode on but cannot author posts.
+		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		update_user_meta( $subscriber, 'desktop_mode_mode', '1' );
+
+		// The note stays owned by the editor; hand ownership to the
+		// subscriber so the owner gate passes and the cap gate is what
+		// rejects.
+		wp_update_post( array( 'ID' => $note['id'], 'post_author' => $subscriber ) );
+		wp_set_current_user( $subscriber );
+
+		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		$this->assertWPError( $resp );
+		$this->assertSame( 403, $resp->get_error_data()['status'] );
+		$this->assertSame( 'private', get_post_status( $note['id'] ), 'A rejected convert leaves the note untouched.' );
+	}
+
+	/**
+	 * @covers ::desktop_mode_notes_rest_convert
+	 * @covers ::desktop_mode_notes_require_owner
+	 */
+	public function test_non_owner_cannot_convert_even_as_admin() {
+		$note = $this->create_note( array( 'public' => true ) );
+
+		wp_set_current_user( self::$admin_id );
+		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		$this->assertWPError( $resp );
+		$this->assertSame( 403, $resp->get_error_data()['status'] );
+		$this->assertSame( 'publish', get_post_status( $note['id'] ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_notes_rest_convert
+	 * @covers ::desktop_mode_notes_rest_restore
+	 */
+	public function test_restore_after_convert_undoes_both_sides() {
+		$note = $this->create_note( array( 'public' => true, 'text' => 'draft me' ) );
+
+		$convert = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) )->get_data();
+		$post_id = $convert['postId'];
+		$this->assertSame( 'draft', get_post_status( $post_id ) );
+
+		// Undo — restore the note; the spawned draft is discarded and the
+		// link meta cleared.
+		$restore = new WP_REST_Request( 'POST', '/desktop-mode/v1/notes/' . $note['id'] . '/restore' );
+		$restore->set_param( 'id', $note['id'] );
+		$resp = desktop_mode_notes_rest_restore( $restore );
+		$this->assertNotWPError( $resp );
+
+		$this->assertSame( 'publish', get_post_status( $note['id'] ), 'The note is back at its prior status.' );
+		$this->assertSame( 'trash', get_post_status( $post_id ), 'The draft it spawned is discarded.' );
+		$this->assertSame( '', get_post_meta( $note['id'], '_wpd_note_converted_post', true ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_notes_rest_convert
+	 */
+	public function test_convert_post_args_filter_can_override_type_and_status() {
+		$note = $this->create_note( array( 'text' => 'make me a page' ) );
+
+		$filter = static function ( $args ) {
+			$args['post_type']   = 'page';
+			$args['post_status'] = 'pending';
+			return $args;
+		};
+		add_filter( 'desktop_mode_notes_convert_post_args', $filter );
+		$resp = desktop_mode_notes_rest_convert( $this->convert_request( $note['id'] ) );
+		remove_filter( 'desktop_mode_notes_convert_post_args', $filter );
+
+		$this->assertNotWPError( $resp );
+		$draft = get_post( $resp->get_data()['postId'] );
+		$this->assertSame( 'page', $draft->post_type );
+		$this->assertSame( 'pending', $draft->post_status );
+	}
+
 	/**
 	 * @covers ::desktop_mode_notes_compute_heartbeat_delta
 	 * @covers ::desktop_mode_notes_query_visible_ids

@@ -362,6 +362,28 @@ Both are consumed by the wallpaper canvas target (create / reposition
 (soft-trash with Undo; `accept` is gated on `data.canEdit`). Plugin
 drop targets can filter on these slugs like any other payload type.
 
+A `'note'` drag is also accepted by the **Posts** drop targets, which
+convert the note to a draft post — the drag counterpart of the inline
+"Convert to post" button (`src/notes/posts-drop-target.ts`). Three
+surfaces, registered only when `desktopModeConfig.canCreatePosts` is
+true (the current user has `edit_posts`):
+
+1. The Posts **dock tile** (`[data-menu-slug="menu-posts"]`) and
+2. the open **native Posts window** body (`[data-desktop-mode-posts-root]`)
+   — both get a real `DropTarget` and set
+   `data-desktop-mode-posts-drop-active` while a note hovers.
+3. The Posts **shortcut tile in the Spatial layout**. There the core
+   menu icons are files-layer shortcut tiles already claimed by the
+   files layer's per-tile reject target, so notes can't register their
+   own target. Instead the files layer exposes a **tile-payload seam**
+   (`registerTilePayloadHandler( type, { appliesTo, accept, acceptLabel,
+   onDrop } )` in `src/desktop-files/tile-payloads.ts`); the reject
+   target consults it, so a feature can opt a payload type into a tile
+   whose placement it recognizes. Notes register a `'note'` handler
+   scoped to tiles whose `file.shortcutUrl` points at the Posts screen.
+   The same seam is available to any plugin that wants to accept a drop
+   on its own shortcut icon.
+
 One companion CustomEvent (document-level):
 
 ```javascript
@@ -375,7 +397,16 @@ document.addEventListener( 'desktop-mode-note-created', ( e ) => {
 
 The REST base is surfaced to the shell as `desktopModeConfig.notesUrl`
 (`/desktop-mode/v1/notes`); the notes layer only boots when it is
-present.
+present. The controller's routes are `GET`/`POST /notes`, `PATCH`/
+`DELETE /notes/:id`, `POST /notes/:id/restore`, and — since 0.9.6 —
+`POST /notes/:id/convert`, which spawns a draft post from the note,
+trashes the note, and returns `{ noteId, postId, editUrl }`. The
+convert route is owner-only and requires the `edit_posts` capability;
+the shell exposes whether the current user qualifies as
+`desktopModeConfig.canCreatePosts` (since 0.9.6) so the "Convert to
+post" affordances only render for eligible users. Restoring a
+convert-trashed note (the Undo path) also discards the draft it
+spawned.
 
 ### `wp.desktop.dragBridge` — cross-iframe drag — Stable *(since 0.6.0)*
 
@@ -4019,7 +4050,7 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `getOsSettings()` | Stable | Defensive copy of the persisted OS Settings snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
 | `subscribeOsSettings( cb )` | Stable | Subscribe to OS Settings changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
 | `updateOsSettings( patch, opts? )` | Stable *(since 0.7.2)* | Patch + persist the OS Settings state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable-since-072). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean, since 0.9.1 — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string, since 0.9.6 — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present). Filterable server-side via `desktop_mode_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean, since 0.9.1 — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string, since 0.9.6 — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean, since 0.9.6 — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `desktop_mode_shell_config`. |
 
 ### System tiles
 

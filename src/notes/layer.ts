@@ -42,6 +42,7 @@ import {
 } from './rest';
 import { startNotesHeartbeat } from './heartbeat';
 import { trashNoteWithUndo } from './trash';
+import { convertNoteToPost } from './convert';
 import {
 	NOTE_PAYLOAD_TYPE,
 	type Note,
@@ -76,16 +77,29 @@ function jitterSeed( note: Note ): number {
 	return note.seed || Math.abs( note.id ) || 1;
 }
 
+/**
+ * The `post` glyph from `@wordpress/icons`, inlined (the package isn't
+ * a shell dependency). Marks the "Convert to post" affordance. `fill`
+ * inherits from the button's ink color (see notes.css).
+ */
+const ICON_POST = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true" focusable="false"><path d="m7.3 9.7 1.4 1.4c.2-.2.3-.3.4-.5 0 0 0-.1.1-.1.3-.5.4-1.1.3-1.6L12 7 9 4 7.2 6.5c-.6-.1-1.1 0-1.6.3 0 0-.1 0-.1.1-.3.1-.4.2-.6.4l1.4 1.4L4 11v1h1l2.3-2.3zM4 20h9v-1.5H4V20zm0-5.5V16h16v-1.5H4z" /></svg>`;
+
 export interface NotesLayerOptions {
 	host: HTMLElement;
 	/** Plugin base URL (no trailing slash) — locates the pushpin SVG. */
 	pluginUrl: string;
+	/**
+	 * Whether the viewer can author posts. Gates the "Convert to post"
+	 * affordance on owned notes (inline button + Posts dock drop target).
+	 */
+	canCreatePosts?: boolean;
 	onError?: ( message: string ) => void;
 }
 
 export class NotesLayer {
 	readonly host: HTMLElement;
 	readonly pluginUrl: string;
+	readonly canCreatePosts: boolean;
 	private onError?: ( message: string ) => void;
 	private root: HTMLElement | null = null;
 	private liveRegion: HTMLElement | null = null;
@@ -97,6 +111,7 @@ export class NotesLayer {
 	constructor( options: NotesLayerOptions ) {
 		this.host = options.host;
 		this.pluginUrl = options.pluginUrl;
+		this.canCreatePosts = options.canCreatePosts ?? false;
 		this.onError = options.onError;
 	}
 
@@ -213,6 +228,23 @@ export class NotesLayer {
 
 	trashNote( note: Note ): void {
 		void trashNoteWithUndo( note, {
+			onEvict: ( noteId ) => this.removeNote( noteId ),
+			onRestore: ( restored ) => {
+				this.bumpHighWater( restored.updatedAtMs );
+				this.upsertNote( restored, { animate: 'move' } );
+			},
+		} );
+	}
+
+	/**
+	 * Convert a note to a draft post: evict optimistically, auto-open
+	 * the draft editor, Undo restores the note (and discards the draft).
+	 */
+	convertNote( note: Note ): void {
+		if ( ! this.canCreatePosts || ! note.canEdit ) {
+			return;
+		}
+		void convertNoteToPost( note, {
 			onEvict: ( noteId ) => this.removeNote( noteId ),
 			onRestore: ( restored ) => {
 				this.bumpHighWater( restored.updatedAtMs );
@@ -447,6 +479,24 @@ export class NoteController {
 		);
 
 		meta.append( colorDot, visibility );
+
+		// "Convert to post" — only for users who can author posts. Drops
+		// the note into a fresh draft (the note itself is trashed) and
+		// opens the block editor. The pin can also be dragged onto the
+		// Posts dock tile for the same effect (see posts-drop-target.ts).
+		if ( this.layer.canCreatePosts ) {
+			const convert = document.createElement( 'wpd-window-button' );
+			convert.className = 'desktop-mode-pinned-note__convert';
+			convert.innerHTML = ICON_POST;
+			const convertLabel = __( 'Convert to a draft post', 'desktop-mode' );
+			convert.setAttribute( 'title', convertLabel );
+			// Icon-only button — give screen readers an accessible name.
+			convert.setAttribute( 'aria-label', convertLabel );
+			convert.addEventListener( 'wpd-button-activate', () =>
+				this.layer.convertNote( this.note ),
+			);
+			meta.append( convert );
+		}
 
 		const editor = document.createElement( 'wpd-textarea' ) as WpdTextareaElement;
 		editor.className = 'desktop-mode-pinned-note__editor';

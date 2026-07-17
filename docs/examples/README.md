@@ -49,6 +49,7 @@ defined( 'ABSPATH' ) || exit;
 - [Open a file in the Code editor (deep-link from any window)](./code-editor-open.md)
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 - [Extend the Recycle Bin](./recycle-bin.md)
+- [Customize note → post conversion — `desktop_mode_notes_convert_post_args`](./notes-convert-to-post.md)
 - [Programmatic folder sharing — invite from PHP, listen for share events](./share-folder.md)
 - [Native Posts window — default-on, remap registry, hooks](./native-posts.md)
 - [Native Plugins window — Browse / Install / Reviews / Drag-to-dock](./plugins-window-extras.md)

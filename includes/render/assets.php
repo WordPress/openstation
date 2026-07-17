@@ -420,10 +420,16 @@ function desktop_mode_enqueue_assets() {
 			// Pinned-notes REST base (`includes/notes/rest.php`). The
 			// notes layer boots only when this is present.
 			'notesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/notes' ) ),
+			// Gates the "Convert to post" note affordance — the convert
+			// route (and its dock drop target) only make sense for users
+			// who can author posts.
+			'canCreatePosts'         => current_user_can( 'edit_posts' ),
 			'serverWallpaperMenuItems' => $server_wallpaper_menu_items,
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),
 			'coreUpdate'       => desktop_mode_get_core_update(),
+			'coreNotices'      => desktop_mode_get_core_notices(),
+			'pluginNotices'    => desktop_mode_get_plugin_notices(),
 			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),
 			'session'          => desktop_mode_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),

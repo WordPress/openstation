@@ -1871,6 +1871,14 @@ export interface DesktopConfig {
 	 */
 	notesUrl?: string;
 	/**
+	 * Whether the current user can author posts (`edit_posts`). Gates
+	 * the "Convert to post" note affordance (inline button + Posts dock
+	 * drop target). Absent on older server payloads → treated as false.
+	 *
+	 * @since 0.9.6
+	 */
+	canCreatePosts?: boolean;
+	/**
 	 * Roles eligible to appear in the folder Share Settings role
 	 * picker. Server applies `desktop_mode_files_share_eligible_roles`
 	 * before serializing — default = roles with `edit_posts`.
@@ -2046,6 +2054,46 @@ export interface DesktopConfig {
 		/** True when moving into a new major (the shell then shows the codename). */
 		crossing?: boolean;
 	} | null;
+	/**
+	 * The remaining global WordPress Core admin notices, re-derived from
+	 * server state so the shell can surface each once instead of letting them
+	 * repeat per window. The update nag is `coreUpdate` above; these are the
+	 * rest (maintenance, recovery mode, default password, …). See
+	 * `src/core-notices.ts`.
+	 *
+	 * @since 0.9.6
+	 */
+	coreNotices?: Array< {
+		/** Stable notice id — the per-notice dismissal key. */
+		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
+		/** Human-readable message (already translated server-side). */
+		message: string;
+		/** Optional action-button label. */
+		actionLabel?: string;
+		/** Admin URL the action opens as a window. */
+		actionUrl?: string;
+	} >;
+	/**
+	 * Allowlisted plugin/library global admin notices (e.g. Action Scheduler's
+	 * past-due warning), re-derived from state and surfaced once — same shape
+	 * and treatment as {@link coreNotices}.
+	 *
+	 * @since 0.9.6
+	 */
+	pluginNotices?: Array< {
+		/** Stable notice id — the per-notice dismissal key. */
+		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
+		/** Human-readable message (already translated server-side). */
+		message: string;
+		/** Optional action-button label. */
+		actionLabel?: string;
+		/** Admin URL the action opens as a window. */
+		actionUrl?: string;
+	} >;
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `desktop_mode_default_wallpaper`. Optional — an

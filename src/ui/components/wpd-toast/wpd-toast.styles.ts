@@ -53,6 +53,11 @@ export const toastStyles = css`
 	.wpd-toast__label {
 		flex: 1;
 	}
+	/* Author styles beat the UA [hidden] rule, so the explicit display
+	 * on .wpd-toast__close would otherwise keep a ?hidden button visible. */
+	button[ hidden ] {
+		display: none;
+	}
 	button {
 		flex-shrink: 0;
 		padding: 4px 10px;
