@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	__resetNotesRestForTests,
+	convertNote,
 	createNote,
 	deleteNote,
 	installNotesRestDeps,
@@ -126,6 +127,25 @@ describe( 'notes REST client', () => {
 		expect( ( fetchSpy.mock.calls[ 0 ][ 1 ] as RequestInit ).method ).toBe( 'DELETE' );
 		expect( String( fetchSpy.mock.calls[ 1 ][ 0 ] ) ).toContain( '/notes/12/restore' );
 		expect( ( fetchSpy.mock.calls[ 1 ][ 1 ] as RequestInit ).method ).toBe( 'POST' );
+	} );
+
+	test( 'convertNote POSTs the convert route and returns the draft link', async () => {
+		fetchSpy.mockResolvedValueOnce(
+			jsonResponse( {
+				noteId: 12,
+				postId: 99,
+				editUrl: 'https://example.test/wp-admin/post.php?post=99&action=edit',
+			} ),
+		);
+		const result = await convertNote( 12 );
+		expect( result.postId ).toBe( 99 );
+		expect( result.editUrl ).toContain( 'post=99' );
+		expect( String( fetchSpy.mock.calls[ 0 ][ 0 ] ) ).toContain(
+			'/notes/12/convert',
+		);
+		expect( ( fetchSpy.mock.calls[ 0 ][ 1 ] as RequestInit ).method ).toBe(
+			'POST',
+		);
 	} );
 
 	test( 'non-409 errors surface code + message', async () => {

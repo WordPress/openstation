@@ -3124,6 +3124,55 @@ add_filter( 'desktop_mode_notes_colors', static function ( $colors ) {
 - **Param** `string[] $colors` — allowed slugs. Default `butter`, `blush`, `sky`, `mint`, `lilac`, `peach`.
 - **Return** `string[]` — each entry passes through `sanitize_key()`; empties are dropped.
 
+### `desktop_mode_notes_convert_post_args` — Experimental *(filter, since 0.9.6)*
+
+Filters the arguments passed to `wp_insert_post()` when a note is
+converted to a post via `POST /desktop-mode/v1/notes/:id/convert` (the
+inline "Convert to post" button and the drag-onto-Posts gesture). The
+default spawns a **draft `post`** authored by the note owner, titled
+from the note's first line, with the note body wrapped in
+`wp:paragraph` blocks (blank lines split paragraphs; single newlines
+become `<br>`). Hook here to change the post type/status, assign a
+category, or rewrite the block markup. The convert route itself is
+gated on the owner + the `edit_posts` capability, which this filter
+does not loosen.
+
+```php
+apply_filters( 'desktop_mode_notes_convert_post_args', array $post_args, WP_Post $note, WP_REST_Request $request );
+```
+
+**Example — file converted notes into a "Notes" category as pending drafts:**
+
+```php
+add_filter( 'desktop_mode_notes_convert_post_args', static function ( $args, $note ) {
+	$args['post_status'] = 'pending';
+	$term = get_term_by( 'slug', 'notes', 'category' );
+	if ( $term ) {
+		$args['post_category'] = array( $term->term_id );
+	}
+	return $args;
+}, 10, 2 );
+```
+
+- **Param** `array $post_args` — the `wp_insert_post()` array (`post_type`, `post_status`, `post_author`, `post_title`, `post_content`).
+- **Param** `WP_Post $note` — the source note (about to be trashed).
+- **Param** `WP_REST_Request $request` — the convert request.
+- **Return** `array` — the (possibly modified) insert args.
+
+### `desktop_mode_notes_converted` — Experimental *(action, since 0.9.6)*
+
+Fires after a note has been converted to a draft post: the draft
+exists and the source note has been trashed (and linked to the draft
+so the restore route can undo both sides).
+
+```php
+do_action( 'desktop_mode_notes_converted', int $new_post_id, WP_Post $note, WP_REST_Request $request );
+```
+
+- **Param** `int $new_post_id` — the new draft post id.
+- **Param** `WP_Post $note` — the source note (now trashed).
+- **Param** `WP_REST_Request $request` — the convert request.
+
 ---
 
 ## Asset loading

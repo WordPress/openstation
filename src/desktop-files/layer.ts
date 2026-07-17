@@ -26,6 +26,11 @@
 import { doAction } from '../hooks';
 import { rest, store as filesStoreApi } from './layer-deps';
 import { buildTile, setTilePosition, TILE_CLASS } from './file-tile';
+import {
+	tilePayloadAccepts,
+	tilePayloadAcceptLabel,
+	tilePayloadDrop,
+} from './tile-payloads';
 import { openTileMenu, type TileMenuItem } from './tile-menu';
 import { openCreateFolderDialog } from './create-folder-dialog';
 import { openFile } from './open';
@@ -337,13 +342,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			if ( shouldRejectTileDrops( placement ) ) {
 				const dragManager = getDragManager();
 				if ( dragManager ) {
-					const deregister = dragManager.registerDropTarget( {
-						id: `desktop-mode-files-tile-${ placement.id }-reject`,
-						element: tile,
-						accept: () => false,
-						onDrop: () => {},
-					} );
-					tileRejectDeregisters.set( placement.id, deregister );
+					tileRejectDeregisters.set(
+						placement.id,
+						registerTileRejectTarget( dragManager, tile, placement ),
+					);
 				}
 			}
 			return tile;
@@ -372,13 +374,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		} else if ( shouldRejectTileDrops( placement ) ) {
 			const dragManager = getDragManager();
 			if ( dragManager ) {
-				const deregister = dragManager.registerDropTarget( {
-					id: `desktop-mode-files-tile-${ placement.id }-reject`,
-					element: tile,
-					accept: () => false,
-					onDrop: () => {},
-				} );
-				tileRejectDeregisters.set( placement.id, deregister );
+				tileRejectDeregisters.set(
+					placement.id,
+					registerTileRejectTarget( dragManager, tile, placement ),
+				);
 			}
 		}
 		return tile;
@@ -1593,6 +1592,44 @@ function hidePromotedDockItem( dockItemId: string ): void {
 	const current = api.getOsSettings().itemVisibility ?? {};
 	const next = { ...current, [ dockItemId ]: 'dock' };
 	api.updateOsSettings( { itemVisibility: next } );
+}
+
+/**
+ * Register the per-tile drop claimant for a NON-folder tile. A tile
+ * normally hard-rejects every foreign payload so the drop doesn't fall
+ * through to the wallpaper (`shouldRejectTileDrops`). A feature can opt
+ * a payload type IN via the tile-payload seam (`tile-payloads.ts`) —
+ * e.g. pinned notes accept a `'note'` drop on the Posts shortcut icon
+ * (Spatial layout) and convert it to a draft. Unknown payloads — and
+ * payloads whose handler doesn't recognize this placement — still
+ * reject, preserving the original "Can't drop here" feedback.
+ */
+function registerTileRejectTarget(
+	dragManager: DragManagerApi,
+	tile: HTMLElement,
+	placement: RestPlacementShape,
+): () => void {
+	const ctx = { placement };
+	return dragManager.registerDropTarget( {
+		id: `desktop-mode-files-tile-${ placement.id }-reject`,
+		element: tile,
+		// Static label picked from whichever seam handler claims this
+		// placement; only ever surfaces while a payload it also accepts
+		// hovers the tile (the manager shows the accept chip only when
+		// `accept` returns true).
+		acceptLabel: tilePayloadAcceptLabel( ctx ),
+		accept: ( payload ) => tilePayloadAccepts( payload, ctx ),
+		onEnter: () => {
+			tile.classList.add( `${ TILE_CLASS }--drop-target` );
+		},
+		onLeave: () => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+		},
+		onDrop: ( session, ev ) => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+			tilePayloadDrop( session, ev, ctx );
+		},
+	} );
 }
 
 /**

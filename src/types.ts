@@ -1824,6 +1824,14 @@ export interface DesktopConfig {
 	 */
 	notesUrl?: string;
 	/**
+	 * Whether the current user can author posts (`edit_posts`). Gates
+	 * the "Convert to post" note affordance (inline button + Posts dock
+	 * drop target). Absent on older server payloads → treated as false.
+	 *
+	 * @since 0.9.6
+	 */
+	canCreatePosts?: boolean;
+	/**
 	 * Roles eligible to appear in the folder Share Settings role
 	 * picker. Server applies `desktop_mode_files_share_eligible_roles`
 	 * before serializing — default = roles with `edit_posts`.

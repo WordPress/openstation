@@ -251,12 +251,19 @@
 	inset-inline: 8px;
 	top: 6px;
 	display: flex;
-	justify-content: space-between;
 	align-items: center;
+	gap: 4px;
 	height: 26px;
 	opacity: 0;
 	transition: opacity 150ms ease-out;
 	z-index: 1;
+}
+
+/* Push the color dot to the left edge; the action buttons cluster on
+   the right. Keeps a stable layout whether or not the convert button
+   is present (it's gated on the `edit_posts` capability). */
+.desktop-mode-pinned-note__meta .desktop-mode-pinned-note__color-dot {
+	margin-inline-end: auto;
 }
 
 .desktop-mode-pinned-note:hover .desktop-mode-pinned-note__meta,
@@ -302,6 +309,50 @@
 	width: 20px;
 	height: 20px;
 	color: var(--dm-note-ink, #4d4419);
+}
+
+/* "Convert to post" — same treatment as the visibility toggle. Only
+   rendered for users who can author posts. */
+.desktop-mode-pinned-note__convert {
+	--wpd-btn-color: var(--dm-note-ink-soft);
+	opacity: 0.75;
+}
+
+.desktop-mode-pinned-note__convert:hover {
+	opacity: 1;
+}
+
+.desktop-mode-pinned-note__convert svg {
+	width: 20px;
+	height: 20px;
+	fill: var(--dm-note-ink, #4d4419);
+}
+
+/* ------------------------------------------------------------------
+   "Convert to post" drop-target highlight
+   ------------------------------------------------------------------
+   Set on the Posts dock tile / native Posts window body while a note
+   pin is dragged over it (`data-desktop-mode-posts-drop-active`, from
+   src/notes/posts-drop-target.ts). Mirrors the recycle-bin affordance. */
+.desktop-mode-dock__item[data-menu-slug="menu-posts"][data-desktop-mode-posts-drop-active],
+.desktop-mode-dock__item[data-menu-slug="editphp"][data-desktop-mode-posts-drop-active] {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: 2px;
+	border-radius: 12px;
+	background: color-mix(
+		in srgb,
+		var(--wp-admin-theme-color, #3858e9) 14%,
+		transparent
+	);
+	transition:
+		outline-color 80ms ease,
+		background 80ms ease;
+}
+
+[data-desktop-mode-posts-root][data-desktop-mode-posts-drop-active] {
+	position: relative;
+	box-shadow: inset 0 0 0 2px var(--wp-admin-theme-color, #3858e9);
+	transition: box-shadow 80ms ease;
 }
 
 /* ------------------------------------------------------------------

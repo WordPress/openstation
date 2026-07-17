@@ -12,6 +12,7 @@
 import type { DesktopConfig } from '../types';
 import { NotesLayer } from './layer';
 import { installNoteDropHandlers } from './drop-handlers';
+import { installNotesPostsDropTarget } from './posts-drop-target';
 import { installNotesRestDeps } from './rest';
 import { NOTE_CREATED_EVENT, type Note } from './types';
 
@@ -38,9 +39,11 @@ export function bootNotes( options: BootNotesOptions ): NotesLayer | null {
 	const layer = new NotesLayer( {
 		host: options.host,
 		pluginUrl: options.config.pluginUrl ?? '',
+		canCreatePosts: options.config.canCreatePosts ?? false,
 		onError: options.onError,
 	} );
 	installNoteDropHandlers( layer );
+	installNotesPostsDropTarget( layer );
 	document.addEventListener( NOTE_CREATED_EVENT, ( ev ) => {
 		const note = ( ev as CustomEvent< { note?: Note } > ).detail?.note;
 		if ( note && typeof note.id === 'number' ) {
