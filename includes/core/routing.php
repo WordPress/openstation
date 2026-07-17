@@ -410,9 +410,8 @@ add_action( 'admin_init', 'desktop_mode_chromeless_suppress_update_nags' );
 /**
  * Detaches the remaining global core admin notices inside chromeless iframes
  * so they don't repeat in every window — the shell re-derives and surfaces
- * each once (see `desktop_mode_get_core_notices()` and
- * docs/core-notices-audit.md). The update / maintenance nags are handled by
- * `desktop_mode_chromeless_suppress_update_nags()`.
+ * each once (see `desktop_mode_get_core_notices()`). The update / maintenance
+ * nags are handled by `desktop_mode_chromeless_suppress_update_nags()`.
  *
  * @since 0.9.4
  */

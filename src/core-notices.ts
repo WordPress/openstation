@@ -3,7 +3,7 @@
  * (other than the update nag) plus the allowlisted plugin/library notices —
  * that would otherwise repeat in every window, as a single shell toast each.
  * The descriptors are re-derived from authoritative state server-side; this
- * just renders them. See docs/core-notices-audit.md.
+ * just renders them.
  *
  * @since 0.9.4
  */

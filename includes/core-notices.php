@@ -3,8 +3,7 @@
  * Re-derives WordPress Core's *global* admin notices — the ones that would
  * otherwise repeat in every desktop window — into shell descriptors, so the
  * shell can surface each once. The update nag is handled separately (see
- * update-notice.php); this covers the rest. See docs/core-notices-audit.md
- * for the full audit and disposition of every core notice.
+ * update-notice.php); this covers the rest.
  *
  * @since 0.9.4
  * @package DesktopMode

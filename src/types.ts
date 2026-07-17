@@ -1996,7 +1996,7 @@ export interface DesktopConfig {
 	 * server state so the shell can surface each once instead of letting them
 	 * repeat per window. The update nag is `coreUpdate` above; these are the
 	 * rest (maintenance, recovery mode, default password, …). See
-	 * `src/core-notices.ts` and docs/core-notices-audit.md.
+	 * `src/core-notices.ts`.
 	 *
 	 * @since 0.9.4
 	 */
@@ -2015,7 +2015,7 @@ export interface DesktopConfig {
 	/**
 	 * Allowlisted plugin/library global admin notices (e.g. Action Scheduler's
 	 * past-due warning), re-derived from state and surfaced once — same shape
-	 * and treatment as {@link coreNotices}. See docs/core-notices-audit.md.
+	 * and treatment as {@link coreNotices}.
 	 *
 	 * @since 0.9.4
 	 */

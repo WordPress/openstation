@@ -3,7 +3,7 @@
  * A small, opt-in allowlist of well-known *library* admin notices that render
  * globally (so they repeat in every desktop window) and can be re-derived from
  * authoritative state. Unlike arbitrary plugin `admin_notices` — which we
- * deliberately leave alone (see docs/core-notices-audit.md) — these are shared
+ * deliberately leave alone — these are shared
  * libraries bundled across many plugins, common enough to warrant a targeted
  * case. Each entry is detached in-window and surfaced once in the shell, the
  * same pattern as the core notices.

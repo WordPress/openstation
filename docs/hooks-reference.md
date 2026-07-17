@@ -2926,8 +2926,7 @@ recovery mode, default-password, force-deactivated plugins, paused
 plugins/themes) are detached inside desktop windows and re-derived from server
 state so the shell surfaces each **once** as a toast. This filter receives the
 array of descriptors (`{ id, title, message, actionLabel, actionUrl }`) —
-return an empty array to suppress them all, or unset entries by `id`. See
-[Core global admin-notice audit](core-notices-audit.md).
+return an empty array to suppress them all, or unset entries by `id`.
 
 ```php
 // Drop the "you're using an auto-generated password" notice only.
@@ -2946,8 +2945,7 @@ A small opt-in allowlist of shared **library** notices that also render globally
 others) gets the same treatment: detached in-window, re-derived from state,
 surfaced once. Arbitrary plugin `admin_notices` are *not* touched — only the
 allowlisted libraries. Same descriptor shape as `desktop_mode_core_notices`;
-return an empty array to suppress them all. See
-[Core global admin-notice audit](core-notices-audit.md).
+return an empty array to suppress them all.
 
 ```php
 add_filter( 'desktop_mode_plugin_notices', '__return_empty_array' );
