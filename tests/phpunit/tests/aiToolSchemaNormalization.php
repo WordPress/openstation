@@ -125,6 +125,51 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A schema whose only content is a top-level combinator (nothing duplicated
+	 * at the top level — e.g. `{ oneOf: [ { properties: … }, … ] }`) must not
+	 * normalize to a bare `{"type":"object"}` with no `properties` key: the
+	 * missing key is defaulted to an empty object so the emitted schema is
+	 * always a complete object schema.
+	 *
+	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 */
+	public function test_combinator_only_schema_gets_empty_properties() {
+		$out = desktop_mode_ai_normalize_tool_schema( array(
+			'oneOf' => array(
+				array(
+					'properties' => array( 'post_id' => array( 'type' => 'integer' ) ),
+					'required'   => array( 'post_id' ),
+				),
+				array(
+					'properties' => array( 'slug' => array( 'type' => 'string' ) ),
+					'required'   => array( 'slug' ),
+				),
+			),
+		) );
+
+		$this->assertSame(
+			'{"type":"object","properties":{}}',
+			wp_json_encode( $out ),
+			'a combinator-only schema projects to a complete empty object schema'
+		);
+	}
+
+	/**
+	 * A non-empty schema that never declared `properties` (e.g. a bare
+	 * `{ type: ['object','null'] }`) gains an empty-object `properties`.
+	 *
+	 * @covers ::desktop_mode_ai_normalize_tool_schema
+	 */
+	public function test_missing_properties_key_is_defaulted() {
+		$out = desktop_mode_ai_normalize_tool_schema( array(
+			'type' => array( 'object', 'null' ),
+		) );
+
+		$this->assertIsObject( $out['properties'] );
+		$this->assertSame( '{}', wp_json_encode( $out['properties'] ) );
+	}
+
+	/**
 	 * Normalizing an already-normalized schema changes nothing — the projection
 	 * is a fixed point, so it is safe to apply more than once (e.g. a plugin that
 	 * also normalizes on the `desktop_mode_ai_tools` filter).

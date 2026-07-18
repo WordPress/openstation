@@ -609,7 +609,9 @@ function desktop_mode_ai_normalize_tool_schema( $schema ) {
 	unset( $schema['oneOf'], $schema['allOf'], $schema['anyOf'] );
 
 	// An empty PHP array encodes as `[]`; an object schema's properties need `{}`.
-	if ( isset( $schema['properties'] ) && array() === $schema['properties'] ) {
+	// A schema with no `properties` at all (e.g. one whose only content was a
+	// stripped top-level combinator) gets an empty object for the same reason.
+	if ( ! isset( $schema['properties'] ) || array() === $schema['properties'] ) {
 		$schema['properties'] = (object) array();
 	}
 
