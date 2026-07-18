@@ -8,6 +8,7 @@
  * @group desktop-mode
  *
  * @covers ::desktop_mode_menu_item_url
+ * @covers ::desktop_mode_is_admin_file_slug
  */
 class Tests_DesktopMode_MenuItemUrl extends WP_UnitTestCase {
 
@@ -234,5 +235,67 @@ class Tests_DesktopMode_MenuItemUrl extends WP_UnitTestCase {
 			esc_url_raw( admin_url( 'network/sites.php' ) ),
 			desktop_mode_menu_item_url( 'network/sites.php' )
 		);
+	}
+
+	/**
+	 * URL-style slugs registered as a top-level menu — ACF's
+	 * `add_menu_page( …, 'edit.php?post_type=acf-field-group' )`.
+	 * The slug lands in `$_parent_pages` (value `false`), yet
+	 * `edit.php` is a real `wp-admin/` file, so it must stay a
+	 * direct link. Routing it through `admin.php?page=…` makes
+	 * core's dispatcher die with "Cannot load
+	 * edit.php?post_type=acf-field-group." — the exact regression
+	 * behind GH#367, introduced by the WP-Sweep fix (GH#309) whose
+	 * registered-page check didn't exempt real admin files.
+	 */
+	public function test_registered_url_style_slug_stays_direct_admin_file_link() {
+		global $_parent_pages;
+		$_parent_pages['edit.php?post_type=acf-field-group'] = false;
+
+		$this->assertSame(
+			esc_url_raw( admin_url( 'edit.php?post_type=acf-field-group' ) ),
+			desktop_mode_menu_item_url( 'edit.php?post_type=acf-field-group' )
+		);
+
+		unset( $_parent_pages['edit.php?post_type=acf-field-group'] );
+	}
+
+	/**
+	 * Same shape one level down — ACF's children (`Post Types`,
+	 * `Taxonomies`, …) are `add_submenu_page()`-registered URL-style
+	 * slugs, so `$_parent_pages` maps them to the URL-style parent.
+	 * They too must resolve as direct admin-file links.
+	 */
+	public function test_registered_url_style_submenu_slug_stays_direct_admin_file_link() {
+		global $_parent_pages;
+		$_parent_pages['edit.php?post_type=acf-field-group'] = false;
+		$_parent_pages['edit.php?post_type=acf-post-type']   = 'edit.php?post_type=acf-field-group';
+
+		$this->assertSame(
+			esc_url_raw( admin_url( 'edit.php?post_type=acf-post-type' ) ),
+			desktop_mode_menu_item_url( 'edit.php?post_type=acf-post-type' )
+		);
+
+		unset(
+			$_parent_pages['edit.php?post_type=acf-field-group'],
+			$_parent_pages['edit.php?post_type=acf-post-type']
+		);
+	}
+
+	/**
+	 * The admin-file exemption must not weaken the WP-Sweep fix: a
+	 * registered file-path slug whose file does NOT live under
+	 * `wp-admin/` still routes through its `.php` parent even though
+	 * the query-stripping helper ran on it.
+	 */
+	public function test_admin_file_check_ignores_registered_plugin_file_slug_with_query() {
+		global $_parent_pages;
+		$_parent_pages['wp-sweep/admin.php?tab=cleanup'] = 'tools.php';
+
+		$result = desktop_mode_menu_item_url( 'wp-sweep/admin.php?tab=cleanup' );
+
+		$this->assertStringContainsString( 'tools.php', $result );
+
+		unset( $_parent_pages['wp-sweep/admin.php?tab=cleanup'] );
 	}
 }

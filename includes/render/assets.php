@@ -899,8 +899,12 @@ function desktop_mode_build_command_menu_map() {
 		$menu_url   = '';
 		// Registered plugin pages win over the direct-file test: a
 		// legacy file-path slug ('wp-sweep/admin.php') matches the
-		// `.php` regex yet must route through menu_page_url().
-		if ( ! isset( $_parent_pages[ $menu_slug ] ) && ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) ) {
+		// `.php` regex yet must route through menu_page_url(). The
+		// exception is URL-style slugs referencing a real admin file
+		// (ACF's 'edit.php?post_type=acf-field-group' — also a
+		// registered page) — those stay direct links, matching
+		// classic admin's menu-header.php.
+		if ( ( ! isset( $_parent_pages[ $menu_slug ] ) || desktop_mode_is_admin_file_slug( $menu_slug ) ) && ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) ) {
 			$menu_url = $menu_slug;
 		} elseif ( ! empty( menu_page_url( $menu_slug, false ) ) ) {
 			$menu_url = menu_page_url( $menu_slug, false );
@@ -923,8 +927,9 @@ function desktop_mode_build_command_menu_map() {
 				$submenu_label = $extract_root_text( $submenu_item[0] );
 				$submenu_slug  = $submenu_item[2];
 				$submenu_url   = '';
-				// Same registered-page-first rule as the top-level loop.
-				if ( ! isset( $_parent_pages[ $submenu_slug ] ) && ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) ) {
+				// Same registered-page vs admin-file rule as the
+				// top-level loop.
+				if ( ( ! isset( $_parent_pages[ $submenu_slug ] ) || desktop_mode_is_admin_file_slug( $submenu_slug ) ) && ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) ) {
 					$submenu_url = $submenu_slug;
 				} elseif ( ! empty( menu_page_url( $submenu_slug, false ) ) ) {
 					$submenu_url = menu_page_url( $submenu_slug, false );

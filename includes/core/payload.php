@@ -1650,6 +1650,44 @@ function desktop_mode_build_native_windows_payload() {
 }
 
 /**
+ * Determines whether a menu slug references a real file under `wp-admin/`.
+ *
+ * Mirrors the decision core's `wp-admin/menu-header.php` makes when
+ * linking menu items: strip the query portion, then check whether the
+ * remaining path exists inside `wp-admin/`. Two registered-slug shapes
+ * hinge on this distinction:
+ *
+ *  - URL-style slugs — ACF registers its top-level menu as
+ *    `edit.php?post_type=acf-field-group` via `add_menu_page()`. The
+ *    slug lands in `$_parent_pages`, but `edit.php` is a real admin
+ *    file: classic admin links it directly, and routing it through
+ *    `admin.php?page=…` makes core's dispatcher `wp_die()` with
+ *    "Cannot load edit.php?post_type=acf-field-group."
+ *  - Legacy file-path slugs — WP-Sweep registers
+ *    `wp-sweep/admin.php` via `add_management_page()`. No such file
+ *    exists under `wp-admin/`, so it must resolve as a plugin page
+ *    (`tools.php?page=wp-sweep/admin.php`).
+ *
+ * @since 0.9.6
+ *
+ * @param string $slug The raw menu item slug.
+ * @return bool True when the query-stripped slug is a file under `wp-admin/`.
+ */
+function desktop_mode_is_admin_file_slug( $slug ) {
+	$file = $slug;
+	$pos  = strpos( $file, '?' );
+	if ( false !== $pos ) {
+		$file = substr( $file, 0, $pos );
+	}
+
+	if ( '' === $file || 0 !== validate_file( $file ) ) {
+		return false;
+	}
+
+	return file_exists( ABSPATH . 'wp-admin/' . $file );
+}
+
+/**
  * Converts a menu item slug to a full admin URL.
  *
  * Handles three slug shapes:
@@ -1706,7 +1744,19 @@ function desktop_mode_menu_item_url( $slug ) {
 	// canonical resolver below (→ `tools.php?page=wp-sweep/admin.php`,
 	// byte-identical to what core's menu_page_url() builds) instead
 	// of a 404 at `admin_url( 'wp-sweep/admin.php' )`.
-	if ( false !== strpos( $slug, '.php' ) && ! isset( $_parent_pages[ $slug ] ) ) {
+	//
+	// The reverse also happens: URL-style slugs registered through
+	// `add_menu_page()` / `add_submenu_page()` (ACF's
+	// 'edit.php?post_type=acf-field-group') sit in `$_parent_pages`
+	// too, yet reference a real `wp-admin/` file — those must stay
+	// direct links, or core's `admin.php` dispatcher dies with
+	// "Cannot load edit.php?post_type=acf-field-group." The admin-
+	// file check wins over the registration check, same as classic
+	// admin's `menu-header.php`.
+	if (
+		false !== strpos( $slug, '.php' ) &&
+		( ! isset( $_parent_pages[ $slug ] ) || desktop_mode_is_admin_file_slug( $slug ) )
+	) {
 		return esc_url_raw( admin_url( $slug ) );
 	}
 
