@@ -15,9 +15,10 @@
  */
 
 import { __, sprintf } from '../../i18n';
+import { desktopGlobal } from '../desktop-like';
 import type { GameLaunchContext } from '../types';
 import { createGameAudio } from './audio';
-import { loadDictionary, type Dictionary } from './dictionary';
+import { loadDictionary, type Dictionary } from '../dictionary';
 import {
 	DIFFICULTY_MODES,
 	MAX_RAMP_SECONDS,
@@ -48,7 +49,7 @@ import {
 	setMatchedCount,
 	type WordSprite,
 } from './scene';
-import { getPixi, type PixiApp, type PixiGraphics, type PixiNamespace } from './pixi-types';
+import { getPixi, type PixiApp, type PixiGraphics, type PixiNamespace } from '../pixi-types';
 
 type RunState = 'loading' | 'menu' | 'playing' | 'paused' | 'over';
 
@@ -103,20 +104,6 @@ interface FallingWord {
 	sprite: WordSprite;
 	/** Per-word ±10% speed jitter multiplier. */
 	jitter: number;
-}
-
-interface DesktopLike {
-	loadModules?: ( ids: string[] ) => Promise< void >;
-	onWindow?: (
-		id: string,
-		handlers: { blurred?: () => void; focused?: () => void },
-	) => () => void;
-}
-
-function desktopGlobal(): DesktopLike {
-	return (
-		( window.wp as { desktop?: DesktopLike } | undefined )?.desktop ?? {}
-	);
 }
 
 /** Cap a frame delta so a background-tab hiccup can't teleport words. */
@@ -624,7 +611,10 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		}
 		const [ , loadedDictionary ] = await Promise.all( [
 			desktop.loadModules( [ 'pixijs' ] ),
-			loadDictionary( wordsUrl, { windowId: ctx.windowId } ),
+			loadDictionary( wordsUrl, {
+				windowId: ctx.windowId,
+				source: 'desktop-mode/inkfall',
+			} ),
 		] );
 		if ( disposed ) {
 			return;

@@ -132,4 +132,4 @@ add_action( 'desktop_mode_game_playtime_recorded', function ( $game, $user_id, $
 }, 10, 4 );
 ```
 
-The built-in **Inkfall** typing game (`src/games/inkfall/`, registered in `includes/games/inkfall.php`) is the full-fat reference: PixiJS rendering, a lazily-fetched dictionary asset via `config.wordsUrl`, challenge-mode HUD, and pure, unit-tested gameplay modules.
+The built-in **Inkfall** typing game (`src/games/inkfall/`, registered in `includes/games/inkfall.php`) is the full-fat reference: PixiJS rendering, the framework dictionary via the injected `config.wordsUrl` (every server-registered game receives it — see `desktop_mode_games_words_url` in the hooks reference), challenge-mode HUD, and pure, unit-tested gameplay modules. The second built-in, **Alphabet Soup** (`src/games/alphabet-soup/`), shows the seeded-daily-puzzle pattern (same grid worldwide from a `dd-mm-yyyy` date seed), a Time Attack countdown mode, and the game-over share-card image (`src/games/share-card.ts`).

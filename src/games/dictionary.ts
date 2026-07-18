@@ -1,19 +1,27 @@
 /**
- * Inkfall — dictionary loading + word picking.
+ * Games framework — dictionary loading + word picking.
  *
- * The dictionary asset (`assets/games/inkfall/words.txt`) is one
- * word per line, `#` comment header, sorted by length ascending
- * then usage frequency descending. Because of that ordering, one
- * pass over the parsed list yields per-length bucket boundaries,
- * and picking from a length band is an index draw — no scanning.
+ * The shared dictionary asset (`assets/games/words.txt`, regenerated
+ * by `bin/build-game-words.mjs`) is one word per line, `#` comment
+ * header, sorted by length ascending then usage frequency
+ * descending. Because of that ordering, one pass over the parsed
+ * list yields per-length bucket boundaries, and picking from a
+ * length band is an index draw — no scanning.
+ *
+ * Every game receives the asset's URL as the framework-injected
+ * `wordsUrl` key on its launch-context `config` (see
+ * `desktop_mode_games_words_url()`); the word list is identical for
+ * every player, which is what lets seeded games generate the same
+ * puzzle worldwide.
  *
  * Pure except for `loadDictionary`'s fetch (routed through
  * `trackedFetch`); `parseDictionary`/`pick` are fully testable.
  *
- * @since 0.9.6
+ * @since 0.9.6 as `src/games/inkfall/dictionary.ts`
+ * @since 0.9.8 promoted to the games framework
  */
 
-import { trackedFetch } from '../../tracked-fetch';
+import { trackedFetch } from '../tracked-fetch';
 
 export interface Dictionary {
 	/** Total playable words. */
@@ -119,21 +127,24 @@ export function parseDictionary( raw: string ): Dictionary {
  */
 export async function loadDictionary(
 	url: string,
-	opts: { signal?: AbortSignal; windowId?: string } = {},
+	opts: { signal?: AbortSignal; windowId?: string; source?: string } = {},
 ): Promise< Dictionary > {
 	const res = await trackedFetch(
 		url,
 		{ signal: opts.signal, credentials: 'same-origin' },
-		{ windowId: opts.windowId, source: 'desktop-mode/inkfall' },
+		{
+			windowId: opts.windowId,
+			source: opts.source ?? 'desktop-mode/games-dictionary',
+		},
 	);
 	if ( ! res.ok ) {
 		throw new Error(
-			`[desktop-mode] Inkfall dictionary failed to load (${ res.status }).`,
+			`[desktop-mode] Games dictionary failed to load (${ res.status }).`,
 		);
 	}
 	const dictionary = parseDictionary( await res.text() );
 	if ( dictionary.size === 0 ) {
-		throw new Error( '[desktop-mode] Inkfall dictionary is empty.' );
+		throw new Error( '[desktop-mode] Games dictionary is empty.' );
 	}
 	return dictionary;
 }

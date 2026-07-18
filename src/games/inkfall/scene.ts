@@ -15,7 +15,7 @@ import type {
 	PixiGraphics,
 	PixiNamespace,
 	PixiText,
-} from './pixi-types';
+} from '../pixi-types';
 
 export const INK_COLOR = 0x2b3a55;
 export const ACCENT_COLOR = 0x8e44ad;

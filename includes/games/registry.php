@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  *         array( 'key' => 'score', 'label' => __( 'Score', 'desktop-mode' ), 'type' => 'number' ),
  *         array( 'key' => 'time',  'label' => __( 'Time', 'desktop-mode' ),  'type' => 'time' ),
  *     ),
- *     'config'        => array( 'wordsUrl' => '…' ),
+ *     'config'        => array( 'pace' => 'brisk' ),
  * ) );
  * ```
  *
@@ -74,6 +74,10 @@ defined( 'ABSPATH' ) || exit;
  *                                   of `number` | `time` | `text`.
  *     @type array    $config        Arbitrary blob shipped to the game's
  *                                   launch context (asset URLs, tuning).
+ *                                   The framework merges its own keys in
+ *                                   underneath (`wordsUrl` — see
+ *                                   includes/games/config.php); the
+ *                                   game's keys win on collision.
  *     @type string[] $capabilities  Gate: ALL caps must match.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
@@ -350,7 +354,10 @@ function desktop_mode_build_desktop_games_payload() {
 					$entry['score_columns']
 				)
 				: array(),
-			'config'             => isset( $entry['config'] ) && is_array( $entry['config'] ) ? $entry['config'] : array(),
+			'config'             => array_merge(
+				desktop_mode_games_framework_config(),
+				isset( $entry['config'] ) && is_array( $entry['config'] ) ? $entry['config'] : array()
+			),
 			'scriptUrl'          => $payload['url'],
 			'scriptHandle'       => $handle,
 			'scriptBefore'       => $payload['before'],

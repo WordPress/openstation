@@ -38,6 +38,14 @@
 	flex-shrink: 0;
 }
 
+/* Empty state (no games registered): centered in the window body
+   instead of hugging the grid's top-left corner. */
+.desktop-mode-games__grid:has( wpd-empty-state ) {
+	flex: 1;
+	align-content: center;
+	justify-content: center;
+}
+
 .desktop-mode-games__tile {
 	display: flex;
 	align-items: center;

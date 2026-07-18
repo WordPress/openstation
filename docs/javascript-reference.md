@@ -1630,6 +1630,10 @@ window.desktopModeGames[ 'my-plugin-puzzle' ] = {
 
 `render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `desktop-mode-game-<id>` (no dock tile).
 
+**Framework config keys** *(since 0.9.8)*. For server-registered games, the payload merges framework-level keys underneath the game's own `config` (the game's keys win): **`config.wordsUrl`** is the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`) — identical for every player, so seeded games (Alphabet Soup's date-seeded daily puzzle) generate the same grid worldwide. Parse it with the framework loader (`src/games/dictionary.ts` — `loadDictionary( url )` → `{ size, pick( minLen, maxLen, rng ) }`); the PHP-side URL + filter is `desktop_mode_games_words_url` in [hooks-reference.md](./hooks-reference.md).
+
+**Share cards** *(since 0.9.8)*. `src/games/share-card.ts` renders a finished run as a 1200×630 PNG on a plain canvas (`renderShareCard( canvas, data )`) and `shareScoreCard( canvas, filename, title )` runs the one-tap chain: native share sheet with the file attached → clipboard image → download, reporting which path ran. Deliberately image-only — no URL, no caption. Alphabet Soup's game-over panel is the reference integration.
+
 JS-only registrations (passing `render` directly to `register()`) work for the launcher, but scores/challenges only persist for games also registered server-side — the REST routes 404 unknown ids.
 
 The registry mirrors onto the **`desktop-mode.games`** JS filter (constant `HOOKS.GAMES`), applied on every `list()` read.

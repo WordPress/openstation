@@ -27,7 +27,7 @@ import {
 	WORD_FONT_SIZE,
 	type WordSprite,
 } from './scene';
-import type { PixiContainer, PixiNamespace, PixiText } from './pixi-types';
+import type { PixiContainer, PixiNamespace, PixiText } from '../pixi-types';
 
 const NOTE_GLYPHS = [ '♪', '♫', '♩', '♬' ];
 const NOTE_FLIGHT_SECONDS = 0.18;

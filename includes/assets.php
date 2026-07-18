@@ -231,6 +231,13 @@ function desktop_mode_register_assets() {
 		array( 'desktop-mode-variables' ),
 		file_exists( $game_inkfall_css ) ? (string) filemtime( $game_inkfall_css ) : $version
 	);
+	$game_alphabet_soup_css = DESKTOP_MODE_DIR . 'assets/css/game-alphabet-soup.css';
+	wp_register_style(
+		'desktop-mode-game-alphabet-soup',
+		DESKTOP_MODE_URL . 'assets/css/game-alphabet-soup.css',
+		array( 'desktop-mode-variables' ),
+		file_exists( $game_alphabet_soup_css ) ? (string) filemtime( $game_alphabet_soup_css ) : $version
+	);
 
 	// Pinned-notes layer styles (paper, pushpin, pastel tokens, pin
 	// animations). Same `filemtime` cache-bust posture as the other
@@ -354,6 +361,24 @@ function desktop_mode_register_assets() {
 	);
 	wp_set_script_translations(
 		'desktop-mode-game-inkfall',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-game-alphabet-soup` — the Alphabet Soup game
+	// bundle. Loaded lazily by the games framework on first launch;
+	// publishes the game def on
+	// `window.desktopModeGames['alphabet-soup']`.
+	$game_alphabet_soup_js = DESKTOP_MODE_DIR . 'assets/js/game-alphabet-soup' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-game-alphabet-soup',
+		DESKTOP_MODE_URL . 'assets/js/game-alphabet-soup' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $game_alphabet_soup_js ) ? (string) filemtime( $game_alphabet_soup_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-game-alphabet-soup',
 		'desktop-mode',
 		DESKTOP_MODE_DIR . 'languages'
 	);

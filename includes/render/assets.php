@@ -218,6 +218,9 @@ function desktop_mode_enqueue_assets() {
 	$server_window_notices         = isset( $menu_payload['serverWindowNotices'] )
 		? $menu_payload['serverWindowNotices']
 		: array();
+	$server_games                  = isset( $menu_payload['serverGames'] )
+		? $menu_payload['serverGames']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -412,6 +415,11 @@ function desktop_mode_enqueue_assets() {
 			'serverWindowChromeScripts' => $server_window_chrome_scripts,
 			'serverWindowChromes'       => $server_window_chromes,
 			'serverWindowNotices'       => $server_window_notices,
+			// Boot-time copy of the payload's `serverGames` — the same
+			// list the live-refresh path applies. Without it the games
+			// registry only fills after the first chromeless
+			// full-payload refresh and the Games hub boots empty.
+			'serverGames'               => $server_games,
 			'desktopIcons'     => $desktop_icons,
 			'serverFileTypes'        => $server_file_types,
 			'serverFileOpeners'      => $server_file_openers,

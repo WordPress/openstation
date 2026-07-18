@@ -7,8 +7,8 @@
  * the word apart into scattering letters. The game code lives in
  * its own lazily-loaded bundle (`assets/js/game-inkfall[.min].js`,
  * source `src/games/inkfall/`); this file only declares the
- * discovery metadata + score columns and points at the dictionary
- * asset.
+ * discovery metadata + score columns. The shared dictionary asset
+ * arrives via the framework-injected `wordsUrl` config key.
  *
  * @package WPDesktopMode
  * @since   0.9.6
@@ -46,14 +46,6 @@ function desktop_mode_inkfall_register() {
 		return;
 	}
 
-	$words_file = DESKTOP_MODE_DIR . 'assets/games/inkfall/words.txt';
-	$words_url  = DESKTOP_MODE_URL . 'assets/games/inkfall/words.txt';
-	if ( file_exists( $words_file ) ) {
-		// Cache-bust on content change; the browser caches the ~180 KB
-		// dictionary across sessions otherwise.
-		$words_url = add_query_arg( 'ver', (string) filemtime( $words_file ), $words_url );
-	}
-
 	desktop_mode_register_game( 'inkfall', array(
 		'title'         => __( 'Inkfall', 'desktop-mode' ),
 		'description'   => __( 'Words fall down a notebook page — type them before they reach the bottom. Finishing a word sends up a musical note that tears it into scattering letters.', 'desktop-mode' ),
@@ -68,9 +60,8 @@ function desktop_mode_inkfall_register() {
 			array( 'key' => 'time',     'label' => __( 'Time', 'desktop-mode' ),       'type' => 'time' ),
 			array( 'key' => 'level',    'label' => __( 'Level', 'desktop-mode' ),      'type' => 'number' ),
 		),
-		'config'        => array(
-			'wordsUrl' => esc_url_raw( $words_url ),
-		),
+		// The dictionary URL arrives via the framework-injected
+		// `wordsUrl` config key (see includes/games/config.php).
 	) );
 }
 add_action( 'init', 'desktop_mode_inkfall_register', 20 );

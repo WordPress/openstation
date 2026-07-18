@@ -1,9 +1,9 @@
 /**
- * Unit tests for Inkfall's dictionary parsing + picking
- * (`src/games/inkfall/dictionary.ts`).
+ * Unit tests for the games framework's dictionary parsing + picking
+ * (`src/games/dictionary.ts`).
  */
 import { describe, expect, test } from 'vitest';
-import { parseDictionary } from '../../src/games/inkfall/dictionary';
+import { parseDictionary } from '../../src/games/dictionary';
 
 /** Deterministic rng cycling through the given values. */
 function seededRng( values: number[] ): () => number {
@@ -24,7 +24,7 @@ const FIXTURE = [
 	'quill',
 ].join( '\n' );
 
-describe( 'inkfall/dictionary.ts', () => {
+describe( 'games/dictionary.ts', () => {
 	test( 'parser skips comments and blanks, trims CRLF', () => {
 		const dictionary = parseDictionary( FIXTURE );
 		expect( dictionary.size ).toBe( 7 );

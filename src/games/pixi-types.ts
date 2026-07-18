@@ -1,9 +1,9 @@
 /**
- * Inkfall — minimal Pixi type surface.
+ * Games framework — minimal Pixi type surface.
  *
  * PixiJS is loaded as a vendor script (`window.PIXI`) via
  * `wp.desktop.loadModules(['pixijs'])`, NOT imported. We declare the
- * narrow set of Pixi types this bundle uses, mirroring
+ * narrow set of Pixi types the game bundles use, mirroring
  * `src/content-graph/pixi-types.ts`.
  *
  * Destroy contract (repo-wide footgun): always
@@ -12,7 +12,8 @@
  * and corrupts every other live Pixi Application on the page (the
  * active wallpaper, content graph, OS Settings previews).
  *
- * @since 0.9.6
+ * @since 0.9.6 as `src/games/inkfall/pixi-types.ts`
+ * @since 0.9.8 promoted to the games framework
  */
 
 export interface PixiContainer {
@@ -34,12 +35,14 @@ export interface PixiGraphics extends PixiContainer {
 	circle( x: number, y: number, r: number ): PixiGraphics;
 	ellipse( x: number, y: number, hw: number, hh: number ): PixiGraphics;
 	rect( x: number, y: number, w: number, h: number ): PixiGraphics;
+	roundRect( x: number, y: number, w: number, h: number, r: number ): PixiGraphics;
 	moveTo( x: number, y: number ): PixiGraphics;
 	lineTo( x: number, y: number ): PixiGraphics;
 	stroke( style: {
 		color: number;
 		width: number;
 		alpha?: number;
+		cap?: 'butt' | 'round' | 'square';
 	} ): PixiGraphics;
 	fill( style: { color: number; alpha?: number } | number ): PixiGraphics;
 }

@@ -344,6 +344,16 @@ const TARGETS = {
 		fileBase: 'game-inkfall',
 		iifeName: 'desktopModeGameInkfall',
 	},
+	// Alphabet Soup — the built-in daily word search. Seeded by the
+	// current date (dd-mm-yyyy) so the puzzle is identical worldwide;
+	// lazy-loaded by the games framework on first launch; publishes
+	// its GameDef on `window.desktopModeGames['alphabet-soup']`.
+	// Loads PixiJS through the module registry like Inkfall.
+	'game-alphabet-soup': {
+		entry:    'src/games/alphabet-soup/index.ts',
+		fileBase: 'game-alphabet-soup',
+		iifeName: 'desktopModeGameAlphabetSoup',
+	},
 	// Service worker — own bundle so it can be served from a stable
 	// path with the `Service-Worker-Allowed: /` header. The IIFE
 	// wrapper is harmless inside a SW context: top-level
