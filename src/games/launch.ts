@@ -11,9 +11,12 @@
  *      hosting window) so the game's canvas doesn't compete with
  *      the wallpaper's ticker,
  *   3. opens the native window `desktop-mode-game-<id>` and hands
- *      the game its {@link GameLaunchContext}, and
- *   4. guarantees the wallpaper resumes on EVERY close path —
- *      normal close, crash inside render, failed script load.
+ *      the game its {@link GameLaunchContext},
+ *   4. tracks the player's active time (paused while minimized) and
+ *      flushes it to the play-time endpoint, and
+ *   5. guarantees the wallpaper resumes — and the play-time tracker
+ *      stops — on EVERY close path: normal close, crash inside
+ *      render, failed script load.
  *
  * Uses the `wp.desktop` public surface (registerWindow, wallpaper,
  * onWindow, loadVendorScript) rather than direct imports so the
@@ -24,6 +27,8 @@
  */
 
 import * as registry from './registry';
+import { startPlaytimeTracker } from './playtime';
+import type { PlaytimeTracker } from './playtime';
 import { completeChallenge, submitScore } from './rest';
 import type {
 	GameChallengeContext,
@@ -47,7 +52,11 @@ interface DesktopGlobal {
 	} ) => Promise< unknown >;
 	onWindow?: (
 		id: string,
-		handlers: { closed?: () => void },
+		handlers: {
+			closed?: () => void;
+			minimized?: () => void;
+			restored?: () => void;
+		},
 		options?: { persistent?: boolean },
 	) => () => void;
 	wallpaper?: {
@@ -206,10 +215,26 @@ export async function launchGame(
 		desktop.wallpaper?.resume( suspendReason );
 	};
 
+	// Play-time tracker: created when the window body mounts, paused
+	// while the window is minimized, stopped (with a final flush) on
+	// every close path.
+	let tracker: PlaytimeTracker | null = null;
+	const stopTracker = (): void => {
+		tracker?.stop();
+		tracker = null;
+	};
+
 	// `closed` fires on every close path the window manager knows
 	// about — ✕ button, closeAll, session teardown — including when
 	// the render callback threw after mounting.
-	desktop.onWindow?.( windowId, { closed: resumeOnce } );
+	desktop.onWindow?.( windowId, {
+		closed: () => {
+			stopTracker();
+			resumeOnce();
+		},
+		minimized: () => tracker?.pause(),
+		restored: () => tracker?.resume(),
+	} );
 
 	const submit = ( result: GameScoreSubmission ): Promise< void > => {
 		if ( opts.challenge ) {
@@ -242,11 +267,13 @@ export async function launchGame(
 						desktop.windowManager?.getById( windowId )?.close();
 					},
 				};
+				tracker = startPlaytimeTracker( id, { windowId } );
 				const teardown = render( ctx );
 				return () => {
 					try {
 						teardown?.();
 					} finally {
+						stopTracker();
 						resumeOnce();
 					}
 				};
@@ -255,6 +282,7 @@ export async function launchGame(
 	} catch ( err ) {
 		// Window never opened (or render threw before returning its
 		// teardown) — the `closed` hook may never fire; resume here.
+		stopTracker();
 		resumeOnce();
 		throw err;
 	}

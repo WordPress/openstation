@@ -51,7 +51,12 @@ function buildColumns( game: GameRegistryEntry ): WpdTableColumn< GameScoreRow >
 			label: __( 'Player' ),
 			render: ( _value, row ) => {
 				const cell = document.createElement( 'span' );
-				cell.className = 'desktop-mode-games__player-cell';
+				// The cell lands inside `<wpd-table>`'s shadow DOM,
+				// where light-DOM stylesheets (games.css) can't reach
+				// — style inline, same as the Users window's identity
+				// cell.
+				cell.style.cssText =
+					'display:inline-flex;align-items:center;gap:8px;min-width:0;';
 				const avatar = document.createElement( 'wpd-avatar' );
 				avatar.setAttribute( 'src', row.userAvatar );
 				avatar.setAttribute( 'name', row.userName );

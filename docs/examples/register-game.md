@@ -98,7 +98,8 @@ That's the whole integration. For free you get:
 - a detail panel when your game is selected — description, **Play**, and **Challenge** (the latter throws down the player's best score), plus a scoreboard with your declared columns, a Player column (name + avatar + presence dot), and a Date column;
 - score persistence (`POST /desktop-mode/v1/games/{game}/scores`, always credited to the submitting session);
 - challenges: any player can pick one of their scores and challenge another user; recipients get a notification + **Accept & Play** toast, and your game sees `ctx.challenge` during the run;
-- wallpaper suspension while your game's window is open (the framework holds `wp.desktop.wallpaper.suspend( 'game:<windowId>' )` and releases it on every close path).
+- wallpaper suspension while your game's window is open (the framework holds `wp.desktop.wallpaper.suspend( 'game:<windowId>' )` and releases it on every close path);
+- play-time tracking: the framework measures how long each player keeps your game's window open (the clock pauses while it's minimized) and accumulates per-user lifetime totals plus daily buckets — shown Steam-style on your game's detail panel ("Play time (last two weeks)" / "Play time (total)"), readable via `wp.desktop.games.getPlaytime()` / `desktop_mode_games_get_playtime( $user_id, $game )` / `desktop_mode_games_get_playtime_daily( $user_id, $game )`.
 
 ---
 
@@ -121,6 +122,13 @@ add_filter( 'desktop_mode_games_can_challenge', function ( $allowed, $challenger
 // React to finished runs.
 add_action( 'desktop_mode_game_score_saved', function ( $id, $game, $user_id, $score ) {
     // e.g. award a badge at 10k.
+}, 10, 4 );
+
+// React to accumulated play time — e.g. a dedication badge at 10 hours.
+add_action( 'desktop_mode_game_playtime_recorded', function ( $game, $user_id, $seconds, $total ) {
+    if ( 'my-plugin-tap' === $game && $total >= 10 * HOUR_IN_SECONDS ) {
+        // …
+    }
 }, 10, 4 );
 ```
 

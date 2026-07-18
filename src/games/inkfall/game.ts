@@ -353,10 +353,10 @@ export function mountInkfall( ctx: GameLaunchContext ): () => void {
 		if ( ctx.challenge ) {
 			heading.textContent =
 				row.score > ctx.challenge.scoreToBeat
-					? __( 'The page is full — challenge beaten!' )
-					: __( 'The page is full — challenge missed.' );
+					? __( 'Game Over — challenge beaten!' )
+					: __( 'Game Over — challenge missed.' );
 		} else {
-			heading.textContent = __( 'The page is full.' );
+			heading.textContent = __( 'Game Over' );
 		}
 		panel.appendChild( heading );
 

@@ -149,6 +149,32 @@
 	max-width: 60ch;
 }
 
+.desktop-mode-games__hero-playtime {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 24px;
+	margin-block-start: 10px;
+}
+
+.desktop-mode-games__playtime-stat {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.desktop-mode-games__playtime-label {
+	color: var( --wpd-text-muted, #646970 );
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.desktop-mode-games__playtime-value {
+	font-size: 14px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+}
+
 .desktop-mode-games__hero-actions {
 	display: flex;
 	align-items: center;
@@ -186,12 +212,6 @@
 	padding: 24px;
 	text-align: center;
 	color: var( --wpd-text-muted, #646970 );
-}
-
-.desktop-mode-games__player-cell {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
 }
 
 .desktop-mode-games__pager {

@@ -1605,6 +1605,7 @@ interface GamesApi {
     get( id: string ): GameRegistryEntry | undefined;
     subscribe( cb: () => void ): () => void;  // registry-change listener
     launch( id: string, opts?: { challenge?: GameChallengeContext } ): Promise< void >;
+    getPlaytime(): Promise< Record< string, number > >;  // my `game id => total seconds`
 }
 ```
 
@@ -1632,6 +1633,8 @@ window.desktopModeGames[ 'my-plugin-puzzle' ] = {
 JS-only registrations (passing `render` directly to `register()`) work for the launcher, but scores/challenges only persist for games also registered server-side — the REST routes 404 unknown ids.
 
 The registry mirrors onto the **`desktop-mode.games`** JS filter (constant `HOOKS.GAMES`), applied on every `list()` read.
+
+**Play time** *(since 0.9.7)*. The launcher automatically tracks how long each game window is in front of the player — the clock pauses while the window is minimized — and flushes whole-second increments to `POST /desktop-mode/v1/games/{game}/playtime` (silently, roughly once a minute plus once on close). Totals are per user per game and accumulate for life across sessions and days; increments are also bucketed per site-timezone day (rolling window, default 30 days). `getPlaytime()` returns the current user's lifetime map; the full `GET /desktop-mode/v1/games/playtime` response is `{ playtime: { <game>: seconds }, daily: { <game>: { 'YYYY-MM-DD': seconds } }, today: 'YYYY-MM-DD' }`. The hub's detail panel renders a Steam-style strip from it — "Play time (last two weeks)" + "Play time (total)". Games don't need to do anything to participate. Server-side see `desktop_mode_games_get_playtime()` / `desktop_mode_games_get_playtime_daily()` and the `desktop_mode_game_playtime_recorded` action in [hooks-reference.md](./hooks-reference.md).
 
 **Heartbeat channel.** Challenges deliver live over the shared bus: the shell contributes `desktop_mode_games_subscribe: { challengesVersion: <lastSeenUpdatedAtMs> }` on every tick and the server answers with `desktop_mode_games: { challenges: GameChallengeRow[], serverTimeMs, truncated }` — version-gated (quiet ticks carry nothing) and capped via the `desktop_mode_games_heartbeat_max_rows` PHP filter. Recipients of a fresh challenge get a browser notification (toast fallback) + a persistent **Accept & Play** toast; challengers are notified when their challenge completes.
 

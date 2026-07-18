@@ -10,6 +10,7 @@
 
 import * as registry from './registry';
 import { launchGame } from './launch';
+import { fetchPlaytime } from './rest';
 import type { GameChallengeContext, GameRegistryEntry } from './types';
 
 export interface GamesApi {
@@ -28,6 +29,12 @@ export interface GamesApi {
 		id: string,
 		opts?: { challenge?: GameChallengeContext },
 	) => Promise< void >;
+	/**
+	 * The current user's accumulated play time, as a
+	 * `game id => total seconds` map. Tracked automatically by the
+	 * launcher (the clock pauses while the game window is minimized).
+	 */
+	getPlaytime: () => Promise< Record< string, number > >;
 }
 
 export const gamesApi: GamesApi = {
@@ -37,4 +44,5 @@ export const gamesApi: GamesApi = {
 	get: registry.get,
 	subscribe: registry.subscribe,
 	launch: launchGame,
+	getPlaytime: () => fetchPlaytime().then( ( res ) => res.playtime ),
 };

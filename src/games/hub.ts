@@ -23,7 +23,8 @@ import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
 import * as registry from './registry';
 import { launchGame } from './launch';
-import { fetchScores } from './rest';
+import { formatPlaytime, sumPlaytimeSince } from './playtime';
+import { fetchPlaytime, fetchScores } from './rest';
 import { openChallengeDialog } from './challenge-dialog';
 import { renderScoreboard } from './scoreboard';
 import { renderChallengesView } from './challenges-view';
@@ -140,6 +141,62 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 			desc.textContent = game.description;
 			info.appendChild( desc );
 		}
+
+		// Steam-style play-time strip — lifetime total plus the
+		// last-two-weeks figure from the daily buckets. Filled in
+		// async, hidden until the viewer actually has time on the
+		// clock for this game.
+		const playtime = document.createElement( 'div' );
+		playtime.className = 'desktop-mode-games__hero-playtime';
+		playtime.hidden = true;
+		info.appendChild( playtime );
+		let playtimeStale = false;
+		detailTeardowns.push( () => {
+			playtimeStale = true;
+		} );
+		const playtimeStat = ( label: string, value: string ): HTMLElement => {
+			const stat = document.createElement( 'span' );
+			stat.className = 'desktop-mode-games__playtime-stat';
+			const labelEl = document.createElement( 'span' );
+			labelEl.className = 'desktop-mode-games__playtime-label';
+			labelEl.textContent = label;
+			stat.appendChild( labelEl );
+			const valueEl = document.createElement( 'span' );
+			valueEl.className = 'desktop-mode-games__playtime-value';
+			valueEl.textContent = value;
+			stat.appendChild( valueEl );
+			return stat;
+		};
+		void fetchPlaytime()
+			.then( ( res ) => {
+				const total = Number( res.playtime[ game.id ] ) || 0;
+				if ( playtimeStale || total < 1 ) {
+					return;
+				}
+				const recent = sumPlaytimeSince(
+					res.daily?.[ game.id ] ?? {},
+					res.today,
+					14,
+				);
+				if ( recent > 0 ) {
+					playtime.appendChild(
+						playtimeStat(
+							__( 'Play time (last two weeks)' ),
+							formatPlaytime( recent ),
+						),
+					);
+				}
+				playtime.appendChild(
+					playtimeStat(
+						__( 'Play time (total)' ),
+						formatPlaytime( total ),
+					),
+				);
+				playtime.hidden = false;
+			} )
+			.catch( () => {
+				/* stays hidden — play time is decorative here */
+			} );
 		hero.appendChild( info );
 
 		const actions = document.createElement( 'div' );

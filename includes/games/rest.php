@@ -12,6 +12,8 @@
  *   POST   /games/challenges/(?P<id>\d+)/decline  Decline (recipient).
  *   POST   /games/challenges/(?P<id>\d+)/complete Report the run (recipient).
  *   GET    /games/users/search                    Opponent-picker autocomplete.
+ *   GET    /games/playtime                        My per-game play-time totals.
+ *   POST   /games/(?P<game>[a-z0-9_\-]+)/playtime Record own play time.
  *
  * Permission: every route requires a logged-in user with desktop
  * mode enabled and the `read` capability (subscribers play games
@@ -138,6 +140,21 @@ function desktop_mode_games_register_rest_routes() {
 		),
 	) );
 
+	register_rest_route( $ns, '/games/playtime', array(
+		'methods'             => WP_REST_Server::READABLE,
+		'permission_callback' => 'desktop_mode_games_rest_permission',
+		'callback'            => 'desktop_mode_games_rest_get_playtime',
+	) );
+
+	register_rest_route( $ns, '/games/(?P<game>[a-z0-9_\-]+)/playtime', array(
+		'methods'             => WP_REST_Server::CREATABLE,
+		'permission_callback' => 'desktop_mode_games_rest_permission',
+		'callback'            => 'desktop_mode_games_rest_record_playtime',
+		'args'                => array(
+			'seconds' => array( 'type' => 'integer', 'required' => true, 'minimum' => 1 ),
+		),
+	) );
+
 	register_rest_route( $ns, '/games/users/search', array(
 		'methods'             => WP_REST_Server::READABLE,
 		'permission_callback' => 'desktop_mode_games_rest_permission',
@@ -216,6 +233,47 @@ function desktop_mode_games_rest_submit_score( WP_REST_Request $req ) {
 		return $id;
 	}
 	return rest_ensure_response( array( 'id' => $id ) );
+}
+
+/**
+ * GET /games/playtime — the current user's `game id => seconds` map.
+ *
+ * @since 0.9.7
+ */
+function desktop_mode_games_rest_get_playtime() {
+	$user_id = get_current_user_id();
+	// Day maps are cast per-game so empty buckets JSON-encode as `{}`.
+	$daily = array();
+	foreach ( desktop_mode_games_get_playtime_daily( $user_id ) as $game => $days ) {
+		$daily[ $game ] = (object) $days;
+	}
+	return rest_ensure_response( array(
+		'playtime' => (object) desktop_mode_games_get_playtime( $user_id ),
+		'daily'    => (object) $daily,
+		'today'    => desktop_mode_games_playtime_today_key(),
+	) );
+}
+
+/**
+ * POST /games/{game}/playtime — always records for the current user;
+ * there is no way to record play time on someone else's behalf.
+ *
+ * @since 0.9.7
+ */
+function desktop_mode_games_rest_record_playtime( WP_REST_Request $req ) {
+	$game = desktop_mode_games_rest_resolve_game( $req );
+	if ( is_wp_error( $game ) ) {
+		return $game;
+	}
+	$total = desktop_mode_games_add_playtime(
+		$game,
+		get_current_user_id(),
+		(int) $req->get_param( 'seconds' )
+	);
+	if ( is_wp_error( $total ) ) {
+		return $total;
+	}
+	return rest_ensure_response( array( 'total' => $total ) );
 }
 
 /**

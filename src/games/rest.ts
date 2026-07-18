@@ -33,7 +33,7 @@ function restEnv(): { restUrl: string; restNonce: string } {
 async function call< T >(
 	path: string,
 	init: RequestInit = {},
-	opts: { windowId?: string } = {},
+	opts: { windowId?: string; silent?: boolean } = {},
 ): Promise< T > {
 	const { restUrl, restNonce } = restEnv();
 	const headers = new Headers( init.headers ?? {} );
@@ -44,7 +44,7 @@ async function call< T >(
 	const res = await trackedFetch(
 		joinRestUrl( restUrl, path ),
 		{ ...init, headers, credentials: 'same-origin' },
-		{ source: SOURCE, windowId: opts.windowId },
+		{ source: SOURCE, windowId: opts.windowId, silent: opts.silent },
 	);
 	const body: unknown = await res.json().catch( () => null );
 	if ( ! res.ok ) {
@@ -95,6 +95,40 @@ export function submitScore(
 				score: submission.score,
 				meta: submission.meta ?? {},
 			} ),
+		},
+		opts,
+	);
+}
+
+/**
+ * GET the current user's play time: lifetime totals
+ * (`game id => seconds`), daily buckets
+ * (`game id => { 'YYYY-MM-DD' => seconds }`, rolling window), and
+ * the server's current day key (site timezone).
+ */
+export function fetchPlaytime(): Promise< {
+	playtime: Record< string, number >;
+	daily: Record< string, Record< string, number > >;
+	today: string;
+} > {
+	return call( 'desktop-mode/v1/games/playtime' );
+}
+
+/**
+ * POST a play-time increment (whole seconds) for the current user.
+ * Sent `silent` by the tracker's periodic flush so the once-a-minute
+ * ping doesn't blink the window spinner.
+ */
+export function recordPlaytime(
+	game: string,
+	seconds: number,
+	opts: { windowId?: string; silent?: boolean } = {},
+): Promise< { total: number } > {
+	return call(
+		`desktop-mode/v1/games/${ game }/playtime`,
+		{
+			method: 'POST',
+			body: JSON.stringify( { seconds } ),
 		},
 		opts,
 	);

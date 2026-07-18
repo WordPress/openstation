@@ -177,6 +177,18 @@ do_action( 'desktop_mode_game_score_saved', int $score_id, string $game, int $us
 
 ---
 
+### `desktop_mode_game_playtime_recorded` — Experimental (since 0.9.7)
+
+Fires after a play-time increment lands. The framework's launcher measures active window time (the clock pauses while the game window is minimized) and flushes increments roughly once a minute plus once on close; lifetime totals accumulate in the `desktop_mode_game_playtime` user-meta map (`game id => whole seconds`), readable via `desktop_mode_games_get_playtime( $user_id, $game = '' )`. Each increment is also bucketed by site-timezone day into `desktop_mode_game_playtime_days` (`game id => array( 'YYYY-MM-DD' => seconds )`, readable via `desktop_mode_games_get_playtime_daily()`), pruned past a rolling window (`desktop_mode_games_playtime_history_days`, default 30) — this backs the hub's Steam-style "last two weeks" figure; the lifetime totals are never pruned.
+
+```php
+do_action( 'desktop_mode_game_playtime_recorded', string $game, int $user_id, int $seconds, int $total );
+```
+
+`$seconds` is the recorded increment (post-clamp), `$total` the user's new total for the game.
+
+---
+
 ### Game challenge lifecycle actions — Experimental (since 0.9.6)
 
 One action per state transition of a score-to-beat challenge:
@@ -1269,6 +1281,20 @@ apply_filters( 'desktop_mode_game_score_pre_save', null, string $game, int $user
 // Whether $challenger may challenge $recipient at $game. Return
 // `false` or a `WP_Error` to block (do-not-disturb, role policy).
 apply_filters( 'desktop_mode_games_can_challenge', true, int $challenger_id, int $recipient_id, string $game );
+
+// Veto / short-circuit for play-time increments — same contract as
+// the score pre-save filter. Return a `WP_Error` to reject; `null`
+// proceeds.
+apply_filters( 'desktop_mode_game_playtime_pre_record', null, string $game, int $user_id, int $seconds );
+
+// Largest play-time increment (seconds) accepted in one request. The
+// framework flushes roughly once a minute; the clamp bounds what a
+// hostile client can mint per request. Default 900 (15 minutes).
+apply_filters( 'desktop_mode_games_playtime_max_increment', 900, string $game, int $user_id );
+
+// How many days of daily play-time buckets to retain (the hub needs
+// 14 for its "last two weeks" figure). Default 30.
+apply_filters( 'desktop_mode_games_playtime_history_days', 30 );
 
 // WP_User_Query args for the opponent-picker autocomplete.
 apply_filters( 'desktop_mode_games_user_query_args', array $args, array $request_params );
