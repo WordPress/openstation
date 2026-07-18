@@ -215,7 +215,7 @@ import {
 	setUserAssociations as setFilesUserAssociations,
 	type FilesApi,
 } from './desktop-files';
-import { mountFilesLayer } from './desktop-files/layer';
+import { isSyntheticPlacement, mountFilesLayer } from './desktop-files/layer';
 import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
 import { startFilesRestoreSync } from './desktop-files/restore-sync';
@@ -3689,7 +3689,13 @@ function init(): void {
 				y: cell.y,
 				sortOrder: i,
 			} );
-			if ( ! persist ) {
+			// Synthetic placements (dock-item promotions, Spatial-layout
+			// core icons) live JS-only — `settings/desktop-shortcuts-sync.ts`
+			// mints them with a negative id and never persists them via
+			// the files REST layer. PATCHing one 404s (`rest_no_route`,
+			// the route regex only matches positive ids). See
+			// `isSyntheticPlacement` in `desktop-files/layer.ts`.
+			if ( ! persist || isSyntheticPlacement( p ) ) {
 				continue;
 			}
 			void filesRest

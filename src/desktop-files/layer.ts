@@ -1216,7 +1216,7 @@ function readSynthSource( placement: RestPlacementShape ): string | null {
  * placements live JS-only, so persisting their (x, y) / parentId
  * would 404 with `rest_no_route`.
  */
-function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
+export function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
 	return placement.id <= 0 || readSynthSource( placement ) !== null;
 }
 
