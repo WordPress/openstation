@@ -37,8 +37,9 @@ export interface RelatedEntityItem {
 	id: string;
 	/**
 	 * Section key the item sorts under. Built-ins: `'comments'`,
-	 * `'terms/{taxonomy}'`, `'media'`. Vendors define their own;
-	 * unknown groups render after the built-ins in arrival order.
+	 * `'terms/{taxonomy}'`, `'media'`, `'links'` (internally linked
+	 * posts). Vendors define their own; unknown groups render after
+	 * the built-ins in arrival order.
 	 */
 	group: string;
 	/** Translated section header ("Categories", "Media"). */

@@ -27,7 +27,10 @@ function groupRank( group: string ): number {
 	if ( group === 'media' ) {
 		return 2;
 	}
-	return 3;
+	if ( group === 'links' ) {
+		return 3;
+	}
+	return 4;
 }
 
 /**

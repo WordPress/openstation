@@ -476,6 +476,13 @@ describe( 'buildRelatedMenu', () => {
 				url: 'http://localhost/wp-admin/admin.php?page=acme',
 			},
 			{
+				id: 'link-42',
+				group: 'links',
+				groupLabel: 'Linked posts',
+				label: 'The other post',
+				url: 'http://localhost/wp-admin/post.php?post=42&action=edit',
+			},
+			{
 				id: 'media-9',
 				group: 'media',
 				groupLabel: 'Media',
@@ -500,6 +507,7 @@ describe( 'buildRelatedMenu', () => {
 			'Comments',
 			'Categories',
 			'Media',
+			'Linked posts',
 			'Reports',
 		] );
 	} );

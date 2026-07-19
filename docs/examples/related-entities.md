@@ -1,6 +1,6 @@
 # Related entities — extend the title bar's "Related" menu
 
-Any window whose content identity carries **related-entity items** shows a "Related" button in its title bar (network icon, right side). The dropdown lists ready-to-open navigation targets — for posts and pages the plugin builds Comments (`edit-comments.php?p={id}`, with count), one item per assigned term (`term.php?taxonomy=…&tag_ID=…`), and one item per associated media (`upload.php?item={id}`) automatically. Picking an item opens it as its own desktop window.
+Any window whose content identity carries **related-entity items** shows a "Related" button in its title bar (network icon, right side). The dropdown lists ready-to-open navigation targets — for posts and pages the plugin builds Comments (`edit-comments.php?p={id}`, with count), one item per assigned term (`term.php?taxonomy=…&tag_ID=…`), one item per associated media (`upload.php?item={id}`), and one **Linked posts** item per internal hyperlink resolving to another post on this site, automatically. Picking an item opens it as its own desktop window. Inside the block editor the list refreshes after every save (the bridge refetches a server-recomputed identity over REST) — no reload needed.
 
 Both ends are open: a **PHP filter** adds items for any screen (runs server-side in real admin context, right after the content identity resolves), and a **JS filter** rewrites the resolved list per window.
 
@@ -81,4 +81,4 @@ console.log( ref?.related ); // → RelatedEntityItem[] | undefined
 
 The button repaints automatically whenever the window's content identity changes (`desktop-mode.window-links.content-changed`), including in-window navigations — no manual refresh needed.
 
-**Group ordering** in the menu: `comments`, then every `terms/{taxonomy}`, then `media`, then vendor groups in arrival order. Reference: [hooks-reference](../hooks-reference.md#desktop_mode_window_related_entities--experimental-since-096) · [javascript-reference](../javascript-reference.md).
+**Group ordering** in the menu: `comments`, then every `terms/{taxonomy}`, then `media`, then `links`, then vendor groups in arrival order. Reference: [hooks-reference](../hooks-reference.md#desktop_mode_window_related_entities--experimental-since-096) · [javascript-reference](../javascript-reference.md).

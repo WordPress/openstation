@@ -199,70 +199,100 @@ function desktop_mode_build_content_identity() {
 	// plugin-injected identities for custom screens get the related
 	// filter too, and only for a resolved identity: no identity, no
 	// related menu.
-	if ( is_array( $identity ) ) {
-		$related = array();
-		if (
-			isset( $related_source_post ) &&
-			$related_source_post instanceof WP_Post &&
-			// Built-ins belong to THIS post. If the identity filter
-			// rewrote the identity to a different object (a gated post
-			// remapped to a minimal ref, a custom root scheme), the
-			// post's comments/terms/media must not tag along — that
-			// would leak labels and deep links the filter deliberately
-			// removed.
-			isset( $identity['type'], $identity['id'] ) &&
-			sanitize_key( $related_source_post->post_type ) === $identity['type'] &&
-			(int) $related_source_post->ID === (int) $identity['id']
-		) {
-			$related = desktop_mode_window_related_entities_for_post( $related_source_post );
-		}
-		if ( isset( $identity['related'] ) && is_array( $identity['related'] ) ) {
-			// An identity filter may ship related items with its own
-			// identity — fold them in so they reach the related filter
-			// (and the sanitizer) like everything else.
-			$related = array_merge( $related, $identity['related'] );
-		}
+	return desktop_mode_window_related_attach(
+		$identity,
+		isset( $related_source_post ) && $related_source_post instanceof WP_Post ? $related_source_post : null,
+		$screen
+	);
+}
 
-		/**
-		 * Filters the related-entity navigation items announced with the
-		 * current screen's content identity.
-		 *
-		 * Each item becomes an entry in the window's title-bar "Related"
-		 * menu; clicking it opens the target admin URL as its own
-		 * desktop window. Built-ins cover posts and pages (comments,
-		 * assigned terms, attached media); plugins add items for their
-		 * own screens or object types here. Item shape (mirrors the JS
-		 * `RelatedEntityItem`):
-		 *
-		 *     array(
-		 *         'id'         => 'comments',            // unique in the list
-		 *         'group'      => 'comments',            // section key; built-ins:
-		 *                                                // 'comments', 'terms/{tax}', 'media'
-		 *         'groupLabel' => __( 'Comments' ),      // optional section header
-		 *         'label'      => __( 'Comments' ),
-		 *         'icon'       => 'dashicons-admin-comments', // optional
-		 *         'url'        => admin_url( 'edit-comments.php?p=123' ),
-		 *         'count'      => 4,                     // optional badge
-		 *     )
-		 *
-		 * Malformed entries (missing/empty `id`, `group`, `label`, or
-		 * `url`) are dropped before the payload is announced.
-		 *
-		 * @since 0.9.6
-		 *
-		 * @param array[]        $related  Related-entity items.
-		 * @param array          $identity The resolved content identity.
-		 * @param WP_Screen|null $screen   The current screen, when available.
-		 */
-		$related = apply_filters( 'desktop_mode_window_related_entities', $related, $identity, $screen );
-		$related = desktop_mode_window_related_entities_sanitize( $related );
-		// The related pass is the single authority over the key — an
-		// identity filter smuggling its own `related` would bypass the
-		// sanitizer above.
-		unset( $identity['related'] );
-		if ( ! empty( $related ) ) {
-			$identity['related'] = $related;
-		}
+/**
+ * The related-entity pass: attach the `related` navigation items to a
+ * (post-identity-filter) content identity. Shared by the page-render
+ * builder above and the REST recompute endpoint the editor
+ * save-watcher hits (where `$screen` is `null`).
+ *
+ * @since 0.9.6
+ * @internal
+ *
+ * @param array|null     $identity Filtered identity, or `null`.
+ * @param WP_Post|null   $post     The detected source post, when the
+ *                                 screen showed one.
+ * @param WP_Screen|null $screen   The current screen, when available.
+ * @return array|null The identity with `related` attached (or the
+ *                    input untouched when it was `null`).
+ */
+function desktop_mode_window_related_attach( $identity, $post, $screen ) {
+	if ( ! is_array( $identity ) ) {
+		return $identity;
+	}
+
+	$related = array();
+	if (
+		$post instanceof WP_Post &&
+		// Built-ins belong to THIS post. If the identity filter
+		// rewrote the identity to a different object (a gated post
+		// remapped to a minimal ref, a custom root scheme), the
+		// post's comments/terms/media must not tag along — that
+		// would leak labels and deep links the filter deliberately
+		// removed.
+		isset( $identity['type'], $identity['id'] ) &&
+		sanitize_key( $post->post_type ) === $identity['type'] &&
+		(int) $post->ID === (int) $identity['id']
+	) {
+		$related = desktop_mode_window_related_entities_for_post( $post );
+	}
+	if ( isset( $identity['related'] ) && is_array( $identity['related'] ) ) {
+		// An identity filter may ship related items with its own
+		// identity — fold them in so they reach the related filter
+		// (and the sanitizer) like everything else.
+		$related = array_merge( $related, $identity['related'] );
+	}
+
+	/**
+	 * Filters the related-entity navigation items announced with the
+	 * current screen's content identity.
+	 *
+	 * Each item becomes an entry in the window's title-bar "Related"
+	 * menu; clicking it opens the target admin URL as its own
+	 * desktop window. Built-ins cover posts and pages (comments,
+	 * assigned terms, associated media, linked posts); plugins add
+	 * items for their own screens or object types here. Item shape
+	 * (mirrors the JS `RelatedEntityItem`):
+	 *
+	 *     array(
+	 *         'id'         => 'comments',            // unique in the list
+	 *         'group'      => 'comments',            // section key; built-ins:
+	 *                                                // 'comments', 'terms/{tax}',
+	 *                                                // 'media', 'links'
+	 *         'groupLabel' => __( 'Comments' ),      // optional section header
+	 *         'label'      => __( 'Comments' ),
+	 *         'icon'       => 'dashicons-admin-comments', // optional
+	 *         'url'        => admin_url( 'edit-comments.php?p=123' ),
+	 *         'count'      => 4,                     // optional badge
+	 *     )
+	 *
+	 * Malformed entries (missing/empty `id`, `group`, `label`, or
+	 * `url`) are dropped before the payload is announced.
+	 *
+	 * Runs during the chromeless page render AND on the
+	 * `desktop-mode/v1/content-identity` REST recompute the editor
+	 * save-watcher triggers — in the REST context `$screen` is `null`.
+	 *
+	 * @since 0.9.6
+	 *
+	 * @param array[]        $related  Related-entity items.
+	 * @param array          $identity The resolved content identity.
+	 * @param WP_Screen|null $screen   The current screen, when available.
+	 */
+	$related = apply_filters( 'desktop_mode_window_related_entities', $related, $identity, $screen );
+	$related = desktop_mode_window_related_entities_sanitize( $related );
+	// The related pass is the single authority over the key — an
+	// identity filter smuggling its own `related` would bypass the
+	// sanitizer above.
+	unset( $identity['related'] );
+	if ( ! empty( $related ) ) {
+		$identity['related'] = $related;
 	}
 
 	return $identity;
@@ -385,6 +415,11 @@ function desktop_mode_window_links_extract_references( $post ) {
  *     the Media Library grid with that item's details modal
  *     (`upload.php?item={id}`). Core has no parent-filtered library
  *     view, so per-item deep links are the honest navigation.
+ *  4. **Linked posts** — one item per internal hyperlink in the
+ *     content that resolves to another post on this site (same
+ *     extractor the window ties use), opening that post's editor.
+ *     Cross-site and external hrefs don't resolve to a post id and
+ *     are excluded.
  *
  * Built-ins deliberately cover `post` and `page` only; other post
  * types (and non-post screens) join via the
@@ -425,8 +460,8 @@ function desktop_mode_window_related_entities_for_post( $post ) {
 	// 2. Assigned terms of public taxonomies. Budgeted at 32 items
 	// ACROSS taxonomies (not per taxonomy): the engine hard-caps the
 	// whole `related` list at 64, and an unbudgeted term flood would
-	// silently push the trailing Media group past that cap. Worst
-	// case here is 1 comments + 32 terms + 20 media = 53 — built-ins
+	// silently push the trailing groups past that cap. Worst case is
+	// 1 comments + 32 terms + 20 media + 10 links = 63 — built-ins
 	// can never hit the engine's truncation.
 	$term_budget = 32;
 	foreach ( get_object_taxonomies( $post, 'objects' ) as $taxonomy ) {
@@ -501,6 +536,42 @@ function desktop_mode_window_related_entities_for_post( $post ) {
 		);
 	}
 
+	// 4. Linked posts — internal hyperlinks resolving to another post
+	// on this site. Guarded: the extractor lives in the content-graph
+	// include. Capped tighter than the reference extractor (10) to
+	// stay inside the overall 64-item engine budget.
+	if ( function_exists( 'desktop_mode_content_graph_extract_internal_links' ) ) {
+		$link_ids = desktop_mode_content_graph_extract_internal_links( (string) $post->post_content );
+		$count    = 0;
+		foreach ( $link_ids as $target_id ) {
+			if ( $count >= 10 ) {
+				break;
+			}
+			$target_id = (int) $target_id;
+			if ( $target_id === (int) $post->ID ) {
+				continue;
+			}
+			$target_type = get_post_type( $target_id );
+			if ( ! $target_type || 'attachment' === $target_type ) {
+				continue;
+			}
+			$label = get_the_title( $target_id );
+			if ( '' === $label ) {
+				/* translators: %d: post ID. */
+				$label = sprintf( __( 'Post %d', 'desktop-mode' ), $target_id );
+			}
+			$related[] = array(
+				'id'         => 'link-' . $target_id,
+				'group'      => 'links',
+				'groupLabel' => __( 'Linked posts', 'desktop-mode' ),
+				'label'      => $label,
+				'icon'       => 'dashicons-admin-links',
+				'url'        => admin_url( 'post.php?post=' . $target_id . '&action=edit' ),
+			);
+			++$count;
+		}
+	}
+
 	return $related;
 }
 
@@ -557,6 +628,106 @@ function desktop_mode_window_related_entities_sanitize( $related ) {
 	}
 
 	return $out;
+}
+
+/**
+ * REST route: `GET /desktop-mode/v1/content-identity?post=N`.
+ *
+ * Recomputes a post's content identity — label, outbound `links`
+ * references, and the `related` navigation items — outside a page
+ * render. The chromeless bridge's editor save-watcher hits this
+ * after every non-autosave Gutenberg save (Gutenberg saves over REST
+ * without reloading, so the page-render announcement alone would go
+ * stale the moment the user adds a category or an image) and
+ * re-announces the fresh identity to the parent shell.
+ *
+ * Both public filters (`desktop_mode_window_content_identity`,
+ * `desktop_mode_window_related_entities`) run here exactly as they
+ * do at page render, with `$screen = null` — there is no WP_Screen
+ * in REST context.
+ *
+ * @since 0.9.6
+ */
+function desktop_mode_register_content_identity_route() {
+	register_rest_route(
+		'desktop-mode/v1',
+		'/content-identity',
+		array(
+			'methods'             => 'GET',
+			'callback'            => 'desktop_mode_rest_content_identity',
+			'permission_callback' => 'desktop_mode_rest_content_identity_permission',
+			'args'                => array(
+				'post' => array(
+					'description' => __( 'Post ID to recompute the content identity for.', 'desktop-mode' ),
+					'type'        => 'integer',
+					'required'    => true,
+					'minimum'     => 1,
+				),
+			),
+		)
+	);
+}
+add_action( 'rest_api_init', 'desktop_mode_register_content_identity_route' );
+
+/**
+ * Permission: desktop mode enabled AND the caller can edit the post —
+ * the identity carries the post title, term names, and media labels,
+ * which is exactly what the edit screen itself exposes.
+ *
+ * @since 0.9.6
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return true|WP_Error
+ */
+function desktop_mode_rest_content_identity_permission( $request ) {
+	$enabled = desktop_mode_rest_require_enabled();
+	if ( true !== $enabled ) {
+		return $enabled;
+	}
+	if ( ! current_user_can( 'edit_post', (int) $request['post'] ) ) {
+		return new WP_Error(
+			'rest_forbidden',
+			__( 'You are not allowed to edit this post.', 'desktop-mode' ),
+			array( 'status' => 403 )
+		);
+	}
+	return true;
+}
+
+/**
+ * REST handler — rebuild the post-editor identity the same way the
+ * page-render builder's `post.php` branch does, filters included.
+ *
+ * @since 0.9.6
+ *
+ * @param WP_REST_Request $request REST request.
+ * @return WP_REST_Response|WP_Error
+ */
+function desktop_mode_rest_content_identity( $request ) {
+	$post = get_post( (int) $request['post'] );
+	if ( ! $post instanceof WP_Post || 'attachment' === $post->post_type ) {
+		return new WP_Error(
+			'desktop_mode_no_identity',
+			__( 'No content identity for this object.', 'desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	$identity = array(
+		'type'  => sanitize_key( $post->post_type ),
+		'id'    => (int) $post->ID,
+		'label' => get_the_title( $post ),
+	);
+	$links    = desktop_mode_window_links_extract_references( $post );
+	if ( ! empty( $links ) ) {
+		$identity['links'] = $links;
+	}
+
+	/** This filter is documented in includes/window-links.php */
+	$identity = apply_filters( 'desktop_mode_window_content_identity', $identity, null );
+	$identity = desktop_mode_window_related_attach( $identity, $post, null );
+
+	return rest_ensure_response( array( 'identity' => $identity ) );
 }
 
 /**

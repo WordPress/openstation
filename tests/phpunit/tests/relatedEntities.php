@@ -201,6 +201,35 @@ class Tests_DesktopMode_RelatedEntities extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Internal hyperlinks that resolve to another post surface as the
+	 * "Linked posts" group, opening the target's editor. Self-links
+	 * and external hrefs are skipped.
+	 *
+	 * @covers ::desktop_mode_window_related_entities_for_post
+	 */
+	public function test_internal_links_yield_linked_posts_items() {
+		$target_id = self::factory()->post->create( array( 'post_title' => 'Target Post' ) );
+		$source_id = self::factory()->post->create();
+		wp_update_post(
+			array(
+				'ID'           => $source_id,
+				'post_content' => 'See <a href="' . get_permalink( $target_id ) . '">the target</a>, '
+					. '<a href="' . get_permalink( $source_id ) . '">myself</a>, and '
+					. '<a href="https://external.example/">elsewhere</a>.',
+			)
+		);
+
+		$related = desktop_mode_window_related_entities_for_post( get_post( $source_id ) );
+		$links   = $this->items_in_group( $related, 'links' );
+
+		$this->assertCount( 1, $links, 'Only the resolvable non-self internal link may surface.' );
+		$this->assertSame( 'link-' . $target_id, $links[0]['id'] );
+		$this->assertSame( 'Target Post', $links[0]['label'] );
+		$this->assertSame( 'Linked posts', $links[0]['groupLabel'] );
+		$this->assertStringContainsString( 'post.php?post=' . $target_id . '&action=edit', $links[0]['url'] );
+	}
+
+	/**
 	 * Built-ins are posts/pages only — CPTs join via the filter.
 	 *
 	 * @covers ::desktop_mode_window_related_entities_for_post
@@ -523,5 +552,135 @@ class Tests_DesktopMode_RelatedEntities extends WP_UnitTestCase {
 	public function test_sanitizer_returns_empty_array_for_non_arrays() {
 		$this->assertSame( array(), desktop_mode_window_related_entities_sanitize( null ) );
 		$this->assertSame( array(), desktop_mode_window_related_entities_sanitize( 'nope' ) );
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// REST recompute — `GET /desktop-mode/v1/content-identity` — the
+	// endpoint the chromeless bridge's editor save-watcher hits so a
+	// Gutenberg save refreshes the Related menu without a reload.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::desktop_mode_rest_content_identity
+	 */
+	public function test_rest_content_identity_returns_fresh_identity_with_related() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$post_id = self::factory()->post->create( array( 'post_title' => 'Fresh' ) );
+		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
+
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', $post_id );
+		$response = rest_get_server()->dispatch( $request );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$identity = $response->get_data()['identity'];
+		$this->assertSame( 'post', $identity['type'] );
+		$this->assertSame( $post_id, $identity['id'] );
+		$this->assertSame( 'Fresh', $identity['label'] );
+		$this->assertNotEmpty( $this->items_in_group( $identity['related'], 'comments' ) );
+	}
+
+	/**
+	 * Both public filters run on the REST recompute too — with a null
+	 * screen, exactly as documented.
+	 *
+	 * @covers ::desktop_mode_rest_content_identity
+	 */
+	public function test_rest_content_identity_applies_both_filters_with_null_screen() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$post_id = self::factory()->post->create();
+
+		$screens = array();
+		add_filter(
+			'desktop_mode_window_related_entities',
+			static function ( $related, $identity, $screen ) use ( &$screens ) {
+				$screens[] = $screen;
+				$related[] = array(
+					'id'    => 'acme/from-rest',
+					'group' => 'acme/things',
+					'label' => 'From REST',
+					'url'   => admin_url( 'admin.php?page=acme' ),
+				);
+				return $related;
+			},
+			10,
+			3
+		);
+
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', $post_id );
+		$response = rest_get_server()->dispatch( $request );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+
+		$this->assertSame( array( null ), $screens );
+		$ids = wp_list_pluck( $response->get_data()['identity']['related'], 'id' );
+		$this->assertContains( 'acme/from-rest', $ids );
+	}
+
+	/**
+	 * @covers ::desktop_mode_rest_content_identity_permission
+	 */
+	public function test_rest_content_identity_requires_auth_and_edit_cap() {
+		$post_id = self::factory()->post->create();
+
+		// Logged out → 401.
+		wp_set_current_user( 0 );
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', $post_id );
+		$this->assertSame( 401, rest_get_server()->dispatch( $request )->get_status() );
+
+		// Logged in, desktop mode on, but cannot edit the post → 403.
+		$subscriber_id = self::factory()->user->create( array( 'role' => 'subscriber' ) );
+		wp_set_current_user( $subscriber_id );
+		update_user_meta( $subscriber_id, 'desktop_mode_mode', '1' );
+		$this->assertSame( 403, rest_get_server()->dispatch( $request )->get_status() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_rest_content_identity
+	 */
+	public function test_rest_content_identity_rejects_attachments_and_missing_posts() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$attachment_id = self::factory()->attachment->create_object(
+			'rest.jpg',
+			0,
+			array( 'post_mime_type' => 'image/jpeg' )
+		);
+
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', $attachment_id );
+		$this->assertSame( 404, rest_get_server()->dispatch( $request )->get_status() );
+
+		// Missing post: the permission callback's `edit_post` check
+		// fails first — 403, deliberately not leaking existence.
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', 999999 );
+		$this->assertSame( 403, rest_get_server()->dispatch( $request )->get_status() );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+	}
+
+	/**
+	 * The chromeless bridge ships the editor save-watcher that refetches
+	 * the identity from the REST route after every real save.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_contains_the_save_watcher() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		$post_id = self::factory()->post->create();
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		unset( $_GET['desktop_mode_chromeless'] );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+
+		$this->assertStringContainsString( 'desktop-mode/v1/content-identity', $output );
+		$this->assertStringContainsString( 'isSavingPost', $output );
 	}
 }
