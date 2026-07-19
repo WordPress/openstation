@@ -1265,6 +1265,21 @@ export const HOOKS = {
 	 */
 	WINDOW_LINK_EDGES: 'desktop-mode.window-links.edges',
 	/**
+	 * Filter — applied to the related-entity navigation items resolved
+	 * for a window, every time the title bar's "Related" button decides
+	 * its visibility and every time its menu is built. Signature:
+	 * `( items: RelatedEntityItem[], ctx: { windowId: string, content:
+	 * WindowContentRef | null } ) => RelatedEntityItem[]` where each
+	 * item is `{ id, group, label, url, groupLabel?, icon?, count? }`.
+	 * The unfiltered list is whatever the window's content identity
+	 * carried in `related` (built server-side; see the
+	 * `desktop_mode_window_related_entities` PHP filter). Add, drop, or
+	 * relabel items here — return an empty array to hide the button.
+	 *
+	 * @since 0.9.6
+	 */
+	RELATED_ENTITIES_ITEMS: 'desktop-mode.related-entities.items',
+	/**
 	 * Filter — applied to the registered window-link renderer list on
 	 * every read (`wp.desktop.listWindowLinkRenderers()`). Signature:
 	 * `( defs: WindowLinkRendererDef[] ) => WindowLinkRendererDef[]`.

@@ -106,6 +106,10 @@ function desktop_mode_build_content_identity() {
 				if ( ! empty( $links ) ) {
 					$identity['links'] = $links;
 				}
+
+				// Source for the built-in related-entity items attached
+				// after the identity filter below.
+				$related_source_post = $post;
 			}
 		}
 	} elseif ( 'upload.php' === $pagenow ) {
@@ -134,6 +138,28 @@ function desktop_mode_build_content_identity() {
 					'id'   => $parent_id,
 				);
 			}
+		}
+	} elseif ( 'edit-comments.php' === $pagenow ) {
+		// Comments list filtered to a single post —
+		// `edit-comments.php?p=N`, the target the Related menu's
+		// "Comments" item opens. One identity per post, rooted at the
+		// post, so the comments window and its post window tie
+		// together on the desktop. The unfiltered ALL-comments list
+		// stays identity-less.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only identity harvest; the host admin page enforces capability + nonce.
+		$post_id = isset( $_GET['p'] ) ? absint( $_GET['p'] ) : 0;
+		$post    = $post_id ? get_post( $post_id ) : null;
+		if ( $post instanceof WP_Post && 'attachment' !== $post->post_type ) {
+			$identity = array(
+				'type'  => 'comments',
+				'id'    => (int) $post->ID,
+				/* translators: %s: post title. */
+				'label' => sprintf( __( 'Comments on %s', 'desktop-mode' ), get_the_title( $post ) ),
+				'root'  => array(
+					'type' => sanitize_key( $post->post_type ),
+					'id'   => (int) $post->ID,
+				),
+			);
 		}
 	} elseif ( 'term.php' === $pagenow ) {
 		// Term edit screen — `term.php?taxonomy=category&tag_ID=N`.
@@ -166,7 +192,80 @@ function desktop_mode_build_content_identity() {
 	 * @param array|null     $identity Identity array, or `null` for none.
 	 * @param WP_Screen|null $screen   The current screen, when available.
 	 */
-	return apply_filters( 'desktop_mode_window_content_identity', $identity, $screen );
+	$identity = apply_filters( 'desktop_mode_window_content_identity', $identity, $screen );
+
+	// Related-entity navigation targets — what the title bar's
+	// "Related" button lists. Runs AFTER the identity filter so
+	// plugin-injected identities for custom screens get the related
+	// filter too, and only for a resolved identity: no identity, no
+	// related menu.
+	if ( is_array( $identity ) ) {
+		$related = array();
+		if (
+			isset( $related_source_post ) &&
+			$related_source_post instanceof WP_Post &&
+			// Built-ins belong to THIS post. If the identity filter
+			// rewrote the identity to a different object (a gated post
+			// remapped to a minimal ref, a custom root scheme), the
+			// post's comments/terms/media must not tag along — that
+			// would leak labels and deep links the filter deliberately
+			// removed.
+			isset( $identity['type'], $identity['id'] ) &&
+			sanitize_key( $related_source_post->post_type ) === $identity['type'] &&
+			(int) $related_source_post->ID === (int) $identity['id']
+		) {
+			$related = desktop_mode_window_related_entities_for_post( $related_source_post );
+		}
+		if ( isset( $identity['related'] ) && is_array( $identity['related'] ) ) {
+			// An identity filter may ship related items with its own
+			// identity — fold them in so they reach the related filter
+			// (and the sanitizer) like everything else.
+			$related = array_merge( $related, $identity['related'] );
+		}
+
+		/**
+		 * Filters the related-entity navigation items announced with the
+		 * current screen's content identity.
+		 *
+		 * Each item becomes an entry in the window's title-bar "Related"
+		 * menu; clicking it opens the target admin URL as its own
+		 * desktop window. Built-ins cover posts and pages (comments,
+		 * assigned terms, attached media); plugins add items for their
+		 * own screens or object types here. Item shape (mirrors the JS
+		 * `RelatedEntityItem`):
+		 *
+		 *     array(
+		 *         'id'         => 'comments',            // unique in the list
+		 *         'group'      => 'comments',            // section key; built-ins:
+		 *                                                // 'comments', 'terms/{tax}', 'media'
+		 *         'groupLabel' => __( 'Comments' ),      // optional section header
+		 *         'label'      => __( 'Comments' ),
+		 *         'icon'       => 'dashicons-admin-comments', // optional
+		 *         'url'        => admin_url( 'edit-comments.php?p=123' ),
+		 *         'count'      => 4,                     // optional badge
+		 *     )
+		 *
+		 * Malformed entries (missing/empty `id`, `group`, `label`, or
+		 * `url`) are dropped before the payload is announced.
+		 *
+		 * @since 0.9.6
+		 *
+		 * @param array[]        $related  Related-entity items.
+		 * @param array          $identity The resolved content identity.
+		 * @param WP_Screen|null $screen   The current screen, when available.
+		 */
+		$related = apply_filters( 'desktop_mode_window_related_entities', $related, $identity, $screen );
+		$related = desktop_mode_window_related_entities_sanitize( $related );
+		// The related pass is the single authority over the key — an
+		// identity filter smuggling its own `related` would bypass the
+		// sanitizer above.
+		unset( $identity['related'] );
+		if ( ! empty( $related ) ) {
+			$identity['related'] = $related;
+		}
+	}
+
+	return $identity;
 }
 
 /**
@@ -267,6 +366,197 @@ function desktop_mode_window_links_extract_references( $post ) {
 	}
 
 	return $links;
+}
+
+/**
+ * Build the built-in related-entity navigation items for a post or
+ * page — the entries the window's title-bar "Related" menu offers:
+ *
+ *  1. **Comments** — one item opening the Comments screen filtered to
+ *     this post (`edit-comments.php?p={id}`), with the comment total
+ *     as a count badge. Only when the post type supports comments AND
+ *     at least one exists — an empty filtered list is a dead end.
+ *  2. **Assigned terms** — one item per term of every public
+ *     taxonomy, opening that term's edit screen
+ *     (`term.php?taxonomy={tax}&tag_ID={id}`), grouped per taxonomy.
+ *  3. **Media** — one item per associated attachment (featured image,
+ *     `post_parent`-attached uploads, and `wp-image-{id}` embeds —
+ *     the same three sources the reference extractor uses), opening
+ *     the Media Library grid with that item's details modal
+ *     (`upload.php?item={id}`). Core has no parent-filtered library
+ *     view, so per-item deep links are the honest navigation.
+ *
+ * Built-ins deliberately cover `post` and `page` only; other post
+ * types (and non-post screens) join via the
+ * `desktop_mode_window_related_entities` filter.
+ *
+ * @since 0.9.6
+ *
+ * @param WP_Post $post Source post.
+ * @return array[] Related-entity items, possibly empty.
+ */
+function desktop_mode_window_related_entities_for_post( $post ) {
+	if ( ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+		return array();
+	}
+
+	$related = array();
+
+	// 1. Comments. Count approved + awaiting moderation — the filtered
+	// screen the item opens lists both, and the moderation queue is
+	// the flow this jump serves most. `get_comments_number()` would
+	// return the approved-only cached count, hiding the item exactly
+	// when every comment is pending and disagreeing with the opened
+	// list when counts are mixed.
+	$comment_totals = get_comment_count( $post->ID );
+	$comment_count  = isset( $comment_totals['total_comments'] ) ? (int) $comment_totals['total_comments'] : 0;
+	if ( post_type_supports( $post->post_type, 'comments' ) && $comment_count > 0 ) {
+		$related[] = array(
+			'id'         => 'comments',
+			'group'      => 'comments',
+			'groupLabel' => __( 'Comments', 'desktop-mode' ),
+			'label'      => __( 'Comments', 'desktop-mode' ),
+			'icon'       => 'dashicons-admin-comments',
+			'url'        => admin_url( 'edit-comments.php?p=' . $post->ID ),
+			'count'      => $comment_count,
+		);
+	}
+
+	// 2. Assigned terms of public taxonomies. Budgeted at 32 items
+	// ACROSS taxonomies (not per taxonomy): the engine hard-caps the
+	// whole `related` list at 64, and an unbudgeted term flood would
+	// silently push the trailing Media group past that cap. Worst
+	// case here is 1 comments + 32 terms + 20 media = 53 — built-ins
+	// can never hit the engine's truncation.
+	$term_budget = 32;
+	foreach ( get_object_taxonomies( $post, 'objects' ) as $taxonomy ) {
+		if ( empty( $taxonomy->public ) || $term_budget <= 0 ) {
+			continue;
+		}
+		$terms = get_the_terms( $post, $taxonomy->name );
+		if ( ! is_array( $terms ) ) {
+			continue;
+		}
+		foreach ( array_slice( $terms, 0, $term_budget ) as $term ) {
+			--$term_budget;
+			$tax_slug  = sanitize_key( $taxonomy->name );
+			$related[] = array(
+				'id'         => 'term-' . $tax_slug . '-' . (int) $term->term_id,
+				'group'      => 'terms/' . $tax_slug,
+				'groupLabel' => (string) $taxonomy->labels->name,
+				'label'      => $term->name,
+				'icon'       => ! empty( $taxonomy->hierarchical ) ? 'dashicons-category' : 'dashicons-tag',
+				'url'        => admin_url( 'term.php?taxonomy=' . rawurlencode( $taxonomy->name ) . '&tag_ID=' . (int) $term->term_id ),
+			);
+		}
+	}
+
+	// 3. Associated media — featured image first, then attached
+	// uploads, then in-content embeds. Deduped and capped so a
+	// gallery-heavy post can't turn the menu into a scroll marathon.
+	$media_ids = array();
+	$push_id   = static function ( $media_id ) use ( &$media_ids ) {
+		$media_id = (int) $media_id;
+		if ( $media_id > 0 && ! in_array( $media_id, $media_ids, true ) && 'attachment' === get_post_type( $media_id ) ) {
+			$media_ids[] = $media_id;
+		}
+	};
+
+	$push_id( get_post_thumbnail_id( $post ) );
+	$attached = get_children(
+		array(
+			'post_parent'    => $post->ID,
+			'post_type'      => 'attachment',
+			'posts_per_page' => 20,
+			'orderby'        => 'menu_order ID',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+		)
+	);
+	foreach ( $attached as $media_id ) {
+		$push_id( $media_id );
+	}
+	if ( preg_match_all( '/\bwp-image-(\d+)\b/', (string) $post->post_content, $matches ) ) {
+		foreach ( array_unique( $matches[1] ) as $media_id ) {
+			$push_id( $media_id );
+		}
+	}
+
+	foreach ( array_slice( $media_ids, 0, 20 ) as $media_id ) {
+		$label = get_the_title( $media_id );
+		if ( '' === $label ) {
+			$label = wp_basename( (string) get_attached_file( $media_id ) );
+		}
+		if ( '' === $label ) {
+			/* translators: %d: attachment ID. */
+			$label = sprintf( __( 'Media item %d', 'desktop-mode' ), $media_id );
+		}
+		$related[] = array(
+			'id'         => 'media-' . $media_id,
+			'group'      => 'media',
+			'groupLabel' => __( 'Media', 'desktop-mode' ),
+			'label'      => $label,
+			'icon'       => 'dashicons-admin-media',
+			'url'        => admin_url( 'upload.php?item=' . $media_id ),
+		);
+	}
+
+	return $related;
+}
+
+/**
+ * Drop malformed related-entity items and whitelist their fields.
+ *
+ * Runs on the `desktop_mode_window_related_entities` filter output
+ * before the payload is announced: a plugin returning one bad entry
+ * must not invalidate the whole identity client-side (the JS engine
+ * validates the ref as a unit and would discard everything).
+ *
+ * @since 0.9.6
+ * @internal
+ *
+ * @param mixed $related Filter output.
+ * @return array[] Well-formed items, reindexed.
+ */
+function desktop_mode_window_related_entities_sanitize( $related ) {
+	if ( ! is_array( $related ) ) {
+		return array();
+	}
+
+	$out = array();
+	foreach ( $related as $item ) {
+		if ( ! is_array( $item ) ) {
+			continue;
+		}
+		foreach ( array( 'id', 'group', 'label', 'url' ) as $required ) {
+			// Mirror the JS engine's validation exactly (`.trim() !== ''`):
+			// a whitespace-only value passing here would fail validateRef
+			// client-side, which rejects the ref AS A UNIT — one bad item
+			// would silently cost the window its whole identity. Not
+			// `empty()`: that would also drop the legitimate string '0'.
+			if ( ! isset( $item[ $required ] ) || ! is_string( $item[ $required ] ) || '' === trim( $item[ $required ] ) ) {
+				continue 2;
+			}
+		}
+		$entry = array(
+			'id'    => $item['id'],
+			'group' => $item['group'],
+			'label' => $item['label'],
+			'url'   => $item['url'],
+		);
+		if ( isset( $item['groupLabel'] ) && is_string( $item['groupLabel'] ) && '' !== trim( $item['groupLabel'] ) ) {
+			$entry['groupLabel'] = $item['groupLabel'];
+		}
+		if ( isset( $item['icon'] ) && is_string( $item['icon'] ) && '' !== trim( $item['icon'] ) ) {
+			$entry['icon'] = $item['icon'];
+		}
+		if ( isset( $item['count'] ) && is_numeric( $item['count'] ) ) {
+			$entry['count'] = (int) $item['count'];
+		}
+		$out[] = $entry;
+	}
+
+	return $out;
 }
 
 /**

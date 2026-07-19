@@ -549,7 +549,7 @@ apply_filters(
 
 `$identity` shape (mirrors the JS `WindowContentRef`): `type` (lowercase object-type slug; namespace yours `vendor/order`), `id` (int|string), optional `label`, optional `root => array( 'type', 'id' )`, optional `links => array( array( 'type', 'id', 'rel'? ), … )`. A ref **without** `root` is itself a root (the post a comment window points back to); a ref **with** `root` joins that root's relation group as a child (an edge pointing at the root — the built-in renderer marks the target end with its larger endpoint dot). `links` declare outbound ties: the default (`rel` omitted) is a `reference` — an edge FROM this window TO the linked object ("my content points at that"); `rel => 'child'` reverses it — the linked object BELONGS TO this content (a post's embedded media), drawn exactly like a root tie. Mutual references merge into one bidirectional edge. One reading everywhere: **the edge points at what its source belongs to or refers to** — relational structure, never navigation history.
 
-Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), and `term.php` (`term/{taxonomy}` → root, which assigned posts reference). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
+Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less; since 0.9.6), and `term.php` (`term/{taxonomy}` → root, which assigned posts reference). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
 
 ```php
 add_filter( 'desktop_mode_window_content_identity', function ( $identity, $screen ) {
@@ -567,6 +567,57 @@ add_filter( 'desktop_mode_window_content_identity', function ( $identity, $scree
     return $identity;
 }, 10, 2 );
 ```
+
+After this filter resolves, the builder attaches a `related` key — the navigation targets behind the title bar's "Related" button — via the `desktop_mode_window_related_entities` filter below (since 0.9.6). Identities may ship their own `related` array; it is folded into that pass and sanitized with everything else.
+
+---
+
+### `desktop_mode_window_related_entities` — Experimental (since 0.9.6)
+
+Filters the related-entity navigation items announced alongside the content identity — the entries behind the window title bar's **"Related" button** (a dropdown listing the content's comments, terms, media, …; picking one opens it as its own desktop window). Runs in the same real-admin-context pass as `desktop_mode_window_content_identity`, **after** that filter and **only when an identity resolved** — so an identity you inject for a custom screen receives the related pass too, and identity-less screens (list tables, dashboards) never do.
+
+```php
+apply_filters(
+    'desktop_mode_window_related_entities',
+    array $related,         // built-in items; empty for non-post screens
+    array $identity,        // the resolved (already filtered) content identity
+    WP_Screen|null $screen
+);
+```
+
+Item shape (mirrors the JS `RelatedEntityItem`):
+
+```php
+array(
+    'id'         => 'comments',                 // unique in the list; namespace yours 'vendor/sub-id'
+    'group'      => 'comments',                 // menu section key; built-ins: 'comments', 'terms/{taxonomy}', 'media'
+    'groupLabel' => __( 'Comments' ),           // optional translated section header
+    'label'      => __( 'Comments' ),           // translated item label
+    'icon'       => 'dashicons-admin-comments', // optional Dashicons class
+    'url'        => admin_url( 'edit-comments.php?p=123' ), // admin URL the item opens
+    'count'      => 4,                          // optional count suffix ("Comments (4)")
+)
+```
+
+Built-in items cover **posts and pages only**: Comments (`edit-comments.php?p={id}`, only when the post type supports comments and at least one approved-or-pending comment exists; the count is the same approved + awaiting-moderation total the opened screen lists), one item per assigned public-taxonomy term (`term.php?taxonomy={tax}&tag_ID={id}`, grouped per taxonomy, budgeted at 32 terms across taxonomies), and one item per associated attachment — featured image, `post_parent`-attached uploads, `wp-image-{id}` embeds — deep-linking the Media Library detail (`upload.php?item={id}`, capped at 20). The client engine hard-caps the final list at **64 items** (built-ins never reach it; filter-added floods are truncated silently). Built-ins attach **only while the filtered identity still refers to the detected post** — an identity filter that rewrites a post's identity to a different `type`/`id` (a gated post remapped to a minimal ref) suppresses them automatically, so nothing about the underlying post leaks through the menu. Other screens contribute via this filter:
+
+```php
+add_filter( 'desktop_mode_window_related_entities', function ( $related, $identity, $screen ) {
+    if ( 'acme/order' === $identity['type'] ) {
+        $related[] = array(
+            'id'         => 'acme/customer-' . acme_order_customer( $identity['id'] ),
+            'group'      => 'acme/customers',
+            'groupLabel' => __( 'Customer', 'acme' ),
+            'label'      => acme_customer_name( $identity['id'] ),
+            'icon'       => 'dashicons-businessperson',
+            'url'        => admin_url( 'admin.php?page=acme-customer&c=' . acme_order_customer( $identity['id'] ) ),
+        );
+    }
+    return $related;
+}, 10, 3 );
+```
+
+Malformed entries (missing/empty `id`, `group`, `label`, or `url`) are dropped before the payload is announced, and unknown fields are stripped — one bad entry can't invalidate the whole identity client-side. The client-side counterpart is the `desktop-mode.related-entities.items` JS filter (see [javascript-reference](./javascript-reference.md)); a recipe lives in [`docs/examples/related-entities.md`](./examples/related-entities.md).
 
 ---
 

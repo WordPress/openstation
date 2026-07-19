@@ -42,6 +42,25 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// the first comment's window instead of opening its own (and the
 	// window-links ties can only ever point at one comment at a time).
 	'c',
+	// NOTE: the generic `id` param is deliberately NOT identity.
+	// Plugin list screens use `admin.php?page=foo&action=…&id=N` for
+	// row actions; treating `id` as identity would open every such
+	// action in a NEW window instead of navigating the list in place.
+	// The cost: two entities of the same `admin.php?page=` screen
+	// (e.g. two WooCommerce HPOS orders) can't be open side by side —
+	// plugins that want that can differentiate via `path` or their own
+	// window ids.
+	// The term ID on `term.php?taxonomy=category&tag_ID=X` — the term
+	// analogue of `post`. Without it every term-edit URL of the same
+	// taxonomy collapses to one window, so opening a second category
+	// from a post's Related menu just refocuses the first term's
+	// window instead of opening its own.
+	'tag_ID',
+	// The attachment ID on `upload.php?item=X` (Media Library grid
+	// with the details modal open). Without it every deep-linked media
+	// item collapses to the plain `upload-php` window, so opening a
+	// second image from a post's Related menu refocuses the first.
+	'item',
 	// Site-editor entity path: `site-editor.php?p=/wp_template_part/
 	// twentytwentyfive//footer-columns`. Each template / template
 	// part / pattern / navigation entity is a distinct "page" from
