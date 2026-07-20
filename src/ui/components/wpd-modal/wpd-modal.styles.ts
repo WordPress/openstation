@@ -25,6 +25,12 @@ export const modalStyles = css`
 		--desktop-mode-muted: #a7aaad;
 		--desktop-mode-muted-fg: #a7aaad;
 		--desktop-mode-border: rgba( 255, 255, 255, 0.25 );
+		/* Input / popover surface. The :root default is #fff (windows
+		   are light), which here rendered white fields with the light
+		   --desktop-mode-text above — near-invisible values. Solid, not
+		   translucent: wpd-menu / wpd-multiselect popovers read this
+		   token too and must stay opaque over slotted content. */
+		--desktop-mode-window-bg: #2c3338;
 		/* Ghost/secondary button hover washes — the light-surface
 		   defaults are black-on-black here. */
 		--wpd-button-bg-hover: rgba( 255, 255, 255, 0.08 );
