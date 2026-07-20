@@ -380,15 +380,27 @@ export function refreshWallpaperPressedState(
  * Mount the given wallpaper's editor into the editor slot, tearing
  * down any prior editor first. If the wallpaper has no editor, the
  * slot collapses.
+ *
+ * Every mount gets a brand-new inner container. Recycling the previous
+ * element looks equivalent, but breaks any editor that keeps
+ * per-container state keyed on element identity — the framework's own
+ * `render()` caches its mounted parts per container, so a cleared-then-
+ * reused element would take the update fast path against detached
+ * nodes and paint nothing (that was the "custom gradient can't be
+ * edited after switching away and back" bug). Third-party editors
+ * built on lit-html carry the same per-container cache. A fresh
+ * element also can't leak the previous editor's classes.
  */
 export function syncEditorSlot(
 	ctx: SettingsCtx,
 	slot: HTMLElement,
-	inner: HTMLElement,
 	def: WallpaperDef,
 ): void {
 	teardownEditor( ctx );
-	inner.innerHTML = '';
+	const inner = document.createElement( 'div' );
+	inner.className = 'desktop-mode-os-settings__editor-slot-inner';
+	slot.textContent = '';
+	slot.appendChild( inner );
 
 	if ( ! def.renderEditor ) {
 		slot.dataset.expanded = 'false';
@@ -547,7 +559,9 @@ export function buildWallpaperSection(
 	// (CSS animates grid-template-rows 0fr ↔ 1fr). Kept as imperative
 	// DOM refs because `renderEditor` contracts with third-party
 	// plugins receive a plain `HTMLElement` — no templating, just a
-	// container they can own.
+	// container they can own. `syncEditorSlot` replaces the inner
+	// element on every mount; this initial one just keeps the collapsed
+	// slot's grid row populated until the first sync.
 	const editorSlot = document.createElement( 'div' );
 	editorSlot.className = 'desktop-mode-os-settings__editor-slot';
 	editorSlot.dataset.expanded = 'false';
@@ -584,7 +598,7 @@ export function buildWallpaperSection(
 			return;
 		}
 		selectWallpaper( ctx, def.id, body );
-		syncEditorSlot( ctx, editorSlot, editorInner, def );
+		syncEditorSlot( ctx, editorSlot, def );
 		paint();
 	};
 
@@ -644,7 +658,7 @@ export function buildWallpaperSection(
 	// doesn't animate on panel open.
 	const active = registry.get( ctx.state.wallpaper );
 	if ( active ) {
-		syncEditorSlot( ctx, editorSlot, editorInner, active );
+		syncEditorSlot( ctx, editorSlot, active );
 	}
 	syncWallpaperDescription( ctx, descriptionSlot );
 	syncWallpaperConfigButton( ctx, configSlot );
@@ -672,7 +686,7 @@ export function buildWallpaperSection(
 		// new wallpaper).
 		const now = registry.get( ctx.state.wallpaper );
 		if ( now ) {
-			syncEditorSlot( ctx, editorSlot, editorInner, now );
+			syncEditorSlot( ctx, editorSlot, now );
 		}
 		syncWallpaperDescription( ctx, descriptionSlot );
 		syncWallpaperConfigButton( ctx, configSlot );

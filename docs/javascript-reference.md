@@ -3893,6 +3893,8 @@ Canvas wallpapers receive `ctx.prefersReducedMotion` and should render a single 
 
 Any wallpaper can ship a `renderEditor` callback — when that wallpaper is the selected swatch in OS Settings, a collapsible panel opens below the grid and the editor is rendered into it. Same animation as the built-in custom-gradient editor.
 
+Every mount receives a brand-new `container` element — the shell never recycles the previous mount's DOM, so editors built on renderers that cache state per container (lit-html and friends) work across select-away-and-back cycles without any special handling. Treat the container as yours until your returned teardown runs; don't keep references to it afterwards.
+
 ```javascript
 wp.desktop.registerWallpaper( {
     id: 'my-plugin/tunable',
