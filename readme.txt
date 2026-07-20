@@ -1,5 +1,5 @@
 === Desktop Mode ===
-Contributors: automattic, allterraindeveloper, epeicher, mmtr86
+Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze
 Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.0
