@@ -197,6 +197,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `desktop-mode-intros-reset` | Experimental *(0.8.3)* |
 | `desktop-mode-my-wordpress-entity-trashed` | Experimental *(0.8.9)* |
 | `desktop-mode-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental *(0.9.6)* |
+| `desktop-mode-auth-lost` / `desktop-mode-auth-restored` *(session expiry / recovery)* | Stable *(0.9.8)* |
 
 ---
 
@@ -216,6 +217,7 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `desktop-mode-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable *(0.7.0)* |
 | `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable *(0.7.0)* |
 | `desktop-mode-drag-over` / `-leave` / `desktop-mode-drop` | parent → iframe | Stable *(0.8.7)* |
+| `desktop-mode-reauth-detected` *(session re-auth nudge)* | iframe → parent | Stable *(0.8.3)* |
 
 ---
 

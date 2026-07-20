@@ -124,6 +124,14 @@ Flow:
 
 Native windows are untouched — they still use the synchronous `desktop-mode.native-window.before-close` filter (see [`javascript-reference.md`](./javascript-reference.md#native-window-lifecycle)), not this postMessage round-trip.
 
+### Session re-auth nudge — `desktop-mode-reauth-detected`
+
+*(since 0.8.3)* Every chromeless iframe runs its own Heartbeat, and each heartbeat response carries core's `wp-auth-check` boolean (attached server-side, independent of whether the modal JS is loaded — chromeless iframes have the modal suppressed so the parent shell owns the single login prompt). When an iframe's heartbeat sees the flag flip `false → true` — the user re-authenticated somewhere — the bridge nudges the parent before reloading itself, so the shell's recovery (`src/auth-recovery/index.ts`) starts immediately instead of waiting out the parent's own heartbeat schedule.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-reauth-detected` | iframe → parent | *(none)* | "My heartbeat just saw the session come back." The parent forces a tick of its own (fresh nonces ride it), sweeps a reload over the other iframes, and fires `desktop-mode-auth-restored` (see [`javascript-reference.md`](./javascript-reference.md#session-expiry--recovery-stable-since-098)). Recovery is cooldown-gated, so the one-message-per-open-window fan-in collapses into a single run. |
+
 ## Lifecycle walkthrough — parent-initiated connection
 
 1. **Plugin calls** `wp.desktop.connect( 'edit-post', { topics: [ 'gutenberg:content' ] } )`.

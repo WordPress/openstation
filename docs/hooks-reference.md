@@ -3201,6 +3201,15 @@ heartbeat field via
 [`wp.desktop.heartbeat.subscribe`](./javascript-reference.md#nonce-refresh--heartbeat-field-stable-since-087)
 and write the value where your code reads from.
 
+Since 0.9.8 the same payload also rides core's `wp_refresh_nonces`
+filter, so the tick that reports `nonces_expired` (the first one
+after a session re-login, or after plain 24-hour expiry) already
+carries the fresh map — the shell heals in one round trip. Both
+paths additionally attach the `desktop_mode_auth` heartbeat field
+(`{ uid: <current user id> }`), which the shell's session recovery
+uses to detect a user switch (see
+[Session expiry & recovery](./javascript-reference.md#session-expiry--recovery-stable-since-098)).
+
 ---
 
 ## Sticky notes (since 0.8.8)

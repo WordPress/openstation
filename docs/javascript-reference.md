@@ -5055,6 +5055,65 @@ helper used by the framework's built-in updaters, but it's not
 exposed across bundles — third-party plugins should use the
 heartbeat subscription above.
 
+The map also rides core's `wp_refresh_nonces` short-circuit
+response *(since 0.9.8)* — the tick that reports `nonces_expired`
+(the first one after a session re-login, or after plain 24-hour
+nonce expiry) already carries the replacements, so the shell heals
+in a single round trip.
+
+---
+
+## Session expiry & recovery *(Stable, since 0.9.8)*
+
+When the login session expires, the desktop shows **one** login
+prompt: core's `wp-auth-check` modal in the parent shell. Chromeless
+iframes have theirs suppressed server-side
+(`desktop_mode_chromeless_suppress_auth_check()`), so N open windows
+no longer stack N identical modals.
+
+After the user re-authenticates (in the modal, or in another tab),
+the shell recovers **in place** — no full-page reload. The
+`src/auth-recovery/index.ts` module forces a Heartbeat tick (which
+delivers fresh nonces, see the section above), reloads each
+chromeless iframe (their PHP-rendered nonce globals can't be patched
+live), and announces the transition on both event surfaces:
+
+| Surface | Loss | Recovery |
+|---|---|---|
+| `document` CustomEvent | `desktop-mode-auth-lost` | `desktop-mode-auth-restored` |
+| Hook bus (`wp.desktop.hooks`) | `desktop-mode.auth.lost` | `desktop-mode.auth.restored` |
+
+Neither event carries a payload. `desktop-mode-auth-lost` fires once
+per outage; pause pollers and hold off on mutations — requests made
+while the session is down will 401. `desktop-mode-auth-restored`
+means cached nonces are valid again (refreshed on the same tick):
+resume pollers and re-fetch anything that may have failed during the
+outage. It can fire without a preceding `-lost` when the re-auth was
+detected from an iframe or another tab before the shell's own
+heartbeat noticed the expiry.
+
+```ts
+document.addEventListener( 'desktop-mode-auth-restored', () => {
+    // The session is back and nonces are fresh — re-sync.
+    void refreshMyPluginState();
+} );
+```
+
+Recovery decisions key off authoritative Heartbeat state only: the
+`wp-auth-check` flag, or a `nonces_expired` response arriving during
+a known outage (core only ever sends that field to an authenticated
+session, so it doubles as the earliest possible re-auth signal). A
+`401`/`403` response seen by `wp.desktop.fetch` merely *accelerates*
+the next tick (debounced) — a permission `403` from a live session
+(`rest_forbidden` on a route the user can't access) never triggers
+any user-visible reaction.
+
+One case still hard-reloads the shell: the re-login authenticated a
+**different user** (detected via the `desktop_mode_auth` heartbeat
+field, `{ uid }`). In-place recovery would leave the previous user's
+desktop issuing the new user's requests, so the shell reloads and
+re-renders for the new account.
+
 ---
 
 ## See also

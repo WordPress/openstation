@@ -428,6 +428,38 @@ function desktop_mode_chromeless_suppress_core_notices() {
 add_action( 'admin_init', 'desktop_mode_chromeless_suppress_core_notices' );
 
 /**
+ * Keeps core's session-expired login modal (`wp-auth-check`) out of
+ * chromeless iframes so the parent shell owns the single prompt.
+ *
+ * Every chromeless iframe runs its own Heartbeat, and by default
+ * each one loads `wp-auth-check.js` + the `#wp-auth-check-wrap`
+ * markup. When the session expires, N open windows meant N stacked
+ * login modals — all asking for the same credentials. Returning
+ * false from `wp_auth_check_load` here stops the modal assets from
+ * ever loading inside iframes; the parent shell (a normal admin
+ * page) keeps its copy and surfaces the one prompt over the whole
+ * desktop.
+ *
+ * Detection is unaffected: the `wp-auth-check` heartbeat response
+ * field is attached server-side (core hooks `wp_auth_check()` on
+ * `heartbeat_send` / `heartbeat_nopriv_send`), so the bridge's
+ * stale-nonce recovery in `chromeless-bridge.php` still sees the
+ * logged-out → logged-in flip without the modal JS.
+ *
+ * @since 0.9.8
+ *
+ * @param bool $show Whether to load the authentication check.
+ * @return bool
+ */
+function desktop_mode_chromeless_suppress_auth_check( $show ) {
+	if ( desktop_mode_is_chromeless_request() ) {
+		return false;
+	}
+	return $show;
+}
+add_filter( 'wp_auth_check_load', 'desktop_mode_chromeless_suppress_auth_check' );
+
+/**
  * Preserves the `desktop_mode_chromeless` flag through admin
  * redirects.
  *

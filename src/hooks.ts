@@ -1308,6 +1308,35 @@ export const HOOKS = {
 	FILE_DROP_AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
 	/** Action — `{ file, error, context }` on upload failure. */
 	FILE_DROP_UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
+
+	// ------------------------------------------------------------------
+	// Session / authentication (since 0.9.8). Fired by
+	// `src/auth-recovery/index.ts` when the WordPress login session
+	// expires and when it comes back. Mirrored as document
+	// CustomEvents (`desktop-mode-auth-lost` / `-restored`) for
+	// listeners outside the hook bus.
+	// ------------------------------------------------------------------
+	/**
+	 * Action, no payload — the Heartbeat `wp-auth-check` flag
+	 * reported the session as expired. Fires once per outage.
+	 * Pause pollers / mutations here; requests made while the
+	 * session is down will 401.
+	 *
+	 * @since 0.9.8
+	 */
+	AUTH_LOST: 'desktop-mode.auth.lost',
+	/**
+	 * Action, no payload — the session is authenticated again and
+	 * the shell's cached nonces have been (or are about to be, same
+	 * tick) refreshed in place. Resume pollers and re-fetch any
+	 * state that may have failed during the outage. May fire
+	 * without a preceding `AUTH_LOST` when re-auth was detected
+	 * from an iframe or another browser tab before the shell's own
+	 * heartbeat noticed the expiry.
+	 *
+	 * @since 0.9.8
+	 */
+	AUTH_RESTORED: 'desktop-mode.auth.restored',
 } as const;
 
 /**

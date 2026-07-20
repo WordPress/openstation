@@ -163,6 +163,7 @@ import {
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
+import { bootAuthRecovery } from './auth-recovery';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { hasRestorableSession, openCurrentPage, restoreSession } from './boot/session';
@@ -3333,6 +3334,16 @@ function init(): void {
 	// `bootHeartbeatBus()` above is still eager so the bus is
 	// ready when this subscribe call lands.
 	scheduleIdleBoot( () => bootNonceRefresh() );
+
+	// Session-expiry detection + in-place recovery (single login
+	// prompt, iframe reload sweep, AUTH_LOST / AUTH_RESTORED
+	// hooks). Rides the heartbeat bus, so idle boot is safe — a
+	// session can't expire before the first tick.
+	scheduleIdleBoot( () =>
+		bootAuthRecovery( {
+			currentUserId: Number( config.currentUserId ) || 0,
+		} ),
+	);
 
 	bootStickyNotes( {
 		host: desktopArea,

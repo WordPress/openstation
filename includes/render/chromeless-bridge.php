@@ -2850,31 +2850,35 @@ function desktop_mode_chromeless_bridge_script() {
 	}
 
 	/* -----------------------------------------------------------------
-	 * Stale-nonce recovery after wp-auth-check re-authentication.
+	 * Stale-nonce recovery after a session-expiry re-login.
 	 *
 	 * When the user's session expires while a chromeless window is
-	 * open, core's `wp-auth-check.js` shows its login iframe inside
-	 * this page. After re-auth the auth cookie is fresh — but every
-	 * per-page nonce cached in JS globals
-	 * (`_wpUpdatesSettings.ajax_nonce`, `commonL10n.nonce`, Gutenberg's
-	 * `wpApiSettings.nonce`, etc.) was minted under the OLD nonce-tick
-	 * and is now rejected by `check_ajax_referer`. WP reports that as
-	 * "Cookie check failed" on the next plugin Install / Activate /
-	 * Update click, which is misleading: the cookie is fine; the
-	 * nonce is stale.
+	 * open, this iframe does NOT show core's `wp-auth-check` login
+	 * modal — `desktop_mode_chromeless_suppress_auth_check()` keeps
+	 * the modal assets out of chromeless requests so the parent
+	 * shell owns the single prompt for the whole desktop. Detection
+	 * still works without the modal JS: core attaches the
+	 * `wp-auth-check` boolean to every heartbeat response
+	 * server-side, and this iframe's own heartbeat keeps ticking.
+	 *
+	 * After re-auth the auth cookie is fresh — but every per-page
+	 * nonce cached in JS globals (`_wpUpdatesSettings.ajax_nonce`,
+	 * `commonL10n.nonce`, Gutenberg's `wpApiSettings.nonce`, etc.)
+	 * was minted under the OLD session and is now rejected by
+	 * `check_ajax_referer`. WP reports that as "Cookie check
+	 * failed" on the next plugin Install / Activate / Update click,
+	 * which is misleading: the cookie is fine; the nonce is stale.
 	 *
 	 * Fix: watch jQuery's `heartbeat-tick`. If we ever see
-	 * `wp-auth-check: false` (the modal trigger) and then later see
-	 * the same field flip back to `true`, the user re-authed
-	 * mid-session and every cached nonce in this iframe is stale —
-	 * reload so they regenerate from the fresh session.
-	 *
-	 * Per-iframe scope is intentional: each chromeless iframe carries
-	 * its own jQuery + heartbeat stack and its own nonce caches.
-	 * Siblings recover on their own next tick. We don't broadcast a
-	 * reload to peers because the parent shell may still be running
-	 * core's confirm() prompts and we don't want to surprise-reload
-	 * windows with unsaved state.
+	 * `wp-auth-check: false` and then later see the same field flip
+	 * back to `true`, the user re-authed mid-session and every
+	 * cached nonce in this iframe is stale — reload so they
+	 * regenerate from the fresh session. The parent is nudged
+	 * first (`desktop-mode-reauth-detected`) so its own recovery
+	 * (`src/auth-recovery/index.ts`: in-place nonce refresh + a
+	 * reload sweep over sibling iframes that haven't ticked yet)
+	 * starts immediately instead of waiting for the parent's
+	 * heartbeat schedule.
 	 *
 	 * If jQuery never loads on this page (rare — most admin screens
 	 * pull it for heartbeat already), this block is a no-op.
