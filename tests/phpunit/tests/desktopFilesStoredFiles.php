@@ -250,6 +250,72 @@ class Tests_DesktopMode_StoredFiles extends WP_UnitTestCase {
 		$this->assertSame( '1', (string) $tomb );
 	}
 
+	public function test_trash_then_purge_placement_deletes_bytes_and_cascades() {
+		global $wpdb;
+		$id   = $this->make_stored_file( self::$owner_id );
+		$row  = desktop_mode_stored_files_get( $id );
+		$path = desktop_mode_stored_file_path( $row );
+
+		$owner_placement = desktop_mode_files_place( self::$owner_id, 0, 'upload', (string) $id );
+		$tables          = desktop_mode_files_table_names();
+		$wpdb->insert(
+			$tables['placements'],
+			array(
+				'owner_id'      => self::$other_id,
+				'parent_id'     => 0,
+				'file_type'     => 'upload',
+				'file_ref'      => (string) $id,
+				'updated_at_ms' => desktop_mode_files_now_ms(),
+			)
+		);
+		$recipient_placement = (int) $wpdb->insert_id;
+
+		// The REAL user path: recycle bin (soft-trash), then
+		// "Delete forever" (purge) — NOT desktop_mode_files_remove().
+		$this->assertTrue( desktop_mode_files_trash_placement( self::$owner_id, $owner_placement ) );
+		$this->assertFileExists( $path, 'soft-trash must keep the bytes' );
+
+		$this->assertTrue( desktop_mode_files_purge_placement( self::$owner_id, $owner_placement ) );
+
+		$this->assertNull( desktop_mode_stored_files_get( $id ) );
+		$this->assertFileDoesNotExist( $path );
+		$this->assertNull( desktop_mode_files_get_placement( $recipient_placement ) );
+	}
+
+	public function test_purge_folder_containing_upload_deletes_bytes() {
+		$id   = $this->make_stored_file( self::$owner_id );
+		$row  = desktop_mode_stored_files_get( $id );
+		$path = desktop_mode_stored_file_path( $row );
+
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Doomed' ) );
+		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
+		desktop_mode_files_place( self::$owner_id, (int) $folder_id, 'upload', (string) $id );
+
+		// Recycle-bin path: trash the folder (cascades children),
+		// then empty the bin (purge).
+		$this->assertTrue( desktop_mode_files_trash_folder( self::$owner_id, (int) $folder_id ) );
+		$this->assertFileExists( $path, 'soft-trash must keep the bytes' );
+		$this->assertTrue( desktop_mode_files_purge_folder( self::$owner_id, (int) $folder_id ) );
+
+		$this->assertNull( desktop_mode_stored_files_get( $id ) );
+		$this->assertFileDoesNotExist( $path );
+	}
+
+	public function test_hard_delete_folder_cascade_cleans_uploads() {
+		$id   = $this->make_stored_file( self::$owner_id );
+		$row  = desktop_mode_stored_files_get( $id );
+		$path = desktop_mode_stored_file_path( $row );
+
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Gone' ) );
+		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
+		desktop_mode_files_place( self::$owner_id, (int) $folder_id, 'upload', (string) $id );
+
+		$this->assertTrue( desktop_mode_files_delete_folder( (int) $folder_id, self::$owner_id ) );
+
+		$this->assertNull( desktop_mode_stored_files_get( $id ) );
+		$this->assertFileDoesNotExist( $path );
+	}
+
 	public function test_recipient_placement_removal_keeps_bytes() {
 		$id  = $this->make_stored_file( self::$owner_id );
 		$row = desktop_mode_stored_files_get( $id );

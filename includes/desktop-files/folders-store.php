@@ -469,9 +469,13 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	//    user decisions table. The folder is going away, so the
 	//    rows are obsolete; leaving them would let the heartbeat
 	//    keep delivering a `removed` tombstone for ghost rows.
+	// `target_type` scoping is load-bearing: `folder_id` carries a
+	// STORED-FILE id on `target_type='file'` rows — without the
+	// predicate this cascade would revoke an unrelated user's file
+	// share whose id collides with the deleted folder's.
 	$share_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE folder_id = %d",
+			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -549,17 +553,34 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	//    user / etc. placements, plus orphan folder placements
 	//    whose folder we did NOT recurse into because someone else
 	//    owns it) gets deleted with a tombstone each.
-	$inside_ids = (array) $wpdb->get_col(
+	$inside_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']} WHERE parent_id = %d",
+			"SELECT * FROM {$tables['placements']} WHERE parent_id = %d",
 			$folder_id
-		)
+		),
+		ARRAY_A
 	);
-	foreach ( $inside_ids as $cid ) {
-		desktop_mode_files_write_tombstone( 'placement', (int) $cid );
+	$inside_ids = array();
+	foreach ( $inside_rows as $inside_row ) {
+		$inside_ids[] = (int) $inside_row['id'];
+		desktop_mode_files_write_tombstone( 'placement', (int) $inside_row['id'] );
 	}
 	if ( ! empty( $inside_ids ) ) {
 		$wpdb->delete( $tables['placements'], array( 'parent_id' => $folder_id ), array( '%d' ) );
+		// Upload placements carry real bytes — run the stored-files
+		// deletion contract now that the rows are gone. Direct
+		// guarded call (not the public unplaced action) so cascade
+		// hook semantics for other types stay unchanged.
+		if ( function_exists( 'desktop_mode_stored_files_handle_unplaced' ) ) {
+			foreach ( $inside_rows as $inside_row ) {
+				if ( 'upload' === (string) $inside_row['file_type'] ) {
+					desktop_mode_stored_files_handle_unplaced(
+						(int) $inside_row['id'],
+						desktop_mode_files_normalize_placement_row( $inside_row )
+					);
+				}
+			}
+		}
 		$summary['placements_inside'] = array_merge(
 			$summary['placements_inside'],
 			array_map( 'intval', $inside_ids )

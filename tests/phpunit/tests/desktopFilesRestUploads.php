@@ -196,6 +196,40 @@ class Tests_DesktopMode_RestUploads extends WP_UnitTestCase {
 		$this->assertSame( 'desktop_mode_files_no_write_in_shared_folder', $res->get_error_code() );
 	}
 
+	public function test_placement_failure_rollback_balances_created_deleted_actions() {
+		global $wpdb;
+		$created = 0;
+		$deleted = 0;
+		add_action( 'desktop_mode_stored_file_created', function () use ( &$created ) {
+			$created++;
+		} );
+		add_action( 'desktop_mode_stored_file_deleted', function () use ( &$deleted ) {
+			$deleted++;
+		} );
+
+		// Read-only recipient uploading into a shared folder: receive
+		// succeeds, place() fails, rollback runs.
+		$folder_id = desktop_mode_files_create_folder( self::$admin_id, array( 'name' => 'RO' ) );
+		desktop_mode_files_place( self::$admin_id, 0, 'folder', (string) $folder_id );
+		$share_id = desktop_mode_folder_share_invite( (int) $folder_id, self::$admin_id, 'user', (string) self::$editor_id, 'read' );
+		desktop_mode_folder_share_accept( $share_id, self::$editor_id );
+
+		wp_set_current_user( self::$editor_id );
+		$res = desktop_mode_files_rest_upload(
+			$this->upload_request( 'sneak.txt', 'rollback me please', array( 'parentId' => (int) $folder_id ) )
+		);
+		$this->assertWPError( $res );
+		$this->assertSame( 1, $created, 'row creation fires the created action' );
+		$this->assertSame( 1, $deleted, 'rollback must fire the paired deleted action' );
+
+		$tables = desktop_mode_files_table_names();
+		$this->assertSame(
+			'0',
+			(string) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['stored_files']}" ),
+			'rollback leaves no orphan row'
+		);
+	}
+
 	public function test_relative_path_creates_and_dedupes_folders() {
 		$req1 = $this->upload_request( 'q1.pdf', '%PDF-1.4 fake', array( 'relativePath' => 'docs/reports/q1.pdf' ) );
 		$res1 = desktop_mode_files_rest_upload( $req1 );

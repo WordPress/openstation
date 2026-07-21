@@ -505,10 +505,11 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
 		);
 	}
 	if ( is_wp_error( $placement_id ) ) {
-		// Roll the row back; the caller deletes the bytes.
-		global $wpdb;
-		$tables = desktop_mode_files_table_names();
-		$wpdb->delete( $tables['stored_files'], array( 'id' => (int) $file_id ), array( '%d' ) );
+		// Roll back through the store primitive so the documented
+		// `desktop_mode_stored_file_created` / `_deleted` action pair
+		// stays balanced for subscribers (and the bytes go with the
+		// row — the caller's outer cleanup guard becomes a no-op).
+		desktop_mode_stored_files_delete( (int) $file_id );
 		return $placement_id;
 	}
 

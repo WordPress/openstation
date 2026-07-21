@@ -85,12 +85,17 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		if ( destination === 'desktop' ) {
 			target = ( args.context.folderId ?? 0 ) > 0 ? 'this folder' : 'Desktop';
 		}
-		modal.setAttribute(
-			'title',
-			count === 1
-				? `Upload to ${ target }`
-				: `Upload ${ count } files to ${ target }`,
-		);
+		let title = `Upload ${ count } files to ${ target }`;
+		if ( count === 0 ) {
+			// Pure empty-dirs tree drop — matches the "Create
+			// folders" primary button.
+			title = ( args.context.folderId ?? 0 ) > 0
+				? 'Create folders in this folder'
+				: 'Create folders on Desktop';
+		} else if ( count === 1 ) {
+			title = `Upload to ${ target }`;
+		}
+		modal.setAttribute( 'title', title );
 	};
 	syncTitle();
 

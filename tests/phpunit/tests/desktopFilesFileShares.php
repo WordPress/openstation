@@ -225,6 +225,64 @@ class Tests_DesktopMode_FileShares extends WP_UnitTestCase {
 		$this->assertCount( 0, $pending_folders );
 	}
 
+	public function test_folder_purge_does_not_wipe_colliding_file_share() {
+		global $wpdb;
+		$tables = desktop_mode_files_table_names();
+
+		// Align a folder id and a stored-file id numerically.
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Collide' ) );
+		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
+		$file_id = $this->make_stored_file( self::$owner_id );
+		$wpdb->update( $tables['stored_files'], array( 'id' => (int) $folder_id ), array( 'id' => $file_id ) );
+		$wpdb->update(
+			$tables['placements'],
+			array( 'file_ref' => (string) $folder_id ),
+			array( 'file_type' => 'upload', 'file_ref' => (string) $file_id )
+		);
+		$file_id = (int) $folder_id;
+
+		$share_id = desktop_mode_stored_file_share_invite( $file_id, self::$owner_id, self::$recipient_id );
+		desktop_mode_stored_file_share_accept( $share_id, self::$recipient_id );
+
+		// Recycle-bin path: trash + purge the FOLDER with the same id.
+		$this->assertTrue( desktop_mode_files_trash_folder( self::$owner_id, $folder_id ) );
+		$this->assertTrue( desktop_mode_files_purge_folder( self::$owner_id, $folder_id ) );
+
+		// The file share must survive; the recipient keeps access.
+		$this->assertSame( 'accepted', desktop_mode_stored_file_share_state( $file_id, self::$recipient_id ) );
+		$this->assertTrue( desktop_mode_stored_file_user_can_read( $file_id, self::$recipient_id ) );
+		$this->assertNotNull( desktop_mode_stored_files_get( $file_id ) );
+	}
+
+	public function test_folder_hard_delete_does_not_wipe_colliding_file_share() {
+		global $wpdb;
+		$tables = desktop_mode_files_table_names();
+
+		$folder_id = desktop_mode_files_create_folder( self::$owner_id, array( 'name' => 'Collide2' ) );
+		desktop_mode_files_place( self::$owner_id, 0, 'folder', (string) $folder_id );
+		$file_id = $this->make_stored_file( self::$owner_id );
+		$wpdb->update( $tables['stored_files'], array( 'id' => (int) $folder_id ), array( 'id' => $file_id ) );
+		$wpdb->update(
+			$tables['placements'],
+			array( 'file_ref' => (string) $folder_id ),
+			array( 'file_type' => 'upload', 'file_ref' => (string) $file_id )
+		);
+		$file_id = (int) $folder_id;
+
+		$share_id = desktop_mode_stored_file_share_invite( $file_id, self::$owner_id, self::$recipient_id );
+		desktop_mode_stored_file_share_accept( $share_id, self::$recipient_id );
+
+		$revoked = array();
+		add_action( 'desktop_mode_files_share_revoked', function ( $sid ) use ( &$revoked ) {
+			$revoked[] = (int) $sid;
+		} );
+
+		$this->assertTrue( desktop_mode_files_delete_folder( $folder_id, self::$owner_id ) );
+
+		$this->assertSame( 'accepted', desktop_mode_stored_file_share_state( $file_id, self::$recipient_id ) );
+		$this->assertNotContains( (int) $share_id, $revoked, 'file share must not be revoked by a folder cascade' );
+	}
+
 	public function test_folder_accept_rejects_file_share_row() {
 		$file_id  = $this->make_stored_file( self::$owner_id );
 		$share_id = desktop_mode_stored_file_share_invite( $file_id, self::$owner_id, self::$recipient_id );
