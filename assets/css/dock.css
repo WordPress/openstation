@@ -660,7 +660,7 @@
 	position: absolute;
 	inset-inline-start: 50%;
 	top: auto;
-	bottom: -4px;
+	bottom: -3px;
 	transform: translateX( -50% );
 	width: 4px;
 	height: 4px;
@@ -749,8 +749,9 @@ body.desktop-mode-show-desktop-active
 	flex: 1 1 auto;
 	min-width: 0;
 	padding-top: 4px;
+	padding-bottom: 6px;
 	overflow-x: auto;
-	overflow-y: hidden;
+	overflow-y: visible;
 	scrollbar-width: none;
 }
 
@@ -767,6 +768,7 @@ body.desktop-mode-show-desktop-active
 	/* Match the scroll wrapper's badge clearance so system tiles sit
 	 * on the same vertical baseline as the menu tiles. */
 	padding-top: 4px;
+	padding-bottom: 6px;
 }
 
 /* Separator — vertical hairline between menu tiles and system tiles.

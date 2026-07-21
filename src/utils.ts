@@ -51,9 +51,15 @@ const IDENTITY_PARAMS: readonly string[] = [
  * slug that is safe to use as a DOM id attribute.
  */
 function slugify( path: string ): string {
-	return path
+	let decoded = path;
+	try {
+		decoded = decodeURIComponent( path );
+	} catch {
+		decoded = path;
+	}
+	return decoded
 		.replace( /\.php/g, '-php' )
-		.replace( /[?&=]/g, '-' )
+		.replace( /[?&=/]/g, '-' )
 		.replace( /[^a-zA-Z0-9_-]/g, '' )
 		.replace( /-+/g, '-' )
 		.replace( /^-|-$/g, '' ) || 'index';
