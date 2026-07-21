@@ -60,6 +60,19 @@ function inertWpBodyContentChildren( inactive: boolean ): void {
 }
 
 /**
+ * Toggle inert on every direct child of window elements so keyboard focus
+ * cannot land on inner controls / titlebar buttons / iframes during overview,
+ * while leaving the window root element non-inert so thumbnail pointer hits succeed.
+ */
+function inertWindowChildren( mgr: WindowManager, inactive: boolean ): void {
+	for ( const w of mgr._stack ) {
+		for ( const child of Array.from( w.element.children ) ) {
+			( child as HTMLElement & { inert: boolean } ).inert = inactive;
+		}
+	}
+}
+
+/**
  * Enter overview mode — animate every eligible window to a grid
  * thumbnail layout. Clicking a thumbnail exits overview and
  * fullscreens the clicked window. Pressing Escape or clicking the
@@ -125,9 +138,10 @@ export function enterOverview( mgr: WindowManager ): void {
 	// Make all siblings of the shell inside wpbody-content inert
 	// so focus doesn't land on hidden screen options / help buttons.
 	inertWpBodyContentChildren( true );
-	for ( const w of mgr._stack ) {
-		( w.element as HTMLElement & { inert: boolean } ).inert = true;
-	}
+	// Make all window children (iframes, titlebars, tabs) inert so
+	// keyboard focus cannot traverse hidden window controls during
+	// overview, while leaving window root elements non-inert for clicks.
+	inertWindowChildren( mgr, true );
 
 	// Snapshot current transform + transition so exit can restore
 	// exactly — matters when plugins have applied custom transforms
@@ -308,7 +322,7 @@ export function enterOverview( mgr: WindowManager ): void {
 		}
 		const selected = mgr.getById( pressed.id );
 		doAction( HOOKS.OVERVIEW_WINDOW_CLICK, { windowId: pressed.id } );
-		exitOverview( mgr, selected, true );
+		exitOverview( mgr, selected );
 	};
 
 	mgr._overviewKeyHandler = ( e: KeyboardEvent ) => {
@@ -662,8 +676,8 @@ export function exitOverview(
 	mgr._overviewAddTileFocused = false;
 
 	doAction( HOOKS.OVERVIEW_EXITING, {
-		windowId: selected && maximize ? selected.id : undefined,
-		reason: selected && maximize ? 'select' : 'cancel',
+		windowId: selected ? selected.id : undefined,
+		reason: selected ? 'select' : 'cancel',
 	} );
 
 	// Remove area + shell classes AT T=0 so the backdrop fades and
@@ -686,16 +700,11 @@ export function exitOverview(
 		}
 	}
 	inertWpBodyContentChildren( false );
-	for ( const w of mgr._stack ) {
-		( w.element as HTMLElement & { inert: boolean } ).inert = false;
-	}
+	inertWindowChildren( mgr, false );
 
 	// Unselected windows: transform → '' (snaps back to their
 	// pre-overview inline geometry). Selected window (if any):
-	// transform is cleared the same way, AND `maximize()` fires,
-	// setting inline left/top/width/height to maximize bounds. Both
-	// transitions animate together for a single frictionless path
-	// from grid to maximized.
+	// transform is cleared the same way, AND focused to top of stack.
 	for ( const [ id, snap ] of mgr._overviewSnapshot ) {
 		const w = mgr.getById( id );
 		if ( ! w ) {
@@ -704,12 +713,14 @@ export function exitOverview(
 		w.element.style.transform = snap.transform;
 	}
 
-	if ( selected && maximize ) {
+	if ( selected ) {
 		// Focus first so z-index and focused-class are right from the
 		// moment the animation starts — no pop-to-top late in the
 		// transition.
 		mgr.focus( selected );
-		selected.maximize();
+		if ( maximize ) {
+			selected.maximize();
+		}
 	}
 
 	// Start labels fading immediately — they overshoot the area when
@@ -762,8 +773,8 @@ export function exitOverview(
 			mgr._overviewClickBlocker = null;
 		}
 		doAction( HOOKS.OVERVIEW_EXITED, {
-			windowId: selected && maximize ? selected.id : undefined,
-			reason: selected && maximize ? 'select' : 'cancel',
+			windowId: selected ? selected.id : undefined,
+			reason: selected ? 'select' : 'cancel',
 		} );
 	}, ANIMATION_MS ) as unknown as number;
 
