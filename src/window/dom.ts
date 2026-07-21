@@ -102,7 +102,7 @@ export function withChromelessParam( url: string ): string | null {
  */
 export function updateFullscreenBodyClass(): void {
 	const hasFullscreen =
-		document.querySelectorAll( '.desktop-mode-window--fullscreen' ).length > 0;
+		document.querySelectorAll( '.desktop-mode-window--fullscreen:not(.desktop-mode-window--minimized)' ).length > 0;
 	document.body.classList.toggle( 'desktop-mode-has-fullscreen-window', hasFullscreen );
 }
 
