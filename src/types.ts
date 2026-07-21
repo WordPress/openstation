@@ -1953,6 +1953,22 @@ export interface DesktopConfig {
 	 * @since 0.30.0
 	 */
 	dropConfig?: import( './os-file-drop/types' ).DropConfig;
+	/**
+	 * Real per-user desktop storage config (DESKMOD-45). Injected
+	 * by `desktop_mode_stored_files_inject_shell_config()`.
+	 *
+	 * @since 0.9.6
+	 */
+	desktopStorage?: {
+		/** Viewer holds the (filterable) upload capability. */
+		canUpload: boolean;
+		/** Per-file upload cap in bytes (0 = no client cap). */
+		maxBytes: number;
+		/** Per-user total quota in bytes (0 = unlimited). */
+		quotaBytes: number;
+		/** Server has ZipArchive — folder zip downloads work. */
+		zipAvailable: boolean;
+	};
 	/** REST endpoint for saving the default-window preference. */
 	defaultWindowUrl: string;
 	/**

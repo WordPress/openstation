@@ -3353,6 +3353,47 @@ do_action( 'desktop_mode_notes_converted', int $new_post_id, WP_Post $note, WP_R
 
 ---
 
+## Real file storage (since 0.9.6)
+
+Real per-user desktop storage (the `upload` file type): multipart
+uploads into a protected uploads subdirectory, PHP-served downloads,
+on-demand folder zips, and read-only single-file sharing. Feature
+doc: [files-on-desktop.md → Real file storage](files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+All Experimental.
+
+### Filters
+
+| Hook | Signature | Purpose |
+|---|---|---|
+| `desktop_mode_stored_files_base_dir` | `( string $base ) => string` | Storage base directory (default `uploads/desktop-mode-files`). Sites that can write outside the webroot point this there. |
+| `desktop_mode_stored_files_upload_capability` | `( string $cap ) => string` | Capability required to upload. Default `'upload_files'`. |
+| `desktop_mode_stored_files_max_upload_bytes` | `( int $max, int $user_id ) => int` | Per-file cap. Default `wp_max_upload_size()`; can only effectively lower it. |
+| `desktop_mode_stored_files_user_quota_bytes` | `( int $quota, int $user_id ) => int` | Per-user total quota. `0` (default) = unlimited. |
+| `desktop_mode_stored_files_allowed_mimes` | `( array $mimes, int $user_id ) => array` | `ext => mime` allowlist for desktop uploads. Defaults to the user-scoped `get_allowed_mime_types()`; additions here genuinely widen the policy (a scoped `upload_mimes` hook keeps core's `wp_check_filetype_and_ext()` re-check in agreement). |
+| `desktop_mode_stored_files_denied_extensions` | `( string[] $denied ) => string[]` | Hard-denied executable extensions, matched against EVERY dot-segment of the client filename. Narrowing below the shipped set is strongly discouraged. |
+| `desktop_mode_stored_files_upload_overrides` | `( array $overrides, int $user_id ) => array` | `wp_handle_upload()` overrides for the intake. Exists for tests and future resumable layers; never remove `test_form => false`. |
+| `desktop_mode_stored_files_zip_caps` | `( array $caps ) => array` | `{ max_entries, max_bytes }` bounds for folder zips. Default 1000 entries / 500 MB of input. |
+| `desktop_mode_stored_file_can_read` | `( bool $can, int $file_id, int $user_id, array $row ) => bool` | Last-mile read-access override after owner / file-share / folder-capability resolution all said no. |
+| `desktop_mode_stored_files_share_can_manage` | `( bool $can, int $file_id, int $user_id, ?array $file ) => bool` | Who may manage a stored file's shares. Owner-only by default. |
+
+### Actions
+
+| Hook | Signature | Fires |
+|---|---|---|
+| `desktop_mode_stored_file_created` | `( int $file_id, int $owner_id )` | After a stored-file row is created (bytes already on disk). |
+| `desktop_mode_stored_file_uploaded` | `( int $file_id, int $placement_id, int $user_id )` | After a full upload lands (bytes + row + placement). |
+| `desktop_mode_stored_file_renamed` | `( int $file_id, string $new_name, string $old_name )` | After a display-name rename. |
+| `desktop_mode_stored_file_deleted` | `( int $file_id, array $row )` | After bytes + row are deleted. |
+| `desktop_mode_stored_file_downloaded` | `( int $file_id, int $user_id )` | Download audit — just before a file streams. |
+| `desktop_mode_folder_zip_downloaded` | `( int $folder_id, int $user_id, int $count )` | Just before a folder zip streams. |
+
+Single-file shares fire the SAME share actions folder shares use
+(`desktop_mode_files_share_{invited,accepted,denied,left,revoked}`)
+with the share row carrying `target_type => 'file'`. The
+`desktop_mode_files_shareable_types` default is now
+`[ 'folder', 'file' ]`, and `desktop_mode_files_share_target_owner`
+resolves `'file'` targets to the stored file's owner.
+
 ## Asset loading
 
 ### `desktop_mode_preload_hints` — Stable *(filter, since 0.8.9)*

@@ -4774,6 +4774,55 @@ applyFilters( 'desktop-mode.files.resolve-opener', FileOpenerDef | null, type: s
 
 ---
 
+## Real file storage — client surface (Experimental, since 0.9.6)
+
+Real per-user desktop storage (the `upload` file type). Server-side
+contract: [files-on-desktop.md → Real file storage](files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+
+**Shell config key** — `config.desktopStorage`:
+
+```ts
+interface DesktopStorageConfig {
+	canUpload: boolean;    // viewer holds the (filterable) upload capability
+	maxBytes: number;      // per-file cap, 0 = no client cap
+	quotaBytes: number;    // per-user quota, 0 = unlimited
+	zipAvailable: boolean; // server has ZipArchive → folder-zip affordances render
+}
+```
+
+**Drop hook chain** — desktop-storage uploads fire the exact same
+`desktop-mode.drop.*` actions and filters the Media Library sink
+does (`files-detected`, `dialog-fields`, `before-upload`,
+`upload-started`, `upload-progress`, `after-upload`,
+`upload-failed`) — subscribers don't branch on the destination. The
+`AFTER_UPLOAD` payload's `result` is `{ placement, storedFileId }`
+for the desktop sink (vs. the attachment shape for media). The
+upload dialog's destination selector defaults to Desktop on
+wallpaper/folder surfaces; folder-tree drops force it.
+
+**Serialized shape** — `upload` placements carry
+`file.ownerId`, `file.sizeBytes`, `file.mime`, and `file.kind`
+(`image | video | audio | pdf | archive | text | file`) on top of
+the base `DesktopFileShape`.
+
+**Tile menu** — the built-in entries injected through the standard
+`desktop-mode.files.tile-menu` filter: `desktop-mode/upload-download`
+(every viewer), `desktop-mode/upload-share` (owner),
+`desktop-mode/upload-leave` (recipient's root tile), and
+`desktop-mode/folder-zip-download` on folder tiles when
+`zipAvailable`. Plugins reorder/hide them like any other item.
+
+**Heartbeat invites** — single-file share invites ride the existing
+`shares.pending` channel with `targetType: 'file'`, `fileId`, and
+`fileName` on the shape; folder invites are unchanged (no
+`targetType`).
+
+**Download URLs** are minted at click time (cookie +
+`_wpnonce`-in-query GET navigations) and must never be persisted —
+nonces expire.
+
+---
+
 ## Native Plugins window (since 0.9.0)
 
 The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<wpd-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.

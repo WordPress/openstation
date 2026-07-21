@@ -76,6 +76,27 @@ export interface DropFileEntry {
 	mime: string;
 	/** Default metadata. */
 	fields: DropDialogFields;
+	/**
+	 * Tree path (`docs/reports/q1.pdf`) when the file arrived via a
+	 * folder drop. Empty/absent for flat files. Desktop-storage
+	 * uploads recreate the directory chain server-side from this.
+	 *
+	 * @since 0.9.6
+	 */
+	relativePath?: string;
+}
+
+/**
+ * Desktop-storage config slice (mirrors `config.desktopStorage`
+ * injected by the server).
+ *
+ * @since 0.9.6
+ */
+export interface DesktopStorageConfig {
+	canUpload: boolean;
+	maxBytes: number;
+	quotaBytes: number;
+	zipAvailable: boolean;
 }
 
 /**
@@ -110,6 +131,14 @@ export interface DropContext {
 	surface: 'wallpaper' | 'window' | 'folder' | 'iframe' | 'unknown';
 	/** Source window id when the drop happened over a window. */
 	windowId?: string;
+	/**
+	 * Folder id when the drop landed on a folder surface (resolved
+	 * from the layer host's `data-folder-id`). 0 / absent = desktop
+	 * root.
+	 *
+	 * @since 0.9.6
+	 */
+	folderId?: number;
 	/** Viewport coordinates of the pointer at drop time. */
 	x: number;
 	y: number;

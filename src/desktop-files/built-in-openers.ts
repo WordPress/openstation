@@ -37,6 +37,7 @@ import { renderPlacementPreview, renderPreviewEmpty } from './preview';
 import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
 import { findMenuEntryForUrl } from './menu-entry';
+import { navigateToDownload } from './download-nav';
 
 interface ConfigShape {
 	adminUrl?: string;
@@ -139,6 +140,27 @@ export function registerBuiltInFileOpeners(): void {
 			kind: 'url',
 			url: ( file: DesktopFile ) =>
 				`${ adminBase() }comment.php?action=editcomment&c=${ encodeURIComponent( file.ref() ) }`,
+		},
+	} );
+
+	// Uploaded files (real desktop storage): double-click downloads.
+	// Preview openers are a follow-up; download is the v1 default.
+	registerOpener( {
+		id: 'desktop-mode-upload-download',
+		label: 'Download',
+		types: [ 'upload' ],
+		isDefault: true,
+		sort: 10,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile ) => {
+				const fileId = parseInt( file.ref(), 10 );
+				if ( ! fileId ) {
+					return;
+				}
+				// URL minted at click time — nonces expire.
+				navigateToDownload( filesRest.getUploadDownloadUrl( fileId ) );
+			},
 		},
 	} );
 

@@ -197,6 +197,20 @@ wp.hooks.addAction(
 
 `<wpd-progress-bar>` is documented in `docs/examples/progress-bar.md`.
 
+## Two destinations (since 0.9.6)
+
+The upload dialog carries a destination selector when real desktop
+storage is available (`config.desktopStorage.canUpload`): **Desktop**
+(default for wallpaper and folder-window drops — bytes land in the
+user's private storage and a tile appears) or **Media Library** (the
+pre-0.9.6 behavior, still one click away). Folder drops force the
+Desktop destination and recreate the tree. Both sinks fire the same
+`desktop-mode.drop.*` chain — your subscribers keep working
+unchanged; the `after-upload` payload's `result` is
+`{ placement, storedFileId }` for the desktop sink instead of the
+attachment shape. See
+[files-on-desktop.md → Real file storage](../files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+
 ## Hooks reference
 
 See [`docs/hooks-reference.md`](../hooks-reference.md) for the

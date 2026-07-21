@@ -51,6 +51,7 @@ defined( 'ABSPATH' ) || exit;
 - [Extend the Recycle Bin](./recycle-bin.md)
 - [Customize note → post conversion — `desktop_mode_notes_convert_post_args`](./notes-convert-to-post.md)
 - [Programmatic folder sharing — invite from PHP, listen for share events](./share-folder.md)
+- [Real file storage — react to uploads, gate policy, share files from PHP](./desktop-file-storage.md)
 - [Native Posts window — default-on, remap registry, hooks](./native-posts.md)
 - [Native Plugins window — Browse / Install / Reviews / Drag-to-dock](./plugins-window-extras.md)
 - [Window activity & the modem dot — `wp.desktop.fetch`, `Window.trackActivity`](./window-activity.md)

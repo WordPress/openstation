@@ -238,6 +238,15 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 
+	// Owner-lock for `upload` placements: only the stored file's
+	// owner may move them — folder-share write capability does NOT
+	// extend to uploaded files (recipients are read + download
+	// only; see stored-files-store.php).
+	$upload_lock = desktop_mode_files_upload_owner_lock( $row, $user_id );
+	if ( is_wp_error( $upload_lock ) ) {
+		return $upload_lock;
+	}
+
 	// Permission check. Owner of the row is always allowed. For
 	// rows inside a shared folder, the FOLDER's write cap is the
 	// gate — anyone with write on the folder can move/rearrange
@@ -385,6 +394,12 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	if ( ! $row ) {
 		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
+	// Owner-lock for `upload` placements — removal is destructive
+	// for real bytes, so only the stored file's owner may do it.
+	$upload_lock = desktop_mode_files_upload_owner_lock( $row, $user_id );
+	if ( is_wp_error( $upload_lock ) ) {
+		return $upload_lock;
+	}
 	// Same shared-namespace rule as the trash gate: owner of the
 	// row OR write cap on the parent folder.
 	$is_row_owner = (int) $row['owner_id'] === $user_id;
@@ -418,6 +433,43 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	do_action( 'desktop_mode_file_unplaced', $placement_id, $row );
 
 	return true;
+}
+
+/**
+ * Owner-lock gate for `upload` placements. Returns a `WP_Error`
+ * when `$user_id` is NOT the underlying stored file's owner —
+ * uploaded files are immutable to everyone else, including folder
+ * write-collaborators (the deliberate divergence from the shared-
+ * namespace rule; recipients are read + download only). Returns
+ * `true` for every other file type, and falls back to the normal
+ * rules when the stored-file row is gone (dangling tiles must stay
+ * cleanable).
+ *
+ * @since 0.9.6
+ *
+ * @param array $row     Placement row.
+ * @param int   $user_id Acting user.
+ * @return true|WP_Error
+ */
+function desktop_mode_files_upload_owner_lock( $row, $user_id ) {
+	if ( ! is_array( $row ) || 'upload' !== (string) ( $row['file_type'] ?? '' ) ) {
+		return true;
+	}
+	if ( ! function_exists( 'desktop_mode_stored_files_get' ) ) {
+		return true;
+	}
+	$stored = desktop_mode_stored_files_get( (int) $row['file_ref'] );
+	if ( ! $stored ) {
+		return true;
+	}
+	if ( (int) $stored['owner_id'] === (int) $user_id ) {
+		return true;
+	}
+	return new WP_Error(
+		'desktop_mode_files_upload_owner_locked',
+		__( 'Only the file’s owner can move or delete an uploaded file.', 'desktop-mode' ),
+		array( 'status' => 403 )
+	);
 }
 
 /**

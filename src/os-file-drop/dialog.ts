@@ -17,6 +17,7 @@ import '../ui/components/wpd-modal/wpd-modal';
 import '../ui/components/wpd-text-field/wpd-text-field';
 import '../ui/components/wpd-textarea/wpd-textarea';
 import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-segmented/wpd-segmented';
 import { showToast } from '../toast';
 import { formatBytes } from './format-bytes';
 import {
@@ -24,33 +25,74 @@ import {
 	UploadAbortedError,
 	UploadCancelledError,
 } from './upload';
+import { uploadFileToDesktop } from './desktop-upload';
+import { ensureUploadPath } from '../desktop-files/rest';
 import type {
+	DesktopStorageConfig,
 	DropContext,
 	DropFileEntry,
 	DropDialogFields,
 } from './types';
+
+type Destination = 'desktop' | 'media';
 
 interface OpenDialogArgs {
 	entries: DropFileEntry[];
 	context: DropContext;
 	mediaUrl: string;
 	restNonce: string;
+	/** Files REST base — enables the desktop-storage destination. */
+	filesUrl?: string;
+	storage?: DesktopStorageConfig;
+	/** Folder drops: the Media Library has no tree concept. */
+	forceDesktop?: boolean;
+	/** Empty directories from a tree drop, created after the files. */
+	emptyDirs?: string[];
+}
+
+/** Grid math mirrored from `src/desktop-files/grid.ts` (16/96/110). */
+function snapToGrid( x: number, y: number ): { x: number; y: number } {
+	const col = Math.max( 0, Math.round( ( x - 16 ) / 96 ) );
+	const row = Math.max( 0, Math.round( ( y - 16 ) / 110 ) );
+	return { x: 16 + col * 96, y: 16 + row * 110 };
 }
 
 export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > {
-	if ( args.entries.length === 0 ) {
+	if ( args.entries.length === 0 && ! args.emptyDirs?.length ) {
 		return;
 	}
+	const desktopAllowed = !! ( args.storage?.canUpload && args.filesUrl );
+	// Destination default follows the drop surface: WordPress admin
+	// windows (Media, Posts, Pages, …) mean Media Library; the desk,
+	// folder surfaces, and anything unclassified mean Desktop
+	// storage. Folder drops additionally target THAT folder via
+	// `context.folderId`.
+	const isWpWindow =
+		args.context.surface === 'window' || args.context.surface === 'iframe';
+	let destination: Destination =
+		desktopAllowed && ( args.forceDesktop || ! isWpWindow )
+			? 'desktop'
+			: 'media';
+
 	const modal = document.createElement( 'wpd-modal' );
 	modal.setAttribute( 'open', '' );
 	modal.setAttribute( 'size', 'md' );
-	modal.setAttribute(
-		'title',
-		args.entries.length === 1
-			? 'Upload to Media Library'
-			: `Upload ${ args.entries.length } files to Media Library`,
-	);
 	document.body.appendChild( modal );
+
+	const count = args.entries.length;
+	const syncTitle = (): void => {
+		let target = 'Media Library';
+		if ( destination === 'desktop' ) {
+			target = ( args.context.folderId ?? 0 ) > 0 ? 'this folder' : 'Desktop';
+		}
+		modal.setAttribute(
+			'title',
+			count === 1
+				? `Upload to ${ target }`
+				: `Upload ${ count } files to ${ target }`,
+		);
+	};
+	syncTitle();
 
 	const draft: DropDialogFields[] = args.entries.map( ( entry ) => ( {
 		...entry.fields,
@@ -58,6 +100,46 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 
 	const renderBody = (): void => {
 		modal.innerHTML = '';
+
+		// Destination selector — only when both sinks are viable.
+		// Folder drops force desktop storage (no selector).
+		if ( desktopAllowed && ! args.forceDesktop ) {
+			const destWrap = document.createElement( 'div' );
+			destWrap.style.cssText =
+				'display:flex;align-items:center;gap:10px;margin-bottom:14px;';
+			const destLabel = document.createElement( 'span' );
+			destLabel.textContent = 'Upload to';
+			destLabel.style.cssText = 'font-weight:600;';
+			destWrap.appendChild( destLabel );
+
+			const segmented = document.createElement( 'wpd-segmented' );
+			segmented.setAttribute( 'value', destination );
+			segmented.setAttribute( 'label', 'Destination' );
+			segmented.style.setProperty( '--wpd-segmented-bg', 'rgba(255,255,255,0.06)' );
+			const segDesktop = document.createElement( 'wpd-segment' );
+			segDesktop.setAttribute( 'value', 'desktop' );
+			segDesktop.textContent = 'Desktop';
+			segmented.appendChild( segDesktop );
+			const segMedia = document.createElement( 'wpd-segment' );
+			segMedia.setAttribute( 'value', 'media' );
+			segMedia.textContent = 'Media Library';
+			segmented.appendChild( segMedia );
+			segmented.addEventListener( 'wpd-pick', ( e ) => {
+				const detail = ( e as CustomEvent< { value: Destination } > ).detail;
+				destination = detail.value;
+				syncTitle();
+				renderBody();
+			} );
+			destWrap.appendChild( segmented );
+			modal.appendChild( destWrap );
+		} else if ( args.forceDesktop ) {
+			const note = document.createElement( 'div' );
+			note.style.cssText = 'opacity:0.7;font-size:12px;margin-bottom:14px;';
+			note.textContent =
+				'Folder uploads land in your desktop storage, preserving the folder structure.';
+			modal.appendChild( note );
+		}
+
 		const list = document.createElement( 'div' );
 		list.style.cssText =
 			'display:flex;flex-direction:column;gap:18px;max-height:60vh;overflow:auto;padding-right:6px;';
@@ -79,8 +161,14 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 
 		const upload = document.createElement( 'wpd-button' );
 		upload.setAttribute( 'variant', 'primary' );
-		upload.textContent =
-			args.entries.length === 1 ? 'Upload' : `Upload ${ args.entries.length } files`;
+		if ( args.entries.length === 0 ) {
+			upload.textContent = 'Create folders'; // Pure empty-dirs tree drop.
+		} else {
+			upload.textContent =
+				args.entries.length === 1
+					? 'Upload'
+					: `Upload ${ args.entries.length } files`;
+		}
 		upload.addEventListener( 'click', () => {
 			void runUploads( upload, cancel );
 		} );
@@ -118,6 +206,21 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		heading.appendChild( size );
 		wrap.appendChild( heading );
 
+		if ( destination === 'desktop' ) {
+			// Desktop storage keeps only the filename — title / alt /
+			// caption / description are Media Library metadata.
+			if ( entry.relativePath ) {
+				const path = document.createElement( 'div' );
+				path.textContent = entry.relativePath;
+				path.style.cssText = 'opacity:0.55;font-size:12px;';
+				wrap.appendChild( path );
+			}
+			wrap.appendChild(
+				textField( 'Filename', fields.filename, ( v ) => ( fields.filename = v ) ),
+			);
+			return wrap;
+		}
+
 		wrap.appendChild( textField( 'Title', fields.title, ( v ) => ( fields.title = v ) ) );
 		wrap.appendChild( textField( 'Filename', fields.filename, ( v ) => ( fields.filename = v ) ) );
 		if ( entry.mime.startsWith( 'image/' ) ) {
@@ -146,6 +249,11 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		// Per-file failure messages — kept for single-file batches
 		// where the summary toast doesn't carry the error detail.
 		const failureDetails: string[] = [];
+		// Desktop destination: place the FIRST flat file at the
+		// snapped drop point; every other file omits coords so the
+		// server picks the next free grid slot (no origin stacking).
+		const parentId = args.context.folderId ?? 0;
+		let firstFlatPlaced = false;
 		// NOTE: sequential `await` — uploads run one at a time on
 		// purpose. The HUD assumes one active progress bar per
 		// `UPLOAD_STARTED` and won't reconcile concurrent streams
@@ -158,14 +266,38 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		for ( let i = 0; i < total; i++ ) {
 			const entry = args.entries[ i ];
 			try {
-				await uploadFile( {
-					file: entry.file,
-					mime: entry.mime,
-					fields: draft[ i ],
-					context: args.context,
-					mediaUrl: args.mediaUrl,
-					restNonce: args.restNonce,
-				} );
+				if ( destination === 'desktop' && args.filesUrl ) {
+					const isFlat = ! entry.relativePath;
+					const coords =
+						isFlat &&
+						! firstFlatPlaced &&
+						args.context.surface === 'wallpaper'
+							? snapToGrid( args.context.x, args.context.y )
+							: undefined;
+					if ( coords ) {
+						firstFlatPlaced = true;
+					}
+					await uploadFileToDesktop( {
+						file: entry.file,
+						mime: entry.mime,
+						fields: draft[ i ],
+						context: args.context,
+						filesUrl: args.filesUrl,
+						restNonce: args.restNonce,
+						parentId,
+						relativePath: entry.relativePath ?? '',
+						coords,
+					} );
+				} else {
+					await uploadFile( {
+						file: entry.file,
+						mime: entry.mime,
+						fields: draft[ i ],
+						context: args.context,
+						mediaUrl: args.mediaUrl,
+						restNonce: args.restNonce,
+					} );
+				}
 				successes++;
 			} catch ( err ) {
 				if ( err instanceof UploadCancelledError ) {
@@ -186,6 +318,18 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 				failureDetails.push( `“${ entry.file.name }” — ${ message }` );
 			}
 		}
+		// Empty directories from a tree drop — created after the
+		// files so shared path segments already exist and dedupe.
+		if ( destination === 'desktop' && args.emptyDirs?.length ) {
+			for ( const dir of args.emptyDirs ) {
+				try {
+					await ensureUploadPath( parentId, dir );
+				} catch {
+					// Non-fatal: the tree's files made it; an empty
+					// stub folder failing is cosmetic.
+				}
+			}
+		}
 		modal.remove();
 		showBatchSummaryToast( {
 			total,
@@ -193,6 +337,7 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			failures,
 			cancelled,
 			failureDetails,
+			destination,
 		} );
 	};
 
@@ -254,6 +399,7 @@ interface BatchSummaryArgs {
 	failures: number;
 	cancelled: number;
 	failureDetails: string[];
+	destination: Destination;
 }
 
 /**
@@ -272,9 +418,14 @@ interface BatchSummaryArgs {
  */
 function showBatchSummaryToast( args: BatchSummaryArgs ): void {
 	const { total, successes, failures, cancelled, failureDetails } = args;
+	const target =
+		args.destination === 'desktop' ? 'your desktop' : 'Media Library';
 
-	// Empty batch — defensive; runUploads is only called with entries.
+	// Empty batch — a pure empty-dirs tree drop still deserves an ack.
 	if ( total === 0 ) {
+		if ( args.destination === 'desktop' ) {
+			showToast( { message: 'Folder created on your desktop.' } );
+		}
 		return;
 	}
 
@@ -282,7 +433,7 @@ function showBatchSummaryToast( args: BatchSummaryArgs ): void {
 	// one toast that either confirms or carries the server error.
 	if ( total === 1 ) {
 		if ( successes === 1 ) {
-			showToast( { message: 'Uploaded to Media Library.' } );
+			showToast( { message: `Uploaded to ${ target }.` } );
 		} else if ( failures === 1 && failureDetails[ 0 ] ) {
 			showToast( { message: failureDetails[ 0 ] } );
 		} else if ( cancelled === 1 ) {
@@ -294,7 +445,7 @@ function showBatchSummaryToast( args: BatchSummaryArgs ): void {
 	// Single-state shortcuts.
 	if ( successes === total ) {
 		showToast( {
-			message: `Uploaded ${ successes } files to Media Library.`,
+			message: `Uploaded ${ successes } files to ${ target }.`,
 		} );
 		return;
 	}
