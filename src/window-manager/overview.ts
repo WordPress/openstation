@@ -3,7 +3,7 @@
  *
  * Animate every eligible window to a grid thumbnail, plus a top bar
  * showing one tile per virtual desktop. Clicking a thumbnail exits
- * overview and fullscreens the clicked window. Pressing Escape or
+ * overview, focusing and bringing the clicked window to the front. Pressing Escape or
  * clicking the backdrop exits without selection.
  *
  * The lifecycle is big (enter/exit + click + key handlers + top bar
@@ -74,9 +74,9 @@ function inertWindowChildren( mgr: WindowManager, inactive: boolean ): void {
 
 /**
  * Enter overview mode — animate every eligible window to a grid
- * thumbnail layout. Clicking a thumbnail exits overview and
- * fullscreens the clicked window. Pressing Escape or clicking the
- * backdrop exits without selection.
+ * thumbnail layout. Clicking a thumbnail exits overview,
+ * focusing and bringing the clicked window to the front. Pressing Escape
+ * or clicking the backdrop exits without selection.
  */
 export function enterOverview( mgr: WindowManager ): void {
 	if ( mgr._overviewActive ) {
@@ -86,7 +86,8 @@ export function enterOverview( mgr: WindowManager ): void {
 	// desktop is minimized — the canonical Show Desktop state — entering
 	// overview would otherwise show an empty grid, contradicting the
 	// user's expectation that Overview reveals their work. Restore them
-	// first so they participate in the layout below.
+	// first so they participate in the layout below, allowing them to be
+	// selected and focused in their restored states.
 	const onActive = mgr._stack.filter(
 		( w ) => w.config.desktopId === mgr._activeDesktopId,
 	);
@@ -112,7 +113,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	// grid; windows on other desktops stay hidden underneath. The top
 	// bar (rendered later) gives the user a way to switch. Native
 	// windows (OS Settings, Jorvy, etc.) participate as first-class
-	// citizens — clicking their thumbnail maximizes them, they lay
+	// citizens — clicking their thumbnail focuses them, they lay
 	// out in the grid, they count toward the top-bar tile's window
 	// count.
 	const eligible = mgr._stack.filter(
@@ -724,8 +725,8 @@ export function exitOverview(
 	}
 
 	// Start labels fading immediately — they overshoot the area when
-	// a selected window maximizes, and we don't want them lingering
-	// as the window grows beneath. Opacity transition is CSS-side
+	// a selected window focuses, and we don't want them lingering
+	// over it during the 300ms transition. Opacity transition is CSS-side
 	// (see `.desktop-mode-overview-label--out`).
 	for ( const label of mgr._overviewLabels.values() ) {
 		label.classList.add( 'desktop-mode-overview-label--out' );
