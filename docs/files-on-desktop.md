@@ -629,7 +629,7 @@ Even without it, the extensionless UUID names and the PHP-gated serving are the 
 
 ### Uploading
 
-- **Drag from the OS** onto the wallpaper or a folder window. The upload dialog offers a destination selector — Desktop storage (default on those surfaces) or Media Library (the pre-0.9.6 behavior). Folder drops force Desktop storage and recreate the tree (empty directories included, via the drag path only).
+- **Drag from the OS** onto the wallpaper, a folder window, or a closed folder tile. The upload dialog offers a destination selector — Desktop storage or Media Library (the pre-0.9.6 behavior). Defaults follow the drop's intent: folder-targeted drops go to Desktop (into that folder); flat desk drops default to Media Library when every file is a media kind (`image/*`, `video/*`, `audio/*`) and to Desktop otherwise; WordPress admin windows keep Media Library. Folder drops force Desktop storage and recreate the tree (empty directories included, via the drag path only). Dropping more files while the dialog is open merges them into the same dialog.
 - **Pickers**: wallpaper context menu → "Upload files…" / "Upload folder…".
 - Capability gate: `upload_files` by default, filterable via `desktop_mode_stored_files_upload_capability`. Per-file cap: `wp_max_upload_size()`, filterable down via `desktop_mode_stored_files_max_upload_bytes`. Optional per-user quota: `desktop_mode_stored_files_user_quota_bytes` (default unlimited). MIME policy: the user-scoped WordPress allow-list (widen with `desktop_mode_stored_files_allowed_mimes` — it keeps core's re-check in agreement) plus a hard executable/config denylist (`php*`, `phtml`, `phar`, `.htaccess`, …) that also rejects double extensions.
 

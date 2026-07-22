@@ -46,6 +46,12 @@ interface OpenDialogArgs {
 	storage?: DesktopStorageConfig;
 	/** Folder drops: the Media Library has no tree concept. */
 	forceDesktop?: boolean;
+	/**
+	 * Soft desktop preference — used by the explicit "Upload
+	 * files…" pickers, whose whole point is desktop storage. Unlike
+	 * `forceDesktop` the selector stays visible.
+	 */
+	preferDesktop?: boolean;
 	/** Empty directories from a tree drop, created after the files. */
 	emptyDirs?: string[];
 }
@@ -57,30 +63,94 @@ function snapToGrid( x: number, y: number ): { x: number; y: number } {
 	return { x: 16 + col * 96, y: 16 + row * 110 };
 }
 
+/** image/video/audio are "media kinds" — the Media Library's home turf. */
+const MEDIA_KIND_RE = /^(image|video|audio)\//;
+
+/**
+ * Destination default, by drop intent:
+ *
+ *   1. Folder-tree drops and the explicit desktop pickers →
+ *      Desktop.
+ *   2. WordPress admin windows (Media, Posts, Pages, …) → Media
+ *      Library.
+ *   3. A drop aimed at a folder (window or closed tile) → Desktop,
+ *      into that folder.
+ *   4. Flat files on the desk: Media Library when EVERY file is a
+ *      media kind (image/video/audio — the things the Media
+ *      Library exists for), Desktop otherwise.
+ *
+ * Exported for tests.
+ */
+export function resolveDefaultDestination( opts: {
+	desktopAllowed: boolean;
+	surface: DropContext[ 'surface' ];
+	folderId?: number;
+	forceDesktop?: boolean;
+	preferDesktop?: boolean;
+	mimes: string[];
+} ): Destination {
+	if ( ! opts.desktopAllowed ) {
+		return 'media';
+	}
+	if ( opts.forceDesktop || opts.preferDesktop ) {
+		return 'desktop';
+	}
+	if ( opts.surface === 'window' || opts.surface === 'iframe' ) {
+		return 'media';
+	}
+	if ( ( opts.folderId ?? 0 ) > 0 ) {
+		return 'desktop';
+	}
+	const allMedia =
+		opts.mimes.length > 0 &&
+		opts.mimes.every( ( m ) => MEDIA_KIND_RE.test( m ) );
+	return allMedia ? 'media' : 'desktop';
+}
+
+/**
+ * The one live dialog. A drop while a dialog is already open (and
+ * not yet uploading) MERGES into it instead of stacking a second
+ * modal on top.
+ */
+let activeDialog: {
+	merge: ( extra: {
+		entries: DropFileEntry[];
+		emptyDirs?: string[];
+		forceDesktop?: boolean;
+	} ) => void;
+} | null = null;
+
 export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > {
 	if ( args.entries.length === 0 && ! args.emptyDirs?.length ) {
 		return;
 	}
+	// Second drop while a dialog is open: fold the new files into
+	// the existing dialog.
+	if ( activeDialog ) {
+		activeDialog.merge( {
+			entries: args.entries,
+			emptyDirs: args.emptyDirs,
+			forceDesktop: args.forceDesktop,
+		} );
+		return;
+	}
 	const desktopAllowed = !! ( args.storage?.canUpload && args.filesUrl );
-	// Destination default follows the drop surface: WordPress admin
-	// windows (Media, Posts, Pages, …) mean Media Library; the desk,
-	// folder surfaces, and anything unclassified mean Desktop
-	// storage. Folder drops additionally target THAT folder via
-	// `context.folderId`.
-	const isWpWindow =
-		args.context.surface === 'window' || args.context.surface === 'iframe';
-	let destination: Destination =
-		desktopAllowed && ( args.forceDesktop || ! isWpWindow )
-			? 'desktop'
-			: 'media';
+	let destination: Destination = resolveDefaultDestination( {
+		desktopAllowed,
+		surface: args.context.surface,
+		folderId: args.context.folderId,
+		forceDesktop: args.forceDesktop,
+		preferDesktop: args.preferDesktop,
+		mimes: args.entries.map( ( e ) => e.mime ),
+	} );
 
 	const modal = document.createElement( 'wpd-modal' );
 	modal.setAttribute( 'open', '' );
 	modal.setAttribute( 'size', 'md' );
 	document.body.appendChild( modal );
 
-	const count = args.entries.length;
 	const syncTitle = (): void => {
+		const count = args.entries.length;
 		let target = 'Media Library';
 		if ( destination === 'desktop' ) {
 			target = ( args.context.folderId ?? 0 ) > 0 ? 'this folder' : 'Desktop';
@@ -244,6 +314,11 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		uploadBtn: HTMLElement,
 		cancelBtn: HTMLElement,
 	): Promise< void > => {
+		// The batch is now frozen — a drop from here on opens a
+		// fresh dialog instead of merging into a running upload.
+		if ( activeDialog === handle ) {
+			activeDialog = null;
+		}
 		( uploadBtn as unknown as { disabled: boolean } ).disabled = true;
 		( cancelBtn as unknown as { disabled: boolean } ).disabled = true;
 		uploadBtn.textContent = 'Uploading…';
@@ -346,17 +421,50 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 		} );
 	};
 
+	const handle = {
+		merge: ( extra: {
+			entries: DropFileEntry[];
+			emptyDirs?: string[];
+			forceDesktop?: boolean;
+		} ): void => {
+			for ( const entry of extra.entries ) {
+				args.entries.push( entry );
+				draft.push( { ...entry.fields } );
+			}
+			if ( extra.emptyDirs?.length ) {
+				args.emptyDirs = [
+					...( args.emptyDirs ?? [] ),
+					...extra.emptyDirs,
+				];
+			}
+			if ( extra.forceDesktop && ! args.forceDesktop ) {
+				// A folder tree joined the batch — desktop only now.
+				args.forceDesktop = true;
+				destination = 'desktop';
+			}
+			syncTitle();
+			renderBody();
+		},
+	};
+	activeDialog = handle;
+
 	renderBody();
 	await new Promise< void >( ( resolve ) => {
+		const finish = (): void => {
+			if ( activeDialog === handle ) {
+				activeDialog = null;
+			}
+			resolve();
+		};
 		modal.addEventListener( 'wpd-modal-cancel', () => {
 			modal.remove();
-			resolve();
+			finish();
 		} );
 		// Resolve when the modal leaves the DOM.
 		const observer = new MutationObserver( () => {
 			if ( ! modal.isConnected ) {
 				observer.disconnect();
-				resolve();
+				finish();
 			}
 		} );
 		observer.observe( document.body, { childList: true, subtree: true } );

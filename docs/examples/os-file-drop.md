@@ -201,10 +201,22 @@ wp.hooks.addAction(
 
 The upload dialog carries a destination selector when real desktop
 storage is available (`config.desktopStorage.canUpload`): **Desktop**
-(default for wallpaper and folder-window drops — bytes land in the
-user's private storage and a tile appears) or **Media Library** (the
-pre-0.9.6 behavior, still one click away). Folder drops force the
-Desktop destination and recreate the tree. Both sinks fire the same
+(bytes land in the user's private storage and a tile appears) or
+**Media Library** (the pre-0.9.6 behavior, always one click away).
+The default follows the drop's intent:
+
+- Drops aimed at a **folder** (an open folder window or a closed
+  folder tile) default to Desktop, into that folder.
+- Drops on **WordPress admin windows** (Media, Posts, Pages, …)
+  default to Media Library.
+- Flat files on the **desk** default to Media Library when EVERY
+  file is a media kind (`image/*`, `video/*`, `audio/*`) and to
+  Desktop otherwise.
+- **Folder drops** force Desktop and recreate the tree; the
+  wallpaper "Upload files…" pickers also default to Desktop.
+
+Dropping more files while the dialog is open merges them into the
+same dialog (no stacked modals). Both sinks fire the same
 `desktop-mode.drop.*` chain — your subscribers keep working
 unchanged; the `after-upload` payload's `result` is
 `{ placement, storedFileId }` for the desktop sink instead of the

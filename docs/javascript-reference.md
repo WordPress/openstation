@@ -4797,8 +4797,12 @@ does (`files-detected`, `dialog-fields`, `before-upload`,
 `upload-failed`) — subscribers don't branch on the destination. The
 `AFTER_UPLOAD` payload's `result` is `{ placement, storedFileId }`
 for the desktop sink (vs. the attachment shape for media). The
-upload dialog's destination selector defaults to Desktop on
-wallpaper/folder surfaces; folder-tree drops force it.
+upload dialog's destination default follows the drop's intent:
+folder-targeted drops and the desktop pickers → Desktop; WordPress
+admin windows → Media Library; flat desk drops → Media Library when
+every file is `image/*` / `video/*` / `audio/*`, Desktop otherwise;
+folder-tree drops force Desktop. Additional drops while the dialog
+is open merge into it (one dialog, never stacked modals).
 
 **Serialized shape** — `upload` placements carry
 `file.ownerId`, `file.sizeBytes`, `file.mime`, and `file.kind`

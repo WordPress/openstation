@@ -267,5 +267,8 @@ async function routePickedFiles( files: File[], directory: boolean ): Promise< v
 		filesUrl: config?.filesUrl,
 		storage: config?.desktopStorage,
 		forceDesktop: directory,
+		// These pickers live in the desktop's own menu — their whole
+		// point is desktop storage, media-kind files included.
+		preferDesktop: true,
 	} );
 }
