@@ -48,7 +48,7 @@ function desktop_mode_content_graph_user_can_use() {
  *
  * @since 0.8.2
  *
- * @return array[] Each entry: `array( 'slug', 'label', 'icon' )`.
+ * @return array[] Each entry: `array( 'slug', 'label', 'icon', 'taxonomies' )`.
  */
 function desktop_mode_content_graph_post_types() {
 	$types  = get_post_types( array( 'public' => true ), 'objects' );
@@ -61,15 +61,19 @@ function desktop_mode_content_graph_post_types() {
 			continue;
 		}
 		$result[] = array(
-			'slug'  => (string) $type->name,
-			'label' => (string) $type->labels->name,
-			'icon'  => (string) ( ! empty( $type->menu_icon ) ? $type->menu_icon : 'dashicons-admin-post' ),
+			'slug'       => (string) $type->name,
+			'label'      => (string) $type->labels->name,
+			'icon'       => (string) ( ! empty( $type->menu_icon ) ? $type->menu_icon : 'dashicons-admin-post' ),
+			'taxonomies' => array(
+				'category' => is_object_in_taxonomy( $type->name, 'category' ),
+				'post_tag' => is_object_in_taxonomy( $type->name, 'post_tag' ),
+			),
 		);
 	}
 
 	/**
 	 * Filter the list of post types shown in the Content Graph filter
-	 * bar. Each entry must declare `slug`, `label`, and `icon`. Removing
+	 * bar. Each entry must declare `slug`, `label`, `icon`, and `taxonomies`. Removing
 	 * an entry hides it from the filter bar AND excludes it from the
 	 * graph entirely.
 	 *
