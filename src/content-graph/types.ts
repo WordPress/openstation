@@ -14,6 +14,10 @@ export interface PostTypeDescriptor {
 	label: string;
 	icon: string;
 	count: number;
+	taxonomies: {
+		category: boolean;
+		post_tag: boolean;
+	};
 }
 
 export interface GraphNodePayload {
