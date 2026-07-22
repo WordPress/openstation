@@ -311,6 +311,37 @@
 	z-index: 2;
 }
 
+/*
+ * "Related" dropdown — opened by the related-entities title-bar
+ * button (`src/related-entities/`). The panel ALSO carries
+ * `.desktop-mode-window__menu-panel` (positioning + the drag-tracker
+ * exclusion come from there); this class only layers the related-menu
+ * extras: an internal scroll cap for media-heavy posts and a sane
+ * minimum width.
+ */
+.desktop-mode-window__related-panel {
+	max-height: min( 60vh, 420px );
+	overflow-y: auto;
+	min-width: 180px;
+}
+
+/* Section header inside the Related dropdown ("Categories", "Media"). */
+.desktop-mode-window__related-group {
+	padding: 6px 12px 2px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
+	color: var( --desktop-mode-text );
+}
+
+.desktop-mode-window__related-group:not(:first-child) {
+	margin-block-start: 4px;
+	border-block-start: 1px solid rgba( 128, 128, 128, 0.25 );
+	padding-block-start: 8px;
+}
+
 /* ---------------------------------------------------------------
  * Screen Meta buttons (Screen Options / Help) in the title bar.
  * Positioned right after the title text, visually separated from

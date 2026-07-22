@@ -363,6 +363,83 @@ function desktop_mode_chromeless_bridge_script() {
 	} catch ( _err ) { /* parent gone or cross-origin */ }
 
 	/*
+	 * Editor save-watcher — keeps the identity fresh across block-editor
+	 * saves. Gutenberg saves over REST without a page navigation, so the
+	 * announcement above (rebuilt only on admin_footer) goes stale the
+	 * moment the user adds a category, links a post, or sets a featured
+	 * image — the parent's Related menu and window ties would show the
+	 * pre-save state until a manual reload. After every real
+	 * (non-autosave) save completes, refetch a server-recomputed
+	 * identity from `desktop-mode/v1/content-identity` and re-announce
+	 * it; the parent engine diffs and repaints. The classic editor
+	 * reloads the page on save, which re-runs the announcement
+	 * naturally — this block never engages there (no `core/editor`
+	 * store on the page).
+	 */
+	window.addEventListener( 'load', function () {
+		try {
+			var wpg = window.wp;
+			if ( ! wpg || ! wpg.data || ! wpg.apiFetch || typeof wpg.data.select !== 'function' ) {
+				return;
+			}
+			var editor = wpg.data.select( 'core/editor' );
+			if (
+				! editor ||
+				typeof editor.isSavingPost !== 'function' ||
+				typeof editor.getCurrentPostId !== 'function'
+			) {
+				return;
+			}
+			var wasSaving = false;
+			var inFlight = false;
+			wpg.data.subscribe( function () {
+				var saving =
+					editor.isSavingPost() &&
+					! ( editor.isAutosavingPost && editor.isAutosavingPost() );
+				var finished = wasSaving && ! saving;
+				wasSaving = saving;
+				if ( ! finished || inFlight ) {
+					return;
+				}
+				if (
+					editor.didPostSaveRequestSucceed &&
+					! editor.didPostSaveRequestSucceed()
+				) {
+					return;
+				}
+				var postId = editor.getCurrentPostId();
+				if ( ! postId ) {
+					return;
+				}
+				inFlight = true;
+				wpg
+					.apiFetch( {
+						path: '/desktop-mode/v1/content-identity?post=' + postId,
+					} )
+					.then( function ( res ) {
+						if ( res && res.identity ) {
+							window.parent.postMessage(
+								{
+									type: 'desktop-mode-content-identity',
+									identity: res.identity,
+								},
+								window.location.origin
+							);
+						}
+					} )
+					.catch( function () {
+						/* Transient — the next save retries. */
+					} )
+					.finally( function () {
+						inFlight = false;
+					} );
+			} );
+		} catch ( _err ) {
+			/* Editor stores absent or shaped differently — nothing to watch. */
+		}
+	} );
+
+	/*
 	 * Observability — iframe error + network capture.
 	 *
 	 * Everything admin-interesting (REST failures from Gutenberg,

@@ -2243,6 +2243,7 @@ Window content relations: which piece of content each window shows, and how wind
 | `root` | `{ type, id }` | Optional. The root object this window's content belongs to. Omit when this window IS the root. |
 | `links` | `Array<{ type, id, rel? }>` | Optional. Outbound references from this content to OTHER objects (the bridge fills these for post editors automatically, capped at 32). `rel: 'references'` (default) draws the tie FROM this window TO the target ("my content points at that" — hyperlinks, terms); `rel: 'child'` reverses it ("that belongs to ME" — a post's embedded/featured media) and renders as a `child-root` edge, identical to a `root` tie. Links never re-root anything. |
 | `label` | `string` | Optional human label for renderers/tooltips. |
+| `related` | `RelatedEntityItem[]` | Optional *(since 0.9.6)*. Ready-to-open navigation targets related to this content — what the title bar's **"Related" button** lists (see below). Built server-side for posts/pages and capped at 64; never affects group membership or edges. |
 | `source` | `'config' \| 'bridge' \| 'api'` | Stamped by the engine — never set it yourself. |
 
 **API:**
@@ -2281,6 +2282,47 @@ wp.desktop.relations.related( myWindowId ); // → sibling window ids
 | `desktop-mode-window-link-groups-changed` | `desktop-mode.window-links.groups-changed` | `{ groups }` — fires on MEMBERSHIP change only, never on move/resize or focus reorder. |
 
 **JS filters:** `desktop-mode.window-links.content` (`( ref, { windowId, source } ) => ref | null` — rewrite or suppress an identity as it's set), `desktop-mode.window-links.groups` (reshape the computed group list on read), `desktop-mode.window-links.edges` (reshape the derived directed-edge list on read — add, drop, or redirect ties), `desktop-mode.window-links.renderers` (the renderer registry list), `desktop-mode.window-links.renderer` (`( id ) => id` — force-swap the active renderer without touching the user's setting).
+
+### The "Related" title-bar button — Experimental  *(since 0.9.6)*
+
+Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens `item.url` as its own desktop window. Native URL remaps are deliberately **not** consulted: the menu exists for filtered deep links (`edit-comments.php?p={id}`), which a native window opened by id would drop — so the classic filtered screen always opens, even when a native replacement is enabled. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
+
+**`RelatedEntityItem`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique in the list, e.g. `'comments'`, `'term-category-7'`, `'media-42'`; namespace yours `vendor/sub-id`. |
+| `group` | `string` | Menu section key. Built-ins: `'comments'`, `'terms/{taxonomy}'`, `'media'`. |
+| `groupLabel` | `string` | Optional translated section header. |
+| `label` | `string` | Translated item label. |
+| `icon` | `string` | Optional Dashicons class (also used as the opened window's icon). |
+| `url` | `string` | Admin URL the item opens. |
+| `count` | `number` | Optional count suffix — renders as `Comments (4)`. |
+
+**Where items come from:** the server builds them for posts/pages during the admin page render (comments with count, assigned terms, associated media) and any screen can contribute via the `desktop_mode_window_related_entities` PHP filter (see [hooks-reference](./hooks-reference.md)). Client-side, the resolved list runs through the **`desktop-mode.related-entities.items` JS filter** on every visibility check and menu build:
+
+```javascript
+// ( items, { windowId, content } ) => items
+wp.hooks.addFilter(
+    'desktop-mode.related-entities.items',
+    'my-plugin/audit-trail',
+    ( items, { content } ) => {
+        if ( content?.type === 'post' ) {
+            items.push( {
+                id: 'my-plugin/audit',
+                group: 'my-plugin/audit',
+                groupLabel: 'Audit',
+                label: 'Audit trail',
+                icon: 'dashicons-backup',
+                url: `${ myPlugin.adminUrl }admin.php?page=my-plugin-audit&post=${ content.id }`,
+            } );
+        }
+        return items;
+    },
+);
+```
+
+Malformed entries are dropped item-wise; a non-array return falls back to the identity's own list. Read a window's current items via `wp.desktop.relations.get( windowId )?.related`. Recipes: [`docs/examples/related-entities.md`](./examples/related-entities.md).
 
 ### `registerWindowLinkRenderer( def )` — Experimental  *(since 0.9.4)*
 

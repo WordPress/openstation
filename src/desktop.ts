@@ -69,6 +69,7 @@ import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-syn
 import { type UnfocusEffectDef } from './effects/types';
 import { startWindowLinksEngine } from './window-links/engine';
 import { startWindowLinkRenderHost } from './window-links/render-host';
+import { bootRelatedEntities } from './related-entities';
 import type {
 	WindowLinkRendererDef,
 	WindowRelationsApi,
@@ -2925,6 +2926,31 @@ function init(): void {
 	// whenever a relation group is renderable, and applies the
 	// `windowLinkVisibility` policy + related-window chrome highlight.
 	startWindowLinkRenderHost( { manager, osSettings } );
+
+	// Related-entities title-bar button — "Related" dropdown on any
+	// window whose content identity carries navigation targets
+	// (comments, terms, media for posts/pages; plugins add their own
+	// via the `desktop_mode_window_related_entities` PHP filter or the
+	// `desktop-mode.related-entities.items` JS filter). Picking an
+	// item opens it as its own window. Deliberately does NOT consult
+	// `tryNativeUrlRemap()`: the menu's whole point is filtered deep
+	// links (`edit-comments.php?p={id}`), and a native window opened
+	// by id drops the query — "Comments (4)" landing on the ALL-
+	// comments native window reads as a broken click. Revisit when
+	// native windows accept deep-link hints.
+	bootRelatedEntities( {
+		manager,
+		openUrl: ( item ) => {
+			const relatedId = deriveWindowId( item.url, config.adminUrl );
+			void manager.open( {
+				id: relatedId,
+				baseId: relatedId,
+				url: item.url,
+				title: item.label,
+				icon: item.icon || 'dashicons-admin-links',
+			} );
+		},
+	} );
 
 	// Dock rail renderer sync — loads plugin renderer scripts on
 	// activation so OS Settings → Dock style surfaces them
