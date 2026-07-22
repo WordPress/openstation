@@ -133,6 +133,12 @@
 	flex-shrink: 0;
 }
 
+/* Letter-badge fallback (unrecognized icon values) — shrink the
+ * one-/two-letter monogram so it fits the 18px icon box. */
+.desktop-mode-window__icon.desktop-mode-icon-letter {
+	font-size: 9px;
+}
+
 /* Activity indicator slot — sits between the icon and the title.
  * Reserves a fixed width so the indicator's blink animation can't
  * shift the title text horizontally. The inner `<wpd-save-status>`
