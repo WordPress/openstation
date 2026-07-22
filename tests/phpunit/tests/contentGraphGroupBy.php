@@ -110,7 +110,11 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 	}
 
-	public function test_post_with_no_terms_emits_empty_arrays() {
+	public function test_post_with_no_category_falls_back_to_default_category() {
+		// Pin the option so the test is self-contained regardless of
+		// whatever default_category the test-suite DB was seeded with.
+		update_option( 'default_category', 1 );
+
 		$post_id = self::factory()->post->create(
 			array(
 				'post_author' => self::$author_a_id,
@@ -118,16 +122,78 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 				'post_type'   => 'post',
 			)
 		);
-		// No category, no tag — the default category factory hook can
-		// auto-assign "Uncategorized"; clear it for a clean assertion.
+		// The factory hook auto-assigns "Uncategorized" (term 1); clear
+		// it so we exercise the builder's own fallback rather than
+		// inheriting the factory-side assignment.
 		wp_set_object_terms( $post_id, array(), 'category' );
 		wp_set_object_terms( $post_id, array(), 'post_tag' );
 
 		$payload = desktop_mode_content_graph_build( array( 'post' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
-		$this->assertSame( array(), $node['category_ids'] );
+		$this->assertSame(
+			array( 1 ),
+			$node['category_ids'],
+			'A post that supports category but has no terms must fall back to the default category.'
+		);
 		$this->assertSame( array(), $node['tag_ids'] );
+	}
+
+	public function test_default_category_appears_in_groups_catalog_after_fallback() {
+		update_option( 'default_category', 1 );
+
+		$post_id = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_a_id,
+				'post_status' => 'publish',
+				'post_type'   => 'post',
+			)
+		);
+		wp_set_object_terms( $post_id, array(), 'category' );
+
+		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+
+		// The client resolves cluster labels from groups.categories;
+		// the fallback ID must be present there so the label renders.
+		$this->assertArrayHasKey(
+			1,
+			$payload['groups']['categories'],
+			'The default category must be in the groups catalog when it is used as a fallback.'
+		);
+	}
+
+	public function test_post_type_not_supporting_category_keeps_empty_category_ids() {
+		// Register a minimal public CPT so the graph builder includes it,
+		// and clean it up afterwards so it does not bleed into other tests.
+		register_post_type(
+			'dm_test_no_cat',
+			array(
+				'public'     => true,
+				'taxonomies' => array( 'post_tag' ),
+			)
+		);
+
+		$post_id = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_a_id,
+				'post_status' => 'publish',
+				'post_type'   => 'dm_test_no_cat',
+			)
+		);
+
+		$payload = desktop_mode_content_graph_build( array( 'dm_test_no_cat' ) );
+		$node    = $this->find_node( $payload, $post_id );
+
+		// category is not registered for this type — the default
+		// category fallback must NOT be injected.
+		$this->assertSame(
+			array(),
+			$node['category_ids'],
+			'The default category must not be injected for a post type that does not support category.'
+		);
+
+		unregister_post_type( 'dm_test_no_cat' );
+		desktop_mode_content_graph_flush_cache();
 	}
 
 	public function test_post_in_two_categories_lists_both() {
