@@ -391,11 +391,20 @@ function desktop_mode_chromeless_bridge_script() {
 				return;
 			}
 			var wasSaving = false;
+			var wasNew = false;
 			var inFlight = false;
 			wpg.data.subscribe( function () {
 				var saving =
 					editor.isSavingPost() &&
 					! ( editor.isAutosavingPost && editor.isAutosavingPost() );
+				if ( saving && ! wasSaving ) {
+					// Capture "is this the first real save?" on the tick
+					// where saving STARTS — after the save completes the
+					// post is no longer new and the flag reads false.
+					wasNew = !! (
+						editor.isEditedPostNew && editor.isEditedPostNew()
+					);
+				}
 				var finished = wasSaving && ! saving;
 				wasSaving = saving;
 				if ( ! finished || inFlight ) {
@@ -410,6 +419,35 @@ function desktop_mode_chromeless_bridge_script() {
 				var postId = editor.getCurrentPostId();
 				if ( ! postId ) {
 					return;
+				}
+
+				/*
+				 * Announce the save as a cross-window content-change
+				 * broadcast. Gutenberg saves over REST with no
+				 * navigation, so the server-side chromeless-footer
+				 * emitter (includes/content-changes.php) never runs
+				 * here — this is the only instant path for block-editor
+				 * saves. The parent's broadcast receiver fans it out;
+				 * list windows showing this post type refresh.
+				 */
+				if ( editor.getCurrentPostType ) {
+					try {
+						window.parent.postMessage(
+							{
+								type: 'desktop-mode-broadcast',
+								topic:
+									'desktop-mode.' +
+									editor.getCurrentPostType() +
+									'.changed',
+								payload: {
+									source: 'editor',
+									action: wasNew ? 'created' : 'updated',
+									ids: [ postId ],
+								},
+							},
+							window.location.origin
+						);
+					} catch ( _err ) { /* parent gone */ }
 				}
 				inFlight = true;
 				wpg
@@ -2321,11 +2359,22 @@ function desktop_mode_chromeless_bridge_script() {
 	 * post appears, deleted media disappears — without the WP loading
 	 * spinner that `location.reload()` would show.
 	 *
-	 * Single-edit pages (`post.php`, `post-new.php`) are deliberately
-	 * NOT in the rule set: replacing their body would destroy any
-	 * unsaved Gutenberg/classic-editor state. Plugins that want
-	 * specific behaviour for those pages can subscribe to the same
-	 * topic on `document` and handle it themselves.
+	 * Single-edit pages (`post.php`, `post-new.php`, the HPOS order
+	 * editor) are deliberately NOT matched: replacing their body would
+	 * destroy any unsaved Gutenberg/classic-editor state. Plugins that
+	 * want specific behaviour for those pages can subscribe to the
+	 * same topic on `document` and handle it themselves.
+	 *
+	 * Matching is generic: the current page's "list type" is derived
+	 * from the URL (`edit.php` → its `post_type` param or `post`,
+	 * `upload.php` → `attachment`, `edit-comments.php` → `comment`)
+	 * and compared against the `<type>` captured from any
+	 * `desktop-mode.<type>.changed` topic — so every custom post
+	 * type's `edit.php?post_type=X` screen participates with zero
+	 * per-type code. Non-`edit.php` list screens (e.g. WooCommerce's
+	 * HPOS `admin.php?page=wc-orders`) are covered by declarative
+	 * extra rules, filterable server-side via
+	 * `desktop_mode_soft_reload_rules`.
 	 *
 	 * The fetch carries a custom header so a later phase can serve a
 	 * minimal partial response if we want to optimise; for now WP
@@ -2336,37 +2385,64 @@ function desktop_mode_chromeless_bridge_script() {
 	 * a swap (e.g. inline-edit double-binding), that page's plugin
 	 * should listen for `desktop-mode-soft-reloaded` and rebind.
 	 * ----------------------------------------------------------------- */
-	var DESKTOP_MODE_SOFT_RELOAD_RULES = [
-		{
-			topic: 'desktop-mode.post.changed',
-			match: function () {
-				if ( ! _desktop_modeEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
-				var t = new URLSearchParams( location.search ).get( 'post_type' );
-				return t === null || t === 'post';
-			}
-		},
-		{
-			topic: 'desktop-mode.page.changed',
-			match: function () {
-				if ( ! _desktop_modeEndsWith( location.pathname, '/wp-admin/edit.php' ) ) return false;
-				return new URLSearchParams( location.search ).get( 'post_type' ) === 'page';
-			}
-		},
-		{
-			topic: 'desktop-mode.attachment.changed',
-			match: function () {
-				return _desktop_modeEndsWith( location.pathname, '/wp-admin/upload.php' );
-			}
-		},
-		{
-			topic: 'desktop-mode.comment.changed',
-			match: function () {
-				return _desktop_modeEndsWith( location.pathname, '/wp-admin/edit-comments.php' );
-			}
-		}
-	];
+	var DESKTOP_MODE_SOFT_RELOAD_EXTRAS = /*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/;
 
 	function _desktop_modeEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
+
+	function _desktop_modeListType() {
+		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/edit.php' ) ) {
+			return new URLSearchParams( location.search ).get( 'post_type' ) || 'post';
+		}
+		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/upload.php' ) ) {
+			return 'attachment';
+		}
+		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/edit-comments.php' ) ) {
+			return 'comment';
+		}
+		return null;
+	}
+
+	function _desktop_modeMatchesExtraRule( rule ) {
+		if ( ! rule || ! rule.path ) {
+			return false;
+		}
+		if ( ! _desktop_modeEndsWith( location.pathname, '/wp-admin/' + rule.path ) ) {
+			return false;
+		}
+		var params = new URLSearchParams( location.search );
+		if ( rule.query ) {
+			for ( var key in rule.query ) {
+				if ( ! Object.prototype.hasOwnProperty.call( rule.query, key ) ) {
+					continue;
+				}
+				if ( params.get( key ) !== String( rule.query[ key ] ) ) {
+					return false;
+				}
+			}
+		}
+		if ( rule.queryAbsent ) {
+			for ( var i = 0; i < rule.queryAbsent.length; i++ ) {
+				if ( params.has( rule.queryAbsent[ i ] ) ) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	function _desktop_modeSoftReloadTopicMatches( topic ) {
+		var m = /^desktop-mode\.(.+)\.changed$/.exec( topic );
+		if ( m && m[ 1 ] === _desktop_modeListType() ) {
+			return true;
+		}
+		for ( var i = 0; i < DESKTOP_MODE_SOFT_RELOAD_EXTRAS.length; i++ ) {
+			var rule = DESKTOP_MODE_SOFT_RELOAD_EXTRAS[ i ];
+			if ( rule && rule.topic === topic && _desktop_modeMatchesExtraRule( rule ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	var _desktop_modeSoftReloadInFlight = false;
 	var _desktop_modeSoftReloadQueued = false;
@@ -2423,12 +2499,8 @@ function desktop_mode_chromeless_bridge_script() {
 		var detail = e.detail || {};
 		var topic = detail.topic;
 		if ( ! topic ) return;
-		for ( var i = 0; i < DESKTOP_MODE_SOFT_RELOAD_RULES.length; i++ ) {
-			var r = DESKTOP_MODE_SOFT_RELOAD_RULES[ i ];
-			if ( r.topic === topic && r.match() ) {
-				_desktop_modeSoftReload();
-				return;
-			}
+		if ( _desktop_modeSoftReloadTopicMatches( topic ) ) {
+			_desktop_modeSoftReload();
 		}
 	} );
 
@@ -3045,6 +3117,50 @@ JS;
 		}
 	}
 
+	// Declarative soft-reload rules for list screens that are NOT a
+	// standard `edit.php?post_type=<type>` / `upload.php` /
+	// `edit-comments.php` page (those are matched generically in the
+	// bridge script). Rule shape:
+	//   - `topic`       — the `desktop-mode.<type>.changed` topic.
+	//   - `path`        — wp-admin filename (`admin.php`).
+	//   - `query`       — required query params (exact match).
+	//   - `queryAbsent` — params that must NOT be present.
+	//
+	// The default rule covers WooCommerce's HPOS orders list.
+	// `queryAbsent: [ 'action' ]` is load-bearing: with `&action=edit`
+	// the same path is the single-order EDITOR, which must keep the
+	// single-edit exclusion (a soft reload would destroy unsaved
+	// order state). Shipped unconditionally — when WooCommerce is
+	// absent the URL never renders and the rule is inert.
+	$soft_reload_rules = array(
+		array(
+			'topic'       => 'desktop-mode.shop_order.changed',
+			'path'        => 'admin.php',
+			'query'       => array( 'page' => 'wc-orders' ),
+			'queryAbsent' => array( 'action' ),
+		),
+	);
+
+	/**
+	 * Filters the declarative soft-reload rules injected into every
+	 * chromeless iframe.
+	 *
+	 * Lets a plugin whose list screen lives on a custom admin URL
+	 * participate in cross-window refresh: pair a rule here with
+	 * `desktop_mode_content_changes_record()` calls (or your own
+	 * `desktop-mode.<type>.changed` broadcasts) on the publish side.
+	 *
+	 * @since 0.9.7
+	 *
+	 * @param array $soft_reload_rules Rule arrays with keys `topic`,
+	 *                                 `path`, `query`, `queryAbsent`.
+	 */
+	$soft_reload_rules = (array) apply_filters( 'desktop_mode_soft_reload_rules', $soft_reload_rules );
+	$soft_reload_json  = wp_json_encode( array_values( $soft_reload_rules ) );
+	if ( ! $soft_reload_json ) {
+		$soft_reload_json = '[]';
+	}
+
 	// Substitute the server-built menu payload into the bridge
 	// script. `wp_json_encode` guarantees safe JSON output — no need
 	// for an additional escape pass. When the page isn't on our
@@ -3053,6 +3169,7 @@ JS;
 	$js = str_replace( '/*__DESKTOP_MODE_MENU_PAYLOAD__*/', $menu_payload_json, $js );
 	$js = str_replace( '/*__DESKTOP_MODE_MENU_SIG__*/', $menu_sig_json, $js );
 	$js = str_replace( '/*__DESKTOP_MODE_CONTENT_IDENTITY__*/', $content_identity_json, $js );
+	$js = str_replace( '/*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/', $soft_reload_json, $js );
 
 	wp_print_inline_script_tag( $js );
 }

@@ -1671,6 +1671,20 @@ wp.desktop.subscribe( 'posts/updated', ( { id } ) => {
 
 **Mirror onto activity** *(since 0.5.5)* — every `broadcast()` *also* publishes on the activity bus under the same topic name (so long as it matches the `<plugin>/<event>` shape), so in-tab subscribers can use the unified `activity.subscribe` surface without knowing whether the producer ran broadcast vs activity. Cross-iframe fan-out stays the broadcast bus's job.
 
+**The `desktop-mode.<type>.changed` topic family** *(extended 0.9.7)* — the framework's own content-change traffic rides this bus. One topic per content type (`post`, `page`, `attachment`, `comment`, any CPT slug, `shop_order` for WooCommerce orders), payload:
+
+```typescript
+{
+    source: 'admin' | 'editor' | 'heartbeat' | 'recycle-bin' | string, // emitter id
+    action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+    ids:    number[],
+}
+```
+
+Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `desktop_mode_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer-since-097)) or a direct `wp.desktop.broadcast()` client-side — set a distinctive `source` so you can skip your own echoes.
+
+**Heartbeat fields** *(since 0.9.7)* — the shell contributes `desktop_mode_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `desktop_mode_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
+
 ---
 
 ### `showToast( opts )` — Stable *(since 0.6.0)*

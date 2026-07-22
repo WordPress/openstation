@@ -1971,6 +1971,156 @@ See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrument
 
 ---
 
+## Content-change realtime layer (since 0.9.7)
+
+`includes/content-changes.php` — the generic "something changed,
+every window listing that type should refresh" system. Any create /
+update / trash of a post, page, `show_ui` CPT, comment, or
+WooCommerce order is recorded into a per-request changelog and
+relayed to the parent shell as a cross-window broadcast
+(`desktop-mode.<type>.changed`, see the topic contract under
+[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+Consumers already in place: the chromeless soft-reload for iframe
+list pages, and the native Posts / Pages / Users / Comments windows.
+
+Three delivery paths:
+
+1. **Chromeless footer (instant).** Form-POST → redirect flows
+   (classic editor, WooCommerce order Update, bulk actions). The
+   changelog survives the redirect in a 60 s per-user transient and
+   is flushed by the next chromeless `admin_footer` render.
+2. **Block editor (instant).** Gutenberg saves over REST with no
+   navigation; the chromeless bridge's save-watcher posts the
+   broadcast directly (`source: 'editor'`).
+3. **Heartbeat (catch-all, ≤ one tick).** Every record is appended to
+   the pruned `_desktop_mode_content_changes_log` option
+   (autoload=false, 5-minute window, 100 entries max); opted-in
+   shells send `desktop_mode_content_changes_seen_ts` per tick and
+   re-broadcast the fresh entries (`source: 'heartbeat'`). Covers
+   Quick Edit, AJAX moderation / status flips, other browser tabs,
+   REST and WP-CLI mutations. Tabs that never opt in pay zero.
+
+Built-in publishers: `wp_after_insert_post` (revisions, autosaves,
+auto-drafts, trash-status writes, and non-`show_ui` types skipped),
+`wp_insert_comment` / `edit_comment` / `transition_comment_status`
+(trash transitions skipped — the Recycle Bin owns the trash verbs),
+and — when WooCommerce is active — `woocommerce_new_order` /
+`woocommerce_update_order` / `woocommerce_order_status_changed` /
+`woocommerce_trash_order` / `woocommerce_untrash_order` /
+`woocommerce_delete_order`, always recorded as type `shop_order` so
+one topic serves both HPOS and legacy storage.
+
+### `desktop_mode_content_changes_record()` — Stable *(function, since 0.9.7)*
+
+The public recorder — call it from your own mutation paths (custom
+tables, settings screens) and every window listing your type
+refreshes exactly like core content:
+
+```php
+desktop_mode_content_changes_record( string $type, int $id, string $action ): bool
+// $action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted'
+```
+
+Dedupe is first-writer-wins per `type:id` within a request — the more
+specific verb (recorded by an earlier hook) wins over a later generic
+`updated`. If your list screen is not a standard
+`edit.php?post_type=<type>` page, pair the recorder with a
+`desktop_mode_soft_reload_rules` entry (below).
+
+### `desktop_mode_content_changes_should_record` — Stable *(filter, since 0.9.7)*
+
+Veto gate in front of every record — return `false` to keep a
+mutation out of the realtime system entirely (footer broadcast AND
+heartbeat log).
+
+```php
+apply_filters( 'desktop_mode_content_changes_should_record', bool $record, string $type, int $id, string $action );
+```
+
+### `desktop_mode_content_change_recorded` — Stable *(action, since 0.9.7)*
+
+Fires after every successful record. Push your own real-time channel
+(websocket, SSE) here without re-hooking every mutation path.
+
+```php
+do_action( 'desktop_mode_content_change_recorded', string $type, int $id, string $action );
+```
+
+### `desktop_mode_content_change_topic` — Experimental *(filter, since 0.9.7)*
+
+Broadcast topic per type, applied while the footer emitter builds
+envelopes. Default `desktop-mode.<type>.changed`.
+
+```php
+apply_filters( 'desktop_mode_content_change_topic', string $topic, string $type, string $action );
+```
+
+### `desktop_mode_content_changes_broadcasts` — Experimental *(filter, since 0.9.7)*
+
+The full envelope list (`array( array( 'topic' => …, 'payload' => … ) )`)
+just before the chromeless footer emits. Return an empty array to
+suppress the emit for this render.
+
+```php
+apply_filters( 'desktop_mode_content_changes_broadcasts', array $broadcasts );
+```
+
+### `desktop_mode_content_changes_emitted` — Experimental *(action, since 0.9.7)*
+
+Fires after the footer printed the emit script, with the envelopes it
+carried.
+
+```php
+do_action( 'desktop_mode_content_changes_emitted', array $broadcasts );
+```
+
+### `desktop_mode_soft_reload_rules` — Stable *(filter, since 0.9.7)*
+
+Declarative soft-reload rules injected into every chromeless iframe,
+for list screens that are **not** a standard `edit.php?post_type=X` /
+`upload.php` / `edit-comments.php` page (those are matched
+generically — see the soft-reload contract under
+[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+
+```php
+apply_filters( 'desktop_mode_soft_reload_rules', array $rules );
+```
+
+Rule shape (all matched against the iframe's current URL):
+
+```php
+array(
+    'topic'       => 'desktop-mode.my_type.changed', // broadcast topic to react to
+    'path'        => 'admin.php',                    // wp-admin filename
+    'query'       => array( 'page' => 'my-list' ),   // required query params (exact match)
+    'queryAbsent' => array( 'action' ),              // params that must NOT be present
+)
+```
+
+The default rule set ships one entry — WooCommerce's HPOS orders list
+(`admin.php?page=wc-orders`, topic `desktop-mode.shop_order.changed`),
+with `queryAbsent: [ 'action' ]` so the single-order **editor**
+(`…&action=edit`) keeps the single-edit exclusion and never loses
+unsaved state to a background refresh.
+
+### Heartbeat contract
+
+| Direction | Field | Shape |
+|---|---|---|
+| client → server | `desktop_mode_content_changes_seen_ts` | `int` server-ms high-water mark; `0` on the first (handshake) tick. |
+| server → client | `desktop_mode_content_changes` | `{ ts: int, entries: [ { ts, type, action, ids } ] }` — entries newer than the client's seen ts. |
+
+The shell's first tick is a pure handshake (adopts the server clock,
+broadcasts nothing) so client/server clock skew can never drop
+changes. A change that already arrived via the footer or editor path
+is re-broadcast once on the next tick — consumers are idempotent by
+contract.
+
+See [`docs/examples/content-changes.md`](./examples/content-changes.md)
+for an end-to-end third-party recipe.
+
+---
+
 ## Recycle Bin
 
 The Recycle Bin stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
@@ -2111,23 +2261,33 @@ do_action( 'desktop_mode_recycle_bin_after_purge_comment',    int $comment_id );
 
 After every restore / purge / empty the bin publishes one topic
 **per affected post type** on the shell-wide broadcast bus
-(`wp.desktop.broadcast`). The same chromeless footer in
-`realtime.php` also emits these topics for any admin request
-that ran `wp_trash_post` / `untrash_post` / `before_delete_post`
-/ `trashed_comment` / `untrashed_comment` / `deleted_comment` —
-so the recycle bin learns instantly when a list-table trashes
-something, and the corresponding list iframe refreshes when the
-bin restores something.
+(`wp.desktop.broadcast`). Since 0.9.7 the bin's changelog delegates
+into the generic
+[content-change realtime layer](#content-change-realtime-layer-since-097),
+whose chromeless footer emits the same topics for any admin request
+that trashed, restored, deleted — or **created / updated** — content.
+The recycle bin learns instantly when a list-table trashes
+something, list iframes refresh when the bin restores something,
+and (0.9.7+) list windows also refresh when content is saved in
+another window.
 
-Topic format: **`desktop-mode.<post_type>.changed`** — the literal
-post-type slug (`post`, `page`, `attachment`, `comment`, or any
-CPT). Payload:
+Topic format: **`desktop-mode.<type>.changed`** — the literal
+post-type slug (`post`, `page`, `attachment`, `comment`, any CPT, or
+`shop_order` for WooCommerce orders under both HPOS and legacy
+storage). Payload:
 
 ```js
-{ source: 'recycle-bin' | 'admin' | <plugin>,
-  action: 'trashed' | 'untrashed' | 'deleted',
+{ source: 'recycle-bin' | 'admin' | 'editor' | 'heartbeat' | <plugin>,
+  action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
   ids:    number[] }
 ```
+
+`source` values: `'admin'` (server-recorded, chromeless-footer
+relay), `'editor'` (block-editor save-watcher), `'heartbeat'` (the
+catch-all re-broadcast — note this MAY repeat a change your window
+already handled; consumers must treat refreshes as idempotent),
+`'recycle-bin'` / `'posts-window'` / plugin names (client-side
+emitters identifying themselves for echo suppression).
 
 **Iframe-side default behaviour: soft reload.** The chromeless
 bridge installs a built-in subscriber that, when the topic
@@ -2135,20 +2295,27 @@ matches the iframe's current page, *fetches the URL it's already
 on* and replaces `#wpbody-content` in place. The user sees the
 list update — restored post appears, trashed media disappears —
 without the WP loading spinner that `location.reload()` would
-show. Mappings:
+show. Matching is generic since 0.9.7: the page's list type is
+derived from the URL and compared to the `<type>` in the topic —
 
-| Topic                              | List page                           |
-|------------------------------------|-------------------------------------|
-| `desktop-mode.post.changed`          | `edit.php` (post type unset / `post`) |
-| `desktop-mode.page.changed`          | `edit.php?post_type=page`           |
-| `desktop-mode.attachment.changed`    | `upload.php`                        |
-| `desktop-mode.comment.changed`       | `edit-comments.php`                 |
+| List page | Reacts to |
+|---|---|
+| `edit.php` (post type unset / `post`) | `desktop-mode.post.changed` |
+| `edit.php?post_type=<X>` (any CPT) | `desktop-mode.<X>.changed` |
+| `upload.php` | `desktop-mode.attachment.changed` |
+| `edit-comments.php` | `desktop-mode.comment.changed` |
+| `admin.php?page=wc-orders` (HPOS orders list) | `desktop-mode.shop_order.changed` |
 
-Single-edit pages (`post.php`, `post-new.php`) deliberately have
+— plus any declarative rule added via the
+`desktop_mode_soft_reload_rules` filter (how the `wc-orders` row
+above is implemented).
+
+Single-edit pages (`post.php`, `post-new.php`, the HPOS order editor
+`admin.php?page=wc-orders&action=edit`) deliberately have
 **no** soft-reload handler, because replacing their body would
-destroy unsaved Gutenberg / classic-editor state. Plugins wanting
-specific behaviour for those pages subscribe to the same topic
-themselves and decide how to react.
+destroy unsaved editor state. Plugins wanting specific behaviour
+for those pages subscribe to the same topic themselves and decide
+how to react.
 
 After every successful soft-reload the bridge dispatches
 `desktop-mode-soft-reloaded` on the iframe's `document` so plugins

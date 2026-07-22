@@ -163,6 +163,7 @@ import {
 } from './presence';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
 import { bootAuthRecovery } from './auth-recovery';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
@@ -3349,6 +3350,13 @@ function init(): void {
 	bootGamesChallenges( {
 		currentUserId: Number( config.currentUserId ) || 0,
 	} );
+
+	// Content-changes catch-all: re-broadcasts server-recorded
+	// mutations (Quick Edit, AJAX status flips, other tabs/users)
+	// as `desktop-mode.<type>.changed` on each Heartbeat tick. Idle
+	// boot is safe — the first tick lands ~15 s after init and the
+	// first tick is a handshake anyway (see the module docblock).
+	scheduleIdleBoot( () => bootContentChangesHeartbeat() );
 
 	// Subscribe to heartbeat-driven nonce refresh so cached
 	// `restNonce` values in `window.desktopModeConfig` and

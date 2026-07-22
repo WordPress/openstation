@@ -77,6 +77,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `heartbeat` | `HeartbeatBus` *(WordPress Heartbeat bridge)* | Stable *(0.5.5)* |
 | `broadcast` | `<T>( topic: string, payload: T ) => void` *(cross-window)* | Stable *(0.5.5)* |
 | `subscribe` | `( topic: string, cb ) => () => void` *(cross-window)* | Stable *(0.5.5)* |
+| — topic family | `desktop-mode.<type>.changed` *(content-change realtime; `{ source, action, ids }`)* | Stable *(0.9.7)* |
 | `presence` | `PresenceApi` | Stable *(0.5.5)* |
 
 ### Commands, palettes, AI, settings

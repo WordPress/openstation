@@ -72,6 +72,8 @@ Emitted on **every** chromeless page load, **including `identity: null`** — a 
 
 **Re-announced after block-editor saves** *(since 0.9.6)*: Gutenberg saves over REST without navigating, so the bridge also watches the `core/editor` save lifecycle and, after every real (non-autosave) save, refetches a server-recomputed identity from `GET /desktop-mode/v1/content-identity?post={id}` (capability-gated to `edit_post`; both identity filters run there with `$screen = null`) and posts this same message again. The parent engine diffs repeats, so identical re-announcements are free. See [`docs/examples/window-links.md`](./examples/window-links.md).
 
+**Save broadcast** *(since 0.9.7)*: on the same save-success edge the watcher also posts an upstream `{ type: 'desktop-mode-broadcast', topic: 'desktop-mode.<postType>.changed', payload: { source: 'editor', action: 'created' | 'updated', ids: [ postId ] } }` to the parent, which fans it out to every window — list windows showing that type refresh instantly. `action` is `'created'` exactly when the post was still new on the tick the save started. This is the block editor's leg of the content-change realtime layer (`includes/content-changes.php`); form-POST → redirect flows are covered server-side by the chromeless-footer emitter instead. The iframe-side consumer is the soft-reload handler: `edit.php` / `upload.php` / `edit-comments.php` are matched generically by list type, and non-standard list screens (the HPOS `wc-orders` list) are declared via the PHP-printed `/*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/` placeholder, filterable server-side through `desktop_mode_soft_reload_rules`.
+
 ### Connection bridge — `desktop-mode-bridge-*`
 
 | Type | Direction | Carries | Purpose |
