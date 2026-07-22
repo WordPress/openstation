@@ -141,6 +141,62 @@ describe( 'Dock — minimized window indicator', () => {
 		).toBe( false );
 	} );
 
+	test( 'partial minimize sets --stacked when ≥2 instances exist', () => {
+		const normal = makeWin( 'edit-php', 'edit-php', 'normal' );
+		const minimized = makeWin( 'edit-php-2', 'edit-php', 'minimized' );
+		const minimized2 = makeWin( 'edit-php-3', 'edit-php', 'minimized' );
+		const manager = makeManager( [ normal, minimized, minimized2 ], normal );
+		const { container } = mount( manager );
+		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+
+		const tile = tileFor( container, 'menu-posts' );
+		expect( tile.classList.contains( 'desktop-mode-dock__item--focused' ) ).toBe( true );
+		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+		expect(
+			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
+		).toBe( false );
+	} );
+
+	test( 'single minimized window with one normal does set --stacked (2 instances)', () => {
+		const normal = makeWin( 'edit-php', 'edit-php', 'normal' );
+		const minimized = makeWin( 'edit-php-2', 'edit-php', 'minimized' );
+		const manager = makeManager( [ normal, minimized ], normal );
+		const { container } = mount( manager );
+		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+
+		const tile = tileFor( container, 'menu-posts' );
+		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+	} );
+
+	test( '--stacked stays after restore when multiple instances remain', () => {
+		const win1 = makeWin( 'edit-php', 'edit-php', 'minimized' );
+		const win2 = makeWin( 'edit-php-2', 'edit-php', 'minimized' );
+		const manager = makeManager( [ win1, win2 ] );
+		const { container } = mount( manager );
+		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+
+		const tile = tileFor( container, 'menu-posts' );
+		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+
+		win1.state = 'normal';
+		win2.state = 'normal';
+		window.wp?.hooks?.doAction?.( HOOKS.WINDOW_RESTORED );
+		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-restored' ) );
+
+		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+	} );
+
+	test( '--stacked shows for multiple open (non-minimized) instances', () => {
+		const win1 = makeWin( 'edit-php', 'edit-php', 'normal' );
+		const win2 = makeWin( 'edit-php-2', 'edit-php', 'normal' );
+		const manager = makeManager( [ win1, win2 ] );
+		const { container } = mount( manager );
+		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+
+		const tile = tileFor( container, 'menu-posts' );
+		expect( tile.classList.contains( 'desktop-mode-dock__item--stacked' ) ).toBe( true );
+	} );
+
 	test( 'focused tile loses --focused when its window is minimized', () => {
 		const win = makeWin( 'edit-php', 'edit-php', 'minimized' );
 		const manager = makeManager( [ win ], win );

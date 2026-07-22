@@ -35,6 +35,7 @@
  */
 
 import { activity } from './activity';
+import { findMenuEntryForUrl } from './desktop-files/menu-entry';
 import { tryOpenExternalUrl } from './external-url';
 import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
@@ -539,12 +540,20 @@ function openTarget(
 			// indicator. See the docstring on
 			// `DesktopIconRenderDeps.deriveWindowId`.
 			const windowId = deps.deriveWindowId( parsed.toString() );
+			// Enrich with the matching admin-menu entry so the window
+			// gets the same submenu tab strip / parent-tab / multi
+			// behavior as a dock open (mirrors `openItem` in
+			// `desktop-layout.ts`).
+			const menuEntry = findMenuEntryForUrl( parsed.toString() );
 			void deps.manager.open( {
 				id: windowId,
 				baseId: windowId,
 				url: parsed.toString(),
+				parentUrl: menuEntry?.url ?? parsed.toString(),
 				title: entry.title,
 				icon: entry.icon,
+				submenu: menuEntry?.submenu,
+				multi: !! menuEntry?.multi,
 			} );
 		} catch {
 			// Malformed URL — ignore rather than surface a broken

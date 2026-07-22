@@ -21,7 +21,7 @@
  * @since 0.8.3
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 // Side-effect imports — register the `<wpd-*>` components this
@@ -676,6 +676,13 @@ async function renderCommentsWindow( body: HTMLElement ): Promise< void > {
 			// into it; see the matching note in wirePanel().
 			await customElements.whenDefined( 'wpd-table' );
 			state.table.data = state.rows;
+			// `<wpd-table>` keeps its selection set across `data`
+			// reassignment, and bulk actions here act on the RAW
+			// selected ids (not resolved through the visible rows) —
+			// so ids from the previous result set would silently ride
+			// into the next moderation action. Every data replacement
+			// starts with a clean selection.
+			state.table.clearSelection();
 			updatePager( state );
 			if ( tab === 'pending' && ! opts.force ) {
 				if ( lastSeenPending === 0 ) {
@@ -1071,7 +1078,11 @@ function buildColumns(
 				tog.className = 'desktop-mode-comments__replies-toggle';
 				tog.textContent = sprintf(
 					/* translators: %d: number of direct replies. */
-					__( '+ %d replies' ),
+					_n(
+						'+ %d reply',
+						'+ %d replies',
+						row.desktop_mode_replies_count,
+					),
 					row.desktop_mode_replies_count,
 				);
 				tog.addEventListener( 'click', ( e ) => {
@@ -1283,6 +1294,10 @@ async function reloadActivePanel( state: PanelState ): Promise< void > {
 		state.totalPages = result.totalPages;
 		await customElements.whenDefined( 'wpd-table' );
 		state.table.data = state.rows;
+		// See the matching note in refresh(): stale selected ids must
+		// not survive a data replacement (pagination, search, manual
+		// refresh) — they'd be swept into the next bulk action.
+		state.table.clearSelection();
 		updatePager( state );
 	} catch ( err ) {
 		// eslint-disable-next-line no-console
@@ -1549,16 +1564,13 @@ async function runBulk(
 			counts: result.counts,
 		} );
 		updateDockBadge( result.counts.pending );
-		await refresh( state.tab, { force: true } );
-		// The acted-on rows have left (or changed in) the current tab, but
-		// `<wpd-table>` deliberately keeps its selection set across data
-		// refreshes (stale ids are only hidden at paint time — see
-		// wpd-table.ts). Left alone, those ids linger in `table.selection`,
-		// so the next row the user picks reads as "2 selected" and a
-		// follow-up bulk action operates on the phantom id too. Reset the
-		// selection here; clearSelection() emits `wpd-table-selection-change`,
-		// which refreshes the "N selected" chip and hides the bulk bar.
+		// Clear BEFORE the refresh, not just via refresh()'s own
+		// post-assignment clear: if the follow-up fetch fails, the
+		// bulk action still completed and the acted-on ids must not
+		// linger in the bulk bar. clearSelection() emits
+		// `wpd-table-selection-change`, which hides the bar.
 		state.table?.clearSelection();
+		await refresh( state.tab, { force: true } );
 	} catch ( err ) {
 		/* translators: %s: bulk action name (e.g. "approve", "spam"). */
 		const fallback = sprintf( __( 'Bulk %s failed.' ), action );
@@ -1612,7 +1624,12 @@ function moveFocus( state: PanelState, direction: 1 | -1 ): void {
 	if ( ! nextId ) {
 		return;
 	}
-	state.table.selection = [ nextId ];
+	// clearSelection() + select() rather than assigning `selection`:
+	// the bare setter emits no `wpd-table-selection-change`, so the
+	// "N selected" chip and bulk bar would silently desync from the
+	// keyboard cursor — while a / s / d act on the real selection.
+	state.table.clearSelection();
+	state.table.select( nextId );
 	const tr = state.tableHost?.querySelector< HTMLElement >(
 		`tr[data-row-id="${ nextId }"]`,
 	);

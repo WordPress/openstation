@@ -33,14 +33,18 @@
 		filter 240ms ease-out;
 }
 
-.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary {
+.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
+.desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
+	background: rgba( 255, 255, 255, 0.15 );
+	color: #fff;
 	transform: scale( 1.08 );
 	filter: drop-shadow( 0 4px 8px rgba( 0, 0, 0, 0.18 ) );
 }
 
 @media ( prefers-reduced-motion: reduce ) {
 	.desktop-mode-dock__item-primary,
-	.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary {
+	.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
+	.desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
 		transition: none;
 		transform: none;
 	}
@@ -616,4 +620,13 @@
 		animation-duration: 280ms;
 		animation-timing-function: cubic-bezier( 0.22, 1, 0.36, 1 );
 	}
+}
+
+/* Collapse minimized cards to just the titlebar. */
+.desktop-mode-dock-peek__card[data-state="minimized"] {
+	min-height: 0;
+	opacity: 0.85;
+}
+.desktop-mode-dock-peek__card[data-state="minimized"] > :not(.desktop-mode-dock-peek__card-titlebar) {
+	display: none;
 }

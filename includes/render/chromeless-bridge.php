@@ -297,6 +297,17 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 	}
 
+	// Content identity — which object this admin page shows ("comment 45
+	// of post 123"). Built here, in real admin context, because the URL
+	// alone can't resolve relations like comment → parent post. Always
+	// emitted (including `null`) so navigating an iframe from an
+	// identified page to an unidentified one clears the stale identity
+	// in the parent's relations engine.
+	$content_identity_json = wp_json_encode( desktop_mode_build_content_identity() );
+	if ( false === $content_identity_json ) {
+		$content_identity_json = 'null';
+	}
+
 	// Emit via wp_print_inline_script_tag so CSP nonces and `<script>`
 	// attribute hygiene go through Core rather than being hand-rolled.
 	$js = <<<'JS'
@@ -323,6 +334,110 @@ function desktop_mode_chromeless_bridge_script() {
 		}
 		return;
 	}
+
+	/*
+	 * Content-identity announcement. The server resolved which object
+	 * this page shows (post / comment / attachment, plus the root post
+	 * a child belongs to) while it still had real admin context; hand
+	 * it to the parent's relations engine. Deliberately posted even
+	 * when the identity is null — a full-page navigation away from an
+	 * identified screen must CLEAR the stale identity, and every
+	 * navigation re-runs admin_footer, so this doubles as the
+	 * re-announce-on-navigate path.
+	 *
+	 * Posted FIRST, right after the top-frame escape hatch, because it
+	 * depends on nothing else in this script: a page-specific runtime
+	 * failure in any of the feature blocks below (screen-meta harvest,
+	 * command scan, link interceptor, …) must not cost the shell its
+	 * window relations. The `desktop-mode-ready` signal intentionally
+	 * stays LAST — it means "every listener below is wired".
+	 */
+	try {
+		window.parent.postMessage(
+			{
+				type: 'desktop-mode-content-identity',
+				identity: /*__DESKTOP_MODE_CONTENT_IDENTITY__*/
+			},
+			window.location.origin
+		);
+	} catch ( _err ) { /* parent gone or cross-origin */ }
+
+	/*
+	 * Editor save-watcher — keeps the identity fresh across block-editor
+	 * saves. Gutenberg saves over REST without a page navigation, so the
+	 * announcement above (rebuilt only on admin_footer) goes stale the
+	 * moment the user adds a category, links a post, or sets a featured
+	 * image — the parent's Related menu and window ties would show the
+	 * pre-save state until a manual reload. After every real
+	 * (non-autosave) save completes, refetch a server-recomputed
+	 * identity from `desktop-mode/v1/content-identity` and re-announce
+	 * it; the parent engine diffs and repaints. The classic editor
+	 * reloads the page on save, which re-runs the announcement
+	 * naturally — this block never engages there (no `core/editor`
+	 * store on the page).
+	 */
+	window.addEventListener( 'load', function () {
+		try {
+			var wpg = window.wp;
+			if ( ! wpg || ! wpg.data || ! wpg.apiFetch || typeof wpg.data.select !== 'function' ) {
+				return;
+			}
+			var editor = wpg.data.select( 'core/editor' );
+			if (
+				! editor ||
+				typeof editor.isSavingPost !== 'function' ||
+				typeof editor.getCurrentPostId !== 'function'
+			) {
+				return;
+			}
+			var wasSaving = false;
+			var inFlight = false;
+			wpg.data.subscribe( function () {
+				var saving =
+					editor.isSavingPost() &&
+					! ( editor.isAutosavingPost && editor.isAutosavingPost() );
+				var finished = wasSaving && ! saving;
+				wasSaving = saving;
+				if ( ! finished || inFlight ) {
+					return;
+				}
+				if (
+					editor.didPostSaveRequestSucceed &&
+					! editor.didPostSaveRequestSucceed()
+				) {
+					return;
+				}
+				var postId = editor.getCurrentPostId();
+				if ( ! postId ) {
+					return;
+				}
+				inFlight = true;
+				wpg
+					.apiFetch( {
+						path: '/desktop-mode/v1/content-identity?post=' + postId,
+					} )
+					.then( function ( res ) {
+						if ( res && res.identity ) {
+							window.parent.postMessage(
+								{
+									type: 'desktop-mode-content-identity',
+									identity: res.identity,
+								},
+								window.location.origin
+							);
+						}
+					} )
+					.catch( function () {
+						/* Transient — the next save retries. */
+					} )
+					.finally( function () {
+						inFlight = false;
+					} );
+			} );
+		} catch ( _err ) {
+			/* Editor stores absent or shaped differently — nothing to watch. */
+		}
+	} );
 
 	/*
 	 * Observability — iframe error + network capture.
@@ -841,6 +956,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 *   - themes.php          — theme switch (rare but can add menus).
 	 */
 	var __DESKTOP_MODE_MENU_PAYLOAD__ = /*__DESKTOP_MODE_MENU_PAYLOAD__*/;
+	var __DESKTOP_MODE_MENU_SIG__ = /*__DESKTOP_MODE_MENU_SIG__*/;
 	/*
 	 * Icon harvest from the iframe's authoritative #adminmenu.
 	 *
@@ -941,6 +1057,22 @@ function desktop_mode_chromeless_bridge_script() {
 				{
 					type: 'desktop-mode-plugins-changed',
 					payload: __DESKTOP_MODE_MENU_PAYLOAD__
+				},
+				window.location.origin
+			);
+		} else if ( __DESKTOP_MODE_MENU_SIG__ ) {
+			/*
+			 * No full payload on this page — but we still ship the cheap
+			 * menu signature so the shell can notice a menu change that
+			 * happened somewhere off the plugins/themes/update path (a
+			 * CPT registered via a settings tool, a plugin that adds a
+			 * menu on save, …) and spend a refresh probe only then.
+			 * GH#325.
+			 */
+			window.parent.postMessage(
+				{
+					type: 'desktop-mode-menu-signature',
+					sig: __DESKTOP_MODE_MENU_SIG__
 				},
 				window.location.origin
 			);
@@ -1105,6 +1237,19 @@ function desktop_mode_chromeless_bridge_script() {
 		 * which is what users perceive as "Install Now keeps loading and
 		 * opens a new tab". Skip these classes so updates.js's bubble
 		 * handler runs as core intended.
+		 *
+		 * The plugins-list-table row action "Delete" is the same story
+		 * with a different marker: a bare `a.delete` inside a
+		 * `tr[data-plugin]` (updates.js binds `[data-plugin] a.delete`;
+		 * the network themes list is `.themes-php.network-admin
+		 * a.delete`) — it never carries the `delete-plugin` /
+		 * `delete-theme` classes of the card-style buttons above.
+		 * Hijacking it navigated the iframe to the link's no-JS
+		 * bulk-delete fallback WHILE updates.js's AJAX delete was
+		 * already running: `wp.updates.beforeunload` raised a native
+		 * "Leave site?" prompt, and leaving landed on a delete
+		 * confirmation screen for a plugin whose files the AJAX call
+		 * had just removed — an empty "You are about to remove:" list.
 		 */
 		if (
 			link.classList.contains( 'install-now' ) ||
@@ -1112,7 +1257,11 @@ function desktop_mode_chromeless_bridge_script() {
 			link.classList.contains( 'update-now' ) ||
 			link.classList.contains( 'delete-plugin' ) ||
 			link.classList.contains( 'delete-theme' ) ||
-			link.classList.contains( 'install-theme' )
+			link.classList.contains( 'install-theme' ) ||
+			( link.classList.contains( 'delete' ) &&
+				( link.closest( '[data-plugin]' ) ||
+					( document.body.classList.contains( 'themes-php' ) &&
+						document.body.classList.contains( 'network-admin' ) ) ) )
 		) {
 			return;
 		}
@@ -1379,6 +1528,45 @@ function desktop_mode_chromeless_bridge_script() {
 			);
 		} catch ( err ) { /* cross-origin parent; swallow */ }
 	}, false );
+
+	/*
+	 * Drag-hover forwarder. Native drag events don't cross iframe
+	 * boundaries, so when the user holds ANY drag (an OS file, an
+	 * image lifted off another admin page, a text selection) over
+	 * this window, the parent shell has no idea the window is being
+	 * hovered. Forward a throttled, payload-free heartbeat so the
+	 * shell's focus-on-drag-hover module
+	 * (`src/drag/focus-window-on-drag-hover.ts`) can raise this
+	 * window after its dwell. Purely observational — no
+	 * `preventDefault()`, no interference with in-page drop zones.
+	 * The parent identifies the hovered window from the message
+	 * source, so no coordinates travel.
+	 *
+	 * Sentinel-guarded: the standalone bridge bundle
+	 * (`iframe-bridge-standalone.ts`) installs the same forwarder,
+	 * and unlike the drop forwarder above there is no
+	 * `defaultPrevented` handshake to dedupe a double install.
+	 */
+	if ( ! window.__desktopModeDragHoverForwarderInstalled ) {
+		window.__desktopModeDragHoverForwarderInstalled = true;
+		var dragHoverLastSent = 0;
+		document.addEventListener( 'dragover', function ( ev ) {
+			var now = Date.now();
+			if ( now - dragHoverLastSent < 150 ) {
+				return;
+			}
+			dragHoverLastSent = now;
+			try {
+				window.parent.postMessage(
+					{
+						type: 'desktop-mode-drag-hover',
+						payloadType: bridgeHasFiles( ev ) ? 'os-file' : 'external',
+					},
+					window.location.origin
+				);
+			} catch ( err ) { /* cross-origin parent; swallow */ }
+		}, true );
+	}
 
 	/*
 	 * Cmd+K / Ctrl+K forwarder — single-press, unconditional.
@@ -2837,12 +3025,30 @@ function desktop_mode_chromeless_bridge_script() {
 } )();
 JS;
 
+	// On pages that don't carry a full payload, ship the lightweight
+	// menu signature so the shell can detect an off-allowlist menu
+	// change (e.g. a CPT registered via a settings tool) and refresh
+	// only then. The full payload already embeds its own `menuSig`, so
+	// there's no point recomputing it when one is being sent. GH#325.
+	$menu_sig_json = 'null';
+	if ( 'null' === $menu_payload_json ) {
+		$menu_sig = desktop_mode_menu_signature();
+		if ( '' !== $menu_sig ) {
+			$encoded_sig = wp_json_encode( $menu_sig );
+			if ( false !== $encoded_sig ) {
+				$menu_sig_json = $encoded_sig;
+			}
+		}
+	}
+
 	// Substitute the server-built menu payload into the bridge
 	// script. `wp_json_encode` guarantees safe JSON output — no need
 	// for an additional escape pass. When the page isn't on our
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
 	$js = str_replace( '/*__DESKTOP_MODE_MENU_PAYLOAD__*/', $menu_payload_json, $js );
+	$js = str_replace( '/*__DESKTOP_MODE_MENU_SIG__*/', $menu_sig_json, $js );
+	$js = str_replace( '/*__DESKTOP_MODE_CONTENT_IDENTITY__*/', $content_identity_json, $js );
 
 	wp_print_inline_script_tag( $js );
 }

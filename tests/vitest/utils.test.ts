@@ -76,6 +76,61 @@ describe( 'utils/deriveWindowId', () => {
 		expect( first ).toBe( 'post-php-post-123' );
 	} );
 
+	test( 'keeps the generic `id` query arg transient (plugin row actions)', () => {
+		// `admin.php?page=foo&action=duplicate&id=3` is a row action on
+		// the foo LIST screen — it must resolve to the list window's id
+		// so the action navigates in place instead of spawning a window.
+		const list = deriveWindowId( `${ ADMIN }admin.php?page=foo`, ADMIN );
+		const action = deriveWindowId(
+			`${ ADMIN }admin.php?page=foo&action=duplicate&id=3`,
+			ADMIN,
+		);
+		expect( action ).toBe( list );
+	} );
+
+	test( 'separates individual term edit URLs by the `tag_ID` query arg', () => {
+		// Regression: without `tag_ID` in the identity set, every
+		// term.php URL of the same taxonomy collapses to one window, so
+		// opening a second category from a post's Related menu just
+		// refocuses the first term's window.
+		const first = deriveWindowId(
+			`${ ADMIN }term.php?taxonomy=category&tag_ID=3`,
+			ADMIN,
+		);
+		const second = deriveWindowId(
+			`${ ADMIN }term.php?taxonomy=category&tag_ID=7`,
+			ADMIN,
+		);
+		expect( first ).not.toBe( second );
+	} );
+
+	test( 'separates media detail deep links by the `item` query arg', () => {
+		// Regression: without `item` in the identity set, every
+		// upload.php?item=X URL collapses to `upload-php`, so opening a
+		// second image from a post's Related menu refocuses the first.
+		const first = deriveWindowId( `${ ADMIN }upload.php?item=5`, ADMIN );
+		const second = deriveWindowId( `${ ADMIN }upload.php?item=9`, ADMIN );
+		expect( first ).not.toBe( second );
+		expect( first ).not.toBe( deriveWindowId( `${ ADMIN }upload.php`, ADMIN ) );
+	} );
+
+	test( 'separates individual comment edit URLs by the `c` query arg', () => {
+		// Regression: without `c` in the identity set, every
+		// comment.php?action=editcomment&c=X URL collapses to
+		// `comment-php`, so opening a second comment replaces the first
+		// comment's window instead of opening its own.
+		const first = deriveWindowId(
+			`${ ADMIN }comment.php?action=editcomment&c=500`,
+			ADMIN,
+		);
+		const second = deriveWindowId(
+			`${ ADMIN }comment.php?action=editcomment&c=501`,
+			ADMIN,
+		);
+		expect( first ).not.toBe( second );
+		expect( first ).toBe( 'comment-php-c-500' );
+	} );
+
 	test( 'separates plugin-routed pages by the `page` query arg', () => {
 		const one = deriveWindowId(
 			`${ ADMIN }admin.php?page=my-plugin`,

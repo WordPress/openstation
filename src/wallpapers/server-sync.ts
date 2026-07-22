@@ -100,6 +100,7 @@ export function createWallpaperRegistrySync(
 			type: 'css',
 			value: entry.value,
 			preview: entry.preview !== '' ? entry.preview : entry.value,
+			description: entry.description || undefined,
 		};
 	};
 
@@ -123,7 +124,13 @@ export function createWallpaperRegistrySync(
 		}
 
 		await ensureScript( entry );
-		const def = readDef( entry.id );
+		let def = readDef( entry.id );
+		// PHP owns metadata: overlay the server-declared description when
+		// the JS def didn't carry one (typical — descriptions are
+		// registered translatably on the PHP side).
+		if ( def && ! def.description && entry.description ) {
+			def = { ...def, description: entry.description };
+		}
 		if ( ! def ) {
 			doAction( HOOKS.SHELL_ERROR, {
 				scope: 'wallpaper-missing-def',

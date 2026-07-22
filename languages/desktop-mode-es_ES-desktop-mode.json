@@ -133,6 +133,9 @@
             "%s is currently editing": [
                 ""
             ],
+            "%s settings": [
+                ""
+            ],
             "%s sub-pages": [
                 "Subpáginas de %s"
             ],
@@ -157,16 +160,14 @@
             "(no title)": [
                 ""
             ],
-            "+ %d replies": [
+            "+ %d reply": [
+                "Subpáginas de %s",
                 "Subpáginas de %s"
             ],
             "1 item": [
                 ""
             ],
             "A moderation surface built around how you actually triage: bulk actions with undo, an inline reply editor, keyboard shortcuts, and a spam score that surfaces the obvious junk first.": [
-                ""
-            ],
-            "A platform-wide AI key is configured. You can optionally set a personal key below to override it.": [
                 ""
             ],
             "A plugin with the same folder name is already installed.": [
@@ -184,11 +185,8 @@
             "A year of activity": [
                 ""
             ],
-            "AI Settings": [
+            "AI assistant": [
                 ""
-            ],
-            "AI integration": [
-                "Navegación del administrador"
             ],
             "AI: hostile / abusive tone.": [
                 ""
@@ -197,9 +195,6 @@
                 ""
             ],
             "AI: looks safe.": [
-                ""
-            ],
-            "API key": [
                 ""
             ],
             "About": [
@@ -241,6 +236,9 @@
             "Added": [
                 "Añadido"
             ],
+            "Adds an assistant powered by AI that finds your content, gets around wp-admin, and answers questions about your site — all in plain language. Off by default.": [
+                ""
+            ],
             "Akismet cleared this comment.": [
                 ""
             ],
@@ -259,6 +257,9 @@
             "Alt text": [
                 ""
             ],
+            "Always": [
+                ""
+            ],
             "Amber": [
                 "Ámbar"
             ],
@@ -266,6 +267,9 @@
                 "Ángulo"
             ],
             "Anonymous": [
+                ""
+            ],
+            "Any image from your media library or an upload, sized to cover the whole desk.": [
                 ""
             ],
             "Appearance": [
@@ -337,6 +341,9 @@
             "Back to post": [
                 ""
             ],
+            "Background color": [
+                ""
+            ],
             "Beta": [
                 ""
             ],
@@ -371,6 +378,9 @@
                 ""
             ],
             "Breadcrumb": [
+                ""
+            ],
+            "Bring related windows to front": [
                 ""
             ],
             "Bug": [
@@ -424,6 +434,9 @@
             "Click an avatar to see the author's full history — total comments, spam rate, first seen, and one-click block.": [
                 ""
             ],
+            "Clicking a window surfaces the windows directly tied to it — a parent brings up all of its children, a child brings up its parent — rising to just below the one you clicked, without stealing focus.": [
+                ""
+            ],
             "Clock": [
                 "Reloj"
             ],
@@ -441,6 +454,9 @@
             ],
             "Close tab": [
                 "Cerrar pestaña"
+            ],
+            "Close window": [
+                "Organizar ventanas"
             ],
             "Co-occurring": [
                 ""
@@ -478,10 +494,7 @@
             "Components": [
                 ""
             ],
-            "Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival.": [
-                ""
-            ],
-            "Connect an AI provider to power assistive features across the desktop.": [
+            "Connectors": [
                 ""
             ],
             "Content Graph container missing.": [
@@ -557,6 +570,9 @@
                 ""
             ],
             "Current streak": [
+                ""
+            ],
+            "Curved connectors between related windows, ending in circular dots — the larger dot sits on the window the content belongs to; windows that reference each other get large dots on both ends.": [
                 ""
             ],
             "Custom gradient": [
@@ -652,6 +668,9 @@
             "Disabling…": [
                 "Subiendo…"
             ],
+            "Dismiss": [
+                ""
+            ],
             "Dismiss notice": [
                 ""
             ],
@@ -674,6 +693,12 @@
                 ""
             ],
             "Drain the colour from unfocused windows so the focused one is the only thing still in colour — your eye snaps right to it.": [
+                ""
+            ],
+            "Draw a visual tie between windows showing related content — a post and its comments or media.": [
+                ""
+            ],
+            "Draws arrowed connector lines between windows showing related content — a post and its comments or media, or two posts that link to each other. The line style and when the lines show live in Effects → Window links. On by default.": [
                 ""
             ],
             "Drop a .zip plugin file here, or click to choose a file.": [
@@ -721,13 +746,10 @@
             "Emerald": [
                 "Esmeralda"
             ],
-            "Enable AI features": [
-                ""
-            ],
-            "Enable AI for all users": [
-                ""
-            ],
             "Enable auto-updates": [
+                ""
+            ],
+            "Enable developer mode": [
                 ""
             ],
             "Enable drag-and-drop in the Media Library": [
@@ -767,9 +789,6 @@
                 ""
             ],
             "Explore details": [
-                ""
-            ],
-            "Extended Options": [
                 ""
             ],
             "Extended options": [
@@ -829,6 +848,9 @@
             "Fit graph to view": [
                 ""
             ],
+            "Flake size": [
+                "Tamaño del dock"
+            ],
             "Folder sharing": [
                 ""
             ],
@@ -845,9 +867,6 @@
                 "Desde"
             ],
             "Frost": [
-                ""
-            ],
-            "Global settings": [
                 ""
             ],
             "Got it": [
@@ -892,10 +911,10 @@
             "Hide sticky note": [
                 ""
             ],
-            "How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately.": [
+            "Highlight related windows": [
                 ""
             ],
-            "How the assistant streams progress while it works. Pick Off if your host blocks long-lived connections (e.g. you see \"Lost connection to the assistant\" errors).": [
+            "How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately.": [
                 ""
             ],
             "How the rail itself paints — the shipped icon strip, or anything a plugin replaces it with. Switching is instant; the dock rebuilds with the new renderer.": [
@@ -997,8 +1016,8 @@
             "Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, \"Leave shared folder\") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default.": [
                 ""
             ],
-            "Live progress updates": [
-                ""
+            "Link style": [
+                "Tamaño del dock"
             ],
             "Load more": [
                 "Cargar más"
@@ -1076,6 +1095,9 @@
                 "Minimizar"
             ],
             "Missing-import warner — live demo": [
+                ""
+            ],
+            "Mix your own two-colour gradient and set the angle — your desk, your palette.": [
                 ""
             ],
             "Moderate": [
@@ -1249,6 +1271,9 @@
             "Numbered list": [
                 ""
             ],
+            "Off": [
+                ""
+            ],
             "Often paired categories": [
                 "No se pudieron cargar tus medios."
             ],
@@ -1384,12 +1409,6 @@
             "Planned": [
                 ""
             ],
-            "Platform API key": [
-                ""
-            ],
-            "Platform-wide AI configuration. Applies to all users and to background jobs (cron, WP-CLI, anonymous comments). Individual users can override with their own key above.": [
-                ""
-            ],
             "Plugin": [
                 ""
             ],
@@ -1433,9 +1452,6 @@
                 ""
             ],
             "Props": [
-                ""
-            ],
-            "Provider": [
                 ""
             ],
             "Published": [
@@ -1505,9 +1521,6 @@
                 ""
             ],
             "Replacing existing plugin…": [
-                ""
-            ],
-            "Replies (%d)": [
                 ""
             ],
             "Reply (%d)": [
@@ -1600,6 +1613,9 @@
             "Score new comments with AI": [
                 ""
             ],
+            "Scores every new comment for spam and hostility, folding the result into the spam confidence shown in the Comments window. Site-wide, off by default.": [
+                ""
+            ],
             "Screenshots": [
                 ""
             ],
@@ -1672,6 +1688,9 @@
             "Settings sections": [
                 ""
             ],
+            "Settings → Connectors": [
+                ""
+            ],
             "Shadow parts": [
                 ""
             ],
@@ -1685,6 +1704,9 @@
                 ""
             ],
             "Show in": [
+                "Mostrando %d"
+            ],
+            "Show links": [
                 "Mostrando %d"
             ],
             "Show post/page status ribbon": [
@@ -1726,6 +1748,12 @@
             "Slow — 45s": [
                 ""
             ],
+            "Snow": [
+                ""
+            ],
+            "Snowflakes": [
+                ""
+            ],
             "Sort by": [
                 ""
             ],
@@ -1742,6 +1770,9 @@
                 ""
             ],
             "Spatial": [
+                ""
+            ],
+            "Splines": [
                 ""
             ],
             "Stable": [
@@ -1823,6 +1854,9 @@
                 ""
             ],
             "This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone.": [
+                ""
+            ],
+            "This feature requires an AI provider configured in": [
                 ""
             ],
             "This plugin does not check in with WordPress.org, so automatic updates can't be scheduled.": [
@@ -1957,6 +1991,12 @@
             "Unknown error.": [
                 ""
             ],
+            "Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OS Settings → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise.": [
+                ""
+            ],
+            "Unsaved changes": [
+                ""
+            ],
             "Untagged": [
                 ""
             ],
@@ -1965,6 +2005,9 @@
             ],
             "Update available": [
                 ""
+            ],
+            "Update now": [
+                "Añadir %s"
             ],
             "Update of %1$s failed: %2$s": [
                 "Error al subir."
@@ -2038,9 +2081,6 @@
             "User agent": [
                 ""
             ],
-            "Using platform key — enter to override": [
-                ""
-            ],
             "Version": [
                 ""
             ],
@@ -2077,6 +2117,9 @@
             "Wallpaper": [
                 "Fondo de pantalla"
             ],
+            "Wallpaper settings": [
+                "Fondo de pantalla"
+            ],
             "We couldn’t pull the review feed here. Open the full thread on WordPress.org to read every review.": [
                 ""
             ],
@@ -2095,17 +2138,32 @@
             "What happened? What did you expect?": [
                 ""
             ],
-            "When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.": [
+            "When a related window is focused": [
+                ""
+            ],
+            "While a group member is focused, its related windows get an accent outline and a soft glow so the family is recognizable at a glance.": [
                 ""
             ],
             "Width of the dock and size of its icons.": [
                 "Anchura del dock y tamaño de sus iconos."
+            ],
+            "Wind": [
+                ""
             ],
             "Window %1$s → %2$s": [
                 ""
             ],
             "Window actions": [
                 "Acciones de ventana"
+            ],
+            "Window links": [
+                "Acciones de ventana"
+            ],
+            "WordPress %1$s \"%2$s\" is available.": [
+                ""
+            ],
+            "WordPress %s is available.": [
+                "Azul WordPress"
             ],
             "WordPress Blue": [
                 "Azul WordPress"
@@ -2114,6 +2172,9 @@
                 "Escritorio %d"
             ],
             "WordPress Heartbeat rate": [
+                "Azul WordPress"
+            ],
+            "WordPress Updates": [
                 "Azul WordPress"
             ],
             "WordPress.org didn’t respond. Try again in a moment.": [
@@ -2132,6 +2193,9 @@
                 "Lo sentimos, no tienes permiso para acceder al escritorio de WordPress."
             ],
             "You do not have permission to manage plugins.": [
+                ""
+            ],
+            "You have unsaved changes. Are you sure you want to close this window?": [
                 ""
             ],
             "You will review and submit on GitHub.": [
@@ -2174,9 +2238,6 @@
                 ""
             ],
             "one contributor": [
-                ""
-            ],
-            "sk-…": [
                 ""
             ],
             "updated": [

@@ -44,6 +44,21 @@ export interface AiAssistantConfig {
 	aiSearchStreamUrl: string;
 	restNonce: string;
 	getTransport?: () => 'sse' | 'off';
+	/**
+	 * Whether the AI mode is usable — the AI APIs are present and a
+	 * provider is configured. When false the assistant is a pure command
+	 * palette (Commands mode only, no mode switch). Read live so the
+	 * overlay reflects a provider being (dis)connected without a reload.
+	 */
+	isAiAvailable?: () => boolean;
+	/**
+	 * The "AI assistant" toggle (OS Settings → Features). When on (and a
+	 * provider is configured), the assistant offers the AI mode and opens
+	 * in it by default, and the Commands/Ask AI switch appears; when off,
+	 * it's a plain command palette. Read live so flipping the toggle takes
+	 * effect on the next open.
+	 */
+	isOverrideEnabled?: () => boolean;
 }
 
 /**

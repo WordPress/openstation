@@ -1,9 +1,10 @@
 /**
  * Extended Options section — admin-only, platform-wide toggles.
  *
- * Lives in the "Extended Options" tab of OS Settings. The tab itself is
- * hidden from non-admin users so the controls can't be seen (let alone
- * toggled). Values are stored in wp_options via a dedicated REST endpoint.
+ * Renders at the bottom of the "Features" tab of OS Settings. The panel
+ * only builds the section for admin users so the controls can't be seen
+ * (let alone toggled) by anyone else. Values are stored in wp_options
+ * via a dedicated REST endpoint.
  *
  * Current options:
  *   - media_library_enhanced: makes every Media Library .attachment tile

@@ -41,9 +41,15 @@ function makeTile( multi: boolean ): HTMLElement {
 	return tile;
 }
 
-function makeWindowStub( title: string, baseId: string ) {
+function makeWindowStub(
+	title: string,
+	baseId: string,
+	state: 'normal' | 'minimized' = 'normal',
+) {
 	return {
 		id: baseId,
+		state,
+		restore: vi.fn(),
 		config: {
 			title,
 			icon: 'dashicons-admin-post',
@@ -295,6 +301,55 @@ describe( 'dock-peek', () => {
 		expect( focus ).toHaveBeenCalledWith( winB );
 	} );
 
+	// Hovering a minimized card restores it so the user can see it.
+	test( 'hovering a minimized instance card restores the window', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => undefined,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.desktop-mode-dock-peek__card--instance',
+		)!;
+		pointerEnter( card );
+		expect( win.restore ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).not.toHaveBeenCalled();
+	} );
+
+	// Collapsed preview: minimized cards get data-state="minimized" for CSS.
+	test( 'minimized instance card gets data-state="minimized" attribute', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => undefined,
+					focus: vi.fn(),
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.desktop-mode-dock-peek__card--instance',
+		)!;
+		expect( card.dataset.state ).toBe( 'minimized' );
+	} );
+
 	test( 'whole-card filter can replace the entire card', () => {
 		const wpHooks = (
 			window as unknown as {
@@ -368,6 +423,32 @@ describe( 'dock-peek', () => {
 		instanceCard.click();
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledWith( instances[ 0 ] );
+	} );
+
+	test( 'clicking a minimized instance card restores and focuses that window', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => undefined,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const instanceCard = document.querySelector< HTMLElement >(
+			'.desktop-mode-dock-peek__card--instance',
+		)!;
+		instanceCard.click();
+		expect( focus ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).toHaveBeenCalledWith( win );
+		expect( win.restore ).toHaveBeenCalledTimes( 1 );
 	} );
 
 	test( 'clicking the Ghost Card calls openNew', () => {

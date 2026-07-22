@@ -387,11 +387,26 @@ function commitUnstate(
 	);
 	win.element.style.width = `${ params.targetW }px`;
 	win.element.style.height = `${ params.targetH }px`;
-	const left = Math.round(
-		cursorX - params.areaLeft - params.targetW * params.cursorRatioX,
+	// Clamp the re-anchor to the same lower bound the drag-move loop
+	// enforces. A snapped-LEFT window whose floating width exceeds the
+	// half-screen would otherwise re-anchor at a NEGATIVE left (cursor
+	// ratio × restored width reaches past the desktop's left edge),
+	// and since the drag offsets derive from the position written
+	// here, every subsequent move stays negative too — the move-loop
+	// clamp then pins the window at x=0 until the cursor has traveled
+	// the whole overshoot, which reads as "the left window can't be
+	// dragged out of split view." Snapped-RIGHT never overshoots (its
+	// cursor sits in the right half, so the anchor math stays
+	// positive) — that asymmetry was the bug's tell.
+	const left = Math.max(
+		EDGE_MARGIN,
+		Math.round(
+			cursorX - params.areaLeft - params.targetW * params.cursorRatioX,
+		),
 	);
-	const top = Math.round(
-		cursorY - params.areaTop - params.titleBarHeight / 2,
+	const top = Math.max(
+		EDGE_MARGIN,
+		Math.round( cursorY - params.areaTop - params.titleBarHeight / 2 ),
 	);
 	win.element.style.left = `${ left }px`;
 	win.element.style.top = `${ top }px`;

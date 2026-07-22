@@ -43,13 +43,14 @@ export const styles = css`
 	}
 	/*
 	 * WebKit paints the color swatch inside an extra wrapper with
-	 * a default 4 px border — strip it so the input reads as a
-	 * flat colored panel matching the rest of OS Settings.
+	 * a default border — strip it in EVERY variant so the input
+	 * reads as a single flat colored panel with our border, not a
+	 * double frame.
 	 */
-	:host( [ variant='block' ] ) input[ type='color' ]::-webkit-color-swatch-wrapper {
+	input[ type='color' ]::-webkit-color-swatch-wrapper {
 		padding: 2px;
 	}
-	:host( [ variant='block' ] ) input[ type='color' ]::-webkit-color-swatch {
+	input[ type='color' ]::-webkit-color-swatch {
 		border: none;
 		border-radius: 2px;
 	}

@@ -352,9 +352,32 @@ function compile( strings: TemplateStringsArray ): Compiled {
 interface MountState {
 	strings: TemplateStringsArray;
 	parts: Part[];
+	/** Top-level nodes mounted into the container — see {@link mountIntact}. */
+	nodes: Node[];
 }
 
 const mountState = new WeakMap<Element | DocumentFragment, MountState>();
+
+/**
+ * Whether the mounted top-level nodes are still children of the
+ * container. Imperative code outside the renderer can wipe a previous
+ * render's DOM (`container.innerHTML = ''`) while the cache entry for
+ * the container survives; updating those detached parts would
+ * silently render nothing, since insertion is anchored on text nodes
+ * that no longer have a parent. Detect the wipe and fall through to a
+ * fresh mount instead.
+ */
+function mountIntact(
+	state: MountState,
+	container: Element | DocumentFragment,
+): boolean {
+	for ( const node of state.nodes ) {
+		if ( node.parentNode !== container ) {
+			return false;
+		}
+	}
+	return true;
+}
 
 /**
  * Render `result` into `container`. Idempotent — subsequent calls
@@ -366,7 +389,11 @@ export function render(
 	container: Element | DocumentFragment,
 ): void {
 	const existing = mountState.get( container );
-	if ( existing && existing.strings === result.strings ) {
+	if (
+		existing &&
+		existing.strings === result.strings &&
+		mountIntact( existing, container )
+	) {
 		applyValues( existing.parts, result.values );
 		return;
 	}
@@ -374,6 +401,7 @@ export function render(
 	const compiled = compile( result.strings );
 	const fragment = compiled.template.content.cloneNode( true ) as DocumentFragment;
 	const parts = compiled.buildParts( fragment );
+	const nodes = Array.from( fragment.childNodes );
 
 	while ( container.firstChild ) {
 		container.removeChild( container.firstChild );
@@ -381,7 +409,7 @@ export function render(
 	container.appendChild( fragment );
 
 	applyValues( parts, result.values );
-	mountState.set( container, { strings: result.strings, parts } );
+	mountState.set( container, { strings: result.strings, parts, nodes } );
 }
 
 /** Update each part to the new slot value if it actually changed. */

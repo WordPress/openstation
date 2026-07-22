@@ -232,29 +232,6 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		}
 	}
 
-	// AI Assistant trigger — shown when desktop mode is active AND the
-	// current user has AI features configured. Clicking (or pressing
-	// Cmd+K anywhere) opens the spotlight-style AI overlay.
-	if ( $is_active && function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
-		// Use dashicons-admin-comments (speech bubble) — same rendering
-		// path as the toggle + arrange buttons, no SVG / HTML parsing
-		// issues in the admin-bar context. The ⌘K badge is added via
-		// a CSS ::after on the label so it never touches the DOM.
-		$wp_admin_bar->add_node(
-			array(
-				'parent' => 'top-secondary',
-				'id'     => 'desktop-ai-assistant',
-				'title'  => '<span class="ab-icon dashicons dashicons-admin-comments" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'desktop-mode' ) . '</span>',
-				'href'   => '#',
-				'meta'   => array(
-					'class'    => 'desktop-ai-btn',
-					'title'    => __( 'Open AI Assistant (Cmd+K)', 'desktop-mode' ),
-					'tabindex' => 0,
-				),
-			)
-		);
-	}
 
 	// "Keyboard shortcuts" trigger — shown only when desktop mode is
 	// active. Clicking toggles the keyboard-shortcuts popover wired by
@@ -323,7 +300,6 @@ function desktop_mode_enqueue_toggle_assets() {
 	$css = '
 		#wpadminbar #wp-admin-bar-desktop-mode-toggle > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-layout-menu > .ab-item,
-		#wpadminbar #wp-admin-bar-desktop-ai-assistant > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-fullscreen > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-bug-report > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-help > .ab-item {
@@ -333,7 +309,6 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		#wpadminbar #wp-admin-bar-desktop-mode-toggle .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-icon,
-		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-fullscreen .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-bug-report .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-help .ab-icon {
@@ -373,53 +348,6 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-mode-toggle .ab-label {
-				display: none;
-			}
-		}
-
-		/* AI Assistant admin-bar button — same icon/label pattern as the
-		   desktop-mode-toggle; ⌘K badge added via CSS ::after so we keep
-		   the title HTML clean and avoid admin-bar sanitisation edge-cases. */
-		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons,
-		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons {
-			font: normal 20px/1 dashicons;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-		}
-		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons::before {
-			content: "\f101";
-			top: 0;
-			position: static;
-			/* See note on desktop-mode-toggle above — inherit so the
-			   icon matches the rest of the admin-bar dashicons
-			   across all WP profile color schemes. */
-			color: inherit;
-		}
-		/* ⌘K badge rendered purely in CSS to the right of the label.
-		   inline-flex + align-items:center centers the glyph inside
-		   its own padding box; a 1px upward translate compensates
-		   for the optical sag from the admin-bar label baseline. */
-		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-label::after {
-			content: "\2318K";
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			margin-inline-start: 5px;
-			font-size: 10px;
-			line-height: 1;
-			padding: 2px 5px;
-			background: rgba( 255, 255, 255, 0.1 );
-			border: 1px solid rgba( 255, 255, 255, 0.18 );
-			border-radius: 3px;
-			color: rgba( 255, 255, 255, 0.55 );
-			vertical-align: middle;
-			font-weight: 400;
-			letter-spacing: 0;
-			position: relative;
-			top: -1px;
-		}
-		@media screen and (max-width: 782px) {
-			#wp-admin-bar-desktop-ai-assistant .ab-label {
 				display: none;
 			}
 		}

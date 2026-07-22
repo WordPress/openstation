@@ -135,12 +135,18 @@ table.addEventListener( 'wpd-table-selection-change', ( e ) => {
 // Programmatic API
 table.select( 'alice@a.com' );
 table.deselect( 'alice@a.com' );
-table.selectAll();                          // multi only
+table.selectAll();                          // multi only — selects the VISIBLE rows
 table.clearSelection();
 table.selection = new Set( savedIds );      // bulk replace
 ```
 
+`selectAll()` (and the header select-all checkbox) selects the rows passing the active client-side filters — never rows a filter is currently hiding. The header checkbox tri-state follows the same rule: "checked" means every *visible* row is selected. Tables without client-side filters are unaffected.
+
 **Why `getRowId` matters:** when the user reloads `data` from the server, selections survive the refresh because they're keyed by stable id, not array index. Fall back to the default (index) only when rows have no natural identifier.
+
+**Ids must be unique across the whole data set.** If the table mixes entity kinds whose id sequences are independent (e.g. posts and comments carry numeric ids from different tables), qualify the id with the kind — ``getRowId = ( row ) => `${ row.type }:${ row.id }` `` — or two different rows will share one selection key and select (and act) together.
+
+**Destructive consumers: clear the selection when the data set changes.** Selection deliberately survives `data` reassignment, so ids from a previous page / search / filter linger invisibly. If your bulk actions consume `table.selection` (trash, delete, role changes…), call `table.clearSelection()` whenever the query changes — otherwise a forgotten off-page selection rides silently into the next action. See `src/comments-window/index.ts` and `src/posts-window/index.ts` for the pattern.
 
 ## Sticky columns and sticky header
 
@@ -326,9 +332,10 @@ If editing is the primary use case, request a first-class `column.editor` API �
 | `clearFilters()` | Drop every filter; emits `filter-change`. |
 | `clearSort()` | Drop the active sort; emits `sort-change`. |
 | `select(id)` / `deselect(id)` | Mutate the selection by id. |
-| `selectAll()` / `clearSelection()` | Bulk operations (multi-mode). |
+| `selectAll()` / `clearSelection()` | Bulk operations (multi-mode). `selectAll()` selects only the rows passing the active client-side filters. |
 | `selection` | Get/set the selection set. |
-| `selectedRows` | Resolved row objects matching `selection`. |
+| `selectedRows` | Resolved row objects matching `selection` (resolves against the full `data` buffer). |
+| `visibleRows` | Rows passing the active client-side filters — the set `selectAll()` operates on. Destructive bulk consumers should resolve `selection` against this, not `data`. |
 | `getRowId` | Stable-id extractor (default: index). |
 | `sort` | Get/set the active `{ key, direction }` (or `null`). |
 | `filters` | Get/set the filter map. |
@@ -388,6 +395,8 @@ If editing is the primary use case, request a first-class `column.editor` API �
 - **Mixing `column.align: 'end'` with custom `render`.** Alignment applies to the cell, but if your renderer returns a `display: block`-ish element it may not pick up text-align. Either set `text-align: end` on the rendered element or wrap in a `<span>`.
 - **Editable cells losing focus.** Reassigning `table.data` on every keystroke triggers a full body repaint — the new `<input>` is a different element, so focus is lost. Commit on blur/Enter, or hold edits in a side buffer until save.
 - **Selection going stale on data refresh.** Without `getRowId`, ids are array indices — selections drift if rows reorder. Set `getRowId = ( row ) => row.id` whenever rows have a natural identifier.
+- **Colliding ids across mixed row kinds.** Two rows whose `getRowId` returns the same value are one row as far as selection is concerned — ticking one ticks both. Qualify the id (``( row ) => `${ row.type }:${ row.id }` ``) when a list mixes entities from independent id sequences.
+- **Stale selection feeding destructive bulk actions.** Selection survives `data` reassignment by design. If your bulk actions read `table.selection` (trash, delete…), call `clearSelection()` whenever the query (page, search, filter) changes, **and** resolve the selection against `table.visibleRows` (not `data`) before acting — a data-driven change can hide a selected row without any filter event firing, and rows the user can't see must never be swept into a destructive action.
 
 ## See also
 

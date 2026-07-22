@@ -1764,7 +1764,11 @@ export class GraphScene {
 		// the `app.destroy({children: true})` cascade below. Doing it
 		// here explicitly was redundant and could double-destroy.
 		try {
-			this.app.destroy( true, { children: true } );
+			// `{ removeView: true }`, NEVER `true`: a literal `true` runs
+			// `releaseGlobalResources()`, wiping Pixi's page-global pools
+			// out from under every other live Application on the page
+			// (canvas wallpaper, previews, the categories mindmap).
+			this.app.destroy( { removeView: true }, { children: true } );
 		} catch {
 			// ignore — Pixi sometimes throws on race during teardown.
 		}

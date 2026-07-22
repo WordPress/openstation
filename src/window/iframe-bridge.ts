@@ -19,6 +19,7 @@ import { dispatchFromWindow, markWindowContentReady } from '../window-channels';
 import { tryNativeUrlRemap } from '../native-url-remap';
 import { createSharedStore } from '../shared-store';
 import { matchDestructiveAdminAction } from '../destructive-admin-actions';
+import { setWindowContent } from '../window-links/engine';
 import { openUserFootprintWindow } from '../my-wordpress/footprint-target';
 
 /**
@@ -146,6 +147,17 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 
 	if ( data.type === 'desktop-mode-title-change' && typeof data.title === 'string' ) {
 		win.setTitle( data.title );
+	}
+
+	// Content-identity announcement from the chromeless bridge — the
+	// authoritative "which object does this page show" signal, resolved
+	// server-side in real admin context. `identity: null` is meaningful
+	// (navigation away from an identified screen clears the stale ref),
+	// so forward it verbatim; the engine validates and no-ops repeats.
+	if ( data.type === 'desktop-mode-content-identity' ) {
+		setWindowContent( win.id, data.identity ?? null, {
+			source: 'bridge',
+		} );
 	}
 
 	// Unified window-channel publish. Iframe content called

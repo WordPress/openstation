@@ -59,8 +59,8 @@
 	background: rgba( 0, 0, 0, 0.36 );
 	backdrop-filter: blur( 8px ) saturate( 0.75 );
 	-webkit-backdrop-filter: blur( 8px ) saturate( 0.75 );
-	/* Backdrop is intentionally non-interactive — the overlay stays open
-	   until the user explicitly clicks the × close button. */
+	/* Non-interactive: clicks in the dimmed area fall through to the overlay
+	   container, which closes the assistant (click-outside-to-dismiss). */
 	pointer-events: none;
 }
 
@@ -130,6 +130,48 @@
 	letter-spacing: 0.09em;
 	text-transform: uppercase;
 	color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+/* Mode switch (Commands ↔ AI) — a small segmented pill in the header.
+   Shown only when AI is available; replaces the `/` shortcut. */
+.desktop-mode-ai__modes {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border-radius: 999px;
+	background: rgba( 0, 0, 0, 0.05 );
+}
+
+.desktop-mode-ai__modes[hidden] {
+	display: none;
+}
+
+.desktop-mode-ai__mode {
+	appearance: none;
+	border: 0;
+	cursor: pointer;
+	padding: 3px 12px;
+	border-radius: 999px;
+	background: transparent;
+	color: #50575e;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.6;
+}
+
+.desktop-mode-ai__mode:hover {
+	color: #1d2327;
+}
+
+.desktop-mode-ai__mode.is-active {
+	background: #fff;
+	color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.12 );
+}
+
+.desktop-mode-ai__mode:focus-visible {
+	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: 1px;
 }
 
 /* .desktop-mode-ai__close styles moved to the bottom results section */
@@ -246,26 +288,6 @@
 .desktop-mode-ai__footer-hint {
 	font-size: 11px;
 	color: #a7aaad;
-}
-
-.desktop-mode-ai__footer-keys {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	font-size: 11px;
-	color: #b4b9be;
-	white-space: nowrap;
-	flex-shrink: 0;
-}
-
-.desktop-mode-ai__footer-keys kbd {
-	font-family: inherit;
-	font-size: 10px;
-	padding: 1px 5px;
-	border: 1px solid rgba( 0, 0, 0, 0.1 );
-	border-radius: 4px;
-	background: rgba( 0, 0, 0, 0.03 );
-	color: #646970;
 }
 
 /* ---------------------------------------------------------------------------

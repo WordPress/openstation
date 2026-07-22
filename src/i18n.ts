@@ -113,9 +113,13 @@ export function sprintf( format: string, ...args: unknown[] ): string {
 	if ( impl ) {
 		return impl( format, ...args );
 	}
-	// Minimal fallback covering the two tokens our call sites use:
-	// %s (any) and %d (number). Good enough for dev environments /
-	// tests where `wp.i18n` isn't loaded — production always has it.
+	// Minimal fallback covering the tokens our call sites use: `%s`/`%d`
+	// (sequential) and `%1$s` (positional). Good enough for dev
+	// environments / tests where `wp.i18n` isn't loaded — production
+	// always has the real implementation.
 	let i = 0;
-	return format.replace( /%[sd]/g, () => String( args[ i++ ] ?? '' ) );
+	return format.replace( /%(?:(\d+)\$)?[sd]/g, ( _match, pos ) => {
+		const idx = pos ? Number.parseInt( pos, 10 ) - 1 : i++;
+		return String( args[ idx ] ?? '' );
+	} );
 }

@@ -60,6 +60,7 @@ import {
 	DRAG_BRIDGE_EVENTS,
 	type DragBridgePayload,
 } from '../drag-bridge';
+import { findWindowRootAtPoint } from './window-at-point';
 
 const TARGET_ID_PREFIX = 'desktop-mode-iframe-drop-';
 const IFRAME_SELECTOR = 'iframe.desktop-mode-window__iframe';
@@ -110,12 +111,8 @@ function findIframeAtCursor(
 	clientX: number,
 	clientY: number,
 ): HTMLIFrameElement | null {
-	const el = document.elementFromPoint( clientX, clientY );
-	if ( ! el ) {
-		return null;
-	}
-	const win = el.closest( '.desktop-mode-window' );
-	if ( ! ( win instanceof HTMLElement ) ) {
+	const win = findWindowRootAtPoint( clientX, clientY );
+	if ( ! win ) {
 		return null;
 	}
 	const iframe = win.querySelector( IFRAME_SELECTOR );

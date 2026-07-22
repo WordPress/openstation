@@ -34,12 +34,30 @@ defined( 'ABSPATH' ) || exit;
  * filter pipeline, so a plugin that wants a single audit log can
  * subscribe once.
  *
+ * Custom post types with an admin UI (`show_ui`, non-builtin) are
+ * included by default since 0.9.6 — a trashed WooCommerce product or
+ * portfolio entry belongs in the site-wide bin just as much as a
+ * post does. Visibility stays safe because every row is still gated
+ * per-item on `edit_post` before it is listed. Headless CPTs
+ * (`show_ui => false`, e.g. the pinned-notes `wpd_note`) stay out
+ * unless their owning feature opts in via the filter.
+ *
  * @since 0.6.0
+ * @since 0.9.6 Non-builtin `show_ui` post types are included by default.
  *
  * @return string[]
  */
 function desktop_mode_recycle_bin_capture_post_types() {
 	$types = array( 'post', 'page', 'attachment' );
+
+	$custom = get_post_types(
+		array(
+			'show_ui'  => true,
+			'_builtin' => false,
+		),
+		'names'
+	);
+	$types  = array_merge( $types, array_values( (array) $custom ) );
 
 	/**
 	 * Filter the post types the recycle bin tracks.
@@ -47,6 +65,8 @@ function desktop_mode_recycle_bin_capture_post_types() {
 	 * Returning a list excluding `attachment` stops the bin from
 	 * stamping and listing trashed attachments; it does not change how
 	 * WordPress deletes media (that is governed by `MEDIA_TRASH`).
+	 * Remove a custom post type here to keep its trash out of the bin,
+	 * or add a headless (`show_ui => false`) type to opt it in.
 	 *
 	 * @since 0.6.0
 	 *
@@ -54,7 +74,7 @@ function desktop_mode_recycle_bin_capture_post_types() {
 	 */
 	$types = apply_filters( 'desktop_mode_recycle_bin_capture_post_types', $types );
 
-	return array_values( array_filter( array_map( 'strval', (array) $types ) ) );
+	return array_values( array_unique( array_filter( array_map( 'strval', (array) $types ) ) ) );
 }
 
 /**

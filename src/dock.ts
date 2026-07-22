@@ -2115,6 +2115,10 @@ export class Dock {
 				'desktop-mode-dock__item--all-minimized',
 				allMinimized,
 			);
+			tile.classList.toggle(
+				'desktop-mode-dock__item--stacked',
+				isOpen && instances.length > 1,
+			);
 		}
 
 		// System items — active dot driven by the caller's predicate. No

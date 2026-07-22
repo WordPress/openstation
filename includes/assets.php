@@ -11,6 +11,46 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Cache-buster for a stylesheet that `@import`s sub-sheets: the max
+ * `filemtime` across the file AND everything it (transitively) imports.
+ * Sub-sheet URLs carry no `?ver=` of their own, so the parent's stamp is
+ * the only cache key the browser ever sees for the subtree — it must
+ * move when any member changes.
+ *
+ * @since 0.9.4
+ *
+ * @param string $relative Stylesheet path relative to the plugin dir.
+ * @param string $fallback Version to use when the file is missing.
+ * @return string Version string.
+ */
+function desktop_mode_css_subtree_version( $relative, $fallback ) {
+	$root = DESKTOP_MODE_DIR . $relative;
+	if ( ! file_exists( $root ) ) {
+		return (string) $fallback;
+	}
+	$max   = (int) filemtime( $root );
+	$queue = array( $root );
+	$seen  = array( $root => true );
+	while ( ! empty( $queue ) ) {
+		$file = array_pop( $queue );
+		$css  = (string) file_get_contents( $file );
+		if ( ! preg_match_all( '/@import\s+url\(\s*["\']?([^"\')\s]+)["\']?\s*\)/i', $css, $matches ) ) {
+			continue;
+		}
+		foreach ( $matches[1] as $import ) {
+			$path = dirname( $file ) . '/' . $import;
+			if ( ! file_exists( $path ) || isset( $seen[ $path ] ) ) {
+				continue;
+			}
+			$seen[ $path ] = true;
+			$max           = max( $max, (int) filemtime( $path ) );
+			$queue[]       = $path;
+		}
+	}
+	return (string) $max;
+}
+
+/**
  * Registers the desktop mode CSS and JS handles.
  *
  * @since 0.1.0
@@ -32,6 +72,7 @@ function desktop_mode_register_assets() {
 		$path = DESKTOP_MODE_DIR . $relative;
 		return file_exists( $path ) ? (string) filemtime( $path ) : $version;
 	};
+
 
 	// Styles.
 	wp_register_style(
@@ -58,21 +99,29 @@ function desktop_mode_register_assets() {
 	// than plugin version bumps. Without an mtime stamp the browser
 	// keeps `?ver=<plugin-version>` valid for the whole release cycle
 	// and the user keeps seeing yesterday's CSS even after a hard
-	// reload. Stamps the parent `windows.css` only; the @imports inside
-	// (`window-chrome.css`, `window-states.css`, …) inherit the cache
-	// directive from the parent fetch, so a busted `windows.css` busts
-	// the whole subtree.
+	// reload.
+	//
+	// The stamp covers the whole `@import` SUBTREE, not just the parent
+	// file: `windows.css` imports `window-chrome.css`,
+	// `os-settings.css`, … and those sub-sheet URLs carry no `?ver=` of
+	// their own. Stamping only the parent meant an edit to a sub-sheet
+	// never changed any URL the browser knew about, so users kept
+	// yesterday's rules until an unrelated parent edit came along
+	// (exactly how the wallpaper-description card shipped with stale
+	// layout). The subtree max-mtime busts the parent whenever ANY
+	// sub-sheet changes; the re-parsed parent then re-requests the
+	// sub-sheets, whose fresh mtimes fail heuristic-cache reuse.
 	wp_register_style(
 		'desktop-mode-windows',
 		DESKTOP_MODE_URL . 'assets/css/windows.css',
 		array( 'desktop-mode-variables', 'dashicons' ),
-		$built_version( 'assets/css/windows.css' )
+		desktop_mode_css_subtree_version( 'assets/css/windows.css', $version )
 	);
 	wp_register_style(
 		'desktop-mode-dock',
 		DESKTOP_MODE_URL . 'assets/css/dock.css',
 		array( 'desktop-mode-variables', 'dashicons' ),
-		$version
+		$built_version( 'assets/css/dock.css' )
 	);
 	wp_register_style(
 		'desktop-mode-dock-peek',
@@ -165,6 +214,42 @@ function desktop_mode_register_assets() {
 		file_exists( $desktop_files_css ) ? (string) filemtime( $desktop_files_css ) : $version
 	);
 
+	// Games hub window (launcher grid, scoreboard, challenges) +
+	// per-game styles. Same `filemtime` cache-bust posture as the
+	// other fast-iterating feature stylesheets.
+	$games_css = DESKTOP_MODE_DIR . 'assets/css/games.css';
+	wp_register_style(
+		'desktop-mode-games',
+		DESKTOP_MODE_URL . 'assets/css/games.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $games_css ) ? (string) filemtime( $games_css ) : $version
+	);
+	$game_inkfall_css = DESKTOP_MODE_DIR . 'assets/css/game-inkfall.css';
+	wp_register_style(
+		'desktop-mode-game-inkfall',
+		DESKTOP_MODE_URL . 'assets/css/game-inkfall.css',
+		array( 'desktop-mode-variables' ),
+		file_exists( $game_inkfall_css ) ? (string) filemtime( $game_inkfall_css ) : $version
+	);
+	$game_alphabet_soup_css = DESKTOP_MODE_DIR . 'assets/css/game-alphabet-soup.css';
+	wp_register_style(
+		'desktop-mode-game-alphabet-soup',
+		DESKTOP_MODE_URL . 'assets/css/game-alphabet-soup.css',
+		array( 'desktop-mode-variables' ),
+		file_exists( $game_alphabet_soup_css ) ? (string) filemtime( $game_alphabet_soup_css ) : $version
+	);
+
+	// Pinned-notes layer styles (paper, pushpin, pastel tokens, pin
+	// animations). Same `filemtime` cache-bust posture as the other
+	// fast-iterating feature stylesheets above.
+	$notes_css = DESKTOP_MODE_DIR . 'assets/css/notes.css';
+	wp_register_style(
+		'desktop-mode-notes',
+		DESKTOP_MODE_URL . 'assets/css/notes.css',
+		array( 'desktop-mode-variables', 'dashicons' ),
+		file_exists( $notes_css ) ? (string) filemtime( $notes_css ) : $version
+	);
+
 	// Scripts.
 	//
 	// `wp-hooks` — the shell exposes a WordPress-style filter/action
@@ -242,6 +327,62 @@ function desktop_mode_register_assets() {
 		DESKTOP_MODE_DIR . 'languages'
 	);
 
+	// `desktop-mode-games` — bundle for the Games hub native window
+	// (launcher grid, scoreboard, challenges client). Lazy-loaded by
+	// the native-window sync the first time the hub opens; registers a
+	// render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-games']`.
+	// `heartbeat` + `jquery` — the challenges client rides the
+	// WordPress Heartbeat bus for live delivery.
+	$games_js = DESKTOP_MODE_DIR . 'assets/js/games' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-games',
+		DESKTOP_MODE_URL . 'assets/js/games' . $suffix . '.js',
+		array( 'wp-i18n', 'heartbeat', 'jquery' ),
+		file_exists( $games_js ) ? (string) filemtime( $games_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-games',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-game-inkfall` — the Inkfall game bundle. Loaded
+	// lazily by the games framework on first launch; publishes the
+	// game def on `window.desktopModeGames.inkfall`.
+	$game_inkfall_js = DESKTOP_MODE_DIR . 'assets/js/game-inkfall' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-game-inkfall',
+		DESKTOP_MODE_URL . 'assets/js/game-inkfall' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $game_inkfall_js ) ? (string) filemtime( $game_inkfall_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-game-inkfall',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
+	// `desktop-mode-game-alphabet-soup` — the Alphabet Soup game
+	// bundle. Loaded lazily by the games framework on first launch;
+	// publishes the game def on
+	// `window.desktopModeGames['alphabet-soup']`.
+	$game_alphabet_soup_js = DESKTOP_MODE_DIR . 'assets/js/game-alphabet-soup' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-game-alphabet-soup',
+		DESKTOP_MODE_URL . 'assets/js/game-alphabet-soup' . $suffix . '.js',
+		array( 'wp-i18n' ),
+		file_exists( $game_alphabet_soup_js ) ? (string) filemtime( $game_alphabet_soup_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-game-alphabet-soup',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
+	);
+
 	// `desktop-mode-posts-window` — small bundle for the native Posts
 	// window. Lazy-loaded by the native-window sync the first time the
 	// window opens (via the dock-click swap when the user opts in);
@@ -313,6 +454,28 @@ function desktop_mode_register_assets() {
 		array( 'wp-hooks' ),
 		file_exists( $animated_logo_js ) ? (string) filemtime( $animated_logo_js ) : $version,
 		true
+	);
+
+	// `desktop-mode-snow-wallpaper` — built-in PixiJS canvas
+	// wallpaper: snowfall that accumulates on window tops and melts
+	// away. Same lazy-load path as the animated logo: the wallpaper
+	// `server-sync` injects this handle when the user selects the
+	// `wp-snow` wallpaper (or opens OS Settings → Wallpaper and the
+	// picker pulls the def in). The bundle's only side effect is
+	// publishing the `WallpaperDef` on
+	// `window.desktopModeWallpapers['wp-snow']`.
+	$snow_js = DESKTOP_MODE_DIR . 'assets/js/snow-wallpaper' . $suffix . '.js';
+	wp_register_script(
+		'desktop-mode-snow-wallpaper',
+		DESKTOP_MODE_URL . 'assets/js/snow-wallpaper' . $suffix . '.js',
+		array( 'wp-hooks', 'wp-i18n' ),
+		file_exists( $snow_js ) ? (string) filemtime( $snow_js ) : $version,
+		true
+	);
+	wp_set_script_translations(
+		'desktop-mode-snow-wallpaper',
+		'desktop-mode',
+		DESKTOP_MODE_DIR . 'languages'
 	);
 
 	// `desktop-mode-ai-assistant` — AI Copilot spotlight overlay,

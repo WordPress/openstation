@@ -1,0 +1,240 @@
+/**
+ * Desktop Mode — Note Pad widget styles.
+ *
+ * The pad of pastel paper on the widget card. Consumes the shared
+ * pastel tokens (`--dm-note-*`) defined in `assets/css/notes.css`,
+ * which is always enqueued on shell pages — this file only styles
+ * the pad-specific chrome.
+ */
+
+.dm-notes-pad {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	height: 100%;
+}
+
+/* ------------------------------------------------------------------
+   The paper stack
+   ------------------------------------------------------------------ */
+
+.dm-notes-pad__stack {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 150px;
+	max-width: 232px;
+	width: 100%;
+	margin-inline: auto;
+}
+
+.dm-notes-pad__under,
+.dm-notes-pad__sheet {
+	position: absolute;
+	inset: 0;
+	border-radius: 2px;
+	background:
+		linear-gradient(
+			174deg,
+			color-mix(in srgb, var(--dm-note-paper) 88%, #fff) 0%,
+			var(--dm-note-paper) 46%,
+			var(--dm-note-paper-deep) 100%
+		);
+	box-shadow:
+		0 1px 2px rgba(0, 0, 0, 0.18),
+		0 6px 14px -4px rgba(0, 0, 0, 0.25),
+		inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Peek sheets: pre-tinted with the next colors in the cycle. */
+.dm-notes-pad__under {
+	pointer-events: none;
+}
+
+.dm-notes-pad__under--1 {
+	transform: translate(3px, 4px) rotate(1.1deg);
+	filter: brightness(0.96);
+}
+
+.dm-notes-pad__under--2 {
+	transform: translate(-4px, 7px) rotate(-1.6deg);
+	filter: brightness(0.92);
+}
+
+.dm-notes-pad__sheet {
+	display: flex;
+	flex-direction: column;
+	color: var(--dm-note-ink);
+	cursor: grab;
+	transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.dm-notes-pad__sheet:hover {
+	transform: translateY(-2px);
+	box-shadow:
+		0 2px 3px rgba(0, 0, 0, 0.18),
+		0 12px 22px -6px rgba(0, 0, 0, 0.3),
+		inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* Torn off — the DragManager stamps its source class at lift. */
+.dm-notes-pad__sheet.desktop-mode-file-tile--dragging {
+	visibility: hidden;
+}
+
+/* The glued top edge of the pad. */
+.dm-notes-pad__peel {
+	flex: 0 0 22px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: linear-gradient(
+		to bottom,
+		rgba(255, 255, 255, 0.4),
+		rgba(0, 0, 0, 0.05)
+	);
+	border-radius: 2px 2px 0 0;
+}
+
+.dm-notes-pad__peel-hint {
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	color: var(--dm-note-ink-soft);
+	opacity: 0;
+	transition: opacity 180ms ease-out;
+}
+
+.dm-notes-pad__sheet:hover .dm-notes-pad__peel-hint {
+	opacity: 1;
+}
+
+.dm-notes-pad__editor {
+	flex: 1 1 auto;
+	padding: 4px 12px 26px;
+	cursor: text;
+	font-family: var(--dm-note-hand-font);
+}
+
+.dm-notes-pad__editor::part(textarea) {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--dm-note-ink);
+	caret-color: var(--dm-note-ink);
+	font-family: var(--dm-note-hand-font);
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+/* Folded bottom-right corner — the underside peeks the NEXT color. */
+.dm-notes-pad__corner {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	border: none;
+	background:
+		linear-gradient(
+			315deg,
+			var(--dm-note-paper) 0%,
+			var(--dm-note-paper-deep) 46%,
+			rgba(0, 0, 0, 0.12) 50%,
+			transparent 52%
+		);
+	border-bottom-right-radius: 2px;
+	cursor: pointer;
+	filter: drop-shadow(-1px -1px 1px rgba(0, 0, 0, 0.08));
+	transition: transform 160ms ease-out;
+}
+
+.dm-notes-pad__corner:hover {
+	transform: scale(1.15);
+}
+
+.dm-notes-pad__corner:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------
+   Footer: swatch dots, public toggle, pin button
+   ------------------------------------------------------------------ */
+
+.dm-notes-pad__footer {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.dm-notes-pad__swatches {
+	display: flex;
+	gap: 8px;
+	justify-content: center;
+}
+
+.dm-notes-pad__swatch {
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: var(--dm-note-paper);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+	cursor: pointer;
+	transition: transform 140ms ease-out;
+}
+
+.dm-notes-pad__swatch:hover {
+	transform: scale(1.2);
+}
+
+.dm-notes-pad__swatch.is-selected {
+	box-shadow:
+		inset 0 0 0 2px rgba(255, 255, 255, 0.85),
+		0 1px 2px rgba(0, 0, 0, 0.35);
+	transform: scale(1.1);
+}
+
+.dm-notes-pad__swatch:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: 2px;
+}
+
+.dm-notes-pad__public {
+	font-size: 11px;
+	/* The widget card is dark glass; the component's default
+	   --desktop-mode-text is near-black and disappears on it. */
+	--desktop-mode-text: rgba(255, 255, 255, 0.85);
+	align-self: center;
+}
+
+.dm-notes-pad__pin-btn {
+	align-self: center;
+	padding: 4px 14px;
+	border: none;
+	border-radius: 999px;
+	background: var(--wp-admin-theme-color, #3858e9);
+	color: #fff;
+	font-size: 12px;
+	cursor: pointer;
+	transition: filter 140ms ease-out;
+}
+
+.dm-notes-pad__pin-btn:hover:not(:disabled) {
+	filter: brightness(1.1);
+}
+
+.dm-notes-pad__pin-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.dm-notes-pad__pin-btn:focus-visible {
+	outline: 2px solid var(--wp-admin-theme-color, #3858e9);
+	outline-offset: 2px;
+}
+
+.dm-notes-pad--unavailable {
+	opacity: 0.6;
+}

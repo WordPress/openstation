@@ -96,6 +96,16 @@ Some plugins register WordPress admin menu entries in shapes that our dock can't
 
 **Plugins this addresses**: every wc-admin React route (Customers, Analytics, Marketing, …); also Yoast SEO and other plugins that pack paths into menu slugs.
 
+### Legacy file-path menu slugs (`vendor/file.php`)
+
+Old-school plugins register their admin page with a file-path slug — `add_management_page( …, 'wp-sweep/admin.php' )` — instead of a plain slug. The slug contains `.php`, so a naive "does it look like an admin file?" test routes it to `admin_url( 'wp-sweep/admin.php' )`, a 404. WordPress actually serves the page at `tools.php?page=wp-sweep/admin.php` (the slug is a key in the `$_parent_pages` global, exactly like a plain plugin-page slug).
+
+**Fix**: both URL resolvers — `desktop_mode_menu_item_url()` (dock / window tabs) and `desktop_mode_build_command_menu_map()` (command palette) — check `$_parent_pages` for the raw slug **before** the direct-file test. A registered slug goes through the canonical `menu_page_url()`-style resolution regardless of what characters it contains; only unregistered `.php` slugs are treated as real files under `wp-admin/`.
+
+**Refinement (v0.9.6)**: the registered-page check alone over-matched. URL-style slugs — ACF's `add_menu_page( …, 'edit.php?post_type=acf-field-group' )` — *also* land in `$_parent_pages`, yet reference a real `wp-admin/` file; routing them through `admin.php?page=…` makes core's dispatcher die with "Cannot load edit.php?post_type=acf-field-group." The resolvers now apply the same tiebreaker classic admin's `menu-header.php` uses: `desktop_mode_is_admin_file_slug()` strips the query portion and checks whether the remaining path exists under `wp-admin/`. A real admin file stays a direct link even when registered; a registered non-file slug (WP-Sweep) still resolves through its parent.
+
+**Plugins this addresses**: WP-Sweep; any plugin still using the pre-3.0-era file-path registration style; ACF and any plugin registering URL-style menu slugs (`edit.php?post_type=…`).
+
 ### `esc_url_raw()` for JSON contexts
 
 Dock URLs flow into the shell config as JSON, then end up assigned to `iframe.src` / `window.location.href`. Browsers do **not** decode `&#038;` HTML entities in those JS string contexts.

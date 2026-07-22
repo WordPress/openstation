@@ -82,11 +82,11 @@ export interface AskOptions {
 	 *
 	 * When `true`, after the command runs locally, `ask()` fires a
 	 * second `/ai/search` request carrying the tool outcome. The
-	 * server runs a single-turn, no-tool OpenAI call that produces
+	 * server runs a single-turn, no-tool provider call that produces
 	 * a one- or two-sentence confirmation in the voice of the
 	 * system prompt (e.g. "Done — your office light is on now").
 	 *
-	 * Cost: one extra OpenAI round-trip per command invocation.
+	 * Cost: one extra provider round-trip per command invocation.
 	 * Latency: roughly doubles. Use for voice / chat / assistant
 	 * surfaces where the conversational reply matters. Skip for
 	 * one-tap "execute" buttons where the raw `run()` return is
@@ -334,6 +334,7 @@ export function createAsk( deps: AskDeps ) {
 	> => {
 		const slug = payload.tool?.slug ?? '';
 		const args = payload.tool?.args ?? '';
+
 		const cmd = findCommand( slug );
 		if ( ! cmd ) {
 			return {

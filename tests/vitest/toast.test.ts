@@ -102,6 +102,42 @@ describe( 'toast.ts', () => {
 		).toHaveLength( 0 );
 	} );
 
+	test( 'persistent toast does not auto-dismiss', () => {
+		showToast( { message: 'stays', persistent: true } );
+		const container = document.querySelector( 'wpd-toast-container' )!;
+		// Well past the default duration — a persistent toast stays put.
+		vi.advanceTimersByTime( 60000 );
+		expect( container.querySelectorAll( 'wpd-toast' ) ).toHaveLength( 1 );
+	} );
+
+	test( 'dismissible toast renders a close button that fires onDismiss + removes it', async () => {
+		let dismissed = false;
+		showToast( {
+			message: 'closeable',
+			persistent: true,
+			dismissible: true,
+			onDismiss: () => {
+				dismissed = true;
+			},
+		} );
+		// Drain the component's first render so the shadow-DOM button exists.
+		vi.useRealTimers();
+		await Promise.resolve();
+		vi.useFakeTimers();
+
+		const toast = document.querySelector( 'wpd-toast' )!;
+		const close = toast.shadowRoot!.querySelector< HTMLButtonElement >(
+			'.wpd-toast__close',
+		);
+		expect( close ).not.toBeNull();
+
+		close?.click();
+		expect( dismissed ).toBe( true );
+
+		vi.advanceTimersByTime( 200 );
+		expect( document.querySelectorAll( 'wpd-toast' ) ).toHaveLength( 0 );
+	} );
+
 	test( 'the returned dismiss function removes the toast early', () => {
 		const dismiss = showToast( { message: 'ephemeral', duration: 10000 } );
 		const container = document.querySelector( 'wpd-toast-container' )!;

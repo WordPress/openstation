@@ -3,7 +3,7 @@
  *
  * Plugins register additional tabs in the OS Settings window via the
  * public `wp.desktop.registerSettingsTab()` API. Built-in tabs
- * (appearance, ai, apps-icons, features, effects, extended, help,
+ * (appearance, ai, apps-icons, features, effects, help,
  * about) live directly in `panel.ts`; this registry extends the panel
  * with externally-contributed tabs without the core module needing to
  * know about them.
@@ -60,18 +60,36 @@ export interface OsSettingsSnapshot {
 	 * @since 0.9.1
 	 */
 	unfocusEffect: string;
+	/**
+	 * Active window-link renderer id; `'none'` disables the visuals,
+	 * unknown ids fall back to the built-in `'svg-splines'`.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkRenderer: string;
+	/**
+	 * When window-link ties show: `'always'` | `'focus'` | `'off'`.
+	 *
+	 * @since 0.9.4
+	 */
+	windowLinkVisibility: 'focus' | 'always' | 'off';
+	/** Master switch for the window-links feature. Default on. @since 0.9.4 */
+	windowLinksEnabled: boolean;
+	/** Raise related windows when a group member is focused. @since 0.9.4 */
+	windowLinkRaiseOnFocus: boolean;
+	/** Outline related windows of the focused member. @since 0.9.4 */
+	windowLinkHighlight: boolean;
+	/**
+	 * AI assistant preference. `enabled` is the per-user on/off toggle
+	 * (opt-in, default off). Credentials live in WordPress Core's Settings →
+	 * Connectors and provider + model selection is delegated to the Core AI
+	 * Client, so no preference is carried here.
+	 *
+	 * @since 0.9.4 Dropped `apiKey` / `transport` (and the short-lived
+	 *        `provider` / `model` preferences).
+	 */
 	ai: {
 		enabled: boolean;
-		provider: string;
-		apiKey: string;
-		/**
-		 * Live-progress transport for AI search: `'sse' | 'off'`. Default
-		 * `'off'`. Surfaced so a third-party AI tab can read the user's
-		 * preferred transport without rebuilding the picker.
-		 *
-		 * @since 0.6.0
-		 */
-		transport: 'sse' | 'off';
 	};
 	/**
 	 * Per-user opt-in for the native Posts window. When true, clicking
@@ -225,7 +243,7 @@ export interface DesktopSettingsTab {
 	/**
 	 * Sort order relative to built-in tabs:
 	 * appearance = 10, ai = 20, apps-icons = 22, features = 25,
-	 * effects = 27, extended = 30, help = 40 (About is pinned last
+	 * effects = 27, help = 40 (About is pinned last
 	 * with a sentinel order). Default 100 — third-party tabs render
 	 * after the built-ins, before About.
 	 */

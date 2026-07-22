@@ -65,6 +65,8 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `widgetLayer` | `WidgetLayer \| null` | Stable |
 | `registerWidget` | `( def: WidgetDef ) => void` | Stable |
 | `registerWallpaper` | `( def: WallpaperDef ) => void` | Stable |
+| `wallpaper` | `WallpaperSuspendApi` *(`suspend( reason )` / `resume( reason )` / `isSuspended()` — refcounted wallpaper pause)* | Experimental *(0.9.6)* |
+| `games` | `GamesApi` *(`register` / `unregister` / `list` / `get` / `subscribe` / `launch` / `getPlaytime` — desktop games + unified scoreboard)* | Experimental *(0.9.6)* |
 
 ### Cross-bundle / cross-window state
 
@@ -100,6 +102,16 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental *(0.9.1)* |
 | `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental *(0.9.1)* |
 | `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental *(0.9.1)* |
+| `registerWindowLinkRenderer` | `( def: WindowLinkRendererDef ) => void` | Experimental *(0.9.4)* |
+| `unregisterWindowLinkRenderer` | `( id: string ) => void` | Experimental *(0.9.4)* |
+| `listWindowLinkRenderers` | `() => WindowLinkRendererDef[]` | Experimental *(0.9.4)* |
+| `relations.get` | `( windowId: string ) => WindowContentRef \| undefined` | Experimental *(0.9.4)* |
+| `relations.set` | `( windowId: string, ref: WindowContentRef \| null ) => void` | Experimental *(0.9.4)* |
+| `relations.groups` | `() => WindowLinkGroup[]` | Experimental *(0.9.4)* |
+| `relations.edges` | `() => WindowLinkEdge[]` | Experimental *(0.9.4)* |
+| `relations.groupOf` | `( windowId: string ) => WindowLinkGroup \| undefined` | Experimental *(0.9.4)* |
+| `relations.related` | `( windowId: string ) => string[]` | Experimental *(0.9.4)* |
+| `relations.subscribe` | `( cb: () => void ) => () => void` | Experimental *(0.9.4)* |
 | `registerWindowTheme` | `( def: WindowThemeDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowControl` | `( def: WindowControlDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowSlot` | `( def: WindowSlotDef ) => void` | Stable *(0.6.0)* |
@@ -172,6 +184,8 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `desktop-mode-window-closing` | Stable |
 | `desktop-mode-window-closed` | Stable |
 | `desktop-mode-window-changed` | Experimental |
+| `desktop-mode-window-content-changed` | Experimental *(0.9.4)* |
+| `desktop-mode-window-link-groups-changed` | Experimental *(0.9.4)* |
 | `desktop-mode-presence-changed` | Stable *(0.5.5)* |
 | `desktop-mode-layout-changed` | Stable *(0.6.0)* |
 | `desktop-mode-registry-changed` | Stable *(0.7.0)* |
@@ -182,6 +196,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `desktop-mode-open-ai` *(plugin-dispatched; the shell listens)* | Experimental *(0.7.0)* |
 | `desktop-mode-intros-reset` | Experimental *(0.8.3)* |
 | `desktop-mode-my-wordpress-entity-trashed` | Experimental *(0.8.9)* |
+| `desktop-mode-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental *(0.9.6)* |
 
 ---
 
@@ -196,6 +211,7 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `desktop-mode-window-send` | parent → iframe | Stable *(0.5.5)* |
 | `desktop-mode-bridge-*` *(connection-bridge family)* | both | Stable *(0.5.5)* |
 | `desktop-mode-plugins-changed` | iframe → parent | Stable *(0.7.0)* |
+| `desktop-mode-menu-signature` | iframe → parent | Stable *(0.9.4)* |
 | `wp-desktop-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable *(0.5.4)* |
 | `desktop-mode-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable *(0.7.0)* |
 | `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable *(0.7.0)* |

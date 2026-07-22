@@ -77,6 +77,24 @@
 	outline-offset: 2px;
 }
 
+/* Stacked card hint on hover — a second card peeks from behind the
+   icon when the tile has multiple open windows. Only visible on hover so
+   it never conflicts with focused tiles. */
+.desktop-mode-dock__item--stacked:hover .desktop-mode-dock__item-primary::before,
+.desktop-mode-dock__item--stacked[data-peek-active] .desktop-mode-dock__item-primary::before {
+	content: "";
+	position: absolute;
+	top: -4px;
+	inset-inline-start: -4px;
+	width: 100%;
+	height: 100%;
+	border-radius: inherit;
+	background: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.10 );
+	z-index: -1;
+	pointer-events: none;
+}
+
 /* Dashicon inside dock item. */
 .desktop-mode-dock__item .dashicons {
 	font-size: var( --desktop-mode-dock-icon-size, 20px );
@@ -581,6 +599,27 @@
 	display: none;
 }
 
+/*
+ * Drop an empty `__scroll` from the flex flow entirely. When only
+ * system tiles are present (e.g. just the Recycle Bin), the empty
+ * wrapper would otherwise still occupy the rail: its `flex-grow`
+ * stretches it — shoving the lone `__pinned` tile to the far edge on
+ * vertical docks — and the inter-wrapper `gap` leaves a phantom
+ * offset that nudges the tile off-center on the bottom dock. Removing
+ * it lets the dock center the lone system tile. As soon as a menu
+ * tile is added the `:has()` no longer matches and normal flow
+ * resumes.
+ *
+ * The `[data-desktop-mode-dock-placement]` qualifier is load-bearing:
+ * the per-placement rules that set `display: flex` on `__scroll` are
+ * (0,3,0); this selector must out-specify them, so it carries the
+ * placement attribute to reach (0,4,0).
+ */
+.desktop-mode-dock[ data-desktop-mode-dock-placement ]
+	.desktop-mode-dock__scroll:not(:has( .desktop-mode-dock__item )) {
+	display: none;
+}
+
 /* Tooltip — anchor modifiers are applied directly to the tooltip
  * element (NOT via a descendant selector on `.desktop-mode-dock`)
  * because the tooltip lives in `document.body`. JS writes the
@@ -784,7 +823,13 @@ body.desktop-mode-show-desktop-active
 	   intrinsic height, leaving the hairline effectively invisible.
 	   28px matches the dock tile inner glyph area. */
 	height: 28px;
-	margin: auto 4px auto 8px;
+	/* Symmetric horizontal margin so the divider sits centered in the
+	 * inter-tile gap: the 6px flex gap on each side (`__scroll`→`__pinned`
+	 * on the left, `__pinned`'s own gap on the right) plus an equal 6px
+	 * margin per side balances out. An asymmetric margin here nudges the
+	 * divider — and the whole menu cluster with it — off the pill's
+	 * center. */
+	margin: auto 6px;
 	background: var( --desktop-mode-dock-border );
 	flex-shrink: 0;
 }

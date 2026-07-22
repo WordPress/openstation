@@ -210,8 +210,10 @@ function itemsFingerprint( items: RecycleBinItem[] ): string {
 	// Sort first — server order can vary on ties (same `modified`
 	// timestamp). Comparing the sorted projection makes the
 	// fingerprint stable against ordering churn.
+	// Type-qualified like getRowId — post #5 and comment #5 are
+	// distinct items and must produce distinct fingerprint parts.
 	const parts = items
-		.map( ( i ) => `${ i.id }:${ i.deleted_at }` )
+		.map( ( i ) => `${ i.type }:${ i.id }:${ i.deleted_at }` )
 		.sort();
 	return parts.join( '|' );
 }
@@ -512,7 +514,14 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	currentRowActionPurge = ( ref ) => void handlePurge( [ ref ] );
 
 	table.columns = buildColumns();
-	table.getRowId = ( row ) => row.id;
+	// Composite identity — the bin mixes entity types whose numeric id
+	// sequences are independent (comments live in wp_comments; posts /
+	// pages / attachments in wp_posts; placements / folders / shortcuts
+	// in their own tables), so post #5 and comment #5 routinely coexist
+	// in the list. A bare `row.id` would give both rows the SAME
+	// selection key: ticking one would select — and bulk-purge — the
+	// other. Qualifying with the type makes identity unambiguous.
+	table.getRowId = ( row ) => `${ row.type }:${ row.id }`;
 	// No `fileTypeForRow` here on purpose: trashed items are
 	// for restoring, not for pinning to the desktop. The Pin to
 	// Desktop toolbar action still covers the rare "I want both
@@ -576,6 +585,24 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				table.data = items;
 				currentFingerprint = next;
 				cachedItems = items;
+				// Prune selection keys whose row is no longer VISIBLE —
+				// it left the list (purged / restored elsewhere) or a
+				// data-driven change hid it behind an active column
+				// filter. `collectSelectedItems()` already resolves
+				// against the visible rows, so this is not load-bearing
+				// for safety — it keeps the bulk bar's "N selected"
+				// count truthful instead of overcounting ghosts.
+				// Selections of still-visible rows are preserved.
+				const visible = new Set(
+					( table.visibleRows ?? [] ).map(
+						( row ) => `${ row.type }:${ row.id }`,
+					),
+				);
+				const kept = Array.from( table.selection ?? [], String )
+					.filter( ( key ) => visible.has( key ) );
+				if ( kept.length !== ( table.selection?.size ?? 0 ) ) {
+					table.selection = kept;
+				}
 			} else {
 				// Fingerprint unchanged — keep DOM as-is, just
 				// refresh the cache reference so it survives
@@ -637,13 +664,21 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	// Each selection entry resolves back to the row so we know its
-	// `type` — bulk handlers send `[{id, type}]` to the server.
+	// `type` — bulk handlers send `[{id, type}]` to the server. Keys
+	// are the composite `type:id` produced by getRowId above; matching
+	// on the bare numeric id would fan one selected row out to every
+	// same-id row of another type.
+	//
+	// Resolve against the VISIBLE rows, not the full `data` buffer:
+	// a data-driven change (e.g. a realtime refresh replacing a row
+	// whose new title no longer matches an active Title column filter)
+	// can hide a selected row without any filter event firing — and a
+	// row the user cannot see must never ride into a purge.
 	const collectSelectedItems = (): RecycleBinItemRef[] => {
-		const sel = Array.from( table.selection ?? [] );
-		const idSet = new Set( sel.map( ( id ) => Number( id ) ) );
+		const sel = new Set( Array.from( table.selection ?? [], String ) );
 		const out: RecycleBinItemRef[] = [];
-		for ( const row of table.data ?? [] ) {
-			if ( idSet.has( row.id ) ) {
+		for ( const row of table.visibleRows ?? [] ) {
+			if ( sel.has( `${ row.type }:${ row.id }` ) ) {
 				out.push( { id: row.id, type: row.type } );
 			}
 		}
@@ -677,47 +712,59 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		if ( refs.length === 0 ) {
 			return;
 		}
-		// First, restore the items so they exist again at their
-		// canonical post/comment id. Then place each on the
-		// desktop at staggered coordinates near the top-left so
-		// the user sees them all without overlap.
+		// Restore first so the items exist again at their canonical
+		// post/comment id, then place each on the desktop at staggered
+		// coordinates near the top-left so the user sees them all
+		// without overlap.
+		//
+		// One restore call PER REF, not one batched call: the bulk
+		// response's `ok` array carries bare numeric ids with no type,
+		// so with a mixed selection like post #5 + comment #5 a batch
+		// can't say WHICH #5 succeeded — a failed comment restore
+		// would be pinned anyway because the post's id matched. The
+		// server dispatches per item either way, so per-ref calls cost
+		// the same work and keep the success signal unambiguous.
 		const types = Array.from( new Set( refs.map( ( r ) => r.type ) ) );
-		try {
-			const restored = await restoreItems( refs );
-			const filesApi = ( window.wp as { desktop?: { files?: { rest?: { createPlacement: ( payload: unknown ) => Promise< unknown > } } } } | undefined )
-				?.desktop?.files?.rest;
-			if ( filesApi ) {
-				let i = 0;
-				for ( const ref of refs ) {
-					if ( ! restored.ok.includes( ref.id ) ) {
-						continue;
-					}
-					const desktopType = mapRecycleTypeToFileType( ref.type );
-					if ( ! desktopType ) {
-						continue;
-					}
-					try {
-						// Match the grid in src/desktop-files/grid.ts
-						// (padding 16 + col 96 + row 110, column-major
-						// fill). The math is duplicated because this
-						// bundle is a separate vite target and can't
-						// reach into the desktop bundle's internals.
-						await filesApi.createPlacement( {
-							type: desktopType,
-							ref: String( ref.id ),
-							x: 16 + ( i % 5 ) * 96,
-							y: 16 + Math.floor( i / 5 ) * 110,
-						} );
-					} catch ( err ) {
-						console.error( '[recycle-bin] pin-to-desktop placement failed', err );
-					}
-					i += 1;
-				}
+		const okIds: number[] = [];
+		const allErrors: Array< { id: number; code: string; message: string } > = [];
+		const filesApi = ( window.wp as { desktop?: { files?: { rest?: { createPlacement: ( payload: unknown ) => Promise< unknown > } } } } | undefined )
+			?.desktop?.files?.rest;
+		let placed = 0;
+		for ( const ref of refs ) {
+			let restored;
+			try {
+				restored = await restoreItems( [ ref ] );
+			} catch ( err ) {
+				console.error( '[recycle-bin] pin-to-desktop restore failed', err );
+				continue;
 			}
-			emitDoneEvent( 'restore', restored.ok, restored.errors, types, restored.ok );
-		} catch ( err ) {
-			console.error( '[recycle-bin] pin-to-desktop failed', err );
+			allErrors.push( ...restored.errors );
+			if ( ! restored.ok.includes( ref.id ) ) {
+				continue;
+			}
+			okIds.push( ref.id );
+			const desktopType = mapRecycleTypeToFileType( ref.type );
+			if ( ! filesApi || ! desktopType ) {
+				continue;
+			}
+			try {
+				// Match the grid in src/desktop-files/grid.ts
+				// (padding 16 + col 96 + row 110, column-major
+				// fill). The math is duplicated because this
+				// bundle is a separate vite target and can't
+				// reach into the desktop bundle's internals.
+				await filesApi.createPlacement( {
+					type: desktopType,
+					ref: String( ref.id ),
+					x: 16 + ( placed % 5 ) * 96,
+					y: 16 + Math.floor( placed / 5 ) * 110,
+				} );
+			} catch ( err ) {
+				console.error( '[recycle-bin] pin-to-desktop placement failed', err );
+			}
+			placed += 1;
 		}
+		emitDoneEvent( 'restore', okIds, allErrors, types, okIds );
 		table.clearSelection();
 		await refresh();
 	};
@@ -814,10 +861,15 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	const handleEmpty = async (): Promise< void > => {
+		// The server's empty endpoint purges the ENTIRE bin — it takes
+		// no type/search scope (see desktop_mode_recycle_bin_empty()).
+		// The confirm copy must say so; claiming "the current view"
+		// while a filter is active would purge items the user filtered
+		// out of sight.
 		const ok = await wpdConfirmGlobal( {
 			title: __( 'Empty bin?' ),
 			message: __(
-				'Empty the recycle bin? Every item visible in the current view will be permanently deleted.',
+				'Permanently delete ALL items in the recycle bin? This includes every type and any items hidden by the current filter or search. This cannot be undone.',
 			),
 			confirmLabel: __( 'Empty bin' ),
 			danger: true,
@@ -881,6 +933,11 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	root.querySelector( FILTER )?.addEventListener( 'wpd-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { value: string } > ).detail;
 		state.filter = ( detail?.value ?? '' ) as BinState[ 'filter' ];
+		// The result set is about to change wholesale. `<wpd-table>`
+		// keeps selected ids across `data` reassignment, so ids picked
+		// under the previous filter would linger invisibly and resurface
+		// checked when the user switches back. Start the new view clean.
+		table.clearSelection();
 		void refresh();
 	} );
 
@@ -892,6 +949,8 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			window.clearTimeout( state.searchDebounce );
 		}
 		state.searchDebounce = window.setTimeout( () => {
+			// Same rationale as the type-filter handler above.
+			table.clearSelection();
 			void refresh();
 		}, 250 );
 	} );
@@ -934,6 +993,16 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	table.addEventListener( 'wpd-table-selection-change', () => {
 		refreshBulkBar();
+	} );
+
+	// The Title / "By" columns declare client-side `filter: 'text'`
+	// filters. A row ticked BEFORE the user types into one stays
+	// selected while hidden — and it's still in `table.data`, so
+	// `collectSelectedItems()` would sweep it into a bulk purge the
+	// user can't see coming. Same hygiene as the toolbar filter /
+	// search: any visibility change starts with a clean selection.
+	table.addEventListener( 'wpd-table-filter-change', () => {
+		table.clearSelection();
 	} );
 
 	// Default sort: most-recently-deleted first. Users can change it.

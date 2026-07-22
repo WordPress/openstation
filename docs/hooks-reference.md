@@ -134,6 +134,78 @@ do_action( 'desktop_mode_icon_registered', string $id, array $entry );
 
 ---
 
+### `desktop_mode_register_game( $id, $args )` — Experimental (PHP function, since 0.9.6)
+
+Register a desktop game with the games framework. The game appears as a launcher tile in the **Games** window and gets a tab in the unified scoreboard; its JS bundle (declared via `script`) is loaded **lazily on first launch** — unlike wallpapers, game scripts are never fetched at boot. The loaded script publishes the full game def (with its `render` callback) on `window.desktopModeGames[ $id ]` — see `docs/examples/register-game.md`.
+
+```php
+desktop_mode_register_game( 'my-plugin-puzzle', array(
+    'title'         => __( 'Puzzle', 'my-plugin' ),        // required
+    'description'   => __( 'Slide the tiles.', 'my-plugin' ),
+    'icon'          => 'dashicons-screenoptions',           // or `icon_svg` (raw <svg>, wins over icon)
+    'script'        => 'my-plugin-puzzle-game',             // required — registered handle
+    'score_columns' => array(                               // scoreboard columns, in order
+        array( 'key' => 'score', 'label' => __( 'Score', 'my-plugin' ), 'type' => 'number' ),
+        array( 'key' => 'time',  'label' => __( 'Time', 'my-plugin' ),  'type' => 'time' ),
+    ),
+    'config'        => array( 'assetUrl' => '…' ),          // arbitrary blob → the game's launch context
+    'capabilities'  => array(),                             // ALL must pass for the registering user
+) );
+```
+
+Returns `true` or `WP_Error` (`desktop_mode_missing_id` / `desktop_mode_missing_title` / `desktop_mode_missing_script` / `desktop_mode_invalid_icon_svg` / `desktop_mode_capability_denied`). Only server-registered games can persist scores and challenges — the REST routes 404 unknown ids. `desktop_mode_unregister_game( $id )` removes an entry.
+
+**Framework config keys** *(since 0.9.8)*: the `serverGames` payload merges framework-level keys underneath every game's `config` (the game's own keys win on collision). Currently: **`wordsUrl`** — the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`), identical for every player, which is what lets seeded games generate the same puzzle worldwide. See `desktop_mode_games_words_url` below.
+
+---
+
+### `desktop_mode_game_registered` — Experimental (since 0.9.6)
+
+Fires after `desktop_mode_register_game()` successfully stores a game. Same contract as the other registration actions — no fire on `WP_Error` return.
+
+```php
+do_action( 'desktop_mode_game_registered', string $id, array $entry );
+```
+
+---
+
+### `desktop_mode_game_score_saved` — Experimental (since 0.9.6)
+
+Fires after a leaderboard score row is written (both free play and challenge completions).
+
+```php
+do_action( 'desktop_mode_game_score_saved', int $score_id, string $game, int $user_id, int $score, array $meta );
+```
+
+---
+
+### `desktop_mode_game_playtime_recorded` — Experimental (since 0.9.7)
+
+Fires after a play-time increment lands. The framework's launcher measures active window time (the clock pauses while the game window is minimized) and flushes increments roughly once a minute plus once on close; lifetime totals accumulate in the `desktop_mode_game_playtime` user-meta map (`game id => whole seconds`), readable via `desktop_mode_games_get_playtime( $user_id, $game = '' )`. Each increment is also bucketed by site-timezone day into `desktop_mode_game_playtime_days` (`game id => array( 'YYYY-MM-DD' => seconds )`, readable via `desktop_mode_games_get_playtime_daily()`), pruned past a rolling window (`desktop_mode_games_playtime_history_days`, default 30) — this backs the hub's Steam-style "last two weeks" figure; the lifetime totals are never pruned.
+
+```php
+do_action( 'desktop_mode_game_playtime_recorded', string $game, int $user_id, int $seconds, int $total );
+```
+
+`$seconds` is the recorded increment (post-clamp), `$total` the user's new total for the game.
+
+---
+
+### Game challenge lifecycle actions — Experimental (since 0.9.6)
+
+One action per state transition of a score-to-beat challenge:
+
+```php
+do_action( 'desktop_mode_game_challenge_created', int $id, array $row );
+do_action( 'desktop_mode_game_challenge_accepted', int $id, array $row );   // $row is pre-transition
+do_action( 'desktop_mode_game_challenge_declined', int $id, array $row );   // $row is pre-transition
+do_action( 'desktop_mode_game_challenge_completed', int $id, string $result, array $row );
+```
+
+`$result` is `'beaten'` or `'not_beaten'`. `desktop_mode_games_schema_installed` also fires after the two games tables (`{$prefix}desktop_mode_game_scores`, `{$prefix}desktop_mode_game_challenges`) install or migrate.
+
+---
+
 ### `desktop_mode_file_type_registered` — Experimental (since 0.9.0)
 
 Fires after `desktop_mode_register_file_type()` successfully stores a desktop file type (used by the Files-on-the-Desktop system — see [files-on-desktop.md](./files-on-desktop.md)). Does NOT fire on `WP_Error`.
@@ -463,6 +535,124 @@ The built-in effects (`darken`, `frost`, `grayscale`) are registered through the
 
 ---
 
+### `desktop_mode_window_content_identity` — Experimental (since 0.9.4)
+
+Filters the content identity the chromeless bridge announces for the current admin screen — the "which object does this page show" record behind [window links](./examples/window-links.md) (visual ties between related windows). Runs inside the iframe's `admin_footer`, in real admin context, so relations the URL can't answer (comment → parent post) resolve here.
+
+```php
+apply_filters(
+    'desktop_mode_window_content_identity',
+    array|null $identity,   // null when the screen shows no single object
+    WP_Screen|null $screen
+);
+```
+
+`$identity` shape (mirrors the JS `WindowContentRef`): `type` (lowercase object-type slug; namespace yours `vendor/order`), `id` (int|string), optional `label`, optional `root => array( 'type', 'id' )`, optional `links => array( array( 'type', 'id', 'rel'? ), … )`. A ref **without** `root` is itself a root (the post a comment window points back to); a ref **with** `root` joins that root's relation group as a child (an edge pointing at the root — the built-in renderer marks the target end with its larger endpoint dot). `links` declare outbound ties: the default (`rel` omitted) is a `reference` — an edge FROM this window TO the linked object ("my content points at that"); `rel => 'child'` reverses it — the linked object BELONGS TO this content (a post's embedded media), drawn exactly like a root tie. Mutual references merge into one bidirectional edge. One reading everywhere: **the edge points at what its source belongs to or refers to** — relational structure, never navigation history.
+
+Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less; since 0.9.6), and `term.php` (`term/{taxonomy}` → root, which assigned posts reference). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
+
+```php
+add_filter( 'desktop_mode_window_content_identity', function ( $identity, $screen ) {
+    if ( $screen && 'acme_order_page' === $screen->id && isset( $_GET['order'] ) ) {
+        $order = acme_get_order( absint( $_GET['order'] ) );
+        if ( $order ) {
+            return array(
+                'type'  => 'acme/order',
+                'id'    => $order->id,
+                'label' => $order->title,
+                'root'  => array( 'type' => 'acme/customer', 'id' => $order->customer_id ),
+            );
+        }
+    }
+    return $identity;
+}, 10, 2 );
+```
+
+After this filter resolves, the builder attaches a `related` key — the navigation targets behind the title bar's "Related" button — via the `desktop_mode_window_related_entities` filter below (since 0.9.6). Identities may ship their own `related` array; it is folded into that pass and sanitized with everything else.
+
+---
+
+### `desktop_mode_window_related_entities` — Experimental (since 0.9.6)
+
+Filters the related-entity navigation items announced alongside the content identity — the entries behind the window title bar's **"Related" button** (a dropdown listing the content's comments, terms, media, linked posts, …; picking one opens it as its own desktop window). Runs in the same real-admin-context pass as `desktop_mode_window_content_identity`, **after** that filter and **only when an identity resolved** — so an identity you inject for a custom screen receives the related pass too, and identity-less screens (list tables, dashboards) never do. It also runs on the `GET /desktop-mode/v1/content-identity` REST recompute the block editor's save-watcher triggers (so the menu refreshes after every save without a reload) — in that context `$screen` is `null`; don't assume a `WP_Screen`.
+
+```php
+apply_filters(
+    'desktop_mode_window_related_entities',
+    array $related,         // built-in items; empty for non-post screens
+    array $identity,        // the resolved (already filtered) content identity
+    WP_Screen|null $screen
+);
+```
+
+Item shape (mirrors the JS `RelatedEntityItem`):
+
+```php
+array(
+    'id'         => 'comments',                 // unique in the list; namespace yours 'vendor/sub-id'
+    'group'      => 'comments',                 // menu section key; built-ins: 'comments', 'terms/{taxonomy}', 'media'
+    'groupLabel' => __( 'Comments' ),           // optional translated section header
+    'label'      => __( 'Comments' ),           // translated item label
+    'icon'       => 'dashicons-admin-comments', // optional Dashicons class
+    'url'        => admin_url( 'edit-comments.php?p=123' ), // admin URL the item opens
+    'count'      => 4,                          // optional count suffix ("Comments (4)")
+)
+```
+
+Built-in items cover **posts and pages only**: Comments (`edit-comments.php?p={id}`, only when the post type supports comments and at least one approved-or-pending comment exists; the count is the same approved + awaiting-moderation total the opened screen lists), one item per assigned public-taxonomy term (`term.php?taxonomy={tax}&tag_ID={id}`, grouped per taxonomy, budgeted at 32 terms across taxonomies), one item per associated attachment — featured image, `post_parent`-attached uploads, `wp-image-{id}` embeds — deep-linking the Media Library detail (`upload.php?item={id}`, capped at 20), and one **Linked posts** item per internal hyperlink in the content that resolves to another post on this site (group `links`, opening the target's editor, capped at 10; external and cross-site hrefs don't resolve to a post id and are excluded). The client engine hard-caps the final list at **64 items** (built-ins never reach it; filter-added floods are truncated silently). Built-ins attach **only while the filtered identity still refers to the detected post** — an identity filter that rewrites a post's identity to a different `type`/`id` (a gated post remapped to a minimal ref) suppresses them automatically, so nothing about the underlying post leaks through the menu. Other screens contribute via this filter:
+
+```php
+add_filter( 'desktop_mode_window_related_entities', function ( $related, $identity, $screen ) {
+    if ( 'acme/order' === $identity['type'] ) {
+        $related[] = array(
+            'id'         => 'acme/customer-' . acme_order_customer( $identity['id'] ),
+            'group'      => 'acme/customers',
+            'groupLabel' => __( 'Customer', 'acme' ),
+            'label'      => acme_customer_name( $identity['id'] ),
+            'icon'       => 'dashicons-businessperson',
+            'url'        => admin_url( 'admin.php?page=acme-customer&c=' . acme_order_customer( $identity['id'] ) ),
+        );
+    }
+    return $related;
+}, 10, 3 );
+```
+
+Malformed entries (missing/empty `id`, `group`, `label`, or `url`) are dropped before the payload is announced, and unknown fields are stripped — one bad entry can't invalidate the whole identity client-side. The client-side counterpart is the `desktop-mode.related-entities.items` JS filter (see [javascript-reference](./javascript-reference.md)); a recipe lives in [`docs/examples/related-entities.md`](./examples/related-entities.md).
+
+---
+
+### `desktop_mode_window_link_renderer_script_registered` — Experimental (since 0.9.4)
+
+Fires after `desktop_mode_register_window_link_renderer_script()` stores a window-link renderer script handle.
+
+```php
+do_action( 'desktop_mode_window_link_renderer_script_registered', string $handle );
+```
+
+### `desktop_mode_register_window_link_renderer_script( $handle )` — Experimental (PHP function, since 0.9.4)
+
+Declares a WP-registered script handle as a window-link renderer provider. The shell injects the resolved URL on plugin activation so `wp.desktop.registerWindowLinkRenderer()` calls made by the plugin's JS surface in **OS Settings → Effects → Window links** **without a page reload**.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-link-renderer',
+        plugins_url( 'js/link-renderer.js', __FILE__ ),
+        array( 'desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-link-renderer' );
+} );
+desktop_mode_register_window_link_renderer_script( 'my-plugin-link-renderer' );
+```
+
+For live unregistration on deactivation, set `owner: 'my-plugin-link-renderer'` on each `registerWindowLinkRenderer` call. Untagged renderers survive past deactivation until the next page reload; should the *active* renderer depart, the render host falls back to the built-in `svg-splines`.
+
+The built-in `svg-splines` renderer is registered through the same JS hook — there is no PHP for it.
+
+---
+
 ### `desktop_mode_settings_tab_script_registered` — Stable *(since 0.5.2)*
 
 Fires after `desktop_mode_register_settings_tab_script()` stores an OS Settings tab script handle. Also fires when `desktop_mode_register_settings_tab()` implicitly registers its `script` argument (it routes through `desktop_mode_register_settings_tab_script()`).
@@ -520,7 +710,9 @@ desktop_mode_register_settings_tab( array(
 **Built-in tab orders** (for reference when picking `order`):
 - `appearance` = 10
 - `ai` = 20
-- `extended` = 30
+- `apps-icons` = 22
+- `features` = 25
+- `effects` = 27
 - `help` = 40
 - Third-party default = 100 (appended after built-ins)
 
@@ -1101,12 +1293,88 @@ add_filter( 'desktop_mode_default_wallpaper', fn () => 'aurora' );
 
 ### `desktop_mode_wallpapers` — Stable
 
-Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `desktop_mode_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
+Last-chance filter over the full wallpaper registry before it ships to the shell as `config.serverWallpapers`. Each entry is the shape stored by `desktop_mode_register_wallpaper()` (`id`, `label`, `preview`, `type`, `value`, `script`, `description`). Use this to reorder, rename, remove, or override wallpaper entries — including the built-in presets.
+
+`description` — *Experimental (since 0.9.4).* Optional plain-text copy shown in OS Settings when the wallpaper is the active selection (a styled card under the picker grid). Sanitized with `sanitize_textarea_field()` at registration; the shell renders it as text, never HTML. When the wallpaper's JS def also sets `description`, the JS value wins — the server value is an overlay for defs that don't carry one.
 
 Mirrors the client-side `desktop-mode.wallpapers` JS filter but runs earlier, before any wallpaper reaches the browser.
 
 ```php
 apply_filters( 'desktop_mode_wallpapers', array $registry );
+```
+
+---
+
+### `desktop_mode_games` — Experimental (since 0.9.6)
+
+Last-chance filter over the full games registry before it ships to the shell as `config.serverGames` — and the same filtered view backs REST validation, so filter-added game ids can persist scores. Each entry is the shape stored by `desktop_mode_register_game()` (`id`, `title`, `description`, `icon`, `script`, `score_columns`, `config`). Mirrors the client-side `desktop-mode.games` JS filter.
+
+```php
+apply_filters( 'desktop_mode_games', array $registry );
+```
+
+---
+
+### `desktop_mode_games_words_url` — Experimental (since 0.9.8)
+
+Filters the URL of the shared games dictionary asset (`assets/games/words.txt`, ~20k lowercase English words, one per line, `#` comments, sorted by length then frequency — regenerated by `bin/build-game-words.mjs`). The resolved URL reaches every game as the framework-injected `wordsUrl` key on its launch-context `config`.
+
+Seeded games (Alphabet Soup's daily puzzle) generate identical grids worldwide only while every player resolves the same word list — swap the URL for **all** users (a translated list, a themed list), never per user.
+
+```php
+apply_filters( 'desktop_mode_games_words_url', string $words_url );
+```
+
+---
+
+### Games permission + tuning filters — Experimental (since 0.9.6)
+
+```php
+// Who sees the Games window / icon and may use the games REST surface.
+// Default: logged-in + `read`.
+apply_filters( 'desktop_mode_games_user_can_use', bool $can );
+
+// Base REST verdict on top of the capability gate. Return `false` or a
+// `WP_Error` to lock the whole surface down.
+apply_filters( 'desktop_mode_games_rest_permission', true, int $user_id );
+
+// Veto / short-circuit for score saves — THE anti-cheat extension
+// point (rate limits, plausibility checks). Return a `WP_Error` to
+// reject; `null` proceeds.
+apply_filters( 'desktop_mode_game_score_pre_save', null, string $game, int $user_id, int $score, array $meta );
+
+// Whether $challenger may challenge $recipient at $game. Return
+// `false` or a `WP_Error` to block (do-not-disturb, role policy).
+apply_filters( 'desktop_mode_games_can_challenge', true, int $challenger_id, int $recipient_id, string $game );
+
+// Veto / short-circuit for play-time increments — same contract as
+// the score pre-save filter. Return a `WP_Error` to reject; `null`
+// proceeds.
+apply_filters( 'desktop_mode_game_playtime_pre_record', null, string $game, int $user_id, int $seconds );
+
+// Largest play-time increment (seconds) accepted in one request. The
+// framework flushes roughly once a minute; the clamp bounds what a
+// hostile client can mint per request. Default 900 (15 minutes).
+apply_filters( 'desktop_mode_games_playtime_max_increment', 900, string $game, int $user_id );
+
+// How many days of daily play-time buckets to retain (the hub needs
+// 14 for its "last two weeks" figure). Default 30.
+apply_filters( 'desktop_mode_games_playtime_history_days', 30 );
+
+// WP_User_Query args for the opponent-picker autocomplete.
+apply_filters( 'desktop_mode_games_user_query_args', array $args, array $request_params );
+
+// Per-tick row cap for the challenges Heartbeat channel. Default 50;
+// past it the payload flags `truncated` and clients resync over REST.
+apply_filters( 'desktop_mode_games_heartbeat_max_rows', 50 );
+
+// Registration args for the Games hub window / desktop icon.
+apply_filters( 'desktop_mode_games_window_args', array $window_args );
+apply_filters( 'desktop_mode_games_icon_args', array $icon_args );
+
+// The Games window's template HTML. Keep the
+// `data-desktop-mode-games-*` hooks intact.
+apply_filters( 'desktop_mode_games_template_html', string $html );
 ```
 
 **Example — hide the `sunset` preset from this site:**
@@ -1280,130 +1548,17 @@ apply_filters( 'desktop_mode_wallpaper_context_menu_items', array[] $items );
 
 The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.
 
-The shell ships with a built-in **OpenAI** provider (Responses API). Other providers are pluggable — see [`desktop_mode_register_ai_provider`](#desktop_mode_register_ai_provider-args--experimental-php-function-since-052) below.
+Credentials and model routing are owned by **WordPress 7.0 Core**: configure a provider in **Settings → Connectors** and the Copilot generates through the Core AI Client (`wp_ai_client_prompt()`), which injects the key automatically. The assistant is available only when the Connectors + Abilities APIs and `wp_supports_ai()` are present.
 
-### `desktop_mode_register_ai_provider( $args )` — Experimental (PHP function, since 0.5.2)
+> **Removed in 0.9.4.** The self-managed provider registry and credential surface were replaced by Core Connectors. These no longer exist: the functions `desktop_mode_register_ai_provider()` / `desktop_mode_unregister_ai_provider()`, the actions `desktop_mode_ai_register_providers` / `desktop_mode_ai_provider_registered`, and the filters `desktop_mode_ai_active_provider` / `desktop_mode_ai_model`. The three-callable provider contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument are gone. Register providers with the Core AI Client / Connectors instead. See [`migration-ai-connectors.md`](migration-ai-connectors.md). The `/ai/search` extensibility hooks below are unaffected.
 
-Register an alternative AI back-end (Anthropic, Gemini, a local LLM, …). Each provider supplies three callables that fully encapsulate its wire format; the shell drives the agentic loop, observability, and tool dispatch unchanged.
-
-```php
-desktop_mode_register_ai_provider( string $id, array $args ): true|WP_Error
-```
-
-`$args`:
-
-| Key | Type | Required | Notes |
-|---|---|---|---|
-| `label` | `string` | optional | Human-readable display name. |
-| `description` | `string` | optional | Shown under the picker. |
-| `api_key_label` | `string` | optional | Label for the API-key field in OS Settings → AI. |
-| `api_key_link` | `string` | optional | URL where the user obtains a key. |
-| `default_model` | `string` | optional | Model id used when `desktop_mode_ai_model` returns ''. |
-| `capabilities` | `string[]` | optional | Informational tags (e.g., `tools`, `structured_output`). |
-| `make_turn_input` | `callable` | **required** | Builds an opaque turn-input the shell hands to `agentic_call` next turn. |
-| `agentic_call` | `callable` | **required** | One turn of the agentic loop. |
-| `structured_request` | `callable` | **required** | Single-shot structured-output request. |
-
-Required callable signatures:
-
-```php
-// $kind: 'user_message' | 'tool_results'
-// payload: string for 'user_message'; array of [{call_id, output (json string)}, …] for 'tool_results'.
-function make_turn_input( string $kind, mixed $payload ): mixed;
-
-// Returns array{ text:?string, function_calls: array, next_state: mixed, raw: mixed }
-// or WP_Error. function_calls items: { name, call_id, arguments (json string) }.
-function agentic_call(
-    string $api_key,
-    mixed  $turn_input,
-    array  $tools,
-    ?array $text_format,
-    string $instructions,
-    mixed  $state
-): array|WP_Error;
-
-function structured_request(
-    string $api_key,
-    array  $messages,    // [ { role, content }, … ]
-    array  $schema,       // JSON Schema
-    string $schema_name,
-    string $model         // '' → use the provider's default_model
-): array|WP_Error;
-```
-
-Hook `desktop_mode_ai_register_providers` (fires lazily on first lookup) for registration:
-
-```php
-add_action( 'desktop_mode_ai_register_providers', function () {
-    desktop_mode_register_ai_provider( 'anthropic', array(
-        'label'              => 'Anthropic Claude',
-        'api_key_label'      => 'Anthropic API key',
-        'api_key_link'       => 'https://console.anthropic.com/settings/keys',
-        'default_model'      => 'claude-sonnet-4-6',
-        'make_turn_input'    => 'my_anthropic_make_turn_input',
-        'agentic_call'       => 'my_anthropic_agentic_call',
-        'structured_request' => 'my_anthropic_structured_request',
-    ) );
-} );
-```
-
-See [`docs/examples/register-ai-provider.md`](./examples/register-ai-provider.md) for a worked example.
-
-### `desktop_mode_unregister_ai_provider( $id )` — Experimental (PHP function, since 0.5.2)
-
-Removes a provider from the registry. Returns `true` if a provider was removed, `false` if the id was unknown.
-
-### `desktop_mode_ai_register_providers` — Experimental (since 0.5.2)
-
-Action fired exactly once per request, the first time the registry is read. Hook it to call `desktop_mode_register_ai_provider()`.
-
-```php
-do_action( 'desktop_mode_ai_register_providers' );
-```
-
-### `desktop_mode_ai_provider_registered` — Experimental (since 0.5.2)
-
-Fires after a provider has been successfully registered.
-
-```php
-do_action( 'desktop_mode_ai_provider_registered', string $id, array $def );
-```
-
-### `desktop_mode_ai_active_provider` — Experimental (since 0.5.2)
-
-Filter the resolved active-provider id. Useful for per-request pinning (e.g., based on capability or query content).
-
-```php
-apply_filters( 'desktop_mode_ai_active_provider', string $provider_id, int $user_id );
-```
-
-```php
-// Force admins to use Anthropic; everyone else stays on the default.
-add_filter( 'desktop_mode_ai_active_provider', function ( $id, $user_id ) {
-    return user_can( $user_id, 'manage_options' ) ? 'anthropic' : $id;
-}, 10, 2 );
-```
-
-
-### `desktop_mode_ai_model` — Stable
-
-Overrides the model used per schema. Defaults to `'gpt-5.4-nano'` (`DESKTOP_MODE_AI_DEFAULT_MODEL`). `$schema_name` identifies the call site: `'agentic_search'` for the assistant's agentic search loop, `'comment_analysis'` for comment analysis.
-
-```php
-apply_filters( 'desktop_mode_ai_model', string $model, string $schema_name );
-```
-
-```php
-add_filter( 'desktop_mode_ai_model', function ( $model, $schema ) {
-    return 'agentic_search' === $schema ? 'gpt-4o' : $model;
-}, 10, 2 );
-```
+> The built-in Copilot tools are [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/), listed at `GET /wp-abilities/v1/abilities`. Register a read-only ability and the assistant picks it up automatically — see "Extending the Copilot's tools" below.
 
 > **Removed in 0.9.1.** Automatic AI analysis of posts, pages, and taxonomy terms was removed — the copilot now only analyzes comments (for the spam score), and the AI assistant finds content with WordPress's native keyword search. The following filters/actions no longer fire and have been removed: `desktop_mode_ai_supported_post_types`, `desktop_mode_ai_supported_taxonomies`, `desktop_mode_ai_supported_types`, `desktop_mode_ai_schema_content`, `desktop_mode_ai_post_prompt`, `desktop_mode_ai_term_prompt`, `desktop_mode_ai_post_analyzed`, `desktop_mode_ai_term_analyzed`. See [`migration-ai-comment-only.md`](migration-ai-comment-only.md).
 
 ### `desktop_mode_ai_schema_comment` — Experimental
 
-Mutate the JSON Schema handed to OpenAI for structured-output comment analysis. Use this to add custom fields (compliance flags, sentiment buckets, …) the model should populate alongside the built-in `spam` / `harmful` verdict.
+Mutate the JSON Schema handed to the provider for structured-output comment analysis. Use this to add custom fields (compliance flags, sentiment buckets, …) the model should populate alongside the built-in `spam` / `harmful` verdict.
 
 ```php
 apply_filters( 'desktop_mode_ai_schema_comment', array $schema );
@@ -1494,7 +1649,7 @@ apply_filters( 'desktop_mode_ai_request', array $extra, array $core );
 
 ### `desktop_mode_ai_tools` — Stable
 
-Transforms the full tool list (built-in search + PHP-registered + client commands) once per run, just before it goes to OpenAI. Add tools, remove tools, rewrite descriptions.
+Transforms the full tool list (built-in ability tools + client commands) once per run, just before it goes to the provider. Add tools, remove tools, rewrite descriptions. (To add a server-dispatched tool, register a read-only ability — see "Extending the Copilot's tools" below.)
 
 ```php
 apply_filters( 'desktop_mode_ai_tools', array $tools, array $context );
@@ -1524,7 +1679,7 @@ add_filter( 'desktop_mode_ai_command_allowed', function ( $entry, $slug, $ctx ) 
 
 ### `desktop_mode_ai_tool_result` — Stable
 
-Transform a tool's result on its way back to the model. Fires for **every** tool — built-in search_*, PHP-registered via `desktop_mode_register_ai_tool()`, and command tools alike.
+Transform a tool's result on its way back to the model. Fires for **every** built-in ability tool (search_*, list_admin_pages, …) as it returns.
 
 ```php
 apply_filters( 'desktop_mode_ai_tool_result', array $result, string $tool_name, array $args, array $context );
@@ -1542,23 +1697,15 @@ apply_filters( 'desktop_mode_ai_answer', array $answer, array $context );
 
 ### `desktop_mode_ai_followup_outcome_max_chars` — Stable
 
-Caps the size of the serialised tool result the follow-up leg sends to OpenAI. Default `4000` characters — enough for a status string, a small result list, or a short error envelope. Set `0` to disable truncation (not recommended — a buggy or malicious plugin that returns a 5 MB blob would then inflate token usage unbounded).
+Caps the size of the serialised tool result the follow-up leg sends to the provider. Default `4000` characters — enough for a status string, a small result list, or a short error envelope. Set `0` to disable truncation (not recommended — a buggy or malicious plugin that returns a 5 MB blob would then inflate token usage unbounded).
 
 ```php
 apply_filters( 'desktop_mode_ai_followup_outcome_max_chars', int $max_chars );
 ```
 
-### `desktop_mode_ai_tool_registered` — Stable
-
-Fires after `desktop_mode_register_ai_tool()` successfully stores a tool definition. Does not fire on `WP_Error`.
-
-```php
-do_action( 'desktop_mode_ai_tool_registered', string $name, array $entry );
-```
-
 ### `desktop_mode_ai_search_started` — Stable
 
-Fires once per `/ai/search` invocation, after validation, before any OpenAI call. First anchor of the observability trio.
+Fires once per `/ai/search` invocation, after validation, before any provider call. First anchor of the observability trio.
 
 ```php
 do_action( 'desktop_mode_ai_search_started', array $context );
@@ -1569,7 +1716,7 @@ do_action( 'desktop_mode_ai_search_started', array $context );
 
 ### `desktop_mode_ai_tool_called` — Stable
 
-Fires each time a tool runs — search_*, PHP-registered, or a command tool short-circuit.
+Fires each time a tool runs — a search/navigation **ability** or a command-tool short-circuit. `tool_name` is the model-facing name (e.g. `search_posts`), which is the ability slug with its namespace stripped.
 
 ```php
 do_action( 'desktop_mode_ai_tool_called', array $payload );
@@ -1582,51 +1729,29 @@ Fires after the final answer is composed (every success path). Observability par
 
 ```php
 do_action( 'desktop_mode_ai_search_completed', array $payload );
-// $payload = { query, user_id, request_id, answer_type, iterations }
+// $payload = { query, user_id, request_id, answer_type, iterations, usage, model }
 ```
+
+`usage` is the summed token usage across every turn — `{ prompt, completion, total }` (integers) — and `model` is the last model the AI Client resolved — `{ id, name }`. Either may be `null` when the provider didn't report it.
 
 ### `desktop_mode_ai_search_error` — Stable
 
-Fires on any `WP_Error` from the search / follow-up run (provider failure, response-parse failure, etc.) or on a tool handler exception. REST permission denials do NOT fire it — REST core rejects those requests before the route callback runs. Includes the `request_id` so subscribers can correlate with `desktop_mode_ai_search_started`.
+Fires on any `WP_Error` from the search / follow-up run (provider failure, response-parse failure, etc.) and when an ability's `execute()` returns a `WP_Error` (permission denied, invalid input/output). REST permission denials do NOT fire it — REST core rejects those requests before the route callback runs. Includes the `request_id` so subscribers can correlate with `desktop_mode_ai_search_started`.
 
 ```php
 do_action( 'desktop_mode_ai_search_error', array $error );
 // $error = { code, message, data, user_id?, request_id? }
 ```
 
-On the tool-exception path the action additionally receives `string $tool_name` and `Throwable $e` — register with `add_action( ..., 10, 3 )` to receive them.
+On an ability-execution failure the payload is `{ stage: 'tool_execute', tool_name, error, message, user_id, request_id }` — the failed tool call is surfaced to the model as a clean error result (never a fatal), so the agent can recover.
 
 ---
 
-### `desktop_mode_register_ai_tool( $args )` — Experimental (PHP function, since 0.5.2)
+### Extending the Copilot's tools
 
-Register a server-dispatched AI tool. Tool handlers run on the server, return a JSON-serialisable array, and the result is fed straight back to the OpenAI agent loop. This is the right home for integrations that are inherently server-side: site-health checks, order lookups, WP-CLI wrappers, database-heavy queries.
+The Copilot's tools are [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/) — its own search/navigation abilities (`search_posts`, `search_comments`, `list_admin_pages`, …) plus **any read-only ability registered on the site** (Core's, or another plugin's), listed at `GET /wp-abilities/v1/abilities`. To give the assistant a new tool, just register a read-only ability with `wp_register_ability()` on `wp_abilities_api_init` — no opt-in step. The agent loop advertises every read-only ability and dispatches calls through `wp_get_ability()->execute()`, so its `permission_callback` and input/output schemas are enforced by Core.
 
-```php
-desktop_mode_register_ai_tool( array(
-    'name'             => 'list_recent_orders',
-    'description'      => 'List the site\'s most recent WooCommerce orders.',
-    'parameters'       => array(
-        'type'       => 'object',
-        'properties' => array(
-            'limit'  => array( 'type' => 'integer' ),
-            'status' => array( 'type' => 'string', 'enum' => array( 'processing', 'completed' ) ),
-        ),
-        'required'   => array( 'limit' ),
-    ),
-    'handler'          => 'my_plugin_list_orders',
-    'capability'       => 'manage_woocommerce',
-    'progress_message' => 'Checking recent orders…',
-) );
-
-function my_plugin_list_orders( array $args, int $user_id ) : array {
-    return array( 'orders' => array( /* ... */ ) );
-}
-```
-
-Handler signature: `function( array $args, int $user_id ): array|WP_Error`. A `WP_Error` return, or a thrown exception, is caught automatically — the error envelope goes back to the model as the tool result so the agent can try something else. Only thrown exceptions additionally fire `desktop_mode_ai_search_error`; a `WP_Error` return is treated as a handled outcome and does not fire the action. Never surfaces raw exception messages to the user.
-
-`capability` is enforced **before** the tool is visible to the model — unauthorised users never see it exists.
+Only read-only abilities are offered on purpose: a search turn can be steered by attacker-controlled content (comment / post text in a tool result), so the model is never handed an ability that can change the site. See [`examples/ai-ask.md`](examples/ai-ask.md) for a full ability recipe.
 
 ---
 
@@ -1852,12 +1977,16 @@ The Recycle Bin stamps who-deleted-what-when metadata on posts, pages, attachmen
 
 ### `desktop_mode_recycle_bin_capture_post_types` — Experimental (filter)
 
-Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]`. Returning a list excluding `attachment` stops the bin from stamping and listing trashed attachments; it does not change how WordPress deletes media (that is governed by `MEDIA_TRASH`).
+Post types whose deletions the bin tracks. Defaults to `[ 'post', 'page', 'attachment' ]` **plus every non-builtin post type registered with `show_ui => true`** (since 0.9.6) — so custom post types with an admin UI surface in the bin out of the box, with their own singular label and menu Dashicon on the row. Per-item visibility still gates on `edit_post`, so the list never shows a user rows they couldn't manage.
+
+Remove a type here to keep its trash out of the bin, or add a headless (`show_ui => false`) type to opt it in — the pinned-notes feature opts its `wpd_note` CPT in exactly this way (with owner-only gates layered via `desktop_mode_recycle_bin_user_can_view` / `_restore` / `_purge`; see `includes/notes/recycle-bin.php` for the reference wiring).
+
+Returning a list excluding `attachment` stops the bin from stamping and listing trashed attachments; it does not change how WordPress deletes media (that is governed by `MEDIA_TRASH`).
 
 ```php
+// Keep a state-machine CPT's trash out of the bin.
 add_filter( 'desktop_mode_recycle_bin_capture_post_types', function ( $types ) {
-    $types[] = 'product';
-    return $types;
+    return array_diff( $types, array( 'shop_order' ) );
 } );
 ```
 
@@ -2778,6 +2907,58 @@ Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_regist
 
 ---
 
+## Living Tree wallpaper (since 0.9.4)
+
+The `wp-living-tree` canvas wallpaper renders the site as a growing plant organism. WordPress emits only *hormones* (age, vigour, health, diversity, bloom…) via a compact REST snapshot; the JS growth simulator decides all geometry. The full algorithm is documented in [`living-tree-algorithm.md`](./living-tree-algorithm.md).
+
+Server module: `includes/living-tree/`. Exposes one REST route and one gate filter.
+
+### REST — `GET desktop-mode/v1/living-tree/snapshot` — Experimental
+
+Returns the compact site DNA (the `TreeSnapshot` shape): aggregate counts, install epoch, a small tag co-occurrence edge list, and per-year branch hints — never the full post list. Cached in the `desktop_mode_living_tree_snapshot` transient (TTL 6h), invalidated on `save_post` / `deleted_post` / `comment_post`.
+
+### `desktop_mode_living_tree_user_can_use` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_user_can_use', bool $can ): bool
+```
+
+Permission gate for the snapshot endpoint. Default `current_user_can( 'read' )` — anyone who can see the admin can see their own site's wallpaper. Widen or restrict as needed.
+
+### `desktop_mode_living_tree_snapshot` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_snapshot', array $snapshot ): array
+```
+
+The full snapshot before it is cached and served. Keep the shape intact — the JS client trusts this contract — and keep it aggregates-only (the golden rule: hormones, never geometry).
+
+### `desktop_mode_living_tree_seo_health` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_seo_health', float $health ); // default 0.7
+```
+
+The SEO-health hormone (0..1) — drives the canopy's colour temperature: green → yellow → red → grey. **Known gap:** unlike `traffic` and `performance`, this hormone has no first-party source yet — WordPress ships nothing SEO-shaped to read, so it sits at a neutral 0.7 unless a plugin hooks this filter. The planned future source is aggregating the per-post scores SEO plugins keep in post-meta into a site-wide average; until that lands, this filter is the only integration point. Values are clamped to [0, 1].
+
+### `desktop_mode_living_tree_performance` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_performance', float $performance );
+```
+
+The growth-vigour hormone (0..1). *(Since 0.9.5)* the default is derived from core's own **Site Health** tallies: WordPress runs every Site Health test on a weekly cron and persists the counts in the `health-check-site-status-result` transient; the tree starts at 1.0, subtracts 0.15 per critical issue and 0.04 per recommendation, clamped to [0.2, 1] — a clean install grows vigorously, a neglected one visibly slows but never fully stalls. When the transient doesn't exist yet (brand-new site, weekly cron hasn't fired, Site Health never opened) the default falls back to 0.8. Note Site Health measures broad install health (PHP version, HTTPS, updates, object caching…), not raw runtime speed — the right flavour for growth vigour. Monitoring plugins with real telemetry can hook this filter as the final word; values are clamped to [0, 1].
+
+### `desktop_mode_living_tree_traffic` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_living_tree_traffic', int $views ): int
+```
+
+The recent-traffic hormone (drives the wind — canopy sway amplitude and frequency). The default value follows the same source ladder as the site-views widget: **Jetpack Stats** (last 14 days of visits via `WPCOM_Stats::get_visits()`) when Jetpack is available, else the sum of the `_post_views_YYYY-MM-DD` post-meta convention over the same window, else `0` (a windless day). Analytics plugins with their own counters should hook this and return their real 14-day view count; the value is clamped non-negative. *(Since 0.9.5 — before that, only the post-views meta was read.)*
+
+---
+
 ## Presence
 
 Framework-level presence tracking. Storage in
@@ -2931,6 +3112,46 @@ Actions / filters:
 
 See [`docs/examples/window-notice.md`](examples/window-notice.md).
 
+### Core-update notice — `desktop_mode_show_core_update_notice` — Experimental (filter) *(since 0.9.4)*
+
+Return `false` to turn off the desktop core-update notification (defaults to `true`):
+
+```php
+add_filter( 'desktop_mode_show_core_update_notice', '__return_false' );
+```
+
+### Core notices — `desktop_mode_core_notices` — Experimental (filter) *(since 0.9.6)*
+
+The other global WordPress Core admin notices (maintenance / failed update,
+recovery mode, default-password, force-deactivated plugins, paused
+plugins/themes) are detached inside desktop windows and re-derived from server
+state so the shell surfaces each **once** as a toast. This filter receives the
+array of descriptors (`{ id, title, message, actionLabel, actionUrl }`) —
+return an empty array to suppress them all, or unset entries by `id`.
+
+```php
+// Drop the "you're using an auto-generated password" notice only.
+add_filter( 'desktop_mode_core_notices', static function ( array $notices ) {
+    return array_values( array_filter(
+        $notices,
+        static fn ( $n ) => 'default-password' !== $n['id']
+    ) );
+} );
+```
+
+### Plugin/library notices — `desktop_mode_plugin_notices` — Experimental (filter) *(since 0.9.6)*
+
+A small opt-in allowlist of shared **library** notices that also render globally
+(e.g. Action Scheduler's "past-due actions" warning, bundled by WooCommerce and
+others) gets the same treatment: detached in-window, re-derived from state,
+surfaced once. Arbitrary plugin `admin_notices` are *not* touched — only the
+allowlisted libraries. Same descriptor shape as `desktop_mode_core_notices`;
+return an empty array to suppress them all.
+
+```php
+add_filter( 'desktop_mode_plugin_notices', '__return_empty_array' );
+```
+
 ---
 
 ## Progressive Web App (since 0.8.0)
@@ -3064,6 +3285,122 @@ add_filter( 'desktop_mode_sticky_notes_available', '__return_false' );
 
 - **Param** `bool $available` — whether the guideline CPT + taxonomy are registered.
 - **Return** `bool` — coerced with `(bool)`.
+
+---
+
+## Pinned notes (since 0.9.6)
+
+Pinned notes are the plugin-owned paper notes composed in the **Note
+Pad** widget and pinned to the wallpaper with a pushpin. They are
+backed by the `wpd_note` CPT (non-public, custom REST controller at
+`/desktop-mode/v1/notes`) — a separate feature from the
+Guidelines-backed sticky notes above. Visibility maps to post status:
+`private` (default, owner-only) or `publish` ("public" — read-only on
+every other desktop-mode user's wallpaper). Only the owner can edit,
+move, recolor, or delete a note; administrators do not bypass
+ownership through this controller.
+
+### `desktop_mode_notes_user_can_create` — Experimental *(filter, since 0.9.6)*
+
+Filters whether the current user may create a note. Defaults to
+`true` for every logged-in desktop-mode user, which includes
+publishing PUBLIC notes onto every other user's wallpaper. Sites
+that want to restrict that gate here — by role, capability, or the
+request itself (e.g. only restrict `public: true` creates).
+
+```php
+apply_filters( 'desktop_mode_notes_user_can_create', bool $can_create, int $user_id, WP_REST_Request $request );
+```
+
+**Example — only editors may share public notes:**
+
+```php
+add_filter( 'desktop_mode_notes_user_can_create', static function ( $can, $user_id, $request ) {
+	if ( $request['public'] && ! user_can( $user_id, 'edit_others_posts' ) ) {
+		return false;
+	}
+	return $can;
+}, 10, 3 );
+```
+
+- **Param** `bool $can_create` — whether creation is allowed. Default `true`.
+- **Param** `int $user_id` — current user id.
+- **Param** `WP_REST_Request $request` — the create request (`text`, `color`, `x`, `y`, `public`, `seed`).
+- **Return** `bool` — `false` makes the route return 403 `desktop_mode_notes_forbidden`.
+
+### `desktop_mode_notes_colors` — Experimental *(filter, since 0.9.6)*
+
+Filters the pastel paper color slugs a note may use. Slugs added here
+must also ship CSS custom properties (`--dm-note-paper`,
+`--dm-note-paper-deep`, `--dm-note-ink`) for a
+`[data-note-color="<slug>"]` selector — otherwise notes using them
+fall back to the default paper (`butter`). The whitelist is enforced
+on every REST write and on meta sanitization.
+
+```php
+apply_filters( 'desktop_mode_notes_colors', string[] $colors );
+```
+
+**Example — add a paper color:**
+
+```php
+add_filter( 'desktop_mode_notes_colors', static function ( $colors ) {
+	$colors[] = 'seafoam';
+	return $colors;
+} );
+```
+
+- **Param** `string[] $colors` — allowed slugs. Default `butter`, `blush`, `sky`, `mint`, `lilac`, `peach`.
+- **Return** `string[]` — each entry passes through `sanitize_key()`; empties are dropped.
+
+### `desktop_mode_notes_convert_post_args` — Experimental *(filter, since 0.9.6)*
+
+Filters the arguments passed to `wp_insert_post()` when a note is
+converted to a post via `POST /desktop-mode/v1/notes/:id/convert` (the
+inline "Convert to post" button and the drag-onto-Posts gesture). The
+default spawns a **draft `post`** authored by the note owner, titled
+from the note's first line, with the note body wrapped in
+`wp:paragraph` blocks (blank lines split paragraphs; single newlines
+become `<br>`). Hook here to change the post type/status, assign a
+category, or rewrite the block markup. The convert route itself is
+gated on the owner + the `edit_posts` capability, which this filter
+does not loosen.
+
+```php
+apply_filters( 'desktop_mode_notes_convert_post_args', array $post_args, WP_Post $note, WP_REST_Request $request );
+```
+
+**Example — file converted notes into a "Notes" category as pending drafts:**
+
+```php
+add_filter( 'desktop_mode_notes_convert_post_args', static function ( $args, $note ) {
+	$args['post_status'] = 'pending';
+	$term = get_term_by( 'slug', 'notes', 'category' );
+	if ( $term ) {
+		$args['post_category'] = array( $term->term_id );
+	}
+	return $args;
+}, 10, 2 );
+```
+
+- **Param** `array $post_args` — the `wp_insert_post()` array (`post_type`, `post_status`, `post_author`, `post_title`, `post_content`).
+- **Param** `WP_Post $note` — the source note (about to be trashed).
+- **Param** `WP_REST_Request $request` — the convert request.
+- **Return** `array` — the (possibly modified) insert args.
+
+### `desktop_mode_notes_converted` — Experimental *(action, since 0.9.6)*
+
+Fires after a note has been converted to a draft post: the draft
+exists and the source note has been trashed (and linked to the draft
+so the restore route can undo both sides).
+
+```php
+do_action( 'desktop_mode_notes_converted', int $new_post_id, WP_Post $note, WP_REST_Request $request );
+```
+
+- **Param** `int $new_post_id` — the new draft post id.
+- **Param** `WP_Post $note` — the source note (now trashed).
+- **Param** `WP_REST_Request $request` — the convert request.
 
 ---
 

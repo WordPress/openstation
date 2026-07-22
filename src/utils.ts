@@ -36,6 +36,31 @@ const IDENTITY_PARAMS: readonly string[] = [
 	// second row in the Posts window just refocuses the first post's
 	// window instead of opening the new one.
 	'post',
+	// The comment ID on `comment.php?action=editcomment&c=X` — the exact
+	// analogue of `post` above. Without it every comment-edit URL
+	// collapses to `comment-php`, so opening a second comment replaces
+	// the first comment's window instead of opening its own (and the
+	// window-links ties can only ever point at one comment at a time).
+	'c',
+	// NOTE: the generic `id` param is deliberately NOT identity.
+	// Plugin list screens use `admin.php?page=foo&action=…&id=N` for
+	// row actions; treating `id` as identity would open every such
+	// action in a NEW window instead of navigating the list in place.
+	// The cost: two entities of the same `admin.php?page=` screen
+	// (e.g. two WooCommerce HPOS orders) can't be open side by side —
+	// plugins that want that can differentiate via `path` or their own
+	// window ids.
+	// The term ID on `term.php?taxonomy=category&tag_ID=X` — the term
+	// analogue of `post`. Without it every term-edit URL of the same
+	// taxonomy collapses to one window, so opening a second category
+	// from a post's Related menu just refocuses the first term's
+	// window instead of opening its own.
+	'tag_ID',
+	// The attachment ID on `upload.php?item=X` (Media Library grid
+	// with the details modal open). Without it every deep-linked media
+	// item collapses to the plain `upload-php` window, so opening a
+	// second image from a post's Related menu refocuses the first.
+	'item',
 	// Site-editor entity path: `site-editor.php?p=/wp_template_part/
 	// twentytwentyfive//footer-columns`. Each template / template
 	// part / pattern / navigation entity is a distinct "page" from
@@ -164,6 +189,39 @@ export function urlMatchKey( url: string ): string {
 		const parsed = new URL( url, window.location.origin );
 		parsed.searchParams.delete( 'desktop_mode_chromeless' );
 		parsed.searchParams.delete( 'desktop_mode_portal' );
+		return parsed.pathname.replace( /\/+$/, '' ) + '?' + parsed.searchParams.toString();
+	} catch {
+		return url;
+	}
+}
+
+/**
+ * Returns a comparable identity key for deciding whether a
+ * `windowManager.open()` call that matched an existing window is a
+ * plain re-focus or a request to show a DIFFERENT URL in that window.
+ *
+ * Broader than {@link urlMatchKey}: besides the chromeless / portal
+ * flags it also drops `_wp_http_referer` (the shell stamps that onto
+ * cross-window links purely as a redirect hint — see
+ * `stampSourceReferer` in `src/window/iframe-bridge.ts`) and sorts
+ * the remaining params so semantically-equal URLs compare equal
+ * regardless of param order. Everything else — `action`, `_wpnonce`,
+ * `paged`, `s`, … — stays significant: an action URL (e.g.
+ * `plugins.php?action=activate&plugin=…&_wpnonce=…`) and its landing
+ * page (`plugins.php`) must NOT collapse to the same key.
+ *
+ * Falls back to the raw URL if parsing fails — the caller just sees
+ * a stricter equality check than desired, not a crash.
+ *
+ * @since 0.9.4
+ */
+export function urlReuseKey( url: string ): string {
+	try {
+		const parsed = new URL( url, window.location.origin );
+		parsed.searchParams.delete( 'desktop_mode_chromeless' );
+		parsed.searchParams.delete( 'desktop_mode_portal' );
+		parsed.searchParams.delete( '_wp_http_referer' );
+		parsed.searchParams.sort();
 		return parsed.pathname.replace( /\/+$/, '' ) + '?' + parsed.searchParams.toString();
 	} catch {
 		return url;

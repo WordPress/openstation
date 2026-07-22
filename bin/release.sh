@@ -10,6 +10,8 @@
 #                           GitHub's auto-generated release notes. Use when
 #                           you've already hand-written the changelog block,
 #                           or for hotfixes with nothing notable to log.
+#                           The interactive changelog confirmation still
+#                           runs; only the drafting step is skipped.
 #   --dry-run-changelog     Print the changelog draft that would be inserted
 #                           into readme.txt, then exit without modifying any
 #                           files or pushing. Useful for previewing the
@@ -131,6 +133,39 @@ generate_changelog_draft() {
 	printf '%s\n' "$draft"
 }
 
+# Show the '= $new =' changelog block currently in readme.txt (or a loud
+# warning when there is none) and require an explicit yes before the
+# release continues. Runs on EVERY path — drafted, hand-written,
+# --skip-changelog, and resume — so a release can never reach the tag
+# push with an unreviewed or missing changelog.
+confirm_changelog() {
+	local block
+	block=$(awk -v ver="$new" '
+		$0 == "= " ver " =" { found = 1; print; next }
+		found && /^=/ { exit }
+		found { print }
+	' readme.txt)
+
+	echo ""
+	echo "=========================================================="
+	if [[ -n "$block" ]]; then
+		echo "readme.txt changelog for $new (what WordPress.org users will see):"
+		echo "----------------------------------------------------------"
+		printf '%s\n' "$block"
+	else
+		echo "WARNING: readme.txt has NO '= $new =' changelog block."
+		echo "WordPress.org users would see no notes for this release."
+	fi
+	echo "=========================================================="
+	local reply
+	read -r -p "Is this changelog complete and correct? [y/N] " reply
+	if [[ ! "$reply" =~ ^[Yy]$ ]]; then
+		echo "Aborted: changelog not confirmed. Edit the '= $new =' block in readme.txt and re-run; the script resumes where it left off." >&2
+		echo "(If the bump commit was already pushed, commit and push the readme fix before re-running.)" >&2
+		exit 1
+	fi
+}
+
 # --dry-run-changelog short-circuits before any preflight checks so it
 # works from any branch and any working-tree state. Use it to preview
 # the draft + interaction without mutating anything.
@@ -149,6 +184,9 @@ if [[ "$dry_run_changelog" == "1" ]]; then
 		echo "  Please update readme.txt if needed, save, and press Enter when done."
 		echo "  (Ctrl-C to abort, then 'git checkout readme.txt' to undo.)"
 		echo "  Press Enter when done..."
+		echo ""
+		echo "…then display the final '= $new =' block and require:"
+		echo "  Is this changelog complete and correct? [y/N]"
 		echo ""
 		echo "Dry run complete. No files changed."
 	fi
@@ -199,6 +237,7 @@ stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
 
 if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" ]]; then
 	echo "All version locations already at $new — skipping bump, resuming at CI wait."
+	confirm_changelog
 else
 	# Refresh translation files BEFORE the version bump so any churn
 	# (renumbered #: source refs, fresh POT-Creation-Date, fuzzy
@@ -264,6 +303,11 @@ else
 	else
 		echo "Skipping changelog draft (--skip-changelog)."
 	fi
+
+	# However the block got here (drafted above, hand-written beforehand,
+	# left over from an aborted attempt, or absent), show the final state
+	# and require an explicit yes before the bump commit.
+	confirm_changelog
 
 	./bin/bump-version.sh "$new"
 	if git diff --quiet; then

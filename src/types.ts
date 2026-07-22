@@ -4,6 +4,11 @@
  * @since 0.5.0
  */
 
+// Type-only cross-import — erased at compile time, so the mutual
+// reference with `window-links/types.ts` (which imports WindowState
+// from here) is safe.
+import type { WindowContentRef } from './window-links/types';
+
 /**
  * Window state enum.
  */
@@ -219,6 +224,18 @@ export interface WindowConfig {
 	 * @since 0.6.0
 	 */
 	ownerHandle?: string;
+	/**
+	 * Open-time content identity — the piece of content this window
+	 * shows, and (through `content.root`) the relation group it
+	 * belongs to. Seeds `wp.desktop.relations` the moment the window
+	 * opens; for iframe admin pages the chromeless bridge later
+	 * announces the authoritative identity and overwrites this seed.
+	 * See `src/window-links/types.ts` and
+	 * `docs/examples/window-links.md`.
+	 *
+	 * @since 0.9.4
+	 */
+	content?: WindowContentRef;
 	/**
 	 * Per-window appearance overrides — themes (CSS variables),
 	 * controls (close / minimize / maximize layout + custom buttons),
@@ -901,6 +918,14 @@ export interface DesktopWallpaperServerEntry {
 	 * @since 0.5.0
 	 */
 	value: string;
+	/**
+	 * Optional plain-text description shown in OS Settings when the
+	 * wallpaper is the active selection. The shell overlays it onto the
+	 * JS def when the def itself doesn't carry one.
+	 *
+	 * @since 0.9.4
+	 */
+	description?: string;
 	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
@@ -912,6 +937,44 @@ export interface DesktopWallpaperServerEntry {
 	/** @since 0.6.0 */
 	scriptL10n?: string[];
 	/** @since 0.6.0 */
+	scriptTranslations?: string;
+}
+
+/**
+ * Server-declared game entry passed from PHP via `serverGames`.
+ * One entry per `desktop_mode_register_game()` call.
+ *
+ * Unlike wallpapers, game scripts are NOT loaded on sync — the
+ * metadata here is enough to paint the Games launcher grid and the
+ * scoreboard tabs; `scriptUrl` is fetched lazily on first launch
+ * and publishes the full `GameDef` (with its `render` callback) on
+ * `window.desktopModeGames[ id ]`.
+ *
+ * @public
+ * @since 0.9.6
+ */
+export interface DesktopGameServerEntry {
+	id: string;
+	title: string;
+	/** Plain-text launcher-tile description. */
+	description: string;
+	/** Dashicon class, http(s) URL, or `data:` URI. */
+	icon: string;
+	/** Scoreboard column declarations, in display order. */
+	scoreColumns: Array< {
+		key: string;
+		label: string;
+		type: 'number' | 'time' | 'text';
+	} >;
+	/** Arbitrary server-declared config blob handed to the game's launch context. */
+	config: Record< string, unknown >;
+	/** Absolute URL of the game's (lazily loaded) script. */
+	scriptUrl: string;
+	/** WordPress script handle (informational). */
+	scriptHandle: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
 	scriptTranslations?: string;
 }
 
@@ -1081,6 +1144,28 @@ export interface DesktopUnfocusEffectScriptServerEntry {
 	/** @since 0.6.0 */
 	scriptL10n?: string[];
 	/** @since 0.6.0 */
+	scriptTranslations?: string;
+}
+
+/**
+ * Server-declared window-link renderer script entry. One per
+ * `desktop_mode_register_window_link_renderer_script()` call. The
+ * shell injects each `scriptUrl` on mid-session activation; the
+ * loaded script calls `wp.desktop.registerWindowLinkRenderer()` and
+ * the registry subscriber surfaces the renderer in OS Settings →
+ * Effects → Window links without an F5.
+ *
+ * @public
+ * @since 0.9.4
+ */
+export interface DesktopWindowLinkRendererScriptServerEntry {
+	/** WordPress script handle — doubles as the renderer `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
 	scriptTranslations?: string;
 }
 
@@ -1517,6 +1602,16 @@ export interface DesktopConfig {
 	/** The active color scheme slug. */
 	colorScheme: string;
 	/**
+	 * Baseline fingerprint of the admin menu at boot. The live
+	 * menu-refresh pipeline seeds its last-known signature from this so
+	 * an off-allowlist menu change (e.g. a custom post type registered
+	 * through a settings tool) is detected against the boot state
+	 * without a wasted refresh probe. Empty string when unavailable.
+	 *
+	 * @since 0.9.4
+	 */
+	menuSig?: string;
+	/**
 	 * Dock items derived from the admin menu. Core WordPress pages
 	 * (Dashboard, Posts, Plugins, Users, Settings, CPTs) are ordered
 	 * first; plugin-contributed top-level menus (`admin.php?page=*`)
@@ -1548,6 +1643,15 @@ export interface DesktopConfig {
 	 * current selection.
 	 */
 	serverWallpapers: DesktopWallpaperServerEntry[];
+	/**
+	 * Server-declared games (from `desktop_mode_register_game()`).
+	 * Sync registers metadata-only stubs so the Games window and
+	 * scoreboard paint without downloading game code; the script is
+	 * loaded lazily on first launch.
+	 *
+	 * @since 0.9.6
+	 */
+	serverGames?: DesktopGameServerEntry[];
 	/**
 	 * Script handles opted-in via `desktop_mode_register_command_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so
@@ -1607,6 +1711,17 @@ export interface DesktopConfig {
 	 * @since 0.9.1
 	 */
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_window_link_renderer_script()`. Shell
+	 * injects each URL on boot and on mid-session activation so
+	 * newly-installed plugins surface their window-link renderer in OS
+	 * Settings → Effects → Window links live. Owner-tagged
+	 * registrations live-unregister on deactivation.
+	 *
+	 * @since 0.9.4
+	 */
+	serverWindowLinkRendererScripts?: DesktopWindowLinkRendererScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_window_theme_script()`. The shell loads
@@ -1747,6 +1862,22 @@ export interface DesktopConfig {
 	 * @since 0.9.0
 	 */
 	filesUrl?: string;
+	/**
+	 * Base REST URL for the pinned-notes endpoints
+	 * (`/desktop-mode/v1/notes`). The notes layer only boots when
+	 * this is present.
+	 *
+	 * @since 0.9.6
+	 */
+	notesUrl?: string;
+	/**
+	 * Whether the current user can author posts (`edit_posts`). Gates
+	 * the "Convert to post" note affordance (inline button + Posts dock
+	 * drop target). Absent on older server payloads → treated as false.
+	 *
+	 * @since 0.9.6
+	 */
+	canCreatePosts?: boolean;
 	/**
 	 * Roles eligible to appear in the folder Share Settings role
 	 * picker. Server applies `desktop_mode_files_share_eligible_roles`
@@ -1906,6 +2037,64 @@ export interface DesktopConfig {
 	 */
 	toastTypes?: ToastTypeDef[];
 	/**
+	 * Pending WordPress core update (from `desktop_mode_get_core_update()`),
+	 * or `null`/omitted when none is pending. The shell resolves the art
+	 * and renders it — see `src/update-notice.ts`.
+	 *
+	 * @since 0.9.4
+	 */
+	coreUpdate?: {
+		/** Version shown in the message — major branch when crossing, else exact. */
+		version: string;
+		/** Exact available version — the dismissal key (a newer point release re-notifies). */
+		available?: string;
+		/** Major branch (e.g. `7.0`) — the art key. */
+		branch?: string;
+		url: string;
+		/** True when moving into a new major (the shell then shows the codename). */
+		crossing?: boolean;
+	} | null;
+	/**
+	 * The remaining global WordPress Core admin notices, re-derived from
+	 * server state so the shell can surface each once instead of letting them
+	 * repeat per window. The update nag is `coreUpdate` above; these are the
+	 * rest (maintenance, recovery mode, default password, …). See
+	 * `src/core-notices.ts`.
+	 *
+	 * @since 0.9.6
+	 */
+	coreNotices?: Array< {
+		/** Stable notice id — the per-notice dismissal key. */
+		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
+		/** Human-readable message (already translated server-side). */
+		message: string;
+		/** Optional action-button label. */
+		actionLabel?: string;
+		/** Admin URL the action opens as a window. */
+		actionUrl?: string;
+	} >;
+	/**
+	 * Allowlisted plugin/library global admin notices (e.g. Action Scheduler's
+	 * past-due warning), re-derived from state and surfaced once — same shape
+	 * and treatment as {@link coreNotices}.
+	 *
+	 * @since 0.9.6
+	 */
+	pluginNotices?: Array< {
+		/** Stable notice id — the per-notice dismissal key. */
+		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
+		/** Human-readable message (already translated server-side). */
+		message: string;
+		/** Optional action-button label. */
+		actionLabel?: string;
+		/** Admin URL the action opens as a window. */
+		actionUrl?: string;
+	} >;
+	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `desktop_mode_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.
@@ -1942,6 +2131,19 @@ export interface DesktopConfig {
 	 * @since 0.5.0
 	 */
 	aiSearchStreamUrl?: string;
+	/**
+	 * AI assistant availability + per-user state. Governs whether the Cmd+K
+	 * assistant and its admin-bar icon appear, and the setup placeholder.
+	 * `null` when the AI Copilot module isn't loaded.
+	 * @since 0.9.4
+	 */
+	aiAssistant?: import( './settings/types' ).AiAssistantConfig | null;
+	/**
+	 * REST endpoint to re-check AI provider availability without a reload
+	 * (used by OS Settings → Features after a connector is configured).
+	 * @since 0.9.4
+	 */
+	aiStatusUrl?: string;
 	/**
 	 * Fully-qualified URL of the lazy-loaded AI Assistant bundle —
 	 * the script `<script>`-injected by the main-bundle stub on the
@@ -1993,17 +2195,6 @@ export interface DesktopConfig {
 	 * @since 0.8.4
 	 */
 	windowSystemBundleUrl?: string;
-	/**
-	 * Platform-wide AI settings — only present for admins (null for
-	 * non-admin users so the key is never leaked in the page source).
-	 * @since 0.5.0
-	 */
-	aiPlatformSettings?: { enabled: boolean; provider: string; apiKey: string } | null;
-	/**
-	 * REST endpoint for reading/writing platform AI settings (admin only).
-	 * @since 0.5.0
-	 */
-	aiPlatformSettingsUrl?: string;
 	/**
 	 * Whether the current user has the `manage_options` capability.
 	 * @since 0.5.0

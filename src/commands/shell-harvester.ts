@@ -632,9 +632,9 @@ export class ShellCommandHarvester {
 
 	private runInvoke( name: string, title: string, icon: string ): DesktopCommand[ 'run' ] {
 		return ( _args, ctx ) => {
-			ctx.close();
 			const cb = this.callbackCache[ name ];
 			if ( typeof cb !== 'function' ) {
+				ctx.close();
 				return;
 			}
 			// Many "action"-classified commands are actually navigation
@@ -653,9 +653,15 @@ export class ShellCommandHarvester {
 			// the callback for real.
 			const captured = this.runWithNavCapture( cb );
 			if ( captured ) {
+				// Navigation → open a desktop window and dismiss the palette.
+				ctx.close();
 				const id = deriveWindowId( captured, this.adminUrl );
 				this.manager.open( { id, baseId: id, url: captured, title, icon } );
 			}
+			// Pure JS action (e.g. "View site" → window.open in a new tab):
+			// the effect happens elsewhere, so leave the palette open — closing
+			// it here means returning to this tab finds it mid-close (the fade
+			// was throttled while the tab was backgrounded) and it vanishes.
 		};
 	}
 

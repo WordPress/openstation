@@ -8,6 +8,7 @@
  * @group desktop-mode
  *
  * @covers ::desktop_mode_menu_item_url
+ * @covers ::desktop_mode_is_admin_file_slug
  */
 class Tests_DesktopMode_MenuItemUrl extends WP_UnitTestCase {
 
@@ -199,5 +200,102 @@ class Tests_DesktopMode_MenuItemUrl extends WP_UnitTestCase {
 		$result = desktop_mode_menu_item_url( 'wc-admin&' );
 		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
 		$this->assertSame( 'wc-admin', $args['page'] );
+	}
+
+	/**
+	 * Legacy file-path slugs — WP-Sweep registers its Tools page as
+	 * `add_management_page( …, 'wp-sweep/admin.php' )`: the slug
+	 * contains `.php` yet is a registered plugin page, not an
+	 * admin-root file. The registered-page check must win over the
+	 * direct-file branch — otherwise the dock links the Sweep tab to
+	 * a 404 at `wp-admin/wp-sweep/admin.php` instead of the page
+	 * WordPress actually serves at `tools.php?page=wp-sweep/admin.php`.
+	 */
+	public function test_routes_registered_file_path_slug_through_php_parent() {
+		global $_parent_pages;
+		$_parent_pages['wp-sweep/admin.php'] = 'tools.php';
+
+		$result = desktop_mode_menu_item_url( 'wp-sweep/admin.php' );
+
+		$this->assertStringContainsString( 'tools.php', $result );
+		$this->assertStringNotContainsString( admin_url( 'wp-sweep/admin.php' ), $result );
+		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
+		$this->assertSame( 'wp-sweep/admin.php', $args['page'] );
+
+		unset( $_parent_pages['wp-sweep/admin.php'] );
+	}
+
+	/**
+	 * A file-path slug with NO `$_parent_pages` registration keeps
+	 * the direct-file behavior — it really is a file under
+	 * `wp-admin/` (e.g. `network/sites.php`-style references).
+	 */
+	public function test_unregistered_file_path_slug_still_routes_as_direct_file() {
+		$this->assertSame(
+			esc_url_raw( admin_url( 'network/sites.php' ) ),
+			desktop_mode_menu_item_url( 'network/sites.php' )
+		);
+	}
+
+	/**
+	 * URL-style slugs registered as a top-level menu — ACF's
+	 * `add_menu_page( …, 'edit.php?post_type=acf-field-group' )`.
+	 * The slug lands in `$_parent_pages` (value `false`), yet
+	 * `edit.php` is a real `wp-admin/` file, so it must stay a
+	 * direct link. Routing it through `admin.php?page=…` makes
+	 * core's dispatcher die with "Cannot load
+	 * edit.php?post_type=acf-field-group." — the exact regression
+	 * behind GH#367, introduced by the WP-Sweep fix (GH#309) whose
+	 * registered-page check didn't exempt real admin files.
+	 */
+	public function test_registered_url_style_slug_stays_direct_admin_file_link() {
+		global $_parent_pages;
+		$_parent_pages['edit.php?post_type=acf-field-group'] = false;
+
+		$this->assertSame(
+			esc_url_raw( admin_url( 'edit.php?post_type=acf-field-group' ) ),
+			desktop_mode_menu_item_url( 'edit.php?post_type=acf-field-group' )
+		);
+
+		unset( $_parent_pages['edit.php?post_type=acf-field-group'] );
+	}
+
+	/**
+	 * Same shape one level down — ACF's children (`Post Types`,
+	 * `Taxonomies`, …) are `add_submenu_page()`-registered URL-style
+	 * slugs, so `$_parent_pages` maps them to the URL-style parent.
+	 * They too must resolve as direct admin-file links.
+	 */
+	public function test_registered_url_style_submenu_slug_stays_direct_admin_file_link() {
+		global $_parent_pages;
+		$_parent_pages['edit.php?post_type=acf-field-group'] = false;
+		$_parent_pages['edit.php?post_type=acf-post-type']   = 'edit.php?post_type=acf-field-group';
+
+		$this->assertSame(
+			esc_url_raw( admin_url( 'edit.php?post_type=acf-post-type' ) ),
+			desktop_mode_menu_item_url( 'edit.php?post_type=acf-post-type' )
+		);
+
+		unset(
+			$_parent_pages['edit.php?post_type=acf-field-group'],
+			$_parent_pages['edit.php?post_type=acf-post-type']
+		);
+	}
+
+	/**
+	 * The admin-file exemption must not weaken the WP-Sweep fix: a
+	 * registered file-path slug whose file does NOT live under
+	 * `wp-admin/` still routes through its `.php` parent even though
+	 * the query-stripping helper ran on it.
+	 */
+	public function test_admin_file_check_ignores_registered_plugin_file_slug_with_query() {
+		global $_parent_pages;
+		$_parent_pages['wp-sweep/admin.php?tab=cleanup'] = 'tools.php';
+
+		$result = desktop_mode_menu_item_url( 'wp-sweep/admin.php?tab=cleanup' );
+
+		$this->assertStringContainsString( 'tools.php', $result );
+
+		unset( $_parent_pages['wp-sweep/admin.php?tab=cleanup'] );
 	}
 }

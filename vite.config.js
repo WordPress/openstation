@@ -325,6 +325,35 @@ const TARGETS = {
 		fileBase: 'content-graph',
 		iifeName: 'desktopModeContentGraph',
 	},
+	// Games hub — launcher grid + scoreboard + challenges client.
+	// Registers a render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-games']`; the
+	// games registry itself is shared cross-bundle via
+	// `createSharedStore`. `<wpd-*>` tags come from the main bundle.
+	games: {
+		entry:    'src/games/entry.ts',
+		fileBase: 'games',
+		iifeName: 'desktopModeGames',
+	},
+	// Inkfall — the built-in typing game. Lazy-loaded by the games
+	// framework on first launch; publishes its GameDef on
+	// `window.desktopModeGames.inkfall`. Loads PixiJS through the
+	// module registry like content-graph / the canvas wallpapers.
+	'game-inkfall': {
+		entry:    'src/games/inkfall/index.ts',
+		fileBase: 'game-inkfall',
+		iifeName: 'desktopModeGameInkfall',
+	},
+	// Alphabet Soup — the built-in daily word search. Seeded by the
+	// current date (dd-mm-yyyy) so the puzzle is identical worldwide;
+	// lazy-loaded by the games framework on first launch; publishes
+	// its GameDef on `window.desktopModeGames['alphabet-soup']`.
+	// Loads PixiJS through the module registry like Inkfall.
+	'game-alphabet-soup': {
+		entry:    'src/games/alphabet-soup/index.ts',
+		fileBase: 'game-alphabet-soup',
+		iifeName: 'desktopModeGameAlphabetSoup',
+	},
 	// Service worker — own bundle so it can be served from a stable
 	// path with the `Service-Worker-Allowed: /` header. The IIFE
 	// wrapper is harmless inside a SW context: top-level
@@ -380,6 +409,28 @@ const TARGETS = {
 		entry:    'src/plugins/animated-logo-wallpaper/index.ts',
 		fileBase: 'animated-logo-wallpaper',
 		iifeName: 'desktopModeAnimatedLogoWallpaper',
+	},
+	// Living Tree wallpaper — built-in canvas wallpaper that renders the
+	// site as a growing plant organism (posts=leaves, comments=flowers,
+	// tags=lianas, users=fireflies, traffic=wind). PixiJS-driven, lazy-
+	// loaded by the wallpaper server-sync when selected. Publishes the
+	// `WallpaperDef` on `window.desktopModeWallpapers['wp-living-tree']`.
+	// See docs/living-tree-algorithm.md.
+	'living-tree-wallpaper': {
+		entry:    'src/plugins/living-tree-wallpaper/index.ts',
+		fileBase: 'living-tree-wallpaper',
+		iifeName: 'desktopModeLivingTreeWallpaper',
+	},
+	// Snow wallpaper — built-in canvas wallpaper: PixiJS snowfall that
+	// accumulates on window tops (via `wp.desktop.getWallpaperSurfaces`)
+	// and melts away. Lazy-loaded by the wallpaper server-sync when
+	// selected. Publishes the `WallpaperDef` on
+	// `window.desktopModeWallpapers['wp-snow']`; first built-in
+	// consumer of the `renderConfig` wallpaper-settings dialog.
+	'snow-wallpaper': {
+		entry:    'src/plugins/snow-wallpaper/index.ts',
+		fileBase: 'snow-wallpaper',
+		iifeName: 'desktopModeSnowWallpaper',
 	},
 	// About-scene — the PixiJS particle scene rendered inside OS
 	// Settings → About. ~25 kB of code that only ever runs after the
@@ -465,6 +516,14 @@ const TARGETS = {
 		entry:    'src/plugins/starter-widget/index.ts',
 		fileBase: 'widget-starter',
 		iifeName: 'desktopModeStarterWidget',
+	},
+	// Note Pad widget — the pinned-notes composer. Ships JS + a
+	// co-located `styles.css` chunk (`widget-notes[.min].css`) that
+	// `includes/widgets/widget-notes.php` registers.
+	'widget-notes': {
+		entry:    'src/plugins/notes-widget/index.ts',
+		fileBase: 'widget-notes',
+		iifeName: 'desktopModeNotesWidget',
 	},
 
 };

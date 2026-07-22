@@ -25,7 +25,9 @@ import type {
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
+	DesktopGameServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
+	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
@@ -46,7 +48,9 @@ export interface MenuRefreshPayload {
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
 	serverUnfocusEffectScripts?: unknown;
+	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
+	serverGames?: unknown;
 	desktopIcons?: unknown;
 }
 
@@ -84,9 +88,13 @@ export interface MenuRefreshDeps {
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
 	) => Promise< void >;
+	syncServerWindowLinkRenderers: (
+		scripts: DesktopWindowLinkRendererScriptServerEntry[],
+	) => Promise< void >;
 	syncServerDockRailRenderers: (
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
+	syncServerGames: ( list: DesktopGameServerEntry[] ) => Promise< void >;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
 	 * Re-run the files-layer shortcut reconciliation
@@ -191,7 +199,9 @@ export function createApplyPayload(
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
+		syncServerGames,
 		renderIcons,
 		syncShortcuts,
 	} = deps;
@@ -208,7 +218,10 @@ export function createApplyPayload(
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
 		const serverUnfocusEffectScripts = payload.serverUnfocusEffectScripts;
+		const serverWindowLinkRendererScripts =
+			payload.serverWindowLinkRendererScripts;
 		const serverWindowNotices = payload.serverWindowNotices;
+		const serverGames = payload.serverGames;
 		const desktopIcons = payload.desktopIcons;
 
 		// Guard: an empty `dockItems` list is NEVER legitimate —
@@ -279,6 +292,16 @@ export function createApplyPayload(
 				serverWallpapers as DesktopConfig[ 'serverWallpapers' ];
 		}
 
+		// Games-registry sync — stub registration only (game scripts
+		// load lazily on first launch). New plugin games surface in
+		// the Games window without a reload; deactivated ones leave
+		// the launcher grid + scoreboard tabs.
+		if ( Array.isArray( serverGames ) ) {
+			void syncServerGames( serverGames as DesktopGameServerEntry[] );
+			config.serverGames =
+				serverGames as DesktopConfig[ 'serverGames' ];
+		}
+
 		// Command-palette sync — loads plugin-contributed command
 		// scripts on activation and unregisters owner-tagged commands
 		// when a handle leaves the payload. `serverCommandScripts`
@@ -337,6 +360,19 @@ export function createApplyPayload(
 			);
 			config.serverUnfocusEffectScripts =
 				serverUnfocusEffectScripts as DesktopConfig[ 'serverUnfocusEffectScripts' ];
+		}
+
+		// Window-link renderer sync — same shape. Loads plugin renderer
+		// scripts on activation (their `registerWindowLinkRenderer()`
+		// surfaces in OS Settings → Effects → Window links and the
+		// render host remounts if it affects the active pick);
+		// owner-tagged sweep on deactivation.
+		if ( Array.isArray( serverWindowLinkRendererScripts ) ) {
+			void syncServerWindowLinkRenderers(
+				serverWindowLinkRendererScripts as DesktopWindowLinkRendererScriptServerEntry[],
+			);
+			config.serverWindowLinkRendererScripts =
+				serverWindowLinkRendererScripts as DesktopConfig[ 'serverWindowLinkRendererScripts' ];
 		}
 
 		// Dock rail renderer sync — load plugin renderer scripts on

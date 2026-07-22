@@ -152,19 +152,21 @@ export const DEFAULTS: OsSettingsState = {
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
 	unfocusEffect: 'darken',
+	windowLinkRenderer: 'svg-splines',
+	windowLinkVisibility: 'always',
+	windowLinksEnabled: true,
+	windowLinkRaiseOnFocus: true,
+	windowLinkHighlight: true,
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',
 		angle: 135,
 	},
 	customImage: null,
+	wallpaperSettings: {},
 	libraryHdOnly: true,
 	ai: {
 		enabled: false,
-		provider: 'openai',
-		apiKey: '',
-		apiKeys: {},
-		transport: 'off',
 	},
 	// Opt-IN Beta as of 0.9.1. Fresh installs land on the classic
 	// chromeless `edit.php` iframe; a user opts in via OS Settings →
@@ -199,80 +201,3 @@ export const DEFAULTS: OsSettingsState = {
 	dockPromotedPositions: {},
 };
 
-/**
- * Live-progress transport options. Order is the picker order in OS Settings.
- *
- * Default `off` is reliable on every host; `sse` is faster but needs the
- * server (and any reverse proxy in front of it) to allow long-lived
- * `text/event-stream` connections.
- *
- * @since 0.6.0
- */
-export const AI_TRANSPORTS = [
-	{ id: 'off', label: 'Off' },
-	{ id: 'sse', label: 'Streaming (SSE)' },
-] as const;
-
-/**
- * Hard-coded fallback list — the only provider we know about without
- * reading the runtime registry. {@link getAiProviders} prefers the
- * runtime `desktopModeConfig.aiProviders` list when present, so adding a
- * new provider is a pure PHP concern.
- */
-export const AI_PROVIDERS: ReadonlyArray< {
-	id: string;
-	label: string;
-	description?: string;
-	apiKeyLabel?: string;
-	apiKeyLink?: string;
-} > = [
-	{
-		id: 'openai',
-		label: 'OpenAI',
-		apiKeyLabel: 'OpenAI API key',
-		apiKeyLink: 'https://platform.openai.com/api-keys',
-	},
-];
-
-/**
- * Returns the runtime list of registered AI providers.
- *
- * Falls back to {@link AI_PROVIDERS} when the shell config is missing
- * (rare — happens in some test contexts and the very first frame
- * before `desktopModeConfig` is populated).
- */
-export function getAiProviders(): ReadonlyArray< {
-	id: string;
-	label: string;
-	description?: string;
-	apiKeyLabel?: string;
-	apiKeyLink?: string;
-} > {
-	const cfg = (
-		window as typeof window & {
-			desktopModeConfig?: {
-				aiProviders?: Array< {
-					id: string;
-					label: string;
-					description?: string;
-					api_key_label?: string;
-					api_key_link?: string;
-					capabilities?: string[];
-				} >;
-			};
-		}
-	).desktopModeConfig;
-
-	const list = cfg?.aiProviders;
-	if ( ! Array.isArray( list ) || list.length === 0 ) {
-		return AI_PROVIDERS;
-	}
-
-	return list.map( ( p ) => ( {
-		id: p.id,
-		label: p.label,
-		description: p.description,
-		apiKeyLabel: p.api_key_label,
-		apiKeyLink: p.api_key_link,
-	} ) );
-}

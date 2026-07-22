@@ -26,6 +26,11 @@
 import { doAction } from '../hooks';
 import { rest, store as filesStoreApi } from './layer-deps';
 import { buildTile, setTilePosition, TILE_CLASS } from './file-tile';
+import {
+	tilePayloadAccepts,
+	tilePayloadAcceptLabel,
+	tilePayloadDrop,
+} from './tile-payloads';
 import { openTileMenu, type TileMenuItem } from './tile-menu';
 import { openCreateFolderDialog } from './create-folder-dialog';
 import { openFile } from './open';
@@ -44,6 +49,7 @@ import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
 import type { DragBridgePayload } from '../drag-bridge';
 import { isConflict, showConflictToast } from './conflict-toast';
+import { canvasPayloadAccepts, canvasPayloadDrop } from './canvas-payloads';
 import type { DragManagerApi, DragSession, DropTarget } from '../drag';
 import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
 import type {
@@ -336,13 +342,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			if ( shouldRejectTileDrops( placement ) ) {
 				const dragManager = getDragManager();
 				if ( dragManager ) {
-					const deregister = dragManager.registerDropTarget( {
-						id: `desktop-mode-files-tile-${ placement.id }-reject`,
-						element: tile,
-						accept: () => false,
-						onDrop: () => {},
-					} );
-					tileRejectDeregisters.set( placement.id, deregister );
+					tileRejectDeregisters.set(
+						placement.id,
+						registerTileRejectTarget( dragManager, tile, placement ),
+					);
 				}
 			}
 			return tile;
@@ -371,13 +374,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		} else if ( shouldRejectTileDrops( placement ) ) {
 			const dragManager = getDragManager();
 			if ( dragManager ) {
-				const deregister = dragManager.registerDropTarget( {
-					id: `desktop-mode-files-tile-${ placement.id }-reject`,
-					element: tile,
-					accept: () => false,
-					onDrop: () => {},
-				} );
-				tileRejectDeregisters.set( placement.id, deregister );
+				tileRejectDeregisters.set(
+					placement.id,
+					registerTileRejectTarget( dragManager, tile, placement ),
+				);
 			}
 		}
 		return tile;
@@ -702,7 +702,12 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		element: host,
 		accept: ( payload ) => {
 			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
-				return false;
+				// Payload types this layer doesn't own (e.g. the
+				// pinned-notes `'note'` / `'note-draft'` drags) can be
+				// claimed by a registered canvas payload handler — the
+				// registry keys drop targets by element, so features
+				// that want the wallpaper route through this target.
+				return canvasPayloadAccepts( payload, { folderId, host } );
 			}
 			// Folder-cycle preflight for drops onto a folder
 			// window's canvas. The wallpaper root (`folderId === 0`)
@@ -726,7 +731,15 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		},
 		onEnter: ( session ) => {
 			host.setAttribute( 'data-files-drop-active', '' );
-			installCanvasDropPreview( session );
+			// The grid-cell drop preview only makes sense for the
+			// tile payloads this layer owns — handler-owned payloads
+			// (pinned notes) place freely, no snap.
+			if (
+				session.payload.type === 'desktop-file' ||
+				session.payload.type === 'shortcut'
+			) {
+				installCanvasDropPreview( session );
+			}
 		},
 		onLeave: () => {
 			host.removeAttribute( 'data-files-drop-active' );
@@ -735,6 +748,13 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		onDrop: ( session, ev ) => {
 			host.removeAttribute( 'data-files-drop-active' );
 			teardownCanvasDropPreview();
+			if (
+				session.payload.type !== 'desktop-file' &&
+				session.payload.type !== 'shortcut'
+			) {
+				canvasPayloadDrop( session, ev, { folderId, host } );
+				return;
+			}
 			const rect = container.getBoundingClientRect();
 			// Subtract the grab offset so we snap based on where the
 			// tile's TOP-LEFT would land, not where the cursor is. The
@@ -1196,7 +1216,7 @@ function readSynthSource( placement: RestPlacementShape ): string | null {
  * placements live JS-only, so persisting their (x, y) / parentId
  * would 404 with `rest_no_route`.
  */
-function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
+export function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
 	return placement.id <= 0 || readSynthSource( placement ) !== null;
 }
 
@@ -1572,6 +1592,53 @@ function hidePromotedDockItem( dockItemId: string ): void {
 	const current = api.getOsSettings().itemVisibility ?? {};
 	const next = { ...current, [ dockItemId ]: 'dock' };
 	api.updateOsSettings( { itemVisibility: next } );
+}
+
+/**
+ * Register the per-tile drop claimant for a NON-folder tile. A tile
+ * normally hard-rejects every foreign payload so the drop doesn't fall
+ * through to the wallpaper (`shouldRejectTileDrops`). A feature can opt
+ * a payload type IN via the tile-payload seam (`tile-payloads.ts`) —
+ * e.g. pinned notes accept a `'note'` drop on the Posts shortcut icon
+ * (Spatial layout) and convert it to a draft. Unknown payloads — and
+ * payloads whose handler doesn't recognize this placement — still
+ * reject, preserving the original "Can't drop here" feedback.
+ */
+function registerTileRejectTarget(
+	dragManager: DragManagerApi,
+	tile: HTMLElement,
+	placement: RestPlacementShape,
+): () => void {
+	const ctx = { placement };
+	// The manager calls `accept( payload )` and then reads `acceptLabel`
+	// in the same hover pass, so recording the hovered type here lets the
+	// getter below return the label for the exact handler that accepted —
+	// and recompute each hover, so a handler registered after this tile
+	// mounted still gets the right chip.
+	let hoveredType: string | null = null;
+	return dragManager.registerDropTarget( {
+		id: `desktop-mode-files-tile-${ placement.id }-reject`,
+		element: tile,
+		get acceptLabel() {
+			return hoveredType
+				? tilePayloadAcceptLabel( hoveredType, ctx )
+				: undefined;
+		},
+		accept: ( payload ) => {
+			hoveredType = payload.type;
+			return tilePayloadAccepts( payload, ctx );
+		},
+		onEnter: () => {
+			tile.classList.add( `${ TILE_CLASS }--drop-target` );
+		},
+		onLeave: () => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+		},
+		onDrop: ( session, ev ) => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+			tilePayloadDrop( session, ev, ctx );
+		},
+	} );
 }
 
 /**

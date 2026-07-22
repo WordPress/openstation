@@ -19,7 +19,37 @@ npm run test:php           # the PHPUnit run itself
 npm run env:stop           # when you're done
 ```
 
-`npm run env:start` spins up a self-contained WordPress + MariaDB stack under `wp-content/plugins/desktop-mode` — it's scoped to automated tests. Manual QA is a separate concern and runs against the Dockerised environment in the parent Core-checkout repo (`env:start` / `env:install` there).
+`npm run env:start` spins up a self-contained WordPress + MariaDB stack with this checkout bind-mounted as the plugin. It hosts the PHPUnit suite and doubles as the manual QA environment on `http://localhost:8890/wp-admin/` (`admin` / `password`). See [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env) for how the mount works and how to run one instance per git worktree.
+
+## Manual QA and per-worktree instances (wp-env)
+
+### How the instance works
+
+- The `"wp-content/plugins/desktop-mode": "."` mapping in `.wp-env.json` bind-mounts the directory you run `wp-env start` from straight into the container. PHP edits are live on the next request; JS changes appear after `npm run build`, because the site serves whatever is in `assets/js/` right now. The enqueued bundles' `?ver=` cache-buster is filemtime-based, so a normal browser reload picks up fresh builds.
+- wp-env keys everything to that start directory: it hashes the path and gives each directory its own containers, database, and WordPress volume under `~/.wp-env/<hash>/`. Same directory, same instance, every time.
+- Ports come from `.wp-env.json`: `8890` (dev) and `8891` (tests). They are remapped from wp-env's defaults so the stack coexists with a Core checkout's environment (see the PHPUnit section of `AGENTS.md`).
+- `bin/sync-to-wp-develop.sh` does **not** feed this instance. It mirrors the tree into a wordpress-develop checkout, which is a different environment entirely. The wp-env instance always serves the start directory live through the mount; there is no copy step to forget.
+
+### Testing several worktrees at once
+
+Because the instance identity is the start directory, every git worktree can run its own fully isolated stack in parallel. The only knob is ports, since each worktree inherits `8890`/`8891` from the tracked `.wp-env.json`:
+
+```bash
+cd <path-to-worktree>
+npm install        # worktrees start bare
+npm run build
+WP_ENV_PORT=8894 WP_ENV_TESTS_PORT=8895 npm run env:start
+```
+
+`http://localhost:8894/wp-admin/` now serves that worktree's code while the main checkout's instance keeps serving `:8890`. Databases, uploads, and user state are all per-instance.
+
+Notes:
+
+- **Skipping the port override fails loudly, not subtly.** If another running instance already holds `8890`, Docker refuses to bind ("port is already allocated") and `wp-env start` aborts; nothing silently cross-connects to the other site. Instances only conflict while running, so a stopped main instance frees `8890` for a worktree.
+- **Prefer `.wp-env.override.json` for long-lived worktrees.** Drop `{ "port": 8894, "testsPort": 8895 }` in the worktree root (git-ignored) and a plain `npm run env:start` does the right thing from then on. The `WP_ENV_PORT` / `WP_ENV_TESTS_PORT` env vars win over the override file when both are set.
+- **Run wp-env commands from the worktree's directory.** `env:start`, `env:stop`, `env:destroy`, and `test:php` all resolve the instance from the current directory.
+- **Cost.** Each instance is six containers (WordPress plus tests WordPress, two CLI, two database). `npm run env:stop` parks an instance and keeps its data; `npm run env:destroy` deletes it.
+- `npm run test:php` in a worktree runs inside that worktree's own tests containers, so PHPUnit is isolated per worktree too.
 
 ## Module layout
 
