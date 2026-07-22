@@ -92,6 +92,7 @@ export const styles = css`
 		opacity: 0.75;
 	}
 	.wpd-button__spinner {
+		box-sizing: border-box;
 		display: inline-block;
 		width: 12px;
 		height: 12px;
