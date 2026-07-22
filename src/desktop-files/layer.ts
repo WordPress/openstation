@@ -25,7 +25,7 @@
 
 import { doAction } from '../hooks';
 import { rest, store as filesStoreApi } from './layer-deps';
-import { buildTile, setTilePosition, TILE_CLASS } from './file-tile';
+import { buildTile, placementLabel, setTilePosition, TILE_CLASS } from './file-tile';
 import {
 	tilePayloadAccepts,
 	tilePayloadAcceptLabel,
@@ -471,11 +471,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 		const { pinnedSlots, displaced } = computeLayout( list );
 
-		// Update positions on shared tiles + build new ones for adds.
+		// Update positions + labels on shared tiles, build new ones
+		// for adds. The label sync covers "a shared tile was renamed
+		// in the same delta that added/removed another placement".
 		for ( const placement of list ) {
 			const tile = existing.get( placement.id );
 			if ( tile ) {
 				applyTilePosition( tile, placement, pinnedSlots, displaced );
+				syncTileLabel( tile, placement );
 				continue;
 			}
 			container.appendChild(
@@ -906,7 +909,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			// bubble to the canvas-level click and immediately
 			// deselect. Stop the bubble.
 			e.stopPropagation();
-			setSelected( placement );
+			// Live lookup — the captured placement can be stale after
+			// a fast-path repaint (see `attachTileDrag`), and selection
+			// consumers (status bar, right pane) display the title.
+			setSelected( filesStoreApi.currentPlacement( placement ) );
 		} );
 	}
 
@@ -1448,11 +1454,14 @@ function persistDockPromotedPosition(
  * rebuild path.
  *
  * The fast path is correct when the ONLY thing that changed is one
- * or more tiles' `x` / `y` / `sortOrder` / `updatedAtMs`. We can
- * detect that without keeping a previous-snapshot map by reading
- * the structural fields the renderer already encodes onto tile data
+ * or more tiles' `x` / `y` / `sortOrder` / `updatedAtMs` — or the
+ * visible label, which `syncTileLabel()` patches in place (the
+ * `<wpd-tile>` component observes its `label` attribute and repaints
+ * itself, so a rename doesn't need any rewiring). We can detect
+ * structural sameness without keeping a previous-snapshot map by
+ * reading the fields the renderer already encodes onto tile data
  * attributes (`data-placement-id`, `data-file-type`, `data-file-ref`)
- * plus the `--pinned` class. Anything else — adds, removes, renames,
+ * plus the `--pinned` class. Anything else — adds, removes,
  * file-type changes, parent moves, pin-flag flips — falls back so
  * the renderer can re-run pinned-slot allocation, drop-target
  * registration, drag wiring, etc.
@@ -1560,9 +1569,33 @@ function tryPatchPositions(
 		} else {
 			setTilePosition( tile, placement.x, placement.y );
 		}
+		syncTileLabel( tile, placement );
 	}
 
 	return true;
+}
+
+/**
+ * Sync a reused tile's visible label with the placement's current
+ * title. `<wpd-tile>` observes `label`, so writing the attribute
+ * repaints the label + aria-label in place while preserving
+ * consumer-appended children (share badges). No-op when already
+ * current.
+ *
+ * Both DOM-reusing repaint paths call this — without it a folder
+ * rename patches the store but the tile keeps showing the old name
+ * until the next wholesale rebuild (i.e. until F5).
+ *
+ * @since 0.9.5
+ */
+function syncTileLabel(
+	tile: HTMLElement,
+	placement: RestPlacementShape,
+): void {
+	const label = placementLabel( placement );
+	if ( tile.getAttribute( 'label' ) !== label ) {
+		tile.setAttribute( 'label', label );
+	}
 }
 
 /**
@@ -1891,11 +1924,19 @@ function attachTileDrag(
  */
 function attachContextMenu(
 	tile: HTMLElement,
-	placement: RestPlacementShape,
+	wiredPlacement: RestPlacementShape,
 ): void {
 	tile.addEventListener( 'contextmenu', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
+		// Same staleness hazard as `attachTileDrag`: the fast-path
+		// repaints reuse tile DOM without re-wiring, so the
+		// closure-captured placement can be stale by open time (old
+		// title after an in-place rename, old coords after a drag).
+		// Menu actions spread the placement into optimistic store
+		// patches — and the rename dialog pre-fills its title — so
+		// re-read the live version here.
+		const placement = filesStoreApi.currentPlacement( wiredPlacement );
 		const items: TileMenuItem[] = [
 			{
 				id: 'open',

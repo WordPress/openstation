@@ -11,6 +11,7 @@
 
 export * as rest from './rest';
 export {
+	currentPlacement,
 	getFilesState,
 	removeFolder,
 	removePlacement,
@@ -21,6 +22,7 @@ export {
 } from './store';
 
 import {
+	currentPlacement,
 	getFilesState,
 	removeFolder,
 	removePlacement,
@@ -38,4 +40,5 @@ export const store = {
 	upsertFolder,
 	removePlacement,
 	removeFolder,
+	currentPlacement,
 };
