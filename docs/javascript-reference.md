@@ -4801,8 +4801,9 @@ upload dialog's destination default follows the drop's intent:
 folder-targeted drops and the desktop pickers → Desktop; WordPress
 admin windows → Media Library; flat desk drops → Media Library when
 every file is `image/*` / `video/*` / `audio/*`, Desktop otherwise;
-folder-tree drops force Desktop. Additional drops while the dialog
-is open merge into it (one dialog, never stacked modals).
+folder-tree drops force Desktop. Dropping again while the dialog is
+open replaces its pending batch with the latest drop (one dialog,
+never stacked modals, never mixed batches).
 
 **Serialized shape** — `upload` placements carry
 `file.ownerId`, `file.sizeBytes`, `file.mime`, and `file.kind`

@@ -115,29 +115,23 @@ export function resolveDefaultDestination( opts: {
 
 /**
  * The one live dialog. A drop while a dialog is already open (and
- * not yet uploading) MERGES into it instead of stacking a second
- * modal on top.
+ * not yet uploading) REPLACES its pending batch with the latest
+ * drop — no stacked modals, and no mixing of two drops with
+ * different intents (destination defaults, target folder, tree
+ * semantics) into one batch.
  */
 let activeDialog: {
-	merge: ( extra: {
-		entries: DropFileEntry[];
-		emptyDirs?: string[];
-		forceDesktop?: boolean;
-	} ) => void;
+	replace: ( next: OpenDialogArgs ) => void;
 } | null = null;
 
 export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > {
 	if ( args.entries.length === 0 && ! args.emptyDirs?.length ) {
 		return;
 	}
-	// Second drop while a dialog is open: fold the new files into
-	// the existing dialog.
+	// Second drop while a dialog is open: the dialog updates to the
+	// latest drop and the earlier, unconfirmed batch is discarded.
 	if ( activeDialog ) {
-		activeDialog.merge( {
-			entries: args.entries,
-			emptyDirs: args.emptyDirs,
-			forceDesktop: args.forceDesktop,
-		} );
+		activeDialog.replace( args );
 		return;
 	}
 	const desktopAllowed = !! ( args.storage?.canUpload && args.filesUrl );
@@ -443,26 +437,30 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 	};
 
 	const handle = {
-		merge: ( extra: {
-			entries: DropFileEntry[];
-			emptyDirs?: string[];
-			forceDesktop?: boolean;
-		} ): void => {
-			for ( const entry of extra.entries ) {
-				args.entries.push( entry );
+		replace: ( next: OpenDialogArgs ): void => {
+			// Adopt the new drop wholesale — files, tree metadata,
+			// and the drop's context (target folder, coordinates).
+			args.entries = next.entries;
+			args.emptyDirs = next.emptyDirs;
+			args.forceDesktop = next.forceDesktop;
+			args.preferDesktop = next.preferDesktop;
+			args.context = next.context;
+			args.mediaMaxBytes = next.mediaMaxBytes ?? args.mediaMaxBytes;
+			draft.length = 0;
+			for ( const entry of next.entries ) {
 				draft.push( { ...entry.fields } );
 			}
-			if ( extra.emptyDirs?.length ) {
-				args.emptyDirs = [
-					...( args.emptyDirs ?? [] ),
-					...extra.emptyDirs,
-				];
-			}
-			if ( extra.forceDesktop && ! args.forceDesktop ) {
-				// A folder tree joined the batch — desktop only now.
-				args.forceDesktop = true;
-				destination = 'desktop';
-			}
+			// Recompute the destination default for the NEW drop's
+			// intent — a manual pick on the discarded batch does not
+			// carry over.
+			destination = resolveDefaultDestination( {
+				desktopAllowed,
+				surface: next.context.surface,
+				folderId: next.context.folderId,
+				forceDesktop: next.forceDesktop,
+				preferDesktop: next.preferDesktop,
+				mimes: next.entries.map( ( e ) => e.mime ),
+			} );
 			syncTitle();
 			renderBody();
 		},

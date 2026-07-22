@@ -111,7 +111,7 @@ describe( 'resolveDefaultDestination', () => {
 	} );
 } );
 
-describe( 'single-dialog merge', () => {
+describe( 'single-dialog replace', () => {
 	beforeEach( () => {
 		installHooksStub();
 		document.body.innerHTML = '';
@@ -121,7 +121,7 @@ describe( 'single-dialog merge', () => {
 		document.body.innerHTML = '';
 	} );
 
-	test( 'a second drop merges into the open dialog instead of stacking', async () => {
+	test( 'a second drop replaces the open dialog batch instead of stacking', async () => {
 		const mod = await load();
 		// Non-media file so the desk default is Desktop.
 		void mod.openUploadDialog( {
@@ -133,23 +133,47 @@ describe( 'single-dialog merge', () => {
 			'Upload to Desktop',
 		);
 
-		// Second drop while the dialog is open.
+		// Second drop while the dialog is open: latest wins, first
+		// batch discarded.
 		void mod.openUploadDialog( {
 			...baseDialogArgs(),
 			entries: [ entry( 'b.txt', 'text/plain' ), entry( 'c.txt', 'text/plain' ) ],
 		} );
 		const modals = document.querySelectorAll( 'wpd-modal' );
 		expect( modals.length ).toBe( 1 );
-		expect( modals[ 0 ].getAttribute( 'title' ) ).toBe( 'Upload 3 files to Desktop' );
+		expect( modals[ 0 ].getAttribute( 'title' ) ).toBe( 'Upload 2 files to Desktop' );
+		expect( modals[ 0 ].textContent ).not.toContain( 'a.txt' );
+		expect( modals[ 0 ].textContent ).toContain( 'b.txt' );
+		expect( modals[ 0 ].textContent ).toContain( 'c.txt' );
 	} );
 
-	test( 'a tree drop merging in forces the Desktop destination', async () => {
+	test( 'the replacement recomputes the destination for the new drop', async () => {
+		const mod = await load();
+		void mod.openUploadDialog( {
+			...baseDialogArgs(),
+			entries: [ entry( 'notes.txt', 'text/plain' ) ], // Desktop default.
+		} );
+		expect( document.querySelector( 'wpd-modal' )?.getAttribute( 'title' ) ).toBe(
+			'Upload to Desktop',
+		);
+
+		// All-media second drop: the dialog flips to the Media default.
+		void mod.openUploadDialog( {
+			...baseDialogArgs(),
+			entries: [ entry( 'photo.jpg', 'image/jpeg' ) ],
+		} );
+		const modals = document.querySelectorAll( 'wpd-modal' );
+		expect( modals.length ).toBe( 1 );
+		expect( modals[ 0 ].getAttribute( 'title' ) ).toBe( 'Upload to Media Library' );
+		expect( modals[ 0 ].textContent ).not.toContain( 'notes.txt' );
+	} );
+
+	test( 'a tree drop replacing a flat batch forces Desktop', async () => {
 		const mod = await load();
 		void mod.openUploadDialog( {
 			...baseDialogArgs(),
 			entries: [ entry( 'photo.jpg', 'image/jpeg' ) ],
 		} );
-		// All-media desk drop: Media Library default.
 		expect( document.querySelector( 'wpd-modal' )?.getAttribute( 'title' ) ).toBe(
 			'Upload to Media Library',
 		);
@@ -164,7 +188,8 @@ describe( 'single-dialog merge', () => {
 		} );
 		const modals = document.querySelectorAll( 'wpd-modal' );
 		expect( modals.length ).toBe( 1 );
-		expect( modals[ 0 ].getAttribute( 'title' ) ).toBe( 'Upload 2 files to Desktop' );
+		expect( modals[ 0 ].getAttribute( 'title' ) ).toBe( 'Upload to Desktop' );
+		expect( modals[ 0 ].textContent ).not.toContain( 'photo.jpg' );
 	} );
 
 	test( 'shows the per-file size cap for the active destination', async () => {
