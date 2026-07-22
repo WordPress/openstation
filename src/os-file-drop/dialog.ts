@@ -54,6 +54,12 @@ interface OpenDialogArgs {
 	preferDesktop?: boolean;
 	/** Empty directories from a tree drop, created after the files. */
 	emptyDirs?: string[];
+	/**
+	 * Per-file cap for the Media Library sink (`dropConfig.maxSize`,
+	 * server default `wp_max_upload_size()`). The Desktop sink's cap
+	 * rides on `storage.maxBytes`. 0 = no client-side cap.
+	 */
+	mediaMaxBytes?: number;
 }
 
 /** Grid math mirrored from `src/desktop-files/grid.ts` (16/96/110). */
@@ -213,6 +219,21 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 			note.textContent =
 				'Folder uploads land in your desktop storage, preserving the folder structure.';
 			modal.appendChild( note );
+		}
+
+		// Per-file size cap for the active destination — the server's
+		// `wp_max_upload_size()` (min of upload_max_filesize and
+		// post_max_size), each sink independently filterable.
+		const maxBytes =
+			destination === 'desktop'
+				? args.storage?.maxBytes ?? 0
+				: args.mediaMaxBytes ?? 0;
+		if ( maxBytes > 0 ) {
+			const cap = document.createElement( 'div' );
+			cap.className = 'desktop-mode-upload-dialog__max-size';
+			cap.style.cssText = 'opacity:0.6;font-size:12px;margin-bottom:14px;';
+			cap.textContent = `Maximum file size: ${ formatBytes( maxBytes ) }`;
+			modal.appendChild( cap );
 		}
 
 		const list = document.createElement( 'div' );

@@ -167,6 +167,43 @@ describe( 'single-dialog merge', () => {
 		expect( modals[ 0 ].getAttribute( 'title' ) ).toBe( 'Upload 2 files to Desktop' );
 	} );
 
+	test( 'shows the per-file size cap for the active destination', async () => {
+		const mod = await load();
+		void mod.openUploadDialog( {
+			...baseDialogArgs(),
+			storage: {
+				canUpload: true,
+				maxBytes: 8 * 1024 * 1024,
+				quotaBytes: 0,
+				zipAvailable: true,
+			},
+			mediaMaxBytes: 2 * 1024 * 1024,
+			entries: [ entry( 'a.txt', 'text/plain' ) ], // Desktop default.
+		} );
+		const capLine = (): string =>
+			document.querySelector( '.desktop-mode-upload-dialog__max-size' )
+				?.textContent ?? '';
+		expect( capLine() ).toBe( 'Maximum file size: 8.0 MB' );
+
+		// Switching destination re-renders with the media cap.
+		const segmented = document.querySelector( 'wpd-segmented' )!;
+		segmented.dispatchEvent(
+			new CustomEvent( 'wpd-pick', { detail: { value: 'media' } } ),
+		);
+		expect( capLine() ).toBe( 'Maximum file size: 2.0 MB' );
+	} );
+
+	test( 'hides the size cap when no client cap is configured', async () => {
+		const mod = await load();
+		void mod.openUploadDialog( {
+			...baseDialogArgs(),
+			entries: [ entry( 'a.txt', 'text/plain' ) ],
+		} );
+		expect(
+			document.querySelector( '.desktop-mode-upload-dialog__max-size' ),
+		).toBeNull();
+	} );
+
 	test( 'closing the dialog allows a fresh one to open', async () => {
 		const mod = await load();
 		void mod.openUploadDialog( {

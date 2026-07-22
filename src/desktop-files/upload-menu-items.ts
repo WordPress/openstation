@@ -270,5 +270,6 @@ async function routePickedFiles( files: File[], directory: boolean ): Promise< v
 		// These pickers live in the desktop's own menu — their whole
 		// point is desktop storage, media-kind files included.
 		preferDesktop: true,
+		mediaMaxBytes: dropConfig.maxSize,
 	} );
 }

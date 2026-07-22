@@ -55,6 +55,7 @@ export function bootOsFileDrop( args: BootArgs ): void {
 				storage: args.storage,
 				forceDesktop: extra?.forceDesktop,
 				emptyDirs: extra?.emptyDirs,
+				mediaMaxBytes: config.maxSize,
 			} );
 		},
 	} );
