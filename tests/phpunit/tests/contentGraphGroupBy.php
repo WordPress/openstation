@@ -184,6 +184,11 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		$payload = desktop_mode_content_graph_build( array( 'dm_test_no_cat' ) );
 		$node    = $this->find_node( $payload, $post_id );
 
+		// Clean up BEFORE asserting so the CPT never leaks into other
+		// tests even when an assertion fails.
+		unregister_post_type( 'dm_test_no_cat' );
+		desktop_mode_content_graph_flush_cache();
+
 		// category is not registered for this type — the default
 		// category fallback must NOT be injected.
 		$this->assertSame(
@@ -191,9 +196,6 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 			$node['category_ids'],
 			'The default category must not be injected for a post type that does not support category.'
 		);
-
-		unregister_post_type( 'dm_test_no_cat' );
-		desktop_mode_content_graph_flush_cache();
 	}
 
 	public function test_post_in_two_categories_lists_both() {

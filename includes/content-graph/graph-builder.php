@@ -120,6 +120,13 @@ function desktop_mode_content_graph_build( array $types ) {
 		$post_cats = isset( $terms_by_post[ $id ]['category'] )
 			? $terms_by_post[ $id ]['category']
 			: array();
+		// A category-supporting post with zero terms is what WP treats
+		// as "in the default category" at authoring time (core auto-
+		// assigns it on save for `post`). Mirror that here so such
+		// posts group under the real default-category cluster instead
+		// of the client's synthetic "Uncategorized" pseudo-cluster
+		// (`cat:uncat`, kept client-side only as a stale-payload
+		// fallback).
 		if ( empty( $post_cats ) && is_object_in_taxonomy( $row->post_type, 'category' ) ) {
 			$post_cats = array( $default_category );
 		}

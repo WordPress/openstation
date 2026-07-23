@@ -73,7 +73,10 @@ function desktop_mode_content_graph_post_types() {
 
 	/**
 	 * Filter the list of post types shown in the Content Graph filter
-	 * bar. Each entry must declare `slug`, `label`, `icon`, and `taxonomies`. Removing
+	 * bar. Each entry declares `slug`, `label`, `icon`, and optionally
+	 * `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`);
+	 * entries missing `taxonomies` get it derived from
+	 * `is_object_in_taxonomy()` after filtering. Removing
 	 * an entry hides it from the filter bar AND excludes it from the
 	 * graph entirely.
 	 *

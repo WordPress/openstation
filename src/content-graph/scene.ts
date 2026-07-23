@@ -263,7 +263,7 @@ export class GraphScene {
 	private callbacks: SceneCallbacks;
 	private onSatelliteClick: SatelliteOnClick;
 	private postTypeIcon: PostTypeIconLookup;
-	private postTypes: PostTypeDescriptor[];
+	private postTypeBySlug: Map< string, PostTypeDescriptor >;
 
 	constructor(
 		host: HTMLElement,
@@ -274,10 +274,11 @@ export class GraphScene {
 		this.host = host;
 		this.callbacks = callbacks;
 		this.onSatelliteClick = onSatelliteClick;
-		this.postTypes = postTypes;
 		const map = new Map< string, string >();
+		this.postTypeBySlug = new Map();
 		for ( const t of postTypes ) {
 			map.set( t.slug, normalizeDashiconName( t.icon ) );
+			this.postTypeBySlug.set( t.slug, t );
 		}
 		// Always seeded so unknown CPTs without a registered menu_icon
 		// still pick up a sensible default.
@@ -944,17 +945,15 @@ export class GraphScene {
 	}
 
 	private postTypeSupportsTaxonomy( typeSlug: string, taxonomy: 'category' | 'post_tag' ): boolean {
-		const pt = this.postTypes.find( ( t ) => t.slug === typeSlug );
 		// Unknown type (not registered in the scene's post-type list) is
 		// treated as not supporting the taxonomy so it gets its own
 		// cat:type_<slug> / tag:type_<slug> cluster rather than silently
 		// merging into the shared Uncategorized / Untagged pool.
-		return pt?.taxonomies?.[ taxonomy ] ?? false;
+		return this.postTypeBySlug.get( typeSlug )?.taxonomies?.[ taxonomy ] ?? false;
 	}
 
 	private postTypeLabel( typeSlug: string ): string {
-		const pt = this.postTypes.find( ( t ) => t.slug === typeSlug );
-		return pt?.label ?? typeSlug;
+		return this.postTypeBySlug.get( typeSlug )?.label ?? typeSlug;
 	}
 
 	private deriveGroupKeys( n: GraphNode, facet: GroupFacet ): string[] {
