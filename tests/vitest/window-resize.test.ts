@@ -26,8 +26,9 @@ describe( 'computeResize', () => {
 		// the resize math flips sign. Verify the bounding-box equation
 		// `startTop + startH === y + height` keeps the BOTTOM pinned.
 		expect( r.width ).toBe( 900 );
-		expect( r.height ).toBe( 700 );
+		expect( r.height ).toBe( 640 );
 		expect( r.x ).toBe( 40 ); // left pinned
+		expect( r.y ).toBe( 0 ); // clamped at EDGE_MARGIN
 		expect( r.y + r.height ).toBe( 40 + 600 ); // bottom pinned
 	} );
 
@@ -35,9 +36,9 @@ describe( 'computeResize', () => {
 		const r = computeResize(
 			'sw', -100, 50, 40, 40, 800, 600, 320, 200, NO_SNAP,
 		);
-		expect( r.width ).toBe( 900 );
+		expect( r.width ).toBe( 840 );
 		expect( r.height ).toBe( 650 );
-		expect( r.x ).toBe( -60 ); // moved left
+		expect( r.x ).toBe( 0 ); // clamped at EDGE_MARGIN
 		expect( r.x + r.width ).toBe( 40 + 800 ); // right edge pinned
 		expect( r.y ).toBe( 40 ); // top pinned
 	} );
@@ -46,12 +47,22 @@ describe( 'computeResize', () => {
 		const r = computeResize(
 			'nw', -100, -100, 40, 40, 800, 600, 320, 200, NO_SNAP,
 		);
-		expect( r.width ).toBe( 900 );
-		expect( r.height ).toBe( 700 );
-		expect( r.x ).toBe( -60 );
-		expect( r.y ).toBe( -60 );
+		expect( r.width ).toBe( 840 );
+		expect( r.height ).toBe( 640 );
+		expect( r.x ).toBe( 0 );
+		expect( r.y ).toBe( 0 );
 		expect( r.x + r.width ).toBe( 40 + 800 );
 		expect( r.y + r.height ).toBe( 40 + 600 );
+	} );
+
+	test( 'bounds clamping keeps x and y at EDGE_MARGIN when dragging far past it', () => {
+		const r = computeResize(
+			'nw', -1000, -1000, 40, 40, 800, 600, 320, 200, NO_SNAP,
+		);
+		expect( r.x ).toBe( 0 );
+		expect( r.y ).toBe( 0 );
+		expect( r.width ).toBe( 840 );
+		expect( r.height ).toBe( 640 );
 	} );
 
 	test( 'minimums clamp width + height; the pinned edge stays put', () => {
