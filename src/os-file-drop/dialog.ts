@@ -26,7 +26,12 @@ import {
 	UploadCancelledError,
 } from './upload';
 import { uploadFileToDesktop } from './desktop-upload';
-import { ensureUploadPath } from '../desktop-files/rest';
+import {
+	ensureUploadPath,
+	listFolders,
+	listPlacements,
+} from '../desktop-files/rest';
+import { setFolderPlacements, setFolders } from '../desktop-files/store';
 import type {
 	DesktopStorageConfig,
 	DropContext,
@@ -423,6 +428,27 @@ export async function openUploadDialog( args: OpenDialogArgs ): Promise< void > 
 					// Non-fatal: the tree's files made it; an empty
 					// stub folder failing is cosmetic.
 				}
+			}
+		}
+		// Tree uploads create FOLDER rows + placements server-side
+		// (mkdir-p from relativePath / emptyDirs) that the per-file
+		// responses never carry — each response only holds that
+		// file's own placement. Without a resync the new folder tile
+		// stays invisible until the next heartbeat tick. Pull the
+		// canonical container list, same pattern share-accept uses.
+		const createdFolders =
+			args.entries.some( ( e ) => e.relativePath ) ||
+			!! args.emptyDirs?.length;
+		if ( destination === 'desktop' && createdFolders ) {
+			try {
+				const [ foldersRes, placementsRes ] = await Promise.all( [
+					listFolders(),
+					listPlacements( parentId ),
+				] );
+				setFolders( foldersRes.folders );
+				setFolderPlacements( parentId, placementsRes.placements );
+			} catch {
+				// Non-fatal — the heartbeat delta catches up.
 			}
 		}
 		modal.remove();
