@@ -614,6 +614,17 @@ function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
 
 	$wpdb->delete( $tables['placements'], array( 'id' => $placement_id ), array( '%d' ) );
 
+	// Mirror `desktop_mode_files_remove()`: a purge IS a permanent
+	// removal, so the same lifecycle action fires. Load-bearing for
+	// the `upload` type — the stored-files listener deletes the real
+	// bytes when the owner's last placement goes away; without this
+	// the recycle-bin "Delete forever" path leaked them (0.9.6).
+	do_action(
+		'desktop_mode_file_unplaced',
+		$placement_id,
+		desktop_mode_files_normalize_placement_row( $row )
+	);
+
 	/**
 	 * @since 0.8.0
 	 *
@@ -998,9 +1009,14 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 	// recycle-bin empty. Mirrors the same cleanup
 	// `desktop_mode_files_delete_folder_recursive` does for the
 	// "delete from desktop" path.
+	// `target_type` scoping is load-bearing: `folder_id` carries a
+	// STORED-FILE id on `target_type='file'` rows, and the two id
+	// sequences are independent — without the predicate a folder
+	// purge wipes an unrelated user's file share that happens to
+	// collide numerically.
 	$share_ids = (array) $wpdb->get_col(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['shares']} WHERE folder_id = %d",
+			"SELECT id FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
 		)
 	);
@@ -1046,11 +1062,32 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 		);
 	}
 
+	// Upload placements among the cascade-trashed children carry
+	// real bytes — run the stored-files deletion contract for them
+	// after the rows go. Direct guarded call (not the public
+	// `desktop_mode_file_unplaced` action) so cascade hook semantics
+	// for every other type stay unchanged.
+	$cascade_upload_rows = (array) $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT * FROM {$tables['placements']}
+			WHERE trashed_via_folder = %d AND file_type = 'upload'",
+			$folder_id
+		),
+		ARRAY_A
+	);
 	$wpdb->delete(
 		$tables['placements'],
 		array( 'trashed_via_folder' => $folder_id ),
 		array( '%d' )
 	);
+	if ( function_exists( 'desktop_mode_stored_files_handle_unplaced' ) ) {
+		foreach ( $cascade_upload_rows as $upload_row ) {
+			desktop_mode_stored_files_handle_unplaced(
+				(int) $upload_row['id'],
+				desktop_mode_files_normalize_placement_row( $upload_row )
+			);
+		}
+	}
 	$wpdb->delete( $tables['folders'], array( 'id' => $folder_id ), array( '%d' ) );
 
 	/**

@@ -1,0 +1,13 @@
+{
+	"core": null,
+	"plugins": [],
+	"mappings": {
+		"wp-content/plugins/desktop-mode": "."
+	},
+	"config": {
+		"WP_DEBUG": false,
+		"SCRIPT_DEBUG": false
+	},
+	"port": 8891,
+	"testsEnvironment": false
+}

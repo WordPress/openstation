@@ -8,5 +8,5 @@
 		"afterStart": "./bin/setup-wp-env.sh"
 	},
 	"port": 8890,
-	"testsPort": 8891
+	"testsEnvironment": false
 }

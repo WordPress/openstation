@@ -230,6 +230,51 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Chromeless iframes must not load core's session-expired login
+	 * modal — the parent shell owns the single prompt (DESKMOD-49).
+	 *
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_chromeless_suppresses_wp_auth_check_load() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		$this->assertFalse(
+			desktop_mode_chromeless_suppress_auth_check( true ),
+			'Chromeless iframes must not load the wp-auth-check modal.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_shell_keeps_wp_auth_check_load() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$this->assertTrue(
+			desktop_mode_chromeless_suppress_auth_check( true ),
+			'The parent shell keeps core\'s modal — it is the single login prompt.'
+		);
+		$this->assertFalse(
+			desktop_mode_chromeless_suppress_auth_check( false ),
+			'A false verdict from earlier filters must pass through unchanged.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_auth_check_suppression_is_registered() {
+		$this->assertNotFalse(
+			has_filter(
+				'wp_auth_check_load',
+				'desktop_mode_chromeless_suppress_auth_check'
+			),
+			'desktop_mode_chromeless_suppress_auth_check should hook wp_auth_check_load.'
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_chromeless_bridge_script
 	 */
 	public function test_bridge_script_emits_nothing_outside_chromeless() {

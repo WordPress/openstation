@@ -35,6 +35,12 @@ function desktop_mode_register_builtin_file_types() {
 			'sort'  => 20,
 		),
 		array(
+			'type'  => 'upload',
+			'label' => __( 'Uploaded file', 'desktop-mode' ),
+			'class' => 'Desktop_Mode_Upload_File',
+			'sort'  => 25,
+		),
+		array(
 			'type'  => 'user',
 			'label' => __( 'User', 'desktop-mode' ),
 			'class' => 'Desktop_Mode_User_File',

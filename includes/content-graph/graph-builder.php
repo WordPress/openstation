@@ -31,7 +31,7 @@ defined( 'ABSPATH' ) || exit;
 // previous schema (e.g. missing per-node `contributor_ids`) and
 // surface as runtime errors on the client. Each bump is a one-time
 // cache miss for every site that updates the plugin.
-const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX = 'desktop_mode_cg2_';
+const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX = 'desktop_mode_cg3_';
 const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
 
 /**
@@ -98,6 +98,8 @@ function desktop_mode_content_graph_build( array $types ) {
 	// we don't N+1 `wp_get_post_revisions` per node.
 	$contribs_by_post = desktop_mode_content_graph_collect_post_contributors( $post_ids );
 
+	$default_category = max( 1, (int) get_option( 'default_category', 1 ) );
+
 	$nodes       = array();
 	$nodes_by_id = array();
 	$author_ids  = array();
@@ -118,6 +120,16 @@ function desktop_mode_content_graph_build( array $types ) {
 		$post_cats = isset( $terms_by_post[ $id ]['category'] )
 			? $terms_by_post[ $id ]['category']
 			: array();
+		// A category-supporting post with zero terms is what WP treats
+		// as "in the default category" at authoring time (core auto-
+		// assigns it on save for `post`). Mirror that here so such
+		// posts group under the real default-category cluster instead
+		// of the client's synthetic "Uncategorized" pseudo-cluster
+		// (`cat:uncat`, kept client-side only as a stale-payload
+		// fallback).
+		if ( empty( $post_cats ) && is_object_in_taxonomy( $row->post_type, 'category' ) ) {
+			$post_cats = array( $default_category );
+		}
 		$post_tags = isset( $terms_by_post[ $id ]['post_tag'] )
 			? $terms_by_post[ $id ]['post_tag']
 			: array();

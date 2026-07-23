@@ -215,13 +215,15 @@ The primitive is also exposed on the public API as `wp.desktop.createSharedStore
 
 ### Running PHPUnit
 
-`npm run test:php` runs the suite inside wp-env. `.wp-env.json` remaps the dev/tests WP ports to **8890 / 8891** so it coexists with the user's Core-checkout dev environment on 8889. CI uses the same script.
+`npm run test:php` runs the suite inside a **dedicated wp-env instance** defined by `.wp-env.tests.json` (wp-env's `--config` flag; the `test:php*` scripts pass it for you). The QA instance (`.wp-env.json`, port **8890**) and the tests instance (port **8891**) are two independent stacks; `testsEnvironment: false` in both configs disables wp-env's deprecated built-in dual-environment mode. Ports are remapped from wp-env's defaults so both coexist with the user's Core-checkout dev environment on 8889. CI uses the same scripts.
 
 ```bash
-npm run env:start    # idempotent; brings the wp-env stack up if needed
-npm run test:php     # full suite
+npm run env:start:tests   # idempotent; brings the PHPUnit wp-env instance up if needed
+npm run test:php          # full suite
 npm run test:php -- --filter='Tests_DesktopMode_Render'   # one class
 ```
+
+`npm run env:start` is for the manual-QA instance only; it no longer brings up test containers.
 
 History: an earlier port collision against `wordpress-develop-wordpress-develop-1` (8889) made starting wp-env destructive. The remapped ports remove that hazard, wp-env and the Core checkout can both be up at the same time.
 

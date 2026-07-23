@@ -1494,6 +1494,10 @@ export class Window {
 			windowId: this.id,
 			element: this.element,
 		} );
+
+		if ( this._stateBeforeMinimize === 'fullscreen' ) {
+			updateFullscreenBodyClass();
+		}
 	}
 
 	/**

@@ -69,6 +69,7 @@ import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-syn
 import { type UnfocusEffectDef } from './effects/types';
 import { startWindowLinksEngine } from './window-links/engine';
 import { startWindowLinkRenderHost } from './window-links/render-host';
+import { bootRelatedEntities } from './related-entities';
 import type {
 	WindowLinkRendererDef,
 	WindowRelationsApi,
@@ -162,7 +163,9 @@ import {
 } from './presence';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
+import { bootAuthRecovery } from './auth-recovery';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { hasRestorableSession, openCurrentPage, restoreSession } from './boot/session';
@@ -2926,6 +2929,31 @@ function init(): void {
 	// `windowLinkVisibility` policy + related-window chrome highlight.
 	startWindowLinkRenderHost( { manager, osSettings } );
 
+	// Related-entities title-bar button — "Related" dropdown on any
+	// window whose content identity carries navigation targets
+	// (comments, terms, media for posts/pages; plugins add their own
+	// via the `desktop_mode_window_related_entities` PHP filter or the
+	// `desktop-mode.related-entities.items` JS filter). Picking an
+	// item opens it as its own window. Deliberately does NOT consult
+	// `tryNativeUrlRemap()`: the menu's whole point is filtered deep
+	// links (`edit-comments.php?p={id}`), and a native window opened
+	// by id drops the query — "Comments (4)" landing on the ALL-
+	// comments native window reads as a broken click. Revisit when
+	// native windows accept deep-link hints.
+	bootRelatedEntities( {
+		manager,
+		openUrl: ( item ) => {
+			const relatedId = deriveWindowId( item.url, config.adminUrl );
+			void manager.open( {
+				id: relatedId,
+				baseId: relatedId,
+				url: item.url,
+				title: item.label,
+				icon: item.icon || 'dashicons-admin-links',
+			} );
+		},
+	} );
+
 	// Dock rail renderer sync — loads plugin renderer scripts on
 	// activation so OS Settings → Dock style surfaces them
 	// without an F5; owner-tagged sweep on deactivation. The
@@ -3323,6 +3351,13 @@ function init(): void {
 		currentUserId: Number( config.currentUserId ) || 0,
 	} );
 
+	// Content-changes catch-all: re-broadcasts server-recorded
+	// mutations (Quick Edit, AJAX status flips, other tabs/users)
+	// as `desktop-mode.<type>.changed` on each Heartbeat tick. Idle
+	// boot is safe — the first tick lands ~15 s after init and the
+	// first tick is a handshake anyway (see the module docblock).
+	scheduleIdleBoot( () => bootContentChangesHeartbeat() );
+
 	// Subscribe to heartbeat-driven nonce refresh so cached
 	// `restNonce` values in `window.desktopModeConfig` and
 	// `window.desktopModeWindowConfig` stay valid past the
@@ -3333,6 +3368,16 @@ function init(): void {
 	// `bootHeartbeatBus()` above is still eager so the bus is
 	// ready when this subscribe call lands.
 	scheduleIdleBoot( () => bootNonceRefresh() );
+
+	// Session-expiry detection + in-place recovery (single login
+	// prompt, iframe reload sweep, AUTH_LOST / AUTH_RESTORED
+	// hooks). Rides the heartbeat bus, so idle boot is safe — a
+	// session can't expire before the first tick.
+	scheduleIdleBoot( () =>
+		bootAuthRecovery( {
+			currentUserId: Number( config.currentUserId ) || 0,
+		} ),
+	);
 
 	bootStickyNotes( {
 		host: desktopArea,
@@ -4039,6 +4084,8 @@ function init(): void {
 			config: config.dropConfig,
 			mediaUrl: config.mediaUrl,
 			restNonce: config.restNonce,
+			filesUrl: config.filesUrl,
+			storage: config.desktopStorage,
 		} );
 	} );
 

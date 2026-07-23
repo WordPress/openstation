@@ -110,9 +110,10 @@ function desktop_mode_files_shareable_types() {
 	 *
 	 * @since 0.8.5
 	 *
-	 * @param string[] $types Default `[ 'folder' ]`.
+	 * @param string[] $types Default `[ 'folder', 'file' ]` ('file'
+	 *                        = stored uploads, since 0.9.6).
 	 */
-	$types = (array) apply_filters( 'desktop_mode_files_shareable_types', array( 'folder' ) );
+	$types = (array) apply_filters( 'desktop_mode_files_shareable_types', array( 'folder', 'file' ) );
 	return array_values( array_unique( array_filter( array_map( 'strval', $types ) ) ) );
 }
 
@@ -135,6 +136,11 @@ function desktop_mode_files_share_target_owner( $target_type, $target_id ) {
 		$folder = desktop_mode_files_get_folder( (int) $target_id );
 		if ( $folder ) {
 			$owner = (int) $folder['owner_id'];
+		}
+	} elseif ( 'file' === $target_type && function_exists( 'desktop_mode_stored_files_get' ) ) {
+		$file = desktop_mode_stored_files_get( (int) $target_id );
+		if ( $file ) {
+			$owner = (int) $file['owner_id'];
 		}
 	}
 	/**
@@ -233,6 +239,13 @@ function desktop_mode_files_share_can_manage( $folder_id, $user_id ) {
 function desktop_mode_files_normalize_share_row( $row ) {
 	return array(
 		'id'             => (int) $row['id'],
+		// `target_type` defaults to 'folder' for rows that predate
+		// the column. The `folder_id` column carries the TARGET id —
+		// a folder id for folder shares, a stored-file id for
+		// `target_type='file'` rows (historical column name).
+		'target_type'    => isset( $row['target_type'] ) && '' !== (string) $row['target_type']
+			? (string) $row['target_type']
+			: 'folder',
 		'folder_id'      => (int) $row['folder_id'],
 		'principal_type' => (string) $row['principal_type'],
 		'principal_ref'  => (string) $row['principal_ref'],
@@ -280,7 +293,7 @@ function desktop_mode_files_get_folder_shares( $folder_id ) {
 	$tables = desktop_mode_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE folder_id = %d ORDER BY invited_at_ms ASC, id ASC",
+			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d ORDER BY invited_at_ms ASC, id ASC",
 			(int) $folder_id
 		),
 		ARRAY_A
@@ -361,7 +374,7 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 	$existing = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['shares']}
-			WHERE folder_id = %d AND principal_type = %s AND principal_ref = %s",
+			WHERE target_type = 'folder' AND folder_id = %d AND principal_type = %s AND principal_ref = %s",
 			$folder_id,
 			$principal_type,
 			$principal_ref
@@ -389,6 +402,7 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 		$ok = $wpdb->insert(
 			$tables['shares'],
 			array(
+				'target_type'    => 'folder',
 				'folder_id'      => $folder_id,
 				'principal_type' => $principal_type,
 				'principal_ref'  => $principal_ref,
@@ -397,7 +411,7 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 				'invited_by'     => $actor_id,
 				'invited_at_ms'  => $now,
 			),
-			array( '%d', '%s', '%s', '%s', '%s', '%d', '%d' )
+			array( '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%d' )
 		);
 		if ( false === $ok ) {
 			return new WP_Error( 'desktop_mode_files_share_insert_failed', __( 'Failed to record share.', 'desktop-mode' ), array( 'status' => 500 ) );
@@ -639,7 +653,7 @@ function desktop_mode_folder_share_accept( $share_id, $user_id ) {
 	$share_id = (int) $share_id;
 	$user_id  = (int) $user_id;
 	$row      = desktop_mode_files_get_share( $share_id );
-	if ( ! $row ) {
+	if ( ! $row || 'folder' !== $row['target_type'] ) {
 		return new WP_Error( 'desktop_mode_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( ! desktop_mode_files_share_principal_matches_user( $row, $user_id ) ) {
@@ -704,7 +718,7 @@ function desktop_mode_folder_share_deny( $share_id, $user_id ) {
 	$share_id = (int) $share_id;
 	$user_id  = (int) $user_id;
 	$row      = desktop_mode_files_get_share( $share_id );
-	if ( ! $row ) {
+	if ( ! $row || 'folder' !== $row['target_type'] ) {
 		return new WP_Error( 'desktop_mode_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( ! desktop_mode_files_share_principal_matches_user( $row, $user_id ) ) {
@@ -790,7 +804,7 @@ function desktop_mode_folder_share_leave( $folder_id, $user_id ) {
 	$tables = desktop_mode_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE folder_id = %d",
+			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -927,7 +941,7 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
-			WHERE folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
+			WHERE target_type = 'folder' AND folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
 			$folder_id
 		),
 		ARRAY_A
@@ -940,7 +954,7 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
 			"SELECT s.id, s.principal_type, s.principal_ref, s.capability
 			FROM {$tables['shares']} s
 			INNER JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d AND d.state = 'accepted'
-			WHERE s.folder_id = %d AND s.principal_type = 'role'",
+			WHERE s.target_type = 'folder' AND s.folder_id = %d AND s.principal_type = 'role'",
 			$user_id,
 			$folder_id
 		),
@@ -1062,7 +1076,8 @@ function desktop_mode_folder_share_user_capability_cascade( $folder_id, $user_id
 	$user_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT folder_id, capability FROM {$tables['shares']}
-			WHERE folder_id IN ($ids_csv)
+			WHERE target_type = 'folder'
+				AND folder_id IN ($ids_csv)
 				AND principal_type = 'user'
 				AND principal_ref = %s
 				AND state = 'accepted'",
@@ -1093,7 +1108,8 @@ function desktop_mode_folder_share_user_capability_cascade( $folder_id, $user_id
 				"SELECT s.folder_id, s.capability
 				FROM {$tables['shares']} s
 				INNER JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d AND d.state = 'accepted'
-				WHERE s.folder_id IN ($ids_csv)
+				WHERE s.target_type = 'folder'
+					AND s.folder_id IN ($ids_csv)
 					AND s.principal_type = 'role'
 					AND s.principal_ref IN ($role_placeholders)",
 				$args
@@ -1157,7 +1173,7 @@ function desktop_mode_folder_share_user_capability_direct( $folder_id, $user_id 
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
-			WHERE folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
+			WHERE target_type = 'folder' AND folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
 			$folder_id
 		),
 		ARRAY_A
@@ -1167,7 +1183,7 @@ function desktop_mode_folder_share_user_capability_direct( $folder_id, $user_id 
 			"SELECT s.id, s.principal_type, s.principal_ref, s.capability
 			FROM {$tables['shares']} s
 			INNER JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d AND d.state = 'accepted'
-			WHERE s.folder_id = %d AND s.principal_type = 'role'",
+			WHERE s.target_type = 'folder' AND s.folder_id = %d AND s.principal_type = 'role'",
 			$user_id,
 			$folder_id
 		),
@@ -1291,7 +1307,8 @@ function desktop_mode_files_get_pending_shares_for_user( $user_id, $since_ms = 0
 		$wpdb->prepare(
 			"SELECT s.* FROM {$tables['shares']} s
 			INNER JOIN {$tables['folders']} f ON f.id = s.folder_id AND f.trashed_at_ms IS NULL
-			WHERE s.state = 'pending'
+			WHERE s.target_type = 'folder'
+				AND s.state = 'pending'
 				AND s.invited_at_ms > %d
 				AND s.principal_type = 'user'
 				AND s.principal_ref = %s
@@ -1315,7 +1332,8 @@ function desktop_mode_files_get_pending_shares_for_user( $user_id, $since_ms = 0
 				"SELECT s.* FROM {$tables['shares']} s
 				INNER JOIN {$tables['folders']} f ON f.id = s.folder_id AND f.trashed_at_ms IS NULL
 				LEFT JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d
-				WHERE s.invited_at_ms > %d
+				WHERE s.target_type = 'folder'
+					AND s.invited_at_ms > %d
 					AND s.principal_type = 'role'
 					AND s.principal_ref IN ($placeholders)
 					AND ( d.state IS NULL OR d.state = 'pending' )

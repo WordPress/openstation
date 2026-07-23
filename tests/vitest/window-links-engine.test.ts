@@ -731,3 +731,125 @@ describe( 'change events', () => {
 		expect( cb ).toHaveBeenCalledTimes( 1 );
 	} );
 } );
+
+describe( 'related-entity items on the identity', () => {
+	const item = {
+		id: 'comments',
+		group: 'comments',
+		groupLabel: 'Comments',
+		label: 'Comments',
+		icon: 'dashicons-admin-comments',
+		url: 'http://localhost/wp-admin/edit-comments.php?p=1',
+		count: 3,
+	};
+
+	test( 'survives normalization with fields whitelisted', async () => {
+		const { setWindowContent, getWindowContent } = await load();
+
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			related: [
+				{ ...item, extra: 'dropped' } as unknown as typeof item,
+			],
+		} );
+
+		expect( getWindowContent( 'w1' )?.related ).toEqual( [ item ] );
+	} );
+
+	test( 'optional fields are omitted when empty', async () => {
+		const { setWindowContent, getWindowContent } = await load();
+
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			related: [
+				{
+					id: 'media-9',
+					group: 'media',
+					label: 'Sunset',
+					url: 'http://localhost/wp-admin/upload.php?item=9',
+				},
+			],
+		} );
+
+		expect( getWindowContent( 'w1' )?.related ).toEqual( [
+			{
+				id: 'media-9',
+				group: 'media',
+				label: 'Sunset',
+				url: 'http://localhost/wp-admin/upload.php?item=9',
+			},
+		] );
+	} );
+
+	test( 'is capped at 64 entries', async () => {
+		const { setWindowContent, getWindowContent } = await load();
+
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			related: Array.from( { length: 80 }, ( _, i ) => ( {
+				id: `media-${ i }`,
+				group: 'media',
+				label: `Item ${ i }`,
+				url: `http://localhost/wp-admin/upload.php?item=${ i }`,
+			} ) ),
+		} );
+
+		expect( getWindowContent( 'w1' )?.related ).toHaveLength( 64 );
+	} );
+
+	test( 'a malformed related list from the bridge logs and drops the ref', async () => {
+		const { setWindowContent, getWindowContent } = await load();
+		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => {} );
+
+		setWindowContent(
+			'w1',
+			{
+				type: 'post',
+				id: 1,
+				related: [
+					{ id: '', group: 'media', label: 'x', url: 'y' },
+				],
+			},
+			{ source: 'bridge' },
+		);
+
+		expect( getWindowContent( 'w1' ) ).toBeUndefined();
+		expect( warn ).toHaveBeenCalled();
+	} );
+
+	test( 'a related-only change fires content-changed but not groups-changed', async () => {
+		const { setWindowContent } = await load();
+		const contentLog = recordActions( hooks, [
+			HOOKS.WINDOW_CONTENT_CHANGED,
+		] );
+		const groupsLog = recordActions( hooks, [
+			HOOKS.WINDOW_LINK_GROUPS_CHANGED,
+		] );
+
+		setWindowContent( 'w1', { type: 'post', id: 1, related: [ item ] } );
+		expect( contentLog ).toHaveLength( 1 );
+		expect( groupsLog ).toHaveLength( 1 );
+
+		// New comment count — content-changed must fire (the Related
+		// button repaints), groups-changed must not (membership and
+		// edges are untouched).
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			related: [ { ...item, count: 4 } ],
+		} );
+		expect( contentLog ).toHaveLength( 2 );
+		expect( groupsLog ).toHaveLength( 1 );
+
+		// Identical repeat — full no-op.
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			related: [ { ...item, count: 4 } ],
+		} );
+		expect( contentLog ).toHaveLength( 2 );
+	} );
+} );

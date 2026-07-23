@@ -299,4 +299,27 @@ describe( 'Dock — minimized window indicator', () => {
 			tile.classList.contains( 'desktop-mode-dock__item--all-minimized' ),
 		).toBe( true );
 	} );
+
+	test( 'dock: prefixed items resolve target window baseId from desktop icon config', () => {
+		( window as unknown as { desktopModeConfig?: { desktopIcons?: Array<{ id: string; window?: string }> } } ).desktopModeConfig = {
+			desktopIcons: [ { id: 'os-settings', window: 'desktop-mode-settings' } ],
+		};
+
+		const win = makeWin( 'desktop-mode-settings', 'desktop-mode-settings', 'normal' );
+		const manager = makeManager( [ win ] );
+		const item: DockItem = {
+			id: 'dock:os-settings',
+			title: 'OS Settings',
+			icon: 'dashicons-admin-generic',
+			url: '',
+			badge: 0,
+			submenu: [],
+			multi: false,
+		};
+		const { container } = mount( manager, [ item ] );
+		document.dispatchEvent( new CustomEvent( 'desktop-mode-window-opened' ) );
+
+		const tile = tileFor( container, 'dock:os-settings' );
+		expect( tile.classList.contains( 'desktop-mode-dock__item--active' ) ).toBe( true );
+	} );
 } );

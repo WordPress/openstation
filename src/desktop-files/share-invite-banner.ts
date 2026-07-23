@@ -9,7 +9,7 @@
  * @since 0.8.5
  */
 
-import { openPendingInviteModal } from './share-settings-modal';
+import { openPendingFileInviteModal, openPendingInviteModal } from './share-settings-modal';
 import { dropPending, sharesStore, type PendingInvite, type SharesState } from './shares-store';
 
 const prompted = new Set< number >();
@@ -45,6 +45,24 @@ export function installShareInviteBanner(): void {
 				continue;
 			}
 			prompted.add( invite.id );
+			// Single-file share invites branch to the file variant
+			// (no capability line — always read + download).
+			if ( invite.targetType === 'file' && typeof invite.fileId === 'number' ) {
+				const fileId = invite.fileId;
+				void openPendingFileInviteModal( {
+					id: invite.id,
+					fileId,
+					fileName: invite.fileName,
+					ownerName: invite.ownerName,
+				} ).then( ( decision ) => {
+					if ( decision === 'accepted' ) {
+						dropPending( invite.id );
+					} else if ( decision === 'denied' ) {
+						dropPending( invite.id, { denied: true, fileId } );
+					}
+				} );
+				continue;
+			}
 			void openPendingInviteModal( {
 				id: invite.id,
 				folderId: invite.folderId,
