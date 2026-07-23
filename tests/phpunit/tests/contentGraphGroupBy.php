@@ -299,6 +299,35 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_post_types_normalizes_legacy_filtered_descriptors() {
+		$filter_callback = function( $types ) {
+			$types[] = array(
+				'slug'  => 'page',
+				'label' => 'Pages',
+				'icon'  => 'dashicons-admin-page',
+				// Omit 'taxonomies' to simulate legacy filter callback
+			);
+			return $types;
+		};
+
+		add_filter( 'desktop_mode_content_graph_post_types', $filter_callback );
+		$post_types = desktop_mode_content_graph_post_types();
+		remove_filter( 'desktop_mode_content_graph_post_types', $filter_callback );
+
+		$page_entry = null;
+		foreach ( $post_types as $entry ) {
+			if ( 'page' === $entry['slug'] ) {
+				$page_entry = $entry;
+				break;
+			}
+		}
+
+		$this->assertNotNull( $page_entry, 'Filtered post type entry must be present.' );
+		$this->assertArrayHasKey( 'taxonomies', $page_entry, 'Post type entry must be normalized with taxonomies key.' );
+		$this->assertFalse( $page_entry['taxonomies']['category'], 'Page should not support category by default.' );
+		$this->assertFalse( $page_entry['taxonomies']['post_tag'], 'Page should not support post_tag by default.' );
+	}
+
 	/**
 	 * @param array $payload
 	 * @param int   $post_id

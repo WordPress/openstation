@@ -112,10 +112,7 @@ function desktop_mode_content_graph_rest_post_types() {
 			'label'      => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
 			'icon'       => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
 			'count'      => $count,
-			'taxonomies' => isset( $entry['taxonomies'] ) ? $entry['taxonomies'] : array(
-				'category' => is_object_in_taxonomy( $slug, 'category' ),
-				'post_tag' => is_object_in_taxonomy( $slug, 'post_tag' ),
-			),
+			'taxonomies' => $entry['taxonomies'],
 		);
 	}
 	return rest_ensure_response( $out );

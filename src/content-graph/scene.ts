@@ -949,7 +949,7 @@ export class GraphScene {
 		// treated as not supporting the taxonomy so it gets its own
 		// cat:type_<slug> / tag:type_<slug> cluster rather than silently
 		// merging into the shared Uncategorized / Untagged pool.
-		return pt ? pt.taxonomies[ taxonomy ] : false;
+		return pt?.taxonomies?.[ taxonomy ] ?? false;
 	}
 
 	private postTypeLabel( typeSlug: string ): string {

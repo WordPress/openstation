@@ -14,7 +14,7 @@ export interface PostTypeDescriptor {
 	label: string;
 	icon: string;
 	count: number;
-	taxonomies: {
+	taxonomies?: {
 		category: boolean;
 		post_tag: boolean;
 	};

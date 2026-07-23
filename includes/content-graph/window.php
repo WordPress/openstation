@@ -82,7 +82,17 @@ function desktop_mode_content_graph_post_types() {
 	 * @param array[] $result Default: every public post type except attachment.
 	 */
 	$filtered = apply_filters( 'desktop_mode_content_graph_post_types', $result );
-	return is_array( $filtered ) ? array_values( $filtered ) : $result;
+	$filtered = is_array( $filtered ) ? array_values( $filtered ) : $result;
+
+	foreach ( $filtered as $i => $entry ) {
+		$slug                         = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
+		$filtered[ $i ]['taxonomies'] = array(
+			'category' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['category'] ) : is_object_in_taxonomy( $slug, 'category' ),
+			'post_tag' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['post_tag'] ) : is_object_in_taxonomy( $slug, 'post_tag' ),
+		);
+	}
+
+	return $filtered;
 }
 
 /**
