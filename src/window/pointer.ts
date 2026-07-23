@@ -490,6 +490,15 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 			win.config.minHeight,
 			snap,
 		);
+
+		// Constrain window position to desktop bounds (mirrors drag handling).
+		// Prevents title bar from going off-screen during top-edge resize.
+		const desktop = win.element.parentElement;
+		if ( desktop ) {
+			geom.x = Math.max( EDGE_MARGIN, Math.min( geom.x, desktop.clientWidth - geom.width - EDGE_MARGIN ) );
+			geom.y = Math.max( EDGE_MARGIN, Math.min( geom.y, desktop.clientHeight - geom.height - EDGE_MARGIN ) );
+		}
+
 		win.element.style.left = `${ geom.x }px`;
 		win.element.style.top = `${ geom.y }px`;
 		win.element.style.width = `${ geom.width }px`;
