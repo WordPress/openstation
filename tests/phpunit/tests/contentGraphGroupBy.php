@@ -301,11 +301,14 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 
 	public function test_post_types_normalizes_legacy_filtered_descriptors() {
 		$filter_callback = function( $types ) {
+			// Use a slug that is NOT in the default list — the built-in
+			// entries already carry `taxonomies`, so asserting on one of
+			// them would pass even without the normalization pass.
 			$types[] = array(
-				'slug'  => 'page',
-				'label' => 'Pages',
+				'slug'  => 'dm_legacy',
+				'label' => 'Legacy',
 				'icon'  => 'dashicons-admin-page',
-				// Omit 'taxonomies' to simulate legacy filter callback
+				// Omit 'taxonomies' to simulate a legacy filter callback.
 			);
 			return $types;
 		};
@@ -314,18 +317,18 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		$post_types = desktop_mode_content_graph_post_types();
 		remove_filter( 'desktop_mode_content_graph_post_types', $filter_callback );
 
-		$page_entry = null;
+		$legacy_entry = null;
 		foreach ( $post_types as $entry ) {
-			if ( 'page' === $entry['slug'] ) {
-				$page_entry = $entry;
+			if ( 'dm_legacy' === $entry['slug'] ) {
+				$legacy_entry = $entry;
 				break;
 			}
 		}
 
-		$this->assertNotNull( $page_entry, 'Filtered post type entry must be present.' );
-		$this->assertArrayHasKey( 'taxonomies', $page_entry, 'Post type entry must be normalized with taxonomies key.' );
-		$this->assertFalse( $page_entry['taxonomies']['category'], 'Page should not support category by default.' );
-		$this->assertFalse( $page_entry['taxonomies']['post_tag'], 'Page should not support post_tag by default.' );
+		$this->assertNotNull( $legacy_entry, 'Filtered post type entry must be present.' );
+		$this->assertArrayHasKey( 'taxonomies', $legacy_entry, 'Post type entry must be normalized with taxonomies key.' );
+		$this->assertFalse( $legacy_entry['taxonomies']['category'], 'Unregistered legacy slug must derive category support = false.' );
+		$this->assertFalse( $legacy_entry['taxonomies']['post_tag'], 'Unregistered legacy slug must derive post_tag support = false.' );
 	}
 
 	/**
