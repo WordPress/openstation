@@ -354,6 +354,32 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Clicks inside NESTED same-origin iframes (Gutenberg's
+	 * editor-canvas, TinyMCE's visual mode) never reach the outer
+	 * document's pointerdown listener — the bridge must attach its
+	 * focus escalation inside them too, or clicking into the canvas
+	 * of an unfocused editor window is swallowed and the window never
+	 * activates.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_escalates_focus_from_nested_frames() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'desktop-mode-focus-request', $output );
+		$this->assertStringContainsString( 'hookNestedFrames', $output );
+		$this->assertStringContainsString(
+			"doc.addEventListener( 'pointerdown', postFocusRequest, true )",
+			$output
+		);
+	}
+
+	/**
 	 * The capture-phase click handler runs BEFORE wp-admin/js/updates.js's
 	 * own bubble-phase handler. If the bridge intercepts and preventDefaults
 	 * a click on `.install-now` / `.update-link` / `.delete-plugin` etc.,

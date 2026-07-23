@@ -1425,7 +1425,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 * phase so the signal fires before any stopPropagation inside
 	 * a page's own handlers.
 	 */
-	document.addEventListener( 'pointerdown', function () {
+	function postFocusRequest() {
 		try {
 			window.parent.postMessage(
 				{ type: 'desktop-mode-focus-request' },
@@ -1435,7 +1435,64 @@ function desktop_mode_chromeless_bridge_script() {
 			/* cross-origin parent (shouldn't happen for chromeless
 			 * pages, but don't let a throw break the bridge) */
 		}
-	}, true );
+	}
+
+	document.addEventListener( 'pointerdown', postFocusRequest, true );
+
+	/*
+	 * Nested-frame focus escalation.
+	 *
+	 * The document-level listener above never hears clicks inside
+	 * NESTED iframes: Gutenberg renders the post canvas in one
+	 * (`editor-canvas`, srcdoc → same-origin), and TinyMCE's visual
+	 * mode uses `#content_ifr`. Without this hook, clicking into the
+	 * canvas of an unfocused editor window is swallowed — only the
+	 * toolbar/sidebar (outer document) would focus the window.
+	 * Attach the same escalation inside every same-origin nested
+	 * frame: on load (each navigation creates a fresh document) and
+	 * as frames mount (Gutenberg creates the canvas asynchronously
+	 * and re-creates it, e.g. on device-preview switches). The
+	 * WeakSets make the sweep idempotent, so re-running it on every
+	 * mutation batch is cheap.
+	 */
+	var hookedFrameDocs = new WeakSet();
+	var hookedFrameEls = new WeakSet();
+
+	function hookNestedFrameDoc( frame ) {
+		var doc;
+		try {
+			doc = frame.contentDocument;
+		} catch ( err ) {
+			return; /* cross-origin frame — unreachable, skip */
+		}
+		if ( ! doc || hookedFrameDocs.has( doc ) ) {
+			return;
+		}
+		hookedFrameDocs.add( doc );
+		doc.addEventListener( 'pointerdown', postFocusRequest, true );
+	}
+
+	function hookNestedFrames() {
+		var frames = document.querySelectorAll( 'iframe' );
+		for ( var i = 0; i < frames.length; i++ ) {
+			var frame = frames[ i ];
+			if ( ! hookedFrameEls.has( frame ) ) {
+				hookedFrameEls.add( frame );
+				frame.addEventListener( 'load', function ( ev ) {
+					hookNestedFrameDoc( ev.target );
+				} );
+			}
+			hookNestedFrameDoc( frame );
+		}
+	}
+
+	hookNestedFrames();
+	if ( window.MutationObserver ) {
+		new MutationObserver( hookNestedFrames ).observe(
+			document.documentElement,
+			{ childList: true, subtree: true }
+		);
+	}
 
 	/*
 	 * OS-file drop forwarder. When the user drags a file from the
