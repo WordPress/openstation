@@ -4,9 +4,10 @@
 	"mappings": {
 		"wp-content/plugins/desktop-mode": "."
 	},
-	"lifecycleScripts": {
-		"afterStart": "./bin/setup-wp-env.sh"
+	"config": {
+		"WP_DEBUG": false,
+		"SCRIPT_DEBUG": false
 	},
-	"port": 8890,
+	"port": 8891,
 	"testsEnvironment": false
 }

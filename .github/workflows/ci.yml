@@ -69,10 +69,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start wp-env
+      - name: Start wp-env (tests instance)
         env:
           WP_ENV_PHP_VERSION: ${{ matrix.php }}
-        run: npm run env:start
+        run: npm run env:start:tests
 
       - name: Install PHP dev dependencies
         run: npm run test:php:install
@@ -123,7 +123,8 @@ jobs:
           {
           "core": null,
           "plugins": [],
-          "mappings": { "wp-content/plugins/desktop-mode": "./plugin-check-build/desktop-mode" }
+          "mappings": { "wp-content/plugins/desktop-mode": "./plugin-check-build/desktop-mode" },
+          "testsEnvironment": false
           }
           JSON
 
