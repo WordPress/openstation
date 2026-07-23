@@ -2258,6 +2258,7 @@ Window content relations: which piece of content each window shows, and how wind
 | `links` | `Array<{ type, id, rel? }>` | Optional. Outbound references from this content to OTHER objects (the bridge fills these for post editors automatically, capped at 32). `rel: 'references'` (default) draws the tie FROM this window TO the target ("my content points at that" — hyperlinks, terms); `rel: 'child'` reverses it ("that belongs to ME" — a post's embedded/featured media) and renders as a `child-root` edge, identical to a `root` tie. Links never re-root anything. |
 | `label` | `string` | Optional human label for renderers/tooltips. |
 | `related` | `RelatedEntityItem[]` | Optional *(since 0.9.6)*. Ready-to-open navigation targets related to this content — what the title bar's **"Related" button** lists (see below). Built server-side for posts/pages and capped at 64; never affects group membership or edges. |
+| `previewUrl` | `string` | Optional *(since 0.9.8)*. Front-end preview URL for this content — what the title bar's **"Preview" (eye) button** opens (see below). Built server-side for post/page/CPT editors of viewable post types (autosave-aware, carries a `preview_nonce`); the engine silently drops non-same-origin values. Never affects group membership or edges. |
 | `source` | `'config' \| 'bridge' \| 'api'` | Stamped by the engine — never set it yourself. |
 
 **API:**
@@ -2337,6 +2338,44 @@ wp.hooks.addFilter(
 ```
 
 Malformed entries are dropped item-wise; a non-array return falls back to the identity's own list. Read a window's current items via `wp.desktop.relations.get( windowId )?.related`. Recipes: [`docs/examples/related-entities.md`](./examples/related-entities.md).
+
+### The "Preview" (eye) title-bar button — Experimental  *(since 0.9.8)*
+
+Any window whose content identity carries a `previewUrl` shows a **Preview** button (eye icon, right side of the title bar, just before Related; registered through the public `registerTitleBarButton` surface as `desktop-mode/editor-preview`). The URL is built server-side by `desktop_mode_window_preview_url()` for post/page/CPT edit screens — Gutenberg **and** classic — of viewable post types, so the eye appears exactly where the front end has something to show. On `post-new.php` (unsaved auto-draft, nothing to preview yet) the eye renders **disabled** — `aria-disabled="true"`, dimmed, tooltip "Save the post to enable its preview", a click explains via toast — and enables itself the moment the first save lands (the block editor's save-watcher refetches the identity live, no reload).
+
+Clicking the eye:
+
+1. **Snaps the editor to the left half** (skipped below 768px, where windows maximize anyway) and puts the button in a busy state.
+2. **Asks the editor iframe to autosave** over the bridge (see [bridge-protocol](./bridge-protocol.md), "Editor-autosave query") — the same thing Gutenberg's own Preview button does, so the preview reflects what's on screen, not just the last save. Classic editor and no-editor pages degrade gracefully (the preview then shows the last saved revision).
+3. **Opens the official front-end preview** (`get_preview_post_link()` output) as a companion window snapped to the right half — id `editor-preview-{type}-{id}`, singleton per post, `ephemeral: true` (never session-restored: the URL embeds a nonce scoped to an autosave revision).
+
+Front-end documents carry no chromeless bridge, so the shell wires click-to-focus for them directly: a pointerdown anywhere inside a same-origin non-admin iframe document (the preview companion, the home-page default window) focuses its window, exactly like clicking inside an admin iframe does — re-wired across navigations and silent refreshes.
+
+The recorded editor↔preview **pairing** then drives the lifecycle: the companion **tracks typing live** (see below), **auto-reloads whenever the post is saved** (via the `desktop-mode.{type}.changed` broadcast every save path emits — block-editor save-watcher, classic-editor footer emitter, Heartbeat catch-up — debounced, and navigating instead of reloading when the previewUrl itself changed, e.g. draft→publish), **closes when the editor closes or navigates to different content**, and **toggles off on a second eye click** (`aria-pressed` tracks the state). Closing the preview never touches the editor. After the initial placement the shell never re-snaps either window — move, resize, or unsnap freely; the pairing survives.
+
+**Live updates while typing.** While a pairing is open, the shell asks the editor iframe to watch its own content (`desktop-mode-editor-live-watch` — typing detection must live iframe-side, keystrokes never cross the frame boundary). In Gutenberg the watcher observes block-list / title **reference** changes (an autosave round-trip leaves both references untouched, so its own saves can never loop) and, after a settle window (default **1500 ms** since the last edit), autosaves via `__unstableSaveForPreview()` and nudges the shell (`desktop-mode-editor-live-saved`) to refresh the companion. The classic editor has no reactive store — there the companion refreshes after each of core's own autosave ticks instead. Tune or disable via the `desktop-mode.editor-preview.live` filter below; the settle window is deliberately a pause-detector, not per-keystroke.
+
+**Refreshes are double-buffered and silent.** Live (and save-driven) refreshes go through `Window.swapReload( url? )` *(since 0.9.8)*: the new front-end render loads into a twin iframe stacked **underneath** the visible one at full opacity — a normal, fully-rasterized paint target, covered by the opaque old frame while it loads (deliberately not `opacity: 0`-on-top or `visibility: hidden`: browsers defer rasterizing invisible iframes and revealing one flashes its blank background first). When the load lands, the old frame is removed in the same tick — an **instant, animation-free cut** to the ready-painted new content, with **no loading overlay, no blank frame, and the scroll position carried across** (same-origin only). A newer refresh supersedes an in-flight one; a hung load is abandoned after 20 s with the visible frame untouched; explicit URLs pass the same same-origin gate as `navigateTo()`. On completion the `desktop-mode.window.reloaded` action fires with `silent: true` (the classic overlay reload fires it without the flag, at reload start). `swapReload` is a public method on every iframe-backed window — any plugin refreshing a window on a timer can use it instead of `reload()` to avoid strobing the overlay.
+
+**JS surface** (hook bus + matching document CustomEvents):
+
+| Hook | Kind | Payload |
+|---|---|---|
+| `desktop-mode.editor-preview.window-config` | Filter | `( config: WindowConfig, { editorWindowId, content } ) => config` — reshape the companion before it opens (geometry, `initialState`, title). An invalid return is ignored with a console warning. |
+| `desktop-mode.editor-preview.live` | Filter | `( { enabled: true, debounceMs: 1500 }, { editorWindowId, content } ) => config` — live-update behavior per pairing. Return `{ enabled: false }` for save-driven reloads only; `debounceMs` clamps to 500–30000 iframe-side. |
+| `desktop-mode.editor-preview.opened` (CustomEvent `desktop-mode-editor-preview-opened`) | Action | `{ editorWindowId, previewWindowId, content }` |
+| `desktop-mode.editor-preview.closed` (CustomEvent `desktop-mode-editor-preview-closed`) | Action | `{ editorWindowId, previewWindowId, reason: 'toggled' \| 'editor-closed' \| 'preview-closed' \| 'content-changed' }` |
+
+```javascript
+// Open every preview as a free-floating window instead of split view.
+wp.hooks.addFilter(
+    'desktop-mode.editor-preview.window-config',
+    'my-plugin/floating-previews',
+    ( config ) => ( { ...config, initialState: 'normal', width: 480, height: 720 } ),
+);
+```
+
+The PHP-side control point is the `desktop_mode_window_preview_url` filter (rewrite or suppress the URL per post — see [hooks-reference](./hooks-reference.md)). Related: `WindowConfig.ephemeral?: boolean` *(since 0.9.8)* is a general flag — any window opened with it is excluded from session snapshots and never restored on boot.
 
 ### `registerWindowLinkRenderer( def )` — Experimental  *(since 0.9.4)*
 

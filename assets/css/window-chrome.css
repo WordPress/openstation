@@ -638,6 +638,35 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 /*
+ * Double-buffer twin for `Window.swapReload()` — the silent refresh
+ * the editor-preview companion uses. The twin loads UNDERNEATH the
+ * visible frame at full opacity: a normal, fully-rasterized paint
+ * target, completely covered by the (opaque) old frame while it
+ * loads. Deliberately not `opacity: 0`-on-top or
+ * `visibility: hidden` — browsers defer rasterizing invisible
+ * iframes, and revealing such a frame paints its blank background
+ * before its raster lands (a white blink).
+ *
+ * Stacking: positioned elements paint above static ones regardless
+ * of DOM order, so the buffer (absolute) would land on top of the
+ * static primary frame — `--swap-front` elevates the OLD frame for
+ * the duration of the swap instead. The swap itself is instant and
+ * animation-free: removing the old frame exposes the ready-painted
+ * twin in the same compositor frame. At no point is unpainted
+ * content the only thing on screen.
+ */
+.desktop-mode-window__iframe--buffer {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.desktop-mode-window__iframe--swap-front {
+	position: relative;
+	z-index: 1;
+}
+
+/*
  * Native window body — fills the window but lets its contents scroll
  * independently. Iframe bodies use `overflow: hidden` so the iframe
  * controls its own scroll; native bodies render real document content
@@ -711,6 +740,48 @@ wpd-tab-chip + wpd-tab-chip {
 	width: 18px;
 	height: 18px;
 	display: block;
+}
+
+/*
+ * Busy state for custom title-bar buttons — a gentle opacity pulse
+ * while a round-trip is in flight (e.g. the editor-preview eye
+ * waiting on the editor's autosave before opening the preview).
+ * Driven by `aria-busy="true"` + this class, both set by the button's
+ * render callback.
+ */
+.desktop-mode-window__btn--busy {
+	animation: desktop-mode-btn-busy-pulse 1s ease-in-out infinite;
+	pointer-events: none;
+}
+
+@keyframes desktop-mode-btn-busy-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.4;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.desktop-mode-window__btn--busy {
+		animation: none;
+		opacity: 0.6;
+	}
+}
+
+/*
+ * Disabled state for custom title-bar buttons — visible but inert
+ * (e.g. the editor-preview eye on an unsaved "Add New" screen, where
+ * there is nothing to preview until the first save). The button keeps
+ * pointer events so its explanatory tooltip/toast still works;
+ * `aria-disabled` carries the semantics.
+ */
+.desktop-mode-window__btn--disabled {
+	opacity: 0.4;
+	cursor: default;
 }
 
 /* ----------------------------------------------------------------

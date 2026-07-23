@@ -1637,10 +1637,14 @@ export class WindowManager {
 		const focused = this.getFocused();
 		// Native windows aren't persistable — their `render` callback
 		// is a JS closure, not something we can serialize and
-		// rehydrate server-side. Skip them from both the window list
-		// and the focused id so a freshly booted shell doesn't try
-		// (and fail) to restore a window it can't reconstruct.
-		const persistable = this._stack.filter( ( w ) => ! w.config.native );
+		// rehydrate server-side. Ephemeral windows opt out — their URL
+		// doesn't survive a session (editor-preview nonces). Skip both
+		// from the window list and the focused id so a freshly booted
+		// shell doesn't try (and fail) to restore a window it can't
+		// reconstruct.
+		const persistable = this._stack.filter(
+			( w ) => ! w.config.native && ! w.config.ephemeral,
+		);
 		const windows: SessionWindow[] = persistable.map( ( w ) => {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
@@ -1659,7 +1663,10 @@ export class WindowManager {
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
 			};
 		} );
-		const focusedId = focused && ! focused.config.native ? focused.id : '';
+		const focusedId =
+			focused && ! focused.config.native && ! focused.config.ephemeral
+				? focused.id
+				: '';
 
 		return {
 			windows,

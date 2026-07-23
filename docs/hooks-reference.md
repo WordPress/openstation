@@ -570,6 +570,8 @@ add_filter( 'desktop_mode_window_content_identity', function ( $identity, $scree
 
 After this filter resolves, the builder attaches a `related` key — the navigation targets behind the title bar's "Related" button — via the `desktop_mode_window_related_entities` filter below (since 0.9.6). Identities may ship their own `related` array; it is folded into that pass and sanitized with everything else.
 
+Since 0.9.8 post-editor identities also carry a `previewUrl` key — the front-end preview link behind the title bar's "Preview" (eye) button, built by `desktop_mode_window_preview_url()` **before** this filter runs (so you can inspect or strip it here). The client engine only accepts same-origin `previewUrl` values.
+
 ---
 
 ### `desktop_mode_window_related_entities` — Experimental (since 0.9.6)
@@ -618,6 +620,37 @@ add_filter( 'desktop_mode_window_related_entities', function ( $related, $identi
 ```
 
 Malformed entries (missing/empty `id`, `group`, `label`, or `url`) are dropped before the payload is announced, and unknown fields are stripped — one bad entry can't invalidate the whole identity client-side. The client-side counterpart is the `desktop-mode.related-entities.items` JS filter (see [javascript-reference](./javascript-reference.md)); a recipe lives in [`docs/examples/related-entities.md`](./examples/related-entities.md).
+
+---
+
+### `desktop_mode_window_preview_url` — Experimental (since 0.9.8)
+
+Filters the front-end preview URL attached to a post-editor content identity as `previewUrl` — the target of the window title bar's **"Preview" (eye) button** (click it on a post/page/CPT editor window and the shell autosaves the editor, snaps it to the left half, and opens this URL as a companion window snapped to the right half; the companion tracks typing — debounced autosave + reload — and refreshes on every save). On the unsaved `post-new.php` screen the eye renders disabled until the first save. Runs in the same pass as `desktop_mode_window_content_identity`, **before** that filter, on both the page-render build and the `GET /desktop-mode/v1/content-identity` REST recompute the block editor's save-watcher triggers — so a long-lived editor window always holds a fresh nonce.
+
+```php
+apply_filters(
+    'desktop_mode_window_preview_url',
+    string $preview_url,   // '' when no preview applies
+    WP_Post $post
+);
+```
+
+The unfiltered value is `get_preview_post_link( $post, array( 'preview_id' => $post->ID, 'preview_nonce' => wp_create_nonce( 'post_preview_' . $post->ID ) ) )` — the same arguments core's own `post_preview()` passes, so `_set_preview()` swaps the newest autosave revision into the front-end render. It is `''` (and the eye button hidden) for attachments, non-viewable post types (`is_post_type_viewable()` false), and users lacking `edit_post` for the post. Return `''` to suppress the preview button, or rewrite the URL:
+
+```php
+// Point previews at a headless front end.
+add_filter( 'desktop_mode_window_preview_url', function ( $url, $post ) {
+    if ( '' === $url ) {
+        return $url;
+    }
+    // NOTE: the shell only accepts SAME-ORIGIN preview URLs — a
+    // cross-origin rewrite hides the button. Proxy through your own
+    // origin if the preview renders elsewhere.
+    return home_url( '/preview-proxy/' . $post->ID . '/' );
+}, 10, 2 );
+```
+
+The JS-side surface (pairing lifecycle hooks, the companion `WindowConfig` filter) is documented in [javascript-reference](./javascript-reference.md) under "The Preview (eye) title-bar button"; the autosave bridge round-trip in [bridge-protocol](./bridge-protocol.md).
 
 ---
 

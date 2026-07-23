@@ -121,6 +121,17 @@ export interface WindowContentRef {
 	 */
 	related?: RelatedEntityItem[];
 	/**
+	 * Front-end preview URL for this content — the target of the title
+	 * bar's "Preview" (eye) button. Built server-side via
+	 * `get_preview_post_link()` (autosave-aware, carries a
+	 * `preview_nonce`), so it is only present on post-editor
+	 * identities of viewable post types. Same-origin URLs only — the
+	 * engine drops anything else.
+	 *
+	 * @since 0.9.8
+	 */
+	previewUrl?: string;
+	/**
 	 * Provenance, stamped by the engine — never set it yourself:
 	 * `'config'` (seeded from `WindowConfig.content`), `'bridge'`
 	 * (announced by the chromeless iframe bridge), `'api'`
