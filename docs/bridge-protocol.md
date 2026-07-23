@@ -66,9 +66,13 @@ Native (non-iframe) windows skip postMessage entirely — `Window.send` and the 
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-content-identity` | iframe → parent | `{ identity: WindowContentRef \| null }` | Which object this admin page shows — `{ type, id, label?, root?, links? }`, resolved server-side in real admin context (post/page/CPT editors are roots and carry their content's internal hyperlinks as `links`; comment-edit and attached-media screens arrive pre-rooted at their parent post; the `desktop_mode_window_content_identity` PHP filter extends detection). Feeds `wp.desktop.relations` and the window-link visuals. |
+| `desktop-mode-content-identity` | iframe → parent | `{ identity: WindowContentRef \| null }` | Which object this admin page shows — `{ type, id, label?, root?, links?, related? }`, resolved server-side in real admin context (post/page/CPT editors are roots and carry their content's internal hyperlinks as `links`; comment-edit and attached-media screens arrive pre-rooted at their parent post; the `desktop_mode_window_content_identity` PHP filter extends detection). `related` *(since 0.9.6)* carries the ready-to-open navigation targets behind the title bar's "Related" button — `{ id, group, label, url, groupLabel?, icon?, count? }` entries built for posts/pages and filterable via `desktop_mode_window_related_entities`. Feeds `wp.desktop.relations` and the window-link visuals. |
 
-Emitted on **every** chromeless page load, **including `identity: null`** — a full-page navigation away from an identified screen must clear the stale identity, and since every iframe navigation re-runs `admin_footer`, that same emission doubles as the re-announce-on-navigate path. It fires at the very TOP of the bridge script (right after the top-frame escape hatch, before any feature block) so a page-specific runtime failure elsewhere in the bridge can never cost the shell its window relations — unlike `desktop-mode-ready`, which intentionally posts last. See [`docs/examples/window-links.md`](./examples/window-links.md).
+Emitted on **every** chromeless page load, **including `identity: null`** — a full-page navigation away from an identified screen must clear the stale identity, and since every iframe navigation re-runs `admin_footer`, that same emission doubles as the re-announce-on-navigate path. It fires at the very TOP of the bridge script (right after the top-frame escape hatch, before any feature block) so a page-specific runtime failure elsewhere in the bridge can never cost the shell its window relations — unlike `desktop-mode-ready`, which intentionally posts last.
+
+**Re-announced after block-editor saves** *(since 0.9.6)*: Gutenberg saves over REST without navigating, so the bridge also watches the `core/editor` save lifecycle and, after every real (non-autosave) save, refetches a server-recomputed identity from `GET /desktop-mode/v1/content-identity?post={id}` (capability-gated to `edit_post`; both identity filters run there with `$screen = null`) and posts this same message again. The parent engine diffs repeats, so identical re-announcements are free. See [`docs/examples/window-links.md`](./examples/window-links.md).
+
+**Save broadcast** *(since 0.9.7)*: on the same save-success edge the watcher also posts an upstream `{ type: 'desktop-mode-broadcast', topic: 'desktop-mode.<postType>.changed', payload: { source: 'editor', action: 'created' | 'updated', ids: [ postId ] } }` to the parent, which fans it out to every window — list windows showing that type refresh instantly. `action` is `'created'` exactly when the post was still new on the tick the save started. This is the block editor's leg of the content-change realtime layer (`includes/content-changes.php`); form-POST → redirect flows are covered server-side by the chromeless-footer emitter instead. The iframe-side consumer is the soft-reload handler: `edit.php` / `upload.php` / `edit-comments.php` are matched generically by list type, and non-standard list screens (the HPOS `wc-orders` list) are declared via the PHP-printed `/*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/` placeholder, filterable server-side through `desktop_mode_soft_reload_rules`.
 
 ### Connection bridge — `desktop-mode-bridge-*`
 
@@ -123,6 +127,14 @@ Flow:
 4. On the parent side, `prevent: false` destroys the window immediately. `prevent: true` shows a `<wpd-confirm-dialog>` (title = the iframe's message, or a generic fallback) — the window is only destroyed if the user confirms.
 
 Native windows are untouched — they still use the synchronous `desktop-mode.native-window.before-close` filter (see [`javascript-reference.md`](./javascript-reference.md#native-window-lifecycle)), not this postMessage round-trip.
+
+### Session re-auth nudge — `desktop-mode-reauth-detected`
+
+*(since 0.8.3)* Every chromeless iframe runs its own Heartbeat, and each heartbeat response carries core's `wp-auth-check` boolean (attached server-side, independent of whether the modal JS is loaded — chromeless iframes have the modal suppressed so the parent shell owns the single login prompt). When an iframe's heartbeat sees the flag flip `false → true` — the user re-authenticated somewhere — the bridge nudges the parent before reloading itself, so the shell's recovery (`src/auth-recovery/index.ts`) starts immediately instead of waiting out the parent's own heartbeat schedule.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-reauth-detected` | iframe → parent | *(none)* | "My heartbeat just saw the session come back." The parent forces a tick of its own (fresh nonces ride it), sweeps a reload over the other iframes, and fires `desktop-mode-auth-restored` (see [`javascript-reference.md`](./javascript-reference.md#session-expiry--recovery-stable-since-098)). Recovery is cooldown-gated, so the one-message-per-open-window fan-in collapses into a single run. |
 
 ## Lifecycle walkthrough — parent-initiated connection
 

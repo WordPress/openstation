@@ -3,7 +3,7 @@
  * Plugin Name:       Desktop Mode
  * Plugin URI:        https://github.com/WordPress/desktop-mode
  * Description:       Renders the WordPress admin as a desktop OS. Admin screens become draggable, resizable, minimizable windows floating on a desktop with a dock. Purely opt-in per user.
- * Version:           0.9.5
+ * Version:           0.9.6
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Daniel López Sánchez
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_VERSION', '0.9.5' );
+define( 'DESKTOP_MODE_VERSION', '0.9.6' );
 define( 'DESKTOP_MODE_FILE', __FILE__ );
 define( 'DESKTOP_MODE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
@@ -82,11 +82,15 @@ require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-site-views.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-jazz-quote.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-starter.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-notes.php';
+require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-focus-timer.php';
 require_once DESKTOP_MODE_DIR . 'includes/render.php';
 require_once DESKTOP_MODE_DIR . 'includes/extended-options.php';
 require_once DESKTOP_MODE_DIR . 'includes/oauth-relay.php';
 require_once DESKTOP_MODE_DIR . 'includes/devtools.php';
 require_once DESKTOP_MODE_DIR . 'includes/ai-copilot/bootstrap.php';
+// Content-changes must load before the recycle bin — the bin's
+// changelog delegates into the generic recorder.
+require_once DESKTOP_MODE_DIR . 'includes/content-changes.php';
 require_once DESKTOP_MODE_DIR . 'includes/recycle-bin/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/notes/bootstrap.php';

@@ -94,6 +94,10 @@ interface ShellApi {
 	activity?: {
 		publish?: ( channel: string, payload: unknown ) => void;
 	};
+	subscribe?: (
+		topic: string,
+		cb: ( payload: unknown ) => void,
+	) => () => void;
 	ai?: {
 		ask?: ( prompt: string ) => Promise< { answer: string } >;
 	};
@@ -763,6 +767,33 @@ async function renderCommentsWindow( body: HTMLElement ): Promise< void > {
 	countsTimer = window.setInterval( pollCounts, 30000 );
 	void pollCounts();
 
+	// Realtime: cross-window broadcast. Any comment mutation elsewhere
+	// (an edit-comments.php iframe, a post's discussion box, the
+	// recycle bin, another user via the heartbeat catch-all) fires
+	// `desktop-mode.comment.changed` — refresh the active panel
+	// directly instead of showing the "reload" pill; the pill/count
+	// poller stays as the fallback for anything the broadcast misses.
+	let unsubBroadcast: ( () => void ) | null = null;
+	{
+		const api = getApi();
+		if ( typeof api?.subscribe === 'function' ) {
+			unsubBroadcast = api.subscribe(
+				'desktop-mode.comment.changed',
+				() => {
+					void refresh( activeTab, { force: true } ).then( () => {
+						if ( activeTab === 'pending' ) {
+							// The refreshed list already shows the new
+							// state — re-baseline so the next counts
+							// poll doesn't offer a stale "reload" pill.
+							lastSeenPending = panels.pending.total;
+							newPillEl.hidden = true;
+						}
+					} );
+				},
+			);
+		}
+	}
+
 	// Keyboard moderation
 	const onKey = ( e: KeyboardEvent ): void => {
 		const ownerDoc = body.ownerDocument;
@@ -899,6 +930,12 @@ async function renderCommentsWindow( body: HTMLElement ): Promise< void > {
 			window.clearInterval( countsTimer );
 			countsTimer = null;
 		}
+		try {
+			unsubBroadcast?.();
+		} catch {
+			/* swallow */
+		}
+		unsubBroadcast = null;
 		document.removeEventListener( 'keydown', onKey );
 		document.removeEventListener( 'desktop-mode-window-closed', onClosed );
 		setActiveConfig( null );

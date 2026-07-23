@@ -549,7 +549,7 @@ apply_filters(
 
 `$identity` shape (mirrors the JS `WindowContentRef`): `type` (lowercase object-type slug; namespace yours `vendor/order`), `id` (int|string), optional `label`, optional `root => array( 'type', 'id' )`, optional `links => array( array( 'type', 'id', 'rel'? ), … )`. A ref **without** `root` is itself a root (the post a comment window points back to); a ref **with** `root` joins that root's relation group as a child (an edge pointing at the root — the built-in renderer marks the target end with its larger endpoint dot). `links` declare outbound ties: the default (`rel` omitted) is a `reference` — an edge FROM this window TO the linked object ("my content points at that"); `rel => 'child'` reverses it — the linked object BELONGS TO this content (a post's embedded media), drawn exactly like a root tie. Mutual references merge into one bidirectional edge. One reading everywhere: **the edge points at what its source belongs to or refers to** — relational structure, never navigation history.
 
-Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), and `term.php` (`term/{taxonomy}` → root, which assigned posts reference). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
+Built-in detection covers `post.php` (post/page/CPT edit → root, with `links` extracted from the content's internal hyperlinks, its embedded media — `wp-image-{id}`, which catches inserted-but-unattached images — its featured image, and its assigned public-taxonomy terms as `term/{taxonomy}` refs), attachment edit — both the classic `post.php` screen and the `upload.php?item=N` Media Library grid detail — (`media`, rooted at `post_parent` when attached), `comment.php` (`comment`, rooted at the parent post), `edit-comments.php?p=N` — the per-post filtered comments list the Related menu opens — (`comments`, rooted at the post; the unfiltered list stays identity-less; since 0.9.6), and `term.php` (`term/{taxonomy}` → root, which assigned posts reference). Use this filter to add identities for your own admin screens, or return `null` to suppress detection:
 
 ```php
 add_filter( 'desktop_mode_window_content_identity', function ( $identity, $screen ) {
@@ -567,6 +567,57 @@ add_filter( 'desktop_mode_window_content_identity', function ( $identity, $scree
     return $identity;
 }, 10, 2 );
 ```
+
+After this filter resolves, the builder attaches a `related` key — the navigation targets behind the title bar's "Related" button — via the `desktop_mode_window_related_entities` filter below (since 0.9.6). Identities may ship their own `related` array; it is folded into that pass and sanitized with everything else.
+
+---
+
+### `desktop_mode_window_related_entities` — Experimental (since 0.9.6)
+
+Filters the related-entity navigation items announced alongside the content identity — the entries behind the window title bar's **"Related" button** (a dropdown listing the content's comments, terms, media, linked posts, …; picking one opens it as its own desktop window). Runs in the same real-admin-context pass as `desktop_mode_window_content_identity`, **after** that filter and **only when an identity resolved** — so an identity you inject for a custom screen receives the related pass too, and identity-less screens (list tables, dashboards) never do. It also runs on the `GET /desktop-mode/v1/content-identity` REST recompute the block editor's save-watcher triggers (so the menu refreshes after every save without a reload) — in that context `$screen` is `null`; don't assume a `WP_Screen`.
+
+```php
+apply_filters(
+    'desktop_mode_window_related_entities',
+    array $related,         // built-in items; empty for non-post screens
+    array $identity,        // the resolved (already filtered) content identity
+    WP_Screen|null $screen
+);
+```
+
+Item shape (mirrors the JS `RelatedEntityItem`):
+
+```php
+array(
+    'id'         => 'comments',                 // unique in the list; namespace yours 'vendor/sub-id'
+    'group'      => 'comments',                 // menu section key; built-ins: 'comments', 'terms/{taxonomy}', 'media'
+    'groupLabel' => __( 'Comments' ),           // optional translated section header
+    'label'      => __( 'Comments' ),           // translated item label
+    'icon'       => 'dashicons-admin-comments', // optional Dashicons class
+    'url'        => admin_url( 'edit-comments.php?p=123' ), // admin URL the item opens
+    'count'      => 4,                          // optional count suffix ("Comments (4)")
+)
+```
+
+Built-in items cover **posts and pages only**: Comments (`edit-comments.php?p={id}`, only when the post type supports comments and at least one approved-or-pending comment exists; the count is the same approved + awaiting-moderation total the opened screen lists), one item per assigned public-taxonomy term (`term.php?taxonomy={tax}&tag_ID={id}`, grouped per taxonomy, budgeted at 32 terms across taxonomies), one item per associated attachment — featured image, `post_parent`-attached uploads, `wp-image-{id}` embeds — deep-linking the Media Library detail (`upload.php?item={id}`, capped at 20), and one **Linked posts** item per internal hyperlink in the content that resolves to another post on this site (group `links`, opening the target's editor, capped at 10; external and cross-site hrefs don't resolve to a post id and are excluded). The client engine hard-caps the final list at **64 items** (built-ins never reach it; filter-added floods are truncated silently). Built-ins attach **only while the filtered identity still refers to the detected post** — an identity filter that rewrites a post's identity to a different `type`/`id` (a gated post remapped to a minimal ref) suppresses them automatically, so nothing about the underlying post leaks through the menu. Other screens contribute via this filter:
+
+```php
+add_filter( 'desktop_mode_window_related_entities', function ( $related, $identity, $screen ) {
+    if ( 'acme/order' === $identity['type'] ) {
+        $related[] = array(
+            'id'         => 'acme/customer-' . acme_order_customer( $identity['id'] ),
+            'group'      => 'acme/customers',
+            'groupLabel' => __( 'Customer', 'acme' ),
+            'label'      => acme_customer_name( $identity['id'] ),
+            'icon'       => 'dashicons-businessperson',
+            'url'        => admin_url( 'admin.php?page=acme-customer&c=' . acme_order_customer( $identity['id'] ) ),
+        );
+    }
+    return $related;
+}, 10, 3 );
+```
+
+Malformed entries (missing/empty `id`, `group`, `label`, or `url`) are dropped before the payload is announced, and unknown fields are stripped — one bad entry can't invalidate the whole identity client-side. The client-side counterpart is the `desktop-mode.related-entities.items` JS filter (see [javascript-reference](./javascript-reference.md)); a recipe lives in [`docs/examples/related-entities.md`](./examples/related-entities.md).
 
 ---
 
@@ -1920,6 +1971,156 @@ See [`docs/examples/devtools-instrumentation.md`](./examples/devtools-instrument
 
 ---
 
+## Content-change realtime layer (since 0.9.7)
+
+`includes/content-changes.php` — the generic "something changed,
+every window listing that type should refresh" system. Any create /
+update / trash of a post, page, `show_ui` CPT, comment, or
+WooCommerce order is recorded into a per-request changelog and
+relayed to the parent shell as a cross-window broadcast
+(`desktop-mode.<type>.changed`, see the topic contract under
+[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+Consumers already in place: the chromeless soft-reload for iframe
+list pages, and the native Posts / Pages / Users / Comments windows.
+
+Three delivery paths:
+
+1. **Chromeless footer (instant).** Form-POST → redirect flows
+   (classic editor, WooCommerce order Update, bulk actions). The
+   changelog survives the redirect in a 60 s per-user transient and
+   is flushed by the next chromeless `admin_footer` render.
+2. **Block editor (instant).** Gutenberg saves over REST with no
+   navigation; the chromeless bridge's save-watcher posts the
+   broadcast directly (`source: 'editor'`).
+3. **Heartbeat (catch-all, ≤ one tick).** Every record is appended to
+   the pruned `_desktop_mode_content_changes_log` option
+   (autoload=false, 5-minute window, 100 entries max); opted-in
+   shells send `desktop_mode_content_changes_seen_ts` per tick and
+   re-broadcast the fresh entries (`source: 'heartbeat'`). Covers
+   Quick Edit, AJAX moderation / status flips, other browser tabs,
+   REST and WP-CLI mutations. Tabs that never opt in pay zero.
+
+Built-in publishers: `wp_after_insert_post` (revisions, autosaves,
+auto-drafts, trash-status writes, and non-`show_ui` types skipped),
+`wp_insert_comment` / `edit_comment` / `transition_comment_status`
+(trash transitions skipped — the Recycle Bin owns the trash verbs),
+and — when WooCommerce is active — `woocommerce_new_order` /
+`woocommerce_update_order` / `woocommerce_order_status_changed` /
+`woocommerce_trash_order` / `woocommerce_untrash_order` /
+`woocommerce_delete_order`, always recorded as type `shop_order` so
+one topic serves both HPOS and legacy storage.
+
+### `desktop_mode_content_changes_record()` — Stable *(function, since 0.9.7)*
+
+The public recorder — call it from your own mutation paths (custom
+tables, settings screens) and every window listing your type
+refreshes exactly like core content:
+
+```php
+desktop_mode_content_changes_record( string $type, int $id, string $action ): bool
+// $action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted'
+```
+
+Dedupe is first-writer-wins per `type:id` within a request — the more
+specific verb (recorded by an earlier hook) wins over a later generic
+`updated`. If your list screen is not a standard
+`edit.php?post_type=<type>` page, pair the recorder with a
+`desktop_mode_soft_reload_rules` entry (below).
+
+### `desktop_mode_content_changes_should_record` — Stable *(filter, since 0.9.7)*
+
+Veto gate in front of every record — return `false` to keep a
+mutation out of the realtime system entirely (footer broadcast AND
+heartbeat log).
+
+```php
+apply_filters( 'desktop_mode_content_changes_should_record', bool $record, string $type, int $id, string $action );
+```
+
+### `desktop_mode_content_change_recorded` — Stable *(action, since 0.9.7)*
+
+Fires after every successful record. Push your own real-time channel
+(websocket, SSE) here without re-hooking every mutation path.
+
+```php
+do_action( 'desktop_mode_content_change_recorded', string $type, int $id, string $action );
+```
+
+### `desktop_mode_content_change_topic` — Experimental *(filter, since 0.9.7)*
+
+Broadcast topic per type, applied while the footer emitter builds
+envelopes. Default `desktop-mode.<type>.changed`.
+
+```php
+apply_filters( 'desktop_mode_content_change_topic', string $topic, string $type, string $action );
+```
+
+### `desktop_mode_content_changes_broadcasts` — Experimental *(filter, since 0.9.7)*
+
+The full envelope list (`array( array( 'topic' => …, 'payload' => … ) )`)
+just before the chromeless footer emits. Return an empty array to
+suppress the emit for this render.
+
+```php
+apply_filters( 'desktop_mode_content_changes_broadcasts', array $broadcasts );
+```
+
+### `desktop_mode_content_changes_emitted` — Experimental *(action, since 0.9.7)*
+
+Fires after the footer printed the emit script, with the envelopes it
+carried.
+
+```php
+do_action( 'desktop_mode_content_changes_emitted', array $broadcasts );
+```
+
+### `desktop_mode_soft_reload_rules` — Stable *(filter, since 0.9.7)*
+
+Declarative soft-reload rules injected into every chromeless iframe,
+for list screens that are **not** a standard `edit.php?post_type=X` /
+`upload.php` / `edit-comments.php` page (those are matched
+generically — see the soft-reload contract under
+[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+
+```php
+apply_filters( 'desktop_mode_soft_reload_rules', array $rules );
+```
+
+Rule shape (all matched against the iframe's current URL):
+
+```php
+array(
+    'topic'       => 'desktop-mode.my_type.changed', // broadcast topic to react to
+    'path'        => 'admin.php',                    // wp-admin filename
+    'query'       => array( 'page' => 'my-list' ),   // required query params (exact match)
+    'queryAbsent' => array( 'action' ),              // params that must NOT be present
+)
+```
+
+The default rule set ships one entry — WooCommerce's HPOS orders list
+(`admin.php?page=wc-orders`, topic `desktop-mode.shop_order.changed`),
+with `queryAbsent: [ 'action' ]` so the single-order **editor**
+(`…&action=edit`) keeps the single-edit exclusion and never loses
+unsaved state to a background refresh.
+
+### Heartbeat contract
+
+| Direction | Field | Shape |
+|---|---|---|
+| client → server | `desktop_mode_content_changes_seen_ts` | `int` server-ms high-water mark; `0` on the first (handshake) tick. |
+| server → client | `desktop_mode_content_changes` | `{ ts: int, entries: [ { ts, type, action, ids } ] }` — entries newer than the client's seen ts. |
+
+The shell's first tick is a pure handshake (adopts the server clock,
+broadcasts nothing) so client/server clock skew can never drop
+changes. A change that already arrived via the footer or editor path
+is re-broadcast once on the next tick — consumers are idempotent by
+contract.
+
+See [`docs/examples/content-changes.md`](./examples/content-changes.md)
+for an end-to-end third-party recipe.
+
+---
+
 ## Recycle Bin
 
 The Recycle Bin stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
@@ -2060,23 +2261,33 @@ do_action( 'desktop_mode_recycle_bin_after_purge_comment',    int $comment_id );
 
 After every restore / purge / empty the bin publishes one topic
 **per affected post type** on the shell-wide broadcast bus
-(`wp.desktop.broadcast`). The same chromeless footer in
-`realtime.php` also emits these topics for any admin request
-that ran `wp_trash_post` / `untrash_post` / `before_delete_post`
-/ `trashed_comment` / `untrashed_comment` / `deleted_comment` —
-so the recycle bin learns instantly when a list-table trashes
-something, and the corresponding list iframe refreshes when the
-bin restores something.
+(`wp.desktop.broadcast`). Since 0.9.7 the bin's changelog delegates
+into the generic
+[content-change realtime layer](#content-change-realtime-layer-since-097),
+whose chromeless footer emits the same topics for any admin request
+that trashed, restored, deleted — or **created / updated** — content.
+The recycle bin learns instantly when a list-table trashes
+something, list iframes refresh when the bin restores something,
+and (0.9.7+) list windows also refresh when content is saved in
+another window.
 
-Topic format: **`desktop-mode.<post_type>.changed`** — the literal
-post-type slug (`post`, `page`, `attachment`, `comment`, or any
-CPT). Payload:
+Topic format: **`desktop-mode.<type>.changed`** — the literal
+post-type slug (`post`, `page`, `attachment`, `comment`, any CPT, or
+`shop_order` for WooCommerce orders under both HPOS and legacy
+storage). Payload:
 
 ```js
-{ source: 'recycle-bin' | 'admin' | <plugin>,
-  action: 'trashed' | 'untrashed' | 'deleted',
+{ source: 'recycle-bin' | 'admin' | 'editor' | 'heartbeat' | <plugin>,
+  action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
   ids:    number[] }
 ```
+
+`source` values: `'admin'` (server-recorded, chromeless-footer
+relay), `'editor'` (block-editor save-watcher), `'heartbeat'` (the
+catch-all re-broadcast — note this MAY repeat a change your window
+already handled; consumers must treat refreshes as idempotent),
+`'recycle-bin'` / `'posts-window'` / plugin names (client-side
+emitters identifying themselves for echo suppression).
 
 **Iframe-side default behaviour: soft reload.** The chromeless
 bridge installs a built-in subscriber that, when the topic
@@ -2084,20 +2295,27 @@ matches the iframe's current page, *fetches the URL it's already
 on* and replaces `#wpbody-content` in place. The user sees the
 list update — restored post appears, trashed media disappears —
 without the WP loading spinner that `location.reload()` would
-show. Mappings:
+show. Matching is generic since 0.9.7: the page's list type is
+derived from the URL and compared to the `<type>` in the topic —
 
-| Topic                              | List page                           |
-|------------------------------------|-------------------------------------|
-| `desktop-mode.post.changed`          | `edit.php` (post type unset / `post`) |
-| `desktop-mode.page.changed`          | `edit.php?post_type=page`           |
-| `desktop-mode.attachment.changed`    | `upload.php`                        |
-| `desktop-mode.comment.changed`       | `edit-comments.php`                 |
+| List page | Reacts to |
+|---|---|
+| `edit.php` (post type unset / `post`) | `desktop-mode.post.changed` |
+| `edit.php?post_type=<X>` (any CPT) | `desktop-mode.<X>.changed` |
+| `upload.php` | `desktop-mode.attachment.changed` |
+| `edit-comments.php` | `desktop-mode.comment.changed` |
+| `admin.php?page=wc-orders` (HPOS orders list) | `desktop-mode.shop_order.changed` |
 
-Single-edit pages (`post.php`, `post-new.php`) deliberately have
+— plus any declarative rule added via the
+`desktop_mode_soft_reload_rules` filter (how the `wc-orders` row
+above is implemented).
+
+Single-edit pages (`post.php`, `post-new.php`, the HPOS order editor
+`admin.php?page=wc-orders&action=edit`) deliberately have
 **no** soft-reload handler, because replacing their body would
-destroy unsaved Gutenberg / classic-editor state. Plugins wanting
-specific behaviour for those pages subscribe to the same topic
-themselves and decide how to react.
+destroy unsaved editor state. Plugins wanting specific behaviour
+for those pages subscribe to the same topic themselves and decide
+how to react.
 
 After every successful soft-reload the bridge dispatches
 `desktop-mode-soft-reloaded` on the iframe's `document` so plugins
@@ -2835,7 +3053,7 @@ Gates icon registration and window registration in one shot. Default `current_us
 apply_filters( 'desktop_mode_content_graph_post_types', array[] $post_types ): array[]
 ```
 
-The list of post types shown in the graph's filter bar. Each entry declares `slug`, `label`, and `icon`. Default: every public post type except `attachment` (media renders in the side panel rather than as nodes). Removing an entry hides it from the filter bar AND excludes it from the graph entirely.
+The list of post types shown in the graph's filter bar. Each entry declares `slug`, `label`, `icon`, and `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`), used to keep types without a taxonomy out of the shared Uncategorized/Untagged clusters. Entries added without `taxonomies` get it derived via `is_object_in_taxonomy()`. Default: every public post type except `attachment` (media renders in the side panel rather than as nodes). Removing an entry hides it from the filter bar AND excludes it from the graph entirely.
 
 ### `desktop_mode_content_graph_template_html` — Experimental (filter)
 
@@ -3201,6 +3419,15 @@ heartbeat field via
 [`wp.desktop.heartbeat.subscribe`](./javascript-reference.md#nonce-refresh--heartbeat-field-stable-since-087)
 and write the value where your code reads from.
 
+Since 0.9.8 the same payload also rides core's `wp_refresh_nonces`
+filter, so the tick that reports `nonces_expired` (the first one
+after a session re-login, or after plain 24-hour expiry) already
+carries the fresh map — the shell heals in one round trip. Both
+paths additionally attach the `desktop_mode_auth` heartbeat field
+(`{ uid: <current user id> }`), which the shell's session recovery
+uses to detect a user switch (see
+[Session expiry & recovery](./javascript-reference.md#session-expiry--recovery-stable-since-098)).
+
 ---
 
 ## Sticky notes (since 0.8.8)
@@ -3352,6 +3579,47 @@ do_action( 'desktop_mode_notes_converted', int $new_post_id, WP_Post $note, WP_R
 - **Param** `WP_REST_Request $request` — the convert request.
 
 ---
+
+## Real file storage (since 0.9.6)
+
+Real per-user desktop storage (the `upload` file type): multipart
+uploads into a protected uploads subdirectory, PHP-served downloads,
+on-demand folder zips, and read-only single-file sharing. Feature
+doc: [files-on-desktop.md → Real file storage](files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+All Experimental.
+
+### Filters
+
+| Hook | Signature | Purpose |
+|---|---|---|
+| `desktop_mode_stored_files_base_dir` | `( string $base ) => string` | Storage base directory (default `uploads/desktop-mode-files`). Sites that can write outside the webroot point this there. |
+| `desktop_mode_stored_files_upload_capability` | `( string $cap ) => string` | Capability required to upload. Default `'upload_files'`. |
+| `desktop_mode_stored_files_max_upload_bytes` | `( int $max, int $user_id ) => int` | Per-file cap. Default `wp_max_upload_size()`; can only effectively lower it. |
+| `desktop_mode_stored_files_user_quota_bytes` | `( int $quota, int $user_id ) => int` | Per-user total quota. `0` (default) = unlimited. |
+| `desktop_mode_stored_files_allowed_mimes` | `( array $mimes, int $user_id ) => array` | `ext => mime` allowlist for desktop uploads. Defaults to the user-scoped `get_allowed_mime_types()`; additions here genuinely widen the policy (a scoped `upload_mimes` hook keeps core's `wp_check_filetype_and_ext()` re-check in agreement). |
+| `desktop_mode_stored_files_denied_extensions` | `( string[] $denied ) => string[]` | Hard-denied executable extensions, matched against EVERY dot-segment of the client filename. Narrowing below the shipped set is strongly discouraged. |
+| `desktop_mode_stored_files_upload_overrides` | `( array $overrides, int $user_id ) => array` | `wp_handle_upload()` overrides for the intake. Exists for tests and future resumable layers; never remove `test_form => false`. |
+| `desktop_mode_stored_files_zip_caps` | `( array $caps ) => array` | `{ max_entries, max_bytes }` bounds for folder zips. Default 1000 entries / 500 MB of input. |
+| `desktop_mode_stored_file_can_read` | `( bool $can, int $file_id, int $user_id, array $row ) => bool` | Last-mile read-access override after owner / file-share / folder-capability resolution all said no. |
+| `desktop_mode_stored_files_share_can_manage` | `( bool $can, int $file_id, int $user_id, ?array $file ) => bool` | Who may manage a stored file's shares. Owner-only by default. |
+
+### Actions
+
+| Hook | Signature | Fires |
+|---|---|---|
+| `desktop_mode_stored_file_created` | `( int $file_id, int $owner_id )` | After a stored-file row is created (bytes already on disk). |
+| `desktop_mode_stored_file_uploaded` | `( int $file_id, int $placement_id, int $user_id )` | After a full upload lands (bytes + row + placement). |
+| `desktop_mode_stored_file_renamed` | `( int $file_id, string $new_name, string $old_name )` | After a display-name rename. |
+| `desktop_mode_stored_file_deleted` | `( int $file_id, array $row )` | After bytes + row are deleted. |
+| `desktop_mode_stored_file_downloaded` | `( int $file_id, int $user_id )` | Download audit — just before a file streams. |
+| `desktop_mode_folder_zip_downloaded` | `( int $folder_id, int $user_id, int $count )` | Just before a folder zip streams. |
+
+Single-file shares fire the SAME share actions folder shares use
+(`desktop_mode_files_share_{invited,accepted,denied,left,revoked}`)
+with the share row carrying `target_type => 'file'`. The
+`desktop_mode_files_shareable_types` default is now
+`[ 'folder', 'file' ]`, and `desktop_mode_files_share_target_owner`
+resolves `'file'` targets to the stored file's owner.
 
 ## Asset loading
 

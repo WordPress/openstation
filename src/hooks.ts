@@ -1265,6 +1265,21 @@ export const HOOKS = {
 	 */
 	WINDOW_LINK_EDGES: 'desktop-mode.window-links.edges',
 	/**
+	 * Filter — applied to the related-entity navigation items resolved
+	 * for a window, every time the title bar's "Related" button decides
+	 * its visibility and every time its menu is built. Signature:
+	 * `( items: RelatedEntityItem[], ctx: { windowId: string, content:
+	 * WindowContentRef | null } ) => RelatedEntityItem[]` where each
+	 * item is `{ id, group, label, url, groupLabel?, icon?, count? }`.
+	 * The unfiltered list is whatever the window's content identity
+	 * carried in `related` (built server-side; see the
+	 * `desktop_mode_window_related_entities` PHP filter). Add, drop, or
+	 * relabel items here — return an empty array to hide the button.
+	 *
+	 * @since 0.9.6
+	 */
+	RELATED_ENTITIES_ITEMS: 'desktop-mode.related-entities.items',
+	/**
 	 * Filter — applied to the registered window-link renderer list on
 	 * every read (`wp.desktop.listWindowLinkRenderers()`). Signature:
 	 * `( defs: WindowLinkRendererDef[] ) => WindowLinkRendererDef[]`.
@@ -1308,6 +1323,35 @@ export const HOOKS = {
 	FILE_DROP_AFTER_UPLOAD: 'desktop-mode.drop.after-upload',
 	/** Action — `{ file, error, context }` on upload failure. */
 	FILE_DROP_UPLOAD_FAILED: 'desktop-mode.drop.upload-failed',
+
+	// ------------------------------------------------------------------
+	// Session / authentication (since 0.9.8). Fired by
+	// `src/auth-recovery/index.ts` when the WordPress login session
+	// expires and when it comes back. Mirrored as document
+	// CustomEvents (`desktop-mode-auth-lost` / `-restored`) for
+	// listeners outside the hook bus.
+	// ------------------------------------------------------------------
+	/**
+	 * Action, no payload — the Heartbeat `wp-auth-check` flag
+	 * reported the session as expired. Fires once per outage.
+	 * Pause pollers / mutations here; requests made while the
+	 * session is down will 401.
+	 *
+	 * @since 0.9.8
+	 */
+	AUTH_LOST: 'desktop-mode.auth.lost',
+	/**
+	 * Action, no payload — the session is authenticated again and
+	 * the shell's cached nonces have been (or are about to be, same
+	 * tick) refreshed in place. Resume pollers and re-fetch any
+	 * state that may have failed during the outage. May fire
+	 * without a preceding `AUTH_LOST` when re-auth was detected
+	 * from an iframe or another browser tab before the shell's own
+	 * heartbeat noticed the expiry.
+	 *
+	 * @since 0.9.8
+	 */
+	AUTH_RESTORED: 'desktop-mode.auth.restored',
 } as const;
 
 /**

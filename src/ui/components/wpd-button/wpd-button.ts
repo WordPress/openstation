@@ -120,9 +120,19 @@ export class WpdButton extends Component {
 	protected render() {
 		const disabled =
 			( this as unknown as { disabled: string | null } ).disabled !== null;
+		const busy =
+			( this as unknown as { busy: string | null } ).busy !== null;
 		const type = ( this as unknown as { type: string | null } ).type || 'button';
 		return html`
-			<button part="button" type=${ type } ?disabled=${ disabled }>
+			<button
+				part="button"
+				type=${ type }
+				?disabled=${ disabled || busy }
+				aria-busy=${ busy ? 'true' : 'false' }
+			>
+				${ busy
+					? html`<span class="wpd-button__spinner" aria-hidden="true"></span>`
+					: '' }
 				<slot></slot>
 			</button>
 		`;

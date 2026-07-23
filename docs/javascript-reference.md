@@ -1671,6 +1671,20 @@ wp.desktop.subscribe( 'posts/updated', ( { id } ) => {
 
 **Mirror onto activity** *(since 0.5.5)* — every `broadcast()` *also* publishes on the activity bus under the same topic name (so long as it matches the `<plugin>/<event>` shape), so in-tab subscribers can use the unified `activity.subscribe` surface without knowing whether the producer ran broadcast vs activity. Cross-iframe fan-out stays the broadcast bus's job.
 
+**The `desktop-mode.<type>.changed` topic family** *(extended 0.9.7)* — the framework's own content-change traffic rides this bus. One topic per content type (`post`, `page`, `attachment`, `comment`, any CPT slug, `shop_order` for WooCommerce orders), payload:
+
+```typescript
+{
+    source: 'admin' | 'editor' | 'heartbeat' | 'recycle-bin' | string, // emitter id
+    action: 'created' | 'updated' | 'trashed' | 'untrashed' | 'deleted',
+    ids:    number[],
+}
+```
+
+Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `desktop_mode_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer-since-097)) or a direct `wp.desktop.broadcast()` client-side — set a distinctive `source` so you can skip your own echoes.
+
+**Heartbeat fields** *(since 0.9.7)* — the shell contributes `desktop_mode_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `desktop_mode_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
+
 ---
 
 ### `showToast( opts )` — Stable *(since 0.6.0)*
@@ -2243,6 +2257,7 @@ Window content relations: which piece of content each window shows, and how wind
 | `root` | `{ type, id }` | Optional. The root object this window's content belongs to. Omit when this window IS the root. |
 | `links` | `Array<{ type, id, rel? }>` | Optional. Outbound references from this content to OTHER objects (the bridge fills these for post editors automatically, capped at 32). `rel: 'references'` (default) draws the tie FROM this window TO the target ("my content points at that" — hyperlinks, terms); `rel: 'child'` reverses it ("that belongs to ME" — a post's embedded/featured media) and renders as a `child-root` edge, identical to a `root` tie. Links never re-root anything. |
 | `label` | `string` | Optional human label for renderers/tooltips. |
+| `related` | `RelatedEntityItem[]` | Optional *(since 0.9.6)*. Ready-to-open navigation targets related to this content — what the title bar's **"Related" button** lists (see below). Built server-side for posts/pages and capped at 64; never affects group membership or edges. |
 | `source` | `'config' \| 'bridge' \| 'api'` | Stamped by the engine — never set it yourself. |
 
 **API:**
@@ -2281,6 +2296,47 @@ wp.desktop.relations.related( myWindowId ); // → sibling window ids
 | `desktop-mode-window-link-groups-changed` | `desktop-mode.window-links.groups-changed` | `{ groups }` — fires on MEMBERSHIP change only, never on move/resize or focus reorder. |
 
 **JS filters:** `desktop-mode.window-links.content` (`( ref, { windowId, source } ) => ref | null` — rewrite or suppress an identity as it's set), `desktop-mode.window-links.groups` (reshape the computed group list on read), `desktop-mode.window-links.edges` (reshape the derived directed-edge list on read — add, drop, or redirect ties), `desktop-mode.window-links.renderers` (the renderer registry list), `desktop-mode.window-links.renderer` (`( id ) => id` — force-swap the active renderer without touching the user's setting).
+
+### The "Related" title-bar button — Experimental  *(since 0.9.6)*
+
+Any window whose content identity carries `related` items shows a **Related** button (network icon, right side of the title bar, registered through the public `registerTitleBarButton` surface as `desktop-mode/related-entities`). Clicking it opens a dropdown grouped by `item.group` — built-in groups render first (`comments`, then `terms/*`, then `media`, then `links`), vendor groups after in arrival order, each headed by its `groupLabel` — and picking an item opens `item.url` as its own desktop window. Native URL remaps are deliberately **not** consulted: the menu exists for filtered deep links (`edit-comments.php?p={id}`), which a native window opened by id would drop — so the classic filtered screen always opens, even when a native replacement is enabled. The button appears/disappears live as the identity changes: iframe navigation re-announces it, and inside the block editor the bridge's save-watcher refetches a server-recomputed identity after every real (non-autosave) save — adding a category, linking a post, or attaching media updates the menu without a reload. It hides whenever the resolved list is empty.
+
+**`RelatedEntityItem`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique in the list, e.g. `'comments'`, `'term-category-7'`, `'media-42'`; namespace yours `vendor/sub-id`. |
+| `group` | `string` | Menu section key. Built-ins: `'comments'`, `'terms/{taxonomy}'`, `'media'`. |
+| `groupLabel` | `string` | Optional translated section header. |
+| `label` | `string` | Translated item label. |
+| `icon` | `string` | Optional Dashicons class (also used as the opened window's icon). |
+| `url` | `string` | Admin URL the item opens. |
+| `count` | `number` | Optional count suffix — renders as `Comments (4)`. |
+
+**Where items come from:** the server builds them for posts/pages during the admin page render (comments with count, assigned terms, associated media) and any screen can contribute via the `desktop_mode_window_related_entities` PHP filter (see [hooks-reference](./hooks-reference.md)). Client-side, the resolved list runs through the **`desktop-mode.related-entities.items` JS filter** on every visibility check and menu build:
+
+```javascript
+// ( items, { windowId, content } ) => items
+wp.hooks.addFilter(
+    'desktop-mode.related-entities.items',
+    'my-plugin/audit-trail',
+    ( items, { content } ) => {
+        if ( content?.type === 'post' ) {
+            items.push( {
+                id: 'my-plugin/audit',
+                group: 'my-plugin/audit',
+                groupLabel: 'Audit',
+                label: 'Audit trail',
+                icon: 'dashicons-backup',
+                url: `${ myPlugin.adminUrl }admin.php?page=my-plugin-audit&post=${ content.id }`,
+            } );
+        }
+        return items;
+    },
+);
+```
+
+Malformed entries are dropped item-wise; a non-array return falls back to the identity's own list. Read a window's current items via `wp.desktop.relations.get( windowId )?.related`. Recipes: [`docs/examples/related-entities.md`](./examples/related-entities.md).
 
 ### `registerWindowLinkRenderer( def )` — Experimental  *(since 0.9.4)*
 
@@ -3893,6 +3949,8 @@ Canvas wallpapers receive `ctx.prefersReducedMotion` and should render a single 
 
 Any wallpaper can ship a `renderEditor` callback — when that wallpaper is the selected swatch in OS Settings, a collapsible panel opens below the grid and the editor is rendered into it. Same animation as the built-in custom-gradient editor.
 
+Every mount receives a brand-new `container` element — the shell never recycles the previous mount's DOM, so editors built on renderers that cache state per container (lit-html and friends) work across select-away-and-back cycles without any special handling. Treat the container as yours until your returned teardown runs; don't keep references to it afterwards.
+
 ```javascript
 wp.desktop.registerWallpaper( {
     id: 'my-plugin/tunable',
@@ -4772,6 +4830,60 @@ applyFilters( 'desktop-mode.files.resolve-opener', FileOpenerDef | null, type: s
 
 ---
 
+## Real file storage — client surface (Experimental, since 0.9.6)
+
+Real per-user desktop storage (the `upload` file type). Server-side
+contract: [files-on-desktop.md → Real file storage](files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+
+**Shell config key** — `config.desktopStorage`:
+
+```ts
+interface DesktopStorageConfig {
+	canUpload: boolean;    // viewer holds the (filterable) upload capability
+	maxBytes: number;      // per-file cap, 0 = no client cap
+	quotaBytes: number;    // per-user quota, 0 = unlimited
+	zipAvailable: boolean; // server has ZipArchive → folder-zip affordances render
+}
+```
+
+**Drop hook chain** — desktop-storage uploads fire the exact same
+`desktop-mode.drop.*` actions and filters the Media Library sink
+does (`files-detected`, `dialog-fields`, `before-upload`,
+`upload-started`, `upload-progress`, `after-upload`,
+`upload-failed`) — subscribers don't branch on the destination. The
+`AFTER_UPLOAD` payload's `result` is `{ placement, storedFileId }`
+for the desktop sink (vs. the attachment shape for media). The
+upload dialog's destination default follows the drop's intent:
+folder-targeted drops and the desktop pickers → Desktop; WordPress
+admin windows → Media Library; flat desk drops → Media Library when
+every file is `image/*` / `video/*` / `audio/*`, Desktop otherwise;
+folder-tree drops force Desktop. Dropping again while the dialog is
+open replaces its pending batch with the latest drop (one dialog,
+never stacked modals, never mixed batches).
+
+**Serialized shape** — `upload` placements carry
+`file.ownerId`, `file.sizeBytes`, `file.mime`, and `file.kind`
+(`image | video | audio | pdf | archive | text | file`) on top of
+the base `DesktopFileShape`.
+
+**Tile menu** — the built-in entries injected through the standard
+`desktop-mode.files.tile-menu` filter: `desktop-mode/upload-download`
+(every viewer), `desktop-mode/upload-share` (owner),
+`desktop-mode/upload-leave` (recipient's root tile), and
+`desktop-mode/folder-zip-download` on folder tiles when
+`zipAvailable`. Plugins reorder/hide them like any other item.
+
+**Heartbeat invites** — single-file share invites ride the existing
+`shares.pending` channel with `targetType: 'file'`, `fileId`, and
+`fileName` on the shape; folder invites are unchanged (no
+`targetType`).
+
+**Download URLs** are minted at click time (cookie +
+`_wpnonce`-in-query GET navigations) and must never be persisted —
+nonces expire.
+
+---
+
 ## Native Plugins window (since 0.9.0)
 
 The `desktop-mode-plugins` native window replaces the chromeless `plugins.php` and `plugin-install.php` iframes. Two tabs (Installed + Browse), a `<wpd-flyout>` detail panel, .zip upload (button + drop-on-window), and drag-card-to-dock pinning via the framework drag bridge.
@@ -5054,6 +5166,65 @@ contract.
 helper used by the framework's built-in updaters, but it's not
 exposed across bundles — third-party plugins should use the
 heartbeat subscription above.
+
+The map also rides core's `wp_refresh_nonces` short-circuit
+response *(since 0.9.8)* — the tick that reports `nonces_expired`
+(the first one after a session re-login, or after plain 24-hour
+nonce expiry) already carries the replacements, so the shell heals
+in a single round trip.
+
+---
+
+## Session expiry & recovery *(Stable, since 0.9.8)*
+
+When the login session expires, the desktop shows **one** login
+prompt: core's `wp-auth-check` modal in the parent shell. Chromeless
+iframes have theirs suppressed server-side
+(`desktop_mode_chromeless_suppress_auth_check()`), so N open windows
+no longer stack N identical modals.
+
+After the user re-authenticates (in the modal, or in another tab),
+the shell recovers **in place** — no full-page reload. The
+`src/auth-recovery/index.ts` module forces a Heartbeat tick (which
+delivers fresh nonces, see the section above), reloads each
+chromeless iframe (their PHP-rendered nonce globals can't be patched
+live), and announces the transition on both event surfaces:
+
+| Surface | Loss | Recovery |
+|---|---|---|
+| `document` CustomEvent | `desktop-mode-auth-lost` | `desktop-mode-auth-restored` |
+| Hook bus (`wp.desktop.hooks`) | `desktop-mode.auth.lost` | `desktop-mode.auth.restored` |
+
+Neither event carries a payload. `desktop-mode-auth-lost` fires once
+per outage; pause pollers and hold off on mutations — requests made
+while the session is down will 401. `desktop-mode-auth-restored`
+means cached nonces are valid again (refreshed on the same tick):
+resume pollers and re-fetch anything that may have failed during the
+outage. It can fire without a preceding `-lost` when the re-auth was
+detected from an iframe or another tab before the shell's own
+heartbeat noticed the expiry.
+
+```ts
+document.addEventListener( 'desktop-mode-auth-restored', () => {
+    // The session is back and nonces are fresh — re-sync.
+    void refreshMyPluginState();
+} );
+```
+
+Recovery decisions key off authoritative Heartbeat state only: the
+`wp-auth-check` flag, or a `nonces_expired` response arriving during
+a known outage (core only ever sends that field to an authenticated
+session, so it doubles as the earliest possible re-auth signal). A
+`401`/`403` response seen by `wp.desktop.fetch` merely *accelerates*
+the next tick (debounced) — a permission `403` from a live session
+(`rest_forbidden` on a route the user can't access) never triggers
+any user-visible reaction.
+
+One case still hard-reloads the shell: the re-login authenticated a
+**different user** (detected via the `desktop_mode_auth` heartbeat
+field, `{ uid }`). In-place recovery would leave the previous user's
+desktop issuing the new user's requests, so the shell reloads and
+re-renders for the new account.
 
 ---
 

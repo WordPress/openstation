@@ -13,7 +13,10 @@
  *      `postMessage`s the parent shell with `type:
  *      'desktop-mode-recycle-bin-changed'`. The parent dispatches our
  *      `CustomEvent`, the open window refreshes. Cost: ~zero unless
- *      a delete actually happened in this request.
+ *      a delete actually happened in this request. The per-domain
+ *      `desktop-mode.<type>.changed` list-refresh broadcasts ride the
+ *      generic content-changes emitter instead (the changelog below
+ *      delegates into `includes/content-changes.php` since 0.9.7).
  *
  *   2. **Catch-all path — Heartbeat**
  *      Every delete also bumps a single autoload=false option
@@ -114,11 +117,18 @@ function desktop_mode_recycle_bin_signal_change_for_post( $post_id, $action = 't
 /**
  * Per-request changelog: `[ post_type ][ action ] = int[] ids`.
  *
- * Reads when called without args; mutates when called with a
- * post_type. Static-store pattern, same shape as the dirty
- * helper above so test introspection is symmetric.
+ * Thin wrapper over the generic content-changes recorder
+ * (`includes/content-changes.php`) — since 0.9.7 the generic module
+ * owns the changelog AND the per-domain `desktop-mode.<type>.changed`
+ * footer broadcasts, so a trash and a save flow through one emitter.
+ * The wrapper is kept because the recycle-bin hook wiring below and
+ * third-party code grep for it.
+ *
+ * Reads when called without args; records when called with a
+ * post_type.
  *
  * @since 0.6.0
+ * @since 0.9.7 Delegates to `desktop_mode_content_changes_record()`.
  *
  * @param string $post_type Optional. Mutate this domain.
  * @param int    $post_id   Optional. Id to record.
@@ -126,19 +136,10 @@ function desktop_mode_recycle_bin_signal_change_for_post( $post_id, $action = 't
  * @return array Full changelog when called with no args.
  */
 function desktop_mode_recycle_bin_record_change( $post_type = '', $post_id = 0, $action = '' ) {
-	static $log = array();
-
-	if ( '' === $post_type ) {
-		return $log;
+	if ( '' !== $post_type ) {
+		desktop_mode_content_changes_record( (string) $post_type, (int) $post_id, (string) $action );
 	}
-	if ( ! isset( $log[ $post_type ] ) ) {
-		$log[ $post_type ] = array();
-	}
-	if ( ! isset( $log[ $post_type ][ $action ] ) ) {
-		$log[ $post_type ][ $action ] = array();
-	}
-	$log[ $post_type ][ $action ][] = (int) $post_id;
-	return $log;
+	return desktop_mode_content_changes_log();
 }
 
 /**
@@ -200,41 +201,26 @@ function desktop_mode_recycle_bin_emit_footer_signal() {
 		return;
 	}
 
-	$ts        = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
-	$changelog = desktop_mode_recycle_bin_record_change();
+	$ts = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
 
-	if ( $ts <= 0 && empty( $changelog ) ) {
+	if ( $ts <= 0 ) {
 		// Nothing has ever been trashed via this site — no point
 		// teaching the parent shell about a 0 high-water mark.
 		return;
 	}
 
-	// Per-domain broadcast envelope: one entry per affected
-	// post_type, with verb-keyed id lists. The parent shell's
-	// `installBroadcastReceiver` translates each into a
-	// `desktop-mode.<post_type>.changed` broadcast — the bin (and
-	// any plugin that subscribes to that exact topic) reacts.
-	$broadcasts = array();
-	foreach ( $changelog as $post_type => $by_action ) {
-		foreach ( $by_action as $action => $ids ) {
-			$broadcasts[] = array(
-				'topic'   => 'desktop-mode.' . $post_type . '.changed',
-				'payload' => array(
-					'source' => 'admin',
-					'action' => (string) $action,
-					'ids'    => array_values( array_unique( array_map( 'intval', $ids ) ) ),
-				),
-			);
-		}
-	}
-	$broadcasts_json = wp_json_encode( $broadcasts );
+	// Only the bin-specific ts signal is emitted here. The per-domain
+	// `desktop-mode.<post_type>.changed` broadcasts moved to the
+	// generic content-changes emitter (`includes/content-changes.php`,
+	// same `admin_footer` slot) — the bin's changelog delegates into
+	// it, so a trash and a save flow through one emitter and each
+	// type/action pair is broadcast exactly once per render.
 	?>
 	<script id="desktop-mode-recycle-bin-realtime-signal">
 		( function () {
 			if ( window.parent === window ) {
 				return;
 			}
-			var origin = window.location.origin;
 			try {
 				window.parent.postMessage(
 					{
@@ -242,28 +228,9 @@ function desktop_mode_recycle_bin_emit_footer_signal() {
 						ts: <?php echo (int) $ts; ?>,
 						source: 'chromeless'
 					},
-					origin
+					window.location.origin
 				);
 			} catch ( _err ) { /* swallow */ }
-
-			/*
-			 * Per-domain broadcast envelopes — one postMessage per
-			 * affected post type. The parent shell's broadcast
-			 * receiver fans these out as `desktop-mode.<type>.changed`
-			 * subscriptions. Only emitted when the request actually
-			 * mutated something: a no-op chromeless render skips this
-			 * branch entirely.
-			 */
-			var broadcasts = <?php echo $broadcasts_json ? $broadcasts_json : '[]'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>;
-			for ( var i = 0; i < broadcasts.length; i++ ) {
-				try {
-					window.parent.postMessage( {
-						type: 'desktop-mode-broadcast',
-						topic: broadcasts[ i ].topic,
-						payload: broadcasts[ i ].payload
-					}, origin );
-				} catch ( _err ) { /* swallow */ }
-			}
 		} )();
 	</script>
 	<?php

@@ -48,6 +48,17 @@ defined( 'ABSPATH' ) || exit;
 const DESKTOP_MODE_NONCE_REFRESH_FIELD = 'desktop_mode_nonces';
 
 /**
+ * Heartbeat field carrying the authenticated user's identity.
+ * `src/auth-recovery/index.ts` compares `uid` against the shell's
+ * boot-time viewer and hard-reloads when a *different* user logged
+ * in through the session-expired prompt — in-place nonce refresh
+ * would otherwise leave user A's desktop issuing user B's requests.
+ *
+ * @since 0.9.8
+ */
+const DESKTOP_MODE_AUTH_FIELD = 'desktop_mode_auth';
+
+/**
  * Mint a fresh map of `{ action => nonce }` for every action the
  * shell needs to keep alive past `nonce_life`. The set is
  * filterable so other native windows / third-party plugins can
@@ -116,6 +127,43 @@ function desktop_mode_nonce_refresh_heartbeat_received( $response, $data ) {
 		return $response;
 	}
 	$response[ DESKTOP_MODE_NONCE_REFRESH_FIELD ] = desktop_mode_nonce_refresh_build_payload();
+	$response[ DESKTOP_MODE_AUTH_FIELD ]          = array( 'uid' => get_current_user_id() );
 	return $response;
 }
 add_filter( 'heartbeat_received', 'desktop_mode_nonce_refresh_heartbeat_received', 5, 2 );
+
+/**
+ * Nonce-refresh rider for the `nonces_expired` heartbeat path.
+ *
+ * When the Heartbeat POST arrives with a stale `heartbeat-nonce`
+ * (the first tick after a re-login, or any tick once the nonce
+ * aged past `nonce_life`), core short-circuits before
+ * `heartbeat_received` / `heartbeat_send` ever run — the response
+ * is built solely from the `wp_refresh_nonces` filter. Without
+ * this hook the shell would only receive fresh
+ * `desktop_mode_nonces` on the FOLLOWING tick, leaving a window
+ * where every cached nonce is rejected ("Cookie check failed").
+ *
+ * Riding the same payload here means one round-trip heals the
+ * shell: the tick that says "your nonces expired" also delivers
+ * the replacements. Client-side, `heartbeat.js` still fires
+ * `heartbeat-tick` for this response, so the regular
+ * `src/nonce-refresh.ts` subscriber picks the map up unchanged.
+ *
+ * @since 0.9.8
+ *
+ * @param array $response Heartbeat response (filter return value).
+ * @return array
+ */
+function desktop_mode_nonce_refresh_on_expired( $response ) {
+	if ( ! is_array( $response ) ) {
+		$response = array();
+	}
+	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+		return $response;
+	}
+	$response[ DESKTOP_MODE_NONCE_REFRESH_FIELD ] = desktop_mode_nonce_refresh_build_payload();
+	$response[ DESKTOP_MODE_AUTH_FIELD ]          = array( 'uid' => get_current_user_id() );
+	return $response;
+}
+add_filter( 'wp_refresh_nonces', 'desktop_mode_nonce_refresh_on_expired', 5 );

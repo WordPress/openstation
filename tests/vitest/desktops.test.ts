@@ -531,8 +531,12 @@ describe( 'WindowManager — virtual desktops', async () => {
 				expect( sideDock.inert ).toBe( true );
 				expect( widgets.inert ).toBe( true );
 				expect( notice.inert ).toBe( true );
-				expect( a.element.inert ).toBe( true );
-				expect( b.element.inert ).toBe( true );
+				// Window root elements remain non-inert for thumbnail pointer clicks,
+				// while inner window child elements are inerted to trap keyboard focus.
+				expect( a.element.inert ).toBeFalsy();
+				expect( b.element.inert ).toBeFalsy();
+				expect( ( a.element.children[ 0 ] as HTMLElement ).inert ).toBe( true );
+				expect( ( b.element.children[ 0 ] as HTMLElement ).inert ).toBe( true );
 
 				manager.exitOverview();
 
@@ -542,13 +546,53 @@ describe( 'WindowManager — virtual desktops', async () => {
 				expect( sideDock.inert ).toBe( false );
 				expect( widgets.inert ).toBe( false );
 				expect( notice.inert ).toBe( false );
-				expect( a.element.inert ).toBe( false );
-				expect( b.element.inert ).toBe( false );
+				expect( a.element.inert ).toBeFalsy();
+				expect( b.element.inert ).toBeFalsy();
+				expect( ( a.element.children[ 0 ] as HTMLElement ).inert ).toBe( false );
+				expect( ( b.element.children[ 0 ] as HTMLElement ).inert ).toBe( false );
 			} finally {
 				for ( const el of toRemove ) {
 					el.remove();
 				}
 			}
+		} );
+
+		test( 'clicking a window thumbnail in overview selects and focuses it without forcing maximize', async () => {
+			const a = await manager.open( openConfig( 'a' ) );
+			const b = await manager.open( openConfig( 'b' ) );
+			expect( manager.getFocused() ).toBe( b );
+			expect( a.state ).toBe( 'normal' );
+			expect( b.state ).toBe( 'normal' );
+
+			manager.enterOverview();
+			expect( manager._overviewActive ).toBe( true );
+
+			vi.spyOn( a.element, 'getBoundingClientRect' ).mockReturnValue(
+				new DOMRect( 100, 100, 200, 150 ),
+			);
+
+			a.element.dispatchEvent(
+				new MouseEvent( 'pointerdown', {
+					bubbles: true,
+					cancelable: true,
+					button: 0,
+					clientX: 150,
+					clientY: 150,
+				} ),
+			);
+			a.element.dispatchEvent(
+				new MouseEvent( 'pointerup', {
+					bubbles: true,
+					cancelable: true,
+					button: 0,
+					clientX: 150,
+					clientY: 150,
+				} ),
+			);
+
+			expect( manager._overviewActive ).toBe( false );
+			expect( manager.getFocused() ).toBe( a );
+			expect( a.state ).toBe( 'normal' );
 		} );
 
 		// Each desktop tile was a single <button>; the close X was a child

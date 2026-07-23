@@ -29,6 +29,7 @@
 import type { WindowManager } from '../window-manager';
 import type { Window as DesktopWindow } from '../window';
 import { injectRestNonce } from '../inject-rest-nonce';
+import { noteAuthFailure } from '../auth-recovery';
 
 export interface TrackedFetchImplOpts {
 	windowId?: string;
@@ -54,6 +55,29 @@ export function trackedFetch(
 	const finalInit = injectRestNonce( input, requestInit );
 	// eslint-disable-next-line no-restricted-syntax -- this IS the framework fetch wrapper exposed as `wp.desktop.fetch`; it's the one legitimate place to call the raw global.
 	const promise = window.fetch( input, finalInit );
+	// Session-expiry fast path: a 401/403 through the framework
+	// fetch asks Heartbeat for an auth verdict now instead of
+	// waiting out the regular tick schedule. Observed on a side
+	// branch — the caller's promise resolution is untouched, and
+	// network-level rejections are not auth signals.
+	void promise.then(
+		( res ) => {
+			if ( res.status === 401 || res.status === 403 ) {
+				let url: string;
+				if ( typeof input === 'string' ) {
+					url = input;
+				} else if ( input instanceof URL ) {
+					url = input.href;
+				} else {
+					url = input.url;
+				}
+				noteAuthFailure( res.status, url );
+			}
+		},
+		() => {
+			/* rejection handled by the caller's own chain */
+		},
+	);
 	if ( opts?.silent ) {
 		return promise;
 	}

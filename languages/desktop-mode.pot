@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Desktop Mode 0.9.4\n"
+"Project-Id-Version: Desktop Mode 0.9.5\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/alcazaba-plugin\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-15T14:37:00+00:00\n"
+"POT-Creation-Date: 2026-07-23T11:31:22+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: desktop-mode\n"
@@ -79,96 +79,96 @@ msgstr ""
 msgid "Environment included with the report"
 msgstr ""
 
-#: src/comments-window/index.ts:209
+#: src/comments-window/index.ts:213
 msgid "Akismet flagged this comment as spam."
 msgstr ""
 
-#: src/comments-window/index.ts:211
+#: src/comments-window/index.ts:215
 msgid "Akismet cleared this comment."
 msgstr ""
 
-#: src/comments-window/index.ts:216
+#: src/comments-window/index.ts:220
 msgid "AI: looks like promotional spam."
 msgstr ""
 
-#: src/comments-window/index.ts:219
+#: src/comments-window/index.ts:223
 msgid "AI: hostile / abusive tone."
 msgstr ""
 
-#: src/comments-window/index.ts:222
+#: src/comments-window/index.ts:226
 msgid "AI: looks safe."
 msgstr ""
 
 #. 1: spam score 0–100, 2: extra moderation notes.
-#: src/comments-window/index.ts:231
+#: src/comments-window/index.ts:235
 msgid "Spam score: %1$d / 100. %2$s"
 msgstr ""
 
 #. %d: spam score 0–100.
-#: src/comments-window/index.ts:237
+#: src/comments-window/index.ts:241
 msgid "Spam score: %d / 100."
 msgstr ""
 
-#: src/comments-window/index.ts:261
+#: src/comments-window/index.ts:265
 msgid "Bold"
 msgstr ""
 
-#: src/comments-window/index.ts:262
+#: src/comments-window/index.ts:266
 msgid "Italic"
 msgstr ""
 
-#: src/comments-window/index.ts:263
+#: src/comments-window/index.ts:267
 msgid "Bulleted list"
 msgstr ""
 
-#: src/comments-window/index.ts:264
+#: src/comments-window/index.ts:268
 msgid "Numbered list"
 msgstr ""
 
-#: src/comments-window/index.ts:283
-#: src/comments-window/index.ts:284
+#: src/comments-window/index.ts:287
+#: src/comments-window/index.ts:288
 msgid "Wrap selection in a link"
 msgstr ""
 
-#: src/comments-window/index.ts:298
+#: src/comments-window/index.ts:302
 msgid "Select a full URL (https://…) in your reply, then click the link button."
 msgstr ""
 
 #. %d: number of comments.
-#: src/comments-window/index.ts:592
+#: src/comments-window/index.ts:596
 msgid "Approved %d."
 msgstr ""
 
 #. %d: number of comments.
-#: src/comments-window/index.ts:595
+#: src/comments-window/index.ts:599
 msgid "Unapproved %d."
 msgstr ""
 
 #. %d: number of comments.
-#: src/comments-window/index.ts:598
+#: src/comments-window/index.ts:602
 msgid "Marked %d as spam."
 msgstr ""
 
 #. %d: number of comments.
-#: src/comments-window/index.ts:601
+#: src/comments-window/index.ts:605
 msgid "Un-spammed %d."
 msgstr ""
 
 #. %d: number of comments.
-#: src/comments-window/index.ts:604
+#: src/comments-window/index.ts:608
 msgid "Trashed %d."
 msgstr ""
 
 #. %d: number of comments.
-#: src/comments-window/index.ts:607
+#: src/comments-window/index.ts:611
 msgid "Restored %d."
 msgstr ""
 
-#: src/comments-window/index.ts:930
+#: src/comments-window/index.ts:967
 msgid "Search comments…"
 msgstr ""
 
-#: src/comments-window/index.ts:938
+#: src/comments-window/index.ts:975
 #: src/plugins-window/browse-view.ts:174
 #: src/plugins-window/installed-view.ts:222
 #: includes/pages-window/window.php:46
@@ -178,34 +178,36 @@ msgstr ""
 msgid "Refresh"
 msgstr ""
 
-#: src/comments-window/index.ts:957
+#: src/comments-window/index.ts:994
 msgid "No comments to moderate here."
 msgstr ""
 
-#: src/comments-window/index.ts:966
+#: src/comments-window/index.ts:1003
+#: src/games/scoreboard.ts:171
 #: includes/pages-window/window.php:82
 #: includes/posts-window/window.php:103
 #: includes/users-window/window.php:98
 msgid "Previous"
 msgstr ""
 
-#: src/comments-window/index.ts:969
+#: src/comments-window/index.ts:1006
+#: src/games/scoreboard.ts:181
 #: includes/pages-window/window.php:85
 #: includes/posts-window/window.php:106
 #: includes/users-window/window.php:101
 msgid "Next"
 msgstr ""
 
-#: src/comments-window/index.ts:973
+#: src/comments-window/index.ts:1010
 #: includes/pages-window/window.php:89
 #: includes/posts-window/window.php:110
 #: includes/users-window/window.php:105
 msgid "Per page"
 msgstr ""
 
-#: src/comments-window/index.ts:1008
-#: src/content-graph/panel.ts:427
-#: src/content-graph/panel.ts:568
+#: src/comments-window/index.ts:1045
+#: src/content-graph/panel.ts:429
+#: src/content-graph/panel.ts:570
 #: src/content-graph/satellites.ts:335
 #: src/my-wordpress/index.ts:508
 #: src/my-wordpress/index.ts:1662
@@ -214,12 +216,12 @@ msgstr ""
 msgid "Author"
 msgstr ""
 
-#: src/comments-window/index.ts:1019
+#: src/comments-window/index.ts:1056
 msgid "Show author insights"
 msgstr ""
 
-#: src/comments-window/index.ts:1051
-#: src/comments-window/index.ts:1383
+#: src/comments-window/index.ts:1088
+#: src/comments-window/index.ts:1420
 #: src/my-wordpress/index.ts:2192
 #: src/my-wordpress/index.ts:2227
 #: src/my-wordpress/index.ts:2252
@@ -231,57 +233,57 @@ msgstr ""
 msgid "Anonymous"
 msgstr ""
 
-#: src/comments-window/index.ts:1065
-#: src/content-graph/panel.ts:832
-#: src/content-graph/panel.ts:841
-#: src/content-graph/panel.ts:870
-#: includes/desktop-files/built-in-types.php:51
+#: src/comments-window/index.ts:1102
+#: src/content-graph/panel.ts:833
+#: src/content-graph/panel.ts:842
+#: src/content-graph/panel.ts:871
+#: includes/desktop-files/built-in-types.php:57
 #: includes/recycle-bin/store.php:523
 msgid "Comment"
 msgstr ""
 
 #. %d: number of direct replies.
-#: src/comments-window/index.ts:1081
+#: src/comments-window/index.ts:1118
 msgid "+ %d reply"
 msgid_plural "+ %d replies"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/comments-window/index.ts:1101
+#: src/comments-window/index.ts:1138
 msgid "In response to"
 msgstr ""
 
-#: src/comments-window/index.ts:1118
-#: src/comments-window/index.ts:1208
-#: src/comments-window/index.ts:515
+#: src/comments-window/index.ts:1155
+#: src/comments-window/index.ts:1245
+#: src/comments-window/index.ts:519
 #: includes/comments-window/window.php:29
 msgid "Spam"
 msgstr ""
 
-#: src/comments-window/index.ts:1127
+#: src/comments-window/index.ts:1164
 msgid "Submitted on"
 msgstr ""
 
-#: src/comments-window/index.ts:1202
+#: src/comments-window/index.ts:1239
 msgid "Approve"
 msgstr ""
 
-#: src/comments-window/index.ts:1203
+#: src/comments-window/index.ts:1240
 msgid "Unapprove"
 msgstr ""
 
-#: src/comments-window/index.ts:1206
+#: src/comments-window/index.ts:1243
 msgid "Not spam"
 msgstr ""
 
-#: src/comments-window/index.ts:1211
+#: src/comments-window/index.ts:1248
 #: src/recycle-bin/index.ts:332
 #: includes/recycle-bin/window.php:68
 msgid "Restore"
 msgstr ""
 
-#: src/comments-window/index.ts:1213
-#: src/comments-window/index.ts:516
+#: src/comments-window/index.ts:1250
+#: src/comments-window/index.ts:520
 #: src/posts-window/index.ts:261
 #: src/posts-window/index.ts:1082
 #: includes/comments-window/window.php:30
@@ -292,7 +294,7 @@ msgstr ""
 #. %d: number of selected plugins
 #. %d: selected row count.
 #. %d is a count of selected users.
-#: src/comments-window/index.ts:1237
+#: src/comments-window/index.ts:1274
 #: src/plugins-window/installed-view.ts:675
 #: src/posts-window/index.ts:2416
 #: src/posts-window/users-render.ts:976
@@ -301,16 +303,17 @@ msgid "%d selected"
 msgstr ""
 
 #. 1: current page, 2: total pages, 3: total rows.
-#: src/comments-window/index.ts:1326
+#: src/comments-window/index.ts:1363
 msgid "Page %1$d of %2$d (%3$d total)"
 msgstr ""
 
-#: src/comments-window/index.ts:1422
+#: src/comments-window/index.ts:1459
 msgid "Write a reply…"
 msgstr ""
 
-#: src/comments-window/index.ts:1429
-#: src/comments-window/index.ts:1501
+#: src/comments-window/index.ts:1466
+#: src/comments-window/index.ts:1538
+#: src/games/challenge-dialog.ts:95
 #: src/item-visibility-menu.ts:461
 #: src/my-wordpress/index.ts:3642
 #: src/my-wordpress/media-list.ts:370
@@ -321,81 +324,83 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: src/comments-window/index.ts:1436
+#: src/comments-window/index.ts:1473
 msgid "Send reply"
 msgstr ""
 
-#: src/comments-window/index.ts:1440
+#: src/comments-window/index.ts:1477
 msgid "Reply is empty."
 msgstr ""
 
-#: src/comments-window/index.ts:1445
+#: src/comments-window/index.ts:1482
 msgid "Reply posted."
 msgstr ""
 
-#: src/comments-window/index.ts:1454
+#: src/comments-window/index.ts:1491
 msgid "Reply failed."
 msgstr ""
 
-#: src/comments-window/index.ts:1471
+#: src/comments-window/index.ts:1508
 msgid "You can't edit this comment."
 msgstr ""
 
-#: src/comments-window/index.ts:1483
+#: src/comments-window/index.ts:1520
 msgid "Edit comment…"
 msgstr ""
 
-#: src/comments-window/index.ts:1508
+#: src/comments-window/index.ts:1545
 #: src/posts-window/categories-mindmap.ts:2599
 #: src/posts-window/tags-cloud.ts:1879
 msgid "Save"
 msgstr ""
 
-#: src/comments-window/index.ts:1512
+#: src/comments-window/index.ts:1549
 msgid "Comment updated."
 msgstr ""
 
-#: src/comments-window/index.ts:1519
+#: src/comments-window/index.ts:1556
 msgid "Edit failed."
 msgstr ""
 
-#: src/comments-window/index.ts:424
+#: src/comments-window/index.ts:428
 msgid "Loading author insights…"
 msgstr ""
 
-#: src/comments-window/index.ts:464
+#: src/comments-window/index.ts:468
 msgid "Could not load insights."
 msgstr ""
 
 #. %d: 0–100 reliability score.
-#: src/comments-window/index.ts:500
+#: src/comments-window/index.ts:504
 msgid "Reliability: %d / 100"
 msgstr ""
 
-#: src/comments-window/index.ts:512
+#: src/comments-window/index.ts:516
 msgid "Total comments"
 msgstr ""
 
-#: src/comments-window/index.ts:513
+#: src/comments-window/index.ts:517
 msgid "Approved"
 msgstr ""
 
-#: src/comments-window/index.ts:514
+#: src/comments-window/index.ts:518
 #: src/posts-window/index.ts:259
 #: src/posts-window/index.ts:1080
 #: includes/comments-window/window.php:27
 msgid "Pending"
 msgstr ""
 
-#: src/comments-window/index.ts:518
+#: src/comments-window/index.ts:522
 msgid "First seen"
 msgstr ""
 
-#: src/comments-window/index.ts:522
+#: src/comments-window/index.ts:526
 msgid "Last seen"
 msgstr ""
 
-#: src/comments-window/index.ts:538
+#: src/comments-window/index.ts:542
+#: src/games/alphabet-soup/game.ts:632
+#: src/games/inkfall/game.ts:396
 #: src/plugins-window/upload-dialog.ts:398
 #: src/window-chrome/controls/built-ins.ts:78
 #: includes/comments-window/window.php:74
@@ -403,43 +408,45 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/comments-window/index.ts:618
+#: src/comments-window/index.ts:622
 msgid "Comments window configuration missing."
 msgstr ""
 
-#: src/comments-window/index.ts:696
-#: src/comments-window/index.ts:1306
+#: src/comments-window/index.ts:700
+#: src/comments-window/index.ts:1343
 msgid "Could not load comments."
 msgstr ""
 
 #. %d: number of new pending comments.
-#: src/comments-window/index.ts:745
+#: src/comments-window/index.ts:749
 msgid "%d new pending — reload"
 msgstr ""
 
-#: src/comments-window/index.ts:750
-#: src/window/dom.ts:409
+#: src/comments-window/index.ts:754
+#: src/window/dom.ts:410
 msgid "Reload"
 msgstr ""
 
-#: src/comments-window/index.ts:1371
+#: src/comments-window/index.ts:1408
 msgid "Could not load replies."
 msgstr ""
 
-#: src/comments-window/index.ts:1553
+#: src/comments-window/index.ts:1590
+#: src/notes/convert.ts:89
+#: src/notes/trash.ts:53
 msgid "Undo"
 msgstr ""
 
 #. %s: bulk action name (e.g. "approve", "spam").
-#: src/comments-window/index.ts:1576
+#: src/comments-window/index.ts:1613
 msgid "Bulk %s failed."
 msgstr ""
 
-#: src/comments-window/index.ts:1592
+#: src/comments-window/index.ts:1629
 msgid "Undone."
 msgstr ""
 
-#: src/comments-window/index.ts:1596
+#: src/comments-window/index.ts:1633
 msgid "Undo failed."
 msgstr ""
 
@@ -546,17 +553,17 @@ msgstr ""
 msgid "Close panel"
 msgstr ""
 
-#: src/content-graph/panel.ts:337
+#: src/content-graph/panel.ts:339
 msgid "Back to post"
 msgstr ""
 
-#: src/content-graph/panel.ts:409
+#: src/content-graph/panel.ts:411
 #: src/my-wordpress/index.ts:510
 msgid "Contributors"
 msgstr ""
 
-#: src/content-graph/panel.ts:410
-#: src/content-graph/panel.ts:711
+#: src/content-graph/panel.ts:412
+#: src/content-graph/panel.ts:713
 #: src/desktop-files/preview.ts:484
 #: src/my-wordpress/index.ts:512
 #: src/my-wordpress/index.ts:3030
@@ -565,67 +572,70 @@ msgstr ""
 #: src/posts-window/users-render.ts:472
 #: includes/comments-window/window.php:111
 #: includes/recycle-bin/window.php:56
+#: includes/window-links.php:452
+#: includes/window-links.php:453
 msgid "Comments"
 msgstr ""
 
-#: src/content-graph/panel.ts:411
+#: src/content-graph/panel.ts:413
 msgid "Taxonomies"
 msgstr ""
 
-#: src/content-graph/panel.ts:412
+#: src/content-graph/panel.ts:414
 #: src/content-graph/panel.ts:881
 #: includes/desktop-files/built-in-types.php:33
 #: includes/my-wordpress/window.php:95
-#: includes/recycle-bin/store.php:602
+#: includes/recycle-bin/store.php:638
 #: includes/recycle-bin/window.php:52
+#: includes/window-links.php:532
 msgid "Media"
 msgstr ""
 
-#: src/content-graph/panel.ts:413
+#: src/content-graph/panel.ts:415
 #: src/my-wordpress/index.ts:520
 #: src/my-wordpress/index.ts:1763
 msgid "Revisions"
 msgstr ""
 
-#: src/content-graph/panel.ts:451
+#: src/content-graph/panel.ts:453
 #: src/posts-window/index.ts:256
 #: src/posts-window/index.ts:1078
 msgid "Published"
 msgstr ""
 
-#: src/content-graph/panel.ts:458
+#: src/content-graph/panel.ts:460
 msgid "Modified"
 msgstr ""
 
-#: src/content-graph/panel.ts:513
+#: src/content-graph/panel.ts:515
 #: src/my-wordpress/media-detail.ts:164
 msgid "Open in My WordPress"
 msgstr ""
 
-#: src/content-graph/panel.ts:530
+#: src/content-graph/panel.ts:532
 msgid "Edit"
 msgstr ""
 
-#: src/content-graph/panel.ts:545
+#: src/content-graph/panel.ts:547
 #: src/posts-window/index.ts:1361
 msgid "View"
 msgstr ""
 
-#: src/content-graph/panel.ts:568
+#: src/content-graph/panel.ts:570
 #: src/content-graph/satellites.ts:344
 msgid "Contributor"
 msgstr ""
 
-#: src/content-graph/panel.ts:594
+#: src/content-graph/panel.ts:596
 msgid "Roles"
 msgstr ""
 
-#: src/content-graph/panel.ts:603
+#: src/content-graph/panel.ts:605
 #: src/settings/panel.ts:249
 msgid "About"
 msgstr ""
 
-#: src/content-graph/panel.ts:609
+#: src/content-graph/panel.ts:611
 #: src/my-wordpress/index.ts:2473
 #: src/my-wordpress/index.ts:2776
 #: src/posts-window/user-edit-render.ts:309
@@ -633,9 +643,9 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: src/content-graph/panel.ts:621
-#: src/content-graph/panel.ts:709
-#: src/content-graph/panel.ts:723
+#: src/content-graph/panel.ts:623
+#: src/content-graph/panel.ts:711
+#: src/content-graph/panel.ts:725
 #: src/desktop-files/preview.ts:403
 #: src/desktop-files/preview.ts:478
 #: src/my-wordpress/index.ts:2611
@@ -648,7 +658,7 @@ msgstr ""
 msgid "Posts"
 msgstr ""
 
-#: src/content-graph/panel.ts:622
+#: src/content-graph/panel.ts:624
 #: src/desktop-files/preview.ts:409
 #: src/my-wordpress/index.ts:2624
 #: src/posts-window/users-render.ts:470
@@ -658,49 +668,49 @@ msgstr ""
 msgid "Pages"
 msgstr ""
 
-#: src/content-graph/panel.ts:623
+#: src/content-graph/panel.ts:625
 msgid "CPT"
 msgstr ""
 
-#: src/content-graph/panel.ts:625
+#: src/content-graph/panel.ts:627
 #: src/desktop-files/preview.ts:415
 #: src/my-wordpress/index.ts:2637
 msgid "Comments received"
 msgstr ""
 
-#: src/content-graph/panel.ts:629
+#: src/content-graph/panel.ts:631
 #: src/my-wordpress/index.ts:4780
 #: src/my-wordpress/index.ts:2644
 msgid "Comments left"
 msgstr ""
 
-#: src/content-graph/panel.ts:639
+#: src/content-graph/panel.ts:641
 msgid "Top topics"
 msgstr ""
 
-#: src/content-graph/panel.ts:648
+#: src/content-graph/panel.ts:650
 #: src/my-wordpress/index.ts:2886
 msgid "First published"
 msgstr ""
 
-#: src/content-graph/panel.ts:652
+#: src/content-graph/panel.ts:654
 #: src/my-wordpress/index.ts:2892
 msgid "Last published"
 msgstr ""
 
-#: src/content-graph/panel.ts:666
-#: src/content-graph/panel.ts:770
-#: src/content-graph/panel.ts:867
+#: src/content-graph/panel.ts:668
+#: src/content-graph/panel.ts:772
+#: src/content-graph/panel.ts:868
 #: src/content-graph/panel.ts:899
 msgid "Open in WordPress"
 msgstr ""
 
-#: src/content-graph/panel.ts:691
+#: src/content-graph/panel.ts:693
 #: src/posts-window/index.ts:548
 msgid "Parent"
 msgstr ""
 
-#: src/content-graph/panel.ts:701
+#: src/content-graph/panel.ts:703
 #: src/my-wordpress/media-preview.ts:232
 #: src/posts-window/categories-mindmap.ts:2348
 #: src/posts-window/categories-mindmap.ts:2534
@@ -710,75 +720,75 @@ msgstr ""
 msgid "Description"
 msgstr ""
 
-#: src/content-graph/panel.ts:715
+#: src/content-graph/panel.ts:717
 #: src/desktop-files/preview.ts:490
 #: src/my-wordpress/index.ts:3037
 msgid "Authors"
 msgstr ""
 
-#: src/content-graph/panel.ts:731
+#: src/content-graph/panel.ts:733
 msgid "Top authors"
 msgstr ""
 
-#: src/content-graph/panel.ts:739
+#: src/content-graph/panel.ts:741
 msgid "Co-occurring"
 msgstr ""
 
-#: src/content-graph/panel.ts:753
+#: src/content-graph/panel.ts:755
 #: src/my-wordpress/index.ts:3242
 msgid "First post"
 msgstr ""
 
-#: src/content-graph/panel.ts:757
+#: src/content-graph/panel.ts:759
 msgid "Latest post"
 msgstr ""
 
-#: src/content-graph/panel.ts:808
+#: src/content-graph/panel.ts:809
 msgid "comments"
 msgstr ""
 
-#: src/content-graph/panel.ts:815
+#: src/content-graph/panel.ts:816
 msgid "—"
 msgstr ""
 
-#: src/content-graph/panel.ts:817
+#: src/content-graph/panel.ts:818
 #: src/plugins-window/installed-detail.ts:504
 #: src/plugins-window/installed-view.ts:318
 msgid "Status"
 msgstr ""
 
-#: src/content-graph/panel.ts:912
-#: src/content-graph/panel.ts:945
+#: src/content-graph/panel.ts:911
+#: src/content-graph/panel.ts:944
 #: src/content-graph/satellites.ts:384
 msgid "Revision"
 msgstr ""
 
-#: src/content-graph/panel.ts:937
+#: src/content-graph/panel.ts:936
 msgid "Saved"
 msgstr ""
 
-#: src/content-graph/panel.ts:942
+#: src/content-graph/panel.ts:941
 msgid "Open revision in WordPress"
 msgstr ""
 
-#: src/content-graph/panel.ts:1131
+#: src/content-graph/panel.ts:1130
 msgid "Milestones"
 msgstr ""
 
 #. %d: number of comment replies.
 #. %d is the number of direct replies to a comment.
-#: src/content-graph/panel.ts:1162
+#: src/content-graph/panel.ts:1161
 #: src/my-wordpress/index.ts:2329
 msgid "Reply (%d)"
 msgid_plural "Replies (%d)"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/content-graph/panel.ts:1186
+#: src/content-graph/panel.ts:1185
 msgid "Loading details…"
 msgstr ""
 
-#: src/content-graph/panel.ts:1244
+#: src/content-graph/panel.ts:1243
 #: src/my-wordpress/index.ts:1841
 #: src/my-wordpress/index.ts:1920
 msgid "Loading…"
@@ -791,21 +801,21 @@ msgstr ""
 msgid "%1$s · %2$d posts"
 msgstr ""
 
-#: src/content-graph/scene.ts:999
+#: src/content-graph/scene.ts:1020
 msgid "Uncategorized"
 msgstr ""
 
-#: src/content-graph/scene.ts:1006
+#: src/content-graph/scene.ts:1030
 msgid "Untagged"
 msgstr ""
 
-#: src/content-graph/scene.ts:1014
+#: src/content-graph/scene.ts:1041
 #: src/plugins-window/installed-detail.ts:237
 msgid "Unknown author"
 msgstr ""
 
-#: src/content-graph/scene.ts:1021
-#: src/content-graph/scene.ts:1027
+#: src/content-graph/scene.ts:1048
+#: src/content-graph/scene.ts:1054
 msgid "Undated"
 msgstr ""
 
@@ -883,7 +893,7 @@ msgid "Plugin shortcut. Double-click to open."
 msgstr ""
 
 #: src/desktop-files/preview.ts:663
-#: includes/desktop-files/built-in-types.php:57
+#: includes/desktop-files/built-in-types.php:63
 msgid "Bookmark"
 msgstr ""
 
@@ -932,10 +942,11 @@ msgstr ""
 msgid "Open in editor"
 msgstr ""
 
-#: src/desktop-files/recycle-bin-targets.ts:157
+#: src/desktop-files/recycle-bin-targets.ts:161
 #: src/my-wordpress/index.ts:3468
 #: src/my-wordpress/index.ts:3635
 #: src/my-wordpress/index.ts:3641
+#: src/notes/layer.ts:1140
 msgid "Move to Trash"
 msgstr ""
 
@@ -946,8 +957,8 @@ msgstr ""
 #. %d is the number of pending items in a desktop-icon badge.
 #. %d is the number of pending items in a dock badge.
 #: src/desktop-icons.ts:416
-#: src/dock.ts:2170
-#: src/dock.ts:2183
+#: src/dock.ts:2208
+#: src/dock.ts:2221
 msgid "%d notification"
 msgid_plural "%d notifications"
 msgstr[0] ""
@@ -966,12 +977,12 @@ msgid "1 item"
 msgstr ""
 
 #. %s is the dock item's admin-page title (e.g., "Posts")
-#: src/dock-peek/index.ts:230
+#: src/dock-peek/index.ts:232
 msgid "%s — open windows"
 msgstr ""
 
 #. %s is the admin-page title (e.g., "Posts")
-#: src/dock-peek/index.ts:457
+#: src/dock-peek/index.ts:477
 msgid "New %s"
 msgstr ""
 
@@ -1032,6 +1043,527 @@ msgstr ""
 
 #: src/exit-desktop-mode.ts:41
 msgid "Exit Desktop Mode"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:90
+msgid "Time Attack"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:90
+msgid "Daily"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:95
+msgid "90 seconds on the clock — every word buys you more."
+msgstr ""
+
+#. %s: number of waves in a Daily run.
+#: src/games/alphabet-soup/game.ts:98
+msgid "%s relaxed waves. No clock pressure, just streaks."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:106
+msgid "Big"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:108
+#: src/games/inkfall/game.ts:62
+msgid "Medium"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:110
+msgid "Small"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:230
+#: src/games/inkfall/game.ts:141
+msgid "Mute sound effects"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:231
+#: src/games/inkfall/game.ts:142
+msgid "Unmute sound effects"
+msgstr ""
+
+#. 1: challenger display name, 2: score to beat.
+#: src/games/alphabet-soup/game.ts:249
+#: src/games/inkfall/game.ts:160
+msgid "Beat %1$s: %2$s"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:290
+msgid "Warming up the soup…"
+msgstr ""
+
+#. %s: current score.
+#: src/games/alphabet-soup/game.ts:331
+#: src/games/inkfall/game.ts:216
+msgid "Score %s"
+msgstr ""
+
+#. 1: current wave number, 2: mode label.
+#: src/games/alphabet-soup/game.ts:348
+msgid "Wave %1$s · %2$s"
+msgstr ""
+
+#. %s: number of hidden words.
+#: src/games/alphabet-soup/game.ts:363
+msgid "Find %s words"
+msgstr ""
+
+#. %s: wave number.
+#: src/games/alphabet-soup/game.ts:407
+msgid "Wave %s"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:428
+#: src/games/alphabet-soup/game.ts:510
+msgid "Soup finished!"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:507
+#: src/games/inkfall/game.ts:343
+msgid "Game Over — challenge beaten!"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:508
+#: src/games/inkfall/game.ts:344
+msgid "Game Over — challenge missed."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:512
+msgid "Time’s up!"
+msgstr ""
+
+#. 1: score, 2: words found, 3: accuracy percent, 4: best streak, 5: wave reached.
+#: src/games/alphabet-soup/game.ts:520
+msgid "Score %1$s — %2$s words, %3$s%% accuracy, best streak %4$s, wave %5$s."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:533
+#: src/games/alphabet-soup/game.ts:568
+#: src/games/alphabet-soup/game.ts:709
+#: src/games/alphabet-soup/index.ts:23
+#: includes/games/alphabet-soup.php:56
+msgid "Alphabet Soup"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:536
+msgid "points"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:538
+#: src/games/alphabet-soup/index.ts:29
+#: src/games/inkfall/index.ts:29
+#: includes/games/alphabet-soup.php:64
+#: includes/games/inkfall.php:57
+msgid "Words"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:539
+#: src/games/alphabet-soup/index.ts:30
+#: src/games/inkfall/index.ts:30
+#: includes/games/alphabet-soup.php:65
+#: includes/games/inkfall.php:58
+msgid "WPM"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:541
+#: src/games/alphabet-soup/index.ts:31
+#: src/games/inkfall/index.ts:31
+#: includes/games/alphabet-soup.php:66
+#: includes/games/inkfall.php:59
+msgid "Accuracy"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:544
+#: src/games/alphabet-soup/index.ts:32
+#: includes/games/alphabet-soup.php:67
+msgid "Streak"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:545
+#: src/games/alphabet-soup/index.ts:33
+#: includes/games/alphabet-soup.php:68
+msgid "Wave"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:547
+#: src/settings/sections/about.ts:143
+msgid "WordPress Desktop Mode"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:562
+msgid "Share card"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:575
+msgid "Shared!"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:579
+msgid "Card copied to your clipboard."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:582
+msgid "Card saved as an image."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:586
+msgid "The card could not be shared."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:596
+msgid "Replay run — share cards only go to the first run of each puzzle. A fresh soup is served tomorrow."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:604
+#: src/games/inkfall/game.ts:364
+msgid "Saving your score…"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:608
+#: src/games/inkfall/game.ts:368
+msgid "Score saved to the scoreboard."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:611
+#: src/games/inkfall/game.ts:371
+msgid "Your score could not be saved."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:620
+#: src/games/inkfall/game.ts:380
+msgid "Play again"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:626
+msgid "Change mode"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:677
+msgid "Replay today’s soup?"
+msgstr ""
+
+#. 1: mode label (Daily / Time Attack), 2: board dimensions (e.g. 12×12).
+#: src/games/alphabet-soup/game.ts:680
+msgid "You already played today’s %1$s (%2$s). The word positions can be memorized, so replays don’t earn a share card — that stays with your first run."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:684
+msgid "Replay anyway"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:685
+msgid "Not now"
+msgstr ""
+
+#. %s: today's puzzle date (dd-mm-yyyy).
+#: src/games/alphabet-soup/game.ts:716
+msgid "One pot, whole world: everyone gets the same soup today (%s). Drag across the letters to fish the words out."
+msgstr ""
+
+#. 1: challenger display name, 2: score to beat.
+#: src/games/alphabet-soup/game.ts:726
+#: src/games/inkfall/game.ts:450
+msgid "Challenge from %1$s — beat %2$s."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:737
+msgid "Board size"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:781
+msgid "Played today — replays aren’t shareable"
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:803
+#: src/games/inkfall/game.ts:490
+msgid "Paused — click to resume."
+msgstr ""
+
+#: src/games/alphabet-soup/game.ts:1026
+msgid "Alphabet Soup could not start."
+msgstr ""
+
+#: src/games/alphabet-soup/index.ts:26
+#: src/games/inkfall/index.ts:27
+#: includes/games/alphabet-soup.php:61
+#: includes/games/inkfall.php:55
+msgid "Score"
+msgstr ""
+
+#: src/games/alphabet-soup/index.ts:27
+#: includes/games/alphabet-soup.php:62
+msgid "Mode"
+msgstr ""
+
+#: src/games/alphabet-soup/index.ts:28
+#: src/plugins-window/installed-view.ts:335
+#: includes/games/alphabet-soup.php:63
+msgid "Size"
+msgstr ""
+
+#: src/games/alphabet-soup/index.ts:34
+#: src/games/inkfall/index.ts:32
+#: includes/games/alphabet-soup.php:69
+#: includes/games/inkfall.php:60
+msgid "Time"
+msgstr ""
+
+#: src/games/challenge-dialog.ts:62
+msgid "Send a challenge"
+msgstr ""
+
+#. 1: game title, 2: score.
+#: src/games/challenge-dialog.ts:72
+msgid "Challenge someone to beat your %1$s score of %2$s."
+msgstr ""
+
+#: src/games/challenge-dialog.ts:79
+msgid "Find a player…"
+msgstr ""
+
+#: src/games/challenge-dialog.ts:99
+msgid "Send challenge"
+msgstr ""
+
+#. %s: opponent display name.
+#: src/games/challenge-dialog.ts:159
+msgid "Challenge sent to %s."
+msgstr ""
+
+#: src/games/challenge-dialog.ts:172
+msgid "Could not send the challenge."
+msgstr ""
+
+#. 1: challenger display name, 2: game title/slug, 3: score.
+#: src/games/challenges-client.ts:72
+msgid "%1$s challenged you to %2$s — beat %3$s!"
+msgstr ""
+
+#: src/games/challenges-client.ts:78
+msgid "Game challenge"
+msgstr ""
+
+#: src/games/challenges-client.ts:87
+#: src/games/challenges-view.ts:172
+msgid "Accept & Play"
+msgstr ""
+
+#: src/games/challenges-client.ts:94
+#: src/games/challenges-view.ts:181
+msgid "Could not accept the challenge."
+msgstr ""
+
+#. 1: recipient display name, 2: their score, 3: the score to beat.
+#: src/games/challenges-client.ts:106
+msgid "%1$s beat your score: %2$s vs your %3$s."
+msgstr ""
+
+#. 1: recipient display name, 2: their score, 3: the score to beat.
+#: src/games/challenges-client.ts:109
+msgid "%1$s did not beat your score: %2$s vs your %3$s."
+msgstr ""
+
+#: src/games/challenges-client.ts:118
+msgid "Challenge finished"
+msgstr ""
+
+#. 1: challenger name, 2: game title, 3: score.
+#: src/games/challenges-view.ts:50
+msgid "%1$s challenged you to %2$s — beat %3$s."
+msgstr ""
+
+#. 1: recipient name, 2: game title, 3: score.
+#: src/games/challenges-view.ts:58
+msgid "Waiting for %1$s to accept your %2$s challenge (%3$s)."
+msgstr ""
+
+#. 1: game title, 2: score.
+#: src/games/challenges-view.ts:68
+msgid "You accepted — play %1$s and beat %2$s!"
+msgstr ""
+
+#. 1: recipient name, 2: game title.
+#: src/games/challenges-view.ts:75
+msgid "%1$s accepted your %2$s challenge and is playing."
+msgstr ""
+
+#. 1: challenger name, 2: game title.
+#: src/games/challenges-view.ts:84
+msgid "You declined %1$s’s %2$s challenge."
+msgstr ""
+
+#. 1: recipient name, 2: game title.
+#: src/games/challenges-view.ts:91
+msgid "%1$s declined your %2$s challenge."
+msgstr ""
+
+#. 1: game title, 2: result score, 3: target score.
+#: src/games/challenges-view.ts:104
+msgid "You beat the %1$s challenge: %2$s vs %3$s."
+msgstr ""
+
+#. 1: game title, 2: result score, 3: target score.
+#: src/games/challenges-view.ts:112
+msgid "You missed the %1$s challenge: %2$s vs %3$s."
+msgstr ""
+
+#. 1: recipient name, 2: result score, 3: target score.
+#: src/games/challenges-view.ts:121
+msgid "%1$s beat your score: %2$s vs %3$s."
+msgstr ""
+
+#. 1: recipient name, 2: result score, 3: target score.
+#: src/games/challenges-view.ts:129
+msgid "%1$s did not beat your score: %2$s vs %3$s."
+msgstr ""
+
+#: src/games/challenges-view.ts:190
+msgid "Decline"
+msgstr ""
+
+#: src/games/challenges-view.ts:201
+msgid "Could not decline the challenge."
+msgstr ""
+
+#: src/games/challenges-view.ts:237
+msgid "No challenges yet"
+msgstr ""
+
+#: src/games/challenges-view.ts:240
+msgid "Press Challenge to throw down one of your scores, or pick a row from the scoreboard."
+msgstr ""
+
+#. %s: game title.
+#: src/games/hub.ts:103
+msgid "Play %s first — you need a score to challenge with."
+msgstr ""
+
+#: src/games/hub.ts:184
+msgid "Play time (last two weeks)"
+msgstr ""
+
+#: src/games/hub.ts:191
+msgid "Play time (total)"
+msgstr ""
+
+#: src/games/hub.ts:207
+msgid "Play"
+msgstr ""
+
+#: src/games/hub.ts:226
+#: src/games/scoreboard.ts:112
+msgid "Challenge…"
+msgstr ""
+
+#: src/games/hub.ts:243
+msgid "Scoreboard"
+msgstr ""
+
+#: src/games/hub.ts:255
+msgid "Challenges"
+msgstr ""
+
+#: src/games/hub.ts:311
+msgid "No games installed"
+msgstr ""
+
+#: src/games/hub.ts:314
+msgid "Plugins can add games with desktop_mode_register_game()."
+msgstr ""
+
+#: src/games/inkfall/game.ts:64
+msgid "Hard"
+msgstr ""
+
+#: src/games/inkfall/game.ts:66
+msgid "Easy"
+msgstr ""
+
+#: src/games/inkfall/game.ts:73
+msgid "Brisk from the first word."
+msgstr ""
+
+#: src/games/inkfall/game.ts:75
+msgid "Fast ink, long words. Good luck."
+msgstr ""
+
+#: src/games/inkfall/game.ts:77
+msgid "A gentle warm-up that builds."
+msgstr ""
+
+#: src/games/inkfall/game.ts:187
+msgid "Loading the notebook…"
+msgstr ""
+
+#. 1: current level number, 2: difficulty label.
+#: src/games/inkfall/game.ts:226
+msgid "Level %1$s · %2$s"
+msgstr ""
+
+#: src/games/inkfall/game.ts:346
+msgid "Game Over"
+msgstr ""
+
+#. 1: score, 2: words typed, 3: words per minute, 4: accuracy percent.
+#: src/games/inkfall/game.ts:354
+msgid "Score %1$s — %2$s words, %3$s WPM, %4$s%% accuracy."
+msgstr ""
+
+#: src/games/inkfall/game.ts:388
+msgid "Change difficulty"
+msgstr ""
+
+#: src/games/inkfall/game.ts:442
+msgid "Choose your pace"
+msgstr ""
+
+#: src/games/inkfall/game.ts:708
+msgid "Inkfall could not start."
+msgstr ""
+
+#: src/games/inkfall/index.ts:24
+#: includes/games/inkfall.php:50
+msgid "Inkfall"
+msgstr ""
+
+#: src/games/inkfall/index.ts:28
+#: includes/games/inkfall.php:56
+msgid "Difficulty"
+msgstr ""
+
+#: src/games/inkfall/index.ts:33
+#: includes/games/inkfall.php:61
+msgid "Level"
+msgstr ""
+
+#. 1: hours, 2: minutes.
+#: src/games/playtime.ts:139
+msgid "%1$dh %2$dm"
+msgstr ""
+
+#. %d: minutes.
+#: src/games/playtime.ts:146
+msgid "%dm"
+msgstr ""
+
+#. %d: seconds.
+#: src/games/playtime.ts:149
+msgid "%ds"
+msgstr ""
+
+#: src/games/scoreboard.ts:51
+msgid "Player"
+msgstr ""
+
+#: src/games/scoreboard.ts:92
+msgid "When"
+msgstr ""
+
+#: src/games/scoreboard.ts:157
+msgid "No scores yet — be the first to play!"
 msgstr ""
 
 #: src/icon-canvas/menu.ts:175
@@ -1817,6 +2349,160 @@ msgstr ""
 msgid "Show the posts, pages, and custom-post-type entries that reference this file."
 msgstr ""
 
+#: src/notes/convert.ts:59
+msgid "Edit draft"
+msgstr ""
+
+#: src/notes/convert.ts:86
+msgid "Note converted to a draft post"
+msgstr ""
+
+#: src/notes/convert.ts:116
+#: includes/notes/rest.php:607
+msgid "Could not convert the note to a post."
+msgstr ""
+
+#: src/notes/drop-handlers.ts:122
+#: src/plugins/notes-widget/index.ts:451
+msgid "Could not pin the note. Please try again."
+msgstr ""
+
+#: src/notes/layer.ts:330
+msgid "Pinned notes"
+msgstr ""
+
+#: src/notes/layer.ts:407
+msgid "Pinned note"
+msgstr ""
+
+#. %s: note author display name.
+#: src/notes/layer.ts:410
+msgid "Note by %s"
+msgstr ""
+
+#: src/notes/layer.ts:426
+msgid "Move note. Drag the pin, or press Enter then use the arrow keys."
+msgstr ""
+
+#: src/notes/layer.ts:491
+msgid "Convert to a draft post"
+msgstr ""
+
+#: src/notes/layer.ts:503
+msgid "Note text"
+msgstr ""
+
+#. %s: note author display name.
+#: src/notes/layer.ts:543
+msgid "Pinned by %s"
+msgstr ""
+
+#. %s: next paper color name.
+#: src/notes/layer.ts:575
+msgid "Change paper color (next: %s)"
+msgstr ""
+
+#: src/notes/layer.ts:594
+msgid "Public note — everyone can see it. Click to make private."
+msgstr ""
+
+#: src/notes/layer.ts:595
+msgid "Private note. Click to share with every desktop user."
+msgstr ""
+
+#: src/notes/layer.ts:795
+msgid "Note is now public."
+msgstr ""
+
+#: src/notes/layer.ts:796
+msgid "Note is now private."
+msgstr ""
+
+#: src/notes/layer.ts:838
+msgid "This note was changed in another session — showing the latest version."
+msgstr ""
+
+#: src/notes/layer.ts:886
+#: src/plugins/notes-widget/index.ts:355
+msgid "Drop on the desktop to pin"
+msgstr ""
+
+#: src/notes/layer.ts:887
+#: src/plugins/notes-widget/index.ts:356
+msgid "Pin here"
+msgstr ""
+
+#: src/notes/layer.ts:888
+#: src/plugins/notes-widget/index.ts:357
+msgid "Can’t pin here"
+msgstr ""
+
+#: src/notes/layer.ts:1078
+msgid "Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Recycle Bin."
+msgstr ""
+
+#: src/notes/layer.ts:1094
+msgid "Note placed."
+msgstr ""
+
+#: src/notes/layer.ts:1132
+msgid "Move cancelled."
+msgstr ""
+
+#: src/notes/layer.ts:1138
+msgid "Move note to the Recycle Bin?"
+msgstr ""
+
+#: src/notes/layer.ts:1139
+msgid "You can restore it from the Recycle Bin later."
+msgstr ""
+
+#: src/notes/posts-drop-target.ts:145
+#: src/notes/posts-drop-target.ts:194
+msgid "Convert to post"
+msgstr ""
+
+#: src/notes/trash.ts:50
+msgid "Note moved to Trash"
+msgstr ""
+
+#: src/notes/trash.ts:72
+msgid "Could not move the note to the Trash."
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:114
+msgid "Drag to pin"
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:119
+msgid "New note"
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:120
+msgid "Write a note…"
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:138
+msgid "Paper color"
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:156
+msgid "Public — visible to other desktop users"
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:170
+#: includes/recycle-bin/window.php:72
+msgid "Pin to desktop"
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:171
+msgid "Pin the note without dragging (Ctrl+Enter)"
+msgstr ""
+
+#: src/plugins/notes-widget/index.ts:194
+msgid "Next paper color"
+msgstr ""
+
 #: src/plugins/snow-wallpaper/index.ts:326
 msgid "Wind"
 msgstr ""
@@ -2361,10 +3047,6 @@ msgstr ""
 
 #: src/plugins-window/installed-view.ts:311
 msgid "Plugin"
-msgstr ""
-
-#: src/plugins-window/installed-view.ts:335
-msgid "Size"
 msgstr ""
 
 #: src/plugins-window/installed-view.ts:349
@@ -3972,6 +4654,10 @@ msgstr ""
 msgid "%d item(s) skipped (insufficient permissions)."
 msgstr ""
 
+#: src/related-entities/index.ts:265
+msgid "Related"
+msgstr ""
+
 #: src/release-card.ts:354
 #: src/ui/components/wpd-toast/wpd-toast.ts:128
 msgid "Dismiss"
@@ -4071,7 +4757,7 @@ msgid "Personalize your desktop. Changes apply instantly and are saved to this b
 msgstr ""
 
 #: src/settings/panel.ts:195
-#: src/settings/sections/features.ts:474
+#: src/settings/sections/features.ts:483
 msgid "Features"
 msgstr ""
 
@@ -4091,10 +4777,6 @@ msgstr ""
 
 #: src/settings/panel.ts:318
 msgid "Settings sections"
-msgstr ""
-
-#: src/settings/sections/about.ts:143
-msgid "WordPress Desktop Mode"
 msgstr ""
 
 #: src/settings/sections/about.ts:144
@@ -4299,7 +4981,7 @@ msgid "None"
 msgstr ""
 
 #: src/settings/sections/effects.ts:141
-#: src/settings/sections/features.ts:551
+#: src/settings/sections/features.ts:564
 msgid "Window links"
 msgstr ""
 
@@ -4335,209 +5017,210 @@ msgstr ""
 msgid "Saving…"
 msgstr ""
 
-#: src/settings/sections/features.ts:189
+#: src/settings/sections/features.ts:198
 msgid "Delete folder sharing data?"
 msgstr ""
 
-#: src/settings/sections/features.ts:190
+#: src/settings/sections/features.ts:199
 msgid "This drops every shares table on the site (current + legacy). All invites, accept/deny decisions, and share rows are permanently removed. Recipients lose their access until someone shares with them again. The empty tables are recreated on the next admin load so the feature keeps working — but every existing share is gone."
 msgstr ""
 
-#: src/settings/sections/features.ts:193
+#: src/settings/sections/features.ts:202
 msgid "Delete data"
 msgstr ""
 
-#: src/settings/sections/features.ts:202
+#: src/settings/sections/features.ts:211
 msgid "Files REST endpoint is not available."
 msgstr ""
 
-#: src/settings/sections/features.ts:224
+#: src/settings/sections/features.ts:233
 msgid "Folder sharing data deleted."
 msgstr ""
 
-#: src/settings/sections/features.ts:230
+#: src/settings/sections/features.ts:239
 msgid "Could not delete sharing data."
 msgstr ""
 
-#: src/settings/sections/features.ts:410
+#: src/settings/sections/features.ts:419
 msgid "Connectors"
 msgstr ""
 
-#: src/settings/sections/features.ts:475
+#: src/settings/sections/features.ts:484
 msgid "Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved."
 msgstr ""
 
-#: src/settings/sections/features.ts:483
+#: src/settings/sections/features.ts:492
 msgid "AI assistant"
 msgstr ""
 
-#: src/settings/sections/features.ts:489
-msgid "Adds an assistant powered by AI that finds your content, gets around wp-admin, and answers questions about your site — all in plain language. Off by default."
+#. %s: keyboard shortcut, e.g. ⌘K or Ctrl+K
+#: src/settings/sections/features.ts:500
+msgid "Adds an AI mode to the %s site assistant. Ask in plain language to find content, get around wp-admin, and answer questions about your site. Off by default."
 msgstr ""
 
-#: src/settings/sections/features.ts:496
-#: src/settings/sections/features.ts:534
+#: src/settings/sections/features.ts:509
+#: src/settings/sections/features.ts:547
 msgid "This feature requires an AI provider configured in"
 msgstr ""
 
-#: src/settings/sections/features.ts:507
-#: src/settings/sections/features.ts:541
+#: src/settings/sections/features.ts:520
+#: src/settings/sections/features.ts:554
 msgid "Settings → Connectors"
 msgstr ""
 
-#: src/settings/sections/features.ts:521
+#: src/settings/sections/features.ts:534
 msgid "Score new comments with AI"
 msgstr ""
 
-#: src/settings/sections/features.ts:527
+#: src/settings/sections/features.ts:540
 msgid "Scores every new comment for spam and hostility, folding the result into the spam confidence shown in the Comments window. Site-wide, off by default."
 msgstr ""
 
-#: src/settings/sections/features.ts:556
+#: src/settings/sections/features.ts:569
 msgid "Draws arrowed connector lines between windows showing related content — a post and its comments or media, or two posts that link to each other. The line style and when the lines show live in Effects → Window links. On by default."
 msgstr ""
 
-#: src/settings/sections/features.ts:562
+#: src/settings/sections/features.ts:575
 msgid "Bring related windows to front"
 msgstr ""
 
-#: src/settings/sections/features.ts:568
+#: src/settings/sections/features.ts:581
 msgid "Clicking a window surfaces the windows directly tied to it — a parent brings up all of its children, a child brings up its parent — rising to just below the one you clicked, without stealing focus."
 msgstr ""
 
-#: src/settings/sections/features.ts:575
+#: src/settings/sections/features.ts:588
 msgid "Highlight related windows"
 msgstr ""
 
-#: src/settings/sections/features.ts:581
+#: src/settings/sections/features.ts:594
 msgid "While a group member is focused, its related windows get an accent outline and a soft glow so the family is recognizable at a glance."
 msgstr ""
 
-#: src/settings/sections/features.ts:589
+#: src/settings/sections/features.ts:602
 msgid "Show desktop when clicking the wallpaper"
 msgstr ""
 
-#: src/settings/sections/features.ts:596
+#: src/settings/sections/features.ts:609
 msgid "macOS-style gesture: a left click on the empty desktop minimizes every window, and a second click restores them. When on, the matching \"Show desktop\" entry is removed from the wallpaper context menu — the click gesture replaces it. Off by default."
 msgstr ""
 
-#: src/settings/sections/features.ts:603
+#: src/settings/sections/features.ts:616
 msgid "Show post/page status ribbon"
 msgstr ""
 
-#: src/settings/sections/features.ts:610
+#: src/settings/sections/features.ts:623
 msgid "Paints a diagonal corner ribbon — Draft, Pending, Private, or Scheduled — on My WordPress tiles whose post status isn’t published. Off hides every ribbon; tiles still respect their dimmed-icon treatment so unpublished items remain visible at a glance. On by default."
 msgstr ""
 
-#: src/settings/sections/features.ts:617
+#: src/settings/sections/features.ts:630
 msgid "Enable developer mode"
 msgstr ""
 
-#: src/settings/sections/features.ts:622
+#: src/settings/sections/features.ts:635
 msgid "Unlocks developer-facing surfaces meant for plugin authors: the Starter Widget appears in the add-widget picker, and the OS Settings → Components tab runs its intentional missing-import-warner demo (a console banner plus three deliberate console.error entries). Off by default so regular users don’t see developer noise."
 msgstr ""
 
-#: src/settings/sections/features.ts:629
+#: src/settings/sections/features.ts:642
 msgid "Folder sharing"
 msgstr ""
 
-#: src/settings/sections/features.ts:634
+#: src/settings/sections/features.ts:647
 msgid "Lets you share desktop folders with other users or roles, with read or read+write access. When off, every share-related affordance (Share button, invites, \"Leave shared folder\") disappears from your shell and the heartbeat stops delivering share payloads to your session. Other users are unaffected. On by default."
 msgstr ""
 
-#: src/settings/sections/features.ts:647
+#: src/settings/sections/features.ts:660
 msgid "Deleting…"
 msgstr ""
 
-#: src/settings/sections/features.ts:648
+#: src/settings/sections/features.ts:661
 msgid "Delete folder sharing data"
 msgstr ""
 
-#: src/settings/sections/features.ts:651
+#: src/settings/sections/features.ts:664
 msgid "Site-wide destructive action (admin only). Drops every shares table — invites, decisions, share rows. Empty tables are recreated immediately so the feature still works for anyone who wants to start fresh. Use this on sites that never needed sharing to clear the data outright."
 msgstr ""
 
-#: src/settings/sections/features.ts:661
+#: src/settings/sections/features.ts:674
 msgid "WordPress Heartbeat rate"
 msgstr ""
 
-#: src/settings/sections/features.ts:668
+#: src/settings/sections/features.ts:681
 msgid "Fast — 15s (not recommended)"
 msgstr ""
 
-#: src/settings/sections/features.ts:669
+#: src/settings/sections/features.ts:682
 msgid "Medium — 30s"
 msgstr ""
 
-#: src/settings/sections/features.ts:670
+#: src/settings/sections/features.ts:683
 msgid "Slow — 45s"
 msgstr ""
 
-#: src/settings/sections/features.ts:671
+#: src/settings/sections/features.ts:684
 msgid "Very slow — 60s (default)"
 msgstr ""
 
-#: src/settings/sections/features.ts:675
+#: src/settings/sections/features.ts:688
 msgid "How often the WordPress Heartbeat API runs. Faster = quicker live updates (autosaves, lock checks, the heartbeat widget) at the cost of more server traffic. 15 s triples server load vs. the 60 s default — use sparingly. 30 s and 45 s require a page reload to apply exactly; 15 s and 60 s take effect immediately."
 msgstr ""
 
-#: src/settings/sections/features.ts:687
+#: src/settings/sections/features.ts:700
 msgid "Resetting…"
 msgstr ""
 
-#: src/settings/sections/features.ts:688
+#: src/settings/sections/features.ts:701
 msgid "Reset what’s-new dialogs"
 msgstr ""
 
-#: src/settings/sections/features.ts:691
+#: src/settings/sections/features.ts:704
 msgid "Re-shows the one-time introduction dialog the next time you open each redesigned native window."
 msgstr ""
 
-#: src/settings/sections/features.ts:698
+#: src/settings/sections/features.ts:711
 msgid "Beta features"
 msgstr ""
 
-#: src/settings/sections/features.ts:699
+#: src/settings/sections/features.ts:712
 msgid "Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required."
 msgstr ""
 
-#: src/settings/sections/features.ts:705
+#: src/settings/sections/features.ts:718
 msgid "Use the native Posts window"
 msgstr ""
 
-#: src/settings/sections/features.ts:710
+#: src/settings/sections/features.ts:723
 msgid "Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen."
 msgstr ""
 
-#: src/settings/sections/features.ts:717
+#: src/settings/sections/features.ts:730
 msgid "Use the native Pages window"
 msgstr ""
 
-#: src/settings/sections/features.ts:722
+#: src/settings/sections/features.ts:735
 msgid "Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen."
 msgstr ""
 
-#: src/settings/sections/features.ts:729
+#: src/settings/sections/features.ts:742
 msgid "Use the native Users window"
 msgstr ""
 
-#: src/settings/sections/features.ts:734
+#: src/settings/sections/features.ts:747
 msgid "Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions."
 msgstr ""
 
-#: src/settings/sections/features.ts:741
+#: src/settings/sections/features.ts:754
 msgid "Use the native Plugins window"
 msgstr ""
 
-#: src/settings/sections/features.ts:746
+#: src/settings/sections/features.ts:759
 msgid "Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it."
 msgstr ""
 
-#: src/settings/sections/features.ts:753
+#: src/settings/sections/features.ts:766
 msgid "Use the native Comments window"
 msgstr ""
 
-#: src/settings/sections/features.ts:758
+#: src/settings/sections/features.ts:771
 msgid "Beta — off by default. Turn on for a redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo)."
 msgstr ""
 
@@ -4643,23 +5326,23 @@ msgstr ""
 msgid "%s settings"
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:481
+#: src/settings/sections/wallpaper.ts:493
 msgid "From"
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:487
+#: src/settings/sections/wallpaper.ts:499
 msgid "To"
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:493
+#: src/settings/sections/wallpaper.ts:505
 msgid "Angle"
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:606
+#: src/settings/sections/wallpaper.ts:620
 msgid "Wallpaper"
 msgstr ""
 
-#: src/settings/sections/wallpaper.ts:607
+#: src/settings/sections/wallpaper.ts:621
 msgid "The backdrop behind your windows. Pick a preset, mix your own gradient, or drop in an image."
 msgstr ""
 
@@ -4706,6 +5389,7 @@ msgid "WordPress %s is available."
 msgstr ""
 
 #: src/update-notice.ts:98
+#: includes/core-notices.php:100
 msgid "WordPress Updates"
 msgstr ""
 
@@ -4761,39 +5445,39 @@ msgid "Maximize"
 msgstr ""
 
 #: src/window-chrome/controls/built-ins.ts:65
-#: src/window/index.ts:1831
+#: src/window/index.ts:1835
 #: includes/admin-bar.php:71
-#: includes/admin-bar.php:774
+#: includes/admin-bar.php:690
 msgid "Enter fullscreen"
 msgstr ""
 
-#: src/window/dom.ts:138
+#: src/window/dom.ts:139
 msgid "Loading window content"
 msgstr ""
 
-#: src/window/dom.ts:341
+#: src/window/dom.ts:342
 msgid "Window actions"
 msgstr ""
 
-#: src/window/dom.ts:365
+#: src/window/dom.ts:366
 msgid "Open on startup"
 msgstr ""
 
 #. %s is the window's admin-page name (e.g., "Posts")
-#: src/window/dom.ts:379
+#: src/window/dom.ts:380
 msgid "Open another %s"
 msgstr ""
 
-#: src/window/dom.ts:395
+#: src/window/dom.ts:396
 msgid "Open in new window"
 msgstr ""
 
-#: src/window/dom.ts:422
+#: src/window/dom.ts:423
 msgid "Open in browser tab"
 msgstr ""
 
 #. %s is the window's admin-page title (e.g., "Posts")
-#: src/window/dom.ts:619
+#: src/window/dom.ts:626
 msgid "%s sub-pages"
 msgstr ""
 
@@ -4809,9 +5493,9 @@ msgstr ""
 msgid "Close window"
 msgstr ""
 
-#: src/window/index.ts:1831
-#: includes/admin-bar.php:773
-#: includes/admin-bar.php:775
+#: src/window/index.ts:1835
+#: includes/admin-bar.php:689
+#: includes/admin-bar.php:691
 msgid "Exit fullscreen"
 msgstr ""
 
@@ -4828,22 +5512,22 @@ msgstr ""
 msgid "Desktop %d"
 msgstr ""
 
-#: src/window-manager/overview.ts:457
+#: src/window-manager/overview.ts:472
 msgid "Add new desktop"
 msgstr ""
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:501
+#: src/window-manager/overview.ts:516
 msgid "Switch to %s"
 msgstr ""
 
 #. %s is the desktop label
-#: src/window-manager/overview.ts:540
+#: src/window-manager/overview.ts:555
 msgid "Close %s"
 msgstr ""
 
 #. %d is the number of external sub-tabs open on this window.
-#: src/window-manager/overview.ts:635
+#: src/window-manager/overview.ts:650
 msgid "· %d open tab"
 msgid_plural "· %d open tabs"
 msgstr[0] ""
@@ -4935,117 +5619,109 @@ msgstr ""
 msgid "Pack every window into an evenly tiled grid that fills the desktop."
 msgstr ""
 
-#: includes/admin-bar.php:253
-msgid "Ask AI"
-msgstr ""
-
-#: includes/admin-bar.php:257
-msgid "Open AI Assistant (Cmd+K)"
-msgstr ""
-
-#: includes/admin-bar.php:278
-#: includes/admin-bar.php:789
+#: includes/admin-bar.php:250
+#: includes/admin-bar.php:705
 msgid "Keyboard shortcuts"
 msgstr ""
 
-#: includes/admin-bar.php:303
+#: includes/admin-bar.php:275
 msgid "Open the Bug Report window"
 msgstr ""
 
-#: includes/admin-bar.php:772
+#: includes/admin-bar.php:688
 msgid "Fullscreen"
 msgstr ""
 
-#: includes/admin-bar.php:791
+#: includes/admin-bar.php:707
 msgid "Desktops & Overview"
 msgstr ""
 
-#: includes/admin-bar.php:793
+#: includes/admin-bar.php:709
 msgid "Key"
 msgstr ""
 
-#: includes/admin-bar.php:794
+#: includes/admin-bar.php:710
 msgid "Outside overview"
 msgstr ""
 
-#: includes/admin-bar.php:795
+#: includes/admin-bar.php:711
 msgid "Inside overview"
 msgstr ""
 
-#: includes/admin-bar.php:796
+#: includes/admin-bar.php:712
 msgid "In Show Desktop"
 msgstr ""
 
-#: includes/admin-bar.php:801
+#: includes/admin-bar.php:717
 msgid "Previous desktop (wraps)"
 msgstr ""
 
-#: includes/admin-bar.php:802
+#: includes/admin-bar.php:718
 msgid "Previous desktop (grid + top-bar update)"
 msgstr ""
 
-#: includes/admin-bar.php:803
+#: includes/admin-bar.php:719
 msgid "Previous desktop"
 msgstr ""
 
-#: includes/admin-bar.php:807
+#: includes/admin-bar.php:723
 msgid "Next desktop (wraps)"
 msgstr ""
 
-#: includes/admin-bar.php:808
+#: includes/admin-bar.php:724
 msgid "Next desktop (grid + top-bar update)"
 msgstr ""
 
-#: includes/admin-bar.php:809
+#: includes/admin-bar.php:725
 msgid "Next desktop"
 msgstr ""
 
-#: includes/admin-bar.php:813
+#: includes/admin-bar.php:729
 msgid "Enter Overview"
 msgstr ""
 
-#: includes/admin-bar.php:814
+#: includes/admin-bar.php:730
 msgid "Exit Overview onto active desktop"
 msgstr ""
 
-#: includes/admin-bar.php:815
+#: includes/admin-bar.php:731
 msgid "Restore windows (exit Show Desktop)"
 msgstr ""
 
-#: includes/admin-bar.php:819
-#: includes/admin-bar.php:821
+#: includes/admin-bar.php:735
+#: includes/admin-bar.php:737
 msgid "Toggle Show Desktop"
 msgstr ""
 
-#: includes/admin-bar.php:820
+#: includes/admin-bar.php:736
 msgid "Exit Overview (no minimize)"
 msgstr ""
 
-#: includes/admin-bar.php:825
+#: includes/admin-bar.php:741
 msgid "(in overview)"
 msgstr ""
 
-#: includes/admin-bar.php:827
+#: includes/admin-bar.php:743
 msgid "Commit current desktop, exit overview"
 msgstr ""
 
-#: includes/admin-bar.php:833
+#: includes/admin-bar.php:749
 msgid "Windows & palette"
 msgstr ""
 
-#: includes/admin-bar.php:837
+#: includes/admin-bar.php:753
 msgid "Cycle to the next window on the active desktop."
 msgstr ""
 
-#: includes/admin-bar.php:841
+#: includes/admin-bar.php:757
 msgid "Cycle to the previous window on the active desktop."
 msgstr ""
 
-#: includes/admin-bar.php:845
+#: includes/admin-bar.php:761
 msgid "Open the command palette / Ask AI overlay."
 msgstr ""
 
-#: includes/admin-bar.php:849
+#: includes/admin-bar.php:765
 msgid "Exit Overview (or Snap Overview) without changing window state."
 msgstr ""
 
@@ -5087,8 +5763,8 @@ msgstr ""
 
 #: includes/ai-copilot/abilities.php:435
 #: includes/my-wordpress/comment-stats.php:66
-#: includes/recycle-bin/store.php:770
-#: includes/recycle-bin/store.php:892
+#: includes/recycle-bin/store.php:806
+#: includes/recycle-bin/store.php:928
 msgid "Comment not found."
 msgstr ""
 
@@ -5216,21 +5892,94 @@ msgstr ""
 msgid "Attribute \"%1$s\" on <%2$s> received a non-scalar value (array/object). Only the `style` attribute accepts an array; other attributes must be strings, booleans, or null. The attribute was skipped."
 msgstr ""
 
-#: includes/content-graph/rest.php:213
+#: includes/content-graph/rest.php:214
 msgid "Post not found."
 msgstr ""
 
-#: includes/content-graph/rest.php:220
+#: includes/content-graph/rest.php:221
 msgid "Insufficient permissions."
 msgstr ""
 
-#: includes/content-graph/window.php:135
-#: includes/content-graph/window.php:175
+#: includes/content-graph/window.php:152
+#: includes/content-graph/window.php:192
 msgid "Content Graph"
 msgstr ""
 
+#: includes/core-notices.php:102
+msgid "An automated WordPress update failed to complete."
+msgstr ""
+
+#: includes/core-notices.php:103
+msgid "An automated WordPress update failed to complete. Please notify the site administrator."
+msgstr ""
+
+#: includes/core-notices.php:104
+msgid "Retry update"
+msgstr ""
+
+#: includes/core-notices.php:129
+msgid "Recovery Mode"
+msgstr ""
+
+#: includes/core-notices.php:130
+msgid "You are in recovery mode. There may be an error with a theme or plugin."
+msgstr ""
+
+#: includes/core-notices.php:131
+msgid "Exit recovery mode"
+msgstr ""
+
+#: includes/core-notices.php:153
+#: includes/users-window/window.php:43
+msgid "Profile"
+msgstr ""
+
+#: includes/core-notices.php:154
+msgid "You are using an auto-generated password. Would you like to change it?"
+msgstr ""
+
+#: includes/core-notices.php:155
+msgid "Change password"
+msgstr ""
+
+#: includes/core-notices.php:192
+#: includes/core-notices.php:223
+#: includes/plugins-window/window.php:117
+msgid "Plugins"
+msgstr ""
+
+#. translators: %s: comma-separated list of plugin names.
+#: includes/core-notices.php:195
+#, php-format
+msgid "Deactivated during a WordPress upgrade for incompatibility: %s."
+msgstr ""
+
+#: includes/core-notices.php:198
+msgid "View plugins"
+msgstr ""
+
+#: includes/core-notices.php:224
+msgid "One or more plugins failed to load properly."
+msgstr ""
+
+#: includes/core-notices.php:225
+msgid "Go to Plugins"
+msgstr ""
+
+#: includes/core-notices.php:250
+msgid "Themes"
+msgstr ""
+
+#: includes/core-notices.php:251
+msgid "One or more themes failed to load properly."
+msgstr ""
+
+#: includes/core-notices.php:252
+msgid "Go to Themes"
+msgstr ""
+
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:1487
+#: includes/core/payload.php:1488
 #, php-format
 msgid "%1$s script handle \"%2$s\" is not registered with WordPress (no `wp_register_script` call found). The script will not load."
 msgstr ""
@@ -5297,33 +6046,137 @@ msgid "Post"
 msgstr ""
 
 #: includes/desktop-files/built-in-types.php:39
-msgid "User"
+msgid "Uploaded file"
 msgstr ""
 
 #: includes/desktop-files/built-in-types.php:45
+msgid "User"
+msgstr ""
+
+#: includes/desktop-files/built-in-types.php:51
 msgid "Taxonomy term"
 msgstr ""
 
-#: includes/desktop-files/built-in-types.php:63
+#: includes/desktop-files/built-in-types.php:69
 #: includes/desktop-files/types/class-desktop-mode-folder-file.php:32
 #: includes/desktop-files/types/class-desktop-mode-folder-file.php:34
 msgid "Folder"
 msgstr ""
 
-#: includes/desktop-files/built-in-types.php:69
+#: includes/desktop-files/built-in-types.php:75
 msgid "Plugin shortcut"
 msgstr ""
 
-#: includes/desktop-files/built-in-types.php:75
+#: includes/desktop-files/built-in-types.php:81
 msgid "Web link"
 msgstr ""
 
-#: includes/desktop-files/built-in-types.php:81
+#: includes/desktop-files/built-in-types.php:87
 msgid "Embedded web window"
+msgstr ""
+
+#: includes/desktop-files/downloads.php:67
+#: includes/desktop-files/file-shares.php:320
+msgid "File not found."
+msgstr ""
+
+#: includes/desktop-files/downloads.php:137
+msgid "Folder download requires the PHP zip extension."
+msgstr ""
+
+#: includes/desktop-files/downloads.php:156
+#: includes/desktop-files/downloads.php:165
+msgid "Could not create the archive."
+msgstr ""
+
+#: includes/desktop-files/downloads.php:182
+msgid "Could not finish the archive (disk full?)."
+msgstr ""
+
+#: includes/desktop-files/downloads.php:292
+msgid "This folder has too many files to download as one archive."
+msgstr ""
+
+#: includes/desktop-files/downloads.php:299
+msgid "This folder is too large to download as one archive."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:123
+#: includes/desktop-files/stored-files-store.php:293
+#: includes/desktop-files/stored-files-store.php:380
+#: includes/desktop-files/stored-files-store.php:417
+msgid "Stored file not found."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:126
+#: includes/desktop-files/file-shares.php:381
+msgid "You cannot manage shares for this file."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:129
+#: includes/desktop-files/shares-store.php:345
+msgid "Invalid user id."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:132
+msgid "You cannot share with the file owner."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:136
+#: includes/desktop-files/shares-store.php:349
+msgid "Unknown user."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:139
+#: includes/desktop-files/shares-store.php:357
+msgid "This user is not eligible."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:189
+#: includes/desktop-files/shares-store.php:417
+msgid "Failed to record share."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:218
+#: includes/desktop-files/file-shares.php:272
+#: includes/desktop-files/file-shares.php:378
+#: includes/desktop-files/file-shares.php:588
+#: includes/desktop-files/rest.php:833
+#: includes/desktop-files/shares-store.php:454
+#: includes/desktop-files/shares-store.php:525
+#: includes/desktop-files/shares-store.php:657
+#: includes/desktop-files/shares-store.php:722
+msgid "Share not found."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:221
+#: includes/desktop-files/file-shares.php:275
+#: includes/desktop-files/shares-store.php:660
+#: includes/desktop-files/shares-store.php:725
+msgid "This invite is not for you."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:227
+#: includes/desktop-files/shares-store.php:667
+msgid "This invite was denied."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:323
+msgid "Owners cannot leave their own file."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:343
+msgid "You do not have access to this file."
+msgstr ""
+
+#: includes/desktop-files/file-shares.php:622
+msgid "Uploaded files can only be shared read-only."
 msgstr ""
 
 #: includes/desktop-files/folders-store.php:50
 #: includes/desktop-files/store.php:50
+#: includes/desktop-files/stored-files-store.php:78
+#: includes/desktop-files/stored-files-store.php:178
 msgid "A user id is required."
 msgstr ""
 
@@ -5344,9 +6197,9 @@ msgstr ""
 #: includes/desktop-files/folders-store.php:297
 #: includes/desktop-files/rest.php:446
 #: includes/desktop-files/rest.php:777
-#: includes/desktop-files/shares-store.php:781
-#: includes/desktop-files/trash.php:662
-#: includes/desktop-files/trash.php:808
+#: includes/desktop-files/shares-store.php:795
+#: includes/desktop-files/trash.php:673
+#: includes/desktop-files/trash.php:819
 msgid "Folder not found."
 msgstr ""
 
@@ -5370,7 +6223,7 @@ msgstr ""
 msgid "A plugin blocked this folder from being deleted."
 msgstr ""
 
-#: includes/desktop-files/folders-store.php:572
+#: includes/desktop-files/folders-store.php:593
 msgid "Failed to delete folder."
 msgstr ""
 
@@ -5414,11 +6267,53 @@ msgstr ""
 msgid "`class` must extend `Desktop_Mode_File`."
 msgstr ""
 
+#: includes/desktop-files/rest-uploads.php:118
+msgid "You are not allowed to upload files."
+msgstr ""
+
+#: includes/desktop-files/rest-uploads.php:181
+#: includes/desktop-files/rest-uploads.php:559
+#: includes/desktop-files/rest-uploads.php:577
+#: includes/desktop-files/rest-uploads.php:581
+msgid "Invalid path."
+msgstr ""
+
+#: includes/desktop-files/rest-uploads.php:250
+msgid "That file is larger than this server accepts."
+msgstr ""
+
+#: includes/desktop-files/rest-uploads.php:256
+#: includes/desktop-files/rest-uploads.php:263
+msgid "No file was uploaded."
+msgstr ""
+
+#: includes/desktop-files/rest-uploads.php:326
+msgid "This file type is not allowed."
+msgstr ""
+
+#. translators: %s: formatted maximum file size.
+#: includes/desktop-files/rest-uploads.php:338
+#, php-format
+msgid "That file is larger than the allowed maximum of %s."
+msgstr ""
+
+#: includes/desktop-files/rest-uploads.php:349
+msgid "Your desktop storage is full."
+msgstr ""
+
+#: includes/desktop-files/rest-uploads.php:571
+msgid "That folder tree is nested too deeply."
+msgstr ""
+
 #: includes/desktop-files/rest.php:59
+#: includes/games/rest.php:37
+#: includes/notes/rest.php:43
 msgid "You must be logged in."
 msgstr ""
 
 #: includes/desktop-files/rest.php:62
+#: includes/games/rest.php:40
+#: includes/notes/rest.php:46
 #: includes/recycle-bin/rest.php:156
 msgid "Desktop mode is not enabled for this user."
 msgstr ""
@@ -5433,7 +6328,7 @@ msgstr ""
 
 #: includes/desktop-files/rest.php:363
 #: includes/desktop-files/store.php:238
-#: includes/desktop-files/store.php:386
+#: includes/desktop-files/store.php:395
 #: includes/desktop-files/trash.php:386
 #: includes/desktop-files/trash.php:480
 msgid "Placement not found."
@@ -5451,14 +6346,6 @@ msgstr ""
 msgid "You cannot view shares for this folder."
 msgstr ""
 
-#: includes/desktop-files/rest.php:833
-#: includes/desktop-files/shares-store.php:440
-#: includes/desktop-files/shares-store.php:511
-#: includes/desktop-files/shares-store.php:643
-#: includes/desktop-files/shares-store.php:708
-msgid "Share not found."
-msgstr ""
-
 #: includes/desktop-files/rest.php:840
 msgid "Share not found in this folder."
 msgstr ""
@@ -5467,64 +6354,39 @@ msgstr ""
 msgid "You cannot search users."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:316
+#: includes/desktop-files/shares-store.php:329
 msgid "Invalid principal type."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:319
-#: includes/desktop-files/shares-store.php:507
+#: includes/desktop-files/shares-store.php:332
+#: includes/desktop-files/shares-store.php:521
 msgid "Invalid capability."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:322
-#: includes/desktop-files/shares-store.php:443
-#: includes/desktop-files/shares-store.php:514
+#: includes/desktop-files/shares-store.php:335
+#: includes/desktop-files/shares-store.php:457
+#: includes/desktop-files/shares-store.php:528
 msgid "You cannot manage shares for this folder."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:332
-msgid "Invalid user id."
-msgstr ""
-
-#: includes/desktop-files/shares-store.php:336
-msgid "Unknown user."
-msgstr ""
-
-#: includes/desktop-files/shares-store.php:341
+#: includes/desktop-files/shares-store.php:354
 msgid "You cannot share with the folder owner."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:344
-msgid "This user is not eligible."
-msgstr ""
-
-#: includes/desktop-files/shares-store.php:350
+#: includes/desktop-files/shares-store.php:363
 msgid "This role is not eligible."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:403
-msgid "Failed to record share."
-msgstr ""
-
-#: includes/desktop-files/shares-store.php:646
-#: includes/desktop-files/shares-store.php:711
-msgid "This invite is not for you."
-msgstr ""
-
-#: includes/desktop-files/shares-store.php:653
-msgid "This invite was denied."
-msgstr ""
-
-#: includes/desktop-files/shares-store.php:777
+#: includes/desktop-files/shares-store.php:791
 #: includes/desktop-files/store.php:233
 msgid "Invalid arguments."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:784
+#: includes/desktop-files/shares-store.php:798
 msgid "Owners cannot leave their own folder."
 msgstr ""
 
-#: includes/desktop-files/shares-store.php:837
+#: includes/desktop-files/shares-store.php:851
 msgid "You do not have access to this folder."
 msgstr ""
 
@@ -5537,7 +6399,7 @@ msgid "You are not allowed to place this file."
 msgstr ""
 
 #: includes/desktop-files/store.php:88
-#: includes/desktop-files/store.php:285
+#: includes/desktop-files/store.php:294
 msgid "You only have read access to that folder."
 msgstr ""
 
@@ -5545,29 +6407,54 @@ msgstr ""
 msgid "Failed to write placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:257
-#: includes/desktop-files/store.php:265
+#: includes/desktop-files/store.php:266
+#: includes/desktop-files/store.php:274
 msgid "You only have read access to this folder."
 msgstr ""
 
-#: includes/desktop-files/store.php:272
+#: includes/desktop-files/store.php:281
 msgid "You cannot edit this placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:311
+#: includes/desktop-files/store.php:320
 msgid "A folder cannot be placed inside itself or one of its descendants."
 msgstr ""
 
-#: includes/desktop-files/store.php:351
+#: includes/desktop-files/store.php:360
 msgid "Failed to update placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:399
+#: includes/desktop-files/store.php:414
 msgid "You cannot remove this placement."
 msgstr ""
 
-#: includes/desktop-files/store.php:405
+#: includes/desktop-files/store.php:420
 msgid "Failed to remove placement."
+msgstr ""
+
+#: includes/desktop-files/store.php:470
+msgid "Only the file’s owner can move or delete an uploaded file."
+msgstr ""
+
+#: includes/desktop-files/stored-files-store.php:83
+msgid "Could not create the storage directory."
+msgstr ""
+
+#: includes/desktop-files/stored-files-store.php:190
+msgid "Invalid storage name."
+msgstr ""
+
+#: includes/desktop-files/stored-files-store.php:194
+#: includes/desktop-files/types/class-desktop-mode-upload-file.php:34
+msgid "file"
+msgstr ""
+
+#: includes/desktop-files/stored-files-store.php:213
+msgid "Failed to record the uploaded file."
+msgstr ""
+
+#: includes/desktop-files/stored-files-store.php:297
+msgid "A file name is required."
 msgstr ""
 
 #: includes/desktop-files/trash.php:396
@@ -5586,45 +6473,45 @@ msgstr ""
 msgid "You do not have permission to delete this item."
 msgstr ""
 
-#: includes/desktop-files/trash.php:672
+#: includes/desktop-files/trash.php:683
 msgid "You do not have permission to trash this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:722
+#: includes/desktop-files/trash.php:733
 msgid "Failed to trash folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:818
+#: includes/desktop-files/trash.php:829
 msgid "You do not have permission to restore this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:979
+#: includes/desktop-files/trash.php:990
 msgid "You do not have permission to delete this folder."
 msgstr ""
 
-#: includes/desktop-files/trash.php:1155
+#: includes/desktop-files/trash.php:1192
 msgid "Desktop shortcut"
 msgstr ""
 
 #. translators: %s: file-type slug like 'post', 'attachment'.
-#: includes/desktop-files/trash.php:1158
+#: includes/desktop-files/trash.php:1195
 #, php-format
 msgid "%s on desktop"
 msgstr ""
 
-#: includes/desktop-files/trash.php:1183
+#: includes/desktop-files/trash.php:1220
 msgid "URL"
 msgstr ""
 
 #. translators: %d: number of items inside the trashed folder.
-#: includes/desktop-files/trash.php:1213
+#: includes/desktop-files/trash.php:1250
 #, php-format
 msgid "Folder · %d item inside"
 msgid_plural "Folder · %d items inside"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/desktop-files/trash.php:1216
+#: includes/desktop-files/trash.php:1253
 msgid "Folder · empty"
 msgstr ""
 
@@ -5660,12 +6547,129 @@ msgstr ""
 msgid "(missing term)"
 msgstr ""
 
+#: includes/desktop-files/types/class-desktop-mode-upload-file.php:32
+msgid "(missing file)"
+msgstr ""
+
 #: includes/desktop-files/types/class-desktop-mode-user-file.php:27
 msgid "(missing user)"
 msgstr ""
 
 #: includes/dock-rail-renderer.php:58
 msgid "Dock rail renderer script registration requires a non-empty script handle."
+msgstr ""
+
+#: includes/games/alphabet-soup.php:57
+msgid "The daily word search: a seeded letter soup that is the same for every player worldwide — the seed is today’s date. Pick a pot (8×8, 12×12, or 16×16 with more words), drag across the letters to fish them out, chain streaks, and clear waves; Time Attack stirs a different pot against the clock. Your first run of each puzzle earns the shareable score card."
+msgstr ""
+
+#: includes/games/inkfall.php:51
+msgid "Words fall down a notebook page — type them before they reach the bottom. Finishing a word sends up a musical note that tears it into scattering letters."
+msgstr ""
+
+#: includes/games/playtime.php:144
+#: includes/games/rest.php:185
+#: includes/games/rest.php:321
+#: includes/games/store.php:80
+#: includes/games/store.php:255
+msgid "Unknown game."
+msgstr ""
+
+#: includes/games/playtime.php:151
+msgid "A valid user is required to record play time."
+msgstr ""
+
+#: includes/games/playtime.php:158
+msgid "Play time must be a positive number of seconds."
+msgstr ""
+
+#: includes/games/registry.php:90
+msgid "Game id is required and must be a valid slug."
+msgstr ""
+
+#: includes/games/registry.php:114
+msgid "Game `icon_svg` must not contain a <script> tag."
+msgstr ""
+
+#: includes/games/registry.php:121
+msgid "Game `icon_svg` must start with a <svg> root element."
+msgstr ""
+
+#. translators: %s: capability slug.
+#: includes/games/registry.php:134
+#, php-format
+msgid "Current user lacks the %s capability required to register this game."
+msgstr ""
+
+#: includes/games/registry.php:145
+msgid "Game registration requires a non-empty `title`."
+msgstr ""
+
+#: includes/games/registry.php:152
+msgid "Game registration requires a `script` handle that publishes the game def."
+msgstr ""
+
+#: includes/games/rest.php:43
+#: includes/games/rest.php:61
+msgid "You cannot use desktop games."
+msgstr ""
+
+#: includes/games/rest.php:345
+msgid "You cannot challenge this user."
+msgstr ""
+
+#: includes/games/rest.php:378
+#: includes/games/store.php:354
+#: includes/games/store.php:426
+msgid "Challenge not found."
+msgstr ""
+
+#: includes/games/rest.php:385
+msgid "Only the challenged user can act on this challenge."
+msgstr ""
+
+#: includes/games/store.php:87
+msgid "A valid user is required to save a score."
+msgstr ""
+
+#: includes/games/store.php:126
+msgid "Could not save the score."
+msgstr ""
+
+#: includes/games/store.php:225
+#: includes/games/store.php:534
+#: includes/games/store.php:537
+msgid "Former user"
+msgstr ""
+
+#: includes/games/store.php:262
+msgid "The challenged user does not exist."
+msgstr ""
+
+#: includes/games/store.php:269
+msgid "You cannot challenge yourself."
+msgstr ""
+
+#: includes/games/store.php:293
+msgid "Could not create the challenge."
+msgstr ""
+
+#: includes/games/store.php:346
+msgid "Invalid challenge state."
+msgstr ""
+
+#: includes/games/store.php:361
+msgid "This challenge has already been decided."
+msgstr ""
+
+#: includes/games/store.php:433
+msgid "Only an accepted challenge can be completed."
+msgstr ""
+
+#: includes/games/window.php:75
+#: includes/games/window.php:112
+#: includes/games/window.php:140
+msgid "Games"
 msgstr ""
 
 #: includes/helpers.php:90
@@ -5756,6 +6760,44 @@ msgstr ""
 msgid "Users"
 msgstr ""
 
+#: includes/notes/cpt.php:72
+msgid "Desktop Notes"
+msgstr ""
+
+#: includes/notes/recycle-bin.php:98
+#: includes/notes/rest.php:236
+msgid "Note"
+msgstr ""
+
+#: includes/notes/rest.php:147
+#: includes/notes/rest.php:151
+msgid "Note not found."
+msgstr ""
+
+#: includes/notes/rest.php:170
+msgid "Only the note owner can change it."
+msgstr ""
+
+#: includes/notes/rest.php:312
+msgid "You are not allowed to create notes."
+msgstr ""
+
+#: includes/notes/rest.php:401
+msgid "The note was changed by another session."
+msgstr ""
+
+#: includes/notes/rest.php:464
+msgid "Could not move the note to the trash."
+msgstr ""
+
+#: includes/notes/rest.php:492
+msgid "Could not restore the note."
+msgstr ""
+
+#: includes/notes/rest.php:563
+msgid "You are not allowed to create posts."
+msgstr ""
+
 #: includes/oauth-relay.php:94
 msgid "OAuth relay registration requires a non-empty service slug."
 msgstr ""
@@ -5824,6 +6866,22 @@ msgstr ""
 
 #: includes/pages-window/window.php:299
 msgid "Total non-trashed comments on this page."
+msgstr ""
+
+#: includes/plugin-notices.php:111
+msgid "Scheduled Actions"
+msgstr ""
+
+#. translators: %d: number of past-due scheduled actions.
+#: includes/plugin-notices.php:114
+#, php-format
+msgid "Action Scheduler: %d past-due action found; something may be wrong."
+msgid_plural "Action Scheduler: %d past-due actions found; something may be wrong."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/plugin-notices.php:122
+msgid "View actions"
 msgstr ""
 
 #: includes/plugins-window/ajax.php:54
@@ -5910,10 +6968,6 @@ msgstr ""
 msgid "Plugin details"
 msgstr ""
 
-#: includes/plugins-window/window.php:117
-msgid "Plugins"
-msgstr ""
-
 #: includes/portal.php:88
 msgid "Sorry, you are not allowed to access the WordPress desktop."
 msgstr ""
@@ -5954,50 +7008,50 @@ msgstr ""
 msgid "%1$s on %2$s"
 msgstr ""
 
-#: includes/recycle-bin/store.php:718
-#: includes/recycle-bin/store.php:833
+#: includes/recycle-bin/store.php:754
+#: includes/recycle-bin/store.php:869
 msgid "Item not found."
 msgstr ""
 
-#: includes/recycle-bin/store.php:721
-#: includes/recycle-bin/store.php:836
+#: includes/recycle-bin/store.php:757
+#: includes/recycle-bin/store.php:872
 msgid "Item is not in the trash."
 msgstr ""
 
-#: includes/recycle-bin/store.php:724
+#: includes/recycle-bin/store.php:760
 msgid "You are not allowed to restore this item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:739
+#: includes/recycle-bin/store.php:775
 msgid "Failed to restore item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:773
-#: includes/recycle-bin/store.php:895
+#: includes/recycle-bin/store.php:809
+#: includes/recycle-bin/store.php:931
 msgid "Comment is not in the trash."
 msgstr ""
 
-#: includes/recycle-bin/store.php:776
+#: includes/recycle-bin/store.php:812
 msgid "You are not allowed to restore this comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:791
+#: includes/recycle-bin/store.php:827
 msgid "Failed to restore comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:839
+#: includes/recycle-bin/store.php:875
 msgid "You are not allowed to permanently delete this item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:863
+#: includes/recycle-bin/store.php:899
 msgid "Failed to permanently delete item."
 msgstr ""
 
-#: includes/recycle-bin/store.php:898
+#: includes/recycle-bin/store.php:934
 msgid "You are not allowed to permanently delete this comment."
 msgstr ""
 
-#: includes/recycle-bin/store.php:914
+#: includes/recycle-bin/store.php:950
 msgid "Failed to permanently delete comment."
 msgstr ""
 
@@ -6007,10 +7061,6 @@ msgstr ""
 
 #: includes/recycle-bin/window.php:61
 msgid "Search trash…"
-msgstr ""
-
-#: includes/recycle-bin/window.php:72
-msgid "Pin to desktop"
 msgstr ""
 
 #: includes/recycle-bin/window.php:100
@@ -6145,7 +7195,7 @@ msgid "Window tab registration requires a callable `template` that echoes the pa
 msgstr ""
 
 #. translators: 1: parent menu label, 2: submenu label
-#: includes/render/assets.php:928
+#: includes/render/assets.php:951
 #, php-format
 msgid "%1$s > %2$s"
 msgstr ""
@@ -6255,10 +7305,6 @@ msgstr ""
 #: includes/users-window/window.php:36
 #: includes/users-window/window.php:67
 msgid "Add new"
-msgstr ""
-
-#: includes/users-window/window.php:43
-msgid "Profile"
 msgstr ""
 
 #: includes/users-window/window.php:53
@@ -6481,6 +7527,14 @@ msgstr ""
 msgid "A daily quote from the jazz musician behind your WordPress version."
 msgstr ""
 
+#: includes/widgets/widget-notes.php:82
+msgid "Note Pad"
+msgstr ""
+
+#: includes/widgets/widget-notes.php:83
+msgid "Write a note and drag it onto the desktop to pin it."
+msgstr ""
+
 #: includes/widgets/widget-post-stats.php:74
 msgid "Post Stats"
 msgstr ""
@@ -6557,7 +7611,41 @@ msgstr ""
 msgid "Window chrome registration requires a non-empty `id`."
 msgstr ""
 
-#: includes/window-links.php:320
+#. translators: %s: post title.
+#: includes/window-links.php:157
+#, php-format
+msgid "Comments on %s"
+msgstr ""
+
+#. translators: %d: attachment ID.
+#: includes/window-links.php:527
+#, php-format
+msgid "Media item %d"
+msgstr ""
+
+#. translators: %d: post ID.
+#: includes/window-links.php:561
+#, php-format
+msgid "Post %d"
+msgstr ""
+
+#: includes/window-links.php:566
+msgid "Linked posts"
+msgstr ""
+
+#: includes/window-links.php:661
+msgid "Post ID to recompute the content identity for."
+msgstr ""
+
+#: includes/window-links.php:690
+msgid "You are not allowed to edit this post."
+msgstr ""
+
+#: includes/window-links.php:711
+msgid "No content identity for this object."
+msgstr ""
+
+#: includes/window-links.php:781
 msgid "Window-link renderer script registration requires a non-empty script handle."
 msgstr ""
 

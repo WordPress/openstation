@@ -91,4 +91,20 @@ export const styles = css`
 		pointer-events: none;
 		opacity: 0.75;
 	}
+	.wpd-button__spinner {
+		box-sizing: border-box;
+		display: inline-block;
+		width: 12px;
+		height: 12px;
+		border: 2px solid currentColor;
+		border-right-color: transparent;
+		border-radius: 50%;
+		animation: wpd-button-spin 0.6s linear infinite;
+		flex-shrink: 0;
+	}
+	@keyframes wpd-button-spin {
+		to {
+			transform: rotate( 360deg );
+		}
+	}
 `;

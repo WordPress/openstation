@@ -174,4 +174,77 @@ class Tests_DesktopMode_NonceRefresh extends WP_UnitTestCase {
 			'desktop_mode_nonce_refresh_heartbeat_received should hook heartbeat_received.'
 		);
 	}
+
+	/**
+	 * The functional tick also carries the viewer id so the shell's
+	 * auth recovery can detect a user switch (DESKMOD-49).
+	 *
+	 * @covers ::desktop_mode_nonce_refresh_heartbeat_received
+	 */
+	public function test_tick_carries_current_user_id() {
+		wp_set_current_user( self::$user_id );
+
+		$response = desktop_mode_nonce_refresh_heartbeat_received( array(), array() );
+
+		$this->assertArrayHasKey( DESKTOP_MODE_AUTH_FIELD, $response );
+		$this->assertSame(
+			self::$user_id,
+			$response[ DESKTOP_MODE_AUTH_FIELD ]['uid']
+		);
+	}
+
+	/**
+	 * Core short-circuits the tick through `wp_refresh_nonces` when
+	 * the heartbeat nonce is stale (first tick after a re-login, or
+	 * plain 24-hour expiry) — `heartbeat_received` never runs on
+	 * that path. The payload must ride the short-circuit response
+	 * too, so one round-trip heals the shell (DESKMOD-49).
+	 *
+	 * @covers ::desktop_mode_nonce_refresh_on_expired
+	 */
+	public function test_expired_path_carries_payload_and_uid() {
+		wp_set_current_user( self::$user_id );
+
+		$response = desktop_mode_nonce_refresh_on_expired( array() );
+
+		$this->assertArrayHasKey( DESKTOP_MODE_NONCE_REFRESH_FIELD, $response );
+		$this->assertSame(
+			1,
+			wp_verify_nonce(
+				$response[ DESKTOP_MODE_NONCE_REFRESH_FIELD ]['wp_rest'],
+				'wp_rest'
+			)
+		);
+		$this->assertSame(
+			self::$user_id,
+			$response[ DESKTOP_MODE_AUTH_FIELD ]['uid']
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_nonce_refresh_on_expired
+	 */
+	public function test_expired_path_skips_users_without_desktop_mode() {
+		$opted_out = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $opted_out );
+
+		$response = desktop_mode_nonce_refresh_on_expired( array( 'nonces_expired' => true ) );
+
+		$this->assertArrayNotHasKey( DESKTOP_MODE_NONCE_REFRESH_FIELD, $response );
+		$this->assertArrayNotHasKey( DESKTOP_MODE_AUTH_FIELD, $response );
+		$this->assertTrue( $response['nonces_expired'], 'Pre-existing keys must pass through.' );
+	}
+
+	/**
+	 * @covers ::desktop_mode_nonce_refresh_on_expired
+	 */
+	public function test_expired_path_filter_is_registered() {
+		$this->assertNotFalse(
+			has_filter(
+				'wp_refresh_nonces',
+				'desktop_mode_nonce_refresh_on_expired'
+			),
+			'desktop_mode_nonce_refresh_on_expired should hook wp_refresh_nonces.'
+		);
+	}
 }

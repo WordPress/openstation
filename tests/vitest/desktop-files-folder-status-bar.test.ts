@@ -50,6 +50,41 @@ describe( 'folder status bar', () => {
 		expect( seg?.textContent ).toBe( '2 files, 1 folder' );
 	} );
 
+	test( 'appends the stored-upload size when the folder holds real bytes', async () => {
+		const { bar, store } = await load();
+		store.__resetFilesStoreForTests();
+		const upload = ( id: number, sizeBytes: number ) => ( {
+			...placement( id, 'post', 7 ),
+			file: {
+				...placement( id, 'post', 7 ).file,
+				type: 'upload',
+				sizeBytes,
+			},
+		} );
+		store.setFolderPlacements( 7, [
+			upload( 1, 20 * 1024 * 1024 ),
+			upload( 2, 3.2 * 1024 * 1024 ),
+			placement( 3, 'folder', 7 ),
+			placement( 4, 'post', 7 ), // Reference tile — weighs nothing.
+		] );
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		bar.mountFolderStatusBar( host, 7 );
+		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .desktop-mode-folder-status-bar__label' );
+		expect( seg?.textContent ).toBe( '3 files, 1 folder (23.2 MB)' );
+	} );
+
+	test( 'omits the size for folders with only reference tiles', async () => {
+		const { bar, store } = await load();
+		store.__resetFilesStoreForTests();
+		store.setFolderPlacements( 8, [ placement( 1, 'post', 8 ) ] );
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		bar.mountFolderStatusBar( host, 8 );
+		const seg = host.querySelector< HTMLElement >( '[data-segment-id="count"] .desktop-mode-folder-status-bar__label' );
+		expect( seg?.textContent ).toBe( '1 file' );
+	} );
+
 	test( 'singular vs plural labels', async () => {
 		const { bar, store } = await load();
 		store.__resetFilesStoreForTests();

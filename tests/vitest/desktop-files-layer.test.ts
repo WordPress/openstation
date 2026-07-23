@@ -281,6 +281,96 @@ describe( 'FilesLayer', () => {
 		handle.dispose();
 	} );
 
+	test( 'in-place rename repaints the tile label without rebuilding the tile', async () => {
+		// The user-reported bug: rename a folder from the tile context
+		// menu → the store gets the optimistic title patch, but the
+		// position-only fast path (`tryPatchPositions`) reused the
+		// tile DOM and never touched the label — the old name stuck
+		// around until F5.
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+		const folderFile = ( title: string ) => ( {
+			type: 'folder',
+			ref: '7',
+			title,
+			icon: 'dashicons-category',
+			previewUrl: '',
+			exists: true,
+		} );
+		store.setFolderPlacements( 0, [
+			placement( 1, { file: folderFile( 'Old name' ) } ),
+		] );
+
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 0 );
+		const tile = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		expect(
+			tile.querySelector( '.desktop-mode-file-tile__label' )?.textContent,
+		).toBe( 'Old name' );
+		// Mark the node so we can prove DOM identity survived — the
+		// rename must patch in place, not wholesale-rebuild.
+		tile.dataset.testMark = 'kept';
+
+		// Exactly what the rename dialog's onSubmit does before the
+		// REST roundtrip resolves.
+		store.upsertPlacement( placement( 1, { file: folderFile( 'New name' ) } ) );
+
+		const after = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		expect( after.dataset.testMark ).toBe( 'kept' );
+		expect( after.getAttribute( 'label' ) ).toBe( 'New name' );
+		expect(
+			after.querySelector( '.desktop-mode-file-tile__label' )?.textContent,
+		).toBe( 'New name' );
+		expect( after.getAttribute( 'aria-label' ) ).toBe( 'New name' );
+		handle.dispose();
+	} );
+
+	test( 'rename arriving together with an add still repaints the label (incremental path)', async () => {
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+		const folderFile = ( title: string ) => ( {
+			type: 'folder',
+			ref: '7',
+			title,
+			icon: 'dashicons-category',
+			previewUrl: '',
+			exists: true,
+		} );
+		store.setFolderPlacements( 0, [
+			placement( 1, { file: folderFile( 'Old name' ) } ),
+		] );
+
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 0 );
+		const tile = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		tile.dataset.testMark = 'kept';
+
+		// One delta: the folder was renamed AND a sibling was added —
+		// tile counts differ, so this exercises `tryPatchIncremental`.
+		store.setFolderPlacements( 0, [
+			placement( 1, { file: folderFile( 'New name' ) } ),
+			placement( 2 ),
+		] );
+
+		const renamed = host.querySelector< HTMLElement >(
+			'[data-placement-id="1"]',
+		)!;
+		expect( renamed.dataset.testMark ).toBe( 'kept' );
+		expect(
+			renamed.querySelector( '.desktop-mode-file-tile__label' )?.textContent,
+		).toBe( 'New name' );
+		expect(
+			host.querySelectorAll( '.desktop-mode-file-tile' ).length,
+		).toBe( 2 );
+		handle.dispose();
+	} );
+
 	test( 'fingerprint short-circuit avoids rebuilding tiles when nothing changed', async () => {
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();

@@ -26,12 +26,15 @@ A **file** on the desktop is a `Desktop_Mode_File` subclass adapting one WordPre
 
 A placement is a **reference** to a WordPress entity, not a copy of it. Removing a placement drops the placement row only — the underlying post, user, attachment, comment, or term is **never** touched. The REST `DELETE /placements/<id>` defaults to a soft-trash into the recycle bin (restorable); `?force=1` permanently purges the row, and `desktop_mode_files_remove()` is the hard-remove PHP API. Folder deletion cascades placements via tombstones but still leaves referenced entities intact. This is asserted in `Tests_DesktopMode_FilesStore::test_remove_does_not_delete_underlying_entity` and is the core safety contract of the system. Plugins that want a "delete the post too" flow must call `wp_delete_post()` (or equivalent) themselves — the framework will not do it for them.
 
+**The one deliberate exception is the `upload` type** (real file storage, since 0.9.6): an uploaded file has no life outside the desktop, so its placement OWNS the entity. Soft-trash keeps the bytes (restore works); when the owner's last placement of a file is **permanently** removed (recycle-bin purge / `?force=1`), the stored bytes, the row, its shares, and every recipient placement are deleted too. See [Real file storage](#real-file-storage-upload--experimental-since-096) below. Every other type keeps the reference contract unchanged.
+
 A **file type** is a slug that points the registry at the right subclass. The built-ins are:
 
 | Slug | Class | Reference shape |
 |---|---|---|
 | `post` | `Desktop_Mode_Post_File` | post id (numeric string) |
 | `attachment` | `Desktop_Mode_Attachment_File` | attachment id |
+| `upload` | `Desktop_Mode_Upload_File` | stored-file row id (real bytes on the server — see [Real file storage](#real-file-storage-upload--experimental-since-096)) |
 | `user` | `Desktop_Mode_User_File` | user id |
 | `term` | `Desktop_Mode_Term_File` | `"<taxonomy>:<term_id>"` |
 | `comment` | `Desktop_Mode_Comment_File` | comment id |
@@ -608,9 +611,59 @@ PATCH /wp-json/desktop-mode/v1/files/folders/<id>
 
 The `desktop_mode_folder_shared` action fires whenever `share_mode` or `share_meta` changes, giving plugins a single signal to subscribe to.
 
+## Real file storage (`upload`) — Experimental (since 0.9.6)
+
+Real desktop-style file storage: users upload arbitrary files (or whole folder trees) and the bytes land on the server, tied to the uploading user, downloadable later — the file as-is, a folder as an on-demand `.zip`.
+
+### Storage model
+
+Bytes live **flat** on disk under `wp-content/uploads/desktop-mode-files/<user_id>/` with server-generated, extensionless UUID names — hierarchy, display names, and sharing are entirely DB concerns (the existing folders + placements + shares tables). Metadata lives in the `{prefix}desktop_mode_stored_files` table (`owner_id`, `display_name`, `disk_name`, `size_bytes`, `mime`). Renames and moves are single-row updates; no user input ever composes a disk path.
+
+The storage dir is protected by `.htaccess` (both Apache 2.2/2.4 syntaxes) + `index.php`, and bytes are only ever served through the authenticated download endpoints with `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff` (uploaded SVG/HTML never renders from the site origin). **nginx ignores `.htaccess`** — add this to the server config:
+
+```nginx
+location ^~ /wp-content/uploads/desktop-mode-files/ { deny all; }
+```
+
+Even without it, the extensionless UUID names and the PHP-gated serving are the effective floor. Back up the DB and the storage dir together.
+
+### Uploading
+
+- **Drag from the OS** onto the wallpaper, a folder window, or a closed folder tile. The upload dialog offers a destination selector — Desktop storage or Media Library (the pre-0.9.6 behavior). Defaults follow the drop's intent: folder-targeted drops go to Desktop (into that folder); flat desk drops default to Media Library when every file is a media kind (`image/*`, `video/*`, `audio/*`) and to Desktop otherwise; WordPress admin windows keep Media Library. Folder drops force Desktop storage and recreate the tree (empty directories included, via the drag path only). Dropping again while the dialog is open updates it to the latest drop (the earlier, unconfirmed batch is discarded).
+- **Pickers**: wallpaper context menu → "Upload files…" / "Upload folder…".
+- Capability gate: `upload_files` by default, filterable via `desktop_mode_stored_files_upload_capability`. Per-file cap: `wp_max_upload_size()`, filterable down via `desktop_mode_stored_files_max_upload_bytes`. Optional per-user quota: `desktop_mode_stored_files_user_quota_bytes` (default unlimited). MIME policy: the user-scoped WordPress allow-list (widen with `desktop_mode_stored_files_allowed_mimes` — it keeps core's re-check in agreement) plus a hard executable/config denylist (`php*`, `phtml`, `phar`, `.htaccess`, …) that also rejects double extensions.
+
+### REST routes
+
+All under `/wp-json/desktop-mode/v1/files`, cookie + nonce auth:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/uploads` | Multipart intake, ONE file per request: `file` + `parentId` + optional `relativePath` (`a/b/c.ext` — directory segments are created mkdir-p style, deduped) + optional `x`/`y` (omit both → next free grid slot). Returns `{ placement, storedFileId }`. |
+| `POST` | `/uploads/paths` | mkdir-p a directory path with no file (`parentId`, `relativePath`). Preserves empty directories from tree drops. |
+| `PATCH` | `/uploads/<id>` | Rename the display name (owner only). |
+| `GET` | `/uploads/<id>/download` | Stream the bytes, unmodified. `_wpnonce` accepted as a query param so plain `<a>` navigations work. |
+| `GET` | `/folders/<id>/download` | On-demand `.zip` of the folder's stored files (reference-type placements are skipped; empty sub-folders round-trip). Requires the PHP zip extension — 501 + a hidden affordance otherwise. Caps filterable via `desktop_mode_stored_files_zip_caps` (default 1000 entries / 500 MB input). |
+| `GET/POST` | `/uploads/<id>/shares` (+ `/<shareId>`, `/accept`, `/deny`, `/leave`) | Single-file sharing — see [folder-sharing.md](folder-sharing.md#single-file-shares-since-096). |
+
+Downloads answer **404** for files the viewer cannot read (existence masking). Not-found and no-access are indistinguishable.
+
+### Ownership and sharing
+
+Uploaded files are **owner-locked**: only the stored file's owner may move, rename, or trash them — folder write-collaborators included (`desktop_mode_files_upload_owner_locked` error, and `canTrash: false` in the shape). Recipients — via a shared folder or a direct file share — get read + download only. Direct file shares are hard-limited to the read tier.
+
+### Lifecycle
+
+Reconciliation runs on the existing daily prune: placement-less rows and row-less bytes older than a day are removed in both directions. `deleted_user` purges the user's entire storage. Zip temp files are cleaned on stream end, shutdown, and by the daily sweep.
+
+### PHP surface
+
+`desktop_mode_stored_files_get/create/rename/delete/purge()`, `desktop_mode_stored_file_path()`, `desktop_mode_stored_file_user_can_read()`, `desktop_mode_stored_files_total_bytes()`, `desktop_mode_stored_file_share_{invite,accept,deny,leave,revoke}()`. Actions: `desktop_mode_stored_file_{created,uploaded,renamed,deleted,downloaded}`, `desktop_mode_folder_zip_downloaded`. See [hooks-reference.md](hooks-reference.md#real-file-storage-since-096) for the filters.
+
 ## What's NOT here yet
 
 - Drag-from-Recycle-Bin via HTML5 native drag (the "Pin to desktop" toolbar button ships the equivalent action today).
-- The folder-sharing v1 non-goals — owner transfer, sharing of non-folder file types, cascade share grants (sub-folders need their own grant), recipient-side rename of a shared folder. See [folder-sharing.md](folder-sharing.md).
+- The folder-sharing v1 non-goals — owner transfer, cascade share grants (sub-folders need their own grant), recipient-side rename of a shared folder. See [folder-sharing.md](folder-sharing.md). (Sharing of non-folder types shipped in 0.9.6 for stored uploads — read-only, user principals.)
+- Upload previews/thumbnails (double-click downloads in v1) and resumable/chunked uploads (the intake keeps receive and register separate so a tus/Content-Range layer can drop in).
 
 If you need any of these today, watch the changelog — the registry shape from Phase 0 is forwards-compatible with every later phase.

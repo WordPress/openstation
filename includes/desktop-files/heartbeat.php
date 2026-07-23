@@ -297,6 +297,20 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
 			}
 		}
 	}
+	// Pending FILE-share invites ride the same channel. Shapes carry
+	// `targetType: 'file'` + `fileId` / `fileName` so the client
+	// invite banner can branch (folder shapes have no targetType and
+	// default to folder handling).
+	if ( $sharing_enabled && ! $truncated && function_exists( 'desktop_mode_files_get_pending_file_shares_for_user' ) ) {
+		$pending_files = desktop_mode_files_get_pending_file_shares_for_user( $user_id, $shares_version );
+		foreach ( $pending_files as $row ) {
+			$shares[] = desktop_mode_files_shape_file_share( $row );
+			if ( count( $shares ) >= $cap ) {
+				$truncated = true;
+				break;
+			}
+		}
+	}
 
 	// Safety net: a row that is currently being delivered as an
 	// upsert (alive) must NOT also appear in `removed.*`. Otherwise

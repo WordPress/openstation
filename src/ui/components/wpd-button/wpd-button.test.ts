@@ -32,4 +32,15 @@ describe( '<wpd-button>', () => {
 			.shadowRoot!.querySelector( 'button' ) as HTMLButtonElement;
 		expect( inner.disabled ).toBe( true );
 	} );
+
+	test( '?busy attribute disables the button, sets aria-busy, and renders a spinner', async () => {
+		host.innerHTML = `<wpd-button busy>Save</wpd-button>`;
+		await tick();
+		const inner = host
+			.querySelector( 'wpd-button' )!
+			.shadowRoot!.querySelector( 'button' ) as HTMLButtonElement;
+		expect( inner.disabled ).toBe( true );
+		expect( inner.getAttribute( 'aria-busy' ) ).toBe( 'true' );
+		expect( inner.querySelector( '.wpd-button__spinner' ) ).toBeTruthy();
+	} );
 } );

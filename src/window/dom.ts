@@ -9,7 +9,8 @@
  */
 
 import type { WindowConfig } from '../types';
-import { sanitizeClassName, urlMatchKey } from '../utils';
+import { urlMatchKey } from '../utils';
+import { renderIcon } from '../icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<wpd-spinner>` so the loading
 // overlay rendered below upgrades synchronously when the body is
@@ -102,7 +103,7 @@ export function withChromelessParam( url: string ): string | null {
  */
 export function updateFullscreenBodyClass(): void {
 	const hasFullscreen =
-		document.querySelectorAll( '.desktop-mode-window--fullscreen' ).length > 0;
+		document.querySelectorAll( '.desktop-mode-window--fullscreen:not(.desktop-mode-window--minimized)' ).length > 0;
 	document.body.classList.toggle( 'desktop-mode-has-fullscreen-window', hasFullscreen );
 }
 
@@ -433,9 +434,15 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Default content for `icon` and `title` reproduces the legacy
 	// title-bar visual; the other slots are empty by default.
 	const slotIcon = createSlotHost( 'icon' );
-	const iconEl = document.createElement( 'span' );
-	iconEl.className = `desktop-mode-window__icon dashicons ${ sanitizeClassName( config.icon ) }`;
-	iconEl.setAttribute( 'aria-hidden', 'true' );
+	// `renderIcon` is the canonical dispatcher for every icon shape a
+	// window can register (dashicons class, SVG/raster data URI,
+	// http(s) URL, letter-badge fallback). Rendering only the
+	// dashicons shape here left data-URI icons — e.g. the Games
+	// window's gamepad SVG — invisible in the title bar.
+	const iconEl = renderIcon( config.icon, {
+		title: config.title,
+		className: 'desktop-mode-window__icon',
+	} );
 	slotIcon.appendChild( iconEl );
 
 	const slotTitle = createSlotHost( 'title' );
