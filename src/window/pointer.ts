@@ -601,5 +601,18 @@ export function computeResize(
 		height = nextHeight;
 	}
 
+	// Constrain upper-left bounds to prevent the window/title bar from
+	// being resized off-screen.
+	if ( x < EDGE_MARGIN ) {
+		const diff = EDGE_MARGIN - x;
+		x = EDGE_MARGIN;
+		width = Math.max( minWidth, width - diff );
+	}
+	if ( y < EDGE_MARGIN ) {
+		const diff = EDGE_MARGIN - y;
+		y = EDGE_MARGIN;
+		height = Math.max( minHeight, height - diff );
+	}
+
 	return { x, y, width, height };
 }
