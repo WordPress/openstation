@@ -506,6 +506,18 @@ async function onEyeClick(
 
 		await manager.open( config );
 
+		// The editor may have closed — or navigated to different
+		// content — while the companion was OPENING: no pairing
+		// existed yet, so the lifecycle handlers couldn't clean up.
+		// Don't strand an orphaned companion.
+		if (
+			! manager.getById( win.id ) ||
+			contentKey( getWindowContent( win.id ) ) !== contentKey( latest )
+		) {
+			manager.getById( config.id )?.destroy?.();
+			return;
+		}
+
 		const pairing: PreviewPairing = {
 			editorWindowId: win.id,
 			previewWindowId: config.id,

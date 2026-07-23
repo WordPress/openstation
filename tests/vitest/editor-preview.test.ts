@@ -384,6 +384,54 @@ describe( 'eye click', () => {
 		expect( log[ 0 ].args[ 0 ] ).toMatchObject( { reason: 'toggled' } );
 	} );
 
+	test( 'destroys the companion when the editor closed while open() was in flight', async () => {
+		const { def, manager, setWindowContent } = await boot();
+		const log = recordActions( hooks, [ HOOKS.EDITOR_PREVIEW_OPENED ] );
+		const editor = fakeWin( 'w1' );
+		manager.add( editor );
+		setWindowContent( 'w1', {
+			type: 'post',
+			id: 1,
+			previewUrl: PREVIEW_URL,
+		} );
+
+		// Hold manager.open() open so the editor can close mid-flight.
+		let release: () => void = () => undefined;
+		const gate = new Promise< void >( ( resolve ) => {
+			release = resolve;
+		} );
+		manager.open.mockImplementation(
+			async ( config: { id: string } & Record< string, unknown > ) => {
+				const win = fakeWin( config.id );
+				manager.windows.set( config.id, win );
+				await gate;
+				return win;
+			},
+		);
+
+		const host = document.createElement( 'wpd-window-button' );
+		document.body.appendChild( host );
+		def.render!( host, editor as never );
+		host.dispatchEvent( new MouseEvent( 'click', { bubbles: true } ) );
+		// Let the flow reach manager.open().
+		for ( let i = 0; i < 6; i++ ) {
+			await Promise.resolve();
+		}
+		expect( manager.open ).toHaveBeenCalledTimes( 1 );
+
+		// The editor closes while the companion is still opening.
+		manager.remove( 'w1' );
+		release();
+		for ( let i = 0; i < 6; i++ ) {
+			await Promise.resolve();
+		}
+
+		// The orphaned companion is destroyed, no pairing recorded.
+		const preview = manager.getById( 'editor-preview-post-1' )!;
+		expect( preview.destroy ).toHaveBeenCalledTimes( 1 );
+		expect( log ).toHaveLength( 0 );
+	} );
+
 	test( 'does not open when the editor closed mid-autosave', async () => {
 		const { def, manager, setWindowContent } = await boot();
 		const editor = fakeWin( 'w1' );

@@ -1107,19 +1107,8 @@ export class Window {
 			}
 
 			// Sync the active tab whenever the iframe finishes a
-			// navigation. Reading iframe.contentWindow.location is safe
-			// because we only allow same-origin URLs; cross-origin
-			// would have thrown earlier.
-			iframe.addEventListener( 'load', () => {
-				try {
-					const href = iframe.contentWindow?.location.href;
-					if ( href ) {
-						syncActiveTab( this, href );
-					}
-				} catch {
-					/* Cross-origin or detached frame — ignore. */
-				}
-			} );
+			// navigation.
+			this._wireTabNavSync( iframe );
 
 			// Listen for postMessage from iframe.
 			window.addEventListener( 'message', this._boundOnMessage );
@@ -2062,6 +2051,29 @@ export class Window {
 	}
 
 	/**
+	 * Keep the submenu tab strip highlighting in sync with the
+	 * frame's navigations. Reading `contentWindow.location` is safe
+	 * because only same-origin URLs are allowed; cross-origin would
+	 * have thrown earlier. Wired to the primary iframe at
+	 * construction and re-wired to the twin {@link swapReload}
+	 * promotes — listeners don't travel between elements.
+	 *
+	 * @internal
+	 */
+	private _wireTabNavSync( iframe: HTMLIFrameElement ): void {
+		iframe.addEventListener( 'load', () => {
+			try {
+				const href = iframe.contentWindow?.location.href;
+				if ( href ) {
+					syncActiveTab( this, href );
+				}
+			} catch {
+				/* Cross-origin or detached frame — ignore. */
+			}
+		} );
+	}
+
+	/**
 	 * In-flight double-buffer frame for {@link swapReload}, plus its
 	 * abandon timer. One buffer at most — a newer swap request
 	 * discards the previous buffer and starts over.
@@ -2237,6 +2249,13 @@ export class Window {
 				// current document immediately, this load already
 				// fired).
 				this._wireContentFocusForwarder( buffer );
+
+				// And the tab-strip sync: the submenu-highlight
+				// listener from construction also lived on the old
+				// frame. Sync once for THIS navigation (its load
+				// already fired), then re-wire for future ones.
+				this._wireTabNavSync( buffer );
+				syncActiveTab( this, target );
 
 				doAction( HOOKS.WINDOW_RELOADED, {
 					windowId: this.id,

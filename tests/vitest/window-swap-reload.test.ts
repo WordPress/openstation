@@ -249,6 +249,40 @@ describe( 'Window.swapReload', () => {
 		expect( manager.getFocused() ).toBe( winA );
 	} );
 
+	test( 'the submenu tab highlight survives a swap to a sibling URL', async () => {
+		const win = await manager.open( {
+			id: 'sw11',
+			url: '/wp-admin/edit.php',
+			title: 'Posts',
+			icon: 'dashicons-admin-post',
+			submenu: [
+				{ title: 'All Posts', url: '/wp-admin/edit.php' },
+				{ title: 'Add New', url: '/wp-admin/post-new.php' },
+			],
+		} );
+		const body = win.element.querySelector( '.desktop-mode-window__body' )!;
+		const tabs = win.element.querySelectorAll< HTMLElement >(
+			'.desktop-mode-window__tab[data-kind="submenu"]',
+		);
+		expect(
+			tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ),
+		).toBe( true );
+
+		win.swapReload( '/wp-admin/post-new.php' );
+		body.querySelector< HTMLIFrameElement >( BUFFER_SELECTOR )!
+			.dispatchEvent( new Event( 'load' ) );
+
+		// The promoted twin shows post-new.php — the tab highlight
+		// must follow (the sync wiring is re-attached, not lost with
+		// the old frame).
+		expect(
+			tabs[ 1 ].classList.contains( 'desktop-mode-window__tab--active' ),
+		).toBe( true );
+		expect(
+			tabs[ 0 ].classList.contains( 'desktop-mode-window__tab--active' ),
+		).toBe( false );
+	} );
+
 	test( 'the focus forwarder survives a swap', async () => {
 		const winA = await manager.open( {
 			id: 'sw9',
