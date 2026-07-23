@@ -4882,6 +4882,14 @@ the base `DesktopFileShape`.
 `_wpnonce`-in-query GET navigations) and must never be persisted —
 nonces expire.
 
+**Preview pane** — image/video/audio uploads render inline in the
+folder-window preview (subresource loads via the authenticated
+download URL); other kinds show a no-preview note + Download.
+Plugins preview further types (PDF, …) through the pre-existing
+`desktop-mode.files.preview` filter — return an element for the
+placements you recognize; see
+[examples/desktop-file-storage.md](examples/desktop-file-storage.md#extend-the-preview-pane-eg-pdfs).
+
 ---
 
 ## Native Plugins window (since 0.9.0)
