@@ -6,7 +6,7 @@
  *
  *   GET /post-types
  *     Lists the types eligible for the graph (`slug`, `label`, `icon`,
- *     `count`).
+ *     `count`, `taxonomies`).
  *
  *   GET /nodes?types=post,page,...
  *     Returns the full `{ nodes, edges, stats }` tuple. Cached server-
@@ -108,10 +108,11 @@ function desktop_mode_content_graph_rest_post_types() {
 			}
 		}
 		$out[] = array(
-			'slug'  => $slug,
-			'label' => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
-			'icon'  => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
-			'count' => $count,
+			'slug'       => $slug,
+			'label'      => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
+			'icon'       => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
+			'count'      => $count,
+			'taxonomies' => $entry['taxonomies'],
 		);
 	}
 	return rest_ensure_response( $out );

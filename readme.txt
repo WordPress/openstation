@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.9.5
+Stable tag: 0.9.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -124,6 +124,29 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 
 = 0.9.6 =
 * Improved button accessibility and visual feedback by implementing the missing busy spinner and aria-busy attributes on the Button component
+* AI assistant as the shell's ⌘K palette (Commands + Ask AI)
+* Add pinned notes: paper notes with a pushpin, composed in a Note Pad widget
+* Improve minimized window UX with restore support and count badges
+* Surface core admin notices once in the desktop shell
+* Convert pinned notes into draft posts
+* Normalize AI Copilot tool schemas for the provider
+* Add a game system: Games hub, unified scoreboard, challenges, and Inkfall
+* Keep URL-style menu slugs (ACF) as direct admin links
+* Add Alphabet Soup game; generalize game infra out of Inkfall
+* Fix 404 from wallpaper Sort By when a synthetic tile is on the desktop
+* Fix illegible text fields inside wpd-modal dialogs
+* Fix empty custom-gradient editor after re-selecting the wallpaper
+* Add Related-entities title-bar navigation with open PHP/JS filter surface
+* Admin bar visibility when fullscreen window is minimized
+* Allow selecting window from Overview view
+* Show open window indicators for bottom dock tiles
+* Add busy state and spinner to wpd-button
+* Redesign session-expiry recovery: one login prompt, in-place recovery
+* Fix folder rename not reflected on the desktop until refresh
+* Live-refresh list windows on content changes (posts, CPTs, comments, WooCommerce orders)
+* Add real file/folder storage on the desktop
+* Fix gamepad icon missing from the window title bar (data-URI window icons)
+* Fix content graph taxonomy fallback
 
 = 0.9.5 =
 * AI Copilot now uses WordPress 7.0 providers: configure a provider once in Settings → Connectors and the assistant uses it — no more per-plugin keys

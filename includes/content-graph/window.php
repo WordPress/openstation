@@ -48,7 +48,7 @@ function desktop_mode_content_graph_user_can_use() {
  *
  * @since 0.8.2
  *
- * @return array[] Each entry: `array( 'slug', 'label', 'icon' )`.
+ * @return array[] Each entry: `array( 'slug', 'label', 'icon', 'taxonomies' )`.
  */
 function desktop_mode_content_graph_post_types() {
 	$types  = get_post_types( array( 'public' => true ), 'objects' );
@@ -61,15 +61,22 @@ function desktop_mode_content_graph_post_types() {
 			continue;
 		}
 		$result[] = array(
-			'slug'  => (string) $type->name,
-			'label' => (string) $type->labels->name,
-			'icon'  => (string) ( ! empty( $type->menu_icon ) ? $type->menu_icon : 'dashicons-admin-post' ),
+			'slug'       => (string) $type->name,
+			'label'      => (string) $type->labels->name,
+			'icon'       => (string) ( ! empty( $type->menu_icon ) ? $type->menu_icon : 'dashicons-admin-post' ),
+			'taxonomies' => array(
+				'category' => is_object_in_taxonomy( $type->name, 'category' ),
+				'post_tag' => is_object_in_taxonomy( $type->name, 'post_tag' ),
+			),
 		);
 	}
 
 	/**
 	 * Filter the list of post types shown in the Content Graph filter
-	 * bar. Each entry must declare `slug`, `label`, and `icon`. Removing
+	 * bar. Each entry declares `slug`, `label`, `icon`, and optionally
+	 * `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`);
+	 * entries missing `taxonomies` get it derived from
+	 * `is_object_in_taxonomy()` after filtering. Removing
 	 * an entry hides it from the filter bar AND excludes it from the
 	 * graph entirely.
 	 *
@@ -78,7 +85,17 @@ function desktop_mode_content_graph_post_types() {
 	 * @param array[] $result Default: every public post type except attachment.
 	 */
 	$filtered = apply_filters( 'desktop_mode_content_graph_post_types', $result );
-	return is_array( $filtered ) ? array_values( $filtered ) : $result;
+	$filtered = is_array( $filtered ) ? array_values( $filtered ) : $result;
+
+	foreach ( $filtered as $i => $entry ) {
+		$slug                         = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
+		$filtered[ $i ]['taxonomies'] = array(
+			'category' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['category'] ) : is_object_in_taxonomy( $slug, 'category' ),
+			'post_tag' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['post_tag'] ) : is_object_in_taxonomy( $slug, 'post_tag' ),
+		);
+	}
+
+	return $filtered;
 }
 
 /**

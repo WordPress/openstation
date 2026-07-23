@@ -133,19 +133,29 @@ generate_changelog_draft() {
 	printf '%s\n' "$draft"
 }
 
-# Show the '= $new =' changelog block currently in readme.txt (or a loud
-# warning when there is none) and require an explicit yes before the
-# release continues. Runs on EVERY path — drafted, hand-written,
-# --skip-changelog, and resume — so a release can never reach the tag
-# push with an unreviewed or missing changelog.
-confirm_changelog() {
-	local block
-	block=$(awk -v ver="$new" '
+# Print the '= $new =' changelog block from readme.txt (heading included,
+# up to the next '=' heading). Prints nothing if the block is absent.
+changelog_block() {
+	awk -v ver="$new" '
 		$0 == "= " ver " =" { found = 1; print; next }
 		found && /^=/ { exit }
 		found { print }
-	' readme.txt)
+	' readme.txt
+}
 
+# The single interactive gate of the release. Shows the '= $new ='
+# changelog block currently in readme.txt (or a loud warning when there
+# is none) and requires an explicit yes before the release continues.
+# Editing readme.txt WHILE the prompt waits is fine: the bump commit
+# picks up the file as saved, and the final block is re-printed for the
+# record when it changed. Anything but yes stops the release, and
+# stopping costs nothing: the preflight checks tolerate the leftovers,
+# the draft merge is idempotent, and edits to the block survive, so
+# fixing readme.txt and re-running lands right back here. Runs on EVERY
+# path — drafted, hand-written, --skip-changelog, and resume.
+confirm_changelog() {
+	local block reply after
+	block=$(changelog_block)
 	echo ""
 	echo "=========================================================="
 	if [[ -n "$block" ]]; then
@@ -157,12 +167,25 @@ confirm_changelog() {
 		echo "WordPress.org users would see no notes for this release."
 	fi
 	echo "=========================================================="
-	local reply
+	echo "Edit readme.txt now if it needs changes, save, then answer."
 	read -r -p "Is this changelog complete and correct? [y/N] " reply
 	if [[ ! "$reply" =~ ^[Yy]$ ]]; then
-		echo "Aborted: changelog not confirmed. Edit the '= $new =' block in readme.txt and re-run; the script resumes where it left off." >&2
-		echo "(If the bump commit was already pushed, commit and push the readme fix before re-running.)" >&2
+		echo "Release stopped. Edit the '= $new =' block in readme.txt, then re-run:" >&2
+		echo "    $0 $new" >&2
+		echo "The draft and your edits are kept; the re-run returns to this confirmation." >&2
+		echo "('git checkout readme.txt' discards the draft entirely.)" >&2
+		echo "(If a resume run already pushed the bump commit, commit and push the" >&2
+		echo "readme.txt fix before re-running so it reaches the tag.)" >&2
 		exit 1
+	fi
+	# The block may have been edited while the prompt was waiting; show
+	# the version that will actually ship when it differs.
+	after=$(changelog_block)
+	if [[ "$after" != "$block" ]]; then
+		echo ""
+		echo "readme.txt was edited during the prompt. Shipping this '= $new =' block:"
+		echo "----------------------------------------------------------"
+		printf '%s\n' "$after"
 	fi
 }
 
@@ -173,20 +196,31 @@ if [[ "$dry_run_changelog" == "1" ]]; then
 	echo "Dry run: previewing changelog draft for $tag (no files will be modified)."
 	echo ""
 	if draft=$(generate_changelog_draft "$tag"); then
-		echo "=========================================================="
-		echo "Would prepend this '= $new =' block to readme.txt:"
-		echo "----------------------------------------------------------"
-		echo "= $new ="
-		printf '%s\n' "$draft"
-		echo "=========================================================="
+		if grep -q "^= $new =$" readme.txt; then
+			new_bullets=$(printf '%s\n' "$draft" | grep -Fxv -f <(changelog_block) || true)
+			echo "=========================================================="
+			echo "readme.txt already has a '= $new =' block. The release would"
+			echo "keep its entries and append the drafted bullets not already"
+			echo "present:"
+			echo "----------------------------------------------------------"
+			if [[ -n "$new_bullets" ]]; then
+				printf '%s\n' "$new_bullets"
+			else
+				echo "(nothing: every drafted entry is already in the block)"
+			fi
+			echo "=========================================================="
+		else
+			echo "=========================================================="
+			echo "Would prepend this '= $new =' block to readme.txt:"
+			echo "----------------------------------------------------------"
+			echo "= $new ="
+			printf '%s\n' "$draft"
+			echo "=========================================================="
+		fi
 		echo ""
-		echo "At this point the real release script would pause with:"
-		echo "  Please update readme.txt if needed, save, and press Enter when done."
-		echo "  (Ctrl-C to abort, then 'git checkout readme.txt' to undo.)"
-		echo "  Press Enter when done..."
-		echo ""
-		echo "…then display the final '= $new =' block and require:"
+		echo "At this point the real release script would show the final block and ask:"
 		echo "  Is this changelog complete and correct? [y/N]"
+		echo "y continues the release; anything else stops it (draft kept for re-run)."
 		echo ""
 		echo "Dry run complete. No files changed."
 	fi
@@ -199,8 +233,15 @@ if [[ "$branch" != "trunk" ]]; then
 	exit 1
 fi
 
-if ! git diff --quiet || ! git diff --cached --quiet; then
-	echo "error: working tree is dirty. Commit or stash first." >&2
+# Leftovers from an aborted release attempt (the i18n refresh under
+# languages/, a drafted-but-unconfirmed changelog in readme.txt) are
+# regenerated or re-reviewed on every run and belong in the bump commit,
+# so they must not block a re-run. Anything else dirty still aborts:
+# the bump uses `git commit -am` and would silently sweep it up.
+dirty=$(git status --porcelain --untracked-files=no | grep -vE '^.{3}(languages/|readme\.txt$)' || true)
+if [[ -n "$dirty" ]]; then
+	echo "error: working tree has changes beyond languages/ and readme.txt. Commit or stash first:" >&2
+	printf '%s\n' "$dirty" >&2
 	exit 1
 fi
 
@@ -238,6 +279,15 @@ stable=$(awk '/^Stable tag:/ { print $3; exit }' readme.txt)
 if [[ "$pkg" == "$new" && "$header" == "$new" && "$constant" == "$new" && "$stable" == "$new" ]]; then
 	echo "All version locations already at $new — skipping bump, resuming at CI wait."
 	confirm_changelog
+	# In resume mode the bump commit is already pushed; readme.txt edits
+	# made during the confirmation pause exist only in the working tree
+	# and would NOT reach the tag. Force them through trunk first.
+	if ! git diff --quiet -- readme.txt; then
+		echo "error: readme.txt was edited, but the bump commit is already pushed." >&2
+		echo "  Commit and push the fix, then re-run:" >&2
+		echo "    git add readme.txt && git commit -m \"Update $new changelog\" && git push origin trunk" >&2
+		exit 1
+	fi
 else
 	# Refresh translation files BEFORE the version bump so any churn
 	# (renumbered #: source refs, fresh POT-Creation-Date, fuzzy
@@ -259,17 +309,50 @@ else
 	fi
 
 	# Draft the readme.txt changelog block from GitHub's auto-generated
-	# release notes, then pause so the releaser can curate before the
-	# bump commit. Resume-safe: skips if readme.txt already has a
-	# "= $new =" block (from a prior aborted attempt). If the editor
-	# pause is aborted with Ctrl-C, readme.txt will be left modified;
-	# undo with: git checkout readme.txt
+	# release notes. The draft ALWAYS runs: if readme.txt already has a
+	# "= $new =" block (hand-written, committed by a feature PR, or left
+	# by a prior aborted attempt), its entries are kept and only drafted
+	# bullets not already present verbatim are appended, so re-runs stay
+	# idempotent and a partial block can never mask the real release
+	# contents. Curation happens at the confirm_changelog gate below,
+	# the release's only interactive stop.
 	if [[ "$skip_changelog" == "0" ]]; then
-		if grep -q "^= $new =$" readme.txt; then
-			echo "readme.txt already has a '= $new =' block — skipping changelog draft."
-		else
-			echo "Drafting readme.txt changelog from GitHub notes for $tag..."
-			if draft=$(generate_changelog_draft "$tag"); then
+		echo "Drafting readme.txt changelog from GitHub notes for $tag..."
+		if draft=$(generate_changelog_draft "$tag"); then
+			if grep -q "^= $new =$" readme.txt; then
+				new_bullets=$(printf '%s\n' "$draft" | grep -Fxv -f <(changelog_block) || true)
+				if [[ -z "$new_bullets" ]]; then
+					echo "The existing '= $new =' block already contains every drafted entry."
+				else
+					draft_file=$(mktemp)
+					printf '%s\n' "$new_bullets" > "$draft_file"
+					tmp=$(mktemp)
+					awk -v ver="$new" -v draft_file="$draft_file" '
+						$0 == "= " ver " =" { print; inblock = 1; next }
+						inblock && !done && ($0 == "" || $0 ~ /^=/) {
+							while ((getline line < draft_file) > 0) print line
+							close(draft_file)
+							done = 1
+						}
+						{ print }
+						END {
+							if (inblock && !done) {
+								while ((getline line < draft_file) > 0) print line
+								close(draft_file)
+							}
+						}
+					' readme.txt > "$tmp"
+					mv "$tmp" readme.txt
+					rm -f "$draft_file"
+
+					echo ""
+					echo "readme.txt already had a '= $new =' block. Kept its entries and"
+					echo "appended these drafted bullets:"
+					printf '%s\n' "$new_bullets"
+					echo "Watch for semantic duplicates: an existing entry may describe"
+					echo "the same change as an appended bullet."
+				fi
+			else
 				draft_file=$(mktemp)
 				printf '%s\n' "$draft" > "$draft_file"
 				tmp=$(mktemp)
@@ -286,18 +369,7 @@ else
 				mv "$tmp" readme.txt
 				rm -f "$draft_file"
 
-				echo ""
-				echo "=========================================================="
-				echo "Drafted '= $new =' block in readme.txt:"
-				echo "----------------------------------------------------------"
-				echo "= $new ="
-				printf '%s\n' "$draft"
-				echo "=========================================================="
-				echo ""
-				echo "Please update readme.txt if needed, save, and press Enter when done."
-				echo "(WordPress.org users see this — keep it user-facing.)"
-				echo "(Ctrl-C to abort, then 'git checkout readme.txt' to undo.)"
-				read -r -p "Press Enter when done... " _
+				echo "Drafted a fresh '= $new =' block in readme.txt."
 			fi
 		fi
 	else

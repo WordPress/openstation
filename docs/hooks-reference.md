@@ -3086,7 +3086,7 @@ Gates icon registration and window registration in one shot. Default `current_us
 apply_filters( 'desktop_mode_content_graph_post_types', array[] $post_types ): array[]
 ```
 
-The list of post types shown in the graph's filter bar. Each entry declares `slug`, `label`, and `icon`. Default: every public post type except `attachment` (media renders in the side panel rather than as nodes). Removing an entry hides it from the filter bar AND excludes it from the graph entirely.
+The list of post types shown in the graph's filter bar. Each entry declares `slug`, `label`, `icon`, and `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`), used to keep types without a taxonomy out of the shared Uncategorized/Untagged clusters. Entries added without `taxonomies` get it derived via `is_object_in_taxonomy()`. Default: every public post type except `attachment` (media renders in the side panel rather than as nodes). Removing an entry hides it from the filter bar AND excludes it from the graph entirely.
 
 ### `desktop_mode_content_graph_template_html` — Experimental (filter)
 

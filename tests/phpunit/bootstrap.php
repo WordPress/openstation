@@ -5,9 +5,9 @@
  * Loads the WordPress test framework and activates the plugin before
  * each run so the plugin's hooks are wired in the test environment.
  *
- * Designed to run inside the wp-env `tests-cli` container, which ships
- * WordPress' test library at /wordpress-phpunit and exposes it via
- * WP_TESTS_DIR.
+ * Designed to run inside the dedicated wp-env tests instance
+ * (`.wp-env.tests.json`), whose `cli` container ships WordPress' test
+ * library at /wordpress-phpunit and exposes it via WP_TESTS_DIR.
  *
  * @package WPDesktopMode
  */
