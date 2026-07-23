@@ -525,6 +525,15 @@ const TARGETS = {
 		fileBase: 'widget-notes',
 		iifeName: 'desktopModeNotesWidget',
 	},
+	// Focus Timer widget — a countdown that links to a window and
+	// shakes it (via Window.shake()) with an alarm when time is up.
+	// Ships JS + a co-located `styles.css` chunk (widget-focus-timer[.min].css)
+	// that includes/widgets/widget-focus-timer.php registers.
+	'widget-focus-timer': {
+		entry:    'src/plugins/focus-timer-widget/index.ts',
+		fileBase: 'widget-focus-timer',
+		iifeName: 'desktopModeFocusTimerWidget',
+	},
 
 };
 

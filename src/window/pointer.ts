@@ -490,6 +490,7 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 			win.config.minHeight,
 			snap,
 		);
+
 		win.element.style.left = `${ geom.x }px`;
 		win.element.style.top = `${ geom.y }px`;
 		win.element.style.width = `${ geom.width }px`;
@@ -599,6 +600,22 @@ export function computeResize(
 		}
 		width = nextWidth;
 		height = nextHeight;
+	}
+
+	// Constrain upper-left bounds to prevent the window/title bar from
+	// being resized off-screen. Shrink the dimension by the clamped
+	// difference so the opposite (pinned) edge stays exactly in place —
+	// clamping the position alone would let the bottom/right edge slide
+	// while the user drags the top/left handle.
+	if ( x < EDGE_MARGIN ) {
+		const diff = EDGE_MARGIN - x;
+		x = EDGE_MARGIN;
+		width = Math.max( minWidth, width - diff );
+	}
+	if ( y < EDGE_MARGIN ) {
+		const diff = EDGE_MARGIN - y;
+		y = EDGE_MARGIN;
+		height = Math.max( minHeight, height - diff );
 	}
 
 	return { x, y, width, height };
