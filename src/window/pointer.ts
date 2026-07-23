@@ -491,14 +491,6 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 			snap,
 		);
 
-		// Constrain window position to desktop bounds (mirrors drag handling).
-		// Prevents title bar from going off-screen during top-edge resize.
-		const desktop = win.element.parentElement;
-		if ( desktop ) {
-			geom.x = Math.max( EDGE_MARGIN, Math.min( geom.x, desktop.clientWidth - geom.width - EDGE_MARGIN ) );
-			geom.y = Math.max( EDGE_MARGIN, Math.min( geom.y, desktop.clientHeight - geom.height - EDGE_MARGIN ) );
-		}
-
 		win.element.style.left = `${ geom.x }px`;
 		win.element.style.top = `${ geom.y }px`;
 		win.element.style.width = `${ geom.width }px`;
@@ -611,7 +603,10 @@ export function computeResize(
 	}
 
 	// Constrain upper-left bounds to prevent the window/title bar from
-	// being resized off-screen.
+	// being resized off-screen. Shrink the dimension by the clamped
+	// difference so the opposite (pinned) edge stays exactly in place —
+	// clamping the position alone would let the bottom/right edge slide
+	// while the user drags the top/left handle.
 	if ( x < EDGE_MARGIN ) {
 		const diff = EDGE_MARGIN - x;
 		x = EDGE_MARGIN;
