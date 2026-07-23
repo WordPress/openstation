@@ -229,11 +229,11 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		let x = ev.clientX - win._dragOffsetX;
 		let y = ev.clientY - win._dragOffsetY;
 
-		// Constrain to desktop bounds.
+		// Constrain to desktop bounds (prevents window from disappearing off edges).
 		const desktop = win.element.parentElement;
 		if ( desktop ) {
-			x = Math.max( EDGE_MARGIN, Math.min( x, desktop.clientWidth - EDGE_MARGIN ) );
-			y = Math.max( EDGE_MARGIN, Math.min( y, desktop.clientHeight - EDGE_MARGIN ) );
+			x = Math.max( EDGE_MARGIN, Math.min( x, desktop.clientWidth - win.element.offsetWidth - EDGE_MARGIN ) );
+			y = Math.max( EDGE_MARGIN, Math.min( y, desktop.clientHeight - win.element.offsetHeight - EDGE_MARGIN ) );
 		}
 
 		// Quantise to the live grid when snap is on. Round (not floor)
