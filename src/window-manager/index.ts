@@ -66,6 +66,7 @@ import {
 } from './snap-zones';
 import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
+import { clampWindowPosition } from '../window/pointer';
 
 /** Base z-index for desktop windows. */
 const BASE_Z_INDEX = 100;
@@ -379,9 +380,12 @@ export class WindowManager {
 	/**
 	 * Re-apply state-driven bounds to any window whose geometry is
 	 * derived from the desktop area's dimensions: maximized (full
-	 * area) and snapped-left / snapped-right (half area). Called from
-	 * the desktop-area ResizeObserver so shrinking the browser window
-	 * drags the stateful windows along with it.
+	 * area) and snapped-left / snapped-right (half area). Also
+	 * clamps normal (floating) windows to the GRAB_MARGIN boundaries
+	 * so they are not stranded off-screen when the viewport shrinks.
+	 *
+	 * Called from the desktop-area ResizeObserver so shrinking the
+	 * browser window drags the windows along with it.
 	 *
 	 * Inlines the geometry writes instead of calling `applySnap` —
 	 * that method emits `_emitChange('state')` which would spam the
@@ -424,6 +428,18 @@ export class WindowManager {
 				w.element.style.top = '0px';
 				w.element.style.width = `${ halfW }px`;
 				w.element.style.height = `${ height }px`;
+			} else if ( w.state === 'normal' ) {
+				const currentX = parseInt( w.element.style.left, 10 ) || 0;
+				const currentY = parseInt( w.element.style.top, 10 ) || 0;
+				const width = w.element.offsetWidth || 0;
+
+				const safe = clampWindowPosition( currentX, currentY, width, parent.clientWidth, parent.clientHeight );
+
+				if ( currentX !== safe.x || currentY !== safe.y ) {
+					w.element.classList.add( 'desktop-mode-window--reflowing' );
+					w.element.style.left = `${ safe.x }px`;
+					w.element.style.top = `${ safe.y }px`;
+				}
 			}
 		}
 
