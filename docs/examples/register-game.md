@@ -4,6 +4,8 @@ The **Games** window on the wallpaper (gamepad icon) is registry-driven: every r
 
 Only server-registered games can persist scores and challenges — the REST routes 404 unknown game ids.
 
+Admins can switch the whole games framework off site-wide (OS Settings → Features → Extended options, or the `desktop_mode_games_enabled` filter). When it's off, none of the games module loads — `desktop_mode_register_game()` is undefined, exactly as if Desktop Mode weren't active. The `function_exists()` guard in the recipe below covers both cases; saved scores and play time survive a disable/re-enable round trip untouched.
+
 ---
 
 ## Recipe — a minimal game

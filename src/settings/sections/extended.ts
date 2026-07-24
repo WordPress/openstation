@@ -10,6 +10,9 @@
  *   - media_library_enhanced: makes every Media Library .attachment tile
  *     draggable, with rich DataTransfer types so the drag works in text
  *     fields, rich-text editors, and WP-aware drop zones.
+ *   - games: the games framework. When off, the server loads none of the
+ *     games module (no window/icon, no REST routes, no Heartbeat channel)
+ *     and the shell skips the challenges client.
  */
 
 import { __ } from '../../i18n';
@@ -19,6 +22,7 @@ import type { SettingsCtx } from '../types';
 
 interface ExtendedState {
 	media_library_enhanced: boolean;
+	games: boolean;
 	saving: boolean;
 	error: string;
 }
@@ -28,6 +32,7 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 
 	const state: ExtendedState = {
 		media_library_enhanced: extendedOptions?.media_library_enhanced === true,
+		games: extendedOptions?.games !== false,
 		saving: false,
 		error: '',
 	};
@@ -54,6 +59,7 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 					body: JSON.stringify( {
 						options: {
 							media_library_enhanced: state.media_library_enhanced,
+							games: state.games,
 						},
 					} ),
 				},
@@ -82,6 +88,11 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 		save();
 	};
 
+	const onGamesToggle = ( e: Event ): void => {
+		state.games = ( e as CustomEvent ).detail?.checked === true;
+		save();
+	};
+
 	const paint = (): void =>
 		render(
 			html`
@@ -100,6 +111,18 @@ export function buildExtendedSection( ctx: SettingsCtx ): HTMLElement {
 					<p class="desktop-mode-ext__hint">
 						${ __(
 							'Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know.',
+						) }
+					</p>
+
+					<wpd-checkbox-label
+						label=${ __( 'Enable games' ) }
+						?checked=${ state.games }
+						@wpd-checkbox-change=${ onGamesToggle }
+					></wpd-checkbox-label>
+
+					<p class="desktop-mode-ext__hint">
+						${ __(
+							'The Games app: built-in games, scoreboards, and player-to-player challenges. Turning this off removes the Games window and icon for every user and stops all game-related processing on the server — score and challenge routes, the challenge notification channel, everything. Saved scores are kept and reappear when re-enabled.',
 						) }
 					</p>
 
