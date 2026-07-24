@@ -1305,6 +1305,18 @@ apply_filters( 'desktop_mode_wallpapers', array $registry );
 
 ---
 
+### `desktop_mode_games_enabled` — Experimental (since 0.9.8)
+
+Whether the games framework is enabled site-wide. The default comes from the `games` extended option (OS Settings → Features → Extended options, admins only) — **off by default**: games are opt-in. When the resolved value is `false`, `includes/games/bootstrap.php` loads **none** of the games module — no Games window/icon, no `desktop_mode_register_game()`, no REST routes, no Heartbeat challenge channel, no schema check — and the shell config ships `gamesEnabled: false` so the client skips the challenges channel too. For third-party plugins the disabled state looks exactly like Desktop Mode being inactive: guard `desktop_mode_register_game()` calls with `function_exists()` (as [the recipe](./examples/register-game.md) already does).
+
+The load decision is made on `plugins_loaded` (priority 5), so hook the filter from any plugin's main file — just not later than that.
+
+```php
+apply_filters( 'desktop_mode_games_enabled', bool $enabled );
+```
+
+---
+
 ### `desktop_mode_games` — Experimental (since 0.9.6)
 
 Last-chance filter over the full games registry before it ships to the shell as `config.serverGames` — and the same filtered view backs REST validation, so filter-added game ids can persist scores. Each entry is the shape stored by `desktop_mode_register_game()` (`id`, `title`, `description`, `icon`, `script`, `score_columns`, `config`). Mirrors the client-side `desktop-mode.games` JS filter.

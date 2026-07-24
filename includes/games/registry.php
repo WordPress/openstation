@@ -326,6 +326,11 @@ function desktop_mode_games_is_registered( $id ) {
  * @return array[]
  */
 function desktop_mode_build_desktop_games_payload() {
+	// The module doesn't load when the framework is disabled, so this
+	// only guards a mid-request flip (the admin just saved the toggle).
+	if ( ! desktop_mode_games_enabled() ) {
+		return array();
+	}
 	$registry = desktop_mode_games_get_registered();
 	if ( empty( $registry ) ) {
 		return array();
