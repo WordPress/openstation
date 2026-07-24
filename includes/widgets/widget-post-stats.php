@@ -77,27 +77,43 @@ function desktop_mode_post_stats_callback() {
 		strtotime( current_time( 'Y-m-01' ) . ' -' . ( $months_back - 1 ) . ' months' )
 	);
 
-	$author_sql = '';
-	$params     = array( 'post', $cutoff );
-	if ( ! $see_others ) {
-		$author_sql = ' AND ( post_status = %s OR post_author = %d )';
-		$params[]   = 'publish';
-		$params[]   = get_current_user_id();
+	// Two literal query branches (rather than a concatenated author
+	// clause) so every byte of SQL inside prepare() is static —
+	// keeps the PreparedSQL sniff able to verify it.
+	if ( $see_others ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt
+				 FROM {$wpdb->posts}
+				 WHERE post_type = %s
+				   AND post_status IN ( 'publish', 'draft', 'pending' )
+				   AND post_date >= %s
+				 GROUP BY ym, post_status",
+				'post',
+				$cutoff
+			),
+			ARRAY_A
+		);
+	} else {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt
+				 FROM {$wpdb->posts}
+				 WHERE post_type = %s
+				   AND post_status IN ( 'publish', 'draft', 'pending' )
+				   AND post_date >= %s
+				   AND ( post_status = %s OR post_author = %d )
+				 GROUP BY ym, post_status",
+				'post',
+				$cutoff,
+				'publish',
+				get_current_user_id()
+			),
+			ARRAY_A
+		);
 	}
-
-	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
-	$rows = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt
-			 FROM {$wpdb->posts}
-			 WHERE post_type = %s
-			   AND post_status IN ( 'publish', 'draft', 'pending' )
-			   AND post_date >= %s" . $author_sql . '
-			 GROUP BY ym, post_status',
-			$params
-		),
-		ARRAY_A
-	);
 
 	// Emit exactly $months_back buckets, oldest first, zero-filled —
 	// the widget renders a fixed axis and shouldn't have to guess at
