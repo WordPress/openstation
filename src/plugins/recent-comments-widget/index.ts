@@ -13,6 +13,7 @@
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+import { decodeHTML } from '../../utils';
 
 const WIDGET_ID = 'desktop-mode/recent-comments';
 const REFRESH_MS = 60_000;
@@ -143,7 +144,8 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 
 		const postEl = document.createElement( 'div' );
 		postEl.className = 'dm-comments__post';
-		postEl.textContent = '\u21B3 ' + ( c._embedded?.up?.[ 0 ]?.title?.rendered ?? `Post #${ c.post }` );
+		const parentTitle = c._embedded?.up?.[ 0 ]?.title?.rendered;
+		postEl.textContent = '\u21B3 ' + ( parentTitle ? decodeHTML( parentTitle ) : `Post #${ c.post }` );
 
 		body.appendChild( meta );
 		body.appendChild( postEl );

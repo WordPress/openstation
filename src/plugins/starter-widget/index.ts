@@ -41,6 +41,7 @@
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+import { decodeHTML } from '../../utils';
 
 // =============================================================================
 // STEP 1 — WIDGET ID
@@ -196,7 +197,7 @@ const mount = async (
 				return;
 			}
 			body.textContent = posts.length > 0
-				? 'Latest post: ' + posts[ 0 ].title.rendered
+				? 'Latest post: ' + decodeHTML( posts[ 0 ].title.rendered )
 				: 'No posts found.';
 		} catch {
 			if ( ! destroyed ) {

@@ -349,3 +349,13 @@ export function bindBackgroundActivate(
 		},
 	};
 }
+
+/**
+ * Decode HTML entities from a string cleanly using a temporary textarea.
+ */
+export function decodeHTML( raw: string ): string {
+	const ta = document.createElement( 'textarea' );
+	ta.innerHTML = raw;
+	return ta.value;
+}
+

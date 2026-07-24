@@ -25,6 +25,7 @@ import { __, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { showPostsIntroDialog } from './intro-dialog';
+import { decodeHTML } from '../utils';
 // Side-effect imports — register the `<wpd-*>` components this
 // bundle constructs that the main shell does not ship. See the
 // header docblock for the rationale.
@@ -295,12 +296,7 @@ function statusBadgeColor( status: string ): { bg: string; fg: string } {
 }
 
 function decodeTitle( raw: string ): string {
-	// Core returns titles with HTML entities (e.g. `&amp;`) — render
-	// them through a textarea to decode without leaving us vulnerable
-	// to script tags (textarea never executes its content).
-	const ta = document.createElement( 'textarea' );
-	ta.innerHTML = raw;
-	return ta.value;
+	return decodeHTML( raw );
 }
 
 function authorOf( row: PostListItem ): {
