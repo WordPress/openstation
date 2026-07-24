@@ -20,6 +20,13 @@
 export const EDGE_MARGIN = 0;
 
 /**
+ * Minimum visible area (in pixels) of the title bar that must remain
+ * on-screen when dragging or reflowing windows. Prevents the window
+ * from becoming completely unreachable.
+ */
+export const GRAB_MARGIN = 40;
+
+/**
  * Minimum cursor travel (in pixels) before a pointerdown counts as a
  * drag rather than a click. Applied as squared distance so the check
  * is cheap (no sqrt) inside the pointermove loop. 5 px matches the

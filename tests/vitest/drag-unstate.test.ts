@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
-import { handleDragStart } from '../../src/window/pointer';
+import { clampWindowPosition, handleDragStart } from '../../src/window/pointer';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
 
@@ -39,6 +39,16 @@ function mountWindow( cfg: WindowConfig ): {
 	document.body.appendChild( parent );
 	const win = new Window( cfg );
 	parent.appendChild( win.element );
+
+	Object.defineProperty( win.element, 'offsetWidth', {
+		get: () => parseInt( win.element.style.width, 10 ) || 0,
+		configurable: true,
+	} );
+	Object.defineProperty( win.element, 'offsetHeight', {
+		get: () => parseInt( win.element.style.height, 10 ) || 0,
+		configurable: true,
+	} );
+
 	return {
 		win,
 		parent,
@@ -343,5 +353,61 @@ describe( 'drag auto-unstate', () => {
 		expect( win.element.classList.contains( 'desktop-mode-window--dragging' ) ).toBe( false );
 		expect( win._isDragging ).toBe( false );
 		cleanup();
+	} );
+
+	test( 'drag bounds: allows bleeding off left, right, and bottom up to GRAB_MARGIN, locks top at y=0', () => {
+		const handle = mountWindow( baseConfig() );
+		const { win, cleanup } = handle;
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { /* noop */ } } );
+		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 100, top: 100, right: 900, bottom: 140,
+				width: 800, height: 40, x: 100, y: 100, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+
+		win.element.style.left = '100px';
+		win.element.style.top = '100px';
+		win.element.style.width = '800px';
+		win.element.style.height = '600px';
+
+		handleDragStart( win, fakePointer( win._titleBar, 150, 110 ) );
+
+		// 1. Drag far past the left edge -> minX = GRAB_MARGIN (40) - width (800) = -760px
+		fakeMove( win._titleBar, 150, 110, -1000, 0 );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( -760 );
+
+		// 2. Drag far past the top edge -> strictly locked at y = 0 (EDGE_MARGIN)
+		fakeMove( win._titleBar, 150, 110, 0, -1000 );
+		expect( parseInt( win.element.style.top, 10 ) ).toBe( 0 );
+
+		// 3. Drag far past the right edge -> desktop.clientWidth (1600) - GRAB_MARGIN (40) = 1560px
+		fakeMove( win._titleBar, 150, 110, 3000, 0 );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( 1560 );
+
+		// 4. Drag far past the bottom edge -> desktop.clientHeight (900) - GRAB_MARGIN (40) = 860px
+		fakeMove( win._titleBar, 150, 110, 0, 3000 );
+		expect( parseInt( win.element.style.top, 10 ) ).toBe( 860 );
+
+		cleanup();
+	} );
+} );
+
+describe( 'clampWindowPosition', () => {
+	test( 'clamps left/right/bottom to GRAB_MARGIN and top to EDGE_MARGIN', () => {
+		// Inside desktop bounds (no clamping needed)
+		expect( clampWindowPosition( 100, 100, 800, 1600, 900 ) ).toEqual( { x: 100, y: 100 } );
+
+		// Off left edge: minX = GRAB_MARGIN (40) - width (800) = -760
+		expect( clampWindowPosition( -1000, 100, 800, 1600, 900 ) ).toEqual( { x: -760, y: 100 } );
+
+		// Off top edge: minY = EDGE_MARGIN = 0
+		expect( clampWindowPosition( 100, -500, 800, 1600, 900 ) ).toEqual( { x: 100, y: 0 } );
+
+		// Off right edge: maxX = 1600 - GRAB_MARGIN (40) = 1560
+		expect( clampWindowPosition( 2000, 100, 800, 1600, 900 ) ).toEqual( { x: 1560, y: 100 } );
+
+		// Off bottom edge: maxY = 900 - GRAB_MARGIN (40) = 860
+		expect( clampWindowPosition( 100, 2000, 800, 1600, 900 ) ).toEqual( { x: 100, y: 860 } );
 	} );
 } );

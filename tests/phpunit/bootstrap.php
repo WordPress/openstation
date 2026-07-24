@@ -39,6 +39,13 @@ tests_add_filter(
 	'muplugins_loaded',
 	static function () {
 		require dirname( __DIR__, 2 ) . '/desktop-mode.php';
+
+		// The games framework is opt-in (off by default) and only
+		// loads on `plugins_loaded` when enabled — force it on so the
+		// games test classes have the module available. Tests that
+		// exercise the disabled state remove this filter locally (the
+		// test framework restores hooks after every test).
+		add_filter( 'desktop_mode_games_enabled', '__return_true' );
 	}
 );
 

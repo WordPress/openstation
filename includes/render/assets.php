@@ -516,6 +516,10 @@ function desktop_mode_enqueue_assets() {
 			'aiStatusUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
+			// Site-wide games kill switch (Extended options). Exposed to
+			// every user — the shell skips the challenges Heartbeat
+			// channel when the framework is off.
+			'gamesEnabled'          => desktop_mode_games_enabled(),
 			// Comments-window AI moderation toggle — surfaced at the
 			// shell level so the OS Settings → Features tab can render
 			// the toggle without depending on the Comments window

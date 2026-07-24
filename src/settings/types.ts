@@ -379,6 +379,7 @@ export interface OsSettingsConfig {
 	/** Platform-wide extended options — null for non-admins. */
 	extendedOptions: {
 		media_library_enhanced: boolean;
+		games: boolean;
 	} | null;
 	/** REST endpoint for reading/writing extended options. */
 	extendedOptionsUrl: string;
