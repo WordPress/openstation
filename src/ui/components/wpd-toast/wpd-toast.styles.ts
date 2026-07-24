@@ -30,9 +30,11 @@ export const toastStyles = css`
 		padding: 10px 14px;
 		background: #1d2327;
 		color: #fff;
-		border-radius: 8px;
-		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.2 ),
-			0 2px 6px rgba( 0, 0, 0, 0.1 );
+		border-radius: 10px;
+		border: 1px solid rgba( 255, 255, 255, 0.12 );
+		box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.4 ),
+			0 2px 6px rgba( 0, 0, 0, 0.18 ),
+			inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
 		font-size: 13px;
 		line-height: 1.4;
 		opacity: 0;
@@ -50,6 +52,11 @@ export const toastStyles = css`
 	}
 	.wpd-toast__label {
 		flex: 1;
+	}
+	/* Author styles beat the UA [hidden] rule, so the explicit display
+	 * on .wpd-toast__close would otherwise keep a ?hidden button visible. */
+	button[ hidden ] {
+		display: none;
 	}
 	button {
 		flex-shrink: 0;
@@ -70,6 +77,19 @@ export const toastStyles = css`
 	button:focus-visible {
 		outline: 2px solid rgba( 255, 255, 255, 0.6 );
 		outline-offset: 2px;
+	}
+	.wpd-toast__close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 4px;
+		border-radius: 6px;
+		background: transparent;
+		color: rgba( 255, 255, 255, 0.7 );
+	}
+	.wpd-toast__close:hover {
+		background: rgba( 255, 255, 255, 0.14 );
+		color: #fff;
 	}
 	@media ( prefers-reduced-motion: reduce ) {
 		:host {

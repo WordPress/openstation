@@ -69,6 +69,10 @@
  */
 .desktop-mode-os-settings__swatch-label {
 	display: inline-block;
+	/* Sit above the live-preview overlay (z-index 0) — the caption
+	 * must stay readable over a moving canvas. */
+	position: relative;
+	z-index: 1;
 	padding: 3px 10px;
 	font-size: 11px;
 	font-weight: 600;
@@ -83,6 +87,31 @@
 	 * on the parent already gives a gap, but this keeps things
 	 * consistent if the parent padding is ever tuned. */
 	pointer-events: none;
+}
+
+/*
+ * Live wallpaper preview — an overlay div slotted into a wallpaper
+ * `<wpd-swatch>` by the preview manager (see
+ * settings/sections/wallpaper-previews.ts). Fills the tile button
+ * (which is position: relative in the component's shadow styles) and
+ * paints between the CSS `preview` background and the label chip.
+ * pointer-events: none so the tile button keeps receiving the click.
+ */
+.desktop-mode-os-settings__wallpaper-live-preview {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	/* Match the swatch button's rounding so canvas corners don't
+	 * poke out of the tile. */
+	border-radius: 8px;
+}
+
+.desktop-mode-os-settings__wallpaper-live-preview canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 /* Accent swatches now render as `<wpd-swatch>` via `<wpd-swatch-grid>`.
@@ -152,6 +181,120 @@
 	background: #fff;
 	border: 1px solid #dcdcde;
 	border-radius: 6px;
+}
+
+/*
+ * Wallpaper description slot — a card that slides in below the swatch
+ * grid describing the ACTIVE wallpaper (its story, where its data comes
+ * from). Same 0fr → 1fr collapse as the editor slot; TS drives
+ * `[data-expanded]` from `syncWallpaperDescription()`.
+ */
+.desktop-mode-os-settings__wallpaper-description-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.desktop-mode-os-settings__wallpaper-description-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.desktop-mode-os-settings__wallpaper-description-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-description {
+	padding: 12px 14px;
+	background: color-mix(in srgb, var(--desktop-mode-accent, #2271b1) 6%, #fff);
+	border: 1px solid #dcdcde;
+	border-inline-start: 3px solid var(--desktop-mode-accent, #2271b1);
+	border-radius: 6px;
+}
+
+/* Glyph sits inline, right before the wallpaper's name. */
+.desktop-mode-os-settings__wallpaper-description-header {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-bottom: 4px;
+}
+
+.desktop-mode-os-settings__wallpaper-description-icon {
+	color: var(--desktop-mode-accent, #2271b1);
+	flex-shrink: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-description-header strong {
+	font-size: 13px;
+	color: #1d2327;
+}
+
+.desktop-mode-os-settings__wallpaper-description p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.55;
+	color: #50575e;
+}
+
+/*
+ * Wallpaper config slot — hosts the "Wallpaper settings" button when
+ * the ACTIVE wallpaper ships a `renderConfig` dialog. Same 0fr → 1fr
+ * collapse as the slots above; TS drives `[data-expanded]` from
+ * `syncWallpaperConfigButton()`.
+ */
+.desktop-mode-os-settings__wallpaper-config-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.desktop-mode-os-settings__wallpaper-config-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.desktop-mode-os-settings__wallpaper-config-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-config wpd-icon {
+	margin-inline-end: 4px;
+}
+
+/*
+ * Wallpaper config dialog body — the container `renderConfig` renders
+ * into inside the `<wpd-modal>`. A simple vertical rhythm; each
+ * `<wpd-*>` field owns its own label / control styling. The critical
+ * column rules are ALSO inlined by the dialog opener (long-lived
+ * sessions can lazy-load the dialog with a stylesheet that predates
+ * this block); keep the two in sync.
+ */
+.desktop-mode-os-settings__wallpaper-config-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+/* Bare buttons in a config form (Reset to defaults and friends) are
+ * actions, not fields — don't stretch them to the column width. */
+.desktop-mode-os-settings__wallpaper-config-form > wpd-button {
+	align-self: flex-start;
 }
 
 /*
@@ -497,6 +640,7 @@
  * --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
 	.desktop-mode-os-settings__editor-slot,
+	.desktop-mode-os-settings__wallpaper-config-slot,
 	.desktop-mode-os-settings__upload-tile,
 	.desktop-mode-os-settings__library-tile,
 	wpd-swatch {

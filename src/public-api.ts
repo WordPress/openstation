@@ -137,6 +137,17 @@ export type {
 
 export type { ConnectOptions, WindowConnection } from './connection';
 
+// ----- Window content relations & link renderers -----
+
+export type {
+	WindowContentRef,
+	WindowLinkFrame,
+	WindowLinkGroup,
+	WindowLinkRendererContext,
+	WindowLinkRendererDef,
+	WindowRelationsApi,
+} from './window-links/types';
+
 // ----- AI Copilot programmatic API -----
 
 export type { AskFn, AskOptions, AskResult, AskToolCall } from './ai/ask';

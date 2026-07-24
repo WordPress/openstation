@@ -151,18 +151,6 @@
 		}
 	} );
 
-	// AI Assistant button — dispatches the `desktop-mode-open-ai` event that
-	// the AiAssistant class listens for. Using an event instead of a direct
-	// call decouples the admin-bar inline script (which runs early, before
-	// the desktop shell has initialised) from the AiAssistant instance.
-	var aiBtn = document.getElementById( 'wp-admin-bar-desktop-ai-assistant' );
-	if ( aiBtn ) {
-		aiBtn.addEventListener( 'click', function( e ) {
-			e.preventDefault();
-			document.dispatchEvent( new CustomEvent( 'desktop-mode-open-ai' ) );
-		} );
-	}
-
 	// Fullscreen button — toggles browser fullscreen on the document
 	// element so the shell occupies the whole screen with no browser
 	// chrome. The click counts as a user gesture, which is required by

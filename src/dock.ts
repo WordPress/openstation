@@ -1919,6 +1919,24 @@ export class Dock {
 		if ( item.windowId ) {
 			return item.windowId;
 		}
+		if ( item.id.startsWith( 'dock:' ) ) {
+			const iconId = item.id.slice( 5 );
+			const cfg = ( window as unknown as {
+				desktopModeConfig?: { desktopIcons?: Array< {
+					id: string;
+					window?: string;
+					url?: string;
+				} > };
+			} ).desktopModeConfig;
+			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
+			if ( icon?.window ) {
+				return icon.window;
+			}
+			if ( icon?.url ) {
+				const remapped = resolveNativeUrlRemap( icon.url );
+				return remapped ?? this.deriveWindowId( icon.url );
+			}
+		}
 		const remapped = resolveNativeUrlRemap( item.url );
 		return remapped ?? this.deriveWindowId( item.url );
 	}
@@ -2045,7 +2063,6 @@ export class Dock {
 	 */
 	private updateActiveStates(): void {
 		const focused = this.windowManager.getFocused();
-		const focusedBaseId = focused ? ( focused.config.baseId || focused.id ) : null;
 		// The dock reflects the ACTIVE desktop only. Windows on
 		// other desktops are invisible to the user right now —
 		// showing "active" dots for them conflates "something's
@@ -2064,22 +2081,43 @@ export class Dock {
 			}
 
 			const baseId = this.resolveItemBaseId( item );
-			const instances = this.windowManager
+			let instances = this.windowManager
 				.getAllByBaseId( baseId )
 				.filter( onActiveDesktop );
+			if ( instances.length === 0 && item.url ) {
+				const derivedId = this.deriveWindowId( item.url );
+				instances = this.windowManager
+					.getAll()
+					.filter( ( w ) => {
+						const wBase = w.config.baseId || w.id;
+						if ( wBase === baseId || wBase === derivedId || wBase === item.id ) {
+							return true;
+						}
+						if ( w.config.url ) {
+							const wDerived = this.deriveWindowId( w.config.url );
+							return wDerived === baseId || wDerived === derivedId;
+						}
+						return false;
+					} )
+					.filter( onActiveDesktop );
+			}
 			const isOpen = instances.length > 0;
 			const allMinimized = isOpen && instances.every( isMinimized );
 			const isFocused =
-				focusedBaseId === baseId &&
 				!! focused &&
 				onActiveDesktop( focused ) &&
-				! isMinimized( focused );
+				! isMinimized( focused ) &&
+				instances.some( ( w ) => w.id === focused.id || ( focused.config.baseId || focused.id ) === baseId );
 
 			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
 			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
 			tile.classList.toggle(
 				'desktop-mode-dock__item--all-minimized',
 				allMinimized,
+			);
+			tile.classList.toggle(
+				'desktop-mode-dock__item--stacked',
+				isOpen && instances.length > 1,
 			);
 		}
 

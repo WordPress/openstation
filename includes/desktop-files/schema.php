@@ -40,7 +40,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '12' );
+define( 'DESKTOP_MODE_FILES_SCHEMA_VERSION', '13' );
 define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
@@ -53,11 +53,12 @@ define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' 
 function desktop_mode_files_table_names() {
 	global $wpdb;
 	return array(
-		'placements' => $wpdb->prefix . 'desktop_mode_file_placements',
-		'folders'    => $wpdb->prefix . 'desktop_mode_folders',
-		'tombstones' => $wpdb->prefix . 'desktop_mode_file_tombstones',
-		'shares'     => $wpdb->prefix . 'desktop_mode_folder_shares',
-		'decisions'  => $wpdb->prefix . 'desktop_mode_share_user_decisions',
+		'placements'   => $wpdb->prefix . 'desktop_mode_file_placements',
+		'folders'      => $wpdb->prefix . 'desktop_mode_folders',
+		'tombstones'   => $wpdb->prefix . 'desktop_mode_file_tombstones',
+		'shares'       => $wpdb->prefix . 'desktop_mode_folder_shares',
+		'decisions'    => $wpdb->prefix . 'desktop_mode_share_user_decisions',
+		'stored_files' => $wpdb->prefix . 'desktop_mode_stored_files',
 	);
 }
 
@@ -133,6 +134,30 @@ function desktop_mode_files_install_schema() {
 		KEY kind_removed (kind, removed_at_ms)
 	) $charset_collate;";
 
+	// Schema v13 (since 0.9.6): real per-user file storage. One row
+	// per uploaded file; the bytes live flat on disk under
+	// `uploads/desktop-mode-files/<owner_id>/<disk_name>` with a
+	// server-generated extensionless `disk_name` (UUID) — hierarchy,
+	// naming, and sharing are entirely DB concerns (folders +
+	// placements + shares tables), the disk is a dumb blob store.
+	// No UNIQUE keys beyond the PK on purpose: dbDelta's UNIQUE-KEY
+	// quirks (see the shares-table comment below) don't apply, and
+	// disk_name uniqueness is guaranteed by the UUID generator plus
+	// a collision check at write time.
+	$stored_files_sql = "CREATE TABLE {$tables['stored_files']} (
+		id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+		owner_id BIGINT UNSIGNED NOT NULL,
+		display_name VARCHAR(255) NOT NULL DEFAULT '',
+		disk_name VARCHAR(64) NOT NULL DEFAULT '',
+		size_bytes BIGINT UNSIGNED NOT NULL DEFAULT 0,
+		mime VARCHAR(100) NOT NULL DEFAULT '',
+		created_at_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
+		updated_at_ms BIGINT UNSIGNED NOT NULL DEFAULT 0,
+		PRIMARY KEY  (id),
+		KEY owner_id (owner_id),
+		KEY disk_name (disk_name)
+	) $charset_collate;";
+
 	// Schema v9 — per-principal grants (`folder_shares` table) +
 	// per-user opt-in decisions (`share_user_decisions` table).
 	// `share_meta` on the folders row stays as a diagnostic-only
@@ -167,6 +192,7 @@ function desktop_mode_files_install_schema() {
 	dbDelta( $placements_sql );
 	dbDelta( $folders_sql );
 	dbDelta( $tombstones_sql );
+	dbDelta( $stored_files_sql );
 
 	// dbDelta has well-documented quirks with `NULL`-only columns
 	// (no DEFAULT) — under some MySQL/MariaDB combos it silently

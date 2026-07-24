@@ -97,6 +97,20 @@ describe( 'wpd-ui html renderer', () => {
 		expect( first.textContent ).toBe( 'two' );
 	} );
 
+	test( 'remounts when the container was cleared behind the renderer\'s back', () => {
+		// Hosts that mix imperative DOM management with the templater
+		// (the OS Settings editor slot did) can wipe the container
+		// between renders. The cached mount must not take the
+		// update-in-place fast path against those detached nodes —
+		// that renders nothing, silently.
+		const update = ( value: string ) =>
+			render( html`<p>${ value }</p>`, host );
+		update( 'one' );
+		host.innerHTML = '';
+		update( 'two' );
+		expect( host.querySelector( 'p' )?.textContent ).toBe( 'two' );
+	} );
+
 	test( 'no-op re-render doesn\'t touch the text-node slot', () => {
 		const update = ( value: string ) =>
 			render( html`<p>${ value }</p>`, host );

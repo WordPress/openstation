@@ -88,6 +88,12 @@ import {
 	registerUnfocusEffect,
 	unregisterUnfocusEffect,
 } from '../effects/registry';
+import { relationsApi } from '../window-links/engine';
+import {
+	listWindowLinkRenderers,
+	registerWindowLinkRenderer,
+	unregisterWindowLinkRenderer,
+} from '../window-links/renderer-registry';
 import {
 	listWindowThemes,
 	registerWindowTheme,
@@ -149,6 +155,8 @@ import type { DragBridgeApi } from '../drag-bridge';
 import type { DragManagerApi } from '../drag';
 import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
+import type { WallpaperSuspendApi } from '../wallpapers/layer';
+import { gamesApi } from '../games/api';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -171,7 +179,8 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerSystemTile', 'registerWindow', 'openWindow', 'openNewWindow',
 	'cloneTemplate', 'onWindow', 'createInfiniteList', 'startOAuth',
 	'repaintLoadingOverlays',
-	'loadVendorScript', 'getWallpaperSurfaces', 'registerModule',
+	'loadVendorScript', 'getWallpaperSurfaces', 'wallpaper', 'games',
+	'registerModule',
 	'loadModules', 'whenReady', 'ready', 'isReady', 'setDefaultWindow',
 	'refreshMenu', 'config', 'ai', 'dragBridge', 'dragManager', 'registerCommand',
 	'unregisterCommand', 'listCommands',
@@ -190,6 +199,9 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerUnfocusEffect', 'unregisterUnfocusEffect', 'listUnfocusEffects',
+	'relations',
+	'registerWindowLinkRenderer', 'unregisterWindowLinkRenderer',
+	'listWindowLinkRenderers',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
 	'applyWindowTheme',
 	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
@@ -236,6 +248,7 @@ export interface BuildPublicApiDeps {
 	dragManager: DragManagerApi;
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	getConnection: ( connectionId: string ) => WindowConnection | null;
+	wallpaperSuspend: WallpaperSuspendApi;
 	config: DesktopConfig;
 }
 
@@ -271,6 +284,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		dragManager,
 		connect,
 		getConnection,
+		wallpaperSuspend,
 		config,
 	} = deps;
 
@@ -311,6 +325,8 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		},
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
+		wallpaper: wallpaperSuspend,
+		games: gamesApi,
 		registerWindow,
 		openWindow: openWindowById,
 		openNewWindow: openNewWindowById,
@@ -378,6 +394,28 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			}
 			if ( typeof patch.dockRailRenderer === 'string' ) {
 				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
+			}
+			if ( typeof patch.windowLinkRenderer === 'string' ) {
+				osSettings.state.windowLinkRenderer = patch.windowLinkRenderer;
+			}
+			if (
+				patch.windowLinkVisibility === 'focus' ||
+				patch.windowLinkVisibility === 'always' ||
+				patch.windowLinkVisibility === 'off'
+			) {
+				osSettings.state.windowLinkVisibility =
+					patch.windowLinkVisibility;
+			}
+			if ( typeof patch.windowLinksEnabled === 'boolean' ) {
+				osSettings.state.windowLinksEnabled = patch.windowLinksEnabled;
+			}
+			if ( typeof patch.windowLinkRaiseOnFocus === 'boolean' ) {
+				osSettings.state.windowLinkRaiseOnFocus =
+					patch.windowLinkRaiseOnFocus;
+			}
+			if ( typeof patch.windowLinkHighlight === 'boolean' ) {
+				osSettings.state.windowLinkHighlight =
+					patch.windowLinkHighlight;
 			}
 			if ( patch.ai && typeof patch.ai === 'object' ) {
 				osSettings.state.ai = { ...osSettings.state.ai, ...patch.ai };
@@ -514,6 +552,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerUnfocusEffect,
 		unregisterUnfocusEffect,
 		listUnfocusEffects,
+		relations: relationsApi,
+		registerWindowLinkRenderer,
+		unregisterWindowLinkRenderer,
+		listWindowLinkRenderers,
 		registerWindowTheme,
 		unregisterWindowTheme,
 		listWindowThemes,

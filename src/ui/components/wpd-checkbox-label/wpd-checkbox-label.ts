@@ -7,7 +7,7 @@ import { Component, defineComponent, html } from '../../core';
 import { styles } from './wpd-checkbox-label.styles';
 
 export class WpdCheckboxLabel extends Component {
-	static props = [ 'label', 'checked' ] as const;
+	static props = [ 'label', 'checked', 'disabled' ] as const;
 	static styles = [ styles ];
 
 	static help = {
@@ -26,6 +26,11 @@ export class WpdCheckboxLabel extends Component {
 				name: 'checked',
 				type: 'boolean attribute',
 				description: 'Reflects and controls the checked state.',
+			},
+			{
+				name: 'disabled',
+				type: 'boolean attribute',
+				description: 'When present, the checkbox is not interactive and dimmed.',
 			},
 		],
 		events: [
@@ -47,11 +52,14 @@ export class WpdCheckboxLabel extends Component {
 		const label = ( this as unknown as { label: string | null } ).label || '';
 		const checked =
 			( this as unknown as { checked: string | null } ).checked !== null;
+		const disabled =
+			( this as unknown as { disabled: string | null } ).disabled !== null;
 		return html`
 			<label>
 				<input
 					type="checkbox"
 					?checked=${ checked }
+					?disabled=${ disabled }
 					@change=${ ( e: Event ) => this._onChange( e ) }
 				/>
 				<span class="wpd-checkbox-label__text">${ label }</span>
@@ -60,6 +68,11 @@ export class WpdCheckboxLabel extends Component {
 	}
 
 	private _onChange( e: Event ): void {
+		// Native `disabled` inputs don't fire change, but guard anyway in
+		// case the attribute is toggled between event dispatch and handling.
+		if ( ( this as unknown as { disabled: string | null } ).disabled !== null ) {
+			return;
+		}
 		const next = ( e.target as HTMLInputElement ).checked;
 		if ( next ) {
 			this.setAttribute( 'checked', '' );

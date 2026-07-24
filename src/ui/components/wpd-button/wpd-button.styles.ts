@@ -45,7 +45,7 @@ export const styles = css`
 		cursor: not-allowed;
 	}
 	button:hover:not( :disabled ) {
-		background: rgba( 0, 0, 0, 0.04 );
+		background: var( --wpd-button-bg-hover, rgba( 0, 0, 0, 0.04 ) );
 	}
 	/* Primary */
 	:host( [ variant='primary' ] ) button {
@@ -90,5 +90,21 @@ export const styles = css`
 	:host( [ busy ] ) button {
 		pointer-events: none;
 		opacity: 0.75;
+	}
+	.wpd-button__spinner {
+		box-sizing: border-box;
+		display: inline-block;
+		width: 12px;
+		height: 12px;
+		border: 2px solid currentColor;
+		border-right-color: transparent;
+		border-radius: 50%;
+		animation: wpd-button-spin 0.6s linear infinite;
+		flex-shrink: 0;
+	}
+	@keyframes wpd-button-spin {
+		to {
+			transform: rotate( 360deg );
+		}
 	}
 `;

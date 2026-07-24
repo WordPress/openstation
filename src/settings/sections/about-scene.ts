@@ -564,7 +564,12 @@ export async function mountAboutScene( opts: SceneOptions ): Promise<AboutScene>
 			app.canvas.removeEventListener( 'pointerleave', onPointerLeave );
 			app.canvas.removeEventListener( 'pointerdown', onPointerDown );
 			try {
-				app.destroy( true, {
+				// `{ removeView: true }`, NEVER `true`: a literal `true`
+				// runs `releaseGlobalResources()`, wiping Pixi's
+				// page-global pools out from under every other live
+				// Application (the active canvas wallpaper, the OS
+				// Settings wallpaper previews).
+				app.destroy( { removeView: true }, {
 					children: true,
 					texture: true,
 					textureSource: true,

@@ -14,7 +14,7 @@
  *     drop zones) without the library having to be re-built from
  *     scratch. **Defaults to `true`** — the enhancement is opt-OUT;
  *     sites that want vanilla Media Library behaviour must explicitly
- *     toggle it off in OS Settings → Extended Options.
+ *     toggle it off in OS Settings → Features → Extended options.
  *
  * @package WPDesktopMode
  */

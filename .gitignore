@@ -16,6 +16,11 @@
 # Vite bundle-visualizer reports (`${fileBase}.report.html`) — dev-only.
 /assets/js/*.report.html
 
+# Local wp-env overrides — per-checkout ports so several worktree
+# instances can run in parallel. See docs/DEVELOPMENT.md.
+/.wp-env.override.json
+/.wp-env.tests.override.json
+
 .DS_Store
 
 # Default output file of macOS/BSD `script(1)` — a terminal session

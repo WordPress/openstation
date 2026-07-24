@@ -19,8 +19,6 @@
 
 import type { DesktopConfig } from '../types';
 import {
-	getAiProviders,
-	AI_TRANSPORTS,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
@@ -31,7 +29,6 @@ import {
 import type {
 	AccentId,
 	AiSettings,
-	AiTransportId,
 	CustomGradient,
 	CustomImage,
 	DesktopLayoutId,
@@ -129,8 +126,35 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_/-]+$/.test( parsed.unfocusEffect )
 				? parsed.unfocusEffect
 				: DEFAULTS.unfocusEffect,
+		// Window-link renderer — same id charset as unfocus effects;
+		// the render host resolves at use time and falls back to the
+		// built-in `svg-splines` for unknown ids.
+		windowLinkRenderer:
+			typeof parsed.windowLinkRenderer === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.windowLinkRenderer )
+				? parsed.windowLinkRenderer
+				: DEFAULTS.windowLinkRenderer,
+		windowLinkVisibility:
+			parsed.windowLinkVisibility === 'focus' ||
+			parsed.windowLinkVisibility === 'always' ||
+			parsed.windowLinkVisibility === 'off'
+				? parsed.windowLinkVisibility
+				: DEFAULTS.windowLinkVisibility,
+		windowLinksEnabled:
+			typeof parsed.windowLinksEnabled === 'boolean'
+				? parsed.windowLinksEnabled
+				: DEFAULTS.windowLinksEnabled,
+		windowLinkRaiseOnFocus:
+			typeof parsed.windowLinkRaiseOnFocus === 'boolean'
+				? parsed.windowLinkRaiseOnFocus
+				: DEFAULTS.windowLinkRaiseOnFocus,
+		windowLinkHighlight:
+			typeof parsed.windowLinkHighlight === 'boolean'
+				? parsed.windowLinkHighlight
+				: DEFAULTS.windowLinkHighlight,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
+		wallpaperSettings: sanitizeWallpaperSettings( parsed.wallpaperSettings ),
 		libraryHdOnly:
 			typeof parsed.libraryHdOnly === 'boolean'
 				? parsed.libraryHdOnly
@@ -193,6 +217,80 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			parsed.dockPromotedPositions,
 		),
 	};
+}
+
+/**
+ * Coerce an untrusted `wallpaperSettings` value into per-wallpaper
+ * scalar bags. Non-scalar values are dropped; ids follow the
+ * wallpaper-id charset (`vendor/sub-id` slashes allowed, mirroring
+ * the unfocus-effect ids); keys follow the JS identifier-ish charset
+ * wallpaper authors use (`camelCase`, hyphens, underscores). Capped
+ * at 64 wallpapers × 32 keys with 256-char string values so a
+ * corrupted server payload can't bloat the cell.
+ */
+export function sanitizeWallpaperSettings(
+	raw: unknown,
+): Record< string, Record< string, string | number | boolean > > {
+	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
+		return {};
+	}
+	const out: Record<
+		string,
+		Record< string, string | number | boolean >
+	> = {};
+	let idCount = 0;
+	for ( const [ id, bag ] of Object.entries(
+		raw as Record< string, unknown >,
+	) ) {
+		if ( idCount >= 64 ) {
+			break;
+		}
+		if (
+			typeof id !== 'string' ||
+			id === '' ||
+			! /^[a-z0-9_/-]+$/.test( id )
+		) {
+			continue;
+		}
+		if ( ! bag || typeof bag !== 'object' || Array.isArray( bag ) ) {
+			continue;
+		}
+		const clean: Record< string, string | number | boolean > = {};
+		let keyCount = 0;
+		for ( const [ key, value ] of Object.entries(
+			bag as Record< string, unknown >,
+		) ) {
+			if ( keyCount >= 32 ) {
+				break;
+			}
+			if (
+				typeof key !== 'string' ||
+				key === '' ||
+				! /^[a-zA-Z0-9_-]+$/.test( key )
+			) {
+				continue;
+			}
+			if ( typeof value === 'boolean' ) {
+				clean[ key ] = value;
+			} else if (
+				typeof value === 'number' &&
+				Number.isFinite( value )
+			) {
+				clean[ key ] = value;
+			} else if ( typeof value === 'string' ) {
+				clean[ key ] = value.slice( 0, 256 );
+			} else {
+				continue;
+			}
+			keyCount++;
+		}
+		if ( keyCount === 0 ) {
+			continue;
+		}
+		out[ id ] = clean;
+		idCount++;
+	}
+	return out;
 }
 
 function sanitizeItemVisibility(
@@ -339,7 +437,13 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		...state,
 		customGradient: { ...state.customGradient },
 		customImage: state.customImage ? { ...state.customImage } : null,
-		ai: { ...state.ai, apiKeys: { ...state.ai.apiKeys } },
+		wallpaperSettings: Object.fromEntries(
+			Object.entries( state.wallpaperSettings ).map( ( [ k, v ] ) => [
+				k,
+				{ ...v },
+			] ),
+		),
+		ai: { ...state.ai },
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
 		dockOrder: state.dockOrder.slice(),
@@ -542,6 +646,7 @@ export function structuredDefaults(): OsSettingsState {
 		...DEFAULTS,
 		customGradient: { ...DEFAULTS.customGradient },
 		customImage: null,
+		wallpaperSettings: { ...DEFAULTS.wallpaperSettings },
 		ai: { ...DEFAULTS.ai },
 		// Clone the collection fields too. A shallow `...DEFAULTS`
 		// aliases these nested objects, so a later in-place mutation
@@ -562,36 +667,11 @@ export function structuredDefaults(): OsSettingsState {
 
 export function sanitizeAi( raw: unknown ): AiSettings {
 	if ( ! raw || typeof raw !== 'object' ) {
-		return { ...DEFAULTS.ai, apiKeys: {} };
+		return { ...DEFAULTS.ai };
 	}
-	const { enabled, provider, apiKey, apiKeys, transport } = raw as Partial< AiSettings >;
-	const known = getAiProviders();
-	const validProvider =
-		typeof provider === 'string' && known.some( ( p ) => p.id === provider )
-			? provider
-			: DEFAULTS.ai.provider;
-
-	const cleanKeys: Record< string, string > = {};
-	if ( apiKeys && typeof apiKeys === 'object' ) {
-		for ( const [ pid, val ] of Object.entries( apiKeys ) ) {
-			if ( typeof val === 'string' ) {
-				cleanKeys[ pid ] = val.slice( 0, 512 );
-			}
-		}
-	}
-
-	const validTransport: AiTransportId =
-		typeof transport === 'string' &&
-		AI_TRANSPORTS.some( ( t ) => t.id === transport )
-			? ( transport as AiTransportId )
-			: DEFAULTS.ai.transport;
-
+	const { enabled } = raw as Partial< AiSettings >;
 	return {
 		enabled: typeof enabled === 'boolean' ? enabled : DEFAULTS.ai.enabled,
-		provider: validProvider,
-		apiKey: typeof apiKey === 'string' ? apiKey : DEFAULTS.ai.apiKey,
-		apiKeys: cleanKeys,
-		transport: validTransport,
 	};
 }
 

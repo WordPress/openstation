@@ -1141,32 +1141,116 @@ function desktop_mode_build_menu_payload() {
 	// zero-arg `desktop_mode_build_*_payload()`; modules that aren't
 	// loaded this request contribute an empty array.
 	$builders = array(
-		'serverWidgets'                 => 'desktop_mode_build_desktop_widgets_payload',
-		'serverWallpapers'              => 'desktop_mode_build_desktop_wallpapers_payload',
-		'serverCommandScripts'          => 'desktop_mode_build_desktop_command_scripts_payload',
-		'serverCommands'                => 'desktop_mode_build_desktop_commands_payload',
-		'serverSettingsTabScripts'      => 'desktop_mode_build_desktop_settings_tab_scripts_payload',
-		'serverSettingsTabs'            => 'desktop_mode_build_desktop_settings_tabs_payload',
-		'serverDockRailRendererScripts' => 'desktop_mode_build_dock_rail_renderer_scripts_payload',
-		'serverTitleBarButtonScripts'   => 'desktop_mode_build_desktop_titlebar_button_scripts_payload',
-		'serverUnfocusEffectScripts'    => 'desktop_mode_build_desktop_unfocus_effect_scripts_payload',
-		'serverWindowThemeScripts'      => 'desktop_mode_build_window_theme_scripts_payload',
-		'serverWindowThemes'            => 'desktop_mode_build_window_themes_payload',
-		'serverWindowControlScripts'    => 'desktop_mode_build_window_control_scripts_payload',
-		'serverWindowControls'          => 'desktop_mode_build_window_controls_payload',
-		'serverWindowSlotScripts'       => 'desktop_mode_build_window_slot_scripts_payload',
-		'serverWindowSlots'             => 'desktop_mode_build_window_slots_payload',
-		'serverWindowChromeScripts'     => 'desktop_mode_build_window_chrome_scripts_payload',
-		'serverWindowChromes'           => 'desktop_mode_build_window_chromes_payload',
-		'serverWindowNotices'           => 'desktop_mode_build_window_notices_payload',
-		'desktopIcons'                  => 'desktop_mode_build_desktop_icons_payload',
+		'serverWidgets'                   => 'desktop_mode_build_desktop_widgets_payload',
+		'serverWallpapers'                => 'desktop_mode_build_desktop_wallpapers_payload',
+		'serverCommandScripts'            => 'desktop_mode_build_desktop_command_scripts_payload',
+		'serverCommands'                  => 'desktop_mode_build_desktop_commands_payload',
+		'serverSettingsTabScripts'        => 'desktop_mode_build_desktop_settings_tab_scripts_payload',
+		'serverSettingsTabs'              => 'desktop_mode_build_desktop_settings_tabs_payload',
+		'serverDockRailRendererScripts'   => 'desktop_mode_build_dock_rail_renderer_scripts_payload',
+		'serverTitleBarButtonScripts'     => 'desktop_mode_build_desktop_titlebar_button_scripts_payload',
+		'serverUnfocusEffectScripts'      => 'desktop_mode_build_desktop_unfocus_effect_scripts_payload',
+		'serverWindowLinkRendererScripts' => 'desktop_mode_build_window_link_renderer_scripts_payload',
+		'serverWindowThemeScripts'        => 'desktop_mode_build_window_theme_scripts_payload',
+		'serverWindowThemes'              => 'desktop_mode_build_window_themes_payload',
+		'serverWindowControlScripts'      => 'desktop_mode_build_window_control_scripts_payload',
+		'serverWindowControls'            => 'desktop_mode_build_window_controls_payload',
+		'serverWindowSlotScripts'         => 'desktop_mode_build_window_slot_scripts_payload',
+		'serverWindowSlots'               => 'desktop_mode_build_window_slots_payload',
+		'serverWindowChromeScripts'       => 'desktop_mode_build_window_chrome_scripts_payload',
+		'serverWindowChromes'             => 'desktop_mode_build_window_chromes_payload',
+		'serverWindowNotices'             => 'desktop_mode_build_window_notices_payload',
+		'serverGames'                     => 'desktop_mode_build_desktop_games_payload',
+		'desktopIcons'                    => 'desktop_mode_build_desktop_icons_payload',
 	);
 
 	foreach ( $builders as $key => $builder ) {
 		$payload[ $key ] = function_exists( $builder ) ? $builder() : array();
 	}
 
+	// A cheap structural fingerprint of the admin menu the shell uses to
+	// decide whether a live refresh is warranted. Shipped in every full
+	// payload so the shell can seed / update its last-known signature
+	// without recomputing it client-side (which would risk drift from
+	// the server's capability-gated view). See
+	// desktop_mode_menu_signature().
+	$payload['menuSig'] = desktop_mode_menu_signature();
+
 	return $payload;
+}
+
+/**
+ * Cheap structural fingerprint of the current admin menu.
+ *
+ * The chromeless bridge emits the *full* menu payload only from the
+ * handful of pages whose completion commonly mutates the admin menu
+ * (activation / install / theme switch). That leaves a gap: a custom
+ * post type registered through a settings-based tool (CPT UI, Pods,
+ * ACF, …) saves on its own `admin.php?page=…` / `options.php` screen,
+ * none of which is in that list, so the new top-level menu never
+ * reaches the live dock until a full browser reload rebuilds the shell
+ * (GH#325).
+ *
+ * Building the full payload on *every* chromeless page just to catch
+ * that case would be wasteful — most navigations don't touch the menu.
+ * Instead every chromeless page ships this lightweight signature; the
+ * shell compares it against its last-known value and only spends a
+ * `wp.desktop.refreshMenu()` probe when it actually changed.
+ *
+ * The hash covers the capability-passing top-level + submenu slugs and
+ * their (badge-stripped) titles — i.e. exactly the add / remove /
+ * rename events the dock cares about. Transient badge counts (update
+ * notifications, moderation queues) are stripped so they don't churn
+ * the signature; those have their own refresh path.
+ *
+ * @since 0.9.4
+ *
+ * @return string 32-char md5 fingerprint, or '' when the menu is
+ *                unavailable (non-admin context).
+ */
+function desktop_mode_menu_signature() {
+	global $menu, $submenu;
+
+	if ( empty( $menu ) || ! is_array( $menu ) ) {
+		return '';
+	}
+
+	$clean_title = static function ( $raw ) {
+		// Mirror desktop_mode_build_dock_items(): drop badge spans first,
+		// then any remaining markup, so update counts don't move the hash.
+		$stripped = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $raw );
+		return trim( wp_strip_all_tags( (string) $stripped ) );
+	};
+
+	$parts = array();
+
+	foreach ( $menu as $item ) {
+		if ( empty( $item[2] ) ) {
+			continue;
+		}
+		if ( ! empty( $item[4] ) && false !== strpos( $item[4], 'wp-menu-separator' ) ) {
+			continue;
+		}
+		if ( ! empty( $item[1] ) && ! current_user_can( $item[1] ) ) {
+			continue;
+		}
+
+		$slug    = (string) $item[2];
+		$parts[] = $slug . '|' . $clean_title( $item[0] ?? '' );
+
+		if ( empty( $submenu[ $slug ] ) || ! is_array( $submenu[ $slug ] ) ) {
+			continue;
+		}
+		foreach ( $submenu[ $slug ] as $sub_item ) {
+			if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
+				continue;
+			}
+			$parts[] = "\t" . ( isset( $sub_item[2] ) ? (string) $sub_item[2] : '' )
+				. '|' . $clean_title( $sub_item[0] ?? '' );
+		}
+	}
+
+	return md5( implode( "\n", $parts ) );
 }
 
 /**
@@ -1424,6 +1508,7 @@ function desktop_mode_flush_script_handle_registries() {
 		'desktop_mode_flush_dock_rail_renderer_script_registry',
 		'desktop_mode_flush_desktop_titlebar_button_script_registry',
 		'desktop_mode_flush_desktop_unfocus_effect_script_registry',
+		'desktop_mode_flush_window_link_renderer_script_registry',
 		'desktop_mode_flush_window_theme_script_registry',
 		'desktop_mode_flush_window_theme_registry',
 		'desktop_mode_flush_window_control_script_registry',
@@ -1565,6 +1650,44 @@ function desktop_mode_build_native_windows_payload() {
 }
 
 /**
+ * Determines whether a menu slug references a real file under `wp-admin/`.
+ *
+ * Mirrors the decision core's `wp-admin/menu-header.php` makes when
+ * linking menu items: strip the query portion, then check whether the
+ * remaining path exists inside `wp-admin/`. Two registered-slug shapes
+ * hinge on this distinction:
+ *
+ *  - URL-style slugs — ACF registers its top-level menu as
+ *    `edit.php?post_type=acf-field-group` via `add_menu_page()`. The
+ *    slug lands in `$_parent_pages`, but `edit.php` is a real admin
+ *    file: classic admin links it directly, and routing it through
+ *    `admin.php?page=…` makes core's dispatcher `wp_die()` with
+ *    "Cannot load edit.php?post_type=acf-field-group."
+ *  - Legacy file-path slugs — WP-Sweep registers
+ *    `wp-sweep/admin.php` via `add_management_page()`. No such file
+ *    exists under `wp-admin/`, so it must resolve as a plugin page
+ *    (`tools.php?page=wp-sweep/admin.php`).
+ *
+ * @since 0.9.6
+ *
+ * @param string $slug The raw menu item slug.
+ * @return bool True when the query-stripped slug is a file under `wp-admin/`.
+ */
+function desktop_mode_is_admin_file_slug( $slug ) {
+	$file = $slug;
+	$pos  = strpos( $file, '?' );
+	if ( false !== $pos ) {
+		$file = substr( $file, 0, $pos );
+	}
+
+	if ( '' === $file || 0 !== validate_file( $file ) ) {
+		return false;
+	}
+
+	return file_exists( ABSPATH . 'wp-admin/' . $file );
+}
+
+/**
  * Converts a menu item slug to a full admin URL.
  *
  * Handles three slug shapes:
@@ -1610,8 +1733,30 @@ function desktop_mode_menu_item_url( $slug ) {
 	// Strip path traversal sequences.
 	$slug = str_replace( '..', '', $slug );
 
-	// Direct file reference (e.g., 'edit.php', 'upload.php').
-	if ( false !== strpos( $slug, '.php' ) ) {
+	global $_parent_pages;
+
+	// Direct file reference (e.g., 'edit.php', 'upload.php') — but
+	// NOT a registered plugin page that merely looks like one.
+	// Legacy file-path slugs (WP-Sweep's 'wp-sweep/admin.php',
+	// registered via add_management_page()) contain '.php' yet are
+	// page slugs, not admin-root files; `$_parent_pages` is keyed by
+	// the raw registered slug, so a hit there routes the slug to the
+	// canonical resolver below (→ `tools.php?page=wp-sweep/admin.php`,
+	// byte-identical to what core's menu_page_url() builds) instead
+	// of a 404 at `admin_url( 'wp-sweep/admin.php' )`.
+	//
+	// The reverse also happens: URL-style slugs registered through
+	// `add_menu_page()` / `add_submenu_page()` (ACF's
+	// 'edit.php?post_type=acf-field-group') sit in `$_parent_pages`
+	// too, yet reference a real `wp-admin/` file — those must stay
+	// direct links, or core's `admin.php` dispatcher dies with
+	// "Cannot load edit.php?post_type=acf-field-group." The admin-
+	// file check wins over the registration check, same as classic
+	// admin's `menu-header.php`.
+	if (
+		false !== strpos( $slug, '.php' ) &&
+		( ! isset( $_parent_pages[ $slug ] ) || desktop_mode_is_admin_file_slug( $slug ) )
+	) {
 		return esc_url_raw( admin_url( $slug ) );
 	}
 
@@ -1646,7 +1791,6 @@ function desktop_mode_menu_item_url( $slug ) {
 	//   3. Slug not registered at all → fall back to `admin.php`
 	//      so the URL still targets a real dispatcher (matches the
 	//      pre-resolver behavior callers depended on).
-	global $_parent_pages;
 	$host = 'admin.php?page=' . rawurlencode( $slug );
 	if ( isset( $_parent_pages[ $slug ] ) ) {
 		$parent_slug = $_parent_pages[ $slug ];

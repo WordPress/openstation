@@ -3,7 +3,7 @@
  *
  * Animate every eligible window to a grid thumbnail, plus a top bar
  * showing one tile per virtual desktop. Clicking a thumbnail exits
- * overview and fullscreens the clicked window. Pressing Escape or
+ * overview, focusing and bringing the clicked window to the front. Pressing Escape or
  * clicking the backdrop exits without selection.
  *
  * The lifecycle is big (enter/exit + click + key handlers + top bar
@@ -26,10 +26,57 @@ import type { Window } from '../window';
 import type { WindowManager } from './index';
 
 /**
+ * Element IDs of background chrome to make inert during overview.
+ *
+ * These elements sit in the DOM between `#wpadminbar` (deliberately
+ * left active) and the overview-top-bar tiles. Without inert the
+ * browser's Tab order would traverse them before reaching any
+ * visible tile, wasting keyboard-user keystrokes on hidden UI
+ * (admin menu, dock buttons, widget controls ).
+ *
+ * Each element is restored to non-inert on overview exit.
+ */
+const OVERVIEW_INERT_ELEMENTS = [
+	'adminmenumain',
+	'adminmenuback',
+	'desktop-mode-dock',
+	'desktop-mode-side-dock',
+	'desktop-mode-widgets',
+];
+
+/**
+ * Toggle inert on every direct child of #wpbody-content so focus
+ * can't land on hidden screen-options, help panels, or admin
+ * notices during overview.
+ */
+function inertWpBodyContentChildren( inactive: boolean ): void {
+	const content = document.getElementById( 'wpbody-content' );
+	if ( ! content ) {
+		return;
+	}
+	for ( const child of Array.from( content.children ) ) {
+		( child as HTMLElement & { inert: boolean } ).inert = inactive;
+	}
+}
+
+/**
+ * Toggle inert on every direct child of window elements so keyboard focus
+ * cannot land on inner controls / titlebar buttons / iframes during overview,
+ * while leaving the window root element non-inert so thumbnail pointer hits succeed.
+ */
+function inertWindowChildren( mgr: WindowManager, inactive: boolean ): void {
+	for ( const w of mgr._stack ) {
+		for ( const child of Array.from( w.element.children ) ) {
+			( child as HTMLElement & { inert: boolean } ).inert = inactive;
+		}
+	}
+}
+
+/**
  * Enter overview mode — animate every eligible window to a grid
- * thumbnail layout. Clicking a thumbnail exits overview and
- * fullscreens the clicked window. Pressing Escape or clicking the
- * backdrop exits without selection.
+ * thumbnail layout. Clicking a thumbnail exits overview,
+ * focusing and bringing the clicked window to the front. Pressing Escape
+ * or clicking the backdrop exits without selection.
  */
 export function enterOverview( mgr: WindowManager ): void {
 	if ( mgr._overviewActive ) {
@@ -39,7 +86,8 @@ export function enterOverview( mgr: WindowManager ): void {
 	// desktop is minimized — the canonical Show Desktop state — entering
 	// overview would otherwise show an empty grid, contradicting the
 	// user's expectation that Overview reveals their work. Restore them
-	// first so they participate in the layout below.
+	// first so they participate in the layout below, allowing them to be
+	// selected and focused in their restored states.
 	const onActive = mgr._stack.filter(
 		( w ) => w.config.desktopId === mgr._activeDesktopId,
 	);
@@ -65,7 +113,7 @@ export function enterOverview( mgr: WindowManager ): void {
 	// grid; windows on other desktops stay hidden underneath. The top
 	// bar (rendered later) gives the user a way to switch. Native
 	// windows (OS Settings, Jorvy, etc.) participate as first-class
-	// citizens — clicking their thumbnail maximizes them, they lay
+	// citizens — clicking their thumbnail focuses them, they lay
 	// out in the grid, they count toward the top-bar tile's window
 	// count.
 	const eligible = mgr._stack.filter(
@@ -79,6 +127,22 @@ export function enterOverview( mgr: WindowManager ): void {
 	mgr._overviewActive = true;
 
 	doAction( HOOKS.OVERVIEW_ENTERING, {} );
+
+	// Make background left admin bar and the Dock inert so Tab focus doesn't traverse them.
+	// We deliberately leave the top admin bar (wpadminbar) active and reachable.
+	for ( const id of OVERVIEW_INERT_ELEMENTS ) {
+		const el = document.getElementById( id );
+		if ( el ) {
+			( el as HTMLElement & { inert: boolean } ).inert = true;
+		}
+	}
+	// Make all siblings of the shell inside wpbody-content inert
+	// so focus doesn't land on hidden screen options / help buttons.
+	inertWpBodyContentChildren( true );
+	// Make all window children (iframes, titlebars, tabs) inert so
+	// keyboard focus cannot traverse hidden window controls during
+	// overview, while leaving window root elements non-inert for clicks.
+	inertWindowChildren( mgr, true );
 
 	// Snapshot current transform + transition so exit can restore
 	// exactly — matters when plugins have applied custom transforms
@@ -259,7 +323,7 @@ export function enterOverview( mgr: WindowManager ): void {
 		}
 		const selected = mgr.getById( pressed.id );
 		doAction( HOOKS.OVERVIEW_WINDOW_CLICK, { windowId: pressed.id } );
-		exitOverview( mgr, selected, true );
+		exitOverview( mgr, selected );
 	};
 
 	mgr._overviewKeyHandler = ( e: KeyboardEvent ) => {
@@ -274,6 +338,13 @@ export function enterOverview( mgr: WindowManager ): void {
 		//                 desktop (arrow keys keep that in sync as the
 		//                 cursor moves through tiles).
 		if ( e.key === 'Enter' ) {
+			// If the user is parked on an explicit button (like the close X or desktop tile),
+			// let the native click event handle it.
+			const target = e.target as HTMLElement | null;
+			const doc = target?.ownerDocument || document;
+			if ( doc.activeElement && doc.activeElement.tagName === 'BUTTON' ) {
+				return;
+			}
 			e.preventDefault();
 			if ( mgr._overviewAddTileFocused ) {
 				commitAddTile( mgr );
@@ -344,12 +415,31 @@ export function enterOverview( mgr: WindowManager ): void {
 
 	// Signal "entered" after the grid animation settles. Matches the
 	// 280 ms transform transition — plugins listening here can safely
-	// read final layout positions.
-	window.setTimeout( () => {
+	// read final layout positions. Handle is tracked so `destroy()`
+	// can cancel it if the manager is discarded before it fires.
+	mgr._overviewEnterTimeoutId = window.setTimeout( () => {
+		mgr._overviewEnterTimeoutId = null;
 		if ( mgr._overviewActive ) {
 			doAction( HOOKS.OVERVIEW_ENTERED, {} );
 		}
-	}, 300 );
+	}, 300 ) as unknown as number;
+}
+
+/**
+ * Cancel any pending overview transition timers without running their
+ * callbacks. Called from `WindowManager.destroy()` so a discarded
+ * manager can never fire a delayed `doAction()` that reaches for
+ * globals torn down after the manager itself.
+ */
+export function cancelOverviewTimers( mgr: WindowManager ): void {
+	if ( mgr._overviewEnterTimeoutId !== null ) {
+		window.clearTimeout( mgr._overviewEnterTimeoutId );
+		mgr._overviewEnterTimeoutId = null;
+	}
+	if ( mgr._overviewExitTimeoutId !== null ) {
+		window.clearTimeout( mgr._overviewExitTimeoutId );
+		mgr._overviewExitTimeoutId = null;
+	}
 }
 
 /** Build the overview top bar — a tile per virtual desktop plus "+". */
@@ -407,6 +497,9 @@ export function commitAddTile( mgr: WindowManager ): void {
 
 /** Build a single desktop tile for the overview top bar. */
 function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
+	const wrapper = document.createElement( 'div' );
+	wrapper.className = 'desktop-mode-overview-top-bar__tile-wrapper';
+
 	const tile = document.createElement( 'button' );
 	tile.type = 'button';
 	tile.className = 'desktop-mode-overview-top-bar__tile';
@@ -445,35 +538,36 @@ function buildDesktopTile( mgr: WindowManager, d: Desktop ): HTMLElement {
 	label.textContent = d.label;
 	tile.appendChild( label );
 
-	// Close X — hidden via CSS when only one desktop exists, so users
-	// can't soft-lock themselves out of the last one. We still render
-	// the button (rather than omitting) so its presence/absence
-	// doesn't reflow the tile.
-	const closeBtn = document.createElement( 'span' );
-	closeBtn.className = 'desktop-mode-overview-top-bar__tile-close';
-	closeBtn.setAttribute( 'role', 'button' );
-	closeBtn.setAttribute( 'tabindex', '0' );
-	// translators: %s is the desktop label
-	closeBtn.setAttribute( 'aria-label', sprintf( __( 'Close %s' ), d.label ) );
-	closeBtn.innerHTML =
-		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
-	closeBtn.addEventListener( 'click', ( e: MouseEvent ) => {
-		// stopPropagation so the parent tile's click handler doesn't
-		// ALSO fire (which would switch + exit on top of the close).
-		e.preventDefault();
-		e.stopPropagation();
-		closeDesktop( mgr, d.id );
-		refreshOverviewTopBar( mgr );
-	} );
-	tile.appendChild( closeBtn );
-
 	tile.addEventListener( 'click', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
 		exitOverviewToDesktop( mgr, d.id );
 	} );
 
-	return tile;
+	// Close X — hidden via CSS when only one desktop exists, so users
+	// can't soft-lock themselves out of the last one. We still render
+	// the button (rather than omitting) so its presence/absence
+	// doesn't reflow the tile.
+	const closeBtn = document.createElement( 'button' );
+	closeBtn.type = 'button';
+	closeBtn.className = 'desktop-mode-overview-top-bar__tile-close';
+	// translators: %s is the desktop label
+	closeBtn.setAttribute( 'aria-label', sprintf( __( 'Close %s' ), d.label ) );
+	closeBtn.innerHTML =
+		'<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+	closeBtn.addEventListener( 'click', ( e: MouseEvent ) => {
+		// stopPropagation so the wrapper's layout doesn't trigger
+		// anything, though the tile is a sibling, not a parent.
+		e.preventDefault();
+		e.stopPropagation();
+		closeDesktop( mgr, d.id );
+		refreshOverviewTopBar( mgr );
+	} );
+
+	wrapper.appendChild( tile );
+	wrapper.appendChild( closeBtn );
+
+	return wrapper;
 }
 
 /**
@@ -583,8 +677,8 @@ export function exitOverview(
 	mgr._overviewAddTileFocused = false;
 
 	doAction( HOOKS.OVERVIEW_EXITING, {
-		windowId: selected && maximize ? selected.id : undefined,
-		reason: selected && maximize ? 'select' : 'cancel',
+		windowId: selected ? selected.id : undefined,
+		reason: selected ? 'select' : 'cancel',
 	} );
 
 	// Remove area + shell classes AT T=0 so the backdrop fades and
@@ -600,12 +694,18 @@ export function exitOverview(
 	const shell = document.getElementById( 'desktop-mode-shell' );
 	shell?.classList.remove( 'desktop-mode-shell--overview' );
 
+	for ( const id of OVERVIEW_INERT_ELEMENTS ) {
+		const el = document.getElementById( id );
+		if ( el ) {
+			( el as HTMLElement & { inert: boolean } ).inert = false;
+		}
+	}
+	inertWpBodyContentChildren( false );
+	inertWindowChildren( mgr, false );
+
 	// Unselected windows: transform → '' (snaps back to their
 	// pre-overview inline geometry). Selected window (if any):
-	// transform is cleared the same way, AND `maximize()` fires,
-	// setting inline left/top/width/height to maximize bounds. Both
-	// transitions animate together for a single frictionless path
-	// from grid to maximized.
+	// transform is cleared the same way, AND focused to top of stack.
 	for ( const [ id, snap ] of mgr._overviewSnapshot ) {
 		const w = mgr.getById( id );
 		if ( ! w ) {
@@ -614,17 +714,19 @@ export function exitOverview(
 		w.element.style.transform = snap.transform;
 	}
 
-	if ( selected && maximize ) {
+	if ( selected ) {
 		// Focus first so z-index and focused-class are right from the
 		// moment the animation starts — no pop-to-top late in the
 		// transition.
 		mgr.focus( selected );
-		selected.maximize();
+		if ( maximize ) {
+			selected.maximize();
+		}
 	}
 
 	// Start labels fading immediately — they overshoot the area when
-	// a selected window maximizes, and we don't want them lingering
-	// as the window grows beneath. Opacity transition is CSS-side
+	// a selected window focuses, and we don't want them lingering
+	// over it during the 300ms transition. Opacity transition is CSS-side
 	// (see `.desktop-mode-overview-label--out`).
 	for ( const label of mgr._overviewLabels.values() ) {
 		label.classList.add( 'desktop-mode-overview-label--out' );
@@ -640,9 +742,12 @@ export function exitOverview(
 
 	// After the animation completes, strip the per-window overview
 	// class (kept in place through the transition for the
-	// transform-origin reason noted above) and the labels.
+	// transform-origin reason noted above) and the labels. Handle is
+	// tracked so `destroy()` can cancel it if the manager is
+	// discarded before it fires.
 	const ANIMATION_MS = 280;
-	window.setTimeout( () => {
+	mgr._overviewExitTimeoutId = window.setTimeout( () => {
+		mgr._overviewExitTimeoutId = null;
 		for ( const w of mgr._stack ) {
 			w.element.classList.remove( 'desktop-mode-window--overview' );
 		}
@@ -669,10 +774,10 @@ export function exitOverview(
 			mgr._overviewClickBlocker = null;
 		}
 		doAction( HOOKS.OVERVIEW_EXITED, {
-			windowId: selected && maximize ? selected.id : undefined,
-			reason: selected && maximize ? 'select' : 'cancel',
+			windowId: selected ? selected.id : undefined,
+			reason: selected ? 'select' : 'cancel',
 		} );
-	}, ANIMATION_MS );
+	}, ANIMATION_MS ) as unknown as number;
 
 	if ( mgr._overviewPointerDownHandler ) {
 		mgr._desktop.removeEventListener(

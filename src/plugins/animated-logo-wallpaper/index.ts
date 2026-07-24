@@ -21,6 +21,7 @@
 import type {
 	WallpaperContext,
 	WallpaperDef,
+	WallpaperPreviewContext,
 	WallpaperTeardown,
 } from '../../wallpapers/types';
 import { mountScene } from './scene';
@@ -40,6 +41,23 @@ const def: WallpaperDef = {
 	label: 'Animated WordPress Logo',
 	type: 'canvas',
 	preview: PREVIEW,
+	/**
+	 * Live tile preview for the OS Settings picker — the real particle
+	 * scene at tile scale. The scene sizes itself to its container, so
+	 * no dedicated preview path is needed; the swatch just gets a small
+	 * swarm.
+	 */
+	renderPreview: async (
+		container: HTMLElement,
+		ctx: WallpaperPreviewContext,
+	): Promise< WallpaperTeardown > => {
+		const scene = await mountScene( {
+			container,
+			logoUrl: `${ ctx.pluginUrl }/assets/images/wp-logo.png`,
+			prefersReducedMotion: ctx.prefersReducedMotion,
+		} );
+		return (): void => scene.destroy();
+	},
 	needs: [ 'pixijs' ],
 	mount: async (
 		container: HTMLElement,

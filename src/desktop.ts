@@ -51,7 +51,11 @@ import {
 	type WpHooks,
 } from './hooks';
 import { WallpaperLayer } from './wallpapers/layer';
+import type { WallpaperSuspendApi } from './wallpapers/layer';
+import type { GamesApi } from './games/api';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
+import { createGamesRegistrySync } from './games/server-sync';
+import { bootGamesChallenges } from './games/challenges-client';
 import { createCommandRegistrySync } from './commands/server-sync';
 import { createSettingsTabRegistrySync } from './settings/server-sync';
 import {
@@ -63,7 +67,15 @@ import {
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
+import { startWindowLinksEngine } from './window-links/engine';
+import { startWindowLinkRenderHost } from './window-links/render-host';
+import { bootRelatedEntities } from './related-entities';
+import type {
+	WindowLinkRendererDef,
+	WindowRelationsApi,
+} from './window-links/types';
 import { createUnfocusEffectRegistrySync } from './effects/server-sync';
+import { createWindowLinkRendererRegistrySync } from './window-links/server-sync';
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
 import {
@@ -133,6 +145,7 @@ import { type KeyedListOptions } from './ui/util/keyed-list';
 import { DragBridge, type DragBridgeApi } from './drag-bridge';
 import { DragManager, type DragManagerApi, DRAG_EVENTS } from './drag';
 import { installIframeDropTargets } from './drag/iframe-drop-targets';
+import { installFocusWindowOnDragHover } from './drag/focus-window-on-drag-hover';
 import {
 	type DesktopCommand,
 } from './commands';
@@ -150,7 +163,9 @@ import {
 } from './presence';
 import { type ActivityApi } from './activity';
 import { bootHeartbeatBus, type HeartbeatBus } from './heartbeat';
+import { bootContentChangesHeartbeat } from './content-changes/heartbeat';
 import { bootNonceRefresh } from './nonce-refresh';
+import { bootAuthRecovery } from './auth-recovery';
 import { bindTopWindowLinkInterceptor } from './boot/link-interceptor';
 import { bindMenuRefresh } from './boot/menu-refresh';
 import { hasRestorableSession, openCurrentPage, restoreSession } from './boot/session';
@@ -165,11 +180,14 @@ import {
 	syncShortcutsWithVisibility,
 } from './settings/desktop-shortcuts-sync';
 import { bootStickyNotes } from './sticky-notes';
+import { bootNotes } from './notes';
 
 // `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
 // boot-time consumer reaches the same captured value — see the import
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
+import { maybeShowUpdate } from './update-notice';
+import { maybeShowNotices } from './core-notices';
 import { setupDevModeWidgetGate } from './widgets/dev-mode-gate';
 import {
 	installDefaultDockRailRenderer,
@@ -200,7 +218,7 @@ import {
 	setUserAssociations as setFilesUserAssociations,
 	type FilesApi,
 } from './desktop-files';
-import { mountFilesLayer } from './desktop-files/layer';
+import { isSyntheticPlacement, mountFilesLayer } from './desktop-files/layer';
 import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
 import { startFilesRestoreSync } from './desktop-files/restore-sync';
@@ -495,6 +513,31 @@ export interface WpDesktopPublicApi {
 	isActive: () => boolean;
 	/** Convenience: register a wallpaper via `desktop-mode.wallpapers` filter. */
 	registerWallpaper: ( def: WallpaperDef ) => void;
+	/**
+	 * Wallpaper suspend/resume — pause the animated wallpaper while a
+	 * foreground surface (a game, a heavy canvas tool) renders its own
+	 * scene. Refcounted per reason string: hold with
+	 * `wallpaper.suspend( 'my-plugin/thing' )`, release the same reason
+	 * with `resume()`. While suspended the shell freezes the current
+	 * frame into a bitmap overlay (best-effort) and re-emits
+	 * {@link HOOKS.WALLPAPER_VISIBILITY} with the effective state so
+	 * mounted scenes stop their tickers; {@link HOOKS.WALLPAPER_SUSPEND}
+	 * fires on every suspended/resumed transition.
+	 *
+	 * @since 0.9.6
+	 */
+	wallpaper: WallpaperSuspendApi;
+	/**
+	 * Desktop games surface. `register()` adds a game to the shared
+	 * registry (launcher grid + scoreboard tabs repaint live);
+	 * `launch()` opens a game in its native window, suspending the
+	 * wallpaper for the duration. Scores/challenges persist only for
+	 * games also registered server-side via
+	 * `desktop_mode_register_game()`.
+	 *
+	 * @since 0.9.6
+	 */
+	games: GamesApi;
 	/** Convenience: register a widget via `desktop-mode.widgets` filter. */
 	registerWidget: ( def: import( './widgets/types' ).WidgetDef ) => void;
 	/**
@@ -906,7 +949,7 @@ export interface WpDesktopPublicApi {
 	 * ```
 	 *
 	 * Built-in tab orders for reference: appearance=10, ai=20,
-	 * apps-icons=22, features=25, effects=27, extended=30, help=40
+	 * apps-icons=22, features=25, effects=27, help=40
 	 * (About is pinned last with a sentinel order).
 	 *
 	 * @since 0.5.1
@@ -1144,6 +1187,49 @@ export interface WpDesktopPublicApi {
 	unregisterUnfocusEffect: ( id: string ) => void;
 	/** Snapshot of registered unfocus effects (filter applied). @since 0.9.1 */
 	listUnfocusEffects: () => UnfocusEffectDef[];
+	/**
+	 * Window content relations — which piece of content each window
+	 * shows and how windows group around a shared root (a comment
+	 * window belongs to its post's window). Read with `get` /
+	 * `groups` / `groupOf` / `related`, declare with `set` (or the
+	 * open-time `WindowConfig.content` field), react with
+	 * `subscribe` or the `desktop-mode.window-links.*` hooks. The
+	 * chromeless bridge announces identities for admin iframe pages
+	 * automatically.
+	 *
+	 * @example
+	 * ```js
+	 * wp.desktop.relations.set( windowId, {
+	 *     type: 'acme/order',
+	 *     id: 77,
+	 *     root: { type: 'acme/customer', id: 12 },
+	 * } );
+	 * wp.desktop.relations.related( windowId ); // sibling window ids
+	 * ```
+	 *
+	 * @since 0.9.4
+	 */
+	relations: WindowRelationsApi;
+	/**
+	 * Register (or replace) a window-link renderer — how the relation
+	 * ties between related windows are drawn on the desktop. The
+	 * definition's `mount( ctx )` receives the shell's link layer plus
+	 * a frame stream of live window rects and returns a teardown; both
+	 * SVG/DOM and canvas/Pixi implementations are first-class. The
+	 * built-in `svg-splines` registers through this same API. Set
+	 * `owner` to the script handle for live unregistration on
+	 * deactivation. The user picks the active renderer in OS Settings
+	 * → Effects → Window links.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 *
+	 * @since 0.9.4
+	 */
+	registerWindowLinkRenderer: ( def: WindowLinkRendererDef ) => void;
+	/** Remove a previously registered window-link renderer. @since 0.9.4 */
+	unregisterWindowLinkRenderer: ( id: string ) => void;
+	/** Snapshot of registered window-link renderers (filter applied). @since 0.9.4 */
+	listWindowLinkRenderers: () => WindowLinkRendererDef[];
 	/**
 	 * Register (or replace) a per-window theme — a CSS-variable map
 	 * applied to every matching window's outer element. The shell
@@ -1811,8 +1897,6 @@ function init(): void {
 			restNonce: config.restNonce,
 			canUpload: !! config.canUpload,
 			isAdmin: !! config.currentUserIsAdmin,
-			aiPlatformSettings: config.aiPlatformSettings ?? null,
-			aiPlatformSettingsUrl: config.aiPlatformSettingsUrl ?? '',
 			extendedOptions: config.extendedOptions ?? null,
 			extendedOptionsUrl: config.extendedOptionsUrl ?? '',
 			osSettingsPanelBundleUrl: config.osSettingsPanelBundleUrl ?? '',
@@ -1842,10 +1926,19 @@ function init(): void {
 			aiSearchUrl: config.aiSearchUrl ?? '',
 			aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 			restNonce: config.restNonce,
-			// Transport picker lives in OS Settings → AI Settings. Read
-			// live (not captured at construction) so a change applies on
-			// the next search without a page reload.
-			getTransport: () => osSettings.getOsSettingsSnapshot().ai.transport,
+			// Progress streaming is on by default now that the per-user
+			// transport picker is gone; the assistant falls back gracefully
+			// if the host drops the SSE connection.
+			getTransport: () => 'sse',
+			// AI mode is usable when the APIs are present and a provider is
+			// configured; the Commands palette works regardless. Read live so
+			// connecting a provider or flipping the "AI assistant" toggle takes
+			// effect on the next open — no reload.
+			isAiAvailable: () =>
+				config.aiAssistant?.available === true &&
+				config.aiAssistant?.assistantProviderConfigured === true,
+			isOverrideEnabled: () =>
+				osSettings.getOsSettingsSnapshot().ai.enabled !== false,
 		},
 		config.aiAssistantBundleUrl ?? '',
 	);
@@ -1944,6 +2037,12 @@ function init(): void {
 	// drags something, which can't happen before init() returns.
 	scheduleIdleBoot( () => installIframeDropTargets( dragManager ) );
 
+	// Focus-on-drag-hover — raises the window under the cursor after
+	// a short dwell during a drag, so the drop target comes forward.
+	// Listens to the DRAG_EVENTS CustomEvents; only needs the
+	// WindowManager as its focus host, not the DragManager.
+	scheduleIdleBoot( () => installFocusWindowOnDragHover( manager ) );
+
 	// Surface a toast when an iframe receiver (Gutenberg drop-
 	// receiver today) reports a failed insert — most commonly a
 	// timeout waiting for `wp.data` in a window where the editor
@@ -1962,10 +2061,17 @@ function init(): void {
 		} );
 	} );
 
-	// Register the AI Assistant as the first (default) Cmd+K palette
-	// and install the single global shortcut. Other plugins can register
-	// more palettes via wp.desktop.registerPalette and Cmd+K cycles
-	// through them in registration order.
+	// Register the AI Assistant as the first (default) Cmd+K palette and
+	// install the single global shortcut. Other plugins can register more
+	// palettes via wp.desktop.registerPalette and Cmd+K cycles through them in
+	// registration order.
+	//
+	// The assistant is ALWAYS the shell's ⌘K palette: Commands mode is a
+	// command palette that works with no AI, and AI mode layers on when a
+	// provider is configured. So we register it once and leave it — the
+	// overlay picks its default mode (Commands vs Ask AI) from the "AI
+	// assistant" toggle + provider status each time it opens (see
+	// AiAssistantConfig). Core's palette stays suppressed shell-wide regardless.
 	registerPalette( {
 		id: 'desktop-mode-ai-assistant',
 		label: 'AI Assistant',
@@ -2005,13 +2111,39 @@ function init(): void {
 		} ).install();
 	} );
 
-	// Admin-bar "Ask AI" button and programmatic `desktop-mode-open-ai`
-	// dispatches now route through openPaletteOnly so any other plugin
-	// palette that happens to be open is dismissed first — matches the
-	// single-palette-at-a-time invariant the cycle maintains.
+	// Programmatic `desktop-mode-open-ai` dispatches route through
+	// openPaletteOnly so any other plugin palette that happens to be open is
+	// dismissed first — matches the single-palette-at-a-time invariant the
+	// cycle maintains. (The Core ⌘K icon hijack below is the other entry
+	// point; there is no separate "Ask AI" button anymore.)
 	document.addEventListener( 'desktop-mode-open-ai', () => {
 		openPaletteOnly( 'desktop-mode-ai-assistant' );
 	} );
+
+	// Hijack WordPress Core's ⌘K command-palette icon
+	// (#wp-admin-bar-command-palette) so a click opens our assistant instead
+	// of Core's palette. Capture phase + stopImmediatePropagation runs before
+	// Core's own click handler, so the assistant is the single ⌘K entry point
+	// (paired with the keyboard suppression in installPaletteShortcut). The
+	// assistant is always the ⌘K surface, so this always intercepts.
+	document.addEventListener(
+		'click',
+		( e: MouseEvent ) => {
+			// `MouseEvent.target` isn't always an Element (text nodes, etc.),
+			// so guard before calling `closest()`.
+			const target = e.target;
+			if (
+				! ( target instanceof Element ) ||
+				! target.closest( '#wp-admin-bar-command-palette' )
+			) {
+				return;
+			}
+			e.preventDefault();
+			e.stopImmediatePropagation();
+			openPaletteOnly( 'desktop-mode-ai-assistant' );
+		},
+		true,
+	);
 
 	// Dock(s) + desktop icons — managed by the layout dispatcher.
 	// User picks one of three layouts in OS Settings → Appearance:
@@ -2384,6 +2516,11 @@ function init(): void {
 	 * @since 0.5.2
 	 */
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
+		// The Extended Options tab merged into Features in 0.9.5 —
+		// keep documented deep-links to the old tab id working.
+		if ( opts.tabId === 'extended' ) {
+			opts = { ...opts, tabId: 'features' };
+		}
 		if ( opts.tabId ) {
 			osSettings.activeTabId = opts.tabId;
 		}
@@ -2704,6 +2841,17 @@ function init(): void {
 		Array.isArray( config.serverWallpapers ) ? config.serverWallpapers : [],
 	);
 
+	// Games-registry sync — same lifecycle pattern, one deliberate
+	// deviation: game scripts are NOT loaded on sync. The payload's
+	// metadata registers as a stub (enough for the Games window's
+	// launcher grid + scoreboard tabs); `launchGame()` fetches the
+	// script the first time someone plays. See
+	// `src/games/server-sync.ts` for the rationale.
+	const syncServerGames = createGamesRegistrySync();
+	void syncServerGames(
+		Array.isArray( config.serverGames ) ? config.serverGames : [],
+	);
+
 	// Command-palette sync — mirrors the widget / wallpaper pattern for
 	// slash-commands registered by plugins via
 	// `desktop_mode_register_command_script()`. Loads each opted-in
@@ -2752,11 +2900,59 @@ function init(): void {
 			: [],
 	);
 
+	// Window-link renderer sync — same pattern. Loads opted-in scripts
+	// so a plugin's `registerWindowLinkRenderer()` lands and surfaces
+	// in OS Settings → Effects → Window links; deactivation drops
+	// renderers by `owner` tag and the render host falls back to the
+	// built-in `svg-splines` if the active pick departed.
+	const syncServerWindowLinkRenderers = createWindowLinkRendererRegistrySync();
+	void syncServerWindowLinkRenderers(
+		Array.isArray( config.serverWindowLinkRendererScripts )
+			? config.serverWindowLinkRendererScripts
+			: [],
+	);
+
 	// Unfocus-effect engine — applies the user's chosen effect to every
 	// unfocused window and keeps it in sync with focus changes, the
 	// effect registry, and the OS Settings selection. Purely additive:
 	// it only listens to existing window-lifecycle events.
 	startUnfocusEngine( { manager, osSettings } );
+
+	// Window-links relations engine — tracks per-window content
+	// identity and relation groups. Pure state + events; the link
+	// render host below owns the visuals.
+	startWindowLinksEngine( { manager } );
+
+	// Window-link render host — mounts the user's chosen link renderer
+	// (built-in `svg-splines` by default) into a lazy overlay layer
+	// whenever a relation group is renderable, and applies the
+	// `windowLinkVisibility` policy + related-window chrome highlight.
+	startWindowLinkRenderHost( { manager, osSettings } );
+
+	// Related-entities title-bar button — "Related" dropdown on any
+	// window whose content identity carries navigation targets
+	// (comments, terms, media for posts/pages; plugins add their own
+	// via the `desktop_mode_window_related_entities` PHP filter or the
+	// `desktop-mode.related-entities.items` JS filter). Picking an
+	// item opens it as its own window. Deliberately does NOT consult
+	// `tryNativeUrlRemap()`: the menu's whole point is filtered deep
+	// links (`edit-comments.php?p={id}`), and a native window opened
+	// by id drops the query — "Comments (4)" landing on the ALL-
+	// comments native window reads as a broken click. Revisit when
+	// native windows accept deep-link hints.
+	bootRelatedEntities( {
+		manager,
+		openUrl: ( item ) => {
+			const relatedId = deriveWindowId( item.url, config.adminUrl );
+			void manager.open( {
+				id: relatedId,
+				baseId: relatedId,
+				url: item.url,
+				title: item.label,
+				icon: item.icon || 'dashicons-admin-links',
+			} );
+		},
+	} );
 
 	// Dock rail renderer sync — loads plugin renderer scripts on
 	// activation so OS Settings → Dock style surfaces them
@@ -3020,7 +3216,9 @@ function init(): void {
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
+		syncServerGames,
 		renderIcons,
 		syncShortcuts: () => {
 			const snapshot = osSettings.getOsSettingsSnapshot();
@@ -3122,6 +3320,11 @@ function init(): void {
 		dragManager,
 		connect: connectionBridge.connect,
 		getConnection: connectionBridge.getConnection,
+		wallpaperSuspend: {
+			suspend: ( reason: string ) => wallpaperLayer?.suspend( reason ),
+			resume: ( reason: string ) => wallpaperLayer?.resume( reason ),
+			isSuspended: () => wallpaperLayer?.isSuspended() ?? false,
+		},
 		config,
 	} );
 	installPublicApi( desktopApi );
@@ -3140,6 +3343,21 @@ function init(): void {
 	// if init() ever fires again.
 	bootHeartbeatBus();
 
+	// Challenge delivery rides the bus above — lives in the main
+	// bundle (like the recycle-bin badge) so an incoming challenge
+	// notifies the user even when the Games window never opened this
+	// session.
+	bootGamesChallenges( {
+		currentUserId: Number( config.currentUserId ) || 0,
+	} );
+
+	// Content-changes catch-all: re-broadcasts server-recorded
+	// mutations (Quick Edit, AJAX status flips, other tabs/users)
+	// as `desktop-mode.<type>.changed` on each Heartbeat tick. Idle
+	// boot is safe — the first tick lands ~15 s after init and the
+	// first tick is a handshake anyway (see the module docblock).
+	scheduleIdleBoot( () => bootContentChangesHeartbeat() );
+
 	// Subscribe to heartbeat-driven nonce refresh so cached
 	// `restNonce` values in `window.desktopModeConfig` and
 	// `window.desktopModeWindowConfig` stay valid past the
@@ -3150,6 +3368,16 @@ function init(): void {
 	// `bootHeartbeatBus()` above is still eager so the bus is
 	// ready when this subscribe call lands.
 	scheduleIdleBoot( () => bootNonceRefresh() );
+
+	// Session-expiry detection + in-place recovery (single login
+	// prompt, iframe reload sweep, AUTH_LOST / AUTH_RESTORED
+	// hooks). Rides the heartbeat bus, so idle boot is safe — a
+	// session can't expire before the first tick.
+	scheduleIdleBoot( () =>
+		bootAuthRecovery( {
+			currentUserId: Number( config.currentUserId ) || 0,
+		} ),
+	);
 
 	bootStickyNotes( {
 		host: desktopArea,
@@ -3170,6 +3398,18 @@ function init(): void {
 				icon: 'dashicons-edit-page',
 			} );
 		},
+		onError: ( message ) => {
+			showToast( { message } );
+		},
+	} );
+
+	// Pinned notes — CPT-backed paper notes pinned to the wallpaper
+	// with a pushpin. Composes its REST client, the wall layer, and
+	// the drop routes (wallpaper create/reposition via the canvas
+	// payload seam, recycle-bin trash via the bin payload seam).
+	bootNotes( {
+		host: desktopArea,
+		config,
 		onError: ( message ) => {
 			showToast( { message } );
 		},
@@ -3211,6 +3451,55 @@ function init(): void {
 	setFilesUserAssociations(
 		( config.userFileAssociations as Record< string, string > | undefined ) ?? {},
 	);
+
+	// Surface a pending WordPress core update as a single notification —
+	// the vinyl release-card moment once its art resolves, else a plain
+	// persistent toast. The desktop-native replacement for core's
+	// per-window update nag (suppressed inside windows server-side).
+	// Async (resolves art from wordpress.org); fire-and-forget. Reuses
+	// the in-shell link open path so "Update now" lands on the update
+	// screen as a window.
+	void maybeShowUpdate( {
+		update: config.coreUpdate,
+		openUrl: ( { url, title } ) => {
+			if ( tryNativeUrlRemap( url ) ) {
+				return;
+			}
+			void manager.open( {
+				id: 'update-core',
+				baseId: 'update-core',
+				url,
+				title,
+				icon: 'dashicons-update',
+			} );
+		},
+	} );
+	// Surface the remaining global core notices (maintenance, recovery mode,
+	// default password, …) plus the allowlisted plugin/library notices (e.g.
+	// Action Scheduler) once each as a shell toast — the desktop-native
+	// replacement for the per-window nags suppressed server-side. Each action
+	// opens its target admin screen as a window.
+	const openNoticeUrl = ( { url, title }: { url: string; title: string } ): void => {
+		if ( tryNativeUrlRemap( url ) ) {
+			return;
+		}
+		// Canonical URL→window-id derivation — handles fragments/nonces and
+		// keeps ids slug-safe, matching how windows are opened elsewhere.
+		const baseId = deriveWindowId( url, config.adminUrl );
+		void manager.open( {
+			id: baseId,
+			baseId,
+			url,
+			title,
+			icon: 'dashicons-info',
+		} );
+	};
+	maybeShowNotices( { notices: config.coreNotices, openUrl: openNoticeUrl } );
+	maybeShowNotices( {
+		notices: config.pluginNotices,
+		openUrl: openNoticeUrl,
+		keyPrefix: 'plugin-notice',
+	} );
 	if ( typeof config.filesUrl === 'string' && config.filesUrl ) {
 		filesRest.installRestDeps( {
 			baseUrl: config.filesUrl,
@@ -3445,7 +3734,13 @@ function init(): void {
 				y: cell.y,
 				sortOrder: i,
 			} );
-			if ( ! persist ) {
+			// Synthetic placements (dock-item promotions, Spatial-layout
+			// core icons) live JS-only — `settings/desktop-shortcuts-sync.ts`
+			// mints them with a negative id and never persists them via
+			// the files REST layer. PATCHing one 404s (`rest_no_route`,
+			// the route regex only matches positive ids). See
+			// `isSyntheticPlacement` in `desktop-files/layer.ts`.
+			if ( ! persist || isSyntheticPlacement( p ) ) {
 				continue;
 			}
 			void filesRest
@@ -3789,6 +4084,8 @@ function init(): void {
 			config: config.dropConfig,
 			mediaUrl: config.mediaUrl,
 			restNonce: config.restNonce,
+			filesUrl: config.filesUrl,
+			storage: config.desktopStorage,
 		} );
 	} );
 

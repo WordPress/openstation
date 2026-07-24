@@ -181,6 +181,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 	statusFilter.addEventListener( 'wpd-pick', ( ev: Event ) => {
 		const detail = ( ev as CustomEvent< { value: string } > ).detail;
 		state.statusFilter = detail?.value ?? '';
+		// `<wpd-table>` keeps selected ids across `data` reassignment,
+		// so a plugin ticked under the previous filter would stay
+		// selected while hidden — and ride silently into the next bulk
+		// action (bulk Delete included). Start each view clean.
+		table.clearSelection();
 		paintTable();
 	} );
 
@@ -195,6 +200,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		window.clearTimeout( searchDebounce );
 		searchDebounce = window.setTimeout( () => {
 			state.search = value;
+			// Same rationale as the status-filter handler above.
+			table.clearSelection();
 			paintTable();
 		}, 200 );
 	} );
@@ -756,6 +763,17 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		}
 		table.data = filterRows( state.rows );
 		paintUpdateCount();
+		// Rebuild the bulk bar from the LIVE selection + fresh rows.
+		// Reassigning `data` emits no selection-change, so without
+		// this a background reload/mergeRow (broadcast-driven) leaves
+		// the bulk buttons holding closures over stale row snapshots —
+		// e.g. a "Delete N" button still offering a plugin that was
+		// just activated elsewhere. Repainting here re-resolves the
+		// selection against current state.rows every time the table
+		// repaints.
+		paintBulkBar(
+			Array.from( table.selection ?? [] ).map( String ),
+		);
 	}
 
 	/**

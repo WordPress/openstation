@@ -21,7 +21,7 @@
  * @since 0.8.1
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
@@ -1017,13 +1017,16 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	};
 
 	const stats = data.stats;
-	grid.appendChild(
-		tile(
-			__( 'Posts' ),
-			String( stats.posts ),
+	let postsSub: string | undefined;
+	if ( stats.pages > 0 ) {
+		postsSub = sprintf(
 			// translators: %d is a count of pages.
-			stats.pages > 0 ? sprintf( __( '+ %d pages' ), stats.pages ) : undefined,
-		),
+			_n( '+ %d page', '+ %d pages', stats.pages ),
+			stats.pages,
+		);
+	}
+	grid.appendChild(
+		tile( __( 'Posts' ), String( stats.posts ), postsSub ),
 	);
 	let commentsSub: string | undefined;
 	if ( stats.commentsReceived > 0 ) {
@@ -1049,7 +1052,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	if ( stats.daysSinceRegistration !== null ) {
 		memberValue = sprintf(
 			// translators: %d is a number of days.
-			__( '%d days' ),
+			_n( '%d day', '%d days', stats.daysSinceRegistration ),
 			stats.daysSinceRegistration,
 		);
 	}

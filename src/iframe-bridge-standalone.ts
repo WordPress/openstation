@@ -739,6 +739,7 @@ interface IframeWp {
 	const sentinelHost = window as unknown as {
 		__desktopModeScreenMetaInstalled?: boolean;
 		__desktopModeOsFileDropForwarderInstalled?: boolean;
+		__desktopModeDragHoverForwarderInstalled?: boolean;
 	};
 	if ( ! sentinelHost.__desktopModeScreenMetaInstalled ) {
 		sentinelHost.__desktopModeScreenMetaInstalled = true;
@@ -878,6 +879,61 @@ interface IframeWp {
 				}
 			},
 			false,
+		);
+	}
+
+	/*
+	 * Drag-hover forwarder. Mirrors the inline equivalent in
+	 * `includes/render/chromeless-bridge.php`. Native drag events
+	 * don't cross iframe boundaries, so when the user holds ANY drag
+	 * (an OS file, an image lifted off another admin page, a text
+	 * selection) over this window, the parent shell has no idea the
+	 * window is being hovered. Forward a throttled, payload-free
+	 * heartbeat so the shell's focus-on-drag-hover module
+	 * (`src/drag/focus-window-on-drag-hover.ts`) can raise this
+	 * window after its dwell. Purely observational — no
+	 * `preventDefault()`, no interference with in-page drop zones.
+	 * The parent identifies the hovered window from the message
+	 * source, so no coordinates travel.
+	 */
+	if ( ! sentinelHost.__desktopModeDragHoverForwarderInstalled ) {
+		sentinelHost.__desktopModeDragHoverForwarderInstalled = true;
+		const hoverHasFiles = ( ev: DragEvent ): boolean => {
+			const types = ev.dataTransfer?.types;
+			if ( ! types ) {
+				return false;
+			}
+			const list = types as unknown as {
+				includes?: ( s: string ) => boolean;
+				contains?: ( s: string ) => boolean;
+			};
+			if ( typeof list.includes === 'function' ) {
+				return list.includes( 'Files' );
+			}
+			return typeof list.contains === 'function' && list.contains( 'Files' );
+		};
+		let dragHoverLastSent = 0;
+		document.addEventListener(
+			'dragover',
+			( ev: DragEvent ) => {
+				const now = Date.now();
+				if ( now - dragHoverLastSent < 150 ) {
+					return;
+				}
+				dragHoverLastSent = now;
+				try {
+					window.parent.postMessage(
+						{
+							type: 'desktop-mode-drag-hover',
+							payloadType: hoverHasFiles( ev ) ? 'os-file' : 'external',
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* cross-origin parent; swallow */
+				}
+			},
+			true,
 		);
 	}
 

@@ -2,8 +2,8 @@
  * Desktop Mode — OS Settings panel renderer (lazy bundle).
  *
  * Holds the entire OS Settings UI: tab strip, section builders for
- * every built-in tab (Appearance / AI / Features / Apps & Icons /
- * Extended / Help / About), wallpaper picker + editor host, and the
+ * every built-in tab (Appearance / Apps & Icons / Features / Effects /
+ * Components / About), wallpaper picker + editor host, and the
  * Reset button. None of this is needed before the user clicks the
  * Settings dock icon, so it ships in its own Vite target
  * (`os-settings-panel[.min].js`) and gets `<script>`-injected on
@@ -44,6 +44,7 @@ import '../ui/components/wpd-button/wpd-button';
 import '../ui/components/wpd-checkbox-label/wpd-checkbox-label';
 import '../ui/components/wpd-color-field/wpd-color-field';
 import '../ui/components/wpd-empty-state/wpd-empty-state';
+import '../ui/components/wpd-notice/wpd-notice';
 import '../ui/components/wpd-panel/wpd-panel';
 import '../ui/components/wpd-range-field/wpd-range-field';
 import '../ui/components/wpd-section/wpd-section';
@@ -59,7 +60,6 @@ import type { DesktopSettingsTab } from './registry';
 import { listSettingsTabs, subscribeSettingsTabs } from './registry';
 import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
-import { buildAiSection } from './sections/ai';
 import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
@@ -189,21 +189,16 @@ export function renderOsSettingsPanel(
 			</wpd-tabpanel>`,
 		},
 		{
-			id: 'ai',
-			order: 20,
-			tab: html`<wpd-tab value="ai">${ __( 'AI Settings' ) }</wpd-tab>`,
-			panel: html`<wpd-tabpanel for="ai">
-				<wpd-panel>${ buildAiSection( ctx ) }</wpd-panel>
-			</wpd-tabpanel>`,
-		},
-		{
 			id: 'features',
 			order: 25,
 			tab: html`<wpd-tab value="features"
 				>${ __( 'Features' ) }</wpd-tab
 			>`,
 			panel: html`<wpd-tabpanel for="features">
-				<wpd-panel>${ buildFeaturesSection( ctx ) }</wpd-panel>
+				<wpd-panel>
+					${ buildFeaturesSection( ctx ) }
+					${ isAdmin ? buildExtendedSection( ctx ) : '' }
+				</wpd-panel>
 			</wpd-tabpanel>`,
 		},
 		{
@@ -229,16 +224,6 @@ export function renderOsSettingsPanel(
 	];
 
 	if ( isAdmin ) {
-		rows.push( {
-			id: 'extended',
-			order: 30,
-			tab: html`<wpd-tab value="extended"
-				>${ __( 'Extended Options' ) }</wpd-tab
-			>`,
-			panel: html`<wpd-tabpanel for="extended">
-				<wpd-panel>${ buildExtendedSection( ctx ) }</wpd-panel>
-			</wpd-tabpanel>`,
-		} );
 		rows.push( {
 			id: 'help',
 			order: 40,

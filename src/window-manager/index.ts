@@ -32,6 +32,7 @@ import type {
 	WindowState,
 } from '../types';
 import type { Window } from '../window';
+import { urlReuseKey } from '../utils';
 import {
 	ensureWindowSystemLoaded,
 	windowSystemBundleUrl,
@@ -63,7 +64,7 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
-import { enterOverview, exitOverview } from './overview';
+import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
 
 /** Base z-index for desktop windows. */
@@ -254,6 +255,22 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _overviewAddTileFocused = false;
+	/**
+	 * Handle of the pending "grid animation settled" timer scheduled
+	 * by `enterOverview()`. Tracked so `destroy()` can cancel it —
+	 * otherwise a caller that discards the manager mid-transition
+	 * leaves a real `setTimeout` that fires later and reaches for
+	 * globals (`window.wp.hooks`) that may already be torn down.
+	 * @internal
+	 */
+	public _overviewEnterTimeoutId: number | null = null;
+	/**
+	 * Handle of the pending "exit animation settled" timer scheduled
+	 * by `exitOverview()`. Same rationale as
+	 * {@link _overviewEnterTimeoutId}.
+	 * @internal
+	 */
+	public _overviewExitTimeoutId: number | null = null;
 
 	// ---- Snap-zone state (edge-snap + split overview) ----
 
@@ -436,6 +453,15 @@ export class WindowManager {
 	 * dock icon while a window is already open focuses the
 	 * most-recent instance rather than creating a twin.
 	 *
+	 * URL-aware reuse: when the matched window is NOT already showing
+	 * the requested URL (and the request isn't for the window's home
+	 * / dock landing URL), the existing iframe navigates to it in
+	 * place — an action URL like
+	 * `plugins.php?action=activate&…&_wpnonce=…` actually runs
+	 * instead of being dropped by a bare focus. The
+	 * `desktop-mode-window-reopened` event reports which path was
+	 * taken via its `navigated` flag.
+	 *
 	 * To force a brand-new instance alongside an existing one, use
 	 * {@link openNew}.
 	 */
@@ -487,6 +513,31 @@ export class WindowManager {
 			if ( wasMinimized ) {
 				existing.restore();
 			}
+			// URL-aware reuse. Focusing alone only satisfies the
+			// caller when the window is already showing the requested
+			// URL — or when the request is for the window's "home"
+			// URL (a dock / menu click on an already-open,
+			// sub-navigated window must NOT yank it back to its
+			// landing page). Any other URL is a real navigation the
+			// user expects to run in this window. The canonical
+			// failure before this check: the post-install "Activate"
+			// link (`plugins.php?action=activate&plugin=…&_wpnonce=…`)
+			// clicked while a Plugins window was already open focused
+			// that window and silently dropped the activation.
+			let navigated = false;
+			if ( ! existing.config.native ) {
+				const requestedKey = urlReuseKey( config.url );
+				const alreadyThere =
+					requestedKey === urlReuseKey( existing.getCurrentUrl() ) ||
+					requestedKey === urlReuseKey( existing.config.url || '' ) ||
+					requestedKey ===
+						urlReuseKey(
+							existing.config.parentUrl ?? existing.config.url ?? '',
+						);
+				if ( ! alreadyThere ) {
+					navigated = existing.navigateTo( config.url );
+				}
+			}
 			// Plugins (messages, code-editor, …) routinely call
 			// `wp.desktop.openWindow(id)` to "switch the window to
 			// this state" — selecting a conversation, opening a file,
@@ -504,6 +555,7 @@ export class WindowManager {
 				windowId: existing.id,
 				baseId,
 				wasMinimized,
+				navigated,
 			};
 			document.dispatchEvent(
 				new CustomEvent( 'desktop-mode-window-reopened', { detail: reopenedDetail } ),
@@ -995,6 +1047,38 @@ export class WindowManager {
 		doAction( HOOKS.WINDOW_FOCUSED, focusedDetail );
 	}
 
+	/**
+	 * Raise a window to just below the top of the stack WITHOUT
+	 * changing focus — the focused window stays on top and keeps
+	 * keyboard/visual focus; the raised window surfaces above
+	 * everything else. No focus/blur events fire (this is a silent
+	 * restack, not a focus change).
+	 *
+	 * Used by the window-links feature to bring a relation group
+	 * forward when one of its members is focused; available to
+	 * plugins for any "surface my companion window" affordance.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param windowId Window to raise. Unknown ids and the focused
+	 *                 window itself are no-ops.
+	 */
+	public raise( windowId: string ): void {
+		const win = this.getById( windowId );
+		if ( ! win || this._stack.length < 2 ) {
+			return;
+		}
+		const idx = this._stack.indexOf( win );
+		if ( idx === -1 || idx === this._stack.length - 1 ) {
+			return;
+		}
+		this._stack.splice( idx, 1 );
+		this._stack.splice( this._stack.length - 1, 0, win );
+		this._stack.forEach( ( w, i ) => {
+			w.setZIndex( BASE_Z_INDEX + i );
+		} );
+	}
+
 	/** Remove a window from the stack and DOM. */
 	private remove( win: Window ): void {
 		const idx = this._stack.indexOf( win );
@@ -1475,6 +1559,27 @@ export class WindowManager {
 	}
 	public exitOverview( selected?: Window, maximize = false ): void {
 		exitOverview( this, selected, maximize );
+	}
+
+	/**
+	 * Release resources this instance owns outside its own DOM
+	 * subtree: the document-level overview key handler and any
+	 * pending overview transition timers. Removing `desktop` from the
+	 * DOM does not reach either of those — a caller discarding a
+	 * manager instance (tests; a future SPA-style unmount) that skips
+	 * this leaves a real `setTimeout` to fire later and reach for
+	 * globals that may already be gone, plus a `keydown` listener on
+	 * `document` that keeps responding on behalf of a manager nothing
+	 * else references.
+	 *
+	 * Safe to call unconditionally — a no-op when overview was never
+	 * entered or was already cleanly exited.
+	 */
+	public destroy(): void {
+		if ( this._overviewActive ) {
+			exitOverview( this );
+		}
+		cancelOverviewTimers( this );
 	}
 
 	/**

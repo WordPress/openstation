@@ -263,6 +263,7 @@ export class GraphScene {
 	private callbacks: SceneCallbacks;
 	private onSatelliteClick: SatelliteOnClick;
 	private postTypeIcon: PostTypeIconLookup;
+	private postTypeBySlug: Map< string, PostTypeDescriptor >;
 
 	constructor(
 		host: HTMLElement,
@@ -274,8 +275,10 @@ export class GraphScene {
 		this.callbacks = callbacks;
 		this.onSatelliteClick = onSatelliteClick;
 		const map = new Map< string, string >();
+		this.postTypeBySlug = new Map();
 		for ( const t of postTypes ) {
 			map.set( t.slug, normalizeDashiconName( t.icon ) );
+			this.postTypeBySlug.set( t.slug, t );
 		}
 		// Always seeded so unknown CPTs without a registered menu_icon
 		// still pick up a sensible default.
@@ -941,14 +944,32 @@ export class GraphScene {
 		}
 	}
 
+	private postTypeSupportsTaxonomy( typeSlug: string, taxonomy: 'category' | 'post_tag' ): boolean {
+		// Unknown type (not registered in the scene's post-type list) is
+		// treated as not supporting the taxonomy so it gets its own
+		// cat:type_<slug> / tag:type_<slug> cluster rather than silently
+		// merging into the shared Uncategorized / Untagged pool.
+		return this.postTypeBySlug.get( typeSlug )?.taxonomies?.[ taxonomy ] ?? false;
+	}
+
+	private postTypeLabel( typeSlug: string ): string {
+		return this.postTypeBySlug.get( typeSlug )?.label ?? typeSlug;
+	}
+
 	private deriveGroupKeys( n: GraphNode, facet: GroupFacet ): string[] {
 		switch ( facet ) {
 			case 'category':
+				if ( ! this.postTypeSupportsTaxonomy( n.type, 'category' ) ) {
+					return [ `cat:type_${ n.type }` ];
+				}
 				if ( n.category_ids.length === 0 ) {
 					return [ 'cat:uncat' ];
 				}
 				return n.category_ids.map( ( id ) => `cat:${ id }` );
 			case 'tag':
+				if ( ! this.postTypeSupportsTaxonomy( n.type, 'post_tag' ) ) {
+					return [ `tag:type_${ n.type }` ];
+				}
 				if ( n.tag_ids.length === 0 ) {
 					return [ 'tag:untagged' ];
 				}
@@ -998,12 +1019,18 @@ export class GraphScene {
 				if ( rest === 'uncat' ) {
 					return __( 'Uncategorized' );
 				}
+				if ( rest.startsWith( 'type_' ) ) {
+					return this.postTypeLabel( rest.slice( 5 ) );
+				}
 				const id = Number( rest );
 				return this.groupCatalogs.categories[ id ]?.name ?? `#${ id }`;
 			}
 			case 'tag': {
 				if ( rest === 'untagged' ) {
 					return __( 'Untagged' );
+				}
+				if ( rest.startsWith( 'type_' ) ) {
+					return this.postTypeLabel( rest.slice( 5 ) );
 				}
 				const id = Number( rest );
 				return this.groupCatalogs.tags[ id ]?.name ?? `#${ id }`;
@@ -1764,7 +1791,11 @@ export class GraphScene {
 		// the `app.destroy({children: true})` cascade below. Doing it
 		// here explicitly was redundant and could double-destroy.
 		try {
-			this.app.destroy( true, { children: true } );
+			// `{ removeView: true }`, NEVER `true`: a literal `true` runs
+			// `releaseGlobalResources()`, wiping Pixi's page-global pools
+			// out from under every other live Application on the page
+			// (canvas wallpaper, previews, the categories mindmap).
+			this.app.destroy( { removeView: true }, { children: true } );
 		} catch {
 			// ignore — Pixi sometimes throws on race during teardown.
 		}

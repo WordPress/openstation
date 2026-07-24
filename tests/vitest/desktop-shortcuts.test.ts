@@ -10,7 +10,7 @@
  * bottom so we don't double up on `installDesktopArrowShortcuts`
  * idempotency.
  */
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
 import {
 	cycleOverviewCursor,
@@ -43,15 +43,6 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 	beforeEach( async () => {
 		hooks = installHooksStub();
 		void hooks;
-		// Several tests enter overview without explicitly exiting it.
-		// `enterOverview` (and `exitOverview`) schedule setTimeout
-		// callbacks that fire `doAction(OVERVIEW_ENTERED / OVERVIEW_EXITED)`
-		// 280–300 ms later. Under real timers those fire AFTER `afterEach`
-		// has cleared the hooks stub, and `getWpHooks` then throws —
-		// flaky locally, deterministic on CI. Fake timers keep those
-		// callbacks pending in the queue so they're discarded when
-		// `vi.useRealTimers()` resets the timer state below.
-		vi.useFakeTimers();
 		desktopArea = document.createElement( 'div' );
 		Object.defineProperty( desktopArea, 'getBoundingClientRect', {
 			value: () =>
@@ -80,14 +71,16 @@ describe( 'WindowManager — arrow-key desktop shortcuts', async () => {
 	} );
 
 	afterEach( async () => {
+		// Several tests enter overview without explicitly exiting it.
+		// `manager.destroy()` cancels the pending overview transition
+		// timers (and, if still active, runs a synchronous exit) so
+		// none of them fire later and reach for `window.wp.hooks`
+		// after `clearHooksStub()` below has removed it.
+		manager.destroy();
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
 		desktopArea.remove();
-		// Restore real timers BEFORE clearing the stub so any callbacks
-		// the test queued get discarded along with the fake-timer state,
-		// not run against an already-cleared `window.wp`.
-		vi.useRealTimers();
 		clearHooksStub();
 	} );
 

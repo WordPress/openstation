@@ -45,8 +45,34 @@ export interface ToastOptions {
 		label: string;
 		onClick: () => void;
 	};
-	/** How long the toast stays visible, in milliseconds. */
+	/**
+	 * How long the toast stays visible, in milliseconds. Ignored
+	 * when {@link ToastOptions.persistent} is `true`.
+	 */
 	duration?: number;
+	/**
+	 * When `true`, the toast never auto-dismisses — it stays until the
+	 * action button is clicked or the returned dismiss function is
+	 * called. Overrides `duration`.
+	 *
+	 * @since 0.9.4
+	 */
+	persistent?: boolean;
+	/**
+	 * When `true`, renders a close (×) button that dismisses the toast.
+	 * Pair it with `persistent` so the user has a way to close a toast
+	 * that would otherwise never leave.
+	 *
+	 * @since 0.9.4
+	 */
+	dismissible?: boolean;
+	/**
+	 * Called when the user dismisses the toast via the close button —
+	 * e.g. to persist the dismissal so it doesn't reappear.
+	 *
+	 * @since 0.9.4
+	 */
+	onDismiss?: () => void;
 }
 
 /**
@@ -138,6 +164,14 @@ function renderToast( intent: ToastIntent ): () => void {
 		} );
 	}
 
+	if ( intent.dismissible ) {
+		toast.setAttribute( 'dismissible', '' );
+		toast.addEventListener( 'wpd-toast-dismiss', () => {
+			intent.onDismiss?.();
+			dismiss();
+		} );
+	}
+
 	container.appendChild( toast );
 
 	let dismissed = false;
@@ -163,10 +197,12 @@ function renderToast( intent: ToastIntent ): () => void {
 		toast.setAttribute( 'state', 'in' );
 	} );
 
-	dismissTimer = window.setTimeout(
-		dismiss,
-		intent.duration ?? DEFAULT_DURATION_MS,
-	) as unknown as number;
+	if ( ! intent.persistent ) {
+		dismissTimer = window.setTimeout(
+			dismiss,
+			intent.duration ?? DEFAULT_DURATION_MS,
+		) as unknown as number;
+	}
 
 	// Fire-and-forget broadcast that a toast went up. Audit /
 	// telemetry plugins subscribe; the toast renderer doesn't wait

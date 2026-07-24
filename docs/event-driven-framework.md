@@ -104,7 +104,7 @@ flavour fits.
 | CustomEvent | Detail |
 |---|---|
 | `desktop-mode-window-opened`      | `{ windowId, page, title, url }` |
-| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized }` |
+| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated }` — `navigated` *(0.9.4)*: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place |
 | `desktop-mode-window-focused`     | `{ windowId }` |
 | `desktop-mode-window-blurred`     | `{ windowId, focusedTo }`  *(since 0.5.5)* |
 | `desktop-mode-window-closing`     | `{ windowId, element }` |
@@ -409,6 +409,22 @@ shape, dedupes for free, namespaced.
 **Don't** wire a `document.addEventListener('desktop-mode-window-*', …)`
 when `wp.desktop.onWindow(id, handlers)` already does the
 windowId filter for you. Faster to write, easier to type.
+
+## OS-level events beyond windows
+
+Not every transition is a window transition. The framework announces
+OS-level state changes on the same dual surface (document
+CustomEvent + hook action) so apps decide their own policy:
+
+| CustomEvent | Hook | Meaning |
+|---|---|---|
+| `desktop-mode-auth-lost` | `desktop-mode.auth.lost` | The login session expired (Heartbeat `wp-auth-check` verdict). Pause pollers; requests will 401. *(0.9.8)* |
+| `desktop-mode-auth-restored` | `desktop-mode.auth.restored` | The session is back and cached nonces are fresh again — resume + re-sync. *(0.9.8)* |
+
+Consistent with the framework's transport-not-policy rule, the shell
+doesn't pause anyone's poller itself — it tells you, you decide. See
+[Session expiry & recovery](./javascript-reference.md#session-expiry--recovery-stable-since-098)
+for the full contract.
 
 ## Reference
 

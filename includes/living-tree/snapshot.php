@@ -1,0 +1,155 @@
+<?php
+/**
+ * Desktop Mode — Living Tree: REST snapshot endpoint.
+ *
+ * One route: `GET desktop-mode/v1/living-tree/snapshot`. Returns the
+ * compact site DNA (`TreeSnapshot` in the JS types) — aggregate counts
+ * and branch hints — never the full post list. The client turns this
+ * into hormones and never sees rows.
+ *
+ * `siteUrl` + `siteName` + `installEpoch` together form the determinism
+ * seed. The site NAME is deliberately part of it: two different blogs can
+ * share a URL shape (two installs on localhost, staging clones), and
+ * their trees must still be individuals.
+ *
+ * The response is cached in a transient (TTL 6h) and invalidated whenever
+ * content changes (`save_post` / `deleted_post` / `comment_post`).
+ *
+ * @package WPDesktopMode
+ * @since   0.9.4
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+/** Transient key the built snapshot is cached under. */
+const DESKTOP_MODE_LIVING_TREE_CACHE_KEY = 'desktop_mode_living_tree_snapshot';
+
+/** Cache lifetime for the snapshot. */
+const DESKTOP_MODE_LIVING_TREE_CACHE_TTL = 6 * HOUR_IN_SECONDS;
+
+/**
+ * Whether the current user may read the Living Tree snapshot.
+ *
+ * Defaults to `read` — anyone who can see the admin can see the wallpaper
+ * of their own site. Filterable so a site can widen or restrict it.
+ *
+ * @since 0.9.4
+ *
+ * @return bool
+ */
+function desktop_mode_living_tree_user_can_use() {
+	$can = current_user_can( 'read' );
+
+	/**
+	 * Filter whether the current user can read the Living Tree snapshot.
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param bool $can Default: the `read` capability.
+	 */
+	return (bool) apply_filters( 'desktop_mode_living_tree_user_can_use', $can );
+}
+
+/**
+ * Register the snapshot route.
+ *
+ * @since 0.9.4
+ */
+function desktop_mode_living_tree_register_routes() {
+	register_rest_route(
+		'desktop-mode/v1',
+		'/living-tree/snapshot',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'desktop_mode_living_tree_rest_snapshot',
+			'permission_callback' => 'desktop_mode_living_tree_user_can_use',
+		)
+	);
+}
+add_action( 'rest_api_init', 'desktop_mode_living_tree_register_routes' );
+
+/**
+ * GET /living-tree/snapshot — cached snapshot response.
+ *
+ * @since 0.9.4
+ *
+ * @return WP_REST_Response
+ */
+function desktop_mode_living_tree_rest_snapshot() {
+	$cached = get_transient( DESKTOP_MODE_LIVING_TREE_CACHE_KEY );
+	if ( is_array( $cached ) ) {
+		return rest_ensure_response( $cached );
+	}
+
+	$snapshot = desktop_mode_living_tree_build_snapshot();
+	set_transient(
+		DESKTOP_MODE_LIVING_TREE_CACHE_KEY,
+		$snapshot,
+		DESKTOP_MODE_LIVING_TREE_CACHE_TTL
+	);
+
+	return rest_ensure_response( $snapshot );
+}
+
+/**
+ * Invalidate the cached snapshot. Wired to the content-mutation hooks so
+ * the tree re-DNAs on the next load after the site changes.
+ *
+ * @since 0.9.4
+ */
+function desktop_mode_living_tree_flush_cache() {
+	delete_transient( DESKTOP_MODE_LIVING_TREE_CACHE_KEY );
+}
+add_action( 'save_post', 'desktop_mode_living_tree_flush_cache' );
+add_action( 'deleted_post', 'desktop_mode_living_tree_flush_cache' );
+add_action( 'comment_post', 'desktop_mode_living_tree_flush_cache' );
+
+/**
+ * Build the compact site DNA snapshot.
+ *
+ * Aggregates only. Every metric is capped / normalised so any topology
+ * yields a well-formed snapshot — the golden rule (WordPress emits
+ * hormones, never geometry) lives here: this function must never leak a
+ * per-post coordinate or identity into the payload.
+ *
+ * @since 0.9.4
+ *
+ * @return array The snapshot, matching the JS `TreeSnapshot` shape.
+ */
+function desktop_mode_living_tree_build_snapshot() {
+	$posts    = wp_count_posts( 'post' );
+	$pages    = wp_count_posts( 'page' );
+	$comments = wp_count_comments();
+
+	$categories = wp_count_terms( array( 'taxonomy' => 'category' ) );
+	$tags       = wp_count_terms( array( 'taxonomy' => 'post_tag' ) );
+
+	$snapshot = array(
+		'siteUrl'         => (string) home_url(),
+		'siteName'        => (string) get_bloginfo( 'name' ),
+		'installEpoch'    => desktop_mode_living_tree_install_epoch(),
+		'siteAgeDays'     => desktop_mode_living_tree_site_age_days(),
+		'totalPosts'      => isset( $posts->publish ) ? (int) $posts->publish : 0,
+		'totalPages'      => isset( $pages->publish ) ? (int) $pages->publish : 0,
+		'totalCategories' => is_wp_error( $categories ) ? 0 : (int) $categories,
+		'totalTags'       => is_wp_error( $tags ) ? 0 : (int) $tags,
+		'totalComments'   => isset( $comments->approved ) ? (int) $comments->approved : 0,
+		'activeUsers'     => desktop_mode_living_tree_active_users(),
+		'traffic'         => desktop_mode_living_tree_traffic(),
+		'seoHealth'       => desktop_mode_living_tree_seo_health(),
+		'performance'     => desktop_mode_living_tree_performance(),
+		'branches'        => desktop_mode_living_tree_branch_dna(),
+	);
+
+	/**
+	 * Filter the Living Tree snapshot before it is cached and served.
+	 * Keep the shape intact — the JS client validates nothing; it trusts
+	 * this contract. Aggregates only: never add per-post identities or
+	 * coordinates (the golden rule).
+	 *
+	 * @since 0.9.4
+	 *
+	 * @param array $snapshot The compact site DNA.
+	 */
+	return apply_filters( 'desktop_mode_living_tree_snapshot', $snapshot );
+}

@@ -32,6 +32,7 @@
 @import url( "window-overview.css" );
 @import url( "os-settings.css" );
 @import url( "effects.css" );
+@import url( "window-links.css" );
 
 /*
  * Cross-window drag drop highlight — kept INLINE in this file

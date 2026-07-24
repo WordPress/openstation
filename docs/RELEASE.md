@@ -8,12 +8,12 @@ Maintainer guide. Users install by downloading `/releases/latest/download/deskto
 ./bin/release.sh 0.5.0
 ```
 
-Refreshes translation files (`npm run i18n`), drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes and **pauses interactively** so you can curate it (press Enter when done), bumps all four version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if the tree is dirty, you're not on trunk, local trunk is out of sync with origin, or CI fails. Resumable — re-running after a mid-flow failure picks up where it left off.
+Refreshes translation files (`npm run i18n`), drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes, then stops at **a single interactive gate**: it shows the block and requires an explicit `y` to continue — on every path, including `--skip-changelog` and resumed runs, and with a loud warning if the block is missing. Editing `readme.txt` while the prompt waits is supported: the bump commit picks up the file as saved, and the script re-prints the block if it changed. Answering `n` stops the release with nothing committed; fix the block and re-run — leftovers are tolerated, the draft merge is idempotent, and your edits survive, so the re-run lands straight back at the gate. If `readme.txt` already has a `= X.Y.Z =` block (hand-written, or committed by a feature PR), the draft still runs: existing entries are kept, only drafted bullets not already present verbatim are appended, and the appended ones are listed — watch for semantic duplicates. After confirmation it bumps all four version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if you're not on trunk, local trunk is out of sync with origin, CI fails, or the working tree has changes beyond the script-owned files (`languages/` and `readme.txt` leftovers from an aborted attempt are fine; they're re-reviewed and swept into the bump commit). Resumable — re-running after a mid-flow failure picks up where it left off.
 
 Flags:
 
 - `--skip-i18n` — skip the translation-file refresh. Use for hotfix releases where you don't want `.pot`/`.po`/`.json` churn in the bump commit.
-- `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log.
+- `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log. The interactive changelog confirmation still runs; only the drafting step is skipped.
 - `--dry-run-changelog` — print the changelog draft that would be inserted into `readme.txt`, then exit without modifying any files or pushing.
 
 The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `desktop-mode.zip` attached.

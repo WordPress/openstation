@@ -72,9 +72,17 @@ export interface WindowLifecycleHandlers {
 	 * the user/caller is asking to "show this window". A typical
 	 * use is to re-orient content (focus a tab, scroll to a row).
 	 * Payload mirrors the `WINDOW_REOPENED` action: `{ baseId,
-	 * wasMinimized }`. *Since 0.5.5.*
+	 * wasMinimized, navigated }`. `navigated` (since 0.9.4) is
+	 * `true` when the open request carried a URL the window wasn't
+	 * already showing and the framework navigated the existing
+	 * iframe to it in place; always `false` for native windows.
+	 * *Since 0.5.5.*
 	 */
-	reopened?: ( payload: { baseId: string; wasMinimized: boolean } ) => void;
+	reopened?: ( payload: {
+		baseId: string;
+		wasMinimized: boolean;
+		navigated?: boolean;
+	} ) => void;
 	focused?: () => void;
 	/**
 	 * Window lost focus to another window. Payload: `{ focusedTo }` —
