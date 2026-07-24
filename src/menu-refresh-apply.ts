@@ -34,6 +34,7 @@ import type {
 	NativeWindowServerEntry,
 } from './types';
 import { applyServerWindowNotices } from './window-notices-server-sync';
+import { applyAdminBarUpdates } from './admin-bar-updates';
 
 /** Shape of every payload key the bridge may carry. */
 export interface MenuRefreshPayload {
@@ -52,6 +53,7 @@ export interface MenuRefreshPayload {
 	serverWindowNotices?: unknown;
 	serverGames?: unknown;
 	desktopIcons?: unknown;
+	updateCounts?: unknown;
 }
 
 /** Dependencies the applier needs from the shell. */
@@ -415,5 +417,13 @@ export function createApplyPayload(
 				desktopIcons as ReadonlyArray< { id?: unknown } >,
 			);
 		}
+
+		// Admin-bar "updates" notifier — mirror the aggregate pending-
+		// update counts onto Core's `#wp-admin-bar-updates` node (label,
+		// screen-reader text, hidden at zero). Without this, the count
+		// rendered at shell boot survives every in-window update run
+		// until a hard refresh (GH#296). Missing key (older payload)
+		// means "no change."
+		applyAdminBarUpdates( payload.updateCounts );
 	};
 }

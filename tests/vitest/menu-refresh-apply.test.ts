@@ -379,6 +379,60 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		} );
 	} );
 
+	// GH#296: the payload's `updateCounts` must repaint the admin-bar
+	// "updates" notifier — the top-left circle-arrows count is static
+	// server HTML that otherwise survives every in-window update run.
+	describe( 'updateCounts live-refresh (GH#296)', () => {
+		test( 'fresh counts repaint #wp-admin-bar-updates; zero hides it', () => {
+			document.body.innerHTML = `
+				<ul id="wp-admin-bar-root-default">
+					<li id="wp-admin-bar-updates">
+						<a class="ab-item" href="https://example.test/wp-admin/update-core.php">
+							<span class="ab-icon" aria-hidden="true"></span>
+							<span class="ab-label" aria-hidden="true">3</span>
+							<span class="screen-reader-text updates-available-text">3 updates available</span>
+						</a>
+					</li>
+				</ul>
+			`;
+			const { deps } = makeDeps();
+			const apply = createApplyPayload( deps );
+
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				updateCounts: {
+					total: 0,
+					formatted: '0',
+					text: '0 updates available',
+					url: 'https://example.test/wp-admin/update-core.php',
+				},
+			} );
+
+			const node = document.getElementById( 'wp-admin-bar-updates' )!;
+			expect( node.style.display ).toBe( 'none' );
+			document.body.innerHTML = '';
+		} );
+
+		test( 'missing key (older bridge): leaves the node untouched', () => {
+			document.body.innerHTML = `
+				<ul id="wp-admin-bar-root-default">
+					<li id="wp-admin-bar-updates">
+						<a class="ab-item" href="#"><span class="ab-label">3</span></a>
+					</li>
+				</ul>
+			`;
+			const { deps } = makeDeps();
+			const apply = createApplyPayload( deps );
+
+			apply( { dockItems: [ ...MIN_DOCK ] } );
+
+			const node = document.getElementById( 'wp-admin-bar-updates' )!;
+			expect( node.style.display ).not.toBe( 'none' );
+			expect( node.querySelector( '.ab-label' )?.textContent ).toBe( '3' );
+			document.body.innerHTML = '';
+		} );
+	} );
+
 	test( 'serverTitleBarButtonScripts: live-refresh contract', () => {
 		// Same shape of regression risk as desktopIcons — recently
 		// added payload key, easy to forget to wire on the live

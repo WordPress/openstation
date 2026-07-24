@@ -154,7 +154,7 @@ Payload shape (`desktop_mode_build_menu_payload()` in `includes/core/payload.php
   serverWindowSlotScripts, serverWindowSlots,
   serverWindowChromeScripts, serverWindowChromes,
   serverWindowNotices, serverGames,
-  desktopIcons }
+  desktopIcons, updateCounts }
 ```
 
 - **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.

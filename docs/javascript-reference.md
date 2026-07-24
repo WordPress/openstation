@@ -3294,10 +3294,29 @@ Each `HarvestedCommand` carries a `kind` field the iframe computes by **statical
 
 #### `desktop-mode-plugins-changed` — Stable
 
-Carries a full menu payload harvested from real admin context. Emitted by the chromeless bridge when the iframe lands on a page whose completion commonly mutates the admin menu (`plugins.php`, `plugin-install.php`, `update.php`, `themes.php`), and by the hidden refresh probe [`wp.desktop.refreshMenu()`](#refreshmenu) spawns. The shell diffs the payload against its prior snapshot by `id` and repaints only the registries that actually changed (dock, native windows, widgets, …) — no browser reload. The payload also carries `menuSig`, its own [menu signature](#desktop-mode-menu-signature--stable-since-094), which the shell adopts as its last-known value.
+Carries a full menu payload harvested from real admin context. Emitted by the chromeless bridge when the iframe lands on a page whose completion commonly mutates the admin menu (`plugins.php`, `plugin-install.php`, `update.php`, `themes.php`), and by the hidden refresh probe [`wp.desktop.refreshMenu()`](#refreshmenu) spawns. The shell diffs the payload against its prior snapshot by `id` and repaints only the registries that actually changed (dock, native windows, widgets, …) — no browser reload. The payload also carries `menuSig`, its own [menu signature](#desktop-mode-menu-signature--stable-since-094), which the shell adopts as its last-known value, and `updateCounts` (since 0.9.7), the aggregate pending-update numbers the shell mirrors onto the admin-bar circle-arrows notifier (`#wp-admin-bar-updates`) so an in-window update run resets it without a hard refresh (GH#296).
+
+Since 0.9.7 the bridge posts this message (and `desktop-mode-menu-signature`) to the **top** window rather than the immediate parent. For a normal window iframe they're the same frame; the distinction matters for nested flows like the bulk updater, where `update-core.php` hosts a progress iframe of `update.php` whose post-upgrade payload must still reach the shell.
 
 ```typescript
-{ type: 'desktop-mode-plugins-changed'; payload: { dockItems: unknown[]; nativeWindows: unknown[]; /* … */ menuSig: string } }
+{
+    type: 'desktop-mode-plugins-changed';
+    payload: {
+        dockItems: unknown[];
+        nativeWindows: unknown[];
+        /* … */
+        updateCounts?: { total: number; formatted: string; text: string; url: string };
+        menuSig: string;
+    };
+}
+```
+
+#### `desktop-mode-updates-changed` — Stable *(since 0.9.7)*
+
+A payload-less nudge emitted by the chromeless bridge when Core's shiny updater (`wp-admin/js/updates.js`) finishes an AJAX plugin/theme update or delete run inside the iframe — the jQuery events `wp-plugin-update-success` / `-error`, `wp-plugin-delete-success`, and their theme counterparts. Those runs mutate the update transients server-side without any navigation, so no full payload is coming on its own; on receipt the shell debounces briefly and spends one [`wp.desktop.refreshMenu()`](#refreshmenu) probe, whose payload carries the fresh dock badge and `updateCounts` (GH#296). While updates.js is still draining a bulk queue the bridge stays quiet and lets the final job send the single nudge.
+
+```typescript
+{ type: 'desktop-mode-updates-changed' }
 ```
 
 #### `desktop-mode-menu-signature` — Stable *(since 0.9.4)*
