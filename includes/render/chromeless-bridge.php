@@ -2413,6 +2413,14 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/edit-comments.php' ) ) {
 			return 'comment';
 		}
+		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/plugins.php' ) ) {
+			return 'plugin';
+		}
+		// plugin-install.php is intentionally not a soft-reload target.
+		// Reloading that page mid-session would discard the user's search
+		// results or reset an in-progress install. The page still emits
+		// plugin.changed (via notifyPluginInstall below); it just doesn't
+		// reload itself in response to one.
 		return null;
 	}
 
@@ -3132,6 +3140,31 @@ function desktop_mode_chromeless_bridge_script() {
 				}
 			} catch ( _err ) { /* shell gone or cross-origin */ }
 		}
+		function notifyPluginInstall() {
+			// `wp-plugin-install-success` fires after an AJAX install on
+			// plugin-install.php with no page navigation. The PHP
+			// `upgrader_process_complete` hook records the change correctly,
+			// but `desktop_mode_content_changes_emit_footer` only runs on
+			// chromeless page requests — admin-ajax.php is not in the
+			// chromeless allowlist, so there's no in-band emit from that
+			// request. The Heartbeat buffer will eventually deliver it, but
+			// posting directly here lets the Installed tab refresh
+			// immediately. The later Heartbeat tick will produce a second
+			// broadcast; consumers handle no-op refreshes gracefully.
+			try {
+				var shell = window.top || window.parent;
+				if ( shell && shell !== window ) {
+					shell.postMessage(
+						{
+							type: 'desktop-mode-broadcast',
+							topic: 'desktop-mode.plugin.changed',
+							payload: { source: 'chromeless-bridge', action: 'install' }
+						},
+						window.location.origin
+					);
+				}
+			} catch ( _err ) { /* shell gone or cross-origin */ }
+		}
 		function attach() {
 			if ( attached || ! window.jQuery ) {
 				return;
@@ -3148,6 +3181,7 @@ function desktop_mode_chromeless_bridge_script() {
 				].join( ' ' ),
 				notify
 			);
+			window.jQuery( document ).on( 'wp-plugin-install-success.wpdUpdates', notifyPluginInstall );
 		}
 		attach();
 		if ( document.readyState === 'loading' ) {
