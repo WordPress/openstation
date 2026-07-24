@@ -87,38 +87,21 @@ const mount = (
 	// --- Window link picker -------------------------------------------
 
 	function windowItems(): Array< { value: string; label: string } > {
-		const s = timer.snapshot();
 		const items: Array< { value: string; label: string } > = [
 			{
 				value: NONE,
 				label: __( 'No window — just alarm', 'desktop-mode' ),
 			},
 		];
-		let linkedStillOpen = false;
+		// Only currently-open windows are offered — a closed window is
+		// nothing to shake, so it never appears as a choice (issue #410).
 		for ( const w of listWindows() ) {
 			if ( w.id === WIDGET_ID ) {
 				continue;
 			}
 			items.push( {
 				value: w.id,
-				label:
-					w.config.title ||
-					__( 'Untitled window', 'desktop-mode' ),
-			} );
-			if ( w.id === s.linkedWindowId ) {
-				linkedStillOpen = true;
-			}
-		}
-		// The remembered window was closed — keep it visible as dangling
-		// rather than silently switching the selection to None.
-		if ( s.linkedWindowId && ! linkedStillOpen ) {
-			items.push( {
-				value: s.linkedWindowId,
-				label: sprintf(
-					/* translators: %s: window title/id. */
-					__( '%s (closed)', 'desktop-mode' ),
-					s.linkedWindowId,
-				),
+				label: w.config.title || __( 'Untitled window', 'desktop-mode' ),
 			} );
 		}
 		return items;
@@ -128,8 +111,13 @@ const mount = (
 		if ( ! windowSelect ) {
 			return;
 		}
-		windowSelect.items = windowItems();
-		windowSelect.value = timer.snapshot().linkedWindowId ?? NONE;
+		const items = windowItems();
+		windowSelect.items = items;
+		// Show the linked window only if it is still open; otherwise fall
+		// back to "No window".
+		const linked = timer.snapshot().linkedWindowId;
+		windowSelect.value =
+			linked && items.some( ( i ) => i.value === linked ) ? linked : NONE;
 	}
 
 	// --- Phase skeletons -----------------------------------------------
