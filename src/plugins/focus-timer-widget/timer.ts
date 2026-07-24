@@ -19,7 +19,8 @@
  */
 
 import { Alarm } from './alarm';
-import { shakeWindow } from './desktop';
+import { shakeWindow, toast } from './desktop';
+import { __ } from '../../i18n';
 
 export type Phase = 'idle' | 'running' | 'paused' | 'finished';
 
@@ -70,6 +71,52 @@ class FocusTimer {
 	private readonly subs = new Set<() => void >();
 	private storage: StorageLike | null = null;
 	private hydrated = false;
+	private windowListenerInstalled = false;
+
+	constructor() {
+		this.installWindowListener();
+	}
+
+	/**
+	 * React to the linked window being closed. The runtime (not the view)
+	 * owns this subscription so it fires even when the widget card has
+	 * been torn down or re-docked — a running timer must still respond to
+	 * its target window going away. Per the widget's product decision
+	 * (see issue #410): closing the linked window cancels the timer.
+	 */
+	private installWindowListener(): void {
+		if ( this.windowListenerInstalled ) {
+			return;
+		}
+		this.windowListenerInstalled = true;
+		window.addEventListener( 'desktop-mode-window-closed', ( e ) => {
+			const id = ( e as CustomEvent< { windowId?: string } > ).detail
+				?.windowId;
+			if ( ! id || id !== this.linkedWindowId ) {
+				return;
+			}
+			this.onLinkedWindowClosed();
+		} );
+	}
+
+	private onLinkedWindowClosed(): void {
+		const wasActive =
+			this.phase === 'running' || this.phase === 'paused';
+		this.linkedWindowId = null;
+		if ( wasActive ) {
+			// reset() persists (with the now-cleared link) and notifies.
+			this.reset();
+			toast(
+				__(
+					'Focus timer cancelled — the linked window was closed.',
+					'desktop-mode',
+				),
+			);
+		} else {
+			this.persist();
+			this.notify();
+		}
+	}
 
 	/**
 	 * Wire up persistence and restore any saved timer. Called on every
