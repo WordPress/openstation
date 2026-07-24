@@ -3,21 +3,58 @@
  * resolves the release art (async) and shows the vinyl release card once
  * it's loaded, or a plain toast when no art is available.
  *
+ * The vinyl machinery (card DOM + animation CSS + art resolver) lives
+ * in the lazy `release-card[.min].js` bundle — it's only ever needed
+ * when an update is actually pending, so `desktop.min.js` carries just
+ * this picker. When the bundle can't load (offline, misconfigured
+ * deploy) the notice degrades to the plain toast, the same fallback
+ * already used when no art exists for a release.
+ *
  * @since 0.9.4
+ * @since 0.9.7 Card + art moved to the lazy `release-card` bundle.
  */
 
 import { showToast } from './toast';
-import { showReleaseCard } from './release-card';
-import {
-	resolveReleaseArt,
-	preloadImage,
-	type ReleaseArt,
-} from './release-art';
+import type { ReleaseCardOptions } from './release-card';
+import type { ReleaseArt } from './release-art';
+import { loadVendorScript } from './wallpapers/vendor-loader';
 import {
 	isNoticeDismissed,
 	markNoticeDismissed,
 } from './ui/components/wpd-notice/storage';
 import { __, sprintf } from './i18n';
+
+/** What the lazy bundle publishes on `window.desktopModeReleaseCard`. */
+interface ReleaseCardApi {
+	showReleaseCard: ( opts: ReleaseCardOptions ) => unknown;
+	resolveReleaseArt: ( branch: string ) => Promise< ReleaseArt | null >;
+	preloadImage: ( url: string ) => Promise< boolean >;
+}
+
+/**
+ * Inject `release-card[.min].js` and return its published API. `null`
+ * when no bundle URL is configured (vitest / jsdom) or the load fails
+ * — callers fall back to the plain toast.
+ */
+async function loadReleaseCardApi(): Promise< ReleaseCardApi | null > {
+	const w = window as unknown as {
+		desktopModeReleaseCard?: ReleaseCardApi;
+		desktopModeConfig?: { releaseCardBundleUrl?: string };
+	};
+	if ( w.desktopModeReleaseCard ) {
+		return w.desktopModeReleaseCard;
+	}
+	const url = w.desktopModeConfig?.releaseCardBundleUrl ?? '';
+	if ( ! url ) {
+		return null;
+	}
+	try {
+		await loadVendorScript( url );
+	} catch {
+		return null;
+	}
+	return w.desktopModeReleaseCard ?? null;
+}
 
 /** Compact core-update descriptor shipped in the shell config. */
 export interface CoreUpdateInfo {
@@ -38,10 +75,12 @@ export interface UpdateNoticeDeps {
 	update: CoreUpdateInfo | null | undefined;
 	/** Open an admin URL as a window (the "Update now" action). */
 	openUrl: ( args: { url: string; title: string } ) => void;
-	/** Resolve release art for a branch. Defaults to the news-feed resolver. */
+	/** Resolve release art for a branch. Defaults to the lazy bundle's resolver. */
 	resolveArt?: ( branch: string ) => Promise< ReleaseArt | null >;
-	/** Preload an image, resolving true when ready. Defaults to the real preloader. */
+	/** Preload an image, resolving true when ready. Defaults to the lazy bundle's preloader. */
 	loadImage?: ( url: string ) => Promise< boolean >;
+	/** Show the vinyl card. Defaults to the lazy bundle's `showReleaseCard`. */
+	showCard?: ( opts: ReleaseCardOptions ) => void;
 }
 
 /**
@@ -97,14 +136,20 @@ export async function maybeShowUpdate( deps: UpdateNoticeDeps ): Promise< void >
 	const openUpdateScreen = (): void =>
 		openUrl( { url: update.url, title: __( 'WordPress Updates' ) } );
 
-	const resolveArt = deps.resolveArt ?? resolveReleaseArt;
-	const load = deps.loadImage ?? preloadImage;
+	// Only reach for the lazy bundle when the deps weren't injected
+	// (tests inject all three; production injects none).
+	const injected = deps.resolveArt && deps.loadImage && deps.showCard;
+	const api = injected ? null : await loadReleaseCardApi();
+
+	const resolveArt = deps.resolveArt ?? api?.resolveReleaseArt;
+	const load = deps.loadImage ?? api?.preloadImage;
+	const showCard = deps.showCard ?? api?.showReleaseCard;
 
 	// Resolve + preload the art before showing anything, so the vinyl
 	// appears once (already painted) instead of flashing a toast first.
-	const art = await resolveArt( branch );
-	if ( art && art.artUrl && ( await load( art.artUrl ) ) ) {
-		showReleaseCard( {
+	const art = resolveArt ? await resolveArt( branch ) : null;
+	if ( art && art.artUrl && load && showCard && ( await load( art.artUrl ) ) ) {
+		showCard( {
 			message: updateMessage( version, crossing ? art.name : '' ),
 			artUrl: art.artUrl,
 			dismissKey,

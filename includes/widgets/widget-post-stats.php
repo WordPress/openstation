@@ -15,12 +15,125 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Register the REST endpoint that aggregates per-month post counts
+ * server-side. Replaces the widget's original client-side approach —
+ * 3 statuses × up-to-100-per-page `/wp/v2/posts` requests every
+ * refresh — with a single GROUP BY that's shared through a transient.
+ *
+ * Route: GET /desktop-mode/v1/post-stats
+ * Permission: edit_posts.
+ *
+ * @since 0.9.7
+ */
+function desktop_mode_register_post_stats_rest_route() {
+	register_rest_route(
+		'desktop-mode/v1',
+		'/post-stats',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'desktop_mode_post_stats_callback',
+			'permission_callback' => static function () {
+				return current_user_can( 'edit_posts' );
+			},
+		)
+	);
+}
+add_action( 'rest_api_init', 'desktop_mode_register_post_stats_rest_route' );
+
+/**
+ * Aggregate post counts per month × status for the last 6 months.
+ *
+ * Capability scoping mirrors what the widget's old `/wp/v2/posts`
+ * queries returned: published posts count site-wide for anyone with
+ * `edit_posts`, while draft / pending counts are scoped to the
+ * current user's own posts unless they hold `edit_others_posts`
+ * (core's REST posts controller applies the same visibility).
+ *
+ * Cached for 5 minutes per scope — the data is a trailing-6-month
+ * aggregate, the widget refreshes every 5 minutes, and every viewer
+ * in the same capability scope can share one computation.
+ *
+ * @since 0.9.7
+ *
+ * @return array{months:array<int,array{ym:string,publish:int,draft:int,pending:int}>}
+ */
+function desktop_mode_post_stats_callback() {
+	global $wpdb;
+
+	$see_others = current_user_can( 'edit_others_posts' );
+	$cache_key  = $see_others
+		? 'desktop_mode_post_stats_all'
+		: 'desktop_mode_post_stats_own_' . get_current_user_id();
+
+	$cached = get_transient( $cache_key );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$months_back = 6;
+	// First day of the earliest bucket, site timezone.
+	$cutoff = gmdate(
+		'Y-m-01 00:00:00',
+		strtotime( current_time( 'Y-m-01' ) . ' -' . ( $months_back - 1 ) . ' months' )
+	);
+
+	$author_sql = '';
+	$params     = array( 'post', $cutoff );
+	if ( ! $see_others ) {
+		$author_sql = ' AND ( post_status = %s OR post_author = %d )';
+		$params[]   = 'publish';
+		$params[]   = get_current_user_id();
+	}
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single aggregate GROUP BY, result cached in the transient below.
+	$rows = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT DATE_FORMAT( post_date, '%%Y-%%m' ) AS ym, post_status, COUNT(*) AS cnt
+			 FROM {$wpdb->posts}
+			 WHERE post_type = %s
+			   AND post_status IN ( 'publish', 'draft', 'pending' )
+			   AND post_date >= %s" . $author_sql . '
+			 GROUP BY ym, post_status',
+			$params
+		),
+		ARRAY_A
+	);
+
+	// Emit exactly $months_back buckets, oldest first, zero-filled —
+	// the widget renders a fixed axis and shouldn't have to guess at
+	// missing months.
+	$buckets = array();
+	for ( $i = $months_back - 1; $i >= 0; $i-- ) {
+		$ym             = gmdate( 'Y-m', strtotime( current_time( 'Y-m-01' ) . ' -' . $i . ' months' ) );
+		$buckets[ $ym ] = array(
+			'ym'      => $ym,
+			'publish' => 0,
+			'draft'   => 0,
+			'pending' => 0,
+		);
+	}
+	foreach ( (array) $rows as $row ) {
+		$ym     = isset( $row['ym'] ) ? (string) $row['ym'] : '';
+		$status = isset( $row['post_status'] ) ? (string) $row['post_status'] : '';
+		if ( isset( $buckets[ $ym ][ $status ] ) ) {
+			$buckets[ $ym ][ $status ] = (int) $row['cnt'];
+		}
+	}
+
+	$result = array( 'months' => array_values( $buckets ) );
+
+	set_transient( $cache_key, $result, 5 * MINUTE_IN_SECONDS );
+
+	return $result;
+}
+
+/**
  * Register the JS + CSS assets.
  *
  * @since 0.26.0
  */
 function desktop_mode_register_post_stats_widget_assets() {
-	$suffix  = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$suffix  = desktop_mode_asset_suffix();
 	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
 
 	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-post-stats' . $suffix . '.js';

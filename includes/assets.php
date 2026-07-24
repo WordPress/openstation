@@ -57,7 +57,7 @@ function desktop_mode_css_subtree_version( $relative, $fallback ) {
  */
 function desktop_mode_register_assets() {
 	$version = DESKTOP_MODE_VERSION;
-	$suffix  = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+	$suffix  = desktop_mode_asset_suffix();
 
 	// `filemtime`-stamped version for built bundles. The plugin-wide
 	// `DESKTOP_MODE_VERSION` is bumped per release, but the bundles
@@ -116,6 +116,25 @@ function desktop_mode_register_assets() {
 		DESKTOP_MODE_URL . 'assets/css/windows.css',
 		array( 'desktop-mode-variables', 'dashicons' ),
 		desktop_mode_css_subtree_version( 'assets/css/windows.css', $version )
+	);
+	// Split out of the `windows.css` @import chain so they can load
+	// deferred (see `desktop_mode_defer_non_critical_styles()`): the
+	// UI they style — the OS Settings panel and the window overview —
+	// is lazy-loaded JS that can never be on screen at first paint,
+	// so ~47 KB of CSS has no business blocking render. They depend
+	// on `desktop-mode-windows` to keep the historical cascade order
+	// (they used to be imported after the chrome/states sub-sheets).
+	wp_register_style(
+		'desktop-mode-window-overview',
+		DESKTOP_MODE_URL . 'assets/css/window-overview.css',
+		array( 'desktop-mode-windows' ),
+		$built_version( 'assets/css/window-overview.css' )
+	);
+	wp_register_style(
+		'desktop-mode-os-settings',
+		DESKTOP_MODE_URL . 'assets/css/os-settings.css',
+		array( 'desktop-mode-windows' ),
+		$built_version( 'assets/css/os-settings.css' )
 	);
 	wp_register_style(
 		'desktop-mode-dock',
@@ -268,7 +287,18 @@ function desktop_mode_register_assets() {
 		// stays in sync even when the bin window is closed.
 		array( 'wp-hooks', 'wp-i18n', 'heartbeat', 'jquery' ),
 		$built_version( 'assets/js/desktop' . $suffix . '.js' ),
-		true
+		// Footer + defer: the shell boots on DOMContentLoaded anyway,
+		// so deferring frees the parser instead of blocking at the
+		// footer print point. Both inline payloads attached to this
+		// handle (`__desktopModeMenuCommands`, the jazz-quote version
+		// stamp) are `'before'`-position, which WP keeps as blocking
+		// inline ahead of a deferred tag — order is preserved. On WP
+		// < 6.3 the array collapses to a truthy `$in_footer`, same as
+		// before.
+		array(
+			'in_footer' => true,
+			'strategy'  => 'defer',
+		)
 	);
 
 	// `desktop-mode-iframe-bridge` — opt-in iframe-side bridge that

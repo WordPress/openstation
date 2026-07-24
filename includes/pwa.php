@@ -391,7 +391,7 @@ function desktop_mode_pwa_default_icons() {
  * @since 0.8.0
  */
 function desktop_mode_pwa_serve_service_worker() {
-	$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+	$suffix = desktop_mode_asset_suffix();
 	$path   = DESKTOP_MODE_DIR . 'assets/js/sw' . $suffix . '.js';
 
 	if ( ! file_exists( $path ) ) {

@@ -194,4 +194,38 @@ class Tests_DesktopMode_RecycleBinStore extends WP_UnitTestCase {
 			'Subscribers must not learn the global trash total from the badge count.'
 		);
 	}
+
+	/**
+	 * @covers ::desktop_mode_recycle_bin_heartbeat_received
+	 */
+	public function test_heartbeat_attaches_count_only_when_changed() {
+		$this->trash_n_posts( 2 );
+		$latest = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
+		$this->assertGreaterThan( 0, $latest, 'trashing bumps the change ts' );
+
+		// Client behind the high-water mark → changed + count attached.
+		$stale = desktop_mode_recycle_bin_heartbeat_received(
+			array(),
+			array( 'desktop_mode_recycle_bin_seen_ts' => 0 )
+		);
+		$this->assertTrue( $stale['desktop_mode_recycle_bin']['changed'] );
+		$this->assertSame( 2, $stale['desktop_mode_recycle_bin']['count'] );
+
+		// Client caught up → no count key, no COUNT(*) work.
+		$caught_up = desktop_mode_recycle_bin_heartbeat_received(
+			array(),
+			array( 'desktop_mode_recycle_bin_seen_ts' => $latest )
+		);
+		$this->assertFalse( $caught_up['desktop_mode_recycle_bin']['changed'] );
+		$this->assertSame( $latest, $caught_up['desktop_mode_recycle_bin']['ts'] );
+		$this->assertArrayNotHasKey( 'count', $caught_up['desktop_mode_recycle_bin'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_recycle_bin_heartbeat_received
+	 */
+	public function test_heartbeat_ignores_ticks_without_the_seen_ts_field() {
+		$response = desktop_mode_recycle_bin_heartbeat_received( array(), array() );
+		$this->assertArrayNotHasKey( 'desktop_mode_recycle_bin', $response );
+	}
 }

@@ -209,7 +209,7 @@ const mount = async (
 	await loadData();
 
 	// -------------------------------------------------------------------------
-	// STEP 2e — POLLING WITH setInterval
+	// STEP 2e — POLLING, PAUSED WHILE THE TAB IS HIDDEN
 	// -------------------------------------------------------------------------
 	// Store the interval handle in a variable so you can clear it in the
 	// teardown. An interval that is never cleared keeps firing after the
@@ -220,7 +220,46 @@ const mount = async (
 	//   Stats / charts            → 5–10 minutes
 	//   Slow-changing content     → longer is better for performance
 	//
-	const intervalId = setInterval( loadData, 60_000 );
+	// And DON'T poll while the tab is hidden: nobody is looking at the
+	// repaint, but the requests still hit the server — and a desktop
+	// full of widgets multiplies that cost. Stop the timer on
+	// visibilitychange → hidden, restart on reveal, and only catch up
+	// immediately when the data has actually gone stale (a quick tab
+	// flip shouldn't trigger a request). WP Heartbeat backs off the
+	// same way.
+	//
+	const POLL_MS = 60_000;
+	let intervalId: ReturnType< typeof setInterval > | null = null;
+	let lastLoadMs = Date.now();
+	const poll = () => {
+		lastLoadMs = Date.now();
+		void loadData();
+	};
+	const startPolling = () => {
+		if ( intervalId === null ) {
+			intervalId = setInterval( poll, POLL_MS );
+		}
+	};
+	const stopPolling = () => {
+		if ( intervalId !== null ) {
+			clearInterval( intervalId );
+			intervalId = null;
+		}
+	};
+	const onVisibilityChange = () => {
+		if ( document.hidden ) {
+			stopPolling();
+			return;
+		}
+		if ( Date.now() - lastLoadMs >= POLL_MS ) {
+			poll();
+		}
+		startPolling();
+	};
+	document.addEventListener( 'visibilitychange', onVisibilityChange );
+	if ( ! document.hidden ) {
+		startPolling();
+	}
 
 	// =============================================================================
 	// STEP 3 — RETURN A TEARDOWN FUNCTION
@@ -239,7 +278,8 @@ const mount = async (
 	//
 	return () => {
 		destroyed = true;
-		clearInterval( intervalId );
+		stopPolling();
+		document.removeEventListener( 'visibilitychange', onVisibilityChange );
 		counter.removeEventListener( 'click', onClick );
 	};
 };

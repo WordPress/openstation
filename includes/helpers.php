@@ -8,6 +8,36 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Filename suffix for built JS/CSS bundles: `.min` in production,
+ * `''` (the unminified dev build) under SCRIPT_DEBUG.
+ *
+ * Centralised because the SCRIPT_DEBUG branch needs a guard the old
+ * per-file ternaries didn't have: release zips ship the minified
+ * bundles only (the ~4–5 MB of dev bundles are a source-checkout
+ * artifact — see bin/package.sh), so a production site that happens
+ * to define SCRIPT_DEBUG would otherwise request dev files that
+ * don't exist and 404 every desktop-mode script. Probe one
+ * canonical dev bundle; if it's absent, this is a minified-only
+ * install and `.min` is the only truth available.
+ *
+ * @since 0.9.7
+ *
+ * @return string `'.min'` or `''`.
+ */
+function desktop_mode_asset_suffix() {
+	static $suffix = null;
+	if ( null !== $suffix ) {
+		return $suffix;
+	}
+	if ( ! ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ) {
+		$suffix = '.min';
+		return $suffix;
+	}
+	$suffix = file_exists( DESKTOP_MODE_DIR . 'assets/js/desktop.js' ) ? '' : '.min';
+	return $suffix;
+}
+
+/**
  * Checks whether a user has desktop mode enabled.
  *
  * Two gates, both must pass:

@@ -289,6 +289,41 @@ function desktop_mode_files_register_rest_routes() {
 add_action( 'rest_api_init', 'desktop_mode_files_register_rest_routes' );
 
 /**
+ * Inline the root folder's placements into the boot-time shell
+ * config so the desktop file grid hydrates without a REST
+ * round-trip — this was the only REST call the shell had to await
+ * before revealing the desktop. Mirrors the GET /placements handler
+ * for `folder=0` exactly (same orphan backfill, same shape) so the
+ * client store can't tell the difference; the JS consumer
+ * (`src/desktop-files/layer.ts`) consumes the key one-shot, so any
+ * later re-hydration still goes through REST for fresh state.
+ *
+ * The `desktop_mode_shell_config` filter only runs while rendering
+ * the shell for an enabled, logged-in user — the same gate the REST
+ * permission callback enforces.
+ *
+ * @since 0.9.7
+ *
+ * @param array $config Shell config.
+ * @return array
+ */
+function desktop_mode_files_inject_boot_placements( $config ) {
+	$user_id = get_current_user_id();
+	if ( $user_id <= 0 ) {
+		return $config;
+	}
+	desktop_mode_files_auto_place_orphans( $user_id );
+	$rows = desktop_mode_files_get_for_user_folder( $user_id, 0 );
+	$out  = array();
+	foreach ( $rows as $row ) {
+		$out[] = desktop_mode_files_shape_placement( $row );
+	}
+	$config['filesBootPlacements'] = $out;
+	return $config;
+}
+add_filter( 'desktop_mode_shell_config', 'desktop_mode_files_inject_boot_placements', 20 );
+
+/**
  * GET /placements
  */
 function desktop_mode_files_rest_list_placements( WP_REST_Request $req ) {
