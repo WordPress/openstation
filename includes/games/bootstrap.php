@@ -10,10 +10,11 @@
  * Alphabet Soup).
  *
  * The whole module is gated on the site-wide `games` extended option
- * (OS Settings → Features → Extended options, admins only). When the
- * option is off, none of the module files load — no tables check on
- * `init`, no REST routes, no Heartbeat channel, no window/icon — so a
- * disabled games framework costs nothing beyond the option read below.
+ * (OS Settings → Features → Extended options, admins only), which is
+ * OFF by default — games are opt-in. While the option is off, none of
+ * the module files load — no tables check on `init`, no REST routes,
+ * no Heartbeat channel, no window/icon — so the games framework costs
+ * nothing beyond the option read below.
  * For third-party plugins the disabled state is indistinguishable from
  * Desktop Mode not being active: `desktop_mode_register_game()` is
  * undefined, which the documented `function_exists()` guard already
@@ -36,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  * Whether the games framework is enabled site-wide.
  *
  * Backed by the `games` key of the extended options bundle
- * (`desktop_mode_get_extended_options()`), default on.
+ * (`desktop_mode_get_extended_options()`), default off — opt-in.
  *
  * @since 0.9.8
  *

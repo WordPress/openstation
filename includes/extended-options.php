@@ -15,12 +15,14 @@
  *     scratch. **Defaults to `true`** — the enhancement is opt-OUT;
  *     sites that want vanilla Media Library behaviour must explicitly
  *     toggle it off in OS Settings → Features → Extended options.
- *   - games: when true (the default), the games framework loads —
- *     Games hub window + desktop icon, built-in games, score/challenge
- *     REST routes, the Heartbeat challenge channel, and the schema
- *     check. When false, `includes/games/bootstrap.php` skips every
- *     module file, so a disabled framework consumes no resources at
- *     all (see `desktop_mode_games_enabled()`).
+ *   - games: when true, the games framework loads — Games hub window +
+ *     desktop icon, built-in games, score/challenge REST routes, the
+ *     Heartbeat challenge channel, and the schema check. **Defaults to
+ *     `false`** — games are opt-IN; an admin turns them on in
+ *     OS Settings → Features → Extended options. While off,
+ *     `includes/games/bootstrap.php` skips every module file, so the
+ *     framework consumes no resources at all (see
+ *     `desktop_mode_games_enabled()`).
  *
  * @package WPDesktopMode
  */
@@ -44,7 +46,7 @@ const DESKTOP_MODE_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
 function desktop_mode_get_extended_options() {
 	$defaults = array(
 		'media_library_enhanced' => true,
-		'games'                  => true,
+		'games'                  => false,
 	);
 	$raw = get_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {

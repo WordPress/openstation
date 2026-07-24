@@ -1597,7 +1597,7 @@ The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around 
 
 The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.
 
-The framework can be disabled site-wide (OS Settings → Features → Extended options; PHP filter `desktop_mode_games_enabled`). The shell config then carries **`gamesEnabled: false`** *(since 0.9.8)*: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.desktop.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.desktopModeConfig?.gamesEnabled` before wiring games UI of your own.
+The framework is **off by default** — an admin opts in site-wide (OS Settings → Features → Extended options; PHP filter `desktop_mode_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`** *(since 0.9.8)*: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.desktop.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.desktopModeConfig?.gamesEnabled` before wiring games UI of your own.
 
 ```typescript
 interface GamesApi {
