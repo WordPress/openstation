@@ -15,6 +15,14 @@
  *     scratch. **Defaults to `true`** — the enhancement is opt-OUT;
  *     sites that want vanilla Media Library behaviour must explicitly
  *     toggle it off in OS Settings → Features → Extended options.
+ *   - games: when true, the games framework loads — Games hub window +
+ *     desktop icon, built-in games, score/challenge REST routes, the
+ *     Heartbeat challenge channel, and the schema check. **Defaults to
+ *     `false`** — games are opt-IN; an admin turns them on in
+ *     OS Settings → Features → Extended options. While off,
+ *     `includes/games/bootstrap.php` skips every module file, so the
+ *     framework consumes no resources at all (see
+ *     `desktop_mode_games_enabled()`).
  *
  * @package WPDesktopMode
  */
@@ -33,11 +41,12 @@ const DESKTOP_MODE_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
  *
  * @since 0.5.0
  *
- * @return array{ media_library_enhanced: bool }
+ * @return array{ media_library_enhanced: bool, games: bool }
  */
 function desktop_mode_get_extended_options() {
 	$defaults = array(
 		'media_library_enhanced' => true,
+		'games'                  => false,
 	);
 	$raw = get_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {
@@ -47,11 +56,13 @@ function desktop_mode_get_extended_options() {
 	// admin who explicitly saved `false` stays opted-out even though
 	// the shipped default is now `true`. `! empty()` would wrongly
 	// coerce an explicit `false` back to the default.
-	return array(
-		'media_library_enhanced' => array_key_exists( 'media_library_enhanced', $raw )
-			? (bool) $raw['media_library_enhanced']
-			: $defaults['media_library_enhanced'],
-	);
+	$clean = array();
+	foreach ( $defaults as $key => $default ) {
+		$clean[ $key ] = array_key_exists( $key, $raw )
+			? (bool) $raw[ $key ]
+			: $default;
+	}
+	return $clean;
 }
 
 /**
@@ -66,9 +77,14 @@ function desktop_mode_save_extended_options( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return false;
 	}
-	$clean = array(
-		'media_library_enhanced' => ! empty( $raw['media_library_enhanced'] ),
-	);
+	// Merge over the current values so a payload that omits a key (an
+	// older client, a partial save) can't silently reset it.
+	$clean = desktop_mode_get_extended_options();
+	foreach ( $clean as $key => $current ) {
+		if ( array_key_exists( $key, $raw ) ) {
+			$clean[ $key ] = ! empty( $raw[ $key ] );
+		}
+	}
 	return update_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, $clean, false );
 }
 

@@ -1597,6 +1597,8 @@ The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around 
 
 The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.
 
+The framework is **off by default** — an admin opts in site-wide (OS Settings → Features → Extended options; PHP filter `desktop_mode_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`** *(since 0.9.8)*: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.desktop.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.desktopModeConfig?.gamesEnabled` before wiring games UI of your own.
+
 ```typescript
 interface GamesApi {
     register( entry: GameRegistryEntry ): void;
@@ -2834,7 +2836,7 @@ The active renderer is mounted into the dock container by the layout dispatcher;
 | `container` | `HTMLElement` | The rail's host element. The renderer owns everything inside it; the shell does not paint here after `mount()` returns. |
 | `items` | `DockItem[]` | Initial menu-derived tile list — the rail-scoped slice the active layout routes to this rail (Classic splits core to the side rail, plugins to the primary rail). |
 | `fullMenu` | `DockItem[]` | The COMPLETE admin-menu list, including items routed to other rails or the wallpaper-icon grid. Read this when the renderer wants a unified view of the entire admin regardless of the layout's partitioning. Updates with every live menu refresh. |
-| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OS Settings, plugin-owned launchers, recycle bin, …). Live updates still flow through the controller's `appendSystemItem` / `removeSystemItem`. |
+| `fullSystemTiles` | `SystemDockItem[]` | Snapshot of every JS-registered system tile across both rails at mount time (OS Settings, plugin-owned launchers, recycle bin, …). Tiles the user hid via OS Settings → Apps & Icons are excluded — the dispatcher applies the per-item visibility overrides to the system-tile cohort too, delivering hide/unhide live as `removeSystemItem` / `appendSystemItem` calls on the controller. Other live updates flow through the same pair. |
 | `orientation` | `'left' \| 'right' \| 'bottom'` | Reflected on the container's `data-desktop-mode-dock-placement` attribute. |
 | `openItem( item )` | `function` | Primary tile click. Routes through the same `windowManager.open()` the default renderer uses (multi-instance, submenu propagation, session restore). Renderers SHOULD use this instead of calling the manager directly. |
 | `openSubmenuPick( item, sub )` | `function` | Submenu pick — opens the child URL while preserving the parent's identity for `baseId`, icon, and the in-window tab strip. Renderers that surface submenus (popovers, fan-outs) call this instead of deriving window ids themselves. |
@@ -3333,10 +3335,29 @@ Each `HarvestedCommand` carries a `kind` field the iframe computes by **statical
 
 #### `desktop-mode-plugins-changed` — Stable
 
-Carries a full menu payload harvested from real admin context. Emitted by the chromeless bridge when the iframe lands on a page whose completion commonly mutates the admin menu (`plugins.php`, `plugin-install.php`, `update.php`, `themes.php`), and by the hidden refresh probe [`wp.desktop.refreshMenu()`](#refreshmenu) spawns. The shell diffs the payload against its prior snapshot by `id` and repaints only the registries that actually changed (dock, native windows, widgets, …) — no browser reload. The payload also carries `menuSig`, its own [menu signature](#desktop-mode-menu-signature--stable-since-094), which the shell adopts as its last-known value.
+Carries a full menu payload harvested from real admin context. Emitted by the chromeless bridge when the iframe lands on a page whose completion commonly mutates the admin menu (`plugins.php`, `plugin-install.php`, `update.php`, `themes.php`), and by the hidden refresh probe [`wp.desktop.refreshMenu()`](#refreshmenu) spawns. The shell diffs the payload against its prior snapshot by `id` and repaints only the registries that actually changed (dock, native windows, widgets, …) — no browser reload. The payload also carries `menuSig`, its own [menu signature](#desktop-mode-menu-signature--stable-since-094), which the shell adopts as its last-known value, and `updateCounts` (since 0.9.7), the aggregate pending-update numbers the shell mirrors onto the admin-bar circle-arrows notifier (`#wp-admin-bar-updates`) so an in-window update run resets it without a hard refresh (GH#296).
+
+Since 0.9.7 the bridge posts this message (and `desktop-mode-menu-signature`) to the **top** window rather than the immediate parent. For a normal window iframe they're the same frame; the distinction matters for nested flows like the bulk updater, where `update-core.php` hosts a progress iframe of `update.php` whose post-upgrade payload must still reach the shell.
 
 ```typescript
-{ type: 'desktop-mode-plugins-changed'; payload: { dockItems: unknown[]; nativeWindows: unknown[]; /* … */ menuSig: string } }
+{
+    type: 'desktop-mode-plugins-changed';
+    payload: {
+        dockItems: unknown[];
+        nativeWindows: unknown[];
+        /* … */
+        updateCounts?: { total: number; formatted: string; text: string; url: string };
+        menuSig: string;
+    };
+}
+```
+
+#### `desktop-mode-updates-changed` — Stable *(since 0.9.7)*
+
+A payload-less nudge emitted by the chromeless bridge when Core's shiny updater (`wp-admin/js/updates.js`) finishes an AJAX plugin/theme update or delete run inside the iframe — the jQuery events `wp-plugin-update-success` / `-error`, `wp-plugin-delete-success`, and their theme counterparts. Those runs mutate the update transients server-side without any navigation, so no full payload is coming on its own; on receipt the shell debounces briefly and spends one [`wp.desktop.refreshMenu()`](#refreshmenu) probe, whose payload carries the fresh dock badge and `updateCounts` (GH#296). While updates.js is still draining a bulk queue the bridge stays quiet and lets the final job send the single nudge.
+
+```typescript
+{ type: 'desktop-mode-updates-changed' }
 ```
 
 #### `desktop-mode-menu-signature` — Stable *(since 0.9.4)*
@@ -4920,6 +4941,14 @@ the base `DesktopFileShape`.
 **Download URLs** are minted at click time (cookie +
 `_wpnonce`-in-query GET navigations) and must never be persisted —
 nonces expire.
+
+**Preview pane** — image/video/audio uploads render inline in the
+folder-window preview (subresource loads via the authenticated
+download URL); other kinds show a no-preview note + Download.
+Plugins preview further types (PDF, …) through the pre-existing
+`desktop-mode.files.preview` filter — return an element for the
+placements you recognize; see
+[examples/desktop-file-storage.md](examples/desktop-file-storage.md#extend-the-preview-pane-eg-pdfs).
 
 ---
 

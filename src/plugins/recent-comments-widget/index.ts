@@ -13,6 +13,8 @@
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+import { startVisibilityAwarePoller } from '../../widgets/poller';
+import { decodeHTML } from '../../utils';
 
 const WIDGET_ID = 'desktop-mode/recent-comments';
 const REFRESH_MS = 60_000;
@@ -143,7 +145,8 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 
 		const postEl = document.createElement( 'div' );
 		postEl.className = 'dm-comments__post';
-		postEl.textContent = '\u21B3 ' + ( c._embedded?.up?.[ 0 ]?.title?.rendered ?? `Post #${ c.post }` );
+		const parentTitle = c._embedded?.up?.[ 0 ]?.title?.rendered;
+		postEl.textContent = '\u21B3 ' + ( parentTitle ? decodeHTML( parentTitle ) : `Post #${ c.post }` );
 
 		body.appendChild( meta );
 		body.appendChild( postEl );
@@ -156,7 +159,6 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 
 const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< WidgetTeardown > => {
 	let destroyed = false;
-	let intervalId: ReturnType< typeof setInterval > | null = null;
 	const refresh = async (): Promise< void > => {
 		if ( destroyed ) {
 			return;
@@ -173,12 +175,10 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 		}
 	};
 	await refresh();
-	intervalId = setInterval( refresh, REFRESH_MS );
+	const poller = startVisibilityAwarePoller( refresh, REFRESH_MS );
 	return () => {
 		destroyed = true;
-		if ( intervalId !== null ) {
-			clearInterval( intervalId );
-		}
+		poller.stop();
 	};
 };
 

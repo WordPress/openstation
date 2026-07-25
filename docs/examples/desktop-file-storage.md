@@ -99,6 +99,42 @@ wp.desktop.hooks.addAction(
 );
 ```
 
+## Extend the preview pane (e.g. PDFs)
+
+The folder-window preview pane renders images, video, and audio
+uploads inline out of the box; other types show a no-preview note
+plus a Download action. To preview a type the framework doesn't
+handle, hook the (pre-existing) `desktop-mode.files.preview` filter
+and return your own element — it fully replaces the built-in for
+that placement:
+
+```js
+wp.desktop.hooks.addFilter(
+	'desktop-mode.files.preview',
+	'my-plugin/pdf-preview',
+	( node, placement ) => {
+		if (
+			placement.file.type === 'upload' &&
+			placement.file.mime === 'application/pdf'
+		) {
+			const host = document.createElement( 'div' );
+			// Note: downloads are served with
+			// `Content-Disposition: attachment`, so an <iframe> will
+			// download rather than display. Fetch the bytes with
+			// wp.desktop.fetch and hand them to a renderer such as
+			// PDF.js instead.
+			myPlugin.mountPdfViewer( host, placement.file.ref );
+			return host;
+		}
+		return node; // Defer to the built-in for everything else.
+	},
+);
+```
+
+The serialized `upload` shape carries `mime`, `kind`
+(`image | video | audio | pdf | archive | text | file`), and
+`sizeBytes` to branch on.
+
 ## Server admins: nginx + backups
 
 `.htaccess` protects the storage dir on Apache only. On nginx add:

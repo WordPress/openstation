@@ -1168,6 +1168,30 @@ function desktop_mode_build_menu_payload() {
 		$payload[ $key ] = function_exists( $builder ) ? $builder() : array();
 	}
 
+	// Aggregate update counts for the admin bar's "updates" notifier
+	// (the circle-arrows badge Core renders top-left). The node is
+	// static server HTML on the shell page, so after an in-window
+	// update run the shell needs fresh numbers to repaint it — GH#296.
+	// `wp_get_update_data()` is capability-aware (plugins / themes /
+	// core each gated), so the count matches what this user can act
+	// on. Strings are prebuilt here so the client repaint stays
+	// locale-correct without shipping translations to JS.
+	if ( function_exists( 'wp_get_update_data' ) ) {
+		$update_data  = wp_get_update_data();
+		$update_total = isset( $update_data['counts']['total'] ) ? (int) $update_data['counts']['total'] : 0;
+
+		$payload['updateCounts'] = array(
+			'total'     => $update_total,
+			'formatted' => number_format_i18n( $update_total ),
+			'text'      => sprintf(
+				/* translators: %s: number of pending updates. */
+				_n( '%s update available', '%s updates available', $update_total, 'desktop-mode' ),
+				number_format_i18n( $update_total )
+			),
+			'url'       => network_admin_url( 'update-core.php' ),
+		);
+	}
+
 	// A cheap structural fingerprint of the admin menu the shell uses to
 	// decide whether a live refresh is warranted. Shipped in every full
 	// payload so the shell can seed / update its last-known signature

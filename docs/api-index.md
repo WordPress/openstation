@@ -213,8 +213,9 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `desktop-mode-window-publish` | iframe → parent | Stable *(0.5.5)* |
 | `desktop-mode-window-send` | parent → iframe | Stable *(0.5.5)* |
 | `desktop-mode-bridge-*` *(connection-bridge family)* | both | Stable *(0.5.5)* |
-| `desktop-mode-plugins-changed` | iframe → parent | Stable *(0.7.0)* |
-| `desktop-mode-menu-signature` | iframe → parent | Stable *(0.9.4)* |
+| `desktop-mode-plugins-changed` | iframe → shell (top window since 0.9.7) | Stable *(0.7.0)* |
+| `desktop-mode-menu-signature` | iframe → shell (top window since 0.9.7) | Stable *(0.9.4)* |
+| `desktop-mode-updates-changed` *(shiny-update completion nudge)* | iframe → shell | Stable *(0.9.7)* |
 | `wp-desktop-code-open` *(ships with the `desktop-mode-code-editor` extension)* | iframe → parent | Stable *(0.5.4)* |
 | `desktop-mode-drag-start` / `-end` / `-payload-request` | iframe → parent | Stable *(0.7.0)* |
 | `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable *(0.7.0)* |

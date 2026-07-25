@@ -802,6 +802,49 @@ class Tests_DesktopMode_BuildDockItems extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The payload aggregates pending-update counts so the shell can
+	 * repaint the admin-bar "updates" notifier live (GH#296) — the
+	 * top-left circle-arrows badge is static server HTML that would
+	 * otherwise show its boot-time count until a hard refresh.
+	 *
+	 * @covers ::desktop_mode_build_menu_payload
+	 */
+	public function test_payload_carries_update_counts() {
+		require_once ABSPATH . 'wp-admin/includes/update.php';
+
+		global $menu;
+		$menu = array(
+			$this->make_menu_row( 'Dashboard', 'read', 'index.php' ),
+		);
+
+		// Two pending plugin updates, nothing else. Mirrors the raw
+		// transient shape wp_get_update_data() counts.
+		set_site_transient(
+			'update_plugins',
+			(object) array(
+				'response' => array(
+					'foo/foo.php' => (object) array( 'new_version' => '2.0' ),
+					'bar/bar.php' => (object) array( 'new_version' => '1.1' ),
+				),
+			)
+		);
+
+		$payload = desktop_mode_build_menu_payload();
+
+		$this->assertArrayHasKey( 'updateCounts', $payload );
+		$counts = $payload['updateCounts'];
+		$this->assertSame( 2, $counts['total'] );
+		$this->assertSame( '2', $counts['formatted'] );
+		$this->assertSame( '2 updates available', $counts['text'] );
+		$this->assertSame( network_admin_url( 'update-core.php' ), $counts['url'] );
+
+		// And the zero case — the client hides the node on this signal.
+		set_site_transient( 'update_plugins', (object) array( 'response' => array() ) );
+		$payload = desktop_mode_build_menu_payload();
+		$this->assertSame( 0, $payload['updateCounts']['total'] );
+	}
+
+	/**
 	 * Core menu slugs never resolve to a plugin file — even if some
 	 * callback happens to be registered on the page hook. The classifier
 	 * short-circuits before reflecting on $wp_filter, so the dock never

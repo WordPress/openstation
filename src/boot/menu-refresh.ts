@@ -51,6 +51,14 @@ import type {
  */
 const MENU_REFRESH_TIMEOUT_MS = 8000;
 
+/**
+ * Trailing debounce for `desktop-mode-updates-changed` nudges. Long
+ * enough to collapse the burst from several open windows reporting the
+ * same shiny-update run, short enough that the badge repaint still
+ * reads as immediate.
+ */
+const UPDATES_REFRESH_DEBOUNCE_MS = 600;
+
 export interface MenuRefreshDeps {
 	layoutDispatcher: LayoutDispatcher | null;
 	desktopArea: HTMLElement;
@@ -142,6 +150,18 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 	// can't spawn overlapping refresh probes for the same change.
 	let sigRefreshInFlight = false;
 
+	// `desktop-mode-updates-changed` scheduling state. The chromeless
+	// bridge nudges after Core's shiny (AJAX) plugin/theme updates and
+	// deletes complete (GH#296); the nudge carries no payload, so the
+	// shell answers with one refresh probe. Debounce collapses a burst
+	// (several windows watching the same run), and the in-flight flag +
+	// queued bit guarantee a nudge that lands mid-probe still gets a
+	// fresh probe afterwards — that probe's counts would predate the
+	// change that triggered the nudge.
+	let updatesRefreshTimer: number | null = null;
+	let updatesRefreshInFlight = false;
+	let updatesRefreshQueued = false;
+
 	const refresh = (): Promise< void > => {
 		if ( ! config.adminUrl ) {
 			return Promise.resolve();
@@ -212,6 +232,31 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		} );
 	};
 
+	const runUpdatesRefresh = (): void => {
+		if ( updatesRefreshInFlight ) {
+			updatesRefreshQueued = true;
+			return;
+		}
+		updatesRefreshInFlight = true;
+		void refresh().finally( () => {
+			updatesRefreshInFlight = false;
+			if ( updatesRefreshQueued ) {
+				updatesRefreshQueued = false;
+				runUpdatesRefresh();
+			}
+		} );
+	};
+
+	const scheduleUpdatesRefresh = (): void => {
+		if ( updatesRefreshTimer !== null ) {
+			window.clearTimeout( updatesRefreshTimer );
+		}
+		updatesRefreshTimer = window.setTimeout( () => {
+			updatesRefreshTimer = null;
+			runUpdatesRefresh();
+		}, UPDATES_REFRESH_DEBOUNCE_MS );
+	};
+
 	window.addEventListener( 'message', ( e: MessageEvent ) => {
 		if ( e.origin !== INITIAL_ORIGIN ) {
 			return;
@@ -257,6 +302,16 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 					lastMenuSig = data.payload.menuSig;
 				}
 			}
+			return;
+		}
+
+		if ( data.type === 'desktop-mode-updates-changed' ) {
+			// A chromeless page reports that Core's shiny updater just
+			// finished a plugin/theme update or delete run. The update
+			// transient changed server-side without any navigation, so
+			// no full payload is coming on its own — spend one probe to
+			// pull fresh badge + admin-bar counts. GH#296.
+			scheduleUpdatesRefresh();
 			return;
 		}
 

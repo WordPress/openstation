@@ -28,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
  * @since 0.8.5
  */
 function desktop_mode_register_heartbeat_widget_assets() {
-	$suffix  = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$suffix  = desktop_mode_asset_suffix();
 	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
 
 	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-heartbeat' . $suffix . '.js';

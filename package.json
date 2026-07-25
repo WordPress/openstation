@@ -27,7 +27,7 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:item-visibility-menu && npm run build:release-card && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:widget-focus-timer && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "DESKTOP_MODE_TARGET=iframe-bridge vite build --mode development && DESKTOP_MODE_TARGET=iframe-bridge vite build --mode production",
 		"build:gutenberg-drop-receiver": "DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode development && DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode production",
@@ -45,6 +45,8 @@
 		"build:os-settings-panel": "DESKTOP_MODE_TARGET=os-settings-panel vite build --mode development && DESKTOP_MODE_TARGET=os-settings-panel vite build --mode production",
 		"build:shell-overlays": "DESKTOP_MODE_TARGET=shell-overlays vite build --mode development && DESKTOP_MODE_TARGET=shell-overlays vite build --mode production",
 		"build:window-system": "DESKTOP_MODE_TARGET=window-system vite build --mode development && DESKTOP_MODE_TARGET=window-system vite build --mode production",
+		"build:item-visibility-menu": "DESKTOP_MODE_TARGET=item-visibility-menu vite build --mode development && DESKTOP_MODE_TARGET=item-visibility-menu vite build --mode production",
+		"build:release-card": "DESKTOP_MODE_TARGET=release-card vite build --mode development && DESKTOP_MODE_TARGET=release-card vite build --mode production",
 		"build:widget-heartbeat": "DESKTOP_MODE_TARGET=widget-heartbeat vite build --mode development && DESKTOP_MODE_TARGET=widget-heartbeat vite build --mode production",
 		"build:widget-recent-comments": "DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode development && DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode production",
 		"build:widget-post-stats": "DESKTOP_MODE_TARGET=widget-post-stats vite build --mode development && DESKTOP_MODE_TARGET=widget-post-stats vite build --mode production",
@@ -52,6 +54,7 @@
 		"build:widget-jazz-quote": "DESKTOP_MODE_TARGET=widget-jazz-quote vite build --mode development && DESKTOP_MODE_TARGET=widget-jazz-quote vite build --mode production",
 		"build:widget-starter": "DESKTOP_MODE_TARGET=widget-starter vite build --mode development && DESKTOP_MODE_TARGET=widget-starter vite build --mode production",
 		"build:widget-notes": "DESKTOP_MODE_TARGET=widget-notes vite build --mode development && DESKTOP_MODE_TARGET=widget-notes vite build --mode production",
+		"build:widget-focus-timer": "DESKTOP_MODE_TARGET=widget-focus-timer vite build --mode development && DESKTOP_MODE_TARGET=widget-focus-timer vite build --mode production",
 		"build:games": "DESKTOP_MODE_TARGET=games vite build --mode development && DESKTOP_MODE_TARGET=games vite build --mode production",
 		"build:game-inkfall": "DESKTOP_MODE_TARGET=game-inkfall vite build --mode development && DESKTOP_MODE_TARGET=game-inkfall vite build --mode production",
 		"build:game-alphabet-soup": "DESKTOP_MODE_TARGET=game-alphabet-soup vite build --mode development && DESKTOP_MODE_TARGET=game-alphabet-soup vite build --mode production",

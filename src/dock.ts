@@ -17,7 +17,7 @@ import { __, _n, sprintf } from './i18n';
 import { hashTitleToHue } from './ui/util/hash-hue';
 import { attachDockPeek } from './dock-peek';
 import { tryOpenExternalUrl } from './external-url';
-import { openItemVisibilityMenu } from './item-visibility-menu';
+import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import {
 	resolveNativeUrlRemap,
 	tryNativeUrlRemap,

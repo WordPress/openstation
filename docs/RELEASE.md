@@ -33,7 +33,7 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 | Tool | Purpose |
 |---|---|
 | `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `DESKTOP_MODE_VERSION`, `readme.txt` `Stable tag:`. |
-| `bin/package.sh` | Packages `desktop-mode.zip` from HEAD + current built JS. Derives the expected bundle list from `vite.config.js` TARGETS (each target's `<fileBase>.js` + `<fileBase>.min.js`) and errors if any expected bundle is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any vite target is left behind there. |
+| `bin/package.sh` | Packages `desktop-mode.zip` from HEAD + current built JS. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `desktop_mode_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
 | `release.yml` — `push: tags: v*` | Build + publish the GitHub Release. |
 

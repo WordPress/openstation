@@ -14,7 +14,7 @@
  */
 
 import { doAction, HOOKS } from '../hooks';
-import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN } from './constants';
+import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN, GRAB_MARGIN } from './constants';
 import type { Window } from './index';
 
 /**
@@ -229,11 +229,12 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		let x = ev.clientX - win._dragOffsetX;
 		let y = ev.clientY - win._dragOffsetY;
 
-		// Constrain to desktop bounds.
+		// Constrain to desktop bounds keeping GRAB_MARGIN visible.
 		const desktop = win.element.parentElement;
 		if ( desktop ) {
-			x = Math.max( EDGE_MARGIN, Math.min( x, desktop.clientWidth - EDGE_MARGIN ) );
-			y = Math.max( EDGE_MARGIN, Math.min( y, desktop.clientHeight - EDGE_MARGIN ) );
+			const safe = clampWindowPosition( x, y, win.element.offsetWidth, desktop.clientWidth, desktop.clientHeight );
+			x = safe.x;
+			y = safe.y;
 		}
 
 		// Quantise to the live grid when snap is on. Round (not floor)
@@ -387,17 +388,24 @@ function commitUnstate(
 	);
 	win.element.style.width = `${ params.targetW }px`;
 	win.element.style.height = `${ params.targetH }px`;
-	// Clamp the re-anchor to the same lower bound the drag-move loop
-	// enforces. A snapped-LEFT window whose floating width exceeds the
+	// Clamp the initial re-anchor to EDGE_MARGIN (0) on the left so the
+	// window doesn't start the drag already half off-screen. The drag-move
+	// loop (clampWindowPosition) uses a looser bound — GRAB_MARGIN - width —
+	// which allows the window to bleed past the left edge as long as
+	// GRAB_MARGIN px of the title bar stays visible. Using EDGE_MARGIN here
+	// is intentionally tighter: we want the snap-to-float commit to land in
+	// a fully-reachable position, and any subsequent left-bleed is then the
+	// user's own drag choice.
+	// Background: a snapped-LEFT window whose floating width exceeds the
 	// half-screen would otherwise re-anchor at a NEGATIVE left (cursor
 	// ratio × restored width reaches past the desktop's left edge),
-	// and since the drag offsets derive from the position written
-	// here, every subsequent move stays negative too — the move-loop
-	// clamp then pins the window at x=0 until the cursor has traveled
-	// the whole overshoot, which reads as "the left window can't be
-	// dragged out of split view." Snapped-RIGHT never overshoots (its
-	// cursor sits in the right half, so the anchor math stays
-	// positive) — that asymmetry was the bug's tell.
+	// and since the drag offsets derive from the position written here,
+	// every subsequent move stays negative too — the move-loop clamp then
+	// pins the window at x=0 until the cursor has traveled the whole
+	// overshoot, which reads as "the left window can't be dragged out of
+	// split view." Snapped-RIGHT never overshoots (its cursor sits in the
+	// right half, so the anchor math stays positive) — that asymmetry was
+	// the bug's tell.
 	const left = Math.max(
 		EDGE_MARGIN,
 		Math.round(
@@ -490,6 +498,7 @@ export function handleResizeStart( win: Window, e: PointerEvent ): void {
 			win.config.minHeight,
 			snap,
 		);
+
 		win.element.style.left = `${ geom.x }px`;
 		win.element.style.top = `${ geom.y }px`;
 		win.element.style.width = `${ geom.width }px`;
@@ -601,5 +610,44 @@ export function computeResize(
 		height = nextHeight;
 	}
 
+	// Constrain upper-left bounds to prevent the window/title bar from
+	// being resized off-screen. Shrink the dimension by the clamped
+	// difference so the opposite (pinned) edge stays exactly in place —
+	// clamping the position alone would let the bottom/right edge slide
+	// while the user drags the top/left handle.
+	if ( x < EDGE_MARGIN ) {
+		const diff = EDGE_MARGIN - x;
+		x = EDGE_MARGIN;
+		width = Math.max( minWidth, width - diff );
+	}
+	if ( y < EDGE_MARGIN ) {
+		const diff = EDGE_MARGIN - y;
+		y = EDGE_MARGIN;
+		height = Math.max( minHeight, height - diff );
+	}
+
 	return { x, y, width, height };
+}
+
+/**
+ * Clamp a window's left/top coordinate to ensure a minimum clickable grab area
+ * (GRAB_MARGIN) remains visible within the parent desktop boundaries, and the top
+ * edge is strictly constrained above the top menu (EDGE_MARGIN).
+ */
+export function clampWindowPosition(
+	x: number,
+	y: number,
+	width: number,
+	desktopW: number,
+	desktopH: number,
+): { x: number; y: number } {
+	const minX = GRAB_MARGIN - width;
+	const maxX = desktopW - GRAB_MARGIN;
+	const safeX = Math.max( minX, Math.min( x, maxX ) );
+
+	const minY = EDGE_MARGIN;
+	const maxY = desktopH - GRAB_MARGIN;
+	const safeY = Math.max( minY, Math.min( y, maxY ) );
+
+	return { x: safeX, y: safeY };
 }

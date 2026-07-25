@@ -614,6 +614,10 @@ export class Window {
 			if ( this.iframe ) {
 				this.iframe.style.visibility = 'hidden';
 			}
+			// No minimize transition will fire for pre-minimized
+			// windows, so apply the render-work suppression the
+			// transitionend handler in minimize() would otherwise add.
+			this.element.style.setProperty( 'content-visibility', 'hidden' );
 			return;
 		}
 
@@ -1473,17 +1477,25 @@ export class Window {
 		this.state = 'minimized';
 		this.element.classList.add( 'desktop-mode-window--minimized' );
 
-		// After the transition completes, hide the iframe to save
-		// resources. Native windows don't have an iframe to hide —
-		// opacity: 0 on the window element already stops paint work.
-		if ( this.iframe ) {
-			const iframe = this.iframe;
-			this.element.addEventListener( 'transitionend', ( e: TransitionEvent ) => {
-				if ( e.propertyName === 'opacity' && this.state === 'minimized' ) {
-					iframe.style.visibility = 'hidden';
+		// After the transition completes, stop the hidden window doing
+		// rendering work. `opacity: 0` alone leaves the subtree in the
+		// render tree: the iframe keeps compositing and its rAF loops
+		// keep firing, and with several minimized wp-admin pages that's
+		// real background cost. `visibility: hidden` on the iframe plus
+		// `content-visibility: hidden` on the window root skip paint,
+		// layout, and in-iframe rAF entirely while preserving all DOM /
+		// iframe state for an instant restore. (Timers and Heartbeat
+		// inside the iframe still run — stopping those would require
+		// unloading the page.) Browsers without content-visibility
+		// ignore the property and keep today's behavior.
+		this.element.addEventListener( 'transitionend', ( e: TransitionEvent ) => {
+			if ( e.propertyName === 'opacity' && this.state === 'minimized' ) {
+				if ( this.iframe ) {
+					this.iframe.style.visibility = 'hidden';
 				}
-			}, { once: true } );
-		}
+				this.element.style.setProperty( 'content-visibility', 'hidden' );
+			}
+		}, { once: true } );
 
 		this.onMinimize?.( this );
 		this._emitChange( 'state' );
@@ -1506,7 +1518,9 @@ export class Window {
 	 * out of sync with `this.state`.
 	 */
 	public restore(): void {
-		// Restore iframe visibility before the animation starts.
+		// Restore renderability before the animation starts — the
+		// un-minimize transition needs the subtree painting again.
+		this.element.style.removeProperty( 'content-visibility' );
 		if ( this.iframe ) {
 			this.iframe.style.visibility = '';
 		}

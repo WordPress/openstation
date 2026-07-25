@@ -25,12 +25,13 @@ class Tests_DesktopMode_CssSubtreeVersion extends WP_UnitTestCase {
 
 		// The stamp must be at least as new as EVERY member of the
 		// subtree — the parent and each @import'd sub-sheet.
+		// (`window-overview.css` and `os-settings.css` left the subtree
+		// for their own deferred handles, each stamped with its own
+		// filemtime — see desktop_mode_register_assets().)
 		$members = array(
 			'assets/css/windows.css',
 			'assets/css/window-chrome.css',
 			'assets/css/window-states.css',
-			'assets/css/window-overview.css',
-			'assets/css/os-settings.css',
 			'assets/css/effects.css',
 		);
 		foreach ( $members as $relative ) {

@@ -2234,12 +2234,20 @@ export interface DesktopConfig {
 	 */
 	extendedOptions?: {
 		media_library_enhanced: boolean;
+		games: boolean;
 	} | null;
 	/**
 	 * REST endpoint for reading/writing extended options (admin only).
 	 * @since 0.5.0
 	 */
 	extendedOptionsUrl?: string;
+	/**
+	 * Whether the games framework is enabled site-wide (the `games`
+	 * extended option). Exposed to every user — when `false` the shell
+	 * skips the challenges Heartbeat channel. Absent means enabled.
+	 * @since 0.9.8
+	 */
+	gamesEnabled?: boolean;
 	/**
 	 * Sticky-notes (Gutenberg Guidelines experiment) availability.
 	 *

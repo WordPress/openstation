@@ -317,6 +317,8 @@ Visibility filter (advisory in Phase 2, load-bearing in Phase 6): `desktop_mode_
 
 `wp.desktop.files.store` exposes a `createSharedStore`-backed cross-bundle state holder; `wp.desktop.files.rest` is the typed REST client.
 
+Boot hydration of the **root folder** (`folderId 0`) does not hit REST: the shell config inlines `filesBootPlacements` (built server-side by the same code path as `GET /files/placements?folder=0`, since 0.9.7) and the file layer seeds the store from it one-shot. Any later hydration — subfolders, restore-sync re-fetches, heartbeat resyncs — goes through `listPlacements()` as before.
+
 ```ts
 interface FilesState {
     placementsByFolder: Map< number, RestPlacementShape[] >;

@@ -454,6 +454,27 @@ const TARGETS = {
 		fileBase: 'os-settings-panel',
 		iifeName: 'desktopModeOsSettingsPanel',
 	},
+	// Item-visibility menu — the right-click "hide from dock /
+	// desktop" menu + plugin provenance actions. Pure interaction UI
+	// that can never be on screen at first paint; injected by the
+	// main bundle's `src/item-visibility-menu-loader.ts` shim on the
+	// first right-click. Publishes
+	// `window.desktopModeItemVisibilityMenu`.
+	'item-visibility-menu': {
+		entry:    'src/item-visibility-menu-entry.ts',
+		fileBase: 'item-visibility-menu',
+		iifeName: 'desktopModeItemVisibilityMenu',
+	},
+	// Release card — the vinyl core-update announcement (card DOM +
+	// animation CSS + art resolver). Only needed when an update is
+	// pending; injected by `maybeShowUpdate()` in
+	// `src/update-notice.ts` after it confirms there is something to
+	// announce. Publishes `window.desktopModeReleaseCard`.
+	'release-card': {
+		entry:    'src/release-card-entry.ts',
+		fileBase: 'release-card',
+		iifeName: 'desktopModeReleaseCardBundle',
+	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed
 	// at first paint. Preloaded by main after first paint via
@@ -524,6 +545,15 @@ const TARGETS = {
 		entry:    'src/plugins/notes-widget/index.ts',
 		fileBase: 'widget-notes',
 		iifeName: 'desktopModeNotesWidget',
+	},
+	// Focus Timer widget — a countdown that links to a window and
+	// shakes it (via Window.shake()) with an alarm when time is up.
+	// Ships JS + a co-located `styles.css` chunk (widget-focus-timer[.min].css)
+	// that includes/widgets/widget-focus-timer.php registers.
+	'widget-focus-timer': {
+		entry:    'src/plugins/focus-timer-widget/index.ts',
+		fileBase: 'widget-focus-timer',
+		iifeName: 'desktopModeFocusTimerWidget',
 	},
 
 };

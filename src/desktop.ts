@@ -3356,10 +3356,14 @@ function init(): void {
 	// Challenge delivery rides the bus above — lives in the main
 	// bundle (like the recycle-bin badge) so an incoming challenge
 	// notifies the user even when the Games window never opened this
-	// session.
-	bootGamesChallenges( {
-		currentUserId: Number( config.currentUserId ) || 0,
-	} );
+	// session. Skipped entirely when the admin disabled the games
+	// framework site-wide (Extended options): the server-side channel
+	// is gone, so contributing to Heartbeat would be pure waste.
+	if ( config.gamesEnabled !== false ) {
+		bootGamesChallenges( {
+			currentUserId: Number( config.currentUserId ) || 0,
+		} );
+	}
 
 	// Content-changes catch-all: re-broadcasts server-recorded
 	// mutations (Quick Edit, AJAX status flips, other tabs/users)

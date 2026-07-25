@@ -22,6 +22,65 @@ define( 'DESKTOP_MODE_FILE', __FILE__ );
 define( 'DESKTOP_MODE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
 
+/**
+ * Whether the current request needs the admin-rendering modules.
+ *
+ * Most of the plugin must load on every request — feature modules
+ * register REST routes, record content mutations that can originate
+ * on the frontend (comment submission, WooCommerce orders, plugin-
+ * driven post saves), and expose `desktop_mode_register_*()` APIs
+ * that third-party plugins call from their own `init` hooks in any
+ * context. But the admin *rendering* layer (shell markup, asset
+ * enqueues, the chromeless bridge, admin notices, migrations, the
+ * `wp_ajax_*` save handler) only ever fires on hooks that don't
+ * exist outside wp-admin — so a pure frontend page view can skip
+ * parsing and wiring ~6,500 lines of it.
+ *
+ * Anything ambiguous loads everything: admin (including admin-ajax,
+ * where Heartbeat lands), REST (sniffed early — `REST_REQUEST` isn't
+ * defined until `parse_request`), cron, WP-CLI, and the PHPUnit
+ * environment (the test bootstrap loads the plugin outside admin
+ * context but exercises the render layer directly).
+ *
+ * @since 0.9.7
+ *
+ * @return bool True to load the admin-rendering modules.
+ */
+function desktop_mode_request_needs_admin_modules() {
+	$needs = is_admin()
+		|| wp_doing_cron()
+		|| ( defined( 'WP_CLI' ) && WP_CLI )
+		|| ( defined( 'WP_TESTS_DOMAIN' ) )
+		|| ( defined( 'REST_REQUEST' ) && REST_REQUEST );
+
+	if ( ! $needs ) {
+		// Early REST sniff. False positives just load a little more
+		// code (safe direction); plain-permalink REST is covered by
+		// the `rest_route` query var.
+		$rest_prefix = function_exists( 'rest_get_url_prefix' ) ? rest_get_url_prefix() : 'wp-json';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- request-shape sniff only, no data is read.
+		if ( ( '' !== $rest_prefix && false !== strpos( $request_uri, '/' . $rest_prefix ) ) || isset( $_GET['rest_route'] ) ) {
+			$needs = true;
+		}
+	}
+
+	/**
+	 * Filter whether the admin-rendering modules load on this request.
+	 *
+	 * Escape hatch for unusual setups — e.g. a frontend integration
+	 * that internally dispatches `desktop-mode/v1` REST routes via
+	 * `rest_do_request()` outside a sniffable REST request can force
+	 * the full load by returning true.
+	 *
+	 * @since 0.9.7
+	 *
+	 * @param bool $needs Whether the current request loads the
+	 *                    admin-rendering module set.
+	 */
+	return (bool) apply_filters( 'desktop_mode_load_admin_modules', $needs );
+}
+
 // Foundation primitives — must load before anything that consumes them.
 require_once DESKTOP_MODE_DIR . 'includes/core/registry-factory.php';
 
@@ -38,7 +97,6 @@ require_once DESKTOP_MODE_DIR . 'includes/helpers.php';
 // foundational `desktop_mode_is_enabled()` etc. exist by the time
 // any payload function is invoked at hook-fire time.
 require_once DESKTOP_MODE_DIR . 'includes/core/payload.php';
-require_once DESKTOP_MODE_DIR . 'includes/ajax.php';
 require_once DESKTOP_MODE_DIR . 'includes/assets.php';
 require_once DESKTOP_MODE_DIR . 'includes/admin-bar.php';
 require_once DESKTOP_MODE_DIR . 'includes/session.php';
@@ -46,11 +104,7 @@ require_once DESKTOP_MODE_DIR . 'includes/presence.php';
 require_once DESKTOP_MODE_DIR . 'includes/nonce-refresh.php';
 require_once DESKTOP_MODE_DIR . 'includes/sticky-notes/heartbeat.php';
 require_once DESKTOP_MODE_DIR . 'includes/os-settings.php';
-// One-time data migrations. After os-settings.php so the meta-key
-// constant and save/sanitize helpers the migrations call already exist.
-require_once DESKTOP_MODE_DIR . 'includes/migrations.php';
 require_once DESKTOP_MODE_DIR . 'includes/seen-intros.php';
-require_once DESKTOP_MODE_DIR . 'includes/welcome-dialog.php';
 require_once DESKTOP_MODE_DIR . 'includes/portal.php';
 require_once DESKTOP_MODE_DIR . 'includes/default-window.php';
 require_once DESKTOP_MODE_DIR . 'includes/themes-tabs.php';
@@ -71,9 +125,6 @@ require_once DESKTOP_MODE_DIR . 'includes/unfocus-effects.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-links.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-chrome.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-notices.php';
-require_once DESKTOP_MODE_DIR . 'includes/update-notice.php';
-require_once DESKTOP_MODE_DIR . 'includes/core-notices.php';
-require_once DESKTOP_MODE_DIR . 'includes/plugin-notices.php';
 require_once DESKTOP_MODE_DIR . 'includes/wallpapers.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/heartbeat.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-comments.php';
@@ -82,10 +133,9 @@ require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-site-views.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-jazz-quote.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-starter.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-notes.php';
-require_once DESKTOP_MODE_DIR . 'includes/render.php';
+require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-focus-timer.php';
 require_once DESKTOP_MODE_DIR . 'includes/extended-options.php';
 require_once DESKTOP_MODE_DIR . 'includes/oauth-relay.php';
-require_once DESKTOP_MODE_DIR . 'includes/devtools.php';
 require_once DESKTOP_MODE_DIR . 'includes/ai-copilot/bootstrap.php';
 // Content-changes must load before the recycle bin — the bin's
 // changelog delegates into the generic recorder.
@@ -105,6 +155,26 @@ require_once DESKTOP_MODE_DIR . 'includes/living-tree/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/games/bootstrap.php';
 require_once DESKTOP_MODE_DIR . 'includes/pwa.php';
 require_once DESKTOP_MODE_DIR . 'includes/compat/divi.php';
+
+// Admin-rendering modules — every hook these register (`admin_init`,
+// `admin_enqueue_scripts`, `in_admin_header`, `admin_head`,
+// `admin_footer`, `admin_body_class`, `wp_ajax_*`) only fires inside
+// wp-admin, so pure frontend page views skip them entirely. REST,
+// cron, WP-CLI, admin-ajax, and the PHPUnit environment all load
+// them (see desktop_mode_request_needs_admin_modules()). Relative
+// order preserved from the historical unconditional list.
+if ( desktop_mode_request_needs_admin_modules() ) {
+	require_once DESKTOP_MODE_DIR . 'includes/ajax.php';
+	// One-time data migrations. After os-settings.php so the meta-key
+	// constant and save/sanitize helpers the migrations call already exist.
+	require_once DESKTOP_MODE_DIR . 'includes/migrations.php';
+	require_once DESKTOP_MODE_DIR . 'includes/welcome-dialog.php';
+	require_once DESKTOP_MODE_DIR . 'includes/update-notice.php';
+	require_once DESKTOP_MODE_DIR . 'includes/core-notices.php';
+	require_once DESKTOP_MODE_DIR . 'includes/plugin-notices.php';
+	require_once DESKTOP_MODE_DIR . 'includes/render.php';
+	require_once DESKTOP_MODE_DIR . 'includes/devtools.php';
+}
 
 /**
  * Cascade-deactivate plugins that declare `Requires Plugins: desktop-mode`

@@ -19,6 +19,7 @@
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+import { startVisibilityAwarePoller } from '../../widgets/poller';
 
 const WIDGET_ID = 'desktop-mode/site-views';
 const REFRESH_MS = 10 * 60_000;
@@ -231,7 +232,6 @@ function renderUI( container: HTMLElement, result: ViewResult | null, error: boo
 
 const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< WidgetTeardown > => {
 	let destroyed = false;
-	let intervalId: ReturnType< typeof setInterval > | null = null;
 	const refresh = async (): Promise< void > => {
 		if ( destroyed ) {
 			return;
@@ -248,12 +248,10 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 		}
 	};
 	await refresh();
-	intervalId = setInterval( refresh, REFRESH_MS );
+	const poller = startVisibilityAwarePoller( refresh, REFRESH_MS );
 	return () => {
 		destroyed = true;
-		if ( intervalId !== null ) {
-			clearInterval( intervalId );
-		}
+		poller.stop();
 	};
 };
 

@@ -85,8 +85,15 @@ function desktop_mode_presence_get_all() {
  * `$active` is true, also bumps `last_active_ms` (the user just
  * interacted, not just held a tab open).
  *
- * Pass-through to the option; cheap enough to call every Heartbeat
- * tick. Fires `desktop_mode_presence_recorded` on every call and
+ * Cheap enough to call every Heartbeat tick: the option write is
+ * throttled — a bump that neither transitions the computed status
+ * nor moves a persisted timestamp by at least half the offline
+ * threshold (capped at 60s) skips the `update_option()` call, so N
+ * idle users no longer rewrite the shared row every tick. Persisted
+ * timestamps can therefore lag real activity by up to the throttle
+ * window — always well inside the offline threshold, so computed
+ * statuses stay correct. Fires `desktop_mode_presence_recorded` on
+ * every call (with the fresh, un-throttled record) and
  * `desktop_mode_presence_changed` only when the computed status moves
  * between `online | inactive | offline`.
  *
@@ -135,10 +142,13 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 		'last_seen_ms'   => $now_ms,
 		'last_active_ms' => $active ? $now_ms : (int) $prev['last_active_ms'],
 	);
-	$all[ $user_id ] = $next;
-	update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
 
 	$next_status = desktop_mode_presence_status_from_record( $next );
+
+	if ( desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) ) {
+		$all[ $user_id ] = $next;
+		update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
+	}
 
 	/**
 	 * Fires on every recorded heartbeat — useful for audit logging
@@ -168,6 +178,57 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 		do_action( 'desktop_mode_presence_changed', $user_id, $next_status, $prev_status );
 	}
 	return true;
+}
+
+/**
+ * Decide whether a presence bump needs to hit the database.
+ *
+ * The presence map is a single shared option row: with N concurrent
+ * users an unconditional write per Heartbeat tick means N full-row
+ * rewrites (plus option-cache invalidations) every ~15s, almost all
+ * of them recording no meaningful change. A bump must persist when:
+ *
+ *   - the user isn't in the map yet (first sighting),
+ *   - the computed status transitioned (viewers must see it), or
+ *   - a persisted timestamp has drifted by at least the throttle
+ *     window — half the offline threshold, capped at 60s — so stored
+ *     `last_seen_ms` can never age anywhere near the offline cutoff
+ *     while the user is genuinely present.
+ *
+ * Everything else is a redundant rewrite and is skipped. Skipped
+ * bumps still fire `desktop_mode_presence_recorded` with the fresh
+ * record — only the persisted copy lags.
+ *
+ * @since 0.9.7
+ *
+ * @param array  $all         Stored presence map.
+ * @param int    $user_id     User being bumped.
+ * @param array  $prev        Stored record for the user (zeros if new).
+ * @param string $prev_status Status computed from the stored record.
+ * @param string $next_status Status computed from the fresh record.
+ * @param bool   $active      Whether this bump carries user activity.
+ * @param int    $now_ms      Current epoch milliseconds.
+ * @return bool True to persist, false to skip the write.
+ */
+function desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) {
+	if ( ! isset( $all[ $user_id ] ) ) {
+		return true;
+	}
+	if ( $next_status !== $prev_status ) {
+		return true;
+	}
+
+	/** This filter is documented in includes/presence.php */
+	$offline_after = (int) apply_filters( 'desktop_mode_presence_offline_after', 120 );
+	$throttle_ms   = (int) min( 60 * 1000, $offline_after * 500 );
+
+	if ( ( $now_ms - (int) $prev['last_seen_ms'] ) >= $throttle_ms ) {
+		return true;
+	}
+	if ( $active && ( $now_ms - (int) $prev['last_active_ms'] ) >= $throttle_ms ) {
+		return true;
+	}
+	return false;
 }
 
 /**

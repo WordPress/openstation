@@ -598,6 +598,93 @@ function desktop_mode_content_changes_heartbeat_received( $response, $data ) {
 }
 
 /**
+ * Converts a plugin file path to a stable positive integer suitable
+ * for use as the `$id` parameter of
+ * `desktop_mode_content_changes_record()`.
+ *
+ * The record function requires a positive integer for its ID slot (used
+ * for per-request deduplication keyed as `type:id`). Plugin files are
+ * strings (`akismet/akismet.php`), so we derive a deterministic integer
+ * via `crc32`. Using the actual hash rather than a fixed value (e.g. 1)
+ * prevents every distinct plugin in a bulk operation from collapsing to
+ * the same dedup key.
+ *
+ * @since 0.9.7
+ *
+ * @param string $plugin_file Plugin file path (relative to plugins dir).
+ * @return int Positive integer ID.
+ */
+function desktop_mode_content_changes_plugin_id( $plugin_file ) {
+	$hash = abs( crc32( (string) $plugin_file ) );
+	return max( 1, $hash );
+}
+
+/**
+ * Wires plugin lifecycle hooks so installs, activations, deactivations,
+ * and deletions are recorded into the realtime changelog.
+ *
+ * Every open window listing plugins (native Plugins window Installed tab,
+ * classic `plugins.php`) will then refresh via the
+ * `desktop-mode.plugin.changed` broadcast — the same mechanism
+ * posts/pages use for `desktop-mode.post.changed`.
+ *
+ * @since 0.9.7
+ */
+function desktop_mode_content_changes_register_plugin_hooks() {
+	add_action( 'activated_plugin', function ( $plugin_file ) {
+		desktop_mode_content_changes_record(
+			'plugin',
+			desktop_mode_content_changes_plugin_id( $plugin_file ),
+			'activated'
+		);
+	} );
+
+	add_action( 'deactivated_plugin', function ( $plugin_file ) {
+		desktop_mode_content_changes_record(
+			'plugin',
+			desktop_mode_content_changes_plugin_id( $plugin_file ),
+			'deactivated'
+		);
+	} );
+
+	add_action( 'deleted_plugin', function ( $plugin_file, $deleted ) {
+		if ( $deleted ) {
+			desktop_mode_content_changes_record(
+				'plugin',
+				desktop_mode_content_changes_plugin_id( $plugin_file ),
+				'deleted'
+			);
+		}
+	}, 10, 2 );
+
+	// `upgrader_process_complete` covers installs from wp-admin/plugin-install.php
+	// (AJAX path, no page navigation) and bulk installs from update.php.
+	add_action( 'upgrader_process_complete', function ( $upgrader, $options ) {
+		if (
+			! isset( $options['type'], $options['action'] ) ||
+			'plugin' !== $options['type'] ||
+			'install' !== $options['action']
+		) {
+			return;
+		}
+		$plugins = ! empty( $options['plugins'] ) ? (array) $options['plugins'] : array();
+		if ( empty( $plugins ) && is_callable( array( $upgrader, 'plugin_info' ) ) ) {
+			$info = $upgrader->plugin_info();
+			if ( $info ) {
+				$plugins = array( $info );
+			}
+		}
+		foreach ( $plugins as $plugin_file ) {
+			desktop_mode_content_changes_record(
+				'plugin',
+				desktop_mode_content_changes_plugin_id( (string) $plugin_file ),
+				'installed'
+			);
+		}
+	}, 10, 2 );
+}
+
+/**
  * Wires every content-change hook.
  *
  * One bootstrap so the wiring is auditable —
@@ -617,6 +704,7 @@ function desktop_mode_content_changes_register_hooks() {
 	add_action( 'transition_comment_status', 'desktop_mode_content_changes_on_comment_transition', 10, 3 );
 
 	desktop_mode_content_changes_register_wc_hooks();
+	desktop_mode_content_changes_register_plugin_hooks();
 
 	add_action( 'admin_footer', 'desktop_mode_content_changes_emit_footer', 100 );
 	add_action( 'shutdown', 'desktop_mode_content_changes_on_shutdown' );

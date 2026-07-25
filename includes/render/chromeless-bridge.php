@@ -1089,9 +1089,23 @@ function desktop_mode_chromeless_bridge_script() {
 		/* Harvest is best-effort; on any failure we still ship the
 		 * server-built payload, which is exactly the pre-fix behavior. */
 	}
+	/*
+	 * Menu payload / signature target: the SHELL, i.e. the top window —
+	 * not the immediate parent. For a normal window iframe the two are
+	 * the same frame, but the bulk updater nests: update-core.php (the
+	 * window iframe) hosts a progress iframe of `update.php?action=
+	 * update-selected`, whose `iframe_footer()` fires `admin_footer`
+	 * AFTER the upgrades ran — exactly the fresh payload the shell
+	 * wants. Posting that to `window.parent` hands it to the
+	 * update-core.php page, which has no listener, and the dock badge
+	 * stays stale (GH#296). `window.top` reaches the shell from any
+	 * nesting depth; the targetOrigin pin means a cross-origin top
+	 * (foreign page iframing wp-admin) simply never receives it.
+	 */
 	try {
+		var __wpdShell = window.top || window.parent;
 		if ( __DESKTOP_MODE_MENU_PAYLOAD__ ) {
-			window.parent.postMessage(
+			__wpdShell.postMessage(
 				{
 					type: 'desktop-mode-plugins-changed',
 					payload: __DESKTOP_MODE_MENU_PAYLOAD__
@@ -1107,7 +1121,7 @@ function desktop_mode_chromeless_bridge_script() {
 			 * menu on save, …) and spend a refresh probe only then.
 			 * GH#325.
 			 */
-			window.parent.postMessage(
+			__wpdShell.postMessage(
 				{
 					type: 'desktop-mode-menu-signature',
 					sig: __DESKTOP_MODE_MENU_SIG__
@@ -2456,6 +2470,14 @@ function desktop_mode_chromeless_bridge_script() {
 		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/edit-comments.php' ) ) {
 			return 'comment';
 		}
+		if ( _desktop_modeEndsWith( location.pathname, '/wp-admin/plugins.php' ) ) {
+			return 'plugin';
+		}
+		// plugin-install.php is intentionally not a soft-reload target.
+		// Reloading that page mid-session would discard the user's search
+		// results or reset an in-progress install. The page still emits
+		// plugin.changed (via notifyPluginInstall below); it just doesn't
+		// reload itself in response to one.
 		return null;
 	}
 
@@ -3124,6 +3146,99 @@ function desktop_mode_chromeless_bridge_script() {
 					try { window.location.reload(); } catch ( _err ) { /* swallow */ }
 				}
 			} );
+		}
+		attach();
+		if ( document.readyState === 'loading' ) {
+			document.addEventListener( 'DOMContentLoaded', attach, { once: true } );
+		}
+		window.addEventListener( 'load', attach, { once: true } );
+	} )();
+
+	/* -----------------------------------------------------------------
+	 * Shiny-update watcher (GH#296).
+	 *
+	 * Core's updates.js applies plugin/theme updates and deletes over
+	 * AJAX — no navigation, so the load-time payload emit above never
+	 * re-fires and the shell's update notifiers (admin-bar circle-arrows
+	 * count, dock Plugins badge) keep showing the pre-update numbers
+	 * until a hard refresh. Watch the jQuery events updates.js triggers
+	 * on `document` after each job and nudge the shell to spend one
+	 * `refreshMenu()` probe, whose payload carries fresh counts.
+	 *
+	 * Error events are included deliberately: `wp_ajax_update_plugin`
+	 * calls `wp_update_plugins()` up front, which can mutate the
+	 * update transient even when the upgrade itself fails.
+	 *
+	 * When updates.js is processing a queue (bulk-selected shiny
+	 * updates), per-job events fire while later jobs are still
+	 * pending — skip those and let the final job's event send the one
+	 * nudge. The shell debounces on its side too, so this is purely
+	 * an optimization, not a correctness gate.
+	 *
+	 * If jQuery never loads on this page this block is a no-op — and
+	 * so is updates.js, which requires it.
+	 * ----------------------------------------------------------------- */
+	( function _wpdInstallShinyUpdateWatcher() {
+		var attached = false;
+		function notify() {
+			try {
+				var queue = window.wp && window.wp.updates && window.wp.updates.queue;
+				if ( queue && queue.length > 0 ) {
+					return;
+				}
+			} catch ( _err ) { /* queue introspection is best-effort */ }
+			try {
+				var shell = window.top || window.parent;
+				if ( shell && shell !== window ) {
+					shell.postMessage(
+						{ type: 'desktop-mode-updates-changed' },
+						window.location.origin
+					);
+				}
+			} catch ( _err ) { /* shell gone or cross-origin */ }
+		}
+		function notifyPluginInstall() {
+			// `wp-plugin-install-success` fires after an AJAX install on
+			// plugin-install.php with no page navigation. The PHP
+			// `upgrader_process_complete` hook records the change correctly,
+			// but `desktop_mode_content_changes_emit_footer` only runs on
+			// chromeless page requests — admin-ajax.php is not in the
+			// chromeless allowlist, so there's no in-band emit from that
+			// request. The Heartbeat buffer will eventually deliver it, but
+			// posting directly here lets the Installed tab refresh
+			// immediately. The later Heartbeat tick will produce a second
+			// broadcast; consumers handle no-op refreshes gracefully.
+			try {
+				var shell = window.top || window.parent;
+				if ( shell && shell !== window ) {
+					shell.postMessage(
+						{
+							type: 'desktop-mode-broadcast',
+							topic: 'desktop-mode.plugin.changed',
+							payload: { source: 'chromeless-bridge', action: 'install' }
+						},
+						window.location.origin
+					);
+				}
+			} catch ( _err ) { /* shell gone or cross-origin */ }
+		}
+		function attach() {
+			if ( attached || ! window.jQuery ) {
+				return;
+			}
+			attached = true;
+			window.jQuery( document ).on(
+				[
+					'wp-plugin-update-success.wpdUpdates',
+					'wp-plugin-update-error.wpdUpdates',
+					'wp-plugin-delete-success.wpdUpdates',
+					'wp-theme-update-success.wpdUpdates',
+					'wp-theme-update-error.wpdUpdates',
+					'wp-theme-delete-success.wpdUpdates'
+				].join( ' ' ),
+				notify
+			);
+			window.jQuery( document ).on( 'wp-plugin-install-success.wpdUpdates', notifyPluginInstall );
 		}
 		attach();
 		if ( document.readyState === 'loading' ) {
