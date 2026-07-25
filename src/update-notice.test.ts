@@ -1,24 +1,26 @@
 /**
  * Tests for `maybeShowUpdate()` — the async core-update notification
- * picker — and `updateMessage()`. `showToast` / `showReleaseCard` are
- * mocked; the art resolver + image preloader are injected as fakes so we
- * assert which surface is chosen without touching the network.
+ * picker — and `updateMessage()`. `showToast` is mocked; the art
+ * resolver, image preloader, and card renderer are injected as fakes
+ * (the same seam production uses to reach the lazy `release-card`
+ * bundle) so we assert which surface is chosen without touching the
+ * network or loading any bundle.
  */
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { maybeShowUpdate, updateMessage } from './update-notice';
 import { showToast, type ToastOptions } from './toast';
-import { showReleaseCard, type ReleaseCardOptions } from './release-card';
+import type { ReleaseCardOptions } from './release-card';
 import {
 	markNoticeDismissed,
 	isNoticeDismissed,
 } from './ui/components/wpd-notice/storage';
 
 vi.mock( './toast', () => ( { showToast: vi.fn() } ) );
-vi.mock( './release-card', () => ( { showReleaseCard: vi.fn() } ) );
 
 const toastMock = showToast as unknown as ReturnType< typeof vi.fn >;
-const cardMock = showReleaseCard as unknown as ReturnType< typeof vi.fn >;
+const cardMock = vi.fn();
+const showCard = cardMock as ( opts: ReleaseCardOptions ) => void;
 const openUrl = vi.fn();
 
 function lastToast(): ToastOptions {
@@ -59,8 +61,8 @@ describe( 'updateMessage', () => {
 
 describe( 'maybeShowUpdate', () => {
 	test( 'no-op when there is no pending update', async () => {
-		await maybeShowUpdate( { update: null, openUrl, resolveArt, loadImage } );
-		await maybeShowUpdate( { update: { version: '', url: '/x' }, openUrl, resolveArt, loadImage } );
+		await maybeShowUpdate( { update: null, openUrl, resolveArt, loadImage, showCard } );
+		await maybeShowUpdate( { update: { version: '', url: '/x' }, openUrl, resolveArt, loadImage, showCard } );
 		expect( toastMock ).not.toHaveBeenCalled();
 		expect( cardMock ).not.toHaveBeenCalled();
 		expect( resolveArt ).not.toHaveBeenCalled();
@@ -69,7 +71,7 @@ describe( 'maybeShowUpdate', () => {
 	test( 'art resolves + loads → vinyl, codename shown when crossing', async () => {
 		await maybeShowUpdate( {
 			update: { version: '7.0', available: '7.0.1', branch: '7.0', url: '/u', crossing: true },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( toastMock ).not.toHaveBeenCalled();
 		expect( resolveArt ).toHaveBeenCalledWith( '7.0' );
@@ -84,7 +86,7 @@ describe( 'maybeShowUpdate', () => {
 	test( 'same-branch minor → vinyl, exact version, no codename', async () => {
 		await maybeShowUpdate( {
 			update: { version: '7.0.1', branch: '7.0', url: '/u', crossing: false },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		// Not crossing → exact version, no codename.
 		expect( lastCard().message ).toBe( 'WordPress 7.0.1 is available.' );
@@ -94,7 +96,7 @@ describe( 'maybeShowUpdate', () => {
 		resolveArt.mockResolvedValue( null );
 		await maybeShowUpdate( {
 			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( cardMock ).not.toHaveBeenCalled();
 		expect( lastToast().message ).toBe( 'WordPress 7.0 is available.' );
@@ -106,7 +108,7 @@ describe( 'maybeShowUpdate', () => {
 		resolveArt.mockResolvedValue( null );
 		await maybeShowUpdate( {
 			update: { version: '7.0.1', available: '7.0.1', branch: '7.0', url: '/u', crossing: false },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( isNoticeDismissed( 'desktop-mode/core-update:7.0.1' ) ).toBe( false );
 		lastToast().onDismiss!();
@@ -117,7 +119,7 @@ describe( 'maybeShowUpdate', () => {
 		loadImage.mockResolvedValue( false );
 		await maybeShowUpdate( {
 			update: { version: '7.0', branch: '7.0', url: '/u', crossing: true },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( cardMock ).not.toHaveBeenCalled();
 		expect( toastMock ).toHaveBeenCalledTimes( 1 );
@@ -127,7 +129,7 @@ describe( 'maybeShowUpdate', () => {
 		markNoticeDismissed( 'desktop-mode/core-update:6.5.1' );
 		await maybeShowUpdate( {
 			update: { version: '6.5.1', available: '6.5.1', branch: '6.5', url: '/u', crossing: false },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( cardMock ).not.toHaveBeenCalled();
 		expect( toastMock ).not.toHaveBeenCalled();
@@ -138,7 +140,7 @@ describe( 'maybeShowUpdate', () => {
 		markNoticeDismissed( 'desktop-mode/core-update:6.5.1' );
 		await maybeShowUpdate( {
 			update: { version: '6.5.2', available: '6.5.2', branch: '6.5', url: '/u', crossing: false },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		expect( lastCard().message ).toBe( 'WordPress 6.5.2 is available.' );
 	} );
@@ -146,7 +148,7 @@ describe( 'maybeShowUpdate', () => {
 	test( 'both surfaces open the update screen', async () => {
 		await maybeShowUpdate( {
 			update: { version: '7.0', branch: '7.0', url: '/wp-admin/update-core.php', crossing: true },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		lastCard().onUpdate();
 		expect( openUrl.mock.calls[ 0 ][ 0 ].url ).toBe( '/wp-admin/update-core.php' );
@@ -155,7 +157,7 @@ describe( 'maybeShowUpdate', () => {
 		resolveArt.mockResolvedValue( null );
 		await maybeShowUpdate( {
 			update: { version: '7.0.1', branch: '7.0', url: '/wp-admin/update-core.php', crossing: false },
-			openUrl, resolveArt, loadImage,
+			openUrl, resolveArt, loadImage, showCard,
 		} );
 		lastToast().action!.onClick();
 		expect( openUrl.mock.calls[ 0 ][ 0 ].url ).toBe( '/wp-admin/update-core.php' );

@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  */
 function desktop_mode_content_graph_register_assets() {
 	$version = DESKTOP_MODE_VERSION;
-	$suffix  = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+	$suffix  = desktop_mode_asset_suffix();
 
 	$css_path = DESKTOP_MODE_DIR . 'assets/css/content-graph.css';
 	wp_register_style(

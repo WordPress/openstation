@@ -182,11 +182,43 @@ const mount = async (
     };
 
     await refresh();
-    const intervalId = setInterval( refresh, 60_000 );
+
+    // Poll — but pause while the tab is hidden. Nobody sees the
+    // repaint and the requests still hit the server, so stop the
+    // timer on visibilitychange → hidden and restart on reveal,
+    // catching up immediately only when the data has gone stale
+    // (a quick tab flip shouldn't cost a request).
+    const POLL_MS = 60_000;
+    let intervalId: ReturnType< typeof setInterval > | null = null;
+    let lastRunMs = Date.now();
+    const poll = () => {
+        lastRunMs = Date.now();
+        void refresh();
+    };
+    const startPolling = () => {
+        if ( intervalId === null ) intervalId = setInterval( poll, POLL_MS );
+    };
+    const stopPolling = () => {
+        if ( intervalId !== null ) {
+            clearInterval( intervalId );
+            intervalId = null;
+        }
+    };
+    const onVisibilityChange = () => {
+        if ( document.hidden ) {
+            stopPolling();
+            return;
+        }
+        if ( Date.now() - lastRunMs >= POLL_MS ) poll();
+        startPolling();
+    };
+    document.addEventListener( 'visibilitychange', onVisibilityChange );
+    if ( ! document.hidden ) startPolling();
 
     return () => {
         destroyed = true;
-        clearInterval( intervalId );
+        stopPolling();
+        document.removeEventListener( 'visibilitychange', onVisibilityChange );
     };
 };
 

@@ -40,7 +40,7 @@ import { tryOpenExternalUrl } from './external-url';
 import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
 import { renderIcon } from './icon';
-import { openItemVisibilityMenu } from './item-visibility-menu';
+import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import type { DesktopIconServerEntry } from './types';
 import type { WindowManager } from './window-manager';
 

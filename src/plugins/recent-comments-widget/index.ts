@@ -13,6 +13,7 @@
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+import { startVisibilityAwarePoller } from '../../widgets/poller';
 import { decodeHTML } from '../../utils';
 
 const WIDGET_ID = 'desktop-mode/recent-comments';
@@ -158,7 +159,6 @@ function render( container: HTMLElement, comments: CommentRow[] | null, error: b
 
 const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< WidgetTeardown > => {
 	let destroyed = false;
-	let intervalId: ReturnType< typeof setInterval > | null = null;
 	const refresh = async (): Promise< void > => {
 		if ( destroyed ) {
 			return;
@@ -175,12 +175,10 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 		}
 	};
 	await refresh();
-	intervalId = setInterval( refresh, REFRESH_MS );
+	const poller = startVisibilityAwarePoller( refresh, REFRESH_MS );
 	return () => {
 		destroyed = true;
-		if ( intervalId !== null ) {
-			clearInterval( intervalId );
-		}
+		poller.stop();
 	};
 };
 

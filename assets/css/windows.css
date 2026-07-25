@@ -12,25 +12,26 @@
  *   - window-states.css    — resize handle, drag/resize overlays,
  *                            maximized, fullscreen, opening animation,
  *                            minimized, closing, reduced-motion, RTL.
+ * Two former sub-sheets moved to their own DEFERRED handles (media-
+ * print-onload swap via `desktop_mode_deferred_styles`) because the
+ * UI they style is lazy-loaded JS that can't appear at first paint:
+ *
  *   - window-overview.css  — zoom-out overview grid + floating labels
  *                            + per-desktop top bar + dock-collapse.
+ *                            Handle: `desktop-mode-window-overview`.
  *   - os-settings.css      — the OS Settings native panel (wallpaper
  *                            picker, accent, dock size, uploader,
- *                            Media Library grid). Will move to its own
- *                            enqueue once it stops being coupled to the
- *                            window chrome loading order.
+ *                            Media Library grid).
+ *                            Handle: `desktop-mode-os-settings`.
  *
- * The `desktop-mode-windows` script handle registers this file as its
- * CSS source, so all four sub-sheets ship with a single handle — no
- * changes required to `includes/assets.php` or `includes/render.php`.
+ * The `desktop-mode-windows` style handle registers this file as its
+ * CSS source, so the remaining sub-sheets ship with a single handle.
  *
  * @since 6.9.0
  */
 
 @import url( "window-chrome.css" );
 @import url( "window-states.css" );
-@import url( "window-overview.css" );
-@import url( "os-settings.css" );
 @import url( "effects.css" );
 @import url( "window-links.css" );
 

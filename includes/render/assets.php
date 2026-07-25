@@ -86,6 +86,8 @@ function desktop_mode_enqueue_assets() {
 	// CSS.
 	wp_enqueue_style( 'desktop-mode' );
 	wp_enqueue_style( 'desktop-mode-windows' );
+	wp_enqueue_style( 'desktop-mode-window-overview' );
+	wp_enqueue_style( 'desktop-mode-os-settings' );
 	wp_enqueue_style( 'desktop-mode-dock' );
 	wp_enqueue_style( 'desktop-mode-dock-peek' );
 	wp_enqueue_style( 'desktop-mode-ai-assistant' );
@@ -319,7 +321,7 @@ function desktop_mode_enqueue_assets() {
 	// prefer the on-disk mtime of the actual file, fall back to the
 	// plugin version when the file is missing (dev environments where
 	// the bundle hasn't been built yet).
-	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$suffix = desktop_mode_asset_suffix();
 	$lazy_bundle_url = static function ( $base ) use ( $suffix ) {
 		$path = DESKTOP_MODE_DIR . 'assets/js/' . $base . $suffix . '.js';
 		$ver  = file_exists( $path )
@@ -481,6 +483,14 @@ function desktop_mode_enqueue_assets() {
 			// by the shell after first paint when no session is being
 			// restored and no `openCurrentPage` will fire.
 			'windowSystemBundleUrl' => $lazy_bundle_url( 'window-system' ),
+			// URL of the item-visibility-menu lazy bundle — the
+			// right-click "hide from dock / desktop" menu. Injected by
+			// the main bundle's loader shim on the first right-click.
+			'itemVisibilityMenuBundleUrl' => $lazy_bundle_url( 'item-visibility-menu' ),
+			// URL of the release-card lazy bundle — the vinyl core-
+			// update announcement. Injected by `maybeShowUpdate()` only
+			// when a core update is actually pending.
+			'releaseCardBundleUrl' => $lazy_bundle_url( 'release-card' ),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
@@ -630,7 +640,7 @@ function desktop_mode_print_preload_hints() {
 		return;
 	}
 
-	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$suffix = desktop_mode_asset_suffix();
 
 	$build_url = static function ( $relative ) {
 		$path = DESKTOP_MODE_DIR . $relative;
@@ -794,6 +804,8 @@ function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media )
 			'desktop-mode-dock-peek',
 			'desktop-mode-ai-assistant',
 			'desktop-mode-bug-report',
+			'desktop-mode-window-overview',
+			'desktop-mode-os-settings',
 		)
 	);
 

@@ -71,13 +71,61 @@ class Tests_DesktopMode_Presence extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_presence_record
 	 */
 	public function test_record_active_false_preserves_last_active() {
+		// Seed a stored record old enough to clear the write throttle
+		// (>=60s) while still being `online` (<120s offline cutoff).
+		$now_ms = (int) round( microtime( true ) * 1000 );
+		$seeded = array(
+			'last_seen_ms'   => $now_ms - ( 61 * 1000 ),
+			'last_active_ms' => $now_ms - ( 61 * 1000 ),
+		);
+		update_option( DESKTOP_MODE_PRESENCE_OPTION, array( self::$admin_id => $seeded ), false );
+
+		desktop_mode_presence_record( self::$admin_id, false );
+		$stored = desktop_mode_presence_get_all()[ self::$admin_id ];
+		$this->assertGreaterThan( $seeded['last_seen_ms'], $stored['last_seen_ms'], 'last_seen persists once past the throttle window' );
+		$this->assertSame( $seeded['last_active_ms'], $stored['last_active_ms'], 'last_active stays put when active=false' );
+	}
+
+	/**
+	 * @covers ::desktop_mode_presence_record
+	 * @covers ::desktop_mode_presence_should_persist
+	 */
+	public function test_redundant_bump_within_throttle_window_skips_the_write() {
 		desktop_mode_presence_record( self::$admin_id, true );
 		$first = desktop_mode_presence_get_all()[ self::$admin_id ];
 		usleep( 5000 );
-		desktop_mode_presence_record( self::$admin_id, false );
+		// Same status, timestamps moved by only ~5ms — no persist.
+		desktop_mode_presence_record( self::$admin_id, true );
 		$second = desktop_mode_presence_get_all()[ self::$admin_id ];
-		$this->assertGreaterThan( $first['last_seen_ms'], $second['last_seen_ms'], 'last_seen advances on every record' );
-		$this->assertSame( $first['last_active_ms'], $second['last_active_ms'], 'last_active stays put when active=false' );
+		$this->assertSame( $first, $second, 'a redundant bump inside the throttle window must not rewrite the option' );
+		$this->assertSame( 'online', desktop_mode_presence_status_for_user( self::$admin_id ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_presence_record
+	 * @covers ::desktop_mode_presence_should_persist
+	 */
+	public function test_status_transition_persists_despite_throttle() {
+		// Stored record reads `inactive` (seen recently, idle 6 min).
+		$now_ms = (int) round( microtime( true ) * 1000 );
+		update_option(
+			DESKTOP_MODE_PRESENCE_OPTION,
+			array(
+				self::$admin_id => array(
+					'last_seen_ms'   => $now_ms - 1000,
+					'last_active_ms' => $now_ms - ( 6 * 60 * 1000 ),
+				),
+			),
+			false
+		);
+		$this->assertSame( 'inactive', desktop_mode_presence_status_for_user( self::$admin_id ) );
+
+		// An active bump transitions to online — must persist even
+		// though last_seen moved by only ~1s.
+		desktop_mode_presence_record( self::$admin_id, true );
+		$this->assertSame( 'online', desktop_mode_presence_status_for_user( self::$admin_id ) );
+		$stored = desktop_mode_presence_get_all()[ self::$admin_id ];
+		$this->assertGreaterThanOrEqual( $now_ms, $stored['last_active_ms'], 'transitioning bump rewrites the stored record' );
 	}
 
 	/**

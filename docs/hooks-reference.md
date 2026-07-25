@@ -819,6 +819,24 @@ do_action( 'desktop_mode_prepare_window', string $page, array $args );
 
 ## Filters
 
+### `desktop_mode_load_admin_modules` — Experimental (since 0.9.7)
+
+Filters whether the admin-rendering module set (shell renderer, asset enqueues, chromeless bridge, admin notices, migrations, the `wp_ajax_save-desktop-mode` handler) loads on the current request. By default it loads for admin (including admin-ajax), REST, cron, and WP-CLI requests, and is skipped on pure frontend page views — every hook those modules register only fires inside wp-admin, so frontend requests save the parse + hook-registration cost.
+
+Runs at plugin-file load time, **before** any WordPress hook fires — so you cannot hook it from a theme or a plugin that loads after Desktop Mode; use an mu-plugin or a plugin that loads earlier if you need to force the full load.
+
+```php
+apply_filters( 'desktop_mode_load_admin_modules', bool $needs );
+```
+
+**Example — force the full module set on frontend requests** (e.g. a frontend integration that internally dispatches `desktop-mode/v1` REST routes via `rest_do_request()`):
+
+```php
+add_filter( 'desktop_mode_load_admin_modules', '__return_true' );
+```
+
+---
+
 ### `desktop_mode_file_types` — Experimental (since 0.9.0)
 
 Filters the file-type registry used by the Files-on-the-Desktop system. Plugins can hide built-ins or swap a class out at runtime. Keyed by type slug; the `class` field of an entry must remain a `Desktop_Mode_File` subclass FQCN.
@@ -3674,7 +3692,8 @@ log "preloaded but not used in time".
 Filters the list of stylesheet **handles** loaded via the
 `media="print"` + `onload` deferral pattern (so they don't block first
 paint). Default: `desktop-mode-dock-peek`, `desktop-mode-ai-assistant`,
-`desktop-mode-bug-report`. Add a handle to defer it, or remove one to
+`desktop-mode-bug-report`, `desktop-mode-window-overview`,
+`desktop-mode-os-settings`. Add a handle to defer it, or remove one to
 keep it on the critical path.
 
 ```php

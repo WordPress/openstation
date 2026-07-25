@@ -263,18 +263,27 @@ function desktop_mode_recycle_bin_heartbeat_received( $response, $data ) {
 		return $response;
 	}
 
-	$seen   = (int) $data['desktop_mode_recycle_bin_seen_ts'];
-	$latest = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$seen    = (int) $data['desktop_mode_recycle_bin_seen_ts'];
+	$latest  = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$changed = $latest > $seen;
 
-	// Authoritative count travels on every tick — it's the cheapest
-	// way to keep the dock/icon badge truthful when the bin window
-	// is closed. `desktop_mode_recycle_bin_count()` is a fast COUNT(*) that
-	// hits the same option-cached query each post-status.
 	$response['desktop_mode_recycle_bin'] = array(
-		'changed' => $latest > $seen,
+		'changed' => $changed,
 		'ts'      => $latest,
-		'count'   => desktop_mode_recycle_bin_count(),
 	);
+
+	// The authoritative count only travels when something actually
+	// changed since the client's high-water mark. The count cannot
+	// drift without the change-ts bumping (every capture / restore /
+	// purge bumps it), so an unchanged tick would recompute the same
+	// number — `desktop_mode_recycle_bin_count()` runs up to two
+	// COUNT(*) WP_Querys plus a comment count, a real per-tick cost
+	// multiplied across every user with the shell open. The client
+	// treats `count` as optional and keeps its current badge value
+	// when the key is absent.
+	if ( $changed ) {
+		$response['desktop_mode_recycle_bin']['count'] = desktop_mode_recycle_bin_count();
+	}
 
 	return $response;
 }

@@ -198,6 +198,31 @@ export interface FilesLayer {
  * Mount a files layer on `host`, scoped to `folderId`. Returns
  * a handle the caller uses to unmount.
  */
+/**
+ * Read (and consume) the boot-inlined root-folder placements from the
+ * shell config. PHP builds `filesBootPlacements` with the same code
+ * path as GET /placements for `folder=0`, so seeding the store with
+ * it is indistinguishable from a REST hydration — minus the
+ * round-trip the boot path used to await before revealing the
+ * desktop. One-shot by design: the key is deleted on first read so a
+ * later un-hydrated render (restore-sync eviction, trash reset)
+ * refetches fresh state instead of resurrecting the boot snapshot.
+ */
+function takeBootPlacements( folderId: number ): RestPlacementShape[] | null {
+	if ( folderId !== 0 ) {
+		return null;
+	}
+	const cfg = ( window as unknown as {
+		desktopModeConfig?: { filesBootPlacements?: RestPlacementShape[] };
+	} ).desktopModeConfig;
+	const list = cfg?.filesBootPlacements;
+	if ( ! cfg || ! Array.isArray( list ) ) {
+		return null;
+	}
+	delete cfg.filesBootPlacements;
+	return list;
+}
+
 export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	const container = document.createElement( 'div' );
 	container.className = LAYER_CLASS;
@@ -914,6 +939,20 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			// consumers (status bar, right pane) display the title.
 			setSelected( filesStoreApi.currentPlacement( placement ) );
 		} );
+	}
+
+	// Boot fast-path: PHP inlines the root folder's placements into
+	// the shell config (`filesBootPlacements`, built by the same
+	// code path as GET /placements) so first paint doesn't wait on a
+	// REST round-trip. Consumed one-shot — a later re-render that
+	// finds the folder un-hydrated (e.g. after the restore-sync
+	// eviction) must fetch fresh state, not resurrect the boot
+	// snapshot.
+	if ( ! filesStoreApi.getState().hydratedFolders.has( folderId ) ) {
+		const boot = takeBootPlacements( folderId );
+		if ( boot ) {
+			filesStoreApi.setFolderPlacements( folderId, boot );
+		}
 	}
 
 	// Initial paint from whatever the store currently knows.
