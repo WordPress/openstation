@@ -520,7 +520,10 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	color: var( --desktop-mode-recycle-badge-fg, rgba( 255, 255, 255, 0.96 ) );
 	font-size: var(
 		--desktop-mode-recycle-badge-font-size,
-		calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.6 )
+		var(
+			--desktop-mode-icon-badge-font-size,
+			calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.6 )
+		)
 	);
 	font-weight: 700;
 	letter-spacing: 0;

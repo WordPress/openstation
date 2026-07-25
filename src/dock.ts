@@ -1516,6 +1516,17 @@ export class Dock {
 			const masked = document.createElement( 'span' );
 			masked.className = 'desktop-mode-dock__item-mask';
 			masked.setAttribute( 'aria-hidden', 'true' );
+			// Geometry inline as well as in the stylesheet. A masked
+			// span has no intrinsic size — unlike the `<img>` it
+			// replaces — so if its CSS rule is missing for ANY reason
+			// (a stale cached stylesheet, a host that strips our CSS,
+			// a plugin resetting spans) the icon collapses to nothing
+			// and simply disappears. The element that needs the size
+			// should carry it.
+			masked.style.width = 'var( --desktop-mode-dock-icon-size, 20px )';
+			masked.style.height = 'var( --desktop-mode-dock-icon-size, 20px )';
+			masked.style.display = 'block';
+			masked.style.flexShrink = '0';
 			if ( applyIconMask( masked, icon, tint ) ) {
 				return masked;
 			}
