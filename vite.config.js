@@ -517,6 +517,11 @@ const TARGETS = {
 		fileBase: 'widget-recent-comments',
 		iifeName: 'desktopModeRecentCommentsWidget',
 	},
+	'widget-drafts': {
+		entry:    'src/plugins/drafts-widget/index.ts',
+		fileBase: 'widget-drafts',
+		iifeName: 'desktopModeDraftsWidget',
+	},
 	'widget-post-stats': {
 		entry:    'src/plugins/post-stats-widget/index.ts',
 		fileBase: 'widget-post-stats',
