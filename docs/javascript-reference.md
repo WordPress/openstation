@@ -5257,6 +5257,120 @@ re-renders for the new account.
 
 ---
 
+## Desktop themes *(Experimental, since 0.9.7)*
+
+Whole-OS reskins. See [Desktop themes](./desktop-themes.md) for the
+manifest format and the full slot tables; this section is the JS
+surface only.
+
+> Distinct from the per-window **window themes**
+> (`wp.desktop.registerWindowTheme`). A window theme restyles one
+> window's chrome; a desktop theme restyles everything.
+
+### `wp.desktop.desktopThemes`
+
+```ts
+wp.desktop.desktopThemes.list(): DesktopThemeEntry[];
+wp.desktop.desktopThemes.getActive(): string | null;
+wp.desktop.desktopThemes.setActive( themeId: string ): void;
+wp.desktop.desktopThemes.subscribe(
+    cb: ( state: { themes; activeId; activeIcons } ) => void,
+): () => void;
+wp.desktop.desktopThemes.resolveIcon( slot: string ): string | null;
+```
+
+`DesktopThemeEntry`:
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Manifest id (`acme/neon-glass`). |
+| `slug` | `string` | Storage slug (`acme-neon-glass`). |
+| `name`, `version`, `author`, `description` | `string` | May be empty. |
+| `previewUrl` | `string` | Absolute URL, or `''`. |
+| `cssUrl` | `string` | Compiled stylesheet URL (uploaded themes). |
+| `cssText` | `string` | Compiled stylesheet text (code-registered themes). |
+| `tokens` | `Record<string,string>` | Informational — the CSS is authoritative. |
+| `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
+| `installedAt` | `number` | Unix timestamp; `0` for code themes. |
+| `source` | `'upload' \| 'code'` | |
+
+**`setActive()` is presentation only.** It swaps the stylesheet and
+repaints, but does not persist. To save the user's choice:
+
+```js
+wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
+```
+
+`resolveIcon()` returns `null` when no theme is active, when the slot
+name is empty, or when the active theme doesn't override that slot —
+all three mean "paint the default".
+
+### `desktopTheme` — OS settings key
+
+`string`. The active theme slug, or `''` for the system default.
+Available on the snapshot from `wp.desktop.getOsSettings()` and
+`subscribeOsSettings()`, and writable through
+`wp.desktop.updateOsSettings()`. Persisted in the
+`desktop_mode_os_settings` user meta; sanitized server-side as a
+`sanitize_key()`-clean string (empty is a legitimate value).
+
+### CustomEvent: `desktop-mode-desktop-theme-changed`
+
+Dispatched on `document` **only when the active theme actually
+changed** — a redundant re-apply (boot, an unrelated settings save)
+does not fire it. Treat every firing as "repaint anything that
+resolved a themed icon".
+
+```js
+document.addEventListener( 'desktop-mode-desktop-theme-changed', ( e ) => {
+    const { themeId, previous } = e.detail;   // string | null
+    myPanel.repaintIcons();
+} );
+```
+
+### Hook: `desktop-mode.desktop-theme.changed` *(action)*
+
+Same payload as the CustomEvent, on the hook bus.
+
+```js
+wp.hooks.addAction(
+    'desktop-mode.desktop-theme.changed',
+    'my-plugin',
+    ( { themeId, previous } ) => { /* … */ },
+);
+```
+
+### Hook: `desktop-mode.desktop-theme.icon` *(filter)*
+
+Applied to every themed icon the active theme resolves.
+
+```js
+wp.hooks.addFilter(
+    'desktop-mode.desktop-theme.icon',
+    'my-plugin',
+    ( icon, { slot, themeId } ) => {
+        if ( slot === 'APP:my-plugin' ) {
+            return myBrandedIconUrl;
+        }
+        return icon;
+    },
+);
+```
+
+Only runs while a theme is **active** — with no theme the resolver
+short-circuits on a null check and never reaches the filter, so
+subscribers cost nothing on an unthemed shell.
+
+### `<wpd-window-button icon-src>`
+
+New observed attribute. Precedence: `icon-src` > `icon` > slotted
+content. Accepts an `http(s)` or `data:image/` URL and paints it as a
+`currentColor`-tinted CSS mask, which preserves the `--wpd-btn-*`
+focused/unfocused tinting contract. **Only the alpha channel is used**
+— control glyphs are monochrome silhouettes by design.
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.
@@ -5266,6 +5380,8 @@ re-renders for the new account.
 - [Examples — Cross-window devtools](./examples/devtools-instrumentation.md)
 - [Examples — Pulse a window's icon](./examples/window-request-attention.md)
 - [Examples — Window themes](./examples/window-theme.md)
+- [Desktop themes](./desktop-themes.md) — whole-OS reskins
+- [Examples — Register a desktop theme](./examples/register-desktop-theme.md)
 - [Examples — Window controls](./examples/window-controls.md)
 - [Examples — Window slots](./examples/window-slot.md)
 - [Examples — Custom window chrome (Experimental)](./examples/custom-chrome.md)

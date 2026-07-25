@@ -63,8 +63,8 @@ export class WpdEmptyState extends Component {
 			{ name: '(default)', description: 'Any additional content rendered after the CTA.' },
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Heading colour.' },
-			{ name: '--desktop-mode-muted', description: 'Description colour.' },
+			{ name: '--wpd-fg', description: 'Heading colour.' },
+			{ name: '--wpd-fg-muted', description: 'Description colour.' },
 			{ name: '--wpd-empty-state-fg' },
 			{ name: '--wpd-empty-state-icon-color' },
 		],

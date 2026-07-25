@@ -14,7 +14,7 @@ export const styles = css`
 		border: none;
 		border-radius: 4px;
 		background: transparent;
-		color: rgba( 0, 0, 0, 0.45 );
+		color: var( --wpd-fg-muted, rgba( 0, 0, 0, 0.45 ) );
 		cursor: pointer;
 		transition: background-color 0.15s ease, color 0.15s ease,
 			transform 0.12s ease;
@@ -31,12 +31,12 @@ export const styles = css`
 	}
 	/* Close (red destructive wash) */
 	:host( [ variant='close' ] ) button:hover {
-		color: #fff;
-		background: #d63638;
+		color: var( --wpd-fg-on-accent, #fff );
+		background: var( --wpd-danger, #d63638 );
 	}
 	:host( [ variant='close' ] ) button:focus-visible {
-		color: #fff;
-		background: #d63638;
+		color: var( --wpd-fg-on-accent, #fff );
+		background: var( --wpd-danger, #d63638 );
 		outline: 2px solid rgba( 214, 54, 56, 0.6 );
 		outline-offset: 1px;
 	}

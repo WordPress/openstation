@@ -151,6 +151,10 @@ export const DEFAULTS: OsSettingsState = {
 	dockSize: 'default',
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
+	// `''` = System default. Any other value is a desktop-theme
+	// slug; the registry resolves it at apply time and falls back
+	// to the system default when it isn't installed.
+	desktopTheme: '',
 	unfocusEffect: 'darken',
 	windowLinkRenderer: 'svg-splines',
 	windowLinkVisibility: 'always',

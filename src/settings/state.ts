@@ -118,6 +118,17 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_-]+$/.test( parsed.dockRailRenderer )
 				? parsed.dockRailRenderer
 				: DEFAULTS.dockRailRenderer,
+		// Desktop theme — mirrors the PHP sanitizer exactly: a
+		// `sanitize_key()`-clean slug, or the empty string for the
+		// system default. Note the `*` quantifier (not `+`): unlike
+		// every other id field here, EMPTY IS A REAL VALUE, and a `+`
+		// would silently rewrite "System default" to whatever the
+		// default happened to be.
+		desktopTheme:
+			typeof parsed.desktopTheme === 'string' &&
+			/^[a-z0-9_-]*$/.test( parsed.desktopTheme )
+				? parsed.desktopTheme
+				: DEFAULTS.desktopTheme,
 		// Unfocus effect — any registry id (`vendor/sub-id` allowed) or
 		// the `'none'` sentinel survives; the engine resolves at use
 		// time and treats an unknown id as "no effect".

@@ -29,6 +29,7 @@
  */
 
 import { hashTitleToHue } from './ui/util/hash-hue';
+import { resolveThemedIcon } from './desktop-themes/icons';
 
 export interface RenderIconOptions {
 	/**
@@ -43,6 +44,18 @@ export interface RenderIconOptions {
 	 * the framework's internal class names.
 	 */
 	className?: string;
+	/**
+	 * Desktop-theme icon slot this icon occupies (see
+	 * `src/desktop-themes/slots.ts`). When an active desktop theme
+	 * overrides the slot, its icon is painted INSTEAD of `icon` —
+	 * the substitution happens before the shape dispatcher below, so
+	 * a theme can turn a dashicon into a PNG or vice versa.
+	 *
+	 * Omit it and nothing about this function changes.
+	 *
+	 * @since 0.9.7
+	 */
+	slot?: string;
 }
 
 /**
@@ -57,6 +70,19 @@ export interface RenderIconOptions {
 export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement {
 	const className = opts.className ?? '';
 	const title = opts.title ?? '';
+
+	// 0. Desktop-theme substitution. Runs before the shape dispatcher
+	//    so a themed replacement goes through exactly the same
+	//    rendering paths as a native icon — a theme that swaps a
+	//    dashicon for an SVG URL gets the `<img>` branch for free.
+	//    `resolveThemedIcon` is a single null check when no theme is
+	//    active, so this costs effectively nothing by default.
+	if ( opts.slot ) {
+		const themed = resolveThemedIcon( opts.slot );
+		if ( themed !== null ) {
+			icon = themed;
+		}
+	}
 
 	// 1. Dashicon class.
 	if ( typeof icon === 'string' && icon.startsWith( 'dashicons-' ) ) {

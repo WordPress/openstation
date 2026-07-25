@@ -13,7 +13,7 @@ export const menuStyles = css`
 		min-width: 180px;
 		background: var( --wpd-context-menu-bg, var( --desktop-mode-bg, #1d2327 ) );
 		color: var( --wpd-context-menu-fg, var( --desktop-mode-fg, #fff ) );
-		border: 1px solid rgba( 255, 255, 255, 0.08 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.08 ) );
 		border-radius: 8px;
 		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.45 );
 		padding: 4px;
@@ -46,7 +46,7 @@ export const optionStyles = css`
 
 	:host( :hover ),
 	:host( [ active ] ) {
-		background: rgba( 255, 255, 255, 0.1 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.1 ) );
 		outline: none;
 	}
 
@@ -69,7 +69,7 @@ export const optionStyles = css`
 		font-weight: 700;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
-		color: var( --wpd-context-menu-fg-muted, rgba( 255, 255, 255, 0.5 ) );
+		color: var( --wpd-context-menu-fg-muted, var( --wpd-fg-muted, rgba( 255, 255, 255, 0.5 ) ) );
 		pointer-events: none;
 	}
 

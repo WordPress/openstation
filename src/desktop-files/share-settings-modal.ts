@@ -75,8 +75,8 @@ function buildCapSegmented(
 		'--desktop-mode-window-bg',
 		'var(--wp-admin-theme-color, #2271b1)',
 	);
-	segmented.style.setProperty( '--desktop-mode-text', '#fff' );
-	segmented.style.setProperty( '--desktop-mode-muted', 'rgba(255,255,255,0.65)' );
+	segmented.style.setProperty( '--wpd-fg', '#fff' );
+	segmented.style.setProperty( '--wpd-fg-muted', 'rgba(255,255,255,0.65)' );
 
 	const segRead = document.createElement( 'wpd-segment' );
 	segRead.setAttribute( 'value', 'read' );

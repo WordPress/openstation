@@ -29,7 +29,7 @@ export const selectStyles = css`
 		flex-direction: column;
 		gap: 4px;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		min-width: 0;
 	}
 
@@ -39,7 +39,7 @@ export const selectStyles = css`
 
 	.wpd-select__label {
 		font-size: 12px;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 	}
 
 	.wpd-select__wrap {
@@ -56,19 +56,19 @@ export const selectStyles = css`
 		width: 100%;
 		min-width: 0;
 		padding: 7px 28px 7px 12px;
-		background: rgba( 0, 0, 0, 0.05 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
 		border: 1px solid transparent;
 		border-radius: 7px;
 		font: inherit;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		cursor: pointer;
 		transition: background-color 0.12s ease, border-color 0.12s ease,
 			box-shadow 0.12s ease;
 	}
 
 	select:hover {
-		background: rgba( 0, 0, 0, 0.08 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.08 ) );
 	}
 
 	select:focus-visible {
@@ -93,7 +93,7 @@ export const selectStyles = css`
 		top: 50%;
 		transform: translateY( -50% );
 		pointer-events: none;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 		display: inline-block;
 	}
 
@@ -101,7 +101,7 @@ export const selectStyles = css`
 	 * own border transition so the two feel like one affordance. */
 	select:hover ~ .wpd-select__chevron,
 	select:focus-visible ~ .wpd-select__chevron {
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 	}
 `;
 

@@ -157,6 +157,13 @@ import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
 import type { WallpaperSuspendApi } from '../wallpapers/layer';
 import { gamesApi } from '../games/api';
+import { applyDesktopTheme } from '../desktop-themes/apply';
+import { resolveThemedIcon } from '../desktop-themes/icons';
+import {
+	getActiveDesktopThemeId,
+	listDesktopThemes,
+	subscribeDesktopThemes,
+} from '../desktop-themes/registry';
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
@@ -203,7 +210,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerWindowLinkRenderer', 'unregisterWindowLinkRenderer',
 	'listWindowLinkRenderers',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
-	'applyWindowTheme',
+	'applyWindowTheme', 'desktopThemes',
 	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
 	'applyWindowControls',
 	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
@@ -559,6 +566,13 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerWindowTheme,
 		unregisterWindowTheme,
 		listWindowThemes,
+		desktopThemes: {
+			list: listDesktopThemes,
+			getActive: getActiveDesktopThemeId,
+			setActive: applyDesktopTheme,
+			subscribe: subscribeDesktopThemes,
+			resolveIcon: resolveThemedIcon,
+		},
 		applyWindowTheme: ( windowId, override ) => {
 			const win = manager.getById( windowId );
 			if ( ! win ) {

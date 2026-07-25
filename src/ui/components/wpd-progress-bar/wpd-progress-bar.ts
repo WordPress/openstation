@@ -86,7 +86,7 @@ export class WpdProgressBar extends Component {
 		cssProps: [
 			{
 				name: '--wpd-progress-track-bg',
-				default: 'var(--desktop-mode-control-bg, rgba(0,0,0,0.08))',
+				default: 'var(--wpd-surface-sunken, rgba(0,0,0,0.08))',
 			},
 			{
 				name: '--wpd-progress-fill',

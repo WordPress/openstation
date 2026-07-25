@@ -13,7 +13,7 @@
 	height: 100%;
 	width: 100%;
 	background: var( --wpd-surface, #fff );
-	color: var( --wpd-text, #1d2327 );
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-games__library {
@@ -152,7 +152,7 @@
 
 .desktop-mode-games__hero-desc {
 	margin: 0;
-	color: var( --wpd-text-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 	font-size: 13px;
 	max-width: 60ch;
 }
@@ -171,7 +171,7 @@
 }
 
 .desktop-mode-games__playtime-label {
-	color: var( --wpd-text-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
@@ -202,7 +202,7 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: var( --wpd-text-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 /* ------------------------------------------------------------------
@@ -219,7 +219,7 @@
 .desktop-mode-games__scoreboard-empty {
 	padding: 24px;
 	text-align: center;
-	color: var( --wpd-text-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-games__pager {
@@ -231,7 +231,7 @@
 
 .desktop-mode-games__pager-label {
 	font-variant-numeric: tabular-nums;
-	color: var( --wpd-text-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 /* ------------------------------------------------------------------
@@ -271,7 +271,7 @@
 
 .desktop-mode-games__challenge-main wpd-relative-time {
 	font-size: 12px;
-	color: var( --wpd-text-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-games__challenge-actions {

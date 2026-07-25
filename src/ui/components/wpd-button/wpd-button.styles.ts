@@ -30,10 +30,10 @@ export const styles = css`
 			border-color 0.12s ease;
 		/* Ghost (default) */
 		background: var( --wpd-button-bg, transparent );
-		color: var( --wpd-button-fg, var( --desktop-mode-text, #1d2327 ) );
+		color: var( --wpd-button-fg, var( --wpd-fg, #1d2327 ) );
 		border: var(
 			--wpd-button-border,
-			1px solid var( --desktop-mode-border, #c3c4c7 )
+			1px solid var( --wpd-border, #c3c4c7 )
 		);
 	}
 	:host( [ fill-cell ] ) button {
@@ -45,12 +45,12 @@ export const styles = css`
 		cursor: not-allowed;
 	}
 	button:hover:not( :disabled ) {
-		background: var( --wpd-button-bg-hover, rgba( 0, 0, 0, 0.04 ) );
+		background: var( --wpd-button-bg-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
 	}
 	/* Primary */
 	:host( [ variant='primary' ] ) button {
 		background: var( --wpd-button-bg, var( --wp-admin-theme-color, #2271b1 ) );
-		color: var( --wpd-button-fg, #fff );
+		color: var( --wpd-button-fg, var( --wpd-fg-on-accent, #fff ) );
 		border: var( --wpd-button-border, 1px solid transparent );
 	}
 	:host( [ variant='primary' ] ) button:hover:not( :disabled ) {
@@ -62,22 +62,22 @@ export const styles = css`
 	 * destructive one" (AC / ± / % on a calculator; Cancel in a
 	 * two-button dialog). */
 	:host( [ variant='secondary' ] ) button {
-		background: var( --wpd-button-bg, rgba( 0, 0, 0, 0.06 ) );
-		color: var( --wpd-button-fg, var( --desktop-mode-text, #1d2327 ) );
+		background: var( --wpd-button-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
+		color: var( --wpd-button-fg, var( --wpd-fg, #1d2327 ) );
 		border: var( --wpd-button-border, 1px solid transparent );
 	}
 	:host( [ variant='secondary' ] ) button:hover:not( :disabled ) {
-		background: var( --wpd-button-bg-hover, rgba( 0, 0, 0, 0.1 ) );
+		background: var( --wpd-button-bg-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.1 ) ) );
 	}
 	/* Danger */
 	:host( [ variant='danger' ] ) button {
 		background: var( --wpd-button-bg, transparent );
-		color: var( --wpd-button-fg, #d63638 );
+		color: var( --wpd-button-fg, var( --wpd-danger, #d63638 ) );
 		border: var( --wpd-button-border, 1px solid currentColor );
 	}
 	:host( [ variant='danger' ] ) button:hover:not( :disabled ) {
-		background: #d63638;
-		color: #fff;
+		background: var( --wpd-danger, #d63638 );
+		color: var( --wpd-fg-on-accent, #fff );
 	}
 	/* Link */
 	:host( [ variant='link' ] ) button {

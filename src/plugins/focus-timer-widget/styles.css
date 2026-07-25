@@ -11,11 +11,11 @@
 	--dm-focus-accent: #7c3aed;
 	--dm-focus-accent-2: #2563eb;
 	/* The widget card is dark glass; the wpd-select / wpd-checkbox-label
-	   components default their text to the near-black --desktop-mode-text,
+	   components default their text to the near-black --wpd-fg,
 	   which vanishes here. Override the tokens to light, matching the
 	   Note Pad widget, and tint the accent to the timer's own colour. */
-	--desktop-mode-text: rgba( 255, 255, 255, 0.9 );
-	--desktop-mode-muted: rgba( 255, 255, 255, 0.6 );
+	--wpd-fg: rgba( 255, 255, 255, 0.9 );
+	--wpd-fg-muted: rgba( 255, 255, 255, 0.6 );
 	--wp-admin-theme-color: var( --dm-focus-accent );
 	display: flex;
 	flex-direction: column;

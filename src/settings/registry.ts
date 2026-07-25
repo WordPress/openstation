@@ -52,6 +52,8 @@ export interface OsSettingsSnapshot {
 	 * @since 0.6.0
 	 */
 	dockRailRenderer: string;
+	/** Active desktop-theme slug, or `''` for the system default. @since 0.9.7 */
+	desktopTheme: string;
 	/**
 	 * Active unfocused-window effect id; mirrors the unfocus-effect
 	 * registry's resolution. `'darken'` is the shipped built-in,

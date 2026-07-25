@@ -28,6 +28,9 @@ import '../ui/components/wpd-relative-time/wpd-relative-time';
 // `createElement('wpd-*')` doesn't see it. Register the compound
 // class set explicitly so the server-rendered toolbar works.
 import '../ui/components/wpd-segmented/wpd-segmented';
+import { DESKTOP_THEME_CHANGED_EVENT } from '../desktop-themes/apply';
+import { resolveThemedIcon } from '../desktop-themes/icons';
+import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
 import { setRecycleBinBadge } from './badge';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';
@@ -110,7 +113,14 @@ const TYPE_BADGE_COLORS: Record< string, { bg: string; fg: string } > = {
 	page: { bg: '#e0f2fe', fg: '#075985' },
 	attachment: { bg: '#fef3c7', fg: '#92400e' },
 	comment: { bg: '#dcfce7', fg: '#166534' },
-	_default: { bg: '#e5e7eb', fg: '#374151' },
+	// The hued badges above are left alone deliberately — the colour
+	// IS the type signal, and it survives on a dark row. Only the
+	// neutral fallback follows the palette, because a grey-on-grey
+	// chip carries no signal to preserve.
+	_default: {
+		bg: 'var( --wpd-surface-sunken, #e5e7eb )',
+		fg: 'var( --wpd-fg-muted, #374151 )',
+	},
 };
 
 function humanizeType( slug: string ): string {
@@ -277,7 +287,7 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 				if ( row.subtitle ) {
 					const sub = document.createElement( 'span' );
 					sub.style.cssText =
-						'font-size:12px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
+						'font-size:12px;color:var( --wpd-fg-muted, #50575e );white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
 					sub.textContent = row.subtitle;
 					sub.title = row.subtitle;
 					stack.appendChild( sub );
@@ -419,26 +429,45 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	btn.title = opts.label;
 
 	const isDanger = opts.variant === 'danger';
-	const restColor = isDanger ? '#d63638' : '#50575e';
-	const restBorder = isDanger ? '#d63638' : '#c3c4c7';
+
+	// Every colour below is a `var()` against the shared palette with
+	// the original literal as its fallback.
+	//
+	// These buttons are built by hand with INLINE styles rather than
+	// as `<wpd-button>`s because `<wpd-table>` renders its body into a
+	// shadow root that document stylesheets cannot reach. That is a
+	// legitimate constraint — but it also meant the colours here were
+	// unreachable by any theme, so the row actions stayed white-on-
+	// white while the table around them went dark.
+	//
+	// Inline `var()` is the fix precisely BECAUSE custom properties
+	// inherit through a shadow boundary: the token resolves against
+	// the host even though the rule does not.
+	const restColor = isDanger
+		? 'var( --wpd-danger, #d63638 )'
+		: 'var( --wpd-fg-muted, #50575e )';
+	const restBorder = isDanger
+		? 'var( --wpd-danger, #d63638 )'
+		: 'var( --wpd-border, #c3c4c7 )';
+	const restBg = 'var( --wpd-surface, #fff )';
 
 	// Single source of truth for visual state. Hover/leave swap
 	// the relevant inline properties — cheap, predictable, no
 	// CSS-rule cascade to debug.
 	const applyRest = (): void => {
-		btn.style.background = '#fff';
+		btn.style.background = restBg;
 		btn.style.color = restColor;
 		btn.style.borderColor = restBorder;
 	};
 	const applyHover = (): void => {
 		if ( isDanger ) {
-			btn.style.background = '#d63638';
-			btn.style.color = '#fff';
-			btn.style.borderColor = '#d63638';
+			btn.style.background = 'var( --wpd-danger, #d63638 )';
+			btn.style.color = 'var( --wpd-fg-on-accent, #fff )';
+			btn.style.borderColor = 'var( --wpd-danger, #d63638 )';
 		} else {
-			btn.style.background = '#f0f0f1';
-			btn.style.color = '#1d2327';
-			btn.style.borderColor = '#8c8f94';
+			btn.style.background = 'var( --wpd-hover, #f0f0f1 )';
+			btn.style.color = 'var( --wpd-fg, #1d2327 )';
+			btn.style.borderColor = 'var( --wpd-border-strong, #8c8f94 )';
 		}
 	};
 
@@ -453,7 +482,7 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 		'margin: 0',
 		'border: 1px solid ' + restBorder,
 		'border-radius: 6px',
-		'background: #fff',
+		'background: ' + restBg,
 		'color: ' + restColor,
 		'cursor: pointer',
 		'box-sizing: border-box',
@@ -467,16 +496,60 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	btn.addEventListener( 'focus', applyHover );
 	btn.addEventListener( 'blur', applyRest );
 
-	const svgNs = 'http://www.w3.org/2000/svg';
-	const svg = document.createElementNS( svgNs, 'svg' );
-	svg.setAttribute( 'width', '18' );
-	svg.setAttribute( 'height', '18' );
-	svg.setAttribute( 'viewBox', '0 0 24 24' );
-	svg.setAttribute( 'aria-hidden', 'true' );
-	svg.setAttribute( 'focusable', 'false' );
-	svg.style.display = 'block';
-	svg.innerHTML = ICON_SVG[ opts.icon ] ?? '';
-	btn.appendChild( svg );
+	// Desktop-theme override for the row-action glyph.
+	//
+	// Rendered as an 18x18 CSS MASK tinted with `currentColor`, not
+	// as an `<img>`. These buttons swap their colour on hover / focus
+	// and the danger variant goes red; an image would be blind to all
+	// of that. Same trade-off as `<wpd-window-button icon-src>`: the
+	// glyph is a monochrome silhouette.
+	//
+	// A theme that maps the slot to a DASHICON is ignored here on
+	// purpose — `<wpd-table>` renders into its own shadow root, which
+	// the global Dashicons stylesheet cannot reach, so the span would
+	// come out blank. The built-in SVG below is a better answer than
+	// an empty button.
+	const themed = resolveThemedIcon(
+		opts.icon === 'restore'
+			? DESKTOP_THEME_SLOTS.RECYCLE_RESTORE
+			: DESKTOP_THEME_SLOTS.RECYCLE_DELETE,
+	);
+	// The value is interpolated into a `url("…")` inside an inline
+	// `style`, so it must not be able to close that string or the
+	// attribute. Same reasoning (and same character set) as
+	// `sanitizeIconSrc` in `<wpd-window-button>`; a rejected value
+	// falls through to the built-in SVG below.
+	const maskSafe =
+		themed !== null &&
+		! themed.startsWith( 'dashicons-' ) &&
+		/^(https?:\/\/|data:image\/)/i.test( themed ) &&
+		! /['"()\\<>\s]/.test( themed );
+
+	if ( maskSafe ) {
+		const mask = document.createElement( 'span' );
+		mask.setAttribute( 'aria-hidden', 'true' );
+		mask.style.cssText = [
+			'display: block',
+			'width: 18px',
+			'height: 18px',
+			'flex-shrink: 0',
+			'background-color: currentColor',
+			`-webkit-mask: url("${ themed }") center / contain no-repeat`,
+			`mask: url("${ themed }") center / contain no-repeat`,
+		].join( ';' );
+		btn.appendChild( mask );
+	} else {
+		const svgNs = 'http://www.w3.org/2000/svg';
+		const svg = document.createElementNS( svgNs, 'svg' );
+		svg.setAttribute( 'width', '18' );
+		svg.setAttribute( 'height', '18' );
+		svg.setAttribute( 'viewBox', '0 0 24 24' );
+		svg.setAttribute( 'aria-hidden', 'true' );
+		svg.setAttribute( 'focusable', 'false' );
+		svg.style.display = 'block';
+		svg.innerHTML = ICON_SVG[ opts.icon ] ?? '';
+		btn.appendChild( svg );
+	}
 
 	btn.addEventListener( 'click', ( e: Event ) => {
 		e.stopPropagation();
@@ -1111,8 +1184,28 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		currentRowActionRestore = () => {};
 		currentRowActionPurge = () => {};
 		document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
+		document.removeEventListener(
+			DESKTOP_THEME_CHANGED_EVENT,
+			onDesktopThemeChanged,
+		);
 	};
 	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
+
+	// The bin lives in its own bundle and paints its row-action
+	// glyphs itself, so the shell's theme-change repaint (which walks
+	// dock rails and window chrome) never reaches these rows. Re-run
+	// the normal refresh so the table rebuilds through
+	// `makeRowButton()` and picks up the new theme's icons.
+	const onDesktopThemeChanged = (): void => {
+		if ( ! body.isConnected ) {
+			return;
+		}
+		void refresh();
+	};
+	document.addEventListener(
+		DESKTOP_THEME_CHANGED_EVENT,
+		onDesktopThemeChanged,
+	);
 
 	void refresh();
 }

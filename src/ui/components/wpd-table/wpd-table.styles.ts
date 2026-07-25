@@ -263,7 +263,7 @@ export const styles = css`
 		line-height: 1;
 	}
 	.expander:hover {
-		background: rgba( 0, 0, 0, 0.06 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
 	}
 	/*
 	 * System columns (expander + select) zero out horizontal cell
@@ -300,7 +300,7 @@ export const styles = css`
 	tr.empty td {
 		padding: 24px;
 		text-align: center;
-		color: var( --wpd-text-muted, rgba( 0, 0, 0, 0.55 ) );
+		color: var( --wpd-text-muted, var( --wpd-fg-muted, rgba( 0, 0, 0, 0.55 ) ) );
 		font-style: italic;
 	}
 
@@ -321,7 +321,7 @@ export const styles = css`
 	}
 	.sort-indicator {
 		font-size: 10px;
-		color: var( --wpd-text-muted, rgba( 0, 0, 0, 0.55 ) );
+		color: var( --wpd-text-muted, var( --wpd-fg-muted, rgba( 0, 0, 0, 0.55 ) ) );
 		margin-inline-start: 2px;
 	}
 	thead th.sort-asc .sort-indicator,
@@ -371,9 +371,9 @@ export const styles = css`
 		border-radius: 3px;
 		background: linear-gradient(
 			90deg,
-			var( --wpd-table-skeleton-color, rgba( 0, 0, 0, 0.06 ) ) 0%,
-			var( --wpd-table-skeleton-highlight, rgba( 0, 0, 0, 0.14 ) ) 50%,
-			var( --wpd-table-skeleton-color, rgba( 0, 0, 0, 0.06 ) ) 100%
+			var( --wpd-table-skeleton-color, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) ) 0%,
+			var( --wpd-table-skeleton-highlight, var( --wpd-hover, rgba( 0, 0, 0, 0.14 ) ) ) 50%,
+			var( --wpd-table-skeleton-color, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) ) 100%
 		);
 		background-size: 200% 100%;
 		animation: wpd-table-skeleton-pulse 1.4s ease-in-out infinite;

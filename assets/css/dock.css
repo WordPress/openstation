@@ -21,7 +21,17 @@
 	display: flex;
 	align-items: center;
 	z-index: var( --desktop-mode-z-dock );
-	background: var( --desktop-mode-dock-bg );
+	background-color: var( --desktop-mode-dock-bg );
+	/*
+	 * Desktop-theme dock texture (DOCK slot). Layered OVER the dock
+	 * background colour, so a theme can ship a semi-transparent
+	 * texture and still get the translucent wash underneath. `none`
+	 * when unset — no theme, no cost.
+	 */
+	background-image: var( --desktop-mode-dock-bg-image, none );
+	background-repeat: var( --desktop-mode-dock-bg-image-repeat, repeat );
+	background-size: var( --desktop-mode-dock-bg-image-size, auto );
+	background-position: center;
 	backdrop-filter: blur( 20px );
 	-webkit-backdrop-filter: blur( 20px );
 	flex-shrink: 0;
@@ -64,7 +74,7 @@
 
 .desktop-mode-dock__item-primary:hover {
 	background: rgba( 255, 255, 255, 0.15 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	transform: scale( 1.1 );
 }
 
@@ -134,7 +144,7 @@
 	width: 28px;
 	height: 28px;
 	border-radius: 8px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	font-size: 15px;
 	font-weight: 700;
 	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -172,7 +182,7 @@
 	border: 2px solid var( --desktop-mode-dock-bg, rgba( 0, 0, 0, 0.4 ) );
 	border-radius: 50%;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	cursor: pointer;
 	transition: background-color 0.15s ease, transform 0.15s ease;
 	z-index: 1;
@@ -183,7 +193,7 @@
 }
 
 .desktop-mode-dock__item-new:hover {
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
@@ -202,8 +212,8 @@
 	padding: 0 5px;
 	box-sizing: border-box;
 	border-radius: 999px;
-	background: linear-gradient( 180deg, #ff5a5a 0%, #d63638 100% );
-	color: #fff;
+	background: linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% );
+	color: var( --wpd-fg-on-accent, #fff );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -353,8 +363,8 @@
 .desktop-mode-dock__tooltip {
 	position: fixed;
 	padding: 6px 12px;
-	background: rgba( 0, 0, 0, 0.85 );
-	color: #fff;
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.85 ) );
+	color: var( --wpd-fg-on-accent, #fff );
 	font-size: 12px;
 	font-weight: 400;
 	line-height: 1.4;
@@ -468,7 +478,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 }
 
 .desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
@@ -508,7 +518,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 }
 
 .desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
@@ -704,7 +714,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 }
 
 .desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]

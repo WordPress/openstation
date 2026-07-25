@@ -7,7 +7,7 @@ export const dialogStyles = css`
 		inset: 0;
 		align-items: center;
 		justify-content: center;
-		background: rgba( 0, 0, 0, 0.45 );
+		background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
 		backdrop-filter: blur( 2px );
 		z-index: 10000;
 	}
@@ -20,7 +20,7 @@ export const dialogStyles = css`
 		width: min( 420px, 92vw );
 		background: var( --wpd-confirm-dialog-bg, var( --desktop-mode-bg, #1d2327 ) );
 		color: var( --wpd-confirm-dialog-fg, var( --desktop-mode-fg, #fff ) );
-		border: 1px solid rgba( 255, 255, 255, 0.08 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.08 ) );
 		border-radius: 10px;
 		box-shadow: 0 20px 50px rgba( 0, 0, 0, 0.6 );
 		padding: 20px 22px 18px;
@@ -42,14 +42,14 @@ export const dialogStyles = css`
 		background: transparent;
 		border: 0;
 		border-radius: 6px;
-		color: var( --wpd-confirm-dialog-fg-muted, rgba( 255, 255, 255, 0.7 ) );
+		color: var( --wpd-confirm-dialog-fg-muted, var( --wpd-fg-muted, rgba( 255, 255, 255, 0.7 ) ) );
 		cursor: pointer;
 		font-size: 22px;
 		line-height: 1;
 		padding: 0;
 	}
 	.close:hover {
-		background: rgba( 255, 255, 255, 0.08 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.08 ) );
 		color: inherit;
 	}
 
@@ -61,7 +61,7 @@ export const dialogStyles = css`
 
 	.message {
 		margin: 0;
-		color: var( --wpd-confirm-dialog-fg-muted, rgba( 255, 255, 255, 0.7 ) );
+		color: var( --wpd-confirm-dialog-fg-muted, var( --wpd-fg-muted, rgba( 255, 255, 255, 0.7 ) ) );
 		line-height: 1.45;
 		white-space: pre-line;
 	}
@@ -83,24 +83,24 @@ export const dialogStyles = css`
 	}
 
 	.btn--secondary {
-		background: rgba( 255, 255, 255, 0.08 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.08 ) );
 		color: inherit;
 	}
 	.btn--secondary:hover {
-		background: rgba( 255, 255, 255, 0.14 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.14 ) );
 	}
 
 	.btn--primary {
 		background: var( --wp-admin-theme-color, #2271b1 );
-		color: #fff;
+		color: var( --wpd-fg-on-accent, #fff );
 	}
 	.btn--primary:hover {
 		filter: brightness( 1.08 );
 	}
 
 	.btn--danger {
-		background: #d63638;
-		color: #fff;
+		background: var( --wpd-danger, #d63638 );
+		color: var( --wpd-fg-on-accent, #fff );
 	}
 	.btn--danger:hover {
 		filter: brightness( 1.08 );

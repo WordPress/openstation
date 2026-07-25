@@ -27,7 +27,7 @@
 	inline-size: 100%;
 	overflow: hidden;
 	position: relative;
-	color: var( --wp-desktop-text-color, #1d2327 );
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
 }
 
 /*
@@ -127,7 +127,7 @@
 .desktop-mode-comments__empty {
 	text-align: center;
 	padding: 40px 20px;
-	color: var( --wp-desktop-muted-text-color, #50575e );
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
 }
 
 .desktop-mode-comments__empty .dashicons {
@@ -169,7 +169,7 @@
 }
 
 .desktop-mode-comments__author-meta small {
-	color: var( --wp-desktop-muted-text-color, #50575e );
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
 	font-size: 12px;
 }
 
@@ -188,7 +188,7 @@
 	align-self: flex-start;
 	background: transparent;
 	border: 0;
-	color: var( --wp-desktop-accent, #2271b1 );
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
 	cursor: pointer;
 	font-size: 12px;
 	padding: 0;
@@ -196,7 +196,7 @@
 
 .desktop-mode-comments__replies {
 	margin-block-start: 8px;
-	border-inline-start: 2px solid var( --wp-desktop-border-color, #ddd );
+	border-inline-start: 2px solid var( --wp-desktop-border-color, var( --wpd-border, #ddd ) );
 	padding-inline-start: 10px;
 	display: flex;
 	flex-direction: column;
@@ -220,7 +220,7 @@
 	font-weight: 700;
 	font-size: 12px;
 	font-variant-numeric: tabular-nums;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 .desktop-mode-comments__spam-chip[ data-tone='low' ] {
@@ -252,14 +252,14 @@
 	height: 8px;
 	border-radius: 50%;
 	background: linear-gradient( 135deg, #818cf8, #6366f1 );
-	box-shadow: 0 0 0 2px var( --wp-desktop-elevated-bg, #fff );
+	box-shadow: 0 0 0 2px var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #fff ) );
 }
 
 /* --- Inline reply / edit --- */
 
 .desktop-mode-comments__inline-host {
-	background: var( --wp-desktop-elevated-bg, #f6f7f7 );
-	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
 	border-radius: 6px;
 	padding: 8px;
 	margin: 4px 0 12px;
@@ -285,28 +285,28 @@
 }
 
 .desktop-mode-comments__reply-tool:hover {
-	background: var( --wp-desktop-hover-bg, rgba( 0, 0, 0, 0.06 ) );
+	background: var( --wp-desktop-hover-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
 .desktop-mode-comments__reply-input {
 	min-block-size: 80px;
 	padding: 8px 10px;
-	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
 	border-radius: 4px;
-	background: var( --wp-desktop-input-bg, #fff );
+	background: var( --wp-desktop-input-bg, var( --wpd-surface, #fff ) );
 	outline: none;
 	font: inherit;
 	width: 100%;
 }
 
 .desktop-mode-comments__reply-input:focus {
-	border-color: var( --wp-desktop-accent, #2271b1 );
+	border-color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
 	box-shadow: 0 0 0 2px rgba( 34, 113, 177, 0.18 );
 }
 
 .desktop-mode-comments__reply-input[ contenteditable='true' ]:empty::before {
 	content: attr( data-placeholder );
-	color: var( --wp-desktop-muted-text-color, #757575 );
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #757575 ) );
 }
 
 .desktop-mode-comments__inline-actions {
@@ -347,8 +347,8 @@
 	top: 56px;
 	left: 50%;
 	transform: translateX( -50% );
-	background: var( --wp-desktop-accent, #2271b1 );
-	color: #fff;
+	background: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	color: var( --wpd-fg-on-accent, #fff );
 	border-radius: 999px;
 	padding: 4px 12px;
 	display: inline-flex;
@@ -360,7 +360,7 @@
 
 .desktop-mode-comments__new-pill button {
 	background: rgba( 255, 255, 255, 0.18 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	border: 0;
 	border-radius: 999px;
 	padding: 2px 10px;
@@ -413,8 +413,8 @@
 	width: 340px;
 	max-block-size: calc( 100% - 24px );
 	overflow: auto;
-	background: var( --wp-desktop-elevated-bg, #fff );
-	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #fff ) );
+	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
 	border-radius: 12px;
 	padding: 18px;
 	box-shadow:
@@ -490,7 +490,7 @@
 }
 
 .desktop-mode-comments__drawer-sub {
-	color: var( --wp-desktop-muted-text-color, #757575 );
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #757575 ) );
 	margin: 0;
 	font-size: 12px;
 }
@@ -503,7 +503,7 @@
 
 .desktop-mode-comments__drawer-bar {
 	height: 8px;
-	background: var( --wp-desktop-track-bg, #e6e6e6 );
+	background: var( --wp-desktop-track-bg, var( --wpd-surface-sunken, #e6e6e6 ) );
 	border-radius: 4px;
 	position: relative;
 	overflow: hidden;
@@ -514,7 +514,7 @@
 	position: absolute;
 	inset: 0;
 	inline-size: var( --value, 0% );
-	background: var( --wp-desktop-accent, #2271b1 );
+	background: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
 	transition: inline-size 0.4s ease;
 }
 
@@ -526,7 +526,7 @@
 }
 
 .desktop-mode-comments__drawer-stats dt {
-	color: var( --wp-desktop-muted-text-color, #757575 );
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #757575 ) );
 }
 
 .desktop-mode-comments__drawer-stats dd {
@@ -540,7 +540,7 @@
 	margin-block-start: 4px;
 	align-self: flex-end;
 	background: transparent;
-	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
 	border-radius: 4px;
 	padding: 4px 12px;
 	cursor: pointer;
@@ -552,8 +552,8 @@
 	position: absolute;
 	inset: 50% 50% auto auto;
 	transform: translate( 50%, -50% );
-	background: var( --wp-desktop-elevated-bg, #fff );
-	border: 1px solid var( --wp-desktop-border-color, #dcdcde );
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #fff ) );
+	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
 	border-radius: 10px;
 	padding: 20px 28px;
 	box-shadow: 0 18px 50px rgba( 0, 0, 0, 0.28 );
@@ -571,7 +571,7 @@
 .desktop-mode-comments__shortcuts dt {
 	font-family: ui-monospace, SFMono-Regular, monospace;
 	font-weight: 700;
-	background: var( --wp-desktop-track-bg, #f0f0f1 );
+	background: var( --wp-desktop-track-bg, var( --wpd-surface-sunken, #f0f0f1 ) );
 	border-radius: 4px;
 	padding: 1px 8px;
 	justify-self: start;
@@ -587,7 +587,7 @@
 }
 
 .wpd-intro--comments .wpd-intro__card {
-	background: var( --wp-desktop-elevated-bg, #f6f7f7 );
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
 	border-radius: 8px;
 	padding: 12px 14px;
 	display: flex;
@@ -599,7 +599,7 @@
 	font-size: 22px;
 	width: 22px;
 	height: 22px;
-	color: var( --wp-desktop-accent, #2271b1 );
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
 }
 
 .wpd-intro--comments .wpd-intro__card-title {
@@ -612,5 +612,5 @@
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.45;
-	color: var( --wp-desktop-muted-text-color, #50575e );
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
 }

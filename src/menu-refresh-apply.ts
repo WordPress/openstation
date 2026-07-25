@@ -31,6 +31,7 @@ import type {
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
+	DesktopThemeServerEntry,
 	NativeWindowServerEntry,
 } from './types';
 import { applyServerWindowNotices } from './window-notices-server-sync';
@@ -52,6 +53,7 @@ export interface MenuRefreshPayload {
 	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
 	serverGames?: unknown;
+	serverDesktopThemes?: unknown;
 	desktopIcons?: unknown;
 	updateCounts?: unknown;
 }
@@ -97,6 +99,14 @@ export interface MenuRefreshDeps {
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
 	syncServerGames: ( list: DesktopGameServerEntry[] ) => Promise< void >;
+	/**
+	 * Reconcile the desktop-theme library against a fresh payload.
+	 * Synchronous — themes carry no script to load.
+	 *
+	 * Optional so callers/tests that predate desktop themes keep
+	 * working unchanged.
+	 */
+	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
 	 * Re-run the files-layer shortcut reconciliation
@@ -204,6 +214,7 @@ export function createApplyPayload(
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		syncServerGames,
+		syncServerDesktopThemes,
 		renderIcons,
 		syncShortcuts,
 	} = deps;
@@ -224,6 +235,7 @@ export function createApplyPayload(
 			payload.serverWindowLinkRendererScripts;
 		const serverWindowNotices = payload.serverWindowNotices;
 		const serverGames = payload.serverGames;
+		const serverDesktopThemes = payload.serverDesktopThemes;
 		const desktopIcons = payload.desktopIcons;
 
 		// Guard: an empty `dockItems` list is NEVER legitimate —
@@ -302,6 +314,19 @@ export function createApplyPayload(
 			void syncServerGames( serverGames as DesktopGameServerEntry[] );
 			config.serverGames =
 				serverGames as DesktopConfig[ 'serverGames' ];
+		}
+
+		// Desktop-theme library sync — a plugin that registers a
+		// theme from code makes it appear in OS Settings → Themes on
+		// activation, and lose it on deactivation. If the user was
+		// WEARING the departing theme, the sync deactivates locally
+		// so the shell doesn't sit on a dead stylesheet.
+		if ( Array.isArray( serverDesktopThemes ) ) {
+			syncServerDesktopThemes?.(
+				serverDesktopThemes as DesktopThemeServerEntry[],
+			);
+			config.serverDesktopThemes =
+				serverDesktopThemes as DesktopConfig[ 'serverDesktopThemes' ];
 		}
 
 		// Command-palette sync — loads plugin-contributed command

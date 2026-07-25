@@ -1161,6 +1161,7 @@ function desktop_mode_build_menu_payload() {
 		'serverWindowChromes'             => 'desktop_mode_build_window_chromes_payload',
 		'serverWindowNotices'             => 'desktop_mode_build_window_notices_payload',
 		'serverGames'                     => 'desktop_mode_build_desktop_games_payload',
+		'serverDesktopThemes'             => 'desktop_mode_build_desktop_themes_payload',
 		'desktopIcons'                    => 'desktop_mode_build_desktop_icons_payload',
 	);
 

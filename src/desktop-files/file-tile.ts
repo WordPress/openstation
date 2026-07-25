@@ -23,6 +23,8 @@
  * @since 0.9.0
  */
 
+import { resolveThemedIcon } from '../desktop-themes/icons';
+import { slotForFileType } from '../desktop-themes/slots';
 import { applyFilters, doAction } from '../hooks';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
@@ -80,7 +82,19 @@ function placementToSpec(
 		label,
 		// Preview wins over icon (matches the previous behavior).
 		thumbnail: previewUrl || undefined,
-		icon: previewUrl ? undefined : ( metaIconUrl || file.icon() ),
+		// Precedence when no preview exists:
+		//   per-placement `meta.iconUrl`  (the user/plugin said so
+		//                                  about THIS tile)
+		//   → desktop-theme FILE_* slot   (the theme said so about
+		//                                  this KIND of tile)
+		//   → the file type's own icon.
+		// The per-placement override outranks the theme on purpose:
+		// it is specific, deliberate, and about one object.
+		icon: previewUrl
+			? undefined
+			: ( metaIconUrl ||
+				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
+				file.icon() ),
 		x: placement.x,
 		y: placement.y,
 		dataset: {

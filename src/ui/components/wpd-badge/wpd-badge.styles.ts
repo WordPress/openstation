@@ -15,8 +15,8 @@ export const styles = css`
 		gap: var( --wpd-badge-gap, 6px );
 		padding: var( --wpd-badge-padding, 2px 8px );
 		font: var( --wpd-badge-font, 500 12px/1.4 var( --desktop-mode-font, system-ui ) );
-		color: var( --wpd-badge-color, var( --desktop-mode-text, #1d2327 ) );
-		background: var( --wpd-badge-bg, rgba( 0, 0, 0, 0.06 ) );
+		color: var( --wpd-badge-color, var( --wpd-fg, #1d2327 ) );
+		background: var( --wpd-badge-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
 		border: var( --wpd-badge-border, 1px solid transparent );
 		border-radius: var( --wpd-badge-border-radius, 999px );
 		white-space: nowrap;
@@ -42,23 +42,23 @@ export const styles = css`
 	 * variables below without redefining the rest.
 	 */
 	:host( [ tone="success" ] ) {
-		--wpd-badge-color: var( --wpd-badge-success, #1a7f37 );
+		--wpd-badge-color: var( --wpd-badge-success, var( --wpd-success-fg, #1a7f37 ) );
 		--wpd-badge-bg: var( --wpd-badge-success-bg, rgba( 26, 127, 55, 0.12 ) );
 	}
 	:host( [ tone="warning" ] ) {
-		--wpd-badge-color: var( --wpd-badge-warning, #9a6700 );
+		--wpd-badge-color: var( --wpd-badge-warning, var( --wpd-warning-fg, #9a6700 ) );
 		--wpd-badge-bg: var( --wpd-badge-warning-bg, rgba( 154, 103, 0, 0.12 ) );
 	}
 	:host( [ tone="danger" ] ) {
-		--wpd-badge-color: var( --wpd-badge-danger, #cf222e );
+		--wpd-badge-color: var( --wpd-badge-danger, var( --wpd-danger, #cf222e ) );
 		--wpd-badge-bg: var( --wpd-badge-danger-bg, rgba( 207, 34, 46, 0.12 ) );
 	}
 	:host( [ tone="info" ] ) {
-		--wpd-badge-color: var( --wpd-badge-info, #0969da );
+		--wpd-badge-color: var( --wpd-badge-info, var( --wpd-info-fg, #0969da ) );
 		--wpd-badge-bg: var( --wpd-badge-info-bg, rgba( 9, 105, 218, 0.12 ) );
 	}
 	:host( [ tone="neutral" ] ) {
-		--wpd-badge-color: var( --wpd-badge-neutral, #57606a );
+		--wpd-badge-color: var( --wpd-badge-neutral, var( --wpd-fg-muted, #57606a ) );
 		--wpd-badge-bg: var( --wpd-badge-neutral-bg, rgba( 87, 96, 106, 0.12 ) );
 	}
 

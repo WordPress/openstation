@@ -31,21 +31,21 @@ export const styles = css`
 	}
 	button:hover {
 		color: var( --wpd-btn-color-hover, currentColor );
-		background: var( --wpd-btn-bg-hover, rgba( 0, 0, 0, 0.06 ) );
+		background: var( --wpd-btn-bg-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
 	}
 	button:focus-visible {
 		color: var( --wpd-btn-color-hover, currentColor );
-		background: var( --wpd-btn-bg-hover, rgba( 0, 0, 0, 0.06 ) );
+		background: var( --wpd-btn-bg-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
 		outline: 2px solid var( --wpd-btn-outline, currentColor );
 		outline-offset: 1px;
 	}
 	:host( [ active ] ) button {
 		color: var( --wpd-btn-color-hover, currentColor );
-		background: var( --wpd-btn-bg-active, rgba( 0, 0, 0, 0.08 ) );
+		background: var( --wpd-btn-bg-active, var( --wpd-hover, rgba( 0, 0, 0, 0.08 ) ) );
 	}
 	:host( [ danger ] ) button:hover {
-		color: #fff;
-		background: var( --wpd-btn-danger-hover, #d63638 );
+		color: var( --wpd-fg-on-accent, #fff );
+		background: var( --wpd-btn-danger-hover, var( --wpd-danger, #d63638 ) );
 	}
 	svg {
 		display: block;
@@ -64,6 +64,26 @@ export const styles = css`
 	 */
 	svg:empty {
 		display: none;
+	}
+	/*
+	 * Desktop-theme control glyph (the \`icon-src\` attribute). The
+	 * image is applied as a MASK by the render method and tinted
+	 * here with \`currentColor\`, so a themed close button still
+	 * turns white on a focused title bar and red on danger-hover —
+	 * exactly like the built-in SVGs. An \`<img>\` would paint its
+	 * own colours and go deaf to every \`--wpd-btn-*\` property.
+	 *
+	 * The trade-off, documented for theme authors: only the source
+	 * image's alpha channel is used, so control glyphs are
+	 * monochrome silhouettes.
+	 */
+	.themed-icon {
+		display: block;
+		width: 14px;
+		height: 14px;
+		flex-shrink: 0;
+		pointer-events: none;
+		background-color: currentColor;
 	}
 	/*
 	 * Slot content sits as a sibling of the built-in svg inside

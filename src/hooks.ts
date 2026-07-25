@@ -299,6 +299,44 @@ export const HOOKS = {
 	WALLPAPER_SURFACES: 'desktop-mode.wallpaper.surfaces',
 
 	// ------------------------------------------------------------------
+	// Desktop themes (whole-OS reskins — see docs/desktop-themes.md).
+	// Distinct from WINDOW_THEME_* below, which are the per-window
+	// chrome themes.
+	// ------------------------------------------------------------------
+	/**
+	 * Action, fired after the active desktop theme actually changed.
+	 * Does NOT fire on a redundant re-apply (boot, settings re-save
+	 * with no theme change) — subscribers can treat every firing as
+	 * "repaint anything that resolves a themed icon".
+	 *
+	 * Signature:
+	 *
+	 *     ( detail: { themeId: string | null; previous: string | null } )
+	 *
+	 * `null` means the system default. A CustomEvent with the same
+	 * detail is dispatched on `document` as
+	 * `desktop-mode-desktop-theme-changed`.
+	 *
+	 * @since 0.9.7
+	 */
+	DESKTOP_THEME_CHANGED: 'desktop-mode.desktop-theme.changed',
+	/**
+	 * Filter, applied to every themed icon the active desktop theme
+	 * resolves — a `dashicons-*` class or an absolute image URL.
+	 *
+	 * Only runs while a theme is ACTIVE. With no theme the resolver
+	 * short-circuits on a null check and never reaches the filter, so
+	 * an unthemed shell pays nothing for having subscribers.
+	 *
+	 * Signature:
+	 *
+	 *     ( icon: string, ctx: { slot: string; themeId: string } ) => string
+	 *
+	 * @since 0.9.7
+	 */
+	DESKTOP_THEME_ICON: 'desktop-mode.desktop-theme.icon',
+
+	// ------------------------------------------------------------------
 	// Window lifecycle actions. All payloads share a `windowId: string`
 	// field; additional fields are documented per-hook in the JS
 	// reference. These mirror the existing `desktop-mode-window-*`

@@ -29,9 +29,9 @@ export const toastStyles = css`
 		max-width: 420px;
 		padding: 10px 14px;
 		background: #1d2327;
-		color: #fff;
+		color: var( --wpd-fg-on-accent, #fff );
 		border-radius: 10px;
-		border: 1px solid rgba( 255, 255, 255, 0.12 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.12 ) );
 		box-shadow: 0 10px 30px rgba( 0, 0, 0, 0.4 ),
 			0 2px 6px rgba( 0, 0, 0, 0.18 ),
 			inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
@@ -63,8 +63,8 @@ export const toastStyles = css`
 		padding: 4px 10px;
 		border: none;
 		border-radius: 4px;
-		background: rgba( 255, 255, 255, 0.12 );
-		color: #fff;
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.12 ) );
+		color: var( --wpd-fg-on-accent, #fff );
 		font: inherit;
 		font-size: 12px;
 		font-weight: 500;
@@ -72,10 +72,10 @@ export const toastStyles = css`
 		transition: background-color 0.12s ease;
 	}
 	button:hover {
-		background: rgba( 255, 255, 255, 0.22 );
+		background: var( --wpd-scrim, rgba( 255, 255, 255, 0.22 ) );
 	}
 	button:focus-visible {
-		outline: 2px solid rgba( 255, 255, 255, 0.6 );
+		outline: 2px solid var( --wpd-border, rgba( 255, 255, 255, 0.6 ) );
 		outline-offset: 2px;
 	}
 	.wpd-toast__close {
@@ -85,11 +85,11 @@ export const toastStyles = css`
 		padding: 4px;
 		border-radius: 6px;
 		background: transparent;
-		color: rgba( 255, 255, 255, 0.7 );
+		color: var( --wpd-fg-muted, rgba( 255, 255, 255, 0.7 ) );
 	}
 	.wpd-toast__close:hover {
-		background: rgba( 255, 255, 255, 0.14 );
-		color: #fff;
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.14 ) );
+		color: var( --wpd-fg-on-accent, #fff );
 	}
 	@media ( prefers-reduced-motion: reduce ) {
 		:host {

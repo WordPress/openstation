@@ -45,6 +45,99 @@
 	--desktop-mode-resize-size: 20px;
 	--desktop-mode-resize-color: rgba(0, 0, 0, 0.15);
 
+	/*
+	 * ---- The `--wpd-*` UI palette -----------------------------
+	 *
+	 * The single vocabulary for every surface, text tone, border,
+	 * and status colour inside window BODIES — the `<wpd-*>`
+	 * component kit AND the feature stylesheets both read these.
+	 * Setting one value retints everything that uses it.
+	 *
+	 *   Surfaces   --wpd-surface           cards, panels, table rows
+	 *              --wpd-surface-elevated  headers, raised strips
+	 *              --wpd-surface-sunken    wells, recessed areas
+	 *   Text       --wpd-fg                body text
+	 *              --wpd-fg-muted          secondary / metadata
+	 *              --wpd-fg-faint          disabled
+	 *              --wpd-fg-on-accent      text on a filled surface
+	 *   Lines      --wpd-border            hairlines
+	 *              --wpd-border-strong     emphasized dividers
+	 *   Interaction
+	 *              --wpd-hover             row / tile hover wash
+	 *              --wpd-scrim             modal + overlay backdrop
+	 *   Accent     --wpd-accent            primary action
+	 *              --wpd-accent-strong     its hover / active state
+	 *   Status     --wpd-danger  --wpd-danger-hover
+	 *              --wpd-warning-fg  --wpd-warning-bg  --wpd-warning-border
+	 *              --wpd-info-fg     --wpd-info-bg
+	 *              --wpd-success-fg
+	 *
+	 * ## Why none of them are declared here
+	 *
+	 * They are deliberately left UNSET. Every consuming site reads
+	 * its token as `var( --wpd-x, <the literal that was always
+	 * there> )`, so with no desktop theme active the computed value
+	 * is exactly what it was before this palette existed — the
+	 * default look cannot drift, and there is no flag day.
+	 *
+	 * Declaring defaults here would be actively wrong: the same
+	 * token legitimately carries different fallbacks at different
+	 * sites (`--wpd-border` is `#dcdcde` in the settings panel and
+	 * `rgba( 0, 0, 0, 0.08 )` inside `<wpd-table>`), tuned to each
+	 * surface. One `:root` value would flatten all of them and
+	 * silently restyle the default UI.
+	 *
+	 * A desktop theme sets whichever of these it wants in its
+	 * `theme.json` `tokens` block; the compiled stylesheet declares
+	 * them on the shell root + body, and every fallback in the tree
+	 * is overridden at once. See docs/desktop-themes.md.
+	 *
+	 * @since 0.9.7
+	 */
+
+	/*
+	 * ---- Desktop-theme texture family -------------------------
+	 *
+	 * These are DELIBERATELY not declared here. Every rule that
+	 * consumes one reads it as `var( --name, <initial> )`, so an
+	 * unset variable resolves to the CSS initial value and costs
+	 * exactly nothing. Declaring them with `none` up here would be
+	 * equivalent but would imply they are part of the default
+	 * palette — they are not. They exist only while an uploaded or
+	 * code-registered desktop theme is active, and only the
+	 * compiled theme stylesheet ever sets them.
+	 *
+	 *   TITLEBAR          --desktop-mode-titlebar-image
+	 *                     --desktop-mode-titlebar-image-repeat
+	 *                     --desktop-mode-titlebar-image-size
+	 *   TITLEBAR_FOCUSED  --desktop-mode-titlebar-image-focused
+	 *                       (falls back to the unfocused image)
+	 *   WINDOW_FRAME      --desktop-mode-window-border-image-source
+	 *                     --desktop-mode-window-border-image-slice
+	 *                     --desktop-mode-window-border-image-width
+	 *                     --desktop-mode-window-border-image-repeat
+	 *   WINDOW_CORNER_*   --desktop-mode-window-corner-{ne,nw,se,sw}-image
+	 *                     --desktop-mode-window-corner-size (shared)
+	 *                     --desktop-mode-window-corner-inset (shared;
+	 *                       how far inside the rounded corner the
+	 *                       ornament sits. Defaults to the resize
+	 *                       handle's 3px overhang plus a share of
+	 *                       --desktop-mode-window-radius, because the
+	 *                       window clips its descendants)
+	 *   DOCK              --desktop-mode-dock-bg-image
+	 *                     --desktop-mode-dock-bg-image-repeat
+	 *                     --desktop-mode-dock-bg-image-size
+	 *   DESKTOP           --desktop-mode-desktop-image
+	 *                     --desktop-mode-desktop-image-repeat
+	 *                     --desktop-mode-desktop-image-size
+	 *
+	 * Consumers: window-chrome.css (titlebar + frame),
+	 * window-states.css (corners), dock.css, desktop.css.
+	 * Authoring reference: docs/desktop-themes.md.
+	 *
+	 * @since 0.9.7
+	 */
+
 	/* Dock */
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;

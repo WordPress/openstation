@@ -7,7 +7,7 @@ export const modalStyles = css`
 		inset: 0;
 		align-items: center;
 		justify-content: center;
-		background: rgba( 0, 0, 0, 0.45 );
+		background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
 		backdrop-filter: blur( 2px );
 		z-index: 10000;
 
@@ -20,14 +20,14 @@ export const modalStyles = css`
 		   properties cross the slot boundary) resolve readable
 		   dark-surface colors. Anything can still override per
 		   instance — these carry normal cascade specificity. */
-		--desktop-mode-text: #f0f0f1;
-		--desktop-mode-text-muted: #bbc1c7;
-		--desktop-mode-muted: #a7aaad;
-		--desktop-mode-muted-fg: #a7aaad;
-		--desktop-mode-border: rgba( 255, 255, 255, 0.25 );
+		--wpd-fg: #f0f0f1;
+		--wpd-fg-muted: #bbc1c7;
+		--wpd-fg-muted: #a7aaad;
+		--wpd-fg-muted: #a7aaad;
+		--wpd-border: rgba( 255, 255, 255, 0.25 );
 		/* Input / popover surface. The :root default is #fff (windows
 		   are light), which here rendered white fields with the light
-		   --desktop-mode-text above — near-invisible values. Solid, not
+		   --wpd-fg above — near-invisible values. Solid, not
 		   translucent: wpd-menu / wpd-multiselect popovers read this
 		   token too and must stay opaque over slotted content. */
 		--desktop-mode-window-bg: #2c3338;
@@ -45,7 +45,7 @@ export const modalStyles = css`
 		max-height: 90vh;
 		background: var( --wpd-modal-bg, var( --desktop-mode-bg, #1d2327 ) );
 		color: var( --wpd-modal-fg, var( --desktop-mode-fg, #fff ) );
-		border: 1px solid rgba( 255, 255, 255, 0.08 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.08 ) );
 		border-radius: 10px;
 		box-shadow: 0 20px 50px rgba( 0, 0, 0, 0.6 );
 		display: flex;
@@ -71,7 +71,7 @@ export const modalStyles = css`
 		align-items: center;
 		gap: 10px;
 		padding: 16px 20px 12px;
-		border-bottom: 1px solid rgba( 255, 255, 255, 0.06 );
+		border-bottom: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.06 ) );
 	}
 
 	.title {
@@ -102,7 +102,7 @@ export const modalStyles = css`
 	}
 	.close:hover {
 		opacity: 1;
-		background: rgba( 255, 255, 255, 0.08 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.08 ) );
 	}
 
 	.body {
@@ -115,7 +115,7 @@ export const modalStyles = css`
 
 	.footer {
 		padding: 12px 20px 16px;
-		border-top: 1px solid rgba( 255, 255, 255, 0.06 );
+		border-top: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.06 ) );
 	}
 	/* The slot is the flex container — gap on .footer would only
 	   space the slot from its siblings (there are none), not the

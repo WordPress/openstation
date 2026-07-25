@@ -200,6 +200,36 @@ body.desktop-mode-active #wpcontent {
 }
 
 /*
+ * Desktop-theme wallpaper texture (DESKTOP slot).
+ *
+ * On a `::before` rather than this element's own background, because
+ * `--desktop-mode-bg` is set by the wallpaper picker and can be a
+ * gradient — i.e. a background-IMAGE. Overriding `background-image`
+ * here would silently erase every gradient wallpaper the moment a
+ * theme was active. The pseudo-element layers instead of replacing.
+ *
+ * Resulting precedence, bottom to top:
+ *   CSS wallpaper (`--desktop-mode-bg`)
+ *   → theme DESKTOP texture (this rule)
+ *   → canvas wallpapers, which mount as CHILDREN of the layer and
+ *     therefore paint above both.
+ *
+ * A theme that wants the user's wallpaper to remain visible ships a
+ * texture with transparency; an opaque one takes the desk over.
+ * With no theme active the image is `none` and this paints nothing.
+ */
+.desktop-mode-wallpaper::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: var(--desktop-mode-desktop-image, none);
+	background-repeat: var(--desktop-mode-desktop-image-repeat, repeat);
+	background-size: var(--desktop-mode-desktop-image-size, auto);
+	background-position: center;
+}
+
+/*
  * Canvas children fill the layer and ignore pointer events by
  * default — a wallpaper is presentational chrome, not an interactive
  * element. Plugins that genuinely need a clickable wallpaper can
@@ -410,8 +440,8 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	padding: 0 5px;
 	box-sizing: border-box;
 	border-radius: 999px;
-	background: linear-gradient( 180deg, #ff5a5a 0%, #d63638 100% );
-	color: #fff;
+	background: linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% );
+	color: var( --wpd-fg-on-accent, #fff );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -586,9 +616,9 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	flex: 1;
 	min-height: 0;
 	--desktop-mode-window-bg: transparent;
-	--desktop-mode-border: transparent;
-	--desktop-mode-text: #2a2513;
-	--desktop-mode-muted: rgba( 42, 37, 19, 0.62 );
+	--wpd-border: transparent;
+	--wpd-fg: #2a2513;
+	--wpd-fg-muted: rgba( 42, 37, 19, 0.62 );
 	font-family:
 		-apple-system,
 		BlinkMacSystemFont,
@@ -687,7 +717,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
 	border: 1px solid rgba( 255, 255, 255, 0.08 );
 	border-radius: 14px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	box-shadow:
 		0 8px 28px rgba( 0, 0, 0, 0.35 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
@@ -725,7 +755,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	justify-content: center;
 	padding: 0;
 	border: 0;
-	background: rgba( 0, 0, 0, 0.55 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.55 ) );
 	color: rgba( 255, 255, 255, 0.75 );
 	border-radius: 50%;
 	cursor: pointer;
@@ -742,8 +772,8 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 }
 
 .desktop-mode-widgets__card-close:hover {
-	background: #d63638;
-	color: #fff;
+	background: var( --wpd-danger, #d63638 );
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 /*
@@ -833,7 +863,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	justify-content: center;
 	padding: 0;
 	border: 0;
-	background: rgba( 0, 0, 0, 0.55 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.55 ) );
 	color: rgba( 255, 255, 255, 0.75 );
 	border-radius: 50%;
 	width: 20px;
@@ -854,7 +884,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .desktop-mode-widgets__card-redock:focus-visible {
 	opacity: 1;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 /*
@@ -990,7 +1020,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .desktop-mode-widgets__add:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
 	background: rgba( 255, 255, 255, 0.06 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 .desktop-mode-widgets__add:focus-visible {
@@ -1052,7 +1082,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	-webkit-backdrop-filter: blur( 22px ) saturate( 160% );
 	border: 1px solid rgba( 255, 255, 255, 0.1 );
 	box-shadow: 0 18px 54px rgba( 0, 0, 0, 0.55 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	z-index: 9999;
 	animation: desktop-mode-widget-picker-in 0.14s ease-out;
 }
@@ -1087,7 +1117,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	background: transparent;
 	border: 0;
 	border-radius: 10px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	cursor: pointer;
 	text-align: start;
 	font: inherit;

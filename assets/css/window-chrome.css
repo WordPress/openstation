@@ -38,6 +38,19 @@
 	border: 1px solid var(--desktop-mode-window-border);
 	border-radius: var(--desktop-mode-window-radius);
 	box-shadow: var(--desktop-mode-window-shadow);
+	/*
+	 * Desktop-theme window frame (WINDOW_FRAME texture slot). All
+	 * four properties default to their CSS initial value via the
+	 * `var( …, fallback )` second argument, so with no theme active
+	 * this costs nothing and the 1px border above stays in charge.
+	 * A theme that sets `--desktop-mode-window-border-image-source`
+	 * takes the frame over entirely — border-image paints on top of
+	 * (and visually replaces) the border. See docs/desktop-themes.md.
+	 */
+	border-image-source: var(--desktop-mode-window-border-image-source, none);
+	border-image-slice: var(--desktop-mode-window-border-image-slice, 100%);
+	border-image-width: var(--desktop-mode-window-border-image-width, 1);
+	border-image-repeat: var(--desktop-mode-window-border-image-repeat, stretch);
 	overflow: hidden;
 	min-width: 320px;
 	min-height: 200px;
@@ -112,7 +125,19 @@
 	align-items: center;
 	height: var(--desktop-mode-titlebar-height);
 	padding: 0 8px;
-	background: var(--desktop-mode-titlebar-bg);
+	background-color: var(--desktop-mode-titlebar-bg);
+	/*
+	 * Desktop-theme title-bar texture (TITLEBAR slot). `none` when
+	 * unset, so the background-color above is the whole story for
+	 * an unthemed shell. The `-repeat` / `-size` companions are
+	 * declared unconditionally with their CSS initial values as
+	 * fallbacks — cheaper than a second selector and it keeps the
+	 * shorthand from resetting them.
+	 */
+	background-image: var(--desktop-mode-titlebar-image, none);
+	background-repeat: var(--desktop-mode-titlebar-image-repeat, repeat);
+	background-size: var(--desktop-mode-titlebar-image-size, auto);
+	background-position: center;
 	color: var(--desktop-mode-titlebar-color);
 	cursor: default;
 	user-select: none;
@@ -121,7 +146,16 @@
 }
 
 .desktop-mode-window--focused .desktop-mode-window__titlebar {
-	background: var(--desktop-mode-titlebar-bg-focused);
+	background-color: var(--desktop-mode-titlebar-bg-focused);
+	/*
+	 * TITLEBAR_FOCUSED slot. Falls back through the unfocused
+	 * TITLEBAR image before reaching `none`, so a theme that ships
+	 * only one title-bar texture gets it on both states for free.
+	 */
+	background-image: var(
+		--desktop-mode-titlebar-image-focused,
+		var(--desktop-mode-titlebar-image, none)
+	);
 	color: var(--desktop-mode-titlebar-color-focused);
 }
 
@@ -259,12 +293,52 @@
 }
 
 .desktop-mode-window:not( .desktop-mode-window--focused ) {
-	--wpd-btn-color: rgba( 0, 0, 0, 0.45 );
-	--wpd-btn-color-hover: rgba( 0, 0, 0, 0.85 );
-	--wpd-btn-bg-hover: rgba( 0, 0, 0, 0.08 );
-	--wpd-btn-bg-active: rgba( 0, 0, 0, 0.12 );
+	--wpd-btn-color: var( --desktop-mode-titlebar-btn-color, rgba( 0, 0, 0, 0.45 ) );
+	--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-color-hover, rgba( 0, 0, 0, 0.85 ) );
+	--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-bg-hover, rgba( 0, 0, 0, 0.08 ) );
+	--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-bg-active, rgba( 0, 0, 0, 0.12 ) );
 	--wpd-btn-outline: var( --wp-admin-theme-color, #2271b1 );
-	--wpd-btn-danger-hover: #d63638;
+	--wpd-btn-danger-hover: var( --wpd-danger, #d63638 );
+}
+
+/*
+ * Unfocused control glyphs under an active desktop theme.
+ *
+ * The rule above paints them BLACK at 45% — correct against the
+ * default light unfocused title bar (`#f0f0f1`), invisible against a
+ * dark themed one. They can't simply follow the palette either:
+ * these are title-bar chrome, so the colour they owe allegiance to is
+ * the title bar's own text colour, not the window body's.
+ *
+ * Deriving it with `color-mix` means a theme gets legible unfocused
+ * controls for free from the `--desktop-mode-titlebar-color` it was
+ * already setting — no extra tokens to discover. The four
+ * `--desktop-mode-titlebar-btn-*` overrides above still win when an
+ * author wants exact control.
+ *
+ * Scoped to `[data-desktop-mode-desktop-theme]` on purpose: the
+ * default title-bar colour is `#50575e`, so applying this
+ * unconditionally would lighten the unfocused glyphs on every
+ * unthemed shell. No theme, no change.
+ */
+.desktop-mode-shell[ data-desktop-mode-desktop-theme ]
+	.desktop-mode-window:not( .desktop-mode-window--focused ) {
+	--wpd-btn-color: var(
+		--desktop-mode-titlebar-btn-color,
+		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 72%, transparent )
+	);
+	--wpd-btn-color-hover: var(
+		--desktop-mode-titlebar-btn-color-hover,
+		var( --desktop-mode-titlebar-color, #50575e )
+	);
+	--wpd-btn-bg-hover: var(
+		--desktop-mode-titlebar-btn-bg-hover,
+		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 18%, transparent )
+	);
+	--wpd-btn-bg-active: var(
+		--desktop-mode-titlebar-btn-bg-active,
+		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 26%, transparent )
+	);
 }
 
 /* ---------------------------------------------------------------
@@ -339,7 +413,7 @@
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	opacity: 0.6;
-	color: var( --desktop-mode-text );
+	color: var( --wpd-fg );
 }
 
 .desktop-mode-window__related-group:not(:first-child) {
@@ -388,31 +462,29 @@
 	width: 18px;
 	height: 18px;
 }
-/* The flex-centring override for the dashicon glyph lives in
- * `windows.css` rather than here. `windows.css` is mtime-stamped
- * (per `desktop_mode_register_assets` in includes/assets.php) so
- * its URL changes whenever it does, but `@import`-ed sub-sheets
- * like this one are fetched without a version query and the
- * browser will serve a stale cached copy across edits to this
- * file. Co-locating cache-sensitive overrides with the parent
- * stylesheet is the rule of the road here. */
+/* The flex-centring override for the dashicon glyph currently lives
+ * in `windows.css`. That placement was a cache workaround from when
+ * this file was an `@import` sub-sheet with no `?ver=` of its own;
+ * it is now a separately registered, filemtime-stamped handle, so
+ * the workaround no longer buys anything. Left where it is for now —
+ * relocating it is behaviour-neutral churn. */
 
 /* Focused window: meta buttons visible. */
 .desktop-mode-window--focused .desktop-mode-window__meta-btn {
 	color: rgba(255, 255, 255, 0.65);
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:hover {
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	background: rgba(255, 255, 255, 0.18);
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:focus-visible {
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	background: rgba(255, 255, 255, 0.18);
 	outline: 2px solid rgba(255, 255, 255, 0.6);
 	outline-offset: 1px;
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn--active {
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	background: rgba(255, 255, 255, 0.25);
 }
 
@@ -425,7 +497,7 @@
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn:hover {
 	color: rgba(0, 0, 0, 0.6);
-	background: rgba(0, 0, 0, 0.08);
+	background: var( --wpd-hover, rgba(0, 0, 0, 0.08) );
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn--active {
 	color: rgba(0, 0, 0, 0.6);
@@ -443,7 +515,7 @@
 	flex-shrink: 0;
 	gap: 2px;
 	padding: 0 8px;
-	background: var(--desktop-mode-tabs-bg, #f6f7f7);
+	background: var( --desktop-mode-tabs-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
 	border-bottom: 1px solid var(--desktop-mode-window-border);
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -489,7 +561,7 @@
 	padding: 0 12px;
 	border: none;
 	background: transparent;
-	color: var(--desktop-mode-tabs-color, #50575e);
+	color: var( --desktop-mode-tabs-color, var( --wpd-fg-muted, #50575e ) );
 	font: inherit;
 	font-size: 12px;
 	line-height: 1;
@@ -502,7 +574,7 @@
 
 .desktop-mode-window__tab:hover {
 	color: var(--wp-admin-theme-color, #2271b1);
-	background: rgba(0, 0, 0, 0.03);
+	background: var( --wpd-hover, rgba(0, 0, 0, 0.03) );
 }
 
 .desktop-mode-window__tab:focus-visible {
@@ -563,12 +635,114 @@ wpd-tab-chip + wpd-tab-chip {
 	transition: opacity 0.25s ease;
 }
 
-/* Cross-window drag drop-overlay rules live in windows.css, NOT here.
- * Putting them in this @import'd sub-sheet means browsers can serve a
- * stale cached copy even when the parent windows.css has been cache-
- * busted by mtime, leaving the drag stuck at the iframe boundary
- * until the user manually clears their stylesheet cache. Keep them
- * co-located with the @import declarations themselves. */
+/*
+ * Headings inside native window bodies.
+ *
+ * WordPress core's `wp-admin/css/common.css` styles headings with
+ * BARE ELEMENT selectors — `h1 { color: #1d2327 }` and
+ * `h2, h3 { color: #1d2327 }`. Native windows render in the parent
+ * shell rather than in an iframe, so those rules reach straight into
+ * our light-DOM window content: an `<h3>` in a `<wpd-card>` came out
+ * near-black on a dark theme while every sibling paragraph correctly
+ * followed the palette.
+ *
+ * The specificity here is doing real work. It has to sit BETWEEN two
+ * other rules:
+ *
+ *   core `h3`                                        (0,0,1)  must lose
+ *   THIS rule                                        (0,0,1)  wins on source order
+ *   `.desktop-mode-my-wordpress__user-section h3`    (0,1,1)  must still win
+ *
+ * `:where()` contributes zero specificity, so the selector below
+ * weighs the same as core's bare `h3` and beats it only because our
+ * stylesheet prints later — while any of our own class-scoped heading
+ * rules continue to override it. Raising this to a plain
+ * `.desktop-mode-window__body h3` would tie with those and break them
+ * depending on file order.
+ *
+ * The `#1d2327` fallback is core's own value, so with no theme active
+ * the computed colour is unchanged.
+ */
+:where( .desktop-mode-window__body ) :is( h1, h2, h3, h4, h5, h6 ) {
+	color: var( --wpd-fg, #1d2327 );
+}
+
+/*
+ * Same story, same fix, for the other bare-element rules core ships:
+ *
+ *   a    { color: #2271b1 }
+ *   code { background: #f0f0f1 }
+ *
+ * `code` is the worse of the two — a light chip background with
+ * palette-coloured text on it inverts to unreadable the moment a
+ * theme goes dark. Both fallbacks are core's own values, so the
+ * default is unchanged.
+ *
+ * Form controls (`input`, `textarea`, `select`) are deliberately NOT
+ * included: core styles those through attribute selectors that carry
+ * real specificity, native windows overwhelmingly use the `<wpd-*>`
+ * components instead, and a half-applied override there would look
+ * worse than leaving them alone.
+ */
+:where( .desktop-mode-window__body ) a {
+	color: var( --wpd-accent, #2271b1 );
+}
+
+:where( .desktop-mode-window__body ) code {
+	background: var( --wpd-surface-sunken, #f0f0f1 );
+	color: var( --wpd-fg, inherit );
+}
+
+/*
+ * Raw form controls in native window bodies.
+ *
+ * Core's `forms.css` styles these through ATTRIBUTE selectors —
+ * `input[type="search"], select, textarea { background-color: #fff;
+ * color: #1e1e1e; border: 1px solid #949494 }` — which weighs
+ * (0,1,1). That beats a plain class selector, so a control our own
+ * CSS had already tokenized (My WordPress's search box reads
+ * `background: var( --wpd-surface, #fff )` and has done all along)
+ * still came out white: core simply outranked it.
+ *
+ * Hence `.desktop-mode-window__body` + `:is( input[type], … )`, which
+ * weighs (0,2,1) and wins. `<wpd-*>` form components are untouched —
+ * they live in shadow DOM, where none of this reaches.
+ *
+ * Fallbacks are core's own values, so an unthemed shell is unchanged.
+ */
+.desktop-mode-window__body
+	:is(
+		input[ type="text" ],
+		input[ type="search" ],
+		input[ type="email" ],
+		input[ type="url" ],
+		input[ type="tel" ],
+		input[ type="number" ],
+		input[ type="password" ],
+		input[ type="date" ],
+		input[ type="datetime-local" ],
+		input[ type="month" ],
+		input[ type="time" ],
+		input[ type="week" ],
+		select,
+		textarea
+	) {
+	background-color: var( --wpd-surface, #fff );
+	color: var( --wpd-fg, #1e1e1e );
+	border-color: var( --wpd-border-strong, #949494 );
+}
+
+.desktop-mode-window__body :is( input, textarea )::placeholder {
+	color: var( --wpd-fg-muted, #646970 );
+}
+
+/* Cross-window drag drop-overlay rules currently live in windows.css.
+ * That was originally a cache workaround — this file was an `@import`
+ * sub-sheet with no `?ver=` of its own, so edits here could be served
+ * stale indefinitely. It is now a separately registered handle with
+ * its own filemtime stamp, so the workaround is obsolete and those
+ * rules could move back here. Left in place for now because moving
+ * them is a behaviour-neutral churn better done on its own. */
 
 /*
  * Loading-state overlay — painted by `src/window/dom.ts` into
@@ -645,7 +819,7 @@ wpd-tab-chip + wpd-tab-chip {
  */
 .desktop-mode-window__body--native {
 	overflow: auto;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 	background: var(--desktop-mode-window-bg);
 }
 

@@ -40,6 +40,13 @@ function desktop_mode_default_os_settings() {
 		'dockSize'                    => 'default',
 		'desktopLayout'               => 'classic',
 		'dockRailRenderer'            => 'default',
+		// Active desktop-theme slug, or `''` for the system default.
+		// Site-wide library (`includes/desktop-themes/`), per-user
+		// activation. Not validated against the installed list here —
+		// the enqueue path checks existence on every request, so a
+		// deleted theme degrades silently instead of needing a
+		// user-meta rewrite.
+		'desktopTheme'                => '',
 		'unfocusEffect'               => 'darken',
 		// Window-link renderer id — how relation ties between windows
 		// are drawn (see includes/window-links.php). `svg-splines` is
@@ -262,6 +269,17 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		if ( '' !== $slug ) {
 			$dock_rail_renderer = $slug;
 		}
+	}
+
+	// Desktop theme slug — a pattern check, NOT an allow-list, the
+	// same idiom as `dockRailRenderer` above. Validating against the
+	// installed-theme option here would load (and unserialize) that
+	// option on every single settings write for a value the enqueue
+	// path re-checks anyway. `''` is the system default and is a
+	// legitimate value, so an empty/absent key keeps the default.
+	$desktop_theme = $defaults['desktopTheme'];
+	if ( isset( $raw['desktopTheme'] ) && is_string( $raw['desktopTheme'] ) ) {
+		$desktop_theme = sanitize_key( $raw['desktopTheme'] );
 	}
 
 	// Unfocus effect id — accept the `none` sentinel or any registry id.
@@ -583,6 +601,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'dockSize'                    => $dock_size,
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
+		'desktopTheme'                => $desktop_theme,
 		'unfocusEffect'               => $unfocus_effect,
 		'windowLinkRenderer'          => $window_link_renderer,
 		'windowLinkVisibility'        => $window_link_visibility,

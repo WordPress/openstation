@@ -2,46 +2,72 @@
  * Desktop Mode — Window styles (entry point).
  *
  * The window stylesheet used to be 1,500 lines of chrome, states,
- * overview, and OS Settings mixed together. It now imports four
+ * overview, and OS Settings mixed together. It is now split into
  * focused files so each concern lives on its own:
  *
  *   - window-chrome.css    — base window, title bar, icon, title,
- *                            controls, focused/unfocused variants,
+ *                            controls, focused / unfocused variants,
  *                            menu panel, screen-meta buttons, tabs,
  *                            window body, primary iframe, native body.
  *   - window-states.css    — resize handle, drag/resize overlays,
  *                            maximized, fullscreen, opening animation,
  *                            minimized, closing, reduced-motion, RTL.
- * Two former sub-sheets moved to their own DEFERRED handles (media-
- * print-onload swap via `desktop_mode_deferred_styles`) because the
- * UI they style is lazy-loaded JS that can't appear at first paint:
- *
+ *   - effects.css          — unfocused-window effects.
+ *   - window-links.css     — relation ties between windows.
  *   - window-overview.css  — zoom-out overview grid + floating labels
  *                            + per-desktop top bar + dock-collapse.
- *                            Handle: `desktop-mode-window-overview`.
  *   - os-settings.css      — the OS Settings native panel (wallpaper
  *                            picker, accent, dock size, uploader,
  *                            Media Library grid).
- *                            Handle: `desktop-mode-os-settings`.
  *
- * The `desktop-mode-windows` style handle registers this file as its
- * CSS source, so the remaining sub-sheets ship with a single handle.
+ * ## Every sub-sheet is its own enqueued handle — NOT an `@import`
+ *
+ * They used to be `@import url( … )`ed from this file, and that was a
+ * standing cache bug. An `@import` URL carries no `?ver=`, so when a
+ * sub-sheet changed there was no URL anywhere for the browser to
+ * notice. `desktop_mode_css_subtree_version()` stamped THIS file with
+ * the max mtime of the whole subtree, which made the browser re-fetch
+ * and re-parse `windows.css` — and then request the sub-sheet at a
+ * completely unchanged URL, free to serve it from its heuristic
+ * cache. A parent's stamp can never invalidate its children.
+ *
+ * The symptom was edits to a sub-sheet not landing until a hard
+ * refresh, and the workaround was to relocate rules INTO this file —
+ * which happened twice and was turning this into a junk drawer.
+ *
+ * Each sub-sheet is now registered in `includes/assets.php` with its
+ * own `filemtime` stamp, chained by dependency so the cascade order
+ * is preserved exactly:
+ *
+ *   window-chrome → window-states → effects → window-links
+ *   → windows (this file) → window-overview → os-settings
+ *
+ * The last two sit AFTER this file and load **deferred** (the
+ * `media="print"` + onload swap driven by
+ * `desktop_mode_deferred_styles`): the UI they style is lazy-loaded
+ * JS that can never be on screen at first paint, so ~47 KB of CSS has
+ * no business blocking render.
+ *
+ * Rules in this file still win ties against the four critical
+ * sub-sheets, exactly as they did when the `@import`s sat at the top.
+ * But there is no longer any reason to put a rule here for cache
+ * reasons — put it in the sheet it belongs to.
+ *
+ * Dropping the `@import`s also removes a request waterfall: the
+ * browser could not discover the sub-sheets until it had fetched and
+ * parsed this file. They are now all in the initial HTML.
  *
  * @since 6.9.0
  */
 
-@import url( "window-chrome.css" );
-@import url( "window-states.css" );
-@import url( "effects.css" );
-@import url( "window-links.css" );
-
 /*
- * Cross-window drag drop highlight — kept INLINE in this file
- * (not in any of the @import'd sub-sheets) so the mtime-stamped
- * `?ver=…` on `windows.css` reliably invalidates the rules along
- * with the parent stylesheet. Sub-sheets are fetched without an
- * explicit version query and can be served from the browser's
- * heuristic cache even after a hard reload.
+ * Cross-window drag drop highlight.
+ *
+ * Lives here for historical reasons: sub-sheets used to be
+ * `@import`s with no `?ver=`, so cache-sensitive rules were kept in
+ * the stamped parent. Every sheet now carries its own filemtime
+ * stamp, so this could move to `window-chrome.css` alongside the
+ * rest of the window-body rules whenever someone is in the area.
  *
  * The cross-window pointer routing itself is driven from
  * JavaScript by `src/drag/iframe-drop-targets.ts` — on drag
@@ -54,9 +80,9 @@
  * drop target.
  */
 .desktop-mode-window__body[data-desktop-mode-iframe-drop-active] {
-	outline: 2px dashed var(--desktop-mode-accent, #2271b1);
+	outline: 2px dashed var(--wpd-accent, #2271b1);
 	outline-offset: -6px;
-	background: color-mix(in srgb, var(--desktop-mode-accent, #2271b1) 8%, transparent);
+	background: color-mix(in srgb, var(--wpd-accent, #2271b1) 8%, transparent);
 }
 
 /*
@@ -66,10 +92,10 @@
  * baseline isn't the geometric centre of its em-box, so the
  * visible `?` drifts off-centre inside the 28×28 button.
  * Re-flexing the dashicon span re-anchors the glyph regardless
- * of the font's intrinsic metrics. Lives in `windows.css`
- * rather than `window-chrome.css` so the parent stylesheet's
- * mtime stamp invalidates it on every edit — sub-sheet @imports
- * are not version-queried and can be served from cache.
+ * of the font's intrinsic metrics.
+ *
+ * Also here for the old cache reason rather than a styling one —
+ * see the note above; it can move back to `window-chrome.css`.
  */
 .desktop-mode-window__meta-btn .dashicons {
 	display: inline-flex;

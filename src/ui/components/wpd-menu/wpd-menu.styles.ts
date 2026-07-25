@@ -12,7 +12,7 @@ export const menuStyles = css`
 		min-width: 220px;
 		padding: 4px;
 		background: var( --desktop-mode-window-bg, #fff );
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		border: 1px solid var( --desktop-mode-window-border, #c3c4c7 );
 		border-radius: 8px;
 		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
@@ -47,8 +47,8 @@ export const menuItemStyles = css`
 	}
 	button:hover,
 	button:focus-visible {
-		background: rgba( 0, 0, 0, 0.06 );
-		color: #000;
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
+		color: var( --wpd-fg, #000 );
 		outline: none;
 	}
 	button:focus-visible {
@@ -81,7 +81,7 @@ export const menuItemStyles = css`
 		width: 16px;
 		height: 16px;
 		border-radius: 3px;
-		border: 1.5px solid rgba( 0, 0, 0, 0.25 );
+		border: 1.5px solid var( --wpd-border, rgba( 0, 0, 0, 0.25 ) );
 		position: relative;
 		background: transparent;
 		transition: background-color 0.12s ease, border-color 0.12s ease;
@@ -100,7 +100,7 @@ export const menuItemStyles = css`
 		left: 4px;
 		width: 4px;
 		height: 8px;
-		border: solid #fff;
+		border: solid var( --wpd-fg-on-accent, #fff );
 		border-width: 0 2px 2px 0;
 		transform: rotate( 45deg );
 	}
