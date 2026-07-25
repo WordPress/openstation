@@ -754,7 +754,7 @@
 }
 
 .desktop-mode-os-settings__help-nav-tag {
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 11px;
 	color: var( --wpd-fg-muted, #646970 );
 }
@@ -782,7 +782,7 @@
 }
 
 .desktop-mode-os-settings__help-code {
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 12px;
 	color: var( --wpd-fg-muted, #646970 );
 }
@@ -860,7 +860,7 @@
 
 .desktop-mode-os-settings__help-table code,
 .desktop-mode-os-settings__help-list code {
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 11px;
 	padding: 1px 4px;
 	background: var( --wpd-surface, #fff );

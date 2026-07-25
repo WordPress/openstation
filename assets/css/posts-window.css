@@ -359,7 +359,7 @@
 	border-radius: 4px;
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
 	color: var( --wpd-fg-muted, #50575e );
-	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, "SF Mono", Menlo, monospace );
 	font-size: 11px;
 }
 

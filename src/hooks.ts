@@ -336,6 +336,26 @@ export const HOOKS = {
 	 */
 	DESKTOP_THEME_ICON: 'desktop-mode.desktop-theme.icon',
 
+	/**
+	 * Filters the fill colour an active desktop theme wants a slot's
+	 * glyph painted in.
+	 *
+	 * Returning a colour where the theme set none does more than
+	 * recolour: it switches an image icon from `<img>` rendering to a
+	 * tinted CSS mask, discarding the artwork's own colours and
+	 * keeping only its alpha. `currentColor` defers to the surface.
+	 *
+	 * Same zero-cost guarantee as `DESKTOP_THEME_ICON` — the resolver
+	 * short-circuits before the filter when no theme is active.
+	 *
+	 * Signature:
+	 *
+	 *     ( color: string, ctx: { slot: string; themeId: string } ) => string
+	 *
+	 * @since 0.9.8
+	 */
+	DESKTOP_THEME_ICON_COLOR: 'desktop-mode.desktop-theme.icon-color',
+
 	// ------------------------------------------------------------------
 	// Window lifecycle actions. All payloads share a `windowId: string`
 	// field; additional fields are documented per-hook in the JS

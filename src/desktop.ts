@@ -1287,6 +1287,17 @@ export interface WpDesktopPublicApi {
 		 * no theme is active or the slot isn't overridden.
 		 */
 		resolveIcon: ( slot: string ) => string | null;
+		/**
+		 * Resolve the active theme's fill colour for a slot, or `null`
+		 * when no theme is active or the slot isn't tinted.
+		 *
+		 * A non-null value means the glyph is painted as a tinted CSS
+		 * mask rather than an image, so only its alpha is used.
+		 * `currentColor` defers to the surface it lands on.
+		 *
+		 * @since 0.9.8
+		 */
+		resolveIconColor: ( slot: string ) => string | null;
 	};
 	/**
 	 * Register (or replace) a window control. Built-in controls

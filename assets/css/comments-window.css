@@ -569,7 +569,7 @@
 }
 
 .desktop-mode-comments__shortcuts dt {
-	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, SFMono-Regular, monospace );
 	font-weight: 700;
 	background: var( --wp-desktop-track-bg, var( --wpd-surface-sunken, #f0f0f1 ) );
 	border-radius: 4px;

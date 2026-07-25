@@ -13,15 +13,16 @@
  *         .htaccess            <- exec-off, NOT deny-all
  *         <slug>/
  *             theme.json       <- the author's raw manifest
- *             theme.css        <- compiled by us, custom props only
- *             icons/…  textures/…  preview.png
+ *             theme.css        <- compiled by us: custom props +
+ *                                 @font-face rules we generated
+ *             icons/…  textures/…  fonts/…  preview.png
  *
  * The `.htaccess` here is deliberately NOT the deny-all one the
  * stored-files module drops: theme assets are `<img src>` / CSS
  * `url()` targets and MUST be servable. It turns the PHP engine off
  * and denies executable extensions instead. Belt and braces: the
  * installer only ever moves manifest-referenced files whose
- * extension is on the image/JSON allowlist, so nothing executable
+ * extension is on the image or font allowlist, so nothing executable
  * lands in the first place.
  *
  * @package WPDesktopMode
@@ -282,41 +283,259 @@ function desktop_mode_desktop_theme_icon_slots() {
 
 /**
  * The texture slots a manifest may address, each mapped to the
- * grammar the sanitizer enforces.
+ * grammar the sanitizer enforces AND the custom property the
+ * compiler writes it to.
  *
- * `type` is the only structural discriminator: `image` slots become
- * `background-image` custom properties; `border-image` slots become
- * the four `border-image-*` properties.
+ * Four keys make up a slot definition:
+ *
+ *   - `type`      — the structural discriminator. `image` slots
+ *                   become `background-image` custom properties;
+ *                   `border-image` slots become the four
+ *                   `border-image-*` properties.
+ *   - `prop`      — the custom-property BASE name. An `image` slot
+ *                   emits `<prop>`, `<prop>-repeat`, `<prop>-size`;
+ *                   a `border-image` slot emits `<prop>-source`,
+ *                   `-slice`, `-width`, `-repeat`.
+ *   - `companions`— set to `false` when a slot is a variant of
+ *                   another one and should inherit its `repeat` /
+ *                   `size` rather than declare its own
+ *                   (`TITLEBAR_FOCUSED`).
+ *   - `sizeGroup` — custom property shared by a family of slots that
+ *                   must render at one size (the four window
+ *                   corners). First declared wins.
+ *
+ * **The compiler reads this table and nothing else.** That is what
+ * makes `desktop_mode_desktop_theme_texture_slots` a complete
+ * extension point: a plugin that adds an entry here, and writes one
+ * CSS rule consuming `var( <prop>, none )`, has textured a surface
+ * the framework never knew about — no core change, no compiler
+ * change. See docs/desktop-themes.md § "Texturing your own surface".
  *
  * @since 0.9.7
  *
- * @return array<string,array{type:string}>
+ * @return array<string,array{type:string,prop:string}>
  */
 function desktop_mode_desktop_theme_texture_slots() {
-	$slots = array(
-		'TITLEBAR'          => array( 'type' => 'image' ),
-		'TITLEBAR_FOCUSED'  => array( 'type' => 'image' ),
-		'WINDOW_FRAME'      => array( 'type' => 'border-image' ),
-		'WINDOW_CORNER_NE'  => array( 'type' => 'image' ),
-		'WINDOW_CORNER_NW'  => array( 'type' => 'image' ),
-		'WINDOW_CORNER_SE'  => array( 'type' => 'image' ),
-		'WINDOW_CORNER_SW'  => array( 'type' => 'image' ),
-		'DOCK'              => array( 'type' => 'image' ),
-		'DESKTOP'           => array( 'type' => 'image' ),
+	$corner_size = '--desktop-mode-window-corner-size';
+	$slots       = array(
+		// --- Window chrome. ---
+		'TITLEBAR'             => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-titlebar-image',
+		),
+		'TITLEBAR_FOCUSED'     => array(
+			'type'       => 'image',
+			'prop'       => '--desktop-mode-titlebar-image-focused',
+			// Shares the base slot's repeat + size; only the image
+			// differs, so a theme shipping one strip gets both states.
+			'companions' => false,
+		),
+		'WINDOW_FRAME'         => array(
+			'type' => 'border-image',
+			'prop' => '--desktop-mode-window-border-image',
+		),
+		'WINDOW_FRAME_FOCUSED' => array(
+			'type' => 'border-image',
+			'prop' => '--desktop-mode-window-border-image-focused',
+		),
+		'WINDOW_CORNER_NE'     => array(
+			'type'      => 'image',
+			'prop'      => '--desktop-mode-window-corner-ne-image',
+			'sizeGroup' => $corner_size,
+		),
+		'WINDOW_CORNER_NW'     => array(
+			'type'      => 'image',
+			'prop'      => '--desktop-mode-window-corner-nw-image',
+			'sizeGroup' => $corner_size,
+		),
+		'WINDOW_CORNER_SE'     => array(
+			'type'      => 'image',
+			'prop'      => '--desktop-mode-window-corner-se-image',
+			'sizeGroup' => $corner_size,
+		),
+		'WINDOW_CORNER_SW'     => array(
+			'type'      => 'image',
+			'prop'      => '--desktop-mode-window-corner-sw-image',
+			'sizeGroup' => $corner_size,
+		),
+		// The control cluster and the individual control faces. Both
+		// are TRANSPARENT by default, which is what lets a TITLEBAR
+		// texture run edge to edge underneath them. A theme that wants
+		// the controls to sit on a plate paints one here (and usually
+		// sets `--desktop-mode-titlebar-controls-radius` +
+		// `-padding` to give it a shape).
+		'TITLEBAR_CONTROLS'    => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-titlebar-controls-image',
+		),
+		'TITLEBAR_BUTTON'      => array(
+			'type' => 'image',
+			'prop' => '--wpd-btn-bg-image',
+		),
+		'WINDOW_BODY'          => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-window-body-image',
+		),
+		'TABBAR'               => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-tabs-image',
+		),
+		// --- Shell surfaces. ---
+		'DOCK'                 => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-dock-bg-image',
+		),
+		'DOCK_ITEM'            => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-dock-item-image',
+		),
+		'DESKTOP'              => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-desktop-image',
+		),
+		'ICON_TILE'            => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-tile-image',
+		),
+		'WIDGET'               => array(
+			'type' => 'image',
+			'prop' => '--desktop-mode-widget-image',
+		),
+		// --- Component-kit surfaces (window bodies + popovers). ---
+		'MENU'                 => array(
+			'type' => 'image',
+			'prop' => '--wpd-menu-bg-image',
+		),
+		'DIALOG'               => array(
+			'type' => 'image',
+			'prop' => '--wpd-dialog-bg-image',
+		),
+		'SCRIM'                => array(
+			'type' => 'image',
+			'prop' => '--wpd-scrim-image',
+		),
+		'PANEL'                => array(
+			'type' => 'image',
+			'prop' => '--wpd-panel-bg-image',
+		),
+		'TOAST'                => array(
+			'type' => 'image',
+			'prop' => '--wpd-toast-bg-image',
+		),
+		'TABLE_HEADER'         => array(
+			'type' => 'image',
+			'prop' => '--wpd-table-header-bg-image',
+		),
+		'BUTTON'               => array(
+			'type' => 'image',
+			'prop' => '--wpd-button-bg-image',
+		),
 	);
 	/**
 	 * Filters the texture slots a desktop theme manifest may address.
 	 *
-	 * Adding a slot here only makes the sanitizer accept it — the
-	 * compiler ({@see desktop_mode_desktop_theme_compile_css()}) must
-	 * also know how to turn it into custom properties, and some CSS
-	 * rule must consume them.
+	 * Each entry needs a `type` (`image` or `border-image`) and a
+	 * `prop` — the custom-property base name the compiler writes to.
+	 * With both present the slot is fully wired: the sanitizer accepts
+	 * it and the compiler emits it. All that remains is a CSS rule
+	 * that reads the property, which the plugin adding the slot ships
+	 * in its own stylesheet.
+	 *
+	 * An entry with no `prop` is accepted by the sanitizer but emits
+	 * nothing — that combination is a bug, not a feature.
 	 *
 	 * @since 0.9.7
 	 *
-	 * @param array<string,array> $slots Map of slot => `{ type }`.
+	 * @param array<string,array> $slots Map of slot =>
+	 *                                   `{ type, prop, companions?,
+	 *                                   sizeGroup? }`.
 	 */
 	return (array) apply_filters( 'desktop_mode_desktop_theme_texture_slots', $slots );
+}
+
+/**
+ * File extensions a theme asset may carry, per asset kind.
+ *
+ * Two kinds exist, and they are deliberately disjoint:
+ *
+ *   - `image` — icons, textures, the preview. Everything the
+ *     compiler turns into a `url()` inside a `background-image` or
+ *     an `<img src>`.
+ *   - `font`  — files referenced from a generated `@font-face`.
+ *     Binary containers parsed by the browser's font engine; unlike
+ *     SVG they carry no script surface, which is why they can be
+ *     accepted without a sanitizer pass of their own.
+ *
+ * A kind the caller doesn't recognise gets an EMPTY list, so a typo
+ * fails closed.
+ *
+ * @since 0.9.8
+ *
+ * @param string $kind `'image'` or `'font'`.
+ * @return string[] Lowercase extensions, no leading dot.
+ */
+function desktop_mode_desktop_theme_asset_extensions( $kind = 'image' ) {
+	$kind = strtolower( trim( (string) $kind ) );
+	$map  = array(
+		'image' => array( 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg' ),
+		'font'  => array( 'woff2', 'woff', 'ttf', 'otf' ),
+	);
+	/**
+	 * Filters the extensions accepted for one kind of theme asset.
+	 *
+	 * Adding anything the browser parses as script (`css`, `js`,
+	 * `html`, `xml`, `svgz`) or anything the server executes defeats
+	 * the security model this whole feature rests on.
+	 *
+	 * @since 0.9.8
+	 *
+	 * @param string[] $extensions Lowercase extensions, no dot.
+	 * @param string   $kind       `'image'` or `'font'`.
+	 */
+	$extensions = (array) apply_filters(
+		'desktop_mode_desktop_theme_asset_extensions',
+		isset( $map[ $kind ] ) ? $map[ $kind ] : array(),
+		$kind
+	);
+
+	return array_values( array_filter( array_map(
+		static function ( $ext ) {
+			return strtolower( trim( (string) $ext, ". \t\n\r\0\x0B" ) );
+		},
+		$extensions
+	), 'strlen' ) );
+}
+
+/**
+ * Maximum number of `@font-face` rules one theme may declare, and
+ * the maximum number of source files per face.
+ *
+ * @since 0.9.8
+ *
+ * @return array{max_faces:int,max_sources:int}
+ */
+function desktop_mode_desktop_theme_font_caps() {
+	/**
+	 * Filters the desktop-theme font caps.
+	 *
+	 * @since 0.9.8
+	 *
+	 * @param array $caps `{ max_faces, max_sources }`.
+	 */
+	$caps = (array) apply_filters(
+		'desktop_mode_desktop_theme_font_caps',
+		array(
+			// A UI font at a few weights, a mono, a display face.
+			'max_faces'   => 16,
+			// woff2 + woff is the realistic ceiling in 2025; four
+			// leaves room for a ttf/otf tail on ancient targets.
+			'max_sources' => 4,
+		)
+	);
+	return array(
+		'max_faces'   => max( 1, (int) ( $caps['max_faces'] ?? 16 ) ),
+		'max_sources' => max( 1, (int) ( $caps['max_sources'] ?? 4 ) ),
+	);
 }
 
 /**
@@ -336,7 +555,17 @@ function desktop_mode_desktop_theme_zip_caps() {
 		// Single-entry uncompressed cap (8 MB).
 		'max_file'         => 8 * 1024 * 1024,
 		// Everything else is refused outright. No CSS, no JS, ever.
-		'extensions'       => array( 'json', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg' ),
+		//
+		// `txt` / `md` are here so an archive may carry the licence
+		// notice its bundled fonts require. They are NOT referenceable
+		// from any manifest field — every resolver demands an image or
+		// font extension — so they are validated, never extracted into
+		// the live directory, and discarded with the staging dir.
+		'extensions'       => array_merge(
+			array( 'json', 'txt', 'md' ),
+			desktop_mode_desktop_theme_asset_extensions( 'image' ),
+			desktop_mode_desktop_theme_asset_extensions( 'font' )
+		),
 	);
 	/**
 	 * Filters the caps enforced while validating an uploaded desktop

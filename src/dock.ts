@@ -15,7 +15,11 @@ import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
 import { hashTitleToHue } from './ui/util/hash-hue';
-import { resolveThemedIcon } from './desktop-themes/icons';
+import {
+	resolveThemedIcon,
+	resolveThemedIconColor,
+} from './desktop-themes/icons';
+import { applyIconMask } from './desktop-themes/paint-tinted-icon';
 import { slotForTileId } from './desktop-themes/slots';
 import { attachDockPeek } from './dock-peek';
 import { tryOpenExternalUrl } from './external-url';
@@ -1482,11 +1486,38 @@ export class Dock {
 		//    failure — harvesting the plugin's own icon out of the
 		//    hidden #adminmenu would silently override the theme.
 		let isThemed = false;
+		let tint: string | null = null;
 		if ( slot ) {
 			const themed = resolveThemedIcon( slot );
 			if ( themed !== null ) {
 				icon = themed;
 				isThemed = true;
+			}
+			tint = resolveThemedIconColor( slot );
+		}
+
+		// 0b. Tinted image — painted as a mask filled with the theme's
+		//     colour, so only the artwork's alpha is used. This is what
+		//     makes a monochrome iconset legible on the dock: as an
+		//     `<img>` a black-stroked glyph is invisible against a dark
+		//     dock, and as a mask it takes whatever fill the theme
+		//     named (or `currentColor`, which follows the tile).
+		//
+		//     Ahead of every image branch below because it supersedes
+		//     all of them; dashicons fall through to branch 1, where a
+		//     tint is just `color`.
+		//     Deliberately NOT `desktop-mode-dock__item-svg`: that class
+		//     carries `filter: brightness(0) invert(1)`, which exists to
+		//     force plugin SVGs with hardcoded `fill` attributes to
+		//     white. It would flatten the theme's chosen tint to white
+		//     too. The mask class below is the same size and opacity
+		//     behaviour without the filter.
+		if ( tint !== null && ! icon.startsWith( 'dashicons-' ) ) {
+			const masked = document.createElement( 'span' );
+			masked.className = 'desktop-mode-dock__item-mask';
+			masked.setAttribute( 'aria-hidden', 'true' );
+			if ( applyIconMask( masked, icon, tint ) ) {
+				return masked;
 			}
 		}
 
@@ -1502,6 +1533,9 @@ export class Dock {
 			const el = document.createElement( 'span' );
 			el.className = `dashicons ${ icon }`;
 			el.setAttribute( 'aria-hidden', 'true' );
+			if ( tint !== null ) {
+				el.style.color = tint;
+			}
 			return el;
 		}
 

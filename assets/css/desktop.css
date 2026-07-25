@@ -176,6 +176,15 @@ body.desktop-mode-active #wpcontent {
 	flex-direction: column;
 	overflow: hidden;
 	z-index: var(--desktop-mode-z-base);
+	/*
+	 * Shell typeface. Every piece of chrome that doesn't set its own
+	 * face inherits from here — dock labels, desktop icon labels,
+	 * widgets, the overview. Windows override with `--wpd-font` on
+	 * their body, so a theme can run a display face on the desk and a
+	 * text face inside windows. `inherit` is the no-theme value, i.e.
+	 * identical to not declaring the property at all.
+	 */
+	font-family: var(--desktop-mode-font, inherit);
 }
 
 /*
@@ -226,7 +235,7 @@ body.desktop-mode-active #wpcontent {
 	background-image: var(--desktop-mode-desktop-image, none);
 	background-repeat: var(--desktop-mode-desktop-image-repeat, repeat);
 	background-size: var(--desktop-mode-desktop-image-size, auto);
-	background-position: center;
+	background-position: var(--desktop-mode-desktop-image-position, center);
 }
 
 /*
@@ -411,7 +420,17 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	width: 88px;
 	padding: 8px 4px;
 	border: 0;
-	background: transparent;
+	background-color: transparent;
+	/*
+	 * ICON_TILE texture slot — a plate behind each wallpaper icon.
+	 * Painted under the icon image and its label, so a theme can give
+	 * desktop shortcuts a physical tile the way a phone home screen
+	 * does. Unset = `none` = the transparent tile we always had.
+	 */
+	background-image: var(--desktop-mode-tile-image, none);
+	background-repeat: var(--desktop-mode-tile-image-repeat, no-repeat);
+	background-size: var(--desktop-mode-tile-image-size, auto);
+	background-position: var(--desktop-mode-tile-image-position, center);
 	color: var(--desktop-mode-fg, #fff);
 	cursor: pointer;
 	border-radius: 8px;
@@ -474,7 +493,10 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 
 .desktop-mode-icon:hover,
 .desktop-mode-icon:focus-visible {
-	background: rgba(255, 255, 255, 0.12);
+	/* background-COLOR, not the shorthand: the shorthand would reset
+	 * the ICON_TILE texture declared above, so a themed tile would
+	 * vanish on hover. */
+	background-color: rgba(255, 255, 255, 0.12);
 	outline: none;
 }
 
@@ -712,7 +734,15 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	display: flex;
 	flex-direction: column;
 	pointer-events: auto;
-	background: rgba( 20, 20, 22, 0.55 );
+	background-color: rgba( 20, 20, 22, 0.55 );
+	/*
+	 * WIDGET texture slot — layered over the frosted card colour, so a
+	 * translucent texture still gets the blur underneath.
+	 */
+	background-image: var( --desktop-mode-widget-image, none );
+	background-repeat: var( --desktop-mode-widget-image-repeat, repeat );
+	background-size: var( --desktop-mode-widget-image-size, auto );
+	background-position: var( --desktop-mode-widget-image-position, center );
 	backdrop-filter: blur( 18px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
 	border: 1px solid rgba( 255, 255, 255, 0.08 );

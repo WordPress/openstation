@@ -83,6 +83,14 @@ function desktop_mode_desktop_theme_registry( $slug = '', $entry = null ) {
  *             'repeat' => 'repeat-x',
  *         ),
  *     ),
+ *     'fonts'    => array(
+ *         array(
+ *             'family'  => 'Neon Grotesk',
+ *             'weight'  => '400',
+ *             'display' => 'swap',
+ *             'src'     => array( plugins_url( 'theme/neon.woff2', __FILE__ ) ),
+ *         ),
+ *     ),
  * ) );
  * ```
  *
@@ -96,8 +104,12 @@ function desktop_mode_desktop_theme_registry( $slug = '', $entry = null ) {
  *     @type string $description Short description. Optional.
  *     @type string $preview     Absolute URL of a preview image.
  *     @type array  $tokens      Map of `--desktop-mode-*` => value.
+ *     @type string $iconColor   Default tint for every icon that does
+ *                               not set its own `color`.
  *     @type array  $icons       Map of slot => icon descriptor.
  *     @type array  $textures    Map of slot => texture descriptor.
+ *     @type array  $fonts       List of `@font-face` descriptors.
+ *                               `src` entries are absolute URLs.
  * }
  * @return true|WP_Error
  */
@@ -111,8 +123,10 @@ function desktop_mode_register_desktop_theme( $id, $args = array() ) {
 			'description' => '',
 			'preview'     => '',
 			'tokens'      => array(),
+			'iconColor'   => '',
 			'icons'       => array(),
 			'textures'    => array(),
+			'fonts'       => array(),
 		)
 	);
 
@@ -126,8 +140,10 @@ function desktop_mode_register_desktop_theme( $id, $args = array() ) {
 			'description'     => (string) $args['description'],
 			'preview'         => (string) $args['preview'],
 			'tokens'          => $args['tokens'],
+			'iconColor'       => (string) $args['iconColor'],
 			'icons'           => $args['icons'],
 			'textures'        => $args['textures'],
+			'fonts'           => $args['fonts'],
 		),
 		desktop_mode_desktop_theme_url_asset_resolver()
 	);
@@ -215,7 +231,16 @@ function desktop_mode_shape_desktop_theme_payload_entry( $entry, $source ) {
 
 	// Icon map — the shell only ever needs a paintable string per
 	// slot: a dashicon class or an absolute URL.
-	$icons = array();
+	//
+	// Tints ride in a PARALLEL map rather than turning `icons` into a
+	// map of objects. That keeps `resolveIcon()` returning a paintable
+	// string (its documented contract, and what the
+	// `desktop-mode.desktop-theme.icon` filter is typed against) and
+	// keeps the resolver's hot path a single lookup. A slot with no
+	// tint is simply absent from `iconColors`, which is also the
+	// "paint it the way you always did" signal.
+	$icons       = array();
+	$icon_colors = array();
 	if ( ! empty( $manifest['icons'] ) && is_array( $manifest['icons'] ) ) {
 		foreach ( $manifest['icons'] as $slot => $icon ) {
 			if ( ! is_array( $icon ) ) {
@@ -223,11 +248,30 @@ function desktop_mode_shape_desktop_theme_payload_entry( $entry, $source ) {
 			}
 			if ( 'dashicon' === $icon['type'] ) {
 				$icons[ $slot ] = (string) $icon['name'];
+			} else {
+				$url = desktop_mode_desktop_theme_asset_url( $icon['path'], $base_url, $asset_version );
+				if ( '' === $url ) {
+					continue;
+				}
+				$icons[ $slot ] = $url;
+			}
+			if ( ! empty( $icon['color'] ) ) {
+				$icon_colors[ $slot ] = (string) $icon['color'];
+			}
+		}
+	}
+
+	// Distinct family names, in declaration order. A family declared at
+	// four weights is one entry, which is what a UI wants to show.
+	$font_families = array();
+	if ( ! empty( $manifest['fonts'] ) && is_array( $manifest['fonts'] ) ) {
+		foreach ( $manifest['fonts'] as $face ) {
+			if ( ! is_array( $face ) || empty( $face['family'] ) ) {
 				continue;
 			}
-			$url = desktop_mode_desktop_theme_asset_url( $icon['path'], $base_url, $asset_version );
-			if ( '' !== $url ) {
-				$icons[ $slot ] = $url;
+			$family = (string) $face['family'];
+			if ( ! in_array( $family, $font_families, true ) ) {
+				$font_families[] = $family;
 			}
 		}
 	}
@@ -262,7 +306,13 @@ function desktop_mode_shape_desktop_theme_payload_entry( $entry, $source ) {
 		'tokens'      => isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] )
 			? $manifest['tokens']
 			: array(),
+		// Informational, like `tokens`: the compiled stylesheet is what
+		// actually loads the faces. Shipped so `desktopThemes.list()`
+		// can tell a UI which families a theme brings with it without
+		// parsing CSS.
+		'fonts'       => $font_families,
 		'icons'       => $icons,
+		'iconColors'  => $icon_colors,
 		'installedAt' => $installed_at,
 		'source'      => $is_upload ? 'upload' : 'code',
 	);

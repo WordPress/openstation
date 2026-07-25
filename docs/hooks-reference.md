@@ -3797,13 +3797,65 @@ render time.
 
 ### `desktop_mode_desktop_theme_texture_slots` — Experimental *(filter, since 0.9.7)*
 
-Map of texture slot => `array( 'type' => 'image'|'border-image' )`.
-Adding a slot here only makes the sanitizer accept it — the compiler
-must also know how to turn it into custom properties, and some CSS
-rule must consume them.
+Map of texture slot => slot definition. **The compiler reads this table
+and nothing else**, so an entry with both `type` and `prop` is fully
+wired end to end: the sanitizer accepts it and the compiler emits it.
+All that is left is a CSS rule reading the property, which the plugin
+adding the slot ships in its own stylesheet.
+
+```php
+add_filter( 'desktop_mode_desktop_theme_texture_slots', function ( $slots ) {
+    $slots['ACME_SIDEBAR'] = array(
+        'type' => 'image',
+        'prop' => '--acme-sidebar-image',
+    );
+    return $slots;
+} );
+```
+
+Definition keys:
+
+| Key | Meaning |
+|---|---|
+| `type` | `image` or `border-image`. Selects the descriptor grammar and the properties written. |
+| `prop` | Custom-property base name. `image` emits `<prop>`, `<prop>-repeat`, `<prop>-size`; `border-image` emits `<prop>-source`, `-slice`, `-width`, `-repeat`. |
+| `companions` | `false` for a variant slot that inherits another's repeat + size (`TITLEBAR_FOCUSED`). |
+| `sizeGroup` | Custom property shared by slots that must render at one size; first declared wins (the window corners). |
+
+An entry with no `prop` is accepted but emits nothing.
 
 - **Param** `array<string,array> $slots`
 - **Return** `array<string,array>`
+See [Texturing your own surface](./desktop-themes.md#texturing-your-own-surface).
+
+> **Icon tinting** is a manifest field (`iconColor`, and `color` per
+> icon), not a PHP filter. Its JS-side filter is
+> `desktop-mode.desktop-theme.icon-color` — see the
+> [JavaScript reference](./javascript-reference.md#desktop-themes).
+
+### `desktop_mode_desktop_theme_asset_extensions` — Experimental *(filter, since 0.9.8)*
+
+File extensions accepted for one kind of theme asset. Two kinds exist
+and they are deliberately disjoint, so an icon reference can never
+resolve to a font file or the other way round.
+
+- **Param** `string[] $extensions` — `image`: `png jpg jpeg gif webp avif svg`. `font`: `woff2 woff ttf otf`.
+- **Param** `string $kind` — `'image'` or `'font'`.
+- **Return** `string[]`
+
+> An unrecognised `$kind` returns an empty list, so a typo fails closed.
+
+> Adding anything the browser parses as script (`css`, `js`, `html`,
+> `xml`, `svgz`) or anything the server executes defeats the security
+> model of the whole feature.
+
+### `desktop_mode_desktop_theme_font_caps` — Experimental *(filter, since 0.9.8)*
+
+How many `@font-face` rules one theme may declare, and how many source
+files each may list.
+
+- **Param** `array $caps` — `max_faces` (16), `max_sources` (4).
+- **Return** `array`
 
 ### `desktop_mode_desktop_theme_zip_caps` — Experimental *(filter, since 0.9.7)*
 
@@ -3816,8 +3868,13 @@ add_filter( 'desktop_mode_desktop_theme_zip_caps', function ( $caps ) {
 } );
 ```
 
-- **Param** `array $caps` — `max_entries` (256), `max_uncompressed` (32 MB), `max_file` (8 MB), `extensions` (`json png jpg jpeg gif webp avif svg`).
+- **Param** `array $caps` — `max_entries` (256), `max_uncompressed` (32 MB), `max_file` (8 MB), `extensions` (`json txt md` plus both lists from `desktop_mode_desktop_theme_asset_extensions`).
 - **Return** `array`
+
+> `txt` / `md` are accepted so an archive can carry the licence notice a
+> bundled font obliges an author to ship. No manifest field can
+> reference them, so they are validated and then discarded with the
+> staging directory — they never reach the live theme directory.
 
 > Widening `extensions` to anything executable, or anything the browser
 > parses as script (`css`, `js`, `html`, `xml`), defeats the security

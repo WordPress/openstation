@@ -29,7 +29,8 @@
  */
 
 import { hashTitleToHue } from './ui/util/hash-hue';
-import { resolveThemedIcon } from './desktop-themes/icons';
+import { resolveThemedIcon, resolveThemedIconColor } from './desktop-themes/icons';
+import { applyIconMask } from './desktop-themes/paint-tinted-icon';
 
 export interface RenderIconOptions {
 	/**
@@ -77,19 +78,44 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 	//    dashicon for an SVG URL gets the `<img>` branch for free.
 	//    `resolveThemedIcon` is a single null check when no theme is
 	//    active, so this costs effectively nothing by default.
+	let tint: string | null = null;
 	if ( opts.slot ) {
 		const themed = resolveThemedIcon( opts.slot );
 		if ( themed !== null ) {
 			icon = themed;
 		}
+		// A tint applies to whatever ends up being painted — including
+		// the shell's OWN icon when the theme overrode only the colour.
+		// "Recolour every icon, replace none" is a legitimate theme.
+		tint = resolveThemedIconColor( opts.slot );
 	}
 
-	// 1. Dashicon class.
+	// 1. Dashicon class. A tint is simply `color` — it is a font glyph.
 	if ( typeof icon === 'string' && icon.startsWith( 'dashicons-' ) ) {
 		const el = document.createElement( 'span' );
 		el.className = `dashicons ${ icon } ${ className }`.trim();
 		el.setAttribute( 'aria-hidden', 'true' );
+		if ( tint !== null ) {
+			el.style.color = tint;
+		}
 		return el;
+	}
+
+	// 1b. Tinted image — painted as a mask rather than an `<img>`, so
+	//     the fill comes from the theme and only the artwork's alpha
+	//     is used. Placed ahead of every image branch below because it
+	//     replaces all of them: data-URI SVG, data-URI raster, and
+	//     http(s) URLs are all maskable.
+	if ( tint !== null && typeof icon === 'string' ) {
+		const el = document.createElement( 'span' );
+		el.className = className;
+		el.setAttribute( 'aria-hidden', 'true' );
+		el.style.display = 'inline-block';
+		if ( applyIconMask( el, icon, tint ) ) {
+			return el;
+		}
+		// Not maskable (letter-badge fallback, `none`, a malformed
+		// value) — fall through and paint it the ordinary way.
 	}
 
 	// 2. Inline SVG data URI — paint as background-image. We re-validate

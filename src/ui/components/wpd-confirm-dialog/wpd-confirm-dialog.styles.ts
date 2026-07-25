@@ -8,6 +8,11 @@ export const dialogStyles = css`
 		align-items: center;
 		justify-content: center;
 		background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-scrim-image, none );
+		background-repeat: var( --wpd-scrim-image-repeat, repeat );
+		background-size: var( --wpd-scrim-image-size, auto );
+		background-position: var( --wpd-scrim-image-position, center );
 		backdrop-filter: blur( 2px );
 		z-index: 10000;
 	}
@@ -19,6 +24,11 @@ export const dialogStyles = css`
 	.dialog {
 		width: min( 420px, 92vw );
 		background: var( --wpd-confirm-dialog-bg, var( --desktop-mode-bg, #1d2327 ) );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-dialog-bg-image, none );
+		background-repeat: var( --wpd-dialog-bg-image-repeat, repeat );
+		background-size: var( --wpd-dialog-bg-image-size, auto );
+		background-position: var( --wpd-dialog-bg-image-position, center );
 		color: var( --wpd-confirm-dialog-fg, var( --desktop-mode-fg, #fff ) );
 		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.08 ) );
 		border-radius: 10px;

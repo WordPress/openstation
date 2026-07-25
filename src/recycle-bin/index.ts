@@ -29,7 +29,10 @@ import '../ui/components/wpd-relative-time/wpd-relative-time';
 // class set explicitly so the server-rendered toolbar works.
 import '../ui/components/wpd-segmented/wpd-segmented';
 import { DESKTOP_THEME_CHANGED_EVENT } from '../desktop-themes/apply';
-import { resolveThemedIcon } from '../desktop-themes/icons';
+import {
+	resolveThemedIcon,
+	resolveThemedIconColor,
+} from '../desktop-themes/icons';
 import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
 import { setRecycleBinBadge } from './badge';
 import { runEmptyLoop } from './empty-loop';
@@ -509,11 +512,15 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	// the global Dashicons stylesheet cannot reach, so the span would
 	// come out blank. The built-in SVG below is a better answer than
 	// an empty button.
-	const themed = resolveThemedIcon(
+	const themedSlot =
 		opts.icon === 'restore'
 			? DESKTOP_THEME_SLOTS.RECYCLE_RESTORE
-			: DESKTOP_THEME_SLOTS.RECYCLE_DELETE,
-	);
+			: DESKTOP_THEME_SLOTS.RECYCLE_DELETE;
+	const themed = resolveThemedIcon( themedSlot );
+	// A theme may name the fill. Unset, `currentColor` keeps the
+	// button's hover / danger tinting working, which is the default
+	// these two slots have always had.
+	const themedFill = resolveThemedIconColor( themedSlot ) ?? 'currentColor';
 	// The value is interpolated into a `url("…")` inside an inline
 	// `style`, so it must not be able to close that string or the
 	// attribute. Same reasoning (and same character set) as
@@ -533,7 +540,7 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 			'width: 18px',
 			'height: 18px',
 			'flex-shrink: 0',
-			'background-color: currentColor',
+			`background-color: ${ themedFill }`,
 			`-webkit-mask: url("${ themed }") center / contain no-repeat`,
 			`mask: url("${ themed }") center / contain no-repeat`,
 		].join( ';' );

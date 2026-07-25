@@ -90,6 +90,11 @@ export const styles = css`
 		text-align: start;
 		font-weight: 600;
 		background-color: var( --wpd-table-header-bg );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-table-header-bg-image, none );
+		background-repeat: var( --wpd-table-header-bg-image-repeat, repeat );
+		background-size: var( --wpd-table-header-bg-image-size, auto );
+		background-position: var( --wpd-table-header-bg-image-position, center );
 		padding: var( --wpd-table-cell-padding );
 		border-bottom: 1px solid var( --wpd-table-border );
 		white-space: nowrap;
@@ -176,6 +181,11 @@ export const styles = css`
 	}
 	thead th.is-sticky {
 		background-color: var( --wpd-table-header-bg );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-table-header-bg-image, none );
+		background-repeat: var( --wpd-table-header-bg-image-repeat, repeat );
+		background-size: var( --wpd-table-header-bg-image-size, auto );
+		background-position: var( --wpd-table-header-bg-image-position, center );
 		z-index: 30;
 	}
 
@@ -225,6 +235,11 @@ export const styles = css`
 	.filter-row th {
 		padding: 4px 8px;
 		background-color: var( --wpd-table-header-bg );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-table-header-bg-image, none );
+		background-repeat: var( --wpd-table-header-bg-image-repeat, repeat );
+		background-size: var( --wpd-table-header-bg-image-size, auto );
+		background-position: var( --wpd-table-header-bg-image-position, center );
 		border-bottom: 1px solid var( --wpd-table-border );
 		font-weight: 400;
 	}

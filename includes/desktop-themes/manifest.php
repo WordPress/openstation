@@ -11,6 +11,12 @@
  *   - Code registrations (`desktop_mode_register_desktop_theme()`)
  *     pass a resolver that validates an absolute http(s) URL.
  *
+ * Both resolvers take the same two arguments —
+ * `fn( string $path, string $kind ): string|false` — where `$kind`
+ * is `'image'` or `'font'` and selects the extension allowlist. A
+ * font reference can therefore never resolve through the icon path,
+ * or vice versa.
+ *
  * Validation posture, in two tiers:
  *
  *   - **Fatal** (returns `WP_Error`): `manifestVersion`, `id`,
@@ -148,20 +154,83 @@ function desktop_mode_sanitize_desktop_theme_tokens( $raw ) {
 }
 
 /**
+ * Whether a value is usable as a CSS colour.
+ *
+ * Deliberately narrower than the general value grammar: this one is
+ * painted as a fill, so a length or a gradient would be nonsense
+ * rather than dangerous. Accepts `currentColor`, hex in all four
+ * lengths, the functional notations, and bare keywords.
+ *
+ * `currentColor` is the interesting one — it means "whatever the
+ * surface I land on is already using for text", which is how one
+ * silhouette iconset stays legible on a dark dock, a light title bar,
+ * and a red danger-hover without the author knowing any of them.
+ *
+ * @since 0.9.8
+ *
+ * @param mixed $value Candidate.
+ * @return bool
+ */
+function desktop_mode_desktop_theme_is_color_value( $value ) {
+	if ( ! is_string( $value ) ) {
+		return false;
+	}
+	$value = trim( preg_replace( '/\s+/', ' ', $value ) );
+	if ( '' === $value || strlen( $value ) > 64 ) {
+		return false;
+	}
+	// The general grammar is still the floor — it is what bans `;`,
+	// `{`, `@`, quotes, comments and `var()`.
+	if ( ! desktop_mode_desktop_theme_is_safe_css_value( $value ) ) {
+		return false;
+	}
+	if ( 0 === strcasecmp( 'currentcolor', $value ) ) {
+		// Normalized to the spelling CSS authors expect to read back.
+		return true;
+	}
+	if ( preg_match( '/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i', $value ) ) {
+		return true;
+	}
+	if ( preg_match( '/^(rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([0-9a-z%.,\/ +-]+\)$/i', $value ) ) {
+		return true;
+	}
+	// Bare keyword (`transparent`, `rebeccapurple`, …). Letters only,
+	// so nothing else can hide in here.
+	return (bool) preg_match( '/^[a-z]{3,24}$/i', $value );
+}
+
+/**
  * Sanitize the `icons` block: a map of slot => icon descriptor.
  *
  * Accepted descriptors:
  *   - `{ "type": "image",    "path": "icons/close.svg" }`
  *   - `{ "type": "dashicon", "name": "dashicons-no-alt" }`
  *
+ * Either shape may carry `color`, which decides HOW the glyph is
+ * painted, not just what colour it comes out:
+ *
+ *   - **absent** — today's behaviour. An image paints as an `<img>`
+ *     and keeps the colours it was drawn with.
+ *   - **present** — the glyph is tinted. A dashicon simply takes the
+ *     colour; an image is painted as a `currentColor`-style CSS MASK,
+ *     so only its alpha channel is used and the fill comes from here.
+ *
+ * That distinction is the whole point: a monochrome iconset drawn in
+ * black is invisible on a dark dock as an `<img>`, and perfect as a
+ * mask.
+ *
  * @since 0.9.7
+ * @since 0.9.8 `$default_color` + per-descriptor `color`.
  * @internal
  *
  * @param mixed    $raw            Raw `icons` value.
- * @param callable $asset_resolver `fn( string $path ): string|false`.
+ * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
+ * @param string   $default_color  Manifest-level `iconColor`, applied
+ *                                 to any icon that doesn't set its
+ *                                 own. `''` for none.
  * @return array<string,array>
  */
-function desktop_mode_sanitize_desktop_theme_icons( $raw, $asset_resolver ) {
+function desktop_mode_sanitize_desktop_theme_icons( $raw, $asset_resolver, $default_color = '' ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -193,33 +262,80 @@ function desktop_mode_sanitize_desktop_theme_icons( $raw, $asset_resolver ) {
 		}
 		$type = isset( $descriptor['type'] ) ? (string) $descriptor['type'] : '';
 
+		// `color` falls back to the manifest-wide `iconColor`. The
+		// literal string `none` is the opt-OUT: it lets one icon in an
+		// otherwise-tinted set keep its own colours (a brand mark, a
+		// multi-colour app icon) without the author having to drop the
+		// default for everything else.
+		$color = '';
+		if ( isset( $descriptor['color'] ) && is_string( $descriptor['color'] ) ) {
+			$candidate = trim( $descriptor['color'] );
+			if ( 0 === strcasecmp( 'none', $candidate ) ) {
+				$color = 'none';
+			} elseif ( desktop_mode_desktop_theme_is_color_value( $candidate ) ) {
+				$color = desktop_mode_desktop_theme_normalize_color( $candidate );
+			}
+		}
+		if ( '' === $color ) {
+			$color = $default_color;
+		}
+		if ( 'none' === $color ) {
+			$color = '';
+		}
+
 		if ( 'dashicon' === $type ) {
 			$name = isset( $descriptor['name'] ) ? strtolower( trim( (string) $descriptor['name'] ) ) : '';
 			if ( ! preg_match( '/^dashicons-[a-z0-9-]+$/', $name ) ) {
 				continue;
 			}
-			$out[ $slot ] = array(
+			$entry = array(
 				'type' => 'dashicon',
 				'name' => $name,
 			);
+			if ( '' !== $color ) {
+				$entry['color'] = $color;
+			}
+			$out[ $slot ] = $entry;
 			++$count;
 			continue;
 		}
 
 		if ( 'image' === $type ) {
 			$path = isset( $descriptor['path'] ) ? (string) $descriptor['path'] : '';
-			$ref  = call_user_func( $asset_resolver, $path );
+			$ref  = call_user_func( $asset_resolver, $path, 'image' );
 			if ( ! is_string( $ref ) || '' === $ref ) {
 				continue;
 			}
-			$out[ $slot ] = array(
+			$entry = array(
 				'type' => 'image',
 				'path' => $ref,
 			);
+			if ( '' !== $color ) {
+				$entry['color'] = $color;
+			}
+			$out[ $slot ] = $entry;
 			++$count;
 		}
 	}
 	return $out;
+}
+
+/**
+ * Normalize a validated colour to its canonical spelling.
+ *
+ * Only `currentColor` actually changes: CSS is case-insensitive, but
+ * the value is echoed back to theme authors through the payload and
+ * the JS API, and `currentcolor` reads like a typo.
+ *
+ * @since 0.9.8
+ * @internal
+ *
+ * @param string $value Validated colour.
+ * @return string
+ */
+function desktop_mode_desktop_theme_normalize_color( $value ) {
+	$value = trim( preg_replace( '/\s+/', ' ', (string) $value ) );
+	return 0 === strcasecmp( 'currentcolor', $value ) ? 'currentColor' : $value;
 }
 
 /**
@@ -250,6 +366,50 @@ function desktop_mode_desktop_theme_is_size_value( $value ) {
 		if ( ! preg_match( '/^\d+(\.\d+)?(px|%|rem|em)$/', $part ) ) {
 			return false;
 		}
+	}
+	return true;
+}
+
+/**
+ * Whether a `background-position`-shaped value is well-formed.
+ *
+ * Accepts one or two components, each a keyword (`left`, `center`,
+ * `right`, `top`, `bottom`) or a length/percentage — including the
+ * negative offsets a bleeding texture needs.
+ *
+ * `position` is what makes a big detailed texture usable rather than
+ * merely present: `size: auto` + `repeat` tiles the artwork at its
+ * true resolution, and `position` decides where the tiling grid
+ * starts. Without it every texture is pinned to the same origin and
+ * a motif can never be aligned to the surface it decorates.
+ *
+ * @since 0.9.8
+ * @internal
+ *
+ * @param string $value Candidate.
+ * @return bool
+ */
+function desktop_mode_desktop_theme_is_position_value( $value ) {
+	$value = strtolower( trim( (string) $value ) );
+	if ( '' === $value || strlen( $value ) > 64 ) {
+		return false;
+	}
+	$parts = preg_split( '/\s+/', $value );
+	if ( ! is_array( $parts ) || count( $parts ) < 1 || count( $parts ) > 2 ) {
+		return false;
+	}
+	$keywords = array( 'left', 'right', 'top', 'bottom', 'center' );
+	foreach ( $parts as $part ) {
+		if ( in_array( $part, $keywords, true ) ) {
+			continue;
+		}
+		// A bare `0` is a valid CSS length and the natural way to write
+		// a flush edge, so it is accepted without a unit. Every other
+		// number needs one.
+		if ( preg_match( '/^-?(0|\d+(\.\d+)?(px|%|rem|em))$/', $part ) ) {
+			continue;
+		}
+		return false;
 	}
 	return true;
 }
@@ -353,10 +513,230 @@ function desktop_mode_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 					$entry['size'] = $value;
 				}
 			}
+			if ( isset( $descriptor['position'] ) && is_string( $descriptor['position'] ) ) {
+				$value = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['position'] ) ) );
+				if ( desktop_mode_desktop_theme_is_position_value( $value ) ) {
+					$entry['position'] = $value;
+				}
+			}
 		}
 
 		$out[ $slot ] = $entry;
 	}
+	return $out;
+}
+
+/**
+ * Map a resolved font reference to its `format()` hint.
+ *
+ * The hint is DERIVED, never author-supplied: the extension already
+ * passed the font allowlist, and deriving it removes one more free
+ * string from the compiled output. Works on both a theme-relative
+ * path and an absolute URL (whose query string is discarded first).
+ *
+ * @since 0.9.8
+ * @internal
+ *
+ * @param string $ref Resolved reference.
+ * @return string Format keyword, or `''` when unrecognised.
+ */
+function desktop_mode_desktop_theme_font_format( $ref ) {
+	$ref  = (string) $ref;
+	$path = $ref;
+	if ( preg_match( '~^https?://~i', $ref ) ) {
+		$path = (string) wp_parse_url( $ref, PHP_URL_PATH );
+	}
+	$formats = array(
+		'woff2' => 'woff2',
+		'woff'  => 'woff',
+		'ttf'   => 'truetype',
+		'otf'   => 'opentype',
+	);
+	$ext = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
+	return isset( $formats[ $ext ] ) ? $formats[ $ext ] : '';
+}
+
+/**
+ * Sanitize the `fonts` block: a list of `@font-face` descriptors.
+ *
+ * ```json
+ * "fonts": [
+ *   { "family": "Neon Grotesk", "weight": "400", "style": "normal",
+ *     "display": "swap", "src": [ "fonts/neon.woff2", "fonts/neon.woff" ] }
+ * ]
+ * ```
+ *
+ * **Every field is a closed grammar, and `src` is the only one that
+ * reaches the filesystem.** The family name is restricted hard
+ * enough that the compiler can wrap it in double quotes and be done:
+ * no quote, backslash, semicolon, or brace can appear in it, so
+ * there is nothing to escape and no way out of the string. The
+ * `format()` hint is derived from the extension rather than read
+ * from the author, so a face contributes exactly two author-chosen
+ * substrings to the stylesheet — the family name and the file path —
+ * and both are constrained before they get there.
+ *
+ * Sanitization is drop-and-continue at every level: a face with no
+ * usable source disappears, a bad `weight` falls back to the CSS
+ * initial value, and the rest of the theme installs regardless.
+ *
+ * @since 0.9.8
+ * @internal
+ *
+ * @param mixed    $raw            Raw `fonts` value.
+ * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
+ * @return array<int,array>
+ */
+function desktop_mode_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+	$caps = desktop_mode_desktop_theme_font_caps();
+	$out  = array();
+
+	foreach ( $raw as $face ) {
+		if ( count( $out ) >= $caps['max_faces'] ) {
+			break;
+		}
+		if ( ! is_array( $face ) ) {
+			continue;
+		}
+
+		// --- family. Quoted verbatim by the compiler, hence strict. ---
+		$family = isset( $face['family'] ) && is_string( $face['family'] )
+			? trim( preg_replace( '/\s+/', ' ', $face['family'] ) )
+			: '';
+		if ( ! preg_match( '/^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$/', $family ) ) {
+			continue;
+		}
+
+		// --- src. A string, or a list of strings, in preference order. ---
+		$sources = array();
+		$raw_src = isset( $face['src'] ) ? $face['src'] : null;
+		if ( is_string( $raw_src ) ) {
+			$raw_src = array( $raw_src );
+		}
+		if ( ! is_array( $raw_src ) ) {
+			continue;
+		}
+		foreach ( $raw_src as $candidate ) {
+			if ( count( $sources ) >= $caps['max_sources'] ) {
+				break;
+			}
+			// Tolerate the `{ "path": … }` object shape too — it is what
+			// icons and textures use, and authors reasonably assume it
+			// generalizes.
+			if ( is_array( $candidate ) && isset( $candidate['path'] ) ) {
+				$candidate = $candidate['path'];
+			}
+			if ( ! is_string( $candidate ) ) {
+				continue;
+			}
+			$ref = call_user_func( $asset_resolver, $candidate, 'font' );
+			if ( ! is_string( $ref ) || '' === $ref ) {
+				continue;
+			}
+			$format = desktop_mode_desktop_theme_font_format( $ref );
+			if ( '' === $format ) {
+				continue;
+			}
+			$sources[] = array(
+				'path'   => $ref,
+				'format' => $format,
+			);
+		}
+		if ( empty( $sources ) ) {
+			// A face with nothing to load is not a partially broken
+			// face — it is no face at all.
+			continue;
+		}
+
+		$entry = array(
+			'family' => $family,
+			'src'    => $sources,
+		);
+
+		// --- weight. One or two of `normal` / `bold` / 1–1000. ---
+		if ( isset( $face['weight'] ) && ( is_string( $face['weight'] ) || is_int( $face['weight'] ) ) ) {
+			$weight = strtolower( trim( preg_replace( '/\s+/', ' ', (string) $face['weight'] ) ) );
+			$parts  = '' === $weight ? array() : explode( ' ', $weight );
+			if ( count( $parts ) >= 1 && count( $parts ) <= 2 ) {
+				$ok = true;
+				foreach ( $parts as $part ) {
+					if ( in_array( $part, array( 'normal', 'bold' ), true ) ) {
+						continue;
+					}
+					if ( preg_match( '/^\d{1,4}$/', $part ) && (int) $part >= 1 && (int) $part <= 1000 ) {
+						continue;
+					}
+					$ok = false;
+					break;
+				}
+				if ( $ok ) {
+					$entry['weight'] = $weight;
+				}
+			}
+		}
+
+		// --- style / display / stretch. Closed enums. ---
+		if ( isset( $face['style'] ) && is_string( $face['style'] ) ) {
+			$style = strtolower( trim( $face['style'] ) );
+			if ( in_array( $style, array( 'normal', 'italic', 'oblique' ), true ) ) {
+				$entry['style'] = $style;
+			}
+		}
+		if ( isset( $face['display'] ) && is_string( $face['display'] ) ) {
+			$display = strtolower( trim( $face['display'] ) );
+			if ( in_array( $display, array( 'auto', 'block', 'swap', 'fallback', 'optional' ), true ) ) {
+				$entry['display'] = $display;
+			}
+		}
+		if ( isset( $face['stretch'] ) && is_string( $face['stretch'] ) ) {
+			$stretch  = strtolower( trim( preg_replace( '/\s+/', ' ', $face['stretch'] ) ) );
+			$keywords = array(
+				'ultra-condensed',
+				'extra-condensed',
+				'condensed',
+				'semi-condensed',
+				'normal',
+				'semi-expanded',
+				'expanded',
+				'extra-expanded',
+				'ultra-expanded',
+			);
+			$parts    = '' === $stretch ? array() : explode( ' ', $stretch );
+			if ( count( $parts ) >= 1 && count( $parts ) <= 2 ) {
+				$ok = true;
+				foreach ( $parts as $part ) {
+					if ( in_array( $part, $keywords, true ) ) {
+						continue;
+					}
+					if ( preg_match( '/^\d{1,3}(\.\d+)?%$/', $part ) ) {
+						continue;
+					}
+					$ok = false;
+					break;
+				}
+				if ( $ok ) {
+					$entry['stretch'] = $stretch;
+				}
+			}
+		}
+
+		// --- unicodeRange. Subsetted faces live and die by this one. ---
+		if ( isset( $face['unicodeRange'] ) && is_string( $face['unicodeRange'] ) ) {
+			$range = strtoupper( trim( preg_replace( '/\s+/', ' ', $face['unicodeRange'] ) ) );
+			if (
+				strlen( $range ) <= 512
+				&& preg_match( '/^U\+[0-9A-F?]{1,6}(-[0-9A-F]{1,6})?( ?, ?U\+[0-9A-F?]{1,6}(-[0-9A-F]{1,6})?){0,31}$/', $range )
+			) {
+				$entry['unicodeRange'] = $range;
+			}
+		}
+
+		$out[] = $entry;
+	}
+
 	return $out;
 }
 
@@ -366,11 +746,14 @@ function desktop_mode_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
  * @since 0.9.7
  *
  * @param mixed    $raw            Decoded manifest.
- * @param callable $asset_resolver `fn( string $path ): string|false`.
+ * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
  *                                 Returns the reference the compiler
  *                                 should emit (theme-relative path
  *                                 for uploads, absolute URL for code
  *                                 registrations), or `false` to drop.
+ *                                 `$kind` is `'image'` or `'font'`
+ *                                 and selects the extension
+ *                                 allowlist.
  * @return array|WP_Error Sanitized manifest, or `WP_Error` when a
  *                        structural field is missing/invalid.
  */
@@ -436,6 +819,14 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 		}
 	}
 
+	// Manifest-wide icon tint. Applied to every icon that doesn't set
+	// its own `color`, so a monochrome iconset is one line rather than
+	// twenty-odd repetitions.
+	$icon_color = '';
+	if ( isset( $raw['iconColor'] ) && desktop_mode_desktop_theme_is_color_value( $raw['iconColor'] ) ) {
+		$icon_color = desktop_mode_desktop_theme_normalize_color( $raw['iconColor'] );
+	}
+
 	$manifest = array(
 		'manifestVersion' => 1,
 		'id'              => $id,
@@ -454,12 +845,18 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 		'tokens'          => desktop_mode_sanitize_desktop_theme_tokens(
 			isset( $raw['tokens'] ) ? $raw['tokens'] : null
 		),
+		'iconColor'       => $icon_color,
 		'icons'           => desktop_mode_sanitize_desktop_theme_icons(
 			isset( $raw['icons'] ) ? $raw['icons'] : null,
-			$asset_resolver
+			$asset_resolver,
+			$icon_color
 		),
 		'textures'        => desktop_mode_sanitize_desktop_theme_textures(
 			isset( $raw['textures'] ) ? $raw['textures'] : null,
+			$asset_resolver
+		),
+		'fonts'           => desktop_mode_sanitize_desktop_theme_fonts(
+			isset( $raw['fonts'] ) ? $raw['fonts'] : null,
 			$asset_resolver
 		),
 	);
@@ -488,18 +885,18 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
  * directory and returns the theme-relative path.
  *
  * Rejects absolute paths, traversal, backslashes, NUL bytes, and
- * anything whose extension isn't an allowed image type. Uses
- * `realpath()` containment as the final gate so a symlink planted
- * inside the ZIP can't point outward.
+ * anything whose extension isn't allowed for the requested asset
+ * kind. Uses `realpath()` containment as the final gate so a symlink
+ * planted inside the ZIP can't point outward.
  *
  * @since 0.9.7
  *
  * @param string $staging_dir Absolute path of the extracted ZIP.
- * @return callable `fn( string $path ): string|false`
+ * @return callable `fn( string $path, string $kind = 'image' ): string|false`
  */
 function desktop_mode_desktop_theme_staging_asset_resolver( $staging_dir ) {
 	$base = realpath( $staging_dir );
-	return static function ( $path ) use ( $base ) {
+	return static function ( $path, $kind = 'image' ) use ( $base ) {
 		if ( false === $base || ! is_string( $path ) ) {
 			return false;
 		}
@@ -519,7 +916,7 @@ function desktop_mode_desktop_theme_staging_asset_resolver( $staging_dir ) {
 			}
 		}
 		$ext = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
-		if ( ! in_array( $ext, array( 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg' ), true ) ) {
+		if ( ! in_array( $ext, desktop_mode_desktop_theme_asset_extensions( $kind ), true ) ) {
 			return false;
 		}
 		$full = realpath( $base . '/' . $path );
@@ -539,10 +936,10 @@ function desktop_mode_desktop_theme_staging_asset_resolver( $staging_dir ) {
  *
  * @since 0.9.7
  *
- * @return callable `fn( string $url ): string|false`
+ * @return callable `fn( string $url, string $kind = 'image' ): string|false`
  */
 function desktop_mode_desktop_theme_url_asset_resolver() {
-	return static function ( $url ) {
+	return static function ( $url, $kind = 'image' ) {
 		if ( ! is_string( $url ) ) {
 			return false;
 		}
@@ -563,7 +960,7 @@ function desktop_mode_desktop_theme_url_asset_resolver() {
 		}
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
 		$ext  = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
-		if ( ! in_array( $ext, array( 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg' ), true ) ) {
+		if ( ! in_array( $ext, desktop_mode_desktop_theme_asset_extensions( $kind ), true ) ) {
 			return false;
 		}
 		return $url;

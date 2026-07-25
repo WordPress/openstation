@@ -125,7 +125,7 @@
 .desktop-mode-bug-report__metadata-body {
 	margin: 0;
 	padding: 0 10px 10px;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, monospace );
 	font-size: 11px;
 	line-height: 1.5;
 	color: var( --wpd-fg-muted, #50575e );

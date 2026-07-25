@@ -41,12 +41,31 @@ export interface DesktopThemeEntry {
 	/** Compiled design tokens, informational (the CSS is authoritative). */
 	tokens: Record< string, string >;
 	/**
+	 * Font families the theme bundles, in declaration order and
+	 * de-duplicated across weights. Informational — the compiled
+	 * stylesheet carries the `@font-face` rules that actually load
+	 * them. Empty for a theme that ships no fonts.
+	 *
+	 * @since 0.9.8
+	 */
+	fonts: string[];
+	/**
 	 * Slot => paintable icon string. Values are either a
 	 * `dashicons-*` class or an absolute `http(s)` / `data:image/`
 	 * URL. Slots this theme doesn't override are simply absent —
 	 * that absence IS the "fall back to the system default" contract.
 	 */
 	icons: Record< string, string >;
+	/**
+	 * Slot => fill colour, for the slots the theme wants tinted. A
+	 * slot absent from this map keeps its default rendering; a slot
+	 * present in it is painted as a tinted CSS mask (images) or with
+	 * that `color` (dashicons). The literal `currentColor` defers to
+	 * whatever the surface is already using for text.
+	 *
+	 * @since 0.9.8
+	 */
+	iconColors: Record< string, string >;
 	/** Unix timestamp of installation (uploads only; `0` for code). */
 	installedAt: number;
 	/** Where the theme came from. */
@@ -67,4 +86,11 @@ export interface DesktopThemeState {
 	activeId: string | null;
 	/** Icon map of the active theme, or `null` when unthemed. */
 	activeIcons: Record< string, string > | null;
+	/**
+	 * Icon tint map of the active theme, or `null` when unthemed.
+	 * Same null-is-the-fast-path contract as {@link activeIcons}.
+	 *
+	 * @since 0.9.8
+	 */
+	activeIconColors: Record< string, string > | null;
 }

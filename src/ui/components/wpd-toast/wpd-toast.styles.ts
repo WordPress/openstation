@@ -29,6 +29,11 @@ export const toastStyles = css`
 		max-width: 420px;
 		padding: 10px 14px;
 		background: #1d2327;
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-toast-bg-image, none );
+		background-repeat: var( --wpd-toast-bg-image-repeat, repeat );
+		background-size: var( --wpd-toast-bg-image-size, auto );
+		background-position: var( --wpd-toast-bg-image-position, center );
 		color: var( --wpd-fg-on-accent, #fff );
 		border-radius: 10px;
 		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.12 ) );

@@ -501,7 +501,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
 	padding: 1px 5px;
 	border-radius: 4px;
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 11.5px;
 }
 .desktop-mode-ai__bubble-text a {
@@ -813,7 +813,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	font-size: 13px;
 	font-weight: 600;
 	color: var( --wpd-fg, #1d2327 );
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	letter-spacing: -0.01em;
 }
 

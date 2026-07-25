@@ -124,18 +124,102 @@
 	 *                       handle's 3px overhang plus a share of
 	 *                       --desktop-mode-window-radius, because the
 	 *                       window clips its descendants)
+	 *   WINDOW_FRAME_FOCUSED
+	 *                     --desktop-mode-window-border-image-focused-*
+	 *                       (same four sub-properties as WINDOW_FRAME)
+	 *   WINDOW_BODY       --desktop-mode-window-body-image
+	 *   TABBAR            --desktop-mode-tabs-image
+	 *   TITLEBAR_CONTROLS --desktop-mode-titlebar-controls-image
+	 *   TITLEBAR_BUTTON   --wpd-btn-bg-image
 	 *   DOCK              --desktop-mode-dock-bg-image
 	 *                     --desktop-mode-dock-bg-image-repeat
 	 *                     --desktop-mode-dock-bg-image-size
+	 *   DOCK_ITEM         --desktop-mode-dock-item-image
 	 *   DESKTOP           --desktop-mode-desktop-image
 	 *                     --desktop-mode-desktop-image-repeat
 	 *                     --desktop-mode-desktop-image-size
+	 *   ICON_TILE         --desktop-mode-tile-image
+	 *   WIDGET            --desktop-mode-widget-image
+	 *   MENU              --wpd-menu-bg-image
+	 *   DIALOG            --wpd-dialog-bg-image
+	 *   SCRIM             --wpd-scrim-image
+	 *   PANEL             --wpd-panel-bg-image
+	 *   TOAST             --wpd-toast-bg-image
+	 *   TABLE_HEADER      --wpd-table-header-bg-image
+	 *   BUTTON            --wpd-button-bg-image
 	 *
-	 * Consumers: window-chrome.css (titlebar + frame),
-	 * window-states.css (corners), dock.css, desktop.css.
+	 * Every `image` slot also gets `<prop>-repeat` and `<prop>-size`
+	 * companions (the corners share one `-size`, and
+	 * TITLEBAR_FOCUSED inherits TITLEBAR's).
+	 *
+	 * Consumers: window-chrome.css (titlebar, frame, body, tab bar),
+	 * window-states.css (corners), dock.css, desktop.css (wallpaper,
+	 * icons, widgets), and the `<wpd-*>` component stylesheets under
+	 * `src/ui/components/` for the last seven.
 	 * Authoring reference: docs/desktop-themes.md.
 	 *
 	 * @since 0.9.7
+	 */
+
+	/*
+	 * ---- Title-bar control cluster ----------------------------
+	 *
+	 * Also undeclared, and for a load-bearing reason: the cluster and
+	 * the control faces are TRANSPARENT by default, so a themed
+	 * title-bar texture runs edge to edge underneath them and the
+	 * buttons float on the artwork. A plate behind the controls is a
+	 * choice a theme makes, not a default the framework imposes.
+	 *
+	 *   Cluster   --desktop-mode-titlebar-controls-bg
+	 *             --desktop-mode-titlebar-controls-image (+ -repeat,
+	 *               -size, -position)
+	 *             --desktop-mode-titlebar-controls-radius
+	 *             --desktop-mode-titlebar-controls-padding (inline)
+	 *             --desktop-mode-titlebar-controls-gap
+	 *   Screen-meta cluster
+	 *             --desktop-mode-titlebar-meta-bg / -image / -radius
+	 *               (radius falls through to the controls radius)
+	 *   Each face --wpd-btn-bg          resting colour
+	 *             --wpd-btn-bg-image    (+ -repeat, -size, -position)
+	 *             --wpd-btn-radius
+	 *   Dividers  --desktop-mode-titlebar-divider
+	 *             --desktop-mode-titlebar-divider-unfocused
+	 *
+	 * Consumers: window-chrome.css and the `<wpd-window-button>`
+	 * shadow stylesheet.
+	 *
+	 * @since 0.9.8
+	 */
+
+	/*
+	 * ---- Typography ------------------------------------------
+	 *
+	 * Also deliberately UNDECLARED, for the same reason as the
+	 * `--wpd-*` palette: every consuming rule reads
+	 * `font-family: var( --name, <the literal that was always
+	 * there> )`, so an unset token computes to exactly what it
+	 * always did. A desktop theme sets them (and may ship the
+	 * `@font-face` rules to back them) and the whole shell changes
+	 * typeface at once.
+	 *
+	 *   --desktop-mode-font           shell chrome: dock labels,
+	 *                                 desktop icons, widgets
+	 *   --desktop-mode-titlebar-font  window title bars; falls back
+	 *                                 to --desktop-mode-font
+	 *   --wpd-font                    window BODIES + the `<wpd-*>`
+	 *                                 component kit
+	 *   --wpd-font-mono               code, hashes, file sizes,
+	 *                                 log output
+	 *
+	 * The split matters: a theme can put a display face on the
+	 * chrome while window content stays on a readable text face,
+	 * which is what real desktop environments do.
+	 *
+	 * Note that iframe windows render a real wp-admin document in a
+	 * separate browsing context that the theme stylesheet does not
+	 * reach — these tokens style the shell and native windows.
+	 *
+	 * @since 0.9.8
 	 */
 
 	/* Dock */

@@ -20,7 +20,10 @@
  * @internal
  */
 
-import { resolveThemedIcon } from '../../desktop-themes/icons';
+import {
+	resolveThemedIcon,
+	resolveThemedIconColor,
+} from '../../desktop-themes/icons';
 import { slotForWindowControl } from '../../desktop-themes/slots';
 
 /**
@@ -36,8 +39,32 @@ export function paintThemedControlIcon(
 	host: HTMLElement,
 	controlId: string,
 ): boolean {
-	const themed = resolveThemedIcon( slotForWindowControl( controlId ) );
+	const slot = slotForWindowControl( controlId );
+	const themed = resolveThemedIcon( slot );
+	const tint = resolveThemedIconColor( slot );
+
+	// A tint with no glyph override is meaningful on its own: "keep
+	// the built-in chevrons, paint them cyan."
+	if ( themed === null && tint === null ) {
+		return false;
+	}
+
+	// The mask fill. Unset, the component's own `currentColor` default
+	// applies — which is what keeps a themed close button turning white
+	// on a focused title bar and red on danger-hover. A theme that
+	// names a colour here is deliberately opting OUT of that state
+	// tinting, so the glyph holds one colour throughout.
+	if ( tint !== null ) {
+		host.style.setProperty( '--wpd-btn-icon-color', tint );
+	} else {
+		host.style.removeProperty( '--wpd-btn-icon-color' );
+	}
+
 	if ( themed === null ) {
+		// Colour-only override: the built-in SVG stays, and it already
+		// paints with `currentColor`. Give it the tint through `color`
+		// so the inline `fill="currentColor"` picks it up.
+		host.style.setProperty( 'color', tint as string );
 		return false;
 	}
 
@@ -47,6 +74,9 @@ export function paintThemedControlIcon(
 		const span = document.createElement( 'span' );
 		span.className = `dashicons ${ themed }`;
 		span.setAttribute( 'aria-hidden', 'true' );
+		if ( tint !== null ) {
+			span.style.color = tint;
+		}
 		host.appendChild( span );
 		return true;
 	}

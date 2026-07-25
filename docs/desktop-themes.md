@@ -3,10 +3,10 @@
 **Status:** Experimental · **Since:** 0.9.7
 
 A **desktop theme** reskins the whole Desktop Mode shell at once —
-every design token, the title-bar / dock / desktop textures, the window
-frame and its corners, and a complete iconset down to the window
-control glyphs. It ships as a ZIP containing a `theme.json` manifest
-plus images. Nothing else.
+every design token, the typeface, a texture on any surface the shell
+paints, the window frame and its corners, and a complete iconset down
+to the window control glyphs. It ships as a ZIP containing a
+`theme.json` manifest plus images and fonts. Nothing else.
 
 > **Desktop themes vs window themes.** Desktop Mode also has
 > *window themes* (`desktop_mode_register_window_theme()`,
@@ -19,13 +19,15 @@ plus images. Nothing else.
 - [ZIP layout](#zip-layout)
 - [`theme.json`](#themejson)
 - [Tokens](#tokens)
+- [Fonts](#fonts)
 - [Icons](#icons)
 - [Textures](#textures)
+- [Texturing your own surface](#texturing-your-own-surface)
 - [Value grammar](#value-grammar)
 - [Fallback semantics](#fallback-semantics)
 - [Installing and activating](#installing-and-activating)
 - [Registering a theme from PHP](#registering-a-theme-from-php)
-- [Non-goals in v1](#non-goals-in-v1)
+- [Non-goals](#non-goals)
 
 ---
 
@@ -36,11 +38,17 @@ author-supplied JavaScript, ever. What actually happens on upload:
 
 1. The archive is walked entry-by-entry **before a single byte is
    written**. Traversal, absolute paths, backslashes, NUL bytes, and
-   any extension outside `json png jpg jpeg gif webp avif svg` reject
-   the whole upload. Entry-count and uncompressed-size caps apply.
+   any extension outside
+   `json txt md png jpg jpeg gif webp avif svg woff2 woff ttf otf`
+   reject the whole upload. Entry-count and uncompressed-size caps
+   apply.
 2. The archive extracts into a staging directory.
 3. `theme.json` is sanitized field by field. Every asset reference is
-   resolved against the staging directory and must land inside it.
+   resolved against the staging directory and must land inside it —
+   against the **image** extension list for icons, textures and the
+   preview, and against the **font** list for `fonts`. The two lists
+   are disjoint, so an icon can never resolve to a font file or the
+   other way round.
 4. Every referenced SVG is parsed with DOMDocument and stripped of
    scripts, embedding elements, `on*` handlers, non-fragment `href`s,
    and `javascript:` / `url()` in style attributes. DTDs and entity
@@ -48,10 +56,20 @@ author-supplied JavaScript, ever. What actually happens on upload:
    DOMDocument, SVGs are **refused** rather than shipped unexamined.
 5. **Only the assets the sanitized manifest actually references** are
    moved into the live directory. Anything else in the ZIP is
-   discarded with the staging directory.
-6. PHP *compiles* a stylesheet from the sanitized manifest — a single
-   rule containing custom-property declarations. It generates every
-   `url()` itself from a `rawurlencode`d path.
+   discarded with the staging directory — including `txt` / `md`
+   files, which no manifest field can reference and which exist in
+   the allowlist purely so an archive may carry the licence notice a
+   bundled font obliges you to ship.
+6. PHP *compiles* a stylesheet from the sanitized manifest: one rule
+   of custom-property declarations, preceded by the `@font-face`
+   rules it generated itself. It writes every `url()` from a
+   `rawurlencode`d path.
+
+`@font-face` is the only at-rule that ever appears, and no part of it
+comes from you verbatim except the family name — which is restricted
+to `^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$` precisely so that wrapping it
+in double quotes is airtight. The `format()` hint is derived from the
+file extension rather than read from the manifest.
 
 The practical consequence for you: if a value isn't in the grammar
 below, it silently doesn't apply. That is deliberate, and it is why
@@ -69,10 +87,14 @@ Windows):
 neon-glass.zip
 ├── theme.json
 ├── preview.png
+├── LICENSE.txt          <- validated, never installed
 ├── icons/
 │   ├── close.svg
 │   ├── settings.svg
 │   └── trash.svg
+├── fonts/
+│   ├── neon-grotesk-400.woff2
+│   └── neon-mono-400.woff2
 └── textures/
     ├── titlebar.png
     ├── frame.png
@@ -103,8 +125,16 @@ their next page load.
 
   "tokens": {
     "--desktop-mode-window-radius": "14px",
-    "--desktop-mode-titlebar-bg-focused": "#1a1a2e"
+    "--desktop-mode-titlebar-bg-focused": "#1a1a2e",
+    "--desktop-mode-font": "\"Neon Grotesk\", system-ui, sans-serif"
   },
+
+  "fonts": [
+    { "family": "Neon Grotesk", "weight": "400", "display": "swap",
+      "src": [ "fonts/neon-grotesk-400.woff2" ] }
+  ],
+
+  "iconColor": "currentColor",
 
   "icons": {
     "OS_SETTINGS":          { "type": "image",    "path": "icons/settings.svg" },
@@ -147,7 +177,8 @@ Optional, and **individually droppable** — see
 | `version`, `author` | Plain text, ≤32 / ≤120 chars. |
 | `description` | Plain text, ≤500 chars. |
 | `preview` | Path to an image shown on the theme card in OS Settings. |
-| `tokens`, `icons`, `textures` | See below. |
+| `iconColor` | Default fill for every icon — see [Icon colour](#icon-colour). |
+| `tokens`, `fonts`, `icons`, `textures` | See below. |
 
 ---
 
@@ -267,12 +298,118 @@ specificity, and native windows use the `<wpd-*>` components instead.
 If you build a native window with raw form controls, style them
 yourself.
 
+### Typography tokens
+
+Four tokens carry the shell's typefaces. Like the palette they are
+**undeclared by default** — every rule reads
+`font-family: var( --token, <the literal that was always there> )` —
+so an unthemed shell renders exactly as it always did.
+
+| Token | Applies to |
+|---|---|
+| `--desktop-mode-font` | Shell chrome: dock labels, desktop icon labels, widgets, the overview |
+| `--desktop-mode-titlebar-font` | Window title bars. Falls back to `--desktop-mode-font` |
+| `--wpd-font` | Window **bodies** and the whole `<wpd-*>` component kit |
+| `--wpd-font-mono` | Code, hashes, file sizes, log output |
+
+The chrome / body split is the one real decision here, and it is the
+one real desktop environments make: a display face on the title bars
+and dock, a comfortable text face inside windows.
+
+```json
+"tokens": {
+  "--desktop-mode-font":          "\"Neon Grotesk\", system-ui, sans-serif",
+  "--desktop-mode-titlebar-font": "\"Neon Grotesk\", system-ui, sans-serif",
+  "--wpd-font":                   "\"Neon Grotesk\", system-ui, sans-serif",
+  "--wpd-font-mono":              "\"Neon Mono\", ui-monospace, monospace"
+}
+```
+
+Always end a stack with a generic family. If the bundled face fails
+to load — a slow network, a `unicodeRange` that doesn't cover the
+user's script — that fallback is what they read.
+
+Setting these tokens does **not** require bundling a font. A stack of
+system faces (`"Iowan Old Style, Palatino, serif"`) is a complete,
+zero-byte way to change how the OS reads. Bundle a font only when you
+need one that isn't there.
+
 ### What stays fixed
 
 Colour that encodes meaning or is composed artwork is deliberately
 **not** themable: sticky-note paper, game palettes, the content-graph
 node hues, the About scene. Retinting those would destroy the signal
-they carry.
+they carry. The same applies to their typography — the sticky note's
+handwriting face and the Inkfall serif are part of the artwork.
+
+---
+
+## Fonts
+
+A theme may bundle typefaces. Each entry in `fonts`
+becomes one `@font-face` rule, generated by PHP from your descriptor.
+
+```json
+"fonts": [
+  { "family": "Neon Grotesk", "weight": "400", "style": "normal",
+    "display": "swap",
+    "src": [ "fonts/neon-grotesk-400.woff2", "fonts/neon-grotesk-400.woff" ] },
+
+  { "family": "Neon Grotesk", "weight": "700", "style": "normal",
+    "display": "swap",
+    "src": [ "fonts/neon-grotesk-700.woff2" ] }
+]
+```
+
+Declaring a face does not *use* it. Point a
+[typography token](#typography-tokens) at the family, or nothing
+changes — the browser downloads a face only when something asks for
+it, so an unreferenced face costs no bytes.
+
+### Fields
+
+| Field | Rule |
+|---|---|
+| `family` | **Required.** `^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$`. Letters, digits, spaces, `_`, `-`. Nothing else — see [the security model](#the-security-model). |
+| `src` | **Required.** A path, or a list of paths in preference order. `{ "path": "…" }` objects work too. Extensions: `woff2`, `woff`, `ttf`, `otf`. |
+| `weight` | One or two of `normal` / `bold` / an integer 1–1000. Two values declare a variable-font range (`"100 900"`). |
+| `style` | `normal`, `italic`, `oblique`. |
+| `display` | `auto`, `block`, `swap`, `fallback`, `optional`. |
+| `stretch` | A `*-condensed` / `*-expanded` keyword, `normal`, or one to two percentages. |
+| `unicodeRange` | `U+xxxx` ranges, comma separated, up to 32. |
+
+The `format()` hint is derived from the extension — don't supply one,
+it is ignored.
+
+### Caps
+
+16 faces per theme, 4 sources per face, 8 MB per file, 32 MB per
+archive. Both face caps are filterable
+(`desktop_mode_desktop_theme_font_caps`).
+
+### Practical notes
+
+- **Ship `woff2`.** Every browser Desktop Mode targets supports it,
+  and it is roughly half the size of `woff`. A `woff` second source is
+  belt and braces; `ttf` / `otf` are accepted but rarely worth the
+  bytes.
+- **Subset.** A full Unicode face is megabytes. Latin-1 plus the
+  punctuation you actually use is usually 15–30 kB. Declare what you
+  subsetted to in `unicodeRange` so the browser can skip the download
+  for text the face can't render.
+- **`display: swap`** paints fallback text immediately and swaps when
+  the face arrives. On admin chrome that is almost always right —
+  `block` hides your dock labels while the font loads.
+- **Licensing is yours.** A font you bundle is redistributed to every
+  visitor of the site that installs the theme, and to whoever you hand
+  the ZIP to. Ship one whose licence permits that, and put the notice
+  in a `LICENSE.txt` inside the archive (the allowlist accepts `txt`
+  and `md` for exactly this; they are never installed on the server).
+- **Fonts reach the shell and native windows, not iframes.** An
+  iframe window renders a real `wp-admin` document in its own browsing
+  context, which the theme stylesheet does not enter. Your typeface
+  restyles the desk, the dock, every title bar, and every native
+  window body; the admin page inside an iframe keeps the admin's font.
 
 ---
 
@@ -306,22 +443,71 @@ one is the browser console:
 wp.desktop.getMenuItems().map( ( i ) => i.id );
 ```
 
-### Icon colour: two rendering paths
+### Icon colour
 
-An `image` icon is painted one of two ways depending on the slot, and
-the difference decides how you should draw the art:
+**The single most useful line in a theme manifest:**
 
-| Slots | Rendered as | Your colours |
+```json
+"iconColor": "currentColor"
+```
+
+It applies to every icon that doesn't set its own, and it does more
+than recolour — it changes how an image icon is *painted*:
+
+| `color` | Image icons render as | Your artwork's colours |
 |---|---|---|
-| `WINDOW_CONTROL_*`, `RECYCLE_RESTORE`, `RECYCLE_DELETE` | CSS **mask** tinted with `currentColor` | **discarded** — alpha only |
-| Everything else (title bar, dock tiles, desktop icons, file tiles) | plain `<img>` | **kept** as authored |
+| absent | plain `<img>` | **kept** as authored |
+| set | a CSS **mask** filled with your colour | **discarded** — alpha only |
 
-So the second group has to be drawn for the surfaces your theme
-actually paints. A black-stroked iconset looks perfect in isolation,
-survives the masked slots (which throw the colour away), and then
-disappears against your own dark title bar and dock. Pick a stroke
-colour that reads against your `--desktop-mode-titlebar-bg` and
-`--desktop-mode-dock-bg`; the masked slots cost you nothing either way.
+Which is why `currentColor` is the workhorse. Every surface in the
+shell already sets a text colour that suits it: the dock dims its
+glyphs and brightens them on hover, the title bar swaps on focus, file
+tiles follow `--desktop-mode-tile-fg`, a danger-hover goes red. A
+masked icon filled with `currentColor` inherits all of that. One
+monochrome silhouette set, drawn in any colour you like, reads
+correctly everywhere.
+
+Without it, a black-stroked iconset looks perfect in isolation and
+then **disappears against your own dark dock** — the single most
+common way a first theme goes wrong.
+
+Per-slot overrides take a real colour, which is right when the colour
+*is* the meaning:
+
+```json
+"iconColor": "currentColor",
+"icons": {
+  "OS_SETTINGS":       { "type": "image", "path": "icons/settings.svg" },
+  "EXIT_DESKTOP_MODE": { "type": "image", "path": "icons/exit.svg",
+                         "color": "#ff6b81" },
+  "BUG_REPORT":        { "type": "image", "path": "icons/bug.svg",
+                         "color": "#ffcf70" },
+  "APP:my-brand":      { "type": "image", "path": "icons/brand.svg",
+                         "color": "none" }
+}
+```
+
+`"color": "none"` is the opt-**out**: it keeps one multi-colour icon —
+a brand mark, an app tile with real artwork — rendering as an `<img>`
+inside an otherwise-tinted set, without giving up the manifest-wide
+default.
+
+Accepted values: `currentColor`, hex (3/4/6/8 digits), the functional
+notations (`rgb()`, `rgba()`, `hsl()`, `oklch()`, …), a bare CSS
+colour keyword, or `none`. Dashicons take the colour too — they are
+font glyphs, so the tint is simply their `color`.
+
+**Two slot groups always mask,** with or without a `color`:
+`WINDOW_CONTROL_*` and the two `RECYCLE_*` row actions. They default
+to `currentColor` so a themed close button still turns white on a
+focused title bar and red on danger-hover. Naming an explicit colour
+there is an opt-out of that state tinting — the glyph then holds one
+colour throughout, which is occasionally what you want and usually
+not.
+
+**Design consequence:** if you are tinting, draw silhouettes. Only the
+alpha channel survives, so a stroke colour in the source SVG is
+irrelevant — pick whatever is easiest to see while you work.
 
 ### Window control glyphs are monochrome
 
@@ -343,26 +529,137 @@ dashicon would come out blank and the built-in SVG is used instead.
 
 ## Textures
 
-A map of **slot** => texture descriptor.
+A map of **slot** => texture descriptor. Every slot is optional and
+individually droppable; a surface you don't mention keeps its colour.
+
+**Window chrome**
 
 | Slot | Type | Paints on |
 |---|---|---|
 | `TITLEBAR` | `image` | Every window title bar |
 | `TITLEBAR_FOCUSED` | `image` | The focused window's title bar (falls back to `TITLEBAR`) |
 | `WINDOW_FRAME` | `border-image` | The window frame — replaces the 1px border |
+| `WINDOW_FRAME_FOCUSED` | `border-image` | The focused window's frame (falls back to `WINDOW_FRAME`) |
 | `WINDOW_CORNER_NE` / `_NW` / `_SE` / `_SW` | `image` | Corner ornaments on the resize handles |
-| `DOCK` | `image` | The dock, layered over its background colour |
+| `WINDOW_BODY` | `image` | The window content area, behind native content |
+| `TABBAR` | `image` | The in-window submenu tab strip |
+| `TITLEBAR_CONTROLS` | `image` | The plate behind the window-control cluster |
+| `TITLEBAR_BUTTON` | `image` | The face of each individual control button |
+
+**Shell**
+
+| Slot | Type | Paints on |
+|---|---|---|
 | `DESKTOP` | `image` | The wallpaper layer |
+| `DOCK` | `image` | The dock strip, layered over its background colour |
+| `DOCK_ITEM` | `image` | The face of a single dock tile |
+| `ICON_TILE` | `image` | The plate behind each desktop icon |
+| `WIDGET` | `image` | Desktop widget cards, over the frosted backdrop |
+
+**Component kit** — these paint inside window bodies and in the
+popovers that mount on `<body>`, so one slot reaches every instance
+of that component anywhere in the OS.
+
+| Slot | Type | Paints on |
+|---|---|---|
+| `MENU` | `image` | `<wpd-menu>` and `<wpd-context-menu>` panels |
+| `DIALOG` | `image` | `<wpd-modal>` and `<wpd-confirm-dialog>` surfaces |
+| `SCRIM` | `image` | The backdrop behind a modal |
+| `PANEL` | `image` | `<wpd-card>`, `<wpd-panel>`, `<wpd-flyout>` |
+| `TOAST` | `image` | `<wpd-toast>` notifications |
+| `TABLE_HEADER` | `image` | `<wpd-table>` header cells, sticky included |
+| `BUTTON` | `image` | `<wpd-button>` faces (except the `link` variant) |
+
+Component textures tile across small surfaces, so subtle wins: a 2–4 px
+noise or hairline pattern reads as material, a 200 px illustration
+reads as a mistake.
+
+### The window controls sit on nothing
+
+By default the control cluster and every button face are
+**transparent**, so a `TITLEBAR` texture runs edge to edge underneath
+them and the glyphs float on your artwork. That is almost always what
+a textured title bar wants, and it is why the default is transparent
+rather than a plate.
+
+If you want the opposite — controls in their own well, the way some
+desktop environments do it — the shape is yours to build:
+
+| Token | Controls |
+|---|---|
+| `--desktop-mode-titlebar-controls-bg` | Cluster background colour |
+| `--desktop-mode-titlebar-controls-radius` | Its corner radius |
+| `--desktop-mode-titlebar-controls-padding` | Inline padding (block padding stays 0 so the title-bar height can't shift) |
+| `--desktop-mode-titlebar-controls-gap` | Space between buttons |
+| `--desktop-mode-titlebar-meta-bg` / `-radius` / `-image` | Same for the Screen Options / Help cluster; the radius falls through to the controls radius |
+| `--wpd-btn-bg` | Resting colour of one button face |
+| `--wpd-btn-radius` | Its corner radius |
+| `--desktop-mode-titlebar-divider` | The hairline between page chrome and window chrome. Set `transparent` to let your artwork carry the separation |
+| `--desktop-mode-titlebar-divider-unfocused` | Its unfocused counterpart |
+
+```json
+"tokens": {
+  "--desktop-mode-titlebar-controls-bg": "rgba( 10, 10, 26, 0.55 )",
+  "--desktop-mode-titlebar-controls-radius": "8px",
+  "--desktop-mode-titlebar-controls-padding": "4px",
+  "--wpd-btn-bg": "rgba( 255, 255, 255, 0.06 )",
+  "--wpd-btn-radius": "6px"
+}
+```
+
+Add `TITLEBAR_CONTROLS` or `TITLEBAR_BUTTON` for artwork instead of a
+flat colour. Hover, focus and danger states override the button's
+background **colour** only, so a face texture survives all of them. Every one of them layers over the surface's
+background *colour*, which the palette tokens still control — a
+translucent texture composes with the colour instead of replacing it.
 
 ### `image` descriptors
 
 ```json
 { "type": "image", "path": "textures/titlebar.png",
-  "repeat": "repeat-x", "size": "auto 100%" }
+  "repeat": "repeat-x", "size": "auto 100%", "position": "left center" }
 ```
 
 - `repeat` — one of `repeat`, `repeat-x`, `repeat-y`, `no-repeat`, `space`, `round`.
 - `size` — `auto`, `cover`, `contain`, or one-to-two components, each `auto` or a number with `px` / `%` / `rem` / `em`.
+- `position` — one or two components: a keyword (`left`, `right`, `top`, `bottom`, `center`), a length, a percentage, or `0`. Negative offsets allowed.
+
+### Tile or stretch — the choice that decides your artwork
+
+Three combinations cover almost everything, and picking the wrong one
+is why a texture looks blurry or repetitive:
+
+| Intent | `size` | `repeat` | Draw |
+|---|---|---|---|
+| **Tile** a detailed motif across any width | `auto` or `auto 100%` | `repeat` / `repeat-x` | Seamless artwork at natural resolution |
+| **Stretch** one image to fill the surface | `100% 100%` or `cover` | `no-repeat` | A gradient or a soft wash — detail smears |
+| **Place** a fixed ornament | its pixel size | `no-repeat` | Exactly the pixels you want, at 2× |
+
+**Tiling is what lets a texture be big and detailed.** A window title
+bar can be 400px or 2000px wide; stretching one image across both
+destroys it. A seamless 256px strip tiled with `repeat-x` looks
+identical at every width, at full resolution, for a few kilobytes.
+
+Two rules make a strip seamless:
+
+1. **Match the edges.** Whatever touches `x = 0` must continue at
+   `x = width`. For a wave, use a whole number of periods across the
+   image; for scattered motifs, draw anything that crosses an edge
+   twice, once on each side.
+2. **Let one axis scale.** `size: auto 100%` scales the strip to the
+   surface's height and keeps its aspect ratio, so the tile width
+   follows automatically. Export at 2× the height you expect (a 72px
+   strip for a 36px title bar) and it stays crisp on HiDPI.
+
+`position` is what anchors the result. A repeating grid **must** be
+positioned `top left`: with the default `center`, the lattice shifts
+every time the window resizes and the grid appears to crawl. A
+horizontal strip usually wants `left center` so its tiling origin is
+the surface's leading edge rather than its midpoint.
+
+The bundled Neon Glass theme ships both cases — a seamless 256×72
+circuit-trace title bar that tiles, and a 24px grid pinned to
+`top left` in the window body.
 
 The four corner slots share one size token: whichever corner declares a
 `size` first (in `NE, NW, SE, SW` order) sets it for all four.
@@ -388,6 +685,11 @@ That makes the top two slots a different design problem from the
 bottom two. Diffuse, low-alpha light works — it reads as the title bar
 catching light and leaves every glyph legible. Hard edges do not: a
 saturated bracket up there lands straight through the close glyph.
+
+**Keep the falloff tight.** A broad bloom is the subtler version of
+the same mistake: it washes out whatever `TITLEBAR` texture you spent
+the effort making seamless, precisely in the strip where the controls
+live. Aim to be under ~3% alpha within 10px of the corner.
 The bundled example theme uses arcs and a bright node on the bottom
 corners, and bloom only on the top.
 
@@ -417,6 +719,75 @@ for a frame that extends past the window box.
   the desk over. This is deliberate: a whole-OS reskin should be able
   to own the background, but a wallpaper the user actively chose and
   which animates should not be painted out.
+- **`WINDOW_BODY`** shows behind native window content and behind an
+  iframe whose page is transparent. A normal `wp-admin` page inside an
+  iframe paints its own opaque background over it.
+- **`SCRIM`** and `DIALOG` are separate on purpose: the scrim is the
+  dimmed backdrop, the dialog is the card on top of it.
+
+---
+
+## Texturing your own surface
+
+The slot table above is data, not code. The compiler
+reads it and nothing else, which means a plugin can texture a surface
+Desktop Mode has never heard of without touching the framework.
+
+Two steps. Register the slot with the custom property you want it
+written to:
+
+```php
+add_filter( 'desktop_mode_desktop_theme_texture_slots', function ( $slots ) {
+    $slots['ACME_SIDEBAR'] = array(
+        'type' => 'image',                   // or 'border-image'
+        'prop' => '--acme-sidebar-image',    // the property base name
+    );
+    return $slots;
+} );
+```
+
+…then consume it in your own stylesheet, with the fallback that keeps
+an unthemed shell unchanged:
+
+```css
+.acme-sidebar {
+    background-color: var( --acme-panel-bg, #fff );
+    background-image: var( --acme-sidebar-image, none );
+    background-repeat: var( --acme-sidebar-image-repeat, repeat );
+    background-size: var( --acme-sidebar-image-size, auto );
+}
+```
+
+A theme can now write:
+
+```json
+"textures": {
+  "ACME_SIDEBAR": { "type": "image", "path": "textures/sidebar.png",
+                    "repeat": "repeat-y" }
+}
+```
+
+### What each slot definition may declare
+
+| Key | Meaning |
+|---|---|
+| `type` | `image` or `border-image`. Decides which descriptor grammar the sanitizer applies and which properties get written. |
+| `prop` | The custom-property base name. An `image` slot emits `<prop>`, `<prop>-repeat`, `<prop>-size`; a `border-image` slot emits `<prop>-source`, `-slice`, `-width`, `-repeat`. |
+| `companions` | Set to `false` for a variant slot that should inherit another slot's repeat + size rather than declare its own — how `TITLEBAR_FOCUSED` works. |
+| `sizeGroup` | A custom property shared by a family of slots that must render at one size. First slot to declare a `size` wins; the four window corners use this. |
+
+A slot with no `prop` is accepted by the sanitizer and emits nothing.
+That combination is a bug, not a feature — it exists only so a
+malformed filter can't produce malformed CSS.
+
+Slot names should be `UPPER_SNAKE` and namespaced by prefix
+(`ACME_SIDEBAR`, not `SIDEBAR`) so two plugins can't collide.
+
+The same trick works for icons via
+`desktop_mode_desktop_theme_icon_slots`, with one extra obligation:
+the JS side resolves icons, so a new icon slot must also exist in
+`src/desktop-themes/slots.ts` or the shell will never look it up.
+Texture slots have no such twin — they are pure CSS.
 
 ---
 
@@ -520,6 +891,15 @@ add_action( 'init', function () {
         'tokens'   => array(
             '--desktop-mode-window-radius'       => '14px',
             '--desktop-mode-titlebar-bg-focused' => '#241f4d',
+            '--desktop-mode-font'                => '"Neon Grotesk", sans-serif',
+        ),
+        'fonts'    => array(
+            array(
+                'family'  => 'Neon Grotesk',
+                'weight'  => '400',
+                'display' => 'swap',
+                'src'     => array( plugins_url( 'theme/neon.woff2', __FILE__ ) ),
+            ),
         ),
         'icons'    => array(
             'WINDOW_CONTROL_CLOSE' => array(
@@ -548,18 +928,24 @@ for a complete plugin.
 
 ---
 
-## Non-goals in v1
+## Non-goals
 
 - **`<wpd-icon>` content icons.** Icons inside window *bodies* (tables,
   toolbars, empty states) are not themable. Only chrome is.
 - **Letter badges.** The generated initial-letter tiles for items with
   no icon stay generated; retint them with the
   `--desktop-mode-tile-*` tokens instead.
-- **Art-direction colour.** Note paper, game palettes, graph node
-  hues, the About scene — see "What stays fixed" above.
-- **Fonts.** No `@font-face`, which would need an at-rule and a
-  `url()` from an author string.
-- **Layout.** A theme changes how things look, not where they are.
+- **Art-direction colour and type.** Note paper, game palettes, graph
+  node hues, the About scene — see "What stays fixed" above.
+- **Layout.** A theme changes how things look, not where they are. No
+  spacing scale, no dock geometry, no window metrics beyond the radius
+  and title-bar height the tokens already expose.
+- **Author CSS and JS.** Still never, and this is the line that makes
+  everything else safe. `@font-face` is generated *for* you from a
+  constrained descriptor; it is not an opening.
+- **Inside iframe windows.** A theme styles the shell and native
+  windows. The `wp-admin` page inside an iframe is a separate
+  document that the theme stylesheet does not reach.
 - **Uninstall cleanup.** The plugin has no `uninstall.php`; the
   `desktop_mode_desktop_themes` option and the uploads directory
   survive plugin deletion today.

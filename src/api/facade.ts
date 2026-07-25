@@ -158,7 +158,10 @@ import type { WallpaperDef } from '../wallpapers/types';
 import type { WallpaperSuspendApi } from '../wallpapers/layer';
 import { gamesApi } from '../games/api';
 import { applyDesktopTheme } from '../desktop-themes/apply';
-import { resolveThemedIcon } from '../desktop-themes/icons';
+import {
+	resolveThemedIcon,
+	resolveThemedIconColor,
+} from '../desktop-themes/icons';
 import {
 	getActiveDesktopThemeId,
 	listDesktopThemes,
@@ -572,6 +575,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			setActive: applyDesktopTheme,
 			subscribe: subscribeDesktopThemes,
 			resolveIcon: resolveThemedIcon,
+			resolveIconColor: resolveThemedIconColor,
 		},
 		applyWindowTheme: ( windowId, override ) => {
 			const win = manager.getById( windowId );

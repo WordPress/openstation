@@ -31,7 +31,7 @@
 	background-image: var( --desktop-mode-dock-bg-image, none );
 	background-repeat: var( --desktop-mode-dock-bg-image-repeat, repeat );
 	background-size: var( --desktop-mode-dock-bg-image-size, auto );
-	background-position: center;
+	background-position: var( --desktop-mode-dock-bg-image-position, center );
 	backdrop-filter: blur( 20px );
 	-webkit-backdrop-filter: blur( 20px );
 	flex-shrink: 0;
@@ -67,13 +67,24 @@
 	border-radius: 10px;
 	cursor: pointer;
 	padding: 0;
-	background: transparent;
+	background-color: transparent;
+	/*
+	 * DOCK_ITEM texture slot — the face of a single dock tile, so a
+	 * theme can give every launcher a physical key/plate instead of
+	 * relying on the dock strip's texture showing through. Painted
+	 * under the icon; the hover wash below is a background-COLOR so
+	 * it composes with the texture rather than erasing it.
+	 */
+	background-image: var( --desktop-mode-dock-item-image, none );
+	background-repeat: var( --desktop-mode-dock-item-image-repeat, no-repeat );
+	background-size: var( --desktop-mode-dock-item-image-size, auto );
+	background-position: var( --desktop-mode-dock-item-image-position, center );
 	color: rgba( 255, 255, 255, 0.7 );
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
 .desktop-mode-dock__item-primary:hover {
-	background: rgba( 255, 255, 255, 0.15 );
+	background-color: rgba( 255, 255, 255, 0.15 );
 	color: var( --wpd-fg-on-accent, #fff );
 	transform: scale( 1.1 );
 }
@@ -133,6 +144,30 @@
 }
 
 /*
+ * Desktop-theme TINTED icon — the glyph is painted as a CSS mask
+ * filled with the colour the theme named, so only the source
+ * artwork's alpha is used.
+ *
+ * Deliberately NOT `__item-svg`: that class force-whitens its content
+ * with `filter: brightness(0) invert(1)` so plugin SVGs carrying
+ * hardcoded `fill` attributes still match the dock. Here the fill is
+ * the whole point, and the filter would flatten every theme's colour
+ * to white.
+ *
+ * Full opacity at rest, unlike the untinted icon paths: a theme that
+ * names a colour has already decided how prominent its glyphs should
+ * be, and dimming it to 0.7 would silently mix it with the dock.
+ *
+ * @since 0.9.8
+ */
+.desktop-mode-dock__item-mask {
+	width: var( --desktop-mode-dock-icon-size, 20px );
+	height: var( --desktop-mode-dock-icon-size, 20px );
+	display: block;
+	flex-shrink: 0;
+}
+
+/*
  * Letter-badge icon — rendered for items registered without a
  * dashicon / SVG / image URL. Miniature "app placeholder": rounded
  * square tinted with a title-derived hue, first letter centered.
@@ -147,7 +182,10 @@
 	color: var( --wpd-fg-on-accent, #fff );
 	font-size: 15px;
 	font-weight: 700;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family: var(
+		--desktop-mode-font,
+		-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+	);
 	line-height: 1;
 	letter-spacing: 0;
 	text-shadow: 0 1px 1px rgba( 0, 0, 0, 0.22 );

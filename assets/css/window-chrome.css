@@ -109,6 +109,29 @@
 /* Focused window gets elevated shadow and distinct title bar. */
 .desktop-mode-window--focused {
 	box-shadow: var(--desktop-mode-window-shadow-focused);
+	/*
+	 * WINDOW_FRAME_FOCUSED texture slot. Each property falls through
+	 * the unfocused WINDOW_FRAME value before reaching its initial, so
+	 * a theme shipping one frame gets it on both states and a theme
+	 * shipping two gets a frame that lights up on focus — the same
+	 * fallback chain TITLEBAR_FOCUSED uses.
+	 */
+	border-image-source: var(
+		--desktop-mode-window-border-image-focused-source,
+		var(--desktop-mode-window-border-image-source, none)
+	);
+	border-image-slice: var(
+		--desktop-mode-window-border-image-focused-slice,
+		var(--desktop-mode-window-border-image-slice, 100%)
+	);
+	border-image-width: var(
+		--desktop-mode-window-border-image-focused-width,
+		var(--desktop-mode-window-border-image-width, 1)
+	);
+	border-image-repeat: var(
+		--desktop-mode-window-border-image-focused-repeat,
+		var(--desktop-mode-window-border-image-repeat, stretch)
+	);
 }
 
 /* Title bar. */
@@ -137,8 +160,19 @@
 	background-image: var(--desktop-mode-titlebar-image, none);
 	background-repeat: var(--desktop-mode-titlebar-image-repeat, repeat);
 	background-size: var(--desktop-mode-titlebar-image-size, auto);
-	background-position: center;
+	background-position: var(--desktop-mode-titlebar-image-position, center);
 	color: var(--desktop-mode-titlebar-color);
+	/*
+	 * Title bars can carry their own face — a display typeface here
+	 * with a text face in the body is the classic desktop split. Two
+	 * levels of fallback: the title-bar token, then the shell-wide
+	 * one, then `inherit`, which is what an undeclared font-family
+	 * would have computed to anyway. Unthemed shells are unchanged.
+	 */
+	font-family: var(
+		--desktop-mode-titlebar-font,
+		var(--desktop-mode-font, inherit)
+	);
 	cursor: default;
 	user-select: none;
 	flex-shrink: 0;
@@ -204,12 +238,55 @@
 	line-height: var(--desktop-mode-titlebar-height);
 }
 
-/* Window control buttons container. */
+/*
+ * Window control buttons container.
+ *
+ * The cluster is TRANSPARENT by default, which is the whole point: a
+ * themed title-bar texture runs edge to edge underneath it, and the
+ * buttons float on the artwork rather than sitting on a plate. Every
+ * property below resolves to exactly that when unset.
+ *
+ * A theme that wants a plate instead sets `--desktop-mode-titlebar-
+ * controls-bg` (and optionally the TITLEBAR_CONTROLS texture slot,
+ * a radius, and some inline padding) — the classic "the controls live
+ * in their own well" look, without the framework picking it for
+ * everyone.
+ *
+ * `padding-block` stays 0 so the cluster never changes the title
+ * bar's height; only the inline padding is themable.
+ *
+ * @since 0.9.8
+ */
 .desktop-mode-window__controls {
 	display: flex;
-	gap: 4px;
+	gap: var( --desktop-mode-titlebar-controls-gap, 4px );
 	align-items: center;
 	flex-shrink: 0;
+	padding-inline: var( --desktop-mode-titlebar-controls-padding, 0 );
+	border-radius: var( --desktop-mode-titlebar-controls-radius, 0 );
+	background-color: var( --desktop-mode-titlebar-controls-bg, transparent );
+	background-image: var( --desktop-mode-titlebar-controls-image, none );
+	background-repeat: var( --desktop-mode-titlebar-controls-image-repeat, repeat );
+	background-size: var( --desktop-mode-titlebar-controls-image-size, auto );
+	background-position: var( --desktop-mode-titlebar-controls-image-position, center );
+}
+
+/*
+ * Same treatment for the Screen Options / Help cluster, so a theme
+ * that plates one can plate the other and keep them consistent.
+ * Falls through to the controls tokens, so setting the pair above is
+ * enough for both.
+ */
+.desktop-mode-window__screen-meta {
+	border-radius: var(
+		--desktop-mode-titlebar-meta-radius,
+		var( --desktop-mode-titlebar-controls-radius, 0 )
+	);
+	background-color: var( --desktop-mode-titlebar-meta-bg, transparent );
+	background-image: var( --desktop-mode-titlebar-meta-image, none );
+	background-repeat: var( --desktop-mode-titlebar-meta-image-repeat, repeat );
+	background-size: var( --desktop-mode-titlebar-meta-image-size, auto );
+	background-position: var( --desktop-mode-titlebar-meta-image-position, center );
 }
 
 /*
@@ -371,11 +448,17 @@
 .desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
 	margin-inline-start: 8px;
 	padding-inline-start: 8px;
-	border-inline-start: 1px solid rgba(255, 255, 255, 0.15);
+	/* Tokenized so a theme can retint it — or set `transparent` and
+	 * let its own title-bar artwork carry the separation. */
+	border-inline-start: 1px solid
+		var( --desktop-mode-titlebar-divider, rgba(255, 255, 255, 0.15) );
 }
 
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
-	border-inline-start-color: rgba(0, 0, 0, 0.1);
+	border-inline-start-color: var(
+		--desktop-mode-titlebar-divider-unfocused,
+		rgba(0, 0, 0, 0.1)
+	);
 }
 
 /*
@@ -435,7 +518,8 @@
 	flex-shrink: 0;
 	margin-inline-end: 8px;
 	padding-inline-end: 8px;
-	border-inline-end: 1px solid rgba(255, 255, 255, 0.15);
+	border-inline-end: 1px solid
+		var( --desktop-mode-titlebar-divider, rgba(255, 255, 255, 0.15) );
 }
 
 /* Hide the divider when there are no screen-meta buttons. */
@@ -490,7 +574,10 @@
 
 /* Unfocused window: divider and buttons adapt to light title bar. */
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__screen-meta {
-	border-inline-end-color: rgba(0, 0, 0, 0.1);
+	border-inline-end-color: var(
+		--desktop-mode-titlebar-divider-unfocused,
+		rgba(0, 0, 0, 0.1)
+	);
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn {
 	color: rgba(0, 0, 0, 0.3);
@@ -515,7 +602,12 @@
 	flex-shrink: 0;
 	gap: 2px;
 	padding: 0 8px;
-	background: var( --desktop-mode-tabs-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	background-color: var( --desktop-mode-tabs-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	/* TABBAR texture slot — layered over the strip's own colour. */
+	background-image: var( --desktop-mode-tabs-image, none );
+	background-repeat: var( --desktop-mode-tabs-image-repeat, repeat );
+	background-size: var( --desktop-mode-tabs-image-size, auto );
+	background-position: var( --desktop-mode-tabs-image-position, center );
 	border-bottom: 1px solid var(--desktop-mode-window-border);
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -622,6 +714,23 @@ wpd-tab-chip + wpd-tab-chip {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
+	/*
+	 * WINDOW_BODY texture slot. Visible behind native window content
+	 * and behind any iframe whose page has a transparent background;
+	 * an opaque wp-admin page inside an iframe paints over it, which
+	 * is why a theme wanting texture everywhere reaches for DESKTOP
+	 * and the chrome slots instead.
+	 */
+	background-image: var( --desktop-mode-window-body-image, none );
+	background-repeat: var( --desktop-mode-window-body-image-repeat, repeat );
+	background-size: var( --desktop-mode-window-body-image-size, auto );
+	background-position: var( --desktop-mode-window-body-image-position, center );
+	/*
+	 * Body typeface. `--wpd-font` is the component kit's own token, so
+	 * one declaration here reaches every `<wpd-*>` element inside the
+	 * window: shadow DOM inherits `font-family` through the boundary.
+	 */
+	font-family: var( --wpd-font, inherit );
 }
 
 /* Iframe fills the window body. */
@@ -820,7 +929,12 @@ wpd-tab-chip + wpd-tab-chip {
 .desktop-mode-window__body--native {
 	overflow: auto;
 	color: var( --wpd-fg, #1d2327 );
-	background: var(--desktop-mode-window-bg);
+	/* background-COLOR, not the shorthand. This is a modifier on the
+	 * SAME element as `.desktop-mode-window__body`, at the same
+	 * specificity and later in source order — the shorthand would
+	 * reset the WINDOW_BODY texture declared there, which is exactly
+	 * the surface native windows exist to show. */
+	background-color: var(--desktop-mode-window-bg);
 }
 
 /*

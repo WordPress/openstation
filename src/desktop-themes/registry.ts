@@ -82,6 +82,32 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 		}
 	}
 
+	const fonts: string[] = [];
+	if ( Array.isArray( source.fonts ) ) {
+		for ( const family of source.fonts as unknown[] ) {
+			if ( typeof family === 'string' && family !== '' ) {
+				fonts.push( family );
+			}
+		}
+	}
+
+	const iconColors: Record< string, string > = {};
+	if ( source.iconColors && typeof source.iconColors === 'object' ) {
+		let colorCount = 0;
+		for ( const [ slot, value ] of Object.entries(
+			source.iconColors as Record< string, unknown >,
+		) ) {
+			if ( colorCount >= MAX_ICON_SLOTS ) {
+				break;
+			}
+			if ( slot === '' || typeof value !== 'string' || value === '' ) {
+				continue;
+			}
+			iconColors[ slot ] = value;
+			colorCount += 1;
+		}
+	}
+
 	const str = ( key: string ): string =>
 		typeof source[ key ] === 'string' ? ( source[ key ] as string ) : '';
 
@@ -96,7 +122,9 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 		cssUrl: str( 'cssUrl' ),
 		cssText: str( 'cssText' ),
 		tokens,
+		fonts,
 		icons,
+		iconColors,
 		installedAt:
 			typeof source.installedAt === 'number' ? source.installedAt : 0,
 		source: source.source === 'code' ? 'code' : 'upload',
@@ -123,7 +151,7 @@ function seed(): DesktopThemeState {
 			}
 		}
 	}
-	return { themes, activeId: null, activeIcons: null };
+	return { themes, activeId: null, activeIcons: null, activeIconColors: null };
 }
 
 const store = createSharedStore< DesktopThemeState >(

@@ -238,7 +238,7 @@
 .desktop-mode-plugins__name-path {
 	font-size: 0.78em;
 	color: var( --wpd-fg-muted, #888 );
-	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -895,7 +895,7 @@
 	margin: 0;
 	font-size: 0.86em;
 	color: var( --wpd-fg, #333 );
-	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 }
 
 .desktop-mode-plugins__upload-status {
@@ -927,7 +927,7 @@
 .desktop-mode-plugins__upload-success-detail {
 	margin: 0 0 6px;
 	color: var( --wpd-fg, #333 );
-	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 	font-size: 0.9em;
 }
 

@@ -148,7 +148,11 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 		shell?.removeAttribute( 'data-desktop-mode-desktop-theme' );
 		applyBodyClass( null );
 		removeStyleElements();
-		store.setState( { activeId: null, activeIcons: null } );
+		store.setState( {
+			activeId: null,
+			activeIcons: null,
+			activeIconColors: null,
+		} );
 	} else {
 		if ( ! bootAlreadyApplied( theme.slug ) ) {
 			removeStyleElements();
@@ -175,6 +179,7 @@ export function applyDesktopTheme( themeId: string | null | undefined ): void {
 			// conflating the two would make the resolver's fast path
 			// lie about an active theme.
 			activeIcons: theme.icons,
+			activeIconColors: theme.iconColors,
 		} );
 	}
 

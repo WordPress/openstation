@@ -52,6 +52,35 @@ add_action( 'init', function () {
             '--desktop-mode-titlebar-color'      => '#a8a8c0',
             '--desktop-mode-dock-bg'             => 'rgba( 12, 12, 30, 0.72 )',
             '--wp-admin-theme-color'             => '#7c5cff',
+
+            // Typography. `--desktop-mode-font` styles the chrome,
+            // `--wpd-font` the window bodies — the classic desktop
+            // split. Always end the stack with a generic family.
+            '--desktop-mode-font'                => '"Neon Grotesk", system-ui, sans-serif',
+            '--wpd-font'                         => '"Neon Grotesk", system-ui, sans-serif',
+            '--wpd-font-mono'                    => '"Neon Mono", ui-monospace, monospace',
+        ),
+
+        // One entry per @font-face. PHP generates the at-rule; you
+        // supply a family name and absolute URLs. Declaring a face
+        // does not use it — the tokens above are what point at it.
+        'fonts'       => array(
+            array(
+                'family'       => 'Neon Grotesk',
+                'weight'       => '400',
+                'style'        => 'normal',
+                'display'      => 'swap',
+                'unicodeRange' => 'U+0000-00FF',
+                'src'          => array(
+                    $asset( 'fonts/neon-grotesk-400.woff2' ),
+                ),
+            ),
+            array(
+                'family'  => 'Neon Grotesk',
+                'weight'  => '700',
+                'display' => 'swap',
+                'src'     => array( $asset( 'fonts/neon-grotesk-700.woff2' ) ),
+            ),
         ),
 
         'icons'       => array(
@@ -83,6 +112,18 @@ add_action( 'init', function () {
                 'slice'  => '24 fill',
                 'width'  => '12px',
                 'repeat' => 'round',
+            ),
+            // Component-kit slots reach every instance of that
+            // component anywhere in the OS. Keep them subtle — these
+            // tile across small surfaces.
+            'MENU'         => array(
+                'type' => 'image',
+                'path' => $asset( 'textures/noise.png' ),
+            ),
+            'BUTTON'       => array(
+                'type' => 'image',
+                'path' => $asset( 'textures/sheen.png' ),
+                'size' => '100% 100%',
             ),
         ),
     ) );
@@ -159,7 +200,16 @@ wp.hooks.addFilter(
 - **`preview` is worth shipping.** Without it the theme card in OS
   Settings falls back to two initials on a grey rectangle.
 - **Assets must be reachable.** `plugins_url()` output is validated as
-  an `http(s)` URL with an image extension; anything else is dropped.
+  an `http(s)` URL whose extension is on the allowlist for that kind —
+  images for `preview` / `icons` / `textures`, fonts for `fonts`.
+  Anything else is dropped. The two lists are disjoint, so pointing a
+  `TITLEBAR` texture at a `.woff2` fails silently.
+- **A declared font is not a used font.** `fonts` defines faces; the
+  typography tokens are what reference them. Declare both or nothing
+  changes.
+- **Licensing is yours.** A bundled font is redistributed to every
+  visitor of every site that installs the theme. Ship one whose licence
+  permits that.
 
 ---
 

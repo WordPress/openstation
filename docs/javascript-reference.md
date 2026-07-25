@@ -5277,6 +5277,7 @@ wp.desktop.desktopThemes.subscribe(
     cb: ( state: { themes; activeId; activeIcons } ) => void,
 ): () => void;
 wp.desktop.desktopThemes.resolveIcon( slot: string ): string | null;
+wp.desktop.desktopThemes.resolveIconColor( slot: string ): string | null;
 ```
 
 `DesktopThemeEntry`:
@@ -5290,7 +5291,9 @@ wp.desktop.desktopThemes.resolveIcon( slot: string ): string | null;
 | `cssUrl` | `string` | Compiled stylesheet URL (uploaded themes). |
 | `cssText` | `string` | Compiled stylesheet text (code-registered themes). |
 | `tokens` | `Record<string,string>` | Informational — the CSS is authoritative. |
+| `fonts` | `string[]` | Bundled font families, de-duplicated across weights, in declaration order. Informational; the compiled stylesheet carries the `@font-face` rules. Empty when the theme ships none. *(since 0.9.8)* |
 | `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
+| `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. *(since 0.9.8)* |
 | `installedAt` | `number` | Unix timestamp; `0` for code themes. |
 | `source` | `'upload' \| 'code'` | |
 
@@ -5304,6 +5307,32 @@ wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
 `resolveIcon()` returns `null` when no theme is active, when the slot
 name is empty, or when the active theme doesn't override that slot —
 all three mean "paint the default".
+
+`resolveIconColor()` follows the same contract for the slot's fill.
+A non-null value means the glyph is painted as a **tinted CSS mask**
+rather than an image, so only its alpha is used; `currentColor` defers
+to whatever the surface is already using for text. Both resolvers
+short-circuit on a null check when no theme is active, so an unthemed
+shell pays nothing.
+
+Two filters sit on these:
+
+```js
+wp.hooks.addFilter(
+    'desktop-mode.desktop-theme.icon',
+    'my-plugin',
+    ( icon, { slot, themeId } ) => icon,
+);
+wp.hooks.addFilter(
+    'desktop-mode.desktop-theme.icon-color',   // since 0.9.8
+    'my-plugin',
+    ( color, { slot, themeId } ) => color,
+);
+```
+
+Returning a colour where the theme set none switches that icon to
+mask rendering — a way to make any iconset monochrome without
+touching the theme.
 
 ### `desktopTheme` — OS settings key
 

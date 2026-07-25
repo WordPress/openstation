@@ -12,6 +12,11 @@ export const menuStyles = css`
 		position: fixed;
 		min-width: 180px;
 		background: var( --wpd-context-menu-bg, var( --desktop-mode-bg, #1d2327 ) );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-menu-bg-image, none );
+		background-repeat: var( --wpd-menu-bg-image-repeat, repeat );
+		background-size: var( --wpd-menu-bg-image-size, auto );
+		background-position: var( --wpd-menu-bg-image-position, center );
 		color: var( --wpd-context-menu-fg, var( --desktop-mode-fg, #fff ) );
 		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.08 ) );
 		border-radius: 8px;

@@ -485,6 +485,11 @@ function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
 	foreach ( $manifest['textures'] as $texture ) {
 		$assets[ $texture['path'] ] = true;
 	}
+	foreach ( $manifest['fonts'] as $face ) {
+		foreach ( $face['src'] as $source ) {
+			$assets[ $source['path'] ] = true;
+		}
+	}
 
 	// Sanitize SVGs while they're still in staging. A failure here
 	// aborts the whole install — a theme that ships an SVG we can't

@@ -261,6 +261,136 @@ class Tests_DesktopMode_DesktopThemesCompile extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Every slot the registry declares must land on the property the
+	 * registry names. This is the parity test for the table-driven
+	 * compiler: add a slot, and it either works end to end or fails
+	 * here.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_every_registered_slot_emits_its_property() {
+		$slots = desktop_mode_desktop_theme_texture_slots();
+
+		foreach ( $slots as $slot => $definition ) {
+			$type     = isset( $definition['type'] ) ? $definition['type'] : 'image';
+			$prop     = $definition['prop'];
+			$texture  = array( 'type' => $type, 'path' => 'x.png' );
+			$expected = 'border-image' === $type ? $prop . '-source: url(' : $prop . ': url(';
+
+			$css = desktop_mode_desktop_theme_compile_css(
+				$this->manifest( array( 'textures' => array( $slot => $texture ) ) ),
+				'acme-neon',
+				'https://x.test/t'
+			);
+
+			$this->assertStringContainsString(
+				$expected,
+				$css,
+				"Slot {$slot} did not emit {$prop}."
+			);
+		}
+	}
+
+	/**
+	 * The registry is the compiler's only input, so a plugin can
+	 * texture a surface the framework has never heard of by adding one
+	 * entry and shipping one CSS rule.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_a_filter_added_slot_compiles() {
+		$add = static function ( $slots ) {
+			$slots['ACME_SIDEBAR'] = array(
+				'type' => 'image',
+				'prop' => '--acme-sidebar-image',
+			);
+			return $slots;
+		};
+		add_filter( 'desktop_mode_desktop_theme_texture_slots', $add );
+
+		$manifest = desktop_mode_sanitize_desktop_theme_manifest(
+			array(
+				'manifestVersion' => 1,
+				'id'              => 'acme/neon',
+				'name'            => 'Neon',
+				'textures'        => array(
+					'ACME_SIDEBAR' => array(
+						'type'   => 'image',
+						'path'   => 'side.png',
+						'repeat' => 'repeat-y',
+					),
+				),
+			),
+			static function ( $path ) {
+				return (string) $path;
+			}
+		);
+		$css = desktop_mode_desktop_theme_compile_css( $manifest, 'acme-neon', 'https://x.test/t' );
+
+		remove_filter( 'desktop_mode_desktop_theme_texture_slots', $add );
+
+		$this->assertStringContainsString( '--acme-sidebar-image: url(', $css );
+		$this->assertStringContainsString( '--acme-sidebar-image-repeat: repeat-y;', $css );
+	}
+
+	/**
+	 * A slot the allowlist accepts but gives no property to write is a
+	 * bug in whoever added it — it must not emit a malformed
+	 * declaration.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_slot_without_a_prop_emits_nothing() {
+		$add = static function ( $slots ) {
+			$slots['ACME_PROPLESS'] = array( 'type' => 'image' );
+			return $slots;
+		};
+		add_filter( 'desktop_mode_desktop_theme_texture_slots', $add );
+
+		$css = desktop_mode_desktop_theme_compile_css(
+			$this->manifest( array(
+				'textures' => array(
+					'ACME_PROPLESS' => array( 'type' => 'image', 'path' => 'x.png' ),
+				),
+			) ),
+			'acme-neon',
+			'https://x.test/t'
+		);
+
+		remove_filter( 'desktop_mode_desktop_theme_texture_slots', $add );
+
+		$this->assertSame( '', $css );
+	}
+
+	/**
+	 * TITLEBAR_FOCUSED is a variant slot: it contributes an image and
+	 * inherits the base slot's repeat + size, so it must not emit
+	 * companions of its own.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_variant_slot_emits_no_companions() {
+		$css = desktop_mode_desktop_theme_compile_css(
+			$this->manifest( array(
+				'textures' => array(
+					'TITLEBAR_FOCUSED' => array(
+						'type'   => 'image',
+						'path'   => 'tf.png',
+						'repeat' => 'repeat-x',
+						'size'   => 'cover',
+					),
+				),
+			) ),
+			'acme-neon',
+			'https://x.test/t'
+		);
+
+		$this->assertStringContainsString( '--desktop-mode-titlebar-image-focused: url(', $css );
+		$this->assertStringNotContainsString( '-focused-repeat:', $css );
+		$this->assertStringNotContainsString( '-focused-size:', $css );
+	}
+
+	/**
 	 * @covers ::desktop_mode_desktop_theme_compile_css
 	 */
 	public function test_empty_slug_compiles_to_nothing() {
