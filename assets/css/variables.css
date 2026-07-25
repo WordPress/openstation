@@ -222,6 +222,33 @@
 	 * @since 0.9.8
 	 */
 
+	/*
+	 * ---- Badges ----------------------------------------------
+	 *
+	 * Undeclared, and DERIVED rather than fixed. Every badge sizes
+	 * itself off the icon it decorates — the dock badge off
+	 * `--desktop-mode-dock-icon-size`, the wallpaper badges off
+	 * `--desktop-mode-icon-image-size` — so a user who picks a large
+	 * dock, or a theme that scales its icons, doesn't end up with a
+	 * speck stuck to an oversized tile. At the default sizes the
+	 * derivations resolve to the exact values these rules used to
+	 * hardcode.
+	 *
+	 *   Dock          --desktop-mode-dock-badge-size (overrides the
+	 *                   whole derivation; font + padding follow it)
+	 *                 --desktop-mode-dock-badge-font-size / -padding
+	 *                 --desktop-mode-dock-badge-offset / -bg / -fg
+	 *                 --desktop-mode-dock-badge-font-weight
+	 *   Desktop icon  --desktop-mode-icon-badge-size / -font-size
+	 *                 --desktop-mode-icon-badge-padding / -bg / -fg
+	 *   Recycle bin   --desktop-mode-recycle-badge-size / -font-size
+	 *                   / -bg / -fg. Falls through to the generic
+	 *                   icon-badge token, so "badges are 22px" reaches
+	 *                   the bin too.
+	 *
+	 * @since 0.9.8
+	 */
+
 	/* Dock */
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;

@@ -244,19 +244,47 @@
  * corner. Ring matches the dock bg so it reads as "punched out."
  * Badge positioning is placement-aware via the blocks below. */
 .desktop-mode-dock__badge {
+	/*
+	 * Badge geometry DERIVES from the dock's icon size instead of
+	 * being pinned to 16px.
+	 *
+	 * The dock is user-sizable (18 / 20 / 26px icons via OS Settings →
+	 * dock size). A fixed badge tracked none of that: at "Large" it
+	 * read as a speck stuck to an oversized tile. The ratios below are
+	 * chosen so the DEFAULT dock (20px icons) resolves to exactly the
+	 * old numbers — 16px box, 10px text, ~5px padding — so nothing
+	 * moves for anyone who hasn't changed the setting.
+	 *
+	 * `--desktop-mode-dock-badge-size` overrides the whole derivation
+	 * for themes that want a specific badge; the font size and padding
+	 * then follow it, so one token is usually enough.
+	 */
+	--desktop-mode-dock-badge-computed-size: var(
+		--desktop-mode-dock-badge-size,
+		calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.8 )
+	);
 	position: absolute;
-	min-width: 16px;
-	height: 16px;
-	padding: 0 5px;
+	min-width: var( --desktop-mode-dock-badge-computed-size );
+	height: var( --desktop-mode-dock-badge-computed-size );
+	padding: 0 var(
+		--desktop-mode-dock-badge-padding,
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.3 )
+	);
 	box-sizing: border-box;
 	border-radius: 999px;
-	background: linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var(
+		--desktop-mode-dock-badge-bg,
+		linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% )
+	);
+	color: var( --desktop-mode-dock-badge-fg, var( --wpd-fg-on-accent, #fff ) );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 10px;
-	font-weight: 700;
+	font-size: var(
+		--desktop-mode-dock-badge-font-size,
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.625 )
+	);
+	font-weight: var( --desktop-mode-dock-badge-font-weight, 700 );
 	line-height: 1;
 	letter-spacing: 0.01em;
 	text-align: center;
@@ -266,8 +294,8 @@
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
 	pointer-events: none;
 	transition: transform 0.15s ease;
-	top: -3px;
-	inset-inline-end: -3px;
+	top: var( --desktop-mode-dock-badge-offset, -3px );
+	inset-inline-end: var( --desktop-mode-dock-badge-offset, -3px );
 }
 
 .desktop-mode-dock__item:hover .desktop-mode-dock__badge {

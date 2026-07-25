@@ -454,18 +454,34 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 14px;
-	min-width: 18px;
-	height: 18px;
-	padding: 0 5px;
+	/* Same derivation as the dock badge, sized off the wallpaper icon
+	 * rather than the dock icon. The default resolves to 18px / 11px —
+	 * exactly the old values. */
+	--desktop-mode-icon-badge-computed-size: var(
+		--desktop-mode-icon-badge-size,
+		calc( var( --desktop-mode-icon-image-size, 48px ) * 0.375 )
+	);
+	min-width: var( --desktop-mode-icon-badge-computed-size );
+	height: var( --desktop-mode-icon-badge-computed-size );
+	padding: 0 var(
+		--desktop-mode-icon-badge-padding,
+		calc( var( --desktop-mode-icon-badge-computed-size ) * 0.28 )
+	);
 	box-sizing: border-box;
 	border-radius: 999px;
-	background: linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var(
+		--desktop-mode-icon-badge-bg,
+		linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% )
+	);
+	color: var( --desktop-mode-icon-badge-fg, var( --wpd-fg-on-accent, #fff ) );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 11px;
-	font-weight: 700;
+	font-size: var(
+		--desktop-mode-icon-badge-font-size,
+		calc( var( --desktop-mode-icon-badge-computed-size ) * 0.611 )
+	);
+	font-weight: var( --desktop-mode-icon-badge-font-weight, 700 );
 	line-height: 1;
 	font-variant-numeric: tabular-nums;
 	box-shadow:
@@ -475,15 +491,37 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 }
 
 .desktop-mode-icon[ data-icon-id="desktop-mode-recycle-bin" ] > .desktop-mode-icon__badge {
-	top: 39px;
-	inset-inline-end: 20px;
-	min-width: 15px;
-	height: 15px;
-	padding: 0 4px;
+	/*
+	 * The bin's count is tucked ONTO the lid rather than floating off
+	 * the corner, so it gets its own smaller geometry. Every value
+	 * derives from the icon image size, which keeps the badge on the
+	 * lid when a theme scales wallpaper icons — hardcoded offsets slid
+	 * off the artwork entirely.
+	 *
+	 * Override chain: bin-specific token → the generic icon-badge
+	 * token (so a theme that says "badges are 22px" gets the bin too)
+	 * → the derivation. All three resolve to the historical 15px / 9px
+	 * at the default 48px icon.
+	 */
+	--desktop-mode-recycle-badge-computed-size: var(
+		--desktop-mode-recycle-badge-size,
+		var(
+			--desktop-mode-icon-badge-size,
+			calc( var( --desktop-mode-icon-image-size, 48px ) * 0.3125 )
+		)
+	);
+	top: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.8125 );
+	inset-inline-end: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.4167 );
+	min-width: var( --desktop-mode-recycle-badge-computed-size );
+	height: var( --desktop-mode-recycle-badge-computed-size );
+	padding: 0 calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.267 );
 	border-radius: 999px;
-	background: rgba( 29, 35, 39, 0.74 );
-	color: rgba( 255, 255, 255, 0.96 );
-	font-size: 9px;
+	background: var( --desktop-mode-recycle-badge-bg, rgba( 29, 35, 39, 0.74 ) );
+	color: var( --desktop-mode-recycle-badge-fg, rgba( 255, 255, 255, 0.96 ) );
+	font-size: var(
+		--desktop-mode-recycle-badge-font-size,
+		calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.6 )
+	);
 	font-weight: 700;
 	letter-spacing: 0;
 	box-shadow:
@@ -508,9 +546,11 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 48px;
-	height: 48px;
-	font-size: 32px;
+	/* Tokenized so a theme can scale wallpaper icons — and so the
+	 * badge above has something to derive its own size from. */
+	width: var( --desktop-mode-icon-image-size, 48px );
+	height: var( --desktop-mode-icon-image-size, 48px );
+	font-size: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.667 );
 	line-height: 1;
 }
 
