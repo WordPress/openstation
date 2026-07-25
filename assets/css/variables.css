@@ -226,6 +226,26 @@
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;
 	--desktop-mode-dock-bg: rgba(0, 0, 0, 0.4);
+	/*
+	 * Hairline between the dock and the desktop. Reaches the side
+	 * placements (as a single inline-edge border) AND the floating
+	 * bottom pill (as its full outline). Set `transparent` for a
+	 * borderless dock.
+	 *
+	 * The bottom pill's own chrome is separately overridable, because
+	 * it is deliberately a different piece of glass — a warmer tint, a
+	 * brighter top edge, an inset highlight, a drop shadow. Each falls
+	 * back to the shared value above it:
+	 *
+	 *   --desktop-mode-dock-floating-bg
+	 *   --desktop-mode-dock-floating-border      (→ dock-border)
+	 *   --desktop-mode-dock-floating-border-top  (→ floating-border)
+	 *   --desktop-mode-dock-floating-highlight
+	 *   --desktop-mode-dock-floating-shadow
+	 *
+	 * @since 0.9.8 the floating pill honours these at all; it used to
+	 *              hardcode every one of them.
+	 */
 	--desktop-mode-dock-border: rgba(255, 255, 255, 0.08);
 
 	/*

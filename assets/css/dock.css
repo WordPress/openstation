@@ -728,16 +728,55 @@
 
 	/* Warmer, more saturated glass tint than vertical placements so
 	 * the floating pill reads as a distinct piece of chrome rather
-	 * than a section of the sidebar. */
-	background: rgba( 22, 22, 26, 0.42 );
+	 * than a section of the sidebar.
+	 *
+	 * background-COLOR, not the shorthand: the base `.desktop-mode-dock`
+	 * rule declares the DOCK texture slot's background-image, and a
+	 * shorthand here would reset it — a themed dock texture would
+	 * simply never appear in the bottom placement.
+	 *
+	 * The tint is its own token rather than `--desktop-mode-dock-bg`
+	 * precisely because the two are meant to differ; a theme that
+	 * wants them identical points this at the same value. */
+	background-color: var(
+		--desktop-mode-dock-floating-bg,
+		rgba( 22, 22, 26, 0.42 )
+	);
 	backdrop-filter: blur( 28px ) saturate( 170% );
 	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
 
-	border: 1px solid rgba( 255, 255, 255, 0.12 );
-	border-block-start: 1px solid rgba( 255, 255, 255, 0.18 );
+	/*
+	 * Hairline + inset highlight. These used to be hardcoded, which
+	 * meant a theme could restyle every dock placement EXCEPT this
+	 * one and had no way to remove the outline it saw floating over
+	 * an empty desktop.
+	 *
+	 * The chain matters: the floating-specific token wins, then the
+	 * general `--desktop-mode-dock-border` (so a theme that tokenized
+	 * its side docks gets the pill for free, which is what anyone
+	 * setting that token expects), then the literal. Set either to
+	 * `transparent` for a borderless pill.
+	 */
+	border: 1px solid var(
+		--desktop-mode-dock-floating-border,
+		var( --desktop-mode-dock-border, rgba( 255, 255, 255, 0.12 ) )
+	);
+	border-block-start: 1px solid var(
+		--desktop-mode-dock-floating-border-top,
+		var(
+			--desktop-mode-dock-floating-border,
+			var( --desktop-mode-dock-border, rgba( 255, 255, 255, 0.18 ) )
+		)
+	);
 	box-shadow:
-		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
-		0 10px 32px rgba( 0, 0, 0, 0.45 );
+		inset 0 1px 0 var(
+			--desktop-mode-dock-floating-highlight,
+			rgba( 255, 255, 255, 0.08 )
+		),
+		0 10px 32px var(
+			--desktop-mode-dock-floating-shadow,
+			rgba( 0, 0, 0, 0.45 )
+		);
 }
 
 /* Active-indicator dot — below the tile, macOS-style. */
