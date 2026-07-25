@@ -268,7 +268,7 @@
 	height: var( --desktop-mode-dock-badge-computed-size );
 	padding: 0 var(
 		--desktop-mode-dock-badge-padding,
-		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.3 )
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.25 )
 	);
 	box-sizing: border-box;
 	border-radius: 999px;
@@ -280,9 +280,22 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	/*
+	 * 0.75 of the badge box — 12px on the default 16px badge.
+	 *
+	 * This used to be 0.625, i.e. the 10px the rule hardcoded for
+	 * years, and 10px is simply too small to read at a glance: the
+	 * count is the entire point of the badge, and at that size it
+	 * registers as texture rather than a number. 12px fills the pill
+	 * the way a notification count is supposed to.
+	 *
+	 * The padding ratio above drops to 0.25 to match — at 0.3 a
+	 * single 12px digit pushed the pill past its 16px min-width and
+	 * the circle went subtly oval.
+	 */
 	font-size: var(
 		--desktop-mode-dock-badge-font-size,
-		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.625 )
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.75 )
 	);
 	font-weight: var( --desktop-mode-dock-badge-font-weight, 700 );
 	line-height: 1;
