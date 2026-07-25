@@ -268,7 +268,7 @@
 	height: var( --desktop-mode-dock-badge-computed-size );
 	padding: 0 var(
 		--desktop-mode-dock-badge-padding,
-		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.25 )
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.3 )
 	);
 	box-sizing: border-box;
 	border-radius: 999px;
@@ -281,21 +281,19 @@
 	align-items: center;
 	justify-content: center;
 	/*
-	 * 0.75 of the badge box — 12px on the default 16px badge.
+	 * 0.625 of the badge box — 10px on the default 16px badge, the
+	 * value this rule carried before the geometry was derived. It is
+	 * the right weight for a menu tile's alert count: these badges sit
+	 * on the tile CORNER where the pill itself carries the signal, so
+	 * the digit only has to confirm it.
 	 *
-	 * This used to be 0.625, i.e. the 10px the rule hardcoded for
-	 * years, and 10px is simply too small to read at a glance: the
-	 * count is the entire point of the badge, and at that size it
-	 * registers as texture rather than a number. 12px fills the pill
-	 * the way a notification count is supposed to.
-	 *
-	 * The padding ratio above drops to 0.25 to match — at 0.3 a
-	 * single 12px digit pushed the pill past its 16px min-width and
-	 * the circle went subtly oval.
+	 * The Recycle Bin's badge is a different problem and has its own
+	 * ratio below — it sits INSIDE the bin glyph, where the pill reads
+	 * as part of the artwork and the number has to carry itself.
 	 */
 	font-size: var(
 		--desktop-mode-dock-badge-font-size,
-		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.75 )
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.625 )
 	);
 	font-weight: var( --desktop-mode-dock-badge-font-weight, 700 );
 	line-height: 1;
@@ -322,15 +320,48 @@
  * marker instead of a red alert on the tile corner.
  */
 .desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ] .desktop-mode-dock__badge {
-	top: 20px;
-	inset-inline-end: 7px;
-	min-width: 13px;
-	height: 13px;
-	padding: 0 3px;
+	/*
+	 * Sized off the dock icon like every other badge, so it tracks the
+	 * dock-size setting instead of sitting at a fixed 13px on an icon
+	 * that may be 18, 20 or 26px.
+	 *
+	 * Deliberately quieter than the corner alert badge above — this is
+	 * ambient state, not a notification — but it still has to be a
+	 * READABLE number. It was 13px with an 8px digit, which is below
+	 * the point where a count reads as a count.
+	 *
+	 * Override chain: bin-specific token → the generic dock-badge
+	 * token → the derivation, so a theme that says "dock badges are
+	 * 20px" reaches the bin without naming it.
+	 */
+	--desktop-mode-dock-recycle-badge-computed-size: var(
+		--desktop-mode-dock-recycle-badge-size,
+		var(
+			--desktop-mode-dock-badge-size,
+			calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.75 )
+		)
+	);
+	top: calc( var( --desktop-mode-dock-icon-size, 20px ) * 1 );
+	inset-inline-end: calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.35 );
+	min-width: var( --desktop-mode-dock-recycle-badge-computed-size );
+	height: var( --desktop-mode-dock-recycle-badge-computed-size );
+	padding: 0 calc( var( --desktop-mode-dock-recycle-badge-computed-size ) * 0.25 );
 	border-radius: 999px;
-	background: rgba( 29, 35, 39, 0.72 );
-	color: rgba( 255, 255, 255, 0.92 );
-	font-size: 8px;
+	background: var(
+		--desktop-mode-dock-recycle-badge-bg,
+		rgba( 29, 35, 39, 0.72 )
+	);
+	color: var(
+		--desktop-mode-dock-recycle-badge-fg,
+		rgba( 255, 255, 255, 0.92 )
+	);
+	font-size: var(
+		--desktop-mode-dock-recycle-badge-font-size,
+		var(
+			--desktop-mode-dock-badge-font-size,
+			calc( var( --desktop-mode-dock-recycle-badge-computed-size ) * 0.8 )
+		)
+	);
 	font-weight: 700;
 	letter-spacing: 0;
 	box-shadow:
@@ -339,7 +370,11 @@
 }
 
 .desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ]:hover .desktop-mode-dock__badge {
-	top: 20px;
+	/* Re-assert the derived offset, not a literal: the base rule above
+	 * is overridden by the generic `__item:hover .__badge` rule, and
+	 * hardcoding 20px here would strand the badge the moment the dock
+	 * icon size changed. */
+	top: calc( var( --desktop-mode-dock-icon-size, 20px ) * 1 );
 	transform: scale( 1.03 );
 }
 
