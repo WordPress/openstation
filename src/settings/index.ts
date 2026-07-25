@@ -46,6 +46,7 @@ import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
+	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -306,6 +307,9 @@ export class OsSettings implements SettingsCtx {
 		const accent = accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
 		const dockSize =
 			DOCK_SIZES.find( ( d ) => d.id === this.state.dockSize ) ?? DOCK_SIZES[ 1 ];
+		const windowRadius =
+			WINDOW_RADII.find( ( r ) => r.id === this.state.windowRadius ) ??
+			WINDOW_RADII[ 1 ];
 
 		// Set on <html> rather than the shell so the cascade reaches
 		// siblings of #desktop-mode-shell — specifically the WordPress
@@ -317,6 +321,10 @@ export class OsSettings implements SettingsCtx {
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
 		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );
+		root.style.setProperty(
+			'--desktop-mode-window-radius',
+			`${ windowRadius.value }px`,
+		);
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on

@@ -20,6 +20,9 @@ const DESKTOP_MODE_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 /** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
 
+/** Valid window-radius IDs — mirrors the TS `WINDOW_RADII` constant. */
+const DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
+
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
 
@@ -38,6 +41,7 @@ function desktop_mode_default_os_settings() {
 		'wallpaper'                   => 'dark',
 		'accent'                      => 'wp-blue',
 		'dockSize'                    => 'default',
+		'windowRadius'                => 'default',
 		'desktopLayout'               => 'classic',
 		'dockRailRenderer'            => 'default',
 		'unfocusEffect'               => 'darken',
@@ -245,6 +249,11 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES, true )
 		? (string) $raw['dockSize']
 		: $defaults['dockSize'];
+
+	// Window radius — must be one of the three known values.
+	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII, true )
+		? (string) $raw['windowRadius']
+		: $defaults['windowRadius'];
 
 	// Desktop layout — must be one of the three known values
 	// (`classic`, `unified`, `spatial`). Default `classic`.
@@ -581,6 +590,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'wallpaper'                   => $wallpaper,
 		'accent'                      => $accent,
 		'dockSize'                    => $dock_size,
+		'windowRadius'                => $window_radius,
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
 		'unfocusEffect'               => $unfocus_effect,

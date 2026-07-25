@@ -118,6 +118,17 @@ export const DOCK_SIZES = [
 ] as const;
 
 /**
+ * Window corner-radius presets. `value` (px) is written to the
+ * `--desktop-mode-window-radius` custom property by the settings apply
+ * pass, so the choice reflows every open window's corners live.
+ */
+export const WINDOW_RADII = [
+	{ id: 'sharp', label: 'Sharp', value: 0 },
+	{ id: 'default', label: 'Default', value: 8 },
+	{ id: 'round', label: 'Round', value: 16 },
+] as const;
+
+/**
  * Dock-placement options. Drives the `data-desktop-mode-dock-placement`
  * attribute that each `Dock` instance writes onto its own root. CSS
  * keys off that attribute to position the rail, flip the tooltip
@@ -149,6 +160,7 @@ export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'wp-blue',
 	dockSize: 'default',
+	windowRadius: 'default',
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
 	unfocusEffect: 'darken',
