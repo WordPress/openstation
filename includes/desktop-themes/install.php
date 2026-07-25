@@ -424,6 +424,10 @@ function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
 			array( 'status' => 500 )
 		);
 	}
+	// Populated by `WP_Filesystem()` above. Used to move the manifest's
+	// assets into the live directory — the same transport `unzip_file()`
+	// just used to write them, so the two agree on non-direct setups.
+	global $wp_filesystem;
 
 	$unzipped = unzip_file( $zip_path, $staging );
 	if ( is_wp_error( $unzipped ) ) {
@@ -532,8 +536,15 @@ function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
 				array( 'status' => 500 )
 			);
 		}
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rename
-		if ( ! @rename( $root . '/' . $relative, $destination ) ) {
+		// `WP_Filesystem::move()` rather than `rename()`: it is the
+		// documented API, it works on the non-direct transports the
+		// extract above already went through, and its Direct
+		// implementation falls back to copy-then-delete when a plain
+		// rename fails (staging and uploads landing on different
+		// devices is the common case). `true` overwrites — the target
+		// directory was just recreated, so nothing should be there,
+		// and a stale file must not silently abort the install.
+		if ( ! $wp_filesystem->move( $root . '/' . $relative, $destination, true ) ) {
 			desktop_mode_desktop_theme_rmdir( $staging );
 			desktop_mode_desktop_theme_rmdir( $target );
 			return new WP_Error(
@@ -548,8 +559,10 @@ function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
 	// never read back at runtime — the sanitized copy in the option
 	// is what the shell sees — but it makes the installed directory
 	// self-describing for anyone debugging a theme.
-	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_copy
-	@copy( $manifest_file, $target . '/theme.json' );
+	// Same reasoning as the move above — the documented API rather than
+	// a raw `copy()`. Failure is deliberately not fatal: this file is
+	// a debugging convenience, never read back at runtime.
+	$wp_filesystem->copy( $manifest_file, $target . '/theme.json', true );
 
 	// One timestamp for the compile AND the index entry: it is the
 	// cache-buster stamped onto every asset URL the stylesheet
