@@ -388,6 +388,56 @@ function desktop_mode_desktop_theme_sanitize_svg( $file ) {
 }
 
 /**
+ * Delete abandoned staging directories.
+ *
+ * Every install path unwinds its own `.staging-<uuid>` dir, but a
+ * request that dies between `wp_mkdir_p()` and the cleanup — a fatal,
+ * an OOM kill, a host timeout — leaves one behind with nothing to
+ * collect it. At theme-upload frequency that is a slow leak rather
+ * than a problem, but it is a leak in a directory the web server
+ * serves, so it should not accumulate forever.
+ *
+ * **Swept here rather than on a hook.** An `init` sweep would put a
+ * `glob()` on every request in the site to clean up after an event
+ * that happens a few times in a plugin's life, and this module's whole
+ * posture is that an unused feature costs nothing. Sweeping at the top
+ * of an install runs it exactly when the directory is in use, at a
+ * moment already dominated by unzipping.
+ *
+ * The age floor matters: a CONCURRENT upload owns a staging dir that
+ * is seconds old, and deleting it would corrupt a live install.
+ *
+ * @since 0.9.8
+ * @internal
+ *
+ * @param int $max_age Seconds before an orphan is collectable.
+ * @return int Number of directories removed.
+ */
+function desktop_mode_desktop_theme_sweep_staging( $max_age = DAY_IN_SECONDS ) {
+	$base = desktop_mode_desktop_themes_dir();
+	if ( ! is_dir( $base ) ) {
+		return 0;
+	}
+	$max_age = max( 60, (int) $max_age );
+	$now     = time();
+	$removed = 0;
+
+	foreach ( (array) glob( $base . '/.staging-*', GLOB_ONLYDIR ) as $dir ) {
+		$mtime = @filemtime( $dir );
+		if ( false === $mtime || ( $now - $mtime ) < $max_age ) {
+			continue;
+		}
+		// `_rmdir()` refuses to act outside the themes base dir, so a
+		// symlinked or otherwise unexpected path cannot be followed out.
+		if ( desktop_mode_desktop_theme_rmdir( $dir ) ) {
+			++$removed;
+		}
+	}
+
+	return $removed;
+}
+
+/**
  * Install (or update) a desktop theme from an uploaded ZIP.
  *
  * @since 0.9.7
@@ -396,6 +446,10 @@ function desktop_mode_desktop_theme_sanitize_svg( $file ) {
  * @return array|WP_Error The stored index entry on success.
  */
 function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
+	// Collect anything a previously-killed install abandoned. Cheap,
+	// and this is the only moment the directory is guaranteed relevant.
+	desktop_mode_desktop_theme_sweep_staging();
+
 	$manifest_entry = desktop_mode_desktop_theme_validate_zip( $zip_path );
 	if ( is_wp_error( $manifest_entry ) ) {
 		return $manifest_entry;

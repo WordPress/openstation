@@ -82,8 +82,17 @@ function desktop_mode_desktop_theme_wallpaper_css( $wallpaper, $base_url = '', $
  *
  * @since 0.9.8
  *
- * @param string $name Theme display name.
- * @param string $slug Theme slug.
+ * The theme `name` reaching this function has already been through
+ * `sanitize_text_field()` in the manifest sanitizer, and
+ * `desktop_mode_register_wallpaper()` sanitizes the finished label
+ * again on the way into the registry. Both are belt-and-braces: the
+ * shell paints wallpaper labels through the `html` tagged template,
+ * whose text slots are built with `createTextNode()`, so a label is
+ * never parsed as markup.
+ *
+ * @param string $name      Theme display name.
+ * @param string $slug      Theme slug.
+ * @param string $own_label The wallpaper's own label, or `''`.
  * @return string
  */
 function desktop_mode_desktop_theme_wallpaper_label( $name, $slug, $own_label = '' ) {

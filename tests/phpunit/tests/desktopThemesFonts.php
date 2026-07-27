@@ -820,6 +820,94 @@ class Tests_DesktopMode_DesktopThemesFonts extends WP_UnitTestCase {
 		unlink( $zip );
 	}
 
+	/**
+	 * Abandoned staging dirs are collectable, live ones are not.
+	 *
+	 * The age floor is the load-bearing half: a CONCURRENT upload owns a
+	 * staging dir that is seconds old, and collecting it would corrupt a
+	 * live install.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_sweep_staging
+	 */
+	public function test_staging_sweep_collects_only_stale_orphans() {
+		$base = desktop_mode_desktop_themes_ensure_dir();
+		$this->assertNotWPError( $base );
+
+		$stale = $base . '/.staging-' . wp_generate_uuid4();
+		$fresh = $base . '/.staging-' . wp_generate_uuid4();
+		$theme = $base . '/not-a-staging-dir';
+		wp_mkdir_p( $stale );
+		wp_mkdir_p( $fresh );
+		wp_mkdir_p( $theme );
+		// Backdate the orphan past the age floor.
+		touch( $stale, time() - ( 2 * DAY_IN_SECONDS ) );
+
+		$removed = desktop_mode_desktop_theme_sweep_staging();
+
+		$this->assertSame( 1, $removed );
+		$this->assertDirectoryDoesNotExist( $stale, 'A stale orphan is collected.' );
+		$this->assertDirectoryExists( $fresh, 'A concurrent upload is left alone.' );
+		$this->assertDirectoryExists( $theme, 'Only .staging-* dirs are touched.' );
+
+		desktop_mode_desktop_theme_rmdir( $fresh );
+		desktop_mode_desktop_theme_rmdir( $theme );
+	}
+
+	/**
+	 * A quote in a token value is allowed (font stacks need it) and
+	 * cannot escape the declaration it lands in.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_is_safe_css_value
+	 */
+	public function test_quotes_are_allowed_but_cannot_break_out() {
+		$this->assertTrue(
+			desktop_mode_desktop_theme_is_safe_css_value( '"Segoe UI", sans-serif' )
+		);
+		// The characters that WOULD let a quote matter are all banned,
+		// so no quoted payload can terminate the declaration or the
+		// stylesheet.
+		foreach ( array(
+			'"; background: url( evil.png ); x: "',
+			'"} body { display: none } .x{"',
+			'"</style><script>alert(1)</script>"',
+		) as $payload ) {
+			$this->assertFalse(
+				desktop_mode_desktop_theme_is_safe_css_value( $payload ),
+				'Should be rejected: ' . $payload
+			);
+		}
+	}
+
+	/**
+	 * Wallpaper labels are stripped, not entity-escaped — the shell
+	 * paints them into text nodes, where `&amp;` would render literally.
+	 *
+	 * @covers ::desktop_mode_register_wallpaper
+	 */
+	public function test_wallpaper_label_is_stripped_not_escaped() {
+		desktop_mode_register_wallpaper( 'acme/labelled', array(
+			'label'   => '<b>Bold</b> Black & White',
+			'preview' => '#000',
+			'type'    => 'css',
+		) );
+
+		$found = null;
+		foreach ( desktop_mode_build_desktop_wallpapers_payload() as $entry ) {
+			if ( 'acme/labelled' === $entry['id'] ) {
+				$found = $entry;
+			}
+		}
+
+		$this->assertNotNull( $found );
+		$this->assertStringNotContainsString( '<b>', $found['label'], 'Tags stripped.' );
+		$this->assertStringContainsString(
+			'&',
+			$found['label'],
+			'An ampersand survives as itself — entity-encoding it would show &amp; to the user.'
+		);
+		$this->assertStringNotContainsString( '&amp;', $found['label'] );
+	}
+
 	/** Build a minimal theme ZIP with one 1x1 PNG, for install tests. */
 	private function make_theme_zip( $manifest ) {
 		$dir = get_temp_dir() . 'dm-theme-zip-' . wp_generate_uuid4();

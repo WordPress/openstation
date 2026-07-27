@@ -45,6 +45,23 @@ defined( 'ABSPATH' ) || exit;
  *     backtick are simply not in it, which kills declaration
  *     escape, at-rule injection, `!important` overrides, and
  *     markup breakout in one stroke.
+ *   - **Quotes ARE allowed**, and that is deliberate rather than an
+ *     oversight — `font-family: "Segoe UI", sans-serif` needs them.
+ *     They are safe because of where a value can end up, which is
+ *     only ever one of two places:
+ *       1. A custom-property declaration in a compiled stylesheet
+ *          (`--x: <value>;`). A quote opens a CSS string; it cannot
+ *          end the declaration, because `;` `{` `}` are banned, and
+ *          it cannot end the STYLESHEET, because `<` `>` are banned
+ *          so `</style>` is unwritable.
+ *       2. That same stylesheet handed to the shell as `cssText`,
+ *          which `src/desktop-themes/apply.ts` assigns via
+ *          `style.textContent` — never `innerHTML`.
+ *     An unbalanced quote therefore breaks the author's own
+ *     declaration and nothing else. If a future consumer ever
+ *     interpolates a token value into an HTML attribute or a JS
+ *     string literal, THAT consumer has to escape, and this note is
+ *     the reason why.
  *   - No CSS comment sequences (`/*`, `*​/`) — `/` and `*` are
  *     allowed individually because shorthand values need them.
  *   - No `url(`, `image-set(`, `element(`, `attr(`, `var(`, or
