@@ -123,13 +123,13 @@ export const styles = css`
 	.wpd-cat__viz-svg .wpd-cat-label {
 		font-family: var( --wpd-font, system-ui, sans-serif );
 		font-size: 10.5px;
-		fill: var( --wpd-cat-label-fg, #1d2327 );
+		fill: var( --wpd-cat-label-fg, var( --wpd-fg, #1d2327 ) );
 		font-weight: 500;
 		pointer-events: none;
 		user-select: none;
 	}
 	.wpd-cat__viz-svg .wpd-cat-label[ data-selected='false' ] {
-		fill: var( --wpd-cat-label-muted, #8c8f94 );
+		fill: var( --wpd-cat-label-muted, var( --wpd-fg-muted, #8c8f94 ) );
 		font-weight: 400;
 		font-style: italic;
 	}
@@ -147,9 +147,9 @@ export const styles = css`
 		font-size: 11px;
 		font-weight: 500;
 		line-height: 1;
-		color: var( --wpd-cat-trigger-fg, #50575e );
+		color: var( --wpd-cat-trigger-fg, var( --wpd-fg-muted, #50575e ) );
 		background: transparent;
-		border: 1px dashed var( --wpd-cat-trigger-border, #c3c4c7 );
+		border: 1px dashed var( --wpd-cat-trigger-border, var( --wpd-border, #c3c4c7 ) );
 		border-radius: 999px;
 		cursor: pointer;
 		transition:
@@ -158,9 +158,9 @@ export const styles = css`
 			border-color 0.12s ease;
 	}
 	.wpd-cat__trigger:hover:not( :disabled ) {
-		background: rgba( 0, 0, 0, 0.04 );
-		color: var( --wpd-cat-trigger-fg-hover, #1d2327 );
-		border-color: var( --wpd-cat-trigger-border-hover, #8c8f94 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
+		color: var( --wpd-cat-trigger-fg-hover, var( --wpd-fg, #1d2327 ) );
+		border-color: var( --wpd-cat-trigger-border-hover, var( --wpd-border-strong, #8c8f94 ) );
 	}
 	.wpd-cat__trigger:focus-visible {
 		outline: none;
@@ -183,9 +183,9 @@ export const styles = css`
 		font-size: 11px;
 		font-weight: 500;
 		line-height: 1.6;
-		color: var( --wpd-cat-uncat-fg, #8c8f94 );
+		color: var( --wpd-cat-uncat-fg, var( --wpd-fg-muted, #8c8f94 ) );
 		background: transparent;
-		border: 1px dashed var( --wpd-cat-uncat-border, #c3c4c7 );
+		border: 1px dashed var( --wpd-cat-uncat-border, var( --wpd-border, #c3c4c7 ) );
 		border-radius: 999px;
 		font-style: italic;
 	}
@@ -210,9 +210,9 @@ export const styles = css`
 		max-height: 360px;
 		display: flex;
 		flex-direction: column;
-		background: var( --wpd-cat-pop-bg, #fff );
-		color: var( --wpd-cat-pop-fg, #1d2327 );
-		border: 1px solid var( --wpd-cat-pop-border, #c3c4c7 );
+		background: var( --wpd-cat-pop-bg, var( --wpd-surface, #fff ) );
+		color: var( --wpd-cat-pop-fg, var( --wpd-fg, #1d2327 ) );
+		border: 1px solid var( --wpd-cat-pop-border, var( --wpd-border, #c3c4c7 ) );
 		border-radius: 8px;
 		box-shadow:
 			0 6px 16px rgba( 0, 0, 0, 0.08 ),
@@ -232,7 +232,7 @@ export const styles = css`
 		font-size: 13px;
 		padding: 8px 12px;
 		border: 0;
-		border-bottom: 1px solid var( --wpd-cat-pop-divider, #f0f0f1 );
+		border-bottom: 1px solid var( --wpd-cat-pop-divider, var( --wpd-border, #f0f0f1 ) );
 		background: transparent;
 		color: inherit;
 		outline: none;
@@ -273,7 +273,7 @@ export const styles = css`
 	}
 	.wpd-cat__row:hover,
 	.wpd-cat__row[ data-focused='true' ] {
-		background: rgba( 0, 0, 0, 0.04 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
 	}
 	.wpd-cat__row[ data-selected='true' ] {
 		color: var( --wp-admin-theme-color, #2271b1 );
@@ -291,7 +291,7 @@ export const styles = css`
 		bottom: 0;
 		width: var( --wpd-cat-guide-width, 0px );
 		border-left: 1px dotted
-			var( --wpd-cat-guide-color, rgba( 0, 0, 0, 0.08 ) );
+			var( --wpd-cat-guide-color, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 	}
 
 	.wpd-cat__expander {
@@ -342,7 +342,7 @@ export const styles = css`
 		bottom: 0;
 		width: var( --wpd-cat-guide-width, 0px );
 		border-left: 1px dotted
-			var( --wpd-cat-guide-color, rgba( 0, 0, 0, 0.08 ) );
+			var( --wpd-cat-guide-color, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 	}
 	.wpd-cat__create-wrap {
 		display: inline-flex;
@@ -358,12 +358,12 @@ export const styles = css`
 			box-shadow 0.12s ease;
 	}
 	.wpd-cat__create-wrap:hover {
-		border-color: rgba( 0, 0, 0, 0.12 );
-		background: var( --wpd-cat-pop-bg, #fff );
+		border-color: var( --wpd-border, rgba( 0, 0, 0, 0.12 ) );
+		background: var( --wpd-cat-pop-bg, var( --wpd-surface, #fff ) );
 	}
 	.wpd-cat__create-wrap:focus-within {
 		border-color: var( --wp-admin-theme-color, #2271b1 );
-		background: var( --wpd-cat-pop-bg, #fff );
+		background: var( --wpd-cat-pop-bg, var( --wpd-surface, #fff ) );
 		box-shadow: 0 0 0 2px
 			color-mix(
 				in srgb,
@@ -384,7 +384,7 @@ export const styles = css`
 		outline: none;
 	}
 	.wpd-cat__create-input::placeholder {
-		color: var( --wpd-cat-pop-muted, #8c8f94 );
+		color: var( --wpd-cat-pop-muted, var( --wpd-fg-muted, #8c8f94 ) );
 		font-style: italic;
 		opacity: 1;
 	}
@@ -400,7 +400,7 @@ export const styles = css`
 		border: 0;
 		border-radius: 4px;
 		background: transparent;
-		color: var( --wpd-cat-pop-muted, #8c8f94 );
+		color: var( --wpd-cat-pop-muted, var( --wpd-fg-muted, #8c8f94 ) );
 		cursor: pointer;
 		transition: background-color 0.12s ease, color 0.12s ease;
 	}
@@ -408,7 +408,7 @@ export const styles = css`
 			[ disabled ]
 		) {
 		background: var( --wp-admin-theme-color, #2271b1 );
-		color: #fff;
+		color: var( --wpd-fg-on-accent, #fff );
 	}
 	.wpd-cat__create-submit:hover:not( [ disabled ] ) {
 		filter: brightness( 1.05 );
@@ -441,7 +441,7 @@ export const styles = css`
 		width: 14px;
 		height: 14px;
 		flex-shrink: 0;
-		border: 1.5px solid var( --wpd-cat-check-border, #8c8f94 );
+		border: 1.5px solid var( --wpd-cat-check-border, var( --wpd-border, #8c8f94 ) );
 		border-radius: 3px;
 		color: transparent;
 		transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
@@ -449,7 +449,7 @@ export const styles = css`
 	.wpd-cat__row[ data-selected='true' ] .wpd-cat__check {
 		background: var( --wp-admin-theme-color, #2271b1 );
 		border-color: var( --wp-admin-theme-color, #2271b1 );
-		color: #fff;
+		color: var( --wpd-fg-on-accent, #fff );
 	}
 	.wpd-cat__check svg {
 		display: block;
@@ -483,7 +483,7 @@ export const styles = css`
 		border-radius: 50%;
 		padding: 0;
 		background: transparent;
-		color: var( --wpd-cat-delete-color, #d63638 );
+		color: var( --wpd-cat-delete-color, var( --wpd-danger, #d63638 ) );
 		cursor: pointer;
 		opacity: 0;
 		transition: opacity 0.12s ease, background-color 0.12s ease;
@@ -514,7 +514,7 @@ export const styles = css`
 	.wpd-cat__loading {
 		padding: 12px;
 		font-size: 12px;
-		color: var( --wpd-cat-pop-muted, #646970 );
+		color: var( --wpd-cat-pop-muted, var( --wpd-fg-muted, #646970 ) );
 		text-align: center;
 	}
 
@@ -537,10 +537,10 @@ export const styles = css`
 	.wpd-cat__footer {
 		padding: 8px 12px;
 		font-size: 11px;
-		color: var( --wpd-cat-pop-muted, #646970 );
-		border-top: 1px solid var( --wpd-cat-pop-divider, #f0f0f1 );
+		color: var( --wpd-cat-pop-muted, var( --wpd-fg-muted, #646970 ) );
+		border-top: 1px solid var( --wpd-cat-pop-divider, var( --wpd-border, #f0f0f1 ) );
 		border-radius: 10px;
-		background: var( --wpd-cat-pop-footer-bg, #fafafb );
+		background: var( --wpd-cat-pop-footer-bg, var( --wpd-surface, #fafafb ) );
 		display: flex;
 		align-items: center;
 		gap: 6px;

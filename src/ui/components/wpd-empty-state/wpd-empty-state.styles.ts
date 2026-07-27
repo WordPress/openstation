@@ -9,7 +9,7 @@ export const styles = css`
 		gap: 6px;
 		padding: 32px 24px;
 		text-align: center;
-		color: var( --wpd-empty-state-fg, var( --desktop-mode-muted, #646970 ) );
+		color: var( --wpd-empty-state-fg, var( --wpd-fg-muted, #646970 ) );
 	}
 	:host( [ hidden ] ) {
 		display: none;
@@ -23,7 +23,7 @@ export const styles = css`
 		margin: 0;
 		font-size: 14px;
 		font-weight: 600;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 	}
 	.wpd-empty-state__description {
 		margin: 0;

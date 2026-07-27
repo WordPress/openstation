@@ -13,8 +13,11 @@
  * focus moves between windows — and collapse to instant under
  * `prefers-reduced-motion` along with every other window transition.
  *
- * Loaded as an @import from `windows.css` so it ships under the single
- * `desktop-mode-windows` style handle.
+ * Registered as its own `desktop-mode-effects` style handle, chained
+ * by dependency between `desktop-mode-os-settings` and
+ * `desktop-mode-window-links` so its position in the cascade matches
+ * where it sat when these sheets were `@import`ed. Enqueuing
+ * `desktop-mode-windows` still pulls it in via that chain.
  *
  * @since 0.26.0
  */

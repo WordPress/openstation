@@ -33,6 +33,93 @@
 	z-index: 999;
 }
 
+/*
+ * Desktop-theme corner ornaments (WINDOW_CORNER_{NE,NW,SE,SW}
+ * texture slots).
+ *
+ * ## Why they are INSET rather than centred on the handle
+ *
+ * The obvious placement — centre the ornament on the resize handle —
+ * is wrong, and looks it. `.desktop-mode-window` sets
+ * `overflow: hidden` (it clips iframe content to the rounded
+ * corners), and the handles deliberately sit 3px OUTSIDE the window
+ * box so an edge-grab still lands. So a handle-centred ornament gets
+ * clipped twice: the part past the window edge is cut, and then
+ * `border-radius` shaves what remains. The result reads as if the
+ * artwork were painted behind the window.
+ *
+ * Escaping the clip is not an option worth its cost: the ornaments
+ * would have to leave `.desktop-mode-window` entirely — a wrapper
+ * element, or an overlay in `.desktop-mode-area` whose geometry is
+ * re-tracked on every drag/resize frame. A theme that genuinely
+ * wants artwork OUTSIDE the frame already has the right tool in the
+ * `WINDOW_FRAME` slot: `border-image` paints in the border area,
+ * which `overflow` does not clip.
+ *
+ * So the ornament is anchored inside the window's rounded corner
+ * instead. The default inset clears the handle's 3px overhang plus a
+ * share of the corner radius, which is what keeps the arc from
+ * cutting it at larger radii. Themes that want it tighter or looser
+ * override `--desktop-mode-window-corner-inset`.
+ *
+ * Physical `top`/`left`/`right`/`bottom` rather than logical
+ * properties here, deliberately: these track the resize handles,
+ * which are physical corners by nature (the NW handle is top-left in
+ * both LTR and RTL) and are themselves positioned physically.
+ *
+ * With no theme active every `--desktop-mode-window-corner-*-image`
+ * is unset, the shorthand resolves to `none`, and the pseudo-element
+ * paints nothing — zero visual change and no image request.
+ *
+ * NOTE the BEM modifiers are `--ne` / `--nw` / `--se` / `--sw` on
+ * `.desktop-mode-window__resize-handle`, not bare `.--ne`.
+ */
+.desktop-mode-window__resize-handle--ne::after,
+.desktop-mode-window__resize-handle--nw::after,
+.desktop-mode-window__resize-handle--se::after,
+.desktop-mode-window__resize-handle--sw::after {
+	content: "";
+	position: absolute;
+	/* 3px = the handle's overhang past the window edge (see the
+	 * `--nw` / `--ne` / `--sw` / `--se` rules above). The radius
+	 * share keeps the ornament clear of the corner arc. */
+	--_dm-corner-inset: var(
+		--desktop-mode-window-corner-inset,
+		calc( 3px + var( --desktop-mode-window-radius, 8px ) * 0.4 )
+	);
+	width: var( --desktop-mode-window-corner-size, 16px );
+	height: var( --desktop-mode-window-corner-size, 16px );
+	/* Ornaments are decoration; the handle keeps the drag affordance. */
+	pointer-events: none;
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+}
+
+.desktop-mode-window__resize-handle--nw::after {
+	top: var( --_dm-corner-inset );
+	left: var( --_dm-corner-inset );
+	background-image: var( --desktop-mode-window-corner-nw-image, none );
+}
+
+.desktop-mode-window__resize-handle--ne::after {
+	top: var( --_dm-corner-inset );
+	right: var( --_dm-corner-inset );
+	background-image: var( --desktop-mode-window-corner-ne-image, none );
+}
+
+.desktop-mode-window__resize-handle--sw::after {
+	bottom: var( --_dm-corner-inset );
+	left: var( --_dm-corner-inset );
+	background-image: var( --desktop-mode-window-corner-sw-image, none );
+}
+
+.desktop-mode-window__resize-handle--se::after {
+	bottom: var( --_dm-corner-inset );
+	right: var( --_dm-corner-inset );
+	background-image: var( --desktop-mode-window-corner-se-image, none );
+}
+
 .desktop-mode-window__resize-handle--se {
 	right: -3px;
 	bottom: -3px;

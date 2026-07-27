@@ -59,6 +59,9 @@ import {
 import { subscribeWindowThemes } from './../window-chrome/themes/registry';
 import { subscribeWindowControls } from './../window-chrome/controls/registry';
 import { paintWindowControls } from './../window-chrome/controls/render';
+import { paintThemedControlIcon } from './../window-chrome/controls/paint-themed-icon';
+import { renderIcon } from '../icon';
+import { slotForTileId } from '../desktop-themes/slots';
 import { subscribeWindowSlots } from './../window-chrome/slots/registry';
 import { paintWindowSlots } from './../window-chrome/slots/render';
 import {
@@ -1168,6 +1171,56 @@ export class Window {
 			this._windowControlsTeardown = null;
 		}
 		this._windowControlsTeardown = paintWindowControls( this, controlsHost );
+	}
+
+	/**
+	 * Repaint the parts of this window's chrome that a desktop theme
+	 * can substitute but `repaintWindowControls()` does not cover:
+	 * the title-bar icon (an `APP:<id>` / `DEFAULT_APP_ICON` slot)
+	 * and the leading ⋯ menu button (`WINDOW_CONTROL_MENU`).
+	 *
+	 * Both are built once in `buildWindowDom()` rather than by the
+	 * control-registry painter, so a live theme switch would leave
+	 * them showing the previous theme's artwork until the window was
+	 * reopened. Called from the shell's
+	 * `desktop-mode-desktop-theme-changed` listener.
+	 *
+	 * @internal
+	 * @since 0.9.7
+	 */
+	public repaintThemedChrome(): void {
+		const iconHost = this.element.querySelector< HTMLElement >(
+			'.desktop-mode-window__slot--icon',
+		);
+		if ( iconHost ) {
+			const existing = iconHost.querySelector(
+				'.desktop-mode-window__icon',
+			);
+			if ( existing ) {
+				existing.replaceWith(
+					renderIcon( this.config.icon, {
+						title: this.config.title,
+						className: 'desktop-mode-window__icon',
+						slot: slotForTileId( this.config.id ),
+					} ),
+				);
+			}
+		}
+
+		const menuBtn = this.element.querySelector< HTMLElement >(
+			'.desktop-mode-window__menu-btn',
+		);
+		if ( menuBtn ) {
+			// Drop whatever the previous theme (or the default) left
+			// behind — a light-DOM dashicon span and/or the mask attr —
+			// before asking the current theme again.
+			menuBtn
+				.querySelectorAll( ':scope > .dashicons' )
+				.forEach( ( el ) => el.remove() );
+			menuBtn.removeAttribute( 'icon-src' );
+			menuBtn.setAttribute( 'icon', 'menu' );
+			paintThemedControlIcon( menuBtn, 'core/menu' );
+		}
 	}
 
 	/**

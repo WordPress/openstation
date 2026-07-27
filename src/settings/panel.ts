@@ -60,9 +60,11 @@ import type { DesktopSettingsTab } from './registry';
 import { listSettingsTabs, subscribeSettingsTabs } from './registry';
 import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
+import { buildThemesSection } from './sections/themes';
 import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
+import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
 import { buildEffectsSection } from './sections/effects';
 import { buildExtendedSection } from './sections/extended';
@@ -184,6 +186,7 @@ export function renderOsSettingsPanel(
 					${ buildAccentSection( ctx ) }
 					${ buildDesktopLayoutSection( ctx ) }
 					${ buildDockSizeSection( ctx ) }
+					${ buildWindowRadiusSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
 				</wpd-panel>
 			</wpd-tabpanel>`,
@@ -199,6 +202,17 @@ export function renderOsSettingsPanel(
 					${ buildFeaturesSection( ctx ) }
 					${ isAdmin ? buildExtendedSection( ctx ) : '' }
 				</wpd-panel>
+			</wpd-tabpanel>`,
+		},
+		{
+			id: 'themes',
+			// Between Appearance (10) and Apps & Icons (22): a desktop
+			// theme is a coarser version of what Appearance does, so
+			// it reads as the next step, not a separate concern.
+			order: 12,
+			tab: html`<wpd-tab value="themes">${ __( 'Themes' ) }</wpd-tab>`,
+			panel: html`<wpd-tabpanel for="themes">
+				<wpd-panel>${ buildThemesSection( ctx ) }</wpd-panel>
 			</wpd-tabpanel>`,
 		},
 		{

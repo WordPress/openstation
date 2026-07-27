@@ -46,7 +46,7 @@ export const styles = css`
 		);
 		letter-spacing: var( --wpd-ribbon-tracking, 0.06em );
 		text-transform: uppercase;
-		color: var( --wpd-ribbon-fg, #fff );
+		color: var( --wpd-ribbon-fg, var( --wpd-fg-on-accent, #fff ) );
 		background: var(
 			--wpd-ribbon-bg,
 			var( --wp-admin-theme-color, #2271b1 )
@@ -128,18 +128,18 @@ export const styles = css`
 	   set. Default (no tone, or \`primary\`) uses the admin theme
 	   accent so the ribbon picks up per-scheme tints automatically. */
 	:host( [ tone='success' ] ) .banner {
-		background: var( --wpd-ribbon-success, #1a7f37 );
+		background: var( --wpd-ribbon-success, var( --wpd-success-fg, #1a7f37 ) );
 	}
 	:host( [ tone='warning' ] ) .banner {
-		background: var( --wpd-ribbon-warning, #9a6700 );
+		background: var( --wpd-ribbon-warning, var( --wpd-warning-bg, #9a6700 ) );
 	}
 	:host( [ tone='danger' ] ) .banner {
-		background: var( --wpd-ribbon-danger, #cf222e );
+		background: var( --wpd-ribbon-danger, var( --wpd-danger, #cf222e ) );
 	}
 	:host( [ tone='info' ] ) .banner {
-		background: var( --wpd-ribbon-info, #0969da );
+		background: var( --wpd-ribbon-info, var( --wpd-info-bg, #0969da ) );
 	}
 	:host( [ tone='neutral' ] ) .banner {
-		background: var( --wpd-ribbon-neutral, #57606a );
+		background: var( --wpd-ribbon-neutral, var( --wpd-surface, #57606a ) );
 	}
 `;

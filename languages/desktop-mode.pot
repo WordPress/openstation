@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Desktop Mode 0.9.5\n"
+"Project-Id-Version: Desktop Mode 0.9.6\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/alcazaba-plugin\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-07-23T11:31:22+00:00\n"
+"POT-Creation-Date: 2026-07-27T08:14:09+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: desktop-mode\n"
@@ -19,7 +19,7 @@ msgid "Found a bug or have a feature idea? Fill this in and we will open a pre-f
 msgstr ""
 
 #: src/bug-report/index.ts:67
-#: src/posts-window/index.ts:516
+#: src/posts-window/index.ts:512
 #: src/recycle-bin/index.ts:233
 msgid "Title"
 msgstr ""
@@ -212,7 +212,7 @@ msgstr ""
 #: src/my-wordpress/index.ts:508
 #: src/my-wordpress/index.ts:1662
 #: src/plugins-window/installed-view.ts:330
-#: src/posts-window/index.ts:524
+#: src/posts-window/index.ts:520
 msgid "Author"
 msgstr ""
 
@@ -284,8 +284,8 @@ msgstr ""
 
 #: src/comments-window/index.ts:1250
 #: src/comments-window/index.ts:520
-#: src/posts-window/index.ts:261
-#: src/posts-window/index.ts:1082
+#: src/posts-window/index.ts:262
+#: src/posts-window/index.ts:1078
 #: includes/comments-window/window.php:30
 msgid "Trash"
 msgstr ""
@@ -296,7 +296,7 @@ msgstr ""
 #. %d is a count of selected users.
 #: src/comments-window/index.ts:1274
 #: src/plugins-window/installed-view.ts:675
-#: src/posts-window/index.ts:2416
+#: src/posts-window/index.ts:2412
 #: src/posts-window/users-render.ts:976
 #: src/recycle-bin/index.ts:661
 msgid "%d selected"
@@ -384,8 +384,8 @@ msgid "Approved"
 msgstr ""
 
 #: src/comments-window/index.ts:518
-#: src/posts-window/index.ts:259
-#: src/posts-window/index.ts:1080
+#: src/posts-window/index.ts:260
+#: src/posts-window/index.ts:1076
 #: includes/comments-window/window.php:27
 msgid "Pending"
 msgstr ""
@@ -564,10 +564,10 @@ msgstr ""
 
 #: src/content-graph/panel.ts:412
 #: src/content-graph/panel.ts:713
-#: src/desktop-files/preview.ts:484
+#: src/desktop-files/preview.ts:488
 #: src/my-wordpress/index.ts:512
 #: src/my-wordpress/index.ts:3030
-#: src/posts-window/index.ts:569
+#: src/posts-window/index.ts:565
 #: src/posts-window/user-edit-render.ts:1040
 #: src/posts-window/users-render.ts:472
 #: includes/comments-window/window.php:111
@@ -598,8 +598,8 @@ msgid "Revisions"
 msgstr ""
 
 #: src/content-graph/panel.ts:453
-#: src/posts-window/index.ts:256
-#: src/posts-window/index.ts:1078
+#: src/posts-window/index.ts:257
+#: src/posts-window/index.ts:1074
 msgid "Published"
 msgstr ""
 
@@ -617,7 +617,7 @@ msgid "Edit"
 msgstr ""
 
 #: src/content-graph/panel.ts:547
-#: src/posts-window/index.ts:1361
+#: src/posts-window/index.ts:1357
 msgid "View"
 msgstr ""
 
@@ -646,8 +646,8 @@ msgstr ""
 #: src/content-graph/panel.ts:623
 #: src/content-graph/panel.ts:711
 #: src/content-graph/panel.ts:725
-#: src/desktop-files/preview.ts:403
-#: src/desktop-files/preview.ts:478
+#: src/desktop-files/preview.ts:407
+#: src/desktop-files/preview.ts:482
 #: src/my-wordpress/index.ts:2611
 #: src/my-wordpress/index.ts:3017
 #: src/posts-window/user-edit-render.ts:1029
@@ -659,7 +659,7 @@ msgid "Posts"
 msgstr ""
 
 #: src/content-graph/panel.ts:624
-#: src/desktop-files/preview.ts:409
+#: src/desktop-files/preview.ts:413
 #: src/my-wordpress/index.ts:2624
 #: src/posts-window/users-render.ts:470
 #: includes/my-wordpress/window.php:81
@@ -673,7 +673,7 @@ msgid "CPT"
 msgstr ""
 
 #: src/content-graph/panel.ts:627
-#: src/desktop-files/preview.ts:415
+#: src/desktop-files/preview.ts:419
 #: src/my-wordpress/index.ts:2637
 msgid "Comments received"
 msgstr ""
@@ -706,7 +706,7 @@ msgid "Open in WordPress"
 msgstr ""
 
 #: src/content-graph/panel.ts:693
-#: src/posts-window/index.ts:548
+#: src/posts-window/index.ts:544
 msgid "Parent"
 msgstr ""
 
@@ -721,7 +721,7 @@ msgid "Description"
 msgstr ""
 
 #: src/content-graph/panel.ts:717
-#: src/desktop-files/preview.ts:490
+#: src/desktop-files/preview.ts:494
 #: src/my-wordpress/index.ts:3037
 msgid "Authors"
 msgstr ""
@@ -876,37 +876,50 @@ msgstr ""
 msgid "Breadcrumb"
 msgstr ""
 
-#: src/desktop-files/preview.ts:633
+#: src/desktop-files/preview.ts:651
+#: includes/desktop-files/built-in-types.php:39
+msgid "Uploaded file"
+msgstr ""
+
+#: src/desktop-files/preview.ts:670
+msgid "No preview available for this file type."
+msgstr ""
+
+#: src/desktop-files/preview.ts:717
+msgid "Download"
+msgstr ""
+
+#: src/desktop-files/preview.ts:734
 msgid "(folder)"
 msgstr ""
 
-#: src/desktop-files/preview.ts:637
+#: src/desktop-files/preview.ts:738
 msgid "Double-click to open."
 msgstr ""
 
-#: src/desktop-files/preview.ts:648
+#: src/desktop-files/preview.ts:749
 msgid "Shortcut"
 msgstr ""
 
-#: src/desktop-files/preview.ts:652
+#: src/desktop-files/preview.ts:753
 msgid "Plugin shortcut. Double-click to open."
 msgstr ""
 
-#: src/desktop-files/preview.ts:663
+#: src/desktop-files/preview.ts:764
 #: includes/desktop-files/built-in-types.php:63
 msgid "Bookmark"
 msgstr ""
 
 #. %s is a file-type slug.
-#: src/desktop-files/preview.ts:689
+#: src/desktop-files/preview.ts:790
 msgid "Type: %s"
 msgstr ""
 
-#: src/desktop-files/preview.ts:696
+#: src/desktop-files/preview.ts:797
 msgid "The underlying entity is no longer available."
 msgstr ""
 
-#: src/desktop-files/preview.ts:747
+#: src/desktop-files/preview.ts:848
 #: src/my-wordpress/index.ts:899
 #: src/my-wordpress/index.ts:1008
 #: src/my-wordpress/index.ts:1447
@@ -920,22 +933,22 @@ msgstr ""
 msgid "Unknown error."
 msgstr ""
 
-#: src/desktop-files/preview.ts:776
+#: src/desktop-files/preview.ts:877
 #: src/my-wordpress/index.ts:1889
 msgid "Select an item to preview it here."
 msgstr ""
 
-#: src/desktop-files/preview.ts:269
+#: src/desktop-files/preview.ts:273
 #: src/my-wordpress/index.ts:1504
 msgid "Explore details"
 msgstr ""
 
-#: src/desktop-files/preview.ts:270
+#: src/desktop-files/preview.ts:274
 #: src/my-wordpress/index.ts:1505
 msgid "See author, comments, categories, tags, attached media, and revisions for this entry."
 msgstr ""
 
-#: src/desktop-files/preview.ts:290
+#: src/desktop-files/preview.ts:294
 #: src/my-wordpress/index.ts:1517
 #: src/my-wordpress/index.ts:3458
 #: src/my-wordpress/media-detail.ts:166
@@ -1132,6 +1145,7 @@ msgid "Game Over — challenge missed."
 msgstr ""
 
 #: src/games/alphabet-soup/game.ts:512
+#: src/plugins/focus-timer-widget/index.ts:258
 msgid "Time’s up!"
 msgstr ""
 
@@ -1666,13 +1680,13 @@ msgid "%s — activity footprint"
 msgstr ""
 
 #: src/my-wordpress/index.ts:514
-#: src/posts-window/index.ts:596
+#: src/posts-window/index.ts:592
 #: includes/posts-window/window.php:34
 msgid "Categories"
 msgstr ""
 
 #: src/my-wordpress/index.ts:516
-#: src/posts-window/index.ts:609
+#: src/posts-window/index.ts:605
 #: includes/posts-window/window.php:35
 msgid "Tags"
 msgstr ""
@@ -1727,7 +1741,7 @@ msgstr ""
 #: src/my-wordpress/media-list.ts:128
 #: src/my-wordpress/media-list.ts:430
 #: src/my-wordpress/media-preview.ts:375
-#: src/posts-window/index.ts:1213
+#: src/posts-window/index.ts:1209
 #: includes/desktop-files/types/class-desktop-mode-post-file.php:38
 #: includes/user-edit-window/rest.php:551
 #: includes/user-edit-window/rest.php:578
@@ -1741,7 +1755,7 @@ msgstr ""
 
 #. %s is the user name currently editing the post.
 #: src/my-wordpress/index.ts:1325
-#: src/posts-window/index.ts:1283
+#: src/posts-window/index.ts:1279
 msgid "%s is currently editing"
 msgstr ""
 
@@ -2295,7 +2309,7 @@ msgstr ""
 #: src/plugins-window/installed-view.ts:1183
 #: src/posts-window/categories-mindmap.ts:2654
 #: src/posts-window/categories-mindmap.ts:2663
-#: src/posts-window/index.ts:1903
+#: src/posts-window/index.ts:1899
 #: src/posts-window/tags-cloud.ts:1932
 #: src/posts-window/tags-cloud.ts:1941
 msgid "Delete"
@@ -2468,6 +2482,83 @@ msgstr ""
 
 #: src/notes/trash.ts:72
 msgid "Could not move the note to the Trash."
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:93
+msgid "No window — just alarm"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:104
+msgid "Untitled window"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:133
+msgid "Subtract a minute"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:136
+msgid "Add a minute"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:175
+msgid "Shake this window when done"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:194
+msgid "Show remaining time while running"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:211
+msgid "Resume"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:216
+#: src/plugins/focus-timer-widget/index.ts:245
+#: includes/users-window/window.php:122
+msgid "Reset"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:223
+msgid "Start focus"
+msgstr ""
+
+#. %d: minutes.
+#: src/plugins/focus-timer-widget/index.ts:158
+msgid "%d min"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:243
+msgid "Pause"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:265
+msgid "Stop alarm"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:290
+msgid "Focusing…"
+msgstr ""
+
+#. %s: window title.
+#: src/plugins/focus-timer-widget/index.ts:301
+msgid "Linked to “%s”"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:304
+msgid "No window linked"
+msgstr ""
+
+#. %s: window title.
+#: src/plugins/focus-timer-widget/index.ts:307
+msgid "Shaking “%s”"
+msgstr ""
+
+#: src/plugins/focus-timer-widget/index.ts:310
+msgid "Press stop to silence."
+msgstr ""
+
+#: src/plugins/focus-timer-widget/timer.ts:110
+msgid "Focus timer cancelled — the linked window was closed."
 msgstr ""
 
 #: src/plugins/notes-widget/index.ts:114
@@ -3026,7 +3117,7 @@ msgid "%s MB"
 msgstr ""
 
 #: src/plugins-window/installed-view.ts:149
-#: src/posts-window/index.ts:1077
+#: src/posts-window/index.ts:1073
 #: src/posts-window/users-render.ts:771
 #: includes/comments-window/window.php:28
 #: includes/recycle-bin/window.php:39
@@ -3059,7 +3150,7 @@ msgid "→ %s"
 msgstr ""
 
 #: src/plugins-window/installed-view.ts:481
-#: src/posts-window/index.ts:320
+#: src/posts-window/index.ts:316
 msgid "Unknown"
 msgstr ""
 
@@ -3318,7 +3409,7 @@ msgid "Recenter"
 msgstr ""
 
 #: src/posts-window/categories-mindmap.ts:246
-#: src/posts-window/index.ts:1731
+#: src/posts-window/index.ts:1727
 msgid "Search categories…"
 msgstr ""
 
@@ -3364,7 +3455,7 @@ msgstr ""
 
 #: src/posts-window/categories-mindmap.ts:2327
 #: src/posts-window/categories-mindmap.ts:2506
-#: src/posts-window/index.ts:562
+#: src/posts-window/index.ts:558
 #: src/posts-window/tags-cloud.ts:1829
 msgid "Slug"
 msgstr ""
@@ -3448,181 +3539,181 @@ msgstr ""
 msgid "Couldn’t load posts:"
 msgstr ""
 
-#: src/posts-window/index.ts:257
-#: src/posts-window/index.ts:1081
+#: src/posts-window/index.ts:258
+#: src/posts-window/index.ts:1077
 msgid "Scheduled"
 msgstr ""
 
-#: src/posts-window/index.ts:258
+#: src/posts-window/index.ts:259
 msgid "Draft"
 msgstr ""
 
-#: src/posts-window/index.ts:260
+#: src/posts-window/index.ts:261
 msgid "Private"
 msgstr ""
 
-#: src/posts-window/index.ts:529
+#: src/posts-window/index.ts:525
 msgid "All authors"
 msgstr ""
 
-#: src/posts-window/index.ts:530
+#: src/posts-window/index.ts:526
 msgid "Filter by author"
 msgstr ""
 
-#: src/posts-window/index.ts:537
+#: src/posts-window/index.ts:533
 msgid "Date"
 msgstr ""
 
-#: src/posts-window/index.ts:555
+#: src/posts-window/index.ts:551
 msgid "Template"
 msgstr ""
 
-#: src/posts-window/index.ts:617
+#: src/posts-window/index.ts:613
 msgid "All tags"
 msgstr ""
 
-#: src/posts-window/index.ts:618
+#: src/posts-window/index.ts:614
 msgid "Filter by tag"
 msgstr ""
 
-#: src/posts-window/index.ts:657
+#: src/posts-window/index.ts:653
 msgid "Top-level page"
 msgstr ""
 
 #. %d is the numeric id of a parent page whose title isn't on the current page roster.
-#: src/posts-window/index.ts:666
+#: src/posts-window/index.ts:662
 msgid "↳ #%d"
 msgstr ""
 
-#: src/posts-window/index.ts:704
-#: src/posts-window/index.ts:706
+#: src/posts-window/index.ts:700
+#: src/posts-window/index.ts:702
 #: includes/pages-window/window.php:249
 msgid "Default template"
 msgstr ""
 
-#: src/posts-window/index.ts:730
+#: src/posts-window/index.ts:726
 msgid "Click to copy slug"
 msgstr ""
 
-#: src/posts-window/index.ts:757
+#: src/posts-window/index.ts:753
 #: src/posts-window/users-render.ts:383
 msgid "Copied!"
 msgstr ""
 
-#: src/posts-window/index.ts:824
+#: src/posts-window/index.ts:820
 msgid "%d comment"
 msgid_plural "%d comments"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/posts-window/index.ts:997
+#: src/posts-window/index.ts:993
 msgid "Show columns"
 msgstr ""
 
-#: src/posts-window/index.ts:1079
+#: src/posts-window/index.ts:1075
 msgid "Drafts"
 msgstr ""
 
-#: src/posts-window/index.ts:1097
+#: src/posts-window/index.ts:1093
 #: includes/comments-window/window.php:67
 msgid "Move to trash"
 msgstr ""
 
 #. %d: row count.
-#: src/posts-window/index.ts:1101
+#: src/posts-window/index.ts:1097
 msgid "Move %d post(s) to the trash?"
 msgstr ""
 
-#: src/posts-window/index.ts:1305
+#: src/posts-window/index.ts:1301
 msgid "Front page"
 msgstr ""
 
-#: src/posts-window/index.ts:1318
+#: src/posts-window/index.ts:1314
 msgid "Posts page"
 msgstr ""
 
-#: src/posts-window/index.ts:1484
+#: src/posts-window/index.ts:1480
 msgid "Add tag…"
 msgstr ""
 
-#: src/posts-window/index.ts:1485
+#: src/posts-window/index.ts:1481
 msgid "Tag"
 msgstr ""
 
 #. %s: tag label
-#: src/posts-window/index.ts:1632
+#: src/posts-window/index.ts:1628
 msgid "Couldn’t add tag \"%s\"."
 msgstr ""
 
 #. %s: tag label
-#: src/posts-window/index.ts:1677
+#: src/posts-window/index.ts:1673
 msgid "Couldn’t remove tag \"%s\"."
 msgstr ""
 
-#: src/posts-window/index.ts:1732
+#: src/posts-window/index.ts:1728
 msgid "Categorize"
 msgstr ""
 
-#: src/posts-window/index.ts:1838
+#: src/posts-window/index.ts:1834
 msgid "Couldn’t assign new category."
 msgstr ""
 
-#: src/posts-window/index.ts:1845
+#: src/posts-window/index.ts:1841
 msgid "Couldn’t create category."
 msgstr ""
 
-#: src/posts-window/index.ts:1873
+#: src/posts-window/index.ts:1869
 msgid "Couldn’t update categories."
 msgstr ""
 
-#: src/posts-window/index.ts:1895
+#: src/posts-window/index.ts:1891
 msgid "Delete category?"
 msgstr ""
 
 #. %s: category name.
-#: src/posts-window/index.ts:1898
+#: src/posts-window/index.ts:1894
 msgid "Delete the category \"%s\"? Posts assigned only to it will fall back to Uncategorized."
 msgstr ""
 
-#: src/posts-window/index.ts:1927
+#: src/posts-window/index.ts:1923
 msgid "Couldn’t update post categories after delete."
 msgstr ""
 
-#: src/posts-window/index.ts:1933
+#: src/posts-window/index.ts:1929
 msgid "Couldn’t delete category."
 msgstr ""
 
-#: src/posts-window/index.ts:2086
+#: src/posts-window/index.ts:2082
 msgid "Couldn’t add category."
 msgstr ""
 
-#: src/posts-window/index.ts:2188
+#: src/posts-window/index.ts:2184
 msgid "modified"
 msgstr ""
 
-#: src/posts-window/index.ts:2218
+#: src/posts-window/index.ts:2214
 msgid "Excerpt"
 msgstr ""
 
-#: src/posts-window/index.ts:2229
-#: src/posts-window/index.ts:2231
+#: src/posts-window/index.ts:2225
+#: src/posts-window/index.ts:2227
 msgid "(no excerpt)"
 msgstr ""
 
-#: src/posts-window/index.ts:2385
+#: src/posts-window/index.ts:2381
 msgid "No posts"
 msgstr ""
 
 #. 1: current page, 2: total pages, 3: total posts.
-#: src/posts-window/index.ts:2389
+#: src/posts-window/index.ts:2385
 msgid "Page %1$d of %2$d · %3$d posts"
 msgstr ""
 
-#: src/posts-window/index.ts:2582
+#: src/posts-window/index.ts:2578
 msgid "Add New Page"
 msgstr ""
 
-#: src/posts-window/index.ts:2582
+#: src/posts-window/index.ts:2578
 msgid "Add New Post"
 msgstr ""
 
@@ -4664,7 +4755,7 @@ msgid "Dismiss"
 msgstr ""
 
 #: src/release-card.ts:357
-#: src/update-notice.ts:125
+#: src/update-notice.ts:170
 msgid "Update now"
 msgstr ""
 
@@ -4993,27 +5084,35 @@ msgstr ""
 msgid "Show links"
 msgstr ""
 
-#: src/settings/sections/extended.ts:73
+#: src/settings/sections/extended.ts:80
 msgid "Network error — check your connection."
 msgstr ""
 
-#: src/settings/sections/extended.ts:89
+#: src/settings/sections/extended.ts:101
 msgid "Extended options"
 msgstr ""
 
-#: src/settings/sections/extended.ts:90
+#: src/settings/sections/extended.ts:102
 msgid "Site-wide enhancements that apply to every user. Toggling requires the affected page to be reloaded for the change to take effect."
 msgstr ""
 
-#: src/settings/sections/extended.ts:95
+#: src/settings/sections/extended.ts:107
 msgid "Enable drag-and-drop in the Media Library"
 msgstr ""
 
-#: src/settings/sections/extended.ts:101
+#: src/settings/sections/extended.ts:113
 msgid "Makes every item in the WordPress Media Library draggable. Drop a media item into text fields, rich-text editors, Gutenberg blocks, or any target that accepts images or files. No replacement of the library — just a drag-and-drop layer on top of the one you already know."
 msgstr ""
 
-#: src/settings/sections/extended.ts:110
+#: src/settings/sections/extended.ts:119
+msgid "Enable games"
+msgstr ""
+
+#: src/settings/sections/extended.ts:125
+msgid "Adds a Games app for every user: built-in games, scoreboards, and player-to-player challenges. Off by default — while off, nothing game-related runs anywhere, on the server or in the browser. Saved scores are kept across a disable and reappear when re-enabled."
+msgstr ""
+
+#: src/settings/sections/extended.ts:134
 msgid "Saving…"
 msgstr ""
 
@@ -5379,16 +5478,16 @@ msgid "Dismiss notice"
 msgstr ""
 
 #. 1: WordPress version, 2: release codename.
-#: src/update-notice.ts:54
+#: src/update-notice.ts:93
 msgid "WordPress %1$s \"%2$s\" is available."
 msgstr ""
 
 #. %s: WordPress version.
-#: src/update-notice.ts:58
+#: src/update-notice.ts:97
 msgid "WordPress %s is available."
 msgstr ""
 
-#: src/update-notice.ts:98
+#: src/update-notice.ts:137
 #: includes/core-notices.php:100
 msgid "WordPress Updates"
 msgstr ""
@@ -5445,7 +5544,7 @@ msgid "Maximize"
 msgstr ""
 
 #: src/window-chrome/controls/built-ins.ts:65
-#: src/window/index.ts:1835
+#: src/window/index.ts:1849
 #: includes/admin-bar.php:71
 #: includes/admin-bar.php:690
 msgid "Enter fullscreen"
@@ -5493,7 +5592,7 @@ msgstr ""
 msgid "Close window"
 msgstr ""
 
-#: src/window/index.ts:1835
+#: src/window/index.ts:1849
 #: includes/admin-bar.php:689
 #: includes/admin-bar.php:691
 msgid "Exit fullscreen"
@@ -5978,8 +6077,16 @@ msgstr ""
 msgid "Go to Themes"
 msgstr ""
 
+#. translators: %s: number of pending updates.
+#: includes/core/payload.php:1188
+#, php-format
+msgid "%s update available"
+msgid_plural "%s updates available"
+msgstr[0] ""
+msgstr[1] ""
+
 #. translators: 1: kind ("Command"/"Settings-tab"/"Title-bar button"), 2: handle.
-#: includes/core/payload.php:1488
+#: includes/core/payload.php:1512
 #, php-format
 msgid "%1$s script handle \"%2$s\" is not registered with WordPress (no `wp_register_script` call found). The script will not load."
 msgstr ""
@@ -6043,10 +6150,6 @@ msgstr ""
 
 #: includes/desktop-files/built-in-types.php:27
 msgid "Post"
-msgstr ""
-
-#: includes/desktop-files/built-in-types.php:39
-msgid "Uploaded file"
 msgstr ""
 
 #: includes/desktop-files/built-in-types.php:45
@@ -6141,7 +6244,7 @@ msgstr ""
 #: includes/desktop-files/file-shares.php:272
 #: includes/desktop-files/file-shares.php:378
 #: includes/desktop-files/file-shares.php:588
-#: includes/desktop-files/rest.php:833
+#: includes/desktop-files/rest.php:868
 #: includes/desktop-files/shares-store.php:454
 #: includes/desktop-files/shares-store.php:525
 #: includes/desktop-files/shares-store.php:657
@@ -6195,8 +6298,8 @@ msgstr ""
 
 #: includes/desktop-files/folders-store.php:118
 #: includes/desktop-files/folders-store.php:297
-#: includes/desktop-files/rest.php:446
-#: includes/desktop-files/rest.php:777
+#: includes/desktop-files/rest.php:481
+#: includes/desktop-files/rest.php:812
 #: includes/desktop-files/shares-store.php:795
 #: includes/desktop-files/trash.php:673
 #: includes/desktop-files/trash.php:819
@@ -6326,7 +6429,7 @@ msgstr ""
 msgid "You do not have permission to perform this action."
 msgstr ""
 
-#: includes/desktop-files/rest.php:363
+#: includes/desktop-files/rest.php:398
 #: includes/desktop-files/store.php:238
 #: includes/desktop-files/store.php:395
 #: includes/desktop-files/trash.php:386
@@ -6334,23 +6437,23 @@ msgstr ""
 msgid "Placement not found."
 msgstr ""
 
-#: includes/desktop-files/rest.php:536
+#: includes/desktop-files/rest.php:571
 msgid "Restricted item"
 msgstr ""
 
-#: includes/desktop-files/rest.php:713
+#: includes/desktop-files/rest.php:748
 msgid "This row was changed by another session."
 msgstr ""
 
-#: includes/desktop-files/rest.php:773
+#: includes/desktop-files/rest.php:808
 msgid "You cannot view shares for this folder."
 msgstr ""
 
-#: includes/desktop-files/rest.php:840
+#: includes/desktop-files/rest.php:875
 msgid "Share not found in this folder."
 msgstr ""
 
-#: includes/desktop-files/rest.php:1026
+#: includes/desktop-files/rest.php:1061
 msgid "You cannot search users."
 msgstr ""
 
@@ -6672,12 +6775,12 @@ msgstr ""
 msgid "Games"
 msgstr ""
 
-#: includes/helpers.php:90
+#: includes/helpers.php:120
 #: includes/seen-intros.php:226
 msgid "Authentication required."
 msgstr ""
 
-#: includes/helpers.php:98
+#: includes/helpers.php:128
 msgid "Desktop mode is not enabled for your account."
 msgstr ""
 
@@ -7195,7 +7298,7 @@ msgid "Window tab registration requires a callable `template` that echoes the pa
 msgstr ""
 
 #. translators: 1: parent menu label, 2: submenu label
-#: includes/render/assets.php:951
+#: includes/render/assets.php:967
 #, php-format
 msgid "%1$s > %2$s"
 msgstr ""
@@ -7321,10 +7424,6 @@ msgstr ""
 
 #: includes/users-window/window.php:121
 msgid "Add user"
-msgstr ""
-
-#: includes/users-window/window.php:122
-msgid "Reset"
 msgstr ""
 
 #: includes/users-window/window.php:125
@@ -7519,6 +7618,14 @@ msgstr ""
 msgid "Live feed of the latest comments with pending count."
 msgstr ""
 
+#: includes/widgets/widget-focus-timer.php:84
+msgid "Focus Timer"
+msgstr ""
+
+#: includes/widgets/widget-focus-timer.php:85
+msgid "A focus countdown. Link it to a window and get a shake + alarm when time is up."
+msgstr ""
+
 #: includes/widgets/widget-jazz-quote.php:107
 msgid "Jazz Quote"
 msgstr ""
@@ -7535,19 +7642,19 @@ msgstr ""
 msgid "Write a note and drag it onto the desktop to pin it."
 msgstr ""
 
-#: includes/widgets/widget-post-stats.php:74
+#: includes/widgets/widget-post-stats.php:203
 msgid "Post Stats"
 msgstr ""
 
-#: includes/widgets/widget-post-stats.php:75
+#: includes/widgets/widget-post-stats.php:204
 msgid "Bar chart of posts per month over the last 6 months."
 msgstr ""
 
-#: includes/widgets/widget-site-views.php:137
+#: includes/widgets/widget-site-views.php:153
 msgid "Site Views"
 msgstr ""
 
-#: includes/widgets/widget-site-views.php:138
+#: includes/widgets/widget-site-views.php:154
 msgid "Sparkline of page views over the last 7 days with week-over-week delta."
 msgstr ""
 

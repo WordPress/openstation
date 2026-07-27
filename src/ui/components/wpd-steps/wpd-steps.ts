@@ -102,7 +102,7 @@ export class WpdStep extends Component {
 			{ name: '--wpd-step-chip-fg', default: '#fff' },
 			{
 				name: '--wpd-step-chip-done-bg',
-				default: 'var(--desktop-mode-muted)',
+				default: 'var(--wpd-fg-muted)',
 			},
 			{ name: '--wpd-step-chip-font-size', default: '13px' },
 		],

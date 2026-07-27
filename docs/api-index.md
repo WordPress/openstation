@@ -117,6 +117,11 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerWindowControl` | `( def: WindowControlDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowSlot` | `( def: WindowSlotDef ) => void` | Stable *(0.6.0)* |
 | `registerWindowChrome` | `( def: WindowChromeDef ) => void` | Experimental *(0.6.0)* |
+| `desktopThemes.list` | `() => DesktopThemeEntry[]` | Experimental *(0.9.7)* |
+| `desktopThemes.getActive` | `() => string \| null` | Experimental *(0.9.7)* |
+| `desktopThemes.setActive` | `( themeId: string ) => void` | Experimental *(0.9.7)* |
+| `desktopThemes.subscribe` | `( cb ) => () => void` | Experimental *(0.9.7)* |
+| `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental *(0.9.7)* |
 
 ### Files on the desktop
 
@@ -199,6 +204,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `desktop-mode-my-wordpress-entity-trashed` | Experimental *(0.8.9)* |
 | `desktop-mode-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental *(0.9.6)* |
 | `desktop-mode-auth-lost` / `desktop-mode-auth-restored` *(session expiry / recovery)* | Stable *(0.9.8)* |
+| `desktop-mode-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental *(0.9.7)* |
 | `desktop-mode-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental *(0.9.8)* |
 
 ---

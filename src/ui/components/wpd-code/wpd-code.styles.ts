@@ -26,8 +26,8 @@ export const styles = css`
 		font-size: var( --wpd-code-font-size, 0.92em );
 		padding: var( --wpd-code-padding, 0.1em 0.4em );
 		border-radius: var( --wpd-code-border-radius, 4px );
-		background: var( --wpd-code-bg, rgba( 0, 0, 0, 0.06 ) );
-		color: var( --wpd-code-fg, var( --desktop-mode-text, #1d2327 ) );
+		background: var( --wpd-code-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
+		color: var( --wpd-code-fg, var( --wpd-fg, #1d2327 ) );
 		border: var( --wpd-code-border, 1px solid rgba( 0, 0, 0, 0.08 ) );
 		white-space: var( --wpd-code-white-space, nowrap );
 		overflow-wrap: anywhere;
@@ -70,7 +70,7 @@ export const styles = css`
 		margin: 0;
 		font: inherit;
 		cursor: pointer;
-		color: var( --wpd-code-copy-color, var( --desktop-mode-text-muted, #57606a ) );
+		color: var( --wpd-code-copy-color, var( --wpd-fg-muted, #57606a ) );
 		opacity: var( --wpd-code-copy-opacity, 0.6 );
 		transition: opacity 120ms ease, color 120ms ease;
 		line-height: 1;
@@ -86,7 +86,7 @@ export const styles = css`
 		top: 6px;
 		inset-inline-end: 8px;
 		padding: 4px 6px;
-		background: var( --wpd-code-copy-bg, rgba( 255, 255, 255, 0.6 ) );
+		background: var( --wpd-code-copy-bg, var( --wpd-hover, rgba( 255, 255, 255, 0.6 ) ) );
 		border-radius: 4px;
 		opacity: 0;
 	}

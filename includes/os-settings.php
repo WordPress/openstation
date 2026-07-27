@@ -20,6 +20,9 @@ const DESKTOP_MODE_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 /** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
 
+/** Valid window-radius IDs — mirrors the TS `WINDOW_RADII` constant. */
+const DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
+
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
 
@@ -38,8 +41,16 @@ function desktop_mode_default_os_settings() {
 		'wallpaper'                   => 'dark',
 		'accent'                      => 'wp-blue',
 		'dockSize'                    => 'default',
+		'windowRadius'                => 'default',
 		'desktopLayout'               => 'classic',
 		'dockRailRenderer'            => 'default',
+		// Active desktop-theme slug, or `''` for the system default.
+		// Site-wide library (`includes/desktop-themes/`), per-user
+		// activation. Not validated against the installed list here —
+		// the enqueue path checks existence on every request, so a
+		// deleted theme degrades silently instead of needing a
+		// user-meta rewrite.
+		'desktopTheme'                => '',
 		'unfocusEffect'               => 'darken',
 		// Window-link renderer id — how relation ties between windows
 		// are drawn (see includes/window-links.php). `svg-splines` is
@@ -246,6 +257,11 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (string) $raw['dockSize']
 		: $defaults['dockSize'];
 
+	// Window radius — must be one of the three known values.
+	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII, true )
+		? (string) $raw['windowRadius']
+		: $defaults['windowRadius'];
+
 	// Desktop layout — must be one of the three known values
 	// (`classic`, `unified`, `spatial`). Default `classic`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
@@ -262,6 +278,17 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		if ( '' !== $slug ) {
 			$dock_rail_renderer = $slug;
 		}
+	}
+
+	// Desktop theme slug — a pattern check, NOT an allow-list, the
+	// same idiom as `dockRailRenderer` above. Validating against the
+	// installed-theme option here would load (and unserialize) that
+	// option on every single settings write for a value the enqueue
+	// path re-checks anyway. `''` is the system default and is a
+	// legitimate value, so an empty/absent key keeps the default.
+	$desktop_theme = $defaults['desktopTheme'];
+	if ( isset( $raw['desktopTheme'] ) && is_string( $raw['desktopTheme'] ) ) {
+		$desktop_theme = sanitize_key( $raw['desktopTheme'] );
 	}
 
 	// Unfocus effect id — accept the `none` sentinel or any registry id.
@@ -581,8 +608,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'wallpaper'                   => $wallpaper,
 		'accent'                      => $accent,
 		'dockSize'                    => $dock_size,
+		'windowRadius'                => $window_radius,
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
+		'desktopTheme'                => $desktop_theme,
 		'unfocusEffect'               => $unfocus_effect,
 		'windowLinkRenderer'          => $window_link_renderer,
 		'windowLinkVisibility'        => $window_link_visibility,

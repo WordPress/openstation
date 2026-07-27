@@ -951,6 +951,44 @@ export interface DesktopWallpaperServerEntry {
 }
 
 /**
+ * Server-declared desktop-theme entry passed from PHP via
+ * `serverDesktopThemes`. One per installed ZIP or
+ * `desktop_mode_register_desktop_theme()` call.
+ *
+ * Unlike every other `server*` payload, this one carries no script:
+ * a desktop theme is a compiled stylesheet plus an icon map, and the
+ * shell needs nothing else to apply it.
+ *
+ * Structurally identical to `DesktopThemeEntry` in
+ * `src/desktop-themes/types.ts` — kept separate because that one is
+ * the post-sanitization shape the registry guarantees, while this is
+ * the wire shape, which is only as trustworthy as the
+ * `desktop_mode_desktop_themes` filter that produced it.
+ *
+ * @public
+ * @since 0.9.7
+ */
+export interface DesktopThemeServerEntry {
+	id: string;
+	slug: string;
+	name: string;
+	version: string;
+	author: string;
+	description: string;
+	/** Absolute URL of the preview image, or `''`. */
+	previewUrl: string;
+	/** Absolute URL of the compiled stylesheet (uploaded themes). */
+	cssUrl: string;
+	/** Compiled stylesheet text (code-registered themes). */
+	cssText: string;
+	tokens: Record< string, string >;
+	/** Slot => `dashicons-*` class or absolute image URL. */
+	icons: Record< string, string >;
+	installedAt: number;
+	source: 'upload' | 'code';
+}
+
+/**
  * Server-declared game entry passed from PHP via `serverGames`.
  * One entry per `desktop_mode_register_game()` call.
  *
@@ -1662,6 +1700,29 @@ export interface DesktopConfig {
 	 * @since 0.9.6
 	 */
 	serverGames?: DesktopGameServerEntry[];
+	/**
+	 * Server-declared desktop themes — the whole-OS reskin library
+	 * (uploaded ZIPs plus anything registered via
+	 * `desktop_mode_register_desktop_theme()`). Metadata + a compiled
+	 * stylesheet reference; no JS is ever involved.
+	 *
+	 * @since 0.9.7
+	 */
+	serverDesktopThemes?: DesktopThemeServerEntry[];
+	/**
+	 * Whether this user may upload / delete desktop themes. Gates the
+	 * management controls in OS Settings → Themes; picking a theme is
+	 * available to everyone.
+	 *
+	 * @since 0.9.7
+	 */
+	canManageDesktopThemes?: boolean;
+	/**
+	 * REST base for the desktop-theme upload / delete routes.
+	 *
+	 * @since 0.9.7
+	 */
+	desktopThemesUrl?: string;
 	/**
 	 * Script handles opted-in via `desktop_mode_register_command_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so

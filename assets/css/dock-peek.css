@@ -36,7 +36,7 @@
 .desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
 .desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
 	background: rgba( 255, 255, 255, 0.15 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	transform: scale( 1.08 );
 	filter: drop-shadow( 0 4px 8px rgba( 0, 0, 0, 0.18 ) );
 }
@@ -237,7 +237,7 @@
 }
 
 .desktop-mode-dock-peek__card:focus-visible {
-	outline: 2px solid var( --desktop-mode-accent, #2271b1 );
+	outline: 2px solid var( --wpd-accent, #2271b1 );
 	outline-offset: 2px;
 }
 
@@ -381,7 +381,7 @@
 		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 65%, #1d2327 ) 0%,
 		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 35%, #1d2327 ) 100%
 	);
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 .desktop-mode-dock-peek__os-hero {
@@ -541,8 +541,8 @@
 	   popover's parent surface uses `color-mix(--desktop-mode-bg)`,
 	   which goes near-white on light themes — without our own
 	   backdrop the Ghost Card was white-on-white. */
-	background: rgba( 0, 0, 0, 0.32 );
-	color: #fff;
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.32 ) );
+	color: var( --wpd-fg-on-accent, #fff );
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.45 );
 	font-size: 13px;
 	font-weight: 500;
@@ -552,8 +552,8 @@
 .desktop-mode-dock-peek__card--ghost:hover {
 	border-style: solid;
 	border-color: rgba( 255, 255, 255, 0.55 );
-	background: rgba( 0, 0, 0, 0.45 );
-	color: #fff;
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
+	color: var( --wpd-fg-on-accent, #fff );
 	animation: none;
 	transform: scale( 1.02 );
 	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.5 );
@@ -579,7 +579,7 @@
 }
 
 .desktop-mode-dock-peek__card--ghost:hover .desktop-mode-dock-peek__card-plus {
-	color: var( --desktop-mode-accent, #4f9cff );
+	color: var( --wpd-accent, #4f9cff );
 }
 
 @keyframes desktop-mode-dock-peek-breathe {

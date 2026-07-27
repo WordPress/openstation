@@ -175,6 +175,62 @@ REST surface:
 - `POST /wp-json/desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], desktops: [...], activeDesktop, focused, updated } }`.
 - `DELETE /wp-json/desktop-mode/v1/session` — clear it.
 
+### Desktop themes (0.9.7)
+
+A **desktop theme** reskins the whole shell from a ZIP of a
+`theme.json` manifest plus images — every `--desktop-mode-*` token, the
+title-bar / dock / desktop textures, the window frame and corners, and
+a complete iconset including the window control glyphs. (Distinct from
+the per-window **window themes** in `includes/window-chrome.php`; the
+`desktop_theme` / `desktopTheme` naming keeps them apart everywhere.)
+
+The load-bearing decision is that **no author-supplied CSS or JS ever
+executes**. PHP validates the manifest field by field and *compiles* a
+stylesheet of custom-property declarations from it, generating every
+`url()` itself from a `rawurlencode`d path. Texturing is therefore
+expressed as manifest properties (`repeat`, `size`, `slice`, …) with a
+closed grammar, not as CSS.
+
+- **Storage** — `uploads/desktop-mode-themes/<slug>/` holds the
+  author's `theme.json`, the compiled `theme.css`, and only the assets
+  the sanitized manifest actually references. The directory drops an
+  `index.php` and an **exec-off** `.htaccess` — deliberately not the
+  deny-all one the stored-files module uses, because theme assets have
+  to be servable. The sanitized manifest is indexed in the
+  `desktop_mode_desktop_themes` site option (autoload **no** — it
+  carries whole manifests).
+- **Install pipeline** (`includes/desktop-themes/install.php`) —
+  validate the archive entry-by-entry before writing anything → extract
+  to `.staging-<uuid>/` → sanitize the manifest (resolving every asset
+  reference inside the staging dir) → sanitize referenced SVGs with
+  DOMDocument → delete + recreate the final dir (**re-upload = update**)
+  → move only referenced assets → compile + write `theme.css` → update
+  the index. Staging is cleaned on every exit path.
+- **REST** — `POST /wp-json/desktop-mode/v1/desktop-themes`
+  (multipart `file`) and
+  `DELETE /wp-json/desktop-mode/v1/desktop-themes/<slug>`, both gated on
+  `desktop_mode_rest_require_enabled()` plus the
+  `desktop_mode_desktop_theme_upload_capability` capability
+  (`manage_options` by default). There is no GET — the library rides
+  the boot / live-refresh payload as `serverDesktopThemes`.
+- **Selection** — per-user, stored as `desktopTheme` in the existing
+  `desktop_mode_os_settings` user meta and synced through the existing
+  `/os-settings` route. The sanitizer is a pattern check, not an
+  allow-list, so a settings write never has to load the themes option;
+  the enqueue path existence-checks instead, which is also what makes
+  an orphaned selection degrade silently to the system default.
+- **Zero cost when unused** — no active theme means no stylesheet, no
+  shell attribute, no body class, and icon resolution is a single null
+  check. Every core CSS rule that consumes a texture token reads it as
+  `var( --name, <initial> )`.
+
+Client side: `src/desktop-themes/` (a `createSharedStore`-backed
+registry, the icon resolver, the activation module, and a synchronous
+server-sync) sits in the always-on shell bundle and stays free of
+`lit` / `<wpd-*>` imports; the picker UI lives in the lazy OS Settings
+panel bundle. Full authoring reference:
+[`desktop-themes.md`](./desktop-themes.md).
+
 All session routes require a valid `X-WP-Nonce` (the standard REST nonce) and the current user to be logged in **with desktop mode enabled** (`desktop_mode_is_enabled()`, via the shared `desktop_mode_rest_require_enabled()` gate). The `read` capability alone is intentionally insufficient: every authenticated role (including Subscriber) carries `read`, so a `read`-only gate would admit users who never opted into the desktop. Logged-out callers get `401`; logged-in callers without desktop mode get `403`.
 
 We also extend Core's `/wp/v2/media` endpoint with two opt-in query parameters so the OS Settings wallpaper picker (and any plugin that wants the same capability) can ask the server to filter out images that are too small to look good stretched across the desktop:

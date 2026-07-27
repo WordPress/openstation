@@ -204,8 +204,8 @@
 .dm-notes-pad__public {
 	font-size: 11px;
 	/* The widget card is dark glass; the component's default
-	   --desktop-mode-text is near-black and disappears on it. */
-	--desktop-mode-text: rgba(255, 255, 255, 0.85);
+	   --wpd-fg is near-black and disappears on it. */
+	--wpd-fg: rgba(255, 255, 255, 0.85);
 	align-self: center;
 }
 

@@ -46,6 +46,7 @@ import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
+	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -56,6 +57,7 @@ import {
 	type OsSettingsSaveLifecycleDetail,
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
+import { applyDesktopTheme } from '../desktop-themes/apply';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -185,6 +187,7 @@ export class OsSettings implements SettingsCtx {
 			dockSize: this.state.dockSize,
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
+			desktopTheme: this.state.desktopTheme,
 			unfocusEffect: this.state.unfocusEffect,
 			windowLinkRenderer: this.state.windowLinkRenderer,
 			windowLinkVisibility: this.state.windowLinkVisibility,
@@ -306,6 +309,9 @@ export class OsSettings implements SettingsCtx {
 		const accent = accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
 		const dockSize =
 			DOCK_SIZES.find( ( d ) => d.id === this.state.dockSize ) ?? DOCK_SIZES[ 1 ];
+		const windowRadius =
+			WINDOW_RADII.find( ( r ) => r.id === this.state.windowRadius ) ??
+			WINDOW_RADII[ 1 ];
 
 		// Set on <html> rather than the shell so the cascade reaches
 		// siblings of #desktop-mode-shell — specifically the WordPress
@@ -317,6 +323,10 @@ export class OsSettings implements SettingsCtx {
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
 		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );
+		root.style.setProperty(
+			'--desktop-mode-window-radius',
+			`${ windowRadius.value }px`,
+		);
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
@@ -337,6 +347,13 @@ export class OsSettings implements SettingsCtx {
 		// server / localStorage, `apply()` runs, registry mirrors
 		// the persisted choice.
 		setActiveDockRailRenderer( this.state.dockRailRenderer );
+
+		// Desktop theme. One line covers every path that can change
+		// it — boot, picking a theme in the Themes tab, resetting
+		// settings, and the rollback after a failed save all funnel
+		// through `apply()`. `applyDesktopTheme` dedupes on the active
+		// id, so the repeated calls this makes cost two comparisons.
+		applyDesktopTheme( this.state.desktopTheme );
 	}
 
 	public save( opts: { windowId?: string } = {} ): void {

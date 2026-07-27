@@ -40,6 +40,8 @@ import { tryOpenExternalUrl } from './external-url';
 import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
 import { renderIcon } from './icon';
+import { getActiveDesktopThemeId } from './desktop-themes/registry';
+import { slotForTileId } from './desktop-themes/slots';
 import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import type { DesktopIconServerEntry } from './types';
 import type { WindowManager } from './window-manager';
@@ -264,7 +266,14 @@ function fingerprintIcons(
 	if ( ! icons || icons.length === 0 ) {
 		return '';
 	}
-	return icons
+	// The active desktop theme is part of the fingerprint because it
+	// changes what `buildIcon` PAINTS without changing the icon list
+	// at all. Leave it out and the bail-out below swallows every
+	// theme switch: the entries are identical, so the grid keeps
+	// showing the previous theme's artwork until something unrelated
+	// perturbs the list.
+	const themePrefix = `${ getActiveDesktopThemeId() ?? '' }::`;
+	return themePrefix + icons
 		.map(
 			( i ) =>
 				`${ i.id }|${ i.title }|${ i.icon }|${ i.window ?? '' }|${
@@ -471,6 +480,7 @@ function buildIcon(
 	const icon = renderIcon( entry.icon, {
 		title: entry.title,
 		className: 'desktop-mode-icon__image',
+		slot: slotForTileId( entry.id ),
 	} );
 	tile.appendChild( icon );
 

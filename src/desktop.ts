@@ -55,6 +55,12 @@ import type { WallpaperSuspendApi } from './wallpapers/layer';
 import type { GamesApi } from './games/api';
 import { createWallpaperRegistrySync } from './wallpapers/server-sync';
 import { createGamesRegistrySync } from './games/server-sync';
+import { createDesktopThemeSync } from './desktop-themes/server-sync';
+import type {
+	DesktopThemeEntry,
+	DesktopThemeState,
+} from './desktop-themes/types';
+import { DESKTOP_THEME_CHANGED_EVENT } from './desktop-themes/apply';
 import { bootGamesChallenges } from './games/challenges-client';
 import { createCommandRegistrySync } from './commands/server-sync';
 import { createSettingsTabRegistrySync } from './settings/server-sync';
@@ -236,6 +242,7 @@ import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import { openUrlDialog } from './desktop-files/url-dialog';
 import type {
 	DesktopConfig,
+	DesktopWallpaperServerEntry,
 	NativeWindowDef,
 } from './types';
 import type { Window as DesktopWindow } from './window';
@@ -1249,6 +1256,52 @@ export interface WpDesktopPublicApi {
 	/** Snapshot of registered window themes. @since 0.6.0 */
 	listWindowThemes: () => WindowThemeDef[];
 	/**
+	 * Desktop themes — whole-OS reskins installed as a ZIP of a
+	 * manifest plus images, or registered from PHP with
+	 * `desktop_mode_register_desktop_theme()`.
+	 *
+	 * NOT the same thing as {@link listWindowThemes} above: a WINDOW
+	 * theme restyles one window's chrome, a DESKTOP theme restyles
+	 * the entire shell — tokens, textures, and every icon.
+	 *
+	 * See `docs/desktop-themes.md`.
+	 *
+	 * @since 0.9.7
+	 */
+	desktopThemes: {
+		/** Every theme in the site's library. */
+		list: () => DesktopThemeEntry[];
+		/** Active theme slug for this user, or `null` for the default. */
+		getActive: () => string | null;
+		/**
+		 * Activate a theme for the current page. Pass `''` for the
+		 * system default. Presentation only — this does NOT persist
+		 * the choice; use `wp.desktop.updateOsSettings( { desktopTheme } )`
+		 * for that.
+		 */
+		setActive: ( themeId: string ) => void;
+		/** Subscribe to library / active-theme changes. */
+		subscribe: (
+			cb: ( state: Readonly< DesktopThemeState > ) => void,
+		) => () => void;
+		/**
+		 * Resolve the active theme's icon for a slot, or `null` when
+		 * no theme is active or the slot isn't overridden.
+		 */
+		resolveIcon: ( slot: string ) => string | null;
+		/**
+		 * Resolve the active theme's fill colour for a slot, or `null`
+		 * when no theme is active or the slot isn't tinted.
+		 *
+		 * A non-null value means the glyph is painted as a tinted CSS
+		 * mask rather than an image, so only its alpha is used.
+		 * `currentColor` defers to the surface it lands on.
+		 *
+		 * @since 0.9.8
+		 */
+		resolveIconColor: ( slot: string ) => string | null;
+	};
+	/**
 	 * Register (or replace) a window control. Built-in controls
 	 * (close, minimize, maximize, focus, detach) live in this same
 	 * registry under the `core/*` id prefix — plugins can `unregister`
@@ -1901,6 +1954,8 @@ function init(): void {
 			extendedOptions: config.extendedOptions ?? null,
 			extendedOptionsUrl: config.extendedOptionsUrl ?? '',
 			osSettingsPanelBundleUrl: config.osSettingsPanelBundleUrl ?? '',
+			canManageDesktopThemes: !! config.canManageDesktopThemes,
+			desktopThemesUrl: config.desktopThemesUrl ?? '',
 		},
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
@@ -2842,6 +2897,23 @@ function init(): void {
 		Array.isArray( config.serverWallpapers ) ? config.serverWallpapers : [],
 	);
 
+	// Installing or deleting a desktop theme changes which wallpapers
+	// exist. That happens in the lazily-loaded OS Settings bundle,
+	// which cannot reach this sync directly — module state does not
+	// cross bundles — so the panel announces on the hook bus and we
+	// reconcile here. Before this the picker only learned about a
+	// theme's wallpapers on the next page load.
+	addAction(
+		HOOKS.WALLPAPERS_SERVER_CHANGED,
+		'desktop-mode/wallpapers-server-sync',
+		( payload: unknown ) => {
+			const list = ( payload as { wallpapers?: unknown } )?.wallpapers;
+			if ( Array.isArray( list ) ) {
+				void syncServerWallpapers( list as DesktopWallpaperServerEntry[] );
+			}
+		},
+	);
+
 	// Games-registry sync — same lifecycle pattern, one deliberate
 	// deviation: game scripts are NOT loaded on sync. The payload's
 	// metadata registers as a stub (enough for the Games window's
@@ -2851,6 +2923,23 @@ function init(): void {
 	const syncServerGames = createGamesRegistrySync();
 	void syncServerGames(
 		Array.isArray( config.serverGames ) ? config.serverGames : [],
+	);
+
+	// Desktop-theme library sync. Synchronous — themes are a compiled
+	// stylesheet plus an icon map, with no script to fetch, so there
+	// is nothing to await.
+	//
+	// The registry seeded itself from `window.desktopModeConfig` the
+	// first time anything touched it, which is why `osSettings.apply()`
+	// above could already resolve and activate the user's theme before
+	// this line runs. Re-seeding here is deliberate anyway: it makes
+	// the boot list and the live-refresh list travel the exact same
+	// normalization path, so the two can never disagree.
+	const syncServerDesktopThemes = createDesktopThemeSync();
+	syncServerDesktopThemes(
+		Array.isArray( config.serverDesktopThemes )
+			? config.serverDesktopThemes
+			: [],
 	);
 
 	// Command-palette sync — mirrors the widget / wallpaper pattern for
@@ -3229,6 +3318,7 @@ function init(): void {
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		syncServerGames,
+		syncServerDesktopThemes,
 		renderIcons,
 		syncShortcuts: () => {
 			const snapshot = osSettings.getOsSettingsSnapshot();
@@ -3238,6 +3328,45 @@ function init(): void {
 				snapshot.desktopLayout,
 			);
 		},
+	} );
+
+	// Live desktop-theme repaint.
+	//
+	// The compiled stylesheet handles everything CSS can express —
+	// tokens, textures, the window frame — the instant the `<link>`
+	// swaps. What it CANNOT reach is anything already rendered as
+	// DOM from a resolved icon string: dock tiles, desktop icons,
+	// window title icons, and window control glyphs were all painted
+	// from `resolveThemedIcon()` at build time. Those need a repaint.
+	//
+	// `desktop-mode-desktop-theme-changed` only fires on a REAL
+	// change (`applyDesktopTheme` dedupes on the active id), so this
+	// never runs on boot or on an unrelated settings save.
+	document.addEventListener( DESKTOP_THEME_CHANGED_EVENT, () => {
+		// Full layout rebuild rather than `layoutDispatcher.refresh()`.
+		// `refresh()` repaints menu tiles and desktop icons, but its
+		// `reconcileSystemTiles()` only ATTACHES and DETACHES tiles —
+		// an already-attached system tile (OS Settings, Recycle Bin,
+		// Bug Report, …) keeps the DOM it was built with, and so keeps
+		// the previous theme's icon. `setLayout()` tears the rails
+		// down and rebuilds them, which is the only path that
+		// re-runs every tile's icon resolution. Theme switches are a
+		// rare, deliberate user action; the rebuild is affordable.
+		if ( layoutDispatcher ) {
+			layoutDispatcher.setLayout( layoutDispatcher.getLayout() );
+		}
+		for ( const win of manager._stack ) {
+			try {
+				win.repaintWindowControls();
+				win.repaintThemedChrome();
+			} catch ( err ) {
+				doAction( HOOKS.SHELL_ERROR, {
+					scope: 'desktop-theme-repaint',
+					id: win.id,
+					error: err,
+				} );
+			}
+		}
 	} );
 
 	// Live desktop-layout sync: when the user picks a new layout

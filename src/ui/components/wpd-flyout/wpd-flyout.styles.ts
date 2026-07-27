@@ -32,6 +32,11 @@ export const flyoutStyles = css`
 			--wpd-flyout-bg,
 			var( --wpd-surface-elevated, #ffffff )
 		);
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-panel-bg-image, none );
+		background-repeat: var( --wpd-panel-bg-image-repeat, repeat );
+		background-size: var( --wpd-panel-bg-image-size, auto );
+		background-position: var( --wpd-panel-bg-image-position, center );
 		color: var( --wpd-flyout-fg, var( --desktop-mode-fg, #1d2327 ) );
 		border-radius: 14px;
 		box-shadow: var(

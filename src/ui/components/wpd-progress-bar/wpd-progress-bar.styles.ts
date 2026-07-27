@@ -4,7 +4,7 @@ export const styles = css`
 	:host {
 		display: block;
 		--wpd-progress-track-bg: var(
-			--desktop-mode-control-bg,
+			--wpd-surface-sunken,
 			rgba( 0, 0, 0, 0.08 )
 		);
 		--wpd-progress-fill: var(
@@ -67,19 +67,19 @@ export const styles = css`
 	/* Tone modifiers — same custom-property surface. */
 	:host( [ tone='success' ] ) {
 		--wpd-progress-fill: var(
-			--desktop-mode-status-success,
+			--wpd-success-fg,
 			#3a8a3a
 		);
 	}
 	:host( [ tone='warning' ] ) {
 		--wpd-progress-fill: var(
-			--desktop-mode-status-warning,
+			--wpd-warning-fg,
 			#dba617
 		);
 	}
 	:host( [ tone='danger' ] ) {
 		--wpd-progress-fill: var(
-			--desktop-mode-status-danger,
+			--wpd-danger,
 			#d63638
 		);
 	}

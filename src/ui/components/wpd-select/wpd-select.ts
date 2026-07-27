@@ -128,8 +128,8 @@ export class WpdSelect extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Label + value colour.' },
-			{ name: '--desktop-mode-muted', description: 'Placeholder + chevron colour.' },
+			{ name: '--wpd-fg', description: 'Label + value colour.' },
+			{ name: '--wpd-fg-muted', description: 'Placeholder + chevron colour.' },
 		],
 		example: html`
 			<wpd-select value="eur" label="Currency">

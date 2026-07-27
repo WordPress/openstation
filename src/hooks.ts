@@ -299,6 +299,83 @@ export const HOOKS = {
 	WALLPAPER_SURFACES: 'desktop-mode.wallpaper.surfaces',
 
 	// ------------------------------------------------------------------
+	// Desktop themes (whole-OS reskins — see docs/desktop-themes.md).
+	// Distinct from WINDOW_THEME_* below, which are the per-window
+	// chrome themes.
+	// ------------------------------------------------------------------
+	/**
+	 * Action, fired after the active desktop theme actually changed.
+	 * Does NOT fire on a redundant re-apply (boot, settings re-save
+	 * with no theme change) — subscribers can treat every firing as
+	 * "repaint anything that resolves a themed icon".
+	 *
+	 * Signature:
+	 *
+	 *     ( detail: { themeId: string | null; previous: string | null } )
+	 *
+	 * `null` means the system default. A CustomEvent with the same
+	 * detail is dispatched on `document` as
+	 * `desktop-mode-desktop-theme-changed`.
+	 *
+	 * @since 0.9.7
+	 */
+	DESKTOP_THEME_CHANGED: 'desktop-mode.desktop-theme.changed',
+	/**
+	 * Filter, applied to every themed icon the active desktop theme
+	 * resolves — a `dashicons-*` class or an absolute image URL.
+	 *
+	 * Only runs while a theme is ACTIVE. With no theme the resolver
+	 * short-circuits on a null check and never reaches the filter, so
+	 * an unthemed shell pays nothing for having subscribers.
+	 *
+	 * Signature:
+	 *
+	 *     ( icon: string, ctx: { slot: string; themeId: string } ) => string
+	 *
+	 * @since 0.9.7
+	 */
+	DESKTOP_THEME_ICON: 'desktop-mode.desktop-theme.icon',
+
+	/**
+	 * Filters the fill colour an active desktop theme wants a slot's
+	 * glyph painted in.
+	 *
+	 * Returning a colour where the theme set none does more than
+	 * recolour: it switches an image icon from `<img>` rendering to a
+	 * tinted CSS mask, discarding the artwork's own colours and
+	 * keeping only its alpha. `currentColor` defers to the surface.
+	 *
+	 * Same zero-cost guarantee as `DESKTOP_THEME_ICON` — the resolver
+	 * short-circuits before the filter when no theme is active.
+	 *
+	 * Signature:
+	 *
+	 *     ( color: string, ctx: { slot: string; themeId: string } ) => string
+	 *
+	 * @since 0.9.8
+	 */
+	DESKTOP_THEME_ICON_COLOR: 'desktop-mode.desktop-theme.icon-color',
+
+	/**
+	 * Fires when a server-side change hands the shell a fresh
+	 * `serverWallpapers` list — today, installing or deleting a desktop
+	 * theme that contributes wallpapers.
+	 *
+	 * The wallpaper registry sync lives in the always-on shell bundle
+	 * while the OS Settings panel that performs the install is a lazy
+	 * one, so this is the transport between them: the panel announces,
+	 * the shell reconciles. Without it the picker only learned about a
+	 * theme's wallpapers on the next page load.
+	 *
+	 * Signature:
+	 *
+	 *     ( payload: { wallpapers: DesktopWallpaperServerEntry[] } ) => void
+	 *
+	 * @since 0.9.8
+	 */
+	WALLPAPERS_SERVER_CHANGED: 'desktop-mode.wallpapers.server-changed',
+
+	// ------------------------------------------------------------------
 	// Window lifecycle actions. All payloads share a `windowId: string`
 	// field; additional fields are documented per-hook in the JS
 	// reference. These mirror the existing `desktop-mode-window-*`

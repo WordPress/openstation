@@ -102,6 +102,9 @@
             "%d item": [
                 ""
             ],
+            "%d min": [
+                "Navegación del administrador"
+            ],
             "%d new pending — reload": [
                 ""
             ],
@@ -275,6 +278,9 @@
             "Add %s": [
                 "Añadir %s"
             ],
+            "Add a minute": [
+                "Añadir nuevo escritorio"
+            ],
             "Add new desktop": [
                 "Añadir nuevo escritorio"
             ],
@@ -283,6 +289,9 @@
             ],
             "Added": [
                 "Añadido"
+            ],
+            "Adds a Games app for every user: built-in games, scoreboards, and player-to-player challenges. Off by default — while off, nothing game-related runs anywhere, on the server or in the browser. Saved scores are kept across a disable and reappear when re-enabled.": [
+                ""
             ],
             "Adds an AI mode to the %s site assistant. Ask in plain language to find content, get around wp-admin, and answer questions about your site. Off by default.": [
                 ""
@@ -827,6 +836,9 @@
             "Double-click to open.": [
                 ""
             ],
+            "Download": [
+                ""
+            ],
             "Drag a .zip onto the window to install — or drag a Browse card straight to the dock to pin a shortcut. The framework drag bridge handles the rest.": [
                 ""
             ],
@@ -903,6 +915,9 @@
                 ""
             ],
             "Enable drag-and-drop in the Media Library": [
+                ""
+            ],
+            "Enable games": [
                 ""
             ],
             "Enabling…": [
@@ -1009,6 +1024,12 @@
             ],
             "Flake size": [
                 "Tamaño del dock"
+            ],
+            "Focus timer cancelled — the linked window was closed.": [
+                ""
+            ],
+            "Focusing…": [
+                "Subiendo…"
             ],
             "Folder sharing": [
                 ""
@@ -1204,6 +1225,9 @@
             ],
             "Link style": [
                 "Tamaño del dock"
+            ],
+            "Linked to “%s”": [
+                "Añadir %s"
             ],
             "Load more": [
                 "Cargar más"
@@ -1460,6 +1484,9 @@
             "No posts or pages reference this file.": [
                 ""
             ],
+            "No preview available for this file type.": [
+                ""
+            ],
             "No ratings yet.": [
                 ""
             ],
@@ -1480,6 +1507,12 @@
             ],
             "No widgets available. Activate a plugin that registers one, or see the docs for the registerWidget API.": [
                 "No hay widgets disponibles. Activa un plugin que registre alguno, o consulta la documentación de la API registerWidget."
+            ],
+            "No window linked": [
+                "Acciones de ventana"
+            ],
+            "No window — just alarm": [
+                ""
             ],
             "None": [
                 ""
@@ -1634,6 +1667,9 @@
             "Parent": [
                 ""
             ],
+            "Pause": [
+                ""
+            ],
             "Paused — click to resume.": [
                 ""
             ],
@@ -1749,6 +1785,9 @@
                 ""
             ],
             "Press Challenge to throw down one of your scores, or pick a row from the scoreboard.": [
+                ""
+            ],
+            "Press stop to silence.": [
                 ""
             ],
             "Previous": [
@@ -1874,6 +1913,9 @@
             "Requires WordPress": [
                 "Azul WordPress"
             ],
+            "Reset": [
+                ""
+            ],
             "Reset to defaults": [
                 "Restablecer valores predeterminados"
             ],
@@ -1887,6 +1929,9 @@
                 ""
             ],
             "Restored %d.": [
+                ""
+            ],
+            "Resume": [
                 ""
             ],
             "Reviews": [
@@ -2045,6 +2090,12 @@
             "Shadow parts": [
                 ""
             ],
+            "Shake this window when done": [
+                ""
+            ],
+            "Shaking “%s”": [
+                "Añadir %s"
+            ],
             "Share card": [
                 ""
             ],
@@ -2070,6 +2121,9 @@
                 ""
             ],
             "Show profile": [
+                ""
+            ],
+            "Show remaining time while running": [
                 ""
             ],
             "Show the posts, pages, and custom-post-type entries that reference this file.": [
@@ -2141,6 +2195,9 @@
             "Stable": [
                 ""
             ],
+            "Start focus": [
+                ""
+            ],
             "Status": [
                 ""
             ],
@@ -2156,10 +2213,16 @@
             "Sticky term is unavailable.": [
                 ""
             ],
+            "Stop alarm": [
+                ""
+            ],
             "Streak": [
                 ""
             ],
             "Submitted on": [
+                ""
+            ],
+            "Subtract a minute": [
                 ""
             ],
             "Sunday": [
@@ -2384,6 +2447,9 @@
             "Untagged": [
                 ""
             ],
+            "Untitled window": [
+                "Organizar ventanas"
+            ],
             "Update %d": [
                 "Añadir %s"
             ],
@@ -2434,6 +2500,9 @@
             ],
             "Uploaded": [
                 "Subir nueva"
+            ],
+            "Uploaded file": [
+                "Error al subir."
             ],
             "Uploader": [
                 "Subir nueva"
