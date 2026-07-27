@@ -14,7 +14,7 @@
 	height: 100%;
 	width: 100%;
 	background: var( --wpd-surface, #fff );
-	color: var( --wpd-text, #1d2327 );
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-recycle-bin__toolbar {
@@ -53,7 +53,7 @@
 .desktop-mode-recycle-bin__count {
 	font-size: 12px;
 	font-weight: 600;
-	color: var( --wpd-text-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	font-variant-numeric: tabular-nums;
 	padding-inline-end: 4px;
 }
@@ -85,7 +85,7 @@
 	align-items: center;
 	gap: 8px;
 	padding: 32px 16px;
-	color: var( --wpd-text-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	text-align: center;
 }
 
@@ -156,7 +156,7 @@
 	padding: 10px 18px;
 	border-radius: 999px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	font-weight: 600;
 	font-size: 13px;
 	letter-spacing: 0.2px;

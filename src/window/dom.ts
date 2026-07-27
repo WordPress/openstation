@@ -11,6 +11,8 @@
 import type { WindowConfig } from '../types';
 import { urlMatchKey } from '../utils';
 import { renderIcon } from '../icon';
+import { slotForTileId } from '../desktop-themes/slots';
+import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<wpd-spinner>` so the loading
 // overlay rendered below upgrades synchronously when the body is
@@ -339,6 +341,11 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	//                              Iframe-only — skipped for native.
 	const menuBtn = document.createElement( 'wpd-window-button' );
 	menuBtn.setAttribute( 'icon', 'menu' );
+	// Themed override for the ⋯ glyph. Goes through the same helper
+	// the control cluster uses, so `WINDOW_CONTROL_MENU` behaves
+	// identically to the other seven control slots even though the
+	// menu button is built here rather than by `paintWindowControls`.
+	paintThemedControlIcon( menuBtn, 'core/menu' );
 	menuBtn.setAttribute( 'aria-label', __( 'Window actions' ) );
 	menuBtn.setAttribute( 'aria-haspopup', 'menu' );
 	menuBtn.setAttribute( 'aria-expanded', 'false' );
@@ -442,6 +449,10 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	const iconEl = renderIcon( config.icon, {
 		title: config.title,
 		className: 'desktop-mode-window__icon',
+		// A desktop theme can replace a window's title-bar icon by
+		// slot — either the generic `DEFAULT_APP_ICON` or the
+		// per-window `APP:<id>` form.
+		slot: slotForTileId( config.id ),
 	} );
 	slotIcon.appendChild( iconEl );
 

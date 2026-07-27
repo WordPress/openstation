@@ -4,7 +4,7 @@ Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.9.6
+Stable tag: 0.9.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,6 +121,21 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 0.9.7 =
+* Add Focus Timer widget
+* Fix window title bar pushed off-screen during top-edge resize
+* Enforce viewport boundaries during window resize
+* Fix hiding a dock-placed native window's tile via Apps & Icons
+* Fix window dragging allowing windows to disappear off right/bottom edges
+* Folder-upload desktop refresh + inline upload previews
+* Reset the plugin-update notifiers live after updates run
+* Decode html entities in widget titles
+* Fix window drag bounds
+* Focus Timer: react to the linked window closing
+* Make the games framework an opt-in Extended option (off by default)
+* Cut idle server load, boot weight, and package size
+* Live-refresh Plugins window after install/activate/deactivate
 
 = 0.9.6 =
 * Improved button accessibility and visual feedback by implementing the missing busy spinner and aria-busy attributes on the Button component

@@ -156,7 +156,17 @@ function desktop_mode_register_wallpaper( $id, $args = array() ) {
 
 	$entry = array(
 		'id'          => $id,
-		'label'       => (string) $args['label'],
+		// Plain text by contract, same as `description` below. The
+		// shell paints labels through the `html` tagged template, whose
+		// text slots build DOM with `createTextNode()` — never
+		// `innerHTML` — so a label cannot become markup downstream.
+		//
+		// Note this STRIPS rather than ESCAPES, and that distinction is
+		// load-bearing: `esc_html()` here would encode `&` in a
+		// perfectly ordinary label ("Black & White") and the text node
+		// would then render the entity literally as `&amp;`. Escaping
+		// belongs at an HTML boundary; there isn't one on this path.
+		'label'       => sanitize_text_field( (string) $args['label'] ),
 		'preview'     => (string) $args['preview'],
 		'type'        => $type,
 		'value'       => $value,

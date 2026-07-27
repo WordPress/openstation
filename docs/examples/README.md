@@ -22,6 +22,7 @@ defined( 'ABSPATH' ) || exit;
 - [Custom arrange-menu action](./arrange-action.md)
 - [Style a specific admin page inside the iframe](./chromeless-style-override.md)
 - [Window themes — per-window CSS variables](./window-theme.md)
+- [Register a desktop theme — whole-OS reskin from a plugin](./register-desktop-theme.md)
 - [Window controls — reorder / hide / replace close-min-max](./window-controls.md)
 - [Window slots — replace icon, title, banners above/below the title bar](./window-slot.md)
 - [Custom window chrome — full title-bar replacement (Experimental)](./custom-chrome.md)

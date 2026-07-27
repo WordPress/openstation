@@ -3705,6 +3705,227 @@ add_filter( 'desktop_mode_deferred_styles', function ( $handles ) {
 
 ---
 
+## Desktop themes
+
+Whole-OS reskins: an admin uploads a ZIP of `theme.json` plus images,
+or a plugin registers one from code. PHP validates the manifest and
+*compiles* a stylesheet of custom-property declarations from it — no
+author-supplied CSS or JS is ever executed. See
+[Desktop themes](./desktop-themes.md) for the manifest format, the
+full slot tables, and the value grammar.
+
+> Not to be confused with the per-window **window themes**
+> (`desktop_mode_register_window_theme()`), which restyle one window's
+> chrome.
+
+### `desktop_mode_desktop_theme_registered` — Experimental *(action, since 0.9.7)*
+
+Fires after `desktop_mode_register_desktop_theme()` succeeds. Does NOT
+fire when registration returned a `WP_Error`.
+
+- **Param** `string $slug` — storage slug (the manifest `id` with `/` flattened to `-`).
+- **Param** `array $entry` — `{ slug, manifest, cssText }`.
+
+### `desktop_mode_desktop_theme_installed` — Experimental *(action, since 0.9.7)*
+
+Fires after a ZIP has been installed **or updated** (re-uploading a
+theme with the same `id` replaces it in place).
+
+- **Param** `string $slug`
+- **Param** `array $entry` — `{ slug, manifest, installedAt, installedBy }`.
+
+### `desktop_mode_desktop_theme_deleted` — Experimental *(action, since 0.9.7)*
+
+Fires after a theme's directory and index entry have been removed.
+
+- **Param** `string $slug`
+- **Param** `array $entry` — the index entry as it was before removal.
+
+### `desktop_mode_desktop_themes` — Experimental *(filter, since 0.9.7)*
+
+Filters the whole library, keyed by slug, just before it ships to the
+shell in the `serverDesktopThemes` payload. Removing an entry hides it
+from every picker without touching the stored files.
+
+```php
+add_filter( 'desktop_mode_desktop_themes', function ( $themes ) {
+    // Editors only get the house theme.
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return array_intersect_key( $themes, array( 'acme-house' => true ) );
+    }
+    return $themes;
+} );
+```
+
+- **Param** `array[] $themes` — map of slug => payload entry.
+- **Return** `array[]`
+
+> Runs **after** sanitization. Anything you add here bypasses the
+> validator and lands in the payload verbatim — treat it as
+> trusted-code territory.
+
+### `desktop_mode_desktop_theme_manifest` — Experimental *(filter, since 0.9.7)*
+
+Filters one sanitized manifest before it is compiled and stored.
+
+- **Param** `array $manifest` — sanitized: `manifestVersion`, `id`, `slug`, `name`, `version`, `author`, `description`, `preview`, `tokens`, `icons`, `textures`.
+- **Param** `array $raw` — the manifest exactly as the author wrote it.
+- **Param** `string $slug`
+- **Return** `array`
+
+### `desktop_mode_desktop_theme_upload_capability` — Experimental *(filter, since 0.9.7)*
+
+Capability required to upload or delete themes. Default
+`manage_options`. **Picking** a theme is per-user and never gated.
+
+- **Param** `string $capability`
+- **Return** `string`
+
+### `desktop_mode_desktop_theme_icon_slots` — Experimental *(filter, since 0.9.7)*
+
+The icon slots a manifest may address. Entries not on this list — and
+not matching the dynamic `APP:<slug>` pattern — are dropped during
+sanitization.
+
+**This list must stay equal to the `DESKTOP_THEME_SLOTS` constants in
+`src/desktop-themes/slots.ts`.** A slot added on one side only is
+either silently dropped at upload time or silently never consulted at
+render time.
+
+- **Param** `string[] $slots`
+- **Return** `string[]`
+
+### `desktop_mode_desktop_theme_texture_slots` — Experimental *(filter, since 0.9.7)*
+
+Map of texture slot => slot definition. **The compiler reads this table
+and nothing else**, so an entry with both `type` and `prop` is fully
+wired end to end: the sanitizer accepts it and the compiler emits it.
+All that is left is a CSS rule reading the property, which the plugin
+adding the slot ships in its own stylesheet.
+
+```php
+add_filter( 'desktop_mode_desktop_theme_texture_slots', function ( $slots ) {
+    $slots['ACME_SIDEBAR'] = array(
+        'type' => 'image',
+        'prop' => '--acme-sidebar-image',
+    );
+    return $slots;
+} );
+```
+
+Definition keys:
+
+| Key | Meaning |
+|---|---|
+| `type` | `image` or `border-image`. Selects the descriptor grammar and the properties written. |
+| `prop` | Custom-property base name. `image` emits `<prop>`, `<prop>-repeat`, `<prop>-size`; `border-image` emits `<prop>-source`, `-slice`, `-width`, `-repeat`. |
+| `companions` | `false` for a variant slot that inherits another's repeat + size (`TITLEBAR_FOCUSED`). |
+| `sizeGroup` | Custom property shared by slots that must render at one size; first declared wins (the window corners). |
+
+An entry with no `prop` is accepted but emits nothing.
+
+- **Param** `array<string,array> $slots`
+- **Return** `array<string,array>`
+See [Texturing your own surface](./desktop-themes.md#texturing-your-own-surface).
+
+> **Icon tinting** is a manifest field (`iconColor`, and `color` per
+> icon), not a PHP filter. Its JS-side filter is
+> `desktop-mode.desktop-theme.icon-color` — see the
+> [JavaScript reference](./javascript-reference.md#desktop-themes).
+
+### `desktop_mode_desktop_theme_wallpaper_label` — Experimental *(filter, since 0.9.8)*
+
+Picker label for a wallpaper contributed by a desktop theme. Default
+`<name> - (theme)`, or `<name>: <own label> - (theme)` when the
+wallpaper carries its own label.
+
+- **Param** `string $label`
+- **Param** `string $name` — theme display name.
+- **Param** `string $slug` — theme slug.
+- **Param** `string $own_label` — the wallpaper's own label, or `''`.
+- **Return** `string`
+
+### `desktop_mode_desktop_theme_max_wallpapers` — Experimental *(filter, since 0.9.8)*
+
+How many wallpapers one theme may contribute to the picker.
+
+- **Param** `int $max` — default 12.
+- **Return** `int`
+
+### `desktop_mode_desktop_theme_asset_extensions` — Experimental *(filter, since 0.9.8)*
+
+File extensions accepted for one kind of theme asset. Two kinds exist
+and they are deliberately disjoint, so an icon reference can never
+resolve to a font file or the other way round.
+
+- **Param** `string[] $extensions` — `image`: `png jpg jpeg gif webp avif svg`. `font`: `woff2 woff ttf otf`.
+- **Param** `string $kind` — `'image'` or `'font'`.
+- **Return** `string[]`
+
+> An unrecognised `$kind` returns an empty list, so a typo fails closed.
+
+> Adding anything the browser parses as script (`css`, `js`, `html`,
+> `xml`, `svgz`) or anything the server executes defeats the security
+> model of the whole feature.
+
+### `desktop_mode_desktop_theme_font_caps` — Experimental *(filter, since 0.9.8)*
+
+How many `@font-face` rules one theme may declare, and how many source
+files each may list.
+
+- **Param** `array $caps` — `max_faces` (16), `max_sources` (4).
+- **Return** `array`
+
+### `desktop_mode_desktop_theme_zip_caps` — Experimental *(filter, since 0.9.7)*
+
+Caps enforced while walking an uploaded archive.
+
+```php
+add_filter( 'desktop_mode_desktop_theme_zip_caps', function ( $caps ) {
+    $caps['max_uncompressed'] = 64 * 1024 * 1024;
+    return $caps;
+} );
+```
+
+- **Param** `array $caps` — `max_entries` (256), `max_uncompressed` (32 MB), `max_file` (8 MB), `extensions` (`json txt md` plus both lists from `desktop_mode_desktop_theme_asset_extensions`).
+- **Return** `array`
+
+> `txt` / `md` are accepted so an archive can carry the licence notice a
+> bundled font obliges an author to ship. No manifest field can
+> reference them, so they are validated and then discarded with the
+> staging directory — they never reach the live theme directory.
+
+> Widening `extensions` to anything executable, or anything the browser
+> parses as script (`css`, `js`, `html`, `xml`), defeats the security
+> model of the whole feature.
+
+### `desktop_mode_desktop_themes_base_dir` — Experimental *(filter, since 0.9.7)*
+
+Absolute path of the theme storage directory (no trailing slash).
+Default `uploads/desktop-mode-themes`. Whatever this points at **must
+be web-servable** — the compiled stylesheet and every image are loaded
+by the browser.
+
+- **Param** `string $base`
+- **Return** `string`
+
+### `desktop_mode_desktop_themes_base_url` — Experimental *(filter, since 0.9.7)*
+
+Public URL of the same directory. Must resolve to the same bytes as
+`desktop_mode_desktop_themes_base_dir`.
+
+- **Param** `string $url`
+- **Return** `string`
+
+### `desktop_mode_desktop_themes_payload_cap` — Experimental *(filter, since 0.9.7)*
+
+How many themes are announced to the shell. Default 24.
+
+- **Param** `int $cap`
+- **Return** `int`
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

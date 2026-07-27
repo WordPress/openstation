@@ -75,11 +75,18 @@ function desktop_mode_register_assets() {
 
 
 	// Styles.
+	// `filemtime`-stamped, NOT the plugin-wide `$version`. This file
+	// is the token catalogue every other sheet resolves `var()`s
+	// against, and it changes whenever the palette does — which is a
+	// lot more often than the plugin version is bumped. With a static
+	// stamp the browser holds the old palette until a hard reload,
+	// and the symptom is maddening: a themed shell where some
+	// surfaces update and others don't.
 	wp_register_style(
 		'desktop-mode-variables',
 		DESKTOP_MODE_URL . 'assets/css/variables.css',
 		array(),
-		$version
+		$built_version( 'assets/css/variables.css' )
 	);
 	// `filemtime`-stamped so the `<link rel="stylesheet">` URL matches the
 	// `<link rel="preload" as="style">` hint emitted by
@@ -94,36 +101,70 @@ function desktop_mode_register_assets() {
 		array( 'desktop-mode-variables' ),
 		$built_version( 'assets/css/desktop.css' )
 	);
-	// `filemtime`-stamped — window-chrome iteration (drop overlays,
-	// new drag affordances, third-party-plugin compat) lands faster
-	// than plugin version bumps. Without an mtime stamp the browser
-	// keeps `?ver=<plugin-version>` valid for the whole release cycle
-	// and the user keeps seeing yesterday's CSS even after a hard
-	// reload.
-	//
-	// The stamp covers the whole `@import` SUBTREE, not just the parent
-	// file: `windows.css` imports `window-chrome.css`,
-	// `os-settings.css`, … and those sub-sheet URLs carry no `?ver=` of
-	// their own. Stamping only the parent meant an edit to a sub-sheet
-	// never changed any URL the browser knew about, so users kept
-	// yesterday's rules until an unrelated parent edit came along
-	// (exactly how the wallpaper-description card shipped with stale
-	// layout). The subtree max-mtime busts the parent whenever ANY
-	// sub-sheet changes; the re-parsed parent then re-requests the
-	// sub-sheets, whose fresh mtimes fail heuristic-cache reuse.
+	/*
+	 * Window styles — one handle per sheet, chained by dependency.
+	 *
+	 * These used to be `@import url( … )`ed from `windows.css` under
+	 * the single `desktop-mode-windows` handle. That was a standing
+	 * cache bug: an `@import` URL carries no `?ver=`, so a changed
+	 * sub-sheet had no URL for the browser to invalidate. Stamping the
+	 * PARENT with the subtree's max mtime (which is what
+	 * `desktop_mode_css_subtree_version()` was for) made the browser
+	 * re-fetch `windows.css` and then request each sub-sheet at an
+	 * unchanged URL — free to be served from its heuristic cache. The
+	 * result was edits not landing until a hard refresh, and rules
+	 * being relocated into `windows.css` purely to dodge it.
+	 *
+	 * Now every sheet is separately registered with its own
+	 * `filemtime` stamp, so each has a real cache key.
+	 *
+	 * THE DEPENDENCY CHAIN IS LOAD-BEARING. WordPress prints
+	 * dependencies before dependents, so chaining each sheet to the
+	 * previous one reproduces the order the `@import` block had, and
+	 * `desktop-mode-windows` (which depends on the last link) still
+	 * prints after them and still wins ties:
+	 *
+	 *   window-chrome → window-states → effects → window-links
+	 *   → windows
+	 *
+	 * `window-overview` and `os-settings` are deliberately NOT in this
+	 * chain — they are registered below, after `desktop-mode-windows`,
+	 * so they can load deferred. Adding a sheet here means splicing it
+	 * into the chain, not appending an unrelated dependency: order is
+	 * the contract.
+	 */
+	$window_sheets = array(
+		'desktop-mode-window-chrome' => 'assets/css/window-chrome.css',
+		'desktop-mode-window-states' => 'assets/css/window-states.css',
+		'desktop-mode-effects'       => 'assets/css/effects.css',
+		'desktop-mode-window-links'  => 'assets/css/window-links.css',
+	);
+	$previous = array( 'desktop-mode-variables', 'dashicons' );
+	foreach ( $window_sheets as $handle => $relative ) {
+		wp_register_style(
+			$handle,
+			DESKTOP_MODE_URL . $relative,
+			$previous,
+			$built_version( $relative )
+		);
+		$previous = array( $handle );
+	}
+
+	// Entry point. Depends on the tail of the chain above, so
+	// enqueuing this one handle still pulls in every critical window
+	// sheet — the behaviour callers had when they were `@import`s.
 	wp_register_style(
 		'desktop-mode-windows',
 		DESKTOP_MODE_URL . 'assets/css/windows.css',
-		array( 'desktop-mode-variables', 'dashicons' ),
-		desktop_mode_css_subtree_version( 'assets/css/windows.css', $version )
+		$previous,
+		$built_version( 'assets/css/windows.css' )
 	);
-	// Split out of the `windows.css` @import chain so they can load
-	// deferred (see `desktop_mode_defer_non_critical_styles()`): the
-	// UI they style — the OS Settings panel and the window overview —
-	// is lazy-loaded JS that can never be on screen at first paint,
-	// so ~47 KB of CSS has no business blocking render. They depend
-	// on `desktop-mode-windows` to keep the historical cascade order
-	// (they used to be imported after the chrome/states sub-sheets).
+	// These two load DEFERRED (see `desktop_mode_defer_non_critical_styles()`):
+	// the UI they style — the OS Settings panel and the window
+	// overview — is lazy-loaded JS that can never be on screen at
+	// first paint, so ~47 KB of CSS has no business blocking render.
+	// They depend on `desktop-mode-windows` so they print after it,
+	// preserving the cascade position they had as `@import`s.
 	wp_register_style(
 		'desktop-mode-window-overview',
 		DESKTOP_MODE_URL . 'assets/css/window-overview.css',
@@ -146,7 +187,7 @@ function desktop_mode_register_assets() {
 		'desktop-mode-dock-peek',
 		DESKTOP_MODE_URL . 'assets/css/dock-peek.css',
 		array( 'desktop-mode-dock' ),
-		$version
+		$built_version( 'assets/css/dock-peek.css' )
 	);
 	// `filemtime`-stamped — the chromeless overrides iterate faster
 	// than the plugin-wide version bumps (per-page compat shims and
@@ -177,7 +218,7 @@ function desktop_mode_register_assets() {
 		'desktop-mode-bug-report',
 		DESKTOP_MODE_URL . 'assets/css/bug-report.css',
 		array( 'desktop-mode-variables' ),
-		$version
+		$built_version( 'assets/css/bug-report.css' )
 	);
 
 	// `filemtime` instead of the plugin-wide `$version` for the

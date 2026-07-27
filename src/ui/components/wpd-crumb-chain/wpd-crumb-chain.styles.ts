@@ -59,8 +59,8 @@ export const styles = css`
 		gap: 5px;
 		min-height: 22px;
 		padding: 2px 12px;
-		background: var( --wpd-crumb-bg, #c3c4c7 );
-		color: var( --wpd-crumb-fg, #1d2327 );
+		background: var( --wpd-crumb-bg, var( --wpd-surface, #c3c4c7 ) );
+		color: var( --wpd-crumb-fg, var( --wpd-fg, #1d2327 ) );
 		text-align: center;
 		min-width: 0;
 		max-width: 100%;
@@ -179,7 +179,7 @@ export const styles = css`
 	.wpd-crumb__remove:hover,
 	.wpd-crumb__remove:focus-visible {
 		opacity: 1;
-		background: rgba( 0, 0, 0, 0.22 );
+		background: var( --wpd-scrim, rgba( 0, 0, 0, 0.22 ) );
 		outline: none;
 		transform: scale( 1.1 );
 	}

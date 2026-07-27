@@ -223,6 +223,17 @@ function desktop_mode_enqueue_assets() {
 	$server_games                  = isset( $menu_payload['serverGames'] )
 		? $menu_payload['serverGames']
 		: array();
+	// Boot-time copy of the desktop-theme library. Without it the
+	// shell's registry seeds EMPTY, and the consequences are subtle
+	// rather than obvious: PHP has already applied the user's theme
+	// server-side (stylesheet + shell attribute), but the client
+	// can't resolve the slug to an entry, so it believes nothing is
+	// active. Themed ICONS never paint, and switching back to the
+	// system default no-ops the first time — `applyDesktopTheme()`
+	// dedupes on an `activeId` that was never set.
+	$server_desktop_themes         = isset( $menu_payload['serverDesktopThemes'] )
+		? $menu_payload['serverDesktopThemes']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -422,6 +433,7 @@ function desktop_mode_enqueue_assets() {
 			// registry only fills after the first chromeless
 			// full-payload refresh and the Games hub boots empty.
 			'serverGames'               => $server_games,
+			'serverDesktopThemes'       => $server_desktop_themes,
 			'desktopIcons'     => $desktop_icons,
 			'serverFileTypes'        => $server_file_types,
 			'serverFileOpeners'      => $server_file_openers,

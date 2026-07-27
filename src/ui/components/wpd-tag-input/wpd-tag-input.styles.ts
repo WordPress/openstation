@@ -47,9 +47,9 @@ export const styles = css`
 		font-size: 11px;
 		font-weight: 500;
 		line-height: 1;
-		color: var( --wpd-tag-input-add-fg, #50575e );
+		color: var( --wpd-tag-input-add-fg, var( --wpd-fg-muted, #50575e ) );
 		background: transparent;
-		border: 1px dashed var( --wpd-tag-input-add-border, #c3c4c7 );
+		border: 1px dashed var( --wpd-tag-input-add-border, var( --wpd-border, #c3c4c7 ) );
 		border-radius: 999px;
 		cursor: pointer;
 		transition:
@@ -58,9 +58,9 @@ export const styles = css`
 			border-color 0.12s ease;
 	}
 	.wpd-tag-input__add:hover:not( :disabled ) {
-		background: rgba( 0, 0, 0, 0.04 );
-		color: var( --wpd-tag-input-add-fg-hover, #1d2327 );
-		border-color: var( --wpd-tag-input-add-border-hover, #8c8f94 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
+		color: var( --wpd-tag-input-add-fg-hover, var( --wpd-fg, #1d2327 ) );
+		border-color: var( --wpd-tag-input-add-border-hover, var( --wpd-border-strong, #8c8f94 ) );
 	}
 	.wpd-tag-input__add:focus-visible {
 		outline: none;
@@ -90,10 +90,10 @@ export const styles = css`
 		font-size: 12px;
 		line-height: 1.4;
 		padding: 2px 8px;
-		border: 1px solid var( --wpd-tag-input-input-border, #2271b1 );
+		border: 1px solid var( --wpd-tag-input-input-border, var( --wpd-border, #2271b1 ) );
 		border-radius: 999px;
-		background: var( --wpd-tag-input-input-bg, #fff );
-		color: var( --wpd-tag-input-input-fg, #1d2327 );
+		background: var( --wpd-tag-input-input-bg, var( --wpd-surface, #fff ) );
+		color: var( --wpd-tag-input-input-fg, var( --wpd-fg, #1d2327 ) );
 		min-width: 80px;
 		max-width: 240px;
 	}
@@ -119,9 +119,9 @@ export const styles = css`
 		max-height: 240px;
 		overflow-y: auto;
 		padding: 4px 0;
-		background: var( --wpd-tag-input-pop-bg, #fff );
-		color: var( --wpd-tag-input-pop-fg, #1d2327 );
-		border: 1px solid var( --wpd-tag-input-pop-border, #c3c4c7 );
+		background: var( --wpd-tag-input-pop-bg, var( --wpd-surface, #fff ) );
+		color: var( --wpd-tag-input-pop-fg, var( --wpd-fg, #1d2327 ) );
+		border: 1px solid var( --wpd-tag-input-pop-border, var( --wpd-border, #c3c4c7 ) );
 		border-radius: 8px;
 		box-shadow:
 			0 6px 16px rgba( 0, 0, 0, 0.08 ),
@@ -149,8 +149,8 @@ export const styles = css`
 
 	.wpd-tag-input__suggestion-create {
 		font-style: italic;
-		color: var( --wpd-tag-input-create-fg, #50575e );
-		border-top: 1px solid var( --wpd-tag-input-pop-divider, #f0f0f1 );
+		color: var( --wpd-tag-input-create-fg, var( --wpd-fg-muted, #50575e ) );
+		border-top: 1px solid var( --wpd-tag-input-pop-divider, var( --wpd-border, #f0f0f1 ) );
 	}
 	.wpd-tag-input__suggestion-create[ aria-selected='true' ] {
 		color: var( --wp-admin-theme-color, #2271b1 );
@@ -163,7 +163,7 @@ export const styles = css`
 		gap: 8px;
 		padding: 8px 12px;
 		font-size: 12px;
-		color: var( --wpd-tag-input-pop-muted, #646970 );
+		color: var( --wpd-tag-input-pop-muted, var( --wpd-fg-muted, #646970 ) );
 	}
 
 	.wpd-tag-input__suggestion-spinner {

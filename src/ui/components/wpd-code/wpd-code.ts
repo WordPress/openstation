@@ -65,7 +65,7 @@ export class WpdCode extends Component {
 		],
 		cssProps: [
 			{ name: '--wpd-code-bg', default: 'rgba(0,0,0,0.06)' },
-			{ name: '--wpd-code-fg', default: 'var(--desktop-mode-text)' },
+			{ name: '--wpd-code-fg', default: 'var(--wpd-fg)' },
 			{ name: '--wpd-code-border', default: '1px solid rgba(0,0,0,0.08)' },
 			{ name: '--wpd-code-padding', default: '0.1em 0.4em' },
 			{ name: '--wpd-code-block-padding', default: '10px 12px' },

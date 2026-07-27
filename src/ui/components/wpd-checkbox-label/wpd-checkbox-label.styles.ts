@@ -6,7 +6,7 @@ export const styles = css`
 		align-items: center;
 		gap: 6px;
 		font-size: 12px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		cursor: pointer;
 	}
 	label {

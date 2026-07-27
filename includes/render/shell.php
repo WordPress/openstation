@@ -45,8 +45,18 @@ function desktop_mode_render_shell() {
 	// doing this from JS on init() would show the default palette for a
 	// frame before swapping.
 	$scheme = sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' );
+
+	// Same reasoning for the active desktop theme: the compiled
+	// theme stylesheet keys off this attribute, so stamping it
+	// server-side means the first paint is already themed. Setting
+	// it from `applyDesktopTheme()` on boot would flash the default
+	// palette for a frame. Empty string when the user is on the
+	// system default (and nothing else about themes runs at all).
+	$desktop_theme = function_exists( 'desktop_mode_active_desktop_theme_slug' )
+		? desktop_mode_active_desktop_theme_slug()
+		: '';
 	?>
-	<div id="desktop-mode-shell" class="desktop-mode-shell" data-desktop-mode-scheme="<?php echo esc_attr( $scheme ); ?>" role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
+	<div id="desktop-mode-shell" class="desktop-mode-shell" data-desktop-mode-scheme="<?php echo esc_attr( $scheme ); ?>"<?php echo '' !== $desktop_theme ? ' data-desktop-mode-desktop-theme="' . esc_attr( $desktop_theme ) . '"' : ''; ?> role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
 		<?php
 		/*
 		 * Wallpaper layer — sits behind both the dock and the desktop

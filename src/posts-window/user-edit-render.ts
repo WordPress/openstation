@@ -199,7 +199,7 @@ async function loadAndMountProfile(
 	const skeleton = document.createElement( 'div' );
 	skeleton.className = 'desktop-mode-user-edit__skeleton';
 	skeleton.style.cssText =
-		'display:flex;align-items:center;justify-content:center;padding:48px;color:var(--desktop-mode-muted, #50575e);font-size:13px;';
+		'display:flex;align-items:center;justify-content:center;padding:48px;color:var(--wpd-fg-muted, #50575e);font-size:13px;';
 	skeleton.textContent = __( 'Loading profile…' );
 	host.appendChild( skeleton );
 
@@ -416,7 +416,7 @@ function mountProfileForm(
 		optsHeading.setAttribute( 'full-width', '' );
 		optsHeading.textContent = __( 'Personal options' );
 		optsHeading.style.cssText =
-			'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);';
+			'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);';
 		form.appendChild( optsHeading );
 
 		const meta = ( user.meta ?? {} ) as Record< string, unknown >;
@@ -492,7 +492,7 @@ function mountProfileForm(
 	pwdHeading.setAttribute( 'full-width', '' );
 	pwdHeading.textContent = __( 'Account management' );
 	pwdHeading.style.cssText =
-		'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);';
+		'margin:18px 0 4px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);';
 	form.appendChild( pwdHeading );
 
 	const pwdRow = document.createElement( 'div' );
@@ -779,7 +779,7 @@ function buildProfileHeader( user: UserEditRecord ): HTMLElement {
 
 	const sub = document.createElement( 'div' );
 	sub.style.cssText =
-		'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--desktop-mode-muted, #50575e);flex-wrap:wrap;';
+		'display:flex;align-items:center;gap:6px;font-size:12px;color:var(--wpd-fg-muted, #50575e);flex-wrap:wrap;';
 	const handle = document.createElement( 'span' );
 	handle.textContent = `@${ user.username }`;
 	sub.appendChild( handle );
@@ -811,7 +811,7 @@ async function loadInsightsInto(
 	host.replaceChildren();
 	const skeleton = document.createElement( 'div' );
 	skeleton.style.cssText =
-		'display:flex;align-items:center;justify-content:center;padding:32px;color:var(--desktop-mode-muted, #50575e);font-size:13px;';
+		'display:flex;align-items:center;justify-content:center;padding:32px;color:var(--wpd-fg-muted, #50575e);font-size:13px;';
 	skeleton.textContent = __( 'Loading insights…' );
 	host.appendChild( skeleton );
 	try {
@@ -873,7 +873,7 @@ async function renderInsightsActivity(
 	const heading = document.createElement( 'h3' );
 	heading.textContent = __( 'Recent activity' );
 	heading.style.cssText =
-		'margin:24px 0 12px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);';
+		'margin:24px 0 12px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);';
 	wrap.appendChild( heading );
 	wrap.appendChild( buildRecentLists( data ) );
 	wrap.appendChild( buildSecurityPanel( data ) );
@@ -890,7 +890,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 		'text-align:center',
 		'gap:6px',
 		'padding:16px',
-		'border:1px solid var(--desktop-mode-border, #dcdcde)',
+		'border:1px solid var(--wpd-border, #dcdcde)',
 		'border-radius:12px',
 		'background:var(--wp-admin-theme-bg-elevated, #f6f7f7)',
 	].join( ';' );
@@ -928,7 +928,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 		const noRole = document.createElement( 'span' );
 		noRole.textContent = __( 'No role' );
 		noRole.style.cssText =
-			'font-size:11px;color:var(--desktop-mode-muted, #8c8f94);';
+			'font-size:11px;color:var(--wpd-fg-muted, #8c8f94);';
 		roles.appendChild( noRole );
 	}
 	card.appendChild( roles );
@@ -941,7 +941,7 @@ function buildAsideSummary( data: UserInsightsPayload ): HTMLElement {
 			'display:flex;flex-direction:column;gap:4px;width:100%;margin-top:6px;';
 		const top = document.createElement( 'div' );
 		top.style.cssText =
-			'display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--desktop-mode-muted, #50575e);';
+			'display:flex;justify-content:space-between;align-items:baseline;font-size:11px;color:var(--wpd-fg-muted, #50575e);';
 		const lbl = document.createElement( 'span' );
 		lbl.textContent = __( 'Profile completeness' );
 		const pct = document.createElement( 'span' );
@@ -987,7 +987,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 	const tile = ( label: string, value: string, sub?: string ): HTMLElement => {
 		const card = document.createElement( 'div' );
 		card.style.cssText = [
-			'border:1px solid var(--desktop-mode-border, #dcdcde)',
+			'border:1px solid var(--wpd-border, #dcdcde)',
 			'border-radius:8px',
 			'padding:8px 10px',
 			'display:flex',
@@ -997,7 +997,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		].join( ';' );
 		const lbl = document.createElement( 'div' );
 		lbl.style.cssText =
-			'font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);font-weight:600;';
+			'font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);font-weight:600;';
 		lbl.textContent = label;
 		const val = document.createElement( 'div' );
 		val.style.cssText =
@@ -1008,7 +1008,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 		if ( sub ) {
 			const subEl = document.createElement( 'div' );
 			subEl.style.cssText =
-				'font-size:10px;color:var(--desktop-mode-muted, #8c8f94);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+				'font-size:10px;color:var(--wpd-fg-muted, #8c8f94);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
 			subEl.title = sub;
 			subEl.textContent = sub;
 			card.appendChild( subEl );
@@ -1071,7 +1071,7 @@ function buildAsideStatGrid( data: UserInsightsPayload ): HTMLElement {
 function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.style.cssText = [
-		'border:1px solid var(--desktop-mode-border, #dcdcde)',
+		'border:1px solid var(--wpd-border, #dcdcde)',
 		'border-radius:10px',
 		'padding:14px 16px',
 		'margin:0 0 22px',
@@ -1088,7 +1088,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	const total = data.contentByMonth.reduce( ( s, m ) => s + m.count, 0 );
 	const sub = document.createElement( 'div' );
 	sub.style.cssText =
-		'font-size:11px;color:var(--desktop-mode-muted, #50575e);';
+		'font-size:11px;color:var(--wpd-fg-muted, #50575e);';
 	sub.textContent = sprintf(
 		// translators: %d is a count of posts.
 		__( '%d total' ),
@@ -1100,7 +1100,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 	if ( data.contentByMonth.length === 0 ) {
 		const empty = document.createElement( 'p' );
 		empty.style.cssText =
-			'margin:0;color:var(--desktop-mode-muted, #50575e);font-size:12px;';
+			'margin:0;color:var(--wpd-fg-muted, #50575e);font-size:12px;';
 		empty.textContent = __( 'No activity in the last 12 months.' );
 		wrap.appendChild( empty );
 		return wrap;
@@ -1149,7 +1149,7 @@ function buildContentSparkline( data: UserInsightsPayload ): HTMLElement {
 		'gap:4px',
 		'margin-top:4px',
 		'font-size:10px',
-		'color:var(--desktop-mode-muted, #8c8f94)',
+		'color:var(--wpd-fg-muted, #8c8f94)',
 		'text-align:center',
 	].join( ';' );
 	for ( const month of data.contentByMonth ) {
@@ -1222,7 +1222,7 @@ function buildRecentList(
 ): HTMLElement {
 	const card = document.createElement( 'div' );
 	card.style.cssText = [
-		'border:1px solid var(--desktop-mode-border, #dcdcde)',
+		'border:1px solid var(--wpd-border, #dcdcde)',
 		'border-radius:10px',
 		'padding:14px 16px',
 		'min-width:0',
@@ -1236,7 +1236,7 @@ function buildRecentList(
 	if ( items.length === 0 ) {
 		const empty = document.createElement( 'p' );
 		empty.style.cssText =
-			'margin:0;color:var(--desktop-mode-muted, #50575e);font-size:12px;';
+			'margin:0;color:var(--wpd-fg-muted, #50575e);font-size:12px;';
 		empty.textContent = emptyText;
 		card.appendChild( empty );
 		return card;
@@ -1267,7 +1267,7 @@ function buildRecentList(
 		if ( item.badge ) {
 			const badge = document.createElement( 'span' );
 			badge.style.cssText =
-				'font-size:11px;color:var(--desktop-mode-muted, #50575e);flex-shrink:0;';
+				'font-size:11px;color:var(--wpd-fg-muted, #50575e);flex-shrink:0;';
 			badge.textContent = item.badge;
 			top.appendChild( badge );
 		}
@@ -1275,7 +1275,7 @@ function buildRecentList(
 
 		const sub = document.createElement( 'div' );
 		sub.style.cssText =
-			'font-size:11px;color:var(--desktop-mode-muted, #8c8f94);';
+			'font-size:11px;color:var(--wpd-fg-muted, #8c8f94);';
 		sub.textContent = item.secondary;
 		li.appendChild( sub );
 
@@ -1288,7 +1288,7 @@ function buildRecentList(
 function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 	const card = document.createElement( 'div' );
 	card.style.cssText = [
-		'border:1px solid var(--desktop-mode-border, #dcdcde)',
+		'border:1px solid var(--wpd-border, #dcdcde)',
 		'border-radius:10px',
 		'padding:14px 16px',
 	].join( ';' );
@@ -1307,13 +1307,13 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 		'display:flex;flex-direction:column;gap:2px;font-size:12px;';
 	const sessionLabel = document.createElement( 'div' );
 	sessionLabel.style.cssText =
-		'color:var(--desktop-mode-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
+		'color:var(--wpd-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
 	sessionLabel.textContent = __( 'Active sessions' );
 	const sessionValue = document.createElement( 'div' );
 	sessionValue.style.cssText = 'font-size:18px;font-weight:600;';
 	sessionValue.textContent = String( data.sessions.length );
 	const sessionSub = document.createElement( 'div' );
-	sessionSub.style.cssText = 'color:var(--desktop-mode-muted, #8c8f94);';
+	sessionSub.style.cssText = 'color:var(--wpd-fg-muted, #8c8f94);';
 	const currentCount = data.sessions.filter( ( s ) => s.current ).length;
 	sessionSub.textContent =
 		currentCount > 0
@@ -1329,13 +1329,13 @@ function buildSecurityPanel( data: UserInsightsPayload ): HTMLElement {
 		'display:flex;flex-direction:column;gap:2px;font-size:12px;';
 	const appLabel = document.createElement( 'div' );
 	appLabel.style.cssText =
-		'color:var(--desktop-mode-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
+		'color:var(--wpd-fg-muted, #50575e);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;';
 	appLabel.textContent = __( 'Application passwords' );
 	const appValue = document.createElement( 'div' );
 	appValue.style.cssText = 'font-size:18px;font-weight:600;';
 	appValue.textContent = String( data.applicationPasswords.total );
 	const appSub = document.createElement( 'div' );
-	appSub.style.cssText = 'color:var(--desktop-mode-muted, #8c8f94);';
+	appSub.style.cssText = 'color:var(--wpd-fg-muted, #8c8f94);';
 	if (
 		data.applicationPasswords.lastUsedAt &&
 		data.applicationPasswords.lastUsedName
@@ -1632,7 +1632,7 @@ function buildAdminColorPicker(
 
 	const label = document.createElement( 'span' );
 	label.style.cssText =
-		'font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--desktop-mode-muted, #50575e);font-weight:600;';
+		'font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--wpd-fg-muted, #50575e);font-weight:600;';
 	label.textContent = __( 'Admin colour scheme' );
 	wrap.appendChild( label );
 
@@ -1666,7 +1666,7 @@ function buildAdminColorPicker(
 			tile.style.borderColor =
 				v === slug
 					? 'var(--wp-admin-theme-color, #2271b1)'
-					: 'var(--desktop-mode-border, #dcdcde)';
+					: 'var(--wpd-border, #dcdcde)';
 			tile.style.boxShadow =
 				v === slug
 					? '0 0 0 1px var(--wp-admin-theme-color, #2271b1) inset'
@@ -1683,7 +1683,7 @@ function buildAdminColorPicker(
 		tile.dataset.scheme = slug;
 		tile.style.cssText = [
 			'appearance:none',
-			'border:1px solid var(--desktop-mode-border, #dcdcde)',
+			'border:1px solid var(--wpd-border, #dcdcde)',
 			'background:var(--wp-admin-theme-bg, #fff)',
 			'color:inherit',
 			'border-radius:8px',
@@ -1856,7 +1856,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 	const wrap = document.createElement( 'div' );
 	wrap.setAttribute( 'full-width', '' );
 	wrap.style.cssText =
-		'display:flex;flex-direction:column;gap:8px;border:1px solid var(--desktop-mode-border, #dcdcde);border-radius:8px;padding:12px 14px;';
+		'display:flex;flex-direction:column;gap:8px;border:1px solid var(--wpd-border, #dcdcde);border-radius:8px;padding:12px 14px;';
 
 	const heading = document.createElement( 'div' );
 	heading.style.cssText =
@@ -1901,7 +1901,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 		if ( items.length === 0 ) {
 			const empty = document.createElement( 'li' );
 			empty.style.cssText =
-				'font-size:12px;color:var(--desktop-mode-muted, #50575e);';
+				'font-size:12px;color:var(--wpd-fg-muted, #50575e);';
 			empty.textContent = __( 'No application passwords issued yet.' );
 			list.appendChild( empty );
 			return;
@@ -1916,7 +1916,7 @@ function buildAppPasswordsRow( userId: number ): HTMLElement {
 			row.appendChild( nameSpan );
 			const meta = document.createElement( 'span' );
 			meta.style.cssText =
-				'color:var(--desktop-mode-muted, #8c8f94);';
+				'color:var(--wpd-fg-muted, #8c8f94);';
 			meta.textContent = item.last_used
 				? sprintf(
 					// translators: %s is a relative time.

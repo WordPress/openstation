@@ -6,7 +6,7 @@ export const styles = css`
 		align-items: center;
 		gap: 8px;
 		font-size: 12px;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 	}
 	label {
 		display: inline-flex;
@@ -17,7 +17,7 @@ export const styles = css`
 		width: 28px;
 		height: 28px;
 		padding: 0;
-		border: 1px solid var( --desktop-mode-border, #c3c4c7 );
+		border: 1px solid var( --wpd-border, #c3c4c7 );
 		border-radius: 6px;
 		background: transparent;
 		cursor: pointer;

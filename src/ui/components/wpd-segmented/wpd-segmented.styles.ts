@@ -12,7 +12,7 @@ export const segmentedStyles = css`
 	:host {
 		display: inline-flex;
 		padding: 3px;
-		background: var( --wpd-segmented-bg, rgba( 0, 0, 0, 0.05 ) );
+		background: var( --wpd-segmented-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) ) );
 		border-radius: 7px;
 		gap: 2px;
 	}
@@ -32,7 +32,7 @@ export const segmentStyles = css`
 		border: 0;
 		font: inherit;
 		font-size: 13px;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 		cursor: pointer;
 		border-radius: 5px;
 		transition: background-color 0.12s ease, color 0.12s ease;
@@ -43,7 +43,7 @@ export const segmentStyles = css`
 	}
 	:host( [ aria-checked='true' ] ) button {
 		background: var( --desktop-mode-window-bg, #fff );
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.12 );
 		font-weight: 500;
 	}

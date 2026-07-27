@@ -29,6 +29,8 @@
  */
 
 import { hashTitleToHue } from './ui/util/hash-hue';
+import { resolveThemedIcon, resolveThemedIconColor } from './desktop-themes/icons';
+import { applyIconMask } from './desktop-themes/paint-tinted-icon';
 
 export interface RenderIconOptions {
 	/**
@@ -43,6 +45,18 @@ export interface RenderIconOptions {
 	 * the framework's internal class names.
 	 */
 	className?: string;
+	/**
+	 * Desktop-theme icon slot this icon occupies (see
+	 * `src/desktop-themes/slots.ts`). When an active desktop theme
+	 * overrides the slot, its icon is painted INSTEAD of `icon` —
+	 * the substitution happens before the shape dispatcher below, so
+	 * a theme can turn a dashicon into a PNG or vice versa.
+	 *
+	 * Omit it and nothing about this function changes.
+	 *
+	 * @since 0.9.7
+	 */
+	slot?: string;
 }
 
 /**
@@ -58,12 +72,50 @@ export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement
 	const className = opts.className ?? '';
 	const title = opts.title ?? '';
 
-	// 1. Dashicon class.
+	// 0. Desktop-theme substitution. Runs before the shape dispatcher
+	//    so a themed replacement goes through exactly the same
+	//    rendering paths as a native icon — a theme that swaps a
+	//    dashicon for an SVG URL gets the `<img>` branch for free.
+	//    `resolveThemedIcon` is a single null check when no theme is
+	//    active, so this costs effectively nothing by default.
+	let tint: string | null = null;
+	if ( opts.slot ) {
+		const themed = resolveThemedIcon( opts.slot );
+		if ( themed !== null ) {
+			icon = themed;
+		}
+		// A tint applies to whatever ends up being painted — including
+		// the shell's OWN icon when the theme overrode only the colour.
+		// "Recolour every icon, replace none" is a legitimate theme.
+		tint = resolveThemedIconColor( opts.slot );
+	}
+
+	// 1. Dashicon class. A tint is simply `color` — it is a font glyph.
 	if ( typeof icon === 'string' && icon.startsWith( 'dashicons-' ) ) {
 		const el = document.createElement( 'span' );
 		el.className = `dashicons ${ icon } ${ className }`.trim();
 		el.setAttribute( 'aria-hidden', 'true' );
+		if ( tint !== null ) {
+			el.style.color = tint;
+		}
 		return el;
+	}
+
+	// 1b. Tinted image — painted as a mask rather than an `<img>`, so
+	//     the fill comes from the theme and only the artwork's alpha
+	//     is used. Placed ahead of every image branch below because it
+	//     replaces all of them: data-URI SVG, data-URI raster, and
+	//     http(s) URLs are all maskable.
+	if ( tint !== null && typeof icon === 'string' ) {
+		const el = document.createElement( 'span' );
+		el.className = className;
+		el.setAttribute( 'aria-hidden', 'true' );
+		el.style.display = 'inline-block';
+		if ( applyIconMask( el, icon, tint ) ) {
+			return el;
+		}
+		// Not maskable (letter-badge fallback, `none`, a malformed
+		// value) — fall through and paint it the ordinary way.
 	}
 
 	// 2. Inline SVG data URI — paint as background-image. We re-validate

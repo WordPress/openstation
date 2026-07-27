@@ -27,8 +27,8 @@ export const styles = css`
 		font-size: var( --wpd-chip-font-size, 12px );
 		line-height: var( --wpd-chip-line-height, 1.6 );
 		font-weight: var( --wpd-chip-font-weight, 500 );
-		background: var( --wpd-chip-bg, #f0f0f1 );
-		color: var( --wpd-chip-fg, #1d2327 );
+		background: var( --wpd-chip-bg, var( --wpd-surface, #f0f0f1 ) );
+		color: var( --wpd-chip-fg, var( --wpd-fg, #1d2327 ) );
 		border: var( --wpd-chip-border, 1px solid transparent );
 		max-width: 100%;
 		box-sizing: border-box;
@@ -50,15 +50,15 @@ export const styles = css`
 	}
 	:host( [ tone='positive' ] ) .wpd-chip {
 		background: var( --wpd-chip-bg, rgba( 30, 132, 73, 0.14 ) );
-		color: var( --wpd-chip-fg, #1d6f42 );
+		color: var( --wpd-chip-fg, var( --wpd-success-fg, #1d6f42 ) );
 	}
 	:host( [ tone='warning' ] ) .wpd-chip {
 		background: var( --wpd-chip-bg, rgba( 217, 119, 6, 0.18 ) );
-		color: var( --wpd-chip-fg, #8a4a06 );
+		color: var( --wpd-chip-fg, var( --wpd-warning-fg, #8a4a06 ) );
 	}
 	:host( [ tone='danger' ] ) .wpd-chip {
 		background: var( --wpd-chip-bg, rgba( 214, 54, 56, 0.14 ) );
-		color: var( --wpd-chip-fg, #a02622 );
+		color: var( --wpd-chip-fg, var( --wpd-danger-hover, #a02622 ) );
 	}
 
 	/* Pending shimmer — used by wpd-tag-input while a REST mutation
@@ -111,7 +111,7 @@ export const styles = css`
 	.wpd-chip__dismiss:hover,
 	.wpd-chip__dismiss:focus-visible {
 		opacity: 1;
-		background: rgba( 0, 0, 0, 0.12 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.12 ) );
 		outline: none;
 	}
 	.wpd-chip__dismiss:focus-visible {

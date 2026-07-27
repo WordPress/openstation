@@ -56,6 +56,7 @@ import {
 	type OsSettingsSaveLifecycleDetail,
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
+import { applyDesktopTheme } from '../desktop-themes/apply';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -185,6 +186,7 @@ export class OsSettings implements SettingsCtx {
 			dockSize: this.state.dockSize,
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
+			desktopTheme: this.state.desktopTheme,
 			unfocusEffect: this.state.unfocusEffect,
 			windowLinkRenderer: this.state.windowLinkRenderer,
 			windowLinkVisibility: this.state.windowLinkVisibility,
@@ -337,6 +339,13 @@ export class OsSettings implements SettingsCtx {
 		// server / localStorage, `apply()` runs, registry mirrors
 		// the persisted choice.
 		setActiveDockRailRenderer( this.state.dockRailRenderer );
+
+		// Desktop theme. One line covers every path that can change
+		// it — boot, picking a theme in the Themes tab, resetting
+		// settings, and the rollback after a failed save all funnel
+		// through `apply()`. `applyDesktopTheme` dedupes on the active
+		// id, so the repeated calls this makes cost two comparisons.
+		applyDesktopTheme( this.state.desktopTheme );
 	}
 
 	public save( opts: { windowId?: string } = {} ): void {

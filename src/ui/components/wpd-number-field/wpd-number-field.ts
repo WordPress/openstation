@@ -98,9 +98,9 @@ export class WpdNumberField extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Text colour.' },
-			{ name: '--desktop-mode-muted', description: 'Label + suffix colour.' },
-			{ name: '--desktop-mode-border', description: 'Input outline.' },
+			{ name: '--wpd-fg', description: 'Text colour.' },
+			{ name: '--wpd-fg-muted', description: 'Label + suffix colour.' },
+			{ name: '--wpd-border', description: 'Input outline.' },
 			{ name: '--desktop-mode-window-bg', description: 'Input background.' },
 		],
 		example: html`

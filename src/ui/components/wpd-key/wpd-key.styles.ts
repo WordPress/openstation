@@ -30,8 +30,8 @@ export const styles = css`
 		font-weight: 500;
 		cursor: pointer;
 		border-radius: var( --wpd-key-border-radius, 8px );
-		background: var( --wpd-key-bg, rgba( 0, 0, 0, 0.06 ) );
-		color: var( --wpd-key-fg, var( --desktop-mode-text, #1d2327 ) );
+		background: var( --wpd-key-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
+		color: var( --wpd-key-fg, var( --wpd-fg, #1d2327 ) );
 		border: var( --wpd-key-border, 1px solid transparent );
 		transition:
 			transform 0.08s ease,
@@ -39,25 +39,25 @@ export const styles = css`
 			box-shadow 0.12s ease;
 	}
 	button:hover:not( :disabled ) {
-		background: var( --wpd-key-bg-hover, rgba( 0, 0, 0, 0.1 ) );
+		background: var( --wpd-key-bg-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.1 ) ) );
 	}
 	:host( [ variant='primary' ] ) button {
 		background: var( --wpd-key-bg, var( --wp-admin-theme-color, #2271b1 ) );
-		color: var( --wpd-key-fg, #fff );
+		color: var( --wpd-key-fg, var( --wpd-fg-on-accent, #fff ) );
 	}
 	:host( [ variant='primary' ] ) button:hover:not( :disabled ) {
 		filter: brightness( 1.06 );
 	}
 	:host( [ variant='secondary' ] ) button {
-		background: var( --wpd-key-bg, rgba( 0, 0, 0, 0.04 ) );
+		background: var( --wpd-key-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
 	}
 	:host( [ variant='ghost' ] ) button {
 		background: transparent;
-		border: var( --wpd-key-border, 1px solid var( --desktop-mode-border, #c3c4c7 ) );
+		border: var( --wpd-key-border, 1px solid var( --wpd-border, #c3c4c7 ) );
 	}
 	:host( [ variant='danger' ] ) button {
 		background: transparent;
-		color: #d63638;
+		color: var( --wpd-danger, #d63638 );
 		border: 1px solid currentColor;
 	}
 	/* Pressed — both click-flash and keyboard-hold resolve here. The
@@ -67,7 +67,7 @@ export const styles = css`
 	button:active:not( :disabled ) {
 		transform: scale( 0.96 );
 		box-shadow: inset 0 1px 2px rgba( 0, 0, 0, 0.22 );
-		background: var( --wpd-key-bg-pressed, rgba( 0, 0, 0, 0.14 ) );
+		background: var( --wpd-key-bg-pressed, var( --wpd-hover, rgba( 0, 0, 0, 0.14 ) ) );
 	}
 	button:disabled {
 		opacity: 0.5;

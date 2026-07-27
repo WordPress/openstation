@@ -98,6 +98,17 @@ export interface OsSettingsState {
 	 */
 	dockRailRenderer: string;
 	/**
+	 * Active desktop-theme slug, or `''` for the system default.
+	 *
+	 * Resolves through the desktop-theme registry; an unknown slug
+	 * (deleted theme, deactivated plugin) degrades silently to the
+	 * system default rather than erroring — matching what the PHP
+	 * enqueue path does on the same input.
+	 *
+	 * @since 0.9.7
+	 */
+	desktopTheme: string;
+	/**
 	 * Active unfocused-window effect id. Resolves through the
 	 * unfocus-effect registry; `'none'` means no effect, an unknown id
 	 * is treated as `'none'` by the engine until/if a matching effect
@@ -393,6 +404,22 @@ export interface OsSettingsConfig {
 	 * @since 0.8.4
 	 */
 	osSettingsPanelBundleUrl?: string;
+	/**
+	 * Whether this user may upload / delete desktop themes. Gates the
+	 * management controls in the Themes tab; PICKING a theme is
+	 * per-user and available to everyone, so the tab itself is not
+	 * gated.
+	 *
+	 * @since 0.9.7
+	 */
+	canManageDesktopThemes?: boolean;
+	/**
+	 * REST base for the desktop-theme upload / delete routes
+	 * (`desktop-mode/v1/desktop-themes`).
+	 *
+	 * @since 0.9.7
+	 */
+	desktopThemesUrl?: string;
 }
 
 /**
