@@ -475,6 +475,16 @@ const TARGETS = {
 		fileBase: 'release-card',
 		iifeName: 'desktopModeReleaseCardBundle',
 	},
+	// Canvas stage — wraps the shell in a `<canvas layoutsubtree>` and
+	// post-processes the whole desktop with PixiJS shaders (OS Settings
+	// → Experimental). Lazy because it drags in the Pixi glue and the
+	// built-in screen effects; a desktop that never switches it on
+	// never fetches it. Publishes `window.desktopModeStage`.
+	stage: {
+		entry:    'src/stage/entry.ts',
+		fileBase: 'stage',
+		iifeName: 'desktopModeStageBundle',
+	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed
 	// at first paint. Preloaded by main after first paint via

@@ -85,6 +85,7 @@ function desktop_mode_enqueue_assets() {
 
 	// CSS.
 	wp_enqueue_style( 'desktop-mode' );
+	wp_enqueue_style( 'desktop-mode-stage' );
 	wp_enqueue_style( 'desktop-mode-windows' );
 	wp_enqueue_style( 'desktop-mode-window-overview' );
 	wp_enqueue_style( 'desktop-mode-os-settings' );
@@ -503,6 +504,12 @@ function desktop_mode_enqueue_assets() {
 			// update announcement. Injected by `maybeShowUpdate()` only
 			// when a core update is actually pending.
 			'releaseCardBundleUrl' => $lazy_bundle_url( 'release-card' ),
+			// URL of the canvas-stage lazy bundle — the HTML-in-Canvas
+			// renderer and its screen effects. Injected only when the
+			// user has `canvasStageEnabled` on, so a desktop that never
+			// touches OS Settings → Experimental never fetches it (nor
+			// the PixiJS vendor bundles it depends on).
+			'stageBundleUrl'   => $lazy_bundle_url( 'stage' ),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),

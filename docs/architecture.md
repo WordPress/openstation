@@ -88,11 +88,75 @@ Key server-side entry points:
 4. The shell's Vite-built TypeScript bundle (`desktop.js` in dev, `desktop.min.js` in prod) initializes:
    - Creates the `WindowManager`.
    - Creates the **layout dispatcher** which owns the dock(s) for the active `desktopLayout` (see [Desktop layout modes](#desktop-layout-modes)).
+   - Starts the **canvas stage** if the user has it on (see [Canvas stage](#canvas-stage-html-in-canvas)). This must complete before any window opens, so session restore chains off its promise.
    - Restores the saved session (if one exists). Then `shouldAutoOpenCurrentPage()` (see `src/boot/auto-open.ts`) decides whether to ALSO open `currentPage`. The decision: open when `fromPortal=false` (direct nav) **or** `fromPortalIntent=true` (portal redirected here from a user-clicked link). Suppress on bare portal entries that landed via the default-window / session-focused fallback so a restored stack isn't disturbed.
    - Wires persistence — debounced `POST /wp-json/desktop-mode/v1/session`.
 5. When a dock icon is clicked, the manager opens a window whose iframe `src` is the admin URL with `?desktop_mode_chromeless=1` appended.
 6. The iframe renders WordPress normally, but the chromeless stylesheet hides the admin bar, side menu, and wp-footer.
 7. The iframe `postMessage`s its title, navigation, and screen-meta state up to the parent.
+
+## Canvas stage (HTML-in-Canvas)
+
+*Experimental, since 0.9.8. Off by default.*
+
+A second rendering path for the whole shell. When the user turns on
+**OS Settings → Experimental → Render the desktop in a canvas** and the
+browser supports the WICG [HTML-in-Canvas](https://github.com/WICG/html-in-canvas)
+API (Chrome 148+, `chrome://flags/#canvas-draw-element`),
+`#desktop-mode-shell` is **moved inside** a
+`<canvas id="desktop-mode-stage" layoutsubtree>` and mirrored into a
+PixiJS texture, so fragment shaders can post-process every pixel of the
+desktop at once.
+
+```
+<body>
+  #wpadminbar                                     ← outside; unaffected
+  <canvas id="desktop-mode-stage" layoutsubtree>  ← the visible pixels
+      #desktop-mode-shell                         ← the real, live DOM
+  </canvas>
+```
+
+`layoutsubtree` makes the canvas's direct children lay out, hit-test and
+appear in the accessibility tree exactly as before — they just paint
+invisibly, and Pixi paints them instead through `gl.texElementImage2D`.
+The canvas is therefore a display surface, never an input surface:
+clicks, focus, scrolling and iframe content all reach the real shell.
+
+Three constraints shape the implementation:
+
+- **The wrap must be done in JS, not PHP.** Content inside a `<canvas>`
+  is fallback content — a browser without `layoutsubtree` renders none
+  of it. Emitting the wrapper server-side would blank the desktop for
+  every non-Chrome user, so the shell feature-detects first
+  (`src/stage/feature-detect.ts`) and only then wraps.
+- **Moving the shell re-parents every `<iframe>` inside it**, which
+  reloads them. The wrap therefore happens at boot before any window
+  exists, and `stageController.ready` gates session restore. At runtime
+  the master toggle wraps live only when no iframe window is open;
+  otherwise the user is offered a reload.
+- **Effects are always live.** The chain and every parameter apply
+  through `subscribeOsSettings` with no reload.
+
+| Piece | Location |
+|---|---|
+| Feature detection, chain resolution (pure, unit-tested) | `src/stage/{feature-detect,chain}.ts` |
+| Effect registry (shared store — three bundles touch it) | `src/stage/registry.ts` |
+| Renderer: canvas wrap, Pixi app, `HTMLSource`, filter chain | `src/stage/stage.ts` |
+| Built-in shaders (`pixel-art` 10, `scanlines` 20, `crt` 30) | `src/stage/effects/` |
+| Lazy-bundle entry (`assets/js/stage[.min].js`) | `src/stage/entry.ts` |
+| Loader + boot controller (main bundle) | `src/stage/loader.ts` |
+| PHP script registration + payload | `includes/screen-effects.php` |
+| Canvas positioning | `assets/css/stage.css` |
+
+PixiJS ships as two vendor bundles: `assets/vendor/pixi.min.js` and
+`assets/vendor/pixi-html-source.min.js` (Pixi 8.19's opt-in
+`pixi.js/html-source` subpath, which `Object.assign`s `HTMLSource` onto
+the same `window.PIXI` global and must therefore load *after* the core
+bundle — the two `loadModules()` calls are deliberately sequential).
+
+User settings: `canvasStageEnabled` (boolean) and `screenEffects`
+(ordered `{ id, params? }` list, capped at 8). Full contract:
+[`screen-effects.md`](./screen-effects.md).
 
 ## Desktop layout modes
 

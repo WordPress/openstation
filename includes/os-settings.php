@@ -140,6 +140,8 @@ function desktop_mode_default_os_settings() {
 		// intentional missing-import-warner demo. Off by default.
 		// Per-user.
 		'developerModeEnabled'        => false,
+		'canvasStageEnabled'          => false,
+		'screenEffects'               => array(),
 		// Per-user opt-OUT for the folder-sharing feature. Defaults
 		// ON. When false:
 		// - The Share button, share-settings modal, "Leave shared
@@ -507,6 +509,63 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['developerModeEnabled']
 		: $defaults['developerModeEnabled'];
 
+	$canvas_stage_enabled = isset( $raw['canvasStageEnabled'] )
+		? (bool) $raw['canvasStageEnabled']
+		: $defaults['canvasStageEnabled'];
+
+	/*
+	 * screenEffects — ordered list of `{ id, params }` for the canvas
+	 * stage's shader chain. Mirrors `sanitizeScreenEffectSelection()`
+	 * in `src/stage/chain.ts`; keep the two in step.
+	 *
+	 * Unknown ids are KEPT on purpose: an effect registered by a plugin
+	 * that happens to be deactivated right now must survive the
+	 * round-trip, exactly as `itemVisibility` above does. The client
+	 * resolves ids against the live registry at render time and skips
+	 * what it cannot find.
+	 */
+	$screen_effects = array();
+	if ( isset( $raw['screenEffects'] ) && is_array( $raw['screenEffects'] ) ) {
+		$seen_effects = array();
+		foreach ( $raw['screenEffects'] as $entry ) {
+			if ( count( $screen_effects ) >= 8 ) {
+				break;
+			}
+			if ( ! is_array( $entry ) || ! isset( $entry['id'] ) || ! is_string( $entry['id'] ) ) {
+				continue;
+			}
+			$id = strtolower( trim( $entry['id'] ) );
+			if ( ! preg_match( '#^[a-z0-9_/-]+$#', $id ) || isset( $seen_effects[ $id ] ) ) {
+				continue;
+			}
+			$seen_effects[ $id ] = true;
+
+			$effect = array( 'id' => $id );
+			if ( isset( $entry['params'] ) && is_array( $entry['params'] ) ) {
+				$params      = array();
+				$param_count = 0;
+				foreach ( $entry['params'] as $param_key => $param_value ) {
+					if ( $param_count >= 24 ) {
+						break;
+					}
+					if ( ! is_string( $param_key ) || ! preg_match( '/^[a-zA-Z0-9_]+$/', $param_key ) ) {
+						continue;
+					}
+					if ( ! is_numeric( $param_value ) ) {
+						continue;
+					}
+					$params[ $param_key ] = (float) $param_value;
+					++$param_count;
+				}
+				if ( ! empty( $params ) ) {
+					$effect['params'] = $params;
+				}
+			}
+
+			$screen_effects[] = $effect;
+		}
+	}
+
 	$folders_sharing_enabled = isset( $raw['foldersSharingEnabled'] )
 		? (bool) $raw['foldersSharingEnabled']
 		: $defaults['foldersSharingEnabled'];
@@ -633,6 +692,8 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
 		'developerModeEnabled'        => $developer_mode_enabled,
+		'canvasStageEnabled'          => $canvas_stage_enabled,
+		'screenEffects'               => $screen_effects,
 		'foldersSharingEnabled'       => $folders_sharing_enabled,
 		'itemVisibility'              => $item_visibility,
 		'dockOrder'                   => $dock_order,

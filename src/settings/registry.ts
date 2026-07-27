@@ -16,6 +16,7 @@
  */
 
 import { createSharedStore } from '../shared-store';
+import type { ScreenEffectSelection } from '../stage/types';
 
 /**
  * Snapshot of the persisted OS Settings state that third-party tabs
@@ -161,6 +162,21 @@ export interface OsSettingsSnapshot {
 	 * @since 0.9.4
 	 */
 	developerModeEnabled: boolean;
+	/**
+	 * Whether the desktop renders through the HTML-in-Canvas stage.
+	 * Defaults to `false`, and stays `false` on browsers without the
+	 * experimental API. Per-user.
+	 *
+	 * @since 0.9.8
+	 */
+	canvasStageEnabled: boolean;
+	/**
+	 * The active screen-effect chain, in render order. Empty unless
+	 * {@link canvasStageEnabled} is on. Per-user.
+	 *
+	 * @since 0.9.8
+	 */
+	screenEffects: ScreenEffectSelection[];
 	/**
 	 * Per-item placement preferences. Map of item id → one of
 	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean

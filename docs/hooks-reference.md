@@ -535,6 +535,40 @@ The built-in effects (`darken`, `frost`, `grayscale`) are registered through the
 
 ---
 
+### `desktop_mode_screen_effect_script_registered` — Experimental (since 0.9.8)
+
+Fires after `desktop_mode_register_screen_effect_script()` stores a screen-effect script handle.
+
+```php
+do_action( 'desktop_mode_screen_effect_script_registered', string $handle );
+```
+
+### `desktop_mode_register_screen_effect_script( $handle )` — Experimental (PHP function, since 0.9.8)
+
+Declares a WP-registered script handle as a **screen-effect** provider — a fragment shader the [canvas stage](./screen-effects.md) runs over the entire desktop. The shell injects the resolved URL on plugin activation so `wp.desktop.stage.registerScreenEffect()` calls made by the plugin's JS surface in **OS Settings → Experimental** **without a page reload**.
+
+```php
+add_action( 'admin_enqueue_scripts', function () {
+    wp_register_script(
+        'my-plugin-screen-effects',
+        plugins_url( 'js/screen-effects.js', __FILE__ ),
+        array( 'desktop-mode' ),
+        '1.0.0',
+        true
+    );
+    wp_enqueue_script( 'my-plugin-screen-effects' );
+} );
+desktop_mode_register_screen_effect_script( 'my-plugin-screen-effects' );
+```
+
+For live unregistration on deactivation, set `owner: 'my-plugin-screen-effects'` on each `registerScreenEffect` call. Untagged effects survive past deactivation until the next page reload — graceful backwards-compat.
+
+Not to be confused with `desktop_mode_register_unfocus_effect_script()` above: unfocus effects are per-window CSS treatments and need no canvas; screen effects are GPU shaders over the whole desktop and only run while the user has the canvas stage switched on. The built-in screen effects (`scanlines`, `crt`, `pixel-art`) are registered through the same JS hook, from the lazy `stage` bundle.
+
+Full contract: [`screen-effects.md`](./screen-effects.md). Worked example: [`examples/register-screen-effect.md`](./examples/register-screen-effect.md).
+
+---
+
 ### `desktop_mode_window_content_identity` — Experimental (since 0.9.4)
 
 Filters the content identity the chromeless bridge announces for the current admin screen — the "which object does this page show" record behind [window links](./examples/window-links.md) (visual ties between related windows). Runs inside the iframe's `admin_footer`, in real admin context, so relations the URL can't answer (comment → parent post) resolve here.

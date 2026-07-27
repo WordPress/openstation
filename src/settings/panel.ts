@@ -67,6 +67,7 @@ import { buildDockSizeSection } from './sections/dock-size';
 import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
 import { buildEffectsSection } from './sections/effects';
+import { buildExperimentalSection } from './sections/experimental';
 import { buildExtendedSection } from './sections/extended';
 import { buildFeaturesSection } from './sections/features';
 import { buildHelpSection } from './sections/help';
@@ -233,6 +234,20 @@ export function renderOsSettingsPanel(
 			>`,
 			panel: html`<wpd-tabpanel for="effects">
 				<wpd-panel>${ buildEffectsSection( ctx ) }</wpd-panel>
+			</wpd-tabpanel>`,
+		},
+		{
+			id: 'experimental',
+			// Last of the built-ins (before the admin-only Components
+			// tab at 40 and the pinned About): these are opt-in features
+			// riding on browser APIs that are still proposals, so they
+			// sit past everything a user is expected to touch.
+			order: 30,
+			tab: html`<wpd-tab value="experimental"
+				>${ __( 'Experimental' ) }</wpd-tab
+			>`,
+			panel: html`<wpd-tabpanel for="experimental">
+				<wpd-panel>${ buildExperimentalSection( ctx ) }</wpd-panel>
 			</wpd-tabpanel>`,
 		},
 	];

@@ -1180,6 +1180,31 @@ export interface DesktopTitleBarButtonScriptServerEntry {
  * @public
  * @since 0.9.1
  */
+/**
+ * One `desktop_mode_register_screen_effect_script()` entry in the shell
+ * config / live-refresh payload. The shell injects `scriptUrl`; the
+ * script calls `wp.desktop.stage.registerScreenEffect( … )`, and the
+ * registry subscriber repaints OS Settings → Experimental and, when the
+ * stage is running, rebuilds its filter chain — no F5.
+ *
+ * @public
+ * @since 0.9.8
+ */
+export interface DesktopScreenEffectScriptServerEntry {
+	/** WordPress script handle — doubles as the effect `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+	/** @since 0.9.8 */
+	scriptBefore?: string[];
+	/** @since 0.9.8 */
+	scriptAfter?: string[];
+	/** @since 0.9.8 */
+	scriptL10n?: string[];
+	/** @since 0.9.8 */
+	scriptTranslations?: string;
+}
+
 export interface DesktopUnfocusEffectScriptServerEntry {
 	/** WordPress script handle — doubles as the effect `owner` key for live unregistration. */
 	handle: string;
@@ -1784,6 +1809,17 @@ export interface DesktopConfig {
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
+	 * `desktop_mode_register_screen_effect_script()`. Shell injects
+	 * each URL on boot and on mid-session activation so newly-installed
+	 * plugins surface their screen effect in OS Settings →
+	 * Experimental live. Owner-tagged registrations live-unregister on
+	 * deactivation.
+	 *
+	 * @since 0.9.8
+	 */
+	serverScreenEffectScripts?: DesktopScreenEffectScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
 	 * `desktop_mode_register_window_link_renderer_script()`. Shell
 	 * injects each URL on boot and on mid-session activation so
 	 * newly-installed plugins surface their window-link renderer in OS
@@ -2273,6 +2309,16 @@ export interface DesktopConfig {
 	 * @since 0.8.4
 	 */
 	shellOverlaysBundleUrl?: string;
+	/**
+	 * Fully-qualified URL of the lazy canvas-stage bundle. Holds the
+	 * `CanvasStage` renderer and the built-in screen effects, and is
+	 * injected only when the user has `canvasStageEnabled` on — along
+	 * with the two PixiJS vendor bundles it needs. A desktop that never
+	 * opens OS Settings → Experimental fetches none of it.
+	 *
+	 * @since 0.9.8
+	 */
+	stageBundleUrl?: string;
 	/**
 	 * Fully-qualified URL of the lazy window-system bundle (Stage
 	 * 11). The `Window` class + its DOM / pointer / tab / chrome

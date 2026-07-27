@@ -73,6 +73,11 @@ import {
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
+import { type ScreenEffectDef } from './stage/types';
+import {
+	type StageSupportDetail,
+	type StageUploadProbe,
+} from './stage/feature-detect';
 import { startWindowLinksEngine } from './window-links/engine';
 import { startWindowLinkRenderHost } from './window-links/render-host';
 import { bootRelatedEntities } from './related-entities';
@@ -82,6 +87,7 @@ import type {
 	WindowRelationsApi,
 } from './window-links/types';
 import { createUnfocusEffectRegistrySync } from './effects/server-sync';
+import { createScreenEffectRegistrySync } from './stage/server-sync';
 import { createWindowLinkRendererRegistrySync } from './window-links/server-sync';
 import { startUnfocusEngine } from './effects/unfocus-engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
@@ -204,11 +210,13 @@ import { createWidgetRegistrySync } from './widgets/server-sync';
 import { WPD_COMPONENT_TAGS } from './ui/components/tags';
 import { startMissingImportWarner } from './ui/components/missing-import-warner';
 import {
+	loadModules,
 	registerModule,
 	type ModuleDef,
 } from './modules/registry';
 import { wpdConfirm } from './wpd-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
+import { startStageController } from './stage/loader';
 import { preloadWindowSystem } from './window-system/loader';
 import type { WallpaperDef } from './wallpapers/types';
 // Built-in plugins used to be side-effect-imported from `./plugins`.
@@ -1196,6 +1204,49 @@ export interface WpDesktopPublicApi {
 	/** Snapshot of registered unfocus effects (filter applied). @since 0.9.1 */
 	listUnfocusEffects: () => UnfocusEffectDef[];
 	/**
+	 * Canvas stage — the whole desktop rendered through a
+	 * `<canvas layoutsubtree>` with PixiJS shaders over it (OS Settings
+	 * → Experimental). Screen effects registered here appear in that
+	 * tab as a checkbox plus a slider per declared parameter.
+	 *
+	 * The registry is live whether or not the stage is running, so a
+	 * plugin can register at boot and let the user switch it on later.
+	 *
+	 * @since 0.9.8
+	 */
+	stage: {
+		/** Whether this browser supports the HTML-in-Canvas API. */
+		isSupported: () => boolean;
+		/**
+		 * Per-capability breakdown of the HTML-in-Canvas API, for
+		 * diagnosing a disabled toggle. `requestPaint` and
+		 * `texElementImage2D` are the two the stage requires.
+		 */
+		supportDetail: () => StageSupportDetail;
+		/**
+		 * Actually attempt one element upload and report the result.
+		 * Stronger than {@link supportDetail}: an experimental API can
+		 * exist with a signature PixiJS does not match, and that only
+		 * shows up when you call it.
+		 */
+		probeUpload: () => StageUploadProbe;
+		/** Whether the desktop is rendering through the canvas right now. */
+		isActive: () => boolean;
+		/**
+		 * Register (or replace) a screen effect. Set `owner` to your
+		 * script handle for live unregistration on deactivation.
+		 *
+		 * Throws a `RegistrationError` on validation failure.
+		 */
+		registerScreenEffect: ( def: ScreenEffectDef ) => void;
+		/** Remove a previously registered screen effect. */
+		unregisterScreenEffect: ( id: string ) => void;
+		/** Snapshot of registered screen effects (filter applied). */
+		listScreenEffects: () => ScreenEffectDef[];
+		/** Subscribe to registry changes. Returns an unsubscribe. */
+		subscribeScreenEffects: ( cb: () => void ) => () => void;
+	};
+	/**
 	 * Window content relations — which piece of content each window
 	 * shows and how windows group around a shared root (a comment
 	 * window belongs to its post's window). Read with `get` /
@@ -1940,6 +1991,20 @@ function init(): void {
 		url: `${ pluginUrl }/assets/vendor/pixi.min.js`,
 		isReady: () => typeof ( window as { PIXI?: unknown } ).PIXI !== 'undefined',
 	} );
+	// PixiJS 8.19's opt-in HTML-in-Canvas add-on, used by the canvas
+	// stage. It `Object.assign`s `HTMLSource` and its WebGL/WebGPU
+	// texture uploaders onto the SAME `window.PIXI` global, and reads
+	// `PIXI.TextureSource` at evaluation time — so it must load AFTER
+	// `pixijs`, never alongside it. `loadModules()` fans its ids out
+	// through `Promise.all`, so callers request the two in sequence
+	// (see `ensureStageBundle` in `src/stage/loader.ts`).
+	registerModule( {
+		id: 'pixi-html-source',
+		url: `${ pluginUrl }/assets/vendor/pixi-html-source.min.js`,
+		isReady: () =>
+			typeof ( window as { PIXI?: { HTMLSource?: unknown } } ).PIXI
+				?.HTMLSource !== 'undefined',
+	} );
 
 	// OS Settings — shell-level preferences. Takes the wallpaper layer
 	// so it can delegate apply() through the registry-driven path.
@@ -2215,6 +2280,25 @@ function init(): void {
 		'.desktop-mode-shell__body',
 	);
 	let layoutDispatcher: LayoutDispatcher | null = null;
+
+	// Canvas stage (OS Settings → Experimental). When the user has it
+	// on and the browser supports HTML-in-Canvas, this moves the shell
+	// inside a `<canvas layoutsubtree>` and renders it through PixiJS
+	// shaders. Started here — the earliest point where `shellEl` and
+	// `osSettings` both exist and no window has opened yet. The wrap
+	// re-parents the shell's whole subtree, which reloads any iframe
+	// inside it, so `stageController.ready` is what session restore
+	// waits on below to keep that moment free.
+	const stageController = shellEl
+		? startStageController( {
+			shell: shellEl,
+			bundleUrl: config.stageBundleUrl ?? '',
+			osSettings,
+			loadModules,
+			hasIframeWindows: () =>
+				manager.getAll().some( ( win ) => win.iframe !== null ),
+		} )
+		: { ready: Promise.resolve(), dispose: () => {} };
 
 	// Native-window sync is built BEFORE the dispatcher so the
 	// dispatcher's `renderIcons` closure can hand `nativeWindows.openById`
@@ -2724,13 +2808,21 @@ function init(): void {
 	// only handshakes with one instance per id). The comment on
 	// case 2 already says "the page they asked for opens on top of
 	// the restored stack" — sequencing this is what makes that true.
+	//
+	// Both branches chain off `stageController.ready` so no window —
+	// and therefore no iframe — exists until the canvas stage has
+	// finished wrapping the shell. When the stage is off or the browser
+	// lacks the API that promise is already resolved, so this costs a
+	// single microtask.
 	const sessionRestore = hasSession
-		? restoreSession( manager, config, desktopArea ).catch( ( err ) => {
-			if ( typeof console !== 'undefined' ) {
-				console.error( '[desktop-mode] session restore failed:', err );
-			}
-		} )
-		: Promise.resolve();
+		? stageController.ready
+			.then( () => restoreSession( manager, config, desktopArea ) )
+			.catch( ( err ) => {
+				if ( typeof console !== 'undefined' ) {
+					console.error( '[desktop-mode] session restore failed:', err );
+				}
+			} )
+		: stageController.ready;
 	const defaultEnabled = config.defaultWindow?.enabled !== false;
 	const defaultUrlEarly = config.defaultWindow?.url ?? '';
 	const isNativeDefault =
@@ -2987,6 +3079,17 @@ function init(): void {
 	void syncServerUnfocusEffects(
 		Array.isArray( config.serverUnfocusEffectScripts )
 			? config.serverUnfocusEffectScripts
+			: [],
+	);
+
+	// Screen-effect sync — same pattern, for the canvas stage's shader
+	// chain. Runs regardless of whether the stage is switched on: the
+	// plugin's effect has to be in the registry for its checkbox to
+	// appear in OS Settings → Experimental at all.
+	const syncServerScreenEffects = createScreenEffectRegistrySync();
+	void syncServerScreenEffects(
+		Array.isArray( config.serverScreenEffectScripts )
+			? config.serverScreenEffectScripts
 			: [],
 	);
 
@@ -3315,6 +3418,7 @@ function init(): void {
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerScreenEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		syncServerGames,

@@ -202,6 +202,11 @@ export class OsSettings implements SettingsCtx {
 			nativePluginsEnabled: this.state.nativePluginsEnabled,
 			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
 			developerModeEnabled: this.state.developerModeEnabled,
+			canvasStageEnabled: this.state.canvasStageEnabled,
+			screenEffects: this.state.screenEffects.map( ( entry ) => ( {
+				id: entry.id,
+				...( entry.params ? { params: { ...entry.params } } : {} ),
+			} ) ),
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			itemVisibility: { ...this.state.itemVisibility },
 			dockOrder: this.state.dockOrder.slice(),

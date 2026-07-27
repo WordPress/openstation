@@ -27,6 +27,7 @@ defined( 'ABSPATH' ) || exit;
 - [Window slots — replace icon, title, banners above/below the title bar](./window-slot.md)
 - [Custom window chrome — full title-bar replacement (Experimental)](./custom-chrome.md)
 - [Register a custom unfocused-window effect (Experimental)](./custom-unfocus-effect.md)
+- [Register a screen effect for the canvas stage (Experimental)](./register-screen-effect.md)
 - [Window links — relate windows and restyle the ties (Experimental)](./window-links.md)
 - [Related entities — extend the title bar's "Related" menu (Experimental)](./related-entities.md)
 - [Inject data into `desktopModeConfig`](./inject-shell-config.md)

@@ -2246,6 +2246,68 @@ Remove an effect by id, or read the current list (post-filter). `listUnfocusEffe
 
 ---
 
+### `wp.desktop.stage` — Experimental  *(since 0.9.8)*
+
+The **canvas stage**: the whole desktop rendered inside a
+`<canvas layoutsubtree>` via the experimental HTML-in-Canvas browser API,
+with PixiJS fragment shaders — **screen effects** — over it. Users switch
+it on at OS Settings → Experimental; it is off by default and needs
+Chrome 148+ with `chrome://flags/#canvas-draw-element`.
+
+Distinct from the unfocus effects above: those are per-window CSS
+treatments that need no canvas. Screen effects are GPU shaders over the
+entire desktop.
+
+| Method | Notes |
+|---|---|
+| `isSupported()` | Whether this browser has the HTML-in-Canvas API. Gates on `gl.texElementImage2D()` only — the one primitive PixiJS's uploader throws on. There is no fallback. |
+| `supportDetail()` | Per-capability breakdown: `{ requestPaint, texElementImage2D, texElementImage2DOn, drawElementImage, layoutSubtree }`. For diagnosing a disabled toggle. |
+| `isActive()` | Whether the desktop is rendering through the canvas right now. |
+| `registerScreenEffect( def )` | Register (or replace) an effect. Throws a `RegistrationError` on validation failure. |
+| `unregisterScreenEffect( id )` | Remove by id. |
+| `listScreenEffects()` | Snapshot, with the `desktop-mode.screen-effects` filter applied. |
+| `subscribeScreenEffects( cb )` | Fires on every register / unregister. Returns an unsubscribe. |
+
+```js
+wp.desktop.stage.registerScreenEffect( {
+    id: 'my-plugin/sepia',
+    label: 'Sepia',
+    order: 25,                 // chain position; lower runs first (default 100)
+    owner: 'my-plugin-fx',     // script handle → live unregister on deactivation
+    params: [
+        { key: 'amount', label: 'Amount', min: 0, max: 1, step: 0.01, default: 0.7 },
+    ],
+    createFilter( ctx ) { /* → a Pixi Filter; ctx = { pixi, params, screen, resolution } */ },
+    update( filter, ctx ) { /* optional: push changed params in place */ },
+    tick( filter, elapsed, ctx ) { /* optional: per-frame, for animated effects */ },
+} );
+```
+
+`ctx.params` always carries every key the def declared, clamped to range
+with defaults filled in — never re-validate it. The registry is live
+whether or not the stage is running, so registering at boot is safe.
+
+The built-ins are `pixel-art` (order 10), `scanlines` (20) and `crt`
+(30); they are registered through this same public API from the lazy
+`stage` bundle. Users can stack up to 8 effects.
+
+The raw `desktop-mode.screen-effects` JS filter receives the registry
+array on every read — use it to reorder, remove or conditionally swap
+effects. The user's chain persists in the `screenEffects` OS-settings key
+and the master toggle in `canvasStageEnabled`.
+
+Full contract: [`screen-effects.md`](./screen-effects.md). Worked
+example: [`examples/register-screen-effect.md`](./examples/register-screen-effect.md).
+
+**Actions**
+
+| Hook | Payload | When |
+|---|---|---|
+| `desktop-mode.stage.started` | `{ canvas }` | The shell is wrapped and the first frame is drawn. |
+| `desktop-mode.stage.stopped` | `{}` | The shell is back to plain DOM rendering. |
+
+---
+
 ### `wp.desktop.relations` — Experimental  *(since 0.9.4)*
 
 Window content relations: which piece of content each window shows, and how windows group around a shared **root** (a post edit window is the root; its comment / media windows are children). The shell draws visual ties between group members — see [`registerWindowLinkRenderer`](#registerwindowlinkrenderer-def--experimental-since-094) for the pluggable rendering and [`docs/examples/window-links.md`](./examples/window-links.md) for recipes.
@@ -2686,7 +2748,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Changed in 0.9.4:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. `canvasStageEnabled` (default `false`) and `screenEffects` (default `[]`, an ordered `{ id, params? }` list capped at 8) drive the [canvas stage](./screen-effects.md), set from OS Settings → Experimental. **Changed in 0.9.4:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript

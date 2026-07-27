@@ -17,6 +17,7 @@
  *     the gradient angle slider) into a single network request.
  */
 
+import { sanitizeScreenEffectSelection } from '../stage/chain';
 import type { DesktopConfig } from '../types';
 import {
 	DEFAULTS,
@@ -223,6 +224,14 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.developerModeEnabled === 'boolean'
 				? parsed.developerModeEnabled
 				: DEFAULTS.developerModeEnabled,
+		canvasStageEnabled:
+			typeof parsed.canvasStageEnabled === 'boolean'
+				? parsed.canvasStageEnabled
+				: DEFAULTS.canvasStageEnabled,
+		// Shape-only validation: ids of effects whose plugin has not
+		// loaded yet must survive the round-trip, so unknown ids are
+		// kept and resolved against the registry at render time.
+		screenEffects: sanitizeScreenEffectSelection( parsed.screenEffects ),
 		foldersSharingEnabled:
 			typeof parsed.foldersSharingEnabled === 'boolean'
 				? parsed.foldersSharingEnabled

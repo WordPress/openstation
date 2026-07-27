@@ -27,6 +27,7 @@ import type {
 	DesktopTitleBarButtonScriptServerEntry,
 	DesktopGameServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
+	DesktopScreenEffectScriptServerEntry,
 	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
@@ -50,6 +51,7 @@ export interface MenuRefreshPayload {
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
 	serverUnfocusEffectScripts?: unknown;
+	serverScreenEffectScripts?: unknown;
 	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
 	serverGames?: unknown;
@@ -91,6 +93,9 @@ export interface MenuRefreshDeps {
 	) => Promise< void >;
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
+	) => Promise< void >;
+	syncServerScreenEffects: (
+		scripts: DesktopScreenEffectScriptServerEntry[],
 	) => Promise< void >;
 	syncServerWindowLinkRenderers: (
 		scripts: DesktopWindowLinkRendererScriptServerEntry[],
@@ -211,6 +216,7 @@ export function createApplyPayload(
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerScreenEffects,
 		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
 		syncServerGames,
@@ -231,6 +237,7 @@ export function createApplyPayload(
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
 		const serverUnfocusEffectScripts = payload.serverUnfocusEffectScripts;
+		const serverScreenEffectScripts = payload.serverScreenEffectScripts;
 		const serverWindowLinkRendererScripts =
 			payload.serverWindowLinkRendererScripts;
 		const serverWindowNotices = payload.serverWindowNotices;
@@ -387,6 +394,19 @@ export function createApplyPayload(
 			);
 			config.serverUnfocusEffectScripts =
 				serverUnfocusEffectScripts as DesktopConfig[ 'serverUnfocusEffectScripts' ];
+		}
+
+		// Screen-effect sync — same shape, for the canvas stage's
+		// shader chain. A newly-activated plugin's
+		// `registerScreenEffect()` surfaces in OS Settings →
+		// Experimental and, when the stage is running, joins the filter
+		// chain; owner-tagged sweep on deactivation.
+		if ( Array.isArray( serverScreenEffectScripts ) ) {
+			void syncServerScreenEffects(
+				serverScreenEffectScripts as DesktopScreenEffectScriptServerEntry[],
+			);
+			config.serverScreenEffectScripts =
+				serverScreenEffectScripts as DesktopConfig[ 'serverScreenEffectScripts' ];
 		}
 
 		// Window-link renderer sync — same shape. Loads plugin renderer

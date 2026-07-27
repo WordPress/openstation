@@ -27,7 +27,7 @@
 		}
 	},
 	"scripts": {
-		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:item-visibility-menu && npm run build:release-card && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:widget-focus-timer && npm run build:widget-drafts && npm run build:pwa-sw",
+		"build": "npm run vendor:pixi && npm run build:desktop && npm run build:iframe-bridge && npm run build:gutenberg-drop-receiver && npm run build:recycle-bin && npm run build:posts-window && npm run build:plugins-window && npm run build:comments-window && npm run build:my-wordpress && npm run build:content-graph && npm run build:ai-assistant && npm run build:animated-logo-wallpaper && npm run build:living-tree-wallpaper && npm run build:snow-wallpaper && npm run build:about-scene && npm run build:os-settings-panel && npm run build:shell-overlays && npm run build:window-system && npm run build:item-visibility-menu && npm run build:release-card && npm run build:stage && npm run build:games && npm run build:game-inkfall && npm run build:game-alphabet-soup && npm run build:widget-heartbeat && npm run build:widget-recent-comments && npm run build:widget-post-stats && npm run build:widget-site-views && npm run build:widget-jazz-quote && npm run build:widget-starter && npm run build:widget-notes && npm run build:widget-focus-timer && npm run build:widget-drafts && npm run build:pwa-sw",
 		"build:desktop": "vite build --mode development && vite build --mode production",
 		"build:iframe-bridge": "DESKTOP_MODE_TARGET=iframe-bridge vite build --mode development && DESKTOP_MODE_TARGET=iframe-bridge vite build --mode production",
 		"build:gutenberg-drop-receiver": "DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode development && DESKTOP_MODE_TARGET=gutenberg-drop-receiver vite build --mode production",
@@ -47,6 +47,7 @@
 		"build:window-system": "DESKTOP_MODE_TARGET=window-system vite build --mode development && DESKTOP_MODE_TARGET=window-system vite build --mode production",
 		"build:item-visibility-menu": "DESKTOP_MODE_TARGET=item-visibility-menu vite build --mode development && DESKTOP_MODE_TARGET=item-visibility-menu vite build --mode production",
 		"build:release-card": "DESKTOP_MODE_TARGET=release-card vite build --mode development && DESKTOP_MODE_TARGET=release-card vite build --mode production",
+		"build:stage": "DESKTOP_MODE_TARGET=stage vite build --mode development && DESKTOP_MODE_TARGET=stage vite build --mode production",
 		"build:widget-heartbeat": "DESKTOP_MODE_TARGET=widget-heartbeat vite build --mode development && DESKTOP_MODE_TARGET=widget-heartbeat vite build --mode production",
 		"build:widget-recent-comments": "DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode development && DESKTOP_MODE_TARGET=widget-recent-comments vite build --mode production",
 		"build:widget-drafts": "DESKTOP_MODE_TARGET=widget-drafts vite build --mode development && DESKTOP_MODE_TARGET=widget-drafts vite build --mode production",
@@ -61,7 +62,7 @@
 		"build:game-alphabet-soup": "DESKTOP_MODE_TARGET=game-alphabet-soup vite build --mode development && DESKTOP_MODE_TARGET=game-alphabet-soup vite build --mode production",
 		"build:pwa-sw": "DESKTOP_MODE_TARGET=pwa-sw vite build --mode development && DESKTOP_MODE_TARGET=pwa-sw vite build --mode production",
 		"dev": "vite build --mode development --watch",
-		"vendor:pixi": "node -e \"require('fs').cpSync('node_modules/pixi.js/dist/pixi.min.js', 'assets/vendor/pixi.min.js')\"",
+		"vendor:pixi": "node -e \"const fs=require('fs');fs.cpSync('node_modules/pixi.js/dist/pixi.min.js', 'assets/vendor/pixi.min.js');fs.cpSync('node_modules/pixi.js/dist/packages/html-source.min.js', 'assets/vendor/pixi-html-source.min.js')\"",
 		"lint": "eslint 'src/**/*.ts'",
 		"lint:fix": "eslint 'src/**/*.ts' --fix",
 		"typecheck": "tsc --noEmit",
@@ -99,6 +100,6 @@
 		"vitest": "^4.1.4"
 	},
 	"dependencies": {
-		"pixi.js": "^8.18.1"
+		"pixi.js": "^8.19.0"
 	}
 }

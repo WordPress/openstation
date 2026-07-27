@@ -176,6 +176,28 @@ export const HOOKS = {
 	GAMES: 'desktop-mode.games',
 	/** Filter, receives the unfocused-window effect registry array. */
 	UNFOCUS_EFFECTS: 'desktop-mode.unfocus-effects',
+	/**
+	 * Filter, receives the screen-effect registry array
+	 * (`ScreenEffectDef[]`) on every read — the shaders the canvas
+	 * stage post-processes the whole desktop with.
+	 *
+	 * @since 0.9.8
+	 */
+	SCREEN_EFFECTS: 'desktop-mode.screen-effects',
+	/**
+	 * Action after the canvas stage has wrapped the shell and drawn its
+	 * first frame. Receives `{ canvas }`.
+	 *
+	 * @since 0.9.8
+	 */
+	STAGE_STARTED: 'desktop-mode.stage.started',
+	/**
+	 * Action after the canvas stage has unwrapped the shell and the
+	 * desktop is back to plain DOM rendering.
+	 *
+	 * @since 0.9.8
+	 */
+	STAGE_STOPPED: 'desktop-mode.stage.stopped',
 	/** Action before a canvas wallpaper mounts. */
 	WALLPAPER_MOUNTING: 'desktop-mode.wallpaper.mounting',
 	/** Action after a canvas wallpaper mounts successfully. */

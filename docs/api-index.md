@@ -103,6 +103,12 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental *(0.9.1)* |
 | `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental *(0.9.1)* |
 | `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental *(0.9.1)* |
+| `stage.isSupported` | `() => boolean` | Experimental *(0.9.8)* |
+| `stage.isActive` | `() => boolean` | Experimental *(0.9.8)* |
+| `stage.registerScreenEffect` | `( def: ScreenEffectDef ) => void` | Experimental *(0.9.8)* |
+| `stage.unregisterScreenEffect` | `( id: string ) => void` | Experimental *(0.9.8)* |
+| `stage.listScreenEffects` | `() => ScreenEffectDef[]` | Experimental *(0.9.8)* |
+| `stage.subscribeScreenEffects` | `( cb: () => void ) => () => void` | Experimental *(0.9.8)* |
 | `registerWindowLinkRenderer` | `( def: WindowLinkRendererDef ) => void` | Experimental *(0.9.4)* |
 | `unregisterWindowLinkRenderer` | `( id: string ) => void` | Experimental *(0.9.4)* |
 | `listWindowLinkRenderers` | `() => WindowLinkRendererDef[]` | Experimental *(0.9.4)* |

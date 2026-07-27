@@ -211,6 +211,8 @@ export const DEFAULTS: OsSettingsState = {
 	showDesktopOnWallpaperClick: false,
 	showPostStatusRibbons: true,
 	developerModeEnabled: false,
+	canvasStageEnabled: false,
+	screenEffects: [],
 	foldersSharingEnabled: true,
 	itemVisibility: {},
 	dockOrder: [],

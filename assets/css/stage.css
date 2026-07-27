@@ -1,0 +1,45 @@
+/**
+ * Desktop Mode — canvas stage.
+ *
+ * Styles the `<canvas id="desktop-mode-stage" layoutsubtree>` that
+ * `src/stage/stage.ts` wraps `#desktop-mode-shell` in when the user
+ * turns on OS Settings → Experimental → "Render the desktop in a
+ * canvas".
+ *
+ * **Most of the stage's geometry is NOT here.** The canvas's fixed
+ * placement, its insets, and the shell's `position: absolute; inset: 0`
+ * are set inline by `_wrap()` in `stage.ts`. That is deliberate: the
+ * renderer sizes its backing store from `canvas.clientWidth`, so a
+ * stylesheet that failed to reach the page — not enqueued, blocked,
+ * stale in cache — would leave the canvas at its intrinsic size and
+ * render the entire desktop into a corner at the wrong scale. Layout
+ * the element cannot function without belongs with the code that
+ * creates it.
+ *
+ * What remains here is the one rule that is genuinely stateful and
+ * belongs in the cascade: the fullscreen-window override. It needs
+ * `!important` to beat the inline value.
+ */
+
+/*
+ * Mirrors `body.desktop-mode-has-fullscreen-window .desktop-mode-shell`
+ * in desktop.css. A fullscreen window hides the admin bar, so the
+ * canvas has to reclaim those 32px or the desktop would sit below a
+ * band of the classic admin page.
+ *
+ * `!important` because `_wrap()` sets `inset-block-start` inline.
+ */
+body.desktop-mode-has-fullscreen-window .desktop-mode-stage {
+	inset-block-start: 0 !important;
+}
+
+/*
+ * Marker class for the shell while it lives inside the canvas.
+ *
+ * Carries no geometry of its own — `_wrap()` sets `position: absolute`
+ * and `inset: 0` inline for the reason above. It exists so plugin CSS
+ * and DevTools can tell a staged shell from a normal one.
+ */
+.desktop-mode-shell--staged {
+	z-index: auto;
+}

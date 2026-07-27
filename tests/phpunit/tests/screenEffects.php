@@ -1,0 +1,122 @@
+<?php
+/**
+ * Tests for `desktop_mode_register_screen_effect_script()` — the
+ * minimum-ceremony PHP opt-in that puts a plugin's JS handle into the
+ * live-refresh payload so newly-installed plugins surface their screen
+ * effect in OS Settings → Experimental immediately.
+ *
+ * Mirrors `tests/phpunit/tests/unfocusEffects.php` — same pattern,
+ * different registry.
+ *
+ * @package WordPress
+ * @subpackage UnitTests
+ *
+ * @group desktop-mode
+ * @group desktop-mode-screen-effects
+ */
+class Tests_DesktopMode_ScreenEffects extends WP_UnitTestCase {
+
+	public function set_up() {
+		parent::set_up();
+		desktop_mode_flush_script_handle_registries();
+	}
+
+	/**
+	 * @covers ::desktop_mode_register_screen_effect_script
+	 */
+	public function test_stores_handle() {
+		$handle = 'sfx-a-' . substr( md5( uniqid() ), 0, 8 );
+		$ok     = desktop_mode_register_screen_effect_script( $handle );
+		$this->assertTrue( $ok );
+		$this->assertTrue( desktop_mode_desktop_screen_effect_script_registry( $handle ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_register_screen_effect_script
+	 */
+	public function test_rejects_empty_handle() {
+		$r = desktop_mode_register_screen_effect_script( '' );
+		$this->assertInstanceOf( 'WP_Error', $r );
+		$this->assertSame( 'desktop_mode_missing_handle', $r->get_error_code() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_build_desktop_screen_effect_scripts_payload
+	 */
+	public function test_payload_resolves_registered_handle() {
+		$handle = 'sfx-b-' . substr( md5( uniqid() ), 0, 8 );
+		wp_register_script( $handle, 'https://example.test/sfx.js', array(), '1.0', true );
+		desktop_mode_register_screen_effect_script( $handle );
+
+		$payload = desktop_mode_build_desktop_screen_effect_scripts_payload();
+		$entry   = null;
+		foreach ( $payload as $p ) {
+			if ( $p['handle'] === $handle ) {
+				$entry = $p;
+				break;
+			}
+		}
+		$this->assertNotNull( $entry );
+		$this->assertStringContainsString( 'sfx.js', $entry['scriptUrl'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_build_desktop_screen_effect_scripts_payload
+	 */
+	public function test_payload_omits_unresolvable_handles() {
+		$this->setExpectedIncorrectUsage( 'desktop_mode_register_screen_effect_script' );
+
+		$handle = 'sfx-c-' . substr( md5( uniqid() ), 0, 8 );
+		desktop_mode_register_screen_effect_script( $handle );
+		$payload = desktop_mode_build_desktop_screen_effect_scripts_payload();
+		foreach ( $payload as $entry ) {
+			$this->assertNotSame( $handle, $entry['handle'] );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_register_screen_effect_script
+	 */
+	public function test_registered_action_fires() {
+		$captured = array();
+		add_action( 'desktop_mode_screen_effect_script_registered', function ( $h ) use ( &$captured ) {
+			$captured[] = $h;
+		} );
+		$h = 'sfx-d-' . substr( md5( uniqid() ), 0, 8 );
+		desktop_mode_register_screen_effect_script( $h );
+		$this->assertContains( $h, $captured );
+	}
+
+	/**
+	 * Registering the same handle twice must not double it in the
+	 * payload — the shell would inject the script twice.
+	 *
+	 * @covers ::desktop_mode_build_desktop_screen_effect_scripts_payload
+	 */
+	public function test_payload_deduplicates_handles() {
+		$handle = 'sfx-e-' . substr( md5( uniqid() ), 0, 8 );
+		wp_register_script( $handle, 'https://example.test/sfx.js', array(), '1.0', true );
+		desktop_mode_register_screen_effect_script( $handle );
+		desktop_mode_register_screen_effect_script( $handle );
+
+		$count = 0;
+		foreach ( desktop_mode_build_desktop_screen_effect_scripts_payload() as $entry ) {
+			if ( $entry['handle'] === $handle ) {
+				++$count;
+			}
+		}
+		$this->assertSame( 1, $count );
+	}
+
+	/**
+	 * The menu payload advertises the script array so the shell's
+	 * live-refresh applier can lazy-load plugin effect scripts.
+	 *
+	 * @covers ::desktop_mode_build_menu_payload
+	 */
+	public function test_menu_payload_includes_screen_effect_scripts_key() {
+		$payload = desktop_mode_build_menu_payload();
+		$this->assertArrayHasKey( 'serverScreenEffectScripts', $payload );
+		$this->assertIsArray( $payload['serverScreenEffectScripts'] );
+	}
+}

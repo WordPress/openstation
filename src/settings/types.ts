@@ -6,6 +6,7 @@
  * implementation (which would create a circular-import trap).
  */
 
+import type { ScreenEffectSelection } from '../stage/types';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import type { DOCK_SIZES, WINDOW_RADII } from './constants';
@@ -291,6 +292,27 @@ export interface OsSettingsState {
 	 * @since 0.9.4
 	 */
 	developerModeEnabled: boolean;
+	/**
+	 * Render the whole desktop through a `<canvas layoutsubtree>` using
+	 * the experimental HTML-in-Canvas browser API, so screen effects
+	 * can post-process every pixel of the shell. Off by default, and
+	 * inert on browsers without the API (OS Settings → Experimental
+	 * disables the toggle there rather than pretending). Per-user.
+	 *
+	 * @since 0.9.8
+	 */
+	canvasStageEnabled: boolean;
+	/**
+	 * The user's screen-effect chain, in render order — each entry an
+	 * effect id plus the parameter values they dialled in. Only applies
+	 * while {@link canvasStageEnabled} is on. Ids of effects that are
+	 * not currently registered are kept (a plugin may register late, or
+	 * be temporarily deactivated) and simply skipped when rendering.
+	 * Per-user.
+	 *
+	 * @since 0.9.8
+	 */
+	screenEffects: ScreenEffectSelection[];
 	/**
 	 * Per-user kill switch for the folder-sharing feature. Defaults
 	 * to `true`. When `false`, every share-related surface is

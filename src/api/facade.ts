@@ -88,6 +88,19 @@ import {
 	registerUnfocusEffect,
 	unregisterUnfocusEffect,
 } from '../effects/registry';
+import { sanitizeScreenEffectSelection } from '../stage/chain';
+import {
+	isStageSupported,
+	probeElementUpload,
+	stageSupportDetail,
+} from '../stage/feature-detect';
+
+import {
+	listScreenEffects,
+	registerScreenEffect,
+	subscribeScreenEffects,
+	unregisterScreenEffect,
+} from '../stage/registry';
 import { relationsApi } from '../window-links/engine';
 import {
 	listWindowLinkRenderers,
@@ -170,6 +183,17 @@ import {
 import type { NativeWindowDef, DesktopConfig } from '../types';
 
 /**
+ * The lazy `stage` bundle's published API, or `null` when it has not
+ * been loaded (the stage is off, or the browser lacks the API).
+ */
+function readStageBundle(): { isActive(): boolean } | null {
+	const w = window as unknown as {
+		desktopModeStage?: { isActive(): boolean };
+	};
+	return w.desktopModeStage ?? null;
+}
+
+/**
  * Built-in keys on `wp.desktop` that `registerNamespace()` refuses
  * to overwrite. The runtime check inside `registerNamespace`
  * consults this allowlist; keep it in sync with
@@ -214,6 +238,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'listWindowLinkRenderers',
 	'registerWindowTheme', 'unregisterWindowTheme', 'listWindowThemes',
 	'applyWindowTheme', 'desktopThemes',
+	'stage',
 	'registerWindowControl', 'unregisterWindowControl', 'listWindowControls',
 	'applyWindowControls',
 	'registerWindowSlot', 'unregisterWindowSlot', 'listWindowSlots',
@@ -451,6 +476,14 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			if ( typeof patch.developerModeEnabled === 'boolean' ) {
 				osSettings.state.developerModeEnabled = patch.developerModeEnabled;
 			}
+			if ( typeof patch.canvasStageEnabled === 'boolean' ) {
+				osSettings.state.canvasStageEnabled = patch.canvasStageEnabled;
+			}
+			if ( Array.isArray( patch.screenEffects ) ) {
+				osSettings.state.screenEffects = sanitizeScreenEffectSelection(
+					patch.screenEffects,
+				);
+			}
 			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
 				osSettings.state.nativePostsHiddenColumns =
 					patch.nativePostsHiddenColumns
@@ -569,6 +602,19 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerWindowTheme,
 		unregisterWindowTheme,
 		listWindowThemes,
+		stage: {
+			isSupported: isStageSupported,
+			supportDetail: stageSupportDetail,
+			probeUpload: probeElementUpload,
+			// Read through the global rather than importing the stage
+			// singleton: that module lives in the lazy `stage` bundle and
+			// importing it here would drag the Pixi glue into main.
+			isActive: () => readStageBundle()?.isActive() === true,
+			registerScreenEffect,
+			unregisterScreenEffect,
+			listScreenEffects,
+			subscribeScreenEffects,
+		},
 		desktopThemes: {
 			list: listDesktopThemes,
 			getActive: getActiveDesktopThemeId,

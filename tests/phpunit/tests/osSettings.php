@@ -605,4 +605,164 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$this->assertSame( 55, $loaded['wallpaperSettings']['wp-snow']['wind'] );
 		$this->assertSame( '#0c1a36', $loaded['wallpaperSettings']['wp-snow']['background'] );
 	}
+
+	/**
+	 * The canvas stage is opt-in: a fresh user must never boot into an
+	 * experimental renderer they did not ask for.
+	 *
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_canvas_stage_is_opt_in() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertArrayHasKey( 'canvasStageEnabled', $defaults );
+		$this->assertFalse( $defaults['canvasStageEnabled'] );
+		$this->assertArrayHasKey( 'screenEffects', $defaults );
+		$this->assertSame( array(), $defaults['screenEffects'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_canvas_stage_toggle() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'canvasStageEnabled' => true )
+		);
+		$this->assertTrue( $clean['canvasStageEnabled'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_well_formed_screen_effects() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'screenEffects' => array(
+					array(
+						'id'     => 'scanlines',
+						'params' => array(
+							'intensity'  => 0.4,
+							'lineHeight' => 3,
+						),
+					),
+					array( 'id' => 'crt' ),
+				),
+			)
+		);
+		$this->assertCount( 2, $clean['screenEffects'] );
+		$this->assertSame( 'scanlines', $clean['screenEffects'][0]['id'] );
+		$this->assertSame( 0.4, $clean['screenEffects'][0]['params']['intensity'] );
+		$this->assertSame( 3.0, $clean['screenEffects'][0]['params']['lineHeight'] );
+		$this->assertSame( 'crt', $clean['screenEffects'][1]['id'] );
+		$this->assertArrayNotHasKey( 'params', $clean['screenEffects'][1] );
+	}
+
+	/**
+	 * An effect id belonging to a plugin that happens to be deactivated
+	 * right now must survive the round-trip — the client resolves ids
+	 * against the live registry and skips what it cannot find. Same
+	 * contract `itemVisibility` has.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_unknown_screen_effect_ids() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'screenEffects' => array( array( 'id' => 'some-plugin/glitch' ) ) )
+		);
+		$this->assertSame( 'some-plugin/glitch', $clean['screenEffects'][0]['id'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_drops_malformed_screen_effects() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'screenEffects' => array(
+					'crt',
+					array(),
+					array( 'id' => '' ),
+					array( 'id' => 'Bad Id!' ),
+					array( 'id' => 42 ),
+					array( 'id' => 'ok' ),
+					// Duplicate — first occurrence wins.
+					array( 'id' => 'ok' ),
+				),
+			)
+		);
+		$this->assertCount( 1, $clean['screenEffects'] );
+		$this->assertSame( 'ok', $clean['screenEffects'][0]['id'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_drops_non_numeric_screen_effect_params() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'screenEffects' => array(
+					array(
+						'id'     => 'crt',
+						'params' => array(
+							'curvature' => 0.2,
+							'bogus'     => 'nope',
+							'bad key'   => 1,
+						),
+					),
+				),
+			)
+		);
+		$this->assertSame(
+			array( 'curvature' => 0.2 ),
+			$clean['screenEffects'][0]['params']
+		);
+	}
+
+	/**
+	 * Each effect is a full-screen render pass over the whole desktop,
+	 * so the cap is a performance guard as much as a storage one.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_caps_the_screen_effect_chain() {
+		$raw = array();
+		for ( $i = 0; $i < 20; $i++ ) {
+			$raw[] = array( 'id' => 'fx-' . $i );
+		}
+		$clean = desktop_mode_sanitize_os_settings( array( 'screenEffects' => $raw ) );
+		$this->assertCount( 8, $clean['screenEffects'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_when_screen_effects_not_an_array() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'screenEffects' => 'scanlines' )
+		);
+		$this->assertSame( array(), $clean['screenEffects'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_save_os_settings
+	 * @covers ::desktop_mode_get_os_settings
+	 */
+	public function test_user_meta_round_trip_keeps_screen_effects() {
+		$user_id = self::factory()->user->create();
+		desktop_mode_save_os_settings(
+			$user_id,
+			array(
+				'canvasStageEnabled' => true,
+				'screenEffects'      => array(
+					array(
+						'id'     => 'pixel-art',
+						'params' => array( 'pixelSize' => 6 ),
+					),
+				),
+			)
+		);
+		$loaded = desktop_mode_get_os_settings( $user_id );
+		$this->assertTrue( $loaded['canvasStageEnabled'] );
+		$this->assertSame( 'pixel-art', $loaded['screenEffects'][0]['id'] );
+		$this->assertSame( 6.0, $loaded['screenEffects'][0]['params']['pixelSize'] );
+	}
 }

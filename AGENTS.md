@@ -256,6 +256,7 @@ The full index lives in [`docs/README.md`](docs/README.md). Quick reference:
 | `docs/plugin-compat-layer.md` | A chromeless-CSS shim, offset neutralizer, or dock-builder adaptation for a third-party plugin shape is added/changed. |
 | `docs/dock-customization.md` | Dock rendering, ordering, or decoration hooks change. |
 | `docs/desktop-themes.md` | The desktop-theme manifest format, icon/texture slot lists, value grammar, or fallback semantics change. **Slot names must stay equal on both sides** (`desktop_mode_desktop_theme_icon_slots()` ↔ `src/desktop-themes/slots.ts`). |
+| `docs/screen-effects.md` | The canvas stage, the `ScreenEffectDef` contract, shader conventions, or the HTML-in-Canvas browser requirement changes. **`src/stage/` is the implementation; the built-in shaders live in `src/stage/effects/`.** |
 | `docs/files-on-desktop.md` | Desktop file/folder behavior, tile metadata, or placement changes. |
 | `docs/folder-sharing.md` | Folder-sharing API, ACL model, or REST routes change. |
 | `docs/migration-*.md` | A breaking change ships, write a migration note here in the same PR. |

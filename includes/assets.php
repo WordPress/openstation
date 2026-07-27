@@ -102,6 +102,21 @@ function desktop_mode_register_assets() {
 		$built_version( 'assets/css/desktop.css' )
 	);
 	/*
+	 * Canvas stage (OS Settings → Experimental). Depends on
+	 * `desktop-mode` so it prints after it and wins the tie: while the
+	 * stage is active it overrides the shell's own `position: fixed`
+	 * placement, which the canvas takes over. Registered
+	 * unconditionally — it is ~1 KB, the feature can be switched on at
+	 * runtime without a reload, and none of it matches until the shell
+	 * is actually inside the canvas.
+	 */
+	wp_register_style(
+		'desktop-mode-stage',
+		DESKTOP_MODE_URL . 'assets/css/stage.css',
+		array( 'desktop-mode' ),
+		$built_version( 'assets/css/stage.css' )
+	);
+	/*
 	 * Window styles — one handle per sheet, chained by dependency.
 	 *
 	 * These used to be `@import url( … )`ed from `windows.css` under
