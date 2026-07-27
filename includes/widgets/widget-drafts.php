@@ -7,8 +7,10 @@
  * interceptor turns the row into a native window).
  *
  * Data source: WordPress REST API  /wp/v2/posts?status=draft  (edit
- * context — the drafts the logged-in user can edit).
- * Refresh: every 2 minutes.
+ * context, scoped to the viewer with `author` — without it an editor
+ * or admin would see every draft on the site, not their own).
+ * Refresh: every 60 seconds while the tab is visible, plus an
+ * immediate refresh when a window closes or blurs.
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
  *
  * @package WPDesktopMode
@@ -67,12 +69,16 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_drafts_widget_styles'
  * Register the widget definition.
  *
  * @since 0.26.0
+ *
+ * @return true|WP_Error True on success, `WP_Error` when the registry
+ *                       rejects the entry (e.g. the viewer lacks
+ *                       `edit_posts`), false if the registry is absent.
  */
 function desktop_mode_register_drafts_widget() {
 	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
-		return;
+		return false;
 	}
-	desktop_mode_register_widget(
+	return desktop_mode_register_widget(
 		'desktop-mode/drafts',
 		array(
 			'label'          => __( 'Drafts', 'desktop-mode' ),
@@ -85,6 +91,10 @@ function desktop_mode_register_drafts_widget() {
 			'min_height'     => 180,
 			'default_width'  => 300,
 			'default_height' => 320,
+			// The REST query behind the widget needs `edit_posts`. Without
+			// the gate a subscriber can add it from the picker and only
+			// ever sees the error state.
+			'capabilities'   => array( 'edit_posts' ),
 		)
 	);
 }

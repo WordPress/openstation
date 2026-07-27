@@ -99,8 +99,8 @@
 
 .dm-drafts__trash:hover {
 	opacity: 1;
-	background: color-mix( in srgb, #ef4444 22%, transparent );
-	color: #ef4444;
+	background: color-mix( in srgb, var( --wpd-danger, #d63638 ) 22%, transparent );
+	color: var( --wpd-danger, #d63638 );
 }
 
 .dm-drafts__trash .dashicons {

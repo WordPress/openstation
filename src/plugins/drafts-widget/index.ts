@@ -44,6 +44,17 @@ function restRoot(): string {
 	).replace( /\/$/, '' );
 }
 
+/**
+ * Numeric id of the viewer, or 0 when the shell hasn't published one.
+ * Used to scope the draft list to the current user.
+ */
+function currentUserId(): number {
+	const desktop = ( window as unknown as {
+		wp?: { desktop?: { config?: { currentUserId?: number } } };
+	} ).wp?.desktop;
+	return Number( desktop?.config?.currentUserId ) || 0;
+}
+
 /** Move a draft to the Trash (reversible — not a permanent delete). */
 async function trashDraft( id: number ): Promise< boolean > {
 	const res = await trackedFetch(
@@ -84,25 +95,44 @@ function timeAgo( isoUtc: string ): string {
 	if ( secs < 60 ) {
 		return __( 'just now' );
 	}
+	// Whole placeholders rather than `count + __( 'm ago' )`: a
+	// concatenated fragment reaches translators without context and
+	// can't be reordered — many locales put the unit before the number.
 	if ( secs < 3600 ) {
-		return Math.floor( secs / 60 ) + __( 'm ago' );
+		return sprintf(
+			/* translators: %d: whole minutes since the draft was last edited. */
+			__( '%dm ago' ),
+			Math.floor( secs / 60 ),
+		);
 	}
 	if ( secs < 86400 ) {
-		return Math.floor( secs / 3600 ) + __( 'h ago' );
+		return sprintf(
+			/* translators: %d: whole hours since the draft was last edited. */
+			__( '%dh ago' ),
+			Math.floor( secs / 3600 ),
+		);
 	}
-	return Math.floor( secs / 86400 ) + __( 'd ago' );
+	return sprintf(
+		/* translators: %d: whole days since the draft was last edited. */
+		__( '%dd ago' ),
+		Math.floor( secs / 86400 ),
+	);
 }
 
 async function fetchDrafts(): Promise< DraftRow[] > {
-	const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
-		.wpApiSettings?.root ?? '/wp-json/';
 	// trackedFetch routes through the framework (loading spinner + activity
 	// bus) and injects the REST nonce automatically. `context=edit` is what
-	// returns draft posts (and their titles) for a user who can edit them.
+	// returns draft posts (and their titles) for a user who can edit them —
+	// but on its own that means *every* draft the viewer can edit, so an
+	// editor or admin would see the whole site's. This widget is "your
+	// unfinished posts", so scope it to the viewer whenever the shell has
+	// published their id.
+	const uid = currentUserId();
 	const res = await trackedFetch(
-		root.replace( /\/$/, '' ) +
+		restRoot() +
 			`/wp/v2/posts?status=draft&orderby=modified&order=desc&per_page=${ LIMIT }` +
-			'&context=edit&_fields=id,title,modified_gmt',
+			'&context=edit&_fields=id,title,modified_gmt' +
+			( uid > 0 ? `&author=${ uid }` : '' ),
 		{ credentials: 'same-origin' },
 		{ source: 'desktop-mode/drafts', silent: true },
 	);
@@ -215,7 +245,13 @@ async function onTrash(
 	onChange: () => void,
 ): Promise< void > {
 	const api = desktopApi();
-	const ok = await ( api?.confirm?.( {
+	// No confirm dialog available means we can't get consent — refuse
+	// rather than trashing unprompted. `wp.desktop.confirm` is a stable
+	// part of the shell API, so this only trips outside the shell.
+	if ( ! api?.confirm ) {
+		return;
+	}
+	const ok = await api.confirm( {
 		title: __( 'Move to Trash?' ),
 		message: sprintf(
 			/* translators: %s: draft title. */
@@ -224,7 +260,7 @@ async function onTrash(
 		),
 		confirmLabel: __( 'Move to Trash' ),
 		danger: true,
-	} ) ?? Promise.resolve( true ) );
+	} );
 	if ( ! ok ) {
 		return;
 	}

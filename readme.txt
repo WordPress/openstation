@@ -123,6 +123,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 == Changelog ==
 
 = 0.9.7 =
+* Add Drafts widget
 * Add Focus Timer widget
 * Fix window title bar pushed off-screen during top-edge resize
 * Enforce viewport boundaries during window resize
