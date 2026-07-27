@@ -62,6 +62,7 @@ import { buildThemesSection } from './sections/themes';
 import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
 import { buildDockSizeSection } from './sections/dock-size';
+import { buildWindowRadiusSection } from './sections/window-radius';
 import { buildDockRailRendererSection } from './sections/dock-rail-renderer';
 import { buildEffectsSection } from './sections/effects';
 import { buildExtendedSection } from './sections/extended';
@@ -183,6 +184,7 @@ export function renderOsSettingsPanel(
 					${ buildAccentSection( ctx ) }
 					${ buildDesktopLayoutSection( ctx ) }
 					${ buildDockSizeSection( ctx ) }
+					${ buildWindowRadiusSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
 				</wpd-panel>
 			</wpd-tabpanel>`,

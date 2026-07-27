@@ -74,6 +74,7 @@ import { type UnfocusEffectDef } from './effects/types';
 import { startWindowLinksEngine } from './window-links/engine';
 import { startWindowLinkRenderHost } from './window-links/render-host';
 import { bootRelatedEntities } from './related-entities';
+import { bootEditorPreview } from './editor-preview';
 import type {
 	WindowLinkRendererDef,
 	WindowRelationsApi,
@@ -2885,6 +2886,15 @@ function init(): void {
 			} );
 		},
 	} );
+
+	// Editor-preview title-bar button — the "eye" on post/page/CPT
+	// editor windows. Autosaves the editor, snaps it left, and opens
+	// the official front-end preview (`get_preview_post_link()`) as a
+	// companion window snapped right; the companion auto-reloads on
+	// every save and closes with its editor. Visibility follows the
+	// identity's `previewUrl` (see `desktop_mode_window_preview_url()`
+	// in `includes/window-links.php`).
+	bootEditorPreview( { manager } );
 
 	// Dock rail renderer sync — loads plugin renderer scripts on
 	// activation so OS Settings → Dock style surfaces them

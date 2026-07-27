@@ -231,6 +231,14 @@ export interface WindowConfig {
 	 */
 	content?: WindowContentRef;
 	/**
+	 * Exclude this window from session snapshots — it will not be
+	 * restored on the next boot. For transient companion windows whose
+	 * URL doesn't survive a session: the editor-preview window's URL
+	 * embeds a `preview_nonce` scoped to an autosave revision, so
+	 * restoring it would resurrect a dead link with no pairing state.
+	 */
+	ephemeral?: boolean;
+	/**
 	 * Per-window appearance overrides — themes (CSS variables),
 	 * controls (close / minimize / maximize layout + custom buttons),
 	 * slots (named title-bar regions), and chrome (full title-bar

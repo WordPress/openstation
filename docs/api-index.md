@@ -205,6 +205,7 @@ Every event bubbles from `document`. See [`javascript-reference.md`](./javascrip
 | `desktop-mode-note-created` *(pinned-notes hand-off from the Note Pad widget)* | Experimental |
 | `desktop-mode-auth-lost` / `desktop-mode-auth-restored` *(session expiry / recovery)* | Stable |
 | `desktop-mode-desktop-theme-changed` *(whole-OS reskin activated / cleared)* | Experimental |
+| `desktop-mode-editor-preview-opened` / `-closed` *(editor↔preview pairing lifecycle)* | Experimental |
 
 ---
 
@@ -226,6 +227,8 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable |
 | `desktop-mode-drag-over` / `-leave` / `desktop-mode-drop` | parent → iframe | Stable |
 | `desktop-mode-reauth-detected` *(session re-auth nudge)* | iframe → parent | Stable |
+| `desktop-mode-editor-autosave-request` / `-response` *(preview-button autosave query)* | parent → iframe / iframe → parent | Experimental |
+| `desktop-mode-editor-live-watch` / `-unwatch` / `-live-saved` *(typing-driven preview refresh)* | parent → iframe / parent → iframe / iframe → parent | Experimental |
 
 ---
 

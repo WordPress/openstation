@@ -632,12 +632,19 @@ export const HOOKS = {
 	/**
 	 * Action, fires when the user clicks the title-bar reload button
 	 * on an iframe-backed window. Payload: `{ windowId: string, url:
-	 * string }` where `url` is the URL being reloaded (the active
-	 * primary or external sub-tab). Subscribers can use this to
-	 * invalidate their own cache, force a save before navigation,
-	 * track usage as a UX signal, or sync state across companion
-	 * surfaces. Native windows do not fire this — they own their
-	 * DOM directly and the reload button doesn't apply.
+	 * string, silent?: boolean }` where `url` is the URL being
+	 * reloaded (the active primary or external sub-tab). Subscribers
+	 * can use this to invalidate their own cache, force a save before
+	 * navigation, track usage as a UX signal, or sync state across
+	 * companion surfaces. Native windows do not fire this — they own
+	 * their DOM directly and the reload button doesn't apply.
+	 *
+	 * `silent: true` marks a programmatic
+	 * `Window.swapReload()` — the double-buffered, overlay-free
+	 * refresh the editor-preview companion uses after typing pauses.
+	 * It fires on swap COMPLETION (the new content is already
+	 * visible), where the classic reload fires when the reload
+	 * starts.
 	 */
 	WINDOW_RELOADED: 'desktop-mode.window.reloaded',
 	/** Action, fires when iframe title updates change the window title. */
@@ -1277,6 +1284,54 @@ export const HOOKS = {
 	 * touching the user's setting.
 	 */
 	WINDOW_LINK_RENDERER: 'desktop-mode.window-links.renderer',
+
+	// ------------------------------------------------------------------
+	// Editor preview. The title bar's "Preview" (eye)
+	// button on post/page/CPT editor windows — autosaves the editor,
+	// snaps it to the left half, and opens the front-end preview as a
+	// companion window snapped to the right half. Module:
+	// `src/editor-preview/index.ts`.
+	// ------------------------------------------------------------------
+	/**
+	 * Filter — applied to the preview companion's `WindowConfig` right
+	 * before `manager.open()`. Signature: `( config: WindowConfig, ctx:
+	 * { editorWindowId: string, content: WindowContentRef } ) =>
+	 * WindowConfig`. Rewrite geometry, `initialState`, the title — or
+	 * the URL, though the engine already dropped any cross-origin
+	 * `previewUrl` at identity time.
+	 */
+	EDITOR_PREVIEW_WINDOW_CONFIG: 'desktop-mode.editor-preview.window-config',
+	/**
+	 * Filter — the live-update behavior of an open preview pairing.
+	 * While the pairing is active the editor iframe watches its own
+	 * content and, `debounceMs` after the last edit, autosaves and
+	 * nudges the shell to reload the preview — so the preview tracks
+	 * typing, not just explicit saves. Signature: `( config: {
+	 * enabled: boolean, debounceMs: number }, ctx: { editorWindowId:
+	 * string, content: WindowContentRef } ) => config`. Defaults:
+	 * `{ enabled: true, debounceMs: 1500 }` (`debounceMs` clamps to
+	 * 500–30000 iframe-side). Return `{ enabled: false }` to fall back
+	 * to save-driven reloads only.
+	 */
+	EDITOR_PREVIEW_LIVE: 'desktop-mode.editor-preview.live',
+	/**
+	 * Action — fires after the preview companion window opened and the
+	 * editor↔preview pairing is recorded. Payload: `{ editorWindowId:
+	 * string, previewWindowId: string, content: WindowContentRef }`.
+	 * The matching `desktop-mode-editor-preview-opened` CustomEvent
+	 * dispatches on `document` with the same payload.
+	 */
+	EDITOR_PREVIEW_OPENED: 'desktop-mode.editor-preview.opened',
+	/**
+	 * Action — fires when an editor↔preview pairing ends: the user
+	 * toggled the eye off, closed either window, or navigated the
+	 * editor window to different content. Payload: `{ editorWindowId:
+	 * string, previewWindowId: string, reason: 'toggled' |
+	 * 'editor-closed' | 'preview-closed' | 'content-changed' }`. The
+	 * matching `desktop-mode-editor-preview-closed` CustomEvent
+	 * dispatches on `document` with the same payload.
+	 */
+	EDITOR_PREVIEW_CLOSED: 'desktop-mode.editor-preview.closed',
 
 	// ------------------------------------------------------------------
 	// OS-file drop manager. Catches files dragged from

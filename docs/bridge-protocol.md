@@ -102,13 +102,17 @@ The forwarder listens in **bubble phase** at the iframe's `document`, so any in-
 
 Only drops where neither bail fires (the empty page background, or an inner handler that never called `preventDefault()`) escalate to the shell.
 
-### Drag-hover heartbeat — `desktop-mode-drag-hover` Native drag events don't cross iframe boundaries, so when the user holds any drag (an OS file, an image lifted off another admin page, a text selection) over an iframe window, the parent shell can't see the hover. Both bridges (inline chromeless + standalone) forward a throttled heartbeat while `dragover` fires inside the iframe, so the shell's focus-on-drag-hover module can raise the hovered window after its ~250 ms dwell (see the `desktop-mode.window.focus-on-drag-hover` filter in `javascript-reference.md`).
+### Drag-hover heartbeat — `desktop-mode-drag-hover`
+
+Native drag events don't cross iframe boundaries, so when the user holds any drag (an OS file, an image lifted off another admin page, a text selection) over an iframe window, the parent shell can't see the hover. Both bridges (inline chromeless + standalone) forward a throttled heartbeat while `dragover` fires inside the iframe, so the shell's focus-on-drag-hover module can raise the hovered window after its ~250 ms dwell (see the `desktop-mode.window.focus-on-drag-hover` filter in `javascript-reference.md`).
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
 | `desktop-mode-drag-hover` | iframe → parent | `{ payloadType: 'os-file' \| 'external' }` | "A drag is currently hovering me." Throttled to one message per 150 ms. Purely observational — the forwarder never calls `preventDefault()` and carries no coordinates or payload data; the parent resolves the hovered window from `MessageEvent.source` (the sender iframe **is** the hovered window). The parent resets its hover state when heartbeats stop (~1 s watchdog), so no end message exists or is needed. |
 
-### Pre-close unsaved-changes query — `desktop-mode-bridge-beforeunload-*` Before tearing down an iframe-backed (non-native) window, `Window.close()` gives the page inside a chance to veto — the same protection a real browser tab close gets from the page's `beforeunload` handler, which a same-origin admin iframe never triggers on its own (there's no real navigation happening).
+### Pre-close unsaved-changes query — `desktop-mode-bridge-beforeunload-*`
+
+Before tearing down an iframe-backed (non-native) window, `Window.close()` gives the page inside a chance to veto — the same protection a real browser tab close gets from the page's `beforeunload` handler, which a same-origin admin iframe never triggers on its own (there's no real navigation happening).
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
@@ -124,7 +128,36 @@ Flow:
 
 Native windows are untouched — they still use the synchronous `desktop-mode.native-window.before-close` filter (see [`javascript-reference.md`](./javascript-reference.md#native-window-lifecycle)), not this postMessage round-trip.
 
-### Session re-auth nudge — `desktop-mode-reauth-detected` Every chromeless iframe runs its own Heartbeat, and each heartbeat response carries core's `wp-auth-check` boolean (attached server-side, independent of whether the modal JS is loaded — chromeless iframes have the modal suppressed so the parent shell owns the single login prompt). When an iframe's heartbeat sees the flag flip `false → true` — the user re-authenticated somewhere — the bridge nudges the parent before reloading itself, so the shell's recovery (`src/auth-recovery/index.ts`) starts immediately instead of waiting out the parent's own heartbeat schedule.
+### Editor-autosave query — `desktop-mode-editor-autosave-*`
+
+When the user clicks an editor window's **Preview (eye)** title-bar button, the shell asks the editor page to autosave first, so the front-end preview about to open reflects on-screen content — the same thing Gutenberg's own Preview button does. Deliberately **not** named `desktop-mode-bridge-*`: that prefix is routed into the connection-bridge registry; this is a standalone request/response pair.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-editor-autosave-request` | parent → iframe | `{ requestId: string }` | "Autosave whatever you're editing, then answer." Sent by `src/editor-preview/autosave.ts` with a 10 s parent-side timeout. |
+| `desktop-mode-editor-autosave-response` | iframe → parent | `{ requestId, status: 'saved' \| 'no-editor' \| 'not-dirty' \| 'error', previewUrl?: string }` | Reply, correlated by `requestId`. `previewUrl` is only present on the Gutenberg save-for-preview path, and only when same-origin. |
+
+The answerer lives in the standalone bridge only (`installEditorAutosaveHandler()` in `src/iframe-bridge-standalone.ts` — installed on every admin page for desktop-mode users, chromeless included, outside the bundle's double-install guard so it runs even where the inline chromeless bridge owns `wp.desktop.iframe`). Editor detection, in order:
+
+1. **Gutenberg** (`wp.data.select( 'core/editor' )` resolves) — prefers `dispatch( 'core/editor' ).__unstableSaveForPreview()`, exactly what core's Preview button calls: it autosaves when needed and resolves to the freshest preview link, returned as `previewUrl`. Fallback when that action is absent: `isEditedPostAutosaveable()` false → `not-dirty` immediately; otherwise `autosave()` watched to completion via `wp.data.subscribe` (8 s best-effort backstop answers `saved` anyway).
+2. **Classic editor** (`wp.autosave.server`) — `triggerSave()` + jQuery's `after-autosave` event, with a 5 s best-effort backstop.
+3. **Neither** — `no-editor`, immediately, so the parent never waits on a page with nothing to save.
+
+On the parent side every non-`saved` outcome degrades gracefully: the preview opens at the identity's server-computed `previewUrl` (the last saved/autosaved revision), with a warning toast only on `error`.
+
+**Live-preview watch** — while the preview companion is open, the shell also asks the editor page to watch its own content, because typing detection can only live iframe-side (keystrokes never cross the frame boundary):
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-editor-live-watch` | parent → iframe | `{ watchId: string, debounceMs: number }` | Start watching. `debounceMs` (clamped 500–30000) is the settle window after the last edit. A re-watch with the same `watchId` replaces the previous watch. |
+| `desktop-mode-editor-live-unwatch` | parent → iframe | `{ watchId: string }` | Stop watching (sent on pairing teardown; best-effort — the watch dies with the page anyway). |
+| `desktop-mode-editor-live-saved` | iframe → parent | `{ watchId: string, previewUrl?: string }` | "The editor settled and autosaved — refresh the preview." `previewUrl` as in the autosave response. |
+
+Gutenberg watch mechanics: `wp.data.subscribe` + **reference** comparison of `core/block-editor`'s block list and the edited title (every real edit replaces those references). A completing save ALSO churns those references (the save response normalizes the entity and resyncs the block list), and drafts autosave in place — Gutenberg considers them forever autosaveable — so without guards the watcher's own save reads as a fresh edit and loops. Three guards break the feedback: (1) churn arriving while `isSavingPost()`/`isAutosavingPost()` is true — and on the settle tick right after — is absorbed into the baseline without scheduling; (2) a reference change only schedules while `isEditedPostDirty()` (user edits set dirty synchronously; a draft's completed in-place autosave clears it); (3) the settle itself bails when `isEditedPostAutosaveable()` is false (published posts stay dirty relative to published content after an autosave revision — nothing new to save, nothing to refresh). On settle it also defers while a save is in flight (1 s retry), then autosaves via `__unstableSaveForPreview()`. Classic editor: no reactive store — the watcher just announces after each of core's own `after-autosave` events.
+
+### Session re-auth nudge — `desktop-mode-reauth-detected`
+
+Every chromeless iframe runs its own Heartbeat, and each heartbeat response carries core's `wp-auth-check` boolean (attached server-side, independent of whether the modal JS is loaded — chromeless iframes have the modal suppressed so the parent shell owns the single login prompt). When an iframe's heartbeat sees the flag flip `false → true` — the user re-authenticated somewhere — the bridge nudges the parent before reloading itself, so the shell's recovery (`src/auth-recovery/index.ts`) starts immediately instead of waiting out the parent's own heartbeat schedule.
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|

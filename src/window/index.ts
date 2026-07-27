@@ -120,8 +120,13 @@ export class Window {
 	/**
 	 * Iframe for iframe-backed windows. Null for native windows, which
 	 * render into the body directly via {@link WindowConfig.render}.
+	 *
+	 * Reassigned ONLY by {@link swapReload}, which replaces the frame
+	 * element wholesale during a double-buffered refresh — treat it as
+	 * read-only everywhere else, and don't cache the element across
+	 * awaits when a swap may be in flight.
 	 */
-	public readonly iframe: HTMLIFrameElement | null;
+	public iframe: HTMLIFrameElement | null;
 	public state: WindowState = 'normal';
 
 	/** @internal */
@@ -496,6 +501,9 @@ export class Window {
 		this._boundOnMessage = ( e: MessageEvent ) => handleWindowMessage( this, e );
 
 		this.bindEvents();
+		if ( this.iframe ) {
+			this._wireContentFocusForwarder( this.iframe );
+		}
 
 		// Render any plugin-registered title-bar buttons that match
 		// this window. Subscribe so registrations made AFTER this
@@ -1090,19 +1098,8 @@ export class Window {
 			}
 
 			// Sync the active tab whenever the iframe finishes a
-			// navigation. Reading iframe.contentWindow.location is safe
-			// because we only allow same-origin URLs; cross-origin
-			// would have thrown earlier.
-			iframe.addEventListener( 'load', () => {
-				try {
-					const href = iframe.contentWindow?.location.href;
-					if ( href ) {
-						syncActiveTab( this, href );
-					}
-				} catch {
-					/* Cross-origin or detached frame — ignore. */
-				}
-			} );
+			// navigation.
+			this._wireTabNavSync( iframe );
 
 			// Listen for postMessage from iframe.
 			window.addEventListener( 'message', this._boundOnMessage );
@@ -2029,6 +2026,284 @@ export class Window {
 	}
 
 	/**
+	 * Forward pointerdowns inside a same-origin, BRIDGE-LESS iframe
+	 * document to the shell's focus path.
+	 *
+	 * Clicks inside an iframe never bubble to the parent document.
+	 * Chromeless admin pages escalate them through the bridge's own
+	 * pointerdown → `desktop-mode-focus-request` postMessage, and the
+	 * manager's window-blur fallback catches the parent → iframe
+	 * transition — but a click moving focus from one IFRAME to
+	 * another (editor ↔ preview) fires neither: the parent is already
+	 * blurred and a front-end document carries no bridge. This
+	 * forwarder closes that gap for same-origin non-admin content
+	 * (the editor-preview companion, the home-page default window) by
+	 * listening directly inside the frame's document — re-attached on
+	 * every `load`, since each navigation creates a fresh document.
+	 *
+	 * Admin documents are skipped: the bridge already escalates
+	 * there, and a second forwarder would double-fire the focus
+	 * hooks. Cross-origin documents are unreachable and silently
+	 * skipped (they keep the blur-fallback behavior).
+	 *
+	 * @internal
+	 */
+	private _wireContentFocusForwarder( iframe: HTMLIFrameElement ): void {
+		const attach = (): void => {
+			let doc: Document | null = null;
+			try {
+				doc = iframe.contentDocument;
+			} catch {
+				return; // Cross-origin.
+			}
+			if ( ! doc ) {
+				return;
+			}
+			if ( doc.location && doc.location.pathname.indexOf( '/wp-admin/' ) !== -1 ) {
+				return; // Bridge territory.
+			}
+			doc.addEventListener(
+				'pointerdown',
+				() => {
+					if (
+						this.element.classList.contains(
+							'desktop-mode-window--overview',
+						)
+					) {
+						return;
+					}
+					this.onFocusRequest?.( this );
+				},
+				{ capture: true, passive: true },
+			);
+		};
+		iframe.addEventListener( 'load', attach );
+		// Attach to the CURRENT document too — the swap-promotion
+		// call site runs after the twin's load already fired.
+		attach();
+	}
+
+	/**
+	 * Keep the submenu tab strip highlighting in sync with the
+	 * frame's navigations. Reading `contentWindow.location` is safe
+	 * because only same-origin URLs are allowed; cross-origin would
+	 * have thrown earlier. Wired to the primary iframe at
+	 * construction and re-wired to the twin {@link swapReload}
+	 * promotes — listeners don't travel between elements.
+	 *
+	 * @internal
+	 */
+	private _wireTabNavSync( iframe: HTMLIFrameElement ): void {
+		iframe.addEventListener( 'load', () => {
+			try {
+				const href = iframe.contentWindow?.location.href;
+				if ( href ) {
+					syncActiveTab( this, href );
+				}
+			} catch {
+				/* Cross-origin or detached frame — ignore. */
+			}
+		} );
+	}
+
+	/**
+	 * In-flight double-buffer frame for {@link swapReload}, plus its
+	 * abandon timer. One buffer at most — a newer swap request
+	 * discards the previous buffer and starts over.
+	 *
+	 * @internal
+	 */
+	private _swapBuffer: HTMLIFrameElement | null = null;
+
+	/** @internal */
+	private _swapBufferTimer: number | null = null;
+
+	/**
+	 * Discard the in-flight swap buffer (if any): cancel the abandon
+	 * timer, remove the buffered frame, and restore the visible
+	 * frame's swap elevation. Safe to call at any time.
+	 *
+	 * @internal
+	 */
+	private _discardSwapBuffer(): void {
+		if ( this._swapBufferTimer !== null ) {
+			window.clearTimeout( this._swapBufferTimer );
+			this._swapBufferTimer = null;
+		}
+		if ( this._swapBuffer ) {
+			this._swapBuffer.remove();
+			this._swapBuffer = null;
+			this.iframe?.classList.remove(
+				'desktop-mode-window__iframe--swap-front',
+			);
+		}
+	}
+
+	/**
+	 * Silent, double-buffered reload of the primary iframe — refresh
+	 * the content with NO loading overlay, NO blank frame, and NO
+	 * scroll jump.
+	 *
+	 * {@link reload} is the right affordance for a user-initiated
+	 * reload: it arms the loading overlay and repaints from scratch.
+	 * For high-frequency programmatic refreshes (the editor-preview
+	 * companion re-rendering after every typing pause) that treatment
+	 * strobes. This method instead loads the target URL into a twin
+	 * iframe stacked UNDERNEATH the visible one at full opacity — a
+	 * normal, fully-rasterized paint target, covered by the opaque
+	 * old frame while it loads (never `opacity: 0`-on-top or
+	 * `visibility: hidden`: browsers defer rasterizing invisible
+	 * iframes and revealing one flashes its blank background first).
+	 * When the twin finishes loading, the scroll position is carried
+	 * across and the old frame is removed in the same tick — an
+	 * instant, animation-free cut to the ready-painted new content.
+	 * There is no moment where unpainted content is the only thing
+	 * on screen.
+	 *
+	 * Semantics and guards:
+	 *  - Primary tab only. On an active external sub-tab this
+	 *    delegates to {@link reload} (sub-tabs are transient surfaces;
+	 *    buffering them isn't worth the bookkeeping).
+	 *  - One buffer at most: a newer call discards an in-flight
+	 *    buffer and restarts with the newest URL. The visible frame
+	 *    is never touched until a buffered load actually lands.
+	 *  - A buffer that never fires `load` is abandoned after 20 s —
+	 *    the visible frame simply stays as it was.
+	 *  - When `url` is given it passes through the same
+	 *    `withChromelessParam()` same-origin gate as
+	 *    {@link navigateTo}; cross-origin URLs are ignored.
+	 *  - Scroll restoration is same-origin only (a cross-origin
+	 *    preview frame silently starts at the top).
+	 *  - Fires `HOOKS.WINDOW_RELOADED` with `silent: true` on swap
+	 *    completion.
+	 *
+	 * @param url Optional same-origin URL to load; omit to refresh
+	 *            the current URL in place.
+	 */
+	public swapReload( url?: string ): void {
+		if ( this.config.native || ! this.iframe || this._isDestroyed ) {
+			return;
+		}
+		if ( this._activeTabId !== 'primary' ) {
+			this.reload();
+			return;
+		}
+		const target = url ? withChromelessParam( url ) : this.getCurrentUrl();
+		if ( ! target ) {
+			return;
+		}
+
+		// A newer request supersedes any in-flight buffer.
+		this._discardSwapBuffer();
+
+		const current = this.iframe;
+		// Elevate the visible frame above the buffer for the swap's
+		// duration — positioned elements otherwise paint above the
+		// static primary regardless of DOM order.
+		current.classList.add( 'desktop-mode-window__iframe--swap-front' );
+		const buffer = document.createElement( 'iframe' );
+		buffer.className =
+			'desktop-mode-window__iframe desktop-mode-window__iframe--buffer';
+		buffer.setAttribute( 'aria-hidden', 'true' );
+		buffer.setAttribute( 'name', `desktop-mode-frame-${ this.id }-buffer` );
+
+		this._swapBuffer = buffer;
+		this._swapBufferTimer = window.setTimeout( () => {
+			// Hung or endless load — abandon quietly; the visible
+			// frame was never touched.
+			if ( this._swapBuffer === buffer ) {
+				this._discardSwapBuffer();
+			}
+		}, 20000 );
+
+		buffer.addEventListener(
+			'load',
+			() => {
+				if ( this._swapBuffer !== buffer || this._isDestroyed ) {
+					// Superseded by a newer swap (or the window died)
+					// while loading — this buffer is already detached
+					// or about to be.
+					return;
+				}
+				this._swapBuffer = null;
+				if ( this._swapBufferTimer !== null ) {
+					window.clearTimeout( this._swapBufferTimer );
+					this._swapBufferTimer = null;
+				}
+
+				// Carry the scroll position across BEFORE the swap so
+				// the new frame never paints at the top. Same-origin
+				// only — cross-origin reads throw and we skip.
+				let scrollX = 0;
+				let scrollY = 0;
+				try {
+					scrollX = current.contentWindow?.scrollX ?? 0;
+					scrollY = current.contentWindow?.scrollY ?? 0;
+				} catch {
+					/* cross-origin */
+				}
+				if ( scrollX || scrollY ) {
+					try {
+						buffer.contentWindow?.scrollTo( scrollX, scrollY );
+					} catch {
+						/* cross-origin */
+					}
+				}
+
+				// Instant cut: dropping the old frame exposes the
+				// ready-painted twin beneath in the same compositor
+				// frame (see the CSS comment on `--buffer` for why
+				// under, not over). No animation by design.
+				buffer.classList.remove(
+					'desktop-mode-window__iframe--buffer',
+				);
+				buffer.removeAttribute( 'aria-hidden' );
+				buffer.setAttribute(
+					'name',
+					`desktop-mode-frame-${ this.id }`,
+				);
+				current.remove();
+				this.iframe = buffer;
+
+				// Keep the overlay contract alive for FUTURE classic
+				// reloads: the original frame got this wiring in
+				// `dom.ts` at build time; the twin needs it too or a
+				// later `reload()` would arm an overlay nothing
+				// clears.
+				buffer.addEventListener( 'load', () => {
+					markWindowContentReady( this.id );
+				} );
+
+				// Same for the focus forwarder — the click-to-focus
+				// listener lived inside the OLD frame's document; the
+				// twin's document needs its own (attaches to the
+				// current document immediately, this load already
+				// fired).
+				this._wireContentFocusForwarder( buffer );
+
+				// And the tab-strip sync: the submenu-highlight
+				// listener from construction also lived on the old
+				// frame. Sync once for THIS navigation (its load
+				// already fired), then re-wire for future ones.
+				this._wireTabNavSync( buffer );
+				syncActiveTab( this, target );
+
+				doAction( HOOKS.WINDOW_RELOADED, {
+					windowId: this.id,
+					url: target,
+					silent: true,
+				} );
+			},
+			{ once: true },
+		);
+
+		// Insert BEFORE assigning src — a detached iframe doesn't
+		// start loading.
+		current.insertAdjacentElement( 'afterend', buffer );
+		buffer.src = target;
+	}
+
+	/**
 	 * Trigger the one-shot 360° rotation on the title-bar reload
 	 * button. Force-restart the animation by removing the class,
 	 * flushing a reflow, then re-adding it; otherwise a click during
@@ -2787,6 +3062,10 @@ export class Window {
 		}
 
 		this._isDestroyed = true;
+
+		// Drop any in-flight swap buffer — its load handler would be a
+		// no-op post-destroy, but the abandon timer shouldn't linger.
+		this._discardSwapBuffer();
 
 		// Cancel any pending activity timers so a still-pending
 		// settle / clear doesn't fire after the window has gone away.

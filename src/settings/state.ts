@@ -23,6 +23,7 @@ import {
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
 	STORAGE_KEY,
+	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -34,6 +35,7 @@ import type {
 	DesktopLayoutId,
 	DockSizeId,
 	OsSettingsState,
+	WindowRadiusId,
 } from './types';
 import { isHexColor } from './utils';
 import { trackedFetch } from '../tracked-fetch';
@@ -105,6 +107,9 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		dockSize: DOCK_SIZES.some( ( d ) => d.id === parsed.dockSize )
 			? ( parsed.dockSize as DockSizeId )
 			: DEFAULTS.dockSize,
+		windowRadius: WINDOW_RADII.some( ( r ) => r.id === parsed.windowRadius )
+			? ( parsed.windowRadius as WindowRadiusId )
+			: DEFAULTS.windowRadius,
 		desktopLayout: DESKTOP_LAYOUTS.some(
 			( l ) => l.id === parsed.desktopLayout,
 		)

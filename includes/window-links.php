@@ -104,6 +104,11 @@ function desktop_mode_build_content_identity() {
 					$identity['links'] = $links;
 				}
 
+				$preview_url = desktop_mode_window_preview_url( $post );
+				if ( '' !== $preview_url ) {
+					$identity['previewUrl'] = $preview_url;
+				}
+
 				// Source for the built-in related-entity items attached
 				// after the identity filter below.
 				$related_source_post = $post;
@@ -199,6 +204,65 @@ function desktop_mode_build_content_identity() {
 		isset( $related_source_post ) && $related_source_post instanceof WP_Post ? $related_source_post : null,
 		$screen
 	);
+}
+
+/**
+ * Build the front-end preview URL for a post — the target of the
+ * shell's "Preview" (eye) title-bar button.
+ *
+ * Wraps `get_preview_post_link()` with the same query args core's own
+ * `post_preview()` passes (`preview_id` + a `post_preview_{ID}` nonce),
+ * so `_set_preview()` swaps in the newest autosave revision on the
+ * front end. Required for published/scheduled/private posts, whose
+ * autosaves land in a revision; harmless for drafts, where autosave
+ * writes the post itself and `_set_preview()` no-ops.
+ *
+ * Nonce freshness is bounded by save cadence: the content identity is
+ * rebuilt on every chromeless page render AND on the editor
+ * save-watcher's REST recompute, so a long-lived editor window always
+ * holds a recent nonce.
+ *
+ * @param WP_Post $post The post being edited.
+ * @return string Preview URL, or `''` when the post has no front-end
+ *                preview (non-viewable type, attachment, insufficient
+ *                capability) or a filter suppressed it.
+ */
+function desktop_mode_window_preview_url( $post ) {
+	$preview_url = '';
+
+	if (
+		$post instanceof WP_Post &&
+		$post->ID > 0 &&
+		'attachment' !== $post->post_type &&
+		is_post_type_viewable( get_post_type_object( $post->post_type ) ) &&
+		current_user_can( 'edit_post', $post->ID )
+	) {
+		$link = get_preview_post_link(
+			$post,
+			array(
+				'preview_id'    => $post->ID,
+				'preview_nonce' => wp_create_nonce( 'post_preview_' . $post->ID ),
+			)
+		);
+		if ( is_string( $link ) ) {
+			$preview_url = $link;
+		}
+	}
+
+	/**
+	 * Filters the front-end preview URL attached to a post-editor
+	 * content identity (the target of the shell's "Preview" eye
+	 * title-bar button).
+	 *
+	 * Return `''` to suppress the preview button for this post, or
+	 * rewrite the URL to point somewhere else (a headless front end,
+	 * a staging domain). Note the shell only accepts same-origin URLs;
+	 * a cross-origin rewrite hides the button.
+	 *
+	 * @param string  $preview_url Preview URL, `''` when none applies.
+	 * @param WP_Post $post        The post being edited.
+	 */
+	return (string) apply_filters( 'desktop_mode_window_preview_url', $preview_url, $post );
 }
 
 /**
@@ -702,6 +766,11 @@ function desktop_mode_rest_content_identity( $request ) {
 	$links    = desktop_mode_window_links_extract_references( $post );
 	if ( ! empty( $links ) ) {
 		$identity['links'] = $links;
+	}
+
+	$preview_url = desktop_mode_window_preview_url( $post );
+	if ( '' !== $preview_url ) {
+		$identity['previewUrl'] = $preview_url;
 	}
 
 	/** This filter is documented in includes/window-links.php */

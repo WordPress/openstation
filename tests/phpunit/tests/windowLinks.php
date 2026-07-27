@@ -31,6 +31,7 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 	public function tear_down() {
 		unset( $_GET['c'], $_GET['item'], $_GET['tag_ID'], $GLOBALS['pagenow'], $GLOBALS['post'] );
 		remove_all_filters( 'desktop_mode_window_content_identity' );
+		remove_all_filters( 'desktop_mode_window_preview_url' );
 		parent::tear_down();
 	}
 
@@ -537,5 +538,134 @@ class Tests_DesktopMode_WindowLinks extends WP_UnitTestCase {
 		$payload = desktop_mode_build_menu_payload();
 		$this->assertArrayHasKey( 'serverWindowLinkRendererScripts', $payload );
 		$this->assertIsArray( $payload['serverWindowLinkRendererScripts'] );
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// Preview URL — the front-end preview link the identity carries
+	// for the shell's "Preview" (eye) title-bar button.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::desktop_mode_build_content_identity
+	 * @covers ::desktop_mode_window_preview_url
+	 */
+	public function test_draft_post_identity_carries_preview_url() {
+		$post_id = self::factory()->post->create( array( 'post_status' => 'draft' ) );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = desktop_mode_build_content_identity();
+
+		$this->assertArrayHasKey( 'previewUrl', $identity );
+		$this->assertStringContainsString( 'preview=true', $identity['previewUrl'] );
+		$this->assertStringContainsString( 'preview_id=' . $post_id, $identity['previewUrl'] );
+		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
+	}
+
+	/**
+	 * Published posts preview via an autosave REVISION — the nonce'd
+	 * `preview_id` args are what let `_set_preview()` swap it in.
+	 *
+	 * @covers ::desktop_mode_window_preview_url
+	 */
+	public function test_published_post_identity_carries_nonced_preview_url() {
+		$post_id = self::factory()->post->create( array( 'post_status' => 'publish' ) );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = desktop_mode_build_content_identity();
+
+		$this->assertArrayHasKey( 'previewUrl', $identity );
+		$this->assertStringContainsString( 'preview_id=' . $post_id, $identity['previewUrl'] );
+		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
+		parse_str( (string) wp_parse_url( $identity['previewUrl'], PHP_URL_QUERY ), $args );
+		$this->assertArrayHasKey( 'preview_nonce', $args );
+		$this->assertNotFalse(
+			wp_verify_nonce( $args['preview_nonce'], 'post_preview_' . $post_id ),
+			'The preview_nonce must verify against the post_preview_{ID} action core checks.'
+		);
+	}
+
+	/**
+	 * Non-viewable post types have no front end to preview — no
+	 * previewUrl, no eye button.
+	 *
+	 * @covers ::desktop_mode_window_preview_url
+	 */
+	public function test_non_viewable_post_type_gets_no_preview_url() {
+		register_post_type(
+			'dm_hidden',
+			array(
+				'public'             => false,
+				'publicly_queryable' => false,
+				'show_ui'            => true,
+			)
+		);
+		$post_id = self::factory()->post->create( array( 'post_type' => 'dm_hidden' ) );
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		$identity = desktop_mode_build_content_identity();
+
+		$this->assertArrayNotHasKey( 'previewUrl', $identity );
+
+		unregister_post_type( 'dm_hidden' );
+	}
+
+	/**
+	 * @covers ::desktop_mode_window_preview_url
+	 */
+	public function test_preview_url_filter_can_rewrite_the_url() {
+		$post_id = self::factory()->post->create();
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		add_filter(
+			'desktop_mode_window_preview_url',
+			static function ( $url, $post ) {
+				return 'https://headless.example.test/preview/' . $post->ID;
+			},
+			10,
+			2
+		);
+
+		$identity = desktop_mode_build_content_identity();
+		remove_all_filters( 'desktop_mode_window_preview_url' );
+
+		$this->assertSame( 'https://headless.example.test/preview/' . $post_id, $identity['previewUrl'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_window_preview_url
+	 */
+	public function test_preview_url_filter_can_suppress_the_url() {
+		$post_id = self::factory()->post->create();
+		$this->fake_post_edit_screen( get_post( $post_id ) );
+
+		add_filter( 'desktop_mode_window_preview_url', '__return_empty_string' );
+
+		$identity = desktop_mode_build_content_identity();
+		remove_all_filters( 'desktop_mode_window_preview_url' );
+
+		$this->assertArrayNotHasKey( 'previewUrl', $identity );
+	}
+
+	/**
+	 * The REST recompute (the endpoint the editor save-watcher hits)
+	 * must refresh the previewUrl too — that's how a long-lived editor
+	 * window keeps a live nonce and how draft→publish permalink
+	 * changes reach the open preview.
+	 *
+	 * @covers ::desktop_mode_rest_content_identity
+	 */
+	public function test_rest_content_identity_includes_preview_url() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$post_id = self::factory()->post->create();
+
+		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-identity' );
+		$request->set_param( 'post', $post_id );
+		$response = rest_get_server()->dispatch( $request );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+
+		$this->assertSame( 200, $response->get_status() );
+		$identity = $response->get_data()['identity'];
+		$this->assertArrayHasKey( 'previewUrl', $identity );
+		$this->assertStringContainsString( 'preview_nonce=', $identity['previewUrl'] );
 	}
 }

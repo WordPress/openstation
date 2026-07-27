@@ -8,7 +8,7 @@
 
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
-import type { DOCK_SIZES } from './constants';
+import type { DOCK_SIZES, WINDOW_RADII } from './constants';
 
 /**
  * Accent id. Historically derived from the built-in `ACCENTS` tuple,
@@ -19,6 +19,7 @@ import type { DOCK_SIZES } from './constants';
  */
 export type AccentId = string;
 export type DockSizeId = ( typeof DOCK_SIZES )[ number ][ 'id' ];
+export type WindowRadiusId = ( typeof WINDOW_RADII )[ number ][ 'id' ];
 export type DockPlacementId = 'left' | 'right' | 'bottom';
 
 /**
@@ -86,6 +87,7 @@ export interface OsSettingsState {
 	wallpaper: string;
 	accent: AccentId;
 	dockSize: DockSizeId;
+	windowRadius: WindowRadiusId;
 	desktopLayout: DesktopLayoutId;
 	/**
 	 * Active dock rail-renderer id. Resolves through the dock-rail
