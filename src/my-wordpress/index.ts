@@ -90,6 +90,10 @@ import type {
 import '../ui/components/wpd-button/wpd-button';
 import '../ui/components/wpd-context-menu/wpd-context-menu';
 import '../ui/components/wpd-spinner/wpd-spinner';
+// Self-registers the `agent` entity kind (Agents section). The server
+// only ships the entity when the agents extended option is on, so the
+// registration is inert on sites with the flag off.
+import './agents-renderer';
 
 type RenderCallback = ( body: HTMLElement ) => void;
 

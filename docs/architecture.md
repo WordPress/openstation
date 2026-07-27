@@ -274,6 +274,50 @@ WordPress 7.0 adds its own command-palette admin-bar icon (`#wp-admin-bar-comman
 
 A **mode switch** in the header flips between them (replacing the `/` shortcut); it appears only when Ask AI is available. Each mode keeps its own input draft, and the last AI answer is re-shown when returning to Ask AI. The **OS Settings → Features → "AI assistant"** toggle (`ai.enabled`, off by default, provider-gated) enables Ask AI and makes it the default mode on open (off → Commands). The overlay reads provider status + the toggle live via `AiAssistantConfig.isAiAvailable()` / `isOverrideEnabled()`, so connecting a provider or flipping the toggle takes effect on the next open without a reload.
 
+### AI Agents (0.9.8, opt-in)
+
+Behind the `agents` extended option (default off; while off,
+`includes/agents/bootstrap.php` loads nothing). An agent is split
+across exactly two layers:
+
+- **Identity — a synthetic `wp_users` row.** Real role, real
+  capabilities, real attribution in revisions/comments/audit trails.
+  Every login path is blocked (`authenticate` filter, password reset,
+  application passwords), the address is a never-delivered synthetic
+  email, and the wp-admin Users list labels the row "Agent".
+- **Definition — user meta on that row.** Description, instructions
+  (system prompt), ability allowlist, triggers, model override, and
+  rate limit live in the `_desktop_mode_agent_*` key family
+  (`includes/agents/store.php` owns every key). User meta has no
+  revisions, so the `desktop_mode_agent_{created,updated,deleted}`
+  actions carry before/after values and ARE the audit trail.
+
+**Tools are the WordPress Abilities API.** The Tools picker is a view
+over `wp_get_abilities()` (with honest read-only vs mutating badges
+from `meta.annotations.readonly`); the picks are the allowlist meta;
+each call dispatches through `WP_Ability::execute()` so the ability's
+own `permission_callback` gates it. Unlike the AI Copilot (read-only
+abilities only), agents may be granted mutating abilities — the
+compensating controls are the explicit allowlist set by an
+`edit_users` human plus the agent's role.
+
+**The runner** (`includes/agents/runner.php`) generates through the
+same Core AI Client adapter the Copilot uses
+(`desktop_mode_ai_client_generate()` over `wp_ai_client_prompt()`),
+loops tool calls to a hard 8-turn cap, and runs the whole loop with
+`wp_set_current_user()` switched to the agent (restored in `finally`)
+so permission callbacks see the agent's role, not the human caller.
+Per-agent hourly rate limits ride a transient counter.
+
+**Surfaces:** `/desktop-mode/v1/agents` REST CRUD + `/invoke`
+(`includes/rest/README.md`), the Agents section inside My WordPress
+(server: `desktop_mode_my_wordpress_entities` filter; client: the
+`agent` entity kind via `registerEntityKind()`), and the lazy
+`desktop-mode-agent-run` chat window fed through the cross-bundle
+`desktop-mode/agents-chat` shared store. Phase A ships the chat
+trigger; send-to/drag, hook, endpoint, and agent-to-agent intakes are
+declared in the trigger-kind catalogue and land in later phases.
+
 ## CSS layering
 
 Core layering only — feature windows ship their own per-feature sheets

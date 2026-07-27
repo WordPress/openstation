@@ -561,6 +561,18 @@ const TARGETS = {
 		iifeName: 'desktopModeFocusTimerWidget',
 	},
 
+	// "Agent chat" window — conversation surface for the agents
+	// framework (extended option `agents`). Registers a render
+	// callback on `window.desktopModeNativeWindows['desktop-mode-agent-run']`
+	// and consumes the `<wpd-*>` tags defined by the main bundle plus
+	// the cross-bundle `desktop-mode/agents-chat` shared store seeded
+	// by the My WordPress Agents section.
+	'agent-run-window': {
+		entry:    'src/agent-run-window.ts',
+		fileBase: 'agent-run-window',
+		iifeName: 'desktopModeAgentRunWindow',
+	},
+
 };
 
 export default defineConfig( ( { mode } ) => {

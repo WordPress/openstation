@@ -3926,6 +3926,153 @@ How many themes are announced to the shell. Default 24.
 
 ---
 
+## AI Agents (since 0.9.8)
+
+Opt-in module behind the `agents` extended option (OS Settings →
+Features → Extended options, admin-only, default off). While the flag
+is off none of these hooks exist — `includes/agents/bootstrap.php`
+skips every module file.
+
+An agent is a synthetic `wp_users` row (login-blocked) whose entire
+definition lives as user meta on that row: description, instructions
+(system prompt), ability allowlist, triggers, model override, rate
+limit. There are no revisions on user meta — the
+`desktop_mode_agent_{created,updated,deleted}` actions below ARE the
+audit trail; each carries before/after values for logging plugins to
+persist.
+
+### `desktop_mode_agents_enabled` — Experimental *(filter, since 0.9.8)*
+
+Whether the agents framework is enabled site-wide. Runs on
+`plugins_loaded` (priority 5) to decide whether the module loads at
+all, and again wherever the enabled state is consulted.
+
+- **Param** `bool $enabled` — default: the `agents` extended option.
+
+### `desktop_mode_agent_created` — Experimental *(action, since 0.9.8)*
+
+Fires after `desktop_mode_agent_create()` finishes writing the user
+row and definition meta.
+
+- **Param** `int $user_id` — agent user id.
+- **Param** `array $args` — sanitized creation fields `{ name, role, description, instructions, abilities }`.
+- **Param** `int $actor_id` — user who created the agent.
+
+### `desktop_mode_agent_updated` — Experimental *(action, since 0.9.8)*
+
+Fires once per `desktop_mode_agent_update()` call that changed at
+least one field. No-op updates never fire it.
+
+- **Param** `int $user_id` — agent user id.
+- **Param** `array $changed` — map of `field => { from, to }` for every field that changed (`name`, `role`, `description`, `instructions`, `abilities`, `triggers`, `model`, `rateLimit`).
+- **Param** `int $actor_id` — user who made the change.
+
+### `desktop_mode_agent_deleted` — Experimental *(action, since 0.9.8)*
+
+Fires after `desktop_mode_agent_delete()` removed the user row (and
+with it every definition meta row).
+
+- **Param** `int $user_id` — agent user id (row no longer exists when this fires).
+- **Param** `int $actor_id` — user who deleted the agent.
+
+### `desktop_mode_agent_completed` — Experimental *(action, since 0.9.8)*
+
+Fires after every successful invocation. The audit + chaining seam:
+logging plugins persist the run, and the future agent-to-agent trigger
+consumes it.
+
+- **Param** `int $agent_user_id`
+- **Param** `string $message` — the submitted message.
+- **Param** `array $result` — `{ text, toolCalls, turns }`.
+- **Param** `array $context` — invocation context; convention: `source` names the trigger (`chat`, `send-to`, `hook`, …).
+
+### `desktop_mode_agent_tool_result` — Experimental *(filter, since 0.9.8)*
+
+Filters one tool result before it re-enters the LLM context and
+before it lands in the invocation trace. The sanitization seam —
+strip fields the model has no business seeing.
+
+- **Param** `mixed $output` — raw ability output.
+- **Param** `string $slug` — ability slug.
+- **Param** `array $args` — call arguments.
+- **Param** `int $agent_user_id`
+
+### `desktop_mode_agent_runner_generate` — Experimental *(filter, since 0.9.8)*
+
+Pre-filter for one generation turn. Return a non-null
+`{ text, function_calls, message }` array (or a `WP_Error`) to
+short-circuit the Core AI Client — the seam PHPUnit and alternative
+runtimes plug into. When any callback is attached, the runner
+considers itself available even without the WP 7.0 AI Client.
+
+- **Param** `array|WP_Error|null $generated` — null to proceed with the AI Client.
+- **Param** `array $history` — neutral history rows (`{ type: 'user_text'|'assistant'|'tool_results', … }`).
+- **Param** `array $tool_defs` — neutral tool definitions (`{ name, description, parameters }`).
+- **Param** `string $instructions` — system instruction.
+- **Param** `int $agent_user_id`
+
+### `desktop_mode_agent_trigger_kinds` — Experimental *(filter, since 0.9.8)*
+
+The trigger-kind catalogue (`chat`, `send-to`, `drag`, `hook`,
+`endpoint`, `agent`). Each entry declares `slug`, `label`,
+`description`, `icon`, and a JSON-Schema `config_schema` for its
+`trigger.config` shape. Phase A wires only `chat`; the other kinds
+are declared so configuration can be stored ahead of their intakes.
+
+- **Param** `array $kinds`
+
+### `desktop_mode_agent_hooks_catalogue` — Experimental *(filter, since 0.9.8)*
+
+Curated hook suggestions offered by the Hook-trigger configurator
+(`{ hook, when }` rows). Not a whitelist yet — the intake lands in a
+later phase.
+
+- **Param** `array $hooks`
+
+### `desktop_mode_agent_abilities_catalogue` — Experimental *(filter, since 0.9.8)*
+
+The abilities catalogue behind the Tools picker: every registered
+ability projected to `{ slug, label, description, category, readonly }`.
+Sites can narrow the pickable set or append rows; the preferred
+extension path stays `wp_register_ability()`.
+
+- **Param** `array $catalogue`
+
+### `desktop_mode_agent_allowed_roles` — Experimental *(filter, since 0.9.8)*
+
+Roles an agent may be assigned. The result is always intersected with
+the acting user's `get_editable_roles()` — the filter can narrow or
+extend the whitelist but never bypass the editable-roles constraint.
+
+- **Param** `string[] $whitelist` — default `administrator`, `editor`, `author`, `contributor`.
+
+### `desktop_mode_agent_default_rate_limit` — Experimental *(filter, since 0.9.8)*
+
+Default invocations-per-hour cap applied when the agent has no
+per-agent override.
+
+- **Param** `int $limit` — default 60.
+- **Param** `int $agent_user_id`
+
+### `desktop_mode_agents_user_can_read` / `desktop_mode_agents_user_can_manage` / `desktop_mode_agents_user_can_invoke` — Experimental *(filters, since 0.9.8)*
+
+The three permission gates on the REST surface and the UI. Defaults:
+read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
+
+- **Param** `bool $can`
+
+### PHP helpers — Experimental
+
+- `desktop_mode_agent_is_agent( $user )` — marker-meta test.
+- `desktop_mode_agent_create( $args )` / `desktop_mode_agent_update( $user_id, $fields )` / `desktop_mode_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action).
+- `desktop_mode_agent_get_agents( $args )` — list every agent.
+- `desktop_mode_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
+- `desktop_mode_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, tool loop, turn cap 8, rate limit).
+- `desktop_mode_agent_runner_get_log( $agent_user_id )` — recent invocations (capped at 50).
+- `desktop_mode_agents_abilities_catalogue()` — the picker catalogue.
+
+---
+
 ## See also
 
 - [JavaScript Reference](./javascript-reference.md) — the event + postMessage side of the contract.

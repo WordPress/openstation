@@ -391,6 +391,7 @@ export interface OsSettingsConfig {
 	extendedOptions: {
 		media_library_enhanced: boolean;
 		games: boolean;
+		agents: boolean;
 	} | null;
 	/** REST endpoint for reading/writing extended options. */
 	extendedOptionsUrl: string;

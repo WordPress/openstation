@@ -5400,6 +5400,81 @@ focused/unfocused tinting contract. **Only the alpha channel is used**
 
 ---
 
+## AI Agents — client surface *(Experimental, since 0.9.8)*
+
+Opt-in behind the `agents` extended option; nothing below exists while
+the flag is off. The PHP contract lives in
+[Hooks Reference — AI Agents](./hooks-reference.md#ai-agents-since-098).
+
+### REST client
+
+The Agents section talks to `/desktop-mode/v1/agents` (see
+`includes/rest/README.md` for the route map). The canonical agent
+shape every route returns:
+
+```ts
+interface Agent {
+	id: number;          // wp_users.ID
+	slug: string;        // user_login minus the 'agent-' prefix
+	name: string;
+	description: string;
+	instructions: string; // system prompt
+	role: string;
+	abilities: string[]; // ability slugs (allowlist)
+	triggers: Array< { kind: string; config: Record< string, unknown > } >;
+	model: string;
+	rateLimit: number;   // invocations/hour, 0 = platform default
+	avatarUrl: string;
+}
+```
+
+`POST /agents/{id}/invoke` with `{ message }` returns
+`{ text, toolCalls, turns }` where each tool call is
+`{ callId, name, args, output, error }`.
+
+### My WordPress integration
+
+The server appends an `agents` entity (`kind: 'agent'`) to the My
+WordPress window via the `desktop_mode_my_wordpress_entities` filter,
+and ships an `agents` block on the window config:
+
+```ts
+interface AgentsSectionConfig {
+	canManage: boolean;   // edit_users (filterable)
+	canInvoke: boolean;   // edit_posts (filterable)
+	aiAvailable: boolean; // WP 7.0 AI Client + Abilities API present
+	aiStatusUrl: string;  // live provider probe (/ai/status)
+	connectorsUrl: string;
+	runWindowId: string;  // 'desktop-mode-agent-run'
+}
+```
+
+The `agent` entity-kind renderer is registered through the standard
+`registerEntityKind()` seam — plugins can override it like any other
+kind.
+
+### Chat window + shared store
+
+The `desktop-mode-agent-run` native window is a lazy bundle
+(`agent-run-window[.min].js`) that registers its render callback on
+`window.desktopModeNativeWindows['desktop-mode-agent-run']`. Openers
+seed the cross-bundle store and open the window:
+
+```ts
+// Both bundles share one live object via createSharedStore.
+const store = wp.desktop.createSharedStore( 'desktop-mode/agents-chat', () => ( {
+	activeAgent: null, // { id, name, description, avatarUrl } | null
+	transcripts: {},   // Record<agentId, Array<{ role, text, toolCalls?, at, pending? }>>
+} ) );
+store.state.activeAgent = { id, name, description, avatarUrl };
+store.notify();
+wp.desktop.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
+```
+
+Transcripts are session-only; nothing persists client-side.
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.

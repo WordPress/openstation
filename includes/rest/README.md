@@ -59,6 +59,13 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/games/challenges/{id}/decline` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
 | `/games/challenges/{id}/complete` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
 | `/games/users/search` | GET | `includes/games/rest.php` | same games gate |
+| `/agents` | GET / POST | `includes/agents/rest.php` | GET `edit_posts`, POST `edit_users` (both filterable; whole module behind the `agents` extended option) |
+| `/agents/{id}` | GET / POST / DELETE | `includes/agents/rest.php` | GET `edit_posts`, POST/DELETE `edit_users` (filterable) |
+| `/agents/{id}/invoke` | POST | `includes/agents/rest.php` | `edit_posts` (filterable via `desktop_mode_agents_user_can_invoke`) + per-agent rate limit |
+| `/agents/abilities` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
+| `/agents/trigger-kinds` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
+| `/agents/hooks-catalogue` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
+| `/agents/roles` | GET | `includes/agents/rest.php` | `edit_users` (filterable) |
 
 ## Conventions
 

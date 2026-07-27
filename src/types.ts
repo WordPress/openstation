@@ -2286,6 +2286,7 @@ export interface DesktopConfig {
 	extendedOptions?: {
 		media_library_enhanced: boolean;
 		games: boolean;
+		agents: boolean;
 	} | null;
 	/**
 	 * REST endpoint for reading/writing extended options (admin only).

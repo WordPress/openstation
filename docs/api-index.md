@@ -174,6 +174,18 @@ Inside an iframe window, after the chromeless bridge installs the API:
 
 ---
 
+### AI Agents *(Experimental, since 0.9.8 — behind the `agents` extended option)*
+
+No dedicated `wp.desktop.agents` namespace yet — the surface is REST +
+shared-store + registries. Index:
+
+| Surface | Where | Status |
+|---|---|---|
+| `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental *(0.9.8)* |
+| `desktop_mode_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents-since-098) | Experimental *(0.9.8)* |
+| `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental-since-098) | Experimental *(0.9.8)* |
+| `agent` My WordPress entity kind | `registerEntityKind()` seam | Experimental *(0.9.8)* |
+
 ## CustomEvents on `document`
 
 Every event bubbles from `document`. See [`javascript-reference.md`](./javascript-reference.md#1-customevents) for `detail` shapes.
