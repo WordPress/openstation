@@ -11,7 +11,6 @@
  * none of the heart's code.
  *
  * @package WPDesktopMode
- * @since   0.8.5
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,8 +23,6 @@ defined( 'ABSPATH' ) || exit;
  * desktop_mode_enqueue_heartbeat_widget_styles() below — the
  * widget server-sync only injects the JS, so the stylesheet must
  * ship ahead of time for the chrome to paint with the JS.
- *
- * @since 0.8.5
  */
 function desktop_mode_register_heartbeat_widget_assets() {
 	$suffix  = desktop_mode_asset_suffix();
@@ -55,8 +52,6 @@ add_action( 'init', 'desktop_mode_register_heartbeat_widget_assets', 5 );
  * (label / description / icon) live here so the framework knows
  * the widget exists at picker-render time, before the JS bundle
  * is even fetched.
- *
- * @since 0.8.5
  */
 function desktop_mode_register_heartbeat_widget() {
 	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {
@@ -106,8 +101,6 @@ add_action( 'init', 'desktop_mode_register_heartbeat_widget', 6 );
  * (1.9 KB) stylesheet. The
  * `desktop_mode_heartbeat_widget_eager_css` filter lets a
  * site owner opt out entirely without forking the plugin.
- *
- * @since 0.8.5
  */
 function desktop_mode_enqueue_heartbeat_widget_styles() {
 	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
@@ -127,8 +120,6 @@ function desktop_mode_enqueue_heartbeat_widget_styles() {
 	 * Desktop Mode. Sites that never plan to ship the heartbeat
 	 * widget can return `false` and save the ~0.66 KB gzipped
 	 * stylesheet roundtrip.
-	 *
-	 * @since 0.8.5
 	 *
 	 * @param bool $eager Default `true` once the chromeless +
 	 *                    desktop-mode gates above have passed.

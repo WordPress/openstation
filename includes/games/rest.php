@@ -22,15 +22,12 @@
  * `desktop_mode_games_can_challenge` filter.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Base permission gate shared by every games route.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_permission() {
 	if ( ! is_user_logged_in() ) {
@@ -48,8 +45,6 @@ function desktop_mode_games_rest_permission() {
 	 * `WP_Error` (or `false`) to lock the whole surface down below
 	 * the default logged-in + `read` gate.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param true|false|WP_Error $allowed Default `true`.
 	 * @param int                 $user_id Current user.
 	 */
@@ -65,8 +60,6 @@ function desktop_mode_games_rest_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
@@ -171,7 +164,6 @@ add_action( 'rest_api_init', 'desktop_mode_games_register_rest_routes' );
  * Resolve + validate the `game` path param. 404s unknown ids so the
  * scores surface doesn't leak which games exist server-side.
  *
- * @since 0.9.6
  * @internal
  *
  * @param WP_REST_Request $req Request.
@@ -191,8 +183,6 @@ function desktop_mode_games_rest_resolve_game( WP_REST_Request $req ) {
 
 /**
  * GET /games/{game}/scores
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_list_scores( WP_REST_Request $req ) {
 	$game = desktop_mode_games_rest_resolve_game( $req );
@@ -215,8 +205,6 @@ function desktop_mode_games_rest_list_scores( WP_REST_Request $req ) {
 /**
  * POST /games/{game}/scores — always records for the current user;
  * there is no way to submit a score on someone else's behalf.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_submit_score( WP_REST_Request $req ) {
 	$game = desktop_mode_games_rest_resolve_game( $req );
@@ -237,8 +225,6 @@ function desktop_mode_games_rest_submit_score( WP_REST_Request $req ) {
 
 /**
  * GET /games/playtime — the current user's `game id => seconds` map.
- *
- * @since 0.9.7
  */
 function desktop_mode_games_rest_get_playtime() {
 	$user_id = get_current_user_id();
@@ -257,8 +243,6 @@ function desktop_mode_games_rest_get_playtime() {
 /**
  * POST /games/{game}/playtime — always records for the current user;
  * there is no way to record play time on someone else's behalf.
- *
- * @since 0.9.7
  */
 function desktop_mode_games_rest_record_playtime( WP_REST_Request $req ) {
 	$game = desktop_mode_games_rest_resolve_game( $req );
@@ -278,8 +262,6 @@ function desktop_mode_games_rest_record_playtime( WP_REST_Request $req ) {
 
 /**
  * GET /games/challenges — challenges involving the current user.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_list_challenges( WP_REST_Request $req ) {
 	$user_id = get_current_user_id();
@@ -307,8 +289,6 @@ function desktop_mode_games_rest_list_challenges( WP_REST_Request $req ) {
 
 /**
  * POST /games/challenges
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_create_challenge( WP_REST_Request $req ) {
 	$challenger_id = get_current_user_id();
@@ -327,8 +307,6 @@ function desktop_mode_games_rest_create_challenge( WP_REST_Request $req ) {
 	 * Filters whether a user may challenge another user. Return
 	 * `false` (or a `WP_Error`) to block — e.g. respecting a
 	 * do-not-disturb setting or a per-role policy.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param bool|WP_Error $allowed       Default `true`.
 	 * @param int           $challenger_id Sender.
@@ -364,7 +342,6 @@ function desktop_mode_games_rest_create_challenge( WP_REST_Request $req ) {
 /**
  * Load a challenge and verify the current user is its recipient.
  *
- * @since 0.9.6
  * @internal
  *
  * @param WP_REST_Request $req Request.
@@ -391,8 +368,6 @@ function desktop_mode_games_rest_resolve_recipient_challenge( WP_REST_Request $r
 
 /**
  * POST /games/challenges/{id}/accept
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_accept_challenge( WP_REST_Request $req ) {
 	$row = desktop_mode_games_rest_resolve_recipient_challenge( $req );
@@ -409,8 +384,6 @@ function desktop_mode_games_rest_accept_challenge( WP_REST_Request $req ) {
 
 /**
  * POST /games/challenges/{id}/decline
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_decline_challenge( WP_REST_Request $req ) {
 	$row = desktop_mode_games_rest_resolve_recipient_challenge( $req );
@@ -427,8 +400,6 @@ function desktop_mode_games_rest_decline_challenge( WP_REST_Request $req ) {
 
 /**
  * POST /games/challenges/{id}/complete
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_complete_challenge( WP_REST_Request $req ) {
 	$row = desktop_mode_games_rest_resolve_recipient_challenge( $req );
@@ -450,8 +421,6 @@ function desktop_mode_games_rest_complete_challenge( WP_REST_Request $req ) {
  * GET /games/users/search?q=<>&exclude=<csv> — autocomplete for the
  * opponent picker. Thin sibling of the folder-share picker, gated on
  * `read` instead of `edit_posts` so subscribers can be challenged.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_rest_search_users( WP_REST_Request $req ) {
 	$q       = trim( (string) $req->get_param( 'q' ) );
@@ -476,8 +445,6 @@ function desktop_mode_games_rest_search_users( WP_REST_Request $req ) {
 
 	/**
 	 * Filter the WP_User_Query args used by the opponent picker.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param array $args Default args.
 	 * @param array $req  Request params (`q`, `exclude`).

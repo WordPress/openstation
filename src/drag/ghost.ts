@@ -14,12 +14,10 @@
  * card during a Media Library drag) they pass `payload.ghost.element`
  * and the manager renders that instead.
  *
- * Since 0.8.2 the ghost also paints a small "drop hint" chip next
+ * The ghost also paints a small "drop hint" chip next
  * to the cursor that updates with the current accept/reject state.
  * Plugin authors get a text affordance for free; the chip text can
  * be customised per payload via `payload.ghost.hint`.
- *
- * @since 0.8.1
  */
 
 import { __ } from '../i18n';

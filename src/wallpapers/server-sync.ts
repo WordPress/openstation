@@ -21,8 +21,6 @@
  * `osSettings.apply()` — if the user's current selection was the
  * wallpaper leaving, the apply path falls back to a built-in
  * default rather than leaving a dead id in place.
- *
- * @since 0.5.0
  */
 
 import { doAction, HOOKS } from './../hooks';

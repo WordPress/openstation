@@ -23,8 +23,6 @@
  *
  * The host is a **live region** (`aria-live="polite"`) so screen
  * readers announce value changes without yanking focus.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

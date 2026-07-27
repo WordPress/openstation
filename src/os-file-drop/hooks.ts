@@ -5,8 +5,6 @@
  * `FILE_DROP_*` keys). Defined here close to the manager so
  * the file-drop subsystem owns the names that ship in the
  * public hook surface.
- *
- * @since 0.30.0
  */
 
 export const FILE_DROP_HOOKS = {
@@ -61,8 +59,6 @@ export const FILE_DROP_HOOKS = {
 	 *
 	 * Pair with `UPLOAD_PROGRESS` to drive a progress UI; pair with
 	 * `AFTER_UPLOAD` / `UPLOAD_FAILED` to know when the upload ends.
-	 *
-	 * @since 0.31.0
 	 */
 	UPLOAD_STARTED: 'desktop-mode.drop.upload-started',
 
@@ -78,8 +74,6 @@ export const FILE_DROP_HOOKS = {
 	 * A synthetic 100%-loaded event is dispatched once the `upload`
 	 * stream emits `load` so a HUD can show a definite "wrapping up"
 	 * state while the server finishes the response.
-	 *
-	 * @since 0.31.0
 	 */
 	UPLOAD_PROGRESS: 'desktop-mode.drop.upload-progress',
 
@@ -97,7 +91,6 @@ export const FILE_DROP_HOOKS = {
 	 * `photo.jpg` from different folders would otherwise route
 	 * each other's success event to the wrong row.
 	 *
-	 * @since 0.31.0 the `file` field was added; pre-0.31.0 code
 	 * that destructured `{ result, fields, context }` keeps working.
 	 */
 	AFTER_UPLOAD: 'desktop-mode.drop.after-upload',

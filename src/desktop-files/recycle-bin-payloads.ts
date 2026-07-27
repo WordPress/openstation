@@ -7,8 +7,6 @@
  * registry allows only one target per element), and consults this
  * registry for payload types it doesn't know (`'note'` today — the
  * pinned-notes trash path).
- *
- * @since 0.9.6
  */
 
 import type { DragPayload, DragSession } from '../drag';

@@ -17,7 +17,6 @@
  * paint at boot; game code is only needed when someone plays.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -52,8 +51,6 @@ defined( 'ABSPATH' ) || exit;
  *     render: function ( ctx ) { return function () {}; },
  * };
  * ```
- *
- * @since 0.9.6
  *
  * @param string $id   Game id (slug). Must match the
  *                     `window.desktopModeGames[<id>]` key the game's
@@ -171,8 +168,6 @@ function desktop_mode_register_game( $id, $args = array() ) {
 	 * Does NOT fire when `desktop_mode_register_game()` returns a
 	 * `WP_Error`.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param string $id    The game id.
 	 * @param array  $entry The stored registry entry.
 	 */
@@ -186,7 +181,6 @@ function desktop_mode_register_game( $id, $args = array() ) {
  * valid key, default labels to the key, and clamp `type` to the
  * supported set.
  *
- * @since 0.9.6
  * @internal
  *
  * @param mixed $columns Raw caller input.
@@ -224,7 +218,6 @@ function desktop_mode_games_sanitize_score_columns( $columns ) {
  * {@see desktop_mode_register_game()}. Same static-store pattern as
  * the widget + wallpaper + native-window registries.
  *
- * @since 0.9.6
  * @internal
  */
 function desktop_mode_games_registry( $id = '', $entry = null ) {
@@ -247,8 +240,6 @@ function desktop_mode_games_registry( $id = '', $entry = null ) {
 /**
  * Unregister a game. Safe to call for unknown ids.
  *
- * @since 0.9.6
- *
  * @param string $id Game id.
  * @return bool Whether an entry was removed.
  */
@@ -266,8 +257,6 @@ function desktop_mode_unregister_game( $id ) {
  * applied. This is the read path everything else (payload, REST
  * validation) goes through, so filter-registered games validate.
  *
- * @since 0.9.6
- *
  * @return array[] Entries keyed by game id.
  */
 function desktop_mode_games_get_registered() {
@@ -279,8 +268,6 @@ function desktop_mode_games_get_registered() {
 	 * override entries at boot without round-tripping through the
 	 * JS registry.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array[] $registry The registered game entries, keyed by id.
 	 */
 	$registry = apply_filters( 'desktop_mode_games', $registry );
@@ -291,8 +278,6 @@ function desktop_mode_games_get_registered() {
 /**
  * Whether a game id is known to the server registry (post-filter).
  * REST routes 404 unknown games through this.
- *
- * @since 0.9.6
  *
  * @param string $id Game id.
  * @return bool
@@ -320,8 +305,6 @@ function desktop_mode_games_is_registered( $id ) {
  * Build the game list for the shell payload. Only metadata + the
  * resolved script URL cross the wire; the game's render callback is
  * announced via the JS global its (lazily loaded) script sets up.
- *
- * @since 0.9.6
  *
  * @return array[]
  */

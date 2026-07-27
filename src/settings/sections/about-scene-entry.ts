@@ -10,8 +10,6 @@
  * Publishes a single global: `window.desktopModeMountAboutScene`.
  * The loader awaits the script's `load` event, reads the global,
  * and forwards the caller's options to it.
- *
- * @since 0.8.4
  */
 
 import { mountAboutScene, type AboutScene, type SceneOptions } from './about-scene';

@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests for the folder-sharing feature (0.18.0):
+ * Tests for the folder-sharing feature:
  *
  *   - v8 schema migration + shares table existence
  *   - Invite / accept / deny / revoke lifecycle

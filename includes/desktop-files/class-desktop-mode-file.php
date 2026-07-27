@@ -17,7 +17,6 @@
  * association decides which.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -29,8 +28,6 @@ defined( 'ABSPATH' ) || exit;
  * {@see ::type()} slug; override {@see ::icon()}, {@see ::preview_url()},
  * {@see ::can_read()}, or {@see ::serialize()} when the defaults
  * don't fit.
- *
- * @since 0.9.0
  */
 abstract class Desktop_Mode_File {
 
@@ -145,8 +142,6 @@ abstract class Desktop_Mode_File {
 		 * crosses the wire. Last-mile mutation point — plugins use
 		 * this to attach badges, override labels, or splice in
 		 * custom render hints without subclassing.
-		 *
-		 * @since 0.9.0
 		 *
 		 * @param array             $shape The serialized file shape.
 		 * @param Desktop_Mode_File $file  The file being serialized.

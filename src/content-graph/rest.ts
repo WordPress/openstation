@@ -7,7 +7,6 @@
  * correctly (per AGENTS.md).
  *
  * @public
- * @since 0.8.2
  */
 
 import { joinRestUrl } from '../rest-url';

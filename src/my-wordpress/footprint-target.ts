@@ -29,8 +29,6 @@
  * `early-api.ts` buffers `registerEntityKind` and nothing else), so a
  * footprint click in a session that never opened My WordPress would
  * silently no-op.
- *
- * @since 0.9.1
  */
 
 /** Native My WordPress window id — the lazy bundle's `WINDOW_ID`. */
@@ -198,8 +196,6 @@ export function subscribeFootprintTarget(
  * Open (or focus) the My WordPress window scoped to a user's activity
  * footprint. Cold-start safe: stashes the shared target first, then
  * opens the window so the freshly-mounted bundle reads it back.
- *
- * @since 0.9.1
  *
  * @param args          Footprint target.
  * @param args.userId   Target user id (must be a positive integer).

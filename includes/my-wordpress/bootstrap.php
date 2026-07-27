@@ -8,7 +8,6 @@
  * Categories, Themes, and Plugins as additional sub-folders.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;

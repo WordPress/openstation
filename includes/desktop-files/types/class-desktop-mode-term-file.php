@@ -4,13 +4,12 @@
  * (category, tag, custom). Reference shape: `"<taxonomy>:<term_id>"`.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `term` desktop file type.
  */
 class Desktop_Mode_Term_File extends Desktop_Mode_File {
 

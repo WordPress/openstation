@@ -22,7 +22,6 @@
  * sanitising it here would be theatre. Plugin authors who care
  * about XSS hygiene against their own data sanitise on their side.
  *
- * @since 0.5.2
  * @internal
  */
 

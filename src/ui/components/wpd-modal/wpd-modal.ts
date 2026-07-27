@@ -20,8 +20,6 @@
  * Events:
  *
  *   - `wpd-modal-cancel` — ESC, click-outside, close button.
- *
- * @since 0.8.5
  */
 
 import { Component, defineComponent, html } from '../../core';

@@ -1,6 +1,6 @@
 # Content changes — live-refresh every window listing your type
 
-Since 0.9.7 the framework ships a generic content-change realtime
+The framework ships a generic content-change realtime
 layer: any create / update / trash of a post, page, `show_ui` CPT,
 comment, or WooCommerce order is broadcast to every window as
 `desktop-mode.<type>.changed`, and windows listing that type refresh
@@ -109,4 +109,4 @@ add_action( 'desktop_mode_content_change_recorded', function ( $type, $id, $acti
 }, 10, 3 );
 ```
 
-Full surface: [hooks-reference.md → Content-change realtime layer](../hooks-reference.md#content-change-realtime-layer-since-097).
+Full surface: [hooks-reference.md → Content-change realtime layer](../hooks-reference.md#content-change-realtime-layer).

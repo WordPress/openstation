@@ -7,7 +7,6 @@
  * `RestError` with the WP error `code` for branching.
  *
  * @public
- * @since 0.7.0
  */
 
 import type { CodeEditorConfig } from './monaco-bootstrap';
@@ -275,8 +274,6 @@ function utf8ToBase64( str: string ): string {
  * it) the thrown {@link RestError} carries `data` shaped as
  * {@link ConflictData} — caller can branch and offer "reload from
  * disk" / "overwrite anyway".
- *
- * @since 0.7.0
  */
 export async function saveFile(
 	path: string,

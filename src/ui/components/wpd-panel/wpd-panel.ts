@@ -22,8 +22,6 @@
  * Behavior is pure CSS; no JS state. Equivalent hand-rolled
  * markup:
  *   <div style="padding:16px;display:flex;flex-direction:column;gap:12px">…</div>
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

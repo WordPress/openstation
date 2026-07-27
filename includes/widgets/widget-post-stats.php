@@ -9,7 +9,6 @@
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
  *
  * @package WPDesktopMode
- * @since   0.26.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
  *
  * Route: GET /desktop-mode/v1/post-stats
  * Permission: edit_posts.
- *
- * @since 0.9.7
  */
 function desktop_mode_register_post_stats_rest_route() {
 	register_rest_route(
@@ -52,8 +49,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_post_stats_rest_route' );
  * Cached for 5 minutes per scope — the data is a trailing-6-month
  * aggregate, the widget refreshes every 5 minutes, and every viewer
  * in the same capability scope can share one computation.
- *
- * @since 0.9.7
  *
  * @return array{months:array<int,array{ym:string,publish:int,draft:int,pending:int}>}
  */
@@ -145,8 +140,6 @@ function desktop_mode_post_stats_callback() {
 
 /**
  * Register the JS + CSS assets.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_post_stats_widget_assets() {
 	$suffix  = desktop_mode_asset_suffix();
@@ -174,8 +167,6 @@ add_action( 'init', 'desktop_mode_register_post_stats_widget_assets', 5 );
 
 /**
  * Eagerly enqueue the CSS on shell pages.
- *
- * @since 0.26.0
  */
 function desktop_mode_enqueue_post_stats_widget_styles() {
 	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
@@ -190,8 +181,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_post_stats_widget_sty
 
 /**
  * Register the widget definition.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_post_stats_widget() {
 	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {

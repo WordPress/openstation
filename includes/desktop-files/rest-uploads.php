@@ -20,7 +20,6 @@
  * resumable-upload layer can feed the same register step.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,8 +33,6 @@ defined( 'ABSPATH' ) || exit;
  * MIME policy would reject most of these anyway, and the stored
  * disk name is an extensionless UUID that no handler dispatches.
  *
- * @since 0.9.6
- *
  * @return string[]
  */
 function desktop_mode_stored_files_denied_extensions() {
@@ -48,8 +45,6 @@ function desktop_mode_stored_files_denied_extensions() {
 	 * Filters the hard-denied extension list. Narrowing this below
 	 * the shipped set is strongly discouraged.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param string[] $denied Lowercase extensions.
 	 */
 	return (array) apply_filters( 'desktop_mode_stored_files_denied_extensions', $denied );
@@ -57,8 +52,6 @@ function desktop_mode_stored_files_denied_extensions() {
 
 /**
  * Whole-filename denylist (dotfiles / server config).
- *
- * @since 0.9.6
  *
  * @param string $name Client filename.
  * @return bool True when the name is forbidden.
@@ -82,8 +75,6 @@ function desktop_mode_stored_files_is_denied_filename( $name ) {
 /**
  * Effective per-file size cap in bytes.
  *
- * @since 0.9.6
- *
  * @param int $user_id User.
  * @return int
  */
@@ -94,8 +85,6 @@ function desktop_mode_stored_files_max_upload_bytes( $user_id ) {
 	 * effectively lower it below the server limits — PHP discards
 	 * larger bodies before WordPress runs.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int $max     Cap in bytes. Default `wp_max_upload_size()`.
 	 * @param int $user_id User.
 	 */
@@ -104,8 +93,6 @@ function desktop_mode_stored_files_max_upload_bytes( $user_id ) {
 
 /**
  * Permission: base files gate + the upload capability.
- *
- * @since 0.9.6
  */
 function desktop_mode_files_rest_uploads_permission() {
 	$base = desktop_mode_files_rest_permission();
@@ -124,8 +111,6 @@ function desktop_mode_files_rest_uploads_permission() {
 
 /**
  * Register the upload route.
- *
- * @since 0.9.6
  */
 function desktop_mode_files_register_upload_rest_routes() {
 	register_rest_route( 'desktop-mode/v1', '/files/uploads', array(
@@ -170,8 +155,6 @@ function desktop_mode_files_register_upload_rest_routes() {
  * directories (the drag-drop Entries API sees them; files-only
  * transports lose them).
  *
- * @since 0.9.6
- *
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
  */
@@ -197,8 +180,6 @@ function desktop_mode_files_rest_ensure_upload_path( WP_REST_Request $req ) {
 /**
  * PATCH /files/uploads/<id> — rename (owner only). Not-found and
  * not-owner are both 404 (existence masking, same as downloads).
- *
- * @since 0.9.6
  *
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
@@ -228,8 +209,6 @@ add_action( 'rest_api_init', 'desktop_mode_files_register_upload_rest_routes' );
 
 /**
  * POST /files/uploads
- *
- * @since 0.9.6
  *
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
@@ -309,7 +288,6 @@ function desktop_mode_files_rest_upload( WP_REST_Request $req ) {
  * `{ path, disk_name, display_name, size_bytes, mime }` or an
  * error. No DB writes happen here.
  *
- * @since 0.9.6
  * @internal
  *
  * @param array $file    Single `$_FILES`-shaped entry.
@@ -365,8 +343,6 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 	 * `upload_mimes` hook below keeps core's re-check in
 	 * `wp_check_filetype_and_ext()` in agreement).
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array<string,string> $mimes   Allowed map.
 	 * @param int                  $user_id Uploader.
 	 */
@@ -403,8 +379,6 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 	 * uploads. Exists mainly so tests (and future resumable layers
 	 * feeding pre-staged files) can switch `action` to the sideload
 	 * variant — never remove `test_form => false`.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param array $overrides Overrides array.
 	 * @param int   $user_id   Uploader.
@@ -446,7 +420,6 @@ function desktop_mode_files_upload_receive( $file, $user_id ) {
 /**
  * Register step: stored-file row + folder resolution + placement.
  *
- * @since 0.9.6
  * @internal
  *
  * @param int        $user_id       Uploader.
@@ -517,8 +490,6 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
 	 * Fires after an upload lands (bytes, row, and placement all
 	 * exist).
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int $file_id      Stored-file id.
 	 * @param int $placement_id Placement id.
 	 * @param int $user_id      Uploader.
@@ -539,8 +510,6 @@ function desktop_mode_files_upload_register( $user_id, $received, $parent_id, $r
  * uploads of one tree share segments instead of racing).
  *
  * The final path segment is the FILE name and is ignored here.
- *
- * @since 0.9.6
  *
  * @param int    $user_id        Acting user.
  * @param int    $base_parent_id Folder to resolve under (0 = root).
@@ -623,8 +592,6 @@ function desktop_mode_files_resolve_relative_path( $user_id, $base_parent_id, $r
 /**
  * Shell-config injection: what the client upload/download UX needs
  * to know up front.
- *
- * @since 0.9.6
  *
  * @param array $config Shell config.
  * @return array

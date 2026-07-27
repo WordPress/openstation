@@ -13,7 +13,6 @@
  * bundle; this module only consumes them.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __, sprintf } from '../i18n';

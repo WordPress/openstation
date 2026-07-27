@@ -26,8 +26,6 @@ const DESKTOP_MODE_AI_ABILITY_CATEGORY = 'desktop-mode';
 /**
  * Registers the `desktop-mode` ability category.
  *
- * @since 0.9.4
- *
  * @return void
  */
 function desktop_mode_ai_register_ability_category() {
@@ -59,8 +57,6 @@ add_action( 'wp_abilities_api_categories_init', 'desktop_mode_ai_register_abilit
  * tool result), so the model is never handed an ability that could change the
  * site.
  *
- * @since 0.9.4
- *
  * @return string[] Fully-namespaced ability names.
  */
 function desktop_mode_ai_search_ability_names() {
@@ -91,8 +87,6 @@ function desktop_mode_ai_search_ability_names() {
  * → `search_posts`), so progress labels, the system prompt, and the answer
  * schema keep referring to the same names across the abilities migration.
  *
- * @since 0.9.4
- *
  * @param string $ability_name Fully-namespaced ability name.
  * @return string
  */
@@ -116,8 +110,6 @@ function desktop_mode_ai_ability_tool_name( $ability_name ) {
  * Mirrors the read-only search/navigation tools, which were ungated beyond the
  * Copilot's own logged-in requirement.
  *
- * @since 0.9.4
- *
  * @return bool
  */
 function desktop_mode_ai_ability_can_read() {
@@ -128,8 +120,6 @@ function desktop_mode_ai_ability_can_read() {
  * A loose object output schema: typed at the top level, permissive on the rest
  * so `WP_Ability::execute()`'s output validation never rejects a valid handler
  * return (the shapes carry optional/nested fields we don't want to freeze).
- *
- * @since 0.9.4
  *
  * @param array<string,array<string,mixed>> $properties Documented top-level props.
  * @return array<string,mixed>
@@ -148,8 +138,6 @@ function desktop_mode_ai_ability_output_schema( array $properties = array() ) {
 
 /**
  * Registers every Copilot ability.
- *
- * @since 0.9.4
  *
  * @return void
  */
@@ -378,8 +366,6 @@ add_action( 'wp_abilities_api_init', 'desktop_mode_ai_register_abilities' );
  * resolves and executes it directly ({@see desktop_mode_ai_analyze_comment_now()}
  * runs through it). Exposed in the abilities catalog for observability + reuse.
  *
- * @since 0.9.4
- *
  * @return void
  */
 function desktop_mode_ai_register_comment_analysis_ability() {
@@ -422,8 +408,6 @@ function desktop_mode_ai_register_comment_analysis_ability() {
 
 /**
  * Execute callback for the `desktop-mode/analyze-comment` ability.
- *
- * @since 0.9.4
  *
  * @param array<string,mixed> $input Validated input (`comment_id`).
  * @return array|WP_Error Structured verdict, or an error.

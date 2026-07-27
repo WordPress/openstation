@@ -8,8 +8,6 @@
  *
  * Reuses the wallpaper-menu's CSS (`.desktop-mode-wallpaper-menu*`)
  * so the two menus look identical.
- *
- * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';

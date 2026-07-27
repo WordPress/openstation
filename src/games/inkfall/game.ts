@@ -10,8 +10,6 @@
  * `wp.desktop.loadModules(['pixijs'])`, `sharedTicker: false` (a
  * shared ticker crashes `Batcher.break()` across bundles), and the
  * options-object destroy — never `destroy( true )`.
- *
- * @since 0.9.6
  */
 
 import { __, sprintf } from '../../i18n';

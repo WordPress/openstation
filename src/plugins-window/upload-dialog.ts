@@ -10,7 +10,6 @@
  * the dropped file pre-applied so the user just confirms.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';

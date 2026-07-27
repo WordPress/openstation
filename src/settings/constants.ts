@@ -63,8 +63,6 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
  * malformed entries rather than letting a bad filter render broken
  * swatches. Falls back to {@link DEFAULT_ACCENTS} when the config is
  * missing or yields zero valid entries.
- *
- * @since 0.5.0
  */
 export function getAccents(): readonly AccentColor[] {
 	const config = ( window as unknown as {
@@ -96,8 +94,6 @@ export function getAccents(): readonly AccentColor[] {
  * Resolve the live default-wallpaper slug. Reads
  * `window.wp.desktop.config.defaultWallpaper` and falls back to
  * {@link DEFAULT_WALLPAPER_ID} when absent/invalid.
- *
- * @since 0.5.0
  */
 export function getDefaultWallpaperId(): string {
 	const config = ( window as unknown as {
@@ -172,7 +168,7 @@ export const DEFAULTS: OsSettingsState = {
 	ai: {
 		enabled: false,
 	},
-	// Opt-IN Beta as of 0.9.1. Fresh installs land on the classic
+	// Opt-in Beta. Fresh installs land on the classic
 	// chromeless `edit.php` iframe; a user opts in via OS Settings →
 	// Features → Beta features to get the native Posts window. The
 	// native windows used to default ON (opt-out, 0.8.0) but are now

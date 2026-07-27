@@ -15,8 +15,6 @@
  *   - **`<wpd-icon>` content icons.** Those live inside window
  *     BODIES, not chrome. Theming them is a documented non-goal for
  *     v1 — see docs/desktop-themes.md.
- *
- * @since 0.9.7
  */
 
 /**
@@ -24,7 +22,6 @@
  * `APP:<slug>` form instead (see {@link slotForTileId}).
  *
  * @public
- * @since 0.9.7
  */
 export const DESKTOP_THEME_SLOTS = {
 	// Window controls — one per `<wpd-window-button>` built-in key.
@@ -87,7 +84,6 @@ const SYSTEM_TILE_SLOTS: Record< string, string > = {
  * or plugin window by name.
  *
  * @public
- * @since 0.9.7
  *
  * @param id Tile id.
  * @return Slot name, or `''` when the id is unusable.
@@ -116,7 +112,6 @@ export function slotForTileId( id: string ): string {
  * widens it via `desktop_mode_desktop_theme_icon_slots`.
  *
  * @public
- * @since 0.9.7
  *
  * @param id Control id.
  * @return Slot name, or `''` when the id is unusable.
@@ -138,7 +133,6 @@ export function slotForWindowControl( id: string ): string {
  * (`folder` → `FOLDER`, `post` → `FILE_POST`).
  *
  * @public
- * @since 0.9.7
  *
  * @param type File-type slug.
  * @return Slot name, or `''` when the type has no slot.

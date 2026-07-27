@@ -19,8 +19,6 @@
  * The pointer tooltip (`title`) carries the absolute, locale-
  * formatted datetime so users can always reach the precise
  * timestamp without losing the at-a-glance relative copy.
- *
- * @since 0.6.0
  */
 
 import { Component, defineComponent, html } from '../../core';

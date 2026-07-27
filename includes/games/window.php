@@ -14,7 +14,6 @@
  * mirroring the Recycle Bin.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The shared gamepad SVG used by the window icon and the desktop
  * icon.
- *
- * @since 0.9.6
  *
  * @return string Raw `<svg>` markup.
  */
@@ -40,8 +37,6 @@ function desktop_mode_games_icon_svg() {
 /**
  * Whether the current user can use desktop games.
  *
- * @since 0.9.6
- *
  * @return bool
  */
 function desktop_mode_games_user_can_use() {
@@ -50,8 +45,6 @@ function desktop_mode_games_user_can_use() {
 	/**
 	 * Filter whether the current user can see the Games window,
 	 * icon, and play games.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param bool $can Default: logged-in + `read` capability.
 	 */
@@ -64,8 +57,6 @@ function desktop_mode_games_user_can_use() {
  * The `data-desktop-mode-games-*` hooks are the contract the JS
  * render callback relies on — keep them intact (or rename via the
  * filter) when customizing the layout.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_render_template() {
 	ob_start();
@@ -85,8 +76,6 @@ function desktop_mode_games_render_template() {
 	 * Keep the `data-desktop-mode-games-*` hooks intact so the JS
 	 * render callback can find its mount points.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_games_template_html', $html );
@@ -98,8 +87,6 @@ function desktop_mode_games_render_template() {
  *
  * Priority 20, after the native-window registry bootstraps — same
  * timing as the Recycle Bin.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_register_window() {
 	if ( ! desktop_mode_games_user_can_use() ) {
@@ -123,8 +110,6 @@ function desktop_mode_games_register_window() {
 	/**
 	 * Filter the args used to register the Games native window.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_games_window_args', $window_args );
@@ -146,8 +131,6 @@ function desktop_mode_games_register_window() {
 	/**
 	 * Filter the args used to register the Games desktop icon.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_games_icon_args', $icon_args );
@@ -161,8 +144,6 @@ add_action( 'init', 'desktop_mode_games_register_window', 20 );
  *
  * The bundle reads its config off `window.desktopModeGamesConfig`
  * and never hardcodes URLs.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_localize_config() {
 	if ( ! desktop_mode_games_user_can_use() ) {

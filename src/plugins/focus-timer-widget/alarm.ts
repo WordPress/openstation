@@ -6,8 +6,6 @@
  * the AudioContext on the Start click (a gesture), which unlocks it; the
  * same context is then reused when the timer finishes minutes later, so
  * the alarm plays even though no gesture happens at that moment.
- *
- * @since 0.26.0
  */
 
 type AudioCtor = typeof AudioContext;

@@ -8,8 +8,6 @@
  * draft link, see `desktop_mode_notes_rest_restore`). Mirrors the trash
  * flow (`src/notes/trash.ts`); the layer injects eviction/restore
  * callbacks so this module stays DOM-free.
- *
- * @since 0.9.6
  */
 
 import { __ } from '../i18n';

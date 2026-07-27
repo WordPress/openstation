@@ -28,15 +28,12 @@
  * reveal that a file exists (the Drive behavior).
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the download routes.
- *
- * @since 0.9.6
  */
 function desktop_mode_files_register_download_rest_routes() {
 	$ns = 'desktop-mode/v1';
@@ -57,8 +54,6 @@ add_action( 'rest_api_init', 'desktop_mode_files_register_download_rest_routes' 
  * The masked not-found error shared by every failure path that
  * must not leak existence.
  *
- * @since 0.9.6
- *
  * @return WP_Error
  */
 function desktop_mode_files_download_not_found() {
@@ -71,8 +66,6 @@ function desktop_mode_files_download_not_found() {
 
 /**
  * GET /files/uploads/<id>/download
- *
- * @since 0.9.6
  *
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
@@ -92,8 +85,6 @@ function desktop_mode_files_rest_download_file( WP_REST_Request $req ) {
 	/**
 	 * Fires when a stored-file download is about to be served.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int $file_id Stored-file id.
 	 * @param int $user_id Downloader.
 	 */
@@ -109,8 +100,6 @@ function desktop_mode_files_rest_download_file( WP_REST_Request $req ) {
 
 /**
  * GET /files/folders/<id>/download — zip the folder's stored files.
- *
- * @since 0.9.6
  *
  * @param WP_REST_Request $req Request.
  * @return WP_REST_Response|WP_Error
@@ -185,8 +174,6 @@ function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
 	/**
 	 * Fires when a folder-zip download is about to be served.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int $folder_id Folder id.
 	 * @param int $user_id   Downloader.
 	 * @param int $count     Number of files in the archive.
@@ -203,7 +190,6 @@ function desktop_mode_files_rest_download_folder_zip( WP_REST_Request $req ) {
  * viewer can read, recurses into sub-folders, records empty
  * directories, and enforces the caps.
  *
- * @since 0.9.6
  * @internal
  *
  * @param int   $folder_id Folder to walk.
@@ -222,8 +208,6 @@ function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, 
 	/**
 	 * Filters the zip caps. `max_entries` bounds file count,
 	 * `max_bytes` bounds the SUM of input sizes.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param array $caps `{ max_entries: int, max_bytes: int }`.
 	 */
@@ -316,7 +300,6 @@ function desktop_mode_files_collect_zip_entries( $folder_id, $user_id, $prefix, 
  * `Report.pdf` → `report.pdf`, `Report (2).pdf` so extraction on
  * case-folding filesystems (Windows, macOS) never collides.
  *
- * @since 0.9.6
  * @internal
  *
  * @param string $name       Sanitized candidate name.
@@ -343,7 +326,6 @@ function desktop_mode_files_zip_unique_name( $name, &$used_names ) {
  * streams. The marker payload never reaches the client — the
  * filter takes over the output entirely.
  *
- * @since 0.9.6
  * @internal
  *
  * @param string $path         Absolute file path.
@@ -370,8 +352,6 @@ function desktop_mode_files_download_stream_response( $path, $name, $mime, $dele
  * `rest_pre_serve_request` short-circuit: stream the file the
  * download callbacks resolved. Non-stream results (errors included)
  * fall through to normal JSON serving.
- *
- * @since 0.9.6
  *
  * @param bool             $served  Whether the request is already served.
  * @param WP_HTTP_Response $result  Result to send.
@@ -409,7 +389,6 @@ add_filter( 'rest_pre_serve_request', 'desktop_mode_files_serve_download', 10, 3
  * Send the headers and the bytes. Split out so PHPUnit can target
  * the header/name logic without hijacking output.
  *
- * @since 0.9.6
  * @internal
  *
  * @param string $path Absolute file path.
@@ -456,8 +435,6 @@ function desktop_mode_files_emit_download( $path, $name, $mime ) {
 /**
  * Daily sweep of stale zip temp files (aborted downloads whose
  * shutdown cleanup never ran).
- *
- * @since 0.9.6
  */
 function desktop_mode_stored_files_sweep_zip_temps() {
 	$entries = glob( trailingslashit( get_temp_dir() ) . 'desktop-mode-folder-zip*' );

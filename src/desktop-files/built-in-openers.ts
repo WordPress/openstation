@@ -13,8 +13,6 @@
  * which means the openers are ready before `wp.desktop.config`
  * exists, and the lookup happens at click time (when the shell
  * is fully booted).
- *
- * @since 0.9.0
  */
 
 import { registerOpener } from './openers';
@@ -505,7 +503,7 @@ export function registerBuiltInFileOpeners(): void {
 						// `wp-window-<url-slug>` — two parallel
 						// windows with independent minimize/focus
 						// state, dock indicator never reflects
-						// what's open. Fixed in 0.8.9. Falls back to
+						// what's open (since fixed). Falls back to
 						// the legacy `desktop-icon-…` id only when
 						// adminUrl isn't available (defensive — the
 						// shell config should always be present by

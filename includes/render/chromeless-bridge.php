@@ -22,7 +22,6 @@
  * slicing (phase 6).
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -71,8 +70,6 @@ defined( 'ABSPATH' ) || exit;
  * keep the second walk at `load`. The current minimum (IE 11+)
  * already ships MO, so the fallback only fires on extreme
  * outliers — but it's free insurance.
- *
- * @since 0.6.1
  */
 function desktop_mode_chromeless_offset_neutralizer_script() {
 	if ( ! desktop_mode_is_chromeless_request() ) {
@@ -87,8 +84,6 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 	 * for desktop, `46px` for the mobile breakpoint. Sites that
 	 * customize the admin bar height (some accessibility themes
 	 * raise it to 50px) can extend the list.
-	 *
-	 * @since 0.6.1
 	 *
 	 * @param string[] $values Default `[ '32px', '46px' ]`.
 	 */
@@ -194,8 +189,6 @@ add_action( 'admin_head', 'desktop_mode_chromeless_offset_neutralizer_script', 1
  * CSS `::before` on `#adminmenu .menu-icon-<slug>` fall back to the
  * default gear icon on a live refresh until the next full page load
  * — strictly better than today's "dock doesn't update at all."
- *
- * @since 0.8.2
  */
 function desktop_mode_emit_menu_refresh_probe() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest; capability-gated by chromeless gate below.
@@ -242,8 +235,6 @@ add_action( 'admin_init', 'desktop_mode_emit_menu_refresh_probe', 99 );
  * their availability + open/closed state to the parent desktop shell
  * via postMessage. The parent shell uses this to render matching
  * buttons in the window title bar.
- *
- * @since 0.1.0
  */
 function desktop_mode_chromeless_bridge_script() {
 	if ( ! desktop_mode_is_chromeless_request() ) {
@@ -252,8 +243,6 @@ function desktop_mode_chromeless_bridge_script() {
 
 	/**
 	 * Fires after chromeless content in desktop mode.
-	 *
-	 * @since 0.1.0
 	 *
 	 * @param string $hook_suffix The current admin page hook suffix.
 	 */
@@ -3264,8 +3253,6 @@ JS;
 	 * participate in cross-window refresh: pair a rule here with
 	 * `desktop_mode_content_changes_record()` calls (or your own
 	 * `desktop-mode.<type>.changed` broadcasts) on the publish side.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param array $soft_reload_rules Rule arrays with keys `topic`,
 	 *                                 `path`, `query`, `queryAbsent`.

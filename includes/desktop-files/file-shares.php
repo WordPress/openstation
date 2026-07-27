@@ -21,7 +21,6 @@
  * placement.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -29,8 +28,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Whether `$user_id` may manage a stored file's shares. Owner-only
  * by default, filterable like the folder equivalent.
- *
- * @since 0.9.6
  *
  * @param int $file_id Stored-file id.
  * @param int $user_id Viewer.
@@ -42,8 +39,6 @@ function desktop_mode_stored_files_share_can_manage( $file_id, $user_id ) {
 	/**
 	 * Filter who can manage a stored file's shares.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param bool       $can     Default: owner-only.
 	 * @param int        $file_id Stored-file id.
 	 * @param int        $user_id Viewer.
@@ -54,8 +49,6 @@ function desktop_mode_stored_files_share_can_manage( $file_id, $user_id ) {
 
 /**
  * All share rows for one stored file (owner-internal view).
- *
- * @since 0.9.6
  *
  * @param int $file_id Stored-file id.
  * @return array[]
@@ -81,8 +74,6 @@ function desktop_mode_stored_files_get_file_shares( $file_id ) {
  * The viewer's state on a stored file: 'none' when no share row
  * targets them, else the row's state.
  *
- * @since 0.9.6
- *
  * @param int $file_id Stored-file id.
  * @param int $user_id Viewer.
  * @return string 'none' | 'pending' | 'accepted' | 'denied'
@@ -104,8 +95,6 @@ function desktop_mode_stored_file_share_state( $file_id, $user_id ) {
 
 /**
  * Invite a user to a stored file. Capability is always `read`.
- *
- * @since 0.9.6
  *
  * @param int $file_id           Stored-file id.
  * @param int $actor_id          Actor (must manage the file's shares).
@@ -203,8 +192,6 @@ function desktop_mode_stored_file_share_invite( $file_id, $actor_id, $recipient_
  * Recipient accepts a file share. Plants an `upload` placement at
  * their desktop root.
  *
- * @since 0.9.6
- *
  * @param int $share_id Share id.
  * @param int $user_id  Recipient.
  * @return array|WP_Error Updated share row.
@@ -257,8 +244,6 @@ function desktop_mode_stored_file_share_accept( $share_id, $user_id ) {
 /**
  * Recipient denies a file share.
  *
- * @since 0.9.6
- *
  * @param int $share_id Share id.
  * @param int $user_id  Recipient.
  * @return array|WP_Error Updated share row.
@@ -304,8 +289,6 @@ function desktop_mode_stored_file_share_deny( $share_id, $user_id ) {
 
 /**
  * Recipient leaves a previously accepted file share.
- *
- * @since 0.9.6
  *
  * @param int $file_id Stored-file id.
  * @param int $user_id Recipient.
@@ -363,8 +346,6 @@ function desktop_mode_stored_file_share_leave( $file_id, $user_id ) {
 /**
  * Owner revokes a file share.
  *
- * @since 0.9.6
- *
  * @param int $share_id Share id.
  * @param int $actor_id Actor.
  * @return true|WP_Error
@@ -402,8 +383,6 @@ function desktop_mode_stored_file_share_revoke( $share_id, $actor_id ) {
  * the normal flow; this administrative scrub bypasses it. No
  * tombstones: soft-trash rides the heartbeat's `trashed_at_ms`
  * channel (same invariant as the folder scrub).
- *
- * @since 0.9.6
  *
  * @param int $file_id Stored-file id.
  * @param int $user_id Recipient whose placements to scrub.
@@ -451,8 +430,6 @@ function desktop_mode_files_trash_upload_for_user( $file_id, $user_id ) {
  * Pending file-share invites for a user (heartbeat + shell-config
  * delivery). User-principal only.
  *
- * @since 0.9.6
- *
  * @param int $user_id  Viewer.
  * @param int $since_ms Only rows with `invited_at_ms > since`.
  * @return array[] Normalized share rows.
@@ -488,8 +465,6 @@ function desktop_mode_files_get_pending_file_shares_for_user( $user_id, $since_m
 
 /**
  * Wire shape for a file share, enriched for the invite banner.
- *
- * @since 0.9.6
  *
  * @param array $row Normalized share row (`target_type='file'`).
  * @return array
@@ -529,8 +504,6 @@ function desktop_mode_files_shape_file_share( $row ) {
 /**
  * Register the file-share routes. Same 404-when-disabled gate as
  * every other share route (`desktop_mode_files_rest_share_permission`).
- *
- * @since 0.9.6
  */
 function desktop_mode_files_register_file_share_rest_routes() {
 	$ns = 'desktop-mode/v1';
@@ -576,7 +549,6 @@ add_action( 'rest_api_init', 'desktop_mode_files_register_file_share_rest_routes
 /**
  * Resolve the `{shareId}` inside `{id}` or fail with a masked 404.
  *
- * @since 0.9.6
  * @internal
  *
  * @param WP_REST_Request $req Request.
@@ -592,8 +564,6 @@ function desktop_mode_files_rest_resolve_file_share( WP_REST_Request $req ) {
 
 /**
  * GET /files/uploads/<id>/shares (managers only).
- *
- * @since 0.9.6
  */
 function desktop_mode_files_rest_list_file_shares( WP_REST_Request $req ) {
 	$file_id = (int) $req['id'];
@@ -611,8 +581,6 @@ function desktop_mode_files_rest_list_file_shares( WP_REST_Request $req ) {
 /**
  * POST /files/uploads/<id>/shares — invite (read tier, always).
  * A `capability` param, if sent, must be `read` — `write` is 400.
- *
- * @since 0.9.6
  */
 function desktop_mode_files_rest_create_file_share( WP_REST_Request $req ) {
 	$capability = $req->get_param( 'capability' );
@@ -636,8 +604,6 @@ function desktop_mode_files_rest_create_file_share( WP_REST_Request $req ) {
 
 /**
  * DELETE /files/uploads/<id>/shares/<shareId> — revoke.
- *
- * @since 0.9.6
  */
 function desktop_mode_files_rest_delete_file_share( WP_REST_Request $req ) {
 	$row = desktop_mode_files_rest_resolve_file_share( $req );
@@ -653,8 +619,6 @@ function desktop_mode_files_rest_delete_file_share( WP_REST_Request $req ) {
 
 /**
  * POST .../accept
- *
- * @since 0.9.6
  */
 function desktop_mode_files_rest_accept_file_share( WP_REST_Request $req ) {
 	$row = desktop_mode_files_rest_resolve_file_share( $req );
@@ -670,8 +634,6 @@ function desktop_mode_files_rest_accept_file_share( WP_REST_Request $req ) {
 
 /**
  * POST .../deny
- *
- * @since 0.9.6
  */
 function desktop_mode_files_rest_deny_file_share( WP_REST_Request $req ) {
 	$row = desktop_mode_files_rest_resolve_file_share( $req );
@@ -687,8 +649,6 @@ function desktop_mode_files_rest_deny_file_share( WP_REST_Request $req ) {
 
 /**
  * POST /files/uploads/<id>/leave
- *
- * @since 0.9.6
  */
 function desktop_mode_files_rest_leave_file_share( WP_REST_Request $req ) {
 	$ok = desktop_mode_stored_file_share_leave( (int) $req['id'], get_current_user_id() );
@@ -707,8 +667,6 @@ function desktop_mode_files_rest_leave_file_share( WP_REST_Request $req ) {
  * `serverPendingShares` array (after the folder injection at 20).
  * File shapes carry `targetType: 'file'` + `fileId` / `fileName`
  * so the invite banner can branch.
- *
- * @since 0.9.6
  *
  * @param array $config Shell config.
  * @return array

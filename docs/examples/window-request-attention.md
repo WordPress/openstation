@@ -1,6 +1,6 @@
 # Pulse a window's icon — `Window.requestAttention()`
 
-**Stable** — shipped 0.6.0.
+**Stable.**
 
 A live "pay attention to me" affordance for any registered native
 window. Use it when something happens in the background that the

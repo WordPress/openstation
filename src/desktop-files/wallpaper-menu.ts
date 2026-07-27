@@ -10,8 +10,6 @@
  * filter (JS) or the `desktop_mode_wallpaper_context_menu_items`
  * filter (PHP, carried in the shell payload as
  * `serverWallpaperMenuItems`). Both lists are merged at click time.
- *
- * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';

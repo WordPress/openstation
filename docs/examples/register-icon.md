@@ -27,7 +27,7 @@ desktop_mode_register_window( 'jorvy', array(
     // mid-session activation — without this, a peer plugin activated
     // from inside an open shell renders its window with no CSS until
     // the user reloads, because `wp_print_styles` already ran for the
-    // parent shell page. @since 0.7.0
+    // parent shell page.
     'style'    => 'jorvy-desktop',
     'template' => function () {
         ?>
@@ -127,7 +127,7 @@ The `icon` arg accepts three formats. A fourth (`icon_svg`) is a convenience wra
 // 3. data:image/svg+xml URI — inline SVG, base64 or URL-encoded.
 'icon' => 'data:image/svg+xml;base64,' . base64_encode( '<svg …>…</svg>' ),
 
-// 4. icon_svg shorthand (since 0.8.2) — pass raw SVG and the framework
+// 4. icon_svg shorthand — pass raw SVG and the framework
 //    encodes it for you. Wins over `icon` when both are given.
 'icon_svg' => file_get_contents( __DIR__ . '/assets/jorvy.svg' ),
 ```
@@ -176,7 +176,7 @@ The `WP_Error` contract means you find typos at plugin-load time, not at first-c
 
 ## Decorating the rendered grid
 
-When you need to enhance the wallpaper icons themselves — a cursor adornment, a status dot, a drag handle — subscribe to `HOOKS.DESKTOP_ICONS_RENDERED`. Since 0.6.0 the payload hands you the rendered container *and* a map of `id → tile element`, so your decorator doesn't have to query the DOM (and doesn't have to re-query on every live menu refresh — the hook fires exactly when the grid is rebuilt):
+When you need to enhance the wallpaper icons themselves — a cursor adornment, a status dot, a drag handle — subscribe to `HOOKS.DESKTOP_ICONS_RENDERED`. The payload hands you the rendered container *and* a map of `id → tile element`, so your decorator doesn't have to query the DOM (and doesn't have to re-query on every live menu refresh — the hook fires exactly when the grid is rebuilt):
 
 ```js
 wp.desktop.hooks.addAction(

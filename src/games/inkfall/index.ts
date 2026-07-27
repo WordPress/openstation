@@ -8,7 +8,6 @@
  * callback + window sizing declared here.
  *
  * @public
- * @since 0.9.6
  */
 
 import { __ } from '../../i18n';

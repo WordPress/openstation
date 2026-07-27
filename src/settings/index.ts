@@ -8,7 +8,7 @@
  * (title bars, dock chips, focus rings, window chrome) inherits the new
  * values without per-rule plumbing.
  *
- * As of 0.6.0, wallpapers are registry-driven: built-in presets live in
+ * Wallpapers are registry-driven: built-in presets live in
  * `src/wallpapers/built-in.ts`, third-party plugins register via the
  * public `wp.desktop.registerWallpaper()` / `desktop-mode.wallpapers`
  * filter, and this module is responsible only for
@@ -20,7 +20,7 @@
  *     produce swatches and hosting each selected wallpaper's optional
  *     in-panel editor (`renderEditor`).
  *
- * The 1,400-line monolith was split in 0.6.1 into this folder:
+ * The 1,400-line monolith was split into this folder:
  *
  *   src/settings/
  *   ├── index.ts           — this file: class + panel composition
@@ -35,8 +35,6 @@
  *       ├── custom-image.ts — upload + library tabs
  *       ├── accent.ts      — accent swatch row
  *       └── dock-size.ts   — segmented dock-size control
- *
- * @since 0.5.0
  */
 
 import type { WallpaperLayer } from '../wallpapers/layer';
@@ -378,7 +376,7 @@ export class OsSettings implements SettingsCtx {
 	/**
 	 * Render the settings panel into the given native-window body.
 	 *
-	 * Lazy since 0.8.4 — the actual rendering logic plus every
+	 * Lazy — the actual rendering logic plus every
 	 * `<wpd-*>` component the panel uses lives in
 	 * `src/settings/panel.ts`, compiled into its own Vite target
 	 * `os-settings-panel[.min].js`. The script is injected on the

@@ -7,8 +7,6 @@
  * `window.desktopModeGames[ id ]`; the framework opens a native
  * window `desktop-mode-game-<id>` and calls `render( ctx )` inside
  * it.
- *
- * @since 0.9.6
  */
 
 /**

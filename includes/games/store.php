@@ -14,7 +14,6 @@
  * mutation bumps `updated_at_ms`, the Heartbeat high-water mark.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,8 +22,6 @@ defined( 'ABSPATH' ) || exit;
  * Bound and sanitize a score meta blob: flat map, slug keys, scalar
  * values only. Strings are text-sanitized and truncated; the map is
  * capped at 20 keys so a hostile client can't fatten the table.
- *
- * @since 0.9.6
  *
  * @param mixed $meta Raw caller input.
  * @return array Sanitized flat map.
@@ -56,8 +53,6 @@ function desktop_mode_games_sanitize_score_meta( $meta ) {
 
 /**
  * Persist a finished game run.
- *
- * @since 0.9.6
  *
  * @param string $game    Registered game id.
  * @param int    $user_id Player.
@@ -95,8 +90,6 @@ function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array()
 	 * `null` to proceed. The extension point for anti-cheat
 	 * plugins (rate limits, plausibility checks).
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param null|WP_Error $pre     Null to proceed.
 	 * @param string        $game    Game id.
 	 * @param int           $user_id Player.
@@ -132,8 +125,6 @@ function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array()
 	/**
 	 * Fires after a game score is saved.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int    $id      Score row id.
 	 * @param string $game    Game id.
 	 * @param int    $user_id Player.
@@ -147,8 +138,6 @@ function desktop_mode_games_save_score( $game, $user_id, $score, $meta = array()
 
 /**
  * Leaderboard query.
- *
- * @since 0.9.6
  *
  * @param string $game Registered game id.
  * @param array  $args {
@@ -209,8 +198,6 @@ function desktop_mode_games_get_scores( $game, $args = array() ) {
  * Shape a scores row for the wire: camelCase keys + player display
  * name and avatar.
  *
- * @since 0.9.6
- *
  * @param array $row Raw table row.
  * @return array
  */
@@ -232,8 +219,6 @@ function desktop_mode_games_shape_score( $row ) {
 
 /**
  * Create a score-to-beat challenge.
- *
- * @since 0.9.6
  *
  * @param string $game          Registered game id.
  * @param int    $challenger_id Sender.
@@ -299,8 +284,6 @@ function desktop_mode_games_create_challenge( $game, $challenger_id, $recipient_
 	/**
 	 * Fires after a game challenge is created.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int   $id  Challenge id.
 	 * @param array $row The challenge row.
 	 */
@@ -311,8 +294,6 @@ function desktop_mode_games_create_challenge( $game, $challenger_id, $recipient_
 
 /**
  * Fetch one challenge row.
- *
- * @since 0.9.6
  *
  * @param int $id Challenge id.
  * @return array|null Raw table row.
@@ -330,8 +311,6 @@ function desktop_mode_games_get_challenge( $id ) {
 /**
  * Transition a challenge to `accepted` or `declined`. Only valid
  * from `pending`.
- *
- * @since 0.9.6
  *
  * @param int    $id    Challenge id.
  * @param string $state 'accepted' | 'declined'.
@@ -384,8 +363,6 @@ function desktop_mode_games_set_challenge_state( $id, $state ) {
 		/**
 		 * Fires after a challenge is accepted by its recipient.
 		 *
-		 * @since 0.9.6
-		 *
 		 * @param int   $id  Challenge id.
 		 * @param array $row The (pre-transition) challenge row.
 		 */
@@ -393,8 +370,6 @@ function desktop_mode_games_set_challenge_state( $id, $state ) {
 	} else {
 		/**
 		 * Fires after a challenge is declined by its recipient.
-		 *
-		 * @since 0.9.6
 		 *
 		 * @param int   $id  Challenge id.
 		 * @param array $row The (pre-transition) challenge row.
@@ -408,8 +383,6 @@ function desktop_mode_games_set_challenge_state( $id, $state ) {
 /**
  * Record the recipient's run against an accepted challenge. Also
  * persists the run as a normal leaderboard score row.
- *
- * @since 0.9.6
  *
  * @param int   $id    Challenge id.
  * @param int   $score The recipient's score.
@@ -470,8 +443,6 @@ function desktop_mode_games_complete_challenge( $id, $score, $meta = array() ) {
 	/**
 	 * Fires after a challenge run is completed.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int    $id     Challenge id.
 	 * @param string $result 'beaten' | 'not_beaten'.
 	 * @param array  $row    The updated challenge row.
@@ -485,8 +456,6 @@ function desktop_mode_games_complete_challenge( $id, $score, $meta = array() ) {
  * Challenges involving a user (as challenger or recipient) whose
  * `updated_at_ms` exceeds the given high-water mark. The Heartbeat
  * delta query.
- *
- * @since 0.9.6
  *
  * @param int $user_id  Viewer.
  * @param int $since_ms Last-seen `updated_at_ms`. 0 = everything.
@@ -516,8 +485,6 @@ function desktop_mode_games_get_challenges_for_user( $user_id, $since_ms = 0, $c
 /**
  * Shape a challenge row for the wire: camelCase keys plus display
  * name + avatar for both parties.
- *
- * @since 0.9.6
  *
  * @param array $row Raw table row.
  * @return array

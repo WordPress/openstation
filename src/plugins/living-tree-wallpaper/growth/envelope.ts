@@ -15,8 +15,6 @@
  * the whole topology.)
  *
  * See `docs/living-tree-algorithm.md` §A.4.
- *
- * @since 0.9.4
  */
 
 import { ageCurve } from '../dna';

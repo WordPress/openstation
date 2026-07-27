@@ -14,7 +14,6 @@
  * `defineComponent()` is idempotent.
  *
  * @public
- * @since 0.6.0
  */
 
 import { __, sprintf } from '../i18n';

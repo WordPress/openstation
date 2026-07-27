@@ -1,6 +1,6 @@
 # The event-driven framework
 
-**Stable** — formalized in 0.5.5.
+**Stable.**
 
 The Desktop Mode plugin is structured as a small, opinionated **OS
 shell** plus a set of **apps** (the recycle bin, the code editor,
@@ -104,9 +104,9 @@ flavour fits.
 | CustomEvent | Detail |
 |---|---|
 | `desktop-mode-window-opened`      | `{ windowId, page, title, url }` |
-| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated }` — `navigated` *(0.9.4)*: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place |
+| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated }` — `navigated`: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place |
 | `desktop-mode-window-focused`     | `{ windowId }` |
-| `desktop-mode-window-blurred`     | `{ windowId, focusedTo }`  *(since 0.5.5)* |
+| `desktop-mode-window-blurred`     | `{ windowId, focusedTo }` |
 | `desktop-mode-window-closing`     | `{ windowId, element }` |
 | `desktop-mode-window-closed`      | `{ windowId }` |
 | `desktop-mode-window-changed`     | `{ windowId?: string, reason: 'moved' \| 'resized' \| 'state' \| 'cascade' \| 'tile', state?: WindowState }` — batch-arrange dispatches (`'cascade'` / `'tile'`) omit `windowId`/`state` |
@@ -265,7 +265,7 @@ mirrors here so plugins can subscribe through one unified API:
 | `desktop-mode/notification-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-render on every `wp.desktop.notify()`. |
 | `desktop-mode/notification-shown` | No (post-render) | After the notification (or its toast fallback) renders — payload carries `fallback: 'toast' \| null`. |
 | `desktop-mode/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` (which then routes the filtered result to the rails' `setAttention()`). Direct `dock.setAttention()` calls bypass the filter. |
-| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` (since 0.6.0) so a single subscriber can compose across surfaces. |
+| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` so a single subscriber can compose across surfaces. |
 | `desktop-mode/open-requested` | No | Every `wp.desktop.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
 | `desktop-mode/presence-changed` | No | Every presence transition (mirror of the `desktop-mode-presence-changed` CustomEvent). |
 | `desktop-mode/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
@@ -320,7 +320,7 @@ and **route data** between plugins. The framework's job is NOT
 to make UX decisions on the plugin's behalf.
 
 An earlier version of the framework had the *Dock* auto-suppress
-badges while a window was active. We reverted that in 0.5.5 — the
+badges while a window was active. We reverted that — the
 reasons:
 
 - The Dock can't know what every app's badge means. A "5 unread
@@ -418,12 +418,12 @@ CustomEvent + hook action) so apps decide their own policy:
 
 | CustomEvent | Hook | Meaning |
 |---|---|---|
-| `desktop-mode-auth-lost` | `desktop-mode.auth.lost` | The login session expired (Heartbeat `wp-auth-check` verdict). Pause pollers; requests will 401. *(0.9.8)* |
-| `desktop-mode-auth-restored` | `desktop-mode.auth.restored` | The session is back and cached nonces are fresh again — resume + re-sync. *(0.9.8)* |
+| `desktop-mode-auth-lost` | `desktop-mode.auth.lost` | The login session expired (Heartbeat `wp-auth-check` verdict). Pause pollers; requests will 401. |
+| `desktop-mode-auth-restored` | `desktop-mode.auth.restored` | The session is back and cached nonces are fresh again — resume + re-sync. |
 
 Consistent with the framework's transport-not-policy rule, the shell
 doesn't pause anyone's poller itself — it tells you, you decide. See
-[Session expiry & recovery](./javascript-reference.md#session-expiry--recovery-stable-since-098)
+[Session expiry & recovery](./javascript-reference.md#session-expiry--recovery-stable)
 for the full contract.
 
 ## Reference

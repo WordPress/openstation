@@ -26,7 +26,6 @@
  * lands in the first place.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -38,8 +37,6 @@ const DESKTOP_MODE_DESKTOP_THEMES_OPTION = 'desktop_mode_desktop_themes';
  * Absolute path of the desktop-themes base dir (no trailing slash),
  * or of one theme's dir when `$slug` is given. Pure path math —
  * nothing is created; see {@see desktop_mode_desktop_themes_ensure_dir()}.
- *
- * @since 0.9.7
  *
  * @param string $slug Optional. Theme slug.
  * @return string
@@ -53,8 +50,6 @@ function desktop_mode_desktop_themes_dir( $slug = '' ) {
 	 * Whatever this points at must be web-servable — the compiled
 	 * `theme.css` and every image are loaded by the browser.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param string $base Absolute path, no trailing slash.
 	 */
 	$base = (string) apply_filters( 'desktop_mode_desktop_themes_base_dir', $base );
@@ -66,8 +61,6 @@ function desktop_mode_desktop_themes_dir( $slug = '' ) {
  * Public URL of the desktop-themes base dir (no trailing slash), or
  * of one theme's dir when `$slug` is given.
  *
- * @since 0.9.7
- *
  * @param string $slug Optional. Theme slug.
  * @return string
  */
@@ -78,8 +71,6 @@ function desktop_mode_desktop_themes_url( $slug = '' ) {
 	 * Filters the desktop-theme storage base URL. Must resolve to the
 	 * same bytes `desktop_mode_desktop_themes_base_dir` points at.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param string $url Absolute URL, no trailing slash.
 	 */
 	$url  = (string) apply_filters( 'desktop_mode_desktop_themes_base_url', $url );
@@ -89,8 +80,6 @@ function desktop_mode_desktop_themes_url( $slug = '' ) {
 
 /**
  * Create (idempotently) the base dir and drop the protection files.
- *
- * @since 0.9.7
  *
  * @return string|WP_Error Base dir path, or `WP_Error` when the
  *                         filesystem refuses.
@@ -134,8 +123,6 @@ function desktop_mode_desktop_themes_ensure_dir() {
 /**
  * Read the installed-theme index (map of slug => stored entry).
  *
- * @since 0.9.7
- *
  * @return array<string,array>
  */
 function desktop_mode_desktop_themes_index() {
@@ -160,8 +147,6 @@ function desktop_mode_desktop_themes_index() {
  * never autoloaded — the index carries whole manifests and has no
  * business on every single page load.
  *
- * @since 0.9.7
- *
  * @param array<string,array> $index Map of slug => stored entry.
  * @return void
  */
@@ -177,8 +162,6 @@ function desktop_mode_desktop_themes_put_index( $index ) {
 /**
  * Fetch one installed theme's stored entry.
  *
- * @since 0.9.7
- *
  * @param string $slug Theme slug.
  * @return array|null Stored entry, or `null` when not installed.
  */
@@ -191,16 +174,12 @@ function desktop_mode_desktop_theme_get( $slug ) {
 /**
  * Capability required to upload / delete desktop themes.
  *
- * @since 0.9.7
- *
  * @return string
  */
 function desktop_mode_desktop_theme_upload_capability() {
 	/**
 	 * Filters the capability required to manage the site's desktop
 	 * theme library. Picking a theme is per-user and never gated.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param string $capability Default `manage_options`.
 	 */
@@ -212,8 +191,6 @@ function desktop_mode_desktop_theme_upload_capability() {
  *
  * Manifest ids may be namespaced (`vendor/neon-glass`); the slug
  * flattens the slash so it is a legal single directory name.
- *
- * @since 0.9.7
  *
  * @param string $id Manifest id.
  * @return string Slug, or `''` when the id yields nothing usable.
@@ -228,8 +205,6 @@ function desktop_mode_desktop_theme_slug_from_id( $id ) {
  * Single source of truth for the PHP side; must stay equal to the
  * `DESKTOP_THEME_SLOTS` constants in `src/desktop-themes/slots.ts`.
  * `APP:<slug>` entries are matched by pattern, not by this list.
- *
- * @since 0.9.7
  *
  * @return string[]
  */
@@ -274,8 +249,6 @@ function desktop_mode_desktop_theme_icon_slots() {
 	 * Entries not on this list (and not matching the `APP:<slug>`
 	 * pattern) are dropped from the manifest during sanitization.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param string[] $slots Slot names.
 	 */
 	return (array) apply_filters( 'desktop_mode_desktop_theme_icon_slots', $slots );
@@ -310,8 +283,6 @@ function desktop_mode_desktop_theme_icon_slots() {
  * CSS rule consuming `var( <prop>, none )`, has textured a surface
  * the framework never knew about — no core change, no compiler
  * change. See docs/desktop-themes.md § "Texturing your own surface".
- *
- * @since 0.9.7
  *
  * @return array<string,array{type:string,prop:string}>
  */
@@ -444,8 +415,6 @@ function desktop_mode_desktop_theme_texture_slots() {
 	 * An entry with no `prop` is accepted by the sanitizer but emits
 	 * nothing — that combination is a bug, not a feature.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param array<string,array> $slots Map of slot =>
 	 *                                   `{ type, prop, companions?,
 	 *                                   sizeGroup? }`.
@@ -469,8 +438,6 @@ function desktop_mode_desktop_theme_texture_slots() {
  * A kind the caller doesn't recognise gets an EMPTY list, so a typo
  * fails closed.
  *
- * @since 0.9.8
- *
  * @param string $kind `'image'` or `'font'`.
  * @return string[] Lowercase extensions, no leading dot.
  */
@@ -486,8 +453,6 @@ function desktop_mode_desktop_theme_asset_extensions( $kind = 'image' ) {
 	 * Adding anything the browser parses as script (`css`, `js`,
 	 * `html`, `xml`, `svgz`) or anything the server executes defeats
 	 * the security model this whole feature rests on.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param string[] $extensions Lowercase extensions, no dot.
 	 * @param string   $kind       `'image'` or `'font'`.
@@ -510,15 +475,11 @@ function desktop_mode_desktop_theme_asset_extensions( $kind = 'image' ) {
  * Maximum number of `@font-face` rules one theme may declare, and
  * the maximum number of source files per face.
  *
- * @since 0.9.8
- *
  * @return array{max_faces:int,max_sources:int}
  */
 function desktop_mode_desktop_theme_font_caps() {
 	/**
 	 * Filters the desktop-theme font caps.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param array $caps `{ max_faces, max_sources }`.
 	 */
@@ -540,8 +501,6 @@ function desktop_mode_desktop_theme_font_caps() {
 
 /**
  * Hard caps applied while walking an uploaded ZIP.
- *
- * @since 0.9.7
  *
  * @return array{max_entries:int,max_uncompressed:int,max_file:int,extensions:string[]}
  */
@@ -575,8 +534,6 @@ function desktop_mode_desktop_theme_zip_caps() {
 	 * browser parses as script (`css`, `js`, `html`, `xml`) defeats
 	 * the whole security model of this feature.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param array $caps See the return shape above.
 	 */
 	$caps = (array) apply_filters( 'desktop_mode_desktop_theme_zip_caps', $caps );
@@ -597,15 +554,11 @@ function desktop_mode_desktop_theme_zip_caps() {
 /**
  * Maximum number of themes the payload ships to the shell.
  *
- * @since 0.9.7
- *
  * @return int
  */
 function desktop_mode_desktop_themes_payload_cap() {
 	/**
 	 * Filters how many desktop themes are announced to the shell.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param int $cap Default 24.
 	 */

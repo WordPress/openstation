@@ -55,8 +55,6 @@ const DESKTOP_MODE_AI_SEARCH_BATCH_SIZE = 10;
  * plugins can contribute their own admin destinations (e.g. a plugin
  * adding a top-level menu can surface its settings page here).
  *
- * @since 0.5.0
- *
  * @return array[]
  */
 function desktop_mode_ai_get_admin_page_catalog() {
@@ -96,8 +94,6 @@ function desktop_mode_ai_get_admin_page_catalog() {
 	/**
 	 * Filters the wp-admin page catalog surfaced by the AI assistant.
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param array[] $catalog Array of entries, each with title/url/icon/description.
 	 */
 	return (array) apply_filters( 'desktop_mode_ai_admin_page_catalog', $catalog );
@@ -109,8 +105,6 @@ function desktop_mode_ai_get_admin_page_catalog() {
 
 /**
  * JSON Schema for the agent's final structured answer.
- *
- * @since 0.5.0
  *
  * @return array
  */
@@ -180,8 +174,6 @@ function desktop_mode_ai_search_answer_schema() {
  * needs an additional `post_id`. The caller passes the full decoded
  * arguments array so this function can extract whatever it needs.
  *
- * @since 0.5.0
- *
  * @param string $tool_name Tool function name.
  * @param array  $args      Decoded arguments from the model's tool call.
  * @return array Tool result payload.
@@ -239,8 +231,6 @@ function desktop_mode_ai_search_dispatch_tool( $tool_name, array $args ) {
  *
  * No AI analysis is required — every published post/page is searchable.
  *
- * @since 0.5.0
- *
  * @param string $post_type 'post' | 'page'.
  * @param string $query     Keyword search terms (may be empty to list newest).
  * @param int    $offset
@@ -294,8 +284,6 @@ function desktop_mode_ai_search_fetch_posts( $post_type, $query, $offset ) {
 /**
  * Trims raw post/comment content into a plain-text excerpt for the model.
  *
- * @since 0.9.1
- *
  * @param string $content Raw post/comment content.
  * @return string
  */
@@ -310,8 +298,6 @@ function desktop_mode_ai_search_excerpt( $content ) {
  * native comment search (`get_comments` `search=`).
  *
  * No AI analysis is required — every approved comment is searchable.
- *
- * @since 0.5.0
  *
  * @param string $query Keyword search terms (may be empty to list newest).
  * @param int    $offset
@@ -386,8 +372,6 @@ function desktop_mode_ai_search_fetch_comments( $query, $offset ) {
  * identifying a post via `search_posts`, giving it a scoped, precise set of
  * comments to compare against the user's description. An empty `$query`
  * lists the post's comments without keyword filtering.
- *
- * @since 0.5.0
  *
  * @param int    $post_id The WordPress post ID.
  * @param string $query   Keyword search terms (may be empty).
@@ -468,8 +452,6 @@ function desktop_mode_ai_search_fetch_comments_by_post( $post_id, $query, $offse
  * verdict when the comment-moderation analysis happens to have run, but
  * its absence never blocks the entity from being returned.
  *
- * @since 0.5.0
- *
  * @param string $entity_type 'post' | 'page' | 'comment'.
  * @param int    $entity_id
  * @return array|null
@@ -527,8 +509,6 @@ function desktop_mode_ai_search_build_entity( $entity_type, $entity_id ) {
  * client via SSE so the user sees "Looking through your posts…" rather
  * than the raw tool call.
  *
- * @since 0.5.0
- *
  * @param string $tool_name
  * @return string
  */
@@ -554,8 +534,6 @@ function desktop_mode_ai_progress_message( $tool_name ) {
  * deliberately absent: the `continue` payload carries no `post_id`, so
  * it cannot truly resume — exhausted runs map it to `search_comments`
  * when building the `continue` object.
- *
- * @since 0.5.0
  *
  * @return string[] Tool names.
  */
@@ -587,8 +565,6 @@ function desktop_mode_ai_search_resumable_tools() {
  * description) instead of in a schema construct the provider can't parse. Only
  * the TOP level is constrained; a combinator nested inside a property is a real
  * constraint the provider accepts, so it is left intact.
- *
- * @since 0.9.6
  *
  * @param mixed $schema A tool parameters schema (array), or empty/non-array.
  * @return array A provider-safe object schema for a tool `parameters` block.
@@ -631,8 +607,6 @@ function desktop_mode_ai_normalize_tool_schema( $schema ) {
  * For continuation runs ($initial_tool + $start_offset > 0), the system
  * message primes the agent to resume from the last searched position with
  * the same keywords.
- *
- * @since 0.5.0
  *
  * @param string      $query        User's natural-language search.
  * @param string|null $initial_tool Tool name to resume from, or null for fresh search.
@@ -679,8 +653,6 @@ function desktop_mode_ai_run_search( $query, $initial_tool = null, $start_offset
 	 * before any the provider call. First anchor in the observability trio
 	 * (`desktop_mode_ai_search_started` / `desktop_mode_ai_tool_called`
 	 * / `desktop_mode_ai_search_completed`).
-	 *
-	 * @since 0.5.1
 	 *
 	 * @param array $context {
 	 *     @type string $query      User query.
@@ -826,8 +798,6 @@ The message field is always a friendly sentence or two shown directly to the use
 		 * `false` to drop a command entirely before it reaches the
 		 * model — the right hook for per-role / per-command gating.
 		 *
-		 * @since 0.5.1
-		 *
 		 * @param bool|array $allowed Either the (possibly mutated) command
 		 *                            tool entry, or `false` to drop it.
 		 * @param string     $slug    Command slug.
@@ -873,8 +843,6 @@ The message field is always a friendly sentence or two shown directly to the use
 	 * built-in + registered tools. Useful for bulk gating, renaming,
 	 * or injecting synthetic command tools.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param array $command_defs Command tool definitions.
 	 * @param array $context      { user_id, request_id }.
 	 */
@@ -890,8 +858,6 @@ The message field is always a friendly sentence or two shown directly to the use
 	 * Transform the full tool list (built-in abilities + command tools) just
 	 * before it goes to the provider. Fires once per run — changes apply to
 	 * every iteration in the agent loop.
-	 *
-	 * @since 0.5.1
 	 *
 	 * @param array $tools   Full the provider tool definitions array.
 	 * @param array $context { user_id, request_id, query }.
@@ -1023,8 +989,6 @@ The message field is always a friendly sentence or two shown directly to the use
 			 * Final transform hook — fires right before the HTTP
 			 * response is returned. Plugins can rewrite `message`,
 			 * inject `admin_links`, coerce `answer_type`, etc.
-			 *
-			 * @since 0.5.1
 			 *
 			 * @param array $answer  Final answer payload.
 			 * @param array $context { query, user_id, request_id }.
@@ -1199,8 +1163,6 @@ The message field is always a friendly sentence or two shown directly to the use
 			 * Fires for every ability-dispatched tool (including error
 			 * envelopes from a failed execute()).
 			 *
-			 * @since 0.5.1
-			 *
 			 * @param array  $batch     Tool result payload.
 			 * @param string $tool_name Tool function name.
 			 * @param array  $args      Decoded args from the call.
@@ -1305,7 +1267,6 @@ The message field is always a friendly sentence or two shown directly to the use
  *      preserved rather than dropped.
  *   3. `desktop_mode_ai_system_prompt` — final transform pass.
  *
- * @since 0.5.1
  * @internal
  *
  * @param string $core    Built-in instructions for this phase
@@ -1334,8 +1295,6 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 	 * restructuring the core rules. Fires for both the primary
 	 * `/ai/search` run and the follow-up composed-reply leg.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param string $appendix Accumulated appendix. Default empty.
 	 * @param array  $context  { query, user_id, request_id, client_override, phase? }.
 	 */
@@ -1351,8 +1310,6 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 			 * `system_prompt: { mode: 'replace' }`. Defaults to `manage_options`
 			 * — replacing the whole prompt can effectively hijack the
 			 * assistant, so it's admin-only out of the box.
-			 *
-			 * @since 0.5.1
 			 *
 			 * @param string $capability Default `manage_options`.
 			 * @param array  $context
@@ -1378,8 +1335,6 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
 	 * Final transform pass. Fires after the built-in instructions,
 	 * server appendix, and client override have all been composed.
 	 *
-	 * @since 0.5.1
-	 *
 	 * @param string $instructions Composed system prompt.
 	 * @param array  $context
 	 */
@@ -1400,8 +1355,6 @@ function desktop_mode_ai_compose_instructions( $core, array $context, array $cli
  * the same system-prompt pipeline as the main search so plugins
  * appending instructions via `desktop_mode_ai_system_prompt_appendix`
  * see consistent voice across the two legs.
- *
- * @since 0.5.1
  *
  * @param string $query     Original user query.
  * @param array  $tool      { slug, args } — what ran.
@@ -1592,8 +1545,6 @@ Rules:
 
 /**
  * Registers the AI search REST route.
- *
- * @since 0.5.0
  */
 function desktop_mode_register_ai_search_rest_route() {
 	register_rest_route(
@@ -1687,8 +1638,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_ai_search_rest_route' );
 /**
  * Permission callback.
  *
- * @since 0.5.0
- *
  * @return bool|WP_Error
  */
 function desktop_mode_rest_ai_search_permission() {
@@ -1719,8 +1668,6 @@ function desktop_mode_rest_ai_search_permission() {
 /**
  * POST /desktop-mode/v1/ai/search
  *
- * @since 0.5.0
- *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
@@ -1747,8 +1694,6 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 	 * Last-mile filter on the whole `/ai/search` request bundle.
 	 * Plugins get one hook to rewrite query, swap tools, or inject
 	 * metadata before the agent loop starts.
-	 *
-	 * @since 0.5.1
 	 *
 	 * @param array $extra Extended context (mutable).
 	 * @param array $core  Core request params { query, resume_tool, start_offset }.
@@ -1801,8 +1746,6 @@ function desktop_mode_rest_ai_search( WP_REST_Request $request ) {
 
 /**
  * Search the WordPress.org plugin directory.
- *
- * @since 0.5.0
  *
  * @param string $query Search terms.
  * @return array Tool result payload ready for the model.
@@ -1948,8 +1891,6 @@ function desktop_mode_ai_fetch_wporg_plugins( $query ) {
  * a readable file the tool reports log_available=false rather than
  * throwing.
  *
- * @since 0.5.0
- *
  * @param int $lines Number of lines to return (clamped 1-500 by caller).
  * @return array
  */
@@ -1966,8 +1907,6 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
 	/**
 	 * Filter the list of log-file paths to probe in order. Plugins that
 	 * redirect errors somewhere non-standard can add their path here.
-	 *
-	 * @since 0.5.0
 	 *
 	 * @param string[] $candidates File paths, in probe order.
 	 */
@@ -2019,8 +1958,6 @@ function desktop_mode_ai_fetch_error_log( $lines = 50 ) {
  * prefix is usually "PHP Fatal error", "PHP Warning", etc. Falls back
  * to a raw line when the format doesn't match.
  *
- * @since 0.5.0
- *
  * @param string $line
  * @return array
  */
@@ -2055,8 +1992,6 @@ function desktop_mode_ai_parse_log_line( $line ) {
  * slices off the trailing N+1 entries. Realistic error logs sit
  * in the kilobyte range when admins look at them; if a site routinely
  * lets logs grow into tens of MB, that's the symptom, not this read.
- *
- * @since 0.5.0
  *
  * @param string $path Absolute path to the file.
  * @param int    $lines
@@ -2107,8 +2042,6 @@ function desktop_mode_ai_tail_file( $path, $lines ) {
  *   data: { "event": "progress", "phase": "tool_call", "message": "…" }
  *   data: { "event": "done",     "result": { … } }
  *   data: { "event": "error",    "message": "…" }
- *
- * @since 0.5.0
  */
 function desktop_mode_ai_ajax_search_stream() {
 	$nonce = isset( $_GET['nonce'] ) ? sanitize_text_field( wp_unslash( $_GET['nonce'] ) ) : '';

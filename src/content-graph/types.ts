@@ -6,7 +6,6 @@
  * side just types the wire payloads.
  *
  * @public
- * @since 0.8.2
  */
 
 export interface PostTypeDescriptor {

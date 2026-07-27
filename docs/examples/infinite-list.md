@@ -2,7 +2,7 @@
 
 Every infinite-scroll plugin in the wild reinvents the same five primitives — `IntersectionObserver` on a sentinel below the last row, an `AbortController` to cancel in-flight pages on filter change, dedup-by-id so refetches don't render the same row twice, cursor pagination, and a "loading more" indicator separate from the window-level spinner.
 
-`wp.desktop.createInfiniteList()` ships every piece of that. *Stable since 0.8.2.*
+`wp.desktop.createInfiniteList()` ships every piece of that. *Stable.*
 
 ## Minimal recipe
 

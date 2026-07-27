@@ -28,8 +28,6 @@
  * registered by the shell). Designed to hold 60fps with ~3000
  * particles on mid-range hardware — the hot loop is a single-pass
  * scan over flat `Float32Array`s with allocation-free spatial hashing.
- *
- * @since 0.8.0
  */
 
 import type { Application, Container, Sprite, Text, Texture } from 'pixi.js';

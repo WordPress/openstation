@@ -28,8 +28,6 @@
  *   - `js`      — handler is a free-form callback the plugin owns.
  *                 Runs in the shell context. Useful for modals,
  *                 quick-actions, "preview" affordances.
- *
- * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';

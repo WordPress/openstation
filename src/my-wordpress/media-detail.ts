@@ -15,7 +15,6 @@
  * media item out from here.
  *
  * @public
- * @since 0.8.6
  */
 
 import { __, _n, sprintf } from '../i18n';
@@ -264,7 +263,6 @@ function paintStatus(
  * Render the "used in" drill-in view.
  *
  * @public
- * @since 0.8.6
  */
 export async function renderMediaDetail(
 	host: EntityRenderHost,

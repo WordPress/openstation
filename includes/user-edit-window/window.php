@@ -18,15 +18,12 @@
  * `profile.php` opens).
  *
  * @package WPDesktopMode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Echoes the User Edit window's template body.
- *
- * @since 0.8.1
  */
 function desktop_mode_user_edit_window_render_template() {
 	ob_start();
@@ -48,8 +45,6 @@ function desktop_mode_user_edit_window_render_template() {
 	/**
 	 * Filter the User Edit window's template HTML.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_user_edit_window_template_html', $html );
@@ -67,8 +62,6 @@ function desktop_mode_user_edit_window_render_template() {
  * `admin_color_scheme_picker` action: each entry carries the
  * scheme `name` and a `colors` tuple (typically 3-4 hex strings)
  * used to render mini-swatch previews — not just a slug list.
- *
- * @since 0.8.1
  *
  * @return array<string,array{name:string,colors:array<int,string>,icon_colors?:array<string,string>}>
  */
@@ -125,8 +118,6 @@ function desktop_mode_user_edit_window_color_schemes() {
 
 /**
  * Register the User Edit native window on `init`.
- *
- * @since 0.8.1
  */
 function desktop_mode_user_edit_window_register_window() {
 	if ( ! desktop_mode_user_edit_window_user_can_register() ) {

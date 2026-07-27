@@ -29,8 +29,6 @@
  *
  * Re-renders every time the underlying placement list mutates
  * (subscribed via the files store) so counts stay live.
- *
- * @since 0.9.0
  */
 
 import { applyFilters } from '../hooks';
@@ -65,8 +63,6 @@ export interface StatusBarContext {
 		 * links, …) have no byte weight; sub-folder contents are
 		 * not included (only this folder's own items are hydrated
 		 * client-side).
-		 *
-		 * @since 0.9.6
 		 */
 		bytes: number;
 	};
@@ -145,7 +141,6 @@ function computeSegments( ctx: StatusBarContext ): StatusBarSegment[] {
  * styled compatibly).
  *
  * @public
- * @since 0.8.0
  */
 export function renderStatusBarSegments(
 	bar: HTMLElement,

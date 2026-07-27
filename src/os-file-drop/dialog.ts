@@ -9,8 +9,6 @@
  * the result back to the manager. This keeps the per-file
  * progress + error state local to the dialog (the manager is
  * stateless between drops).
- *
- * @since 0.30.0
  */
 
 import '../ui/components/wpd-modal/wpd-modal';

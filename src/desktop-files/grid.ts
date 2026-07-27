@@ -14,8 +14,6 @@
  * The same numbers are baked into `assets/css/desktop-files.css`
  * (the tile width / icon size). Anyone changing one must change
  * the other.
- *
- * @since 0.9.0
  */
 
 export const GRID_PADDING = 16;
@@ -105,8 +103,6 @@ export function snapToEmptyCell(
  * Different from {@link snapToEmptyCell}, which is column-major and
  * is the right order for "clean up" / sort. Both share the
  * `cellKey()` occupancy convention.
- *
- * @since 0.8.1
  */
 export function nextRowMajorCell(
 	occupied: Set< string >,

@@ -10,8 +10,6 @@
  * The registry is cache-free: every call to {@link getTypes}
  * re-applies the `desktop-mode.files.types` filter so plugins can
  * reorder, hide, or override entries at filter time.
- *
- * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';

@@ -9,6 +9,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
   - [Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wpdesktopfetch-or-trackedfetch-never-raw-fetch)
   - [Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wpdesktopconfirm-or-wpdconfirm-never-windowconfirmalertprompt)
   - [Use `wpd-*` components, not raw HTML controls](#use-wpd--components-not-raw-html-controls)
+  - [No version-history annotations in docs or comments](#no-version-history-annotations-in-docs-or-comments)
 - [Workflow](#workflow)
   - [Always run `npm run build` after all the changes](#always-run-npm-run-build-after-all-the-changes)
   - [Always branch + PR, never commit to trunk](#always-branch--pr-never-commit-to-trunk)
@@ -103,6 +104,17 @@ Concrete checklist when adding UI:
 3. Only fall back to bespoke DOM construction when the surface is feature-specific (a tile renderer that knows about placement metadata, a menu-flyout positioning rig).
 
 The `<wpd-context-menu>` / `<wpd-context-menu-option>` and `<wpd-confirm-dialog>` pair are good examples, they replaced ~200 LOC of duplicated DOM construction across the wallpaper menu, the tile context menu, the create-folder dialog, and the recycle-bin/posts-window confirm prompts.
+
+### No version-history annotations in docs or comments
+
+**Document functionality, never when that functionality was added or changed.** No `@since X.Y.Z` docblock tags, no `Stable *(0.8.3)*` status stamps, no "(since 0.8.4)" / "as of 0.9.1" / "added in 0.8.0" / "fixed in 0.8.5" asides — in PHP, TS, or Markdown. Status labels stay (`Stable`, `Experimental`, `Beta`, `Planned`, `@deprecated`), but bare, with no version attached. Git history is the changelog; the docs and docblocks describe what the current release does.
+
+The two deliberate exceptions:
+
+- `docs/migration-*.md` — migration notes are version-anchored by design; they (and index entries pointing at them) keep their version references.
+- Named refactors that a migration doc defines (e.g. "architecture-0.8.1") may be referenced by that name in file headers.
+
+If a change is big enough that "when did this change?" matters to plugin authors, that's a breaking change: write a `docs/migration-*.md` note instead of an inline version stamp.
 
 ---
 

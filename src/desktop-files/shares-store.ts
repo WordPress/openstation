@@ -5,8 +5,6 @@
  * set of pending invites the current user has received via the
  * heartbeat. The store is `createSharedStore`-backed so every
  * bundle (main + lazy + future plugin bundles) sees the same data.
- *
- * @since 0.8.5
  */
 
 import { createSharedStore, type SharedStore } from '../shared-store';
@@ -20,8 +18,6 @@ export interface PendingInvite extends RestShareShape {
 	/**
 	 * `'file'` for single-file share invites (`target_type='file'`);
 	 * absent/`'folder'` for classic folder invites.
-	 *
-	 * @since 0.9.6
 	 */
 	targetType?: 'folder' | 'file' | string;
 	/** Stored-file id (file invites only). */

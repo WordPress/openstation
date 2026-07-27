@@ -16,10 +16,9 @@
  *     load after `wp.desktop.*` and `wp.hooks` are available.
  *
  * {@see desktop_mode_register_window()} moved to
- * `includes/registries/native-windows.php` in 0.8.1.
+ * `includes/registries/native-windows.php`.
  *
  * @package WPDesktopMode
- * @since   0.5.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -73,9 +72,6 @@ defined( 'ABSPATH' ) || exit;
  *     'style' => 'padding: 0; margin-top: 16px',
  * ), $children );
  * ```
- *
- * @since 0.5.0
- * @since 0.5.0 `style` accepts an array of CSS declarations.
  *
  * @param string                $tag     Tag name, e.g. `wpd-button`.
  *                                       Whitelisted to the `wpd-*` prefix
@@ -180,8 +176,6 @@ function desktop_mode_component( $tag, $attrs = array(), $content = '' ) {
  * interpreting raw numeric values — keeping the same list in
  * one place so PHP `'padding' => 16` and JS `padding: 16` make
  * the same visual decision.
- *
- * @since 0.5.0
  */
 const DESKTOP_MODE_LENGTH_CSS_PROPERTIES = array(
 	'width', 'height',
@@ -216,8 +210,6 @@ const DESKTOP_MODE_LENGTH_CSS_PROPERTIES = array(
  * so callers can write `'padding' => 16` without remembering the
  * unit. The literal `0` is left unit-less because CSS treats it
  * as dimensionally valid on any property.
- *
- * @since 0.5.0
  *
  * @param array<string,mixed> $styles
  * @return string CSS declaration list, or empty string when no
@@ -258,8 +250,6 @@ function desktop_mode_serialize_style_array( $styles ) {
  * Everything else (strings, floats already unitted, calc(…)
  * expressions, color keywords) passes through verbatim.
  *
- * @since 0.5.0
- *
  * @param string $property CSS property name.
  * @param mixed  $value    Raw value (int, float, string).
  * @return string CSS value, or empty string when $value is
@@ -287,26 +277,26 @@ function desktop_mode_format_css_value( $property, $value ) {
 
 // Native-windows registry (register_window, allowed_html,
 // template-html builder, enqueue + render hooks) was moved to
-// `includes/registries/native-windows.php` in 0.8.1.
+// `includes/registries/native-windows.php`.
 
 
 
 // Widgets registry was moved to
-// `includes/registries/widgets.php` in 0.8.1.
+// `includes/registries/widgets.php`.
 
 
 
 // Wallpapers registry was moved to
-// `includes/registries/wallpapers.php` in 0.8.1.
+// `includes/registries/wallpapers.php`.
 
 
 // Desktop-icons registry was moved to
-// `includes/registries/icons.php` in 0.8.1.
+// `includes/registries/icons.php`.
 
 
 
 // Native-window tabs registry was moved to
-// `includes/registries/window-tabs.php` in 0.8.1.
+// `includes/registries/window-tabs.php`.
 
 
 /**
@@ -349,8 +339,6 @@ function desktop_mode_format_css_value( $property, $value ) {
  *     );
  * } );
  * ```
- *
- * @since 0.5.0
  *
  * @param string          $handle    Script handle.
  * @param string          $src       Full URL of the script, or path relative

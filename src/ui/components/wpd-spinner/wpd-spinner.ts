@@ -48,8 +48,6 @@
  *
  * `prefers-reduced-motion: reduce` disables every animation inside
  * the SVG. The mark + rings still render statically.
- *
- * @since 0.6.0
  */
 
 import { Component, defineComponent, html, type TemplateResult } from '../../core';

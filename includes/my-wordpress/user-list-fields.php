@@ -21,7 +21,6 @@
  * `roleLabels` or `registered` (private).
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,8 +29,6 @@ defined( 'ABSPATH' ) || exit;
  * Compute the summary payload for one user. Cheap enough to call
  * per-row (each branch is one indexed query); WP's object cache
  * absorbs repeats inside a single request.
- *
- * @since 0.8.2
  *
  * @param int $user_id User id.
  * @return array{postCount:int,roleLabels:array<int,string>,registered:string,lastActive:string}
@@ -107,8 +104,6 @@ function desktop_mode_my_wordpress_user_summary_payload( $user_id ) {
  * Register the field on the `user` REST resource. The field is
  * read-only (no `update_callback`); `get_callback` receives the
  * user response array, from which we read `id`.
- *
- * @since 0.8.2
  */
 function desktop_mode_my_wordpress_register_user_summary_field() {
 	register_rest_field(

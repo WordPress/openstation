@@ -142,8 +142,6 @@ export function selectWallpaper(
  * selection. Only wallpapers whose def carries `renderConfig` get the
  * button — for everything else the slot stays collapsed, so the
  * surface is invisible unless the wallpaper opted in.
- *
- * @since 0.9.5
  */
 export function syncWallpaperConfigButton(
 	ctx: SettingsCtx,
@@ -193,8 +191,6 @@ export function syncWallpaperConfigButton(
  * and publishes to the shared store — which fires
  * `desktop-mode.wallpaper.settings-changed` so a mounted instance of
  * the wallpaper live-applies without a remount.
- *
- * @since 0.9.5
  */
 export function openWallpaperConfigDialog(
 	ctx: SettingsCtx,

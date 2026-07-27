@@ -31,8 +31,6 @@
  * plugins are bundled alongside the shell and import relatively. When
  * we publish this as an npm-distributable d.ts bundle, this file is
  * what the `main` field points at.)
- *
- * @since 0.8.2
  */
 
 // ----- Types: windows, desktops, dock, session, config -----
@@ -228,8 +226,6 @@ export type { PwaConfig, PwaUserState } from './types';
  * the keys match across renders so event listeners survive data
  * updates — the only reliable way to keep clicks working on rows
  * that may re-render mid-press.
- *
- * @since 0.6.0
  */
 export {
 	renderKeyedList,

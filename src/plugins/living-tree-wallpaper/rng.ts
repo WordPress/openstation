@@ -9,8 +9,6 @@
  *
  * These two functions are fully implemented (not stubs) — the
  * determinism they provide is load-bearing and directly unit-tested.
- *
- * @since 0.9.4
  */
 
 /* eslint-disable no-bitwise -- FNV-1a and mulberry32 are defined in terms of

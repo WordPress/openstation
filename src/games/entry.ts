@@ -11,7 +11,6 @@
  * main bundle's server-sync and Heartbeat client maintain.
  *
  * @public
- * @since 0.9.6
  */
 
 // The `<wpd-*>` components are side-effect-imported by the leaf

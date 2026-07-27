@@ -9,8 +9,6 @@
  * never changes geometry. (This channel replaced an earlier pages→girth
  * modulation that read as "the trunk is arbitrarily fatter", which
  * nobody could decode.)
- *
- * @since 0.9.4
  */
 
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';

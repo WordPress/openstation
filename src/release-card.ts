@@ -1,8 +1,6 @@
 /**
  * The vinyl release card — an album sleeve (the release art) with a
  * CSS-drawn record that slides out; the close button fades it away.
- *
- * @since 0.9.4
  */
 
 import { markNoticeDismissed } from './ui/components/wpd-notice/storage';

@@ -8,8 +8,6 @@
  * first read) so a shared browser doesn't carry one user's
  * dismissals into another's session. When the id is unavailable
  * (logged-out, pre-hydration) we fall back to `anon`.
- *
- * @since 0.8.6
  */
 
 const KEY_PREFIX = 'desktop-mode-notice-dismissed';

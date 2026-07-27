@@ -15,8 +15,6 @@
  * XHR (not `wp.desktop.fetch`) for the same reason as `upload.ts`:
  * upload progress events only exist on XHR. See the eslint note
  * there; the HUD provides the activity-bus visibility.
- *
- * @since 0.9.6
  */
 
 import { applyFilters, doAction } from '../hooks';

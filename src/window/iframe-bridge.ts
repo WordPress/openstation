@@ -6,8 +6,6 @@
  * and available screen-meta panels; we route each to the appropriate
  * Window method. All messages are origin-gated to the origin captured
  * at module-init time — the chromeless iframe is always same-origin.
- *
- * @since 0.8.1
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -27,8 +25,6 @@ import { openUserFootprintWindow } from '../my-wordpress/footprint-target';
  * of `window.location` (e.g., by a misbehaving plugin script) cannot
  * relax the same-origin check — we always compare against the value
  * that was valid when the shell booted.
- *
- * @since 0.5.0
  */
 const INITIAL_ORIGIN = window.location.origin;
 

@@ -7,8 +7,6 @@
  * across bundles: the main shell bundle ingests heartbeat deltas
  * and fires notifications; the Games hub bundle renders the
  * challenge list from the same rows.
- *
- * @since 0.9.6
  */
 
 import { createSharedStore } from '../shared-store';

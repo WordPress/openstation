@@ -10,15 +10,12 @@
  * moment the window mounts.
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register Content Graph CSS and JS handles.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_register_assets() {
 	$version = DESKTOP_MODE_VERSION;

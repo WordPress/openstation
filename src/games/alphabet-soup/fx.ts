@@ -6,8 +6,6 @@
  * time-based via `update( dt )`. Randomness is allowed (it is
  * visual only) — the PUZZLE stays seeded; the sparkle does not
  * have to be.
- *
- * @since 0.9.8
  */
 
 import type {

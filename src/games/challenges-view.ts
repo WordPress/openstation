@@ -8,8 +8,6 @@
  * live from the shared challenges store as Heartbeat deltas land,
  * and resyncs the full list over REST on mount (the store only
  * holds what arrived this session).
- *
- * @since 0.9.6
  */
 
 // Side-effect imports — register the `<wpd-*>` components this module

@@ -10,7 +10,6 @@
  * returned is a scalar or a tiny capped list.
  *
  * @package WPDesktopMode
- * @since   0.9.4
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -21,8 +20,6 @@ defined( 'ABSPATH' ) || exit;
  * between requests. Composed (core has no first-party "install time"):
  * the earlier of the oldest user registration and the oldest published
  * post date.
- *
- * @since 0.9.4
  *
  * @return int Unix timestamp, or 0 when the site has neither.
  */
@@ -54,8 +51,6 @@ function desktop_mode_living_tree_install_epoch() {
  * Age of the site in whole days, from the install epoch. Clamped to be
  * non-negative — the master clock never runs backwards.
  *
- * @since 0.9.4
- *
  * @return int Whole days since the site's inception. >= 0.
  */
 function desktop_mode_living_tree_site_age_days() {
@@ -76,8 +71,6 @@ function desktop_mode_living_tree_site_age_days() {
  * filter so analytics plugins with their own counters can feed the
  * real number in.
  *
- * @since 0.9.4
- *
  * @return int Recent view sum. >= 0.
  */
 function desktop_mode_living_tree_traffic() {
@@ -90,8 +83,6 @@ function desktop_mode_living_tree_traffic() {
 	 * Filter the Living Tree traffic hormone source. Return a
 	 * non-negative view count for the last ~14 days — it drives the
 	 * wind (canopy sway amplitude / frequency).
-	 *
-	 * @since 0.9.5
 	 *
 	 * @param int $views Views in the window. Default: Jetpack Stats
 	 *                   when available, else the `_post_views_*` meta
@@ -113,8 +104,6 @@ function desktop_mode_living_tree_traffic() {
  * unexpected payload — returns `null` and the caller falls back to the
  * post-views meta. A successful `0` is trusted (a quiet site is a
  * valid answer), matching the widget's source-ladder semantics.
- *
- * @since 0.9.5
  *
  * @return int|null Views over the last 14 days, or null when Jetpack
  *                  Stats can't answer.
@@ -173,8 +162,6 @@ function desktop_mode_living_tree_jetpack_visits() {
  * convention — the plain-WP fallback shared with the site-views
  * widget. Sites without a view-counter plugin report 0.
  *
- * @since 0.9.5
- *
  * @return int Recent view sum. >= 0.
  */
 function desktop_mode_living_tree_meta_views() {
@@ -200,8 +187,6 @@ function desktop_mode_living_tree_meta_views() {
 
 /**
  * Number of users currently online, from framework presence.
- *
- * @since 0.9.4
  *
  * @return int Count of users with `online` presence status. >= 0.
  */
@@ -230,8 +215,6 @@ function desktop_mode_living_tree_active_users() {
  * an SEO or monitoring plugin that *does* know the site's health can
  * feed the real value in via the filter.
  *
- * @since 0.9.4
- *
  * @return float Health score in [0, 1].
  */
 function desktop_mode_living_tree_seo_health() {
@@ -239,8 +222,6 @@ function desktop_mode_living_tree_seo_health() {
 	 * Filter the Living Tree health hormone source. Return 0..1 — it
 	 * drives the canopy's colour temperature (green → yellow → red →
 	 * grey).
-	 *
-	 * @since 0.9.4
 	 *
 	 * @param float $health Default 0.7.
 	 */
@@ -257,8 +238,6 @@ function desktop_mode_living_tree_seo_health() {
  * at least once. The filter remains the integration point for plugins
  * with real runtime telemetry.
  *
- * @since 0.9.4
- *
  * @return float Performance score in [0, 1].
  */
 function desktop_mode_living_tree_performance() {
@@ -270,8 +249,6 @@ function desktop_mode_living_tree_performance() {
 	/**
 	 * Filter the Living Tree performance hormone source. Return 0..1 —
 	 * it throttles growth vigour.
-	 *
-	 * @since 0.9.4
 	 *
 	 * @param float $performance Default: a composite of core's Site
 	 *                           Health issue counts when the
@@ -300,8 +277,6 @@ function desktop_mode_living_tree_performance() {
  * flavour for a "growth vigour" hormone. The transient is absent on a
  * brand-new site until the weekly cron first fires or someone opens
  * the Site Health screen; callers fall back to the 0.8 default then.
- *
- * @since 0.9.5
  *
  * @return float|null Composite in [0.2, 1], or null when the Site
  *                    Health tallies aren't available (yet).
@@ -336,8 +311,6 @@ function desktop_mode_living_tree_site_health_performance() {
  * posts grouped by year, each year mapped to a depth/girth/length hint
  * normalised against the busiest year. This is DNA, not geometry — the
  * simulator may bias growth density with it, never position anything.
- *
- * @since 0.9.4
  *
  * @return array[] Compact branch DNA hints (max 12 entries).
  */

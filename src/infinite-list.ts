@@ -41,8 +41,6 @@
  * // Tear down — observer disconnects, in-flight aborts.
  * list.destroy();
  * ```
- *
- * @since 0.8.2
  */
 
 export interface InfiniteListPage< TItem > {
@@ -139,8 +137,6 @@ export interface InfiniteList {
  * Build an infinite-scroll renderer. See {@link InfiniteListOptions}
  * for the full option shape and the module docstring for the
  * idiomatic recipe.
- *
- * @since 0.8.2
  */
 export function createInfiniteList< TItem >(
 	options: InfiniteListOptions< TItem >,

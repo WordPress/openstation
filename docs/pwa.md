@@ -1,6 +1,6 @@
 # Progressive Web App (PWA)
 
-Stable since 0.8.0.
+Stable.
 
 Desktop Mode ships a **web app manifest**, a **service worker**, and a
 **local notifications API** so users can install their WordPress site as

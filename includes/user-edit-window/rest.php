@@ -27,15 +27,12 @@
  * aggregates on every form interaction.
  *
  * @package WPDesktopMode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.1
  */
 function desktop_mode_user_edit_window_register_rest_routes() {
 	register_rest_route(
@@ -73,8 +70,6 @@ add_action( 'rest_api_init', 'desktop_mode_user_edit_window_register_rest_routes
  * Without this, the meta keys exist (core uses them on the
  * classic profile.php save) but the REST controller ignores
  * `meta.rich_editing` etc. on update.
- *
- * @since 0.8.1
  */
 function desktop_mode_user_edit_window_register_meta() {
 	$keys = array(
@@ -112,8 +107,6 @@ add_action( 'init', 'desktop_mode_user_edit_window_register_meta' );
  * `POST /users/<id>/destroy-other-sessions` — log out everywhere
  * else (current device kept). Mirrors the WP-core
  * `destroy-sessions` AJAX action.
- *
- * @since 0.8.1
  */
 function desktop_mode_user_edit_window_destroy_sessions_route() {
 	register_rest_route(
@@ -169,8 +162,6 @@ function desktop_mode_user_edit_window_rest_destroy_sessions( $req ) {
  *
  * Thin wrappers over `WP_Application_Passwords` so the form has a
  * single REST surface to talk to.
- *
- * @since 0.8.1
  */
 function desktop_mode_user_edit_window_app_passwords_routes() {
 	register_rest_route(
@@ -320,8 +311,6 @@ function desktop_mode_user_edit_window_rest_app_pw_revoke( $req ) {
 /**
  * `GET /users/<id>/insights` callback.
  *
- * @since 0.8.1
- *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
@@ -403,8 +392,6 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
 	 * tolerates unknown keys — they're surfaced as plugin tiles
 	 * when they match the expected shape.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param array   $payload Insights payload.
 	 * @param WP_User $user    Target user.
 	 */
@@ -419,8 +406,6 @@ function desktop_mode_user_edit_window_rest_insights( $req ) {
  * Compute the insights payload for a user. Centralized so plugins
  * can call it directly from a custom REST route or admin notice
  * without going through the HTTP cycle.
- *
- * @since 0.8.1
  *
  * @param WP_User $user
  * @return array

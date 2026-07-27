@@ -417,7 +417,7 @@ archive. Both face caps are filterable
 
 ## Wallpapers
 
-**Since 0.9.8.** A theme may ship wallpapers. Each one appears in
+** A theme may ship wallpapers. Each one appears in
 **OS Settings → Wallpaper** as an ordinary pick, labelled
 `<theme name> - (theme)` — or `<theme name>: <label> - (theme)` when
 the theme ships more than one.
@@ -950,7 +950,7 @@ wp.desktop.desktopThemes.setActive( 'acme-neon-glass' );
 wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
 ```
 
-See [JavaScript reference](./javascript-reference.md#desktop-themes)
+See [JavaScript reference](./javascript-reference.md#desktop-themes-experimental)
 for the event and filter surface.
 
 ---

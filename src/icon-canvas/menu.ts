@@ -22,7 +22,6 @@
  * pulls in the entire files-layer dependency tree (~20KB).
  *
  * @public
- * @since 0.8.0
  */
 
 import { applyFilters } from '../hooks';

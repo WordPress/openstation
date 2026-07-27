@@ -5,8 +5,6 @@
  * full `wp.desktop` API (see `launch.ts`'s own, wider `DesktopGlobal`
  * for the launcher's needs). Declared once here so every game's
  * `desktopGlobal()` stays in sync instead of drifting per game.
- *
- * @since 0.9.8
  */
 
 export interface DesktopLike {

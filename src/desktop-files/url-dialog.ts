@@ -11,8 +11,6 @@
  * built-in modals feel identical. Built on the framework's
  * `<wpd-text-field>` so it inherits keyboard nav, focus styling,
  * and color-scheme tokens for free.
- *
- * @since 0.8.1
  */
 
 import { applyFilters, doAction } from '../hooks';

@@ -45,7 +45,7 @@ import '../../src/ui/components/wpd-context-menu/wpd-context-menu';
  * directly and wire the factory by hand so
  * `ensureWindowSystemLoaded( '' )` returns the pre-registered
  * factory on its sync fast path. Tests still have to `await`
- * `manager.open()` / `openNew()` (those became async in 0.8.4) —
+ * `manager.open()` / `openNew()` (both async) —
  * the factory just keeps the `await` resolving on the next
  * microtask instead of waiting for a script load that's never
  * going to happen.

@@ -11,8 +11,6 @@
  * next page reload — graceful backwards-compat. The OS Settings
  * selector and the engine react live via the registry's subscribe
  * fan-out.
- *
- * @since 0.9.1
  */
 
 import { doAction, HOOKS } from '../hooks';

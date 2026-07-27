@@ -5,8 +5,6 @@
  * we open the accept/deny modal once per invite per session. The
  * user can defer ("Decide later") to keep the invite in the
  * pending list without re-prompting until next heartbeat tick.
- *
- * @since 0.8.5
  */
 
 import { openPendingFileInviteModal, openPendingInviteModal } from './share-settings-modal';

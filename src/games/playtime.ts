@@ -10,8 +10,6 @@
  *
  * A failed flush re-banks its seconds and retries on the next tick;
  * only a failure on the very last (close-time) flush is dropped.
- *
- * @since 0.9.7
  */
 
 import { __, sprintf } from '../i18n';

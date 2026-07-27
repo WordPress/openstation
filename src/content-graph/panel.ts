@@ -20,7 +20,6 @@
  * the summary plus an "Open in WordPress" button.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __, _n, sprintf } from '../i18n';

@@ -11,8 +11,6 @@
  * Exported on `wp.desktop.loadVendorScript` so third-party canvas
  * plugins can reuse the same memoization and not race each other on
  * first activation.
- *
- * @since 0.6.0
  */
 
 /**
@@ -30,7 +28,6 @@ const pending = new Map<string, Promise<void>>();
  * src=…>` never goes through `wp_print_scripts()`.
  *
  * @public
- * @since 0.6.0
  */
 export interface ScriptExtras {
 	/**

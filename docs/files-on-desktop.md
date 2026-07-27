@@ -1,6 +1,6 @@
 # Files on the Desktop
 
-**Status:** Experimental (since 0.9.0).
+**Status:** Experimental.
 
 The Files-on-the-Desktop system lets users place WordPress entities — posts, users, media, terms, comments, bookmarks — on their desktop wallpaper, organize them inside folders, and (in later phases) share folders with other users via Heartbeat-driven sync. Plugin authors extend the system by registering their own file types through the same surface the ten built-ins use.
 
@@ -26,7 +26,7 @@ A **file** on the desktop is a `Desktop_Mode_File` subclass adapting one WordPre
 
 A placement is a **reference** to a WordPress entity, not a copy of it. Removing a placement drops the placement row only — the underlying post, user, attachment, comment, or term is **never** touched. The REST `DELETE /placements/<id>` defaults to a soft-trash into the recycle bin (restorable); `?force=1` permanently purges the row, and `desktop_mode_files_remove()` is the hard-remove PHP API. Folder deletion cascades placements via tombstones but still leaves referenced entities intact. This is asserted in `Tests_DesktopMode_FilesStore::test_remove_does_not_delete_underlying_entity` and is the core safety contract of the system. Plugins that want a "delete the post too" flow must call `wp_delete_post()` (or equivalent) themselves — the framework will not do it for them.
 
-**The one deliberate exception is the `upload` type** (real file storage, since 0.9.6): an uploaded file has no life outside the desktop, so its placement OWNS the entity. Soft-trash keeps the bytes (restore works); when the owner's last placement of a file is **permanently** removed (recycle-bin purge / `?force=1`), the stored bytes, the row, its shares, and every recipient placement are deleted too. See [Real file storage](#real-file-storage-upload--experimental-since-096) below. Every other type keeps the reference contract unchanged.
+**The one deliberate exception is the `upload` type** (real file storage): an uploaded file has no life outside the desktop, so its placement OWNS the entity. Soft-trash keeps the bytes (restore works); when the owner's last placement of a file is **permanently** removed (recycle-bin purge / `?force=1`), the stored bytes, the row, its shares, and every recipient placement are deleted too. See [Real file storage](#real-file-storage-upload--experimental) below. Every other type keeps the reference contract unchanged.
 
 A **file type** is a slug that points the registry at the right subclass. The built-ins are:
 
@@ -34,7 +34,7 @@ A **file type** is a slug that points the registry at the right subclass. The bu
 |---|---|---|
 | `post` | `Desktop_Mode_Post_File` | post id (numeric string) |
 | `attachment` | `Desktop_Mode_Attachment_File` | attachment id |
-| `upload` | `Desktop_Mode_Upload_File` | stored-file row id (real bytes on the server — see [Real file storage](#real-file-storage-upload--experimental-since-096)) |
+| `upload` | `Desktop_Mode_Upload_File` | stored-file row id (real bytes on the server — see [Real file storage](#real-file-storage-upload--experimental)) |
 | `user` | `Desktop_Mode_User_File` | user id |
 | `term` | `Desktop_Mode_Term_File` | `"<taxonomy>:<term_id>"` |
 | `comment` | `Desktop_Mode_Comment_File` | comment id |
@@ -46,7 +46,7 @@ A **file type** is a slug that points the registry at the right subclass. The bu
 
 `link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name` (set by the wallpaper-menu "New URL" entry) — the tile renderer prefers it over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
 
-`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl` (since 0.8.2). The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes, enforced during the download via `limit_response_size` (WP_Http stops reading one byte over the cap, and the truncated over-cap body is then rejected by the size check — never buffered whole); the cap keeps `meta` blobs small. The step-1 page-HTML fetch is itself capped at 1 MB (`DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES`). Plugins can short-circuit or override the resolved value via the `desktop_mode_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
+`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl`. The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes, enforced during the download via `limit_response_size` (WP_Http stops reading one byte over the cap, and the truncated over-cap body is then rejected by the size check — never buffered whole); the cap keeps `meta` blobs small. The step-1 page-HTML fetch is itself capped at 1 MB (`DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES`). Plugins can short-circuit or override the resolved value via the `desktop_mode_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
 
 `page` and any custom post type collapse into `post`; `category` and `post_tag` collapse into `term`. UI labels per concrete post type / taxonomy come from the `desktop_mode_file_serialize` filter — there's no need to register a separate type for every CPT.
 
@@ -171,7 +171,7 @@ The PHP and JS sides are independent: shipping only the PHP class is enough to g
 - `getUserAssociations(): Record< string, string >`
 - `open( file: DesktopFile ): Promise< boolean >` — full dispatcher.
 
-## Openers — the file-association layer *(Phase 1, since 0.9.0)*
+## Openers — the file-association layer *(Phase 1)*
 
 A **file opener** answers the question "what should happen when the user double-clicks a `post`?" It's the desktop-OS equivalent of an `.app` association. Multiple openers can register for the same file type; the user picks their preferred one (in OS Settings → File Associations, Phase 5), and the JS side resolves on every double-click.
 
@@ -258,7 +258,7 @@ add_filter( 'desktop_mode_resolve_file_opener', function ( $opener_id, $type, $u
 }, 10, 3 );
 ```
 
-## Persistence — schema, REST, store *(Phase 2, since 0.9.0)*
+## Persistence — schema, REST, store *(Phase 2)*
 
 ### Custom tables
 
@@ -317,7 +317,7 @@ Visibility filter (advisory in Phase 2, load-bearing in Phase 6): `desktop_mode_
 
 `wp.desktop.files.store` exposes a `createSharedStore`-backed cross-bundle state holder; `wp.desktop.files.rest` is the typed REST client.
 
-Boot hydration of the **root folder** (`folderId 0`) does not hit REST: the shell config inlines `filesBootPlacements` (built server-side by the same code path as `GET /files/placements?folder=0`, since 0.9.7) and the file layer seeds the store from it one-shot. Any later hydration — subfolders, restore-sync re-fetches, heartbeat resyncs — goes through `listPlacements()` as before.
+Boot hydration of the **root folder** (`folderId 0`) does not hit REST: the shell config inlines `filesBootPlacements` (built server-side by the same code path as `GET /files/placements?folder=0`) and the file layer seeds the store from it one-shot. Any later hydration — subfolders, restore-sync re-fetches, heartbeat resyncs — goes through `listPlacements()` as before.
 
 ```ts
 interface FilesState {
@@ -342,7 +342,7 @@ wp.desktop.files.rest.saveAssociations( map );
 
 Every store mutation also dispatches a `desktop-mode-files-changed` CustomEvent on `document` with `{ kind, placementId?, folderId?, source: 'local' | 'remote' }` so non-store consumers (toasts, devtools) hear about it without reading the store.
 
-## Rendering — `FilesLayer` + tiles *(Phase 3, since 0.9.0)*
+## Rendering — `FilesLayer` + tiles *(Phase 3)*
 
 A `FilesLayer` is the renderer that mounts on a host element (the `#desktop-mode-area` for the root) and paints one tile per placement. The shell automatically mounts a root layer at boot when the desktop area DOM is present.
 
@@ -364,7 +364,7 @@ A `FilesLayer` is the renderer that mounts on a host element (the `#desktop-mode
 
 The class names and `data-*` attributes are part of the stable contract. The tile is built with `buildTile()` in `src/desktop-files/file-tile.ts`.
 
-### Drag *(reworked in 0.8.1)*
+### Drag
 
 Drag is owned end-to-end by the centralized `DragManager`
 (`wp.desktop.dragManager`). A tile's `pointerdown` calls
@@ -372,8 +372,7 @@ Drag is owned end-to-end by the centralized `DragManager`
 own document-level pointermove / pointerup / pointercancel listeners
 and drives the gesture from there. Tiles do NOT call `setPointerCapture`
 — pointer capture is incompatible with HTML5 `dragstart` detection on
-draggable elements (the My WordPress entity-tile drag-out bug, fixed
-in 0.8.1).
+draggable elements (the My WordPress entity-tile drag-out bug).
 
 Lifecycle:
 
@@ -420,7 +419,7 @@ all stripped from the document). Plugins observing the bus see
 `document` CustomEvents — `desktop-mode.drag.{start,move,enter,leave,
 rejected,commit,cancel,end}`.
 
-Visual feedback *(strengthened in 0.8.1)*: while a drag is in
+Visual feedback: while a drag is in
 flight the manager sets three attributes on `document.body` so
 shell CSS can coordinate without each surface having to subscribe
 to the CustomEvents:
@@ -459,7 +458,7 @@ intentional rather than buggy.
 Legacy: HTML5 drag (`setShortcutDragPayload` /
 `hasShortcutPayload` / `readShortcutPayload`) remains exported from
 `drag-shortcut.ts` for plugins that emit cross-window drags via
-`dataTransfer`, but is `@deprecated since 0.8.1`. New code uses the
+`dataTransfer`, but is deprecated. New code uses the
 manager.
 
 ### Open
@@ -482,7 +481,7 @@ doAction( 'desktop-mode.tile.rendered', { tile: HTMLElement } );
 
 `tile-rendered` is the canonical hook for plugin decorations (badges, status dots, drag handles) on the **desktop-files** surface. The layer's fingerprint cache preserves your decoration across no-op repaints; you only need to re-apply on `tile-rendered`.
 
-Use the generic `desktop-mode.tile.*` pair when you want to decorate tiles **everywhere** (My WordPress sections, drill-in usage grids, any future surface using `<wpd-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** since 0.9.0 (placement-shaped) and **Experimental** since 0.8.6 (generic).
+Use the generic `desktop-mode.tile.*` pair when you want to decorate tiles **everywhere** (My WordPress sections, drill-in usage grids, any future surface using `<wpd-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** (placement-shaped) and **Experimental** (generic).
 
 ### Public API
 
@@ -493,7 +492,7 @@ const handle = mountFilesLayer( hostElement, folderId );
 handle.dispose();
 ```
 
-## Wallpaper context menu *(Phase 4, since 0.9.0)*
+## Wallpaper context menu *(Phase 4)*
 
 Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` directly. Phase 4 replaces that with a small floating menu — the desktop-OS equivalent of right-click on the desktop.
 
@@ -553,7 +552,7 @@ doAction( 'desktop-mode.wallpaper-menu.closed', {} );
 doAction( 'desktop-mode.wallpaper-context-menu.activated', { id: string, callbackId: string } );
 ```
 
-## Sharing + Heartbeat sync *(Phase 6, since 0.9.0)*
+## Sharing + Heartbeat sync *(Phase 6)*
 
 ### Visibility logic
 
@@ -613,7 +612,7 @@ PATCH /wp-json/desktop-mode/v1/files/folders/<id>
 
 The `desktop_mode_folder_shared` action fires whenever `share_mode` or `share_meta` changes, giving plugins a single signal to subscribe to.
 
-## Real file storage (`upload`) — Experimental (since 0.9.6)
+## Real file storage (`upload`) — Experimental
 
 Real desktop-style file storage: users upload arbitrary files (or whole folder trees) and the bytes land on the server, tied to the uploading user, downloadable later — the file as-is, a folder as an on-demand `.zip`.
 
@@ -646,7 +645,7 @@ All under `/wp-json/desktop-mode/v1/files`, cookie + nonce auth:
 | `PATCH` | `/uploads/<id>` | Rename the display name (owner only). |
 | `GET` | `/uploads/<id>/download` | Stream the bytes, unmodified. `_wpnonce` accepted as a query param so plain `<a>` navigations work. |
 | `GET` | `/folders/<id>/download` | On-demand `.zip` of the folder's stored files (reference-type placements are skipped; empty sub-folders round-trip). Requires the PHP zip extension — 501 + a hidden affordance otherwise. Caps filterable via `desktop_mode_stored_files_zip_caps` (default 1000 entries / 500 MB input). |
-| `GET/POST` | `/uploads/<id>/shares` (+ `/<shareId>`, `/accept`, `/deny`, `/leave`) | Single-file sharing — see [folder-sharing.md](folder-sharing.md#single-file-shares-since-096). |
+| `GET/POST` | `/uploads/<id>/shares` (+ `/<shareId>`, `/accept`, `/deny`, `/leave`) | Single-file sharing — see [folder-sharing.md](folder-sharing.md#single-file-shares). |
 
 Downloads answer **404** for files the viewer cannot read (existence masking). Not-found and no-access are indistinguishable.
 
@@ -660,12 +659,12 @@ Reconciliation runs on the existing daily prune: placement-less rows and row-les
 
 ### PHP surface
 
-`desktop_mode_stored_files_get/create/rename/delete/purge()`, `desktop_mode_stored_file_path()`, `desktop_mode_stored_file_user_can_read()`, `desktop_mode_stored_files_total_bytes()`, `desktop_mode_stored_file_share_{invite,accept,deny,leave,revoke}()`. Actions: `desktop_mode_stored_file_{created,uploaded,renamed,deleted,downloaded}`, `desktop_mode_folder_zip_downloaded`. See [hooks-reference.md](hooks-reference.md#real-file-storage-since-096) for the filters.
+`desktop_mode_stored_files_get/create/rename/delete/purge()`, `desktop_mode_stored_file_path()`, `desktop_mode_stored_file_user_can_read()`, `desktop_mode_stored_files_total_bytes()`, `desktop_mode_stored_file_share_{invite,accept,deny,leave,revoke}()`. Actions: `desktop_mode_stored_file_{created,uploaded,renamed,deleted,downloaded}`, `desktop_mode_folder_zip_downloaded`. See [hooks-reference.md](hooks-reference.md#real-file-storage) for the filters.
 
 ## What's NOT here yet
 
 - Drag-from-Recycle-Bin via HTML5 native drag (the "Pin to desktop" toolbar button ships the equivalent action today).
-- The folder-sharing v1 non-goals — owner transfer, cascade share grants (sub-folders need their own grant), recipient-side rename of a shared folder. See [folder-sharing.md](folder-sharing.md). (Sharing of non-folder types shipped in 0.9.6 for stored uploads — read-only, user principals.)
+- The folder-sharing v1 non-goals — owner transfer, cascade share grants (sub-folders need their own grant), recipient-side rename of a shared folder. See [folder-sharing.md](folder-sharing.md). (Sharing of non-folder types is available for stored uploads — read-only, user principals.)
 - Upload previews/thumbnails (double-click downloads in v1) and resumable/chunked uploads (the intake keeps receive and register separate so a tus/Content-Range layer can drop in).
 
 If you need any of these today, watch the changelog — the registry shape from Phase 0 is forwards-compatible with every later phase.

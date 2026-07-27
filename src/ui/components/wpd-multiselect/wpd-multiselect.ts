@@ -24,7 +24,6 @@
  * Emits `wpd-pick` with `{ value, values }` on every change.
  *
  * @public
- * @since 0.8.0
  */
 
 import {
@@ -137,8 +136,6 @@ export class WpdMultiselect extends Component {
 	 * Declarative item-list setter. Replaces the existing
 	 * `<wpd-option>` children with a fresh set; preserves any values
 	 * that still match.
-	 *
-	 * @since 0.8.0
 	 */
 	set items( list: ReadonlyArray< { value: string; label: string } > ) {
 		const existing = this.querySelectorAll( ':scope > wpd-option' );
@@ -221,8 +218,6 @@ export class WpdMultiselect extends Component {
 	 * tree. Used by infinite-scroll consumers — call when the next
 	 * page lands, then set `loadingMore = false` and update
 	 * `hasMore` based on whether more pages remain.
-	 *
-	 * @since 0.8.0
 	 */
 	appendItems(
 		more: ReadonlyArray< { value: string; label: string } >,

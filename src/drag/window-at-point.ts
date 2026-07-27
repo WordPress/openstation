@@ -18,8 +18,6 @@
  * Every window root — iframe and native alike — is built by
  * `window/dom.ts` as `.desktop-mode-window` with the id
  * `wp-window-<windowId>`, which is what these helpers key off.
- *
- * @since 0.9.4
  */
 
 /** Selector matching every window root element (iframe + native). */

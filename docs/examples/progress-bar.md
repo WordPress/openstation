@@ -5,7 +5,7 @@
 percent header. Used by the OS-file-drop upload HUD and available
 to any feature that needs a value-driven bar.
 
-> Status: **Experimental** since 0.8.6.
+> Status: **Experimental**.
 
 ## Drop-in
 

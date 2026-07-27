@@ -12,7 +12,6 @@
  * deep-links to the matching native window.
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;

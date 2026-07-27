@@ -5,8 +5,6 @@
  * interval-driven mount/teardown, paints in well under a frame. Any
  * plugin wanting to build against the public widget API has this
  * source as a one-file reference.
- *
- * @since 0.7.0
  */
 
 import { __ } from '../i18n';
@@ -79,7 +77,7 @@ const clock: WidgetDef = {
  */
 export function registerBuiltInWidgets(): void {
 	registry.register( clock );
-	// Heartbeat widget moved out of the main bundle in 0.8.5.
+	// Heartbeat widget moved out of the main bundle.
 	// PHP registers it via `desktop_mode_register_widget()`
 	// with the `desktop-mode-heartbeat-widget` script handle —
 	// the shell's widgets server-sync loads the bundle on

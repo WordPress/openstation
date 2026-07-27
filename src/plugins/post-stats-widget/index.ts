@@ -10,8 +10,6 @@
  * transient-cached request per refresh (it used to page through
  * /wp/v2/posts three times, once per status).
  * Refresh: every 5 minutes, paused while the tab is hidden.
- *
- * @since 0.26.0
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';

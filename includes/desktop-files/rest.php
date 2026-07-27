@@ -46,13 +46,13 @@
  * requires `manage_options`.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * Base permission check shared by the desktop-files REST routes:
+ * requires a logged-in user with desktop mode enabled.
  */
 function desktop_mode_files_rest_permission() {
 	if ( ! is_user_logged_in() ) {
@@ -71,8 +71,6 @@ function desktop_mode_files_rest_permission() {
  * exist) when the viewer has the folder-sharing feature toggled
  * off in OS Settings — no information leak about whether the
  * feature is even installed.
- *
- * @since 0.8.5
  */
 function desktop_mode_files_rest_share_permission() {
 	$base = desktop_mode_files_rest_permission();
@@ -97,8 +95,6 @@ function desktop_mode_files_rest_share_permission() {
  * (currently: drop the folder-sharing tables). Requires
  * `manage_options` — site-wide schema mutation should never be
  * exposed below that capability.
- *
- * @since 0.8.5
  */
 function desktop_mode_files_rest_admin_permission() {
 	if ( ! current_user_can( 'manage_options' ) ) {
@@ -113,8 +109,6 @@ function desktop_mode_files_rest_admin_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.9.0
  */
 function desktop_mode_files_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
@@ -301,8 +295,6 @@ add_action( 'rest_api_init', 'desktop_mode_files_register_rest_routes' );
  * The `desktop_mode_shell_config` filter only runs while rendering
  * the shell for an enabled, logged-in user — the same gate the REST
  * permission callback enforces.
- *
- * @since 0.9.7
  *
  * @param array $config Shell config.
  * @return array
@@ -548,8 +540,6 @@ function desktop_mode_files_rest_save_associations( WP_REST_Request $req ) {
  * camelCase and merges in the resolved `Desktop_Mode_File`
  * shape so the JS side can render without a second fetch.
  *
- * @since 0.9.0
- *
  * @param array|null $row Normalized placement row.
  * @return array
  */
@@ -619,8 +609,6 @@ function desktop_mode_files_shape_placement( $row ) {
 }
 
 /**
- * @since 0.9.0
- *
  * @param array|null $row Folder row.
  * @return array
  */
@@ -670,8 +658,6 @@ function desktop_mode_files_shape_folder( $row ) {
  * The 409 body carries a structured `data` payload the client
  * surfaces as a toast: `{ reason, actor: { id,name,avatar },
  * current: { parentId, parentName, updatedAtMs } }`.
- *
- * @since 0.8.5
  *
  * @param int             $current_ms Current `updated_at_ms` on the row.
  * @param WP_REST_Request $req        Inbound request.
@@ -764,8 +750,6 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 /**
  * Shape a share row for the wire.
  *
- * @since 0.8.5
- *
  * @param array|null $row Normalized share row.
  * @return array
  */
@@ -852,8 +836,6 @@ function desktop_mode_files_rest_create_share( WP_REST_Request $req ) {
  * mismatched URL never escalates permission — but the routes are
  * hierarchical (`/folders/{id}/shares/{shareId}/…`), so honoring
  * both path segments is the contract callers expect.
- *
- * @since 0.8.5
  *
  * @param WP_REST_Request $req Request.
  * @return array|WP_Error
@@ -970,8 +952,6 @@ function desktop_mode_files_rest_leave_folder( WP_REST_Request $req ) {
  * `install_schema` and recreates the empty tables — keeps the
  * code path that ASSUMES the tables exist (e.g. heartbeat
  * delivery queries) working even after a purge.
- *
- * @since 0.8.5
  */
 function desktop_mode_files_rest_purge_sharing_tables() {
 	global $wpdb;
@@ -981,8 +961,6 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 	/**
 	 * Filter the list of table names dropped by the
 	 * "Delete folder sharing data" admin action.
-	 *
-	 * @since 0.8.5
 	 *
 	 * @param string[] $tables Default = shares + decisions.
 	 */
@@ -1032,8 +1010,6 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 	 * that mirror share state into their own storage can react
 	 * here.
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param string[] $dropped Table names that were dropped.
 	 */
 	do_action( 'desktop_mode_files_sharing_tables_purged', $dropped );
@@ -1049,8 +1025,6 @@ function desktop_mode_files_rest_purge_sharing_tables() {
  * `desktop_mode_files_rest_permission` would let any logged-in
  * desktop-mode user pull the directory, which is too broad for an
  * autocomplete that exposes display names + emails.
- *
- * @since 0.8.5
  */
 function desktop_mode_files_rest_search_users_permission() {
 	$base = desktop_mode_files_rest_permission();
@@ -1066,8 +1040,6 @@ function desktop_mode_files_rest_search_users_permission() {
 /**
  * GET /files/users/search?q=<>&exclude=<csv> — autocomplete for the
  * folder share picker.
- *
- * @since 0.8.5
  */
 function desktop_mode_files_rest_search_users( WP_REST_Request $req ) {
 	$q       = trim( (string) $req->get_param( 'q' ) );
@@ -1097,8 +1069,6 @@ function desktop_mode_files_rest_search_users( WP_REST_Request $req ) {
 
 	/**
 	 * Filter the WP_User_Query args used by the share picker.
-	 *
-	 * @since 0.8.5
 	 *
 	 * @param array $args Default args.
 	 * @param array $req  Request params (`q`, `exclude`).

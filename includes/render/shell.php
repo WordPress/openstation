@@ -11,7 +11,6 @@
  * slicing (phase 6).
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,8 +24,6 @@ defined( 'ABSPATH' ) || exit;
  * floats above the classic layout via `position: fixed` in CSS; the
  * classic sidebar, body, and footer are hidden with `body.desktop-mode-active`
  * selectors.
- *
- * @since 0.1.0
  */
 function desktop_mode_render_shell() {
 	if ( desktop_mode_is_chromeless_request() || ! desktop_mode_is_enabled() || desktop_mode_is_classic_request() ) {
@@ -35,8 +32,6 @@ function desktop_mode_render_shell() {
 
 	/**
 	 * Fires right before the desktop shell markup is rendered.
-	 *
-	 * @since 0.1.0
 	 */
 	do_action( 'desktop_mode_shell_before' );
 
@@ -89,8 +84,6 @@ function desktop_mode_render_shell() {
 	<?php
 	/**
 	 * Fires right after the desktop shell markup has rendered.
-	 *
-	 * @since 0.1.0
 	 */
 	do_action( 'desktop_mode_shell_after' );
 }

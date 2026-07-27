@@ -4,8 +4,6 @@
  * Thin wrapper around `fetch` that adds the WP nonce and the
  * desktop's REST base URL. Returns parsed JSON; throws on
  * non-2xx with the `WP_Error.code`/`message` shape WP serves.
- *
- * @since 0.9.0
  */
 
 import { trackedFetch } from '../tracked-fetch';
@@ -35,8 +33,6 @@ export interface RestPlacementShape {
 	 * paints a lock overlay + tooltip and the click handler shows
 	 * a toast explaining the permission gap instead of routing to
 	 * the opener.
-	 *
-	 * @since 0.8.5
 	 */
 	accessGated?: boolean;
 	/**
@@ -52,8 +48,6 @@ export interface RestPlacementShape {
 	 * placements inside a shared folder where the viewer lacks
 	 * write capability, plus anything a `desktop_mode_files_user_can_trash_placement`
 	 * filter customisation has vetoed.
-	 *
-	 * @since 0.8.5
 	 */
 	canTrash?: boolean;
 }
@@ -75,8 +69,6 @@ export interface RestFolderShape {
 	 * the viewer can manage the folder's shares (per
 	 * `desktop_mode_files_share_can_manage`) and `0` for every
 	 * other viewer, keeping the wire shape stable.
-	 *
-	 * @since 0.8.5
 	 */
 	shareSummary?: { shared: boolean; recipientCount: number };
 }
@@ -135,8 +127,6 @@ function ensureDeps(): FilesRestDeps {
  * upload/download paths, which need the raw base URL + nonce (XHR
  * progress uploads and `_wpnonce`-in-query download navigations
  * can't ride the JSON `call()` wrapper).
- *
- * @since 0.9.6
  */
 export function getFilesRestDeps(): FilesRestDeps {
 	return ensureDeps();
@@ -146,8 +136,6 @@ export function getFilesRestDeps(): FilesRestDeps {
  * Conflict body the server returns on 409. The `actor` is the
  * user whose mutation won the race; `current` is the row's new
  * state after that mutation. Clients surface this in a toast.
- *
- * @since 0.8.5
  */
 export interface FilesConflictDetail {
 	reason: 'parent_changed' | 'trashed' | 'forbidden' | 'gone' | string;
@@ -458,8 +446,6 @@ export function denyShare(
  * Recipient-initiated leave. Different from `denyShare` because
  * it can target a role-principal share without affecting other
  * role members — the server writes a per-user decision row.
- *
- * @since 0.8.5
  */
 export function leaveShare(
 	folderId: number,
@@ -474,8 +460,6 @@ export function leaveShare(
  * by the OS Settings → Features → "Delete folder sharing data"
  * action. Server permission callback enforces `manage_options`;
  * non-admins get a 403.
- *
- * @since 0.8.5
  */
 export function purgeFolderSharingTables(): Promise< { dropped: string[] } > {
 	return call< { dropped: string[] } >(
@@ -492,8 +476,6 @@ export function purgeFolderSharingTables(): Promise< { dropped: string[] } > {
  * Wire shape of a `target_type='file'` share row (single uploaded
  * file shared read-only with a specific user). Distinguished from
  * folder shares by `targetType`.
- *
- * @since 0.9.6
  */
 export interface RestFileShareShape {
 	id: number;
@@ -569,8 +551,6 @@ export function leaveFileShare( fileId: number ): Promise< { left: true } > {
 
 /**
  * Rename an uploaded file's display name (owner only).
- *
- * @since 0.9.6
  */
 export function renameUpload(
 	fileId: number,
@@ -586,8 +566,6 @@ export function renameUpload(
  * Ensure a directory path exists under `parentId` (mkdir-p) and
  * return the leaf folder id. Used by tree drops to preserve empty
  * directories.
- *
- * @since 0.9.6
  */
 export function ensureUploadPath(
 	parentId: number,
@@ -604,8 +582,6 @@ export function ensureUploadPath(
  * same-origin navigation; the `_wpnonce` query param satisfies the
  * REST CSRF check (the officially supported GET form). Mint at
  * click time — nonces expire, so never persist these URLs.
- *
- * @since 0.9.6
  */
 export function getUploadDownloadUrl( fileId: number ): string {
 	const { baseUrl, nonce } = ensureDeps();
@@ -616,8 +592,6 @@ export function getUploadDownloadUrl( fileId: number ): string {
 /**
  * Mint the on-demand folder-zip download URL. Same auth shape as
  * {@link getUploadDownloadUrl}.
- *
- * @since 0.9.6
  */
 export function getFolderZipUrl( folderId: number ): string {
 	const { baseUrl, nonce } = ensureDeps();

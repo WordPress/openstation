@@ -19,8 +19,6 @@
  * The store is intentionally framework-agnostic — Phase 3 wires
  * a tiny render loop on top, but plugin authors who want to
  * read the placements list synchronously can do so directly.
- *
- * @since 0.9.0
  */
 
 import { createSharedStore, type SharedStore } from '../shared-store';
@@ -199,8 +197,6 @@ export function getFilesState(): FilesState {
  * old title after an in-place rename, old coords after a drag.
  * Handlers should route through this at event time instead of
  * trusting the closure.
- *
- * @since 0.9.5
  */
 export function currentPlacement( snapshot: RestPlacementShape ): RestPlacementShape {
 	const state = getFilesState();

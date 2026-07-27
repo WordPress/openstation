@@ -29,14 +29,11 @@
  * client falls back to `GET /games/challenges` for a full resync.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.6
- *
  * @param array $response Pre-filtered response.
  * @param array $data     Client-sent payload.
  * @return array
@@ -64,8 +61,6 @@ function desktop_mode_games_heartbeat_received( $response, $data ) {
 	 * Filter the per-tick challenge row cap. Past the cap the
 	 * payload is flagged `truncated` and the client resyncs over
 	 * REST.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param int $cap Default 50.
 	 */

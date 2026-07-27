@@ -8,7 +8,6 @@
  * type-compatible without a hard dependency on the `pixi.js` package.
  *
  * @public
- * @since 0.8.2
  */
 
 export interface PixiPoint {

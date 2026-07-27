@@ -18,8 +18,6 @@
  *
  * Children wrap to a new line when the container narrows, so a
  * cluster in a resizable window degrades gracefully.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

@@ -11,8 +11,6 @@
  * On `truncated: true` we issue a one-shot REST resync of every
  * hydrated folder (the server signaled that it skipped rows
  * past the cap).
- *
- * @since 0.9.0
  */
 
 import { heartbeat } from '../heartbeat';

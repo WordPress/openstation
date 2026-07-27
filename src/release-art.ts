@@ -2,8 +2,6 @@
  * Resolves a release's album art + codename from its wordpress.org/news
  * announcement (titled `WordPress <X.Y> "Codename"`), cached in
  * `localStorage` per branch.
- *
- * @since 0.9.4
  */
 
 import { trackedFetch } from './tracked-fetch';

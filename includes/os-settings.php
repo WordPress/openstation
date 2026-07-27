@@ -29,8 +29,6 @@ const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 's
  * Mirrors the TypeScript `DEFAULTS` constant so a fresh user account
  * gets the same starting state in both environments.
  *
- * @since 0.5.0
- *
  * @return array
  */
 function desktop_mode_default_os_settings() {
@@ -85,7 +83,7 @@ function desktop_mode_default_os_settings() {
 		// Per-user opt-IN for the native Posts window. When true,
 		// clicking the Posts dock tile opens the `<wpd-table>`-driven
 		// native window instead of the chromeless `edit.php` iframe.
-		// Default OFF as of 0.9.1 — the native windows are now opt-in
+		// Default OFF — the native windows are opt-in
 		// Beta. Fresh installs land on the classic iframe; users turn
 		// this on in OS Settings → Features → Beta features to try it.
 		// Per-user override of the WordPress Heartbeat interval, in
@@ -180,8 +178,6 @@ function desktop_mode_default_os_settings() {
  * Always returns a fully-shaped array so the JS side doesn't need to
  * defend against partial or missing keys.
  *
- * @since 0.5.0
- *
  * @param int $user_id The user ID.
  * @return array
  */
@@ -201,8 +197,6 @@ function desktop_mode_get_os_settings( $user_id ) {
 
 /**
  * Saves sanitized OS settings for a user.
- *
- * @since 0.5.0
  *
  * @param int   $user_id  The user ID.
  * @param mixed $settings Raw settings payload from the client.
@@ -224,8 +218,6 @@ function desktop_mode_save_os_settings( $user_id, $settings ) {
  * Unknown keys are ignored; known keys are coerced field-by-field so a
  * partial save (e.g., only accent changed) merges cleanly with the
  * defaults rather than wiping unset fields.
- *
- * @since 0.5.0
  *
  * @param mixed $raw Raw settings from the client or user meta.
  * @return array Sanitized settings.
@@ -632,8 +624,6 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 
 /**
  * Registers the REST routes for OS settings.
- *
- * @since 0.5.0
  */
 function desktop_mode_register_os_settings_rest_routes() {
 	register_rest_route(
@@ -668,8 +658,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_os_settings_rest_routes' );
  * see {@see desktop_mode_rest_require_enabled()} for why `read` alone is
  * insufficient.
  *
- * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
- *
  * @return true|WP_Error
  */
 function desktop_mode_rest_os_settings_permission() {
@@ -679,8 +667,6 @@ function desktop_mode_rest_os_settings_permission() {
 /**
  * GET /desktop-mode/v1/os-settings
  *
- * @since 0.5.0
- *
  * @return WP_REST_Response
  */
 function desktop_mode_rest_get_os_settings() {
@@ -689,8 +675,6 @@ function desktop_mode_rest_get_os_settings() {
 
 /**
  * POST /desktop-mode/v1/os-settings
- *
- * @since 0.5.0
  *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
@@ -711,8 +695,6 @@ function desktop_mode_rest_save_os_settings( WP_REST_Request $request ) {
  *
  * Only applies to users with Desktop Mode enabled — non-desktop
  * sessions keep Core's defaults. Anonymous requests skip too.
- *
- * @since 0.8.5
  *
  * @param array $settings Filtered Heartbeat settings.
  * @return array

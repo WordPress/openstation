@@ -11,7 +11,6 @@
  * install drop targets here; that's `card-drag.ts`'s job.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';

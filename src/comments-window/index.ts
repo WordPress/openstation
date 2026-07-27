@@ -18,7 +18,6 @@
  * `<wpd-chip>`). `defineComponent()` is idempotent.
  *
  * @public
- * @since 0.8.3
  */
 
 import { __, _n, sprintf } from '../i18n';

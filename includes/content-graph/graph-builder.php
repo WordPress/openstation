@@ -21,7 +21,6 @@
  * the transient.
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -37,8 +36,6 @@ const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
 /**
  * Build (or reuse the cached version of) the graph payload for the
  * requested post types.
- *
- * @since 0.8.2
  *
  * @param string[] $types Post type slugs. Filtered against the public
  *                        post-type registry, attachments excluded.
@@ -238,8 +235,6 @@ function desktop_mode_content_graph_build( array $types ) {
  * AND to be among the slugs declared by
  * `desktop_mode_content_graph_post_types()`.
  *
- * @since 0.8.2
- *
  * @param string[] $types
  * @return string[]
  */
@@ -274,8 +269,6 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
  * The `key` element encodes the resulting privilege tier (and, when
  * the own-author clause is active, the user id) so cached payloads
  * are never served across privilege levels.
- *
- * @since 0.9.2
  *
  * @param string[] $types Already normalized.
  * @return array{ where: string, values: array, key: string }
@@ -327,8 +320,6 @@ function desktop_mode_content_graph_visibility_sql( array $types ) {
  * privilege-tier signature so a payload built for a user who can read
  * private posts is never served to one who can't (and vice versa).
  *
- * @since 0.8.2
- *
  * @param string[] $types Already normalized.
  * @return string
  */
@@ -360,8 +351,6 @@ function desktop_mode_content_graph_cache_key( array $types ) {
  * plus private posts only where the user holds the type's
  * `read_private_posts` capability (or authored the post). See
  * `desktop_mode_content_graph_visibility_sql()`.
- *
- * @since 0.8.2
  *
  * @param string[] $types Already normalized.
  * @return WP_Post[]
@@ -403,8 +392,6 @@ function desktop_mode_content_graph_fetch_rows( array $types ) {
  * Pull every internal-target post id out of a chunk of post_content.
  * Uses DOMDocument for robustness against malformed HTML, then
  * `url_to_postid()` to resolve each href.
- *
- * @since 0.8.2
  *
  * @param string $content
  * @return int[] Unique target post ids (order preserved).
@@ -458,8 +445,6 @@ function desktop_mode_content_graph_extract_internal_links( $content ) {
  * carrying the `desktop_mode_cg_` prefix. We don't have a per-type
  * index so we wipe globally, the cost is one extra build on next
  * open which dominates the time-savings on subsequent opens.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_flush_cache() {
 	global $wpdb;
@@ -504,8 +489,6 @@ add_action( 'set_object_terms', 'desktop_mode_content_graph_flush_cache' );
  * `category` and `post_tag` taxonomies in a single query. Used to
  * populate the per-node `category_ids` / `tag_ids` arrays without N+1
  * `wp_get_object_terms` calls.
- *
- * @since 0.8.6
  *
  * @param int[] $post_ids
  * @return array<int, array<string, int[]>>  Outer key = post id; inner
@@ -562,8 +545,6 @@ function desktop_mode_content_graph_collect_post_terms( array $post_ids ) {
  * revision children. Includes the primary author if they also
  * authored a revision; the caller is expected to filter that out.
  *
- * @since 0.8.6
- *
  * @param int[] $post_ids
  * @return array<int, int[]>  post_id => list of contributor user ids.
  */
@@ -606,8 +587,6 @@ function desktop_mode_content_graph_collect_post_contributors( array $post_ids )
  * Build a `{ id => { name } }` catalog for the given author ids.
  * Uses one `WP_User_Query` rather than per-id `get_userdata` calls.
  *
- * @since 0.8.6
- *
  * @param int[] $author_ids
  * @return array<int, array{ name: string }>
  */
@@ -636,8 +615,6 @@ function desktop_mode_content_graph_format_author_catalog( array $author_ids ) {
  * Build a `{ id => { name } }` catalog for the given term ids in a
  * single taxonomy. Uses `get_terms` with `include` so the names come
  * back in one query.
- *
- * @since 0.8.6
  *
  * @param int[]  $term_ids
  * @param string $taxonomy

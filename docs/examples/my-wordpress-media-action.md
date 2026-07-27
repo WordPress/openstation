@@ -1,6 +1,6 @@
 # Add an action button to a My WordPress preview pane
 
-**Status: Experimental — since 0.8.6**
+**Status: Experimental**
 
 The My WordPress native window (Posts / Pages / Users / Media)
 exposes a uniform right-pane action surface. Plugins declare a

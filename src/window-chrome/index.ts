@@ -17,8 +17,6 @@
  *     replace. Stable.
  *   - **Chrome** (Layer 4) — full title-bar render replacement.
  *     Experimental — signature may change.
- *
- * @since 0.6.0
  */
 
 export {

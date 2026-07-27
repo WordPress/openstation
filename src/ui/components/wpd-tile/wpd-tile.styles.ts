@@ -4,8 +4,6 @@
  * `assets/css/desktop-files.css`. The styles here are tiny — just
  * the host-level resets so the custom element doesn't disrupt
  * layout.
- *
- * @since 0.8.6
  */
 import { css } from '../../core';
 

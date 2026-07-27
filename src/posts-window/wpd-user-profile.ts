@@ -32,7 +32,6 @@
  * right call here.
  *
  * @public
- * @since 0.8.1
  */
 
 interface UserEditMounts {

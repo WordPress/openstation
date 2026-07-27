@@ -19,8 +19,6 @@
  * ships in its own Vite bundle — a module-level map would give the
  * main bundle and the panel bundle each their own copy (see
  * AGENTS.md, "Cross-bundle state").
- *
- * @since 0.9.5
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -45,8 +43,6 @@ const store = createSharedStore< WallpaperSettingsStore >(
  * Read a wallpaper's current settings. Returns a copy — mutating the
  * result never writes back; use {@link publishWallpaperSettings}.
  *
- * @since 0.9.5
- *
  * @param id Wallpaper id.
  * @return The wallpaper's settings (empty object when none saved).
  */
@@ -59,8 +55,6 @@ export function getWallpaperSettings( id: string ): WallpaperSettings {
  * on boot (and after a save-failure rollback) by `OsSettings.apply()`.
  * Silent — no change hook fires; the boot path re-applies the active
  * wallpaper anyway, and firing per-id here would double-notify.
- *
- * @since 0.9.5
  *
  * @param all Map of wallpaper id → settings.
  */
@@ -84,8 +78,6 @@ export function seedWallpaperSettings(
  * Persistence is the caller's job — the OS Settings config dialog
  * writes the same object into `state.wallpaperSettings` and calls
  * `ctx.save()` alongside this.
- *
- * @since 0.9.5
  *
  * @param id       Wallpaper id.
  * @param settings Full post-merge settings object for the wallpaper.

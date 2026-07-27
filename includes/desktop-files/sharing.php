@@ -19,7 +19,6 @@
  * without competing for the early slot.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -27,8 +26,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Filter callback that augments the owner-only list with folders
  * the viewer can see by virtue of a non-private share mode.
- *
- * @since 0.9.0
  *
  * @param array $owned   Owner-only folders (default from the store).
  * @param int   $user_id Viewer.
@@ -140,8 +137,6 @@ add_filter( 'desktop_mode_files_visible_folders', 'desktop_mode_files_compute_vi
 /**
  * Whether the viewer's identity satisfies a folder's share rules.
  *
- * @since 0.9.0
- *
  * @param array    $folder      Normalized folder row.
  * @param int      $user_id     Viewer.
  * @param string[] $user_roles  Viewer's roles.
@@ -171,8 +166,6 @@ function desktop_mode_files_user_can_see_folder( $folder, $user_id, $user_roles 
 	 * Filter the per-folder visibility decision. Plugins layering
 	 * custom share modes (e.g. 'team', 'workspace') can compute
 	 * `$can` here.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param bool     $can     Default decision.
 	 * @param array    $folder  Folder row.

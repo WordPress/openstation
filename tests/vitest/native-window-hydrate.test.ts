@@ -1,6 +1,6 @@
 /**
- * Integration guard for the "native render runs AFTER mount" contract
- * introduced in 0.12. Before the fix, `config.render( body )` was
+ * Integration guard for the "native render runs AFTER mount" contract.
+ * Before the fix, `config.render( body )` was
  * called from inside the `Window` constructor — at which point the
  * window element was still a detached subtree. Custom elements in
  * that subtree hadn't been upgraded, so declarative setter writes

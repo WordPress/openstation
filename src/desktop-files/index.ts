@@ -10,8 +10,6 @@
  * context menu (Phase 4), the file-associations settings tab
  * (Phase 5), folder sharing + Heartbeat sync (Phase 6), and the
  * Recycle-Bin drop integration (Phase 7).
- *
- * @since 0.9.0
  */
 
 import { DefaultDesktopFile, DesktopFile } from './file';

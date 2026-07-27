@@ -23,8 +23,6 @@
  *
  * Slot contents flow through to the rotated banner. Keep the label
  * short — the visible slice is ~80px wide and tightly cropped.
- *
- * @since 0.8.6
  */
 
 import { Component, defineComponent, html } from '../../core';

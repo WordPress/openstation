@@ -18,8 +18,6 @@
  * per window. Both feed a single resolver used for the button's
  * `match` predicate AND the menu build, so visibility and menu
  * content can never disagree.
- *
- * @since 0.9.6
  */
 
 import { addAction, applyFilters, HOOKS } from '../hooks';

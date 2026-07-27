@@ -22,8 +22,6 @@
  * Emits `wpd-checkbox-change` with `{ checked, value }` on user
  * toggles — same event name `<wpd-checkbox-label>` uses so callers
  * can listen at a common ancestor and treat both identically.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

@@ -9,7 +9,6 @@
  * wants to react via `desktop_mode_file_type_registered`.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,8 +16,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the built-in file types (post, attachment, user,
  * term, comment, bookmark, folder, shortcut, link, embed).
- *
- * @since 0.9.0
  */
 function desktop_mode_register_builtin_file_types() {
 	$types = array(

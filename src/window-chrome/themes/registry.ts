@@ -20,8 +20,6 @@
  * `wp.desktop.registerWindowTheme()` on the public API, so all callers
  * land in the same singleton — same ergonomics as `registerCommand`,
  * `registerTitleBarButton`, etc.
- *
- * @since 0.6.0
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';

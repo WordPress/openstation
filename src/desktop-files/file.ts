@@ -6,8 +6,6 @@
  * their file-type tiles beyond the metadata the PHP `serialize()`
  * call already shipped. The class is intentionally thin — most
  * tiles render fine from the shape alone.
- *
- * @since 0.9.0
  */
 
 import type { DesktopFileShape } from './types';

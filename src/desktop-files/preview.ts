@@ -15,7 +15,6 @@
  * entity preview pane.
  *
  * @public
- * @since 0.8.0
  */
 
 import { applyFilters } from '../hooks';

@@ -1,8 +1,8 @@
 # Real file storage — react to uploads, gate policy, share from PHP
 
 Recipes for the `upload` file type (real per-user desktop storage,
-Experimental since 0.9.6). Contract:
-[files-on-desktop.md → Real file storage](../files-on-desktop.md#real-file-storage-upload--experimental-since-096).
+Experimental). Contract:
+[files-on-desktop.md → Real file storage](../files-on-desktop.md#real-file-storage-upload--experimental).
 
 ## Grant desktop uploads to every desktop-mode user
 

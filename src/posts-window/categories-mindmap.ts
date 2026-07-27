@@ -21,7 +21,6 @@
  *   - **Click empty space** → close the focused node + post fan.
  *
  * @public
- * @since 0.8.0
  */
 
 import { __, _n, sprintf } from '../i18n';

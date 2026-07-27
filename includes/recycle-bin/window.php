@@ -13,7 +13,6 @@
  * restrict who sees the bin without touching this file.
  *
  * @package WPDesktopMode
- * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,8 +25,6 @@ defined( 'ABSPATH' ) || exit;
  * The `data-desktop-mode-recycle-bin-*` hooks below are the contract the JS
  * relies on — keep them intact (or rename via the filter) when
  * customizing the layout.
- *
- * @since 0.6.0
  */
 function desktop_mode_recycle_bin_render_template() {
 	ob_start();
@@ -115,8 +112,6 @@ function desktop_mode_recycle_bin_render_template() {
 	 * callback can find its mount points, or rename them and update the
 	 * matching constants in `src/recycle-bin/index.ts`.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_recycle_bin_template_html', $html );
@@ -130,8 +125,6 @@ function desktop_mode_recycle_bin_render_template() {
  * don't manage trash, or invert the gate to expose it to a custom
  * role.
  *
- * @since 0.6.0
- *
  * @return bool
  */
 function desktop_mode_recycle_bin_user_can_use() {
@@ -139,8 +132,6 @@ function desktop_mode_recycle_bin_user_can_use() {
 
 	/**
 	 * Filter whether the current user can see the recycle bin window.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
@@ -152,8 +143,6 @@ function desktop_mode_recycle_bin_user_can_use() {
  *
  * Hooked at priority 20, after `components.php` has bootstrapped the
  * native-window registry — same timing as the code editor.
- *
- * @since 0.6.0
  */
 function desktop_mode_recycle_bin_register_window() {
 	if ( ! desktop_mode_recycle_bin_user_can_use() ) {
@@ -174,8 +163,6 @@ function desktop_mode_recycle_bin_register_window() {
 
 	/**
 	 * Filter the args used to register the recycle bin native window.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
@@ -198,8 +185,6 @@ function desktop_mode_recycle_bin_register_window() {
 	/**
 	 * Filter the args used to register the recycle bin desktop icon.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_recycle_bin_icon_args', $icon_args );
@@ -213,8 +198,6 @@ add_action( 'init', 'desktop_mode_recycle_bin_register_window', 20 );
  *
  * Same pattern as the code editor: the bundle reads its config off
  * `window.desktopModeRecycleBinConfig` and never hardcodes URLs.
- *
- * @since 0.6.0
  */
 function desktop_mode_recycle_bin_localize_config() {
 	if ( ! desktop_mode_recycle_bin_user_can_use() ) {
@@ -242,8 +225,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_recycle_bin_localize_config',
  * Inject the initial trash count into the shell config so the
  * dock/taskbar tile + desktop icon can paint a badge on the very
  * first paint — before the bin window has ever opened.
- *
- * @since 0.6.0
  *
  * @param array $config Shell config blob.
  * @return array

@@ -45,7 +45,7 @@ wp.desktop.ready( () => {
 
 The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--desktop-mode-bg` and persists the user's selection to `localStorage`.
 
-`description` (optional, since 0.9.4) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `desktop_mode_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
+`description` (optional) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `desktop_mode_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
 
 ---
 
@@ -166,7 +166,7 @@ wp.desktop.ready( () => {
 
 ---
 
-## Recipe 4 — A live preview in the picker tile *(since 0.9.5)*
+## Recipe 4 — A live preview in the picker tile
 
 A canvas wallpaper's `preview` string is a static stand-in. Ship `renderPreview` and the OS Settings picker mounts the real thing (or a cheap facsimile) inside the swatch tile — lazily, only while the tile is visible, capped at 4 concurrent previews page-wide, with the CSS `preview` as the fallback for every failure mode.
 
@@ -212,7 +212,7 @@ wp.hooks.addFilter(
 
 ---
 
-## Recipe 5 — A settings dialog with persisted values *(since 0.9.5)*
+## Recipe 5 — A settings dialog with persisted values
 
 `renderEditor` (Recipe 3) is an inline panel and owns its own state. For a fuller settings form with **persistence for free**, ship `renderConfig` instead: OS Settings shows a "Wallpaper settings" button for your wallpaper (only when selected, only because you opted in), clicking it opens a `<wpd-modal>` with your form inside, and `ctx.setSettings()` saves through the user's OS Settings (localStorage + user meta — values follow the user across devices).
 

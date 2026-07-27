@@ -40,14 +40,11 @@
  * massive shared folder doesn't starve other folders' deltas.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
- *
  * @param array $response Pre-filtered response.
  * @param array $data     Client-sent payload.
  * @return array
@@ -80,8 +77,6 @@ function desktop_mode_files_heartbeat_received( $response, $data ) {
 	 * to force REST fallback sooner; raise it for fast-LAN
 	 * intranets where a fatter Heartbeat is fine.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int $cap Default 200.
 	 */
 	$cap = max( 1, (int) apply_filters( 'desktop_mode_files_heartbeat_max_rows', 200 ) );
@@ -99,8 +94,6 @@ add_filter( 'heartbeat_received', 'desktop_mode_files_heartbeat_received', 5, 2 
 
 /**
  * Compute the delta payload for a viewer.
- *
- * @since 0.9.0
  *
  * @param int   $user_id            Viewer.
  * @param array $folder_versions    `{ folderId => lastSeenUpdatedAtMs }`.
@@ -377,8 +370,6 @@ function desktop_mode_files_compute_heartbeat_delta( $user_id, $folder_versions,
  * `trashed_at_ms`). One-shot cleanup of stale rows written by
  * earlier buggy code paths — once removed, the heartbeat no longer
  * surfaces them every tick.
- *
- * @since 0.8.5
  *
  * @param string $kind 'placement' | 'folder'.
  * @param int[]  $ids  Ids known to be alive in the current tick.

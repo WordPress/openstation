@@ -25,7 +25,6 @@
  * validates user-meta choices against the known set.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -37,7 +36,6 @@ define( 'DESKTOP_MODE_FILE_ASSOCIATIONS_META', 'desktop_mode_file_associations' 
  * Internal static-store registry. Same pattern as the file-type
  * and wallpaper registries.
  *
- * @since 0.9.0
  * @internal
  */
 function desktop_mode_file_opener_registry( $id = '', $entry = null ) {
@@ -54,8 +52,6 @@ function desktop_mode_file_opener_registry( $id = '', $entry = null ) {
 
 /**
  * Registers a file-opener.
- *
- * @since 0.9.0
  *
  * @param string $id   Opener id, e.g. `'gutenberg'`. Unique across
  *                     openers; collisions overwrite (late wins).
@@ -142,8 +138,6 @@ function desktop_mode_register_file_opener( $id, $args = array() ) {
 	 * Fires after a file opener is successfully registered. Does
 	 * NOT fire on `WP_Error` returns.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string $id    Opener id.
 	 * @param array  $entry Stored registry entry.
 	 */
@@ -154,8 +148,6 @@ function desktop_mode_register_file_opener( $id, $args = array() ) {
 
 /**
  * Returns every registered opener, sorted by `sort` then label.
- *
- * @since 0.9.0
  *
  * @return array[]
  */
@@ -168,8 +160,6 @@ function desktop_mode_get_file_openers() {
 	/**
 	 * Filters the opener registry before consumers see it. Plugins
 	 * can hide built-ins, swap labels, or rearrange sort order.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array[] $registry Registered openers keyed by id.
 	 */
@@ -199,8 +189,6 @@ function desktop_mode_get_file_openers() {
 /**
  * Returns openers that handle a given file type.
  *
- * @since 0.9.0
- *
  * @param string $type File-type slug.
  * @return array[]
  */
@@ -228,8 +216,6 @@ function desktop_mode_get_file_openers_for_type( $type ) {
  *  1. User-meta override (per type).
  *  2. `is_default` opener for the type.
  *  3. First opener for the type (already sort-ordered).
- *
- * @since 0.9.0
  *
  * @param string $type    File-type slug.
  * @param int    $user_id Viewer.
@@ -276,8 +262,6 @@ function desktop_mode_resolve_file_opener_id( $type, $user_id ) {
 	 * role-based forced associations or for AB-testing a new
 	 * editor before promoting it to default.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string $resolved Resolved opener id.
 	 * @param string $type     File-type slug.
 	 * @param int    $user_id  Viewer.
@@ -287,8 +271,6 @@ function desktop_mode_resolve_file_opener_id( $type, $user_id ) {
 
 /**
  * Builds the openers payload sent to the shell.
- *
- * @since 0.9.0
  *
  * @return array[]
  */
@@ -332,8 +314,6 @@ function desktop_mode_build_file_openers_payload() {
  * at unknown ids are dropped from the returned map but kept in
  * meta — a deactivated plugin that comes back later resumes its
  * choice).
- *
- * @since 0.9.0
  *
  * @param int $user_id Viewer.
  * @return array<string,string>

@@ -13,8 +13,6 @@
  * when neither source has data.
  *
  * Refresh: every 10 minutes.
- *
- * @since 0.26.0
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';

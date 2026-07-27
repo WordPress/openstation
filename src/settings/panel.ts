@@ -30,8 +30,6 @@
  *   - Every built-in section renderer in `./sections/*`.
  *   - The tab interleaving + registry subscription that paint the
  *     final UI.
- *
- * @since 0.8.4
  */
 
 import { __ } from '../i18n';

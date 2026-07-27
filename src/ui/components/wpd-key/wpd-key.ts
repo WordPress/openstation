@@ -42,8 +42,6 @@
  *
  * Every event bubbles and `composed: true`, so listeners can live
  * anywhere in the tree including the shadow of a parent component.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

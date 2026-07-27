@@ -39,8 +39,6 @@
  * bridge in `includes/render.php` and `iframe-bridge-standalone.ts`)
  * apply it to every captured request — see the
  * `DESKTOP_MODE_INSTRUMENT` glue below.
- *
- * @since 0.6.0
  */
 
 import { addAction, removeAction, HOOKS } from '../hooks';
@@ -143,8 +141,6 @@ export interface DevtoolsApi {
 	 * Returns `null` if the window doesn't exist or has no iframe
 	 * (native windows; cross-origin iframe pages would fail the same-
 	 * origin guard the bridge enforces elsewhere).
-	 *
-	 * @since 0.6.0
 	 */
 	reloadWithDebugSession: (
 		windowId: string,

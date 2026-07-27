@@ -13,8 +13,6 @@
  *   - The hook pipeline — `desktop-mode.drop.files-detected` and
  *     `desktop-mode.drop.dialog-fields` mutate the entries before the
  *     dialog opens.
- *
- * @since 0.30.0
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {

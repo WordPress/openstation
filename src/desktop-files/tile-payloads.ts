@@ -14,8 +14,6 @@
  * allows one target per element); it consults this registry for the
  * accept predicate, the chip label, and the drop dispatch, so a feature
  * never has to fight the claimant for the element.
- *
- * @since 0.9.6
  */
 
 import type { DragPayload, DragSession } from '../drag';

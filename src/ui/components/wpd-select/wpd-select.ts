@@ -20,8 +20,6 @@
  * sheet, on desktop the usual dropdown. We only style the closed
  * state so the visual language matches `<wpd-segmented>` while the
  * interactive behaviour stays OS-correct.
- *
- * @since 0.5.0
  */
 
 import {
@@ -155,8 +153,6 @@ export class WpdSelect extends Component {
 	 *   { value: 'usd', label: 'US Dollar' },
 	 * ];
 	 * ```
-	 *
-	 * @since 0.5.0
 	 */
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		const existing = this.querySelectorAll( ':scope > wpd-option' );

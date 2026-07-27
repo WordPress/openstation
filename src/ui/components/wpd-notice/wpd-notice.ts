@@ -26,8 +26,6 @@
  * and self-hides if already dismissed. Clearing the dismissal is the
  * `<wpd-notice>.undismiss()` instance method, or
  * `wp.desktop.undismissWindowNotice( id )` for code-registered notices.
- *
- * @since 0.8.6
  */
 
 import { Component, defineComponent, html } from '../../core';

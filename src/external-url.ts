@@ -26,8 +26,6 @@
  * classic admin does when the same menu item is clicked (the WP.com
  * admin bar uses `target="_blank"` for `wordpress.com` links).
  *
- * @since 0.8.7
- *
  * @param url Candidate URL — may be a bare path, a slug, or a full URL.
  * @return true if a new tab was opened, false otherwise.
  */

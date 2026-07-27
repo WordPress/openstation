@@ -26,15 +26,12 @@
  * in one place so the rest of the editor doesn't have to think about it.
  *
  * @package DesktopModeCodeEditor
- * @since   0.7.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Default file-extension allowlist (lowercased, no leading dot).
- *
- * @since 0.7.0
  */
 const DESKTOP_MODE_CODE_EDITOR_DEFAULT_EXTENSIONS = array(
 	'php',
@@ -67,8 +64,6 @@ const DESKTOP_MODE_CODE_EDITOR_DEFAULT_EXTENSIONS = array(
  * editor: when `DISALLOW_FILE_EDIT` is true, the editor MUST NOT
  * expose any UI — it would mislead users into thinking saves work.
  *
- * @since 0.7.0
- *
  * @return bool
  */
 function desktop_mode_code_editor_file_edit_allowed() {
@@ -78,8 +73,6 @@ function desktop_mode_code_editor_file_edit_allowed() {
 /**
  * Whether the current user can use the code editor at all.
  *
- * @since 0.7.0
- *
  * @return bool
  */
 function desktop_mode_code_editor_user_can_use() {
@@ -87,8 +80,6 @@ function desktop_mode_code_editor_user_can_use() {
 
 	/**
 	 * Filter whether the current user can see/use the Code Editor.
-	 *
-	 * @since 0.7.0
 	 *
 	 * @param bool $can Default: edit_plugins capability + DISALLOW_FILE_EDIT respected.
 	 */
@@ -98,8 +89,6 @@ function desktop_mode_code_editor_user_can_use() {
 /**
  * Returns the workspace root (canonical absolute path, no trailing slash).
  *
- * @since 0.7.0
- *
  * @return string Canonical absolute path, or '' if the root can't resolve.
  */
 function desktop_mode_code_editor_workspace_root() {
@@ -107,8 +96,6 @@ function desktop_mode_code_editor_workspace_root() {
 
 	/**
 	 * Filter the workspace root the code editor is allowed to roam in.
-	 *
-	 * @since 0.7.0
 	 *
 	 * @param string $root Default workspace root (absolute path).
 	 */
@@ -121,15 +108,11 @@ function desktop_mode_code_editor_workspace_root() {
 /**
  * Returns the file-extension allowlist (lowercased, no dots).
  *
- * @since 0.7.0
- *
  * @return string[]
  */
 function desktop_mode_code_editor_extension_allowlist() {
 	/**
 	 * Filter the extensions the code editor is allowed to read/write.
-	 *
-	 * @since 0.7.0
 	 *
 	 * @param string[] $exts Default allowlist.
 	 */
@@ -151,8 +134,6 @@ function desktop_mode_code_editor_extension_allowlist() {
 /**
  * Whether a path's extension is permitted. Always true for directories.
  *
- * @since 0.7.0
- *
  * @param string $absolute_path Canonical absolute path.
  * @return bool
  */
@@ -170,8 +151,6 @@ function desktop_mode_code_editor_extension_allowed( $absolute_path ) {
 
 /**
  * Resolve an untrusted relative path against the workspace root.
- *
- * @since 0.7.0
  *
  * @param string $rel_path Untrusted relative path.
  * @return string|WP_Error Canonical absolute path, or WP_Error.
@@ -258,8 +237,6 @@ function desktop_mode_code_editor_resolve_path( $rel_path ) {
  *           FTP/SSH credentials we don't yet collect.
  *   WP_Error 'desktop_mode_code_editor_write_failed'                 — generic.
  *
- * @since 0.7.0
- *
  * @param string $absolute_path  Result of {@see desktop_mode_code_editor_resolve_path()}.
  * @param string $content        UTF-8 bytes to write.
  * @param int    $expected_mtime The mtime the caller read this file at; pass `0` to skip
@@ -310,8 +287,6 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 	/**
 	 * Filter the bytes about to be written.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param string $content       Bytes the editor wants to write.
 	 * @param string $absolute_path Resolved absolute path.
 	 * @param array  $context       { path (rel), mtime, bytes }.
@@ -326,8 +301,6 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 
 	/**
 	 * Fires before a file is written.
-	 *
-	 * @since 0.7.0
 	 *
 	 * @param string $absolute_path
 	 * @param string $content
@@ -363,8 +336,6 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 	/**
 	 * Fires after a successful write.
 	 *
-	 * @since 0.7.0
-	 *
 	 * @param string $absolute_path
 	 * @param string $content
 	 * @param array  $context
@@ -380,8 +351,6 @@ function desktop_mode_code_editor_write_file( $absolute_path, $content, $expecte
 
 /**
  * Returns an initialized WP_Filesystem global, or WP_Error.
- *
- * @since 0.7.0
  *
  * @return WP_Filesystem_Base|WP_Error
  */
@@ -424,8 +393,6 @@ function desktop_mode_code_editor_force_direct_filesystem() {
 
 /**
  * Strip the workspace prefix from an absolute path.
- *
- * @since 0.7.0
  *
  * @param string $absolute_path
  * @return string

@@ -42,8 +42,6 @@
  * Settings user meta — so promotion, layout choice, *and* the user's
  * last-dragged position survive reloads; this module restores all of
  * them on every sync.
- *
- * @since 0.8.2
  */
 
 import { filesApi } from '../desktop-files';

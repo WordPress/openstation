@@ -3,13 +3,12 @@
  * Desktop Mode — `user` file type.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `user` desktop file type.
  */
 class Desktop_Mode_User_File extends Desktop_Mode_File {
 

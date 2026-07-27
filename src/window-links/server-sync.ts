@@ -12,8 +12,6 @@
  * additionally falls back to the built-in `svg-splines` should the
  * ACTIVE renderer disappear). The OS Settings selector and the render
  * host react live via the registry's subscribe fan-out.
- *
- * @since 0.9.4
  */
 
 import { doAction, HOOKS } from '../hooks';

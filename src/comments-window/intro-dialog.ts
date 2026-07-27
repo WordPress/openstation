@@ -7,7 +7,6 @@
  * Posts-window intro.
  *
  * @public
- * @since 0.8.3
  */
 
 import { __ } from '../i18n';

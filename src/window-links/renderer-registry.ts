@@ -12,8 +12,6 @@
  * `createSharedStore` record so the lazy OS-Settings-panel bundle
  * (the selector), third-party renderer bundles, and the main shell
  * share a single registry — see AGENTS.md → "Cross-bundle state".
- *
- * @since 0.9.4
  */
 
 import { applyFilters, HOOKS } from '../hooks';

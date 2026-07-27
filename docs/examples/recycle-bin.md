@@ -2,7 +2,7 @@
 
 The Recycle Bin window (id `desktop-mode-recycle-bin`) catches deleted attachments into the WordPress trash and lists every trashed post / page / media item with restore + permanent-delete actions. It's filterable end-to-end so plugins can add post types, columns, audit logging, or custom capability gates.
 
-> Status: **Experimental** since 0.6.0. Hook names are stable; the JS column-filter shape may grow.
+> Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 
 ## Add a custom post type to the bin
 

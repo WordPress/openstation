@@ -13,8 +13,6 @@
  *
  * All user-facing strings arrive prebuilt (translated + number-
  * formatted) from PHP, so this module never touches i18n.
- *
- * @since 0.9.7
  */
 
 /** Shape of the payload's `updateCounts` key. */

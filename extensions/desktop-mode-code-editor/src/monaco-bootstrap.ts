@@ -35,7 +35,6 @@
  *   https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-amd-cross.md
  *
  * @public
- * @since 0.7.0
  */
 
 import loader from '@monaco-editor/loader';
@@ -115,8 +114,6 @@ function installWorkerEnvironment( monacoVendorUrl: string ): void {
  *
  * Resolves with the `monaco` namespace on success. Subsequent calls
  * return the cached module without re-running the loader.
- *
- * @since 0.7.0
  */
 export async function loadMonaco(): Promise< typeof Monaco > {
 	if ( cached ) {

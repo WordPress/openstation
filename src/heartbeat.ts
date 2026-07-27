@@ -35,8 +35,6 @@
  *   `bootHeartbeatBus()` — wires the underlying jQuery
  *   listeners. Idempotent; the framework boots it during init,
  *   plugin authors typically don't call it.
- *
- * @since 0.5.5
  */
 
 /**

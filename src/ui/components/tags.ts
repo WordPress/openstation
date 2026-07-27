@@ -8,8 +8,6 @@
  * Keep in sync with the components actually defined under
  * `src/ui/components/`. The order matches the export order in
  * `index.ts`.
- *
- * @since 0.8.4
  */
 
 export const WPD_COMPONENT_TAGS = [

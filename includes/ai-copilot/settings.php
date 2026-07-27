@@ -22,8 +22,6 @@ defined( 'ABSPATH' ) || exit;
  * OS Settings → Features (and only enable-able once a provider is configured).
  * Provider + model selection is left entirely to the Core AI Client.
  *
- * @since 0.5.0
- *
  * @param int $user_id
  * @return array{ enabled: bool }
  */
@@ -42,8 +40,6 @@ function desktop_mode_ai_get_settings( $user_id ) {
  * (credentials) and the Abilities API (tools, adopted in a follow-up). When
  * any of these is missing — e.g. WordPress < 7.0, or AI disabled site-wide
  * via `wp_supports_ai()` — the shell hides the assistant entirely.
- *
- * @since 0.9.4
  *
  * @return bool
  */
@@ -68,8 +64,6 @@ function desktop_mode_ai_is_available() {
  * Credentials are supplied by Core from the configured Connector; no API request
  * is made.
  *
- * @since 0.9.4
- *
  * @return bool
  */
 function desktop_mode_ai_provider_configured() {
@@ -92,8 +86,6 @@ function desktop_mode_ai_provider_configured() {
  *
  * Falls back to the plain text-generation gate when the SDK's FunctionDeclaration
  * class isn't present (e.g. older WordPress).
- *
- * @since 0.9.4
  *
  * @return bool
  */
@@ -119,8 +111,6 @@ function desktop_mode_ai_assistant_provider_configured() {
  * support check additionally requires function-calling capability. Returns null
  * when the SDK class isn't available, letting the caller fall back to a plain
  * text-generation check.
- *
- * @since 0.9.4
  *
  * @return object|null A `FunctionDeclaration`, or null.
  */
@@ -148,8 +138,6 @@ function desktop_mode_ai_capability_probe_declaration() {
  * ({@see desktop_mode_ai_is_available()} / {@see desktop_mode_ai_provider_configured()})
  * so callers can distinguish "user turned it off" from "not set up yet".
  *
- * @since 0.5.0
- *
  * @param int $user_id
  * @return bool
  */
@@ -174,8 +162,6 @@ function desktop_mode_ai_is_enabled( $user_id ) {
  *
  * Provider + model selection is delegated to the Core AI Client, so there is no
  * per-user preference to carry here.
- *
- * @since 0.9.4
  *
  * @param int|null $user_id Defaults to the current user.
  * @return array{ available: bool, providerConfigured: bool, assistantProviderConfigured: bool, enabled: bool, connectorsUrl: string }
@@ -212,8 +198,6 @@ function desktop_mode_ai_assistant_config( $user_id = null ) {
  * Returns the current {@see desktop_mode_ai_assistant_config()} so the shell
  * can re-check provider availability without a page reload — e.g. after the
  * user configures an AI provider in Settings → Connectors.
- *
- * @since 0.9.4
  */
 function desktop_mode_register_ai_status_rest_route() {
 	register_rest_route(
@@ -232,8 +216,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_ai_status_rest_route' );
 
 /**
  * REST handler for the AI status probe.
- *
- * @since 0.9.4
  *
  * @return WP_REST_Response
  */

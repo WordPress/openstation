@@ -11,15 +11,12 @@
  * state, no external services — so the script declares no dependencies.
  *
  * @package WPDesktopMode
- * @since   0.26.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the Focus Timer widget's script + style handles.
- *
- * @since 0.26.0
  *
  * @return void
  */
@@ -51,8 +48,6 @@ add_action( 'init', 'desktop_mode_register_focus_timer_widget_assets', 5 );
  * Eagerly enqueue the CSS on Desktop Mode shell pages (avoids a flash of
  * unstyled content before the lazy JS mounts).
  *
- * @since 0.26.0
- *
  * @return void
  */
 function desktop_mode_enqueue_focus_timer_widget_styles() {
@@ -68,8 +63,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_focus_timer_widget_st
 
 /**
  * Announce the widget to Desktop Mode.
- *
- * @since 0.26.0
  *
  * @return void
  */

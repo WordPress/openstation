@@ -1,7 +1,5 @@
 /**
  * Desktop Mode — Shared Utilities.
- *
- * @since 0.5.0
  */
 
 /**
@@ -212,8 +210,6 @@ export function urlMatchKey( url: string ): string {
  *
  * Falls back to the raw URL if parsing fails — the caller just sees
  * a stricter equality check than desired, not a crash.
- *
- * @since 0.9.4
  */
 export function urlReuseKey( url: string ): string {
 	try {
@@ -340,7 +336,6 @@ export function sanitizeIconSvg( svg: string ): string {
  * on window close so the listeners don't leak past the host.
  *
  * @public
- * @since 0.8.0
  */
 export interface BackgroundActivateHandle {
 	dispose: () => void;
@@ -352,7 +347,6 @@ export interface BackgroundActivateHandle {
  * See the comment block above for the why.
  *
  * @public
- * @since 0.8.0
  *
  * @param host         Element to attach listeners to. Typically the
  *                     wallpaper / canvas itself.

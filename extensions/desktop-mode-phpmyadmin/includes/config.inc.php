@@ -29,7 +29,6 @@
  * `includes/window.php`.
  *
  * @package WPDesktopMode
- * @since 0.6.0
  */
 
 // Bootstrap WordPress so DB_* constants and helpers are available.

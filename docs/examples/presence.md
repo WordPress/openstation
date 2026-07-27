@@ -1,6 +1,6 @@
 # Track who's around — `wp.desktop.presence`
 
-**Stable** — shipped 0.5.5.
+**Stable.**
 
 The framework keeps a running map of who's currently in the
 desktop-mode WP-Admin. Three states — `online`, `inactive`,
@@ -178,6 +178,6 @@ POST /wp-json/desktop-mode/v1/presence    body: { active: true }
 
 ## Related
 
-- [`docs/javascript-reference.md#presence`](../javascript-reference.md#presence--stable-since-055) — full JS API surface.
-- [`docs/javascript-reference.md#desktop-mode-presence-changed`](../javascript-reference.md#desktop-mode-presence-changed--stable-since-055) — transition CustomEvent.
+- [`docs/javascript-reference.md#presence`](../javascript-reference.md#presence--stable) — full JS API surface.
+- [`docs/javascript-reference.md#desktop-mode-presence-changed`](../javascript-reference.md#desktop-mode-presence-changed--stable) — transition CustomEvent.
 - [`docs/hooks-reference.md`](../hooks-reference.md) — full PHP filter / action signatures.

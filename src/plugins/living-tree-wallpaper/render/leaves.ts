@@ -21,8 +21,6 @@
  * (green → yellow → red → grey), size from `log( visits )`,
  * fullness/brightness from `vitality01`. Tufts fade in staggered once
  * growth settles. See `docs/living-tree-algorithm.md` §A.7.
- *
- * @since 0.9.4
  */
 
 import { leafColor } from '../palette';

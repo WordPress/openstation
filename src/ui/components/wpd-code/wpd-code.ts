@@ -22,8 +22,6 @@
  *   <wpd-code block copy>
  *     SELECT * FROM wp_posts WHERE post_status = 'publish';
  *   </wpd-code>
- *
- * @since 0.5.1
  */
 
 import { Component, defineComponent, html } from '../../core';

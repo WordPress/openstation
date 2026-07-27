@@ -12,8 +12,6 @@
  * the `<wpd-*>` field components live in the lazily-loaded OS Settings
  * bundle and aren't guaranteed upgraded inside a wallpaper's document
  * context — a dev tool must not depend on another bundle having loaded.
- *
- * @since 0.9.4
  */
 
 import { buildHormones } from './dna';

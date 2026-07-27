@@ -31,8 +31,6 @@
  * flyout `<wpd-context-menu>` on hover / activate (see
  * src/desktop-files/wallpaper-menu.ts and src/icon-canvas/menu.ts
  * for the canonical rigs).
- *
- * @since 0.9.0
  */
 
 import {

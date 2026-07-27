@@ -5,8 +5,6 @@
  * `<wpd-modal>` on `document.body` configured to manage the
  * folder's share list. Owner-only; the caller is expected to
  * have gated on ownership before calling.
- *
- * @since 0.8.5
  */
 
 import { showToast } from '../toast';
@@ -57,8 +55,6 @@ interface OpenOptions {
  * the host: pill background is a translucent white slab, the
  * selected segment becomes the accent color, unselected text is
  * a high-contrast rgba(255,255,255,…) muted.
- *
- * @since 0.8.5
  */
 function buildCapSegmented(
 	initial: 'read' | 'write',
@@ -100,8 +96,6 @@ function buildCapSegmented(
  * `<wpd-button>` so it inherits the rest of the design system,
  * but with explicit CSS-variable overrides for legibility on
  * the dark surface.
- *
- * @since 0.8.5
  */
 function buildIconButton(
 	label: string,
@@ -453,8 +447,6 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
  * folder modal: user principals only, and NO capability control —
  * file shares are read + download by design (DESKMOD-45's
  * owner-locked model; the write tier does not exist here).
- *
- * @since 0.9.6
  */
 export async function openFileShareModal( opts: {
 	fileId: number;
@@ -598,8 +590,6 @@ export async function openFileShareModal( opts: {
  * Recipient-facing modal for a FILE share invite. Same
  * Accept / Deny / Decide-later flow as the folder variant, minus
  * the capability line (file shares are always read + download).
- *
- * @since 0.9.6
  */
 export function openPendingFileInviteModal( invite: {
 	id: number;
@@ -703,8 +693,6 @@ export function openPendingFileInviteModal( invite: {
  * Recipient-facing modal: shows an invite and offers
  * Accept / Deny / Decide later. Returns when the user makes
  * a decision (or dismisses without deciding).
- *
- * @since 0.8.5
  */
 export function openPendingInviteModal( invite: {
 	id: number;

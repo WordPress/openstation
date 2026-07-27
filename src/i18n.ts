@@ -18,8 +18,6 @@
  * script handle is a hard dep, so this should never trigger in
  * production), the original English string is returned verbatim.
  * We'd rather show English than throw.
- *
- * @since 0.8.0
  */
 /* eslint-disable @wordpress/i18n-text-domain, @wordpress/i18n-no-variables */
 

@@ -2,7 +2,7 @@
  * Tests for the dock decoration hooks the default `Dock` renderer
  * fires while painting tiles. Plugins extend the rail through these
  * filters/actions without forking the renderer; the contract is part
- * of the public API surface (since 0.18.0) so a regression here
+ * of the public API surface, so a regression here
  * means a plugin author finds their decoration silently disappear.
  *
  * Each hook is exercised end-to-end against a real DOM-mounted

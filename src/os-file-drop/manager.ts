@@ -30,8 +30,6 @@
  * The manager is mounted by `desktop.ts` at boot and lives for
  * the lifetime of the shell. There is at most one instance —
  * `mountOsFileDropManager()` is idempotent.
- *
- * @since 0.30.0
  */
 
 import { applyFilters, doAction } from '../hooks';
@@ -153,15 +151,11 @@ interface MountOptions {
 	/**
 	 * Files REST base (`…/desktop-mode/v1/files`) — required for the
 	 * desktop-storage destination. Absent = Media Library only.
-	 *
-	 * @since 0.9.6
 	 */
 	filesUrl?: string;
 	/**
 	 * Desktop-storage config. Absent / `canUpload: false` keeps the
 	 * legacy Media-Library-only behavior.
-	 *
-	 * @since 0.9.6
 	 */
 	storage?: DesktopStorageConfig;
 	/**
@@ -626,8 +620,6 @@ export async function handleFiles(
  * Folder-tree drop pipeline: traverse → policy filter → dialog in
  * forced-desktop mode (the Media Library has no tree concept).
  * Exported for tests.
- *
- * @since 0.9.6
  */
 export async function handleTreeDrop(
 	entries: FileSystemEntry[],

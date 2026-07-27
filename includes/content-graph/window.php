@@ -11,7 +11,6 @@
  *   - `desktop_mode_content_graph_template_html`
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
  * Mirrors the my-wordpress gate, anyone who can edit posts can view
  * the link map of the content they author and maintain.
  *
- * @since 0.8.2
- *
  * @return bool
  */
 function desktop_mode_content_graph_user_can_use() {
@@ -32,8 +29,6 @@ function desktop_mode_content_graph_user_can_use() {
 	/**
 	 * Filter whether the current user can see the Content Graph
 	 * desktop icon and window.
-	 *
-	 * @since 0.8.2
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
@@ -45,8 +40,6 @@ function desktop_mode_content_graph_user_can_use() {
  * Defaults to every public post type (so CPTs participate by
  * default), matching the user-facing filter bar that ships ON for all
  * of them.
- *
- * @since 0.8.2
  *
  * @return array[] Each entry: `array( 'slug', 'label', 'icon', 'taxonomies' )`.
  */
@@ -80,8 +73,6 @@ function desktop_mode_content_graph_post_types() {
 	 * an entry hides it from the filter bar AND excludes it from the
 	 * graph entirely.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param array[] $result Default: every public post type except attachment.
 	 */
 	$filtered = apply_filters( 'desktop_mode_content_graph_post_types', $result );
@@ -101,8 +92,6 @@ function desktop_mode_content_graph_post_types() {
 /**
  * Render the Content Graph window's static template body. The bundle
  * mounts its UI into `[data-desktop-mode-content-graph-root]`.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_render_template() {
 	ob_start();
@@ -124,8 +113,6 @@ function desktop_mode_content_graph_render_template() {
 	/**
 	 * Filter the Content Graph window's template HTML.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_content_graph_template_html', $html );
@@ -140,8 +127,6 @@ function desktop_mode_content_graph_render_template() {
 /**
  * Register the native window + the desktop icon on `init` priority 20,
  * matching the my-wordpress + recycle-bin modules.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_register_window() {
 	if ( ! desktop_mode_content_graph_user_can_use() ) {
@@ -175,8 +160,6 @@ function desktop_mode_content_graph_register_window() {
 	/**
 	 * Filter the args used to register the Content Graph native window.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_content_graph_window_args', $window_args );
@@ -199,8 +182,6 @@ function desktop_mode_content_graph_register_window() {
 	/**
 	 * Filter the args used to register the Content Graph desktop icon.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_content_graph_icon_args', $icon_args );
@@ -212,8 +193,6 @@ add_action( 'init', 'desktop_mode_content_graph_register_window', 20 );
 /**
  * Enqueue the bundle's CSS in admin context. The script is lazy-
  * loaded by the native-window sync.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_enqueue_styles() {
 	if ( ! desktop_mode_content_graph_user_can_use() ) {

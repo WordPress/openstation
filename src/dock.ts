@@ -5,8 +5,6 @@
  * Icons come from the admin menu data passed via desktopModeConfig.dockItems.
  * The dock always starts with a WordPress logo "Show Desktop" button
  * that minimizes all open windows.
- *
- * @since 0.5.0
  */
 
 import { activity } from './activity';
@@ -61,8 +59,6 @@ export interface SystemDockItem {
 	 * another") next to any open instance — matching the menu-tile
 	 * peek's affordance so the dock reads consistently regardless of
 	 * which rail a tile lives on.
-	 *
-	 * @since 0.8.0
 	 */
 	multi?: boolean;
 	/**
@@ -70,8 +66,6 @@ export interface SystemDockItem {
 	 * set. Defaults to {@link onOpen}; native-window tiles whose
 	 * `onOpen` would just focus an already-open singleton supply this
 	 * callback to spawn a fresh instance.
-	 *
-	 * @since 0.8.0
 	 */
 	onOpenNew?: () => void;
 }
@@ -86,7 +80,6 @@ export interface SystemDockItem {
  * mount-deps callback.
  *
  * @public
- * @since 0.6.0
  */
 export interface SubmenuItem {
 	title: string;
@@ -111,8 +104,6 @@ export interface DockItem {
 	 * lookups — without it those synth tiles fall back to
 	 * `deriveWindowId('')` and never match the open window, so the
 	 * active/focused dot stays dark.
-	 *
-	 * @since 0.8.6
 	 */
 	windowId?: string;
 	/** Number badge (update count, comment count, etc.). 0 = no badge. */
@@ -164,7 +155,6 @@ export type DockOrientation = 'left' | 'right' | 'bottom';
  * `orientation` carries the placement.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockHookContextBase {
 	rail: 'dock' | 'taskbar';
@@ -179,7 +169,6 @@ export interface DockHookContextBase {
  * when `false`, a {@link DockItem} from the admin menu.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockTileContext extends DockHookContextBase {
 	item: DockItem | SystemDockItem;
@@ -193,7 +182,6 @@ export interface DockTileContext extends DockHookContextBase {
  * desyncs the rail.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockRenderContext extends DockHookContextBase {
 	items: DockItem[];
@@ -581,8 +569,6 @@ export class Dock {
 	 *
 	 * Idempotent: applying the same count is a no-op (no DOM mutation).
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param itemId Tile id (menu slug for admin pages, system id
 	 *               for `appendSystemItem` / `registerSystemTile`).
 	 * @param count  Non-negative integer. `>99` renders as `99+`.
@@ -627,8 +613,6 @@ export class Dock {
 
 	/**
 	 * Clear the badge on a tile. Equivalent to `setBadge( id, 0 )`.
-	 *
-	 * @since 0.6.0
 	 */
 	public clearBadge( itemId: string ): void {
 		this.setBadge( itemId, 0 );
@@ -646,8 +630,6 @@ export class Dock {
 	 * the reduced-motion fallback shows a static accent ring for the
 	 * same duration so the affordance still works. `durationMs` of
 	 * `0` keeps the attention until the next call clears it.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param itemId Tile id.
 	 * @param mode   Animation mode or `null` to clear.
@@ -1081,8 +1063,6 @@ export class Dock {
 	 *    new id list to `dockOrder` via the public settings writer,
 	 *    and the layout-dispatcher subscriber re-applies. Cancellation
 	 *    (Escape, pointercancel) reverts to the original order.
-	 *
-	 * @since 0.8.2
 	 */
 	private attachDragReorder( tile: HTMLElement, itemId: string ): void {
 		const THRESHOLD = 5; // px the pointer must move before claiming.

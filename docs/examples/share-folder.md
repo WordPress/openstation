@@ -232,4 +232,4 @@ next heartbeat tick — no extra work needed for live UI sync.
 ## See also
 
 - [folder-sharing.md](../folder-sharing.md) — full architecture.
-- [hooks-reference.md](../hooks-reference.md#folder-sharing-since-085-experimental).
+- [hooks-reference.md](../hooks-reference.md#folder-sharing-experimental).

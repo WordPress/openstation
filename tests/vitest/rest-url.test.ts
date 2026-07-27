@@ -3,8 +3,6 @@
  *
  * Both permalink shapes must round-trip through the helper without
  * dropping or doubling query separators.
- *
- * @since 0.21.0
  */
 import { describe, expect, test } from 'vitest';
 import { joinRestUrl } from '../../src/rest-url';

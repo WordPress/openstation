@@ -8,8 +8,6 @@
  * with content age. Categories no longer tint the crown — they bloom as
  * wildflowers in the meadow instead (`render/flowers.ts`). See
  * `docs/living-tree-algorithm.md` §A.7.
- *
- * @since 0.9.4
  */
 
 import { hash32 } from './rng';

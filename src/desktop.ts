@@ -6,8 +6,6 @@
  * persistence to change events, and normalizes the browser URL to
  * `/desktop-mode/` so the address bar shows a single stable location
  * regardless of which admin page is open in which window.
- *
- * @since 0.5.0
  */
 
 // Install the `wp.desktop.myWordpress` early-registration stub so
@@ -30,7 +28,7 @@ import { bindAdminLinkDispatch } from './window/iframe-bridge';
 import type { DestructiveAdminActionEntry } from './destructive-admin-actions';
 // Tile-decoration helpers and the dock-selector registry live in
 // `src/dock-helpers.ts` — `src/api/facade.ts` is the only consumer
-// in this bundle since 0.8.1.
+// in this bundle.
 import { OsSettings } from './settings';
 import { getExitDesktopModeTileDef } from './exit-desktop-mode';
 import { deriveWindowId, urlMatchKey } from './utils';
@@ -124,7 +122,7 @@ import {
 	createLayoutDispatcher,
 	type LayoutDispatcher,
 } from './desktop-layout';
-// `createApplyPayload` is consumed inside `boot/menu-refresh.ts` since 0.8.1.
+// `createApplyPayload` is consumed inside `boot/menu-refresh.ts`.
 import { AiAssistantStub, type AiAssistantApi } from './ai-assistant';
 import { createAsk } from './ai/ask';
 import {
@@ -188,7 +186,7 @@ import {
 import { bootStickyNotes } from './sticky-notes';
 import { bootNotes } from './notes';
 
-// `INITIAL_ORIGIN` lives in `src/boot/origin.ts` since 0.8.1 so every
+// `INITIAL_ORIGIN` lives in `src/boot/origin.ts` so every
 // boot-time consumer reaches the same captured value — see the import
 // further down for the canonical reference.
 import { registerBuiltInWidgets } from './widgets/built-in';
@@ -210,8 +208,7 @@ import { wpdConfirm } from './wpd-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { preloadWindowSystem } from './window-system/loader';
 import type { WallpaperDef } from './wallpapers/types';
-// Built-in plugins used to be side-effect-imported from `./plugins`.
-// As of 0.8.4 each built-in plugin ships as its own lazy-loaded
+// Each built-in plugin ships as its own lazy-loaded
 // bundle and is registered through the same server-side
 // `desktop_mode_register_wallpaper()` / `desktop_mode_register_*()` APIs
 // third-party plugins use, so the shell no longer pulls them into
@@ -274,8 +271,6 @@ import type { Window as DesktopWindow } from './window';
  *
  * Re-runs are idempotent: a previous installation is left alone so
  * a duplicate enqueue / HMR reload doesn't blow away the queue.
- *
- * @since 0.6.1
  */
 const _earlyReadyQueue: Array< () => void > = [];
 let _earlyReady = false;
@@ -420,8 +415,6 @@ export interface WpDesktopPublicApi {
 	 * Side (left) dock instance — only non-null when the active
 	 * layout is `classic`. Holds core admin menus while the bottom
 	 * dock holds plugin menus. `null` in `unified` and `spatial`.
-	 *
-	 * @since 0.5.2
 	 */
 	sideDock: Dock | null;
 	/**
@@ -429,8 +422,6 @@ export interface WpDesktopPublicApi {
 	 * `OsSettingsSnapshot.desktopLayout`; the framework writes
 	 * `data-desktop-mode-layout` on the shell root with this value so
 	 * plugins can also key off the attribute via CSS.
-	 *
-	 * @since 0.5.2
 	 */
 	desktopLayout: 'classic' | 'unified' | 'spatial';
 	/**
@@ -459,8 +450,6 @@ export interface WpDesktopPublicApi {
 	 *     wp.desktop.icons?.setBadge?.(   id, count );
 	 * }
 	 * ```
-	 *
-	 * @since 0.6.0
 	 */
 	icons: IconsApi;
 	/**
@@ -471,8 +460,6 @@ export interface WpDesktopPublicApi {
 	 * `wp.desktop.files.getTypes`. Higher phases extend this surface
 	 * with the opener registry (`open`, `registerOpener`), the
 	 * placement REST client, and the `FilesLayer` mount helpers.
-	 *
-	 * @since 0.9.0
 	 */
 	files: FilesApi;
 	/**
@@ -490,8 +477,6 @@ export interface WpDesktopPublicApi {
 	 *     // …
 	 * }
 	 * ```
-	 *
-	 * @since 0.9.0
 	 */
 	confirm: ( options: import( './ui/components/wpd-confirm-dialog/wpd-confirm-dialog' ).WpdConfirmOptions ) => Promise< boolean >;
 	saveSession: () => void;
@@ -530,8 +515,6 @@ export interface WpDesktopPublicApi {
 	 * {@link HOOKS.WALLPAPER_VISIBILITY} with the effective state so
 	 * mounted scenes stop their tickers; {@link HOOKS.WALLPAPER_SUSPEND}
 	 * fires on every suspended/resumed transition.
-	 *
-	 * @since 0.9.6
 	 */
 	wallpaper: WallpaperSuspendApi;
 	/**
@@ -541,8 +524,6 @@ export interface WpDesktopPublicApi {
 	 * wallpaper for the duration. Scores/challenges persist only for
 	 * games also registered server-side via
 	 * `desktop_mode_register_game()`.
-	 *
-	 * @since 0.9.6
 	 */
 	games: GamesApi;
 	/** Convenience: register a widget via `desktop-mode.widgets` filter. */
@@ -569,8 +550,6 @@ export interface WpDesktopPublicApi {
 	 * identity. All methods are idempotent and `null`-safe when
 	 * the layer isn't mounted (classic admin context, or the widget
 	 * DOM element hasn't been emitted by the shell for any reason).
-	 *
-	 * @since 0.8.6
 	 */
 	widgets: {
 		/**
@@ -612,8 +591,6 @@ export interface WpDesktopPublicApi {
 	 * that id. Used by the global Cmd/Ctrl+Shift+E shortcut, by
 	 * the AI Copilot's "open editor" tool, and by plugin authors
 	 * that want to surface a sister-plugin's window.
-	 *
-	 * @since 0.5.2
 	 */
 	openWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
@@ -624,8 +601,6 @@ export interface WpDesktopPublicApi {
 	 *
 	 * Powers the dock-peek "+" button for native windows so they
 	 * behave like iframe windows do: every "+" yields a duplicate.
-	 *
-	 * @since 0.8.3
 	 */
 	openNewWindow: ( id: string, opts?: { source?: string } ) => boolean;
 	/**
@@ -653,8 +628,6 @@ export interface WpDesktopPublicApi {
 	 * Returns the same Response Promise as native `fetch()`. Errors
 	 * propagate unchanged (the indicator just adds a "failed" pulse
 	 * before the rejection bubbles up).
-	 *
-	 * @since 0.8.0
 	 */
 	fetch: (
 		input: RequestInfo | URL,
@@ -710,8 +683,6 @@ export interface WpDesktopPublicApi {
 	 *
 	 * See `docs/examples/infinite-list.md` for the full recipe and
 	 * the {@link InfiniteListOptions} reference.
-	 *
-	 * @since 0.8.2
 	 */
 	createInfiniteList: < TItem >(
 		options: import( './infinite-list' ).InfiniteListOptions< TItem >,
@@ -737,8 +708,6 @@ export interface WpDesktopPublicApi {
 	 *     toast( err.message );
 	 * }
 	 * ```
-	 *
-	 * @since 0.8.2
 	 */
 	startOAuth: (
 		service: string,
@@ -785,16 +754,12 @@ export interface WpDesktopPublicApi {
 	 *     wp.desktop.registerSettingsTab( { ... } );
 	 * } );
 	 * ```
-	 *
-	 * @since 0.5.1
 	 */
 	ready: ( cb: () => void ) => void;
 	/**
 	 * Synchronously report whether the shell's `desktop-mode.init` action
 	 * has fired. Lets late-loading plugin code branch between
 	 * "register directly" and "schedule via whenReady" without racing.
-	 *
-	 * @since 0.5.0
 	 */
 	isReady: () => boolean;
 	/**
@@ -836,8 +801,6 @@ export interface WpDesktopPublicApi {
 	 * it. The admin-bar "Ask AI ⌘K" button dispatches the
 	 * `desktop-mode-open-ai` event on `document`, which the assistant
 	 * also listens for — no direct reference needed.
-	 *
-	 * @since 0.5.0
 	 */
 	ai: AiAssistantApi;
 	/**
@@ -847,8 +810,6 @@ export interface WpDesktopPublicApi {
 	 * with a `desktop-mode-drag-start` payload; this bridge stores it
 	 * and replies to `desktop-mode-drag-payload-request` messages from
 	 * receiver iframes during their drop handlers.
-	 *
-	 * @since 0.5.0
 	 */
 	dragBridge: DragBridgeApi;
 	/**
@@ -862,8 +823,6 @@ export interface WpDesktopPublicApi {
 	 * it owns the pointer events, the ghost element, the drop-target
 	 * registry, and the global cancellation paths (Escape / blur /
 	 * visibilitychange / pointercancel).
-	 *
-	 * @since 0.5.2
 	 */
 	dragManager: DragManagerApi;
 	/**
@@ -882,13 +841,11 @@ export interface WpDesktopPublicApi {
 	 *   },
 	 * } );
 	 * ```
-	 *
-	 * @since 0.5.0
 	 */
 	registerCommand: ( cmd: DesktopCommand ) => void;
-	/** Remove a previously registered command by slug. @since 0.5.0 */
+	/** Remove a previously registered command by slug. */
 	unregisterCommand: ( slug: string ) => void;
-	/** Snapshot of all currently registered commands. @since 0.5.0 */
+	/** Snapshot of all currently registered commands. */
 	listCommands: () => DesktopCommand[];
 	/**
 	 * Register a predicate that classifies an admin URL as a
@@ -920,8 +877,6 @@ export interface WpDesktopPublicApi {
 	 *
 	 * Returns an unregister function. Calling
 	 * `unregisterDestructiveAdminAction( id )` does the same.
-	 *
-	 * @since 0.8.4
 	 */
 	registerDestructiveAdminAction: (
 		entry: DestructiveAdminActionEntry,
@@ -929,16 +884,12 @@ export interface WpDesktopPublicApi {
 	/**
 	 * Remove a previously registered destructive-admin-action
 	 * predicate. No-op when the id is unknown.
-	 *
-	 * @since 0.8.4
 	 */
 	unregisterDestructiveAdminAction: ( id: string ) => void;
 	/**
 	 * Snapshot of every plugin-registered destructive-admin-action
 	 * predicate. Built-ins (`trash`, `untrash`, `delete`, …) are
 	 * NOT included — they have no `id` and aren't registry entries.
-	 *
-	 * @since 0.8.4
 	 */
 	listDestructiveAdminActions: () => DestructiveAdminActionEntry[];
 	/**
@@ -958,13 +909,11 @@ export interface WpDesktopPublicApi {
 	 * Built-in tab orders for reference: appearance=10, ai=20,
 	 * apps-icons=22, features=25, effects=27, help=40
 	 * (About is pinned last with a sentinel order).
-	 *
-	 * @since 0.5.1
 	 */
 	registerSettingsTab: ( tab: DesktopSettingsTab ) => void;
-	/** Remove a previously registered settings tab. @since 0.5.1 */
+	/** Remove a previously registered settings tab. */
 	unregisterSettingsTab: ( id: string ) => void;
-	/** Snapshot of all registered third-party settings tabs. @since 0.5.1 */
+	/** Snapshot of all registered third-party settings tabs. */
 	listSettingsTabs: () => DesktopSettingsTab[];
 	/**
 	 * Register a renderer that REPLACES the dock rail entirely.
@@ -975,13 +924,11 @@ export interface WpDesktopPublicApi {
 	 *
 	 * See `docs/examples/dock-rail-renderer.md` for the full
 	 * contract.
-	 *
-	 * @since 0.5.2
 	 */
 	registerDockRailRenderer: ( renderer: DockRailRenderer ) => void;
-	/** Remove a previously registered rail renderer. @since 0.5.2 */
+	/** Remove a previously registered rail renderer. */
 	unregisterDockRailRenderer: ( id: string ) => void;
-	/** Snapshot of all registered rail renderers. @since 0.5.2 */
+	/** Snapshot of all registered rail renderers. */
 	listDockRailRenderers: () => DockRailRenderer[];
 	/**
 	 * Open (or focus, if already open) the shell's OS Settings
@@ -996,8 +943,6 @@ export interface WpDesktopPublicApi {
 	 * dock's system tile being reachable (Classic layout puts OS
 	 * Settings on the side rail, which a custom primary-rail
 	 * renderer can't see).
-	 *
-	 * @since 0.5.2
 	 */
 	openOsSettings: ( opts?: { tabId?: string } ) => void;
 	/**
@@ -1007,8 +952,6 @@ export interface WpDesktopPublicApi {
 	 * key behaviour off a per-user preference (e.g. the native Posts
 	 * window reads `nativePostsHiddenColumns` from here to filter the
 	 * `<wpd-table>` columns).
-	 *
-	 * @since 0.8.0
 	 */
 	getOsSettings: () => OsSettingsSnapshot;
 	/**
@@ -1016,8 +959,6 @@ export interface WpDesktopPublicApi {
 	 * the user toggles a setting (or a third-party tab calls
 	 * `updateOsSettings`). Returns an unsubscribe function. Mirrors
 	 * the existing settings-tab `ctx.subscribeOsSettings` API.
-	 *
-	 * @since 0.8.0
 	 */
 	subscribeOsSettings: (
 		cb: ( snapshot: OsSettingsSnapshot ) => void,
@@ -1030,8 +971,6 @@ export interface WpDesktopPublicApi {
 	 * `'saving'` / `'saved'` / `'failed'`) fire on `document` as
 	 * `desktop-mode-os-settings-save-lifecycle`, same as a built-in
 	 * tab's save.
-	 *
-	 * @since 0.8.0
 	 */
 	updateOsSettings: (
 		patch: Partial< OsSettingsSnapshot >,
@@ -1052,8 +991,6 @@ export interface WpDesktopPublicApi {
 	 *
 	 * `adminUrl` defaults to `wp.desktop.config.adminUrl` so callers
 	 * normally pass just the URL.
-	 *
-	 * @since 0.5.2
 	 */
 	deriveWindowId: ( url: string, adminUrl?: string ) => string;
 	/**
@@ -1065,8 +1002,6 @@ export interface WpDesktopPublicApi {
 	 * tile set the default renderer paints — e.g., a launcher
 	 * palette that lists every native-window plugin tile + the
 	 * OS Settings tile in one place.
-	 *
-	 * @since 0.5.2
 	 */
 	listSystemTiles: () => Array< {
 		id: string;
@@ -1083,8 +1018,6 @@ export interface WpDesktopPublicApi {
 	 *
 	 * Returns `null` when the id isn't registered or when the
 	 * dispatcher hasn't booted yet.
-	 *
-	 * @since 0.5.2
 	 */
 	getSystemTile: ( id: string ) => SystemDockItem | null;
 	/**
@@ -1097,8 +1030,6 @@ export interface WpDesktopPublicApi {
 	 * Snapshots `config.dockItems` (the boot payload + the most
 	 * recent live-refresh result). Returns `[]` before the shell
 	 * has finished booting.
-	 *
-	 * @since 0.5.2
 	 */
 	getMenuItems: () => DockItem[];
 	/**
@@ -1107,8 +1038,6 @@ export interface WpDesktopPublicApi {
 	 * `<span>` background, http(s) URL → `<img>`, anything else →
 	 * letter-badge fallback). Use this so your renderer's icons
 	 * look consistent with the default dock's.
-	 *
-	 * @since 0.5.2
 	 */
 	renderIcon: (
 		icon: string,
@@ -1120,30 +1049,22 @@ export interface WpDesktopPublicApi {
 	 * during tile build so decoration plugins compose with any
 	 * renderer the user picks. See `docs/examples/dock-rail-renderer.md`
 	 * for the full composition contract.
-	 *
-	 * @since 0.5.2
 	 */
 	applyTileClasses: typeof import( './dock-helpers' ).applyTileClasses;
 	/**
 	 * Run the registered `desktop-mode.dock.tile-element` filter so
 	 * decoration plugins can wrap a renderer's tile element.
-	 *
-	 * @since 0.5.2
 	 */
 	applyTileElement: typeof import( './dock-helpers' ).applyTileElement;
 	/**
 	 * Resolve the tooltip text for a tile through the registered
 	 * `desktop-mode.dock.tile-tooltip` filter. Empty return suppresses
 	 * the tooltip.
-	 *
-	 * @since 0.5.2
 	 */
 	applyTileTooltip: typeof import( './dock-helpers' ).applyTileTooltip;
 	/**
 	 * Fire the `desktop-mode.dock.tile-rendered` action after a tile
 	 * lands in the DOM.
-	 *
-	 * @since 0.5.2
 	 */
 	dispatchTileRendered: typeof import( './dock-helpers' ).dispatchTileRendered;
 	/**
@@ -1151,15 +1072,11 @@ export interface WpDesktopPublicApi {
 	 * element. Custom rail renderers should register their root
 	 * selector via {@link registerDockSelector} at mount time, then
 	 * use this in click-outside-to-dismiss handlers.
-	 *
-	 * @since 0.5.2
 	 */
 	isDockElement: ( target: EventTarget | null ) => boolean;
 	/**
 	 * Register an additional CSS selector treated as "inside the
 	 * dock" by {@link isDockElement}. Returns an unregister callback.
-	 *
-	 * @since 0.5.2
 	 */
 	registerDockSelector: ( selector: string ) => () => void;
 	/**
@@ -1169,13 +1086,11 @@ export interface WpDesktopPublicApi {
 	 *
 	 * Throws a `RegistrationError` on validation failure (the
 	 * message names the bad field).
-	 *
-	 * @since 0.5.1
 	 */
 	registerTitleBarButton: ( def: TitleBarButtonDef ) => void;
-	/** Remove a previously registered title-bar button. @since 0.5.1 */
+	/** Remove a previously registered title-bar button. */
 	unregisterTitleBarButton: ( id: string ) => void;
-	/** Snapshot of registered title-bar buttons. @since 0.5.1 */
+	/** Snapshot of registered title-bar buttons. */
 	listTitleBarButtons: () => TitleBarButtonDef[];
 	/**
 	 * Register (or replace) an unfocused-window effect — a visual
@@ -1186,13 +1101,11 @@ export interface WpDesktopPublicApi {
 	 * `darken` is registered through this same API.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
-	 *
-	 * @since 0.9.1
 	 */
 	registerUnfocusEffect: ( def: UnfocusEffectDef ) => void;
-	/** Remove a previously registered unfocus effect. @since 0.9.1 */
+	/** Remove a previously registered unfocus effect. */
 	unregisterUnfocusEffect: ( id: string ) => void;
-	/** Snapshot of registered unfocus effects (filter applied). @since 0.9.1 */
+	/** Snapshot of registered unfocus effects (filter applied). */
 	listUnfocusEffects: () => UnfocusEffectDef[];
 	/**
 	 * Window content relations — which piece of content each window
@@ -1213,8 +1126,6 @@ export interface WpDesktopPublicApi {
 	 * } );
 	 * wp.desktop.relations.related( windowId ); // sibling window ids
 	 * ```
-	 *
-	 * @since 0.9.4
 	 */
 	relations: WindowRelationsApi;
 	/**
@@ -1229,13 +1140,11 @@ export interface WpDesktopPublicApi {
 	 * → Effects → Window links.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
-	 *
-	 * @since 0.9.4
 	 */
 	registerWindowLinkRenderer: ( def: WindowLinkRendererDef ) => void;
-	/** Remove a previously registered window-link renderer. @since 0.9.4 */
+	/** Remove a previously registered window-link renderer. */
 	unregisterWindowLinkRenderer: ( id: string ) => void;
-	/** Snapshot of registered window-link renderers (filter applied). @since 0.9.4 */
+	/** Snapshot of registered window-link renderers (filter applied). */
 	listWindowLinkRenderers: () => WindowLinkRendererDef[];
 	/**
 	 * Register (or replace) a per-window theme — a CSS-variable map
@@ -1246,13 +1155,11 @@ export interface WpDesktopPublicApi {
 	 * `owner`-based teardown.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
-	 *
-	 * @since 0.6.0
 	 */
 	registerWindowTheme: ( def: WindowThemeDef ) => void;
-	/** Remove a previously registered window theme. @since 0.6.0 */
+	/** Remove a previously registered window theme. */
 	unregisterWindowTheme: ( id: string ) => void;
-	/** Snapshot of registered window themes. @since 0.6.0 */
+	/** Snapshot of registered window themes. */
 	listWindowThemes: () => WindowThemeDef[];
 	/**
 	 * Desktop themes — whole-OS reskins installed as a ZIP of a
@@ -1264,8 +1171,6 @@ export interface WpDesktopPublicApi {
 	 * the entire shell — tokens, textures, and every icon.
 	 *
 	 * See `docs/desktop-themes.md`.
-	 *
-	 * @since 0.9.7
 	 */
 	desktopThemes: {
 		/** Every theme in the site's library. */
@@ -1295,8 +1200,6 @@ export interface WpDesktopPublicApi {
 		 * A non-null value means the glyph is painted as a tinted CSS
 		 * mask rather than an image, so only its alpha is used.
 		 * `currentColor` defers to the surface it lands on.
-		 *
-		 * @since 0.9.8
 		 */
 		resolveIconColor: ( slot: string ) => string | null;
 	};
@@ -1309,13 +1212,11 @@ export interface WpDesktopPublicApi {
 	 * one window's cluster.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
-	 *
-	 * @since 0.6.0
 	 */
 	registerWindowControl: ( def: WindowControlDef ) => void;
-	/** Remove a previously registered window control by id. @since 0.6.0 */
+	/** Remove a previously registered window control by id. */
 	unregisterWindowControl: ( id: string ) => void;
-	/** Snapshot of registered window controls. @since 0.6.0 */
+	/** Snapshot of registered window controls. */
 	listWindowControls: () => WindowControlDef[];
 	/**
 	 * Apply (or clear) a per-window controls config at runtime.
@@ -1323,8 +1224,6 @@ export interface WpDesktopPublicApi {
 	 * registry's default resolution.
 	 *
 	 * No-op when the window id is not currently open.
-	 *
-	 * @since 0.6.0
 	 */
 	applyWindowControls: (
 		windowId: string,
@@ -1337,13 +1236,11 @@ export interface WpDesktopPublicApi {
 	 * registrations targeting the same slot stack in `order`.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
-	 *
-	 * @since 0.6.0
 	 */
 	registerWindowSlot: ( def: WindowSlotDef ) => void;
-	/** Remove a previously registered slot renderer. @since 0.6.0 */
+	/** Remove a previously registered slot renderer. */
 	unregisterWindowSlot: ( id: string ) => void;
-	/** Snapshot of registered slot renderers. @since 0.6.0 */
+	/** Snapshot of registered slot renderers. */
 	listWindowSlots: () => WindowSlotDef[];
 	/**
 	 * Apply (or clear) a per-window slot override at runtime. Pass
@@ -1351,8 +1248,6 @@ export interface WpDesktopPublicApi {
 	 * content + matching registry entries take over again).
 	 *
 	 * No-op when the window id is not currently open.
-	 *
-	 * @since 0.6.0
 	 */
 	applyWindowSlot: (
 		windowId: string,
@@ -1371,28 +1266,22 @@ export interface WpDesktopPublicApi {
 	 *
 	 * Returns an unregister function for symmetry with
 	 * {@link registerCommand}.
-	 *
-	 * @since 0.8.6
 	 */
 	registerWindowNotice: (
 		entry: import( './window-notices' ).WindowNoticeEntry,
 	) => () => void;
-	/** Remove a previously registered notice by id. @since 0.8.6 */
+	/** Remove a previously registered notice by id. */
 	unregisterWindowNotice: ( id: string ) => void;
-	/** Snapshot of registered window notices. @since 0.8.6 */
+	/** Snapshot of registered window notices. */
 	listWindowNotices: () => import( './window-notices' ).WindowNoticeEntry[];
 	/**
 	 * Imperatively mark a notice id as dismissed for the current
 	 * user. Future window paints will start in the hidden state.
-	 *
-	 * @since 0.8.6
 	 */
 	dismissWindowNotice: ( id: string ) => void;
 	/**
 	 * Clear a previous dismissal so the notice will paint again on
 	 * the next mount.
-	 *
-	 * @since 0.8.6
 	 */
 	undismissWindowNotice: ( id: string ) => void;
 	/**
@@ -1403,19 +1292,17 @@ export interface WpDesktopPublicApi {
 	 * slots) cover 95%+ of customization use cases by composition.
 	 *
 	 * The chrome render contract may change in future minor versions.
-	 *
-	 * @since 0.6.0
 	 */
 	registerWindowChrome: ( def: WindowChromeDef ) => void;
-	/** Remove a previously registered chrome by id. **Experimental.** @since 0.6.0 */
+	/** **Experimental.** Remove a previously registered chrome by id. */
 	unregisterWindowChrome: ( id: string ) => void;
-	/** Snapshot of registered chromes. **Experimental.** @since 0.6.0 */
+	/** **Experimental.** Snapshot of registered chromes. */
 	listWindowChromes: () => WindowChromeDef[];
 	/**
 	 * Set a window's chrome at runtime. Pass `null` / `undefined`
 	 * (or `'core/standard'`) to fall back to the standard chrome.
 	 *
-	 * **Experimental.** @since 0.6.0
+	 * **Experimental.**
 	 */
 	applyWindowChrome: (
 		windowId: string,
@@ -1428,8 +1315,6 @@ export interface WpDesktopPublicApi {
 	 * `null` to clear the override and fall back to the registry.
 	 *
 	 * No-op when the window id is not currently open.
-	 *
-	 * @since 0.6.0
 	 */
 	applyWindowTheme: (
 		windowId: string,
@@ -1447,8 +1332,6 @@ export interface WpDesktopPublicApi {
 	 * handshake; the iframe-side counterpart is
 	 * `wp.desktop.iframe.publish/subscribe` (injected into every
 	 * chromeless wp-admin page).
-	 *
-	 * @since 0.5.1
 	 */
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	/**
@@ -1460,8 +1343,6 @@ export interface WpDesktopPublicApi {
 	 * is the explicit accessor for cases where the caller has the
 	 * id (e.g. from a stored snapshot, devtools, or a deferred
 	 * handler) but doesn't have a live reference yet.
-	 *
-	 * @since 0.8.6
 	 */
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	/**
@@ -1476,8 +1357,6 @@ export interface WpDesktopPublicApi {
 	 * Plugins are encouraged to namespace their topics
 	 * (`acme.orders.refunded`, etc.). Wildcard `'*'` subscriptions
 	 * are supported by `subscribe()` but expensive — use sparingly.
-	 *
-	 * @since 0.6.0
 	 */
 	broadcast: < T = unknown >( topic: string, payload: T ) => void;
 	/**
@@ -1488,8 +1367,6 @@ export interface WpDesktopPublicApi {
 	 * `document.addEventListener( 'desktop-mode-broadcast', cb )` —
 	 * the chromeless bridge re-dispatches every incoming broadcast
 	 * as that CustomEvent.
-	 *
-	 * @since 0.6.0
 	 */
 	subscribe: < T = unknown >(
 		topic: string,
@@ -1512,14 +1389,13 @@ export interface WpDesktopPublicApi {
 	 * ```
 	 *
 	 * Re-registering the same id replaces the previous entry.
-	 * @since 0.5.0
 	 */
 	registerPalette: ( p: Palette ) => () => void;
-	/** Remove a palette from the cycle. Idempotent. @since 0.5.0 */
+	/** Remove a palette from the cycle. Idempotent. */
 	unregisterPalette: ( id: string ) => void;
-	/** Snapshot of registered palettes. @since 0.5.0 */
+	/** Snapshot of registered palettes. */
 	listPalettes: () => Palette[];
-	/** Open a specific palette, closing any other open one. @since 0.5.0 */
+	/** Open a specific palette, closing any other open one. */
 	openPalette: ( id: string ) => void;
 	/**
 	 * Cross-plugin instrumentation surface. Lets a third-party
@@ -1537,8 +1413,6 @@ export interface WpDesktopPublicApi {
 	 *   url/status/duration only).
 	 * - `debug` is a generic per-session pub/sub bus backed by REST
 	 *   polling — pair it with PHP `desktop_mode_debug_publish()`.
-	 *
-	 * @since 0.6.0
 	 */
 	devtools: import( './devtools' ).DevtoolsApi;
 	/**
@@ -1575,8 +1449,6 @@ export interface WpDesktopPublicApi {
 	 * store.state.selectedId = 7;
 	 * store.notify();
 	 * ```
-	 *
-	 * @since 0.5.5
 	 */
 	createSharedStore: < T >(
 		key: string,
@@ -1606,8 +1478,6 @@ export interface WpDesktopPublicApi {
 	 *     console.log( e.detail.userId, e.detail.newStatus );
 	 * } );
 	 * ```
-	 *
-	 * @since 0.5.5
 	 */
 	presence: PresenceApi;
 	/**
@@ -1627,8 +1497,6 @@ export interface WpDesktopPublicApi {
 	 * Channels are routed via `desktop-mode.activity.<channel>` on
 	 * the hook bus, so devtools / inspectors can list activity
 	 * traffic as a discrete group.
-	 *
-	 * @since 0.5.5
 	 */
 	activity: ActivityApi;
 	/**
@@ -1647,8 +1515,6 @@ export interface WpDesktopPublicApi {
 	 * The framework wires the underlying `heartbeat-send` /
 	 * `heartbeat-tick` jQuery events once. Plugins compose; no
 	 * boilerplate per feature.
-	 *
-	 * @since 0.5.5
 	 */
 	heartbeat: HeartbeatBus;
 	/**
@@ -1659,8 +1525,6 @@ export interface WpDesktopPublicApi {
 	 *
 	 * Routes through the `desktop-mode/toast-requested` activity filter
 	 * before painting; plugins can mutate or cancel the payload.
-	 *
-	 * @since 0.6.0
 	 */
 	showToast: ( opts: ToastOptions ) => () => void;
 	/**
@@ -1689,8 +1553,6 @@ export interface WpDesktopPublicApi {
 	 *
 	 * Idempotent. Safe to call multiple times — windows that
 	 * already finished loading are unaffected.
-	 *
-	 * @since 0.6.0
 	 */
 	repaintLoadingOverlays: () => void;
 	/**
@@ -1701,8 +1563,6 @@ export interface WpDesktopPublicApi {
 	 * that may re-render mid-press.
 	 *
 	 * See {@link renderKeyedList} for the full options shape.
-	 *
-	 * @since 0.6.0
 	 */
 	renderKeyedList: < T >(
 		host: HTMLElement,
@@ -1712,8 +1572,6 @@ export interface WpDesktopPublicApi {
 	/**
 	 * Drop the keyed-list state for a host. Idempotent. Pair with
 	 * `renderKeyedList` when tearing down a list-bearing component.
-	 *
-	 * @since 0.6.0
 	 */
 	clearKeyedList: ( host: HTMLElement ) => void;
 	/**
@@ -1728,8 +1586,6 @@ export interface WpDesktopPublicApi {
 	 * moment of registration. Attempting to claim a reserved name
 	 * console.warns and is a no-op so a plugin can't accidentally
 	 * shadow a built-in.
-	 *
-	 * @since 0.6.0
 	 */
 	registerNamespace: ( name: string, api: object ) => void;
 	/**
@@ -1740,8 +1596,6 @@ export interface WpDesktopPublicApi {
 	 * Recommended over reading `window.desktopModeWindowConfig[ id ]`
 	 * directly so the storage location can evolve without breaking
 	 * plugin bundles.
-	 *
-	 * @since 0.6.0
 	 */
 	getWindowConfig: < T = Record< string, unknown > >( id: string ) => T | undefined;
 	/**
@@ -1750,8 +1604,6 @@ export interface WpDesktopPublicApi {
 	 * think my window is in?" without inventing one-off probes from
 	 * scratch. Strictly observational — calling these methods is side-
 	 * effect free.
-	 *
-	 * @since 0.6.0
 	 */
 	/**
 	 * Show a system notification (or fall back to a toast when
@@ -1761,8 +1613,6 @@ export interface WpDesktopPublicApi {
 	 * `desktop-mode/notification-shown` after rendering. v1 is
 	 * page-scoped local notifications only — phase 4 will extend
 	 * this to Web Push without breaking the call surface.
-	 *
-	 * @since 0.8.0
 	 */
 	notify: ( opts: NotifyOptions ) => () => void;
 	/**
@@ -1771,8 +1621,6 @@ export interface WpDesktopPublicApi {
 	 * surface their own "Install as app" button in a settings tab,
 	 * read whether the app is already installed, or watch for the
 	 * dismissal flag flipping.
-	 *
-	 * @since 0.8.0
 	 */
 	pwa: {
 		/**
@@ -1814,7 +1662,7 @@ export interface WpDesktopPublicApi {
 		 *   tag through `wp_print_scripts`; lazy means the shell
 		 *   appended a `<script>` via `loadVendorScript`. Lazy + a
 		 *   missing `configPresent` is the historical
-		 *   mid-session-activation bug fixed in 0.6.0.
+		 *   mid-session-activation bug.
 		 * - `configPresent` — whether
 		 *   `window.desktopModeWindowConfig[ id ]` exists.
 		 * - `extras` — what the payload supplied for
@@ -1830,7 +1678,6 @@ export interface WpDesktopPublicApi {
  * `wp.desktop.debug.window( id )`.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopDebugWindow {
 	id: string;
@@ -1862,8 +1709,6 @@ declare global {
 		 * Read via {@link WpDesktopPublicApi.getWindowConfig} rather
 		 * than touching this global directly — the storage location
 		 * may evolve.
-		 *
-		 * @since 0.6.0
 		 */
 		desktopModeWindowConfig?: Record< string, unknown >;
 	}
@@ -1879,10 +1724,10 @@ declare global {
 
 /** Debounce window for session writes. 500 ms is short enough to feel immediate and long enough to coalesce drag/resize storms. */
 // `SESSION_SAVE_DEBOUNCE_MS` lives with the saver in
-// `src/boot/session-saver.ts` since 0.8.1.
+// `src/boot/session-saver.ts`.
 
 // `RESERVED_NAMESPACE_KEYS` lives with the facade in
-// `src/api/facade.ts` since 0.8.1 — that's the one place that owns
+// `src/api/facade.ts` — that's the one place that owns
 // the wp.desktop.* assembly, and the allowlist needs to stay in
 // sync with it.
 
@@ -2243,7 +2088,7 @@ function init(): void {
 		adminUrl: config.adminUrl,
 	} );
 
-	// Cross-page admin-link dispatcher (since 0.8.2). The chromeless
+	// Cross-page admin-link dispatcher. The chromeless
 	// bridge `preventDefault`s every admin-internal click and posts
 	// `desktop-mode-iframe-admin-link` to us; this binding tells the
 	// bridge how to compute slugs, find a destination's title/icon
@@ -2567,11 +2412,9 @@ function init(): void {
 	 * (e.g. `'ai'`, `'apps-icons'`). The tab is set before the window
 	 * opens so a fresh render mounts on it; if the window is already
 	 * open, `focusTab` switches the live tab strip in place.
-	 *
-	 * @since 0.5.2
 	 */
 	function openOsSettings( opts: { tabId?: string } = {} ): void {
-		// The Extended Options tab merged into Features in 0.9.5 —
+		// The Extended Options tab merged into Features —
 		// keep documented deep-links to the old tab id working.
 		if ( opts.tabId === 'extended' ) {
 			opts = { ...opts, tabId: 'features' };
@@ -3423,7 +3266,7 @@ function init(): void {
 	setCurrentLayout( osSettings.getOsSettingsSnapshot().desktopLayout );
 
 	// The wp.desktop.* assembly was extracted to `src/api/facade.ts`
-	// in 0.8.1 — `buildPublicApi(deps)` returns the same WpDesktopPublicApi
+	// — `buildPublicApi(deps)` returns the same WpDesktopPublicApi
 	// shape this block used to declare inline; `installPublicApi(api)`
 	// does the merge-onto-shim that the block used to do at the end.
 	// Behavior is identical; tests touching `wp.desktop.*` keep
@@ -4230,27 +4073,27 @@ function init(): void {
 }
 
 // `restoreSession` and `openCurrentPage` were moved to
-// `src/boot/session.ts` in 0.8.1 — see the imports near the top of
+// `src/boot/session.ts` — see the imports near the top of
 // this file. This is the architecture-0.8.1 phase-5 split.
 
-// `trackedFetch` was moved to `src/boot/tracked-fetch.ts` in 0.8.1.
+// `trackedFetch` was moved to `src/boot/tracked-fetch.ts`.
 
-// `openCurrentPage` lives in `src/boot/session.ts` since 0.8.1.
+// `openCurrentPage` lives in `src/boot/session.ts`.
 
 // `bindTopWindowLinkInterceptor` was moved to
-// `src/boot/link-interceptor.ts` in 0.8.1.
+// `src/boot/link-interceptor.ts`.
 //
 // `findDockEntryForUrl` and `clampGeometryToViewport` were moved
-// to `src/boot/geometry.ts` in 0.8.1.
+// to `src/boot/geometry.ts`.
 
 // `createSessionSaver` (and the SESSION_SAVE_DEBOUNCE_MS constant) was
-// moved to `src/boot/session-saver.ts` in 0.8.1.
+// moved to `src/boot/session-saver.ts`.
 
 // `wireSessionEvents` and `bindShellLifecycle` were moved to
-// `src/boot/shell-lifecycle.ts` in 0.8.1.
+// `src/boot/shell-lifecycle.ts`.
 
 // `bindMenuRefresh` and `MENU_REFRESH_TIMEOUT_MS` were moved to
-// `src/boot/menu-refresh.ts` in 0.8.1.
+// `src/boot/menu-refresh.ts`.
 
 // Start the missing-import warner before anything else so the very
 // first DOM construction is observed. Idempotent and side-effect-only.
@@ -4263,7 +4106,7 @@ if ( document.readyState === 'loading' ) {
 	init();
 }
 
-// Backwards-compat re-export — `clampGeometryToViewport` was inlined here
-// before 0.8.1 and tests imported it from this module. New code should
+// Backwards-compat re-export — `clampGeometryToViewport` used to be inlined
+// here and tests imported it from this module. New code should
 // reach for `@boot/geometry` directly.
 export { clampGeometryToViewport } from './boot/geometry';

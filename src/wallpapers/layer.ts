@@ -11,8 +11,6 @@
  * resources. We guard with a monotonic generation counter — every
  * apply() increments it; a mount that resolves on a stale generation
  * tears itself down instead of inserting into the DOM.
- *
- * @since 0.6.0
  */
 
 import { doAction, HOOKS } from '../hooks';

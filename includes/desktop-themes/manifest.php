@@ -28,7 +28,6 @@
  *     system default keeps saying.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -70,8 +69,6 @@ defined( 'ABSPATH' ) || exit;
  *     `rawurlencode`d path. `var()` is banned so an author can't
  *     alias a property we didn't intend them to reach.
  *   - Balanced parentheses.
- *
- * @since 0.9.7
  *
  * @param mixed $value Candidate value.
  * @return bool
@@ -117,7 +114,6 @@ function desktop_mode_desktop_theme_is_safe_css_value( $value ) {
  * Sanitize the `tokens` block: a map of custom-property name =>
  * value. Unknown property names and unsafe values drop.
  *
- * @since 0.9.7
  * @internal
  *
  * @param mixed $raw Raw `tokens` value.
@@ -183,8 +179,6 @@ function desktop_mode_sanitize_desktop_theme_tokens( $raw ) {
  * silhouette iconset stays legible on a dark dock, a light title bar,
  * and a red danger-hover without the author knowing any of them.
  *
- * @since 0.9.8
- *
  * @param mixed $value Candidate.
  * @return bool
  */
@@ -236,8 +230,6 @@ function desktop_mode_desktop_theme_is_color_value( $value ) {
  * black is invisible on a dark dock as an `<img>`, and perfect as a
  * mask.
  *
- * @since 0.9.7
- * @since 0.9.8 `$default_color` + per-descriptor `color`.
  * @internal
  *
  * @param mixed    $raw            Raw `icons` value.
@@ -344,7 +336,6 @@ function desktop_mode_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defa
  * the value is echoed back to theme authors through the payload and
  * the JS API, and `currentcolor` reads like a typo.
  *
- * @since 0.9.8
  * @internal
  *
  * @param string $value Validated colour.
@@ -361,7 +352,6 @@ function desktop_mode_desktop_theme_normalize_color( $value ) {
  * Accepts `auto` / `cover` / `contain`, or one-to-two length
  * components (`px`, `%`, `rem`, `em`, or the `auto` keyword).
  *
- * @since 0.9.7
  * @internal
  *
  * @param string $value Candidate.
@@ -400,7 +390,6 @@ function desktop_mode_desktop_theme_is_size_value( $value ) {
  * starts. Without it every texture is pinned to the same origin and
  * a motif can never be aligned to the surface it decorates.
  *
- * @since 0.9.8
  * @internal
  *
  * @param string $value Candidate.
@@ -437,7 +426,6 @@ function desktop_mode_desktop_theme_is_position_value( $value ) {
  * every presentational property is grammar-checked against a closed
  * enum or a numeric pattern, never a free string.
  *
- * @since 0.9.7
  * @internal
  *
  * @param mixed    $raw            Raw `textures` value.
@@ -551,7 +539,6 @@ function desktop_mode_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
  * string from the compiled output. Works on both a theme-relative
  * path and an absolute URL (whose query string is discarded first).
  *
- * @since 0.9.8
  * @internal
  *
  * @param string $ref Resolved reference.
@@ -597,7 +584,6 @@ function desktop_mode_desktop_theme_font_format( $ref ) {
  * usable source disappears, a bad `weight` falls back to the CSS
  * initial value, and the rest of the theme installs regardless.
  *
- * @since 0.9.8
  * @internal
  *
  * @param mixed    $raw            Raw `fonts` value.
@@ -779,7 +765,6 @@ function desktop_mode_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
  * an explicit `id`, the map key, a slug of the `label`, and finally
  * the image's own filename — never the array index.
  *
- * @since 0.9.8
  * @internal
  *
  * @param mixed    $raw            Raw `wallpaper` / `wallpapers` value.
@@ -799,8 +784,6 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 
 	/**
 	 * Filters how many wallpapers one desktop theme may contribute.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param int $max Default 12.
 	 */
@@ -885,8 +868,6 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 
 /**
  * Sanitize a whole `theme.json` manifest.
- *
- * @since 0.9.7
  *
  * @param mixed    $raw            Decoded manifest.
  * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
@@ -1020,8 +1001,6 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	 * bypasses the sanitizer, so treat it as trusted-code territory —
 	 * values land in the compiled stylesheet verbatim.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param array  $manifest Sanitized manifest.
 	 * @param array  $raw      The manifest as the author wrote it.
 	 * @param string $slug     Storage slug derived from `id`.
@@ -1039,8 +1018,6 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
  * anything whose extension isn't allowed for the requested asset
  * kind. Uses `realpath()` containment as the final gate so a symlink
  * planted inside the ZIP can't point outward.
- *
- * @since 0.9.7
  *
  * @param string $staging_dir Absolute path of the extracted ZIP.
  * @return callable `fn( string $path, string $kind = 'image' ): string|false`
@@ -1084,8 +1061,6 @@ function desktop_mode_desktop_theme_staging_asset_resolver( $staging_dir ) {
 /**
  * Build an asset resolver for code-registered themes, whose assets
  * are already-published http(s) URLs rather than files in a ZIP.
- *
- * @since 0.9.7
  *
  * @return callable `fn( string $url, string $kind = 'image' ): string|false`
  */

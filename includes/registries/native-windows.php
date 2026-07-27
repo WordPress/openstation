@@ -21,7 +21,6 @@
  * top of this lives in `includes/registries/window-tabs.php`.
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -64,12 +63,6 @@ defined( 'ABSPATH' ) || exit;
  * click the registered tile (or your plugin calls
  * `wp.desktop.windowManager.open()` programmatically) to surface
  * the window.
- *
- * @since 0.8.1
- * @since 0.8.1 Returns `WP_Error` on validation failure instead of
- *               silent `false`. Legacy `if ( $result )` callers remain
- *               correct because `WP_Error` is truthy; new code should
- *               prefer `is_wp_error( $result )` for diagnostics.
  *
  * @param string $id   Doubles as window id + dock-tile id. Must
  *                     be a kebab-case-ish slug.
@@ -159,7 +152,7 @@ function desktop_mode_register_window( $id, $args = array() ) {
 		// `<link rel="stylesheet">` when a peer plugin is activated
 		// mid-session — without this, the parent shell page already
 		// finished `wp_print_styles` and the plugin's CSS is missing
-		// until F5. @since 0.8.1
+		// until F5.
 		'style'            => '',
 		'width'            => 520,
 		'height'           => 400,
@@ -243,8 +236,6 @@ function desktop_mode_register_window( $id, $args = array() ) {
 	 * exposes. Does NOT fire when `desktop_mode_register_window()`
 	 * returns a `WP_Error`.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param string $id    The window id.
 	 * @param array  $entry The stored registry entry (id, title,
 	 *                      icon, template callback, script handle,
@@ -262,7 +253,6 @@ function desktop_mode_register_window( $id, $args = array() ) {
  * stored value (or null). Kept small and side-effect-free so
  * tests can introspect.
  *
- * @since 0.8.1
  * @internal
  *
  * @param string     $id    Window id.
@@ -295,8 +285,6 @@ function desktop_mode_native_window_registry( $id = '', $entry = null ) {
  * `data-*`, `aria-*`, and component-specific attributes. Plugins
  * registering their own native windows can extend the list via the
  * `desktop_mode_native_window_allowed_html` filter below.
- *
- * @since 0.6.2
  *
  * @return array<string,array<string,bool>>
  */
@@ -507,8 +495,6 @@ function desktop_mode_native_window_allowed_html() {
 	 * list with custom tags or attributes if their templates need
 	 * markup not covered here.
 	 *
-	 * @since 0.6.2
-	 *
 	 * @param array $allowed wp_kses-shaped allowlist.
 	 */
 	return (array) apply_filters( 'desktop_mode_native_window_allowed_html', $allowed );
@@ -534,8 +520,6 @@ function desktop_mode_native_window_allowed_html() {
  * Every callsite in the framework that previously did the
  * `wp_kses( $html, desktop_mode_native_window_allowed_html() )`
  * dance can call this instead and get tag-discovery for free.
- *
- * @since 0.8.1
  *
  * @param string $html Template HTML to sanitize.
  * @return string Sanitized HTML.
@@ -570,8 +554,6 @@ function desktop_mode_kses_native_window_template( $html ) {
  * Single-tab windows (no additional tabs registered) render the
  * same flat body they always did — backwards-compatible with
  * every existing caller.
- *
- * @since 0.8.1
  *
  * @param array $entry Window registry entry.
  * @return string Template body HTML (no outer `<template>` tag).
@@ -618,8 +600,6 @@ function desktop_mode_build_native_window_template_html( $entry ) {
 	 *
 	 * Return `0` for edge-to-edge content. Negative values are
 	 * clamped to 0.
-	 *
-	 * @since 0.8.1
 	 *
 	 * @param int    $padding   Default padding in px.
 	 * @param string $window_id The native window id.
@@ -679,8 +659,6 @@ function desktop_mode_build_native_window_template_html( $entry ) {
  * is active. Runs on `admin_enqueue_scripts` alongside the main
  * shell enqueue so ordering (shell → plugin scripts) is
  * deterministic.
- *
- * @since 0.8.1
  */
 function desktop_mode_enqueue_native_window_scripts() {
 	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {
@@ -735,7 +713,7 @@ function desktop_mode_enqueue_native_window_scripts() {
 			)
 		);
 
-		// Bundle-bound `config` (since 0.6.0). Ships through
+		// Bundle-bound `config`. Ships through
 		// `wp_add_inline_script` `'before'` so it lands on the eager
 		// path the same way `wp_localize_script` does, AND through
 		// the lazy-load payload (see `desktop_mode_resolve_script_payload`)
@@ -763,8 +741,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_native_window_scripts
  * `admin_footer` when the shell is active. The JS side resolves
  * these via `document.getElementById( `desktop-mode-native-window-${id}` )`
  * and clones them into each opened window's body.
- *
- * @since 0.8.1
  */
 function desktop_mode_render_native_window_templates() {
 	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {

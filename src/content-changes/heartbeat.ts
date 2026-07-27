@@ -26,8 +26,6 @@
  * or editor path is re-broadcast once on the next tick (the bus has
  * no per-change identity to dedupe on). Consumers are idempotent —
  * the cost is one extra refresh fetch per change.
- *
- * @since 0.9.7
  */
 
 import { broadcast } from '../broadcast';

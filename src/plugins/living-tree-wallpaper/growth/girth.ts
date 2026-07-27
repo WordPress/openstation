@@ -7,8 +7,6 @@
  * base. Compliance falls out of the same pass — thin extremities are the
  * compliant ones that sway in the wind, the thick trunk barely moves.
  * See `docs/living-tree-algorithm.md` §A.5.
- *
- * @since 0.9.4
  */
 
 import type { BranchNode } from '../types';

@@ -17,8 +17,6 @@
  *
  * Both shapes are framework-internal but stable for plugin authors
  * who want to register their own drop targets that accept these.
- *
- * @since 0.8.1
  */
 
 import type { RestPlacementShape } from './rest';
@@ -38,8 +36,6 @@ export interface DesktopFileDragData {
 	 * an existing post shortcut from the wallpaper into Gutenberg
 	 * gets the same `<a href>` insertion as dragging from My
 	 * WordPress.
-	 *
-	 * @since 0.8.7
 	 */
 	bridgePayload?: DragBridgePayload;
 }
@@ -61,8 +57,6 @@ export interface ShortcutDragData {
 	 * canonical REST endpoint) can resolve which entity the `ref`
 	 * belongs to. `kind` alone is ambiguous — both Posts and Pages
 	 * carry `kind: 'post'` but have different REST paths.
-	 *
-	 * @since 0.8.7
 	 */
 	entityId?: string;
 	/**
@@ -73,8 +67,6 @@ export interface ShortcutDragData {
 	 * `desktop-mode-drop`. Tiles that omit it still drag-out for
 	 * placement purposes; they just don't trigger any iframe-side
 	 * drop behavior.
-	 *
-	 * @since 0.8.7
 	 */
 	bridgePayload?: DragBridgePayload;
 }

@@ -23,8 +23,6 @@
  * Slots:
  *   - `cta`  — optional call-to-action row below the description.
  *   - default — any additional content.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

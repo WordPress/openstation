@@ -14,8 +14,6 @@
  *   - match-predicate filtering (themes via `resolveWindowTheme`,
  *     controls/slots via `controlsForWindow` / `slotsForWindow`)
  *   - throwing match predicates are isolated (skipped, not crashed)
- *
- * @since 0.6.0
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';

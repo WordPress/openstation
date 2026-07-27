@@ -6,8 +6,6 @@
  * cross-bundle contract between the Note Pad widget (its own IIFE
  * bundle) and the notes layer (main bundle). Only PLAIN DATA crosses
  * that boundary — the widget imports nothing but types from here.
- *
- * @since 0.9.6
  */
 
 /** Wire shape of one note. */

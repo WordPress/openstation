@@ -6,8 +6,6 @@
  * (raw metrics + compact DNA); {@link Hormones} is the only crossing into
  * the growth simulator; {@link Envelope} + {@link BranchNode} are the
  * morphology layer; {@link LeafDNA} feeds the decoration layer.
- *
- * @since 0.9.4
  */
 
 /** A 2D vector / point. */

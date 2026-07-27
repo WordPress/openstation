@@ -5,8 +5,6 @@
  * the WP REST nonce, JSON content type, and uniform error
  * handling. Every HTTP call from the window goes through here so
  * credentials/nonce/loading-state plumbing stays in one place.
- *
- * @since 0.6.0
  */
 
 import { trackedFetch } from '../tracked-fetch';
@@ -71,7 +69,7 @@ function config(): NonNullable< Window[ 'desktopModeRecycleBinConfig' ] > {
 		// shouldn't be) from "integration contract failure" (bundle
 		// loaded the way desktop-mode wanted, but its config never
 		// reached the page). The latter is the historical mid-session-
-		// activation bug fixed in 0.6.0 by harvesting `extra` data into
+		// activation bug fixed by harvesting `extra` data into
 		// the lazy-load payload — if a consumer plugin still hits this
 		// error after upgrading, the integration is the place to look.
 		throw new Error(

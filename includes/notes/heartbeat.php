@@ -12,15 +12,12 @@
  * publish) plus every other user's public notes.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Add pinned-note deltas to the Heartbeat response.
- *
- * @since 0.9.6
  *
  * @param array $response Pre-filtered response.
  * @param array $data     Client-sent payload.
@@ -52,8 +49,6 @@ add_filter( 'heartbeat_received', 'desktop_mode_notes_heartbeat_received', 5, 2 
 
 /**
  * Compute pinned-note Heartbeat deltas for the current user.
- *
- * @since 0.9.6
  *
  * @param int[] $known_ids Note ids currently rendered by the client.
  * @param int   $since_ms  Last-seen modified timestamp in milliseconds.
@@ -93,8 +88,6 @@ function desktop_mode_notes_compute_heartbeat_delta( $known_ids, $since_ms, $cap
  *
  * Expressed as two queries merged in PHP (like the REST list) rather
  * than a hand-built OR — keeps every callsite on standard WP_Query.
- *
- * @since 0.9.6
  *
  * @param array $extra Extra WP_Query args merged into both halves.
  * @return int[] Matching post ids, own notes first.
@@ -138,8 +131,6 @@ function desktop_mode_notes_query_visible_ids( $extra ) {
 /**
  * Query visible note ids modified since the client's high-water mark.
  *
- * @since 0.9.6
- *
  * @param int $since_ms Last-seen modified timestamp in milliseconds.
  * @param int $limit    Max ids to return (per visibility half).
  * @return int[]
@@ -164,8 +155,6 @@ function desktop_mode_notes_query_changed_ids( $since_ms, $limit ) {
 
 /**
  * Return the subset of known ids still visible to the viewer.
- *
- * @since 0.9.6
  *
  * @param int[] $known_ids Client-known note ids.
  * @return int[]

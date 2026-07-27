@@ -19,8 +19,6 @@
  * re-validated here even though PHP already checked it — same
  * reasoning (and same character set) as `sanitizeIconSrc` in
  * `<wpd-window-button>`.
- *
- * @since 0.9.8
  */
 
 /**
@@ -54,7 +52,6 @@ export function isMaskableIcon( icon: string ): boolean {
  * through the mask.
  *
  * @public
- * @since 0.9.8
  *
  * @param el    Element to paint on.
  * @param icon  Absolute URL or `data:` URI. Must pass {@link isMaskableIcon}.

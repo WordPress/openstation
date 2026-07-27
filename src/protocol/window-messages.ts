@@ -19,8 +19,6 @@
  * `BridgeEventFromIframe` and `BridgeEventToIframe` so existing
  * imports keep working; nothing on the public type surface
  * changes. New code should import from `@protocol/window-messages`.
- *
- * @since 0.8.1
  */
 
 import type { HarvestedCommand } from '../types';

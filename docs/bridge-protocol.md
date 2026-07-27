@@ -48,7 +48,7 @@ A single page that maps every layer of the cross-window connection bridge end-to
 
 Two protocol families flow over the same `postMessage` boundary:
 
-- **Window-self channel** (`desktop-mode-window-*`) — the unified [`Window.send/on`](./javascript-reference.md#windowsend-channel-payload---stable-since-055) API. The first thing most plugin code reaches for. Single channel, no handshake, scoped to one window's content.
+- **Window-self channel** (`desktop-mode-window-*`) — the unified [`Window.send/on`](./javascript-reference.md#windowsend-channel-payload---stable) API. The first thing most plugin code reaches for. Single channel, no handshake, scoped to one window's content.
 - **Connection bridge** (`desktop-mode-bridge-*`) — multi-connection peer-to-peer with handshakes, used by `wp.desktop.connect()` / `wp.desktop.iframe.requestConnection()`.
 
 Both sides validate `event.origin` against `window.location.origin` (or the iframe URL's resolved origin for `iframeContent` synthesised iframes); messages without a recognized prefix are dropped.
@@ -62,30 +62,30 @@ Both sides validate `event.origin` against `window.location.origin` (or the ifra
 
 Native (non-iframe) windows skip postMessage entirely — `Window.send` and the render's `windowApi.send` reach the parent / native channel-bus registries directly. Plugin authors don't need to know the window's render strategy; the framework picks the right delivery path.
 
-### Content-identity announcement — `desktop-mode-content-identity` *(since 0.9.4)*
+### Content-identity announcement — `desktop-mode-content-identity`
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-content-identity` | iframe → parent | `{ identity: WindowContentRef \| null }` | Which object this admin page shows — `{ type, id, label?, root?, links?, related? }`, resolved server-side in real admin context (post/page/CPT editors are roots and carry their content's internal hyperlinks as `links`; comment-edit and attached-media screens arrive pre-rooted at their parent post; the `desktop_mode_window_content_identity` PHP filter extends detection). `related` *(since 0.9.6)* carries the ready-to-open navigation targets behind the title bar's "Related" button — `{ id, group, label, url, groupLabel?, icon?, count? }` entries built for posts/pages and filterable via `desktop_mode_window_related_entities`. Feeds `wp.desktop.relations` and the window-link visuals. |
+| `desktop-mode-content-identity` | iframe → parent | `{ identity: WindowContentRef \| null }` | Which object this admin page shows — `{ type, id, label?, root?, links?, related? }`, resolved server-side in real admin context (post/page/CPT editors are roots and carry their content's internal hyperlinks as `links`; comment-edit and attached-media screens arrive pre-rooted at their parent post; the `desktop_mode_window_content_identity` PHP filter extends detection). `related` carries the ready-to-open navigation targets behind the title bar's "Related" button — `{ id, group, label, url, groupLabel?, icon?, count? }` entries built for posts/pages and filterable via `desktop_mode_window_related_entities`. Feeds `wp.desktop.relations` and the window-link visuals. |
 
 Emitted on **every** chromeless page load, **including `identity: null`** — a full-page navigation away from an identified screen must clear the stale identity, and since every iframe navigation re-runs `admin_footer`, that same emission doubles as the re-announce-on-navigate path. It fires at the very TOP of the bridge script (right after the top-frame escape hatch, before any feature block) so a page-specific runtime failure elsewhere in the bridge can never cost the shell its window relations — unlike `desktop-mode-ready`, which intentionally posts last.
 
-**Re-announced after block-editor saves** *(since 0.9.6)*: Gutenberg saves over REST without navigating, so the bridge also watches the `core/editor` save lifecycle and, after every real (non-autosave) save, refetches a server-recomputed identity from `GET /desktop-mode/v1/content-identity?post={id}` (capability-gated to `edit_post`; both identity filters run there with `$screen = null`) and posts this same message again. The parent engine diffs repeats, so identical re-announcements are free. See [`docs/examples/window-links.md`](./examples/window-links.md).
+**Re-announced after block-editor saves**: Gutenberg saves over REST without navigating, so the bridge also watches the `core/editor` save lifecycle and, after every real (non-autosave) save, refetches a server-recomputed identity from `GET /desktop-mode/v1/content-identity?post={id}` (capability-gated to `edit_post`; both identity filters run there with `$screen = null`) and posts this same message again. The parent engine diffs repeats, so identical re-announcements are free. See [`docs/examples/window-links.md`](./examples/window-links.md).
 
-**Save broadcast** *(since 0.9.7)*: on the same save-success edge the watcher also posts an upstream `{ type: 'desktop-mode-broadcast', topic: 'desktop-mode.<postType>.changed', payload: { source: 'editor', action: 'created' | 'updated', ids: [ postId ] } }` to the parent, which fans it out to every window — list windows showing that type refresh instantly. `action` is `'created'` exactly when the post was still new on the tick the save started. This is the block editor's leg of the content-change realtime layer (`includes/content-changes.php`); form-POST → redirect flows are covered server-side by the chromeless-footer emitter instead. The iframe-side consumer is the soft-reload handler: `edit.php` / `upload.php` / `edit-comments.php` are matched generically by list type, and non-standard list screens (the HPOS `wc-orders` list) are declared via the PHP-printed `/*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/` placeholder, filterable server-side through `desktop_mode_soft_reload_rules`.
+**Save broadcast**: on the same save-success edge the watcher also posts an upstream `{ type: 'desktop-mode-broadcast', topic: 'desktop-mode.<postType>.changed', payload: { source: 'editor', action: 'created' | 'updated', ids: [ postId ] } }` to the parent, which fans it out to every window — list windows showing that type refresh instantly. `action` is `'created'` exactly when the post was still new on the tick the save started. This is the block editor's leg of the content-change realtime layer (`includes/content-changes.php`); form-POST → redirect flows are covered server-side by the chromeless-footer emitter instead. The iframe-side consumer is the soft-reload handler: `edit.php` / `upload.php` / `edit-comments.php` are matched generically by list type, and non-standard list screens (the HPOS `wc-orders` list) are declared via the PHP-printed `/*__DESKTOP_MODE_SOFT_RELOAD_EXTRAS__*/` placeholder, filterable server-side through `desktop_mode_soft_reload_rules`.
 
 ### Connection bridge — `desktop-mode-bridge-*`
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-bridge-handshake` | parent → iframe | `{ connectionId, targetWindowId, topics }` | Open a new connection. Iframe must ack before parent flushes its message queue. The `targetWindowId` (since 0.8.8) is the host window's id — the iframe stores it for `wp.desktop.iframe.windowId` / `whenWindowId()`. |
+| `desktop-mode-bridge-handshake` | parent → iframe | `{ connectionId, targetWindowId, topics }` | Open a new connection. Iframe must ack before parent flushes its message queue. The `targetWindowId` is the host window's id — the iframe stores it for `wp.desktop.iframe.windowId` / `whenWindowId()`. |
 | `desktop-mode-bridge-handshake-ack` | iframe → parent | `{ connectionId }` | Iframe acknowledges. Parent fires `HOOKS.CONNECTION_OPENED` + flushes. |
 | `desktop-mode-bridge-publish` | both ways | `{ connectionId, topic, payload }` | Pub/sub message. Wildcard subscribers (`'*'`) see every topic. |
 | `desktop-mode-bridge-disconnect` | both ways | `{ connectionId }` | Tear the connection down. Idempotent. |
 | `desktop-mode-bridge-connection-request` | iframe → parent | `{ requestId, topics }` | `wp.desktop.iframe.requestConnection()`. Parent fires `HOOKS.IFRAME_CONNECTION_REQUEST` filter; default accept. |
 | `desktop-mode-bridge-connection-ack` | parent → iframe | `{ requestId, accepted, connectionId? \| reason? }` | Reply to a request — accepts hand back the new connection id, rejects supply a reason. |
 
-When the connection bridge targets a **native** window (since 0.5.5), no postMessages are exchanged — `connect()` opens synchronously and `conn.send/subscribe` route through the same in-process channel bus that powers `Window.send/on`. Same `onOpen` / `isOpen` / `disconnect` semantics, no observable difference to the caller.
+When the connection bridge targets a **native** window, no postMessages are exchanged — `connect()` opens synchronously and `conn.send/subscribe` route through the same in-process channel bus that powers `Window.send/on`. Same `onOpen` / `isOpen` / `disconnect` semantics, no observable difference to the caller.
 
 ### OS-file drop forwarder — `desktop-mode-os-file-drop`
 
@@ -102,17 +102,13 @@ The forwarder listens in **bubble phase** at the iframe's `document`, so any in-
 
 Only drops where neither bail fires (the empty page background, or an inner handler that never called `preventDefault()`) escalate to the shell.
 
-### Drag-hover heartbeat — `desktop-mode-drag-hover`
-
-*(since 0.9.4)* Native drag events don't cross iframe boundaries, so when the user holds any drag (an OS file, an image lifted off another admin page, a text selection) over an iframe window, the parent shell can't see the hover. Both bridges (inline chromeless + standalone) forward a throttled heartbeat while `dragover` fires inside the iframe, so the shell's focus-on-drag-hover module can raise the hovered window after its ~250 ms dwell (see the `desktop-mode.window.focus-on-drag-hover` filter in `javascript-reference.md`).
+### Drag-hover heartbeat — `desktop-mode-drag-hover` Native drag events don't cross iframe boundaries, so when the user holds any drag (an OS file, an image lifted off another admin page, a text selection) over an iframe window, the parent shell can't see the hover. Both bridges (inline chromeless + standalone) forward a throttled heartbeat while `dragover` fires inside the iframe, so the shell's focus-on-drag-hover module can raise the hovered window after its ~250 ms dwell (see the `desktop-mode.window.focus-on-drag-hover` filter in `javascript-reference.md`).
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
 | `desktop-mode-drag-hover` | iframe → parent | `{ payloadType: 'os-file' \| 'external' }` | "A drag is currently hovering me." Throttled to one message per 150 ms. Purely observational — the forwarder never calls `preventDefault()` and carries no coordinates or payload data; the parent resolves the hovered window from `MessageEvent.source` (the sender iframe **is** the hovered window). The parent resets its hover state when heartbeats stop (~1 s watchdog), so no end message exists or is needed. |
 
-### Pre-close unsaved-changes query — `desktop-mode-bridge-beforeunload-*`
-
-*(since 0.9.4)* Before tearing down an iframe-backed (non-native) window, `Window.close()` gives the page inside a chance to veto — the same protection a real browser tab close gets from the page's `beforeunload` handler, which a same-origin admin iframe never triggers on its own (there's no real navigation happening).
+### Pre-close unsaved-changes query — `desktop-mode-bridge-beforeunload-*` Before tearing down an iframe-backed (non-native) window, `Window.close()` gives the page inside a chance to veto — the same protection a real browser tab close gets from the page's `beforeunload` handler, which a same-origin admin iframe never triggers on its own (there's no real navigation happening).
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
@@ -128,13 +124,11 @@ Flow:
 
 Native windows are untouched — they still use the synchronous `desktop-mode.native-window.before-close` filter (see [`javascript-reference.md`](./javascript-reference.md#native-window-lifecycle)), not this postMessage round-trip.
 
-### Session re-auth nudge — `desktop-mode-reauth-detected`
-
-*(since 0.8.3)* Every chromeless iframe runs its own Heartbeat, and each heartbeat response carries core's `wp-auth-check` boolean (attached server-side, independent of whether the modal JS is loaded — chromeless iframes have the modal suppressed so the parent shell owns the single login prompt). When an iframe's heartbeat sees the flag flip `false → true` — the user re-authenticated somewhere — the bridge nudges the parent before reloading itself, so the shell's recovery (`src/auth-recovery/index.ts`) starts immediately instead of waiting out the parent's own heartbeat schedule.
+### Session re-auth nudge — `desktop-mode-reauth-detected` Every chromeless iframe runs its own Heartbeat, and each heartbeat response carries core's `wp-auth-check` boolean (attached server-side, independent of whether the modal JS is loaded — chromeless iframes have the modal suppressed so the parent shell owns the single login prompt). When an iframe's heartbeat sees the flag flip `false → true` — the user re-authenticated somewhere — the bridge nudges the parent before reloading itself, so the shell's recovery (`src/auth-recovery/index.ts`) starts immediately instead of waiting out the parent's own heartbeat schedule.
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-reauth-detected` | iframe → parent | *(none)* | "My heartbeat just saw the session come back." The parent forces a tick of its own (fresh nonces ride it), sweeps a reload over the other iframes, and fires `desktop-mode-auth-restored` (see [`javascript-reference.md`](./javascript-reference.md#session-expiry--recovery-stable-since-098)). Recovery is cooldown-gated, so the one-message-per-open-window fan-in collapses into a single run. |
+| `desktop-mode-reauth-detected` | iframe → parent | *(none)* | "My heartbeat just saw the session come back." The parent forces a tick of its own (fresh nonces ride it), sweeps a reload over the other iframes, and fires `desktop-mode-auth-restored` (see [`javascript-reference.md`](./javascript-reference.md#session-expiry--recovery-stable)). Recovery is cooldown-gated, so the one-message-per-open-window fan-in collapses into a single run. |
 
 ## Lifecycle walkthrough — parent-initiated connection
 
@@ -146,7 +140,7 @@ Native windows are untouched — they still use the synchronous `desktop-mode.na
 6. Iframe's bridge handler receives the handshake, stores the connection in its own `connections` map, posts `desktop-mode-bridge-handshake-ack` back.
 7. Parent's `routeIncomingFromIframe` receives the ack, dispatches to the connection's `_handleIframeMessage`, which:
    - Sets `isOpen = true`.
-   - Fires `HOOKS.CONNECTION_OPENED` with `{ connectionId, targetWindowId, topics, connection }`. The `connection` field (since 0.8.8) is the live `WindowConnection` — plug in `.subscribe()` directly from the hook handler without an extra `wp.desktop.getConnection(id)` round-trip.
+   - Fires `HOOKS.CONNECTION_OPENED` with `{ connectionId, targetWindowId, topics, connection }`. The `connection` field is the live `WindowConnection` — plug in `.subscribe()` directly from the hook handler without an extra `wp.desktop.getConnection(id)` round-trip.
    - Calls `opts.onOpen?.()`.
    - Drains the queue with `flushQueue()` — every queued message becomes a real `postMessage`.
 8. Iframe receives the publishes, looks up subscribers in `subs`, calls each in turn.
@@ -188,7 +182,7 @@ Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispat
 
 1. **Native-window remap** — the URL goes through `tryNativeUrlRemap`. On a hit the parent opens the native window and closes the source iframe so the brief in-flight nav never paints.
 2. **Same-slug click** — `deriveWindowId(url, adminUrl)` matches the source window's `baseId`. The parent calls `iframe.contentWindow.location.assign(url)`, which navigates the iframe in place AND adds a session-history entry. Pagination, list filtering, and per-window tab strips ride this path.
-3. **Cross-slug click** — slug differs from the source. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry. When no dock tile owns the destination, the title falls back to the `label` from the message (the clicked link's visible text), then to the derived slug as a last resort. The source iframe is left untouched, so the user keeps both contexts. When a window for the destination slug is *already open*, `open()`'s URL-aware reuse *(since 0.9.4)* applies: if the clicked URL isn't what that window is showing (nor its home / dock landing URL), the existing window's iframe navigates to it in place — so an action URL like the post-install `plugins.php?action=activate&plugin=…&_wpnonce=…` link actually runs instead of being dropped by a bare focus.
+3. **Cross-slug click** — slug differs from the source. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry. When no dock tile owns the destination, the title falls back to the `label` from the message (the clicked link's visible text), then to the derived slug as a last resort. The source iframe is left untouched, so the user keeps both contexts. When a window for the destination slug is *already open*, `open()`'s URL-aware reuse applies: if the clicked URL isn't what that window is showing (nor its home / dock landing URL), the existing window's iframe navigates to it in place — so an action URL like the post-install `plugins.php?action=activate&plugin=…&_wpnonce=…` link actually runs instead of being dropped by a bare focus.
 
 Modifier-key clicks (cmd / ctrl / shift / alt, middle-click, `target="_blank"`, `target` other than `_self`, `download` attribute) short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab path runs unchanged.
 
@@ -196,7 +190,7 @@ Links owned by core's `wp-admin/js/updates.js` are also left alone: the card-sty
 
 Forms submit through a separate `submit` listener that only rewrites the action URL (to keep `desktop_mode_chromeless=1`) and never `preventDefault`s. Same-origin form posts to a different page would currently navigate the iframe in place; if that becomes a UX problem it can join this protocol as a `desktop-mode-iframe-admin-form-submit` message.
 
-## Activity-footprint launcher inside chromeless iframes — Stable *(since 0.9.1)*
+## Activity-footprint launcher inside chromeless iframes — Stable
 
 The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `desktop_mode_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the **My WordPress** native window, *without* closing the Users list.
 
@@ -269,7 +263,7 @@ wp.desktop.iframe.publish( 'editor:content', html );
 
 The predicate accesses `window.parent.location.origin` inside a try/catch — cross-origin parents throw on the access. Cheap, no postMessage round-trip. Use it before wiring expensive subscriptions or showing UI that promises cross-window behavior.
 
-## Cross-window drag bridge — Stable *(since 0.6.0)*
+## Cross-window drag bridge — Stable
 
 A separate channel from the connection bridge. Where the connection bridge carries app-level pub/sub between a window and its iframe, the **drag bridge** carries an in-flight drag payload between the parent shell and ALL same-origin iframes — receivers don't need to be "connected" to receive it.
 

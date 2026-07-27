@@ -5,8 +5,6 @@
  * `desktop_mode_notes` deltas back to the layer. Same shape as the
  * sticky-notes heartbeat (`src/sticky-notes/heartbeat.ts`); server
  * side in `includes/notes/heartbeat.php`.
- *
- * @since 0.9.6
  */
 
 import { heartbeat } from '../heartbeat';

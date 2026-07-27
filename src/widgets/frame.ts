@@ -15,8 +15,6 @@
  * and the pointer math don't pile up in one file. The frame knows
  * nothing about localStorage — it calls back via `handlers` so the
  * layer can persist + fire hooks at the right moments.
- *
- * @since 0.8.0
  */
 
 import { __, sprintf } from '../i18n';
@@ -316,8 +314,7 @@ function buildRedockButton(
 }
 
 function buildCornerClose( def: WidgetDef, onRemove: () => void ): HTMLElement {
-	// Non-movable widgets keep today's top-right floating × — unchanged
-	// from the pre-0.8 layout.
+	// Non-movable widgets keep the top-right floating ×.
 	const close = buildCloseButton( def, onRemove );
 	close.classList.add( 'desktop-mode-widgets__card-close--corner' );
 	return close;

@@ -17,7 +17,6 @@
  * screens where this dialog is allowed to appear.
  *
  * @package Desktop_Mode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -48,8 +47,6 @@ const DESKTOP_MODE_WELCOME_INTRO_SLUG = 'activation-welcome';
  *    sites can suppress the dialog entirely (e.g. managed-host onboarding
  *    flows that ship their own).
  *
- * @since 0.8.2
- *
  * @return bool
  */
 function desktop_mode_should_show_welcome_dialog() {
@@ -76,8 +73,6 @@ function desktop_mode_should_show_welcome_dialog() {
 	 * (admin context, capability, chromeless, seen-state) have
 	 * already passed by the time this filter fires.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param bool $show    Whether to render the dialog. Default true.
 	 * @param int  $user_id Current user ID.
 	 */
@@ -92,8 +87,6 @@ function desktop_mode_should_show_welcome_dialog() {
  * `.desktop-mode-welcome` namespace so it cannot collide with the host
  * admin theme. The dismiss button POSTs to the seen-intros REST route,
  * which is exactly the same endpoint the in-shell intros use.
- *
- * @since 0.8.2
  */
 function desktop_mode_render_welcome_dialog() {
 	if ( ! desktop_mode_should_show_welcome_dialog() ) {

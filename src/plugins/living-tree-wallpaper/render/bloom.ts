@@ -5,8 +5,6 @@
  * around a warm centre, drawn once into a shared texture and tinted per
  * flower. Flowers breathe: a slow scale pulse phased per flower. See
  * `docs/living-tree-algorithm.md` §A.8.
- *
- * @since 0.9.4
  */
 
 import type { PixiContainer, PixiNamespace, PixiSprite, PixiTexture } from '../pixi-types';

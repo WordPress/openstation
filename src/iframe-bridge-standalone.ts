@@ -26,8 +26,6 @@
  *   - `assets/js/iframe-bridge.min.js` (production)
  *
  * **Do not hand-edit the built JS — only this TS source.**
- *
- * @since 0.5.2
  */
 
 interface ConnectionRecord {
@@ -62,8 +60,6 @@ interface RequestConnectionOptions {
  * `registerWindowSlot()` registration. That asymmetry is by
  * design: a malicious or buggy iframe can't smuggle script into
  * the parent shell DOM.
- *
- * @since 0.6.0
  */
 interface IframeChromeApi {
 	setTheme( tokens: Record< string, string > | null ): void;
@@ -89,15 +85,11 @@ interface IframeApi {
 	 * had to do parent-side; iframe code can now self-identify
 	 * (e.g. `wp.desktop.iframe.publish('focus-changed', {windowId:
 	 * wp.desktop.iframe.windowId})`).
-	 *
-	 * @since 0.8.8
 	 */
 	readonly windowId: string | null;
 	/**
 	 * Resolve once `windowId` is populated by the first handshake.
 	 * Resolves immediately if already known.
-	 *
-	 * @since 0.8.8
 	 */
 	whenWindowId(): Promise< string >;
 	/**
@@ -126,8 +118,6 @@ interface IframeApi {
 	 *     throws). Includes most Gutenberg `srcdoc` canvases that
 	 *     inherited a different origin, sandboxed iframes, PWA
 	 *     wrappers loading desktop-mode in a foreign frame.
-	 *
-	 * @since 0.8.8
 	 */
 	isParentReachable(): boolean;
 }
@@ -669,8 +659,6 @@ interface IframeWp {
 	 * Sending the OTHER way (`wp.desktop.send( channel, payload )`)
 	 * posts a `desktop-mode-window-publish` message up to the parent,
 	 * where every `Window.on( channel, cb )` subscriber fires.
-	 *
-	 * @since 0.5.5
 	 */
 	if ( typeof w.wp.desktop.send !== 'function' ) {
 		w.wp.desktop.send = ( channel: string, payload?: unknown ): void => {

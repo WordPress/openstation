@@ -3,8 +3,6 @@
  * orchestration: `/oauth/start` POST, popup open, postMessage
  * resolution, popup-closed-without-callback rejection, origin
  * validation.
- *
- * @since 0.8.2
  */
 import {
 	afterEach,

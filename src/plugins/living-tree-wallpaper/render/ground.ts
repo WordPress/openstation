@@ -17,8 +17,6 @@
  * uses: a thriving site stands in green meadow, a neglected one in dry
  * straw. Layout draws from its own seeded PRNG (`<seed>|ground`) so the
  * meadow is stable per site without touching the skeleton's stream.
- *
- * @since 0.9.4
  */
 
 import { hash32, mulberry32 } from '../rng';

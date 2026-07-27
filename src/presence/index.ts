@@ -26,8 +26,6 @@
  * <bool>` on every tick; the server (`includes/presence.php`)
  * records the bump and returns a snapshot in the response, which
  * lands in the shared store.
- *
- * @since 0.5.5
  */
 
 import { activity } from '../activity';
@@ -276,8 +274,6 @@ export function _resetPresenceForTests(): void {
  * mirroring the heartbeat-driven path. `lastSeenMs` and
  * `lastActiveMs` are optional — when omitted, the existing
  * timestamps are preserved (the writer doesn't always know them).
- *
- * @since 0.5.5
  */
 export function applyPresenceBatch(
 	updates: Array< {

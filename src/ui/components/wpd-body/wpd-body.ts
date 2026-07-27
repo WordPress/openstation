@@ -32,8 +32,6 @@
  * section inside a body (think card, settings group). wpd-body is
  * the outer container that fills the window. The two compose
  * naturally — a body hosts one or more panels.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

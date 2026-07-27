@@ -18,8 +18,6 @@
  * concurrent live previews are capped at {@link MAX_LIVE_PREVIEWS};
  * tiles beyond the cap keep their CSS fallback until a slot frees up
  * (scroll-away, tab switch).
- *
- * @since 0.9.5
  */
 
 import { applyFilters, HOOKS } from '../../hooks';

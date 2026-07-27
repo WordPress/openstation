@@ -64,8 +64,6 @@
  * - `clearErrors(): void` — clears the top error and every per-field invalid mark
  * - `reset(): void` — restores every field to its initial-load value, fires `wpd-form-reset`
  * - `submit(): void` — programmatic submit (same path as the button click)
- *
- * @since 0.8.1
  */
 
 import {

@@ -13,8 +13,6 @@
  *      `src/os-file-drop/`).
  *
  * Activated once on boot from `src/desktop-files/index.ts`.
- *
- * @since 0.9.6
  */
 
 import { addFilter } from '../hooks';

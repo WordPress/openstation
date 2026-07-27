@@ -14,8 +14,6 @@
  * through the `wp.desktop` global shim (`getOsSettings` /
  * `updateOsSettings`), never through imported module state, so the
  * copy compiled here can't drift from the main bundle.
- *
- * @since 0.9.7
  */
 
 import { openItemVisibilityMenu } from './item-visibility-menu';

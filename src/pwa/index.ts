@@ -15,8 +15,6 @@
  * Notifications (`wp.desktop.notify`) don't need bootstrap — they
  * lazy-request permission on first call. Exported here for the
  * public-API barrel.
- *
- * @since 0.8.0
  */
 
 import type { DesktopConfig } from '../types';

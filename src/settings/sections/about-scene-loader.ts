@@ -10,8 +10,6 @@
  * (`config.aboutSceneBundleUrl`), built server-side so the
  * `SCRIPT_DEBUG` choice between `.js` and `.min.js` and the
  * `?ver=DESKTOP_MODE_VERSION` cache-buster stay in PHP.
- *
- * @since 0.8.4
  */
 
 import type { AboutScene, SceneOptions } from './about-scene';

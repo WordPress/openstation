@@ -1,8 +1,8 @@
 # Example: native Posts window
 
-A `<wpd-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-IN Beta as of 0.9.1** (was opt-out in 0.8.0–0.9.0) — fresh installs use the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
+A `<wpd-table>`-driven replacement for the chromeless `edit.php` iframe. Server-paginated, sortable, filterable, multi-select bulk-trash, sub-row excerpt + featured image. **Opt-in Beta** — fresh installs use the classic iframe; users turn it on via **OS Settings → Features → Beta features → Use the native Posts window**. The dock tile stays where it is; only the destination changes.
 
-> Status: **Experimental** since 0.8.0. Hook names are stable; the JS column-filter shape may grow.
+> Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 
 ## How the swap works
 
@@ -28,7 +28,7 @@ Future native windows (Pages, Media, Users) register themselves with one line �
 
 ## Register your own URL → native-window remap
 
-> Status: **Planned** — `wp.desktop.registerNativeUrlRemap` is not yet exposed on the public `wp.desktop` surface (as of 0.9.1 it remains internal). The snippet below shows the intended shape.
+> Status: **Planned** — `wp.desktop.registerNativeUrlRemap` is not yet exposed on the public `wp.desktop` surface (it remains internal). The snippet below shows the intended shape.
 
 ```js
 const unsub = wp.desktop.registerNativeUrlRemap( {

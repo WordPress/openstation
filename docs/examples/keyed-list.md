@@ -1,6 +1,6 @@
 # Render a list without losing clicks — `renderKeyedList()`
 
-**Stable** — shipped 0.6.0.
+**Stable.**
 
 If your plugin paints a list (chat rows, log entries, badges, search
 results, anything observable) into a DOM container, and the data can

@@ -16,8 +16,6 @@
  * before constructing the elements. The public API stays
  * synchronous (still returns a dismiss callback) so callers don't
  * change.
- *
- * @since 0.7.0
  */
 
 import { activity } from './activity';
@@ -54,23 +52,17 @@ export interface ToastOptions {
 	 * When `true`, the toast never auto-dismisses — it stays until the
 	 * action button is clicked or the returned dismiss function is
 	 * called. Overrides `duration`.
-	 *
-	 * @since 0.9.4
 	 */
 	persistent?: boolean;
 	/**
 	 * When `true`, renders a close (×) button that dismisses the toast.
 	 * Pair it with `persistent` so the user has a way to close a toast
 	 * that would otherwise never leave.
-	 *
-	 * @since 0.9.4
 	 */
 	dismissible?: boolean;
 	/**
 	 * Called when the user dismisses the toast via the close button —
 	 * e.g. to persist the dismissal so it doesn't reappear.
-	 *
-	 * @since 0.9.4
 	 */
 	onDismiss?: () => void;
 }
@@ -83,8 +75,6 @@ export interface ToastOptions {
  * publishing app's context — useful for filters that want to
  * make policy decisions per-source ("ignore toasts from
  * messages while DND is on", etc.).
- *
- * @since 0.5.5
  */
 export interface ToastIntent extends ToastOptions {
 	/**

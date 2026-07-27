@@ -431,8 +431,6 @@ let _lastConfirmedState: OsSettingsState | null = null;
 /**
  * Prime the rollback baseline. Called once after `loadState()` so
  * the FIRST failed save still has somewhere to roll back to.
- *
- * @since 0.8.0
  */
 export function setLastConfirmedState( state: OsSettingsState ): void {
 	_lastConfirmedState = _cloneState( state );
@@ -613,8 +611,6 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
  * canonical example) replace their state with this snapshot and
  * re-render so the controls visually revert to the last-confirmed
  * values, not the optimistic ones the user just attempted.
- *
- * @since 0.8.0
  */
 export type OsSettingsSavePhase = 'pending' | 'saving' | 'saved' | 'failed';
 

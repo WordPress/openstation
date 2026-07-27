@@ -12,8 +12,6 @@
  * Shared via `wp.desktop.createSharedStore` (see CLAUDE.md
  * "Cross-bundle state") so the same module loaded into different
  * bundles is the single source of truth.
- *
- * @since 0.9.0
  */
 
 interface SharedStoreApi< T > {

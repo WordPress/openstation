@@ -14,15 +14,12 @@
  * arrives via the framework-injected `wordsUrl` config key.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * The Alphabet Soup icon: a steaming bowl with letter tiles afloat.
- *
- * @since 0.9.8
  *
  * @return string Raw `<svg>` markup.
  */
@@ -44,8 +41,6 @@ function desktop_mode_alphabet_soup_icon_svg() {
  * Register Alphabet Soup with the games registry on `init`.
  *
  * Priority 20 — alongside the Games window registration.
- *
- * @since 0.9.8
  */
 function desktop_mode_alphabet_soup_register() {
 	if ( ! function_exists( 'desktop_mode_games_user_can_use' ) || ! desktop_mode_games_user_can_use() ) {
@@ -78,8 +73,6 @@ add_action( 'init', 'desktop_mode_alphabet_soup_register', 20 );
  * Enqueue the Alphabet Soup window styles. The game's script is
  * lazily loaded by the framework on first launch, but its CSS is
  * tiny and must already be present when the window opens.
- *
- * @since 0.9.8
  */
 function desktop_mode_alphabet_soup_enqueue_styles() {
 	if ( ! function_exists( 'desktop_mode_games_user_can_use' ) || ! desktop_mode_games_user_can_use() ) {

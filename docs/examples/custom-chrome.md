@@ -1,6 +1,6 @@
 # Custom window chrome (Experimental)
 
-> **Status: Experimental since 0.6.0.** The chrome render contract may change in future minor versions. Layers 1-3 ([Window themes](./window-theme.md), [Window controls](./window-controls.md), [Window slots](./window-slot.md)) cover 95%+ of practical customization by composition — reach for Layer 4 only when you need to draw a fundamentally different title-bar architecture.
+> **Status: Experimental.** The chrome render contract may change in future minor versions. Layers 1-3 ([Window themes](./window-theme.md), [Window controls](./window-controls.md), [Window slots](./window-slot.md)) cover 95%+ of practical customization by composition — reach for Layer 4 only when you need to draw a fundamentally different title-bar architecture.
 
 A **chrome** owns the title-bar DOM tree of any window that selects it via `WindowConfig.appearance.chrome`. The framework still owns drag, focus, resize, lifecycle, position persistence, and the postMessage bridge — your render only controls the title bar's interior.
 

@@ -5,8 +5,6 @@
  * ~2–3 kB leaf of the always-on shell bundle. No lit, no `<wpd-*>`
  * imports — the heavy picker UI lives in the lazy OS Settings panel
  * bundle instead.
- *
- * @since 0.9.7
  */
 
 /**
@@ -17,7 +15,6 @@
  * instead, because there is no file to link.
  *
  * @public
- * @since 0.9.7
  */
 export interface DesktopThemeEntry {
 	/** Manifest id — `neon-glass` or `vendor/neon-glass`. */
@@ -45,8 +42,6 @@ export interface DesktopThemeEntry {
 	 * de-duplicated across weights. Informational — the compiled
 	 * stylesheet carries the `@font-face` rules that actually load
 	 * them. Empty for a theme that ships no fonts.
-	 *
-	 * @since 0.9.8
 	 */
 	fonts: string[];
 	/**
@@ -62,8 +57,6 @@ export interface DesktopThemeEntry {
 	 * present in it is painted as a tinted CSS mask (images) or with
 	 * that `color` (dashicons). The literal `currentColor` defers to
 	 * whatever the surface is already using for text.
-	 *
-	 * @since 0.9.8
 	 */
 	iconColors: Record< string, string >;
 	/** Unix timestamp of installation (uploads only; `0` for code). */
@@ -89,8 +82,6 @@ export interface DesktopThemeState {
 	/**
 	 * Icon tint map of the active theme, or `null` when unthemed.
 	 * Same null-is-the-fast-path contract as {@link activeIcons}.
-	 *
-	 * @since 0.9.8
 	 */
 	activeIconColors: Record< string, string > | null;
 }

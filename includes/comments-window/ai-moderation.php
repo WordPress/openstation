@@ -33,7 +33,6 @@
  *     an AI provider — it just stays inert.
  *
  * @package WPDesktopMode
- * @since   0.8.3
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -43,8 +42,6 @@ const DESKTOP_MODE_COMMENTS_AI_OPTION = 'desktop_mode_comments_ai_moderation';
 
 /**
  * Returns whether AI moderation for new comments is currently enabled.
- *
- * @since 0.8.3
  *
  * @return bool
  */
@@ -57,8 +54,6 @@ function desktop_mode_comments_ai_is_enabled() {
 	 * `desktop_mode_comments_ai_moderation` site option — useful for
 	 * gating by environment (staging vs. production) or by feature
 	 * flag.
-	 *
-	 * @since 0.8.3
 	 *
 	 * @param bool $enabled Current option value.
 	 */
@@ -80,8 +75,6 @@ function desktop_mode_comments_ai_is_enabled() {
  * This is the sole scheduler for comment analysis: the assistant being
  * enabled no longer triggers analysis on its own (comment scoring is an
  * opt-in Comments-window feature, off by default).
- *
- * @since 0.8.3
  *
  * @param int $comment_id The comment id (from `wp_insert_comment` or `edit_comment`).
  */
@@ -141,8 +134,6 @@ add_action( 'edit_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
  * Re-analysis happens automatically on `edit_comment`, so the meta
  * stays fresh under normal moderation flows.
  *
- * @since 0.8.3
- *
  * @param int        $score   Default heuristic score (0–100).
  * @param WP_Comment $comment Comment object.
  * @return int Adjusted score, clamped to 0–100.
@@ -187,8 +178,6 @@ add_filter(
  * on the site has wired up an API key. It's a UX cue — the toggle
  * stays writable even when it's `false` so an admin who's about to
  * configure the provider can flip this on first.
- *
- * @since 0.8.3
  */
 function desktop_mode_comments_ai_register_rest_route() {
 	register_rest_route(
@@ -223,8 +212,6 @@ add_action( 'rest_api_init', 'desktop_mode_comments_ai_register_rest_route' );
 /**
  * REST GET handler — returns the current state + provider hint.
  *
- * @since 0.8.3
- *
  * @return WP_REST_Response
  */
 function desktop_mode_comments_ai_rest_get() {
@@ -240,8 +227,6 @@ function desktop_mode_comments_ai_rest_get() {
 /**
  * REST POST handler — updates the toggle.
  *
- * @since 0.8.3
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response
  */
@@ -251,8 +236,6 @@ function desktop_mode_comments_ai_rest_post( WP_REST_Request $request ) {
 
 	/**
 	 * Fires after the Comments AI moderation toggle is changed.
-	 *
-	 * @since 0.8.3
 	 *
 	 * @param bool $enabled New state.
 	 */
@@ -274,8 +257,6 @@ function desktop_mode_comments_ai_rest_post( WP_REST_Request $request ) {
  * ({@see desktop_mode_ai_provider_configured()}), which inspects the WordPress
  * AI Client's provider registry without making a network request. Returns
  * `false` when the AI Copilot bundle isn't loaded.
- *
- * @since 0.8.3
  *
  * @return bool
  */

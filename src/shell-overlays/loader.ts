@@ -21,8 +21,6 @@
  * load, `customElements.get( 'wpd-confirm-dialog' )` is
  * non-null; we use it as the canary because it's a single tag
  * with no compound siblings.
- *
- * @since 0.8.4
  */
 
 const CANARY_TAG = 'wpd-confirm-dialog';

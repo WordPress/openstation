@@ -10,7 +10,6 @@
  * second source of truth to keep in sync for no gain.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -18,8 +17,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Permission gate: the standard desktop-mode REST gate plus the
  * theme-management capability.
- *
- * @since 0.9.7
  *
  * @return true|WP_Error
  */
@@ -40,8 +37,6 @@ function desktop_mode_desktop_themes_rest_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.9.7
  */
 function desktop_mode_register_desktop_themes_rest_routes() {
 	register_rest_route(
@@ -75,8 +70,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_desktop_themes_rest_routes' 
 
 /**
  * POST /desktop-mode/v1/desktop-themes
- *
- * @since 0.9.7
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error The payload-shaped entry.
@@ -192,8 +185,6 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 
 /**
  * DELETE /desktop-mode/v1/desktop-themes/<slug>
- *
- * @since 0.9.7
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error

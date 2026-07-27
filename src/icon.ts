@@ -24,8 +24,6 @@
  *      one or two letters of `title`. Color is hashed deterministically
  *      from the title so the same plugin gets the same swatch
  *      across reloads.
- *
- * @since 0.6.0
  */
 
 import { hashTitleToHue } from './ui/util/hash-hue';
@@ -53,8 +51,6 @@ export interface RenderIconOptions {
 	 * a theme can turn a dashicon into a PNG or vice versa.
 	 *
 	 * Omit it and nothing about this function changes.
-	 *
-	 * @since 0.9.7
 	 */
 	slot?: string;
 }
@@ -66,7 +62,6 @@ export interface RenderIconOptions {
  * the result.
  *
  * @public
- * @since 0.6.0
  */
 export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement {
 	const className = opts.className ?? '';

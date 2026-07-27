@@ -1,6 +1,6 @@
 # The Living Tree — algorithm definition
 
-> **Status:** *Experimental (design + implementation landed 0.9.4).*
+> **Status:** *Experimental.*
 > This document is the normative source of truth for the `wp-living-tree`
 > canvas wallpaper. The implementation under
 > `src/plugins/living-tree-wallpaper/` mirrors it method-for-method — the

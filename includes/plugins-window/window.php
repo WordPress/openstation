@@ -16,15 +16,12 @@
  * filter) when customizing the layout.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Echoes the native Plugins window's template body.
- *
- * @since 0.9.0
  */
 function desktop_mode_plugins_window_render_template() {
 	$caps = desktop_mode_plugins_window_caps();
@@ -82,8 +79,6 @@ function desktop_mode_plugins_window_render_template() {
 	 * render callback can find its mount points, or rename them and
 	 * update the matching constants in `src/plugins-window/index.ts`.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_plugins_window_template_html', $html );
@@ -103,8 +98,6 @@ function desktop_mode_plugins_window_render_template() {
  * require an F5. The opt-in is a runtime check on the JS-side remap
  * (`enabled: ( s ) => s.nativePluginsEnabled === true` in
  * `src/desktop.ts`).
- *
- * @since 0.9.0
  */
 function desktop_mode_plugins_window_register_window() {
 	if ( ! desktop_mode_plugins_window_user_can_register() ) {
@@ -183,8 +176,6 @@ function desktop_mode_plugins_window_register_window() {
 
 	/**
 	 * Filter the args used to register the native Plugins window.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */

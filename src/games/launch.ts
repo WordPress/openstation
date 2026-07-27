@@ -22,8 +22,6 @@
  * onWindow, loadVendorScript) rather than direct imports so the
  * behavior is identical whether this module is compiled into the
  * main bundle or the games bundle.
- *
- * @since 0.9.6
  */
 
 import * as registry from './registry';

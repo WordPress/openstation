@@ -7,8 +7,6 @@
  * because WordPress's `rest_cookie_check_errors()` demotes a
  * cookie-only request to anonymous. The behavior is documented as
  * Stable so the cases below are load-bearing.
- *
- * @since 0.20.0
  */
 import {
 	afterEach,

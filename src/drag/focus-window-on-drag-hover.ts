@@ -57,8 +57,6 @@
  *
  * Plugins can veto per activation via the
  * `desktop-mode.window.focus-on-drag-hover` filter.
- *
- * @since 0.9.4
  */
 
 import { applyFilters, HOOKS } from '../hooks';
@@ -323,7 +321,6 @@ const onBridgeEnd = (): void => {
  * shell boot; the rest is driven by drag events.
  *
  * @public
- * @since 0.9.4
  *
  * @param host The WindowManager (or any object exposing `getById` +
  *             `focus`).

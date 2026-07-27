@@ -6,8 +6,6 @@
  * line; words render as ink text, with the matched prefix in an
  * accent color (two Text objects inside one container so we never
  * pay per-character Text until the tear effect).
- *
- * @since 0.9.6
  */
 
 import type {

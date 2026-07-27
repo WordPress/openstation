@@ -11,8 +11,6 @@
  * plain toast it already used as the no-art fallback.
  *
  * Publishes `window.desktopModeReleaseCard`.
- *
- * @since 0.9.7
  */
 
 import { showReleaseCard } from './release-card';

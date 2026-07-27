@@ -97,7 +97,7 @@ class Tests_DesktopMode_PostsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * Native Posts is opt-in Beta as of 0.10.0 — even a user with
+	 * Native Posts is opt-in Beta — even a user with
 	 * `edit_posts` gets the classic iframe until they turn the toggle
 	 * on. Opting in is what opens the gate.
 	 *

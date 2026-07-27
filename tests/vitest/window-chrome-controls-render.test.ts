@@ -75,7 +75,7 @@ afterEach( () => {
 
 describe( 'resolveWindowControls', () => {
 	test( 'returns built-ins in registered order for an iframe window', () => {
-		// `core/detach` + `core/reload` lived here until 0.6.2 — they
+		// `core/detach` + `core/reload` used to live here — they
 		// moved into the title-bar three-dots menu (see
 		// `src/window/dom.ts`). The cluster now ships four entries.
 		registerBuiltInControls();
@@ -207,7 +207,7 @@ describe( 'paintWindowControls', () => {
 		);
 
 		// minimize / maximize / focus-tab / close — detach + reload
-		// moved to the three-dots menu in 0.6.2.
+		// moved to the three-dots menu.
 		expect( host.children.length ).toBe( 4 );
 		expect( host.querySelector( '.desktop-mode-window__btn--close' ) ).not.toBeNull();
 		expect( host.querySelector( '.desktop-mode-window__btn--minimize' ) ).not.toBeNull();

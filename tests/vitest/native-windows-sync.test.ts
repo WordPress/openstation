@@ -216,7 +216,7 @@ describe( 'native-windows.createNativeWindowSync — live activation / deactivat
 	// `styleUrl` lazy injection — closes the gap where a peer plugin
 	// activated mid-session would render its window WITHOUT its CSS
 	// because the parent shell already finished `wp_print_styles`.
-	describe( 'styleUrl lazy injection (since 0.18.1)', () => {
+	describe( 'styleUrl lazy injection', () => {
 		beforeEach( () => {
 			// Strip prior <link>/<style> nodes the parent describe's
 			// harness/jsdom may have left in <head>; the lazy-loader's

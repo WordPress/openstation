@@ -31,8 +31,6 @@
  * notification, focuses an existing `/desktop-mode/` window client,
  * or opens `notification.data.url` (default `/desktop-mode/`) when
  * none exists.
- *
- * @since 0.8.0
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

@@ -5,8 +5,6 @@
  * endpoint so capability + validation rules match the rest-of-WP
  * source of truth. Insights come from our own
  * `/desktop-mode/v1/users/<id>/insights` endpoint.
- *
- * @since 0.8.1
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -111,8 +109,6 @@ export interface UserEditSaveResult {
 /**
  * Per-window User-edit REST client. Returned by
  * {@link createUserEditClient}.
- *
- * @since 0.8.3
  */
 export interface UserEditClient {
 	readonly windowId: string;
@@ -130,8 +126,6 @@ export interface UserEditClient {
 
 /**
  * Build a User-edit REST client bound to a single window id.
- *
- * @since 0.8.3
  */
 export function createUserEditClient(
 	windowId: string = 'desktop-mode-user-edit',

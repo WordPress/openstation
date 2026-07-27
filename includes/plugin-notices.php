@@ -8,7 +8,6 @@
  * case. Each entry is detached in-window and surfaced once in the shell, the
  * same pattern as the core notices.
  *
- * @since 0.9.6
  * @package DesktopMode
  */
 
@@ -17,8 +16,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The allowlisted plugin/library notices for the current user, as shell
  * descriptors (same shape as `desktop_mode_get_core_notices()`).
- *
- * @since 0.9.6
  *
  * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
@@ -40,8 +37,6 @@ function desktop_mode_get_plugin_notices() {
 	 * desktop shell. Return an empty array to suppress them all, or unset
 	 * individual entries by `id`.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array $notices List of notice descriptors.
 	 */
 	return apply_filters( 'desktop_mode_plugin_notices', $notices );
@@ -54,8 +49,6 @@ function desktop_mode_get_plugin_notices() {
  * repeats in every window). Re-derived here from Action Scheduler's own store,
  * mirroring `ActionScheduler_AdminView::check_pastdue_actions()` including its
  * filters, so the count matches what Action Scheduler would show.
- *
- * @since 0.9.6
  *
  * @return array|null
  */
@@ -128,8 +121,6 @@ function desktop_mode_plugin_notice_action_scheduler() {
  * Detaches the allowlisted plugin/library notices inside chromeless iframes so
  * they don't repeat in every window — the shell surfaces each once (see
  * `desktop_mode_get_plugin_notices()`).
- *
- * @since 0.9.6
  */
 function desktop_mode_chromeless_suppress_plugin_notices() {
 	if ( ! desktop_mode_is_chromeless_request() ) {

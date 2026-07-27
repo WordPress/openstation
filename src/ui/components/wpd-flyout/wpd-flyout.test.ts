@@ -5,8 +5,6 @@
  * Escape, `[data-flyout-close]` button, imperative `open`-removal,
  * each firing one unified `wpd-flyout-dismiss` event with a
  * `reason` discriminator. Cleanup on disconnect.
- *
- * @since 0.8.2
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 

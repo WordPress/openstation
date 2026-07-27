@@ -58,7 +58,6 @@
  * to a single class — it would lose the tie.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -73,7 +72,6 @@ defined( 'ABSPATH' ) || exit;
  * guarantees the result can never contain a quote, paren, or
  * whitespace that would break out of the `url("…")` wrapper.
  *
- * @since 0.9.7
  * @internal
  *
  * ## Why the `?ver=` matters
@@ -116,7 +114,6 @@ function desktop_mode_desktop_theme_asset_url( $ref, $base_url, $version = '' ) 
 /**
  * Wrap a resolved asset URL in a CSS `url()` function.
  *
- * @since 0.9.7
  * @internal
  *
  * @param string $url Absolute URL.
@@ -135,8 +132,6 @@ function desktop_mode_desktop_theme_css_url( $url ) {
  * `@font-face` rules are the exception and keep the author's order,
  * because for `unicodeRange`-subsetted faces of one family that
  * order is semantic.
- *
- * @since 0.9.7
  *
  * @param array  $manifest Sanitized manifest from
  *                         {@see desktop_mode_sanitize_desktop_theme_manifest()}.
@@ -274,7 +269,6 @@ function desktop_mode_desktop_theme_compile_css( $manifest, $slug, $base_url = '
  * `unicodeRange`-subsetted faces of the same family are matched in
  * source order).
  *
- * @since 0.9.8
  * @internal
  *
  * @param array  $manifest Sanitized manifest.

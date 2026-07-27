@@ -15,8 +15,6 @@
  *   parent.appendChild( el );
  *
  * `total` is auto-summed from `ratings` when omitted.
- *
- * @since 0.8.5
  */
 
 import { Component, defineComponent, html } from '../../core';

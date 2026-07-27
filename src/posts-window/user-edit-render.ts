@@ -18,7 +18,6 @@
  * handler sets it before invoking `openById`.
  *
  * @public
- * @since 0.8.1
  */
 
 import { __, _n, sprintf } from '../i18n';
@@ -132,7 +131,7 @@ interface WpdSelectElement extends HTMLElement {
 
 /**
  * Profile sub-tab in the Users window. The standalone-window
- * entry point was removed in 0.8.1 — see `mountProfileFormAt`,
+ * entry point was removed — see `mountProfileFormAt`,
  * `mountProfileAsideAt`, `mountProfileActivityAt` below for the
  * canonical mount surface.
  */
@@ -152,8 +151,6 @@ interface WpdSelectElement extends HTMLElement {
  * re-mounting redundantly. Idempotency is cheap (memoised on
  * the host element) so re-firing on a different user is the
  * canonical "switch user" gesture.
- *
- * @since 0.8.1
  */
 export async function mountProfileFormAt(
 	host: HTMLElement,
@@ -364,8 +361,8 @@ function mountProfileForm(
 	// the dropdown on `cfg.canPromote` because a strict gate hides
 	// the control for admins in any config that happens to omit
 	// the flag (older registrations, payloads that lost it through
-	// a filter). Always-render-for-non-self matches the pre-0.18
-	// behavior and is what plugin authors expect.
+	// a filter). Always-render-for-non-self is what
+	// plugin authors expect.
 	const isSelfEdit = userId === ( cfg.currentUserId ?? 0 );
 	// Prefer `assignableRoles` (the viewer's `editable_roles`) when
 	// the server sent it — surfacing only roles the viewer can

@@ -17,8 +17,6 @@
  * banner) only renders when `developerModeEnabled` is on — see OS
  * Settings → Features. Off by default so a regular admin opening
  * this tab doesn't see intentional console.error noise.
- *
- * @since 0.5.1
  */
 
 import { __ } from '../../i18n';

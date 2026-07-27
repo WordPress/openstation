@@ -16,8 +16,6 @@
  * The previous two ad-hoc implementations (dialog + HUD) used
  * subtly different rounding rules — keep this one as the single
  * source of truth.
- *
- * @since 0.31.0
  */
 export function formatBytes( bytes: number ): string {
 	if ( ! Number.isFinite( bytes ) || bytes <= 0 ) {

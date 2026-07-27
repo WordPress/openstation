@@ -13,7 +13,6 @@
  *                seeded games generate the same puzzle worldwide.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
  * URL of the shared games dictionary asset, cache-busted on content
  * change (the browser caches the ~150 KB list across sessions
  * otherwise).
- *
- * @since 0.9.8
  *
  * @return string The dictionary URL.
  */
@@ -41,8 +38,6 @@ function desktop_mode_games_words_url() {
 	 * every player resolves the same word list — swap the URL for
 	 * all users (a translated list, a themed list), not per user.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param string $words_url The dictionary URL (with `ver` cache-bust).
 	 */
 	return (string) apply_filters( 'desktop_mode_games_words_url', $words_url );
@@ -52,7 +47,6 @@ function desktop_mode_games_words_url() {
  * The framework-level `config` keys merged into every game's launch
  * context. A game's own `config` wins on collision.
  *
- * @since 0.9.8
  * @internal
  *
  * @return array Framework config keys.

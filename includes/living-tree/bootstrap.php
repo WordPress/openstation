@@ -13,7 +13,6 @@
  * wallpaper registration, and the bundle asset handle.
  *
  * @package WPDesktopMode
- * @since   0.9.4
  */
 
 defined( 'ABSPATH' ) || exit;
