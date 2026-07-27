@@ -189,6 +189,17 @@ describe( 'Window.swapReload', () => {
 
 		// Classic reload arms the overlay; the swapped-in frame's
 		// re-wired load handler must clear it.
+		//
+		// jsdom has no navigation, so the real `location.reload()`
+		// logs "Not implemented" to the virtual console instead of
+		// throwing (so `reload()`'s own catch never runs, and the
+		// noise lands in CI logs). jsdom's `Location` rejects
+		// spies, so stub `contentWindow` on the element — the swap
+		// has already completed here, so nothing else reads it.
+		Object.defineProperty( buffer, 'contentWindow', {
+			configurable: true,
+			value: { location: { reload: vi.fn() }, scrollX: 0, scrollY: 0 },
+		} );
 		win.reload();
 		expect(
 			body.classList.contains( 'desktop-mode-window__body--loading' ),

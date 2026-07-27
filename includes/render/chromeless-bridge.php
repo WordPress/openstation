@@ -1465,9 +1465,17 @@ function desktop_mode_chromeless_bridge_script() {
 	 * Attach the same escalation inside every same-origin nested
 	 * frame: on load (each navigation creates a fresh document) and
 	 * as frames mount (Gutenberg creates the canvas asynchronously
-	 * and re-creates it, e.g. on device-preview switches). The
-	 * WeakSets make the sweep idempotent, so re-running it on every
-	 * mutation batch is cheap.
+	 * and re-creates it, e.g. on device-preview switches).
+	 *
+	 * The observer walks only each record's `addedNodes` — the same
+	 * shape as the component-sniffer observer at the top of this
+	 * file, and for the same reason. Re-querying the whole document
+	 * per mutation batch would put an O(DOM) tree walk on Gutenberg's
+	 * typing path, which is precisely when the editor mutates hardest
+	 * (and precisely when the editor-preview pairing is live). A
+	 * frame that was never inserted cannot need hooking, so the
+	 * narrow sweep loses nothing. The WeakSets keep it idempotent
+	 * when a subtree is moved rather than created.
 	 */
 	var hookedFrameDocs = new WeakSet();
 	var hookedFrameEls = new WeakSet();
@@ -1486,23 +1494,44 @@ function desktop_mode_chromeless_bridge_script() {
 		doc.addEventListener( 'pointerdown', postFocusRequest, true );
 	}
 
-	function hookNestedFrames() {
-		var frames = document.querySelectorAll( 'iframe' );
+	function hookNestedFrame( frame ) {
+		if ( ! hookedFrameEls.has( frame ) ) {
+			hookedFrameEls.add( frame );
+			frame.addEventListener( 'load', function ( ev ) {
+				hookNestedFrameDoc( ev.target );
+			} );
+		}
+		hookNestedFrameDoc( frame );
+	}
+
+	/*
+	 * Hook every iframe at or below `root`. `root` is the document on
+	 * the initial sweep and a freshly-added node thereafter, so the
+	 * walk stays proportional to what actually changed.
+	 */
+	function hookNestedFrames( root ) {
+		if ( ! root || ( 1 !== root.nodeType && 9 !== root.nodeType ) ) {
+			return; /* text / comment node — nothing to walk */
+		}
+		if ( 'IFRAME' === root.nodeName ) {
+			hookNestedFrame( root );
+		}
+		var frames = root.querySelectorAll( 'iframe' );
 		for ( var i = 0; i < frames.length; i++ ) {
-			var frame = frames[ i ];
-			if ( ! hookedFrameEls.has( frame ) ) {
-				hookedFrameEls.add( frame );
-				frame.addEventListener( 'load', function ( ev ) {
-					hookNestedFrameDoc( ev.target );
-				} );
-			}
-			hookNestedFrameDoc( frame );
+			hookNestedFrame( frames[ i ] );
 		}
 	}
 
-	hookNestedFrames();
+	hookNestedFrames( document );
 	if ( window.MutationObserver ) {
-		new MutationObserver( hookNestedFrames ).observe(
+		new MutationObserver( function ( records ) {
+			for ( var r = 0; r < records.length; r++ ) {
+				var added = records[ r ].addedNodes;
+				for ( var n = 0; n < added.length; n++ ) {
+					hookNestedFrames( added[ n ] );
+				}
+			}
+		} ).observe(
 			document.documentElement,
 			{ childList: true, subtree: true }
 		);

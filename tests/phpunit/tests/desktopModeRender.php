@@ -380,6 +380,38 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The nested-frame sweep must walk each mutation record's
+	 * `addedNodes`, never re-query the whole document. The observer
+	 * is installed in EVERY chromeless iframe, so a document-wide
+	 * `querySelectorAll( 'iframe' )` per mutation batch would put an
+	 * O(DOM) tree walk on Gutenberg's typing path — exactly when the
+	 * editor mutates hardest and the editor-preview pairing is live.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_nested_frame_sweep_is_scoped_to_added_nodes() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// The observer callback iterates addedNodes and hands each
+		// one to the scoped sweep.
+		$this->assertStringContainsString( 'records[ r ].addedNodes', $output );
+		$this->assertStringContainsString( 'hookNestedFrames( added[ n ] )', $output );
+
+		// The sweep queries within its root, not the document.
+		$this->assertStringContainsString( "root.querySelectorAll( 'iframe' )", $output );
+		$this->assertStringNotContainsString(
+			"document.querySelectorAll( 'iframe' )",
+			$output,
+			'Nested-frame sweep must stay scoped to added subtrees, not re-query the document.'
+		);
+	}
+
+	/**
 	 * The capture-phase click handler runs BEFORE wp-admin/js/updates.js's
 	 * own bubble-phase handler. If the bridge intercepts and preventDefaults
 	 * a click on `.install-now` / `.update-link` / `.delete-plugin` etc.,
