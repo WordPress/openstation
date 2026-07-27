@@ -38,6 +38,16 @@ import {
 	subscribeScreenEffects,
 } from '../../stage/registry';
 import type { ScreenEffectDef } from '../../stage/types';
+import {
+	listWindowEffectsFor,
+	subscribeWindowEffects,
+} from '../../stage/window-fx/registry';
+import {
+	WINDOW_EFFECT_NONE,
+	WINDOW_TRANSITIONS,
+	type WindowEffectDef,
+	type WindowTransition,
+} from '../../stage/window-fx/types';
 import { html, render } from '../../ui/core';
 import type { SettingsCtx } from '../types';
 
@@ -200,6 +210,126 @@ export function buildExperimentalSection( ctx: SettingsCtx ): HTMLElement {
 		return parts.join( ' · ' );
 	};
 
+	/** Human labels for each lifecycle transition, in panel order. */
+	const transitionLabel = ( transition: WindowTransition ): string => {
+		switch ( transition ) {
+			case 'open':
+				return __( 'Opening' );
+			case 'close':
+				return __( 'Closing' );
+			case 'minimize':
+				return __( 'Minimising' );
+			case 'restore':
+				return __( 'Restoring' );
+			case 'maximize':
+				return __( 'Maximising' );
+			case 'unmaximize':
+				return __( 'Unmaximising' );
+			case 'focus':
+				return __( 'Gaining focus' );
+			default:
+				return __( 'Losing focus' );
+		}
+	};
+
+	const onPickWindowEffect =
+		( transition: WindowTransition ) =>
+			( e: Event ): void => {
+				const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+				if ( id === '' ) {
+					return;
+				}
+				const next = { ...ctx.state.windowEffects };
+				if ( id === WINDOW_EFFECT_NONE ) {
+					delete next[ transition ];
+				} else {
+					next[ transition ] = { id };
+				}
+				ctx.state.windowEffects = next;
+				ctx.save();
+				paint();
+			};
+
+	const onWindowParamChange =
+		( transition: WindowTransition, def: WindowEffectDef, key: string ) =>
+			( e: Event ): void => {
+				const value = Number( ( e as CustomEvent ).detail?.value );
+				if ( ! Number.isFinite( value ) ) {
+					return;
+				}
+				const current = ctx.state.windowEffects[ transition ];
+				if ( ! current ) {
+					return;
+				}
+				const params = resolveParams(
+					{ params: def.params } as never,
+					current.params,
+				);
+				params[ key ] = value;
+				ctx.state.windowEffects = {
+					...ctx.state.windowEffects,
+					[ transition ]: { id: current.id, params },
+				};
+				ctx.save();
+				// No repaint mid-drag — the slider owns its own value.
+			};
+
+	const renderTransition = ( transition: WindowTransition ) => {
+		const available = listWindowEffectsFor( transition );
+		const current = ctx.state.windowEffects[ transition ];
+		const activeId = current?.id ?? WINDOW_EFFECT_NONE;
+		const def = available.find( ( d ) => d.id === activeId );
+		const values = def
+			? resolveParams( { params: def.params } as never, current?.params )
+			: ( {} as Record< string, number > );
+
+		return html`
+			<div class="desktop-mode-experimental__effect">
+				<wpd-select
+					value=${ activeId }
+					label=${ transitionLabel( transition ) }
+					@wpd-pick=${ onPickWindowEffect( transition ) }
+				>
+					<wpd-option value=${ WINDOW_EFFECT_NONE }>
+						${ __( 'None' ) }
+					</wpd-option>
+					${ available.map(
+						( d ) =>
+							html`<wpd-option value=${ d.id }
+								>${ d.label }</wpd-option
+							>`,
+					) }
+				</wpd-select>
+				${ def?.description
+					? html`<p class="desktop-mode-experimental__hint">
+							${ def.description }
+					  </p>`
+					: '' }
+				${ def?.params?.length
+					? html`<div class="desktop-mode-experimental__params">
+							${ def.params.map(
+								( param ) => html`
+									<wpd-range-field
+										label=${ param.label }
+										min=${ String( param.min ) }
+										max=${ String( param.max ) }
+										step=${ String( param.step ) }
+										suffix=${ param.suffix ?? '' }
+										value=${ String( values[ param.key ] ) }
+										@wpd-range-change=${ onWindowParamChange(
+											transition,
+											def,
+											param.key,
+										) }
+									></wpd-range-field>
+								`,
+							) }
+					  </div>`
+					: '' }
+			</div>
+		`;
+	};
+
 	const paint = (): void => {
 		if ( ! supported ) {
 			render(
@@ -265,6 +395,14 @@ export function buildExperimentalSection( ctx: SettingsCtx ): HTMLElement {
 										) }
 								  </p>`
 								: effects.map( renderEffect ) }
+					  </wpd-section>
+						<wpd-section
+							heading=${ __( 'Window animations' ) }
+							description=${ __(
+								'How each window animates through its lifecycle. Every window becomes its own object on the canvas, so these are GPU animations of the real window’s pixels — not CSS transitions.',
+							) }
+						>
+							${ WINDOW_TRANSITIONS.map( renderTransition ) }
 					  </wpd-section>`
 					: '' }
 			`,
@@ -276,6 +414,9 @@ export function buildExperimentalSection( ctx: SettingsCtx ): HTMLElement {
 		effects = byChainOrder( listScreenEffects() );
 		paint();
 	} );
+	const unsubscribeWindowEffects = subscribeWindowEffects( () => {
+		paint();
+	} );
 
 	// Same teardown idiom as the sibling registry-backed sections (see
 	// `effects.ts`): watch the parent's child list so the registry
@@ -283,6 +424,7 @@ export function buildExperimentalSection( ctx: SettingsCtx ): HTMLElement {
 	const observer = new MutationObserver( () => {
 		if ( ! wrapper.isConnected ) {
 			unsubscribe();
+			unsubscribeWindowEffects();
 			observer.disconnect();
 		}
 	} );

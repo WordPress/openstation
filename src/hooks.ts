@@ -185,6 +185,28 @@ export const HOOKS = {
 	 */
 	SCREEN_EFFECTS: 'desktop-mode.screen-effects',
 	/**
+	 * Filter, receives the window-transition effect registry array
+	 * (`WindowEffectDef[]`) on every read — the animations played when a
+	 * window opens, closes, minimises, maximises or changes focus.
+	 *
+	 * @since 0.9.8
+	 */
+	WINDOW_EFFECTS: 'desktop-mode.window-effects',
+	/**
+	 * Filter fired just before a closing window starts its out
+	 * animation, letting an effect claim the transition.
+	 *
+	 * Receives `null` and may return a duration in milliseconds. When a
+	 * number comes back, `Window.close()` defers its teardown by that
+	 * long instead of the default 300 ms safety net, and skips the CSS
+	 * `transitionend` shortcut that would otherwise finalise early.
+	 * `destroy()` bypasses this entirely, so plugin deactivation and
+	 * tests stay synchronous.
+	 *
+	 * @since 0.9.8
+	 */
+	WINDOW_CLOSE_ANIMATION: 'desktop-mode.window.close-animation',
+	/**
 	 * Action after the canvas stage has wrapped the shell and drawn its
 	 * first frame. Receives `{ canvas }`.
 	 *

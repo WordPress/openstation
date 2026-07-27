@@ -37,6 +37,7 @@ import type {
 	ScreenEffectContext,
 	ScreenEffectDef,
 } from './types';
+import type { StageRect } from './window-fx/types';
 
 /**
  * The Pixi namespace as it exists once BOTH vendor bundles have loaded:
@@ -51,6 +52,7 @@ type PixiFilter = InstanceType< PixiNamespace[ 'Filter' ] >;
 type PixiApplication = InstanceType< PixiNamespace[ 'Application' ] >;
 type PixiSprite = InstanceType< PixiNamespace[ 'Sprite' ] >;
 type PixiHtmlSource = InstanceType< PixiNamespace[ 'HTMLSource' ] >;
+type PixiTexture = InstanceType< PixiNamespace[ 'Texture' ] >;
 
 /** DOM id of the canvas the stage creates. */
 export const STAGE_CANVAS_ID = 'desktop-mode-stage';
@@ -101,6 +103,7 @@ export class CanvasStage {
 	private _app: PixiApplication | null = null;
 	private _source: PixiHtmlSource | null = null;
 	private _sprite: PixiSprite | null = null;
+	private _overlay: InstanceType< PixiNamespace[ 'Container' ] > | null = null;
 	private _bodyClassObserver: MutationObserver | null = null;
 	private _resizeSettleTimer: ReturnType< typeof setTimeout > | null = null;
 	private _lastRebuildAt = 0;
@@ -340,6 +343,74 @@ export class CanvasStage {
 		app.render();
 	}
 
+	/** The vendor-loaded Pixi namespace, or `null` when not running. */
+	get pixi(): PixiNamespace | null {
+		return this._running ? readPixi() : null;
+	}
+
+	/** The stage ticker, for effects that drive their own animation. */
+	get ticker(): PixiApplication[ 'ticker' ] | null {
+		return this._app?.ticker ?? null;
+	}
+
+	/**
+	 * Container sitting above the desktop sprite, below nothing. Window
+	 * transition effects mount their sprites here so they animate over
+	 * the desktop rather than inside its texture.
+	 */
+	get overlay(): InstanceType< PixiNamespace[ 'Container' ] > | null {
+		return this._overlay;
+	}
+
+	/**
+	 * Freeze a rectangle of the live desktop into its own texture.
+	 *
+	 * This is what lets a single window become an independent PixiJS
+	 * object without reparenting it into the canvas: the stage's texture
+	 * already contains every window, so a window "becomes" a sprite by
+	 * copying its rectangle out. `generateTexture` renders through the
+	 * GPU into a new render target, so the result is a genuine snapshot
+	 * — it keeps the pixels as they were even after the real element is
+	 * hidden or destroyed, which is precisely what a close animation
+	 * needs.
+	 *
+	 * @param rect Region in CSS pixels, relative to the stage canvas.
+	 * @return A texture of that region, or `null` when the stage is not
+	 *         running or the rect is empty.
+	 */
+	captureRegion( rect: StageRect ): PixiTexture | null {
+		const app = this._app;
+		const sprite = this._sprite;
+		const pixi = readPixi();
+		if ( ! app || ! sprite || ! pixi || ! this._running ) {
+			return null;
+		}
+		if ( rect.width <= 0 || rect.height <= 0 ) {
+			return null;
+		}
+
+		try {
+			return app.renderer.generateTexture( {
+				target: sprite,
+				frame: new pixi.Rectangle(
+					rect.x,
+					rect.y,
+					rect.width,
+					rect.height,
+				),
+				resolution: window.devicePixelRatio || 1,
+			} );
+		} catch ( err ) {
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					'[desktop-mode/stage] failed to capture a window region:',
+					err,
+				);
+			}
+			return null;
+		}
+	}
+
 	/**
 	 * Re-measure the canvas and push the new size through the renderer,
 	 * the texture source and the sprite. Called by the ResizeObserver
@@ -478,6 +549,15 @@ export class CanvasStage {
 			return;
 		}
 
+		if ( this._overlay ) {
+			try {
+				app.stage.removeChild( this._overlay );
+				this._overlay.destroy( { children: true } );
+			} catch {
+				// Being replaced regardless.
+			}
+			this._overlay = null;
+		}
 		if ( this._sprite ) {
 			try {
 				app.stage.removeChild( this._sprite );
@@ -781,8 +861,15 @@ export class CanvasStage {
 		sprite.y = 0;
 		app.stage.addChild( sprite );
 
+		// Overlay for window transition effects, added after the desktop
+		// sprite so it draws on top. Recreated with the source so a
+		// resize rebuild never leaves it orphaned beneath the desktop.
+		const overlay = new pixi.Container();
+		app.stage.addChild( overlay );
+
 		this._source = source;
 		this._sprite = sprite;
+		this._overlay = overlay;
 	}
 
 	private _teardownPixi(): void {
@@ -813,6 +900,7 @@ export class CanvasStage {
 			// that throws the canvas is going away regardless.
 		}
 		this._source = null;
+		this._overlay = null;
 
 		// Detach the sprite explicitly before the app goes. `destroy({
 		// children: true })` below would take it too, but doing it here

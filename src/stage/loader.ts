@@ -32,9 +32,11 @@ interface StageBundleApi {
 	start( options: {
 		shell: HTMLElement;
 		selection?: ScreenEffectSelection[];
+		windowEffects?: Record< string, unknown >;
 	} ): Promise< void >;
 	stop(): void;
 	setSelection( selection: ScreenEffectSelection[] ): Promise< void >;
+	setWindowEffects( selection: Record< string, unknown > ): void;
 	isActive(): boolean;
 }
 
@@ -44,16 +46,15 @@ interface StageBundleApi {
  * of a real `OsSettings` instance.
  */
 export interface StageOsSettings {
-	getOsSettingsSnapshot(): {
-		canvasStageEnabled?: boolean;
-		screenEffects?: ScreenEffectSelection[];
-	};
-	subscribeOsSettings(
-		cb: ( snapshot: {
-			canvasStageEnabled?: boolean;
-			screenEffects?: ScreenEffectSelection[];
-		} ) => void,
-	): () => void;
+	getOsSettingsSnapshot(): StageRelevantSettings;
+	subscribeOsSettings( cb: ( snapshot: StageRelevantSettings ) => void ): () => void;
+}
+
+/** The slice of OS settings the stage controller cares about. */
+interface StageRelevantSettings {
+	canvasStageEnabled?: boolean;
+	screenEffects?: ScreenEffectSelection[];
+	windowEffects?: Record< string, unknown >;
 }
 
 export interface StageControllerOptions {
@@ -199,13 +200,14 @@ export function startStageController(
 		supported &&
 		osSettings.getOsSettingsSnapshot().canvasStageEnabled === true;
 	let selection = osSettings.getOsSettingsSnapshot().screenEffects ?? [];
+	let windowEffects = osSettings.getOsSettingsSnapshot().windowEffects ?? {};
 
 	const ready = enabled ? start( selection ) : Promise.resolve();
 
 	async function start( next: ScreenEffectSelection[] ): Promise< void > {
 		try {
 			const api = await ensureStageBundle( bundleUrl, loadModules );
-			await api.start( { shell, selection: next } );
+			await api.start( { shell, selection: next, windowEffects } );
 		} catch ( err ) {
 			if ( typeof console !== 'undefined' ) {
 				console.error(
@@ -222,6 +224,16 @@ export function startStageController(
 		const selectionChanged =
 			JSON.stringify( nextSelection ) !== JSON.stringify( selection );
 		selection = nextSelection;
+
+		// Window transition choices are read fresh on every transition,
+		// so pushing them through is all that live-applying takes.
+		const nextWindowEffects = snapshot.windowEffects ?? {};
+		if (
+			JSON.stringify( nextWindowEffects ) !== JSON.stringify( windowEffects )
+		) {
+			windowEffects = nextWindowEffects;
+			loadedBundle()?.setWindowEffects( nextWindowEffects );
+		}
 
 		if ( nextEnabled === enabled ) {
 			// Steady state — only the effect chain can have moved, and

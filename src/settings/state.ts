@@ -18,6 +18,7 @@
  */
 
 import { sanitizeScreenEffectSelection } from '../stage/chain';
+import { sanitizeWindowEffectSelection } from '../stage/window-fx/selection';
 import type { DesktopConfig } from '../types';
 import {
 	DEFAULTS,
@@ -232,6 +233,7 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		// loaded yet must survive the round-trip, so unknown ids are
 		// kept and resolved against the registry at render time.
 		screenEffects: sanitizeScreenEffectSelection( parsed.screenEffects ),
+		windowEffects: sanitizeWindowEffectSelection( parsed.windowEffects ),
 		foldersSharingEnabled:
 			typeof parsed.foldersSharingEnabled === 'boolean'
 				? parsed.foldersSharingEnabled

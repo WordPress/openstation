@@ -142,6 +142,7 @@ function desktop_mode_default_os_settings() {
 		'developerModeEnabled'        => false,
 		'canvasStageEnabled'          => false,
 		'screenEffects'               => array(),
+		'windowEffects'               => array(),
 		// Per-user opt-OUT for the folder-sharing feature. Defaults
 		// ON. When false:
 		// - The Share button, share-settings modal, "Leave shared
@@ -570,6 +571,66 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['foldersSharingEnabled']
 		: $defaults['foldersSharingEnabled'];
 
+	/*
+	 * windowEffects — map of lifecycle transition → { id, params } for
+	 * the canvas stage's per-window animations. Mirrors
+	 * `sanitizeWindowEffectSelection()` in
+	 * `src/stage/window-fx/selection.ts`; keep the two in step.
+	 *
+	 * Unknown transition keys are dropped (the set is fixed and ours),
+	 * but unknown effect IDS are kept — a plugin's effect must survive
+	 * its plugin being deactivated, same contract as `screenEffects`.
+	 */
+	$window_effects     = array();
+	$window_transitions = array(
+		'open',
+		'close',
+		'minimize',
+		'restore',
+		'maximize',
+		'unmaximize',
+		'focus',
+		'blur',
+	);
+	if ( isset( $raw['windowEffects'] ) && is_array( $raw['windowEffects'] ) ) {
+		foreach ( $raw['windowEffects'] as $transition => $entry ) {
+			if ( ! is_string( $transition ) || ! in_array( $transition, $window_transitions, true ) ) {
+				continue;
+			}
+			if ( ! is_array( $entry ) || ! isset( $entry['id'] ) || ! is_string( $entry['id'] ) ) {
+				continue;
+			}
+			$effect_id = strtolower( trim( $entry['id'] ) );
+			if ( ! preg_match( '#^[a-z0-9_/-]+$#', $effect_id ) ) {
+				continue;
+			}
+
+			$clean = array( 'id' => $effect_id );
+			if ( isset( $entry['params'] ) && is_array( $entry['params'] ) ) {
+				$params      = array();
+				$param_count = 0;
+				foreach ( $entry['params'] as $param_key => $param_value ) {
+					if ( $param_count >= 24 ) {
+						break;
+					}
+					if ( ! is_string( $param_key ) || ! preg_match( '/^[a-zA-Z0-9_]+$/', $param_key ) ) {
+						continue;
+					}
+					if ( ! is_numeric( $param_value ) ) {
+						continue;
+					}
+					$params[ $param_key ] = (float) $param_value;
+					++$param_count;
+				}
+				if ( ! empty( $params ) ) {
+					$clean['params'] = $params;
+				}
+			}
+
+			$window_effects[ $transition ] = $clean;
+		}
+	}
+
 	// itemVisibility — map<sanitize_key, enum>. Unknown ids are kept
 	// (a deactivated plugin's setting should survive reactivation);
 	// invalid placement values are dropped.
@@ -694,6 +755,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'developerModeEnabled'        => $developer_mode_enabled,
 		'canvasStageEnabled'          => $canvas_stage_enabled,
 		'screenEffects'               => $screen_effects,
+		'windowEffects'               => $window_effects,
 		'foldersSharingEnabled'       => $folders_sharing_enabled,
 		'itemVisibility'              => $item_visibility,
 		'dockOrder'                   => $dock_order,

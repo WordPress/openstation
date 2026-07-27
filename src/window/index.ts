@@ -19,6 +19,17 @@ import type { WindowConfig, WindowState } from './../types';
 import { activity } from './../activity';
 import { getSyntheticIframe } from './../connection';
 import { HOOKS, applyFilters, doAction } from './../hooks';
+
+/**
+ * Ceiling on a claimed close animation, in milliseconds.
+ *
+ * A window that has already been dropped from the manager's stack but is
+ * still in the DOM is an odd in-between state — it cannot be focused or
+ * reopened, and its iframe is still alive. An effect that declares an
+ * implausible duration (or miscalculates one) should not be able to
+ * strand it there indefinitely.
+ */
+const MAX_CLOSE_ANIMATION_MS = 3000;
 import { __ } from './../i18n';
 import {
 	addParentSubscriber,
@@ -3224,25 +3235,68 @@ export class Window {
 		// its stack.
 		this.onClose?.( this );
 
+		/*
+		 * Close gate. Let something else own the out-animation.
+		 *
+		 * The default teardown below is tuned for the CSS transition:
+		 * finalise as soon as `opacity` finishes, with a 300 ms backstop.
+		 * That budget is far too short for a richer animation — the
+		 * canvas stage's particle dissolve runs the best part of a second
+		 * — and the `transitionend` shortcut would cut it off even
+		 * sooner.
+		 *
+		 * So a handler may claim the close by returning a duration in
+		 * milliseconds. When one does, the `transitionend` shortcut is
+		 * skipped and the backstop is stretched to fit. Nothing else
+		 * changes: `onClose` has already fired, the manager has already
+		 * dropped this window from its stack, and `_finalizeClose()`
+		 * remains idempotent.
+		 *
+		 * `destroy()` sets `_suppressCloseFilter`, so forced teardowns —
+		 * plugin deactivation, tests — stay synchronous and never wait on
+		 * an animation.
+		 */
+		const claimedMs = this._suppressCloseFilter
+			? null
+			: applyFilters< number | null >(
+				HOOKS.WINDOW_CLOSE_ANIMATION,
+				null,
+				{ windowId: this.id, element: this.element, config: this.config },
+			);
+		const animationMs =
+			typeof claimedMs === 'number' && claimedMs > 0
+				? Math.min( claimedMs, MAX_CLOSE_ANIMATION_MS )
+				: 0;
+
 		this.element.classList.add( 'desktop-mode-window--closing' );
 
-		// Wire the normal "animation finished" path. Captured on the
-		// instance so `_finalizeClose()` can detach the listener
-		// regardless of which path triggered finalisation
-		// (transitionend, the safety-net timer, or an explicit
-		// `destroy()` call).
-		this._onCloseTransitionEnd = ( e: TransitionEvent ): void => {
-			if ( e.propertyName === 'opacity' ) {
-				this._finalizeClose();
-			}
-		};
-		this.element.addEventListener( 'transitionend', this._onCloseTransitionEnd );
+		if ( animationMs === 0 ) {
+			// Wire the normal "animation finished" path. Captured on the
+			// instance so `_finalizeClose()` can detach the listener
+			// regardless of which path triggered finalisation
+			// (transitionend, the safety-net timer, or an explicit
+			// `destroy()` call).
+			this._onCloseTransitionEnd = ( e: TransitionEvent ): void => {
+				if ( e.propertyName === 'opacity' ) {
+					this._finalizeClose();
+				}
+			};
+			this.element.addEventListener(
+				'transitionend',
+				this._onCloseTransitionEnd,
+			);
+		}
 
 		// Safety net: if transitionend never fires (reduced-motion,
 		// no transition declared, or a CSS race), finalise after a
 		// generous timeout so the element doesn't linger. Captured
-		// so the normal path AND `destroy()` can cancel it.
-		this._closeSafetyNetTimer = setTimeout( () => this._finalizeClose(), 300 );
+		// so the normal path AND `destroy()` can cancel it. When an
+		// effect claimed the close this IS the normal path — it runs
+		// once the animation has had its declared time.
+		this._closeSafetyNetTimer = setTimeout(
+			() => this._finalizeClose(),
+			animationMs || 300,
+		);
 	}
 
 	/**

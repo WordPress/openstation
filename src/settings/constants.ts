@@ -213,6 +213,7 @@ export const DEFAULTS: OsSettingsState = {
 	developerModeEnabled: false,
 	canvasStageEnabled: false,
 	screenEffects: [],
+	windowEffects: {},
 	foldersSharingEnabled: true,
 	itemVisibility: {},
 	dockOrder: [],

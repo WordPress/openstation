@@ -20,16 +20,22 @@ import { resolveEffectChain } from './chain';
 import { listScreenEffects, subscribeScreenEffects } from './registry';
 import { CanvasStage } from './stage';
 import type { ScreenEffectSelection } from './types';
+import { startWindowEffectEngine } from './window-fx/engine';
+import type { WindowEffectSelection } from './window-fx/types';
 
 let stage: CanvasStage | null = null;
 let selection: ScreenEffectSelection[] = [];
 let unsubscribeRegistry: ( () => void ) | null = null;
+let stopWindowEffects: ( () => void ) | null = null;
+let windowSelection: Record< string, WindowEffectSelection > = {};
 
 export interface StartStageOptions {
 	/** The shell root — `#desktop-mode-shell`. */
 	shell: HTMLElement;
 	/** The user's saved effect chain. */
 	selection?: ScreenEffectSelection[];
+	/** The user's per-transition window animation choices. */
+	windowEffects?: Record< string, WindowEffectSelection >;
 }
 
 /**
@@ -41,6 +47,7 @@ export interface StartStageOptions {
  */
 export async function startStage( options: StartStageOptions ): Promise< void > {
 	selection = options.selection ?? [];
+	windowSelection = options.windowEffects ?? {};
 
 	if ( ! stage ) {
 		stage = new CanvasStage( { shell: options.shell } );
@@ -53,10 +60,34 @@ export async function startStage( options: StartStageOptions ): Promise< void > 
 			void stage?.setEffects( currentChain() );
 		} );
 	}
+
+	// Window transition effects ride on the same stage: they capture
+	// regions of its texture and animate them in its overlay, so they
+	// start and stop with it.
+	if ( ! stopWindowEffects && stage ) {
+		stopWindowEffects = startWindowEffectEngine( {
+			stage,
+			getSelection: () => windowSelection,
+		} );
+	}
+}
+
+/**
+ * Replace the per-transition window animation choices. Read fresh on
+ * every transition, so this takes effect immediately.
+ *
+ * @param next The user's new per-transition selection.
+ */
+export function setWindowEffectSelection(
+	next: Record< string, WindowEffectSelection >,
+): void {
+	windowSelection = next;
 }
 
 /** Unwrap the shell and tear the renderer down. Safe when stopped. */
 export function stopStage(): void {
+	stopWindowEffects?.();
+	stopWindowEffects = null;
 	unsubscribeRegistry?.();
 	unsubscribeRegistry = null;
 	stage?.stop();

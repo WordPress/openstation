@@ -263,6 +263,97 @@ temporarily deactivated — and skipped at render time.
 
 ---
 
+## Window transition effects
+
+*Since 0.9.8.* Separate from the screen effects above: those are shaders
+over the whole desktop, these animate **one window** through a lifecycle
+transition — opening, closing, minimising, maximising, focusing.
+Configured in the same tab, under *Window animations*.
+
+### How a window becomes a PixiJS object
+
+Not by reparenting it into the canvas. `HTMLSource` requires its element
+to be a direct child, so moving windows there would reload every iframe
+and break the window manager's layout, z-order and snapping.
+
+Instead the stage's texture already contains every window, so the engine
+**freezes the window's rectangle out of it** with
+`renderer.generateTexture()`, hides the real element, and hands the
+effect a sprite of those frozen pixels. PixiJS documents this exact
+pattern for shatter-style effects. Nothing is animated with CSS.
+
+The engine owns capture, positioning, timing and cleanup; a def owns
+only the animation:
+
+```js
+wp.desktop.stage.registerWindowEffect( {
+    id: 'my-plugin/swoosh',
+    label: 'Swoosh',
+    transitions: [ 'open', 'close' ],
+    owner: 'my-plugin-fx',
+    params: [
+        { key: 'duration', label: 'Duration', min: 100, max: 800,
+          step: 10, default: 300, suffix: 'ms' },
+    ],
+    durationMs: ( params ) => params.duration,
+    run( ctx ) {
+        // ctx.sprite is the window's frozen pixels, already positioned.
+        return new Promise( ( resolve ) => {
+            let t = 0;
+            const step = ( tick ) => {
+                if ( ctx.signal.aborted ) { ctx.ticker.remove( step ); resolve(); return; }
+                t += tick.deltaMS / ctx.params.duration;
+                ctx.sprite.x = ctx.from.x + t * 200;
+                ctx.sprite.alpha = 1 - t;
+                if ( t >= 1 ) { ctx.ticker.remove( step ); resolve(); }
+            };
+            ctx.ticker.add( step );
+        } );
+    },
+} );
+```
+
+`ctx` carries `{ pixi, transition, params, sprite, texture, layer, from,
+to?, ticker, signal }`. `from` is the window's rect in CSS pixels
+relative to the stage; `to` is the destination where one exists (the
+dock tile on minimise, the new geometry on maximise). Throwing or
+rejecting is safe — the engine cleans up and the transition completes,
+so a broken effect degrades to no effect rather than a stuck window.
+
+### The close gate
+
+Closing is the one transition the window manager has to *wait* for.
+`Window.close()` normally finalises on the CSS `transitionend` with a
+300 ms backstop, which would truncate anything richer. So it fires
+`desktop-mode.window.close-animation` first; a handler returning a
+duration in milliseconds claims the close, the `transitionend` shortcut
+is skipped, and the backstop is stretched to fit (capped at 3 s so a
+miscalculated duration cannot strand a window).
+
+`destroy()` bypasses the filter entirely, so plugin deactivation and
+tests stay synchronous.
+
+### Built-ins
+
+| Effect | Transitions | Notes |
+|---|---|---|
+| **Scale & fade** | all eight | The safe default. |
+| **Genie** | minimise, restore | Squeezes toward the dock tile. |
+| **Morph** | maximise, unmaximise | Stretches between old and new geometry. |
+| **Vanish** | close | The Thanos dissolve — the texture is sliced into a grid of particles that drift, spin and fade, sweeping across the window so it disintegrates from one edge. Particle count is `density²`, capped at 1600. |
+
+Every transition defaults to *None*; focus/blur in particular fire on
+every click, so they are worth leaving off unless the effect is very
+subtle.
+
+### Setting
+
+`windowEffects` — a per-user map of transition → `{ id, params? }`,
+alongside `screenEffects`. Unknown effect ids are kept so a deactivated
+plugin's choice survives.
+
+---
+
 ## Browser compatibility shim
 
 `src/stage/webgl-compat.ts` patches `texElementImage2D` on the WebGL

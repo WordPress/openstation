@@ -207,6 +207,19 @@ export class OsSettings implements SettingsCtx {
 				id: entry.id,
 				...( entry.params ? { params: { ...entry.params } } : {} ),
 			} ) ),
+			windowEffects: Object.fromEntries(
+				Object.entries( this.state.windowEffects ).map(
+					( [ transition, entry ] ) => [
+						transition,
+						{
+							id: entry.id,
+							...( entry.params
+								? { params: { ...entry.params } }
+								: {} ),
+						},
+					],
+				),
+			),
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			itemVisibility: { ...this.state.itemVisibility },
 			dockOrder: this.state.dockOrder.slice(),

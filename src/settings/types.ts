@@ -7,6 +7,7 @@
  */
 
 import type { ScreenEffectSelection } from '../stage/types';
+import type { WindowEffectSelection } from '../stage/window-fx/types';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import type { DOCK_SIZES, WINDOW_RADII } from './constants';
@@ -313,6 +314,16 @@ export interface OsSettingsState {
 	 * @since 0.9.8
 	 */
 	screenEffects: ScreenEffectSelection[];
+	/**
+	 * Per-transition window animation choices — a map of
+	 * `open | close | minimize | restore | maximize | unmaximize |
+	 * focus | blur` to an effect id plus its parameter values. Missing
+	 * or `'none'` means no animation for that transition. Only applies
+	 * while {@link canvasStageEnabled} is on. Per-user.
+	 *
+	 * @since 0.9.8
+	 */
+	windowEffects: Record< string, WindowEffectSelection >;
 	/**
 	 * Per-user kill switch for the folder-sharing feature. Defaults
 	 * to `true`. When `false`, every share-related surface is

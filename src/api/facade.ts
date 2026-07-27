@@ -89,6 +89,7 @@ import {
 	unregisterUnfocusEffect,
 } from '../effects/registry';
 import { sanitizeScreenEffectSelection } from '../stage/chain';
+import { sanitizeWindowEffectSelection } from '../stage/window-fx/selection';
 import {
 	isStageSupported,
 	probeElementUpload,
@@ -101,6 +102,13 @@ import {
 	subscribeScreenEffects,
 	unregisterScreenEffect,
 } from '../stage/registry';
+import {
+	listWindowEffects,
+	listWindowEffectsFor,
+	registerWindowEffect,
+	subscribeWindowEffects,
+	unregisterWindowEffect,
+} from '../stage/window-fx/registry';
 import { relationsApi } from '../window-links/engine';
 import {
 	listWindowLinkRenderers,
@@ -484,6 +492,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 					patch.screenEffects,
 				);
 			}
+			if ( patch.windowEffects && typeof patch.windowEffects === 'object' ) {
+				osSettings.state.windowEffects = sanitizeWindowEffectSelection(
+					patch.windowEffects,
+				);
+			}
 			if ( Array.isArray( patch.nativePostsHiddenColumns ) ) {
 				osSettings.state.nativePostsHiddenColumns =
 					patch.nativePostsHiddenColumns
@@ -614,6 +627,11 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			unregisterScreenEffect,
 			listScreenEffects,
 			subscribeScreenEffects,
+			registerWindowEffect,
+			unregisterWindowEffect,
+			listWindowEffects,
+			listWindowEffectsFor,
+			subscribeWindowEffects,
 		},
 		desktopThemes: {
 			list: listDesktopThemes,

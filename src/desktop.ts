@@ -75,6 +75,10 @@ import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-syn
 import { type UnfocusEffectDef } from './effects/types';
 import { type ScreenEffectDef } from './stage/types';
 import {
+	type WindowEffectDef,
+	type WindowTransition,
+} from './stage/window-fx/types';
+import {
 	type StageSupportDetail,
 	type StageUploadProbe,
 } from './stage/feature-detect';
@@ -1245,6 +1249,26 @@ export interface WpDesktopPublicApi {
 		listScreenEffects: () => ScreenEffectDef[];
 		/** Subscribe to registry changes. Returns an unsubscribe. */
 		subscribeScreenEffects: ( cb: () => void ) => () => void;
+		/**
+		 * Register (or replace) a window transition effect — an
+		 * animation played when a window opens, closes, minimises,
+		 * maximises or changes focus. The window's pixels are frozen out
+		 * of the desktop texture and handed to you as a PixiJS sprite to
+		 * animate; nothing touches the DOM.
+		 *
+		 * Throws a `RegistrationError` on validation failure.
+		 */
+		registerWindowEffect: ( def: WindowEffectDef ) => void;
+		/** Remove a previously registered window effect. */
+		unregisterWindowEffect: ( id: string ) => void;
+		/** Snapshot of registered window effects (filter applied). */
+		listWindowEffects: () => WindowEffectDef[];
+		/** Those able to play a given transition — what the picker offers. */
+		listWindowEffectsFor: (
+			transition: WindowTransition,
+		) => WindowEffectDef[];
+		/** Subscribe to window-effect registry changes. */
+		subscribeWindowEffects: ( cb: () => void ) => () => void;
 	};
 	/**
 	 * Window content relations — which piece of content each window

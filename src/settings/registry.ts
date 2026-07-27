@@ -17,6 +17,7 @@
 
 import { createSharedStore } from '../shared-store';
 import type { ScreenEffectSelection } from '../stage/types';
+import type { WindowEffectSelection } from '../stage/window-fx/types';
 
 /**
  * Snapshot of the persisted OS Settings state that third-party tabs
@@ -177,6 +178,13 @@ export interface OsSettingsSnapshot {
 	 * @since 0.9.8
 	 */
 	screenEffects: ScreenEffectSelection[];
+	/**
+	 * Per-transition window animation choices. Empty unless
+	 * {@link canvasStageEnabled} is on. Per-user.
+	 *
+	 * @since 0.9.8
+	 */
+	windowEffects: Record< string, WindowEffectSelection >;
 	/**
 	 * Per-item placement preferences. Map of item id → one of
 	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean

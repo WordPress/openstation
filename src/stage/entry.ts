@@ -18,9 +18,24 @@ import { scanlinesEffect } from './effects/scanlines';
 import {
 	isStageActive,
 	setStageSelection,
+	setWindowEffectSelection,
 	startStage,
 	stopStage,
 } from './index';
+import {
+	genieEffect,
+	morphEffect,
+	scaleFadeEffect,
+} from './window-fx/effects/basic';
+import { thanosEffect } from './window-fx/effects/thanos';
+import {
+	listWindowEffects,
+	listWindowEffectsFor,
+	registerWindowEffect,
+	subscribeWindowEffects,
+	unregisterWindowEffect,
+	unregisterWindowEffectsByOwner,
+} from './window-fx/registry';
 import {
 	listScreenEffects,
 	registerScreenEffect,
@@ -36,16 +51,29 @@ registerScreenEffect( pixelArtEffect );
 registerScreenEffect( scanlinesEffect );
 registerScreenEffect( crtEffect );
 
+// Window transition effects, same public path.
+registerWindowEffect( scaleFadeEffect );
+registerWindowEffect( genieEffect );
+registerWindowEffect( morphEffect );
+registerWindowEffect( thanosEffect );
+
 const api = {
 	start: startStage,
 	stop: stopStage,
 	setSelection: setStageSelection,
+	setWindowEffects: setWindowEffectSelection,
 	isActive: isStageActive,
 	registerScreenEffect,
 	unregisterScreenEffect,
 	unregisterScreenEffectsByOwner,
 	listScreenEffects,
 	subscribeScreenEffects,
+	registerWindowEffect,
+	unregisterWindowEffect,
+	unregisterWindowEffectsByOwner,
+	listWindowEffects,
+	listWindowEffectsFor,
+	subscribeWindowEffects,
 };
 
 ( window as unknown as { desktopModeStage?: typeof api } ).desktopModeStage =
