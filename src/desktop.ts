@@ -956,7 +956,7 @@ export interface WpDesktopPublicApi {
 	 * } );
 	 * ```
 	 *
-	 * Built-in tab orders for reference: appearance=10, ai=20,
+	 * Built-in tab orders for reference: appearance=10, themes=12,
 	 * apps-icons=22, features=25, effects=27, help=40
 	 * (About is pinned last with a sentinel order).
 	 *

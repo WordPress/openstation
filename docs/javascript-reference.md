@@ -2677,7 +2677,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | `id` | `string` | yes | Unique. `[a-z0-9_-]+`. Re-registering with the same id replaces the previous entry. |
 | `label` | `string` | yes | Tab label. |
 | `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
-| `order` | `number` | no | Default `100`. Built-ins: appearance=10, ai=20, apps-icons=22, features=25, effects=27, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
+| `order` | `number` | no | Default `100`. Built-ins: appearance=10, themes=12, apps-icons=22, features=25, effects=27, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
 | `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `desktop_mode_register_settings_tab_script()`. |
 | `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
 
