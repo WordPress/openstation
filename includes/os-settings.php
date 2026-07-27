@@ -589,8 +589,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'restore',
 		'maximize',
 		'unmaximize',
-		'focus',
-		'blur',
+		'drag',
 	);
 	if ( isset( $raw['windowEffects'] ) && is_array( $raw['windowEffects'] ) ) {
 		foreach ( $raw['windowEffects'] as $transition => $entry ) {

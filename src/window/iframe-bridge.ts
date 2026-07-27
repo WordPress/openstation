@@ -228,14 +228,19 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 				)
 				.then( ( confirmed ) => {
 					if ( confirmed ) {
-						win.destroy();
+						// Normal close, so it animates. `destroy()` here
+						// would bypass the close gate and no iframe window
+						// would ever play its close effect.
+						win._closeFromBridge();
 					}
 				} )
 				.catch( () => {
 					win.destroy();
 				} );
 		} else {
-			win.destroy();
+			// The iframe reported nothing to save — close normally so the
+			// window's close effect plays.
+			win._closeFromBridge();
 		}
 	}
 

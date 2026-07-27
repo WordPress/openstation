@@ -138,6 +138,19 @@ describe( 'sanitizeWindowEffectSelection', () => {
 		).toEqual( { open: { id: 'acme/swoosh' } } );
 	} );
 
+	test( 'drops focus and blur — they are not offered', () => {
+		// Removed from WINDOW_TRANSITIONS: an effect animates a COPY of
+		// the window, and mid-click that copy is either invisible
+		// (swallowing the click) or duplicated. Neither is acceptable.
+		expect(
+			sanitizeWindowEffectSelection( {
+				focus: { id: 'scale-fade' },
+				blur: { id: 'scale-fade' },
+				open: { id: 'scale-fade' },
+			} ),
+		).toEqual( { open: { id: 'scale-fade' } } );
+	} );
+
 	test( 'coerces numeric params and drops the rest', () => {
 		expect(
 			sanitizeWindowEffectSelection( {
@@ -169,9 +182,9 @@ describe( 'sanitizeWindowEffectSelection', () => {
 			sanitizeWindowEffectSelection( {
 				open: null,
 				close: { id: 'Bad Id!' },
-				focus: { id: 42 },
-				blur: { id: 'ok' },
+				minimize: { id: 42 },
+				drag: { id: 'ok' },
 			} ),
-		).toEqual( { blur: { id: 'ok' } } );
+		).toEqual( { drag: { id: 'ok' } } );
 	} );
 } );

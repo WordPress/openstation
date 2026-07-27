@@ -173,13 +173,9 @@ export const thanosEffect: WindowEffectDef = {
 				}
 				finished = true;
 				ticker.remove( step );
-				for ( const p of particles ) {
-					try {
-						p.sprite.destroy();
-					} catch {
-						// The layer teardown will collect it regardless.
-					}
-				}
+				// The particles are children of this effect's own
+				// container, which the engine destroys whole — freeing
+				// them here would race that teardown.
 				resolve();
 			};
 

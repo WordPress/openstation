@@ -267,8 +267,11 @@ temporarily deactivated — and skipped at render time.
 
 *Since 0.9.8.* Separate from the screen effects above: those are shaders
 over the whole desktop, these animate **one window** through a lifecycle
-transition — opening, closing, minimising, maximising, focusing.
+transition — opening, closing, minimising, maximising, or being dragged.
 Configured in the same tab, under *Window animations*.
+
+The full transition list is `open`, `close`, `minimize`, `restore`,
+`maximize`, `unmaximize`, `drag`.
 
 ### How a window becomes a PixiJS object
 
@@ -314,11 +317,79 @@ wp.desktop.stage.registerWindowEffect( {
 ```
 
 `ctx` carries `{ pixi, transition, params, sprite, texture, layer, from,
-to?, ticker, signal }`. `from` is the window's rect in CSS pixels
-relative to the stage; `to` is the destination where one exists (the
-dock tile on minimise, the new geometry on maximise). Throwing or
+to?, element, ticker, signal }`. `from` is the window's rect in CSS
+pixels relative to the stage; `to` is the destination where one exists
+(the dock tile on minimise, the new geometry on maximise); `element` is
+the real window element, still in the DOM and still being moved by the
+window manager while hidden — read its box each frame to follow a live
+drag, but do not restyle it, the engine owns its visibility. Throwing or
 rejecting is safe — the engine cleans up and the transition completes,
 so a broken effect degrades to no effect rather than a stuck window.
+
+Add your own display objects to `ctx.layer`, not to the sprite's parent:
+the layer is a container the engine created for this one effect and
+destroys whole, so anything you leave in it is cleaned up in the right
+order. `ctx.texture` is released about a second later — do not hold a
+reference to it past `run()`.
+
+> **If your effect creates its own textures, do not destroy their
+> sources while a `Mesh` is using them.** PixiJS 8's WebGL mesh adaptor
+> owns a single renderer-lifetime shader, and its bind group destroys
+> *itself* the moment a bound resource reports `destroyed` — after which
+> every mesh draw throws `Cannot read properties of null (reading '0')`
+> for the rest of the page's life. Call
+> `source.removeAllListeners( 'change' )` before `destroy()`, which is
+> what the engine does for the textures it hands you
+> (`src/stage/window-fx/texture-retire.ts`).
+
+### Sustained transitions
+
+`drag` is not momentary. It starts on drag-start and runs until
+drag-end, so `durationMs` means nothing for it: the effect should loop
+until `ctx.signal` aborts, and may keep animating after that to wind
+itself down (Cloth swings to rest over ~700 ms).
+
+The window stays hidden for the whole time, and **there is no time
+limit** — a drag lasting minutes is perfectly ordinary, and any ceiling
+would eventually fire mid-drag and re-render the real window behind its
+own animation. Momentary effects do get a 4-second watchdog, because one
+that never resolves would leave a window nobody can click. The sustained
+failsafe is a fact instead of a clock: a `pointerup` or `pointercancel`
+anywhere in the document aborts the effect, so a drag-end lost to an
+alt-tab or a torn-down window cannot strand it.
+
+An effect that keeps running past the abort must end where the real
+window is, not where physics left it. The engine holds the stand-in on
+screen for two frames after restoring the element — the stage draws a
+snapshot of the DOM refreshed once per frame, so the window is not
+actually back until the snapshot catches up, and removing the copy any
+sooner leaves a gap that reads as an abrupt blink. Those two frames draw
+both, so a stand-in that does not finish on the window's exact rectangle
+shows as a double image.
+
+### Hiding the window
+
+The engine hides the real element with `opacity`, not `visibility`
+(inherited, so a descendant can punch back through) or `display: none`
+(collapses layout and moves every other window). The value is `0.001`
+rather than `0`: a fully transparent subtree can be skipped during paint
+altogether, and iframes get throttled when they are, so restoring made
+every iframe repaint from scratch — indistinguishable from the whole
+shell reloading.
+
+**Both writes happen with `transition: none` pinned on inline, and that
+is the half worth remembering.** Windows carry `opacity 0.2s ease` in
+their base transition list (`assets/css/window-chrome.css`), so writing
+the property does not hide or show a window — it *animates* it. Dragging
+masks this at the start, because the window manager's `--dragging` class
+already suppresses transitions, but not at the end: that class comes off
+at pointer-up, hundreds of milliseconds before a sustained effect
+finishes settling.
+
+Suppression covers the write only, never the effect's whole run — a
+snap-drag gives the window a deliberate 90 ms transition of its own, and
+pinning transitions off wholesale would silently flatten it. **Anything
+your effect does to the real element is subject to the same trap.**
 
 ### The close gate
 
@@ -337,14 +408,33 @@ tests stay synchronous.
 
 | Effect | Transitions | Notes |
 |---|---|---|
-| **Scale & fade** | all eight | The safe default. |
+| **Scale & fade** | open, close, minimise, restore, maximise, unmaximise | The safe default. |
 | **Genie** | minimise, restore | Squeezes toward the dock tile. |
 | **Morph** | maximise, unmaximise | Stretches between old and new geometry. |
 | **Vanish** | close | The Thanos dissolve — the texture is sliced into a grid of particles that drift, spin and fade, sweeping across the window so it disintegrates from one edge. Particle count is `density²`, capped at 1600. |
+| **Cloth** | drag | The window hangs from its title bar like fabric. A Verlet solver drives a `MeshPlane`'s vertex grid, pinned to the live title-bar edge, so the sheet lags, swings and settles as you drag. |
 
-Every transition defaults to *None*; focus/blur in particular fire on
-every click, so they are worth leaving off unless the effect is very
-subtle.
+Every transition defaults to *None*.
+
+### Why there is no focus or blur transition
+
+They were offered briefly and cannot work. An effect animates a *copy*
+of the window, and focus fires **mid-click**:
+
+- Hide the real window and animate the copy, and the window vanishes
+  under the pointer, swallowing the click that caused the focus. You
+  cannot press close or start a drag.
+- Leave the window visible and animate a copy over it, and you see the
+  window twice — every click flashes a ghost.
+
+There is no third option. Transitions where the window is arriving,
+leaving, or already captured by a drag do not have this problem, because
+hiding the original is exactly right there.
+
+Focus styling is well served by the **unfocus-effect** system (OS
+Settings → Effects), which applies cheap CSS filters to the real element
+and never duplicates anything. See
+[`examples/custom-unfocus-effect.md`](examples/custom-unfocus-effect.md).
 
 ### Setting
 

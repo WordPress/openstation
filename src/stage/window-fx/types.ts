@@ -33,10 +33,42 @@ export type WindowTransition =
 	| 'restore'
 	| 'maximize'
 	| 'unmaximize'
+	/**
+	 * @deprecated Never offered in the UI — see {@link WINDOW_TRANSITIONS}.
+	 */
 	| 'focus'
-	| 'blur';
+	/**
+	 * @deprecated Never offered in the UI — see {@link WINDOW_TRANSITIONS}.
+	 */
+	| 'blur'
+	/**
+	 * Sustained, not momentary: it begins on drag-start and runs until
+	 * drag-end aborts it, rather than for a fixed duration. An effect
+	 * claiming it should loop until `ctx.signal` aborts.
+	 */
+	| 'drag';
 
-/** Every transition, in the order the settings panel lists them. */
+/**
+ * Every transition the settings panel offers, in order.
+ *
+ * **Focus and blur are deliberately absent.** They cannot work in this
+ * architecture, and the two ways of trying both fail:
+ *
+ * - Hide the real window and animate the copy — but focus fires
+ *   mid-click, so the window vanishes under the pointer and swallows the
+ *   click that caused it. You cannot press close or start a drag.
+ * - Leave the window visible and animate a copy over it — you see the
+ *   window twice, and every single click flashes a ghost.
+ *
+ * There is no third option: an effect animates a *copy* of the window,
+ * and a copy is only ever invisible or duplicated. Transitions where the
+ * window is arriving, leaving or already captured by a drag do not have
+ * this problem, because hiding the original is exactly right there.
+ *
+ * Focus styling is already well served by the unfocus-effect system
+ * (OS Settings → Effects), which uses cheap CSS filters on the real
+ * element and never duplicates anything.
+ */
 export const WINDOW_TRANSITIONS: readonly WindowTransition[] = [
 	'open',
 	'close',
@@ -44,8 +76,7 @@ export const WINDOW_TRANSITIONS: readonly WindowTransition[] = [
 	'restore',
 	'maximize',
 	'unmaximize',
-	'focus',
-	'blur',
+	'drag',
 ];
 
 /** Reserved id meaning "no effect for this transition". */
@@ -87,6 +118,13 @@ export interface WindowEffectRunContext {
 	layer: Container;
 	/** Where the window is, in CSS pixels relative to the stage. */
 	from: StageRect;
+	/**
+	 * The real window element, still in the DOM and still being moved by
+	 * the window manager while hidden. Sustained effects read its live
+	 * position each frame to follow a drag; momentary ones rarely need
+	 * it. Do not restyle it — the engine owns its visibility.
+	 */
+	element: HTMLElement;
 	/**
 	 * Where the window is heading, when that is known: the dock tile for
 	 * a minimise, the new geometry for a maximise. Absent for

@@ -3303,6 +3303,30 @@ export class Window {
 	}
 
 	/**
+	 * Finish a close that the iframe bridge started.
+	 *
+	 * The bridge asks the iframe about unsaved changes before closing;
+	 * once it has an answer it needs to complete the close WITHOUT
+	 * re-asking. It used to call `destroy()` for that, which is a force
+	 * teardown — no animation, no close gate — so an iframe window could
+	 * never play its close effect while a native one could.
+	 *
+	 * This is the same thing the bridge's own 500 ms timeout does:
+	 * suppress the re-entrant query, then close normally.
+	 *
+	 * @internal
+	 */
+	public _closeFromBridge(): void {
+		this._suppressCloseFilter = true;
+		this._closePending = false;
+		try {
+			this.close();
+		} finally {
+			this._suppressCloseFilter = false;
+		}
+	}
+
+	/**
 	 * Synchronously tear down a window with no animation. Use in:
 	 *
 	 *  - Test `afterEach` hooks where the suite needs deterministic

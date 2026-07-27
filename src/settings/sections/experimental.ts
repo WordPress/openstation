@@ -225,10 +225,8 @@ export function buildExperimentalSection( ctx: SettingsCtx ): HTMLElement {
 				return __( 'Maximising' );
 			case 'unmaximize':
 				return __( 'Unmaximising' );
-			case 'focus':
-				return __( 'Gaining focus' );
 			default:
-				return __( 'Losing focus' );
+				return __( 'While dragging' );
 		}
 	};
 

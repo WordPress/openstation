@@ -3,9 +3,7 @@
  *
  * Three small ones that between them cover every transition:
  *
- * - **Scale & fade** — grows in, shrinks out. The safe default, and the
- *   only one offered for focus/blur, where anything showier becomes
- *   tiresome within a minute of normal clicking.
+ * - **Scale & fade** — grows in, shrinks out. The safe default.
  * - **Genie** — squeezes toward the dock on minimise and back out on
  *   restore, using the destination rect the engine supplies.
  * - **Morph** — slides and stretches between the old and new geometry
@@ -79,7 +77,6 @@ function isIncoming( transition: string ): boolean {
 	return (
 		transition === 'open' ||
 		transition === 'restore' ||
-		transition === 'focus' ||
 		transition === 'unmaximize'
 	);
 }
@@ -95,8 +92,6 @@ export const scaleFadeEffect: WindowEffectDef = {
 		'restore',
 		'maximize',
 		'unmaximize',
-		'focus',
-		'blur',
 	],
 	params: [
 		{

@@ -38,6 +38,7 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		onFocusRequest: null,
 		setTitle: vi.fn(),
 		destroy: vi.fn(),
+		_closeFromBridge: vi.fn(),
 		_isDestroyed: false,
 		_closePending: false,
 		_iframeCloseTimeout: null,
@@ -677,7 +678,7 @@ describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
 	} );
 	afterEach( () => clearHooksStub() );
 
-	test( 'prevent: false destroys the window without showing a dialog', async () => {
+	test( 'prevent: false closes the window without showing a dialog', async () => {
 		const win = mockWindow();
 
 		postToWindow( win, {
@@ -687,11 +688,15 @@ describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
 		await vi.dynamicImportSettled();
 
 		expect( wpdConfirm ).not.toHaveBeenCalled();
-		expect( win.destroy ).toHaveBeenCalledTimes( 1 );
+		// `_closeFromBridge()`, not `destroy()`: the close must still run
+		// its gate so the window can play a close animation. `destroy()`
+		// is a force teardown and skips it.
+		expect( win._closeFromBridge ).toHaveBeenCalledTimes( 1 );
+		expect( win.destroy ).not.toHaveBeenCalled();
 		expect( win._closePending ).toBe( false );
 	} );
 
-	test( 'prevent: true, user confirms — destroys the window', async () => {
+	test( 'prevent: true, user confirms — closes the window', async () => {
 		const win = mockWindow();
 		wpdConfirm.mockResolvedValue( true );
 
@@ -701,7 +706,9 @@ describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
 			message: 'You have unsaved edits.',
 		} );
 		await vi.dynamicImportSettled();
-		await vi.waitFor( () => expect( win.destroy ).toHaveBeenCalledTimes( 1 ) );
+		await vi.waitFor( () =>
+			expect( win._closeFromBridge ).toHaveBeenCalledTimes( 1 ),
+		);
 
 		expect( wpdConfirm ).toHaveBeenCalledWith(
 			expect.objectContaining( { title: 'You have unsaved edits.', danger: true } ),
