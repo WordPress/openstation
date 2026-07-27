@@ -48,6 +48,9 @@ jobs:
       - name: Package plugin zip
         run: bin/package.sh
 
+      - name: Package Desktop Mode Beta companion zip
+        run: bin/package-beta.sh
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -61,7 +64,7 @@ jobs:
             --title "$tag" \
             --generate-notes \
             "${flags[@]}" \
-            desktop-mode.zip
+            desktop-mode.zip desktop-mode-beta.zip
 
       - name: Unpack zip for wp.org deploy
         if: ${{ !contains(github.ref_name, '-') }}

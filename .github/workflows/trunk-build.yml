@@ -1,0 +1,60 @@
+name: Trunk Build
+
+# Publishes a "bleeding edge" build on every push to trunk, consumed by
+# the Desktop Mode Beta companion plugin (desktop-mode-beta/). Two
+# fixed-name assets are maintained on the same rolling `ci-artifacts`
+# release the PR preview flow uses:
+#
+#   trunk.zip  — the built plugin zip for the pushed commit
+#   trunk.json — { sha, version, built_at } so consumers can tell which
+#                commit trunk.zip was built from without an API call
+#
+# Fixed names + `--clobber` mean no asset cleanup is ever needed. The
+# zip is uploaded before the json: trunk.json is the announcement, so a
+# consumer that reads it never sees a sha whose zip isn't there yet.
+
+on:
+  push:
+    branches:
+      - trunk
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trunk-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+          npm run package
+
+      - name: Publish trunk build to the ci-artifacts release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view ci-artifacts --json tagName >/dev/null 2>&1; then
+            gh release create ci-artifacts --prerelease --title 'CI artifacts' \
+              --notes 'Rolling release hosting CI build artifacts (PR preview + trunk builds). Not a Desktop Mode release.'
+          fi
+          cp desktop-mode.zip trunk.zip
+          version=$(node -p "require('./package.json').version")
+          printf '{"sha":"%s","version":"%s","built_at":"%s"}\n' \
+            "$GITHUB_SHA" "$version" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > trunk.json
+          gh release upload ci-artifacts trunk.zip --clobber
+          gh release upload ci-artifacts trunk.json --clobber

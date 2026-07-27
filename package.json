@@ -66,6 +66,7 @@
 		"lint:fix": "eslint 'src/**/*.ts' --fix",
 		"typecheck": "tsc --noEmit",
 		"package": "bin/package.sh",
+		"package:beta": "bin/package-beta.sh",
 		"test": "npm run test:js",
 		"test:js": "vitest run",
 		"test:js:watch": "vitest",

@@ -241,6 +241,22 @@ file churn in the release commit:
 ./bin/release.sh 0.9.1 --skip-i18n
 ```
 
+## Testing branch builds on a live site (Desktop Mode Beta)
+
+Any live site can run an unreleased build without touching FTP or wp-cli:
+the **Desktop Mode Beta** companion plugin (`desktop-mode-beta/` at the
+repo root, own zip attached to every GitHub release) installs the built
+zip of any open PR, the trunk build, or the latest stable release over
+the `desktop-mode` plugin in place. See
+[`desktop-mode-beta/README.md`](../desktop-mode-beta/README.md) for how
+it discovers builds (PR preview artifacts + `trunk-build.yml` on the
+`ci-artifacts` release) and its guard rails.
+
+It is a separate plugin on purpose — the GitHub-installer machinery
+must never ship in the wp.org distribution, and the switcher has to
+survive a branch build that breaks Desktop Mode itself. Package it
+locally with `npm run package:beta`.
+
 ## Where things are tested
 
 - **Vitest** — `tests/vitest/*.test.ts` + colocated
