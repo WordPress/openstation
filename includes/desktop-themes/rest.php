@@ -174,6 +174,19 @@ function desktop_mode_rest_upload_desktop_theme( WP_REST_Request $request ) {
 		);
 	}
 
+	// Wallpapers the theme brought with it.
+	//
+	// `desktop_mode_register_desktop_theme_wallpapers()` already ran on
+	// `init` for THIS request — before the upload existed — so the new
+	// theme's wallpapers are not in the registry yet. Re-running it now
+	// picks them up (registration is idempotent: same ids, same store),
+	// and the shell applies the rebuilt list without a reload. Without
+	// this the wallpapers only appeared on the next page load, which is
+	// exactly the kind of "it works after F5" seam this payload channel
+	// exists to remove.
+	desktop_mode_register_desktop_theme_wallpapers();
+	$shaped['serverWallpapers'] = desktop_mode_build_desktop_wallpapers_payload();
+
 	return rest_ensure_response( $shaped );
 }
 
@@ -191,10 +204,26 @@ function desktop_mode_rest_delete_desktop_theme( WP_REST_Request $request ) {
 	if ( is_wp_error( $deleted ) ) {
 		return $deleted;
 	}
+	// The deleted theme's wallpapers were registered on `init`, into a
+	// per-request static store we have no unregister API for. Filtering
+	// them out of the response is enough and avoids inventing one: the
+	// store dies with the request, and the next one never registers
+	// them because the theme is gone.
+	$prefix     = DESKTOP_MODE_DESKTOP_THEME_WALLPAPER_PREFIX . $slug . '/';
+	$wallpapers = array();
+	foreach ( desktop_mode_build_desktop_wallpapers_payload() as $wallpaper ) {
+		$id = isset( $wallpaper['id'] ) ? (string) $wallpaper['id'] : '';
+		if ( '' !== $id && 0 === strpos( $id, $prefix ) ) {
+			continue;
+		}
+		$wallpapers[] = $wallpaper;
+	}
+
 	return rest_ensure_response(
 		array(
-			'deleted' => true,
-			'slug'    => $slug,
+			'deleted'          => true,
+			'slug'             => $slug,
+			'serverWallpapers' => $wallpapers,
 		)
 	);
 }

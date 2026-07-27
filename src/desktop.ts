@@ -241,6 +241,7 @@ import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import { openUrlDialog } from './desktop-files/url-dialog';
 import type {
 	DesktopConfig,
+	DesktopWallpaperServerEntry,
 	NativeWindowDef,
 } from './types';
 import type { Window as DesktopWindow } from './window';
@@ -2893,6 +2894,23 @@ function init(): void {
 	} );
 	void syncServerWallpapers(
 		Array.isArray( config.serverWallpapers ) ? config.serverWallpapers : [],
+	);
+
+	// Installing or deleting a desktop theme changes which wallpapers
+	// exist. That happens in the lazily-loaded OS Settings bundle,
+	// which cannot reach this sync directly — module state does not
+	// cross bundles — so the panel announces on the hook bus and we
+	// reconcile here. Before this the picker only learned about a
+	// theme's wallpapers on the next page load.
+	addAction(
+		HOOKS.WALLPAPERS_SERVER_CHANGED,
+		'desktop-mode/wallpapers-server-sync',
+		( payload: unknown ) => {
+			const list = ( payload as { wallpapers?: unknown } )?.wallpapers;
+			if ( Array.isArray( list ) ) {
+				void syncServerWallpapers( list as DesktopWallpaperServerEntry[] );
+			}
+		},
 	);
 
 	// Games-registry sync — same lifecycle pattern, one deliberate

@@ -10,6 +10,8 @@
  */
 
 import { trackedFetch } from '../tracked-fetch';
+import { doAction, HOOKS } from '../hooks';
+import type { DesktopWallpaperServerEntry } from '../types';
 import type { DesktopThemeServerEntry } from '../types';
 import type { OsSettingsConfig } from './types';
 
@@ -33,6 +35,26 @@ async function errorMessage( response: Response, fallback: string ): Promise< st
 		/* Not JSON — fall through to the generic message. */
 	}
 	return `${ fallback } (HTTP ${ response.status }).`;
+}
+
+/**
+ * Announce a rebuilt `serverWallpapers` list to the shell.
+ *
+ * Installing or deleting a theme changes which wallpapers exist, and
+ * the registry that owns them lives in a different bundle. Both REST
+ * responses carry the rebuilt list; this hands it over.
+ *
+ * Silent when the response carries nothing — a theme with no
+ * wallpapers changes no wallpapers.
+ */
+function announceWallpapers( payload: unknown ): void {
+	const list = ( payload as { serverWallpapers?: unknown } )?.serverWallpapers;
+	if ( ! Array.isArray( list ) ) {
+		return;
+	}
+	doAction( HOOKS.WALLPAPERS_SERVER_CHANGED, {
+		wallpapers: list as DesktopWallpaperServerEntry[],
+	} );
 }
 
 /**
@@ -76,7 +98,9 @@ export async function uploadDesktopTheme(
 	if ( ! response.ok ) {
 		throw new Error( await errorMessage( response, 'Theme upload failed' ) );
 	}
-	return ( await response.json() ) as DesktopThemeServerEntry;
+	const installed = await response.json();
+	announceWallpapers( installed );
+	return installed as DesktopThemeServerEntry;
 }
 
 /**
@@ -110,5 +134,12 @@ export async function deleteDesktopTheme(
 
 	if ( ! response.ok ) {
 		throw new Error( await errorMessage( response, 'Theme delete failed' ) );
+	}
+	// The response carries the wallpaper list MINUS the deleted theme's,
+	// so the picker drops them in the same breath.
+	try {
+		announceWallpapers( await response.json() );
+	} catch {
+		/* A body-less 200 is fine — nothing to announce. */
 	}
 }

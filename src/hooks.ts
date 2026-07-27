@@ -356,6 +356,25 @@ export const HOOKS = {
 	 */
 	DESKTOP_THEME_ICON_COLOR: 'desktop-mode.desktop-theme.icon-color',
 
+	/**
+	 * Fires when a server-side change hands the shell a fresh
+	 * `serverWallpapers` list — today, installing or deleting a desktop
+	 * theme that contributes wallpapers.
+	 *
+	 * The wallpaper registry sync lives in the always-on shell bundle
+	 * while the OS Settings panel that performs the install is a lazy
+	 * one, so this is the transport between them: the panel announces,
+	 * the shell reconciles. Without it the picker only learned about a
+	 * theme's wallpapers on the next page load.
+	 *
+	 * Signature:
+	 *
+	 *     ( payload: { wallpapers: DesktopWallpaperServerEntry[] } ) => void
+	 *
+	 * @since 0.9.8
+	 */
+	WALLPAPERS_SERVER_CHANGED: 'desktop-mode.wallpapers.server-changed',
+
 	// ------------------------------------------------------------------
 	// Window lifecycle actions. All payloads share a `windowId: string`
 	// field; additional fields are documented per-hook in the JS

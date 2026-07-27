@@ -785,6 +785,63 @@ class Tests_DesktopMode_DesktopThemesFonts extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The install response must carry the REBUILT wallpaper list.
+	 *
+	 * `desktop_mode_register_desktop_theme_wallpapers()` runs on `init`,
+	 * which for the upload request happened before the theme existed.
+	 * Without a rebuild in the response the shell has no way to learn
+	 * about the new wallpapers until the next page load — the "works
+	 * after F5" seam this channel exists to close.
+	 *
+	 * @covers ::desktop_mode_rest_install_desktop_theme
+	 */
+	public function test_install_response_carries_the_rebuilt_wallpaper_list() {
+		$zip = $this->make_theme_zip( array(
+			'manifestVersion' => 1,
+			'id'              => 'acme/papered',
+			'name'            => 'Papered',
+			'wallpapers'      => array( 'dusk' => array( 'path' => 'desk.png' ) ),
+		) );
+
+		$entry = desktop_mode_desktop_theme_install_from_zip( $zip );
+		$this->assertNotWPError( $entry );
+
+		// The registration the REST handler re-runs.
+		desktop_mode_register_desktop_theme_wallpapers();
+		$ids = wp_list_pluck( desktop_mode_build_desktop_wallpapers_payload(), 'id' );
+
+		$this->assertContains(
+			'desktop-theme/acme-papered/dusk',
+			$ids,
+			'A freshly installed theme’s wallpaper must be registerable within the same request.'
+		);
+
+		desktop_mode_desktop_theme_delete( 'acme-papered' );
+		unlink( $zip );
+	}
+
+	/** Build a minimal theme ZIP with one 1x1 PNG, for install tests. */
+	private function make_theme_zip( $manifest ) {
+		$dir = get_temp_dir() . 'dm-theme-zip-' . wp_generate_uuid4();
+		wp_mkdir_p( $dir );
+		file_put_contents( $dir . '/theme.json', wp_json_encode( $manifest ) );
+		// 1x1 transparent PNG.
+		file_put_contents(
+			$dir . '/desk.png',
+			base64_decode( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' )
+		);
+
+		$zip_path = $dir . '.zip';
+		$zip      = new ZipArchive();
+		$zip->open( $zip_path, ZipArchive::CREATE );
+		$zip->addFile( $dir . '/theme.json', 'theme.json' );
+		$zip->addFile( $dir . '/desk.png', 'desk.png' );
+		$zip->close();
+
+		return $zip_path;
+	}
+
+	/**
 	 * A theme with no wallpaper adds nothing to the picker.
 	 *
 	 * @covers ::desktop_mode_register_desktop_theme_wallpapers
