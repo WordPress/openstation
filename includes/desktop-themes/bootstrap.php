@@ -34,3 +34,4 @@ require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/install.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/registry.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/rest.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/assets.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-themes/wallpapers.php';

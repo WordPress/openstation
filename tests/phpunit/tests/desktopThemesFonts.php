@@ -551,4 +551,252 @@ class Tests_DesktopMode_DesktopThemesFonts extends WP_UnitTestCase {
 
 		desktop_mode_unregister_desktop_theme( 'acme/fonted' );
 	}
+
+	// ------------------------------------------------------------------
+	// Wallpapers.
+	// ------------------------------------------------------------------
+
+	private function sanitize_wallpapers( $raw, $resolver = null ) {
+		return desktop_mode_sanitize_desktop_theme_wallpapers(
+			$raw,
+			$resolver ? $resolver : $this->permissive_resolver()
+		);
+	}
+
+	/**
+	 * All four author shapes have to work, because all four are things
+	 * people reasonably write.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_every_author_shape_normalizes_to_a_list() {
+		$bare = $this->sanitize_wallpapers( 'textures/desk.png' );
+		$this->assertCount( 1, $bare );
+		$this->assertSame( 'textures/desk.png', $bare[0]['path'] );
+
+		$one = $this->sanitize_wallpapers( array( 'path' => 'textures/desk.png' ) );
+		$this->assertCount( 1, $one );
+
+		$list = $this->sanitize_wallpapers( array(
+			'a.png',
+			array( 'path' => 'b.png', 'label' => 'Dusk' ),
+		) );
+		$this->assertCount( 2, $list );
+		$this->assertSame( 'Dusk', $list[1]['label'] );
+
+		$map = $this->sanitize_wallpapers( array(
+			'dusk' => array( 'path' => 'b.png' ),
+			'dawn' => array( 'path' => 'c.png' ),
+		) );
+		$this->assertCount( 2, $map );
+		$this->assertSame( array( 'dusk', 'dawn' ), wp_list_pluck( $map, 'id' ) );
+	}
+
+	/**
+	 * Ids are a STORED USER PREFERENCE. They must come from something
+	 * stable, never the array index, or reordering the list in a
+	 * re-upload would move every user onto a different picture.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_ids_are_stable_not_positional() {
+		$before = $this->sanitize_wallpapers( array( 'aurora.png', 'dusk.png' ) );
+		$after  = $this->sanitize_wallpapers( array( 'dusk.png', 'aurora.png' ) );
+
+		$this->assertSame( array( 'aurora', 'dusk' ), wp_list_pluck( $before, 'id' ) );
+		$this->assertSame(
+			array( 'dusk', 'aurora' ),
+			wp_list_pluck( $after, 'id' ),
+			'Reordering must not renumber ids.'
+		);
+
+		// Explicit id wins over the filename.
+		$explicit = $this->sanitize_wallpapers( array(
+			array( 'path' => 'aurora.png', 'id' => 'keep-me' ),
+		) );
+		$this->assertSame( 'keep-me', $explicit[0]['id'] );
+
+		// A label supplies the id when there is no explicit one.
+		$labelled = $this->sanitize_wallpapers( array(
+			array( 'path' => 'x.png', 'label' => 'Deep Field' ),
+		) );
+		$this->assertSame( 'deep-field', $labelled[0]['id'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_duplicate_ids_and_unresolvable_assets_drop() {
+		$dupes = $this->sanitize_wallpapers( array( 'a.png', 'a.png' ) );
+		$this->assertCount( 1, $dupes, 'A duplicate id drops rather than shadowing.' );
+
+		$reject = static function () {
+			return false;
+		};
+		$this->assertSame( array(), $this->sanitize_wallpapers( 'nope.png', $reject ) );
+		$this->assertSame( array(), $this->sanitize_wallpapers( null ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_wallpaper_count_is_capped() {
+		$many = array();
+		for ( $i = 0; $i < 40; $i++ ) {
+			$many[] = "w{$i}.png";
+		}
+		$this->assertCount( 12, $this->sanitize_wallpapers( $many ) );
+
+		$cap = static function () {
+			return 3;
+		};
+		add_filter( 'desktop_mode_desktop_theme_max_wallpapers', $cap );
+		$this->assertCount( 3, $this->sanitize_wallpapers( $many ) );
+		remove_filter( 'desktop_mode_desktop_theme_max_wallpapers', $cap );
+	}
+
+	/**
+	 * A wallpaper must resolve through the IMAGE gate — a font path
+	 * must not sneak in through it.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_wallpapers_use_the_image_extension_gate() {
+		$seen = array();
+		$spy  = static function ( $path, $kind = 'image' ) use ( &$seen ) {
+			$seen[] = $kind;
+			return (string) $path;
+		};
+		$this->sanitize_wallpapers( 'a.png', $spy );
+		$this->assertSame( array( 'image' ), $seen );
+	}
+
+	/**
+	 * Both manifest keys are accepted — authors guess either.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 */
+	public function test_singular_and_plural_manifest_keys_both_work() {
+		foreach ( array( 'wallpaper', 'wallpapers' ) as $key ) {
+			$manifest = desktop_mode_sanitize_desktop_theme_manifest(
+				array(
+					'manifestVersion' => 1,
+					'id'              => 'acme/neon',
+					'name'            => 'Neon',
+					$key              => 'desk.png',
+				),
+				$this->permissive_resolver()
+			);
+			$this->assertCount( 1, $manifest['wallpapers'], $key . ' should have been read.' );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_desktop_theme_wallpaper_css
+	 */
+	public function test_wallpaper_css_is_a_background_shorthand() {
+		$css = desktop_mode_desktop_theme_wallpaper_css(
+			array( 'path' => 'textures/desk.png' ),
+			'https://x.test/t',
+			'1700000000'
+		);
+		$this->assertSame(
+			'url("https://x.test/t/textures/desk.png?ver=1700000000") center center / cover no-repeat',
+			$css
+		);
+
+		$tiled = desktop_mode_desktop_theme_wallpaper_css(
+			array(
+				'path'     => 'p.png',
+				'size'     => '64px 64px',
+				'repeat'   => 'repeat',
+				'position' => 'top left',
+			),
+			'https://x.test/t'
+		);
+		$this->assertStringContainsString( 'top left / 64px 64px repeat', $tiled );
+
+		$this->assertSame( '', desktop_mode_desktop_theme_wallpaper_css( array(), '' ) );
+	}
+
+	/**
+	 * The label is what tells a user where a wallpaper came from.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_wallpaper_label
+	 */
+	public function test_wallpaper_label_marks_its_origin() {
+		$this->assertSame(
+			'Neon Glass - (theme)',
+			desktop_mode_desktop_theme_wallpaper_label( 'Neon Glass', 'neon-glass' )
+		);
+		$this->assertSame(
+			'Neon Glass: Deep Field - (theme)',
+			desktop_mode_desktop_theme_wallpaper_label( 'Neon Glass', 'neon-glass', 'Deep Field' )
+		);
+
+		$filter = static function () {
+			return 'custom';
+		};
+		add_filter( 'desktop_mode_desktop_theme_wallpaper_label', $filter );
+		$this->assertSame(
+			'custom',
+			desktop_mode_desktop_theme_wallpaper_label( 'Neon Glass', 'neon-glass' )
+		);
+		remove_filter( 'desktop_mode_desktop_theme_wallpaper_label', $filter );
+	}
+
+	/**
+	 * Every theme in the library contributes every wallpaper it
+	 * declares, active or not — the point of a pick is that it does
+	 * not require wearing the theme it came from.
+	 *
+	 * @covers ::desktop_mode_register_desktop_theme_wallpapers
+	 */
+	public function test_theme_wallpapers_reach_the_picker() {
+		desktop_mode_register_desktop_theme( 'acme/papered', array(
+			'name'       => 'Papered',
+			'wallpapers' => array(
+				'dusk' => array( 'path' => 'https://cdn.test/dusk.jpg', 'label' => 'Dusk' ),
+				'dawn' => array( 'path' => 'https://cdn.test/dawn.jpg', 'label' => 'Dawn' ),
+			),
+		) );
+
+		desktop_mode_register_desktop_theme_wallpapers();
+
+		$found = array();
+		foreach ( desktop_mode_build_desktop_wallpapers_payload() as $entry ) {
+			if ( 0 === strpos( $entry['id'], 'desktop-theme/acme-papered/' ) ) {
+				$found[ $entry['id'] ] = $entry;
+			}
+		}
+
+		$this->assertCount( 2, $found, 'Both wallpapers should be pickable.' );
+		$this->assertSame(
+			'Papered: Dusk - (theme)',
+			$found['desktop-theme/acme-papered/dusk']['label']
+		);
+		$this->assertSame( 'css', $found['desktop-theme/acme-papered/dawn']['type'] );
+		$this->assertStringContainsString(
+			'https://cdn.test/dawn.jpg',
+			$found['desktop-theme/acme-papered/dawn']['value']
+		);
+
+		desktop_mode_unregister_desktop_theme( 'acme/papered' );
+	}
+
+	/**
+	 * A theme with no wallpaper adds nothing to the picker.
+	 *
+	 * @covers ::desktop_mode_register_desktop_theme_wallpapers
+	 */
+	public function test_theme_without_a_wallpaper_adds_no_entry() {
+		desktop_mode_register_desktop_theme( 'acme/bare', array( 'name' => 'Bare' ) );
+		desktop_mode_register_desktop_theme_wallpapers();
+
+		foreach ( desktop_mode_build_desktop_wallpapers_payload() as $entry ) {
+			$this->assertStringNotContainsString( 'acme-bare', $entry['id'] );
+		}
+
+		desktop_mode_unregister_desktop_theme( 'acme/bare' );
+	}
 }

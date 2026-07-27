@@ -83,6 +83,20 @@ add_action( 'init', function () {
             ),
         ),
 
+        // Wallpapers a user can pick in OS Settings → Wallpaper.
+        // Activating the theme does NOT switch to them — see the
+        // "It is a pick, not an act" note in the theme docs.
+        'wallpapers'  => array(
+            'dusk' => array(
+                'path'  => $asset( 'wallpapers/dusk.jpg' ),
+                'label' => __( 'Dusk', 'acme-neon-glass' ),
+            ),
+            'dawn' => array(
+                'path'  => $asset( 'wallpapers/dawn.jpg' ),
+                'label' => __( 'Dawn', 'acme-neon-glass' ),
+            ),
+        ),
+
         'icons'       => array(
             'WINDOW_CONTROL_CLOSE' => array(
                 'type' => 'image',

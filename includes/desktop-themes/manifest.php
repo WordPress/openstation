@@ -741,6 +741,132 @@ function desktop_mode_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 }
 
 /**
+ * Sanitize the `wallpapers` block: one or more pickable wallpapers.
+ *
+ * Four author shapes, because all four are things people reasonably
+ * write and none is ambiguous:
+ *
+ *   "wallpaper":  "textures/desk.png"
+ *   "wallpaper":  { "path": "textures/desk.png", "size": "cover" }
+ *   "wallpapers": [ "a.png", { "path": "b.png", "label": "Dusk" } ]
+ *   "wallpapers": { "dusk": { "path": "b.png" } }        <- keys are ids
+ *
+ * Always returns a LIST of descriptors, so every consumer downstream
+ * handles exactly one shape.
+ *
+ * ## Ids are a stored preference, so they must be stable
+ *
+ * The user's wallpaper choice persists by id. If ids shifted when an
+ * author reordered their list, a re-upload would silently move every
+ * user onto a different picture. So an id is taken from, in order:
+ * an explicit `id`, the map key, a slug of the `label`, and finally
+ * the image's own filename — never the array index.
+ *
+ * @since 0.9.8
+ * @internal
+ *
+ * @param mixed    $raw            Raw `wallpaper` / `wallpapers` value.
+ * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
+ * @return array[] List of sanitized descriptors.
+ */
+function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) {
+	if ( is_string( $raw ) ) {
+		$raw = array( array( 'path' => $raw ) );
+	} elseif ( is_array( $raw ) && isset( $raw['path'] ) ) {
+		// A single descriptor, not a collection.
+		$raw = array( $raw );
+	}
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+
+	/**
+	 * Filters how many wallpapers one desktop theme may contribute.
+	 *
+	 * @since 0.9.8
+	 *
+	 * @param int $max Default 12.
+	 */
+	$max  = max( 1, (int) apply_filters( 'desktop_mode_desktop_theme_max_wallpapers', 12 ) );
+	$out  = array();
+	$seen = array();
+
+	foreach ( $raw as $key => $entry ) {
+		if ( count( $out ) >= $max ) {
+			break;
+		}
+		if ( is_string( $entry ) ) {
+			$entry = array( 'path' => $entry );
+		}
+		if ( ! is_array( $entry ) ) {
+			continue;
+		}
+
+		$path = isset( $entry['path'] ) ? (string) $entry['path'] : '';
+		$ref  = call_user_func( $asset_resolver, $path, 'image' );
+		if ( ! is_string( $ref ) || '' === $ref ) {
+			continue;
+		}
+
+		$label = isset( $entry['label'] ) && is_string( $entry['label'] )
+			? mb_substr( sanitize_text_field( $entry['label'] ), 0, 80 )
+			: '';
+
+		// Id precedence — see the docblock. `sanitize_title` on the
+		// filename keeps a stable, readable id with no author effort.
+		$id = '';
+		if ( isset( $entry['id'] ) && is_string( $entry['id'] ) ) {
+			$id = sanitize_title( $entry['id'] );
+		}
+		if ( '' === $id && is_string( $key ) ) {
+			$id = sanitize_title( $key );
+		}
+		if ( '' === $id && '' !== $label ) {
+			$id = sanitize_title( $label );
+		}
+		if ( '' === $id ) {
+			$id = sanitize_title( (string) pathinfo( $path, PATHINFO_FILENAME ) );
+		}
+		if ( '' === $id || isset( $seen[ $id ] ) ) {
+			continue;
+		}
+		$seen[ $id ] = true;
+
+		$item = array(
+			'id'    => $id,
+			'label' => $label,
+			'path'  => $ref,
+		);
+
+		if ( isset( $entry['repeat'] ) && is_string( $entry['repeat'] ) ) {
+			$value = strtolower( trim( $entry['repeat'] ) );
+			if ( in_array( $value, array( 'repeat', 'repeat-x', 'repeat-y', 'no-repeat', 'space', 'round' ), true ) ) {
+				$item['repeat'] = $value;
+			}
+		}
+		if ( isset( $entry['size'] ) && is_string( $entry['size'] ) ) {
+			$value = strtolower( trim( preg_replace( '/\s+/', ' ', $entry['size'] ) ) );
+			if ( desktop_mode_desktop_theme_is_size_value( $value ) ) {
+				$item['size'] = $value;
+			}
+		}
+		if ( isset( $entry['position'] ) && is_string( $entry['position'] ) ) {
+			$value = strtolower( trim( preg_replace( '/\s+/', ' ', $entry['position'] ) ) );
+			if ( desktop_mode_desktop_theme_is_position_value( $value ) ) {
+				$item['position'] = $value;
+			}
+		}
+		if ( isset( $entry['description'] ) && is_string( $entry['description'] ) ) {
+			$item['description'] = mb_substr( sanitize_textarea_field( $entry['description'] ), 0, 500 );
+		}
+
+		$out[] = $item;
+	}
+
+	return $out;
+}
+
+/**
  * Sanitize a whole `theme.json` manifest.
  *
  * @since 0.9.7
@@ -857,6 +983,14 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 		),
 		'fonts'           => desktop_mode_sanitize_desktop_theme_fonts(
 			isset( $raw['fonts'] ) ? $raw['fonts'] : null,
+			$asset_resolver
+		),
+		// `wallpaper` and `wallpapers` are both accepted — authors
+		// guess either — and merge into one list.
+		'wallpapers'      => desktop_mode_sanitize_desktop_theme_wallpapers(
+			isset( $raw['wallpapers'] ) ? $raw['wallpapers'] : (
+				isset( $raw['wallpaper'] ) ? $raw['wallpaper'] : null
+			),
 			$asset_resolver
 		),
 	);

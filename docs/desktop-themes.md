@@ -20,6 +20,7 @@ to the window control glyphs. It ships as a ZIP containing a
 - [`theme.json`](#themejson)
 - [Tokens](#tokens)
 - [Fonts](#fonts)
+- [Wallpapers](#wallpapers)
 - [Icons](#icons)
 - [Textures](#textures)
 - [Texturing your own surface](#texturing-your-own-surface)
@@ -178,6 +179,7 @@ Optional, and **individually droppable** — see
 | `description` | Plain text, ≤500 chars. |
 | `preview` | Path to an image shown on the theme card in OS Settings. |
 | `iconColor` | Default fill for every icon — see [Icon colour](#icon-colour). |
+| `wallpaper` / `wallpapers` | One or more pickable wallpapers — see [Wallpapers](#wallpapers). |
 | `tokens`, `fonts`, `icons`, `textures` | See below. |
 
 ---
@@ -410,6 +412,83 @@ archive. Both face caps are filterable
   context, which the theme stylesheet does not enter. Your typeface
   restyles the desk, the dock, every title bar, and every native
   window body; the admin page inside an iframe keeps the admin's font.
+
+---
+
+## Wallpapers
+
+**Since 0.9.8.** A theme may ship wallpapers. Each one appears in
+**OS Settings → Wallpaper** as an ordinary pick, labelled
+`<theme name> - (theme)` — or `<theme name>: <label> - (theme)` when
+the theme ships more than one.
+
+```json
+"wallpapers": {
+  "deep-field":   { "path": "wallpapers/deep-field.jpg",
+                    "label": "Deep Field",
+                    "description": "Violet light across a star field." },
+  "grid-horizon": { "path": "wallpapers/grid-horizon.jpg",
+                    "label": "Grid Horizon" }
+}
+```
+
+### It is a pick, not an act
+
+Applying a theme does **not** change the user's wallpaper, which is
+where we deliberately part company with macOS and Windows.
+
+A wallpaper here is a stored user preference. For theme activation to
+swap it, we would have to either overwrite that preference silently or
+keep a shadow record of "what they had before" to restore later — and
+both are worse than simply putting the theme's artwork where the user
+already goes to change wallpapers.
+
+The upside is real: a theme's wallpaper can be worn **without** the
+theme, and wearing the theme never costs a user the wallpaper they
+chose. Every theme in the library contributes its wallpapers, not just
+the active one.
+
+> This is separate from the `DESKTOP` texture slot. That slot follows
+> the theme and layers *over* whatever wallpaper is active; a wallpaper
+> here is a picture the user selects.
+
+### Four shapes, all accepted
+
+```json
+"wallpaper":  "wallpapers/desk.jpg"
+"wallpaper":  { "path": "wallpapers/desk.jpg", "size": "cover" }
+"wallpapers": [ "a.jpg", { "path": "b.jpg", "label": "Dusk" } ]
+"wallpapers": { "dusk": { "path": "b.jpg" } }
+```
+
+`wallpaper` and `wallpapers` are interchangeable keys. A map's keys
+become the wallpaper ids.
+
+### Fields
+
+| Field | Rule |
+|---|---|
+| `path` | **Required.** Image inside your ZIP (absolute URL for a code theme). |
+| `label` | Shown in the picker after the theme name. Recommended once you ship more than one. |
+| `id` | Explicit id. See the stability note below. |
+| `description` | Shown in OS Settings when this wallpaper is selected. Falls back to the theme's description. |
+| `size` | `cover` (default), `contain`, `auto`, or lengths. |
+| `repeat` | `no-repeat` (default) or any `background-repeat` keyword. |
+| `position` | `center center` (default), keywords, lengths, or percentages. |
+
+Twelve per theme, filterable via
+`desktop_mode_desktop_theme_max_wallpapers`.
+
+### Ids are a stored preference — keep them stable
+
+The user's choice persists by id, so an id is derived from something
+that survives an edit, **never the array position**: an explicit `id`,
+then the map key, then a slug of `label`, then the image's filename.
+
+Reordering your list is therefore safe. Renaming a file, or changing a
+`label` that was supplying the id, is not — do that and anyone using
+that wallpaper falls back to the default. Set `id` explicitly if you
+expect either to change.
 
 ---
 

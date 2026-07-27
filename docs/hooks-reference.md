@@ -3833,6 +3833,25 @@ See [Texturing your own surface](./desktop-themes.md#texturing-your-own-surface)
 > `desktop-mode.desktop-theme.icon-color` — see the
 > [JavaScript reference](./javascript-reference.md#desktop-themes).
 
+### `desktop_mode_desktop_theme_wallpaper_label` — Experimental *(filter, since 0.9.8)*
+
+Picker label for a wallpaper contributed by a desktop theme. Default
+`<name> - (theme)`, or `<name>: <own label> - (theme)` when the
+wallpaper carries its own label.
+
+- **Param** `string $label`
+- **Param** `string $name` — theme display name.
+- **Param** `string $slug` — theme slug.
+- **Param** `string $own_label` — the wallpaper's own label, or `''`.
+- **Return** `string`
+
+### `desktop_mode_desktop_theme_max_wallpapers` — Experimental *(filter, since 0.9.8)*
+
+How many wallpapers one theme may contribute to the picker.
+
+- **Param** `int $max` — default 12.
+- **Return** `int`
+
 ### `desktop_mode_desktop_theme_asset_extensions` — Experimental *(filter, since 0.9.8)*
 
 File extensions accepted for one kind of theme asset. Two kinds exist

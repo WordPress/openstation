@@ -494,6 +494,11 @@ function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
 			$assets[ $source['path'] ] = true;
 		}
 	}
+	foreach ( $manifest['wallpapers'] as $wallpaper ) {
+		if ( ! empty( $wallpaper['path'] ) ) {
+			$assets[ $wallpaper['path'] ] = true;
+		}
+	}
 
 	// Sanitize SVGs while they're still in staging. A failure here
 	// aborts the whole install — a theme that ships an SVG we can't

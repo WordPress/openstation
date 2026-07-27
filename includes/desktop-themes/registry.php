@@ -110,6 +110,11 @@ function desktop_mode_desktop_theme_registry( $slug = '', $entry = null ) {
  *     @type array  $textures    Map of slot => texture descriptor.
  *     @type array  $fonts       List of `@font-face` descriptors.
  *                               `src` entries are absolute URLs.
+ *     @type array|string $wallpapers One absolute image URL, one
+ *                               descriptor (`path` / `label` / `size`
+ *                               / `repeat` / `position`), or a list or
+ *                               map of either. Each becomes a pickable
+ *                               wallpaper.
  * }
  * @return true|WP_Error
  */
@@ -127,6 +132,7 @@ function desktop_mode_register_desktop_theme( $id, $args = array() ) {
 			'icons'       => array(),
 			'textures'    => array(),
 			'fonts'       => array(),
+			'wallpapers'  => array(),
 		)
 	);
 
@@ -144,6 +150,7 @@ function desktop_mode_register_desktop_theme( $id, $args = array() ) {
 			'icons'           => $args['icons'],
 			'textures'        => $args['textures'],
 			'fonts'           => $args['fonts'],
+			'wallpapers'      => $args['wallpapers'],
 		),
 		desktop_mode_desktop_theme_url_asset_resolver()
 	);
