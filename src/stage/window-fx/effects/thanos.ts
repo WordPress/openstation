@@ -184,7 +184,12 @@ export const thanosEffect: WindowEffectDef = {
 			};
 
 			const step = ( t: { deltaMS: number } ): void => {
-				if ( ctx.signal.aborted ) {
+				// See `basic.ts`: a destroyed sprite throws inside the
+				// ticker and takes every other listener down with it.
+				if (
+					ctx.signal.aborted ||
+					( sprite as { destroyed?: boolean } ).destroyed === true
+				) {
 					finish();
 					return;
 				}

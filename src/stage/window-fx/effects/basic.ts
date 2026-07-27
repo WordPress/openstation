@@ -48,7 +48,11 @@ function animate(
 		};
 
 		const step = ( t: { deltaMS: number } ): void => {
-			if ( ctx.signal.aborted ) {
+			// A destroyed sprite means something tore the stage down
+			// underneath us — a resize rebuild, the stage being switched
+			// off. Writing to it throws inside Pixi's ticker, which is
+			// unrecoverable for every other listener too, so bail first.
+			if ( ctx.signal.aborted || isDead( ctx.sprite ) ) {
 				finish();
 				return;
 			}
@@ -63,6 +67,11 @@ function animate(
 
 		ctx.ticker.add( step );
 	} );
+}
+
+/** Whether a display object has been destroyed out from under us. */
+function isDead( sprite: unknown ): boolean {
+	return ( sprite as { destroyed?: boolean } )?.destroyed === true;
 }
 
 /** `true` for transitions where the window is arriving rather than leaving. */

@@ -6,13 +6,27 @@
  * into the corners, and a slow mains-hum flicker. Runs last (order 30)
  * so it curves whatever the earlier effects produced.
  *
- * **Hit-testing caveat.** Curvature moves *pixels*, not the DOM. The
- * shell underneath is still laid out flat, so under heavy curvature a
- * click near the edge of the screen lands where the element really is,
- * a few pixels from where it visually appears. That is inherent to
- * post-processing a live DOM subtree — the browser hit-tests the
- * element, not our shader — which is why curvature is a slider that
- * defaults low rather than a fixed dramatic value.
+ * **Curvature breaks clicking, and cannot be fixed.** Every other
+ * parameter here recolours pixels in place; curvature MOVES them. The
+ * shell underneath stays laid out flat, so a click lands where the
+ * element really is, not where it appears — an error that grows with
+ * distance from the centre of the screen.
+ *
+ * The HTML-in-Canvas answer to drawn-vs-laid-out mismatch is
+ * `canvas.getElementTransform( element, matrix )`: assign its result to
+ * `element.style.transform` and the browser hit-tests the element at its
+ * drawn position. That is how the rotating PixiJS demos stay clickable.
+ * It returns a `DOMMatrix`, though, so it can only express AFFINE
+ * transforms — translate, rotate, scale, skew. Barrel distortion
+ * displaces each pixel by an amount proportional to its squared distance
+ * from centre, which no matrix can represent, and there is no API for
+ * hit-testing along a curve.
+ *
+ * So curvature defaults to 0. Everything else in this shader — the
+ * phosphor mask, colour fringing, vignette, flicker — is per-pixel
+ * colour work that leaves geometry untouched and clicking exact. Turn
+ * curvature up only if you want the bulge more than you want the edges
+ * of the screen to be usable.
  *
  * @since 0.9.8
  */
@@ -41,6 +55,7 @@ uniform vec4 uInputClamp;
 uniform vec2 uFrameSize;
 
 uniform float uCurvature;
+uniform float uBezel;
 uniform float uMask;
 uniform float uAberration;
 uniform float uVignette;
@@ -77,6 +92,24 @@ void main(void)
     if (warped.x < 0.0 || warped.x > 1.0 || warped.y < 0.0 || warped.y > 1.0) {
         finalColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
+    }
+
+    /*
+     * Curved bezel — the shape of the glass WITHOUT moving the picture.
+     *
+     * Runs the same barrel maths as uCurvature but uses the result only
+     * to decide what is off-glass and paint it black. Pixels that stay
+     * are sampled from their true position, so the rounded-corner tube
+     * framing costs nothing in click accuracy. This is the setting to
+     * reach for when you want the shape of a CRT and a usable desktop.
+     */
+    if (uBezel > 0.0) {
+        vec2 bezelWarp = uv + centred * r2 * uBezel;
+        if (bezelWarp.x < 0.0 || bezelWarp.x > 1.0 ||
+            bezelWarp.y < 0.0 || bezelWarp.y > 1.0) {
+            finalColor = vec4(0.0, 0.0, 0.0, 1.0);
+            return;
+        }
     }
 
     vec2 base = warped * frameSize * uInputSize.zw;
@@ -127,17 +160,30 @@ export const crtEffect: ScreenEffectDef = {
 	id: 'crt',
 	label: __( 'CRT tube' ),
 	description: __(
-		'Curve the desktop onto a picture tube, with a phosphor mask, colour fringing and a vignette.',
+		'Phosphor mask, colour fringing, vignette and flicker. Curvature is available but offsets where clicks land, so it starts at zero.',
 	),
 	order: 30,
 	params: [
 		{
+			// Off by default: this is the ONE parameter that breaks
+			// clicking. See the note at the top of this file.
 			key: 'curvature',
-			label: __( 'Curvature' ),
+			label: __( 'Curvature (offsets clicks)' ),
 			min: 0,
 			max: 0.6,
 			step: 0.01,
-			default: 0.12,
+			default: 0,
+		},
+		{
+			// The honest alternative to curvature: the rounded shape of a
+			// tube, with the picture left exactly where the DOM thinks it
+			// is. Costs nothing in click accuracy.
+			key: 'bezel',
+			label: __( 'Bezel curve' ),
+			min: 0,
+			max: 0.6,
+			step: 0.01,
+			default: 0.18,
 		},
 		{
 			key: 'mask',
@@ -207,6 +253,7 @@ export const crtEffect: ScreenEffectDef = {
 					// device scale while `ctx.screen` is in CSS pixels.
 					uFrameSize: { value: frameSize( ctx ), type: 'vec2<f32>' },
 					uCurvature: { value: ctx.params.curvature, type: 'f32' },
+					uBezel: { value: ctx.params.bezel, type: 'f32' },
 					uMask: { value: ctx.params.mask, type: 'f32' },
 					uAberration: { value: ctx.params.aberration, type: 'f32' },
 					uVignette: { value: ctx.params.vignette, type: 'f32' },
@@ -234,6 +281,7 @@ export const crtEffect: ScreenEffectDef = {
 			target[ 1 ] = size[ 1 ];
 		}
 		uniforms.uCurvature = ctx.params.curvature;
+		uniforms.uBezel = ctx.params.bezel;
 		uniforms.uMask = ctx.params.mask;
 		uniforms.uAberration = ctx.params.aberration;
 		uniforms.uVignette = ctx.params.vignette;

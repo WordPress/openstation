@@ -224,9 +224,19 @@ export function startWindowEffectEngine(
 	// Lifecycle wiring
 	// -----------------------------------------------------------------
 
-	/** Document CustomEvents carry `detail.windowId`; look the element up. */
+	/**
+	 * Document CustomEvents carry `detail.windowId`, not the element, so
+	 * look it up.
+	 *
+	 * The DOM id is NOT the window id — `createWindowElement()` builds it
+	 * as `wp-window-<id>` (see `src/window/dom.ts`). Looking up the bare
+	 * id silently found nothing, which is why the event-driven
+	 * transitions (open, focus, blur) never played while the
+	 * action-driven ones — which receive `element` in their payload —
+	 * worked fine.
+	 */
 	function elementFor( windowId: string ): HTMLElement | null {
-		return document.getElementById( windowId );
+		return document.getElementById( `wp-window-${ windowId }` );
 	}
 
 	const onOpened = ( e: Event ): void => {

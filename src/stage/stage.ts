@@ -84,6 +84,9 @@ const RESIZE_SETTLE_MS = 80;
  */
 const RESIZE_REBUILD_THROTTLE_MS = 250;
 
+/** Body class that hides the admin bar, changing the stage's top inset. */
+const FULLSCREEN_BODY_CLASS = 'desktop-mode-has-fullscreen-window';
+
 /** Class added to the shell while it lives inside the canvas. */
 export const STAGED_SHELL_CLASS = 'desktop-mode-shell--staged';
 
@@ -549,14 +552,15 @@ export class CanvasStage {
 			return;
 		}
 
+		// Deliberately NOT destroying `_overlay` — see `_createSource`.
+		// It is detached and re-added, so running effects keep their
+		// sprites.
 		if ( this._overlay ) {
 			try {
 				app.stage.removeChild( this._overlay );
-				this._overlay.destroy( { children: true } );
 			} catch {
-				// Being replaced regardless.
+				// Already detached.
 			}
-			this._overlay = null;
 		}
 		if ( this._sprite ) {
 			try {
@@ -732,7 +736,21 @@ export class CanvasStage {
 		window.addEventListener( 'resize', this._onViewportChange );
 		// The admin bar is hidden when a window goes fullscreen, which
 		// changes the canvas's top offset without firing a resize.
+		// Only the fullscreen class changes the stage's box. Reacting to
+		// EVERY body class change meant that minimising or maximising a
+		// window — which touches body classes — scheduled a texture
+		// rebuild in the middle of that window's own transition effect.
+		let hadFullscreen = document.body.classList.contains(
+			FULLSCREEN_BODY_CLASS,
+		);
 		this._bodyClassObserver = new MutationObserver( () => {
+			const hasFullscreen = document.body.classList.contains(
+				FULLSCREEN_BODY_CLASS,
+			);
+			if ( hasFullscreen === hadFullscreen ) {
+				return;
+			}
+			hadFullscreen = hasFullscreen;
 			this._onViewportChange();
 		} );
 		this._bodyClassObserver.observe( document.body, {
@@ -861,15 +879,26 @@ export class CanvasStage {
 		sprite.y = 0;
 		app.stage.addChild( sprite );
 
-		// Overlay for window transition effects, added after the desktop
-		// sprite so it draws on top. Recreated with the source so a
-		// resize rebuild never leaves it orphaned beneath the desktop.
-		const overlay = new pixi.Container();
-		app.stage.addChild( overlay );
+		/*
+		 * Overlay for window transition effects.
+		 *
+		 * Created ONCE and kept across source rebuilds. Destroying it on
+		 * rebuild — which a resize triggers — tore down any in-flight
+		 * effect sprite without telling its animation, and the next
+		 * ticker frame then wrote to a destroyed object:
+		 *
+		 *   Cannot set properties of null (setting 'x')
+		 *
+		 * Re-adding it after the desktop sprite keeps it on top, which is
+		 * all the rebuild actually needs.
+		 */
+		if ( ! this._overlay ) {
+			this._overlay = new pixi.Container();
+		}
+		app.stage.addChild( this._overlay );
 
 		this._source = source;
 		this._sprite = sprite;
-		this._overlay = overlay;
 	}
 
 	private _teardownPixi(): void {

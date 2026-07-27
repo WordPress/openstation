@@ -3252,11 +3252,14 @@ export class Window {
 		 * dropped this window from its stack, and `_finalizeClose()`
 		 * remains idempotent.
 		 *
-		 * `destroy()` sets `_suppressCloseFilter`, so forced teardowns —
-		 * plugin deactivation, tests — stay synchronous and never wait on
-		 * an animation.
+		 * `destroy()` sets `_suppressCloseAnimation`, so forced teardowns
+		 * — plugin deactivation, tests — stay synchronous and never wait
+		 * on an animation. Note that is a DIFFERENT flag from
+		 * `_suppressCloseFilter`: the iframe close path sets that one on
+		 * its second pass, and conflating them made every iframe window
+		 * skip its close effect.
 		 */
-		const claimedMs = this._suppressCloseFilter
+		const claimedMs = this._suppressCloseAnimation
 			? null
 			: applyFilters< number | null >(
 				HOOKS.WINDOW_CLOSE_ANIMATION,
@@ -3328,10 +3331,12 @@ export class Window {
 		// is genuinely "force teardown".
 		if ( ! this._isDestroyed ) {
 			this._suppressCloseFilter = true;
+			this._suppressCloseAnimation = true;
 			try {
 				this.close();
 			} finally {
 				this._suppressCloseFilter = false;
+				this._suppressCloseAnimation = false;
 			}
 		}
 		// Animation may have been scheduled — finalise now instead
@@ -3349,6 +3354,18 @@ export class Window {
 	 * @since 0.8.2
 	 */
 	private _suppressCloseFilter: boolean = false;
+
+	/**
+	 * Set only by {@link destroy} — suppresses the close ANIMATION gate.
+	 *
+	 * Deliberately separate from `_suppressCloseFilter`. That one exists
+	 * so a re-entrant close is not vetoed twice, and the iframe path sets
+	 * it on its second pass (after the beforeunload query answers). Using
+	 * it for the animation gate too meant every iframe window skipped its
+	 * close effect — the visible symptom being that effects worked on
+	 * native windows and silently did nothing on iframe ones.
+	 */
+	private _suppressCloseAnimation: boolean = false;
 
 	/**
 	 * Run the post-animation teardown — the work that used to live
