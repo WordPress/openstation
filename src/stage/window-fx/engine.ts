@@ -43,6 +43,7 @@ import {
 import { resolveParams } from '../chain';
 import type { CanvasStage } from '../stage';
 import { getWindowEffect } from './registry';
+import { createWindowShadow } from './shadow';
 import { retireTexture } from './texture-retire';
 import {
 	WINDOW_EFFECT_NONE,
@@ -399,6 +400,17 @@ export function startWindowEffectEngine(
 			}
 
 			/*
+			 * Whether the real element is hidden while the copy plays, and
+			 * whether the copy outlives the un-hiding.
+			 *
+			 * `close` is the odd one out for the second: that element is on
+			 * its way out of the DOM, and keeping the copy around only
+			 * risks flashing a window that is supposed to be gone.
+			 */
+			const hides = HIDES_WINDOW.has( transition );
+			const deferTeardown = hides && 'close' !== transition;
+
+			/*
 		 * Each effect gets its OWN container inside the overlay.
 		 *
 		 * Effects add display objects of their own — the dissolve makes
@@ -418,16 +430,34 @@ export function startWindowEffectEngine(
 			const layer = new pixi.Container();
 			overlay.addChild( layer );
 
+			/*
+			 * The window's shadow, drawn rather than captured.
+			 *
+			 * `box-shadow` paints outside the border box, and the capture
+			 * IS the border box — so a stand-in has never carried one, and
+			 * the shadow snapped into existence the instant the window was
+			 * handed back. Added before the sprite so it sits behind it.
+			 *
+			 * Only for transitions that hand the window back: a close ends
+			 * with the window gone, so there is no moment of comparison to
+			 * get wrong, and a crisp shadow outliving a dissolving window
+			 * would be its own artefact.
+			 */
+			const shadow = deferTeardown
+				? createWindowShadow( pixi, element, from )
+				: null;
+			if ( shadow ) {
+				layer.addChild( shadow );
+			}
+
 			const sprite = new pixi.Sprite( texture );
 			sprite.x = from.x;
 			sprite.y = from.y;
 			layer.addChild( sprite );
 
-			// Hide the real element so the desktop snapshot stops drawing it
-			// and only the animated copy shows. See `hideForEffect` — how it
-			// hides matters more than it looks.
-			const hides = HIDES_WINDOW.has( transition );
-
+			// Hiding the real element is what makes the copy the only
+			// visible one. See `hideForEffect` — how it hides matters more
+			// than it looks.
 			if ( NEEDS_FRESH_SNAPSHOT.has( transition ) ) {
 				/*
 				 * For one frame the real window stays visible and the
@@ -518,26 +548,31 @@ export function startWindowEffectEngine(
 			}
 
 			/*
-		 * Whether the stand-in should outlive the un-hiding.
+		 * Keep the drawn shadow under whatever the effect is doing.
 		 *
-		 * The stage does not draw the DOM directly — it uploads a
-		 * SNAPSHOT of it, refreshed once per ticker frame from inside the
-		 * browser's paint event. So restoring the window's opacity does
-		 * not put it back on screen; it puts it back on screen once the
-		 * snapshot catches up. Removing the stand-in in the same breath
-		 * leaves a gap where neither is drawn, which is the blink at the
-		 * end of a drag.
+		 * By default it tracks the stand-in sprite, which is exactly right
+		 * for the effects that animate that sprite — it scales, rotates
+		 * and fades with the window.
 		 *
-		 * Overlapping instead of gapping is free here: an effect that
-		 * hands the window back has already settled its stand-in onto the
-		 * window's exact rectangle, so the same pixels are simply drawn
-		 * twice, in the same place.
-		 *
-		 * Not for `close`: that element is on its way out of the DOM, and
-		 * keeping the copy around only risks flashing a window that is
-		 * supposed to be gone.
+		 * The moment an effect hides the sprite or fades it out, though,
+		 * it has replaced it: the cloth builds a mesh, the dissolve builds
+		 * particles, the reconstruct builds tiles. There is nothing
+		 * sensible left to track, so the engine lets go and the effect
+		 * owns `ctx.shadow` from then on.
 		 */
-			const deferTeardown = hides && 'close' !== transition;
+			const syncShadow = (): void => {
+				if ( ! shadow || ! sprite.visible || sprite.alpha <= 0 ) {
+					return;
+				}
+				shadow.x = sprite.x;
+				shadow.y = sprite.y;
+				shadow.scale.set( sprite.scale.x, sprite.scale.y );
+				shadow.rotation = sprite.rotation;
+				shadow.alpha = sprite.alpha;
+			};
+			if ( shadow ) {
+				ticker.add( syncShadow );
+			}
 
 			let torn = false;
 			const tearDown = (): void => {
@@ -545,6 +580,7 @@ export function startWindowEffectEngine(
 					return;
 				}
 				torn = true;
+				ticker.remove( syncShadow );
 				try {
 				// Container first — everything that could still be
 				// sampling the texture must leave the scene graph before
@@ -610,6 +646,7 @@ export function startWindowEffectEngine(
 					sprite,
 					texture,
 					layer,
+					shadow,
 					from,
 					to,
 					element,

@@ -132,8 +132,17 @@ export const clothEffect: WindowEffectDef = {
 	],
 
 	run( ctx: WindowEffectRunContext ) {
-		const { pixi, sprite, texture, layer, from, element, ticker, params } =
-			ctx;
+		const {
+			pixi,
+			sprite,
+			texture,
+			layer,
+			shadow,
+			from,
+			element,
+			ticker,
+			params,
+		} = ctx;
 		const { MeshPlane } = pixi as unknown as {
 			MeshPlane?: new ( opts: {
 				texture: unknown;
@@ -273,6 +282,16 @@ export const clothEffect: WindowEffectDef = {
 				const origin = canvasOrigin();
 				const left = box.left - origin.left;
 				const top = box.top - origin.top;
+
+				// The engine stopped tracking the shadow the moment the
+				// sprite went invisible, so it is ours: keep it under the
+				// pin line, where the window itself actually is. The sheet
+				// swinging away from its own shadow is what a hanging
+				// cloth does.
+				if ( shadow ) {
+					shadow.x = left;
+					shadow.y = top;
+				}
 				for ( let col = 0; col < cols; col++ ) {
 					const p = particles[ col ];
 					p.x = left + ( box.width * col ) / ( cols - 1 );

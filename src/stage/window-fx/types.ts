@@ -116,6 +116,24 @@ export interface WindowEffectRunContext {
 	 * is removed when the effect finishes.
 	 */
 	layer: Container;
+	/**
+	 * A drawn copy of the window's CSS drop shadow, sitting behind the
+	 * sprite. `null` when the window has no shadow, or for transitions
+	 * that end with the window gone.
+	 *
+	 * Captures are taken from the border box and `box-shadow` paints
+	 * outside it, so a stand-in has no shadow of its own; without this
+	 * one the shadow snapped into existence the moment the window was
+	 * handed back.
+	 *
+	 * **The engine keeps it aligned to `sprite` for you** — position,
+	 * scale, rotation and alpha — right up until you hide the sprite or
+	 * fade it to nothing. At that point you have replaced the stand-in
+	 * with something of your own, the engine stops tracking, and the
+	 * shadow is yours to move and fade with it. See `cloth.ts` and
+	 * `reconstruct.ts` for the two shapes that takes.
+	 */
+	shadow: Container | null;
 	/** Where the window is, in CSS pixels relative to the stage. */
 	from: StageRect;
 	/**

@@ -324,6 +324,63 @@ wallpaper — the real window is the better thing to look at until the
 correction lands. Effects run through it normally, so they simply play
 their first frame or two off-screen.
 
+### Drop shadows are off while the desktop is in the canvas
+
+A capture comes from `getBoundingClientRect()` — the border box — and
+`box-shadow` paints *outside* it. So a stand-in never carried a shadow,
+and the shadow snapped into existence the instant a window was handed
+back. That is a real difference between the two images, which is why no
+amount of timing the swap could hide it.
+
+Rather than chase a browser's own blur, `stage.css` zeroes the desktop's
+shadow tokens on `.desktop-mode-shell--staged`. A desktop with no drop
+shadows is consistent; one with almost-right shadows is not.
+
+Two details a theme author will care about. The tokens are set to a
+**transparent zero-size shadow, not `none`**, because several get
+composed into longer shadow lists — the linked-window halo is
+`0 0 18px 4px <glow>, var( --desktop-mode-window-shadow )`, and `none` is
+only valid on its own, so substituting it there would invalidate the
+whole declaration and take the halo with it. And only the *tokens* are
+touched: `outline` focus rings and the `inset` highlights that draw
+borders and pressed states survive, since none of them extend past the
+box an effect captures.
+
+### The shadow can still be drawn
+
+If something reintroduces a shadow anyway — a desktop theme styling
+`.desktop-mode-window` directly beats the token override, which is the
+precedence a theme author would expect — the engine matches it rather
+than letting it pop. `ctx.shadow` is a blurred rounded rect
+behind the sprite, built from the window's own computed `box-shadow` and
+`border-radius`. `null` when the window has no shadow, and for
+transitions that end with the window gone — a close has no moment of
+comparison to get wrong, and a crisp shadow outliving a dissolving
+window would be an artefact of its own.
+
+**The engine keeps it aligned to `sprite` for you** — position, scale,
+rotation, alpha — right up until you hide the sprite or fade it to
+nothing. At that point you have replaced the stand-in with something of
+your own, the engine stops tracking, and the shadow is yours:
+
+```js
+// Cloth: keep it under the window, not under the swinging sheet.
+if ( ctx.shadow ) {
+    ctx.shadow.x = left;
+    ctx.shadow.y = top;
+}
+
+// Reconstruct: a window that is not there yet casts no shadow.
+if ( ctx.shadow ) {
+    ctx.shadow.alpha = Math.min( 1, elapsed / total );
+}
+```
+
+The alternative was padding the capture to take the real shadow with it.
+That also picks up whatever was *behind* the window, drawn stale over
+the live desktop — invisible over plain wallpaper, a smear when dragging
+across another window, and impossible to deform with a cloth.
+
 ### CSS animations on the real element
 
 `Window` adds `desktop-mode-window--opening` on creation, and
@@ -372,8 +429,8 @@ wp.desktop.stage.registerWindowEffect( {
 } );
 ```
 
-`ctx` carries `{ pixi, transition, params, sprite, texture, layer, from,
-to?, element, ticker, signal }`. `from` is the window's rect in CSS
+`ctx` carries `{ pixi, transition, params, sprite, texture, layer,
+shadow, from, to?, element, ticker, signal }`. `from` is the window's rect in CSS
 pixels relative to the stage; `to` is the destination where one exists
 (the dock tile on minimise, the new geometry on maximise); `element` is
 the real window element, still in the DOM and still being moved by the

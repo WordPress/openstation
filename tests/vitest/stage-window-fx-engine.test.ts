@@ -20,6 +20,18 @@ class FakeContainer {
 	public children: FakeContainer[] = [];
 	public destroyed = false;
 	public visible = true;
+	public x = 0;
+	public y = 0;
+	public alpha = 1;
+	public rotation = 0;
+	public scale = {
+		x: 1,
+		y: 1,
+		set( x: number, y: number ) {
+			this.x = x;
+			this.y = y;
+		},
+	};
 	public addChild( child: FakeContainer ): FakeContainer {
 		this.children.push( child );
 		return child;
@@ -34,10 +46,19 @@ class FakeContainer {
 }
 
 class FakeSprite extends FakeContainer {
-	public x = 0;
-	public y = 0;
 	public constructor( public texture: unknown ) {
 		super();
+	}
+}
+
+/** Enough of `Graphics` / `BlurFilter` for the shadow builder. */
+class FakeGraphics {
+	public filters: unknown[] = [];
+	public roundRect() {
+		return this;
+	}
+	public fill() {
+		return this;
 	}
 }
 
@@ -85,6 +106,8 @@ interface Harness {
 	captures: () => number;
 	/** How many times it has repainted a capture from a newer snapshot. */
 	recaptures: () => number;
+	/** Run one frame of everything the engine put on the ticker. */
+	tick: () => void;
 	/** Whether the engine is waiting for the snapshot to catch up. */
 	awaitingSnapshot: () => boolean;
 	/** Deliver the snapshot the engine is waiting for. */
@@ -129,6 +152,9 @@ async function harness(
 	element.id = `wp-window-${ WINDOW_ID }`;
 	element.getBoundingClientRect = () =>
 		( { left: 10, top: 20, width: 300, height: 200 } ) as DOMRect;
+	// Windows ship a shadow by default (`variables.css`), and it paints
+	// outside the border box the capture is taken from.
+	element.style.boxShadow = 'rgba(0, 0, 0, 0.3) 0px 8px 32px 0px';
 	document.body.append( element );
 
 	const overlay = new FakeContainer();
@@ -145,12 +171,26 @@ async function harness(
 	let pending: ( () => void ) | null = null;
 	let captures = 0;
 	let recaptures = 0;
+	const ticks: Array< () => void > = [];
 
 	const engine = startWindowEffectEngine( {
 		stage: {
-			pixi: { Container: FakeContainer, Sprite: FakeSprite },
+			pixi: {
+				Container: FakeContainer,
+				Sprite: FakeSprite,
+				Graphics: FakeGraphics,
+				BlurFilter: class {},
+			},
 			overlay,
-			ticker: { add: () => undefined, remove: () => undefined },
+			ticker: {
+				add: ( fn: () => void ) => ticks.push( fn ),
+				remove: ( fn: () => void ) => {
+					const i = ticks.indexOf( fn );
+					if ( i !== -1 ) {
+						ticks.splice( i, 1 );
+					}
+				},
+			},
 			canvas,
 			captureRegion: () => {
 				captures++;
@@ -180,6 +220,11 @@ async function harness(
 		HOOKS: HOOKS as unknown as Record< string, string >,
 		captures: () => captures,
 		recaptures: () => recaptures,
+		tick: () => {
+			for ( const fn of [ ...ticks ] ) {
+				fn();
+			}
+		},
 		awaitingSnapshot: () => pending !== null,
 		deliverSnapshot: () => {
 			const cb = pending;
@@ -447,6 +492,111 @@ describe( 'window effect engine — capturing the right pixels', () => {
 
 		h.deliverSnapshot();
 		expect( h.recaptures() ).toBe( 0 );
+	} );
+} );
+
+describe( 'window effect engine — the drawn shadow', () => {
+	beforeEach( () => {
+		vi.useFakeTimers();
+	} );
+	afterEach( () => {
+		vi.useRealTimers();
+		document.body.innerHTML = '';
+		clearHooksStub();
+	} );
+
+	test( 'hands the effect a shadow when the window is coming back', async () => {
+		const h = await harness( {
+			id: 'clothy',
+			label: 'Clothy',
+			transitions: [ 'drag' ],
+		} );
+		startDrag( h );
+		expect( h.contexts[ 0 ].shadow ).not.toBeNull();
+		h.engine();
+	} );
+
+	test( 'draws no shadow for a close', async () => {
+		const h = await harness( {
+			id: 'poof',
+			label: 'Poof',
+			transitions: [ 'close' ],
+		} );
+		h.hooks.applyFilters( h.HOOKS.WINDOW_CLOSE_ANIMATION, null, {
+			windowId: WINDOW_ID,
+			element: h.element,
+		} );
+
+		// The window ends up gone, so there is no moment of comparison to
+		// get wrong — and a crisp shadow outliving a dissolving window
+		// would be an artefact of its own.
+		expect( h.contexts[ 0 ].shadow ).toBeNull();
+		h.engine();
+	} );
+
+	test( 'keeps the shadow aligned to the stand-in sprite', async () => {
+		const h = await harness( {
+			id: 'clothy',
+			label: 'Clothy',
+			transitions: [ 'drag' ],
+		} );
+		startDrag( h );
+
+		const ctx = h.contexts[ 0 ];
+		const sprite = ctx.sprite as unknown as {
+			x: number;
+			y: number;
+			alpha: number;
+			rotation: number;
+			scale: { set( x: number, y: number ): void };
+		};
+		sprite.x = 500;
+		sprite.y = 300;
+		sprite.alpha = 0.5;
+		sprite.rotation = 0.25;
+		sprite.scale.set( 2, 3 );
+		h.tick();
+
+		const shadow = ctx.shadow as unknown as {
+			x: number;
+			y: number;
+			alpha: number;
+			rotation: number;
+			scale: { x: number; y: number };
+		};
+		expect( shadow.x ).toBe( 500 );
+		expect( shadow.y ).toBe( 300 );
+		expect( shadow.alpha ).toBe( 0.5 );
+		expect( shadow.rotation ).toBe( 0.25 );
+		expect( shadow.scale.x ).toBe( 2 );
+		h.engine();
+	} );
+
+	test( 'lets go the moment the effect replaces the sprite', async () => {
+		const h = await harness( {
+			id: 'clothy',
+			label: 'Clothy',
+			transitions: [ 'drag' ],
+		} );
+		startDrag( h );
+
+		const ctx = h.contexts[ 0 ];
+		const sprite = ctx.sprite as unknown as {
+			x: number;
+			visible: boolean;
+		};
+		const shadow = ctx.shadow as unknown as { x: number };
+
+		// The cloth hides the sprite and drives a mesh instead. There is
+		// nothing sensible left to track, so the shadow becomes the
+		// effect's to place.
+		sprite.visible = false;
+		shadow.x = 42;
+		sprite.x = 900;
+		h.tick();
+
+		expect( shadow.x ).toBe( 42 );
+		h.engine();
 	} );
 } );
 

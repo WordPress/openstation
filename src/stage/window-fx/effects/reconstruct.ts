@@ -107,12 +107,20 @@ export const reconstructEffect: WindowEffectDef = {
 	},
 
 	run( ctx: WindowEffectRunContext ) {
-		const { pixi, sprite, texture, layer, from, ticker, params } = ctx;
+		const { pixi, sprite, texture, layer, shadow, from, ticker, params } =
+			ctx;
 		const { Rectangle, Sprite, Texture } = pixi;
 
 		// The engine's sprite is the intact window; the tiles ARE the
 		// window here, so it must not sit underneath them fully formed.
 		sprite.alpha = 0;
+
+		// Which also means the engine has let go of the shadow. A window
+		// that is not there yet casts no shadow, so it starts at nothing
+		// and comes up with the assembly.
+		if ( shadow ) {
+			shadow.alpha = 0;
+		}
 
 		// Square cells, sized so the longer edge carries `density` of
 		// them. Keeps tiles square regardless of window aspect.
@@ -219,6 +227,13 @@ export const reconstructEffect: WindowEffectDef = {
 					return;
 				}
 				elapsed += t.deltaMS / 1000;
+
+				// Bring the shadow up with the assembly rather than at the
+				// end: arriving all at once on the last frame would be the
+				// very pop this shadow exists to prevent.
+				if ( shadow ) {
+					shadow.alpha = Math.min( 1, elapsed / total );
+				}
 
 				let settled = true;
 				for ( const tile of tiles ) {

@@ -42,4 +42,43 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-stage {
  */
 .desktop-mode-shell--staged {
 	z-index: auto;
+
+	/*
+	 * NO DROP SHADOWS WHILE THE DESKTOP IS IN THE CANVAS.
+	 *
+	 * A window effect animates a frozen COPY of a window, captured from
+	 * `getBoundingClientRect()` — the border box. `box-shadow` paints
+	 * outside that box, so the copy never carries one, and the shadow
+	 * snapped back into existence the moment the real window returned.
+	 *
+	 * Reproducing it in PixiJS is possible (`src/stage/window-fx/shadow.ts`
+	 * still does, if a shadow survives this) but it is an approximation of
+	 * a browser's own blur, and matching it exactly is a losing game. A
+	 * desktop with no drop shadows at all is consistent, which a desktop
+	 * with almost-right ones is not.
+	 *
+	 * Set on the shell rather than `:root` so it is the nearest ancestor
+	 * declaring these tokens: a theme setting them globally is overridden
+	 * for staged windows, while one styling `.desktop-mode-window`
+	 * directly still wins, which is the precedence a theme author would
+	 * expect.
+	 *
+	 * A transparent zero-size shadow rather than `none`, because these
+	 * tokens get COMPOSED into longer shadow lists — the linked-window
+	 * halo in `window-links.css` is `0 0 18px 4px <glow>,
+	 * var(--desktop-mode-window-shadow)`. `none` is only valid on its own,
+	 * so substituting it there would invalidate the whole declaration and
+	 * take the halo with it.
+	 *
+	 * Only the tokens, deliberately. `outline` focus rings and the `inset`
+	 * highlights that draw borders and pressed states are untouched — they
+	 * are not drop shadows, several are accessibility affordances, and
+	 * none of them extend past the box an effect captures.
+	 */
+	--desktop-mode-window-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-window-shadow-focused: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-dock-floating-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-tile-shortcut-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-tile-label-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--wpd-ribbon-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
