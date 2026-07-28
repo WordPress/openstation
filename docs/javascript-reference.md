@@ -2263,6 +2263,7 @@ entire desktop.
 | `isSupported()` | Whether this browser has the HTML-in-Canvas API. Gates on `gl.texElementImage2D()` only — the one primitive PixiJS's uploader throws on. There is no fallback. |
 | `supportDetail()` | Per-capability breakdown: `{ requestPaint, texElementImage2D, texElementImage2DOn, drawElementImage, layoutSubtree }`. For diagnosing a disabled toggle. |
 | `isActive()` | Whether the desktop is rendering through the canvas right now. |
+| `stats()` | `{ paints, uploads, skipped }`, or `null` when the stage is off. The stage re-records the shell every frame but only uploads when the `paint` event reports something changed; `skipped` climbs on an idle desktop and stalls the moment anything moves. For confirming that saving is actually happening on a given machine. |
 | `registerScreenEffect( def )` | Register (or replace) an effect. Throws a `RegistrationError` on validation failure. |
 | `unregisterScreenEffect( id )` | Remove by id. |
 | `listScreenEffects()` | Snapshot, with the `desktop-mode.screen-effects` filter applied. |

@@ -219,6 +219,7 @@ See [`hooks-reference.md`](hooks-reference.md) for the full PHP surface.
 wp.desktop.stage.isSupported()                  // boolean
 wp.desktop.stage.supportDetail()                // per-capability breakdown, for diagnosis
 wp.desktop.stage.isActive()                     // boolean — rendering through the canvas right now
+wp.desktop.stage.stats()                        // { paints, uploads, skipped } | null — see below
 wp.desktop.stage.registerScreenEffect( def )    // throws RegistrationError on bad input
 wp.desktop.stage.unregisterScreenEffect( id )
 wp.desktop.stage.listScreenEffects()            // post-filter snapshot
@@ -323,6 +324,33 @@ are known wrong, and on an open they are not merely wrong but the
 wallpaper — the real window is the better thing to look at until the
 correction lands. Effects run through it normally, so they simply play
 their first frame or two off-screen.
+
+### Idle frames are not uploaded
+
+The stage asks the browser to re-record the shell **every frame**, and
+that part is not negotiable: scrolling inside a window's iframe can be
+composited off the main thread, so waiting for the browser's own
+invalidation would let the desktop silently stop updating — a far worse
+failure than a wasted upload.
+
+Uploading the result every frame *is* negotiable. The `paint` event
+reports which of the canvas's children changed, and when it says none
+did, the recorded pixels are identical to the ones already on the GPU. At
+a 2× device pixel ratio on a 1440p display, re-sending that is roughly
+850 MB/s of nothing. `src/stage/element-source.ts` drops those uploads.
+
+Two guards on it, because a wrong guess here means a frozen desktop:
+
+- An **absent** `changedElements` is not an empty one. Absent means the
+  browser did not say, and inferring "nothing changed" from silence is
+  how a mirror stops mirroring.
+- An upload is forced after a bounded run of idle paints regardless, so
+  if the assumption is ever wrong the cost is staleness measured in
+  frames rather than forever.
+
+`wp.desktop.stage.stats()` returns `{ paints, uploads, skipped }` so this
+can be checked rather than trusted: `skipped` should climb on an idle
+desktop and stall the moment anything moves.
 
 ### Drop shadows are off while the desktop is in the canvas
 

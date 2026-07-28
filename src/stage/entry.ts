@@ -19,6 +19,7 @@ import {
 	isStageActive,
 	setStageSelection,
 	setWindowEffectSelection,
+	stageStats,
 	startStage,
 	stopStage,
 } from './index';
@@ -67,6 +68,7 @@ const api = {
 	setSelection: setStageSelection,
 	setWindowEffects: setWindowEffectSelection,
 	isActive: isStageActive,
+	stats: stageStats,
 	registerScreenEffect,
 	unregisterScreenEffect,
 	unregisterScreenEffectsByOwner,

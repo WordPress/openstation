@@ -112,6 +112,18 @@ export function isStageActive(): boolean {
 	return stage?.isActive === true;
 }
 
+/**
+ * Paint and upload counts for the running stage, or `null`.
+ *
+ * The stage asks the browser to re-record the shell every frame but only
+ * uploads when the paint says something changed. This reports whether
+ * that is actually happening: `skipped` climbs on an idle desktop and
+ * stalls the moment anything moves.
+ */
+export function stageStats() {
+	return stage?.stats ?? null;
+}
+
 function currentChain() {
 	return resolveEffectChain( selection, listScreenEffects() );
 }

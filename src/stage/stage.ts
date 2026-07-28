@@ -30,6 +30,7 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { chainsAreEqual } from './chain';
+import { createStageSource, type SourceStats } from './element-source';
 import { probeElementUpload } from './feature-detect';
 import { installTexElementImage2DShim } from './webgl-compat';
 import type {
@@ -366,6 +367,22 @@ export class CanvasStage {
 	/** The stage ticker, for effects that drive their own animation. */
 	get ticker(): PixiApplication[ 'ticker' ] | null {
 		return this._app?.ticker ?? null;
+	}
+
+	/**
+	 * Paint and upload counts since the stage started.
+	 *
+	 * The stage asks the browser to re-record the shell every frame, but
+	 * only uploads when the paint reports something actually changed —
+	 * see `./element-source`. This is how to tell whether that is
+	 * working on a given machine rather than taking it on trust:
+	 * `skipped` should climb on an idle desktop and stall the moment
+	 * anything moves.
+	 *
+	 * `null` when the stage is not running.
+	 */
+	get stats(): SourceStats | null {
+		return ( this._source as unknown as { stats?: SourceStats } )?.stats ?? null;
 	}
 
 	/**
@@ -1023,12 +1040,15 @@ export class CanvasStage {
 		// divides the logical size by the DPR, so the sprite's natural
 		// size came out at half the screen on any Retina display. It
 		// only looked correct at DPR 1.
-		const source = new pixi.HTMLSource( {
+		// `createStageSource` rather than `new pixi.HTMLSource` — same
+		// class, plus a guard that drops the upload when the browser
+		// reports that nothing on the canvas changed. See there.
+		const source = createStageSource( pixi, {
 			resource: this._shell,
 			canvas,
 			autoUpdate: true,
 			autoRequestPaint: true,
-		} );
+		} ) as unknown as PixiHtmlSource;
 
 		const sprite = pixi.Sprite.from( new pixi.Texture( { source } ) );
 		sprite.x = 0;
