@@ -11,7 +11,12 @@ export const menuStyles = css`
 		display: none;
 		position: fixed;
 		min-width: 180px;
-		background: var( --wpd-context-menu-bg, var( --desktop-mode-bg, #1d2327 ) );
+		/* Longhand on purpose: the texture slot below owns
+		   background-image, and the shorthand would reset it. The
+		   fallback must be a literal colour — --desktop-mode-bg is the
+		   wallpaper token and can hold a gradient, which is invalid as
+		   a background-color and would leave the menu transparent. */
+		background-color: var( --wpd-context-menu-bg, #1d2327 );
 		/* Desktop-theme texture slot: unset resolves to none. */
 		background-image: var( --wpd-menu-bg-image, none );
 		background-repeat: var( --wpd-menu-bg-image-repeat, repeat );
