@@ -533,6 +533,33 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::desktop_mode_chromeless_offset_neutralizer_script
+	 */
+	public function test_chromeless_offset_neutralizer_config_contains_tabs() {
+		global $submenu, $parent_file;
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		// Setup a mock submenu structure
+		$parent_file = 'my-test-menu';
+		$submenu['my-test-menu'] = array(
+			array( 'Add New Item', 'manage_options', 'post-new.php?post_type=test' ),
+			array( 'All Items', 'manage_options', 'edit.php?post_type=test' ),
+		);
+
+		ob_start();
+		desktop_mode_chromeless_offset_neutralizer_script();
+		$output = ob_get_clean();
+
+		// Clean up global state
+		unset( $submenu['my-test-menu'], $parent_file );
+
+		// The output should contain the JSON config passed to the closure, including the tabs URLs
+		$this->assertStringContainsString( 'post-new.php?post_type=test', $output );
+		$this->assertStringContainsString( 'edit.php?post_type=test', $output );
+	}
+
+	/**
 	 * The hidden refresh-probe iframe `wp.desktop.refreshMenu()` spawns
 	 * lands on `admin.php?desktop_mode_chromeless=1&desktop_mode_menu_refresh=1`,
 	 * which Core doesn't fire `admin_footer` for — so the

@@ -92,9 +92,47 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 		array( '32px', '46px' )
 	);
 
+	// Extract the submenu items for the current parent file to identify tabs displayed in the shell.
+	global $submenu, $parent_file;
+	$tab_urls = array();
+	$parent   = ! empty( $parent_file ) ? $parent_file : '';
+	$dummy_dock_item = array(
+		'submenu' => array(),
+	);
+
+	// First, gather the standard submenu URLs.
+	if ( ! empty( $parent ) && isset( $submenu[ $parent ] ) && is_array( $submenu[ $parent ] ) ) {
+		foreach ( $submenu[ $parent ] as $sub_item ) {
+			if ( ! empty( $sub_item[2] ) ) {
+				$sub_url = function_exists( 'desktop_mode_menu_item_url' )
+					? desktop_mode_menu_item_url( $sub_item[2] )
+					: admin_url( $sub_item[2] );
+				if ( ! empty( $sub_url ) ) {
+					$dummy_dock_item['submenu'][] = array(
+						'url' => $sub_url,
+					);
+				}
+			}
+		}
+	}
+
+	// Apply the 'desktop_mode_dock_item' filter so any dynamically injected tabs
+	// (such as the synthetic "Add Theme" tab for Appearance) are correctly included.
+	if ( ! empty( $parent ) ) {
+		$filtered_dock_item = apply_filters( 'desktop_mode_dock_item', $dummy_dock_item, $parent );
+		if ( ! empty( $filtered_dock_item['submenu'] ) && is_array( $filtered_dock_item['submenu'] ) ) {
+			foreach ( $filtered_dock_item['submenu'] as $sub ) {
+				if ( ! empty( $sub['url'] ) ) {
+					$tab_urls[] = $sub['url'];
+				}
+			}
+		}
+	}
+
 	$config = wp_json_encode(
 		array(
 			'tops' => array_values( array_filter( array_map( 'strval', (array) $top_values ) ) ),
+			'tabs' => $tab_urls,
 		)
 	);
 	if ( false === $config ) {
@@ -106,12 +144,46 @@ function desktop_mode_chromeless_offset_neutralizer_script() {
 	// Heredoc.NotAllowed), so the source is uglier than the original
 	// `<<<JS … JS;` block but functionally identical. The trailing
 	// `$config` JSON is appended at the end so the whole body is a
-	// closure receiving a `{tops: [...]}` argument.
+	// closure receiving a `{tops: [...], tabs: [...]}` argument.
 	$js  = '(function(C){';
 	$js .= 'var TOPS={};';
 	$js .= 'for(var t=0;t<C.tops.length;t++){TOPS[C.tops[t]]=1;}';
+
+	// Helper to determine if a button's URL matches one of the top window tabs.
+	// Resolves and compares URLs based on query parameters (post_type, taxonomy, page, action).
+	$js .= 'function isUrlMatch(aUrl,bUrl){';
+	$js .=   'try{';
+	$js .=     'var a=new URL(aUrl,window.location.href);';
+	$js .=     'var b=new URL(bUrl,window.location.href);';
+	// Pathnames must match (ignoring trailing slash).
+	$js .=     'if(a.pathname.replace(/\/+$/,"")!==b.pathname.replace(/\/+$/,""))return false;';
+	// For admin.php, both page slug and action parameter must match to avoid false matching.
+	$js .=     'if(a.pathname.indexOf("admin.php")!==-1)return a.searchParams.get("page")===b.searchParams.get("page")&&a.searchParams.get("action")===b.searchParams.get("action");';
+	// For core list and edit pages, compare post_type and taxonomy parameters.
+	$js .=     'var isEdit=a.pathname.indexOf("edit.php")!==-1||a.pathname.indexOf("post-new.php")!==-1||a.pathname.indexOf("edit-tags.php")!==-1;';
+	$js .=     'if(isEdit){';
+	$js .=       'var aPt=a.searchParams.get("post_type")||"post";';
+	$js .=       'var bPt=b.searchParams.get("post_type")||"post";';
+	$js .=       'var aTax=a.searchParams.get("taxonomy")||"";';
+	$js .=       'var bTax=b.searchParams.get("taxonomy")||"";';
+	$js .=       'return aPt===bPt&&aTax===bTax;';
+	$js .=     '}';
+	$js .=     'return true;';
+	$js .=   '}catch(_e){return false;}';
+	$js .= '}';
 	$js .= 'function fixOne(el){';
 	$js .=   'if(!el||el.nodeType!==1)return;';
+	// If it is a page-title-action button, remove it if it matches one of the active tabs.
+	$js .=   'if(el.classList&&el.classList.contains("page-title-action")){';
+	$js .=     'var href=el.href||"";';
+	$js .=     'if(href&&C.tabs){';
+	$js .=       'for(var i=0;i<C.tabs.length;i++){';
+	$js .=         'if(isUrlMatch(href,C.tabs[i])){';
+	$js .=           'el.remove();return;';
+	$js .=         '}';
+	$js .=       '}';
+	$js .=     '}';
+	$js .=   '}';
 	$js .=   'var cs;';
 	$js .=   'try{cs=getComputedStyle(el);}catch(_e){return;}';
 	$js .=   "if(cs.position==='static')return;";

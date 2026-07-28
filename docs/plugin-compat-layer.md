@@ -130,7 +130,7 @@ Plugins (notably WooCommerce's `wc-addons` Extensions row) register `menu_title 
 
 Core does not register `theme-install.php` as a submenu of `themes.php` — classic admin only surfaces it through the in-page "Add Theme" `.page-title-action` button at the top of `themes.php`. Inside chromeless that button scrolls out of view on first paint (the focus-target heuristic on the visible theme grid steals the scroll position), leaving no entry point to the install flow.
 
-**Fix**: `desktop_mode_inject_appearance_tabs()` (in `includes/themes-tabs.php`) hooks `desktop_mode_dock_item` and prepends `{ title: 'Add Theme', url: theme-install.php }` to the Appearance dock item's submenu when the current user has `install_themes`. An explicit per-page rule in `assets/css/chromeless.css` (`.desktop-mode-chromeless.themes-php .wrap > .page-title-action { display: none; }`) hides the in-page button on `themes.php` — the tab is the canonical entry point, while the global rule keeping `.page-title-action` visible on other pages stays intact.
+**Fix**: `desktop_mode_inject_appearance_tabs()` (in `includes/themes-tabs.php`) hooks `desktop_mode_dock_item` and prepends `{ title: 'Add Theme', url: theme-install.php }` to the Appearance dock item's submenu when the current user has `install_themes`. The inline JS bridge in `includes/render/chromeless-bridge.php` dynamically matches in-page `.page-title-action` URLs against the window's submenu tab URLs (retrieved via the `desktop_mode_dock_item` filter). Since the "Add Theme" tab matches the button URL, the bridge removes the redundant button from the DOM. This ensures the tab is the canonical entry point without page-specific CSS.
 
 Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
 

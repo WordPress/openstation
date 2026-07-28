@@ -162,20 +162,18 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
  * margin so it lands cleanly. inline-block matches WP Core's
  * computed style on this element (matters for vertical-align with
  * any adjacent inline content like the `.subsubsub` filter row).
- *
  * Themes.php's native "Add Theme" button lives in the submenu tab
  * strip via `desktop_mode_inject_appearance_tabs`
  * (includes/themes-tabs.php), so its in-page page-title-action is
- * redundant on that one screen — keep the per-page hide rule below
- * so we don't ship two "Add Theme" entry points.
+ * redundant on that one screen — this redundancy is handled dynamically
+ * by the URL matching logic in the JS bridge.
  */
 .desktop-mode-chromeless .wrap > .page-title-action {
-	display: inline-block;
+	display: block;
+	width: fit-content;
 	margin-top: 12px;
-}
-
-.desktop-mode-chromeless.themes-php .wrap > .page-title-action {
-	display: none;
+	margin-bottom: 12px;
+	clear: both;
 }
 
 /* ---------------------------------------------------------------
