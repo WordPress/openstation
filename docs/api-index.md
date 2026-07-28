@@ -122,6 +122,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `desktopThemes.setActive` | `( themeId: string ) => void` | Experimental |
 | `desktopThemes.subscribe` | `( cb ) => () => void` | Experimental |
 | `desktopThemes.resolveIcon` | `( slot: string ) => string \| null` | Experimental |
+| `desktopThemes.applyRecommendedOsSettings` | `( themeId?: string ) => RecommendedOsSettings` | Experimental |
 
 ### Files on the desktop
 

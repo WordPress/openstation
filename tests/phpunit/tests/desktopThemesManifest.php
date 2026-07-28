@@ -78,9 +78,24 @@ class Tests_DesktopMode_DesktopThemesManifest extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
 	 */
 	public function test_wrong_manifest_version_is_fatal() {
-		$error = $this->sanitize( $this->valid_manifest( array( 'manifestVersion' => 2 ) ) );
+		$error = $this->sanitize( $this->valid_manifest( array( 'manifestVersion' => 3 ) ) );
 		$this->assertWPError( $error );
 		$this->assertSame( 'desktop_mode_desktop_theme_bad_version', $error->get_error_code() );
+	}
+
+	/**
+	 * Version 2 is the current manifest revision — it exists so an
+	 * author can declare `recommendedOsSettings`. It must sanitize
+	 * exactly like a v1 manifest otherwise, and round-trip its own
+	 * version number rather than being rewritten to 1.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 */
+	public function test_manifest_version_two_is_accepted() {
+		$manifest = $this->sanitize( $this->valid_manifest( array( 'manifestVersion' => 2 ) ) );
+		$this->assertNotWPError( $manifest );
+		$this->assertSame( 2, $manifest['manifestVersion'] );
+		$this->assertSame( 'acme/neon', $manifest['id'] );
 	}
 
 	/**

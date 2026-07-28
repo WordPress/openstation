@@ -3900,6 +3900,45 @@ resolve to a font file or the other way round.
 > `xml`, `svgz`) or anything the server executes defeats the security
 > model of the whole feature.
 
+### `desktop_mode_desktop_theme_recommended_os_settings_schema` — Experimental *(filter)*
+
+The OS-settings keys a theme's `recommendedOsSettings` block may
+address, and the grammar each is validated against. Keys not on this
+list are dropped during sanitization.
+
+```php
+add_filter(
+    'desktop_mode_desktop_theme_recommended_os_settings_schema',
+    function ( $schema ) {
+        // A closed set of values PHP knows in full.
+        $schema['acmeDensity'] = array( 'enum' => array( 'cosy', 'roomy' ) );
+        // An id resolved against a JS registry at apply time.
+        $schema['acmeRenderer'] = array( 'slug' => true );
+        return $schema;
+    }
+);
+```
+
+Core ships four entries: `dockSize`, `desktopLayout` and
+`windowRadius` as `enum` rules mirroring the matching
+`DESKTOP_MODE_OS_SETTINGS_*` constants, and `dockRailRenderer` as a
+`slug` rule.
+
+An entry with neither a non-empty `enum` array nor `slug => true` is
+dropped — a malformed rule fails closed rather than admitting
+anything.
+
+> Whatever is added here gets written into user meta the first time a
+> user activates a theme that recommends it, so keep the list to
+> **presentation**. Feature switches and capability-adjacent settings
+> do not belong in a theme manifest. The shell applies a recommended
+> key only when the setting already exists and already holds a string,
+> so a widened schema still cannot introduce a setting or flip a
+> boolean.
+
+- **Param** `array<string,array> $schema` — map of settings key => `{ enum }` or `{ slug }`.
+- **Return** `array<string,array>`
+
 ### `desktop_mode_desktop_theme_font_caps` — Experimental *(filter)*
 
 How many `@font-face` rules one theme may declare, and how many source

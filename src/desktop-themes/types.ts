@@ -8,6 +8,41 @@
  */
 
 /**
+ * Presentation preferences a theme would like the user to be wearing
+ * alongside it — the dock large, the layout unified, the corners
+ * round.
+ *
+ * Every field is optional, and a field a theme doesn't name is simply
+ * not touched. These are **recommendations**: the shell writes them
+ * into the user's OS Settings once, the first time that user
+ * activates the theme, and never again. A user who later changes any
+ * of them keeps their choice, including across re-activations of the
+ * same theme.
+ *
+ * Sanitized by PHP against
+ * `desktop_mode_desktop_theme_recommended_os_settings_schema()` and
+ * re-checked in {@link normalizeEntry} — the payload passes through a
+ * filter after sanitization, so the shell never treats it as trusted.
+ *
+ * @public
+ */
+export interface RecommendedOsSettings {
+	/** `compact` | `default` | `large`. */
+	dockSize?: string;
+	/** `classic` | `unified` | `spatial`. */
+	desktopLayout?: string;
+	/** `sharp` | `default` | `round`. */
+	windowRadius?: string;
+	/**
+	 * Dock rail-renderer id. Unlike the three enums above, validity is
+	 * only knowable at runtime — the apply pass drops this key when no
+	 * renderer is registered under the id, rather than writing an
+	 * unresolvable value into the user's settings.
+	 */
+	dockRailRenderer?: string;
+}
+
+/**
  * One entry in the desktop-theme library, as the shell sees it.
  *
  * PHP owns everything here. Uploaded themes carry a `cssUrl` (a real
@@ -59,6 +94,12 @@ export interface DesktopThemeEntry {
 	 * whatever the surface is already using for text.
 	 */
 	iconColors: Record< string, string >;
+	/**
+	 * Presentation preferences the theme recommends. Always an object
+	 * — `{}` means "this theme recommends nothing", which is also what
+	 * every manifest that omits the block produces.
+	 */
+	recommendedOsSettings: RecommendedOsSettings;
 	/** Unix timestamp of installation (uploads only; `0` for code). */
 	installedAt: number;
 	/** Where the theme came from. */

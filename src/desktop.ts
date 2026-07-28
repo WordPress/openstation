@@ -57,6 +57,7 @@ import { createDesktopThemeSync } from './desktop-themes/server-sync';
 import type {
 	DesktopThemeEntry,
 	DesktopThemeState,
+	RecommendedOsSettings,
 } from './desktop-themes/types';
 import { DESKTOP_THEME_CHANGED_EVENT } from './desktop-themes/apply';
 import { bootGamesChallenges } from './games/challenges-client';
@@ -1203,6 +1204,23 @@ export interface WpDesktopPublicApi {
 		 * `currentColor` defers to the surface it lands on.
 		 */
 		resolveIconColor: ( slot: string ) => string | null;
+		/**
+		 * Apply a theme's recommended OS settings (dock size, desktop
+		 * layout, window radius, dock rail renderer) and persist them.
+		 *
+		 * The shell already does this once, the first time a user
+		 * activates a theme that ships recommendations. Calling this
+		 * is the "restore the author's intended presentation" action —
+		 * it re-applies even for a theme the user has already worn,
+		 * which is the only way a second application ever happens.
+		 *
+		 * Defaults to the active theme when `themeId` is omitted.
+		 * Returns the keys actually written; `{}` when the theme is
+		 * unknown or recommends nothing this shell can apply.
+		 */
+		applyRecommendedOsSettings: (
+			themeId?: string,
+		) => RecommendedOsSettings;
 	};
 	/**
 	 * Register (or replace) a window control. Built-in controls

@@ -2685,7 +2685,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -2920,6 +2920,7 @@ wp.desktop.updateOsSettings(
 
 - **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
+- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `desktopLayout`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.desktop.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`desktop-mode-os-settings-save-lifecycle`](#desktop-mode-os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<wpd-save-status auto>` renders it for free.
 - **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OS Settings window).
@@ -5312,6 +5313,9 @@ wp.desktop.desktopThemes.subscribe(
 ): () => void;
 wp.desktop.desktopThemes.resolveIcon( slot: string ): string | null;
 wp.desktop.desktopThemes.resolveIconColor( slot: string ): string | null;
+wp.desktop.desktopThemes.applyRecommendedOsSettings(
+    themeId?: string,
+): RecommendedOsSettings;
 ```
 
 `DesktopThemeEntry`:
@@ -5328,11 +5332,26 @@ wp.desktop.desktopThemes.resolveIconColor( slot: string ): string | null;
 | `fonts` | `string[]` | Bundled font families, de-duplicated across weights, in declaration order. Informational; the compiled stylesheet carries the `@font-face` rules. Empty when the theme ships none. |
 | `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
 | `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. |
+| `recommendedOsSettings` | `RecommendedOsSettings` | Presentation preferences the theme suggests. Always an object; `{}` means it suggests nothing. |
 | `installedAt` | `number` | Unix timestamp; `0` for code themes. |
 | `source` | `'upload' \| 'code'` | |
 
+`RecommendedOsSettings` — every field optional:
+
+| Field | Type | Values |
+|---|---|---|
+| `dockSize` | `string` | `compact` \| `default` \| `large` |
+| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` |
+| `windowRadius` | `string` | `sharp` \| `default` \| `round` |
+| `dockRailRenderer` | `string` | A registered dock rail renderer id. |
+
 **`setActive()` is presentation only.** It swaps the stylesheet and
-repaints, but does not persist. To save the user's choice:
+repaints, but does not persist — use it for a preview (a hover, a
+try-before-you-buy picker) you intend to revert.
+
+To change the user's theme for real, patch the setting. That both
+persists *and* applies, so there is no need to pair it with
+`setActive()`:
 
 ```js
 wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
@@ -5368,6 +5387,29 @@ Returning a colour where the theme set none switches that icon to
 mask rendering — a way to make any iconset monochrome without
 touching the theme.
 
+### `applyRecommendedOsSettings()`
+
+Applies a theme's `recommendedOsSettings` and persists them. Defaults
+to the active theme. Returns the keys actually written — `{}` when the
+theme is unknown or recommends nothing this shell can apply (a
+`dockRailRenderer` naming a renderer no plugin registered resolves to
+nothing).
+
+```js
+const applied = wp.desktop.desktopThemes.applyRecommendedOsSettings();
+// → { dockSize: 'large', desktopLayout: 'unified' }
+```
+
+**The shell already does this once**, the first time a user activates a
+theme that ships recommendations; that is the entire automatic path,
+and it never runs again for the same user and theme. This method is
+the deliberate re-apply — the "restore the author's intended
+presentation" action, which is also what the button in **OS Settings →
+Themes** calls. It writes only keys that already exist on the settings
+object and already hold a string, so it can never introduce a setting
+or flip a feature toggle. See
+[Desktop themes → Recommended OS settings](./desktop-themes.md#recommended-os-settings).
+
 ### `desktopTheme` — OS settings key
 
 `string`. The active theme slug, or `''` for the system default.
@@ -5376,6 +5418,23 @@ Available on the snapshot from `wp.desktop.getOsSettings()` and
 `wp.desktop.updateOsSettings()`. Persisted in the
 `desktop_mode_os_settings` user meta; sanitized server-side as a
 `sanitize_key()`-clean string (empty is a legitimate value).
+
+### `appliedThemeRecommendations` — OS settings key
+
+`string[]`. Slugs of the desktop themes whose
+[recommended OS settings](./desktop-themes.md#recommended-os-settings)
+have already been seeded for this user. A slug in this list means "we
+have offered this user this theme's arrangement" — which is what stops
+a theme from ever re-applying over a preference the user set
+afterwards.
+
+Slugs of themes that are no longer installed are kept on purpose: a
+delete-and-reinstall must not re-seed. Capped at the most recent 64.
+
+Readable from `wp.desktop.getOsSettings()` and `subscribeOsSettings()`;
+the shell owns the writing. To re-apply a theme's arrangement, call
+`desktopThemes.applyRecommendedOsSettings()` rather than editing the
+ledger.
 
 ### CustomEvent: `desktop-mode-desktop-theme-changed`
 

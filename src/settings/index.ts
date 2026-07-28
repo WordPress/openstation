@@ -183,9 +183,12 @@ export class OsSettings implements SettingsCtx {
 			wallpaper: this.state.wallpaper,
 			accent: this.state.accent,
 			dockSize: this.state.dockSize,
+			windowRadius: this.state.windowRadius,
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
+			appliedThemeRecommendations:
+				this.state.appliedThemeRecommendations.slice(),
 			unfocusEffect: this.state.unfocusEffect,
 			windowLinkRenderer: this.state.windowLinkRenderer,
 			windowLinkVisibility: this.state.windowLinkVisibility,

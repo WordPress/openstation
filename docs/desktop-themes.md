@@ -21,6 +21,7 @@ to the window control glyphs. It ships as a ZIP containing a
 - [Tokens](#tokens)
 - [Fonts](#fonts)
 - [Wallpapers](#wallpapers)
+- [Recommended OS settings](#recommended-os-settings)
 - [Icons](#icons)
 - [Textures](#textures)
 - [Texturing your own surface](#texturing-your-own-surface)
@@ -116,7 +117,7 @@ their next page load.
 
 ```json
 {
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "id": "acme/neon-glass",
   "name": "Neon Glass",
   "version": "1.0.0",
@@ -150,6 +151,11 @@ their next page load.
                       "slice": "24 fill", "width": "12px", "repeat": "round" },
     "DESKTOP":      { "type": "image", "path": "textures/desktop.jpg",
                       "size": "cover", "repeat": "no-repeat" }
+  },
+
+  "recommendedOsSettings": {
+    "dockSize":      "large",
+    "desktopLayout": "unified"
   }
 }
 ```
@@ -160,13 +166,23 @@ Get these wrong and the upload is rejected with a specific message:
 
 | Field | Rule |
 |---|---|
-| `manifestVersion` | Must be exactly `1`. |
+| `manifestVersion` | `1` or `2`. |
 | `id` | `^[a-z0-9_-]+(/[a-z0-9_-]+)?$`, max 64 chars. Namespacing (`vendor/name`) is encouraged. |
 | `name` | Non-empty. |
 
 The storage **slug** is the `id` with `/` flattened to `-`
 (`acme/neon-glass` → `acme-neon-glass`). It is what appears in the
 compiled selector and the body class.
+
+**On `manifestVersion`.** `2` says nothing about the shape of anything
+else on this page — it exists so you can declare that your manifest
+carries [`recommendedOsSettings`](#recommended-os-settings), and so a
+reader can tell a deliberate omission from an older file. Every v1
+manifest keeps working untouched, and a v1 manifest that ships the
+block anyway still has it honoured: dropping a valid, sanitized field
+over a version number would contradict the drop-and-continue rule the
+rest of the sanitizer follows. Write `2` when you recommend settings,
+leave `1` alone otherwise.
 
 ### Everything else
 
@@ -180,6 +196,7 @@ Optional, and **individually droppable** — see
 | `preview` | Path to an image shown on the theme card in OS Settings. |
 | `iconColor` | Default fill for every icon — see [Icon colour](#icon-colour). |
 | `wallpaper` / `wallpapers` | One or more pickable wallpapers — see [Wallpapers](#wallpapers). |
+| `recommendedOsSettings` | Layout preferences to seed on first activation — see [Recommended OS settings](#recommended-os-settings). |
 | `tokens`, `fonts`, `icons`, `textures` | See below. |
 
 ---
@@ -489,6 +506,81 @@ Reordering your list is therefore safe. Renaming a file, or changing a
 `label` that was supplying the id, is not — do that and anyone using
 that wallpaper falls back to the default. Set `id` explicitly if you
 expect either to change.
+
+---
+
+## Recommended OS settings
+
+Some themes are designed against an arrangement, not just a palette: a
+wide dock because the tiles carry artwork, a unified bottom bar
+because the desktop is meant to read as one surface, square corners
+because the frame texture has its own. `recommendedOsSettings` lets
+that intent travel with the theme instead of living in a setup guide.
+
+```json
+"recommendedOsSettings": {
+  "dockSize":         "large",
+  "desktopLayout":    "unified",
+  "windowRadius":     "default",
+  "dockRailRenderer": "default"
+}
+```
+
+### They are recommendations, and "once" is the whole contract
+
+**A theme arranges the desktop once — the first time that user
+activates it — and never again.**
+
+- Applied on **activation**, never on page load. There is no pass that
+  re-asserts a theme's preferences behind the user's back.
+- Applied **once per user, per theme**. The shell records the theme in
+  the user's `appliedThemeRecommendations` ledger; a second activation
+  of a theme they have already worn changes nothing.
+- **A later change by the user always wins.** Pick the theme, put the
+  dock back to compact, re-pick the theme — it stays compact.
+
+The way back is the user's to take: **OS Settings → Themes** shows an
+**Apply recommended layout** button for the active theme when it
+recommends something, and that is the only path that applies a
+recommendation a second time.
+
+This is the same posture as [wallpapers](#it-is-a-pick-not-an-act),
+for the same reason. Dock size and layout are stored user
+preferences, and a theme that could silently overwrite them on every
+load would be taking something the user chose.
+
+### Fields
+
+Every field is optional. A field you don't name is not touched, and
+one you name with a value outside its set is dropped while the rest
+still apply.
+
+| Field | Values |
+|---|---|
+| `dockSize` | `compact`, `default`, `large` |
+| `desktopLayout` | `classic`, `unified`, `spatial` |
+| `windowRadius` | `sharp`, `default`, `round` |
+| `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
+
+`dockRailRenderer` is the one field validated in two places: PHP
+checks the charset, and the shell checks — at apply time — that
+something is actually registered under that id. Recommend a renderer
+a site doesn't have and the key is skipped; the rest of your
+recommendations still apply.
+
+Nothing else is reachable. The allow-list is presentation only, so a
+manifest cannot flip a feature toggle, a capability-adjacent
+preference, or another theme's activation. A site can widen the list
+through `desktop_mode_desktop_theme_recommended_os_settings_schema`,
+and even then the shell only writes a key that already exists and
+already holds a string.
+
+### What a user actually sees
+
+They pick your theme, the dock and layout move into the arrangement
+you designed, and a notice explains that it happened once and that
+Appearance is theirs to change. Nothing is silent, and nothing
+repeats.
 
 ---
 
@@ -936,6 +1028,12 @@ fresh page load PHP stamps the attribute, prints the body class, and
 enqueues the stylesheet before the shell script runs, so there is no
 flash of the default palette.
 
+If the theme ships
+[`recommendedOsSettings`](#recommended-os-settings), the user's first
+activation of it also seeds those preferences — once, with a notice —
+and the tab grows an **Apply recommended layout** button for going
+back to them later.
+
 ### From JavaScript
 
 ```js
@@ -943,11 +1041,15 @@ wp.desktop.desktopThemes.list();        // the library
 wp.desktop.desktopThemes.getActive();   // slug, or null
 wp.desktop.desktopThemes.resolveIcon( 'WINDOW_CONTROL_CLOSE' );
 
-// Presentation only — does NOT persist:
+// Presentation only — does NOT persist. For a preview you'll revert:
 wp.desktop.desktopThemes.setActive( 'acme-neon-glass' );
 
-// Persist the user's choice:
+// Change it for real — persists AND applies:
 wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
+
+// What the theme recommends, and re-applying it (persists):
+wp.desktop.desktopThemes.list()[ 0 ].recommendedOsSettings;
+wp.desktop.desktopThemes.applyRecommendedOsSettings();
 ```
 
 See [JavaScript reference](./javascript-reference.md#desktop-themes-experimental)
@@ -993,6 +1095,10 @@ add_action( 'init', function () {
                 'repeat' => 'repeat-x',
             ),
         ),
+        'recommendedOsSettings' => array(
+            'dockSize'      => 'large',
+            'desktopLayout' => 'unified',
+        ),
     ) );
 } );
 ```
@@ -1019,6 +1125,10 @@ for a complete plugin.
 - **Layout.** A theme changes how things look, not where they are. No
   spacing scale, no dock geometry, no window metrics beyond the radius
   and title-bar height the tokens already expose.
+  [`recommendedOsSettings`](#recommended-os-settings) is not an
+  exception to this: it seeds the user's own layout preferences once,
+  as a suggestion they own from that moment on, rather than giving the
+  theme any say in how the shell is arranged.
 - **Author CSS and JS.** Still never, and this is the line that makes
   everything else safe. `@font-face` is generated *for* you from a
   constrained descriptor; it is not an opening.

@@ -20,6 +20,13 @@ function seedCache( desktopTheme: unknown ): void {
 	);
 }
 
+function seedLedger( appliedThemeRecommendations: unknown ): void {
+	window.localStorage.setItem(
+		STORAGE_KEY,
+		JSON.stringify( { ...DEFAULTS, appliedThemeRecommendations } ),
+	);
+}
+
 beforeEach( () => {
 	window.localStorage.clear();
 	delete ( window as unknown as { desktopModeConfig?: unknown } ).desktopModeConfig;
@@ -71,5 +78,53 @@ describe( 'OsSettingsState.desktopTheme', () => {
 			osSettings: { ...DEFAULTS, desktopTheme: 'from-server' },
 		};
 		expect( loadState().desktopTheme ).toBe( 'from-server' );
+	} );
+} );
+
+describe( 'OsSettingsState.appliedThemeRecommendations', () => {
+	test( 'defaults to an empty ledger', () => {
+		expect( DEFAULTS.appliedThemeRecommendations ).toEqual( [] );
+		expect( loadState().appliedThemeRecommendations ).toEqual( [] );
+	} );
+
+	test( 'valid slugs round-trip and duplicates collapse', () => {
+		seedLedger( [ 'acme-neon', 'acme-neon', 'other-theme' ] );
+		expect( loadState().appliedThemeRecommendations ).toEqual( [
+			'acme-neon',
+			'other-theme',
+		] );
+	} );
+
+	test( 'entries outside the slug charset are dropped, the rest survive', () => {
+		// The PHP sanitizer runs `sanitize_key()` over the same list;
+		// a value one side keeps and the other rewrites would make the
+		// ledger drift and re-arm a seed on some future load.
+		seedLedger( [ 'Acme-Neon', 'acme/neon', '', 42, null, 'kept-theme' ] );
+		expect( loadState().appliedThemeRecommendations ).toEqual( [
+			'kept-theme',
+		] );
+	} );
+
+	test( 'a non-array falls back to the default', () => {
+		seedLedger( 'acme-neon' );
+		expect( loadState().appliedThemeRecommendations ).toEqual( [] );
+	} );
+
+	test( 'the cap keeps the most recent 64 entries', () => {
+		// Same end PHP trims from. The writer appends, so keeping the
+		// head would drop the slug just written and let that theme
+		// re-seed on the next activation.
+		seedLedger( Array.from( { length: 90 }, ( _v, i ) => `theme-${ i }` ) );
+		const ledger = loadState().appliedThemeRecommendations;
+		expect( ledger ).toHaveLength( 64 );
+		expect( ledger.at( -1 ) ).toBe( 'theme-89' );
+		expect( ledger ).not.toContain( 'theme-0' );
+	} );
+
+	test( 'an unknown slug is kept — a reinstall must not re-seed', () => {
+		seedLedger( [ 'deleted-theme' ] );
+		expect( loadState().appliedThemeRecommendations ).toEqual( [
+			'deleted-theme',
+		] );
 	} );
 } );
