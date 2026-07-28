@@ -159,16 +159,29 @@ function withoutTransition( element: HTMLElement, apply: () => void ): void {
 const SUSTAINED: ReadonlySet< string > = new Set( [ 'drag' ] );
 
 /**
- * Transitions that must let the desktop snapshot catch up before the
- * window is frozen out of it.
+ * Transitions whose capture has to be corrected from a later snapshot.
  *
- * See the long note in `play()` — the short version is that a drag is
- * announced BEFORE anything about the window changes, so the snapshot
- * needs to catch up with the raise that the preceding pointerdown just
- * made; every other transition is announced AFTER, where the stale
- * snapshot is the only remaining record of the "before" state.
+ * Both are announced BEFORE the window looks the way the effect needs it
+ * to, so the first capture is wrong and has to be repainted a frame
+ * later — see the long note in `play()`:
+ *
+ * - `drag` catches whatever window was overlapping this one, because the
+ *   raise that put it on top has not reached the snapshot yet.
+ * - `open` catches the WALLPAPER. The window is announced in the same
+ *   synchronous block that created it (`appendChild` → `focus` →
+ *   `dispatchEvent`, `window-manager/index.ts`), so it has never been
+ *   painted and simply is not in the picture; the rectangle still holds
+ *   whatever was behind it. That is why an opening window appeared to
+ *   be see-through.
+ *
+ * Every other transition is announced AFTER the change, where the stale
+ * snapshot is the only remaining record of the "before" state and
+ * repainting would capture the aftermath.
  */
-const NEEDS_FRESH_SNAPSHOT: ReadonlySet< string > = new Set( [ 'drag' ] );
+const NEEDS_FRESH_SNAPSHOT: ReadonlySet< string > = new Set( [
+	'drag',
+	'open',
+] );
 
 /**
  * Transitions during which the real element is hidden.
@@ -194,6 +207,27 @@ const HIDES_WINDOW: ReadonlySet< string > = new Set( [
 	'unmaximize',
 	'drag',
 ] );
+
+/**
+ * The window manager's own CSS opening animation.
+ *
+ * `Window`'s constructor adds this class, and `window-states.css` runs a
+ * 200 ms `opacity: 0 → 1` + `scale(0.92 → 1)` keyframe on it. When a
+ * PixiJS open effect is playing, that animation is not merely redundant,
+ * it makes the effect impossible:
+ *
+ * - The corrected capture, taken a frame after the window mounts, gets a
+ *   window that is still at roughly zero opacity — so the effect
+ *   animates a ghost, which is what made an opening window look
+ *   see-through even after the capture was being corrected.
+ * - A running CSS animation outranks inline styles in the cascade, so
+ *   the engine's own `opacity` hide does not take effect until the
+ *   animation ends. The real window shows through its own stand-in.
+ *
+ * Removing the class before the first paint means the animation never
+ * runs, which is right: the effect the user chose replaces it.
+ */
+const OPENING_CLASS = 'desktop-mode-window--opening';
 
 /** Unique namespace per engine instance, so teardown is exact. */
 let namespaceCounter = 0;
@@ -295,6 +329,14 @@ export function startWindowEffectEngine(
 			return 0;
 		}
 
+		// Now that an effect is definitely playing, call off the window
+		// manager's CSS opening animation — see `OPENING_CLASS`. This runs
+		// in the same synchronous block that mounted the window, so the
+		// animation is cancelled before its first frame ever paints.
+		if ( 'open' === transition ) {
+			element.classList.remove( OPENING_CLASS );
+		}
+
 		// A newer transition supersedes whatever this window was doing.
 		running.get( windowId )?.controller.abort();
 		running.get( windowId )?.cleanup();
@@ -393,17 +435,36 @@ export function startWindowEffectEngine(
 			const hides = HIDES_WINDOW.has( transition );
 
 			if ( NEEDS_FRESH_SNAPSHOT.has( transition ) ) {
-				// Stay visible under the stand-in until the snapshot has
-				// caught up — the window has to be IN that picture for the
-				// corrected capture to contain it. One frame of the two
-				// overlapping, then the copy takes over alone.
+				/*
+				 * For one frame the real window stays visible and the
+				 * stand-in stays hidden.
+				 *
+				 * Visible because it has to be IN the next snapshot for
+				 * the corrected capture to contain it — that is the whole
+				 * point. Hidden because until that correction the
+				 * stand-in's pixels are known to be wrong, and on an open
+				 * they are not merely wrong but the wallpaper: showing
+				 * them is exactly the see-through flash being fixed. The
+				 * real window is the better thing to look at for that
+				 * frame, because it is the real window.
+				 *
+				 * The effect runs regardless, so it simply plays its first
+				 * frame or two off-screen — a few milliseconds of a
+				 * two-hundred millisecond animation.
+				 */
+				layer.visible = false;
 				cancelWait = stage.afterNextSnapshot( () => {
 					cancelWait = null;
+					layer.visible = true;
+					// Repaint from where the window is NOW, not from where
+					// it was: a drag has moved it, and the old rectangle
+					// holds half a wallpaper by this point. Only the pixels
+					// are refreshed — the effect owns where its sprite
+					// sits, and writing to it here would fight whatever it
+					// set on its last frame.
 					const now = rectOf( element );
 					if ( now ) {
 						stage.recaptureRegion( texture, now );
-						sprite.x = now.x;
-						sprite.y = now.y;
 					}
 					if ( hides ) {
 						hideForEffect( element );

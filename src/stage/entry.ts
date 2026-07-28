@@ -28,6 +28,7 @@ import {
 	scaleFadeEffect,
 } from './window-fx/effects/basic';
 import { clothEffect } from './window-fx/effects/cloth';
+import { reconstructEffect } from './window-fx/effects/reconstruct';
 import { thanosEffect } from './window-fx/effects/thanos';
 import {
 	listWindowEffects,
@@ -57,6 +58,7 @@ registerWindowEffect( scaleFadeEffect );
 registerWindowEffect( genieEffect );
 registerWindowEffect( morphEffect );
 registerWindowEffect( thanosEffect );
+registerWindowEffect( reconstructEffect );
 registerWindowEffect( clothEffect );
 
 const api = {

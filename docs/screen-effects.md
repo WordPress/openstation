@@ -294,10 +294,14 @@ frame or two. Which way that cuts depends on the transition:
   already minimised, and the stale frame is the only surviving record of
   what it looked like before. Repainting the capture would catch the
   aftermath, so these never do.
-- **Announced before it** — drag. The pointerdown that precedes a drag
-  raises the window to the top of the stack, so the DOM has it on top
-  while the snapshot still has it underneath, and the first capture comes
-  out with the overlapping window baked into the pixels.
+- **Announced before it** — drag and open. The pointerdown that precedes
+  a drag raises the window to the top of the stack, so the DOM has it on
+  top while the snapshot still has it underneath, and the first capture
+  comes out with the overlapping window baked in. Open is starker still:
+  the window is announced in the same synchronous block that created it,
+  so it has never been painted and the rectangle holds the **wallpaper**
+  that was behind it — which is what made an opening window look
+  see-through.
 
 Nothing waits, in either case. Delaying a drag effect until the snapshot
 caught up left the real window being dragged, unaltered, for a beat
@@ -308,6 +312,34 @@ one, at which point the real element is hidden. The stand-in covers the
 window for that one frame, so nothing flashes, and effects that built a
 mesh or a thousand particles around `ctx.texture` need no API to hear
 about it — the object never changes, only its pixels.
+
+The repaint reads the window's rectangle **as it is then**, not where it
+was, because a drag has moved it by that point. It refreshes pixels
+only: where the stand-in sits is the effect's business, and an engine
+writing to it would fight whatever the effect set on its last frame.
+
+For that one frame the stand-in is held `visible = false`. Its pixels
+are known wrong, and on an open they are not merely wrong but the
+wallpaper — the real window is the better thing to look at until the
+correction lands. Effects run through it normally, so they simply play
+their first frame or two off-screen.
+
+### CSS animations on the real element
+
+`Window` adds `desktop-mode-window--opening` on creation, and
+`window-states.css` runs a 200 ms `opacity: 0 → 1` + `scale(0.92 → 1)`
+keyframe on it. When a PixiJS open effect is playing, the engine
+**removes that class** before its first frame paints. Two reasons, and
+the second is the one that bites:
+
+- The corrected capture would land on a window still at roughly zero
+  opacity, so the effect would animate a ghost.
+- A running CSS animation **outranks inline styles** in the cascade, so
+  the engine's `opacity` hide would not apply until the animation ended
+  — the real window showing through its own stand-in for 200 ms.
+
+The same trap is waiting for any effect that restyles `ctx.element`. If
+a keyframe animation is running on it, your inline styles are advisory.
 
 The engine owns capture, positioning, timing and cleanup; a def owns
 only the animation:
@@ -436,6 +468,7 @@ tests stay synchronous.
 | **Genie** | minimise, restore | Squeezes toward the dock tile. |
 | **Morph** | maximise, unmaximise | Stretches between old and new geometry. |
 | **Vanish** | close | The Thanos dissolve — the texture is sliced into a grid of particles that drift, spin and fade, sweeping across the window so it disintegrates from one edge. Particle count is `density²`, capped at 1600. |
+| **Reconstruct** | open | Vanish run backwards. Tiles fly in from across the desktop, spinning and transparent, and decelerate onto the square they belong in, knitting the window together from one edge. Same grid and same 1600 cap. |
 | **Cloth** | drag | The window hangs from its title bar like fabric. A Verlet solver drives a `MeshPlane`'s vertex grid, pinned to the live title-bar edge, so the sheet lags, swings and settles as you drag. |
 
 Every transition defaults to *None*.

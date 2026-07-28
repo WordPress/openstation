@@ -19,6 +19,7 @@ import type {
 class FakeContainer {
 	public children: FakeContainer[] = [];
 	public destroyed = false;
+	public visible = true;
 	public addChild( child: FakeContainer ): FakeContainer {
 		this.children.push( child );
 		return child;
@@ -202,6 +203,24 @@ function startDrag( h: Harness ): void {
 	h.deliverSnapshot();
 }
 
+/**
+ * Announce a newly opened window and let the snapshot catch up.
+ *
+ * Open corrects too, and for a starker reason than drag: the window is
+ * announced in the same block that created it, so it has never been
+ * painted and the first capture holds the wallpaper behind it.
+ *
+ * @param h The harness.
+ */
+function openWindow( h: Harness ): void {
+	document.dispatchEvent(
+		new CustomEvent( 'desktop-mode-window-opened', {
+			detail: { windowId: WINDOW_ID },
+		} ),
+	);
+	h.deliverSnapshot();
+}
+
 describe( 'window effect engine — capturing the right pixels', () => {
 	beforeEach( () => {
 		vi.useFakeTimers();
@@ -242,6 +261,110 @@ describe( 'window effect engine — capturing the right pixels', () => {
 		expect( h.recaptures() ).toBe( 1 );
 		// Only now does the copy take over alone.
 		expect( h.element.style.opacity ).toBe( '0.001' );
+		h.engine();
+	} );
+
+	/*
+	 * Open is the starker case. The window is announced in the same
+	 * synchronous block that created it, so it has never been painted:
+	 * the rectangle still holds the WALLPAPER that was behind it, and a
+	 * scale-and-fade dutifully animated that instead of the window,
+	 * which is what made an opening window look see-through.
+	 */
+	test( 'an open corrects its capture — the window is not painted yet', async () => {
+		const h = await harness( {
+			id: 'scale-fade',
+			label: 'Scale & fade',
+			transitions: [ 'open' ],
+		} );
+		document.dispatchEvent(
+			new CustomEvent( 'desktop-mode-window-opened', {
+				detail: { windowId: WINDOW_ID },
+			} ),
+		);
+
+		expect( h.captures() ).toBe( 1 );
+		expect( h.awaitingSnapshot() ).toBe( true );
+		// Still visible: it has to be painted once to be capturable at all.
+		expect( h.element.style.opacity ).toBe( '' );
+
+		h.deliverSnapshot();
+		expect( h.recaptures() ).toBe( 1 );
+		expect( h.element.style.opacity ).toBe( '0.001' );
+		h.engine();
+	} );
+
+	/*
+	 * `Window`'s constructor adds a class that runs a 200 ms
+	 * `opacity: 0 → 1` keyframe. Left alone it defeats the effect twice
+	 * over: the corrected capture lands on a window still at roughly zero
+	 * opacity, and a running CSS animation outranks inline styles, so the
+	 * engine's own hide does not apply until it ends.
+	 */
+	test( 'an open cancels the window manager CSS opening animation', async () => {
+		const h = await harness( {
+			id: 'scale-fade',
+			label: 'Scale & fade',
+			transitions: [ 'open' ],
+		} );
+		h.element.classList.add( 'desktop-mode-window--opening' );
+
+		document.dispatchEvent(
+			new CustomEvent( 'desktop-mode-window-opened', {
+				detail: { windowId: WINDOW_ID },
+			} ),
+		);
+
+		expect(
+			h.element.classList.contains( 'desktop-mode-window--opening' ),
+		).toBe( false );
+		h.engine();
+	} );
+
+	test( 'leaves the CSS opening animation alone when no effect claims open', async () => {
+		const h = await harness( {
+			id: 'clothy',
+			label: 'Clothy',
+			transitions: [ 'drag' ],
+		} );
+		h.element.classList.add( 'desktop-mode-window--opening' );
+
+		document.dispatchEvent(
+			new CustomEvent( 'desktop-mode-window-opened', {
+				detail: { windowId: WINDOW_ID },
+			} ),
+		);
+
+		// Nothing is replacing it, so the window manager's own animation
+		// is the only one there is.
+		expect(
+			h.element.classList.contains( 'desktop-mode-window--opening' ),
+		).toBe( true );
+		h.engine();
+	} );
+
+	test( 'keeps the stand-in hidden until its pixels are right', async () => {
+		const h = await harness( {
+			id: 'scale-fade',
+			label: 'Scale & fade',
+			transitions: [ 'open' ],
+		} );
+		document.dispatchEvent(
+			new CustomEvent( 'desktop-mode-window-opened', {
+				detail: { windowId: WINDOW_ID },
+			} ),
+		);
+
+		// Showing the first capture would show the WALLPAPER — the exact
+		// see-through flash this is all about. The real window is the
+		// better thing to look at for that frame.
+		const layer = h.overlay.children[ 0 ] as FakeContainer & {
+			visible: boolean;
+		};
+		expect( layer.visible ).toBe( false );
+
+		h.deliverSnapshot();
+		expect( layer.visible ).toBe( true );
 		h.engine();
 	} );
 
@@ -343,11 +466,7 @@ describe( 'window effect engine — how long the window stays hidden', () => {
 			label: 'Stuck',
 			transitions: [ 'open' ],
 		} );
-		document.dispatchEvent(
-			new CustomEvent( 'desktop-mode-window-opened', {
-				detail: { windowId: WINDOW_ID },
-			} ),
-		);
+		openWindow( h );
 		expect( h.element.style.opacity ).toBe( '0.001' );
 
 		// A window nobody can click is worse than a missing animation.
