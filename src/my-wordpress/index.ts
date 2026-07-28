@@ -567,25 +567,60 @@ function renderRoot( state: RenderState ): void {
 	// served via `X-WP-Total`. Failures fall through silently
 	// (the bare label is still useful).
 	cfg.entities.forEach( ( entity ) => {
-		void fetchEntityTotal( entity )
-			.then( ( total ) => {
-				if ( state.route.kind !== 'root' ) {
-					return; // Navigated away — don't paint stale.
-				}
-				const tile = tilesByEntity.get( entity.id );
-				if ( ! tile ) {
-					return;
-				}
-				const label = tile.querySelector< HTMLElement >(
-					'.desktop-mode-file-tile__label',
-				);
-				if ( label ) {
-					label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
-				}
-			} )
-			.catch( () => {
-				// Silent — the unsuffixed label still works.
-			} );
+		let fetchTimer: number | null = null;
+		const updateCount = () => {
+			void fetchEntityTotal( entity )
+				.then( ( total ) => {
+					if ( state.route.kind !== 'root' ) {
+						return; // Navigated away — don't paint stale.
+					}
+					const tile = tilesByEntity.get( entity.id );
+					if ( ! tile ) {
+						return;
+					}
+					const label = tile.querySelector< HTMLElement >(
+						'.desktop-mode-file-tile__label',
+					);
+					if ( label ) {
+						label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
+					}
+				} )
+				.catch( () => {
+					// Silent — the unsuffixed label still works.
+				} );
+		};
+		updateCount();
+
+		// Subscribe to cross-window broadcast change signals so the root
+		// folder counters refresh reactively when items are mutated elsewhere.
+		const topic = getBroadcastTopicForEntity( entity );
+		if ( topic ) {
+			const api = window.wp?.desktop;
+			if ( api && typeof api.subscribe === 'function' ) {
+				const unsub = api.subscribe( topic, ( payload: unknown ) => {
+					const detail = payload as { source?: string } | null;
+					// Skip our own emissions to avoid loop
+					if ( detail?.source === 'my-wordpress' ) {
+						return;
+					}
+					if ( fetchTimer !== null ) {
+						window.clearTimeout( fetchTimer );
+					}
+					fetchTimer = window.setTimeout( () => {
+						fetchTimer = null;
+						if ( state.route.kind === 'root' ) {
+							updateCount();
+						}
+					}, 150 );
+				} );
+				state.teardown.push( unsub );
+				state.teardown.push( () => {
+					if ( fetchTimer !== null ) {
+						window.clearTimeout( fetchTimer );
+					}
+				} );
+			}
+		}
 	} );
 
 	state.body.appendChild( grid );
