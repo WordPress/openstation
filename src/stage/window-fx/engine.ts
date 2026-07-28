@@ -67,12 +67,6 @@ const DEFAULT_DURATION_MS = 400;
 const MAX_HIDDEN_MS = 4000;
 
 /**
- * How long the stand-in stays on screen after the real window is
- * un-hidden, as a backstop for the two-frame hand-off below.
- */
-const HANDOFF_BACKSTOP_MS = 250;
-
-/**
  * Opacity used to hide a window while its animated copy plays.
  *
  * Deliberately not `0` — see {@link hideForEffect}.
@@ -524,21 +518,20 @@ export function startWindowEffectEngine(
 			}
 
 			/*
-		 * Whether the stand-in should outlive the un-hiding by a frame or
-		 * two.
+		 * Whether the stand-in should outlive the un-hiding.
 		 *
 		 * The stage does not draw the DOM directly — it uploads a
 		 * SNAPSHOT of it, refreshed once per ticker frame from inside the
 		 * browser's paint event. So restoring the window's opacity does
-		 * not put it back on screen; it puts it back on screen a couple
-		 * of frames later, once the snapshot catches up. Removing the
-		 * stand-in in the same breath therefore left a gap where neither
-		 * was drawn, which is the abrupt blink at the end of a drag.
+		 * not put it back on screen; it puts it back on screen once the
+		 * snapshot catches up. Removing the stand-in in the same breath
+		 * leaves a gap where neither is drawn, which is the blink at the
+		 * end of a drag.
 		 *
 		 * Overlapping instead of gapping is free here: an effect that
 		 * hands the window back has already settled its stand-in onto the
-		 * window's exact rectangle, so for those two frames the same
-		 * pixels are simply drawn twice, in the same place.
+		 * window's exact rectangle, so the same pixels are simply drawn
+		 * twice, in the same place.
 		 *
 		 * Not for `close`: that element is on its way out of the DOM, and
 		 * keeping the copy around only risks flashing a window that is
@@ -597,13 +590,12 @@ export function startWindowEffectEngine(
 					return;
 				}
 
-				// Two frames: one for the browser to paint the restored
-				// element, one for the stage to upload and draw that paint.
-				// The timer is the backstop for a tab that gets hidden before
-				// either frame arrives — `tearDown` is idempotent, so
-				// whichever wins is fine.
-				requestAnimationFrame( () => requestAnimationFrame( tearDown ) );
-				setTimeout( tearDown, HANDOFF_BACKSTOP_MS );
+				// Hand over the moment the snapshot actually contains the
+				// restored window, not a guessed number of frames later.
+				// `afterNextSnapshot` carries its own backstop and calls
+				// straight through when the stage is not running, so the
+				// stand-in can never be stranded on screen.
+				stage.afterNextSnapshot( tearDown );
 			};
 
 			// Take over the slot's placeholder teardown now that there is

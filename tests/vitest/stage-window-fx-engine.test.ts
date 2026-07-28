@@ -407,7 +407,8 @@ describe( 'window effect engine — capturing the right pixels', () => {
 
 		// Repainting now would write into a texture already queued for
 		// release, and re-hide a window that has just been handed back.
-		expect( h.awaitingSnapshot() ).toBe( false );
+		// The snapshot the engine is waiting on now is the hand-back, not
+		// the correction, so delivering it must not repaint anything.
 		h.deliverSnapshot();
 		expect( h.recaptures() ).toBe( 0 );
 		expect( h.element.style.opacity ).toBe( '' );
@@ -444,7 +445,6 @@ describe( 'window effect engine — capturing the right pixels', () => {
 		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
 		h.engine();
 
-		expect( h.awaitingSnapshot() ).toBe( false );
 		h.deliverSnapshot();
 		expect( h.recaptures() ).toBe( 0 );
 	} );
@@ -628,13 +628,13 @@ describe( 'window effect engine — handing the window back', () => {
 		expect( h.element.style.opacity ).toBe( '' );
 		expect( h.overlay.children ).toHaveLength( 1 );
 
-		// Two frames later the snapshot has caught up and the copy can go.
-		vi.advanceTimersByTime( 64 );
+		// Once the snapshot has caught up, the copy can go.
+		h.deliverSnapshot();
 		expect( h.overlay.children ).toHaveLength( 0 );
 		h.engine();
 	} );
 
-	test( 'tears the stand-in down even if frames stop arriving', async () => {
+	test( 'waits for the snapshot rather than a number of frames', async () => {
 		const h = await harness( {
 			id: 'clothy',
 			label: 'Clothy',
@@ -645,8 +645,13 @@ describe( 'window effect engine — handing the window back', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		// A backgrounded tab stops painting; the copy must not survive it.
-		vi.advanceTimersByTime( 250 );
+		// Counting frames was only ever the right order of magnitude:
+		// land early and the gap is back, land late and the copy
+		// overstays. Time passing is not the signal.
+		vi.advanceTimersByTime( 10000 );
+		expect( h.overlay.children ).toHaveLength( 1 );
+
+		h.deliverSnapshot();
 		expect( h.overlay.children ).toHaveLength( 0 );
 		h.engine();
 	} );
