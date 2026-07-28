@@ -47,6 +47,8 @@ export interface ListParams {
 	perPage: number;
 	search?: string;
 	currentUserId: number;
+	/** Scope the list to one post (the `edit-comments.php?p=` filter). */
+	post?: number;
 }
 
 export interface ListResult {
@@ -105,6 +107,9 @@ export async function fetchComments(
 	}
 	if ( params.tab === 'mine' && params.currentUserId > 0 ) {
 		url.searchParams.set( 'author', String( params.currentUserId ) );
+	}
+	if ( params.post && params.post > 0 ) {
+		url.searchParams.set( 'post', String( params.post ) );
 	}
 
 	const response = await trackedFetch(
