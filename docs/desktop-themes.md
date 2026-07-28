@@ -261,6 +261,13 @@ them as `var( --wpd-x, <its own literal> )`, which is why an unthemed
 shell looks exactly as it always did and why one theme value retints
 a whole family at once.
 
+The palette is not limited to window bodies: the shell's own
+body-mounted overlays — toasts, confirm dialogs, context menus, and
+the **command palette / Site Assistant** (⌘K) — read it too, because
+they render inside the `body.desktop-mode-desktop-theme-<slug>` half
+of the compiled selector. Set `--wpd-surface` and the `--wpd-fg`
+family and the palette panel follows without any extra work.
+
 A dark theme's minimum viable body palette:
 
 ```json
@@ -324,6 +331,13 @@ exception: core styles those with attribute selectors that carry real
 specificity, and native windows use the `<wpd-*>` components instead.
 If you build a native window with raw form controls, style them
 yourself.
+
+The framework's own raw controls are already handled — window bodies
+get a tokenized override in `assets/css/window-chrome.css`, and the
+command palette's search field gets one in
+`assets/css/ai-assistant.css`. Both out-specify core's
+`input[type="…"]` rules and fall back to core's values, so nothing
+changes without a theme.
 
 ### Typography tokens
 
@@ -744,8 +758,8 @@ of that component anywhere in the OS.
 | Slot | Type | Paints on |
 |---|---|---|
 | `MENU` | `image` | `<wpd-menu>` and `<wpd-context-menu>` panels |
-| `DIALOG` | `image` | `<wpd-modal>` and `<wpd-confirm-dialog>` surfaces |
-| `SCRIM` | `image` | The backdrop behind a modal |
+| `DIALOG` | `image` | `<wpd-modal>` and `<wpd-confirm-dialog>` surfaces, and the command-palette / Site Assistant panel |
+| `SCRIM` | `image` | The backdrop behind a modal, and behind the command palette |
 | `PANEL` | `image` | `<wpd-card>`, `<wpd-panel>`, `<wpd-flyout>` |
 | `TOAST` | `image` | `<wpd-toast>` notifications |
 | `TABLE_HEADER` | `image` | `<wpd-table>` header cells, sticky included |
