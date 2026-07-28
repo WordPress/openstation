@@ -614,3 +614,442 @@
 	line-height: 1.45;
 	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Conversation redesign — two-pane messages view.
+
+   Thread rail (left) + nested conversation (right) + composer.
+   Everything reads the same wpd-* / wp-admin tokens as the rest of
+   the window, so it inherits theme + admin-colour-scheme changes.
+   Scoped under `--conversation` so it never touches the legacy table.
+   ═══════════════════════════════════════════════════════════════ */
+
+.desktop-mode-comments--conversation {
+	padding: 0;
+	gap: 0;
+}
+
+/* ── Tab row ─────────────────────────────────────────────────── */
+.desktop-mode-comments__tabrow {
+	display: flex;
+	gap: 2px;
+	padding: 6px 12px 0;
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	flex: 0 0 auto;
+}
+
+.desktop-mode-comments__tab {
+	appearance: none;
+	background: transparent;
+	border: 0;
+	border-block-end: 2px solid transparent;
+	padding: 8px 12px 10px;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.desktop-mode-comments__tab:hover {
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+}
+
+.desktop-mode-comments__tab.is-active {
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	border-block-end-color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	font-weight: 600;
+}
+
+.desktop-mode-comments__tab-count {
+	font-size: 11px;
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	font-variant-numeric: tabular-nums;
+}
+
+.desktop-mode-comments__tab.is-active .desktop-mode-comments__tab-count {
+	background: color-mix( in srgb, var( --wpd-accent, #2271b1 ) 14%, transparent );
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+}
+
+/* ── Split ───────────────────────────────────────────────────── */
+.desktop-mode-comments__split {
+	flex: 1 1 auto;
+	min-block-size: 0;
+	display: grid;
+	grid-template-columns: 306px 1fr;
+	overflow: hidden;
+}
+
+/* ── Left rail ───────────────────────────────────────────────── */
+.desktop-mode-comments__rail {
+	border-inline-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	display: flex;
+	flex-direction: column;
+	min-block-size: 0;
+	background: var( --wpd-surface-sunken, #fbfbfc );
+}
+
+.desktop-mode-comments__search {
+	padding: 12px;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-comments__search wpd-text-field {
+	display: block;
+	width: 100%;
+}
+
+.desktop-mode-comments__list {
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-block-size: 0;
+}
+
+.desktop-mode-comments__thread {
+	display: grid;
+	grid-template-columns: 36px 1fr auto;
+	gap: 10px;
+	padding: 12px 14px;
+	cursor: pointer;
+	border-block-end: 1px solid color-mix( in srgb, currentColor 6%, transparent );
+	position: relative;
+	text-align: start;
+	appearance: none;
+	background: transparent;
+	border-inline: 0;
+	border-block-start: 0;
+	font: inherit;
+	color: inherit;
+	width: 100%;
+}
+
+.desktop-mode-comments__thread:hover {
+	background: var( --wp-desktop-hover-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.045 ) ) );
+}
+
+.desktop-mode-comments__thread.is-selected {
+	background: color-mix( in srgb, var( --wpd-accent, #2271b1 ) 8%, transparent );
+}
+
+.desktop-mode-comments__thread.is-selected::before {
+	content: "";
+	position: absolute;
+	inset-inline-start: 0;
+	inset-block: 0;
+	width: 3px;
+	background: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+}
+
+.desktop-mode-comments__thread.is-busy {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+/* Avatar — initial disc, tinted by a hashed hue so authors stay distinct. */
+.desktop-mode-comments__disc {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	color: #fff;
+	font-weight: 600;
+	font-size: 14px;
+	user-select: none;
+	background: hsl( var( --disc-h, 210 ) 42% 42% );
+	overflow: hidden;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-comments__disc img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.desktop-mode-comments__thread-main {
+	min-width: 0;
+}
+
+.desktop-mode-comments__thread-name {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.desktop-mode-comments__thread-snip {
+	font-size: 12.5px;
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	margin-block-start: 2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.desktop-mode-comments__thread-post {
+	font-size: 11.5px;
+	color: var( --wpd-fg-faint, #787c82 );
+	margin-block-start: 3px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.desktop-mode-comments__thread-meta {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+
+.desktop-mode-comments__thread-time {
+	font-size: 11px;
+	color: var( --wpd-fg-faint, #787c82 );
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.desktop-mode-comments__status {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+.desktop-mode-comments__status[ data-status="hold" ] { background: #dba617; box-shadow: 0 0 0 3px rgba( 219, 166, 23, 0.18 ); }
+.desktop-mode-comments__status[ data-status="approved" ] { background: #00a32a; }
+.desktop-mode-comments__status[ data-status="spam" ] { background: #d63638; }
+.desktop-mode-comments__status[ data-status="trash" ] { background: #8c8f94; }
+
+.desktop-mode-comments__reply-count {
+	font-size: 10.5px;
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	border-radius: 999px;
+	padding: 1px 6px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.desktop-mode-comments__list-empty,
+.desktop-mode-comments__list-loading {
+	padding: 24px 16px;
+	text-align: center;
+	font-size: 13px;
+	color: var( --wpd-fg-faint, #787c82 );
+}
+
+/* ── Right pane: conversation ────────────────────────────────── */
+.desktop-mode-comments__convo {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-block-size: 0;
+	background: var( --wp-desktop-window-bg, var( --wpd-surface, #fff ) );
+}
+
+.desktop-mode-comments__placeholder {
+	margin: auto;
+	text-align: center;
+	color: var( --wpd-fg-faint, #787c82 );
+	padding: 40px;
+}
+.desktop-mode-comments__placeholder .dashicons {
+	font-size: 40px;
+	width: 40px;
+	height: 40px;
+	opacity: 0.5;
+}
+.desktop-mode-comments__placeholder p {
+	margin: 10px 0 0;
+	font-size: 13px;
+}
+
+.desktop-mode-comments__convo-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 18px;
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	flex: 0 0 auto;
+}
+.desktop-mode-comments__convo-kicker {
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --wpd-fg-faint, #787c82 );
+	font-weight: 600;
+}
+.desktop-mode-comments__convo-post {
+	font-size: 15px;
+	font-weight: 600;
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	margin-block-start: 2px;
+}
+.desktop-mode-comments__convo-link {
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	font-size: 12.5px;
+	text-decoration: none;
+	white-space: nowrap;
+}
+.desktop-mode-comments__convo-link:hover { text-decoration: underline; }
+
+.desktop-mode-comments__thread-scroll {
+	padding: 18px 18px 6px;
+	overflow-y: auto;
+	flex: 1 1 auto;
+	min-block-size: 0;
+}
+
+/* A message + its nested children */
+.desktop-mode-comments__msg {
+	display: grid;
+	grid-template-columns: 34px 1fr;
+	gap: 12px;
+}
+.desktop-mode-comments__msg-rail {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.desktop-mode-comments__msg-rail .desktop-mode-comments__disc {
+	width: 34px;
+	height: 34px;
+	font-size: 13px;
+}
+.desktop-mode-comments__msg-line {
+	flex: 1 1 auto;
+	width: 2px;
+	background: var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	margin-block-start: 6px;
+	border-radius: 2px;
+}
+.desktop-mode-comments__msg-body {
+	min-width: 0;
+	padding-block-end: 12px;
+}
+.desktop-mode-comments__msg-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.desktop-mode-comments__msg-name {
+	font-weight: 600;
+	font-size: 13.5px;
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+}
+.desktop-mode-comments__msg-you {
+	font-size: 10.5px;
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	border: 1px solid color-mix( in srgb, var( --wpd-accent, #2271b1 ) 40%, transparent );
+	border-radius: 4px;
+	padding: 0 5px;
+	font-weight: 600;
+}
+.desktop-mode-comments__msg-time {
+	font-size: 11.5px;
+	color: var( --wpd-fg-faint, #787c82 );
+	font-variant-numeric: tabular-nums;
+}
+.desktop-mode-comments__msg-text {
+	font-size: 13.5px;
+	line-height: 1.5;
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #2c3338 ) );
+	margin-block-start: 4px;
+	overflow-wrap: anywhere;
+}
+
+/* Per-message inline actions — always visible, the whole point. */
+.desktop-mode-comments__msg-actions {
+	display: flex;
+	gap: 2px;
+	margin-block-start: 8px;
+	flex-wrap: wrap;
+}
+.desktop-mode-comments__act {
+	appearance: none;
+	font: inherit;
+	font-size: 12px;
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	padding: 4px 9px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+.desktop-mode-comments__act:hover {
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	border-color: var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+}
+.desktop-mode-comments__act.is-primary {
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	font-weight: 600;
+}
+.desktop-mode-comments__act.is-danger:hover {
+	background: color-mix( in srgb, var( --wpd-danger, #d63638 ) 10%, transparent );
+	color: var( --wpd-danger, #d63638 );
+	border-color: color-mix( in srgb, var( --wpd-danger, #d63638 ) 35%, transparent );
+}
+.desktop-mode-comments__act .dashicons {
+	font-size: 15px;
+	width: 15px;
+	height: 15px;
+}
+
+.desktop-mode-comments__nested {
+	margin-block-start: 12px;
+}
+
+/* ── Composer ────────────────────────────────────────────────── */
+.desktop-mode-comments__composer {
+	border-block-start: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	padding: 12px 18px 16px;
+	flex: 0 0 auto;
+}
+.desktop-mode-comments__composer-to {
+	font-size: 12px;
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	margin-block-end: 8px;
+}
+.desktop-mode-comments__composer-to b {
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+}
+.desktop-mode-comments__composer-row {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-block-start: 10px;
+}
+
+/* Cursor override: the shell forces `cursor: default !important`. */
+body.desktop-mode-active .desktop-mode-comments__thread,
+body.desktop-mode-active .desktop-mode-comments__tab,
+body.desktop-mode-active .desktop-mode-comments__act,
+body.desktop-mode-active .desktop-mode-comments__convo-link {
+	cursor: pointer !important;
+}
+
+@media ( max-width: 720px ) {
+	.desktop-mode-comments__split { grid-template-columns: 1fr; }
+	.desktop-mode-comments__rail { display: none; }
+	.desktop-mode-comments--show-rail .desktop-mode-comments__rail { display: flex; }
+	.desktop-mode-comments--show-rail .desktop-mode-comments__convo { display: none; }
+}

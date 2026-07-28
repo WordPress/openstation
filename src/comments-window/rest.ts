@@ -136,6 +136,74 @@ export async function fetchComments(
 	return { rows, total, totalPages };
 }
 
+/**
+ * Fetch every comment on a post (all depths) so the conversation pane can
+ * build the full nested tree client-side. Unlike {@link fetchReplies} — a
+ * single depth — this is one round trip for the whole thread. Drops the
+ * `parent` and `status` query args the rail uses so replies-of-replies
+ * aren't filtered out.
+ */
+export async function fetchThread(
+	cfg: CommentsConfig,
+	postId: number,
+): Promise< CommentRow[] > {
+	// `wp/v2/comments` rejects a multi-value `status` (400), so pull each
+	// visible status in its own request and merge — a moderator wants to
+	// see pending replies in context, not just approved ones. `hold` may
+	// 401 for a non-moderator, so treat a failed leg as empty rather than
+	// failing the whole thread.
+	const one = async ( status: string ): Promise< CommentRow[] > => {
+		const url = new URL( cfg.commentsUrl );
+		const qa = cfg.queryArgs ?? {};
+		Object.entries( qa ).forEach( ( [ k, v ] ) => {
+			if ( k === 'status' || k === 'parent' ) {
+				return;
+			}
+			if ( Array.isArray( v ) ) {
+				v.forEach( ( item ) => url.searchParams.append( k, String( item ) ) );
+			} else if ( v !== null && v !== undefined ) {
+				url.searchParams.set( k, String( v ) );
+			}
+		} );
+		url.searchParams.set( 'post', String( postId ) );
+		url.searchParams.set( 'per_page', '100' );
+		url.searchParams.set( 'orderby', 'date' );
+		url.searchParams.set( 'order', 'asc' );
+		url.searchParams.set( 'status', status );
+		try {
+			const response = await trackedFetch(
+				url.toString(),
+				{
+					method: 'GET',
+					credentials: 'same-origin',
+					headers: authHeaders( cfg ),
+				},
+				{
+					windowId: activeWindowId,
+					source: 'desktop-mode/comments/thread',
+				},
+			);
+			if ( ! response.ok ) {
+				return [];
+			}
+			return ( await response.json() ) as CommentRow[];
+		} catch {
+			return [];
+		}
+	};
+
+	const [ approved, pending ] = await Promise.all( [ one( 'approve' ), one( 'hold' ) ] );
+	const seen = new Set< number >();
+	const merged: CommentRow[] = [];
+	[ ...approved, ...pending ].forEach( ( row ) => {
+		if ( ! seen.has( row.id ) ) {
+			seen.add( row.id );
+			merged.push( row );
+		}
+	} );
+	return merged;
+}
+
 /** Approve / spam / trash / etc. bulk in one round trip. */
 export async function bulkModerate(
 	cfg: CommentsConfig,

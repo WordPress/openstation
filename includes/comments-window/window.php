@@ -19,25 +19,38 @@ function desktop_mode_comments_window_render_template() {
 	$can_moderate = current_user_can( 'moderate_comments' );
 	ob_start();
 	?>
-	<div class="desktop-mode-comments" data-desktop-mode-comments-root>
-		<wpd-tabs value="pending" class="desktop-mode-comments__tabs" data-desktop-mode-comments-tabs>
-			<wpd-tab value="pending"><?php esc_html_e( 'Pending', 'desktop-mode' ); ?></wpd-tab>
-			<wpd-tab value="all"><?php esc_html_e( 'All', 'desktop-mode' ); ?></wpd-tab>
-			<wpd-tab value="spam"><?php esc_html_e( 'Spam', 'desktop-mode' ); ?></wpd-tab>
-			<wpd-tab value="trash"><?php esc_html_e( 'Trash', 'desktop-mode' ); ?></wpd-tab>
-			<wpd-tab value="mine"><?php esc_html_e( 'Mine', 'desktop-mode' ); ?></wpd-tab>
-		</wpd-tabs>
+	<div class="desktop-mode-comments desktop-mode-comments--conversation" data-desktop-mode-comments-root>
+		<?php /* Tab row filters the thread rail (Pending / All / Spam / Trash / Mine). */ ?>
+		<div class="desktop-mode-comments__tabrow" role="tablist" data-desktop-mode-comments-tabs>
+			<button type="button" role="tab" class="desktop-mode-comments__tab is-active" data-tab="pending"><?php esc_html_e( 'Pending', 'desktop-mode' ); ?><span class="desktop-mode-comments__tab-count" data-tab-count="pending" hidden></span></button>
+			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="all"><?php esc_html_e( 'All', 'desktop-mode' ); ?></button>
+			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="spam"><?php esc_html_e( 'Spam', 'desktop-mode' ); ?></button>
+			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="trash"><?php esc_html_e( 'Trash', 'desktop-mode' ); ?></button>
+			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="mine"><?php esc_html_e( 'Mine', 'desktop-mode' ); ?></button>
+		</div>
 
-		<wpd-tabpanel for="pending" class="desktop-mode-comments__panel"
-			data-desktop-mode-comments-panel="pending"></wpd-tabpanel>
-		<wpd-tabpanel for="all" class="desktop-mode-comments__panel"
-			data-desktop-mode-comments-panel="all"></wpd-tabpanel>
-		<wpd-tabpanel for="spam" class="desktop-mode-comments__panel"
-			data-desktop-mode-comments-panel="spam"></wpd-tabpanel>
-		<wpd-tabpanel for="trash" class="desktop-mode-comments__panel"
-			data-desktop-mode-comments-panel="trash"></wpd-tabpanel>
-		<wpd-tabpanel for="mine" class="desktop-mode-comments__panel"
-			data-desktop-mode-comments-panel="mine"></wpd-tabpanel>
+		<div class="desktop-mode-comments__split">
+			<?php /* Left rail: search + list of conversations (top-level comments). */ ?>
+			<aside class="desktop-mode-comments__rail" aria-label="<?php esc_attr_e( 'Conversations', 'desktop-mode' ); ?>">
+				<div class="desktop-mode-comments__search">
+					<wpd-text-field data-desktop-mode-comments-search
+						placeholder="<?php esc_attr_e( 'Search comments…', 'desktop-mode' ); ?>"></wpd-text-field>
+				</div>
+				<div class="desktop-mode-comments__list" role="listbox"
+					aria-label="<?php esc_attr_e( 'Conversations', 'desktop-mode' ); ?>"
+					data-desktop-mode-comments-list></div>
+				<div class="desktop-mode-comments__rail-foot" data-desktop-mode-comments-railfoot hidden></div>
+			</aside>
+
+			<?php /* Right pane: the selected conversation thread + composer. */ ?>
+			<section class="desktop-mode-comments__convo" aria-live="polite"
+				data-desktop-mode-comments-convo>
+				<div class="desktop-mode-comments__placeholder" data-desktop-mode-comments-placeholder>
+					<span class="dashicons dashicons-format-chat" aria-hidden="true"></span>
+					<p><?php esc_html_e( 'Select a conversation to read and reply.', 'desktop-mode' ); ?></p>
+				</div>
+			</section>
+		</div>
 
 		<?php /* Realtime "N new" pill — the bundle paints inside this. */ ?>
 		<div class="desktop-mode-comments__new-pill" data-desktop-mode-comments-new-pill hidden></div>
