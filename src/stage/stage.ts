@@ -66,6 +66,18 @@ export const STAGE_CANVAS_ID = 'desktop-mode-stage';
 const UPLOAD_ERROR_LIMIT = 5;
 
 /**
+ * How long `afterNextSnapshot()` waits for a paint before giving up and
+ * running its callback against whatever is on screen.
+ *
+ * Only reached when the browser has stopped painting the canvas — a
+ * backgrounded tab, mostly. Deliberately close to a couple of frames:
+ * every millisecond here is a millisecond a window transition has not
+ * started yet, and at 100 ms that stall was visible as the real window
+ * carrying on for a beat before the animation took over.
+ */
+const SNAPSHOT_TIMEOUT_MS = 40;
+
+/**
  * Trailing edge: how long after the LAST resize event to rebuild, so a
  * drag always ends on a correct frame. Short enough that letting go
  * feels immediate.
@@ -366,6 +378,81 @@ export class CanvasStage {
 	}
 
 	/**
+	 * Run `cb` once the desktop snapshot reflects the DOM as it is now.
+	 *
+	 * The stage does not draw the shell — it draws a picture of it,
+	 * recorded in the browser's `paint` event and uploaded on the
+	 * following render. So the pixels on screen are always a frame or two
+	 * behind the DOM, and anything that reads them straight after
+	 * mutating it reads the past. Two callers care:
+	 *
+	 * - {@link captureRegion}, which would otherwise freeze a window as
+	 *   it looked BEFORE it was raised — complete with whatever was
+	 *   sitting on top of it.
+	 * - A window that has just been created, which is not in the picture
+	 *   at all until the next paint.
+	 *
+	 * Waiting on the source's own `update` event rather than counting
+	 * frames: that event IS the paint having happened, which is the fact
+	 * the caller actually needs, and it arrives on the very next paint.
+	 *
+	 * `cb` is then deferred by one task rather than run inline, and this
+	 * is not incidental. The event fires inside the browser's `paint`
+	 * step, and its callers do GPU work — `captureRegion()` runs a whole
+	 * `renderer.render()`. An earlier version hopped through
+	 * `ticker.addOnce()` instead, which put that render INSIDE PixiJS's
+	 * own render loop: re-entrant rendering, which PixiJS does not
+	 * support, and which cost both frame rate and a wasted frame of
+	 * latency. A task hop lands after the paint and before the next
+	 * animation frame — outside both loops, with the paint record still
+	 * cached and the source still flagged dirty, so the capture that
+	 * follows uploads the fresh image.
+	 *
+	 * Falls back to a timer if no paint arrives at all — a hidden tab
+	 * stops painting, and the caller must not be stranded.
+	 *
+	 * @param cb Runs with a current snapshot. Called synchronously if the
+	 *           stage is not running, so callers always make progress.
+	 * @return Cancels the pending call.
+	 */
+	afterNextSnapshot( cb: () => void ): () => void {
+		const source = this._source;
+		if ( ! source || ! this._running ) {
+			cb();
+			return () => undefined;
+		}
+
+		let fired = false;
+		let hop: ReturnType< typeof setTimeout > | null = null;
+		const onUpdate = (): void => {
+			source.off( 'update', onUpdate );
+			hop = setTimeout( run, 0 );
+		};
+		const cancel = (): void => {
+			source.off( 'update', onUpdate );
+			if ( hop ) {
+				clearTimeout( hop );
+			}
+			clearTimeout( timer );
+		};
+		function run(): void {
+			if ( fired ) {
+				return;
+			}
+			fired = true;
+			cancel();
+			cb();
+		}
+
+		const timer = setTimeout( run, SNAPSHOT_TIMEOUT_MS );
+		source.on( 'update', onUpdate );
+		return () => {
+			fired = true;
+			cancel();
+		};
+	}
+
+	/**
 	 * Freeze a rectangle of the live desktop into its own texture.
 	 *
 	 * This is what lets a single window become an independent PixiJS
@@ -376,6 +463,11 @@ export class CanvasStage {
 	 * — it keeps the pixels as they were even after the real element is
 	 * hidden or destroyed, which is precisely what a close animation
 	 * needs.
+	 *
+	 * The rectangle is copied out of the snapshot, so it carries whatever
+	 * that picture holds — including a window that was overlapping at the
+	 * time. Callers that have just changed the stacking order can put that
+	 * right with {@link afterNextSnapshot} and {@link recaptureRegion}.
 	 *
 	 * @param rect Region in CSS pixels, relative to the stage canvas.
 	 * @return A texture of that region, or `null` when the stage is not
@@ -411,6 +503,70 @@ export class CanvasStage {
 				);
 			}
 			return null;
+		}
+	}
+
+	/**
+	 * Redraw a region of the live desktop into a texture already on
+	 * screen, in place.
+	 *
+	 * This is what lets a capture be *corrected* rather than merely
+	 * delayed. A window that was raised a moment ago is not yet on top in
+	 * the snapshot, so freezing it immediately catches the window that
+	 * was overlapping it — but waiting for the snapshot to catch up means
+	 * the animation cannot start until it does, and that delay is
+	 * visible. Capturing at once and repainting the same texture one
+	 * snapshot later gets both: the stand-in is up in the frame the
+	 * gesture began, and its pixels are right from the next one.
+	 *
+	 * Same texture object throughout, deliberately — an effect may have
+	 * built a mesh or a hundred particle sprites around it by now, and
+	 * swapping the object underneath them would mean an API for something
+	 * that is really just new pixels.
+	 *
+	 * @param texture A texture from {@link captureRegion}.
+	 * @param rect    Region in CSS pixels, relative to the stage canvas.
+	 *                Must be the same size as the original capture.
+	 * @return Whether the texture was repainted. `false` means the caller
+	 *         keeps what it already had, which is stale but valid.
+	 */
+	recaptureRegion( texture: PixiTexture, rect: StageRect ): boolean {
+		const app = this._app;
+		const sprite = this._sprite;
+		const pixi = readPixi();
+		if ( ! app || ! sprite || ! pixi || ! this._running ) {
+			return false;
+		}
+		// `generateTexture` truncates the region to whole pixels, so match
+		// its arithmetic rather than comparing raw floats. A size change
+		// means the window was resized between the two captures and the
+		// texture no longer fits; leaving the old pixels is the safe
+		// answer.
+		const width = Math.trunc( Math.max( rect.width, 1 ) );
+		const height = Math.trunc( Math.max( rect.height, 1 ) );
+		if ( texture.width !== width || texture.height !== height ) {
+			return false;
+		}
+
+		try {
+			app.renderer.render( {
+				container: sprite,
+				// The same framing `generateTexture` applies: shift the
+				// desktop so the region lands at the texture's origin.
+				transform: new pixi.Matrix().translate( -rect.x, -rect.y ),
+				target: texture as never,
+				clearColor: [ 0, 0, 0, 0 ],
+			} );
+			texture.source.updateMipmaps();
+			return true;
+		} catch ( err ) {
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					'[desktop-mode/stage] failed to refresh a window capture:',
+					err,
+				);
+			}
+			return false;
 		}
 	}
 

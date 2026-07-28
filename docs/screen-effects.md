@@ -285,6 +285,30 @@ Instead the stage's texture already contains every window, so the engine
 effect a sprite of those frozen pixels. PixiJS documents this exact
 pattern for shatter-style effects. Nothing is animated with CSS.
 
+That texture is a *snapshot*, recorded in the browser's `paint` event
+and uploaded on the following render, so it always trails the DOM by a
+frame or two. Which way that cuts depends on the transition:
+
+- **Announced after the change** — minimise, maximise, close. The lag is
+  the whole reason this works: a minimise arrives once the window is
+  already minimised, and the stale frame is the only surviving record of
+  what it looked like before. Repainting the capture would catch the
+  aftermath, so these never do.
+- **Announced before it** — drag. The pointerdown that precedes a drag
+  raises the window to the top of the stack, so the DOM has it on top
+  while the snapshot still has it underneath, and the first capture comes
+  out with the overlapping window baked into the pixels.
+
+Nothing waits, in either case. Delaying a drag effect until the snapshot
+caught up left the real window being dragged, unaltered, for a beat
+before the animation took over — a worse artefact than the bug. Instead
+the stand-in goes up immediately with whatever the snapshot holds, and
+`stage.recaptureRegion()` repaints **the same texture** from the next
+one, at which point the real element is hidden. The stand-in covers the
+window for that one frame, so nothing flashes, and effects that built a
+mesh or a thousand particles around `ctx.texture` need no API to hear
+about it — the object never changes, only its pixels.
+
 The engine owns capture, positioning, timing and cleanup; a def owns
 only the animation:
 

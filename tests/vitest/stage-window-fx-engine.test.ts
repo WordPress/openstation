@@ -80,6 +80,14 @@ interface Harness {
 	resolvers: Array< () => void >;
 	hooks: NonNullable< typeof window.wp >[ 'hooks' ];
 	HOOKS: Record< string, string >;
+	/** How many times the engine has frozen a region of the desktop. */
+	captures: () => number;
+	/** How many times it has repainted a capture from a newer snapshot. */
+	recaptures: () => number;
+	/** Whether the engine is waiting for the snapshot to catch up. */
+	awaitingSnapshot: () => boolean;
+	/** Deliver the snapshot the engine is waiting for. */
+	deliverSnapshot: () => void;
 }
 
 /**
@@ -131,13 +139,32 @@ async function harness(
 		def.transitions.map( ( t ) => [ t, { id: def.id } ] ),
 	);
 
+	// The real stage hands the callback back a frame or two later, once
+	// the browser has repainted and the texture has been re-uploaded.
+	let pending: ( () => void ) | null = null;
+	let captures = 0;
+	let recaptures = 0;
+
 	const engine = startWindowEffectEngine( {
 		stage: {
 			pixi: { Container: FakeContainer, Sprite: FakeSprite },
 			overlay,
 			ticker: { add: () => undefined, remove: () => undefined },
 			canvas,
-			captureRegion: () => ( { source: null, destroy: () => undefined } ),
+			captureRegion: () => {
+				captures++;
+				return { source: null, destroy: () => undefined };
+			},
+			recaptureRegion: () => {
+				recaptures++;
+				return true;
+			},
+			afterNextSnapshot: ( cb: () => void ) => {
+				pending = cb;
+				return () => {
+					pending = null;
+				};
+			},
 		} as unknown as CanvasStage,
 		getSelection: () => selection,
 	} );
@@ -150,8 +177,155 @@ async function harness(
 		resolvers,
 		hooks: window.wp!.hooks,
 		HOOKS: HOOKS as unknown as Record< string, string >,
+		captures: () => captures,
+		recaptures: () => recaptures,
+		awaitingSnapshot: () => pending !== null,
+		deliverSnapshot: () => {
+			const cb = pending;
+			pending = null;
+			cb?.();
+		},
 	};
 }
+
+/**
+ * Begin a drag and let the desktop snapshot catch up.
+ *
+ * The effect starts on the first call; the second is what corrects its
+ * capture and hides the real window, which is the state most of these
+ * tests are actually about.
+ *
+ * @param h The harness.
+ */
+function startDrag( h: Harness ): void {
+	h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+	h.deliverSnapshot();
+}
+
+describe( 'window effect engine — capturing the right pixels', () => {
+	beforeEach( () => {
+		vi.useFakeTimers();
+	} );
+	afterEach( () => {
+		vi.useRealTimers();
+		document.body.innerHTML = '';
+		clearHooksStub();
+	} );
+
+	/*
+	 * The pointerdown that precedes a drag raises the window to the top
+	 * of the stack — possibly in the same frame. The DOM knows that; the
+	 * snapshot the stage draws does not yet, so the first capture comes
+	 * out with whatever had been sitting on top of it baked in.
+	 *
+	 * Nothing waits for that. Delaying the effect until the snapshot
+	 * caught up left the real window being dragged, unaltered, for a beat
+	 * before the animation took over — a worse artefact than the bug.
+	 */
+	test( 'a drag animates immediately and corrects its capture after', async () => {
+		const h = await harness( {
+			id: 'clothy',
+			label: 'Clothy',
+			transitions: [ 'drag' ],
+		} );
+		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+
+		// Up on screen in the frame the gesture began.
+		expect( h.captures() ).toBe( 1 );
+		expect( h.contexts ).toHaveLength( 1 );
+		expect( h.awaitingSnapshot() ).toBe( true );
+		// Still visible, and covered by the stand-in: it has to be IN the
+		// next snapshot for the corrected capture to contain it.
+		expect( h.element.style.opacity ).toBe( '' );
+
+		h.deliverSnapshot();
+		expect( h.recaptures() ).toBe( 1 );
+		// Only now does the copy take over alone.
+		expect( h.element.style.opacity ).toBe( '0.001' );
+		h.engine();
+	} );
+
+	/*
+	 * The opposite case, and the reason this is not done for every
+	 * transition: a minimise is announced once the window is ALREADY
+	 * minimised. There the stale snapshot is the point — it is the only
+	 * remaining record of what the window looked like before, and
+	 * repainting it would capture the aftermath.
+	 */
+	test( 'a minimise hides at once and never corrects', async () => {
+		const h = await harness( {
+			id: 'genie',
+			label: 'Genie',
+			transitions: [ 'minimize' ],
+		} );
+		h.hooks.doAction( h.HOOKS.WINDOW_MINIMIZED, {
+			windowId: WINDOW_ID,
+			element: h.element,
+		} );
+
+		expect( h.captures() ).toBe( 1 );
+		expect( h.awaitingSnapshot() ).toBe( false );
+		expect( h.element.style.opacity ).toBe( '0.001' );
+		h.engine();
+	} );
+
+	test( 'a drag that ends before the correction lands never corrects', async () => {
+		const h = await harness( {
+			id: 'clothy',
+			label: 'Clothy',
+			transitions: [ 'drag' ],
+		} );
+		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_END, { windowId: WINDOW_ID } );
+		// The effect winds itself down; its cleanup runs on resolution.
+		h.resolvers[ 0 ]();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		// Repainting now would write into a texture already queued for
+		// release, and re-hide a window that has just been handed back.
+		expect( h.awaitingSnapshot() ).toBe( false );
+		h.deliverSnapshot();
+		expect( h.recaptures() ).toBe( 0 );
+		expect( h.element.style.opacity ).toBe( '' );
+		h.engine();
+	} );
+
+	test( 'a close whose capture fails does not claim the close', async () => {
+		const h = await harness( {
+			id: 'poof',
+			label: 'Poof',
+			transitions: [ 'close' ],
+		} );
+		// A zero-area window: mid-layout, or already gone.
+		h.element.getBoundingClientRect = () =>
+			( { left: 0, top: 0, width: 0, height: 0 } ) as DOMRect;
+
+		// Claiming a duration the engine cannot animate would hold the
+		// window open, visible and doing nothing, before it vanished.
+		expect(
+			h.hooks.applyFilters( h.HOOKS.WINDOW_CLOSE_ANIMATION, null, {
+				windowId: WINDOW_ID,
+				element: h.element,
+			} ),
+		).toBeNull();
+		h.engine();
+	} );
+
+	test( 'tearing the engine down cancels a pending correction', async () => {
+		const h = await harness( {
+			id: 'clothy',
+			label: 'Clothy',
+			transitions: [ 'drag' ],
+		} );
+		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		h.engine();
+
+		expect( h.awaitingSnapshot() ).toBe( false );
+		h.deliverSnapshot();
+		expect( h.recaptures() ).toBe( 0 );
+	} );
+} );
 
 describe( 'window effect engine — how long the window stays hidden', () => {
 	beforeEach( () => {
@@ -188,7 +362,7 @@ describe( 'window effect engine — how long the window stays hidden', () => {
 			label: 'Clothy',
 			transitions: [ 'drag' ],
 		} );
-		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		startDrag( h );
 		expect( h.element.style.opacity ).toBe( '0.001' );
 
 		// Ten minutes of dragging is unusual, not invalid. Any ceiling
@@ -206,7 +380,7 @@ describe( 'window effect engine — how long the window stays hidden', () => {
 			label: 'Clothy',
 			transitions: [ 'drag' ],
 		} );
-		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		startDrag( h );
 
 		// The failsafe is a fact — the pointer is up — rather than a clock.
 		document.dispatchEvent( new Event( 'pointerup' ) );
@@ -220,7 +394,7 @@ describe( 'window effect engine — how long the window stays hidden', () => {
 			label: 'Clothy',
 			transitions: [ 'drag' ],
 		} );
-		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		startDrag( h );
 		document.dispatchEvent( new Event( 'pointercancel' ) );
 		expect( h.contexts[ 0 ].signal.aborted ).toBe( true );
 		h.engine();
@@ -251,7 +425,7 @@ describe( 'window effect engine — hiding without animating', () => {
 		} );
 		const writes = recordStyleWrites( h.element );
 
-		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		startDrag( h );
 		expect( writes.splice( 0 ) ).toEqual( [
 			'transition=none',
 			'opacity=0.001',
@@ -280,7 +454,7 @@ describe( 'window effect engine — hiding without animating', () => {
 			transitions: [ 'drag' ],
 		} );
 		h.element.style.transition = 'left 1s linear';
-		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		startDrag( h );
 		expect( h.element.style.transition ).toBe( 'left 1s linear' );
 		h.engine();
 	} );
@@ -319,7 +493,7 @@ describe( 'window effect engine — handing the window back', () => {
 			label: 'Clothy',
 			transitions: [ 'drag' ],
 		} );
-		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		startDrag( h );
 		expect( h.overlay.children ).toHaveLength( 1 );
 
 		h.resolvers[ 0 ]();
@@ -347,7 +521,7 @@ describe( 'window effect engine — handing the window back', () => {
 			label: 'Clothy',
 			transitions: [ 'drag' ],
 		} );
-		h.hooks.doAction( h.HOOKS.WINDOW_DRAG_START, { windowId: WINDOW_ID } );
+		startDrag( h );
 		h.resolvers[ 0 ]();
 		await Promise.resolve();
 		await Promise.resolve();

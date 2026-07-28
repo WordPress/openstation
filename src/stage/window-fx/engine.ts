@@ -13,13 +13,22 @@
  * 4. Hand the frozen sprite to the effect and let it animate.
  * 5. Clean up: destroy the sprite and restore the element's visibility.
  *
- * **Why the capture lands on the "before" state.** The stage's texture
- * only re-uploads when the browser repaints, so at the instant a
- * lifecycle action fires — synchronously, mid-DOM-mutation — the texture
- * still holds the previous frame. That is exactly the frame we want: the
- * window as it looked *before* it minimised or maximised. Capturing
- * after the fact would otherwise be impossible for transitions whose
- * only notification arrives once the element is already hidden.
+ * **The snapshot lags the DOM, and that cuts both ways.** The stage's
+ * texture only re-uploads when the browser repaints, so at the instant a
+ * lifecycle action fires — synchronously, mid-DOM-mutation — it still
+ * holds the previous frame.
+ *
+ * For transitions announced AFTER the change, that lag is the whole
+ * reason this works: a minimise arrives once the window is already
+ * minimised, and the stale frame is the only remaining record of what it
+ * looked like before.
+ *
+ * For a drag it is a bug. Drag-start is announced BEFORE anything about
+ * the window changes, and the pointerdown just before it raised the
+ * window to the top of the stack — so the DOM has it on top while the
+ * snapshot still has it underneath, and the capture came out with the
+ * overlapping window baked into the pixels. Those transitions wait for
+ * `stage.afterNextSnapshot()` first; see `NEEDS_FRESH_SNAPSHOT`.
  *
  * @since 0.9.8
  */
@@ -150,6 +159,18 @@ function withoutTransition( element: HTMLElement, apply: () => void ): void {
 const SUSTAINED: ReadonlySet< string > = new Set( [ 'drag' ] );
 
 /**
+ * Transitions that must let the desktop snapshot catch up before the
+ * window is frozen out of it.
+ *
+ * See the long note in `play()` — the short version is that a drag is
+ * announced BEFORE anything about the window changes, so the snapshot
+ * needs to catch up with the raise that the preceding pointerdown just
+ * made; every other transition is announced AFTER, where the stale
+ * snapshot is the only remaining record of the "before" state.
+ */
+const NEEDS_FRESH_SNAPSHOT: ReadonlySet< string > = new Set( [ 'drag' ] );
+
+/**
  * Transitions during which the real element is hidden.
  *
  * Everything where the window is arriving, leaving, or already captured
@@ -268,13 +289,9 @@ export function startWindowEffectEngine(
 			return 0;
 		}
 
-		const from = rectOf( element );
-		if ( ! from ) {
-			return 0;
-		}
-
-		const texture = stage.captureRegion( from );
-		if ( ! texture ) {
+		// A zero-area window is mid-layout or already gone; nothing worth
+		// capturing. Re-measured at capture time — this is only a gate.
+		if ( ! rectOf( element ) ) {
 			return 0;
 		}
 
@@ -282,7 +299,70 @@ export function startWindowEffectEngine(
 		running.get( windowId )?.controller.abort();
 		running.get( windowId )?.cleanup();
 
+		const controller = new AbortController();
+		const durationMs = chosen.def.durationMs
+			? chosen.def.durationMs( chosen.params )
+			: DEFAULT_DURATION_MS;
+
 		/*
+		 * Some transitions need their capture CORRECTED a frame later.
+		 *
+		 * A drag begins on pointermove, and the pointerdown that preceded
+		 * it — possibly in the SAME frame — raised the window to the top
+		 * of the stack. The DOM knows that; the snapshot does not yet, so
+		 * freezing the window straight away catches whatever had been
+		 * sitting on top of it.
+		 *
+		 * Nothing waits for that, though. Delaying the effect until the
+		 * snapshot caught up meant the real window carried on being
+		 * dragged, unaltered, for a beat before the animation took over —
+		 * a visible hiccup, and a worse one than the bug it fixed. So the
+		 * stand-in goes up immediately with the stale pixels, and once
+		 * the snapshot lands the SAME texture is repainted from it and the
+		 * real window is hidden. The stand-in covers the window for that
+		 * one frame, so nothing flashes; the only imperfection is a single
+		 * frame of stale pixels behind an already-moving animation.
+		 *
+		 * The other transitions do not correct at all, and for the
+		 * opposite reason: they are notified AFTER the change has been
+		 * made — a minimise arrives once the window is already minimised,
+		 * a close once the `--closing` class is on. There the stale
+		 * snapshot is the point, because it is the only remaining record
+		 * of what the window looked like before; repainting it would
+		 * capture the aftermath. Their stacking is safe anyway, since the
+		 * pointerup that triggers them lands frames after the pointerdown
+		 * that did the raising.
+		 */
+		let cancelWait: ( () => void ) | null = null;
+		const entry: RunningEffect = {
+			controller,
+			cleanup: () => {
+				cancelWait?.();
+				running.delete( windowId );
+			},
+		};
+		running.set( windowId, entry );
+
+		/**
+		 * Capture, hide, mount and run. Everything below owns cleanup.
+		 *
+		 * @param slot The registry entry to hand teardown over to.
+		 * @return Whether anything is actually going to animate.
+		 */
+		const start = ( slot: RunningEffect ): boolean => {
+			const from = rectOf( element );
+			if ( ! from ) {
+				running.delete( windowId );
+				return false;
+			}
+
+			const texture = stage.captureRegion( from );
+			if ( ! texture ) {
+				running.delete( windowId );
+				return false;
+			}
+
+			/*
 		 * Each effect gets its OWN container inside the overlay.
 		 *
 		 * Effects add display objects of their own — the dissolve makes
@@ -299,27 +379,44 @@ export function startWindowEffectEngine(
 		 * makes teardown cover everything the effect built, in the right
 		 * order, without the engine needing to know what that was.
 		 */
-		const layer = new pixi.Container();
-		overlay.addChild( layer );
+			const layer = new pixi.Container();
+			overlay.addChild( layer );
 
-		const sprite = new pixi.Sprite( texture );
-		sprite.x = from.x;
-		sprite.y = from.y;
-		layer.addChild( sprite );
+			const sprite = new pixi.Sprite( texture );
+			sprite.x = from.x;
+			sprite.y = from.y;
+			layer.addChild( sprite );
 
-		// Hide the real element so the desktop snapshot stops drawing it
-		// and only the animated copy shows. See `hideForEffect` — how it
-		// hides matters more than it looks.
-		const hides = HIDES_WINDOW.has( transition );
-		if ( hides ) {
-			hideForEffect( element );
-		}
+			// Hide the real element so the desktop snapshot stops drawing it
+			// and only the animated copy shows. See `hideForEffect` — how it
+			// hides matters more than it looks.
+			const hides = HIDES_WINDOW.has( transition );
 
-		const controller = new AbortController();
-		const sustained = SUSTAINED.has( transition );
-		let done = false;
+			if ( NEEDS_FRESH_SNAPSHOT.has( transition ) ) {
+				// Stay visible under the stand-in until the snapshot has
+				// caught up — the window has to be IN that picture for the
+				// corrected capture to contain it. One frame of the two
+				// overlapping, then the copy takes over alone.
+				cancelWait = stage.afterNextSnapshot( () => {
+					cancelWait = null;
+					const now = rectOf( element );
+					if ( now ) {
+						stage.recaptureRegion( texture, now );
+						sprite.x = now.x;
+						sprite.y = now.y;
+					}
+					if ( hides ) {
+						hideForEffect( element );
+					}
+				} );
+			} else if ( hides ) {
+				hideForEffect( element );
+			}
 
-		/*
+			const sustained = SUSTAINED.has( transition );
+			let done = false;
+
+			/*
 		 * Watchdog, for MOMENTARY effects only. If one never resolves — a
 		 * thrown ticker callback, a torn-down stage, a bug — the window
 		 * must not be left invisible and unclickable.
@@ -335,37 +432,37 @@ export function startWindowEffectEngine(
 		 * missing (a pointer capture lost to an alt-tab, a window torn
 		 * out from under the drag).
 		 */
-		const watchdog =
+			const watchdog =
 			hides && ! sustained
 				? setTimeout( () => {
 					showAfterEffect( element );
 				}, MAX_HIDDEN_MS )
 				: null;
 
-		let releaseFailsafe: ( () => void ) | null = null;
-		if ( sustained ) {
-			const onPointerRelease = (): void => {
-				controller.abort();
-			};
-			// Capture phase: a window that stops propagation on pointerup
-			// must not be able to strand its own effect.
-			document.addEventListener( 'pointerup', onPointerRelease, true );
-			document.addEventListener( 'pointercancel', onPointerRelease, true );
-			releaseFailsafe = () => {
-				document.removeEventListener(
-					'pointerup',
-					onPointerRelease,
-					true,
-				);
-				document.removeEventListener(
-					'pointercancel',
-					onPointerRelease,
-					true,
-				);
-			};
-		}
+			let releaseFailsafe: ( () => void ) | null = null;
+			if ( sustained ) {
+				const onPointerRelease = (): void => {
+					controller.abort();
+				};
+				// Capture phase: a window that stops propagation on pointerup
+				// must not be able to strand its own effect.
+				document.addEventListener( 'pointerup', onPointerRelease, true );
+				document.addEventListener( 'pointercancel', onPointerRelease, true );
+				releaseFailsafe = () => {
+					document.removeEventListener(
+						'pointerup',
+						onPointerRelease,
+						true,
+					);
+					document.removeEventListener(
+						'pointercancel',
+						onPointerRelease,
+						true,
+					);
+				};
+			}
 
-		/*
+			/*
 		 * Whether the stand-in should outlive the un-hiding by a frame or
 		 * two.
 		 *
@@ -386,95 +483,103 @@ export function startWindowEffectEngine(
 		 * keeping the copy around only risks flashing a window that is
 		 * supposed to be gone.
 		 */
-		const deferTeardown = hides && 'close' !== transition;
+			const deferTeardown = hides && 'close' !== transition;
 
-		let torn = false;
-		const tearDown = (): void => {
-			if ( torn ) {
-				return;
-			}
-			torn = true;
-			try {
+			let torn = false;
+			const tearDown = (): void => {
+				if ( torn ) {
+					return;
+				}
+				torn = true;
+				try {
 				// Container first — everything that could still be
 				// sampling the texture must leave the scene graph before
 				// its GPU resource is released.
-				overlay.removeChild( layer );
-				layer.destroy( { children: true } );
-			} catch {
+					overlay.removeChild( layer );
+					layer.destroy( { children: true } );
+				} catch {
 				// Destroying twice is harmless; the references go out of
 				// scope either way.
-			}
+				}
 
-			// Hand the texture to the deferred reaper rather than freeing
-			// it here — releasing a texture is neither immediate nor
-			// silent, see `./texture-retire`.
-			retireTexture( texture );
+				// Hand the texture to the deferred reaper rather than freeing
+				// it here — releasing a texture is neither immediate nor
+				// silent, see `./texture-retire`.
+				retireTexture( texture );
+			};
+
+			const cleanup = (): void => {
+				if ( done ) {
+					return;
+				}
+				done = true;
+				running.delete( windowId );
+				if ( watchdog ) {
+					clearTimeout( watchdog );
+				}
+				releaseFailsafe?.();
+				// A correction still queued would repaint a texture that
+				// is about to be released, and hide a window that is about
+				// to be handed back.
+				cancelWait?.();
+				cancelWait = null;
+
+				// Un-hide FIRST, so the stage's next snapshot already has the
+				// real window in it. Closing windows are removed from the DOM
+				// by the window manager, so this is a no-op there.
+				if ( hides ) {
+					showAfterEffect( element );
+				}
+
+				if ( ! deferTeardown ) {
+					tearDown();
+					return;
+				}
+
+				// Two frames: one for the browser to paint the restored
+				// element, one for the stage to upload and draw that paint.
+				// The timer is the backstop for a tab that gets hidden before
+				// either frame arrives — `tearDown` is idempotent, so
+				// whichever wins is fine.
+				requestAnimationFrame( () => requestAnimationFrame( tearDown ) );
+				setTimeout( tearDown, HANDOFF_BACKSTOP_MS );
+			};
+
+			// Take over the slot's placeholder teardown now that there is
+			// something real to tear down.
+			slot.cleanup = cleanup;
+
+			try {
+				const result = chosen.def.run( {
+					pixi,
+					transition,
+					params: chosen.params,
+					sprite,
+					texture,
+					layer,
+					from,
+					to,
+					element,
+					ticker,
+					signal: controller.signal,
+				} );
+				Promise.resolve( result )
+					.catch( ( err ) => {
+						reportEffectError( chosen.def.id, transition, err );
+					} )
+					.finally( cleanup );
+			} catch ( err ) {
+				reportEffectError( chosen.def.id, transition, err );
+				cleanup();
+			}
+			return true;
 		};
 
-		const cleanup = (): void => {
-			if ( done ) {
-				return;
-			}
-			done = true;
-			running.delete( windowId );
-			if ( watchdog ) {
-				clearTimeout( watchdog );
-			}
-			releaseFailsafe?.();
-
-			// Un-hide FIRST, so the stage's next snapshot already has the
-			// real window in it. Closing windows are removed from the DOM
-			// by the window manager, so this is a no-op there.
-			if ( hides ) {
-				showAfterEffect( element );
-			}
-
-			if ( ! deferTeardown ) {
-				tearDown();
-				return;
-			}
-
-			// Two frames: one for the browser to paint the restored
-			// element, one for the stage to upload and draw that paint.
-			// The timer is the backstop for a tab that gets hidden before
-			// either frame arrives — `tearDown` is idempotent, so
-			// whichever wins is fine.
-			requestAnimationFrame( () => requestAnimationFrame( tearDown ) );
-			setTimeout( tearDown, HANDOFF_BACKSTOP_MS );
-		};
-
-		running.set( windowId, { controller, cleanup } );
-
-		const durationMs = chosen.def.durationMs
-			? chosen.def.durationMs( chosen.params )
-			: DEFAULT_DURATION_MS;
-
-		try {
-			const result = chosen.def.run( {
-				pixi,
-				transition,
-				params: chosen.params,
-				sprite,
-				texture,
-				layer,
-				from,
-				to,
-				element,
-				ticker,
-				signal: controller.signal,
-			} );
-			Promise.resolve( result )
-				.catch( ( err ) => {
-					reportEffectError( chosen.def.id, transition, err );
-				} )
-				.finally( cleanup );
-		} catch ( err ) {
-			reportEffectError( chosen.def.id, transition, err );
-			cleanup();
-			return 0;
-		}
-
-		return durationMs;
+		// Nothing is deferred: the close gate reads this return value to
+		// decide whether to hold the window open, so a capture that
+		// failed has to report nothing rather than a duration nobody is
+		// going to animate for.
+		return start( entry ) ? durationMs : 0;
 	}
 
 	// -----------------------------------------------------------------
