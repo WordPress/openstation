@@ -276,54 +276,61 @@ The full transition list is `open`, `close`, `minimize`, `restore`,
 
 ### How a window becomes a PixiJS object
 
-Not by reparenting it into the canvas. `HTMLSource` requires its element
-to be a direct child, so moving windows there would reload every iframe
-and break the window manager's layout, z-order and snapping.
+Two ways, chosen by the engine per transition. Effects never need to
+care which is active — `ctx.sprite` and `ctx.texture` behave
+identically either way. Nothing is animated with CSS.
 
-Instead the stage's texture already contains every window, so the engine
-**freezes the window's rectangle out of it** with
+**Live — drag and open.** The engine *promotes* the window element to a
+direct child of the stage canvas and gives it its own texture,
+re-uploaded from the element on every canvas paint. This is the
+HTML-in-Canvas API's own pattern (the spec only draws direct children
+of the `layoutsubtree` canvas; compare Chrome's "deformable page"
+demo), and it means the pixels an effect deforms are **alive**: a video
+keeps playing and keystrokes keep rendering while the window hangs from
+the pointer as cloth. The move is `Node.moveBefore()` — atomic and
+state-preserving, so iframes do not reload and focus, selection and
+pointer capture survive; every browser with HTML-in-Canvas has it. The
+element is never hidden: leaving the shell's subtree is precisely what
+removes it from the desktop texture and reveals the pixels behind it.
+One consequence of the spec: a `layoutsubtree` child is laid out at
+the canvas origin, so the window's inline `left`/`top` stop meaning
+anything while it is promoted — transforms, however, still drive hit
+testing. The engine therefore mirrors the window manager's numbers
+(area origin + `left`/`top`) into a `translate` on every frame, and
+sends the element home again ("demotes" it) when the effect resolves —
+a cloth settle keeps sampling live pixels right through a snap-commit. Promotion is declined for fullscreen windows and when
+`moveBefore` is unavailable, in which case the frozen model below takes
+over.
+
+**Frozen — minimise, maximise, restore, unmaximise, close, and the
+fallback.** The stage's desktop texture already contains every window,
+so the engine **freezes the window's rectangle out of it** with
 `renderer.generateTexture()`, hides the real element, and hands the
-effect a sprite of those frozen pixels. PixiJS documents this exact
-pattern for shatter-style effects. Nothing is animated with CSS.
+effect a sprite of those frozen pixels — PixiJS documents this exact
+pattern for shatter-style effects.
 
-That texture is a *snapshot*, recorded in the browser's `paint` event
-and uploaded on the following render, so it always trails the DOM by a
-frame or two. Which way that cuts depends on the transition:
+The frozen texture is a *snapshot*, recorded in the browser's `paint`
+event and uploaded on the following render, so it trails the DOM by a
+frame or two. For the after-the-change transitions the lag is the whole
+reason this works: a minimise arrives once the window is already
+minimised, and the stale frame is the only surviving record of what it
+looked like before. Repainting the capture would catch the aftermath,
+so these never do.
 
-- **Announced after the change** — minimise, maximise, close. The lag is
-  the whole reason this works: a minimise arrives once the window is
-  already minimised, and the stale frame is the only surviving record of
-  what it looked like before. Repainting the capture would catch the
-  aftermath, so these never do.
-- **Announced before it** — drag and open. The pointerdown that precedes
-  a drag raises the window to the top of the stack, so the DOM has it on
-  top while the snapshot still has it underneath, and the first capture
-  comes out with the overlapping window baked in. Open is starker still:
-  the window is announced in the same synchronous block that created it,
-  so it has never been painted and the rectangle holds the **wallpaper**
-  that was behind it — which is what made an opening window look
-  see-through.
-
-Nothing waits, in either case. Delaying a drag effect until the snapshot
-caught up left the real window being dragged, unaltered, for a beat
-before the animation took over — a worse artefact than the bug. Instead
-the stand-in goes up immediately with whatever the snapshot holds, and
+When the frozen model has to stand in for a drag or an open (the
+fallback case), the lag cuts the other way — the pointerdown that
+precedes a drag raises the window to the top of the stack, so the first
+capture comes out with the previously-overlapping window baked in, and
+an open's rectangle holds the wallpaper because the window has never
+been painted at all. Nothing waits: the stand-in goes up immediately
+with whatever the snapshot holds — held `visible = false` for that one
+frame, since the real window is the better thing to look at — and
 `stage.recaptureRegion()` repaints **the same texture** from the next
-one, at which point the real element is hidden. The stand-in covers the
-window for that one frame, so nothing flashes, and effects that built a
-mesh or a thousand particles around `ctx.texture` need no API to hear
-about it — the object never changes, only its pixels.
-
-The repaint reads the window's rectangle **as it is then**, not where it
-was, because a drag has moved it by that point. It refreshes pixels
-only: where the stand-in sits is the effect's business, and an engine
-writing to it would fight whatever the effect set on its last frame.
-
-For that one frame the stand-in is held `visible = false`. Its pixels
-are known wrong, and on an open they are not merely wrong but the
-wallpaper — the real window is the better thing to look at until the
-correction lands. Effects run through it normally, so they simply play
-their first frame or two off-screen.
+snapshot, at which point the real element is hidden. Effects that built
+a mesh or a thousand particles around `ctx.texture` need no API to hear
+about it: the object never changes, only its pixels. The repaint reads
+the window's rectangle as it is *then*, not where it was, and refreshes
+pixels only — where the stand-in sits is the effect's business.
 
 ### Idle frames are not uploaded
 
@@ -441,7 +448,8 @@ wp.desktop.stage.registerWindowEffect( {
     ],
     durationMs: ( params ) => params.duration,
     run( ctx ) {
-        // ctx.sprite is the window's frozen pixels, already positioned.
+        // ctx.sprite is the window's pixels, already positioned —
+        // live (re-uploading every paint) on drag/open, frozen otherwise.
         return new Promise( ( resolve ) => {
             let t = 0;
             const step = ( tick ) => {
@@ -462,8 +470,9 @@ shadow, from, to?, element, ticker, signal }`. `from` is the window's rect in CS
 pixels relative to the stage; `to` is the destination where one exists
 (the dock tile on minimise, the new geometry on maximise); `element` is
 the real window element, still in the DOM and still being moved by the
-window manager while hidden — read its box each frame to follow a live
-drag, but do not restyle it, the engine owns its visibility. Throwing or
+window manager — read its box each frame to follow a live drag, but do
+not restyle it: the engine owns its visibility, its transform and,
+during live transitions, its place in the DOM. Throwing or
 rejecting is safe — the engine cleans up and the transition completes,
 so a broken effect degrades to no effect rather than a stuck window.
 

@@ -380,8 +380,19 @@
  * from inlining the resulting hex value.
  */
 
+/*
+ * Each scheme matches the stage canvas too. While a window effect
+ * plays, `stage.ts` promotes the window to a direct child of
+ * `<canvas class="desktop-mode-stage">` (its live-texture path), which
+ * takes it OUT of the shell subtree these variables are scoped to. The
+ * stage mirrors the shell's `data-desktop-mode-scheme` attribute, so
+ * listing it here keeps a promoted window's recorded image in the
+ * user's scheme instead of flashing the defaults mid-effect.
+ */
+
 /* Fresh — default WP blue. */
-.desktop-mode-shell[data-desktop-mode-scheme="fresh"] {
+.desktop-mode-shell[data-desktop-mode-scheme="fresh"],
+.desktop-mode-stage[data-desktop-mode-scheme="fresh"] {
 	--wp-admin-theme-color: #2271b1;
 	/* color-mix(in srgb, #1d2327 80%, #fff 20%) */
 	--desktop-mode-titlebar-bg-focused: #4a4f52;
@@ -389,7 +400,8 @@
 }
 
 /* Light — pale sidebar, teal accent. */
-.desktop-mode-shell[data-desktop-mode-scheme="light"] {
+.desktop-mode-shell[data-desktop-mode-scheme="light"],
+.desktop-mode-stage[data-desktop-mode-scheme="light"] {
 	--wp-admin-theme-color: #04a4cc;
 	/* color-mix(in srgb, #e5e5e5 85%, #000 15%) */
 	--desktop-mode-titlebar-bg-focused: #c3c3c3;
@@ -397,7 +409,8 @@
 }
 
 /* Modern — vivid indigo accent, near-black sidebar. */
-.desktop-mode-shell[data-desktop-mode-scheme="modern"] {
+.desktop-mode-shell[data-desktop-mode-scheme="modern"],
+.desktop-mode-stage[data-desktop-mode-scheme="modern"] {
 	--wp-admin-theme-color: #3858e9;
 	/* color-mix(in srgb, #1e1e1e 78%, #fff 22%) */
 	--desktop-mode-titlebar-bg-focused: #505050;
@@ -405,7 +418,8 @@
 }
 
 /* Blue. */
-.desktop-mode-shell[data-desktop-mode-scheme="blue"] {
+.desktop-mode-shell[data-desktop-mode-scheme="blue"],
+.desktop-mode-stage[data-desktop-mode-scheme="blue"] {
 	--wp-admin-theme-color: #096484;
 	/* color-mix(in srgb, #096484 82%, #fff 18%) */
 	--desktop-mode-titlebar-bg-focused: #35809a;
@@ -413,7 +427,8 @@
 }
 
 /* Coffee. */
-.desktop-mode-shell[data-desktop-mode-scheme="coffee"] {
+.desktop-mode-shell[data-desktop-mode-scheme="coffee"],
+.desktop-mode-stage[data-desktop-mode-scheme="coffee"] {
 	--wp-admin-theme-color: #c7a589;
 	/* color-mix(in srgb, #46403c 80%, #fff 20%) */
 	--desktop-mode-titlebar-bg-focused: #6b6663;
@@ -421,7 +436,8 @@
 }
 
 /* Ectoplasm. */
-.desktop-mode-shell[data-desktop-mode-scheme="ectoplasm"] {
+.desktop-mode-shell[data-desktop-mode-scheme="ectoplasm"],
+.desktop-mode-stage[data-desktop-mode-scheme="ectoplasm"] {
 	--wp-admin-theme-color: #a3b745;
 	/* color-mix(in srgb, #413256 80%, #fff 20%) */
 	--desktop-mode-titlebar-bg-focused: #675b78;
@@ -429,7 +445,8 @@
 }
 
 /* Midnight. */
-.desktop-mode-shell[data-desktop-mode-scheme="midnight"] {
+.desktop-mode-shell[data-desktop-mode-scheme="midnight"],
+.desktop-mode-stage[data-desktop-mode-scheme="midnight"] {
 	--wp-admin-theme-color: #e14d43;
 	/* color-mix(in srgb, #25282b 80%, #fff 20%) */
 	--desktop-mode-titlebar-bg-focused: #515355;
@@ -437,7 +454,8 @@
 }
 
 /* Ocean. */
-.desktop-mode-shell[data-desktop-mode-scheme="ocean"] {
+.desktop-mode-shell[data-desktop-mode-scheme="ocean"],
+.desktop-mode-stage[data-desktop-mode-scheme="ocean"] {
 	--wp-admin-theme-color: #9ebaa0;
 	/* color-mix(in srgb, #627c83 80%, #fff 20%) */
 	--desktop-mode-titlebar-bg-focused: #81969c;
@@ -445,7 +463,8 @@
 }
 
 /* Sunrise. */
-.desktop-mode-shell[data-desktop-mode-scheme="sunrise"] {
+.desktop-mode-shell[data-desktop-mode-scheme="sunrise"],
+.desktop-mode-stage[data-desktop-mode-scheme="sunrise"] {
 	--wp-admin-theme-color: #dd823b;
 	/* color-mix(in srgb, #b43c38 80%, #fff 20%) */
 	--desktop-mode-titlebar-bg-focused: #c36360;

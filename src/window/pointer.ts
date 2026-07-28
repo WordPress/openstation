@@ -15,7 +15,35 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { DRAG_THRESHOLD_SQUARED, EDGE_MARGIN, GRAB_MARGIN } from './constants';
+import { geometryHostOf } from './geometry-host';
 import type { Window } from './index';
+
+/**
+ * A window's inline `left`/`top` in pixels, with `offsetLeft`/`offsetTop`
+ * as the fallback.
+ *
+ * The inline styles are the window manager's source of truth for
+ * floating geometry, and they stay readable in the one state where the
+ * offset properties lie: while the canvas stage has PROMOTED the window
+ * to a direct child of the stage `<canvas>` for a live-texture effect.
+ * A `layoutsubtree` child is laid out at the canvas origin, so its
+ * offsets read 0 there — and a drag that computed its offsets from
+ * them would teleport the window to the corner.
+ *
+ * @param element The window element.
+ * @param prop    Which coordinate to read.
+ * @return The coordinate in pixels.
+ */
+function inlinePosition(
+	element: HTMLElement,
+	prop: 'left' | 'top',
+): number {
+	const inline = parseFloat( element.style[ prop ] );
+	if ( Number.isFinite( inline ) ) {
+		return inline;
+	}
+	return 'left' === prop ? element.offsetLeft : element.offsetTop;
+}
 
 /**
  * Build a rAF-coalesced emitter for `WINDOW_BOUNDS_CHANGED` during a
@@ -184,8 +212,8 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 			newLeft = placed.left;
 			newTop = placed.top;
 		} else {
-			newLeft = win.element.offsetLeft;
-			newTop = win.element.offsetTop;
+			newLeft = inlinePosition( win.element, 'left' );
+			newTop = inlinePosition( win.element, 'top' );
 		}
 
 		// --dragging class disables the base 0.25 s transition on
@@ -230,7 +258,10 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		let y = ev.clientY - win._dragOffsetY;
 
 		// Constrain to desktop bounds keeping GRAB_MARGIN visible.
-		const desktop = win.element.parentElement;
+		// `geometryHostOf`, not `parentElement`: while a drag effect
+		// with a live texture plays, the element is a direct child of
+		// the stage canvas, which is dock-width wider than the area.
+		const desktop = geometryHostOf( win.element );
 		if ( desktop ) {
 			const safe = clampWindowPosition( x, y, win.element.offsetWidth, desktop.clientWidth, desktop.clientHeight );
 			x = safe.x;
@@ -306,8 +337,8 @@ export function handleDragStart( win: Window, e: PointerEvent ): void {
 		win._emitChange( 'moved' );
 		const payload = {
 			windowId: win.id,
-			x: win.element.offsetLeft,
-			y: win.element.offsetTop,
+			x: inlinePosition( win.element, 'left' ),
+			y: inlinePosition( win.element, 'top' ),
 		};
 		doAction( HOOKS.WINDOW_DRAG_END, payload );
 		doAction( HOOKS.WINDOW_MOVED, payload );
@@ -340,7 +371,7 @@ function captureUnstateParams(
 	// geometry; fall back to a sensible default (60 % of the desktop
 	// area) when the window was born maximized / snapped and never had
 	// a floating size to remember.
-	const parent = win.element.parentElement;
+	const parent = geometryHostOf( win.element );
 	const fallbackW = parent
 		? Math.min( 960, Math.round( parent.clientWidth * 0.6 ) )
 		: 640;

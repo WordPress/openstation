@@ -39,6 +39,20 @@ export interface SourceStats {
 
 export interface StageSource {
 	stats: SourceStats;
+	/**
+	 * Stop listening to the canvas's `paint` event without destroying
+	 * the source, freezing the GPU texture at its last upload.
+	 *
+	 * A demoted window needs exactly this: the element is no longer a
+	 * direct child of the canvas, so the next upload would hand
+	 * `texElementImage2D` an element it must reject — and the stage
+	 * counts those errors toward shutting itself down. Destroying the
+	 * source instead would free the GPU texture while an effect's mesh
+	 * is still sampling it. Detaching the listener is the only exit
+	 * that is safe on both fronts; the texture is destroyed later
+	 * through the normal retire path.
+	 */
+	detachPaintListener(): void;
 	[ key: string ]: unknown;
 }
 
@@ -53,12 +67,20 @@ interface SourcePixi {
  * Build the stage's `HTMLSource`, skipping uploads for idle paints.
  *
  * @param pixi    The vendor-loaded Pixi namespace.
- * @param options Passed straight to `HTMLSource`.
+ * @param options Passed straight to `HTMLSource`, plus one of ours:
+ *                `skipIdlePaints: false` uploads on every paint even
+ *                when the browser reports nothing changed. The live
+ *                window sources use it — content inside a window's
+ *                iframe (a playing video, a CSS animation) can change
+ *                without the canvas's `changedElements` ever saying
+ *                so, and a "live" texture that freezes between
+ *                heartbeats defeats its purpose. The cost is bounded
+ *                by the window's size and the effect's duration.
  * @return The source, carrying live {@link SourceStats}.
  */
 export function createStageSource(
 	pixi: unknown,
-	options: Record< string, unknown >,
+	options: Record< string, unknown > & { skipIdlePaints?: boolean },
 ): StageSource {
 	const Base = ( pixi as SourcePixi ).HTMLSource as unknown as new (
 		opts: Record< string, unknown >,
@@ -77,6 +99,8 @@ export function createStageSource(
 	 * would try to upload an element with no cached paint record and
 	 * throw on the stage's very first render.
 	 */
+	const skipIdle = options.skipIdlePaints !== false;
+
 	class SkippingSource extends Base {
 		public stats: SourceStats = { paints: 0, uploads: 0, skipped: 0 };
 		/**
@@ -93,6 +117,27 @@ export function createStageSource(
 		/** Whether a paint has ever been accepted. */
 		private _seeded = false;
 
+		public detachPaintListener(): void {
+			// `HTMLSource` stores the bound copy of `_onPaint` it
+			// registered in its constructor; removing by that exact
+			// reference is the only way to unhook it. The property is
+			// unmangled in the vendored bundle (`assets/vendor/
+			// pixi-html-source.min.js`), and `destroy()` doing the same
+			// removal later is a harmless no-op.
+			const self = this as unknown as {
+				canvas?: {
+					removeEventListener(
+						type: string,
+						listener: unknown,
+					): void;
+				} | null;
+				_onPaintBound?: unknown;
+			};
+			if ( self.canvas && self._onPaintBound ) {
+				self.canvas.removeEventListener( 'paint', self._onPaintBound );
+			}
+		}
+
 		public _onPaint( event: PaintEventLike ): void {
 			this.stats.paints++;
 
@@ -102,7 +147,7 @@ export function createStageSource(
 			// Never skip before the first accepted paint: the base class
 			// flips its own `ready` flag in there, and a source that is
 			// never ready is never uploaded at all — a black desktop.
-			if ( this._seeded && idle && this._idle < HEARTBEAT_PAINTS ) {
+			if ( skipIdle && this._seeded && idle && this._idle < HEARTBEAT_PAINTS ) {
 				this._idle++;
 				this.stats.skipped++;
 				return;

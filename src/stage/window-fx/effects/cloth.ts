@@ -5,13 +5,15 @@
  * behaving like fabric pinned along its title bar: it lags behind the
  * pointer, swings, and settles.
  *
- * **How.** The window's pixels are frozen into a texture (the engine
- * does that), stretched over a `MeshPlane` whose vertex grid is driven
- * by a Verlet cloth solver. The top row of particles is pinned to the
- * window's live title-bar edge — read from the real element every frame,
- * because the window manager keeps moving it under the pointer while it
- * is hidden — and the rest hang from it under gravity, held together by
- * distance constraints.
+ * **How.** The engine hands this effect a texture of the window — LIVE
+ * on capable browsers (the window is promoted to a canvas child and its
+ * pixels re-upload every paint, so a video keeps playing while the
+ * sheet swings; frozen only as a fallback) — stretched over a
+ * `MeshPlane` whose vertex grid is driven by a Verlet cloth solver. The
+ * top row of particles is pinned to the window's live title-bar edge —
+ * read from the real element every frame, because the window manager
+ * keeps moving it under the pointer — and the rest hang from it under
+ * gravity, held together by distance constraints.
  *
  * Verlet rather than spring-mass on purpose: positions carry their own
  * velocity (`current - previous`), so there is no velocity array to keep

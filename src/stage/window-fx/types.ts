@@ -5,15 +5,27 @@
  * transition — opening, closing, minimising, maximising, gaining or
  * losing focus — as a PixiJS object on the canvas stage.
  *
- * **How a window becomes a Pixi object.** Not by reparenting it into
- * the canvas: `HTMLSource` requires its element to be a direct child,
- * so moving windows there would reload every iframe and break the
- * window manager's layout, z-order and snapping. Instead the stage
- * already holds a live texture of the entire shell, windows included,
- * so the engine freezes the window's rectangle out of that texture
- * (`renderer.generateTexture()`), hides the real element, and hands the
- * effect a sprite of those frozen pixels to animate. PixiJS documents
- * this exact pattern for "shatter"-style effects.
+ * **How a window becomes a Pixi object** — one of two ways, chosen by
+ * the engine per transition:
+ *
+ * - **Live** (`drag`, `open`): the element is promoted to a direct
+ *   child of the stage canvas with `Node.moveBefore()` — atomic and
+ *   state-preserving, so iframes do not reload — and `HTMLSource`
+ *   re-uploads it into `ctx.texture` on every canvas paint. The pixels
+ *   the effect deforms are alive: video keeps playing, keystrokes keep
+ *   rendering, all mid-effect. This is the HTML-in-Canvas spec's own
+ *   pattern (compare Chrome's "deformable page" demo).
+ * - **Frozen** (`close`, `minimize`, `restore`, `maximize`,
+ *   `unmaximize`, and the fallback when promotion is not possible):
+ *   the stage's desktop texture already contains the window, so the
+ *   engine freezes its rectangle out (`renderer.generateTexture()`),
+ *   hides the real element, and hands the effect those frozen pixels.
+ *   For after-the-fact transitions the staleness is the point — the
+ *   snapshot is the only remaining record of the "before" state.
+ *
+ * Effects need not care which model is active: `ctx.sprite` and
+ * `ctx.texture` behave identically, the live texture simply keeps
+ * refreshing underneath.
  *
  * The engine owns capture, positioning, cleanup and timing. A def owns
  * only the animation — which is why the built-in dissolve is about
@@ -103,9 +115,11 @@ export interface WindowEffectRunContext {
 	/** Parameter values, clamped and defaulted — never needs validating. */
 	params: Readonly< Record< string, number > >;
 	/**
-	 * The window's frozen pixels, already mounted at its on-screen
-	 * position. Move, scale, tint or replace it freely; the engine
-	 * destroys it afterwards.
+	 * The window's pixels, already mounted at its on-screen position.
+	 * Move, scale, tint or replace it freely; the engine destroys it
+	 * afterwards. For `drag` and `open` the pixels are LIVE — they keep
+	 * re-uploading from the real window every paint; for the other
+	 * transitions they are a frozen snapshot.
 	 */
 	sprite: Sprite;
 	/** The same pixels as a texture, for effects that build their own display objects. */
@@ -138,9 +152,10 @@ export interface WindowEffectRunContext {
 	from: StageRect;
 	/**
 	 * The real window element, still in the DOM and still being moved by
-	 * the window manager while hidden. Sustained effects read its live
-	 * position each frame to follow a drag; momentary ones rarely need
-	 * it. Do not restyle it — the engine owns its visibility.
+	 * the window manager. Sustained effects read its live position each
+	 * frame to follow a drag; momentary ones rarely need it. Do not
+	 * restyle it — the engine owns its visibility, its transform and,
+	 * during live transitions, its place in the DOM.
 	 */
 	element: HTMLElement;
 	/**

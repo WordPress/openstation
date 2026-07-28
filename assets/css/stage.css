@@ -82,3 +82,33 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-stage {
 	--desktop-mode-tile-label-shadow: 0 0 0 rgba(0, 0, 0, 0);
 	--wpd-ribbon-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
+
+/*
+ * Inheritance for PROMOTED windows.
+ *
+ * While a window effect with a live texture plays, `acquireLiveWindow()`
+ * moves the window element out of the shell and directly under the
+ * canvas (the HTML-in-Canvas API only draws direct children). Two
+ * things the window used to inherit from the shell have to be restated
+ * on the canvas or the window's recorded image changes mid-effect:
+ *
+ * - The shell typeface (`desktop.css` sets it on `.desktop-mode-shell`);
+ *   without it a promoted window's title bar falls back to the admin
+ *   default font for the duration of a drag.
+ * - The no-drop-shadows tokens declared on `.desktop-mode-shell--staged`
+ *   above — the canvas becomes the nearest declaring ancestor for a
+ *   promoted window, so it needs the same values.
+ *
+ * The scheme variables get the same treatment in `variables.css`, keyed
+ * off the `data-desktop-mode-scheme` attribute the stage mirrors from
+ * the shell.
+ */
+.desktop-mode-stage {
+	font-family: var(--desktop-mode-font, inherit);
+	--desktop-mode-window-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-window-shadow-focused: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-dock-floating-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-tile-shortcut-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--desktop-mode-tile-label-shadow: 0 0 0 rgba(0, 0, 0, 0);
+	--wpd-ribbon-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}

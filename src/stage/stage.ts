@@ -30,8 +30,13 @@
 
 import { doAction, HOOKS } from '../hooks';
 import { chainsAreEqual } from './chain';
-import { createStageSource, type SourceStats } from './element-source';
+import {
+	createStageSource,
+	type SourceStats,
+	type StageSource,
+} from './element-source';
 import { probeElementUpload } from './feature-detect';
+import { promoteWindow } from './window-fx/promote';
 import { installTexElementImage2DShim } from './webgl-compat';
 import type {
 	ResolvedScreenEffect,
@@ -109,6 +114,28 @@ export interface CanvasStageOptions {
 }
 
 /**
+ * A window promoted to its own live texture.
+ *
+ * While held, the window element is a direct child of the stage canvas
+ * and `texture` re-uploads from it on every canvas paint — the pixels
+ * are LIVE, not a snapshot: a video keeps playing, a spinner keeps
+ * spinning, typing keeps rendering, all while an effect deforms them.
+ */
+export interface LiveWindowCapture {
+	/** The window's live texture, refreshed on every canvas paint. */
+	texture: PixiTexture;
+	/**
+	 * Send the element back to its home in the shell and freeze the
+	 * texture at its last upload. Idempotent. The texture stays valid
+	 * (frozen) until it is retired through the normal path — an
+	 * effect's settle phase can keep sampling it.
+	 */
+	demote(): void;
+	/** Whether {@link demote} has run. */
+	readonly demoted: boolean;
+}
+
+/**
  * Owns the canvas, the Pixi application and the live filter chain.
  * One instance per page; `src/stage/index.ts` holds the singleton.
  */
@@ -121,8 +148,17 @@ export class CanvasStage {
 	private _sprite: PixiSprite | null = null;
 	private _overlay: InstanceType< PixiNamespace[ 'Container' ] > | null = null;
 	private _bodyClassObserver: MutationObserver | null = null;
+	private _schemeObserver: MutationObserver | null = null;
 	private _resizeSettleTimer: ReturnType< typeof setTimeout > | null = null;
 	private _lastRebuildAt = 0;
+
+	/**
+	 * Windows currently promoted to direct canvas children. Tracked so
+	 * `stop()` can send every one of them home BEFORE the canvas is
+	 * removed — an element left inside would be torn out of the
+	 * document with it.
+	 */
+	private _liveWindows = new Set< LiveWindowCapture >();
 
 	private readonly _onViewportChange = (): void => {
 		this._resize();
@@ -279,6 +315,13 @@ export class CanvasStage {
 		if ( ! this._running && ! this._canvas ) {
 			return;
 		}
+		// Promoted windows first: they are direct children of the
+		// canvas, and `_unwrap()` removes it. `demote()` mutates the
+		// set, so iterate a copy.
+		for ( const live of Array.from( this._liveWindows ) ) {
+			live.demote();
+		}
+		this._liveWindows.clear();
 		this._teardownPixi();
 		this._unwrap();
 		this._running = false;
@@ -467,6 +510,98 @@ export class CanvasStage {
 			fired = true;
 			cancel();
 		};
+	}
+
+	/**
+	 * Promote a window to a direct canvas child and hand back a LIVE
+	 * texture of it.
+	 *
+	 * This is the spec's own pattern for deforming HTML (see the
+	 * Chrome "deformable page" demo): the element is a direct child of
+	 * the `layoutsubtree` canvas, `texElementImage2D` re-uploads it on
+	 * every paint, and whatever the effect builds from the texture
+	 * shows the element as it IS — a window being dragged as cloth
+	 * keeps playing its video and rendering its keystrokes.
+	 *
+	 * Three properties fall out of the move itself, with no correction
+	 * machinery:
+	 *
+	 * - The element leaves the shell's subtree, so the next shell paint
+	 *   no longer contains it — the pixels *behind* the window appear
+	 *   in the desktop texture automatically. No hiding, and therefore
+	 *   no iframe-throttling workaround.
+	 * - The element still lays out, hit-tests and keeps every kind of
+	 *   state (`moveBefore` is the atomic, state-preserving move — no
+	 *   iframe reload, no lost focus or pointer capture).
+	 * - Stacking is trivial: a promoted window is being dragged or
+	 *   opened, which is exactly when it is topmost.
+	 *
+	 * Returns `null` when the stage is not running or the move is not
+	 * possible (no `moveBefore`, fullscreen window, detached element) —
+	 * callers fall back to {@link captureRegion}'s frozen snapshot.
+	 *
+	 * @param element The window element to promote.
+	 * @return The live capture, or `null`.
+	 */
+	acquireLiveWindow( element: HTMLElement ): LiveWindowCapture | null {
+		const canvas = this._canvas;
+		const pixi = readPixi();
+		if ( ! canvas || ! pixi || ! this._running ) {
+			return null;
+		}
+
+		const promoted = promoteWindow( element, canvas );
+		if ( ! promoted ) {
+			return null;
+		}
+
+		let source: StageSource;
+		try {
+			source = createStageSource( pixi, {
+				resource: element,
+				canvas,
+				autoUpdate: true,
+				autoRequestPaint: true,
+				// Upload on EVERY paint. A live window must not freeze
+				// between idle-skip heartbeats — content inside its
+				// iframe can change without `changedElements` saying so.
+				skipIdlePaints: false,
+			} );
+		} catch ( err ) {
+			promoted.demote();
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					'[desktop-mode/stage] failed to create a live window source:',
+					err,
+				);
+			}
+			return null;
+		}
+
+		const texture = new pixi.Texture( {
+			source: source as never,
+		} ) as PixiTexture;
+
+		const live: LiveWindowCapture = {
+			texture,
+			get demoted() {
+				return promoted.demoted;
+			},
+			demote: () => {
+				if ( promoted.demoted ) {
+					return;
+				}
+				// Listener off FIRST: one more upload after the element
+				// stops being a canvas child would throw inside the
+				// browser's paint event — where the stage's failsafe
+				// counts errors toward shutting the whole canvas down.
+				source.detachPaintListener();
+				promoted.demote();
+				this._liveWindows.delete( live );
+			},
+		};
+		this._liveWindows.add( live );
+		return live;
 	}
 
 	/**
@@ -873,6 +1008,34 @@ export class CanvasStage {
 		canvas.setAttribute( 'layoutsubtree', '' );
 
 		/*
+		 * Mirror the shell's color-scheme attribute onto the canvas.
+		 *
+		 * The scheme's custom properties are scoped to
+		 * `.desktop-mode-shell[data-desktop-mode-scheme=…]`
+		 * (variables.css). A window promoted to a direct canvas child
+		 * (`acquireLiveWindow`) leaves that subtree, and without this
+		 * mirror its recorded image would repaint in the default
+		 * scheme for the duration of the effect. `variables.css`
+		 * matches the same attribute on `.desktop-mode-stage`.
+		 */
+		const mirrorScheme = (): void => {
+			const scheme = this._shell.getAttribute(
+				'data-desktop-mode-scheme',
+			);
+			if ( scheme === null ) {
+				canvas.removeAttribute( 'data-desktop-mode-scheme' );
+			} else {
+				canvas.setAttribute( 'data-desktop-mode-scheme', scheme );
+			}
+		};
+		mirrorScheme();
+		this._schemeObserver = new MutationObserver( mirrorScheme );
+		this._schemeObserver.observe( this._shell, {
+			attributes: true,
+			attributeFilter: [ 'data-desktop-mode-scheme' ],
+		} );
+
+		/*
 		 * Geometry is set INLINE, not left to `stage.css`.
 		 *
 		 * The renderer measures `canvas.clientWidth` to size its backing
@@ -1086,6 +1249,8 @@ export class CanvasStage {
 		}
 		this._bodyClassObserver?.disconnect();
 		this._bodyClassObserver = null;
+		this._schemeObserver?.disconnect();
+		this._schemeObserver = null;
 
 		this._app?.ticker.remove( this._tick );
 

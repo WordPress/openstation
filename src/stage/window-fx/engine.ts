@@ -5,7 +5,24 @@
  * configured for that transition, plays it as a PixiJS animation over
  * the canvas stage.
  *
- * The sequence for every transition is the same:
+ * Two capture models, chosen per transition:
+ *
+ * **Live** — for transitions announced BEFORE the window changes
+ * (`drag`, `open`). The window element is PROMOTED to a direct child of
+ * the stage canvas (`stage.acquireLiveWindow()`, an atomic
+ * `moveBefore()` — no iframe reload, no lost state) and gets its own
+ * texture, re-uploaded from the element on every canvas paint. The
+ * effect deforms pixels that are alive: a video keeps playing while its
+ * window hangs from the pointer as cloth. The element is never hidden —
+ * leaving the shell's subtree is what removes it from the desktop
+ * texture, and what reveals the pixels behind it. This is the pattern
+ * the HTML-in-Canvas spec is designed around (one element per texture,
+ * refreshed each paint), and it needs none of the snapshot-correction
+ * machinery below.
+ *
+ * **Frozen** — for transitions announced AFTER the change (`close`,
+ * `minimize`, `restore`, `maximize`, `unmaximize`), and as the fallback
+ * when promotion is not possible. The sequence:
  *
  * 1. Measure the window's rectangle relative to the stage canvas.
  * 2. Freeze that rectangle out of the stage's live desktop texture.
@@ -13,22 +30,17 @@
  * 4. Hand the frozen sprite to the effect and let it animate.
  * 5. Clean up: destroy the sprite and restore the element's visibility.
  *
- * **The snapshot lags the DOM, and that cuts both ways.** The stage's
- * texture only re-uploads when the browser repaints, so at the instant a
- * lifecycle action fires — synchronously, mid-DOM-mutation — it still
- * holds the previous frame.
+ * Freezing is not a compromise there — the stage's texture only
+ * re-uploads when the browser repaints, so at the instant a minimise is
+ * announced the texture still holds the previous frame, which is the
+ * only remaining record of what the window looked like *before*. The
+ * lag is the mechanism.
  *
- * For transitions announced AFTER the change, that lag is the whole
- * reason this works: a minimise arrives once the window is already
- * minimised, and the stale frame is the only remaining record of what it
- * looked like before.
- *
- * For a drag it is a bug. Drag-start is announced BEFORE anything about
- * the window changes, and the pointerdown just before it raised the
- * window to the top of the stack — so the DOM has it on top while the
- * snapshot still has it underneath, and the capture came out with the
- * overlapping window baked into the pixels. Those transitions wait for
- * `stage.afterNextSnapshot()` first; see `NEEDS_FRESH_SNAPSHOT`.
+ * For the frozen FALLBACK on drag/open it cuts the other way: the
+ * pointerdown just before a drag raised the window to the top of the
+ * stack, so the DOM has it on top while the snapshot still has it
+ * underneath. Those transitions wait for `stage.afterNextSnapshot()`
+ * and repaint their capture — see `NEEDS_FRESH_SNAPSHOT`.
  *
  * @since 0.9.8
  */
@@ -41,7 +53,7 @@ import {
 	removeFilter,
 } from '../../hooks';
 import { resolveParams } from '../chain';
-import type { CanvasStage } from '../stage';
+import type { CanvasStage, LiveWindowCapture } from '../stage';
 import { getWindowEffect } from './registry';
 import { createWindowShadow } from './shadow';
 import { retireTexture } from './texture-retire';
@@ -154,7 +166,22 @@ function withoutTransition( element: HTMLElement, apply: () => void ): void {
 const SUSTAINED: ReadonlySet< string > = new Set( [ 'drag' ] );
 
 /**
- * Transitions whose capture has to be corrected from a later snapshot.
+ * Transitions that animate a LIVE texture of the window.
+ *
+ * Exactly the ones announced BEFORE the window changes — which is also
+ * why the frozen model fits them worst. The window is promoted to a
+ * direct canvas child and its texture re-uploads every paint, so there
+ * is nothing to correct and nothing to hide; content inside keeps
+ * rendering mid-effect. The after-the-fact transitions stay frozen on
+ * purpose: their element is already minimised/closing when the effect
+ * starts, and the stale snapshot is the only record of the "before".
+ */
+const LIVE_TRANSITIONS: ReadonlySet< string > = new Set( [ 'drag', 'open' ] );
+
+/**
+ * Transitions whose FROZEN capture has to be corrected from a later
+ * snapshot — the fallback when `stage.acquireLiveWindow()` declines
+ * (fullscreen window, no `moveBefore`, detached element).
  *
  * Both are announced BEFORE the window looks the way the effect needs it
  * to, so the first capture is wrong and has to be repainted a frame
@@ -342,7 +369,9 @@ export function startWindowEffectEngine(
 			: DEFAULT_DURATION_MS;
 
 		/*
-		 * Some transitions need their capture CORRECTED a frame later.
+		 * In the FROZEN fallback, some transitions need their capture
+		 * CORRECTED a frame later. (The live path has nothing to correct —
+		 * its texture tracks the element from the first paint on.)
 		 *
 		 * A drag begins on pointermove, and the pointerdown that preceded
 		 * it — possibly in the SAME frame — raised the window to the top
@@ -393,22 +422,45 @@ export function startWindowEffectEngine(
 				return false;
 			}
 
-			const texture = stage.captureRegion( from );
+			/*
+			 * Live first, frozen as the fallback.
+			 *
+			 * For the transitions announced before the window changes, the
+			 * window is promoted to a direct canvas child and the texture
+			 * IS the window — re-uploaded every paint, no snapshot, no
+			 * hiding, no correction. `acquireLiveWindow` declines for
+			 * fullscreen windows or when `moveBefore` is unavailable, and
+			 * then the frozen machinery below takes over unchanged.
+			 */
+			const live: LiveWindowCapture | null =
+				LIVE_TRANSITIONS.has( transition )
+					? ( stage.acquireLiveWindow?.( element ) ?? null )
+					: null;
+
+			const texture = live ? live.texture : stage.captureRegion( from );
 			if ( ! texture ) {
+				live?.demote();
 				running.delete( windowId );
 				return false;
 			}
 
 			/*
 			 * Whether the real element is hidden while the copy plays, and
-			 * whether the copy outlives the un-hiding.
+			 * whether the copy outlives the hand-back.
+			 *
+			 * A live window is NEVER hidden — being outside the shell's
+			 * subtree already keeps it out of the desktop texture, and its
+			 * own texture needs it painting. Its teardown always defers,
+			 * because the hand-back is a demotion the shell texture only
+			 * reflects one paint later.
 			 *
 			 * `close` is the odd one out for the second: that element is on
 			 * its way out of the DOM, and keeping the copy around only
 			 * risks flashing a window that is supposed to be gone.
 			 */
-			const hides = HIDES_WINDOW.has( transition );
-			const deferTeardown = hides && 'close' !== transition;
+			const hides = ! live && HIDES_WINDOW.has( transition );
+			const deferTeardown =
+				live !== null || ( hides && 'close' !== transition );
 
 			/*
 		 * Each effect gets its OWN container inside the overlay.
@@ -455,10 +507,29 @@ export function startWindowEffectEngine(
 			sprite.y = from.y;
 			layer.addChild( sprite );
 
-			// Hiding the real element is what makes the copy the only
-			// visible one. See `hideForEffect` — how it hides matters more
-			// than it looks.
-			if ( NEEDS_FRESH_SNAPSHOT.has( transition ) ) {
+			if ( live ) {
+				/*
+				 * One paint of grace, with the stand-in hidden.
+				 *
+				 * The promotion and the live texture flip together on the
+				 * next canvas paint: the shell's texture stops containing
+				 * the window in the same paint that first fills the
+				 * window's own texture. Until then the shell still shows
+				 * the window at its pre-promotion spot — the right thing
+				 * to look at — and the live texture is empty, the wrong
+				 * thing to draw. So the layer waits one snapshot, exactly
+				 * like the frozen path below, minus its recapture and
+				 * minus any hiding.
+				 */
+				layer.visible = false;
+				cancelWait = stage.afterNextSnapshot( () => {
+					cancelWait = null;
+					layer.visible = true;
+				} );
+			} else if ( NEEDS_FRESH_SNAPSHOT.has( transition ) ) {
+				// Frozen fallback. Hiding the real element (below, once the
+				// capture is corrected) is what makes the copy the only
+				// visible one — see `hideForEffect`.
 				/*
 				 * For one frame the real window stays visible and the
 				 * stand-in stays hidden.
@@ -518,9 +589,17 @@ export function startWindowEffectEngine(
 		 * out from under the drag).
 		 */
 			const watchdog =
-			hides && ! sustained
+			( hides || live !== null ) && ! sustained
 				? setTimeout( () => {
-					showAfterEffect( element );
+					// For a live window the risk is not invisibility but
+					// being stranded as a canvas child; demotion puts it
+					// back in the shell's texture, usable, whatever the
+					// effect is doing.
+					if ( live ) {
+						live.demote();
+					} else {
+						showAfterEffect( element );
+					}
 				}, MAX_HIDDEN_MS )
 				: null;
 
@@ -614,10 +693,20 @@ export function startWindowEffectEngine(
 				cancelWait?.();
 				cancelWait = null;
 
-				// Un-hide FIRST, so the stage's next snapshot already has the
-				// real window in it. Closing windows are removed from the DOM
-				// by the window manager, so this is a no-op there.
-				if ( hides ) {
+				// Hand the window back FIRST, so the stage's next snapshot
+				// already has it: demotion for a live window, un-hiding for
+				// a frozen one. Closing windows are removed from the DOM by
+				// the window manager, so the un-hide is a no-op there.
+				//
+				// Demotion sits HERE, not at drag-end: the cloth keeps
+				// swinging through its settle after the pointer lifts, and
+				// while it does, the window must stay out of the shell's
+				// texture (or it would show rigid behind its own settling
+				// sheet) and its texture must stay live (the settle tracks
+				// the element, which a snap-commit may still be moving).
+				if ( live ) {
+					live.demote();
+				} else if ( hides ) {
 					showAfterEffect( element );
 				}
 

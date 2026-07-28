@@ -56,6 +56,7 @@ import {
 	updateFullscreenBodyClass,
 	withChromelessParam,
 } from './dom';
+import { geometryHostOf } from './geometry-host';
 import { handleWindowMessage } from './iframe-bridge';
 import {
 	buttonsForWindow,
@@ -1454,7 +1455,7 @@ export class Window {
 	 * @internal
 	 */
 	private _applySnapVisuals( zone: 'left' | 'right' ): boolean {
-		const parent = this.element.parentElement;
+		const parent = geometryHostOf( this.element );
 		if ( ! parent ) {
 			return false;
 		}
@@ -1687,7 +1688,7 @@ export class Window {
 	 * @internal
 	 */
 	private _applyMaximizeVisuals(): boolean {
-		const parent = this.element.parentElement;
+		const parent = geometryHostOf( this.element );
 		if ( ! parent ) {
 			return false;
 		}
@@ -1710,7 +1711,7 @@ export class Window {
 
 	/** Toggle between maximized and normal states. */
 	public toggleMaximize(): void {
-		const parent = this.element.parentElement;
+		const parent = geometryHostOf( this.element );
 		if ( ! parent ) {
 			return;
 		}
@@ -3543,7 +3544,15 @@ export class Window {
 		// conditions, so we use it as the "am I hidden?" signal and
 		// fall back to parsing the inline style strings, which survive
 		// `display: none` unchanged.
-		const isHidden = this.element.offsetParent === null;
+		// A window PROMOTED into the stage canvas for a live-texture
+		// effect is the second state where the offsets lie: a
+		// `layoutsubtree` child is laid out at the canvas origin, so
+		// they read 0 while the inline styles still hold the real
+		// geometry. A session save fired mid-effect (drag-end lands
+		// while the cloth is still settling) must not persist (0, 0).
+		const isHidden =
+			this.element.offsetParent === null ||
+			this.element.parentElement instanceof HTMLCanvasElement;
 		if ( isHidden ) {
 			const parse = ( raw: string ): number => {
 				const n = parseFloat( raw );

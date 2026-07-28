@@ -149,4 +149,57 @@ describe( 'createStageSource', () => {
 		// changes uploaded.
 		expect( source.stats.uploads ).toBe( 2 );
 	} );
+
+	test( '`skipIdlePaints: false` uploads on every paint', () => {
+		// The live window sources opt out of the skip entirely: content
+		// inside a window's iframe (a playing video) can change without
+		// the canvas's changedElements ever saying so, and a "live"
+		// texture that freezes between heartbeats defeats its purpose.
+		const source = createStageSource( pixi, {
+			skipIdlePaints: false,
+		} ) as unknown as {
+			_onPaint( e: unknown ): void;
+			stats: { paints: number; uploads: number; skipped: number };
+		};
+		source._onPaint( paint( [ 'window' ] ) );
+		for ( let i = 0; i < 10; i++ ) {
+			source._onPaint( paint( [] ) );
+		}
+
+		expect( source.stats ).toEqual( {
+			paints: 11,
+			uploads: 11,
+			skipped: 0,
+		} );
+	} );
+
+	test( 'detachPaintListener unhooks the canvas paint event', () => {
+		// A demoted window's element is no longer a direct child of the
+		// canvas, so one more upload would throw inside the browser's
+		// paint event — where the stage counts errors toward shutting
+		// the whole canvas down. Detaching must use the exact bound
+		// listener the vendored HTMLSource registered.
+		const removed: unknown[] = [];
+		const canvas = {
+			removeEventListener: ( type: string, listener: unknown ) => {
+				removed.push( [ type, listener ] );
+			},
+		};
+		const bound = () => undefined;
+		const source = createStageSource( pixi, {} ) as unknown as {
+			canvas?: unknown;
+			_onPaintBound?: unknown;
+			detachPaintListener(): void;
+		};
+		source.canvas = canvas;
+		source._onPaintBound = bound;
+
+		source.detachPaintListener();
+
+		expect( removed ).toEqual( [ [ 'paint', bound ] ] );
+
+		// And it is safe to call with no canvas at all.
+		source.canvas = null;
+		expect( () => source.detachPaintListener() ).not.toThrow();
+	} );
 } );
