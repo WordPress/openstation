@@ -201,7 +201,9 @@ A native window registered via `wp.desktop.registerWindow({ iframeContent })` is
    - Validates `event.source === iframe.contentWindow` and `event.origin` matches the iframe URL's origin.
    - Forwards bridge-prefixed messages (`desktop-mode-bridge-*`) to `routeIncomingFromIframe( data, windowId )` so the iframe can participate in `connect()` traffic.
    - Forwards every message (bridge or not) to `cfg.onMessage?.()` so plugins that want raw access still get it.
-4. On window close, the cleanup chain (passed through `onClose`) calls `unregisterSynth()` so closed windows don't leak.
+4. On window close, the cleanup chain (passed through `onClose`) calls `unregisterSynth()` and removes the `message` listener, so closed windows don't leak.
+
+`windowId` throughout is the **live instance id**, resolved from the window root (`id="wp-window-<windowId>"`) the render callback mounts into — not the id passed to `registerWindow()`. The two differ whenever `manager.open()` allocates a suffixed instance (`chat` → `chat-2`, e.g. opening the same registered window on a second virtual desktop). Anything keying off the registered id would attach the second instance's iframe, readiness signal, and channel dispatch to the first instance.
 
 ## Admin link routing inside chromeless iframes
 

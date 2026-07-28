@@ -57,6 +57,7 @@ import { createDesktopThemeSync } from './desktop-themes/server-sync';
 import type {
 	DesktopThemeEntry,
 	DesktopThemeState,
+	RecommendedOsSettings,
 } from './desktop-themes/types';
 import { DESKTOP_THEME_CHANGED_EVENT } from './desktop-themes/apply';
 import { bootGamesChallenges } from './games/challenges-client';
@@ -1203,6 +1204,23 @@ export interface WpDesktopPublicApi {
 		 * `currentColor` defers to the surface it lands on.
 		 */
 		resolveIconColor: ( slot: string ) => string | null;
+		/**
+		 * Apply a theme's recommended OS settings (dock size, desktop
+		 * layout, window radius, dock rail renderer) and persist them.
+		 *
+		 * The shell already does this once, the first time a user
+		 * activates a theme that ships recommendations. Calling this
+		 * is the "restore the author's intended presentation" action —
+		 * it re-applies even for a theme the user has already worn,
+		 * which is the only way a second application ever happens.
+		 *
+		 * Defaults to the active theme when `themeId` is omitted.
+		 * Returns the keys actually written; `{}` when the theme is
+		 * unknown or recommends nothing this shell can apply.
+		 */
+		applyRecommendedOsSettings: (
+			themeId?: string,
+		) => RecommendedOsSettings;
 	};
 	/**
 	 * Register (or replace) a window control. Built-in controls
@@ -2567,8 +2585,40 @@ function init(): void {
 	// only handshakes with one instance per id). The comment on
 	// case 2 already says "the page they asked for opens on top of
 	// the restored stack" — sequencing this is what makes that true.
+	/**
+	 * Reopen a native window by id — the single dispatcher for
+	 * "something asked for native window X".
+	 *
+	 * Two opener paths because the shell registers its built-in native
+	 * windows (OS Settings, Bug Report) directly against the manager
+	 * via local closures, NOT through `nativeWindows.openById` — that
+	 * registry only carries server-payload entries
+	 * (plugin-registered native windows). Built-ins match by id
+	 * first; everything else falls through to the registry.
+	 *
+	 * Returns `false` when no opener recognises the id: the window
+	 * belonged to a plugin that has since been deactivated. Callers
+	 * treat that as "nothing to open", not as an error.
+	 */
+	function openNativeWindowById( nativeId: string ): boolean {
+		if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
+			openOsSettings();
+			return true;
+		}
+		if ( nativeId === BUG_REPORT_WINDOW_ID ) {
+			openBugReport();
+			return true;
+		}
+		return nativeWindows.openById( nativeId );
+	}
+
 	const sessionRestore = hasSession
-		? restoreSession( manager, config, desktopArea ).catch( ( err ) => {
+		? restoreSession(
+			manager,
+			config,
+			desktopArea,
+			openNativeWindowById,
+		).catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
 				console.error( '[desktop-mode] session restore failed:', err );
 			}
@@ -2672,12 +2722,9 @@ function init(): void {
 	// above. Open the user's choice here, after the manager + native
 	// registry are wired.
 	//
-	// Two opener paths because the shell registers built-in native
-	// windows (OS Settings) directly against the manager via local
-	// closures, NOT through `nativeWindows.openById` — that registry
-	// only carries server-payload entries (plugin-registered native
-	// windows). Built-ins are matched by id first; everything else
-	// falls through to the registry.
+	// Dispatch goes through `openNativeWindowById` above, which knows
+	// about both opener paths (shell built-ins vs. the server-payload
+	// registry).
 	if (
 		config.defaultWindow?.enabled &&
 		config.fromPortal &&
@@ -2690,11 +2737,7 @@ function init(): void {
 		// finished mounting — both built-in openers and the
 		// registry assume the layout pass is complete.
 		queueMicrotask( () => {
-			if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
-				openOsSettings();
-				return;
-			}
-			void nativeWindows.openById( nativeId );
+			openNativeWindowById( nativeId );
 		} );
 	}
 

@@ -46,7 +46,6 @@ add_action( 'init', function () {
         'tokens'      => array(
             '--desktop-mode-window-bg'           => '#12122a',
             '--desktop-mode-window-border'       => '#2b2b52',
-            '--desktop-mode-window-radius'       => '14px',
             '--desktop-mode-titlebar-bg'         => '#171733',
             '--desktop-mode-titlebar-bg-focused' => '#241f4d',
             '--desktop-mode-titlebar-color'      => '#a8a8c0',
@@ -140,6 +139,15 @@ add_action( 'init', function () {
                 'size' => '100% 100%',
             ),
         ),
+
+        // The arrangement this theme was designed against. Seeded into
+        // a user's own preferences the FIRST time they activate the
+        // theme, and never again — anything they change afterwards is
+        // theirs. See "Recommended OS settings" in the theme docs.
+        'recommendedOsSettings' => array(
+            'dockSize'      => 'large',
+            'desktopLayout' => 'unified',
+        ),
     ) );
 
     if ( is_wp_error( $result ) ) {
@@ -221,6 +229,12 @@ wp.hooks.addFilter(
 - **A declared font is not a used font.** `fonts` defines faces; the
   typography tokens are what reference them. Declare both or nothing
   changes.
+- **Recommendations fire once per user.** `recommendedOsSettings` is
+  seeded on a user's first activation of your theme and never
+  re-asserted. If you're testing it and nothing happens, you have
+  already been seeded — use the **Apply &lt;theme&gt;'s recommended
+  layout** button in OS Settings → Themes, or
+  `wp.desktop.desktopThemes.applyRecommendedOsSettings()`.
 - **Licensing is yours.** A bundled font is redistributed to every
   visitor of every site that installs the theme. Ship one whose licence
   permits that.

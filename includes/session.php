@@ -274,23 +274,38 @@ function desktop_mode_sanitize_session( $session ) {
 				$base_id = $id;
 			}
 
-			$url = isset( $win['url'] ) ? esc_url_raw( (string) $win['url'] ) : '';
-			// Only allow URLs that land inside our own wp-admin — both
-			// a safety net against storing arbitrary origins in user meta
-			// and a guarantee the restore path won't try to iframe a
-			// cross-origin page. Host+path parsing rejects tricks like
-			// `//evil.com/wp-admin/…` that a raw prefix check would miss.
-			if ( '' === $url || ! desktop_mode_url_is_same_admin( $url ) ) {
-				continue;
+			// Native windows (OS Settings, Bug Report, anything from
+			// `desktop_mode_register_window()`) carry no admin URL —
+			// the shell reconstructs them from the registry by id. Their
+			// `url` is a `#slug` marker, which would fail the same-admin
+			// check below and drop the window from the session entirely.
+			// Synthesise the marker server-side instead of trusting (or
+			// storing) whatever string the client sent: nothing ever
+			// navigates to it, so there is no reason to round-trip a
+			// client-controlled value through user meta.
+			$is_native = ! empty( $win['native'] );
+
+			if ( $is_native ) {
+				$url = '#' . $id;
+			} else {
+				$url = isset( $win['url'] ) ? esc_url_raw( (string) $win['url'] ) : '';
+				// Only allow URLs that land inside our own wp-admin — both
+				// a safety net against storing arbitrary origins in user meta
+				// and a guarantee the restore path won't try to iframe a
+				// cross-origin page. Host+path parsing rejects tricks like
+				// `//evil.com/wp-admin/…` that a raw prefix check would miss.
+				if ( '' === $url || ! desktop_mode_url_is_same_admin( $url ) ) {
+					continue;
+				}
+				// Strip transient/routing flags before storage. The chromeless
+				// `desktop_mode_chromeless` flag is an iframe-only concern and must never
+				// end up in a top-level URL (e.g., the portal's entry URL);
+				// the portal and classic flags only live on a single request.
+				$url = remove_query_arg(
+					array( 'desktop_mode_chromeless', DESKTOP_MODE_PORTAL_FLAG, DESKTOP_MODE_CLASSIC_FLAG ),
+					$url
+				);
 			}
-			// Strip transient/routing flags before storage. The chromeless
-			// `desktop_mode_chromeless` flag is an iframe-only concern and must never
-			// end up in a top-level URL (e.g., the portal's entry URL);
-			// the portal and classic flags only live on a single request.
-			$url = remove_query_arg(
-				array( 'desktop_mode_chromeless', DESKTOP_MODE_PORTAL_FLAG, DESKTOP_MODE_CLASSIC_FLAG ),
-				$url
-			);
 
 			$state = isset( $win['state'] ) ? (string) $win['state'] : 'normal';
 			if ( ! in_array( $state, DESKTOP_MODE_SESSION_STATES, true ) ) {
@@ -320,6 +335,14 @@ function desktop_mode_sanitize_session( $session ) {
 				'width'     => desktop_mode_sanitize_session_dimension( $win['width'] ?? 800, 0, 20000 ),
 				'height'    => desktop_mode_sanitize_session_dimension( $win['height'] ?? 600, 0, 20000 ),
 			);
+
+			// Marks the entry for the shell's restore path: native
+			// windows reopen through the native-window registry, not by
+			// pointing an iframe at a URL. Only written when true so
+			// sessions of plain admin windows keep their existing shape.
+			if ( $is_native ) {
+				$entry['native'] = true;
+			}
 
 			// Sanitize external sub-tabs. Each entry carries a URL
 			// (any http/https — external tabs are explicitly for links

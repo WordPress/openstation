@@ -9,6 +9,7 @@
  */
 
 import { createSharedStore } from '../shared-store';
+import { sanitizeRecommendedOsSettings } from './recommended';
 import type { DesktopThemeEntry, DesktopThemeState } from './types';
 
 /** Slug charset — mirrors PHP's `sanitize_key()`. */
@@ -123,6 +124,9 @@ export function normalizeEntry( raw: unknown ): DesktopThemeEntry | null {
 		fonts,
 		icons,
 		iconColors,
+		recommendedOsSettings: sanitizeRecommendedOsSettings(
+			source.recommendedOsSettings,
+		),
 		installedAt:
 			typeof source.installedAt === 'number' ? source.installedAt : 0,
 		source: source.source === 'code' ? 'code' : 'upload',

@@ -22,6 +22,10 @@ import {
 	deleteDesktopTheme,
 	uploadDesktopTheme,
 } from '../desktop-themes-api';
+import {
+	applyThemeRecommendations,
+	hasApplicableThemeRecommendations,
+} from '../theme-recommendations';
 import type { SettingsCtx } from '../types';
 
 /** Sentinel card id for "no theme". */
@@ -59,11 +63,36 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			return;
 		}
 		ctx.state.desktopTheme = id;
+		// First activation only. `applyThemeRecommendations` no-ops for
+		// a theme this user has already worn, which is what stops a
+		// theme from ever undoing a preference the user set afterwards.
+		applyThemeRecommendations( ctx.state, id );
 		ctx.save();
 		// `apply()` calls `applyDesktopTheme()`, which swaps the
 		// stylesheet, flips the shell attribute + body class, and
 		// fires the change event the shell listens on to repaint
 		// every themed icon. One call covers the whole switch.
+		ctx.apply();
+		paint();
+	};
+
+	/**
+	 * "Apply recommended layout" — the deliberate way back to the
+	 * author's intended presentation after the user has moved things
+	 * around. The only path that re-applies a recommendation.
+	 *
+	 * It just sets the settings. The dock resizing and the layout
+	 * moving IS the feedback; a notice on top of a visible change is
+	 * noise.
+	 */
+	const applyRecommended = ( theme: DesktopThemeEntry ): void => {
+		const applied = applyThemeRecommendations( ctx.state, theme.slug, {
+			force: true,
+		} );
+		if ( Object.keys( applied ).length === 0 ) {
+			return;
+		}
+		ctx.save();
 		ctx.apply();
 		paint();
 	};
@@ -263,6 +292,33 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		</label>
 	</div>`;
 
+	/**
+	 * The "restore the author's arrangement" row. Shown only for the
+	 * theme the user is currently wearing, and only when it actually
+	 * recommends something this shell can apply — a recommendation
+	 * naming a dock rail renderer no plugin registered resolves to
+	 * nothing, and an unusable button is worse than no button.
+	 */
+	const recommendationRow = ( themes: DesktopThemeEntry[] ) => {
+		const active = themes.find(
+			( theme ) => theme.slug === ctx.state.desktopTheme,
+		);
+		if ( ! active || ! hasApplicableThemeRecommendations( active.slug ) ) {
+			return '';
+		}
+		return html`<div class="desktop-mode-os-settings__theme-recommendation">
+			<wpd-button
+				variant="secondary"
+				@click=${ () => applyRecommended( active ) }
+				>${ sprintf(
+			/* translators: %s: theme name. */
+			__( 'Apply %s’s recommended layout' ),
+			active.name,
+		) }</wpd-button
+			>
+		</div>`;
+	};
+
 	function paint(): void {
 		const themes = listDesktopThemes();
 		render(
@@ -286,6 +342,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 					${ systemCard() }
 					${ themes.map( ( theme ) => themeCard( theme ) ) }
 				</div>
+				${ recommendationRow( themes ) }
 				${ canManage ? uploadTile() : '' }
 			`,
 			host,

@@ -183,9 +183,12 @@ export class OsSettings implements SettingsCtx {
 			wallpaper: this.state.wallpaper,
 			accent: this.state.accent,
 			dockSize: this.state.dockSize,
+			windowRadius: this.state.windowRadius,
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
+			appliedThemeRecommendations:
+				this.state.appliedThemeRecommendations.slice(),
 			unfocusEffect: this.state.unfocusEffect,
 			windowLinkRenderer: this.state.windowLinkRenderer,
 			windowLinkVisibility: this.state.windowLinkVisibility,
@@ -322,6 +325,26 @@ export class OsSettings implements SettingsCtx {
 		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );
 		root.style.setProperty(
+			'--desktop-mode-window-radius',
+			`${ windowRadius.value }px`,
+		);
+		// ALSO on the shell element, and this one is not redundant.
+		//
+		// A desktop theme may declare `--desktop-mode-window-radius`
+		// in its `tokens`, and the compiled stylesheet writes it on
+		// `.desktop-mode-shell[data-desktop-mode-desktop-theme="…"]`
+		// and `body.desktop-mode-desktop-theme-…`. Both of those
+		// MATCH an ancestor of every window, while the `:root` write
+		// above only reaches windows by inheritance — so the theme
+		// would win and the Window-corners preset would silently do
+		// nothing for as long as that theme was worn.
+		//
+		// An inline style on the shell outranks any selector, so the
+		// user's pick is authoritative. A theme that wants a
+		// particular radius asks for it through
+		// `recommendedOsSettings.windowRadius`, which sets the user's
+		// preference once and leaves it theirs to change.
+		shell.style.setProperty(
 			'--desktop-mode-window-radius',
 			`${ windowRadius.value }px`,
 		);

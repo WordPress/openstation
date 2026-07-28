@@ -163,6 +163,11 @@ export const DEFAULTS: OsSettingsState = {
 	// slug; the registry resolves it at apply time and falls back
 	// to the system default when it isn't installed.
 	desktopTheme: '',
+	// Themes whose recommended OS settings this user has already been
+	// seeded with. Empty means "no theme has ever recommended anything
+	// to this user yet" — the first activation of a theme that does
+	// will append to it.
+	appliedThemeRecommendations: [],
 	unfocusEffect: 'darken',
 	windowLinkRenderer: 'svg-splines',
 	windowLinkVisibility: 'always',

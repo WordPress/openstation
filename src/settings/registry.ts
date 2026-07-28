@@ -31,6 +31,17 @@ export interface OsSettingsSnapshot {
 	accent: string;
 	dockSize: string;
 	/**
+	 * Window corner-radius preset: `'sharp'` | `'default'` | `'round'`.
+	 * Written to `--desktop-mode-window-radius` by the apply pass, so
+	 * a change reflows every open window's corners live.
+	 *
+	 * A desktop theme that sets that custom property in its `tokens`
+	 * overrides this for as long as the theme is worn — the theme's
+	 * rule matches the shell root, which beats the value inherited
+	 * from the `:root` inline style this preset writes.
+	 */
+	windowRadius: string;
+	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *
 	 * - `classic` — left side bar (core menus) + bottom dock (plugins).
@@ -46,6 +57,18 @@ export interface OsSettingsSnapshot {
 	dockRailRenderer: string;
 	/** Active desktop-theme slug, or `''` for the system default. */
 	desktopTheme: string;
+	/**
+	 * Slugs of the desktop themes whose recommended OS settings have
+	 * already been seeded for this user — the ledger that keeps a
+	 * theme's `recommendedOsSettings` a one-time suggestion rather
+	 * than something re-asserted on every activation.
+	 *
+	 * Slugs of themes that are no longer installed are kept on
+	 * purpose: a delete-and-reinstall must not re-seed. Removing a
+	 * slug re-arms that theme's one-time seed for the user's next
+	 * activation of it.
+	 */
+	appliedThemeRecommendations: string[];
 	/**
 	 * Active unfocused-window effect id; mirrors the unfocus-effect
 	 * registry's resolution. `'darken'` is the shipped built-in,

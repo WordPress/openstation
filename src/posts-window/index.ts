@@ -2207,7 +2207,7 @@ function buildSubRow( row: PostListItem ): Node {
 		// then strip tags — we want plain text in the sub-row, not
 		// arbitrary nested elements.
 		const stripped = raw.replace( /<[^>]+>/g, '' ).trim();
-		excerpt.textContent = stripped || __( '(no excerpt)' );
+		excerpt.textContent = decodeHTML( stripped ) || __( '(no excerpt)' );
 	} else {
 		excerpt.textContent = __( '(no excerpt)' );
 		excerpt.style.color = '#a7aaad';

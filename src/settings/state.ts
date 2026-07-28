@@ -134,6 +134,25 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_-]*$/.test( parsed.desktopTheme )
 				? parsed.desktopTheme
 				: DEFAULTS.desktopTheme,
+		// Seeded-theme ledger — `sanitize_key()`-clean slugs, capped at
+		// the most recent 64 (the same end PHP trims from; the writer
+		// appends, so keeping the head would discard the entry just
+		// written and re-arm that theme's one-time seed). Slugs of
+		// themes that are no longer installed survive on purpose:
+		// forgetting one would let a reinstall re-seed over settings
+		// the user has since chosen.
+		appliedThemeRecommendations: Array.isArray(
+			parsed.appliedThemeRecommendations,
+		)
+			? Array.from(
+				new Set(
+					parsed.appliedThemeRecommendations.filter(
+						( v ): v is string =>
+							typeof v === 'string' && /^[a-z0-9_-]+$/.test( v ),
+					),
+				),
+			).slice( -64 )
+			: DEFAULTS.appliedThemeRecommendations.slice(),
 		// Unfocus effect — any registry id (`vendor/sub-id` allowed) or
 		// the `'none'` sentinel survives; the engine resolves at use
 		// time and treats an unknown id as "no effect".
@@ -458,6 +477,7 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 			] ),
 		),
 		ai: { ...state.ai },
+		appliedThemeRecommendations: state.appliedThemeRecommendations.slice(),
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
 		dockOrder: state.dockOrder.slice(),
@@ -671,6 +691,7 @@ export function structuredDefaults(): OsSettingsState {
 		// objects to share. If `DEFAULTS.dockPromotedPositions` ever
 		// ships seeded entries, its `{ x, y }` values would need a
 		// deeper clone here.
+		appliedThemeRecommendations: [ ...DEFAULTS.appliedThemeRecommendations ],
 		itemVisibility: { ...DEFAULTS.itemVisibility },
 		dockOrder: [ ...DEFAULTS.dockOrder ],
 		dockPromotedPositions: { ...DEFAULTS.dockPromotedPositions },
