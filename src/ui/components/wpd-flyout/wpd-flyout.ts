@@ -42,8 +42,6 @@
  *   });
  * </script>
  * ```
- *
- * @since 0.8.2
  */
 
 import { Component, defineComponent, html, type TemplateResult } from '../../core';

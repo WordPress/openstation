@@ -8,8 +8,6 @@
  *
  * Third-party plugins register wallpapers via `wp.desktop.registerWallpaper`
  * (a convenience on top of the `desktop-mode.wallpapers` filter).
- *
- * @since 0.6.0
  */
 
 /**
@@ -47,8 +45,6 @@ export interface WallpaperContext {
 	 * This is a snapshot taken when the context was created. To follow
 	 * changes while mounted, subscribe to the
 	 * `desktop-mode.wallpaper.settings-changed` action.
-	 *
-	 * @since 0.9.5
 	 */
 	settings: Record< string, unknown >;
 }
@@ -77,8 +73,6 @@ export type WallpaperEditor = ( container: HTMLElement, ctx: WallpaperContext ) 
  * everything {@link WallpaperContext} carries, plus the preview
  * parameters and the tile's pixel size so the wallpaper can pick a
  * cheap resolution.
- *
- * @since 0.9.5
  */
 export interface WallpaperPreviewContext extends WallpaperContext {
 	/**
@@ -109,8 +103,6 @@ export interface WallpaperPreviewContext extends WallpaperContext {
  * page's limited WebGL context budget, so the shell caps how many run
  * concurrently and falls back to the CSS `preview` beyond the cap.
  * Honor `ctx.prefersReducedMotion` by rendering a static frame.
- *
- * @since 0.9.5
  */
 export type WallpaperPreview = (
 	container: HTMLElement,
@@ -121,8 +113,6 @@ export type WallpaperPreview = (
  * Context object passed to {@link WallpaperConfig} callbacks —
  * everything {@link WallpaperContext} carries, plus the write half of
  * the settings surface.
- *
- * @since 0.9.5
  */
 export interface WallpaperConfigContext extends WallpaperContext {
 	/**
@@ -156,8 +146,6 @@ export interface WallpaperConfigContext extends WallpaperContext {
  * or two controls the user plays with constantly, like the custom
  * gradient's colors); `renderConfig` is a modal for a fuller settings
  * form that would crowd the panel.
- *
- * @since 0.9.5
  */
 export type WallpaperConfig = (
 	container: HTMLElement,
@@ -195,8 +183,6 @@ interface WallpaperDefBase {
 	 * Server-registered wallpapers can pass `description` to
 	 * `desktop_mode_register_wallpaper()` instead — the shell overlays
 	 * it onto the def if the JS side didn't set one.
-	 *
-	 * @since 0.9.4
 	 */
 	description?: string;
 	/**
@@ -209,16 +195,12 @@ interface WallpaperDefBase {
 	 * Settings. The CSS `preview` string still paints first (and stays
 	 * as the fallback when the preview fails, is over the concurrency
 	 * cap, or the browser lacks IntersectionObserver).
-	 *
-	 * @since 0.9.5
 	 */
 	renderPreview?: WallpaperPreview;
 	/**
 	 * Optional settings dialog, opened from the "Wallpaper settings"
 	 * button OS Settings shows for the selected wallpaper. Wallpapers
 	 * without this callback show no button. See {@link WallpaperConfig}.
-	 *
-	 * @since 0.9.5
 	 */
 	renderConfig?: WallpaperConfig;
 	/**
@@ -227,8 +209,6 @@ interface WallpaperDefBase {
 	 * filter runs. Use them for anything the preview should idealize —
 	 * e.g. the Living Tree previews a grown tree regardless of the real
 	 * site's age.
-	 *
-	 * @since 0.9.5
 	 */
 	previewParams?: Record< string, unknown >;
 }

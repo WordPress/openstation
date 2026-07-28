@@ -14,13 +14,12 @@
  * everything is now a placement.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `shortcut` desktop file type.
  */
 class Desktop_Mode_Shortcut_File extends Desktop_Mode_File {
 
@@ -66,7 +65,7 @@ class Desktop_Mode_Shortcut_File extends Desktop_Mode_File {
 		$shape['shortcutUrl']    = $entry ? (string) $entry['url'] : '';
 		// Surface the `pinned` flag through the placement payload so
 		// the FilesLayer can anchor the tile to the top-left and skip
-		// drag wiring. @since 0.8.0
+		// drag wiring.
 		$shape['pinned'] = $entry ? ! empty( $entry['pinned'] ) : false;
 		return $shape;
 	}

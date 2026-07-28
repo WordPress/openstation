@@ -8,7 +8,7 @@
  * (title bars, dock chips, focus rings, window chrome) inherits the new
  * values without per-rule plumbing.
  *
- * As of 0.6.0, wallpapers are registry-driven: built-in presets live in
+ * Wallpapers are registry-driven: built-in presets live in
  * `src/wallpapers/built-in.ts`, third-party plugins register via the
  * public `wp.desktop.registerWallpaper()` / `desktop-mode.wallpapers`
  * filter, and this module is responsible only for
@@ -20,7 +20,7 @@
  *     produce swatches and hosting each selected wallpaper's optional
  *     in-panel editor (`renderEditor`).
  *
- * The 1,400-line monolith was split in 0.6.1 into this folder:
+ * The 1,400-line monolith was split into this folder:
  *
  *   src/settings/
  *   ├── index.ts           — this file: class + panel composition
@@ -35,8 +35,6 @@
  *       ├── custom-image.ts — upload + library tabs
  *       ├── accent.ts      — accent swatch row
  *       └── dock-size.ts   — segmented dock-size control
- *
- * @since 0.5.0
  */
 
 import type { WallpaperLayer } from '../wallpapers/layer';
@@ -46,6 +44,7 @@ import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
+	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -308,6 +307,9 @@ export class OsSettings implements SettingsCtx {
 		const accent = accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
 		const dockSize =
 			DOCK_SIZES.find( ( d ) => d.id === this.state.dockSize ) ?? DOCK_SIZES[ 1 ];
+		const windowRadius =
+			WINDOW_RADII.find( ( r ) => r.id === this.state.windowRadius ) ??
+			WINDOW_RADII[ 1 ];
 
 		// Set on <html> rather than the shell so the cascade reaches
 		// siblings of #desktop-mode-shell — specifically the WordPress
@@ -319,6 +321,10 @@ export class OsSettings implements SettingsCtx {
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
 		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );
+		root.style.setProperty(
+			'--desktop-mode-window-radius',
+			`${ windowRadius.value }px`,
+		);
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
@@ -378,7 +384,7 @@ export class OsSettings implements SettingsCtx {
 	/**
 	 * Render the settings panel into the given native-window body.
 	 *
-	 * Lazy since 0.8.4 — the actual rendering logic plus every
+	 * Lazy — the actual rendering logic plus every
 	 * `<wpd-*>` component the panel uses lives in
 	 * `src/settings/panel.ts`, compiled into its own Vite target
 	 * `os-settings-panel[.min].js`. The script is injected on the

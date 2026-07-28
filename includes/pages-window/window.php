@@ -9,7 +9,6 @@
  *   - Same lock badge via the `desktop_mode_lock` REST field.
  *
  * @package WPDesktopMode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -21,8 +20,6 @@ defined( 'ABSPATH' ) || exit;
  * `<wpd-tabs>` taxonomy tabs. The `data-desktop-mode-posts-*` hooks
  * are the contract the JS bundle relies on — keep them intact (or
  * rename via the filter) when customizing the layout.
- *
- * @since 0.8.1
  */
 function desktop_mode_pages_window_render_template() {
 	ob_start();
@@ -107,8 +104,6 @@ function desktop_mode_pages_window_render_template() {
 	 * Keep the `data-desktop-mode-posts-*` hooks intact so the JS
 	 * render callback can find its mount points.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_pages_window_template_html', $html );
@@ -122,8 +117,6 @@ function desktop_mode_pages_window_render_template() {
 
 /**
  * Register the native Pages window on `init` (priority 20).
- *
- * @since 0.8.1
  */
 function desktop_mode_pages_window_register_window() {
 	if ( ! desktop_mode_pages_window_user_can_register() ) {
@@ -184,8 +177,6 @@ function desktop_mode_pages_window_register_window() {
 	/**
 	 * Filter the args used to register the native Pages window.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_pages_window_args', $window_args );
@@ -200,8 +191,6 @@ add_action( 'init', 'desktop_mode_pages_window_register_window', 20 );
 
 /**
  * Default REST query args for the Pages window.
- *
- * @since 0.8.1
  *
  * @return array
  */
@@ -224,8 +213,6 @@ function desktop_mode_pages_window_default_query_args() {
 	/**
 	 * Filter the default outbound REST query args for the Pages window.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param array $args Default args.
 	 */
 	return (array) apply_filters( 'desktop_mode_pages_window_query_args', $args );
@@ -239,8 +226,6 @@ function desktop_mode_pages_window_default_query_args() {
  * The "default" template (assigned when `page.template` is `''`) is
  * keyed under the empty string for parity with what core returns in
  * `/wp/v2/pages` responses.
- *
- * @since 0.8.1
  *
  * @return array<string,string>
  */
@@ -261,8 +246,6 @@ function desktop_mode_pages_window_template_labels() {
 	/**
 	 * Filter the page-template label map handed to the Pages window.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param array<string,string> $labels Slug → human label.
 	 */
 	return (array) apply_filters( 'desktop_mode_pages_window_template_labels', $labels );
@@ -280,8 +263,6 @@ function desktop_mode_pages_window_template_labels() {
  * cloning this `register_rest_field` call. Posts already track
  * comments via the classic admin and can be wired the same way
  * if/when the Posts window grows the column.
- *
- * @since 0.8.1
  */
 function desktop_mode_pages_window_register_comment_count_field() {
 	register_rest_field(

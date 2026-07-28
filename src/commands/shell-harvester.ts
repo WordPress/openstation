@@ -27,8 +27,6 @@
  * page is reloaded — the plugin's JS isn't injected into the live shell.
  * The per-window iframe harvester (`iframe-bridge.ts`) covers that gap
  * for any screen the user navigates into.
- *
- * @since 0.8.4
  */
 
 import {

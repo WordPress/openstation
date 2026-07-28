@@ -9,15 +9,12 @@
  * the `agent` entity-kind renderer.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Append the Agents entity to the My WordPress entity list.
- *
- * @since 0.9.8
  *
  * @param array $entities Existing entity descriptors.
  * @return array
@@ -47,8 +44,6 @@ add_filter( 'desktop_mode_my_wordpress_entities', 'desktop_mode_agents_my_wordpr
  * is probed live by the renderer against `aiStatusUrl`, mirroring the
  * OS Settings Features tab, so a freshly configured connector is
  * picked up without a reload.
- *
- * @since 0.9.8
  *
  * @param array $window_args Args passed to `desktop_mode_register_window()`.
  * @return array

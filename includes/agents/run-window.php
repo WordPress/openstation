@@ -11,7 +11,6 @@
  * selected.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -19,8 +18,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Inline SVG bot icon — byte-identical to the agent avatar so the
  * motif is consistent everywhere agents appear.
- *
- * @since 0.9.8
  *
  * @return string Data URI.
  */
@@ -32,8 +29,6 @@ function desktop_mode_agent_run_window_icon() {
  * Register the bundle script + style handles. Lazy-loaded by the
  * native-window sync the first time the window opens, same as the
  * recycle-bin and posts-window modules.
- *
- * @since 0.9.8
  *
  * @return void
  */
@@ -69,8 +64,6 @@ add_action( 'init', 'desktop_mode_agent_run_register_assets', 5 );
  * Static template rendered into the window body — the bundle mounts
  * its UI into `[data-desktop-mode-agent-run-root]`.
  *
- * @since 0.9.8
- *
  * @return void
  */
 function desktop_mode_agent_run_render_template() {
@@ -86,8 +79,6 @@ function desktop_mode_agent_run_render_template() {
 /**
  * Register the native window on `init` priority 25 — after the
  * registries boot.
- *
- * @since 0.9.8
  *
  * @return void
  */

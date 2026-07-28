@@ -19,8 +19,6 @@
  * Non-active virtual desktops' windows are also excluded; their
  * elements are `display: none` under the shell's desktop-switch
  * logic and would report zeroed rects anyway.
- *
- * @since 0.9.0
  */
 
 import { applyFilters, HOOKS } from '../hooks';

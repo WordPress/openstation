@@ -16,7 +16,6 @@
  * content changes (`save_post` / `deleted_post` / `comment_post`).
  *
  * @package WPDesktopMode
- * @since   0.9.4
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -33,8 +32,6 @@ const DESKTOP_MODE_LIVING_TREE_CACHE_TTL = 6 * HOUR_IN_SECONDS;
  * Defaults to `read` — anyone who can see the admin can see the wallpaper
  * of their own site. Filterable so a site can widen or restrict it.
  *
- * @since 0.9.4
- *
  * @return bool
  */
 function desktop_mode_living_tree_user_can_use() {
@@ -43,8 +40,6 @@ function desktop_mode_living_tree_user_can_use() {
 	/**
 	 * Filter whether the current user can read the Living Tree snapshot.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param bool $can Default: the `read` capability.
 	 */
 	return (bool) apply_filters( 'desktop_mode_living_tree_user_can_use', $can );
@@ -52,8 +47,6 @@ function desktop_mode_living_tree_user_can_use() {
 
 /**
  * Register the snapshot route.
- *
- * @since 0.9.4
  */
 function desktop_mode_living_tree_register_routes() {
 	register_rest_route(
@@ -70,8 +63,6 @@ add_action( 'rest_api_init', 'desktop_mode_living_tree_register_routes' );
 
 /**
  * GET /living-tree/snapshot — cached snapshot response.
- *
- * @since 0.9.4
  *
  * @return WP_REST_Response
  */
@@ -94,8 +85,6 @@ function desktop_mode_living_tree_rest_snapshot() {
 /**
  * Invalidate the cached snapshot. Wired to the content-mutation hooks so
  * the tree re-DNAs on the next load after the site changes.
- *
- * @since 0.9.4
  */
 function desktop_mode_living_tree_flush_cache() {
 	delete_transient( DESKTOP_MODE_LIVING_TREE_CACHE_KEY );
@@ -111,8 +100,6 @@ add_action( 'comment_post', 'desktop_mode_living_tree_flush_cache' );
  * yields a well-formed snapshot — the golden rule (WordPress emits
  * hormones, never geometry) lives here: this function must never leak a
  * per-post coordinate or identity into the payload.
- *
- * @since 0.9.4
  *
  * @return array The snapshot, matching the JS `TreeSnapshot` shape.
  */
@@ -146,8 +133,6 @@ function desktop_mode_living_tree_build_snapshot() {
 	 * Keep the shape intact — the JS client validates nothing; it trusts
 	 * this contract. Aggregates only: never add per-post identities or
 	 * coordinates (the golden rule).
-	 *
-	 * @since 0.9.4
 	 *
 	 * @param array $snapshot The compact site DNA.
 	 */

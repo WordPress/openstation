@@ -12,7 +12,6 @@
  * stub with the real API.
  *
  * @public
- * @since 0.8.6
  */
 
 /**
@@ -57,7 +56,6 @@ interface MyWordpressEarlyStub {
  * the full public API is wired, so a partial shape is expected here.
  *
  * @public
- * @since 0.8.6
  */
 export function installMyWordpressEarlyStub(): void {
 	type Loose = {

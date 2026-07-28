@@ -20,7 +20,6 @@
  *              `..._before/after_purge`, `..._emptied`
  *
  * @package WPDesktopMode
- * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;

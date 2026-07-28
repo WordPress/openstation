@@ -16,7 +16,6 @@
  *     title bar drives, and a themed close button would stop turning
  *     white when its window gained focus.
  *
- * @since 0.9.7
  * @internal
  */
 

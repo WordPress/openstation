@@ -10,8 +10,6 @@
  *
  * `skyForTime()` is pure and unit-tested; `new Date()` is only read at
  * the scene boundary via {@link currentHour} (with a debug override).
- *
- * @since 0.9.4
  */
 
 import type {

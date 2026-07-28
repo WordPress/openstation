@@ -42,7 +42,6 @@
  * provider.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -51,7 +50,6 @@ defined( 'ABSPATH' ) || exit;
  * Safety cap — refuse to loop more than this many generate turns so a
  * runaway agent can't burn through the site's API budget.
  *
- * @since 0.9.8
  */
 const DESKTOP_MODE_AGENT_RUNNER_MAX_TURNS = 8;
 
@@ -60,7 +58,6 @@ const DESKTOP_MODE_AGENT_RUNNER_MAX_TURNS = 8;
  * `DESKTOP_MODE_AGENT_RUNNER_LOG_CAP` rows — older entries roll off
  * the front as new ones are appended.
  *
- * @since 0.9.8
  */
 const DESKTOP_MODE_AGENT_RUNNER_LOG_META = '_desktop_mode_agent_runs';
 const DESKTOP_MODE_AGENT_RUNNER_LOG_CAP  = 50;
@@ -70,8 +67,6 @@ const DESKTOP_MODE_AGENT_RUNNER_LOG_CAP  = 50;
  * Core AI Client stack is present, or a plugin (or the test suite)
  * hooked the `desktop_mode_agent_runner_generate` pre-filter to
  * provide generation another way.
- *
- * @since 0.9.8
  *
  * @return bool
  */
@@ -84,8 +79,6 @@ function desktop_mode_agent_runner_available() {
 
 /**
  * Run one full agent invocation.
- *
- * @since 0.9.8
  *
  * @param int    $agent_user_id Agent's `wp_users.ID`.
  * @param string $message       Message for the agent.
@@ -168,8 +161,6 @@ function desktop_mode_agent_invoke( $agent_user_id, $message, $context = array()
 	 * and the (Phase C) agent-to-agent trigger consumes it to feed
 	 * one agent's output into another.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param int    $agent_user_id Agent user id.
 	 * @param string $message       Submitted message.
 	 * @param array  $result        `{ text, toolCalls, turns }`.
@@ -188,8 +179,6 @@ function desktop_mode_agent_invoke( $agent_user_id, $message, $context = array()
  * effective limit is the agent's meta override when set, else the
  * filterable platform default.
  *
- * @since 0.9.8
- *
  * @param int $agent_user_id Agent user id.
  * @return true|WP_Error
  */
@@ -199,8 +188,6 @@ function desktop_mode_agent_runner_check_rate_limit( $agent_user_id ) {
 		/**
 		 * Filter the default per-agent invocations-per-hour limit,
 		 * applied when the agent has no per-agent override.
-		 *
-		 * @since 0.9.8
 		 *
 		 * @param int $limit         Default limit (60).
 		 * @param int $agent_user_id Agent user id.
@@ -236,8 +223,6 @@ function desktop_mode_agent_runner_check_rate_limit( $agent_user_id ) {
  * Unknown / unregistered slugs are dropped silently — better to run
  * with a smaller tool set than to fail the whole invocation because
  * one plugin deactivated.
- *
- * @since 0.9.8
  *
  * @param string[] $ability_slugs Allowlisted ability slugs.
  * @return array{0: array, 1: array<string,string>} Tool definitions + name map.
@@ -281,8 +266,6 @@ function desktop_mode_agent_runner_build_tools( array $ability_slugs ) {
 
 /**
  * Inner loop — generate, dispatch tool calls, repeat.
- *
- * @since 0.9.8
  *
  * @param int    $agent_user_id Agent user id (current user at this point).
  * @param string $instructions  System prompt from the agent definition.
@@ -356,8 +339,6 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
 				 * The sanitization seam — strip fields the model has
 				 * no business seeing.
 				 *
-				 * @since 0.9.8
-				 *
 				 * @param mixed  $output        Raw ability output.
 				 * @param string $slug          Ability slug.
 				 * @param array  $args          Call arguments.
@@ -403,8 +384,6 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
  * One generate turn: pre-filter first (tests / alternative runtimes),
  * then the Core AI Client via the Copilot's adapter.
  *
- * @since 0.9.8
- *
  * @param int    $agent_user_id Agent user id.
  * @param array  $history       Neutral history rows.
  * @param array  $tool_defs     Neutral tool definitions.
@@ -419,8 +398,6 @@ function desktop_mode_agent_runner_generate( $agent_user_id, array $history, arr
 	 * `{ text, function_calls, message }` array (or a WP_Error) to
 	 * short-circuit the Core AI Client — the seam PHPUnit and
 	 * alternative runtimes plug into.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param array|WP_Error|null $generated     Null to proceed with the AI Client.
 	 * @param array               $history       Neutral history rows.
@@ -457,8 +434,6 @@ function desktop_mode_agent_runner_generate( $agent_user_id, array $history, arr
  *
  * Pure string builder (no SDK types) so it is unit-testable without
  * the AI Client.
- *
- * @since 0.9.8
  *
  * @param array $history Neutral history rows.
  * @return string
@@ -506,8 +481,6 @@ function desktop_mode_agent_runner_compose_prompt( array $history ) {
  * Execute one ability call: standard `check_permissions` + `execute`
  * lifecycle, as the current (agent) user.
  *
- * @since 0.9.8
- *
  * @param string $slug Ability slug.
  * @param array  $args Arguments from the function call.
  * @return mixed Output or WP_Error.
@@ -538,8 +511,6 @@ function desktop_mode_agent_runner_dispatch_tool( $slug, array $args ) {
 /**
  * Append one invocation to the agent's persistent log. Most-recent
  * entries surface in the chat window's history strip.
- *
- * @since 0.9.8
  *
  * @param int    $agent_user_id Agent user id.
  * @param string $message       Submitted message.
@@ -588,8 +559,6 @@ function desktop_mode_agent_runner_log_invocation( $agent_user_id, $message, arr
 
 /**
  * Read the agent's invocation log (most-recent-first).
- *
- * @since 0.9.8
  *
  * @param int $agent_user_id Agent user id.
  * @return array

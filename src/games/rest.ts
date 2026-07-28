@@ -5,8 +5,6 @@
  * Works from any bundle: the REST root + nonce are read off
  * `wp.desktop.config` at call time and every request routes through
  * `trackedFetch` (activity bus + window spinner attribution).
- *
- * @since 0.9.6
  */
 
 import { joinRestUrl } from '../rest-url';

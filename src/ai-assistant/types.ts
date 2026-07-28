@@ -5,8 +5,6 @@
  * interface without dragging the full `impl.ts` (38 kB) along with
  * it. The impl bundle re-exports the same interface from
  * `./impl.ts` (its native declaration site) — keep the two in sync.
- *
- * @since 0.8.4
  */
 
 import type { AskFn } from '../ai/ask';
@@ -16,8 +14,6 @@ import type { AskFn } from '../ai/ask';
  * `wp.desktop.ai`. Implemented by both the lazy stub (main bundle)
  * and the real `AiAssistant` class (in the lazy-loaded
  * `ai-assistant` bundle).
- *
- * @since 0.8.4
  */
 export interface AiAssistantApi {
 	open(): void;
@@ -27,8 +23,6 @@ export interface AiAssistantApi {
 	/**
 	 * Programmatic access to the AI Copilot — same endpoint the
 	 * overlay uses. Wired by `desktop.ts` via {@link AiAssistantStubMethods.attachAsk}.
-	 *
-	 * @since 0.8.4
 	 */
 	ask: AskFn;
 }

@@ -54,8 +54,6 @@
  * `getSurfaces: null` (no collisions, no piles — surface rects are
  * viewport-space and meaningless inside a tile) and a scaled-down
  * particle count.
- *
- * @since 0.9.5
  */
 
 import type { WallpaperSurface } from '../../wallpapers/surfaces';

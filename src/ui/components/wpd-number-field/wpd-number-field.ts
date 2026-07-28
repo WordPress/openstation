@@ -28,8 +28,6 @@
  * isn't a valid number yet") should use `<wpd-text-field>`
  * directly — this component deliberately drops non-finite input
  * from its event stream.
- *
- * @since 0.5.0
  */
 
 import {

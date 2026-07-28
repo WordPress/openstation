@@ -20,7 +20,6 @@
  * — this module owns only the window itself, not the entry point.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;

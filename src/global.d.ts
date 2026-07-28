@@ -24,8 +24,6 @@
  * The declarations live in a `.d.ts` (not a `.ts`) on purpose: type-only
  * file, no runtime bundle impact. Consumers get the typings; nothing
  * from this file ends up in their compiled output.
- *
- * @since 0.6.0
  */
 
 import type { WpDesktopPublicApi } from './desktop';

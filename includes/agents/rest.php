@@ -24,15 +24,12 @@
  * management). All three are filterable.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register REST routes on rest_api_init.
- *
- * @since 0.9.8
  *
  * @return void
  */
@@ -170,15 +167,11 @@ add_action( 'rest_api_init', 'desktop_mode_agents_register_rest_routes' );
 /**
  * Whether the current user can see agents.
  *
- * @since 0.9.8
- *
  * @return bool
  */
 function desktop_mode_agents_user_can_read() {
 	/**
 	 * Filter whether the current user can read Desktop Mode agents.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param bool $can Default: `edit_posts` capability.
 	 */
@@ -188,15 +181,11 @@ function desktop_mode_agents_user_can_read() {
 /**
  * Whether the current user can create / edit / delete agents.
  *
- * @since 0.9.8
- *
  * @return bool
  */
 function desktop_mode_agents_user_can_manage() {
 	/**
 	 * Filter whether the current user can manage Desktop Mode agents.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param bool $can Default: `edit_users` capability.
 	 */
@@ -206,15 +195,11 @@ function desktop_mode_agents_user_can_manage() {
 /**
  * Whether the current user can invoke agents.
  *
- * @since 0.9.8
- *
  * @return bool
  */
 function desktop_mode_agents_user_can_invoke() {
 	/**
 	 * Filter whether the current user can invoke Desktop Mode agents.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param bool $can Default: `edit_posts` capability.
 	 */
@@ -223,8 +208,6 @@ function desktop_mode_agents_user_can_invoke() {
 
 /**
  * Read-route permission callback.
- *
- * @since 0.9.8
  *
  * @return bool|WP_Error
  */
@@ -242,8 +225,6 @@ function desktop_mode_agents_rest_read_permission() {
 /**
  * Write-route permission callback.
  *
- * @since 0.9.8
- *
  * @return bool|WP_Error
  */
 function desktop_mode_agents_rest_write_permission() {
@@ -259,8 +240,6 @@ function desktop_mode_agents_rest_write_permission() {
 
 /**
  * Invoke-route permission callback.
- *
- * @since 0.9.8
  *
  * @return bool|WP_Error
  */
@@ -282,8 +261,6 @@ function desktop_mode_agents_rest_invoke_permission() {
 /**
  * GET /agents — list every agent on the site.
  *
- * @since 0.9.8
- *
  * @return WP_REST_Response
  */
 function desktop_mode_agents_rest_list() {
@@ -299,8 +276,6 @@ function desktop_mode_agents_rest_list() {
 
 /**
  * GET /agents/:id — fetch a single agent.
- *
- * @since 0.9.8
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
@@ -319,8 +294,6 @@ function desktop_mode_agents_rest_get( WP_REST_Request $request ) {
 
 /**
  * POST /agents — create.
- *
- * @since 0.9.8
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
@@ -350,8 +323,6 @@ function desktop_mode_agents_rest_create( WP_REST_Request $request ) {
 
 /**
  * POST /agents/:id — patch any subset of the definition fields.
- *
- * @since 0.9.8
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
@@ -396,8 +367,6 @@ function desktop_mode_agents_rest_patch( WP_REST_Request $request ) {
 /**
  * DELETE /agents/:id.
  *
- * @since 0.9.8
- *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
@@ -428,8 +397,6 @@ function desktop_mode_agents_rest_delete( WP_REST_Request $request ) {
 
 /**
  * POST /agents/:id/invoke — run the agent with the supplied message.
- *
- * @since 0.9.8
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
@@ -462,8 +429,6 @@ function desktop_mode_agents_rest_invoke( WP_REST_Request $request ) {
 /**
  * GET /agents/abilities — the abilities catalogue for the picker.
  *
- * @since 0.9.8
- *
  * @return WP_REST_Response
  */
 function desktop_mode_agents_rest_abilities_catalogue() {
@@ -472,8 +437,6 @@ function desktop_mode_agents_rest_abilities_catalogue() {
 
 /**
  * GET /agents/trigger-kinds — the trigger-kinds catalogue.
- *
- * @since 0.9.8
  *
  * @return WP_REST_Response
  */
@@ -484,8 +447,6 @@ function desktop_mode_agents_rest_trigger_kinds() {
 /**
  * GET /agents/hooks-catalogue — the curated WP hooks catalogue.
  *
- * @since 0.9.8
- *
  * @return WP_REST_Response
  */
 function desktop_mode_agents_rest_hooks_catalogue() {
@@ -494,8 +455,6 @@ function desktop_mode_agents_rest_hooks_catalogue() {
 
 /**
  * GET /agents/roles — roles the current user may assign to an agent.
- *
- * @since 0.9.8
  *
  * @return WP_REST_Response
  */
@@ -513,8 +472,6 @@ function desktop_mode_agents_rest_roles() {
 
 /**
  * Build the canonical REST shape for one agent.
- *
- * @since 0.9.8
  *
  * @param WP_User|null $user Agent user.
  * @return array|null Null when the user is not an agent.

@@ -24,8 +24,6 @@
  * `subscribe( topic, cb )` fires on every inbound match. Plugin
  * authors don't need to know whether their target is an iframe or
  * a native window — that's the whole point.
- *
- * @since 0.5.2
  */
 
 import { applyFilters, doAction, HOOKS } from './../hooks';
@@ -563,8 +561,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 		 * list), `true` / `undefined` for the default
 		 * accept-with-original-topics.
 		 *
-		 * @since 0.5.2
-		 *
 		 * @param {boolean|Object} accept Default `true` (accept).
 		 * @param {Object}         ctx    `{ windowId, requestId, topics }`.
 		 */
@@ -659,7 +655,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 	 * Connection reference; pick whichever fits the call site.
 	 *
 	 * @public
-	 * @since 0.8.8
 	 */
 	const getConnection = (
 		connectionId: string,

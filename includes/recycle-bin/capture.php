@@ -21,7 +21,6 @@
  *     external storage, etc.).
  *
  * @package WPDesktopMode
- * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,15 +34,12 @@ defined( 'ABSPATH' ) || exit;
  * subscribe once.
  *
  * Custom post types with an admin UI (`show_ui`, non-builtin) are
- * included by default since 0.9.6 — a trashed WooCommerce product or
+ * included by default — a trashed WooCommerce product or
  * portfolio entry belongs in the site-wide bin just as much as a
  * post does. Visibility stays safe because every row is still gated
  * per-item on `edit_post` before it is listed. Headless CPTs
  * (`show_ui => false`, e.g. the pinned-notes `wpd_note`) stay out
  * unless their owning feature opts in via the filter.
- *
- * @since 0.6.0
- * @since 0.9.6 Non-builtin `show_ui` post types are included by default.
  *
  * @return string[]
  */
@@ -68,8 +64,6 @@ function desktop_mode_recycle_bin_capture_post_types() {
 	 * Remove a custom post type here to keep its trash out of the bin,
 	 * or add a headless (`show_ui => false`) type to opt it in.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string[] $types Post types whose deletions the recycle bin tracks.
 	 */
 	$types = apply_filters( 'desktop_mode_recycle_bin_capture_post_types', $types );
@@ -84,8 +78,6 @@ function desktop_mode_recycle_bin_capture_post_types() {
  * Core's `wp_trash_post_meta` is set on every trash but it doesn't
  * include the user id — we stash that ourselves under a private meta
  * key so the table can show "deleted by Alice".
- *
- * @since 0.6.0
  *
  * @param int $post_id Post being trashed.
  */
@@ -108,8 +100,6 @@ function desktop_mode_recycle_bin_on_trash_post( $post_id ) {
  * bin, and gets cleaned up by core when the post is permanently
  * deleted via the standard postmeta cascade.
  *
- * @since 0.6.0
- *
  * @param int $post_id Post id being captured.
  */
 function desktop_mode_recycle_bin_record_capture( $post_id ) {
@@ -124,8 +114,6 @@ function desktop_mode_recycle_bin_record_capture( $post_id ) {
 	 *
 	 * Use this to mirror the event into an external audit log or to
 	 * extend the captured payload with custom postmeta.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param int    $post_id Post id that was captured.
 	 * @param int    $user_id User id who triggered the capture.
@@ -144,8 +132,6 @@ add_action( 'wp_trash_post', 'desktop_mode_recycle_bin_on_trash_post', 10, 1 );
  * anything (core already routes to a real trash status), just
  * stamp the moment so the bin can show "by Alice, 5 minutes ago".
  *
- * @since 0.6.0
- *
  * @param int $comment_id Comment about to be trashed.
  */
 function desktop_mode_recycle_bin_on_trash_comment( $comment_id ) {
@@ -158,8 +144,6 @@ function desktop_mode_recycle_bin_on_trash_comment( $comment_id ) {
 
 	/**
 	 * Fires after the recycle bin records a comment capture.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param int    $comment_id Comment id that was captured.
 	 * @param int    $user_id    User id who triggered the capture.

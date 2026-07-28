@@ -16,8 +16,6 @@ defined( 'ABSPATH' ) || exit;
  * Allows users to switch between classic admin and desktop mode,
  * which renders admin screens in draggable, resizable windows.
  *
- * @since 0.1.0
- *
  * @param WP_Admin_Bar $wp_admin_bar The WP_Admin_Bar instance.
  */
 function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
@@ -173,8 +171,6 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		 *
 		 * Entries with missing/invalid `id` or `title` are dropped.
 		 *
-		 * @since 0.6.2
-		 *
 		 * @param array $items Existing custom items (default empty).
 		 */
 		$custom = apply_filters( 'desktop_mode_arrange_menu_items', array() );
@@ -289,8 +285,6 @@ add_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle', 190 );
  * The JS is the external assets/js/admin-bar.js bundle, registered as
  * `desktop-mode-admin-bar` with `admin-bar` as a dependency; its config is
  * emitted as an inline JSON literal `before` the script.
- *
- * @since 0.1.0
  */
 function desktop_mode_enqueue_toggle_assets() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {

@@ -13,8 +13,6 @@
  * A ref without `root` IS a root; a ref with `root` is a child of it.
  * Third parties join by namespacing their `type` (`vendor/order`) and
  * pointing `root` wherever they like.
- *
- * @since 0.9.4
  */
 
 import type { WindowState } from '../types';
@@ -25,8 +23,6 @@ import type { WindowState } from '../types';
  * posts/pages (comments, assigned terms, attached media) and open to
  * plugins via the `desktop_mode_window_related_entities` PHP filter
  * and the `desktop-mode.related-entities.items` JS filter.
- *
- * @since 0.9.6
  */
 export interface RelatedEntityItem {
 	/**
@@ -116,10 +112,17 @@ export interface WindowContentRef {
 	 * chromeless bridge announces it with the identity) and filterable
 	 * client-side via `desktop-mode.related-entities.items`. Not part
 	 * of group membership — purely a navigation affordance.
-	 *
-	 * @since 0.9.6
 	 */
 	related?: RelatedEntityItem[];
+	/**
+	 * Front-end preview URL for this content — the target of the title
+	 * bar's "Preview" (eye) button. Built server-side via
+	 * `get_preview_post_link()` (autosave-aware, carries a
+	 * `preview_nonce`), so it is only present on post-editor
+	 * identities of viewable post types. Same-origin URLs only — the
+	 * engine drops anything else.
+	 */
+	previewUrl?: string;
 	/**
 	 * Provenance, stamped by the engine — never set it yourself:
 	 * `'config'` (seeded from `WindowConfig.content`), `'bridge'`

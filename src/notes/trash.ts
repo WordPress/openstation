@@ -5,8 +5,6 @@
  * eviction + an Undo toast, mirroring the desktop-files trash UX
  * (`src/desktop-files/trash.ts`). The layer injects eviction/restore
  * callbacks so this module stays DOM-free.
- *
- * @since 0.9.6
  */
 
 import { __ } from '../i18n';

@@ -18,8 +18,6 @@
  * Plugins that want to suppress this behavior can set
  * `data-desktop-mode-suppress-media-library-refresh` on `<body>`
  * before the shell boots.
- *
- * @since 0.31.0
  */
 
 import { addAction } from '../hooks';

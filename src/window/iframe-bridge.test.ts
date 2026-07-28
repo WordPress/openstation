@@ -1,5 +1,5 @@
 /**
- * Tests for the iframe postMessage handlers that landed in 0.5.0:
+ * Tests for the iframe postMessage handlers:
  * `desktop-mode-ready`, `desktop-mode-navigate`, and
  * `desktop-mode-notification`. The older handlers (`title-change`,
  * `focus-request`, etc.) are covered by the cross-module

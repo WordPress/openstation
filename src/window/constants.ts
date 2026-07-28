@@ -3,8 +3,6 @@
  *
  * Shared between the `Window` class and its sibling helper modules
  * (drag, resize, tabs, menus, iframe-bridge).
- *
- * @since 0.8.1
  */
 
 /**

@@ -17,8 +17,6 @@
  * "Wallpaper settings" dialog edits wind, particle count, flake size,
  * and backdrop colour; a mounted instance live-applies them through
  * the `desktop-mode.wallpaper.settings-changed` action.
- *
- * @since 0.9.5
  */
 
 import { __ } from '../../i18n';

@@ -17,8 +17,6 @@ defined( 'ABSPATH' ) || exit;
  * the only cache key the browser ever sees for the subtree — it must
  * move when any member changes.
  *
- * @since 0.9.4
- *
  * @param string $relative Stylesheet path relative to the plugin dir.
  * @param string $fallback Version to use when the file is missing.
  * @return string Version string.
@@ -52,8 +50,6 @@ function desktop_mode_css_subtree_version( $relative, $fallback ) {
 
 /**
  * Registers the desktop mode CSS and JS handles.
- *
- * @since 0.1.0
  */
 function desktop_mode_register_assets() {
 	$version = DESKTOP_MODE_VERSION;
@@ -512,7 +508,7 @@ function desktop_mode_register_assets() {
 	);
 
 	// `desktop-mode-animated-logo-wallpaper` — built-in PixiJS canvas
-	// wallpaper, moved out of `desktop.min.js` in 0.8.4. The wallpaper
+	// wallpaper, moved out of `desktop.min.js`. The wallpaper
 	// `server-sync` loads this handle when the user selects the
 	// `wp-animated-logo` wallpaper (or opens OS Settings → Wallpaper
 	// and the picker pulls every registered canvas def in). The
@@ -550,7 +546,7 @@ function desktop_mode_register_assets() {
 	);
 
 	// `desktop-mode-ai-assistant` — AI Copilot spotlight overlay,
-	// moved out of `desktop.min.js` in 0.8.4. The main bundle ships a
+	// moved out of `desktop.min.js`. The main bundle ships a
 	// stub matching the public `wp.desktop.ai` contract; the stub
 	// `<script>`-injects this handle the first time the user opens
 	// the assistant (Cmd+K or admin-bar button).

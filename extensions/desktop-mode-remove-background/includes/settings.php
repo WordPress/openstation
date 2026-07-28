@@ -58,8 +58,6 @@ function desktop_mode_remove_bg_get_settings() {
 	/**
 	 * Filter the resolved Remove Background settings.
 	 *
-	 * @since 0.1.0
-	 *
 	 * @param array $settings `{ backend, removebg_api_key, rembg_endpoint }`.
 	 */
 	$filtered = apply_filters( 'desktop_mode_remove_background_settings', $settings );

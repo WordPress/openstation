@@ -12,8 +12,6 @@
  * Owns the contract that lists EVERY payload key the chromeless bridge
  * may emit. Adding a new key here is a documented breaking change for
  * plugin authors who watch live-refresh behaviour.
- *
- * @since 0.5.2
  */
 import type { DockItem } from './dock';
 import type {
@@ -132,8 +130,6 @@ export interface MenuRefreshDeps {
  * Naming: `desktop-mode-*`, NOT `wp-desktop-*`. The `wp-` prefix is
  * reserved for WordPress Core per plugin reviewer guidelines; all
  * public surface uses the project-owned prefix.
- *
- * @since 0.7.0
  */
 export const REGISTRY_CHANGED_EVENT = 'desktop-mode-registry-changed';
 

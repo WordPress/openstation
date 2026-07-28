@@ -21,9 +21,6 @@
  * Callers still receive `wpd-tab-change` on the tab strip if they
  * need custom behaviour — the auto-swap is opt-in per panel, not a
  * replacement for the event.
- *
- * @since 0.7.0
- * @since 0.5.0 Added `<wpd-tabpanel>` + auto-swap.
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -152,8 +149,6 @@ export class WpdTabs extends Component {
 	 *   { value: 'convert', label: 'Convert' },
 	 * ];
 	 * ```
-	 *
-	 * @since 0.5.0
 	 */
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		replaceChildren( this, 'wpd-tab', list );
@@ -219,8 +214,6 @@ defineComponent( 'wpd-tabs', WpdTabs );
  *
  * Accessibility: `role="tabpanel"` + `tabindex="0"` are set
  * automatically so keyboard users can tab into an active panel.
- *
- * @since 0.5.0
  */
 export class WpdTabPanel extends Component {
 	static props = [ 'for' ] as const;

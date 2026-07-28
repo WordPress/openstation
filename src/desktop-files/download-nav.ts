@@ -7,8 +7,6 @@
  * rides the navigation and the `_wpnonce` query param satisfies
  * the REST CSRF check. `Content-Disposition: attachment` on the
  * server makes the navigation a download rather than a page load.
- *
- * @since 0.9.6
  */
 
 export function navigateToDownload( url: string ): void {

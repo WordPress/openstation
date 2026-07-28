@@ -19,8 +19,6 @@
  * `BridgeEventFromIframe` and `BridgeEventToIframe` so existing
  * imports keep working; nothing on the public type surface
  * changes. New code should import from `@protocol/window-messages`.
- *
- * @since 0.8.1
  */
 
 import type { HarvestedCommand } from '../types';
@@ -58,6 +56,27 @@ export type BridgeEventFromIframe =
 		userId: number;
 		userName: string;
 	}
+	// Editor-autosave answer — the standalone iframe bridge finished
+	// (or declined) the autosave the parent requested before opening
+	// the front-end preview. `previewUrl` is only present on the
+	// Gutenberg `__unstableSaveForPreview()` path, which resolves to
+	// the freshest preview link; other paths let the parent fall back
+	// to the identity's server-computed `previewUrl`.
+	| {
+		type: 'desktop-mode-editor-autosave-response';
+		requestId: string;
+		status: 'saved' | 'no-editor' | 'not-dirty' | 'error';
+		previewUrl?: string;
+	}
+	// Live-preview settle — while a live watch is active the editor
+	// page autosaved after a typing pause (Gutenberg) or a core
+	// autosave tick (classic). The shell reloads the paired preview
+	// window. `previewUrl` as above.
+	| {
+		type: 'desktop-mode-editor-live-saved';
+		watchId: string;
+		previewUrl?: string;
+	}
 	// -------------------------------------------------------------------
 	// Cross-window connection bridge — extensible pub/sub between any
 	// parent-side caller (e.g. a plugin's title-bar dropdown) and a
@@ -88,6 +107,29 @@ export type BridgeEventToIframe =
 	| { type: 'desktop-mode-commands-subscribe' }
 	| { type: 'desktop-mode-commands-unsubscribe' }
 	| { type: 'desktop-mode-commands-invoke'; name: string }
+	// Editor-autosave request — sent by the shell's editor-preview
+	// module before opening the front-end preview, so the preview
+	// reflects on-screen content (Gutenberg's own Preview button does
+	// the same). The standalone iframe bridge answers with
+	// `desktop-mode-editor-autosave-response`, immediately when
+	// there's no editor on the page.
+	| {
+		type: 'desktop-mode-editor-autosave-request';
+		requestId: string;
+	}
+	// Live-preview watch control — sent by the editor-preview module
+	// when a preview pairing opens (watch) and on teardown (unwatch).
+	// The iframe-side watcher owns typing detection; `debounceMs` is
+	// the settle window after the last edit (clamped 500–30000).
+	| {
+		type: 'desktop-mode-editor-live-watch';
+		watchId: string;
+		debounceMs: number;
+	}
+	| {
+		type: 'desktop-mode-editor-live-unwatch';
+		watchId: string;
+	}
 	| {
 		type: 'desktop-mode-bridge-handshake';
 		connectionId: string;
@@ -128,6 +170,8 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'desktop-mode-commands-list',
 	'desktop-mode-content-identity',
 	'desktop-mode-open-user-footprint',
+	'desktop-mode-editor-autosave-response',
+	'desktop-mode-editor-live-saved',
 	'desktop-mode-bridge-handshake-ack',
 	// To iframe.
 	'desktop-mode-focus',
@@ -136,6 +180,9 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'desktop-mode-commands-subscribe',
 	'desktop-mode-commands-unsubscribe',
 	'desktop-mode-commands-invoke',
+	'desktop-mode-editor-autosave-request',
+	'desktop-mode-editor-live-watch',
+	'desktop-mode-editor-live-unwatch',
 	'desktop-mode-bridge-handshake',
 	// Both directions share the same names.
 	'desktop-mode-bridge-publish',

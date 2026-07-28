@@ -26,8 +26,6 @@
  * origin + message type only (it does not compare `payload.service`
  * or the source popup), so the first callback to arrive settles every
  * in-flight promise. Run one flow at a time.
- *
- * @since 0.8.2
  */
 
 import { joinRestUrl } from './rest-url';
@@ -66,7 +64,6 @@ const POPUP_CLOSE_POLL_MS = 500;
  * on any failure path.
  *
  * @public
- * @since 0.8.2
  */
 export function startOAuth(
 	service: string,

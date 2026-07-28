@@ -14,7 +14,6 @@
  * store for the session only.
  *
  * @public
- * @since 0.9.8
  */
 
 import { __ } from './i18n';

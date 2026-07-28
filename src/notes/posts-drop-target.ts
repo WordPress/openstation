@@ -32,8 +32,6 @@
  * The whole module is a no-op when the viewer can't author posts
  * (`layer.canCreatePosts` is false) — no drop targets, matching the
  * hidden inline button.
- *
- * @since 0.9.6
  */
 
 import { __ } from '../i18n';

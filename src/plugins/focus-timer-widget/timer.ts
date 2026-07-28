@@ -14,8 +14,6 @@
  * arise here. Durable settings + an in-flight countdown are mirrored to
  * the widget's `ctx.storage` (localStorage) so a page reload can resume
  * a timer that is still counting down.
- *
- * @since 0.26.0
  */
 
 import { Alarm } from './alarm';

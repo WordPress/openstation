@@ -4,8 +4,6 @@
  * that would otherwise repeat in every window, as a single shell toast each.
  * The descriptors are re-derived from authoritative state server-side; this
  * just renders them.
- *
- * @since 0.9.6
  */
 
 import { showToast } from './toast';

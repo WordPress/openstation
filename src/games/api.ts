@@ -4,8 +4,6 @@
  * Thin facade over the shared-store registry + launcher. Assembled
  * here (rather than inline in `src/api/facade.ts`) so the games
  * bundle and any tests can import the exact same object shape.
- *
- * @since 0.9.6
  */
 
 import * as registry from './registry';

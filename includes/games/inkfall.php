@@ -11,15 +11,12 @@
  * arrives via the framework-injected `wordsUrl` config key.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * The Inkfall icon: a musical note falling onto a notebook page.
- *
- * @since 0.9.6
  *
  * @return string Raw `<svg>` markup.
  */
@@ -38,8 +35,6 @@ function desktop_mode_inkfall_icon_svg() {
  * Register Inkfall with the games registry on `init`.
  *
  * Priority 20 — alongside the Games window registration.
- *
- * @since 0.9.6
  */
 function desktop_mode_inkfall_register() {
 	if ( ! function_exists( 'desktop_mode_games_user_can_use' ) || ! desktop_mode_games_user_can_use() ) {
@@ -70,8 +65,6 @@ add_action( 'init', 'desktop_mode_inkfall_register', 20 );
  * Enqueue the Inkfall window styles. The game's script is lazily
  * loaded by the framework on first launch, but its CSS is tiny and
  * must already be present when the window opens.
- *
- * @since 0.9.6
  */
 function desktop_mode_inkfall_enqueue_styles() {
 	if ( ! function_exists( 'desktop_mode_games_user_can_use' ) || ! desktop_mode_games_user_can_use() ) {

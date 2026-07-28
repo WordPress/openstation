@@ -12,8 +12,6 @@
  * builders as full overview, but confines the grid to a rect (the
  * opposite half) and doesn't render the desktops top bar. Click
  * commit semantics differ: fill-half instead of maximize.
- *
- * @since 0.8.3
  */
 
 import { doAction, HOOKS } from '../hooks';

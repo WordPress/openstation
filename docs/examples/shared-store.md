@@ -1,6 +1,6 @@
 # Share state across multi-bundle plugins — `wp.desktop.createSharedStore()`
 
-**Stable** — shipped 0.5.5.
+**Stable.**
 
 If your plugin ships **more than one JS bundle** (e.g. an always-on
 shell + a lazy-loaded UI bundle, or two unrelated features that
@@ -152,7 +152,7 @@ interface SharedStore< T > {
     notify(): void;                                          // wake subscribers
     subscribe( cb: ( s: Readonly< T > ) => void ): () => void;
     setState( patch: Partial< T > ): void;                   // patch + notify in one call
-                                                             // (since 0.8.1; object-shaped
+                                                             // (object-shaped
                                                              // state only)
     reset(): void;                                           // tests only — preserves
                                                              // outer object identity
@@ -184,4 +184,4 @@ use the `state` setter there instead.
 
 ## Related
 
-- [`docs/javascript-reference.md#createSharedStore`](../javascript-reference.md#createsharedstore-key-initialstate--stable-since-055) — full API doc.
+- [`docs/javascript-reference.md#createSharedStore`](../javascript-reference.md#createsharedstore-key-initialstate---stable) — full API doc.

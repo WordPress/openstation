@@ -10,7 +10,6 @@
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
  *
  * @package WPDesktopMode
- * @since   0.26.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -21,8 +20,6 @@ defined( 'ABSPATH' ) || exit;
  *
  * Route: GET /desktop-mode/v1/site-views-meta
  * Permission: edit_posts.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_site_views_rest_route() {
 	register_rest_route(
@@ -95,8 +92,6 @@ function desktop_mode_site_views_meta_callback( $request ) {
 
 /**
  * Register the JS + CSS assets.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_site_views_widget_assets() {
 	$suffix  = desktop_mode_asset_suffix();
@@ -124,8 +119,6 @@ add_action( 'init', 'desktop_mode_register_site_views_widget_assets', 5 );
 
 /**
  * Eagerly enqueue the CSS on shell pages.
- *
- * @since 0.26.0
  */
 function desktop_mode_enqueue_site_views_widget_styles() {
 	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
@@ -140,8 +133,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_site_views_widget_sty
 
 /**
  * Register the widget definition.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_site_views_widget() {
 	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {

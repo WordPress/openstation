@@ -15,8 +15,6 @@
  *     window's Challenges view (where Decline also lives).
  *   - Challenger whose challenge flipped to `completed` → outcome
  *     notification.
- *
- * @since 0.9.6
  */
 
 import { heartbeat } from '../heartbeat';

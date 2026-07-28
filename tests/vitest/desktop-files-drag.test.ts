@@ -189,7 +189,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 	} );
 
 	test( 'pinned tile silently swallows pointerdown — no bump cue, no drag session', async () => {
-		// As of 0.9.0 we deliberately surface NO upfront visual cue
+		// We deliberately surface NO upfront visual cue
 		// on pinned tiles (no bump animation, no `not-allowed`
 		// cursor, no pre-emptive tooltip): the tile looks + reacts
 		// identically to a draggable one until the user attempts a
@@ -214,7 +214,7 @@ describe( 'desktop-files drag (DragManager-backed)', () => {
 		const tile = host.querySelector< HTMLElement >( '[data-placement-id="1"]' );
 		expect( tile?.classList.contains( 'desktop-mode-file-tile--pinned' ) ).toBe( true );
 		// `aria-disabled` and the pre-emptive tooltip both went away
-		// in 0.9.0 — clicking the tile still opens the window, so
+		// — clicking the tile still opens the window, so
 		// painting it as "disabled" was misleading.
 		expect( tile?.hasAttribute( 'aria-disabled' ) ).toBe( false );
 		expect( tile?.title ).toBe( '' );

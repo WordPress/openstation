@@ -30,15 +30,12 @@
  * re-pins it on the wall without a reload.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Opt `wpd_note` into the recycle bin's capture list.
- *
- * @since 0.9.6
  *
  * @param string[] $types Tracked post types.
  * @return string[]
@@ -53,8 +50,6 @@ add_filter( 'desktop_mode_recycle_bin_capture_post_types', 'desktop_mode_notes_r
 /**
  * Whether a trashed post is a note owned by the current user.
  *
- * @since 0.9.6
- *
  * @param WP_Post $post Trashed post.
  * @return bool
  */
@@ -65,8 +60,6 @@ function desktop_mode_notes_recycle_bin_owns( $post ) {
 /**
  * Owner-only view/restore/purge for notes — replaces the bin's
  * default `edit_post`/`delete_post` gates for this post type.
- *
- * @since 0.9.6
  *
  * @param bool    $can  The bin's default answer.
  * @param WP_Post $post Trashed post.
@@ -84,8 +77,6 @@ add_filter( 'desktop_mode_recycle_bin_user_can_purge', 'desktop_mode_notes_recyc
 
 /**
  * Paper-flavored row shape for trashed notes.
- *
- * @since 0.9.6
  *
  * @param array   $item Bin item shape.
  * @param WP_Post $post Source post.
@@ -123,8 +114,6 @@ add_filter( 'desktop_mode_recycle_bin_item', 'desktop_mode_notes_recycle_bin_ite
 /**
  * Number of trashed notes for a given scope.
  *
- * @since 0.9.6
- *
  * @param int|null $author_id Scope to one author, or null for all.
  * @return int
  */
@@ -151,8 +140,6 @@ function desktop_mode_notes_recycle_bin_trashed_count( $author_id = null ) {
  * holding `edit_others_posts`, OWN trashed notes for `edit_posts`
  * holders, and none for anyone else. Normalize every case to "own
  * trashed notes".
- *
- * @since 0.9.6
  *
  * @param int $total Generic total.
  * @return int

@@ -3,8 +3,6 @@
  *
  * Same shape as themes / controls / slots server-syncs. Marked
  * Experimental — chrome render contract may change.
- *
- * @since 0.6.0
  */
 
 import { doAction, HOOKS } from '../../hooks';

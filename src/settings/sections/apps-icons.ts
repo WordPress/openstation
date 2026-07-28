@@ -7,8 +7,6 @@
  * appear: on the dock, on the wallpaper, on both surfaces, or
  * nowhere. The choice writes to `state.itemVisibility` and the layout
  * dispatcher's settings subscription refreshes the rails live.
- *
- * @since 0.8.2
  */
 
 import { __ } from '../../i18n';

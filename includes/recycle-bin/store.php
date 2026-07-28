@@ -12,7 +12,6 @@
  * trash, or filter by author/role for compliance use cases).
  *
  * @package WPDesktopMode
- * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,8 +19,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Returns the list of trashed items the current user is allowed to
  * see, shaped for the table component.
- *
- * @since 0.6.0
  *
  * @param array $args {
  *     Optional. Query overrides.
@@ -91,8 +88,6 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 		/**
 		 * Filter the WP_Query args used to populate the recycle bin.
 		 *
-		 * @since 0.6.0
-		 *
 		 * @param array $query_args Args passed to WP_Query.
 		 * @param array $args       Caller-provided args.
 		 */
@@ -122,8 +117,6 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 		 * Filter the `WP_Comment_Query` args used to populate the
 		 * recycle bin's comments. Mirror of
 		 * `desktop_mode_recycle_bin_query_args` for comments.
-		 *
-		 * @since 0.6.0
 		 *
 		 * @param array $comment_args Args passed to `get_comments()`.
 		 * @param array $args         Caller-provided args.
@@ -212,11 +205,9 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
 	/**
 	 * Filter the final list of items returned to the JS layer.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param array      $items Shaped list (id, title, type, deleted_at, …).
 	 * @param array|null $query Underlying post query, or null for the
-	 *                          merged post+comment shape (since 0.6.0).
+	 *                          merged post+comment shape.
 	 */
 	$sliced = apply_filters( 'desktop_mode_recycle_bin_items', $sliced, null );
 
@@ -240,8 +231,6 @@ function desktop_mode_recycle_bin_get_items( $args = array() ) {
  * at all contribute zero, and types where the user can only edit their
  * own posts are counted author-scoped — so the badge never discloses
  * the global trash total to low-capability users.
- *
- * @since 0.6.0
  *
  * @return int
  */
@@ -318,13 +307,11 @@ function desktop_mode_recycle_bin_count() {
 	/**
 	 * Filter the total count surfaced to the badge.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $total         Default sum (posts + comments + files visible to the user).
 	 * @param int $post_count    Items in trash from the post-type query, capability-scoped
 	 *                           to what the current user can edit.
 	 * @param int $comment_count Items in trash from the comment query.
-	 * @param int $files_count   Items in trash from the desktop-files trash (since 0.8.0).
+	 * @param int $files_count   Items in trash from the desktop-files trash.
 	 */
 	return (int) apply_filters( 'desktop_mode_recycle_bin_count', $total, $post_count, $comment_count, $files_count );
 }
@@ -334,8 +321,6 @@ function desktop_mode_recycle_bin_count() {
  * that don't moderate comments at all (read-only blogs, headless
  * setups) can hide the segment without touching the JS.
  *
- * @since 0.6.0
- *
  * @return bool
  */
 function desktop_mode_recycle_bin_comments_enabled() {
@@ -343,8 +328,6 @@ function desktop_mode_recycle_bin_comments_enabled() {
 
 	/**
 	 * Filter whether the recycle bin tracks comments.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param bool $on Default: current user has `moderate_comments`.
 	 */
@@ -358,8 +341,6 @@ function desktop_mode_recycle_bin_comments_enabled() {
  * "if you can edit it, you can manage its trash" rule. Filterable for
  * stricter / looser policies.
  *
- * @since 0.6.0
- *
  * @param WP_Post $post Trashed post.
  * @return bool
  */
@@ -368,8 +349,6 @@ function desktop_mode_recycle_bin_user_can_view( $post ) {
 
 	/**
 	 * Filter whether the current user can see a given trashed item.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param bool    $can  Default: edit_post capability check.
 	 * @param WP_Post $post Trashed post.
@@ -380,8 +359,6 @@ function desktop_mode_recycle_bin_user_can_view( $post ) {
 /**
  * Whether the current user can restore a given trashed item.
  *
- * @since 0.6.0
- *
  * @param WP_Post $post Trashed post.
  * @return bool
  */
@@ -390,8 +367,6 @@ function desktop_mode_recycle_bin_user_can_restore( $post ) {
 
 	/**
 	 * Filter whether the current user can restore a given trashed item.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param bool    $can  Default: delete_post capability check (the same
 	 *                      gate WP itself uses for trash/untrash).
@@ -403,8 +378,6 @@ function desktop_mode_recycle_bin_user_can_restore( $post ) {
 /**
  * Whether the current user can permanently delete a trashed item.
  *
- * @since 0.6.0
- *
  * @param WP_Post $post Trashed post.
  * @return bool
  */
@@ -413,8 +386,6 @@ function desktop_mode_recycle_bin_user_can_purge( $post ) {
 
 	/**
 	 * Filter whether the current user can permanently delete a trashed item.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param bool    $can  Default: delete_post capability check.
 	 * @param WP_Post $post Trashed post.
@@ -426,8 +397,6 @@ function desktop_mode_recycle_bin_user_can_purge( $post ) {
  * Capability gates for trashed comments. Mirror of the post gates,
  * with `edit_comment`/`moderate_comments` as the WP-native checks.
  *
- * @since 0.6.0
- *
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
@@ -435,7 +404,6 @@ function desktop_mode_recycle_bin_user_can_view_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
-	 * @since 0.6.0
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
@@ -443,8 +411,6 @@ function desktop_mode_recycle_bin_user_can_view_comment( $comment ) {
 }
 
 /**
- * @since 0.6.0
- *
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
@@ -452,7 +418,6 @@ function desktop_mode_recycle_bin_user_can_restore_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
-	 * @since 0.6.0
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
@@ -460,8 +425,6 @@ function desktop_mode_recycle_bin_user_can_restore_comment( $comment ) {
 }
 
 /**
- * @since 0.6.0
- *
  * @param WP_Comment $comment Trashed comment.
  * @return bool
  */
@@ -469,7 +432,6 @@ function desktop_mode_recycle_bin_user_can_purge_comment( $comment ) {
 	$can = current_user_can( 'edit_comment', $comment->comment_ID );
 
 	/**
-	 * @since 0.6.0
 	 * @param bool       $can     Default: edit_comment capability check.
 	 * @param WP_Comment $comment Trashed comment.
 	 */
@@ -483,8 +445,6 @@ function desktop_mode_recycle_bin_user_can_purge_comment( $comment ) {
  * have to special-case the row by `type`. The `title` reads as
  * "<author> on <post title>"; the `subtitle` carries a 100-char
  * excerpt of `comment_content`.
- *
- * @since 0.6.0
  *
  * @param WP_Comment $comment Trashed comment.
  * @return array
@@ -537,8 +497,6 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
 	/**
 	 * Filter the comment item shape.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param array      $item    Item shape.
 	 * @param WP_Comment $comment Source comment.
 	 */
@@ -555,8 +513,6 @@ function desktop_mode_recycle_bin_shape_comment_item( $comment ) {
  * `textContent` and would show the literal entity. Strip tags first,
  * then decode entities back to characters.
  *
- * @since 0.9.6
- *
  * @param string $text Raw filtered text.
  * @return string
  */
@@ -570,8 +526,6 @@ function desktop_mode_recycle_bin_plain_text( $text ) {
 
 /**
  * Shape one WP_Post into the JSON the JS table consumes.
- *
- * @since 0.6.0
  *
  * @param WP_Post $post Trashed post.
  * @return array
@@ -669,8 +623,6 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 	 * post type. The id/type/deleted_at trio is load-bearing — keep
 	 * them in the returned array.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param array   $item Item shape.
 	 * @param WP_Post $post Source post.
 	 */
@@ -679,8 +631,6 @@ function desktop_mode_recycle_bin_shape_item( $post ) {
 
 /**
  * Map a mime type to a Dashicon for the type cell.
- *
- * @since 0.6.0
  *
  * @param string $mime Mime type.
  * @return string Dashicon class.
@@ -730,9 +680,6 @@ function desktop_mode_recycle_bin_icon_for_mime( $mime ) {
  * call (id only) defaults to `'post'` so older clients that haven't
  * migrated to the typed API keep working.
  *
- * @since 0.6.0
- * @since 0.6.0 Added `$type` parameter.
- *
  * @param int    $id   Post id (or comment id when `$type === 'comment'`).
  * @param string $type Entity type — '', 'post', 'page', 'attachment', or 'comment'.
  * @return true|WP_Error
@@ -763,8 +710,6 @@ function desktop_mode_recycle_bin_restore( $id, $type = '' ) {
 	/**
 	 * Fires before a recycle-bin item is restored.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int     $id   Post id about to be restored.
 	 * @param WP_Post $post Trashed post object.
 	 */
@@ -781,8 +726,6 @@ function desktop_mode_recycle_bin_restore( $id, $type = '' ) {
 	/**
 	 * Fires after a recycle-bin item is restored.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $id Post id that was restored.
 	 */
 	do_action( 'desktop_mode_recycle_bin_after_restore', $id );
@@ -792,8 +735,6 @@ function desktop_mode_recycle_bin_restore( $id, $type = '' ) {
 
 /**
  * Restore a single trashed comment.
- *
- * @since 0.6.0
  *
  * @param int $comment_id Comment id.
  * @return true|WP_Error
@@ -815,8 +756,6 @@ function desktop_mode_recycle_bin_restore_comment( $comment_id ) {
 	/**
 	 * Fires before a comment is restored from the recycle bin.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int        $comment_id Comment id.
 	 * @param WP_Comment $comment    Trashed comment.
 	 */
@@ -833,8 +772,6 @@ function desktop_mode_recycle_bin_restore_comment( $comment_id ) {
 	/**
 	 * Fires after a comment is restored from the recycle bin.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int $comment_id Comment id.
 	 */
 	do_action( 'desktop_mode_recycle_bin_after_restore_comment', $comment_id );
@@ -844,9 +781,6 @@ function desktop_mode_recycle_bin_restore_comment( $comment_id ) {
 
 /**
  * Permanently delete a single trashed item. Dispatches by `$type`.
- *
- * @since 0.6.0
- * @since 0.6.0 Added `$type` parameter.
  *
  * @param int    $id   Post id (or comment id when `$type === 'comment'`).
  * @param string $type Entity type — '', 'post', 'page', 'attachment', or 'comment'.
@@ -878,8 +812,6 @@ function desktop_mode_recycle_bin_purge( $id, $type = '' ) {
 	/**
 	 * Fires before a recycle-bin item is permanently deleted.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int     $id   Post id about to be deleted.
 	 * @param WP_Post $post Trashed post object.
 	 */
@@ -902,8 +834,6 @@ function desktop_mode_recycle_bin_purge( $id, $type = '' ) {
 	/**
 	 * Fires after a recycle-bin item is permanently deleted.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int    $id   Post id that was purged.
 	 * @param string $type Post type of the purged item.
 	 */
@@ -914,8 +844,6 @@ function desktop_mode_recycle_bin_purge( $id, $type = '' ) {
 
 /**
  * Permanently delete a single trashed comment.
- *
- * @since 0.6.0
  *
  * @param int $comment_id Comment id.
  * @return true|WP_Error
@@ -937,8 +865,6 @@ function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
 	/**
 	 * Fires before a comment is permanently deleted via the bin.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param int        $comment_id Comment id.
 	 * @param WP_Comment $comment    Trashed comment.
 	 */
@@ -952,8 +878,6 @@ function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
 
 	/**
 	 * Fires after a comment is permanently deleted via the bin.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param int $comment_id Comment id.
 	 */
@@ -975,8 +899,6 @@ function desktop_mode_recycle_bin_purge_comment( $comment_id ) {
  * the chunk size via the `desktop_mode_recycle_bin_empty_chunk_size`
  * filter.
  *
- * @since 0.6.0
- *
  * @return array {
  *     @type int $purged    Items successfully purged in this call.
  *     @type int $skipped   Items skipped (capability or error).
@@ -995,8 +917,6 @@ function desktop_mode_recycle_bin_empty() {
 	 * default (200) is conservative for shared hosts; sites with
 	 * generous PHP execution limits can raise it to make emptying a
 	 * large bin take fewer roundtrips.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param int $chunk_size Items processed per call. Default 200.
 	 */
@@ -1024,8 +944,6 @@ function desktop_mode_recycle_bin_empty() {
 
 	/**
 	 * Fires after the recycle bin is emptied.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param int $purged  Items successfully purged in this call.
 	 * @param int $skipped Items skipped (capability or error).

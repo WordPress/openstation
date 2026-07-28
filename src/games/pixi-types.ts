@@ -11,9 +11,6 @@
  * — never `destroy( true )`, which runs `releaseGlobalResources()`
  * and corrupts every other live Pixi Application on the page (the
  * active wallpaper, content graph, OS Settings previews).
- *
- * @since 0.9.6 as `src/games/inkfall/pixi-types.ts`
- * @since 0.9.8 promoted to the games framework
  */
 
 export interface PixiContainer {

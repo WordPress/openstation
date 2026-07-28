@@ -352,6 +352,23 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( aEntry.height ).toBe( 480 );
 	} );
 
+	test( 'snapshot skips ephemeral windows — even when focused', async () => {
+		await manager.open( openConfig( 'a' ) );
+		const preview = await manager.open( {
+			...openConfig( 'editor-preview-post-1' ),
+			ephemeral: true,
+		} );
+		manager.focus( preview );
+
+		const snap = manager.snapshot();
+
+		expect(
+			snap.windows.some( ( w ) => w.id === 'editor-preview-post-1' ),
+		).toBe( false );
+		expect( snap.windows.some( ( w ) => w.id === 'a' ) ).toBe( true );
+		expect( snap.focused ).toBe( '' );
+	} );
+
 	// -----------------------------------------------------------------
 	// Active-desktop scoping for isActive / isActiveByBaseId /
 	// getAllByBaseIdOnActiveDesktop / minimizeAll / restoreFrom /

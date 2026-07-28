@@ -15,9 +15,7 @@
  *   - Tests can stub the REST surface and assert just the toast +
  *     broadcast plumbing.
  *
- * Extracted from `layer.ts` in 0.8.1 (drag-and-drop rework).
- *
- * @since 0.8.1
+ * Extracted from `layer.ts` (drag-and-drop rework).
  */
 
 import { rest, store as filesStoreApi } from './layer-deps';

@@ -17,8 +17,6 @@
  * matching lengths + matching child shapes update in place, otherwise
  * the slot tears down and remounts fresh. Good enough for the UI
  * we render; no keyed diffing for v1.
- *
- * @since 0.9.0
  */
 
 /**

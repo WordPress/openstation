@@ -47,8 +47,6 @@
  * permission 403 (`rest_forbidden` for a capability the user
  * lacks) costs at most one debounced heartbeat POST and can never
  * pop the login modal for a live session.
- *
- * @since 0.9.8
  */
 
 import { heartbeat } from '../heartbeat';

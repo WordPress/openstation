@@ -32,8 +32,6 @@
  * Cancellation paths (Escape, blur, visibilitychange, pointercancel,
  * manual `session.cancel()`) all funnel into the same
  * `_cancel( session, reason )` exit.
- *
- * @since 0.8.1
  */
 
 import { DropTargetRegistry } from './drop-target-registry';
@@ -60,8 +58,6 @@ const FILES_DROP_ACTIVE_ATTR = 'data-files-drop-active';
  * visual cues (animated outline on the wallpaper, pulse on accepting
  * folder tiles, etc.) without each surface having to subscribe to the
  * DragManager's CustomEvents.
- *
- * @since 0.8.2
  */
 const BODY_DRAGGING_ATTR = 'data-desktop-mode-dragging';
 const BODY_DRAG_TYPE_ATTR = 'data-desktop-mode-drag-type';
@@ -157,7 +153,6 @@ export class DragManager implements DragManagerApi {
 	 * `requestAnimationFrame` and call back into a click-driven API.
 	 *
 	 * @public
-	 * @since 0.8.5
 	 */
 	recentlyEndedDrag( withinMs = 500 ): boolean {
 		if ( this._lastLiftedEndAt === 0 ) {

@@ -22,7 +22,6 @@
  * placement every viewer sees.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,8 +34,6 @@ const DESKTOP_MODE_NOTES_POST_TYPE = 'wpd_note';
  * Mirrored client-side in `src/notes/colors.ts` — keep both lists in
  * sync (the CSS custom properties in `assets/css/notes.css` are keyed
  * by these slugs).
- *
- * @since 0.9.6
  *
  * @return string[] Color slugs.
  */
@@ -51,8 +48,6 @@ function desktop_mode_notes_colors() {
 	 * for a `[data-note-color="<slug>"]` selector, otherwise notes
 	 * using them render with the fallback (butter) paper.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param string[] $colors Allowed color slugs.
 	 */
 	$colors = apply_filters( 'desktop_mode_notes_colors', $colors );
@@ -62,8 +57,6 @@ function desktop_mode_notes_colors() {
 
 /**
  * Register the `wpd_note` post type + its meta.
- *
- * @since 0.9.6
  */
 function desktop_mode_notes_register_cpt() {
 	register_post_type(
@@ -147,8 +140,6 @@ add_action( 'init', 'desktop_mode_notes_register_cpt' );
 /**
  * Clamp a note color to the allowed pastel whitelist.
  *
- * @since 0.9.6
- *
  * @param mixed $color Raw value.
  * @return string Whitelisted slug (falls back to 'butter').
  */
@@ -164,8 +155,6 @@ function desktop_mode_notes_sanitize_color( $color ) {
 /**
  * Clamp a note position coordinate to the normalized 0–1 range.
  *
- * @since 0.9.6
- *
  * @param mixed $value Raw value.
  * @return float
  */
@@ -179,8 +168,6 @@ function desktop_mode_notes_sanitize_fraction( $value ) {
  * Core's default untrash status is 'draft', which would silently flip
  * a public note private (and make it invisible to its own list query,
  * which only looks at private + publish). Restore what the note was.
- *
- * @since 0.9.6
  *
  * @param string $new_status      Status the post is about to get.
  * @param int    $post_id         Post ID.

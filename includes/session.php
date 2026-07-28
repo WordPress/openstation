@@ -43,8 +43,6 @@ function desktop_mode_default_desktop() {
  * assume at least one desktop exists at boot — the shell can't
  * function with zero desktops.
  *
- * @since 0.4.0
- *
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
 function desktop_mode_empty_session() {
@@ -62,8 +60,6 @@ function desktop_mode_empty_session() {
  *
  * Always returns a well-shaped array so callers don't have to defend
  * against corrupt or partial meta.
- *
- * @since 0.4.0
  *
  * @param int $user_id The user ID.
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
@@ -108,10 +104,7 @@ function desktop_mode_get_session( $user_id ) {
  * with real wall-clock ordering on same-machine multi-tab setups.
  *
  * Equal timestamps (two writes in the same second) are accepted —
- * that's a tie and whichever the server processes first wins, which
- * matches the pre-0.8 behavior for simultaneous saves.
- *
- * @since 0.4.0
+ * that's a tie and whichever the server processes first wins.
  *
  * @param int   $user_id The user ID.
  * @param array $session Raw session payload (will be sanitized).
@@ -145,8 +138,6 @@ function desktop_mode_save_session( $user_id, $session ) {
 /**
  * Clears a user's saved desktop session.
  *
- * @since 0.4.0
- *
  * @param int $user_id The user ID.
  * @return bool True on success.
  */
@@ -164,8 +155,6 @@ function desktop_mode_clear_session( $user_id ) {
  * Rejects windows whose `url` isn't a same-origin admin URL, clamps
  * geometry to sane integer ranges, and normalizes the state enum.
  * Windows beyond {@see DESKTOP_MODE_SESSION_MAX_WINDOWS} are dropped.
- *
- * @since 0.4.0
  *
  * @param mixed $session Raw session data from the client.
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
@@ -401,10 +390,6 @@ function desktop_mode_sanitize_session( $session ) {
  * are then clamped into `[min, max]`, so no out-of-range value
  * survives.
  *
- * @since 0.4.0
- * @since 0.5.0 Rejects non-numeric input explicitly instead of
- *               relying on PHP's permissive `(int)` cast.
- *
  * @param mixed $value The raw value.
  * @param int   $min   Minimum allowed value.
  * @param int   $max   Maximum allowed value.
@@ -430,8 +415,6 @@ function desktop_mode_sanitize_session_dimension( $value, $min, $max ) {
 /**
  * Registers the REST routes used by the desktop shell to load and save
  * the current user's session.
- *
- * @since 0.4.0
  */
 function desktop_mode_register_session_rest_routes() {
 	register_rest_route(
@@ -469,9 +452,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_session_rest_routes' );
  * desktop mode enabled. See {@see desktop_mode_rest_require_enabled()}
  * for why `read` alone is insufficient.
  *
- * @since 0.4.0
- * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
- *
  * @return true|WP_Error
  */
 function desktop_mode_rest_session_permission() {
@@ -481,8 +461,6 @@ function desktop_mode_rest_session_permission() {
 /**
  * GET /desktop-mode/v1/session — returns the caller's session.
  *
- * @since 0.4.0
- *
  * @return WP_REST_Response
  */
 function desktop_mode_rest_get_session() {
@@ -491,8 +469,6 @@ function desktop_mode_rest_get_session() {
 
 /**
  * POST /desktop-mode/v1/session — replaces the caller's session.
- *
- * @since 0.4.0
  *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The stored session (after sanitization).
@@ -506,8 +482,6 @@ function desktop_mode_rest_save_session( WP_REST_Request $request ) {
 
 /**
  * DELETE /desktop-mode/v1/session — clears the caller's session.
- *
- * @since 0.4.0
  *
  * @return WP_REST_Response
  */

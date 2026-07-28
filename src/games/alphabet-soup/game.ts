@@ -14,8 +14,6 @@
  *
  * The puzzle itself is seeded by the current date (`dd-mm-yyyy`) —
  * see `seed.ts` — so every player worldwide stirs the same soup.
- *
- * @since 0.9.8
  */
 
 import { __, sprintf } from '../../i18n';

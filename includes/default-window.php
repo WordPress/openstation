@@ -14,10 +14,9 @@
  *
  * Stored as a serialized array on user-meta `desktop_mode_default_window`.
  * A missing meta entry is treated as `{ enabled: true, url: <dashboard> }`
- * for backward compatibility with pre-0.6 installs.
+ * for backward compatibility with older installs.
  *
  * @package WPDesktopMode
- * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -27,8 +26,6 @@ const DESKTOP_MODE_DEFAULT_WINDOW_META = 'desktop_mode_default_window';
 
 /**
  * Fetch the user's default-window preference as a normalized array.
- *
- * @since 0.6.0
  *
  * @param int $user_id User ID. Falls back to the current user when 0.
  * @return array{enabled: bool, url: string} Always returns both keys.
@@ -68,8 +65,6 @@ function desktop_mode_get_default_window( $user_id = 0 ) {
  * Passing `null` for $url disables the default entirely — the shell
  * will open an empty desktop on portal entry. Passing a URL enables
  * the default and sets it.
- *
- * @since 0.6.0
  *
  * @param int         $user_id User ID. Must be positive.
  * @param string|null $url     URL to set, or null to disable.
@@ -115,8 +110,6 @@ function desktop_mode_set_default_window( $user_id, $url ) {
  * A stricter net than `esc_url_raw` because the value flows back into
  * the portal-entry redirect — we don't want an attacker's CSRF-seeded
  * preference to hijack the user into an off-site landing page.
- *
- * @since 0.6.0
  *
  * @param string $url Raw input.
  * @return string Fully-qualified admin URL or `native:<slug>` marker, or empty string if rejected.
@@ -178,8 +171,6 @@ function desktop_mode_validate_default_window_url( $url ) {
  * REST route: `POST /desktop-mode/v1/default-window`.
  *
  * Body: `{ url: string | null }`. Null disables the default.
- *
- * @since 0.6.0
  */
 function desktop_mode_register_default_window_routes() {
 	register_rest_route(
@@ -216,8 +207,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_default_window_routes' );
  *   - `{}` (missing key) → treated same as null, for clients that
  *      encode "clear this value" as an absent key rather than an
  *      explicit null.
- *
- * @since 0.6.0
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error

@@ -10,8 +10,6 @@
  * effect is writing `window.desktopModeWallpapers['wp-living-tree']`; the
  * shell's wallpaper `server-sync` reads that global after the script
  * loads. Server registration lives in `includes/living-tree/wallpaper.php`.
- *
- * @since 0.9.4
  */
 
 import type {

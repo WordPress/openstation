@@ -14,8 +14,6 @@
  * every request, so writing the reset back would be a redundant
  * round-trip — and worse, it would clobber the user's selection
  * permanently if the theme were merely temporarily absent.
- *
- * @since 0.9.7
  */
 
 import { applyDesktopTheme } from './apply';
@@ -32,8 +30,6 @@ export interface DesktopThemeSyncDeps {
 
 /**
  * Build the reconciler the live-refresh applier calls.
- *
- * @since 0.9.7
  *
  * @param deps See {@link DesktopThemeSyncDeps}.
  * @return `( list ) => void`

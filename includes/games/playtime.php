@@ -19,15 +19,12 @@
  * stricter policies.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * The user-meta key holding the per-game play-time map.
- *
- * @since 0.9.7
  */
 define( 'DESKTOP_MODE_GAMES_PLAYTIME_META', 'desktop_mode_game_playtime' );
 
@@ -39,15 +36,11 @@ define( 'DESKTOP_MODE_GAMES_PLAYTIME_META', 'desktop_mode_game_playtime' );
  * `desktop_mode_games_playtime_history_days`). The lifetime totals
  * in {@see DESKTOP_MODE_GAMES_PLAYTIME_META} are authoritative and
  * never pruned.
- *
- * @since 0.9.7
  */
 define( 'DESKTOP_MODE_GAMES_PLAYTIME_DAYS_META', 'desktop_mode_game_playtime_days' );
 
 /**
  * Today's daily-bucket key (`YYYY-MM-DD`, site timezone).
- *
- * @since 0.9.7
  *
  * @return string
  */
@@ -57,8 +50,6 @@ function desktop_mode_games_playtime_today_key() {
 
 /**
  * Read a user's accumulated play time.
- *
- * @since 0.9.7
  *
  * @param int    $user_id Player.
  * @param string $game    Optional game id. Empty returns the full map.
@@ -87,8 +78,6 @@ function desktop_mode_games_get_playtime( $user_id, $game = '' ) {
 
 /**
  * Read a user's daily play-time buckets.
- *
- * @since 0.9.7
  *
  * @param int    $user_id Player.
  * @param string $game    Optional game id. Empty returns the full map.
@@ -124,8 +113,6 @@ function desktop_mode_games_get_playtime_daily( $user_id, $game = '' ) {
 
 /**
  * Add seconds to a user's play-time total for a game.
- *
- * @since 0.9.7
  *
  * @param string $game    Registered game id.
  * @param int    $user_id Player.
@@ -166,8 +153,6 @@ function desktop_mode_games_add_playtime( $game, $user_id, $seconds ) {
 	 * past that is either a background-throttled tab catching up or a
 	 * hostile client; the clamp bounds the damage either way.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param int    $max_seconds Default 900 (15 minutes).
 	 * @param string $game        Game id.
 	 * @param int    $user_id     Player.
@@ -179,8 +164,6 @@ function desktop_mode_games_add_playtime( $game, $user_id, $seconds ) {
 	 * Short-circuit / veto filter for play-time recording. Return a
 	 * `WP_Error` to reject the increment (surfaced to the client), or
 	 * `null` to proceed.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param null|WP_Error $pre     Null to proceed.
 	 * @param string        $game    Game id.
@@ -205,8 +188,6 @@ function desktop_mode_games_add_playtime( $game, $user_id, $seconds ) {
 	 * Filter how many days of daily play-time buckets are retained.
 	 * The Games hub needs 14 for its "last two weeks" figure.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param int $days Default 30.
 	 */
 	$window = max( 1, (int) apply_filters( 'desktop_mode_games_playtime_history_days', 30 ) );
@@ -227,8 +208,6 @@ function desktop_mode_games_add_playtime( $game, $user_id, $seconds ) {
 
 	/**
 	 * Fires after a play-time increment is recorded.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param string $game    Game id.
 	 * @param int    $user_id Player.

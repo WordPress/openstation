@@ -231,5 +231,5 @@ wp.hooks.addFilter(
 
 - [Desktop themes](../desktop-themes.md) — manifest format, slot tables, value grammar
 - [Hooks reference](../hooks-reference.md#desktop-themes) — the PHP filters and actions
-- [JavaScript reference](../javascript-reference.md#desktop-themes) — `wp.desktop.desktopThemes`
+- [JavaScript reference](../javascript-reference.md#desktop-themes-experimental) — `wp.desktop.desktopThemes`
 - [Window themes](./window-theme.md) — the per-window sibling feature

@@ -42,8 +42,6 @@
  *     content lives in a per-window snapshot map captured on first
  *     paint, so the icon and title come back when an override is
  *     cleared via `applySlot()`.
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../../hooks';

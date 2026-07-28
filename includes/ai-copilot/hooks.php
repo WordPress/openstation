@@ -45,8 +45,6 @@ defined( 'ABSPATH' ) || exit;
  * The deduplication transient prevents the same entity from being
  * queued and run twice within the guard window.
  *
- * @since 0.5.0
- *
  * @param string $hook      Cron hook name, e.g. 'desktop_mode_ai_analyze_comment'.
  * @param array  $args      Arguments passed to the hook callback.
  * @param string $dedup_key Unique string used to build the transient key.
@@ -99,8 +97,6 @@ function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
  *      anonymous comments, WP-CLI imports, and REST API requests without an
  *      authenticated user context.
  *
- * @since 0.5.0
- *
  * @param int $fallback_user_id Author/owner to try when no current user.
  * @return int User ID, or 0 if none could be found.
  */
@@ -125,8 +121,6 @@ function desktop_mode_ai_resolve_user_id( $fallback_user_id = 0 ) {
  *
  * Used as a last-resort fallback for anonymous comments, WP-CLI imports,
  * and other contexts where no user session is available.
- *
- * @since 0.5.0
  *
  * @return int User ID, or 0 if none found.
  */

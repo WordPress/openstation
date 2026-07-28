@@ -4,7 +4,6 @@
  * Mirrors the REST shapes served by `includes/agents/rest.php`.
  *
  * @public
- * @since 0.9.8
  */
 
 /** One configured trigger row on an agent. */

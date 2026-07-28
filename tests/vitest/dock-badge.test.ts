@@ -6,7 +6,7 @@
  *
  * Together with `desktop-icons-badge.test.ts` and the dock
  * resolver suite, this round-trips the "one shape across every
- * rail" contract that 0.24.0 introduced.
+ * rail" contract.
  *
  * @group dock
  */

@@ -11,7 +11,6 @@
  * the framework's theming, hover, and dark-mode treatment for free.
  *
  * @public
- * @since 0.8.5
  */
 
 import { __, sprintf } from '../i18n';

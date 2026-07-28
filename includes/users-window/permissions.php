@@ -20,15 +20,12 @@
  * mutating anything.
  *
  * @package WPDesktopMode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Whether the user is eligible to have the Users window registered.
- *
- * @since 0.8.1
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -43,8 +40,6 @@ function desktop_mode_users_window_user_can_register( $user_id = null ) {
 	 * dock click use the native window?" is the JS-side
 	 * `nativeUsersEnabled` flag.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param bool $can     Default: `list_users` capability.
 	 * @param int  $user_id User being checked.
 	 */
@@ -58,8 +53,6 @@ function desktop_mode_users_window_user_can_register( $user_id = null ) {
 /**
  * Combined cap-and-opt-in check. Used by callers that want the
  * combined answer (e.g. analytics, an arrange-menu entry).
- *
- * @since 0.8.1
  *
  * @param int|null $user_id Optional.
  * @return bool
@@ -81,8 +74,6 @@ function desktop_mode_users_window_user_can_use( $user_id = null ) {
 	 * Filter whether the current user has opted into the native Users
 	 * experience.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
@@ -101,8 +92,6 @@ function desktop_mode_users_window_user_can_use( $user_id = null ) {
  * the list server-side and surface it on the row so the UI can hide
  * options the viewer can't apply; the REST mutation routes call this
  * same filtered helper and reject anything outside it.
- *
- * @since 0.8.1
  *
  * @param int $viewer_id Requesting user.
  * @param int $target_id Target user (optional — used by filters).
@@ -156,8 +145,6 @@ function desktop_mode_users_window_assignable_roles( $viewer_id, $target_id = 0 
 	 * bulk-role route and the create-user route validate the requested
 	 * role against this same filtered list (see `rest.php`), so only
 	 * add roles you genuinely intend to make assignable.
-	 *
-	 * @since 0.8.1
 	 *
 	 * @param string[] $slugs    Default role slug list.
 	 * @param int      $viewer_id

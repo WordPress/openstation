@@ -11,8 +11,6 @@
  * live in a `createSharedStore` record — both bundles mutate the
  * same arrays. See AGENTS.md ("Cross-bundle state") for why a plain
  * module-level array would silently split into per-bundle copies.
- *
- * @since 0.9.6
  */
 
 import { applyFilters, HOOKS } from '../hooks';

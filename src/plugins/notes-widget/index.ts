@@ -22,8 +22,6 @@
  * main bundle (payload / CustomEvent detail); the REST client copy
  * compiled into THIS bundle gets its own deps installed from
  * `window.desktopModeConfig`.
- *
- * @since 0.9.6
  */
 import './styles.css';
 import '../../ui/components/wpd-checkbox-label/wpd-checkbox-label';

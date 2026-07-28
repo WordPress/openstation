@@ -25,8 +25,6 @@
  * `assets/css/window-links.css` on the custom properties
  * `--desktop-mode-window-link-*` — themes and plugins restyle the
  * splines without touching this module.
- *
- * @since 0.9.4
  */
 
 import { __ } from '../../i18n';

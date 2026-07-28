@@ -10,8 +10,6 @@
  * The grid paints from the shared games registry and repaints live
  * as plugins register/unregister games mid-session; the first game
  * auto-selects so the window is never empty.
- *
- * @since 0.9.6
  */
 
 // Side-effect imports — register the `<wpd-*>` components this module

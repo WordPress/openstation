@@ -11,8 +11,6 @@
  * Pure — fully unit-tested. The deterministic PRNG primitives
  * (`hash32` FNV-1a + `mulberry32`) are the repo-standard pair from
  * the living-tree wallpaper.
- *
- * @since 0.9.8
  */
 
 import {

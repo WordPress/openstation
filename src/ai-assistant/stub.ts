@@ -18,8 +18,6 @@
  *   - Main bundle:   ~1 kB stub.
  *   - Lazy bundle:   ai-assistant.min.js, fetched on first use.
  *   - First-paint:   zero impact — no network call until invocation.
- *
- * @since 0.8.4
  */
 
 import type { AskFn } from '../ai/ask';

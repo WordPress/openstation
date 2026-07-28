@@ -17,8 +17,6 @@
  * other registered chrome calls its `render()` once, captures the
  * returned handle, and routes window-state updates through the
  * handle's `update()`.
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../../hooks';

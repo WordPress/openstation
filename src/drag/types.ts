@@ -31,8 +31,6 @@
  * separate channel. That bridge is a payload carrier, not a gesture
  * driver — its lifecycle is owned by the source/destination iframes,
  * not the parent shell.
- *
- * @since 0.8.1
  */
 
 /**
@@ -65,8 +63,6 @@ export interface GhostConfig {
 	 * the cursor + colored-outline cues. Defaults to sensible
 	 * messages for the framework payload types (`'shortcut'` /
 	 * `'desktop-file'`); pass `hidden: true` to opt out.
-	 *
-	 * @since 0.8.2
 	 */
 	hint?: GhostHintConfig;
 }
@@ -139,8 +135,6 @@ export interface DropTarget {
 	 * to move") when omitted. Use it when the target's semantic
 	 * differs from a generic placement — e.g. the recycle bin shows
 	 * "Move to Trash" instead of "create shortcut".
-	 *
-	 * @since 0.8.9
 	 */
 	acceptLabel?: string;
 }

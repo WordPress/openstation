@@ -1,6 +1,6 @@
 # AI Agents — extend and invoke from a plugin
 
-**Status: Experimental (0.9.8).** The whole module sits behind the
+**Status: Experimental.** The whole module sits behind the
 `agents` extended option (OS Settings → Features → Extended options,
 admin-only). While the flag is off none of these hooks or routes
 exist.
@@ -8,7 +8,7 @@ exist.
 An agent is a login-blocked `wp_users` row whose definition
 (description, system prompt, ability allowlist, triggers, model
 override, rate limit) lives as user meta on that row. Full contract:
-[Hooks Reference — AI Agents](../hooks-reference.md#ai-agents-since-098).
+[Hooks Reference — AI Agents](../hooks-reference.md#ai-agents).
 
 ## Give agents a new tool
 

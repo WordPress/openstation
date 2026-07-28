@@ -18,8 +18,6 @@
  * body class, and enqueued the stylesheet before the shell ran, so
  * there is no flash of the default palette. This module detects that
  * pre-stamped state and adopts it instead of rebuilding it.
- *
- * @since 0.9.7
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -123,7 +121,6 @@ function applyBodyClass( slug: string | null ): void {
  * route through it, and none of them need to know about themes.
  *
  * @public
- * @since 0.9.7
  *
  * @param themeId Theme slug or id. `''` / `null` = system default.
  */

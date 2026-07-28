@@ -35,8 +35,6 @@
  * Storage   →  ctx.storage gives your widget its own namespaced localStorage
  *              pocket. Two different widgets can both store a key called
  *              "preferences" without colliding.
- *
- * @since 0.26.0
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';

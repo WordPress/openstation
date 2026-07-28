@@ -32,8 +32,6 @@ defined( 'ABSPATH' ) || exit;
  *   WordPress 7.0 Connectors. Deletes the platform key option and strips the
  *   per-user `apiKey` / `apiKeys` / `provider` / `transport` fields from the
  *   stored OS settings so no provider secret lingers in the database.
- *
- * @since 0.9.1
  */
 const DESKTOP_MODE_MIGRATION_VERSION = 3;
 
@@ -45,8 +43,6 @@ const DESKTOP_MODE_MIGRATION_OPTION = 'desktop_mode_migration_version';
  *
  * Idempotent: bails immediately when the stored version is already at
  * or above the shipped version, so it is safe to fire on every request.
- *
- * @since 0.9.1
  *
  * @return void
  */
@@ -64,8 +60,6 @@ add_action( 'admin_init', 'desktop_mode_maybe_run_migrations' );
 
 /**
  * Dispatches each migration whose version is newer than what has run.
- *
- * @since 0.9.1
  *
  * @param int $from The highest migration version already applied.
  * @return void
@@ -101,8 +95,6 @@ function desktop_mode_run_pending_migrations( $from ) {
  *
  * Only users who actually have the meta are queried — fresh accounts and
  * users who never touched OS Settings are skipped entirely.
- *
- * @since 0.9.1
  *
  * @return void
  */
@@ -161,8 +153,6 @@ function desktop_mode_migrate_os_settings_optin() {
  * Existing `_desktop_mode_ai_analysis` meta on posts/terms is left in place
  * (hidden, harmless, and cheap to ignore).
  *
- * @since 0.9.1
- *
  * @return void
  */
 function desktop_mode_migrate_unschedule_post_term_ai() {
@@ -179,8 +169,6 @@ function desktop_mode_migrate_unschedule_post_term_ai() {
  * user's stored OS settings so no secret is left behind. The only `ai` field
  * that remains is `enabled` (the per-user assistant toggle), backfilled from
  * defaults on next read.
- *
- * @since 0.9.4
  *
  * @return void
  */

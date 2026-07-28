@@ -12,8 +12,6 @@
  * during mid-overview desktop closes; the resulting import cycle is
  * a function-level one (safe at runtime as long as neither side calls
  * the other at module-load time).
- *
- * @since 0.8.1
  */
 
 import { doAction, HOOKS } from '../hooks';

@@ -10,7 +10,6 @@
  * Transcripts are session-only — nothing here persists.
  *
  * @public
- * @since 0.9.8
  */
 
 import { createSharedStore } from './shared-store';

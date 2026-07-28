@@ -17,8 +17,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { HOOKS, doAction } from '../hooks';
@@ -97,10 +95,6 @@ export interface MenuRefreshDeps {
 
 /**
  * Wire the live menu-refresh pipeline.
- *
- * @since 0.8.1 (extracted from desktop.ts; argument list collected
- *               into a single options object so future syncers
- *               don't grow the parameter list).
  *
  * @return An async function plugins can call to force a refresh.
  */

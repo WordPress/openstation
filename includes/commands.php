@@ -21,7 +21,6 @@
  * `serverCommandScripts` and `serverCommands` to the shell payload in
  * `desktop_mode_build_menu_payload()`.
  *
- * @since 0.5.0
  * @package WPDesktopMode
  */
 
@@ -53,8 +52,6 @@ defined( 'ABSPATH' ) || exit;
  * the shell page and the new commands appear in the palette without a
  * full reload.
  *
- * @since 0.5.0
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
@@ -71,8 +68,6 @@ function desktop_mode_register_command_script( $handle ) {
 
 	/**
 	 * Fires after a desktop command script handle is registered.
-	 *
-	 * @since 0.5.0
 	 *
 	 * @param string $handle The registered script handle.
 	 */
@@ -104,8 +99,6 @@ function desktop_mode_register_command_script( $handle ) {
  * Implicitly registers the `script` handle via
  * `desktop_mode_register_command_script()` when provided, so plugins using
  * this API don't need to call both functions.
- *
- * @since 0.5.0
  *
  * @param array $args {
  *     @type string $slug        Slash-command slug (without leading `/`). Required.
@@ -162,8 +155,6 @@ function desktop_mode_register_command( $args = array() ) {
 	/**
 	 * Fires after a desktop command is successfully registered.
 	 *
-	 * @since 0.5.0
-	 *
 	 * @param string $slug  The command slug.
 	 * @param array  $entry The stored registry entry.
 	 */
@@ -177,7 +168,6 @@ function desktop_mode_register_command( $args = array() ) {
  * via {@see desktop_mode_register_command_script()}. Accessed by both the
  * registration API (write) and the payload builder (read).
  *
- * @since 0.5.0
  * @internal
  *
  * @param string    $handle Script handle to read or write.
@@ -204,8 +194,6 @@ function desktop_mode_desktop_command_script_registry( $handle = '', $value = nu
  * Flush the command-script registry. Tests call this in `set_up` so
  * a previous test's stale handle doesn't leak into the next test's
  * payload-build assertions. No production caller.
- *
- * @since 0.5.2
  */
 function desktop_mode_flush_desktop_command_script_registry() {
 	desktop_mode_desktop_command_script_registry( '__flush__' );
@@ -215,7 +203,6 @@ function desktop_mode_flush_desktop_command_script_registry() {
  * Internal module-level registry for commands declared via
  * {@see desktop_mode_register_command()}.
  *
- * @since 0.5.0
  * @internal
  *
  * @param string     $slug  Slug to read or write.
@@ -242,8 +229,6 @@ function desktop_mode_desktop_command_registry( $slug = '', $entry = null ) {
  * (localize / inline / translations) ships alongside the URL so the
  * shell's lazy `<script>` injection doesn't drop it the way a bare
  * `<script src="…">` append would.
- *
- * @since 0.5.0
  *
  * @return array[] List of `{ handle, scriptUrl, scriptBefore, scriptAfter, scriptL10n, scriptTranslations }` entries.
  */
@@ -287,8 +272,6 @@ function desktop_mode_build_desktop_command_scripts_payload() {
  * `scriptUrl` alongside metadata so the shell's sync knows which script
  * contributed it — enables future pre-registration shims without a round
  * trip.
- *
- * @since 0.5.0
  *
  * @return array[]
  */

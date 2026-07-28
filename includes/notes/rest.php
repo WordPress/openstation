@@ -26,15 +26,12 @@
  * `data.current` so the client can re-render instead of clobbering.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Base permission: logged-in + desktop mode enabled.
- *
- * @since 0.9.6
  *
  * @return true|WP_Error
  */
@@ -50,8 +47,6 @@ function desktop_mode_notes_rest_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.9.6
  */
 function desktop_mode_notes_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
@@ -135,8 +130,6 @@ add_action( 'rest_api_init', 'desktop_mode_notes_register_rest_routes' );
 /**
  * Fetch a note post, or a WP_Error when it doesn't exist / isn't a note.
  *
- * @since 0.9.6
- *
  * @param int  $id          Post ID.
  * @param bool $allow_trash Whether a trashed note is acceptable (restore path).
  * @return WP_Post|WP_Error
@@ -160,8 +153,6 @@ function desktop_mode_notes_get_note( $id, $allow_trash = false ) {
  * less, but the id namespace is shared with public notes anyway and
  * a mutation attempt on a visible public note deserves an honest 403.
  *
- * @since 0.9.6
- *
  * @param WP_Post $post Note post.
  * @return true|WP_Error
  */
@@ -178,8 +169,6 @@ function desktop_mode_notes_require_owner( $post ) {
  * Second precision (WordPress stores no sub-second post dates) — the
  * client treats the value as an opaque token and echoes it back.
  *
- * @since 0.9.6
- *
  * @param WP_Post $post Post.
  * @return int
  */
@@ -189,8 +178,6 @@ function desktop_mode_notes_modified_ms( $post ) {
 
 /**
  * Serialize a note for the wire.
- *
- * @since 0.9.6
  *
  * @param WP_Post $post Note post.
  * @return array
@@ -221,8 +208,6 @@ function desktop_mode_notes_prepare( $post ) {
  *
  * Only used for admin-side lists / exports — the shell never shows it.
  *
- * @since 0.9.6
- *
  * @param string $text Note text.
  * @return string
  */
@@ -238,8 +223,6 @@ function desktop_mode_notes_derive_title( $text ) {
 
 /**
  * GET /notes — own notes (private + publish) ∪ others' publish.
- *
- * @since 0.9.6
  *
  * @return WP_REST_Response
  */
@@ -287,8 +270,6 @@ function desktop_mode_notes_rest_list() {
 /**
  * POST /notes.
  *
- * @since 0.9.6
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
@@ -300,8 +281,6 @@ function desktop_mode_notes_rest_create( $request ) {
 	 * publishing PUBLIC notes onto every other user's wallpaper.
 	 * Sites that want to restrict that (by role, capability, or the
 	 * request's `public` flag) hook here.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param bool            $can_create Whether creation is allowed. Default true.
 	 * @param int             $user_id    Current user id.
@@ -355,8 +334,6 @@ function desktop_mode_notes_rest_create( $request ) {
  * everyone's papers. Cheap max-of-meta walk — note counts are tiny
  * (a wall of paper, not a database of record).
  *
- * @since 0.9.6
- *
  * @return int
  */
 function desktop_mode_notes_next_z() {
@@ -376,8 +353,6 @@ function desktop_mode_notes_next_z() {
 
 /**
  * PATCH /notes/:id — partial update, owner only.
- *
- * @since 0.9.6
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
@@ -445,8 +420,6 @@ function desktop_mode_notes_rest_update( $request ) {
 /**
  * DELETE /notes/:id — soft-trash, owner only.
  *
- * @since 0.9.6
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
@@ -469,8 +442,6 @@ function desktop_mode_notes_rest_delete( $request ) {
 
 /**
  * POST /notes/:id/restore — untrash (Undo), owner only.
- *
- * @since 0.9.6
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
@@ -517,8 +488,6 @@ function desktop_mode_notes_rest_restore( $request ) {
  * become `<br>`. The result lands clean in the block editor rather
  * than as one classic-HTML blob.
  *
- * @since 0.9.6
- *
  * @param string $text Note text.
  * @return string Serialized block markup (empty string for empty text).
  */
@@ -545,8 +514,6 @@ function desktop_mode_notes_text_to_blocks( $text ) {
  * via `_wpd_note_converted_post` so the standard restore route can undo
  * both sides of the conversion (see `desktop_mode_notes_rest_restore`).
  *
- * @since 0.9.6
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
@@ -571,8 +538,6 @@ function desktop_mode_notes_rest_convert( $request ) {
 	 *
 	 * Hook here to change the post type/status, assign a category or
 	 * author, or wrap the body in different block markup.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param array           $post_args Args passed to `wp_insert_post()`.
 	 * @param WP_Post         $post      The source note.
@@ -609,8 +574,6 @@ function desktop_mode_notes_rest_convert( $request ) {
 
 	/**
 	 * Fires after a note has been converted to a draft post.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param int             $new_post_id The draft post id.
 	 * @param WP_Post         $post        The source note (now trashed).

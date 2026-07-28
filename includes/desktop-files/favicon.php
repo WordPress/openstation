@@ -37,7 +37,6 @@
  * a synthetic data URI to override).
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -69,8 +68,6 @@ const DESKTOP_MODE_FAVICON_TIMEOUT = 4;
 /**
  * Resolve a page URL to a base64 data URI of its favicon.
  *
- * @since 0.8.2
- *
  * @param string $page_url HTTP(S) URL of the target page.
  * @return string|null Data URI on success; `null` on any failure.
  */
@@ -81,8 +78,6 @@ function desktop_mode_resolve_favicon( $page_url ) {
 	 * Filters the favicon data URI before it is returned to the
 	 * caller. Plugins can override (return a synthetic data URI),
 	 * suppress (return `null`), or pass through.
-	 *
-	 * @since 0.8.2
 	 *
 	 * @param string|null $result   Base64 data URI, or `null` if
 	 *                              the resolver could not produce one.
@@ -103,7 +98,6 @@ function desktop_mode_resolve_favicon( $page_url ) {
  * `desktop_mode_resolve_favicon` filter runs (a plugin can't sneak
  * its filter past the validation by hooking the internal helper).
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $page_url Page URL.
@@ -143,7 +137,6 @@ function desktop_mode_resolve_favicon_internal( $page_url ) {
  * the download instead of being buffered whole into memory before
  * the size check runs.
  *
- * @since 0.8.2
  * @internal
  *
  * @param int $limit_response_size Maximum response body size, in
@@ -172,7 +165,6 @@ function desktop_mode_favicon_request_args( $limit_response_size = DESKTOP_MODE_
  * `$base_url`. Returns the absolute icon URL, or `''` if none
  * found.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $html     Page body.
@@ -243,7 +235,6 @@ function desktop_mode_favicon_extract_link_href( $html, $base_url ) {
  * Resolve a possibly-relative `href` against `$base_url`. Returns
  * `''` if the result isn't an http(s) URL.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $href     Link href (absolute, scheme-relative, or path).
@@ -288,7 +279,6 @@ function desktop_mode_favicon_absolutize_url( $href, $base_url ) {
 /**
  * Fetch the candidate icon URL and encode it as a data URI.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $icon_url Absolute http(s) URL of the icon.
@@ -337,7 +327,6 @@ function desktop_mode_favicon_fetch_as_data_uri( $icon_url ) {
  * Map a `Content-Type` header to a known image subtype, or `null`
  * if the type isn't on the allowlist.
  *
- * @since 0.8.2
  * @internal
  *
  * @param string $content_type Lowercased `Content-Type` value

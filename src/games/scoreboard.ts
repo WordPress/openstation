@@ -10,8 +10,6 @@
  *
  * Hosted by the Games hub's detail panel (Steam-library style):
  * one instance per selected game, torn down on re-selection.
- *
- * @since 0.9.6
  */
 
 // Side-effect imports — register the `<wpd-*>` components this module

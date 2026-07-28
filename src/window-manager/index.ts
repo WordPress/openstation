@@ -18,8 +18,6 @@
  * folder may touch them, but nothing outside `src/window-manager/`
  * should. Kept `public` at the TypeScript level only because `private`
  * prevents sibling modules from seeing them.
- *
- * @since 0.5.0
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
@@ -81,7 +79,6 @@ const CASCADE_OFFSET = 30;
  * being baked into the `WindowConfig`.
  *
  * @public
- * @since 0.8.6
  */
 export interface ResolvedWindowGeometry {
 	x: number;
@@ -122,7 +119,6 @@ export interface ResolvedWindowGeometry {
  *     `callerPinned: true` does not mean "leave it alone."
  *
  * @public
- * @since 0.8.6
  */
 export interface WindowGeometryContext {
 	windowId: string;
@@ -1074,8 +1070,6 @@ export class WindowManager {
 	 * forward when one of its members is focused; available to
 	 * plugins for any "surface my companion window" affordance.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param windowId Window to raise. Unknown ids and the focused
 	 *                 window itself are no-ops.
 	 */
@@ -1271,8 +1265,6 @@ export class WindowManager {
 	 * `getById(id) && state !== 'minimized' && focused` can
 	 * collapse to this.
 	 *
-	 * @since 0.5.5
-	 *
 	 * @param id Window id to query.
 	 * @return True when the user is actively looking at this window.
 	 */
@@ -1341,8 +1333,6 @@ export class WindowManager {
 	 * `desktop-mode.primary-desktop-id` so downstream code that wants a
 	 * different convention (e.g. a pinned "Inbox" desktop) can override
 	 * without having to fork the manager.
-	 *
-	 * @since 0.5.0
 	 */
 	public getPrimaryDesktopId(): string {
 		const all = this.getDesktops();
@@ -1382,8 +1372,6 @@ export class WindowManager {
 	 *
 	 *   4. `desktop-mode.windows.after-close-all` — action. Detail:
 	 *      `{ closed: number, skipped: Window[] }`.
-	 *
-	 * @since 0.5.0
 	 *
 	 * @param options           Close options.
 	 * @param options.exceptIds Window ids to skip even before the filter runs.
@@ -1445,7 +1433,6 @@ export class WindowManager {
 	 * rolling the loop themselves.
 	 *
 	 * @public
-	 * @since 0.6.0
 	 */
 	public minimizeAll(): Window[] {
 		const minimized: Window[] = [];
@@ -1484,7 +1471,6 @@ export class WindowManager {
 	 * selectively.
 	 *
 	 * @public
-	 * @since 0.6.0
 	 */
 	public restoreFrom( windows: Window[] ): void {
 		if ( ! Array.isArray( windows ) ) {
@@ -1526,7 +1512,6 @@ export class WindowManager {
 	 * Mirrors the wallpaper-click gesture exactly, in one call.
 	 *
 	 * @public
-	 * @since 0.6.0
 	 */
 	public toggleShowDesktop(): boolean {
 		const all = this._stack.filter(
@@ -1653,10 +1638,14 @@ export class WindowManager {
 		const focused = this.getFocused();
 		// Native windows aren't persistable — their `render` callback
 		// is a JS closure, not something we can serialize and
-		// rehydrate server-side. Skip them from both the window list
-		// and the focused id so a freshly booted shell doesn't try
-		// (and fail) to restore a window it can't reconstruct.
-		const persistable = this._stack.filter( ( w ) => ! w.config.native );
+		// rehydrate server-side. Ephemeral windows opt out — their URL
+		// doesn't survive a session (editor-preview nonces). Skip both
+		// from the window list and the focused id so a freshly booted
+		// shell doesn't try (and fail) to restore a window it can't
+		// reconstruct.
+		const persistable = this._stack.filter(
+			( w ) => ! w.config.native && ! w.config.ephemeral,
+		);
 		const windows: SessionWindow[] = persistable.map( ( w ) => {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
@@ -1675,7 +1664,10 @@ export class WindowManager {
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
 			};
 		} );
-		const focusedId = focused && ! focused.config.native ? focused.id : '';
+		const focusedId =
+			focused && ! focused.config.native && ! focused.config.ephemeral
+				? focused.id
+				: '';
 
 		return {
 			windows,

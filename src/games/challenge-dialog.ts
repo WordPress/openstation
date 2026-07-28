@@ -6,8 +6,6 @@
  * the score being thrown down. Picked users show a presence dot via
  * `<wpd-avatar user-id>`, so challenging someone who's online right
  * now is one glance away.
- *
- * @since 0.9.6
  */
 
 // Side-effect imports — register the `<wpd-*>` components this module

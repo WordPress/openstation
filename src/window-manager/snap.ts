@@ -5,8 +5,6 @@
  * manager and persists to localStorage so the choice survives reloads.
  * Windows read snap state via `getSnapConfig` which the manager wires
  * onto each new window at construction.
- *
- * @since 0.8.1
  */
 
 import { applyFilters, doAction, HOOKS } from '../hooks';

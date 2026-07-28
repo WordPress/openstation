@@ -34,7 +34,6 @@
  *      WP-CLI mutations within one tick (15–60 s).
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -43,22 +42,16 @@ const DESKTOP_MODE_CONTENT_CHANGES_LOG_OPTION = '_desktop_mode_content_changes_l
 
 /**
  * Milliseconds of heartbeat-changelog history to retain.
- *
- * @since 0.9.7
  */
 const DESKTOP_MODE_CONTENT_CHANGES_LOG_WINDOW_MS = 300000;
 
 /**
  * Maximum retained heartbeat-changelog entries.
- *
- * @since 0.9.7
  */
 const DESKTOP_MODE_CONTENT_CHANGES_LOG_MAX = 100;
 
 /**
  * TTL for the redirect-surviving per-user changelog buffer.
- *
- * @since 0.9.7
  */
 const DESKTOP_MODE_CONTENT_CHANGES_BUFFER_TTL = 60;
 
@@ -75,8 +68,6 @@ const DESKTOP_MODE_CONTENT_CHANGES_BUFFER_TTL = 60;
  *   - `staged`  — flat `{ type, action, id }` rows for the heartbeat log.
  *   - `flushed` — true once the footer emitter consumed `log`, so the
  *                 shutdown handler doesn't buffer it a second time.
- *
- * @since 0.9.7
  *
  * @return array Per-request state, by reference.
  */
@@ -96,7 +87,6 @@ function &desktop_mode_content_changes_state() {
 /**
  * Resets the per-request state. Test isolation only.
  *
- * @since 0.9.7
  * @internal
  */
 function desktop_mode_content_changes_reset() {
@@ -126,8 +116,6 @@ function desktop_mode_content_changes_reset() {
  * id is dropped. The same mechanism collapses WooCommerce legacy-mode
  * double-fires (post hooks + `woocommerce_update_order`).
  *
- * @since 0.9.7
- *
  * @param string $type   Content type slug — a post type, `comment`,
  *                       or `shop_order`. Becomes the broadcast topic
  *                       `desktop-mode.<type>.changed`.
@@ -153,8 +141,6 @@ function desktop_mode_content_changes_record( $type, $id, $action ) {
 	 * system entirely (footer broadcast AND heartbeat log) — e.g. a
 	 * high-churn internal type whose list windows manage their own
 	 * realtime.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param bool   $record Whether to record. Default true.
 	 * @param string $type   Content type slug.
@@ -193,8 +179,6 @@ function desktop_mode_content_changes_record( $type, $id, $action ) {
 	 * Subscribers can push their own real-time signal (websocket,
 	 * SSE, …) without re-hooking every mutation path individually.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param string $type   Content type slug.
 	 * @param int    $id     Mutated object id.
 	 * @param string $action Verb (created/updated/trashed/untrashed/deleted).
@@ -207,8 +191,6 @@ function desktop_mode_content_changes_record( $type, $id, $action ) {
 /**
  * Returns the per-request changelog: `[ type ][ action ] = int[] ids`.
  *
- * @since 0.9.7
- *
  * @return array
  */
 function desktop_mode_content_changes_log() {
@@ -219,8 +201,6 @@ function desktop_mode_content_changes_log() {
 /**
  * Merges changelog `$b` into changelog `$a` (both
  * `[ type ][ action ] = int[] ids`).
- *
- * @since 0.9.7
  *
  * @param array $a Base changelog.
  * @param array $b Changelog to merge in.
@@ -238,8 +218,6 @@ function desktop_mode_content_changes_merge( $a, $b ) {
 
 /**
  * Transient key of the redirect-surviving changelog buffer for a user.
- *
- * @since 0.9.7
  *
  * @param int $user_id User id.
  * @return string
@@ -262,8 +240,6 @@ function desktop_mode_content_changes_buffer_key( $user_id ) {
  * to refresh, and internal types (notes, …) run their own realtime.
  * Plugins that want one tracked anyway can call
  * `desktop_mode_content_changes_record()` from their own hooks.
- *
- * @since 0.9.7
  *
  * @param int          $post_id     Post id.
  * @param WP_Post      $post        Saved post.
@@ -303,8 +279,6 @@ function desktop_mode_content_changes_on_after_insert_post( $post_id, $post, $up
  * and they fire AFTER the transition — without the skip the dedupe
  * set would keep this handler's less-specific `updated`.
  *
- * @since 0.9.7
- *
  * @param string     $new_status New comment status.
  * @param string     $old_status Old comment status.
  * @param WP_Comment $comment    Comment object.
@@ -329,8 +303,6 @@ function desktop_mode_content_changes_on_comment_transition( $new_status, $old_s
  * per-request dedupe collapses the double-fire. The type is always
  * recorded as `shop_order` so one broadcast topic
  * (`desktop-mode.shop_order.changed`) serves both storage modes.
- *
- * @since 0.9.7
  *
  * @return bool Whether the hooks were registered.
  */
@@ -376,8 +348,6 @@ function desktop_mode_content_changes_register_wc_hooks() {
  *
  * Runs at `admin_footer` priority 100, same slot as the Recycle Bin's
  * bin-specific ts signal.
- *
- * @since 0.9.7
  */
 function desktop_mode_content_changes_emit_footer() {
 	if ( ! function_exists( 'desktop_mode_is_chromeless_request' ) || ! desktop_mode_is_chromeless_request() ) {
@@ -412,8 +382,6 @@ function desktop_mode_content_changes_emit_footer() {
 			/**
 			 * Filters the broadcast topic for a content-change type.
 			 *
-			 * @since 0.9.7
-			 *
 			 * @param string $topic  Default `desktop-mode.<type>.changed`.
 			 * @param string $type   Content type slug.
 			 * @param string $action Verb for this envelope.
@@ -437,8 +405,6 @@ function desktop_mode_content_changes_emit_footer() {
 	 *
 	 * Each entry is `array( 'topic' => string, 'payload' => array )`.
 	 * Return an empty array to suppress the emit.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param array $broadcasts Broadcast envelopes.
 	 */
@@ -477,8 +443,6 @@ function desktop_mode_content_changes_emit_footer() {
 	 * Fires after the chromeless footer emitted the content-change
 	 * broadcast envelopes.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param array $broadcasts Emitted broadcast envelopes.
 	 */
 	do_action( 'desktop_mode_content_changes_emitted', $broadcasts );
@@ -490,8 +454,6 @@ function desktop_mode_content_changes_emit_footer() {
  *
  * One `update_option` per mutating request; requests that recorded
  * nothing pay a static-array read and return.
- *
- * @since 0.9.7
  */
 function desktop_mode_content_changes_on_shutdown() {
 	$state = &desktop_mode_content_changes_state();
@@ -562,8 +524,6 @@ function desktop_mode_content_changes_on_shutdown() {
  * entries newer than the client's seen ts; the shell re-broadcasts
  * each as `desktop-mode.<type>.changed`.
  *
- * @since 0.9.7
- *
  * @param array $response Heartbeat response.
  * @param array $data     Client-sent payload.
  * @return array
@@ -609,8 +569,6 @@ function desktop_mode_content_changes_heartbeat_received( $response, $data ) {
  * prevents every distinct plugin in a bulk operation from collapsing to
  * the same dedup key.
  *
- * @since 0.9.7
- *
  * @param string $plugin_file Plugin file path (relative to plugins dir).
  * @return int Positive integer ID.
  */
@@ -627,8 +585,6 @@ function desktop_mode_content_changes_plugin_id( $plugin_file ) {
  * classic `plugins.php`) will then refresh via the
  * `desktop-mode.plugin.changed` broadcast — the same mechanism
  * posts/pages use for `desktop-mode.post.changed`.
- *
- * @since 0.9.7
  */
 function desktop_mode_content_changes_register_plugin_hooks() {
 	add_action( 'activated_plugin', function ( $plugin_file ) {
@@ -689,8 +645,6 @@ function desktop_mode_content_changes_register_plugin_hooks() {
  *
  * One bootstrap so the wiring is auditable —
  * `grep desktop_mode_content_changes_record` finds every emitter.
- *
- * @since 0.9.7
  */
 function desktop_mode_content_changes_register_hooks() {
 	add_action( 'wp_after_insert_post', 'desktop_mode_content_changes_on_after_insert_post', 10, 4 );

@@ -14,8 +14,6 @@
  * filter directly to register their own.
  *
  * Bootstrapped from `desktop.ts` once the hook bus is up.
- *
- * @since 0.6.2
  */
 
 import { __ } from '../i18n';

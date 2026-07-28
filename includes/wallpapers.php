@@ -17,7 +17,6 @@
  * `desktop_mode_wallpaper_registered` action.
  *
  * @package WPDesktopMode
- * @since   0.5.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,8 +24,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the built-in wallpapers: five gradient / solid CSS presets
  * plus the Animated WordPress Logo canvas wallpaper.
- *
- * @since 0.5.0
  */
 function desktop_mode_register_builtin_wallpapers() {
 	$presets = array(
@@ -73,7 +70,7 @@ function desktop_mode_register_builtin_wallpapers() {
 	}
 
 	// Animated WordPress Logo — built-in PixiJS canvas wallpaper.
-	// Moved out of `desktop.min.js` in 0.8.4. Same registration
+	// Moved out of `desktop.min.js`. Same registration
 	// surface third-party canvas wallpapers use: `script` is an
 	// enqueued handle (registered in `includes/assets.php`); the
 	// shell's wallpaper sync injects its URL when the wallpaper

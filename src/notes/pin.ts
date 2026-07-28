@@ -12,8 +12,6 @@
  * pull-out / insertion. Shipped as `<img>` (never inlined): the SVG
  * uses bare gradient/filter ids that would collide document-wide when
  * repeated once per note.
- *
- * @since 0.9.6
  */
 
 /**

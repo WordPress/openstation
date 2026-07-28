@@ -18,7 +18,6 @@
  *   - `desktop_mode_my_wordpress_template_html`
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -29,8 +28,6 @@ defined( 'ABSPATH' ) || exit;
  * Mirrors the recycle-bin gate — anyone who can edit posts can
  * browse posts and pages.
  *
- * @since 0.8.0
- *
  * @return bool
  */
 function desktop_mode_my_wordpress_user_can_use() {
@@ -40,16 +37,14 @@ function desktop_mode_my_wordpress_user_can_use() {
 	 * Filter whether the current user can see the My WordPress
 	 * pinned icon and window.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
 	return (bool) apply_filters( 'desktop_mode_my_wordpress_user_can_use', $can );
 }
 
 /**
- * Build the entity list shipped to the bundle. Posts, Pages, Users
- * (since 0.8.2), and Media (since 0.8.6). Future phases add
+ * Build the entity list shipped to the bundle. Posts, Pages,
+ * Users, and Media. Future phases add
  * Comments, Tags, Categories, Themes, and Plugins.
  *
  * The optional `kind` field tells the bundle how to render entries
@@ -60,8 +55,6 @@ function desktop_mode_my_wordpress_user_can_use() {
  * routes to the media preview pane. Plugins extending the entity
  * list with a post-shaped collection can omit the field; user- and
  * media-shaped collections must set `'user'` / `'media'`.
- *
- * @since 0.8.0
  *
  * @return array[] Each entry is `array( 'id', 'label', 'icon',
  *                 'restPath', 'kind' )`. `restPath` is appended to
@@ -112,8 +105,6 @@ function desktop_mode_my_wordpress_entities() {
 	 * break existing consumers. The `kind` field is optional and
 	 * defaults to `'post'` for back-compat.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param array[] $entities Default entities.
 	 */
 	$filtered = apply_filters( 'desktop_mode_my_wordpress_entities', $entities );
@@ -123,8 +114,6 @@ function desktop_mode_my_wordpress_entities() {
 /**
  * Render the My WordPress window's static template body. The bundle
  * mounts its UI into `[data-desktop-mode-my-wordpress-root]`.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_render_template() {
 	ob_start();
@@ -144,8 +133,6 @@ function desktop_mode_my_wordpress_render_template() {
 	/**
 	 * Filter the My WordPress window's template HTML.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_my_wordpress_template_html', $html );
@@ -160,8 +147,6 @@ function desktop_mode_my_wordpress_render_template() {
 /**
  * Register the native window + the pinned wallpaper icon on `init`,
  * priority 20 — after `components.php` boots the registry.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_window() {
 	if ( ! desktop_mode_my_wordpress_user_can_use() ) {
@@ -196,8 +181,6 @@ function desktop_mode_my_wordpress_register_window() {
 	/**
 	 * Filter the args used to register the My WordPress native window.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_my_wordpress_window_args', $window_args );
@@ -224,8 +207,6 @@ function desktop_mode_my_wordpress_register_window() {
 	 * sort order — useful for sites that want the shortcut to feel
 	 * like any other plugin icon.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_my_wordpress_icon_args', $icon_args );
@@ -238,8 +219,6 @@ add_action( 'init', 'desktop_mode_my_wordpress_register_window', 20 );
  * Enqueue the bundle's CSS in admin context. The script is lazy-
  * loaded by the native-window sync and so does not need an
  * `admin_enqueue_scripts` call.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_enqueue_styles() {
 	if ( ! desktop_mode_my_wordpress_user_can_use() ) {

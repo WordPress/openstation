@@ -20,8 +20,6 @@
  * Everything routes through `prefersReducedMotion()` — reduced-motion
  * users get instant state changes / short fades, never transforms.
  * No dependencies; springs are explicit keyframe arrays.
- *
- * @since 0.9.6
  */
 
 /** House curves (mirrored in assets/css/notes.css). */

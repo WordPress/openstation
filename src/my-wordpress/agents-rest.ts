@@ -7,7 +7,6 @@
  * when one exists.
  *
  * @public
- * @since 0.9.8
  */
 
 import { trackedFetch } from '../tracked-fetch';

@@ -275,7 +275,7 @@ The host keeps `id="my-brand-picker"`, the inner `<select>` gets `id="my-brand-p
 - `<wpd-row>` uses CSS grid under the hood — standard browser behaviour for keyboard navigation and screen readers applies to its children.
 - Auto-id guarantees that input controls have a stable `id` and a real `<label for>` pairing inside the shadow root — both silence Chrome's "form field needs an id or name" warning and give screen readers a proper accessible name.
 
-## `<wpd-ribbon>` — corner ribbon decoration *(experimental, since 0.8.6)*
+## `<wpd-ribbon>` — corner ribbon decoration *(experimental)*
 
 A 45° banner that wraps a corner of its parent — the classic "FEATURED / NEW / BETA / SALE" stamp on a card. The component owns its own clipping geometry; consumers only need to make the parent a positioned containing block.
 

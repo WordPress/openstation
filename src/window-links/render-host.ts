@@ -25,8 +25,6 @@
  *     into `onFrame` callbacks with fresh rects;
  *   - the related-window chrome highlight: while a group member is
  *     focused, its relatives carry `desktop-mode-window--linked`.
- *
- * @since 0.9.4
  */
 
 import { addAction, applyFilters, doAction, HOOKS } from '../hooks';

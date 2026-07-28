@@ -7,8 +7,6 @@
  *
  * Data: WP REST /wp/v2/comments (logged-in, no extra caps needed).
  * Refresh: every 60 seconds.
- *
- * @since 0.26.0
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';

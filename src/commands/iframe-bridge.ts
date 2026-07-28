@@ -19,8 +19,6 @@
  *     removed inside the iframe (Gutenberg entering the editor,
  *     distraction-free toggled, etc.) shows up in the palette without
  *     any user interaction.
- *
- * @since 0.5.1
  */
 
 import {

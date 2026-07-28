@@ -20,8 +20,6 @@
  *   - Leading slashes on `path` are ignored.
  *   - A `?key=value` query string embedded in `path` is preserved and
  *     merged into the final URL.
- *
- * @since 0.8.3
  */
 
 const FALLBACK_BASE = 'http://localhost/';

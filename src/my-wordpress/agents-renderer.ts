@@ -11,7 +11,6 @@
  * `{ kind: 'list', entityId: 'agents' }` route.
  *
  * @public
- * @since 0.9.8
  */
 
 import { __ } from '../i18n';

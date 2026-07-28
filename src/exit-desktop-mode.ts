@@ -9,8 +9,6 @@
  * (`includes/ajax.php`) via the `window.desktopModeAdminBar` global
  * already published by `includes/admin-bar.php` for the admin-bar
  * toggle. Same nonce, same redirect contract — no new PHP surface.
- *
- * @since 0.7.3
  */
 
 import type { SystemDockItem } from './dock';

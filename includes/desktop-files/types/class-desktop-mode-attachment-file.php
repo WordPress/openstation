@@ -3,13 +3,12 @@
  * Desktop Mode — `attachment` file type.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `attachment` desktop file type.
  */
 class Desktop_Mode_Attachment_File extends Desktop_Mode_File {
 

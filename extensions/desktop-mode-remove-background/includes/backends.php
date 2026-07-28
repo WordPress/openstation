@@ -27,8 +27,6 @@ function desktop_mode_remove_bg_backends() {
 	/**
 	 * Filter the backend registry.
 	 *
-	 * @since 0.1.0
-	 *
 	 * @param array<string, callable> $backends Map of slug => callable.
 	 */
 	$filtered = apply_filters( 'desktop_mode_remove_background_backends', $backends );

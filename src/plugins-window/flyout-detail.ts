@@ -11,7 +11,6 @@
  * card). Reviews lazy-fetch on Reviews tab activation.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __, sprintf } from '../i18n';

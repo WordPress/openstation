@@ -8,13 +8,12 @@
  * `exists()` returns false.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `folder` desktop file type.
  */
 class Desktop_Mode_Folder_File extends Desktop_Mode_File {
 
@@ -46,7 +45,7 @@ class Desktop_Mode_Folder_File extends Desktop_Mode_File {
 		if ( (int) $row['owner_id'] === (int) $user_id ) {
 			return true;
 		}
-		// Since 0.8.5 the capability resolver is the authority —
+		// The capability resolver is the authority —
 		// it knows about direct shares, role decisions, AND cascade
 		// (a folder nested inside a shared folder is reachable).
 		if ( function_exists( 'desktop_mode_folder_share_user_capability' ) ) {

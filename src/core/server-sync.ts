@@ -14,8 +14,6 @@
  * subscribe → snapshot → optional transform → tracked POST.
  * Returns a teardown function. Errors are caught and logged;
  * the registry stays usable.
- *
- * @since 0.8.1
  */
 
 import { trackedFetch } from '../tracked-fetch';

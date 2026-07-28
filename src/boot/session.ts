@@ -10,8 +10,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { tryNativeUrlRemap } from '../native-url-remap';
@@ -64,8 +62,6 @@ export function hasRestorableSession(
  * display lands sanely on a laptop. Stacking order follows the
  * session order (earliest-opened first, focused id brought to the
  * top at the end).
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export async function restoreSession(
 	manager: WindowManager,
@@ -159,8 +155,6 @@ export async function restoreSession(
  * page with a registered native replacement (Posts → `edit.php`,
  * etc.) opens the native window when the user has opted in. Falls
  * through to the standard iframe path on no-match.
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export async function openCurrentPage(
 	manager: WindowManager,

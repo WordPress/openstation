@@ -23,8 +23,6 @@
  * attributes and deserialize manually when needed), lifecycle
  * callbacks beyond connected / disconnected, directive support
  * inside `html\`\``.
- *
- * @since 0.9.0
  */
 
 import { render, type TemplateResult } from './html';
@@ -137,8 +135,6 @@ export abstract class Component extends HTMLElement {
 	 *
 	 * Getter returns the current `classList` as a plain array for
 	 * symmetric read/write.
-	 *
-	 * @since 0.5.0
 	 */
 	get classNames(): string[] {
 		return Array.from( this.classList );

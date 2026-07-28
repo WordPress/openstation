@@ -21,7 +21,6 @@
  *   7. Compile `theme.css`, write it, update the option index.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -33,7 +32,6 @@ defined( 'ABSPATH' ) || exit;
  * desktop-themes base dir, so a bad caller can't turn this into an
  * arbitrary-delete primitive.
  *
- * @since 0.9.7
  * @internal
  *
  * @param string $dir Absolute path.
@@ -83,7 +81,6 @@ function desktop_mode_desktop_theme_rmdir( $dir ) {
  * archive a designer produces on a Mac. Failing the upload over them
  * would be hostile; we simply never extract them.
  *
- * @since 0.9.7
  * @internal
  *
  * @param string $name Entry name.
@@ -106,8 +103,6 @@ function desktop_mode_desktop_theme_zip_entry_ignored( $name ) {
 
 /**
  * Validate an uploaded theme ZIP without writing anything.
- *
- * @since 0.9.7
  *
  * @param string $zip_path Absolute path of the uploaded archive.
  * @return string|WP_Error The manifest's entry name on success
@@ -268,8 +263,6 @@ function desktop_mode_desktop_theme_validate_zip( $zip_path ) {
  * When DOMDocument isn't available we **reject** the file rather
  * than shipping unexamined SVG — the browser would happily run it.
  *
- * @since 0.9.7
- *
  * @param string $file Absolute path of the SVG.
  * @return true|WP_Error
  */
@@ -407,7 +400,6 @@ function desktop_mode_desktop_theme_sanitize_svg( $file ) {
  * The age floor matters: a CONCURRENT upload owns a staging dir that
  * is seconds old, and deleting it would corrupt a live install.
  *
- * @since 0.9.8
  * @internal
  *
  * @param int $max_age Seconds before an orphan is collectable.
@@ -439,8 +431,6 @@ function desktop_mode_desktop_theme_sweep_staging( $max_age = DAY_IN_SECONDS ) {
 
 /**
  * Install (or update) a desktop theme from an uploaded ZIP.
- *
- * @since 0.9.7
  *
  * @param string $zip_path Absolute path of the uploaded archive.
  * @return array|WP_Error The stored index entry on success.
@@ -662,8 +652,6 @@ function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
 	/**
 	 * Fires after a desktop theme has been installed or updated.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param string $slug  Theme slug.
 	 * @param array  $entry Stored index entry (`slug`, `manifest`,
 	 *                      `installedAt`, `installedBy`).
@@ -679,8 +667,6 @@ function desktop_mode_desktop_theme_install_from_zip( $zip_path ) {
  * Users whose selection pointed at the deleted theme degrade
  * silently to the system default — the enqueue path checks the
  * index on every request, so no user meta needs rewriting.
- *
- * @since 0.9.7
  *
  * @param string $slug Theme slug.
  * @return true|WP_Error
@@ -706,8 +692,6 @@ function desktop_mode_desktop_theme_delete( $slug ) {
 
 	/**
 	 * Fires after a desktop theme has been deleted.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param string $slug  Theme slug.
 	 * @param array  $entry The index entry as it was before removal.

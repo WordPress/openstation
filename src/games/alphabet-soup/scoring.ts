@@ -13,8 +13,6 @@
  * wave pays a flat, growing bonus. Accuracy is correct selections
  * over total selections; "WPM" is whole words found per minute —
  * a soup spoon is not a keyboard.
- *
- * @since 0.9.8
  */
 
 export interface SoupScoreState {

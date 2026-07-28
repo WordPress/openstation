@@ -19,8 +19,6 @@
  * share card (the game says so before a replay starts).
  *
  * Pure — fully unit-tested.
- *
- * @since 0.9.8
  */
 
 export type SoupMode = 'daily' | 'time-attack';

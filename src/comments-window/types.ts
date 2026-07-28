@@ -2,7 +2,6 @@
  * Native Comments window — shared types.
  *
  * @public
- * @since 0.8.3
  */
 
 export type CommentStatus = 'approved' | 'hold' | 'spam' | 'trash';

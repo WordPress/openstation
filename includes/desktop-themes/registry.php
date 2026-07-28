@@ -20,7 +20,6 @@
  * to be a theme.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,7 +29,6 @@ defined( 'ABSPATH' ) || exit;
  * `__unset__` sentinel idiom as the icon / wallpaper / widget
  * registries.
  *
- * @since 0.9.7
  * @internal
  *
  * @param string $slug  Theme slug, or `''` to read the whole store.
@@ -93,8 +91,6 @@ function desktop_mode_desktop_theme_registry( $slug = '', $entry = null ) {
  *     ),
  * ) );
  * ```
- *
- * @since 0.9.7
  *
  * @param string $id   Theme id (`slug` or `vendor/slug`).
  * @param array  $args {
@@ -177,8 +173,6 @@ function desktop_mode_register_desktop_theme( $id, $args = array() ) {
 	 *
 	 * Does NOT fire when the registration returned a `WP_Error`.
 	 *
-	 * @since 0.9.7
-	 *
 	 * @param string $slug  Theme slug.
 	 * @param array  $entry Stored registry entry.
 	 */
@@ -192,8 +186,6 @@ function desktop_mode_register_desktop_theme( $id, $args = array() ) {
  *
  * Has no effect on uploaded themes — those are removed with
  * {@see desktop_mode_desktop_theme_delete()}.
- *
- * @since 0.9.7
  *
  * @param string $id Theme id or slug.
  * @return void
@@ -210,7 +202,6 @@ function desktop_mode_unregister_desktop_theme( $id ) {
  * Shape one stored/registered entry into the payload entry the
  * shell consumes.
  *
- * @since 0.9.7
  * @internal
  *
  * @param array  $entry  Stored entry (`slug`, `manifest`, …).
@@ -332,8 +323,6 @@ function desktop_mode_shape_desktop_theme_payload_entry( $entry, $source ) {
  * installed a theme by hand outranks a plugin that later registers
  * the same slug from code.
  *
- * @since 0.9.7
- *
  * @return array[]
  */
 function desktop_mode_build_desktop_themes_payload() {
@@ -358,8 +347,6 @@ function desktop_mode_build_desktop_themes_payload() {
 	 * Keyed by slug. Entries carry the shape documented in
 	 * `docs/desktop-themes.md`; removing one hides it from the
 	 * picker without touching the stored files.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param array[] $entries Map of slug => payload entry.
 	 */

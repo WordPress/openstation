@@ -3,8 +3,6 @@
  * and how large they can be before the manager rejects them.
  * Sourced from the server (`includes/render/assets.php`) so the
  * client policy matches the WordPress allow-list exactly.
- *
- * @since 0.30.0
  */
 export interface DropConfig {
 	/** True when the user has `upload_files`. */
@@ -37,8 +35,6 @@ export interface DropConfig {
  * wallpaper, a folder window, a native window, or a chromeless
  * admin iframe — and routes them through a confirmation dialog
  * before uploading to the Media Library.
- *
- * @since 0.30.0
  */
 
 /**
@@ -80,8 +76,6 @@ export interface DropFileEntry {
 	 * Tree path (`docs/reports/q1.pdf`) when the file arrived via a
 	 * folder drop. Empty/absent for flat files. Desktop-storage
 	 * uploads recreate the directory chain server-side from this.
-	 *
-	 * @since 0.9.6
 	 */
 	relativePath?: string;
 }
@@ -89,8 +83,6 @@ export interface DropFileEntry {
 /**
  * Desktop-storage config slice (mirrors `config.desktopStorage`
  * injected by the server).
- *
- * @since 0.9.6
  */
 export interface DesktopStorageConfig {
 	canUpload: boolean;
@@ -135,8 +127,6 @@ export interface DropContext {
 	 * Folder id when the drop landed on a folder surface (resolved
 	 * from the layer host's `data-folder-id`). 0 / absent = desktop
 	 * root.
-	 *
-	 * @since 0.9.6
 	 */
 	folderId?: number;
 	/** Viewport coordinates of the pointer at drop time. */

@@ -10,8 +10,6 @@
  * self-contained floating panel with Esc + outside-click dismiss
  * matches the overview top-bar's tile-add vocabulary the user
  * already recognises.
- *
- * @since 0.7.0
  */
 
 import { __, sprintf } from '../i18n';

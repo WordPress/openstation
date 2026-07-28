@@ -26,8 +26,6 @@
  *
  * Lives separate from `desktop.ts` so the partitioning logic is
  * testable without booting the whole shell.
- *
- * @since 0.6.0
  */
 
 import type {
@@ -156,8 +154,6 @@ export interface LayoutDispatcher {
 	 * Read-only entry view ({ id, title, icon, affinity }) — use
 	 * {@link getSystemTile} to fetch the underlying `SystemDockItem`
 	 * with its `onOpen` / `isOpen` callbacks.
-	 *
-	 * @since 0.6.0
 	 */
 	listSystemTiles(): Array< {
 		id: string;
@@ -169,8 +165,6 @@ export interface LayoutDispatcher {
 	 * Look up a system tile by id. Returns the underlying
 	 * `SystemDockItem` so callers can invoke `onOpen()` directly.
 	 * Returns `null` for unknown ids.
-	 *
-	 * @since 0.6.0
 	 */
 	getSystemTile( id: string ): SystemDockItem | null;
 	/**
@@ -179,16 +173,12 @@ export interface LayoutDispatcher {
 	 * when a custom rail renderer needs the full picture (Classic
 	 * layout's primary rail only sees `!isCore` items via
 	 * mount-deps; this returns every item).
-	 *
-	 * @since 0.6.0
 	 */
 	getMenuItems(): DockItem[];
 	/**
 	 * Re-apply the current OS-settings placement preferences to every
 	 * rail. Called when `itemVisibility` or `dockOrder` changes — both
 	 * the dock contents and the desktop-icons grid may shift.
-	 *
-	 * @since 0.8.2
 	 */
 	refresh(): void;
 	/** Tear down all docks. Called on shell unload (or in tests). */

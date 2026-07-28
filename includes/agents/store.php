@@ -26,7 +26,6 @@
  * the REST surface calls. `identity.php` owns the user row itself.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +34,6 @@ defined( 'ABSPATH' ) || exit;
  * Meta keys owned by the agents store. Constants so the other layer
  * files reuse them instead of typing the literals.
  *
- * @since 0.9.8
  */
 const DESKTOP_MODE_AGENT_USER_MARKER_META  = '_desktop_mode_agent';
 const DESKTOP_MODE_AGENT_DESCRIPTION_META  = '_desktop_mode_agent_description';
@@ -49,8 +47,6 @@ const DESKTOP_MODE_AGENT_CREATED_BY_META   = '_desktop_mode_agent_created_by';
 /**
  * Every meta key the store writes — the privacy eraser and any future
  * cleanup path iterate this list instead of re-typing the constants.
- *
- * @since 0.9.8
  *
  * @return string[]
  */
@@ -73,8 +69,6 @@ function desktop_mode_agent_meta_keys() {
  * `show_in_rest` stays false on every key — the module's own REST
  * surface (rest.php) is the only reader/writer; core `wp/v2/users`
  * never exposes agent definitions.
- *
- * @since 0.9.8
  *
  * @return void
  */
@@ -165,8 +159,6 @@ add_action( 'init', 'desktop_mode_agents_register_user_meta' );
 /**
  * Normalize an ability-slug list: strings only, trimmed, deduped.
  *
- * @since 0.9.8
- *
  * @param mixed $value Incoming list.
  * @return string[]
  */
@@ -196,8 +188,6 @@ function desktop_mode_agents_sanitize_ability_slugs( $value ) {
  * `register_meta` sanitize callback — abilities land on disk as a JSON
  * string so a read is one meta row and no PHP-serialized arrays exist.
  *
- * @since 0.9.8
- *
  * @param mixed $value Incoming value (array or JSON string).
  * @return string JSON-encoded slug list.
  */
@@ -211,8 +201,6 @@ function desktop_mode_agent_sanitize_abilities_json( $value ) {
  * Validates each row against the kind catalogue. Drops any row that
  * doesn't match a known kind — one bad row never rejects the whole
  * array.
- *
- * @since 0.9.8
  *
  * @param mixed $value Incoming triggers array (or JSON string).
  * @return array
@@ -256,8 +244,6 @@ function desktop_mode_agent_sanitize_triggers( $value ) {
 /**
  * `register_meta` sanitize callback — triggers land on disk as JSON.
  *
- * @since 0.9.8
- *
  * @param mixed $value Incoming value.
  * @return string JSON-encoded triggers list.
  */
@@ -273,8 +259,6 @@ function desktop_mode_agent_sanitize_triggers_json( $value ) {
  * verbatim — so the case is preserved and only non-identifier
  * characters are stripped. `sanitize_key()` would lower-case
  * everything, breaking the contract with the client.
- *
- * @since 0.9.8
  *
  * @param mixed $value Arbitrary input.
  * @return mixed
@@ -321,8 +305,6 @@ function desktop_mode_agent_sanitize_trigger_config_deep( $value ) {
  * Plugins can extend the list via the `desktop_mode_agent_trigger_kinds`
  * filter — each entry must declare a `slug`, `label`, and a JSON-Schema
  * `config_schema` describing the shape of `trigger.config`.
- *
- * @since 0.9.8
  *
  * @return array<int, array{slug:string,label:string,description:string,icon:string,config_schema:array}>
  */
@@ -427,8 +409,6 @@ function desktop_mode_agent_trigger_kinds() {
 	/**
 	 * Filter the trigger kinds available to agents.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param array $kinds Default trigger kinds.
 	 */
 	$filtered = apply_filters( 'desktop_mode_agent_trigger_kinds', $kinds );
@@ -444,8 +424,6 @@ function desktop_mode_agent_trigger_kinds() {
  * Not exhaustive — just the ones agents are most likely to subscribe
  * to. The renderer offers it as an autocomplete; the user can type any
  * hook name.
- *
- * @since 0.9.8
  *
  * @return array<int, array{hook:string, when:string}>
  */
@@ -489,8 +467,6 @@ function desktop_mode_agent_hooks_catalogue() {
 	 * Filter the curated catalogue of suggested hooks for the Hook
 	 * trigger configurator.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param array $hooks Default catalogue.
 	 */
 	$filtered = apply_filters( 'desktop_mode_agent_hooks_catalogue', $hooks );
@@ -505,8 +481,6 @@ function desktop_mode_agent_hooks_catalogue() {
  * `get_editable_roles()` intersection prevents a user from minting an
  * agent with a role they could not assign to a human.
  *
- * @since 0.9.8
- *
  * @return string[] Role slugs.
  */
 function desktop_mode_agent_allowed_roles() {
@@ -518,8 +492,6 @@ function desktop_mode_agent_allowed_roles() {
 	 * The result is always intersected with the acting user's
 	 * `get_editable_roles()` — the filter can narrow or extend the
 	 * whitelist but never bypass the editable-roles constraint.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param string[] $whitelist Default role slugs.
 	 */
@@ -543,8 +515,6 @@ function desktop_mode_agent_allowed_roles() {
 /**
  * Read the "when to use" description.
  *
- * @since 0.9.8
- *
  * @param int $user_id Agent user id.
  * @return string
  */
@@ -555,8 +525,6 @@ function desktop_mode_agent_get_description( $user_id ) {
 /**
  * Read the system prompt.
  *
- * @since 0.9.8
- *
  * @param int $user_id Agent user id.
  * @return string
  */
@@ -566,8 +534,6 @@ function desktop_mode_agent_get_instructions( $user_id ) {
 
 /**
  * Read the ability allowlist.
- *
- * @since 0.9.8
  *
  * @param int $user_id Agent user id.
  * @return string[]
@@ -583,8 +549,6 @@ function desktop_mode_agent_get_abilities( $user_id ) {
 /**
  * Read triggers.
  *
- * @since 0.9.8
- *
  * @param int $user_id Agent user id.
  * @return array
  */
@@ -599,8 +563,6 @@ function desktop_mode_agent_get_triggers( $user_id ) {
 /**
  * Read the model override.
  *
- * @since 0.9.8
- *
  * @param int $user_id Agent user id.
  * @return string Empty string if not set.
  */
@@ -610,8 +572,6 @@ function desktop_mode_agent_get_model( $user_id ) {
 
 /**
  * Read the rate limit (invocations per hour).
- *
- * @since 0.9.8
  *
  * @param int $user_id Agent user id.
  * @return int Zero when no per-agent override is set.
@@ -626,8 +586,6 @@ function desktop_mode_agent_get_rate_limit( $user_id ) {
 
 /**
  * Every agent on the site, ordered by display name.
- *
- * @since 0.9.8
  *
  * @param array $args Optional overrides merged into the `get_users()` query.
  * @return WP_User[]
@@ -649,8 +607,6 @@ function desktop_mode_agent_get_agents( $args = array() ) {
 
 /**
  * Create an agent: synthetic user row + definition meta.
- *
- * @since 0.9.8
  *
  * @param array{name:string, role:string, slug?:string, description?:string, instructions?:string, abilities?:array} $args Creation args.
  * @return WP_User|WP_Error
@@ -688,8 +644,6 @@ function desktop_mode_agent_create( $args ) {
 	/**
 	 * Fires after an agent is created.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param int   $user_id  Agent user id.
 	 * @param array $args     Sanitized creation fields (name, role,
 	 *                        description, instructions, abilities).
@@ -718,8 +672,6 @@ function desktop_mode_agent_create( $args ) {
  *
  * Recognized fields: `name`, `role`, `description`, `instructions`,
  * `abilities`, `triggers`, `model`, `rateLimit`.
- *
- * @since 0.9.8
  *
  * @param int   $user_id Agent user id.
  * @param array $fields  Field map.
@@ -863,8 +815,6 @@ function desktop_mode_agent_update( $user_id, array $fields ) {
 		 *
 		 * User meta has no revisions, so this action IS the audit
 		 * trail — each changed field carries its before/after value.
-		 *
-		 * @since 0.9.8
 		 *
 		 * @param int   $user_id  Agent user id.
 		 * @param array $changed  Map of field => { from, to }.

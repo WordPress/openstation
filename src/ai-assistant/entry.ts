@@ -11,8 +11,6 @@
  * `window.desktopModeCreateAiAssistant`. The stub awaits the load
  * event and calls the factory with the same constructor config the
  * stub captured at boot time.
- *
- * @since 0.8.4
  */
 
 import { AiAssistant } from './impl';

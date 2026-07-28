@@ -8,15 +8,12 @@
  * Author insights drawer, and a per-row spam confidence score.
  *
  * @package WPDesktopMode
- * @since   0.8.3
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Echoes the native Comments window's template body.
- *
- * @since 0.8.3
  */
 function desktop_mode_comments_window_render_template() {
 	$can_moderate = current_user_can( 'moderate_comments' );
@@ -82,8 +79,6 @@ function desktop_mode_comments_window_render_template() {
 	/**
 	 * Filter the native Comments window's template HTML.
 	 *
-	 * @since 0.8.3
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_comments_window_template_html', $html );
@@ -97,8 +92,6 @@ function desktop_mode_comments_window_render_template() {
 
 /**
  * Register the native Comments window on `init` (priority 20).
- *
- * @since 0.8.3
  */
 function desktop_mode_comments_window_register_window() {
 	if ( ! desktop_mode_comments_window_user_can_register() ) {
@@ -161,8 +154,6 @@ function desktop_mode_comments_window_register_window() {
 				 * - `'gutenberg'` — full @wordpress/block-editor (follow-up surface).
 				 * - `'plain'`     — plain textarea, no toolbar.
 				 *
-				 * @since 0.8.3
-				 *
 				 * @param string $editor   Editor flavor slug.
 				 * @param int    $viewer_id Current user id.
 				 */
@@ -175,8 +166,6 @@ function desktop_mode_comments_window_register_window() {
 
 	/**
 	 * Filter the args used to register the native Comments window.
-	 *
-	 * @since 0.8.3
 	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
@@ -192,8 +181,6 @@ add_action( 'init', 'desktop_mode_comments_window_register_window', 20 );
 
 /**
  * Default REST query args for the Comments window.
- *
- * @since 0.8.3
  *
  * @return array
  */
@@ -222,8 +209,6 @@ function desktop_mode_comments_window_default_query_args() {
 	/**
 	 * Filter the default outbound REST query args for the Comments window.
 	 *
-	 * @since 0.8.3
-	 *
 	 * @param array $args Default args.
 	 */
 	return (array) apply_filters( 'desktop_mode_comments_window_query_args', $args );
@@ -234,8 +219,6 @@ function desktop_mode_comments_window_default_query_args() {
  *
  * Fields are computed lazily — none of them runs unless the bundle
  * explicitly requests them via `_fields`.
- *
- * @since 0.8.3
  */
 function desktop_mode_comments_window_register_rest_fields() {
 	register_rest_field(

@@ -24,15 +24,12 @@
  *    `permission_callback` evaluated against the agent user.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Registers the agent-oriented abilities.
- *
- * @since 0.9.8
  *
  * @return void
  */
@@ -167,8 +164,6 @@ add_action( 'wp_abilities_api_init', 'desktop_mode_agents_register_abilities' );
 /**
  * `desktop-mode/get-post` execute callback.
  *
- * @since 0.9.8
- *
  * @param array $args Validated input.
  * @return array|WP_Error
  */
@@ -196,8 +191,6 @@ function desktop_mode_agents_ability_get_post( $args ) {
 /**
  * `desktop-mode/get-post` permission callback.
  *
- * @since 0.9.8
- *
  * @param array $args Input args.
  * @return bool
  */
@@ -212,8 +205,6 @@ function desktop_mode_agents_ability_get_post_can( $args ) {
 
 /**
  * `desktop-mode/get-media` execute callback.
- *
- * @since 0.9.8
  *
  * @param array $args Validated input.
  * @return array|WP_Error
@@ -255,8 +246,6 @@ function desktop_mode_agents_ability_get_media( $args ) {
  * wrongly blocks read-only access to media whose file URL is public
  * on a standard site anyway.
  *
- * @since 0.9.8
- *
  * @param array $args Input args.
  * @return bool
  */
@@ -271,8 +260,6 @@ function desktop_mode_agents_ability_get_media_can( $args ) {
 
 /**
  * `desktop-mode/update-post` execute callback.
- *
- * @since 0.9.8
  *
  * @param array $args Validated input.
  * @return array|WP_Error
@@ -318,8 +305,6 @@ function desktop_mode_agents_ability_update_post( $args ) {
  * Publishing needs `publish_posts` on top of `edit_post` — the same
  * split wp-admin enforces on a human editor.
  *
- * @since 0.9.8
- *
  * @param array $args Input args.
  * @return bool
  */
@@ -342,8 +327,6 @@ function desktop_mode_agents_ability_update_post_can( $args ) {
  * ability the site registered, Core's, this plugin's, or any third
  * party's, projected into the picker shape with an honest
  * readonly/mutating badge derived from `meta.annotations.readonly`.
- *
- * @since 0.9.8
  *
  * @return array<int, array{slug:string, label:string, description:string, category:string, readonly:bool}>
  */
@@ -375,8 +358,6 @@ function desktop_mode_agents_abilities_catalogue() {
 	 * Desktop-Mode-only entries. The preferred extension path stays
 	 * `wp_register_ability()` so every agent runtime sees the same
 	 * registry.
-	 *
-	 * @since 0.9.8
 	 *
 	 * @param array $catalogue Abilities projected from `wp_get_abilities()`.
 	 */

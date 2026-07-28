@@ -13,8 +13,6 @@
  * Internal for now (module-level map — the notes layer and the files
  * layer compile into the same main bundle). Promote via
  * `wp.desktop.files` + docs if third-party bundles ever need it.
- *
- * @since 0.9.6
  */
 
 import type { DragPayload, DragSession } from '../drag';

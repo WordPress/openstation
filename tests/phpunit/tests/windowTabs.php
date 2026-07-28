@@ -308,8 +308,7 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 
 	/**
 	 * Single-pane windows (no additional tabs) render the plugin's
-	 * template markup directly — same shape every pre-0.11 native
-	 * window produced. Backwards-compatible fast path.
+	 * template markup directly — the backwards-compatible fast path.
 	 *
 	 * @covers ::desktop_mode_build_native_window_template_html
 	 */
@@ -360,7 +359,7 @@ class Tests_DesktopMode_WindowTabs extends WP_UnitTestCase {
 
 	/**
 	 * The auto-tab wrap exposes a configurable padding. Default is
-	 * 16 (matches pre-0.13 visual). Callers opt into edge-to-edge
+	 * 16. Callers opt into edge-to-edge
 	 * content by passing `main_tab_padding => 0` when registering
 	 * the window — CSS-as-attribute applies the value as an inline
 	 * style on the wrap's `<wpd-stack>`.

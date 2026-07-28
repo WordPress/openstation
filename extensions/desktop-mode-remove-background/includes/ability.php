@@ -130,8 +130,6 @@ function desktop_mode_remove_bg_execute( $args ) {
 	 * (or a WP_Error) to skip the configured backend entirely — the
 	 * seam PHPUnit and bespoke integrations plug into.
 	 *
-	 * @since 0.1.0
-	 *
 	 * @param string|WP_Error|null $png           Null to run the configured backend.
 	 * @param string               $path          Image file path.
 	 * @param string               $mime          Image mime type.

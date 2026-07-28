@@ -14,8 +14,6 @@
  * a richer affordance can replace it via the
  * `desktop-mode.files.create-folder.dialog` filter (returns
  * `false` to suppress the built-in dialog and own the flow).
- *
- * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';
@@ -33,22 +31,16 @@ export interface CreateFolderDialogOptions {
 	 * Heading copy for the dialog. Defaults to `'New folder'`.
 	 * Pass a different string when reusing the dialog for rename
 	 * flows so screen readers and the visible heading match.
-	 *
-	 * @since 0.8.0
 	 */
 	title?: string;
 	/**
 	 * Label above the input. Defaults to `'Folder name'`.
-	 *
-	 * @since 0.8.0
 	 */
 	label?: string;
 	/**
 	 * Primary button copy. Defaults to `'Create'`. Use `'Rename'`
 	 * (or any verb that reads correctly with the new title) when
 	 * the dialog is acting as a rename modal.
-	 *
-	 * @since 0.8.0
 	 */
 	submitLabel?: string;
 }

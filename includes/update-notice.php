@@ -4,7 +4,6 @@
  * config value. The shell resolves the release art and renders the
  * notification client-side (see `src/update-notice.ts`).
  *
- * @since 0.9.4
  * @package DesktopMode
  */
 
@@ -13,8 +12,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Whether `$available` is a new major (X.Y branch) relative to `$installed`
  * — `6.9.2 -> 7.0` is major, `7.0 -> 7.0.2` is not.
- *
- * @since 0.9.4
  *
  * @param string $installed Installed version.
  * @param string $available Available version.
@@ -31,8 +28,6 @@ function desktop_mode_is_major_update( $installed, $available ) {
 /**
  * The X.Y branch for a version (`7.0.2` -> `7.0`).
  *
- * @since 0.9.4
- *
  * @param string $version Version string.
  * @return string
  */
@@ -48,8 +43,6 @@ function desktop_mode_release_branch( $version ) {
  * `version` is the branch when crossing into a new major (the codename is
  * added client-side), else the exact version; `available` is the exact
  * version (the dismissal key); `crossing` flags a new major.
- *
- * @since 0.9.4
  *
  * @return array{version:string,available:string,branch:string,url:string,crossing:bool}|null
  */
@@ -78,8 +71,6 @@ function desktop_mode_get_core_update() {
 	/**
 	 * Whether to show the desktop core-update notification. Return false
 	 * to hide it.
-	 *
-	 * @since 0.9.4
 	 *
 	 * @param bool $show Default true.
 	 */

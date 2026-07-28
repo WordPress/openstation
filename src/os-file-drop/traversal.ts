@@ -20,8 +20,6 @@
  * The prefixed APIs are the standardized WICG Entries API and are
  * Baseline across browsers; the File System Access API is
  * deliberately NOT used (Chromium-only).
- *
- * @since 0.9.6
  */
 
 /** One real file discovered in the tree. */

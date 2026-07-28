@@ -27,8 +27,6 @@
  * as `<wpd-range-field>`). Callers that need Enter-to-submit can
  * listen for the `wpd-submit` event the component fires when the
  * user presses Enter without Shift.
- *
- * @since 0.5.0
  */
 
 import {

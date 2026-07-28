@@ -8,8 +8,6 @@
  * the call-site reads identically:
  *
  *     static styles = [ css`:host { display: block }` ];
- *
- * @since 0.9.0
  */
 
 /**

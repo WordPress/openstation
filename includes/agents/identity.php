@@ -18,15 +18,12 @@
  * Meta constants live in store.php; this file owns the user row.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Whether the given user is a Desktop Mode agent.
- *
- * @since 0.9.8
  *
  * @param int|WP_User|null $user User id or object.
  * @return bool
@@ -44,8 +41,6 @@ function desktop_mode_agent_is_agent( $user ) {
  *
  * Returns the input prefixed with `agent-`, or appends a numeric suffix
  * if a user with that login already exists.
- *
- * @since 0.9.8
  *
  * @param string $slug Sanitized slug.
  * @return string
@@ -68,8 +63,6 @@ function desktop_mode_agent_resolve_unique_login( $slug ) {
  * schema validation and reserves the slot so `email_exists()` stays
  * unique across agents.
  *
- * @since 0.9.8
- *
  * @param string $slug Sanitized agent slug.
  * @return string
  */
@@ -91,8 +84,6 @@ function desktop_mode_agent_synthetic_email( $slug ) {
  * Create a synthetic agent user row. Definition meta is written by the
  * `desktop_mode_agent_create()` orchestrator in store.php — call that,
  * not this, unless you only need the bare row.
- *
- * @since 0.9.8
  *
  * @param array{name:string, role:string, slug?:string} $args Agent
  *        creation args. `role` MUST be one of the site's registered
@@ -156,8 +147,6 @@ function desktop_mode_agent_create_user( $args ) {
  * authored is NOT reassigned — pass a reassign id when the caller
  * wants to keep it.
  *
- * @since 0.9.8
- *
  * @param int      $user_id  Agent user id.
  * @param int|null $reassign Optional user id to reassign authored content to.
  * @return true|WP_Error
@@ -185,8 +174,6 @@ function desktop_mode_agent_delete( $user_id, $reassign = null ) {
 	/**
 	 * Fires after an agent is deleted.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param int $user_id  Agent user id (row no longer exists when this fires).
 	 * @param int $actor_id User who deleted the agent.
 	 */
@@ -206,8 +193,6 @@ function desktop_mode_agent_delete( $user_id, $reassign = null ) {
  * surfaces the message inline. Covers XML-RPC too — it authenticates
  * through the same filter chain.
  *
- * @since 0.9.8
- *
  * @param WP_User|WP_Error|null $user Current candidate from the chain.
  * @return WP_User|WP_Error|null
  */
@@ -224,8 +209,6 @@ add_filter( 'authenticate', 'desktop_mode_agent_block_authentication', 30 );
 
 /**
  * Block password-reset emails for agent users.
- *
- * @since 0.9.8
  *
  * @param bool $allow   Whether to allow the reset.
  * @param int  $user_id Target user id.
@@ -244,8 +227,6 @@ add_filter( 'allow_password_reset', 'desktop_mode_agent_block_password_reset', 1
  * a never-logs-in account over REST — refuse to make them available
  * for agents.
  *
- * @since 0.9.8
- *
  * @param bool    $available Whether application passwords are available.
  * @param WP_User $user      The user being checked.
  * @return bool
@@ -262,8 +243,6 @@ add_filter( 'wp_is_application_passwords_available_for_user', 'desktop_mode_agen
  * Suppress the password/email-changed notification emails for agents —
  * the synthetic address is never delivered to, and a bounced
  * notification per definition edit is pure noise in the mail log.
- *
- * @since 0.9.8
  *
  * @param bool  $send Whether to send the notification.
  * @param array $user The original user array before changes.
@@ -290,8 +269,6 @@ add_filter( 'send_email_change_email', 'desktop_mode_agent_suppress_change_email
  * and inside the agent renderer so the visual motif is consistent
  * across every surface that shows an agent.
  *
- * @since 0.9.8
- *
  * @return string Data URI.
  */
 function desktop_mode_agent_avatar_data_uri() {
@@ -310,8 +287,6 @@ function desktop_mode_agent_avatar_data_uri() {
 
 /**
  * Substitute the bot glyph for agent avatars across the WP admin.
- *
- * @since 0.9.8
  *
  * @param array                         $args        Args being assembled by `get_avatar_data()`.
  * @param int|string|WP_User|WP_Comment $id_or_email Identifier the caller passed.
@@ -343,8 +318,6 @@ add_filter( 'pre_get_avatar_data', 'desktop_mode_agent_avatar', 10, 2 );
 /**
  * Add a "Type" column to the wp-admin Users list that labels agents.
  *
- * @since 0.9.8
- *
  * @param string[] $columns Existing column id => label map.
  * @return string[]
  */
@@ -356,8 +329,6 @@ add_filter( 'manage_users_columns', 'desktop_mode_agent_users_columns' );
 
 /**
  * Render the cell for the "Type" column.
- *
- * @since 0.9.8
  *
  * @param string $output      Existing rendered HTML.
  * @param string $column_name Column id.

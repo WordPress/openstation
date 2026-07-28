@@ -19,8 +19,6 @@
  * promise, no streaming events. For live SSE progress, reach for
  * the existing `aiSearchStreamUrl` (admin-ajax) surface; `ask()` is
  * the "give me the answer" API.
- *
- * @since 0.5.1
  */
 
 import {
@@ -95,8 +93,6 @@ export interface AskOptions {
 	 * If the follow-up call fails (network, API, etc.), `ask()`
 	 * degrades gracefully — the primary `toolCall.result` is
 	 * preserved and `message` falls back to the raw `run()` return.
-	 *
-	 * @since 0.5.1
 	 */
 	followUp?: boolean;
 
@@ -263,8 +259,6 @@ function serialiseOutcome(
 /**
  * Factory — binds to a config getter so the caller (desktop.ts) can
  * hand in the live shell config without this module reading globals.
- *
- * @since 0.5.1
  */
 export function createAsk( deps: AskDeps ) {
 	// ------------------------------------------------------------

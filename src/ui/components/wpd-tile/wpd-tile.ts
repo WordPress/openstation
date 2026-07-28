@@ -28,8 +28,6 @@
  *
  * Consumers wire `click` / `dblclick` / `contextmenu` directly on
  * the `<wpd-tile>` element. No custom-event surface.
- *
- * @since 0.8.6
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -73,7 +71,6 @@ function statusRibbonsEnabled(): boolean {
  * reuse the same accessor — single source of truth.
  *
  * @public
- * @since 0.8.6
  */
 export function getDragManager(): DragManagerApi | null {
 	const api = (

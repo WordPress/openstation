@@ -33,7 +33,6 @@
  *   - **Click background** clears focus + satellites.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __ } from '../i18n';

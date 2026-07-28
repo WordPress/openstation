@@ -21,7 +21,6 @@
  *   so a runaway client cannot bloat user-meta indefinitely.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,8 +33,6 @@ const DESKTOP_MODE_SEEN_INTROS_MAX = 64;
 
 /**
  * Returns the list of intro slugs the user has dismissed.
- *
- * @since 0.8.0
  *
  * @param int $user_id User ID.
  * @return string[] Sanitized list (may be empty).
@@ -57,8 +54,6 @@ function desktop_mode_get_seen_intros( $user_id ) {
 /**
  * Whether the user has already dismissed the given intro.
  *
- * @since 0.8.0
- *
  * @param int    $user_id User ID.
  * @param string $slug    Intro slug (e.g. `'posts'`).
  * @return bool
@@ -76,8 +71,6 @@ function desktop_mode_has_seen_intro( $user_id, $slug ) {
  *
  * Idempotent — re-marking an already-seen intro is a no-op that
  * still returns true.
- *
- * @since 0.8.0
  *
  * @param int    $user_id User ID.
  * @param string $slug    Intro slug.
@@ -109,8 +102,6 @@ function desktop_mode_mark_intro_seen( $user_id, $slug ) {
  * Wipes every seen-intro entry for the user. Used by the OS
  * Settings → Features "Reset what's-new dialogs" button.
  *
- * @since 0.8.0
- *
  * @param int $user_id User ID.
  * @return bool True on success.
  */
@@ -124,8 +115,6 @@ function desktop_mode_clear_seen_intros( $user_id ) {
 
 /**
  * Coerces a raw payload to a clean list of slugs.
- *
- * @since 0.8.0
  *
  * @param mixed $raw Raw value.
  * @return string[]
@@ -157,8 +146,6 @@ function desktop_mode_sanitize_seen_intros( $raw ) {
  *
  * Both return the post-mutation list so the client can refresh its
  * local snapshot without a follow-up GET.
- *
- * @since 0.8.0
  */
 function desktop_mode_register_seen_intros_routes() {
 	register_rest_route(
@@ -209,11 +196,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_seen_intros_routes' );
  * dismissal flag carries no privileged surface. The DELETE /intros route
  * ("Reset what's-new dialogs") carries no slug and keeps the strict gate.
  *
- * @since 0.8.0
- * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
- * @since 0.30.1 Allow the `activation-welcome` slug without the enabled
- *               gate, so the welcome dialog's dismissal can persist.
- *
  * @param WP_REST_Request $request The REST request.
  * @return true|WP_Error
  */
@@ -243,8 +225,6 @@ function desktop_mode_rest_seen_intros_permission( WP_REST_Request $request ) {
 /**
  * REST handler for `POST /desktop-mode/v1/intros/seen`.
  *
- * @since 0.8.0
- *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
@@ -266,8 +246,6 @@ function desktop_mode_rest_mark_intro_seen( WP_REST_Request $request ) {
 
 /**
  * REST handler for `DELETE /desktop-mode/v1/intros`.
- *
- * @since 0.8.0
  *
  * @return WP_REST_Response
  */

@@ -9,7 +9,6 @@
  * settings layer was doing anyway.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -23,8 +22,6 @@ const DESKTOP_MODE_DESKTOP_THEME_STYLE_HANDLE = 'desktop-mode-desktop-theme';
  * Orphans degrade silently: a user whose selected theme was deleted
  * (or whose registering plugin was deactivated) gets `''` here and
  * sees the system default, with no user-meta rewrite and no error.
- *
- * @since 0.9.7
  *
  * @param int $user_id User id. Defaults to the current user.
  * @return string Slug, or `''` for the system default.
@@ -59,7 +56,6 @@ function desktop_mode_active_desktop_theme_slug( $user_id = 0 ) {
 /**
  * Whether this request should carry desktop-theme assets at all.
  *
- * @since 0.9.7
  * @internal
  *
  * @return bool
@@ -78,8 +74,6 @@ function desktop_mode_desktop_theme_request_is_themable() {
  * per-admin-color-scheme blocks in `variables.css`, and a
  * specificity tie is settled by source order. Drop the dependency
  * and a themed token silently loses to the color scheme.
- *
- * @since 0.9.7
  */
 function desktop_mode_enqueue_desktop_theme_style() {
 	if ( ! desktop_mode_desktop_theme_request_is_themable() ) {
@@ -131,8 +125,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_desktop_theme_style',
  * `admin_body_class` is a STRING filter — concatenate, never
  * array-push.
  *
- * @since 0.9.7
- *
  * @param string $classes Space-separated class list.
  * @return string
  */
@@ -154,8 +146,6 @@ add_filter( 'admin_body_class', 'desktop_mode_desktop_theme_body_class', 20 );
  * Uses the public `desktop_mode_shell_config` filter rather than
  * editing the config literal in `includes/render/assets.php`, the
  * same way the stored-files module contributes `desktopStorage`.
- *
- * @since 0.9.7
  *
  * @param array $config Shell config.
  * @return array

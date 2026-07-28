@@ -13,11 +13,9 @@
  *
  * Generalises the title-bar-button registry pattern (`subscribe`
  * fan-out, `match` predicate, `owner`-based teardown). The
- * `registerTitleBarButton()` API (since 0.6.0) is preserved as a
+ * `registerTitleBarButton()` API is preserved as a
  * thin alias that delegates to this registry — existing plugins keep
  * working unchanged.
- *
- * @since 0.6.0
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';

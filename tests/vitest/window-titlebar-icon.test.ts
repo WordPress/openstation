@@ -7,8 +7,6 @@
  * gamepad SVG) rendered an empty `<span class="dashicons …">` in
  * the title bar — the data URI was squeezed through the
  * dashicons-class code path and stripped into a garbage class name.
- *
- * @since 0.9.7
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createWindowElement } from '../../src/window/dom';

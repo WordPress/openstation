@@ -3,8 +3,6 @@
  *
  * Mounts the drop manager and wires the dialog opener. Called
  * once from `src/desktop.ts` during shell boot.
- *
- * @since 0.30.0
  */
 
 import { mountOsFileDropManager } from './manager';

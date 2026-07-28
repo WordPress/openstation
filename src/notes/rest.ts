@@ -5,8 +5,6 @@
  * Same conventions as the files client (`src/desktop-files/rest.ts`):
  * nonce header, JSON body, typed 409 conflict error carrying the
  * server's current copy.
- *
- * @since 0.9.6
  */
 
 import { trackedFetch } from '../tracked-fetch';

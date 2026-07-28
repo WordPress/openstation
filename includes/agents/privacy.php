@@ -12,7 +12,6 @@
  * admin-managed assets that survive a human-user erasure.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -20,8 +19,6 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the personal-data exporter under the `desktop-mode-agents`
  * group.
- *
- * @since 0.9.8
  *
  * @param array $exporters Existing exporter registry.
  * @return array
@@ -37,8 +34,6 @@ add_filter( 'wp_privacy_personal_data_exporters', 'desktop_mode_agents_register_
 
 /**
  * Exporter callback.
- *
- * @since 0.9.8
  *
  * @param string $email_address Target user's email.
  * @param int    $page          1-indexed page (always done=true).
@@ -129,8 +124,6 @@ function desktop_mode_agents_personal_data_exporter( $email_address, $page = 1 )
  * Register the personal-data eraser under the `desktop-mode-agents`
  * group.
  *
- * @since 0.9.8
- *
  * @param array $erasers Existing eraser registry.
  * @return array
  */
@@ -147,8 +140,6 @@ add_filter( 'wp_privacy_personal_data_erasers', 'desktop_mode_agents_register_pe
  * Eraser callback. When the target email belongs to an agent, fully
  * delete it (the user row deletion removes every definition meta row).
  * Non-agent emails are a no-op.
- *
- * @since 0.9.8
  *
  * @param string $email_address Target user's email.
  * @param int    $page          1-indexed page (always done=true).

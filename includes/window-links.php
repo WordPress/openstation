@@ -15,7 +15,6 @@
  * to) resolve server-side and reach the shell via the chromeless
  * bridge's `desktop-mode-content-identity` postMessage.
  *
- * @since 0.9.4
  * @package WPDesktopMode
  */
 
@@ -42,8 +41,6 @@ defined( 'ABSPATH' ) || exit;
  *  - `comment.php` (comment edit / moderation) — `comment`, rooted at
  *    the parent post. The URL alone can't answer this one; only real
  *    admin context can.
- *
- * @since 0.9.4
  *
  * @return array|null Identity array, or `null` when none applies.
  */
@@ -105,6 +102,11 @@ function desktop_mode_build_content_identity() {
 				$links = desktop_mode_window_links_extract_references( $post );
 				if ( ! empty( $links ) ) {
 					$identity['links'] = $links;
+				}
+
+				$preview_url = desktop_mode_window_preview_url( $post );
+				if ( '' !== $preview_url ) {
+					$identity['previewUrl'] = $preview_url;
 				}
 
 				// Source for the built-in related-entity items attached
@@ -187,8 +189,6 @@ function desktop_mode_build_content_identity() {
 	 * `WindowContentRef`: `type` (lowercase slug), `id` (int|string),
 	 * optional `label`, optional `root => array( 'type', 'id' )`.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param array|null     $identity Identity array, or `null` for none.
 	 * @param WP_Screen|null $screen   The current screen, when available.
 	 */
@@ -207,12 +207,70 @@ function desktop_mode_build_content_identity() {
 }
 
 /**
+ * Build the front-end preview URL for a post — the target of the
+ * shell's "Preview" (eye) title-bar button.
+ *
+ * Wraps `get_preview_post_link()` with the same query args core's own
+ * `post_preview()` passes (`preview_id` + a `post_preview_{ID}` nonce),
+ * so `_set_preview()` swaps in the newest autosave revision on the
+ * front end. Required for published/scheduled/private posts, whose
+ * autosaves land in a revision; harmless for drafts, where autosave
+ * writes the post itself and `_set_preview()` no-ops.
+ *
+ * Nonce freshness is bounded by save cadence: the content identity is
+ * rebuilt on every chromeless page render AND on the editor
+ * save-watcher's REST recompute, so a long-lived editor window always
+ * holds a recent nonce.
+ *
+ * @param WP_Post $post The post being edited.
+ * @return string Preview URL, or `''` when the post has no front-end
+ *                preview (non-viewable type, attachment, insufficient
+ *                capability) or a filter suppressed it.
+ */
+function desktop_mode_window_preview_url( $post ) {
+	$preview_url = '';
+
+	if (
+		$post instanceof WP_Post &&
+		$post->ID > 0 &&
+		'attachment' !== $post->post_type &&
+		is_post_type_viewable( get_post_type_object( $post->post_type ) ) &&
+		current_user_can( 'edit_post', $post->ID )
+	) {
+		$link = get_preview_post_link(
+			$post,
+			array(
+				'preview_id'    => $post->ID,
+				'preview_nonce' => wp_create_nonce( 'post_preview_' . $post->ID ),
+			)
+		);
+		if ( is_string( $link ) ) {
+			$preview_url = $link;
+		}
+	}
+
+	/**
+	 * Filters the front-end preview URL attached to a post-editor
+	 * content identity (the target of the shell's "Preview" eye
+	 * title-bar button).
+	 *
+	 * Return `''` to suppress the preview button for this post, or
+	 * rewrite the URL to point somewhere else (a headless front end,
+	 * a staging domain). Note the shell only accepts same-origin URLs;
+	 * a cross-origin rewrite hides the button.
+	 *
+	 * @param string  $preview_url Preview URL, `''` when none applies.
+	 * @param WP_Post $post        The post being edited.
+	 */
+	return (string) apply_filters( 'desktop_mode_window_preview_url', $preview_url, $post );
+}
+
+/**
  * The related-entity pass: attach the `related` navigation items to a
  * (post-identity-filter) content identity. Shared by the page-render
  * builder above and the REST recompute endpoint the editor
  * save-watcher hits (where `$screen` is `null`).
  *
- * @since 0.9.6
  * @internal
  *
  * @param array|null     $identity Filtered identity, or `null`.
@@ -279,8 +337,6 @@ function desktop_mode_window_related_attach( $identity, $post, $screen ) {
 	 * `desktop-mode/v1/content-identity` REST recompute the editor
 	 * save-watcher triggers — in the REST context `$screen` is `null`.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param array[]        $related  Related-entity items.
 	 * @param array          $identity The resolved content identity.
 	 * @param WP_Screen|null $screen   The current screen, when available.
@@ -317,8 +373,6 @@ function desktop_mode_window_related_attach( $identity, $post, $screen ) {
  *
  * Deduped by type:id and capped so a link-farm post can't flood the
  * shell.
- *
- * @since 0.9.4
  *
  * @param WP_Post $post Source post.
  * @return array[] Reference entries, possibly empty.
@@ -424,8 +478,6 @@ function desktop_mode_window_links_extract_references( $post ) {
  * Built-ins deliberately cover `post` and `page` only; other post
  * types (and non-post screens) join via the
  * `desktop_mode_window_related_entities` filter.
- *
- * @since 0.9.6
  *
  * @param WP_Post $post Source post.
  * @return array[] Related-entity items, possibly empty.
@@ -583,7 +635,6 @@ function desktop_mode_window_related_entities_for_post( $post ) {
  * must not invalidate the whole identity client-side (the JS engine
  * validates the ref as a unit and would discard everything).
  *
- * @since 0.9.6
  * @internal
  *
  * @param mixed $related Filter output.
@@ -645,8 +696,6 @@ function desktop_mode_window_related_entities_sanitize( $related ) {
  * `desktop_mode_window_related_entities`) run here exactly as they
  * do at page render, with `$screen = null` — there is no WP_Screen
  * in REST context.
- *
- * @since 0.9.6
  */
 function desktop_mode_register_content_identity_route() {
 	register_rest_route(
@@ -674,8 +723,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_content_identity_route' );
  * the identity carries the post title, term names, and media labels,
  * which is exactly what the edit screen itself exposes.
  *
- * @since 0.9.6
- *
  * @param WP_REST_Request $request REST request.
  * @return true|WP_Error
  */
@@ -698,8 +745,6 @@ function desktop_mode_rest_content_identity_permission( $request ) {
  * REST handler — rebuild the post-editor identity the same way the
  * page-render builder's `post.php` branch does, filters included.
  *
- * @since 0.9.6
- *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
@@ -721,6 +766,11 @@ function desktop_mode_rest_content_identity( $request ) {
 	$links    = desktop_mode_window_links_extract_references( $post );
 	if ( ! empty( $links ) ) {
 		$identity['links'] = $links;
+	}
+
+	$preview_url = desktop_mode_window_preview_url( $post );
+	if ( '' !== $preview_url ) {
+		$identity['previewUrl'] = $preview_url;
 	}
 
 	/** This filter is documented in includes/window-links.php */
@@ -768,8 +818,6 @@ function desktop_mode_rest_content_identity( $request ) {
  * `registerWindowLinkRenderer` call. Otherwise the renderer stays
  * until the next page reload — graceful backwards-compat.
  *
- * @since 0.9.4
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
@@ -787,8 +835,6 @@ function desktop_mode_register_window_link_renderer_script( $handle ) {
 	/**
 	 * Fires after a window-link renderer script handle is registered.
 	 *
-	 * @since 0.9.4
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_window_link_renderer_script_registered', $handle );
@@ -799,7 +845,6 @@ function desktop_mode_register_window_link_renderer_script( $handle ) {
 /**
  * Internal module-level registry for window-link renderer script handles.
  *
- * @since 0.9.4
  * @internal
  *
  * @param string    $handle Script handle to read or write.
@@ -825,8 +870,6 @@ function desktop_mode_window_link_renderer_script_registry( $handle = '', $value
 /**
  * Test-only: clear the registry between PHPUnit cases. See
  * {@see desktop_mode_flush_script_handle_registries()}.
- *
- * @since 0.9.4
  */
 function desktop_mode_flush_window_link_renderer_script_registry() {
 	desktop_mode_window_link_renderer_script_registry( '__flush__' );
@@ -835,8 +878,6 @@ function desktop_mode_flush_window_link_renderer_script_registry() {
 /**
  * Build the script-handle payload fed to the shell. Handles that
  * aren't currently enqueued resolve to an empty URL and are dropped.
- *
- * @since 0.9.4
  *
  * @return array[] List of `{ handle, scriptUrl, … }` entries.
  */

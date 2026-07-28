@@ -17,7 +17,6 @@
  *   - classic-link-interceptor.php — detached-tab link rewriter
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;

@@ -22,7 +22,6 @@
  * REST routes, no window, no My WordPress entity.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -32,8 +31,6 @@ defined( 'ABSPATH' ) || exit;
  *
  * Backed by the `agents` key of the extended options bundle
  * (`desktop_mode_get_extended_options()`), default off — opt-in.
- *
- * @since 0.9.8
  *
  * @return bool
  */
@@ -48,8 +45,6 @@ function desktop_mode_agents_enabled() {
 	 * agents module loads at all, and again at runtime wherever the
 	 * enabled state is consulted.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param bool $enabled Whether the Agents framework is enabled.
 	 */
 	return (bool) apply_filters( 'desktop_mode_agents_enabled', $enabled );
@@ -57,8 +52,6 @@ function desktop_mode_agents_enabled() {
 
 /**
  * Loads the agents module when the framework is enabled.
- *
- * @since 0.9.8
  *
  * @access private
  */

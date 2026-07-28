@@ -12,8 +12,6 @@
  * through to a parent target. This is what stops a drop on top of an
  * iframe window from being silently routed to the wallpaper
  * underneath.
- *
- * @since 0.8.1
  */
 
 import type { DragPayload, DropTarget } from './types';

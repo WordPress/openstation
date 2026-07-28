@@ -14,8 +14,6 @@
  *   - Backspace steps the matched prefix back one character
  *     (keeping the lock); Escape releases the lock entirely.
  *   - Completing the last character reports `completed`.
- *
- * @since 0.9.6
  */
 
 export interface MatchableWord {

@@ -11,10 +11,10 @@ import { css } from '../../core';
 export const textFieldStyles = css`
 	/*
 	 * Host is block-level flex so the field fills its parent cell
-	 * (grid row col=N, flex container, plain block container). The
-	 * pre-0.12 inline-flex default left the native <input> at its
-	 * intrinsic width while the host spanned the full cell, which
-	 * looked wrong inside a wpd-row.
+	 * (grid row col=N, flex container, plain block container). An
+	 * inline-flex default would leave the native <input> at its
+	 * intrinsic width while the host spans the full cell, which
+	 * looks wrong inside a wpd-row.
 	 */
 	:host {
 		display: flex;

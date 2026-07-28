@@ -7,8 +7,6 @@
  * an alarm rings until you press Stop. The timer itself lives in a
  * page-wide runtime (`./timer`) so it keeps counting across re-renders
  * and page reloads; this file is only the view.
- *
- * @since 0.26.0
  */
 
 import './styles.css';

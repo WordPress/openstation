@@ -13,8 +13,6 @@
  *
  * Assumes `window.PIXI` is defined — the wallpaper def declares
  * `needs: ['pixijs']`, so the shell loads it before mount.
- *
- * @since 0.9.4
  */
 
 import {

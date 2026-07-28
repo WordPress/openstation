@@ -29,15 +29,12 @@
  * busted whenever any post is saved or deleted.
  *
  * @package WPDesktopMode
- * @since   0.8.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.6
  */
 function desktop_mode_my_wordpress_register_media_usage_route() {
 	register_rest_route(
@@ -74,16 +71,12 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_media_usage_rou
  * can shorten the window, or sites with stable libraries can
  * lengthen it.
  *
- * @since 0.8.6
- *
  * @param int $attachment_id Attachment id.
  * @return int
  */
 function desktop_mode_my_wordpress_media_usage_ttl( $attachment_id ) {
 	/**
 	 * Filter the media-usage transient TTL.
-	 *
-	 * @since 0.8.6
 	 *
 	 * @param int $seconds       Default 300 (5 minutes).
 	 * @param int $attachment_id Attachment id the cache key is for.
@@ -97,8 +90,6 @@ function desktop_mode_my_wordpress_media_usage_ttl( $attachment_id ) {
  * iterate over the same array, so the writer and the buster can
  * never go out of sync.
  *
- * @since 0.8.6
- *
  * @return string[]
  */
 function desktop_mode_my_wordpress_media_usage_cache_buckets() {
@@ -108,8 +99,6 @@ function desktop_mode_my_wordpress_media_usage_cache_buckets() {
 /**
  * Bucket key for the current user — the writer's view of which
  * cache slot to read/write.
- *
- * @since 0.8.6
  *
  * @return string
  */
@@ -123,8 +112,6 @@ function desktop_mode_my_wordpress_media_usage_current_bucket() {
  * viewer-independent reference map (per-row capability gating runs
  * after the cache read), so the bucket is key hygiene rather than a
  * security boundary.
- *
- * @since 0.8.6
  *
  * @param int    $attachment_id Attachment id.
  * @param string $bucket        Optional bucket override. Defaults to
@@ -140,8 +127,6 @@ function desktop_mode_my_wordpress_media_usage_cache_key( $attachment_id, $bucke
 
 /**
  * Endpoint callback. See file docblock for payload shape.
- *
- * @since 0.8.6
  *
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
@@ -186,8 +171,6 @@ function desktop_mode_my_wordpress_media_usage_callback( $request ) {
 	 * Plugins (ACF, page builders, Yoast image meta) can append rows
 	 * to `usedIn` describing their own attachment references.
 	 *
-	 * @since 0.8.6
-	 *
 	 * @param array $payload       Default payload.
 	 * @param int   $attachment_id Subject attachment id.
 	 */
@@ -202,8 +185,6 @@ function desktop_mode_my_wordpress_media_usage_callback( $request ) {
  * `desktop_mode_my_wordpress_media_usage_build()` and runs on every
  * request, so a cached map can never leak rows across viewers with
  * different capabilities.
- *
- * @since 0.8.6
  *
  * @param WP_Post $attachment Attachment post.
  * @return array<int,string> Map of post id => usedAs kind.
@@ -333,8 +314,6 @@ function desktop_mode_my_wordpress_media_usage_collect( $attachment ) {
  * `current_user_can( 'read_post' )` per row on every call — never
  * cache this function's output, it is viewer-specific.
  *
- * @since 0.8.6
- *
  * @param WP_Post                $attachment   Attachment post.
  * @param array<int,string>|null $rows_by_post Optional precollected map of
  *                                             post id => usedAs kind.
@@ -427,8 +406,6 @@ function desktop_mode_my_wordpress_media_usage_build( $attachment, $rows_by_post
  * `wp-image-N` block from a post would leave the cache for
  * attachment N stale until the TTL expires.
  *
- * @since 0.8.6
- *
  * @var array<int,array<int,true>>
  */
 $GLOBALS['desktop_mode_media_usage_pre_save_refs'] = array();
@@ -445,8 +422,6 @@ $GLOBALS['desktop_mode_media_usage_pre_save_refs'] = array();
  * delegation, editing a post to add or remove a raw URL embed
  * wouldn't bust the affected attachment's media-usage cache until
  * the TTL expired.
- *
- * @since 0.8.6
  *
  * @param int|WP_Post $post Post id or object.
  * @return array<int,true> Set of attachment ids keyed for dedup.
@@ -489,8 +464,6 @@ function desktop_mode_my_wordpress_media_usage_extract_refs( $post ) {
  * so `get_post` here returns the OLD content. We stash the ref set
  * in a per-request global and read it back in the `save_post` hook.
  *
- * @since 0.8.6
- *
  * @param int $post_id Post id about to be updated.
  */
 function desktop_mode_my_wordpress_media_usage_snapshot_pre_save( $post_id ) {
@@ -516,8 +489,6 @@ add_action( 'pre_post_update', 'desktop_mode_my_wordpress_media_usage_snapshot_p
  *
  * Bounded by the actual count of `wp-image-N` matches in either
  * version of the content + the post's `_thumbnail_id`.
- *
- * @since 0.8.6
  *
  * @param int $post_id Post id that was just modified.
  */
@@ -556,8 +527,6 @@ add_action( 'before_delete_post', 'desktop_mode_my_wordpress_media_usage_bust_fo
 
 /**
  * Bust the transient when the attachment itself is deleted.
- *
- * @since 0.8.6
  *
  * @param int $post_id Attachment id.
  */

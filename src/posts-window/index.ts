@@ -18,7 +18,6 @@
  * ships a tag.
  *
  * @public
- * @since 0.8.0
  */
 
 import { __, _n, sprintf } from '../i18n';
@@ -630,8 +629,6 @@ function _buildBaseColumns(
  * parents) display their numeric id with a small "Parent #42" label
  * — acceptable for v1; a small batched-include fetch can lift this
  * to full-title resolution later.
- *
- * @since 0.8.1
  */
 const _parentTitleByPageRoster: Map< number, string > = new Map();
 
@@ -640,8 +637,6 @@ const _parentTitleByPageRoster: Map< number, string > = new Map();
  * (`parent === 0`) render an em-dash — like core's classic list.
  * Otherwise we render the parent's title (if known) or a fallback
  * numeric label.
- *
- * @since 0.8.1
  */
 function buildParentCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -670,8 +665,6 @@ function buildParentCell( row: PostListItem ): HTMLElement {
  * `<wpd-table>` repaints cells from cache, and the parent cell's
  * `textContent` reflects the freshly-known titles on the next
  * memoized rebuild (cell cache is wiped per refresh).
- *
- * @since 0.8.1
  */
 function refreshParentTitleRoster( rows: PostListItem[] ): void {
 	_parentTitleByPageRoster.clear();
@@ -686,8 +679,6 @@ function refreshParentTitleRoster( rows: PostListItem[] ): void {
  * Falls back to the raw slug when the active theme registers a
  * template the config blob doesn't carry a label for, so users see
  * SOMETHING rather than a blank cell.
- *
- * @since 0.8.1
  */
 function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -713,8 +704,6 @@ function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTML
  * affordance. Common pain in the classic Pages list when configuring
  * redirects or sharing canonical URLs; one click puts the slug on
  * the clipboard.
- *
- * @since 0.8.1
  */
 function buildSlugCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'button' );
@@ -769,8 +758,6 @@ function buildSlugCell( row: PostListItem ): HTMLElement {
  * from the REST field with a small icon. Top-asked parity feature
  * with the classic Pages list. Renders "—" when the field is
  * absent (e.g. a plugin-restricted query).
- *
- * @since 0.8.1
  */
 function buildCommentsCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -1379,8 +1366,6 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 
 /**
  * Render a small inline assignment badge (Front page / Posts page).
- *
- * @since 0.8.1
  */
 function buildAssignmentBadge(
 	label: string,

@@ -16,15 +16,12 @@
  *     `moderate_comments`.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_comment_stats_route() {
 	register_rest_route(
@@ -50,8 +47,6 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_comment_stats_r
 
 /**
  * Aggregator callback.
- *
- * @since 0.8.0
  *
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
@@ -251,8 +246,6 @@ function desktop_mode_my_wordpress_comment_stats_callback( $request ) {
 
 	/**
 	 * Filter the per-comment dossier payload.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param array $payload    Stats payload.
 	 * @param int   $comment_id Comment id.

@@ -13,7 +13,6 @@
  * PHP slicing (phase 6).
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -27,8 +26,6 @@ defined( 'ABSPATH' ) || exit;
  * Plugins cannot register an additional tab with this value —
  * {@see desktop_mode_register_window_tab()} returns
  * `desktop_mode_reserved_tab_value` when they try.
- *
- * @since 0.8.1
  */
 const DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB = 'main';
 
@@ -47,7 +44,7 @@ const DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB = 'main';
  * window body in `<wpd-stack>` + `<wpd-tabs>` + `<wpd-tabpanel>`
  * elements automatically. Plugin authors no longer hand-write that
  * markup — the shell provides it and `<wpd-tabpanel>` auto-swap
- * (from 0.11) handles visibility.
+ * handles visibility.
  *
  * ```php
  * // Plugin that owns the window declares its own tabs:
@@ -71,8 +68,6 @@ const DESKTOP_MODE_NATIVE_WINDOW_MAIN_TAB = 'main';
  *     'script'   => 'jorvy-stats',
  * ) );
  * ```
- *
- * @since 0.8.1
  *
  * @param string $window_id Id of the native window this tab belongs to.
  * @param array  $args {
@@ -200,8 +195,6 @@ function desktop_mode_register_window_tab( $window_id, $args = array() ) {
 	 * Does NOT fire when `desktop_mode_register_window_tab()` returns
 	 * a `WP_Error`.
 	 *
-	 * @since 0.8.1
-	 *
 	 * @param string $window_id The window this tab belongs to.
 	 * @param string $value     The tab value.
 	 * @param array  $entry     The stored registry entry.
@@ -217,7 +210,6 @@ function desktop_mode_register_window_tab( $window_id, $args = array() ) {
  * `$value` to read a single entry; pass both `$window_id` and
  * `$value` empty to get the full registry.
  *
- * @since 0.8.1
  * @internal
  *
  * @param string     $window_id Window id (or '' to read everything).
@@ -257,8 +249,6 @@ function desktop_mode_desktop_window_tab_registry( $window_id = '', $value = '',
  * Filterable via `desktop_mode_window_tabs` so a late-loading plugin
  * can reorder, hide, or relabel tabs another plugin registered —
  * mirrors the `desktop_mode_wallpapers` filter discipline.
- *
- * @since 0.8.1
  *
  * @param string $window_id Window id.
  * @return array[]
@@ -319,8 +309,6 @@ function desktop_mode_get_native_window_tabs( $window_id ) {
 	 * The main tab's `template` is the window's own template
 	 * callback; replacing it at filter time is supported but
 	 * unusual — prefer updating the window registration itself.
-	 *
-	 * @since 0.8.1
 	 *
 	 * @param array[] $tabs      Ordered tab descriptors.
 	 * @param string  $window_id Window id.

@@ -23,6 +23,7 @@ import {
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
 	STORAGE_KEY,
+	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -34,6 +35,7 @@ import type {
 	DesktopLayoutId,
 	DockSizeId,
 	OsSettingsState,
+	WindowRadiusId,
 } from './types';
 import { isHexColor } from './utils';
 import { trackedFetch } from '../tracked-fetch';
@@ -105,6 +107,9 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		dockSize: DOCK_SIZES.some( ( d ) => d.id === parsed.dockSize )
 			? ( parsed.dockSize as DockSizeId )
 			: DEFAULTS.dockSize,
+		windowRadius: WINDOW_RADII.some( ( r ) => r.id === parsed.windowRadius )
+			? ( parsed.windowRadius as WindowRadiusId )
+			: DEFAULTS.windowRadius,
 		desktopLayout: DESKTOP_LAYOUTS.some(
 			( l ) => l.id === parsed.desktopLayout,
 		)
@@ -431,8 +436,6 @@ let _lastConfirmedState: OsSettingsState | null = null;
 /**
  * Prime the rollback baseline. Called once after `loadState()` so
  * the FIRST failed save still has somewhere to roll back to.
- *
- * @since 0.8.0
  */
 export function setLastConfirmedState( state: OsSettingsState ): void {
 	_lastConfirmedState = _cloneState( state );
@@ -613,8 +616,6 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
  * canonical example) replace their state with this snapshot and
  * re-render so the controls visually revert to the last-confirmed
  * values, not the optimistic ones the user just attempted.
- *
- * @since 0.8.0
  */
 export type OsSettingsSavePhase = 'pending' | 'saving' | 'saved' | 'failed';
 

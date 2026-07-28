@@ -6,8 +6,6 @@
  * upload tile and the per-card delete button appear only for users
  * who hold the theme-management capability
  * (`canManageDesktopThemes`).
- *
- * @since 0.9.7
  */
 
 import { __, sprintf } from '../../i18n';

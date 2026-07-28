@@ -23,7 +23,6 @@
  *     via the existing recycle-bin hooks (`desktop_mode_recycle_bin_*`).
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -36,7 +35,6 @@ defined( 'ABSPATH' ) || exit;
  * Default ownership check shared by every trash / restore / purge
  * capability gate: the acting user must be the row's `owner_id`.
  *
- * @since 0.8.0
  * @access private
  *
  * @param int   $user_id Acting user.
@@ -54,8 +52,6 @@ function desktop_mode_files_user_owns_row( $user_id, $row ) {
  * Whether the given user can trash a placement they own. Defaults
  * to ownership; plugins can broaden via filter.
  *
- * @since 0.8.0
- *
  * @param int   $user_id Acting user.
  * @param array $row     Placement row (raw from DB or normalized).
  * @return bool
@@ -63,8 +59,6 @@ function desktop_mode_files_user_owns_row( $user_id, $row ) {
 function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
 	/**
 	 * Filter whether the user can trash this placement.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param bool  $can     Default: ownership match.
 	 * @param int   $user_id Acting user.
@@ -81,16 +75,12 @@ function desktop_mode_files_user_can_trash_placement( $user_id, $row ) {
 /**
  * Whether the given user can restore a trashed placement.
  *
- * @since 0.8.0
- *
  * @param int   $user_id Acting user.
  * @param array $row     Placement row (already trashed).
  * @return bool
  */
 function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
@@ -105,13 +95,9 @@ function desktop_mode_files_user_can_restore_placement( $user_id, $row ) {
 
 /**
  * Whether the given user can permanently purge a trashed placement.
- *
- * @since 0.8.0
  */
 function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
@@ -126,13 +112,9 @@ function desktop_mode_files_user_can_purge_placement( $user_id, $row ) {
 
 /**
  * Whether the given user can trash a folder. Default: folder owner.
- *
- * @since 0.8.0
  */
 function desktop_mode_files_user_can_trash_folder( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
@@ -147,13 +129,9 @@ function desktop_mode_files_user_can_trash_folder( $user_id, $row ) {
 
 /**
  * Whether the given user can restore a trashed folder.
- *
- * @since 0.8.0
  */
 function desktop_mode_files_user_can_restore_folder( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
@@ -168,13 +146,9 @@ function desktop_mode_files_user_can_restore_folder( $user_id, $row ) {
 
 /**
  * Whether the given user can permanently purge a trashed folder.
- *
- * @since 0.8.0
  */
 function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param bool  $can
 	 * @param int   $user_id
 	 * @param array $row
@@ -217,8 +191,6 @@ function desktop_mode_files_user_can_purge_folder( $user_id, $row ) {
  *     )
  *
  * Returns `[]` for a root-level placement (`$parent_id === 0`).
- *
- * @since 0.8.0
  *
  * @param int $parent_id Immediate parent folder id.
  * @return array<int, array<string, mixed>>
@@ -278,8 +250,6 @@ function desktop_mode_files_capture_ancestry( $parent_id ) {
  * downstream entries rewrite their `placement_parent_id` so a
  * deeper folder lands inside the correct (possibly recreated)
  * parent.
- *
- * @since 0.8.0
  *
  * @param int   $user_id  Acting user (used as owner for any
  *                        recreated folder).
@@ -361,8 +331,6 @@ function desktop_mode_files_resurrect_ancestry( $user_id, $ancestry ) {
  * Idempotent: trashing an already-trashed placement is a no-op
  * success.
  *
- * @since 0.8.0
- *
  * @param int $user_id      Acting user.
  * @param int $placement_id Placement id.
  * @return true|WP_Error
@@ -400,8 +368,6 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 
 	/**
 	 * Fires before a placement is trashed.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param int   $placement_id Placement id.
 	 * @param int   $user_id      Acting user.
@@ -442,8 +408,6 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 	/**
 	 * Fires after a placement is trashed.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int $placement_id Placement id.
 	 * @param int $user_id      Acting user.
 	 */
@@ -454,8 +418,6 @@ function desktop_mode_files_trash_placement( $user_id, $placement_id ) {
 
 /**
  * Restore a trashed placement back to its original folder + (x, y).
- *
- * @since 0.8.0
  *
  * @param int $user_id      Acting user.
  * @param int $placement_id Placement id.
@@ -529,8 +491,6 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 	/**
 	 * Fires before a placement is restored.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int   $placement_id
 	 * @param int   $user_id
 	 * @param array $row
@@ -560,8 +520,6 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 	desktop_mode_files_clear_tombstones_for( 'placement', $placement_id );
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $placement_id
 	 * @param int $user_id
 	 */
@@ -572,8 +530,6 @@ function desktop_mode_files_restore_placement( $user_id, $placement_id ) {
 
 /**
  * Permanently delete a trashed placement.
- *
- * @since 0.8.0
  *
  * @param int $user_id
  * @param int $placement_id
@@ -604,8 +560,6 @@ function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $placement_id
 	 * @param int   $user_id
 	 * @param array $row
@@ -618,7 +572,7 @@ function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
 	// removal, so the same lifecycle action fires. Load-bearing for
 	// the `upload` type — the stored-files listener deletes the real
 	// bytes when the owner's last placement goes away; without this
-	// the recycle-bin "Delete forever" path leaked them (0.9.6).
+	// the recycle-bin "Delete forever" path leaked them.
 	do_action(
 		'desktop_mode_file_unplaced',
 		$placement_id,
@@ -626,8 +580,6 @@ function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
 	);
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $placement_id
 	 * @param int $user_id
 	 */
@@ -647,8 +599,6 @@ function desktop_mode_files_purge_placement( $user_id, $placement_id ) {
  * the same set without time-window heuristics.
  *
  * Idempotent on already-trashed.
- *
- * @since 0.8.0
  *
  * @param int $user_id
  * @param int $folder_id
@@ -686,8 +636,6 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $folder_id
 	 * @param int   $user_id
 	 * @param array $row
@@ -778,8 +726,6 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $folder_id
 	 * @param int $user_id
 	 */
@@ -793,8 +739,6 @@ function desktop_mode_files_trash_folder( $user_id, $folder_id ) {
  * its cascade. Items that were trashed BEFORE the folder cascade
  * (i.e. `trashed_via_folder IS NULL`) stay in the recycle bin —
  * the user trashed them deliberately, separate from the folder.
- *
- * @since 0.8.0
  *
  * @param int $user_id
  * @param int $folder_id
@@ -832,8 +776,6 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $folder_id
 	 * @param int   $user_id
 	 * @param array $row
@@ -947,8 +889,6 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $folder_id
 	 * @param int $user_id
 	 */
@@ -961,8 +901,6 @@ function desktop_mode_files_restore_folder( $user_id, $folder_id ) {
  * Permanently delete a trashed folder and all its trashed-via-
  * cascade child placements. Independent placements that landed in
  * the trash separately stay there.
- *
- * @since 0.8.0
  *
  * @param int $user_id
  * @param int $folder_id
@@ -993,8 +931,6 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 	}
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int   $folder_id
 	 * @param int   $user_id
 	 * @param array $row
@@ -1091,8 +1027,6 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
 	$wpdb->delete( $tables['folders'], array( 'id' => $folder_id ), array( '%d' ) );
 
 	/**
-	 * @since 0.8.0
-	 *
 	 * @param int $folder_id
 	 * @param int $user_id
 	 */
@@ -1109,8 +1043,6 @@ function desktop_mode_files_purge_folder( $user_id, $folder_id ) {
  * Count of trashed placements + folders surfaced to the recycle bin
  * for `$user_id`. Mirrors `_list_trashed_for_recycle_bin`'s "skip
  * cascaded children" rule so the badge matches the visible list.
- *
- * @since 0.8.0
  *
  * @param int $user_id Owner.
  * @return int
@@ -1146,8 +1078,6 @@ function desktop_mode_files_count_trashed_for_recycle_bin( $user_id ) {
  * Return the trashed placements + folders for a user, shaped as
  * recycle-bin items. Used by the recycle bin's REST list endpoint
  * to merge files-on-the-desktop trash with the WP-core trash.
- *
- * @since 0.8.0
  *
  * @param int $user_id Owner.
  * @return array[] List of recycle-bin item shapes.

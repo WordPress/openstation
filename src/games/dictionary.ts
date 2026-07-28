@@ -16,9 +16,6 @@
  *
  * Pure except for `loadDictionary`'s fetch (routed through
  * `trackedFetch`); `parseDictionary`/`pick` are fully testable.
- *
- * @since 0.9.6 as `src/games/inkfall/dictionary.ts`
- * @since 0.9.8 promoted to the games framework
  */
 
 import { trackedFetch } from '../tracked-fetch';

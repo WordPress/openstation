@@ -22,8 +22,6 @@
  * No `role` is emitted — this is a pure layout primitive.
  * Accessibility semantics are the caller's choice (wrap in
  * `role="grid"` or `role="radiogroup"` if warranted).
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

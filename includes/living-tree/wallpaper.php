@@ -12,15 +12,12 @@
  * (priority 5) so the handle exists when the wallpaper references it.
  *
  * @package WPDesktopMode
- * @since   0.9.4
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the Living Tree canvas wallpaper.
- *
- * @since 0.9.4
  */
 function desktop_mode_living_tree_register_wallpaper() {
 	desktop_mode_register_wallpaper( 'wp-living-tree', array(

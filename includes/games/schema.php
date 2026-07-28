@@ -20,7 +20,6 @@
  * folder-shares table (house style — dbDelta and ENUM don't mix).
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,8 +29,6 @@ define( 'DESKTOP_MODE_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' 
 
 /**
  * Returns the per-table names with the active prefix applied.
- *
- * @since 0.9.6
  *
  * @return array{ scores: string, challenges: string }
  */
@@ -48,8 +45,6 @@ function desktop_mode_games_table_names() {
  * on `admin_init` / `rest_api_init` / `init` (gated by a
  * version-option mismatch) so a manual file-copy install still ends
  * up with the tables.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_install_schema() {
 	global $wpdb;
@@ -108,8 +103,6 @@ function desktop_mode_games_install_schema() {
 	/**
 	 * Fires after the games schema is installed / migrated.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param string $version The version that was installed.
 	 */
 	do_action( 'desktop_mode_games_schema_installed', DESKTOP_MODE_GAMES_SCHEMA_VERSION );
@@ -121,7 +114,6 @@ function desktop_mode_games_install_schema() {
  * suppressed around the CREATE so a concurrent worker that won the
  * same race doesn't log a benign "already exists".
  *
- * @since 0.9.6
  * @internal
  *
  * @param string $table Fully-prefixed table name.
@@ -151,8 +143,6 @@ function desktop_mode_games_ensure_table( $table, $sql ) {
  * Lazy migrator — runs when the stored schema version doesn't match
  * the constant. Idempotent: `dbDelta` itself is a no-op when the
  * tables already match.
- *
- * @since 0.9.6
  */
 function desktop_mode_games_maybe_install_schema() {
 	$installed = get_option( DESKTOP_MODE_GAMES_SCHEMA_OPTION, '' );
@@ -172,8 +162,6 @@ register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_games_install_schema'
 /**
  * Current epoch-ms timestamp. Centralized so the store and the
  * Heartbeat channel stay in lock-step.
- *
- * @since 0.9.6
  *
  * @return int
  */

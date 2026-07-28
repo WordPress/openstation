@@ -7,8 +7,6 @@
  * entity. Pure DOM construction — open/close lifecycle and dismissal
  * live in `index.ts`, mirroring how `src/window/menus.ts` owns the ⋯
  * menu's state while `src/window/dom.ts` builds it.
- *
- * @since 0.9.6
  */
 
 import type { RelatedEntityItem } from '../window-links/types';

@@ -22,7 +22,6 @@
  * classic list, so there is no conflict.
  *
  * @package WPDesktopMode
- * @since   0.9.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -33,8 +32,6 @@ defined( 'ABSPATH' ) || exit;
  * Hooked on `user_row_actions`. Returns the actions unchanged outside
  * a chromeless request, for an invalid user object, or when the
  * `desktop_mode_user_footprint_row_action` filter opts the row out.
- *
- * @since 0.9.1
  *
  * @param string[] $actions     Row action links keyed by slug.
  * @param WP_User  $user_object The user the row represents.
@@ -59,8 +56,6 @@ function desktop_mode_user_footprint_row_action( $actions, $user_object ) {
 	 * or to hide it on the current user's own row. Default true for any
 	 * chromeless request that reaches this filter (where the row is
 	 * already gated by the `list_users` capability the table requires).
-	 *
-	 * @since 0.9.1
 	 *
 	 * @param bool    $show        Whether to show the action. Default true.
 	 * @param WP_User $user_object The user the row represents.

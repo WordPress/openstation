@@ -28,7 +28,6 @@
  * the codebase keeps loading the feature through one entry point.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -38,8 +37,6 @@ defined( 'ABSPATH' ) || exit;
  *
  * Backed by the `games` key of the extended options bundle
  * (`desktop_mode_get_extended_options()`), default off — opt-in.
- *
- * @since 0.9.8
  *
  * @return bool
  */
@@ -54,8 +51,6 @@ function desktop_mode_games_enabled() {
 	 * games module loads at all, and again at runtime wherever the
 	 * enabled state is consulted (payload build, shell config).
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param bool $enabled Whether the games framework is enabled.
 	 */
 	return (bool) apply_filters( 'desktop_mode_games_enabled', $enabled );
@@ -63,8 +58,6 @@ function desktop_mode_games_enabled() {
 
 /**
  * Loads the games module when the framework is enabled.
- *
- * @since 0.9.8
  *
  * @access private
  */

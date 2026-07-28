@@ -5,8 +5,6 @@
  * — keep both lists in sync. The actual paper/ink values live as CSS
  * custom properties in `assets/css/notes.css`, keyed by
  * `[data-note-color="<slug>"]`.
- *
- * @since 0.9.6
  */
 
 export const NOTE_COLORS = [

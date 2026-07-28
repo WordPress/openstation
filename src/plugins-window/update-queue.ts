@@ -15,7 +15,6 @@
  * update is in flight the upgrader is past the point of safe abort.
  *
  * @public
- * @since 0.8.3
  */
 
 interface Job< T > {

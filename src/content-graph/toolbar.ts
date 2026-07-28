@@ -10,7 +10,6 @@
  *   3. **Action buttons** — fit-to-view + reheat the simulation.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __ } from '../i18n';

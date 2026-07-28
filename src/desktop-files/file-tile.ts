@@ -19,8 +19,6 @@
  * helper) lives in `tile-spec.ts`. Adding a feature there lights
  * it up on every surface — desktop, folders, My WordPress, plugin
  * windows — without forking the renderer.
- *
- * @since 0.9.0
  */
 
 import { resolveThemedIcon } from '../desktop-themes/icons';
@@ -46,8 +44,6 @@ export { TILE_CLASS };
  * Exported for the layer's fast-path repaints: they reuse tile DOM
  * instead of rebuilding, so they re-derive the label with this same
  * rule and patch the `<wpd-tile>` `label` attribute in place.
- *
- * @since 0.9.5
  */
 export function placementLabel( placement: RestPlacementShape ): string {
 	const metaName =
@@ -116,7 +112,7 @@ export function buildTile(
 	const tile = buildTileFromSpec( placementToSpec( placement, folderId ) );
 
 	// Back-compat: placement-shaped class filter. Documented in
-	// docs/files-on-desktop.md since 0.9; third-party plugins rely
+	// docs/files-on-desktop.md; third-party plugins rely
 	// on the exact filter name + the `TILE_CLASS` default input +
 	// the `RestPlacementShape` signature. The `<wpd-tile>` host
 	// re-asserts `TILE_CLASS` in `_paint()`, so any extra classes

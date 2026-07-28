@@ -126,7 +126,7 @@ export class WpdSegmented extends Component {
 	 * when the value still matches an entry, otherwise falls back
 	 * to the first item.
 	 *
-	 * Collapses the pre-0.11 imperative dance (clear children,
+	 * Collapses the imperative dance (clear children,
 	 * `createElement`, set `textContent`, `appendChild`, then
 	 * `setAttribute('value', …)` on the group — order matters) to
 	 * a single assignment:
@@ -137,8 +137,6 @@ export class WpdSegmented extends Component {
 	 *   { value: 'km', label: 'km' },
 	 * ];
 	 * ```
-	 *
-	 * @since 0.5.0
 	 */
 	set items( list: ReadonlyArray<{ value: string; label: string }> ) {
 		const existing = this.querySelectorAll( ':scope > wpd-segment' );

@@ -3,13 +3,12 @@
  * Desktop Mode — `comment` file type.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `comment` desktop file type.
  */
 class Desktop_Mode_Comment_File extends Desktop_Mode_File {
 

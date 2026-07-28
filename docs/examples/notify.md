@@ -1,6 +1,6 @@
 # Send a notification
 
-Stable since 0.8.0.
+Stable.
 
 `wp.desktop.notify( opts )` is the one call you need. v1 ships local
 notifications (browser `Notification` API on the current page) with a

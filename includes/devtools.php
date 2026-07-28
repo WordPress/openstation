@@ -38,8 +38,6 @@
  * response details (query parameters, internal IDs) — locking it to
  * site admins matches the cost of getting that wrong.
  *
- * @since 0.6.0
- *
  * @package WPDesktopMode
  */
 
@@ -66,8 +64,6 @@ const DESKTOP_MODE_DEBUG_SESSION_TTL = 3600;
 /**
  * Build the transient key for a (session, channel) pair.
  *
- * @since 0.6.0
- *
  * @param string $session_id Session id (as supplied by the client).
  * @param string $channel    Channel name (`'query'`, `'log'`, …).
  * @return string Transient key safe for `set_transient`.
@@ -88,8 +84,6 @@ function desktop_mode_debug_transient_key( $session_id, $channel ) {
  * filter (`sanitize_key()` would lowercase, breaking UUID v4
  * round-trips); values longer than 64 characters are rejected —
  * a tight gate for `crypto.randomUUID()`-shaped ids.
- *
- * @since 0.6.0
  *
  * @return string Session id, or '' when absent / invalid.
  */
@@ -118,8 +112,6 @@ function desktop_mode_debug_session_for_request() {
  * reached, the oldest events are dropped FIFO. Fires the
  * `desktop_mode_debug_publish` action so observability widgets can
  * tail the stream synchronously without going through the REST poll.
- *
- * @since 0.6.0
  *
  * @param string $session_id Session id from the client.
  * @param string $channel    Channel name. Free-form; convention is
@@ -169,8 +161,6 @@ function desktop_mode_debug_publish( $session_id, $channel, $payload ) {
 	 * of polling the REST endpoint. The arguments mirror the JS-side
 	 * `DebugEvent` shape minus the auto-assigned id / timestamp.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $session_id Session id from the publishing call.
 	 * @param string $channel    Channel name.
 	 * @param mixed  $payload    Published payload.
@@ -186,8 +176,6 @@ function desktop_mode_debug_publish( $session_id, $channel, $payload ) {
  * Returns `array( 'events' => [], 'cursor' => N )`. The cursor is the
  * highest event id seen across all returned events; clients pass it
  * back as `since` on the next poll.
- *
- * @since 0.6.0
  *
  * @param string      $session_id Session id.
  * @param int         $since      Highest id the client has seen.
@@ -262,8 +250,6 @@ function desktop_mode_debug_drain( $session_id, $since = 0, $channel = null ) {
  * (list); falls back to the `desktop_mode_debug_channels` filter
  * when no channel param is supplied.
  *
- * @since 0.6.0
- *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
@@ -316,16 +302,12 @@ function desktop_mode_rest_debug_drain( WP_REST_Request $request ) {
  * to relax this for a specific session can hook the
  * `desktop_mode_debug_rest_permission` filter (filters TRUE/FALSE).
  *
- * @since 0.6.0
- *
  * @return bool
  */
 function desktop_mode_rest_debug_permission() {
 	$allowed = is_user_logged_in() && current_user_can( 'manage_options' );
 	/**
 	 * Filter the permission decision for the debug REST endpoint.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param bool $allowed Default: caller is a logged-in admin.
 	 */
@@ -334,8 +316,6 @@ function desktop_mode_rest_debug_permission() {
 
 /**
  * Register the debug REST routes.
- *
- * @since 0.6.0
  */
 function desktop_mode_register_debug_rest_routes() {
 	register_rest_route(

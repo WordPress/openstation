@@ -13,8 +13,6 @@
  * Goes through a `desktop-mode.window.chrome.controls` filter on every
  * paint so plugins can mutate the resolved control list without
  * registering anything (handy for cross-cutting decorators).
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../../hooks';

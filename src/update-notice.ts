@@ -9,9 +9,6 @@
  * this picker. When the bundle can't load (offline, misconfigured
  * deploy) the notice degrades to the plain toast, the same fallback
  * already used when no art exists for a release.
- *
- * @since 0.9.4
- * @since 0.9.7 Card + art moved to the lazy `release-card` bundle.
  */
 
 import { showToast } from './toast';

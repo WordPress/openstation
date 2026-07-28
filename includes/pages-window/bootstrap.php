@@ -20,7 +20,6 @@
  * implemented JS-side in `src/desktop.ts` via `registerNativeUrlRemap`.
  *
  * @package WPDesktopMode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;

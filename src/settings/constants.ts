@@ -63,8 +63,6 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
  * malformed entries rather than letting a bad filter render broken
  * swatches. Falls back to {@link DEFAULT_ACCENTS} when the config is
  * missing or yields zero valid entries.
- *
- * @since 0.5.0
  */
 export function getAccents(): readonly AccentColor[] {
 	const config = ( window as unknown as {
@@ -96,8 +94,6 @@ export function getAccents(): readonly AccentColor[] {
  * Resolve the live default-wallpaper slug. Reads
  * `window.wp.desktop.config.defaultWallpaper` and falls back to
  * {@link DEFAULT_WALLPAPER_ID} when absent/invalid.
- *
- * @since 0.5.0
  */
 export function getDefaultWallpaperId(): string {
 	const config = ( window as unknown as {
@@ -115,6 +111,17 @@ export const DOCK_SIZES = [
 	{ id: 'compact', label: 'Compact', width: 48, icon: 18 },
 	{ id: 'default', label: 'Default', width: 56, icon: 20 },
 	{ id: 'large', label: 'Large', width: 72, icon: 26 },
+] as const;
+
+/**
+ * Window corner-radius presets. `value` (px) is written to the
+ * `--desktop-mode-window-radius` custom property by the settings apply
+ * pass, so the choice reflows every open window's corners live.
+ */
+export const WINDOW_RADII = [
+	{ id: 'sharp', label: 'Sharp', value: 0 },
+	{ id: 'default', label: 'Default', value: 8 },
+	{ id: 'round', label: 'Round', value: 16 },
 ] as const;
 
 /**
@@ -149,6 +156,7 @@ export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'wp-blue',
 	dockSize: 'default',
+	windowRadius: 'default',
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
 	// `''` = System default. Any other value is a desktop-theme
@@ -172,7 +180,7 @@ export const DEFAULTS: OsSettingsState = {
 	ai: {
 		enabled: false,
 	},
-	// Opt-IN Beta as of 0.9.1. Fresh installs land on the classic
+	// Opt-in Beta. Fresh installs land on the classic
 	// chromeless `edit.php` iframe; a user opts in via OS Settings →
 	// Features → Beta features to get the native Posts window. The
 	// native windows used to default ON (opt-out, 0.8.0) but are now

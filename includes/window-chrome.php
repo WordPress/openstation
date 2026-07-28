@@ -28,7 +28,6 @@
  * `serverWindow*` array to the shell payload, consumed by the matching
  * sync module under `src/window-chrome/{themes,controls,slots,chrome}/server-sync.ts`.
  *
- * @since 0.6.0
  * @package WPDesktopMode
  */
 
@@ -44,8 +43,6 @@ defined( 'ABSPATH' ) || exit;
  * The script's JS calls `wp.desktop.registerWindowTheme( { id, tokens,
  * match, owner } )` as usual. Plugins that pass `owner` matching this
  * handle get live unregister on deactivation.
- *
- * @since 0.6.0
  *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
@@ -64,8 +61,6 @@ function desktop_mode_register_window_theme_script( $handle ) {
 	/**
 	 * Fires after a desktop window-theme script handle is registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_window_theme_script_registered', $handle );
@@ -78,8 +73,6 @@ function desktop_mode_register_window_theme_script( $handle ) {
  * `desktop_mode_register_window_theme_script()` for plugins that want
  * to ship a tokens map without writing JS — designers can hand off
  * a single PHP-array of CSS variables and call it done.
- *
- * @since 0.6.0
  *
  * @param array $args {
  *     @type string $id       Unique theme id (`vendor/sub-id`). Required.
@@ -146,8 +139,6 @@ function desktop_mode_register_window_theme( $args = array() ) {
 	/**
 	 * Fires after a desktop window-theme is successfully registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $id    The theme id.
 	 * @param array  $entry The stored registry entry.
 	 */
@@ -159,7 +150,6 @@ function desktop_mode_register_window_theme( $args = array() ) {
 /**
  * Internal module-level registry for theme script handles.
  *
- * @since 0.6.0
  * @internal
  *
  * @param string    $handle Script handle to read or write.
@@ -182,7 +172,7 @@ function desktop_mode_window_theme_script_registry( $handle = '', $value = null 
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Flush the theme-script registry. Tests only. @since 0.6.0 */
+/** Flush the theme-script registry. Tests only. */
 function desktop_mode_flush_window_theme_script_registry() {
 	desktop_mode_window_theme_script_registry( '__flush__' );
 }
@@ -190,7 +180,6 @@ function desktop_mode_flush_window_theme_script_registry() {
 /**
  * Internal module-level registry for window themes.
  *
- * @since 0.6.0
  * @internal
  *
  * @param string     $id    Theme id to read or write.
@@ -213,7 +202,7 @@ function desktop_mode_window_theme_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Flush the theme registry. Tests only. @since 0.6.0 */
+/** Flush the theme registry. Tests only. */
 function desktop_mode_flush_window_theme_registry() {
 	desktop_mode_window_theme_registry( '__flush__' );
 }
@@ -221,8 +210,6 @@ function desktop_mode_flush_window_theme_registry() {
 /**
  * Build the theme-script payload. Same shape as
  * `desktop_mode_build_desktop_command_scripts_payload()`.
- *
- * @since 0.6.0
  *
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
@@ -264,8 +251,6 @@ function desktop_mode_build_window_theme_scripts_payload() {
  * Build the theme-metadata payload. Resolves the optional companion
  * script handle for each entry.
  *
- * @since 0.6.0
- *
  * @return array[]
  */
 function desktop_mode_build_window_themes_payload() {
@@ -303,8 +288,6 @@ function desktop_mode_build_window_themes_payload() {
 /**
  * Declare a WP-registered script handle as a window-control provider.
  *
- * @since 0.6.0
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error
  */
@@ -322,8 +305,6 @@ function desktop_mode_register_window_control_script( $handle ) {
 	/**
 	 * Fires after a window-control script handle is registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_window_control_script_registered', $handle );
@@ -334,8 +315,6 @@ function desktop_mode_register_window_control_script( $handle ) {
 /**
  * Declare a window control server-side. The control's `onClick` /
  * `render` callback always lives JS-side.
- *
- * @since 0.6.0
  *
  * @param array $args {
  *     @type string $id        Required, `vendor/sub-id`.
@@ -401,8 +380,6 @@ function desktop_mode_register_window_control( $args = array() ) {
 	/**
 	 * Fires after a window-control is successfully registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $id    The control id.
 	 * @param array  $entry The stored registry entry.
 	 */
@@ -428,7 +405,7 @@ function desktop_mode_window_control_script_registry( $handle = '', $value = nul
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Tests only. @since 0.6.0 */
+/** Tests only. */
 function desktop_mode_flush_window_control_script_registry() {
 	desktop_mode_window_control_script_registry( '__flush__' );
 }
@@ -450,13 +427,12 @@ function desktop_mode_window_control_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Tests only. @since 0.6.0 */
+/** Tests only. */
 function desktop_mode_flush_window_control_registry() {
 	desktop_mode_window_control_registry( '__flush__' );
 }
 
 /**
- * @since 0.6.0
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
 function desktop_mode_build_window_control_scripts_payload() {
@@ -494,7 +470,6 @@ function desktop_mode_build_window_control_scripts_payload() {
 }
 
 /**
- * @since 0.6.0
  * @return array[]
  */
 function desktop_mode_build_window_controls_payload() {
@@ -534,8 +509,6 @@ function desktop_mode_build_window_controls_payload() {
  * Canonical slot names. Mirrors the `WindowSlotName` TypeScript
  * union in `src/types.ts`.
  *
- * @since 0.6.0
- *
  * @return string[]
  */
 function desktop_mode_window_slot_names() {
@@ -553,7 +526,6 @@ function desktop_mode_window_slot_names() {
 }
 
 /**
- * @since 0.6.0
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error
  */
@@ -571,8 +543,6 @@ function desktop_mode_register_window_slot_script( $handle ) {
 	/**
 	 * Fires after a window-slot script handle is registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_window_slot_script_registered', $handle );
@@ -581,8 +551,6 @@ function desktop_mode_register_window_slot_script( $handle ) {
 }
 
 /**
- * @since 0.6.0
- *
  * @param array $args {
  *     @type string $id     Required.
  *     @type string $slot   Required, one of {@see desktop_mode_window_slot_names()}.
@@ -634,8 +602,6 @@ function desktop_mode_register_window_slot( $args = array() ) {
 	/**
 	 * Fires after a window-slot is successfully registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $id    The slot-renderer id.
 	 * @param array  $entry The stored registry entry.
 	 */
@@ -661,7 +627,7 @@ function desktop_mode_window_slot_script_registry( $handle = '', $value = null )
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Tests only. @since 0.6.0 */
+/** Tests only. */
 function desktop_mode_flush_window_slot_script_registry() {
 	desktop_mode_window_slot_script_registry( '__flush__' );
 }
@@ -683,13 +649,12 @@ function desktop_mode_window_slot_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Tests only. @since 0.6.0 */
+/** Tests only. */
 function desktop_mode_flush_window_slot_registry() {
 	desktop_mode_window_slot_registry( '__flush__' );
 }
 
 /**
- * @since 0.6.0
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
 function desktop_mode_build_window_slot_scripts_payload() {
@@ -727,7 +692,6 @@ function desktop_mode_build_window_slot_scripts_payload() {
 }
 
 /**
- * @since 0.6.0
  * @return array[]
  */
 function desktop_mode_build_window_slots_payload() {
@@ -764,9 +728,7 @@ function desktop_mode_build_window_slots_payload() {
 /**
  * Declare a WP-registered script handle as a window-chrome provider.
  *
- * **Experimental** since 0.6.0 — chrome render contract may change.
- *
- * @since 0.6.0
+ * **Experimental** — chrome render contract may change.
  *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error
@@ -785,8 +747,6 @@ function desktop_mode_register_window_chrome_script( $handle ) {
 	/**
 	 * Fires after a window-chrome script handle is registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_window_chrome_script_registered', $handle );
@@ -797,8 +757,6 @@ function desktop_mode_register_window_chrome_script( $handle ) {
 /**
  * Declare a custom chrome server-side. **Experimental** — chrome
  * render contract may change.
- *
- * @since 0.6.0
  *
  * @param array $args {
  *     @type string $id     Required.
@@ -837,8 +795,6 @@ function desktop_mode_register_window_chrome( $args = array() ) {
 	/**
 	 * Fires after a window-chrome is successfully registered.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param string $id    The chrome id.
 	 * @param array  $entry The stored registry entry.
 	 */
@@ -864,7 +820,7 @@ function desktop_mode_window_chrome_script_registry( $handle = '', $value = null
 	return isset( $store[ (string) $handle ] ) ? $store[ (string) $handle ] : false;
 }
 
-/** Tests only. @since 0.6.0 */
+/** Tests only. */
 function desktop_mode_flush_window_chrome_script_registry() {
 	desktop_mode_window_chrome_script_registry( '__flush__' );
 }
@@ -886,13 +842,12 @@ function desktop_mode_window_chrome_registry( $id = '', $entry = null ) {
 	return isset( $store[ (string) $id ] ) ? $store[ (string) $id ] : null;
 }
 
-/** Tests only. @since 0.6.0 */
+/** Tests only. */
 function desktop_mode_flush_window_chrome_registry() {
 	desktop_mode_window_chrome_registry( '__flush__' );
 }
 
 /**
- * @since 0.6.0
  * @return array[] List of `{ handle, scriptUrl }` entries.
  */
 function desktop_mode_build_window_chrome_scripts_payload() {
@@ -930,7 +885,6 @@ function desktop_mode_build_window_chrome_scripts_payload() {
 }
 
 /**
- * @since 0.6.0
  * @return array[]
  */
 function desktop_mode_build_window_chromes_payload() {

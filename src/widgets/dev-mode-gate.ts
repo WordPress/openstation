@@ -17,8 +17,6 @@
  *     same `layer.unmount` / `layer.mountIfEnabled` path the
  *     plugin-deactivation sync uses — the user's "enabled" choice is
  *     preserved, only the on-screen presence changes.
- *
- * @since 0.9.4
  */
 
 import { addFilter, HOOKS } from '../hooks';

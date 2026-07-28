@@ -11,8 +11,6 @@
  * shell. We can't use native `<dialog>`'s modal mode — the desktop
  * intercepts focus on its own windows and the native overlay
  * conflicts with that.
- *
- * @since 0.7.0
  */
 
 export interface ConfirmDialogArgs {

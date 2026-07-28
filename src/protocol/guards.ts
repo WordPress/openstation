@@ -13,8 +13,6 @@
  *     pile of `as Bridge…` casts.
  *   - One assertion path (`assertBridgeEventType`) for handlers
  *     that demand a specific variant.
- *
- * @since 0.8.1
  */
 
 import {

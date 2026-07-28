@@ -63,6 +63,6 @@ add_action( 'desktop_mode_notes_converted', static function ( $post_id, $note ) 
 
 ## Related
 
-- [Hooks Reference — `desktop_mode_notes_convert_post_args`](../hooks-reference.md#desktop_mode_notes_convert_post_args--experimental-filter-since-096)
-- [Hooks Reference — `desktop_mode_notes_converted`](../hooks-reference.md#desktop_mode_notes_converted--experimental-action-since-096)
-- [JavaScript Reference — Pinned-note drag payloads](../javascript-reference.md#pinned-note-drag-payloads--experimental-since-096)
+- [Hooks Reference — `desktop_mode_notes_convert_post_args`](../hooks-reference.md#desktop_mode_notes_convert_post_args--experimental-filter)
+- [Hooks Reference — `desktop_mode_notes_converted`](../hooks-reference.md#desktop_mode_notes_converted--experimental-action)
+- [JavaScript Reference — Pinned-note drag payloads](../javascript-reference.md#pinned-note-drag-payloads--experimental)

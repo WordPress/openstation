@@ -9,15 +9,12 @@
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
  *
  * @package WPDesktopMode
- * @since   0.26.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register JS + CSS assets.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_jazz_quote_widget_assets() {
 	$suffix  = desktop_mode_asset_suffix();
@@ -54,8 +51,6 @@ add_action( 'init', 'desktop_mode_register_jazz_quote_widget_assets', 5 );
  *
  * window.desktopModeJazzQuote is therefore available from page load,
  * before the widget bundle is ever fetched.
- *
- * @since 0.26.0
  */
 function desktop_mode_jazz_quote_inline_version() {
 	if ( ! desktop_mode_is_enabled() ) {
@@ -78,8 +73,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_jazz_quote_inline_version', 1
 
 /**
  * Eagerly enqueue the CSS on shell pages.
- *
- * @since 0.26.0
  */
 function desktop_mode_enqueue_jazz_quote_widget_styles() {
 	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
@@ -94,8 +87,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_jazz_quote_widget_sty
 
 /**
  * Register the widget definition.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_jazz_quote_widget() {
 	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {

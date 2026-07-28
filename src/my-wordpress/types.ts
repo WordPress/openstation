@@ -2,7 +2,6 @@
  * My WordPress — type contracts.
  *
  * @public
- * @since 0.8.0
  */
 
 /**
@@ -50,8 +49,6 @@ export interface MyWordPressConfig {
 	 * Per-page count for the Media grid. Media tiles are denser than
 	 * post tiles, so the default (`48`) is higher than the post
 	 * default. Filterable server-side via `desktop_mode_my_wordpress_window_args`.
-	 *
-	 * @since 0.8.6
 	 */
 	mediaPerPage?: number;
 	/**
@@ -59,8 +56,6 @@ export interface MyWordPressConfig {
 	 * `desktop_mode_my_wordpress_preview_actions`. Already capability-
 	 * gated — never present here unless the current user can run
 	 * the action.
-	 *
-	 * @since 0.8.6
 	 */
 	previewActions?: MediaPreviewAction[];
 }
@@ -72,7 +67,6 @@ export interface MyWordPressConfig {
  * `desktop-mode.my-wordpress.preview-actions` filter.
  *
  * @public
- * @since 0.8.6
  */
 export interface MediaPreviewAction {
 	id: string;
@@ -105,7 +99,6 @@ export interface MediaPreviewAction {
  * - `footer` — below the action button row
  *
  * @public
- * @since 0.8.6
  */
 export type MediaPreviewSlot = 'header' | 'meta' | 'footer';
 
@@ -113,7 +106,6 @@ export type MediaPreviewSlot = 'header' | 'meta' | 'footer';
  * Context object passed to every preview-action handler.
  *
  * @public
- * @since 0.8.6
  */
 export interface MediaPreviewActionContext {
 	/** Entity id (`'media'`, `'posts'`, `'users'`, …). */
@@ -142,7 +134,7 @@ export interface EntityListItem {
 	/**
 	 * Publication status — `'publish' | 'draft' | 'pending' |
 	 * 'private' | 'future' | 'trash'`. Surfaced on the list response
-	 * since 0.8.6 so tiles can paint a status ribbon for non-
+	 * so tiles can paint a status ribbon for non-
 	 * published rows.
 	 */
 	status?: string;
@@ -184,8 +176,6 @@ export interface EntityDetail {
 	 * server-side by the `desktop_mode_attached_media` REST field;
 	 * the regex-based `extractContentMediaIds` is a fallback for
 	 * older API responses that don't carry this.
-	 *
-	 * @since 0.8.6
 	 */
 	desktop_mode_attached_media?: number[];
 	_links?: Record< string, Array< { href: string; count?: number } > >;
@@ -219,8 +209,6 @@ export interface ListResult {
  * Compact user row returned by `/wp/v2/users` plus the
  * `desktop_mode_summary` REST field — enough to paint a rich
  * tile without an extra round-trip per row.
- *
- * @since 0.8.2
  */
 export interface UserListItem {
 	id: number;
@@ -248,8 +236,6 @@ export interface UserListResult {
  * Per-user activity footprint payload returned by
  * `/desktop-mode/v1/user-footprint/<id>`. Drives the right-click
  * "View activity footprint" surface.
- *
- * @since 0.8.2
  */
 export interface UserFootprint {
 	profile: {
@@ -275,8 +261,8 @@ export interface UserFootprint {
 		comments: number;
 		/**
 		 * Revisions saved by the user that day, excluding the initial
-		 * save of brand-new posts (those count under `posts`). Added
-		 * in 0.8.7 so the heatmap registers update activity, not just
+		 * save of brand-new posts (those count under `posts`), so
+		 * the heatmap registers update activity, not just
 		 * publications and comments.
 		 */
 		updates: number;
@@ -291,7 +277,7 @@ export interface UserFootprint {
 		longestRange: { from: string; to: string };
 	};
 	timeline: Array< {
-		/** `'post-update'` rows are most-recent-save-per-parent rollups (since 0.8.7). */
+		/** `'post-update'` rows are most-recent-save-per-parent rollups. */
 		kind: 'post' | 'comment' | 'post-update';
 		date: string;
 		title: string;
@@ -304,7 +290,7 @@ export interface UserFootprint {
 		posts: number;
 		pages: number;
 		comments: number;
-		/** Lifetime revision count, excluding the initial save. Since 0.8.7. */
+		/** Lifetime revision count, excluding the initial save. */
 		updates: number;
 		mostProlificMonth?: { ym: string; n: number };
 	};
@@ -324,8 +310,6 @@ export type SubRelation =
  * Compact user shape returned by the `desktop_mode_contributors`
  * REST field. Enough to paint a tile + tooltip without an extra
  * `/wp/v2/users/<id>` round-trip per row.
- *
- * @since 0.8.0
  */
 export interface ContributorRef {
 	userId: number;
@@ -378,7 +362,6 @@ export type Route =
  * fields the My WordPress media grid + preview pane consume.
  *
  * @public
- * @since 0.8.6
  */
 export interface MediaListItem {
 	id: number;
@@ -418,7 +401,6 @@ export interface MediaListResult {
  * `/desktop-mode/v1/media-usage/<id>`.
  *
  * @public
- * @since 0.8.6
  */
 export interface MediaUsage {
 	media: {

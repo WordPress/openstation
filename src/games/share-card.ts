@@ -15,8 +15,6 @@
  *
  * Framework-level so every game renders the same recognizable
  * card; the caller provides already-translated labels.
- *
- * @since 0.9.8
  */
 
 export interface ShareCardStat {

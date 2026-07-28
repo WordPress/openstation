@@ -75,8 +75,6 @@
  *   - `wpd-table-row-click` — `{ row, index, originalEvent }` (skips
  *     clicks on `data-noclick` descendants).
  *   - `wpd-table-expand-change` — `{ row, index, expanded }`.
- *
- * @since 0.6.0
  */
 
 import { Component, defineComponent, html, render as renderTemplate, type TemplateResult } from '../../core';
@@ -116,8 +114,6 @@ export interface WpdTableColumn< T = Record< string, unknown > > {
 	 *
 	 * Implies `filter: 'select'` — you do NOT also need to set
 	 * `filter` when `filterOptions` is present.
-	 *
-	 * @since 0.8.0
 	 */
 	filterOptions?: WpdTableColumnFilterOption[];
 	/**
@@ -139,8 +135,6 @@ export interface WpdTableColumn< T = Record< string, unknown > > {
 	 * list, JSON, anything). The consumer owns filtering: typically
 	 * by listening to `wpd-table-filter-change` and re-querying the
 	 * server, or by reassigning `data` with already-filtered rows.
-	 *
-	 * @since 0.8.0
 	 */
 	filterRender?: (
 		host: HTMLTableCellElement,
@@ -170,8 +164,6 @@ export interface WpdTableColumn< T = Record< string, unknown > > {
 	 * the table is squeezed horizontally. Mostly useful for cells
 	 * whose contents wrap (chip rows, multi-line previews) where a
 	 * narrow column would force every chip onto its own line.
-	 *
-	 * @since 0.8.0
 	 */
 	minWidth?: string;
 	/** Custom cell renderer. Return a string, Node, or `html\`\``. */
@@ -431,8 +423,6 @@ export class WpdTable< T extends Record< string, unknown > = Record< string, unk
 	 * the user cannot see must never be swept into a destructive
 	 * action. See `collectSelectedItems()` in src/recycle-bin/index.ts
 	 * for the canonical consumer.
-	 *
-	 * @since 0.9.4
 	 */
 	get visibleRows(): T[] {
 		return this._filteredRows().map( ( entry ) => entry.row );

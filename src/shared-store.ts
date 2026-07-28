@@ -47,8 +47,6 @@
  * store.state.counter += 1;
  * store.notify();
  * ```
- *
- * @since 0.5.5
  */
 
 /**
@@ -107,8 +105,6 @@ export interface SharedStore< T > {
 	 *
 	 * Only valid for object-shaped state. Primitive-shaped stores
 	 * still use the `state` setter path.
-	 *
-	 * @since 0.8.1
 	 *
 	 * @param patch Partial state to merge into `state`.
 	 */

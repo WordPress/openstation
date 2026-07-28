@@ -12,8 +12,6 @@
  * without waiting for the poll. Clicking a row links to
  * post.php?action=edit; the shell's link interceptor opens it as a
  * native window.
- *
- * @since 0.26.0
  */
 import './styles.css';
 import { __, sprintf } from '../../i18n';

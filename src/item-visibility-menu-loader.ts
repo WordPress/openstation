@@ -14,8 +14,6 @@
  * right-clicks several tiles while the bundle is still in flight,
  * only the most recent call opens (the menu itself also closes any
  * predecessor, so this only avoids a flicker).
- *
- * @since 0.9.7
  */
 
 import type { OpenItemVisibilityMenuOpts } from './item-visibility-menu';

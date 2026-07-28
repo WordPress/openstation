@@ -19,8 +19,6 @@
  * the `_` prefixed internal fields. That way pointer.ts (in the
  * Window folder) can call into this module without reaching through
  * two class boundaries.
- *
- * @since 0.8.3
  */
 
 import { doAction, HOOKS } from '../hooks';

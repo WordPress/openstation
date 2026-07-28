@@ -19,7 +19,6 @@
  * shell hasn't loaded yet, etc.) so the dialog is never broken.
  *
  * @public
- * @since 0.8.0
  */
 
 import { __ } from '../i18n';

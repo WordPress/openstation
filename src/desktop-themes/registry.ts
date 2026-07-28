@@ -6,8 +6,6 @@
  * read by the lazily-loaded OS Settings panel bundle. Two bundles,
  * two compiled copies of any plain module state — the exact class of
  * bug documented in AGENTS.md → "Cross-bundle state".
- *
- * @since 0.9.7
  */
 
 import { createSharedStore } from '../shared-store';
@@ -168,7 +166,6 @@ export function getStore() {
  * Every theme in the library, in payload order.
  *
  * @public
- * @since 0.9.7
  */
 export function listDesktopThemes(): DesktopThemeEntry[] {
 	return store.getState().themes.slice();
@@ -179,7 +176,6 @@ export function listDesktopThemes(): DesktopThemeEntry[] {
  * `vendor-neon` slug, matching what PHP stored).
  *
  * @public
- * @since 0.9.7
  */
 export function getDesktopTheme( id: string ): DesktopThemeEntry | null {
 	if ( typeof id !== 'string' || id === '' ) {
@@ -197,7 +193,6 @@ export function getDesktopTheme( id: string ): DesktopThemeEntry | null {
  * Slug of the active theme, or `null` for the system default.
  *
  * @public
- * @since 0.9.7
  */
 export function getActiveDesktopThemeId(): string | null {
 	return store.getState().activeId;
@@ -209,7 +204,6 @@ export function getActiveDesktopThemeId(): string | null {
  * the next payload refresh.
  *
  * @public
- * @since 0.9.7
  */
 export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
 	const entry = normalizeEntry( raw );
@@ -236,7 +230,6 @@ export function upsertDesktopTheme( raw: unknown ): DesktopThemeEntry | null {
  * using shouldn't disturb their shell).
  *
  * @public
- * @since 0.9.7
  */
 export function removeDesktopTheme( slug: string ): void {
 	const themes = store.state.themes.filter( ( theme ) => theme.slug !== slug );
@@ -265,7 +258,6 @@ export function setDesktopThemes( list: readonly unknown[] ): void {
  * Subscribe to library / active-theme changes.
  *
  * @public
- * @since 0.9.7
  *
  * @param cb Called on every mutation with the live state.
  * @return Unsubscribe function.

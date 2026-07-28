@@ -28,7 +28,6 @@
  * {@see desktop_mode_stored_files_handle_unplaced()}).
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -39,8 +38,6 @@ defined( 'ABSPATH' ) || exit;
  * computation — nothing is created; see
  * {@see desktop_mode_stored_files_ensure_dir()}.
  *
- * @since 0.9.6
- *
  * @param int $user_id Optional. Owner whose subdirectory to return.
  * @return string
  */
@@ -50,8 +47,6 @@ function desktop_mode_stored_files_dir( $user_id = 0 ) {
 	/**
 	 * Filters the storage base directory. Sites that can write
 	 * outside the webroot can point this somewhere safer entirely.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param string $base Absolute path, no trailing slash.
 	 */
@@ -66,8 +61,6 @@ function desktop_mode_stored_files_dir( $user_id = 0 ) {
  * Create (idempotently) the storage base + per-user dir and drop
  * the protection files into the base. Returns the user dir path or
  * a `WP_Error` when the filesystem refuses.
- *
- * @since 0.9.6
  *
  * @param int $user_id Owner.
  * @return string|WP_Error
@@ -116,8 +109,6 @@ function desktop_mode_stored_files_ensure_dir( $user_id ) {
  * (UUID v4, dashes allowed, no dots or separators — nothing a
  * traversal could ride on).
  *
- * @since 0.9.6
- *
  * @param string $disk_name Candidate.
  * @return bool
  */
@@ -130,8 +121,6 @@ function desktop_mode_stored_files_valid_disk_name( $disk_name ) {
  * Returns `null` when the row/disk name is malformed or the
  * resolved path escapes the storage base (defense in depth — the
  * disk-name regex should already make escape impossible).
- *
- * @since 0.9.6
  *
  * @param array $row Normalized stored-file row.
  * @return string|null
@@ -164,8 +153,6 @@ function desktop_mode_stored_file_path( $row ) {
 /**
  * Insert a stored-file row for bytes ALREADY on disk (the REST
  * intake moves them there via `wp_handle_upload()` first).
- *
- * @since 0.9.6
  *
  * @param int   $owner_id Owner.
  * @param array $args     `display_name`, `disk_name`, `size_bytes`, `mime`.
@@ -218,8 +205,6 @@ function desktop_mode_stored_files_create( $owner_id, $args ) {
 	 * Fires after a stored-file row is created (bytes are already
 	 * on disk at this point).
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int $id       Stored-file id.
 	 * @param int $owner_id Owner.
 	 */
@@ -230,8 +215,6 @@ function desktop_mode_stored_files_create( $owner_id, $args ) {
 
 /**
  * Read one stored-file row.
- *
- * @since 0.9.6
  *
  * @param int $file_id Row id.
  * @return array|null
@@ -256,7 +239,6 @@ function desktop_mode_stored_files_get( $file_id ) {
 /**
  * Coerce wpdb's stringly-typed row. Internal helper.
  *
- * @since 0.9.6
  * @internal
  *
  * @param array $row Raw wpdb row.
@@ -279,8 +261,6 @@ function desktop_mode_stored_files_normalize_row( $row ) {
  * Rename the display name. The caller enforces WHO may rename
  * (owner-only — see the store gate in `store.php`); this only
  * validates and writes.
- *
- * @since 0.9.6
  *
  * @param int    $file_id Row id.
  * @param string $name    New display name.
@@ -326,8 +306,6 @@ function desktop_mode_stored_files_rename( $file_id, $name ) {
 	/**
 	 * Fires after a stored file is renamed.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int    $file_id  Stored-file id.
 	 * @param string $new_name New display name.
 	 * @param string $old_name Previous display name.
@@ -343,8 +321,6 @@ function desktop_mode_stored_files_rename( $file_id, $name ) {
  * owner. Folder write-collaborators are read + download on
  * uploads; the `canTrash` shape flag, the trash flow, and the
  * recycle-bin drop target all consult this same filter.
- *
- * @since 0.9.6
  *
  * @param bool  $can     Decision so far.
  * @param int   $user_id Acting user.
@@ -368,8 +344,6 @@ add_filter( 'desktop_mode_files_user_can_trash_placement', 'desktop_mode_stored_
  * placements — callers that need the full cascade go through
  * {@see desktop_mode_stored_files_purge()}.
  *
- * @since 0.9.6
- *
  * @param int $file_id Row id.
  * @return true|WP_Error
  */
@@ -389,8 +363,6 @@ function desktop_mode_stored_files_delete( $file_id ) {
 	/**
 	 * Fires after a stored file (row + bytes) is deleted.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param int   $file_id Stored-file id.
 	 * @param array $row     The row as it was before deletion.
 	 */
@@ -403,8 +375,6 @@ function desktop_mode_stored_files_delete( $file_id ) {
  * Full purge: delete the bytes, the row, every remaining placement
  * of the file (each with a tombstone so heartbeat scrubs recipient
  * tiles live), and every `target_type='file'` share row.
- *
- * @since 0.9.6
  *
  * @param int $file_id Row id.
  * @return true|WP_Error
@@ -451,8 +421,6 @@ function desktop_mode_stored_files_purge( $file_id ) {
 /**
  * Sum of stored bytes for one owner.
  *
- * @since 0.9.6
- *
  * @param int $owner_id Owner.
  * @return int
  */
@@ -472,8 +440,6 @@ function desktop_mode_stored_files_total_bytes( $owner_id ) {
  * enforce a cap via the filter; the REST intake consults this
  * before accepting a new file.
  *
- * @since 0.9.6
- *
  * @param int $user_id User.
  * @return int
  */
@@ -481,8 +447,6 @@ function desktop_mode_stored_files_user_quota_bytes( $user_id ) {
 	/**
 	 * Filters the per-user storage quota in bytes. Return 0 for
 	 * unlimited.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param int $quota   Quota in bytes. Default 0 (unlimited).
 	 * @param int $user_id User being checked.
@@ -495,15 +459,11 @@ function desktop_mode_stored_files_user_quota_bytes( $user_id ) {
  * `upload_files`; sites that want desktop storage for lower-cap
  * roles loosen via the filter.
  *
- * @since 0.9.6
- *
  * @return string
  */
 function desktop_mode_stored_files_upload_capability() {
 	/**
 	 * Filters the capability required to upload desktop files.
-	 *
-	 * @since 0.9.6
 	 *
 	 * @param string $capability Default 'upload_files'.
 	 */
@@ -519,8 +479,6 @@ function desktop_mode_stored_files_upload_capability() {
  *   - A user with at least read capability on any folder that
  *     contains a live placement of the file can (shared-folder
  *     contents are visible to the folder's audience).
- *
- * @since 0.9.6
  *
  * @param int $file_id Stored-file id.
  * @param int $user_id Viewer.
@@ -572,8 +530,6 @@ function desktop_mode_stored_file_user_can_read( $file_id, $user_id ) {
 	 * Last-mile override for stored-file read access. Plugins with
 	 * their own sharing concepts can widen (or veto) here.
 	 *
-	 * @since 0.9.6
-	 *
 	 * @param bool  $can     Resolved decision so far (false).
 	 * @param int   $file_id Stored-file id.
 	 * @param int   $user_id Viewer.
@@ -592,8 +548,6 @@ function desktop_mode_stored_file_user_can_read( $file_id, $user_id ) {
  * purge bytes, row, shares, and every recipient placement.
  *
  * Recipient placements going away never delete bytes.
- *
- * @since 0.9.6
  *
  * @param int   $placement_id Removed placement id.
  * @param array $row          The removed row.
@@ -638,8 +592,6 @@ add_action( 'desktop_mode_file_unplaced', 'desktop_mode_stored_files_handle_unpl
  *
  * Rows whose bytes are missing are left alone — `exists()` still
  * renders the tile so the user can see and remove it.
- *
- * @since 0.9.6
  */
 function desktop_mode_stored_files_reconcile() {
 	global $wpdb;
@@ -706,8 +658,6 @@ add_action( 'desktop_mode_files_daily_prune', 'desktop_mode_stored_files_reconci
 /**
  * When a WordPress user is deleted, purge their stored files (rows,
  * bytes, shares, recipient placements) and remove their directory.
- *
- * @since 0.9.6
  *
  * @param int $user_id Deleted user id.
  */

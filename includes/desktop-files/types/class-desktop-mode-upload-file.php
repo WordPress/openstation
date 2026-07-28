@@ -8,13 +8,12 @@
  * the deletion contract in `stored-files-store.php`.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.6
+ * The `upload` desktop file type.
  */
 class Desktop_Mode_Upload_File extends Desktop_Mode_File {
 

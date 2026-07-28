@@ -7,7 +7,6 @@
  * `render` callback + window sizing declared here.
  *
  * @public
- * @since 0.9.8
  */
 
 import { __ } from '../../i18n';

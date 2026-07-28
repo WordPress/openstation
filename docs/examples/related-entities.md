@@ -81,4 +81,4 @@ console.log( ref?.related ); // → RelatedEntityItem[] | undefined
 
 The button repaints automatically whenever the window's content identity changes (`desktop-mode.window-links.content-changed`), including in-window navigations — no manual refresh needed.
 
-**Group ordering** in the menu: `comments`, then every `terms/{taxonomy}`, then `media`, then `links`, then vendor groups in arrival order. Reference: [hooks-reference](../hooks-reference.md#desktop_mode_window_related_entities--experimental-since-096) · [javascript-reference](../javascript-reference.md).
+**Group ordering** in the menu: `comments`, then every `terms/{taxonomy}`, then `media`, then `links`, then vendor groups in arrival order. Reference: [hooks-reference](../hooks-reference.md#desktop_mode_window_related_entities--experimental) · [javascript-reference](../javascript-reference.md).

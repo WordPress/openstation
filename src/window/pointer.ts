@@ -9,8 +9,6 @@
  * Each handler takes the `Window` instance and the originating
  * `PointerEvent`; the class's `bindEvents` routes its two listeners
  * through here.
- *
- * @since 0.8.1
  */
 
 import { doAction, HOOKS } from '../hooks';

@@ -21,8 +21,6 @@
  *   </wpd-steps>
  *
  * Mark a step with `done` to render a ✓ instead of the number.
- *
- * @since 0.5.1
  */
 
 import { Component, defineComponent, html } from '../../core';

@@ -6,8 +6,6 @@
  * row's current state. This helper surfaces that as a toast with
  * a "View folder" action that hops the breadcrumb stack to the
  * row's new parent.
- *
- * @since 0.8.5
  */
 
 import { showToast } from '../toast';

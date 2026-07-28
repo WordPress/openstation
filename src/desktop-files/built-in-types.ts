@@ -12,8 +12,6 @@
  * the JS bundle runs even when a settings UI hasn't loaded the
  * server-payload yet, so a hard-coded fallback keeps pickers
  * usable in the brief gap before the payload arrives.
- *
- * @since 0.9.0
  */
 
 import { registerType } from './registry';

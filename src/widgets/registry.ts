@@ -8,8 +8,6 @@
  * Intentionally cache-free — the filter chain is shallow and
  * `all()` is called at most when the picker opens or the layer
  * rehydrates, never per-frame.
- *
- * @since 0.7.0
  */
 
 import { applyFilters, HOOKS } from '../hooks';

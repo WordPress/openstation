@@ -2,7 +2,7 @@
 
 `<wpd-table>` is the data-grid primitive: assign a `columns` descriptor and a `data` array and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns, sticky header, custom cell renderers, a loading skeleton, and a slottable empty state.
 
-> Status: **Experimental** since 0.6.0. The component shape is stable; the named events / filter kinds may grow.
+> Status: **Experimental**. The component shape is stable; the named events / filter kinds may grow.
 
 ## Minimum viable table
 

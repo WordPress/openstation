@@ -8,7 +8,6 @@
  * REST responses stay consistent.
  *
  * @package DesktopModeCronManager
- * @since   0.6.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,8 +16,6 @@ const DESKTOP_MODE_CRON_MANAGER_CUSTOM_SCHEDULES_OPTION = 'desktop_mode_cron_cus
 
 /**
  * Whether the current user may use the Cron Manager.
- *
- * @since 0.6.0
  *
  * @return bool
  */
@@ -32,8 +29,6 @@ function desktop_mode_cron_manager_user_can_use() {
 	/**
 	 * Filter whether the current user can see/use the Cron Manager.
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param bool $can Default: manage_network capability on multisite, manage_options otherwise.
 	 */
 	return (bool) apply_filters( 'desktop_mode_cron_manager_user_can_use', $can );
@@ -41,8 +36,6 @@ function desktop_mode_cron_manager_user_can_use() {
 
 /**
  * Return sanitized custom schedule definitions stored by this module.
- *
- * @since 0.6.0
  *
  * @return array<string, array{interval:int, display:string}>
  */
@@ -80,8 +73,6 @@ function desktop_mode_cron_manager_get_custom_schedules() {
 
 /**
  * Save or update a custom cron interval.
- *
- * @since 0.6.0
  *
  * @param string $slug     Schedule slug.
  * @param int    $interval Interval in seconds.
@@ -138,8 +129,6 @@ function desktop_mode_cron_manager_save_custom_schedule( $slug, $interval, $disp
 /**
  * Add this module's persisted custom intervals to WordPress' schedule map.
  *
- * @since 0.6.0
- *
  * @param array $schedules Cron schedules.
  * @return array
  */
@@ -161,8 +150,6 @@ add_filter( 'cron_schedules', 'desktop_mode_cron_manager_register_custom_schedul
 
 /**
  * Return the cron schedule list in a client-friendly shape.
- *
- * @since 0.6.0
  *
  * @return array<int, array{slug:string, interval:int, display:string, custom:bool}>
  */
@@ -199,8 +186,6 @@ function desktop_mode_cron_manager_get_schedules_payload() {
 /**
  * Validate a cron hook name without over-sanitizing existing hooks.
  *
- * @since 0.6.0
- *
  * @param mixed $hook Raw hook.
  * @return string|WP_Error
  */
@@ -233,8 +218,6 @@ function desktop_mode_cron_manager_normalize_hook( $hook ) {
 /**
  * Whether a value can safely round-trip through JSON for editing.
  *
- * @since 0.6.0
- *
  * @param mixed $value Value to test.
  * @return bool
  */
@@ -258,8 +241,6 @@ function desktop_mode_cron_manager_is_json_safe( $value ) {
 
 /**
  * Normalize incoming cron args. WordPress expects an array.
- *
- * @since 0.6.0
  *
  * @param mixed $args Raw decoded JSON args.
  * @return array|WP_Error
@@ -288,8 +269,6 @@ function desktop_mode_cron_manager_normalize_args( $args ) {
 /**
  * Return WordPress' internal args hash.
  *
- * @since 0.6.0
- *
  * @param array $args Cron args.
  * @return string
  */
@@ -299,8 +278,6 @@ function desktop_mode_cron_manager_args_hash( $args ) {
 
 /**
  * Build a stable client id for an event row.
- *
- * @since 0.6.0
  *
  * @param int    $timestamp Unix timestamp.
  * @param string $hook      Cron hook.
@@ -313,8 +290,6 @@ function desktop_mode_cron_manager_event_id( $timestamp, $hook, $args_hash ) {
 
 /**
  * Convert a raw cron event into the REST row shape.
- *
- * @since 0.6.0
  *
  * @param int    $timestamp Unix timestamp.
  * @param string $hook      Cron hook.
@@ -368,8 +343,6 @@ function desktop_mode_cron_manager_format_event( $timestamp, $hook, $args_hash, 
 /**
  * Count callbacks registered for a hook.
  *
- * @since 0.6.0
- *
  * @param string $hook Hook name.
  * @return int
  */
@@ -407,8 +380,6 @@ function desktop_mode_cron_manager_count_hook_callbacks( $hook ) {
 /**
  * Build a compact args summary for table display.
  *
- * @since 0.6.0
- *
  * @param array $args          Event args.
  * @param bool  $args_editable Whether args are JSON-safe.
  * @return string
@@ -429,8 +400,6 @@ function desktop_mode_cron_manager_args_summary( $args, $args_editable ) {
 
 /**
  * List every scheduled cron event.
- *
- * @since 0.6.0
  *
  * @return array<int, array>
  */
@@ -478,8 +447,6 @@ function desktop_mode_cron_manager_list_events() {
 
 /**
  * Find a cron event by timestamp, hook, and args hash.
- *
- * @since 0.6.0
  *
  * @param array $identity Event identity.
  * @return array|WP_Error
@@ -532,8 +499,6 @@ function desktop_mode_cron_manager_find_event( $identity ) {
 
 /**
  * Normalize an incoming event payload.
- *
- * @since 0.6.0
  *
  * @param array      $payload      Raw event payload.
  * @param array|null $fallback_args Args to use when omitted.
@@ -615,8 +580,6 @@ function desktop_mode_cron_manager_normalize_event_payload( $payload, $fallback_
 /**
  * Schedule a normalized event.
  *
- * @since 0.6.0
- *
  * @param array $event Normalized event.
  * @return true|WP_Error
  */
@@ -655,8 +618,6 @@ function desktop_mode_cron_manager_schedule_normalized_event( $event ) {
 /**
  * Create a cron event from a REST payload.
  *
- * @since 0.6.0
- *
  * @param array $payload Raw event payload.
  * @return array|WP_Error
  */
@@ -679,8 +640,6 @@ function desktop_mode_cron_manager_create_event( $payload ) {
 
 /**
  * Delete a single exact cron event.
- *
- * @since 0.6.0
  *
  * @param array $identity Event identity.
  * @return array|WP_Error
@@ -716,8 +675,6 @@ function desktop_mode_cron_manager_delete_event( $identity ) {
 
 /**
  * Update an event by deleting the old identity and scheduling the new one.
- *
- * @since 0.6.0
  *
  * @param array $identity Event identity.
  * @param array $payload  New event payload.
@@ -774,8 +731,6 @@ function desktop_mode_cron_manager_update_event( $identity, $payload ) {
 
 /**
  * Execute an existing event immediately without modifying its schedule.
- *
- * @since 0.6.0
  *
  * @param array $identity Event identity.
  * @return array|WP_Error

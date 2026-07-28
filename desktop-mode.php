@@ -42,8 +42,6 @@ define( 'DESKTOP_MODE_URL', plugin_dir_url( __FILE__ ) );
  * environment (the test bootstrap loads the plugin outside admin
  * context but exercises the render layer directly).
  *
- * @since 0.9.7
- *
  * @return bool True to load the admin-rendering modules.
  */
 function desktop_mode_request_needs_admin_modules() {
@@ -72,8 +70,6 @@ function desktop_mode_request_needs_admin_modules() {
 	 * that internally dispatches `desktop-mode/v1` REST routes via
 	 * `rest_do_request()` outside a sniffable REST request can force
 	 * the full load by returning true.
-	 *
-	 * @since 0.9.7
 	 *
 	 * @param bool $needs Whether the current request loads the
 	 *                    admin-rendering module set.
@@ -218,8 +214,6 @@ if ( desktop_mode_request_needs_admin_modules() ) {
  * `desktop_mode_*` helpers expecting Desktop Mode to be wired up;
  * firing them mid-cascade can trigger the same fatal we're trying
  * to prevent. Skipping them is the safer default.
- *
- * @since 0.8.2
  */
 function desktop_mode_cascade_deactivate_dependents() {
 	// Defer to `shutdown` so we run AFTER the outer
@@ -237,8 +231,6 @@ register_deactivation_hook( DESKTOP_MODE_FILE, 'desktop_mode_cascade_deactivate_
  * that callback must register, not execute, the cascade. See
  * {@see desktop_mode_cascade_deactivate_dependents} for the timing
  * rationale.
- *
- * @since 0.8.2
  */
 function desktop_mode_do_cascade_deactivate() {
 	if ( ! class_exists( 'WP_Plugin_Dependencies' ) ) {
@@ -261,8 +253,6 @@ function desktop_mode_do_cascade_deactivate() {
 	 * Filter the list of plugin files to cascade-deactivate when
 	 * Desktop Mode is deactivated. Defaults to every plugin whose
 	 * `Requires Plugins` header lists our directory slug.
-	 *
-	 * @since 0.8.2
 	 *
 	 * @param string[] $dependents Plugin files (e.g. "foo/foo.php").
 	 * @param string   $slug       Desktop Mode's directory slug.

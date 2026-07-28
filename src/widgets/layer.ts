@@ -20,8 +20,6 @@
  * (which start at z-index 100). The column never intercepts window
  * drag / resize — only its own cards + `+` button are interactive,
  * everything else passes through.
- *
- * @since 0.7.0
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -459,9 +457,6 @@ export class WidgetLayer {
 	 * removed as part of the same write so CSS rules that depend
 	 * on it (re-dock button visibility, absolute positioning) flip
 	 * back in one paint.
-	 *
-	 * @since 0.7.0 (private)
-	 * @since 0.8.6 (public)
 	 */
 	public redock( id: string ): void {
 		const record = this.mounted.get( id );

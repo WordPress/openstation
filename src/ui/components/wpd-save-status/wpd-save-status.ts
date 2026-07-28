@@ -52,7 +52,6 @@
  * ```
  *
  * @public
- * @since 0.8.0
  */
 
 import { Component, defineComponent, html } from '../../core';

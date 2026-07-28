@@ -15,8 +15,6 @@
  * `window.wp.desktop` before the extraction is still attached
  * after — same names, same shapes, same semantics. Tests
  * exercising `wp.desktop.*` continue to pass unchanged.
- *
- * @since 0.8.1
  */
 
 import {
@@ -179,8 +177,6 @@ import type { NativeWindowDef, DesktopConfig } from '../types';
  * place that owns the assembly of `wp.desktop.*`. A new public
  * key SHOULD be added here in the same change that adds the
  * field to the interface.
- *
- * @since 0.8.1
  */
 export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'windowManager', 'dock', 'sideDock', 'taskbar', 'desktopLayout', 'icons',
@@ -269,8 +265,6 @@ export interface BuildPublicApiDeps {
  * caller (init in `desktop.ts`) is responsible for merging the
  * returned object onto the early-shim slot — see
  * {@link installPublicApi}.
- *
- * @since 0.8.1
  */
 export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 	const {
@@ -751,8 +745,6 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
  * `whenReady` callbacks queued before the API attached would
  * never fire. `Object.assign` overwrites `whenReady` / `ready` /
  * `isReady` with the canonical versions from `src/hooks.ts`.
- *
- * @since 0.8.1
  */
 export function installPublicApi( api: WpDesktopPublicApi ): void {
 	if ( ! window.wp ) {

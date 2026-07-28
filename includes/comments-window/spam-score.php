@@ -21,15 +21,12 @@
  * but does have an AI provider configured.
  *
  * @package WPDesktopMode
- * @since   0.8.3
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Compute a 0–100 spam confidence score for a comment.
- *
- * @since 0.8.3
  *
  * @param int|WP_Comment $comment Comment id or object.
  * @return int 0–100. Higher = more spam-like.
@@ -133,8 +130,6 @@ function desktop_mode_comments_window_spam_score( $comment ) {
 	 * Hook here to plug in an AI fallback when Akismet isn't installed
 	 * but an AI provider is. The callback should return an integer
 	 * clamped to 0–100 — values outside that range are clamped back.
-	 *
-	 * @since 0.8.3
 	 *
 	 * @param int        $score   Default heuristic score (0–100).
 	 * @param WP_Comment $comment Comment object.

@@ -35,7 +35,6 @@
  * the JS-side `registerNonceTarget()` helper.
  *
  * @package WPDesktopMode
- * @since   0.8.7
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -53,8 +52,6 @@ const DESKTOP_MODE_NONCE_REFRESH_FIELD = 'desktop_mode_nonces';
  * boot-time viewer and hard-reloads when a *different* user logged
  * in through the session-expired prompt — in-place nonce refresh
  * would otherwise leave user A's desktop issuing user B's requests.
- *
- * @since 0.9.8
  */
 const DESKTOP_MODE_AUTH_FIELD = 'desktop_mode_auth';
 
@@ -64,8 +61,6 @@ const DESKTOP_MODE_AUTH_FIELD = 'desktop_mode_auth';
  * filterable so other native windows / third-party plugins can
  * extend it; the only requirement is that the action string match
  * whatever was passed to `wp_create_nonce()` at registration.
- *
- * @since 0.8.7
  *
  * @return array<string,string> Map of nonce-action => current nonce value.
  */
@@ -81,8 +76,6 @@ function desktop_mode_nonce_refresh_build_payload() {
 	 *
 	 * Each entry must be a literal nonce action string (the same value
 	 * passed to `wp_create_nonce()` wherever the original was minted).
-	 *
-	 * @since 0.8.7
 	 *
 	 * @param string[] $actions Default nonce actions.
 	 */
@@ -111,8 +104,6 @@ function desktop_mode_nonce_refresh_build_payload() {
  * The cost is tiny when fired (three `wp_create_nonce()` calls,
  * all hot-cached inside a single request) — the gate is about
  * not shipping irrelevant data to non-shell users on every tick.
- *
- * @since 0.8.7
  *
  * @param array $response Heartbeat response (filter return value).
  * @param array $data     Client-sent payload. Unused here.
@@ -149,8 +140,6 @@ add_filter( 'heartbeat_received', 'desktop_mode_nonce_refresh_heartbeat_received
  * the replacements. Client-side, `heartbeat.js` still fires
  * `heartbeat-tick` for this response, so the regular
  * `src/nonce-refresh.ts` subscriber picks the map up unchanged.
- *
- * @since 0.9.8
  *
  * @param array $response Heartbeat response (filter return value).
  * @return array

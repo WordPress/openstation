@@ -19,8 +19,6 @@
  * Phase 3 only ships drag-within-folder. Cross-folder drags
  * (drop into a folder, drop out to root) and the Recycle Bin
  * drop integration land in later phases.
- *
- * @since 0.9.0
  */
 
 import { doAction } from '../hooks';
@@ -66,8 +64,6 @@ import type {
  * the PHP `Desktop_Mode_*_File::serialize()` methods surface `link`
  * / `sourceUrl` / `alt` / `mime` / `postType` on every list
  * response.
- *
- * @since 0.8.7
  */
 function buildBridgePayloadFromPlacement(
 	placement: RestPlacementShape,
@@ -137,7 +133,6 @@ const LAYER_CLASS = 'desktop-mode-files-layer';
  * canvas Sort By menu uses (and the wallpaper's own sort callback).
  *
  * @public
- * @since 0.8.0
  */
 export type FilesLayerSortMode =
 	| 'name-asc'
@@ -152,8 +147,6 @@ export interface FilesLayer {
 	 * Subscribe to selection changes inside this layer. Fires with
 	 * the newly-selected placement (or `null` when the user clicked
 	 * empty canvas to deselect). Returns an unsubscribe function.
-	 *
-	 * @since 0.8.0
 	 */
 	onSelectionChange: (
 		cb: ( placement: RestPlacementShape | null ) => void,
@@ -162,16 +155,12 @@ export interface FilesLayer {
 	 * Sort the visible tiles row-major into a clean grid in the
 	 * requested order, persisting each new (x, y) to REST. Same
 	 * gesture macOS Finder calls "Clean Up By → Name / Date."
-	 *
-	 * @since 0.8.0
 	 */
 	sort: ( mode: FilesLayerSortMode ) => void;
 	/**
 	 * Visually re-flow tiles into the current canvas width when the
 	 * stored layout overflows. Cheap, doesn't persist — the next
 	 * drag or sort writes back to REST.
-	 *
-	 * @since 0.8.0
 	 */
 	reflow: () => void;
 	/**
@@ -187,8 +176,6 @@ export interface FilesLayer {
 	 * rejects — REST failure is reported via `console.error` from the
 	 * mount path and the promise still resolves so the caller's
 	 * reveal-after-hydrate isn't stranded forever.
-	 *
-	 * @since 0.8.5
 	 */
 	readonly hydrated: Promise< void >;
 	dispose: () => void;
@@ -421,8 +408,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	 * shared tile has a structural change (file-type, file-ref,
 	 * pinned-flag) — those cases need the wholesale path's full
 	 * re-wiring.
-	 *
-	 * @since 0.8.7
 	 */
 	const tryPatchIncremental = (
 		list: readonly RestPlacementShape[],
@@ -1294,8 +1279,6 @@ const RECYCLE_BIN_REF = 'desktop-mode-recycle-bin';
  * so plugins can install their own target last. Not adding that
  * action speculatively — the feature is 0.8.6 / Experimental and
  * no in-tree caller needs it today.
- *
- * @since 0.8.6
  */
 function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
 	if ( placement.file?.type === 'folder' ) {
@@ -1323,8 +1306,6 @@ function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
  * `My WordPress | empty | Icon A | Icon B`, dragging Icon B at the
  * empty cell used to highlight My WordPress's slot because
  * `snapToEmptyCell` thought (0, 0) was free.
- *
- * @since 0.8.6
  */
 function buildVisualOccupiedSet(
 	placements: ReadonlyArray< RestPlacementShape >,
@@ -1377,8 +1358,6 @@ function buildVisualOccupiedSet(
  * client-side preflight so the `accept` callbacks can reject the
  * drop up-front (no REST round-trip, no 409 in the console, visible
  * snap-back at the drop site).
- *
- * @since 0.8.6
  */
 function wouldCreateFolderCycle(
 	movingFolderId: number,
@@ -1446,8 +1425,6 @@ function wouldCreateFolderCycle(
  *
  * Silent no-op when the public OS Settings facade isn't available
  * (tests, embedded previews, or a host that disabled the facade).
- *
- * @since 0.8.6
  */
 function persistDockPromotedPosition(
 	dockItemId: string,
@@ -1510,8 +1487,6 @@ function persistDockPromotedPosition(
  * every tile vanishes for one frame and re-appears. Patching
  * positions in place keeps DOM identity for unchanged tiles so the
  * grid feels continuous.
- *
- * @since 0.8.6
  */
 function tryPatchPositions(
 	list: readonly RestPlacementShape[],
@@ -1624,8 +1599,6 @@ function tryPatchPositions(
  * Both DOM-reusing repaint paths call this — without it a folder
  * rename patches the store but the tile keeps showing the old name
  * until the next wholesale rebuild (i.e. until F5).
- *
- * @since 0.9.5
  */
 function syncTileLabel(
 	tile: HTMLElement,

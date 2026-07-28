@@ -29,8 +29,6 @@
  * `MutationObserver` on the wallpaper area as a belt-and-braces
  * fallback so the drop target is guaranteed to point at the LIVE
  * DOM element.
- *
- * @since 0.8.1
  */
 
 import { __ } from '../i18n';
@@ -80,7 +78,7 @@ const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
  * preference. The first matching element wins.
  *
  *   - `.desktop-mode-file-tile[data-file-ref="…"]` — the unified
- *     files layer's representation (current default since 0.9.0).
+ *     files layer's representation (current default).
  *   - `[data-icon-id="…"]` — legacy desktop-icons rail
  *     (`src/desktop-icons.ts`), still rendered when the files
  *     layer is absent.

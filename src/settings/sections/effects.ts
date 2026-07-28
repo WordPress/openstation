@@ -14,8 +14,6 @@
  * The pickers are `<wpd-select>` rather than `<wpd-segmented>` pill
  * bars because both lists are open-ended — plugins append, and a
  * dropdown scales past the shipped choices.
- *
- * @since 0.9.1
  */
 
 import { __ } from '../../i18n';

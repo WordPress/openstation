@@ -11,8 +11,6 @@
  * Emits `wpd-role-toggle { slug, selected }` whenever a chip is
  * clicked. The parent owns the source of truth — the component
  * just reflects the `selected` CSV attribute.
- *
- * @since 0.8.5
  */
 
 import { Component, defineComponent, html } from '../../core';

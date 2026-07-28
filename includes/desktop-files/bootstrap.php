@@ -12,7 +12,6 @@
  * keeps loading the feature through one entry point.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;

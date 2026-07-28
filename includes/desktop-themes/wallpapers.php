@@ -27,7 +27,6 @@
  * this is a wallpaper in its own right that the user selects.
  *
  * @package WPDesktopMode
- * @since   0.9.8
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -47,7 +46,6 @@ const DESKTOP_MODE_DESKTOP_THEME_WALLPAPER_PREFIX = 'desktop-theme/';
  * path — the same rule the compiler follows, and the reason a
  * manifest may not contain a `url()` of its own.
  *
- * @since 0.9.8
  * @internal
  *
  * @param array  $wallpaper Sanitized `wallpaper` block.
@@ -79,8 +77,6 @@ function desktop_mode_desktop_theme_wallpaper_css( $wallpaper, $base_url = '', $
 
 /**
  * Picker label for a theme's wallpaper.
- *
- * @since 0.9.8
  *
  * The theme `name` reaching this function has already been through
  * `sanitize_text_field()` in the manifest sanitizer, and
@@ -115,8 +111,6 @@ function desktop_mode_desktop_theme_wallpaper_label( $name, $slug, $own_label = 
 	 * Filters the picker label for a wallpaper contributed by a
 	 * desktop theme.
 	 *
-	 * @since 0.9.8
-	 *
 	 * @param string $label     Default `<name> - (theme)`, or
 	 *                          `<name>: <own label> - (theme)`.
 	 * @param string $name      Theme display name.
@@ -143,8 +137,6 @@ function desktop_mode_desktop_theme_wallpaper_label( $name, $slug, $own_label = 
  * Every theme in the library contributes, not just the active one:
  * the whole point of a pick is that it is available whether or not
  * you are wearing the theme it came from.
- *
- * @since 0.9.8
  *
  * @return void
  */

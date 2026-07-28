@@ -9,7 +9,7 @@
  * The tab renders two sections: the general "Features" group first,
  * then a "Beta features" group below it holding the opt-in
  * native-window toggles (Posts, Pages, Users, Plugins, Comments — all
- * off by default as of 0.9.1). As more per-user feature flags land they
+ * off by default). As more per-user feature flags land they
  * slot into the matching section so the tab grows by one row at a
  * time, not one tab at a time. For admins the panel appends a third,
  * admin-only "Extended options" section (site-wide toggles — see
@@ -19,8 +19,6 @@
  * `desktop-mode-os-settings-save-lifecycle` CustomEvent the panel
  * header listens to — both update in lock-step so a user editing
  * here gets feedback at both the section and the panel scope.
- *
- * @since 0.8.0
  */
 
 import { __, sprintf } from '../../i18n';

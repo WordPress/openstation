@@ -1,6 +1,6 @@
 # Plugins window — extras
 
-Recipes for plugin authors that want to extend the native Plugins window. Every PHP hook listed below is documented in [`docs/hooks-reference.md`](../hooks-reference.md#native-plugins-window-since-090); JS-side surface lives in [`docs/javascript-reference.md`](../javascript-reference.md#native-plugins-window-since-090).
+Recipes for plugin authors that want to extend the native Plugins window. Every PHP hook listed below is documented in [`docs/hooks-reference.md`](../hooks-reference.md#native-plugins-window); JS-side surface lives in [`docs/javascript-reference.md`](../javascript-reference.md#native-plugins-window).
 
 ---
 

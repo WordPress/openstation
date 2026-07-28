@@ -9,8 +9,6 @@
  * Cross-iframe Media Library drags continue to flow through
  * `wp.desktop.dragBridge` (`src/drag-bridge.ts`) — that's a payload
  * channel, separate from this gesture manager.
- *
- * @since 0.8.1
  */
 
 export { DragManager } from './manager';

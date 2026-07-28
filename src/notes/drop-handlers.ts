@@ -21,8 +21,6 @@
  * drops) and consults Seam A for ours. Registering a notes-root
  * target here would claim-reject 'desktop-file'/'shortcut' drops
  * over every note (the registry has no fall-through).
- *
- * @since 0.9.6
  */
 
 import { __ } from '../i18n';

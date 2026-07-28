@@ -4,8 +4,6 @@
  * Pulled into a dedicated module so `desktops.ts` and `overview.ts`
  * can both import it without forming an import cycle through either
  * side's function exports.
- *
- * @since 0.8.1
  */
 
 /**

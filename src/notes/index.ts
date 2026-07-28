@@ -5,8 +5,6 @@
  * routes, and the cross-bundle "note created elsewhere" listener
  * (the Note Pad widget POSTs directly when the user pins via the
  * keyboard path and announces the new note with a CustomEvent).
- *
- * @since 0.9.6
  */
 
 import type { DesktopConfig } from '../types';

@@ -25,7 +25,6 @@
  * forwarders calling these factories.
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -44,8 +43,6 @@ defined( 'ABSPATH' ) || exit;
  * own private `$state` array — closures in PHP capture by reference
  * via the `use ( &$state )` clause. Every registry instance is
  * therefore isolated; different registries cannot stomp on each other.
- *
- * @since 0.8.1
  *
  * @param array $initial Optional initial entries keyed by id.
  * @return callable Registry closure.
@@ -83,8 +80,6 @@ function desktop_mode_create_registry( $initial = array() ) {
  * coerced to bool, and the read-one path returns `false` (not `null`)
  * when the handle is unknown — matching the existing convention used
  * across `*_script_registry()` functions.
- *
- * @since 0.8.1
  *
  * @param array $initial Optional initial flags keyed by handle.
  * @return callable Script-registry closure.

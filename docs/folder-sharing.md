@@ -1,6 +1,6 @@
 # Folder sharing
 
-**Status:** Experimental (since 0.8.5). The hooks, schema, and
+**Status:** Experimental. The hooks, schema, and
 REST contract may change in minor releases — track this doc.
 
 ## What it is
@@ -354,7 +354,7 @@ site-admin cleanup (drops the folder-sharing tables) and requires
 
 ## Hooks
 
-See [hooks-reference.md](hooks-reference.md#folder-sharing-since-085-experimental).
+See [hooks-reference.md](hooks-reference.md#folder-sharing-experimental).
 
 ## JS surface
 
@@ -406,10 +406,10 @@ A recipient cannot re-share a folder they've received:
   sharing…" entries follow the same rule; recipients see the
   "Leave shared folder" entry instead.
 
-## Single-file shares (since 0.9.6)
+## Single-file shares
 
 Stored uploads (the `upload` file type — see
-[files-on-desktop.md](files-on-desktop.md#real-file-storage-upload--experimental-since-096))
+[files-on-desktop.md](files-on-desktop.md#real-file-storage-upload--experimental))
 are shareable as single files, reusing this feature's tables via the
 `target_type='file'` column (the `folder_id` column carries the
 stored-file id on those rows). Deliberate divergences from folder

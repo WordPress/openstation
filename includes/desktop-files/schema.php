@@ -35,7 +35,6 @@
  * `DESKTOP_MODE_FILES_SCHEMA_VERSION` and adding columns.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -45,8 +44,6 @@ define( 'DESKTOP_MODE_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' 
 
 /**
  * Returns the per-table names with the active prefix applied.
- *
- * @since 0.9.0
  *
  * @return array{ placements: string, folders: string, tombstones: string, shares: string, decisions: string }
  */
@@ -66,8 +63,6 @@ function desktop_mode_files_table_names() {
  * Idempotent `dbDelta` call. Hooked on plugin activation and on
  * `admin_init` (gated by a version-option mismatch) so a manual
  * file copy install still ends up with the tables.
- *
- * @since 0.9.0
  */
 function desktop_mode_files_install_schema() {
 	global $wpdb;
@@ -77,7 +72,7 @@ function desktop_mode_files_install_schema() {
 	$tables           = desktop_mode_files_table_names();
 	$charset_collate  = $wpdb->get_charset_collate();
 
-	// Schema v2 (since 0.8.0): adds trash columns to both placements
+	// Schema v2: adds trash columns to both placements
 	// and folders so deleted shortcuts and folders land in the
 	// recycle bin instead of vanishing. `trashed_at_ms` is the
 	// epoch-ms timestamp of the trash event (NULL = active).
@@ -134,7 +129,7 @@ function desktop_mode_files_install_schema() {
 		KEY kind_removed (kind, removed_at_ms)
 	) $charset_collate;";
 
-	// Schema v13 (since 0.9.6): real per-user file storage. One row
+	// Schema v13: real per-user file storage. One row
 	// per uploaded file; the bytes live flat on disk under
 	// `uploads/desktop-mode-files/<owner_id>/<disk_name>` with a
 	// server-generated extensionless `disk_name` (UUID) — hierarchy,
@@ -237,8 +232,6 @@ function desktop_mode_files_install_schema() {
 	/**
 	 * Fires after the files schema is installed / migrated.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string $version The version that was installed.
 	 */
 	do_action( 'desktop_mode_files_schema_installed', DESKTOP_MODE_FILES_SCHEMA_VERSION );
@@ -250,7 +243,6 @@ function desktop_mode_files_install_schema() {
  * and `ALTER`s in any column dbDelta missed. Idempotent: each
  * `ALTER` only fires when the column is not already there.
  *
- * @since 0.8.0
  * @internal
  */
 function desktop_mode_files_ensure_trash_columns() {
@@ -320,7 +312,6 @@ function desktop_mode_files_ensure_trash_columns() {
  * `desktop_mode_files_ensure_unique_placement_index()` will fail
  * and leave the index absent until those rows are cleaned up.
  *
- * @since 0.8.0
  * @internal
  */
 function desktop_mode_files_dedupe_placements() {
@@ -374,7 +365,6 @@ function desktop_mode_files_dedupe_placements() {
  * other columns this fits comfortably under MySQL's 3072-byte
  * InnoDB index-key limit on `utf8mb4`.
  *
- * @since 0.8.0
  * @internal
  */
 function desktop_mode_files_ensure_unique_placement_index() {
@@ -421,7 +411,6 @@ function desktop_mode_files_ensure_unique_placement_index() {
  * NULL on legacy rows (pre-v10). The conflict resolver falls back
  * to `owner_id` when this column is NULL, matching the old behavior.
  *
- * @since 0.8.5 (schema v10)
  * @internal
  */
 function desktop_mode_files_ensure_updated_by_column() {
@@ -475,7 +464,6 @@ function desktop_mode_files_ensure_updated_by_column() {
  * function is idempotent — early-returns when `user_id` is absent,
  * so healthy v11 installs see a cheap no-op on the retry.
  *
- * @since 0.8.9 (schema v11, redelivered at v12)
  * @internal
  */
 function desktop_mode_files_rename_user_id_to_owner_id() {
@@ -549,7 +537,6 @@ function desktop_mode_files_rename_user_id_to_owner_id() {
  * on some MySQL/MariaDB combos; we mirror the trash-columns
  * pattern and `CREATE TABLE IF NOT EXISTS` the row explicitly.
  *
- * @since 0.8.5
  * @internal
  */
 function desktop_mode_files_ensure_shares_table() {
@@ -614,7 +601,6 @@ function desktop_mode_files_ensure_shares_table() {
 /**
  * Belt-and-suspenders verifier for the decisions table.
  *
- * @since 0.8.5
  * @internal
  */
 function desktop_mode_files_ensure_decisions_table() {
@@ -652,8 +638,6 @@ function desktop_mode_files_ensure_decisions_table() {
  * Lazy migrator — runs on `admin_init` when the stored schema
  * version doesn't match the constant. Idempotent: `dbDelta`
  * itself is a no-op when the table already matches.
- *
- * @since 0.9.0
  */
 function desktop_mode_files_maybe_install_schema() {
 	$installed = get_option( DESKTOP_MODE_FILES_SCHEMA_OPTION, '' );
@@ -674,8 +658,6 @@ register_activation_hook( DESKTOP_MODE_FILE, 'desktop_mode_files_install_schema'
 /**
  * Current epoch-ms timestamp. Centralized so the store and the
  * tombstone writer stay in lock-step.
- *
- * @since 0.9.0
  *
  * @return int
  */

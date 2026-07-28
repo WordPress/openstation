@@ -17,8 +17,6 @@
  *     removal via a `MutationObserver` on `document.body` so we don't
  *     leak the WebGL context across re-renders triggered by the
  *     settings-tab registry, save-failure rollbacks, or a Reset.
- *
- * @since 0.8.0
  */
 
 import { __ } from '../../i18n';

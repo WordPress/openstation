@@ -15,8 +15,6 @@
  * Kept as a leaf module (imports only `utils` + `types`) so the
  * lazy desktop-files/icons bundles don't drag in a bundle entry as
  * a side effect — see the cross-bundle warning in AGENTS.md.
- *
- * @since 0.11.3
  */
 
 import { deriveWindowId } from '../utils';

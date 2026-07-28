@@ -6,8 +6,6 @@
  * they sit outside the class body to keep the orchestrator file
  * readable. Snap config + grid validation live in sibling modules
  * (`snap.ts`, `geometry.ts`).
- *
- * @since 0.8.1
  */
 
 import { applyFilters, doAction, HOOKS } from '../hooks';

@@ -20,7 +20,6 @@
  * use a normal NUMERIC `>=` comparison.
  *
  * @package WPDesktopMode
- * @since   0.5.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -41,8 +40,6 @@ const DESKTOP_MODE_MEDIA_BACKFILL_BATCH = 50;
  * (new uploads) and `wp_update_attachment_metadata` (regenerated
  * thumbnails, image editor saves) so the stamp stays in sync with
  * whatever Core thinks the canonical dimensions are.
- *
- * @since 0.5.0
  *
  * @param array $metadata       Attachment metadata.
  * @param int   $attachment_id  Attachment post ID.
@@ -73,8 +70,6 @@ add_filter( 'wp_update_attachment_metadata', 'desktop_mode_stamp_media_dimension
  * query filter. Without this, the params would still work but would
  * show up as unknown to any REST consumer introspecting the schema.
  *
- * @since 0.5.0
- *
  * @param array $params Existing collection params.
  * @return array
  */
@@ -98,8 +93,6 @@ add_filter( 'rest_attachment_collection_params', 'desktop_mode_register_media_qu
  * dimension filter is present. Triggers a bounded backfill first so
  * legacy attachments (uploaded before this filter existed) start
  * participating without a one-shot CLI command.
- *
- * @since 0.5.0
  *
  * @param array           $args    WP_Query args built by the REST controller.
  * @param WP_REST_Request $request The REST request.
@@ -173,8 +166,6 @@ add_filter( 'rest_attachment_query', 'desktop_mode_filter_media_by_dimensions', 
  * Ordering by `ID DESC` so newest attachments get stamped first — the
  * user is most likely to be looking for something they uploaded
  * recently, so we prioritize the tail they're staring at.
- *
- * @since 0.5.0
  *
  * @param int $batch Maximum attachments to stamp this pass.
  * @return int Number of attachments stamped (0 when nothing remained).

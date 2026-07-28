@@ -12,8 +12,6 @@
  * `preventDefault()`ed (the input's value is cleared every
  * keystroke so no text accumulates). Modifier combos (⌘K & co.)
  * pass through untouched.
- *
- * @since 0.9.6
  */
 
 export interface InputHandlers {

@@ -12,8 +12,6 @@
  * function that wires every `wp.desktop.*` method in one place.
  * Until then, the runtime assembly continues to live in
  * `src/desktop.ts`.
- *
- * @since 0.8.1
  */
 
 export * from '../public-api';

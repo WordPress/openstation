@@ -11,8 +11,6 @@
  * {@link sanitizeSnowSettings} clamps every field back to a sane
  * range and falls back to the defaults for anything missing or
  * malformed.
- *
- * @since 0.9.5
  */
 
 /** Resolved, validated settings the scene consumes. */

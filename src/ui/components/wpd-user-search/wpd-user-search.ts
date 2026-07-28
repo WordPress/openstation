@@ -16,8 +16,6 @@
  *
  * Multi-selection is up to the parent (the parent renders chips
  * for current picks and feeds an updated `exclude` list back).
- *
- * @since 0.8.5
  */
 
 import { Component, defineComponent, html } from '../../core';

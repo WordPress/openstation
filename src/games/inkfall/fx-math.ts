@@ -6,8 +6,6 @@
  * tumbles away under gravity while fading. These helpers are pure
  * (seedable rng injected) so the trajectories are unit-testable;
  * `fx.ts` owns the Pixi objects.
- *
- * @since 0.9.6
  */
 
 export interface ScatterParticle {

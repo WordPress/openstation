@@ -11,7 +11,7 @@ The classic case: **Live Preview**. The user is editing a post; a sidebar button
 | "Open a sibling window from inside this iframe" | `wp.desktop.send( 'request-open-window', { url } )` — parent listens via `Window.on` | Symmetric `Window.send` / `wp.desktop.send` channel, no per-target wiring. |
 | "Connect back to the parent so I can publish updates" | `wp.desktop.iframe.requestConnection({ topics })` | Iframe initiates; parent's `HOOKS.IFRAME_CONNECTION_REQUEST` filter decides accept/reject. |
 | "What window am I living in?" | `wp.desktop.iframe.windowId` / `await wp.desktop.iframe.whenWindowId()` | Resolved after the parent's first handshake. |
-| "Did the parent shell even hear me?" | `wp.desktop.iframe.publish` now `console.warn`s on dropped messages (since 0.8.8) | Watch DevTools. |
+| "Did the parent shell even hear me?" | `wp.desktop.iframe.publish` now `console.warn`s on dropped messages | Watch DevTools. |
 
 ## Recipe: PluginSidebar opens a Preview window with live content streaming
 
@@ -157,7 +157,7 @@ function previewRender( body, ctx ) {
 
 If `wp.desktop.send(...)` (or `wp.desktop.iframe.publish(...)`) does nothing visible:
 
-- **No connection open** → since 0.8.8 `publish` logs a `console.warn` when there are zero connections. Open DevTools (in the iframe's frame), look for `[desktop-mode] wp.desktop.iframe.publish dropped`.
+- **No connection open** → `publish` logs a `console.warn` when there are zero connections. Open DevTools (in the iframe's frame), look for `[desktop-mode] wp.desktop.iframe.publish dropped`.
 - **No subscriber** → no warning by design. Add an `addAction(HOOKS.CONNECTION_OPENED, …)` log on the parent side to confirm the connection actually opened.
 - **Cross-origin iframe** → bridges hard-filter on `window.location.origin`. The Gutenberg editor-canvas (nested iframe inside post.php) uses `srcdoc` which inherits the parent's origin, so it's fine; arbitrary cross-origin iframes silently drop. See [`bridge-protocol.md`](../bridge-protocol.md#cross-origin-iframes--explicit-non-goal) for the explicit non-goal.
 

@@ -16,8 +16,6 @@
  * deactivates leaves the payload, so its entry is unregistered and
  * every launcher grid / scoreboard tab list repaints via the
  * registry subscription.
- *
- * @since 0.9.6
  */
 
 import * as registry from './registry';

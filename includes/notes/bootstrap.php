@@ -8,7 +8,6 @@
  * `includes/widgets/widget-notes.php`.
  *
  * @package WPDesktopMode
- * @since   0.9.6
  */
 
 defined( 'ABSPATH' ) || exit;

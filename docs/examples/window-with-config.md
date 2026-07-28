@@ -1,6 +1,6 @@
 # Native window with bundle-bound config
 
-**Status:** Stable (since 0.6.0)
+**Status:** Stable
 
 Most non-trivial native windows need session-bound config — REST URLs, an
 auth nonce, capability flags. This page shows the recommended way to ship
@@ -14,7 +14,7 @@ activation by appending a raw `<script src="…">` tag to the document
 head. That bypasses `wp_print_scripts()` entirely, which means data
 attached to the handle via `wp_localize_script` /
 `wp_add_inline_script` / `wp_set_script_translations` would be silently
-dropped on the lazy path. Since 0.6.0 the shell harvests that data into
+dropped on the lazy path. The shell harvests that data into
 the payload and re-injects it inline alongside the lazy `<script>` tag,
 preserving the standard WordPress contract — but the `'config'` arg
 below is the discoverable, supported way to ship config and is the one
@@ -85,7 +85,7 @@ In the bundle:
 
 If you already attach config via `wp_localize_script( $handle, $name, $data )`
 on a handle declared as `'script'` of `desktop_mode_register_window()`,
-that path also lands on both eager and lazy since 0.6.0 — the shell
+that path also lands on both eager and lazy — the shell
 harvests the handle's `extra` data into the payload and re-injects it
 before the lazy `<script>` tag. So `wp_localize_script` keeps working,
 but the new `'config'` arg is more discoverable and avoids the

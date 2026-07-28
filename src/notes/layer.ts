@@ -11,8 +11,6 @@
  * Read-only public notes (other users') render with a steel pin
  * that is *scenery, not a handle* — no drag, no edit, an always-
  * visible author chip.
- *
- * @since 0.9.6
  */
 
 import { __, sprintf } from '../i18n';

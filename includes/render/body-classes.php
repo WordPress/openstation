@@ -11,7 +11,6 @@
  * architecture-0.8.1 PHP slicing (phase 6).
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
  * The classes anchor all CSS in the shell and chromeless overrides
  * stylesheets — `.desktop-mode-active` hides classic chrome and reveals
  * the shell, `.desktop-mode-chromeless` reshapes the page inside iframes.
- *
- * @since 0.1.0
  *
  * @param string $classes Space-separated CSS class string.
  * @return string

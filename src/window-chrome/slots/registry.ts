@@ -18,8 +18,6 @@
  *
  * Pattern matches the title-bar-button registry (`subscribe` fan-out,
  * `match` predicate, `owner`-based teardown).
- *
- * @since 0.6.0
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';

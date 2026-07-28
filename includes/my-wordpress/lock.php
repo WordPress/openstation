@@ -22,7 +22,6 @@
  *     user. `time` is the ISO-8601 timestamp of the lock heartbeat.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,8 +33,6 @@ defined( 'ABSPATH' ) || exit;
  *   - The post isn't locked.
  *   - The current user is the lock holder (no point flagging yourself).
  *   - The current user can't edit the post (don't leak who's editing).
- *
- * @since 0.8.0
  *
  * @param int $post_id Post id.
  * @return array{userId:int,userName:string,userAvatarUrl:string,time:string}|null
@@ -107,8 +104,6 @@ function desktop_mode_my_wordpress_post_lock_payload( $post_id ) {
  * The post's `post_author` is intentionally NOT included here —
  * it's already surfaced by the canonical "Author" sub-folder.
  * Contributors is the *additional* people surface.
- *
- * @since 0.8.0
  *
  * @param int $post_id Post id.
  * @return array<int,array{userId:int,userName:string,userAvatarUrl:string}>
@@ -207,8 +202,6 @@ function desktop_mode_my_wordpress_post_contributors_payload( $post_id ) {
 	 *     }, 10, 2 );
 	 * ```
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int[] $ids     Contributor user ids gathered so far
 	 *                       (from Co-Authors Plus, etc.).
 	 * @param int   $post_id Post id.
@@ -255,8 +248,6 @@ function desktop_mode_my_wordpress_post_contributors_payload( $post_id ) {
  *   - `desktop_mode_lock`         — active edit-lock holder.
  *   - `desktop_mode_contributors` — additional contributor users
  *                                   beyond the primary author.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_lock_field() {
 	$types = get_post_types(

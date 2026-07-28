@@ -22,7 +22,6 @@
  * the existing `desktop_mode_os_settings` user meta.
  *
  * @package WPDesktopMode
- * @since   0.9.7
  */
 
 defined( 'ABSPATH' ) || exit;

@@ -10,7 +10,7 @@ the dock you want to own":
 | [**Decoration hooks**](./examples/dock-decoration-hooks.md) | A few classNames, a wrapper, a tooltip, an after-render decoration. | You want to nudge the visual without owning the rail. Cheap, composable across plugins. |
 | [**Dock rail renderer**](./examples/dock-rail-renderer.md) | The entire rail. Layout, animation, click-handling, lifecycle. | You want a circular ring, Stage-Manager stack, floating cluster, or anything that doesn't fit a row of tiles. |
 
-Both are **Stable** since 0.6.0. Pick the smallest layer that
+Both are **Stable**. Pick the smallest layer that
 solves your problem.
 
 ---
@@ -187,7 +187,7 @@ plugins written against v1 keep working until they opt in to v2.
 
 A plugin that wants to compose against the dock without committing
 to a specific layer reaches for these instead of DOM scraping. All
-**Stable since 0.6.0**:
+**Stable**:
 
 | API | Returns | Use it for |
 |---|---|---|
