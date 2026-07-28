@@ -4,13 +4,13 @@
  *
  * Two halves:
  *
- * 1. Registers the first agent-oriented mutating ability
- *    (`desktop-mode/update-post`) plus its read companion
- *    (`desktop-mode/get-post`) against Core's Abilities API. The
+ * 1. Registers the agent-oriented abilities against Core's Abilities
+ *    API: `desktop-mode/get-post` and `desktop-mode/get-media`
+ *    (read-only) plus `desktop-mode/update-post` (mutating). The
  *    `desktop-mode` category ships from the AI Copilot module
  *    (always loaded), so this file only adds abilities to it. The
- *    read ability carries the `readonly` annotation and therefore
- *    also becomes available to the AI Copilot assistant; the update
+ *    read abilities carry the `readonly` annotation and therefore
+ *    also become available to the AI Copilot assistant; the update
  *    ability does not — it is reachable only through an agent whose
  *    allowlist includes it.
  *
@@ -68,6 +68,42 @@ function desktop_mode_agents_register_abilities() {
 			),
 			'execute_callback'    => 'desktop_mode_agents_ability_get_post',
 			'permission_callback' => 'desktop_mode_agents_ability_get_post_can',
+			'meta'                => array(
+				'annotations'  => array(
+					'readonly'   => true,
+					'idempotent' => true,
+				),
+				'show_in_rest' => true,
+			),
+		)
+	);
+
+	wp_register_ability(
+		'desktop-mode/get-media',
+		array(
+			'label'               => __( 'Get media details', 'desktop-mode' ),
+			'description'         => 'Return details for a media library item (attachment) by numeric id: file URL, mime type, dimensions, alt text, caption, and the post it is attached to. Use this to read images or other media referenced by posts.',
+			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
+			'input_schema'        => array(
+				'type'                 => 'object',
+				'additionalProperties' => false,
+				'required'             => array( 'attachment_id' ),
+				'properties'           => array(
+					'attachment_id' => array(
+						'type'        => 'integer',
+						'description' => 'The attachment (media library) id.',
+					),
+				),
+			),
+			'output_schema'       => desktop_mode_ai_ability_output_schema(
+				array(
+					'id'   => array( 'type' => 'integer' ),
+					'url'  => array( 'type' => 'string' ),
+					'mime' => array( 'type' => 'string' ),
+				)
+			),
+			'execute_callback'    => 'desktop_mode_agents_ability_get_media',
+			'permission_callback' => 'desktop_mode_agents_ability_get_media_can',
 			'meta'                => array(
 				'annotations'  => array(
 					'readonly'   => true,
@@ -172,6 +208,65 @@ function desktop_mode_agents_ability_get_post_can( $args ) {
 		return false;
 	}
 	return current_user_can( 'read_post', $post_id );
+}
+
+/**
+ * `desktop-mode/get-media` execute callback.
+ *
+ * @since 0.9.8
+ *
+ * @param array $args Validated input.
+ * @return array|WP_Error
+ */
+function desktop_mode_agents_ability_get_media( $args ) {
+	$args          = (array) $args;
+	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
+	$post          = $attachment_id > 0 ? get_post( $attachment_id ) : null;
+	if ( ! ( $post instanceof WP_Post ) || 'attachment' !== $post->post_type ) {
+		return new WP_Error( 'desktop_mode_agent_media_not_found', __( 'Attachment not found.', 'desktop-mode' ) );
+	}
+
+	$meta = wp_get_attachment_metadata( $attachment_id );
+	if ( ! is_array( $meta ) ) {
+		$meta = array();
+	}
+
+	return array(
+		'id'         => (int) $post->ID,
+		'title'      => (string) $post->post_title,
+		'url'        => (string) wp_get_attachment_url( $attachment_id ),
+		'mime'       => (string) get_post_mime_type( $post ),
+		'width'      => isset( $meta['width'] ) ? (int) $meta['width'] : null,
+		'height'     => isset( $meta['height'] ) ? (int) $meta['height'] : null,
+		'filesize'   => isset( $meta['filesize'] ) ? (int) $meta['filesize'] : null,
+		'alt'        => (string) get_post_meta( $attachment_id, '_wp_attachment_image_alt', true ),
+		'caption'    => (string) $post->post_excerpt,
+		'date'       => (string) $post->post_date_gmt,
+		'attachedTo' => (int) $post->post_parent,
+	);
+}
+
+/**
+ * `desktop-mode/get-media` permission callback.
+ *
+ * Gates on `upload_files` (author+), deliberately NOT on `read_post`:
+ * for `inherit`-status attachments that check defers to the parent
+ * post (and effectively requires edit rights when unattached), which
+ * wrongly blocks read-only access to media whose file URL is public
+ * on a standard site anyway.
+ *
+ * @since 0.9.8
+ *
+ * @param array $args Input args.
+ * @return bool
+ */
+function desktop_mode_agents_ability_get_media_can( $args ) {
+	$args          = (array) $args;
+	$attachment_id = isset( $args['attachment_id'] ) ? (int) $args['attachment_id'] : 0;
+	if ( $attachment_id <= 0 ) {
+		return false;
+	}
+	return current_user_can( 'upload_files' );
 }
 
 /**
