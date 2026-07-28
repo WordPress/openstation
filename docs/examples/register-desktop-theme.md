@@ -46,7 +46,6 @@ add_action( 'init', function () {
         'tokens'      => array(
             '--desktop-mode-window-bg'           => '#12122a',
             '--desktop-mode-window-border'       => '#2b2b52',
-            '--desktop-mode-window-radius'       => '14px',
             '--desktop-mode-titlebar-bg'         => '#171733',
             '--desktop-mode-titlebar-bg-focused' => '#241f4d',
             '--desktop-mode-titlebar-color'      => '#a8a8c0',

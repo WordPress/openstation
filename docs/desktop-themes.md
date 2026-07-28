@@ -126,7 +126,6 @@ their next page load.
   "preview": "preview.png",
 
   "tokens": {
-    "--desktop-mode-window-radius": "14px",
     "--desktop-mode-titlebar-bg-focused": "#1a1a2e",
     "--desktop-mode-font": "\"Neon Grotesk\", system-ui, sans-serif"
   },
@@ -284,11 +283,20 @@ A dark theme's minimum viable body palette:
 `--desktop-mode-*` names must match `^--desktop-mode-[a-z0-9-]+$`.
 Read `assets/css/variables.css` for the full set.
 
+> **`--desktop-mode-window-radius` is not one of them in practice.**
+> The Window-corners preset in OS Settings writes that property as an
+> inline style on the shell root, which outranks any stylesheet rule,
+> so a theme declaring it in `tokens` has no effect on windows. The
+> user's corner preference stays the user's. If your frame artwork
+> needs a particular radius, ask for it through
+> [`recommendedOsSettings.windowRadius`](#recommended-os-settings) —
+> that sets their preference once, on first activation, and leaves it
+> theirs to change.
+
 ```json
 "tokens": {
   "--desktop-mode-window-bg": "#12122a",
   "--desktop-mode-window-border": "#2b2b52",
-  "--desktop-mode-window-radius": "14px",
   "--desktop-mode-titlebar-bg": "#171733",
   "--desktop-mode-titlebar-bg-focused": "#241f4d",
   "--desktop-mode-titlebar-color": "#a8a8c0",
@@ -1072,7 +1080,6 @@ add_action( 'init', function () {
         'version'  => '1.0.0',
         'preview'  => plugins_url( 'theme/preview.png', __FILE__ ),
         'tokens'   => array(
-            '--desktop-mode-window-radius'       => '14px',
             '--desktop-mode-titlebar-bg-focused' => '#241f4d',
             '--desktop-mode-font'                => '"Neon Grotesk", sans-serif',
         ),

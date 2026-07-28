@@ -328,6 +328,26 @@ export class OsSettings implements SettingsCtx {
 			'--desktop-mode-window-radius',
 			`${ windowRadius.value }px`,
 		);
+		// ALSO on the shell element, and this one is not redundant.
+		//
+		// A desktop theme may declare `--desktop-mode-window-radius`
+		// in its `tokens`, and the compiled stylesheet writes it on
+		// `.desktop-mode-shell[data-desktop-mode-desktop-theme="…"]`
+		// and `body.desktop-mode-desktop-theme-…`. Both of those
+		// MATCH an ancestor of every window, while the `:root` write
+		// above only reaches windows by inheritance — so the theme
+		// would win and the Window-corners preset would silently do
+		// nothing for as long as that theme was worn.
+		//
+		// An inline style on the shell outranks any selector, so the
+		// user's pick is authoritative. A theme that wants a
+		// particular radius asks for it through
+		// `recommendedOsSettings.windowRadius`, which sets the user's
+		// preference once and leaves it theirs to change.
+		shell.style.setProperty(
+			'--desktop-mode-window-radius',
+			`${ windowRadius.value }px`,
+		);
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
