@@ -90,7 +90,18 @@ export async function restoreSession(
 		const clamped = clampGeometryToViewport( win, rect );
 		const dockEntry = findDockEntryForUrl( win.url, config );
 
-		const opened = await manager.open( {
+		// `openNew`, not `open`. Restore means "recreate exactly this
+		// set of windows", and `open()` is the wrong verb for that: it
+		// matches on baseId, so a session holding two instances of one
+		// page (`edit-php` + `edit-php-2`, both baseId `edit-php`)
+		// collapsed on reload — the second call found the first
+		// instance, focused it, and returned it, so only one window
+		// came back. Worse, when the two had been navigated apart the
+		// URL-reuse check then dragged the survivor to the SECOND
+		// window's URL, losing the first page as well. `openNew`
+		// always constructs, and honours the saved instance id
+		// verbatim (see the note on `WindowManager.openNew`).
+		const opened = await manager.openNew( {
 			id: win.id,
 			baseId: win.baseId || win.id,
 			desktopId: win.desktopId,

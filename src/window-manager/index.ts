@@ -598,12 +598,26 @@ export class WindowManager {
 	 * would hide the primary; landing a twin on top of the primary's
 	 * remembered position would hide it too. Callers can override
 	 * either default by passing `initialState` / `x` / `y` explicitly.
+	 *
+	 * A caller-supplied `id` that differs from `baseId` and isn't
+	 * taken yet is honoured VERBATIM rather than being reassigned to
+	 * the next free slot. Session restore depends on this: it replays
+	 * saved instance ids (`edit-php-2`) and anything keyed by window
+	 * id — the focused-window pointer in the same session payload,
+	 * per-window plugin state, `wp.desktop.onWindow( id )`
+	 * subscriptions — only lines up if the restored window comes back
+	 * under the id it was saved with. Slot allocation still applies
+	 * to every other caller (a plain duplicate request passes
+	 * `id === baseId`).
 	 */
 	public async openNew(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string },
 	): Promise< Window > {
 		const baseId = config.baseId || config.id;
-		const nextId = this.nextInstanceId( baseId );
+		const nextId =
+			config.id !== baseId && ! this.getById( config.id )
+				? config.id
+				: this.nextInstanceId( baseId );
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
