@@ -58,28 +58,15 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 
 	const canManage = !! ctx.config.canManageDesktopThemes;
 
-	/**
-	 * Notice shown after a theme's recommended layout is applied, so
-	 * the change to the dock/layout under the user's cursor isn't
-	 * unexplained. Cleared on the next pick.
-	 */
-	let recommendationNotice = '';
-
 	const pick = ( id: string ): void => {
 		if ( ctx.state.desktopTheme === id ) {
 			return;
 		}
 		ctx.state.desktopTheme = id;
-		recommendationNotice = '';
 		// First activation only. `applyThemeRecommendations` no-ops for
 		// a theme this user has already worn, which is what stops a
 		// theme from ever undoing a preference the user set afterwards.
-		const applied = applyThemeRecommendations( ctx.state, id );
-		if ( Object.keys( applied ).length > 0 ) {
-			recommendationNotice = __(
-				'This theme came with a recommended layout, which has been applied. Change anything you like in Appearance — the theme will not ask again.',
-			);
-		}
+		applyThemeRecommendations( ctx.state, id );
 		ctx.save();
 		// `apply()` calls `applyDesktopTheme()`, which swaps the
 		// stylesheet, flips the shell attribute + body class, and
@@ -93,6 +80,10 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 	 * "Apply recommended layout" — the deliberate way back to the
 	 * author's intended presentation after the user has moved things
 	 * around. The only path that re-applies a recommendation.
+	 *
+	 * It just sets the settings. The dock resizing and the layout
+	 * moving IS the feedback; a notice on top of a visible change is
+	 * noise.
 	 */
 	const applyRecommended = ( theme: DesktopThemeEntry ): void => {
 		const applied = applyThemeRecommendations( ctx.state, theme.slug, {
@@ -101,11 +92,6 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 		if ( Object.keys( applied ).length === 0 ) {
 			return;
 		}
-		recommendationNotice = sprintf(
-			/* translators: %s: theme name. */
-			__( '“%s”’s recommended layout has been applied.' ),
-			theme.name,
-		);
 		ctx.save();
 		ctx.apply();
 		paint();
@@ -321,19 +307,14 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 			return '';
 		}
 		return html`<div class="desktop-mode-os-settings__theme-recommendation">
-			<p class="desktop-mode-os-settings__intro">
-				${ sprintf(
-					/* translators: %s: theme name. */
-					__(
-						'“%s” suggests a dock size and desktop layout to go with it. They were applied the first time you picked it; use this to go back to them.',
-					),
-					active.name,
-				) }
-			</p>
 			<wpd-button
 				variant="secondary"
 				@click=${ () => applyRecommended( active ) }
-				>${ __( 'Apply recommended layout' ) }</wpd-button
+				>${ sprintf(
+			/* translators: %s: theme name. */
+			__( 'Apply %s’s recommended layout' ),
+			active.name,
+		) }</wpd-button
 			>
 		</div>`;
 	};
@@ -352,11 +333,6 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 				</p>
 				${ errorText !== ''
 					? html`<wpd-notice tone="error">${ errorText }</wpd-notice>`
-					: '' }
-				${ recommendationNotice !== ''
-					? html`<wpd-notice tone="info"
-							>${ recommendationNotice }</wpd-notice
-						>`
 					: '' }
 				<div
 					class="desktop-mode-os-settings__theme-grid"

@@ -1377,24 +1377,14 @@
 }
 
 /*
- * "Apply recommended layout" row — sits between the theme grid and
- * the upload tile, and only for a theme that recommends something.
+ * "Apply <theme>'s recommended layout" — sits between the theme grid
+ * and the upload tile, and only for a theme that recommends
+ * something. Just the button: the dock resizing and the layout
+ * moving is the feedback.
  */
 .desktop-mode-os-settings__theme-recommendation {
 	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 8px;
 	margin-block: 16px;
-	padding: 12px 14px;
-	border: 1px solid var( --wpd-border, #c3c4c7 );
-	border-radius: 8px;
-	background: var( --wpd-surface-muted, rgba( 0, 0, 0, 0.03 ) );
-}
-
-.desktop-mode-os-settings__theme-recommendation
-	.desktop-mode-os-settings__intro {
-	margin: 0;
 }
 
 .desktop-mode-os-settings__theme-upload {

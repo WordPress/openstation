@@ -233,8 +233,8 @@ wp.hooks.addFilter(
 - **Recommendations fire once per user.** `recommendedOsSettings` is
   seeded on a user's first activation of your theme and never
   re-asserted. If you're testing it and nothing happens, you have
-  already been seeded — use the **Apply recommended layout** button in
-  OS Settings → Themes, or
+  already been seeded — use the **Apply &lt;theme&gt;'s recommended
+  layout** button in OS Settings → Themes, or
   `wp.desktop.desktopThemes.applyRecommendedOsSettings()`.
 - **Licensing is yours.** A bundled font is redistributed to every
   visitor of every site that installs the theme. Ship one whose licence

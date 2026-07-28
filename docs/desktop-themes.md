@@ -540,9 +540,10 @@ activates it — and never again.**
   dock back to compact, re-pick the theme — it stays compact.
 
 The way back is the user's to take: **OS Settings → Themes** shows an
-**Apply recommended layout** button for the active theme when it
-recommends something, and that is the only path that applies a
-recommendation a second time.
+**Apply &lt;theme&gt;'s recommended layout** button for the active
+theme when it recommends something, and that is the only path that
+applies a recommendation a second time. It sets the settings and
+nothing else — the dock resizing under the cursor is the feedback.
 
 This is the same posture as [wallpapers](#it-is-a-pick-not-an-act),
 for the same reason. Dock size and layout are stored user
@@ -577,10 +578,11 @@ already holds a string.
 
 ### What a user actually sees
 
-They pick your theme, the dock and layout move into the arrangement
-you designed, and a notice explains that it happened once and that
-Appearance is theirs to change. Nothing is silent, and nothing
-repeats.
+They pick your theme and the dock and layout move into the
+arrangement you designed. That movement is the whole feedback — the
+shell does not editorialize about it — and it does not happen again
+for that theme. Anything they change afterwards in Appearance is
+theirs and stays.
 
 ---
 
@@ -1030,8 +1032,8 @@ flash of the default palette.
 
 If the theme ships
 [`recommendedOsSettings`](#recommended-os-settings), the user's first
-activation of it also seeds those preferences — once, with a notice —
-and the tab grows an **Apply recommended layout** button for going
+activation of it also seeds those preferences — once — and the tab
+grows an **Apply &lt;theme&gt;'s recommended layout** button for going
 back to them later.
 
 ### From JavaScript
