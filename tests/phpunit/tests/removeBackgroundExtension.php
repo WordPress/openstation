@@ -221,6 +221,31 @@ class Tests_DesktopMode_RemoveBackgroundExtension extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The AI backend talks to WordPress's snake_case prompt-builder
+	 * wrapper and must surface failures as WP_Error — with no
+	 * connector configured (this environment) the call returns a
+	 * clean error, never a fatal from treating the fluent builder as
+	 * a result (the `generateImageResult()` regression).
+	 *
+	 * @covers ::desktop_mode_remove_bg_backend_ai
+	 */
+	public function test_ai_backend_errors_cleanly_without_connector() {
+		if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+			$this->markTestSkipped( 'AI Client not available (requires WordPress 7.0+).' );
+		}
+		wp_set_current_user( self::$author_id );
+		$source_id = $this->create_source_attachment();
+
+		$out = desktop_mode_remove_bg_backend_ai(
+			get_attached_file( $source_id ),
+			'image/jpeg',
+			$source_id
+		);
+
+		$this->assertWPError( $out );
+	}
+
+	/**
 	 * The full agent story: an agent allowlisted for the ability
 	 * dispatches it through the runner, and the resulting attachment
 	 * is authored by the AGENT user — the audit-trail promise.

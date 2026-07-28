@@ -213,7 +213,19 @@ function desktop_mode_remove_bg_backend_ai( $path, $mime ) {
 			)
 		);
 
-		$file = wp_ai_client_prompt( array( $message ) )->generateImageResult()->toFile();
+		// `wp_ai_client_prompt()` returns WordPress's snake_case wrapper
+		// (`WP_AI_Client_Prompt_Builder`), NOT the SDK builder — its
+		// generating methods are `generate_*` and report failures as
+		// WP_Error rather than throwing. The input image makes model
+		// resolution require an image-input-capable model (e.g. the
+		// Gemini image model), so text-to-image-only providers are
+		// never silently picked for an edit.
+		$result = wp_ai_client_prompt( array( $message ) )->generate_image_result();
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$file = $result->toFile();
 
 		$base64 = $file->getBase64Data();
 		if ( is_string( $base64 ) && '' !== $base64 ) {
