@@ -16,6 +16,13 @@ export const segmentedStyles = css`
 		border-radius: 7px;
 		gap: 2px;
 	}
+	/* Disabled reads as "someone else owns this value right now", so
+	 * it dims and stops taking pointer input. The pick handler
+	 * refuses too — this is the visual half, not the enforcement. */
+	:host( [ disabled ] ) {
+		opacity: 0.5;
+		pointer-events: none;
+	}
 `;
 
 export const segmentStyles = css`

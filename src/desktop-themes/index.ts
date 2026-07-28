@@ -19,6 +19,11 @@ export {
 	sanitizeRecommendedOsSettings,
 } from './recommended';
 export {
+	findThemeTokenOverride,
+	WINDOW_RADIUS_TOKEN,
+} from './token-overrides';
+export type { ThemeTokenOverride } from './token-overrides';
+export {
 	getActiveDesktopThemeId,
 	getDesktopTheme,
 	listDesktopThemes,
