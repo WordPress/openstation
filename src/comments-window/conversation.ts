@@ -28,6 +28,11 @@ import type {
 	CommentTab,
 	CommentsConfig,
 } from './types';
+import {
+	readCommentsPostFilter,
+	clearCommentsPostFilter,
+	subscribeCommentsPostFilter,
+} from './post-filter';
 import '../ui/components/wpd-button/wpd-button';
 import '../ui/components/wpd-text-field/wpd-text-field';
 
@@ -41,6 +46,10 @@ interface Ctx {
 	search: string;
 	threads: CommentRow[];
 	selectedId: number | null;
+	/** When > 0, the rail is scoped to this post (edit-comments.php?p=). */
+	postFilter: number;
+	/** Announce (postId>0) or clear (0) the window-links identity. */
+	announceIdentity: ( postId: number ) => void;
 	reloadRail: () => Promise< void >;
 	reloadConvo: () => Promise< void >;
 }
@@ -59,6 +68,52 @@ function readConfig(): CommentsConfig | null {
 		w.desktopModeNativeWindowConfig?.[ 'desktop-mode-comments' ] ??
 		null
 	);
+}
+
+/** wp-admin base URL, for building editor links the shell intercepts. */
+function adminUrl(): string {
+	const desktop = ( window as unknown as {
+		wp?: { desktop?: { config?: { adminUrl?: string } } };
+	} ).wp?.desktop;
+	return desktop?.config?.adminUrl || '/wp-admin/';
+}
+
+/**
+ * Announce (or clear) this window's content identity so the window-links
+ * engine draws the connection spline to the post's editor — the tie the
+ * classic `edit-comments.php?p=` iframe got from the chromeless bridge.
+ * Grouping is by `root`, so a comment window of post N roots at that post.
+ */
+function announcePostIdentity(
+	body: HTMLElement,
+	postId: number,
+	title?: string,
+): void {
+	const relations = ( window as unknown as {
+		wp?: { desktop?: { relations?: { set?: ( id: string, ref: unknown ) => void } } };
+	} ).wp?.desktop?.relations;
+	// The relations API keys by the manager's window id — the DOM root is
+	// `id="wp-window-<windowId>"`, so strip the prefix (matches
+	// resolveMountedWindowId in native-windows.ts).
+	const root = body.closest< HTMLElement >( '[id^="wp-window-"]' );
+	const windowId = root?.id.slice( 'wp-window-'.length );
+	if ( ! relations?.set || ! windowId ) {
+		return;
+	}
+	const ref =
+		postId > 0
+			? {
+				type: 'comment',
+				id: postId,
+				root: { type: 'post', id: postId },
+				label: title ? decodeHTML( title ) : undefined,
+			}
+			: null;
+	try {
+		relations.set( windowId, ref );
+	} catch {
+		// Malformed ref / API rejected it — the spline is cosmetic, ignore.
+	}
 }
 
 /** Deterministic hue so each author keeps a stable avatar tint. */
@@ -211,12 +266,42 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 	return item;
 }
 
+/** "Filtered to one post" banner + a Show-all escape hatch. */
+function filterBanner( ctx: Ctx ): HTMLElement {
+	const bar = document.createElement( 'div' );
+	bar.className = `${ NS }__rail-filter`;
+	const label = document.createElement( 'span' );
+	label.className = `${ NS }__rail-filter-label`;
+	const title = ctx.threads[ 0 ]?.desktop_mode_post_title;
+	label.textContent = title
+		? /* translators: %s: post title. */ sprintf( __( 'On: %s' ), decodeHTML( title ) )
+		: __( 'Comments on this post' );
+	const clear = document.createElement( 'button' );
+	clear.type = 'button';
+	clear.className = `${ NS }__rail-filter-clear`;
+	clear.textContent = __( 'Show all' );
+	clear.addEventListener( 'click', () => {
+		ctx.postFilter = 0;
+		clearCommentsPostFilter();
+		ctx.announceIdentity( 0 );
+		void loadRail( ctx );
+	} );
+	bar.append( label, clear );
+	return bar;
+}
+
 function renderRail( ctx: Ctx ): void {
 	ctx.listEl.replaceChildren();
+	if ( ctx.postFilter > 0 ) {
+		ctx.listEl.appendChild( filterBanner( ctx ) );
+	}
 	if ( ctx.threads.length === 0 ) {
 		const empty = document.createElement( 'div' );
 		empty.className = `${ NS }__list-empty`;
-		empty.textContent = __( 'No conversations here yet.' );
+		empty.textContent =
+			ctx.postFilter > 0
+				? __( 'No comments on this post yet.' )
+				: __( 'No conversations here yet.' );
 		ctx.listEl.appendChild( empty );
 		return;
 	}
@@ -235,6 +320,7 @@ async function loadRail( ctx: Ctx, opts: { silent?: boolean } = {} ): Promise< v
 			perPage: ctx.cfg.defaultPerPage || 20,
 			search: ctx.search,
 			currentUserId: ctx.cfg.currentUserId,
+			post: ctx.postFilter || undefined,
 		} );
 		// The rail lists conversations, i.e. top-level comments only;
 		// replies surface inside the thread on the right, not as their
@@ -349,6 +435,9 @@ function convoHead( root: CommentRow ): HTMLElement {
 	post.textContent = decodeHTML( root.desktop_mode_post_title || __( '(no title)' ) );
 	ctxBox.append( kicker, post );
 	head.appendChild( ctxBox );
+
+	const actions = document.createElement( 'div' );
+	actions.className = `${ NS }__convo-head-actions`;
 	if ( root.desktop_mode_post_link ) {
 		const a = document.createElement( 'a' );
 		a.className = `${ NS }__convo-link`;
@@ -356,8 +445,22 @@ function convoHead( root: CommentRow ): HTMLElement {
 		a.target = '_blank';
 		a.rel = 'noopener';
 		a.textContent = __( 'View post ↗' );
-		head.appendChild( a );
+		actions.appendChild( a );
 	}
+	// Pencil → open the post's block editor as a window inside Desktop
+	// Mode. A same-origin wp-admin link with no target is caught by the
+	// shell's link interceptor and mounted as a chromeless window (the
+	// same path the Drafts widget uses); it does NOT navigate away.
+	if ( root.post > 0 ) {
+		const edit = document.createElement( 'a' );
+		edit.className = `${ NS }__convo-edit`;
+		edit.href = `${ adminUrl() }post.php?post=${ root.post }&action=edit`;
+		edit.title = __( 'Edit post' );
+		edit.setAttribute( 'aria-label', __( 'Edit post' ) );
+		edit.innerHTML = '<span class="dashicons dashicons-edit" aria-hidden="true"></span>';
+		actions.appendChild( edit );
+	}
+	head.appendChild( actions );
 	return head;
 }
 
@@ -642,14 +745,22 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 	}
 	const searchEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-search]' );
 
+	// A pending `edit-comments.php?p=<id>` open scopes the rail to that
+	// post; a filtered open starts on "All" so the post's whole thread is
+	// visible, not just its pending comments.
+	const initialFilter = readCommentsPostFilter();
+
 	const ctx: Ctx = {
 		cfg,
 		listEl,
 		convoEl,
-		tab: 'pending',
+		tab: initialFilter > 0 ? 'all' : 'pending',
 		search: '',
 		threads: [],
 		selectedId: null,
+		postFilter: initialFilter,
+		announceIdentity: ( postId: number ) =>
+			announcePostIdentity( body, postId, ctx.threads[ 0 ]?.desktop_mode_post_title ),
 		reloadRail: async () => loadRail( ctx, { silent: true } ),
 		reloadConvo: async () => {
 			const sel = ctx.threads.find( ( r ) => r.id === ctx.selectedId );
@@ -659,7 +770,10 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		},
 	};
 
-	// Tabs
+	// Tabs — sync the active chip to ctx.tab (a filtered open starts on All).
+	tabrowEl.querySelectorAll< HTMLElement >( `.${ NS }__tab` ).forEach( ( t ) => {
+		t.classList.toggle( 'is-active', t.dataset.tab === ctx.tab );
+	} );
 	tabrowEl.querySelectorAll< HTMLElement >( `.${ NS }__tab` ).forEach( ( tabEl ) => {
 		tabEl.addEventListener( 'click', () => {
 			const next = ( tabEl.dataset.tab || 'pending' ) as CommentTab;
@@ -687,5 +801,33 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		}, 300 );
 	} );
 
+	// React to a filter change while already open — native windows render
+	// once, so a fresh `edit-comments.php?p=` open on an existing window
+	// must re-scope here. Self-detaches when the window is gone.
+	const unsubscribe = subscribeCommentsPostFilter( () => {
+		if ( ! ctx.listEl.isConnected ) {
+			unsubscribe();
+			return;
+		}
+		const next = readCommentsPostFilter();
+		if ( next === ctx.postFilter ) {
+			return;
+		}
+		ctx.postFilter = next;
+		if ( next > 0 ) {
+			ctx.tab = 'all';
+			tabrowEl
+				.querySelectorAll< HTMLElement >( `.${ NS }__tab` )
+				.forEach( ( t ) => t.classList.toggle( 'is-active', t.dataset.tab === 'all' ) );
+		}
+		void loadRail( ctx ).then( () => ctx.announceIdentity( ctx.postFilter ) );
+	} );
+
 	await loadRail( ctx );
+
+	// Scoped to a post → announce identity so the connection spline to
+	// the post's editor is drawn (parity with the classic iframe).
+	if ( ctx.postFilter > 0 ) {
+		ctx.announceIdentity( ctx.postFilter );
+	}
 }

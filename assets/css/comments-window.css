@@ -711,6 +711,38 @@
 	min-block-size: 0;
 }
 
+/* "Scoped to one post" banner at the top of the rail. */
+.desktop-mode-comments__rail-filter {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 8px 14px;
+	font-size: 12px;
+	background: color-mix( in srgb, var( --wpd-accent, #2271b1 ) 8%, transparent );
+	border-block-end: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
+}
+.desktop-mode-comments__rail-filter-label {
+	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.desktop-mode-comments__rail-filter-clear {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+	font: inherit;
+	font-size: 12px;
+	padding: 0;
+	white-space: nowrap;
+	flex: 0 0 auto;
+}
+.desktop-mode-comments__rail-filter-clear:hover { text-decoration: underline; }
+body.desktop-mode-active .desktop-mode-comments__rail-filter-clear { cursor: pointer !important; }
+
 .desktop-mode-comments__thread {
 	display: grid;
 	grid-template-columns: 36px 1fr auto;
@@ -897,6 +929,12 @@
 	color: var( --wp-desktop-text-color, var( --wpd-fg, #1d2327 ) );
 	margin-block-start: 2px;
 }
+.desktop-mode-comments__convo-head-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+}
 .desktop-mode-comments__convo-link {
 	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
 	font-size: 12.5px;
@@ -904,6 +942,30 @@
 	white-space: nowrap;
 }
 .desktop-mode-comments__convo-link:hover { text-decoration: underline; }
+
+/* Pencil → opens the post's block editor as a Desktop Mode window. */
+.desktop-mode-comments__convo-edit {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 6px;
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
+	text-decoration: none;
+}
+.desktop-mode-comments__convo-edit:hover {
+	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	color: var( --wp-desktop-accent, var( --wpd-accent, #2271b1 ) );
+}
+.desktop-mode-comments__convo-edit .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+body.desktop-mode-active .desktop-mode-comments__convo-edit {
+	cursor: pointer !important;
+}
 
 .desktop-mode-comments__thread-scroll {
 	padding: 18px 18px 6px;
