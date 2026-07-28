@@ -76,17 +76,35 @@ function parseDatetime( raw: string | null ): Date | null {
 
 /** Lazily-built formatter — Intl objects are non-trivial to construct. */
 let _rtfCache: Intl.RelativeTimeFormat | null = null;
+let _narrowRtfCache: Intl.RelativeTimeFormat | null = null;
+
+function locale(): string {
+	return ( typeof navigator !== 'undefined' && navigator.language ) || 'en';
+}
 
 function getRtf(): Intl.RelativeTimeFormat {
 	if ( ! _rtfCache ) {
 		// `numeric: 'auto'` produces "yesterday" / "tomorrow" /
 		// "last week" instead of "1 day ago" / "in 1 week" — much
 		// closer to what humans actually say.
-		const lang =
-			( typeof navigator !== 'undefined' && navigator.language ) || 'en';
-		_rtfCache = new Intl.RelativeTimeFormat( lang, { numeric: 'auto' } );
+		_rtfCache = new Intl.RelativeTimeFormat( locale(), { numeric: 'auto' } );
 	}
 	return _rtfCache;
+}
+
+/**
+ * Narrow-style formatter for `compact`. `numeric: 'always'` here on
+ * purpose: "yesterday" is longer than "1d" and defeats the point of
+ * the compact form.
+ */
+function getNarrowRtf(): Intl.RelativeTimeFormat {
+	if ( ! _narrowRtfCache ) {
+		_narrowRtfCache = new Intl.RelativeTimeFormat( locale(), {
+			numeric: 'always',
+			style: 'narrow',
+		} );
+	}
+	return _narrowRtfCache;
 }
 
 /**
@@ -104,6 +122,15 @@ function relativeText( date: Date, now: number ): string {
 	if ( abs( diffSec ) < 45 ) {
 		return rtf.format( 0, 'second' );
 	}
+	return relativeTextFrom( rtf, diffSec );
+}
+
+/** Shared bucketing for the long form, split out so `compact` reuses it. */
+function relativeTextFrom(
+	rtf: Intl.RelativeTimeFormat,
+	diffSec: number,
+): string {
+	const abs = Math.abs;
 	const diffMin = Math.round( diffSec / 60 );
 	if ( abs( diffMin ) < 45 ) {
 		return rtf.format( diffMin, 'minute' );
@@ -124,14 +151,41 @@ function relativeText( date: Date, now: number ): string {
 	return rtf.format( diffYear, 'year' );
 }
 
+/**
+ * Compact form for dense lists — "now", "5m", "3h", "2d", then a
+ * locale short date once the age passes a week.
+ *
+ * Uses `Intl.RelativeTimeFormat` with `style: 'narrow'`, so the
+ * abbreviations are the ones the user's locale actually uses rather
+ * than English initials pasted into a `sprintf`. Locales with no
+ * narrow form fall back to their short form automatically.
+ */
+function compactText( date: Date, now: number ): string {
+	const diffSec = Math.round( ( date.getTime() - now ) / 1000 );
+	const abs = Math.abs;
+	if ( abs( diffSec ) < 45 ) {
+		return getNarrowRtf().format( 0, 'second' );
+	}
+	// Past a week the relative reading stops being useful in a narrow
+	// cell ("7w" vs "13w" reads as noise) — a short date is denser
+	// AND more informative.
+	if ( abs( diffSec ) > 7 * 24 * 60 * 60 ) {
+		return date.toLocaleDateString( undefined, {
+			month: 'short',
+			day: 'numeric',
+		} );
+	}
+	return relativeTextFrom( getNarrowRtf(), diffSec );
+}
+
 export class WpdRelativeTime extends Component {
-	static props = [ 'datetime' ] as const;
+	static props = [ 'datetime', 'compact' ] as const;
 	static styles = [ styles ];
 
 	static help = {
 		title: 'Relative time',
 		summary:
-			'Auto-ticking relative timestamp. Renders "5 minutes ago" / "yesterday" / "in 3 hours" via Intl.RelativeTimeFormat and updates itself every 30s while connected. Useful for any list cell that should age live (recycle bin, notifications, activity log) without forcing the surrounding view to repaint.',
+			'Auto-ticking relative timestamp. Renders "5 minutes ago" / "yesterday" / "in 3 hours" via Intl.RelativeTimeFormat and updates itself every 30s while connected. Useful for any list cell that should age live (recycle bin, notifications, activity log) without forcing the surrounding view to repaint. Set `compact` for dense lists ("5m", "3h", "2d").',
 		status: 'experimental',
 		since: '0.6.0',
 		props: [
@@ -140,6 +194,12 @@ export class WpdRelativeTime extends Component {
 				type: 'ISO 8601 string OR MySQL-style "Y-m-d H:i:s" (treated as UTC)',
 				description:
 					'The moment the relative copy is anchored to. Accepts the format WordPress hands back from `*_gmt` columns directly.',
+			},
+			{
+				name: 'compact',
+				type: 'boolean attribute',
+				description:
+					'Abbreviated form for narrow cells — "now", "5m", "3h", "2d", then a short date past a week. Uses the locale\'s own narrow units, not English initials. The absolute timestamp stays in the title either way.',
 			},
 		],
 		slots: [],
@@ -173,7 +233,10 @@ export class WpdRelativeTime extends Component {
 			// visible rather than silently rendering empty.
 			return html`<span>${ raw ?? '' }</span>`;
 		}
-		const text = relativeText( date, Date.now() );
+		const now = Date.now();
+		const text = this.hasAttribute( 'compact' )
+			? compactText( date, now )
+			: relativeText( date, now );
 		const absolute = date.toLocaleString();
 		// Native `<time>` element with a typed `datetime` attribute
 		// — search engines, accessibility tools, and copy-paste

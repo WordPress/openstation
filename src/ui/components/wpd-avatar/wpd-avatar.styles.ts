@@ -129,8 +129,17 @@ export const avatarStyles = css`
 	}
 
 	.wpd-avatar__tile img {
-		width: 100%;
-		height: 100%;
+		/*
+		 * Bleed 1px past the tile on every side. At exactly 100% the
+		 * circular clip and the image edge land on the same subpixel
+		 * boundary, and the tile's transform (tilt + scale) makes the
+		 * rounding disagree — leaving a hairline crescent of the tile
+		 * background showing through the rim. Overshooting puts the
+		 * seam outside the clip, where overflow:hidden eats it.
+		 */
+		width: calc( 100% + 2px );
+		height: calc( 100% + 2px );
+		margin: -1px;
 		object-fit: cover;
 		display: block;
 		/* Lift the image one notch in 3D space so it sits above the
