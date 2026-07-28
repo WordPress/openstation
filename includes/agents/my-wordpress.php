@@ -27,7 +27,7 @@ function desktop_mode_agents_my_wordpress_entity( $entities ) {
 	$entities[] = array(
 		'id'       => 'agents',
 		'label'    => __( 'Agents', 'desktop-mode' ),
-		'icon'     => desktop_mode_agent_avatar_data_uri(),
+		'icon'     => desktop_mode_agent_avatar_url(),
 		'restPath' => 'desktop-mode/v1/agents',
 		'kind'     => 'agent',
 	);

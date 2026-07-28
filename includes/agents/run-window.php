@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string Data URI.
  */
 function desktop_mode_agent_run_window_icon() {
-	return desktop_mode_agent_avatar_data_uri();
+	return desktop_mode_agent_avatar_url();
 }
 
 /**

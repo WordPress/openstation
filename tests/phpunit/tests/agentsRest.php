@@ -148,9 +148,15 @@ class Tests_DesktopMode_AgentsRest extends WP_UnitTestCase {
 	public function test_list_and_get() {
 		$shape = $this->create_agent_via_rest();
 
-		$list = desktop_mode_agents_rest_list()->get_data();
+		$response = desktop_mode_agents_rest_list();
+		$list     = $response->get_data();
 		$this->assertCount( 1, $list );
 		$this->assertSame( $shape['id'], $list[0]['id'] );
+
+		// The My WordPress root grid derives folder counts from the
+		// standard collection header.
+		$headers = $response->get_headers();
+		$this->assertSame( '1', (string) $headers['X-WP-Total'] );
 
 		$get = desktop_mode_agents_rest_get(
 			$this->request( 'GET', "/agents/{$shape['id']}", array( 'id' => $shape['id'] ) )

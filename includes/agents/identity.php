@@ -263,26 +263,18 @@ add_filter( 'send_email_change_email', 'desktop_mode_agent_suppress_change_email
 // ---------------------------------------------------------------------------
 
 /**
- * Bot SVG used as the agent avatar.
+ * URL of the bot avatar as a real static file.
  *
- * Byte-identical to the SVG painted on the My WordPress entity tile
- * and inside the agent renderer so the visual motif is consistent
- * across every surface that shows an agent.
+ * The avatar MUST be a file URL, not the data URI: consumers routinely
+ * run avatar URLs through `esc_url()` (wp-admin's `get_avatar()`, the
+ * desktop user-tile renderer), and `data` is not in
+ * `wp_allowed_protocols()` — the data URI silently becomes an empty
+ * string and the avatar renders broken.
  *
- * @return string Data URI.
+ * @return string
  */
-function desktop_mode_agent_avatar_data_uri() {
-	$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1d2327" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
-		. '<circle cx="12" cy="3.25" r="0.95" fill="#1d2327"/>'
-		. '<line x1="12" y1="4.25" x2="12" y2="7"/>'
-		. '<rect x="4" y="7" width="16" height="12" rx="2.5"/>'
-		. '<line x1="2" y1="12.5" x2="4" y2="12.5"/>'
-		. '<line x1="20" y1="12.5" x2="22" y2="12.5"/>'
-		. '<circle cx="9" cy="12" r="1.15" fill="#1d2327"/>'
-		. '<circle cx="15" cy="12" r="1.15" fill="#1d2327"/>'
-		. '<path d="M9.25 15.5 Q12 17 14.75 15.5"/>'
-		. '</svg>';
-	return 'data:image/svg+xml;base64,' . base64_encode( $svg ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+function desktop_mode_agent_avatar_url() {
+	return DESKTOP_MODE_URL . 'assets/images/agent-avatar.svg';
 }
 
 /**
@@ -308,7 +300,7 @@ function desktop_mode_agent_avatar( $args, $id_or_email ) {
 	}
 
 	if ( $user_id > 0 && desktop_mode_agent_is_agent( $user_id ) ) {
-		$args['url']          = desktop_mode_agent_avatar_data_uri();
+		$args['url']          = desktop_mode_agent_avatar_url();
 		$args['found_avatar'] = true;
 	}
 	return $args;

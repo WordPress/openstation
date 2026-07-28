@@ -116,12 +116,19 @@ class Tests_DesktopMode_AgentsIdentity extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The avatar must be a real file URL — and must survive
+	 * `esc_url()`, because wp-admin's `get_avatar()` and the desktop
+	 * user-tile renderer both escape it (`data:` URIs are stripped to
+	 * an empty string there).
+	 *
 	 * @covers ::desktop_mode_agent_avatar
+	 * @covers ::desktop_mode_agent_avatar_url
 	 */
-	public function test_agent_avatar_is_bot_data_uri() {
+	public function test_agent_avatar_is_escapable_file_url() {
 		$agent = $this->create_agent_user();
 		$url   = get_avatar_url( $agent->ID );
-		$this->assertStringStartsWith( 'data:image/svg+xml;base64,', $url );
+		$this->assertStringContainsString( 'assets/images/agent-avatar.svg', $url );
+		$this->assertNotSame( '', esc_url( $url ) );
 	}
 
 	/**

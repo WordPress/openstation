@@ -271,7 +271,12 @@ function desktop_mode_agents_rest_list() {
 			$out[] = $shape;
 		}
 	}
-	return rest_ensure_response( $out );
+	$response = rest_ensure_response( $out );
+	// Standard collection headers — the My WordPress root grid derives
+	// its folder counts from `X-WP-Total`.
+	$response->header( 'X-WP-Total', (string) count( $out ) );
+	$response->header( 'X-WP-TotalPages', '1' );
+	return $response;
 }
 
 /**
@@ -493,7 +498,7 @@ function desktop_mode_agents_rest_shape_user( $user ) {
 
 	$avatar = get_avatar_url( $user->ID, array( 'size' => 96 ) );
 	if ( ! is_string( $avatar ) || '' === $avatar ) {
-		$avatar = desktop_mode_agent_avatar_data_uri();
+		$avatar = desktop_mode_agent_avatar_url();
 	}
 
 	return array(
