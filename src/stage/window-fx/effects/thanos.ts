@@ -2,8 +2,11 @@
  * Desktop Mode — "Vanish" window effect: the Thanos dissolve.
  *
  * The window comes apart into a drift of particles that blow up and to
- * the right, fading as they go. Close only — it is a disintegration, and
- * a window that disintegrates on minimise then comes back is nonsense.
+ * the right, charring as they go — each fleck tints from its natural
+ * colour through scorched brown into smoky ash-grey while it fades, so
+ * the dissolve reads as burning rather than evaporating. Close only —
+ * it is a disintegration, and a window that disintegrates on minimise
+ * then comes back is nonsense.
  *
  * **How it works.** The engine hands over a frozen texture of the
  * window (see `../types.ts` for why freezing rather than reparenting).
@@ -26,12 +29,69 @@ import type { WindowEffectDef, WindowEffectRunContext } from '../types';
 /** Hard ceiling on particles, whatever the density slider says. */
 const MAX_PARTICLES = 1600;
 
+/**
+ * The burn ramp's two stops, as `[r, g, b]`.
+ *
+ * A particle chars from its natural colour through scorched brown into
+ * smoky ash-grey. Tint in PixiJS is multiplicative, so these darken
+ * whatever pixel they land on rather than painting over it — a white
+ * window browns, a dark one just smoulders, which is exactly how
+ * burning treats paper versus ink.
+ */
+const SCORCH: readonly [ number, number, number ] = [ 0x8a, 0x62, 0x40 ];
+const ASH: readonly [ number, number, number ] = [ 0x70, 0x6b, 0x67 ];
+
+/** Where along the burn the scorch gives way to ash, 0..1. */
+const SCORCH_POINT = 0.4;
+
+/**
+ * The multiplicative tint for a particle at `progress` through its
+ * burn, scaled by `strength` (0 = untinted, 1 = the full ramp).
+ *
+ * Piecewise linear: white → {@link SCORCH} over the first
+ * {@link SCORCH_POINT} of the burn, then → {@link ASH} for the rest —
+ * the browning happens while the particle is still solid, the greying
+ * as it thins into smoke.
+ *
+ * @param progress How far through the burn, 0..1.
+ * @param strength How hard to lean into the ramp, 0..1.
+ * @return A 24-bit RGB tint.
+ */
+function burnTint( progress: number, strength: number ): number {
+	let target: readonly [ number, number, number ];
+	let k: number;
+	if ( progress < SCORCH_POINT ) {
+		target = SCORCH;
+		k = progress / SCORCH_POINT;
+		// White → scorch: interpolate from 255 toward the stop.
+		return rgb(
+			255 + ( target[ 0 ] - 255 ) * k * strength,
+			255 + ( target[ 1 ] - 255 ) * k * strength,
+			255 + ( target[ 2 ] - 255 ) * k * strength,
+		);
+	}
+	k = ( progress - SCORCH_POINT ) / ( 1 - SCORCH_POINT );
+	// Scorch → ash, each still eased back toward white by strength.
+	return rgb(
+		255 + ( SCORCH[ 0 ] + ( ASH[ 0 ] - SCORCH[ 0 ] ) * k - 255 ) * strength,
+		255 + ( SCORCH[ 1 ] + ( ASH[ 1 ] - SCORCH[ 1 ] ) * k - 255 ) * strength,
+		255 + ( SCORCH[ 2 ] + ( ASH[ 2 ] - SCORCH[ 2 ] ) * k - 255 ) * strength,
+	);
+}
+
+function rgb( r: number, g: number, b: number ): number {
+	// Arithmetic rather than shifts — the WP lint config bans bitwise
+	// operators, and 0..255 channels cannot overflow either way.
+	return Math.round( r ) * 0x10000 + Math.round( g ) * 0x100 + Math.round( b );
+}
+
 interface Particle {
 	sprite: {
 		x: number;
 		y: number;
 		alpha: number;
 		rotation: number;
+		tint: number;
 		scale: { set( v: number ): void };
 		destroy(): void;
 	};
@@ -44,13 +104,15 @@ interface Particle {
 	delay: number;
 	startX: number;
 	startY: number;
+	/** This particle's burn strength, 0..1 — the slider, jittered. */
+	burn: number;
 }
 
 export const thanosEffect: WindowEffectDef = {
 	id: 'vanish',
 	label: __( 'Vanish' ),
 	description: __(
-		'The window disintegrates into drifting dust and blows away.',
+		'The window chars and disintegrates into drifting ash that blows away.',
 	),
 	transitions: [ 'close' ],
 	params: [
@@ -88,6 +150,16 @@ export const thanosEffect: WindowEffectDef = {
 			step: 10,
 			default: 90,
 			suffix: 'px/s',
+		},
+		{
+			key: 'burn',
+			label: __( 'Burn' ),
+			min: 0,
+			max: 1,
+			step: 0.05,
+			// How hard the particles char as they go — 0 keeps the old
+			// untinted dissolve, 1 is full scorched-brown-to-ash.
+			default: 0.85,
 		},
 	],
 
@@ -158,6 +230,12 @@ export const thanosEffect: WindowEffectDef = {
 				delay: across * 0.45 + jitter * 0.08,
 				startX: piece.x,
 				startY: piece.y,
+				// A fire chars unevenly: some flecks blacken, others
+				// escape half-singed. ±15% around the slider's value,
+				// from the same deterministic jitter as the drift.
+				burn:
+					params.burn *
+					Math.min( 1, 0.85 + jitter * 0.3 ),
 			} );
 		}
 
@@ -203,6 +281,16 @@ export const thanosEffect: WindowEffectDef = {
 					p.sprite.rotation = p.spin * eased;
 					p.sprite.alpha = Math.max( 0, 1 - local / total );
 					p.sprite.scale.set( Math.max( 0.05, 1 - eased * 0.5 ) );
+					// Char faster than the fade: fully burnt by 60% of
+					// the particle's life, so the scorch is seen while
+					// the fleck is still solid rather than arriving on
+					// pixels that are already transparent.
+					if ( p.burn > 0 ) {
+						p.sprite.tint = burnTint(
+							Math.min( 1, local / ( total * 0.6 ) ),
+							p.burn,
+						);
+					}
 				}
 
 				// The sweep delay means the last particles start late, so
