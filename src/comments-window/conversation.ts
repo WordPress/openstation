@@ -15,6 +15,7 @@ import { decodeHTML } from '../utils';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import {
 	fetchComments,
+	fetchCounts,
 	fetchThread,
 	bulkModerate,
 	postReply,
@@ -24,6 +25,7 @@ import {
 } from './rest';
 import type {
 	BulkAction,
+	CommentCounts,
 	CommentRow,
 	CommentTab,
 	CommentsConfig,
@@ -33,25 +35,42 @@ import {
 	clearCommentsPostFilter,
 	subscribeCommentsPostFilter,
 } from './post-filter';
+import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
+import '../ui/components/wpd-avatar/wpd-avatar';
+import '../ui/components/wpd-badge/wpd-badge';
 import '../ui/components/wpd-button/wpd-button';
+import '../ui/components/wpd-empty-state/wpd-empty-state';
+import '../ui/components/wpd-icon/wpd-icon';
+import '../ui/components/wpd-relative-time/wpd-relative-time';
+import '../ui/components/wpd-spinner/wpd-spinner';
 import '../ui/components/wpd-text-field/wpd-text-field';
+import '../ui/components/wpd-textarea/wpd-textarea';
+import '../ui/components/wpd-tabs/wpd-tabs';
 
 const NS = 'desktop-mode-comments';
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 interface Ctx {
 	cfg: CommentsConfig;
 	listEl: HTMLElement;
 	convoEl: HTMLElement;
+	tabsEl: HTMLElement;
+	statusEl: HTMLElement | null;
 	tab: CommentTab;
 	search: string;
 	threads: CommentRow[];
 	selectedId: number | null;
 	/** When > 0, the rail is scoped to this post (edit-comments.php?p=). */
 	postFilter: number;
+	/** Rail pagination — last loaded page and the server's page total. */
+	page: number;
+	totalPages: number;
 	/** Monotonic token so a stale rail fetch can't overwrite a newer one. */
 	railSeq: number;
 	/** Announce (postId>0) or clear (0) the window-links identity. */
 	announceIdentity: ( postId: number ) => void;
+	/** Push a short sentence into the window's polite live region. */
+	announce: ( message: string ) => void;
 	reloadRail: () => Promise< void >;
 	reloadConvo: () => Promise< void >;
 }
@@ -78,6 +97,29 @@ function adminUrl(): string {
 		wp?: { desktop?: { config?: { adminUrl?: string } } };
 	} ).wp?.desktop;
 	return desktop?.config?.adminUrl || '/wp-admin/';
+}
+
+/**
+ * The `external` glyph from `@wordpress/icons` — the same mark the block
+ * editor puts on its own "View Post" link. Inlined rather than pulled
+ * from Dashicons so the two surfaces are pixel-identical; a link that
+ * leaves Desktop Mode should look the same wherever WordPress offers it.
+ */
+function externalIcon(): SVGElement {
+	const svg = document.createElementNS( SVG_NS, 'svg' );
+	svg.setAttribute( 'viewBox', '0 0 24 24' );
+	svg.setAttribute( 'aria-hidden', 'true' );
+	svg.setAttribute( 'focusable', 'false' );
+	svg.setAttribute( 'class', `${ NS }__ext-icon` );
+	[
+		'M19.5 4.5h-7V6h4.44l-5.97 5.97 1.06 1.06L18 7.06v4.44h1.5v-7Z',
+		'M18 18v-5h1.5v5c0 .83-.67 1.5-1.5 1.5H6c-.83 0-1.5-.67-1.5-1.5V6c0-.83.67-1.5 1.5-1.5h5V6H6v12h12Z',
+	].forEach( ( d ) => {
+		const path = document.createElementNS( SVG_NS, 'path' );
+		path.setAttribute( 'd', d );
+		svg.appendChild( path );
+	} );
+	return svg;
 }
 
 /**
@@ -118,20 +160,6 @@ function announcePostIdentity(
 	}
 }
 
-/** Deterministic hue so each author keeps a stable avatar tint. */
-function hueFor( name: string ): number {
-	let h = 0;
-	for ( let i = 0; i < name.length; i++ ) {
-		h = ( h * 31 + name.charCodeAt( i ) ) % 360;
-	}
-	return h;
-}
-
-function initialOf( name: string ): string {
-	const trimmed = ( name || '' ).trim();
-	return trimmed ? trimmed[ 0 ].toUpperCase() : '?';
-}
-
 function normalizeStatus( row: CommentRow ): string {
 	const s = String( row.status );
 	if ( s === 'approve' || s === 'approved' || s === '1' ) {
@@ -143,31 +171,85 @@ function normalizeStatus( row: CommentRow ): string {
 	return s; // spam | trash
 }
 
-function timeAgo( gmt: string ): string {
-	const then = new Date( gmt + 'Z' ).getTime();
-	if ( Number.isNaN( then ) ) {
-		return '';
+/** Human label for a moderation status. */
+function statusLabel( status: string ): string {
+	switch ( status ) {
+		case 'approved':
+			return __( 'Approved' );
+		case 'hold':
+			return __( 'Pending' );
+		case 'spam':
+			return __( 'Spam' );
+		case 'trash':
+			return __( 'Trash' );
+		default:
+			return status;
 	}
-	const secs = Math.max( 0, Math.round( ( Date.now() - then ) / 1000 ) );
-	if ( secs < 60 ) {
-		return __( 'now' );
+}
+
+/** `<wpd-badge>` tone that reads the way the status feels. */
+function statusTone( status: string ): string {
+	switch ( status ) {
+		case 'approved':
+			return 'success';
+		case 'hold':
+			return 'warning';
+		case 'spam':
+			return 'danger';
+		default:
+			return 'neutral';
 	}
-	const mins = Math.round( secs / 60 );
-	if ( mins < 60 ) {
-		/* translators: %d: minutes ago (compact). */
-		return sprintf( __( '%dm' ), mins );
+}
+
+/**
+ * Moderation status as a `<wpd-badge>`.
+ *
+ * `dotOnly` shrinks the pill to just its tone dot for the rail, where
+ * there's no room for a word — the label rides along as slotted
+ * screen-reader text, so the colour is never the only carrier of the
+ * meaning, and the tooltip covers sighted users who can't read the hue.
+ *
+ * @param status  Normalized status.
+ * @param dotOnly Collapse to the dot (rail) instead of a labelled pill.
+ */
+function statusBadge( status: string, dotOnly = false ): HTMLElement {
+	const badge = document.createElement( 'wpd-badge' );
+	badge.setAttribute( 'tone', statusTone( status ) );
+	const label = statusLabel( status );
+	if ( dotOnly ) {
+		badge.className = `${ NS }__status`;
+		badge.title = label;
+		const sr = document.createElement( 'span' );
+		sr.className = 'screen-reader-text';
+		sr.textContent = label;
+		badge.appendChild( sr );
+	} else {
+		badge.className = `${ NS }__msg-status`;
+		badge.textContent = label;
 	}
-	const hours = Math.round( mins / 60 );
-	if ( hours < 24 ) {
-		/* translators: %d: hours ago (compact). */
-		return sprintf( __( '%dh' ), hours );
+	return badge;
+}
+
+/**
+ * A live timestamp for `date_gmt`.
+ *
+ * `<wpd-relative-time>` takes WordPress's MySQL-style `*_gmt` string
+ * directly (it treats a space-separated value as UTC), formats through
+ * `Intl.RelativeTimeFormat` so the copy pluralizes and localizes
+ * properly, renders a semantic `<time datetime>`, carries the absolute
+ * timestamp in `title`, and re-renders itself on one shared 30-second
+ * ticker — so a rail left open overnight isn't still claiming "5m".
+ *
+ * @param gmt     A `*_gmt` datetime string.
+ * @param compact Abbreviated form for the narrow rail cell.
+ */
+function timestamp( gmt: string, compact = false ): HTMLElement {
+	const el = document.createElement( 'wpd-relative-time' );
+	el.setAttribute( 'datetime', gmt );
+	if ( compact ) {
+		el.setAttribute( 'compact', '' );
 	}
-	const days = Math.round( hours / 24 );
-	if ( days < 7 ) {
-		/* translators: %d: days ago (compact). */
-		return sprintf( __( '%dd' ), days );
-	}
-	return new Date( gmt + 'Z' ).toLocaleDateString();
+	return el;
 }
 
 function snippet( row: CommentRow ): string {
@@ -176,53 +258,218 @@ function snippet( row: CommentRow ): string {
 	return text;
 }
 
-/** A round avatar disc: real gravatar if present, tinted initial otherwise. */
-function disc( row: CommentRow ): HTMLElement {
-	const el = document.createElement( 'span' );
+/**
+ * The commenter's avatar.
+ *
+ * `<wpd-avatar>` already does everything the old hand-rolled disc did
+ * — deterministic hue, initials fallback, circular clip — plus the two
+ * things it got wrong. It falls back to the initials tile when the
+ * image fails, and it is what `applyAvatarSrc` is documented to drive:
+ * the helper probes a Gravatar URL and REMOVES `src` when the address
+ * has no registered avatar. Pointed at a bare `<img>`, that left an
+ * empty circle, because the disc had already thrown its initial away.
+ *
+ * @param row  Comment whose author is being pictured.
+ * @param size Tile size in px — 36 in the rail, 34 in the thread.
+ */
+function avatar( row: CommentRow, size: number ): HTMLElement {
+	const el = document.createElement( 'wpd-avatar' );
 	el.className = `${ NS }__disc`;
-	el.style.setProperty( '--disc-h', String( hueFor( row.author_name || '?' ) ) );
-	el.textContent = initialOf( row.author_name );
+	el.setAttribute( 'name', row.author_name || '?' );
+	el.setAttribute( 'size', String( size ) );
+	// Decorative: the author's name is already text next to it, so a
+	// second announcement would just be noise.
+	el.setAttribute( 'alt', '' );
 	const url =
 		row.author_avatar_urls?.[ '48' ] ??
 		row.author_avatar_urls?.[ '96' ] ??
 		row.author_avatar_urls?.[ '24' ] ??
 		'';
 	if ( url ) {
-		const img = document.createElement( 'img' );
-		img.alt = '';
-		applyAvatarSrc( img, url );
-		el.textContent = '';
-		el.appendChild( img );
+		applyAvatarSrc( el, url );
 	}
 	return el;
 }
 
-function iconButton(
+/**
+ * One action in the per-message row.
+ *
+ * Rendered as `<wpd-button variant="link">` — the chrome-less variant —
+ * so the row reads as wp-admin's own comment row actions
+ * (`Approve | Reply | Edit | Spam | Trash`): plain links, pipe
+ * separators from CSS, red for the two that take a comment out of the
+ * conversation. Still the kit component rather than a bare `<a>`, so
+ * the row keeps the framework focus ring, `disabled` semantics, and the
+ * `busy` attribute that gives a moderation click its in-flight feedback.
+ *
+ * @param label   Visible action label.
+ * @param tone    `danger` tints the link red (spam / trash).
+ * @param onClick Receives the button so the caller can mark it busy.
+ */
+function actionButton(
 	label: string,
-	dashicon: string,
-	variant: '' | 'is-primary' | 'is-danger',
-	onClick: () => void,
-): HTMLButtonElement {
-	const b = document.createElement( 'button' );
-	b.type = 'button';
-	b.className = `${ NS }__act${ variant ? ' ' + variant : '' }`;
-	b.innerHTML = `<span class="dashicons ${ dashicon }" aria-hidden="true"></span>`;
-	b.append( document.createTextNode( label ) );
-	b.setAttribute( 'aria-label', label );
-	b.addEventListener( 'click', ( e ) => {
+	tone: 'default' | 'danger',
+	onClick: ( button: HTMLElement ) => void,
+): HTMLElement {
+	const button = document.createElement( 'wpd-button' );
+	button.className = `${ NS }__act${ tone === 'danger' ? ' is-danger' : '' }`;
+	button.setAttribute( 'variant', 'link' );
+	button.textContent = label;
+	button.addEventListener( 'click', ( e ) => {
 		e.stopPropagation();
-		onClick();
+		if ( button.hasAttribute( 'disabled' ) ) {
+			return;
+		}
+		onClick( button );
 	} );
-	return b;
+	return button;
 }
 
-/** Mark one tab active — toggles both the class and `aria-selected`. */
-function setActiveTab( tabrowEl: HTMLElement, tabValue: string ): void {
-	tabrowEl.querySelectorAll< HTMLElement >( `.${ NS }__tab` ).forEach( ( t ) => {
-		const on = t.dataset.tab === tabValue;
-		t.classList.toggle( 'is-active', on );
-		t.setAttribute( 'aria-selected', on ? 'true' : 'false' );
+/* -------------------------------------------------------------------------- */
+/* Editor primitive                                                           */
+/* -------------------------------------------------------------------------- */
+
+interface Editor {
+	root: HTMLElement;
+	getValue: () => string;
+	setValue: ( value: string ) => void;
+	focus: () => void;
+	setDisabled: ( disabled: boolean ) => void;
+}
+
+/**
+ * A `<wpd-textarea>` wired to the kit's event shape.
+ *
+ * `submit-on-enter` gives the reply composer chat semantics (Enter
+ * sends, Shift+Enter newlines) straight from the component; the inline
+ * comment editor leaves it off, since editing an existing multi-paragraph
+ * comment wants Enter to mean "new line".
+ */
+function mountEditor( opts: {
+	placeholder: string;
+	ariaLabel: string;
+	initial?: string;
+	rows?: number;
+	submitOnEnter?: boolean;
+	onSubmit?: () => void;
+} ): Editor {
+	const el = document.createElement( 'wpd-textarea' );
+	el.className = `${ NS }__reply-input`;
+	el.setAttribute( 'placeholder', opts.placeholder );
+	el.setAttribute( 'aria-label', opts.ariaLabel );
+	el.setAttribute( 'rows', String( opts.rows ?? 3 ) );
+	el.setAttribute( 'auto-grow', '' );
+	el.setAttribute( 'max-rows', '10' );
+	el.setAttribute( 'value', opts.initial ?? '' );
+	if ( opts.submitOnEnter ) {
+		el.setAttribute( 'submit-on-enter', '' );
+	}
+
+	// The component reflects `value` two-way, but mirroring it locally
+	// keeps reads synchronous and independent of attribute timing.
+	let current = opts.initial ?? '';
+	const track = ( e: Event ): void => {
+		current = String( ( e as CustomEvent< { value: string } > ).detail?.value ?? '' );
+	};
+	el.addEventListener( 'wpd-input-change', track );
+	el.addEventListener( 'wpd-input-commit', track );
+	if ( opts.onSubmit ) {
+		el.addEventListener( 'wpd-submit', ( e ) => {
+			track( e );
+			opts.onSubmit?.();
+		} );
+	}
+
+	// The real `<textarea>` lives in the component's shadow root and the
+	// host does not delegate focus — go through the documented
+	// imperative helpers rather than `host.focus()`, which would be a
+	// silent no-op.
+	const api = el as HTMLElement & {
+		focusInput?: () => void;
+		clear?: () => void;
+		refreshAutosize?: () => void;
+	};
+
+	return {
+		root: el,
+		getValue: () => current.trim(),
+		setValue: ( value: string ) => {
+			current = value;
+			if ( value === '' && api.clear ) {
+				api.clear();
+				return;
+			}
+			el.setAttribute( 'value', value );
+			api.refreshAutosize?.();
+		},
+		focus: () => {
+			if ( api.focusInput ) {
+				api.focusInput();
+			} else {
+				el.focus();
+			}
+		},
+		setDisabled: ( disabled: boolean ) => {
+			if ( disabled ) {
+				el.setAttribute( 'disabled', '' );
+			} else {
+				el.removeAttribute( 'disabled' );
+			}
+		},
+	};
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/** Mark one tab active by handing the value back to `<wpd-tabs>`. */
+function setActiveTab( tabsEl: HTMLElement, tabValue: string ): void {
+	// The component owns aria-selected + roving tabindex off this prop.
+	( tabsEl as unknown as { value: string } ).value = tabValue;
+	tabsEl.setAttribute( 'value', tabValue );
+}
+
+/**
+ * Paint the per-tab count chips.
+ *
+ * "Mine" is deliberately left bare — the counts endpoint reports the
+ * site totals, and showing a site-wide number next to a viewer-scoped
+ * tab would read as a bug.
+ */
+function paintTabCounts( tabsEl: HTMLElement, counts: CommentCounts ): void {
+	const forTab: Record< string, number | null > = {
+		pending: counts.pending,
+		all: counts.approved + counts.pending,
+		spam: counts.spam,
+		trash: counts.trash,
+		mine: null,
+	};
+	tabsEl.querySelectorAll< HTMLElement >( 'wpd-tab' ).forEach( ( tab ) => {
+		const value = tab.getAttribute( 'value' ) ?? '';
+		const count = forTab[ value ];
+		let chip = tab.querySelector< HTMLElement >( `.${ NS }__tab-count` );
+		if ( count === null || count === undefined ) {
+			chip?.remove();
+			return;
+		}
+		if ( ! chip ) {
+			chip = document.createElement( 'wpd-badge' );
+			chip.className = `${ NS }__tab-count`;
+			chip.setAttribute( 'tone', 'neutral' );
+			chip.setAttribute( 'no-dot', '' );
+			tab.appendChild( chip );
+		}
+		chip.textContent = String( count );
 	} );
+}
+
+async function refreshCounts( ctx: Ctx ): Promise< void > {
+	try {
+		paintTabCounts( ctx.tabsEl, await fetchCounts( ctx.cfg ) );
+	} catch {
+		// Counts are decoration — a failure must never break the rail.
+	}
 }
 
 /* -------------------------------------------------------------------------- */
@@ -230,14 +477,23 @@ function setActiveTab( tabrowEl: HTMLElement, tabValue: string ): void {
 /* -------------------------------------------------------------------------- */
 
 function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
+	// `role="listitem"` has to live on a wrapper: putting it on the
+	// button would override the button role and cost the row its
+	// keyboard semantics.
+	const slot = document.createElement( 'div' );
+	slot.setAttribute( 'role', 'listitem' );
+	slot.className = `${ NS }__thread-slot`;
+
 	const item = document.createElement( 'button' );
 	item.type = 'button';
 	item.className = `${ NS }__thread`;
-	item.setAttribute( 'role', 'option' );
 	item.dataset.id = String( row.id );
 	if ( ctx.selectedId === row.id ) {
 		item.classList.add( 'is-selected' );
-		item.setAttribute( 'aria-selected', 'true' );
+		// `aria-current` (not `aria-selected`, which is only valid on
+		// option/tab/row roles) is the correct "this is the one you're
+		// looking at" signal for a list of buttons.
+		item.setAttribute( 'aria-current', 'true' );
 	}
 
 	const main = document.createElement( 'div' );
@@ -245,11 +501,7 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 	const name = document.createElement( 'div' );
 	name.className = `${ NS }__thread-name`;
 	name.textContent = row.author_name || __( 'Anonymous' );
-	const status = document.createElement( 'span' );
-	status.className = `${ NS }__status`;
-	status.dataset.status = normalizeStatus( row );
-	status.title = normalizeStatus( row );
-	name.appendChild( status );
+	name.appendChild( statusBadge( normalizeStatus( row ), true ) );
 	const snip = document.createElement( 'div' );
 	snip.className = `${ NS }__thread-snip`;
 	snip.textContent = snippet( row );
@@ -260,21 +512,30 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 
 	const meta = document.createElement( 'div' );
 	meta.className = `${ NS }__thread-meta`;
-	const time = document.createElement( 'span' );
+	const time = timestamp( row.date_gmt, true );
 	time.className = `${ NS }__thread-time`;
-	time.textContent = timeAgo( row.date_gmt );
 	meta.appendChild( time );
 	if ( row.desktop_mode_replies_count > 0 ) {
-		const rc = document.createElement( 'span' );
+		const rc = document.createElement( 'wpd-badge' );
 		rc.className = `${ NS }__reply-count`;
-		/* translators: %d: number of direct replies. */
-		rc.textContent = sprintf( __( '%d ↩' ), row.desktop_mode_replies_count );
+		rc.setAttribute( 'tone', 'neutral' );
+		rc.setAttribute( 'no-dot', '' );
+		rc.textContent = String( row.desktop_mode_replies_count );
+		const rcLabel = document.createElement( 'span' );
+		rcLabel.className = 'screen-reader-text';
+		rcLabel.textContent = sprintf(
+			/* translators: %d: number of direct replies. */
+			__( '%d replies' ),
+			row.desktop_mode_replies_count,
+		);
+		rc.appendChild( rcLabel );
 		meta.appendChild( rc );
 	}
 
-	item.append( disc( row ), main, meta );
+	item.append( avatar( row, 36 ), main, meta );
 	item.addEventListener( 'click', () => selectThread( ctx, row ) );
-	return item;
+	slot.appendChild( item );
+	return slot;
 }
 
 /** "Filtered to one post" banner + a Show-all escape hatch. */
@@ -287,9 +548,9 @@ function filterBanner( ctx: Ctx ): HTMLElement {
 	label.textContent = title
 		? /* translators: %s: post title. */ sprintf( __( 'On: %s' ), decodeHTML( title ) )
 		: __( 'Comments on this post' );
-	const clear = document.createElement( 'button' );
-	clear.type = 'button';
+	const clear = document.createElement( 'wpd-button' );
 	clear.className = `${ NS }__rail-filter-clear`;
+	clear.setAttribute( 'variant', 'link' );
 	clear.textContent = __( 'Show all' );
 	clear.addEventListener( 'click', () => {
 		ctx.postFilter = 0;
@@ -301,51 +562,107 @@ function filterBanner( ctx: Ctx ): HTMLElement {
 	return bar;
 }
 
+/** Spinner row — used while a pane is fetching its first payload. */
+function loadingRow(): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = `${ NS }__list-loading`;
+	const spinner = document.createElement( 'wpd-spinner' );
+	spinner.setAttribute( 'size', '24' );
+	// The spinner is decorative; the live region carries the state for
+	// anyone who isn't watching it turn.
+	const sr = document.createElement( 'span' );
+	sr.className = 'screen-reader-text';
+	sr.textContent = __( 'Loading…' );
+	wrap.append( spinner, sr );
+	return wrap;
+}
+
+/** "Load more" footer — only when the server says there's another page. */
+function loadMoreRow( ctx: Ctx ): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = `${ NS }__load-more`;
+	const button = document.createElement( 'wpd-button' );
+	button.setAttribute( 'variant', 'ghost' );
+	button.textContent = __( 'Load more' );
+	button.addEventListener( 'click', () => {
+		button.setAttribute( 'busy', '' );
+		button.setAttribute( 'disabled', '' );
+		void loadRail( ctx, { append: true } );
+	} );
+	wrap.appendChild( button );
+	return wrap;
+}
+
 function renderRail( ctx: Ctx ): void {
 	ctx.listEl.replaceChildren();
 	if ( ctx.postFilter > 0 ) {
 		ctx.listEl.appendChild( filterBanner( ctx ) );
 	}
 	if ( ctx.threads.length === 0 ) {
-		const empty = document.createElement( 'div' );
-		empty.className = `${ NS }__list-empty`;
-		empty.textContent =
+		ctx.listEl.appendChild(
 			ctx.postFilter > 0
-				? __( 'No comments on this post in this view — try another tab.' )
-				: __( 'No conversations here yet.' );
-		ctx.listEl.appendChild( empty );
+				? emptyState(
+					'admin-comments',
+					__( 'Nothing on this post here' ),
+					__( 'This post has no comments in this view — try another tab.' ),
+				)
+				: emptyState(
+					'admin-comments',
+					__( 'No conversations yet' ),
+					__( 'Comments in this view will show up here.' ),
+				),
+		);
 		return;
 	}
 	ctx.threads.forEach( ( row ) => ctx.listEl.appendChild( threadItem( ctx, row ) ) );
+	if ( ctx.page < ctx.totalPages ) {
+		ctx.listEl.appendChild( loadMoreRow( ctx ) );
+	}
 }
 
-async function loadRail( ctx: Ctx, opts: { silent?: boolean } = {} ): Promise< void > {
+/** Dim + freeze the selected rail row while its thread is mutating. */
+function setRailBusy( ctx: Ctx, busy: boolean ): void {
+	const row = ctx.listEl.querySelector< HTMLElement >(
+		`.${ NS }__thread[data-id="${ ctx.selectedId }"]`,
+	);
+	row?.classList.toggle( 'is-busy', busy );
+}
+
+async function loadRail(
+	ctx: Ctx,
+	opts: { silent?: boolean; append?: boolean } = {},
+): Promise< void > {
 	// Sequence token: a slower earlier fetch (rapid tab switches, or a
 	// debounced search landing after a tab click) must not overwrite the
 	// rail with the wrong tab's rows.
 	const seq = ++ctx.railSeq;
 	const prevScroll = ctx.listEl.scrollTop;
-	if ( ! opts.silent ) {
-		ctx.listEl.innerHTML = `<div class="${ NS }__list-loading">${ __( 'Loading…' ) }</div>`;
+	const page = opts.append ? ctx.page + 1 : 1;
+	if ( ! opts.silent && ! opts.append ) {
+		ctx.listEl.replaceChildren( loadingRow() );
 	}
 	try {
 		const res = await fetchComments( ctx.cfg, {
 			tab: ctx.tab,
-			page: 1,
+			page,
 			perPage: ctx.cfg.defaultPerPage || 20,
 			search: ctx.search,
 			currentUserId: ctx.cfg.currentUserId,
 			post: ctx.postFilter || undefined,
+			// The rail lists conversations, so ask the server for
+			// top-level comments only. Client-filtering a mixed page
+			// used to render an empty rail whenever a page happened to
+			// contain nothing but replies.
+			rootsOnly: true,
 		} );
 		if ( seq !== ctx.railSeq ) {
 			return; // a newer load started; drop this stale response.
 		}
-		// The rail lists conversations, i.e. top-level comments only;
-		// replies surface inside the thread on the right, not as their
-		// own rows. (`wp/v2/comments` returns every depth flat.)
-		ctx.threads = res.rows.filter( ( r ) => ( Number( r.parent ) || 0 ) === 0 );
+		ctx.page = page;
+		ctx.totalPages = Number.isFinite( res.totalPages ) ? res.totalPages : 1;
+		ctx.threads = opts.append ? ctx.threads.concat( res.rows ) : res.rows;
 		renderRail( ctx );
-		if ( opts.silent ) {
+		if ( opts.silent || opts.append ) {
 			ctx.listEl.scrollTop = prevScroll;
 		}
 		const stillThere = ctx.threads.some( ( r ) => r.id === ctx.selectedId );
@@ -359,7 +676,18 @@ async function loadRail( ctx: Ctx, opts: { silent?: boolean } = {} ): Promise< v
 		}
 	} catch {
 		if ( seq === ctx.railSeq ) {
-			ctx.listEl.innerHTML = `<div class="${ NS }__list-empty">${ __( 'Could not load comments.' ) }</div>`;
+			if ( opts.append ) {
+				// Keep what's on screen; just re-offer the button.
+				renderRail( ctx );
+			} else {
+				ctx.listEl.replaceChildren(
+					emptyState(
+						'warning',
+						__( 'Could not load comments' ),
+						__( 'Check your connection and try another tab.' ),
+					),
+				);
+			}
 		}
 	}
 }
@@ -368,17 +696,51 @@ async function loadRail( ctx: Ctx, opts: { silent?: boolean } = {} ): Promise< v
 /* Conversation pane                                                          */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The canonical "nothing selected / nothing here" shape.
+ *
+ * `<wpd-empty-state>` owns the icon + heading + description layout, so
+ * every empty surface in the shell reads the same way.
+ */
+function emptyState(
+	icon: string,
+	heading: string,
+	description = '',
+): HTMLElement {
+	const el = document.createElement( 'wpd-empty-state' );
+	el.className = `${ NS }__placeholder`;
+	el.setAttribute( 'icon', icon );
+	el.setAttribute( 'heading', heading );
+	if ( description ) {
+		el.setAttribute( 'description', description );
+	}
+	return el;
+}
+
 function showPlaceholder( ctx: Ctx ): void {
-	ctx.convoEl.replaceChildren();
-	const ph = document.createElement( 'div' );
-	ph.className = `${ NS }__placeholder`;
-	ph.innerHTML = `<span class="dashicons dashicons-format-chat" aria-hidden="true"></span><p>${ __(
-		'Select a conversation to read and reply.',
-	) }</p>`;
-	ctx.convoEl.appendChild( ph );
+	ctx.convoEl.replaceChildren(
+		emptyState(
+			'format-chat',
+			__( 'No conversation selected' ),
+			__( 'Pick one from the list to read and reply.' ),
+		),
+	);
 }
 
 function selectThread( ctx: Ctx, root: CommentRow ): void {
+	// Re-picking the conversation that's already on screen is a no-op.
+	// It used to re-fetch and repaint the whole thread, which threw away
+	// scroll position, any half-written reply in the composer, and any
+	// open inline editor — for a click that asked for nothing to change.
+	// The `__thread-scroll` check keeps the click working as a retry
+	// when the pane is showing the placeholder instead of a thread
+	// (first paint, or a failed load).
+	if (
+		ctx.selectedId === root.id &&
+		ctx.convoEl.querySelector( `.${ NS }__thread-scroll` )
+	) {
+		return;
+	}
 	ctx.selectedId = root.id;
 	ctx.listEl
 		.querySelectorAll( `.${ NS }__thread` )
@@ -386,9 +748,9 @@ function selectThread( ctx: Ctx, root: CommentRow ): void {
 			const on = ( el as HTMLElement ).dataset.id === String( root.id );
 			el.classList.toggle( 'is-selected', on );
 			if ( on ) {
-				el.setAttribute( 'aria-selected', 'true' );
+				el.setAttribute( 'aria-current', 'true' );
 			} else {
-				el.removeAttribute( 'aria-selected' );
+				el.removeAttribute( 'aria-current' );
 			}
 		} );
 	void renderConvo( ctx, root );
@@ -405,10 +767,7 @@ async function renderConvo(
 	const prevScroll =
 		ctx.convoEl.querySelector< HTMLElement >( `.${ NS }__thread-scroll` )?.scrollTop ?? 0;
 	if ( ! opts.silent ) {
-		const loading = document.createElement( 'div' );
-		loading.className = `${ NS }__placeholder`;
-		loading.textContent = __( 'Loading…' );
-		ctx.convoEl.replaceChildren( loading );
+		ctx.convoEl.replaceChildren( loadingRow() );
 	}
 
 	let rows: CommentRow[] = [];
@@ -447,12 +806,39 @@ function convoHead( root: CommentRow ): HTMLElement {
 	const head = document.createElement( 'div' );
 	head.className = `${ NS }__convo-head`;
 	const ctxBox = document.createElement( 'div' );
+	ctxBox.className = `${ NS }__convo-context`;
 	const kicker = document.createElement( 'div' );
 	kicker.className = `${ NS }__convo-kicker`;
 	kicker.textContent = __( 'In response to' );
-	const post = document.createElement( 'div' );
-	post.className = `${ NS }__convo-post`;
-	post.textContent = decodeHTML( root.desktop_mode_post_title || __( '(no title)' ) );
+
+	const title = decodeHTML( root.desktop_mode_post_title || __( '(no title)' ) );
+	// The title IS the edit affordance — a same-origin wp-admin link with
+	// no target, which the shell's link interceptor catches and mounts as
+	// a window (the same path the Drafts widget uses); it does NOT
+	// navigate away. The pencil beside it and the tooltip are the hint
+	// that the title is clickable, so the action needs no separate button.
+	let post: HTMLElement;
+	if ( root.post > 0 ) {
+		const link = document.createElement( 'a' );
+		link.className = `${ NS }__convo-post ${ NS }__convo-post--editable`;
+		link.href = `${ adminUrl() }post.php?post=${ root.post }&action=edit`;
+		link.title = __( 'Edit this post' );
+		link.append( document.createTextNode( title ) );
+		const pencil = document.createElement( 'wpd-icon' );
+		pencil.className = `${ NS }__convo-post-pencil`;
+		pencil.setAttribute( 'name', 'edit' );
+		pencil.setAttribute( 'size', '15' );
+		link.appendChild( pencil );
+		const hint = document.createElement( 'span' );
+		hint.className = 'screen-reader-text';
+		hint.textContent = __( 'Edit this post' );
+		link.appendChild( hint );
+		post = link;
+	} else {
+		post = document.createElement( 'div' );
+		post.className = `${ NS }__convo-post`;
+		post.textContent = title;
+	}
 	ctxBox.append( kicker, post );
 	head.appendChild( ctxBox );
 
@@ -464,21 +850,13 @@ function convoHead( root: CommentRow ): HTMLElement {
 		a.href = root.desktop_mode_post_link;
 		a.target = '_blank';
 		a.rel = 'noopener';
-		a.textContent = __( 'View post ↗' );
+		a.append( document.createTextNode( __( 'View post' ) ), externalIcon() );
+		// Every "opens elsewhere" link in wp-admin says so out loud.
+		const newTab = document.createElement( 'span' );
+		newTab.className = 'screen-reader-text';
+		newTab.textContent = __( '(opens in a new tab)' );
+		a.appendChild( newTab );
 		actions.appendChild( a );
-	}
-	// Pencil → open the post's block editor as a window inside Desktop
-	// Mode. A same-origin wp-admin link with no target is caught by the
-	// shell's link interceptor and mounted as a chromeless window (the
-	// same path the Drafts widget uses); it does NOT navigate away.
-	if ( root.post > 0 ) {
-		const edit = document.createElement( 'a' );
-		edit.className = `${ NS }__convo-edit`;
-		edit.href = `${ adminUrl() }post.php?post=${ root.post }&action=edit`;
-		edit.title = __( 'Edit post' );
-		edit.setAttribute( 'aria-label', __( 'Edit post' ) );
-		edit.innerHTML = '<span class="dashicons dashicons-edit" aria-hidden="true"></span>';
-		actions.appendChild( edit );
 	}
 	head.appendChild( actions );
 	return head;
@@ -494,10 +872,11 @@ function renderMessage(
 	const msg = document.createElement( 'div' );
 	msg.className = `${ NS }__msg`;
 	msg.dataset.id = String( row.id );
+	msg.dataset.status = normalizeStatus( row );
 
 	const rail = document.createElement( 'div' );
 	rail.className = `${ NS }__msg-rail`;
-	rail.appendChild( disc( row ) );
+	rail.appendChild( avatar( row, 34 ) );
 	if ( children.length > 0 ) {
 		const line = document.createElement( 'div' );
 		line.className = `${ NS }__msg-line`;
@@ -514,19 +893,22 @@ function renderMessage(
 	name.textContent = row.author_name || __( 'Anonymous' );
 	head.appendChild( name );
 	if ( row.author > 0 && row.author === ctx.cfg.currentUserId ) {
-		const you = document.createElement( 'span' );
+		const you = document.createElement( 'wpd-badge' );
 		you.className = `${ NS }__msg-you`;
+		you.setAttribute( 'tone', 'info' );
+		you.setAttribute( 'no-dot', '' );
 		you.textContent = __( 'You' );
 		head.appendChild( you );
 	}
-	const time = document.createElement( 'span' );
+	const time = timestamp( row.date_gmt );
 	time.className = `${ NS }__msg-time`;
-	try {
-		time.textContent = new Date( row.date_gmt + 'Z' ).toLocaleString();
-	} catch {
-		time.textContent = row.date_gmt;
-	}
 	head.appendChild( time );
+	// A pending / spam / trashed message in the middle of an otherwise
+	// approved thread needs to say so — the tint alone doesn't.
+	const status = normalizeStatus( row );
+	if ( status !== 'approved' ) {
+		head.appendChild( statusBadge( status ) );
+	}
 
 	const text = document.createElement( 'div' );
 	text.className = `${ NS }__msg-text`;
@@ -552,39 +934,63 @@ function messageActions( ctx: Ctx, row: CommentRow ): HTMLElement {
 	actions.className = `${ NS }__msg-actions`;
 	const status = normalizeStatus( row );
 
-	actions.appendChild(
-		iconButton( __( 'Reply' ), 'dashicons-undo', 'is-primary', () =>
-			openComposerFor( ctx, row ),
-		),
-	);
-	if ( row.desktop_mode_can_edit ) {
-		actions.appendChild(
-			iconButton( __( 'Edit' ), 'dashicons-edit', '', () =>
-				openInlineEdit( ctx, row ),
-			),
-		);
-	}
+	// Order mirrors wp-admin's comment row actions: the moderation verb
+	// first, then the authoring verbs, then the two destructive ones.
+	const items: HTMLElement[] = [];
 	if ( row.desktop_mode_can_moderate ) {
 		const approveLabel = status === 'approved' ? __( 'Unapprove' ) : __( 'Approve' );
 		const approveAction: BulkAction = status === 'approved' ? 'unapprove' : 'approve';
-		actions.appendChild(
-			iconButton( approveLabel, 'dashicons-yes', '', () =>
-				moderate( ctx, row.id, approveAction ),
-			),
-		);
-		if ( status !== 'spam' ) {
-			actions.appendChild(
-				iconButton( __( 'Spam' ), 'dashicons-warning', 'is-danger', () =>
-					moderate( ctx, row.id, 'spam' ),
-				),
-			);
-		}
-		actions.appendChild(
-			iconButton( __( 'Trash' ), 'dashicons-trash', 'is-danger', () =>
-				moderate( ctx, row.id, 'trash' ),
+		items.push(
+			actionButton( approveLabel, 'default', ( button ) =>
+				void moderate( ctx, row.id, approveAction, button ),
 			),
 		);
 	}
+	// Replying posts a comment — gate on the same cap the reply route
+	// enforces, so the action isn't offered to someone it will 403.
+	if ( ctx.cfg.canModerate ) {
+		items.push(
+			actionButton( __( 'Reply' ), 'default', () => openComposerFor( ctx, row ) ),
+		);
+	}
+	if ( row.desktop_mode_can_edit ) {
+		items.push(
+			actionButton( __( 'Edit' ), 'default', () => openInlineEdit( ctx, row ) ),
+		);
+	}
+	if ( row.desktop_mode_can_moderate ) {
+		if ( status !== 'spam' ) {
+			items.push(
+				actionButton( __( 'Spam' ), 'danger', ( button ) =>
+					void moderate( ctx, row.id, 'spam', button ),
+				),
+			);
+		}
+		if ( status !== 'trash' ) {
+			items.push(
+				actionButton( __( 'Trash' ), 'danger', ( button ) =>
+					void moderate( ctx, row.id, 'trash', button ),
+				),
+			);
+		}
+	}
+
+	// Interleave the wp-admin pipe separators as real nodes. A CSS
+	// `::before` on the action itself would be unreliable here — every
+	// `<wpd-button>` is a shadow host, and generated content on a shadow
+	// host is at the mercy of flat-tree slotting. Building them means
+	// they land between whichever actions this viewer actually got, with
+	// no separator dangling at either end.
+	items.forEach( ( item, index ) => {
+		if ( index > 0 ) {
+			const sep = document.createElement( 'span' );
+			sep.className = `${ NS }__act-sep`;
+			sep.setAttribute( 'aria-hidden', 'true' );
+			sep.textContent = '|';
+			actions.appendChild( sep );
+		}
+		actions.appendChild( item );
+	} );
 	return actions;
 }
 
@@ -601,35 +1007,75 @@ function toast( message: string ): void {
 	}
 }
 
-async function moderate( ctx: Ctx, id: number, action: BulkAction ): Promise< void > {
-	try {
-		await bulkModerate( ctx.cfg, [ id ], action );
-		await ctx.reloadConvo();
-		await ctx.reloadRail();
-	} catch {
-		toast( __( 'Action failed.' ) );
+/**
+ * Confirmation copy for the two actions that take a comment out of the
+ * conversation. Both are reversible from their own tab, so the prompt
+ * says where it went rather than warning about permanence.
+ */
+const DESTRUCTIVE: Partial<
+	Record< BulkAction, { title: string; message: string; confirmLabel: string } >
+> = {
+	spam: {
+		title: __( 'Mark as spam?' ),
+		message: __(
+			'This comment moves out of the conversation. You can restore it from the Spam tab.',
+		),
+		confirmLabel: __( 'Mark as spam' ),
+	},
+	trash: {
+		title: __( 'Move to trash?' ),
+		message: __(
+			'This comment moves out of the conversation. You can restore it from the Trash tab.',
+		),
+		confirmLabel: __( 'Move to trash' ),
+	},
+};
+
+/** Past-tense confirmation for the live region + toast. */
+function actionResultLabel( action: BulkAction ): string {
+	switch ( action ) {
+		case 'approve':
+			return __( 'Comment approved.' );
+		case 'unapprove':
+			return __( 'Comment unapproved.' );
+		case 'spam':
+			return __( 'Comment marked as spam.' );
+		case 'unspam':
+			return __( 'Comment restored from spam.' );
+		case 'trash':
+			return __( 'Comment moved to trash.' );
+		case 'untrash':
+			return __( 'Comment restored from trash.' );
 	}
 }
 
-/** A minimal reply/edit editor reusing the window's existing input styles. */
-function mountEditor( placeholder: string, initial = '' ): {
-	root: HTMLElement;
-	getValue: () => string;
-	focus: () => void;
-} {
-	const wrap = document.createElement( 'div' );
-	wrap.className = `${ NS }__reply ${ NS }__reply--plain`;
-	const ta = document.createElement( 'textarea' );
-	ta.className = `${ NS }__reply-input`;
-	ta.rows = 3;
-	ta.placeholder = placeholder;
-	ta.value = initial;
-	wrap.appendChild( ta );
-	return {
-		root: wrap,
-		getValue: () => ta.value.trim(),
-		focus: () => ta.focus(),
-	};
+async function moderate(
+	ctx: Ctx,
+	id: number,
+	action: BulkAction,
+	button?: HTMLElement,
+): Promise< void > {
+	const prompt = DESTRUCTIVE[ action ];
+	if ( prompt && ! ( await wpdConfirm( { ...prompt, danger: true } ) ) ) {
+		return;
+	}
+	button?.setAttribute( 'busy', '' );
+	button?.setAttribute( 'disabled', '' );
+	setRailBusy( ctx, true );
+	try {
+		await bulkModerate( ctx.cfg, [ id ], action );
+		ctx.announce( actionResultLabel( action ) );
+		// Thread and rail are independent reads — no reason to serialize
+		// them behind one another.
+		await Promise.all( [ ctx.reloadConvo(), ctx.reloadRail() ] );
+		void refreshCounts( ctx );
+	} catch {
+		toast( __( 'Action failed.' ) );
+		button?.removeAttribute( 'busy' );
+		button?.removeAttribute( 'disabled' );
+	} finally {
+		setRailBusy( ctx, false );
+	}
 }
 
 function composer( ctx: Ctx, target: CommentRow ): HTMLElement {
@@ -637,37 +1083,70 @@ function composer( ctx: Ctx, target: CommentRow ): HTMLElement {
 	box.className = `${ NS }__composer`;
 	box.dataset.target = String( target.id );
 
+	if ( ! ctx.cfg.canModerate ) {
+		// Nothing to compose with — the reply route would reject it.
+		box.classList.add( 'is-empty' );
+		return box;
+	}
+
 	const to = document.createElement( 'div' );
 	to.className = `${ NS }__composer-to`;
 	const b = document.createElement( 'b' );
 	b.textContent = target.author_name || __( 'Anonymous' );
 	to.append( document.createTextNode( __( 'Replying to' ) + ' ' ), b );
 
-	const editor = mountEditor( __( 'Write a reply…' ) );
-
-	const row = document.createElement( 'div' );
-	row.className = `${ NS }__composer-row`;
 	const send = document.createElement( 'wpd-button' );
 	send.setAttribute( 'variant', 'primary' );
 	send.textContent = __( 'Send reply' );
-	send.addEventListener( 'click', async () => {
+
+	const submit = async (): Promise< void > => {
+		if ( send.hasAttribute( 'disabled' ) ) {
+			return;
+		}
 		const value = editor.getValue();
 		if ( ! value ) {
 			toast( __( 'Reply is empty.' ) );
 			return;
 		}
 		send.setAttribute( 'disabled', '' );
+		send.setAttribute( 'busy', '' );
+		editor.setDisabled( true );
 		try {
 			const targetId = Number( box.dataset.target ) || target.id;
 			await postReply( ctx.cfg, targetId, value );
-			await ctx.reloadConvo();
-			await ctx.reloadRail();
+			editor.setValue( '' );
+			ctx.announce( __( 'Reply sent.' ) );
+			await Promise.all( [ ctx.reloadConvo(), ctx.reloadRail() ] );
+			void refreshCounts( ctx );
 		} catch {
 			toast( __( 'Reply failed.' ) );
+		} finally {
+			// Always restore the control. The success path usually
+			// replaces this whole composer, but `renderConvo`'s race
+			// guard can bail out (the user picked another thread mid
+			// flight) and leave this one on screen — permanently
+			// disabled if the reset lived on the error path alone.
 			send.removeAttribute( 'disabled' );
+			send.removeAttribute( 'busy' );
+			editor.setDisabled( false );
 		}
+	};
+
+	const editor = mountEditor( {
+		placeholder: __( 'Write a reply…' ),
+		ariaLabel: __( 'Reply' ),
+		submitOnEnter: true,
+		onSubmit: () => void submit(),
 	} );
-	row.appendChild( send );
+
+	send.addEventListener( 'click', () => void submit() );
+
+	const row = document.createElement( 'div' );
+	row.className = `${ NS }__composer-row`;
+	const hint = document.createElement( 'span' );
+	hint.className = `${ NS }__composer-hint`;
+	hint.textContent = __( 'Enter to send · Shift+Enter for a new line' );
+	row.append( hint, send );
 
 	box.append( to, editor.root, row );
 	// Retarget helper: the per-message Reply button repoints this composer.
@@ -698,16 +1177,33 @@ function openInlineEdit( ctx: Ctx, row: CommentRow ): void {
 	);
 	const text = msg?.querySelector< HTMLElement >( `.${ NS }__msg-text` );
 	const actions = msg?.querySelector< HTMLElement >( `.${ NS }__msg-actions` );
-	if ( ! text || ! actions ) {
+	if ( ! text || ! actions || ! msg ) {
 		return;
 	}
+	// Re-entrancy guard: a second Edit click used to stack a second
+	// editor and a second button bar onto the same message, and Cancel
+	// only ever tore one of them down. The `:scope >` chain keeps this
+	// from matching an editor open on a NESTED reply.
+	if ( msg.querySelector( `:scope > .${ NS }__msg-body > .${ NS }__edit-bar` ) ) {
+		type FocusableEditor = HTMLElement & { focusInput?: () => void };
+		const selector = `:scope > .${ NS }__msg-body > .${ NS }__reply-input`;
+		const open = msg.querySelector< FocusableEditor >( selector );
+		open?.focusInput?.();
+		return;
+	}
+
 	const seed = row.content?.raw ?? decodeHTML( ( row.content?.rendered ?? '' ).replace( /<[^>]*>/g, '' ) );
-	const editor = mountEditor( __( 'Edit comment…' ), seed );
+	const editor = mountEditor( {
+		placeholder: __( 'Edit comment…' ),
+		ariaLabel: __( 'Comment text' ),
+		initial: seed,
+		rows: 4,
+	} );
 	text.hidden = true;
 	actions.hidden = true;
 
 	const bar = document.createElement( 'div' );
-	bar.className = `${ NS }__composer-row`;
+	bar.className = `${ NS }__composer-row ${ NS }__edit-bar`;
 	const cancel = document.createElement( 'wpd-button' );
 	cancel.setAttribute( 'variant', 'ghost' );
 	cancel.textContent = __( 'Cancel' );
@@ -723,18 +1219,30 @@ function openInlineEdit( ctx: Ctx, row: CommentRow ): void {
 	};
 	cancel.addEventListener( 'click', teardown );
 	save.addEventListener( 'click', async () => {
+		if ( save.hasAttribute( 'disabled' ) ) {
+			return;
+		}
 		const value = editor.getValue();
 		if ( ! value ) {
+			toast( __( 'A comment cannot be empty.' ) );
 			return;
 		}
 		save.setAttribute( 'disabled', '' );
+		save.setAttribute( 'busy', '' );
+		editor.setDisabled( true );
 		try {
 			await updateCommentContent( ctx.cfg, row.id, value );
-			await ctx.reloadConvo();
-			await ctx.reloadRail();
+			ctx.announce( __( 'Comment updated.' ) );
+			await Promise.all( [ ctx.reloadConvo(), ctx.reloadRail() ] );
 		} catch {
 			toast( __( 'Edit failed.' ) );
+		} finally {
+			// Same reasoning as the composer: the redraw normally
+			// disposes of this bar, but it must not be able to strand
+			// the user with dead controls when it doesn't.
 			save.removeAttribute( 'disabled' );
+			save.removeAttribute( 'busy' );
+			editor.setDisabled( false );
 		}
 	} );
 	bar.append( cancel, save );
@@ -749,9 +1257,10 @@ function openInlineEdit( ctx: Ctx, row: CommentRow ): void {
 export async function renderConversation( body: HTMLElement ): Promise< void > {
 	const cfg = readConfig();
 	if ( ! cfg ) {
-		body.innerHTML = `<p class="${ NS }__fatal">${ __(
-			'Comments window configuration missing.',
-		) }</p>`;
+		const fatal = document.createElement( 'p' );
+		fatal.className = `${ NS }__fatal`;
+		fatal.textContent = __( 'Comments window configuration missing.' );
+		body.replaceChildren( fatal );
 		return;
 	}
 	setActiveWindowId( 'desktop-mode-comments' );
@@ -759,11 +1268,12 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 
 	const listEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-list]' );
 	const convoEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-convo]' );
-	const tabrowEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-tabs]' );
-	if ( ! listEl || ! convoEl || ! tabrowEl ) {
+	const tabsEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-tabs]' );
+	if ( ! listEl || ! convoEl || ! tabsEl ) {
 		return;
 	}
 	const searchEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-search]' );
+	const statusEl = body.querySelector< HTMLElement >( '[data-desktop-mode-comments-status]' );
 
 	// A pending `edit-comments.php?p=<id>` open scopes the rail to that
 	// post; a filtered open starts on "All" so the post's whole thread is
@@ -774,14 +1284,23 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		cfg,
 		listEl,
 		convoEl,
+		tabsEl,
+		statusEl,
 		tab: initialFilter > 0 ? 'all' : 'pending',
 		search: '',
 		threads: [],
 		selectedId: null,
 		postFilter: initialFilter,
+		page: 1,
+		totalPages: 1,
 		railSeq: 0,
 		announceIdentity: ( postId: number ) =>
 			announcePostIdentity( body, postId, ctx.threads[ 0 ]?.desktop_mode_post_title ),
+		announce: ( message: string ) => {
+			if ( statusEl ) {
+				statusEl.textContent = message;
+			}
+		},
 		reloadRail: async () => loadRail( ctx, { silent: true } ),
 		reloadConvo: async () => {
 			const sel = ctx.threads.find( ( r ) => r.id === ctx.selectedId );
@@ -791,18 +1310,19 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		},
 	};
 
-	// Tabs — sync the active chip to ctx.tab (a filtered open starts on All).
-	setActiveTab( tabrowEl, ctx.tab );
-	tabrowEl.querySelectorAll< HTMLElement >( `.${ NS }__tab` ).forEach( ( tabEl ) => {
-		tabEl.addEventListener( 'click', () => {
-			const next = ( tabEl.dataset.tab || 'pending' ) as CommentTab;
-			if ( next === ctx.tab ) {
-				return;
-			}
-			ctx.tab = next;
-			setActiveTab( tabrowEl, next );
-			void loadRail( ctx );
-		} );
+	showPlaceholder( ctx );
+
+	// Tabs — `<wpd-tabs>` owns aria-selected + roving tabindex; we only
+	// set the initial value (a filtered open starts on All) and listen.
+	setActiveTab( tabsEl, ctx.tab );
+	tabsEl.addEventListener( 'wpd-tab-change', ( e ) => {
+		const next = ( ( e as CustomEvent< { value: string } > ).detail?.value ||
+			'pending' ) as CommentTab;
+		if ( next === ctx.tab ) {
+			return;
+		}
+		ctx.tab = next;
+		void loadRail( ctx );
 	} );
 
 	// Search (debounced)
@@ -833,7 +1353,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		ctx.postFilter = next;
 		if ( next > 0 ) {
 			ctx.tab = 'all';
-			setActiveTab( tabrowEl, 'all' );
+			setActiveTab( tabsEl, 'all' );
 		}
 		void loadRail( ctx ).then( () => ctx.announceIdentity( ctx.postFilter ) );
 	} );
@@ -846,12 +1366,16 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		?.id.slice( 'wp-window-'.length );
 	const onWindowClosed = ( e: Event ): void => {
 		if ( ( e as CustomEvent ).detail?.windowId === myWindowId ) {
+			if ( searchTimer ) {
+				window.clearTimeout( searchTimer );
+			}
 			unsubscribe();
 			document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
 		}
 	};
 	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
 
+	void refreshCounts( ctx );
 	await loadRail( ctx );
 
 	// Scoped to a post → announce identity so the connection spline to

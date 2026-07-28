@@ -3,9 +3,10 @@
  * Desktop Mode — Native Comments Window: registration, template, REST fields.
  *
  * Mirrors the structure of the Users/Posts windows adapted for the
- * comment collection — `/wp/v2/comments` rather than `/wp/v2/posts`,
- * a Pending/All/Spam/Trash/Mine tab set, an in-row Reply editor, an
- * Author insights drawer, and a per-row spam confidence score.
+ * comment collection — `/wp/v2/comments` rather than `/wp/v2/posts`.
+ * The surface is a two-pane conversation view: a Pending/All/Spam/
+ * Trash/Mine tab set over a rail of conversations, and the selected
+ * thread's full nested reply chain with a docked composer.
  *
  * @package WPDesktopMode
  */
@@ -16,18 +17,27 @@ defined( 'ABSPATH' ) || exit;
  * Echoes the native Comments window's template body.
  */
 function desktop_mode_comments_window_render_template() {
-	$can_moderate = current_user_can( 'moderate_comments' );
 	ob_start();
 	?>
 	<div class="desktop-mode-comments desktop-mode-comments--conversation" data-desktop-mode-comments-root>
-		<?php /* Tab row filters the thread rail (Pending / All / Spam / Trash / Mine). */ ?>
-		<div class="desktop-mode-comments__tabrow" role="tablist" data-desktop-mode-comments-tabs>
-			<button type="button" role="tab" class="desktop-mode-comments__tab is-active" data-tab="pending"><?php esc_html_e( 'Pending', 'desktop-mode' ); ?></button>
-			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="all"><?php esc_html_e( 'All', 'desktop-mode' ); ?></button>
-			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="spam"><?php esc_html_e( 'Spam', 'desktop-mode' ); ?></button>
-			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="trash"><?php esc_html_e( 'Trash', 'desktop-mode' ); ?></button>
-			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="mine"><?php esc_html_e( 'Mine', 'desktop-mode' ); ?></button>
-		</div>
+		<?php
+		/*
+		 * Tab strip filters the thread rail (Pending / All / Spam /
+		 * Trash / Mine). `<wpd-tabs>` owns roving `tabindex` and the
+		 * `aria-selected` mirror; the bundle only listens for
+		 * `wpd-tab-change`. There are no `<wpd-tabpanel>` siblings —
+		 * one pane is repainted in place rather than swapped.
+		 */
+		?>
+		<wpd-tabs class="desktop-mode-comments__tabrow" value="pending"
+			label="<?php esc_attr_e( 'Comment status', 'desktop-mode' ); ?>"
+			data-desktop-mode-comments-tabs>
+			<wpd-tab value="pending"><?php esc_html_e( 'Pending', 'desktop-mode' ); ?></wpd-tab>
+			<wpd-tab value="all"><?php esc_html_e( 'All', 'desktop-mode' ); ?></wpd-tab>
+			<wpd-tab value="spam"><?php esc_html_e( 'Spam', 'desktop-mode' ); ?></wpd-tab>
+			<wpd-tab value="trash"><?php esc_html_e( 'Trash', 'desktop-mode' ); ?></wpd-tab>
+			<wpd-tab value="mine"><?php esc_html_e( 'Mine', 'desktop-mode' ); ?></wpd-tab>
+		</wpd-tabs>
 
 		<div class="desktop-mode-comments__split">
 			<?php /* Left rail: search + list of conversations (top-level comments). */ ?>
@@ -36,51 +46,27 @@ function desktop_mode_comments_window_render_template() {
 					<wpd-text-field data-desktop-mode-comments-search
 						placeholder="<?php esc_attr_e( 'Search comments…', 'desktop-mode' ); ?>"></wpd-text-field>
 				</div>
-				<div class="desktop-mode-comments__list" role="listbox"
+				<div class="desktop-mode-comments__list" role="list"
 					aria-label="<?php esc_attr_e( 'Conversations', 'desktop-mode' ); ?>"
 					data-desktop-mode-comments-list></div>
 			</aside>
 
-			<?php /* Right pane: the selected conversation thread + composer. */ ?>
-			<section class="desktop-mode-comments__convo" aria-live="polite"
-				data-desktop-mode-comments-convo>
-				<div class="desktop-mode-comments__placeholder" data-desktop-mode-comments-placeholder>
-					<span class="dashicons dashicons-format-chat" aria-hidden="true"></span>
-					<p><?php esc_html_e( 'Select a conversation to read and reply.', 'desktop-mode' ); ?></p>
-				</div>
-			</section>
+			<?php
+			/*
+			 * Right pane: the selected conversation thread + composer.
+			 * Deliberately NOT a live region — the whole pane is
+			 * replaced on every selection and after every moderation
+			 * action, so announcing it would read the entire thread
+			 * aloud each time. The small status node below carries the
+			 * announcements instead.
+			 */
+			?>
+			<section class="desktop-mode-comments__convo" data-desktop-mode-comments-convo></section>
 		</div>
 
-		<?php /* Author insights flyover — content + open state owned JS-side.
-		         Lives in the DOM permanently so its slide-in transition
-		         has something to animate from. The `data-open` attribute
-		         drives both the backdrop fade and the panel slide. */ ?>
-		<div class="desktop-mode-comments__drawer-backdrop" data-desktop-mode-comments-drawer-backdrop></div>
-		<aside class="desktop-mode-comments__drawer" data-desktop-mode-comments-drawer
-			role="complementary" aria-label="<?php esc_attr_e( 'Author insights', 'desktop-mode' ); ?>"
-			aria-hidden="true">
-		</aside>
-
-		<?php if ( $can_moderate ) : ?>
-		<div class="desktop-mode-comments__shortcuts" data-desktop-mode-comments-help hidden role="dialog"
-			aria-modal="true" aria-labelledby="desktop-mode-comments-help-title">
-			<h2 id="desktop-mode-comments-help-title"><?php esc_html_e( 'Keyboard moderation', 'desktop-mode' ); ?></h2>
-			<dl>
-				<dt>j</dt><dd><?php esc_html_e( 'Next comment', 'desktop-mode' ); ?></dd>
-				<dt>k</dt><dd><?php esc_html_e( 'Previous comment', 'desktop-mode' ); ?></dd>
-				<dt>a</dt><dd><?php esc_html_e( 'Approve / unapprove', 'desktop-mode' ); ?></dd>
-				<dt>s</dt><dd><?php esc_html_e( 'Mark as spam', 'desktop-mode' ); ?></dd>
-				<dt>d</dt><dd><?php esc_html_e( 'Move to trash', 'desktop-mode' ); ?></dd>
-				<dt>r</dt><dd><?php esc_html_e( 'Reply inline', 'desktop-mode' ); ?></dd>
-				<dt>e</dt><dd><?php esc_html_e( 'Edit comment', 'desktop-mode' ); ?></dd>
-				<dt>u</dt><dd><?php esc_html_e( 'Undo last action', 'desktop-mode' ); ?></dd>
-				<dt>?</dt><dd><?php esc_html_e( 'Toggle this help', 'desktop-mode' ); ?></dd>
-			</dl>
-			<wpd-button data-desktop-mode-comments-help-close>
-				<?php esc_html_e( 'Close', 'desktop-mode' ); ?>
-			</wpd-button>
-		</div>
-		<?php endif; ?>
+		<?php /* Single polite live region for action results ("Approved", "Reply sent"). */ ?>
+		<div class="desktop-mode-comments__status screen-reader-text" role="status" aria-live="polite"
+			data-desktop-mode-comments-status></div>
 	</div>
 	<?php
 	$html = (string) ob_get_clean();
@@ -202,12 +188,23 @@ function desktop_mode_comments_window_default_query_args() {
 	// edit.
 	$context = current_user_can( 'moderate_comments' ) ? 'edit' : 'view';
 	$args = array(
+		/*
+		 * Exactly the fields the conversation view renders — no more.
+		 * Every `desktop_mode_*` field is a computed REST field, and
+		 * `desktop_mode_replies_count` runs its own `get_comments()`
+		 * COUNT per row, so an over-broad `_fields` is a per-row query
+		 * multiplier. The scoring fields (`spam_score`, `link_count`,
+		 * `akismet`, `ai_verdict`) are NOT requested here: nothing in
+		 * the conversation UI reads them, and computing them costs a
+		 * meta read (or worse) per row. Re-add them via the filter
+		 * below if a plugin surfaces them.
+		 */
 		'_fields'  =>
-			'id,post,parent,author,author_name,author_email,author_url,author_avatar_urls,'
-			. 'date,date_gmt,content,link,status,type,'
-			. 'desktop_mode_post_title,desktop_mode_post_link,desktop_mode_spam_score,'
-			. 'desktop_mode_link_count,desktop_mode_can_edit,desktop_mode_can_moderate,'
-			. 'desktop_mode_replies_count,desktop_mode_akismet,desktop_mode_ai_verdict',
+			'id,post,parent,author,author_name,author_avatar_urls,'
+			. 'date_gmt,content,status,'
+			. 'desktop_mode_post_title,desktop_mode_post_link,'
+			. 'desktop_mode_can_edit,desktop_mode_can_moderate,'
+			. 'desktop_mode_replies_count',
 		'context'  => $context,
 		'per_page' => 20,
 		// 'hold' = pending. Use the wp/v2 status names where they differ

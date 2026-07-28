@@ -767,7 +767,7 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						></wpd-checkbox-label>
 						<p class="desktop-mode-features__hint">
 							${ __(
-								'Beta — off by default. Turn on for a redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo).',
+								'Beta — off by default. Turn on for a native two-pane Comments window: a rail of conversations filtered by Pending / All / Spam / Trash / Mine, and the selected thread’s full nested reply chain beside it. Every message carries Reply, Edit, Approve, Spam and Trash inline, with a docked composer that repoints to whichever message you answer. Opening “Comments” on a post scopes the window to that post.',
 							) }
 						</p>
 					</div>
