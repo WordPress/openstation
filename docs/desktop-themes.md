@@ -361,24 +361,6 @@ node hues, the About scene. Retinting those would destroy the signal
 they carry. The same applies to their typography — the sticky note's
 handwriting face and the Inkfall serif are part of the artwork.
 
-### Tokens an OS Settings control also writes
-
-A few tokens are also written by a picker in OS Settings — most
-notably `--desktop-mode-window-radius` (Appearance → Window corners)
-and `--wp-admin-theme-color` (Appearance → Accent).
-
-**Your token wins.** The compiled stylesheet's rule matches the shell
-root directly, while a preset is an inline style on `:root` that only
-reaches windows by inheritance. Pinning the corner radius your frame
-artwork was cut for is a legitimate thing to do, and it holds for as
-long as your theme is worn.
-
-The cost is that the matching control can no longer do anything, so
-the shell says so rather than leaving a dead picker: Window corners
-disables itself and names your theme, with a pointer to switch back to
-System default. Take a token like this on purpose, not by copying a
-palette wholesale — every one you claim is a control you take away.
-
 ---
 
 ## Fonts

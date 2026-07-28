@@ -42,60 +42,6 @@ describe( '<wpd-segmented> + <wpd-segment>', () => {
 		expect( compact.getAttribute( 'aria-checked' ) ).toBe( 'true' );
 	} );
 
-	test( 'disabled swallows the pick and leaves value untouched', async () => {
-		// CSS blocks the pointer, but a segment is still reachable by
-		// keyboard and by a synthetic click. A group that moved its own
-		// value while claiming to be disabled would be exactly the lie
-		// the prop exists to stop telling.
-		host.innerHTML = `
-			<wpd-segmented value="default" label="Window corners" disabled>
-				<wpd-segment value="sharp">Sharp</wpd-segment>
-				<wpd-segment value="default">Default</wpd-segment>
-			</wpd-segmented>
-		`;
-		await tick();
-		await tick();
-
-		const group = host.querySelector( 'wpd-segmented' )!;
-		expect( group.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
-
-		let heard: string | null = null;
-		group.addEventListener( 'wpd-pick', ( e ) => {
-			heard = ( e as CustomEvent ).detail.value;
-		} );
-		host
-			.querySelector( 'wpd-segment[value="sharp"]' )!
-			.shadowRoot!.querySelector( 'button' )!
-			.click();
-		await tick();
-		await tick();
-
-		expect( heard ).toBeNull();
-		expect( group.getAttribute( 'value' ) ).toBe( 'default' );
-	} );
-
-	test( 'removing disabled restores picking', async () => {
-		host.innerHTML = `
-			<wpd-segmented value="default" disabled>
-				<wpd-segment value="sharp">Sharp</wpd-segment>
-				<wpd-segment value="default">Default</wpd-segment>
-			</wpd-segmented>
-		`;
-		await tick();
-		const group = host.querySelector( 'wpd-segmented' )!;
-		group.removeAttribute( 'disabled' );
-		await tick();
-		await tick();
-
-		expect( group.getAttribute( 'aria-disabled' ) ).toBe( 'false' );
-		host
-			.querySelector( 'wpd-segment[value="sharp"]' )!
-			.shadowRoot!.querySelector( 'button' )!
-			.click();
-		await tick();
-		expect( group.getAttribute( 'value' ) ).toBe( 'sharp' );
-	} );
-
 	test( '.items setter replaces children and mirrors aria-checked', async () => {
 		host.innerHTML = `<wpd-segmented value="km" label="Unit"></wpd-segmented>`;
 		await tick();

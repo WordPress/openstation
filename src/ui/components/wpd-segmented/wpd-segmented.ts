@@ -60,7 +60,7 @@ export class WpdSegment extends Component {
 defineComponent( 'wpd-segment', WpdSegment );
 
 export class WpdSegmented extends Component {
-	static props = [ 'value', 'label', 'disabled' ] as const;
+	static props = [ 'value', 'label' ] as const;
 	static styles = [ segmentedStyles ];
 
 	static help = {
@@ -79,12 +79,6 @@ export class WpdSegmented extends Component {
 				name: 'label',
 				type: 'string',
 				description: 'aria-label for the radiogroup.',
-			},
-			{
-				name: 'disabled',
-				type: 'boolean',
-				description:
-					'Dims the group and swallows picks. Use when something else currently owns the value (a desktop theme pinning the token the control writes, say) so the control states the fact instead of silently doing nothing.',
 			},
 		],
 		slots: [
@@ -120,15 +114,6 @@ export class WpdSegmented extends Component {
 		this.addEventListener( 'wpd-segment-pick', ( e: Event ) => {
 			const detail = ( e as CustomEvent ).detail as { value: string };
 			e.stopPropagation();
-			// Disabled swallows the pick without moving `value`. CSS
-			// already blocks the pointer, but a segment is still
-			// reachable by keyboard and by a synthetic click, and a
-			// group that silently changed its own value while claiming
-			// to be disabled would be the very lie this prop exists to
-			// stop telling.
-			if ( this._isDisabled() ) {
-				return;
-			}
 			( this as unknown as { value: string } ).value = detail.value;
 			this.emit( 'wpd-pick', { value: detail.value } );
 		} );
@@ -175,23 +160,12 @@ export class WpdSegmented extends Component {
 		}
 	}
 
-	/** Whether the group is currently refusing picks. */
-	private _isDisabled(): boolean {
-		return (
-			( this as unknown as { disabled: string | null } ).disabled !== null
-		);
-	}
-
 	protected render() {
 		const label = ( this as unknown as { label: string | null } ).label || '';
 		if ( label ) {
 			this.setAttribute( 'aria-label', label );
 		}
 		this.setAttribute( 'role', 'radiogroup' );
-		this.setAttribute(
-			'aria-disabled',
-			this._isDisabled() ? 'true' : 'false',
-		);
 		// Mirror the current `value` onto each child segment via
 		// aria-checked. Children live in LIGHT DOM (caller places
 		// them inside the tag), so we reach them via a simple
