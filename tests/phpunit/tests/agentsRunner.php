@@ -251,6 +251,103 @@ class Tests_DesktopMode_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	/**
+	 * History flattens to a single user-message text: the original
+	 * request plus a tool transcript. No functionCall replay means no
+	 * provider signature requirements (Gemini `thought_signature`,
+	 * Anthropic thinking signatures).
+	 *
+	 * @covers ::desktop_mode_agent_runner_compose_prompt
+	 */
+	public function test_compose_prompt_flattens_history() {
+		$bare = desktop_mode_agent_runner_compose_prompt(
+			array(
+				array(
+					'type' => 'user_text',
+					'text' => 'Audit post 7.',
+				),
+			)
+		);
+		$this->assertSame( 'Audit post 7.', $bare );
+
+		$with_tools = desktop_mode_agent_runner_compose_prompt(
+			array(
+				array(
+					'type' => 'user_text',
+					'text' => 'Audit post 7.',
+				),
+				array(
+					'type'    => 'assistant',
+					'message' => null,
+				),
+				array(
+					'type'    => 'tool_results',
+					'results' => array(
+						array(
+							'call_id'  => 'c1',
+							'name'     => 'get_post',
+							'args'     => array( 'post_id' => 7 ),
+							'response' => array( 'title' => 'Hello' ),
+						),
+					),
+				),
+			)
+		);
+
+		$this->assertStringStartsWith( 'Audit post 7.', $with_tools );
+		$this->assertStringContainsString( 'get_post({"post_id":7})', $with_tools );
+		$this->assertStringContainsString( '{"title":"Hello"}', $with_tools );
+		$this->assertStringContainsString( 'do not repeat an identical call', $with_tools );
+	}
+
+	/**
+	 * The second generate turn sees the executed call (with args) in
+	 * the neutral history the transcript is built from.
+	 *
+	 * @covers ::desktop_mode_agent_runner_loop
+	 */
+	public function test_tool_results_rows_carry_args() {
+		$agent     = $this->create_agent();
+		$turn      = 0;
+		$histories = array();
+		$this->stub_generate(
+			static function ( $ignored, $history ) use ( &$turn, &$histories ) {
+				++$turn;
+				$histories[] = $history;
+				if ( 1 === $turn ) {
+					return array(
+						'text'           => null,
+						'function_calls' => array(
+							array(
+								'name'      => 'missing_tool',
+								'call_id'   => 'c1',
+								'arguments' => '{"x":1}',
+							),
+						),
+						'message'        => null,
+					);
+				}
+				return array(
+					'text'           => 'done',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		desktop_mode_agent_invoke( $agent->ID, 'go' );
+
+		$this->assertCount( 2, $histories );
+		$second = $histories[1];
+		$rows   = wp_list_pluck( $second, 'type' );
+		$this->assertContains( 'tool_results', $rows );
+		foreach ( $second as $row ) {
+			if ( 'tool_results' === $row['type'] ) {
+				$this->assertSame( array( 'x' => 1 ), $row['results'][0]['args'] );
+			}
+		}
+	}
+
+	/**
 	 * @covers ::desktop_mode_agent_runner_check_rate_limit
 	 */
 	public function test_rate_limit_blocks_after_cap() {

@@ -12,9 +12,10 @@
  *      AI Copilot's adapter over `wp_ai_client_prompt()`) with the
  *      agent's instructions as the system instruction.
  *   4. Loops: for every function call in the response, execute the
- *      matching `WP_Ability` (permission check + `execute()`), feed
- *      the output back, generate again. Stops when the model emits no
- *      further function calls, or at the turn cap.
+ *      matching `WP_Ability` (permission check + `execute()`), fold
+ *      the call + result into a text transcript, generate again.
+ *      Stops when the model emits no further function calls, or at
+ *      the turn cap.
  *
  * The whole tool loop runs with the CURRENT USER SWITCHED TO THE
  * AGENT, so every ability's `permission_callback` evaluates against
@@ -27,6 +28,18 @@
  * `desktop_mode_agent_runner_generate` pre-filter can service a turn
  * without the WordPress 7.0 AI Client being present (PHPUnit, or an
  * alternative runtime shipped by a plugin).
+ *
+ * DELIBERATE: assistant function-call turns are never replayed to the
+ * provider. Each generate turn sends ONE user message — the original
+ * request plus a transcript of the tool calls already executed and
+ * their results ({@see desktop_mode_agent_runner_compose_prompt()}).
+ * Replaying `functionCall` message parts requires provider-specific
+ * cryptographic signatures (Gemini's `thought_signature`, Anthropic's
+ * thinking-block signature) that the current provider plugins do not
+ * round-trip, and one missing signature 400s the whole request. A
+ * text transcript carries the same information with no signature
+ * requirement and no call/response pairing constraints, on every
+ * provider.
  *
  * @package WPDesktopMode
  * @since   0.9.8
@@ -363,6 +376,7 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
 			$results[]    = array(
 				'call_id'  => $call_id,
 				'name'     => $name,
+				'args'     => $args,
 				'response' => is_wp_error( $output )
 					? array( 'error' => $output->get_error_message() )
 					: $output,
@@ -426,29 +440,66 @@ function desktop_mode_agent_runner_generate( $agent_user_id, array $history, arr
 		);
 	}
 
-	$messages = array();
+	// One user message per turn — original request + tool transcript.
+	// See the file-level docblock for why history is never replayed as
+	// functionCall/functionResponse message parts.
+	$messages = array(
+		desktop_mode_ai_user_text_message( desktop_mode_agent_runner_compose_prompt( $history ) ),
+	);
+
+	return desktop_mode_ai_client_generate( $agent_user_id, $messages, $tool_defs, null, (string) $instructions );
+}
+
+/**
+ * Flattens the neutral history rows into the single user-message text
+ * sent to the provider each turn: the original request, then a
+ * transcript of every tool call already executed with its JSON result.
+ *
+ * Pure string builder (no SDK types) so it is unit-testable without
+ * the AI Client.
+ *
+ * @since 0.9.8
+ *
+ * @param array $history Neutral history rows.
+ * @return string
+ */
+function desktop_mode_agent_runner_compose_prompt( array $history ) {
+	$base       = '';
+	$transcript = array();
+
 	foreach ( $history as $row ) {
 		if ( ! is_array( $row ) ) {
 			continue;
 		}
-		switch ( isset( $row['type'] ) ? $row['type'] : '' ) {
-			case 'user_text':
-				$messages[] = desktop_mode_ai_user_text_message( isset( $row['text'] ) ? (string) $row['text'] : '' );
-				break;
-			case 'assistant':
-				if ( isset( $row['message'] ) && null !== $row['message'] ) {
-					$messages[] = $row['message'];
-				}
-				break;
-			case 'tool_results':
-				$messages[] = desktop_mode_ai_tool_result_message(
-					isset( $row['results'] ) && is_array( $row['results'] ) ? $row['results'] : array()
-				);
-				break;
+		$type = isset( $row['type'] ) ? $row['type'] : '';
+		if ( 'user_text' === $type && '' === $base ) {
+			$base = isset( $row['text'] ) ? (string) $row['text'] : '';
+			continue;
+		}
+		if ( 'tool_results' !== $type || ! isset( $row['results'] ) || ! is_array( $row['results'] ) ) {
+			continue;
+		}
+		foreach ( $row['results'] as $result ) {
+			if ( ! is_array( $result ) ) {
+				continue;
+			}
+			$transcript[] = sprintf(
+				'- %s(%s) -> %s',
+				isset( $result['name'] ) ? (string) $result['name'] : '',
+				wp_json_encode( isset( $result['args'] ) ? $result['args'] : array() ),
+				wp_json_encode( isset( $result['response'] ) ? $result['response'] : null )
+			);
 		}
 	}
 
-	return desktop_mode_ai_client_generate( $agent_user_id, $messages, $tool_defs, null, (string) $instructions );
+	if ( empty( $transcript ) ) {
+		return $base;
+	}
+
+	return $base
+		. "\n\n"
+		. "Tool calls you already executed for this request, with their results. Use them — do not repeat an identical call:\n"
+		. implode( "\n", $transcript );
 }
 
 /**

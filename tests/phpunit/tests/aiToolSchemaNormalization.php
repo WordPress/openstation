@@ -187,4 +187,119 @@ class Tests_DesktopMode_AiToolSchemaNormalization extends WP_UnitTestCase {
 		$this->assertEquals( $once, $twice );
 		$this->assertSame( wp_json_encode( $once ), wp_json_encode( $twice ) );
 	}
+
+	/**
+	 * WordPress-only arg-schema keys (`sanitize_callback`,
+	 * `validate_callback`, `arg_options`) are stripped at every depth.
+	 * Strict providers reject any unknown field ("Invalid JSON payload
+	 * received. Unknown name \"sanitize_callback\"") and 400 the whole
+	 * request over one property.
+	 *
+	 * @covers ::desktop_mode_ai_strip_wp_schema_keys
+	 */
+	public function test_wp_callback_keys_are_stripped_recursively() {
+		$out = desktop_mode_ai_normalize_tool_schema( array(
+			'type'              => 'object',
+			'sanitize_callback' => 'sanitize_text_field',
+			'properties'        => array(
+				'title' => array(
+					'type'              => 'string',
+					'sanitize_callback' => 'sanitize_text_field',
+					'validate_callback' => 'rest_validate_request_arg',
+				),
+				'tags'  => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+					),
+				),
+				'meta'  => array(
+					'type'                 => 'object',
+					'arg_options'          => array( 'single' => true ),
+					'additionalProperties' => array(
+						'type'              => 'string',
+						'validate_callback' => 'rest_validate_request_arg',
+					),
+				),
+				'id'    => array(
+					'anyOf' => array(
+						array(
+							'type'              => 'integer',
+							'sanitize_callback' => 'absint',
+						),
+						array( 'type' => 'string' ),
+					),
+				),
+			),
+		) );
+
+		$this->assertStringNotContainsString( 'sanitize_callback', wp_json_encode( $out ) );
+		$this->assertStringNotContainsString( 'validate_callback', wp_json_encode( $out ) );
+		$this->assertStringNotContainsString( 'arg_options', wp_json_encode( $out ) );
+
+		// The real schema content survives, including the NESTED anyOf.
+		$this->assertSame( 'string', $out['properties']['title']['type'] );
+		$this->assertSame( 'string', $out['properties']['tags']['items']['type'] );
+		$this->assertSame( 'string', $out['properties']['meta']['additionalProperties']['type'] );
+		$this->assertSame( 'integer', $out['properties']['id']['anyOf'][0]['type'] );
+	}
+
+	/**
+	 * A property NAMED `sanitize_callback` is a legitimate property —
+	 * the walk is structure-aware, so only schema-level keys are
+	 * stripped, never property names.
+	 *
+	 * @covers ::desktop_mode_ai_strip_wp_schema_keys
+	 */
+	public function test_property_named_like_a_callback_key_is_preserved() {
+		$out = desktop_mode_ai_normalize_tool_schema( array(
+			'type'       => 'object',
+			'properties' => array(
+				'sanitize_callback' => array(
+					'type'              => 'string',
+					'sanitize_callback' => 'sanitize_text_field',
+				),
+			),
+		) );
+
+		$this->assertArrayHasKey( 'sanitize_callback', $out['properties'] );
+		$this->assertSame( 'string', $out['properties']['sanitize_callback']['type'] );
+		$this->assertArrayNotHasKey(
+			'sanitize_callback',
+			$out['properties']['sanitize_callback']
+		);
+	}
+
+	/**
+	 * Tuple-form `items` (a list of schemas) is cleaned per entry.
+	 *
+	 * @covers ::desktop_mode_ai_strip_wp_schema_keys
+	 */
+	public function test_tuple_items_are_cleaned_per_entry() {
+		$out = desktop_mode_ai_normalize_tool_schema( array(
+			'type'       => 'object',
+			'properties' => array(
+				'pair' => array(
+					'type'  => 'array',
+					'items' => array(
+						array(
+							'type'              => 'integer',
+							'sanitize_callback' => 'absint',
+						),
+						array(
+							'type'              => 'string',
+							'validate_callback' => 'rest_validate_request_arg',
+						),
+					),
+				),
+			),
+		) );
+
+		$items = $out['properties']['pair']['items'];
+		$this->assertSame( 'integer', $items[0]['type'] );
+		$this->assertSame( 'string', $items[1]['type'] );
+		$this->assertStringNotContainsString( 'sanitize_callback', wp_json_encode( $items ) );
+		$this->assertStringNotContainsString( 'validate_callback', wp_json_encode( $items ) );
+	}
 }
