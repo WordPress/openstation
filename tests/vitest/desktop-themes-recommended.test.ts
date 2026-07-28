@@ -196,6 +196,39 @@ describe( 'applyThemeRecommendations', () => {
 		expect( state.appliedThemeRecommendations ).toEqual( [ 'acme-neon' ] );
 	} );
 
+	test( 'seeds windowRadius — the corner preset a theme asks for', () => {
+		// The path that replaced pinning `--desktop-mode-window-radius`
+		// as a token: a token cannot beat the preset's inline write, a
+		// recommendation sets the preset itself.
+		seedLibrary( { windowRadius: 'round' } );
+		const state = structuredDefaults();
+
+		expect( applyThemeRecommendations( state, 'acme-neon' ) ).toEqual( {
+			windowRadius: 'round',
+		} );
+		expect( state.windowRadius ).toBe( 'round' );
+	} );
+
+	test( 'a theme already in the ledger does not pick up a NEW recommendation', () => {
+		// A theme update that adds a key reaches nobody who has already
+		// activated it — deliberate: re-seeding on update is exactly
+		// "the theme overwrote my settings again". The button is the
+		// way in.
+		seedLibrary( { dockSize: 'large' } );
+		const state = structuredDefaults();
+		applyThemeRecommendations( state, 'acme-neon' );
+
+		seedLibrary( { dockSize: 'large', windowRadius: 'round' } );
+		expect( applyThemeRecommendations( state, 'acme-neon' ) ).toEqual( {} );
+		expect( state.windowRadius ).toBe( 'default' );
+
+		// …and the button picks it up.
+		expect(
+			applyThemeRecommendations( state, 'acme-neon', { force: true } ),
+		).toEqual( { dockSize: 'large', windowRadius: 'round' } );
+		expect( state.windowRadius ).toBe( 'round' );
+	} );
+
 	test( 'does nothing the second time, even after the user changed things', () => {
 		// This is the whole promise: pick the theme, move the dock back
 		// to compact, re-pick the theme — compact stays.
