@@ -12,9 +12,17 @@
  *   <wpd-relative-time datetime="2026-04-28T13:00:00Z"></wpd-relative-time>
  *   → "5 minutes ago"
  *
- * Accepts ISO 8601 (`2026-04-28T13:00:00Z`) or MySQL-style
- * (`2026-04-28 13:00:00`) input; the latter is treated as UTC,
- * which matches WordPress's `*_gmt` columns.
+ * Accepts ISO 8601 (`2026-04-28T13:00:00Z`, `…+02:00`) or a value with
+ * no timezone designator at all — MySQL-style (`2026-04-28 13:00:00`)
+ * or bare ISO (`2026-04-28T13:00:00`). **Anything without a designator
+ * is read as UTC**, which is what WordPress's `*_gmt` columns and REST
+ * fields hand back.
+ *
+ * That rule matters when picking which field to pass. WordPress emits
+ * `date` (site timezone) and `date_gmt` (UTC) in the same shape, so the
+ * string alone cannot say which it is — pass the `*_gmt` variant. A
+ * site-local value handed to this component is read as UTC and will be
+ * wrong by the site's offset.
  *
  * The pointer tooltip (`title`) carries the absolute, locale-
  * formatted datetime so users can always reach the precise
@@ -67,11 +75,37 @@ function parseDatetime( raw: string | null ): Date | null {
 		const d = new Date( v );
 		return Number.isNaN( d.getTime() ) ? null : d;
 	};
-	if ( raw.includes( 'T' ) || raw.endsWith( 'Z' ) ) {
+	if ( hasTimezone( raw ) ) {
 		return tryDate( raw );
 	}
-	// MySQL "Y-m-d H:i:s" → ISO 8601 UTC.
+	// No designator → UTC, per this component's contract. Normalize the
+	// MySQL space separator to `T` on the way through.
 	return tryDate( raw.replace( ' ', 'T' ) + 'Z' );
+}
+
+/**
+ * Whether the string carries an explicit timezone designator.
+ *
+ * The check matters more than it looks. ECMAScript parses a date-time
+ * WITHOUT a designator as LOCAL time, and WordPress hands back two
+ * shapes that are identical apart from meaning:
+ *
+ *   date     → "2026-07-28T22:12:34"  (site timezone)
+ *   date_gmt → "2026-07-28T20:12:34"  (UTC)
+ *
+ * The old test was `raw.includes( 'T' )`, which took the presence of a
+ * `T` as proof the value was fully qualified and handed it to `Date`
+ * as-is — so every `*_gmt` value in ISO form was read as local and came
+ * out wrong by the viewer's offset (a comment an hour old reading "3
+ * hours ago" at UTC+2). Only a real designator counts now.
+ *
+ * Scoped to the time portion on purpose: the date part's own hyphens
+ * ("2026-07-28") are not offsets.
+ */
+function hasTimezone( raw: string ): boolean {
+	const sep = Math.max( raw.indexOf( 'T' ), raw.indexOf( ' ' ) );
+	const timePart = sep === -1 ? '' : raw.slice( sep + 1 );
+	return /(?:[Zz]|[+-]\d{2}:?\d{2})$/.test( timePart );
 }
 
 /** Lazily-built formatter — Intl objects are non-trivial to construct. */
@@ -191,9 +225,9 @@ export class WpdRelativeTime extends Component {
 		props: [
 			{
 				name: 'datetime',
-				type: 'ISO 8601 string OR MySQL-style "Y-m-d H:i:s" (treated as UTC)',
+				type: 'ISO 8601 string; a value with no timezone designator is read as UTC',
 				description:
-					'The moment the relative copy is anchored to. Accepts the format WordPress hands back from `*_gmt` columns directly.',
+					'The moment the relative copy is anchored to. Accepts what WordPress hands back from `*_gmt` columns directly. Pass the `*_gmt` variant — `date` and `date_gmt` share a shape but not a meaning, and a site-local value read as UTC is wrong by the site offset.',
 			},
 			{
 				name: 'compact',

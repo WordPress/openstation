@@ -46,6 +46,52 @@ describe( '<wpd-relative-time>', () => {
 		expect( text ).toMatch( /5/ );
 	} );
 
+	test( 'treats a bare ISO datetime (wp/v2 date_gmt) as UTC', async () => {
+		// Regression: the parser used to take the presence of a "T" as
+		// proof the value was fully qualified and hand it to Date
+		// as-is. ECMAScript reads an undesignated date-time as LOCAL,
+		// so every `*_gmt` field in ISO form came out wrong by the
+		// viewer's offset — an hour-old comment read "3 hours ago" at
+		// UTC+2. This is the exact shape wp/v2 returns.
+		const gmt = new Date( Date.now() - 60 * 60_000 )
+			.toISOString()
+			.slice( 0, 19 ); // "2026-07-28T22:12:34" — no Z.
+		host.innerHTML = `<wpd-relative-time datetime="${ gmt }"></wpd-relative-time>`;
+		await tick();
+		const time = host
+			.querySelector( 'wpd-relative-time' )!
+			.shadowRoot!.querySelector( 'time' )!;
+		// Round-trips to the same instant it was handed, regardless of
+		// the machine's timezone.
+		expect( time.getAttribute( 'datetime' ) ).toBe( gmt + '.000Z' );
+	} );
+
+	test( 'honours an explicit numeric offset', async () => {
+		host.innerHTML =
+			'<wpd-relative-time datetime="2026-04-28T15:00:00+02:00"></wpd-relative-time>';
+		await tick();
+		const time = host
+			.querySelector( 'wpd-relative-time' )!
+			.shadowRoot!.querySelector( 'time' )!;
+		expect( time.getAttribute( 'datetime' ) ).toBe(
+			'2026-04-28T13:00:00.000Z',
+		);
+	} );
+
+	test( 'a date-only value is not mistaken for an offset', async () => {
+		// The hyphens in "2026-04-28" must not read as a "-04:28"
+		// timezone offset.
+		host.innerHTML =
+			'<wpd-relative-time datetime="2026-04-28"></wpd-relative-time>';
+		await tick();
+		const time = host
+			.querySelector( 'wpd-relative-time' )!
+			.shadowRoot!.querySelector( 'time' )!;
+		expect( time.getAttribute( 'datetime' ) ).toBe(
+			'2026-04-28T00:00:00.000Z',
+		);
+	} );
+
 	test( 'compact renders a shorter string than the long form', async () => {
 		const stamp = mysqlMinutesAgo( 5 );
 		host.innerHTML =
