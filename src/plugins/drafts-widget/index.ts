@@ -63,6 +63,239 @@ async function trashDraft( id: number ): Promise< boolean > {
 	return res.ok;
 }
 
+interface DraftSuggestions {
+	titles: string[];
+	excerpt: string;
+	tags: string[];
+	categories: string[];
+	readiness: { summary: string; missing: string[] };
+}
+
+/** True when an AI provider is configured (Settings → Connectors). */
+function aiAvailable(): boolean {
+	const win = window as unknown as {
+		desktopModeConfig?: {
+			aiAssistant?: { providerConfigured?: boolean };
+		};
+	};
+	return win.desktopModeConfig?.aiAssistant?.providerConfigured === true;
+}
+
+async function fetchSuggestions( id: number ): Promise< DraftSuggestions > {
+	const res = await trackedFetch(
+		`${ restRoot() }/desktop-mode/v1/draft-suggestions`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify( { post_id: id } ),
+		},
+		{ source: 'desktop-mode/drafts' },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `HTTP ${ res.status }` );
+	}
+	return res.json() as Promise< DraftSuggestions >;
+}
+
+interface ApplyFields {
+	title?: string;
+	excerpt?: string;
+	tags?: string[];
+	categories?: string[];
+}
+
+/** Write a chosen suggestion straight onto the draft. */
+async function applyDraftField(
+	id: number,
+	fields: ApplyFields,
+): Promise< boolean > {
+	const res = await trackedFetch(
+		`${ restRoot() }/desktop-mode/v1/draft-apply`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			credentials: 'same-origin',
+			body: JSON.stringify( { post_id: id, ...fields } ),
+		},
+		{ source: 'desktop-mode/drafts' },
+	);
+	return res.ok;
+}
+
+function toast( message: string, type?: 'error' ): void {
+	desktopApi()?.showToast?.( type ? { message, type } : { message } );
+}
+
+/** Toggle the ✨ suggestions panel for a row (only one open at a time). */
+function toggleSuggestions( id: number, row: HTMLElement ): void {
+	const list = row.parentElement;
+	const next = row.nextElementSibling;
+	const wasOwnOpen =
+		!! next && next.classList.contains( 'dm-drafts__suggest' );
+	list?.querySelectorAll( '.dm-drafts__suggest' ).forEach( ( p ) =>
+		p.remove(),
+	);
+	if ( wasOwnOpen ) {
+		return; // second click closes it
+	}
+	const panel = document.createElement( 'div' );
+	panel.className = 'dm-drafts__suggest';
+	panel.textContent = __( 'Thinking…' );
+	row.after( panel );
+	void loadSuggestions( id, panel, row );
+}
+
+async function loadSuggestions(
+	id: number,
+	panel: HTMLElement,
+	row: HTMLElement,
+): Promise< void > {
+	try {
+		const data = await fetchSuggestions( id );
+		if ( panel.isConnected ) {
+			renderSuggestions( panel, data, id, row );
+		}
+	} catch {
+		if ( panel.isConnected ) {
+			panel.textContent = __( 'Could not get suggestions.' );
+		}
+	}
+}
+
+function renderSuggestions(
+	panel: HTMLElement,
+	data: DraftSuggestions,
+	id: number,
+	row: HTMLElement,
+): void {
+	panel.replaceChildren();
+
+	// Readiness check — read-only diagnosis at the top.
+	if ( data.readiness && ( data.readiness.summary || data.readiness.missing?.length ) ) {
+		const box = document.createElement( 'div' );
+		box.className = 'dm-drafts__readiness';
+		const label = document.createElement( 'div' );
+		label.className = 'dm-drafts__suggest-label';
+		label.textContent = __( 'Readiness' );
+		box.appendChild( label );
+		if ( data.readiness.summary ) {
+			const s = document.createElement( 'div' );
+			s.className = 'dm-drafts__readiness-summary';
+			s.textContent = data.readiness.summary;
+			box.appendChild( s );
+		}
+		if ( data.readiness.missing && data.readiness.missing.length > 0 ) {
+			const ul = document.createElement( 'ul' );
+			ul.className = 'dm-drafts__readiness-missing';
+			for ( const m of data.readiness.missing ) {
+				const li = document.createElement( 'li' );
+				li.textContent = m;
+				ul.appendChild( li );
+			}
+			box.appendChild( ul );
+		}
+		panel.appendChild( box );
+	}
+
+	const hint = document.createElement( 'div' );
+	hint.className = 'dm-drafts__suggest-hint';
+	hint.textContent = __( 'Tap a suggestion to apply it to the draft.' );
+	panel.appendChild( hint );
+
+	const group = ( label: string ): HTMLElement => {
+		const g = document.createElement( 'div' );
+		g.className = 'dm-drafts__suggest-group';
+		const h = document.createElement( 'div' );
+		h.className = 'dm-drafts__suggest-label';
+		h.textContent = label;
+		g.appendChild( h );
+		panel.appendChild( g );
+		return g;
+	};
+
+	// A suggestion button that applies itself on click.
+	const applyBtn = (
+		text: string,
+		cls: string,
+		fields: ApplyFields,
+		onOk?: () => void,
+	): HTMLButtonElement => {
+		const b = document.createElement( 'button' );
+		b.type = 'button';
+		b.className = cls;
+		b.textContent = text;
+		b.title = __( 'Apply to the draft' );
+		b.addEventListener( 'click', async () => {
+			b.disabled = true;
+			const ok = await applyDraftField( id, fields );
+			b.disabled = false;
+			if ( ok ) {
+				b.classList.add( 'is-applied' );
+				onOk?.();
+			} else {
+				toast( __( 'Could not apply the suggestion.' ), 'error' );
+			}
+		} );
+		return b;
+	};
+
+	if ( data.titles && data.titles.length > 0 ) {
+		const g = group( __( 'Title ideas' ) );
+		for ( const t of data.titles ) {
+			g.appendChild(
+				applyBtn( t, 'dm-drafts__suggest-item', { title: t }, () => {
+					const name = row.querySelector( '.dm-drafts__name' );
+					if ( name ) {
+						name.textContent = t;
+					}
+					toast( __( 'Title updated.' ) );
+				} ),
+			);
+		}
+	}
+	if ( data.excerpt ) {
+		const g = group( __( 'Excerpt' ) );
+		g.appendChild(
+			applyBtn(
+				data.excerpt,
+				'dm-drafts__suggest-item',
+				{ excerpt: data.excerpt },
+				() => toast( __( 'Excerpt updated.' ) ),
+			),
+		);
+	}
+	if ( data.tags && data.tags.length > 0 ) {
+		const g = group( __( 'Tags' ) );
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'dm-drafts__suggest-tags';
+		for ( const tag of data.tags ) {
+			wrap.appendChild(
+				applyBtn( tag, 'dm-drafts__suggest-tag', { tags: [ tag ] }, () =>
+					toast( __( 'Tag added.' ) ),
+				),
+			);
+		}
+		g.appendChild( wrap );
+	}
+	if ( data.categories && data.categories.length > 0 ) {
+		const g = group( __( 'Categories' ) );
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'dm-drafts__suggest-tags';
+		for ( const cat of data.categories ) {
+			wrap.appendChild(
+				applyBtn(
+					cat,
+					'dm-drafts__suggest-tag',
+					{ categories: [ cat ] },
+					() => toast( __( 'Category added.' ) ),
+				),
+			);
+		}
+		g.appendChild( wrap );
+	}
+}
+
 const WIDGET_ID = 'desktop-mode/drafts';
 const REFRESH_MS = 60_000;
 const LIMIT = 8;
@@ -230,6 +463,26 @@ function render(
 		} );
 
 		row.appendChild( link );
+		// ✨ AI suggestions — only when an AI provider is configured.
+		if ( aiAvailable() ) {
+			const spark = document.createElement( 'button' );
+			spark.type = 'button';
+			spark.className = 'dm-drafts__spark';
+			spark.title = __( 'Suggest title, excerpt & tags' );
+			spark.setAttribute(
+				'aria-label',
+				__( 'Suggest title, excerpt & tags' ),
+			);
+			const sicon = document.createElement( 'span' );
+			sicon.className = 'dashicons dashicons-lightbulb';
+			spark.appendChild( sicon );
+			spark.addEventListener( 'click', ( e ) => {
+				e.preventDefault();
+				e.stopPropagation();
+				toggleSuggestions( d.id, row );
+			} );
+			row.appendChild( spark );
+		}
 		row.appendChild( trash );
 		list.appendChild( row );
 	}
@@ -287,6 +540,12 @@ const mount = async (
 	let destroyed = false;
 	const refresh = async (): Promise< void > => {
 		if ( destroyed ) {
+			return;
+		}
+		// Don't rebuild the list while an AI suggestions panel is open —
+		// the round-trip takes a few seconds and a poll/blur refresh would
+		// otherwise wipe the panel out from under the user.
+		if ( container.querySelector( '.dm-drafts__suggest' ) ) {
 			return;
 		}
 		try {
