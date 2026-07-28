@@ -75,6 +75,7 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		$this->assertContains( 'posts', $ids );
 		$this->assertContains( 'pages', $ids );
 		$this->assertContains( 'users', $ids );
+		$this->assertContains( 'media', $ids );
 
 		// Users entity declares `kind: 'user'` so the bundle picks
 		// the user-shaped render path.
@@ -85,7 +86,14 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		$this->assertSame( 'user', $by_id['users']['kind'] );
 		$this->assertSame( 'post', $by_id['posts']['kind'] );
 		$this->assertSame( 'post', $by_id['pages']['kind'] );
+		$this->assertSame( 'media', $by_id['media']['kind'] );
 		$this->assertSame( 'wp/v2/users', $by_id['users']['restPath'] );
+
+		// Post type mapping for cross-window sync
+		$this->assertSame( 'post', $by_id['posts']['post_type'] );
+		$this->assertSame( 'page', $by_id['pages']['post_type'] );
+		$this->assertSame( 'attachment', $by_id['media']['post_type'] );
+		$this->assertArrayNotHasKey( 'post_type', $by_id['users'] );
 	}
 
 	/**
