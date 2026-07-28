@@ -153,6 +153,13 @@ export class WindowManager {
 	private cascadeIndex = 0;
 
 	/**
+	 * Config staged by {@link seedWindowRestoreState}, keyed by window
+	 * id and consumed by the first `createWindow` that claims each id.
+	 * Empty outside of session restore.
+	 */
+	private _pendingRestoreState = new Map< string, Partial< WindowConfig > >();
+
+	/**
 	 * Virtual desktops ("Spaces"). Always at least one entry — the
 	 * shell can't function with no desktops. Order in the array maps
 	 * to left-to-right order in the overview top bar; new desktops
@@ -637,6 +644,17 @@ export class WindowManager {
 	private async createWindow(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string; baseId?: string },
 	): Promise< Window > {
+		// Apply (and consume) anything session restore staged for this
+		// id — see {@link seedWindowRestoreState}. Merged before the
+		// geometry resolution below so the seeded x / y / size / state
+		// register as caller-pinned and win over the localStorage
+		// fallback, exactly as if the opener had passed them.
+		const staged = this._pendingRestoreState.get( config.id );
+		if ( staged ) {
+			this._pendingRestoreState.delete( config.id );
+			config = { ...config, ...staged };
+		}
+
 		const desktopRect = this._desktop.getBoundingClientRect();
 		const defaultWidth = Math.min( Math.round( desktopRect.width * 0.8 ), 1200 );
 		const defaultHeight = Math.min( Math.round( desktopRect.height * 0.8 ), 800 );
@@ -1650,24 +1668,32 @@ export class WindowManager {
 	 */
 	public snapshot(): Session {
 		const focused = this.getFocused();
-		// Native windows aren't persistable — their `render` callback
-		// is a JS closure, not something we can serialize and
-		// rehydrate server-side. Ephemeral windows opt out — their URL
-		// doesn't survive a session (editor-preview nonces). Skip both
-		// from the window list and the focused id so a freshly booted
-		// shell doesn't try (and fail) to restore a window it can't
-		// reconstruct.
-		const persistable = this._stack.filter(
-			( w ) => ! w.config.native && ! w.config.ephemeral,
-		);
+		// A native window's `render` callback is a JS closure and can't
+		// be serialized — but it doesn't need to be. Every native
+		// window that can be reopened is addressable by id through the
+		// native-window registry (or the shell's own dispatcher for
+		// built-ins like OS Settings), so the session persists the id
+		// and the restore path reconstructs from there. Windows whose
+		// id is no longer registered at restore time — a deactivated
+		// plugin — are skipped by the opener.
+		//
+		// Ephemeral windows are the real opt-out: their URL doesn't
+		// survive a session (editor-preview nonces), so they're skipped
+		// from both the window list and the focused id.
+		const persistable = this._stack.filter( ( w ) => ! w.config.ephemeral );
 		const windows: SessionWindow[] = persistable.map( ( w ) => {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
+			const native = !! w.config.native;
 			return {
 				id: w.id,
 				baseId: w.config.baseId || w.id,
 				desktopId: w.config.desktopId || this._activeDesktopId,
-				url: w.getCurrentUrl(),
+				...( native ? { native: true } : {} ),
+				// Native windows have no navigable URL — `config.url` is
+				// the `#slug` marker they were opened with, and
+				// `getCurrentUrl()` reads an iframe they don't have.
+				url: native ? w.config.url || `#${ w.id }` : w.getCurrentUrl(),
 				title: w.config.title,
 				icon: w.config.icon,
 				state: snap.state,
@@ -1678,10 +1704,7 @@ export class WindowManager {
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
 			};
 		} );
-		const focusedId =
-			focused && ! focused.config.native && ! focused.config.ephemeral
-				? focused.id
-				: '';
+		const focusedId = focused && ! focused.config.ephemeral ? focused.id : '';
 
 		return {
 			windows,
@@ -1690,6 +1713,36 @@ export class WindowManager {
 			focused: focusedId,
 			updated: Math.floor( Date.now() / 1000 ),
 		};
+	}
+
+	/**
+	 * Stage per-window config to merge into the NEXT window opened
+	 * under each id, then forget it.
+	 *
+	 * Session restore needs this for native windows. A native window
+	 * is reopened by asking its owner to open it —
+	 * `nativeWindows.openById( id )`, or the shell's own
+	 * `openOsSettings()` — and those callers build their own
+	 * `manager.open()` config from the registry. There is no argument
+	 * to thread saved geometry, desktop assignment, or minimized state
+	 * through, and no reason for every opener to grow one: the
+	 * restore-time values belong to the restore, not to the window's
+	 * definition.
+	 *
+	 * Seeding them here inverts that — restore states what it wants
+	 * before triggering the opens, and `createWindow` applies it to
+	 * whichever window claims each id. Entries are consumed on first
+	 * use, so a later user-initiated open of the same window is
+	 * unaffected. Ids that never open (a plugin deactivated since the
+	 * session was saved) simply leave a stale entry behind, which the
+	 * next `seedWindowRestoreState` call clears.
+	 *
+	 * Call BEFORE the opens it should apply to.
+	 */
+	public seedWindowRestoreState(
+		entries: Record< string, Partial< WindowConfig > >,
+	): void {
+		this._pendingRestoreState = new Map( Object.entries( entries ) );
 	}
 
 	public seedDesktops( desktops: Desktop[], activeDesktopId: string ): void {

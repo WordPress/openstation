@@ -175,6 +175,40 @@ REST surface:
 - `POST /wp-json/desktop-mode/v1/session` — overwrite the session. Body: `{ session: { windows: [...], desktops: [...], activeDesktop, focused, updated } }`.
 - `DELETE /wp-json/desktop-mode/v1/session` — clear it.
 
+### What comes back, and how
+
+Two kinds of window are persisted, restored by two different routes.
+
+**Iframe windows** are rebuilt from their saved URL. The server only
+stores URLs that resolve inside this site's own `wp-admin` — a URL that
+fails `desktop_mode_url_is_same_admin()` is dropped from the session
+rather than sanitized, so the restore path can never be pointed at a
+foreign origin.
+
+**Native windows** (OS Settings, Bug Report, anything registered via
+`desktop_mode_register_window()` / `wp.desktop.registerWindow`) carry
+`native: true` and a `#<id>` marker in place of a URL. A native
+window's `render` callback is a JS closure and can't be serialized, but
+it doesn't need to be: every native window is addressable by id, so the
+shell reopens it by asking its owner — built-ins have their own
+openers, everything else goes to `nativeWindows.openById( id )`. The
+marker is rebuilt server-side from the sanitized id; the client's `url`
+is never stored for a native window. Ids that nothing answers to at
+restore time — a plugin deactivated since the session was saved — are
+skipped silently.
+
+Because the openers construct their own `manager.open()` config from
+the registry, they have no argument to carry restore-time values.
+`restoreSession` therefore stages the saved geometry, desktop
+assignment, and window state through
+`WindowManager.seedWindowRestoreState()` before triggering the opens;
+the manager merges each entry into the first window that claims that
+id, then forgets it, so a later user-initiated open is unaffected.
+
+**Ephemeral windows** (`ephemeral: true` — editor previews, whose URLs
+carry single-use nonces) are the one category that is never persisted,
+and never counts as the focused window.
+
 ### Desktop themes
 
 A **desktop theme** reskins the whole shell from a ZIP of a

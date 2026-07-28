@@ -181,6 +181,250 @@ describe( 'restoreSession — duplicate instances', () => {
 	} );
 } );
 
+describe( 'restoreSession — native windows', () => {
+	let desktop: HTMLElement;
+	let manager: WindowManager;
+
+	beforeEach( () => {
+		installHooksStub();
+		desktop = document.createElement( 'div' );
+		desktop.id = 'desktop-mode-area';
+		Object.defineProperty( desktop, 'getBoundingClientRect', {
+			value: () =>
+				( {
+					left: 0,
+					top: 0,
+					right: 1600,
+					bottom: 900,
+					width: 1600,
+					height: 900,
+					x: 0,
+					y: 0,
+					toJSON: () => ( {} ),
+				} ) as DOMRect,
+		} );
+		Object.defineProperty( desktop, 'clientWidth', {
+			value: 1600,
+			configurable: true,
+		} );
+		Object.defineProperty( desktop, 'clientHeight', {
+			value: 900,
+			configurable: true,
+		} );
+		document.body.appendChild( desktop );
+		manager = new WindowManager( desktop );
+	} );
+
+	afterEach( () => {
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktop.remove();
+		clearHooksStub();
+	} );
+
+	const nativeEntry = ( patch: Partial< SessionWindow > = {} ) =>
+		sessionWindow( {
+			id: 'desktop-mode-os-settings',
+			baseId: 'desktop-mode-os-settings',
+			native: true,
+			url: '#desktop-mode-os-settings',
+			title: 'OS Settings',
+			icon: 'dashicons-desktop',
+			...patch,
+		} );
+
+	/**
+	 * Stand-in for the shell's `openNativeWindowById` — same contract:
+	 * open the window for known ids, return false for anything the
+	 * registry no longer knows about.
+	 */
+	const opener = ( known: string[] ) => ( id: string ) => {
+		if ( ! known.includes( id ) ) {
+			return false;
+		}
+		void manager.open( {
+			id,
+			baseId: id,
+			native: true,
+			url: `#${ id }`,
+			title: 'OS Settings',
+			icon: 'dashicons-desktop',
+			render: ( body: HTMLElement ) => {
+				body.textContent = id;
+			},
+		} );
+		return true;
+	};
+
+	test( 'reopens a saved native window through the opener', async () => {
+		const config = desktopConfig( [ nativeEntry() ] );
+
+		await restoreSession(
+			manager,
+			config,
+			desktop,
+			opener( [ 'desktop-mode-os-settings' ] ),
+		);
+
+		const win = manager.getById( 'desktop-mode-os-settings' );
+		expect( win ).toBeDefined();
+		expect( win!.config.native ).toBe( true );
+	} );
+
+	test( 'applies the saved geometry the opener never passes', async () => {
+		const config = desktopConfig( [
+			nativeEntry( { x: 240, y: 150, width: 640, height: 520 } ),
+		] );
+
+		await restoreSession(
+			manager,
+			config,
+			desktop,
+			opener( [ 'desktop-mode-os-settings' ] ),
+		);
+
+		const snap = manager.getById( 'desktop-mode-os-settings' )!.getSnapshot();
+		expect( snap.x ).toBe( 240 );
+		expect( snap.y ).toBe( 150 );
+		expect( snap.width ).toBe( 640 );
+		expect( snap.height ).toBe( 520 );
+	} );
+
+	test( 'restores a native window that was left maximized', async () => {
+		const config = desktopConfig( [ nativeEntry( { state: 'maximized' } ) ] );
+
+		await restoreSession(
+			manager,
+			config,
+			desktop,
+			opener( [ 'desktop-mode-os-settings' ] ),
+		);
+		// `applyInitialState` defers a frame so the opening transition
+		// doesn't animate from the un-maximized bounds.
+		await new Promise< void >( ( resolve ) =>
+			requestAnimationFrame( () => resolve() ),
+		);
+
+		expect( manager.getById( 'desktop-mode-os-settings' )!.state ).toBe(
+			'maximized',
+		);
+	} );
+
+	test( 'skips a native window whose owner is gone, keeping the rest', async () => {
+		const config = desktopConfig( [
+			nativeEntry( { id: 'gone-plugin-panel', baseId: 'gone-plugin-panel' } ),
+			sessionWindow( { id: 'edit-php', baseId: 'edit-php' } ),
+		] );
+
+		await restoreSession(
+			manager,
+			config,
+			desktop,
+			opener( [ 'desktop-mode-os-settings' ] ),
+		);
+
+		expect( manager.getById( 'gone-plugin-panel' ) ).toBeUndefined();
+		expect( manager.getById( 'edit-php' ) ).toBeDefined();
+	} );
+
+	test( 'restores native and iframe windows side by side, focus included', async () => {
+		const config = desktopConfig( [
+			sessionWindow( { id: 'edit-php', baseId: 'edit-php' } ),
+			nativeEntry(),
+		] );
+		config.session.focused = 'desktop-mode-os-settings';
+
+		await restoreSession(
+			manager,
+			config,
+			desktop,
+			opener( [ 'desktop-mode-os-settings' ] ),
+		);
+
+		expect( manager.getAll() ).toHaveLength( 2 );
+		expect( manager.getFocused()?.id ).toBe( 'desktop-mode-os-settings' );
+	} );
+
+	test( 'without an opener, native entries are skipped rather than iframed', async () => {
+		const config = desktopConfig( [ nativeEntry() ] );
+
+		await restoreSession( manager, config, desktop );
+
+		expect( manager.getAll() ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'WindowManager.snapshot — native windows', () => {
+	let desktop: HTMLElement;
+	let manager: WindowManager;
+
+	beforeEach( () => {
+		installHooksStub();
+		desktop = document.createElement( 'div' );
+		desktop.id = 'desktop-mode-area';
+		Object.defineProperty( desktop, 'getBoundingClientRect', {
+			value: () =>
+				( {
+					left: 0,
+					top: 0,
+					right: 1600,
+					bottom: 900,
+					width: 1600,
+					height: 900,
+					x: 0,
+					y: 0,
+					toJSON: () => ( {} ),
+				} ) as DOMRect,
+		} );
+		document.body.appendChild( desktop );
+		manager = new WindowManager( desktop );
+	} );
+
+	afterEach( () => {
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktop.remove();
+		clearHooksStub();
+	} );
+
+	test( 'persists a native window with the native marker', async () => {
+		await manager.open( {
+			id: 'desktop-mode-os-settings',
+			baseId: 'desktop-mode-os-settings',
+			native: true,
+			url: '#os-settings',
+			title: 'OS Settings',
+			icon: 'dashicons-desktop',
+			render: () => undefined,
+		} );
+
+		const snap = manager.snapshot();
+
+		expect( snap.windows ).toHaveLength( 1 );
+		expect( snap.windows[ 0 ].native ).toBe( true );
+		expect( snap.windows[ 0 ].id ).toBe( 'desktop-mode-os-settings' );
+		expect( snap.focused ).toBe( 'desktop-mode-os-settings' );
+	} );
+
+	test( 'still skips ephemeral windows', async () => {
+		await manager.open( {
+			id: 'editor-preview-1',
+			baseId: 'editor-preview-1',
+			ephemeral: true,
+			url: `${ ORIGIN }/?p=1&preview=true`,
+			title: 'Preview',
+			icon: 'dashicons-visibility',
+		} );
+
+		const snap = manager.snapshot();
+
+		expect( snap.windows ).toHaveLength( 0 );
+		expect( snap.focused ).toBe( '' );
+	} );
+} );
+
 describe( 'WindowManager.openNew — instance id allocation', () => {
 	let desktop: HTMLElement;
 	let manager: WindowManager;

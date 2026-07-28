@@ -664,6 +664,9 @@ manager.isActiveByBaseId( baseId: string ): boolean;                     // isAc
 // Snapshot / surface
 manager.snapshot(): Session;
 manager.getVisibleRects(): VisibleWindowRect[];
+manager.seedWindowRestoreState(                                          // stage config for the NEXT open of each id
+    entries: Record< string, Partial< WindowConfig > >,
+): void;
 
 // Batch operations
 manager.closeAll( options?: { exceptIds?: string[] } ): number;
@@ -705,6 +708,18 @@ manager.closeDesktop( id: string ): void;
 > **`open()` requires a config object.** Passing a URL string used to silently produce a window stuck on a loading spinner with no error in the console. The manager throws `TypeError` at the call site if `config` isn't an object, or if `id` / `url` / `title` are missing or wrong-typed. Build the config; don't shorthand it.
 
 **`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
+
+**`seedWindowRestoreState( entries )`** — stage config to merge into the *next* window opened under each id, then forget it. For openers that build their own `manager.open()` config and have no argument to thread extra values through: you can't hand geometry to `wp.desktop.openWindow( id )` or to a native window's own opener, but you can state it up front and let the manager apply it when the window materialises.
+
+Session restore is the built-in consumer — it stages each saved native window's geometry, desktop, and state before asking the registry to reopen them. Entries are consumed on first use, so a later user-initiated open of the same window is unaffected, and each call replaces whatever the previous one left staged.
+
+```js
+const manager = wp.desktop.windowManager;
+manager.seedWindowRestoreState( {
+    'my-plugin-panel': { x: 240, y: 150, width: 640, height: 520 },
+} );
+wp.desktop.openWindow( 'my-plugin-panel' ); // opens at that geometry
+```
 
 **`minimizeAll()` / `restoreFrom( windows )` / `toggleShowDesktop()`** — the "Show Desktop" gesture decomposed into reusable primitives. `minimizeAll()` returns the windows it actually minimized (skipping windows already in the `'minimized'` state), so you can pair it with a later `restoreFrom( minimizedSet )` that touches only what you minimized. `toggleShowDesktop()` is the higher-level call mirroring the wallpaper-click behaviour exactly — minimize when anything is visible, restore when everything's hidden. Returns `true` when the new state is "showing the desktop." All three are scoped to the **active virtual desktop only** — a window parked on a Space the user isn't currently viewing is left alone, unlike `closeAll()` below, which still acts across every desktop.
 
