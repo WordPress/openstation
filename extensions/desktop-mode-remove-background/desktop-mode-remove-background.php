@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Desktop Mode — Remove Background
- * Description:       Registers a media-tools/remove-background ability so Desktop Mode agents (or any Abilities API consumer) can remove the background from a media library image. Pluggable backends: remove.bg, a self-hosted rembg server, or the WordPress AI Client.
+ * Description:       Registers a media-tools/remove-background ability so Desktop Mode agents (or any Abilities API consumer) can remove the background from a media library image. Uses the WordPress AI Client (the site's Connectors credentials) by default; remove.bg and self-hosted rembg backends are opt-in.
  * Version:           0.1.0
  * Requires at least: 6.5
  * Requires PHP:      7.4

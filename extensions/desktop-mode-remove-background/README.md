@@ -39,9 +39,9 @@ add_filter( 'desktop_mode_remove_background_settings', function ( $s ) {
 
 | Backend | Needs | Notes |
 |---|---|---|
-| `removebg` (default) | remove.bg API key | Best segmentation quality; media leaves the site; paid credits after the free tier. |
+| `ai` (default) | An image-capable connector in the WordPress AI Client | No extension-specific key — reuses the site's Connectors credentials. Generative editing: the model repaints the image, so the subject may not be pixel-identical. |
+| `removebg` | remove.bg API key | Best segmentation quality (true masking); media leaves the site; paid credits after the free tier. |
 | `rembg` | Endpoint URL of a self-hosted [rembg](https://github.com/danielgatis/rembg) server (`rembg s`, POST multipart `file`) | No key, no third-party data sharing — good next to wp-env. |
-| `ai` | An image-capable connector in the WordPress AI Client | Experimental: generative editing regenerates pixels, so the subject may not be identical. |
 
 Add a custom backend via the `desktop_mode_remove_background_backends`
 filter (`slug => callable( $path, $mime, $attachment_id )` returning

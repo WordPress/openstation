@@ -30,8 +30,12 @@ const DESKTOP_MODE_REMOVE_BG_OPTION = 'desktop_mode_remove_background';
  * @return array{backend:string, removebg_api_key:string, rembg_endpoint:string}
  */
 function desktop_mode_remove_bg_get_settings() {
+	// Default backend is the WordPress AI Client: it rides the site's
+	// existing Connectors credentials, so a stock install needs no
+	// extension-specific key at all. Sites wanting mask-based quality
+	// opt into `removebg` / `rembg` via option, constant, or filter.
 	$defaults = array(
-		'backend'          => 'removebg',
+		'backend'          => 'ai',
 		'removebg_api_key' => '',
 		'rembg_endpoint'   => '',
 	);
@@ -68,7 +72,7 @@ function desktop_mode_remove_bg_get_settings() {
 	$settings['rembg_endpoint']   = esc_url_raw( trim( (string) $settings['rembg_endpoint'] ) );
 
 	if ( ! array_key_exists( $settings['backend'], desktop_mode_remove_bg_backends() ) ) {
-		$settings['backend'] = 'removebg';
+		$settings['backend'] = 'ai';
 	}
 
 	return $settings;

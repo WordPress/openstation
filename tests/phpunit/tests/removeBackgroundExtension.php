@@ -154,14 +154,27 @@ class Tests_DesktopMode_RemoveBackgroundExtension extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Default settings (remove.bg, no key) yield a clear
+	 * The default backend is the AI Client — no extension-specific
+	 * key, riding the site's Connectors credentials.
+	 *
+	 * @covers ::desktop_mode_remove_bg_get_settings
+	 */
+	public function test_default_backend_is_ai() {
+		delete_option( DESKTOP_MODE_REMOVE_BG_OPTION );
+		$settings = desktop_mode_remove_bg_get_settings();
+		$this->assertSame( 'ai', $settings['backend'] );
+	}
+
+	/**
+	 * The remove.bg backend without a key yields a clear
 	 * configuration error rather than an HTTP attempt.
 	 *
 	 * @covers ::desktop_mode_remove_bg_backend_removebg
 	 */
-	public function test_unconfigured_backend_errors_cleanly() {
+	public function test_unconfigured_removebg_errors_cleanly() {
 		wp_set_current_user( self::$author_id );
 		$source_id = $this->create_source_attachment();
+		update_option( DESKTOP_MODE_REMOVE_BG_OPTION, array( 'backend' => 'removebg' ) );
 
 		$out = wp_get_ability( 'media-tools/remove-background' )->execute(
 			array( 'attachment_id' => $source_id )
@@ -204,7 +217,7 @@ class Tests_DesktopMode_RemoveBackgroundExtension extends WP_UnitTestCase {
 	public function test_unknown_backend_falls_back_to_default() {
 		update_option( DESKTOP_MODE_REMOVE_BG_OPTION, array( 'backend' => 'bogus' ) );
 		$settings = desktop_mode_remove_bg_get_settings();
-		$this->assertSame( 'removebg', $settings['backend'] );
+		$this->assertSame( 'ai', $settings['backend'] );
 	}
 
 	/**
