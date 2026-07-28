@@ -73,7 +73,7 @@ function desktop_mode_remove_bg_backend_removebg( $path, $mime ) {
 	if ( '' === $settings['removebg_api_key'] ) {
 		return new WP_Error(
 			'desktop_mode_remove_bg_no_key',
-			__( 'No remove.bg API key configured. An administrator can add one under Settings → Media → Background removal.', 'desktop-mode-remove-background' )
+			__( 'No remove.bg API key configured. An administrator can set one via the desktop_mode_remove_background option or the DESKTOP_MODE_REMOVE_BG_API_KEY constant (see the extension README).', 'desktop-mode-remove-background' )
 		);
 	}
 
@@ -139,7 +139,7 @@ function desktop_mode_remove_bg_backend_rembg( $path, $mime ) {
 	if ( '' === $settings['rembg_endpoint'] ) {
 		return new WP_Error(
 			'desktop_mode_remove_bg_no_endpoint',
-			__( 'No rembg endpoint configured. An administrator can add one under Settings → Media → Background removal.', 'desktop-mode-remove-background' )
+			__( 'No rembg endpoint configured. An administrator can set one via the desktop_mode_remove_background option or the DESKTOP_MODE_REMOVE_BG_ENDPOINT constant (see the extension README).', 'desktop-mode-remove-background' )
 		);
 	}
 

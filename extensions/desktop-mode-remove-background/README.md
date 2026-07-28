@@ -10,10 +10,32 @@ The ability is mutating (no `readonly` annotation), so the AI Copilot
 never sees it; a Desktop Mode agent must be explicitly granted it in
 the agent's Tools pane.
 
-## Backends
+## Configuration
 
-Configured under **Settings → Media → Background removal**
-(`desktop_mode_remove_background` option):
+Deliberately **no admin settings UI** — the extension's only
+user-facing surface is the ability. Configuration is code/CLI-level,
+resolved in this order (later wins):
+
+```bash
+# 1. Option
+wp option update desktop_mode_remove_background \
+  '{"backend":"removebg","removebg_api_key":"YOUR_KEY"}' --format=json
+```
+
+```php
+// 2. Constants (wp-config.php — keeps the key out of the database)
+define( 'DESKTOP_MODE_REMOVE_BG_BACKEND', 'removebg' );
+define( 'DESKTOP_MODE_REMOVE_BG_API_KEY', 'YOUR_KEY' );
+define( 'DESKTOP_MODE_REMOVE_BG_ENDPOINT', 'http://127.0.0.1:7000/api/remove' );
+
+// 3. Filter (wins last)
+add_filter( 'desktop_mode_remove_background_settings', function ( $s ) {
+	$s['backend'] = 'rembg';
+	return $s;
+} );
+```
+
+## Backends
 
 | Backend | Needs | Notes |
 |---|---|---|

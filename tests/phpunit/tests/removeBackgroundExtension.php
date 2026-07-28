@@ -171,6 +171,43 @@ class Tests_DesktopMode_RemoveBackgroundExtension extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Configuration resolves through the filter — there is no settings
+	 * UI; option, constants, and this filter are the whole surface.
+	 *
+	 * @covers ::desktop_mode_remove_bg_get_settings
+	 */
+	public function test_settings_filter_overrides_backend() {
+		wp_set_current_user( self::$author_id );
+		$source_id = $this->create_source_attachment();
+
+		add_filter(
+			'desktop_mode_remove_background_settings',
+			static function ( $settings ) {
+				$settings['backend'] = 'rembg';
+				return $settings;
+			}
+		);
+
+		$out = wp_get_ability( 'media-tools/remove-background' )->execute(
+			array( 'attachment_id' => $source_id )
+		);
+		$this->assertWPError( $out );
+		$this->assertSame( 'desktop_mode_remove_bg_no_endpoint', $out->get_error_code() );
+	}
+
+	/**
+	 * An unknown backend slug in the option falls back to the default
+	 * instead of dispatching to nothing.
+	 *
+	 * @covers ::desktop_mode_remove_bg_get_settings
+	 */
+	public function test_unknown_backend_falls_back_to_default() {
+		update_option( DESKTOP_MODE_REMOVE_BG_OPTION, array( 'backend' => 'bogus' ) );
+		$settings = desktop_mode_remove_bg_get_settings();
+		$this->assertSame( 'removebg', $settings['backend'] );
+	}
+
+	/**
 	 * The full agent story: an agent allowlisted for the ability
 	 * dispatches it through the runner, and the resulting attachment
 	 * is authored by the AGENT user — the audit-trail promise.
