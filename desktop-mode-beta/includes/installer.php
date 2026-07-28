@@ -143,6 +143,19 @@ function desktop_mode_beta_resolve_target( $source, $id ) {
  * @return array|WP_Error `{ record, version, messages }` on success.
  */
 function desktop_mode_beta_switch( $source, $id ) {
+	// Refuse before any network work: overwriting a development
+	// checkout (a wp-env bind mount of the working tree) would destroy
+	// uncommitted work. See desktop_mode_beta_install_blocked() — the
+	// `desktop_mode_beta_allow_dev_overwrite` filter overrides.
+	$blocked = desktop_mode_beta_install_blocked();
+	if ( null !== $blocked ) {
+		return new WP_Error(
+			'desktop_mode_beta_dev_checkout',
+			$blocked['reason'],
+			array( 'status' => 409 )
+		);
+	}
+
 	$target = desktop_mode_beta_resolve_target( $source, $id );
 	if ( is_wp_error( $target ) ) {
 		return $target;

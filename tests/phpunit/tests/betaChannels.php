@@ -445,6 +445,81 @@ class Tests_DesktopModeBeta_Channels extends WP_UnitTestCase {
 	}
 
 	// -----------------------------------------------------------------
+	// Dev-checkout guard.
+	// -----------------------------------------------------------------
+
+	public function test_dev_checkout_marker_detects_worktree_git_file() {
+		$dir = get_temp_dir() . 'dmb-clean-' . uniqid();
+		mkdir( $dir );
+
+		$this->assertSame( '', desktop_mode_beta_dev_checkout_marker( $dir ), 'A bare directory is not a checkout.' );
+
+		// Git worktrees have a plain-file .git, not a directory — the
+		// marker check must catch both.
+		file_put_contents( $dir . '/.git', 'gitdir: /elsewhere/.git/worktrees/x' );
+		$this->assertSame( '.git', desktop_mode_beta_dev_checkout_marker( $dir ) );
+
+		unlink( $dir . '/.git' );
+		rmdir( $dir );
+		$this->assertSame( '', desktop_mode_beta_dev_checkout_marker( $dir ), 'A missing directory is not a checkout.' );
+	}
+
+	public function test_wp_env_mount_is_detected_as_dev_checkout() {
+		// The tests instance bind-mounts this repository as the
+		// desktop-mode plugin directory — the exact hazard the guard
+		// exists for, so it must fire right here.
+		$this->assertNotSame( '', desktop_mode_beta_dev_checkout_marker() );
+
+		$blocked = desktop_mode_beta_install_blocked();
+		$this->assertIsArray( $blocked );
+		$this->assertSame( 'dev-checkout', $blocked['code'] );
+	}
+
+	public function test_switch_refuses_dev_checkout_before_any_network() {
+		add_filter(
+			'pre_http_request',
+			function () {
+				$this->fail( 'The dev-checkout guard must refuse before any network request is made.' );
+			}
+		);
+
+		$result = desktop_mode_beta_switch( 'stable', '' );
+		$this->assertWPError( $result );
+		$this->assertSame( 'desktop_mode_beta_dev_checkout', $result->get_error_code() );
+		$data = $result->get_error_data();
+		$this->assertSame( 409, $data['status'] );
+	}
+
+	public function test_allow_dev_overwrite_filter_unblocks_switch() {
+		add_filter( 'desktop_mode_beta_allow_dev_overwrite', '__return_true' );
+
+		$this->assertNull( desktop_mode_beta_install_blocked() );
+
+		// With the override on, the switch proceeds past the guard into
+		// target resolution — prove it by making GitHub fail and
+		// asserting the error is the resolver's, not the guard's.
+		$this->mock_http( array( '/releases/latest' => self::json_response( 403, array() ) ) );
+		$result = desktop_mode_beta_switch( 'stable', '' );
+		$this->assertWPError( $result );
+		$this->assertSame( 'desktop_mode_beta_github_http', $result->get_error_code() );
+	}
+
+	public function test_state_exposes_install_blocked() {
+		$this->mock_http(
+			array(
+				'/pulls?'          => self::json_response( 200, array() ),
+				'/releases/latest' => self::json_response( 200, self::release_fixture() ),
+			)
+		);
+		$this->mock_probe( array() );
+
+		$state = desktop_mode_beta_state();
+		$this->assertIsArray( $state['install_blocked'], 'Running from a checkout, the state must carry the block.' );
+		$this->assertSame( 'dev-checkout', $state['install_blocked']['code'] );
+		$this->assertNotSame( '', $state['install_blocked']['reason'] );
+	}
+
+	// -----------------------------------------------------------------
 	// Guards.
 	// -----------------------------------------------------------------
 

@@ -166,6 +166,15 @@
 				text
 			);
 		},
+		warning: function ( text ) {
+			return el(
+				'p',
+				{
+					style: 'border-inline-start:3px solid var(--wpd-warning,#dba617);padding:6px 10px;margin:8px 0;opacity:.9;',
+				},
+				text
+			);
+		},
 	};
 
 	var adminSkin = {
@@ -218,6 +227,13 @@
 			return el(
 				'div',
 				{ class: 'notice notice-error inline' },
+				el( 'p', {}, text )
+			);
+		},
+		warning: function ( text ) {
+			return el(
+				'div',
+				{ class: 'notice notice-warning inline' },
 				el( 'p', {}, text )
 			);
 		},
@@ -367,6 +383,20 @@
 			root.textContent = '';
 			var current = state.current;
 
+			// A non-null install_blocked (e.g. the installed plugin is a
+			// development checkout) or a missing capability disables
+			// every switch action — the server refuses regardless, this
+			// just explains it up front instead of at click time.
+			var blockedReason = null;
+			if ( state.install_blocked ) {
+				blockedReason = state.install_blocked.reason;
+			} else if ( ! config.canInstall ) {
+				blockedReason = __(
+					'Your account cannot install plugins, so switching builds is disabled.'
+				);
+			}
+			var canSwitch = ! blockedReason;
+
 			// --- Current build ------------------------------------
 			var currentSection = skin.section(
 				__( 'Current build' ),
@@ -418,30 +448,37 @@
 						),
 					] );
 				} else {
-					var updateButton = wireButton(
-						skin.button( __( 'Update to latest build' ), 'primary' ),
-						function ( button ) {
-							doSwitch(
-								current.source,
-								current.id,
-								__(
-									'Install the newest build for the current channel? This replaces the installed Desktop Mode plugin.'
-								),
-								button
-							);
-						}
-					);
-					updateRow = skin.row( [
+					var updateParts = [
 						skin.badge( __( 'New build available' ), 'info' ),
 						skin.code( shortSha( update.sha ) ),
-						updateButton,
-					] );
+					];
+					if ( canSwitch ) {
+						updateParts.push(
+							wireButton(
+								skin.button(
+									__( 'Update to latest build' ),
+									'primary'
+								),
+								function ( button ) {
+									doSwitch(
+										current.source,
+										current.id,
+										__(
+											'Install the newest build for the current channel? This replaces the installed Desktop Mode plugin.'
+										),
+										button
+									);
+								}
+							)
+						);
+					}
+					updateRow = skin.row( updateParts );
 				}
 				currentSection.append( updateRow );
 			}
 
 			var actions = [];
-			if ( current.managed && state.stable ) {
+			if ( canSwitch && current.managed && state.stable ) {
 				actions.push(
 					wireButton(
 						skin.button( __( 'Back to stable' ), 'primary' ),
@@ -470,14 +507,8 @@
 				root.append( skin.error( message ) );
 			} );
 
-			if ( ! config.canInstall ) {
-				root.append(
-					skin.error(
-						__(
-							'Your account cannot install plugins, so switching builds is disabled.'
-						)
-					)
-				);
+			if ( blockedReason ) {
+				root.append( skin.warning( blockedReason ) );
 			}
 
 			// --- Stable + trunk channels --------------------------
@@ -486,14 +517,16 @@
 				__( 'Fixed channels published by the CI pipeline.' )
 			);
 			if ( state.stable ) {
-				channels.append(
-					skin.row( [
-						skin.badge( __( 'Stable' ), 'success' ),
-						skin.code( state.stable.tag ),
-						skin.muted(
-							__( 'Released ' ) +
-								formatWhen( state.stable.published_at )
-						),
+				var stableParts = [
+					skin.badge( __( 'Stable' ), 'success' ),
+					skin.code( state.stable.tag ),
+					skin.muted(
+						__( 'Released ' ) +
+							formatWhen( state.stable.published_at )
+					),
+				];
+				if ( canSwitch ) {
+					stableParts.push(
 						wireButton(
 							skin.button( __( 'Install' ) ),
 							function ( button ) {
@@ -506,23 +539,26 @@
 									button
 								);
 							}
-						),
-					] )
-				);
+						)
+					);
+				}
+				channels.append( skin.row( stableParts ) );
 			}
 			if ( state.trunk ) {
-				channels.append(
-					skin.row( [
-						skin.badge( __( 'Trunk' ), 'info' ),
-						skin.code(
-							'v' +
-								state.trunk.version +
-								' @ ' +
-								shortSha( state.trunk.sha )
-						),
-						skin.muted(
-							__( 'Built ' ) + formatWhen( state.trunk.built_at )
-						),
+				var trunkParts = [
+					skin.badge( __( 'Trunk' ), 'info' ),
+					skin.code(
+						'v' +
+							state.trunk.version +
+							' @ ' +
+							shortSha( state.trunk.sha )
+					),
+					skin.muted(
+						__( 'Built ' ) + formatWhen( state.trunk.built_at )
+					),
+				];
+				if ( canSwitch ) {
+					trunkParts.push(
 						wireButton(
 							skin.button( __( 'Install' ) ),
 							function ( button ) {
@@ -535,9 +571,10 @@
 									button
 								);
 							}
-						),
-					] )
-				);
+						)
+					);
+				}
+				channels.append( skin.row( trunkParts ) );
 			} else {
 				channels.append(
 					skin.muted(
@@ -585,7 +622,9 @@
 				];
 				if ( isCurrent ) {
 					parts.push( skin.badge( __( 'Installed' ), 'success' ) );
-				} else if ( pr.build_ready ) {
+				} else if ( ! pr.build_ready ) {
+					parts.push( skin.badge( __( 'Build pending' ), 'neutral' ) );
+				} else if ( canSwitch ) {
 					var installButton = wireButton(
 						skin.button( __( 'Install' ) ),
 						function ( button ) {
@@ -606,7 +645,7 @@
 					);
 					parts.push( installButton );
 				} else {
-					parts.push( skin.badge( __( 'Build pending' ), 'neutral' ) );
+					parts.push( skin.badge( __( 'Build ready' ), 'info' ) );
 				}
 				prSection.append( skin.row( parts ) );
 			} );

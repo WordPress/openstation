@@ -442,6 +442,76 @@ function desktop_mode_beta_probe_assets( $assets ) {
 }
 
 /**
+ * Detect whether the installed desktop-mode folder is a development
+ * checkout rather than a packaged install.
+ *
+ * A wp-env instance bind-mounts the working tree straight into
+ * `wp-content/plugins/desktop-mode` — overwriting it with a build zip
+ * would clobber the checkout (and with it, uncommitted work). A
+ * packaged zip is built from `bin/package.sh`'s allow-list and ships
+ * none of the repo's development files, so any of these markers in the
+ * plugin folder means "this is a source tree, not an install". `.git`
+ * is checked with `file_exists` on purpose: it is a directory in a
+ * main checkout but a plain file in a git worktree.
+ *
+ * @since 0.1.0
+ *
+ * @param string|null $dir Plugin directory to inspect. Defaults to the
+ *                         installed desktop-mode directory.
+ * @return string Marker found (e.g. `.git`), or empty string if none.
+ */
+function desktop_mode_beta_dev_checkout_marker( $dir = null ) {
+	if ( null === $dir ) {
+		$dir = dirname( WP_PLUGIN_DIR . '/' . DESKTOP_MODE_BETA_TARGET_PLUGIN );
+	}
+	if ( ! is_dir( $dir ) ) {
+		return '';
+	}
+	foreach ( array( '.git', 'package.json', 'vite.config.js', 'src', '.wp-env.json' ) as $marker ) {
+		if ( file_exists( $dir . '/' . $marker ) ) {
+			return $marker;
+		}
+	}
+	return '';
+}
+
+/**
+ * Whether switching builds is blocked, and why.
+ *
+ * @since 0.1.0
+ *
+ * @return array|null `{ code, reason }`, or null when switching is allowed.
+ */
+function desktop_mode_beta_install_blocked() {
+	$marker = desktop_mode_beta_dev_checkout_marker();
+
+	/**
+	 * Filters whether a development checkout of Desktop Mode may be
+	 * overwritten by a build install.
+	 *
+	 * Default `false`: the guard refuses so a wp-env bind mount (or any
+	 * other source tree serving as the plugin folder) can't lose its
+	 * working tree to a stray Install click.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @param bool   $allow  True to allow overwriting the checkout.
+	 * @param string $marker The development marker that was detected.
+	 */
+	if ( '' !== $marker && ! apply_filters( 'desktop_mode_beta_allow_dev_overwrite', false, $marker ) ) {
+		return array(
+			'code'   => 'dev-checkout',
+			'reason' => sprintf(
+				/* translators: %s: File or directory name found in the plugin folder (e.g. ".git"). */
+				__( 'The installed Desktop Mode plugin is a development checkout ("%s" found in its folder) — installing a build here would overwrite that working tree. Switch builds on a site running a packaged install instead.', 'desktop-mode-beta' ),
+				$marker
+			),
+		);
+	}
+	return null;
+}
+
+/**
  * The installed Desktop Mode version, read from the plugin header so it
  * stays correct even when desktop-mode is inactive or failed to load.
  *
@@ -505,10 +575,11 @@ function desktop_mode_beta_state( $force = false ) {
 			'version'      => desktop_mode_beta_installed_version(),
 			'update'       => null,
 		),
-		'stable'  => $stable,
-		'trunk'   => $trunk,
-		'prs'     => $prs,
-		'errors'  => $errors,
+		'stable'          => $stable,
+		'trunk'           => $trunk,
+		'prs'             => $prs,
+		'errors'          => $errors,
+		'install_blocked' => desktop_mode_beta_install_blocked(),
 	);
 
 	$state['current']['update'] = desktop_mode_beta_pending_update( $state );
