@@ -333,6 +333,7 @@ export function buildExperimentalSection( ctx: SettingsCtx ): HTMLElement {
 			render(
 				html`
 					<wpd-section
+						stack
 						heading=${ __( 'Canvas rendering' ) }
 						description=${ __(
 							'Render the whole desktop through a canvas so shaders can post-process it.',
@@ -363,6 +364,7 @@ export function buildExperimentalSection( ctx: SettingsCtx ): HTMLElement {
 		render(
 			html`
 				<wpd-section
+					stack
 					heading=${ __( 'Canvas rendering' ) }
 					description=${ __(
 						'Put the desktop inside a canvas using the experimental HTML-in-Canvas browser API. Everything stays fully interactive — only the pixels take a detour through the GPU.',
