@@ -1475,7 +1475,11 @@ function inlineHostFor( state: PanelState, contextLabel: string ): HTMLElement {
 	return host;
 }
 
-function openReplyFor(
+// Exported as a test seam: the regression these guard against (the
+// editor landing in a detached node when the row lives in shadow DOM)
+// is only observable by driving these directly and asserting the
+// mounted editor is connected to the document.
+export function openReplyFor(
 	state: PanelState,
 	id: number,
 	cfg: CommentsConfig,
@@ -1532,7 +1536,7 @@ function openReplyFor(
 	editor.focus();
 }
 
-function openEditFor(
+export function openEditFor(
 	state: PanelState,
 	id: number,
 	cfg: CommentsConfig,
