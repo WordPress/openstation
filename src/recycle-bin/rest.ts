@@ -17,6 +17,10 @@ declare global {
 			restoreUrl: string;
 			purgeUrl: string;
 			emptyUrl: string;
+			/** REST URL for the `/count` endpoint. Injected by PHP. */
+			countUrl?: string;
+			/** Captured post-type slugs from the PHP filter. Injected. */
+			postTypes?: string[];
 		};
 	}
 }

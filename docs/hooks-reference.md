@@ -2985,6 +2985,7 @@ The list of entity types rendered as folder tiles in the window's root view. Eac
 - `label` — human-readable folder name.
 - `icon` — Dashicons class.
 - `restPath` — appended to `restRoot` (e.g. `wp/v2/posts`, `wp/v2/comments`).
+- `post_type` *(optional)* — WP post-type slug used to build the cross-window broadcast topic `desktop-mode.<slug>.changed`. Omit for entities without trash/restore support (e.g. Users). CPT entities registered via this filter should set `post_type` so list views refresh reactively on trash/restore.
 - `kind` *(optional)* — `'post'` (default for back-compat), `'user'`, or `'media'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface; `'media'`-shaped entities use the media-grid tile and the media drill-in preview ("used in" view). Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`. Plugins can register further kinds on the JS side via `wp.desktop.myWordpress.registerEntityKind()`.
 
 Defaults ship `posts`, `pages`, `users`, and `media`. Plugins can pre-stage Comments / Tags / Categories without waiting for new code in this module — the bundle treats every entry uniformly.

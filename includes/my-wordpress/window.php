@@ -55,26 +55,30 @@ function desktop_mode_my_wordpress_user_can_use() {
  * routes to the media preview pane. Plugins extending the entity
  * list with a post-shaped collection can omit the field; user- and
  * media-shaped collections must set `'user'` / `'media'`.
+ * The optional `post_type` field specifies the WP post-type
+ * slug used for `desktop-mode.<slug>.changed` cross-window broadcasts.
  *
  * @return array[] Each entry is `array( 'id', 'label', 'icon',
- *                 'restPath', 'kind' )`. `restPath` is appended to
+ *                 'restPath', 'kind', 'post_type' )`. `restPath` is appended to
  *                 the `restRoot` config to derive the list URL.
  */
 function desktop_mode_my_wordpress_entities() {
 	$entities = array(
 		array(
-			'id'       => 'posts',
-			'label'    => __( 'Posts', 'desktop-mode' ),
-			'icon'     => 'dashicons-admin-post',
-			'restPath' => 'wp/v2/posts',
-			'kind'     => 'post',
+			'id'        => 'posts',
+			'label'     => __( 'Posts', 'desktop-mode' ),
+			'icon'      => 'dashicons-admin-post',
+			'restPath'  => 'wp/v2/posts',
+			'kind'      => 'post',
+			'post_type' => 'post',
 		),
 		array(
-			'id'       => 'pages',
-			'label'    => __( 'Pages', 'desktop-mode' ),
-			'icon'     => 'dashicons-admin-page',
-			'restPath' => 'wp/v2/pages',
-			'kind'     => 'post',
+			'id'        => 'pages',
+			'label'     => __( 'Pages', 'desktop-mode' ),
+			'icon'      => 'dashicons-admin-page',
+			'restPath'  => 'wp/v2/pages',
+			'kind'      => 'post',
+			'post_type' => 'page',
 		),
 		array(
 			'id'       => 'users',
@@ -84,11 +88,12 @@ function desktop_mode_my_wordpress_entities() {
 			'kind'     => 'user',
 		),
 		array(
-			'id'       => 'media',
-			'label'    => __( 'Media', 'desktop-mode' ),
-			'icon'     => 'dashicons-admin-media',
-			'restPath' => 'wp/v2/media',
-			'kind'     => 'media',
+			'id'        => 'media',
+			'label'     => __( 'Media', 'desktop-mode' ),
+			'icon'      => 'dashicons-admin-media',
+			'restPath'  => 'wp/v2/media',
+			'kind'      => 'media',
+			'post_type' => 'attachment',
 		),
 	);
 
@@ -104,6 +109,10 @@ function desktop_mode_my_wordpress_entities() {
 	 * fields will continue to work; new optional fields will not
 	 * break existing consumers. The `kind` field is optional and
 	 * defaults to `'post'` for back-compat.
+	 *
+	 * Optional fields:
+	 *   - `kind`      — render strategy (`'post'` default, `'user'`, `'media'`).
+	 *   - `post_type` — WP post-type slug for cross-window broadcast topic `desktop-mode.<slug>.changed`.
 	 *
 	 * @param array[] $entities Default entities.
 	 */

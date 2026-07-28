@@ -385,17 +385,17 @@ function wireBroadcastDeltas(): void {
 				break;
 		}
 	};
-	subscribe( 'desktop-mode.post.changed', onDomain );
-	subscribe( 'desktop-mode.page.changed', onDomain );
-	subscribe( 'desktop-mode.attachment.changed', onDomain );
-	subscribe( 'desktop-mode.comment.changed', onDomain );
-	// Files-on-the-desktop trash mutations (URL placements, plugin
-	// shortcuts, user folders). Without these, dragging a URL tile to
-	// the Recycle Bin trashes the placement but the dock badge stays
-	// at its previous value until the next Heartbeat tick.
-	subscribe( 'desktop-mode.placement.changed', onDomain );
-	subscribe( 'desktop-mode.shortcut.changed', onDomain );
-	subscribe( 'desktop-mode.folder.changed', onDomain );
+	// Dynamic post-type slugs from the PHP shell config + fixed non-post-type
+	// extras the Recycle Bin always captures. The extras never vary so there
+	// is no PHP filter for them; they live here where their meaning is clear.
+	const cfg = ( window as unknown as {
+		desktopModeConfig?: { recycleBinPostTypes?: string[] };
+	} ).desktopModeConfig;
+	const postTypes = cfg?.recycleBinPostTypes ?? [ 'post', 'page', 'attachment' ];
+	const fixedExtras = [ 'comment', 'placement', 'shortcut', 'folder' ];
+	for ( const slug of [ ...postTypes, ...fixedExtras ] ) {
+		subscribe( `desktop-mode.${ slug }.changed`, onDomain );
+	}
 }
 
 /**

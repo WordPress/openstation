@@ -214,6 +214,7 @@ function desktop_mode_recycle_bin_localize_config() {
 			'purgeUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/purge' ) ),
 			'emptyUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/empty' ) ),
 			'countUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) ),
+			'postTypes'  => desktop_mode_recycle_bin_capture_post_types(),
 		)
 	);
 
@@ -233,8 +234,9 @@ function desktop_mode_recycle_bin_inject_shell_config( $config ) {
 	if ( ! is_array( $config ) ) {
 		return $config;
 	}
-	$config['recycleBinCount']    = desktop_mode_recycle_bin_count();
-	$config['recycleBinCountUrl'] = esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) );
+	$config['recycleBinCount']     = desktop_mode_recycle_bin_count();
+	$config['recycleBinCountUrl']  = esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) );
+	$config['recycleBinPostTypes'] = desktop_mode_recycle_bin_capture_post_types();
 	return $config;
 }
 add_filter( 'desktop_mode_shell_config', 'desktop_mode_recycle_bin_inject_shell_config', 20 );

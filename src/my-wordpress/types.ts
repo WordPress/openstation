@@ -32,6 +32,11 @@ export interface MyWordPressEntity {
 	 * name tile and routes to the user dossier preview.
 	 */
 	kind?: EntityKind;
+	/**
+	 * Canonical slug for cross-window broadcast events (e.g., 'post', 'page').
+	 * The bundle prefixes 'desktop-mode.' and suffixes '.changed' for subscriptions.
+	 */
+	post_type?: string;
 }
 
 export interface MyWordPressConfig {

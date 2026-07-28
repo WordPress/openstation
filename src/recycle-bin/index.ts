@@ -1136,15 +1136,16 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				void refresh();
 			}, 200 ) as unknown as number;
 		};
-		broadcastUnsubs.push(
-			api.subscribe( 'desktop-mode.post.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.page.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.attachment.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.comment.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.placement.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.shortcut.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.folder.changed', onDomainChanged ),
-		);
+		const postTypes =
+			window.desktopModeRecycleBinConfig?.postTypes ??
+			( window as { desktopModeConfig?: { recycleBinPostTypes?: string[] } } ).desktopModeConfig
+				?.recycleBinPostTypes ??
+			[ 'post', 'page', 'attachment' ];
+		// Fixed non-post-type entities the Recycle Bin always captures.
+		const fixedExtras = [ 'comment', 'placement', 'shortcut', 'folder' ];
+		for ( const slug of [ ...postTypes, ...fixedExtras ] ) {
+			broadcastUnsubs.push( api.subscribe( `desktop-mode.${ slug }.changed`, onDomainChanged ) );
+		}
 	}
 
 	// Focus is intentionally NOT a refresh trigger. Once the
