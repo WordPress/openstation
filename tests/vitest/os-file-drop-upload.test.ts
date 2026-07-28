@@ -5,8 +5,6 @@
  * `before-upload` / `upload-started` / `upload-progress` /
  * `after-upload` / `upload-failed` hook surface, and the
  * `abort()` handle wired through `upload-started`.
- *
- * @since 0.30.0
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {

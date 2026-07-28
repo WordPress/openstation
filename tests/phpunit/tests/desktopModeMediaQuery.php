@@ -226,8 +226,8 @@ class Tests_DesktopMode_MediaQuery extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_backfill_media_dimensions
 	 */
 	public function test_backfill_stamps_attachments_without_dimension_meta() {
-		// Create attachment but strip the dim meta to simulate a
-		// pre-0.5.0 upload that predates the stamping hook.
+		// Create attachment but strip the dim meta to simulate an
+		// upload that predates the stamping hook.
 		$attachment_id = $this->make_attachment( 1920, 1080 );
 		delete_post_meta( $attachment_id, DESKTOP_MODE_META_WIDTH );
 		delete_post_meta( $attachment_id, DESKTOP_MODE_META_HEIGHT );

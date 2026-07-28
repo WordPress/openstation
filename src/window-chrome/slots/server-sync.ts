@@ -2,8 +2,6 @@
  * Server-driven window-slot sync.
  *
  * Same shape as themes / controls server-syncs.
- *
- * @since 0.6.0
  */
 
 import { doAction, HOOKS } from '../../hooks';

@@ -185,7 +185,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --wpd-bg-muted, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
 }
 
 /* Hard-clamp the inner image too — wp.org SVG icons are unsized,
@@ -238,7 +238,7 @@
 .desktop-mode-plugins__name-path {
 	font-size: 0.78em;
 	color: var( --wpd-fg-muted, #888 );
-	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -373,7 +373,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --wpd-bg-muted, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
 }
 
 .desktop-mode-plugins__card-icon img {
@@ -625,7 +625,7 @@
 	height: 64px;
 	border-radius: 12px;
 	overflow: hidden;
-	background: var( --wpd-bg-muted, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.04 ) );
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -717,7 +717,7 @@
 }
 
 .desktop-mode-plugins__histogram-track {
-	background: var( --wpd-bg-muted, rgba( 0, 0, 0, 0.06 ) );
+	background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.06 ) );
 	border-radius: 999px;
 	height: 6px;
 	overflow: hidden;
@@ -819,7 +819,7 @@
 .desktop-mode-plugins__upload-overlay {
 	position: absolute;
 	inset: 0;
-	background: rgba( 0, 0, 0, 0.32 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.32 ) );
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -895,7 +895,7 @@
 	margin: 0;
 	font-size: 0.86em;
 	color: var( --wpd-fg, #333 );
-	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 }
 
 .desktop-mode-plugins__upload-status {
@@ -927,7 +927,7 @@
 .desktop-mode-plugins__upload-success-detail {
 	margin: 0 0 6px;
 	color: var( --wpd-fg, #333 );
-	font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace );
 	font-size: 0.9em;
 }
 

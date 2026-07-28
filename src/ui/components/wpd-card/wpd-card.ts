@@ -43,8 +43,6 @@
  *     pressed. Skips clicks on `data-noclick` descendants so action
  *     buttons inside the card don't double-fire (matches
  *     `<wpd-table>`'s row-click semantics).
- *
- * @since 0.9.0
  */
 
 import { Component, defineComponent, html } from '../../core';

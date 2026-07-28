@@ -14,8 +14,6 @@
  * keeps the impl out of every bundle that just wants the API
  * surface — only the entry bundle (`entry.ts`) and the lazy script
  * load reach it.
- *
- * @since 0.8.4
  */
 
 export type {

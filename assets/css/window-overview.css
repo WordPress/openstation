@@ -23,7 +23,7 @@
 .desktop-mode-area--overview {
 	/* Darken the backdrop and tint it so windows feel like they're
 	 * floating over a neutral canvas, not the wallpaper. */
-	background-color: rgba( 0, 0, 0, 0.45 );
+	background-color: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
 	transition: background-color 0.28s ease;
 }
 
@@ -172,7 +172,7 @@
 	justify-content: center;
 	gap: 6px;
 	padding: 0 10px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	font-size: 13px;
 	font-weight: 500;
 	line-height: 1;
@@ -305,7 +305,7 @@
 	gap: 12px;
 	padding: 8px 12px;
 	border-radius: 14px;
-	background-color: rgba( 0, 0, 0, 0.32 );
+	background-color: var( --wpd-scrim, rgba( 0, 0, 0, 0.32 ) );
 	backdrop-filter: blur( 18px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
 	box-shadow:
@@ -325,7 +325,7 @@
 	background: rgba( 255, 255, 255, 0.04 );
 	border: 2px solid rgba( 255, 255, 255, 0.18 );
 	border-radius: 10px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	cursor: pointer;
 	overflow: hidden;
 	transition:
@@ -382,6 +382,11 @@
 	text-overflow: ellipsis;
 }
 
+.desktop-mode-overview-top-bar__tile-wrapper {
+	position: relative;
+	display: inline-block;
+}
+
 .desktop-mode-overview-top-bar__tile-close {
 	position: absolute;
 	top: 4px;
@@ -392,7 +397,7 @@
 	align-items: center;
 	justify-content: center;
 	color: rgba( 255, 255, 255, 0.7 );
-	background: rgba( 0, 0, 0, 0.45 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
 	border-radius: 50%;
 	cursor: pointer;
 	opacity: 0;
@@ -400,27 +405,30 @@
 		opacity 0.15s ease,
 		background-color 0.15s ease,
 		color 0.15s ease;
+	border: none;
+	padding: 0;
 }
 
-.desktop-mode-overview-top-bar__tile:hover
-	.desktop-mode-overview-top-bar__tile-close {
+.desktop-mode-overview-top-bar__tile-wrapper:hover
+	.desktop-mode-overview-top-bar__tile-close,
+.desktop-mode-overview-top-bar__tile-wrapper:focus-within
+	.desktop-mode-overview-top-bar__tile-close,
+.desktop-mode-overview-top-bar__tile-close:focus-visible {
 	opacity: 1;
 }
 
 .desktop-mode-overview-top-bar__tile-close:hover {
-	background: #d63638;
-	color: #fff;
+	background: var( --wpd-danger, #d63638 );
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 /*
  * Hide the close X when there's only one tile left — the tile
- * counts both real desktops AND the trailing "+", so "only one
- * desktop" means exactly two tiles in the list.
+ * list contains both desktop wrappers AND the trailing "+".
+ * So "only one desktop" means exactly one wrapper in the list.
  */
 .desktop-mode-overview-top-bar__list:has(
-		.desktop-mode-overview-top-bar__tile:not(
-				.desktop-mode-overview-top-bar__tile--add
-			):only-of-type
+		.desktop-mode-overview-top-bar__tile-wrapper:only-of-type
 	)
 	.desktop-mode-overview-top-bar__tile-close {
 	display: none;

@@ -19,13 +19,16 @@
  * Phase 3 only ships drag-within-folder. Cross-folder drags
  * (drop into a folder, drop out to root) and the Recycle Bin
  * drop integration land in later phases.
- *
- * @since 0.9.0
  */
 
 import { doAction } from '../hooks';
 import { rest, store as filesStoreApi } from './layer-deps';
-import { buildTile, setTilePosition, TILE_CLASS } from './file-tile';
+import { buildTile, placementLabel, setTilePosition, TILE_CLASS } from './file-tile';
+import {
+	tilePayloadAccepts,
+	tilePayloadAcceptLabel,
+	tilePayloadDrop,
+} from './tile-payloads';
 import { openTileMenu, type TileMenuItem } from './tile-menu';
 import { openCreateFolderDialog } from './create-folder-dialog';
 import { openFile } from './open';
@@ -44,6 +47,7 @@ import type { RestPlacementShape } from './rest';
 import type { FilesState } from './store';
 import type { DragBridgePayload } from '../drag-bridge';
 import { isConflict, showConflictToast } from './conflict-toast';
+import { canvasPayloadAccepts, canvasPayloadDrop } from './canvas-payloads';
 import type { DragManagerApi, DragSession, DropTarget } from '../drag';
 import { trashFolderWithUndo, trashPlacementWithUndo } from './trash';
 import type {
@@ -60,8 +64,6 @@ import type {
  * the PHP `Desktop_Mode_*_File::serialize()` methods surface `link`
  * / `sourceUrl` / `alt` / `mime` / `postType` on every list
  * response.
- *
- * @since 0.8.7
  */
 function buildBridgePayloadFromPlacement(
 	placement: RestPlacementShape,
@@ -131,7 +133,6 @@ const LAYER_CLASS = 'desktop-mode-files-layer';
  * canvas Sort By menu uses (and the wallpaper's own sort callback).
  *
  * @public
- * @since 0.8.0
  */
 export type FilesLayerSortMode =
 	| 'name-asc'
@@ -146,8 +147,6 @@ export interface FilesLayer {
 	 * Subscribe to selection changes inside this layer. Fires with
 	 * the newly-selected placement (or `null` when the user clicked
 	 * empty canvas to deselect). Returns an unsubscribe function.
-	 *
-	 * @since 0.8.0
 	 */
 	onSelectionChange: (
 		cb: ( placement: RestPlacementShape | null ) => void,
@@ -156,16 +155,12 @@ export interface FilesLayer {
 	 * Sort the visible tiles row-major into a clean grid in the
 	 * requested order, persisting each new (x, y) to REST. Same
 	 * gesture macOS Finder calls "Clean Up By → Name / Date."
-	 *
-	 * @since 0.8.0
 	 */
 	sort: ( mode: FilesLayerSortMode ) => void;
 	/**
 	 * Visually re-flow tiles into the current canvas width when the
 	 * stored layout overflows. Cheap, doesn't persist — the next
 	 * drag or sort writes back to REST.
-	 *
-	 * @since 0.8.0
 	 */
 	reflow: () => void;
 	/**
@@ -181,8 +176,6 @@ export interface FilesLayer {
 	 * rejects — REST failure is reported via `console.error` from the
 	 * mount path and the promise still resolves so the caller's
 	 * reveal-after-hydrate isn't stranded forever.
-	 *
-	 * @since 0.8.5
 	 */
 	readonly hydrated: Promise< void >;
 	dispose: () => void;
@@ -192,6 +185,31 @@ export interface FilesLayer {
  * Mount a files layer on `host`, scoped to `folderId`. Returns
  * a handle the caller uses to unmount.
  */
+/**
+ * Read (and consume) the boot-inlined root-folder placements from the
+ * shell config. PHP builds `filesBootPlacements` with the same code
+ * path as GET /placements for `folder=0`, so seeding the store with
+ * it is indistinguishable from a REST hydration — minus the
+ * round-trip the boot path used to await before revealing the
+ * desktop. One-shot by design: the key is deleted on first read so a
+ * later un-hydrated render (restore-sync eviction, trash reset)
+ * refetches fresh state instead of resurrecting the boot snapshot.
+ */
+function takeBootPlacements( folderId: number ): RestPlacementShape[] | null {
+	if ( folderId !== 0 ) {
+		return null;
+	}
+	const cfg = ( window as unknown as {
+		desktopModeConfig?: { filesBootPlacements?: RestPlacementShape[] };
+	} ).desktopModeConfig;
+	const list = cfg?.filesBootPlacements;
+	if ( ! cfg || ! Array.isArray( list ) ) {
+		return null;
+	}
+	delete cfg.filesBootPlacements;
+	return list;
+}
+
 export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	const container = document.createElement( 'div' );
 	container.className = LAYER_CLASS;
@@ -336,13 +354,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			if ( shouldRejectTileDrops( placement ) ) {
 				const dragManager = getDragManager();
 				if ( dragManager ) {
-					const deregister = dragManager.registerDropTarget( {
-						id: `desktop-mode-files-tile-${ placement.id }-reject`,
-						element: tile,
-						accept: () => false,
-						onDrop: () => {},
-					} );
-					tileRejectDeregisters.set( placement.id, deregister );
+					tileRejectDeregisters.set(
+						placement.id,
+						registerTileRejectTarget( dragManager, tile, placement ),
+					);
 				}
 			}
 			return tile;
@@ -371,13 +386,10 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		} else if ( shouldRejectTileDrops( placement ) ) {
 			const dragManager = getDragManager();
 			if ( dragManager ) {
-				const deregister = dragManager.registerDropTarget( {
-					id: `desktop-mode-files-tile-${ placement.id }-reject`,
-					element: tile,
-					accept: () => false,
-					onDrop: () => {},
-				} );
-				tileRejectDeregisters.set( placement.id, deregister );
+				tileRejectDeregisters.set(
+					placement.id,
+					registerTileRejectTarget( dragManager, tile, placement ),
+				);
 			}
 		}
 		return tile;
@@ -396,8 +408,6 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 	 * shared tile has a structural change (file-type, file-ref,
 	 * pinned-flag) — those cases need the wholesale path's full
 	 * re-wiring.
-	 *
-	 * @since 0.8.7
 	 */
 	const tryPatchIncremental = (
 		list: readonly RestPlacementShape[],
@@ -471,11 +481,14 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 
 		const { pinnedSlots, displaced } = computeLayout( list );
 
-		// Update positions on shared tiles + build new ones for adds.
+		// Update positions + labels on shared tiles, build new ones
+		// for adds. The label sync covers "a shared tile was renamed
+		// in the same delta that added/removed another placement".
 		for ( const placement of list ) {
 			const tile = existing.get( placement.id );
 			if ( tile ) {
 				applyTilePosition( tile, placement, pinnedSlots, displaced );
+				syncTileLabel( tile, placement );
 				continue;
 			}
 			container.appendChild(
@@ -702,7 +715,12 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		element: host,
 		accept: ( payload ) => {
 			if ( payload.type !== 'desktop-file' && payload.type !== 'shortcut' ) {
-				return false;
+				// Payload types this layer doesn't own (e.g. the
+				// pinned-notes `'note'` / `'note-draft'` drags) can be
+				// claimed by a registered canvas payload handler — the
+				// registry keys drop targets by element, so features
+				// that want the wallpaper route through this target.
+				return canvasPayloadAccepts( payload, { folderId, host } );
 			}
 			// Folder-cycle preflight for drops onto a folder
 			// window's canvas. The wallpaper root (`folderId === 0`)
@@ -726,7 +744,15 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		},
 		onEnter: ( session ) => {
 			host.setAttribute( 'data-files-drop-active', '' );
-			installCanvasDropPreview( session );
+			// The grid-cell drop preview only makes sense for the
+			// tile payloads this layer owns — handler-owned payloads
+			// (pinned notes) place freely, no snap.
+			if (
+				session.payload.type === 'desktop-file' ||
+				session.payload.type === 'shortcut'
+			) {
+				installCanvasDropPreview( session );
+			}
 		},
 		onLeave: () => {
 			host.removeAttribute( 'data-files-drop-active' );
@@ -735,6 +761,13 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		onDrop: ( session, ev ) => {
 			host.removeAttribute( 'data-files-drop-active' );
 			teardownCanvasDropPreview();
+			if (
+				session.payload.type !== 'desktop-file' &&
+				session.payload.type !== 'shortcut'
+			) {
+				canvasPayloadDrop( session, ev, { folderId, host } );
+				return;
+			}
 			const rect = container.getBoundingClientRect();
 			// Subtract the grab offset so we snap based on where the
 			// tile's TOP-LEFT would land, not where the cursor is. The
@@ -886,8 +919,25 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			// bubble to the canvas-level click and immediately
 			// deselect. Stop the bubble.
 			e.stopPropagation();
-			setSelected( placement );
+			// Live lookup — the captured placement can be stale after
+			// a fast-path repaint (see `attachTileDrag`), and selection
+			// consumers (status bar, right pane) display the title.
+			setSelected( filesStoreApi.currentPlacement( placement ) );
 		} );
+	}
+
+	// Boot fast-path: PHP inlines the root folder's placements into
+	// the shell config (`filesBootPlacements`, built by the same
+	// code path as GET /placements) so first paint doesn't wait on a
+	// REST round-trip. Consumed one-shot — a later re-render that
+	// finds the folder un-hydrated (e.g. after the restore-sync
+	// eviction) must fetch fresh state, not resurrect the boot
+	// snapshot.
+	if ( ! filesStoreApi.getState().hydratedFolders.has( folderId ) ) {
+		const boot = takeBootPlacements( folderId );
+		if ( boot ) {
+			filesStoreApi.setFolderPlacements( folderId, boot );
+		}
 	}
 
 	// Initial paint from whatever the store currently knows.
@@ -1196,7 +1246,7 @@ function readSynthSource( placement: RestPlacementShape ): string | null {
  * placements live JS-only, so persisting their (x, y) / parentId
  * would 404 with `rest_no_route`.
  */
-function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
+export function isSyntheticPlacement( placement: RestPlacementShape ): boolean {
 	return placement.id <= 0 || readSynthSource( placement ) !== null;
 }
 
@@ -1229,8 +1279,6 @@ const RECYCLE_BIN_REF = 'desktop-mode-recycle-bin';
  * so plugins can install their own target last. Not adding that
  * action speculatively — the feature is 0.8.6 / Experimental and
  * no in-tree caller needs it today.
- *
- * @since 0.8.6
  */
 function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
 	if ( placement.file?.type === 'folder' ) {
@@ -1258,8 +1306,6 @@ function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
  * `My WordPress | empty | Icon A | Icon B`, dragging Icon B at the
  * empty cell used to highlight My WordPress's slot because
  * `snapToEmptyCell` thought (0, 0) was free.
- *
- * @since 0.8.6
  */
 function buildVisualOccupiedSet(
 	placements: ReadonlyArray< RestPlacementShape >,
@@ -1312,8 +1358,6 @@ function buildVisualOccupiedSet(
  * client-side preflight so the `accept` callbacks can reject the
  * drop up-front (no REST round-trip, no 409 in the console, visible
  * snap-back at the drop site).
- *
- * @since 0.8.6
  */
 function wouldCreateFolderCycle(
 	movingFolderId: number,
@@ -1381,8 +1425,6 @@ function wouldCreateFolderCycle(
  *
  * Silent no-op when the public OS Settings facade isn't available
  * (tests, embedded previews, or a host that disabled the facade).
- *
- * @since 0.8.6
  */
 function persistDockPromotedPosition(
 	dockItemId: string,
@@ -1428,11 +1470,14 @@ function persistDockPromotedPosition(
  * rebuild path.
  *
  * The fast path is correct when the ONLY thing that changed is one
- * or more tiles' `x` / `y` / `sortOrder` / `updatedAtMs`. We can
- * detect that without keeping a previous-snapshot map by reading
- * the structural fields the renderer already encodes onto tile data
+ * or more tiles' `x` / `y` / `sortOrder` / `updatedAtMs` — or the
+ * visible label, which `syncTileLabel()` patches in place (the
+ * `<wpd-tile>` component observes its `label` attribute and repaints
+ * itself, so a rename doesn't need any rewiring). We can detect
+ * structural sameness without keeping a previous-snapshot map by
+ * reading the fields the renderer already encodes onto tile data
  * attributes (`data-placement-id`, `data-file-type`, `data-file-ref`)
- * plus the `--pinned` class. Anything else — adds, removes, renames,
+ * plus the `--pinned` class. Anything else — adds, removes,
  * file-type changes, parent moves, pin-flag flips — falls back so
  * the renderer can re-run pinned-slot allocation, drop-target
  * registration, drag wiring, etc.
@@ -1442,8 +1487,6 @@ function persistDockPromotedPosition(
  * every tile vanishes for one frame and re-appears. Patching
  * positions in place keeps DOM identity for unchanged tiles so the
  * grid feels continuous.
- *
- * @since 0.8.6
  */
 function tryPatchPositions(
 	list: readonly RestPlacementShape[],
@@ -1540,9 +1583,31 @@ function tryPatchPositions(
 		} else {
 			setTilePosition( tile, placement.x, placement.y );
 		}
+		syncTileLabel( tile, placement );
 	}
 
 	return true;
+}
+
+/**
+ * Sync a reused tile's visible label with the placement's current
+ * title. `<wpd-tile>` observes `label`, so writing the attribute
+ * repaints the label + aria-label in place while preserving
+ * consumer-appended children (share badges). No-op when already
+ * current.
+ *
+ * Both DOM-reusing repaint paths call this — without it a folder
+ * rename patches the store but the tile keeps showing the old name
+ * until the next wholesale rebuild (i.e. until F5).
+ */
+function syncTileLabel(
+	tile: HTMLElement,
+	placement: RestPlacementShape,
+): void {
+	const label = placementLabel( placement );
+	if ( tile.getAttribute( 'label' ) !== label ) {
+		tile.setAttribute( 'label', label );
+	}
 }
 
 /**
@@ -1572,6 +1637,53 @@ function hidePromotedDockItem( dockItemId: string ): void {
 	const current = api.getOsSettings().itemVisibility ?? {};
 	const next = { ...current, [ dockItemId ]: 'dock' };
 	api.updateOsSettings( { itemVisibility: next } );
+}
+
+/**
+ * Register the per-tile drop claimant for a NON-folder tile. A tile
+ * normally hard-rejects every foreign payload so the drop doesn't fall
+ * through to the wallpaper (`shouldRejectTileDrops`). A feature can opt
+ * a payload type IN via the tile-payload seam (`tile-payloads.ts`) —
+ * e.g. pinned notes accept a `'note'` drop on the Posts shortcut icon
+ * (Spatial layout) and convert it to a draft. Unknown payloads — and
+ * payloads whose handler doesn't recognize this placement — still
+ * reject, preserving the original "Can't drop here" feedback.
+ */
+function registerTileRejectTarget(
+	dragManager: DragManagerApi,
+	tile: HTMLElement,
+	placement: RestPlacementShape,
+): () => void {
+	const ctx = { placement };
+	// The manager calls `accept( payload )` and then reads `acceptLabel`
+	// in the same hover pass, so recording the hovered type here lets the
+	// getter below return the label for the exact handler that accepted —
+	// and recompute each hover, so a handler registered after this tile
+	// mounted still gets the right chip.
+	let hoveredType: string | null = null;
+	return dragManager.registerDropTarget( {
+		id: `desktop-mode-files-tile-${ placement.id }-reject`,
+		element: tile,
+		get acceptLabel() {
+			return hoveredType
+				? tilePayloadAcceptLabel( hoveredType, ctx )
+				: undefined;
+		},
+		accept: ( payload ) => {
+			hoveredType = payload.type;
+			return tilePayloadAccepts( payload, ctx );
+		},
+		onEnter: () => {
+			tile.classList.add( `${ TILE_CLASS }--drop-target` );
+		},
+		onLeave: () => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+		},
+		onDrop: ( session, ev ) => {
+			tile.classList.remove( `${ TILE_CLASS }--drop-target` );
+			tilePayloadDrop( session, ev, ctx );
+		},
+	} );
 }
 
 /**
@@ -1824,11 +1936,19 @@ function attachTileDrag(
  */
 function attachContextMenu(
 	tile: HTMLElement,
-	placement: RestPlacementShape,
+	wiredPlacement: RestPlacementShape,
 ): void {
 	tile.addEventListener( 'contextmenu', ( e: MouseEvent ) => {
 		e.preventDefault();
 		e.stopPropagation();
+		// Same staleness hazard as `attachTileDrag`: the fast-path
+		// repaints reuse tile DOM without re-wiring, so the
+		// closure-captured placement can be stale by open time (old
+		// title after an in-place rename, old coords after a drag).
+		// Menu actions spread the placement into optimistic store
+		// patches — and the rename dialog pre-fills its title — so
+		// re-read the live version here.
+		const placement = filesStoreApi.currentPlacement( wiredPlacement );
 		const items: TileMenuItem[] = [
 			{
 				id: 'open',

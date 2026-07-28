@@ -16,8 +16,6 @@
  * plugins that call `wp.desktop.registerWidget()` from JS without
  * going through the PHP helper — are untouched by this sync and
  * keep their existing self-managed lifecycle.
- *
- * @since 0.5.0
  */
 
 import { doAction, HOOKS } from '../hooks';

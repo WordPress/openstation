@@ -27,8 +27,6 @@
  * to peer-app activity channels. They query window state when they
  * need to (`windowManager.isActive(id)`) and decide for themselves
  * what to do. The framework is the bus, not the policy.
- *
- * @since 0.5.5
  */
 
 import {
@@ -90,8 +88,6 @@ export interface ActivityChannelMap {
 	 * Framework: `wp.desktop.notify()` was called. Filter to cancel
 	 * (`cancel: true`), mutate fields, or audit before the
 	 * Notification surface (or its toast fallback) is rendered.
-	 *
-	 * @since 0.8.0
 	 */
 	'desktop-mode/notification-requested': {
 		title: string;
@@ -109,8 +105,6 @@ export interface ActivityChannelMap {
 	 * so analytics can distinguish "user has notifications muted"
 	 * from "user explicitly hides nothing." `fallback: null` means
 	 * a real OS-level notification went up.
-	 *
-	 * @since 0.8.0
 	 */
 	'desktop-mode/notification-shown': {
 		title: string;

@@ -1,6 +1,6 @@
 # Folder sharing
 
-**Status:** Experimental (since 0.8.5). The hooks, schema, and
+**Status:** Experimental. The hooks, schema, and
 REST contract may change in minor releases — track this doc.
 
 ## What it is
@@ -354,7 +354,7 @@ site-admin cleanup (drops the folder-sharing tables) and requires
 
 ## Hooks
 
-See [hooks-reference.md](hooks-reference.md#folder-sharing-since-085-experimental).
+See [hooks-reference.md](hooks-reference.md#folder-sharing-experimental).
 
 ## JS surface
 
@@ -406,11 +406,44 @@ A recipient cannot re-share a folder they've received:
   sharing…" entries follow the same rule; recipients see the
   "Leave shared folder" entry instead.
 
+## Single-file shares
+
+Stored uploads (the `upload` file type — see
+[files-on-desktop.md](files-on-desktop.md#real-file-storage-upload--experimental))
+are shareable as single files, reusing this feature's tables via the
+`target_type='file'` column (the `folder_id` column carries the
+stored-file id on those rows). Deliberate divergences from folder
+shares:
+
+- **Read tier only.** Recipients get view + download; the write tier
+  does not exist for files. An invite with `capability: write` is a
+  400.
+- **User principals only** in v1 (no role invites).
+- Uploads are additionally **owner-locked** everywhere: even a
+  folder write-collaborator cannot move, rename, or trash an
+  `upload` placement inside a shared folder — only the stored file's
+  owner can (`desktop_mode_files_upload_owner_locked`). The
+  read/write tiers of THIS page are unchanged for every other type.
+
+Lifecycle mirrors folders: invite → heartbeat delivers the pending
+shape (`targetType: 'file'`, `fileId`, `fileName` riding the same
+`shares.pending` channel) → accept plants an `upload` placement at
+the recipient's desktop root (`desktop_mode_folder_share_accept_default_parent`
+filter applies) → deny / leave / revoke scrub the recipient's tile.
+Routes live under `/desktop-mode/v1/files/uploads/{id}/shares` and
+mirror the folder routes below, including the 404-when-disabled
+masking. Store functions:
+`desktop_mode_stored_file_share_{invite,accept,deny,leave,revoke}()`,
+state resolver `desktop_mode_stored_file_share_state()`, manage gate
+`desktop_mode_stored_files_share_can_manage` (owner-only default,
+filterable).
+
 ## Non-goals (v1)
 
 - Owner transfer.
-- Sharing of non-folder file types (the schema is ready;
-  the REST + modal aren't).
+- Sharing of non-upload, non-folder file types (posts, media
+  references, …).
+- Role-principal shares for single files.
 - Cascade share (sub-folders need their own grant).
 - Recipient-side rename of the shared folder.
 

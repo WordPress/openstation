@@ -23,8 +23,6 @@
  *     plugins that want to mute, amplify, or audit notifications
  *     register a filter and get the same lifecycle they already
  *     know from the toast surface.
- *
- * @since 0.8.0
  */
 
 import { activity } from '../activity';

@@ -49,15 +49,12 @@
  * the per-day "posts" count.
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.2
  */
 function desktop_mode_my_wordpress_register_user_footprint_route() {
 	register_rest_route(
@@ -83,8 +80,6 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_footprint_
 
 /**
  * Aggregator callback. See the file docblock for the payload shape.
- *
- * @since 0.8.2
  *
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
@@ -523,8 +518,6 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	 * the My WordPress folder window. Plugins can extend the timeline
 	 * with their own activity rows, or replace the streak math with
 	 * something domain-specific.
-	 *
-	 * @since 0.8.2
 	 *
 	 * @param array $payload Footprint payload.
 	 * @param int   $user_id Subject user id.

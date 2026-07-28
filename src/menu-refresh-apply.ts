@@ -12,8 +12,6 @@
  * Owns the contract that lists EVERY payload key the chromeless bridge
  * may emit. Adding a new key here is a documented breaking change for
  * plugin authors who watch live-refresh behaviour.
- *
- * @since 0.5.2
  */
 import type { DockItem } from './dock';
 import type {
@@ -25,13 +23,17 @@ import type {
 	DesktopSettingsTabScriptServerEntry,
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
+	DesktopGameServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
+	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
 	DesktopWidgetServerEntry,
 	DesktopWindowNoticeServerEntry,
+	DesktopThemeServerEntry,
 	NativeWindowServerEntry,
 } from './types';
 import { applyServerWindowNotices } from './window-notices-server-sync';
+import { applyAdminBarUpdates } from './admin-bar-updates';
 
 /** Shape of every payload key the bridge may carry. */
 export interface MenuRefreshPayload {
@@ -46,8 +48,12 @@ export interface MenuRefreshPayload {
 	serverDockRailRendererScripts?: unknown;
 	serverTitleBarButtonScripts?: unknown;
 	serverUnfocusEffectScripts?: unknown;
+	serverWindowLinkRendererScripts?: unknown;
 	serverWindowNotices?: unknown;
+	serverGames?: unknown;
+	serverDesktopThemes?: unknown;
 	desktopIcons?: unknown;
+	updateCounts?: unknown;
 }
 
 /** Dependencies the applier needs from the shell. */
@@ -84,9 +90,21 @@ export interface MenuRefreshDeps {
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
 	) => Promise< void >;
+	syncServerWindowLinkRenderers: (
+		scripts: DesktopWindowLinkRendererScriptServerEntry[],
+	) => Promise< void >;
 	syncServerDockRailRenderers: (
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
+	syncServerGames: ( list: DesktopGameServerEntry[] ) => Promise< void >;
+	/**
+	 * Reconcile the desktop-theme library against a fresh payload.
+	 * Synchronous — themes carry no script to load.
+	 *
+	 * Optional so callers/tests that predate desktop themes keep
+	 * working unchanged.
+	 */
+	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
 	/**
 	 * Re-run the files-layer shortcut reconciliation
@@ -112,8 +130,6 @@ export interface MenuRefreshDeps {
  * Naming: `desktop-mode-*`, NOT `wp-desktop-*`. The `wp-` prefix is
  * reserved for WordPress Core per plugin reviewer guidelines; all
  * public surface uses the project-owned prefix.
- *
- * @since 0.7.0
  */
 export const REGISTRY_CHANGED_EVENT = 'desktop-mode-registry-changed';
 
@@ -191,7 +207,10 @@ export function createApplyPayload(
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
+		syncServerGames,
+		syncServerDesktopThemes,
 		renderIcons,
 		syncShortcuts,
 	} = deps;
@@ -208,7 +227,11 @@ export function createApplyPayload(
 		const serverDockRailRendererScripts = payload.serverDockRailRendererScripts;
 		const serverTitleBarButtonScripts = payload.serverTitleBarButtonScripts;
 		const serverUnfocusEffectScripts = payload.serverUnfocusEffectScripts;
+		const serverWindowLinkRendererScripts =
+			payload.serverWindowLinkRendererScripts;
 		const serverWindowNotices = payload.serverWindowNotices;
+		const serverGames = payload.serverGames;
+		const serverDesktopThemes = payload.serverDesktopThemes;
 		const desktopIcons = payload.desktopIcons;
 
 		// Guard: an empty `dockItems` list is NEVER legitimate —
@@ -279,6 +302,29 @@ export function createApplyPayload(
 				serverWallpapers as DesktopConfig[ 'serverWallpapers' ];
 		}
 
+		// Games-registry sync — stub registration only (game scripts
+		// load lazily on first launch). New plugin games surface in
+		// the Games window without a reload; deactivated ones leave
+		// the launcher grid + scoreboard tabs.
+		if ( Array.isArray( serverGames ) ) {
+			void syncServerGames( serverGames as DesktopGameServerEntry[] );
+			config.serverGames =
+				serverGames as DesktopConfig[ 'serverGames' ];
+		}
+
+		// Desktop-theme library sync — a plugin that registers a
+		// theme from code makes it appear in OS Settings → Themes on
+		// activation, and lose it on deactivation. If the user was
+		// WEARING the departing theme, the sync deactivates locally
+		// so the shell doesn't sit on a dead stylesheet.
+		if ( Array.isArray( serverDesktopThemes ) ) {
+			syncServerDesktopThemes?.(
+				serverDesktopThemes as DesktopThemeServerEntry[],
+			);
+			config.serverDesktopThemes =
+				serverDesktopThemes as DesktopConfig[ 'serverDesktopThemes' ];
+		}
+
 		// Command-palette sync — loads plugin-contributed command
 		// scripts on activation and unregisters owner-tagged commands
 		// when a handle leaves the payload. `serverCommandScripts`
@@ -339,6 +385,19 @@ export function createApplyPayload(
 				serverUnfocusEffectScripts as DesktopConfig[ 'serverUnfocusEffectScripts' ];
 		}
 
+		// Window-link renderer sync — same shape. Loads plugin renderer
+		// scripts on activation (their `registerWindowLinkRenderer()`
+		// surfaces in OS Settings → Effects → Window links and the
+		// render host remounts if it affects the active pick);
+		// owner-tagged sweep on deactivation.
+		if ( Array.isArray( serverWindowLinkRendererScripts ) ) {
+			void syncServerWindowLinkRenderers(
+				serverWindowLinkRendererScripts as DesktopWindowLinkRendererScriptServerEntry[],
+			);
+			config.serverWindowLinkRendererScripts =
+				serverWindowLinkRendererScripts as DesktopConfig[ 'serverWindowLinkRendererScripts' ];
+		}
+
 		// Dock rail renderer sync — load plugin renderer scripts on
 		// activation, owner-tagged sweep on deactivation. The
 		// registry's notify cascade handles repaint of the OS
@@ -379,5 +438,13 @@ export function createApplyPayload(
 				desktopIcons as ReadonlyArray< { id?: unknown } >,
 			);
 		}
+
+		// Admin-bar "updates" notifier — mirror the aggregate pending-
+		// update counts onto Core's `#wp-admin-bar-updates` node (label,
+		// screen-reader text, hidden at zero). Without this, the count
+		// rendered at shell boot survives every in-window update run
+		// until a hard refresh (GH#296). Missing key (older payload)
+		// means "no change."
+		applyAdminBarUpdates( payload.updateCounts );
 	};
 }

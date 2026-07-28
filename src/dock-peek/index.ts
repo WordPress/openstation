@@ -14,8 +14,6 @@
  * Pointer-only: touch devices skip the peek and fall back to plain
  * tap-to-focus / tap-to-open. Hover popovers don't translate to touch
  * cleanly, and Phase 5–6 is where the mobile shell takes over.
- *
- * @since 0.6.2
  */
 
 import { __, sprintf } from '../i18n';
@@ -114,6 +112,7 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 	const tearDown = (): void => {
 		cancelShow();
 		cancelHide();
+		tile.removeAttribute( 'data-peek-active' );
 		if ( popover ) {
 			popover.remove();
 			popover = null;
@@ -168,6 +167,7 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 
 	const showPeek = (): void => {
 		deps.suppressTooltip( true );
+		tile.setAttribute( 'data-peek-active', '' );
 		popover = buildPopover( deps, () => tearDown() );
 		document.body.appendChild( popover );
 		// Inherit the user's WP color-scheme variables. The popover is
@@ -248,6 +248,20 @@ function buildPopover( deps: DockPeekDeps, dismiss: () => void ): HTMLElement {
 	}
 
 	return root;
+}
+
+/**
+ * Restores `win` if it's minimized, clearing the peek card's collapsed
+ * `data-state` along with it so the CSS stops hiding the card's body.
+ */
+function restoreIfMinimized( win: WPWindow, card?: HTMLElement ): void {
+	if ( win.state !== 'minimized' ) {
+		return;
+	}
+	win.restore();
+	if ( card ) {
+		delete card.dataset.state;
+	}
 }
 
 /**
@@ -348,20 +362,23 @@ function buildInstanceCard(
 	}
 	card.appendChild( body );
 
+	// Mark minimized cards for collapsed CSS.
+	if ( win.state === 'minimized' ) {
+		card.dataset.state = 'minimized';
+	}
+
 	card.addEventListener( 'click', () => {
 		spawnFocusViewTransition( deps, win, card, dismiss );
 	} );
 
-	// Hover-to-raise: bringing the live window forward on pointerenter
-	// gives the peek a "scrub through my windows" feel — Mission
-	// Control on macOS, Windows 7 Aero Peek. Skip if the target is
-	// already focused so a re-enter into the same card doesn't churn
-	// the focus stack and re-fire window-focused listeners.
+	// Restore minimized windows on hover so peek cards actually show
+	// the window. Non-minimized windows use the existing scrub-to-focus.
 	card.addEventListener( 'pointerenter', () => {
-		if ( deps.windowManager.getFocused() === win ) {
-			return;
+		if ( win.state === 'minimized' ) {
+			restoreIfMinimized( win, card );
+		} else if ( deps.windowManager.getFocused() !== win ) {
+			deps.windowManager.focus( win );
 		}
-		deps.windowManager.focus( win );
 	} );
 
 	// Apply the whole-card filter LAST so plugins can wrap or replace
@@ -398,6 +415,7 @@ function spawnFocusViewTransition(
 	const vtName = `desktop-mode-peek-card-${ win.id }`;
 	const focus = (): void => {
 		dismiss();
+		restoreIfMinimized( win, card );
 		deps.windowManager.focus( win );
 	};
 	if ( typeof doc.startViewTransition !== 'function' ) {

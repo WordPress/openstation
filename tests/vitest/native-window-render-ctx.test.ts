@@ -11,8 +11,6 @@
  *
  * Backwards-compat: legacy unary callbacks (`render: ( body ) => ...`)
  * keep working — JS just ignores the extra arg.
- *
- * @since 0.8.2
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { WindowManager } from '../../src/window-manager';

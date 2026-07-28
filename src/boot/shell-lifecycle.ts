@@ -8,8 +8,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { HOOKS, addAction, doAction } from '../hooks';
@@ -22,8 +20,6 @@ const SHELL_RESIZE_DEBOUNCE_MS = 120;
  * should end up persisted. Close/focus come from the manager;
  * moved/resized/state come from individual windows via
  * `desktop-mode-window-changed`.
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export function wireSessionEvents( save: () => void ): void {
 	document.addEventListener( 'desktop-mode-window-opened', save );
@@ -41,8 +37,6 @@ export function wireSessionEvents( save: () => void ): void {
  * drag-to-resize storm collapses to a single hook fire;
  * visibility is edge-triggered (fires exactly once per state
  * change).
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export function bindShellLifecycle(): void {
 	const shellEl = document.getElementById( 'desktop-mode-shell' );

@@ -11,8 +11,6 @@
  *   [desktop-mode] Widget registration rejected — fields: id (missing), mount (not a function).
  *
  * Factored out so every registry validates with the same ergonomics.
- *
- * @since 0.8.2
  */
 
 type FieldCheck<T> = {

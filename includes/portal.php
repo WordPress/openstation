@@ -50,8 +50,6 @@ const DESKTOP_MODE_CLASSIC_FLAG = 'desktop_mode_classic';
 /**
  * Returns the canonical portal URL, e.g. `https://example.com/desktop-mode/`.
  *
- * @since 0.4.0
- *
  * @return string
  */
 function desktop_mode_portal_url() {
@@ -63,8 +61,6 @@ function desktop_mode_portal_url() {
  *
  * Hooks on `parse_request` — early enough to pre-empt 404 handling but
  * late enough that `is_user_logged_in()` is reliable.
- *
- * @since 0.4.0
  *
  * @param WP $wp Current WordPress environment instance.
  */
@@ -99,8 +95,6 @@ function desktop_mode_handle_portal_request( $wp ) {
 	 *
 	 * Default: true — the portal is an explicit opt-in action, so flipping
 	 * the user meta mirrors the intent of visiting the URL.
-	 *
-	 * @since 0.4.0
 	 *
 	 * @param bool $auto_enable Whether to auto-enable desktop mode.
 	 * @param int  $user_id     The current user's ID.
@@ -179,8 +173,6 @@ add_action( 'parse_request', 'desktop_mode_handle_portal_request' );
  *   - Header missing (older browsers): fall back to `Referer` —
  *     same host or empty referrer is trusted, anything else isn't.
  *
- * @since 0.6.2
- *
  * @return bool
  */
 function desktop_mode_portal_is_same_origin_navigation() {
@@ -208,8 +200,6 @@ function desktop_mode_portal_is_same_origin_navigation() {
  *
  * Strips any query string and trailing slash and compares against
  * `/desktop-mode` relative to the site's home path.
- *
- * @since 0.4.0
  *
  * @return bool
  */
@@ -254,8 +244,6 @@ function desktop_mode_is_portal_request() {
  * Disable via the `desktop_mode_admin_redirect_to_portal` filter (return
  * false). Passthrough kicks in automatically when the current request
  * is chromeless or already carries the portal flag.
- *
- * @since 0.4.0
  */
 function desktop_mode_redirect_plain_admin_to_portal() {
 	if ( ! desktop_mode_is_enabled() ) {
@@ -299,8 +287,6 @@ function desktop_mode_redirect_plain_admin_to_portal() {
 	 * Filters whether plain admin URLs should redirect to the portal
 	 * when desktop mode is active.
 	 *
-	 * @since 0.4.0
-	 *
 	 * @param bool $redirect Whether to redirect. Default true.
 	 * @param int  $user_id  The current user's ID.
 	 */
@@ -343,8 +329,6 @@ add_action( 'admin_init', 'desktop_mode_redirect_plain_admin_to_portal' );
  * `desktop_mode_chromeless=1` flag baked into the stored URL is stripped — a leftover
  * flag would land the user in a standalone chromeless page (no admin
  * bar, no toggle, no way out) instead of the shell.
- *
- * @since 0.4.0
  *
  * @param int $user_id The user whose session to consult.
  * @return string The admin URL to redirect to.
@@ -401,8 +385,6 @@ function desktop_mode_portal_entry_url( $user_id ) {
  * Strips `desktop_mode_chromeless` and the portal flag from the query so the target
  * doesn't chain us into a chromeless standalone load or an infinite
  * redirect loop.
- *
- * @since 0.6.0
  *
  * @param string $raw Raw value from `$_GET['target']` (already unslashed).
  * @return string A safe absolute admin URL, or '' if the input is invalid.

@@ -36,8 +36,6 @@
  *     users use Share → Add to Home Screen for the actual install.
  *     The `apple-mobile-web-app-*` meta tags emitted from PHP make
  *     that work.
- *
- * @since 0.8.0
  */
 
 import { __, sprintf } from '../i18n';

@@ -7,7 +7,7 @@
  * referenced native window (via the injected `openWindow` callback)
  * or opens the URL as an iframe window / new tab.
  *
- * **Badge surface (since 0.6.0).** The icon rail mirrors the
+ * **Badge surface.** The icon rail mirrors the
  * dock + taskbar API exactly: `setBadge( id, count )` is
  * idempotent, `0` clears, `>99` renders `99+`. Every change emits
  * `desktop-mode/badge-changed` with `rail: 'icon'` on the activity
@@ -30,16 +30,17 @@
  * and {@link HOOKS.DESKTOP_ICONS_RENDERED}; reach for the badge
  * API rather than DOM-scraping `[data-icon-id]` whenever the
  * decoration is "show a number on this icon."
- *
- * @since 0.5.0
  */
 
 import { activity } from './activity';
+import { findMenuEntryForUrl } from './desktop-files/menu-entry';
 import { tryOpenExternalUrl } from './external-url';
 import { __, _n, sprintf } from './i18n';
 import { doAction, HOOKS } from './hooks';
 import { renderIcon } from './icon';
-import { openItemVisibilityMenu } from './item-visibility-menu';
+import { getActiveDesktopThemeId } from './desktop-themes/registry';
+import { slotForTileId } from './desktop-themes/slots';
+import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import type { DesktopIconServerEntry } from './types';
 import type { WindowManager } from './window-manager';
 
@@ -70,7 +71,7 @@ export interface DesktopIconRenderDeps {
 	 * events (minimize, restore, focus) propagate to a single dock
 	 * tile state. Previously the icon path generated a per-entry
 	 * id (`desktop-icon-<id>`) that split the same app across two
-	 * parallel windows with independent state — fixed in 0.8.9.
+	 * parallel windows with independent state — since fixed.
 	 */
 	deriveWindowId: ( url: string ) => string;
 }
@@ -133,7 +134,6 @@ function _safeBadge( count: number ): number {
  * doesn't need to re-decorate after every live menu refresh.
  *
  * @public
- * @since 0.6.0
  *
  * @param iconId Id passed to `desktop_mode_register_icon()`.
  * @param count  Non-negative integer. `>99` renders as `99+`.
@@ -176,7 +176,6 @@ export function setIconBadge( iconId: string, count: number ): void {
  * `setIconBadge( id, 0 )`.
  *
  * @public
- * @since 0.6.0
  */
 export function clearIconBadge( iconId: string ): void {
 	setIconBadge( iconId, 0 );
@@ -193,7 +192,6 @@ export function clearIconBadge( iconId: string ): void {
  * activity channel for "tell me when it changes."
  *
  * @public
- * @since 0.6.0
  */
 export function getIconBadge( iconId: string ): number {
 	return _badges.get( iconId ) ?? 0;
@@ -219,7 +217,6 @@ export function _resetIconBadgesForTests(): void {
  * dock / taskbar / icon is paid in plugin churn.
  *
  * @public
- * @since 0.6.0
  */
 export interface IconsApi {
 	setBadge: ( iconId: string, count: number ) => void;
@@ -235,7 +232,6 @@ export interface IconsApi {
  * importing the symbol directly.
  *
  * @public
- * @since 0.6.0
  */
 export const iconsApi: IconsApi = {
 	setBadge: setIconBadge,
@@ -263,7 +259,14 @@ function fingerprintIcons(
 	if ( ! icons || icons.length === 0 ) {
 		return '';
 	}
-	return icons
+	// The active desktop theme is part of the fingerprint because it
+	// changes what `buildIcon` PAINTS without changing the icon list
+	// at all. Leave it out and the bail-out below swallows every
+	// theme switch: the entries are identical, so the grid keeps
+	// showing the previous theme's artwork until something unrelated
+	// perturbs the list.
+	const themePrefix = `${ getActiveDesktopThemeId() ?? '' }::`;
+	return themePrefix + icons
 		.map(
 			( i ) =>
 				`${ i.id }|${ i.title }|${ i.icon }|${ i.window ?? '' }|${
@@ -285,8 +288,6 @@ let _lastFingerprint = '';
  * decorated from `_badges` before being inserted, so a plugin that
  * called `setIconBadge` once doesn't need to re-decorate after
  * each {@link HOOKS.DESKTOP_ICONS_RENDERED}.
- *
- * @since 0.5.0
  *
  * @param host  Desktop-area element (`#desktop-mode-area`).
  * @param icons Ordered list from `config.desktopIcons`.
@@ -466,10 +467,11 @@ function buildIcon(
 	// fallback for malformed values. Keeps the wallpaper rail
 	// rendering icons identically to the dock instead of falling
 	// through to a broken Dashicons-class glue path for SVG data
-	// URIs (the bug fixed in 0.8.2).
+	// URIs (an earlier bug).
 	const icon = renderIcon( entry.icon, {
 		title: entry.title,
 		className: 'desktop-mode-icon__image',
+		slot: slotForTileId( entry.id ),
 	} );
 	tile.appendChild( icon );
 
@@ -539,12 +541,20 @@ function openTarget(
 			// indicator. See the docstring on
 			// `DesktopIconRenderDeps.deriveWindowId`.
 			const windowId = deps.deriveWindowId( parsed.toString() );
+			// Enrich with the matching admin-menu entry so the window
+			// gets the same submenu tab strip / parent-tab / multi
+			// behavior as a dock open (mirrors `openItem` in
+			// `desktop-layout.ts`).
+			const menuEntry = findMenuEntryForUrl( parsed.toString() );
 			void deps.manager.open( {
 				id: windowId,
 				baseId: windowId,
 				url: parsed.toString(),
+				parentUrl: menuEntry?.url ?? parsed.toString(),
 				title: entry.title,
 				icon: entry.icon,
+				submenu: menuEntry?.submenu,
+				multi: !! menuEntry?.multi,
 			} );
 		} catch {
 			// Malformed URL — ignore rather than surface a broken

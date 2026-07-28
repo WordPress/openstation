@@ -19,8 +19,6 @@
  * Plugin chromes can render however they like — including by
  * delegating back to the standard chrome's helpers — but cannot
  * pre-empt the framework's drag / resize handlers.
- *
- * @since 0.6.0
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';

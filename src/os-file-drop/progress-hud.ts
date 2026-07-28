@@ -22,8 +22,6 @@
  *     before the shell boots to prevent the default panel from
  *     mounting — useful when a plugin wants to handle the same
  *     hook surface with its own UI.
- *
- * @since 0.31.0
  */
 
 import { addAction } from '../hooks';

@@ -12,8 +12,6 @@
  * `window.desktopModeRenderOsSettingsPanel( ctx, body )`. The stub
  * awaits the script's `load` event and forwards every panel open
  * (and registry-driven re-render) to this function.
- *
- * @since 0.8.4
  */
 
 import { renderOsSettingsPanel } from './panel';

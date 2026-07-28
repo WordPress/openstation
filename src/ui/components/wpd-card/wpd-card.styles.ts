@@ -8,7 +8,12 @@ export const styles = css`
 		padding: var( --wpd-card-padding, 16px );
 		border: 1px solid var( --wpd-card-border, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 		border-radius: var( --wpd-card-radius, 12px );
-		background: var( --wpd-card-bg, #fff );
+		background: var( --wpd-card-bg, var( --wpd-surface, #fff ) );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-panel-bg-image, none );
+		background-repeat: var( --wpd-panel-bg-image-repeat, repeat );
+		background-size: var( --wpd-panel-bg-image-size, auto );
+		background-position: var( --wpd-panel-bg-image-position, center );
 		color: var( --wpd-card-fg, inherit );
 		box-sizing: border-box;
 		min-width: 0;

@@ -18,16 +18,12 @@
  * the contract consistent with Core's other plugin REST decorators.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the five enrichment fields on the `plugin` REST resource.
- *
- * @since 0.9.0
- * @since 0.8.6 Added `desktop_mode_auto_update`.
  */
 function desktop_mode_plugins_window_register_rest_fields() {
 	register_rest_field(
@@ -118,8 +114,6 @@ add_action( 'rest_api_init', 'desktop_mode_plugins_window_register_rest_fields' 
  * This helper re-appends `.php` when missing so callers can use the
  * result as a transient/option key or filesystem path directly.
  *
- * @since 0.8.3
- *
  * @param array $row Core REST plugin row.
  * @return string Plugin file (e.g. `"elementor/elementor.php"`), or `''`
  *                when the row has no `plugin` field.
@@ -153,17 +147,6 @@ function desktop_mode_plugins_window_row_plugin_file( $row ) {
  * many times per request should additionally guard with their own
  * static so they don't pay the transient-read overhead per row.
  *
- * @since 0.8.3
- * @since 0.8.5 Accepts a `$force` flag — set by the in-window Refresh
- *               button via `?desktop_mode_force_refresh=1`. Bypasses
- *               the 12h throttle and runs `wp_clean_plugins_cache( true )`
- *               so the next read sees a fresh wp.org snapshot. Without
- *               this escape hatch the Refresh button was misleading:
- *               within 12h of the last check it returned the same
- *               cached "no updates" result Core had stored, while
- *               classic admin's `plugins.php` (which always calls
- *               `wp_clean_plugins_cache( true )`) showed pending updates.
- *
  * @param bool $force When true, delete the transient and force a fresh
  *                    wp.org check regardless of the 12h throttle.
  */
@@ -177,11 +160,6 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = fa
 	 * to potentially trigger a wp.org check. The filter also gates the
 	 * explicit force-refresh path so hosts that block wp.org calls
 	 * outright keep that posture even when the user clicks Refresh.
-	 *
-	 * @since 0.8.3
-	 * @since 0.8.5 `$force` parameter added so filter callbacks can
-	 *               distinguish opportunistic refreshes from explicit
-	 *               user-initiated ones.
 	 *
 	 * @param bool $refresh Whether to call `wp_update_plugins()`.
 	 * @param bool $force   Whether the caller asked to bypass the throttle.
@@ -244,8 +222,6 @@ function desktop_mode_plugins_window_maybe_refresh_update_transient( $force = fa
  * so no additional nonce is required beyond REST's standard
  * `X-WP-Nonce` cookie-auth check.
  *
- * @since 0.8.5
- *
  * @return bool True when the request asked for a force-refresh.
  */
 function desktop_mode_plugins_window_force_refresh_requested() {
@@ -260,8 +236,6 @@ function desktop_mode_plugins_window_force_refresh_requested() {
 
 /**
  * `desktop_mode_update_available` callback.
- *
- * @since 0.9.0
  *
  * @param array $row Core REST plugin row.
  * @return array{available:bool,new_version:string|null,package:string,slug:string}
@@ -363,8 +337,6 @@ function desktop_mode_plugins_window_field_update_available( $row ) {
  * set — exactly the intersection we compute here. Using this count for
  * the dock badge guarantees the two surfaces agree (GH#258).
  *
- * @since 0.8.8
- *
  * @return int Number of installed plugins with a pending update.
  */
 function desktop_mode_plugins_window_count_visible_updates() {
@@ -397,8 +369,6 @@ function desktop_mode_plugins_window_count_visible_updates() {
  * Per-row cap surface so the JS UI can hide actions the viewer can't
  * perform without re-deriving caps client-side. Server still
  * re-validates every mutation.
- *
- * @since 0.9.0
  *
  * @param array $row Core REST plugin row.
  * @return array{activate:bool,deactivate:bool,delete:bool}
@@ -446,10 +416,6 @@ function desktop_mode_plugins_window_field_can_manage( $row ) {
  * drops to a `<wpd-icon name="dashicons-admin-plugins">` placeholder.
  * A 404 here costs nothing.
  *
- * @since 0.9.0
- * @since 0.8.6 Probes the plugin's own folder for an icon before
- *              falling back to the wp.org SVN URL.
- *
  * @param array $row Core REST plugin row.
  * @return string|null
  */
@@ -489,8 +455,6 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
 	 * wp.org SVN pattern;
 	 * custom URLs and local URLs are one-shot, then placeholder.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string|null $url  Default URL (local file if the plugin's
 	 *                          folder ships one, else wp.org SVG).
 	 * @param string      $slug Plugin slug (folder name, or textdomain
@@ -529,8 +493,6 @@ function desktop_mode_plugins_window_field_icon_url( $row ) {
  * `desktop_mode_plugins_window_local_icon_candidates` so a host can
  * support a custom convention (e.g. an `icon@2x.svg` shape).
  *
- * @since 0.8.6
- *
  * @param string $plugin_file Plugin file (e.g. `"akismet/akismet.php"`).
  * @return string|null URL of the first local icon found, or null.
  */
@@ -548,8 +510,6 @@ function desktop_mode_plugins_window_local_icon_url( $plugin_file ) {
 	 * Filter the ordered list of relative paths probed inside an
 	 * installed plugin's folder when looking for a card icon. The
 	 * first existing file wins; later entries are ignored.
-	 *
-	 * @since 0.8.6
 	 *
 	 * @param string[] $candidates Relative paths under the plugin folder.
 	 * @param string   $folder     Plugin folder name (e.g. `"akismet"`).
@@ -585,8 +545,6 @@ function desktop_mode_plugins_window_local_icon_url( $plugin_file ) {
  * `desktop_mode_size_kb` callback. Caches per-plugin for 6 hours so
  * a 50-row table doesn't `glob`+`filesize` 50 directories on every
  * fetch. Returns `null` when the folder can't be read.
- *
- * @since 0.9.0
  *
  * @param array $row Core REST plugin row.
  * @return int|null Size in kilobytes, or null on failure.
@@ -630,8 +588,6 @@ function desktop_mode_plugins_window_field_size_kb( $row ) {
  * stall a REST response. When the cap trips we return whatever we
  * counted so far — a slight under-report is better than a hung
  * request.
- *
- * @since 0.9.0
  *
  * @param string $dir Absolute filesystem path.
  * @return int Kilobytes (rounded).
@@ -700,8 +656,6 @@ function desktop_mode_plugins_window_compute_dir_size_kb( $dir ) {
  * NOT included here (lives on the window config instead): the global
  * `wp_is_auto_update_enabled_for_type( 'plugin' )` flag, which depends
  * on admin-only includes — see `desktop_mode_plugins_window_auto_updates_enabled()`.
- *
- * @since 0.8.6
  *
  * @param array $row Core REST plugin row.
  * @return array{enabled:bool,forced:bool|null,supported:bool}

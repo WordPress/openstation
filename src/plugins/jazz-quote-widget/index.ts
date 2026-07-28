@@ -14,8 +14,6 @@
  * Quotes rotate daily using a day-of-year seed so the index stays
  * bounded and all three quotes in a pool see roughly equal rotation.
  * Persisted in ctx.storage so it does not re-evaluate on every page load.
- *
- * @since 0.26.0
  */
 import './styles.css';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';

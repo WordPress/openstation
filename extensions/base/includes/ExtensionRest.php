@@ -13,7 +13,6 @@
  * permission callback for you.
  *
  * @package Desktop_Mode_Extension_Base
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -21,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 if ( ! class_exists( 'Desktop_Mode_Extension_Rest' ) ) :
 
 /**
- * @since 0.8.1
+ * Base class an extension subclasses to declare its REST routes.
  */
 abstract class Desktop_Mode_Extension_Rest {
 

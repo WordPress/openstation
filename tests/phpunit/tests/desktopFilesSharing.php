@@ -636,7 +636,7 @@ class Tests_DesktopMode_FilesSharing extends WP_UnitTestCase {
 		// the editor, not the owner. The viewer here is the FOLDER
 		// OWNER (themselves a writer on the row, just attempting a
 		// concurrent PATCH) — they're in scope to learn the actor's
-		// identity, so the PII gate added in 0.18.x lets the name
+		// identity, so the PII gate lets the name
 		// through.
 		wp_set_current_user( self::$owner_id );
 		$req = new WP_REST_Request( 'PATCH' );

@@ -42,8 +42,6 @@
  *   });
  * </script>
  * ```
- *
- * @since 0.8.2
  */
 
 import { Component, defineComponent, html, type TemplateResult } from '../../core';
@@ -165,10 +163,10 @@ export class WpdFlyout extends Component {
 		],
 		example: html`
 			<div
-				style="position:relative;height:280px;border:1px solid rgba(0,0,0,0.08);border-radius:8px;background:var(--desktop-mode-bg-soft, #f6f7f7);overflow:hidden;"
+				style="position:relative;height:280px;border:1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );border-radius:8px;background:var( --wpd-surface-elevated, #f6f7f7 );color:var( --wpd-fg, inherit );overflow:hidden;"
 			>
 				<div
-					style="height:32px;background:rgba(0,0,0,0.04);display:flex;align-items:center;padding:0 12px;font-size:12px;opacity:0.7;"
+					style="height:32px;background:var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );display:flex;align-items:center;padding:0 12px;font-size:12px;opacity:0.7;"
 				>
 					Mock window — title bar
 				</div>

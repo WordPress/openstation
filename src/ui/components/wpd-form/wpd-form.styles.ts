@@ -23,7 +23,7 @@ export const wpdFormStyles = css`
 		container-type: inline-size;
 		container-name: wpd-form;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 	}
 	:host( [ hidden ] ) {
 		display: none;
@@ -98,7 +98,7 @@ export const wpdFormStyles = css`
 		padding: 10px 12px;
 		border-radius: 6px;
 		background: rgba( 179, 45, 46, 0.10 );
-		color: #b32d2e;
+		color: var( --wpd-danger-hover, #b32d2e );
 		font-size: 13px;
 		line-height: 1.4;
 	}
@@ -113,7 +113,7 @@ export const wpdFormStyles = css`
 		gap: 8px;
 		align-items: center;
 		justify-content: flex-end;
-		border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+		border-top: 1px solid var( --wpd-border, #dcdcde );
 		padding-top: 14px;
 	}
 	:host( [ align="start" ] ) .footer {

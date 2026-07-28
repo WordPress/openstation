@@ -19,14 +19,15 @@
  * helper) lives in `tile-spec.ts`. Adding a feature there lights
  * it up on every surface — desktop, folders, My WordPress, plugin
  * windows — without forking the renderer.
- *
- * @since 0.9.0
  */
 
+import { resolveThemedIcon } from '../desktop-themes/icons';
+import { slotForFileType } from '../desktop-themes/slots';
 import { applyFilters, doAction } from '../hooks';
 import { resolve as resolveFileType } from './registry';
 import { openFile } from './open';
 import { showToast } from '../toast';
+import { currentPlacement } from './store';
 import type { RestPlacementShape } from './rest';
 import {
 	buildTileFromSpec,
@@ -35,6 +36,22 @@ import {
 } from './tile-spec';
 
 export { TILE_CLASS };
+
+/**
+ * Visible label for a placement — the per-placement `meta.name`
+ * override when present, the file's own title otherwise.
+ *
+ * Exported for the layer's fast-path repaints: they reuse tile DOM
+ * instead of rebuilding, so they re-derive the label with this same
+ * rule and patch the `<wpd-tile>` `label` attribute in place.
+ */
+export function placementLabel( placement: RestPlacementShape ): string {
+	const metaName =
+		placement.meta && typeof ( placement.meta as { name?: unknown } ).name === 'string'
+			? ( placement.meta as { name: string } ).name.trim()
+			: '';
+	return metaName !== '' ? metaName : resolveFileType( placement.file ).title();
+}
 
 /**
  * Convert a placement into the generic spec the unified renderer
@@ -48,11 +65,7 @@ function placementToSpec(
 	const file = resolveFileType( placement.file );
 	const previewUrl = file.previewUrl();
 
-	const metaName =
-		placement.meta && typeof ( placement.meta as { name?: unknown } ).name === 'string'
-			? ( placement.meta as { name: string } ).name.trim()
-			: '';
-	const label = metaName !== '' ? metaName : file.title();
+	const label = placementLabel( placement );
 
 	const metaIconUrl =
 		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
@@ -65,7 +78,19 @@ function placementToSpec(
 		label,
 		// Preview wins over icon (matches the previous behavior).
 		thumbnail: previewUrl || undefined,
-		icon: previewUrl ? undefined : ( metaIconUrl || file.icon() ),
+		// Precedence when no preview exists:
+		//   per-placement `meta.iconUrl`  (the user/plugin said so
+		//                                  about THIS tile)
+		//   → desktop-theme FILE_* slot   (the theme said so about
+		//                                  this KIND of tile)
+		//   → the file type's own icon.
+		// The per-placement override outranks the theme on purpose:
+		// it is specific, deliberate, and about one object.
+		icon: previewUrl
+			? undefined
+			: ( metaIconUrl ||
+				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
+				file.icon() ),
 		x: placement.x,
 		y: placement.y,
 		dataset: {
@@ -84,11 +109,10 @@ export function buildTile(
 	placement: RestPlacementShape,
 	folderId: number,
 ): HTMLElement {
-	const file = resolveFileType( placement.file );
 	const tile = buildTileFromSpec( placementToSpec( placement, folderId ) );
 
 	// Back-compat: placement-shaped class filter. Documented in
-	// docs/files-on-desktop.md since 0.9; third-party plugins rely
+	// docs/files-on-desktop.md; third-party plugins rely
 	// on the exact filter name + the `TILE_CLASS` default input +
 	// the `RestPlacementShape` signature. The `<wpd-tile>` host
 	// re-asserts `TILE_CLASS` in `_paint()`, so any extra classes
@@ -116,10 +140,16 @@ export function buildTile(
 	tile.addEventListener( 'dblclick', ( e ) => {
 		e.preventDefault();
 		e.stopPropagation();
-		if ( placement.accessGated ) {
+		// Re-read the live placement — the layer's fast-path repaints
+		// reuse this tile's DOM without re-wiring, so the captured
+		// `placement` can be stale by now (an in-place rename would
+		// otherwise leak the old title into the opened window).
+		const live = currentPlacement( placement );
+		const file = resolveFileType( live.file );
+		if ( live.accessGated ) {
 			showToast( {
 				message:
-					`You don’t have permission to open "${ placement.file.title || file.title() }". ` +
+					`You don’t have permission to open "${ live.file.title || file.title() }". ` +
 					'Ask the folder owner if you need access to this item.',
 				duration: 6000,
 			} );
@@ -127,10 +157,10 @@ export function buildTile(
 		}
 		void openFile( file, {
 			placement: {
-				id: placement.id,
-				x: placement.x,
-				y: placement.y,
-				meta: placement.meta,
+				id: live.id,
+				x: live.x,
+				y: live.y,
+				meta: live.meta,
 			},
 		} );
 	} );

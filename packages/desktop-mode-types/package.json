@@ -1,6 +1,6 @@
 {
 	"name": "@desktop-mode/types",
-	"version": "0.9.3",
+	"version": "0.9.7",
 	"private": true,
 	"description": "TypeScript types and ambient globals for plugins building on top of WordPress Desktop Mode (`wp.desktop.*`).",
 	"license": "GPL-2.0-or-later",

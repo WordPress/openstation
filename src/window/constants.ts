@@ -3,8 +3,6 @@
  *
  * Shared between the `Window` class and its sibling helper modules
  * (drag, resize, tabs, menus, iframe-bridge).
- *
- * @since 0.8.1
  */
 
 /**
@@ -18,6 +16,13 @@
  * can drag a window to the very edge — and snap gestures expect it.
  */
 export const EDGE_MARGIN = 0;
+
+/**
+ * Minimum visible area (in pixels) of the title bar that must remain
+ * on-screen when dragging or reflowing windows. Prevents the window
+ * from becoming completely unreachable.
+ */
+export const GRAB_MARGIN = 40;
 
 /**
  * Minimum cursor travel (in pixels) before a pointerdown counts as a

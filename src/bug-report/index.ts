@@ -14,8 +14,6 @@
  *      `desktop-mode-open-bug-report`).
  *   2. The dock system tile registered in `src/desktop.ts`.
  *   3. Future: a desktop widget. Same target, no special-casing.
- *
- * @since 0.6.2
  */
 
 import { __ } from '../i18n';

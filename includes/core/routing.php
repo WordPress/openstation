@@ -27,7 +27,6 @@
  *   - {@see desktop_mode_is_admin_redirect_target()}     — internal predicate
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -42,8 +41,6 @@ defined( 'ABSPATH' ) || exit;
  *
  * An empty string returns false — a missing URL is never
  * "same-origin admin" for the purposes of any caller.
- *
- * @since 0.8.1
  *
  * @param string $url URL to test.
  * @return bool
@@ -87,8 +84,6 @@ function desktop_mode_url_is_same_admin( $url ) {
  * exist in the static allowlist. A regex-only check would accept
  * `custom_admin_page.php` if a plugin named something that way;
  * the explicit allowlist closes that.
- *
- * @since 0.8.1
  *
  * @param string $file Bare admin filename (no path, no query string).
  * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
@@ -140,8 +135,6 @@ function desktop_mode_resolve_admin_target( $file ) {
  * reference `ABSPATH` to probe core files). Plugins that ship
  * their own top-level admin pages (rare) can extend the list
  * via the filter.
- *
- * @since 0.6.2
  *
  * @return string[] Lowercased filenames including extension.
  */
@@ -240,8 +233,6 @@ function desktop_mode_admin_target_allowlist() {
 	 * Filters the wp-admin filename allowlist used when resolving
 	 * portal `target=` query args.
 	 *
-	 * @since 0.6.2
-	 *
 	 * @param string[] $files Default allowlist.
 	 */
 	$files = (array) apply_filters( 'desktop_mode_admin_target_allowlist', $files );
@@ -255,8 +246,6 @@ function desktop_mode_admin_target_allowlist() {
  * Chromeless requests are admin pages loaded inside desktop-mode
  * windows (iframes). They render only the page content without
  * the admin shell (sidebar, admin bar, footer).
- *
- * @since 0.1.0
  *
  * @return bool True if this is a chromeless (iframe) request.
  */
@@ -301,12 +290,9 @@ function desktop_mode_is_chromeless_request() {
 	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
 		/**
 		 * Filter the Sec-Fetch fallback. Return false to require an
-		 * explicit `?desktop_mode_chromeless=1` flag (matches
-		 * pre-0.18 behaviour); useful for environments where a
+		 * explicit `?desktop_mode_chromeless=1` flag; useful for environments where a
 		 * reverse proxy strips the `Sec-Fetch-*` headers and they
 		 * can't be trusted.
-		 *
-		 * @since 0.8.1
 		 *
 		 * @param bool $allow Default true.
 		 */
@@ -334,8 +320,6 @@ function desktop_mode_is_chromeless_request() {
  * account state — letting the user disable desktop mode entirely
  * from the tab if they want to.
  *
- * @since 0.4.0
- *
  * @return bool True if the request carries `?desktop_mode_classic=1`.
  */
 function desktop_mode_is_classic_request() {
@@ -357,8 +341,6 @@ function desktop_mode_is_classic_request() {
  * {@see desktop_mode_chromeless_suppress_admin_bar()} below; this
  * filter is kept for completeness + tests.
  *
- * @since 0.1.0
- *
  * @param bool $show Whether the admin bar should be shown.
  * @return bool
  */
@@ -378,8 +360,6 @@ add_filter( 'show_admin_bar', 'desktop_mode_chromeless_hide_admin_bar' );
  * `wp_admin_bar_render()` from firing on `in_admin_header`. We
  * detach the render action instead and let chromeless.css hide
  * the `wp-toolbar` padding on `<html>`.
- *
- * @since 0.1.0
  */
 function desktop_mode_chromeless_suppress_admin_bar() {
 	if ( desktop_mode_is_chromeless_request() ) {
@@ -388,6 +368,70 @@ function desktop_mode_chromeless_suppress_admin_bar() {
 	}
 }
 add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
+
+/**
+ * Detaches core's update / maintenance nags inside chromeless iframes so
+ * they don't repeat in every window — the shell surfaces the update once
+ * instead.
+ */
+function desktop_mode_chromeless_suppress_update_nags() {
+	if ( ! desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	remove_action( 'admin_notices', 'update_nag', 3 );
+	remove_action( 'network_admin_notices', 'update_nag', 3 );
+	remove_action( 'admin_notices', 'maintenance_nag', 10 );
+	remove_action( 'network_admin_notices', 'maintenance_nag', 10 );
+}
+add_action( 'admin_init', 'desktop_mode_chromeless_suppress_update_nags' );
+
+/**
+ * Detaches the remaining global core admin notices inside chromeless iframes
+ * so they don't repeat in every window — the shell re-derives and surfaces
+ * each once (see `desktop_mode_get_core_notices()`). The update / maintenance
+ * nags are handled by `desktop_mode_chromeless_suppress_update_nags()`.
+ */
+function desktop_mode_chromeless_suppress_core_notices() {
+	if ( ! desktop_mode_is_chromeless_request() ) {
+		return;
+	}
+	remove_action( 'admin_notices', 'wp_recovery_mode_nag', 1 );
+	remove_action( 'admin_notices', 'default_password_nag' );
+	remove_action( 'admin_notices', 'deactivated_plugins_notice', 5 );
+	remove_action( 'admin_notices', 'paused_plugins_notice', 5 );
+	remove_action( 'admin_notices', 'paused_themes_notice', 5 );
+}
+add_action( 'admin_init', 'desktop_mode_chromeless_suppress_core_notices' );
+
+/**
+ * Keeps core's session-expired login modal (`wp-auth-check`) out of
+ * chromeless iframes so the parent shell owns the single prompt.
+ *
+ * Every chromeless iframe runs its own Heartbeat, and by default
+ * each one loads `wp-auth-check.js` + the `#wp-auth-check-wrap`
+ * markup. When the session expires, N open windows meant N stacked
+ * login modals — all asking for the same credentials. Returning
+ * false from `wp_auth_check_load` here stops the modal assets from
+ * ever loading inside iframes; the parent shell (a normal admin
+ * page) keeps its copy and surfaces the one prompt over the whole
+ * desktop.
+ *
+ * Detection is unaffected: the `wp-auth-check` heartbeat response
+ * field is attached server-side (core hooks `wp_auth_check()` on
+ * `heartbeat_send` / `heartbeat_nopriv_send`), so the bridge's
+ * stale-nonce recovery in `chromeless-bridge.php` still sees the
+ * logged-out → logged-in flip without the modal JS.
+ *
+ * @param bool $show Whether to load the authentication check.
+ * @return bool
+ */
+function desktop_mode_chromeless_suppress_auth_check( $show ) {
+	if ( desktop_mode_is_chromeless_request() ) {
+		return false;
+	}
+	return $show;
+}
+add_filter( 'wp_auth_check_load', 'desktop_mode_chromeless_suppress_auth_check' );
 
 /**
  * Preserves the `desktop_mode_chromeless` flag through admin
@@ -405,8 +449,6 @@ add_action( 'admin_init', 'desktop_mode_chromeless_suppress_admin_bar' );
  * Scope is intentionally narrow: only same-site admin URLs are
  * touched, and only when the current request is itself
  * chromeless. Anything else passes through unchanged.
- *
- * @since 0.1.0
  *
  * @param string $location The redirect URL.
  * @return string The redirect URL, with `desktop_mode_chromeless=1` appended when applicable.
@@ -445,8 +487,6 @@ add_filter( 'wp_redirect', 'desktop_mode_chromeless_preserve_redirect', 999 );
  * classic-override request, and the flag is never appended
  * twice.
  *
- * @since 0.4.0
- *
  * @param string $location The redirect URL.
  * @return string The redirect URL, with `desktop_mode_classic=1` appended when applicable.
  */
@@ -482,8 +522,6 @@ add_filter( 'wp_redirect', 'desktop_mode_classic_preserve_redirect', 999 );
  * Off-site redirects (login → external SSO, e.g.) and frontend
  * redirects (`/`, `/?p=42`) return false so we never paint our
  * query flag on URLs that don't run our admin code.
- *
- * @since 0.8.0
  *
  * @internal
  *

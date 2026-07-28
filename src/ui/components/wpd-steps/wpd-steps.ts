@@ -21,8 +21,6 @@
  *   </wpd-steps>
  *
  * Mark a step with `done` to render a ✓ instead of the number.
- *
- * @since 0.5.1
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -102,7 +100,7 @@ export class WpdStep extends Component {
 			{ name: '--wpd-step-chip-fg', default: '#fff' },
 			{
 				name: '--wpd-step-chip-done-bg',
-				default: 'var(--desktop-mode-muted)',
+				default: 'var(--wpd-fg-muted)',
 			},
 			{ name: '--wpd-step-chip-font-size', default: '13px' },
 		],

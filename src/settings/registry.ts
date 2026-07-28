@@ -3,7 +3,7 @@
  *
  * Plugins register additional tabs in the OS Settings window via the
  * public `wp.desktop.registerSettingsTab()` API. Built-in tabs
- * (appearance, ai, apps-icons, features, effects, extended, help,
+ * (appearance, ai, apps-icons, features, effects, help,
  * about) live directly in `panel.ts`; this registry extends the panel
  * with externally-contributed tabs without the core module needing to
  * know about them.
@@ -11,8 +11,6 @@
  * Rendering is the tab's own responsibility — `render( body )` receives
  * the tabpanel body element and may do whatever it wants inside it
  * (plain DOM, `html`/`render` from `../ui/core`, a framework, etc.).
- *
- * @since 0.5.1
  */
 
 import { createSharedStore } from '../shared-store';
@@ -27,13 +25,22 @@ import { createSharedStore } from '../shared-store';
  * `ai` is particularly load-bearing — it's the read path a third-party
  * AI widget uses to pick up the provider + API key the user configured
  * in the built-in AI Settings tab.
- *
- * @since 0.5.1
  */
 export interface OsSettingsSnapshot {
 	wallpaper: string;
 	accent: string;
 	dockSize: string;
+	/**
+	 * Window corner-radius preset: `'sharp'` | `'default'` | `'round'`.
+	 * Written to `--desktop-mode-window-radius` by the apply pass, so
+	 * a change reflows every open window's corners live.
+	 *
+	 * A desktop theme that sets that custom property in its `tokens`
+	 * overrides this for as long as the theme is worn — the theme's
+	 * rule matches the shell root, which beats the value inherited
+	 * from the `:root` inline style this preset writes.
+	 */
+	windowRadius: string;
 	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *
@@ -41,84 +48,91 @@ export interface OsSettingsSnapshot {
 	 * - `unified` — single bottom dock with every menu.
 	 * - `spatial` — bottom dock with plugins; core menus rendered as
 	 *   icons on the wallpaper.
-	 *
-	 * @since 0.6.0
 	 */
 	desktopLayout: 'classic' | 'unified' | 'spatial';
 	/**
 	 * Active dock rail-renderer id; mirrors the dock-rail registry's
 	 * resolution. `'default'` is the shipped icon-strip renderer.
-	 *
-	 * @since 0.6.0
 	 */
 	dockRailRenderer: string;
+	/** Active desktop-theme slug, or `''` for the system default. */
+	desktopTheme: string;
+	/**
+	 * Slugs of the desktop themes whose recommended OS settings have
+	 * already been seeded for this user — the ledger that keeps a
+	 * theme's `recommendedOsSettings` a one-time suggestion rather
+	 * than something re-asserted on every activation.
+	 *
+	 * Slugs of themes that are no longer installed are kept on
+	 * purpose: a delete-and-reinstall must not re-seed. Removing a
+	 * slug re-arms that theme's one-time seed for the user's next
+	 * activation of it.
+	 */
+	appliedThemeRecommendations: string[];
 	/**
 	 * Active unfocused-window effect id; mirrors the unfocus-effect
 	 * registry's resolution. `'darken'` is the shipped built-in,
 	 * `'none'` disables the effect.
-	 *
-	 * @since 0.9.1
 	 */
 	unfocusEffect: string;
+	/**
+	 * Active window-link renderer id; `'none'` disables the visuals,
+	 * unknown ids fall back to the built-in `'svg-splines'`.
+	 */
+	windowLinkRenderer: string;
+	/**
+	 * When window-link ties show: `'always'` | `'focus'` | `'off'`.
+	 */
+	windowLinkVisibility: 'focus' | 'always' | 'off';
+	/** Master switch for the window-links feature. Default on. */
+	windowLinksEnabled: boolean;
+	/** Raise related windows when a group member is focused. */
+	windowLinkRaiseOnFocus: boolean;
+	/** Outline related windows of the focused member. */
+	windowLinkHighlight: boolean;
+	/**
+	 * AI assistant preference. `enabled` is the per-user on/off toggle
+	 * (opt-in, default off). Credentials live in WordPress Core's Settings →
+	 * Connectors and provider + model selection is delegated to the Core AI
+	 * Client, so no preference is carried here.
+	 */
 	ai: {
 		enabled: boolean;
-		provider: string;
-		apiKey: string;
-		/**
-		 * Live-progress transport for AI search: `'sse' | 'off'`. Default
-		 * `'off'`. Surfaced so a third-party AI tab can read the user's
-		 * preferred transport without rebuilding the picker.
-		 *
-		 * @since 0.6.0
-		 */
-		transport: 'sse' | 'off';
 	};
 	/**
 	 * Per-user opt-in for the native Posts window. When true, clicking
 	 * the Posts dock tile opens the `<wpd-table>`-driven native window
 	 * instead of the chromeless `edit.php` iframe. Default off.
-	 *
-	 * @since 0.8.0
 	 */
 	nativePostsEnabled: boolean;
 	/**
 	 * Per-user list of column keys hidden in the native Posts window.
 	 * Mirrors the underlying `OsSettingsState.nativePostsHiddenColumns`.
 	 * Empty array means every column is visible.
-	 *
-	 * @since 0.8.0
 	 */
 	nativePostsHiddenColumns: string[];
 	/**
 	 * Per-user opt-in for the native Pages window. When true, the Pages
 	 * dock tile / `edit.php?post_type=page` links open the native
 	 * `<wpd-table>` window instead of the chromeless iframe. Default off.
-	 *
-	 * @since 0.6.0
 	 */
 	nativePagesEnabled: boolean;
 	/**
 	 * Per-user opt-in for the native Users window. Same posture as
 	 * {@link nativePagesEnabled} — UI-side gate; the window itself is
 	 * cap-gated on the server. Default off.
-	 *
-	 * @since 0.6.0
 	 */
 	nativeUsersEnabled: boolean;
 	/**
 	 * Per-user opt-in for the native Plugins window. Same posture as
 	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
 	 * cap-gated on the server (`activate_plugins`). Default off.
-	 *
-	 * @since 0.9.0
 	 */
 	nativePluginsEnabled: boolean;
 	/**
 	 * Per-user opt-in for the native Comments window. Same posture as
 	 * {@link nativeUsersEnabled} — UI-side gate; the window itself is
 	 * cap-gated on the server (`edit_posts`). Default off.
-	 *
-	 * @since 0.8.3
 	 */
 	nativeCommentsEnabled: boolean;
 	/**
@@ -128,8 +142,6 @@ export interface OsSettingsSnapshot {
 	 * return 404, heartbeat skips `shares.pending`). Independent
 	 * of the destructive site-admin "Delete folder sharing data"
 	 * action, which drops the tables outright.
-	 *
-	 * @since 0.8.5
 	 */
 	foldersSharingEnabled: boolean;
 	/**
@@ -137,8 +149,6 @@ export interface OsSettingsSnapshot {
 	 * authors: the Starter Widget appears in the add-widget picker,
 	 * and the OS Settings → Components tab runs its intentional
 	 * missing-import-warner demo. Defaults to `false`. Per-user.
-	 *
-	 * @since 0.9.4
 	 */
 	developerModeEnabled: boolean;
 	/**
@@ -146,16 +156,12 @@ export interface OsSettingsSnapshot {
 	 * `'both' | 'dock' | 'desktop' | 'hidden'`. Missing keys mean
 	 * "use the item's native rail." See
 	 * {@link OsSettingsState.itemVisibility} for full semantics.
-	 *
-	 * @since 0.8.2
 	 */
 	itemVisibility: Record< string, 'both' | 'dock' | 'desktop' | 'hidden' >;
 	/**
 	 * User-defined dock ordering. Ordered list of item ids; ids absent
 	 * from the list render after the listed ones in server-supplied
 	 * order.
-	 *
-	 * @since 0.8.2
 	 */
 	dockOrder: string[];
 	/**
@@ -165,8 +171,6 @@ export interface OsSettingsSnapshot {
 	 * back to the default grid slot. See
 	 * {@link OsSettingsState.dockPromotedPositions} for the source
 	 * field.
-	 *
-	 * @since 0.8.6
 	 */
 	dockPromotedPositions: Record< string, { x: number; y: number } >;
 }
@@ -189,8 +193,6 @@ export interface SettingsTabRenderCtx {
 	 * `wp.desktop.updateOsSettings( patch )` — the public write path
 	 * that persists, notifies subscribers, and fires the save
 	 * lifecycle.
-	 *
-	 * @since 0.5.1
 	 */
 	getOsSettings(): OsSettingsSnapshot;
 	/**
@@ -203,8 +205,6 @@ export interface SettingsTabRenderCtx {
 	 * changes or `wp.desktop.updateOsSettings()` calls. Changes made
 	 * on another device/browser (which land via REST on the *next*
 	 * page load) won't trigger this.
-	 *
-	 * @since 0.5.1
 	 */
 	subscribeOsSettings( cb: ( snapshot: OsSettingsSnapshot ) => void ): () => void;
 }
@@ -225,7 +225,7 @@ export interface DesktopSettingsTab {
 	/**
 	 * Sort order relative to built-in tabs:
 	 * appearance = 10, ai = 20, apps-icons = 22, features = 25,
-	 * effects = 27, extended = 30, help = 40 (About is pinned last
+	 * effects = 27, help = 40 (About is pinned last
 	 * with a sentinel order). Default 100 — third-party tabs render
 	 * after the built-ins, before About.
 	 */
@@ -294,8 +294,6 @@ const listeners = store.state.listeners;
  * Register (or replace) an OS Settings tab. Id matching is
  * case-insensitive; a second registration with the same id replaces
  * the first — mirrors WordPress's `register_*` semantics.
- *
- * @since 0.5.1
  */
 export function registerSettingsTab( tab: DesktopSettingsTab ): void {
 	if ( ! tab || typeof tab.id !== 'string' || tab.id.trim() === '' ) {

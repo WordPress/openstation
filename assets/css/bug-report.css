@@ -28,15 +28,15 @@
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.45;
-	color: var( --desktop-mode-muted-fg, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 .desktop-mode-bug-report__error {
 	padding: 8px 10px;
-	border: 1px solid #d63638;
+	border: 1px solid var( --wpd-danger, #d63638 );
 	border-radius: 4px;
 	background: #fcf0f1;
-	color: #b32d2e;
+	color: var( --wpd-danger-hover, #b32d2e );
 	font-size: 12px;
 }
 
@@ -80,9 +80,9 @@
 .desktop-mode-bug-report__textarea {
 	width: 100%;
 	padding: 8px 10px;
-	border: 1px solid var( --desktop-mode-border, #c3c4c7 );
+	border: 1px solid var( --wpd-border, #c3c4c7 );
 	border-radius: 4px;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 	font: inherit;
 	font-size: 13px;
 	line-height: 1.45;
@@ -108,9 +108,9 @@
 
 .desktop-mode-bug-report__metadata {
 	margin-top: 4px;
-	border: 1px solid var( --desktop-mode-border, #c3c4c7 );
+	border: 1px solid var( --wpd-border, #c3c4c7 );
 	border-radius: 4px;
-	background: #f6f7f7;
+	background: var( --wpd-surface-elevated, #f6f7f7 );
 	font-size: 12px;
 }
 
@@ -125,10 +125,10 @@
 .desktop-mode-bug-report__metadata-body {
 	margin: 0;
 	padding: 0 10px 10px;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+	font-family: var( --wpd-font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, monospace );
 	font-size: 11px;
 	line-height: 1.5;
-	color: var( --desktop-mode-muted-fg, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	white-space: pre-wrap;
 	word-break: break-all;
 }
@@ -145,7 +145,7 @@
 	border: 1px solid var( --wp-admin-theme-color, #2271b1 );
 	border-radius: 4px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	font: inherit;
 	font-size: 13px;
 	font-weight: 500;
@@ -167,5 +167,5 @@
 
 .desktop-mode-bug-report__hint {
 	font-size: 12px;
-	color: var( --desktop-mode-muted-fg, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 }

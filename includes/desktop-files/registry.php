@@ -10,7 +10,6 @@
  * built-in types.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -19,7 +18,6 @@ defined( 'ABSPATH' ) || exit;
  * Internal static-store registry. Mirrors the wallpaper / native-
  * window pattern (see `desktop_mode_desktop_wallpaper_registry()`).
  *
- * @since 0.9.0
  * @internal
  *
  * @param string $type  File-type slug ('' to fetch the full store).
@@ -41,8 +39,6 @@ function desktop_mode_file_type_registry( $type = '', $entry = null ) {
 
 /**
  * Registers a desktop file type.
- *
- * @since 0.9.0
  *
  * @param string $type File-type slug, e.g. `'post'`, `'user'`,
  *                     `'jorvy-quote'`. Must be non-empty and unique.
@@ -129,8 +125,6 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
 	 * Fires after a desktop file type is successfully registered.
 	 * Does NOT fire on `WP_Error` returns.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string $type  Type slug.
 	 * @param array  $entry Stored registry entry.
 	 */
@@ -141,8 +135,6 @@ function desktop_mode_register_file_type( $type, $args = array() ) {
 
 /**
  * Looks up a registered file-type entry.
- *
- * @since 0.9.0
  *
  * @param string $type Type slug.
  * @return array|null Registry entry, or `null` if unknown.
@@ -155,8 +147,6 @@ function desktop_mode_get_file_type( $type ) {
 /**
  * Returns every registered file type, sorted by `sort` then label.
  *
- * @since 0.9.0
- *
  * @return array[]
  */
 function desktop_mode_get_file_types() {
@@ -168,8 +158,6 @@ function desktop_mode_get_file_types() {
 	/**
 	 * Filters the full file-type registry before consumers see it.
 	 * Plugins can hide built-in types or swap a class out at runtime.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array[] $registry Registered entries keyed by slug.
 	 */
@@ -199,8 +187,6 @@ function desktop_mode_get_file_types() {
  * Resolves a `(type, ref)` tuple into a `Desktop_Mode_File` instance,
  * or `null` if the type is unknown.
  *
- * @since 0.9.0
- *
  * @param string     $type File-type slug.
  * @param string|int $ref  Entity reference.
  * @return Desktop_Mode_File|null
@@ -221,8 +207,6 @@ function desktop_mode_resolve_file( $type, $ref ) {
  * Builds the file-types payload sent to the shell. Only metadata
  * (id, label, sort) and the resolved script URL cross the wire —
  * the PHP class never serializes; the JS side has its own mirror.
- *
- * @since 0.9.0
  *
  * @return array[]
  */

@@ -17,7 +17,7 @@
 
 .desktop-mode-os-settings__intro {
 	margin: 0 0 16px;
-	color: #50575e;
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 /*
@@ -31,8 +31,8 @@
 	display: block;
 	margin: 0 0 20px;
 	padding: 16px 16px 18px;
-	background: #f6f7f7;
-	border: 1px solid #dcdcde;
+	background: var( --wpd-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 8px;
 }
 
@@ -69,11 +69,15 @@
  */
 .desktop-mode-os-settings__swatch-label {
 	display: inline-block;
+	/* Sit above the live-preview overlay (z-index 0) — the caption
+	 * must stay readable over a moving canvas. */
+	position: relative;
+	z-index: 1;
 	padding: 3px 10px;
 	font-size: 11px;
 	font-weight: 600;
-	color: #fff;
-	background: rgba(0, 0, 0, 0.45);
+	color: var( --wpd-fg-on-accent, #fff );
+	background: var( --wpd-scrim, rgba(0, 0, 0, 0.45) );
 	backdrop-filter: blur(8px) saturate(160%);
 	-webkit-backdrop-filter: blur(8px) saturate(160%);
 	border-radius: 999px;
@@ -83,6 +87,31 @@
 	 * on the parent already gives a gap, but this keeps things
 	 * consistent if the parent padding is ever tuned. */
 	pointer-events: none;
+}
+
+/*
+ * Live wallpaper preview — an overlay div slotted into a wallpaper
+ * `<wpd-swatch>` by the preview manager (see
+ * settings/sections/wallpaper-previews.ts). Fills the tile button
+ * (which is position: relative in the component's shadow styles) and
+ * paints between the CSS `preview` background and the label chip.
+ * pointer-events: none so the tile button keeps receiving the click.
+ */
+.desktop-mode-os-settings__wallpaper-live-preview {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+	/* Match the swatch button's rounding so canvas corners don't
+	 * poke out of the tile. */
+	border-radius: 8px;
+}
+
+.desktop-mode-os-settings__wallpaper-live-preview canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
 }
 
 /* Accent swatches now render as `<wpd-swatch>` via `<wpd-swatch-grid>`.
@@ -149,9 +178,123 @@
 	overflow: hidden;
 	min-height: 0;
 	padding: 12px;
-	background: #fff;
-	border: 1px solid #dcdcde;
+	background: var( --wpd-surface, #fff );
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 6px;
+}
+
+/*
+ * Wallpaper description slot — a card that slides in below the swatch
+ * grid describing the ACTIVE wallpaper (its story, where its data comes
+ * from). Same 0fr → 1fr collapse as the editor slot; TS drives
+ * `[data-expanded]` from `syncWallpaperDescription()`.
+ */
+.desktop-mode-os-settings__wallpaper-description-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.desktop-mode-os-settings__wallpaper-description-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.desktop-mode-os-settings__wallpaper-description-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-description {
+	padding: 12px 14px;
+	background: color-mix(in srgb, var(--wpd-accent, #2271b1) 6%, var( --wpd-surface, #fff ));
+	border: 1px solid var( --wpd-border, #dcdcde );
+	border-inline-start: 3px solid var(--wpd-accent, #2271b1);
+	border-radius: 6px;
+}
+
+/* Glyph sits inline, right before the wallpaper's name. */
+.desktop-mode-os-settings__wallpaper-description-header {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-bottom: 4px;
+}
+
+.desktop-mode-os-settings__wallpaper-description-icon {
+	color: var(--wpd-accent, #2271b1);
+	flex-shrink: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-description-header strong {
+	font-size: 13px;
+	color: var( --wpd-fg, #1d2327 );
+}
+
+.desktop-mode-os-settings__wallpaper-description p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.55;
+	color: var( --wpd-fg-muted, #50575e );
+}
+
+/*
+ * Wallpaper config slot — hosts the "Wallpaper settings" button when
+ * the ACTIVE wallpaper ships a `renderConfig` dialog. Same 0fr → 1fr
+ * collapse as the slots above; TS drives `[data-expanded]` from
+ * `syncWallpaperConfigButton()`.
+ */
+.desktop-mode-os-settings__wallpaper-config-slot {
+	display: grid;
+	grid-template-rows: 0fr;
+	margin-top: 0;
+	opacity: 0;
+	transition:
+		grid-template-rows 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		margin-top 0.25s cubic-bezier(0.2, 0, 0.2, 1),
+		opacity 0.2s ease;
+}
+
+.desktop-mode-os-settings__wallpaper-config-slot[data-expanded="true"] {
+	grid-template-rows: 1fr;
+	margin-top: 12px;
+	opacity: 1;
+}
+
+.desktop-mode-os-settings__wallpaper-config-slot-inner {
+	overflow: hidden;
+	min-height: 0;
+}
+
+.desktop-mode-os-settings__wallpaper-config wpd-icon {
+	margin-inline-end: 4px;
+}
+
+/*
+ * Wallpaper config dialog body — the container `renderConfig` renders
+ * into inside the `<wpd-modal>`. A simple vertical rhythm; each
+ * `<wpd-*>` field owns its own label / control styling. The critical
+ * column rules are ALSO inlined by the dialog opener (long-lived
+ * sessions can lazy-load the dialog with a stylesheet that predates
+ * this block); keep the two in sync.
+ */
+.desktop-mode-os-settings__wallpaper-config-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-width: 0;
+}
+
+/* Bare buttons in a config form (Reset to defaults and friends) are
+ * actions, not fields — don't stretch them to the column width. */
+.desktop-mode-os-settings__wallpaper-config-form > wpd-button {
+	align-self: flex-start;
 }
 
 /*
@@ -197,7 +340,7 @@
 	margin: 0 0 6px;
 	font-size: 12px;
 	font-weight: 600;
-	color: #50575e;
+	color: var( --wpd-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -213,12 +356,12 @@
 	justify-content: center;
 	min-height: 120px;
 	padding: 16px;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 	background-size: cover;
 	background-position: center;
-	border: 2px dashed #c3c4c7;
+	border: 2px dashed var( --wpd-border, #c3c4c7 );
 	border-radius: 8px;
-	color: #50575e;
+	color: var( --wpd-fg-muted, #50575e );
 	cursor: pointer;
 	text-align: center;
 	transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
@@ -281,7 +424,7 @@
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background: rgba(0, 0, 0, 0.05);
+	background: var( --wpd-hover, rgba(0, 0, 0, 0.05) );
 	font-size: 22px;
 	font-weight: 300;
 	line-height: 1;
@@ -299,13 +442,13 @@
 
 .desktop-mode-os-settings__upload-hint {
 	font-size: 11px;
-	color: #8c8f94;
+	color: var( --wpd-fg-muted, #8c8f94 );
 }
 
 .desktop-mode-os-settings__upload-status {
 	font-size: 13px;
 	font-weight: 500;
-	color: #50575e;
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 .desktop-mode-os-settings__upload-error {
@@ -313,8 +456,8 @@
 	inset-inline: 10px;
 	bottom: 10px;
 	padding: 6px 10px;
-	background: #d63638;
-	color: #fff;
+	background: var( --wpd-danger, #d63638 );
+	color: var( --wpd-fg-on-accent, #fff );
 	border-radius: 4px;
 	font-size: 11px;
 	line-height: 1.3;
@@ -359,12 +502,12 @@
 	flex: 1;
 	min-width: 180px;
 	padding: 6px 10px;
-	border: 1px solid #dcdcde;
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 4px;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 	font: inherit;
 	font-size: 12px;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-os-settings__library-search:focus {
@@ -388,7 +531,7 @@
 	padding: 0;
 	border: 2px solid transparent;
 	border-radius: 6px;
-	background-color: #eef0f1;
+	background-color: var( --wpd-surface-sunken, #eef0f1 );
 	background-size: cover;
 	background-position: center;
 	background-repeat: no-repeat;
@@ -419,8 +562,8 @@
 	bottom: 4px;
 	inset-inline-end: 4px;
 	padding: 2px 6px;
-	background: rgba(0, 0, 0, 0.6);
-	color: #fff;
+	background: var( --wpd-scrim, rgba(0, 0, 0, 0.6) );
+	color: var( --wpd-fg-on-accent, #fff );
 	font-size: 10px;
 	font-weight: 500;
 	line-height: 1.3;
@@ -436,9 +579,9 @@
 	cursor: default;
 	background: linear-gradient(
 		90deg,
-		#eef0f1 0%,
+		var( --wpd-surface-sunken, #eef0f1 ) 0%,
 		#dcdcde 50%,
-		#eef0f1 100%
+		var( --wpd-surface-sunken, #eef0f1 ) 100%
 	);
 	background-size: 200% 100%;
 	animation: desktop-mode-library-shimmer 1.1s ease-in-out infinite;
@@ -464,12 +607,12 @@
 	margin: 0;
 	padding: 24px 16px;
 	text-align: center;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	font-size: 12px;
 }
 
 .desktop-mode-os-settings__library-error {
-	color: #b32d2e;
+	color: var( --wpd-danger-hover, #b32d2e );
 }
 
 .desktop-mode-os-settings__library-footer {
@@ -482,7 +625,7 @@
 }
 
 .desktop-mode-os-settings__library-meta {
-	color: #8c8f94;
+	color: var( --wpd-fg-muted, #8c8f94 );
 	font-size: 11px;
 }
 
@@ -497,6 +640,7 @@
  * --------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
 	.desktop-mode-os-settings__editor-slot,
+	.desktop-mode-os-settings__wallpaper-config-slot,
 	.desktop-mode-os-settings__upload-tile,
 	.desktop-mode-os-settings__library-tile,
 	wpd-swatch {
@@ -512,13 +656,13 @@
 .desktop-mode-ai-settings__error {
 	margin: 6px 0 0;
 	font-size: 12px;
-	color: #d63638;
+	color: var( --wpd-danger, #d63638 );
 }
 
 .desktop-mode-ai-settings__saving {
 	margin: 6px 0 0;
 	font-size: 12px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	font-style: italic;
 }
 
@@ -526,20 +670,20 @@
 .desktop-mode-ext__hint {
 	margin: 6px 0 0;
 	font-size: 12px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	line-height: 1.5;
 }
 
 .desktop-mode-ext__error {
 	margin: 6px 0 0;
 	font-size: 12px;
-	color: #d63638;
+	color: var( --wpd-danger, #d63638 );
 }
 
 .desktop-mode-ext__saving {
 	margin: 6px 0 0;
 	font-size: 12px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	font-style: italic;
 }
 
@@ -551,7 +695,7 @@
 .desktop-mode-os-settings__help-count {
 	margin: 4px 0 0;
 	font-size: 12px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-os-settings__help-layout {
@@ -573,8 +717,8 @@
 	align-self: stretch;
 	overflow-y: auto;
 	padding: 4px;
-	background: #f6f7f7;
-	border: 1px solid #dcdcde;
+	background: var( --wpd-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 8px;
 }
 
@@ -595,12 +739,12 @@
 }
 
 .desktop-mode-os-settings__help-nav-item:hover {
-	background: #fff;
-	border-color: #dcdcde;
+	background: var( --wpd-surface, #fff );
+	border-color: var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-os-settings__help-nav-item.is-active {
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 	border-color: var( --wp-admin-theme-color, #2271b1 );
 }
 
@@ -610,16 +754,16 @@
 }
 
 .desktop-mode-os-settings__help-nav-tag {
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 11px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-os-settings__help-detail {
 	min-width: 0;
 	padding: 16px 18px 18px;
-	background: #f6f7f7;
-	border: 1px solid #dcdcde;
+	background: var( --wpd-surface-elevated, #f6f7f7 );
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 8px;
 }
 
@@ -638,9 +782,9 @@
 }
 
 .desktop-mode-os-settings__help-code {
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 12px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-os-settings__help-badge {
@@ -650,28 +794,28 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	background: #e4e7eb;
-	color: #1d2327;
+	background: var( --wpd-surface-sunken, #e4e7eb );
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-os-settings__help-badge.is-experimental {
-	background: #fcf9e8;
-	color: #996800;
+	background: var( --wpd-warning-bg, #fcf9e8 );
+	color: var( --wpd-warning-fg, #996800 );
 }
 
 .desktop-mode-os-settings__help-badge.is-planned {
-	background: #e1e8ff;
-	color: #123fb3;
+	background: var( --wpd-info-bg, #e1e8ff );
+	color: var( --wpd-info-fg, #123fb3 );
 }
 
 .desktop-mode-os-settings__help-since {
 	font-size: 11px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-os-settings__help-summary {
 	margin: 0 0 16px;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-os-settings__help-group {
@@ -684,13 +828,13 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-os-settings__help-example {
 	padding: 16px;
-	background: #fff;
-	border: 1px dashed #c3c4c7;
+	background: var( --wpd-surface, #fff );
+	border: 1px dashed var( --wpd-border, #c3c4c7 );
 	border-radius: 6px;
 }
 
@@ -703,24 +847,24 @@
 .desktop-mode-os-settings__help-table th,
 .desktop-mode-os-settings__help-table td {
 	padding: 6px 8px;
-	border-bottom: 1px solid #dcdcde;
+	border-bottom: 1px solid var( --wpd-border, #dcdcde );
 	text-align: start;
 	vertical-align: top;
 }
 
 .desktop-mode-os-settings__help-table th {
 	font-weight: 600;
-	color: #646970;
-	background: #fff;
+	color: var( --wpd-fg-muted, #646970 );
+	background: var( --wpd-surface, #fff );
 }
 
 .desktop-mode-os-settings__help-table code,
 .desktop-mode-os-settings__help-list code {
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 11px;
 	padding: 1px 4px;
-	background: #fff;
-	border: 1px solid #dcdcde;
+	background: var( --wpd-surface, #fff );
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 3px;
 }
 
@@ -732,7 +876,7 @@
 
 .desktop-mode-os-settings__help-list li {
 	padding: 4px 0;
-	border-bottom: 1px solid #ececee;
+	border-bottom: 1px solid var( --wpd-border, #ececee );
 	font-size: 12px;
 }
 
@@ -743,11 +887,11 @@
 .desktop-mode-os-settings__help-note {
 	margin: 12px 0 0;
 	padding: 10px 12px;
-	background: #fcf9e8;
-	border: 1px solid #f5e6a5;
+	background: var( --wpd-warning-bg, #fcf9e8 );
+	border: 1px solid var( --wpd-warning-border, #f5e6a5 );
 	border-radius: 6px;
 	font-size: 12px;
-	color: #996800;
+	color: var( --wpd-warning-fg, #996800 );
 }
 
 /* ---------------------------------------------------------------
@@ -914,7 +1058,7 @@
 .desktop-mode-features__hint {
 	margin: 0;
 	font-size: 12px;
-	color: var( --wpd-text-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	line-height: 1.5;
 }
 
@@ -932,12 +1076,12 @@
 
 .desktop-mode-features__status--saving {
 	background: var( --wpd-surface-elevated, #f0f0f1 );
-	color: var( --wpd-text-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 .desktop-mode-features__status--saved {
 	background: rgba( 30, 132, 73, 0.12 );
-	color: #1d6f42;
+	color: var( --wpd-success-fg, #1d6f42 );
 }
 
 .desktop-mode-features__status--saved .dashicons {
@@ -948,7 +1092,7 @@
 
 .desktop-mode-features__status--failed {
 	background: rgba( 214, 54, 56, 0.12 );
-	color: #a02622;
+	color: var( --wpd-danger-hover, #a02622 );
 }
 
 .desktop-mode-features__status--failed .dashicons {
@@ -1067,7 +1211,7 @@
 	align-items: center;
 	gap: 12px;
 	padding: 8px 4px;
-	border-bottom: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
 }
 
 .desktop-mode-apps-icons__row:last-child {
@@ -1103,4 +1247,184 @@
 
 .desktop-mode-apps-icons__row wpd-select {
 	min-width: 180px;
+}
+
+/* ------------------------------------------------------------------
+ * OS Settings → Themes.
+ *
+ * Card grid of the site's desktop-theme library. Deliberately styled
+ * with the SAME neutral palette as the rest of the panel rather than
+ * with themed tokens: the picker has to stay legible while the user
+ * is trying on themes, including ones with hostile contrast.
+ * ------------------------------------------------------------------ */
+
+.desktop-mode-os-settings__theme-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 160px, 1fr ) );
+	gap: 12px;
+	margin: 12px 0 16px;
+}
+
+.desktop-mode-os-settings__theme-card-wrap {
+	position: relative;
+}
+
+.desktop-mode-os-settings__theme-card {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	width: 100%;
+	padding: 8px;
+	background: var( --wpd-surface, #fff );
+	border: 2px solid var( --wpd-border, #dcdcde );
+	border-radius: 10px;
+	cursor: pointer;
+	text-align: start;
+	font: inherit;
+	color: var( --wpd-fg, #1d2327 );
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.desktop-mode-os-settings__theme-card:hover {
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+.desktop-mode-os-settings__theme-card:focus-visible {
+	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: 2px;
+}
+
+.desktop-mode-os-settings__theme-card[ aria-pressed="true" ] {
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 0 0 3px rgba( 34, 113, 177, 0.18 );
+}
+
+.desktop-mode-os-settings__theme-preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	aspect-ratio: 16 / 10;
+	overflow: hidden;
+	border-radius: 6px;
+	background: var( --wpd-surface-elevated, #f0f0f1 );
+}
+
+.desktop-mode-os-settings__theme-preview img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+/* Stand-in preview for "System default" — a miniature of the shipped
+ * graphite desktop, so the card reads as a real option rather than an
+ * absence. */
+.desktop-mode-os-settings__theme-preview--system {
+	background: linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% );
+}
+
+.desktop-mode-os-settings__theme-initials {
+	font-size: 24px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	color: var( --wpd-fg-muted, #787c82 );
+}
+
+.desktop-mode-os-settings__theme-name {
+	font-weight: 600;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.desktop-mode-os-settings__theme-meta {
+	font-size: 11px;
+	color: var( --wpd-fg-muted, #646970 );
+	line-height: 1.3;
+	min-height: 1.3em;
+}
+
+/* Delete overlay — outside the card button, because nesting a button
+ * inside a button is invalid HTML and breaks keyboard traversal. */
+.desktop-mode-os-settings__theme-delete {
+	position: absolute;
+	inset-block-start: 4px;
+	inset-inline-end: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.55 ) );
+	color: var( --wpd-fg-on-accent, #fff );
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.desktop-mode-os-settings__theme-card-wrap:hover
+	.desktop-mode-os-settings__theme-delete,
+.desktop-mode-os-settings__theme-delete:focus-visible {
+	opacity: 1;
+}
+
+.desktop-mode-os-settings__theme-delete:hover {
+	background: var( --wpd-danger, #d63638 );
+}
+
+/*
+ * "Apply <theme>'s recommended layout" — sits between the theme grid
+ * and the upload tile, and only for a theme that recommends
+ * something. Just the button: the dock resizing and the layout
+ * moving is the feedback.
+ */
+.desktop-mode-os-settings__theme-recommendation {
+	display: flex;
+	margin-block: 16px;
+}
+
+.desktop-mode-os-settings__theme-upload {
+	display: block;
+	border: 2px dashed var( --wpd-border, #c3c4c7 );
+	border-radius: 8px;
+	background: var( --wpd-surface, #fff );
+	transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.desktop-mode-os-settings__theme-upload-label {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 96px;
+	padding: 16px;
+	color: var( --wpd-fg-muted, #50575e );
+	cursor: pointer;
+	text-align: center;
+}
+
+.desktop-mode-os-settings__theme-upload:hover,
+.desktop-mode-os-settings__theme-upload--dragover {
+	border-color: var( --wp-admin-theme-color, #2271b1 );
+	background-color: rgba( 34, 113, 177, 0.06 );
+}
+
+.desktop-mode-os-settings__theme-upload--dragover {
+	border-style: solid;
+}
+
+.desktop-mode-os-settings__theme-upload--busy
+	.desktop-mode-os-settings__theme-upload-label {
+	cursor: progress;
+	opacity: 0.7;
+}
+
+.desktop-mode-os-settings__theme-upload-plus {
+	font-size: 22px;
+	line-height: 1;
 }

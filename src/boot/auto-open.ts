@@ -40,8 +40,6 @@
  *          portal sent the user to admin home — `currentPage` is NOT
  *          the chosen startup. `desktop.ts` opens the native window
  *          itself after the manager and native registry are wired.
- *
- * @since 0.8.4
  */
 
 export interface AutoOpenInputs {

@@ -16,8 +16,6 @@
  * `window.wp.desktop` is guaranteed to exist — so the README's
  * bare `wp.desktop.*` examples type-check without optional
  * chaining or guards.
- *
- * @since 0.8.1
  */
 
 import type { WpDesktopPublicApi } from '../../../src/desktop';

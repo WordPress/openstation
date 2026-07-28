@@ -18,8 +18,6 @@
  * library. No automatic retries, no request cancellation, no
  * response caching. Those are feature concerns; if you need them,
  * wrap a returned client.
- *
- * @since 0.8.1
  */
 
 import { trackedFetch, type TrackedFetchOpts } from '../tracked-fetch';

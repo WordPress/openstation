@@ -165,16 +165,16 @@ export const styles = css`
 	/* Phase: saved — solid green, no pulse. The hollow ring
 	 * "fills in" momentarily before auto-clearing back to idle. */
 	:host( [ phase='saved' ] ) .wpd-save-status__indicator {
-		background: var( --wpd-save-status-saved-bg, #1d6f42 );
+		background: var( --wpd-save-status-saved-bg, var( --wpd-surface, #1d6f42 ) );
 		border-color: transparent;
-		color: var( --wpd-save-status-saved-bg, #1d6f42 );
+		color: var( --wpd-save-status-saved-bg, var( --wpd-success-fg, #1d6f42 ) );
 	}
 
 	/* Phase: failed — solid red, gentle attention pulse. */
 	:host( [ phase='failed' ] ) .wpd-save-status__indicator {
-		background: var( --wpd-save-status-failed-bg, #d63638 );
+		background: var( --wpd-save-status-failed-bg, var( --wpd-surface, #d63638 ) );
 		border-color: transparent;
-		color: var( --wpd-save-status-failed-bg, #d63638 );
+		color: var( --wpd-save-status-failed-bg, var( --wpd-danger, #d63638 ) );
 		animation: wpd-save-status-pulse 0.8s ease-in-out 2;
 	}
 
@@ -197,16 +197,16 @@ export const styles = css`
 	}
 	:host( [ mode='pill' ][ phase='saving' ] ) .wpd-save-status,
 	:host( [ mode='pill' ][ phase='pending' ] ) .wpd-save-status {
-		background: var( --wpd-save-status-pill-bg, rgba( 0, 0, 0, 0.04 ) );
-		color: var( --wpd-save-status-pill-fg, #50575e );
+		background: var( --wpd-save-status-pill-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
+		color: var( --wpd-save-status-pill-fg, var( --wpd-fg-muted, #50575e ) );
 	}
 	:host( [ mode='pill' ][ phase='saved' ] ) .wpd-save-status {
 		background: var( --wpd-save-status-pill-bg, rgba( 30, 132, 73, 0.12 ) );
-		color: var( --wpd-save-status-pill-fg, #1d6f42 );
+		color: var( --wpd-save-status-pill-fg, var( --wpd-success-fg, #1d6f42 ) );
 	}
 	:host( [ mode='pill' ][ phase='failed' ] ) .wpd-save-status {
 		background: var( --wpd-save-status-pill-bg, rgba( 214, 54, 56, 0.12 ) );
-		color: var( --wpd-save-status-pill-fg, #a02622 );
+		color: var( --wpd-save-status-pill-fg, var( --wpd-danger-hover, #a02622 ) );
 	}
 
 	.wpd-save-status__label {
@@ -223,7 +223,7 @@ export const styles = css`
 	:host( [ phase='saved' ] ) .wpd-save-status__glyph,
 	:host( [ phase='failed' ] ) .wpd-save-status__glyph {
 		display: inline-block;
-		color: #fff;
+		color: var( --wpd-fg-on-accent, #fff );
 		width: 8px;
 		height: 8px;
 	}

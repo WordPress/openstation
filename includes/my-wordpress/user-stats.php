@@ -16,15 +16,12 @@
  * (email, registered date, role) are gated on the cap.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_user_stats_route() {
 	register_rest_route(
@@ -53,8 +50,6 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_stats_rout
 /**
  * Aggregator callback. Returns the dossier shape (see file
  * docblock above for fields).
- *
- * @since 0.8.0
  *
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
@@ -347,8 +342,6 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 	 * the My WordPress folder window. Plugins can drop additional
 	 * stat sections (badges, milestones, contribution streaks)
 	 * here without forking the JS render.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param array $payload Stats payload.
 	 * @param int   $user_id Subject user id.

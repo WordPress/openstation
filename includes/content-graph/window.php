@@ -11,7 +11,6 @@
  *   - `desktop_mode_content_graph_template_html`
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
  * Mirrors the my-wordpress gate, anyone who can edit posts can view
  * the link map of the content they author and maintain.
  *
- * @since 0.8.2
- *
  * @return bool
  */
 function desktop_mode_content_graph_user_can_use() {
@@ -32,8 +29,6 @@ function desktop_mode_content_graph_user_can_use() {
 	/**
 	 * Filter whether the current user can see the Content Graph
 	 * desktop icon and window.
-	 *
-	 * @since 0.8.2
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
@@ -46,9 +41,7 @@ function desktop_mode_content_graph_user_can_use() {
  * default), matching the user-facing filter bar that ships ON for all
  * of them.
  *
- * @since 0.8.2
- *
- * @return array[] Each entry: `array( 'slug', 'label', 'icon' )`.
+ * @return array[] Each entry: `array( 'slug', 'label', 'icon', 'taxonomies' )`.
  */
 function desktop_mode_content_graph_post_types() {
 	$types  = get_post_types( array( 'public' => true ), 'objects' );
@@ -61,31 +54,44 @@ function desktop_mode_content_graph_post_types() {
 			continue;
 		}
 		$result[] = array(
-			'slug'  => (string) $type->name,
-			'label' => (string) $type->labels->name,
-			'icon'  => (string) ( ! empty( $type->menu_icon ) ? $type->menu_icon : 'dashicons-admin-post' ),
+			'slug'       => (string) $type->name,
+			'label'      => (string) $type->labels->name,
+			'icon'       => (string) ( ! empty( $type->menu_icon ) ? $type->menu_icon : 'dashicons-admin-post' ),
+			'taxonomies' => array(
+				'category' => is_object_in_taxonomy( $type->name, 'category' ),
+				'post_tag' => is_object_in_taxonomy( $type->name, 'post_tag' ),
+			),
 		);
 	}
 
 	/**
 	 * Filter the list of post types shown in the Content Graph filter
-	 * bar. Each entry must declare `slug`, `label`, and `icon`. Removing
+	 * bar. Each entry declares `slug`, `label`, `icon`, and optionally
+	 * `taxonomies` (`array( 'category' => bool, 'post_tag' => bool )`);
+	 * entries missing `taxonomies` get it derived from
+	 * `is_object_in_taxonomy()` after filtering. Removing
 	 * an entry hides it from the filter bar AND excludes it from the
 	 * graph entirely.
-	 *
-	 * @since 0.8.2
 	 *
 	 * @param array[] $result Default: every public post type except attachment.
 	 */
 	$filtered = apply_filters( 'desktop_mode_content_graph_post_types', $result );
-	return is_array( $filtered ) ? array_values( $filtered ) : $result;
+	$filtered = is_array( $filtered ) ? array_values( $filtered ) : $result;
+
+	foreach ( $filtered as $i => $entry ) {
+		$slug                         = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
+		$filtered[ $i ]['taxonomies'] = array(
+			'category' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['category'] ) : is_object_in_taxonomy( $slug, 'category' ),
+			'post_tag' => isset( $entry['taxonomies'] ) ? ! empty( $entry['taxonomies']['post_tag'] ) : is_object_in_taxonomy( $slug, 'post_tag' ),
+		);
+	}
+
+	return $filtered;
 }
 
 /**
  * Render the Content Graph window's static template body. The bundle
  * mounts its UI into `[data-desktop-mode-content-graph-root]`.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_render_template() {
 	ob_start();
@@ -107,8 +113,6 @@ function desktop_mode_content_graph_render_template() {
 	/**
 	 * Filter the Content Graph window's template HTML.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_content_graph_template_html', $html );
@@ -123,8 +127,6 @@ function desktop_mode_content_graph_render_template() {
 /**
  * Register the native window + the desktop icon on `init` priority 20,
  * matching the my-wordpress + recycle-bin modules.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_register_window() {
 	if ( ! desktop_mode_content_graph_user_can_use() ) {
@@ -158,8 +160,6 @@ function desktop_mode_content_graph_register_window() {
 	/**
 	 * Filter the args used to register the Content Graph native window.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_content_graph_window_args', $window_args );
@@ -182,8 +182,6 @@ function desktop_mode_content_graph_register_window() {
 	/**
 	 * Filter the args used to register the Content Graph desktop icon.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_content_graph_icon_args', $icon_args );
@@ -195,8 +193,6 @@ add_action( 'init', 'desktop_mode_content_graph_register_window', 20 );
 /**
  * Enqueue the bundle's CSS in admin context. The script is lazy-
  * loaded by the native-window sync.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_enqueue_styles() {
 	if ( ! desktop_mode_content_graph_user_can_use() ) {

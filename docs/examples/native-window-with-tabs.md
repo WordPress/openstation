@@ -277,7 +277,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
 ## Before → after
 
-### Before (0.10 and earlier)
+### Before (hand-wired panes)
 
 ```php
 desktop_mode_component( 'wpd-tabs', [ 'value' => 'calc' ], $tab_children );
@@ -296,7 +296,7 @@ tabs.addEventListener( 'wpd-tab-change', function ( e ) {
 
 `data-pane="…"` was every plugin's private invention — three plugins picked three different conventions. ARIA roles had to be remembered and wired by hand.
 
-### After (0.11+)
+### After (registered window tabs)
 
 ```html
 <wpd-tabs value="calc">

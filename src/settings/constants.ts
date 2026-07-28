@@ -63,8 +63,6 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
  * malformed entries rather than letting a bad filter render broken
  * swatches. Falls back to {@link DEFAULT_ACCENTS} when the config is
  * missing or yields zero valid entries.
- *
- * @since 0.5.0
  */
 export function getAccents(): readonly AccentColor[] {
 	const config = ( window as unknown as {
@@ -96,8 +94,6 @@ export function getAccents(): readonly AccentColor[] {
  * Resolve the live default-wallpaper slug. Reads
  * `window.wp.desktop.config.defaultWallpaper` and falls back to
  * {@link DEFAULT_WALLPAPER_ID} when absent/invalid.
- *
- * @since 0.5.0
  */
 export function getDefaultWallpaperId(): string {
 	const config = ( window as unknown as {
@@ -115,6 +111,17 @@ export const DOCK_SIZES = [
 	{ id: 'compact', label: 'Compact', width: 48, icon: 18 },
 	{ id: 'default', label: 'Default', width: 56, icon: 20 },
 	{ id: 'large', label: 'Large', width: 72, icon: 26 },
+] as const;
+
+/**
+ * Window corner-radius presets. `value` (px) is written to the
+ * `--desktop-mode-window-radius` custom property by the settings apply
+ * pass, so the choice reflows every open window's corners live.
+ */
+export const WINDOW_RADII = [
+	{ id: 'sharp', label: 'Sharp', value: 0 },
+	{ id: 'default', label: 'Default', value: 8 },
+	{ id: 'round', label: 'Round', value: 16 },
 ] as const;
 
 /**
@@ -149,24 +156,36 @@ export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
 	accent: 'wp-blue',
 	dockSize: 'default',
+	windowRadius: 'default',
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
+	// `''` = System default. Any other value is a desktop-theme
+	// slug; the registry resolves it at apply time and falls back
+	// to the system default when it isn't installed.
+	desktopTheme: '',
+	// Themes whose recommended OS settings this user has already been
+	// seeded with. Empty means "no theme has ever recommended anything
+	// to this user yet" — the first activation of a theme that does
+	// will append to it.
+	appliedThemeRecommendations: [],
 	unfocusEffect: 'darken',
+	windowLinkRenderer: 'svg-splines',
+	windowLinkVisibility: 'always',
+	windowLinksEnabled: true,
+	windowLinkRaiseOnFocus: true,
+	windowLinkHighlight: true,
 	customGradient: {
 		from: '#2271b1',
 		to: '#7c3aed',
 		angle: 135,
 	},
 	customImage: null,
+	wallpaperSettings: {},
 	libraryHdOnly: true,
 	ai: {
 		enabled: false,
-		provider: 'openai',
-		apiKey: '',
-		apiKeys: {},
-		transport: 'off',
 	},
-	// Opt-IN Beta as of 0.9.1. Fresh installs land on the classic
+	// Opt-in Beta. Fresh installs land on the classic
 	// chromeless `edit.php` iframe; a user opts in via OS Settings →
 	// Features → Beta features to get the native Posts window. The
 	// native windows used to default ON (opt-out, 0.8.0) but are now
@@ -199,80 +218,3 @@ export const DEFAULTS: OsSettingsState = {
 	dockPromotedPositions: {},
 };
 
-/**
- * Live-progress transport options. Order is the picker order in OS Settings.
- *
- * Default `off` is reliable on every host; `sse` is faster but needs the
- * server (and any reverse proxy in front of it) to allow long-lived
- * `text/event-stream` connections.
- *
- * @since 0.6.0
- */
-export const AI_TRANSPORTS = [
-	{ id: 'off', label: 'Off' },
-	{ id: 'sse', label: 'Streaming (SSE)' },
-] as const;
-
-/**
- * Hard-coded fallback list — the only provider we know about without
- * reading the runtime registry. {@link getAiProviders} prefers the
- * runtime `desktopModeConfig.aiProviders` list when present, so adding a
- * new provider is a pure PHP concern.
- */
-export const AI_PROVIDERS: ReadonlyArray< {
-	id: string;
-	label: string;
-	description?: string;
-	apiKeyLabel?: string;
-	apiKeyLink?: string;
-} > = [
-	{
-		id: 'openai',
-		label: 'OpenAI',
-		apiKeyLabel: 'OpenAI API key',
-		apiKeyLink: 'https://platform.openai.com/api-keys',
-	},
-];
-
-/**
- * Returns the runtime list of registered AI providers.
- *
- * Falls back to {@link AI_PROVIDERS} when the shell config is missing
- * (rare — happens in some test contexts and the very first frame
- * before `desktopModeConfig` is populated).
- */
-export function getAiProviders(): ReadonlyArray< {
-	id: string;
-	label: string;
-	description?: string;
-	apiKeyLabel?: string;
-	apiKeyLink?: string;
-} > {
-	const cfg = (
-		window as typeof window & {
-			desktopModeConfig?: {
-				aiProviders?: Array< {
-					id: string;
-					label: string;
-					description?: string;
-					api_key_label?: string;
-					api_key_link?: string;
-					capabilities?: string[];
-				} >;
-			};
-		}
-	).desktopModeConfig;
-
-	const list = cfg?.aiProviders;
-	if ( ! Array.isArray( list ) || list.length === 0 ) {
-		return AI_PROVIDERS;
-	}
-
-	return list.map( ( p ) => ( {
-		id: p.id,
-		label: p.label,
-		description: p.description,
-		apiKeyLabel: p.api_key_label,
-		apiKeyLink: p.api_key_link,
-	} ) );
-}

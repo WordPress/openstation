@@ -4,7 +4,7 @@ Every plugin that integrates with an external service (Tumblr, Mastodon, Bluesky
 
 The framework ships a relay that owns those five steps. Plugins declare only what's plugin-specific: the authorize / token URLs, the client credentials, and a token-storage callback.
 
-*Stable API since 0.8.2.*
+*Stable.*
 
 ## Register the relay (PHP)
 
@@ -24,7 +24,7 @@ add_action( 'init', function () {
 } );
 ```
 
-Need to undo it? `desktop_mode_unregister_oauth_relay( $service )` removes a previously registered relay — the mirror of `desktop_mode_register_oauth_relay()`, handy for plugins that register conditionally and for PHPUnit teardowns. *Since 0.8.2.*
+Need to undo it? `desktop_mode_unregister_oauth_relay( $service )` removes a previously registered relay — the mirror of `desktop_mode_register_oauth_relay()`, handy for plugins that register conditionally and for PHPUnit teardowns.
 
 ## Start the flow (JavaScript)
 

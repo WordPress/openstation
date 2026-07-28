@@ -24,8 +24,6 @@
  *     maxlength="4000"
  * ></wpd-textarea>
  * ```
- *
- * @since 0.6.0
  */
 
 import {

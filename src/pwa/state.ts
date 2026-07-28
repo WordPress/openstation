@@ -15,8 +15,6 @@
  * state self-corrects. We intentionally do NOT block the UI on the
  * write — losing a dismissal flag for a single page is far better
  * than introducing a "saving…" spinner on a one-line preference.
- *
- * @since 0.8.0
  */
 
 import type { PwaConfig, PwaUserState } from '../types';

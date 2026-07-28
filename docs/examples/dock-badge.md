@@ -27,8 +27,7 @@ add_filter( 'desktop_mode_dock_items', function ( $items ) {
 
 ## Updating the badge live (without a refresh)
 
-**Stable** — shipped 0.6.0; rail discriminator + icon rail
-since 0.6.0.
+**Stable.**
 
 Use the platform API instead of poking the DOM. The framework
 exposes the same `setBadge( id, count )` shape on three rails —

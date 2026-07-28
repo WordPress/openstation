@@ -28,8 +28,6 @@
  * registered by the shell). Designed to hold 60fps with ~3000
  * particles on mid-range hardware — the hot loop is a single-pass
  * scan over flat `Float32Array`s with allocation-free spatial hashing.
- *
- * @since 0.8.0
  */
 
 import type { Application, Container, Sprite, Text, Texture } from 'pixi.js';
@@ -564,7 +562,12 @@ export async function mountAboutScene( opts: SceneOptions ): Promise<AboutScene>
 			app.canvas.removeEventListener( 'pointerleave', onPointerLeave );
 			app.canvas.removeEventListener( 'pointerdown', onPointerDown );
 			try {
-				app.destroy( true, {
+				// `{ removeView: true }`, NEVER `true`: a literal `true`
+				// runs `releaseGlobalResources()`, wiping Pixi's
+				// page-global pools out from under every other live
+				// Application (the active canvas wallpaper, the OS
+				// Settings wallpaper previews).
+				app.destroy( { removeView: true }, {
 					children: true,
 					texture: true,
 					textureSource: true,

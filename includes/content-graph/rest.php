@@ -6,7 +6,7 @@
  *
  *   GET /post-types
  *     Lists the types eligible for the graph (`slug`, `label`, `icon`,
- *     `count`).
+ *     `count`, `taxonomies`).
  *
  *   GET /nodes?types=post,page,...
  *     Returns the full `{ nodes, edges, stats }` tuple. Cached server-
@@ -18,15 +18,12 @@
  *         attached_media, revisions }.
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Capability check shared across every endpoint.
- *
- * @since 0.8.2
  *
  * @return bool
  */
@@ -36,8 +33,6 @@ function desktop_mode_content_graph_rest_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_register_routes() {
 	register_rest_route(
@@ -86,8 +81,6 @@ add_action( 'rest_api_init', 'desktop_mode_content_graph_register_routes' );
 /**
  * GET /post-types
  *
- * @since 0.8.2
- *
  * @return WP_REST_Response
  */
 function desktop_mode_content_graph_rest_post_types() {
@@ -108,10 +101,11 @@ function desktop_mode_content_graph_rest_post_types() {
 			}
 		}
 		$out[] = array(
-			'slug'  => $slug,
-			'label' => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
-			'icon'  => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
-			'count' => $count,
+			'slug'       => $slug,
+			'label'      => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
+			'icon'       => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
+			'count'      => $count,
+			'taxonomies' => $entry['taxonomies'],
 		);
 	}
 	return rest_ensure_response( $out );
@@ -119,8 +113,6 @@ function desktop_mode_content_graph_rest_post_types() {
 
 /**
  * GET /nodes
- *
- * @since 0.8.2
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response
@@ -145,8 +137,6 @@ function desktop_mode_content_graph_rest_nodes( WP_REST_Request $request ) {
  * were referenced only via stripped contributor ids are removed too.
  * This runs at response time, not build time, because the cached
  * payload is shared across users of the same privilege tier.
- *
- * @since 0.9.2
  *
  * @param array $payload Payload from `desktop_mode_content_graph_build()`.
  * @return array
@@ -198,8 +188,6 @@ function desktop_mode_content_graph_filter_payload_for_user( array $payload ) {
 
 /**
  * GET /post/<id>
- *
- * @since 0.8.2
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
@@ -260,8 +248,6 @@ function desktop_mode_content_graph_rest_post_detail( WP_REST_Request $request )
 /**
  * Format a user record for the side panel.
  *
- * @since 0.8.2
- *
  * @param int $user_id
  * @return array|null
  */
@@ -287,8 +273,6 @@ function desktop_mode_content_graph_format_user( $user_id ) {
  * Collect contributors: distinct revision authors (excluding the
  * current author) plus distinct comment authors who have a
  * registered user account.
- *
- * @since 0.8.2
  *
  * @param WP_Post $post
  * @param bool    $include_revision_authors Whether to include revision
@@ -341,8 +325,6 @@ function desktop_mode_content_graph_collect_contributors( WP_Post $post, $includ
 /**
  * Collect approved comments (most recent first, capped at 50).
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @return array[]
  */
@@ -373,8 +355,6 @@ function desktop_mode_content_graph_collect_comments( WP_Post $post ) {
 /**
  * Collect every taxonomy term attached to the post (categories, tags,
  * and any custom taxonomy registered for the post type).
- *
- * @since 0.8.2
  *
  * @param WP_Post $post
  * @return array[]
@@ -409,8 +389,6 @@ function desktop_mode_content_graph_collect_terms( WP_Post $post ) {
  * Collect attached media (anything with this post as its `post_parent`)
  * plus any media referenced from a `wp:image` block. Returns up to 50.
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @return array[]
  */
@@ -434,8 +412,6 @@ function desktop_mode_content_graph_collect_attached_media( WP_Post $post ) {
 
 /**
  * Collect post revisions (most recent first, capped at 30).
- *
- * @since 0.8.2
  *
  * @param WP_Post $post
  * @return array[]

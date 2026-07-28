@@ -31,8 +31,6 @@
  * Deduping: one warning per tag for the lifetime of the page. The
  * first offending element is attached to the log so devtools can
  * jump straight to it.
- *
- * @since 0.8.4
  */
 
 import { WPD_COMPONENT_TAGS } from './tags';
@@ -256,8 +254,6 @@ function patchAttachShadow(): void {
  * Start the warner. Idempotent — calling more than once is a no-op.
  * Safe to call at any time; if the document is still parsing, the
  * MutationObserver will pick up the rest as it arrives.
- *
- * @since 0.8.4
  */
 export function startMissingImportWarner(): void {
 	if ( started ) {

@@ -11,9 +11,19 @@ export const menuStyles = css`
 		display: none;
 		position: fixed;
 		min-width: 180px;
-		background: var( --wpd-context-menu-bg, var( --desktop-mode-bg, #1d2327 ) );
+		/* Longhand on purpose: the texture slot below owns
+		   background-image, and the shorthand would reset it. The
+		   fallback must be a literal colour — --desktop-mode-bg is the
+		   wallpaper token and can hold a gradient, which is invalid as
+		   a background-color and would leave the menu transparent. */
+		background-color: var( --wpd-context-menu-bg, #1d2327 );
+		/* Desktop-theme texture slot: unset resolves to none. */
+		background-image: var( --wpd-menu-bg-image, none );
+		background-repeat: var( --wpd-menu-bg-image-repeat, repeat );
+		background-size: var( --wpd-menu-bg-image-size, auto );
+		background-position: var( --wpd-menu-bg-image-position, center );
 		color: var( --wpd-context-menu-fg, var( --desktop-mode-fg, #fff ) );
-		border: 1px solid rgba( 255, 255, 255, 0.08 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.08 ) );
 		border-radius: 8px;
 		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.45 );
 		padding: 4px;
@@ -46,7 +56,7 @@ export const optionStyles = css`
 
 	:host( :hover ),
 	:host( [ active ] ) {
-		background: rgba( 255, 255, 255, 0.1 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.1 ) );
 		outline: none;
 	}
 
@@ -69,7 +79,7 @@ export const optionStyles = css`
 		font-weight: 700;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
-		color: var( --wpd-context-menu-fg-muted, rgba( 255, 255, 255, 0.5 ) );
+		color: var( --wpd-context-menu-fg-muted, var( --wpd-fg-muted, rgba( 255, 255, 255, 0.5 ) ) );
 		pointer-events: none;
 	}
 

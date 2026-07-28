@@ -230,6 +230,51 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Chromeless iframes must not load core's session-expired login
+	 * modal — the parent shell owns the single prompt (DESKMOD-49).
+	 *
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_chromeless_suppresses_wp_auth_check_load() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		$this->assertFalse(
+			desktop_mode_chromeless_suppress_auth_check( true ),
+			'Chromeless iframes must not load the wp-auth-check modal.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_shell_keeps_wp_auth_check_load() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$this->assertTrue(
+			desktop_mode_chromeless_suppress_auth_check( true ),
+			'The parent shell keeps core\'s modal — it is the single login prompt.'
+		);
+		$this->assertFalse(
+			desktop_mode_chromeless_suppress_auth_check( false ),
+			'A false verdict from earlier filters must pass through unchanged.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_auth_check_suppression_is_registered() {
+		$this->assertNotFalse(
+			has_filter(
+				'wp_auth_check_load',
+				'desktop_mode_chromeless_suppress_auth_check'
+			),
+			'desktop_mode_chromeless_suppress_auth_check should hook wp_auth_check_load.'
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_chromeless_bridge_script
 	 */
 	public function test_bridge_script_emits_nothing_outside_chromeless() {
@@ -305,6 +350,64 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression(
 			"/kind === 'admin'.*?e\\.preventDefault\\(\\).*?desktop-mode-iframe-admin-link/s",
 			$output
+		);
+	}
+
+	/**
+	 * Clicks inside NESTED same-origin iframes (Gutenberg's
+	 * editor-canvas, TinyMCE's visual mode) never reach the outer
+	 * document's pointerdown listener — the bridge must attach its
+	 * focus escalation inside them too, or clicking into the canvas
+	 * of an unfocused editor window is swallowed and the window never
+	 * activates.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_escalates_focus_from_nested_frames() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'desktop-mode-focus-request', $output );
+		$this->assertStringContainsString( 'hookNestedFrames', $output );
+		$this->assertStringContainsString(
+			"doc.addEventListener( 'pointerdown', postFocusRequest, true )",
+			$output
+		);
+	}
+
+	/**
+	 * The nested-frame sweep must walk each mutation record's
+	 * `addedNodes`, never re-query the whole document. The observer
+	 * is installed in EVERY chromeless iframe, so a document-wide
+	 * `querySelectorAll( 'iframe' )` per mutation batch would put an
+	 * O(DOM) tree walk on Gutenberg's typing path — exactly when the
+	 * editor mutates hardest and the editor-preview pairing is live.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_nested_frame_sweep_is_scoped_to_added_nodes() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// The observer callback iterates addedNodes and hands each
+		// one to the scoped sweep.
+		$this->assertStringContainsString( 'records[ r ].addedNodes', $output );
+		$this->assertStringContainsString( 'hookNestedFrames( added[ n ] )', $output );
+
+		// The sweep queries within its root, not the document.
+		$this->assertStringContainsString( "root.querySelectorAll( 'iframe' )", $output );
+		$this->assertStringNotContainsString(
+			"document.querySelectorAll( 'iframe' )",
+			$output,
+			'Nested-frame sweep must stay scoped to added subtrees, not re-query the document.'
 		);
 	}
 

@@ -5,8 +5,6 @@
  * set of pending invites the current user has received via the
  * heartbeat. The store is `createSharedStore`-backed so every
  * bundle (main + lazy + future plugin bundles) sees the same data.
- *
- * @since 0.8.5
  */
 
 import { createSharedStore, type SharedStore } from '../shared-store';
@@ -17,6 +15,15 @@ export interface PendingInvite extends RestShareShape {
 	ownerId?: number;
 	ownerName?: string;
 	ownerAvatar?: string;
+	/**
+	 * `'file'` for single-file share invites (`target_type='file'`);
+	 * absent/`'folder'` for classic folder invites.
+	 */
+	targetType?: 'folder' | 'file' | string;
+	/** Stored-file id (file invites only). */
+	fileId?: number;
+	/** Stored-file display name (file invites only). */
+	fileName?: string;
 }
 
 export interface SharesState {
@@ -28,6 +35,8 @@ export interface SharesState {
 	sharesVersion: number;
 	/** Folder ids the user has explicitly denied (suppresses re-prompt). */
 	deniedFolders: Set< number >;
+	/** Stored-file ids the user has explicitly denied. */
+	deniedFiles: Set< number >;
 }
 
 let _store: SharedStore< SharesState > | null = null;
@@ -39,6 +48,7 @@ export function sharesStore(): SharedStore< SharesState > {
 			pending: [],
 			sharesVersion: 0,
 			deniedFolders: new Set(),
+			deniedFiles: new Set(),
 		} ) );
 	}
 	return _store;
@@ -90,6 +100,7 @@ function inviteEquals( a: PendingInvite, b: PendingInvite ): boolean {
 		a.capability === b.capability &&
 		a.invitedAtMs === b.invitedAtMs &&
 		a.folderName === b.folderName &&
+		a.fileName === b.fileName &&
 		a.ownerName === b.ownerName
 	);
 }
@@ -98,9 +109,20 @@ export function ingestPendingInvites( invites: PendingInvite[] ): void {
 	const s = sharesStore();
 	const existingById = new Map( s.state.pending.map( ( p ) => [ p.id, p ] ) );
 	let mutated = false;
-	for ( const inv of invites ) {
-		// Suppress re-prompt for previously-denied folders.
-		if ( s.state.deniedFolders.has( inv.folderId ) ) {
+	for ( const raw of invites ) {
+		// File-share shapes carry `fileId`, not `folderId` — pin a
+		// numeric folderId so downstream consumers typed against the
+		// folder shape never see `undefined`.
+		const inv: PendingInvite =
+			raw.targetType === 'file' && typeof raw.folderId !== 'number'
+				? { ...raw, folderId: 0 }
+				: raw;
+		// Suppress re-prompt for previously-denied targets.
+		if ( inv.targetType === 'file' ) {
+			if ( typeof inv.fileId === 'number' && s.state.deniedFiles.has( inv.fileId ) ) {
+				continue;
+			}
+		} else if ( s.state.deniedFolders.has( inv.folderId ) ) {
 			continue;
 		}
 		const existing = existingById.get( inv.id );
@@ -126,11 +148,17 @@ export function ingestPendingInvites( invites: PendingInvite[] ): void {
 	}
 }
 
-export function dropPending( shareId: number, opts: { denied?: boolean; folderId?: number } = {} ): void {
+export function dropPending(
+	shareId: number,
+	opts: { denied?: boolean; folderId?: number; fileId?: number } = {},
+): void {
 	const s = sharesStore();
 	s.state.pending = s.state.pending.filter( ( p ) => p.id !== shareId );
 	if ( opts.denied && typeof opts.folderId === 'number' ) {
 		s.state.deniedFolders.add( opts.folderId );
+	}
+	if ( opts.denied && typeof opts.fileId === 'number' ) {
+		s.state.deniedFiles.add( opts.fileId );
 	}
 	s.notify();
 }

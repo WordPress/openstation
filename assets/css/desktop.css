@@ -176,6 +176,15 @@ body.desktop-mode-active #wpcontent {
 	flex-direction: column;
 	overflow: hidden;
 	z-index: var(--desktop-mode-z-base);
+	/*
+	 * Shell typeface. Every piece of chrome that doesn't set its own
+	 * face inherits from here — dock labels, desktop icon labels,
+	 * widgets, the overview. Windows override with `--wpd-font` on
+	 * their body, so a theme can run a display face on the desk and a
+	 * text face inside windows. `inherit` is the no-theme value, i.e.
+	 * identical to not declaring the property at all.
+	 */
+	font-family: var(--desktop-mode-font, inherit);
 }
 
 /*
@@ -197,6 +206,36 @@ body.desktop-mode-active #wpcontent {
 	background: var(--desktop-mode-bg);
 	overflow: hidden;
 	pointer-events: none;
+}
+
+/*
+ * Desktop-theme wallpaper texture (DESKTOP slot).
+ *
+ * On a `::before` rather than this element's own background, because
+ * `--desktop-mode-bg` is set by the wallpaper picker and can be a
+ * gradient — i.e. a background-IMAGE. Overriding `background-image`
+ * here would silently erase every gradient wallpaper the moment a
+ * theme was active. The pseudo-element layers instead of replacing.
+ *
+ * Resulting precedence, bottom to top:
+ *   CSS wallpaper (`--desktop-mode-bg`)
+ *   → theme DESKTOP texture (this rule)
+ *   → canvas wallpapers, which mount as CHILDREN of the layer and
+ *     therefore paint above both.
+ *
+ * A theme that wants the user's wallpaper to remain visible ships a
+ * texture with transparency; an opaque one takes the desk over.
+ * With no theme active the image is `none` and this paints nothing.
+ */
+.desktop-mode-wallpaper::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background-image: var(--desktop-mode-desktop-image, none);
+	background-repeat: var(--desktop-mode-desktop-image-repeat, repeat);
+	background-size: var(--desktop-mode-desktop-image-size, auto);
+	background-position: var(--desktop-mode-desktop-image-position, center);
 }
 
 /*
@@ -381,7 +420,17 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	width: 88px;
 	padding: 8px 4px;
 	border: 0;
-	background: transparent;
+	background-color: transparent;
+	/*
+	 * ICON_TILE texture slot — a plate behind each wallpaper icon.
+	 * Painted under the icon image and its label, so a theme can give
+	 * desktop shortcuts a physical tile the way a phone home screen
+	 * does. Unset = `none` = the transparent tile we always had.
+	 */
+	background-image: var(--desktop-mode-tile-image, none);
+	background-repeat: var(--desktop-mode-tile-image-repeat, no-repeat);
+	background-size: var(--desktop-mode-tile-image-size, auto);
+	background-position: var(--desktop-mode-tile-image-position, center);
 	color: var(--desktop-mode-fg, #fff);
 	cursor: pointer;
 	border-radius: 8px;
@@ -405,18 +454,34 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	position: absolute;
 	top: 4px;
 	inset-inline-end: 14px;
-	min-width: 18px;
-	height: 18px;
-	padding: 0 5px;
+	/* Same derivation as the dock badge, sized off the wallpaper icon
+	 * rather than the dock icon. The default resolves to 18px / 11px —
+	 * exactly the old values. */
+	--desktop-mode-icon-badge-computed-size: var(
+		--desktop-mode-icon-badge-size,
+		calc( var( --desktop-mode-icon-image-size, 48px ) * 0.375 )
+	);
+	min-width: var( --desktop-mode-icon-badge-computed-size );
+	height: var( --desktop-mode-icon-badge-computed-size );
+	padding: 0 var(
+		--desktop-mode-icon-badge-padding,
+		calc( var( --desktop-mode-icon-badge-computed-size ) * 0.28 )
+	);
 	box-sizing: border-box;
 	border-radius: 999px;
-	background: linear-gradient( 180deg, #ff5a5a 0%, #d63638 100% );
-	color: #fff;
+	background: var(
+		--desktop-mode-icon-badge-bg,
+		linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% )
+	);
+	color: var( --desktop-mode-icon-badge-fg, var( --wpd-fg-on-accent, #fff ) );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 11px;
-	font-weight: 700;
+	font-size: var(
+		--desktop-mode-icon-badge-font-size,
+		calc( var( --desktop-mode-icon-badge-computed-size ) * 0.611 )
+	);
+	font-weight: var( --desktop-mode-icon-badge-font-weight, 700 );
 	line-height: 1;
 	font-variant-numeric: tabular-nums;
 	box-shadow:
@@ -426,15 +491,40 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 }
 
 .desktop-mode-icon[ data-icon-id="desktop-mode-recycle-bin" ] > .desktop-mode-icon__badge {
-	top: 39px;
-	inset-inline-end: 20px;
-	min-width: 15px;
-	height: 15px;
-	padding: 0 4px;
+	/*
+	 * The bin's count is tucked ONTO the lid rather than floating off
+	 * the corner, so it gets its own smaller geometry. Every value
+	 * derives from the icon image size, which keeps the badge on the
+	 * lid when a theme scales wallpaper icons — hardcoded offsets slid
+	 * off the artwork entirely.
+	 *
+	 * Override chain: bin-specific token → the generic icon-badge
+	 * token (so a theme that says "badges are 22px" gets the bin too)
+	 * → the derivation. All three resolve to the historical 15px / 9px
+	 * at the default 48px icon.
+	 */
+	--desktop-mode-recycle-badge-computed-size: var(
+		--desktop-mode-recycle-badge-size,
+		var(
+			--desktop-mode-icon-badge-size,
+			calc( var( --desktop-mode-icon-image-size, 48px ) * 0.3125 )
+		)
+	);
+	top: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.8125 );
+	inset-inline-end: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.4167 );
+	min-width: var( --desktop-mode-recycle-badge-computed-size );
+	height: var( --desktop-mode-recycle-badge-computed-size );
+	padding: 0 calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.267 );
 	border-radius: 999px;
-	background: rgba( 29, 35, 39, 0.74 );
-	color: rgba( 255, 255, 255, 0.96 );
-	font-size: 9px;
+	background: var( --desktop-mode-recycle-badge-bg, rgba( 29, 35, 39, 0.74 ) );
+	color: var( --desktop-mode-recycle-badge-fg, rgba( 255, 255, 255, 0.96 ) );
+	font-size: var(
+		--desktop-mode-recycle-badge-font-size,
+		var(
+			--desktop-mode-icon-badge-font-size,
+			calc( var( --desktop-mode-recycle-badge-computed-size ) * 0.6 )
+		)
+	);
 	font-weight: 700;
 	letter-spacing: 0;
 	box-shadow:
@@ -444,7 +534,10 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 
 .desktop-mode-icon:hover,
 .desktop-mode-icon:focus-visible {
-	background: rgba(255, 255, 255, 0.12);
+	/* background-COLOR, not the shorthand: the shorthand would reset
+	 * the ICON_TILE texture declared above, so a themed tile would
+	 * vanish on hover. */
+	background-color: rgba(255, 255, 255, 0.12);
 	outline: none;
 }
 
@@ -456,9 +549,11 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 48px;
-	height: 48px;
-	font-size: 32px;
+	/* Tokenized so a theme can scale wallpaper icons — and so the
+	 * badge above has something to derive its own size from. */
+	width: var( --desktop-mode-icon-image-size, 48px );
+	height: var( --desktop-mode-icon-image-size, 48px );
+	font-size: calc( var( --desktop-mode-icon-image-size, 48px ) * 0.667 );
 	line-height: 1;
 }
 
@@ -586,9 +681,9 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	flex: 1;
 	min-height: 0;
 	--desktop-mode-window-bg: transparent;
-	--desktop-mode-border: transparent;
-	--desktop-mode-text: #2a2513;
-	--desktop-mode-muted: rgba( 42, 37, 19, 0.62 );
+	--wpd-border: transparent;
+	--wpd-fg: #2a2513;
+	--wpd-fg-muted: rgba( 42, 37, 19, 0.62 );
 	font-family:
 		-apple-system,
 		BlinkMacSystemFont,
@@ -682,12 +777,20 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	display: flex;
 	flex-direction: column;
 	pointer-events: auto;
-	background: rgba( 20, 20, 22, 0.55 );
+	background-color: rgba( 20, 20, 22, 0.55 );
+	/*
+	 * WIDGET texture slot — layered over the frosted card colour, so a
+	 * translucent texture still gets the blur underneath.
+	 */
+	background-image: var( --desktop-mode-widget-image, none );
+	background-repeat: var( --desktop-mode-widget-image-repeat, repeat );
+	background-size: var( --desktop-mode-widget-image-size, auto );
+	background-position: var( --desktop-mode-widget-image-position, center );
 	backdrop-filter: blur( 18px ) saturate( 140% );
 	-webkit-backdrop-filter: blur( 18px ) saturate( 140% );
 	border: 1px solid rgba( 255, 255, 255, 0.08 );
 	border-radius: 14px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	box-shadow:
 		0 8px 28px rgba( 0, 0, 0, 0.35 ),
 		inset 0 0 0 1px rgba( 255, 255, 255, 0.04 );
@@ -725,7 +828,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	justify-content: center;
 	padding: 0;
 	border: 0;
-	background: rgba( 0, 0, 0, 0.55 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.55 ) );
 	color: rgba( 255, 255, 255, 0.75 );
 	border-radius: 50%;
 	cursor: pointer;
@@ -742,8 +845,8 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 }
 
 .desktop-mode-widgets__card-close:hover {
-	background: #d63638;
-	color: #fff;
+	background: var( --wpd-danger, #d63638 );
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 /*
@@ -833,7 +936,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	justify-content: center;
 	padding: 0;
 	border: 0;
-	background: rgba( 0, 0, 0, 0.55 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.55 ) );
 	color: rgba( 255, 255, 255, 0.75 );
 	border-radius: 50%;
 	width: 20px;
@@ -854,7 +957,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .desktop-mode-widgets__card-redock:focus-visible {
 	opacity: 1;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 /*
@@ -990,7 +1093,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 .desktop-mode-widgets__add:hover {
 	border-color: rgba( 255, 255, 255, 0.4 );
 	background: rgba( 255, 255, 255, 0.06 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 .desktop-mode-widgets__add:focus-visible {
@@ -1052,7 +1155,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	-webkit-backdrop-filter: blur( 22px ) saturate( 160% );
 	border: 1px solid rgba( 255, 255, 255, 0.1 );
 	box-shadow: 0 18px 54px rgba( 0, 0, 0, 0.55 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	z-index: 9999;
 	animation: desktop-mode-widget-picker-in 0.14s ease-out;
 }
@@ -1087,7 +1190,7 @@ body.desktop-mode-has-fullscreen-window .desktop-mode-shell {
 	background: transparent;
 	border: 0;
 	border-radius: 10px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	cursor: pointer;
 	text-align: start;
 	font: inherit;

@@ -39,9 +39,9 @@ on `window.wp.hooks`). All hook names live on
 | `desktop-mode.drop.files-rejected` | action | `{ rejections: DropRejection[], context: DropContext }` — files that failed the allow-list. |
 | `desktop-mode.drop.dialog-fields` | filter | `(entry: DropFileEntry, ctx) => DropFileEntry` — mutate the per-file defaults the dialog shows. |
 | `desktop-mode.drop.before-upload` | filter | `({ file, mime, fields }, ctx) => payload \| null` — last chance to swap the file or cancel (returning `null`). |
-| `desktop-mode.drop.upload-started` | action | _Since 0.8.6._ `{ file, fields, context, abort: () => void }` — XHR is open and about to `send()`. Call `abort()` to cancel mid-flight; the manager will reject with `UploadAbortedError`. |
-| `desktop-mode.drop.upload-progress` | action | _Since 0.8.6._ `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` tick. A synthetic 100% event is fired on `upload.load`. |
-| `desktop-mode.drop.after-upload` | action | `{ file: File, result: DropUploadResult, fields, context }` — `file` (since 0.8.6) carries the same `File` ref as `upload-started`, so per-file UI can match by identity. |
+| `desktop-mode.drop.upload-started` | action | `{ file, fields, context, abort: () => void }` — XHR is open and about to `send()`. Call `abort()` to cancel mid-flight; the manager will reject with `UploadAbortedError`. |
+| `desktop-mode.drop.upload-progress` | action | `{ file, fields, context, loaded, total, indeterminate }` — per `XMLHttpRequestUpload.progress` tick. A synthetic 100% event is fired on `upload.load`. |
+| `desktop-mode.drop.after-upload` | action | `{ file: File, result: DropUploadResult, fields, context }` — `file` carries the same `File` ref as `upload-started`, so per-file UI can match by identity. |
 | `desktop-mode.drop.upload-failed` | action | `{ file, error, context }` — `file` is the post-`before-upload` identity, same as the other lifecycle hooks. `error.name === 'UploadAbortedError'` for a caller-cancelled upload. |
 
 `DropContext.surface` is one of `'wallpaper' | 'window' |
@@ -196,6 +196,33 @@ wp.hooks.addAction(
 ```
 
 `<wpd-progress-bar>` is documented in `docs/examples/progress-bar.md`.
+
+## Two destinations
+
+The upload dialog carries a destination selector when real desktop
+storage is available (`config.desktopStorage.canUpload`): **Desktop**
+(bytes land in the user's private storage and a tile appears) or
+**Media Library** (the pre-0.9.6 behavior, always one click away).
+The default follows the drop's intent:
+
+- Drops aimed at a **folder** (an open folder window or a closed
+  folder tile) default to Desktop, into that folder.
+- Drops on **WordPress admin windows** (Media, Posts, Pages, …)
+  default to Media Library.
+- Flat files on the **desk** default to Media Library when EVERY
+  file is a media kind (`image/*`, `video/*`, `audio/*`) and to
+  Desktop otherwise.
+- **Folder drops** force Desktop and recreate the tree; the
+  wallpaper "Upload files…" pickers also default to Desktop.
+
+Dropping again while the dialog is open UPDATES it to the latest
+drop (the earlier, unconfirmed batch is discarded — one dialog,
+never stacked modals, never mixed batches). Both sinks fire the same
+`desktop-mode.drop.*` chain — your subscribers keep working
+unchanged; the `after-upload` payload's `result` is
+`{ placement, storedFileId }` for the desktop sink instead of the
+attachment shape. See
+[files-on-desktop.md → Real file storage](../files-on-desktop.md#real-file-storage-upload--experimental).
 
 ## Hooks reference
 

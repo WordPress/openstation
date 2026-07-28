@@ -29,11 +29,10 @@
  *
  * Re-renders every time the underlying placement list mutates
  * (subscribed via the files store) so counts stay live.
- *
- * @since 0.9.0
  */
 
 import { applyFilters } from '../hooks';
+import { formatBytes } from '../os-file-drop/format-bytes';
 import { getFilesState, subscribeFilesStore } from './store';
 
 export const STATUS_BAR_CLASS = 'desktop-mode-folder-status-bar';
@@ -58,6 +57,14 @@ export interface StatusBarContext {
 		files: number;
 		folders: number;
 		total: number;
+		/**
+		 * Sum of `sizeBytes` across the folder's stored uploads
+		 * (the `upload` file type). Reference tiles (posts, media
+		 * links, …) have no byte weight; sub-folder contents are
+		 * not included (only this folder's own items are hydrated
+		 * client-side).
+		 */
+		bytes: number;
 	};
 }
 
@@ -75,9 +82,20 @@ export function mountFolderStatusBar( host: HTMLElement, folderId: number ): {
 		const list = getFilesState().placementsByFolder.get( folderId ) ?? [];
 		const folders = list.filter( ( p ) => p.file.type === 'folder' ).length;
 		const files = list.length - folders;
+		let bytes = 0;
+		for ( const p of list ) {
+			if ( p.file.type === 'upload' ) {
+				const size = Number(
+					( p.file as { sizeBytes?: number } ).sizeBytes ?? 0,
+				);
+				if ( Number.isFinite( size ) && size > 0 ) {
+					bytes += size;
+				}
+			}
+		}
 		const ctx: StatusBarContext = {
 			folderId,
-			totals: { files, folders, total: list.length },
+			totals: { files, folders, total: list.length, bytes },
 		};
 		const segments = computeSegments( ctx );
 		render( bar, segments );
@@ -94,13 +112,16 @@ export function mountFolderStatusBar( host: HTMLElement, folderId: number ): {
 }
 
 function computeSegments( ctx: StatusBarContext ): StatusBarSegment[] {
-	const { folders, files } = ctx.totals;
+	const { folders, files, bytes } = ctx.totals;
 	const builtIns: StatusBarSegment[] = [
 		{
 			id: 'count',
 			label:
 				pluralize( files, 'file', 'files' ) +
-				( folders > 0 ? `, ${ pluralize( folders, 'folder', 'folders' ) }` : '' ),
+				( folders > 0 ? `, ${ pluralize( folders, 'folder', 'folders' ) }` : '' ) +
+				// Stored-upload weight — only when the folder holds
+				// real bytes (reference tiles weigh nothing).
+				( bytes > 0 ? ` (${ formatBytes( bytes ) })` : '' ),
 			align: 'start',
 			sort: 10,
 		},
@@ -120,7 +141,6 @@ function computeSegments( ctx: StatusBarContext ): StatusBarSegment[] {
  * styled compatibly).
  *
  * @public
- * @since 0.8.0
  */
 export function renderStatusBarSegments(
 	bar: HTMLElement,

@@ -5,8 +5,6 @@
  * the previous group and shows the new one without destroying
  * anything — iframe state, scroll position, in-page JS state all
  * survive a switch. Only one desktop is active at any time.
- *
- * @since 0.8.1
  */
 
 import { doAction, HOOKS } from '../hooks';

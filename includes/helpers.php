@@ -8,6 +8,34 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * Filename suffix for built JS/CSS bundles: `.min` in production,
+ * `''` (the unminified dev build) under SCRIPT_DEBUG.
+ *
+ * Centralised because the SCRIPT_DEBUG branch needs a guard the old
+ * per-file ternaries didn't have: release zips ship the minified
+ * bundles only (the ~4–5 MB of dev bundles are a source-checkout
+ * artifact — see bin/package.sh), so a production site that happens
+ * to define SCRIPT_DEBUG would otherwise request dev files that
+ * don't exist and 404 every desktop-mode script. Probe one
+ * canonical dev bundle; if it's absent, this is a minified-only
+ * install and `.min` is the only truth available.
+ *
+ * @return string `'.min'` or `''`.
+ */
+function desktop_mode_asset_suffix() {
+	static $suffix = null;
+	if ( null !== $suffix ) {
+		return $suffix;
+	}
+	if ( ! ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ) {
+		$suffix = '.min';
+		return $suffix;
+	}
+	$suffix = file_exists( DESKTOP_MODE_DIR . 'assets/js/desktop.js' ) ? '' : '.min';
+	return $suffix;
+}
+
+/**
  * Checks whether a user has desktop mode enabled.
  *
  * Two gates, both must pass:
@@ -22,8 +50,6 @@ defined( 'ABSPATH' ) || exit;
  * A user whose meta is `'1'` but whose filter denies them is treated as
  * not-enabled everywhere, which is the documented contract of the
  * filter — see docs/examples/gate-by-role.md.
- *
- * @since 0.1.0
  *
  * @param int $user_id Optional. User ID to check. Defaults to the
  *                     current user.
@@ -50,8 +76,6 @@ function desktop_mode_is_enabled( $user_id = 0 ) {
 	 * `false` for the user even when their meta is set, which propagates
 	 * to every render-time gate that consults the helper.
 	 *
-	 * @since 0.1.0
-	 *
 	 * @param bool $enabled Whether desktop mode is enabled. Default true.
 	 * @param int  $user_id The user ID being checked.
 	 */
@@ -76,8 +100,6 @@ function desktop_mode_is_enabled( $user_id = 0 ) {
  *
  * This is the canonical gate; `desktop_mode_presence_rest_permission()`
  * pioneered the shape and now delegates here.
- *
- * @since 0.8.10
  *
  * @return true|WP_Error True when allowed; a `rest_forbidden` WP_Error
  *                       (401 when logged out, 403 when desktop mode is
@@ -105,7 +127,7 @@ function desktop_mode_rest_require_enabled() {
 
 // Chromeless / classic admin-bar suppression and the `wp_redirect`
 // flag-preservation filter pair were moved to
-// `includes/core/routing.php` in 0.8.1. The functions and the
+// `includes/core/routing.php`. The functions and the
 // add_filter / add_action hookings live there now; this file
 // remains the home of `desktop_mode_is_enabled()` (called from the
 // routing helpers at hook-fire time, after every include has
@@ -114,7 +136,7 @@ function desktop_mode_rest_require_enabled() {
 
 /**
  * `desktop_mode_is_chromeless_request()` and `desktop_mode_is_classic_request()`
- * were moved to `includes/core/routing.php` in 0.8.1 — see that
+ * were moved to `includes/core/routing.php` — see that
  * file for the canonical definitions. The function names didn't
  * change; PHP looks them up by name at call time, so every
  * existing caller (helpers, render, hooks) keeps working.
@@ -138,16 +160,12 @@ function desktop_mode_rest_require_enabled() {
  * that returns an invalid slug degrades to the empty string (and the
  * shell falls back to its hard-coded `'dark'` preset).
  *
- * @since 0.5.0
- *
  * @return string Wallpaper id. Empty string if the filter returns
  *                an invalid value.
  */
 function desktop_mode_get_default_wallpaper() {
 	/**
 	 * Filters the wallpaper id loaded on first boot / new user.
-	 *
-	 * @since 0.5.0
 	 *
 	 * @param string $id Default wallpaper slug.
 	 */
@@ -166,8 +184,6 @@ function desktop_mode_get_default_wallpaper() {
  * consistent contract. The canonical error-code list lives in
  * `docs/hooks-reference.md`.
  *
- * @since 0.5.0
- *
  * @param string $code    Short error slug (e.g. `desktop_mode_missing_title`).
  * @param string $message Human-readable message. Should be translated.
  * @param array  $data    Optional extra context attached to the error.
@@ -184,14 +200,14 @@ function desktop_mode_registration_error( $code, $message, $data = array() ) {
 // `desktop_mode_url_is_same_admin()`,
 // `desktop_mode_resolve_admin_target()` and
 // `desktop_mode_admin_target_allowlist()` were moved to
-// `includes/core/routing.php` in 0.8.1 — see that file for the
+// `includes/core/routing.php` — see that file for the
 // canonical definitions. Function names didn't change; PHP's
 // runtime resolution finds them across the module split.
 
 
 // Dock building, menu / native-windows payload assembly and the
 // script/style handle resolvers were moved to
-// `includes/core/payload.php` in 0.8.1. Function names didn't
+// `includes/core/payload.php`. Function names didn't
 // change; existing callers find them via PHP's runtime function
 // resolution. desktop-mode.php loads payload.php right after
 // helpers.php so the foundational helpers (desktop_mode_is_enabled

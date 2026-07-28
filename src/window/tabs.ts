@@ -11,8 +11,6 @@
  * Functions here take the `Window` instance as their first argument
  * (`win`) so the class keeps its public surface unchanged while the
  * heavy logic lives out of the orchestrator file.
- *
- * @since 0.8.1
  */
 
 import { __, sprintf } from '../i18n';
@@ -425,7 +423,7 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 			// once the next page hydrates (and the iframe `load`
 			// event is the floor signal). Without this, in-place
 			// submenu navigation showed no spinner — visible only
-			// after we added the synthetic main tab in 0.6.0, which
+			// after we added the synthetic main tab, which
 			// gave users a reason to navigate within tabs instead of
 			// closing + reopening the window.
 			win.markContentLoading();

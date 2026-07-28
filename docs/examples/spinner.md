@@ -2,7 +2,7 @@
 
 `<wpd-spinner>` is a self-contained, animated WordPress-mark loading indicator with four curated presets and full per-attribute overrides. CSS variables drive both the disc color and the W-mark accent so the spinner matches any theme.
 
-> Status: **Experimental** since 0.6.0.
+> Status: **Experimental**.
 
 ## Drop-in
 

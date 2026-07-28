@@ -15,7 +15,6 @@
  * resolve regardless of which file owns the definition.
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -27,8 +26,6 @@ defined( 'ABSPATH' ) || exit;
  * Iterates through the global $menu and $submenu arrays, filters out
  * separators and items the current user can't access, and returns a
  * clean array of dock items ready for JSON serialization.
- *
- * @since 0.1.0
  *
  * @return array[] Array of dock item arrays, each containing:
  *                 id, title, icon, url, badge, submenu.
@@ -199,8 +196,6 @@ function desktop_mode_build_dock_items() {
 		/**
 		 * Filters a single dock item's data.
 		 *
-		 * @since 0.1.0
-		 *
 		 * @param array  $dock_item The dock item data.
 		 * @param string $menu_slug The menu slug.
 		 */
@@ -211,8 +206,6 @@ function desktop_mode_build_dock_items() {
 
 	/**
 	 * Filters the dock items before they are passed to JavaScript.
-	 *
-	 * @since 0.1.0
 	 *
 	 * @param array[] $items Array of dock item arrays.
 	 */
@@ -247,13 +240,6 @@ function desktop_mode_build_dock_items() {
  *
  * The return value is always a string safe to drop into an `img.src`,
  * a CSS class, or a CSS `url()` background without further escaping.
- *
- * @since 0.4.0
- * @since 0.8.1 Rejected `data:` URIs outright (regression — see 0.8.1).
- * @since 0.8.1 Re-allowed `data:image/svg+xml{;base64,|,}` so plugin
- *               icons (Yoast, WooCommerce, Jetpack, etc.) appear on the
- *               dock instead of collapsing to the gear fallback.
- *               Other `data:` schemes still rejected.
  *
  * @param mixed $icon Raw icon value from the menu registration.
  * @return string Sanitized icon string.
@@ -322,8 +308,6 @@ function desktop_mode_sanitize_dock_icon( $icon ) {
  * `desktop_mode_dock_item_multi` filter to mark any custom page as multi
  * (or force a stock list page into singleton mode).
  *
- * @since 0.5.0
- *
  * @param string $menu_slug The raw menu slug (e.g. `edit.php`, `upload.php`,
  *                          or `my-plugin-page`). Query strings are preserved
  *                          so `edit.php?post_type=page` resolves correctly.
@@ -351,8 +335,6 @@ function desktop_mode_dock_item_is_multi( $menu_slug ) {
 	 * A "+" affordance appears on the dock icon and a "Open another" action
 	 * becomes available in the window's title-bar menu. Singletons (false)
 	 * always focus the existing window when re-opened.
-	 *
-	 * @since 0.5.0
 	 *
 	 * @param bool   $multi     Whether this page is multi-capable.
 	 * @param string $menu_slug The menu slug (e.g. `edit.php?post_type=page`).
@@ -391,8 +373,6 @@ function desktop_mode_dock_item_is_multi( $menu_slug ) {
  *     return 'jetpack' === $slug ? 'dock' : $placement;
  * }, 10, 2 );
  * ```
- *
- * @since 0.9.0
  *
  * @param string $menu_slug Menu item slug (e.g. `edit.php`, `edit.php?post_type=foo`, `woocommerce`).
  * @return bool True when the slug is a core admin page.
@@ -468,8 +448,6 @@ function desktop_mode_is_core_menu_slug( $menu_slug ) {
  *      up an entry in `get_plugins()`. Return the matching `<folder>/<file>.php`.
  *   4. Exclude Desktop Mode itself — deactivating from inside the shell
  *      is handled by the plugins-window's self-deactivate path.
- *
- * @since 0.8.6
  *
  * @param string $menu_slug The menu slug from `$menu[$i][2]` (e.g. `woocommerce`,
  *                          `admin.php?page=jetpack`, `edit.php?post_type=foo`).
@@ -566,8 +544,6 @@ function desktop_mode_resolve_menu_plugin_file( $menu_slug ) {
  * has no entry (extremely rare — would mean the plugin file isn't
  * installed but somehow registered a menu).
  *
- * @since 0.8.6
- *
  * @param string $plugin_file Plugin file relative to `WP_PLUGIN_DIR`.
  * @return string Display name.
  */
@@ -588,8 +564,6 @@ function desktop_mode_plugin_display_name( $plugin_file ) {
  * corresponding plugin file in `get_plugins()`. Returns null when the
  * path isn't under the plugins directory, or doesn't match any active
  * plugin folder.
- *
- * @since 0.8.6
  *
  * @param string $file Absolute filesystem path.
  * @return string|null Plugin file (`<folder>/<file>.php`) or null.
@@ -627,8 +601,6 @@ function desktop_mode_plugin_file_for_path( $file ) {
  * file, then map that file to an active plugin via
  * {@see desktop_mode_plugin_file_for_path()}.
  *
- * @since 0.8.6
- *
  * @param mixed $callback A WP-style callback.
  * @return string|null Plugin file or null.
  */
@@ -642,8 +614,6 @@ function desktop_mode_plugin_file_for_callback( $callback ) {
  * attribution map: `slug → plugin_file`. The map is populated by the
  * wrapped admin_menu callbacks installed by
  * {@see desktop_mode_install_menu_attribution_tracker()}.
- *
- * @since 0.8.6
  *
  * @return array<string,string>
  */
@@ -681,8 +651,6 @@ function &desktop_mode_menu_attribution_map() {
  *
  * Idempotent — runs at most once per request via a static `$installed`
  * flag.
- *
- * @since 0.8.6
  *
  * @return void
  */
@@ -809,8 +777,6 @@ add_action( '_user_admin_menu', 'desktop_mode_install_menu_attribution_tracker',
  * The list intentionally drops `admin.php` so plugin-registered
  * top-level pages can still be resolved.
  *
- * @since 0.8.6
- *
  * @param string $base Slug with query string already stripped.
  * @return bool True when the base filename is a Core admin handler.
  */
@@ -863,8 +829,6 @@ function desktop_mode_is_pure_core_file( $base ) {
  * registered type is builtin, or when the registrant lives outside
  * `WP_PLUGIN_DIR` (theme-registered or mu-plugin).
  *
- * @since 0.8.6
- *
  * @param string $slug Menu slug.
  * @return string|null Plugin file or null.
  */
@@ -900,8 +864,6 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
  * non-builtin type has an entry. Stored in a static so repeated
  * lookups during a single request don't trigger the populator twice.
  *
- * @since 0.8.6
- *
  * @return array{post_type: array<string,string>, taxonomy: array<string,string>}
  */
 function &desktop_mode_get_typed_plugin_map() {
@@ -926,8 +888,6 @@ function &desktop_mode_get_typed_plugin_map() {
  * whose `file` lives under `WP_PLUGIN_DIR`, then map the folder back
  * to a `get_plugins()` entry. Cheap — the backtrace is bounded to 12
  * frames and runs once per type registration, all during `init`.
- *
- * @since 0.8.6
  *
  * @param string $type_or_post_type Type name (CPT or taxonomy).
  * @param string $kind              Either `'post_type'` or `'taxonomy'`.
@@ -970,8 +930,6 @@ function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
  * Used by the CPT / taxonomy registration tracker to attribute
  * `register_post_type()` / `register_taxonomy()` calls without
  * forcing Core to load its admin include earlier than it would.
- *
- * @since 0.8.6
  *
  * @return string|null Plugin file or null.
  */
@@ -1017,8 +975,6 @@ add_action(
  * the callback shape isn't reflectable (rare — e.g. an invocable object
  * whose `__invoke` lives in PHP core).
  *
- * @since 0.8.6
- *
  * @param mixed $callback A callback as stored in `WP_Hook::$callbacks[$prio][$id]['function']`.
  * @return string|null Absolute filesystem path of the declaring file, or null.
  */
@@ -1059,8 +1015,6 @@ function desktop_mode_callback_source_file( $callback ) {
  * Default is `'dock'` for every menu item. Plugins + site admins can
  * hide individual items via the `desktop_mode_dock_placement` filter.
  *
- * @since 0.9.0
- *
  * @param string $menu_slug The menu slug (e.g. `edit.php`, `woocommerce`).
  * @return string `'dock'` or `'hidden'`.
  */
@@ -1072,8 +1026,6 @@ function desktop_mode_dock_placement( $menu_slug ) {
 	 * `'hidden'` to suppress it entirely. Any other value coerces to
 	 * `'dock'` — a defensive guard so a misbehaving filter can't
 	 * corrupt the dock with `null` / `false` / arbitrary strings.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param string $placement Default — always `'dock'`.
 	 * @param string $menu_slug The menu slug triggering the lookup.
@@ -1095,8 +1047,6 @@ function desktop_mode_dock_placement( $menu_slug ) {
  * the hidden-iframe probe spawned by `wp.desktop.refreshMenu()`)
  * read from a single source of truth — any drift would desync the
  * live refresh.
- *
- * @since 0.9.0
  *
  * @return array{dockItems: array[]} Menu payload.
  */
@@ -1141,32 +1091,139 @@ function desktop_mode_build_menu_payload() {
 	// zero-arg `desktop_mode_build_*_payload()`; modules that aren't
 	// loaded this request contribute an empty array.
 	$builders = array(
-		'serverWidgets'                 => 'desktop_mode_build_desktop_widgets_payload',
-		'serverWallpapers'              => 'desktop_mode_build_desktop_wallpapers_payload',
-		'serverCommandScripts'          => 'desktop_mode_build_desktop_command_scripts_payload',
-		'serverCommands'                => 'desktop_mode_build_desktop_commands_payload',
-		'serverSettingsTabScripts'      => 'desktop_mode_build_desktop_settings_tab_scripts_payload',
-		'serverSettingsTabs'            => 'desktop_mode_build_desktop_settings_tabs_payload',
-		'serverDockRailRendererScripts' => 'desktop_mode_build_dock_rail_renderer_scripts_payload',
-		'serverTitleBarButtonScripts'   => 'desktop_mode_build_desktop_titlebar_button_scripts_payload',
-		'serverUnfocusEffectScripts'    => 'desktop_mode_build_desktop_unfocus_effect_scripts_payload',
-		'serverWindowThemeScripts'      => 'desktop_mode_build_window_theme_scripts_payload',
-		'serverWindowThemes'            => 'desktop_mode_build_window_themes_payload',
-		'serverWindowControlScripts'    => 'desktop_mode_build_window_control_scripts_payload',
-		'serverWindowControls'          => 'desktop_mode_build_window_controls_payload',
-		'serverWindowSlotScripts'       => 'desktop_mode_build_window_slot_scripts_payload',
-		'serverWindowSlots'             => 'desktop_mode_build_window_slots_payload',
-		'serverWindowChromeScripts'     => 'desktop_mode_build_window_chrome_scripts_payload',
-		'serverWindowChromes'           => 'desktop_mode_build_window_chromes_payload',
-		'serverWindowNotices'           => 'desktop_mode_build_window_notices_payload',
-		'desktopIcons'                  => 'desktop_mode_build_desktop_icons_payload',
+		'serverWidgets'                   => 'desktop_mode_build_desktop_widgets_payload',
+		'serverWallpapers'                => 'desktop_mode_build_desktop_wallpapers_payload',
+		'serverCommandScripts'            => 'desktop_mode_build_desktop_command_scripts_payload',
+		'serverCommands'                  => 'desktop_mode_build_desktop_commands_payload',
+		'serverSettingsTabScripts'        => 'desktop_mode_build_desktop_settings_tab_scripts_payload',
+		'serverSettingsTabs'              => 'desktop_mode_build_desktop_settings_tabs_payload',
+		'serverDockRailRendererScripts'   => 'desktop_mode_build_dock_rail_renderer_scripts_payload',
+		'serverTitleBarButtonScripts'     => 'desktop_mode_build_desktop_titlebar_button_scripts_payload',
+		'serverUnfocusEffectScripts'      => 'desktop_mode_build_desktop_unfocus_effect_scripts_payload',
+		'serverWindowLinkRendererScripts' => 'desktop_mode_build_window_link_renderer_scripts_payload',
+		'serverWindowThemeScripts'        => 'desktop_mode_build_window_theme_scripts_payload',
+		'serverWindowThemes'              => 'desktop_mode_build_window_themes_payload',
+		'serverWindowControlScripts'      => 'desktop_mode_build_window_control_scripts_payload',
+		'serverWindowControls'            => 'desktop_mode_build_window_controls_payload',
+		'serverWindowSlotScripts'         => 'desktop_mode_build_window_slot_scripts_payload',
+		'serverWindowSlots'               => 'desktop_mode_build_window_slots_payload',
+		'serverWindowChromeScripts'       => 'desktop_mode_build_window_chrome_scripts_payload',
+		'serverWindowChromes'             => 'desktop_mode_build_window_chromes_payload',
+		'serverWindowNotices'             => 'desktop_mode_build_window_notices_payload',
+		'serverGames'                     => 'desktop_mode_build_desktop_games_payload',
+		'serverDesktopThemes'             => 'desktop_mode_build_desktop_themes_payload',
+		'desktopIcons'                    => 'desktop_mode_build_desktop_icons_payload',
 	);
 
 	foreach ( $builders as $key => $builder ) {
 		$payload[ $key ] = function_exists( $builder ) ? $builder() : array();
 	}
 
+	// Aggregate update counts for the admin bar's "updates" notifier
+	// (the circle-arrows badge Core renders top-left). The node is
+	// static server HTML on the shell page, so after an in-window
+	// update run the shell needs fresh numbers to repaint it — GH#296.
+	// `wp_get_update_data()` is capability-aware (plugins / themes /
+	// core each gated), so the count matches what this user can act
+	// on. Strings are prebuilt here so the client repaint stays
+	// locale-correct without shipping translations to JS.
+	if ( function_exists( 'wp_get_update_data' ) ) {
+		$update_data  = wp_get_update_data();
+		$update_total = isset( $update_data['counts']['total'] ) ? (int) $update_data['counts']['total'] : 0;
+
+		$payload['updateCounts'] = array(
+			'total'     => $update_total,
+			'formatted' => number_format_i18n( $update_total ),
+			'text'      => sprintf(
+				/* translators: %s: number of pending updates. */
+				_n( '%s update available', '%s updates available', $update_total, 'desktop-mode' ),
+				number_format_i18n( $update_total )
+			),
+			'url'       => network_admin_url( 'update-core.php' ),
+		);
+	}
+
+	// A cheap structural fingerprint of the admin menu the shell uses to
+	// decide whether a live refresh is warranted. Shipped in every full
+	// payload so the shell can seed / update its last-known signature
+	// without recomputing it client-side (which would risk drift from
+	// the server's capability-gated view). See
+	// desktop_mode_menu_signature().
+	$payload['menuSig'] = desktop_mode_menu_signature();
+
 	return $payload;
+}
+
+/**
+ * Cheap structural fingerprint of the current admin menu.
+ *
+ * The chromeless bridge emits the *full* menu payload only from the
+ * handful of pages whose completion commonly mutates the admin menu
+ * (activation / install / theme switch). That leaves a gap: a custom
+ * post type registered through a settings-based tool (CPT UI, Pods,
+ * ACF, …) saves on its own `admin.php?page=…` / `options.php` screen,
+ * none of which is in that list, so the new top-level menu never
+ * reaches the live dock until a full browser reload rebuilds the shell
+ * (GH#325).
+ *
+ * Building the full payload on *every* chromeless page just to catch
+ * that case would be wasteful — most navigations don't touch the menu.
+ * Instead every chromeless page ships this lightweight signature; the
+ * shell compares it against its last-known value and only spends a
+ * `wp.desktop.refreshMenu()` probe when it actually changed.
+ *
+ * The hash covers the capability-passing top-level + submenu slugs and
+ * their (badge-stripped) titles — i.e. exactly the add / remove /
+ * rename events the dock cares about. Transient badge counts (update
+ * notifications, moderation queues) are stripped so they don't churn
+ * the signature; those have their own refresh path.
+ *
+ * @return string 32-char md5 fingerprint, or '' when the menu is
+ *                unavailable (non-admin context).
+ */
+function desktop_mode_menu_signature() {
+	global $menu, $submenu;
+
+	if ( empty( $menu ) || ! is_array( $menu ) ) {
+		return '';
+	}
+
+	$clean_title = static function ( $raw ) {
+		// Mirror desktop_mode_build_dock_items(): drop badge spans first,
+		// then any remaining markup, so update counts don't move the hash.
+		$stripped = preg_replace( '/<span[^>]*>.*?<\/span>/s', '', (string) $raw );
+		return trim( wp_strip_all_tags( (string) $stripped ) );
+	};
+
+	$parts = array();
+
+	foreach ( $menu as $item ) {
+		if ( empty( $item[2] ) ) {
+			continue;
+		}
+		if ( ! empty( $item[4] ) && false !== strpos( $item[4], 'wp-menu-separator' ) ) {
+			continue;
+		}
+		if ( ! empty( $item[1] ) && ! current_user_can( $item[1] ) ) {
+			continue;
+		}
+
+		$slug    = (string) $item[2];
+		$parts[] = $slug . '|' . $clean_title( $item[0] ?? '' );
+
+		if ( empty( $submenu[ $slug ] ) || ! is_array( $submenu[ $slug ] ) ) {
+			continue;
+		}
+		foreach ( $submenu[ $slug ] as $sub_item ) {
+			if ( ! empty( $sub_item[1] ) && ! current_user_can( $sub_item[1] ) ) {
+				continue;
+			}
+			$parts[] = "\t" . ( isset( $sub_item[2] ) ? (string) $sub_item[2] : '' )
+				. '|' . $clean_title( $sub_item[0] ?? '' );
+		}
+	}
+
+	return md5( implode( "\n", $parts ) );
 }
 
 /**
@@ -1203,10 +1260,6 @@ function desktop_mode_build_menu_payload() {
  * relies on lazy script loading in the shell) because all of them
  * need identical handle→payload plumbing to power mid-session dynamic
  * script loading without the `wp_print_scripts` lifecycle.
- *
- * @since 0.8.1
- * @since 0.6.0 Returns full payload (was `string` URL only). Renamed
- *              from `desktop_mode_resolve_script_url`.
  *
  * @param string $handle WP script handle.
  * @return array{ url:string, before:string[], after:string[], l10n:string[], translations:string } Payload (empty `url` on miss).
@@ -1312,8 +1365,6 @@ function desktop_mode_resolve_script_payload( $handle ) {
  * blobs attached to the handle so the shell can replay the same data
  * the print pipeline would have written.
  *
- * @since 0.8.1
- *
  * @param string $handle WP style handle.
  * @return array{ url:string, inline:string[] } Payload (empty `url` on miss).
  */
@@ -1376,8 +1427,6 @@ function desktop_mode_resolve_style_payload( $handle ) {
  * tests), so undeduped notices spam the error log AND trip
  * `expectedIncorrectUsage` assertions in unrelated tests.
  *
- * @since 0.8.1
- *
  * @param string $function_name `desktop_mode_register_*_script` — passed verbatim to `_doing_it_wrong`.
  * @param string $kind          Human label: `Command`, `Settings-tab`, `Title-bar button`.
  * @param string $handle        Offending script handle.
@@ -1414,8 +1463,6 @@ function desktop_mode_warn_unresolvable_script_handle( $function_name, $kind, $h
  * cache for the unresolvable-handle notice. Tests call this in
  * `set_up` so prior tests' synthetic handles can't leak into
  * later assertions about payload shape.
- *
- * @since 0.8.1
  */
 function desktop_mode_flush_script_handle_registries() {
 	$flushers = array(
@@ -1424,6 +1471,7 @@ function desktop_mode_flush_script_handle_registries() {
 		'desktop_mode_flush_dock_rail_renderer_script_registry',
 		'desktop_mode_flush_desktop_titlebar_button_script_registry',
 		'desktop_mode_flush_desktop_unfocus_effect_script_registry',
+		'desktop_mode_flush_window_link_renderer_script_registry',
 		'desktop_mode_flush_window_theme_script_registry',
 		'desktop_mode_flush_window_theme_registry',
 		'desktop_mode_flush_window_control_script_registry',
@@ -1453,8 +1501,6 @@ function desktop_mode_flush_script_handle_registries() {
  * output buffer), and the URL of the enqueued script handle (so
  * mid-session activations can load the plugin's JS dynamically
  * without a full shell reload).
- *
- * @since 0.8.1
  *
  * @return array[]
  */
@@ -1565,6 +1611,42 @@ function desktop_mode_build_native_windows_payload() {
 }
 
 /**
+ * Determines whether a menu slug references a real file under `wp-admin/`.
+ *
+ * Mirrors the decision core's `wp-admin/menu-header.php` makes when
+ * linking menu items: strip the query portion, then check whether the
+ * remaining path exists inside `wp-admin/`. Two registered-slug shapes
+ * hinge on this distinction:
+ *
+ *  - URL-style slugs — ACF registers its top-level menu as
+ *    `edit.php?post_type=acf-field-group` via `add_menu_page()`. The
+ *    slug lands in `$_parent_pages`, but `edit.php` is a real admin
+ *    file: classic admin links it directly, and routing it through
+ *    `admin.php?page=…` makes core's dispatcher `wp_die()` with
+ *    "Cannot load edit.php?post_type=acf-field-group."
+ *  - Legacy file-path slugs — WP-Sweep registers
+ *    `wp-sweep/admin.php` via `add_management_page()`. No such file
+ *    exists under `wp-admin/`, so it must resolve as a plugin page
+ *    (`tools.php?page=wp-sweep/admin.php`).
+ *
+ * @param string $slug The raw menu item slug.
+ * @return bool True when the query-stripped slug is a file under `wp-admin/`.
+ */
+function desktop_mode_is_admin_file_slug( $slug ) {
+	$file = $slug;
+	$pos  = strpos( $file, '?' );
+	if ( false !== $pos ) {
+		$file = substr( $file, 0, $pos );
+	}
+
+	if ( '' === $file || 0 !== validate_file( $file ) ) {
+		return false;
+	}
+
+	return file_exists( ABSPATH . 'wp-admin/' . $file );
+}
+
+/**
  * Converts a menu item slug to a full admin URL.
  *
  * Handles three slug shapes:
@@ -1596,8 +1678,6 @@ function desktop_mode_build_native_windows_payload() {
  * as a literal query key and miss the `path` parameter, sending
  * WC's router back to home instead of the requested route.
  *
- * @since 0.1.0
- *
  * @param string $slug The menu item slug or URL.
  * @return string The full admin URL, sanitized via `esc_url_raw()`.
  */
@@ -1610,8 +1690,30 @@ function desktop_mode_menu_item_url( $slug ) {
 	// Strip path traversal sequences.
 	$slug = str_replace( '..', '', $slug );
 
-	// Direct file reference (e.g., 'edit.php', 'upload.php').
-	if ( false !== strpos( $slug, '.php' ) ) {
+	global $_parent_pages;
+
+	// Direct file reference (e.g., 'edit.php', 'upload.php') — but
+	// NOT a registered plugin page that merely looks like one.
+	// Legacy file-path slugs (WP-Sweep's 'wp-sweep/admin.php',
+	// registered via add_management_page()) contain '.php' yet are
+	// page slugs, not admin-root files; `$_parent_pages` is keyed by
+	// the raw registered slug, so a hit there routes the slug to the
+	// canonical resolver below (→ `tools.php?page=wp-sweep/admin.php`,
+	// byte-identical to what core's menu_page_url() builds) instead
+	// of a 404 at `admin_url( 'wp-sweep/admin.php' )`.
+	//
+	// The reverse also happens: URL-style slugs registered through
+	// `add_menu_page()` / `add_submenu_page()` (ACF's
+	// 'edit.php?post_type=acf-field-group') sit in `$_parent_pages`
+	// too, yet reference a real `wp-admin/` file — those must stay
+	// direct links, or core's `admin.php` dispatcher dies with
+	// "Cannot load edit.php?post_type=acf-field-group." The admin-
+	// file check wins over the registration check, same as classic
+	// admin's `menu-header.php`.
+	if (
+		false !== strpos( $slug, '.php' ) &&
+		( ! isset( $_parent_pages[ $slug ] ) || desktop_mode_is_admin_file_slug( $slug ) )
+	) {
 		return esc_url_raw( admin_url( $slug ) );
 	}
 
@@ -1646,7 +1748,6 @@ function desktop_mode_menu_item_url( $slug ) {
 	//   3. Slug not registered at all → fall back to `admin.php`
 	//      so the URL still targets a real dispatcher (matches the
 	//      pre-resolver behavior callers depended on).
-	global $_parent_pages;
 	$host = 'admin.php?page=' . rawurlencode( $slug );
 	if ( isset( $_parent_pages[ $slug ] ) ) {
 		$parent_slug = $_parent_pages[ $slug ];

@@ -27,7 +27,6 @@
  * everything else is inherited.
  *
  * @package Desktop_Mode_Extension_Base
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,7 +34,7 @@ defined( 'ABSPATH' ) || exit;
 if ( ! class_exists( 'Desktop_Mode_Extension_Window' ) ) :
 
 /**
- * @since 0.8.1
+ * Base class an extension subclasses to declare its native window.
  */
 abstract class Desktop_Mode_Extension_Window {
 

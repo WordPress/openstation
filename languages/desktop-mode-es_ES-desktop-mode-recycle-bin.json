@@ -33,9 +33,6 @@
             "Empty bin?": [
                 ""
             ],
-            "Empty the recycle bin? Every item visible in the current view will be permanently deleted.": [
-                ""
-            ],
             "Emptying…": [
                 "Subiendo…"
             ],
@@ -43,6 +40,9 @@
                 ""
             ],
             "Permanently delete %d item(s)? This cannot be undone.": [
+                ""
+            ],
+            "Permanently delete ALL items in the recycle bin? This includes every type and any items hidden by the current filter or search. This cannot be undone.": [
                 ""
             ],
             "Restore": [

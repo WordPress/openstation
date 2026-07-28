@@ -18,7 +18,6 @@
  * just lets the user click a button that fails the REST call.
  *
  * @public
- * @since 0.8.1
  */
 
 import { __, sprintf } from '../i18n';
@@ -867,6 +866,15 @@ export async function renderUsersWindow(
 		perPageEl.value = String( view.perPage );
 	}
 
+	// A query change (page, search, status, per-page) replaces the
+	// result set, but `<wpd-table>` keeps selected ids across `data`
+	// reassignment — and the bulk role apply consumes the raw
+	// selection. Left alone, off-page ids ride silently into the next
+	// bulk action. Called from every query-changing handler.
+	const clearSelectionOnQueryChange = (): void => {
+		table.clearSelection();
+	};
+
 	const indicator = root.querySelector< HTMLElement >( PAGE_INDICATOR );
 	const prevBtn = root.querySelector< HTMLButtonElement >( PREV );
 	const nextBtn = root.querySelector< HTMLButtonElement >( NEXT );
@@ -888,6 +896,7 @@ export async function renderUsersWindow(
 			const detail = ( e as CustomEvent< { value: string } > ).detail;
 			view.status = detail?.value ?? '';
 			view.page = 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		} );
 	}
@@ -902,6 +911,7 @@ export async function renderUsersWindow(
 			view.searchDebounce = window.setTimeout( () => {
 				view.search = searchEl.value.trim();
 				view.page = 1;
+				clearSelectionOnQueryChange();
 				void refresh();
 			}, SEARCH_DEBOUNCE_MS );
 		} );
@@ -942,6 +952,7 @@ export async function renderUsersWindow(
 		if ( Number.isFinite( n ) && n > 0 ) {
 			view.perPage = n;
 			view.page = 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		}
 	} );
@@ -1005,12 +1016,25 @@ export async function renderUsersWindow(
 				if ( ! role ) {
 					return;
 				}
+				// Read the selection at CLICK time rather than reusing
+				// the `ids` captured when the bulk bar was painted —
+				// defensive hygiene so the confirm count and the REST
+				// payload always describe the same set, independent of
+				// when the bar was last repainted or of future callers
+				// of the silent `selection` setter (which emits no
+				// selection-change).
+				const targetIds = Array.from(
+					table.selection ?? [],
+				).map( ( id ) => Number( id ) );
+				if ( targetIds.length === 0 ) {
+					return;
+				}
 				const ok = await wpdConfirmGlobal( {
 					title: __( 'Change role for selected users?' ),
 					message: sprintf(
 						// translators: %1$d is a user count, %2$s is a role label.
 						__( "Set %1$d user(s)' role to %2$s?" ),
-						ids.length,
+						targetIds.length,
 						assignable[ role ],
 					),
 					confirmLabel: __( 'Set role' ),
@@ -1018,20 +1042,22 @@ export async function renderUsersWindow(
 				if ( ! ok ) {
 					return;
 				}
-				const out = await client.bulkSetRole( ids, role ).catch( ( err ) => {
-					notifyToast(
-						String( ( err as Error ).message ?? err ),
-						{ kind: 'error' },
-					);
-					return null;
-				} );
+				const out = await client
+					.bulkSetRole( targetIds, role )
+					.catch( ( err ) => {
+						notifyToast(
+							String( ( err as Error ).message ?? err ),
+							{ kind: 'error' },
+						);
+						return null;
+					} );
 				if ( ! out ) {
 					return;
 				}
 				const successes = Object.values( out.results ).filter(
 					( r ) => r.ok,
 				).length;
-				const failures = ids.length - successes;
+				const failures = targetIds.length - successes;
 				if ( successes > 0 ) {
 					notifyToast(
 						sprintf(
@@ -1045,6 +1071,11 @@ export async function renderUsersWindow(
 				} else {
 					notifyToast( __( 'No users updated.' ), { kind: 'error' } );
 				}
+				// The action is complete — drop the selection so a second
+				// Apply can't silently re-target the same (possibly now
+				// off-page) user set. Emits selection-change, which hides
+				// the bulk bar.
+				table.clearSelection();
 				void refresh();
 			} );
 
@@ -1059,12 +1090,14 @@ export async function renderUsersWindow(
 	prevBtn?.addEventListener( 'click', () => {
 		if ( view.page > 1 ) {
 			view.page -= 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		}
 	} );
 	nextBtn?.addEventListener( 'click', () => {
 		if ( view.page < totalPages ) {
 			view.page += 1;
+			clearSelectionOnQueryChange();
 			void refresh();
 		}
 	} );
@@ -1318,8 +1351,6 @@ interface WpdFormElement extends HTMLElement {
  *      banner says try again."
  *
  * Idempotent — safe to call on every render.
- *
- * @since 0.8.1
  */
 function mountAddUserForm(
 	body: HTMLElement,
@@ -1546,8 +1577,6 @@ function optionalString( value: unknown ): string | undefined {
  * Strong-password generator. Mirrors WP core's `wp_generate_password`
  * default character set with symbols enabled. Used by the Add User
  * form's "Generate strong password" button.
- *
- * @since 0.8.1
  */
 function generateStrongPassword( length: number ): string {
 	const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';

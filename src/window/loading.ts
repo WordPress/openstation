@@ -15,8 +15,6 @@
  * payload-id pattern matches the rest of the shell (see the
  * connection-cleanup / iframe-ready subscriptions in
  * `src/desktop.ts`).
- *
- * @since 0.6.0
  */
 
 import { HOOKS, addAction } from './../hooks';
@@ -59,7 +57,6 @@ function findWindowElement( windowId: string ): HTMLElement | null {
  * surface the error.
  *
  * @public
- * @since 0.6.0
  */
 export function installWindowLoadingTransitions(): void {
 	if ( _installed ) {
@@ -180,7 +177,6 @@ function _installSubscriptions(): void {
  * plugins never need to invoke this directly.
  *
  * @public
- * @since 0.6.0
  */
 export function repaintLoadingOverlays(): void {
 	const bodies = document.querySelectorAll< HTMLElement >(

@@ -36,8 +36,6 @@
  * bundles don't ship with the main bundle's module graph, so
  * importing it directly isn't supported. The public extension
  * surface is the heartbeat subscription above.
- *
- * @since 0.8.7
  */
 
 import { heartbeat } from './heartbeat';

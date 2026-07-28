@@ -26,8 +26,6 @@
  *
  * Lives separate from `desktop.ts` so the partitioning logic is
  * testable without booting the whole shell.
- *
- * @since 0.6.0
  */
 
 import type {
@@ -156,8 +154,6 @@ export interface LayoutDispatcher {
 	 * Read-only entry view ({ id, title, icon, affinity }) — use
 	 * {@link getSystemTile} to fetch the underlying `SystemDockItem`
 	 * with its `onOpen` / `isOpen` callbacks.
-	 *
-	 * @since 0.6.0
 	 */
 	listSystemTiles(): Array< {
 		id: string;
@@ -169,8 +165,6 @@ export interface LayoutDispatcher {
 	 * Look up a system tile by id. Returns the underlying
 	 * `SystemDockItem` so callers can invoke `onOpen()` directly.
 	 * Returns `null` for unknown ids.
-	 *
-	 * @since 0.6.0
 	 */
 	getSystemTile( id: string ): SystemDockItem | null;
 	/**
@@ -179,16 +173,12 @@ export interface LayoutDispatcher {
 	 * when a custom rail renderer needs the full picture (Classic
 	 * layout's primary rail only sees `!isCore` items via
 	 * mount-deps; this returns every item).
-	 *
-	 * @since 0.6.0
 	 */
 	getMenuItems(): DockItem[];
 	/**
 	 * Re-apply the current OS-settings placement preferences to every
 	 * rail. Called when `itemVisibility` or `dockOrder` changes — both
 	 * the dock contents and the desktop-icons grid may shift.
-	 *
-	 * @since 0.8.2
 	 */
 	refresh(): void;
 	/** Tear down all docks. Called on shell unload (or in tests). */
@@ -250,6 +240,10 @@ export function createLayoutDispatcher(
 		string,
 		{ item: SystemDockItem; affinity: SystemTileAffinity }
 	>();
+	// Ids of tracked system tiles currently attached to a live rail.
+	// A tile the user hid via OS Settings → Apps & Icons stays tracked
+	// (so flipping the setting back restores it) but detached.
+	const attachedSystemTiles = new Set< string >();
 
 	const railFor = (
 		affinity: SystemTileAffinity,
@@ -295,6 +289,54 @@ export function createLayoutDispatcher(
 		OsSettingsState,
 		'itemVisibility' | 'dockOrder'
 	> => deps.getSettings?.() ?? { itemVisibility: {}, dockOrder: [] };
+
+	/**
+	 * Whether a system tile is allowed on the dock under the user's
+	 * current Apps & Icons overrides. Native windows registered with
+	 * `placement: 'dock'` land on the rails as system tiles rather
+	 * than menu items, so `applyDockPlacement` never filters them —
+	 * resolve the override here instead.
+	 *
+	 * The override is read from the desktop icon targeting the tile's
+	 * window when one exists (the Apps & Icons tab keys its rows by
+	 * icon id), falling back to the tile's own id. No override means
+	 * the tile stays on its native dock rail.
+	 */
+	const isSystemTileDockVisible = ( tileId: string ): boolean => {
+		const visibility = readSettings().itemVisibility;
+		let override = visibility[ tileId ];
+		for ( const icon of serverIcons ) {
+			if ( icon.window === tileId && visibility[ icon.id ] ) {
+				override = visibility[ icon.id ];
+				break;
+			}
+		}
+		if ( ! override ) {
+			return true;
+		}
+		return override === 'dock' || override === 'both';
+	};
+
+	/**
+	 * Bring rail attachment in line with the visibility map for every
+	 * tracked system tile: attach tiles the user unhid, detach tiles
+	 * the user hid. Idempotent — called from `refresh()` on every
+	 * settings save and from `applyDesktopIcons()` when the icon →
+	 * window mapping the overrides key off changes.
+	 */
+	const reconcileSystemTiles = (): void => {
+		for ( const [ id, entry ] of systemTiles ) {
+			const shouldShow = isSystemTileDockVisible( id );
+			const isAttached = attachedSystemTiles.has( id );
+			if ( shouldShow && ! isAttached ) {
+				railFor( entry.affinity )?.appendSystemItem( entry.item );
+				attachedSystemTiles.add( id );
+			} else if ( ! shouldShow && isAttached ) {
+				railFor( entry.affinity )?.removeSystemItem( id );
+				attachedSystemTiles.delete( id );
+			}
+		}
+	};
 
 	const effectiveDockItems = (): DockItem[] => {
 		// System tile ids match the native-window ids the framework
@@ -486,10 +528,11 @@ export function createLayoutDispatcher(
 		// native-window launchers, etc. Lets a renderer apply
 		// uniform treatment across menu + system cohorts in one
 		// pass. Live updates flow through `appendSystemItem` /
-		// `removeSystemItem`.
-		fullSystemTiles: Array.from( systemTiles.values() ).map(
-			( entry ) => entry.item,
-		),
+		// `removeSystemItem`. Tiles hidden via Apps & Icons are
+		// excluded, matching what the dispatcher attaches below.
+		fullSystemTiles: Array.from( systemTiles.values() )
+			.filter( ( entry ) => isSystemTileDockVisible( entry.item.id ) )
+			.map( ( entry ) => entry.item ),
 		orientation,
 		windowManager: deps.windowManager,
 		adminUrl: deps.adminUrl,
@@ -570,9 +613,15 @@ export function createLayoutDispatcher(
 
 		// Re-attach every tracked system tile to the rebuilt rails
 		// according to its registered affinity, in registration order
-		// so the visual order survives the rebuild.
-		for ( const entry of systemTiles.values() ) {
+		// so the visual order survives the rebuild. Tiles hidden via
+		// Apps & Icons stay tracked but detached.
+		attachedSystemTiles.clear();
+		for ( const [ id, entry ] of systemTiles ) {
+			if ( ! isSystemTileDockVisible( id ) ) {
+				continue;
+			}
 			railFor( entry.affinity )?.appendSystemItem( entry.item );
+			attachedSystemTiles.add( id );
 		}
 	};
 
@@ -615,6 +664,9 @@ export function createLayoutDispatcher(
 			next: DesktopIconServerEntry[] | undefined,
 		): void => {
 			serverIcons = next ?? [];
+			// The icon → window mapping that Apps & Icons overrides
+			// key off may have changed — re-check every system tile.
+			reconcileSystemTiles();
 			repaintIcons();
 		},
 		appendSystemTile: (
@@ -622,7 +674,15 @@ export function createLayoutDispatcher(
 			affinity: SystemTileAffinity = 'plugin',
 		): void => {
 			systemTiles.set( item.id, { item, affinity } );
+			// Respect a pre-existing Apps & Icons override — a native
+			// window the user hid must not resurface on the dock when
+			// its plugin re-registers the tile (boot, plugins-changed
+			// sync). The tile stays tracked so unhiding restores it.
+			if ( ! isSystemTileDockVisible( item.id ) ) {
+				return;
+			}
 			railFor( affinity )?.appendSystemItem( item );
+			attachedSystemTiles.add( item.id );
 		},
 		removeSystemTile: ( id: string ): void => {
 			const entry = systemTiles.get( id );
@@ -630,6 +690,7 @@ export function createLayoutDispatcher(
 				return;
 			}
 			systemTiles.delete( id );
+			attachedSystemTiles.delete( id );
 			// Remove from whichever rail currently hosts it. Idempotent
 			// `removeSystemItem` lets us call both without side effects
 			// when the tile lives on only one of them.
@@ -655,6 +716,10 @@ export function createLayoutDispatcher(
 			} else {
 				primary?.replaceItems( plugin );
 			}
+			// Apply the (possibly changed) visibility overrides to the
+			// system-tile cohort too — a native window's dock tile
+			// hidden / restored via Apps & Icons lands live here.
+			reconcileSystemTiles();
 			repaintIcons();
 		},
 		destroy: (): void => {

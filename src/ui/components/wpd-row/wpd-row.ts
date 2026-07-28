@@ -29,8 +29,6 @@
  *   - `column-gap`  — px between columns (overrides `gap` on the x-axis).
  *   - `row-gap`     — px between rows when children wrap
  *                     (overrides `gap` on the y-axis).
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

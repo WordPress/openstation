@@ -19,8 +19,6 @@
  * promise, no streaming events. For live SSE progress, reach for
  * the existing `aiSearchStreamUrl` (admin-ajax) surface; `ask()` is
  * the "give me the answer" API.
- *
- * @since 0.5.1
  */
 
 import {
@@ -82,11 +80,11 @@ export interface AskOptions {
 	 *
 	 * When `true`, after the command runs locally, `ask()` fires a
 	 * second `/ai/search` request carrying the tool outcome. The
-	 * server runs a single-turn, no-tool OpenAI call that produces
+	 * server runs a single-turn, no-tool provider call that produces
 	 * a one- or two-sentence confirmation in the voice of the
 	 * system prompt (e.g. "Done — your office light is on now").
 	 *
-	 * Cost: one extra OpenAI round-trip per command invocation.
+	 * Cost: one extra provider round-trip per command invocation.
 	 * Latency: roughly doubles. Use for voice / chat / assistant
 	 * surfaces where the conversational reply matters. Skip for
 	 * one-tap "execute" buttons where the raw `run()` return is
@@ -95,8 +93,6 @@ export interface AskOptions {
 	 * If the follow-up call fails (network, API, etc.), `ask()`
 	 * degrades gracefully — the primary `toolCall.result` is
 	 * preserved and `message` falls back to the raw `run()` return.
-	 *
-	 * @since 0.5.1
 	 */
 	followUp?: boolean;
 
@@ -263,8 +259,6 @@ function serialiseOutcome(
 /**
  * Factory — binds to a config getter so the caller (desktop.ts) can
  * hand in the live shell config without this module reading globals.
- *
- * @since 0.5.1
  */
 export function createAsk( deps: AskDeps ) {
 	// ------------------------------------------------------------
@@ -334,6 +328,7 @@ export function createAsk( deps: AskDeps ) {
 	> => {
 		const slug = payload.tool?.slug ?? '';
 		const args = payload.tool?.args ?? '';
+
 		const cmd = findCommand( slug );
 		if ( ! cmd ) {
 			return {

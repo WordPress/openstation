@@ -36,8 +36,6 @@
  * The .d.ts files in this package are the SAME types the shell
  * itself uses (re-exported from `src/public-api.ts`); a build-time
  * step copies them when packaging for npm.
- *
- * @since 0.8.1
  */
 
 export * from '../../../src/public-api';

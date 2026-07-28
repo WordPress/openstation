@@ -28,8 +28,6 @@
  *     // …
  * }
  * ```
- *
- * @since 0.9.0
  */
 
 import { Component, defineComponent, html } from '../../core';

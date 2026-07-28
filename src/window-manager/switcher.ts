@@ -19,8 +19,6 @@
  * from the chromeless iframe (`includes/render.php`) covers presses
  * that land inside a wp-admin iframe (where the iframe applies its
  * own text-entry gate before forwarding).
- *
- * @since 0.5.1
  */
 
 import type { Window } from '../window';

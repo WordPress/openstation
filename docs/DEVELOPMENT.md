@@ -12,14 +12,45 @@ npm run test:js            # Vitest — the full JS suite (jsdom)
 npm run test:js:watch      # Vitest in watch mode
 npm run build              # produces both assets/js/desktop{,.min}.js
 
-# PHPUnit runs inside a wp-env container (requires Docker):
-npm run env:start          # first run pulls WP + MariaDB images
-npm run test:php:install   # composer install inside the tests-cli container (once)
+# PHPUnit runs inside a dedicated wp-env instance (requires Docker):
+npm run env:start:tests    # first run pulls WP + MariaDB images
+npm run test:php:install   # composer install inside the tests instance (once)
 npm run test:php           # the PHPUnit run itself
-npm run env:stop           # when you're done
+npm run env:stop:tests     # when you're done
 ```
 
-`npm run env:start` spins up a self-contained WordPress + MariaDB stack under `wp-content/plugins/desktop-mode` — it's scoped to automated tests. Manual QA is a separate concern and runs against the Dockerised environment in the parent Core-checkout repo (`env:start` / `env:install` there).
+`npm run env:start` spins up a self-contained WordPress + MariaDB stack with this checkout bind-mounted as the plugin: the manual QA environment on `http://localhost:8890/wp-admin/` (`admin` / `password`). PHPUnit runs in a second, independent instance defined by `.wp-env.tests.json` (port `8891`), started with `npm run env:start:tests`; the `test:php*` scripts target it via wp-env's `--config` flag, so QA state and test runs never share a database. See [Manual QA and per-worktree instances](#manual-qa-and-per-worktree-instances-wp-env) for how the mount works and how to run one instance per git worktree.
+
+## Manual QA and per-worktree instances (wp-env)
+
+### How the instance works
+
+- The `"wp-content/plugins/desktop-mode": "."` mapping in `.wp-env.json` bind-mounts the directory you run `wp-env start` from straight into the container. PHP edits are live on the next request; JS changes appear after `npm run build`, because the site serves whatever is in `assets/js/` right now. The enqueued bundles' `?ver=` cache-buster is filemtime-based, so a normal browser reload picks up fresh builds.
+- wp-env keys everything to the start directory plus the config file: it hashes them and gives each combination its own containers, database, and WordPress volume under `~/.wp-env/<hash>/`. Same directory + same config, same instance, every time. That's how `.wp-env.json` (QA) and `.wp-env.tests.json` (PHPUnit) run as two fully isolated stacks from one checkout.
+- Ports: `8890` (QA instance, `.wp-env.json`) and `8891` (tests instance, `.wp-env.tests.json`). They are remapped from wp-env's defaults so the stacks coexist with a Core checkout's environment (see the PHPUnit section of `AGENTS.md`).
+- `bin/sync-to-wp-develop.sh` does **not** feed this instance. It mirrors the tree into a wordpress-develop checkout, which is a different environment entirely. The wp-env instance always serves the start directory live through the mount; there is no copy step to forget.
+
+### Testing several worktrees at once
+
+Because the instance identity includes the start directory, every git worktree can run its own fully isolated stack in parallel. The only knob is ports, since each worktree inherits `8890`/`8891` from the tracked config files. `WP_ENV_PORT` applies to whichever instance the command starts:
+
+```bash
+cd <path-to-worktree>
+npm install        # worktrees start bare
+npm run build
+WP_ENV_PORT=8894 npm run env:start          # QA instance
+WP_ENV_PORT=8895 npm run env:start:tests    # PHPUnit instance (if needed)
+```
+
+`http://localhost:8894/wp-admin/` now serves that worktree's code while the main checkout's instance keeps serving `:8890`. Databases, uploads, and user state are all per-instance.
+
+Notes:
+
+- **Skipping the port override fails loudly, not subtly.** If another running instance already holds `8890`, Docker refuses to bind ("port is already allocated") and `wp-env start` aborts; nothing silently cross-connects to the other site. Instances only conflict while running, so a stopped main instance frees `8890` for a worktree.
+- **Prefer override files for long-lived worktrees.** Drop `{ "port": 8894 }` in a git-ignored `.wp-env.override.json` (and `{ "port": 8895 }` in `.wp-env.tests.override.json` if you run PHPUnit there) and a plain `npm run env:start` / `env:start:tests` does the right thing from then on. The `WP_ENV_PORT` env var wins over the override file when both are set.
+- **Run wp-env commands from the worktree's directory.** `env:start`, `env:stop`, `env:destroy`, their `:tests` variants, and `test:php` all resolve the instance from the current directory.
+- **Cost.** Each instance is three containers (WordPress, CLI, database). `npm run env:stop` / `env:stop:tests` parks an instance and keeps its data; `npm run env:destroy` / `env:destroy:tests` deletes it.
+- `npm run test:php` in a worktree runs inside that worktree's own tests instance, so PHPUnit is isolated per worktree too.
 
 ## Module layout
 
@@ -215,8 +246,8 @@ file churn in the release commit:
 - **Vitest** — `tests/vitest/*.test.ts` + colocated
   `src/**/*.test.ts`. Runs in jsdom.
 - **PHPUnit** — `tests/phpunit/tests/*.php`. Tagged `@group desktop-mode`.
-  Runs inside wp-env's `tests-cli` container (PHPUnit 9.6 +
-  phpunit-polyfills). Configured in `.wp-env.json` + `composer.json`.
+  Runs inside the dedicated wp-env tests instance (PHPUnit 9.6 +
+  phpunit-polyfills). Configured in `.wp-env.tests.json` + `composer.json`.
 - **E2E** — planned (Playwright). Nothing landed yet.
 
 ## What breaks most often

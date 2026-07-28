@@ -13,8 +13,6 @@
  * shallow (a handful of built-ins plus any plugin additions) and we
  * call `all()` at most on each OS Settings render, not on every
  * window paint.
- *
- * @since 0.6.0
  */
 
 import { applyFilters, HOOKS } from '../hooks';
@@ -35,8 +33,8 @@ type RegistryListener = () => void;
 /**
  * Shared store backing the wallpaper registry.
  *
- * The seed list AND the subscriber set live here. This is critical
- * since 0.8.4: the OS Settings panel ships in its own Vite IIFE
+ * The seed list AND the subscriber set live here. This is critical:
+ * the OS Settings panel ships in its own Vite IIFE
  * bundle (`os-settings-panel[.min].js`), so a plain
  * `const seed: WallpaperDef[] = []` at module scope would give the
  * main bundle and the panel bundle each their own copy — main's
@@ -117,8 +115,6 @@ export function unregister( id: string ): void {
  * unsubscribe function the caller should invoke when the UI surface
  * is torn down (or can be left to self-clean via `isConnected`
  * checks inside the callback).
- *
- * @since 0.5.0
  *
  * @param cb Listener to invoke on change.
  * @return Unsubscribe function.

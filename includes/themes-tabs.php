@@ -18,7 +18,6 @@
  * Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
  *
  * @package Desktop_Mode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,8 +29,6 @@ defined( 'ABSPATH' ) || exit;
  * Skipped for every menu other than `themes.php` and for users who
  * lack the `install_themes` capability — matching what classic
  * admin's "Add Theme" page-title-action enforces.
- *
- * @since 0.8.2
  *
  * @param array  $dock_item The dock item data (id, title, icon, url,
  *                          badge, submenu, multi, placement, isCore).
@@ -102,8 +99,6 @@ add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10,
  * `.filter-links` keeps the tab synced if WP's router fires again
  * (e.g. the user picks Latest, then comes back to Popular via the
  * route's pushState).
- *
- * @since 0.8.2
  */
 function desktop_mode_theme_install_active_tab_script() {
 	if ( ! desktop_mode_is_chromeless_request() ) {

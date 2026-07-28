@@ -32,8 +32,6 @@
  * the cleanup is a best-effort scope to the registry rather than the
  * runtime. Re-activating the plugin re-registers commands on the next
  * full page load through the usual enqueue path.
- *
- * @since 0.5.0
  */
 
 import { doAction, HOOKS } from './../hooks';

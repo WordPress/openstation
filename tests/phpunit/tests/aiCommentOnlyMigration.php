@@ -2,7 +2,7 @@
 /**
  * Tests for migration v2 — unscheduling leftover post/term AI analysis jobs.
  *
- * Post and taxonomy-term analysis was removed in 0.11.0. The migration
+ * Post and taxonomy-term analysis was removed. The migration
  * clears any `desktop_mode_ai_analyze_post` / `desktop_mode_ai_analyze_term`
  * cron events that prior versions may have queued.
  *

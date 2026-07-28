@@ -15,8 +15,6 @@
  *
  * Missing key in the visibility map means "no override" — item appears
  * on its native rail and nowhere else.
- *
- * @since 0.8.2
  */
 
 import type { DockItem } from '../dock';
@@ -124,8 +122,6 @@ export function applyDockPlacement(
 	 * registration, plugin-owned native-window launchers). When an
 	 * icon's `window` field is in this set, skip the synthesis —
 	 * the dock would otherwise paint the same target twice.
-	 *
-	 * @since 0.8.2
 	 */
 	dockedNativeWindows?: ReadonlySet< string >,
 ): DockItem[] {

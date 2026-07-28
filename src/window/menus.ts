@@ -6,8 +6,6 @@
  * optional "Open another <page>" for multi-capable pages, and — iframe
  * windows only — "Open in new window", "Reload", "Open in browser tab".
  * Each free function here takes the `Window` instance as its first arg.
- *
- * @since 0.8.1
  */
 
 import { urlMatchKey } from '../utils';

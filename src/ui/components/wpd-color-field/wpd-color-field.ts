@@ -48,8 +48,8 @@ export class WpdColorField extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-border', description: 'Swatch outline.' },
-			{ name: '--desktop-mode-muted', description: 'Label colour.' },
+			{ name: '--wpd-border', description: 'Swatch outline.' },
+			{ name: '--wpd-fg-muted', description: 'Label colour.' },
 		],
 		example: html`
 			<wpd-color-field label="Accent" value="#8b5cf6"></wpd-color-field>

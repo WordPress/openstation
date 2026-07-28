@@ -29,14 +29,16 @@
  * `MutationObserver` on the wallpaper area as a belt-and-braces
  * fallback so the drop target is guaranteed to point at the LIVE
  * DOM element.
- *
- * @since 0.8.1
  */
 
 import { __ } from '../i18n';
 import { addAction, HOOKS } from '../hooks';
 import type { DragManagerApi, DragSession } from '../drag';
 import { trashByFileType } from './trash';
+import {
+	recycleBinPayloadAccepts,
+	recycleBinPayloadDrop,
+} from './recycle-bin-payloads';
 import type { RestPlacementShape } from './rest';
 import type { ShortcutDragData } from './drag-payloads';
 
@@ -76,7 +78,7 @@ const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
  * preference. The first matching element wins.
  *
  *   - `.desktop-mode-file-tile[data-file-ref="…"]` — the unified
- *     files layer's representation (current default since 0.9.0).
+ *     files layer's representation (current default).
  *   - `[data-icon-id="…"]` — legacy desktop-icons rail
  *     (`src/desktop-icons.ts`), still rendered when the files
  *     layer is absent.
@@ -199,7 +201,12 @@ function registerOn(
 				const data = payload.data as Partial< ShortcutDragData >;
 				return isTrashableShortcut( data );
 			}
-			return false;
+			// Payload types this module doesn't own (the pinned-notes
+			// `'note'` drag today) can be claimed by a registered bin
+			// payload handler — the drop-target registry allows one
+			// target per element, so other features route their trash
+			// gesture through these shared targets.
+			return recycleBinPayloadAccepts( payload );
 		},
 		onEnter: () => {
 			el.setAttribute( TRASH_DROP_ACTIVE_ATTR, '' );
@@ -207,11 +214,17 @@ function registerOn(
 		onLeave: () => {
 			el.removeAttribute( TRASH_DROP_ACTIVE_ATTR );
 		},
-		onDrop: ( session ) => {
+		onDrop: ( session, ev ) => {
 			el.removeAttribute( TRASH_DROP_ACTIVE_ATTR );
 			if ( isDesktopFilePayload( session ) ) {
 				const placement = session.payload.data.placement;
 				void trashByFileType( placement );
+				return;
+			}
+			if (
+				session.payload.type !== 'shortcut' &&
+				recycleBinPayloadDrop( session, ev )
+			) {
 				return;
 			}
 			if ( isShortcutPayload( session ) ) {

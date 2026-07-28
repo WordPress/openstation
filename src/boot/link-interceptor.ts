@@ -18,8 +18,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { tryNativeUrlRemap } from '../native-url-remap';
@@ -29,9 +27,6 @@ import { INITIAL_ORIGIN } from './origin';
 import type { WindowManager } from '../window-manager';
 import type { DesktopConfig } from '../types';
 
-/**
- * @since 0.8.1 (extracted from desktop.ts)
- */
 export function bindTopWindowLinkInterceptor(
 	manager: WindowManager,
 	config: DesktopConfig,

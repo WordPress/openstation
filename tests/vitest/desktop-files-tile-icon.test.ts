@@ -13,8 +13,6 @@
  * dispatch (the same one the wallpaper rail and the dock use),
  * so URL / data URI / dashicons / letter-badge fallback all
  * paint correctly.
- *
- * @since 0.8.2
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';

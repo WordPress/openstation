@@ -19,7 +19,6 @@
  * shell hasn't loaded yet, etc.) so the dialog is never broken.
  *
  * @public
- * @since 0.8.0
  */
 
 import { __ } from '../i18n';
@@ -60,7 +59,9 @@ interface PixiApp {
 	stage: PixiContainer;
 	renderer: { resize( w: number, h: number ): void; width: number; height: number; render(): void };
 	init( opts: unknown ): Promise< void >;
-	destroy( clearStage?: boolean, opts?: unknown ): void;
+	// Options object only — a literal `true` triggers Pixi's
+	// releaseGlobalResources() and corrupts other live Applications.
+	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 	ticker: { add( cb: () => void ): void; remove( cb: () => void ): void };
 }
 interface PixiText extends PixiContainer {
@@ -1456,7 +1457,11 @@ async function mountPixi( stage: HTMLElement ): Promise< () => void > {
 		window.removeEventListener( 'pointercancel', onUp );
 		clearFakePosts();
 		try {
-			app.destroy( true, { children: true } );
+			// `{ removeView: true }`, NEVER `true`: a literal `true` runs
+			// `releaseGlobalResources()`, wiping Pixi's page-global pools
+			// out from under every other live Application on the page
+			// (canvas wallpaper, previews, content graph).
+			app.destroy( { removeView: true }, { children: true } );
 		} catch {
 			/* noop */
 		}

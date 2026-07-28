@@ -4,8 +4,6 @@
  * `WINDOW_CONTENT_LOADING` / `WINDOW_CONTENT_LOADED` hooks +
  * matching CustomEvents) and the visual side (overlay element, body
  * `--loading` modifier, sync vs. Promise-returning native render).
- *
- * @since 0.6.0
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';

@@ -13,7 +13,6 @@
  * stack — this is purely a render helper.
  *
  * @public
- * @since 0.8.0
  */
 
 import { __ } from '../i18n';

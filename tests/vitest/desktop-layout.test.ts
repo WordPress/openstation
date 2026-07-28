@@ -654,6 +654,150 @@ describe( 'desktop-layout dispatcher', () => {
 		).toBeNull();
 	} );
 
+	// Regression tests for https://github.com/WordPress/desktop-mode/issues/405 —
+	// native windows registered with `placement: 'dock'` (Games) land on
+	// the rails as system tiles, which used to bypass the Apps & Icons
+	// `itemVisibility` overrides entirely: hiding the item removed the
+	// wallpaper icon but the dock tile stayed.
+	describe( 'system tiles honor Apps & Icons visibility overrides', () => {
+		const gamesTile: SystemDockItem = {
+			id: 'desktop-mode-games',
+			title: 'Games',
+			icon: 'dashicons-games',
+			onOpen: () => {},
+		};
+		const tileSelector = `[data-system-id="${ gamesTile.id }"]`;
+
+		test( 'a pre-existing "hidden" override keeps the tile off the dock but tracked', () => {
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'desktop-mode-games': 'hidden' },
+					dockOrder: [],
+				} ),
+			} );
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			expect(
+				document
+					.getElementById( 'desktop-mode-dock' )!
+					.querySelector( tileSelector ),
+			).toBeNull();
+			// Still tracked — flipping the setting back must restore it.
+			expect(
+				dispatcher.listSystemTiles().map( ( t ) => t.id ),
+			).toContain( gamesTile.id );
+		} );
+
+		test( 'a "desktop"-only override also keeps the tile off the dock', () => {
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'desktop-mode-games': 'desktop' },
+					dockOrder: [],
+				} ),
+			} );
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			expect(
+				document
+					.getElementById( 'desktop-mode-dock' )!
+					.querySelector( tileSelector ),
+			).toBeNull();
+		} );
+
+		test( 'refresh() detaches a live tile on hide and re-attaches it on unhide', () => {
+			const visibility: Record< string, 'both' | 'dock' | 'desktop' | 'hidden' > =
+				{};
+			const { deps } = makeDeps( {
+				getSettings: () => ( { itemVisibility: visibility, dockOrder: [] } ),
+			} );
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			const dock = document.getElementById( 'desktop-mode-dock' )!;
+			expect( dock.querySelector( tileSelector ) ).not.toBeNull();
+
+			// User picks "Hidden" in OS Settings → Apps & Icons; the
+			// settings subscription calls refresh().
+			visibility[ 'desktop-mode-games' ] = 'hidden';
+			dispatcher.refresh();
+			expect( dock.querySelector( tileSelector ) ).toBeNull();
+
+			// And back.
+			visibility[ 'desktop-mode-games' ] = 'both';
+			dispatcher.refresh();
+			expect( dock.querySelector( tileSelector ) ).not.toBeNull();
+		} );
+
+		test( 'a layout rebuild does not resurrect a hidden tile', () => {
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'desktop-mode-games': 'hidden' },
+					dockOrder: [],
+				} ),
+			} );
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				[],
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			dispatcher.setLayout( 'classic' );
+			expect(
+				document
+					.getElementById( 'desktop-mode-dock' )!
+					.querySelector( tileSelector ),
+			).toBeNull();
+		} );
+
+		test( 'an override keyed by the desktop icon targeting the window hides the tile', () => {
+			// The Apps & Icons tab keys its rows by icon id, which may
+			// differ from the native-window id the tile is keyed by.
+			const { deps } = makeDeps( {
+				getSettings: () => ( {
+					itemVisibility: { 'games-icon': 'hidden' },
+					dockOrder: [],
+				} ),
+			} );
+			const serverIcons: DesktopIconServerEntry[] = [
+				{
+					id: 'games-icon',
+					title: 'Games',
+					icon: 'dashicons-games',
+					window: 'desktop-mode-games',
+					url: '',
+					position: 85,
+				},
+			];
+			const dispatcher = createLayoutDispatcher(
+				deps,
+				'unified',
+				[ dashboard, yoast ],
+				serverIcons,
+			);
+			dispatcher.appendSystemTile( gamesTile );
+			expect(
+				document
+					.getElementById( 'desktop-mode-dock' )!
+					.querySelector( tileSelector ),
+			).toBeNull();
+		} );
+	} );
+
 	test( 'destroy: tears down both docks and removes the side dock element', () => {
 		const { deps } = makeDeps();
 		const dispatcher = createLayoutDispatcher(

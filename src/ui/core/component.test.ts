@@ -7,8 +7,6 @@
  * this, `el.disabled = false` used to emit `disabled="false"` and
  * the element stayed visually disabled because `[disabled]` and
  * `hasAttribute('disabled')` both still matched.
- *
- * @since 0.8.3
  */
 
 import { describe, expect, it } from 'vitest';

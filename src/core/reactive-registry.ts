@@ -27,8 +27,6 @@
  * baking it into the primitive would either bloat it or constrain
  * callers. The wallpapers registry is the canonical example of
  * that composition shape.
- *
- * @since 0.8.1
  */
 
 import { createSharedStore } from '../shared-store';

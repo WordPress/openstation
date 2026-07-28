@@ -1,15 +1,18 @@
 <?php
 /**
- * Desktop Mode — AI Copilot WordPress hooks.
+ * Desktop Mode — AI Copilot job-scheduling helpers.
  *
- * Intercepts comment inserts/edits, then schedules an async WP-Cron job
- * to run the OpenAI spam/harmful analysis outside the current HTTP
- * request. Moderation stays responsive even when the OpenAI API is slow.
+ * Provides the async-job scheduler and user-resolution helpers used by the
+ * Comments-window moderation feature (see
+ * `includes/comments-window/ai-moderation.php`) to queue comment analysis
+ * outside the HTTP request that triggered the comment. Moderation stays
+ * responsive even when the provider is slow.
  *
- * Comment analysis is the only auto-analysis the copilot performs — it
- * feeds the comments-window spam score. Posts, pages, and taxonomy terms
- * are NOT analyzed; the AI assistant finds them with native WordPress
- * keyword search instead (see search.php).
+ * Comment analysis is the only auto-analysis the copilot performs — it feeds
+ * the comments-window spam score, and only when the (opt-in, off-by-default)
+ * Comments AI toggle is on. Posts, pages, and taxonomy terms are NOT analyzed;
+ * the AI assistant finds them with native WordPress keyword search instead
+ * (see search.php).
  *
  * Deduplication: a 120-second transient (`desktop_mode_ai_q_<md5 of
  * '{type}_{id}'>`) prevents the same comment from being queued twice when
@@ -42,8 +45,6 @@ defined( 'ABSPATH' ) || exit;
  * The deduplication transient prevents the same entity from being
  * queued and run twice within the guard window.
  *
- * @since 0.5.0
- *
  * @param string $hook      Cron hook name, e.g. 'desktop_mode_ai_analyze_comment'.
  * @param array  $args      Arguments passed to the hook callback.
  * @param string $dedup_key Unique string used to build the transient key.
@@ -70,19 +71,11 @@ function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
 		'shutdown',
 		static function () use ( $hook, $args ) {
 			// Send the HTTP response to the browser before the
-			// (potentially slow) OpenAI call so the editor stays
+			// (potentially slow) provider call so the editor stays
 			// responsive. fastcgi_finish_request() is a PHP-FPM
 			// function; in other SAPIs (CLI, Apache mod_php) it is
 			// not available and we proceed without it — the analysis
 			// still runs, it just blocks the request exit briefly.
-			//
-			// The OpenAI HTTP call itself bumps `set_time_limit()`
-			// when (and only when) it is about to fire — see
-			// `desktop_mode_ai_do_request()` in `openai.php`.
-			// Bumping it here would widen the scope to every
-			// scheduled job whether or not it ends up hitting the
-			// remote API, which the WordPress.org plugin review
-			// guidelines discourage.
 			if ( function_exists( 'fastcgi_finish_request' ) ) {
 				fastcgi_finish_request();
 			}
@@ -95,19 +88,17 @@ function desktop_mode_ai_schedule_job( $hook, array $args, $dedup_key ) {
 }
 
 /**
- * Returns the user ID to attribute the API call to, trying three sources
+ * Returns the user ID to attribute the request to, trying three sources
  * in priority order:
  *
  *   1. The currently logged-in user (HTTP request context).
  *   2. A provided fallback ID (e.g. post author).
- *   3. The first administrator who has AI enabled — covers anonymous
- *      comments, WP-CLI imports, and REST API requests without an
+ *   3. The first administrator who has the AI assistant enabled — covers
+ *      anonymous comments, WP-CLI imports, and REST API requests without an
  *      authenticated user context.
  *
- * @since 0.5.0
- *
  * @param int $fallback_user_id Author/owner to try when no current user.
- * @return int User ID, or 0 if no AI-enabled user could be found.
+ * @return int User ID, or 0 if none could be found.
  */
 function desktop_mode_ai_resolve_user_id( $fallback_user_id = 0 ) {
 	$uid = get_current_user_id();
@@ -120,18 +111,16 @@ function desktop_mode_ai_resolve_user_id( $fallback_user_id = 0 ) {
 		return $fallback;
 	}
 
-	// Last resort: any administrator with AI configured. Scans the first
-	// 20 admins to avoid a full table scan on large sites.
+	// Last resort: any administrator with the assistant enabled. Scans the
+	// first 20 admins to avoid a full table scan on large sites.
 	return desktop_mode_ai_find_enabled_user();
 }
 
 /**
- * Returns the first administrator user ID that has AI features enabled.
+ * Returns the first administrator user ID that has the AI assistant enabled.
  *
  * Used as a last-resort fallback for anonymous comments, WP-CLI imports,
  * and other contexts where no user session is available.
- *
- * @since 0.5.0
  *
  * @return int User ID, or 0 if none found.
  */
@@ -152,52 +141,3 @@ function desktop_mode_ai_find_enabled_user() {
 
 	return 0;
 }
-
-// ---------------------------------------------------------------------------
-// Comments
-// ---------------------------------------------------------------------------
-
-/**
- * Shared handler for new and edited comments.
- *
- * @since 0.5.0
- *
- * @param int $comment_id The comment ID.
- */
-function desktop_mode_ai_on_comment_change( $comment_id ) {
-	$comment = get_comment( $comment_id );
-	if ( ! $comment instanceof WP_Comment ) {
-		return;
-	}
-
-	// Skip pingbacks and trackbacks — only analyze real human comments.
-	if ( '' !== $comment->comment_type && 'comment' !== $comment->comment_type ) {
-		return;
-	}
-
-	// Resolve the user: the comment's own user_id first (the commenter
-	// may have AI enabled), then the current user (moderator context),
-	// then the first administrator with AI configured, then 0 (rejected).
-	$user_id = (int) $comment->user_id;
-	if ( $user_id <= 0 ) {
-		$user_id = desktop_mode_ai_resolve_user_id();
-	}
-	if ( $user_id <= 0 ) {
-		return;
-	}
-	if ( ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		return;
-	}
-
-	desktop_mode_ai_schedule_job(
-		'desktop_mode_ai_analyze_comment',
-		array( $comment_id, $user_id ),
-		'comment_' . $comment_id
-	);
-}
-
-// `wp_insert_comment` fires after a new comment is inserted into the DB.
-add_action( 'wp_insert_comment', 'desktop_mode_ai_on_comment_change', 20, 1 );
-
-// `edit_comment` fires after an existing comment is updated.
-add_action( 'edit_comment', 'desktop_mode_ai_on_comment_change', 20, 1 );

@@ -6,8 +6,6 @@
  * config blob from the bundle's global, registers the render
  * callback against `window.desktopModeNativeWindows[ id ]`, and
  * wires the `wp.desktop.openWindow()` flow.
- *
- * @since 0.8.1
  */
 
 export interface CreateExtensionWindowOptions< Config > {
@@ -37,8 +35,6 @@ interface ExtensionWindow {
  * config from the global the PHP bundle injected and passes it
  * into `render()`. Idempotent — re-calling overwrites the prior
  * registration.
- *
- * @since 0.8.1
  */
 export function createExtensionWindow< Config >(
 	opts: CreateExtensionWindowOptions< Config >,

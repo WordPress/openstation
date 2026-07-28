@@ -9,8 +9,9 @@
  *   - migration target picks the left neighbour by default
  *   - the desktop-mode.desktop.* action firings
  */
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { WindowManager } from '../../src/window-manager';
+import { closeDesktop } from '../../src/window-manager/desktops';
 import {
 	clearHooksStub,
 	installHooksStub,
@@ -62,6 +63,12 @@ describe( 'WindowManager — virtual desktops', async () => {
 	} );
 
 	afterEach( async () => {
+		// Several tests enter overview without explicitly exiting it.
+		// `manager.destroy()` cancels the pending overview transition
+		// timers (and, if still active, runs a synchronous exit) so
+		// none of them fire later and reach for `window.wp.hooks`
+		// after `clearHooksStub()` below has removed it.
+		manager.destroy();
 		for ( const win of manager.getAll() ) {
 			win.destroy();
 		}
@@ -345,6 +352,23 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( aEntry.height ).toBe( 480 );
 	} );
 
+	test( 'snapshot skips ephemeral windows — even when focused', async () => {
+		await manager.open( openConfig( 'a' ) );
+		const preview = await manager.open( {
+			...openConfig( 'editor-preview-post-1' ),
+			ephemeral: true,
+		} );
+		manager.focus( preview );
+
+		const snap = manager.snapshot();
+
+		expect(
+			snap.windows.some( ( w ) => w.id === 'editor-preview-post-1' ),
+		).toBe( false );
+		expect( snap.windows.some( ( w ) => w.id === 'a' ) ).toBe( true );
+		expect( snap.focused ).toBe( '' );
+	} );
+
 	// -----------------------------------------------------------------
 	// Active-desktop scoping for isActive / isActiveByBaseId /
 	// getAllByBaseIdOnActiveDesktop / minimizeAll / restoreFrom /
@@ -469,5 +493,277 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		expect( manager.toggleShowDesktop() ).toBe( false );
 		expect( b.state ).toBe( 'normal' );
+	} );
+
+	describe( 'Overview inert + tile structure', () => {
+		// Background chrome (admin sidebar, dock, widgets) and all windows
+		// are made inert on overview enter so Tab focus doesn't waste
+		// keystrokes navigating hidden UI behind the overview layer.
+		// The top admin bar (wpadminbar) is deliberately left active.
+		// Siblings inside wpbody-content (screen options, help, notices)
+		// are also inerted via inertWpBodyContentChildren.
+		test( 'enterOverview inerts background chrome, exitOverview restores it', async () => {
+			const toRemove: HTMLElement[] = [];
+
+			try {
+				const adminMenu = document.createElement( 'div' );
+				adminMenu.id = 'adminmenumain';
+				document.body.appendChild( adminMenu );
+				toRemove.push( adminMenu );
+				const adminBack = document.createElement( 'div' );
+				adminBack.id = 'adminmenuback';
+				document.body.appendChild( adminBack );
+				toRemove.push( adminBack );
+				const dock = document.createElement( 'div' );
+				dock.id = 'desktop-mode-dock';
+				document.body.appendChild( dock );
+				toRemove.push( dock );
+				const sideDock = document.createElement( 'div' );
+				sideDock.id = 'desktop-mode-side-dock';
+				document.body.appendChild( sideDock );
+				toRemove.push( sideDock );
+				const widgets = document.createElement( 'div' );
+				widgets.id = 'desktop-mode-widgets';
+				document.body.appendChild( widgets );
+				toRemove.push( widgets );
+
+				const wpbody = document.createElement( 'div' );
+				wpbody.id = 'wpbody-content';
+				document.body.appendChild( wpbody );
+				toRemove.push( wpbody );
+				const notice = document.createElement( 'div' );
+				notice.className = 'notice';
+				wpbody.appendChild( notice );
+
+				const a = await manager.open( openConfig( 'a' ) );
+				const b = await manager.open( openConfig( 'b' ) );
+
+				expect( a.element.inert ).toBeFalsy();
+
+				manager.enterOverview();
+
+				expect( adminMenu.inert ).toBe( true );
+				expect( adminBack.inert ).toBe( true );
+				expect( dock.inert ).toBe( true );
+				expect( sideDock.inert ).toBe( true );
+				expect( widgets.inert ).toBe( true );
+				expect( notice.inert ).toBe( true );
+				// Window root elements remain non-inert for thumbnail pointer clicks,
+				// while inner window child elements are inerted to trap keyboard focus.
+				expect( a.element.inert ).toBeFalsy();
+				expect( b.element.inert ).toBeFalsy();
+				expect( ( a.element.children[ 0 ] as HTMLElement ).inert ).toBe( true );
+				expect( ( b.element.children[ 0 ] as HTMLElement ).inert ).toBe( true );
+
+				manager.exitOverview();
+
+				expect( adminMenu.inert ).toBe( false );
+				expect( adminBack.inert ).toBe( false );
+				expect( dock.inert ).toBe( false );
+				expect( sideDock.inert ).toBe( false );
+				expect( widgets.inert ).toBe( false );
+				expect( notice.inert ).toBe( false );
+				expect( a.element.inert ).toBeFalsy();
+				expect( b.element.inert ).toBeFalsy();
+				expect( ( a.element.children[ 0 ] as HTMLElement ).inert ).toBe( false );
+				expect( ( b.element.children[ 0 ] as HTMLElement ).inert ).toBe( false );
+			} finally {
+				for ( const el of toRemove ) {
+					el.remove();
+				}
+			}
+		} );
+
+		test( 'clicking a window thumbnail in overview selects and focuses it without forcing maximize', async () => {
+			const a = await manager.open( openConfig( 'a' ) );
+			const b = await manager.open( openConfig( 'b' ) );
+			expect( manager.getFocused() ).toBe( b );
+			expect( a.state ).toBe( 'normal' );
+			expect( b.state ).toBe( 'normal' );
+
+			manager.enterOverview();
+			expect( manager._overviewActive ).toBe( true );
+
+			vi.spyOn( a.element, 'getBoundingClientRect' ).mockReturnValue(
+				new DOMRect( 100, 100, 200, 150 ),
+			);
+
+			a.element.dispatchEvent(
+				new MouseEvent( 'pointerdown', {
+					bubbles: true,
+					cancelable: true,
+					button: 0,
+					clientX: 150,
+					clientY: 150,
+				} ),
+			);
+			a.element.dispatchEvent(
+				new MouseEvent( 'pointerup', {
+					bubbles: true,
+					cancelable: true,
+					button: 0,
+					clientX: 150,
+					clientY: 150,
+				} ),
+			);
+
+			expect( manager._overviewActive ).toBe( false );
+			expect( manager.getFocused() ).toBe( a );
+			expect( a.state ).toBe( 'normal' );
+		} );
+
+		// Each desktop tile was a single <button>; the close X was a child
+		// inside it, making it unreachable by Tab. Fix: wrap the tile <button>
+		// and a sibling close <button> in a <div> wrapper so both are independently
+		// focusable. The "+" create-tile stays as a direct child (no close X).
+		test( 'each desktop tile has a wrapper with two sibling buttons', async () => {
+			const extraDesktops = [ manager.createDesktop(), manager.createDesktop() ];
+			try {
+				await manager.open( openConfig( 'a' ) );
+				manager.enterOverview();
+
+				const wrappers = manager._overviewTopBar!.querySelectorAll(
+					'.desktop-mode-overview-top-bar__tile-wrapper',
+				);
+
+				// 3 desktops = 3 wrappers (the "+" tile is a direct child, not wrapped)
+				expect( wrappers ).toHaveLength( 3 );
+
+				for ( const wrapper of wrappers ) {
+					const buttons = wrapper.querySelectorAll( 'button' );
+					expect( buttons ).toHaveLength( 2 );
+
+					const tile = buttons[ 0 ];
+					expect(
+						tile.classList.contains( 'desktop-mode-overview-top-bar__tile' ),
+					).toBe( true );
+
+					const close = buttons[ 1 ];
+					expect(
+						close.classList.contains(
+							'desktop-mode-overview-top-bar__tile-close',
+						),
+					).toBe( true );
+					expect( close.tagName ).toBe( 'BUTTON' );
+				}
+			} finally {
+				for ( const d of extraDesktops ) {
+					closeDesktop( manager, d.id );
+				}
+			}
+		} );
+
+		// The global Enter handler must not exit overview when the user
+		// is focused on an explicit <button> (close X, desktop tile).
+		// Regression guard for BUG-4: prior behaviour intercepted every
+		// Enter as "commit", making the close X inaccessible by keyboard.
+		test( 'Enter on a focused button does not exit overview', async () => {
+			await manager.open( openConfig( 'a' ) );
+			manager.enterOverview();
+
+			const closeBtn = manager._overviewTopBar!.querySelector< HTMLElement >(
+				'.desktop-mode-overview-top-bar__tile-close',
+			)!;
+			closeBtn.focus();
+			expect( document.activeElement ).toBe( closeBtn );
+
+			document.dispatchEvent(
+				new KeyboardEvent( 'keydown', { key: 'Enter' } ),
+			);
+
+			expect( manager._overviewActive ).toBe( true );
+			manager.exitOverview();
+		} );
+
+		// inertWpBodyContentChildren returns early when #wpbody-content
+		// is absent from the DOM. Verify enterOverview still completes
+		// without throwing.
+		test( 'enterOverview tolerates missing wpbody-content', async () => {
+			await manager.open( openConfig( 'a' ) );
+			expect( () => manager.enterOverview() ).not.toThrow();
+			manager.exitOverview();
+		} );
+	} );
+} );
+
+describe( 'WindowManager — destroy()', async () => {
+	let hooks: FakeWpHooks;
+	let desktopArea: HTMLElement;
+	let manager: WindowManager;
+
+	beforeEach( async () => {
+		hooks = installHooksStub();
+		desktopArea = document.createElement( 'div' );
+		Object.defineProperty( desktopArea, 'getBoundingClientRect', {
+			value: () =>
+				( {
+					left: 0,
+					top: 0,
+					right: 1600,
+					bottom: 900,
+					width: 1600,
+					height: 900,
+					x: 0,
+					y: 0,
+					toJSON: () => ( {} ),
+				} ) as DOMRect,
+		} );
+		Object.defineProperty( desktopArea, 'clientWidth', { value: 1600, configurable: true } );
+		Object.defineProperty( desktopArea, 'clientHeight', { value: 900, configurable: true } );
+		document.body.appendChild( desktopArea );
+		manager = new WindowManager( desktopArea );
+	} );
+
+	afterEach( async () => {
+		vi.useRealTimers();
+		for ( const win of manager.getAll() ) {
+			win.destroy();
+		}
+		desktopArea.remove();
+		clearHooksStub();
+	} );
+
+	test( 'cancels the pending "entered" timer left by an un-exited enterOverview()', async () => {
+		vi.useFakeTimers();
+		manager.enterOverview();
+		expect( manager._overviewEnterTimeoutId ).not.toBeNull();
+
+		manager.destroy();
+		expect( manager._overviewEnterTimeoutId ).toBeNull();
+
+		// Removing `window.wp.hooks` proves the cancelled timer never
+		// fires — a leaked one would throw reaching for it here, which
+		// is exactly the flake this regression test guards against.
+		clearHooksStub();
+		vi.advanceTimersByTime( 1000 );
+	} );
+
+	test( 'cancels the pending "exited" timer left by an un-awaited exitOverview()', async () => {
+		vi.useFakeTimers();
+		manager.enterOverview();
+		vi.advanceTimersByTime( 1000 );
+		manager.exitOverview();
+		expect( manager._overviewExitTimeoutId ).not.toBeNull();
+
+		manager.destroy();
+		expect( manager._overviewExitTimeoutId ).toBeNull();
+
+		clearHooksStub();
+		vi.advanceTimersByTime( 1000 );
+	} );
+
+	test( 'synchronously exits overview when destroyed mid-session', async () => {
+		manager.enterOverview();
+		expect( manager._overviewActive ).toBe( true );
+
+		manager.destroy();
+
+		expect( manager._overviewActive ).toBe( false );
+		expect( hooks.didAction( 'desktop-mode.overview.exiting' ) ).toBe( 1 );
+	} );
+
+	test( 'is a no-op when overview was never entered', async () => {
+		expect( () => manager.destroy() ).not.toThrow();
+		expect( manager._overviewActive ).toBe( false );
 	} );
 } );

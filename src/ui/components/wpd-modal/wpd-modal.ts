@@ -20,8 +20,6 @@
  * Events:
  *
  *   - `wpd-modal-cancel` — ESC, click-outside, close button.
- *
- * @since 0.8.5
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -37,7 +35,7 @@ export class WpdModal extends Component {
 	static help = {
 		title: 'Modal overlay',
 		summary:
-			'Overlay container with title, body, and footer slots. Handles ESC, click-outside, focus trap. Use for rich modal flows that go beyond a yes/no confirm.',
+			'Overlay container with title, body, and footer slots. Handles ESC, click-outside, focus trap. Use for rich modal flows that go beyond a yes/no confirm. The dialog surface is dark and re-points the shared surface tokens (--wpd-fg/-muted/-border/-window-bg, --wpd-button-bg-hover) so wpd-* controls slotted into it resolve readable dark-surface colors automatically.',
 		status: 'experimental',
 		since: '0.8.5',
 		props: [

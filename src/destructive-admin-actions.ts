@@ -36,8 +36,6 @@
  * module-level array would give each bundle its own private copy and
  * silently drop every registration. See `AGENTS.md` §
  * "Cross-bundle state — `wp.desktop.createSharedStore`".
- *
- * @since 0.8.4
  */
 
 import { createSharedStore } from './shared-store';
@@ -101,8 +99,6 @@ const store = createSharedStore< RegistryState >(
  * } );
  * ```
  *
- * @since 0.8.4
- *
  * @param entry Registry entry. Returns a no-op unregister when the
  *              entry is malformed (missing id / matches), so callers
  *              can store the return value unconditionally.
@@ -132,8 +128,6 @@ export function registerDestructiveAdminAction(
 /**
  * Remove a destructive-admin-action entry by id. No-op when no entry
  * matches.
- *
- * @since 0.8.4
  *
  * @param id Entry id passed to {@link registerDestructiveAdminAction}.
  */

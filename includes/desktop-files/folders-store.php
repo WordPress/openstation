@@ -13,7 +13,6 @@
  * folders onto the owner's list.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,8 +25,6 @@ function desktop_mode_files_share_modes() {
 	 * (e.g. 'team') by registering both the value here and a
 	 * matching visibility callback.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string[] $modes Default modes.
 	 */
 	return (array) apply_filters( 'desktop_mode_files_share_modes', $modes );
@@ -35,8 +32,6 @@ function desktop_mode_files_share_modes() {
 
 /**
  * Create a folder.
- *
- * @since 0.9.0
  *
  * @param int   $owner_id Owner.
  * @param array $args     `name`, `share_mode`, `share_meta`.
@@ -88,8 +83,6 @@ function desktop_mode_files_create_folder( $owner_id, $args = array() ) {
 	/**
 	 * Fires after a folder is created.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int   $id  Folder id.
 	 * @param array $row Inserted row.
 	 */
@@ -100,8 +93,6 @@ function desktop_mode_files_create_folder( $owner_id, $args = array() ) {
 
 /**
  * Update a folder. Only the owner can update for now.
- *
- * @since 0.9.0
  *
  * @param int   $folder_id Folder id.
  * @param int   $user_id   Acting user.
@@ -181,8 +172,6 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		 * the propagation by returning a non-null SQL fragment via
 		 * this filter. Return `null` to opt OUT entirely (rare).
 		 *
-		 * @since 0.8.5
-		 *
 		 * @param string $where     Default WHERE clause body.
 		 * @param int    $folder_id Folder being renamed.
 		 * @param int    $user_id   Acting user (folder owner).
@@ -212,8 +201,6 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		 * dispatch their own cross-window broadcasts, refresh sidebar
 		 * displays of the folder name).
 		 *
-		 * @since 0.8.5
-		 *
 		 * @param int    $folder_id Folder id.
 		 * @param string $new_name  New name (sanitized).
 		 * @param string $old_name  Previous name.
@@ -233,8 +220,6 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 	/**
 	 * Fires after a folder is updated.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int   $id   Folder id.
 	 * @param array $next Row after.
 	 * @param array $prev Row before.
@@ -246,8 +231,6 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
 		 * Fires after a folder's share state changes (mode or
 		 * meta). Plugins listening for sharing events can subscribe
 		 * to this rather than diff `desktop_mode_folder_updated`.
-		 *
-		 * @since 0.9.0
 		 *
 		 * @param int   $id   Folder id.
 		 * @param array $next Row after.
@@ -283,8 +266,6 @@ function desktop_mode_files_update_folder( $folder_id, $user_id, $changes = arra
  *      deleted with tombstones.
  *   5. The folder row itself is deleted with a folder tombstone.
  *
- * @since 0.9.0
- *
  * @param int $folder_id Folder id.
  * @param int $user_id   Acting user.
  * @return true|WP_Error
@@ -310,8 +291,6 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 *     guard for accidental cascades).
 	 *   - Require a confirmation token / nonce stored in the user's
 	 *     session.
-	 *
-	 * @since 0.8.5
 	 *
 	 * @param bool|WP_Error $can       Default `true`.
 	 * @param int           $folder_id Folder id about to be deleted.
@@ -341,8 +320,6 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 * Listeners can persist a snapshot, log an audit entry, or
 	 * stage a notification to recipients ("the folder you had
 	 * access to is being deleted in 10 s").
-	 *
-	 * @since 0.8.5
 	 *
 	 * @param int   $folder_id Folder being deleted.
 	 * @param int   $user_id   Acting user.
@@ -376,8 +353,6 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
 	 *   - `placements_inside`    — placement ids removed (contents of
 	 *                              the deleted folders).
 	 *
-	 * @since 0.8.5
-	 *
 	 * @param int   $folder_id Root folder of the cascade.
 	 * @param int   $user_id   Acting user.
 	 * @param array $summary   Cascade summary (see above).
@@ -405,7 +380,6 @@ function desktop_mode_files_delete_folder( $folder_id, $user_id ) {
  * ever corrupted with one. The owner check happens at the public
  * entry point above; this worker trusts its caller.
  *
- * @since 0.8.5
  * @internal
  *
  * @param int        $folder_id Folder id to delete.
@@ -469,9 +443,13 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	//    user decisions table. The folder is going away, so the
 	//    rows are obsolete; leaving them would let the heartbeat
 	//    keep delivering a `removed` tombstone for ghost rows.
+	// `target_type` scoping is load-bearing: `folder_id` carries a
+	// STORED-FILE id on `target_type='file'` rows — without the
+	// predicate this cascade would revoke an unrelated user's file
+	// share whose id collides with the deleted folder's.
 	$share_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE folder_id = %d",
+			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -549,17 +527,34 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	//    user / etc. placements, plus orphan folder placements
 	//    whose folder we did NOT recurse into because someone else
 	//    owns it) gets deleted with a tombstone each.
-	$inside_ids = (array) $wpdb->get_col(
+	$inside_rows = (array) $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT id FROM {$tables['placements']} WHERE parent_id = %d",
+			"SELECT * FROM {$tables['placements']} WHERE parent_id = %d",
 			$folder_id
-		)
+		),
+		ARRAY_A
 	);
-	foreach ( $inside_ids as $cid ) {
-		desktop_mode_files_write_tombstone( 'placement', (int) $cid );
+	$inside_ids = array();
+	foreach ( $inside_rows as $inside_row ) {
+		$inside_ids[] = (int) $inside_row['id'];
+		desktop_mode_files_write_tombstone( 'placement', (int) $inside_row['id'] );
 	}
 	if ( ! empty( $inside_ids ) ) {
 		$wpdb->delete( $tables['placements'], array( 'parent_id' => $folder_id ), array( '%d' ) );
+		// Upload placements carry real bytes — run the stored-files
+		// deletion contract now that the rows are gone. Direct
+		// guarded call (not the public unplaced action) so cascade
+		// hook semantics for other types stay unchanged.
+		if ( function_exists( 'desktop_mode_stored_files_handle_unplaced' ) ) {
+			foreach ( $inside_rows as $inside_row ) {
+				if ( 'upload' === (string) $inside_row['file_type'] ) {
+					desktop_mode_stored_files_handle_unplaced(
+						(int) $inside_row['id'],
+						desktop_mode_files_normalize_placement_row( $inside_row )
+					);
+				}
+			}
+		}
 		$summary['placements_inside'] = array_merge(
 			$summary['placements_inside'],
 			array_map( 'intval', $inside_ids )
@@ -580,8 +575,6 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 	 * `desktop_mode_files_share_revoked` if they want to react to
 	 * cascade-revokes triggered by folder deletion.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int   $id  Folder id.
 	 * @param array $row Removed row.
 	 */
@@ -592,8 +585,6 @@ function desktop_mode_files_delete_folder_recursive( $folder_id, $user_id, &$vis
 
 /**
  * Lookup a folder row by id.
- *
- * @since 0.9.0
  *
  * @param int  $folder_id       Folder id.
  * @param bool $include_trashed Optional. Return the row even when
@@ -625,8 +616,6 @@ function desktop_mode_files_get_folder( $folder_id, $include_trashed = false ) {
  * owns; sharing.php merges shared folders in via the
  * `desktop_mode_files_visible_folders` filter.
  *
- * @since 0.9.0
- *
  * @param int $user_id Viewer.
  * @return array[]
  */
@@ -657,8 +646,6 @@ function desktop_mode_files_get_visible_folders( $user_id ) {
 	 * merges accepted shares and `share_mode='all'` folders onto
 	 * this list.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param array[] $folders Folders the viewer owns.
 	 * @param int     $user_id Viewer.
 	 */
@@ -666,7 +653,6 @@ function desktop_mode_files_get_visible_folders( $user_id ) {
 }
 
 /**
- * @since 0.9.0
  * @internal
  *
  * @param array $row Raw wpdb row.

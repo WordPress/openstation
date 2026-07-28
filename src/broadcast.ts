@@ -29,7 +29,6 @@
  *     `document.addEventListener( 'desktop-mode-broadcast', … )`.
  *
  * @public
- * @since 0.6.0
  */
 
 import { activity } from './activity';

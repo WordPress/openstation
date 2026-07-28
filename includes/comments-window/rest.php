@@ -18,7 +18,6 @@
  *      `current_user_can( 'edit_comment', $id )` per row.
  *
  * @package WPDesktopMode
- * @since   0.8.3
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -29,8 +28,6 @@ defined( 'ABSPATH' ) || exit;
  * Each callback returns true on success, false on a soft failure (the
  * row is skipped) and throws nothing — the bulk endpoint logs misses
  * but never aborts the batch on a single bad row.
- *
- * @since 0.8.3
  *
  * @return array<string,callable>
  */
@@ -59,8 +56,6 @@ function desktop_mode_comments_window_bulk_action_map() {
 
 /**
  * Register all routes.
- *
- * @since 0.8.3
  */
 function desktop_mode_comments_window_register_rest_routes() {
 	register_rest_route(
@@ -144,8 +139,6 @@ add_action( 'rest_api_init', 'desktop_mode_comments_window_register_rest_routes'
 /**
  * Bulk moderation handler.
  *
- * @since 0.8.3
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
@@ -181,8 +174,6 @@ function desktop_mode_comments_window_rest_bulk( WP_REST_Request $request ) {
 	/**
 	 * Fires after a Comments-window bulk action runs.
 	 *
-	 * @since 0.8.3
-	 *
 	 * @param string $action    Action slug.
 	 * @param int[]  $processed Ids successfully acted on.
 	 * @param int[]  $skipped   Ids skipped (cap fail or soft error).
@@ -208,8 +199,6 @@ function desktop_mode_comments_window_rest_bulk( WP_REST_Request $request ) {
 /**
  * Inline-reply handler. Wraps `wp_new_comment` with sane defaults so
  * the client only needs `{ parent, content }`.
- *
- * @since 0.8.3
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
@@ -293,8 +282,6 @@ function desktop_mode_comments_window_rest_reply( WP_REST_Request $request ) {
  * timestamps, the linked user id (if the email matches a registered
  * user), and a 0–100 reliability score.
  *
- * @since 0.8.3
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
@@ -366,8 +353,6 @@ function desktop_mode_comments_window_rest_insights( WP_REST_Request $request ) 
 /**
  * Per-status counts. Used by the dock badge + the "N new" pill.
  *
- * @since 0.8.3
- *
  * @return WP_REST_Response
  */
 function desktop_mode_comments_window_rest_counts() {
@@ -376,8 +361,6 @@ function desktop_mode_comments_window_rest_counts() {
 
 /**
  * Internal helper — current comment counts as a flat array.
- *
- * @since 0.8.3
  *
  * @return array<string,int>
  */

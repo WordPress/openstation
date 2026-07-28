@@ -21,12 +21,12 @@ export const styles = css`
 			--wpd-notice-font,
 			13px/1.5 var( --desktop-mode-font, system-ui )
 		);
-		color: var( --wpd-notice-color, var( --desktop-mode-text, #1d2327 ) );
-		background: var( --wpd-notice-bg, rgba( 0, 0, 0, 0.04 ) );
+		color: var( --wpd-notice-color, var( --wpd-fg, #1d2327 ) );
+		background: var( --wpd-notice-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
 		border-block-end: 1px solid
-			var( --wpd-notice-border, rgba( 0, 0, 0, 0.08 ) );
+			var( --wpd-notice-border, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 		border-inline-start: 4px solid
-			var( --wpd-notice-accent, #646970 );
+			var( --wpd-notice-accent, var( --wpd-border, #646970 ) );
 	}
 	:host( [ hidden ] ) {
 		display: none;
@@ -39,7 +39,7 @@ export const styles = css`
 		justify-content: center;
 		width: 20px;
 		height: 20px;
-		color: var( --wpd-notice-accent, #646970 );
+		color: var( --wpd-notice-accent, var( --wpd-accent, #646970 ) );
 	}
 	.wpd-notice__icon[ hidden ] {
 		display: none;
@@ -78,7 +78,7 @@ export const styles = css`
 	}
 	.wpd-notice__close:hover {
 		opacity: 1;
-		background: rgba( 0, 0, 0, 0.06 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
 	}
 	.wpd-notice__close:focus-visible {
 		opacity: 1;
@@ -99,7 +99,7 @@ export const styles = css`
 	   Plugins can override any single tone via the variables below
 	   without redefining the rest. */
 	:host( [ tone='info' ] ) {
-		--wpd-notice-accent: var( --wpd-notice-info, #0969da );
+		--wpd-notice-accent: var( --wpd-notice-info, var( --wpd-info-fg, #0969da ) );
 		--wpd-notice-bg: var( --wpd-notice-info-bg, rgba( 9, 105, 218, 0.08 ) );
 		--wpd-notice-border: var(
 			--wpd-notice-info-border,
@@ -107,7 +107,7 @@ export const styles = css`
 		);
 	}
 	:host( [ tone='success' ] ) {
-		--wpd-notice-accent: var( --wpd-notice-success, #1a7f37 );
+		--wpd-notice-accent: var( --wpd-notice-success, var( --wpd-success-fg, #1a7f37 ) );
 		--wpd-notice-bg: var( --wpd-notice-success-bg, rgba( 26, 127, 55, 0.08 ) );
 		--wpd-notice-border: var(
 			--wpd-notice-success-border,
@@ -115,7 +115,7 @@ export const styles = css`
 		);
 	}
 	:host( [ tone='warning' ] ) {
-		--wpd-notice-accent: var( --wpd-notice-warning, #9a6700 );
+		--wpd-notice-accent: var( --wpd-notice-warning, var( --wpd-warning-fg, #9a6700 ) );
 		--wpd-notice-bg: var( --wpd-notice-warning-bg, rgba( 154, 103, 0, 0.08 ) );
 		--wpd-notice-border: var(
 			--wpd-notice-warning-border,
@@ -124,7 +124,7 @@ export const styles = css`
 	}
 	:host( [ tone='error' ] ),
 	:host( [ tone='danger' ] ) {
-		--wpd-notice-accent: var( --wpd-notice-error, #cf222e );
+		--wpd-notice-accent: var( --wpd-notice-error, var( --wpd-danger, #cf222e ) );
 		--wpd-notice-bg: var( --wpd-notice-error-bg, rgba( 207, 34, 46, 0.08 ) );
 		--wpd-notice-border: var(
 			--wpd-notice-error-border,
@@ -132,7 +132,7 @@ export const styles = css`
 		);
 	}
 	:host( [ tone='neutral' ] ) {
-		--wpd-notice-accent: var( --wpd-notice-neutral, #57606a );
+		--wpd-notice-accent: var( --wpd-notice-neutral, var( --wpd-fg-muted, #57606a ) );
 		--wpd-notice-bg: var( --wpd-notice-neutral-bg, rgba( 87, 96, 106, 0.08 ) );
 		--wpd-notice-border: var(
 			--wpd-notice-neutral-border,

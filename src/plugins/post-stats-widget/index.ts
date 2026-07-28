@@ -6,14 +6,15 @@
  * Chart redraws on ResizeObserver so it stays crisp at any
  * card size. HiDPI-aware via devicePixelRatio.
  *
- * Data: WP REST /wp/v2/posts with status filter and after= date.
- * Refresh: every 5 minutes.
- *
- * @since 0.26.0
+ * Data: GET /desktop-mode/v1/post-stats — one server-aggregated,
+ * transient-cached request per refresh (it used to page through
+ * /wp/v2/posts three times, once per status).
+ * Refresh: every 5 minutes, paused while the tab is hidden.
  */
 import './styles.css';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
+import { startVisibilityAwarePoller } from '../../widgets/poller';
 
 const WIDGET_ID = 'desktop-mode/post-stats';
 const REFRESH_MS = 5 * 60_000;
@@ -33,14 +34,11 @@ interface Bucket {
 	draft: number;
 }
 
-interface PostStub {
-	id: number;
-	date: string;
-	status: string;
-}
-
-function monthKey( date: Date ): string {
-	return date.getFullYear() + '-' + String( date.getMonth() + 1 ).padStart( 2, '0' );
+interface StatsMonth {
+	ym: string;
+	publish: number;
+	draft: number;
+	pending: number;
 }
 
 function shortLabel( ym: string ): string {
@@ -49,48 +47,31 @@ function shortLabel( ym: string ): string {
 		.toLocaleString( undefined, { month: 'short' } );
 }
 
-function buildBuckets(): Bucket[] {
-	const now = new Date();
-	return Array.from( { length: MONTHS_BACK }, ( _, i ) => {
-		const d = new Date( now.getFullYear(), now.getMonth() - ( MONTHS_BACK - 1 - i ), 1 );
-		const ym = monthKey( d );
-		return { ym, label: shortLabel( ym ), published: 0, pending: 0, draft: 0 };
-	} );
-}
-
-async function fetchPosts(): Promise< PostStub[] > {
+/**
+ * One request: the server aggregates months × status with a single
+ * GROUP BY (transient-cached for 5 min) and returns exactly
+ * MONTHS_BACK zero-filled buckets, oldest first.
+ */
+async function fetchBuckets(): Promise< Bucket[] > {
 	const root = ( window as unknown as { wpApiSettings?: { root?: string } } )
 		.wpApiSettings?.root ?? '/wp-json/';
-	const cutoff = new Date();
-	cutoff.setMonth( cutoff.getMonth() - MONTHS_BACK );
-	cutoff.setDate( 1 );
-	const after = cutoff.toISOString();
-	const statuses = [ 'publish', 'draft', 'pending' ] as const;
-	const all: PostStub[] = [];
-
-	for ( const status of statuses ) {
-		let page = 1;
-		let total = Infinity;
-		while ( all.length < 200 && ( page - 1 ) * 100 < total ) {
-			const res = await trackedFetch(
-				root.replace( /\/$/, '' ) +
-					`/wp/v2/posts?per_page=100&page=${ page }&status=${ status }&after=${ encodeURIComponent( after ) }&_fields=id,date,status`,
-				{ credentials: 'same-origin' },
-				{ source: 'desktop-mode/post-stats', silent: true },
-			);
-			if ( ! res.ok ) {
-				break;
-			}
-			total = parseInt( res.headers.get( 'X-WP-Total' ) ?? '0', 10 );
-			const posts = await res.json() as PostStub[];
-			if ( ! Array.isArray( posts ) || posts.length === 0 ) {
-				break;
-			}
-			all.push( ...posts );
-			page++;
-		}
+	const res = await trackedFetch(
+		root.replace( /\/$/, '' ) + '/desktop-mode/v1/post-stats',
+		{ credentials: 'same-origin' },
+		{ source: 'desktop-mode/post-stats', silent: true },
+	);
+	if ( ! res.ok ) {
+		throw new Error( `post-stats request failed: ${ res.status }` );
 	}
-	return all;
+	const body = await res.json() as { months?: StatsMonth[] };
+	const months = Array.isArray( body.months ) ? body.months : [];
+	return months.slice( -MONTHS_BACK ).map( ( m ) => ( {
+		ym: m.ym,
+		label: shortLabel( m.ym ),
+		published: Number( m.publish ) || 0,
+		pending: Number( m.pending ) || 0,
+		draft: Number( m.draft ) || 0,
+	} ) );
 }
 
 /**
@@ -225,7 +206,6 @@ function buildLegend( container: HTMLElement ): void {
 
 const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< WidgetTeardown > => {
 	let destroyed = false;
-	let intervalId: ReturnType< typeof setInterval > | null = null;
 	let ro: ResizeObserver | null = null;
 
 	const refresh = async (): Promise< void > => {
@@ -233,23 +213,11 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 			return;
 		}
 		try {
-			const posts = await fetchPosts();
-			const buckets = buildBuckets();
-			for ( const post of posts ) {
-				const ym = post.date ? post.date.slice( 0, 7 ) : null;
-				const bucket = ym ? buckets.find( ( b ) => b.ym === ym ) : null;
-				if ( ! bucket ) {
-					continue;
-				}
-				if ( post.status === 'publish' ) {
-					bucket.published++;
-				} else if ( post.status === 'pending' ) {
-					bucket.pending++;
-				} else if ( post.status === 'draft' ) {
-					bucket.draft++;
-				}
-			}
-			const total = posts.length;
+			const buckets = await fetchBuckets();
+			const total = buckets.reduce(
+				( sum, b ) => sum + b.published + b.pending + b.draft,
+				0,
+			);
 			if ( destroyed ) {
 				return;
 			}
@@ -293,13 +261,11 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ): Promise< Wi
 	};
 
 	await refresh();
-	intervalId = setInterval( refresh, REFRESH_MS );
+	const poller = startVisibilityAwarePoller( refresh, REFRESH_MS );
 
 	return () => {
 		destroyed = true;
-		if ( intervalId !== null ) {
-			clearInterval( intervalId );
-		}
+		poller.stop();
 		ro?.disconnect();
 	};
 };

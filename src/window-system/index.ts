@@ -13,8 +13,6 @@
  * geometry,event-bus}.ts modules) ships incrementally on top of
  * this barrel; consumers that switch to `@window-system` today
  * get the migration for free when those splits land.
- *
- * @since 0.8.1
  */
 
 export * from '../window';

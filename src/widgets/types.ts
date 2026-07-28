@@ -10,8 +10,6 @@
  * Lifecycle mirrors the canvas-wallpaper contract: `mount(container)`
  * returns a teardown function the layer calls when the widget is
  * removed, the user re-orders, or the shell is torn down.
- *
- * @since 0.7.0
  */
 
 /** Teardown callback returned by `mount`. */
@@ -33,7 +31,6 @@ export type WidgetTeardown = () => void;
  * on the caller side when you need those.
  *
  * @public
- * @since 0.5.0
  */
 export interface WidgetStorage {
 	/**

@@ -6,8 +6,6 @@
  * and available screen-meta panels; we route each to the appropriate
  * Window method. All messages are origin-gated to the origin captured
  * at module-init time — the chromeless iframe is always same-origin.
- *
- * @since 0.8.1
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -19,6 +17,7 @@ import { dispatchFromWindow, markWindowContentReady } from '../window-channels';
 import { tryNativeUrlRemap } from '../native-url-remap';
 import { createSharedStore } from '../shared-store';
 import { matchDestructiveAdminAction } from '../destructive-admin-actions';
+import { setWindowContent } from '../window-links/engine';
 import { openUserFootprintWindow } from '../my-wordpress/footprint-target';
 
 /**
@@ -26,8 +25,6 @@ import { openUserFootprintWindow } from '../my-wordpress/footprint-target';
  * of `window.location` (e.g., by a misbehaving plugin script) cannot
  * relax the same-origin check — we always compare against the value
  * that was valid when the shell booted.
- *
- * @since 0.5.0
  */
 const INITIAL_ORIGIN = window.location.origin;
 
@@ -146,6 +143,17 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 
 	if ( data.type === 'desktop-mode-title-change' && typeof data.title === 'string' ) {
 		win.setTitle( data.title );
+	}
+
+	// Content-identity announcement from the chromeless bridge — the
+	// authoritative "which object does this page show" signal, resolved
+	// server-side in real admin context. `identity: null` is meaningful
+	// (navigation away from an identified screen clears the stale ref),
+	// so forward it verbatim; the engine validates and no-ops repeats.
+	if ( data.type === 'desktop-mode-content-identity' ) {
+		setWindowContent( win.id, data.identity ?? null, {
+			source: 'bridge',
+		} );
 	}
 
 	// Unified window-channel publish. Iframe content called

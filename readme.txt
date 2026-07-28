@@ -1,10 +1,10 @@
 === Desktop Mode ===
-Contributors: automattic, allterraindeveloper, epeicher
+Contributors: automattic, allterraindeveloper, epeicher, mmtr86, nickhamze
 Tags: admin, dashboard, desktop, productivity, ai
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.9.3
+Stable tag: 0.9.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,7 +35,7 @@ Built and maintained by [Automattic](https://automattic.com), the company behind
 
 = Superpowers =
 
-* **AI Assistant (optional)** — press Cmd+K and ask *"Which post had the comment asking for the recipe?"* It searches your own content. Off by default; see "External services" below.
+* **AI Assistant (optional)** — press Cmd+K and ask *"Which post had the comment asking for the recipe?"* It searches your own content. Requires an AI provider configured in **Settings → Connectors** (WordPress 7.0+); see "External services" below.
 * **Content Graph** — an interactive, zoomable map of how your posts, pages, and products link together.
 * **Cross-window drag & drop** — drag an image from the Media Library window straight into the editor in another window.
 * **Command palette** — the full WordPress command palette plus slash commands from plugins, all under Cmd+K.
@@ -46,16 +46,14 @@ Every significant behavior is hookable. Register windows, dock items, wallpapers
 
 = External services =
 
-This plugin's optional **AI Assistant** sends data to **OpenAI** (`https://api.openai.com/v1/responses`) when, and only when, an administrator configures an OpenAI API key in **Settings → AI**. With no key configured, no external requests are made.
+This plugin's optional **AI Assistant** sends data to the **AI provider you configure in WordPress's Settings → Connectors** (for example OpenAI, Anthropic, or Google). Generation is routed through WordPress 7.0's built-in AI Client, which supplies the credentials stored in Connectors — the plugin never handles an API key itself. With no provider configured in Connectors, no external AI requests are made.
 
 When the AI Assistant is enabled and a user invokes it (via Cmd+K or the slash-command palette):
 
-* **What is sent:** the user's prompt, the conversation history for the active session, the chosen model identifier (e.g. `gpt-4o-mini`), and tool-call metadata. The plugin's built-in tools (`search_posts`, `search_pages`, `search_comments`) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to OpenAI as part of the agentic loop.
-* **When it is sent:** on user-initiated AI requests, and (if enabled) on comment-save hooks for spam analysis. Comment spam analysis runs server-side as part of the comment-insert flow. Posts, pages, and taxonomy terms are not sent automatically.
+* **What is sent:** the user's prompt, the conversation history for the active session, and tool-call metadata. The plugin's built-in tools (`search_posts`, `search_pages`, `search_comments`) run WordPress's native keyword search and may include excerpts of the matching posts/pages/comments in tool results, which are then sent back to the provider as part of the agentic loop.
+* **When it is sent:** on user-initiated AI requests, and (if an administrator enables "Score new comments with AI") on comment-save hooks for spam analysis. Posts, pages, and taxonomy terms are not sent automatically.
 * **Why it is sent:** to obtain model completions and tool-call decisions that drive the AI Assistant.
-* **Who provides the service:** OpenAI, L.L.C. — see the [OpenAI Terms of Use](https://openai.com/policies/row-terms-of-use/) and the [OpenAI Privacy Policy](https://openai.com/policies/row-privacy-policy/).
-
-The AI Assistant's provider layer is also extensible: third-party plugins may register additional providers via `desktop_mode_register_ai_provider()`. Those providers may send data to other endpoints; review each plugin's own privacy disclosure separately.
+* **Who provides the service:** whichever provider you configured in Settings → Connectors. Which provider (and endpoint) receives the data depends entirely on that configuration — review the chosen provider's own terms and privacy policy (e.g. OpenAI, Anthropic, or Google).
 
 No other external services are contacted by this plugin.
 
@@ -68,9 +66,9 @@ No other external services are contacted by this plugin.
 
 = Optional: enable the AI Assistant =
 
-1. Open **Settings → AI** inside desktop mode.
-2. Paste an OpenAI API key and pick a model.
-3. Press **Cmd+K** (or **Ctrl+K**) anywhere in desktop mode to open the AI palette.
+1. In **Settings → Connectors**, set up an AI provider (OpenAI, Anthropic, or Google). Requires WordPress 7.0+.
+2. In desktop mode, open **OS Settings → Features** and turn on **AI assistant** (it's off by default).
+3. Press **Cmd+K** (or **Ctrl+K**) anywhere in desktop mode to open the AI assistant.
 
 == Frequently Asked Questions ==
 
@@ -80,7 +78,7 @@ No. The classic admin is untouched until a user toggles desktop mode on for them
 
 = Does the plugin require an external service to function? =
 
-No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and all extension APIs work entirely on-site. The AI Assistant is the only feature that contacts an external service, and it is disabled until an administrator configures an API key. See "External services" in the description.
+No. The desktop shell, windowing, dock, taskbar, virtual desktops, widgets, wallpapers, and all extension APIs work entirely on-site. The AI Assistant is the only feature that contacts an external service, and it stays inert until an administrator configures an AI provider in Settings → Connectors. See "External services" in the description.
 
 = Does it patch WordPress core? =
 
@@ -112,9 +110,81 @@ Desktop Mode is brought to you by [Automattic](https://automattic.com). The plug
 
 The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:
 
-* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, and built-in canvas wallpapers (e.g. the animated WordPress logo). PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+
+= Data files =
+
+The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated from the following sources (attribution also ships in the file's header):
+
+* **[FrequencyWords](https://github.com/hermitdave/FrequencyWords)** by Hermit Dave (CC-BY-SA 4.0) — English word-frequency ranking derived from the OpenSubtitles corpus.
+* **[english-words](https://github.com/dwyl/english-words)** by dwyl (Unlicense) — used as a validity filter.
+* **[LDNOOBW English list](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words)** (CC-BY 4.0) — used as an exclusion filter.
 
 == Changelog ==
+
+= 0.9.7 =
+* Add Drafts widget
+* Add Focus Timer widget
+* Fix window title bar pushed off-screen during top-edge resize
+* Enforce viewport boundaries during window resize
+* Fix hiding a dock-placed native window's tile via Apps & Icons
+* Fix window dragging allowing windows to disappear off right/bottom edges
+* Folder-upload desktop refresh + inline upload previews
+* Reset the plugin-update notifiers live after updates run
+* Decode html entities in widget titles
+* Fix window drag bounds
+* Focus Timer: react to the linked window closing
+* Make the games framework an opt-in Extended option (off by default)
+* Cut idle server load, boot weight, and package size
+* Live-refresh Plugins window after install/activate/deactivate
+
+= 0.9.6 =
+* Improved button accessibility and visual feedback by implementing the missing busy spinner and aria-busy attributes on the Button component
+* AI assistant as the shell's ⌘K palette (Commands + Ask AI)
+* Add pinned notes: paper notes with a pushpin, composed in a Note Pad widget
+* Improve minimized window UX with restore support and count badges
+* Surface core admin notices once in the desktop shell
+* Convert pinned notes into draft posts
+* Normalize AI Copilot tool schemas for the provider
+* Add a game system: Games hub, unified scoreboard, challenges, and Inkfall
+* Keep URL-style menu slugs (ACF) as direct admin links
+* Add Alphabet Soup game; generalize game infra out of Inkfall
+* Fix 404 from wallpaper Sort By when a synthetic tile is on the desktop
+* Fix illegible text fields inside wpd-modal dialogs
+* Fix empty custom-gradient editor after re-selecting the wallpaper
+* Add Related-entities title-bar navigation with open PHP/JS filter surface
+* Admin bar visibility when fullscreen window is minimized
+* Allow selecting window from Overview view
+* Show open window indicators for bottom dock tiles
+* Add busy state and spinner to wpd-button
+* Redesign session-expiry recovery: one login prompt, in-place recovery
+* Fix folder rename not reflected on the desktop until refresh
+* Live-refresh list windows on content changes (posts, CPTs, comments, WooCommerce orders)
+* Add real file/folder storage on the desktop
+* Fix gamepad icon missing from the window title bar (data-URI window icons)
+* Fix content graph taxonomy fallback
+
+= 0.9.5 =
+* AI Copilot now uses WordPress 7.0 providers: configure a provider once in Settings → Connectors and the assistant uses it — no more per-plugin keys
+* AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`desktop_mode_register_ai_tool()` was removed)
+* Removed the OS Settings → AI tab; the per-user "AI assistant" toggle now lives in OS Settings → Features next to "Score new comments with AI"
+* Requires WordPress 7.0 for the AI assistant only; on older WordPress the assistant is hidden and the rest of Desktop Mode is unaffected
+* Stored AI keys are deleted from the database on upgrade
+* Five new built-in widgets: Recent Comments, Post Stats, Site Views, Jazz Quote, and Starter
+* Widgets can now be resized, and docked widget heights persist across sessions
+* Two new wallpapers, Living Tree and Snow, plus per-wallpaper settings dialogs
+* Window links: windows showing related content are visually connected, with pluggable link renderers for plugin authors
+* Spring-loading: hovering a window while dragging anything brings it to the front
+* New developer mode setting (OS Settings → Features) unlocks developer-facing surfaces
+* WordPress update notices now surface once in the desktop shell instead of repeating in every window
+* Desktop shortcuts stay in sync and core icons follow the spatial layout
+* Extended options merged into the OS Settings → Features tab
+* Fixed selection bugs that could point destructive actions at the wrong files
+* Closing a window with unsaved changes now warns instead of silently losing work
+* Fixed windows and dock state leaking across virtual desktops
+* Fixed Overview keyboard navigation and focus trapping
+* The dock now refreshes live when a plugin registers a new post type
+* Fixed dock icon alignment, "Add New" window titles and icons, and count-label pluralization
 
 = 0.9.3 =
 * Rewrite WordPress.org plugin page, leaner copy, video embed, screenshots

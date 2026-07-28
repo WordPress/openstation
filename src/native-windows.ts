@@ -21,8 +21,6 @@
  * Both are intentionally thin — they don't introduce new runtime
  * state. Plugins that outgrow them can always call the underlying
  * APIs directly.
- *
- * @since 0.5.0
  */
 
 import { activity } from './activity';
@@ -62,7 +60,6 @@ import {
  * argument to `onWindow`).
  *
  * @public
- * @since 0.5.0
  */
 export interface WindowLifecycleHandlers {
 	opened?: () => void;
@@ -72,15 +69,22 @@ export interface WindowLifecycleHandlers {
 	 * the user/caller is asking to "show this window". A typical
 	 * use is to re-orient content (focus a tab, scroll to a row).
 	 * Payload mirrors the `WINDOW_REOPENED` action: `{ baseId,
-	 * wasMinimized }`. *Since 0.5.5.*
+	 * wasMinimized, navigated }`. `navigated` is
+	 * `true` when the open request carried a URL the window wasn't
+	 * already showing and the framework navigated the existing
+	 * iframe to it in place; always `false` for native windows.
 	 */
-	reopened?: ( payload: { baseId: string; wasMinimized: boolean } ) => void;
+	reopened?: ( payload: {
+		baseId: string;
+		wasMinimized: boolean;
+		navigated?: boolean;
+	} ) => void;
 	focused?: () => void;
 	/**
 	 * Window lost focus to another window. Payload: `{ focusedTo }` —
 	 * the id of the window that took over (so subscribers can
 	 * decide whether the blur transitions to a peer they care
-	 * about). *Since 0.5.5.*
+	 * about).
 	 */
 	blurred?: ( payload: { focusedTo: string | null } ) => void;
 	closing?: ( payload: { element: HTMLElement } ) => void;
@@ -88,11 +92,11 @@ export interface WindowLifecycleHandlers {
 	minimized?: () => void;
 	restored?: () => void;
 	maximized?: () => void;
-	/** *Since 0.5.5.* Fires when the window leaves maximized state. */
+	/** Fires when the window leaves maximized state. */
 	unmaximized?: () => void;
-	/** *Since 0.5.5.* Fires when the window enters fullscreen / focus mode. */
+	/** Fires when the window enters fullscreen / focus mode. */
 	fullscreenEntered?: () => void;
-	/** *Since 0.5.5.* Fires when the window exits fullscreen / focus mode. */
+	/** Fires when the window exits fullscreen / focus mode. */
 	fullscreenExited?: () => void;
 	resized?: ( payload: { width: number; height: number } ) => void;
 	/** Body-resized — fires on every paint where body dimensions change. */
@@ -648,8 +652,6 @@ export function createRegisterWindow(
  */
 /**
  * Optional flags for {@link onWindow}.
- *
- * @since 0.5.5
  */
 export interface OnWindowOptions {
 	/**
@@ -766,7 +768,6 @@ export function onWindow(
  * plugins that stick to the JS-only path self-manage their tiles.
  *
  * @public
- * @since 0.5.0
  */
 export interface NativeWindowRegistryDeps {
 	manager: WindowManager;
@@ -796,8 +797,7 @@ export interface NativeWindowRegistryDeps {
  * `onHide`, `onShow`, `markLoading`, `markReady`, plus the nested
  * `window.send/on` channel API. Existing unary callbacks
  * (`( body ) => …`) keep working — `ctx` is detected by arity, never
- * required. *Since 0.8.2 for the ctx arg; the unary form has been the
- * contract since 0.5.0.*
+ * required.
  *
  * @public
  */
@@ -881,8 +881,6 @@ export interface NativeWindowSync {
 	 * windows do: every "+" yields a duplicate, not a focus-existing.
 	 *
 	 * Returns `false` when the id isn't registered.
-	 *
-	 * @since 0.8.3
 	 */
 	openNewById: ( id: string ) => boolean;
 }
@@ -913,8 +911,6 @@ export function createNativeWindowSync(
 	 * replay path uniform between native and classic windows. The
 	 * caller can suppress it by passing an explicit `initialState`
 	 * on the `manager.open` call.
-	 *
-	 * @since 0.8.5
 	 */
 	const resolveSizeForEntry = (
 		entry: NativeWindowServerEntry,

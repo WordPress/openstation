@@ -10,9 +10,9 @@ export const userSearchStyles = css`
 	.input {
 		width: 100%;
 		padding: 8px 10px;
-		background: var( --wpd-input-bg, rgba( 255, 255, 255, 0.06 ) );
+		background: var( --wpd-input-bg, var( --wpd-hover, rgba( 255, 255, 255, 0.06 ) ) );
 		color: inherit;
-		border: 1px solid rgba( 255, 255, 255, 0.12 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.12 ) );
 		border-radius: 6px;
 		font: inherit;
 		box-sizing: border-box;
@@ -28,7 +28,7 @@ export const userSearchStyles = css`
 		   These rules cover the visual basics. */
 		background: var( --desktop-mode-bg, #1d2327 );
 		color: var( --desktop-mode-fg, #fff );
-		border: 1px solid rgba( 255, 255, 255, 0.18 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.18 ) );
 		border-radius: 6px;
 		overflow: auto;
 		z-index: 11000;
@@ -54,7 +54,7 @@ export const userSearchStyles = css`
 	}
 	.item:hover,
 	.item:focus {
-		background: rgba( 255, 255, 255, 0.06 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.06 ) );
 		outline: none;
 	}
 
@@ -63,7 +63,7 @@ export const userSearchStyles = css`
 		height: 24px;
 		border-radius: 50%;
 		flex: 0 0 auto;
-		background: rgba( 255, 255, 255, 0.1 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.1 ) );
 	}
 
 	.name {
@@ -77,7 +77,7 @@ export const userSearchStyles = css`
 
 	.empty {
 		padding: 12px;
-		color: rgba( 255, 255, 255, 0.5 );
+		color: var( --wpd-fg-muted, rgba( 255, 255, 255, 0.5 ) );
 		font-size: 12px;
 	}
 `;

@@ -1,32 +1,41 @@
 /**
  * Features section — per-user opt-ins for Desktop Mode behaviors.
  *
- * Visible to every user (no admin gate at the tab level), unlike the
- * Extended Options tab which is admin-only. Toggles here mutate
- * `OsSettingsState` via `ctx.save()` — no dedicated REST endpoint;
- * the existing OS-settings sync debounces the write to user meta.
+ * Visible to every user (no admin gate at the tab level). Toggles here
+ * mutate `OsSettingsState` via `ctx.save()` — no dedicated REST
+ * endpoint; the existing OS-settings sync debounces the write to user
+ * meta.
  *
- * The tab renders two sections: a "Beta features" group holding the
- * opt-in native-window toggles (Posts, Pages, Users, Plugins,
- * Comments — all off by default as of 0.9.1), and the general
- * "Features" group below it. As more per-user feature flags land they
+ * The tab renders two sections: the general "Features" group first,
+ * then a "Beta features" group below it holding the opt-in
+ * native-window toggles (Posts, Pages, Users, Plugins, Comments — all
+ * off by default). As more per-user feature flags land they
  * slot into the matching section so the tab grows by one row at a
- * time, not one tab at a time.
+ * time, not one tab at a time. For admins the panel appends a third,
+ * admin-only "Extended options" section (site-wide toggles — see
+ * `./extended`) below these two.
  *
  * The save indicator (`<wpd-save-status auto>`) hooks the same
  * `desktop-mode-os-settings-save-lifecycle` CustomEvent the panel
  * header listens to — both update in lock-step so a user editing
  * here gets feedback at both the section and the panel scope.
- *
- * @since 0.8.0
  */
 
-import { __ } from '../../i18n';
+import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import { html, render } from '../../ui/core';
 import type { SettingsCtx } from '../types';
 import { wpdConfirm } from '../../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import { showToast } from '../../toast';
+
+// Show the platform-native shortcut: ⌘K on Apple, Ctrl+K elsewhere.
+const SHORTCUT_KEY =
+	typeof navigator !== 'undefined' &&
+	/Mac|iPhone|iPad|iPod/i.test(
+		navigator.platform || navigator.userAgent || '',
+	)
+		? '⌘K'
+		: 'Ctrl+K';
 
 interface ShellConfigSnapshot {
 	seenIntrosUrl?: string;
@@ -36,6 +45,18 @@ interface ShellConfigSnapshot {
 		enabled: boolean;
 		providerConfigured: boolean;
 	} | null;
+	/** AI assistant availability + per-user toggle. */
+	aiAssistant?: {
+		available: boolean;
+		/** Baseline text-generation gate (comment scoring mirror). */
+		providerConfigured: boolean;
+		/** Stricter text-gen + function-calling gate (the assistant). */
+		assistantProviderConfigured: boolean;
+		enabled: boolean;
+		connectorsUrl: string;
+	} | null;
+	/** REST endpoint to re-check AI provider availability without a reload. */
+	aiStatusUrl?: string;
 	currentUserIsAdmin?: boolean;
 	/**
 	 * Base URL for the files REST namespace
@@ -114,6 +135,30 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		const checked = ( e as CustomEvent ).detail?.checked === true;
 		ctx.state.showDesktopOnWallpaperClick = checked;
 		ctx.save();
+		paint();
+	};
+
+	const onWindowLinksToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowLinksEnabled = checked;
+		ctx.save();
+		ctx.apply();
+		paint();
+	};
+
+	const onWindowLinkRaiseToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowLinkRaiseOnFocus = checked;
+		ctx.save();
+		ctx.apply();
+		paint();
+	};
+
+	const onWindowLinkHighlightToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.windowLinkHighlight = checked;
+		ctx.save();
+		ctx.apply();
 		paint();
 	};
 
@@ -254,6 +299,129 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		paint();
 	};
 
+	const onAiAssistantToggle = ( e: Event ): void => {
+		const checked = ( e as CustomEvent ).detail?.checked === true;
+		ctx.state.ai = { ...ctx.state.ai, enabled: checked };
+		ctx.save();
+		paint();
+	};
+
+	// Re-check provider availability from the server. Called after the user
+	// returns from Settings → Connectors so the toggle un-gates without a reload.
+	const refreshAiStatus = async (): Promise< void > => {
+		const ai = shellCfg?.aiAssistant;
+		if ( ! ai || ! shellCfg?.aiStatusUrl ) {
+			return;
+		}
+		try {
+			const res = await trackedFetch(
+				shellCfg.aiStatusUrl,
+				{
+					credentials: 'same-origin',
+					headers: { 'X-WP-Nonce': shellCfg.restNonce ?? '' },
+				},
+				{ source: 'os-settings/ai-status', silent: true },
+			);
+			if ( ! res.ok ) {
+				return;
+			}
+			const json = ( await res.json() ) as {
+				available?: boolean;
+				providerConfigured?: boolean;
+				assistantProviderConfigured?: boolean;
+			};
+			const changed =
+				ai.available !== ( json.available === true ) ||
+				ai.assistantProviderConfigured !==
+					( json.assistantProviderConfigured === true );
+			ai.available = json.available === true;
+			ai.providerConfigured = json.providerConfigured === true;
+			ai.assistantProviderConfigured =
+				json.assistantProviderConfigured === true;
+			// Keep the comments-AI mirror in sync too — it gates on the baseline
+			// text-generation provider, not the assistant's function-calling gate.
+			aiState.providerConfigured = ai.providerConfigured;
+			paint();
+			// Let the shell re-gate the Cmd+K palette + admin-bar icon, which
+			// depend on the assistant's (function-calling) provider gate.
+			if ( changed ) {
+				document.dispatchEvent(
+					new CustomEvent( 'desktop-mode-ai-status-changed' ),
+				);
+			}
+		} catch {
+			// Non-fatal — the toggle stays gated until the next check/reload.
+		}
+	};
+
+	// Re-probe provider status whenever OS Settings regains focus, so the
+	// toggle gates/un-gates without a reload after the user connects OR
+	// disconnects a provider in Settings → Connectors (or any other path).
+	// Guarded by an in-flight flag and torn down when the section leaves the DOM.
+	let statusInFlight = false;
+	const onOsSettingsFocus = ( e: Event ): void => {
+		if (
+			( e as CustomEvent ).detail?.windowId !== 'desktop-mode-os-settings'
+		) {
+			return;
+		}
+		if ( statusInFlight ) {
+			return;
+		}
+		statusInFlight = true;
+		void refreshAiStatus().finally( () => {
+			statusInFlight = false;
+		} );
+	};
+	document.addEventListener( 'desktop-mode-window-focused', onOsSettingsFocus );
+	const statusCleanup = new MutationObserver( () => {
+		if ( ! wrapper.isConnected ) {
+			document.removeEventListener(
+				'desktop-mode-window-focused',
+				onOsSettingsFocus,
+			);
+			statusCleanup.disconnect();
+		}
+	} );
+	statusCleanup.observe( document.body, { childList: true, subtree: true } );
+
+	const onOpenConnectors = (): void => {
+		const url = shellCfg?.aiAssistant?.connectorsUrl ?? '';
+		if ( ! url ) {
+			return;
+		}
+		const desktop = (
+			window as unknown as {
+				wp?: {
+					desktop?: {
+						deriveWindowId?: ( u: string ) => string;
+						windowManager?: {
+							open?: ( c: {
+								id: string;
+								url: string;
+								title: string;
+								icon?: string;
+							} ) => void;
+						};
+					};
+				};
+			}
+		).wp?.desktop;
+		if ( desktop?.windowManager?.open ) {
+			const id = desktop.deriveWindowId
+				? desktop.deriveWindowId( url )
+				: url;
+			desktop.windowManager.open( {
+				id,
+				url,
+				title: __( 'Connectors' ),
+				icon: 'dashicons-admin-settings',
+			} );
+		} else {
+			window.open( url, '_blank', 'noopener' );
+		}
+	};
+
 	let resetting = false;
 	const onResetIntros = async (): Promise< void > => {
 		if ( resetting ) {
@@ -310,78 +478,53 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 		render(
 			html`
 				<wpd-section
-					heading=${ __( 'Beta features' ) }
-					description=${ __(
-						'Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.',
-					) }
-				>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Posts window' ) }
-							?checked=${ ctx.state.nativePostsEnabled }
-							@wpd-checkbox-change=${ onNativePostsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Pages window' ) }
-							?checked=${ ctx.state.nativePagesEnabled }
-							@wpd-checkbox-change=${ onNativePagesToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Users window' ) }
-							?checked=${ ctx.state.nativeUsersEnabled }
-							@wpd-checkbox-change=${ onNativeUsersToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Plugins window' ) }
-							?checked=${ ctx.state.nativePluginsEnabled }
-							@wpd-checkbox-change=${ onNativePluginsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it.',
-							) }
-						</p>
-					</div>
-					<div class="desktop-mode-features__item">
-						<wpd-checkbox-label
-							label=${ __( 'Use the native Comments window' ) }
-							?checked=${ ctx.state.nativeCommentsEnabled }
-							@wpd-checkbox-change=${ onNativeCommentsToggle }
-						></wpd-checkbox-label>
-						<p class="desktop-mode-features__hint">
-							${ __(
-								'Beta — off by default. Turn on for a redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo).',
-							) }
-						</p>
-					</div>
-				</wpd-section>
-				<wpd-section
 					heading=${ __( 'Features' ) }
 					description=${ __(
 						'Tune individual Desktop Mode behaviors. Each toggle affects only your account and takes effect immediately — no reload required. Watch the dot in the OS Settings title bar to see when a change has been saved.',
 					) }
 				>
+					${ shellCfg?.aiAssistant?.available
+						? html`
+								<div class="desktop-mode-features__item">
+									<wpd-checkbox-label
+										label=${ __( 'AI assistant' ) }
+										?checked=${ ctx.state.ai.enabled }
+										?disabled=${ ! shellCfg.aiAssistant.assistantProviderConfigured }
+										@wpd-checkbox-change=${ onAiAssistantToggle }
+									></wpd-checkbox-label>
+									<p class="desktop-mode-features__hint">
+										${ sprintf(
+											/* translators: %s: keyboard shortcut, e.g. ⌘K or Ctrl+K */
+											__(
+												'Adds an AI mode to the %s site assistant. Ask in plain language to find content, get around wp-admin, and answer questions about your site. Off by default.',
+											),
+											SHORTCUT_KEY,
+										) }
+									</p>
+									${ ! shellCfg.aiAssistant.assistantProviderConfigured
+										? html`
+												<wpd-notice tone="warning" not-dismissible>
+													${ __(
+														'This feature requires an AI provider configured in',
+													) }
+													<a
+														href=${ shellCfg
+															.aiAssistant
+															.connectorsUrl }
+														@click=${ ( e: Event ) => {
+															e.preventDefault();
+															onOpenConnectors();
+														} }
+														>${ __(
+															'Settings → Connectors',
+														) }</a
+													>.
+												</wpd-notice>
+											`
+										: '' }
+								</div>
+							`
+						: '' }
 					${ shellCfg?.commentsAi
 						? html`
 							<div class="desktop-mode-features__item">
@@ -392,17 +535,66 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 									@wpd-checkbox-change=${ onCommentsAiToggle }
 								></wpd-checkbox-label>
 								<p class="desktop-mode-features__hint">
-									${ aiState.providerConfigured
-										? __(
-											'When a new comment lands, your configured AI provider scores it for spam and hostility. The verdict appears in the per-row chip and is folded into the spam confidence score. Token usage applies — admin-only site setting.',
-										)
-										: __(
-											'Configure an AI provider in OS Settings → AI first. Once a provider is set up, this toggle becomes available and every new comment is scored on arrival.',
-										) }
+									${ __(
+										'Scores every new comment for spam and hostility, folding the result into the spam confidence shown in the Comments window. Site-wide, off by default.',
+									) }
 								</p>
+								${ ! aiState.providerConfigured
+									? html`
+											<wpd-notice tone="warning" not-dismissible>
+												${ __( 'This feature requires an AI provider configured in' ) }
+												<a
+													href=${ shellCfg?.aiAssistant?.connectorsUrl ?? '' }
+													@click=${ ( e: Event ) => {
+														e.preventDefault();
+														onOpenConnectors();
+													} }
+													>${ __( 'Settings → Connectors' ) }</a
+												>.
+											</wpd-notice>
+										`
+								: '' }
 							</div>
 						`
 						: '' }
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Window links' ) }
+							?checked=${ ctx.state.windowLinksEnabled }
+							@wpd-checkbox-change=${ onWindowLinksToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Draws arrowed connector lines between windows showing related content — a post and its comments or media, or two posts that link to each other. The line style and when the lines show live in Effects → Window links. On by default.',
+							) }
+						</p>
+						<div class="desktop-mode-features__item">
+							<wpd-checkbox-label
+								label=${ __( 'Bring related windows to front' ) }
+								?checked=${ ctx.state.windowLinkRaiseOnFocus }
+								?disabled=${ ! ctx.state.windowLinksEnabled }
+								@wpd-checkbox-change=${ onWindowLinkRaiseToggle }
+							></wpd-checkbox-label>
+							<p class="desktop-mode-features__hint">
+								${ __(
+									'Clicking a window surfaces the windows directly tied to it — a parent brings up all of its children, a child brings up its parent — rising to just below the one you clicked, without stealing focus.',
+								) }
+							</p>
+						</div>
+						<div class="desktop-mode-features__item">
+							<wpd-checkbox-label
+								label=${ __( 'Highlight related windows' ) }
+								?checked=${ ctx.state.windowLinkHighlight }
+								?disabled=${ ! ctx.state.windowLinksEnabled }
+								@wpd-checkbox-change=${ onWindowLinkHighlightToggle }
+							></wpd-checkbox-label>
+							<p class="desktop-mode-features__hint">
+								${ __(
+									'While a group member is focused, its related windows get an accent outline and a soft glow so the family is recognizable at a glance.',
+								) }
+							</p>
+						</div>
+					</div>
 					<div class="desktop-mode-features__item">
 						<wpd-checkbox-label
 							label=${ __(
@@ -509,6 +701,73 @@ export function buildFeaturesSection( ctx: SettingsCtx ): HTMLElement {
 						<p class="desktop-mode-features__hint">
 							${ __(
 								'Re-shows the one-time introduction dialog the next time you open each redesigned native window.',
+							) }
+						</p>
+					</div>
+				</wpd-section>
+				<wpd-section
+					heading=${ __( 'Beta features' ) }
+					description=${ __(
+						'Experimental redesigns of core admin screens. Off by default — opt in to try them. Each toggle affects only your account and takes effect immediately, no reload required.',
+					) }
+				>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Posts window' ) }
+							?checked=${ ctx.state.nativePostsEnabled }
+							@wpd-checkbox-change=${ onNativePostsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on to replace the classic Posts list iframe with a native, table-driven window: sticky header, server-paginated rows, multi-select bulk actions, and a sub-row preview. Toggle off any time to return to the classic screen.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Pages window' ) }
+							?checked=${ ctx.state.nativePagesEnabled }
+							@wpd-checkbox-change=${ onNativePagesToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for the same table-driven experience as the Posts window, tailored for Pages: a Parent column, hierarchical sort, and a lock indicator when another user is editing a page. Toggle off any time to return to the classic screen.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Users window' ) }
+							?checked=${ ctx.state.nativeUsersEnabled }
+							@wpd-checkbox-change=${ onNativeUsersToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for a native Users list with bulk role change, last-login tracking, live online indicators, click-to-copy email, and one-click password resets. Capability-gated — readers see a read-only view, role assignment respects WordPress role permissions.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Plugins window' ) }
+							?checked=${ ctx.state.nativePluginsEnabled }
+							@wpd-checkbox-change=${ onNativePluginsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for a native two-tab Plugins window: an Installed list with bulk activate / deactivate / delete, and a Browse gallery powered by the WordPress.org repository — rich detail flyout with screenshots, ratings histogram, and recent reviews. Drag a .zip onto the window to install, or drag a card from Browse to the dock to pin it.',
+							) }
+						</p>
+					</div>
+					<div class="desktop-mode-features__item">
+						<wpd-checkbox-label
+							label=${ __( 'Use the native Comments window' ) }
+							?checked=${ ctx.state.nativeCommentsEnabled }
+							@wpd-checkbox-change=${ onNativeCommentsToggle }
+						></wpd-checkbox-label>
+						<p class="desktop-mode-features__hint">
+							${ __(
+								'Beta — off by default. Turn on for a redesigned moderation queue with Pending / All / Spam / Trash / Mine tabs, bulk approve/spam/trash plus an 8-second undo, inline reply right in the row, an author insights drawer, a per-row spam confidence score (Akismet + heuristics), and full keyboard moderation (j/k navigate, a approve, s spam, d trash, r reply, e edit, u undo).',
 							) }
 						</p>
 					</div>

@@ -12,7 +12,6 @@
  * bundle; this module only consumes them.
  *
  * @public
- * @since 0.8.0
  */
 
 import { __, _n, sprintf } from '../i18n';
@@ -194,8 +193,6 @@ interface RenderState {
 	 * breadcrumb back button pops. Lets the user retrace cross-
 	 * hierarchy jumps (Media-detail → referenced post → back to
 	 * Media-detail), not just walk up the static folder tree.
-	 *
-	 * @since 0.8.6
 	 */
 	history: Route[];
 }
@@ -669,16 +666,12 @@ interface ListContext {
 	/**
 	 * Current debounced search query — empty string means no filter.
 	 * Threaded into `fetchEntityList` as the `search` param.
-	 *
-	 * @since 0.8.7
 	 */
 	query: string;
 	/**
 	 * Aborts the in-flight page fetch when a new search query
 	 * supersedes it. Replaced on every `loadMore()` call so the
 	 * latest in-flight request is the only one that can paint.
-	 *
-	 * @since 0.8.7
 	 */
 	abort: AbortController | null;
 }
@@ -690,8 +683,6 @@ interface ListContext {
  * query without baking it into the Route schema). Keyed by
  * `entity.id` so switching Posts → Pages clears the field — see
  * the user-facing rationale for that in the plan.
- *
- * @since 0.8.7
  */
 const lastQueryByEntity = new Map< string, string >();
 
@@ -3599,7 +3590,6 @@ function closeAnyTileMenu(): void {
  * entity without depending on this bundle's internals.
  *
  * @public
- * @since 0.8.7
  */
 async function trashEntityById(
 	entityId: string,
@@ -3703,7 +3693,6 @@ function showToast( message: string ): void {
  *  pane, and a dedicated "activity footprint" surface that
  *  replaces the body when the user picks it from the context menu.
  *
- *  @since 0.8.2
  * =================================================================== */
 
 interface UserListContext {
@@ -3720,9 +3709,7 @@ interface UserListContext {
 	selectedTile: HTMLElement | null;
 	observer: IntersectionObserver | null;
 	layout: TileLayout;
-	/** @since 0.8.7 */
 	query: string;
-	/** @since 0.8.7 */
 	abort: AbortController | null;
 }
 
@@ -5438,7 +5425,7 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
 // between neighbours, so the selected tile's background ring abutted
 // adjacent corner ribbons and read as "spillover" (regression
 // surfaced once `<wpd-ribbon>` started rendering DRAFT/PENDING
-// banners in 0.8.6). Widen the cell so the selection ring has
+// banners). Widen the cell so the selection ring has
 // breathing room — and so wrapped 2-line labels don't push the next
 // row's tile into the cell above. Tile label is clamped to 2 lines
 // via CSS in `my-wordpress.css`; if you change that clamp, raise
@@ -5493,8 +5480,6 @@ interface TileLayout {
 	 * persisted-positions map on disk stays intact — when a previously-
 	 * placed tile's key reappears (e.g. user clears the search field),
 	 * its remembered position is restored.
-	 *
-	 * @since 0.8.7
 	 */
 	clear: () => void;
 	dispose: () => void;
@@ -5893,7 +5878,7 @@ function storageKey( scope: string ): string {
 // future cross-window drag-out, but it set `setPointerCapture` on the
 // tile which BROKE HTML5 `dragstart` detection on the `draggable=true`
 // post tiles — the long-standing "I can lift the tile but no drop
-// target sees it" bug. Removed in 0.8.1; entity tiles now use the
+// target sees it" bug. Removed; entity tiles now use the
 // centralized DragManager (`pointerdown` -> `dragManager.start()`)
 // for drag-out and a plain `click` listener for selection.
 
@@ -5988,7 +5973,6 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 	// wallpaper canvas under the window (registry.hitTest stops at
 	// the first registered target it finds in the walk-up).
 	//
-	// @since 0.8.2
 	const dragManager = getDragManager();
 	if ( dragManager ) {
 		rejectIdCounter += 1;
@@ -6133,7 +6117,6 @@ function asRenderState( host: EntityRenderHost ): RenderState {
  *  navigation for the freshly-mounted state.
  *
  *  @public
- *  @since 0.8.0
  * ------------------------------------------------------------------ */
 
 /**
@@ -6195,7 +6178,6 @@ interface OpenMediaArgs {
  * view for the given attachment. Mirrors `openDetail()` for posts.
  *
  * @public
- * @since 0.8.6
  */
 function openMedia( args: OpenMediaArgs ): void {
 	const route: Route = {
@@ -6238,7 +6220,6 @@ interface OpenUserFootprintArgs {
  * `openDetail()` / `openMedia()`, for users.
  *
  * @public
- * @since 0.9.1
  *
  * @param args Footprint target (`userId` required, `userName` optional).
  */
@@ -6263,8 +6244,6 @@ interface MyWordpressApi {
 	 * with its own confirm; the recycle-bin drag-to-trash calls it
 	 * directly (macOS pattern: drag is the deliberate gesture, no
 	 * extra confirm).
-	 *
-	 * @since 0.8.7
 	 */
 	trashEntity: ( entityId: string, id: number ) => Promise< void >;
 }

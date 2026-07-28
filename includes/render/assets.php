@@ -12,7 +12,6 @@
  * slicing (phase 6).
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
  *
  * Only loads the full desktop shell scripts and styles when the user has
  * desktop mode enabled and the request is not a chromeless iframe load.
- *
- * @since 0.1.0
  */
 function desktop_mode_enqueue_assets() {
 	if ( ! is_admin() ) {
@@ -72,8 +69,6 @@ function desktop_mode_enqueue_assets() {
 		 * Plugin and theme authors can hook here to enqueue their own CSS
 		 * overrides for legacy pages rendered in chromeless mode. Use the
 		 * `.desktop-mode-chromeless` body class to scope your rules.
-		 *
-		 * @since 0.1.0
 		 */
 		do_action( 'desktop_mode_chromeless_styles' );
 		return;
@@ -86,11 +81,14 @@ function desktop_mode_enqueue_assets() {
 	// CSS.
 	wp_enqueue_style( 'desktop-mode' );
 	wp_enqueue_style( 'desktop-mode-windows' );
+	wp_enqueue_style( 'desktop-mode-window-overview' );
+	wp_enqueue_style( 'desktop-mode-os-settings' );
 	wp_enqueue_style( 'desktop-mode-dock' );
 	wp_enqueue_style( 'desktop-mode-dock-peek' );
 	wp_enqueue_style( 'desktop-mode-ai-assistant' );
 	wp_enqueue_style( 'desktop-mode-bug-report' );
 	wp_enqueue_style( 'desktop-mode-files' );
+	wp_enqueue_style( 'desktop-mode-notes' );
 
 	// JS.
 	wp_enqueue_script( 'desktop-mode' );
@@ -217,6 +215,20 @@ function desktop_mode_enqueue_assets() {
 	$server_window_notices         = isset( $menu_payload['serverWindowNotices'] )
 		? $menu_payload['serverWindowNotices']
 		: array();
+	$server_games                  = isset( $menu_payload['serverGames'] )
+		? $menu_payload['serverGames']
+		: array();
+	// Boot-time copy of the desktop-theme library. Without it the
+	// shell's registry seeds EMPTY, and the consequences are subtle
+	// rather than obvious: PHP has already applied the user's theme
+	// server-side (stylesheet + shell attribute), but the client
+	// can't resolve the slug to an entry, so it believes nothing is
+	// active. Themed ICONS never paint, and switching back to the
+	// system default no-ops the first time — `applyDesktopTheme()`
+	// dedupes on an `activeId` that was never set.
+	$server_desktop_themes         = isset( $menu_payload['serverDesktopThemes'] )
+		? $menu_payload['serverDesktopThemes']
+		: array();
 	$desktop_icons     = isset( $menu_payload['desktopIcons'] )
 		? $menu_payload['desktopIcons']
 		: array();
@@ -255,8 +267,6 @@ function desktop_mode_enqueue_assets() {
 	/**
 	 * Filter the allowed-mime map used by the OS-file drop manager.
 	 *
-	 * @since 0.30.0
-	 *
 	 * @param array<string,string> $mimes_map  `ext => mime-type` map (same shape `get_allowed_mime_types()` returns).
 	 * @param int                  $user_id    The current user id.
 	 */
@@ -270,8 +280,6 @@ function desktop_mode_enqueue_assets() {
 	 * drop manager. Returning `0` disables the client-side cap —
 	 * the server still enforces its own.
 	 *
-	 * @since 0.30.0
-	 *
 	 * @param int $max_size  Default `wp_max_upload_size()`.
 	 * @param int $user_id   The current user id.
 	 */
@@ -282,8 +290,6 @@ function desktop_mode_enqueue_assets() {
 	 * disable the drop manager by role / capability beyond the
 	 * default `upload_files` check (e.g. only for admins, or
 	 * only on specific multisite blogs).
-	 *
-	 * @since 0.30.0
 	 *
 	 * @param bool $enabled  Default — `current_user_can( 'upload_files' )`.
 	 * @param int  $user_id  The current user id.
@@ -315,7 +321,7 @@ function desktop_mode_enqueue_assets() {
 	// prefer the on-disk mtime of the actual file, fall back to the
 	// plugin version when the file is missing (dev environments where
 	// the bundle hasn't been built yet).
-	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$suffix = desktop_mode_asset_suffix();
 	$lazy_bundle_url = static function ( $base ) use ( $suffix ) {
 		$path = DESKTOP_MODE_DIR . 'assets/js/' . $base . $suffix . '.js';
 		$ver  = file_exists( $path )
@@ -339,8 +345,6 @@ function desktop_mode_enqueue_assets() {
 
 	/**
 	 * Filters the desktop shell configuration passed to JavaScript.
-	 *
-	 * @since 0.1.0
 	 *
 	 * @param array $config {
 	 *     Desktop shell configuration.
@@ -389,6 +393,10 @@ function desktop_mode_enqueue_assets() {
 			'adminUrl'         => esc_url( admin_url() ),
 			'colorScheme'      => sanitize_html_class( get_user_option( 'admin_color' ), 'fresh' ),
 			'dockItems'        => $dock_items,
+			// Baseline menu fingerprint. The shell seeds its last-known
+			// signature from this so the first off-allowlist menu change
+			// (vs. this boot state) is caught without a wasted probe. GH#325.
+			'menuSig'          => isset( $menu_payload['menuSig'] ) ? (string) $menu_payload['menuSig'] : '',
 			'nativeWindows'    => $native_windows,
 			'serverWidgets'    => $server_widgets,
 			'serverWallpapers' => $server_wallpapers,
@@ -407,14 +415,30 @@ function desktop_mode_enqueue_assets() {
 			'serverWindowChromeScripts' => $server_window_chrome_scripts,
 			'serverWindowChromes'       => $server_window_chromes,
 			'serverWindowNotices'       => $server_window_notices,
+			// Boot-time copy of the payload's `serverGames` — the same
+			// list the live-refresh path applies. Without it the games
+			// registry only fills after the first chromeless
+			// full-payload refresh and the Games hub boots empty.
+			'serverGames'               => $server_games,
+			'serverDesktopThemes'       => $server_desktop_themes,
 			'desktopIcons'     => $desktop_icons,
 			'serverFileTypes'        => $server_file_types,
 			'serverFileOpeners'      => $server_file_openers,
 			'userFileAssociations'   => $user_file_associations,
 			'filesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/files' ) ),
+			// Pinned-notes REST base (`includes/notes/rest.php`). The
+			// notes layer boots only when this is present.
+			'notesUrl'               => esc_url_raw( rest_url( 'desktop-mode/v1/notes' ) ),
+			// Gates the "Convert to post" note affordance — the convert
+			// route (and its dock drop target) only make sense for users
+			// who can author posts.
+			'canCreatePosts'         => current_user_can( 'edit_posts' ),
 			'serverWallpaperMenuItems' => $server_wallpaper_menu_items,
 			'accentColors'     => desktop_mode_get_accent_colors(),
 			'toastTypes'       => desktop_mode_get_toast_types(),
+			'coreUpdate'       => desktop_mode_get_core_update(),
+			'coreNotices'      => desktop_mode_get_core_notices(),
+			'pluginNotices'    => desktop_mode_get_plugin_notices(),
 			'defaultWallpaper' => desktop_mode_get_default_wallpaper(),
 			'session'          => desktop_mode_get_session( get_current_user_id() ),
 			'sessionUrl'       => esc_url_raw( rest_url( 'desktop-mode/v1/session' ) ),
@@ -452,12 +476,20 @@ function desktop_mode_enqueue_assets() {
 			'shellOverlaysBundleUrl' => $lazy_bundle_url( 'shell-overlays' ),
 			// URL of the lazy window-system bundle (Stage 11).
 			// Holds the `Window` class and its DOM / pointer / tab /
-			// chrome helpers — the single largest module in the pre-
-			// 0.8.4 main bundle. Loaded on first `windowManager.open()`
-			// / `openNew()` call (both async since 0.8.4); pre-loaded
+			// chrome helpers — the single largest module split out of
+			// the main bundle. Loaded on first `windowManager.open()`
+			// / `openNew()` call (both async); pre-loaded
 			// by the shell after first paint when no session is being
 			// restored and no `openCurrentPage` will fire.
 			'windowSystemBundleUrl' => $lazy_bundle_url( 'window-system' ),
+			// URL of the item-visibility-menu lazy bundle — the
+			// right-click "hide from dock / desktop" menu. Injected by
+			// the main bundle's loader shim on the first right-click.
+			'itemVisibilityMenuBundleUrl' => $lazy_bundle_url( 'item-visibility-menu' ),
+			// URL of the release-card lazy bundle — the vinyl core-
+			// update announcement. Injected by `maybeShowUpdate()` only
+			// when a core update is actually pending.
+			'releaseCardBundleUrl' => $lazy_bundle_url( 'release-card' ),
 			'restNonce'        => wp_create_nonce( 'wp_rest' ),
 			'osSettings'            => desktop_mode_get_os_settings( get_current_user_id() ),
 			'osSettingsUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/os-settings' ) ),
@@ -473,11 +505,20 @@ function desktop_mode_enqueue_assets() {
 			),
 			'aiSearchUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/search' ) ),
 			'aiSearchStreamUrl'     => esc_url_raw( add_query_arg( 'action', 'desktop_mode_ai_search_stream', admin_url( 'admin-ajax.php' ) ) ),
-			'aiPlatformSettings'    => current_user_can( 'manage_options' ) ? desktop_mode_ai_get_platform_settings() : null,
-			'aiPlatformSettingsUrl' => esc_url_raw( rest_url( 'desktop-mode/v1/ai/platform-settings' ) ),
-			'aiProviders'           => desktop_mode_ai_get_providers_for_config(),
+			// AI assistant availability + per-user toggle. Drives whether the
+			// Cmd+K palette and admin-bar icon appear, and the setup placeholder.
+			'aiAssistant'           => function_exists( 'desktop_mode_ai_assistant_config' )
+				? desktop_mode_ai_assistant_config()
+				: null,
+			// Lets the Features tab re-check provider availability without a
+			// reload after a connector is configured in Settings → Connectors.
+			'aiStatusUrl'           => esc_url_raw( rest_url( 'desktop-mode/v1/ai/status' ) ),
 			'extendedOptions'       => current_user_can( 'manage_options' ) ? desktop_mode_get_extended_options() : null,
 			'extendedOptionsUrl'    => esc_url_raw( rest_url( 'desktop-mode/v1/extended-options' ) ),
+			// Site-wide games kill switch (Extended options). Exposed to
+			// every user — the shell skips the challenges Heartbeat
+			// channel when the framework is off.
+			'gamesEnabled'          => desktop_mode_games_enabled(),
 			// Comments-window AI moderation toggle — surfaced at the
 			// shell level so the OS Settings → Features tab can render
 			// the toggle without depending on the Comments window
@@ -485,7 +526,16 @@ function desktop_mode_enqueue_assets() {
 			// endpoint the comments-window config exposes; state is
 			// `null` for non-admins (the UI hides the row entirely).
 			'commentsAiUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/comments/ai-settings' ) ),
-			'commentsAi'            => current_user_can( 'manage_options' )
+			// Non-null only for admins on a site where the Core AI stack is
+			// present. Comment scoring routes through the AI Client (WP 7.0+),
+			// so on older WordPress the whole row is hidden — same as the
+			// assistant toggle — rather than shown disabled pointing at a
+			// Settings → Connectors screen that doesn't exist there.
+			'commentsAi'            => (
+				current_user_can( 'manage_options' )
+				&& function_exists( 'desktop_mode_ai_is_available' )
+				&& desktop_mode_ai_is_available()
+			)
 				? array(
 					'enabled'            => function_exists( 'desktop_mode_comments_ai_is_enabled' )
 						? desktop_mode_comments_ai_is_enabled()
@@ -526,8 +576,6 @@ function desktop_mode_enqueue_assets() {
 
 	/**
 	 * Fires when desktop mode assets are enqueued.
-	 *
-	 * @since 0.1.0
 	 */
 	do_action( 'desktop_mode_mode_init' );
 }
@@ -576,8 +624,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_assets' );
  * that serve `wp-content/plugins/` from a different origin should
  * supply absolute URLs through the filter; in that case the consumer
  * is responsible for the `crossorigin` semantics.
- *
- * @since 0.8.9
  */
 function desktop_mode_print_preload_hints() {
 	if (
@@ -589,7 +635,7 @@ function desktop_mode_print_preload_hints() {
 		return;
 	}
 
-	$suffix = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$suffix = desktop_mode_asset_suffix();
 
 	$build_url = static function ( $relative ) {
 		$path = DESKTOP_MODE_DIR . $relative;
@@ -640,9 +686,6 @@ function desktop_mode_print_preload_hints() {
 	 * back to `preload`. Unrecognized entries are silently skipped — keep
 	 * the contract permissive so a misconfigured plugin can't tank first
 	 * paint.
-	 *
-	 * @since 0.8.9
-	 * @since 0.9.1 Entries may carry a `rel` key (`preload` | `prefetch`).
 	 *
 	 * @param array $hints Default hints (main bundle + base CSS as
 	 *                     `preload`; window-system + shell-overlays as
@@ -711,8 +754,6 @@ add_action( 'admin_print_styles', 'desktop_mode_print_preload_hints', 1 );
  * their own non-critical stylesheets in (or pull a built-in out).
  * Chromeless iframes are skipped — their CSS pipeline is separate.
  *
- * @since 0.8.9
- *
  * @param string $html   The original <link> tag HTML.
  * @param string $handle The stylesheet handle WP is printing.
  * @param string $href   The full URL of the stylesheet.
@@ -743,8 +784,6 @@ function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media )
 	 * out (e.g. a plugin that surfaces the AI assistant on every
 	 * page might want to keep its CSS critical-path).
 	 *
-	 * @since 0.8.9
-	 *
 	 * @param string[] $handles Default deferred handles.
 	 */
 	$deferred = apply_filters(
@@ -753,6 +792,8 @@ function desktop_mode_defer_non_critical_styles( $html, $handle, $href, $media )
 			'desktop-mode-dock-peek',
 			'desktop-mode-ai-assistant',
 			'desktop-mode-bug-report',
+			'desktop-mode-window-overview',
+			'desktop-mode-os-settings',
 		)
 	);
 
@@ -814,14 +855,12 @@ add_filter( 'style_loader_tag', 'desktop_mode_defer_non_critical_styles', 10, 4 
  * our own bundle handle. That decouples us entirely from WP's command-
  * palette mount timing.
  *
- * @since 0.8.4
- *
  * @global array $menu
  * @global array $submenu
  * @return array<int, array{label:string, url:string, name:string}>
  */
 function desktop_mode_build_command_menu_map() {
-	global $menu, $submenu;
+	global $menu, $submenu, $_parent_pages;
 	if ( ! is_array( $menu ) ) {
 		return array();
 	}
@@ -868,7 +907,14 @@ function desktop_mode_build_command_menu_map() {
 		$menu_label = $extract_root_text( $menu_item[0] );
 		$menu_slug  = $menu_item[2];
 		$menu_url   = '';
-		if ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) {
+		// Registered plugin pages win over the direct-file test: a
+		// legacy file-path slug ('wp-sweep/admin.php') matches the
+		// `.php` regex yet must route through menu_page_url(). The
+		// exception is URL-style slugs referencing a real admin file
+		// (ACF's 'edit.php?post_type=acf-field-group' — also a
+		// registered page) — those stay direct links, matching
+		// classic admin's menu-header.php.
+		if ( ( ! isset( $_parent_pages[ $menu_slug ] ) || desktop_mode_is_admin_file_slug( $menu_slug ) ) && ( preg_match( '/\.php($|\?)/', $menu_slug ) || wp_http_validate_url( $menu_slug ) ) ) {
 			$menu_url = $menu_slug;
 		} elseif ( ! empty( menu_page_url( $menu_slug, false ) ) ) {
 			$menu_url = menu_page_url( $menu_slug, false );
@@ -891,7 +937,9 @@ function desktop_mode_build_command_menu_map() {
 				$submenu_label = $extract_root_text( $submenu_item[0] );
 				$submenu_slug  = $submenu_item[2];
 				$submenu_url   = '';
-				if ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) {
+				// Same registered-page vs admin-file rule as the
+				// top-level loop.
+				if ( ( ! isset( $_parent_pages[ $submenu_slug ] ) || desktop_mode_is_admin_file_slug( $submenu_slug ) ) && ( preg_match( '/\.php($|\?)/', $submenu_slug ) || wp_http_validate_url( $submenu_slug ) ) ) {
 					$submenu_url = $submenu_slug;
 				} elseif ( ! empty( menu_page_url( $submenu_slug, false ) ) ) {
 					$submenu_url = menu_page_url( $submenu_slug, false );

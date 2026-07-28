@@ -69,6 +69,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		commands: ReturnType< typeof vi.fn >;
 		settingsTabs: ReturnType< typeof vi.fn >;
 		titleBarButtons: ReturnType< typeof vi.fn >;
+		games: ReturnType< typeof vi.fn >;
 	};
 	renderIcons: ReturnType< typeof vi.fn >;
 	syncShortcuts: ReturnType< typeof vi.fn >;
@@ -84,6 +85,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		settingsTabs: vi.fn().mockResolvedValue( undefined ),
 		titleBarButtons: vi.fn().mockResolvedValue( undefined ),
 		dockRailRenderers: vi.fn().mockResolvedValue( undefined ),
+		games: vi.fn().mockResolvedValue( undefined ),
 	};
 	const renderIcons = vi.fn();
 	const syncShortcuts = vi.fn();
@@ -99,6 +101,7 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		syncServerSettingsTabs: syncs.settingsTabs,
 		syncServerTitleBarButtons: syncs.titleBarButtons,
 		syncServerDockRailRenderers: syncs.dockRailRenderers,
+		syncServerGames: syncs.games,
 		renderIcons,
 		syncShortcuts,
 		...overrides,
@@ -175,6 +178,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		const tabScripts = [ { handle: 'p-b', scriptUrl: 'b.js' } ];
 		const tabs = [ { id: 'tab1' } ];
 		const titleScripts = [ { handle: 'p-c', scriptUrl: 'c.js' } ];
+		const games = [ { id: 'inkfall' } ];
 
 		apply( {
 			dockItems: [ ...MIN_DOCK ],
@@ -186,6 +190,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			serverSettingsTabScripts: tabScripts,
 			serverSettingsTabs: tabs,
 			serverTitleBarButtonScripts: titleScripts,
+			serverGames: games,
 		} );
 
 		expect( syncs.nativeWindows ).toHaveBeenCalledWith( nativeWindows );
@@ -194,6 +199,24 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( syncs.commands ).toHaveBeenCalledWith( cmdScripts, cmds );
 		expect( syncs.settingsTabs ).toHaveBeenCalledWith( tabScripts, tabs );
 		expect( syncs.titleBarButtons ).toHaveBeenCalledWith( titleScripts );
+		expect( syncs.games ).toHaveBeenCalledWith( games );
+	} );
+
+	test( 'serverGames payload updates config.serverGames', () => {
+		const { deps, syncs, config } = makeDeps();
+		const apply = createApplyPayload( deps );
+		const games = [ { id: 'inkfall' } ];
+
+		apply( { dockItems: [ ...MIN_DOCK ], serverGames: games } );
+
+		expect( syncs.games ).toHaveBeenCalledWith( games );
+		expect( config.serverGames ).toEqual( games );
+
+		// Absent key = "no change", NOT "clear".
+		syncs.games.mockClear();
+		apply( { dockItems: [ ...MIN_DOCK ] } );
+		expect( syncs.games ).not.toHaveBeenCalled();
+		expect( config.serverGames ).toEqual( games );
 	} );
 
 	// THE PRIMARY REGRESSION GUARD.
@@ -353,6 +376,60 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			expect(
 				events.filter( ( e ) => e.registry === 'native-windows' ),
 			).toHaveLength( 0 );
+		} );
+	} );
+
+	// GH#296: the payload's `updateCounts` must repaint the admin-bar
+	// "updates" notifier — the top-left circle-arrows count is static
+	// server HTML that otherwise survives every in-window update run.
+	describe( 'updateCounts live-refresh (GH#296)', () => {
+		test( 'fresh counts repaint #wp-admin-bar-updates; zero hides it', () => {
+			document.body.innerHTML = `
+				<ul id="wp-admin-bar-root-default">
+					<li id="wp-admin-bar-updates">
+						<a class="ab-item" href="https://example.test/wp-admin/update-core.php">
+							<span class="ab-icon" aria-hidden="true"></span>
+							<span class="ab-label" aria-hidden="true">3</span>
+							<span class="screen-reader-text updates-available-text">3 updates available</span>
+						</a>
+					</li>
+				</ul>
+			`;
+			const { deps } = makeDeps();
+			const apply = createApplyPayload( deps );
+
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				updateCounts: {
+					total: 0,
+					formatted: '0',
+					text: '0 updates available',
+					url: 'https://example.test/wp-admin/update-core.php',
+				},
+			} );
+
+			const node = document.getElementById( 'wp-admin-bar-updates' )!;
+			expect( node.style.display ).toBe( 'none' );
+			document.body.innerHTML = '';
+		} );
+
+		test( 'missing key (older bridge): leaves the node untouched', () => {
+			document.body.innerHTML = `
+				<ul id="wp-admin-bar-root-default">
+					<li id="wp-admin-bar-updates">
+						<a class="ab-item" href="#"><span class="ab-label">3</span></a>
+					</li>
+				</ul>
+			`;
+			const { deps } = makeDeps();
+			const apply = createApplyPayload( deps );
+
+			apply( { dockItems: [ ...MIN_DOCK ] } );
+
+			const node = document.getElementById( 'wp-admin-bar-updates' )!;
+			expect( node.style.display ).not.toBe( 'none' );
+			expect( node.querySelector( '.ab-label' )?.textContent ).toBe( '3' );
+			document.body.innerHTML = '';
 		} );
 	} );
 

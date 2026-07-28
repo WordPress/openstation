@@ -5,7 +5,6 @@
  * filters / extensions get the same shapes the bundle works against.
  *
  * @public
- * @since 0.9.0
  */
 
 /**

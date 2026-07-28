@@ -16,7 +16,6 @@
  * JavaScript. The built-in `darken` is registered through the very
  * same JS hook (see `src/effects/registry.ts`).
  *
- * @since 0.9.1
  * @package WPDesktopMode
  */
 
@@ -46,8 +45,6 @@ defined( 'ABSPATH' ) || exit;
  * Otherwise the effect stays until the next page reload — graceful
  * backwards-compat.
  *
- * @since 0.9.1
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
@@ -65,8 +62,6 @@ function desktop_mode_register_unfocus_effect_script( $handle ) {
 	/**
 	 * Fires after a desktop unfocus-effect script handle is registered.
 	 *
-	 * @since 0.9.1
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_unfocus_effect_script_registered', $handle );
@@ -77,7 +72,6 @@ function desktop_mode_register_unfocus_effect_script( $handle ) {
 /**
  * Internal module-level registry for unfocus-effect script handles.
  *
- * @since 0.9.1
  * @internal
  *
  * @param string    $handle Script handle to read or write.
@@ -103,8 +97,6 @@ function desktop_mode_desktop_unfocus_effect_script_registry( $handle = '', $val
 /**
  * Test-only: clear the registry between PHPUnit cases. See
  * {@see desktop_mode_flush_script_handle_registries()}.
- *
- * @since 0.9.1
  */
 function desktop_mode_flush_desktop_unfocus_effect_script_registry() {
 	desktop_mode_desktop_unfocus_effect_script_registry( '__flush__' );
@@ -113,8 +105,6 @@ function desktop_mode_flush_desktop_unfocus_effect_script_registry() {
 /**
  * Build the script-handle payload fed to the shell. Handles that
  * aren't currently enqueued resolve to an empty URL and are dropped.
- *
- * @since 0.9.1
  *
  * @return array[] List of `{ handle, scriptUrl, … }` entries.
  */

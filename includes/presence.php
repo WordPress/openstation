@@ -49,15 +49,12 @@ defined( 'ABSPATH' ) || exit;
  * inactive).
  *
  * @package WPDesktopMode
- * @since   0.5.5
  */
 
 const DESKTOP_MODE_PRESENCE_OPTION = '_desktop_mode_presence';
 
 /**
  * Read the entire presence map. Single autoload=false option.
- *
- * @since 0.5.5
  *
  * @return array<int,array{last_seen_ms:int,last_active_ms:int}>
  */
@@ -85,16 +82,21 @@ function desktop_mode_presence_get_all() {
  * `$active` is true, also bumps `last_active_ms` (the user just
  * interacted, not just held a tab open).
  *
- * Pass-through to the option; cheap enough to call every Heartbeat
- * tick. Fires `desktop_mode_presence_recorded` on every call and
+ * Cheap enough to call every Heartbeat tick: the option write is
+ * throttled — a bump that neither transitions the computed status
+ * nor moves a persisted timestamp by at least half the offline
+ * threshold (capped at 60s) skips the `update_option()` call, so N
+ * idle users no longer rewrite the shared row every tick. Persisted
+ * timestamps can therefore lag real activity by up to the throttle
+ * window — always well inside the offline threshold, so computed
+ * statuses stay correct. Fires `desktop_mode_presence_recorded` on
+ * every call (with the fresh, un-throttled record) and
  * `desktop_mode_presence_changed` only when the computed status moves
  * between `online | inactive | offline`.
  *
  * The `desktop_mode_presence_can_track` filter is the per-user opt-out:
  * a plugin that hides specific accounts (compliance, "set yourself
  * invisible", etc.) returns false to skip the bump entirely.
- *
- * @since 0.5.5
  *
  * @param int  $user_id User to record.
  * @param bool $active  Pass `true` when the heartbeat is paired with
@@ -112,8 +114,6 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 	 * bump entirely — useful for "appear offline" toggles, audit
 	 * exemptions for sensitive accounts, or forcing a non-admin
 	 * never-tracked policy.
-	 *
-	 * @since 0.5.5
 	 *
 	 * @param bool $can     Default true.
 	 * @param int  $user_id The user being tracked.
@@ -135,17 +135,18 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 		'last_seen_ms'   => $now_ms,
 		'last_active_ms' => $active ? $now_ms : (int) $prev['last_active_ms'],
 	);
-	$all[ $user_id ] = $next;
-	update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
 
 	$next_status = desktop_mode_presence_status_from_record( $next );
+
+	if ( desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) ) {
+		$all[ $user_id ] = $next;
+		update_option( DESKTOP_MODE_PRESENCE_OPTION, $all, false );
+	}
 
 	/**
 	 * Fires on every recorded heartbeat — useful for audit logging
 	 * or third-party "who's around right now" dashboards. Fires
 	 * regardless of whether the computed status changed.
-	 *
-	 * @since 0.5.5
 	 *
 	 * @param int   $user_id
 	 * @param array $record  { last_seen_ms, last_active_ms }
@@ -159,8 +160,6 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 		 * here — the recorded action above fires every tick whether
 		 * the state changed or not, which would be too noisy.
 		 *
-		 * @since 0.5.5
-		 *
 		 * @param int    $user_id
 		 * @param string $new_status One of `online | inactive | offline`.
 		 * @param string $old_status One of `online | inactive | offline`.
@@ -171,14 +170,61 @@ function desktop_mode_presence_record( $user_id, $active = true ) {
 }
 
 /**
+ * Decide whether a presence bump needs to hit the database.
+ *
+ * The presence map is a single shared option row: with N concurrent
+ * users an unconditional write per Heartbeat tick means N full-row
+ * rewrites (plus option-cache invalidations) every ~15s, almost all
+ * of them recording no meaningful change. A bump must persist when:
+ *
+ *   - the user isn't in the map yet (first sighting),
+ *   - the computed status transitioned (viewers must see it), or
+ *   - a persisted timestamp has drifted by at least the throttle
+ *     window — half the offline threshold, capped at 60s — so stored
+ *     `last_seen_ms` can never age anywhere near the offline cutoff
+ *     while the user is genuinely present.
+ *
+ * Everything else is a redundant rewrite and is skipped. Skipped
+ * bumps still fire `desktop_mode_presence_recorded` with the fresh
+ * record — only the persisted copy lags.
+ *
+ * @param array  $all         Stored presence map.
+ * @param int    $user_id     User being bumped.
+ * @param array  $prev        Stored record for the user (zeros if new).
+ * @param string $prev_status Status computed from the stored record.
+ * @param string $next_status Status computed from the fresh record.
+ * @param bool   $active      Whether this bump carries user activity.
+ * @param int    $now_ms      Current epoch milliseconds.
+ * @return bool True to persist, false to skip the write.
+ */
+function desktop_mode_presence_should_persist( $all, $user_id, $prev, $prev_status, $next_status, $active, $now_ms ) {
+	if ( ! isset( $all[ $user_id ] ) ) {
+		return true;
+	}
+	if ( $next_status !== $prev_status ) {
+		return true;
+	}
+
+	/** This filter is documented in includes/presence.php */
+	$offline_after = (int) apply_filters( 'desktop_mode_presence_offline_after', 120 );
+	$throttle_ms   = (int) min( 60 * 1000, $offline_after * 500 );
+
+	if ( ( $now_ms - (int) $prev['last_seen_ms'] ) >= $throttle_ms ) {
+		return true;
+	}
+	if ( $active && ( $now_ms - (int) $prev['last_active_ms'] ) >= $throttle_ms ) {
+		return true;
+	}
+	return false;
+}
+
+/**
  * Compute presence status from a record.
  *
  * Pure function — given the same `(record, now)`, always returns
  * the same answer. Filters override the thresholds, not the logic
  * order; an `online` user transitions through `inactive` to
  * `offline` if they're idle long enough.
- *
- * @since 0.5.5
  *
  * @param array $record { last_seen_ms?: int, last_active_ms?: int }
  * @return string `online | inactive | offline`
@@ -193,8 +239,6 @@ function desktop_mode_presence_status_from_record( $record ) {
 	 * transition to `inactive` when they haven't moused / typed
 	 * for this long, even if Heartbeat keeps firing.
 	 *
-	 * @since 0.5.5
-	 *
 	 * @param int $seconds
 	 */
 	$inactive_after = (int) apply_filters( 'desktop_mode_presence_inactive_after', 300 );
@@ -203,8 +247,6 @@ function desktop_mode_presence_status_from_record( $record ) {
 	 * Offline threshold (default 120s = 2 min). Inactive / online
 	 * users transition to `offline` when the last Heartbeat is
 	 * older than this.
-	 *
-	 * @since 0.5.5
 	 *
 	 * @param int $seconds
 	 */
@@ -221,8 +263,6 @@ function desktop_mode_presence_status_from_record( $record ) {
 
 /**
  * Look up presence status for a single user.
- *
- * @since 0.5.5
  *
  * @param int $user_id
  * @return string `online | inactive | offline`
@@ -241,8 +281,6 @@ function desktop_mode_presence_status_for_user( $user_id ) {
  *
  * Output shape uses string keys so the JSON encoder produces an
  * object (not a sparse array) when the smallest id isn't 1.
- *
- * @since 0.5.5
  *
  * @param int[]|null $user_ids Restrict to these ids. `null` = all.
  * @return array<string,array{ status:string, lastSeenMs:int, lastActiveMs:int }>
@@ -281,8 +319,6 @@ function desktop_mode_presence_snapshot( $user_ids = null ) {
  * privacy boundaries hook `desktop_mode_presence_visible_users`
  * (e.g., "subscribers can only see other subscribers' presence").
  *
- * @since 0.5.5
- *
  * @param int[] $candidate_user_ids
  * @param int   $viewer_id          Defaults to the current user.
  * @return int[]
@@ -304,8 +340,6 @@ function desktop_mode_presence_visible_users( $candidate_user_ids, $viewer_id = 
 	 * to enforce privacy — e.g., subscribers only see other
 	 * subscribers; admins see everyone; an opt-out list never shows.
 	 *
-	 * @since 0.5.5
-	 *
 	 * @param int[] $ids       Candidate user ids.
 	 * @param int   $viewer_id The user requesting visibility.
 	 */
@@ -315,8 +349,6 @@ function desktop_mode_presence_visible_users( $candidate_user_ids, $viewer_id = 
 /**
  * Daily cron: prune presence entries for users idle >14 days.
  * Keeps the option compact even on long-running sites.
- *
- * @since 0.5.5
  */
 function desktop_mode_presence_cron_prune() {
 	$all = desktop_mode_presence_get_all();
@@ -339,8 +371,6 @@ add_action( 'desktop_mode_presence_daily_prune', 'desktop_mode_presence_cron_pru
 
 /**
  * Schedule the daily cron once. Idempotent.
- *
- * @since 0.5.5
  */
 function desktop_mode_presence_schedule_cron() {
 	if ( ! wp_next_scheduled( 'desktop_mode_presence_daily_prune' ) ) {
@@ -363,8 +393,6 @@ add_action( 'init', 'desktop_mode_presence_schedule_cron', 50 );
  * true` in the heartbeat-send payload, with optional
  * `desktop_mode_user_active` (mousedown / keydown within the
  * inactive-threshold window).
- *
- * @since 0.5.5
  *
  * @param array $response Pre-filtered response.
  * @param array $data     Client-sent payload.
@@ -408,8 +436,6 @@ add_filter( 'heartbeat_received', 'desktop_mode_presence_heartbeat_received', 5,
  * desktop mode enabled. Delegates to the shared
  * {@see desktop_mode_rest_require_enabled()} gate.
  *
- * @since 0.5.5
- *
  * @return true|WP_Error
  */
 function desktop_mode_presence_rest_permission() {
@@ -418,8 +444,6 @@ function desktop_mode_presence_rest_permission() {
 
 /**
  * Register `/desktop-mode/v1/presence` routes.
- *
- * @since 0.5.5
  */
 function desktop_mode_presence_register_rest_routes() {
 	register_rest_route(

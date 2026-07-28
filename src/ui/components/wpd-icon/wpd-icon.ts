@@ -19,8 +19,6 @@
  * Shadow styles use the Dashicons font Core registers globally;
  * since web-component shadow roots inherit fonts from the host
  * document, no extra `@font-face` is needed.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

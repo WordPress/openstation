@@ -5,19 +5,23 @@
  * `<wpd-modal>` on `document.body` configured to manage the
  * folder's share list. Owner-only; the caller is expected to
  * have gated on ownership before calling.
- *
- * @since 0.8.5
  */
 
 import { showToast } from '../toast';
 import {
+	acceptFileShare,
 	acceptShare,
+	denyFileShare,
 	denyShare,
+	inviteFileShare,
 	inviteShare,
+	listFileShares,
 	listPlacements,
 	listShares,
+	revokeFileShare,
 	revokeShare,
 	updateShareCapability,
+	type RestFileShareShape,
 	type RestShareShape,
 } from './rest';
 import { setFolderPlacements } from './store';
@@ -51,8 +55,6 @@ interface OpenOptions {
  * the host: pill background is a translucent white slab, the
  * selected segment becomes the accent color, unselected text is
  * a high-contrast rgba(255,255,255,…) muted.
- *
- * @since 0.8.5
  */
 function buildCapSegmented(
 	initial: 'read' | 'write',
@@ -69,8 +71,8 @@ function buildCapSegmented(
 		'--desktop-mode-window-bg',
 		'var(--wp-admin-theme-color, #2271b1)',
 	);
-	segmented.style.setProperty( '--desktop-mode-text', '#fff' );
-	segmented.style.setProperty( '--desktop-mode-muted', 'rgba(255,255,255,0.65)' );
+	segmented.style.setProperty( '--wpd-fg', '#fff' );
+	segmented.style.setProperty( '--wpd-fg-muted', 'rgba(255,255,255,0.65)' );
 
 	const segRead = document.createElement( 'wpd-segment' );
 	segRead.setAttribute( 'value', 'read' );
@@ -94,8 +96,6 @@ function buildCapSegmented(
  * `<wpd-button>` so it inherits the rest of the design system,
  * but with explicit CSS-variable overrides for legibility on
  * the dark surface.
- *
- * @since 0.8.5
  */
 function buildIconButton(
 	label: string,
@@ -442,11 +442,257 @@ export async function openShareSettingsModal( opts: OpenOptions ): Promise< void
 }
 
 /**
+ * Owner-facing modal for a single uploaded file
+ * (`target_type='file'` shares). Deliberately simpler than the
+ * folder modal: user principals only, and NO capability control —
+ * file shares are read + download by design (DESKMOD-45's
+ * owner-locked model; the write tier does not exist here).
+ */
+export async function openFileShareModal( opts: {
+	fileId: number;
+	fileName: string;
+} ): Promise< void > {
+	const modal = document.createElement( 'wpd-modal' );
+	modal.setAttribute( 'open', '' );
+	modal.setAttribute( 'size', 'md' );
+	modal.setAttribute( 'title', `Share "${ opts.fileName }"` );
+	document.body.appendChild( modal );
+
+	let shares: RestFileShareShape[] = [];
+
+	const refresh = async (): Promise< void > => {
+		try {
+			const res = await listFileShares( opts.fileId );
+			shares = res.shares;
+		} catch ( err ) {
+			showToast( {
+				message: `Could not load shares: ${ ( err as Error ).message }`,
+			} );
+		}
+		renderBody();
+	};
+
+	const renderBody = (): void => {
+		modal.innerHTML = '';
+
+		const note = document.createElement( 'div' );
+		note.style.cssText = 'opacity:0.7;margin-bottom:14px;font-size:12px;';
+		note.textContent =
+			'People you share with can view and download this file. Only you can move, rename, or delete it.';
+		modal.appendChild( note );
+
+		const addLabel = document.createElement( 'div' );
+		addLabel.textContent = 'Add people';
+		addLabel.style.cssText = 'font-weight:600;margin-bottom:6px;';
+		modal.appendChild( addLabel );
+
+		const userSearch = document.createElement( 'wpd-user-search' );
+		userSearch.setAttribute(
+			'exclude',
+			shares.map( ( s ) => s.principalRef ).join( ',' ),
+		);
+		userSearch.setAttribute( 'placeholder', 'Search users…' );
+		userSearch.addEventListener( 'wpd-user-pick', ( e ) => {
+			const detail = ( e as CustomEvent< { user: { id: number; name: string } } > )
+				.detail;
+			void ( async () => {
+				try {
+					await inviteFileShare( opts.fileId, detail.user.id );
+					showToast( { message: `Invite sent to ${ detail.user.name }.` } );
+				} catch ( err ) {
+					showToast( {
+						message: `Could not invite: ${ ( err as Error ).message }`,
+					} );
+				}
+				await refresh();
+			} )();
+		} );
+		modal.appendChild( userSearch );
+
+		const listTitle = document.createElement( 'div' );
+		listTitle.textContent = 'Who has access';
+		listTitle.style.cssText = 'font-weight:600;margin:14px 0 6px;';
+		modal.appendChild( listTitle );
+
+		if ( shares.length === 0 ) {
+			const empty = document.createElement( 'div' );
+			empty.textContent = 'Only you can see this file.';
+			empty.style.cssText = 'opacity:0.6;font-size:12px;';
+			modal.appendChild( empty );
+		} else {
+			for ( const s of shares ) {
+				const row = document.createElement( 'div' );
+				row.style.cssText =
+					'display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);';
+				const label = document.createElement( 'div' );
+				label.style.flex = '1';
+				const display = ( s as { displayName?: string } ).displayName;
+				label.textContent = display || `User #${ s.principalRef }`;
+				if ( s.state === 'pending' ) {
+					const tag = document.createElement( 'span' );
+					tag.textContent = ' · pending';
+					tag.style.cssText = 'opacity:0.6;font-size:12px;';
+					label.appendChild( tag );
+				} else if ( s.state === 'denied' ) {
+					const tag = document.createElement( 'span' );
+					tag.textContent = ' · denied';
+					tag.style.cssText = 'color:#d63638;font-size:12px;';
+					label.appendChild( tag );
+				}
+				row.appendChild( label );
+
+				const cap = document.createElement( 'span' );
+				cap.textContent = 'Read + download';
+				cap.style.cssText = 'opacity:0.6;font-size:12px;';
+				row.appendChild( cap );
+
+				const removeBtn = buildIconButton(
+					'×',
+					() => {
+						void ( async () => {
+							try {
+								await revokeFileShare( opts.fileId, s.id );
+								showToast( { message: 'Access revoked.' } );
+							} catch ( err ) {
+								showToast( {
+									message: `Could not revoke: ${ ( err as Error ).message }`,
+								} );
+							}
+							await refresh();
+						} )();
+					},
+					{ danger: true },
+				);
+				row.appendChild( removeBtn );
+				modal.appendChild( row );
+			}
+		}
+
+		const footer = document.createElement( 'div' );
+		footer.setAttribute( 'slot', 'footer' );
+		footer.style.cssText =
+			'display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;';
+		const doneBtn = document.createElement( 'wpd-button' );
+		doneBtn.setAttribute( 'variant', 'secondary' );
+		doneBtn.textContent = 'Done';
+		doneBtn.addEventListener( 'click', () => modal.remove() );
+		footer.appendChild( doneBtn );
+		modal.appendChild( footer );
+	};
+
+	modal.addEventListener( 'wpd-modal-cancel', () => modal.remove() );
+
+	renderBody();
+	await refresh();
+}
+
+/**
+ * Recipient-facing modal for a FILE share invite. Same
+ * Accept / Deny / Decide-later flow as the folder variant, minus
+ * the capability line (file shares are always read + download).
+ */
+export function openPendingFileInviteModal( invite: {
+	id: number;
+	fileId: number;
+	fileName?: string;
+	ownerName?: string;
+} ): Promise< 'accepted' | 'denied' | 'dismissed' > {
+	return new Promise( ( resolve ) => {
+		const modal = document.createElement( 'wpd-modal' );
+		modal.setAttribute( 'open', '' );
+		modal.setAttribute(
+			'title',
+			invite.fileName
+				? `${ invite.ownerName ?? 'Someone' } shared "${ invite.fileName }" with you`
+				: 'File shared with you',
+		);
+
+		const body = document.createElement( 'div' );
+		body.innerHTML = `
+			<p style="margin: 0 0 12px;">Accept the invite to add this file to your desktop.</p>
+			<p style="margin: 0; opacity: 0.75;">Access level: <strong>Read + download</strong></p>
+		`;
+		modal.appendChild( body );
+
+		const footer = document.createElement( 'div' );
+		footer.setAttribute( 'slot', 'footer' );
+		footer.style.cssText =
+			'display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;';
+
+		const laterBtn = document.createElement( 'wpd-button' );
+		laterBtn.setAttribute( 'variant', 'secondary' );
+		laterBtn.textContent = 'Decide later';
+		laterBtn.addEventListener( 'click', () => {
+			modal.remove();
+			resolve( 'dismissed' );
+		} );
+
+		const denyBtn = document.createElement( 'wpd-button' );
+		denyBtn.setAttribute( 'variant', 'danger' );
+		denyBtn.textContent = 'Deny';
+		denyBtn.addEventListener( 'click', async () => {
+			denyBtn.setAttribute( 'busy', '' );
+			denyBtn.setAttribute( 'disabled', '' );
+			try {
+				await denyFileShare( invite.fileId, invite.id );
+				sharesStore().state.deniedFiles.add( invite.fileId );
+				sharesStore().notify();
+				modal.remove();
+				resolve( 'denied' );
+			} catch ( err ) {
+				showToast( {
+					message: `Could not deny: ${ ( err as Error ).message }`,
+				} );
+				denyBtn.removeAttribute( 'busy' );
+				denyBtn.removeAttribute( 'disabled' );
+			}
+		} );
+
+		const acceptBtn = document.createElement( 'wpd-button' );
+		acceptBtn.setAttribute( 'variant', 'primary' );
+		acceptBtn.textContent = 'Accept';
+		acceptBtn.addEventListener( 'click', async () => {
+			acceptBtn.setAttribute( 'busy', '' );
+			acceptBtn.setAttribute( 'disabled', '' );
+			try {
+				await acceptFileShare( invite.fileId, invite.id );
+				// Pull the canonical root list so the new tile paints
+				// without waiting for the next heartbeat tick.
+				try {
+					const res = await listPlacements( 0 );
+					setFolderPlacements( 0, res.placements );
+				} catch ( _e ) {
+					// Non-fatal.
+				}
+				modal.remove();
+				resolve( 'accepted' );
+			} catch ( err ) {
+				showToast( {
+					message: `Could not accept: ${ ( err as Error ).message }`,
+				} );
+				acceptBtn.removeAttribute( 'busy' );
+				acceptBtn.removeAttribute( 'disabled' );
+			}
+		} );
+
+		footer.appendChild( laterBtn );
+		footer.appendChild( denyBtn );
+		footer.appendChild( acceptBtn );
+		modal.appendChild( footer );
+
+		modal.addEventListener( 'wpd-modal-cancel', () => {
+			modal.remove();
+			resolve( 'dismissed' );
+		} );
+
+		document.body.appendChild( modal );
+	} );
+}
+
+/**
  * Recipient-facing modal: shows an invite and offers
  * Accept / Deny / Decide later. Returns when the user makes
  * a decision (or dismisses without deciding).
- *
- * @since 0.8.5
  */
 export function openPendingInviteModal( invite: {
 	id: number;

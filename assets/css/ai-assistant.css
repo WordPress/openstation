@@ -56,11 +56,11 @@
 .desktop-mode-ai__backdrop {
 	position: absolute;
 	inset: 0;
-	background: rgba( 0, 0, 0, 0.36 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.36 ) );
 	backdrop-filter: blur( 8px ) saturate( 0.75 );
 	-webkit-backdrop-filter: blur( 8px ) saturate( 0.75 );
-	/* Backdrop is intentionally non-interactive — the overlay stays open
-	   until the user explicitly clicks the × close button. */
+	/* Non-interactive: clicks in the dimmed area fall through to the overlay
+	   container, which closes the assistant (click-outside-to-dismiss). */
 	pointer-events: none;
 }
 
@@ -107,8 +107,8 @@
 	   on fresh/blue schemes, subtle on light schemes. */
 	background: linear-gradient(
 		to bottom,
-		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff ),
-		#fff
+		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) ),
+		var( --wpd-surface, #fff )
 	);
 	border-bottom: 1px solid rgba( 0, 0, 0, 0.06 );
 }
@@ -130,6 +130,48 @@
 	letter-spacing: 0.09em;
 	text-transform: uppercase;
 	color: var( --wp-admin-theme-color, #2271b1 );
+}
+
+/* Mode switch (Commands ↔ AI) — a small segmented pill in the header.
+   Shown only when AI is available; replaces the `/` shortcut. */
+.desktop-mode-ai__modes {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border-radius: 999px;
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
+}
+
+.desktop-mode-ai__modes[hidden] {
+	display: none;
+}
+
+.desktop-mode-ai__mode {
+	appearance: none;
+	border: 0;
+	cursor: pointer;
+	padding: 3px 12px;
+	border-radius: 999px;
+	background: transparent;
+	color: var( --wpd-fg-muted, #50575e );
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.6;
+}
+
+.desktop-mode-ai__mode:hover {
+	color: var( --wpd-fg, #1d2327 );
+}
+
+.desktop-mode-ai__mode.is-active {
+	background: var( --wpd-surface, #fff );
+	color: var( --wp-admin-theme-color, #2271b1 );
+	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.12 );
+}
+
+.desktop-mode-ai__mode:focus-visible {
+	outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
+	outline-offset: 1px;
 }
 
 /* .desktop-mode-ai__close styles moved to the bottom results section */
@@ -179,11 +221,11 @@
 	font-size: 17px;
 	font-weight: 400;
 	line-height: 1.4;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-ai__input::placeholder {
-	color: #c3c4c7;
+	color: var( --wpd-fg-faint, #c3c4c7 );
 	font-weight: 400;
 }
 
@@ -199,7 +241,7 @@
 	border: none;
 	border-radius: 8px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	cursor: pointer;
 	padding: 0;
 	opacity: 0;
@@ -239,33 +281,13 @@
 	justify-content: space-between;
 	gap: 8px;
 	padding: 8px 16px 10px;
-	background: rgba( 0, 0, 0, 0.018 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.018 ) );
 	border-top: 1px solid rgba( 0, 0, 0, 0.05 );
 }
 
 .desktop-mode-ai__footer-hint {
 	font-size: 11px;
-	color: #a7aaad;
-}
-
-.desktop-mode-ai__footer-keys {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	font-size: 11px;
-	color: #b4b9be;
-	white-space: nowrap;
-	flex-shrink: 0;
-}
-
-.desktop-mode-ai__footer-keys kbd {
-	font-family: inherit;
-	font-size: 10px;
-	padding: 1px 5px;
-	border: 1px solid rgba( 0, 0, 0, 0.1 );
-	border-radius: 4px;
-	background: rgba( 0, 0, 0, 0.03 );
-	color: #646970;
+	color: var( --wpd-fg-muted, #a7aaad );
 }
 
 /* ---------------------------------------------------------------------------
@@ -289,20 +311,20 @@
 	width: 28px;
 	height: 28px;
 	appearance: none;
-	background: rgba( 0, 0, 0, 0.05 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
 	border: 1px solid rgba( 0, 0, 0, 0.1 );
 	border-radius: 6px;
 	cursor: pointer;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	padding: 0;
 	flex-shrink: 0;
 	transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
 .desktop-mode-ai__close:hover {
-	background: rgba( 0, 0, 0, 0.09 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.09 ) );
 	border-color: rgba( 0, 0, 0, 0.2 );
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-ai__close:focus-visible {
@@ -338,7 +360,7 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: #8c8f94;
+	color: var( --wpd-fg-muted, #8c8f94 );
 }
 
 .desktop-mode-ai__suggestions-list {
@@ -350,18 +372,18 @@
 .desktop-mode-ai__suggestion {
 	appearance: none;
 	border: 1px solid rgba( 0, 0, 0, 0.1 );
-	background: rgba( 0, 0, 0, 0.02 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
 	border-radius: 999px;
 	padding: 5px 12px;
 	font: inherit;
 	font-size: 12px;
-	color: #50575e;
+	color: var( --wpd-fg-muted, #50575e );
 	cursor: pointer;
 	transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 
 .desktop-mode-ai__suggestion:hover {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, rgba( 0, 0, 0, 0.1 ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
@@ -375,11 +397,11 @@
 	align-items: center;
 	gap: 10px;
 	font-size: 13px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 .desktop-mode-ai__state--error {
-	color: #d63638;
+	color: var( --wpd-danger, #d63638 );
 	align-items: flex-start;
 }
 
@@ -442,7 +464,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	width: 24px;
 	height: 24px;
 	border-radius: 50%;
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 12%, var( --wpd-surface, #fff ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
@@ -450,7 +472,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	padding-top: 3px;
 	font-size: 13px;
 	line-height: 1.5;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 	flex: 1;
 	min-width: 0;
 }
@@ -476,10 +498,10 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	margin-bottom: 2px;
 }
 .desktop-mode-ai__bubble-text code {
-	background: rgba( 0, 0, 0, 0.05 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
 	padding: 1px 5px;
 	border-radius: 4px;
-	font-family: Menlo, Consolas, monospace;
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	font-size: 11.5px;
 }
 .desktop-mode-ai__bubble-text a {
@@ -492,7 +514,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 }
 .desktop-mode-ai__bubble-text strong {
 	font-weight: 600;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }
 
 /* -----------------------------------------------------------------
@@ -504,7 +526,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	flex-direction: column;
 	gap: 8px;
 	padding: 12px 14px;
-	background: rgba( 0, 0, 0, 0.02 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
 	border: 1px solid rgba( 0, 0, 0, 0.08 );
 	border-radius: 10px;
 }
@@ -533,14 +555,14 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.07em;
-	color: #8c8f94;
+	color: var( --wpd-fg-muted, #8c8f94 );
 }
 
 .desktop-mode-ai__entity-title {
 	margin: 0;
 	font-size: 14px;
 	font-weight: 600;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 	line-height: 1.35;
 }
 
@@ -548,7 +570,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	margin: 0;
 	font-size: 12px;
 	line-height: 1.5;
-	color: #50575e;
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 /* Primary action — opens the entity in a legacy iframe window inside
@@ -563,7 +585,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	border: none;
 	border-radius: 8px;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	font: inherit;
 	font-size: 12px;
 	font-weight: 500;
@@ -604,7 +626,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	align-items: center;
 	gap: 12px;
 	padding: 10px 12px;
-	background: rgba( 0, 0, 0, 0.02 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
 	border: 1px solid rgba( 0, 0, 0, 0.08 );
 	border-radius: 10px;
 	cursor: pointer;
@@ -615,7 +637,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 }
 
 .desktop-mode-ai__admin-link:hover {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 6%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 6%, var( --wpd-surface, #fff ) );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
@@ -637,7 +659,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	height: 32px;
 	font-size: 18px;
 	color: var( --wp-admin-theme-color, #2271b1 );
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --wpd-surface, #fff ) );
 	border-radius: 8px;
 }
 
@@ -652,12 +674,12 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 .desktop-mode-ai__admin-link-title {
 	font-size: 13px;
 	font-weight: 600;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }
 
 .desktop-mode-ai__admin-link-desc {
 	font-size: 11px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	line-height: 1.4;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -666,7 +688,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 
 .desktop-mode-ai__admin-link-arrow {
 	flex-shrink: 0;
-	color: #c3c4c7;
+	color: var( --wpd-fg-faint, #c3c4c7 );
 	transition: color 0.12s, transform 0.12s;
 }
 
@@ -717,7 +739,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 
 .desktop-mode-ai__cmd-item:hover,
 .desktop-mode-ai__cmd-item.is-selected {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
@@ -734,7 +756,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	border-color: transparent;
 }
 .desktop-mode-ai__cmd-list--kb-nav .desktop-mode-ai__cmd-item.is-selected:hover {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
@@ -752,7 +774,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	height: 36px;
 	font-size: 20px;
 	color: var( --wp-admin-theme-color, #2271b1 );
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --wpd-surface, #fff ) );
 	border-radius: 7px;
 }
 
@@ -790,21 +812,21 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 .desktop-mode-ai__cmd-title {
 	font-size: 13px;
 	font-weight: 600;
-	color: #1d2327;
-	font-family: Menlo, Consolas, monospace;
+	color: var( --wpd-fg, #1d2327 );
+	font-family: var( --wpd-font-mono, Menlo, Consolas, monospace );
 	letter-spacing: -0.01em;
 }
 
 .desktop-mode-ai__cmd-hint {
 	font-weight: 400;
-	color: #8c8f94;
+	color: var( --wpd-fg-muted, #8c8f94 );
 	font-size: 12px;
 	margin-inline-start: 6px;
 }
 
 .desktop-mode-ai__cmd-desc {
 	font-size: 11.5px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	line-height: 1.4;
 	font-family: inherit;
 	letter-spacing: 0;
@@ -817,14 +839,14 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	align-items: flex-start;
 	gap: 10px;
 	padding: 10px 12px;
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --wpd-surface, #fff ) );
 	border: 1px solid color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 8px;
 }
 
 .desktop-mode-ai__cmd-enter-hint {
 	font-size: 11px;
-	color: #646970;
+	color: var( --wpd-fg-muted, #646970 );
 	margin-top: 2px;
 	font-family: inherit;
 }
@@ -835,8 +857,8 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	padding: 1px 4px;
 	border: 1px solid rgba( 0, 0, 0, 0.12 );
 	border-radius: 3px;
-	background: rgba( 0, 0, 0, 0.03 );
-	color: #646970;
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
+	color: var( --wpd-fg-muted, #646970 );
 }
 
 /* Suggestion list shown under the locked-in command in args mode.
@@ -868,19 +890,19 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 
 .desktop-mode-ai__cmd-suggest-item:hover,
 .desktop-mode-ai__cmd-suggest-item.is-selected {
-	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, #fff );
+	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
 	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
 }
 
 .desktop-mode-ai__cmd-suggest-label {
 	font-size: 13px;
 	font-weight: 500;
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }
 
 /* Empty / "no matches" state for the palette */
 .desktop-mode-ai__state--empty {
-	color: #8c8f94;
+	color: var( --wpd-fg-muted, #8c8f94 );
 	font-size: 13px;
 }
 
@@ -901,13 +923,13 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	border: 1px dashed rgba( 0, 0, 0, 0.2 );
 	border-radius: 6px;
 	background: transparent;
-	color: #50575e;
+	color: var( --wpd-fg-muted, #50575e );
 	cursor: pointer;
 	transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
 .desktop-mode-ai__continue-btn:hover {
-	background: rgba( 0, 0, 0, 0.04 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
 	border-color: rgba( 0, 0, 0, 0.3 );
-	color: #1d2327;
+	color: var( --wpd-fg, #1d2327 );
 }

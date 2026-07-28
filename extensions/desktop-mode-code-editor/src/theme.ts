@@ -10,7 +10,6 @@
  * midnight desktop, no pitch-black pane on a fresh-light desktop).
  *
  * @public
- * @since 0.7.0
  */
 
 /**
@@ -35,7 +34,6 @@ const DARK_SCHEMES: ReadonlySet< string > = new Set( [
  * fits visually.
  *
  * @public
- * @since 0.7.0
  */
 export function monacoThemeForScheme( scheme: string | undefined | null ): 'vs' | 'vs-dark' {
 	if ( ! scheme ) {
@@ -49,7 +47,6 @@ export function monacoThemeForScheme( scheme: string | undefined | null ): 'vs' 
  * `''` if the config isn't present (e.g. tests).
  *
  * @public
- * @since 0.7.0
  */
 export function currentColorScheme(): string {
 	const cfg = ( window as unknown as {

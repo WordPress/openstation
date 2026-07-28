@@ -10,7 +10,6 @@
  * Requires: Desktop Mode 0.18.0+ (desktop_mode_register_widget).
  *
  * @package WPDesktopMode
- * @since   0.26.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -21,8 +20,6 @@ defined( 'ABSPATH' ) || exit;
  *
  * Route: GET /desktop-mode/v1/site-views-meta
  * Permission: edit_posts.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_site_views_rest_route() {
 	register_rest_route(
@@ -42,11 +39,23 @@ add_action( 'rest_api_init', 'desktop_mode_register_site_views_rest_route' );
 /**
  * Aggregate _post_views_YYYY-MM-DD meta across all posts for 14 days.
  *
+ * The result is cached in a 5-minute transient: the aggregation runs
+ * 14 SUM() queries over postmeta, the widget only refreshes every
+ * 10 minutes, and the data is site-wide (not per-user) — so every
+ * concurrent viewer can share one computation. View counts accrue
+ * continuously, so a short TTL is the invalidation strategy; no
+ * event-based purge is needed.
+ *
  * @param WP_REST_Request $request REST request.
  * @return array
  */
 function desktop_mode_site_views_meta_callback( $request ) {
 	global $wpdb;
+
+	$cached = get_transient( 'desktop_mode_site_views_meta' );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
 
 	$rows  = array();
 	$today = current_time( 'Y-m-d' );
@@ -70,20 +79,22 @@ function desktop_mode_site_views_meta_callback( $request ) {
 
 	$has_data = array_sum( array_column( $rows, 'views' ) ) > 0;
 
-	return array(
+	$result = array(
 		'source'   => 'post-meta',
 		'has_data' => $has_data,
 		'days'     => array_reverse( $rows ),
 	);
+
+	set_transient( 'desktop_mode_site_views_meta', $result, 5 * MINUTE_IN_SECONDS );
+
+	return $result;
 }
 
 /**
  * Register the JS + CSS assets.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_site_views_widget_assets() {
-	$suffix  = ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ? '' : '.min';
+	$suffix  = desktop_mode_asset_suffix();
 	$version = defined( 'DESKTOP_MODE_VERSION' ) ? DESKTOP_MODE_VERSION : '0';
 
 	$js_path  = DESKTOP_MODE_DIR . 'assets/js/widget-site-views' . $suffix . '.js';
@@ -108,8 +119,6 @@ add_action( 'init', 'desktop_mode_register_site_views_widget_assets', 5 );
 
 /**
  * Eagerly enqueue the CSS on shell pages.
- *
- * @since 0.26.0
  */
 function desktop_mode_enqueue_site_views_widget_styles() {
 	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
@@ -124,8 +133,6 @@ add_action( 'admin_enqueue_scripts', 'desktop_mode_enqueue_site_views_widget_sty
 
 /**
  * Register the widget definition.
- *
- * @since 0.26.0
  */
 function desktop_mode_register_site_views_widget() {
 	if ( ! function_exists( 'desktop_mode_register_widget' ) ) {

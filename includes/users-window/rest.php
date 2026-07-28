@@ -34,15 +34,12 @@
  *          delete-self).
  *
  * @package WPDesktopMode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the five routes.
- *
- * @since 0.8.1
  */
 function desktop_mode_users_window_register_rest_routes() {
 	register_rest_route(
@@ -169,8 +166,6 @@ add_action( 'rest_api_init', 'desktop_mode_users_window_register_rest_routes' );
  * edit four of them succeeds for those four and reports `forbidden`
  * for the fifth.
  *
- * @since 0.8.1
- *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
@@ -266,8 +261,6 @@ function desktop_mode_users_window_rest_bulk_role( $req ) {
  * core's `retrieve_password()` so the email format stays consistent
  * with the login screen's "Lost your password?" link.
  *
- * @since 0.8.1
- *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
@@ -332,8 +325,6 @@ function desktop_mode_users_window_rest_send_password_reset( $req ) {
  * never opened the original (filtered to spam, typo'd address that's
  * since been corrected, …).
  *
- * @since 0.8.1
- *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
@@ -393,8 +384,6 @@ function desktop_mode_users_window_rest_resend_welcome( $req ) {
  * reassigning their content to `reassign`.
  * Multisite: removes the user from the current site (network user
  * record stays). Per-target re-validation either way.
- *
- * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -499,8 +488,6 @@ function desktop_mode_users_window_rest_bulk_delete( $req ) {
  * On success returns `{ ok: true, user_id: int, email: string }`.
  * On failure returns the matching `WP_Error` (404/400/403/409
  * depending on cause).
- *
- * @since 0.8.1
  *
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
@@ -617,8 +604,6 @@ function desktop_mode_users_window_rest_create( $req ) {
 
 	/**
 	 * Fires after the Users window has created a new account.
-	 *
-	 * @since 0.8.1
 	 *
 	 * @param int     $user_id
 	 * @param WP_User $user    Wrapped user object.

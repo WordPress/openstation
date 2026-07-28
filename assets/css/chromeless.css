@@ -407,11 +407,13 @@ html.wp-toolbar:has( body.desktop-mode-chromeless ) {
 
 /* ---------------------------------------------------------------
  * Update nag
- * Red top border signals a pending WordPress update; keep it so
- * the nag reads as urgent even without the surrounding admin chrome.
+ * Core's global update / maintenance nags are detached server-side
+ * inside chromeless iframes (see
+ * `desktop_mode_chromeless_suppress_update_nags()`) and re-surfaced
+ * once by the shell as a single notice.
  * --------------------------------------------------------------- */
 .desktop-mode-chromeless .update-nag {
-	border-top: 1px solid #d63638;
+	display: none !important;
 }
 
 /* ---------------------------------------------------------------

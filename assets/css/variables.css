@@ -45,10 +45,234 @@
 	--desktop-mode-resize-size: 20px;
 	--desktop-mode-resize-color: rgba(0, 0, 0, 0.15);
 
+	/*
+	 * ---- The `--wpd-*` UI palette -----------------------------
+	 *
+	 * The single vocabulary for every surface, text tone, border,
+	 * and status colour inside window BODIES — the `<wpd-*>`
+	 * component kit AND the feature stylesheets both read these.
+	 * Setting one value retints everything that uses it.
+	 *
+	 *   Surfaces   --wpd-surface           cards, panels, table rows
+	 *              --wpd-surface-elevated  headers, raised strips
+	 *              --wpd-surface-sunken    wells, recessed areas
+	 *   Text       --wpd-fg                body text
+	 *              --wpd-fg-muted          secondary / metadata
+	 *              --wpd-fg-faint          disabled
+	 *              --wpd-fg-on-accent      text on a filled surface
+	 *   Lines      --wpd-border            hairlines
+	 *              --wpd-border-strong     emphasized dividers
+	 *   Interaction
+	 *              --wpd-hover             row / tile hover wash
+	 *              --wpd-scrim             modal + overlay backdrop
+	 *   Accent     --wpd-accent            primary action
+	 *              --wpd-accent-strong     its hover / active state
+	 *   Status     --wpd-danger  --wpd-danger-hover
+	 *              --wpd-warning-fg  --wpd-warning-bg  --wpd-warning-border
+	 *              --wpd-info-fg     --wpd-info-bg
+	 *              --wpd-success-fg
+	 *
+	 * ## Why none of them are declared here
+	 *
+	 * They are deliberately left UNSET. Every consuming site reads
+	 * its token as `var( --wpd-x, <the literal that was always
+	 * there> )`, so with no desktop theme active the computed value
+	 * is exactly what it was before this palette existed — the
+	 * default look cannot drift, and there is no flag day.
+	 *
+	 * Declaring defaults here would be actively wrong: the same
+	 * token legitimately carries different fallbacks at different
+	 * sites (`--wpd-border` is `#dcdcde` in the settings panel and
+	 * `rgba( 0, 0, 0, 0.08 )` inside `<wpd-table>`), tuned to each
+	 * surface. One `:root` value would flatten all of them and
+	 * silently restyle the default UI.
+	 *
+	 * A desktop theme sets whichever of these it wants in its
+	 * `theme.json` `tokens` block; the compiled stylesheet declares
+	 * them on the shell root + body, and every fallback in the tree
+	 * is overridden at once. See docs/desktop-themes.md.
+	 *
+	 * @since 0.9.7
+	 */
+
+	/*
+	 * ---- Desktop-theme texture family -------------------------
+	 *
+	 * These are DELIBERATELY not declared here. Every rule that
+	 * consumes one reads it as `var( --name, <initial> )`, so an
+	 * unset variable resolves to the CSS initial value and costs
+	 * exactly nothing. Declaring them with `none` up here would be
+	 * equivalent but would imply they are part of the default
+	 * palette — they are not. They exist only while an uploaded or
+	 * code-registered desktop theme is active, and only the
+	 * compiled theme stylesheet ever sets them.
+	 *
+	 *   TITLEBAR          --desktop-mode-titlebar-image
+	 *                     --desktop-mode-titlebar-image-repeat
+	 *                     --desktop-mode-titlebar-image-size
+	 *   TITLEBAR_FOCUSED  --desktop-mode-titlebar-image-focused
+	 *                       (falls back to the unfocused image)
+	 *   WINDOW_FRAME      --desktop-mode-window-border-image-source
+	 *                     --desktop-mode-window-border-image-slice
+	 *                     --desktop-mode-window-border-image-width
+	 *                     --desktop-mode-window-border-image-repeat
+	 *   WINDOW_CORNER_*   --desktop-mode-window-corner-{ne,nw,se,sw}-image
+	 *                     --desktop-mode-window-corner-size (shared)
+	 *                     --desktop-mode-window-corner-inset (shared;
+	 *                       how far inside the rounded corner the
+	 *                       ornament sits. Defaults to the resize
+	 *                       handle's 3px overhang plus a share of
+	 *                       --desktop-mode-window-radius, because the
+	 *                       window clips its descendants)
+	 *   WINDOW_FRAME_FOCUSED
+	 *                     --desktop-mode-window-border-image-focused-*
+	 *                       (same four sub-properties as WINDOW_FRAME)
+	 *   WINDOW_BODY       --desktop-mode-window-body-image
+	 *   TABBAR            --desktop-mode-tabs-image
+	 *   TITLEBAR_CONTROLS --desktop-mode-titlebar-controls-image
+	 *   TITLEBAR_BUTTON   --wpd-btn-bg-image
+	 *   DOCK              --desktop-mode-dock-bg-image
+	 *                     --desktop-mode-dock-bg-image-repeat
+	 *                     --desktop-mode-dock-bg-image-size
+	 *   DOCK_ITEM         --desktop-mode-dock-item-image
+	 *   DESKTOP           --desktop-mode-desktop-image
+	 *                     --desktop-mode-desktop-image-repeat
+	 *                     --desktop-mode-desktop-image-size
+	 *   ICON_TILE         --desktop-mode-tile-image
+	 *   WIDGET            --desktop-mode-widget-image
+	 *   MENU              --wpd-menu-bg-image
+	 *   DIALOG            --wpd-dialog-bg-image
+	 *   SCRIM             --wpd-scrim-image
+	 *   PANEL             --wpd-panel-bg-image
+	 *   TOAST             --wpd-toast-bg-image
+	 *   TABLE_HEADER      --wpd-table-header-bg-image
+	 *   BUTTON            --wpd-button-bg-image
+	 *
+	 * Every `image` slot also gets `<prop>-repeat` and `<prop>-size`
+	 * companions (the corners share one `-size`, and
+	 * TITLEBAR_FOCUSED inherits TITLEBAR's).
+	 *
+	 * Consumers: window-chrome.css (titlebar, frame, body, tab bar),
+	 * window-states.css (corners), dock.css, desktop.css (wallpaper,
+	 * icons, widgets), and the `<wpd-*>` component stylesheets under
+	 * `src/ui/components/` for the last seven.
+	 * Authoring reference: docs/desktop-themes.md.
+	 *
+	 * @since 0.9.7
+	 */
+
+	/*
+	 * ---- Title-bar control cluster ----------------------------
+	 *
+	 * Also undeclared, and for a load-bearing reason: the cluster and
+	 * the control faces are TRANSPARENT by default, so a themed
+	 * title-bar texture runs edge to edge underneath them and the
+	 * buttons float on the artwork. A plate behind the controls is a
+	 * choice a theme makes, not a default the framework imposes.
+	 *
+	 *   Cluster   --desktop-mode-titlebar-controls-bg
+	 *             --desktop-mode-titlebar-controls-image (+ -repeat,
+	 *               -size, -position)
+	 *             --desktop-mode-titlebar-controls-radius
+	 *             --desktop-mode-titlebar-controls-padding (inline)
+	 *             --desktop-mode-titlebar-controls-gap
+	 *   Screen-meta cluster
+	 *             --desktop-mode-titlebar-meta-bg / -image / -radius
+	 *               (radius falls through to the controls radius)
+	 *   Each face --wpd-btn-bg          resting colour
+	 *             --wpd-btn-bg-image    (+ -repeat, -size, -position)
+	 *             --wpd-btn-radius
+	 *   Dividers  --desktop-mode-titlebar-divider
+	 *             --desktop-mode-titlebar-divider-unfocused
+	 *
+	 * Consumers: window-chrome.css and the `<wpd-window-button>`
+	 * shadow stylesheet.
+	 *
+	 * @since 0.9.8
+	 */
+
+	/*
+	 * ---- Typography ------------------------------------------
+	 *
+	 * Also deliberately UNDECLARED, for the same reason as the
+	 * `--wpd-*` palette: every consuming rule reads
+	 * `font-family: var( --name, <the literal that was always
+	 * there> )`, so an unset token computes to exactly what it
+	 * always did. A desktop theme sets them (and may ship the
+	 * `@font-face` rules to back them) and the whole shell changes
+	 * typeface at once.
+	 *
+	 *   --desktop-mode-font           shell chrome: dock labels,
+	 *                                 desktop icons, widgets
+	 *   --desktop-mode-titlebar-font  window title bars; falls back
+	 *                                 to --desktop-mode-font
+	 *   --wpd-font                    window BODIES + the `<wpd-*>`
+	 *                                 component kit
+	 *   --wpd-font-mono               code, hashes, file sizes,
+	 *                                 log output
+	 *
+	 * The split matters: a theme can put a display face on the
+	 * chrome while window content stays on a readable text face,
+	 * which is what real desktop environments do.
+	 *
+	 * Note that iframe windows render a real wp-admin document in a
+	 * separate browsing context that the theme stylesheet does not
+	 * reach — these tokens style the shell and native windows.
+	 *
+	 * @since 0.9.8
+	 */
+
+	/*
+	 * ---- Badges ----------------------------------------------
+	 *
+	 * Undeclared, and DERIVED rather than fixed. Every badge sizes
+	 * itself off the icon it decorates — the dock badge off
+	 * `--desktop-mode-dock-icon-size`, the wallpaper badges off
+	 * `--desktop-mode-icon-image-size` — so a user who picks a large
+	 * dock, or a theme that scales its icons, doesn't end up with a
+	 * speck stuck to an oversized tile. At the default sizes the
+	 * derivations resolve to the exact values these rules used to
+	 * hardcode.
+	 *
+	 *   Dock          --desktop-mode-dock-badge-size (overrides the
+	 *                   whole derivation; font + padding follow it)
+	 *                 --desktop-mode-dock-badge-font-size / -padding
+	 *                 --desktop-mode-dock-badge-offset / -bg / -fg
+	 *                 --desktop-mode-dock-badge-font-weight
+	 *   Desktop icon  --desktop-mode-icon-badge-size / -font-size
+	 *                 --desktop-mode-icon-badge-padding / -bg / -fg
+	 *   Recycle bin   --desktop-mode-recycle-badge-size / -font-size
+	 *                   / -bg / -fg. Falls through to the generic
+	 *                   icon-badge token, so "badges are 22px" reaches
+	 *                   the bin too.
+	 *
+	 * @since 0.9.8
+	 */
+
 	/* Dock */
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;
 	--desktop-mode-dock-bg: rgba(0, 0, 0, 0.4);
+	/*
+	 * Hairline between the dock and the desktop. Reaches the side
+	 * placements (as a single inline-edge border) AND the floating
+	 * bottom pill (as its full outline). Set `transparent` for a
+	 * borderless dock.
+	 *
+	 * The bottom pill's own chrome is separately overridable, because
+	 * it is deliberately a different piece of glass — a warmer tint, a
+	 * brighter top edge, an inset highlight, a drop shadow. Each falls
+	 * back to the shared value above it:
+	 *
+	 *   --desktop-mode-dock-floating-bg
+	 *   --desktop-mode-dock-floating-border      (→ dock-border)
+	 *   --desktop-mode-dock-floating-border-top  (→ floating-border)
+	 *   --desktop-mode-dock-floating-highlight
+	 *   --desktop-mode-dock-floating-shadow
+	 *
+	 * @since 0.9.8 the floating pill honours these at all; it used to
+	 *              hardcode every one of them.
+	 */
 	--desktop-mode-dock-border: rgba(255, 255, 255, 0.08);
 
 	/*
@@ -97,6 +321,35 @@
 	--desktop-mode-z-dock: 200;
 	--desktop-mode-z-adminbar: 9991;
 	--desktop-mode-z-fullscreen: 99999;
+	/* Window-link layer — above widgets (z 1), behind windows (z 100+). */
+	--desktop-mode-z-window-links: 50;
+
+	/*
+	 * Window-link ties (relation splines between windows). The accent
+	 * follows the admin color scheme. Solid colors only — the resting
+	 * dimming is done with stroke-opacity/fill-opacity in
+	 * window-links.css, NOT color-mix(): an unresolvable color-mix()
+	 * inside a custom property makes the consuming declaration invalid
+	 * at computed-value time, which turns SVG strokes invisible and
+	 * marker fills black (the written rgba() fallback declaration is
+	 * already gone from the cascade by then). Overridable per scheme
+	 * or by plugins/themes without touching the renderer.
+	 *
+	 * @since 0.9.4
+	 */
+	--desktop-mode-window-link-color: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-window-link-color-active: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-window-link-width: 1.5px;
+	--desktop-mode-window-link-accent: var(--wp-admin-theme-color, #2271b1);
+	/*
+	 * Halo behind related windows (`.desktop-mode-window--linked`).
+	 * A literal rgba of the default admin blue rather than a
+	 * color-mix() of the accent — same no-color-mix rationale as
+	 * above: if this token failed to resolve, the whole box-shadow
+	 * declaration (elevation shadow included) would go invalid.
+	 * Schemes/plugins that retint the accent should override this too.
+	 */
+	--desktop-mode-window-link-glow: rgba(34, 113, 177, 0.45);
 }
 
 /*

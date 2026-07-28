@@ -11,8 +11,6 @@
  * existing tab; no duplicates. Closing the active tab activates
  * the right-neighbour, then the left if there's no right, then
  * goes back to the placeholder if no tabs remain.
- *
- * @since 0.7.0
  */
 
 import { showConfirm } from './dialog';

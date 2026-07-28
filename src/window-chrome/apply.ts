@@ -24,8 +24,6 @@
  * `desktop-mode.window.chrome.theme` filter, letting plugins augment
  * or override the resolved tokens without owning a theme
  * registration.
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../hooks';

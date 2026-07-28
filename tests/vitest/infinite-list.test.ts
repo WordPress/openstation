@@ -3,8 +3,6 @@
  * feed-reader scaffolding: cursor pagination, dedup-by-id, abort
  * on reset / destroy, end-of-list detachment, the loading
  * lifecycle indicator, and renderItem invocation order.
- *
- * @since 0.8.2
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { createInfiniteList, type InfiniteListPage } from '../../src/infinite-list';

@@ -24,8 +24,6 @@
  * native-window tab wrap so plugin authors can dial inset via the
  * `main_tab_padding` registration arg + the
  * `desktop_mode_native_window_tab_wrap_padding` filter.
- *
- * @since 0.5.0
  */
 
 import { Component, defineComponent, html } from '../../core';

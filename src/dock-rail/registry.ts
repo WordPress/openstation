@@ -5,8 +5,6 @@
  * and `src/settings/registry.ts`. The active id mirrors `state.dockRailRenderer`;
  * the layout dispatcher reads {@link resolveActive} when it
  * (re)builds a rail.
- *
- * @since 0.6.0
  */
 
 import { createSharedStore } from '../shared-store';

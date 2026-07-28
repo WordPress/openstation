@@ -182,7 +182,7 @@ describe( '<wpd-select> + <wpd-option>', () => {
 	} );
 
 	// Regression guard mirroring the calculator-plugin path that
-	// triggered the empty-select bug in 0.11: the element is created
+	// triggered the empty-select bug: the element is created
 	// via innerHTML and populated via `.items` IN THE SAME TICK
 	// (template-clone-then-wire), so the connect-time render
 	// microtask hasn't run yet when the setter appends options. The
@@ -356,7 +356,7 @@ describe( '<wpd-select> + <wpd-option>', () => {
 
 	// Regression guard for the native-window render-before-mount bug:
 	// populating `.items` while the element is still in a detached
-	// subtree (the shape native windows had before 0.12's mount-then-
+	// subtree (the shape native windows had before the mount-then-
 	// hydrate refactor) used to leave the setter unreached — the
 	// class wasn't on the prototype yet, so the assignment created
 	// an own data property that shadowed the real setter after
@@ -369,8 +369,8 @@ describe( '<wpd-select> + <wpd-option>', () => {
 		const sel = detachedHost.querySelector( 'wpd-select' ) as HTMLElement & {
 			items: ReadonlyArray<{ value: string; label: string }>;
 		};
-		// Element is NOT yet connected to the document — same shape
-		// a native-window body had pre-0.12.
+		// Element is NOT yet connected to the document, like a
+		// native-window body before mount.
 		sel.items = [
 			{ value: 'm', label: 'Metres' },
 			{ value: 'km', label: 'Kilometres' },

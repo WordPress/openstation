@@ -6,7 +6,6 @@
  * side just types the wire payloads.
  *
  * @public
- * @since 0.8.2
  */
 
 export interface PostTypeDescriptor {
@@ -14,6 +13,10 @@ export interface PostTypeDescriptor {
 	label: string;
 	icon: string;
 	count: number;
+	taxonomies?: {
+		category: boolean;
+		post_tag: boolean;
+	};
 }
 
 export interface GraphNodePayload {

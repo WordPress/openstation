@@ -13,15 +13,12 @@
  * as the wallpapers / icons modules.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Registers the built-in openers (one per file type).
- *
- * @since 0.9.0
  */
 function desktop_mode_register_builtin_file_openers() {
 	$openers = array(

@@ -17,7 +17,7 @@
 class Tests_DesktopMode_PostsWindowSettings extends WP_UnitTestCase {
 
 	/**
-	 * As of 0.10.0 the native Posts window is opt-in Beta — fresh
+	 * The native Posts window is opt-in Beta — fresh
 	 * installs land on the classic iframe and users explicitly turn
 	 * the native window ON. This guards against an accidental flip
 	 * back to opt-out (default ON) semantics.

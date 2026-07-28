@@ -71,8 +71,6 @@
  * surfaces a streaming feed — SQL inspector, network inspector,
  * REST timing viewer, action-fire trace, log tail. None of those
  * should reinvent virtualization.
- *
- * @since 0.6.0
  */
 
 import { Component, defineComponent, html } from '../../core';

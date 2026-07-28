@@ -22,8 +22,6 @@
  * unless the operator explicitly opts in via the
  * `desktop_mode_pwa_force_replace_sw` PHP filter (returning `true`
  * surfaces as `forceReplace` on the JS-side config object).
- *
- * @since 0.8.0
  */
 
 import type { PwaConfig } from '../types';

@@ -1,0 +1,255 @@
+/**
+ * Focus Timer widget styles.
+ *
+ * The card chrome (glass background, padding) is provided by the widget
+ * layer; these rules only lay out the timer's own contents. Built into
+ * assets/js/widget-focus-timer[.min].css by the Vite target — never
+ * hand-edit the built file.
+ */
+
+.dm-focus {
+	--dm-focus-accent: #7c3aed;
+	--dm-focus-accent-2: #2563eb;
+	/* The widget card is dark glass; the wpd-select / wpd-checkbox-label
+	   components default their text to the near-black --wpd-fg,
+	   which vanishes here. Override the tokens to light, matching the
+	   Note Pad widget, and tint the accent to the timer's own colour. */
+	--wpd-fg: rgba( 255, 255, 255, 0.9 );
+	--wpd-fg-muted: rgba( 255, 255, 255, 0.6 );
+	--wp-admin-theme-color: var( --dm-focus-accent );
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	align-items: stretch;
+	height: 100%;
+	box-sizing: border-box;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+
+/* The shell forces `cursor: default !important`; out-specify it so our
+   controls feel clickable. */
+body.desktop-mode-active .dm-focus button {
+	cursor: pointer !important;
+}
+
+/* --- Time display -------------------------------------------------- */
+
+.dm-focus__time-row {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+}
+
+.dm-focus__time {
+	font-size: clamp( 34px, 22cqw, 56px );
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: 0.01em;
+	flex: 0 1 auto;
+	min-width: 3.2em;
+}
+
+.dm-focus__time--running {
+	margin-top: 6px;
+	background: linear-gradient(
+		135deg,
+		var( --dm-focus-accent ),
+		var( --dm-focus-accent-2 )
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.dm-focus__time.is-hidden {
+	font-size: 20px;
+	font-weight: 600;
+	opacity: 0.75;
+	-webkit-text-fill-color: currentColor;
+}
+
+.dm-focus__step {
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	border: 1px solid color-mix( in srgb, currentColor 25%, transparent );
+	background: color-mix( in srgb, currentColor 6%, transparent );
+	color: inherit;
+	font-size: 18px;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+}
+
+.dm-focus__step:hover {
+	background: color-mix( in srgb, currentColor 14%, transparent );
+}
+
+/* --- Presets ------------------------------------------------------- */
+
+.dm-focus__presets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	justify-content: center;
+}
+
+.dm-focus__chip {
+	flex: 1 1 auto;
+	min-width: 54px;
+	padding: 5px 8px;
+	border-radius: 999px;
+	border: 1px solid color-mix( in srgb, currentColor 18%, transparent );
+	background: color-mix( in srgb, currentColor 5%, transparent );
+	color: inherit;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.dm-focus__chip:hover {
+	border-color: color-mix( in srgb, var( --dm-focus-accent ) 55%, transparent );
+	color: var( --dm-focus-accent );
+}
+
+/* --- Fields -------------------------------------------------------- */
+
+.dm-focus__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	text-align: left;
+}
+
+.dm-focus__field-label {
+	font-size: 11px;
+	font-weight: 600;
+	opacity: 0.7;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.dm-focus__select {
+	width: 100%;
+}
+
+.dm-focus__toggle {
+	text-align: left;
+	font-size: 12px;
+}
+
+/* --- Actions / buttons --------------------------------------------- */
+
+.dm-focus__actions {
+	display: flex;
+	gap: 8px;
+	margin-top: auto;
+}
+
+.dm-focus__btn {
+	flex: 1 1 auto;
+	padding: 9px 12px;
+	border-radius: 10px;
+	border: 1px solid color-mix( in srgb, currentColor 20%, transparent );
+	background: color-mix( in srgb, currentColor 6%, transparent );
+	color: inherit;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.dm-focus__btn:hover {
+	background: color-mix( in srgb, currentColor 12%, transparent );
+}
+
+.dm-focus__btn.is-primary {
+	border-color: transparent;
+	background: linear-gradient(
+		135deg,
+		var( --dm-focus-accent ),
+		var( --dm-focus-accent-2 )
+	);
+	color: #fff;
+}
+
+.dm-focus__btn.is-primary:hover {
+	filter: brightness( 1.08 );
+}
+
+.dm-focus__btn--stop {
+	animation: dm-focus-pulse 1.1s ease-in-out infinite;
+}
+
+/* --- Running / finished sub-line ----------------------------------- */
+
+.dm-focus__sub {
+	font-size: 12px;
+	opacity: 0.7;
+	min-height: 1.2em;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.dm-focus__bell {
+	font-size: 44px;
+	line-height: 1;
+	margin-top: 4px;
+}
+
+.dm-focus__done {
+	font-size: 20px;
+	font-weight: 700;
+	color: var( --dm-focus-accent );
+}
+
+/* --- Finished: shake the whole card + pulse the stop button -------- */
+
+.dm-focus.is-finished {
+	animation: dm-focus-shake 0.6s ease-in-out infinite;
+}
+
+@keyframes dm-focus-shake {
+	0%,
+	100% {
+		transform: translateX( 0 );
+	}
+	20% {
+		transform: translateX( -5px );
+	}
+	40% {
+		transform: translateX( 5px );
+	}
+	60% {
+		transform: translateX( -3px );
+	}
+	80% {
+		transform: translateX( 3px );
+	}
+}
+
+@keyframes dm-focus-pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0
+			color-mix( in srgb, var( --dm-focus-accent ) 55%, transparent );
+	}
+	50% {
+		box-shadow: 0 0 0 6px
+			color-mix( in srgb, var( --dm-focus-accent ) 0%, transparent );
+	}
+}
+
+/* Respect reduced-motion: drop the animations, keep a static accent. */
+@media ( prefers-reduced-motion: reduce ) {
+	.dm-focus.is-finished,
+	.dm-focus__btn--stop {
+		animation: none;
+	}
+	.dm-focus.is-finished {
+		outline: 2px solid var( --dm-focus-accent );
+		outline-offset: 2px;
+	}
+}

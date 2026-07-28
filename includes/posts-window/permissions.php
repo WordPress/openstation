@@ -16,7 +16,6 @@
  *     native window")
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -36,8 +35,6 @@ defined( 'ABSPATH' ) || exit;
  * Registering eagerly costs nothing for opted-out users (the dock
  * remap simply doesn't fire) and unblocks instant feedback.
  *
- * @since 0.8.0
- *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
@@ -55,8 +52,6 @@ function desktop_mode_posts_window_user_can_register( $user_id = null ) {
 	 * Returning `false` skips the entire registration — no script
 	 * handle, no template, no entry in the native-window registry.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param bool $can     Default: `edit_posts` capability.
 	 * @param int  $user_id User being checked.
 	 */
@@ -73,8 +68,6 @@ function desktop_mode_posts_window_user_can_register( $user_id = null ) {
  * answer (e.g. analytics, an arrange-menu entry). Boot registration
  * uses {@see desktop_mode_posts_window_user_can_register()} instead;
  * runtime dock-click swap uses the JS-side snapshot.
- *
- * @since 0.8.0
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -100,8 +93,6 @@ function desktop_mode_posts_window_user_can_use( $user_id = null ) {
 	 * Settings → Features. Returning `false` does NOT prevent
 	 * registration (toggle on/off remains live without F5); it only
 	 * affects callers that ask the combined question.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.

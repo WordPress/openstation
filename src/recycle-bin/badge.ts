@@ -17,8 +17,6 @@
  * The badge caps the rendered value at 99 — anything higher
  * shows as `99+` so the pill stays compact regardless of how
  * full the trash gets.
- *
- * @since 0.6.0
  */
 
 import { addAction, HOOKS } from '../hooks';
@@ -435,8 +433,11 @@ function wirePostMessageFastPath(): void {
 
 /**
  * Heartbeat probe. Sends `desktop_mode_recycle_bin_seen_ts` on every
- * outgoing tick; reads `desktop_mode_recycle_bin: { ts, count }` off the
- * response. This is the catch-all channel — within 15 s (active
+ * outgoing tick; reads `desktop_mode_recycle_bin: { ts, count? }` off the
+ * response. The server only attaches `count` when something changed
+ * since our high-water mark (an unchanged tick would recompute the
+ * same number); when the key is absent the badge keeps its current
+ * value. This is the catch-all channel — within 15 s (active
  * tab) or 60 s (background tab) of a mutation anywhere on the
  * site, the badge resyncs to the authoritative count.
  *

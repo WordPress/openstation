@@ -5,8 +5,6 @@
  * Icons come from the admin menu data passed via desktopModeConfig.dockItems.
  * The dock always starts with a WordPress logo "Show Desktop" button
  * that minimizes all open windows.
- *
- * @since 0.5.0
  */
 
 import { activity } from './activity';
@@ -15,9 +13,15 @@ import type { WindowManager } from './window-manager';
 import { deriveWindowId } from './utils';
 import { __, _n, sprintf } from './i18n';
 import { hashTitleToHue } from './ui/util/hash-hue';
+import {
+	resolveThemedIcon,
+	resolveThemedIconColor,
+} from './desktop-themes/icons';
+import { applyIconMask } from './desktop-themes/paint-tinted-icon';
+import { slotForTileId } from './desktop-themes/slots';
 import { attachDockPeek } from './dock-peek';
 import { tryOpenExternalUrl } from './external-url';
-import { openItemVisibilityMenu } from './item-visibility-menu';
+import { openItemVisibilityMenu } from './item-visibility-menu-loader';
 import {
 	resolveNativeUrlRemap,
 	tryNativeUrlRemap,
@@ -55,8 +59,6 @@ export interface SystemDockItem {
 	 * another") next to any open instance — matching the menu-tile
 	 * peek's affordance so the dock reads consistently regardless of
 	 * which rail a tile lives on.
-	 *
-	 * @since 0.8.0
 	 */
 	multi?: boolean;
 	/**
@@ -64,8 +66,6 @@ export interface SystemDockItem {
 	 * set. Defaults to {@link onOpen}; native-window tiles whose
 	 * `onOpen` would just focus an already-open singleton supply this
 	 * callback to spawn a fresh instance.
-	 *
-	 * @since 0.8.0
 	 */
 	onOpenNew?: () => void;
 }
@@ -80,7 +80,6 @@ export interface SystemDockItem {
  * mount-deps callback.
  *
  * @public
- * @since 0.6.0
  */
 export interface SubmenuItem {
 	title: string;
@@ -105,8 +104,6 @@ export interface DockItem {
 	 * lookups — without it those synth tiles fall back to
 	 * `deriveWindowId('')` and never match the open window, so the
 	 * active/focused dot stays dark.
-	 *
-	 * @since 0.8.6
 	 */
 	windowId?: string;
 	/** Number badge (update count, comment count, etc.). 0 = no badge. */
@@ -158,7 +155,6 @@ export type DockOrientation = 'left' | 'right' | 'bottom';
  * `orientation` carries the placement.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockHookContextBase {
 	rail: 'dock' | 'taskbar';
@@ -173,7 +169,6 @@ export interface DockHookContextBase {
  * when `false`, a {@link DockItem} from the admin menu.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockTileContext extends DockHookContextBase {
 	item: DockItem | SystemDockItem;
@@ -187,7 +182,6 @@ export interface DockTileContext extends DockHookContextBase {
  * desyncs the rail.
  *
  * @public
- * @since 0.6.0
  */
 export interface DockRenderContext extends DockHookContextBase {
 	items: DockItem[];
@@ -575,8 +569,6 @@ export class Dock {
 	 *
 	 * Idempotent: applying the same count is a no-op (no DOM mutation).
 	 *
-	 * @since 0.6.0
-	 *
 	 * @param itemId Tile id (menu slug for admin pages, system id
 	 *               for `appendSystemItem` / `registerSystemTile`).
 	 * @param count  Non-negative integer. `>99` renders as `99+`.
@@ -621,8 +613,6 @@ export class Dock {
 
 	/**
 	 * Clear the badge on a tile. Equivalent to `setBadge( id, 0 )`.
-	 *
-	 * @since 0.6.0
 	 */
 	public clearBadge( itemId: string ): void {
 		this.setBadge( itemId, 0 );
@@ -640,8 +630,6 @@ export class Dock {
 	 * the reduced-motion fallback shows a static accent ring for the
 	 * same duration so the affordance still works. `durationMs` of
 	 * `0` keeps the attention until the next call clears it.
-	 *
-	 * @since 0.6.0
 	 *
 	 * @param itemId Tile id.
 	 * @param mode   Animation mode or `null` to clear.
@@ -845,7 +833,14 @@ export class Dock {
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
-		primary.appendChild( this.resolveIcon( item.icon, item.title ) );
+		primary.appendChild(
+			this.resolveIcon(
+				item.icon,
+				item.title,
+				undefined,
+				slotForTileId( item.id ),
+			),
+		);
 		// System items don't have a native admin-menu counterpart; the
 		// third arg is intentionally omitted.
 		primary.addEventListener( 'click', () => item.onOpen() );
@@ -934,7 +929,12 @@ export class Dock {
 		primary.setAttribute( 'type', 'button' );
 		primary.setAttribute( 'aria-label', item.title );
 
-		const iconEl = this.resolveIcon( item.icon, item.title, item.url );
+		const iconEl = this.resolveIcon(
+			item.icon,
+			item.title,
+			item.url,
+			slotForTileId( item.id ),
+		);
 		primary.appendChild( iconEl );
 
 		if ( item.badge > 0 ) {
@@ -1063,8 +1063,6 @@ export class Dock {
 	 *    new id list to `dockOrder` via the public settings writer,
 	 *    and the layout-dispatcher subscriber re-applies. Cancellation
 	 *    (Escape, pointercancel) reverts to the original order.
-	 *
-	 * @since 0.8.2
 	 */
 	private attachDragReorder( tile: HTMLElement, itemId: string ): void {
 		const THRESHOLD = 5; // px the pointer must move before claiming.
@@ -1451,16 +1449,84 @@ export class Dock {
 	 * @param title Human-readable title, used when falling back to a
 	 *              letter badge.
 	 */
-	private resolveIcon( icon: string, title: string, url?: string ): HTMLElement {
+	private resolveIcon(
+		icon: string,
+		title: string,
+		url?: string,
+		slot?: string,
+	): HTMLElement {
+		// 0. Desktop-theme substitution, ahead of the whole branch
+		//    chain below.
+		//
+		//    `isThemed` matters for step 4: the native-menu harvest is
+		//    a fallback for "the server couldn't produce a usable
+		//    icon", and it fires whenever the icon is the generic gear.
+		//    If a theme deliberately maps a slot to
+		//    `dashicons-admin-generic`, that is a CHOICE, not a
+		//    failure — harvesting the plugin's own icon out of the
+		//    hidden #adminmenu would silently override the theme.
+		let isThemed = false;
+		let tint: string | null = null;
+		if ( slot ) {
+			const themed = resolveThemedIcon( slot );
+			if ( themed !== null ) {
+				icon = themed;
+				isThemed = true;
+			}
+			tint = resolveThemedIconColor( slot );
+		}
+
+		// 0b. Tinted image — painted as a mask filled with the theme's
+		//     colour, so only the artwork's alpha is used. This is what
+		//     makes a monochrome iconset legible on the dock: as an
+		//     `<img>` a black-stroked glyph is invisible against a dark
+		//     dock, and as a mask it takes whatever fill the theme
+		//     named (or `currentColor`, which follows the tile).
+		//
+		//     Ahead of every image branch below because it supersedes
+		//     all of them; dashicons fall through to branch 1, where a
+		//     tint is just `color`.
+		//     Deliberately NOT `desktop-mode-dock__item-svg`: that class
+		//     carries `filter: brightness(0) invert(1)`, which exists to
+		//     force plugin SVGs with hardcoded `fill` attributes to
+		//     white. It would flatten the theme's chosen tint to white
+		//     too. The mask class below is the same size and opacity
+		//     behaviour without the filter.
+		if ( tint !== null && ! icon.startsWith( 'dashicons-' ) ) {
+			const masked = document.createElement( 'span' );
+			masked.className = 'desktop-mode-dock__item-mask';
+			masked.setAttribute( 'aria-hidden', 'true' );
+			// Geometry inline as well as in the stylesheet. A masked
+			// span has no intrinsic size — unlike the `<img>` it
+			// replaces — so if its CSS rule is missing for ANY reason
+			// (a stale cached stylesheet, a host that strips our CSS,
+			// a plugin resetting spans) the icon collapses to nothing
+			// and simply disappears. The element that needs the size
+			// should carry it.
+			masked.style.width = 'var( --desktop-mode-dock-icon-size, 20px )';
+			masked.style.height = 'var( --desktop-mode-dock-icon-size, 20px )';
+			masked.style.display = 'block';
+			masked.style.flexShrink = '0';
+			if ( applyIconMask( masked, icon, tint ) ) {
+				return masked;
+			}
+		}
+
 		// 1. Specific dashicon — trust what the server gave us, UNLESS
 		//    it's the generic gear fallback. When the server hands us
 		//    dashicons-admin-generic it usually means the plugin uses
 		//    'none'/'div' for its icon and styles it from CSS — in that
 		//    case we try harder via the native-menu extractor below.
-		if ( icon.startsWith( 'dashicons-' ) && icon !== 'dashicons-admin-generic' ) {
+		if (
+			icon.startsWith( 'dashicons-' ) &&
+			( isThemed || icon !== 'dashicons-admin-generic' )
+		) {
 			const el = document.createElement( 'span' );
 			el.className = `dashicons ${ icon }`;
 			el.setAttribute( 'aria-hidden', 'true' );
+			if ( tint !== null ) {
+				el.style.color = tint;
+			}
 			return el;
 		}
 
@@ -1499,7 +1565,7 @@ export class Dock {
 		// 4. NATIVE-MENU FALLBACK — the server couldn't produce a usable
 		//    icon, but WP's hidden #adminmenu in the parent page IS
 		//    rendering this plugin's icon perfectly. Copy from there.
-		if ( url ) {
+		if ( url && ! isThemed ) {
 			const native = this._extractNativeMenuIcon( url );
 			if ( native ) {
 				return native;
@@ -1919,6 +1985,24 @@ export class Dock {
 		if ( item.windowId ) {
 			return item.windowId;
 		}
+		if ( item.id.startsWith( 'dock:' ) ) {
+			const iconId = item.id.slice( 5 );
+			const cfg = ( window as unknown as {
+				desktopModeConfig?: { desktopIcons?: Array< {
+					id: string;
+					window?: string;
+					url?: string;
+				} > };
+			} ).desktopModeConfig;
+			const icon = cfg?.desktopIcons?.find( ( i ) => i.id === iconId );
+			if ( icon?.window ) {
+				return icon.window;
+			}
+			if ( icon?.url ) {
+				const remapped = resolveNativeUrlRemap( icon.url );
+				return remapped ?? this.deriveWindowId( icon.url );
+			}
+		}
 		const remapped = resolveNativeUrlRemap( item.url );
 		return remapped ?? this.deriveWindowId( item.url );
 	}
@@ -2045,7 +2129,6 @@ export class Dock {
 	 */
 	private updateActiveStates(): void {
 		const focused = this.windowManager.getFocused();
-		const focusedBaseId = focused ? ( focused.config.baseId || focused.id ) : null;
 		// The dock reflects the ACTIVE desktop only. Windows on
 		// other desktops are invisible to the user right now —
 		// showing "active" dots for them conflates "something's
@@ -2064,22 +2147,43 @@ export class Dock {
 			}
 
 			const baseId = this.resolveItemBaseId( item );
-			const instances = this.windowManager
+			let instances = this.windowManager
 				.getAllByBaseId( baseId )
 				.filter( onActiveDesktop );
+			if ( instances.length === 0 && item.url ) {
+				const derivedId = this.deriveWindowId( item.url );
+				instances = this.windowManager
+					.getAll()
+					.filter( ( w ) => {
+						const wBase = w.config.baseId || w.id;
+						if ( wBase === baseId || wBase === derivedId || wBase === item.id ) {
+							return true;
+						}
+						if ( w.config.url ) {
+							const wDerived = this.deriveWindowId( w.config.url );
+							return wDerived === baseId || wDerived === derivedId;
+						}
+						return false;
+					} )
+					.filter( onActiveDesktop );
+			}
 			const isOpen = instances.length > 0;
 			const allMinimized = isOpen && instances.every( isMinimized );
 			const isFocused =
-				focusedBaseId === baseId &&
 				!! focused &&
 				onActiveDesktop( focused ) &&
-				! isMinimized( focused );
+				! isMinimized( focused ) &&
+				instances.some( ( w ) => w.id === focused.id || ( focused.config.baseId || focused.id ) === baseId );
 
 			tile.classList.toggle( 'desktop-mode-dock__item--active', isOpen );
 			tile.classList.toggle( 'desktop-mode-dock__item--focused', isFocused );
 			tile.classList.toggle(
 				'desktop-mode-dock__item--all-minimized',
 				allMinimized,
+			);
+			tile.classList.toggle(
+				'desktop-mode-dock__item--stacked',
+				isOpen && instances.length > 1,
 			);
 		}
 

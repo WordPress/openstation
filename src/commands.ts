@@ -11,8 +11,6 @@
  * a Map<slug, def>. Future UIs (a standalone Raycast-style launcher,
  * a right-click context menu) can consume the same registry without
  * depending on the assistant module.
- *
- * @since 0.5.0
  */
 
 import { throwOnRegistrationErrors } from './registration-errors';
@@ -65,8 +63,6 @@ export interface CommandContext {
 	 * destructive settings. The default implementation uses the
 	 * browser's native `confirm()` dialog; the shell may swap a custom
 	 * UI in later (the contract — Promise<boolean> — won't change).
-	 *
-	 * @since 0.5.0
 	 *
 	 * @param message Headline question, short and direct.
 	 * @param details Optional secondary line shown below the message.
@@ -153,8 +149,6 @@ export interface DesktopCommand {
 	 * the iframe-command bridge forwarding `@wordpress/icons` elements
 	 * via `renderToString`; plugins may set it directly when shipping
 	 * a custom SVG is easier than enqueueing a dashicon.
-	 *
-	 * @since 0.5.1
 	 */
 	iconSvg?: string;
 	/**
@@ -169,8 +163,6 @@ export interface DesktopCommand {
 	 * commands the user must deliberately invoke (plugin-registered
 	 * tools, destructive actions) where showing them eagerly would add
 	 * noise.
-	 *
-	 * @since 0.5.1
 	 */
 	eager?: boolean;
 	/**
@@ -185,8 +177,6 @@ export interface DesktopCommand {
 	 * repaints). Only the live-unregistration-on-deactivation case needs
 	 * this field — omitting it is a graceful fallback to "commands stay
 	 * until the next page reload."
-	 *
-	 * @since 0.5.0
 	 */
 	owner?: string;
 	/**
@@ -204,8 +194,6 @@ export interface DesktopCommand {
 	 * would turn a typo into a catastrophe. Commands that are safe
 	 * to invoke via a paraphrased user intent ("turn on the lights")
 	 * set this explicitly.
-	 *
-	 * @since 0.5.1
 	 */
 	aiCallable?: boolean;
 	/**
@@ -217,8 +205,6 @@ export interface DesktopCommand {
 	 * When a command DOESN'T define `suggest()`, the palette accepts
 	 * free-text arguments (current behaviour). When it DOES, the user
 	 * can still type anything — suggestions are hints, not constraints.
-	 *
-	 * @since 0.5.0
 	 */
 	suggest?: (
 		args: string,
@@ -302,8 +288,6 @@ const listeners = commandRegistryStore.state.listeners;
  *     },
  * });
  * ```
- *
- * @since 0.5.0
  */
 export function registerCommand( cmd: DesktopCommand ): void {
 	const errors: string[] = [];
@@ -344,8 +328,6 @@ export function unregisterCommand( slug: string ): void {
  * Remove every command whose `owner` tag matches. Used by the iframe
  * command-bridge to evict a focused window's commands when focus moves
  * elsewhere, and by the command server-sync on plugin deactivation.
- *
- * @since 0.5.1
  */
 export function unregisterByOwner( owner: string ): number {
 	if ( ! owner ) {
@@ -375,8 +357,6 @@ export function listCommands(): DesktopCommand[] {
  * metadata for the model's tool-description field — so we project
  * here rather than shipping the full `DesktopCommand` (including
  * `run`/`suggest` closures) over the wire.
- *
- * @since 0.5.1
  */
 export function listAiCallableCommands(): Array< {
 	slug: string;
@@ -408,8 +388,6 @@ export function listAiCallableCommands(): Array< {
  * Return only commands flagged `eager` — the subset the palette
  * surfaces before the user types anything. See the `eager` field on
  * {@link DesktopCommand} for the opt-in semantics.
- *
- * @since 0.5.1
  */
 export function listEagerCommands(): DesktopCommand[] {
 	return Array.from( registry.values() ).filter( ( c ) => c.eager === true );

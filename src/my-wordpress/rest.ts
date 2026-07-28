@@ -5,8 +5,6 @@
  * `desktop_mode_register_window` config delivery channel, and wraps
  * `trackedFetch` so every request feeds the window's title-bar
  * activity indicator.
- *
- * @since 0.8.0
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -69,16 +67,12 @@ interface ListParams {
 	 * REST endpoint via `?search=…`, which runs a LIKE against the
 	 * collection's indexed columns (`post_title` + `post_content` for
 	 * posts; see the per-fetcher comments below for the others).
-	 *
-	 * @since 0.8.7
 	 */
 	search?: string;
 	/**
 	 * Optional `AbortSignal` so callers can cancel a stale page-fetch
 	 * when the user types a new search query before the previous
 	 * round-trip lands.
-	 *
-	 * @since 0.8.7
 	 */
 	signal?: AbortSignal;
 }
@@ -210,7 +204,6 @@ async function readErrorMessage(
  *     get a non-empty total for non-admin viewers.
  *
  * @public
- * @since 0.8.0
  */
 export async function fetchEntityTotal(
 	entity: MyWordPressEntity,
@@ -278,7 +271,6 @@ export async function fetchEntityTotal(
  * bits internally, so the fall-through doesn't leak data.
  *
  * @public
- * @since 0.8.2
  */
 export async function fetchUserList(
 	entity: MyWordPressEntity,
@@ -289,8 +281,6 @@ export async function fetchUserList(
 		 * Optional search query. Passed verbatim to `/wp/v2/users` as
 		 * `?search=…`, which matches against user_login, user_nicename,
 		 * user_email, user_url, and display_name.
-		 *
-		 * @since 0.8.7
 		 */
 		search?: string;
 		signal?: AbortSignal;
@@ -352,7 +342,6 @@ export async function fetchUserList(
  * `/desktop-mode/v1/user-footprint/<id>`.
  *
  * @public
- * @since 0.8.2
  */
 export function fetchUserFootprint(
 	userId: number,
@@ -369,7 +358,6 @@ export function fetchUserFootprint(
  * for posts.
  *
  * @public
- * @since 0.8.2
  */
 export function buildEditUserUrl( id: number ): string {
 	const cfg = getConfig();
@@ -448,7 +436,6 @@ export interface RelatedRevision {
  * pane show the rendered HTML of just-this-revision.
  *
  * @public
- * @since 0.8.0
  */
 export interface RelatedRevisionDetail extends RelatedRevision {
 	content?: { rendered: string };
@@ -477,7 +464,6 @@ async function getJson< T >( url: string ): Promise< T > {
  * Single round-trip to `/desktop-mode/v1/user-stats/<id>`.
  *
  * @public
- * @since 0.8.0
  */
 export interface UserStats {
 	profile: {
@@ -542,7 +528,6 @@ export function fetchUserStats( id: number ): Promise< UserStats > {
  * `desktop_mode/v1/term-stats/<taxonomy>/<id>` endpoint returns.
  *
  * @public
- * @since 0.8.0
  */
 export interface TermStats {
 	profile: {
@@ -616,7 +601,6 @@ export function fetchTermStats(
  * `/desktop-mode/v1/comment-stats/<id>` endpoint shape.
  *
  * @public
- * @since 0.8.0
  */
 export interface CommentStats {
 	comment: {
@@ -727,7 +711,6 @@ export function fetchAttachedMedia(
  * referenced from inside the post content). Single REST round-trip.
  *
  * @public
- * @since 0.8.0
  */
 export function fetchMediaByIds(
 	ids: number[],
@@ -770,7 +753,6 @@ export function fetchRevisions(
  * The listing fetch above stays cheap (title + date only).
  *
  * @public
- * @since 0.8.0
  */
 export function fetchRevision(
 	entity: MyWordPressEntity,

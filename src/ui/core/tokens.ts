@@ -4,7 +4,7 @@
  * **Why this exists.** The 45-component web-component kit exposes
  * ~190 CSS custom properties (`--wpd-<component>-<token>`) that
  * theme each component. Each component declares its own
- * properties in its `.styles.ts` file, but until 0.8.1 there was
+ * properties in its `.styles.ts` file, but previously there was
  * no central index for plugin authors who want to know "what can
  * I theme?" without grepping the source.
  *
@@ -29,8 +29,6 @@
  * Plugin authors styling the kit MUST use names matching this
  * shape. Anything outside `--wpd-*` is not part of the contract
  * and may collide with WordPress's `--wp-admin-theme-color` etc.
- *
- * @since 0.8.1
  */
 
 /**
@@ -45,8 +43,6 @@
  *                  (e.g. `'--wpd-border-strong'`).
  * @param el        Element to read the resolved value from.
  *                  Defaults to `document.documentElement`.
- *
- * @since 0.8.1
  */
 export function readToken(
 	tokenName: `--wpd-${ string }`,
@@ -65,8 +61,6 @@ export function readToken(
  * happen in stylesheets so the cascade resolves predictably; the
  * inline-style escape hatch is for runtime values (a measured
  * dimension, a user-picked color) that can't be expressed in CSS.
- *
- * @since 0.8.1
  */
 export function setToken(
 	el: HTMLElement,
@@ -80,8 +74,6 @@ export function setToken(
  * Token-name validator — runtime guard for code that accepts a
  * caller-supplied token (debug widgets, OS Settings tabs that let
  * users tweak a value).
- *
- * @since 0.8.1
  */
 export function isWpdToken( name: string ): name is `--wpd-${ string }` {
 	return /^--wpd-[a-z0-9-]+$/.test( name );
@@ -92,8 +84,6 @@ export function isWpdToken( name: string ): name is `--wpd-${ string }` {
  * here so authors have one stable handle for "I want to read the
  * shell's neutral border" rather than re-deriving it from each
  * component's stylesheet.
- *
- * @since 0.8.1
  */
 export const WPD_FOUNDATION_TOKENS = {
 	border: '--wpd-border',

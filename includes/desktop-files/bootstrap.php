@@ -12,7 +12,6 @@
  * keeps loading the feature through one entry point.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -29,17 +28,22 @@ require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-shortcut-file.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-link-file.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-embed-file.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/types/class-desktop-mode-upload-file.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/built-in-types.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/openers.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/built-in-openers.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/schema.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/store.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/folders-store.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/stored-files-store.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/shares-store.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/file-shares.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/trash.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/cascade-cleanup.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/favicon.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/rest.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/rest-uploads.php';
+require_once DESKTOP_MODE_DIR . 'includes/desktop-files/downloads.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/wallpaper-menu.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/sharing.php';
 require_once DESKTOP_MODE_DIR . 'includes/desktop-files/heartbeat.php';

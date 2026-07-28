@@ -7,19 +7,16 @@
  * opens, the same as the recycle-bin and posts-window modules.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register My WordPress CSS and JS handles.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_assets() {
 	$version = DESKTOP_MODE_VERSION;
-	$suffix  = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+	$suffix  = desktop_mode_asset_suffix();
 
 	$css_path = DESKTOP_MODE_DIR . 'assets/css/my-wordpress.css';
 	wp_register_style(

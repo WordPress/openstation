@@ -18,8 +18,6 @@
  * <wpd-avatar name="Eric Andersen" presence="online"></wpd-avatar>
  * <wpd-avatar user-id="42" name="Pat" size="lg"></wpd-avatar>
  * ```
- *
- * @since 0.6.0
  */
 
 import { Component, defineComponent, html } from '../../core';

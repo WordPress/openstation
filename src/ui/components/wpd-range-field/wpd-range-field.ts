@@ -62,8 +62,8 @@ export class WpdRangeField extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Readout + label colour.' },
-			{ name: '--desktop-mode-muted', description: 'Secondary colour.' },
+			{ name: '--wpd-fg', description: 'Readout + label colour.' },
+			{ name: '--wpd-fg-muted', description: 'Secondary colour.' },
 		],
 		example: html`
 			<wpd-range-field

@@ -18,7 +18,6 @@
  * placeholder.
  *
  * @public
- * @since 0.7.0
  */
 
 import { showConflictDialog } from './conflict-dialog';

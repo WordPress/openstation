@@ -51,6 +51,14 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/files/*` | various | `includes/desktop-files/rest.php` | logged-in + desktop mode enabled (share routes add a sharing gate) |
 | `/ai/search` | POST | `includes/ai-copilot/search.php` | logged-in + AI feature flag |
 | `/ai/platform-settings` | GET / POST | `includes/ai-copilot/platform-settings.php` | `manage_options` |
+| `/games/{game}/scores` | GET / POST | `includes/games/rest.php` | logged-in + desktop mode enabled + `read` (filterable via `desktop_mode_games_rest_permission`) |
+| `/games/{game}/playtime` | POST | `includes/games/rest.php` | same games gate |
+| `/games/playtime` | GET | `includes/games/rest.php` | same games gate |
+| `/games/challenges` | GET / POST | `includes/games/rest.php` | same games gate (create also passes `desktop_mode_games_can_challenge`) |
+| `/games/challenges/{id}/accept` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
+| `/games/challenges/{id}/decline` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
+| `/games/challenges/{id}/complete` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
+| `/games/users/search` | GET | `includes/games/rest.php` | same games gate |
 
 ## Conventions
 

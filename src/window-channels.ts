@@ -22,8 +22,6 @@
  * `Window.send`, the iframe-bridge handler, the native render's
  * `windowApi`) is the only thing that picks the right path. Plugin
  * authors stay in API-land — they never see this module.
- *
- * @since 0.5.5
  */
 
 import { HOOKS, doAction } from './hooks';
@@ -262,8 +260,7 @@ export function markWindowContentLoading( windowId: string ): void {
  *
  *   1. Transport readiness — one-shot. The first call adds the
  *      window to `_readyWindows` and flushes any queued sends. Later
- *      calls skip the flush (idempotent, matching the pre-0.6.0
- *      contract).
+ *      calls skip the flush (idempotent).
  *   2. Visual loading state — edge-triggered. Fires
  *      `WINDOW_CONTENT_LOADED` + the
  *      `desktop-mode-window-content-loaded` CustomEvent only on a

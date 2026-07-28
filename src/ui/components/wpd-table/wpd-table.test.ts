@@ -477,6 +477,79 @@ describe( '<wpd-table>', () => {
 		expect( headerCb.indeterminate ).toBe( false );
 	} );
 
+	test( 'selectAll() selects only rows passing the active client-side filter', async () => {
+		host.innerHTML = `<wpd-table selectable="multi"></wpd-table>`;
+		await tick();
+		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
+		table.columns = sampleColumns;
+		table.getRowId = ( row ) => row.email;
+		table.data = sampleData;
+		// Only the two admins (Alice, Carol) are visible.
+		table.filters = { role: 'admin' };
+		await tick();
+
+		table.selectAll();
+		await tick();
+
+		// Bob is hidden by the filter — a destructive bulk action fed
+		// from this selection must not be able to reach him.
+		expect( Array.from( table.selection ).sort() ).toEqual( [
+			'alice@a.com',
+			'carol@c.com',
+		] );
+
+		// The header select-all reads checked (not indeterminate):
+		// every VISIBLE row is selected, which is what the checkbox
+		// claims to control.
+		const headerCb = table.shadowRoot!.querySelector(
+			'thead .select-all-checkbox',
+		) as HTMLInputElement;
+		expect( headerCb.checked ).toBe( true );
+		expect( headerCb.indeterminate ).toBe( false );
+	} );
+
+	test( 'visibleRows returns only rows passing the active client-side filters', async () => {
+		host.innerHTML = `<wpd-table></wpd-table>`;
+		await tick();
+		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
+		table.columns = sampleColumns;
+		table.data = sampleData;
+		await tick();
+		expect( table.visibleRows.length ).toBe( 3 );
+
+		table.filters = { role: 'admin' };
+		await tick();
+		expect( table.visibleRows.map( ( r ) => r.name ) ).toEqual( [
+			'Alice',
+			'Carol',
+		] );
+		// The full buffer is untouched.
+		expect( table.data.length ).toBe( 3 );
+	} );
+
+	test( 'header select-all tri-state tracks visible rows, not the full buffer', async () => {
+		host.innerHTML = `<wpd-table selectable="multi"></wpd-table>`;
+		await tick();
+		const table = host.querySelector( 'wpd-table' ) as WpdTable< User >;
+		table.columns = sampleColumns;
+		table.getRowId = ( row ) => row.email;
+		table.data = sampleData;
+		table.select( 'bob@b.com' );
+		await tick();
+
+		// Bob (editor) is selected, then a filter hides him. The two
+		// visible admins are unselected — the header checkbox must
+		// read fully unchecked, not indeterminate, because nothing
+		// the user can see is selected.
+		table.filters = { role: 'admin' };
+		await tick();
+		const headerCb = table.shadowRoot!.querySelector(
+			'thead .select-all-checkbox',
+		) as HTMLInputElement;
+		expect( headerCb.checked ).toBe( false );
+		expect( headerCb.indeterminate ).toBe( false );
+	} );
+
 	test( 'selectable=single: enforces at-most-one selected', async () => {
 		host.innerHTML = `<wpd-table selectable="single"></wpd-table>`;
 		await tick();

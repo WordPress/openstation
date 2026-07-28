@@ -17,15 +17,12 @@
  * instead.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Builds the server-borne wallpaper-menu items.
- *
- * @since 0.9.0
  *
  * @return array[]
  */
@@ -37,8 +34,6 @@ function desktop_mode_build_wallpaper_menu_items() {
 	 *
 	 * Each item must have at least `id` and `label`. Optional:
 	 * `icon`, `sort`, `disabled`, `callbackId`.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array[] $items Items list.
 	 */

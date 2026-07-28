@@ -1,0 +1,947 @@
+<?php
+/**
+ * Tests for desktop-theme fonts.
+ *
+ * `@font-face` is the ONLY at-rule this feature generates, which
+ * makes it the one place where the "a theme is data, never code"
+ * rule has to be defended by construction rather than by the value
+ * grammar. Two author-supplied substrings reach the stylesheet — the
+ * family name and the file path — so these tests concentrate on
+ * proving that neither can escape:
+ *
+ *   - the family name is quoted, and nothing that could close the
+ *     quote survives sanitization;
+ *   - the path went through the FONT extension allowlist, which is
+ *     disjoint from the image one;
+ *   - every other descriptor is a closed enum or a numeric pattern.
+ *
+ * @package WordPress
+ * @subpackage UnitTests
+ *
+ * @group desktop-mode
+ * @group desktop-mode-themes
+ */
+class Tests_DesktopMode_DesktopThemesFonts extends WP_UnitTestCase {
+
+	/** Recursive delete for fixtures outside the themes base dir. */
+	private function rrmdir( $dir ) {
+		foreach ( (array) glob( $dir . '/*' ) as $entry ) {
+			is_dir( $entry ) ? $this->rrmdir( $entry ) : unlink( $entry );
+		}
+		rmdir( $dir );
+	}
+
+	/** Resolver that accepts anything with a plausible extension. */
+	private function permissive_resolver() {
+		return static function ( $path ) {
+			return (string) $path;
+		};
+	}
+
+	private function sanitize_fonts( $raw, $resolver = null ) {
+		return desktop_mode_sanitize_desktop_theme_fonts(
+			$raw,
+			$resolver ? $resolver : $this->permissive_resolver()
+		);
+	}
+
+	private function compile( $fonts, $base = 'https://x.test/t', $version = '' ) {
+		return desktop_mode_desktop_theme_compile_css(
+			array(
+				'manifestVersion' => 1,
+				'id'              => 'acme/neon',
+				'slug'            => 'acme-neon',
+				'name'            => 'Neon',
+				'tokens'          => array(),
+				'icons'           => array(),
+				'textures'        => array(),
+				'fonts'           => $fonts,
+			),
+			'acme-neon',
+			$base,
+			$version
+		);
+	}
+
+	// ------------------------------------------------------------------
+	// Sanitizer.
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_minimal_face_survives() {
+		$fonts = $this->sanitize_fonts( array(
+			array(
+				'family' => 'Neon Grotesk',
+				'src'    => 'fonts/neon.woff2',
+			),
+		) );
+
+		$this->assertCount( 1, $fonts );
+		$this->assertSame( 'Neon Grotesk', $fonts[0]['family'] );
+		$this->assertSame(
+			array( array( 'path' => 'fonts/neon.woff2', 'format' => 'woff2' ) ),
+			$fonts[0]['src']
+		);
+	}
+
+	/**
+	 * The `format()` hint is DERIVED from the extension, never read
+	 * from the author — one less free string in the output.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_font_format
+	 */
+	public function test_format_is_derived_from_the_extension() {
+		$this->assertSame( 'woff2', desktop_mode_desktop_theme_font_format( 'a/b.woff2' ) );
+		$this->assertSame( 'woff', desktop_mode_desktop_theme_font_format( 'a/b.WOFF' ) );
+		$this->assertSame( 'truetype', desktop_mode_desktop_theme_font_format( 'a/b.ttf' ) );
+		$this->assertSame( 'opentype', desktop_mode_desktop_theme_font_format( 'a/b.otf' ) );
+		$this->assertSame( '', desktop_mode_desktop_theme_font_format( 'a/b.png' ) );
+		// URL form, query string discarded before the extension read.
+		$this->assertSame(
+			'woff2',
+			desktop_mode_desktop_theme_font_format( 'https://x.test/f/n.woff2?ver=7' )
+		);
+	}
+
+	/**
+	 * An author-supplied `format` is ignored rather than trusted — the
+	 * hint always comes from the extension.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_author_supplied_format_is_ignored() {
+		$fonts = $this->sanitize_fonts( array(
+			array(
+				'family' => 'Neon',
+				'src'    => array(
+					array( 'path' => 'fonts/neon.woff2', 'format' => 'woff2"); } body { display: none' ),
+				),
+			),
+		) );
+
+		$this->assertSame( 'woff2', $fonts[0]['src'][0]['format'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_src_accepts_a_list_in_preference_order() {
+		$fonts = $this->sanitize_fonts( array(
+			array(
+				'family' => 'Neon',
+				'src'    => array( 'fonts/neon.woff2', 'fonts/neon.woff' ),
+			),
+		) );
+
+		$this->assertSame( 'fonts/neon.woff2', $fonts[0]['src'][0]['path'] );
+		$this->assertSame( 'fonts/neon.woff', $fonts[0]['src'][1]['path'] );
+	}
+
+	/**
+	 * The family name is quoted verbatim by the compiler, so anything
+	 * that could close the quote has to die here.
+	 *
+	 * @dataProvider data_bad_family_names
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_bad_family_names_drop_the_face( $family ) {
+		$this->assertSame(
+			array(),
+			$this->sanitize_fonts( array(
+				array( 'family' => $family, 'src' => 'fonts/n.woff2' ),
+			) ),
+			'Family name should have dropped the whole face: ' . $family
+		);
+	}
+
+	public function data_bad_family_names() {
+		return array(
+			'quote breakout'  => array( 'Neon"; } body { display:none } @font-face { font-family: "x' ),
+			'single quote'    => array( "Neon' " ),
+			'semicolon'       => array( 'Neon; color: red' ),
+			'brace'           => array( 'Neon}' ),
+			'at rule'         => array( '@import url(x)' ),
+			'backslash'       => array( 'Neon\\22 ' ),
+			'comment'         => array( 'Neon/*x*/' ),
+			'leading symbol'  => array( '-Neon' ),
+			'empty'           => array( '' ),
+			'too long'        => array( str_repeat( 'a', 65 ) ),
+			'markup'          => array( '<script>' ),
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_face_with_no_usable_source_is_dropped() {
+		$reject = static function () {
+			return false;
+		};
+
+		$this->assertSame(
+			array(),
+			$this->sanitize_fonts( array( array( 'family' => 'Neon', 'src' => 'fonts/n.woff2' ) ), $reject )
+		);
+		$this->assertSame(
+			array(),
+			$this->sanitize_fonts( array( array( 'family' => 'Neon' ) ) ),
+			'A face with no src at all is no face.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_descriptor_grammar() {
+		$fonts = $this->sanitize_fonts( array(
+			array(
+				'family'       => 'Neon',
+				'src'          => 'fonts/n.woff2',
+				'weight'       => '100 900',
+				'style'        => 'ITALIC',
+				'display'      => 'swap',
+				'stretch'      => 'semi-condensed',
+				'unicodeRange' => 'u+0000-00ff, u+2000-206f',
+			),
+		) );
+
+		$this->assertSame( '100 900', $fonts[0]['weight'] );
+		$this->assertSame( 'italic', $fonts[0]['style'] );
+		$this->assertSame( 'swap', $fonts[0]['display'] );
+		$this->assertSame( 'semi-condensed', $fonts[0]['stretch'] );
+		$this->assertSame( 'U+0000-00FF, U+2000-206F', $fonts[0]['unicodeRange'] );
+	}
+
+	/**
+	 * A bad descriptor drops itself, not the face — same
+	 * drops-and-continues contract as tokens and textures.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_bad_descriptors_drop_without_dropping_the_face() {
+		$fonts = $this->sanitize_fonts( array(
+			array(
+				'family'       => 'Neon',
+				'src'          => 'fonts/n.woff2',
+				'weight'       => '400; color: red',
+				'style'        => 'sideways',
+				'display'      => 'immediately',
+				'stretch'      => 'very wide indeed',
+				'unicodeRange' => 'U+GGGG',
+			),
+		) );
+
+		$this->assertCount( 1, $fonts );
+		$this->assertSame( 'Neon', $fonts[0]['family'] );
+		foreach ( array( 'weight', 'style', 'display', 'stretch', 'unicodeRange' ) as $key ) {
+			$this->assertArrayNotHasKey( $key, $fonts[0], $key . ' should have dropped.' );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_fonts
+	 */
+	public function test_face_and_source_caps_are_enforced() {
+		$caps = desktop_mode_desktop_theme_font_caps();
+
+		$faces = array();
+		for ( $i = 0; $i < $caps['max_faces'] + 5; $i++ ) {
+			$faces[] = array( 'family' => 'Neon ' . $i, 'src' => 'fonts/n.woff2' );
+		}
+		$this->assertCount( $caps['max_faces'], $this->sanitize_fonts( $faces ) );
+
+		$sources = array_fill( 0, $caps['max_sources'] + 3, 'fonts/n.woff2' );
+		$fonts   = $this->sanitize_fonts( array(
+			array( 'family' => 'Neon', 'src' => $sources ),
+		) );
+		$this->assertCount( $caps['max_sources'], $fonts[0]['src'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 */
+	public function test_fonts_block_is_wired_into_the_manifest() {
+		$manifest = desktop_mode_sanitize_desktop_theme_manifest(
+			array(
+				'manifestVersion' => 1,
+				'id'              => 'acme/neon',
+				'name'            => 'Neon',
+				'fonts'           => array(
+					array( 'family' => 'Neon', 'src' => 'fonts/n.woff2' ),
+				),
+			),
+			$this->permissive_resolver()
+		);
+
+		$this->assertNotWPError( $manifest );
+		$this->assertSame( 'Neon', $manifest['fonts'][0]['family'] );
+	}
+
+	/**
+	 * A manifest that declares no fonts still gets the key, so every
+	 * downstream consumer can iterate it unconditionally.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 */
+	public function test_fonts_key_always_exists() {
+		$manifest = desktop_mode_sanitize_desktop_theme_manifest(
+			array( 'manifestVersion' => 1, 'id' => 'acme/neon', 'name' => 'Neon' ),
+			$this->permissive_resolver()
+		);
+
+		$this->assertSame( array(), $manifest['fonts'] );
+	}
+
+	// ------------------------------------------------------------------
+	// Extension allowlists.
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::desktop_mode_desktop_theme_asset_extensions
+	 */
+	public function test_image_and_font_extension_lists_are_disjoint() {
+		$images = desktop_mode_desktop_theme_asset_extensions( 'image' );
+		$fonts  = desktop_mode_desktop_theme_asset_extensions( 'font' );
+
+		$this->assertContains( 'svg', $images );
+		$this->assertContains( 'woff2', $fonts );
+		$this->assertSame( array(), array_intersect( $images, $fonts ) );
+		$this->assertSame(
+			array(),
+			desktop_mode_desktop_theme_asset_extensions( 'nonsense' ),
+			'An unknown kind fails closed.'
+		);
+	}
+
+	/**
+	 * A font path must not resolve through the image gate, and an
+	 * image path must not resolve through the font gate.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_staging_asset_resolver
+	 */
+	public function test_staging_resolver_separates_kinds() {
+		$base = get_temp_dir() . 'dm-theme-fonts-' . wp_generate_uuid4();
+		wp_mkdir_p( $base . '/fonts' );
+		wp_mkdir_p( $base . '/icons' );
+		file_put_contents( $base . '/fonts/n.woff2', 'wOF2' );
+		file_put_contents( $base . '/icons/x.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>' );
+
+		$resolve = desktop_mode_desktop_theme_staging_asset_resolver( $base );
+
+		$this->assertSame( 'fonts/n.woff2', $resolve( 'fonts/n.woff2', 'font' ) );
+		$this->assertFalse( $resolve( 'fonts/n.woff2', 'image' ), 'Font refused as an image.' );
+		$this->assertSame( 'icons/x.svg', $resolve( 'icons/x.svg', 'image' ) );
+		$this->assertFalse( $resolve( 'icons/x.svg', 'font' ), 'SVG refused as a font.' );
+		// Containment still applies to fonts.
+		$this->assertFalse( $resolve( '../n.woff2', 'font' ) );
+
+		$this->rrmdir( $base );
+	}
+
+	/**
+	 * @covers ::desktop_mode_desktop_theme_url_asset_resolver
+	 */
+	public function test_url_resolver_separates_kinds() {
+		$resolve = desktop_mode_desktop_theme_url_asset_resolver();
+
+		$this->assertSame(
+			'https://example.com/n.woff2',
+			$resolve( 'https://example.com/n.woff2', 'font' )
+		);
+		$this->assertFalse( $resolve( 'https://example.com/n.woff2', 'image' ) );
+		$this->assertFalse( $resolve( 'https://example.com/n.css', 'font' ) );
+		$this->assertFalse( $resolve( 'fonts/n.woff2', 'font' ), 'Relative URL refused.' );
+	}
+
+	/**
+	 * The ZIP allowlist has to admit fonts (and the licence file a
+	 * bundled font obliges an author to ship) or the upload path is
+	 * closed to them before the sanitizer ever runs.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_zip_caps
+	 */
+	public function test_zip_caps_admit_fonts_and_licence_files() {
+		$caps = desktop_mode_desktop_theme_zip_caps();
+
+		foreach ( array( 'woff2', 'woff', 'ttf', 'otf' ) as $ext ) {
+			$this->assertContains( $ext, $caps['extensions'] );
+		}
+		$this->assertContains( 'txt', $caps['extensions'], 'Licence notices ride along.' );
+		foreach ( array( 'css', 'js', 'html', 'php' ) as $ext ) {
+			$this->assertNotContains( $ext, $caps['extensions'] );
+		}
+	}
+
+	// ------------------------------------------------------------------
+	// Compiler.
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_font_face_is_emitted() {
+		$css = $this->compile( $this->sanitize_fonts( array(
+			array(
+				'family'  => 'Neon Grotesk',
+				'src'     => array( 'fonts/neon.woff2', 'fonts/neon.woff' ),
+				'weight'  => '400',
+				'style'   => 'normal',
+				'display' => 'swap',
+			),
+		) ) );
+
+		$this->assertStringContainsString( '@font-face {', $css );
+		$this->assertStringContainsString( 'font-family: "Neon Grotesk";', $css );
+		$this->assertStringContainsString( 'font-weight: 400;', $css );
+		$this->assertStringContainsString( 'font-display: swap;', $css );
+		$this->assertStringContainsString(
+			'url("https://x.test/t/fonts/neon.woff2") format("woff2")',
+			$css
+		);
+		$this->assertStringContainsString(
+			'url("https://x.test/t/fonts/neon.woff") format("woff")',
+			$css
+		);
+	}
+
+	/**
+	 * A theme that ships fonts but sets no token still compiles — the
+	 * faces are the whole payload.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_fonts_alone_still_compile() {
+		$css = $this->compile( $this->sanitize_fonts( array(
+			array( 'family' => 'Neon', 'src' => 'fonts/n.woff2' ),
+		) ) );
+
+		$this->assertStringContainsString( '@font-face', $css );
+		$this->assertStringNotContainsString( '.desktop-mode-shell[', $css );
+	}
+
+	/**
+	 * Faces print BEFORE the token rule, so reading the sheet top to
+	 * bottom shows a family defined before it is named.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_font_faces_precede_the_token_rule() {
+		$css = desktop_mode_desktop_theme_compile_css(
+			array(
+				'manifestVersion' => 1,
+				'id'              => 'acme/neon',
+				'slug'            => 'acme-neon',
+				'name'            => 'Neon',
+				'tokens'          => array( '--desktop-mode-font' => '"Neon", sans-serif' ),
+				'icons'           => array(),
+				'textures'        => array(),
+				'fonts'           => $this->sanitize_fonts( array(
+					array( 'family' => 'Neon', 'src' => 'fonts/n.woff2' ),
+				) ),
+			),
+			'acme-neon',
+			'https://x.test/t'
+		);
+
+		$this->assertLessThan(
+			strpos( $css, '.desktop-mode-shell[' ),
+			strpos( $css, '@font-face' )
+		);
+	}
+
+	/**
+	 * Re-uploading a theme reuses the same paths by design, so font
+	 * URLs need the same install-timestamp cache-buster the textures
+	 * get — otherwise a re-upload swaps the CSS and keeps the old
+	 * typeface.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_font_urls_carry_the_cache_buster() {
+		$css = $this->compile(
+			$this->sanitize_fonts( array(
+				array( 'family' => 'Neon', 'src' => 'fonts/n.woff2' ),
+			) ),
+			'https://x.test/t',
+			'1700000000'
+		);
+
+		$this->assertStringContainsString(
+			'url("https://x.test/t/fonts/n.woff2?ver=1700000000")',
+			$css
+		);
+	}
+
+	/**
+	 * Absolute URLs (code-registered themes) pass through untouched —
+	 * that plugin owns its own cache-busting.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_code_theme_font_urls_pass_through() {
+		$css = $this->compile(
+			$this->sanitize_fonts(
+				array( array( 'family' => 'Neon', 'src' => 'https://cdn.test/n.woff2' ) ),
+				desktop_mode_desktop_theme_url_asset_resolver()
+			),
+			''
+		);
+
+		$this->assertStringContainsString( 'url("https://cdn.test/n.woff2")', $css );
+	}
+
+	/**
+	 * The compiled sheet must contain exactly one at-rule keyword, and
+	 * it must be ours. This is the regression guard for the whole
+	 * "data, never code" posture: if an author string ever managed to
+	 * become an at-rule, it shows up here.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_compile_css
+	 */
+	public function test_no_at_rules_other_than_font_face() {
+		$css = $this->compile( $this->sanitize_fonts( array(
+			array(
+				'family'       => 'Neon',
+				'src'          => 'fonts/n.woff2',
+				'unicodeRange' => 'U+0000-00FF',
+			),
+		) ) );
+
+		preg_match_all( '/@[a-zA-Z-]+/', $css, $matches );
+		$this->assertSame( array( '@font-face' ), array_unique( $matches[0] ) );
+	}
+
+	// ------------------------------------------------------------------
+	// Registration + payload.
+	// ------------------------------------------------------------------
+
+	/**
+	 * @covers ::desktop_mode_register_desktop_theme
+	 */
+	public function test_code_registration_accepts_fonts() {
+		desktop_mode_register_desktop_theme( 'acme/fonted', array(
+			'name'  => 'Fonted',
+			'fonts' => array(
+				array(
+					'family' => 'Neon Grotesk',
+					'src'    => array( 'https://cdn.test/neon.woff2' ),
+				),
+				// Same family at a second weight — one family, two faces.
+				array(
+					'family' => 'Neon Grotesk',
+					'weight' => '700',
+					'src'    => array( 'https://cdn.test/neon-bold.woff2' ),
+				),
+			),
+		) );
+
+		$entry = desktop_mode_desktop_theme_registry( 'acme-fonted' );
+		$this->assertNotNull( $entry );
+		$this->assertStringContainsString( 'font-family: "Neon Grotesk";', $entry['cssText'] );
+		$this->assertStringContainsString( 'font-weight: 700;', $entry['cssText'] );
+
+		$shaped = desktop_mode_shape_desktop_theme_payload_entry( $entry, 'code' );
+		$this->assertSame(
+			array( 'Neon Grotesk' ),
+			$shaped['fonts'],
+			'The payload lists distinct families, not faces.'
+		);
+
+		desktop_mode_unregister_desktop_theme( 'acme/fonted' );
+	}
+
+	// ------------------------------------------------------------------
+	// Wallpapers.
+	// ------------------------------------------------------------------
+
+	private function sanitize_wallpapers( $raw, $resolver = null ) {
+		return desktop_mode_sanitize_desktop_theme_wallpapers(
+			$raw,
+			$resolver ? $resolver : $this->permissive_resolver()
+		);
+	}
+
+	/**
+	 * All four author shapes have to work, because all four are things
+	 * people reasonably write.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_every_author_shape_normalizes_to_a_list() {
+		$bare = $this->sanitize_wallpapers( 'textures/desk.png' );
+		$this->assertCount( 1, $bare );
+		$this->assertSame( 'textures/desk.png', $bare[0]['path'] );
+
+		$one = $this->sanitize_wallpapers( array( 'path' => 'textures/desk.png' ) );
+		$this->assertCount( 1, $one );
+
+		$list = $this->sanitize_wallpapers( array(
+			'a.png',
+			array( 'path' => 'b.png', 'label' => 'Dusk' ),
+		) );
+		$this->assertCount( 2, $list );
+		$this->assertSame( 'Dusk', $list[1]['label'] );
+
+		$map = $this->sanitize_wallpapers( array(
+			'dusk' => array( 'path' => 'b.png' ),
+			'dawn' => array( 'path' => 'c.png' ),
+		) );
+		$this->assertCount( 2, $map );
+		$this->assertSame( array( 'dusk', 'dawn' ), wp_list_pluck( $map, 'id' ) );
+	}
+
+	/**
+	 * Ids are a STORED USER PREFERENCE. They must come from something
+	 * stable, never the array index, or reordering the list in a
+	 * re-upload would move every user onto a different picture.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_ids_are_stable_not_positional() {
+		$before = $this->sanitize_wallpapers( array( 'aurora.png', 'dusk.png' ) );
+		$after  = $this->sanitize_wallpapers( array( 'dusk.png', 'aurora.png' ) );
+
+		$this->assertSame( array( 'aurora', 'dusk' ), wp_list_pluck( $before, 'id' ) );
+		$this->assertSame(
+			array( 'dusk', 'aurora' ),
+			wp_list_pluck( $after, 'id' ),
+			'Reordering must not renumber ids.'
+		);
+
+		// Explicit id wins over the filename.
+		$explicit = $this->sanitize_wallpapers( array(
+			array( 'path' => 'aurora.png', 'id' => 'keep-me' ),
+		) );
+		$this->assertSame( 'keep-me', $explicit[0]['id'] );
+
+		// A label supplies the id when there is no explicit one.
+		$labelled = $this->sanitize_wallpapers( array(
+			array( 'path' => 'x.png', 'label' => 'Deep Field' ),
+		) );
+		$this->assertSame( 'deep-field', $labelled[0]['id'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_duplicate_ids_and_unresolvable_assets_drop() {
+		$dupes = $this->sanitize_wallpapers( array( 'a.png', 'a.png' ) );
+		$this->assertCount( 1, $dupes, 'A duplicate id drops rather than shadowing.' );
+
+		$reject = static function () {
+			return false;
+		};
+		$this->assertSame( array(), $this->sanitize_wallpapers( 'nope.png', $reject ) );
+		$this->assertSame( array(), $this->sanitize_wallpapers( null ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_wallpaper_count_is_capped() {
+		$many = array();
+		for ( $i = 0; $i < 40; $i++ ) {
+			$many[] = "w{$i}.png";
+		}
+		$this->assertCount( 12, $this->sanitize_wallpapers( $many ) );
+
+		$cap = static function () {
+			return 3;
+		};
+		add_filter( 'desktop_mode_desktop_theme_max_wallpapers', $cap );
+		$this->assertCount( 3, $this->sanitize_wallpapers( $many ) );
+		remove_filter( 'desktop_mode_desktop_theme_max_wallpapers', $cap );
+	}
+
+	/**
+	 * A wallpaper must resolve through the IMAGE gate — a font path
+	 * must not sneak in through it.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_wallpapers
+	 */
+	public function test_wallpapers_use_the_image_extension_gate() {
+		$seen = array();
+		$spy  = static function ( $path, $kind = 'image' ) use ( &$seen ) {
+			$seen[] = $kind;
+			return (string) $path;
+		};
+		$this->sanitize_wallpapers( 'a.png', $spy );
+		$this->assertSame( array( 'image' ), $seen );
+	}
+
+	/**
+	 * Both manifest keys are accepted — authors guess either.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_manifest
+	 */
+	public function test_singular_and_plural_manifest_keys_both_work() {
+		foreach ( array( 'wallpaper', 'wallpapers' ) as $key ) {
+			$manifest = desktop_mode_sanitize_desktop_theme_manifest(
+				array(
+					'manifestVersion' => 1,
+					'id'              => 'acme/neon',
+					'name'            => 'Neon',
+					$key              => 'desk.png',
+				),
+				$this->permissive_resolver()
+			);
+			$this->assertCount( 1, $manifest['wallpapers'], $key . ' should have been read.' );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_desktop_theme_wallpaper_css
+	 */
+	public function test_wallpaper_css_is_a_background_shorthand() {
+		$css = desktop_mode_desktop_theme_wallpaper_css(
+			array( 'path' => 'textures/desk.png' ),
+			'https://x.test/t',
+			'1700000000'
+		);
+		$this->assertSame(
+			'url("https://x.test/t/textures/desk.png?ver=1700000000") center center / cover no-repeat',
+			$css
+		);
+
+		$tiled = desktop_mode_desktop_theme_wallpaper_css(
+			array(
+				'path'     => 'p.png',
+				'size'     => '64px 64px',
+				'repeat'   => 'repeat',
+				'position' => 'top left',
+			),
+			'https://x.test/t'
+		);
+		$this->assertStringContainsString( 'top left / 64px 64px repeat', $tiled );
+
+		$this->assertSame( '', desktop_mode_desktop_theme_wallpaper_css( array(), '' ) );
+	}
+
+	/**
+	 * The label is what tells a user where a wallpaper came from.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_wallpaper_label
+	 */
+	public function test_wallpaper_label_marks_its_origin() {
+		$this->assertSame(
+			'Neon Glass - (theme)',
+			desktop_mode_desktop_theme_wallpaper_label( 'Neon Glass', 'neon-glass' )
+		);
+		$this->assertSame(
+			'Neon Glass: Deep Field - (theme)',
+			desktop_mode_desktop_theme_wallpaper_label( 'Neon Glass', 'neon-glass', 'Deep Field' )
+		);
+
+		$filter = static function () {
+			return 'custom';
+		};
+		add_filter( 'desktop_mode_desktop_theme_wallpaper_label', $filter );
+		$this->assertSame(
+			'custom',
+			desktop_mode_desktop_theme_wallpaper_label( 'Neon Glass', 'neon-glass' )
+		);
+		remove_filter( 'desktop_mode_desktop_theme_wallpaper_label', $filter );
+	}
+
+	/**
+	 * Every theme in the library contributes every wallpaper it
+	 * declares, active or not — the point of a pick is that it does
+	 * not require wearing the theme it came from.
+	 *
+	 * @covers ::desktop_mode_register_desktop_theme_wallpapers
+	 */
+	public function test_theme_wallpapers_reach_the_picker() {
+		desktop_mode_register_desktop_theme( 'acme/papered', array(
+			'name'       => 'Papered',
+			'wallpapers' => array(
+				'dusk' => array( 'path' => 'https://cdn.test/dusk.jpg', 'label' => 'Dusk' ),
+				'dawn' => array( 'path' => 'https://cdn.test/dawn.jpg', 'label' => 'Dawn' ),
+			),
+		) );
+
+		desktop_mode_register_desktop_theme_wallpapers();
+
+		$found = array();
+		foreach ( desktop_mode_build_desktop_wallpapers_payload() as $entry ) {
+			if ( 0 === strpos( $entry['id'], 'desktop-theme/acme-papered/' ) ) {
+				$found[ $entry['id'] ] = $entry;
+			}
+		}
+
+		$this->assertCount( 2, $found, 'Both wallpapers should be pickable.' );
+		$this->assertSame(
+			'Papered: Dusk - (theme)',
+			$found['desktop-theme/acme-papered/dusk']['label']
+		);
+		$this->assertSame( 'css', $found['desktop-theme/acme-papered/dawn']['type'] );
+		$this->assertStringContainsString(
+			'https://cdn.test/dawn.jpg',
+			$found['desktop-theme/acme-papered/dawn']['value']
+		);
+
+		desktop_mode_unregister_desktop_theme( 'acme/papered' );
+	}
+
+	/**
+	 * The install response must carry the REBUILT wallpaper list.
+	 *
+	 * `desktop_mode_register_desktop_theme_wallpapers()` runs on `init`,
+	 * which for the upload request happened before the theme existed.
+	 * Without a rebuild in the response the shell has no way to learn
+	 * about the new wallpapers until the next page load — the "works
+	 * after F5" seam this channel exists to close.
+	 *
+	 * @covers ::desktop_mode_rest_install_desktop_theme
+	 */
+	public function test_install_response_carries_the_rebuilt_wallpaper_list() {
+		$zip = $this->make_theme_zip( array(
+			'manifestVersion' => 1,
+			'id'              => 'acme/papered',
+			'name'            => 'Papered',
+			'wallpapers'      => array( 'dusk' => array( 'path' => 'desk.png' ) ),
+		) );
+
+		$entry = desktop_mode_desktop_theme_install_from_zip( $zip );
+		$this->assertNotWPError( $entry );
+
+		// The registration the REST handler re-runs.
+		desktop_mode_register_desktop_theme_wallpapers();
+		$ids = wp_list_pluck( desktop_mode_build_desktop_wallpapers_payload(), 'id' );
+
+		$this->assertContains(
+			'desktop-theme/acme-papered/dusk',
+			$ids,
+			'A freshly installed theme’s wallpaper must be registerable within the same request.'
+		);
+
+		desktop_mode_desktop_theme_delete( 'acme-papered' );
+		unlink( $zip );
+	}
+
+	/**
+	 * Abandoned staging dirs are collectable, live ones are not.
+	 *
+	 * The age floor is the load-bearing half: a CONCURRENT upload owns a
+	 * staging dir that is seconds old, and collecting it would corrupt a
+	 * live install.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_sweep_staging
+	 */
+	public function test_staging_sweep_collects_only_stale_orphans() {
+		$base = desktop_mode_desktop_themes_ensure_dir();
+		$this->assertNotWPError( $base );
+
+		$stale = $base . '/.staging-' . wp_generate_uuid4();
+		$fresh = $base . '/.staging-' . wp_generate_uuid4();
+		$theme = $base . '/not-a-staging-dir';
+		wp_mkdir_p( $stale );
+		wp_mkdir_p( $fresh );
+		wp_mkdir_p( $theme );
+		// Backdate the orphan past the age floor.
+		touch( $stale, time() - ( 2 * DAY_IN_SECONDS ) );
+
+		$removed = desktop_mode_desktop_theme_sweep_staging();
+
+		$this->assertSame( 1, $removed );
+		$this->assertDirectoryDoesNotExist( $stale, 'A stale orphan is collected.' );
+		$this->assertDirectoryExists( $fresh, 'A concurrent upload is left alone.' );
+		$this->assertDirectoryExists( $theme, 'Only .staging-* dirs are touched.' );
+
+		desktop_mode_desktop_theme_rmdir( $fresh );
+		desktop_mode_desktop_theme_rmdir( $theme );
+	}
+
+	/**
+	 * A quote in a token value is allowed (font stacks need it) and
+	 * cannot escape the declaration it lands in.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_is_safe_css_value
+	 */
+	public function test_quotes_are_allowed_but_cannot_break_out() {
+		$this->assertTrue(
+			desktop_mode_desktop_theme_is_safe_css_value( '"Segoe UI", sans-serif' )
+		);
+		// The characters that WOULD let a quote matter are all banned,
+		// so no quoted payload can terminate the declaration or the
+		// stylesheet.
+		foreach ( array(
+			'"; background: url( evil.png ); x: "',
+			'"} body { display: none } .x{"',
+			'"</style><script>alert(1)</script>"',
+		) as $payload ) {
+			$this->assertFalse(
+				desktop_mode_desktop_theme_is_safe_css_value( $payload ),
+				'Should be rejected: ' . $payload
+			);
+		}
+	}
+
+	/**
+	 * Wallpaper labels are stripped, not entity-escaped — the shell
+	 * paints them into text nodes, where `&amp;` would render literally.
+	 *
+	 * @covers ::desktop_mode_register_wallpaper
+	 */
+	public function test_wallpaper_label_is_stripped_not_escaped() {
+		desktop_mode_register_wallpaper( 'acme/labelled', array(
+			'label'   => '<b>Bold</b> Black & White',
+			'preview' => '#000',
+			'type'    => 'css',
+		) );
+
+		$found = null;
+		foreach ( desktop_mode_build_desktop_wallpapers_payload() as $entry ) {
+			if ( 'acme/labelled' === $entry['id'] ) {
+				$found = $entry;
+			}
+		}
+
+		$this->assertNotNull( $found );
+		$this->assertStringNotContainsString( '<b>', $found['label'], 'Tags stripped.' );
+		$this->assertStringContainsString(
+			'&',
+			$found['label'],
+			'An ampersand survives as itself — entity-encoding it would show &amp; to the user.'
+		);
+		$this->assertStringNotContainsString( '&amp;', $found['label'] );
+	}
+
+	/** Build a minimal theme ZIP with one 1x1 PNG, for install tests. */
+	private function make_theme_zip( $manifest ) {
+		$dir = get_temp_dir() . 'dm-theme-zip-' . wp_generate_uuid4();
+		wp_mkdir_p( $dir );
+		file_put_contents( $dir . '/theme.json', wp_json_encode( $manifest ) );
+		// 1x1 transparent PNG.
+		file_put_contents(
+			$dir . '/desk.png',
+			base64_decode( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' )
+		);
+
+		$zip_path = $dir . '.zip';
+		$zip      = new ZipArchive();
+		$zip->open( $zip_path, ZipArchive::CREATE );
+		$zip->addFile( $dir . '/theme.json', 'theme.json' );
+		$zip->addFile( $dir . '/desk.png', 'desk.png' );
+		$zip->close();
+
+		return $zip_path;
+	}
+
+	/**
+	 * A theme with no wallpaper adds nothing to the picker.
+	 *
+	 * @covers ::desktop_mode_register_desktop_theme_wallpapers
+	 */
+	public function test_theme_without_a_wallpaper_adds_no_entry() {
+		desktop_mode_register_desktop_theme( 'acme/bare', array( 'name' => 'Bare' ) );
+		desktop_mode_register_desktop_theme_wallpapers();
+
+		foreach ( desktop_mode_build_desktop_wallpapers_payload() as $entry ) {
+			$this->assertStringNotContainsString( 'acme-bare', $entry['id'] );
+		}
+
+		desktop_mode_unregister_desktop_theme( 'acme/bare' );
+	}
+}

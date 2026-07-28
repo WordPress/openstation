@@ -18,10 +18,9 @@
  * ships a tag.
  *
  * @public
- * @since 0.8.0
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { trackedFetch } from '../tracked-fetch';
 import { applyAvatarSrc } from '../ui/util/avatar-resolve';
 import { showPostsIntroDialog } from './intro-dialog';
@@ -630,8 +629,6 @@ function _buildBaseColumns(
  * parents) display their numeric id with a small "Parent #42" label
  * — acceptable for v1; a small batched-include fetch can lift this
  * to full-title resolution later.
- *
- * @since 0.8.1
  */
 const _parentTitleByPageRoster: Map< number, string > = new Map();
 
@@ -640,8 +637,6 @@ const _parentTitleByPageRoster: Map< number, string > = new Map();
  * (`parent === 0`) render an em-dash — like core's classic list.
  * Otherwise we render the parent's title (if known) or a fallback
  * numeric label.
- *
- * @since 0.8.1
  */
 function buildParentCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -670,8 +665,6 @@ function buildParentCell( row: PostListItem ): HTMLElement {
  * `<wpd-table>` repaints cells from cache, and the parent cell's
  * `textContent` reflects the freshly-known titles on the next
  * memoized rebuild (cell cache is wiped per refresh).
- *
- * @since 0.8.1
  */
 function refreshParentTitleRoster( rows: PostListItem[] ): void {
 	_parentTitleByPageRoster.clear();
@@ -686,8 +679,6 @@ function refreshParentTitleRoster( rows: PostListItem[] ): void {
  * Falls back to the raw slug when the active theme registers a
  * template the config blob doesn't carry a label for, so users see
  * SOMETHING rather than a blank cell.
- *
- * @since 0.8.1
  */
 function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -713,8 +704,6 @@ function buildTemplateCell( row: PostListItem, client: PostsWindowClient ): HTML
  * affordance. Common pain in the classic Pages list when configuring
  * redirects or sharing canonical URLs; one click puts the slug on
  * the clipboard.
- *
- * @since 0.8.1
  */
 function buildSlugCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'button' );
@@ -769,8 +758,6 @@ function buildSlugCell( row: PostListItem ): HTMLElement {
  * from the REST field with a small icon. Top-asked parity feature
  * with the classic Pages list. Renders "—" when the field is
  * absent (e.g. a plugin-restricted query).
- *
- * @since 0.8.1
  */
 function buildCommentsCell( row: PostListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
@@ -817,7 +804,7 @@ function buildCommentsCell( row: PostListItem ): HTMLElement {
 	cell.setAttribute(
 		'aria-label',
 		// translators: %d is the comment count for a row.
-		`${ sprintf( __( '%d comments' ), count ) }`,
+		`${ sprintf( _n( '%d comment', '%d comments', count ), count ) }`,
 	);
 	return cell;
 }
@@ -1379,8 +1366,6 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 
 /**
  * Render a small inline assignment badge (Front page / Posts page).
- *
- * @since 0.8.1
  */
 function buildAssignmentBadge(
 	label: string,
@@ -2414,6 +2399,18 @@ export async function renderPostsWindow(
 		);
 	};
 
+	// A query change (page, search, status, sort, column filters)
+	// replaces the result set, but `<wpd-table>` keeps selected ids
+	// across `data` reassignment — and bulk actions consume the raw
+	// selection (`ctx.getSelectedIds()`), not the visible rows. Left
+	// alone, off-page ids ride silently into the next bulk action.
+	// Called from every query-changing handler; deliberately NOT from
+	// refresh() itself so background broadcast-driven reloads don't
+	// wipe a selection the user is in the middle of building.
+	const clearSelectionOnQueryChange = (): void => {
+		table.clearSelection();
+	};
+
 	const buildParams = (): PostsListParams => ( {
 		page: view.page,
 		perPage: view.perPage,
@@ -2530,6 +2527,7 @@ export async function renderPostsWindow(
 		const value = ( e as CustomEvent< { value: string } > ).detail?.value ?? '';
 		view.status = value;
 		goToFirstPage();
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 
@@ -2544,6 +2542,7 @@ export async function renderPostsWindow(
 			}
 			view.searchDebounce = window.setTimeout( () => {
 				goToFirstPage();
+				clearSelectionOnQueryChange();
 				void refresh();
 			}, SEARCH_DEBOUNCE_MS );
 		},
@@ -2559,15 +2558,17 @@ export async function renderPostsWindow(
 			return;
 		}
 		if ( target.closest( NEW_BTN ) ) {
+			const isPages = cfg.mode === 'pages';
 			openAdminUrl( cfg.newPostUrl, {
-				title: __( 'Add New Post' ),
-				icon: 'dashicons-admin-post',
+				title: isPages ? __( 'Add New Page' ) : __( 'Add New Post' ),
+				icon: isPages ? 'dashicons-admin-page' : 'dashicons-admin-post',
 			} );
 			return;
 		}
 		if ( target.closest( PREV ) ) {
 			if ( view.page > 1 ) {
 				view.page -= 1;
+				clearSelectionOnQueryChange();
 				void refresh();
 			}
 			return;
@@ -2575,6 +2576,7 @@ export async function renderPostsWindow(
 		if ( target.closest( NEXT ) ) {
 			if ( view.page < totalPages ) {
 				view.page += 1;
+				clearSelectionOnQueryChange();
 				void refresh();
 			}
 		}
@@ -2606,6 +2608,7 @@ export async function renderPostsWindow(
 		}
 		view.perPage = next;
 		goToFirstPage();
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 
@@ -2624,6 +2627,7 @@ export async function renderPostsWindow(
 			view.orderby = mapColumnToOrderby( detail.sort.key );
 			view.order = detail.sort.direction;
 		}
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 
@@ -2655,6 +2659,7 @@ export async function renderPostsWindow(
 		view.author = nextAuthor;
 		view.tag = nextTag;
 		view.page = 1;
+		clearSelectionOnQueryChange();
 		void refresh();
 	} );
 

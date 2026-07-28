@@ -14,7 +14,6 @@
  * `defineComponent()` is idempotent.
  *
  * @public
- * @since 0.6.0
  */
 
 import { __, sprintf } from '../i18n';
@@ -28,6 +27,12 @@ import '../ui/components/wpd-relative-time/wpd-relative-time';
 // `createElement('wpd-*')` doesn't see it. Register the compound
 // class set explicitly so the server-rendered toolbar works.
 import '../ui/components/wpd-segmented/wpd-segmented';
+import { DESKTOP_THEME_CHANGED_EVENT } from '../desktop-themes/apply';
+import {
+	resolveThemedIcon,
+	resolveThemedIconColor,
+} from '../desktop-themes/icons';
+import { DESKTOP_THEME_SLOTS } from '../desktop-themes/slots';
 import { setRecycleBinBadge } from './badge';
 import { runEmptyLoop } from './empty-loop';
 import * as realtime from './realtime';
@@ -110,7 +115,14 @@ const TYPE_BADGE_COLORS: Record< string, { bg: string; fg: string } > = {
 	page: { bg: '#e0f2fe', fg: '#075985' },
 	attachment: { bg: '#fef3c7', fg: '#92400e' },
 	comment: { bg: '#dcfce7', fg: '#166534' },
-	_default: { bg: '#e5e7eb', fg: '#374151' },
+	// The hued badges above are left alone deliberately — the colour
+	// IS the type signal, and it survives on a dark row. Only the
+	// neutral fallback follows the palette, because a grey-on-grey
+	// chip carries no signal to preserve.
+	_default: {
+		bg: 'var( --wpd-surface-sunken, #e5e7eb )',
+		fg: 'var( --wpd-fg-muted, #374151 )',
+	},
 };
 
 function humanizeType( slug: string ): string {
@@ -210,8 +222,10 @@ function itemsFingerprint( items: RecycleBinItem[] ): string {
 	// Sort first — server order can vary on ties (same `modified`
 	// timestamp). Comparing the sorted projection makes the
 	// fingerprint stable against ordering churn.
+	// Type-qualified like getRowId — post #5 and comment #5 are
+	// distinct items and must produce distinct fingerprint parts.
 	const parts = items
-		.map( ( i ) => `${ i.id }:${ i.deleted_at }` )
+		.map( ( i ) => `${ i.type }:${ i.id }:${ i.deleted_at }` )
 		.sort();
 	return parts.join( '|' );
 }
@@ -275,7 +289,7 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 				if ( row.subtitle ) {
 					const sub = document.createElement( 'span' );
 					sub.style.cssText =
-						'font-size:12px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
+						'font-size:12px;color:var( --wpd-fg-muted, #50575e );white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
 					sub.textContent = row.subtitle;
 					sub.title = row.subtitle;
 					stack.appendChild( sub );
@@ -417,26 +431,45 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	btn.title = opts.label;
 
 	const isDanger = opts.variant === 'danger';
-	const restColor = isDanger ? '#d63638' : '#50575e';
-	const restBorder = isDanger ? '#d63638' : '#c3c4c7';
+
+	// Every colour below is a `var()` against the shared palette with
+	// the original literal as its fallback.
+	//
+	// These buttons are built by hand with INLINE styles rather than
+	// as `<wpd-button>`s because `<wpd-table>` renders its body into a
+	// shadow root that document stylesheets cannot reach. That is a
+	// legitimate constraint — but it also meant the colours here were
+	// unreachable by any theme, so the row actions stayed white-on-
+	// white while the table around them went dark.
+	//
+	// Inline `var()` is the fix precisely BECAUSE custom properties
+	// inherit through a shadow boundary: the token resolves against
+	// the host even though the rule does not.
+	const restColor = isDanger
+		? 'var( --wpd-danger, #d63638 )'
+		: 'var( --wpd-fg-muted, #50575e )';
+	const restBorder = isDanger
+		? 'var( --wpd-danger, #d63638 )'
+		: 'var( --wpd-border, #c3c4c7 )';
+	const restBg = 'var( --wpd-surface, #fff )';
 
 	// Single source of truth for visual state. Hover/leave swap
 	// the relevant inline properties — cheap, predictable, no
 	// CSS-rule cascade to debug.
 	const applyRest = (): void => {
-		btn.style.background = '#fff';
+		btn.style.background = restBg;
 		btn.style.color = restColor;
 		btn.style.borderColor = restBorder;
 	};
 	const applyHover = (): void => {
 		if ( isDanger ) {
-			btn.style.background = '#d63638';
-			btn.style.color = '#fff';
-			btn.style.borderColor = '#d63638';
+			btn.style.background = 'var( --wpd-danger, #d63638 )';
+			btn.style.color = 'var( --wpd-fg-on-accent, #fff )';
+			btn.style.borderColor = 'var( --wpd-danger, #d63638 )';
 		} else {
-			btn.style.background = '#f0f0f1';
-			btn.style.color = '#1d2327';
-			btn.style.borderColor = '#8c8f94';
+			btn.style.background = 'var( --wpd-hover, #f0f0f1 )';
+			btn.style.color = 'var( --wpd-fg, #1d2327 )';
+			btn.style.borderColor = 'var( --wpd-border-strong, #8c8f94 )';
 		}
 	};
 
@@ -451,7 +484,7 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 		'margin: 0',
 		'border: 1px solid ' + restBorder,
 		'border-radius: 6px',
-		'background: #fff',
+		'background: ' + restBg,
 		'color: ' + restColor,
 		'cursor: pointer',
 		'box-sizing: border-box',
@@ -465,16 +498,64 @@ function makeRowButton( opts: RowButtonOptions ): HTMLElement {
 	btn.addEventListener( 'focus', applyHover );
 	btn.addEventListener( 'blur', applyRest );
 
-	const svgNs = 'http://www.w3.org/2000/svg';
-	const svg = document.createElementNS( svgNs, 'svg' );
-	svg.setAttribute( 'width', '18' );
-	svg.setAttribute( 'height', '18' );
-	svg.setAttribute( 'viewBox', '0 0 24 24' );
-	svg.setAttribute( 'aria-hidden', 'true' );
-	svg.setAttribute( 'focusable', 'false' );
-	svg.style.display = 'block';
-	svg.innerHTML = ICON_SVG[ opts.icon ] ?? '';
-	btn.appendChild( svg );
+	// Desktop-theme override for the row-action glyph.
+	//
+	// Rendered as an 18x18 CSS MASK tinted with `currentColor`, not
+	// as an `<img>`. These buttons swap their colour on hover / focus
+	// and the danger variant goes red; an image would be blind to all
+	// of that. Same trade-off as `<wpd-window-button icon-src>`: the
+	// glyph is a monochrome silhouette.
+	//
+	// A theme that maps the slot to a DASHICON is ignored here on
+	// purpose — `<wpd-table>` renders into its own shadow root, which
+	// the global Dashicons stylesheet cannot reach, so the span would
+	// come out blank. The built-in SVG below is a better answer than
+	// an empty button.
+	const themedSlot =
+		opts.icon === 'restore'
+			? DESKTOP_THEME_SLOTS.RECYCLE_RESTORE
+			: DESKTOP_THEME_SLOTS.RECYCLE_DELETE;
+	const themed = resolveThemedIcon( themedSlot );
+	// A theme may name the fill. Unset, `currentColor` keeps the
+	// button's hover / danger tinting working, which is the default
+	// these two slots have always had.
+	const themedFill = resolveThemedIconColor( themedSlot ) ?? 'currentColor';
+	// The value is interpolated into a `url("…")` inside an inline
+	// `style`, so it must not be able to close that string or the
+	// attribute. Same reasoning (and same character set) as
+	// `sanitizeIconSrc` in `<wpd-window-button>`; a rejected value
+	// falls through to the built-in SVG below.
+	const maskSafe =
+		themed !== null &&
+		! themed.startsWith( 'dashicons-' ) &&
+		/^(https?:\/\/|data:image\/)/i.test( themed ) &&
+		! /['"()\\<>\s]/.test( themed );
+
+	if ( maskSafe ) {
+		const mask = document.createElement( 'span' );
+		mask.setAttribute( 'aria-hidden', 'true' );
+		mask.style.cssText = [
+			'display: block',
+			'width: 18px',
+			'height: 18px',
+			'flex-shrink: 0',
+			`background-color: ${ themedFill }`,
+			`-webkit-mask: url("${ themed }") center / contain no-repeat`,
+			`mask: url("${ themed }") center / contain no-repeat`,
+		].join( ';' );
+		btn.appendChild( mask );
+	} else {
+		const svgNs = 'http://www.w3.org/2000/svg';
+		const svg = document.createElementNS( svgNs, 'svg' );
+		svg.setAttribute( 'width', '18' );
+		svg.setAttribute( 'height', '18' );
+		svg.setAttribute( 'viewBox', '0 0 24 24' );
+		svg.setAttribute( 'aria-hidden', 'true' );
+		svg.setAttribute( 'focusable', 'false' );
+		svg.style.display = 'block';
+		svg.innerHTML = ICON_SVG[ opts.icon ] ?? '';
+		btn.appendChild( svg );
+	}
 
 	btn.addEventListener( 'click', ( e: Event ) => {
 		e.stopPropagation();
@@ -512,7 +593,14 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	currentRowActionPurge = ( ref ) => void handlePurge( [ ref ] );
 
 	table.columns = buildColumns();
-	table.getRowId = ( row ) => row.id;
+	// Composite identity — the bin mixes entity types whose numeric id
+	// sequences are independent (comments live in wp_comments; posts /
+	// pages / attachments in wp_posts; placements / folders / shortcuts
+	// in their own tables), so post #5 and comment #5 routinely coexist
+	// in the list. A bare `row.id` would give both rows the SAME
+	// selection key: ticking one would select — and bulk-purge — the
+	// other. Qualifying with the type makes identity unambiguous.
+	table.getRowId = ( row ) => `${ row.type }:${ row.id }`;
 	// No `fileTypeForRow` here on purpose: trashed items are
 	// for restoring, not for pinning to the desktop. The Pin to
 	// Desktop toolbar action still covers the rare "I want both
@@ -576,6 +664,24 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				table.data = items;
 				currentFingerprint = next;
 				cachedItems = items;
+				// Prune selection keys whose row is no longer VISIBLE —
+				// it left the list (purged / restored elsewhere) or a
+				// data-driven change hid it behind an active column
+				// filter. `collectSelectedItems()` already resolves
+				// against the visible rows, so this is not load-bearing
+				// for safety — it keeps the bulk bar's "N selected"
+				// count truthful instead of overcounting ghosts.
+				// Selections of still-visible rows are preserved.
+				const visible = new Set(
+					( table.visibleRows ?? [] ).map(
+						( row ) => `${ row.type }:${ row.id }`,
+					),
+				);
+				const kept = Array.from( table.selection ?? [], String )
+					.filter( ( key ) => visible.has( key ) );
+				if ( kept.length !== ( table.selection?.size ?? 0 ) ) {
+					table.selection = kept;
+				}
 			} else {
 				// Fingerprint unchanged — keep DOM as-is, just
 				// refresh the cache reference so it survives
@@ -637,13 +743,21 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	// Each selection entry resolves back to the row so we know its
-	// `type` — bulk handlers send `[{id, type}]` to the server.
+	// `type` — bulk handlers send `[{id, type}]` to the server. Keys
+	// are the composite `type:id` produced by getRowId above; matching
+	// on the bare numeric id would fan one selected row out to every
+	// same-id row of another type.
+	//
+	// Resolve against the VISIBLE rows, not the full `data` buffer:
+	// a data-driven change (e.g. a realtime refresh replacing a row
+	// whose new title no longer matches an active Title column filter)
+	// can hide a selected row without any filter event firing — and a
+	// row the user cannot see must never ride into a purge.
 	const collectSelectedItems = (): RecycleBinItemRef[] => {
-		const sel = Array.from( table.selection ?? [] );
-		const idSet = new Set( sel.map( ( id ) => Number( id ) ) );
+		const sel = new Set( Array.from( table.selection ?? [], String ) );
 		const out: RecycleBinItemRef[] = [];
-		for ( const row of table.data ?? [] ) {
-			if ( idSet.has( row.id ) ) {
+		for ( const row of table.visibleRows ?? [] ) {
+			if ( sel.has( `${ row.type }:${ row.id }` ) ) {
 				out.push( { id: row.id, type: row.type } );
 			}
 		}
@@ -677,47 +791,59 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		if ( refs.length === 0 ) {
 			return;
 		}
-		// First, restore the items so they exist again at their
-		// canonical post/comment id. Then place each on the
-		// desktop at staggered coordinates near the top-left so
-		// the user sees them all without overlap.
+		// Restore first so the items exist again at their canonical
+		// post/comment id, then place each on the desktop at staggered
+		// coordinates near the top-left so the user sees them all
+		// without overlap.
+		//
+		// One restore call PER REF, not one batched call: the bulk
+		// response's `ok` array carries bare numeric ids with no type,
+		// so with a mixed selection like post #5 + comment #5 a batch
+		// can't say WHICH #5 succeeded — a failed comment restore
+		// would be pinned anyway because the post's id matched. The
+		// server dispatches per item either way, so per-ref calls cost
+		// the same work and keep the success signal unambiguous.
 		const types = Array.from( new Set( refs.map( ( r ) => r.type ) ) );
-		try {
-			const restored = await restoreItems( refs );
-			const filesApi = ( window.wp as { desktop?: { files?: { rest?: { createPlacement: ( payload: unknown ) => Promise< unknown > } } } } | undefined )
-				?.desktop?.files?.rest;
-			if ( filesApi ) {
-				let i = 0;
-				for ( const ref of refs ) {
-					if ( ! restored.ok.includes( ref.id ) ) {
-						continue;
-					}
-					const desktopType = mapRecycleTypeToFileType( ref.type );
-					if ( ! desktopType ) {
-						continue;
-					}
-					try {
-						// Match the grid in src/desktop-files/grid.ts
-						// (padding 16 + col 96 + row 110, column-major
-						// fill). The math is duplicated because this
-						// bundle is a separate vite target and can't
-						// reach into the desktop bundle's internals.
-						await filesApi.createPlacement( {
-							type: desktopType,
-							ref: String( ref.id ),
-							x: 16 + ( i % 5 ) * 96,
-							y: 16 + Math.floor( i / 5 ) * 110,
-						} );
-					} catch ( err ) {
-						console.error( '[recycle-bin] pin-to-desktop placement failed', err );
-					}
-					i += 1;
-				}
+		const okIds: number[] = [];
+		const allErrors: Array< { id: number; code: string; message: string } > = [];
+		const filesApi = ( window.wp as { desktop?: { files?: { rest?: { createPlacement: ( payload: unknown ) => Promise< unknown > } } } } | undefined )
+			?.desktop?.files?.rest;
+		let placed = 0;
+		for ( const ref of refs ) {
+			let restored;
+			try {
+				restored = await restoreItems( [ ref ] );
+			} catch ( err ) {
+				console.error( '[recycle-bin] pin-to-desktop restore failed', err );
+				continue;
 			}
-			emitDoneEvent( 'restore', restored.ok, restored.errors, types, restored.ok );
-		} catch ( err ) {
-			console.error( '[recycle-bin] pin-to-desktop failed', err );
+			allErrors.push( ...restored.errors );
+			if ( ! restored.ok.includes( ref.id ) ) {
+				continue;
+			}
+			okIds.push( ref.id );
+			const desktopType = mapRecycleTypeToFileType( ref.type );
+			if ( ! filesApi || ! desktopType ) {
+				continue;
+			}
+			try {
+				// Match the grid in src/desktop-files/grid.ts
+				// (padding 16 + col 96 + row 110, column-major
+				// fill). The math is duplicated because this
+				// bundle is a separate vite target and can't
+				// reach into the desktop bundle's internals.
+				await filesApi.createPlacement( {
+					type: desktopType,
+					ref: String( ref.id ),
+					x: 16 + ( placed % 5 ) * 96,
+					y: 16 + Math.floor( placed / 5 ) * 110,
+				} );
+			} catch ( err ) {
+				console.error( '[recycle-bin] pin-to-desktop placement failed', err );
+			}
+			placed += 1;
 		}
+		emitDoneEvent( 'restore', okIds, allErrors, types, okIds );
 		table.clearSelection();
 		await refresh();
 	};
@@ -814,10 +940,15 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	const handleEmpty = async (): Promise< void > => {
+		// The server's empty endpoint purges the ENTIRE bin — it takes
+		// no type/search scope (see desktop_mode_recycle_bin_empty()).
+		// The confirm copy must say so; claiming "the current view"
+		// while a filter is active would purge items the user filtered
+		// out of sight.
 		const ok = await wpdConfirmGlobal( {
 			title: __( 'Empty bin?' ),
 			message: __(
-				'Empty the recycle bin? Every item visible in the current view will be permanently deleted.',
+				'Permanently delete ALL items in the recycle bin? This includes every type and any items hidden by the current filter or search. This cannot be undone.',
 			),
 			confirmLabel: __( 'Empty bin' ),
 			danger: true,
@@ -881,6 +1012,11 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	root.querySelector( FILTER )?.addEventListener( 'wpd-pick', ( e: Event ) => {
 		const detail = ( e as CustomEvent< { value: string } > ).detail;
 		state.filter = ( detail?.value ?? '' ) as BinState[ 'filter' ];
+		// The result set is about to change wholesale. `<wpd-table>`
+		// keeps selected ids across `data` reassignment, so ids picked
+		// under the previous filter would linger invisibly and resurface
+		// checked when the user switches back. Start the new view clean.
+		table.clearSelection();
 		void refresh();
 	} );
 
@@ -892,6 +1028,8 @@ export function renderRecycleBin( body: HTMLElement ): void {
 			window.clearTimeout( state.searchDebounce );
 		}
 		state.searchDebounce = window.setTimeout( () => {
+			// Same rationale as the type-filter handler above.
+			table.clearSelection();
 			void refresh();
 		}, 250 );
 	} );
@@ -934,6 +1072,16 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	table.addEventListener( 'wpd-table-selection-change', () => {
 		refreshBulkBar();
+	} );
+
+	// The Title / "By" columns declare client-side `filter: 'text'`
+	// filters. A row ticked BEFORE the user types into one stays
+	// selected while hidden — and it's still in `table.data`, so
+	// `collectSelectedItems()` would sweep it into a bulk purge the
+	// user can't see coming. Same hygiene as the toolbar filter /
+	// search: any visibility change starts with a clean selection.
+	table.addEventListener( 'wpd-table-filter-change', () => {
+		table.clearSelection();
 	} );
 
 	// Default sort: most-recently-deleted first. Users can change it.
@@ -1042,8 +1190,28 @@ export function renderRecycleBin( body: HTMLElement ): void {
 		currentRowActionRestore = () => {};
 		currentRowActionPurge = () => {};
 		document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
+		document.removeEventListener(
+			DESKTOP_THEME_CHANGED_EVENT,
+			onDesktopThemeChanged,
+		);
 	};
 	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
+
+	// The bin lives in its own bundle and paints its row-action
+	// glyphs itself, so the shell's theme-change repaint (which walks
+	// dock rails and window chrome) never reaches these rows. Re-run
+	// the normal refresh so the table rebuilds through
+	// `makeRowButton()` and picks up the new theme's icons.
+	const onDesktopThemeChanged = (): void => {
+		if ( ! body.isConnected ) {
+			return;
+		}
+		void refresh();
+	};
+	document.addEventListener(
+		DESKTOP_THEME_CHANGED_EVENT,
+		onDesktopThemeChanged,
+	);
 
 	void refresh();
 }
