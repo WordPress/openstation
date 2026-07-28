@@ -42,9 +42,21 @@ export function setCommentsPostFilter( postId: number ): void {
 	}
 }
 
-/** The pending post filter; `0` means "all comments". */
-export function readCommentsPostFilter(): number {
-	return getStore()?.state.postId ?? 0;
+/**
+ * Consume the pending post filter: return it and reset to 0 (without
+ * notifying, so it never re-triggers subscribers). Consume-once means a
+ * later plain reopen — taskbar, desktop icon, openNativeWindow — that
+ * doesn't run the remap's onMatch starts unfiltered instead of reusing a
+ * stale scope. `0` means "all comments".
+ */
+export function takeCommentsPostFilter(): number {
+	const store = getStore();
+	if ( ! store ) {
+		return 0;
+	}
+	const value = store.state.postId;
+	store.state.postId = 0;
+	return value;
 }
 
 /** Clear the filter (after "Show all", or a general open). */

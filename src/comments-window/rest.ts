@@ -197,10 +197,15 @@ export async function fetchThread(
 		}
 	};
 
-	const [ approved, pending ] = await Promise.all( [ one( 'approve' ), one( 'hold' ) ] );
+	// All moderation statuses, so a thread renders in full on every tab
+	// (a spam/trash root and its same-status replies included), not just
+	// the approved/pending subset.
+	const legs = await Promise.all(
+		[ 'approve', 'hold', 'spam', 'trash' ].map( ( s ) => one( s ) ),
+	);
 	const seen = new Set< number >();
 	const merged: CommentRow[] = [];
-	[ ...approved, ...pending ].forEach( ( row ) => {
+	legs.flat().forEach( ( row ) => {
 		if ( ! seen.has( row.id ) ) {
 			seen.add( row.id );
 			merged.push( row );

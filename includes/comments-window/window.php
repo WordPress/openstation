@@ -22,7 +22,7 @@ function desktop_mode_comments_window_render_template() {
 	<div class="desktop-mode-comments desktop-mode-comments--conversation" data-desktop-mode-comments-root>
 		<?php /* Tab row filters the thread rail (Pending / All / Spam / Trash / Mine). */ ?>
 		<div class="desktop-mode-comments__tabrow" role="tablist" data-desktop-mode-comments-tabs>
-			<button type="button" role="tab" class="desktop-mode-comments__tab is-active" data-tab="pending"><?php esc_html_e( 'Pending', 'desktop-mode' ); ?><span class="desktop-mode-comments__tab-count" data-tab-count="pending" hidden></span></button>
+			<button type="button" role="tab" class="desktop-mode-comments__tab is-active" data-tab="pending"><?php esc_html_e( 'Pending', 'desktop-mode' ); ?></button>
 			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="all"><?php esc_html_e( 'All', 'desktop-mode' ); ?></button>
 			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="spam"><?php esc_html_e( 'Spam', 'desktop-mode' ); ?></button>
 			<button type="button" role="tab" class="desktop-mode-comments__tab" data-tab="trash"><?php esc_html_e( 'Trash', 'desktop-mode' ); ?></button>
@@ -39,7 +39,6 @@ function desktop_mode_comments_window_render_template() {
 				<div class="desktop-mode-comments__list" role="listbox"
 					aria-label="<?php esc_attr_e( 'Conversations', 'desktop-mode' ); ?>"
 					data-desktop-mode-comments-list></div>
-				<div class="desktop-mode-comments__rail-foot" data-desktop-mode-comments-railfoot hidden></div>
 			</aside>
 
 			<?php /* Right pane: the selected conversation thread + composer. */ ?>
@@ -51,9 +50,6 @@ function desktop_mode_comments_window_render_template() {
 				</div>
 			</section>
 		</div>
-
-		<?php /* Realtime "N new" pill — the bundle paints inside this. */ ?>
-		<div class="desktop-mode-comments__new-pill" data-desktop-mode-comments-new-pill hidden></div>
 
 		<?php /* Author insights flyover — content + open state owned JS-side.
 		         Lives in the DOM permanently so its slide-in transition

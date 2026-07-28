@@ -29,7 +29,7 @@ import type {
 	CommentsConfig,
 } from './types';
 import {
-	readCommentsPostFilter,
+	takeCommentsPostFilter,
 	clearCommentsPostFilter,
 	subscribeCommentsPostFilter,
 } from './post-filter';
@@ -48,6 +48,8 @@ interface Ctx {
 	selectedId: number | null;
 	/** When > 0, the rail is scoped to this post (edit-comments.php?p=). */
 	postFilter: number;
+	/** Monotonic token so a stale rail fetch can't overwrite a newer one. */
+	railSeq: number;
 	/** Announce (postId>0) or clear (0) the window-links identity. */
 	announceIdentity: ( postId: number ) => void;
 	reloadRail: () => Promise< void >;
@@ -214,6 +216,15 @@ function iconButton(
 	return b;
 }
 
+/** Mark one tab active — toggles both the class and `aria-selected`. */
+function setActiveTab( tabrowEl: HTMLElement, tabValue: string ): void {
+	tabrowEl.querySelectorAll< HTMLElement >( `.${ NS }__tab` ).forEach( ( t ) => {
+		const on = t.dataset.tab === tabValue;
+		t.classList.toggle( 'is-active', on );
+		t.setAttribute( 'aria-selected', on ? 'true' : 'false' );
+	} );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Rail                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -300,7 +311,7 @@ function renderRail( ctx: Ctx ): void {
 		empty.className = `${ NS }__list-empty`;
 		empty.textContent =
 			ctx.postFilter > 0
-				? __( 'No comments on this post yet.' )
+				? __( 'No comments on this post in this view — try another tab.' )
 				: __( 'No conversations here yet.' );
 		ctx.listEl.appendChild( empty );
 		return;
@@ -309,6 +320,10 @@ function renderRail( ctx: Ctx ): void {
 }
 
 async function loadRail( ctx: Ctx, opts: { silent?: boolean } = {} ): Promise< void > {
+	// Sequence token: a slower earlier fetch (rapid tab switches, or a
+	// debounced search landing after a tab click) must not overwrite the
+	// rail with the wrong tab's rows.
+	const seq = ++ctx.railSeq;
 	const prevScroll = ctx.listEl.scrollTop;
 	if ( ! opts.silent ) {
 		ctx.listEl.innerHTML = `<div class="${ NS }__list-loading">${ __( 'Loading…' ) }</div>`;
@@ -322,6 +337,9 @@ async function loadRail( ctx: Ctx, opts: { silent?: boolean } = {} ): Promise< v
 			currentUserId: ctx.cfg.currentUserId,
 			post: ctx.postFilter || undefined,
 		} );
+		if ( seq !== ctx.railSeq ) {
+			return; // a newer load started; drop this stale response.
+		}
 		// The rail lists conversations, i.e. top-level comments only;
 		// replies surface inside the thread on the right, not as their
 		// own rows. (`wp/v2/comments` returns every depth flat.)
@@ -340,7 +358,9 @@ async function loadRail( ctx: Ctx, opts: { silent?: boolean } = {} ): Promise< v
 			}
 		}
 	} catch {
-		ctx.listEl.innerHTML = `<div class="${ NS }__list-empty">${ __( 'Could not load comments.' ) }</div>`;
+		if ( seq === ctx.railSeq ) {
+			ctx.listEl.innerHTML = `<div class="${ NS }__list-empty">${ __( 'Could not load comments.' ) }</div>`;
+		}
 	}
 }
 
@@ -748,7 +768,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 	// A pending `edit-comments.php?p=<id>` open scopes the rail to that
 	// post; a filtered open starts on "All" so the post's whole thread is
 	// visible, not just its pending comments.
-	const initialFilter = readCommentsPostFilter();
+	const initialFilter = takeCommentsPostFilter();
 
 	const ctx: Ctx = {
 		cfg,
@@ -759,6 +779,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		threads: [],
 		selectedId: null,
 		postFilter: initialFilter,
+		railSeq: 0,
 		announceIdentity: ( postId: number ) =>
 			announcePostIdentity( body, postId, ctx.threads[ 0 ]?.desktop_mode_post_title ),
 		reloadRail: async () => loadRail( ctx, { silent: true } ),
@@ -771,9 +792,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 	};
 
 	// Tabs — sync the active chip to ctx.tab (a filtered open starts on All).
-	tabrowEl.querySelectorAll< HTMLElement >( `.${ NS }__tab` ).forEach( ( t ) => {
-		t.classList.toggle( 'is-active', t.dataset.tab === ctx.tab );
-	} );
+	setActiveTab( tabrowEl, ctx.tab );
 	tabrowEl.querySelectorAll< HTMLElement >( `.${ NS }__tab` ).forEach( ( tabEl ) => {
 		tabEl.addEventListener( 'click', () => {
 			const next = ( tabEl.dataset.tab || 'pending' ) as CommentTab;
@@ -781,9 +800,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 				return;
 			}
 			ctx.tab = next;
-			tabrowEl
-				.querySelectorAll( `.${ NS }__tab` )
-				.forEach( ( t ) => t.classList.toggle( 'is-active', t === tabEl ) );
+			setActiveTab( tabrowEl, next );
 			void loadRail( ctx );
 		} );
 	} );
@@ -809,19 +826,31 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 			unsubscribe();
 			return;
 		}
-		const next = readCommentsPostFilter();
+		const next = takeCommentsPostFilter();
 		if ( next === ctx.postFilter ) {
 			return;
 		}
 		ctx.postFilter = next;
 		if ( next > 0 ) {
 			ctx.tab = 'all';
-			tabrowEl
-				.querySelectorAll< HTMLElement >( `.${ NS }__tab` )
-				.forEach( ( t ) => t.classList.toggle( 'is-active', t.dataset.tab === 'all' ) );
+			setActiveTab( tabrowEl, 'all' );
 		}
 		void loadRail( ctx ).then( () => ctx.announceIdentity( ctx.postFilter ) );
 	} );
+
+	// Proactively drop the shared-store subscription when this window
+	// closes, so repeated open/close cycles don't leak stale closures
+	// (the in-callback isConnected check is only a lazy backstop).
+	const myWindowId = body
+		.closest< HTMLElement >( '[id^="wp-window-"]' )
+		?.id.slice( 'wp-window-'.length );
+	const onWindowClosed = ( e: Event ): void => {
+		if ( ( e as CustomEvent ).detail?.windowId === myWindowId ) {
+			unsubscribe();
+			document.removeEventListener( 'desktop-mode-window-closed', onWindowClosed );
+		}
+	};
+	document.addEventListener( 'desktop-mode-window-closed', onWindowClosed );
 
 	await loadRail( ctx );
 
