@@ -1265,9 +1265,29 @@ function wirePanel(
 	};
 	renderBulkActions();
 
+	// A visible Reply affordance. The bulk bar otherwise exposes only
+	// moderation actions, leaving inline reply reachable through the `r`
+	// shortcut alone; this surfaces it for pointer users. Shown only when
+	// exactly one comment is selected (matching the shortcut's guard) and
+	// opens the same inline editor via openReplyFor().
+	const replyChip = document.createElement( 'wpd-button' );
+	replyChip.setAttribute( 'variant', 'primary' );
+	replyChip.textContent = __( 'Reply' );
+	replyChip.hidden = true;
+	replyChip.addEventListener( 'click', () => {
+		const sel = Array.from( table.selection )
+			.map( ( v ) => Number( v ) )
+			.filter( Boolean );
+		if ( sel.length === 1 ) {
+			openReplyFor( state, sel[ 0 ], cfg );
+		}
+	} );
+	bulkActionsHost.prepend( replyChip );
+
 	table.addEventListener( 'wpd-table-selection-change', () => {
 		const count = table.selection.size;
 		bulkBar.hidden = count === 0;
+		replyChip.hidden = count !== 1;
 		countEl.textContent = sprintf(
 			/* translators: %d: count of selected rows. */
 			__( '%d selected' ),
@@ -1430,6 +1450,31 @@ async function toggleReplies(
 /* Inline reply / edit                                                        */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Returns a fresh inline-editor host for the panel.
+ *
+ * Rows live inside `<wpd-table>`'s shadow DOM, so the editor can't be
+ * anchored after a specific `<tr>` from the light DOM. Instead it docks as
+ * a bottom sheet over the table body — a single host, so reply and edit
+ * stay mutually exclusive — with a context line naming the target comment.
+ */
+function inlineHostFor( state: PanelState, contextLabel: string ): HTMLElement {
+	const parent = state.tableHost;
+	parent
+		?.querySelectorAll( ':scope > .desktop-mode-comments__inline-host' )
+		.forEach( ( el ) => el.remove() );
+	const host = document.createElement( 'div' );
+	host.className = 'desktop-mode-comments__inline-host';
+	if ( contextLabel ) {
+		const ctx = document.createElement( 'div' );
+		ctx.className = 'desktop-mode-comments__inline-context';
+		ctx.textContent = contextLabel;
+		host.appendChild( ctx );
+	}
+	parent?.appendChild( host );
+	return host;
+}
+
 function openReplyFor(
 	state: PanelState,
 	id: number,
@@ -1439,20 +1484,11 @@ function openReplyFor(
 	if ( ! row ) {
 		return;
 	}
-	const tr = state.tableHost?.querySelector< HTMLElement >(
-		`tr[data-row-id="${ id }"]`,
+	const host = inlineHostFor(
+		state,
+		/* translators: %s: comment author's name. */
+		sprintf( __( 'Replying to %s' ), row.author_name || __( 'Anonymous' ) ),
 	);
-	const host = tr?.nextElementSibling?.classList.contains(
-		'desktop-mode-comments__inline-host',
-	)
-		? ( tr.nextElementSibling as HTMLElement )
-		: ( () => {
-			const ins = document.createElement( 'div' );
-			ins.className = 'desktop-mode-comments__inline-host';
-			tr?.after( ins );
-			return ins;
-		} )();
-	host.replaceChildren();
 	const editor = mountReplyEditor(
 		cfg.replyEditor,
 		__( 'Write a reply…' ),
@@ -1507,15 +1543,7 @@ function openEditFor(
 		showToast( __( 'You can\'t edit this comment.' ) );
 		return;
 	}
-	const tr = state.tableHost?.querySelector< HTMLElement >(
-		`tr[data-row-id="${ id }"]`,
-	);
-	if ( ! tr ) {
-		return;
-	}
-	const host = document.createElement( 'div' );
-	host.className = 'desktop-mode-comments__inline-host';
-	tr.after( host );
+	const host = inlineHostFor( state, __( 'Editing comment' ) );
 	const editor = mountReplyEditor( cfg.replyEditor, __( 'Edit comment…' ) );
 	host.appendChild( editor.root );
 	// Seed with current content
@@ -1666,7 +1694,9 @@ function moveFocus( state: PanelState, direction: 1 | -1 ): void {
 	// keyboard cursor — while a / s / d act on the real selection.
 	state.table.clearSelection();
 	state.table.select( nextId );
-	const tr = state.tableHost?.querySelector< HTMLElement >(
+	// Rows live in `<wpd-table>`'s (open) shadow DOM, so reach through
+	// the shadow root — a light-DOM query on tableHost can't cross it.
+	const tr = state.table.shadowRoot?.querySelector< HTMLElement >(
 		`tr[data-row-id="${ nextId }"]`,
 	);
 	tr?.scrollIntoView( { block: 'nearest', behavior: 'smooth' } );

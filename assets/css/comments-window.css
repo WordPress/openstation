@@ -108,6 +108,8 @@
 	min-block-size: 0;
 	display: flex;
 	overflow: hidden;
+	/* Anchors the docked inline reply/edit sheet (position: absolute). */
+	position: relative;
 }
 
 .desktop-mode-comments__body wpd-table {
@@ -257,12 +259,37 @@
 
 /* --- Inline reply / edit --- */
 
+/*
+ * Docked bottom sheet over the table body. Rows render inside
+ * `<wpd-table>`'s shadow DOM, so the editor can't sit inline after a
+ * `<tr>`; it anchors to `.desktop-mode-comments__body` (position:
+ * relative) and floats above the list instead.
+ */
 .desktop-mode-comments__inline-host {
+	position: absolute;
+	inset-inline: 8px;
+	inset-block-end: 8px;
+	/*
+	 * Above the table's sticky cells. `<wpd-table>` doesn't isolate its
+	 * stacking context, so its sticky header/column cells (z-index up to
+	 * 40 in the shadow tree) share this positioned ancestor's context;
+	 * the sheet must clear them or the Author column bleeds through.
+	 */
+	z-index: 50;
+	max-block-size: 70%;
+	overflow: auto;
 	background: var( --wp-desktop-elevated-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
 	border: 1px solid var( --wp-desktop-border-color, var( --wpd-border, #dcdcde ) );
 	border-radius: 6px;
-	padding: 8px;
-	margin: 4px 0 12px;
+	padding: 10px;
+	box-shadow: 0 -6px 20px rgba( 0, 0, 0, 0.18 );
+}
+
+.desktop-mode-comments__inline-context {
+	font-size: 12px;
+	font-weight: 600;
+	margin-block-end: 6px;
+	color: var( --wp-desktop-muted-text-color, var( --wpd-fg-muted, #50575e ) );
 }
 
 .desktop-mode-comments__reply {
