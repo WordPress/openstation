@@ -135,7 +135,11 @@ function desktop_mode_content_graph_register_window() {
 
 	$window_args = array(
 		'title'      => __( 'Corkboard', 'desktop-mode' ),
-		'icon'       => 'dashicons-networking',
+		// An index card — the thing a corkboard holds. The pushpin is
+		// spoken for (`dashicons-admin-post` is the Posts icon), and a
+		// node-graph glyph would draw the data structure rather than
+		// the desk object, which is the whole reason for the name.
+		'icon'       => 'dashicons-index-card',
 		'template'   => 'desktop_mode_content_graph_render_template',
 		'script'     => 'desktop-mode-content-graph',
 		'style'      => 'desktop-mode-content-graph',
@@ -176,7 +180,7 @@ function desktop_mode_content_graph_register_window() {
 
 	$icon_args = array(
 		'title'    => __( 'Corkboard', 'desktop-mode' ),
-		'icon'     => 'dashicons-networking',
+		'icon'     => 'dashicons-index-card',
 		'window'   => 'desktop-mode-content-graph',
 		'pinned'   => false,
 		'position' => 20,

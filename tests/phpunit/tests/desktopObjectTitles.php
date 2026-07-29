@@ -74,6 +74,27 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The Corkboard shows an index card — the object a corkboard
+	 * holds. The pushpin belongs to Posts, and a node-graph glyph
+	 * would depict the data structure instead of the desk object.
+	 *
+	 * @covers ::desktop_mode_content_graph_register_window
+	 */
+	public function test_content_graph_uses_the_index_card_icon() {
+		desktop_mode_content_graph_register_window();
+
+		$entry = desktop_mode_native_window_registry( 'desktop-mode-content-graph' );
+		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-content-graph' );
+
+		$this->assertSame( 'dashicons-index-card', $entry['icon'] );
+		$this->assertSame( 'dashicons-index-card', $icon['icon'] );
+
+		// Posts keeps the pushpin — the two must not collide in the
+		// dock or the wallpaper grid.
+		$this->assertNotSame( 'dashicons-admin-post', $icon['icon'] );
+	}
+
+	/**
 	 * The Corkboard's detail panel offers "Open in <site>", so its
 	 * bundle needs the site title too.
 	 *
