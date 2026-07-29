@@ -106,6 +106,23 @@ describe( 'syncActiveTab', () => {
 		expect( activeLabels( win ) ).toEqual( [ 'Tags' ] );
 	} );
 
+	test( 'sibling tabs separated only by `path` stay independent', () => {
+		// The WooCommerce Analytics shape: every submenu entry shares
+		// `page=wc-admin` and differs only in `path`. `path` is an
+		// identity param, so these are distinct pages — a sub-view of
+		// one must never light another.
+		const wc = ADMIN + 'admin.php?page=wc-admin&path=';
+		const win = mockTabbedWindow( [
+			[ 'Overview', wc + '/analytics/overview' ],
+			[ 'Products', wc + '/analytics/products' ],
+			[ 'Revenue', wc + '/analytics/revenue' ],
+		] );
+
+		syncActiveTab( win, wc + '/analytics/products&period=month' );
+
+		expect( activeLabels( win ) ).toEqual( [ 'Products' ] );
+	} );
+
 	test( 'the most specific matching tab wins', () => {
 		// A plugin registering both a landing page and a deeper `tab=`
 		// view as separate submenu entries.
