@@ -8,11 +8,12 @@
  * <wpd-spinner preset="comet" size="80"></wpd-spinner>
  * <wpd-spinner preset="orbit" color="#0f4c6b"></wpd-spinner>
  * <wpd-spinner preset="pulse" accent="#fff8e7"></wpd-spinner>
+ * <wpd-spinner preset="inline"></wpd-spinner>              <!-- 16px arc, no mark -->
  * ```
  *
  * ## Presets
  *
- * Four curated looks. Pick one with the `preset` attribute; every
+ * Five curated looks. Pick one with the `preset` attribute; every
  * other knob (speeds, arc lengths, ring directions, pulse, dot count)
  * defaults to the preset's value but can be individually overridden:
  *
@@ -23,6 +24,15 @@
  *     Reads as planetary orbit.
  *   - `pulse` — short arcs + 8 dots + scale + opacity pulse. Reads
  *     as a heartbeat.
+ *   - `inline` — a different indicator entirely, not a re-tuning of
+ *     the other four: ONE track ring with ONE rotating arc, no
+ *     WordPress mark, no concentric rings, no dots. The mark and its
+ *     three rings need roughly 40px to be recognisable; below that
+ *     they collapse into a smudge. Use `inline` for anything that
+ *     sits next to a line of text — a button, a list row, a status
+ *     line. It defaults to 16px rather than 48px, and inherits
+ *     `currentColor` rather than the admin theme color, so it tints
+ *     itself from the text it sits beside.
  *
  * Override anything from the preset:
  *
@@ -53,7 +63,12 @@
 import { Component, defineComponent, html, type TemplateResult } from '../../core';
 import { styles } from './wpd-spinner.styles';
 
-export type WpdSpinnerPreset = 'classic' | 'comet' | 'orbit' | 'pulse';
+export type WpdSpinnerPreset =
+	| 'classic'
+	| 'comet'
+	| 'orbit'
+	| 'pulse'
+	| 'inline';
 
 export type WpdSpinnerPulse = 'none' | 'scale' | 'opacity' | 'both';
 
@@ -138,6 +153,28 @@ export const WPD_SPINNER_PRESETS: Readonly<
 		pulse: 'both',
 		dots: 8,
 	},
+	/*
+	 * `inline` renders through a separate path, so most of these
+	 * fields are inert — only `sp1` (rotation tempo) and `a1` (arc
+	 * length as a percentage of the ring) are read. They are spelled
+	 * out anyway so the record stays a complete, iterable
+	 * `Record< WpdSpinnerPreset, WpdSpinnerConfig >` for preset-picker
+	 * UIs, and so `sp1` / `a1` remain overridable per element exactly
+	 * like every other preset.
+	 */
+	inline: {
+		sp1: 8,
+		sp2: 8,
+		sp3: 8,
+		a1: 25,
+		a2: 25,
+		a3: 25,
+		gap: 0,
+		dir2: 1,
+		dir3: 1,
+		pulse: 'none',
+		dots: 0,
+	},
 } );
 
 /**
@@ -184,21 +221,21 @@ export class WpdSpinner extends Component {
 	static help = {
 		title: 'Spinner',
 		summary:
-			'Animated WordPress-mark loading indicator with four curated presets and full per-attribute overrides. CSS variables drive disc + accent colors and size; reduced-motion preferences are respected.',
+			'Animated WordPress-mark loading indicator with five curated presets and full per-attribute overrides. The `inline` preset swaps the mark for a bare arc sized for text-adjacent use. CSS variables drive disc + accent colors and size; reduced-motion preferences are respected.',
 		status: 'experimental',
 		since: '0.6.0',
 		props: [
 			{
 				name: 'preset',
-				type: '"classic" | "comet" | "orbit" | "pulse"',
+				type: '"classic" | "comet" | "orbit" | "pulse" | "inline"',
 				default: 'classic',
 				description:
-					'Visual personality. Every other attribute defaults to the preset\'s value and can be overridden individually.',
+					'Visual personality. Every other attribute defaults to the preset\'s value and can be overridden individually. `inline` is the odd one out: a bare rotating arc with no WordPress mark, defaulting to 16px and to `currentColor`, for use beside a line of text where the mark would be illegible.',
 			},
 			{
 				name: 'size',
 				type: 'integer (px) or CSS length',
-				default: '48',
+				default: '48 (16 for preset="inline")',
 				description:
 					'Sets `--wpd-spinner-size`. Bare numbers are treated as px; pass a CSS length (e.g. `2em`) to opt into ems / rems.',
 			},
@@ -387,8 +424,49 @@ export class WpdSpinner extends Component {
 		};
 	}
 
+	/**
+	 * The `inline` indicator: one faint track ring, one rotating arc.
+	 *
+	 * Deliberately not the mark-and-rings SVG at a smaller size. That
+	 * artwork carries four concentric strokes plus a 4-path glyph in a
+	 * ~150-unit viewBox; at 16px each stroke lands under a physical
+	 * pixel and the whole thing greys out into an unreadable blob. A
+	 * single 2.4-unit stroke on a 24-unit viewBox stays crisp at 14px
+	 * and still reads as motion at a glance.
+	 *
+	 * `currentColor` rather than `--wpd-spinner-color` is the point of
+	 * the preset — an inline spinner belongs to the text it interrupts,
+	 * so it tints itself from that text and can never lose contrast
+	 * against a surface the component knows nothing about.
+	 */
+	private _buildInlineSvg( cfg: WpdSpinnerConfig ): string {
+		const label = escAttr( this.getAttribute( 'label' ) ?? 'Loading' );
+		const r = 9;
+		const dur = ( cfg.sp1 / 10 ).toFixed( 2 );
+
+		return (
+			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"` +
+			` role="img" aria-label="${ label }">` +
+			// Track — the full circle, faint, so the arc reads as
+			// progress around something rather than a floating dash.
+			`<circle cx="12" cy="12" r="${ r }" fill="none"` +
+			` stroke="currentColor" stroke-width="2.4" stroke-opacity="0.22"/>` +
+			// Arc.
+			`<circle cx="12" cy="12" r="${ r }" fill="none"` +
+			` stroke="currentColor" stroke-width="2.4" stroke-linecap="round"` +
+			` stroke-dasharray="${ dasharray( r, cfg.a1 ) }"` +
+			` style="transform-origin:12px 12px;animation: wpd-spinner-spin ${ dur }s linear infinite"/>` +
+			`</svg>`
+		);
+	}
+
 	private _buildSvg(): string {
 		const cfg = this._effectiveConfig();
+
+		if ( this.getAttribute( 'preset' ) === 'inline' ) {
+			return this._buildInlineSvg( cfg );
+		}
+
 		const label = escAttr( this.getAttribute( 'label' ) ?? 'Loading' );
 
 		const pad = cfg.gap * 3 + 14;

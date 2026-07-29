@@ -358,7 +358,11 @@ describe( 'drafts widget — AI writing assistant', () => {
 		// The panel appears immediately with a spinner while the round-trip runs.
 		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
 		expect( panel ).not.toBeNull();
-		expect( panel.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		const spinner = panel.querySelector( 'wpd-spinner' ) as HTMLElement;
+		expect( spinner ).not.toBeNull();
+		// The default mark-and-rings artwork is illegible at this size —
+		// the panel must ask for the bare inline arc.
+		expect( spinner.getAttribute( 'preset' ) ).toBe( 'inline' );
 		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'true' );
 		expect( spark.getAttribute( 'aria-controls' ) ).toBe( panel.id );
 
@@ -419,6 +423,23 @@ describe( 'drafts widget — AI writing assistant', () => {
 		).toEqual( [ 'a conclusion' ] );
 	} );
 
+	test( 'panel notices carry the contrast-override class', async () => {
+		// `dm-drafts__notice` re-points <wpd-notice>'s color surface at
+		// currentColor. Without it the component falls back to its
+		// light-surface palette (#1d2327 text) and disappears into a dark
+		// glass widget card — a regression that is invisible to a DOM
+		// assertion unless it is spelled out here.
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+		const panel = await openPanel();
+
+		const readiness = panel.querySelector( 'wpd-notice' ) as HTMLElement;
+		expect( readiness.classList.contains( 'dm-drafts__notice' ) ).toBe( true );
+		expect( readiness.classList.contains( 'dm-drafts__readiness' ) ).toBe(
+			true,
+		);
+	} );
+
 	test( 'readiness flips to a success notice when nothing is missing', async () => {
 		installShell( {
 			drafts: oneDraft,
@@ -462,8 +483,12 @@ describe( 'drafts widget — AI writing assistant', () => {
 		expect( container.querySelector( '.dm-drafts__name' )?.textContent ).toBe(
 			'A better title',
 		);
-		// …the button locks so a double-click can't apply it twice…
-		expect( first.hasAttribute( 'disabled' ) ).toBe( true );
+		// …the button locks so a double-click can't apply it twice, via
+		// aria-disabled rather than the component's `disabled` (which
+		// would dim it to 50% opacity and gut its contrast on a dark
+		// glass card)…
+		expect( first.getAttribute( 'aria-disabled' ) ).toBe( 'true' );
+		expect( first.hasAttribute( 'disabled' ) ).toBe( false );
 		expect(
 			first.querySelector( '.dm-drafts__applied-check' ),
 		).not.toBeNull();
@@ -512,7 +537,7 @@ describe( 'drafts widget — AI writing assistant', () => {
 			} );
 		} );
 		expect( first.classList.contains( 'is-applied' ) ).toBe( false );
-		expect( first.hasAttribute( 'disabled' ) ).toBe( false );
+		expect( first.hasAttribute( 'aria-disabled' ) ).toBe( false );
 		expect( first.hasAttribute( 'busy' ) ).toBe( false );
 	} );
 
@@ -528,6 +553,11 @@ describe( 'drafts widget — AI writing assistant', () => {
 			expect( notice?.getAttribute( 'tone' ) ).toBe( 'error' );
 		} );
 		expect( panel.textContent ).toContain( 'Could not get suggestions.' );
+		expect(
+			panel.querySelector( 'wpd-notice' )?.classList.contains(
+				'dm-drafts__notice',
+			),
+		).toBe( true );
 	} );
 
 	test( 'clicking the button again closes the panel and collapses the disclosure', async () => {

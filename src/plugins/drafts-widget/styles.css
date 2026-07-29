@@ -120,7 +120,7 @@
 		var( --wpd-danger, #d63638 ) 22%,
 		transparent
 	);
-	--wpd-button-fg: var( --wpd-danger, #d63638 );
+	--wpd-button-fg: var( --dm-drafts-danger, #d63638 );
 }
 
 .dm-drafts__spark:hover {
@@ -130,7 +130,7 @@
 		var( --wpd-accent, #2271b1 ) 22%,
 		transparent
 	);
-	--wpd-button-fg: var( --wpd-accent, #2271b1 );
+	--wpd-button-fg: var( --dm-drafts-accent, #2271b1 );
 }
 
 .dm-drafts__spark[ aria-expanded='true' ] {
@@ -140,7 +140,7 @@
 		var( --wpd-accent, #2271b1 ) 18%,
 		transparent
 	);
-	--wpd-button-fg: var( --wpd-accent, #2271b1 );
+	--wpd-button-fg: var( --dm-drafts-accent, #2271b1 );
 }
 
 .dm-drafts__trash .dashicons,
@@ -157,6 +157,26 @@
    which that rule can't reach. */
 body.desktop-mode-active .dm-drafts__link {
 	cursor: pointer !important;
+}
+
+/*
+ * Adaptive accent for text + glyphs. `--wpd-accent` neat is a mid blue
+ * that sinks into a dark glass card; mixing it toward `currentColor`
+ * keeps it legible whichever way the card leans. Backgrounds still use
+ * the neat token — a low-alpha wash doesn't have a contrast problem.
+ */
+.dm-drafts__row,
+.dm-drafts__suggest {
+	--dm-drafts-accent: color-mix(
+		in srgb,
+		var( --wpd-accent, #2271b1 ) 55%,
+		currentColor
+	);
+	--dm-drafts-danger: color-mix(
+		in srgb,
+		var( --wpd-danger, #d63638 ) 65%,
+		currentColor
+	);
 }
 
 /* --- 💡 suggestions panel ------------------------------------------ */
@@ -181,25 +201,65 @@ body.desktop-mode-active .dm-drafts__link {
 
 .dm-drafts__suggest-hint {
 	font-size: 11px;
-	opacity: 0.55;
+	opacity: 0.7;
 	font-style: italic;
 }
 
-/* Readiness — read-only diagnosis at the top of the panel, rendered as a
-   tone-coded `<wpd-notice>` (success when nothing is missing). */
+/*
+ * Notices inside the panel (readiness, load failure).
+ *
+ * `<wpd-notice>`'s built-in palette is tuned for a light window surface —
+ * its text defaults to `--wpd-fg` (#1d2327) over an 8%-alpha tone wash.
+ * A widget card is glass over the wallpaper and can be arbitrarily dark,
+ * so that pairing collapses to unreadable. Drive the component's
+ * documented color surface from `currentColor` instead: the text tracks
+ * whatever the card already proved legible, and the tone survives in the
+ * accent stripe + icon, each mixed toward `currentColor` so it stays
+ * visible on a dark and a light card alike.
+ */
+.dm-drafts__notice {
+	--wpd-notice-color: currentColor;
+	--wpd-notice-bg: color-mix( in srgb, currentColor 8%, transparent );
+	--wpd-notice-border: transparent;
+	--wpd-notice-font: inherit;
+	--wpd-notice-success: color-mix(
+		in srgb,
+		var( --wpd-success-fg, #46b450 ) 65%,
+		currentColor
+	);
+	--wpd-notice-warning: color-mix(
+		in srgb,
+		var( --wpd-warning-fg, #dba617 ) 65%,
+		currentColor
+	);
+	--wpd-notice-error: color-mix(
+		in srgb,
+		var( --wpd-danger, #d63638 ) 65%,
+		currentColor
+	);
+	/* Out-specifies the component's own `:host` padding — 10px/14px is
+	   window-banner scale and reads as a slab inside an 8px panel. */
+	padding: 8px 10px;
+	border-radius: 6px;
+}
+
+/* Readiness — read-only diagnosis at the top of the panel, tone-coded
+   success when nothing is missing, warning otherwise. */
 .dm-drafts__readiness-summary {
 	font-size: 12px;
 	line-height: 1.35;
 }
 
+/* Block + disc, not flex-column: a flex container suppresses the list
+   markers, which is what made these read as four orphaned grey lines. */
 .dm-drafts__readiness-missing {
 	margin: 4px 0 0;
 	padding-inline-start: 16px;
 	font-size: 11.5px;
-	opacity: 0.85;
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
+	line-height: 1.4;
+	opacity: 0.9;
+	display: block;
+	list-style: disc;
 }
 
 .dm-drafts__suggest-group {
@@ -213,7 +273,7 @@ body.desktop-mode-active .dm-drafts__link {
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	opacity: 0.6;
+	opacity: 0.72;
 }
 
 /* Suggestion buttons — `<wpd-button variant="ghost">` tuned to read as
@@ -251,7 +311,7 @@ body.desktop-mode-active .dm-drafts__link {
 	--wpd-button-padding: 2px 8px;
 	--wpd-button-border-radius: 999px;
 	--wpd-button-border: 1px solid
-		color-mix( in srgb, currentColor 20%, transparent );
+		color-mix( in srgb, currentColor 30%, transparent );
 	--wpd-button-bg-hover: color-mix(
 		in srgb,
 		var( --wpd-accent, #2271b1 ) 16%,
@@ -265,26 +325,47 @@ body.desktop-mode-active .dm-drafts__link {
 }
 
 .dm-drafts__suggest-tag:hover {
-	--wpd-button-fg: var( --wpd-accent, #2271b1 );
+	--wpd-button-fg: var( --dm-drafts-accent, #2271b1 );
 	--wpd-button-border: 1px solid
-		color-mix( in srgb, var( --wpd-accent, #2271b1 ) 55%, transparent );
+		color-mix( in srgb, var( --dm-drafts-accent, #2271b1 ) 55%, transparent );
 }
 
-/* Applied — a quiet green check-in for suggestions the user accepted.
-   The component dims itself via `disabled`; the check mark makes the
-   reason for the dimming explicit rather than reading as "broken". */
+/*
+ * Applied — the suggestions the user accepted.
+ *
+ * A widget card is glass over an arbitrary wallpaper, so this state can't
+ * ride on a hue: the LABEL stays at the card's own text color, which is
+ * the one color the card already guarantees is readable. What marks it as
+ * applied is a currentColor-derived wash, a tinted border and a ✓ —
+ * shape and fill, both of which survive any background.
+ *
+ * Note also that this is not the component's `disabled` state: that dims
+ * to 50% opacity, halving contrast exactly where we can least afford it.
+ */
 .dm-drafts__suggest-item.is-applied,
 .dm-drafts__suggest-tag.is-applied {
-	--wpd-button-fg: var( --wpd-success-fg, #008a20 );
+	--dm-drafts-applied: color-mix(
+		in srgb,
+		var( --wpd-success-fg, #46b450 ) 55%,
+		currentColor
+	);
+	--wpd-button-fg: currentColor;
+	--wpd-button-bg: color-mix( in srgb, currentColor 15%, transparent );
+	/* Same as the resting fill — an applied suggestion is inert, so it
+	   must not light up under the pointer as if it were still actionable. */
+	--wpd-button-bg-hover: color-mix( in srgb, currentColor 15%, transparent );
 	--wpd-button-border: 1px solid
-		color-mix( in srgb, var( --wpd-success-fg, #008a20 ) 45%, transparent );
+		color-mix( in srgb, var( --dm-drafts-applied ) 60%, transparent );
+	opacity: 1;
+	cursor: default;
 }
 
 /* Slotted, not a `::after` on the host — a shadow host's own
    pseudo-elements have no slot to render into. */
 .dm-drafts__applied-check {
 	margin-inline-start: 4px;
-	color: var( --wpd-success-fg, #008a20 );
+	font-weight: 700;
+	color: var( --dm-drafts-applied, currentColor );
 }
 
 .dm-drafts__name {

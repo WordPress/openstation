@@ -159,6 +159,65 @@ describe( '<wpd-spinner>', () => {
 		expect( ring2Style ).toMatch( /reverse/ );
 	} );
 
+	test( 'inline preset drops the mark and the concentric rings', async () => {
+		host.innerHTML = `<wpd-spinner preset="inline"></wpd-spinner>`;
+		await tick();
+		const svg = host
+			.querySelector( 'wpd-spinner' )!
+			.shadowRoot!.querySelector( 'svg' )!;
+
+		// Track + arc, and nothing else. No disc, no rings 2/3, no dots.
+		expect( svg.querySelectorAll( 'circle' ).length ).toBe( 2 );
+		// The WordPress mark is what makes the other presets illegible
+		// at text size — it must not be in the tree at all.
+		expect( svg.querySelector( '.mark' ) ).toBeNull();
+		expect( svg.querySelectorAll( 'path' ).length ).toBe( 0 );
+		// Square 24-unit viewBox, so a bare `size` maps 1:1 to px.
+		expect( svg.getAttribute( 'viewBox' ) ).toBe( '0 0 24 24' );
+	} );
+
+	test( 'inline preset keeps the a11y surface and the tempo knobs', async () => {
+		host.innerHTML = `<wpd-spinner preset="inline" label="Thinking" sp1="20"></wpd-spinner>`;
+		await tick();
+		const svg = host
+			.querySelector( 'wpd-spinner' )!
+			.shadowRoot!.querySelector( 'svg' )!;
+
+		expect( svg.getAttribute( 'role' ) ).toBe( 'img' );
+		expect( svg.getAttribute( 'aria-label' ) ).toBe( 'Thinking' );
+		// sp1 is deciseconds: 20 → 2.00s. Overridable like every preset.
+		expect(
+			svg.querySelectorAll( 'circle' )[ 1 ].getAttribute( 'style' ),
+		).toMatch( /2\.00s/ );
+	} );
+
+	test( 'inline appears in the exported preset registry', () => {
+		// Preset-picker UIs iterate the record; a preset that renders
+		// through a separate path still has to be listed.
+		expect( Object.keys( WPD_SPINNER_PRESETS ) ).toContain( 'inline' );
+	} );
+
+	test( 'switching to and from inline re-paints correctly', async () => {
+		host.innerHTML = `<wpd-spinner preset="classic"></wpd-spinner>`;
+		await tick();
+		const spinner = host.querySelector( 'wpd-spinner' )!;
+		expect(
+			spinner.shadowRoot!.querySelectorAll( 'svg circle' ).length,
+		).toBe( 7 );
+
+		spinner.setAttribute( 'preset', 'inline' );
+		await tick();
+		expect(
+			spinner.shadowRoot!.querySelectorAll( 'svg circle' ).length,
+		).toBe( 2 );
+
+		spinner.setAttribute( 'preset', 'classic' );
+		await tick();
+		expect(
+			spinner.shadowRoot!.querySelectorAll( 'svg circle' ).length,
+		).toBe( 7 );
+	} );
+
 	test( 'live attribute change re-paints the SVG', async () => {
 		// Regression: the architectural fix in component.ts means
 		// attribute changes route through requestUpdate, which we

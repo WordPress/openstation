@@ -180,8 +180,12 @@ function loadingState(): HTMLElement {
 	// screen-reader user having to go looking for it.
 	wrap.setAttribute( 'aria-live', 'polite' );
 
+	// `inline` rather than the default mark-and-rings artwork: at this
+	// size the WordPress mark is an unreadable smudge. The inline arc
+	// also inherits `currentColor`, so it tints itself from the panel.
 	const spinner = document.createElement( 'wpd-spinner' );
-	spinner.setAttribute( 'size', '18' );
+	spinner.setAttribute( 'preset', 'inline' );
+	spinner.setAttribute( 'size', '14' );
 	wrap.appendChild( spinner );
 
 	const label = document.createElement( 'span' );
@@ -191,15 +195,24 @@ function loadingState(): HTMLElement {
 	return wrap;
 }
 
-/** A dismissal-free `<wpd-notice>` carrying a single line of text. */
-function notice( tone: string, message: string, icon?: string ): HTMLElement {
+/**
+ * A dismissal-free `<wpd-notice>` sized for the panel.
+ *
+ * `dm-drafts__notice` re-points the component's color surface at
+ * `currentColor` — its light-surface defaults are unreadable on a dark
+ * glass widget card. See the class in `styles.css`.
+ */
+function notice( tone: string, message?: string, icon?: string ): HTMLElement {
 	const el = document.createElement( 'wpd-notice' );
+	el.className = 'dm-drafts__notice';
 	el.setAttribute( 'tone', tone );
 	el.setAttribute( 'not-dismissible', '' );
 	if ( icon ) {
 		el.setAttribute( 'icon', icon );
 	}
-	el.textContent = message;
+	if ( message !== undefined ) {
+		el.textContent = message;
+	}
 	return el;
 }
 
@@ -226,8 +239,15 @@ async function loadSuggestions(
  * Build one tap-to-apply suggestion as a `<wpd-button>`.
  *
  * `busy` while the write is in flight (the component disables itself and
- * paints its own spinner), `disabled` + `is-applied` once it lands, so a
- * suggestion can't be applied twice by an impatient double-click.
+ * paints its own spinner), then `is-applied` + `aria-disabled` once it
+ * lands, so a suggestion can't be applied twice by an impatient
+ * double-click.
+ *
+ * Deliberately NOT the component's `disabled`: that dims the control to
+ * 50% opacity, which halves its contrast against a widget card that may
+ * be glass over any wallpaper. The applied state is carried by a
+ * currentColor wash, a tinted border and a ✓ instead — all of which stay
+ * legible whatever the card is sitting on.
  */
 function applyButton(
 	id: number,
@@ -242,14 +262,14 @@ function applyButton(
 	btn.textContent = text;
 	btn.title = __( 'Apply to the draft' );
 	btn.addEventListener( 'click', () => {
-		if ( btn.hasAttribute( 'busy' ) || btn.hasAttribute( 'disabled' ) ) {
+		if ( btn.hasAttribute( 'busy' ) || btn.classList.contains( 'is-applied' ) ) {
 			return;
 		}
 		btn.setAttribute( 'busy', '' );
 		void applyDraftField( id, fields ).then( ( ok ) => {
 			btn.removeAttribute( 'busy' );
 			if ( ok ) {
-				btn.setAttribute( 'disabled', '' );
+				btn.setAttribute( 'aria-disabled', 'true' );
 				btn.classList.add( 'is-applied' );
 				const check = document.createElement( 'span' );
 				check.className = 'dm-drafts__applied-check';
@@ -269,14 +289,12 @@ function applyButton(
 function readinessNotice( readiness: DraftSuggestions[ 'readiness' ] ): HTMLElement {
 	const missing = readiness.missing ?? [];
 	const ready = missing.length === 0;
-	const el = document.createElement( 'wpd-notice' );
-	el.setAttribute( 'tone', ready ? 'success' : 'warning' );
-	el.setAttribute( 'not-dismissible', '' );
-	el.setAttribute(
-		'icon',
+	const el = notice(
+		ready ? 'success' : 'warning',
+		undefined,
 		ready ? 'dashicons-yes-alt' : 'dashicons-info-outline',
 	);
-	el.className = 'dm-drafts__readiness';
+	el.classList.add( 'dm-drafts__readiness' );
 
 	if ( readiness.summary ) {
 		const summary = document.createElement( 'div' );
