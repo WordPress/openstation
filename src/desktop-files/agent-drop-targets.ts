@@ -24,7 +24,6 @@ import {
 	type TilePayloadContext,
 	type TilePayloadHandler,
 } from './tile-payloads';
-import { getFilesRestDeps } from './rest';
 import {
 	agentAcceptsDrop,
 	describeDragEntity,
@@ -46,6 +45,23 @@ function agentFileOf( ctx: TilePayloadContext ): AgentFileShape | null {
 		return null;
 	}
 	return file;
+}
+
+/**
+ * REST root + nonce for the invoke call. The shell config's `restUrl`
+ * is `rest_url()` — NOT the files layer's `baseUrl`, which already
+ * ends in `desktop-mode/v1/files` and would double-prefix the route.
+ */
+function agentRestDeps(): { restRoot: string; restNonce: string } | null {
+	const cfg = (
+		window as unknown as {
+			desktopModeConfig?: { restUrl?: string; restNonce?: string };
+		}
+	).desktopModeConfig;
+	if ( cfg?.restUrl && cfg?.restNonce ) {
+		return { restRoot: cfg.restUrl, restNonce: cfg.restNonce };
+	}
+	return null;
 }
 
 function makeAgentTileHandler( payloadType: string ): TilePayloadHandler {
@@ -75,10 +91,10 @@ function makeAgentTileHandler( payloadType: string ): TilePayloadHandler {
 				type: session.payload.type,
 				data: session.payload.data,
 			} );
-			if ( ! entity ) {
+			const rest = agentRestDeps();
+			if ( ! entity || ! rest ) {
 				return;
 			}
-			const deps = getFilesRestDeps();
 			void dispatchAgentDrop(
 				{
 					id: Number.parseInt( String( file.ref ?? '' ), 10 ),
@@ -87,7 +103,7 @@ function makeAgentTileHandler( payloadType: string ): TilePayloadHandler {
 					avatarUrl: String( file.previewUrl ?? '' ),
 				},
 				entity,
-				{ restRoot: deps.baseUrl, restNonce: deps.nonce },
+				rest,
 			);
 		},
 	};

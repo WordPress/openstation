@@ -635,7 +635,13 @@ function buildIconTile( spec: {
 		type: spec.role === 'folder' ? 'folder' : '__my-wordpress-entry',
 		ref: spec.label,
 		label: spec.label,
-		icon: sanitizeClass( spec.icon ),
+		// `<wpd-tile>` accepts a dashicon class, a URL, or a data URI.
+		// Only class-shaped icons go through the class sanitizer — a
+		// URL would be mangled into an invalid class and fall back to
+		// the letter badge (the Agents entity's bot SVG hit this).
+		icon: /^(https?:|data:)/.test( spec.icon )
+			? spec.icon
+			: sanitizeClass( spec.icon ),
 		role: spec.role,
 		extraClasses: [
 			'desktop-mode-my-wordpress__tile',
