@@ -1661,6 +1661,59 @@ apply_filters( 'desktop_mode_ai_error_log_candidates', string[] $candidates );
 
 ---
 
+## Drafts widget — AI writing assistant (Experimental)
+
+The Drafts widget offers per-draft title / excerpt / tag / category suggestions plus a readiness check, generated through the Core AI Client. Two REST routes back it:
+
+| Route | Method | Gate | Purpose |
+|---|---|---|---|
+| `/wp-json/desktop-mode/v1/draft-suggestions` | POST `{ post_id }` | `edit_post`, then a configured text-generation provider | Read-only. Returns `{ titles, excerpt, tags, categories, readiness: { summary, missing } }`. |
+| `/wp-json/desktop-mode/v1/draft-apply` | POST `{ post_id, title?, excerpt?, tags?, categories? }` | `edit_post` | Writes an accepted suggestion onto the post. Tags and categories are **appended**, never clobbered. New categories are only created for users who can `manage_categories`; unknown ones are skipped. |
+
+The capability check runs **before** the provider check, so an unauthorized caller gets the same `403` whether or not the site has AI configured. With no provider, an authorized caller gets `503 desktop_mode_ai_unavailable` and the 💡 button never renders — the widget degrades to exactly its pre-AI behavior.
+
+### `desktop_mode_drafts_ai_instructions` — Experimental
+
+The system instruction sent with a draft-suggestions request. Retune the assistant's voice, add house style rules, or tighten the readiness rubric without forking the route.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_instructions', string $instructions, WP_Post $post );
+```
+
+### `desktop_mode_drafts_ai_schema` — Experimental
+
+The JSON Schema the model must answer in. Changing the shape changes the REST response shape too — the route only normalizes the keys it knows about (`titles`, `excerpt`, `tags`, `categories`, `readiness`), and anything else passes through untouched.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_schema', array $schema, WP_Post $post );
+```
+
+### `desktop_mode_drafts_ai_content_limit` — Experimental
+
+How many characters of the draft body are sent to the model. Default `4000`; truncation is multibyte-safe. Return `0` or a negative number to send the whole draft.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_content_limit', int $limit, WP_Post $post );
+```
+
+### `desktop_mode_drafts_ai_suggestions` — Experimental
+
+Last-mile filter over the normalized suggestions, after tag-stripping and truncation. Drop, reorder or append entries without re-sanitizing.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_suggestions', array $suggestions, WP_Post $post );
+```
+
+### `desktop_mode_drafts_suggestion_applied` — Experimental
+
+Fires after an accepted suggestion has been written onto a post. `$applied` holds **only** the fields that actually changed — an empty array means the request was a no-op (e.g. an unknown category the user couldn't create). `$post` is the post as it was *before* the update.
+
+```php
+do_action( 'desktop_mode_drafts_suggestion_applied', int $post_id, array $applied, WP_Post $post );
+```
+
+---
+
 ## AI Copilot extensibility — `/ai/search` (Experimental)
 
 Every `POST /desktop-mode/v1/ai/search` call — whether driven by the built-in overlay or by `wp.desktop.ai.ask()` — runs through this layered hook surface. Use it to:

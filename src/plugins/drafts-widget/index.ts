@@ -14,6 +14,9 @@
  * native window.
  */
 import './styles.css';
+import '../../ui/components/wpd-button/wpd-button';
+import '../../ui/components/wpd-notice/wpd-notice';
+import '../../ui/components/wpd-spinner/wpd-spinner';
 import { __, sprintf } from '../../i18n';
 import { trackedFetch } from '../../tracked-fetch';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
@@ -71,6 +74,9 @@ interface DraftSuggestions {
 	readiness: { summary: string; missing: string[] };
 }
 
+/** Class on the panel; also the "is a panel open?" probe for the poller. */
+const PANEL_CLASS = 'dm-drafts__suggest';
+
 /** True when an AI provider is configured (Settings → Connectors). */
 function aiAvailable(): boolean {
 	const win = window as unknown as {
@@ -127,23 +133,74 @@ function toast( message: string, type?: 'error' ): void {
 	desktopApi()?.showToast?.( type ? { message, type } : { message } );
 }
 
-/** Toggle the ✨ suggestions panel for a row (only one open at a time). */
-function toggleSuggestions( id: number, row: HTMLElement ): void {
+/**
+ * Toggle the 💡 suggestions panel for a row (only one open at a time).
+ *
+ * The trigger owns `aria-expanded` / `aria-controls`, so the panel is
+ * announced as the disclosure it is rather than as loose text that
+ * appears out of nowhere.
+ */
+function toggleSuggestions(
+	id: number,
+	row: HTMLElement,
+	trigger: HTMLElement,
+): void {
 	const list = row.parentElement;
 	const next = row.nextElementSibling;
-	const wasOwnOpen =
-		!! next && next.classList.contains( 'dm-drafts__suggest' );
-	list?.querySelectorAll( '.dm-drafts__suggest' ).forEach( ( p ) =>
-		p.remove(),
+	const wasOwnOpen = !! next && next.classList.contains( PANEL_CLASS );
+
+	// Collapse whatever was open, wherever it was, and reset its trigger.
+	list?.querySelectorAll( `.${ PANEL_CLASS }` ).forEach( ( p ) => p.remove() );
+	list?.querySelectorAll( '.dm-drafts__spark' ).forEach( ( t ) =>
+		t.setAttribute( 'aria-expanded', 'false' ),
 	);
 	if ( wasOwnOpen ) {
 		return; // second click closes it
 	}
+
 	const panel = document.createElement( 'div' );
-	panel.className = 'dm-drafts__suggest';
-	panel.textContent = __( 'Thinking…' );
+	panel.className = PANEL_CLASS;
+	panel.id = `dm-drafts-suggest-${ id }`;
+	panel.setAttribute( 'role', 'group' );
+	panel.setAttribute( 'aria-label', __( 'Writing suggestions' ) );
+	panel.appendChild( loadingState() );
 	row.after( panel );
+
+	trigger.setAttribute( 'aria-expanded', 'true' );
+	trigger.setAttribute( 'aria-controls', panel.id );
+
 	void loadSuggestions( id, panel, row );
+}
+
+/** Spinner + label shown while the model is working. */
+function loadingState(): HTMLElement {
+	const wrap = document.createElement( 'div' );
+	wrap.className = 'dm-drafts__suggest-loading';
+	// `aria-live` so the eventual result is announced without the
+	// screen-reader user having to go looking for it.
+	wrap.setAttribute( 'aria-live', 'polite' );
+
+	const spinner = document.createElement( 'wpd-spinner' );
+	spinner.setAttribute( 'size', '18' );
+	wrap.appendChild( spinner );
+
+	const label = document.createElement( 'span' );
+	label.textContent = __( 'Thinking…' );
+	wrap.appendChild( label );
+
+	return wrap;
+}
+
+/** A dismissal-free `<wpd-notice>` carrying a single line of text. */
+function notice( tone: string, message: string, icon?: string ): HTMLElement {
+	const el = document.createElement( 'wpd-notice' );
+	el.setAttribute( 'tone', tone );
+	el.setAttribute( 'not-dismissible', '' );
+	if ( icon ) {
+		el.setAttribute( 'icon', icon );
+	}
+	el.textContent = message;
+	return el;
 }
 
 async function loadSuggestions(
@@ -158,9 +215,86 @@ async function loadSuggestions(
 		}
 	} catch {
 		if ( panel.isConnected ) {
-			panel.textContent = __( 'Could not get suggestions.' );
+			panel.replaceChildren(
+				notice( 'error', __( 'Could not get suggestions.' ) ),
+			);
 		}
 	}
+}
+
+/**
+ * Build one tap-to-apply suggestion as a `<wpd-button>`.
+ *
+ * `busy` while the write is in flight (the component disables itself and
+ * paints its own spinner), `disabled` + `is-applied` once it lands, so a
+ * suggestion can't be applied twice by an impatient double-click.
+ */
+function applyButton(
+	id: number,
+	text: string,
+	variantClass: string,
+	fields: ApplyFields,
+	onOk?: () => void,
+): HTMLElement {
+	const btn = document.createElement( 'wpd-button' );
+	btn.setAttribute( 'variant', 'ghost' );
+	btn.className = variantClass;
+	btn.textContent = text;
+	btn.title = __( 'Apply to the draft' );
+	btn.addEventListener( 'click', () => {
+		if ( btn.hasAttribute( 'busy' ) || btn.hasAttribute( 'disabled' ) ) {
+			return;
+		}
+		btn.setAttribute( 'busy', '' );
+		void applyDraftField( id, fields ).then( ( ok ) => {
+			btn.removeAttribute( 'busy' );
+			if ( ok ) {
+				btn.setAttribute( 'disabled', '' );
+				btn.classList.add( 'is-applied' );
+				const check = document.createElement( 'span' );
+				check.className = 'dm-drafts__applied-check';
+				check.setAttribute( 'aria-hidden', 'true' );
+				check.textContent = '✓';
+				btn.appendChild( check );
+				onOk?.();
+			} else {
+				toast( __( 'Could not apply the suggestion.' ), 'error' );
+			}
+		} );
+	} );
+	return btn;
+}
+
+/** Readiness verdict as a tone-coded `<wpd-notice>`. */
+function readinessNotice( readiness: DraftSuggestions[ 'readiness' ] ): HTMLElement {
+	const missing = readiness.missing ?? [];
+	const ready = missing.length === 0;
+	const el = document.createElement( 'wpd-notice' );
+	el.setAttribute( 'tone', ready ? 'success' : 'warning' );
+	el.setAttribute( 'not-dismissible', '' );
+	el.setAttribute(
+		'icon',
+		ready ? 'dashicons-yes-alt' : 'dashicons-info-outline',
+	);
+	el.className = 'dm-drafts__readiness';
+
+	if ( readiness.summary ) {
+		const summary = document.createElement( 'div' );
+		summary.className = 'dm-drafts__readiness-summary';
+		summary.textContent = readiness.summary;
+		el.appendChild( summary );
+	}
+	if ( missing.length > 0 ) {
+		const ul = document.createElement( 'ul' );
+		ul.className = 'dm-drafts__readiness-missing';
+		for ( const m of missing ) {
+			const li = document.createElement( 'li' );
+			li.textContent = m;
+			ul.appendChild( li );
+		}
+		el.appendChild( ul );
+	}
+	return el;
 }
 
 function renderSuggestions(
@@ -172,30 +306,11 @@ function renderSuggestions(
 	panel.replaceChildren();
 
 	// Readiness check — read-only diagnosis at the top.
-	if ( data.readiness && ( data.readiness.summary || data.readiness.missing?.length ) ) {
-		const box = document.createElement( 'div' );
-		box.className = 'dm-drafts__readiness';
-		const label = document.createElement( 'div' );
-		label.className = 'dm-drafts__suggest-label';
-		label.textContent = __( 'Readiness' );
-		box.appendChild( label );
-		if ( data.readiness.summary ) {
-			const s = document.createElement( 'div' );
-			s.className = 'dm-drafts__readiness-summary';
-			s.textContent = data.readiness.summary;
-			box.appendChild( s );
-		}
-		if ( data.readiness.missing && data.readiness.missing.length > 0 ) {
-			const ul = document.createElement( 'ul' );
-			ul.className = 'dm-drafts__readiness-missing';
-			for ( const m of data.readiness.missing ) {
-				const li = document.createElement( 'li' );
-				li.textContent = m;
-				ul.appendChild( li );
-			}
-			box.appendChild( ul );
-		}
-		panel.appendChild( box );
+	if (
+		data.readiness &&
+		( data.readiness.summary || data.readiness.missing?.length )
+	) {
+		panel.appendChild( readinessNotice( data.readiness ) );
 	}
 
 	const hint = document.createElement( 'div' );
@@ -214,37 +329,11 @@ function renderSuggestions(
 		return g;
 	};
 
-	// A suggestion button that applies itself on click.
-	const applyBtn = (
-		text: string,
-		cls: string,
-		fields: ApplyFields,
-		onOk?: () => void,
-	): HTMLButtonElement => {
-		const b = document.createElement( 'button' );
-		b.type = 'button';
-		b.className = cls;
-		b.textContent = text;
-		b.title = __( 'Apply to the draft' );
-		b.addEventListener( 'click', async () => {
-			b.disabled = true;
-			const ok = await applyDraftField( id, fields );
-			b.disabled = false;
-			if ( ok ) {
-				b.classList.add( 'is-applied' );
-				onOk?.();
-			} else {
-				toast( __( 'Could not apply the suggestion.' ), 'error' );
-			}
-		} );
-		return b;
-	};
-
 	if ( data.titles && data.titles.length > 0 ) {
 		const g = group( __( 'Title ideas' ) );
 		for ( const t of data.titles ) {
 			g.appendChild(
-				applyBtn( t, 'dm-drafts__suggest-item', { title: t }, () => {
+				applyButton( id, t, 'dm-drafts__suggest-item', { title: t }, () => {
 					const name = row.querySelector( '.dm-drafts__name' );
 					if ( name ) {
 						name.textContent = t;
@@ -257,7 +346,8 @@ function renderSuggestions(
 	if ( data.excerpt ) {
 		const g = group( __( 'Excerpt' ) );
 		g.appendChild(
-			applyBtn(
+			applyButton(
+				id,
 				data.excerpt,
 				'dm-drafts__suggest-item',
 				{ excerpt: data.excerpt },
@@ -271,8 +361,12 @@ function renderSuggestions(
 		wrap.className = 'dm-drafts__suggest-tags';
 		for ( const tag of data.tags ) {
 			wrap.appendChild(
-				applyBtn( tag, 'dm-drafts__suggest-tag', { tags: [ tag ] }, () =>
-					toast( __( 'Tag added.' ) ),
+				applyButton(
+					id,
+					tag,
+					'dm-drafts__suggest-tag',
+					{ tags: [ tag ] },
+					() => toast( __( 'Tag added.' ) ),
 				),
 			);
 		}
@@ -284,7 +378,8 @@ function renderSuggestions(
 		wrap.className = 'dm-drafts__suggest-tags';
 		for ( const cat of data.categories ) {
 			wrap.appendChild(
-				applyBtn(
+				applyButton(
+					id,
 					cat,
 					'dm-drafts__suggest-tag',
 					{ categories: [ cat ] },
@@ -384,6 +479,31 @@ function draftTitle( row: DraftRow ): string {
 	return raw || __( '(no title)' );
 }
 
+/**
+ * One hover-revealed, icon-only action at the end of a draft row.
+ *
+ * `<wpd-button>` rather than a bare `<button>`: the component carries the
+ * framework's focus ring, disabled semantics and theming tokens, and keeps
+ * the two row actions visually identical. The Dashicon is slotted as a
+ * light-DOM child because the global icon font can't cross the component's
+ * shadow boundary.
+ */
+function rowAction(
+	className: string,
+	dashicon: string,
+	label: string,
+): HTMLElement {
+	const btn = document.createElement( 'wpd-button' );
+	btn.className = className;
+	btn.setAttribute( 'variant', 'ghost' );
+	btn.title = label;
+	btn.setAttribute( 'aria-label', label );
+	const icon = document.createElement( 'span' );
+	icon.className = `dashicons ${ dashicon }`;
+	btn.appendChild( icon );
+	return btn;
+}
+
 function render(
 	container: HTMLElement,
 	drafts: DraftRow[] | null,
@@ -445,17 +565,14 @@ function render(
 		link.appendChild( name );
 		link.appendChild( time );
 
-		// Trash button — native <button> (the widgets layer only fires
-		// native controls). The inner icon is pointer-events:none so the
-		// click always lands on the button.
-		const trash = document.createElement( 'button' );
-		trash.type = 'button';
-		trash.className = 'dm-drafts__trash';
-		trash.title = __( 'Move to Trash' );
-		trash.setAttribute( 'aria-label', __( 'Move to Trash' ) );
-		const icon = document.createElement( 'span' );
-		icon.className = 'dashicons dashicons-trash';
-		trash.appendChild( icon );
+		// Trash button. The inner Dashicon is a light-DOM child so the
+		// global icon font reaches it, and pointer-events:none so the
+		// click always lands on the control itself.
+		const trash = rowAction(
+			'dm-drafts__trash',
+			'dashicons-trash',
+			__( 'Move to Trash' ),
+		);
 		trash.addEventListener( 'click', ( e ) => {
 			e.preventDefault();
 			e.stopPropagation();
@@ -463,23 +580,18 @@ function render(
 		} );
 
 		row.appendChild( link );
-		// ✨ AI suggestions — only when an AI provider is configured.
+		// 💡 AI suggestions — only when an AI provider is configured.
 		if ( aiAvailable() ) {
-			const spark = document.createElement( 'button' );
-			spark.type = 'button';
-			spark.className = 'dm-drafts__spark';
-			spark.title = __( 'Suggest title, excerpt & tags' );
-			spark.setAttribute(
-				'aria-label',
+			const spark = rowAction(
+				'dm-drafts__spark',
+				'dashicons-lightbulb',
 				__( 'Suggest title, excerpt & tags' ),
 			);
-			const sicon = document.createElement( 'span' );
-			sicon.className = 'dashicons dashicons-lightbulb';
-			spark.appendChild( sicon );
+			spark.setAttribute( 'aria-expanded', 'false' );
 			spark.addEventListener( 'click', ( e ) => {
 				e.preventDefault();
 				e.stopPropagation();
-				toggleSuggestions( d.id, row );
+				toggleSuggestions( d.id, row, spark );
 			} );
 			row.appendChild( spark );
 		}
@@ -545,7 +657,7 @@ const mount = async (
 		// Don't rebuild the list while an AI suggestions panel is open —
 		// the round-trip takes a few seconds and a poll/blur refresh would
 		// otherwise wipe the panel out from under the user.
-		if ( container.querySelector( '.dm-drafts__suggest' ) ) {
+		if ( container.querySelector( `.${ PANEL_CLASS }` ) ) {
 			return;
 		}
 		try {

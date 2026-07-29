@@ -3,6 +3,11 @@
  * stamps go through full sprintf placeholders (no concatenated
  * fragments), the empty/error states render, and the Trash button
  * refuses to act when it can't get consent.
+ *
+ * Plus the AI writing assistant: it stays completely absent without a
+ * configured provider, the suggestions panel is a disclosure driven by
+ * `<wpd-*>` controls, and accepting a suggestion writes it through
+ * `/draft-apply` and reflects the result back into the row.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { WidgetContext } from '../../src/widgets/types';
@@ -56,6 +61,15 @@ interface DesktopStub {
 
 let desktop: DesktopStub;
 
+/** A full suggestions payload; individual tests override what they care about. */
+const SUGGESTIONS = {
+	titles: [ 'A better title', 'An even better title' ],
+	excerpt: 'A crisp one-line summary.',
+	tags: [ 'wordpress', 'drafts' ],
+	categories: [ 'Announcements' ],
+	readiness: { summary: 'Nearly there.', missing: [ 'a conclusion' ] },
+};
+
 /** Install `window.wp.desktop`; trackedFetch resolves it at call time. */
 function installShell( opts: {
 	drafts?: unknown;
@@ -63,6 +77,11 @@ function installShell( opts: {
 	userId?: number;
 	withConfirm?: boolean;
 	confirmAnswer?: boolean;
+	/** Mirrors `desktopModeConfig.aiAssistant.providerConfigured`. */
+	ai?: boolean;
+	suggestions?: unknown;
+	suggestionsOk?: boolean;
+	applyOk?: boolean;
 } = {} ): DesktopStub {
 	const {
 		drafts = [],
@@ -70,12 +89,25 @@ function installShell( opts: {
 		userId = 7,
 		withConfirm = true,
 		confirmAnswer = true,
+		ai = false,
+		suggestions = SUGGESTIONS,
+		suggestionsOk = true,
+		applyOk = true,
 	} = opts;
 
 	desktop = {
 		fetch: vi.fn( ( input: RequestInfo, init?: RequestInit ) => {
+			const url = String( input );
 			if ( init?.method === 'DELETE' ) {
 				return Promise.resolve( jsonResponse( {}, true ) );
+			}
+			if ( url.includes( 'draft-suggestions' ) ) {
+				return Promise.resolve(
+					jsonResponse( suggestions, suggestionsOk ),
+				);
+			}
+			if ( url.includes( 'draft-apply' ) ) {
+				return Promise.resolve( jsonResponse( { applied: {} }, applyOk ) );
 			}
 			return Promise.resolve( jsonResponse( drafts, ok ) );
 		} ),
@@ -86,6 +118,9 @@ function installShell( opts: {
 		desktop.confirm = vi.fn( () => Promise.resolve( confirmAnswer ) );
 	}
 	( window as unknown as { wp: unknown } ).wp = { desktop };
+	( window as unknown as { desktopModeConfig: unknown } ).desktopModeConfig = {
+		aiAssistant: { providerConfigured: ai },
+	};
 	return desktop;
 }
 
@@ -110,6 +145,8 @@ afterEach( () => {
 	teardown = null;
 	container.remove();
 	delete ( window as unknown as { wp?: unknown } ).wp;
+	delete ( window as unknown as { desktopModeConfig?: unknown } )
+		.desktopModeConfig;
 	vi.restoreAllMocks();
 } );
 
@@ -261,6 +298,267 @@ describe( 'drafts widget — Trash', () => {
 				( c ) => ( c[ 1 ] as RequestInit | undefined )?.method === 'DELETE',
 			),
 		).toBe( false );
+	} );
+} );
+
+describe( 'drafts widget — AI writing assistant', () => {
+	const oneDraft = [
+		{ id: 12, title: { rendered: 'Rough notes' }, modified_gmt: agoIso( 90 ) },
+	];
+
+	/** Open the panel for the first row and wait for it to finish loading. */
+	async function openPanel(): Promise< HTMLElement > {
+		( container.querySelector( '.dm-drafts__spark' ) as HTMLElement ).click();
+		const panel = container.querySelector(
+			'.dm-drafts__suggest',
+		) as HTMLElement;
+		await vi.waitFor( () => {
+			expect( panel.querySelector( '.dm-drafts__suggest-hint' ) ).not.toBeNull();
+		} );
+		return panel;
+	}
+
+	test( 'renders no suggest button when no AI provider is configured', async () => {
+		installShell( { drafts: oneDraft, ai: false } );
+		teardown = await getMount()( container, makeCtx() );
+
+		expect( container.querySelector( '.dm-drafts__spark' ) ).toBeNull();
+		// …and the rest of the row is untouched.
+		expect( container.querySelector( '.dm-drafts__trash' ) ).not.toBeNull();
+	} );
+
+	test( 'renders the suggest button as a collapsed wpd-button disclosure', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+
+		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
+		expect( spark.tagName.toLowerCase() ).toBe( 'wpd-button' );
+		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
+		expect( spark.getAttribute( 'aria-label' ) ).toBe(
+			'Suggest title, excerpt & tags',
+		);
+	} );
+
+	test( 'row actions are wpd-button components, not bare buttons', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+
+		const row = container.querySelector( '.dm-drafts__row' ) as HTMLElement;
+		expect( row.querySelector( 'button' ) ).toBeNull();
+		expect( row.querySelectorAll( 'wpd-button' ) ).toHaveLength( 2 );
+	} );
+
+	test( 'opening the panel asks the REST route for suggestions and marks itself expanded', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+
+		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
+		spark.click();
+
+		// The panel appears immediately with a spinner while the round-trip runs.
+		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
+		expect( panel ).not.toBeNull();
+		expect( panel.querySelector( 'wpd-spinner' ) ).not.toBeNull();
+		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'true' );
+		expect( spark.getAttribute( 'aria-controls' ) ).toBe( panel.id );
+
+		await vi.waitFor( () => {
+			expect(
+				panel.querySelector( '.dm-drafts__suggest-hint' ),
+			).not.toBeNull();
+		} );
+
+		const call = desktop.fetch.mock.calls.find( ( c ) =>
+			String( c[ 0 ] ).includes( 'draft-suggestions' ),
+		);
+		expect( call ).toBeTruthy();
+		expect( ( call?.[ 1 ] as RequestInit ).method ).toBe( 'POST' );
+		expect(
+			JSON.parse( String( ( call?.[ 1 ] as RequestInit ).body ) ),
+		).toEqual( { post_id: 12 } );
+	} );
+
+	test( 'renders every suggestion group as a tap-to-apply wpd-button', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+		const panel = await openPanel();
+
+		const items = [ ...panel.querySelectorAll( '.dm-drafts__suggest-item' ) ];
+		const pills = [ ...panel.querySelectorAll( '.dm-drafts__suggest-tag' ) ];
+		// 2 titles + 1 excerpt.
+		expect( items.map( ( i ) => i.textContent ) ).toEqual( [
+			'A better title',
+			'An even better title',
+			'A crisp one-line summary.',
+		] );
+		// 2 tags + 1 category.
+		expect( pills.map( ( p ) => p.textContent ) ).toEqual( [
+			'wordpress',
+			'drafts',
+			'Announcements',
+		] );
+		for ( const el of [ ...items, ...pills ] ) {
+			expect( el.tagName.toLowerCase() ).toBe( 'wpd-button' );
+		}
+	} );
+
+	test( 'readiness renders as a warning notice while something is missing', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+		const panel = await openPanel();
+
+		const notice = panel.querySelector( 'wpd-notice' ) as HTMLElement;
+		expect( notice.getAttribute( 'tone' ) ).toBe( 'warning' );
+		expect(
+			notice.querySelector( '.dm-drafts__readiness-summary' )?.textContent,
+		).toBe( 'Nearly there.' );
+		expect(
+			[ ...notice.querySelectorAll( '.dm-drafts__readiness-missing li' ) ].map(
+				( li ) => li.textContent,
+			),
+		).toEqual( [ 'a conclusion' ] );
+	} );
+
+	test( 'readiness flips to a success notice when nothing is missing', async () => {
+		installShell( {
+			drafts: oneDraft,
+			ai: true,
+			suggestions: {
+				...SUGGESTIONS,
+				readiness: { summary: 'Looks ready to publish.', missing: [] },
+			},
+		} );
+		teardown = await getMount()( container, makeCtx() );
+		const panel = await openPanel();
+
+		const notice = panel.querySelector( 'wpd-notice' ) as HTMLElement;
+		expect( notice.getAttribute( 'tone' ) ).toBe( 'success' );
+		expect(
+			notice.querySelector( '.dm-drafts__readiness-missing' ),
+		).toBeNull();
+	} );
+
+	test( 'accepting a title writes it through draft-apply and updates the row', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+		const panel = await openPanel();
+
+		const first = panel.querySelector(
+			'.dm-drafts__suggest-item',
+		) as HTMLElement;
+		first.click();
+
+		await vi.waitFor( () => {
+			expect( first.classList.contains( 'is-applied' ) ).toBe( true );
+		} );
+
+		const call = desktop.fetch.mock.calls.find( ( c ) =>
+			String( c[ 0 ] ).includes( 'draft-apply' ),
+		);
+		expect( JSON.parse( String( ( call?.[ 1 ] as RequestInit ).body ) ) ).toEqual(
+			{ post_id: 12, title: 'A better title' },
+		);
+		// The row's title reflects the accepted suggestion without a refetch…
+		expect( container.querySelector( '.dm-drafts__name' )?.textContent ).toBe(
+			'A better title',
+		);
+		// …the button locks so a double-click can't apply it twice…
+		expect( first.hasAttribute( 'disabled' ) ).toBe( true );
+		expect(
+			first.querySelector( '.dm-drafts__applied-check' ),
+		).not.toBeNull();
+		// …and the user gets told.
+		expect( desktop.showToast ).toHaveBeenCalledWith( {
+			message: 'Title updated.',
+		} );
+	} );
+
+	test( 'a tag pill applies only that tag', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+		const panel = await openPanel();
+
+		( panel.querySelector( '.dm-drafts__suggest-tag' ) as HTMLElement ).click();
+
+		await vi.waitFor( () => {
+			expect(
+				desktop.fetch.mock.calls.some( ( c ) =>
+					String( c[ 0 ] ).includes( 'draft-apply' ),
+				),
+			).toBe( true );
+		} );
+		const call = desktop.fetch.mock.calls.find( ( c ) =>
+			String( c[ 0 ] ).includes( 'draft-apply' ),
+		);
+		expect( JSON.parse( String( ( call?.[ 1 ] as RequestInit ).body ) ) ).toEqual(
+			{ post_id: 12, tags: [ 'wordpress' ] },
+		);
+	} );
+
+	test( 'a failed apply toasts an error and leaves the suggestion re-tryable', async () => {
+		installShell( { drafts: oneDraft, ai: true, applyOk: false } );
+		teardown = await getMount()( container, makeCtx() );
+		const panel = await openPanel();
+
+		const first = panel.querySelector(
+			'.dm-drafts__suggest-item',
+		) as HTMLElement;
+		first.click();
+
+		await vi.waitFor( () => {
+			expect( desktop.showToast ).toHaveBeenCalledWith( {
+				message: 'Could not apply the suggestion.',
+				type: 'error',
+			} );
+		} );
+		expect( first.classList.contains( 'is-applied' ) ).toBe( false );
+		expect( first.hasAttribute( 'disabled' ) ).toBe( false );
+		expect( first.hasAttribute( 'busy' ) ).toBe( false );
+	} );
+
+	test( 'a failed suggestions request degrades to an error notice', async () => {
+		installShell( { drafts: oneDraft, ai: true, suggestionsOk: false } );
+		teardown = await getMount()( container, makeCtx() );
+
+		( container.querySelector( '.dm-drafts__spark' ) as HTMLElement ).click();
+		const panel = container.querySelector( '.dm-drafts__suggest' ) as HTMLElement;
+
+		await vi.waitFor( () => {
+			const notice = panel.querySelector( 'wpd-notice' );
+			expect( notice?.getAttribute( 'tone' ) ).toBe( 'error' );
+		} );
+		expect( panel.textContent ).toContain( 'Could not get suggestions.' );
+	} );
+
+	test( 'clicking the button again closes the panel and collapses the disclosure', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+		await openPanel();
+
+		const spark = container.querySelector( '.dm-drafts__spark' ) as HTMLElement;
+		spark.click();
+
+		expect( container.querySelector( '.dm-drafts__suggest' ) ).toBeNull();
+		expect( spark.getAttribute( 'aria-expanded' ) ).toBe( 'false' );
+	} );
+
+	test( 'the poll refresh is suppressed while a panel is open', async () => {
+		installShell( { drafts: oneDraft, ai: true } );
+		teardown = await getMount()( container, makeCtx() );
+		await openPanel();
+
+		desktop.fetch.mockClear();
+		// The blur nudge is the same code path the 60s poller uses.
+		document.dispatchEvent( new Event( 'desktop-mode-window-blurred' ) );
+		await new Promise( ( resolve ) => setTimeout( resolve, 700 ) );
+
+		expect(
+			desktop.fetch.mock.calls.some( ( c ) =>
+				String( c[ 0 ] ).includes( '/wp/v2/posts' ),
+			),
+		).toBe( false );
+		// The panel survived.
+		expect( container.querySelector( '.dm-drafts__suggest' ) ).not.toBeNull();
 	} );
 } );
 

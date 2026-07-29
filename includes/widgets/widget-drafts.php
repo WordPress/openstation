@@ -93,19 +93,22 @@ function desktop_mode_register_drafts_widget() {
 }
 add_action( 'init', 'desktop_mode_register_drafts_widget', 6 );
 
+
 /**
  * Register the AI writing-suggestions REST route.
  *
  * POST desktop-mode/v1/draft-suggestions { post_id }
- *   → { titles: string[], excerpt: string, tags: string[] }
+ *   → { titles, excerpt, tags, categories, readiness: { summary, missing } }
  *
- * Read-only: it reads the draft and returns AI suggestions; it never
- * writes back to the post (the widget only displays them). Gated on the
- * user being able to edit the post AND an AI provider being configured
- * (Settings → Connectors). The ✨ button that calls this is hidden in the
- * UI unless AI is available, so this is defence in depth.
+ * Read-only: it reads the draft and returns AI suggestions; it never writes
+ * back to the post. Writing an accepted suggestion is a separate, explicit
+ * call to `/draft-apply` below.
  *
- * @since 0.26.0
+ * Gated on the user being able to edit the post AND an AI provider being
+ * configured (Settings → Connectors). The capability check runs first so an
+ * unauthorized caller can't probe whether the site has AI set up. The 💡
+ * button that calls this is hidden unless AI is available, so the provider
+ * gate here is defence in depth.
  *
  * @return void
  */
@@ -130,21 +133,16 @@ function desktop_mode_register_drafts_ai_routes() {
 add_action( 'rest_api_init', 'desktop_mode_register_drafts_ai_routes' );
 
 /**
- * Permission gate: AI configured + the user can edit the target post.
+ * Permission gate: the user can edit the target post, and AI is configured.
  *
- * @since 0.26.0
+ * Capability first, provider second — an unauthorized caller gets the same
+ * 403 whether or not the site has a provider, so the response can't be used
+ * to fingerprint the site's AI setup.
  *
  * @param WP_REST_Request $request Request.
  * @return true|WP_Error
  */
 function desktop_mode_rest_draft_suggestions_permission( WP_REST_Request $request ) {
-	if ( function_exists( 'desktop_mode_ai_provider_configured' ) && ! desktop_mode_ai_provider_configured() ) {
-		return new WP_Error(
-			'desktop_mode_ai_unavailable',
-			__( 'No AI provider is configured.', 'desktop-mode' ),
-			array( 'status' => 503 )
-		);
-	}
 	$post_id = absint( $request['post_id'] );
 	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
 		return new WP_Error(
@@ -153,66 +151,47 @@ function desktop_mode_rest_draft_suggestions_permission( WP_REST_Request $reques
 			array( 'status' => rest_authorization_required_code() )
 		);
 	}
+	if ( ! function_exists( 'desktop_mode_ai_provider_configured' ) || ! desktop_mode_ai_provider_configured() ) {
+		return new WP_Error(
+			'desktop_mode_ai_unavailable',
+			__( 'No AI provider is configured.', 'desktop-mode' ),
+			array( 'status' => 503 )
+		);
+	}
 	return true;
 }
 
 /**
- * Generate title / excerpt / tag suggestions for a draft via the AI Client.
+ * The system instruction used for draft suggestions.
  *
- * @since 0.26.0
+ * Split out so the prompt is filterable without copying the whole route.
  *
- * @param WP_REST_Request $request Request.
- * @return WP_REST_Response|WP_Error
+ * @param WP_Post $post The draft being described.
+ * @return string
  */
-function desktop_mode_rest_draft_suggestions( WP_REST_Request $request ) {
-	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
-		return new WP_Error(
-			'desktop_mode_ai_unavailable',
-			__( 'AI is not available on this site.', 'desktop-mode' ),
-			array( 'status' => 503 )
-		);
-	}
-
-	$post = get_post( absint( $request['post_id'] ) );
-	if ( ! $post instanceof WP_Post ) {
-		return new WP_Error(
-			'rest_post_invalid',
-			__( 'Post not found.', 'desktop-mode' ),
-			array( 'status' => 404 )
-		);
-	}
-
-	// Feed the model the current title + a trimmed slice of the content.
-	$title   = (string) $post->post_title;
-	$content = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $post->post_content ) ) );
-	// mb_substr so a long draft isn't cut mid-multibyte-character.
-	if ( mb_strlen( $content ) > 4000 ) {
-		$content = mb_substr( $content, 0, 4000 ) . '…';
-	}
-
-	$user_text  = 'Current title: ' . ( '' !== $title ? $title : '(none)' ) . "\n\n";
-	$user_text .= "Draft content:\n" . ( '' !== $content ? $content : '(empty)' );
-
-	// Give the model the site's existing categories so it classifies into
-	// them rather than inventing a fresh taxonomy.
-	$existing_cats = get_terms(
-		array(
-			'taxonomy'   => 'category',
-			'hide_empty' => false,
-			'number'     => 40,
-			'fields'     => 'names',
-		)
-	);
-	if ( is_array( $existing_cats ) && ! empty( $existing_cats ) ) {
-		$user_text .= "\n\nExisting categories on this site: " . implode( ', ', $existing_cats ) . '.';
-	}
-
+function desktop_mode_drafts_ai_instructions( WP_Post $post ) {
 	$instructions = 'You are a writing assistant for a WordPress author. Given a draft post\'s current title and content, help them finish and file it. Provide: exactly 3 concise, compelling title options (about 70 characters max each); one 1-2 sentence excerpt suitable as the post summary; 3 to 6 lowercase topical tags; 1 to 2 categories (strongly prefer the site\'s existing categories listed above — only propose a new concise name if none fit); and a readiness check.
 
 The readiness check MUST be strict and evidence-based. Judge only STRUCTURE and COMPLETENESS: does the draft have a clear introduction, enough substance/depth, at least one concrete example or detail, and a conclusion? The "missing" array lists only what is GENUINELY ABSENT from the text you were given. CRITICAL: never invent, guess, or hallucinate problems. Do NOT claim there are typos, misspellings, or cut-off/incomplete sentences unless you can quote the exact offending text verbatim from the draft — if you are not quoting real text, do not mention it. If the draft already has an intro, body with a concrete detail, and a conclusion and reads as complete, return an EMPTY "missing" array and say it looks ready in the summary.
 
 Write everything in the same language as the draft. Do not invent facts that are not supported by the content.';
 
+	/**
+	 * Filters the system instruction sent with a draft-suggestions request.
+	 *
+	 * @param string  $instructions System instruction text.
+	 * @param WP_Post $post         The draft being described.
+	 */
+	return (string) apply_filters( 'desktop_mode_drafts_ai_instructions', $instructions, $post );
+}
+
+/**
+ * JSON schema the model must answer in for draft suggestions.
+ *
+ * @param WP_Post $post The draft being described.
+ * @return array
+ */
+function desktop_mode_drafts_ai_schema( WP_Post $post ) {
 	$schema = array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -256,20 +235,106 @@ Write everything in the same language as the draft. Do not invent facts that are
 		),
 	);
 
-	$result = wp_ai_client_prompt( $user_text )
-		->using_system_instruction( $instructions )
-		->as_json_response( $schema )
-		->generate_result();
+	/**
+	 * Filters the JSON schema the model answers draft-suggestion requests in.
+	 *
+	 * Changing the shape here changes the REST response shape too — the route
+	 * only normalizes the keys it knows about.
+	 *
+	 * @param array   $schema JSON schema.
+	 * @param WP_Post $post   The draft being described.
+	 */
+	return (array) apply_filters( 'desktop_mode_drafts_ai_schema', $schema, $post );
+}
 
-	if ( is_wp_error( $result ) ) {
+/**
+ * Build the user-facing prompt body: title, trimmed content, existing terms.
+ *
+ * @param WP_Post $post The draft being described.
+ * @return string
+ */
+function desktop_mode_drafts_ai_prompt_text( WP_Post $post ) {
+	$title   = (string) $post->post_title;
+	$content = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $post->post_content ) ) );
+
+	/**
+	 * Filters how many characters of the draft are sent to the model.
+	 *
+	 * @param int     $limit Character limit.
+	 * @param WP_Post $post  The draft being described.
+	 */
+	$limit = (int) apply_filters( 'desktop_mode_drafts_ai_content_limit', 4000, $post );
+
+	// mb_substr so a long draft isn't cut mid-multibyte-character.
+	if ( $limit > 0 && mb_strlen( $content ) > $limit ) {
+		$content = mb_substr( $content, 0, $limit ) . '…';
+	}
+
+	$text  = 'Current title: ' . ( '' !== $title ? $title : '(none)' ) . "\n\n";
+	$text .= "Draft content:\n" . ( '' !== $content ? $content : '(empty)' );
+
+	// Give the model the site's existing categories so it classifies into
+	// them rather than inventing a fresh taxonomy.
+	$existing_cats = get_terms(
+		array(
+			'taxonomy'   => 'category',
+			'hide_empty' => false,
+			'number'     => 40,
+			'fields'     => 'names',
+		)
+	);
+	if ( is_array( $existing_cats ) && ! empty( $existing_cats ) ) {
+		$text .= "\n\nExisting categories on this site: " . implode( ', ', $existing_cats ) . '.';
+	}
+
+	return $text;
+}
+
+/**
+ * Generate title / excerpt / tag / category suggestions for a draft.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function desktop_mode_rest_draft_suggestions( WP_REST_Request $request ) {
+	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
+		return new WP_Error(
+			'desktop_mode_ai_unavailable',
+			__( 'AI is not available on this site.', 'desktop-mode' ),
+			array( 'status' => 503 )
+		);
+	}
+
+	$post = get_post( absint( $request['post_id'] ) );
+	if ( ! $post instanceof WP_Post ) {
+		return new WP_Error(
+			'rest_post_invalid',
+			__( 'Post not found.', 'desktop-mode' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	// `generate_text()` with a JSON schema — same call shape the comment
+	// scorer uses. The SDK can throw as well as return a WP_Error, so both
+	// paths land on the same 502.
+	try {
+		$json = wp_ai_client_prompt( desktop_mode_drafts_ai_prompt_text( $post ) )
+			->using_system_instruction( desktop_mode_drafts_ai_instructions( $post ) )
+			->as_json_response( desktop_mode_drafts_ai_schema( $post ) )
+			->generate_text();
+	} catch ( \Throwable $e ) {
+		$json = new WP_Error( 'desktop_mode_ai_failed', $e->getMessage() );
+	}
+
+	if ( is_wp_error( $json ) ) {
 		return new WP_Error(
 			'desktop_mode_ai_failed',
-			$result->get_error_message(),
+			$json->get_error_message(),
 			array( 'status' => 502 )
 		);
 	}
 
-	$data = json_decode( (string) $result->toText(), true );
+	$data = json_decode( (string) $json, true );
 	if ( ! is_array( $data ) ) {
 		return new WP_Error(
 			'desktop_mode_ai_parse',
@@ -278,32 +343,52 @@ Write everything in the same language as the draft. Do not invent facts that are
 		);
 	}
 
-	$clean_list = static function ( $list, $max ) {
-		$out = array();
-		foreach ( (array) $list as $item ) {
-			$item = trim( wp_strip_all_tags( (string) $item ) );
-			if ( '' !== $item ) {
-				$out[] = $item;
-			}
-		}
-		return array_slice( $out, 0, $max );
-	};
+	$readiness = isset( $data['readiness'] ) && is_array( $data['readiness'] ) ? $data['readiness'] : array();
 
-	$readiness = is_array( $data['readiness'] ?? null ) ? $data['readiness'] : array();
-
-	return new WP_REST_Response(
-		array(
-			'titles'     => $clean_list( $data['titles'] ?? array(), 5 ),
-			'excerpt'    => trim( wp_strip_all_tags( (string) ( $data['excerpt'] ?? '' ) ) ),
-			'tags'       => $clean_list( $data['tags'] ?? array(), 8 ),
-			'categories' => $clean_list( $data['categories'] ?? array(), 5 ),
-			'readiness'  => array(
-				'summary' => trim( wp_strip_all_tags( (string) ( $readiness['summary'] ?? '' ) ) ),
-				'missing' => $clean_list( $readiness['missing'] ?? array(), 5 ),
-			),
+	$suggestions = array(
+		'titles'     => desktop_mode_drafts_clean_list( isset( $data['titles'] ) ? $data['titles'] : array(), 5 ),
+		'excerpt'    => trim( wp_strip_all_tags( (string) ( isset( $data['excerpt'] ) ? $data['excerpt'] : '' ) ) ),
+		'tags'       => desktop_mode_drafts_clean_list( isset( $data['tags'] ) ? $data['tags'] : array(), 8 ),
+		'categories' => desktop_mode_drafts_clean_list( isset( $data['categories'] ) ? $data['categories'] : array(), 5 ),
+		'readiness'  => array(
+			'summary' => trim( wp_strip_all_tags( (string) ( isset( $readiness['summary'] ) ? $readiness['summary'] : '' ) ) ),
+			'missing' => desktop_mode_drafts_clean_list( isset( $readiness['missing'] ) ? $readiness['missing'] : array(), 5 ),
 		),
-		200
 	);
+
+	/**
+	 * Filters the normalized suggestions before they reach the widget.
+	 *
+	 * Runs after tag-stripping and truncation, so a listener can drop,
+	 * reorder or append entries without re-sanitizing.
+	 *
+	 * @param array   $suggestions { titles, excerpt, tags, categories, readiness }.
+	 * @param WP_Post $post        The draft the suggestions describe.
+	 */
+	$suggestions = (array) apply_filters( 'desktop_mode_drafts_ai_suggestions', $suggestions, $post );
+
+	return new WP_REST_Response( $suggestions, 200 );
+}
+
+/**
+ * Trim, tag-strip and cap a list of model-supplied strings.
+ *
+ * @param mixed $list Raw list from the model.
+ * @param int   $max  Maximum entries to keep.
+ * @return string[]
+ */
+function desktop_mode_drafts_clean_list( $list, $max ) {
+	$out = array();
+	foreach ( (array) $list as $item ) {
+		if ( ! is_scalar( $item ) ) {
+			continue;
+		}
+		$item = trim( wp_strip_all_tags( (string) $item ) );
+		if ( '' !== $item ) {
+			$out[] = $item;
+		}
+	}
+	return array_slice( $out, 0, (int) $max );
 }
 
 /**
@@ -316,8 +401,6 @@ Write everything in the same language as the draft. Do not invent facts that are
  * manage categories; otherwise unknown categories are skipped. Not
  * AI-gated — this is a plain edit of the user's own draft.
  *
- * @since 0.26.0
- *
  * @return void
  */
 function desktop_mode_register_drafts_apply_route() {
@@ -329,7 +412,7 @@ function desktop_mode_register_drafts_apply_route() {
 			'callback'            => 'desktop_mode_rest_draft_apply',
 			'permission_callback' => 'desktop_mode_rest_draft_apply_permission',
 			'args'                => array(
-				'post_id' => array(
+				'post_id'    => array(
 					'required'          => true,
 					'type'              => 'integer',
 					'sanitize_callback' => 'absint',
@@ -353,8 +436,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_drafts_apply_route' );
 /**
  * Permission gate: the user can edit the target post.
  *
- * @since 0.26.0
- *
  * @param WP_REST_Request $request Request.
  * @return true|WP_Error
  */
@@ -371,9 +452,7 @@ function desktop_mode_rest_draft_apply_permission( WP_REST_Request $request ) {
 }
 
 /**
- * Apply a title / excerpt / tag(s) suggestion to a draft.
- *
- * @since 0.26.0
+ * Apply a title / excerpt / tag / category suggestion to a draft.
  *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
@@ -400,7 +479,7 @@ function desktop_mode_rest_draft_apply( WP_REST_Request $request ) {
 		}
 	}
 	if ( $request->has_param( 'excerpt' ) ) {
-		$excerpt = sanitize_textarea_field( (string) $request['excerpt'] );
+		$excerpt                = sanitize_textarea_field( (string) $request['excerpt'] );
 		$update['post_excerpt'] = $excerpt;
 		$applied['excerpt']     = $excerpt;
 	}
@@ -434,8 +513,8 @@ function desktop_mode_rest_draft_apply( WP_REST_Request $request ) {
 
 	$categories = $request['categories'];
 	if ( is_array( $categories ) && ! empty( $categories ) ) {
-		$cat_ids  = array();
-		$assigned = array();
+		$cat_ids    = array();
+		$assigned   = array();
 		$can_create = current_user_can( 'manage_categories' );
 		foreach ( $categories as $cat ) {
 			$cat = sanitize_text_field( (string) $cat );
@@ -464,6 +543,19 @@ function desktop_mode_rest_draft_apply( WP_REST_Request $request ) {
 			$applied['categories'] = $assigned;
 		}
 	}
+
+	/**
+	 * Fires after a draft suggestion has been written onto a post.
+	 *
+	 * `$applied` holds only the fields that actually changed — an empty
+	 * array means the request was a no-op (e.g. an unknown category the
+	 * user could not create).
+	 *
+	 * @param int     $post_id Post that was updated.
+	 * @param array   $applied Fields written: { title?, excerpt?, tags?, categories? }.
+	 * @param WP_Post $post    The post as it was before the update.
+	 */
+	do_action( 'desktop_mode_drafts_suggestion_applied', $post_id, $applied, $post );
 
 	return new WP_REST_Response( array( 'applied' => $applied ), 200 );
 }
