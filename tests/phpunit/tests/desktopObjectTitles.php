@@ -74,24 +74,71 @@ class Tests_DesktopMode_DesktopObjectTitles extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The Corkboard shows an index card — the object a corkboard
-	 * holds. The pushpin belongs to Posts, and a node-graph glyph
-	 * would depict the data structure instead of the desk object.
+	 * Both the window and the desktop icon paint the custom cork
+	 * board SVG. `desktop_mode_register_icon()` converts `icon_svg`
+	 * into the same base64 data URI the window is handed directly, so
+	 * the two surfaces must end up byte-identical — a drift here
+	 * means the title bar and the wallpaper tile show different art.
 	 *
 	 * @covers ::desktop_mode_content_graph_register_window
+	 * @covers ::desktop_mode_content_graph_icon_svg
 	 */
-	public function test_content_graph_uses_the_index_card_icon() {
+	public function test_content_graph_uses_the_corkboard_svg() {
 		desktop_mode_content_graph_register_window();
 
-		$entry = desktop_mode_native_window_registry( 'desktop-mode-content-graph' );
-		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-content-graph' );
+		$entry    = desktop_mode_native_window_registry( 'desktop-mode-content-graph' );
+		$icon     = desktop_mode_desktop_icon_registry( 'desktop-mode-content-graph' );
+		$expected = 'data:image/svg+xml;base64,'
+			. base64_encode( desktop_mode_content_graph_icon_svg() );
 
-		$this->assertSame( 'dashicons-index-card', $entry['icon'] );
-		$this->assertSame( 'dashicons-index-card', $icon['icon'] );
+		$this->assertSame( $expected, $entry['icon'] );
+		$this->assertSame( $expected, $icon['icon'] );
+	}
 
-		// Posts keeps the pushpin — the two must not collide in the
-		// dock or the wallpaper grid.
-		$this->assertNotSame( 'dashicons-admin-post', $icon['icon'] );
+	/**
+	 * The renderer only accepts `data:image/svg+xml;base64,` with a
+	 * clean base64 payload — anything else silently degrades to the
+	 * letter-badge fallback instead of painting the art.
+	 *
+	 * @covers ::desktop_mode_content_graph_icon_svg
+	 */
+	public function test_corkboard_svg_survives_the_icon_sanitizer() {
+		$uri = 'data:image/svg+xml;base64,'
+			. base64_encode( desktop_mode_content_graph_icon_svg() );
+
+		$this->assertSame( $uri, desktop_mode_sanitize_dock_icon( $uri ) );
+	}
+
+	/**
+	 * The art is a silhouette: every painted element is drawn in
+	 * `currentColor`, which is what makes `renderIcon()` paint it as a
+	 * mask and take the surface's text colour. A stray literal colour
+	 * would survive the mask's alpha-only pass as a hole, so the
+	 * absence of `fill="#…"` is load-bearing, not cosmetic.
+	 *
+	 * @covers ::desktop_mode_content_graph_icon_svg
+	 */
+	public function test_corkboard_svg_is_drawn_entirely_in_current_color() {
+		$svg = desktop_mode_content_graph_icon_svg();
+
+		$this->assertStringStartsWith( '<svg', $svg );
+		$this->assertStringContainsString( 'viewBox="0 0 64 64"', $svg );
+		$this->assertStringContainsString( 'currentColor', $svg );
+		$this->assertDoesNotMatchRegularExpression( '/(fill|stroke)="#/', $svg );
+	}
+
+	/**
+	 * The pins are the cue that separates a pinboard from a picture
+	 * frame, and they are the first thing to vanish when the icon is
+	 * painted at 20px in the dock. Guard the count and radius so a
+	 * future tidy-up doesn't shrink them into nothing.
+	 *
+	 * @covers ::desktop_mode_content_graph_icon_svg
+	 */
+	public function test_corkboard_svg_keeps_its_pins_legible() {
+		$svg = desktop_mode_content_graph_icon_svg();
+
+		$this->assertSame( 2, substr_count( $svg, 'r="3"' ) );
 	}
 
 	/**

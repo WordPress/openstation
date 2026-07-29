@@ -132,6 +132,8 @@ The `icon` arg accepts three formats. A fourth (`icon_svg`) is a convenience wra
 'icon_svg' => file_get_contents( __DIR__ . '/assets/jorvy.svg' ),
 ```
 
+**Drawing the SVG in `currentColor` makes it a silhouette** — the framework paints it as a CSS mask filled with the surface's text colour, so one drawing stays legible on the dark dock, on a light title bar, and on hover. Use fixed colours only for art that should keep them (a brand mark, a full-colour app icon). See [Silhouette icons](../javascript-reference.md#silhouette-icons) for the full rule.
+
 The shared sanitizer rejects `javascript:` URIs and any non-`image/svg+xml` `data:` scheme. SVG markup with an embedded `<script>` tag is rejected outright when passed via `icon_svg` (defence-in-depth — browsers also sandbox scripts inside `<img src="data:…">` SVGs, but we belt-and-braces). All four forms run through `desktop_mode_sanitize_dock_icon`, so a malformed value silently falls back to `dashicons-admin-generic`.
 
 ### Pinning a system icon
