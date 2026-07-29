@@ -1,5 +1,5 @@
 /**
- * My WordPress — Agents: REST client over `/desktop-mode/v1/agents`.
+ * Site folder — Agents: REST client over `/desktop-mode/v1/agents`.
  *
  * Every call routes through `trackedFetch` (source
  * `desktop-mode/agents`) with the window-config nonce. Errors are

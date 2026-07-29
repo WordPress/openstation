@@ -15,11 +15,11 @@
  * Plus the abilities bridge + runner (runner.php), a REST surface at
  * `/desktop-mode/v1/agents` (rest.php), privacy hooks (privacy.php),
  * the "Agent chat" native window (run-window.php), and the Agents
- * section inside My WordPress (my-wordpress.php).
+ * section inside the site folder (my-wordpress.php).
  *
  * The whole module is opt-in behind the `agents` extended option —
  * while off, none of these files load: no user-meta registration, no
- * REST routes, no window, no My WordPress entity.
+ * REST routes, no window, no site-folder entity.
  *
  * @package WPDesktopMode
  */

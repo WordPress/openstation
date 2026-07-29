@@ -1,5 +1,5 @@
 /**
- * My WordPress — Agents entity-kind renderer.
+ * Site folder — Agents entity-kind renderer.
  *
  * Master-detail over `/desktop-mode/v1/agents`: agent list on the
  * left; Define / Tools / Triggers panes on the right; create flow;

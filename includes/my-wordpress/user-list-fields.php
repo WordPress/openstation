@@ -115,7 +115,7 @@ function desktop_mode_my_wordpress_register_user_summary_field() {
 				return desktop_mode_my_wordpress_user_summary_payload( $id );
 			},
 			'schema'       => array(
-				'description' => __( 'Compact user summary for My WordPress.', 'desktop-mode' ),
+				'description' => __( 'Compact user summary for the site folder window.', 'desktop-mode' ),
 				'type'        => 'object',
 				'context'     => array( 'view', 'edit', 'embed' ),
 				'readonly'    => true,

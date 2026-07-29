@@ -111,6 +111,12 @@ function desktop_mode_desktop_theme_registry( $slug = '', $entry = null ) {
  *                               / `repeat` / `position`), or a list or
  *                               map of either. Each becomes a pickable
  *                               wallpaper.
+ *     @type array  $recommendedOsSettings Presentation preferences the
+ *                               theme would like the user to wear
+ *                               (`dockSize`, `desktopLayout`,
+ *                               `windowRadius`, `dockRailRenderer`).
+ *                               Applied once, the first time a user
+ *                               activates the theme.
  * }
  * @return true|WP_Error
  */
@@ -118,35 +124,40 @@ function desktop_mode_register_desktop_theme( $id, $args = array() ) {
 	$args = wp_parse_args(
 		is_array( $args ) ? $args : array(),
 		array(
-			'name'        => '',
-			'version'     => '',
-			'author'      => '',
-			'description' => '',
-			'preview'     => '',
-			'tokens'      => array(),
-			'iconColor'   => '',
-			'icons'       => array(),
-			'textures'    => array(),
-			'fonts'       => array(),
-			'wallpapers'  => array(),
+			'name'                  => '',
+			'version'               => '',
+			'author'                => '',
+			'description'           => '',
+			'preview'               => '',
+			'tokens'                => array(),
+			'iconColor'             => '',
+			'icons'                 => array(),
+			'textures'              => array(),
+			'fonts'                 => array(),
+			'wallpapers'            => array(),
+			'recommendedOsSettings' => array(),
 		)
 	);
 
 	$manifest = desktop_mode_sanitize_desktop_theme_manifest(
 		array(
-			'manifestVersion' => 1,
-			'id'              => (string) $id,
-			'name'            => (string) $args['name'],
-			'version'         => (string) $args['version'],
-			'author'          => (string) $args['author'],
-			'description'     => (string) $args['description'],
-			'preview'         => (string) $args['preview'],
-			'tokens'          => $args['tokens'],
-			'iconColor'       => (string) $args['iconColor'],
-			'icons'           => $args['icons'],
-			'textures'        => $args['textures'],
-			'fonts'           => $args['fonts'],
-			'wallpapers'      => $args['wallpapers'],
+			// Code registrations declare v2 unconditionally: the array
+			// they hand over always HAS the recommendation key, empty
+			// or not, so there is nothing for a version to disambiguate.
+			'manifestVersion'       => 2,
+			'id'                    => (string) $id,
+			'name'                  => (string) $args['name'],
+			'version'               => (string) $args['version'],
+			'author'                => (string) $args['author'],
+			'description'           => (string) $args['description'],
+			'preview'               => (string) $args['preview'],
+			'tokens'                => $args['tokens'],
+			'iconColor'             => (string) $args['iconColor'],
+			'icons'                 => $args['icons'],
+			'textures'              => $args['textures'],
+			'fonts'                 => $args['fonts'],
+			'wallpapers'            => $args['wallpapers'],
+			'recommendedOsSettings' => $args['recommendedOsSettings'],
 		),
 		desktop_mode_desktop_theme_url_asset_resolver()
 	);
@@ -291,28 +302,38 @@ function desktop_mode_shape_desktop_theme_payload_entry( $entry, $source ) {
 		$css_text = isset( $entry['cssText'] ) ? (string) $entry['cssText'] : '';
 	}
 
+	// Recommendations are re-sanitized on the way OUT, not just on the
+	// way in. A stored manifest can predate a schema change (an enum
+	// value core dropped, a key a plugin stopped offering), and the
+	// shell must never be handed a value the current build no longer
+	// understands.
+	$recommended = desktop_mode_sanitize_desktop_theme_recommended_os_settings(
+		isset( $manifest['recommendedOsSettings'] ) ? $manifest['recommendedOsSettings'] : null
+	);
+
 	return array(
-		'id'          => isset( $manifest['id'] ) ? (string) $manifest['id'] : $slug,
-		'slug'        => $slug,
-		'name'        => isset( $manifest['name'] ) ? (string) $manifest['name'] : $slug,
-		'version'     => isset( $manifest['version'] ) ? (string) $manifest['version'] : '',
-		'author'      => isset( $manifest['author'] ) ? (string) $manifest['author'] : '',
-		'description' => isset( $manifest['description'] ) ? (string) $manifest['description'] : '',
-		'previewUrl'  => $preview_url,
-		'cssUrl'      => $css_url,
-		'cssText'     => $css_text,
-		'tokens'      => isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] )
+		'id'                    => isset( $manifest['id'] ) ? (string) $manifest['id'] : $slug,
+		'slug'                  => $slug,
+		'name'                  => isset( $manifest['name'] ) ? (string) $manifest['name'] : $slug,
+		'version'               => isset( $manifest['version'] ) ? (string) $manifest['version'] : '',
+		'author'                => isset( $manifest['author'] ) ? (string) $manifest['author'] : '',
+		'description'           => isset( $manifest['description'] ) ? (string) $manifest['description'] : '',
+		'previewUrl'            => $preview_url,
+		'cssUrl'                => $css_url,
+		'cssText'               => $css_text,
+		'tokens'                => isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] )
 			? $manifest['tokens']
 			: array(),
 		// Informational, like `tokens`: the compiled stylesheet is what
 		// actually loads the faces. Shipped so `desktopThemes.list()`
 		// can tell a UI which families a theme brings with it without
 		// parsing CSS.
-		'fonts'       => $font_families,
-		'icons'       => $icons,
-		'iconColors'  => $icon_colors,
-		'installedAt' => $installed_at,
-		'source'      => $is_upload ? 'upload' : 'code',
+		'fonts'                 => $font_families,
+		'icons'                 => $icons,
+		'iconColors'            => $icon_colors,
+		'recommendedOsSettings' => $recommended,
+		'installedAt'           => $installed_at,
+		'source'                => $is_upload ? 'upload' : 'code',
 	);
 }
 

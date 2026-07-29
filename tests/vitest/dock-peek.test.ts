@@ -46,16 +46,28 @@ function makeWindowStub(
 	baseId: string,
 	state: 'normal' | 'minimized' = 'normal',
 ) {
-	return {
+	const win: {
+		id: string;
+		state: string;
+		restore: ReturnType< typeof vi.fn >;
+		minimize: ReturnType< typeof vi.fn >;
+		config: { title: string; icon: string; baseId: string };
+	} = {
 		id: baseId,
 		state,
-		restore: vi.fn(),
+		restore: vi.fn( () => {
+			win.state = 'normal';
+		} ),
+		minimize: vi.fn( () => {
+			win.state = 'minimized';
+		} ),
 		config: {
 			title,
 			icon: 'dashicons-admin-post',
 			baseId,
 		},
 	};
+	return win;
 }
 
 function pointerEnter( el: HTMLElement, opts: { type?: string } = {} ): void {
@@ -275,7 +287,7 @@ describe( 'dock-peek', () => {
 		);
 	} );
 
-	test( 'hovering an instance card raises that window to front', () => {
+	test( 'hovering an instance card raises that window to front (preview mode)', () => {
 		const tile = makeTile( true );
 		const winA = makeWindowStub( 'All Posts', 'edit-php' );
 		const winB = makeWindowStub( 'Editing post 42', 'edit-php' );
@@ -299,6 +311,49 @@ describe( 'dock-peek', () => {
 		pointerEnter( cards[ 1 ] );
 		expect( focus ).toHaveBeenCalledTimes( 1 );
 		expect( focus ).toHaveBeenCalledWith( winB );
+		expect( cards[ 1 ].dataset.preview ).toBe( '' );
+	} );
+
+	// Preview snap-back: after hovering an instance card, leaving
+	// returns focus to the previously-focused window.
+	test( 'hovering a non-minimized instance card then leaving returns focus to the previous window', () => {
+		const tile = makeTile( true );
+		const winA = makeWindowStub( 'All Posts', 'edit-php' );
+		const winB = makeWindowStub( 'Editing post 42', 'edit-php' );
+		const focus = vi.fn();
+		const getById = vi.fn(
+			( id: string ) => ( id === winA.id ? winA : undefined ),
+		);
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ winA, winB ],
+				windowManager: {
+					getFocused: () => winA,
+					focus,
+					getById,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const cards = document.querySelectorAll< HTMLElement >(
+			'.desktop-mode-dock-peek__card--instance',
+		);
+
+		// Hover winB → preview.
+		pointerEnter( cards[ 1 ] );
+		expect( focus ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).toHaveBeenCalledWith( winB );
+		expect( cards[ 1 ].dataset.preview ).toBe( '' );
+
+		// Leave → focus returns to winA.
+		focus.mockClear();
+		pointerLeave( cards[ 1 ] );
+		expect( getById ).toHaveBeenCalledWith( winA.id );
+		expect( focus ).toHaveBeenCalledWith( winA );
+		expect( cards[ 1 ].dataset.preview ).toBeUndefined();
 	} );
 
 	// Hovering a minimized card restores it so the user can see it.
@@ -324,6 +379,110 @@ describe( 'dock-peek', () => {
 		)!;
 		pointerEnter( card );
 		expect( win.restore ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).not.toHaveBeenCalled();
+		expect( card.dataset.preview ).toBe( '' );
+		expect( card.dataset.state ).toBeUndefined();
+	} );
+
+	// Preview snap-back: a minimized window that was preview-restored
+	// snaps back to minimized when the pointer leaves the card.
+	test( 'hovering a minimized instance card then leaving snaps it back', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => undefined,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.desktop-mode-dock-peek__card--instance',
+		)!;
+
+		// Hover → preview restores.
+		pointerEnter( card );
+		expect( win.restore ).toHaveBeenCalledTimes( 1 );
+		expect( card.dataset.preview ).toBe( '' );
+		expect( card.dataset.state ).toBeUndefined();
+
+		// Leave → snap back to minimized.
+		pointerLeave( card );
+		expect( win.minimize ).toHaveBeenCalledTimes( 1 );
+		expect( card.dataset.preview ).toBeUndefined();
+		expect( card.dataset.state ).toBe( 'minimized' );
+	} );
+
+	test( 'clicking a previewed card commits the preview permanently (no snap-back)', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php', 'minimized' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => undefined,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.desktop-mode-dock-peek__card--instance',
+		)!;
+
+		// Hover → preview active.
+		pointerEnter( card );
+		expect( card.dataset.preview ).toBe( '' );
+
+		// Click → commit the preview (focus + restore), no snap-back.
+		card.click();
+		// restore was called once from the pointerenter preview;
+		// the second call from spawnFocusViewTransition is a no-op
+		// because the window is no longer minimized at that point.
+		expect( win.restore ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).toHaveBeenCalledTimes( 1 );
+		expect( focus ).toHaveBeenCalledWith( win );
+	} );
+
+	test( 'hovering an already-focused card does not enter preview mode', () => {
+		const tile = makeTile( true );
+		const win = makeWindowStub( 'All Posts', 'edit-php' );
+		const focus = vi.fn();
+		attachDockPeek(
+			makeDeps( {
+				tile,
+				getInstances: () => [ win ],
+				windowManager: {
+					getFocused: () => win,
+					focus,
+				} as unknown as Deps[ 'windowManager' ],
+			} ),
+		);
+		pointerEnter( tile );
+		vi.advanceTimersByTime( 500 );
+
+		const card = document.querySelector< HTMLElement >(
+			'.desktop-mode-dock-peek__card--instance',
+		)!;
+
+		// Hover the already-focused card → no preview.
+		pointerEnter( card );
+		expect( focus ).not.toHaveBeenCalled();
+		expect( card.dataset.preview ).toBeUndefined();
+
+		// Leave should also be a no-op.
+		pointerLeave( card );
 		expect( focus ).not.toHaveBeenCalled();
 	} );
 

@@ -49,6 +49,15 @@ function desktop_mode_default_os_settings() {
 		// deleted theme degrades silently instead of needing a
 		// user-meta rewrite.
 		'desktopTheme'                => '',
+		// Slugs of the desktop themes whose `recommendedOsSettings`
+		// block has already been applied for this user. A theme's
+		// recommendations are seeded ONCE — the first time the user
+		// activates it — and this list is the record of that. It is
+		// what makes "never overwrite a user's later choices" true:
+		// re-activating a theme they have worn before changes
+		// nothing. The Themes tab's "Apply recommended layout" action
+		// is the deliberate way back. Capped at 64 slugs.
+		'appliedThemeRecommendations' => array(),
 		'unfocusEffect'               => 'darken',
 		// Window-link renderer id — how relation ties between windows
 		// are drawn (see includes/window-links.php). `svg-splines` is
@@ -281,6 +290,33 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 	$desktop_theme = $defaults['desktopTheme'];
 	if ( isset( $raw['desktopTheme'] ) && is_string( $raw['desktopTheme'] ) ) {
 		$desktop_theme = sanitize_key( $raw['desktopTheme'] );
+	}
+
+	// appliedThemeRecommendations — list of desktop-theme slugs whose
+	// recommendations this user has already been seeded with. Unknown
+	// slugs are kept (a deleted-then-reinstalled theme must not
+	// re-seed and clobber the settings the user has since chosen).
+	$applied_theme_recommendations = $defaults['appliedThemeRecommendations'];
+	if ( isset( $raw['appliedThemeRecommendations'] ) && is_array( $raw['appliedThemeRecommendations'] ) ) {
+		$applied_theme_recommendations = array();
+		foreach ( $raw['appliedThemeRecommendations'] as $theme_slug ) {
+			if ( ! is_string( $theme_slug ) || '' === $theme_slug ) {
+				continue;
+			}
+			$theme_slug = sanitize_key( $theme_slug );
+			if ( '' === $theme_slug ) {
+				continue;
+			}
+			$applied_theme_recommendations[] = $theme_slug;
+		}
+		// Keep the MOST RECENT 64, not the first 64 — the client
+		// appends, so trimming from the front would silently discard
+		// the entry that was just written and let the theme re-seed on
+		// the next activation.
+		$applied_theme_recommendations = array_slice(
+			array_values( array_unique( $applied_theme_recommendations ) ),
+			-64
+		);
 	}
 
 	// Unfocus effect id — accept the `none` sentinel or any registry id.
@@ -604,6 +640,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
 		'desktopTheme'                => $desktop_theme,
+		'appliedThemeRecommendations' => $applied_theme_recommendations,
 		'unfocusEffect'               => $unfocus_effect,
 		'windowLinkRenderer'          => $window_link_renderer,
 		'windowLinkVisibility'        => $window_link_visibility,

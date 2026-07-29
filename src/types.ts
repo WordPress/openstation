@@ -1451,6 +1451,15 @@ export interface SessionWindow {
 	 * to the active desktop when missing.
 	 */
 	desktopId?: string;
+	/**
+	 * `true` for native windows (OS Settings, Bug Report, anything
+	 * registered via `desktop_mode_register_window()` /
+	 * `wp.desktop.registerWindow`). These reopen through the
+	 * native-window registry by id rather than by pointing an iframe
+	 * at `url` — which for a native window is only a `#slug` marker.
+	 * Absent on plain admin-page windows.
+	 */
+	native?: boolean;
 	url: string;
 	title: string;
 	icon: string;

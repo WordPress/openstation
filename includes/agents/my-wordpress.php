@@ -1,8 +1,8 @@
 <?php
 /**
- * Desktop Mode — Agents: My WordPress integration.
+ * Desktop Mode — Agents: site folder integration.
  *
- * Adds the "Agents" entity to the My WordPress window (via the
+ * Adds the "Agents" entity to the site folder window (via the
  * `desktop_mode_my_wordpress_entities` filter) and ships the agents
  * section config on the window's `config` payload (via
  * `desktop_mode_my_wordpress_window_args`). The bundle side registers
@@ -14,7 +14,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Append the Agents entity to the My WordPress entity list.
+ * Append the Agents entity to the site folder's entity list.
  *
  * @param array $entities Existing entity descriptors.
  * @return array
@@ -37,7 +37,7 @@ function desktop_mode_agents_my_wordpress_entity( $entities ) {
 add_filter( 'desktop_mode_my_wordpress_entities', 'desktop_mode_agents_my_wordpress_entity' );
 
 /**
- * Ship the agents section config on the My WordPress window config.
+ * Ship the agents section config on the site folder window config.
  *
  * `aiAvailable` is the cheap structural check (WP 7.0 AI Client +
  * Abilities API present); whether a connector is actually configured

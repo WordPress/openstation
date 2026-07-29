@@ -1,7 +1,7 @@
 /**
  * Agents — cross-bundle chat store.
  *
- * The contract between the My WordPress agents renderer (which picks
+ * The contract between the site folder's agents renderer (which picks
  * the agent and opens the chat window) and the `agent-run-window`
  * bundle (which paints the conversation and posts to `/invoke`). Both
  * bundles compile their own copy of this module; `createSharedStore`

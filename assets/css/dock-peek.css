@@ -97,19 +97,24 @@
    there so the popover floats off-edge with a gap. The
    `--peek-clamp-x/y` props are added by JS when the popover would
    otherwise overflow the viewport — they nudge it inward without
-   losing the orientation translate. */
+   losing the orientation translate.
+
+   Docks: top-aligned to the tile so the popover grows downward
+   when minimized cards expand. The old vertical-centre
+   anchor pushed the top edge into the browser's bar on growth.
+   Bottom dock: stays above the tile, growing upward. */
 .desktop-mode-dock-peek[ data-orientation = "left" ] {
 	transform:
 		translate(
 			var( --peek-clamp-x, 0 ),
-			calc( -50% + var( --peek-clamp-y, 0px ) )
+			var( --peek-clamp-y, 0 )
 		);
 }
 .desktop-mode-dock-peek[ data-orientation = "right" ] {
 	transform:
 		translate(
 			calc( -100% + var( --peek-clamp-x, 0px ) ),
-			calc( -50% + var( --peek-clamp-y, 0px ) )
+			var( --peek-clamp-y, 0 )
 		);
 }
 .desktop-mode-dock-peek[ data-orientation = "bottom" ] {
@@ -231,9 +236,13 @@
 	transform: translateX( 0 ) scale( 1 );
 }
 
-.desktop-mode-dock-peek__card:hover {
-	border-color: rgba( 255, 255, 255, 0.24 );
-	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.4 );
+/* Aero Peek hover: accent border + glow on every previewed card, not
+   just minimumzd ones.*/
+.desktop-mode-dock-peek__card--instance:hover {
+	border-color: var( --desktop-mode-accent, #2271b1 );
+	box-shadow:
+		0 0 14px -2px var( --desktop-mode-accent, #2271b1 ),
+		0 4px 14px -4px rgba( 0, 0, 0, 0.4 );
 }
 
 .desktop-mode-dock-peek__card:focus-visible {

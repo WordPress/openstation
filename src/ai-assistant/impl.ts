@@ -19,6 +19,7 @@
 import { HOOKS, doAction, applyFilters } from '../hooks';
 import { wpdConfirm } from '../wpd-confirm';
 import { trackedFetch } from '../tracked-fetch';
+import { decodeHTML } from '../utils';
 import {
 	filterCommands,
 	findCommand,
@@ -271,6 +272,7 @@ export class AiAssistant implements AiAssistantApi {
 	private _aiSearchUrl: string;
 	private _aiSearchStreamUrl: string;
 	private _restNonce: string;
+	private _adminUrl: string;
 	private _currentStream: EventSource | null = null;
 	/**
 	 * Reads the user's preferred live-progress transport from OS Settings.
@@ -298,6 +300,8 @@ export class AiAssistant implements AiAssistantApi {
 	 * (switching to Commands replaces the results DOM).
 	 */
 	private _lastAiResult: { query: string; data: SearchResult } | null = null;
+	private _currentRemoteCommands: DesktopCommand[] = [];
+	private _remoteSearchToken = 0;
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
@@ -321,6 +325,7 @@ export class AiAssistant implements AiAssistantApi {
 		this._aiSearchUrl = config.aiSearchUrl;
 		this._aiSearchStreamUrl = config.aiSearchStreamUrl;
 		this._restNonce = config.restNonce;
+		this._adminUrl = config.adminUrl;
 		this._getTransport = config.getTransport ?? ( () => 'off' );
 		this._isAiAvailable = config.isAiAvailable ?? ( () => false );
 		this._isOverrideEnabled = config.isOverrideEnabled ?? ( () => false );
@@ -373,6 +378,8 @@ export class AiAssistant implements AiAssistantApi {
 		this._input.value = '';
 		this._modeInput = { commands: '', ai: '' };
 		this._lastAiResult = null;
+		this._currentRemoteCommands = [];
+		this._remoteSearchToken++;
 		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
 		// Open in the mode the "Override…" toggle asks for: AI when it's
@@ -548,11 +555,11 @@ export class AiAssistant implements AiAssistantApi {
 			);
 		}
 		if ( this._mode === 'ai' ) {
-			// AI mode only pins the contextual commands on empty input.
 			return this._sortCommands( listEagerCommands() );
 		}
 		const q = this._input.value.trim();
-		return this._sortCommands( q === '' ? listCommands() : filterCommands( q ) );
+		const local = this._sortCommands( q === '' ? listCommands() : filterCommands( q ) );
+		return [ ...local, ...this._currentRemoteCommands ];
 	}
 
 	/** Run a picked command, or lock it in for args when it takes them. */
@@ -800,6 +807,17 @@ export class AiAssistant implements AiAssistantApi {
 			// changes — typing resets you to the top of the list.
 			this._selectedCommand = 0;
 			this._selectedSuggestion = 0;
+
+			const parsed = parseCommandInput( this._input.value );
+			const q = this._input.value.trim();
+
+			if ( ! parsed.isCommand && this._mode === 'commands' && q.length > 0 ) {
+				void this._fetchRemoteCommands( q );
+			} else {
+				this._currentRemoteCommands = [];
+				this._remoteSearchToken++;
+			}
+
 			// Commands mode filters the registry live; AI mode keeps prior
 			// results while typing a question (see `_renderForMode`).
 			this._renderForMode();
@@ -1171,6 +1189,73 @@ export class AiAssistant implements AiAssistantApi {
 		}
 	}
 
+	/**
+	 * Fetch posts/pages via `/wp/v2/search` and store as pickable
+	 * command items. 200 ms debounce + token-based staleness guard.
+	 * Only fires in Commands mode.
+	 */
+	private async _fetchRemoteCommands( query: string ): Promise<void> {
+		const token = ++this._remoteSearchToken;
+		try {
+			// Debounce typing
+			await new Promise( ( resolve ) => setTimeout( resolve, 200 ) );
+			if ( token !== this._remoteSearchToken ) {
+				return;
+			}
+
+			const res = await trackedFetch(
+				`/wp-json/wp/v2/search?search=${ encodeURIComponent( query ) }&subtype=post,page`,
+				{
+					headers: { 'X-WP-Nonce': this._restNonce },
+				},
+				{ silent: true },
+			);
+
+			if ( ! res.ok ) {
+				return;
+			}
+
+			const items = ( await res.json().catch( () => [] ) ) as Array<{
+				id: number;
+				title: string;
+				subtype: string;
+				url: string;
+			}>;
+
+			if ( token !== this._remoteSearchToken ) {
+				return;
+			}
+
+			this._currentRemoteCommands = items.map( ( item ) => {
+				const isPage = item.subtype === 'page';
+				const editUrl = new URL( 'post.php', this._adminUrl );
+				editUrl.searchParams.set( 'post', String( item.id ) );
+				editUrl.searchParams.set( 'action', 'edit' );
+				const href = editUrl.toString();
+				const title = decodeHTML( item.title || '(No title)' );
+				const icon = isPage ? 'dashicons-admin-page' : 'dashicons-admin-post';
+
+				return {
+					slug: `post-${ item.id }`,
+					label: title,
+					description: isPage ? 'Page' : 'Post',
+					icon,
+					eager: false,
+					run: ( _args, ctx ) => {
+						ctx.openInWindow( href, title, icon );
+					},
+				};
+			} );
+
+			// Re-render so new matches appear in Commands mode.
+			if ( this._isOpen ) {
+				this._renderForMode();
+			}
+		} catch ( err ) {
+			// Ignore network errors for background search
+		}
+	}
+
 	// ------------------------------------------------------------------
 	// Open helpers — everything opens as a legacy iframe window, not a
 	// new browser tab, so the admin experience stays inside the desktop.
@@ -1205,14 +1290,13 @@ export class AiAssistant implements AiAssistantApi {
 			window.open( url, '_blank', 'noopener' );
 			return;
 		}
-		// `windowManager.open()` requires a non-empty `id`. Use the
-		// shell's own URL→id helper so the window we open coalesces
-		// with any existing window pointing at the same admin page
-		// (matches what clicking the dock would do). Fall back to a
-		// URL-derived synthetic id when the helper isn't exposed —
-		// older shells, or contrived test environments.
+		// `windowManager.open()` requires a non-empty `id`. Reuse the
+		// shell's URL→id helper so the window coalesces with any existing
+		// one for the same admin page, matching dock launches. Fall back
+		// to a URL-derived synthetic id when the helper isn't available —
+		// older shells and test doubles.
 		const id = shell.deriveWindowId
-			? shell.deriveWindowId( url )
+			? shell.deriveWindowId( url, this._adminUrl )
 			: 'desktop-mode-ai-' + url.replace( /[^a-z0-9]+/gi, '-' ).slice( 0, 80 );
 		shell.windowManager.open( {
 			id,
@@ -1280,10 +1364,11 @@ export class AiAssistant implements AiAssistantApi {
 		const items = matches
 			.map( ( c, i ) => {
 				const selected = pickable && i === this._selectedCommand ? ' is-selected' : '';
+				const isEntity = this._isEntityResultCommand( c );
 				return `
 					<button
 						type="button"
-						class="desktop-mode-ai__cmd-item${ selected }"
+						class="desktop-mode-ai__cmd-item${ selected }${ isEntity ? ' is-entity-result' : '' }"
 						data-slug="${ this._esc( c.slug ) }"
 						data-index="${ i }"
 					>
@@ -1305,10 +1390,10 @@ export class AiAssistant implements AiAssistantApi {
 			.join( '' );
 
 		// The "Commands" heading is redundant with the "Command palette" title
-		// in Commands mode; keep it only in AI mode, where it separates the
-		// pinned contextual commands from the assistant.
+		// in Commands mode. Keep it only in AI mode — it labels the
+		// contextual (eager) commands section above the assistant input.
 		const heading =
-			this._mode === 'ai'
+			this._mode === 'ai' && listEagerCommands().length > 0
 				? '<p class="desktop-mode-ai__suggestions-label">Suggested commands</p>'
 				: '';
 		this._resultsEl.innerHTML = `
@@ -1320,14 +1405,21 @@ export class AiAssistant implements AiAssistantApi {
 
 		// Click handlers — clicking a row runs the command (or locks it in
 		// for args when it takes them), like a command palette.
+		// NOTE: `findCommand()` only searches the command registry, but
+		// remote entity-search results from `_fetchRemoteCommands` live
+		// in `_currentRemoteCommands` — they're NOT registered. We use
+		// `data-index` to look up from the fresh match list instead.
 		this._resultsEl
 			.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__cmd-item' )
 			.forEach( ( btn ) => {
 				btn.addEventListener( 'click', () => {
-					const slug = btn.dataset.slug ?? '';
-					const cmd = findCommand( slug );
-					if ( cmd ) {
-						this._pickCommand( cmd );
+					const idx = parseInt( btn.dataset.index ?? '', 10 );
+					if ( ! Number.isNaN( idx ) ) {
+						const clickMatches = this._commandMatches();
+						const cmd = clickMatches[ idx ];
+						if ( cmd ) {
+							this._pickCommand( cmd );
+						}
 					}
 				} );
 				btn.addEventListener( 'mouseenter', () => {
@@ -1501,6 +1593,11 @@ export class AiAssistant implements AiAssistantApi {
 			const bIframe = typeof b.owner === 'string' && b.owner.startsWith( 'iframe:' ) ? 0 : 1;
 			return aIframe - bIframe;
 		} );
+	}
+
+	/** Identify remote entity-search results without tying styling to slug naming. */
+	private _isEntityResultCommand( cmd: DesktopCommand ): boolean {
+		return this._currentRemoteCommands.includes( cmd );
 	}
 
 	/**

@@ -477,8 +477,14 @@
 .desktop-mode-dock__tooltip {
 	position: fixed;
 	padding: 6px 12px;
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.85 ) );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var(
+		--desktop-mode-tooltip-bg,
+		var( --wpd-scrim, rgba( 0, 0, 0, 0.85 ) )
+	);
+	color: var(
+		--desktop-mode-tooltip-fg,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	font-size: 12px;
 	font-weight: 400;
 	line-height: 1.4;

@@ -321,6 +321,31 @@ function buildNativeRenderContext( windowId: string ): {
 export { buildNativeRenderContext as _buildNativeRenderContext };
 
 /**
+ * Resolve the id of the window a native render callback is mounting
+ * into, by walking up from the body element to the window root
+ * (`id="wp-window-<windowId>"`, stamped by `createWindowElement`).
+ *
+ * `Window.hydrateNative()` runs AFTER the element is appended to the
+ * desktop, so by render time the ancestry is always present — the
+ * `fallback` only covers a detached body (a unit test rendering into
+ * a bare `<div>`, a future code path that pre-renders off-DOM).
+ *
+ * The same `wp-window-` walk backs `os-file-drop/manager.ts` and
+ * `drag/iframe-drop-targets.ts`; this is the id-of-record for
+ * anything that has a DOM node but not a `Window` reference.
+ *
+ * @internal
+ */
+function resolveMountedWindowId(
+	body: HTMLElement,
+	fallback: string,
+): string {
+	const root = body.closest< HTMLElement >( '[id^="wp-window-"]' );
+	const id = root?.id.slice( 'wp-window-'.length );
+	return id ? id : fallback;
+}
+
+/**
  * Synthesise a `render( body )` callback that renders an iframe
  * inside the native window's body and manages its lifecycle:
  *
@@ -344,14 +369,25 @@ export { buildNativeRenderContext as _buildNativeRenderContext };
  * — wired in by `createRegisterWindow` below so the plugin's own
  * `onClose` also runs.
  *
+ * `registeredId` is the id the PLUGIN asked for, which is NOT
+ * necessarily the id the window ends up with — `manager.open()`
+ * suffixes it (`chat` → `chat-2`) whenever an instance of the same
+ * baseId is already open on another virtual desktop, and `openNew`
+ * always does. Every id-keyed call below therefore resolves the LIVE
+ * instance id off the mounted DOM instead (see
+ * {@link resolveMountedWindowId}); `registeredId` is only the
+ * fallback for the theoretical case where the body isn't inside a
+ * window root yet.
+ *
  * @internal
  */
 function buildIframeContentRender(
 	cfg: NativeWindowIframeContent,
 	cleanups: ( () => void )[],
-	windowId: string,
+	registeredId: string,
 ): ( body: HTMLElement ) => Promise< void > {
 	return ( body: HTMLElement ) => {
+		const windowId = resolveMountedWindowId( body, registeredId );
 		const iframe = document.createElement( 'iframe' );
 		iframe.style.width = '100%';
 		iframe.style.height = '100%';
@@ -554,7 +590,18 @@ export function createRegisterWindow(
 		// here; the Window class wraps it at hydration time.
 
 		const userOnClose = def.onClose;
-		const onClose: typeof userOnClose = cleanups.length
+		// Wrap on "this def CAN produce cleanups", never on
+		// `cleanups.length`. The array is populated by the synthesised
+		// render callback, which doesn't run until `manager.open()`
+		// below hydrates the window — so at this point it is always
+		// empty and the length check wrapped nothing. Every
+		// `iframeContent` window therefore leaked: its synthetic-iframe
+		// registration outlived the close (a stale `_syntheticIframes`
+		// entry pointing at a detached iframe, which the next instance
+		// of the same id would then find instead of its own), and its
+		// `message` listener stayed on `window` for the rest of the
+		// session.
+		const onClose: typeof userOnClose = def.iframeContent
 			? ( () => {
 				for ( const fn of cleanups ) {
 					try {

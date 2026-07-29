@@ -2162,7 +2162,12 @@ function buildDateCell( row: PostListItem ): HTMLElement {
 	wrap.style.cssText =
 		'display:flex;flex-direction:column;line-height:1.2;';
 	const time = document.createElement( 'wpd-relative-time' );
-	time.setAttribute( 'datetime', row.date );
+	// `date_gmt`, not `date`. The two arrive in the same shape and
+	// neither carries a timezone designator, but `date` is in the
+	// site's timezone — and `<wpd-relative-time>` reads an undesignated
+	// value as UTC, so a site-local one lands off by the site offset.
+	// The sort comparator on this column already uses `date_gmt`.
+	time.setAttribute( 'datetime', row.date_gmt || row.date );
 	wrap.appendChild( time );
 	if ( row.modified_gmt && row.modified_gmt !== row.date_gmt ) {
 		const meta = document.createElement( 'span' );
@@ -2207,7 +2212,7 @@ function buildSubRow( row: PostListItem ): Node {
 		// then strip tags — we want plain text in the sub-row, not
 		// arbitrary nested elements.
 		const stripped = raw.replace( /<[^>]+>/g, '' ).trim();
-		excerpt.textContent = stripped || __( '(no excerpt)' );
+		excerpt.textContent = decodeHTML( stripped ) || __( '(no excerpt)' );
 	} else {
 		excerpt.textContent = __( '(no excerpt)' );
 		excerpt.style.color = '#a7aaad';

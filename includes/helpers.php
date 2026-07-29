@@ -177,6 +177,47 @@ function desktop_mode_get_default_wallpaper() {
 }
 
 /**
+ * The site's own name, ready to use as a window / icon title.
+ *
+ * The desktop shows objects, not the software running it — so the
+ * folder that holds a site's content is titled after the site itself
+ * ("Izzi's Gym"), not after WordPress. This is the single source for
+ * that string.
+ *
+ * `get_bloginfo( 'name' )` returns the display-filtered option, which
+ * carries HTML entities (`&amp;`, `&#039;`). Titles land in
+ * `title=` attributes and JS-rendered text nodes, so the entities are
+ * decoded here — leaving them encoded would render a literal
+ * `Ben &amp; Jerry` on the desktop.
+ *
+ * @return string Decoded site title. Falls back to `WordPress` when
+ *                the site has no name set.
+ */
+function desktop_mode_site_title() {
+	$title = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+	$title = trim( $title );
+
+	if ( '' === $title ) {
+		$title = __( 'WordPress', 'desktop-mode' );
+	}
+
+	/**
+	 * Filters the site title used for desktop-mode window and icon
+	 * titles — the pinned site folder, its breadcrumb root, and any
+	 * "Open in <site>" action.
+	 *
+	 * Return a different string to label the desktop objects after
+	 * something other than `blogname` (a brand, a network name, a
+	 * per-user workspace label).
+	 *
+	 * @param string $title Decoded site title, never empty.
+	 */
+	$filtered = apply_filters( 'desktop_mode_site_title', $title );
+
+	return is_string( $filtered ) && '' !== trim( $filtered ) ? $filtered : $title;
+}
+
+/**
  * Build a `WP_Error` for a desktop-mode registration failure.
  *
  * Centralises the error-code vocabulary used by every

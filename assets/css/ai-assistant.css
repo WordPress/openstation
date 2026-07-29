@@ -7,10 +7,21 @@
  * entrance, large search input, accent-tinted header.
  *
  * z-index 10000 puts this above --desktop-mode-z-adminbar (9991) so the
- * overlay truly covers the full viewport. The panel itself is white/light
- * regardless of wallpaper, providing consistent contrast.
+ * overlay truly covers the full viewport.
  *
- * @since 0.14.0
+ * ## Desktop-theme awareness
+ *
+ * The overlay mounts on `document.body`, so it sits inside the
+ * `body.desktop-mode-desktop-theme-<slug>` half of a compiled theme's
+ * doubled selector and every `--wpd-*` token below resolves against the
+ * active theme. Each site reads `var( --wpd-x, <the literal that was
+ * always there> )`, so an unthemed shell paints exactly as before.
+ *
+ * Getting this half-right is worse than not doing it at all: when the
+ * text tones followed the theme but the panel stayed hardcoded white,
+ * a dark theme's light `--wpd-fg` landed on white and the results were
+ * unreadable. Any new surface added here MUST take its background,
+ * border and text from the palette — not from a literal.
  */
 
 /* ---------------------------------------------------------------------------
@@ -56,7 +67,12 @@
 .desktop-mode-ai__backdrop {
 	position: absolute;
 	inset: 0;
-	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.36 ) );
+	background-color: var( --wpd-scrim, rgba( 0, 0, 0, 0.36 ) );
+	/* Desktop-theme SCRIM texture slot: unset resolves to none. */
+	background-image: var( --wpd-scrim-image, none );
+	background-repeat: var( --wpd-scrim-image-repeat, repeat );
+	background-size: var( --wpd-scrim-image-size, auto );
+	background-position: var( --wpd-scrim-image-position, center );
 	backdrop-filter: blur( 8px ) saturate( 0.75 );
 	-webkit-backdrop-filter: blur( 8px ) saturate( 0.75 );
 	/* Non-interactive: clicks in the dimmed area fall through to the overlay
@@ -73,13 +89,27 @@
 	width: 100%;
 	max-width: 600px;
 
-	background: rgba( 255, 255, 255, 0.97 );
+	/* Longhand on purpose: the DIALOG texture slot below owns
+	   background-image, and the shorthand would reset it. */
+	background-color: var(
+		--desktop-mode-ai-panel-bg,
+		var( --wpd-surface, rgba( 255, 255, 255, 0.97 ) )
+	);
+	/* Desktop-theme DIALOG texture slot: unset resolves to none. */
+	background-image: var( --wpd-dialog-bg-image, none );
+	background-repeat: var( --wpd-dialog-bg-image-repeat, repeat );
+	background-size: var( --wpd-dialog-bg-image-size, auto );
+	background-position: var( --wpd-dialog-bg-image-position, center );
+	color: var( --wpd-fg, #1d2327 );
 	border-radius: 16px;
 	overflow: hidden;
 
-	/* Tight under-shadow + wide atmospheric shadow */
+	/* Tight under-shadow + wide atmospheric shadow. The hairline ring
+	   is the panel's only edge, so it follows the palette; the two
+	   atmospheric shadows stay black because they read as depth
+	   against the wallpaper, not as part of the surface. */
 	box-shadow:
-		0 0 0 1px rgba( 0, 0, 0, 0.07 ),
+		0 0 0 1px var( --wpd-border, rgba( 0, 0, 0, 0.07 ) ),
 		0 4px 16px rgba( 0, 0, 0, 0.12 ),
 		0 24px 64px rgba( 0, 0, 0, 0.22 );
 
@@ -110,7 +140,7 @@
 		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) ),
 		var( --wpd-surface, #fff )
 	);
-	border-bottom: 1px solid rgba( 0, 0, 0, 0.06 );
+	border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
 }
 
 .desktop-mode-ai__header-icon {
@@ -164,7 +194,11 @@
 }
 
 .desktop-mode-ai__mode.is-active {
-	background: var( --wpd-surface, #fff );
+	/* Elevated first: the pill sits ON the header, which is already
+	   `--wpd-surface`, so a theme that distinguishes the two keeps the
+	   active segment readable. Falls through to plain surface, which is
+	   the default look. */
+	background: var( --wpd-surface-elevated, var( --wpd-surface, #fff ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.12 );
 }
@@ -191,7 +225,7 @@
 }
 
 .desktop-mode-ai__input-wrap:has( .desktop-mode-ai__input:focus ) {
-	border-bottom-color: rgba( 0, 0, 0, 0.06 );
+	border-bottom-color: var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
 }
 
 /* Input-row sparkle — visible always, tints toward the accent on focus
@@ -210,12 +244,38 @@
 	transform: scale( 1.08 );
 }
 
-.desktop-mode-ai__input {
+/*
+ * The search field is a raw `<input type="text">` in the parent shell,
+ * so core's `forms.css` reaches it:
+ *
+ *   input[type="text"], …  { background-color: #fff; color: #2c3338;
+ *                            border: 1px solid #8c8f94;
+ *                            border-radius: 4px;
+ *                            box-shadow: 0 0 0 transparent }
+ *   input[type="text"]:focus { border-color: #2271b1;
+ *                              box-shadow: 0 0 0 1px #2271b1 }
+ *
+ * That weighs (0,1,1) — one type selector plus one attribute selector —
+ * which beats a bare `.desktop-mode-ai__input` at (0,1,0). The result
+ * was a bordered white box floating inside the panel: core's chrome,
+ * core's text colour, ignoring both the design intent (a chromeless
+ * Spotlight-style field) and any active desktop theme.
+ *
+ * Scoping to the overlay root takes the selector to (0,2,0) and wins.
+ * Same fix as the native-window form-control rule in window-chrome.css.
+ */
+.desktop-mode-ai .desktop-mode-ai__input {
 	flex: 1;
 	min-width: 0;
 	appearance: none;
 	border: none;
+	border-radius: 0;
 	outline: none;
+	box-shadow: none;
+	padding: 0;
+	/* Matches the height core gave the control, so the row keeps its
+	   comfortable hit target now that core's box is gone. */
+	min-height: 30px;
 	background: transparent;
 	font: inherit;
 	font-size: 17px;
@@ -224,7 +284,15 @@
 	color: var( --wpd-fg, #1d2327 );
 }
 
-.desktop-mode-ai__input::placeholder {
+/* Core paints a focus border + ring on the element itself; the focus
+   affordance here is the input row's bottom hairline instead. */
+.desktop-mode-ai .desktop-mode-ai__input:focus {
+	border-color: transparent;
+	box-shadow: none;
+	outline: none;
+}
+
+.desktop-mode-ai .desktop-mode-ai__input::placeholder {
 	color: var( --wpd-fg-faint, #c3c4c7 );
 	font-weight: 400;
 }
@@ -282,7 +350,7 @@
 	gap: 8px;
 	padding: 8px 16px 10px;
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.018 ) );
-	border-top: 1px solid rgba( 0, 0, 0, 0.05 );
+	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.05 ) );
 }
 
 .desktop-mode-ai__footer-hint {
@@ -312,7 +380,7 @@
 	height: 28px;
 	appearance: none;
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
-	border: 1px solid rgba( 0, 0, 0, 0.1 );
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.1 ) );
 	border-radius: 6px;
 	cursor: pointer;
 	color: var( --wpd-fg-muted, #646970 );
@@ -323,7 +391,7 @@
 
 .desktop-mode-ai__close:hover {
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.09 ) );
-	border-color: rgba( 0, 0, 0, 0.2 );
+	border-color: var( --wpd-border-strong, rgba( 0, 0, 0, 0.2 ) );
 	color: var( --wpd-fg, #1d2327 );
 }
 
@@ -340,7 +408,7 @@
  * ------------------------------------------------------------------------- */
 
 .desktop-mode-ai__results {
-	border-top: 1px solid rgba( 0, 0, 0, 0.06 );
+	border-top: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
 	max-height: 420px;
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -371,7 +439,7 @@
 
 .desktop-mode-ai__suggestion {
 	appearance: none;
-	border: 1px solid rgba( 0, 0, 0, 0.1 );
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.1 ) );
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
 	border-radius: 999px;
 	padding: 5px 12px;
@@ -384,7 +452,7 @@
 
 .desktop-mode-ai__suggestion:hover {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, rgba( 0, 0, 0, 0.1 ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, var( --wpd-border, rgba( 0, 0, 0, 0.1 ) ) );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
@@ -527,7 +595,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	gap: 8px;
 	padding: 12px 14px;
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
-	border: 1px solid rgba( 0, 0, 0, 0.08 );
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
 }
 
@@ -627,7 +695,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	gap: 12px;
 	padding: 10px 12px;
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
-	border: 1px solid rgba( 0, 0, 0, 0.08 );
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 10px;
 	cursor: pointer;
 	text-align: start;
@@ -638,7 +706,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 
 .desktop-mode-ai__admin-link:hover {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 6%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
 .desktop-mode-ai__admin-link:active {
@@ -740,7 +808,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 .desktop-mode-ai__cmd-item:hover,
 .desktop-mode-ai__cmd-item.is-selected {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
 /*
@@ -757,7 +825,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 }
 .desktop-mode-ai__cmd-list--kb-nav .desktop-mode-ai__cmd-item.is-selected:hover {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
 .desktop-mode-ai__cmd-item:focus-visible {
@@ -832,6 +900,15 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	letter-spacing: 0;
 }
 
+/* Entity search results (posts, pages) — rendered in the same list as
+   commands but are navigable destinations, not actions. Use regular font
+   (not the monospace used for slash-commands) so they read as content
+   search results, matching the classic command palette UX. */
+.desktop-mode-ai__cmd-item.is-entity-result .desktop-mode-ai__cmd-title {
+	font-family: inherit;
+	letter-spacing: 0;
+}
+
 /* Args mode — a single row showing the locked-in command. Same
    visual language as the list item but with an "Enter to run" hint. */
 .desktop-mode-ai__cmd-active {
@@ -840,7 +917,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	gap: 10px;
 	padding: 10px 12px;
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 10%, var( --wpd-surface, #fff ) );
-	border: 1px solid color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, rgba( 0, 0, 0, 0.08 ) );
+	border: 1px solid color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 30%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 	border-radius: 8px;
 }
 
@@ -855,7 +932,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	font-family: inherit;
 	font-size: 10px;
 	padding: 1px 4px;
-	border: 1px solid rgba( 0, 0, 0, 0.12 );
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.12 ) );
 	border-radius: 3px;
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
 	color: var( --wpd-fg-muted, #646970 );
@@ -891,7 +968,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 .desktop-mode-ai__cmd-suggest-item:hover,
 .desktop-mode-ai__cmd-suggest-item.is-selected {
 	background: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 8%, var( --wpd-surface, #fff ) );
-	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, rgba( 0, 0, 0, 0.08 ) );
+	border-color: color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 25%, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 }
 
 .desktop-mode-ai__cmd-suggest-label {
@@ -920,7 +997,7 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 	font-size: 12px;
 	font-weight: 500;
 	padding: 6px 12px;
-	border: 1px dashed rgba( 0, 0, 0, 0.2 );
+	border: 1px dashed var( --wpd-border-strong, rgba( 0, 0, 0, 0.2 ) );
 	border-radius: 6px;
 	background: transparent;
 	color: var( --wpd-fg-muted, #50575e );
@@ -930,6 +1007,6 @@ body.desktop-mode-active .desktop-mode-ai__settings-link {
 
 .desktop-mode-ai__continue-btn:hover {
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
-	border-color: rgba( 0, 0, 0, 0.3 );
+	border-color: var( --wpd-border-strong, rgba( 0, 0, 0, 0.3 ) );
 	color: var( --wpd-fg, #1d2327 );
 }

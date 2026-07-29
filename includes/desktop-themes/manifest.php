@@ -19,8 +19,8 @@
  *
  * Validation posture, in two tiers:
  *
- *   - **Fatal** (returns `WP_Error`): `manifestVersion`, `id`,
- *     `name`. Without those there is no theme to speak of.
+ *   - **Fatal** (returns `WP_Error`): `manifestVersion` (`1` or `2`),
+ *     `id`, `name`. Without those there is no theme to speak of.
  *   - **Everything else drops and continues.** A bad token, a
  *     missing icon file, an unknown slot — the offending entry is
  *     removed and the rest of the theme installs. That IS the
@@ -867,6 +867,66 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 }
 
 /**
+ * Sanitize the `recommendedOsSettings` block: presentation
+ * preferences the theme would LIKE the user to be wearing.
+ *
+ * ```json
+ * "recommendedOsSettings": {
+ *   "dockSize":         "large",
+ *   "desktopLayout":    "unified",
+ *   "windowRadius":     "default",
+ *   "dockRailRenderer": "default"
+ * }
+ * ```
+ *
+ * These are recommendations, not settings. The shell writes them into
+ * user meta once — the first time that user activates the theme — and
+ * never again; a user who then moves the dock or squares the corners
+ * keeps their choice for good. See docs/desktop-themes.md §
+ * "Recommended OS settings" for the full contract.
+ *
+ * Every key is checked against
+ * {@see desktop_mode_desktop_theme_recommended_os_settings_schema()},
+ * and the same drop-and-continue posture as the rest of the manifest
+ * applies: an unknown key or an out-of-enum value disappears and the
+ * remaining recommendations survive.
+ *
+ * @internal
+ *
+ * @param mixed $raw Raw `recommendedOsSettings` value.
+ * @return array<string,string>
+ */
+function desktop_mode_sanitize_desktop_theme_recommended_os_settings( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+	$schema = desktop_mode_desktop_theme_recommended_os_settings_schema();
+	$out    = array();
+	foreach ( $schema as $key => $rule ) {
+		if ( ! isset( $raw[ $key ] ) || ! is_string( $raw[ $key ] ) ) {
+			continue;
+		}
+		$value = trim( $raw[ $key ] );
+		if ( '' === $value ) {
+			continue;
+		}
+		if ( isset( $rule['enum'] ) ) {
+			if ( in_array( $value, $rule['enum'], true ) ) {
+				$out[ $key ] = $value;
+			}
+			continue;
+		}
+		// Registry id — charset only. The shell resolves it against the
+		// live registry and skips the key when nothing answers to it.
+		$slug = sanitize_key( $value );
+		if ( '' !== $slug ) {
+			$out[ $key ] = $slug;
+		}
+	}
+	return $out;
+}
+
+/**
  * Sanitize a whole `theme.json` manifest.
  *
  * @param mixed    $raw            Decoded manifest.
@@ -898,11 +958,21 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	}
 
 	// --- Fatal fields. ---
+	//
+	// Two versions are current. `2` says nothing about the shape of
+	// the fields below — it exists so an author can DECLARE that
+	// their manifest carries `recommendedOsSettings`, and so a future
+	// reader can tell a deliberate omission from an old file. A `1`
+	// manifest that ships the block still has it honoured: dropping a
+	// valid, individually-sanitized field over a version number would
+	// contradict the drop-and-continue contract everything else here
+	// follows.
 	$version_field = isset( $raw['manifestVersion'] ) ? $raw['manifestVersion'] : null;
-	if ( 1 !== (int) $version_field || ! is_numeric( $version_field ) ) {
+	$version       = is_numeric( $version_field ) ? (int) $version_field : 0;
+	if ( ! in_array( $version, array( 1, 2 ), true ) ) {
 		return new WP_Error(
 			'desktop_mode_desktop_theme_bad_version',
-			__( 'Unsupported theme manifest version. Expected "manifestVersion": 1.', 'desktop-mode' ),
+			__( 'Unsupported theme manifest version. Expected "manifestVersion": 1 or 2.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
@@ -952,44 +1022,49 @@ function desktop_mode_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	}
 
 	$manifest = array(
-		'manifestVersion' => 1,
-		'id'              => $id,
-		'slug'            => $slug,
-		'name'            => mb_substr( $name, 0, 120 ),
-		'version'         => isset( $raw['version'] ) && is_string( $raw['version'] )
+		'manifestVersion'       => $version,
+		'id'                    => $id,
+		'slug'                  => $slug,
+		'name'                  => mb_substr( $name, 0, 120 ),
+		'version'               => isset( $raw['version'] ) && is_string( $raw['version'] )
 			? mb_substr( sanitize_text_field( $raw['version'] ), 0, 32 )
 			: '',
-		'author'          => isset( $raw['author'] ) && is_string( $raw['author'] )
+		'author'                => isset( $raw['author'] ) && is_string( $raw['author'] )
 			? mb_substr( sanitize_text_field( $raw['author'] ), 0, 120 )
 			: '',
-		'description'     => isset( $raw['description'] ) && is_string( $raw['description'] )
+		'description'           => isset( $raw['description'] ) && is_string( $raw['description'] )
 			? mb_substr( sanitize_textarea_field( $raw['description'] ), 0, 500 )
 			: '',
-		'preview'         => $preview,
-		'tokens'          => desktop_mode_sanitize_desktop_theme_tokens(
+		'preview'               => $preview,
+		'tokens'                => desktop_mode_sanitize_desktop_theme_tokens(
 			isset( $raw['tokens'] ) ? $raw['tokens'] : null
 		),
-		'iconColor'       => $icon_color,
-		'icons'           => desktop_mode_sanitize_desktop_theme_icons(
+		'iconColor'             => $icon_color,
+		'icons'                 => desktop_mode_sanitize_desktop_theme_icons(
 			isset( $raw['icons'] ) ? $raw['icons'] : null,
 			$asset_resolver,
 			$icon_color
 		),
-		'textures'        => desktop_mode_sanitize_desktop_theme_textures(
+		'textures'              => desktop_mode_sanitize_desktop_theme_textures(
 			isset( $raw['textures'] ) ? $raw['textures'] : null,
 			$asset_resolver
 		),
-		'fonts'           => desktop_mode_sanitize_desktop_theme_fonts(
+		'fonts'                 => desktop_mode_sanitize_desktop_theme_fonts(
 			isset( $raw['fonts'] ) ? $raw['fonts'] : null,
 			$asset_resolver
 		),
 		// `wallpaper` and `wallpapers` are both accepted — authors
 		// guess either — and merge into one list.
-		'wallpapers'      => desktop_mode_sanitize_desktop_theme_wallpapers(
+		'wallpapers'            => desktop_mode_sanitize_desktop_theme_wallpapers(
 			isset( $raw['wallpapers'] ) ? $raw['wallpapers'] : (
 				isset( $raw['wallpaper'] ) ? $raw['wallpaper'] : null
 			),
 			$asset_resolver
+		),
+		// Presentation preferences the theme would like the user to
+		// wear. Applied once, on first activation — never on load.
+		'recommendedOsSettings' => desktop_mode_sanitize_desktop_theme_recommended_os_settings(
+			isset( $raw['recommendedOsSettings'] ) ? $raw['recommendedOsSettings'] : null
 		),
 	);
 

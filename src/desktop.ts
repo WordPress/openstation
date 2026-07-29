@@ -42,6 +42,13 @@ import { deriveWindowId, urlMatchKey } from './utils';
 // returned `null`, the fallback to `cfg.currentUserId` kicked in, and
 // the form mounted for the viewer instead of the clicked user.
 import { setUserEditTarget as setUserEditTargetSync } from './posts-window/user-edit-target';
+// Same synchronous-before-open rationale as the user-edit target above:
+// the comments remap stashes the `?p=<id>` post filter here so the
+// conversation renderer scopes its rail on first paint.
+import {
+	setCommentsPostFilter,
+	clearCommentsPostFilter,
+} from './comments-window/post-filter';
 import {
 	HOOKS,
 	addAction,
@@ -57,6 +64,7 @@ import { createDesktopThemeSync } from './desktop-themes/server-sync';
 import type {
 	DesktopThemeEntry,
 	DesktopThemeState,
+	RecommendedOsSettings,
 } from './desktop-themes/types';
 import { DESKTOP_THEME_CHANGED_EVENT } from './desktop-themes/apply';
 import { bootGamesChallenges } from './games/challenges-client';
@@ -1204,6 +1212,23 @@ export interface WpDesktopPublicApi {
 		 * `currentColor` defers to the surface it lands on.
 		 */
 		resolveIconColor: ( slot: string ) => string | null;
+		/**
+		 * Apply a theme's recommended OS settings (dock size, desktop
+		 * layout, window radius, dock rail renderer) and persist them.
+		 *
+		 * The shell already does this once, the first time a user
+		 * activates a theme that ships recommendations. Calling this
+		 * is the "restore the author's intended presentation" action —
+		 * it re-applies even for a theme the user has already worn,
+		 * which is the only way a second application ever happens.
+		 *
+		 * Defaults to the active theme when `themeId` is omitted.
+		 * Returns the keys actually written; `{}` when the theme is
+		 * unknown or recommends nothing this shell can apply.
+		 */
+		applyRecommendedOsSettings: (
+			themeId?: string,
+		) => RecommendedOsSettings;
 	};
 	/**
 	 * Register (or replace) a window control. Built-in controls
@@ -1828,6 +1853,7 @@ function init(): void {
 			aiSearchUrl: config.aiSearchUrl ?? '',
 			aiSearchStreamUrl: config.aiSearchStreamUrl ?? '',
 			restNonce: config.restNonce,
+			adminUrl: config.adminUrl,
 			// Progress streaming is on by default now that the per-user
 			// transport picker is gone; the assistant falls back gracefully
 			// if the host drops the SSE connection.
@@ -2249,6 +2275,17 @@ function init(): void {
 		matches: ( _url, parsed ) =>
 			parsed.pathname.endsWith( '/edit-comments.php' ),
 		enabled: ( snapshot ) => snapshot.nativeCommentsEnabled === true,
+		onMatch: ( _url, parsed ) => {
+			// `edit-comments.php?p=<id>` scopes the list to one post
+			// (WP's own "comments on this post" link). Thread it through
+			// so the native window opens filtered; a plain open clears it.
+			const postId = parseInt( parsed.searchParams.get( 'p' ) ?? '0', 10 );
+			if ( postId > 0 ) {
+				setCommentsPostFilter( postId );
+			} else {
+				clearCommentsPostFilter();
+			}
+		},
 	} );
 
 	// Native Plugins window — claims `plugins.php` (Installed list)
@@ -2568,8 +2605,40 @@ function init(): void {
 	// only handshakes with one instance per id). The comment on
 	// case 2 already says "the page they asked for opens on top of
 	// the restored stack" — sequencing this is what makes that true.
+	/**
+	 * Reopen a native window by id — the single dispatcher for
+	 * "something asked for native window X".
+	 *
+	 * Two opener paths because the shell registers its built-in native
+	 * windows (OS Settings, Bug Report) directly against the manager
+	 * via local closures, NOT through `nativeWindows.openById` — that
+	 * registry only carries server-payload entries
+	 * (plugin-registered native windows). Built-ins match by id
+	 * first; everything else falls through to the registry.
+	 *
+	 * Returns `false` when no opener recognises the id: the window
+	 * belonged to a plugin that has since been deactivated. Callers
+	 * treat that as "nothing to open", not as an error.
+	 */
+	function openNativeWindowById( nativeId: string ): boolean {
+		if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
+			openOsSettings();
+			return true;
+		}
+		if ( nativeId === BUG_REPORT_WINDOW_ID ) {
+			openBugReport();
+			return true;
+		}
+		return nativeWindows.openById( nativeId );
+	}
+
 	const sessionRestore = hasSession
-		? restoreSession( manager, config, desktopArea ).catch( ( err ) => {
+		? restoreSession(
+			manager,
+			config,
+			desktopArea,
+			openNativeWindowById,
+		).catch( ( err ) => {
 			if ( typeof console !== 'undefined' ) {
 				console.error( '[desktop-mode] session restore failed:', err );
 			}
@@ -2673,12 +2742,9 @@ function init(): void {
 	// above. Open the user's choice here, after the manager + native
 	// registry are wired.
 	//
-	// Two opener paths because the shell registers built-in native
-	// windows (OS Settings) directly against the manager via local
-	// closures, NOT through `nativeWindows.openById` — that registry
-	// only carries server-payload entries (plugin-registered native
-	// windows). Built-ins are matched by id first; everything else
-	// falls through to the registry.
+	// Dispatch goes through `openNativeWindowById` above, which knows
+	// about both opener paths (shell built-ins vs. the server-payload
+	// registry).
 	if (
 		config.defaultWindow?.enabled &&
 		config.fromPortal &&
@@ -2691,11 +2757,7 @@ function init(): void {
 		// finished mounting — both built-in openers and the
 		// registry assume the layout pass is complete.
 		queueMicrotask( () => {
-			if ( nativeId === OS_SETTINGS_WINDOW_ID ) {
-				openOsSettings();
-				return;
-			}
-			void nativeWindows.openById( nativeId );
+			openNativeWindowById( nativeId );
 		} );
 	}
 
@@ -2867,16 +2929,25 @@ function init(): void {
 	// window whose content identity carries navigation targets
 	// (comments, terms, media for posts/pages; plugins add their own
 	// via the `desktop_mode_window_related_entities` PHP filter or the
-	// `desktop-mode.related-entities.items` JS filter). Picking an
-	// item opens it as its own window. Deliberately does NOT consult
-	// `tryNativeUrlRemap()`: the menu's whole point is filtered deep
-	// links (`edit-comments.php?p={id}`), and a native window opened
-	// by id drops the query — "Comments (4)" landing on the ALL-
-	// comments native window reads as a broken click. Revisit when
-	// native windows accept deep-link hints.
+	// `desktop-mode.related-entities.items` JS filter). Picking an item
+	// opens it as its own window, consulting `tryNativeUrlRemap()` first
+	// so a native window claims it when the viewer opted in. Deep links
+	// like `edit-comments.php?p={id}` used to be a reason to skip the
+	// remap (the query was dropped); remaps now thread the filter via
+	// their `onMatch` (Comments reads `?p=` there), so "Comments (4)"
+	// lands on the native window scoped to that post.
 	bootRelatedEntities( {
 		manager,
 		openUrl: ( item ) => {
+			// Honour native-window remaps first — same as the shell's
+			// link interceptor. When the viewer has opted into a native
+			// window that claims this URL (e.g. Comments for
+			// `edit-comments.php?p=<id>`), open that instead of a
+			// chromeless iframe of the classic admin page; the remap's
+			// onMatch also threads any per-post filter through.
+			if ( tryNativeUrlRemap( item.url ) ) {
+				return;
+			}
 			const relatedId = deriveWindowId( item.url, config.adminUrl );
 			void manager.open( {
 				id: relatedId,

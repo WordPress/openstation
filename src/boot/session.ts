@@ -16,7 +16,8 @@ import { tryNativeUrlRemap } from '../native-url-remap';
 import { deriveWindowId } from '../utils';
 import { clampGeometryToViewport, findDockEntryForUrl } from './geometry';
 import type { WindowManager } from '../window-manager';
-import type { DesktopConfig, Session } from '../types';
+import type { Window } from '../window';
+import type { DesktopConfig, Session, WindowConfig } from '../types';
 
 /**
  * Whether the saved payload carries meaningful shell state to restore.
@@ -55,6 +56,61 @@ export function hasRestorableSession(
 }
 
 /**
+ * Reopen a native window by id. Supplied by `desktop.ts`, which owns
+ * the dispatch: shell built-ins (OS Settings, Bug Report) have their
+ * own openers, everything else routes to
+ * `nativeWindows.openById( id )`.
+ *
+ * Returns `false` when nothing answers to that id — a plugin
+ * deactivated since the session was saved. The restore skips those
+ * silently; a missing plugin isn't an error worth surfacing at boot.
+ */
+export type OpenNativeWindow = ( id: string ) => boolean;
+
+/**
+ * Wait for a window to appear in the manager, for openers that don't
+ * hand back the `Window` they create.
+ *
+ * The native openers are fire-and-forget (`void manager.open( … )`),
+ * so restore has no promise to await between windows. Without a
+ * barrier the opens race: stacking order scrambles, and the
+ * focused-window restore at the end can run before its target
+ * exists. Listening for the lifecycle event the manager already
+ * dispatches keeps the sequence deterministic without changing every
+ * opener's signature.
+ *
+ * Resolves `null` on timeout rather than rejecting — one window that
+ * never materialises must not abort the rest of the restore.
+ */
+function waitForWindow(
+	manager: WindowManager,
+	id: string,
+	timeoutMs = 5000,
+): Promise< Window | null > {
+	const existing = manager.getById( id );
+	if ( existing ) {
+		return Promise.resolve( existing );
+	}
+	return new Promise( ( resolve ) => {
+		const done = ( win: Window | null ): void => {
+			window.clearTimeout( timer );
+			document.removeEventListener( 'desktop-mode-window-opened', onOpened );
+			resolve( win );
+		};
+		const onOpened = ( e: Event ): void => {
+			const detail = ( e as CustomEvent ).detail as
+				| { windowId?: string }
+				| undefined;
+			if ( detail?.windowId === id ) {
+				done( manager.getById( id ) ?? null );
+			}
+		};
+		const timer = window.setTimeout( () => done( null ), timeoutMs );
+		document.addEventListener( 'desktop-mode-window-opened', onOpened );
+	} );
+}
+
+/**
  * Restores windows from a saved session into the manager.
  *
  * Each window's geometry is clamped to fit the current desktop
@@ -62,11 +118,21 @@ export function hasRestorableSession(
  * display lands sanely on a laptop. Stacking order follows the
  * session order (earliest-opened first, focused id brought to the
  * top at the end).
+ *
+ * Two kinds of window come back by two different routes. Plain admin
+ * windows are reconstructed from their saved URL. Native windows
+ * (`native: true` — OS Settings, Bug Report, anything registered via
+ * `desktop_mode_register_window()`) have no URL to iframe: they're
+ * reopened by asking their owner through `openNative`, with the saved
+ * geometry / desktop / state staged via
+ * `manager.seedWindowRestoreState()` so the opener's own config
+ * doesn't flatten them back to defaults.
  */
 export async function restoreSession(
 	manager: WindowManager,
 	config: DesktopConfig,
 	desktopArea: HTMLElement,
+	openNative?: OpenNativeWindow,
 ): Promise< void > {
 	const rect = desktopArea.getBoundingClientRect();
 
@@ -86,11 +152,61 @@ export async function restoreSession(
 		);
 	}
 
+	// Stage every native window's saved geometry / desktop / state
+	// before triggering any open. The openers build their own
+	// `manager.open()` config from the registry and have no argument
+	// to carry restore-time values, so the manager merges these in by
+	// id as each window is constructed.
+	const nativeSeeds: Record< string, Partial< WindowConfig > > = {};
 	for ( const win of config.session.windows ) {
+		if ( ! win.native ) {
+			continue;
+		}
+		const clamped = clampGeometryToViewport( win, rect );
+		nativeSeeds[ win.id ] = {
+			desktopId: win.desktopId,
+			initialState: win.state,
+			x: clamped.x,
+			y: clamped.y,
+			width: clamped.width,
+			height: clamped.height,
+		};
+	}
+	if ( Object.keys( nativeSeeds ).length > 0 ) {
+		manager.seedWindowRestoreState( nativeSeeds );
+	}
+
+	for ( const win of config.session.windows ) {
+		// Native windows come back through their owner, not through a
+		// URL. `openNative` returns false when nothing answers to the
+		// id — a plugin deactivated since the session was saved — in
+		// which case there's simply no window to restore.
+		if ( win.native ) {
+			if ( ! openNative?.( win.id ) ) {
+				continue;
+			}
+			// Barrier: the openers are fire-and-forget, so without this
+			// the remaining windows race them and the stacking order
+			// the session captured is lost.
+			await waitForWindow( manager, win.id );
+			continue;
+		}
+
 		const clamped = clampGeometryToViewport( win, rect );
 		const dockEntry = findDockEntryForUrl( win.url, config );
 
-		const opened = await manager.open( {
+		// `openNew`, not `open`. Restore means "recreate exactly this
+		// set of windows", and `open()` is the wrong verb for that: it
+		// matches on baseId, so a session holding two instances of one
+		// page (`edit-php` + `edit-php-2`, both baseId `edit-php`)
+		// collapsed on reload — the second call found the first
+		// instance, focused it, and returned it, so only one window
+		// came back. Worse, when the two had been navigated apart the
+		// URL-reuse check then dragged the survivor to the SECOND
+		// window's URL, losing the first page as well. `openNew`
+		// always constructs, and honours the saved instance id
+		// verbatim (see the note on `WindowManager.openNew`).
+		const opened = await manager.openNew( {
 			id: win.id,
 			baseId: win.baseId || win.id,
 			desktopId: win.desktopId,

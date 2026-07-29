@@ -21,6 +21,7 @@ to the window control glyphs. It ships as a ZIP containing a
 - [Tokens](#tokens)
 - [Fonts](#fonts)
 - [Wallpapers](#wallpapers)
+- [Recommended OS settings](#recommended-os-settings)
 - [Icons](#icons)
 - [Textures](#textures)
 - [Texturing your own surface](#texturing-your-own-surface)
@@ -116,7 +117,7 @@ their next page load.
 
 ```json
 {
-  "manifestVersion": 1,
+  "manifestVersion": 2,
   "id": "acme/neon-glass",
   "name": "Neon Glass",
   "version": "1.0.0",
@@ -125,7 +126,6 @@ their next page load.
   "preview": "preview.png",
 
   "tokens": {
-    "--desktop-mode-window-radius": "14px",
     "--desktop-mode-titlebar-bg-focused": "#1a1a2e",
     "--desktop-mode-font": "\"Neon Grotesk\", system-ui, sans-serif"
   },
@@ -150,6 +150,11 @@ their next page load.
                       "slice": "24 fill", "width": "12px", "repeat": "round" },
     "DESKTOP":      { "type": "image", "path": "textures/desktop.jpg",
                       "size": "cover", "repeat": "no-repeat" }
+  },
+
+  "recommendedOsSettings": {
+    "dockSize":      "large",
+    "desktopLayout": "unified"
   }
 }
 ```
@@ -160,13 +165,23 @@ Get these wrong and the upload is rejected with a specific message:
 
 | Field | Rule |
 |---|---|
-| `manifestVersion` | Must be exactly `1`. |
+| `manifestVersion` | `1` or `2`. |
 | `id` | `^[a-z0-9_-]+(/[a-z0-9_-]+)?$`, max 64 chars. Namespacing (`vendor/name`) is encouraged. |
 | `name` | Non-empty. |
 
 The storage **slug** is the `id` with `/` flattened to `-`
 (`acme/neon-glass` → `acme-neon-glass`). It is what appears in the
 compiled selector and the body class.
+
+**On `manifestVersion`.** `2` says nothing about the shape of anything
+else on this page — it exists so you can declare that your manifest
+carries [`recommendedOsSettings`](#recommended-os-settings), and so a
+reader can tell a deliberate omission from an older file. Every v1
+manifest keeps working untouched, and a v1 manifest that ships the
+block anyway still has it honoured: dropping a valid, sanitized field
+over a version number would contradict the drop-and-continue rule the
+rest of the sanitizer follows. Write `2` when you recommend settings,
+leave `1` alone otherwise.
 
 ### Everything else
 
@@ -180,6 +195,7 @@ Optional, and **individually droppable** — see
 | `preview` | Path to an image shown on the theme card in OS Settings. |
 | `iconColor` | Default fill for every icon — see [Icon colour](#icon-colour). |
 | `wallpaper` / `wallpapers` | One or more pickable wallpapers — see [Wallpapers](#wallpapers). |
+| `recommendedOsSettings` | Layout preferences to seed on first activation — see [Recommended OS settings](#recommended-os-settings). |
 | `tokens`, `fonts`, `icons`, `textures` | See below. |
 
 ---
@@ -201,7 +217,7 @@ shell didn't mean to expose.
 This is the one that matters most, and the one theme authors most
 often miss: **`--desktop-mode-*` alone restyles the frame around a
 window and nothing inside it.** Window bodies — the Settings panel,
-the Posts table, the Recycle Bin, file tiles, every dialog — read the
+the Posts table, the Trash, file tiles, every dialog — read the
 `--wpd-*` palette. A theme that sets only the shell tokens produces a
 dark frame around a white page.
 
@@ -245,6 +261,13 @@ them as `var( --wpd-x, <its own literal> )`, which is why an unthemed
 shell looks exactly as it always did and why one theme value retints
 a whole family at once.
 
+The palette is not limited to window bodies: the shell's own
+body-mounted overlays — toasts, confirm dialogs, context menus, and
+the **command palette / Site Assistant** (⌘K) — read it too, because
+they render inside the `body.desktop-mode-desktop-theme-<slug>` half
+of the compiled selector. Set `--wpd-surface` and the `--wpd-fg`
+family and the palette panel follows without any extra work.
+
 A dark theme's minimum viable body palette:
 
 ```json
@@ -267,11 +290,20 @@ A dark theme's minimum viable body palette:
 `--desktop-mode-*` names must match `^--desktop-mode-[a-z0-9-]+$`.
 Read `assets/css/variables.css` for the full set.
 
+> **`--desktop-mode-window-radius` is not one of them in practice.**
+> The Window-corners preset in OS Settings writes that property as an
+> inline style on the shell root, which outranks any stylesheet rule,
+> so a theme declaring it in `tokens` has no effect on windows. The
+> user's corner preference stays the user's. If your frame artwork
+> needs a particular radius, ask for it through
+> [`recommendedOsSettings.windowRadius`](#recommended-os-settings) —
+> that sets their preference once, on first activation, and leaves it
+> theirs to change.
+
 ```json
 "tokens": {
   "--desktop-mode-window-bg": "#12122a",
   "--desktop-mode-window-border": "#2b2b52",
-  "--desktop-mode-window-radius": "14px",
   "--desktop-mode-titlebar-bg": "#171733",
   "--desktop-mode-titlebar-bg-focused": "#241f4d",
   "--desktop-mode-titlebar-color": "#a8a8c0",
@@ -279,6 +311,42 @@ Read `assets/css/variables.css` for the full set.
   "--wp-admin-theme-color": "#7c5cff"
 }
 ```
+
+#### Tooltips
+
+Two shell tokens own every tooltip in the shell — the dock tile
+tooltip, the content-graph satellite tooltip, and the My WordPress
+entity hover card:
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-tooltip-bg` | The tooltip chip / card surface |
+| `--desktop-mode-tooltip-fg` | Its primary text |
+
+```json
+"tokens": {
+  "--desktop-mode-tooltip-bg": "#1e1c44",
+  "--desktop-mode-tooltip-fg": "#e9e7ff"
+}
+```
+
+They are worth setting explicitly. Without them, tooltips fall back
+to colours borrowed from other families — `--wpd-scrim` or
+`--wpd-surface-elevated` for the surface, `--wpd-fg-on-accent` for the
+text — and those pairings come apart under a custom palette. Set
+`--wpd-scrim` to a translucent wash for your modals and the dock
+tooltip goes translucent with it; keep a light `--wpd-surface-elevated`
+next to a white `--wpd-fg-on-accent` and the satellite tooltip renders
+white text on a white chip. Neither was fixable from the palette alone,
+because fixing it would have broken the modal backdrop or the text on
+accent-filled buttons.
+
+Both tokens are **undeclared by default**, so a theme that ignores
+them keeps the tooltip look the shell has always had.
+
+Secondary text inside the richer tooltips — the hover card's excerpt —
+still follows `--wpd-fg-muted`; these two cover the surface and the
+primary text on it.
 
 ### A note on WordPress core's CSS
 
@@ -299,6 +367,13 @@ exception: core styles those with attribute selectors that carry real
 specificity, and native windows use the `<wpd-*>` components instead.
 If you build a native window with raw form controls, style them
 yourself.
+
+The framework's own raw controls are already handled — window bodies
+get a tokenized override in `assets/css/window-chrome.css`, and the
+command palette's search field gets one in
+`assets/css/ai-assistant.css`. Both out-specify core's
+`input[type="…"]` rules and fall back to core's values, so nothing
+changes without a theme.
 
 ### Typography tokens
 
@@ -492,6 +567,83 @@ expect either to change.
 
 ---
 
+## Recommended OS settings
+
+Some themes are designed against an arrangement, not just a palette: a
+wide dock because the tiles carry artwork, a unified bottom bar
+because the desktop is meant to read as one surface, square corners
+because the frame texture has its own. `recommendedOsSettings` lets
+that intent travel with the theme instead of living in a setup guide.
+
+```json
+"recommendedOsSettings": {
+  "dockSize":         "large",
+  "desktopLayout":    "unified",
+  "windowRadius":     "default",
+  "dockRailRenderer": "default"
+}
+```
+
+### They are recommendations, and "once" is the whole contract
+
+**A theme arranges the desktop once — the first time that user
+activates it — and never again.**
+
+- Applied on **activation**, never on page load. There is no pass that
+  re-asserts a theme's preferences behind the user's back.
+- Applied **once per user, per theme**. The shell records the theme in
+  the user's `appliedThemeRecommendations` ledger; a second activation
+  of a theme they have already worn changes nothing.
+- **A later change by the user always wins.** Pick the theme, put the
+  dock back to compact, re-pick the theme — it stays compact.
+
+The way back is the user's to take: **OS Settings → Themes** shows an
+**Apply &lt;theme&gt;'s recommended layout** button for the active
+theme when it recommends something, and that is the only path that
+applies a recommendation a second time. It sets the settings and
+nothing else — the dock resizing under the cursor is the feedback.
+
+This is the same posture as [wallpapers](#it-is-a-pick-not-an-act),
+for the same reason. Dock size and layout are stored user
+preferences, and a theme that could silently overwrite them on every
+load would be taking something the user chose.
+
+### Fields
+
+Every field is optional. A field you don't name is not touched, and
+one you name with a value outside its set is dropped while the rest
+still apply.
+
+| Field | Values |
+|---|---|
+| `dockSize` | `compact`, `default`, `large` |
+| `desktopLayout` | `classic`, `unified`, `spatial` |
+| `windowRadius` | `sharp`, `default`, `round` |
+| `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
+
+`dockRailRenderer` is the one field validated in two places: PHP
+checks the charset, and the shell checks — at apply time — that
+something is actually registered under that id. Recommend a renderer
+a site doesn't have and the key is skipped; the rest of your
+recommendations still apply.
+
+Nothing else is reachable. The allow-list is presentation only, so a
+manifest cannot flip a feature toggle, a capability-adjacent
+preference, or another theme's activation. A site can widen the list
+through `desktop_mode_desktop_theme_recommended_os_settings_schema`,
+and even then the shell only writes a key that already exists and
+already holds a string.
+
+### What a user actually sees
+
+They pick your theme and the dock and layout move into the
+arrangement you designed. That movement is the whole feedback — the
+shell does not editorialize about it — and it does not happen again
+for that theme. Anything they change afterwards in Appearance is
+theirs and stays.
+
+---
+
 ## Icons
 
 A map of **slot** => icon descriptor. Two descriptor shapes:
@@ -642,8 +794,8 @@ of that component anywhere in the OS.
 | Slot | Type | Paints on |
 |---|---|---|
 | `MENU` | `image` | `<wpd-menu>` and `<wpd-context-menu>` panels |
-| `DIALOG` | `image` | `<wpd-modal>` and `<wpd-confirm-dialog>` surfaces |
-| `SCRIM` | `image` | The backdrop behind a modal |
+| `DIALOG` | `image` | `<wpd-modal>` and `<wpd-confirm-dialog>` surfaces, and the command-palette / Site Assistant panel |
+| `SCRIM` | `image` | The backdrop behind a modal, and behind the command palette |
 | `PANEL` | `image` | `<wpd-card>`, `<wpd-panel>`, `<wpd-flyout>` |
 | `TOAST` | `image` | `<wpd-toast>` notifications |
 | `TABLE_HEADER` | `image` | `<wpd-table>` header cells, sticky included |
@@ -936,6 +1088,12 @@ fresh page load PHP stamps the attribute, prints the body class, and
 enqueues the stylesheet before the shell script runs, so there is no
 flash of the default palette.
 
+If the theme ships
+[`recommendedOsSettings`](#recommended-os-settings), the user's first
+activation of it also seeds those preferences — once — and the tab
+grows an **Apply &lt;theme&gt;'s recommended layout** button for going
+back to them later.
+
 ### From JavaScript
 
 ```js
@@ -943,11 +1101,15 @@ wp.desktop.desktopThemes.list();        // the library
 wp.desktop.desktopThemes.getActive();   // slug, or null
 wp.desktop.desktopThemes.resolveIcon( 'WINDOW_CONTROL_CLOSE' );
 
-// Presentation only — does NOT persist:
+// Presentation only — does NOT persist. For a preview you'll revert:
 wp.desktop.desktopThemes.setActive( 'acme-neon-glass' );
 
-// Persist the user's choice:
+// Change it for real — persists AND applies:
 wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
+
+// What the theme recommends, and re-applying it (persists):
+wp.desktop.desktopThemes.list()[ 0 ].recommendedOsSettings;
+wp.desktop.desktopThemes.applyRecommendedOsSettings();
 ```
 
 See [JavaScript reference](./javascript-reference.md#desktop-themes-experimental)
@@ -968,7 +1130,6 @@ add_action( 'init', function () {
         'version'  => '1.0.0',
         'preview'  => plugins_url( 'theme/preview.png', __FILE__ ),
         'tokens'   => array(
-            '--desktop-mode-window-radius'       => '14px',
             '--desktop-mode-titlebar-bg-focused' => '#241f4d',
             '--desktop-mode-font'                => '"Neon Grotesk", sans-serif',
         ),
@@ -992,6 +1153,10 @@ add_action( 'init', function () {
                 'path'   => plugins_url( 'theme/titlebar.png', __FILE__ ),
                 'repeat' => 'repeat-x',
             ),
+        ),
+        'recommendedOsSettings' => array(
+            'dockSize'      => 'large',
+            'desktopLayout' => 'unified',
         ),
     ) );
 } );
@@ -1019,6 +1184,10 @@ for a complete plugin.
 - **Layout.** A theme changes how things look, not where they are. No
   spacing scale, no dock geometry, no window metrics beyond the radius
   and title-bar height the tokens already expose.
+  [`recommendedOsSettings`](#recommended-os-settings) is not an
+  exception to this: it seeds the user's own layout preferences once,
+  as a suggestion they own from that moment on, rather than giving the
+  theme any say in how the shell is arranged.
 - **Author CSS and JS.** Still never, and this is the line that makes
   everything else safe. `@font-face` is generated *for* you from a
   constrained descriptor; it is not an opening.

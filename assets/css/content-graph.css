@@ -1010,8 +1010,14 @@
 	gap: 2px;
 	max-width: 240px;
 	padding: 6px 10px;
-	background: var( --wpd-surface-elevated, #1a1f2b );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var(
+		--desktop-mode-tooltip-bg,
+		var( --wpd-surface-elevated, #1a1f2b )
+	);
+	color: var(
+		--desktop-mode-tooltip-fg,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	border-radius: 6px;
 	box-shadow: 0 4px 14px rgba( 17, 24, 39, 0.18 );
 	font-size: 12px;

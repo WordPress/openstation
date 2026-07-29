@@ -105,6 +105,22 @@ export interface OsSettingsState {
 	 */
 	desktopTheme: string;
 	/**
+	 * Slugs of the desktop themes whose `recommendedOsSettings` have
+	 * already been seeded into this user's settings.
+	 *
+	 * A theme's recommendations are applied ONCE — the first time this
+	 * user activates it — and this list is the record of that. It is
+	 * what makes "a theme never overwrites a choice you made later"
+	 * true: re-picking a theme you have worn before changes nothing.
+	 * The Themes tab's "Apply recommended layout" action is the
+	 * deliberate way back to the author's intended presentation.
+	 *
+	 * Slugs of themes that are no longer installed are kept: a theme
+	 * deleted and reinstalled must not re-seed over settings the user
+	 * has since chosen. Capped at 64.
+	 */
+	appliedThemeRecommendations: string[];
+	/**
 	 * Active unfocused-window effect id. Resolves through the
 	 * unfocus-effect registry; `'none'` means no effect, an unknown id
 	 * is treated as `'none'` by the engine until/if a matching effect

@@ -1,5 +1,5 @@
 /**
- * My WordPress — Agents: type contracts.
+ * Site folder — Agents: type contracts.
  *
  * Mirrors the REST shapes served by `includes/agents/rest.php`.
  *
@@ -77,7 +77,7 @@ export interface AgentInvokeResult {
 }
 
 /**
- * Agents block injected into the My WordPress window config by
+ * Agents block injected into the site folder window config by
  * `desktop_mode_agents_my_wordpress_window_args()`.
  */
 export interface AgentsSectionConfig {

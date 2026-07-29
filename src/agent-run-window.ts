@@ -150,7 +150,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			empty.setAttribute(
 				'description',
 				__(
-					'Open an agent from My WordPress → Agents and press Chat.',
+					'Open an agent from the Agents section of the site folder and press Chat.',
 					'desktop-mode',
 				),
 			);

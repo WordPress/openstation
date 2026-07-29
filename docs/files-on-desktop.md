@@ -14,7 +14,7 @@ This is an evolving feature. Phase 0 (this document's current scope) establishes
 | 4 | Wallpaper context menu (replaces "minimize all" click) *(landed)* |
 | 5 | OS Settings → File Associations tab *(landed)* |
 | 6 | Folder sharing (private / users / roles / all) + Heartbeat sync *(landed)* |
-| 7 | Drag from Recycle Bin onto the desktop *(landed as "Pin to desktop"; HTML5 drag UX is a follow-up)* |
+| 7 | Drag from the Trash onto the desktop *(landed as "Pin to desktop"; HTML5 drag UX is a follow-up)* |
 
 Each phase ships independently and is documented as it lands.
 
@@ -372,7 +372,7 @@ Drag is owned end-to-end by the centralized `DragManager`
 own document-level pointermove / pointerup / pointercancel listeners
 and drives the gesture from there. Tiles do NOT call `setPointerCapture`
 — pointer capture is incompatible with HTML5 `dragstart` detection on
-draggable elements (the My WordPress entity-tile drag-out bug).
+draggable elements (the site-folder entity-tile drag-out bug).
 
 Lifecycle:
 
@@ -383,7 +383,7 @@ Lifecycle:
      the cursor; matching drop targets fire `onEnter` / `onLeave`;
      ghost cursor flips between `copy` / `no-drop`.
   4. `pointerup` → re-hit-test; an accepting target fires `onDrop`
-     (the FilesLayer's canvas / a folder tile / the Recycle Bin);
+     (the FilesLayer's canvas / a folder tile / the Trash);
      non-accepting hover ends with `desktop-mode.drag.cancel`
      (`reason: 'rejected'` or `'no-target'`).
 
@@ -408,7 +408,7 @@ BEFORE finding a registered target, it returns null. This is what
 makes "drop over a Gutenberg admin window" produce reject feedback
 instead of silently routing the drop to the wallpaper underneath. A
 window opts INTO accepting drops by registering a target on its own
-body — the Recycle Bin's `[data-desktop-mode-recycle-bin-root]` is
+body — the Trash's `[data-desktop-mode-recycle-bin-root]` is
 the canonical example.
 
 Cancellation: `Escape`, `window.blur`, `document.visibilitychange` to
@@ -474,14 +474,14 @@ doAction( 'desktop-mode.files.tile-rendered', { tile: HTMLElement, placement: Re
 doAction( 'desktop-mode.files.grid-rendered', { folderId: number, count: number } );
 
 // Generic tile surface — fires on every `<wpd-tile>` paint anywhere
-// in the shell (desktop, folders, My WordPress, plugin windows).
+// in the shell (desktop, folders, the site folder, plugin windows).
 applyFilters( 'desktop-mode.tile.class', className: string, spec: TileSpec ): string;
 doAction( 'desktop-mode.tile.rendered', { tile: HTMLElement } );
 ```
 
 `tile-rendered` is the canonical hook for plugin decorations (badges, status dots, drag handles) on the **desktop-files** surface. The layer's fingerprint cache preserves your decoration across no-op repaints; you only need to re-apply on `tile-rendered`.
 
-Use the generic `desktop-mode.tile.*` pair when you want to decorate tiles **everywhere** (My WordPress sections, drill-in usage grids, any future surface using `<wpd-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** (placement-shaped) and **Experimental** (generic).
+Use the generic `desktop-mode.tile.*` pair when you want to decorate tiles **everywhere** (site-folder sections, drill-in usage grids, any future surface using `<wpd-tile>`). The placement-shaped pair stays scoped to desktop files. Both are **Stable** (placement-shaped) and **Experimental** (generic).
 
 ### Public API
 

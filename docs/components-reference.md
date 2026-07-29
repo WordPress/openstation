@@ -78,7 +78,7 @@ Components are **side-effect registered** at import time, per bundle, into the p
 | `<wpd-chip>` | `WpdChip` | `wpd-chip/wpd-chip.ts` | Tag/category chip with tone. |
 | `<wpd-key>` | `WpdKey` | `wpd-key/wpd-key.ts` | Keyboard shortcut display. |
 | `<wpd-code>` | `WpdCode` | `wpd-code/wpd-code.ts` | Inline / block monospace code with copy. |
-| `<wpd-spinner>` | `WpdSpinner` | `wpd-spinner/wpd-spinner.ts` | Loading spinner with preset variants. |
+| `<wpd-spinner>` | `WpdSpinner` | `wpd-spinner/wpd-spinner.ts` | Loading spinner with preset variants; `preset="inline"` is a bare arc for text-adjacent use. |
 | `<wpd-progress-bar>` | `WpdProgressBar` | `wpd-progress-bar/wpd-progress-bar.ts` | Determinate or indeterminate progress. |
 | `<wpd-save-status>` | `WpdSaveStatus` | `wpd-save-status/wpd-save-status.ts` | Title-bar save indicator (idle / saving / saved / failed). |
 | `<wpd-relative-time>` | `WpdRelativeTime` | `wpd-relative-time/wpd-relative-time.ts` | Auto-updating "2 min ago". |
@@ -91,7 +91,7 @@ Components are **side-effect registered** at import time, per bundle, into the p
 | --- | --- | --- | --- |
 | `<wpd-table>` | `WpdTable` | `wpd-table/wpd-table.ts` | Sortable, filterable data table with sub-tables. |
 | `<wpd-log>` | `WpdLog` | `wpd-log/wpd-log.ts` | Virtualized streaming log container. |
-| `<wpd-tile>` | `WpdTile` | `wpd-tile/wpd-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and My WordPress). |
+| `<wpd-tile>` | `WpdTile` | `wpd-tile/wpd-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and the site folder). |
 
 ## Tabs & navigation
 

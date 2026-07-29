@@ -882,7 +882,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	// Wrap the existing trailing text node in a span so we can swap
 	// the label during the empty loop without wiping the leading icon.
-	// The PHP template emits `<wpd-button><span dashicon/> Empty bin</wpd-button>`;
+	// The PHP template emits `<wpd-button><span dashicon/> Empty Trash</wpd-button>`;
 	// the trailing text node is the last child after the icon span.
 	let emptyButtonLabelEl: HTMLSpanElement | null = null;
 	let emptyButtonOriginalLabel = '';
@@ -907,7 +907,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	}
 
 	/**
-	 * Update the Empty bin button to reflect in-progress emptying.
+	 * Update the Empty Trash button to reflect in-progress emptying.
 	 *
 	 * `<wpd-button>` slots its children; we only swap the label span
 	 * (created above) so the leading dashicon and any other slotted
@@ -940,17 +940,17 @@ export function renderRecycleBin( body: HTMLElement ): void {
 	};
 
 	const handleEmpty = async (): Promise< void > => {
-		// The server's empty endpoint purges the ENTIRE bin — it takes
+		// The server's empty endpoint purges the ENTIRE Trash — it takes
 		// no type/search scope (see desktop_mode_recycle_bin_empty()).
 		// The confirm copy must say so; claiming "the current view"
 		// while a filter is active would purge items the user filtered
 		// out of sight.
 		const ok = await wpdConfirmGlobal( {
-			title: __( 'Empty bin?' ),
+			title: __( 'Empty Trash?' ),
 			message: __(
-				'Permanently delete ALL items in the recycle bin? This includes every type and any items hidden by the current filter or search. This cannot be undone.',
+				'Permanently delete ALL items in the Trash? This includes every type and any items hidden by the current filter or search. This cannot be undone.',
 			),
-			confirmLabel: __( 'Empty bin' ),
+			confirmLabel: __( 'Empty Trash' ),
 			danger: true,
 		} );
 		if ( ! ok ) {
@@ -1136,15 +1136,16 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				void refresh();
 			}, 200 ) as unknown as number;
 		};
-		broadcastUnsubs.push(
-			api.subscribe( 'desktop-mode.post.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.page.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.attachment.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.comment.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.placement.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.shortcut.changed', onDomainChanged ),
-			api.subscribe( 'desktop-mode.folder.changed', onDomainChanged ),
-		);
+		const postTypes =
+			window.desktopModeRecycleBinConfig?.postTypes ??
+			( window as { desktopModeConfig?: { recycleBinPostTypes?: string[] } } ).desktopModeConfig
+				?.recycleBinPostTypes ??
+			[ 'post', 'page', 'attachment' ];
+		// Fixed non-post-type entities the Recycle Bin always captures.
+		const fixedExtras = [ 'comment', 'placement', 'shortcut', 'folder' ];
+		for ( const slug of [ ...postTypes, ...fixedExtras ] ) {
+			broadcastUnsubs.push( api.subscribe( `desktop-mode.${ slug }.changed`, onDomainChanged ) );
+		}
 	}
 
 	// Focus is intentionally NOT a refresh trigger. Once the

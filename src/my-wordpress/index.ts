@@ -68,6 +68,7 @@ import {
 	type UserStats,
 	getConfig,
 	getEntity,
+	getSiteName,
 	trashEntity,
 	type RelatedComment,
 	type RelatedMedia,
@@ -419,11 +420,12 @@ function updateBreadcrumbs( state: RenderState ): void {
 	// to the visual lands in one place.
 	const segments: BreadcrumbSegment[] = [];
 	const isRoot = route.kind === 'root';
+	const rootLabel = getSiteName();
 	segments.push(
 		isRoot
-			? { label: __( 'My WordPress', 'desktop-mode' ) }
+			? { label: rootLabel }
 			: {
-				label: __( 'My WordPress', 'desktop-mode' ),
+				label: rootLabel,
 				onClick: () => navigate( state, { kind: 'root' } ),
 			},
 	);
@@ -571,25 +573,60 @@ function renderRoot( state: RenderState ): void {
 	// served via `X-WP-Total`. Failures fall through silently
 	// (the bare label is still useful).
 	cfg.entities.forEach( ( entity ) => {
-		void fetchEntityTotal( entity )
-			.then( ( total ) => {
-				if ( state.route.kind !== 'root' ) {
-					return; // Navigated away — don't paint stale.
-				}
-				const tile = tilesByEntity.get( entity.id );
-				if ( ! tile ) {
-					return;
-				}
-				const label = tile.querySelector< HTMLElement >(
-					'.desktop-mode-file-tile__label',
-				);
-				if ( label ) {
-					label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
-				}
-			} )
-			.catch( () => {
-				// Silent — the unsuffixed label still works.
-			} );
+		let fetchTimer: number | null = null;
+		const updateCount = () => {
+			void fetchEntityTotal( entity )
+				.then( ( total ) => {
+					if ( state.route.kind !== 'root' ) {
+						return; // Navigated away — don't paint stale.
+					}
+					const tile = tilesByEntity.get( entity.id );
+					if ( ! tile ) {
+						return;
+					}
+					const label = tile.querySelector< HTMLElement >(
+						'.desktop-mode-file-tile__label',
+					);
+					if ( label ) {
+						label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
+					}
+				} )
+				.catch( () => {
+					// Silent — the unsuffixed label still works.
+				} );
+		};
+		updateCount();
+
+		// Subscribe to cross-window broadcast change signals so the root
+		// folder counters refresh reactively when items are mutated elsewhere.
+		const topic = getBroadcastTopicForEntity( entity );
+		if ( topic ) {
+			const api = window.wp?.desktop;
+			if ( api && typeof api.subscribe === 'function' ) {
+				const unsub = api.subscribe( topic, ( payload: unknown ) => {
+					const detail = payload as { source?: string } | null;
+					// Skip our own emissions to avoid loop
+					if ( detail?.source === 'my-wordpress' ) {
+						return;
+					}
+					if ( fetchTimer !== null ) {
+						window.clearTimeout( fetchTimer );
+					}
+					fetchTimer = window.setTimeout( () => {
+						fetchTimer = null;
+						if ( state.route.kind === 'root' ) {
+							updateCount();
+						}
+					}, 150 );
+				} );
+				state.teardown.push( unsub );
+				state.teardown.push( () => {
+					if ( fetchTimer !== null ) {
+						window.clearTimeout( fetchTimer );
+					}
+				} );
+			}
+		}
 	} );
 
 	state.body.appendChild( grid );
@@ -3588,12 +3625,32 @@ function closeAnyTileMenu(): void {
 }
 
 /**
+ * Derive the desktop broadcast topic for an entity.
+ *
+ * Reads `entity.post_type` (shipped from PHP for all entities
+ * that support trash/restore, e.g. posts, pages, media). Returns
+ * `null` if the entity has no broadcast channel (e.g. Users).
+ *
+ * @param entity The My WordPress entity configuration.
+ * @return Broadcast topic string, or null if not applicable.
+ */
+function getBroadcastTopicForEntity( entity: MyWordPressEntity ): string | null {
+	if ( entity.post_type ) {
+		return `desktop-mode.${ entity.post_type }.changed`;
+	}
+	return null;
+}
+
+/**
  * Programmatic trash entry-point. Looks up the entity by id from the
  * shell config, calls the REST DELETE, and broadcasts
  * `desktop-mode-my-wordpress-entity-trashed` so every live list view
  * can drop the tile reactively. Does NOT show a confirm dialog — that
  * UX layer belongs to the caller (the right-click `confirmTrash` adds
  * its own; the recycle-bin drag-to-trash doesn't, matching macOS).
+ *
+ * Also broadcasts to the cross-window bus so external subscribers
+ * (like the Recycle Bin) can refresh immediately.
  *
  * Exposed on `wp.desktop.myWordpress.trashEntity(entityId, id)` so
  * cross-bundle drop targets (notably the recycle bin) can trash an
@@ -3611,7 +3668,7 @@ async function trashEntityById(
 		throw new Error(
 			sprintf(
 				// translators: %s is the entity id (e.g. 'posts').
-				__( 'Unknown My WordPress entity: %s', 'desktop-mode' ),
+				__( 'Unknown entity: %s', 'desktop-mode' ),
 				entityId,
 			),
 		);
@@ -3622,6 +3679,17 @@ async function trashEntityById(
 			detail: { entityId, id },
 		} ),
 	);
+
+	// Broadcast the deletion to the cross-window bus so external windows
+	// (like the Recycle Bin and the dock badge) refresh reactively.
+	const topic = getBroadcastTopicForEntity( entity );
+	if ( topic ) {
+		window.wp?.desktop?.broadcast( topic, {
+			source: 'my-wordpress',
+			action: 'trashed',
+			ids: [ id ],
+		} );
+	}
 }
 
 async function confirmTrash(
@@ -6028,6 +6096,54 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 	}
 	pendingRoute = null;
 	navigate( state, initialRoute );
+
+	// Subscribe to cross-window broadcast change signals so the list
+	// refreshes reactively when any post, page, media, or CPT is mutated
+	// elsewhere in the shell (like the Recycle Bin).
+	const api = window.wp?.desktop;
+	if ( api && typeof api.subscribe === 'function' ) {
+		let domainRefreshTimer: number | null = null;
+		const onDomainChanged = ( payload: unknown, meta: { topic: string } ): void => {
+			const detail = payload as { source?: string } | null;
+			// Skip our own emissions to avoid loop
+			if ( detail?.source === 'my-wordpress' ) {
+				return;
+			}
+			// Only refresh if the topic matches the active list's entity topic.
+			const currentRoute = state.route;
+			if ( currentRoute.kind === 'list' ) {
+				const activeEntity = getConfig().entities.find( ( e ) => e.id === currentRoute.entityId );
+				const activeTopic = activeEntity && getBroadcastTopicForEntity( activeEntity );
+				if ( activeTopic && meta.topic === activeTopic ) {
+					if ( domainRefreshTimer !== null ) {
+						window.clearTimeout( domainRefreshTimer );
+					}
+					domainRefreshTimer = window.setTimeout( () => {
+						domainRefreshTimer = null;
+						if ( state.route.kind === 'list' && state.route.entityId === currentRoute.entityId ) {
+							navigate( state, state.route );
+						}
+					}, 150 );
+				}
+			}
+		};
+
+		for ( const entity of getConfig().entities ) {
+			const topic = getBroadcastTopicForEntity( entity );
+			if ( ! topic ) {
+				continue; // Non-post-type entities (e.g. Users) have no broadcast bus.
+			}
+			const unsub = api.subscribe( topic, onDomainChanged );
+			windowTeardowns.push( unsub );
+		}
+
+		windowTeardowns.push( () => {
+			if ( domainRefreshTimer !== null ) {
+				window.clearTimeout( domainRefreshTimer );
+				domainRefreshTimer = null;
+			}
+		} );
+	}
 
 	// Return a teardown the framework invokes when THIS specific
 	// window closes. The framework wires it to the per-window

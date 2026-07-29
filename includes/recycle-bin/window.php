@@ -79,7 +79,7 @@ function desktop_mode_recycle_bin_render_template() {
 				</wpd-button>
 				<wpd-button variant="danger" data-desktop-mode-recycle-bin-empty>
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
-					<?php esc_html_e( 'Empty bin', 'desktop-mode' ); ?>
+					<?php esc_html_e( 'Empty Trash', 'desktop-mode' ); ?>
 				</wpd-button>
 			</div>
 		</header>
@@ -94,7 +94,7 @@ function desktop_mode_recycle_bin_render_template() {
 			>
 				<div slot="empty" class="desktop-mode-recycle-bin__empty">
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
-					<p><?php esc_html_e( 'The recycle bin is empty.', 'desktop-mode' ); ?></p>
+					<p><?php esc_html_e( 'The Trash is empty.', 'desktop-mode' ); ?></p>
 					<p class="desktop-mode-recycle-bin__empty-hint">
 						<?php esc_html_e( 'Deleted posts, pages, and media show up here. Restoring puts them back where they were.', 'desktop-mode' ); ?>
 					</p>
@@ -150,7 +150,7 @@ function desktop_mode_recycle_bin_register_window() {
 	}
 
 	$window_args = array(
-		'title'      => __( 'Recycle Bin', 'desktop-mode' ),
+		'title'      => __( 'Trash', 'desktop-mode' ),
 		'icon'       => 'dashicons-trash',
 		'template'   => 'desktop_mode_recycle_bin_render_template',
 		'script'     => 'desktop-mode-recycle-bin',
@@ -176,7 +176,7 @@ function desktop_mode_recycle_bin_register_window() {
 	}
 
 	$icon_args = array(
-		'title'    => __( 'Recycle Bin', 'desktop-mode' ),
+		'title'    => __( 'Trash', 'desktop-mode' ),
 		'icon'     => 'dashicons-trash',
 		'window'   => 'desktop-mode-recycle-bin',
 		'position' => 80,
@@ -214,6 +214,7 @@ function desktop_mode_recycle_bin_localize_config() {
 			'purgeUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/purge' ) ),
 			'emptyUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/empty' ) ),
 			'countUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) ),
+			'postTypes'  => desktop_mode_recycle_bin_capture_post_types(),
 		)
 	);
 
@@ -233,8 +234,9 @@ function desktop_mode_recycle_bin_inject_shell_config( $config ) {
 	if ( ! is_array( $config ) ) {
 		return $config;
 	}
-	$config['recycleBinCount']    = desktop_mode_recycle_bin_count();
-	$config['recycleBinCountUrl'] = esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) );
+	$config['recycleBinCount']     = desktop_mode_recycle_bin_count();
+	$config['recycleBinCountUrl']  = esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) );
+	$config['recycleBinPostTypes'] = desktop_mode_recycle_bin_capture_post_types();
 	return $config;
 }
 add_filter( 'desktop_mode_shell_config', 'desktop_mode_recycle_bin_inject_shell_config', 20 );

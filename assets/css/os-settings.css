@@ -1376,6 +1376,17 @@
 	background: var( --wpd-danger, #d63638 );
 }
 
+/*
+ * "Apply <theme>'s recommended layout" — sits between the theme grid
+ * and the upload tile, and only for a theme that recommends
+ * something. Just the button: the dock resizing and the layout
+ * moving is the feedback.
+ */
+.desktop-mode-os-settings__theme-recommendation {
+	display: flex;
+	margin-block: 16px;
+}
+
 .desktop-mode-os-settings__theme-upload {
 	display: block;
 	border: 2px dashed var( --wpd-border, #c3c4c7 );

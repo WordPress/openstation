@@ -423,6 +423,85 @@ function desktop_mode_desktop_theme_texture_slots() {
 }
 
 /**
+ * The OS-settings keys a manifest's `recommendedOsSettings` block may
+ * address, each mapped to the grammar the sanitizer enforces.
+ *
+ * Two grammars, and the difference is not cosmetic:
+ *
+ *   - `enum`  — a closed list of core values. The whole set is known
+ *               to PHP, so an unknown value is provably wrong and is
+ *               dropped here.
+ *   - `slug`  — a `sanitize_key()`-clean id whose validity only the
+ *               JS registry knows (`dockRailRenderer` resolves against
+ *               renderers registered at runtime, by core AND by
+ *               plugins). PHP checks the charset; the shell drops the
+ *               key at apply time when nothing is registered under
+ *               that id, which is the same "resolve at use time"
+ *               contract `desktop_mode_sanitize_os_settings()` already
+ *               follows for the user's own `dockRailRenderer`.
+ *
+ * A key absent from this table is dropped from the manifest. That is
+ * the point: a theme RECOMMENDS presentation, so it may only reach
+ * the handful of layout preferences a user would plausibly want a
+ * theme to arrange for them — never a feature toggle, a capability
+ * gate, or anything that changes what the shell can do.
+ *
+ * @return array<string,array{enum?:string[],slug?:bool}>
+ */
+function desktop_mode_desktop_theme_recommended_os_settings_schema() {
+	$schema = array(
+		'dockSize'         => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES ),
+		'desktopLayout'    => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS ),
+		'windowRadius'     => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII ),
+		'dockRailRenderer' => array( 'slug' => true ),
+	);
+	/**
+	 * Filters the OS-settings keys a desktop theme may recommend.
+	 *
+	 * A plugin that adds its own presentation preference to OS
+	 * Settings can opt it into theme recommendations by adding an
+	 * entry here — `array( 'enum' => array( … ) )` for a closed set,
+	 * `array( 'slug' => true )` for a registry id resolved at apply
+	 * time.
+	 *
+	 * Anything added is written into user meta the first time a user
+	 * activates a theme that recommends it, so keep the list to
+	 * presentation. Feature switches and capability-adjacent settings
+	 * do not belong here.
+	 *
+	 * @param array<string,array> $schema Map of settings key =>
+	 *                                    `{ enum }` or `{ slug }`.
+	 */
+	$schema = (array) apply_filters(
+		'desktop_mode_desktop_theme_recommended_os_settings_schema',
+		$schema
+	);
+
+	$out = array();
+	foreach ( $schema as $key => $rule ) {
+		if ( ! is_string( $key ) || '' === $key || ! is_array( $rule ) ) {
+			continue;
+		}
+		if ( ! empty( $rule['enum'] ) && is_array( $rule['enum'] ) ) {
+			$values = array();
+			foreach ( $rule['enum'] as $value ) {
+				if ( is_string( $value ) && '' !== $value ) {
+					$values[] = $value;
+				}
+			}
+			if ( ! empty( $values ) ) {
+				$out[ $key ] = array( 'enum' => $values );
+			}
+			continue;
+		}
+		if ( ! empty( $rule['slug'] ) ) {
+			$out[ $key ] = array( 'slug' => true );
+		}
+	}
+	return $out;
+}
+
+/**
  * File extensions a theme asset may carry, per asset kind.
  *
  * Two kinds exist, and they are deliberately disjoint:

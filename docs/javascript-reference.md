@@ -411,7 +411,7 @@ spawned.
 ### `wp.desktop.dragBridge` — cross-iframe drag — Stable
 
 The bridge is the postMessage channel that lets shell-side drags
-(My WordPress media tiles, post tiles, user tiles) land inside iframe
+(site-folder media tiles, post tiles, user tiles) land inside iframe
 windows (the Gutenberg editor, the site editor). When a DragManager
 session begins on a shell tile carrying a `bridgePayload`, the shell
 fans the payload into `dragBridge.start(payload)`. While the gesture
@@ -664,6 +664,9 @@ manager.isActiveByBaseId( baseId: string ): boolean;                     // isAc
 // Snapshot / surface
 manager.snapshot(): Session;
 manager.getVisibleRects(): VisibleWindowRect[];
+manager.seedWindowRestoreState(                                          // stage config for the NEXT open of each id
+    entries: Record< string, Partial< WindowConfig > >,
+): void;
 
 // Batch operations
 manager.closeAll( options?: { exceptIds?: string[] } ): number;
@@ -705,6 +708,20 @@ manager.closeDesktop( id: string ): void;
 > **`open()` requires a config object.** Passing a URL string used to silently produce a window stuck on a loading spinner with no error in the console. The manager throws `TypeError` at the call site if `config` isn't an object, or if `id` / `url` / `title` are missing or wrong-typed. Build the config; don't shorthand it.
 
 **`config.submenu`** — when present, the shell renders the array as an in-window tab strip below the title bar so the user can navigate child pages without leaving the window. Pass `item.submenu` whenever you open a window from a dock context — `openItem` and `openSubmenuPick` (in custom rail renderers) propagate it for you. Skip it for native windows that don't have admin sub-pages. The shell strips WordPress's auto-prepended self-link entry server-side, so `submenu.length > 0` reliably means "has real children" (no defensive filtering needed in your code). The shell prepends a synthetic "back to parent" tab (label = `config.title`, URL = `config.url`) as the first tab so the user can return to the parent listing without closing the window. If a caller-supplied submenu entry already points at `config.url` the synthetic tab is suppressed to avoid two tabs claiming the same URL.
+
+The active tab is re-matched against the iframe's URL after every navigation. An exact URL match wins; otherwise the shell lights the tab whose *page* the current URL belongs to, so a screen's own sub-views keep their tab highlighted (`nav-menus.php?action=locations` stays on Menus, `edit.php?post_type=post&paged=2` stays on All Posts). A tab owns a URL when the page-identity params agree (`post_type`, `taxonomy`, `page`, `path`, …) **and** every param the tab's own URL declares is present with the same value — so `admin.php?page=x&tab=test` never claims `admin.php?page=x&tab=logs`, which falls back to the `admin.php?page=x` entry. When two entries both qualify, the more specific one (more params declared) wins. Exactly one tab is ever active.
+
+**`seedWindowRestoreState( entries )`** — stage config to merge into the *next* window opened under each id, then forget it. For openers that build their own `manager.open()` config and have no argument to thread extra values through: you can't hand geometry to `wp.desktop.openWindow( id )` or to a native window's own opener, but you can state it up front and let the manager apply it when the window materialises.
+
+Session restore is the built-in consumer — it stages each saved native window's geometry, desktop, and state before asking the registry to reopen them. Entries are consumed on first use, so a later user-initiated open of the same window is unaffected, and each call replaces whatever the previous one left staged.
+
+```js
+const manager = wp.desktop.windowManager;
+manager.seedWindowRestoreState( {
+    'my-plugin-panel': { x: 240, y: 150, width: 640, height: 520 },
+} );
+wp.desktop.openWindow( 'my-plugin-panel' ); // opens at that geometry
+```
 
 **`minimizeAll()` / `restoreFrom( windows )` / `toggleShowDesktop()`** — the "Show Desktop" gesture decomposed into reusable primitives. `minimizeAll()` returns the windows it actually minimized (skipping windows already in the `'minimized'` state), so you can pair it with a later `restoreFrom( minimizedSet )` that touches only what you minimized. `toggleShowDesktop()` is the higher-level call mirroring the wallpaper-click behaviour exactly — minimize when anything is visible, restore when everything's hidden. Returns `true` when the new state is "showing the desktop." All three are scoped to the **active virtual desktop only** — a window parked on a Space the user isn't currently viewing is left alone, unlike `closeAll()` below, which still acts across every desktop.
 
@@ -755,6 +772,8 @@ Calling `open()` with an id (or `baseId`) that's already on screen focuses the e
 - **"Open in new window"** — opens a fresh sibling window seeded with the *current* iframe URL (post in-window navigation). Useful when the user has drilled into a sub-page (e.g. editing a specific post) and wants to peel a copy off without losing their place. The new window cascades and uses the same multi-instance id suffixing as `openNew()`.
 
 **Multi-instance windows.** When `multi: true` is passed, the window gets the "Open another" item described above. `openNew()` always creates a fresh window — even when one with the same `baseId` is already open — assigning a suffixed id (`${baseId}-2`, `${baseId}-3`, …) so every instance can be tracked independently while the dock still groups them under the same icon.
+
+One exception to the suffixing: if you pass an `id` that differs from `baseId` and isn't currently taken, `openNew()` honours it verbatim instead of allocating the next free slot. This is how a caller re-materialises a *specific* instance — session restore replays saved ids (`edit-php-2`) so that anything keyed by window id (the saved focused-window pointer, per-window plugin state, `wp.desktop.onWindow( id )` subscriptions) still lines up after the reload. Pass `id === baseId` (or omit `baseId`) for the ordinary "just give me another one" case and you get slot allocation as described above.
 
 **Dock hover-peek.** Multi-capable dock tiles render a hover-reveal *peek* popover instead of the legacy "+" chip. Hovering a multi tile that has at least one open instance fans out a stack of cards next to the tile (works on left, right, and bottom dock orientations):
 
@@ -1258,7 +1277,7 @@ See [`setBadge`](#setbadge--stable) above for the full rules across all three ra
 
 #### `DesktopIconServerEntry.pinned` — Stable
 
-Server-declared icons (registered via `desktop_mode_register_icon( $id, [ 'pinned' => true ] )`) ship a boolean `pinned` flag in `config.desktopIcons[ n ].pinned`. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as a stable system surface — built-in shortcuts like the **My WordPress** folder use it. Plugins that decorate icons (drag handles, custom menus) should opt out for tiles where `pinned === true`.
+Server-declared icons (registered via `desktop_mode_register_icon( $id, [ 'pinned' => true ] )`) ship a boolean `pinned` flag in `config.desktopIcons[ n ].pinned`. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as a stable system surface — built-in shortcuts like the pinned **site folder** use it. Plugins that decorate icons (drag handles, custom menus) should opt out for tiles where `pinned === true`.
 
 ---
 
@@ -2685,7 +2704,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -2920,6 +2939,7 @@ wp.desktop.updateOsSettings(
 
 - **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
+- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `desktopLayout`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.desktop.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`desktop-mode-os-settings-save-lifecycle`](#desktop-mode-os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<wpd-save-status auto>` renders it for free.
 - **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OS Settings window).
@@ -3003,12 +3023,13 @@ Returns a defensive copy — mutating the result doesn't change shell state. Upd
 
 ### `renderIcon( icon, opts )` — Stable
 
-Render an icon-string into a DOM element using the canonical dispatch the default dock uses. One implementation, five shapes:
+Render an icon-string into a DOM element using the canonical dispatch the default dock uses. One implementation, six shapes:
 
 | Input | Output |
 |---|---|
 | `'dashicons-…'` | `<span class="dashicons dashicons-…">` |
-| `'data:image/svg+xml;base64,…'` | `<span>` with the SVG as a CSS background-image |
+| `'data:image/svg+xml;base64,…'` **drawn in `currentColor`** | `<span>` with the SVG as a CSS **mask**, filled with `currentColor` — see [Silhouette icons](#silhouette-icons) below |
+| `'data:image/svg+xml;base64,…'` (fixed colours) | `<span>` with the SVG as a CSS background-image |
 | `'data:image/png;base64,…'` (any raster data URI — png, jpeg, gif, webp, x-icon) | `<img src=…>` |
 | `'http(s)://…'` | `<img src=…>` |
 | Anything else (`''`, `'none'`, `'div'`, …) | Letter-badge fallback — coloured circle with the first one or two letters of `opts.title`, hue hashed from the title so the swatch is stable per plugin |
@@ -3022,6 +3043,29 @@ host.appendChild( iconEl );
 ```
 
 Custom rail renderers should use this so their icons look consistent with the default dock (and the letter-badge fallback colour stays stable across reloads — same hash function).
+
+#### Silhouette icons
+
+**Draw your SVG in `currentColor` and it adapts to every surface automatically.** No flag, no registration field: the art declares its own intent, and the declaration cannot drift out of sync with the drawing because it *is* the drawing.
+
+```php
+// PHP — desktop_mode_register_icon()
+'icon_svg' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    . '<rect x="8" y="12" width="48" height="40" rx="4" fill="none"'
+    . ' stroke="currentColor" stroke-width="4"/>'
+    . '</svg>',
+```
+
+A CSS `background-image` has no colour to inherit, so an SVG drawn in `currentColor` and painted that way comes out black — invisible on a dark dock. `renderIcon()` therefore paints such art as a CSS **mask** filled with `currentColor`: only the alpha channel survives, and the fill comes from whatever the surface is already using for text. One drawing stays legible on the dark dock, on a light title bar, on a hover state, and under a desktop theme that recolours the slot.
+
+Two rules follow:
+
+- **All of it, or none of it.** Any literal `fill="#…"` / `stroke="#…"` in otherwise-silhouette art still contributes only its alpha, so it renders as a solid region in the inherited colour — not in the colour you named. Mixed art is a bug that looks like a design choice.
+- **Fixed-colour art is unaffected.** An SVG with no `currentColor` keeps the background-image path exactly as before. Full-colour app icons (the Games gamepad) are unchanged.
+
+An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
+
+In-tree reference: `desktop_mode_content_graph_icon_svg()` (the Corkboard).
 
 ---
 
@@ -3257,7 +3301,7 @@ Posted when a link inside the iframe points off-site; the parent opens an extern
 ```
 
 #### `desktop-mode-open-user-footprint` — Stable
-Posted when a `[data-desktop-mode-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the My WordPress window on that user's footprint route and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `desktop-mode-iframe-admin-link`, which closes the source on a remap hit). The public entry point is [`wp.desktop.myWordpress.openUserFootprint`](#public-api--wpdesktopmywordpress); see also `bridge-protocol.md`.
+Posted when a `[data-desktop-mode-footprint]` link is clicked inside a chromeless iframe — the "View activity footprint" row action on the classic Users table. Checked *before* the admin-link classifier, so the link's fallback `href` is never followed inside the shell. The parent opens (or focuses) the site folder window on that user's footprint route and leaves the source window open (it's an auxiliary peek, not a navigation away — contrast `desktop-mode-iframe-admin-link`, which closes the source on a remap hit). The public entry point is [`wp.desktop.myWordpress.openUserFootprint`](#public-api--wpdesktopmywordpress); see also `bridge-protocol.md`.
 
 ```typescript
 { type: 'desktop-mode-open-user-footprint'; userId: number; userName: string }
@@ -5002,7 +5046,7 @@ Backed by `wp.desktop.createSharedStore( 'desktop-mode/plugins-window/tab-target
 
 ---
 
-## My WordPress — extensibility surface (Experimental)
+## Site folder — extensibility surface (Experimental)
 
 The native window registered under id `desktop-mode-my-wordpress`
 exposes three JS hook points and a small public API. Every section
@@ -5031,7 +5075,7 @@ interface MyWordpressApi {
      * `openDetail` / `openMedia`, for users. Idempotent and
      * cold-start safe — opens (or focuses) the window and navigates
      * it to the footprint route even from a session that never
-     * opened My WordPress.
+     * opened the site folder.
      *
      * This is the same window the "View activity footprint" row
      * action in the classic Users table reaches (that path routes
@@ -5056,7 +5100,7 @@ interface MyWordpressApi {
     ): () => void;
 
     /**
-     * Trash an entity by its My WordPress entity id (`'posts'`,
+     * Trash an entity by its site-folder entity id (`'posts'`,
      * `'pages'`, `'users'`, plugin-defined). Resolves when the
      * REST DELETE succeeds and broadcasts
      * `desktop-mode-my-wordpress-entity-trashed` on `document`
@@ -5180,7 +5224,7 @@ bundle) listen here to drop the trashed tile reactively.
 { entityId: string, id: number }
 ```
 
-See [Examples — My WordPress media action](./examples/my-wordpress-media-action.md).
+See [Examples — site folder media action](./examples/my-wordpress-media-action.md).
 
 ---
 
@@ -5312,6 +5356,9 @@ wp.desktop.desktopThemes.subscribe(
 ): () => void;
 wp.desktop.desktopThemes.resolveIcon( slot: string ): string | null;
 wp.desktop.desktopThemes.resolveIconColor( slot: string ): string | null;
+wp.desktop.desktopThemes.applyRecommendedOsSettings(
+    themeId?: string,
+): RecommendedOsSettings;
 ```
 
 `DesktopThemeEntry`:
@@ -5328,11 +5375,26 @@ wp.desktop.desktopThemes.resolveIconColor( slot: string ): string | null;
 | `fonts` | `string[]` | Bundled font families, de-duplicated across weights, in declaration order. Informational; the compiled stylesheet carries the `@font-face` rules. Empty when the theme ships none. |
 | `icons` | `Record<string,string>` | Slot => dashicon class or absolute image URL. |
 | `iconColors` | `Record<string,string>` | Slot => fill colour, for the slots the theme tints. A slot present here is painted as a tinted CSS mask (images) or with that `color` (dashicons); `currentColor` defers to the surface. Absent = default rendering. |
+| `recommendedOsSettings` | `RecommendedOsSettings` | Presentation preferences the theme suggests. Always an object; `{}` means it suggests nothing. |
 | `installedAt` | `number` | Unix timestamp; `0` for code themes. |
 | `source` | `'upload' \| 'code'` | |
 
+`RecommendedOsSettings` — every field optional:
+
+| Field | Type | Values |
+|---|---|---|
+| `dockSize` | `string` | `compact` \| `default` \| `large` |
+| `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` |
+| `windowRadius` | `string` | `sharp` \| `default` \| `round` |
+| `dockRailRenderer` | `string` | A registered dock rail renderer id. |
+
 **`setActive()` is presentation only.** It swaps the stylesheet and
-repaints, but does not persist. To save the user's choice:
+repaints, but does not persist — use it for a preview (a hover, a
+try-before-you-buy picker) you intend to revert.
+
+To change the user's theme for real, patch the setting. That both
+persists *and* applies, so there is no need to pair it with
+`setActive()`:
 
 ```js
 wp.desktop.updateOsSettings( { desktopTheme: 'acme-neon-glass' } );
@@ -5368,6 +5430,29 @@ Returning a colour where the theme set none switches that icon to
 mask rendering — a way to make any iconset monochrome without
 touching the theme.
 
+### `applyRecommendedOsSettings()`
+
+Applies a theme's `recommendedOsSettings` and persists them. Defaults
+to the active theme. Returns the keys actually written — `{}` when the
+theme is unknown or recommends nothing this shell can apply (a
+`dockRailRenderer` naming a renderer no plugin registered resolves to
+nothing).
+
+```js
+const applied = wp.desktop.desktopThemes.applyRecommendedOsSettings();
+// → { dockSize: 'large', desktopLayout: 'unified' }
+```
+
+**The shell already does this once**, the first time a user activates a
+theme that ships recommendations; that is the entire automatic path,
+and it never runs again for the same user and theme. This method is
+the deliberate re-apply — the "restore the author's intended
+presentation" action, which is also what the button in **OS Settings →
+Themes** calls. It writes only keys that already exist on the settings
+object and already hold a string, so it can never introduce a setting
+or flip a feature toggle. See
+[Desktop themes → Recommended OS settings](./desktop-themes.md#recommended-os-settings).
+
 ### `desktopTheme` — OS settings key
 
 `string`. The active theme slug, or `''` for the system default.
@@ -5376,6 +5461,23 @@ Available on the snapshot from `wp.desktop.getOsSettings()` and
 `wp.desktop.updateOsSettings()`. Persisted in the
 `desktop_mode_os_settings` user meta; sanitized server-side as a
 `sanitize_key()`-clean string (empty is a legitimate value).
+
+### `appliedThemeRecommendations` — OS settings key
+
+`string[]`. Slugs of the desktop themes whose
+[recommended OS settings](./desktop-themes.md#recommended-os-settings)
+have already been seeded for this user. A slug in this list means "we
+have offered this user this theme's arrangement" — which is what stops
+a theme from ever re-applying over a preference the user set
+afterwards.
+
+Slugs of themes that are no longer installed are kept on purpose: a
+delete-and-reinstall must not re-seed. Capped at the most recent 64.
+
+Readable from `wp.desktop.getOsSettings()` and `subscribeOsSettings()`;
+the shell owns the writing. To re-apply a theme's arrangement, call
+`desktopThemes.applyRecommendedOsSettings()` rather than editing the
+ledger.
 
 ### CustomEvent: `desktop-mode-desktop-theme-changed`
 
@@ -5466,10 +5568,10 @@ interface Agent {
 `{ text, toolCalls, turns }` where each tool call is
 `{ callId, name, args, output, error }`.
 
-### My WordPress integration
+### Site folder integration
 
-The server appends an `agents` entity (`kind: 'agent'`) to the My
-WordPress window via the `desktop_mode_my_wordpress_entities` filter,
+The server appends an `agents` entity (`kind: 'agent'`) to the site
+folder window via the `desktop_mode_my_wordpress_entities` filter,
 and ships an `agents` block on the window config:
 
 ```ts
@@ -5514,7 +5616,7 @@ Agents accept entity drops (`post`, `page`, `media`, `user`,
 `src/agents-dispatch.ts` engine (compose message → seed the chat
 store → open the chat window → `POST /invoke` with `source: 'drag'`):
 
-- **Agent rows** in the My WordPress Agents section — drop targets
+- **Agent rows** in the site folder's Agents section — drop targets
   registered per row via `wp.desktop.dragManager`.
 - **Agent user tiles on the wallpaper** — opted in through the files
   layer's tile-payload-handler seam. Gating is payload-driven: the
@@ -5527,7 +5629,7 @@ store → open the chat window → `POST /invoke` with `source: 'drag'`):
   explicit intent, like typing).
 
 Accepted drag payload types are the in-tree entity carriers:
-`'shortcut'` (My WordPress tiles, `wpd-tile` drag-out; `attachment`
+`'shortcut'` (site folder tiles, `wpd-tile` drag-out; `attachment`
 maps to `media`, pages are detected via `bridgePayload.postType`) and
 `'desktop-file'` (wallpaper tiles, via `placement.file`).
 

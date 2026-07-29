@@ -502,8 +502,14 @@
 	position: fixed;
 	z-index: 100000;
 	max-width: 320px;
-	background: var( --desktop-mode-surface, var( --wpd-surface, #fff ) );
-	color: var( --desktop-mode-fg, #1d2327 );
+	background: var(
+		--desktop-mode-tooltip-bg,
+		var( --desktop-mode-surface, var( --wpd-surface, #fff ) )
+	);
+	color: var(
+		--desktop-mode-tooltip-fg,
+		var( --desktop-mode-fg, #1d2327 )
+	);
 	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 6px;
 	padding: 12px;

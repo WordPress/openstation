@@ -852,6 +852,28 @@ do_action( 'desktop_mode_prepare_window', string $page, array $args );
 
 ## Filters
 
+### `desktop_mode_site_title` — Experimental
+
+Filters the site title used to label desktop objects — the pinned site folder (window + icon title, breadcrumb root) and every "Open in &lt;site&gt;" action that hands off to it.
+
+The desktop is meant to contain objects, not a mention of the OS you're already standing in, so the folder holding a site's content is named after the site rather than after WordPress. `desktop_mode_site_title()` reads `get_bloginfo( 'name' )`, decodes its HTML entities (titles land in `title=` attributes and JS text nodes), and falls back to `WordPress` when the site has no name set.
+
+```php
+apply_filters( 'desktop_mode_site_title', string $title ): string
+```
+
+A filtered value that isn't a non-empty string is discarded and the unfiltered title is used.
+
+**Example — label the folder after a network-wide brand instead of `blogname`:**
+
+```php
+add_filter( 'desktop_mode_site_title', function ( $title ) {
+	return get_network_option( null, 'site_name', $title );
+} );
+```
+
+---
+
 ### `desktop_mode_load_admin_modules` — Experimental
 
 Filters whether the admin-rendering module set (shell renderer, asset enqueues, chromeless bridge, admin notices, migrations, the `wp_ajax_save-desktop-mode` handler) loads on the current request. By default it loads for admin (including admin-ajax), REST, cron, and WP-CLI requests, and is skipped on pure frontend page views — every hook those modules register only fires inside wp-admin, so frontend requests save the parse + hook-registration cost.
@@ -1661,6 +1683,59 @@ apply_filters( 'desktop_mode_ai_error_log_candidates', string[] $candidates );
 
 ---
 
+## Drafts widget — AI writing assistant (Experimental)
+
+The Drafts widget offers per-draft title / excerpt / tag / category suggestions plus a readiness check, generated through the Core AI Client. Two REST routes back it:
+
+| Route | Method | Gate | Purpose |
+|---|---|---|---|
+| `/wp-json/desktop-mode/v1/draft-suggestions` | POST `{ post_id }` | `edit_post`, then a configured text-generation provider | Read-only. Returns `{ titles, excerpt, tags, categories, readiness: { summary, missing } }`. |
+| `/wp-json/desktop-mode/v1/draft-apply` | POST `{ post_id, title?, excerpt?, tags?, categories? }` | `edit_post` | Writes an accepted suggestion onto the post. Tags and categories are **appended**, never clobbered. New categories are only created for users who can `manage_categories`; unknown ones are skipped. |
+
+The capability check runs **before** the provider check, so an unauthorized caller gets the same `403` whether or not the site has AI configured. With no provider, an authorized caller gets `503 desktop_mode_ai_unavailable` and the 💡 button never renders — the widget degrades to exactly its pre-AI behavior.
+
+### `desktop_mode_drafts_ai_instructions` — Experimental
+
+The system instruction sent with a draft-suggestions request. Retune the assistant's voice, add house style rules, or tighten the readiness rubric without forking the route.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_instructions', string $instructions, WP_Post $post );
+```
+
+### `desktop_mode_drafts_ai_schema` — Experimental
+
+The JSON Schema the model must answer in. Changing the shape changes the REST response shape too — the route only normalizes the keys it knows about (`titles`, `excerpt`, `tags`, `categories`, `readiness`), and anything else passes through untouched.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_schema', array $schema, WP_Post $post );
+```
+
+### `desktop_mode_drafts_ai_content_limit` — Experimental
+
+How many characters of the draft body are sent to the model. Default `4000`; truncation is multibyte-safe. Return `0` or a negative number to send the whole draft.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_content_limit', int $limit, WP_Post $post );
+```
+
+### `desktop_mode_drafts_ai_suggestions` — Experimental
+
+Last-mile filter over the normalized suggestions, after tag-stripping and truncation. Drop, reorder or append entries without re-sanitizing.
+
+```php
+apply_filters( 'desktop_mode_drafts_ai_suggestions', array $suggestions, WP_Post $post );
+```
+
+### `desktop_mode_drafts_suggestion_applied` — Experimental
+
+Fires after an accepted suggestion has been written onto a post. `$applied` holds **only** the fields that actually changed — an empty array means the request was a no-op (e.g. an unknown category the user couldn't create). `$post` is the post as it was *before* the update.
+
+```php
+do_action( 'desktop_mode_drafts_suggestion_applied', int $post_id, array $applied, WP_Post $post );
+```
+
+---
+
 ## AI Copilot extensibility — `/ai/search` (Experimental)
 
 Every `POST /desktop-mode/v1/ai/search` call — whether driven by the built-in overlay or by `wp.desktop.ai.ask()` — runs through this layered hook surface. Use it to:
@@ -2041,7 +2116,7 @@ update / trash of a post, page, `show_ui` CPT, comment, or
 WooCommerce order is recorded into a per-request changelog and
 relayed to the parent shell as a cross-window broadcast
 (`desktop-mode.<type>.changed`, see the topic contract under
-[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+[Trash → Cross-window broadcast](#cross-window-broadcast)).
 Consumers already in place: the chromeless soft-reload for iframe
 list pages, and the native Posts / Pages / Users / Comments windows.
 
@@ -2065,7 +2140,7 @@ Three delivery paths:
 Built-in publishers: `wp_after_insert_post` (revisions, autosaves,
 auto-drafts, trash-status writes, and non-`show_ui` types skipped),
 `wp_insert_comment` / `edit_comment` / `transition_comment_status`
-(trash transitions skipped — the Recycle Bin owns the trash verbs),
+(trash transitions skipped — the Trash module owns the trash verbs),
 and — when WooCommerce is active — `woocommerce_new_order` /
 `woocommerce_update_order` / `woocommerce_order_status_changed` /
 `woocommerce_trash_order` / `woocommerce_untrash_order` /
@@ -2142,7 +2217,7 @@ Declarative soft-reload rules injected into every chromeless iframe,
 for list screens that are **not** a standard `edit.php?post_type=X` /
 `upload.php` / `edit-comments.php` page (those are matched
 generically — see the soft-reload contract under
-[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+[Trash → Cross-window broadcast](#cross-window-broadcast)).
 
 ```php
 apply_filters( 'desktop_mode_soft_reload_rules', array $rules );
@@ -2183,9 +2258,11 @@ for an end-to-end third-party recipe.
 
 ---
 
-## Recycle Bin
+## Trash
 
-The Recycle Bin stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
+The window and desktop icon are titled **Trash** — WordPress's own word for deleted content. The module directory, window id (`desktop-mode-recycle-bin`), REST routes, and every hook below keep the `recycle_bin` slug, so nothing a plugin binds to moves.
+
+The Trash stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
 
 ### `desktop_mode_recycle_bin_capture_post_types` — Experimental (filter)
 
@@ -2957,9 +3034,11 @@ The per-user insights payload returned by `GET /desktop-mode/v1/users/<id>/insig
 
 ---
 
-## My WordPress
+## Site folder
 
 A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Ships with Posts, Pages, Users, and Media. The entity list is filterable so plugin authors can extend it without forking the bundle.
+
+The folder is **titled after the site itself** — whatever [`desktop_mode_site_title()`](#desktop_mode_site_title--experimental) returns, defaulting to `get_bloginfo( 'name' )`. The title also seeds the window's breadcrumb root and the "Open in &lt;site&gt;" actions in the media detail pane and the Corkboard. The module directory, window id (`desktop-mode-my-wordpress`), REST fields, and every hook below keep the `my_wordpress` slug.
 
 ### `desktop_mode_my_wordpress_user_can_use` — Experimental (filter)
 
@@ -2971,7 +3050,7 @@ Gates icon registration and window registration in one shot. Default `current_us
 
 ### `desktop_mode_my_wordpress_window_args` / `desktop_mode_my_wordpress_icon_args` — Experimental (filter)
 
-Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for My WordPress — useful to change dimensions, swap the dashicon, or remove the `pinned` flag so the icon participates in the normal sort order.
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the site folder — useful to change dimensions, swap the dashicon, or remove the `pinned` flag so the icon participates in the normal sort order. To retitle the folder, prefer [`desktop_mode_site_title`](#desktop_mode_site_title--experimental): it covers the window, the icon, the breadcrumb root, and the cross-window "Open in &lt;site&gt;" actions in one place.
 
 ### `desktop_mode_my_wordpress_entities` — Experimental (filter)
 
@@ -2985,6 +3064,7 @@ The list of entity types rendered as folder tiles in the window's root view. Eac
 - `label` — human-readable folder name.
 - `icon` — Dashicons class.
 - `restPath` — appended to `restRoot` (e.g. `wp/v2/posts`, `wp/v2/comments`).
+- `post_type` *(optional)* — WP post-type slug used to build the cross-window broadcast topic `desktop-mode.<slug>.changed`. Omit for entities without trash/restore support (e.g. Users). CPT entities registered via this filter should set `post_type` so list views refresh reactively on trash/restore.
 - `kind` *(optional)* — `'post'` (default for back-compat), `'user'`, or `'media'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface; `'media'`-shaped entities use the media-grid tile and the media drill-in preview ("used in" view). Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`. Plugins can register further kinds on the JS side via `wp.desktop.myWordpress.registerEntityKind()`.
 
 Defaults ship `posts`, `pages`, `users`, and `media`. Plugins can pre-stage Comments / Tags / Categories without waiting for new code in this module — the bundle treats every entry uniformly.
@@ -3021,7 +3101,7 @@ apply_filters( 'desktop_mode_user_footprint_row_action', bool $show, WP_User $us
 
 Gates the **"View activity footprint"** row action added to the classic Users list table (`users.php`). The action is only ever appended on a chromeless request (inside the desktop shell's iframe, where the bridge is present to receive the click); this filter is the final say within that context. Return `false` to suppress the action for a given user — e.g. to scope it to a role, or hide it on the viewer's own row. Default `true`.
 
-The action carries the target user id in a `data-desktop-mode-footprint` attribute; the chromeless bridge escalates the click as the `desktop-mode-open-user-footprint` message (see [`bridge-protocol.md`](bridge-protocol.md) and [`javascript-reference.md`](javascript-reference.md)), opening the My WordPress window on that user's footprint without closing the Users list. The link's `href` is a real `user-edit.php` / `profile.php` URL — the graceful fallback for no-JS or modifier clicks.
+The action carries the target user id in a `data-desktop-mode-footprint` attribute; the chromeless bridge escalates the click as the `desktop-mode-open-user-footprint` message (see [`bridge-protocol.md`](bridge-protocol.md) and [`javascript-reference.md`](javascript-reference.md)), opening the site folder window on that user's footprint without closing the Users list. The link's `href` is a real `user-edit.php` / `profile.php` URL — the graceful fallback for no-JS or modifier clicks.
 
 ### `desktop_mode_my_wordpress_comment_stats` — Experimental (filter)
 
@@ -3037,7 +3117,7 @@ The per-comment dossier payload returned by `GET /desktop-mode/v1/comment-stats/
 apply_filters( 'desktop_mode_my_wordpress_term_stats', array $payload, string $taxonomy, int $term_id ): array
 ```
 
-The per-term stats payload returned by `GET /desktop-mode/v1/term-stats/<taxonomy>/<id>` — profile, counts, recent posts, top authors, co-terms, activity, and milestones. Filter it to splice in extra metrics before it reaches the My WordPress folder window.
+The per-term stats payload returned by `GET /desktop-mode/v1/term-stats/<taxonomy>/<id>` — profile, counts, recent posts, top authors, co-terms, activity, and milestones. Filter it to splice in extra metrics before it reaches the site folder window.
 
 ### `desktop_mode_my_wordpress_post_contributors` — Experimental (filter)
 
@@ -3079,7 +3159,7 @@ Lifetime (seconds) of the per-attachment media-usage transient. Lower it on site
 apply_filters( 'desktop_mode_my_wordpress_preview_actions', array[] $actions ): array[]
 ```
 
-Server-declared descriptors for the right-pane action button row that appears in every My WordPress section (posts, pages, users, media, plugin-defined kinds). Each entry:
+Server-declared descriptors for the right-pane action button row that appears in every site folder section (posts, pages, users, media, plugin-defined kinds). Each entry:
 
 ```php
 array(
@@ -3097,9 +3177,11 @@ array(
 
 ---
 
-## Content Graph
+## Corkboard
 
-An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors the My WordPress module shape.
+An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors the site-folder module shape.
+
+The window and icon are titled **Corkboard** — a thing you can have on a desk, rather than the name of the data structure behind it. The module directory, window id, REST routes, and every hook below keep the `content_graph` slug.
 
 ### `desktop_mode_content_graph_user_can_use` — Experimental (filter)
 
@@ -3132,7 +3214,7 @@ apply_filters( 'desktop_mode_content_graph_window_args', array $window_args ): a
 apply_filters( 'desktop_mode_content_graph_icon_args',   array $icon_args ): array
 ```
 
-Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the Content Graph — dimensions, dashicon, icon position, or the `config` blob (REST endpoints, edit-URL bases, post-type descriptors).
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the Corkboard — dimensions, dashicon, icon position, or the `config` blob (REST endpoints, edit-URL bases, `siteName`, post-type descriptors).
 
 ---
 
@@ -3899,6 +3981,45 @@ resolve to a font file or the other way round.
 > Adding anything the browser parses as script (`css`, `js`, `html`,
 > `xml`, `svgz`) or anything the server executes defeats the security
 > model of the whole feature.
+
+### `desktop_mode_desktop_theme_recommended_os_settings_schema` — Experimental *(filter)*
+
+The OS-settings keys a theme's `recommendedOsSettings` block may
+address, and the grammar each is validated against. Keys not on this
+list are dropped during sanitization.
+
+```php
+add_filter(
+    'desktop_mode_desktop_theme_recommended_os_settings_schema',
+    function ( $schema ) {
+        // A closed set of values PHP knows in full.
+        $schema['acmeDensity'] = array( 'enum' => array( 'cosy', 'roomy' ) );
+        // An id resolved against a JS registry at apply time.
+        $schema['acmeRenderer'] = array( 'slug' => true );
+        return $schema;
+    }
+);
+```
+
+Core ships four entries: `dockSize`, `desktopLayout` and
+`windowRadius` as `enum` rules mirroring the matching
+`DESKTOP_MODE_OS_SETTINGS_*` constants, and `dockRailRenderer` as a
+`slug` rule.
+
+An entry with neither a non-empty `enum` array nor `slug => true` is
+dropped — a malformed rule fails closed rather than admitting
+anything.
+
+> Whatever is added here gets written into user meta the first time a
+> user activates a theme that recommends it, so keep the list to
+> **presentation**. Feature switches and capability-adjacent settings
+> do not belong in a theme manifest. The shell applies a recommended
+> key only when the setting already exists and already holds a string,
+> so a widened schema still cannot introduce a setting or flip a
+> boolean.
+
+- **Param** `array<string,array> $schema` — map of settings key => `{ enum }` or `{ slug }`.
+- **Return** `array<string,array>`
 
 ### `desktop_mode_desktop_theme_font_caps` — Experimental *(filter)*
 
