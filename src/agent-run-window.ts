@@ -28,6 +28,7 @@ import {
 	type AgentChatMessage,
 } from './agents-chat-store';
 import type { AgentInvokeResult } from './my-wordpress/agents-types';
+import { describeDragEntity, dispatchAgentDrop } from './agents-dispatch';
 
 const WINDOW_ID = 'desktop-mode-agent-run';
 
@@ -48,12 +49,32 @@ type RenderCallback = (
  * RenderCallback alias and TS rejects same-name global redeclarations
  * across bundles.
  */
+interface MinimalDropTarget {
+	id: string;
+	element: HTMLElement;
+	accept( payload: { type: string; data: Record< string, unknown > } ): boolean;
+	acceptLabel?: string;
+	onDrop( session: {
+		payload: { type: string; data: Record< string, unknown > };
+	} ): void;
+}
+
 interface RunWindowGlobals {
 	desktopModeWindowConfig?: Record< string, unknown >;
 	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+	wp?: {
+		desktop?: {
+			dragManager?: {
+				registerDropTarget( target: MinimalDropTarget ): () => void;
+			};
+		};
+	};
 }
 
 const globals = window as unknown as RunWindowGlobals;
+
+/** Per-render sequence so multi-instance windows get unique target ids. */
+let chatDropSeq = 0;
 
 function getRunConfig(): RunWindowConfig | null {
 	const cfg = globals.desktopModeWindowConfig?.[ WINDOW_ID ] as
@@ -269,9 +290,47 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		agentsChatStore.notify();
 	};
 
+	// The open conversation accepts entity drops for the active agent.
+	// Deliberately NOT gated on the agent's drag trigger — dropping
+	// into an open chat is explicit user intent, exactly like typing
+	// (the chat trigger), so only the entity shape is checked.
+	let deregisterDrop: ( () => void ) | undefined;
+	const dropConfig = getRunConfig();
+	const dragManager = globals.wp?.desktop?.dragManager;
+	if ( dragManager && dropConfig ) {
+		deregisterDrop = dragManager.registerDropTarget( {
+			id: `dm-agent-chat-${ ++chatDropSeq }`,
+			element: root,
+			accept: ( payload ) => {
+				const agent = agentsChatStore.state.activeAgent;
+				if ( ! agent ) {
+					return false;
+				}
+				const entity = describeDragEntity( payload );
+				return (
+					entity !== null &&
+					! ( entity.kind === 'user' && entity.id === agent.id )
+				);
+			},
+			acceptLabel: __( 'Send to agent', 'desktop-mode' ),
+			onDrop: ( session ) => {
+				const agent = agentsChatStore.state.activeAgent;
+				const entity = describeDragEntity( session.payload );
+				if ( ! agent || ! entity ) {
+					return;
+				}
+				void dispatchAgentDrop( agent, entity, {
+					restRoot: dropConfig.restRoot,
+					restNonce: dropConfig.restNonce,
+				} );
+			},
+		} );
+	}
+
 	const unsubscribe = agentsChatStore.subscribe( paint );
 	paint();
 	return () => {
+		deregisterDrop?.();
 		unsubscribe();
 	};
 }

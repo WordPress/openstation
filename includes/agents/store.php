@@ -298,9 +298,9 @@ function desktop_mode_agent_sanitize_trigger_config_deep( $value ) {
 /**
  * Built-in trigger kinds.
  *
- * Phase A wires only `chat`; the other kinds are declared so the
- * Triggers pane can already store configuration for them, and Phases
- * B/C add the intake plumbing without a storage migration.
+ * `chat` and `drag` are wired; the other kinds are declared so the
+ * Triggers pane can already store configuration for them, and later
+ * phases add the intake plumbing without a storage migration.
  *
  * Plugins can extend the list via the `desktop_mode_agent_trigger_kinds`
  * filter — each entry must declare a `slug`, `label`, and a JSON-Schema

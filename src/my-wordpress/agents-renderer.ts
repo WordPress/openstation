@@ -40,6 +40,13 @@ import type {
 	TriggerKindDescriptor,
 } from './agents-types';
 import { openAgentChat } from '../agents-chat-store';
+import {
+	agentAcceptsDrop,
+	describeDragEntity,
+	dispatchAgentDrop,
+	dragKindsFromTriggers,
+} from '../agents-dispatch';
+import { getDragManager } from './dom-utils';
 import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import '../ui/components/wpd-badge/wpd-badge';
 import '../ui/components/wpd-button/wpd-button';
@@ -76,6 +83,9 @@ interface AgentsState {
 }
 
 const ENTITY_KIND_CHOICES = [ 'post', 'page', 'media', 'user', 'comment' ];
+
+/** Per-mount sequence so multi-instance windows get unique target ids. */
+let agentsMountSeq = 0;
 
 function agentsConfig(): AgentsSectionConfig {
 	const cfg = getConfig() as MyWordPressConfig & {
@@ -153,9 +163,78 @@ export function renderAgents( host: EntityRenderHost ): void {
 	};
 
 	let disposed = false;
+	const mountId = ++agentsMountSeq;
+	const rowDropDeregisters: Map< number, () => void > = new Map();
 	host.addTeardown( () => {
 		disposed = true;
+		for ( const deregister of rowDropDeregisters.values() ) {
+			deregister();
+		}
+		rowDropDeregisters.clear();
 	} );
+
+	/**
+	 * (Re)register every agent row as a drop target, and prune targets
+	 * whose agent left the list. Runs after every paint — re-registering
+	 * the same id replaces the element binding in place, so repaints
+	 * never leak targets.
+	 */
+	const syncRowDropTargets = (): void => {
+		const dragManager = getDragManager();
+		if ( ! dragManager ) {
+			return;
+		}
+		const seen = new Set< number >();
+		root
+			.querySelectorAll< HTMLElement >( '.dm-agents__row[data-agent-id]' )
+			.forEach( ( row ) => {
+				const agentId = Number.parseInt( row.dataset.agentId ?? '', 10 );
+				const agent = state.agents.find( ( a ) => a.id === agentId );
+				if ( ! agent ) {
+					return;
+				}
+				seen.add( agentId );
+				rowDropDeregisters.set(
+					agentId,
+					dragManager.registerDropTarget( {
+						id: `dm-agents-row-${ mountId }-${ agentId }`,
+						element: row,
+						accept: ( payload ) =>
+							agentAcceptsDrop(
+								dragKindsFromTriggers( agent.triggers ),
+								describeDragEntity( payload ),
+								agent.id,
+							),
+						acceptLabel: __( 'Send to agent', 'desktop-mode' ),
+						onDrop: ( session ) => {
+							const entity = describeDragEntity( session.payload );
+							if ( ! entity ) {
+								return;
+							}
+							void dispatchAgentDrop(
+								{
+									id: agent.id,
+									name: agent.name,
+									description: agent.description,
+									avatarUrl: agent.avatarUrl,
+								},
+								entity,
+								{
+									restRoot: getConfig().restRoot,
+									restNonce: getConfig().restNonce,
+								},
+							);
+						},
+					} ),
+				);
+			} );
+		for ( const [ agentId, deregister ] of rowDropDeregisters ) {
+			if ( ! seen.has( agentId ) ) {
+				deregister();
+				rowDropDeregisters.delete( agentId );
+			}
+		}
+	};
 
 	const selected = (): Agent | null =>
 		state.agents.find( ( a ) => a.id === state.selectedId ) ?? null;
@@ -384,6 +463,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 							: '' }"
 						role="option"
 						tabindex="0"
+						data-agent-id=${ String( agent.id ) }
 						aria-selected=${ agent.id === state.selectedId ? 'true' : 'false' }
 						@click=${ () => select( agent.id ) }
 						@keydown=${ ( e: KeyboardEvent ) => {
@@ -671,7 +751,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 			<div class="dm-agents__pane">
 				<p class="dm-agents__hint">
 					${ __(
-						'Triggers describe how this site reaches the agent. Chat works today; the other intakes are stored now and wired in upcoming phases.',
+						'Triggers describe how this site reaches the agent. Chat and drag & drop work today; the other intakes are stored now and wired in upcoming phases.',
 						'desktop-mode',
 					) }
 				</p>
@@ -866,6 +946,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				html`<div class="dm-agents__loading"><wpd-spinner></wpd-spinner></div>`,
 				root,
 			);
+			syncRowDropTargets();
 			return;
 		}
 		if ( state.error ) {
@@ -873,6 +954,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				html`<wpd-notice tone="error">${ state.error }</wpd-notice>`,
 				root,
 			);
+			syncRowDropTargets();
 			return;
 		}
 		render(
@@ -888,6 +970,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 			`,
 			root,
 		);
+		syncRowDropTargets();
 	};
 
 	paint();

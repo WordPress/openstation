@@ -170,6 +170,72 @@ describe( 'agents entity kind', () => {
 		expect( notice!.textContent ).toContain( 'AI Client' );
 	} );
 
+	test( 'agent rows register drop targets gated by the drag trigger', async () => {
+		interface StubTarget {
+			id: string;
+			element: HTMLElement;
+			accept( payload: {
+				type: string;
+				data: Record< string, unknown >;
+			} ): boolean;
+		}
+		const targets: StubTarget[] = [];
+		( window as unknown as Record< string, unknown > ).wp = {
+			desktop: {
+				dragManager: {
+					registerDropTarget: ( target: StubTarget ) => {
+						targets.push( target );
+						return () => void 0;
+					},
+				},
+			},
+		};
+
+		try {
+			mockAgentList( [
+				{
+					...AGENT,
+					id: 21,
+					name: 'Media Agent',
+					triggers: [
+						{ kind: 'drag', config: { entityKinds: [ 'media' ] } },
+					],
+				},
+				{ ...AGENT, id: 22, name: 'No Drag Agent', triggers: [] },
+			] );
+			const host = makeHost();
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+
+			const mediaTarget = targets.find( ( t ) =>
+				t.id.endsWith( '-21' ),
+			);
+			const noDragTarget = targets.find( ( t ) =>
+				t.id.endsWith( '-22' ),
+			);
+			expect( mediaTarget ).toBeDefined();
+			expect( noDragTarget ).toBeDefined();
+
+			const mediaPayload = {
+				type: 'shortcut',
+				data: { kind: 'attachment', ref: '44', title: 'Hornet' },
+			};
+			const postPayload = {
+				type: 'shortcut',
+				data: { kind: 'post', ref: '7', title: 'Draft' },
+			};
+			expect( mediaTarget!.accept( mediaPayload ) ).toBe( true );
+			expect( mediaTarget!.accept( postPayload ) ).toBe( false );
+			// No drag trigger configured — every drop is rejected.
+			expect( noDragTarget!.accept( mediaPayload ) ).toBe( false );
+
+			// Teardown deregisters cleanly (host teardowns run).
+			host.teardowns.forEach( ( fn ) => fn() );
+		} finally {
+			delete ( window as unknown as Record< string, unknown > ).wp;
+		}
+	} );
+
 	test( 'list REST failures paint the error notice', async () => {
 		const fn = vi.fn( async () => ( {
 			ok: false,

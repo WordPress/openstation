@@ -150,6 +150,95 @@ describe( 'agent chat window', () => {
 		}
 	} );
 
+	test( 'the open conversation accepts entity drops for the active agent', async () => {
+		interface StubTarget {
+			id: string;
+			element: HTMLElement;
+			accept( payload: {
+				type: string;
+				data: Record< string, unknown >;
+			} ): boolean;
+			onDrop( session: {
+				payload: { type: string; data: Record< string, unknown > };
+			} ): void;
+		}
+		const targets: StubTarget[] = [];
+		const openWindow = vi.fn( () => true );
+		( window as unknown as Record< string, unknown > ).wp = {
+			desktop: {
+				openWindow,
+				dragManager: {
+					registerDropTarget: ( target: StubTarget ) => {
+						targets.push( target );
+						return () => void 0;
+					},
+				},
+			},
+		};
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: true,
+			status: 200,
+			json: async () => ( {
+				text: 'Handled the drop.',
+				toolCalls: [],
+				turns: 1,
+			} ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		try {
+			const body = makeBody();
+			const cleanup = getRender()( body );
+			expect( targets ).toHaveLength( 1 );
+
+			const payload = {
+				type: 'shortcut',
+				data: { kind: 'attachment', ref: '44', title: 'Hornet' },
+			};
+			// No active agent yet — reject.
+			expect( targets[ 0 ].accept( payload ) ).toBe( false );
+
+			openAgentChat( {
+				id: 5,
+				name: 'Audit Agent',
+				description: '',
+				avatarUrl: 'data:image/svg+xml;base64,x',
+			} );
+			expect( targets[ 0 ].accept( payload ) ).toBe( true );
+			// Its own user tile is never accepted.
+			expect(
+				targets[ 0 ].accept( {
+					type: 'shortcut',
+					data: { kind: 'user', ref: '5', title: 'Audit Agent' },
+				} ),
+			).toBe( false );
+
+			targets[ 0 ].onDrop( { payload } );
+			await flush();
+
+			const [ url, init ] = fetchMock.mock.calls[ 0 ] as [
+				string,
+				RequestInit,
+			];
+			expect( url ).toBe(
+				'https://example.test/wp-json/desktop-mode/v1/agents/5/invoke',
+			);
+			const sent = JSON.parse( String( init.body ) ) as {
+				message: string;
+				source: string;
+			};
+			expect( sent.source ).toBe( 'drag' );
+			expect( sent.message ).toContain( 'Hornet' );
+			expect( body.textContent ).toContain( 'Handled the drop.' );
+
+			if ( typeof cleanup === 'function' ) {
+				cleanup();
+			}
+		} finally {
+			delete ( window as unknown as Record< string, unknown > ).wp;
+		}
+	} );
+
 	test( 'invoke errors paint as error rows', async () => {
 		const fetchMock: FetchMock = vi.fn( async () => ( {
 			ok: false,

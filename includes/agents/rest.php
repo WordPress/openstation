@@ -154,6 +154,12 @@ function desktop_mode_agents_register_rest_routes() {
 					'required'          => true,
 					'sanitize_callback' => 'sanitize_textarea_field',
 				),
+				'source'  => array(
+					'type'              => 'string',
+					'default'           => 'chat',
+					'enum'              => array( 'chat', 'drag', 'send-to' ),
+					'sanitize_callback' => 'sanitize_key',
+				),
 			),
 		)
 	);
@@ -419,7 +425,7 @@ function desktop_mode_agents_rest_invoke( WP_REST_Request $request ) {
 	$result = desktop_mode_agent_invoke(
 		(int) $user->ID,
 		(string) $request['message'],
-		array( 'source' => 'chat' )
+		array( 'source' => (string) $request['source'] )
 	);
 	if ( is_wp_error( $result ) ) {
 		$data = $result->get_error_data();

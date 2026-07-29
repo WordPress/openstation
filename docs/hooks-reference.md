@@ -4048,8 +4048,12 @@ considers itself available even without the WP 7.0 AI Client.
 The trigger-kind catalogue (`chat`, `send-to`, `drag`, `hook`,
 `endpoint`, `agent`). Each entry declares `slug`, `label`,
 `description`, `icon`, and a JSON-Schema `config_schema` for its
-`trigger.config` shape. Phase A wires only `chat`; the other kinds
+`trigger.config` shape. `chat` and `drag` are wired; the other kinds
 are declared so configuration can be stored ahead of their intakes.
+The `drag` config's `entityKinds` gates which entity drops the agent
+accepts (empty = every kind; no drag trigger = drops rejected), and
+ships inline on the agent's desktop user-file payload as
+`agentDragKinds` so tile drop gating is synchronous.
 
 - **Param** `array $kinds`
 

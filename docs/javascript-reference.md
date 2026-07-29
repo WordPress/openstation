@@ -5507,6 +5507,30 @@ wp.desktop.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
 
 Transcripts are session-only; nothing persists client-side.
 
+### Drag & drop intake
+
+Agents accept entity drops (`post`, `page`, `media`, `user`,
+`comment`) on three surfaces, all dispatching through the shared
+`src/agents-dispatch.ts` engine (compose message → seed the chat
+store → open the chat window → `POST /invoke` with `source: 'drag'`):
+
+- **Agent rows** in the My WordPress Agents section — drop targets
+  registered per row via `wp.desktop.dragManager`.
+- **Agent user tiles on the wallpaper** — opted in through the files
+  layer's tile-payload-handler seam. Gating is payload-driven: the
+  server inlines `isAgent: true` and `agentDragKinds` into the
+  desktop user-file payload (`agentDragKinds` mirrors the drag
+  trigger's `entityKinds`; `null` = no drag trigger, drops rejected;
+  `[]` = accepts every kind).
+- **The open Agent chat window** — accepts drops for the active agent
+  without drag-trigger gating (dropping into an open conversation is
+  explicit intent, like typing).
+
+Accepted drag payload types are the in-tree entity carriers:
+`'shortcut'` (My WordPress tiles, `wpd-tile` drag-out; `attachment`
+maps to `media`, pages are detected via `bridgePayload.postType`) and
+`'desktop-file'` (wallpaper tiles, via `placement.file`).
+
 ---
 
 ## See also
