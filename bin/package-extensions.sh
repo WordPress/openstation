@@ -30,6 +30,7 @@ root=$(pwd)
 out_dir="${1:-$root/dist}"
 only_slug="${2:-}"
 mkdir -p "$out_dir"
+out_dir=$(cd "$out_dir" && pwd)
 
 if [[ ! -d "extensions" ]]; then
 	echo "error: no extensions/ directory at $root" >&2
