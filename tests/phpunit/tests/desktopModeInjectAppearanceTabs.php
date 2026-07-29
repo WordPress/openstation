@@ -172,6 +172,7 @@ class Tests_DesktopMode_InjectAppearanceTabs extends WP_UnitTestCase {
 
 		$_GET['desktop_mode_chromeless'] = '1';
 		$GLOBALS['pagenow']              = 'theme-install.php';
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		ob_start();
 		desktop_mode_theme_install_active_tab_script();
@@ -181,5 +182,6 @@ class Tests_DesktopMode_InjectAppearanceTabs extends WP_UnitTestCase {
 
 		unset( $_GET['desktop_mode_chromeless'] );
 		unset( $GLOBALS['pagenow'] );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 	}
 }
