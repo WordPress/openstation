@@ -25,7 +25,7 @@ Built and maintained by [Automattic](https://automattic.com), the company behind
 * **Windows** — drag, resize, minimize, maximize, snap, tile. Every admin page works, including plugin pages.
 * **Dock & taskbar** — the admin menu becomes an icon dock; open windows live in a macOS-style taskbar.
 * **Virtual desktops (Spaces)** — one desktop for writing, another for the store, another for moderation.
-* **Files on the desktop** — drop posts, media, and links onto the wallpaper, organize them into folders, trash them to a Recycle Bin.
+* **Files on the desktop** — drop posts, media, and links onto the wallpaper, organize them into folders, trash them to the Trash.
 * **Session restore** — reload the browser and every window comes back exactly where you left it.
 
 = Make it yours =
@@ -36,7 +36,7 @@ Built and maintained by [Automattic](https://automattic.com), the company behind
 = Superpowers =
 
 * **AI Assistant (optional)** — press Cmd+K and ask *"Which post had the comment asking for the recipe?"* It searches your own content. Requires an AI provider configured in **Settings → Connectors** (WordPress 7.0+); see "External services" below.
-* **Content Graph** — an interactive, zoomable map of how your posts, pages, and products link together.
+* **Corkboard** — an interactive, zoomable map of how your posts, pages, and products link together.
 * **Cross-window drag & drop** — drag an image from the Media Library window straight into the editor in another window.
 * **Command palette** — the full WordPress command palette plus slash commands from plugins, all under Cmd+K.
 
@@ -97,10 +97,10 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 1. Real multitasking — Users, Media, and content editing open side by side as windows.
 2. Your admin, your desktop — custom wallpapers and live widgets registered by plugins.
 3. The AI Assistant (Cmd+K) answers questions about your own posts, pages, and comments.
-4. Content Graph — an interactive map of how your content links together.
+4. Corkboard — an interactive map of how your content links together.
 5. OS Settings — pick a wallpaper preset, an animated scene, or upload your own image.
 6. Files on the desktop — drag posts, media, and links onto the wallpaper and into folders.
-7. The Recycle Bin collects trashed posts, media, folders, and shortcuts in one window.
+7. The Trash collects trashed posts, media, folders, and shortcuts in one window.
 
 == Credits ==
 
@@ -110,7 +110,7 @@ Desktop Mode is brought to you by [Automattic](https://automattic.com). The plug
 
 The plugin bundles the following third-party JavaScript library, loaded on demand only when a feature that needs it is in use:
 
-* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Content Graph** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
+* **[PixiJS](https://pixijs.com/)** (MIT License) — used by the interactive **OS Settings → About** scene, the **Corkboard** window, built-in canvas wallpapers (e.g. the animated WordPress logo), and the **Inkfall** typing game. PixiJS is loaded from the plugin's own `assets/vendor/` directory; no CDN requests are made.
 
 = Data files =
 

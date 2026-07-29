@@ -68,6 +68,7 @@ import {
 	type UserStats,
 	getConfig,
 	getEntity,
+	getSiteName,
 	trashEntity,
 	type RelatedComment,
 	type RelatedMedia,
@@ -415,11 +416,12 @@ function updateBreadcrumbs( state: RenderState ): void {
 	// to the visual lands in one place.
 	const segments: BreadcrumbSegment[] = [];
 	const isRoot = route.kind === 'root';
+	const rootLabel = getSiteName();
 	segments.push(
 		isRoot
-			? { label: __( 'My WordPress', 'desktop-mode' ) }
+			? { label: rootLabel }
 			: {
-				label: __( 'My WordPress', 'desktop-mode' ),
+				label: rootLabel,
 				onClick: () => navigate( state, { kind: 'root' } ),
 			},
 	);
@@ -3656,7 +3658,7 @@ async function trashEntityById(
 		throw new Error(
 			sprintf(
 				// translators: %s is the entity id (e.g. 'posts').
-				__( 'Unknown My WordPress entity: %s', 'desktop-mode' ),
+				__( 'Unknown entity: %s', 'desktop-mode' ),
 				entityId,
 			),
 		);

@@ -42,6 +42,13 @@ export interface MyWordPressEntity {
 export interface MyWordPressConfig {
 	restRoot: string;
 	restNonce: string;
+	/**
+	 * The site's own name, used as the window title and the
+	 * breadcrumb root. Sourced from `desktop_mode_site_title()`
+	 * server-side, so it already honours the
+	 * `desktop_mode_site_title` filter and is entity-decoded.
+	 */
+	siteName?: string;
 	editPostUrlBase: string;
 	/**
 	 * Admin URL base for `user-edit.php` — fallback when the

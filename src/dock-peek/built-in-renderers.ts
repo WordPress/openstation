@@ -167,7 +167,7 @@ function renderRecycleBin(
 	const label = document.createElement( 'span' );
 	label.className = 'desktop-mode-dock-peek__bin-label';
 	if ( count === 0 ) {
-		label.textContent = __( 'Recycle Bin — empty' );
+		label.textContent = __( 'Trash — empty' );
 	} else if ( count === 1 ) {
 		label.textContent = __( '1 item' );
 	} else if ( count > 99 ) {

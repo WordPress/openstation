@@ -49,7 +49,7 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		'[data-desktop-mode-content-graph-root]',
 	);
 	if ( ! root ) {
-		body.textContent = __( 'Content Graph container missing.' );
+		body.textContent = __( 'Corkboard container missing.' );
 		return { abort: () => {} };
 	}
 	const cfg = getConfig();

@@ -162,8 +162,10 @@ function desktop_mode_my_wordpress_register_window() {
 		return;
 	}
 
+	$site_title = desktop_mode_site_title();
+
 	$window_args = array(
-		'title'      => __( 'My WordPress', 'desktop-mode' ),
+		'title'      => $site_title,
 		'icon'       => 'dashicons-wordpress',
 		'template'   => 'desktop_mode_my_wordpress_render_template',
 		'script'     => 'desktop-mode-my-wordpress',
@@ -178,6 +180,7 @@ function desktop_mode_my_wordpress_register_window() {
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
 			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
+			'siteName'        => $site_title,
 			'entities'        => desktop_mode_my_wordpress_entities(),
 			'perPage'         => 24,
 			'mediaPerPage'    => 48,
@@ -202,7 +205,7 @@ function desktop_mode_my_wordpress_register_window() {
 	}
 
 	$icon_args = array(
-		'title'    => __( 'My WordPress', 'desktop-mode' ),
+		'title'    => $site_title,
 		'icon'     => 'dashicons-wordpress',
 		'window'   => 'desktop-mode-my-wordpress',
 		'pinned'   => true,

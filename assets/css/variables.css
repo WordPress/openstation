@@ -249,6 +249,36 @@
 	 * @since 0.9.8
 	 */
 
+	/*
+	 * ---- Tooltips ---------------------------------------------
+	 *
+	 * Undeclared, like the palette above — every tooltip reads
+	 * `var( --desktop-mode-tooltip-bg, <the chain it always had> )`,
+	 * so an unthemed shell renders exactly as before.
+	 *
+	 *   --desktop-mode-tooltip-bg   the chip / card surface
+	 *   --desktop-mode-tooltip-fg   its primary text
+	 *
+	 * They exist because tooltips used to borrow their two colours
+	 * from unrelated families — `--wpd-scrim` (an overlay BACKDROP)
+	 * or `--wpd-surface-elevated` for the surface, `--wpd-fg-on-accent`
+	 * for the text. Those pairings hold for the default look and come
+	 * apart under a custom theme: a theme that sets `--wpd-scrim` to a
+	 * translucent wash for its modals turns every tooltip translucent
+	 * with it, and a light theme that sets `--wpd-surface-elevated`
+	 * light while `--wpd-fg-on-accent` stays white renders white text
+	 * on a white tooltip. A theme could not fix either without
+	 * breaking the modal backdrop or the text on its accent buttons,
+	 * because it had no name for "tooltip" to aim at. Now it does.
+	 *
+	 * Consumers: dock.css (dock tile tooltip), content-graph.css
+	 * (satellite tooltip), my-wordpress.css (entity hover card).
+	 *
+	 * Secondary text inside the richer tooltips — the hover card's
+	 * excerpt — still follows `--wpd-fg-muted`; these two tokens
+	 * cover the surface and the primary text on it.
+	 */
+
 	/* Dock */
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;

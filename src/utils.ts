@@ -173,6 +173,43 @@ export function applyTileEntryStagger( tile: HTMLElement ): void {
 }
 
 /**
+ * Returns a key identifying the admin *page* a URL points at, ignoring
+ * every param that only varies the view of that page — `action`,
+ * `paged`, `s`, filters, nonces, feedback flags. Only
+ * {@link IDENTITY_PARAMS} survive, so `nav-menus.php`,
+ * `nav-menus.php?action=locations`, and `nav-menus.php?action=edit&menu=2`
+ * all collapse to the same key, while `edit-tags.php?taxonomy=category`
+ * and `edit-tags.php?taxonomy=post_tag` stay apart.
+ *
+ * Same identity rule {@link deriveWindowId} uses to decide which window
+ * owns a URL, minus the slugification — this variant compares URLs
+ * rather than minting DOM ids, so it keeps the raw pathname and needs
+ * no `adminUrl` base. Used by the submenu tab strip to keep a tab lit
+ * while the user moves around within its page.
+ *
+ * Falls back to the raw URL if parsing fails.
+ */
+export function pageIdentityKey( url: string ): string {
+	try {
+		const parsed = new URL( url, window.location.origin );
+		const significant = new URLSearchParams();
+		for ( const key of IDENTITY_PARAMS ) {
+			const value = parsed.searchParams.get( key );
+			if ( value ) {
+				significant.set( key, value );
+			}
+		}
+		significant.sort();
+		const query = significant.toString();
+		return (
+			parsed.pathname.replace( /\/+$/, '' ) + ( query ? `?${ query }` : '' )
+		);
+	} catch {
+		return url;
+	}
+}
+
+/**
  * Returns a comparable key for two admin URLs so equality checks work
  * regardless of the chromeless flag, the portal flag, or trailing
  * slashes. Used by the window class to match submenu tabs against

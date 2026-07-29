@@ -342,7 +342,7 @@ Same window, same dock icon, same OS Settings theming — different authoring st
 
 ## Migration plan for what already exists
 
-*(Proposal-era section.)* When this was written, the only native-window content was the **OS Settings** panel (shell-internal, Phase 6); its `render( body )` callback already matched Path B exactly. The API has since landed and is used in-tree by the shipped Posts, Pages, Users, Plugins, Comments, Recycle Bin, My WordPress, Content Graph, and user-edit windows — all registered via `desktop_mode_register_window()`. The original plan for OS Settings:
+*(Proposal-era section.)* When this was written, the only native-window content was the **OS Settings** panel (shell-internal, Phase 6); its `render( body )` callback already matched Path B exactly. The API has since landed and is used in-tree by the shipped Posts, Pages, Users, Plugins, Comments, Trash, site folder, Corkboard, and user-edit windows — all registered via `desktop_mode_register_window()`. The original plan for OS Settings:
 
 1. Stay a render callback (it's shell-internal, no reason to register it through the public registry).
 2. Gain the same `ctx` lifecycle wiring other plugins get — currently it does nothing on focus / blur / resize; with `ctx` it can, e.g., re-check `matchMedia` on resize if we ever add a "follow system dark mode" toggle.

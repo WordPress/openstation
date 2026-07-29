@@ -16,6 +16,55 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
+ * The Corkboard SVG, shared by the window icon and the desktop icon.
+ *
+ * Dashicons has no corkboard, and the near misses all fail for the
+ * same reason the old "Content Graph" name did: `networking` draws an
+ * org chart, `layout` draws a wireframe — diagrams of the data, not a
+ * thing on a desk. The pushpin is unavailable too, since
+ * `dashicons-admin-post` already owns it for Posts.
+ *
+ * So: a cork board with two notes pinned to it, joined by a length of
+ * thread. The thread is not decoration — it's the window's actual
+ * subject, the links between pieces of content, drawn the way anyone
+ * who has ever seen a detective's board already reads it. Without it
+ * the icon says "pinboard"; with it, "connections".
+ *
+ * Drawn in `currentColor`, which makes it a silhouette: `renderIcon()`
+ * paints it as a CSS mask rather than a background-image, so it takes
+ * whatever colour the surface is already using for text. That keeps it
+ * legible on the dark dock, on a light title bar, and on hover, with
+ * nothing to configure. Fixed colours could not do that — a background
+ * image has no colour to inherit.
+ *
+ * Hand-placed at 64×64 like the Games icons, the established shape for
+ * custom icons here. Held to five elements because it renders as small
+ * as 20px in the dock: board, two notes, thread, two pin heads. The
+ * thread arcs up through the empty top half rather than running
+ * between the notes, where a 5px gap would swallow it.
+ *
+ * @return string Raw `<svg>` markup.
+ */
+function desktop_mode_content_graph_icon_svg() {
+	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+		// The board itself — outlined, so it frames rather than fills.
+		. '<rect x="5" y="9" width="54" height="46" rx="4.5" fill="none" stroke="currentColor" stroke-width="4"/>'
+		// Thread first: the pin heads below are drawn over its ends, so
+		// the joins stay round instead of showing a stroke cap.
+		. '<path d="M20.5 28Q32 16.5 43.5 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>'
+		// Notes, each tilted a few degrees — pinned by hand, not laid out.
+		. '<g transform="rotate(-7 20.5 39)">'
+		. '<rect x="12" y="30" width="17" height="18" rx="1.5" fill="currentColor"/></g>'
+		. '<g transform="rotate(7 43.5 39)">'
+		. '<rect x="35" y="30" width="17" height="18" rx="1.5" fill="currentColor"/></g>'
+		// Pin heads, sitting proud of each note's top edge. They are the
+		// cue that separates a pinboard from a picture frame.
+		. '<circle cx="20.5" cy="28" r="3" fill="currentColor"/>'
+		. '<circle cx="43.5" cy="28" r="3" fill="currentColor"/>'
+		. '</svg>';
+}
+
+/**
  * Whether the current user should see Content Graph.
  *
  * Mirrors the my-wordpress gate, anyone who can edit posts can view
@@ -133,9 +182,11 @@ function desktop_mode_content_graph_register_window() {
 		return;
 	}
 
+	$icon_uri = 'data:image/svg+xml;base64,' . base64_encode( desktop_mode_content_graph_icon_svg() );
+
 	$window_args = array(
-		'title'      => __( 'Content Graph', 'desktop-mode' ),
-		'icon'       => 'dashicons-networking',
+		'title'      => __( 'Corkboard', 'desktop-mode' ),
+		'icon'       => $icon_uri,
 		'template'   => 'desktop_mode_content_graph_render_template',
 		'script'     => 'desktop-mode-content-graph',
 		'style'      => 'desktop-mode-content-graph',
@@ -153,6 +204,9 @@ function desktop_mode_content_graph_register_window() {
 			'editUserUrl'    => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'editCommentUrl' => esc_url_raw( admin_url( 'comment.php' ) ),
 			'mediaUrl'       => esc_url_raw( admin_url( 'upload.php' ) ),
+			// Labels the "Open in <site>" action on the detail panel,
+			// which hands off to the site folder window.
+			'siteName'       => desktop_mode_site_title(),
 			'postTypes'      => desktop_mode_content_graph_post_types(),
 		),
 	);
@@ -172,8 +226,8 @@ function desktop_mode_content_graph_register_window() {
 	}
 
 	$icon_args = array(
-		'title'    => __( 'Content Graph', 'desktop-mode' ),
-		'icon'     => 'dashicons-networking',
+		'title'    => __( 'Corkboard', 'desktop-mode' ),
+		'icon_svg' => desktop_mode_content_graph_icon_svg(),
 		'window'   => 'desktop-mode-content-graph',
 		'pinned'   => false,
 		'position' => 20,

@@ -25,7 +25,7 @@ import type { EntityRenderHost } from './kind-registry';
 import type { MediaListItem, MediaUsage } from './types';
 import { fetchMediaUsage } from './media-rest';
 import { renderMediaPreview } from './media-preview';
-import { getConfig } from './rest';
+import { getConfig, getSiteName } from './rest';
 
 /**
  * Resolve a row's `postType` to the matching My WordPress entity.
@@ -160,7 +160,15 @@ function openUsageTileMenu(
 		menu.appendChild( opt );
 	};
 
-	addOption( 'navigate-into', __( 'Open in My WordPress', 'desktop-mode' ), 'dashicons-category' );
+	addOption(
+		'navigate-into',
+		sprintf(
+			// translators: %s is the site title.
+			__( 'Open in %s', 'desktop-mode' ),
+			getSiteName(),
+		),
+		'dashicons-category',
+	);
 	if ( row.editLink ) {
 		addOption( 'open-editor', __( 'Open in editor', 'desktop-mode' ), 'dashicons-edit' );
 	}

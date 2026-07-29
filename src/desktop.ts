@@ -42,6 +42,13 @@ import { deriveWindowId, urlMatchKey } from './utils';
 // returned `null`, the fallback to `cfg.currentUserId` kicked in, and
 // the form mounted for the viewer instead of the clicked user.
 import { setUserEditTarget as setUserEditTargetSync } from './posts-window/user-edit-target';
+// Same synchronous-before-open rationale as the user-edit target above:
+// the comments remap stashes the `?p=<id>` post filter here so the
+// conversation renderer scopes its rail on first paint.
+import {
+	setCommentsPostFilter,
+	clearCommentsPostFilter,
+} from './comments-window/post-filter';
 import {
 	HOOKS,
 	addAction,
@@ -2267,6 +2274,17 @@ function init(): void {
 		matches: ( _url, parsed ) =>
 			parsed.pathname.endsWith( '/edit-comments.php' ),
 		enabled: ( snapshot ) => snapshot.nativeCommentsEnabled === true,
+		onMatch: ( _url, parsed ) => {
+			// `edit-comments.php?p=<id>` scopes the list to one post
+			// (WP's own "comments on this post" link). Thread it through
+			// so the native window opens filtered; a plain open clears it.
+			const postId = parseInt( parsed.searchParams.get( 'p' ) ?? '0', 10 );
+			if ( postId > 0 ) {
+				setCommentsPostFilter( postId );
+			} else {
+				clearCommentsPostFilter();
+			}
+		},
 	} );
 
 	// Native Plugins window — claims `plugins.php` (Installed list)
@@ -2910,16 +2928,25 @@ function init(): void {
 	// window whose content identity carries navigation targets
 	// (comments, terms, media for posts/pages; plugins add their own
 	// via the `desktop_mode_window_related_entities` PHP filter or the
-	// `desktop-mode.related-entities.items` JS filter). Picking an
-	// item opens it as its own window. Deliberately does NOT consult
-	// `tryNativeUrlRemap()`: the menu's whole point is filtered deep
-	// links (`edit-comments.php?p={id}`), and a native window opened
-	// by id drops the query — "Comments (4)" landing on the ALL-
-	// comments native window reads as a broken click. Revisit when
-	// native windows accept deep-link hints.
+	// `desktop-mode.related-entities.items` JS filter). Picking an item
+	// opens it as its own window, consulting `tryNativeUrlRemap()` first
+	// so a native window claims it when the viewer opted in. Deep links
+	// like `edit-comments.php?p={id}` used to be a reason to skip the
+	// remap (the query was dropped); remaps now thread the filter via
+	// their `onMatch` (Comments reads `?p=` there), so "Comments (4)"
+	// lands on the native window scoped to that post.
 	bootRelatedEntities( {
 		manager,
 		openUrl: ( item ) => {
+			// Honour native-window remaps first — same as the shell's
+			// link interceptor. When the viewer has opted into a native
+			// window that claims this URL (e.g. Comments for
+			// `edit-comments.php?p=<id>`), open that instead of a
+			// chromeless iframe of the classic admin page; the remap's
+			// onMatch also threads any per-post filter through.
+			if ( tryNativeUrlRemap( item.url ) ) {
+				return;
+			}
 			const relatedId = deriveWindowId( item.url, config.adminUrl );
 			void manager.open( {
 				id: relatedId,

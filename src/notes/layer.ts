@@ -1074,7 +1074,7 @@ export class NoteController {
 		this.pinEl.setAttribute( 'aria-pressed', 'true' );
 		this.layer.announce(
 			__(
-				'Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Recycle Bin.',
+				'Moving note. Arrow keys to move, Enter to place, Escape to cancel, Delete to move to the Trash.',
 				'desktop-mode',
 			),
 		);
@@ -1133,8 +1133,8 @@ export class NoteController {
 			case 'Backspace':
 				this.exitMoveMode( false );
 				void wpdConfirm( {
-					title: __( 'Move note to the Recycle Bin?', 'desktop-mode' ),
-					message: __( 'You can restore it from the Recycle Bin later.', 'desktop-mode' ),
+					title: __( 'Move note to the Trash?', 'desktop-mode' ),
+					message: __( 'You can restore it from the Trash later.', 'desktop-mode' ),
 					confirmLabel: __( 'Move to Trash', 'desktop-mode' ),
 					danger: true,
 				} ).then( ( confirmed ) => {

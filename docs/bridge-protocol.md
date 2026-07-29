@@ -216,8 +216,10 @@ The chromeless bridge intercepts every same-origin `<a href="/wp-admin/…">` cl
 Parent dispatch (in `src/window/iframe-bridge.ts`, wired by `bindAdminLinkDispatch` in `desktop.ts`):
 
 1. **Native-window remap** — the URL goes through `tryNativeUrlRemap`. On a hit the parent opens the native window and closes the source iframe so the brief in-flight nav never paints.
-2. **Same-slug click** — `deriveWindowId(url, adminUrl)` matches the source window's `baseId`. The parent calls `iframe.contentWindow.location.assign(url)`, which navigates the iframe in place AND adds a session-history entry. Pagination, list filtering, and per-window tab strips ride this path.
-3. **Cross-slug click** — slug differs from the source. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry. When no dock tile owns the destination, the title falls back to the `label` from the message (the clicked link's visible text), then to the derived slug as a last resort. The source iframe is left untouched, so the user keeps both contexts. When a window for the destination slug is *already open*, `open()`'s URL-aware reuse applies: if the clicked URL isn't what that window is showing (nor its home / dock landing URL), the existing window's iframe navigates to it in place — so an action URL like the post-install `plugins.php?action=activate&plugin=…&_wpnonce=…` link actually runs instead of being dropped by a bare focus.
+2. **Same-slug click** — `deriveWindowId(url, adminUrl)` matches the source window's `baseId` **or** the slug its iframe is currently showing (`getCurrentUrl()`). The parent calls `iframe.contentWindow.location.assign(url)`, which navigates the iframe in place AND adds a session-history entry. Pagination, list filtering, and per-window tab strips ride this path.
+
+   Both slugs count because they diverge as soon as the iframe navigates in place: clicking the Menus tab in the Appearance window points the iframe at `nav-menus.php` while the window keeps `baseId: themes-php`. Matching only `baseId` would classify the Menus screen's own tab links as cross-page and spawn a fresh window per click. The live slug only ever *widens* the same-page set — it never turns an in-place navigation into a new window, so a window that has navigated away still treats a link back to its landing page as in-page.
+3. **Cross-slug click** — slug matches neither the source window's `baseId` nor its live URL. The parent calls `windowManager.open({ id, baseId, url, title, icon })` with title/icon copied from the matching dock entry. When no dock tile owns the destination, the title falls back to the `label` from the message (the clicked link's visible text), then to the derived slug as a last resort. The source iframe is left untouched, so the user keeps both contexts. When a window for the destination slug is *already open*, `open()`'s URL-aware reuse applies: if the clicked URL isn't what that window is showing (nor its home / dock landing URL), the existing window's iframe navigates to it in place — so an action URL like the post-install `plugins.php?action=activate&plugin=…&_wpnonce=…` link actually runs instead of being dropped by a bare focus.
 
 Modifier-key clicks (cmd / ctrl / shift / alt, middle-click, `target="_blank"`, `target` other than `_self`, `download` attribute) short-circuit the bridge's interceptor entirely — the browser's native open-in-new-tab path runs unchanged.
 
@@ -227,7 +229,7 @@ Forms submit through a separate `submit` listener that only rewrites the action 
 
 ## Activity-footprint launcher inside chromeless iframes — Stable
 
-The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `desktop_mode_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the **My WordPress** native window, *without* closing the Users list.
+The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `desktop_mode_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the pinned **site folder** native window, *without* closing the Users list.
 
 This deliberately does NOT reuse the admin-link path above: that path closes the source iframe on a native-window remap hit (it models a navigation *away*). A row action is an auxiliary *peek*, so it gets its own message.
 
@@ -241,9 +243,9 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-desktop-mode-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the My WordPress window on that user's footprint route and leaves the source window open. |
+| `desktop-mode-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-desktop-mode-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the site folder window on that user's footprint route and leaves the source window open. |
 
-**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.desktop.openWindow`. Cold-start safe: the My WordPress bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.desktop.myWordpress.openUserFootprint`.
+**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.desktop.openWindow`. Cold-start safe: the site-folder bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.desktop.myWordpress.openUserFootprint`.
 
 ## Public hooks
 
@@ -306,7 +308,7 @@ A separate channel from the connection bridge. Where the connection bridge carri
 
 The drag bridge stores a single `DragBridgePayload` at any given time. Two ways the payload gets in:
 
-- **Shell-side drag source** — a DragManager `'shortcut'` or `'desktop-file'` session whose payload carries `data.bridgePayload` starts (a shell-rendered tile from My WordPress media / post / user, or an existing wallpaper placement dragged off the desktop). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
+- **Shell-side drag source** — a DragManager `'shortcut'` or `'desktop-file'` session whose payload carries `data.bridgePayload` starts (a shell-rendered tile from site-folder media / post / user, or an existing wallpaper placement dragged off the desktop). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
 - **Iframe-side drag source** — an iframe postMessages `{ type: 'desktop-mode-drag-start', payload }` to the parent. The bridge stores the payload and broadcasts `DRAG_BRIDGE_EVENTS.START` as a `CustomEvent` on `document` so other shell modules can react.
 
 ### Receiver protocol
