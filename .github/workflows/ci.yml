@@ -43,6 +43,14 @@ jobs:
       - name: Vitest
         run: npm run test:js
 
+      - name: SOL extension checks
+        run: |
+          npm --prefix extensions/desktop-mode-feed-buddy run lint
+          npm --prefix extensions/desktop-mode-feed-buddy run typecheck
+          npm --prefix extensions/desktop-mode-feed-buddy run test
+          npm --prefix extensions/desktop-mode-feed-buddy run build
+          git diff --exit-code -- extensions/desktop-mode-feed-buddy/assets/js
+
   php:
     name: PHPUnit · PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
@@ -79,6 +87,21 @@ jobs:
 
       - name: Run PHPUnit
         run: npm run test:php
+
+      - name: Run SOL extension PHPUnit
+        run: |
+          npx wp-env run --config=.wp-env.tests.json cli \
+            --env-cwd=wp-content/plugins/desktop-mode \
+            vendor/bin/phpunit --configuration tests/phpunit/phpunit.xml.dist \
+            extensions/desktop-mode-feed-buddy/tests/phpunit
+
+      - name: Check SOL extension coding standards
+        run: |
+          npx wp-env run --config=.wp-env.tests.json cli \
+            --env-cwd=wp-content/plugins/desktop-mode \
+            vendor/bin/phpcs \
+            --standard=extensions/desktop-mode-feed-buddy/phpcs.xml.dist \
+            extensions/desktop-mode-feed-buddy
 
   plugin-check:
     name: Plugin Check

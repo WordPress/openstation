@@ -10,6 +10,12 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 
 <video src="https://github.com/user-attachments/assets/590aacc2-e9d7-4213-889e-b91e060e1bd8" controls width="720"></video>
 
+The one-click Playground and Studio demos also preload **SOL Inbound
+Monologue**, an AIM-era RSS reader extension. Its buddy-list widget and reader
+window open automatically with sample messages from WordPress News, the
+Developer Blog, and Make WordPress Core; live feed refresh remains available
+during the demo.
+
 ---
 
 ## Contents
@@ -152,6 +158,7 @@ The `extensions/` directory hosts sibling plugins that build on Desktop Mode's p
 
 - **Code Editor** (`desktop-mode-code-editor`) — a Monaco-backed Code editor native window for browsing and editing files inside `wp-content`. Editing requires the `edit_plugins` capability and is disabled entirely when `DISALLOW_FILE_EDIT` is set.
 - **Cron Manager** (`desktop-mode-cron-manager`) — a Cron Jobs native window for browsing, editing, deleting, and running WP-Cron events. Gated by `manage_options`.
+- **SOL Inbound Monologue** (`desktop-mode-feed-buddy`) — an AIM-era RSS/Atom reader with a movable buddy-list widget, a native conversation-style reader window, per-user subscriptions and unread state, safe server-side feed discovery, and optional synthesized chimes.
 - **phpMyAdmin** (`desktop-mode-phpmyadmin`) — embeds a bundled phpMyAdmin install as a native window. **Local environments only**: the window registers solely when `wp_get_environment_type()` is `'local'`, because the bundled phpMyAdmin runs with `auth_type=config` and reuses the WordPress DB credentials — any visitor who finds the URL gets full DB access. The `manage_options` check only hides the shortcut from lower-privilege users; it does **not** gate the underlying URL.
 
 ---

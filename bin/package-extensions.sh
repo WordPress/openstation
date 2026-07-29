@@ -63,12 +63,11 @@ for ext_dir in "${extensions[@]}"; do
 	# `bin/fetch-*.sh` populates a gitignored vendor dir and is
 	# idempotent — bails early when its target is already present.
 	shopt -s nullglob
-	fetchers=( "$ext_dir"bin/fetch-*.sh )
-	shopt -u nullglob
-	for fetcher in "${fetchers[@]}"; do
+	for fetcher in "$ext_dir"bin/fetch-*.sh; do
 		echo "  running $(basename "$fetcher")"
 		"$fetcher"
 	done
+	shopt -u nullglob
 
 	stage="$tmp_root/$slug"
 	mkdir -p "$stage/$slug"
@@ -90,10 +89,7 @@ for ext_dir in "${extensions[@]}"; do
 	# entry — no changes to this script.
 	if [[ -d "$ext_dir/assets/vendor" ]]; then
 		shopt -s nullglob
-		vendor_subdirs=( "$ext_dir"assets/vendor/*/ )
-		shopt -u nullglob
-
-		for sub in "${vendor_subdirs[@]}"; do
+		for sub in "$ext_dir"assets/vendor/*/; do
 			sub_name=$(basename "$sub")
 			dest="$stage/$slug/assets/vendor/$sub_name"
 			if [[ -d "$dest" ]]; then
@@ -103,6 +99,7 @@ for ext_dir in "${extensions[@]}"; do
 			cp -R "$sub" "$dest"
 			echo "  spliced vendor: assets/vendor/$sub_name"
 		done
+		shopt -u nullglob
 	fi
 
 	# Sanity check for the phpmyadmin extension specifically — the
