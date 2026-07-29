@@ -76,6 +76,8 @@ Sibling plugins under `extensions/` (e.g. `desktop-mode-cron-manager`,
 ```bash
 ./bin/package-extensions.sh             # writes to dist/
 ./bin/package-extensions.sh /tmp/out    # writes to a custom dir
+./bin/package-extensions.sh /tmp/out desktop-mode-popup-siege
+                                        # packages one named extension
 ```
 
 Each extension produces one `<slug>.zip` under `dist/` (gitignored).
@@ -88,7 +90,8 @@ matching `<slug>.php` plugin file. For each, it:
    zip into `assets/vendor/phpmyadmin/`, the directory is gitignored).
 2. Stages tracked + untracked-but-not-gitignored files via
    `git ls-files -co --exclude-standard`, so packaging works on
-   uncommitted work too.
+   uncommitted work too. If an extension ships a `.distignore`, matching
+   repository-only files are left out of the release artifact.
 3. Splices any `assets/vendor/*` working-tree content back in (vendors
    are gitignored by convention so end users still get a zip that
    activates without a setup step).

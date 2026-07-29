@@ -1,0 +1,235 @@
+{
+  "id": "popup-siege-ui-system-0.7.0",
+  "inherits": "popup-siege-ui-system-0.6.1",
+  "featureSelector": "siege-game--experience-070",
+  "shell": {
+    "asset": "images/popup-siege-side-console-0.5.1.png",
+    "sourceWidth": 771,
+    "sourceHeight": 2041,
+    "registrationToleranceCssPixels": 2
+  },
+  "appliance": {
+    "width": 704,
+    "height": 629,
+    "stageShare": 0.681818,
+    "consoleShare": 0.318182,
+    "barShare": 0.05724,
+    "railShare": 0.05405
+  },
+  "regions": {
+    "brand": {
+      "x": 0.255,
+      "y": 0.094,
+      "width": 0.54,
+      "height": 0.09
+    },
+    "hud": {
+      "x": 0.252,
+      "y": 0.2265,
+      "width": 0.542,
+      "height": 0.327,
+      "columns": 2,
+      "scorePaintScaleX": 0.76
+    },
+    "controls": {
+      "x": 0.243,
+      "y": 0.6122,
+      "width": 0.559,
+      "height": 0.2653,
+      "columns": 2,
+      "rows": 2,
+      "columnGap": 0.01,
+      "rowGap": 0.031,
+      "iconTrack": 0.72,
+      "labelTrack": 0.28,
+      "labelBaseline": 0.83
+    }
+  },
+  "spatialInvariant": {
+    "consolePlacement": "right-at-all-widths",
+    "gridTemplateAreas": [
+      ["bar", "header"],
+      ["stage", "header"],
+      ["rail", "rail"]
+    ],
+    "stackedFallbackAllowed": false
+  },
+  "canonicalHost": {
+    "width": 900,
+    "height": 620,
+    "unit": "css-px",
+    "purpose": "OpenStation initial game window"
+  },
+  "smallestSupportedHost": {
+    "width": 520,
+    "height": 480,
+    "unit": "css-px",
+    "requiresBothDimensions": true,
+    "minimumLiveTargetCssPixels": 44,
+    "status": "supported"
+  },
+  "belowMinimum": {
+    "status": "unsupported-contained",
+    "strategy": "preserve-side-by-side-console-and-clip-within-game-owned-host",
+    "stackingAllowed": false,
+    "targetConformance": "not-guaranteed"
+  },
+  "projectionContract": {
+    "measurementKind": "calculated-css-projection-not-browser-measurement",
+    "assumptions": {
+      "rootRemCssPixels": 16,
+      "aspectRatio": 1.1192368839,
+      "heightWidthFactor": 1.119237,
+      "heightWidthOffsetCssPixels": 8.954,
+      "maxHeightInsetCssPixels": 8
+    },
+    "formula": {
+      "applianceWidth": "min((hostHeight - 2 * bodyPaddingY - maxHeightInset) * aspectRatio, hostHeight * heightWidthFactor - heightWidthOffset, hostWidth - 2 * bodyPaddingX - horizontalWidthInset)",
+      "controlKeyWidth": "((applianceWidth * consoleShare * controlsWidth) * (1 - columnGap)) / columns",
+      "controlKeyHeight": "((applianceHeight * controlsHeight) * (1 - rowGap)) / rows"
+    },
+    "canonicalHost": {
+      "bodyPaddingXCssPixels": 7.2,
+      "bodyPaddingYCssPixels": 5.6,
+      "horizontalWidthInsetCssPixels": 8,
+      "projectedApplianceWidthCssPixels": 672.438,
+      "projectedApplianceHeightCssPixels": 600.8,
+      "projectedConsoleWidthCssPixels": 213.958,
+      "projectedControlKeyWidthCssPixels": 59.203,
+      "projectedControlKeyHeightCssPixels": 77.226,
+      "projectedTypeCssPixels": {
+        "brandEyebrow": 9.61,
+        "hudLabel": 10.85,
+        "hudValue": 15.81,
+        "controlLabel": 9.61,
+        "longControlLabel": 8.68,
+        "browserChrome": 10.23,
+        "browserRail": 9.61
+      }
+    },
+    "smallestSupportedHost": {
+      "bodyPaddingXCssPixels": 4,
+      "bodyPaddingYCssPixels": 4,
+      "horizontalWidthInsetCssPixels": 4,
+      "projectedApplianceWidthCssPixels": 508,
+      "projectedApplianceHeightCssPixels": 453.881,
+      "projectedConsoleWidthCssPixels": 161.636,
+      "projectedHudInstrumentWidthCssPixels": 43.803,
+      "projectedControlKeyWidthCssPixels": 44.726,
+      "projectedControlKeyHeightCssPixels": 58.341,
+      "projectedSixDigitScorePaintWidthCssPixels": 41.04,
+      "projectedLongestControlLabelPaintWidthCssPixels": 30.6,
+      "projectedTypeCssPixels": {
+        "brandEyebrow": 9,
+        "hudLabel": 10,
+        "hudValue": 15,
+        "controlLabel": 9,
+        "longControlLabel": 8.5,
+        "browserChrome": 9.5,
+        "browserRail": 9.25
+      }
+    }
+  },
+  "typeTokens": {
+    "brandEyebrow": {
+      "minimumCssPixels": 9,
+      "preferredCqh": 1.55,
+      "maximumCssPixels": 11.5
+    },
+    "hudLabel": {
+      "minimumCssPixels": 10,
+      "preferredCqh": 1.75,
+      "maximumCssPixels": 12
+    },
+    "hudValue": {
+      "minimumCssPixels": 15,
+      "preferredCqh": 2.55,
+      "maximumCssPixels": 20.5
+    },
+    "controlLabel": {
+      "minimumCssPixels": 9,
+      "preferredCqh": 1.55,
+      "maximumCssPixels": 11
+    },
+    "longControlLabel": {
+      "minimumCssPixels": 8.5,
+      "preferredCqh": 1.4,
+      "maximumCssPixels": 10
+    },
+    "browserChrome": {
+      "minimumCssPixels": 9.5,
+      "preferredCqh": 1.65,
+      "maximumCssPixels": 10.5
+    },
+    "browserRail": {
+      "minimumCssPixels": 9.25,
+      "preferredCqh": 1.55,
+      "maximumCssPixels": 10.25
+    }
+  },
+  "contrastPolicy": {
+    "minimumNormalTextRatio": 4.5,
+    "pauseKey": {
+      "foreground": "#100b17",
+      "lightFace": "#f9c247",
+      "darkFace": "#d78315",
+      "calculation": "WCAG-2.x-sRGB-relative-luminance-formula-not-composited-browser-measurement",
+      "foregroundOnLightFaceRatio": 11.86,
+      "foregroundOnDarkFaceRatio": 6.6
+    }
+  },
+  "runtimeHooks": {
+    "rootClass": "siege-game--experience-070",
+    "rootAttributes": {
+      "phase": ["menu", "playing", "paused", "results"],
+      "runtimeState": ["on", "off"]
+    },
+    "target": {
+      "priorityAttribute": "data-target-priority",
+      "criticalValue": "critical",
+      "xClass": "siege-target__x"
+    },
+    "popupCloseBeat": {
+      "class": "siege-popup-close-beat",
+      "activeAttribute": "data-active",
+      "beatAttribute": "data-beat",
+      "beatValues": ["impact", "recovery"],
+      "positionProperties": ["--siege-close-x", "--siege-close-y"],
+      "sizeProperties": ["--siege-close-width", "--siege-close-height"],
+      "semanticPolicy": "aria-hidden-visual-supplement-only"
+    },
+    "restoredPage": {
+      "class": "siege-restored-page",
+      "previewClass": "siege-restored-page__preview",
+      "contentRole": "restored-reveal",
+      "stateAttribute": "data-reveal-state",
+      "stateValues": ["locked", "restored"]
+    },
+    "archiveReceipt": {
+      "class": "siege-archive-receipt",
+      "summaryClass": "siege-archive-receipt__summary",
+      "factsClass": "siege-archive-receipt__facts",
+      "summaryRole": "receipt-summary",
+      "factRolePrefix": "receipt-"
+    },
+    "challenge": {
+      "class": "siege-challenge",
+      "activeAttribute": "data-openstation-challenge",
+      "activeValue": "active",
+      "outcomeAttribute": "data-openstation-challenge-outcome",
+      "placement": "absolute-within-browser-no-implicit-grid-track"
+    },
+    "loadFailureActions": {
+      "class": "openstation-popup-siege-message__actions",
+      "minimumTargetCssPixels": 44,
+      "actions": ["retry", "close"]
+    }
+  },
+  "states": {
+    "phases": ["menu", "playing", "paused", "results"],
+    "audio": ["on", "off"],
+    "controls": ["default", "hover", "active", "focus", "disabled"],
+    "motion": ["default", "reduced"],
+    "colors": ["default", "forced"]
+  }
+}

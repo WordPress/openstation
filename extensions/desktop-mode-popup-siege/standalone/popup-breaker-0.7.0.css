@@ -1,0 +1,968 @@
+/*
+ * Popup Siege UI System 0.7.0
+ *
+ * The 0.7 presentation owner preserves the approved right-side appliance,
+ * restores honest optical and interaction floors, and supplies hooks for the
+ * archive-receipt and restoration beats introduced by the 0.7 runtime.
+ */
+
+@import url("./popup-breaker-0.6.1.css");
+
+/* 1. Current-system tokens ------------------------------------------------ */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070 {
+	--siege-ui-type-brand-eyebrow:
+		clamp(9px, 1.55cqh, 11.5px);
+	--siege-ui-type-hud-label:
+		clamp(10px, 1.75cqh, 12px);
+	--siege-ui-type-hud-value:
+		clamp(15px, 2.55cqh, 20.5px);
+	--siege-ui-type-control-label:
+		clamp(9px, 1.55cqh, 11px);
+	--siege-ui-type-control-label-long:
+		clamp(8.5px, 1.4cqh, 10px);
+	--siege-ui-type-browser-chrome:
+		clamp(9.5px, 1.65cqh, 10.5px);
+	--siege-ui-type-browser-rail:
+		clamp(9.25px, 1.55cqh, 10.25px);
+	--siege-ui-live-target: 44px;
+	--siege-ui-pause-foreground: #100b17;
+	--siege-ui-pause-face-light: #f9c247;
+	--siege-ui-pause-face-dark: #d78315;
+	--siege-ui-target-red: #ff3659;
+	--siege-ui-target-light: #fff2b8;
+	--siege-ui-receipt-paper: #eef0e9;
+	--siege-ui-receipt-ink: #101827;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	contain: layout paint;
+}
+
+/* 2. Right-side console is an invariant, not a breakpoint suggestion ------ */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-browser {
+	position: relative;
+	grid-template-areas:
+		"bar header"
+		"stage header"
+		"rail rail";
+	grid-template-columns:
+		minmax(0, var(--siege-ui-stage-share))
+		minmax(0, var(--siege-ui-console-share));
+	grid-template-rows:
+		var(--siege-ui-bar-share)
+		minmax(0, 1fr)
+		var(--siege-ui-rail-share);
+	min-width: 0;
+	min-height: 0;
+	max-width: calc(100% - 2px);
+	overflow: visible;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-challenge[data-openstation-challenge="active"] {
+	position: absolute;
+	top: calc(var(--siege-ui-bar-share) + 6px);
+	left: 7px;
+	z-index: 9;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	max-width: min(78%, 270px);
+	gap: 2px 7px;
+	align-items: baseline;
+	padding: 5px 7px;
+	border: 1px solid #fff2ad;
+	background: rgb(8 24 48 / 94%);
+	box-shadow:
+		2px 2px 0 rgb(0 0 0 / 48%),
+		inset 0 0 0 1px rgb(111 241 210 / 22%);
+	color: #f8fbff;
+	font: 700 10px/1.2 "Courier New", monospace;
+	pointer-events: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-challenge
+	strong {
+	color: #ffdc65;
+	font-size: 9px;
+	letter-spacing: 0.08em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-challenge
+	span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-challenge
+	[data-openstation-challenge-outcome] {
+	grid-column: 1 / -1;
+	color: #aef8e1;
+	font-size: 10px;
+	font-style: normal;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-challenge
+	[data-openstation-challenge-outcome]:empty {
+	display: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-header {
+	grid-area: header;
+	min-width: 0;
+	min-height: 0;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-stage {
+	grid-area: stage;
+	min-width: 0;
+	min-height: 0;
+}
+
+/* 3. Optical type roles --------------------------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-brand__eyebrow {
+	max-width: 100%;
+	overflow: visible;
+	font-size: var(--siege-ui-type-brand-eyebrow);
+	letter-spacing: 0.12em;
+	line-height: 1;
+	text-indent: 0.12em;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-hud
+	> span {
+	gap: 2px;
+	padding-inline: 1px;
+	overflow: hidden;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-hud
+	small {
+	max-width: 100%;
+	overflow: visible;
+	font-size: var(--siege-ui-type-hud-label);
+	letter-spacing: 0.025em;
+	line-height: 1;
+	text-overflow: clip;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-hud
+	b {
+	max-width: none;
+	overflow: visible;
+	font-size: var(--siege-ui-type-hud-value);
+	letter-spacing: 0;
+	line-height: 1;
+	text-overflow: clip;
+	white-space: nowrap;
+}
+
+/*
+ * Six score digits are the limiting HUD string. The measured font is not
+ * assumed here: the explicit 0.76 painted-width contract keeps the string
+ * inside the 43.81px instrument cell projected at the supported minimum.
+ */
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-hud
+	[data-role="score"] {
+	justify-self: center;
+	width: 131.58%;
+	transform: scaleX(0.76);
+	transform-origin: center;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	button::after,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions__pause-slot::after {
+	max-width: 100%;
+	overflow: visible;
+	font-size: var(--siege-ui-type-control-label);
+	letter-spacing: 0.015em;
+	line-height: 1;
+	text-overflow: clip;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="pause"][data-control-mode="resume"]::after {
+	font-size: var(--siege-ui-type-control-label-long);
+	letter-spacing: 0;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-browser__bar {
+	font-size: var(--siege-ui-type-browser-chrome);
+	line-height: 1;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-browser__rail {
+	font-size: var(--siege-ui-type-browser-rail);
+	line-height: 1.05;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-browser__icon {
+	font-size: var(--siege-ui-type-browser-chrome);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-level-badge,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-cache
+	strong {
+	font-size: var(--siege-ui-type-browser-rail);
+	line-height: 1;
+}
+
+/* 4. Live target and contrast contract ----------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	button {
+	min-width: var(--siege-ui-live-target);
+	min-height: var(--siege-ui-live-target);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-card
+	button {
+	min-width: var(--siege-ui-live-target);
+	min-height: var(--siege-ui-live-target);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-primary {
+	min-height: 48px;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="pause"],
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="menu"]
+	.siege-actions__pause-slot {
+	background:
+		linear-gradient(
+			180deg,
+			var(--siege-ui-pause-face-light),
+			var(--siege-ui-pause-face-dark)
+		);
+	color: var(--siege-ui-pause-foreground);
+	text-shadow: 0 1px 0 rgb(255 246 216 / 42%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="pause"]::before,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="pause"]::after,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="menu"]
+	.siege-actions__pause-slot::before,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="menu"]
+	.siege-actions__pause-slot::after {
+	color: var(--siege-ui-pause-foreground);
+	text-shadow: 0 1px 0 rgb(255 246 216 / 42%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="pause"]:hover {
+	background:
+		linear-gradient(180deg, #ffcf67, #e59821);
+	filter: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="pause"]:active {
+	background:
+		linear-gradient(180deg, #d78315, #c77710);
+	filter: none;
+}
+
+/* 5. Explicit phases, off, and focus ------------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="menu"]
+	.siege-overlay {
+	background: rgb(5 12 27 / 18%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="play"]
+	.siege-overlay,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="playing"]
+	.siege-overlay {
+	background: transparent;
+	pointer-events: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="paused"]
+	.siege-overlay {
+	background: rgb(3 8 19 / 58%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="paused"]
+	.siege-card--pause {
+	border-color: var(--siege-ui-yellow);
+	box-shadow:
+		0 22px 70px rgb(0 0 0 / 82%),
+		inset 0 0 0 3px rgb(255 214 79 / 12%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="results"]
+	.siege-overlay {
+	background: rgb(3 8 19 / 64%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070[data-runtime-state="off"]
+	.siege-stage::after {
+	position: absolute;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-items: center;
+	border: 3px double #f3d98a;
+	background: rgb(5 10 22 / 92%);
+	color: #fff6d8;
+	font: 900 0.72rem/1.2 "Courier New", monospace;
+	letter-spacing: 0.08em;
+	content: "ARCHIVE CONNECTION OFF";
+	pointer-events: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="sound"][aria-pressed="false"],
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-actions
+	[data-action="effects"][aria-pressed="false"] {
+	background: rgb(2 5 9 / 58%);
+	color: #d1cec3;
+	filter: saturate(0.2);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	button:focus-visible,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-stage:focus-visible {
+	outline: 3px solid var(--siege-ui-focus);
+	outline-offset: -4px;
+	box-shadow:
+		inset 0 0 0 1px var(--siege-ui-ink),
+		inset 0 0 0 4px var(--siege-ui-focus);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	button:disabled,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	button[aria-disabled="true"] {
+	cursor: not-allowed;
+	filter: grayscale(0.7);
+	opacity: 0.52;
+}
+
+.openstation-popup-siege-message__actions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(44px, 1fr));
+	gap: 0.65rem;
+	width: min(100%, 280px);
+	margin: 1rem auto 0;
+}
+
+.openstation-popup-siege-message__actions button {
+	min-width: 44px;
+	min-height: 44px;
+}
+
+.openstation-popup-siege-message__actions button:first-child {
+	border-color: #cafff4;
+	border-right-color: #176455;
+	border-bottom-color: #176455;
+	background: #51e5c7;
+	color: #071a17;
+}
+
+.openstation-popup-siege-message__actions button:focus-visible {
+	outline: 3px solid #ffdd56;
+	outline-offset: 3px;
+}
+
+/* 6. Quieter, non-modal level announcement ------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-level-toast {
+	top: 7%;
+	width: min(58%, 240px);
+	gap: 0.12rem;
+	padding: 0.38rem 0.55rem 0.44rem;
+	border-width: 1px;
+	box-shadow:
+		0 8px 22px rgb(0 0 0 / 54%),
+		inset 0 0 0 1px rgb(111 241 210 / 15%);
+	transform: translate(-50%, -5px);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-level-toast[data-visible="true"] {
+	transform: translate(-50%, 0);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-level-toast
+	small {
+	font-size: 9px;
+	letter-spacing: 0.1em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-level-toast
+	strong {
+	font-size: clamp(15px, 2.9cqh, 18px);
+	line-height: 1;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-level-toast
+	span {
+	font-size: clamp(10px, 1.8cqh, 12px);
+	line-height: 1.2;
+}
+
+/* 7. Target priority and close-beat hooks -------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-target__ghost {
+	fill: rgb(8 18 38 / 12%);
+	stroke: rgb(153 235 255 / 92%);
+	stroke-width: 2.5;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-target__halo {
+	fill: rgb(255 54 89 / 14%);
+	stroke: var(--siege-ui-target-red);
+	stroke-dasharray: 5 3;
+	stroke-width: 3;
+	filter:
+		drop-shadow(0 0 2px #071326)
+		drop-shadow(0 0 5px rgb(255 54 89 / 54%));
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-target__corner {
+	stroke: var(--siege-ui-target-light);
+	stroke-width: 4;
+	filter: drop-shadow(0 1px 1px #071326);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-target__x,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-target[data-target-priority="critical"]
+	.siege-target__x {
+	fill: none;
+	stroke: #fff7cf;
+	stroke-linecap: square;
+	stroke-width: 5;
+	filter:
+		drop-shadow(0 0 1px #071326)
+		drop-shadow(0 0 4px var(--siege-ui-target-red));
+	vector-effect: non-scaling-stroke;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-popup-close-beat {
+	position: absolute;
+	top: var(--siege-close-y, 50%);
+	left: var(--siege-close-x, 50%);
+	z-index: 7;
+	width: var(--siege-close-width, 62px);
+	height: var(--siege-close-height, 46px);
+	border: 3px double var(--siege-ui-target-light);
+	border-radius: 10%;
+	box-shadow:
+		0 0 0 3px rgb(255 54 89 / 72%),
+		0 0 22px rgb(255 54 89 / 68%);
+	opacity: 0;
+	pointer-events: none;
+	transform: translate(-50%, -50%) scale(0.74);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-popup-close-beat[data-active="true"],
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-popup-close-beat[data-beat="impact"] {
+	animation: siege-ui-popup-close-070 380ms cubic-bezier(0.16, 0.8, 0.25, 1)
+		both;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-popup-close-beat[data-beat="recovery"] {
+	opacity: 0;
+	transform: translate(-50%, -50%) scale(1.15);
+	transition:
+		opacity 120ms ease-out,
+		transform 120ms ease-out;
+}
+
+@keyframes siege-ui-popup-close-070 {
+	0% {
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(0.72);
+	}
+
+	38% {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+
+	100% {
+		opacity: 0;
+		transform: translate(-50%, -50%) scale(1.18);
+	}
+}
+
+/* 8. Restored-page reveal and concise archive receipt -------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-restored-page {
+	display: grid;
+	grid-template-columns: 68px minmax(0, 1fr);
+	gap: 0.55rem;
+	align-items: center;
+	min-width: 0;
+	padding: 0.45rem;
+	border: 2px outset #fff;
+	background:
+		linear-gradient(135deg, #f6f0cf, #d8e9de);
+	color: #102333;
+	box-shadow: 4px 4px 0 rgb(0 0 0 / 34%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-restored-page
+	[data-role="restored-reveal"] {
+	display: grid;
+	min-width: 0;
+	gap: 0.12rem;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-restored-page__preview {
+	display: grid;
+	width: 68px;
+	aspect-ratio: 4 / 3;
+	place-items: center;
+	overflow: hidden;
+	border: 2px inset #fff;
+	background:
+		radial-gradient(circle at 65% 35%, #fff3a6 0 5%, transparent 6%),
+		linear-gradient(160deg, #142558, #532968 68%, #e46c96);
+	color: #fff8cd;
+	font: 900 17px/1 Georgia, serif;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-restored-page
+	strong {
+	overflow: hidden;
+	font: 900 11px/1.15 "Courier New", monospace;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-restored-page
+	span {
+	font: 700 10px/1.25 "Courier New", monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-restored-page[data-reveal-state="locked"] {
+	filter: grayscale(1);
+	opacity: 0.54;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-restored-page[data-reveal-state="restored"] {
+	border-color: #fff7b3;
+	box-shadow:
+		4px 4px 0 rgb(0 0 0 / 34%),
+		0 0 0 2px #69d8be;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-card--results {
+	width: min(92%, 430px);
+	max-height: calc(100% - 0.7rem);
+	gap: 0.42rem;
+	padding: clamp(0.65rem, 2.6cqh, 1rem);
+	overflow: auto;
+	scrollbar-gutter: stable;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-card--results
+	h2 {
+	font-size: clamp(24px, 4.7cqh, 34px);
+	line-height: 0.95;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt {
+	display: grid;
+	min-width: 0;
+	gap: 0.38rem;
+	padding: 0.55rem;
+	border: 2px dashed #657183;
+	background: var(--siege-ui-receipt-paper);
+	color: var(--siege-ui-receipt-ink);
+	box-shadow: inset 0 0 0 2px #fff;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt__summary,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt
+	[data-role="receipt-summary"] {
+	margin: 0;
+	color: #172d3b;
+	font: 900 12px/1.25 "Courier New", monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt__facts {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	min-width: 0;
+	border-block: 1px solid #7c8790;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt__facts
+	> span {
+	display: grid;
+	min-width: 0;
+	gap: 2px;
+	padding: 0.35rem 0.18rem;
+	border-right: 1px solid #7c8790;
+	text-align: center;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt__facts
+	> span:last-child {
+	border-right: 0;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt
+	[data-role^="receipt-"] {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt__facts
+	small {
+	color: #364b59;
+	font: 800 9px/1 "Courier New", monospace;
+	letter-spacing: 0.04em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-archive-receipt__facts
+	b {
+	color: #101827;
+	font: 900 14px/1 "Courier New", monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-card--results
+	.siege-level-journey {
+	margin: 0;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-card--results
+	.siege-replay-pitch {
+	gap: 0.14rem;
+	padding: 0.42rem 0.55rem;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--experience-070
+	.siege-card--results
+	.siege-card__buttons {
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 0.5rem;
+}
+
+/* 9. Unsupported undersize containment; never stack the side console ------ */
+
+@container popup-siege (max-width: 519px) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-browser {
+		width: calc(100% - 2px);
+		max-width: calc(100% - 2px);
+		overflow: clip;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-actions
+		button {
+		min-width: 0;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-browser__bar,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-browser__rail {
+		gap: 2px;
+		padding-inline: 2px;
+	}
+}
+
+@container popup-siege (max-height: 479px) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-browser {
+		max-height: calc(100% - 2px);
+		overflow: clip;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-actions
+		button {
+		min-height: 0;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-card {
+		max-height: calc(100% - 4px);
+	}
+}
+
+/* 10. Motion and system-color modes -------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-target__halo,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-popup-close-beat {
+		animation: none;
+		transition: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-popup-close-beat[data-active="true"],
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-popup-close-beat[data-beat="impact"] {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-level-toast {
+		transition: none;
+	}
+}
+
+@media (forced-colors: active) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-actions
+		[data-action="pause"],
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070[data-phase="menu"]
+		.siege-actions__pause-slot,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-restored-page,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-archive-receipt {
+		border-color: CanvasText;
+		background: Canvas;
+		color: CanvasText;
+		box-shadow: none;
+		forced-color-adjust: auto;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-challenge[data-openstation-challenge="active"],
+	.openstation-popup-siege-message__actions button,
+	.openstation-popup-siege-message__actions button:first-child {
+		border-color: ButtonText;
+		background: ButtonFace;
+		color: ButtonText;
+		box-shadow: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-actions
+		[data-action="pause"]::before,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-actions
+		[data-action="pause"]::after,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-restored-page
+		*,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-archive-receipt
+		* {
+		color: CanvasText;
+		text-shadow: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-target__halo,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-target__corner,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-target__x {
+		fill: none;
+		stroke: Highlight;
+		filter: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-popup-close-beat {
+		border-color: Highlight;
+		box-shadow: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		button:focus-visible,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--experience-070
+		.siege-stage:focus-visible {
+		outline-color: Highlight;
+		box-shadow: none;
+	}
+
+	.openstation-popup-siege-message__actions button:focus-visible {
+		outline-color: Highlight;
+	}
+}
