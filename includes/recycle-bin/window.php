@@ -79,7 +79,7 @@ function desktop_mode_recycle_bin_render_template() {
 				</wpd-button>
 				<wpd-button variant="danger" data-desktop-mode-recycle-bin-empty>
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
-					<?php esc_html_e( 'Empty bin', 'desktop-mode' ); ?>
+					<?php esc_html_e( 'Empty Trash', 'desktop-mode' ); ?>
 				</wpd-button>
 			</div>
 		</header>
@@ -94,7 +94,7 @@ function desktop_mode_recycle_bin_render_template() {
 			>
 				<div slot="empty" class="desktop-mode-recycle-bin__empty">
 					<span class="dashicons dashicons-trash" aria-hidden="true"></span>
-					<p><?php esc_html_e( 'The recycle bin is empty.', 'desktop-mode' ); ?></p>
+					<p><?php esc_html_e( 'The Trash is empty.', 'desktop-mode' ); ?></p>
 					<p class="desktop-mode-recycle-bin__empty-hint">
 						<?php esc_html_e( 'Deleted posts, pages, and media show up here. Restoring puts them back where they were.', 'desktop-mode' ); ?>
 					</p>
@@ -150,7 +150,7 @@ function desktop_mode_recycle_bin_register_window() {
 	}
 
 	$window_args = array(
-		'title'      => __( 'Recycle Bin', 'desktop-mode' ),
+		'title'      => __( 'Trash', 'desktop-mode' ),
 		'icon'       => 'dashicons-trash',
 		'template'   => 'desktop_mode_recycle_bin_render_template',
 		'script'     => 'desktop-mode-recycle-bin',
@@ -176,7 +176,7 @@ function desktop_mode_recycle_bin_register_window() {
 	}
 
 	$icon_args = array(
-		'title'    => __( 'Recycle Bin', 'desktop-mode' ),
+		'title'    => __( 'Trash', 'desktop-mode' ),
 		'icon'     => 'dashicons-trash',
 		'window'   => 'desktop-mode-recycle-bin',
 		'position' => 80,

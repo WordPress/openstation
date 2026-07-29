@@ -27,6 +27,7 @@ import {
 	fetchCommentStats,
 	fetchTermStats,
 	fetchUserStats,
+	getConfig,
 } from './rest';
 import type {
 	CommentRef,
@@ -511,7 +512,11 @@ export function renderPanel(
 		const api = desktopApi();
 		if ( api.myWordpress ) {
 			const myWp = button( {
-				label: __( 'Open in My WordPress' ),
+				label: sprintf(
+					// translators: %s is the site title.
+					__( 'Open in %s' ),
+					getConfig().siteName?.trim() || __( 'WordPress' ),
+				),
 				icon: 'dashicons-wordpress',
 				primary: true,
 			} );

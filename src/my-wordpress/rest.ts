@@ -7,6 +7,7 @@
  * activity indicator.
  */
 
+import { __ } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import type {
@@ -39,6 +40,18 @@ export function getConfig(): MyWordPressConfig {
 		);
 	}
 	return cfg;
+}
+
+/**
+ * The site's own name — this window's title and its breadcrumb root.
+ *
+ * The desktop holds objects, not a mention of the OS you're already
+ * standing in, so the folder of a site's content is named after the
+ * site. The fallback only fires for a config blob that predates the
+ * server sending `siteName`.
+ */
+export function getSiteName(): string {
+	return getConfig().siteName?.trim() || __( 'WordPress', 'desktop-mode' );
 }
 
 export function getEntity( id: string ): MyWordPressEntity | undefined {

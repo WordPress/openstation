@@ -852,6 +852,28 @@ do_action( 'desktop_mode_prepare_window', string $page, array $args );
 
 ## Filters
 
+### `desktop_mode_site_title` — Experimental
+
+Filters the site title used to label desktop objects — the pinned site folder (window + icon title, breadcrumb root) and every "Open in &lt;site&gt;" action that hands off to it.
+
+The desktop is meant to contain objects, not a mention of the OS you're already standing in, so the folder holding a site's content is named after the site rather than after WordPress. `desktop_mode_site_title()` reads `get_bloginfo( 'name' )`, decodes its HTML entities (titles land in `title=` attributes and JS text nodes), and falls back to `WordPress` when the site has no name set.
+
+```php
+apply_filters( 'desktop_mode_site_title', string $title ): string
+```
+
+A filtered value that isn't a non-empty string is discarded and the unfiltered title is used.
+
+**Example — label the folder after a network-wide brand instead of `blogname`:**
+
+```php
+add_filter( 'desktop_mode_site_title', function ( $title ) {
+	return get_network_option( null, 'site_name', $title );
+} );
+```
+
+---
+
 ### `desktop_mode_load_admin_modules` — Experimental
 
 Filters whether the admin-rendering module set (shell renderer, asset enqueues, chromeless bridge, admin notices, migrations, the `wp_ajax_save-desktop-mode` handler) loads on the current request. By default it loads for admin (including admin-ajax), REST, cron, and WP-CLI requests, and is skipped on pure frontend page views — every hook those modules register only fires inside wp-admin, so frontend requests save the parse + hook-registration cost.
@@ -2041,7 +2063,7 @@ update / trash of a post, page, `show_ui` CPT, comment, or
 WooCommerce order is recorded into a per-request changelog and
 relayed to the parent shell as a cross-window broadcast
 (`desktop-mode.<type>.changed`, see the topic contract under
-[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+[Trash → Cross-window broadcast](#cross-window-broadcast)).
 Consumers already in place: the chromeless soft-reload for iframe
 list pages, and the native Posts / Pages / Users / Comments windows.
 
@@ -2065,7 +2087,7 @@ Three delivery paths:
 Built-in publishers: `wp_after_insert_post` (revisions, autosaves,
 auto-drafts, trash-status writes, and non-`show_ui` types skipped),
 `wp_insert_comment` / `edit_comment` / `transition_comment_status`
-(trash transitions skipped — the Recycle Bin owns the trash verbs),
+(trash transitions skipped — the Trash module owns the trash verbs),
 and — when WooCommerce is active — `woocommerce_new_order` /
 `woocommerce_update_order` / `woocommerce_order_status_changed` /
 `woocommerce_trash_order` / `woocommerce_untrash_order` /
@@ -2142,7 +2164,7 @@ Declarative soft-reload rules injected into every chromeless iframe,
 for list screens that are **not** a standard `edit.php?post_type=X` /
 `upload.php` / `edit-comments.php` page (those are matched
 generically — see the soft-reload contract under
-[Recycle Bin → Cross-window broadcast](#cross-window-broadcast)).
+[Trash → Cross-window broadcast](#cross-window-broadcast)).
 
 ```php
 apply_filters( 'desktop_mode_soft_reload_rules', array $rules );
@@ -2183,9 +2205,11 @@ for an end-to-end third-party recipe.
 
 ---
 
-## Recycle Bin
+## Trash
 
-The Recycle Bin stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
+The window and desktop icon are titled **Trash** — WordPress's own word for deleted content. The module directory, window id (`desktop-mode-recycle-bin`), REST routes, and every hook below keep the `recycle_bin` slug, so nothing a plugin binds to moves.
+
+The Trash stamps who-deleted-what-when metadata on posts, pages, attachments, and comments as they pass through the WordPress trash (attachments only reach trash when `MEDIA_TRASH` is enabled) and exposes browse / restore / purge over REST. Every decision the bin makes is filterable.
 
 ### `desktop_mode_recycle_bin_capture_post_types` — Experimental (filter)
 
@@ -2957,9 +2981,11 @@ The per-user insights payload returned by `GET /desktop-mode/v1/users/<id>/insig
 
 ---
 
-## My WordPress
+## Site folder
 
 A pinned virtual folder on the wallpaper that opens a native file-explorer window for browsing WordPress entities. Ships with Posts, Pages, Users, and Media. The entity list is filterable so plugin authors can extend it without forking the bundle.
+
+The folder is **titled after the site itself** — whatever [`desktop_mode_site_title()`](#desktop_mode_site_title--experimental) returns, defaulting to `get_bloginfo( 'name' )`. The title also seeds the window's breadcrumb root and the "Open in &lt;site&gt;" actions in the media detail pane and the Corkboard. The module directory, window id (`desktop-mode-my-wordpress`), REST fields, and every hook below keep the `my_wordpress` slug.
 
 ### `desktop_mode_my_wordpress_user_can_use` — Experimental (filter)
 
@@ -2971,7 +2997,7 @@ Gates icon registration and window registration in one shot. Default `current_us
 
 ### `desktop_mode_my_wordpress_window_args` / `desktop_mode_my_wordpress_icon_args` — Experimental (filter)
 
-Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for My WordPress — useful to change dimensions, swap the dashicon, or remove the `pinned` flag so the icon participates in the normal sort order.
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the site folder — useful to change dimensions, swap the dashicon, or remove the `pinned` flag so the icon participates in the normal sort order. To retitle the folder, prefer [`desktop_mode_site_title`](#desktop_mode_site_title--experimental): it covers the window, the icon, the breadcrumb root, and the cross-window "Open in &lt;site&gt;" actions in one place.
 
 ### `desktop_mode_my_wordpress_entities` — Experimental (filter)
 
@@ -3022,7 +3048,7 @@ apply_filters( 'desktop_mode_user_footprint_row_action', bool $show, WP_User $us
 
 Gates the **"View activity footprint"** row action added to the classic Users list table (`users.php`). The action is only ever appended on a chromeless request (inside the desktop shell's iframe, where the bridge is present to receive the click); this filter is the final say within that context. Return `false` to suppress the action for a given user — e.g. to scope it to a role, or hide it on the viewer's own row. Default `true`.
 
-The action carries the target user id in a `data-desktop-mode-footprint` attribute; the chromeless bridge escalates the click as the `desktop-mode-open-user-footprint` message (see [`bridge-protocol.md`](bridge-protocol.md) and [`javascript-reference.md`](javascript-reference.md)), opening the My WordPress window on that user's footprint without closing the Users list. The link's `href` is a real `user-edit.php` / `profile.php` URL — the graceful fallback for no-JS or modifier clicks.
+The action carries the target user id in a `data-desktop-mode-footprint` attribute; the chromeless bridge escalates the click as the `desktop-mode-open-user-footprint` message (see [`bridge-protocol.md`](bridge-protocol.md) and [`javascript-reference.md`](javascript-reference.md)), opening the site folder window on that user's footprint without closing the Users list. The link's `href` is a real `user-edit.php` / `profile.php` URL — the graceful fallback for no-JS or modifier clicks.
 
 ### `desktop_mode_my_wordpress_comment_stats` — Experimental (filter)
 
@@ -3038,7 +3064,7 @@ The per-comment dossier payload returned by `GET /desktop-mode/v1/comment-stats/
 apply_filters( 'desktop_mode_my_wordpress_term_stats', array $payload, string $taxonomy, int $term_id ): array
 ```
 
-The per-term stats payload returned by `GET /desktop-mode/v1/term-stats/<taxonomy>/<id>` — profile, counts, recent posts, top authors, co-terms, activity, and milestones. Filter it to splice in extra metrics before it reaches the My WordPress folder window.
+The per-term stats payload returned by `GET /desktop-mode/v1/term-stats/<taxonomy>/<id>` — profile, counts, recent posts, top authors, co-terms, activity, and milestones. Filter it to splice in extra metrics before it reaches the site folder window.
 
 ### `desktop_mode_my_wordpress_post_contributors` — Experimental (filter)
 
@@ -3080,7 +3106,7 @@ Lifetime (seconds) of the per-attachment media-usage transient. Lower it on site
 apply_filters( 'desktop_mode_my_wordpress_preview_actions', array[] $actions ): array[]
 ```
 
-Server-declared descriptors for the right-pane action button row that appears in every My WordPress section (posts, pages, users, media, plugin-defined kinds). Each entry:
+Server-declared descriptors for the right-pane action button row that appears in every site folder section (posts, pages, users, media, plugin-defined kinds). Each entry:
 
 ```php
 array(
@@ -3098,9 +3124,11 @@ array(
 
 ---
 
-## Content Graph
+## Corkboard
 
-An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors the My WordPress module shape.
+An interactive PixiJS map of post links — every public post type participates as a node; internal links, terms, authors, and comments form the edges. Registers a native window (`desktop-mode-content-graph`) plus a desktop icon on `init` priority 20. The filterable surface mirrors the site-folder module shape.
+
+The window and icon are titled **Corkboard** — a thing you can have on a desk, rather than the name of the data structure behind it. The module directory, window id, REST routes, and every hook below keep the `content_graph` slug.
 
 ### `desktop_mode_content_graph_user_can_use` — Experimental (filter)
 
@@ -3133,7 +3161,7 @@ apply_filters( 'desktop_mode_content_graph_window_args', array $window_args ): a
 apply_filters( 'desktop_mode_content_graph_icon_args',   array $icon_args ): array
 ```
 
-Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the Content Graph — dimensions, dashicon, icon position, or the `config` blob (REST endpoints, edit-URL bases, post-type descriptors).
+Tweak the args passed to `desktop_mode_register_window()` / `desktop_mode_register_icon()` for the Corkboard — dimensions, dashicon, icon position, or the `config` blob (REST endpoints, edit-URL bases, `siteName`, post-type descriptors).
 
 ---
 

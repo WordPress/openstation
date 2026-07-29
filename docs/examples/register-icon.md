@@ -136,11 +136,11 @@ The shared sanitizer rejects `javascript:` URIs and any non-`image/svg+xml` `dat
 
 ### Pinning a system icon
 
-Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree **My WordPress** folder.
+Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree pinned **site folder**.
 
 ```php
 desktop_mode_register_icon( 'my-wordpress', array(
-    'title'    => __( 'My WordPress', 'desktop-mode' ),
+    'title'    => desktop_mode_site_title(),
     'icon'     => 'dashicons-wordpress',
     'window'   => 'desktop-mode-my-wordpress',
     'pinned'   => true,

@@ -91,7 +91,7 @@ Components are **side-effect registered** at import time, per bundle, into the p
 | --- | --- | --- | --- |
 | `<wpd-table>` | `WpdTable` | `wpd-table/wpd-table.ts` | Sortable, filterable data table with sub-tables. |
 | `<wpd-log>` | `WpdLog` | `wpd-log/wpd-log.ts` | Virtualized streaming log container. |
-| `<wpd-tile>` | `WpdTile` | `wpd-tile/wpd-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and My WordPress). |
+| `<wpd-tile>` | `WpdTile` | `wpd-tile/wpd-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and the site folder). |
 
 ## Tabs & navigation
 

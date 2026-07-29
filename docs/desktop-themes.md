@@ -217,7 +217,7 @@ shell didn't mean to expose.
 This is the one that matters most, and the one theme authors most
 often miss: **`--desktop-mode-*` alone restyles the frame around a
 window and nothing inside it.** Window bodies — the Settings panel,
-the Posts table, the Recycle Bin, file tiles, every dialog — read the
+the Posts table, the Trash, file tiles, every dialog — read the
 `--wpd-*` palette. A theme that sets only the shell tokens produces a
 dark frame around a white page.
 

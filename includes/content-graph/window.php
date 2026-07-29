@@ -134,7 +134,7 @@ function desktop_mode_content_graph_register_window() {
 	}
 
 	$window_args = array(
-		'title'      => __( 'Content Graph', 'desktop-mode' ),
+		'title'      => __( 'Corkboard', 'desktop-mode' ),
 		'icon'       => 'dashicons-networking',
 		'template'   => 'desktop_mode_content_graph_render_template',
 		'script'     => 'desktop-mode-content-graph',
@@ -153,6 +153,9 @@ function desktop_mode_content_graph_register_window() {
 			'editUserUrl'    => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'editCommentUrl' => esc_url_raw( admin_url( 'comment.php' ) ),
 			'mediaUrl'       => esc_url_raw( admin_url( 'upload.php' ) ),
+			// Labels the "Open in <site>" action on the detail panel,
+			// which hands off to the site folder window.
+			'siteName'       => desktop_mode_site_title(),
 			'postTypes'      => desktop_mode_content_graph_post_types(),
 		),
 	);
@@ -172,7 +175,7 @@ function desktop_mode_content_graph_register_window() {
 	}
 
 	$icon_args = array(
-		'title'    => __( 'Content Graph', 'desktop-mode' ),
+		'title'    => __( 'Corkboard', 'desktop-mode' ),
 		'icon'     => 'dashicons-networking',
 		'window'   => 'desktop-mode-content-graph',
 		'pinned'   => false,

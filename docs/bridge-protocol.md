@@ -229,7 +229,7 @@ Forms submit through a separate `submit` listener that only rewrites the action 
 
 ## Activity-footprint launcher inside chromeless iframes — Stable
 
-The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `desktop_mode_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the **My WordPress** native window, *without* closing the Users list.
+The classic Users list table (`users.php`, rendered as a chromeless iframe) grows a **"View activity footprint"** row action — added server-side by `desktop_mode_user_footprint_row_action` (see [`hooks-reference.md`](hooks-reference.md)). Clicking it opens the target user's GitHub-style activity footprint inside the pinned **site folder** native window, *without* closing the Users list.
 
 This deliberately does NOT reuse the admin-link path above: that path closes the source iframe on a native-window remap hit (it models a navigation *away*). A row action is an auxiliary *peek*, so it gets its own message.
 
@@ -243,9 +243,9 @@ This deliberately does NOT reuse the admin-link path above: that path closes the
 
 | Type | Direction | Carries | Purpose |
 |---|---|---|---|
-| `desktop-mode-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-desktop-mode-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the My WordPress window on that user's footprint route and leaves the source window open. |
+| `desktop-mode-open-user-footprint` | iframe → parent | `{ userId: number, userName: string }` | Posted from the chromeless bridge when a `[data-desktop-mode-footprint]` link is clicked (checked *before* the admin-link classifier, so the fallback `href` is never followed inside the shell). The parent opens / focuses the site folder window on that user's footprint route and leaves the source window open. |
 
-**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.desktop.openWindow`. Cold-start safe: the My WordPress bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.desktop.myWordpress.openUserFootprint`.
+**Parent dispatch** (`src/window/iframe-bridge.ts`): calls `openUserFootprintWindow( { userId, userName } )` (`src/my-wordpress/footprint-target.ts`), which stashes the target in the `desktop-mode/my-wordpress/footprint-target` shared store, then opens the window via `wp.desktop.openWindow`. Cold-start safe: the site-folder bundle reads the target on mount and subscribes for re-targets while it's already open. See [`javascript-reference.md`](javascript-reference.md) for the public `wp.desktop.myWordpress.openUserFootprint`.
 
 ## Public hooks
 
@@ -308,7 +308,7 @@ A separate channel from the connection bridge. Where the connection bridge carri
 
 The drag bridge stores a single `DragBridgePayload` at any given time. Two ways the payload gets in:
 
-- **Shell-side drag source** — a DragManager `'shortcut'` or `'desktop-file'` session whose payload carries `data.bridgePayload` starts (a shell-rendered tile from My WordPress media / post / user, or an existing wallpaper placement dragged off the desktop). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
+- **Shell-side drag source** — a DragManager `'shortcut'` or `'desktop-file'` session whose payload carries `data.bridgePayload` starts (a shell-rendered tile from site-folder media / post / user, or an existing wallpaper placement dragged off the desktop). The shell's `DRAG_EVENTS.START` listener (`src/desktop.ts`) reads `payload.data.bridgePayload` and calls `dragBridge.start(payload)`. Cleared on `DRAG_EVENTS.END`.
 - **Iframe-side drag source** — an iframe postMessages `{ type: 'desktop-mode-drag-start', payload }` to the parent. The bridge stores the payload and broadcasts `DRAG_BRIDGE_EVENTS.START` as a `CustomEvent` on `document` so other shell modules can react.
 
 ### Receiver protocol
