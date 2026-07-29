@@ -268,7 +268,11 @@ export function handleWindowMessage( win: Window, event: MessageEvent ): void {
 	//   2. Same-page slug → drive the source iframe's
 	//      `location.assign()` so the in-place navigation matches the
 	//      user's intent. Pagination, list filters, and tab strips
-	//      hang off this branch.
+	//      hang off this branch. "Same page" means the target matches
+	//      the window's opening slug (`baseId`) OR the slug its iframe
+	//      is currently showing — the two diverge once the submenu tab
+	//      strip re-points the iframe (Appearance → Menus keeps
+	//      `baseId: themes-php` while displaying `nav-menus.php`).
 	//
 	//   3. Different slug → open a NEW window for the destination and
 	//      leave the source iframe untouched. The user keeps the
@@ -676,6 +680,70 @@ function stampSourceReferer( url: URL, win: Window ): URL {
 	}
 }
 
+/**
+ * The slug a window's iframe is *actually* showing right now, or an
+ * empty string when it can't be read (native window, torn-down
+ * iframe, `about:blank`, cross-origin).
+ *
+ * Distinct from `config.baseId`, which records the page the window
+ * was OPENED on and never moves. The two diverge as soon as the
+ * iframe navigates in place — most visibly via the submenu tab strip,
+ * where e.g. the Appearance window (`baseId: themes-php`) is pointed
+ * at `nav-menus.php` while keeping its original id.
+ */
+function readLiveSlug( win: Window, deps: AdminLinkDispatchDeps ): string {
+	let href = '';
+	try {
+		// Optional-call: `Window` mocks in tests (and any future
+		// window-like object) may not implement the getter.
+		href = win.getCurrentUrl?.() ?? '';
+	} catch {
+		return '';
+	}
+	if ( ! href || href.startsWith( '#' ) || href === 'about:blank' ) {
+		return '';
+	}
+	try {
+		const parsed = new URL( href, deps.adminUrl );
+		if ( parsed.origin !== INITIAL_ORIGIN ) {
+			return '';
+		}
+		return deps.deriveSlug( parsed.toString() );
+	} catch {
+		return '';
+	}
+}
+
+/**
+ * True when a clicked admin link lands on the page the source window
+ * is already showing — i.e. the click is in-page navigation, not a
+ * jump to a different admin screen.
+ *
+ * A window counts as "on" two slugs: the one it was opened at
+ * (`baseId`) and the one its iframe currently displays. They're the
+ * same for a freshly-opened window and diverge after any in-place
+ * navigation — chiefly the submenu tab strip, which re-points the
+ * iframe without minting a new window.
+ *
+ * Matching against BOTH (rather than swapping `baseId` out for the
+ * live slug) is deliberate: it can only ever turn a would-be
+ * new-window open into an in-place navigation, never the reverse. A
+ * window that navigated from `admin.php?page=foo` to
+ * `admin.php?page=foo&path=/bar` still treats a link back to the
+ * landing page as in-page.
+ */
+function isSamePageSlug(
+	win: Window,
+	targetSlug: string,
+	deps: AdminLinkDispatchDeps,
+): boolean {
+	if ( targetSlug === ( win.config.baseId || win.id ) ) {
+		return true;
+	}
+	const liveSlug = readLiveSlug( win, deps );
+	return liveSlug !== '' && liveSlug === targetSlug;
+}
+
 function handleCrossPageAdminLink(
 	win: Window,
 	rawUrl: string,
@@ -694,7 +762,7 @@ function handleCrossPageAdminLink(
 	const absolute = url.toString();
 
 	const targetSlug = deps.deriveSlug( absolute );
-	const sourceSlug = win.config.baseId || win.id;
+	const samePage = isSamePageSlug( win, targetSlug, deps );
 
 	// Destructive row actions (Trash, Untrash, Delete on posts;
 	// spam / approve / trash on comments) navigate the SOURCE iframe
@@ -705,7 +773,7 @@ function handleCrossPageAdminLink(
 	// `post.php?post=N&action=trash` it happens to be, but the
 	// landing page after WP's 302 is the list the user already has
 	// open — the in-place branch reaches that exact state.
-	if ( targetSlug !== sourceSlug && isDestructiveActionUrl( url ) ) {
+	if ( ! samePage && isDestructiveActionUrl( url ) ) {
 		// Inject `_wp_http_referer` so WP's trash/untrash/delete
 		// handlers resolve `wp_get_referer()` to the source page
 		// regardless of what the browser's `Referer` header carries
@@ -732,7 +800,7 @@ function handleCrossPageAdminLink(
 		return;
 	}
 
-	if ( targetSlug === sourceSlug ) {
+	if ( samePage ) {
 		const inner = win.iframe?.contentWindow;
 		if ( inner ) {
 			try {

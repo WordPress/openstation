@@ -242,7 +242,17 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		return { openWindow, findDockEntry };
 	}
 
-	function mockAdminWindow( opts: { id: string; baseId?: string } ): {
+	function mockAdminWindow( opts: {
+		id: string;
+		baseId?: string;
+		/**
+		 * The URL the iframe is currently showing. Diverges from the
+		 * window's opening slug once the submenu tab strip re-points
+		 * the iframe in place. Omitted → no live URL readable, which
+		 * is the pre-navigation state.
+		 */
+		currentUrl?: string;
+	} ): {
 		win: Window;
 		assignSpy: ReturnType< typeof vi.fn >;
 	} {
@@ -267,6 +277,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			onFocusRequest: null,
 			setTitle: vi.fn(),
 			close: vi.fn(),
+			getCurrentUrl: () => opts.currentUrl ?? '',
 		} as unknown as Window;
 		return { win, assignSpy };
 	}
@@ -322,6 +333,58 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		} );
 		expect( assignSpy ).not.toHaveBeenCalled();
 		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'click matching the live iframe slug navigates in place, not a new window', () => {
+		// Appearance window opened on `themes.php`, then re-pointed at
+		// `nav-menus.php` by the submenu tab strip. Its `baseId` still
+		// says `themes-php`, so the Menus screen's own tab links used
+		// to read as cross-page and spawn a window per click.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl:
+				window.location.origin +
+				'/wp-admin/nav-menus.php?desktop_mode_chromeless=1',
+		} );
+
+		const target =
+			window.location.origin + '/wp-admin/nav-menus.php?action=edit&menu=2';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'live slug never narrows the same-page set — baseId still matches', () => {
+		// A window that navigated away from its landing page must still
+		// treat a link BACK to that landing page as in-place.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl: window.location.origin + '/wp-admin/nav-menus.php',
+		} );
+
+		const target = window.location.origin + '/wp-admin/themes.php';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+	} );
+
+	test( 'live slug that matches neither side still opens a fresh window', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl: window.location.origin + '/wp-admin/nav-menus.php',
+		} );
+
+		const target = window.location.origin + '/wp-admin/upload.php';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( assignSpy ).not.toHaveBeenCalled();
 	} );
 
 	test( 'different-slug click without a dock entry uses the link label as title', () => {
