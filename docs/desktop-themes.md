@@ -312,6 +312,42 @@ Read `assets/css/variables.css` for the full set.
 }
 ```
 
+#### Tooltips
+
+Two shell tokens own every tooltip in the shell — the dock tile
+tooltip, the content-graph satellite tooltip, and the My WordPress
+entity hover card:
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-tooltip-bg` | The tooltip chip / card surface |
+| `--desktop-mode-tooltip-fg` | Its primary text |
+
+```json
+"tokens": {
+  "--desktop-mode-tooltip-bg": "#1e1c44",
+  "--desktop-mode-tooltip-fg": "#e9e7ff"
+}
+```
+
+They are worth setting explicitly. Without them, tooltips fall back
+to colours borrowed from other families — `--wpd-scrim` or
+`--wpd-surface-elevated` for the surface, `--wpd-fg-on-accent` for the
+text — and those pairings come apart under a custom palette. Set
+`--wpd-scrim` to a translucent wash for your modals and the dock
+tooltip goes translucent with it; keep a light `--wpd-surface-elevated`
+next to a white `--wpd-fg-on-accent` and the satellite tooltip renders
+white text on a white chip. Neither was fixable from the palette alone,
+because fixing it would have broken the modal backdrop or the text on
+accent-filled buttons.
+
+Both tokens are **undeclared by default**, so a theme that ignores
+them keeps the tooltip look the shell has always had.
+
+Secondary text inside the richer tooltips — the hover card's excerpt —
+still follows `--wpd-fg-muted`; these two cover the surface and the
+primary text on it.
+
 ### A note on WordPress core's CSS
 
 Native windows render in the parent shell, not in an iframe, so
