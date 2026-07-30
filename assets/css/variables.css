@@ -418,6 +418,28 @@
 	--desktop-mode-tile-label-smoothing: auto;
 	--desktop-mode-tile-label-color: var(--desktop-mode-tile-fg);
 
+	/*
+	 * Admin bar — how many pixels of the bar stay on screen while it
+	 * is parked off the top edge in `dynamic` mode. This is the
+	 * VISIBLE seam only: small enough to read as "nothing is there".
+	 * Themes may retune it; `0` makes the bar invisible until hovered.
+	 */
+	--desktop-mode-admin-bar-peek: 4px;
+
+	/*
+	 * How far BELOW the parked bar the invisible reveal zone reaches.
+	 * Decoupled from the peek on purpose — the seam wants to be a
+	 * hairline, the pointer target wants to be forgiving, and tying
+	 * them together forces one of the two to be wrong. The band the
+	 * user actually has to hit is `peek + this`.
+	 *
+	 * CEILING: keep `peek + reveal-zone` comfortably under the admin
+	 * bar's own height (32px, 46px below 783px). Past that, leaving
+	 * the revealed bar drops the pointer straight back into the zone,
+	 * which re-reveals it — an oscillation loop, not a wider target.
+	 */
+	--desktop-mode-admin-bar-reveal-zone: 16px;
+
 	/* Z-index layers */
 	--desktop-mode-z-base: 100;
 	--desktop-mode-z-dock: 200;

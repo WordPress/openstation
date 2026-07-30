@@ -397,6 +397,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				osSettings.state.windowRadius =
 					patch.windowRadius as typeof osSettings.state.windowRadius;
 			}
+			if ( typeof patch.adminBarMode === 'string' ) {
+				osSettings.state.adminBarMode =
+					patch.adminBarMode as typeof osSettings.state.adminBarMode;
+			}
 			if ( typeof patch.desktopLayout === 'string' ) {
 				osSettings.state.desktopLayout =
 					patch.desktopLayout as typeof osSettings.state.desktopLayout;
@@ -560,6 +564,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				typeof patch.accent === 'string' ||
 				typeof patch.dockSize === 'string' ||
 				typeof patch.windowRadius === 'string' ||
+				typeof patch.adminBarMode === 'string' ||
 				typeof patch.desktopLayout === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
 				typeof patch.desktopTheme === 'string'

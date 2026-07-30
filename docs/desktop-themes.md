@@ -631,6 +631,7 @@ that intent travel with the theme instead of living in a setup guide.
   "dockSize":         "large",
   "desktopLayout":    "unified",
   "windowRadius":     "default",
+  "adminBarMode":     "dynamic",
   "dockRailRenderer": "default"
 }
 ```
@@ -670,6 +671,7 @@ still apply.
 | `dockSize` | `compact`, `default`, `large` |
 | `desktopLayout` | `classic`, `unified`, `spatial` |
 | `windowRadius` | `sharp`, `default`, `round` |
+| `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit Desktop Mode** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
 
 `dockRailRenderer` is the one field validated in two places: PHP

@@ -1324,6 +1324,42 @@ add_filter( 'desktop_mode_accent_colors', function () {
 
 ---
 
+### `desktop_mode_admin_bar_mode` — Stable
+
+Overrides how the WordPress admin bar presents above the shell for the current request, regardless of the user's own **OS Settings → Appearance → Admin bar** pick. The resolved value is emitted as a `desktop-mode-admin-bar-<mode>` body class on `admin_body_class`, which is what `assets/css/desktop.css` keys off.
+
+```php
+apply_filters( 'desktop_mode_admin_bar_mode', string $mode );
+```
+
+| Mode | Behavior |
+|---|---|
+| `static` | The bar is pinned above the shell and the shell starts below it. Default, and vanilla behavior. |
+| `dynamic` | The bar parks off the top edge leaving a visible seam (`--desktop-mode-admin-bar-peek`, `4px`), and slides back in on hover, keyboard focus, or tap. The pointer target is larger than the seam — an invisible reveal zone extends `--desktop-mode-admin-bar-reveal-zone` (`16px`) below it, so the band to hit is `20px` from the top of the viewport. The shell takes the full viewport. |
+| `hidden` | The bar is not rendered. The shell takes the full viewport. |
+
+A value outside the three coerces back to `static`. The same three ids are the user-facing setting (`adminBarMode` in `wp.desktop.getOsSettings()`) and a [theme recommendation key](desktop-themes.md#fields).
+
+**`hidden` removes the "Switch to Classic Admin" toggle**, so it is not the only way out of the shell — the dock's core rail always carries an **Exit Desktop Mode** tile hitting the same endpoint. Keep it that way if you add modes of your own.
+
+**Example — pin the bar for anyone who can't reach the dock's exit tile:**
+
+```php
+add_filter( 'desktop_mode_admin_bar_mode', function ( $mode ) {
+    return current_user_can( 'manage_options' ) ? $mode : 'static';
+} );
+```
+
+**Example — kiosk: no admin bar, ever:**
+
+```php
+add_filter( 'desktop_mode_admin_bar_mode', function () {
+    return 'hidden';
+} );
+```
+
+---
+
 ### `desktop_mode_toast_types` — Stable
 
 Extends the toast-notification type map the shell consumes when a plugin calls `wp.desktop.toast( id, … )`. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`. Entries with an unknown tone are dropped.
@@ -4001,8 +4037,8 @@ add_filter(
 );
 ```
 
-Core ships four entries: `dockSize`, `desktopLayout` and
-`windowRadius` as `enum` rules mirroring the matching
+Core ships five entries: `dockSize`, `desktopLayout`, `windowRadius`
+and `adminBarMode` as `enum` rules mirroring the matching
 `DESKTOP_MODE_OS_SETTINGS_*` constants, and `dockRailRenderer` as a
 `slug` rule.
 

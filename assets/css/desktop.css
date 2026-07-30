@@ -117,6 +117,130 @@ body.desktop-mode-active #wpadminbar {
 }
 
 /*
+ * Admin-bar presentation modes — OS Settings → Appearance → Admin bar,
+ * persisted as `adminBarMode` and emitted as a
+ * `desktop-mode-admin-bar-<mode>` body class by PHP on first paint and
+ * re-written by the shell's apply pass on every change.
+ *
+ * `static` is the absence of rules: the pin above stands and the shell
+ * starts below the bar. The two modes below both take the bar out of
+ * the shell's way, so the shell reclaims the full viewport in each.
+ *
+ * Every selector here carries two body classes, so it outranks the
+ * one-class pin rule above without needing to escalate anything.
+ */
+
+/*
+ * Dynamic — the bar parks off the top edge leaving a peek strip, and
+ * slides back in when the pointer reaches the top of the viewport or
+ * something inside it takes keyboard focus. The classic Windows
+ * auto-hide taskbar, and the reason `transform` is the right tool: a
+ * transformed element keeps hit-testing at its PAINTED position, so
+ * the parked remainder stops catching the pointer the moment it goes
+ * off-screen. What DOES catch it is the peek strip plus the reveal
+ * zone added below.
+ */
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar {
+	transform: translateY(
+		calc(-100% + var(--desktop-mode-admin-bar-peek, 4px))
+	);
+	transition: transform 180ms ease;
+}
+
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:hover,
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:focus-within,
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:active {
+	transform: translateY(0);
+}
+
+/*
+ * Reveal zone — an invisible extension of the bar's hit area, hanging
+ * below the parked peek strip.
+ *
+ * Hovering a pseudo-element counts as hovering its originating
+ * element, so this widens what `:hover` above responds to WITHOUT
+ * widening the visible seam. The two wants are genuinely different:
+ * the seam should be a hairline, the target should be forgiving, and
+ * `--desktop-mode-admin-bar-peek` alone can't be both.
+ *
+ * Core ships no bare `#wpadminbar::before/::after` rule, so this
+ * claims the slot rather than fighting one.
+ */
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar::after {
+	content: "";
+	position: absolute;
+	inset-inline: 0;
+	inset-block-start: 100%;
+	height: var(--desktop-mode-admin-bar-reveal-zone, 16px);
+}
+
+/*
+ * ...but only while the bar is parked. Left standing once the bar is
+ * out, the zone would hang over the top of the desktop and swallow
+ * clicks on whatever window is up there.
+ *
+ * Collapsing it is also what keeps the reveal stable: the pointer
+ * that tripped the zone is, post-reveal, inside the bar's real box,
+ * so `:hover` holds without the zone's help.
+ */
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:hover::after,
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:focus-within::after,
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar:active::after {
+	height: 0;
+}
+
+/*
+ * Coarse pointers have no hover state and a much fatter contact patch,
+ * so a 4px seam is neither discoverable nor tappable. Widen both the
+ * seam and the zone — `:active` above is what actually reveals the bar
+ * there. Kept under the 32px bar height, same ceiling as the default.
+ */
+@media (hover: none) {
+	body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar {
+		--desktop-mode-admin-bar-peek: 10px;
+		--desktop-mode-admin-bar-reveal-zone: 20px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body.desktop-mode-active.desktop-mode-admin-bar-dynamic #wpadminbar {
+		transition: none;
+	}
+}
+
+/*
+ * Hidden — the bar is gone. This removes the "Switch to Classic Admin"
+ * toggle, which is why it is safe: the dock's core rail always carries
+ * an "Exit Desktop Mode" tile (src/exit-desktop-mode.ts) hitting the
+ * same endpoint. Do not add a mode that removes both.
+ */
+body.desktop-mode-active.desktop-mode-admin-bar-hidden #wpadminbar {
+	display: none !important;
+}
+
+/*
+ * Both non-static modes: the shell owns the whole viewport. Two body
+ * classes beat the `.desktop-mode-shell` base rule AND its <783px
+ * media-query variant on specificity, so source order doesn't matter.
+ */
+body.desktop-mode-active.desktop-mode-admin-bar-dynamic .desktop-mode-shell,
+body.desktop-mode-active.desktop-mode-admin-bar-hidden .desktop-mode-shell {
+	inset-block-start: 0;
+}
+
+/*
+ * Core reserves the bar's height as `padding-top` on <html>. In both
+ * non-static modes the bar is out of flow (or absent) and the shell
+ * covers the viewport anyway, so the reserve is dead space — release
+ * it so any classic content behind the shell isn't pushed down by a
+ * bar that isn't sitting there. Same idiom as chromeless.css.
+ */
+html.wp-toolbar:has(body.desktop-mode-admin-bar-dynamic),
+html.wp-toolbar:has(body.desktop-mode-admin-bar-hidden) {
+	padding-top: 0 !important;
+}
+
+/*
  * Align the admin-bar W logo with the dock below it.
  *
  * Without this rule the admin bar's leftmost item (the WordPress W)

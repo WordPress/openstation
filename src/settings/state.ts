@@ -19,6 +19,7 @@
 
 import type { DesktopConfig } from '../types';
 import {
+	ADMIN_BAR_MODES,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
@@ -29,6 +30,7 @@ import {
 } from './constants';
 import type {
 	AccentId,
+	AdminBarModeId,
 	AiSettings,
 	CustomGradient,
 	CustomImage,
@@ -110,6 +112,11 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		windowRadius: WINDOW_RADII.some( ( r ) => r.id === parsed.windowRadius )
 			? ( parsed.windowRadius as WindowRadiusId )
 			: DEFAULTS.windowRadius,
+		adminBarMode: ADMIN_BAR_MODES.some(
+			( m ) => m.id === parsed.adminBarMode,
+		)
+			? ( parsed.adminBarMode as AdminBarModeId )
+			: DEFAULTS.adminBarMode,
 		desktopLayout: DESKTOP_LAYOUTS.some(
 			( l ) => l.id === parsed.desktopLayout,
 		)

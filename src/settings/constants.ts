@@ -125,6 +125,35 @@ export const WINDOW_RADII = [
 ] as const;
 
 /**
+ * Admin-bar presentation modes. Drives the
+ * `desktop-mode-admin-bar-<id>` body class (written by PHP on render
+ * and re-written by the settings apply pass), which is what
+ * `desktop.css` keys off to place — or hide — the WordPress admin bar
+ * above the shell.
+ *
+ * - `static`  — the bar is always on screen and the shell starts
+ *               below it. The shipped default, and vanilla behavior.
+ * - `dynamic` — the bar slides off the top edge leaving a few pixels
+ *               of peek, and slides back in when the pointer reaches
+ *               the top of the viewport or something inside it takes
+ *               keyboard focus. The reveal zone is deliberately taller
+ *               than the visible peek (see the two
+ *               `--desktop-mode-admin-bar-*` tokens). The shell
+ *               reclaims the full viewport and the bar overlays it
+ *               when revealed. Modeled on the classic Windows
+ *               auto-hide taskbar.
+ * - `hidden`  — the bar is not rendered at all. The "Exit Desktop
+ *               Mode" tile on the dock's core rail
+ *               (`src/exit-desktop-mode.ts`) is the way back to
+ *               classic admin, so this is not a one-way door.
+ */
+export const ADMIN_BAR_MODES = [
+	{ id: 'static', label: 'Static' },
+	{ id: 'dynamic', label: 'Dynamic' },
+	{ id: 'hidden', label: 'Hidden' },
+] as const;
+
+/**
  * Dock-placement options. Drives the `data-desktop-mode-dock-placement`
  * attribute that each `Dock` instance writes onto its own root. CSS
  * keys off that attribute to position the rail, flip the tooltip
@@ -157,6 +186,7 @@ export const DEFAULTS: OsSettingsState = {
 	accent: 'wp-blue',
 	dockSize: 'default',
 	windowRadius: 'default',
+	adminBarMode: 'static',
 	desktopLayout: 'classic',
 	dockRailRenderer: 'default',
 	// `''` = System default. Any other value is a desktop-theme

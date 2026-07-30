@@ -42,6 +42,18 @@ export interface OsSettingsSnapshot {
 	 */
 	windowRadius: string;
 	/**
+	 * How the WordPress admin bar presents above the shell:
+	 * `'static'` | `'dynamic'` | `'hidden'`.
+	 *
+	 * Written as a `desktop-mode-admin-bar-<mode>` body class by both
+	 * PHP (first paint) and the apply pass (live changes). `dynamic`
+	 * slides the bar off the top edge leaving a peek strip that
+	 * reveals it on hover or keyboard focus; `hidden` removes it
+	 * entirely and leaves the dock's "Exit Desktop Mode" tile as the
+	 * route back to classic admin.
+	 */
+	adminBarMode: string;
+	/**
 	 * Top-level desktop layout. Drives the dock(s) layout:
 	 *
 	 * - `classic` — left side bar (core menus) + bottom dock (plugins).

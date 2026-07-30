@@ -453,6 +453,7 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 		'dockSize'         => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES ),
 		'desktopLayout'    => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS ),
 		'windowRadius'     => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII ),
+		'adminBarMode'     => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES ),
 		'dockRailRenderer' => array( 'slug' => true ),
 	);
 	/**

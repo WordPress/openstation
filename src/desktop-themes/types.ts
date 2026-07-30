@@ -34,7 +34,14 @@ export interface RecommendedOsSettings {
 	/** `sharp` | `default` | `round`. */
 	windowRadius?: string;
 	/**
-	 * Dock rail-renderer id. Unlike the three enums above, validity is
+	 * `static` | `dynamic` | `hidden` — how the WordPress admin bar
+	 * presents above the shell. A theme that wants an edge-to-edge
+	 * desk recommends `dynamic` (auto-hide, reveals on hover) or
+	 * `hidden`.
+	 */
+	adminBarMode?: string;
+	/**
+	 * Dock rail-renderer id. Unlike the enums above, validity is
 	 * only knowable at runtime — the apply pass drops this key when no
 	 * renderer is registered under the id, rather than writing an
 	 * unresolvable value into the user's settings.

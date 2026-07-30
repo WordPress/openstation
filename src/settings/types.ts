@@ -8,7 +8,7 @@
 
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
-import type { DOCK_SIZES, WINDOW_RADII } from './constants';
+import type { ADMIN_BAR_MODES, DOCK_SIZES, WINDOW_RADII } from './constants';
 
 /**
  * Accent id. Historically derived from the built-in `ACCENTS` tuple,
@@ -20,6 +20,7 @@ import type { DOCK_SIZES, WINDOW_RADII } from './constants';
 export type AccentId = string;
 export type DockSizeId = ( typeof DOCK_SIZES )[ number ][ 'id' ];
 export type WindowRadiusId = ( typeof WINDOW_RADII )[ number ][ 'id' ];
+export type AdminBarModeId = ( typeof ADMIN_BAR_MODES )[ number ][ 'id' ];
 export type DockPlacementId = 'left' | 'right' | 'bottom';
 
 /**
@@ -88,6 +89,13 @@ export interface OsSettingsState {
 	accent: AccentId;
 	dockSize: DockSizeId;
 	windowRadius: WindowRadiusId;
+	/**
+	 * How the WordPress admin bar presents above the shell:
+	 * `'static'` (always visible, the default), `'dynamic'`
+	 * (auto-hides to a peek strip, reveals on hover/focus), or
+	 * `'hidden'` (not rendered).
+	 */
+	adminBarMode: AdminBarModeId;
 	desktopLayout: DesktopLayoutId;
 	/**
 	 * Active dock rail-renderer id. Resolves through the dock-rail

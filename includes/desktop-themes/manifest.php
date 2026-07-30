@@ -875,6 +875,7 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
  *   "dockSize":         "large",
  *   "desktopLayout":    "unified",
  *   "windowRadius":     "default",
+ *   "adminBarMode":     "dynamic",
  *   "dockRailRenderer": "default"
  * }
  * ```

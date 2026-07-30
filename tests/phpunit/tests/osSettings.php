@@ -23,6 +23,46 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_admin_bar_mode_is_static() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertArrayHasKey( 'adminBarMode', $defaults );
+		$this->assertSame( 'static', $defaults['adminBarMode'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_known_admin_bar_mode() {
+		foreach ( DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES as $mode ) {
+			$clean = desktop_mode_sanitize_os_settings( array( 'adminBarMode' => $mode ) );
+			$this->assertSame( $mode, $clean['adminBarMode'], "mode '{$mode}' should round-trip" );
+		}
+	}
+
+	/**
+	 * An unusable value must not survive into user meta — the shell
+	 * would emit `desktop-mode-admin-bar-<junk>`, which matches no
+	 * rule, and the bar would silently render static while the
+	 * picker showed something else.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_to_default_for_unknown_admin_bar_mode() {
+		$clean = desktop_mode_sanitize_os_settings( array( 'adminBarMode' => 'peekaboo' ) );
+		$this->assertSame( 'static', $clean['adminBarMode'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_when_admin_bar_mode_missing() {
+		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$this->assertSame( 'static', $clean['adminBarMode'] );
+	}
+
+	/**
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_known_layout_value() {

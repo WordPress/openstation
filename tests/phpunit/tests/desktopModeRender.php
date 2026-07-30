@@ -24,8 +24,79 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+		delete_user_meta( self::$admin_id, DESKTOP_MODE_OS_SETTINGS_META_KEY );
+		remove_all_filters( 'desktop_mode_admin_bar_mode' );
 		unset( $_GET['desktop_mode_chromeless'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
 		parent::tear_down();
+	}
+
+	/**
+	 * The admin-bar mode has to ride along on the body class rather
+	 * than wait for the shell's JS apply pass — the bar has already
+	 * painted by then, so a user who picked `hidden` would see it
+	 * flash on every navigation.
+	 *
+	 * @covers ::desktop_mode_admin_body_classes
+	 */
+	public function test_body_class_carries_default_admin_bar_mode() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$this->assertStringContainsString(
+			'desktop-mode-admin-bar-static',
+			desktop_mode_admin_body_classes( '' )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_admin_body_classes
+	 * @covers ::desktop_mode_get_admin_bar_mode
+	 */
+	public function test_body_class_reflects_saved_admin_bar_mode() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
+
+		$classes = desktop_mode_admin_body_classes( '' );
+
+		$this->assertStringContainsString( 'desktop-mode-admin-bar-dynamic', $classes );
+		$this->assertStringNotContainsString( 'desktop-mode-admin-bar-static', $classes );
+	}
+
+	/**
+	 * Classic mode is vanilla admin — no shell, and therefore no
+	 * business restyling the admin bar.
+	 *
+	 * @covers ::desktop_mode_admin_body_classes
+	 */
+	public function test_body_class_omits_admin_bar_mode_when_desktop_mode_off() {
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
+
+		$this->assertStringNotContainsString(
+			'desktop-mode-admin-bar-',
+			desktop_mode_admin_body_classes( '' )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_get_admin_bar_mode
+	 */
+	public function test_admin_bar_mode_filter_overrides_the_user_pick() {
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
+		add_filter( 'desktop_mode_admin_bar_mode', static fn () => 'static' );
+
+		$this->assertSame( 'static', desktop_mode_get_admin_bar_mode() );
+	}
+
+	/**
+	 * A filter returning something outside the enum fails closed to
+	 * the always-visible mode, never to a class no CSS rule matches.
+	 *
+	 * @covers ::desktop_mode_get_admin_bar_mode
+	 */
+	public function test_admin_bar_mode_filter_result_is_validated() {
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
+		add_filter( 'desktop_mode_admin_bar_mode', static fn () => 'peekaboo' );
+
+		$this->assertSame( 'static', desktop_mode_get_admin_bar_mode() );
 	}
 
 	/**

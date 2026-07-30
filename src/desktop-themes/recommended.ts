@@ -15,8 +15,9 @@
  *     sit forever looking like a deliberate choice.
  *
  * Keep the enums equal to `DOCK_SIZES` / `DESKTOP_LAYOUTS` /
- * `WINDOW_RADII` in `src/settings/constants.ts` and to the
- * `DESKTOP_MODE_OS_SETTINGS_*` constants in `includes/os-settings.php`.
+ * `WINDOW_RADII` / `ADMIN_BAR_MODES` in `src/settings/constants.ts`
+ * and to the `DESKTOP_MODE_OS_SETTINGS_*` constants in
+ * `includes/os-settings.php`.
  * They are duplicated rather than imported because this module is a
  * leaf of the always-on shell bundle and must not pull the settings
  * module in behind it.
@@ -30,6 +31,7 @@ const ENUMS: Record< string, readonly string[] > = {
 	dockSize: [ 'compact', 'default', 'large' ],
 	desktopLayout: [ 'classic', 'unified', 'spatial' ],
 	windowRadius: [ 'sharp', 'default', 'round' ],
+	adminBarMode: [ 'static', 'dynamic', 'hidden' ],
 };
 
 /** Fields whose validity is a runtime registry lookup, not an enum. */

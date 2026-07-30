@@ -23,6 +23,15 @@ const DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large'
 /** Valid window-radius IDs — mirrors the TS `WINDOW_RADII` constant. */
 const DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
 
+/**
+ * Valid admin-bar mode IDs — mirrors the TS `ADMIN_BAR_MODES` constant.
+ *
+ * `static` keeps the WordPress admin bar pinned above the shell (the
+ * default), `dynamic` auto-hides it to a peek strip that reveals on
+ * hover or keyboard focus, and `hidden` removes it entirely.
+ */
+const DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
+
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
 
@@ -40,6 +49,9 @@ function desktop_mode_default_os_settings() {
 		'accent'                      => 'wp-blue',
 		'dockSize'                    => 'default',
 		'windowRadius'                => 'default',
+		// How the WordPress admin bar presents above the shell.
+		// `static` is vanilla behavior and the shipped default.
+		'adminBarMode'                => 'static',
 		'desktopLayout'               => 'classic',
 		'dockRailRenderer'            => 'default',
 		// Active desktop-theme slug, or `''` for the system default.
@@ -262,6 +274,12 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII, true )
 		? (string) $raw['windowRadius']
 		: $defaults['windowRadius'];
+
+	// Admin-bar mode — must be one of the three known values.
+	$admin_bar_mode = isset( $raw['adminBarMode'] )
+		&& in_array( $raw['adminBarMode'], DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES, true )
+		? (string) $raw['adminBarMode']
+		: $defaults['adminBarMode'];
 
 	// Desktop layout — must be one of the three known values
 	// (`classic`, `unified`, `spatial`). Default `classic`.
@@ -637,6 +655,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'accent'                      => $accent,
 		'dockSize'                    => $dock_size,
 		'windowRadius'                => $window_radius,
+		'adminBarMode'                => $admin_bar_mode,
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
 		'desktopTheme'                => $desktop_theme,

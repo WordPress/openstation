@@ -58,6 +58,7 @@ import type { DesktopSettingsTab } from './registry';
 import { listSettingsTabs, subscribeSettingsTabs } from './registry';
 import { buildAboutSection } from './sections/about';
 import { buildAccentSection } from './sections/accent';
+import { buildAdminBarSection } from './sections/admin-bar';
 import { buildThemesSection } from './sections/themes';
 import { buildAppsIconsSection } from './sections/apps-icons';
 import { buildDesktopLayoutSection } from './sections/desktop-layout';
@@ -185,6 +186,7 @@ export function renderOsSettingsPanel(
 					${ buildDesktopLayoutSection( ctx ) }
 					${ buildDockSizeSection( ctx ) }
 					${ buildWindowRadiusSection( ctx ) }
+					${ buildAdminBarSection( ctx ) }
 					${ buildDockRailRendererSection( ctx ) }
 				</wpd-panel>
 			</wpd-tabpanel>`,

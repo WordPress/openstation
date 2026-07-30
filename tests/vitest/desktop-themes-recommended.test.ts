@@ -72,14 +72,33 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 				dockSize: 'large',
 				desktopLayout: 'unified',
 				windowRadius: 'round',
+				adminBarMode: 'dynamic',
 				dockRailRenderer: 'default',
 			} ),
 		).toEqual( {
 			dockSize: 'large',
 			desktopLayout: 'unified',
 			windowRadius: 'round',
+			adminBarMode: 'dynamic',
 			dockRailRenderer: 'default',
 		} );
+	} );
+
+	test( 'every admin-bar mode is accepted', () => {
+		for ( const mode of [ 'static', 'dynamic', 'hidden' ] ) {
+			expect( sanitizeRecommendedOsSettings( { adminBarMode: mode } ) ).toEqual(
+				{ adminBarMode: mode },
+			);
+		}
+	} );
+
+	test( 'an unknown admin-bar mode drops', () => {
+		expect(
+			sanitizeRecommendedOsSettings( {
+				adminBarMode: 'peekaboo',
+				dockSize: 'large',
+			} ),
+		).toEqual( { dockSize: 'large' } );
 	} );
 
 	test( 'out-of-enum values drop and the rest survive', () => {
@@ -128,6 +147,7 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 			'dockSize',
 			'desktopLayout',
 			'windowRadius',
+			'adminBarMode',
 			'dockRailRenderer',
 		] );
 	} );
