@@ -265,7 +265,7 @@
    the message column; the bubble's own would resolve against the
    shrink-to-fit line and collapse), and the bubble fills the line. */
 .dm-agent-chat__line--pending {
-	min-width: min( 348px, 100% );
+	min-width: min( 176px, 100% );
 }
 
 .dm-agent-chat__line--pending .dm-agent-chat__msg {
@@ -275,6 +275,10 @@
 	   alone only centers the label's inline text). */
 	align-items: center;
 	text-align: center;
+}
+
+.dm-agent-chat__msg--pending wpd-spinner {
+	--wpd-spinner-size: 24px;
 }
 
 /* Markdown content inside agent bubbles. */
