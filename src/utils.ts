@@ -349,3 +349,20 @@ export function bindBackgroundActivate(
 		},
 	};
 }
+
+/**
+ * Decodes HTML entities (e.g. `&amp;` -> `&`, `&#8217;` -> `’`) by rendering them
+ * through a temporary textarea element.
+ *
+ * @param raw The raw string containing HTML entities.
+ * @return The decoded string.
+ */
+export function decodeHtmlEntities( raw: string ): string {
+	if ( ! raw ) {
+		return '';
+	}
+	const ta = document.createElement( 'textarea' );
+	ta.innerHTML = raw;
+	return ta.value;
+}
+

@@ -18,6 +18,7 @@
  */
 
 import { __, sprintf } from '../i18n';
+import { decodeHtmlEntities } from '../utils';
 // Side-effect imports — register the `<wpd-*>` components this
 // bundle constructs that the main shell does not ship.
 import '../ui/components/wpd-table/wpd-table';
@@ -268,16 +269,18 @@ function buildColumns(): WpdTableColumn< RecycleBinItem >[] {
 				const title = document.createElement( 'span' );
 				title.style.cssText =
 					'font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
-				title.textContent = row.title;
-				title.title = row.title;
+				const decodedTitle = decodeHtmlEntities( row.title );
+				title.textContent = decodedTitle;
+				title.title = decodedTitle;
 				titleRow.appendChild( title );
 				stack.appendChild( titleRow );
 				if ( row.subtitle ) {
 					const sub = document.createElement( 'span' );
 					sub.style.cssText =
 						'font-size:12px;color:#50575e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;';
-					sub.textContent = row.subtitle;
-					sub.title = row.subtitle;
+					const decodedSubtitle = decodeHtmlEntities( row.subtitle );
+					sub.textContent = decodedSubtitle;
+					sub.title = decodedSubtitle;
 					stack.appendChild( sub );
 				}
 				wrap.appendChild( stack );
