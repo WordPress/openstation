@@ -139,9 +139,13 @@ describe( 'dock glyph tokens', () => {
 			'--desktop-mode-dock-icon-color-hover'
 		);
 
+		// `background-color`, not the `background` shorthand: the
+		// shorthand also reset `background-image`, erasing a theme's
+		// DOCK_ITEM tile texture from under the cursor.
 		expect( body ).toContain(
-			`background: var( --desktop-mode-dock-item-bg-hover, ${ TILE_WASH } );`
+			`background-color: var( --desktop-mode-dock-item-bg-hover, ${ TILE_WASH } );`
 		);
+		expect( body ).not.toContain( 'background: ' );
 		expect( body ).toContain(
 			`color: var( --desktop-mode-dock-icon-color-hover, ${ GLYPH_HOVER } );`
 		);
