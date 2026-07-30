@@ -348,6 +348,136 @@ class Tests_DesktopMode_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Prior conversation turns reach the prompt, oldest first, ahead of
+	 * the new message. Without this a follow-up ("yes, do it") is a
+	 * contextless run and the agent can act on the wrong entity — the
+	 * reported bug where an approval wrote to a different post than the
+	 * one proposed.
+	 *
+	 * @covers ::desktop_mode_agent_runner_compose_prompt
+	 */
+	public function test_prior_turns_precede_the_new_message() {
+		$prompt = desktop_mode_agent_runner_compose_prompt(
+			array(
+				array(
+					'type' => 'prior',
+					'role' => 'user',
+					'text' => 'Summarize post 973.',
+				),
+				array(
+					'type' => 'prior',
+					'role' => 'agent',
+					'text' => 'Proposal for post 973 — approve?',
+				),
+				array(
+					'type' => 'user_text',
+					'text' => 'Yes, please',
+				),
+			)
+		);
+
+		$this->assertStringContainsString( 'Conversation so far', $prompt );
+		$this->assertStringContainsString( 'User: Summarize post 973.', $prompt );
+		$this->assertStringContainsString( 'You: Proposal for post 973', $prompt );
+		// The new message comes last, after the replayed turns.
+		$this->assertGreaterThan(
+			strpos( $prompt, 'Proposal for post 973' ),
+			strpos( $prompt, 'Yes, please' )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_runner_sanitize_history
+	 */
+	public function test_history_sanitizer_filters_and_caps() {
+		$clean = desktop_mode_agent_runner_sanitize_history(
+			array(
+				array(
+					'role' => 'user',
+					'text' => '  hello  ',
+				),
+				array(
+					'role' => 'system',
+					'text' => 'not a valid role',
+				),
+				array(
+					'role' => 'agent',
+					'text' => '',
+				),
+				'not-a-row',
+			)
+		);
+		$this->assertSame( array( array( 'role' => 'user', 'text' => 'hello' ) ), $clean );
+
+		$long = desktop_mode_agent_runner_sanitize_history(
+			array(
+				array(
+					'role' => 'user',
+					'text' => str_repeat( 'x', DESKTOP_MODE_AGENT_HISTORY_TEXT_CAP + 500 ),
+				),
+			)
+		);
+		$this->assertSame(
+			DESKTOP_MODE_AGENT_HISTORY_TEXT_CAP,
+			mb_strlen( $long[0]['text'] )
+		);
+
+		$many = array();
+		for ( $i = 0; $i < DESKTOP_MODE_AGENT_HISTORY_TURN_CAP + 5; $i++ ) {
+			$many[] = array(
+				'role' => 'user',
+				'text' => 'turn ' . $i,
+			);
+		}
+		$capped = desktop_mode_agent_runner_sanitize_history( $many );
+		$this->assertCount( DESKTOP_MODE_AGENT_HISTORY_TURN_CAP, $capped );
+		// The most RECENT turns survive — the oldest roll off.
+		$this->assertSame( 'turn ' . ( DESKTOP_MODE_AGENT_HISTORY_TURN_CAP + 4 ), end( $capped )['text'] );
+	}
+
+	/**
+	 * History supplied through the invocation context reaches the
+	 * generate call.
+	 *
+	 * @covers ::desktop_mode_agent_invoke
+	 */
+	public function test_invoke_replays_context_history() {
+		$agent   = $this->create_agent();
+		$prompts = array();
+		$this->stub_generate(
+			static function ( $ignored, $history ) use ( &$prompts ) {
+				$prompts[] = desktop_mode_agent_runner_compose_prompt( $history );
+				return array(
+					'text'           => 'ok',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		desktop_mode_agent_invoke(
+			$agent->ID,
+			'Yes, please',
+			array(
+				'source'  => 'chat',
+				'history' => array(
+					array(
+						'role' => 'user',
+						'text' => 'Summarize post 973.',
+					),
+					array(
+						'role' => 'agent',
+						'text' => 'Proposal for post 973 — approve?',
+					),
+				),
+			)
+		);
+
+		$this->assertStringContainsString( 'post 973', $prompts[0] );
+		$this->assertStringContainsString( 'Yes, please', $prompts[0] );
+	}
+
+	/**
 	 * @covers ::desktop_mode_agent_runner_check_rate_limit
 	 */
 	public function test_rate_limit_blocks_after_cap() {

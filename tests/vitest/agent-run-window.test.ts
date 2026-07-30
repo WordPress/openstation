@@ -139,11 +139,67 @@ describe( 'agent chat window', () => {
 		);
 		expect( JSON.parse( String( init.body ) ) ).toEqual( {
 			message: 'Audit post 1',
+			source: 'chat',
+			// First message of the conversation — nothing to replay yet.
+			history: [],
 		} );
 
 		expect( body.textContent ).toContain( 'Audit post 1' );
 		expect( body.textContent ).toContain( 'Here is the audit.' );
 		expect( body.textContent ).toContain( 'Tool calls' );
+
+		if ( typeof cleanup === 'function' ) {
+			cleanup();
+		}
+	} );
+
+	test( 'a follow-up message replays the conversation so far', async () => {
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: true,
+			status: 200,
+			json: async () => ( {
+				text: 'Written.',
+				toolCalls: [],
+				turns: 1,
+			} ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		openAgentChat( {
+			id: 5,
+			name: 'TL;DR Agent',
+			description: '',
+			avatarUrl: 'data:image/svg+xml;base64,x',
+		} );
+		agentsChatStore.state.transcripts[ 5 ] = [
+			{ role: 'user', text: 'Summarize post 973.', at: 1 },
+			{ role: 'agent', text: 'Proposal for post 973 — approve?', at: 2 },
+		];
+		agentsChatStore.notify();
+
+		const input = body.querySelector( 'wpd-textarea' ) as HTMLElement & {
+			value: string;
+		};
+		input.value = 'Yes, please';
+		(
+			body.querySelector(
+				'.dm-agent-chat__composer wpd-button',
+			) as HTMLElement
+		 ).click();
+		await flush();
+
+		const [ , init ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
+		const sent = JSON.parse( String( init.body ) ) as {
+			message: string;
+			history: Array< { role: string; text: string } >;
+		};
+		expect( sent.message ).toBe( 'Yes, please' );
+		expect( sent.history ).toEqual( [
+			{ role: 'user', text: 'Summarize post 973.' },
+			{ role: 'agent', text: 'Proposal for post 973 — approve?' },
+		] );
 
 		if ( typeof cleanup === 'function' ) {
 			cleanup();

@@ -210,6 +210,13 @@ export async function invokeAgentIntoTranscript(
 ): Promise< void > {
 	openAgentChat( agent );
 	const transcript = agentsChatStore.state.transcripts[ agent.id ];
+	// Snapshot the conversation BEFORE this message joins it. Without
+	// replaying it the run is contextless: a follow-up like "yes, do
+	// it" would resolve against nothing and the agent could act on a
+	// completely different entity than the one just discussed.
+	const history = transcript
+		.filter( ( row ) => ! row.pending && row.role !== 'error' )
+		.map( ( row ) => ( { role: row.role, text: row.text } ) );
 	transcript.push( { role: 'user', text: message, at: Date.now() } );
 	const pending: AgentChatMessage = {
 		role: 'agent',
@@ -232,7 +239,7 @@ export async function invokeAgentIntoTranscript(
 					'Content-Type': 'application/json',
 					'X-WP-Nonce': rest.restNonce,
 				},
-				body: JSON.stringify( { message, source } ),
+				body: JSON.stringify( { message, source, history } ),
 			},
 			{ source: 'desktop-mode/agents' },
 		);

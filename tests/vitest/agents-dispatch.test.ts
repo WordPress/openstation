@@ -10,6 +10,7 @@ import {
 	describeDragEntity,
 	dispatchAgentDrop,
 	dragKindsFromTriggers,
+	invokeAgentIntoTranscript,
 } from '../../src/agents-dispatch';
 import { agentsChatStore } from '../../src/agents-chat-store';
 
@@ -122,15 +123,15 @@ describe( 'drop gating', () => {
 	} );
 } );
 
-describe( 'dispatchAgentDrop', () => {
-	function installOpenWindowStub(): ReturnType< typeof vi.fn > {
-		const openWindow = vi.fn( () => true );
-		( window as unknown as Record< string, unknown > ).wp = {
-			desktop: { openWindow },
-		};
-		return openWindow;
-	}
+function installOpenWindowStub(): ReturnType< typeof vi.fn > {
+	const openWindow = vi.fn( () => true );
+	( window as unknown as Record< string, unknown > ).wp = {
+		desktop: { openWindow },
+	};
+	return openWindow;
+}
 
+describe( 'dispatchAgentDrop', () => {
 	test( 'seeds the transcript, opens the window, and posts source=drag', async () => {
 		const openWindow = installOpenWindowStub();
 		const fetchMock: FetchMock = vi.fn( async () => ( {
@@ -178,6 +179,62 @@ describe( 'dispatchAgentDrop', () => {
 		expect( transcript[ 1 ].text ).toBe( 'Done, new attachment 99.' );
 		expect( transcript[ 1 ].pending ).toBe( false );
 		expect( agentsChatStore.state.activeAgent?.id ).toBe( 9 );
+	} );
+
+	test( 'replays the prior conversation, excluding pending and error rows', async () => {
+		installOpenWindowStub();
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: true,
+			status: 200,
+			json: async () => ( { text: 'done', toolCalls: [], turns: 1 } ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		agentsChatStore.state.transcripts[ 9 ] = [
+			{ role: 'user', text: 'Summarize post 973.', at: 1 },
+			{ role: 'agent', text: 'Proposal for post 973 — approve?', at: 2 },
+			{ role: 'error', text: 'Rate limited.', at: 3 },
+			{ role: 'agent', text: 'Working…', at: 4, pending: true },
+		];
+
+		await invokeAgentIntoTranscript(
+			AGENT,
+			'Yes, please',
+			{ restRoot: 'https://example.test/wp-json/', restNonce: 'n' },
+			'chat',
+		);
+
+		const [ , init ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
+		const body = JSON.parse( String( init.body ) ) as {
+			message: string;
+			history: Array< { role: string; text: string } >;
+		};
+		expect( body.message ).toBe( 'Yes, please' );
+		expect( body.history ).toEqual( [
+			{ role: 'user', text: 'Summarize post 973.' },
+			{ role: 'agent', text: 'Proposal for post 973 — approve?' },
+		] );
+	} );
+
+	test( 'the first message of a conversation replays no history', async () => {
+		installOpenWindowStub();
+		const fetchMock: FetchMock = vi.fn( async () => ( {
+			ok: true,
+			status: 200,
+			json: async () => ( { text: 'hi', toolCalls: [], turns: 1 } ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		await dispatchAgentDrop(
+			AGENT,
+			{ kind: 'media', id: 44, title: 'Hornet' },
+			{ restRoot: 'https://example.test/wp-json/', restNonce: 'n' },
+		);
+
+		const [ , init ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
+		expect(
+			( JSON.parse( String( init.body ) ) as { history: unknown[] } ).history,
+		).toEqual( [] );
 	} );
 
 	test( 'invocation failures land as error rows', async () => {

@@ -134,6 +134,8 @@ class Tests_DesktopMode_AgentsDrag extends WP_UnitTestCase {
 
 		$response = desktop_mode_agents_rest_invoke( $request );
 		$this->assertNotWPError( $response );
-		$this->assertSame( array( 'source' => 'drag' ), $captured );
+		$this->assertSame( 'drag', $captured['source'] );
+		// A drop starts a fresh conversation — no replayed turns.
+		$this->assertSame( array(), $captured['history'] );
 	}
 }

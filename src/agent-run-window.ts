@@ -17,7 +17,6 @@
  */
 
 import { __ } from './i18n';
-import { trackedFetch } from './tracked-fetch';
 import './ui/components/wpd-button/wpd-button';
 import './ui/components/wpd-empty-state/wpd-empty-state';
 import './ui/components/wpd-spinner/wpd-spinner';
@@ -27,8 +26,11 @@ import {
 	type AgentChatAgent,
 	type AgentChatMessage,
 } from './agents-chat-store';
-import type { AgentInvokeResult } from './my-wordpress/agents-types';
-import { describeDragEntity, dispatchAgentDrop } from './agents-dispatch';
+import {
+	describeDragEntity,
+	dispatchAgentDrop,
+	invokeAgentIntoTranscript,
+} from './agents-dispatch';
 
 const WINDOW_ID = 'desktop-mode-agent-run';
 
@@ -81,43 +83,6 @@ function getRunConfig(): RunWindowConfig | null {
 		| RunWindowConfig
 		| undefined;
 	return cfg && typeof cfg.restRoot === 'string' ? cfg : null;
-}
-
-async function invoke(
-	agentId: number,
-	message: string,
-): Promise< AgentInvokeResult > {
-	const cfg = getRunConfig();
-	if ( ! cfg ) {
-		throw new Error(
-			__( 'Chat window config is missing.', 'desktop-mode' ),
-		);
-	}
-	const root = cfg.restRoot.replace( /\/+$/, '' );
-	const res = await trackedFetch(
-		`${ root }/desktop-mode/v1/agents/${ agentId }/invoke`,
-		{
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-WP-Nonce': cfg.restNonce,
-			},
-			body: JSON.stringify( { message } ),
-		},
-		{ source: 'desktop-mode/agents' },
-	);
-	const body = ( await res.json().catch( () => null ) ) as
-		| ( AgentInvokeResult & { message?: string } )
-		| { message?: string }
-		| null;
-	if ( ! res.ok ) {
-		const detail =
-			body && typeof body === 'object' && typeof body.message === 'string'
-				? body.message
-				: `HTTP ${ res.status }`;
-		throw new Error( detail );
-	}
-	return body as AgentInvokeResult;
 }
 
 function transcriptFor( agent: AgentChatAgent ): AgentChatMessage[] {
@@ -259,33 +224,32 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		return row;
 	};
 
+	// Delegates to the shared dispatcher so the typed path and the drop
+	// path replay the conversation identically — a follow-up message
+	// must never reach the runner without the turns that give it
+	// meaning.
 	const sendMessage = async (
 		agent: AgentChatAgent,
 		text: string,
 	): Promise< void > => {
-		busy = true;
-		const transcript = transcriptFor( agent );
-		transcript.push( { role: 'user', text, at: Date.now() } );
-		const pending: AgentChatMessage = {
-			role: 'agent',
-			text: __( 'Working…', 'desktop-mode' ),
-			at: Date.now(),
-			pending: true,
-		};
-		transcript.push( pending );
-		agentsChatStore.notify();
-
-		try {
-			const result = await invoke( agent.id, text );
-			pending.text =
-				result.text ||
-				__( 'The agent finished without a text answer.', 'desktop-mode' );
-			pending.toolCalls = result.toolCalls;
-		} catch ( err ) {
-			pending.role = 'error';
-			pending.text = err instanceof Error ? err.message : String( err );
+		const cfg = getRunConfig();
+		if ( ! cfg ) {
+			transcriptFor( agent ).push( {
+				role: 'error',
+				text: __( 'Chat window config is missing.', 'desktop-mode' ),
+				at: Date.now(),
+			} );
+			agentsChatStore.notify();
+			return;
 		}
-		pending.pending = false;
+		busy = true;
+		agentsChatStore.notify();
+		await invokeAgentIntoTranscript(
+			agent,
+			text,
+			{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
+			'chat',
+		);
 		busy = false;
 		agentsChatStore.notify();
 	};

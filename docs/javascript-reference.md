@@ -5564,9 +5564,18 @@ interface Agent {
 }
 ```
 
-`POST /agents/{id}/invoke` with `{ message }` returns
-`{ text, toolCalls, turns }` where each tool call is
+`POST /agents/{id}/invoke` with `{ message, source?, history? }`
+returns `{ text, toolCalls, turns }` where each tool call is
 `{ callId, name, args, output, error }`.
+
+`history` is the prior conversation (`[ { role: 'user'|'agent', text },
+… ]`, oldest first) and is **required for multi-turn work**: each
+invocation is otherwise stateless, so a follow-up ("yes, do it")
+arrives with no idea which entity was being discussed. The server caps
+it at the 20 most recent turns, 4000 characters each. Both in-tree
+intakes (typing in the chat window, and drops) go through
+`invokeAgentIntoTranscript()` in `src/agents-dispatch.ts`, which
+snapshots the transcript before appending the new message.
 
 ### Site folder integration
 

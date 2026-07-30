@@ -4224,7 +4224,7 @@ read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
 - `desktop_mode_agent_create( $args )` / `desktop_mode_agent_update( $user_id, $fields )` / `desktop_mode_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action).
 - `desktop_mode_agent_get_agents( $args )` — list every agent.
 - `desktop_mode_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
-- `desktop_mode_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, tool loop, turn cap 8, rate limit).
+- `desktop_mode_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, tool loop, turn cap 8, rate limit). `$context['source']` names the trigger; `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 20 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
 - `desktop_mode_agent_runner_get_log( $agent_user_id )` — recent invocations (capped at 50).
 - `desktop_mode_agents_abilities_catalogue()` — the picker catalogue.
 

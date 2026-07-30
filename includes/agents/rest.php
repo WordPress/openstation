@@ -160,6 +160,24 @@ function desktop_mode_agents_register_rest_routes() {
 					'enum'              => array( 'chat', 'drag', 'send-to' ),
 					'sanitize_callback' => 'sanitize_key',
 				),
+				// Prior conversation turns, oldest first. Without these
+				// every message is a contextless run — a follow-up like
+				// "yes, do it" would be resolved against nothing and the
+				// agent could act on the wrong entity entirely.
+				'history' => array(
+					'type'    => 'array',
+					'default' => array(),
+					'items'   => array(
+						'type'       => 'object',
+						'properties' => array(
+							'role' => array(
+								'type' => 'string',
+								'enum' => array( 'user', 'agent' ),
+							),
+							'text' => array( 'type' => 'string' ),
+						),
+					),
+				),
 			),
 		)
 	);
@@ -425,7 +443,10 @@ function desktop_mode_agents_rest_invoke( WP_REST_Request $request ) {
 	$result = desktop_mode_agent_invoke(
 		(int) $user->ID,
 		(string) $request['message'],
-		array( 'source' => (string) $request['source'] )
+		array(
+			'source'  => (string) $request['source'],
+			'history' => (array) $request['history'],
+		)
 	);
 	if ( is_wp_error( $result ) ) {
 		$data = $result->get_error_data();

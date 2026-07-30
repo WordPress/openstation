@@ -63,6 +63,15 @@ const DESKTOP_MODE_AGENT_RUNNER_LOG_META = '_desktop_mode_agent_runs';
 const DESKTOP_MODE_AGENT_RUNNER_LOG_CAP  = 50;
 
 /**
+ * Caps on the conversation history a caller may replay into a run:
+ * the most recent N turns, each truncated to M characters. Bounds the
+ * prompt (and the bill) without losing the turns that actually decide
+ * a follow-up like "yes, do it".
+ */
+const DESKTOP_MODE_AGENT_HISTORY_TURN_CAP = 20;
+const DESKTOP_MODE_AGENT_HISTORY_TEXT_CAP = 4000;
+
+/**
  * Whether the runner can service an invocation right now: either the
  * Core AI Client stack is present, or a plugin (or the test suite)
  * hooked the `desktop_mode_agent_runner_generate` pre-filter to
@@ -84,8 +93,13 @@ function desktop_mode_agent_runner_available() {
  * @param string $message       Message for the agent.
  * @param array  $context       Optional invocation context — free-form,
  *                              passed through to the completed action.
- *                              Convention: `source` names the trigger
- *                              (`chat`, `send-to`, `hook`, …).
+ *                              Conventions: `source` names the trigger
+ *                              (`chat`, `send-to`, `hook`, …);
+ *                              `history` carries prior conversation
+ *                              turns (`[ { role: 'user'|'agent', text },
+ *                              … ]`, oldest first) so a follow-up
+ *                              message resolves against what was
+ *                              already said.
  * @return array|WP_Error `{ text: string, toolCalls: array, turns: int }` on success.
  */
 function desktop_mode_agent_invoke( $agent_user_id, $message, $context = array() ) {
@@ -132,7 +146,10 @@ function desktop_mode_agent_invoke( $agent_user_id, $message, $context = array()
 			$instructions,
 			$message,
 			$tool_defs,
-			$slug_by_name
+			$slug_by_name,
+			desktop_mode_agent_runner_sanitize_history(
+				isset( $context['history'] ) ? $context['history'] : array()
+			)
 		);
 	} finally {
 		wp_set_current_user( $previous_user_id );
@@ -272,15 +289,23 @@ function desktop_mode_agent_runner_build_tools( array $ability_slugs ) {
  * @param string $message       User message.
  * @param array  $tool_defs     Neutral tool definitions.
  * @param array  $slug_by_name  Tool-name → ability-slug map.
+ * @param array  $prior         Sanitized prior conversation turns.
  * @return array|WP_Error `{ text, toolCalls, turns }`.
  */
-function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message, array $tool_defs, array $slug_by_name ) {
-	// Neutral history rows: { type: 'user_text'|'assistant'|'tool_results', ... }.
-	$history = array(
-		array(
-			'type' => 'user_text',
-			'text' => (string) $message,
-		),
+function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message, array $tool_defs, array $slug_by_name, array $prior = array() ) {
+	// Neutral history rows:
+	// { type: 'prior'|'user_text'|'assistant'|'tool_results', … }.
+	$history = array();
+	foreach ( $prior as $turn ) {
+		$history[] = array(
+			'type' => 'prior',
+			'role' => $turn['role'],
+			'text' => $turn['text'],
+		);
+	}
+	$history[] = array(
+		'type' => 'user_text',
+		'text' => (string) $message,
 	);
 	$tool_trace = array();
 
@@ -440,6 +465,7 @@ function desktop_mode_agent_runner_generate( $agent_user_id, array $history, arr
  */
 function desktop_mode_agent_runner_compose_prompt( array $history ) {
 	$base       = '';
+	$prior      = array();
 	$transcript = array();
 
 	foreach ( $history as $row ) {
@@ -447,6 +473,14 @@ function desktop_mode_agent_runner_compose_prompt( array $history ) {
 			continue;
 		}
 		$type = isset( $row['type'] ) ? $row['type'] : '';
+		if ( 'prior' === $type ) {
+			$prior[] = sprintf(
+				'%s: %s',
+				'agent' === ( isset( $row['role'] ) ? $row['role'] : '' ) ? 'You' : 'User',
+				isset( $row['text'] ) ? (string) $row['text'] : ''
+			);
+			continue;
+		}
 		if ( 'user_text' === $type && '' === $base ) {
 			$base = isset( $row['text'] ) ? (string) $row['text'] : '';
 			continue;
@@ -467,14 +501,65 @@ function desktop_mode_agent_runner_compose_prompt( array $history ) {
 		}
 	}
 
-	if ( empty( $transcript ) ) {
-		return $base;
+	$prompt = $base;
+
+	if ( ! empty( $prior ) ) {
+		// The conversation comes first so a follow-up ("yes, do it")
+		// resolves against what was actually discussed — including the
+		// exact entity ids the previous turn named.
+		$prompt = "Conversation so far, oldest first:\n"
+			. implode( "\n", $prior )
+			. "\n\nThe user's new message. Resolve any reference in it (\"it\", \"that post\", \"yes\") against the conversation above — never against a fresh search:\n"
+			. $base;
 	}
 
-	return $base
-		. "\n\n"
-		. "Tool calls you already executed for this request, with their results. Use them — do not repeat an identical call:\n"
-		. implode( "\n", $transcript );
+	if ( ! empty( $transcript ) ) {
+		$prompt .= "\n\n"
+			. "Tool calls you already executed for this request, with their results. Use them — do not repeat an identical call:\n"
+			. implode( "\n", $transcript );
+	}
+
+	return $prompt;
+}
+
+/**
+ * Normalize caller-supplied conversation history: `user`/`agent` roles
+ * only, non-empty text, most recent {@see DESKTOP_MODE_AGENT_HISTORY_TURN_CAP}
+ * turns, each truncated to {@see DESKTOP_MODE_AGENT_HISTORY_TEXT_CAP}
+ * characters.
+ *
+ * @param mixed $history Incoming history rows.
+ * @return array<int, array{role:string, text:string}>
+ */
+function desktop_mode_agent_runner_sanitize_history( $history ) {
+	if ( ! is_array( $history ) ) {
+		return array();
+	}
+
+	$clean = array();
+	foreach ( $history as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$role = isset( $row['role'] ) ? sanitize_key( (string) $row['role'] ) : '';
+		if ( ! in_array( $role, array( 'user', 'agent' ), true ) ) {
+			continue;
+		}
+		$text = isset( $row['text'] ) ? trim( (string) $row['text'] ) : '';
+		if ( '' === $text ) {
+			continue;
+		}
+		$clean[] = array(
+			'role' => $role,
+			'text' => mb_substr( $text, 0, DESKTOP_MODE_AGENT_HISTORY_TEXT_CAP ),
+		);
+	}
+
+	if ( count( $clean ) > DESKTOP_MODE_AGENT_HISTORY_TURN_CAP ) {
+		$clean = array_slice( $clean, -DESKTOP_MODE_AGENT_HISTORY_TURN_CAP );
+	}
+
+	return $clean;
 }
 
 /**
