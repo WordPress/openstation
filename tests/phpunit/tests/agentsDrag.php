@@ -56,9 +56,12 @@ class Tests_DesktopMode_AgentsDrag extends WP_UnitTestCase {
 	 */
 	public function test_agent_without_drag_trigger_serializes_null_kinds() {
 		$agent = $this->create_agent();
+		desktop_mode_agent_update( $agent->ID, array( 'description' => 'Drops backgrounds.' ) );
 		$shape = ( new Desktop_Mode_User_File( (string) $agent->ID ) )->serialize();
 		$this->assertTrue( $shape['isAgent'] );
 		$this->assertNull( $shape['agentDragKinds'] );
+		// The chat-window subtitle ships inline for the tile opener.
+		$this->assertSame( 'Drops backgrounds.', $shape['agentDescription'] );
 	}
 
 	/**

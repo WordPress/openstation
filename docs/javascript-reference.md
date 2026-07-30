@@ -5637,6 +5637,13 @@ store → open the chat window → `POST /invoke` with `source: 'drag'`):
   without drag-trigger gating (dropping into an open conversation is
   explicit intent, like typing).
 
+Double-clicking an agent's user tile on the desktop opens the Agent
+chat window (the built-in `agent-chat` opener, gated by a per-file
+`appliesTo` predicate on `file.shape.isAgent`) instead of the user
+profile; human user tiles are unaffected. The user-file payload
+carries `agentDescription` so the chat header can show the agent's
+"when to use" line without a REST roundtrip.
+
 Accepted drag payload types are the in-tree entity carriers:
 `'shortcut'` (site folder tiles, `wpd-tile` drag-out; `attachment`
 maps to `media`, pages are detected via `bridgePayload.postType`) and

@@ -177,7 +177,18 @@ export function composeDropMessage( entity: DroppedEntity ): string {
 	);
 }
 
-function openChatWindowGuarded(): void {
+/**
+ * Seed the chat store for `agent` and surface the Agent chat window.
+ * The shared "open a conversation with this agent" primitive — used
+ * by the drop dispatch and by the desktop tile opener.
+ *
+ * @public
+ */
+export function openAgentChatWindow(
+	agent: AgentChatAgent,
+	source = 'agents',
+): void {
+	openAgentChat( agent );
 	const openWindow = (
 		window as unknown as {
 			wp?: {
@@ -191,7 +202,7 @@ function openChatWindowGuarded(): void {
 		}
 	).wp?.desktop?.openWindow;
 	if ( typeof openWindow === 'function' ) {
-		openWindow( 'desktop-mode-agent-run', { source: 'agents-drop' } );
+		openWindow( 'desktop-mode-agent-run', { source } );
 	}
 }
 
@@ -280,8 +291,7 @@ export function dispatchAgentDrop(
 	entity: DroppedEntity,
 	rest: { restRoot: string; restNonce: string },
 ): Promise< void > {
-	openAgentChat( agent );
-	openChatWindowGuarded();
+	openAgentChatWindow( agent, 'agents-drop' );
 	return invokeAgentIntoTranscript(
 		agent,
 		composeDropMessage( entity ),
