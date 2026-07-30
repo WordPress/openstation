@@ -66,20 +66,30 @@ describe( 'dock icon resolution', () => {
 		expect( container.querySelector( '.desktop-mode-dock__item-letter' ) ).toBeNull();
 	} );
 
-	test( 'inline SVG data URI renders a background-image span', () => {
+	test( 'inline SVG data URI paints as a currentColor mask', () => {
+		// Not a `filter: brightness(0) invert(1)` background any more:
+		// that flattened plugin art to WHITE, a colour no theme could
+		// name. A mask flattens the same way — alpha only — and takes
+		// the tile's glyph colour, so these follow
+		// `--desktop-mode-dock-icon-color` like the dashicons do.
 		const svg = 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		const { container } = mountDock( [ makeItem( { icon: `data:image/svg+xml;base64,${ svg }` } ) ] );
-		const icon = container.querySelector< HTMLElement >( '.desktop-mode-dock__item-svg' );
+		const icon = container.querySelector< HTMLElement >( '.desktop-mode-dock__item-mask' );
 		expect( icon ).not.toBeNull();
-		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml;base64,' );
+		expect( icon?.style.getPropertyValue( 'mask' ) ).toContain(
+			'data:image/svg+xml;base64,',
+		);
+		expect( icon?.style.backgroundColor ).toBe( 'currentcolor' );
 	} );
 
-	test( 'raw CSS url(...) value renders a background-image span (live-activation harvest path)', () => {
+	test( 'raw CSS url(...) value reaches the mask unwrapped (live-activation harvest path)', () => {
 		// includes/render/chromeless-bridge.php harvests the iframe's
 		// computed `::before { background-image }` for plugins whose
 		// menu icon is registered via CSS (icon = 'none'/'div'). The
 		// harvested value is a raw `url(...)` string and must reach the
-		// dock without going through a data-URI re-encode.
+		// dock without going through a data-URI re-encode. The wrapper
+		// is stripped before validation — `isMaskableIcon()` rejects
+		// the quotes and parens, not the URL inside them.
 		const { container } = mountDock( [
 			makeItem( {
 				icon: 'url("data:image/svg+xml;base64,PHN2Zy8+")',
@@ -87,10 +97,12 @@ describe( 'dock icon resolution', () => {
 			} ),
 		] );
 		const icon = container.querySelector< HTMLElement >(
-			'.desktop-mode-dock__item-svg',
+			'.desktop-mode-dock__item-mask',
 		);
 		expect( icon ).not.toBeNull();
-		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml;base64,' );
+		expect( icon?.style.getPropertyValue( 'mask' ) ).toContain(
+			'data:image/svg+xml;base64,PHN2Zy8+',
+		);
 		// And it must NOT have collapsed to the gear or a letter badge.
 		expect( container.querySelector( '.desktop-mode-dock__item-letter' ) ).toBeNull();
 		expect(
@@ -101,15 +113,33 @@ describe( 'dock icon resolution', () => {
 	test( 'raw CSS url(...) accepts a URL-encoded SVG data URI', () => {
 		// The harvest also needs to round-trip non-base64 data URIs
 		// (some plugins use `data:image/svg+xml,<percent-encoded>` in
-		// their CSS). _makeSvgIcon takes the value verbatim, so this
-		// branch is just a fidelity check.
+		// their CSS). Percent-encoded payloads carry no literal quote,
+		// paren or space, so they mask like any other.
 		const url = 'url("data:image/svg+xml,%3Csvg/%3E")';
 		const { container } = mountDock( [ makeItem( { icon: url } ) ] );
+		const icon = container.querySelector< HTMLElement >(
+			'.desktop-mode-dock__item-mask',
+		);
+		expect( icon ).not.toBeNull();
+		expect( icon?.style.getPropertyValue( 'mask' ) ).toContain(
+			'data:image/svg+xml,%3Csvg/%3E',
+		);
+	} );
+
+	test( 'an unmaskable URL still falls back to the filtered span', () => {
+		// A data URI with literal `<`/`>` (some plugins skip the
+		// encoding) cannot be interpolated into a CSS `url("…")`
+		// safely. The background-image path and its whitening filter
+		// remain, so the icon degrades instead of disappearing.
+		const { container } = mountDock( [
+			makeItem( { icon: 'url("data:image/svg+xml,<svg/>")' } ),
+		] );
 		const icon = container.querySelector< HTMLElement >(
 			'.desktop-mode-dock__item-svg',
 		);
 		expect( icon ).not.toBeNull();
 		expect( icon?.style.backgroundImage ).toContain( 'data:image/svg+xml,' );
+		expect( container.querySelector( '.desktop-mode-dock__item-mask' ) ).toBeNull();
 	} );
 
 	test( 'http URL renders an <img>', () => {

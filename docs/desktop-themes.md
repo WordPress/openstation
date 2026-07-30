@@ -388,10 +388,13 @@ read the same `--desktop-mode-dock-icon-color`. Unthemed they sit one
 notch brighter than menu tiles; once you name a colour they join the
 rest rather than staying stranded white.
 
-The exception is a plugin SVG that ships a hardcoded `fill` attribute.
-The dock force-whitens those so they match dashicons instead of
-showing a brand colour, and no token overrides it — supply an iconset
-if you need those tiles to follow your palette.
+This reaches **plugin and custom-post-type artwork too**, not just
+dashicons and your own iconset. The dock has always flattened those
+SVGs to one colour so a brand mark can't shout over its neighbours;
+they are now flattened by a `currentColor` mask rather than by a
+force-to-white filter, so they land on your glyph colour like
+everything else. A URL the mask can't take — one carrying literal
+quotes, spaces or parens — still falls back to the white filter.
 
 All four are **undeclared by default**, so a theme that ignores them
 keeps the dock the shell has always had.

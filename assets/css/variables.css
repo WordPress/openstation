@@ -339,13 +339,13 @@
 	 * keep their notch of extra prominence and themed they follow the
 	 * single colour the theme named.
 	 *
-	 * Named a *colour*, not a fill, on purpose: a desktop theme whose
-	 * iconset uses `"iconColor": "currentColor"` is masked with the
-	 * glyph colour, so this one token drives dashicons, the theme's
-	 * own artwork, and the hover transition together. Plugin SVGs
-	 * carrying hardcoded `fill` attributes are the exception — the
-	 * `__item-svg` path force-whitens them (see the note in dock.css),
-	 * and an iconset is how a theme overrides those.
+	 * Named a *colour*, not a fill, on purpose: every image glyph in
+	 * the dock is painted as a mask filled with this colour — a
+	 * theme's own iconset via `"iconColor": "currentColor"`, and
+	 * plugin / CPT artwork via `currentColor` on the tile. So one
+	 * token drives dashicons, theme art, plugin art, and the hover
+	 * transition between them. The `__item-svg` fallback (a URL the
+	 * mask can't take) still force-whitens; see the note in dock.css.
 	 *
 	 * Consumers: dock.css, dock-peek.css (which re-states the hover
 	 * rule and so must read the same two tokens).
