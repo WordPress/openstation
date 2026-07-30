@@ -172,6 +172,12 @@ export const HOOKS = {
 	GAMES: 'desktop-mode.games',
 	/** Filter, receives the unfocused-window effect registry array. */
 	UNFOCUS_EFFECTS: 'desktop-mode.unfocus-effects',
+	/**
+	 * Filter, receives the window-reveal registry array — the
+	 * `clip-path` transitions that uncover a window's content once it
+	 * has finished loading.
+	 */
+	WINDOW_REVEALS: 'desktop-mode.window-reveals',
 	/** Action before a canvas wallpaper mounts. */
 	WALLPAPER_MOUNTING: 'desktop-mode.wallpaper.mounting',
 	/** Action after a canvas wallpaper mounts successfully. */

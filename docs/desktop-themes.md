@@ -312,6 +312,68 @@ Read `assets/css/variables.css` for the full set.
 }
 ```
 
+#### Window reveal
+
+One token owns the surface a window's content is uncovered from once it
+finishes loading (OS Settings → Effects → "Window reveal"):
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-window-reveal-surface` | Fill of the receding reveal surface. White by default |
+| `--desktop-mode-window-reveal-edge` | Fill of the band trailing the reveal's clip boundary. `transparent` by default |
+| `--desktop-mode-window-reveal-edge-thickness` | How wide that band is. Undeclared by default |
+| `--desktop-mode-window-reveal-duration` | How long a reveal runs. Undeclared by default |
+
+```json
+"tokens": {
+  "--desktop-mode-window-reveal-surface": "#12122a",
+  "--desktop-mode-window-reveal-edge": "#7c5cff",
+  "--desktop-mode-window-reveal-edge-thickness": "12%",
+  "--desktop-mode-window-reveal-duration": "620ms"
+}
+```
+
+**Surface** is **white** by default. It has to be opaque or there is
+nothing to reveal *from* — the content would simply be visible the
+whole time and the clip animation would paint nothing. Set it to
+`var( --desktop-mode-window-bg )` to follow your window colour, or to a
+brand colour, a gradient, or an image; the surface is a plain element
+and the animation clips it rather than recolouring it. `transparent` is
+also a legitimate value, meaning "no covering surface" — the shell then
+skips the layer rather than animating something invisible.
+
+One reveal ignores this token: **Camera shutter** paints its own
+near-black blades, because in any other colour it stops being a camera
+shutter.
+
+**Edge** is the band that travels with the clip boundary and draws each
+reveal's shape — six lines on Blinds, an opening ring on Iris, a
+rotating spoke on Radar. It is **`transparent` by default**: the reveal
+reads as the page arriving, and a hard graphic edge on top of that is a
+deliberate look rather than the neutral one. Give it a colour and the
+band turns on for every reveal the user might pick, yours or a
+plugin's, with nothing else to configure — the band follows whatever
+shape the active reveal has. While the token computes transparent the
+shell skips the layer entirely, so leaving it alone costs nothing.
+
+Gradients and images work as well as flat colours.
+
+**Edge thickness** takes either a fraction of the reveal's *travel* —
+`12%`, or the equivalent unitless `0.12` — or an absolute time like
+`70ms`. Prefer the fraction: the band then holds its apparent width at
+any reveal speed and any window size, because its width is a share of
+how far the shape moves rather than a span of time. Undeclared by
+default, in which case each reveal's own `edgeLag` decides; declare it
+and it wins outright, since thickness is a property of your look rather
+than of any one reveal. `0%` suppresses the band while leaving the
+colour in place.
+
+**Duration** is **undeclared by default** and accepts `620ms`, `0.62s`,
+or a bare `620` (read as ms). It sets the house pace for every reveal
+the user might pick — but a user who has chosen a speed in OS Settings
+→ Effects out-ranks it, the same way the window-corner preset out-ranks
+a theme's `--desktop-mode-window-radius`. Their choice stays theirs.
+
 #### Tooltips
 
 Two shell tokens own every tooltip in the shell — the dock tile
@@ -628,11 +690,13 @@ that intent travel with the theme instead of living in a setup guide.
 
 ```json
 "recommendedOsSettings": {
-  "dockSize":         "large",
-  "desktopLayout":    "unified",
-  "windowRadius":     "default",
-  "adminBarMode":     "dynamic",
-  "dockRailRenderer": "default"
+  "dockSize":             "large",
+  "desktopLayout":        "unified",
+  "windowRadius":         "default",
+  "adminBarMode":         "dynamic",
+  "dockRailRenderer":     "default",
+  "windowReveal":         "iris",
+  "windowRevealDuration": 620
 }
 ```
 
@@ -650,9 +714,9 @@ activates it — and never again.**
   dock back to compact, re-pick the theme — it stays compact.
 
 The way back is the user's to take: **OS Settings → Themes** shows an
-**Apply &lt;theme&gt;'s recommended layout** button for the active
-theme when it recommends something, and that is the only path that
-applies a recommendation a second time. It sets the settings and
+**Apply &lt;theme&gt;'s recommended layout and effects** button for the
+active theme when it recommends something, and that is the only path
+that applies a recommendation a second time. It sets the settings and
 nothing else — the dock resizing under the cursor is the feedback.
 
 This is the same posture as [wallpapers](#it-is-a-pick-not-an-act),
@@ -673,19 +737,29 @@ still apply.
 | `windowRadius` | `sharp`, `default`, `round` |
 | `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit Desktop Mode** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
+| `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
+| `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
 
-`dockRailRenderer` is the one field validated in two places: PHP
-checks the charset, and the shell checks — at apply time — that
-something is actually registered under that id. Recommend a renderer
-a site doesn't have and the key is skipped; the rest of your
-recommendations still apply.
+`dockRailRenderer` and `windowReveal` are the two fields validated in
+two places: PHP checks the charset, and the shell checks — at apply
+time — that something is actually registered under that id. Recommend
+a renderer or reveal a site doesn't have and the key is skipped; the
+rest of your recommendations still apply. (`windowReveal: "none"` is
+exempt: it is the "no reveal" sentinel rather than a registration.)
+
+`windowRevealDuration` is the one **numeric** recommendation, and it is
+**clamped rather than dropped** — a theme asking for something slower
+than the shell will play is expressing "slow", and the nearest playable
+duration is the honest reading of that.
 
 Nothing else is reachable. The allow-list is presentation only, so a
 manifest cannot flip a feature toggle, a capability-adjacent
 preference, or another theme's activation. A site can widen the list
-through `desktop_mode_desktop_theme_recommended_os_settings_schema`,
-and even then the shell only writes a key that already exists and
-already holds a string.
+through `desktop_mode_desktop_theme_recommended_os_settings_schema`
+— `{ enum }` for a closed set, `{ slug }` for a registry id resolved
+at apply time, `{ int => { min, max } }` for a clamped number — and
+even then the shell only writes a key that already exists and whose
+current value has the same type as the one being recommended.
 
 ### What a user actually sees
 

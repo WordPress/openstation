@@ -4032,17 +4032,30 @@ add_filter(
         $schema['acmeDensity'] = array( 'enum' => array( 'cosy', 'roomy' ) );
         // An id resolved against a JS registry at apply time.
         $schema['acmeRenderer'] = array( 'slug' => true );
+        // A whole number, clamped into range.
+        $schema['acmeDelay'] = array( 'int' => array( 'min' => 0, 'max' => 500 ) );
         return $schema;
     }
 );
 ```
 
-Core ships five entries: `dockSize`, `desktopLayout`, `windowRadius`
+Core ships seven entries: `dockSize`, `desktopLayout`, `windowRadius`
 and `adminBarMode` as `enum` rules mirroring the matching
-`DESKTOP_MODE_OS_SETTINGS_*` constants, and `dockRailRenderer` as a
-`slug` rule.
+`DESKTOP_MODE_OS_SETTINGS_*` constants; `dockRailRenderer` and
+`windowReveal` as `slug` rules; and `windowRevealDuration` as an `int`
+rule bounded by `DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN` /
+`_MAX`.
 
-An entry with neither a non-empty `enum` array nor `slug => true` is
+Three grammars:
+
+| Grammar | Shape | Validation |
+|---|---|---|
+| `enum` | `array( 'enum' => array( … ) )` | Value must be in the list, else the key drops. |
+| `slug` | `array( 'slug' => true )` | PHP checks the `sanitize_key()` charset; the shell drops the key at apply time when nothing is registered under that id. |
+| `int` | `array( 'int' => array( 'min' => …, 'max' => … ) )` | Numeric values are **clamped** into range rather than dropped; non-numeric values drop. |
+
+An entry with none of a non-empty `enum` array, `slug => true`, or a
+well-formed `int` range (`min` and `max` both numeric, `min <= max`) is
 dropped — a malformed rule fails closed rather than admitting
 anything.
 
@@ -4050,11 +4063,11 @@ anything.
 > user activates a theme that recommends it, so keep the list to
 > **presentation**. Feature switches and capability-adjacent settings
 > do not belong in a theme manifest. The shell applies a recommended
-> key only when the setting already exists and already holds a string,
-> so a widened schema still cannot introduce a setting or flip a
-> boolean.
+> key only when the setting already exists and its current value has
+> the **same type** as the recommended one, so a widened schema still
+> cannot introduce a setting, retype one, or flip a boolean.
 
-- **Param** `array<string,array> $schema` — map of settings key => `{ enum }` or `{ slug }`.
+- **Param** `array<string,array> $schema` — map of settings key => `{ enum }`, `{ slug }`, or `{ int }`.
 - **Return** `array<string,array>`
 
 ### `desktop_mode_desktop_theme_font_caps` — Experimental *(filter)*

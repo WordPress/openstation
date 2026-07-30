@@ -77,9 +77,14 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 	};
 
 	/**
-	 * "Apply recommended layout" — the deliberate way back to the
-	 * author's intended presentation after the user has moved things
-	 * around. The only path that re-applies a recommendation.
+	 * "Apply recommended layout and effects" — the deliberate way back
+	 * to the author's intended presentation after the user has moved
+	 * things around. The only path that re-applies a recommendation.
+	 *
+	 * "and effects" is not decoration: a theme may recommend the
+	 * window-reveal style and its speed alongside the layout keys, and
+	 * a label that named only the layout would understate what the
+	 * button is about to change.
 	 *
 	 * It just sets the settings. The dock resizing and the layout
 	 * moving IS the feedback; a notice on top of a visible change is
@@ -312,7 +317,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 				@click=${ () => applyRecommended( active ) }
 				>${ sprintf(
 			/* translators: %s: theme name. */
-			__( 'Apply %s’s recommended layout' ),
+			__( 'Apply %s’s recommended layout and effects' ),
 			active.name,
 		) }</wpd-button
 			>

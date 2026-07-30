@@ -199,6 +199,13 @@ export const DEFAULTS: OsSettingsState = {
 	// will append to it.
 	appliedThemeRecommendations: [],
 	unfocusEffect: 'darken',
+	// `'sweep'` — the calmest of the shipped reveals, and the one that
+	// reads correctly at any window size. `'none'` restores the plain
+	// opacity fade for users who want no transition at all.
+	windowReveal: 'sweep',
+	// 0 = use each reveal's own tuned duration. Any other value is a
+	// global override in ms, set from OS Settings → Effects.
+	windowRevealDuration: 0,
 	windowLinkRenderer: 'svg-splines',
 	windowLinkVisibility: 'always',
 	windowLinksEnabled: true,

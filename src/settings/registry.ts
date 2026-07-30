@@ -88,6 +88,17 @@ export interface OsSettingsSnapshot {
 	 */
 	unfocusEffect: string;
 	/**
+	 * Active window-reveal id — the `clip-path` transition that
+	 * uncovers a window's content when it finishes loading. `'sweep'`
+	 * is the shipped default; `'none'` disables the transition.
+	 */
+	windowReveal: string;
+	/**
+	 * Global reveal duration override in ms, or `0` to let each reveal
+	 * use its own tuned timing.
+	 */
+	windowRevealDuration: number;
+	/**
 	 * Active window-link renderer id; `'none'` disables the visuals,
 	 * unknown ids fall back to the built-in `'svg-splines'`.
 	 */

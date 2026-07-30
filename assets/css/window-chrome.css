@@ -908,11 +908,22 @@ wpd-tab-chip + wpd-tab-chip {
 	opacity: 0;
 	/* Default (loaded → loading-removed) — fade out immediately. */
 	transition: opacity 0.25s ease;
-	z-index: 1;
+	/*
+	 * Above both reveal layers (z-index 2 and 3), so the spinner stays
+	 * readable for the whole load and the surface it is sitting on only
+	 * becomes visible once the spinner has faded out.
+	 */
+	z-index: 4;
 }
 
+/*
+ * Content hidden while loading. The reveal surface is excluded
+ * alongside the spinner overlay: it is chrome, not content, and fading
+ * it to transparent would show the very content it exists to cover.
+ */
 .desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
+.desktop-mode-window__body--loading
+	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
 	opacity: 0;
 	transition: opacity 0.25s ease;
 }
@@ -930,9 +941,80 @@ wpd-tab-chip + wpd-tab-chip {
 	.desktop-mode-window__iframe,
 	.desktop-mode-window__loading,
 	.desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-	.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
+	.desktop-mode-window__body--loading
+		> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
 		transition: none;
 	}
+}
+
+/*
+ * Window reveal — the opaque layers a window's content is uncovered
+ * from once it reports ready. Painted for every window (of either
+ * kind) from construction, animated away by `src/reveals/surface.ts`,
+ * then removed.
+ *
+ * They are SIBLINGS of the iframe, never wrappers. `clip-path` is
+ * animated on these elements alone, so the content below keeps its own
+ * compositing layer, its hit-testing, and its stacking context — a
+ * reveal cannot swallow a click or re-rasterize the page it is
+ * uncovering. Native window content gets the identical treatment for
+ * the same reason.
+ *
+ * `--desktop-mode-window-reveal-surface` is a theme token, white by
+ * default — the surface has to be opaque or there is nothing to reveal
+ * from. The EDGE token is `transparent` by default instead, since an
+ * edge is an accent rather than the effect itself. Either layer that
+ * computes to no paint is skipped rather than animated. A def may
+ * override the surface for itself with an inline `background` (see
+ * `WindowRevealDef.surfaceColor`), which is how `obturator` gets its
+ * near-black shutter blades regardless of the token.
+ *
+ * No `transition` here on purpose — the shape is driven entirely by
+ * the Web Animations API, which needs a matched `from` / `to` pair a
+ * CSS transition cannot express. Reduced motion is handled JS-side by
+ * removing the layers instead of animating them.
+ */
+.desktop-mode-window__reveal {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: var( --desktop-mode-window-reveal-surface, #fff );
+	z-index: 3;
+}
+
+/*
+ * The reveal's leading edge. Same element shape, same keyframes, run
+ * over a slightly longer duration so it trails the surface — the sliver
+ * of it that is not yet covered by the surface IS the edge band. That
+ * is why this needs no shape of its own, and why every reveal (built-in
+ * or third-party) gets an edge that follows its geometry exactly.
+ *
+ * Behind the surface, still above the content.
+ *
+ * `--desktop-mode-window-reveal-edge` is `transparent` by default, and
+ * the shell drops the layer entirely while it computes that way — so
+ * the default costs no element and no animation. Give the token a
+ * colour (or a gradient) to turn the edge on across every reveal at
+ * once. `--desktop-mode-window-reveal-edge-thickness` tunes how wide
+ * the band is; `edgeLag: 0` on a def opts a single reveal out.
+ */
+.desktop-mode-window__reveal--edge {
+	background: var( --desktop-mode-window-reveal-edge, transparent );
+	z-index: 2;
+}
+
+/*
+ * While a reveal plays, pin the content to full opacity with no
+ * transition. Dropping `--loading` normally starts a 250 ms content
+ * fade-in; a reveal running over that fade would show a
+ * half-transparent strip along its leading edge. Beats the base
+ * `.desktop-mode-window__iframe` rule on specificity, so no
+ * `!important` is needed.
+ */
+.desktop-mode-window__body--revealing
+	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
+	opacity: 1;
+	transition: none;
 }
 
 /*

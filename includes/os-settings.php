@@ -36,6 +36,17 @@ const DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hi
 const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
 
 /**
+ * Playable range for the window-reveal duration override, in ms.
+ * Mirrors `MIN_REVEAL_DURATION_MS` / `MAX_REVEAL_DURATION_MS` in
+ * `src/reveals/registry.ts`.
+ *
+ * `0` sits OUTSIDE this range on purpose: it is the "no override"
+ * sentinel, not a duration, and is handled before the clamp.
+ */
+const DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN = 80;
+const DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
+
+/**
  * Returns a well-shaped default OS settings array.
  *
  * Mirrors the TypeScript `DEFAULTS` constant so a fresh user account
@@ -71,6 +82,16 @@ function desktop_mode_default_os_settings() {
 		// is the deliberate way back. Capped at 64 slugs.
 		'appliedThemeRecommendations' => array(),
 		'unfocusEffect'               => 'darken',
+		// Window-reveal id — the clip-path transition that uncovers a
+		// window's content once it finishes loading. `sweep` is the
+		// shipped default; `none` restores the plain opacity fade.
+		'windowReveal'                => 'sweep',
+		// Global reveal duration override in ms. 0 means "use each
+		// reveal's own tuned timing" — the shipped reveals have
+		// durations chosen per shape (Radar's full turn is slower
+		// than Sweep's straight line), and one flat number would
+		// lose that.
+		'windowRevealDuration'        => 0,
 		// Window-link renderer id — how relation ties between windows
 		// are drawn (see includes/window-links.php). `svg-splines` is
 		// the shipped built-in; `none` disables the visuals.
@@ -349,6 +370,37 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['unfocusEffect'] ) );
 		if ( '' !== $slug ) {
 			$unfocus_effect = $slug;
+		}
+	}
+
+	// Window-reveal id — same id charset and same no-allow-list
+	// reasoning as the unfocus effect above. The JS surface resolves at
+	// play time and treats an unknown id as "no reveal", so a reveal
+	// belonging to a temporarily-deactivated plugin survives the
+	// round-trip and starts working again the moment it re-registers.
+	$window_reveal = $defaults['windowReveal'];
+	if ( isset( $raw['windowReveal'] ) && is_string( $raw['windowReveal'] ) ) {
+		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['windowReveal'] ) );
+		if ( '' !== $slug ) {
+			$window_reveal = $slug;
+		}
+	}
+
+	// Window-reveal duration override — 0 (the default) means "leave
+	// each reveal's own timing alone". Anything else is clamped into
+	// the playable range rather than rejected: a value past the end of
+	// the range still expresses a direction, and the nearest playable
+	// duration is the honest reading of it.
+	$window_reveal_duration = $defaults['windowRevealDuration'];
+	if ( isset( $raw['windowRevealDuration'] ) && is_numeric( $raw['windowRevealDuration'] ) ) {
+		$requested = (int) round( (float) $raw['windowRevealDuration'] );
+		if ( $requested > 0 ) {
+			$window_reveal_duration = max(
+				DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN,
+				min( DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX, $requested )
+			);
+		} else {
+			$window_reveal_duration = 0;
 		}
 	}
 
@@ -661,6 +713,8 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'desktopTheme'                => $desktop_theme,
 		'appliedThemeRecommendations' => $applied_theme_recommendations,
 		'unfocusEffect'               => $unfocus_effect,
+		'windowReveal'                => $window_reveal,
+		'windowRevealDuration'        => $window_reveal_duration,
 		'windowLinkRenderer'          => $window_link_renderer,
 		'windowLinkVisibility'        => $window_link_visibility,
 		'windowLinksEnabled'          => $window_links_enabled,

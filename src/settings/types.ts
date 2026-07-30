@@ -136,6 +136,23 @@ export interface OsSettingsState {
 	 */
 	unfocusEffect: string;
 	/**
+	 * Active window-reveal id — the `clip-path` transition that
+	 * uncovers a window's content once it has finished loading.
+	 * Resolves through the window-reveal registry; `'none'` means no
+	 * reveal (the plain opacity fade), and an unknown id is treated as
+	 * `'none'` until/if a matching reveal registers. Default `'sweep'`.
+	 */
+	windowReveal: string;
+	/**
+	 * Global window-reveal duration override, in ms. `0` (the default)
+	 * means "use each reveal's own timing" — the built-ins ship tuned
+	 * durations, and flattening them all to one number would lose that.
+	 * Any other value is clamped to 80–4000 and wins over both the
+	 * reveal's own duration and the
+	 * `--desktop-mode-window-reveal-duration` theme token.
+	 */
+	windowRevealDuration: number;
+	/**
 	 * Active window-link renderer id. Resolves through the window-link
 	 * renderer registry; `'none'` disables the visuals, an unknown id
 	 * falls back to the built-in `'svg-splines'`.

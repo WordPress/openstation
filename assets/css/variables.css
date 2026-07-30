@@ -25,6 +25,37 @@
 	--desktop-mode-window-border: rgba(0, 0, 0, 0.12);
 	--desktop-mode-window-radius: 8px;
 	--desktop-mode-window-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+	/*
+	 * Fill of the surface a window's content is revealed from once it
+	 * finishes loading (OS Settings → Effects → "Window reveal").
+	 *
+	 * White: the surface has to be opaque or there is nothing to reveal
+	 * FROM — the content would simply be visible the whole time and the
+	 * clip animation would paint nothing. A theme retints it with any
+	 * paint value (`var( --desktop-mode-window-bg )` to follow the
+	 * window, a brand colour, a gradient, an image), and `transparent`
+	 * is a legitimate value meaning "no covering surface" — the shell
+	 * skips the layer rather than animating something invisible.
+	 *
+	 * A reveal may override this for itself when the paint IS the
+	 * reveal; `obturator` (Camera shutter) is the one built-in that
+	 * does, because near-black blades are what make it a shutter.
+	 */
+	--desktop-mode-window-reveal-surface: #fff;
+	/*
+	 * Fill of the reveal's leading edge — the band that travels with
+	 * the clip boundary and draws each reveal's shape (six lines on
+	 * Blinds, an opening ring on Iris, a rotating spoke on Radar).
+	 *
+	 * `transparent` by default: the reveal reads as the page arriving,
+	 * and a hard graphic edge on top of that is a deliberate look
+	 * rather than the neutral one. A theme (or any stylesheet) opts in
+	 * by giving this a colour — no JS and no per-reveal configuration
+	 * needed, because the band follows whatever shape the active
+	 * reveal has. While it computes to fully transparent the shell
+	 * skips the layer altogether, so the default costs nothing.
+	 */
+	--desktop-mode-window-reveal-edge: transparent;
 	--desktop-mode-window-shadow-focused: 0 12px 48px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
 
 	/* Title bar — focused bg/color resolve via the scheme overrides below. */

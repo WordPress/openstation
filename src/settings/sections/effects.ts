@@ -28,9 +28,37 @@ import {
 	subscribeWindowLinkRenderers,
 	WINDOW_LINK_RENDERER_NONE as LINKS_NONE,
 } from '../../window-links/renderer-registry';
+import {
+	listWindowReveals,
+	REVEAL_DURATION_AUTO,
+	subscribeWindowReveals,
+	WINDOW_REVEAL_NONE as REVEAL_NONE,
+} from '../../reveals/registry';
 import type { UnfocusEffectDef } from '../../effects/types';
+import type { WindowRevealDef } from '../../reveals/types';
 import type { WindowLinkRendererDef } from '../../window-links/types';
 import type { SettingsCtx } from '../types';
+
+/**
+ * Reveal-speed presets, in ms. `0` is the "leave each reveal alone"
+ * sentinel and is offered first, because the shipped reveals carry
+ * durations tuned per shape — Radar's full turn is deliberately slower
+ * than Sweep's straight line — and a user who has no opinion about
+ * speed should keep that tuning rather than flatten it.
+ *
+ * Presets rather than a slider: the value is a duration in ms, but the
+ * useful range spans one order of magnitude and the interesting
+ * choices are coarse. A dropdown of named speeds also matches every
+ * other control in this tab.
+ */
+const REVEAL_SPEEDS = [
+	{ value: REVEAL_DURATION_AUTO, label: () => __( 'Default (per reveal)' ) },
+	{ value: 200, label: () => __( 'Very fast — 200 ms' ) },
+	{ value: 320, label: () => __( 'Fast — 320 ms' ) },
+	{ value: 460, label: () => __( 'Normal — 460 ms' ) },
+	{ value: 700, label: () => __( 'Slow — 700 ms' ) },
+	{ value: 1100, label: () => __( 'Very slow — 1100 ms' ) },
+] as const;
 
 const LINK_VISIBILITIES = [
 	{ id: 'focus', label: () => __( 'When a related window is focused' ) },
@@ -55,6 +83,40 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 		ctx.state.unfocusEffect = id;
 		ctx.save();
 		ctx.apply();
+		paint();
+	};
+
+	const onPickReveal = ( e: Event ): void => {
+		const id = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+		if ( id === '' ) {
+			return;
+		}
+		if ( id !== REVEAL_NONE && ! reveals.some( ( r ) => r.id === id ) ) {
+			return;
+		}
+		ctx.state.windowReveal = id;
+		ctx.save();
+		// No `ctx.apply()` — reveals are read at window-load time, not
+		// written into a custom property, so there is nothing for the
+		// apply pass to do. `save()` already fired the OS-settings
+		// subscribers, which is how the shell bundle learns the new id.
+		paint();
+	};
+
+	const onPickRevealSpeed = ( e: Event ): void => {
+		const raw = ( ( e as CustomEvent ).detail?.value ?? '' ) as string;
+		if ( raw === '' ) {
+			return;
+		}
+		const value = Number( raw );
+		// Guard against a stale option value; the state sanitizer would
+		// coerce a NaN back to the default anyway, but writing one into
+		// state first would repaint the selector with no selection.
+		if ( ! REVEAL_SPEEDS.some( ( s ) => s.value === value ) ) {
+			return;
+		}
+		ctx.state.windowRevealDuration = value;
+		ctx.save();
 		paint();
 	};
 
@@ -87,6 +149,7 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 	};
 
 	let effects: UnfocusEffectDef[] = listUnfocusEffects();
+	let reveals: WindowRevealDef[] = listWindowReveals();
 	let linkRenderers: WindowLinkRendererDef[] = listWindowLinkRenderers();
 
 	const paint = (): void => {
@@ -100,6 +163,17 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 			ctx.state.unfocusEffect !== NONE && active?.description
 				? active.description
 				: fallbackDescription;
+
+		const activeReveal = reveals.find(
+			( r ) => r.id === ctx.state.windowReveal,
+		);
+		const revealFallbackDescription = __(
+			'Uncover a window’s content when it finishes loading, instead of fading it in.',
+		);
+		const revealDescription =
+			ctx.state.windowReveal !== REVEAL_NONE && activeReveal?.description
+				? activeReveal.description
+				: revealFallbackDescription;
 
 		const activeLinkRenderer = linkRenderers.find(
 			( r ) => r.id === ctx.state.windowLinkRenderer,
@@ -131,6 +205,38 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 							( fx ) =>
 								html`<wpd-option value=${ fx.id }
 									>${ fx.label }</wpd-option
+								>`,
+						) }
+					</wpd-select>
+				</wpd-section>
+				<wpd-section
+					heading=${ __( 'Window reveal' ) }
+					description=${ revealDescription }
+				>
+					<wpd-select
+						value=${ ctx.state.windowReveal }
+						label=${ __( 'Reveal style' ) }
+						@wpd-pick=${ onPickReveal }
+					>
+						<wpd-option value=${ REVEAL_NONE }>
+							${ __( 'None' ) }
+						</wpd-option>
+						${ reveals.map(
+							( r ) =>
+								html`<wpd-option value=${ r.id }
+									>${ r.label }</wpd-option
+								>`,
+						) }
+					</wpd-select>
+					<wpd-select
+						value=${ String( ctx.state.windowRevealDuration ) }
+						label=${ __( 'Reveal speed' ) }
+						@wpd-pick=${ onPickRevealSpeed }
+					>
+						${ REVEAL_SPEEDS.map(
+							( s ) =>
+								html`<wpd-option value=${ String( s.value ) }
+									>${ s.label() }</wpd-option
 								>`,
 						) }
 					</wpd-select>
@@ -176,6 +282,10 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 		effects = listUnfocusEffects();
 		paint();
 	} );
+	const unsubscribeReveals = subscribeWindowReveals( () => {
+		reveals = listWindowReveals();
+		paint();
+	} );
 	const unsubscribeLinks = subscribeWindowLinkRenderers( () => {
 		linkRenderers = listWindowLinkRenderers();
 		paint();
@@ -184,6 +294,7 @@ export function buildEffectsSection( ctx: SettingsCtx ): HTMLElement {
 	const observer = new MutationObserver( () => {
 		if ( ! wrapper.isConnected ) {
 			unsubscribe();
+			unsubscribeReveals();
 			unsubscribeLinks();
 			observer.disconnect();
 		}

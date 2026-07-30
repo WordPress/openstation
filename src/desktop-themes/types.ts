@@ -47,6 +47,21 @@ export interface RecommendedOsSettings {
 	 * unresolvable value into the user's settings.
 	 */
 	dockRailRenderer?: string;
+	/**
+	 * Window-reveal id — the transition that uncovers a window's
+	 * content once it has loaded. Same runtime-validity story as
+	 * {@link dockRailRenderer}: the apply pass drops the key when no
+	 * reveal is registered under the id. `'none'` is always valid; it
+	 * is the "no reveal" sentinel rather than a registration.
+	 */
+	windowReveal?: string;
+	/**
+	 * Global reveal duration in ms, overriding each reveal's own
+	 * timing. The one numeric recommendation — clamped to 80–4000.
+	 * Omit it (rather than recommending `0`) to leave the user's speed
+	 * alone.
+	 */
+	windowRevealDuration?: number;
 }
 
 /**

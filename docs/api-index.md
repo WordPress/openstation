@@ -103,6 +103,9 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental |
 | `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental |
 | `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental |
+| `registerWindowReveal` | `( def: WindowRevealDef ) => void` | Experimental |
+| `unregisterWindowReveal` | `( id: string ) => void` | Experimental |
+| `listWindowReveals` | `() => WindowRevealDef[]` | Experimental |
 | `registerWindowLinkRenderer` | `( def: WindowLinkRendererDef ) => void` | Experimental |
 | `unregisterWindowLinkRenderer` | `( id: string ) => void` | Experimental |
 | `listWindowLinkRenderers` | `() => WindowLinkRendererDef[]` | Experimental |

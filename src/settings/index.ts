@@ -192,6 +192,8 @@ export class OsSettings implements SettingsCtx {
 			appliedThemeRecommendations:
 				this.state.appliedThemeRecommendations.slice(),
 			unfocusEffect: this.state.unfocusEffect,
+			windowReveal: this.state.windowReveal,
+			windowRevealDuration: this.state.windowRevealDuration,
 			windowLinkRenderer: this.state.windowLinkRenderer,
 			windowLinkVisibility: this.state.windowLinkVisibility,
 			windowLinksEnabled: this.state.windowLinksEnabled,

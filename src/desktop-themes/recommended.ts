@@ -24,6 +24,7 @@
  */
 
 import { get as getDockRailRenderer } from '../dock-rail/registry';
+import { hasWindowReveal, WINDOW_REVEAL_NONE } from '../reveals/registry';
 import type { RecommendedOsSettings } from './types';
 
 /** Closed enums, keyed by the OS-settings field they belong to. */
@@ -35,21 +36,35 @@ const ENUMS: Record< string, readonly string[] > = {
 };
 
 /** Fields whose validity is a runtime registry lookup, not an enum. */
-const SLUG_FIELDS = [ 'dockRailRenderer' ] as const;
+const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal' ] as const;
+
+/**
+ * Numeric fields, with the range the sanitizer clamps into. Mirrors
+ * the `int` grammar in
+ * `desktop_mode_desktop_theme_recommended_os_settings_schema()`.
+ *
+ * Values are clamped rather than dropped: a theme asking for a reveal
+ * slower than the shell will play is expressing "slow", and the honest
+ * reading of that is the slowest we do play.
+ */
+const INT_FIELDS: Record< string, { min: number; max: number } > = {
+	windowRevealDuration: { min: 80, max: 4000 },
+};
 
 /** Slug charset — mirrors PHP's `sanitize_key()`. */
 const SLUG_PATTERN = /^[a-z0-9_-]+$/;
 
 /**
  * Every OS-settings key a theme may recommend, in a stable order.
- * Exported so a UI can describe what an "Apply recommended layout"
- * action is about to touch.
+ * Exported so a UI can describe what an "Apply recommended layout and
+ * effects" action is about to touch.
  *
  * @public
  */
 export const RECOMMENDED_OS_SETTINGS_KEYS: readonly string[] = [
 	...Object.keys( ENUMS ),
 	...SLUG_FIELDS,
+	...Object.keys( INT_FIELDS ),
 ];
 
 /**
@@ -67,6 +82,7 @@ export function sanitizeRecommendedOsSettings(
 	}
 	const source = raw as Record< string, unknown >;
 	const out: Record< string, string > = {};
+	const ints: Record< string, number > = {};
 
 	for ( const [ key, allowed ] of Object.entries( ENUMS ) ) {
 		const value = source[ key ];
@@ -80,8 +96,17 @@ export function sanitizeRecommendedOsSettings(
 			out[ key ] = value;
 		}
 	}
+	for ( const [ key, range ] of Object.entries( INT_FIELDS ) ) {
+		const value = source[ key ];
+		if ( typeof value === 'number' && Number.isFinite( value ) ) {
+			ints[ key ] = Math.min(
+				range.max,
+				Math.max( range.min, Math.round( value ) ),
+			);
+		}
+	}
 
-	return out as RecommendedOsSettings;
+	return { ...out, ...ints } as RecommendedOsSettings;
 }
 
 /**
@@ -107,6 +132,16 @@ export function resolveRecommendedOsSettings(
 		getDockRailRenderer( clean.dockRailRenderer ) === undefined
 	) {
 		delete clean.dockRailRenderer;
+	}
+	// `'none'` is the reveal selector's "no reveal" sentinel, not a
+	// registration — a theme recommending a deliberately plain shell
+	// must survive this check.
+	if (
+		typeof clean.windowReveal === 'string' &&
+		clean.windowReveal !== WINDOW_REVEAL_NONE &&
+		! hasWindowReveal( clean.windowReveal )
+	) {
+		delete clean.windowReveal;
 	}
 	return clean;
 }
