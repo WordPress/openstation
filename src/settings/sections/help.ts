@@ -19,7 +19,18 @@
  * this tab doesn't see intentional console.error noise.
  */
 
-import { __ } from '../../i18n';
+// Side-effect import of the whole kit. Feature code elsewhere
+// imports components one file at a time, so a component nothing
+// happens to use is tree-shaken out of every bundle — it never
+// reaches `customElements`, and `collectEntries()` silently skips
+// it. That made the tab a list of "components some other screen
+// loaded" rather than "components this plugin ships". Importing
+// the barrel here registers every tag in `WPD_COMPONENT_TAGS`,
+// which is also what makes the live `help.example` markup render
+// instead of collapsing to unknown elements.
+import '../../ui/components';
+
+import { __, sprintf } from '../../i18n';
 import { html, render, type WpdHelp } from '../../ui/core';
 import { WPD_COMPONENT_TAGS } from '../../ui/components/tags';
 import type { SettingsCtx } from '../types';
@@ -35,6 +46,62 @@ interface ComponentEntry {
 	title: string;
 	help: WpdHelp | null;
 	props: readonly string[];
+	/**
+	 * Pre-flattened lowercase blob of everything worth searching on:
+	 * title, tag, summary, status, and the name + description of every
+	 * documented prop, slot, event, part, and CSS custom property.
+	 * Built once in `collectEntries()` so filtering on each keystroke
+	 * is a substring scan rather than a walk of the descriptor tree.
+	 */
+	haystack: string;
+}
+
+/**
+ * Flatten a descriptor into the searchable blob stored on
+ * {@link ComponentEntry.haystack}.
+ *
+ * Descriptions are included deliberately — searching "clipboard" or
+ * "clamp" should surface the component that mentions it even when the
+ * word appears in no name. `static props` names are folded in too, so
+ * undocumented components (no `help`) stay findable by attribute.
+ */
+function buildHaystack(
+	tag: string,
+	title: string,
+	help: WpdHelp | null,
+	props: readonly string[],
+): string {
+	const parts: string[] = [ tag, title, ...props ];
+	if ( help ) {
+		parts.push( help.summary ?? '', help.status ?? '' );
+		const groups = [
+			help.props,
+			help.slots,
+			help.events,
+			help.parts,
+			help.cssProps,
+		];
+		for ( const group of groups ) {
+			for ( const item of group ?? [] ) {
+				const entry = item as { name?: string; description?: string };
+				parts.push( entry.name ?? '', entry.description ?? '' );
+			}
+		}
+	}
+	return parts.join( ' ' ).toLowerCase();
+}
+
+/**
+ * Split a raw query into lowercase terms and AND them together, so
+ * "field number" matches `<wpd-number-field>` regardless of the order
+ * the words were typed.
+ */
+function matchesQuery( entry: ComponentEntry, query: string ): boolean {
+	const terms = query.toLowerCase().split( /\s+/ ).filter( Boolean );
+	if ( ! terms.length ) {
+		return true;
+	}
+	return terms.every( ( term ) => entry.haystack.includes( term ) );
 }
 
 /**
@@ -86,12 +153,18 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 	el.classList.add( 'desktop-mode-os-settings__help' );
 
 	let activeTag = entries[ 0 ]?.tag ?? '';
+	let query = '';
 
 	const paint = (): void => {
 		if ( ctx.state.developerModeEnabled ) {
 			logDemoBanner();
 		}
-		const active = entries.find( ( e ) => e.tag === activeTag ) ?? entries[ 0 ];
+		const visible = entries.filter( ( e ) => matchesQuery( e, query ) );
+		// Keep the selection when it survives the filter; otherwise fall
+		// back to the first match so the detail pane never goes blank
+		// while results exist.
+		const active =
+			visible.find( ( e ) => e.tag === activeTag ) ?? visible[ 0 ];
 		render(
 			html`
 				<wpd-section
@@ -101,7 +174,18 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 					) }
 				>
 					<p class="desktop-mode-os-settings__help-count">
-						${ String( entries.length ) } ${ __( 'components registered.' ) }
+						${ query
+							? sprintf(
+									/* translators: 1: number of matching components, 2: total number of components. */
+									__( '%1$s of %2$s components match.' ),
+									String( visible.length ),
+									String( entries.length ),
+								)
+							: sprintf(
+									/* translators: %s: number of registered components. */
+									__( '%s components registered.' ),
+									String( entries.length ),
+								) }
 					</p>
 				</wpd-section>
 
@@ -141,11 +225,33 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 					: '' }
 
 				<div class="desktop-mode-os-settings__help-layout">
+					<div class="desktop-mode-os-settings__help-sidebar">
+						<wpd-text-field
+							class="desktop-mode-os-settings__help-search"
+							type="search"
+							label=${ __( 'Search components' ) }
+							placeholder=${ __( 'Name, tag, prop, event…' ) }
+							autocomplete="off"
+							value=${ query }
+							@wpd-input-change=${ ( e: Event ) => {
+			query = (
+				( e as CustomEvent< { value: string } > ).detail?.value ?? ''
+			).trim();
+			paint();
+		} }
+						></wpd-text-field>
 					<nav
 						class="desktop-mode-os-settings__help-nav"
 						aria-label=${ __( 'Components' ) }
 					>
-						${ entries.map(
+						${ ! visible.length
+							? html`<p
+									class="desktop-mode-os-settings__help-nav-empty"
+								>
+									${ __( 'No components match.' ) }
+								</p>`
+							: '' }
+						${ visible.map(
 							( entry ) => html`
 								<button
 									type="button"
@@ -173,6 +279,7 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 							`,
 						) }
 					</nav>
+					</div>
 					<div class="desktop-mode-os-settings__help-detail">
 						${ active ? renderDetail( active ) : renderEmpty() }
 					</div>
@@ -430,7 +537,13 @@ function collectEntries(): ComponentEntry[] {
 		const help = ctor.help ?? null;
 		const title = help?.title ?? defaultTitleFromTag( tag );
 		const props = ctor.props ?? [];
-		entries.push( { tag, title, help, props } );
+		entries.push( {
+			tag,
+			title,
+			help,
+			props,
+			haystack: buildHaystack( tag, title, help, props ),
+		} );
 	}
 	// Stable alphabetical sort by title so plugin authors can find
 	// components without having to memorise registration order.
