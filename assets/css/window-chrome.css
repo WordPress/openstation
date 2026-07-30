@@ -359,14 +359,32 @@
  * drive the coloring via custom properties that inherit through
  * the boundary. The component reads `--wpd-btn-color`,
  * `--wpd-btn-bg-hover`, etc. and paints accordingly.
+ *
+ * Focused control glyphs are white at 70% — correct against the
+ * default focused title bar, which is the admin theme colour and so
+ * always a mid-to-dark fill, and invisible against a pale one. A
+ * theme could not reach them: these declarations land on the WINDOW
+ * element, so a `--wpd-btn-color` set at the shell root loses to
+ * them, and the same names also drive buttons outside the title bar
+ * (sticky notes, the desk chrome) that a theme usually does not want
+ * to move in the same stroke.
+ *
+ * `--desktop-mode-titlebar-btn-focused-*` mirrors the unfocused set
+ * below, name for name, so the two halves of the title bar are
+ * addressed the same way. Every one is UNDECLARED and falls back to
+ * the literal it replaced, so an unthemed shell paints exactly what
+ * it painted before.
+ *
+ * There is no `-danger-hover` twin: destructive red is semantic, not
+ * chrome, and both halves already resolve it through `--wpd-danger`.
  */
 .desktop-mode-window--focused {
-	--wpd-btn-color: rgba( 255, 255, 255, 0.7 );
-	--wpd-btn-color-hover: #fff;
-	--wpd-btn-bg-hover: rgba( 255, 255, 255, 0.18 );
-	--wpd-btn-bg-active: rgba( 255, 255, 255, 0.25 );
-	--wpd-btn-outline: rgba( 255, 255, 255, 0.65 );
-	--wpd-btn-danger-hover: #d63638;
+	--wpd-btn-color: var( --desktop-mode-titlebar-btn-focused-color, rgba( 255, 255, 255, 0.7 ) );
+	--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-focused-color-hover, #fff );
+	--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );
+	--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );
+	--wpd-btn-outline: var( --desktop-mode-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );
+	--wpd-btn-danger-hover: var( --wpd-danger, #d63638 );
 }
 
 .desktop-mode-window:not( .desktop-mode-window--focused ) {
@@ -553,23 +571,32 @@
  * the workaround no longer buys anything. Left where it is for now —
  * relocating it is behaviour-neutral churn. */
 
-/* Focused window: meta buttons visible. */
+/* Focused window: meta buttons visible.
+ *
+ * Screen-meta buttons are not `<wpd-window-button>` — they are plain
+ * buttons in the light DOM, so they paint themselves instead of
+ * reading the `--wpd-btn-*` bridge. They sit in the same title bar
+ * against the same fill, so they take the same
+ * `--desktop-mode-titlebar-btn-focused-*` tokens, each keeping its own
+ * literal as the fallback: unthemed they stay a touch dimmer at rest
+ * than the window controls (0.65 vs 0.7), themed they move together
+ * rather than one cluster going legible and the other staying white. */
 .desktop-mode-window--focused .desktop-mode-window__meta-btn {
-	color: rgba(255, 255, 255, 0.65);
+	color: var( --desktop-mode-titlebar-btn-focused-color, rgba(255, 255, 255, 0.65) );
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:hover {
-	color: var( --wpd-fg-on-accent, #fff );
-	background: rgba(255, 255, 255, 0.18);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:focus-visible {
-	color: var( --wpd-fg-on-accent, #fff );
-	background: rgba(255, 255, 255, 0.18);
-	outline: 2px solid rgba(255, 255, 255, 0.6);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	outline: 2px solid var( --desktop-mode-titlebar-btn-focused-outline, rgba(255, 255, 255, 0.6) );
 	outline-offset: 1px;
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn--active {
-	color: var( --wpd-fg-on-accent, #fff );
-	background: rgba(255, 255, 255, 0.25);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
 }
 
 /* Unfocused window: divider and buttons adapt to light title bar. */

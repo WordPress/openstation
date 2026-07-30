@@ -192,6 +192,45 @@
 	 */
 
 	/*
+	 * ---- Title-bar control glyphs -----------------------------
+	 *
+	 * The colour of the buttons themselves — minimise / maximise /
+	 * close, the ⋯ menu trigger, and the screen-meta cluster — in
+	 * each of the two title-bar states.
+	 *
+	 *   Focused    --desktop-mode-titlebar-btn-focused-color
+	 *              --desktop-mode-titlebar-btn-focused-color-hover
+	 *              --desktop-mode-titlebar-btn-focused-bg-hover
+	 *              --desktop-mode-titlebar-btn-focused-bg-active
+	 *              --desktop-mode-titlebar-btn-focused-outline
+	 *   Unfocused  --desktop-mode-titlebar-btn-color
+	 *              --desktop-mode-titlebar-btn-color-hover
+	 *              --desktop-mode-titlebar-btn-bg-hover
+	 *              --desktop-mode-titlebar-btn-bg-active
+	 *
+	 * Undeclared, like everything above: each rule reads
+	 * `var( --name, <the literal it always had> )`.
+	 *
+	 * The unfocused half additionally DERIVES from
+	 * `--desktop-mode-titlebar-color` under an active desktop theme,
+	 * so most themes never need to name it. The focused half cannot
+	 * do the same — its glyphs sit on `-bg-focused`, a fill a theme
+	 * may set to anything from near-black to a pastel, and there is
+	 * no contrast-safe function of a background colour in CSS. So it
+	 * stays explicit: white at 70% until a theme says otherwise.
+	 *
+	 * Why these need names at all: the declarations land on the
+	 * WINDOW element (`.desktop-mode-window--focused`), which outranks
+	 * a `--wpd-btn-*` set at the shell root, and those names are
+	 * shared with buttons outside the title bar. A theme had no way to
+	 * recolour a focused control without also moving sticky-note and
+	 * desk chrome.
+	 *
+	 * Consumers: window-chrome.css (control cluster, ⋯ trigger,
+	 * screen-meta buttons).
+	 */
+
+	/*
 	 * ---- Typography ------------------------------------------
 	 *
 	 * Also deliberately UNDECLARED, for the same reason as the
@@ -277,6 +316,39 @@
 	 * Secondary text inside the richer tooltips — the hover card's
 	 * excerpt — still follows `--wpd-fg-muted`; these two tokens
 	 * cover the surface and the primary text on it.
+	 */
+
+	/*
+	 * ---- Dock glyphs ------------------------------------------
+	 *
+	 * `--desktop-mode-dock-bg` below is declared, so a theme can and
+	 * does repaint the strip. What it paints ON the strip was, until
+	 * these tokens, fixed white — the glyph, its hover brightening,
+	 * the hover wash behind the tile, and the focus ring. Set the
+	 * dock to anything pale and every tile went blank.
+	 *
+	 *   --desktop-mode-dock-icon-color        glyph at rest
+	 *   --desktop-mode-dock-icon-color-hover  glyph on hover / peek
+	 *   --desktop-mode-dock-item-bg-hover     wash behind the tile
+	 *   --desktop-mode-dock-item-outline      keyboard focus ring
+	 *
+	 * Undeclared, like the palette: each site reads
+	 * `var( --name, <the literal it always had> )`. System tiles
+	 * (OS Settings, recycle bin, …) read the same `-icon-color` with
+	 * their own slightly brighter literal behind it, so unthemed they
+	 * keep their notch of extra prominence and themed they follow the
+	 * single colour the theme named.
+	 *
+	 * Named a *colour*, not a fill, on purpose: a desktop theme whose
+	 * iconset uses `"iconColor": "currentColor"` is masked with the
+	 * glyph colour, so this one token drives dashicons, the theme's
+	 * own artwork, and the hover transition together. Plugin SVGs
+	 * carrying hardcoded `fill` attributes are the exception — the
+	 * `__item-svg` path force-whitens them (see the note in dock.css),
+	 * and an iconset is how a theme overrides those.
+	 *
+	 * Consumers: dock.css, dock-peek.css (which re-states the hover
+	 * rule and so must read the same two tokens).
 	 */
 
 	/* Dock */

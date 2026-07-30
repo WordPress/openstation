@@ -348,6 +348,54 @@ Secondary text inside the richer tooltips — the hover card's excerpt —
 still follows `--wpd-fg-muted`; these two cover the surface and the
 primary text on it.
 
+#### Dock glyphs
+
+`--desktop-mode-dock-bg` repaints the strip. These four repaint what
+sits *on* it:
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-dock-icon-color` | The glyph at rest |
+| `--desktop-mode-dock-icon-color-hover` | The glyph on hover / peek |
+| `--desktop-mode-dock-item-bg-hover` | The wash behind a hovered tile |
+| `--desktop-mode-dock-item-outline` | The keyboard focus ring |
+
+```json
+"tokens": {
+  "--desktop-mode-dock-bg": "rgba( 244, 243, 255, 0.86 )",
+  "--desktop-mode-dock-icon-color": "rgba( 26, 22, 58, 0.72 )",
+  "--desktop-mode-dock-icon-color-hover": "#12102b",
+  "--desktop-mode-dock-item-bg-hover": "rgba( 26, 22, 58, 0.1 )",
+  "--desktop-mode-dock-item-outline": "rgba( 26, 22, 58, 0.65 )"
+}
+```
+
+**Set them whenever your dock is pale.** The four literals behind
+these tokens are all white — a glyph at 70%, brightening to full on
+hover, over a 15% white wash, with a 70% white focus ring. That reads
+against the default translucent-black strip and disappears the moment
+you give the dock a light background. Recolouring the strip alone is
+the most common way a first theme ends up with an invisible dock.
+
+`--desktop-mode-dock-icon-color` is a **colour**, not a fill, which
+matters if your iconset uses
+[`"iconColor": "currentColor"`](#icon-slots): those icons are masked
+with the glyph colour, so this single token drives dashicons, your own
+artwork, and the hover transition together.
+
+System tiles — OS Settings, the recycle bin, and their neighbours —
+read the same `--desktop-mode-dock-icon-color`. Unthemed they sit one
+notch brighter than menu tiles; once you name a colour they join the
+rest rather than staying stranded white.
+
+The exception is a plugin SVG that ships a hardcoded `fill` attribute.
+The dock force-whitens those so they match dashicons instead of
+showing a brand colour, and no token overrides it — supply an iconset
+if you need those tiles to follow your palette.
+
+All four are **undeclared by default**, so a theme that ignores them
+keeps the dock the shell has always had.
+
 ### A note on WordPress core's CSS
 
 Native windows render in the parent shell, not in an iframe, so
@@ -1070,12 +1118,50 @@ saying.** Concretely:
 Requires `manage_options` by default (filterable via
 `desktop_mode_desktop_theme_upload_capability`).
 
-**Unfocused window controls.** These are title-bar chrome, so they
-follow the title bar's own text colour rather than the body palette.
-Set `--desktop-mode-titlebar-color` and the shell derives legible
-unfocused glyphs from it automatically. Override precisely with
+**Window controls.** These are title-bar chrome, so they follow the
+title bar's own colours rather than the body palette, and each focus
+state is addressed separately.
+
+*Unfocused* glyphs are derived for you: set
+`--desktop-mode-titlebar-color` and the shell mixes legible unfocused
+controls out of it automatically. Override precisely with
 `--desktop-mode-titlebar-btn-color`, `-color-hover`, `-bg-hover`, and
 `-bg-active` when you want exact control.
+
+*Focused* glyphs cannot be derived — they sit on
+`--desktop-mode-titlebar-bg-focused`, which you may set to anything
+from near-black to a pastel, and CSS has no contrast-safe function of
+a background colour. So they stay white at 70% until you say
+otherwise, through the mirror-image set:
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-titlebar-btn-focused-color` | Glyph at rest |
+| `--desktop-mode-titlebar-btn-focused-color-hover` | Glyph on hover / press |
+| `--desktop-mode-titlebar-btn-focused-bg-hover` | Hover wash behind a control |
+| `--desktop-mode-titlebar-btn-focused-bg-active` | Pressed / active wash |
+| `--desktop-mode-titlebar-btn-focused-outline` | Keyboard focus ring |
+
+```json
+"tokens": {
+  "--desktop-mode-titlebar-bg-focused": "#ded9ff",
+  "--desktop-mode-titlebar-color-focused": "#12102b",
+  "--desktop-mode-titlebar-btn-focused-color": "rgba( 18, 16, 43, 0.7 )",
+  "--desktop-mode-titlebar-btn-focused-color-hover": "#12102b",
+  "--desktop-mode-titlebar-btn-focused-bg-hover": "rgba( 18, 16, 43, 0.12 )",
+  "--desktop-mode-titlebar-btn-focused-bg-active": "rgba( 18, 16, 43, 0.18 )",
+  "--desktop-mode-titlebar-btn-focused-outline": "rgba( 18, 16, 43, 0.65 )"
+}
+```
+
+A pale focused title bar is exactly the case to set them for: without
+them the active window is the one window whose close button you cannot
+see. The screen-meta buttons (Screen Options, Help) and the `⋯` menu
+trigger sit in the same bar and read the same tokens, so one pass
+covers every button in the title bar.
+
+Close-button red is deliberately not in either set — it is semantic
+signal, not chrome, and both states resolve it through `--wpd-danger`.
 
 **Activate:** every user picks their own theme on the same tab —
 including users who cannot upload. The library is site-wide;

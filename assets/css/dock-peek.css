@@ -33,10 +33,20 @@
 		filter 240ms ease-out;
 }
 
+/* Same two glyph/wash tokens as the base hover rule in dock.css —
+ * this sheet re-states hover to add the lift and the drop shadow, and
+ * it wins on specificity, so a theme that only reached the base rule
+ * would see its colour vanish the moment the peek sheet loaded. */
 .desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
 .desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
-	background: rgba( 255, 255, 255, 0.15 );
-	color: var( --wpd-fg-on-accent, #fff );
+	background: var(
+		--desktop-mode-dock-item-bg-hover,
+		rgba( 255, 255, 255, 0.15 )
+	);
+	color: var(
+		--desktop-mode-dock-icon-color-hover,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	transform: scale( 1.08 );
 	filter: drop-shadow( 0 4px 8px rgba( 0, 0, 0, 0.18 ) );
 }

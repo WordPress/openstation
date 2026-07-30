@@ -79,13 +79,24 @@
 	background-repeat: var( --desktop-mode-dock-item-image-repeat, no-repeat );
 	background-size: var( --desktop-mode-dock-item-image-size, auto );
 	background-position: var( --desktop-mode-dock-item-image-position, center );
-	color: rgba( 255, 255, 255, 0.7 );
+	/*
+	 * Dock glyph colour. The literal is what this rule always said;
+	 * the token is the name a theme aims at when its dock strip is
+	 * not dark. See the "Dock glyphs" block in variables.css.
+	 */
+	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.7 ) );
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
 .desktop-mode-dock__item-primary:hover {
-	background-color: rgba( 255, 255, 255, 0.15 );
-	color: var( --wpd-fg-on-accent, #fff );
+	background-color: var(
+		--desktop-mode-dock-item-bg-hover,
+		rgba( 255, 255, 255, 0.15 )
+	);
+	color: var(
+		--desktop-mode-dock-icon-color-hover,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	transform: scale( 1.1 );
 }
 
@@ -94,7 +105,10 @@
 }
 
 .desktop-mode-dock__item-primary:focus-visible {
-	outline: 2px solid rgba( 255, 255, 255, 0.7 );
+	outline: 2px solid var(
+		--desktop-mode-dock-item-outline,
+		rgba( 255, 255, 255, 0.7 )
+	);
 	outline-offset: 2px;
 }
 
@@ -378,9 +392,14 @@
 	transform: scale( 1.03 );
 }
 
-/* System tiles — same footprint as menu tiles, no badges, no rails. */
+/* System tiles — same footprint as menu tiles, no badges, no rails.
+ *
+ * Reads the SAME glyph token as a menu tile, with its own literal as
+ * the fallback: unthemed, system tiles keep sitting a notch brighter
+ * than the rest (0.8 vs 0.7); themed, one colour covers every glyph
+ * in the dock rather than leaving these four stranded white. */
 .desktop-mode-dock__item--system .desktop-mode-dock__item-primary {
-	color: rgba( 255, 255, 255, 0.8 );
+	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );
 }
 
 /* -----------------------------------------------------------------------------
