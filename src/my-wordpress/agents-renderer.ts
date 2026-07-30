@@ -49,6 +49,7 @@ import {
 	dragKindsFromTriggers,
 } from '../agents-dispatch';
 import { getDragManager } from './dom-utils';
+import { attachTileDragOut } from '../desktop-files/tile-spec';
 import { wpdConfirm } from '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 import '../ui/components/wpd-badge/wpd-badge';
 import '../ui/components/wpd-button/wpd-button';
@@ -316,6 +317,21 @@ export function renderAgents( host: EntityRenderHost ): void {
 					return;
 				}
 				seen.add( agentId );
+				// Drag-out: lifting a row drops the agent anywhere the
+				// files layer accepts a `'user'` shortcut — the desktop
+				// creates the same tile the Users grid drag produces.
+				// Guarded per element: the row may survive a repaint,
+				// and a second listener would double-start the drag.
+				if ( ! row.dataset.dmAgentDragOut ) {
+					row.dataset.dmAgentDragOut = '1';
+					attachTileDragOut( row, {
+						kind: 'user',
+						ref: String( agentId ),
+						title: agent.name,
+						icon: 'dashicons-admin-users',
+						entityId: 'agents',
+					} );
+				}
 				rowDropDeregisters.set(
 					agentId,
 					dragManager.registerDropTarget( {

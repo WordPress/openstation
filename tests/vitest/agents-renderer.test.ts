@@ -236,6 +236,56 @@ describe( 'agents entity kind', () => {
 		}
 	} );
 
+	test( 'agent rows are draggable out as user shortcuts', async () => {
+		const started: Array< Record< string, unknown > > = [];
+		( window as unknown as Record< string, unknown > ).wp = {
+			desktop: {
+				dragManager: {
+					registerDropTarget: () => () => void 0,
+					start: ( session: Record< string, unknown > ) => {
+						started.push( session );
+					},
+				},
+			},
+		};
+
+		try {
+			mockAgentList( [ { ...AGENT, id: 31, name: 'Draggable' } ] );
+			const host = makeHost();
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+
+			const row = host.body.querySelector< HTMLElement >(
+				'.dm-agents__row[data-agent-id="31"]',
+			);
+			expect( row ).not.toBeNull();
+			// jsdom has no PointerEvent; the handler only reads the
+			// MouseEvent fields (button, clientX/Y).
+			row!.dispatchEvent(
+				new MouseEvent( 'pointerdown', {
+					button: 0,
+					bubbles: true,
+					clientX: 10,
+					clientY: 10,
+				} ),
+			);
+
+			expect( started ).toHaveLength( 1 );
+			const payload = started[ 0 ].payload as {
+				type: string;
+				data: Record< string, unknown >;
+			};
+			expect( payload.type ).toBe( 'shortcut' );
+			expect( payload.data.kind ).toBe( 'user' );
+			expect( payload.data.ref ).toBe( '31' );
+			expect( payload.data.title ).toBe( 'Draggable' );
+
+			host.teardowns.forEach( ( fn ) => fn() );
+		} finally {
+			delete ( window as unknown as Record< string, unknown > ).wp;
+		}
+	} );
+
 	test( 'list REST failures paint the error notice', async () => {
 		const fn = vi.fn( async () => ( {
 			ok: false,

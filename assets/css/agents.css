@@ -185,6 +185,11 @@
 
 .dm-agent-chat__line--pending .dm-agent-chat__msg {
 	flex: 1;
+	/* Center the label + spinner inside the wide bubble. The bubble
+	   is a flex column, so the spinner needs align-items (text-align
+	   alone only centers the label's inline text). */
+	align-items: center;
+	text-align: center;
 }
 
 /* Markdown content inside agent bubbles. */
