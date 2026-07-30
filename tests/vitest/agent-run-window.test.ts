@@ -153,6 +153,54 @@ describe( 'agent chat window', () => {
 		}
 	} );
 
+	test( 'rows carry avatars, agent markdown renders, and New chat resets', () => {
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		openAgentChat( {
+			id: 5,
+			name: 'TLDR Editor',
+			description: '',
+			avatarUrl: 'https://example.test/agent.svg',
+		} );
+		agentsChatStore.state.transcripts[ 5 ] = [
+			{ role: 'user', text: 'Summarize it', at: 1 },
+			{ role: 'agent', text: '**Done** with `code`', at: 2 },
+		];
+		agentsChatStore.notify();
+
+		// WhatsApp-style: agent avatar left row, viewer avatar from the
+		// window config on the user row.
+		const agentAvatar = body.querySelector(
+			'.dm-agent-chat__line--agent .dm-agent-chat__msg-avatar',
+		) as HTMLImageElement;
+		expect( agentAvatar?.src ).toBe( 'https://example.test/agent.svg' );
+		expect(
+			body.querySelector(
+				'.dm-agent-chat__line--user .dm-agent-chat__msg-avatar',
+			),
+		).toBeNull(); // config in this suite has no currentUser
+
+		// Agent markdown is rendered, not shown literally.
+		const agentText = body.querySelector(
+			'.dm-agent-chat__line--agent .dm-agent-chat__msg-text',
+		) as HTMLElement;
+		expect( agentText.innerHTML ).toContain( '<strong>Done</strong>' );
+		expect( agentText.innerHTML ).toContain( '<code>code</code>' );
+
+		// New chat clears the transcript (and with it the replayed history).
+		(
+			body.querySelector(
+				'.dm-agent-chat__head-actions wpd-button',
+			) as HTMLElement
+		 ).click();
+		expect( agentsChatStore.state.transcripts[ 5 ] ).toEqual( [] );
+		expect( body.querySelector( '.dm-agent-chat__line' ) ).toBeNull();
+
+		if ( typeof cleanup === 'function' ) {
+			cleanup();
+		}
+	} );
+
 	test( 'a follow-up message replays the conversation so far', async () => {
 		const fetchMock: FetchMock = vi.fn( async () => ( {
 			ok: true,

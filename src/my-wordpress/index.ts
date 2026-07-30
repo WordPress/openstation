@@ -94,6 +94,7 @@ import '../ui/components/wpd-spinner/wpd-spinner';
 // only ships the entity when the agents extended option is on, so the
 // registration is inert on sites with the flag off.
 import './agents-renderer';
+import { registerSendToMenuFilter } from './agents-send-to';
 
 type RenderCallback = ( body: HTMLElement ) => void;
 
@@ -4455,25 +4456,51 @@ function openUserTileMenu(
 		menu.appendChild( opt );
 	};
 
+	interface TileMenuOption {
+		id: string;
+		label: string;
+		icon: string;
+		danger?: boolean;
+		onSelect?: ( () => void ) | null;
+	}
+
 	// Footprint is the primary (double-click) action; profile is the
 	// classic editor, demoted to "Show profile" to mirror the preview
 	// pane's button labels.
-	addOption(
-		'footprint',
-		__( 'View activity footprint', 'desktop-mode' ),
-		'dashicons-chart-area',
-	);
-	addOption(
-		'open-profile',
-		__( 'Show profile', 'desktop-mode' ),
-		'dashicons-id-alt',
-	);
+	const baseOptions: TileMenuOption[] = [
+		{
+			id: 'footprint',
+			label: __( 'View activity footprint', 'desktop-mode' ),
+			icon: 'dashicons-chart-area',
+		},
+		{
+			id: 'open-profile',
+			label: __( 'Show profile', 'desktop-mode' ),
+			icon: 'dashicons-id-alt',
+		},
+	];
 	if ( item.link ) {
-		addOption(
-			'author-archive',
-			__( 'View author archive', 'desktop-mode' ),
-			'dashicons-external',
-		);
+		baseOptions.push( {
+			id: 'author-archive',
+			label: __( 'View author archive', 'desktop-mode' ),
+			icon: 'dashicons-external',
+		} );
+	}
+
+	// Same plugin seam the posts/media grids run — kind 'user'.
+	const ctxFilter = {
+		entityId: entity.id,
+		kind: 'user',
+		item: item as unknown as Record< string, unknown >,
+	};
+	const options = applyFilters< TileMenuOption[], [ typeof ctxFilter ] >(
+		'desktop-mode.my-wordpress.tile-context-menu',
+		baseOptions,
+		ctxFilter,
+	);
+	const finalOptions = Array.isArray( options ) ? options : baseOptions;
+	for ( const o of finalOptions ) {
+		addOption( o.id, o.label, o.icon );
 	}
 
 	menu.addEventListener( 'wpd-context-menu-pick', ( e: Event ) => {
@@ -4494,6 +4521,20 @@ function openUserTileMenu(
 		}
 		if ( detail.id === 'author-archive' && item.link ) {
 			window.open( item.link, '_blank', 'noopener,noreferrer' );
+			return;
+		}
+		// Plugin-supplied entry — dispatch its `onSelect`.
+		const match = finalOptions.find( ( o ) => o.id === detail.id );
+		if ( match && typeof match.onSelect === 'function' ) {
+			try {
+				match.onSelect();
+			} catch ( err ) {
+				// eslint-disable-next-line no-console
+				console.error(
+					`[my-wordpress] tile-context-menu '${ detail.id }' onSelect threw:`,
+					err,
+				);
+			}
 		}
 	} );
 
@@ -6187,6 +6228,11 @@ const callback: RenderCallback = ( body ) => {
 
 window.desktopModeNativeWindows = window.desktopModeNativeWindows || {};
 window.desktopModeNativeWindows[ WINDOW_ID ] = callback;
+
+// "Send to <agent>" entries in the tile context menus (posts, pages,
+// media, users) — registered here, at bundle load, so the entries are
+// available before the Agents section is ever opened.
+registerSendToMenuFilter();
 
 // Built-in entity-kind renderers. Third-party plugins can register
 // their own via `wp.desktop.myWordpress.registerEntityKind()`.

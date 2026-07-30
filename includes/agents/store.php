@@ -298,7 +298,7 @@ function desktop_mode_agent_sanitize_trigger_config_deep( $value ) {
 /**
  * Built-in trigger kinds.
  *
- * `chat` and `drag` are wired; the other kinds are declared so the
+ * `chat`, `send-to`, and `drag` are wired; the other kinds are declared so the
  * Triggers pane can already store configuration for them, and later
  * phases add the intake plumbing without a storage migration.
  *
@@ -306,12 +306,13 @@ function desktop_mode_agent_sanitize_trigger_config_deep( $value ) {
  * filter — each entry must declare a `slug`, `label`, and a JSON-Schema
  * `config_schema` describing the shape of `trigger.config`.
  *
- * @return array<int, array{slug:string,label:string,description:string,icon:string,config_schema:array}>
+ * @return array<int, array{slug:string,wired:bool,label:string,description:string,icon:string,config_schema:array}>
  */
 function desktop_mode_agent_trigger_kinds() {
 	$kinds = array(
 		array(
 			'slug'          => 'chat',
+			'wired'         => true,
 			'label'         => __( 'Chat', 'desktop-mode' ),
 			'description'   => __( 'Open a conversation window with the agent.', 'desktop-mode' ),
 			'icon'          => 'dashicons-format-chat',
@@ -324,6 +325,7 @@ function desktop_mode_agent_trigger_kinds() {
 		),
 		array(
 			'slug'          => 'send-to',
+			'wired'         => true,
 			'label'         => __( 'Send to (right-click menu)', 'desktop-mode' ),
 			'description'   => __( 'The agent appears as a "Send to…" action in the right-click menu for the entity kinds you pick.', 'desktop-mode' ),
 			'icon'          => 'dashicons-share-alt',
@@ -342,6 +344,7 @@ function desktop_mode_agent_trigger_kinds() {
 		),
 		array(
 			'slug'          => 'drag',
+			'wired'         => true,
 			'label'         => __( 'Drag & drop', 'desktop-mode' ),
 			'description'   => __( 'Drop a tile onto the agent.', 'desktop-mode' ),
 			'icon'          => 'dashicons-move',
@@ -361,6 +364,7 @@ function desktop_mode_agent_trigger_kinds() {
 		),
 		array(
 			'slug'          => 'hook',
+			'wired'         => false,
 			'label'         => __( 'WordPress hook', 'desktop-mode' ),
 			'description'   => __( 'Run automatically when a WordPress action fires.', 'desktop-mode' ),
 			'icon'          => 'dashicons-admin-plugins',
@@ -375,6 +379,7 @@ function desktop_mode_agent_trigger_kinds() {
 		),
 		array(
 			'slug'          => 'endpoint',
+			'wired'         => false,
 			'label'         => __( 'REST endpoint', 'desktop-mode' ),
 			'description'   => __( 'Expose a REST URL for external services to call.', 'desktop-mode' ),
 			'icon'          => 'dashicons-rest-api',
@@ -391,6 +396,7 @@ function desktop_mode_agent_trigger_kinds() {
 		),
 		array(
 			'slug'          => 'agent',
+			'wired'         => false,
 			'label'         => __( 'Agent-to-agent', 'desktop-mode' ),
 			'description'   => __( 'Run when another agent on this site emits a completion event.', 'desktop-mode' ),
 			'icon'          => 'dashicons-networking',

@@ -178,6 +178,44 @@ export function composeDropMessage( entity: DroppedEntity ): string {
 }
 
 /**
+ * The message an invocation receives for a "Send to" pick.
+ *
+ * @public
+ */
+export function composeSendToMessage( entity: DroppedEntity ): string {
+	return sprintf(
+		/* translators: 1: entity kind (post, media, …), 2: entity title, 3: numeric id. */
+		__(
+			'The user sent you the %1$s "%2$s" (id %3$s) from the "Send to" menu. Handle it according to your instructions, using your tools as needed.',
+			'desktop-mode',
+		),
+		entity.kind,
+		entity.title,
+		String( entity.id ),
+	);
+}
+
+/**
+ * Full "Send to" dispatch: seed the chat store, surface the chat
+ * window, run the invocation.
+ *
+ * @public
+ */
+export function dispatchAgentSendTo(
+	agent: AgentChatAgent,
+	entity: DroppedEntity,
+	rest: { restRoot: string; restNonce: string },
+): Promise< void > {
+	openAgentChatWindow( agent, 'agents-send-to' );
+	return invokeAgentIntoTranscript(
+		agent,
+		composeSendToMessage( entity ),
+		rest,
+		'send-to',
+	);
+}
+
+/**
  * Seed the chat store for `agent` and surface the Agent chat window.
  * The shared "open a conversation with this agent" primitive — used
  * by the drop dispatch and by the desktop tile opener.

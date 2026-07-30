@@ -107,9 +107,16 @@ function desktop_mode_agent_run_window_register() {
 			// not race a focused window into the background.
 			'autofocus'  => true,
 			'config'     => array(
-				'restRoot'  => esc_url_raw( rest_url() ),
-				'restNonce' => wp_create_nonce( 'wp_rest' ),
-				'canManage' => desktop_mode_agents_user_can_manage(),
+				'restRoot'    => esc_url_raw( rest_url() ),
+				'restNonce'   => wp_create_nonce( 'wp_rest' ),
+				'canManage'   => desktop_mode_agents_user_can_manage(),
+				// The viewer — the chat paints their avatar next to
+				// their own messages, WhatsApp-style.
+				'currentUser' => array(
+					'id'        => (int) get_current_user_id(),
+					'name'      => (string) wp_get_current_user()->display_name,
+					'avatarUrl' => (string) get_avatar_url( get_current_user_id(), array( 'size' => 96 ) ),
+				),
 			),
 		)
 	);

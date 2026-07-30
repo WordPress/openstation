@@ -299,6 +299,20 @@ class Tests_DesktopMode_AgentsRest extends WP_UnitTestCase {
 		$this->assertContains( 'send-to', $slugs );
 		$this->assertContains( 'hook', $slugs );
 
+		// The wired flag tells the Triggers pane which kinds have real
+		// intake plumbing (pickable) vs. declared-only ("coming soon").
+		$wired = array();
+		foreach ( $kinds as $kind ) {
+			$this->assertArrayHasKey( 'wired', $kind, "Kind {$kind['slug']} must declare wired" );
+			$wired[ $kind['slug'] ] = $kind['wired'];
+		}
+		$this->assertTrue( $wired['chat'] );
+		$this->assertTrue( $wired['send-to'] );
+		$this->assertTrue( $wired['drag'] );
+		$this->assertFalse( $wired['hook'] );
+		$this->assertFalse( $wired['endpoint'] );
+		$this->assertFalse( $wired['agent'] );
+
 		$hooks = desktop_mode_agents_rest_hooks_catalogue()->get_data();
 		$this->assertContains( 'save_post', wp_list_pluck( $hooks, 'hook' ) );
 

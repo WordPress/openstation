@@ -17,6 +17,7 @@
  */
 
 import { __ } from './i18n';
+import { renderMarkdown } from './markdown';
 import './ui/components/wpd-button/wpd-button';
 import './ui/components/wpd-empty-state/wpd-empty-state';
 import './ui/components/wpd-spinner/wpd-spinner';
@@ -38,6 +39,7 @@ interface RunWindowConfig {
 	restRoot: string;
 	restNonce: string;
 	canManage: boolean;
+	currentUser?: { id: number; name: string; avatarUrl: string };
 }
 
 type RenderCallback = (
@@ -140,13 +142,25 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		desc.className = 'dm-agent-chat__desc';
 		desc.textContent = agent.description;
 		title.append( name, desc );
-		head.append( avatar, title );
+		const actions = document.createElement( 'div' );
+		actions.className = 'dm-agent-chat__head-actions';
+		const newChat = document.createElement( 'wpd-button' );
+		newChat.textContent = __( 'New chat', 'desktop-mode' );
+		newChat.addEventListener( 'click', () => {
+			// Transcripts are session-only (in-memory store); a new
+			// chat simply resets this agent's conversation, which also
+			// resets the history replayed to the runner.
+			agentsChatStore.state.transcripts[ agent.id ] = [];
+			agentsChatStore.notify();
+		} );
+		actions.appendChild( newChat );
+		head.append( avatar, title, actions );
 		wrap.appendChild( head );
 
 		const scroll = document.createElement( 'div' );
 		scroll.className = 'dm-agent-chat__scroll';
 		for ( const message of transcriptFor( agent ) ) {
-			scroll.appendChild( messageRow( message ) );
+			scroll.appendChild( messageRow( message, agent ) );
 		}
 		wrap.appendChild( scroll );
 
@@ -192,12 +206,48 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		scroll.scrollTop = scroll.scrollHeight;
 	};
 
-	const messageRow = ( message: AgentChatMessage ): HTMLElement => {
+	const messageRow = (
+		message: AgentChatMessage,
+		agent: AgentChatAgent,
+	): HTMLElement => {
+		const line = document.createElement( 'div' );
+		line.className = `dm-agent-chat__line dm-agent-chat__line--${ message.role }`;
+		if ( message.pending ) {
+			line.classList.add( 'dm-agent-chat__line--pending' );
+		}
+
+		// WhatsApp-style avatars: the agent on the left, the viewer on
+		// the right. Error rows sit on the agent side, avatar-less.
+		let avatarUrl = '';
+		if ( message.role === 'agent' ) {
+			avatarUrl = agent.avatarUrl;
+		} else if ( message.role === 'user' ) {
+			avatarUrl = getRunConfig()?.currentUser?.avatarUrl ?? '';
+		}
+		if ( avatarUrl ) {
+			const face = document.createElement( 'img' );
+			face.className = 'dm-agent-chat__msg-avatar';
+			face.src = avatarUrl;
+			face.alt = '';
+			line.appendChild( face );
+		}
+
 		const row = document.createElement( 'div' );
 		row.className = `dm-agent-chat__msg dm-agent-chat__msg--${ message.role }`;
+		if ( message.pending ) {
+			row.classList.add( 'dm-agent-chat__msg--pending' );
+		}
+		line.appendChild( row );
 		const text = document.createElement( 'div' );
 		text.className = 'dm-agent-chat__msg-text';
-		text.textContent = message.text;
+		if ( message.role === 'agent' && ! message.pending ) {
+			// Agent answers arrive as markdown; renderMarkdown escapes
+			// the input before re-interpreting tokens, so the result is
+			// safe for innerHTML.
+			text.innerHTML = renderMarkdown( message.text );
+		} else {
+			text.textContent = message.text;
+		}
 		row.appendChild( text );
 		if ( message.pending ) {
 			const spinner = document.createElement( 'wpd-spinner' );
@@ -212,16 +262,16 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			})`;
 			tools.appendChild( summary );
 			for ( const call of message.toolCalls ) {
-				const line = document.createElement( 'div' );
-				line.className = 'dm-agent-chat__tool';
-				line.textContent = call.error
+				const toolRow = document.createElement( 'div' );
+				toolRow.className = 'dm-agent-chat__tool';
+				toolRow.textContent = call.error
 					? `${ call.name } — ${ call.error }`
 					: `${ call.name }(${ JSON.stringify( call.args ) })`;
-				tools.appendChild( line );
+				tools.appendChild( toolRow );
 			}
 			row.appendChild( tools );
 		}
-		return row;
+		return line;
 	};
 
 	// Delegates to the shared dispatcher so the typed path and the drop

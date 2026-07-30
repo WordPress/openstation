@@ -45,6 +45,8 @@ export interface TriggerKindDescriptor {
 	label: string;
 	description: string;
 	icon: string;
+	/** Whether the intake for this kind is actually plumbed yet. */
+	wired?: boolean;
 	config_schema?: Record< string, unknown >;
 }
 

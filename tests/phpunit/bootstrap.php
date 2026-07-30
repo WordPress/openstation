@@ -50,11 +50,6 @@ tests_add_filter(
 		// Same deal for the agents framework — force it on so the
 		// agents test classes have the module available.
 		add_filter( 'desktop_mode_agents_enabled', '__return_true' );
-
-		// The Remove Background extension rides the main suite (it has
-		// no infrastructure of its own): load it like a real plugin so
-		// its ability registers on the normal hooks.
-		require dirname( __DIR__, 2 ) . '/extensions/desktop-mode-remove-background/desktop-mode-remove-background.php';
 	}
 );
 

@@ -17,7 +17,7 @@ import { __ } from '../i18n';
 import { html, render } from '../ui/core';
 import { registerEntityKind } from './kind-registry';
 import type { EntityRenderHost } from './kind-registry';
-import { getConfig } from './rest';
+import { buildEditUserUrl, getConfig } from './rest';
 import type { MyWordPressConfig } from './types';
 import {
 	createAgent,
@@ -39,6 +39,8 @@ import type {
 	Trigger,
 	TriggerKindDescriptor,
 } from './agents-types';
+import { createSharedStore } from '../shared-store';
+import { refreshSendToAgents } from './agents-send-to';
 import { openAgentChat } from '../agents-chat-store';
 import {
 	agentAcceptsDrop,
@@ -126,6 +128,126 @@ function openChatWindow( agent: Agent ): void {
 		console.warn(
 			'[desktop-mode/agents] wp.desktop.openWindow is missing — desktop shell may not be ready.',
 		);
+	}
+}
+
+interface WpDesktopSurface {
+	openWindow?: ( id: string, opts?: { source?: string } ) => boolean;
+	windowManager?: {
+		open: ( opts: {
+			id: string;
+			url: string;
+			title: string;
+			icon: string;
+		} ) => unknown;
+	};
+	files?: {
+		rest?: {
+			createPlacement?: ( body: {
+				type: string;
+				ref: string;
+				x: number;
+				y: number;
+			} ) => Promise< Record< string, unknown > >;
+		};
+		store?: {
+			getState?: () => {
+				placementsByFolder?: Map< number, unknown[] >;
+			};
+			upsertPlacement?: ( placement: Record< string, unknown > ) => void;
+		};
+	};
+}
+
+function wpDesktop(): WpDesktopSurface | undefined {
+	return ( window as unknown as { wp?: { desktop?: WpDesktopSurface } } ).wp
+		?.desktop;
+}
+
+/**
+ * Open the agent's USER profile — same three-step hand-off the users
+ * grid uses: seed the user-edit target store, open the native window,
+ * fall back to the iframe profile.
+ */
+function openAgentProfile( agent: Agent ): void {
+	const target = createSharedStore< {
+		userId: number | null;
+		requestedAt: number;
+		tabRequested: boolean;
+	} >( 'desktop-mode/user-edit/target', () => ( {
+		userId: null,
+		requestedAt: 0,
+		tabRequested: false,
+	} ) );
+	target.state.userId = agent.id;
+	target.state.requestedAt = Date.now();
+	target.state.tabRequested = true;
+	target.notify();
+
+	const desktop = wpDesktop();
+	const opened = desktop?.openWindow?.( 'desktop-mode-user-edit', {
+		source: 'agents/profile',
+	} );
+	if ( ! opened ) {
+		desktop?.windowManager?.open( {
+			id: `user-edit-${ agent.id }`,
+			url: buildEditUserUrl( agent.id ),
+			title: agent.name,
+			icon: 'dashicons-admin-users',
+		} );
+	}
+}
+
+/**
+ * Create a wallpaper tile for the agent (a user placement — the same
+ * thing dragging the agent out of the Users grid produces).
+ */
+async function sendAgentToDesktop( agent: Agent ): Promise< string > {
+	const files = wpDesktop()?.files;
+	if ( ! files?.rest?.createPlacement ) {
+		return __(
+			'The desktop files API is not available in this context.',
+			'desktop-mode',
+		);
+	}
+	let roots: Array< { x?: number; y?: number } > = [];
+	try {
+		const got = files.store?.getState?.()?.placementsByFolder?.get( 0 );
+		if ( Array.isArray( got ) ) {
+			roots = got as Array< { x?: number; y?: number } >;
+		}
+	} catch {
+		// No store — scan still starts from the first cell.
+	}
+	// First FREE cell in the same row-major grid the Trash restore flow
+	// uses. Count-based slotting collides with tiles the user has
+	// dragged around (and for an agent already on the desktop the
+	// server MOVES its tile, so a collision buries an existing icon).
+	let x = 16;
+	let y = 16;
+	for ( let n = 0; n < 200; n++ ) {
+		x = 16 + ( n % 5 ) * 96;
+		y = 16 + Math.floor( n / 5 ) * 110;
+		const occupied = roots.some(
+			( p ) =>
+				Math.abs( ( p.x ?? -9999 ) - x ) < 48 &&
+				Math.abs( ( p.y ?? -9999 ) - y ) < 55,
+		);
+		if ( ! occupied ) {
+			break;
+		}
+	}
+	try {
+		const placement = await files.rest.createPlacement( {
+			type: 'user',
+			ref: String( agent.id ),
+			x,
+			y,
+		} );
+		files.store?.upsertPlacement?.( placement );
+		return __( 'Agent added to the desktop.', 'desktop-mode' );
+	} catch ( err ) {
+		return err instanceof Error ? err.message : String( err );
 	}
 }
 
@@ -330,6 +452,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		paint();
 		try {
 			const updated = await updateAgent( id, patch );
+			refreshSendToAgents();
 			state.agents = state.agents.map( ( a ) =>
 				a.id === updated.id ? updated : a,
 			);
@@ -360,6 +483,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				description: state.createDraft.description,
 				instructions: state.createDraft.instructions,
 			} );
+			refreshSendToAgents();
 			state.agents = [ ...state.agents, created ].sort( ( a, b ) =>
 				a.name.localeCompare( b.name ),
 			);
@@ -393,6 +517,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 		paint();
 		try {
 			await deleteAgent( agent.id );
+			refreshSendToAgents();
 			state.agents = state.agents.filter( ( a ) => a.id !== agent.id );
 			state.selectedId = state.agents[ 0 ]?.id ?? null;
 			state.draft = draftFromAgent( selected() );
@@ -751,7 +876,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 			<div class="dm-agents__pane">
 				<p class="dm-agents__hint">
 					${ __(
-						'Triggers describe how this site reaches the agent. Chat and drag & drop work today; the other intakes are stored now and wired in upcoming phases.',
+						'Triggers describe how this site reaches the agent. Chat, drag & drop, and Send to work today; kinds marked "coming soon" can be configured but are not wired yet.',
 						'desktop-mode',
 					) }
 				</p>
@@ -794,7 +919,12 @@ export function renderAgents( host: EntityRenderHost ): void {
 								value=""
 								@wpd-pick=${ ( e: CustomEvent< { value: string } > ) => {
 									const slug = e.detail?.value;
-									if ( ! slug ) {
+									const kind = state.triggerKinds?.find(
+										( k ) => k.slug === slug,
+									);
+									// Unwired kinds are disabled in the list;
+									// the guard covers keyboard/native paths.
+									if ( ! slug || kind?.wired === false ) {
 										return;
 									}
 									setTriggers( agent, [
@@ -806,10 +936,19 @@ export function renderAgents( host: EntityRenderHost ): void {
 								<wpd-option value="">
 									${ __( 'Pick a trigger kind…', 'desktop-mode' ) }
 								</wpd-option>
-								${ unusedKinds.map(
-									( kind ) => html`
-										<wpd-option value=${ kind.slug }>${ kind.label }</wpd-option>
-									`,
+								${ unusedKinds.map( ( kind ) =>
+									kind.wired === false
+										? html`
+												<wpd-option value=${ kind.slug } disabled>
+													${ kind.label }
+													${ __( '(coming soon)', 'desktop-mode' ) }
+												</wpd-option>
+										  `
+										: html`
+												<wpd-option value=${ kind.slug }>
+													${ kind.label }
+												</wpd-option>
+										  `,
 								) }
 							</wpd-select>
 					  `
@@ -909,6 +1048,25 @@ export function renderAgents( host: EntityRenderHost ): void {
 					<h3>${ agent.name }</h3>
 					<span class="dm-agents__detail-slug">@agent-${ agent.slug }</span>
 				</div>
+				<wpd-button @click=${ () => openAgentProfile( agent ) }>
+					${ __( 'Open profile', 'desktop-mode' ) }
+				</wpd-button>
+				${ cfg.canManage
+					? html`
+							<wpd-button
+								?disabled=${ state.saving }
+								@click=${ () =>
+									void sendAgentToDesktop( agent ).then(
+										( notice ) => {
+											state.notice = notice;
+											paint();
+										},
+									) }
+							>
+								${ __( 'Send to Desktop', 'desktop-mode' ) }
+							</wpd-button>
+					  `
+					: html`` }
 				${ cfg.canInvoke
 					? html`
 							<wpd-button
