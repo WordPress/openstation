@@ -197,7 +197,7 @@ function feed_buddy_render_reader_template() {
 			<form class="feed-buddy-manager__add" data-feed-buddy-add-form>
 				<wpd-text-field type="url" name="url" required label="<?php esc_attr_e( 'Feed or website URL', 'desktop-mode-feed-buddy' ); ?>" placeholder="https://example.com/feed"></wpd-text-field>
 				<wpd-text-field name="group" label="<?php esc_attr_e( 'Buddy group', 'desktop-mode-feed-buddy' ); ?>" placeholder="<?php esc_attr_e( 'Feeds', 'desktop-mode-feed-buddy' ); ?>"></wpd-text-field>
-				<wpd-button type="submit" variant="primary"><?php esc_html_e( 'Add buddy', 'desktop-mode-feed-buddy' ); ?></wpd-button>
+				<wpd-button type="submit" variant="primary" data-feed-buddy-add-submit><?php esc_html_e( 'Add buddy', 'desktop-mode-feed-buddy' ); ?></wpd-button>
 			</form>
 			<div class="feed-buddy-manager__list" data-feed-buddy-manager-list></div>
 		</aside>

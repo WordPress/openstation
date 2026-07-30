@@ -1083,14 +1083,18 @@ var desktopModeFeedBuddy = function(exports) {
       selectFeed(detail?.value || null);
       void loadItemsForSelection(context.signal);
     };
-    const onSubmit = (event) => {
-      const form = event.target;
-      if (!form?.matches("[data-feed-buddy-add-form]")) {
+    let addInFlight = false;
+    const submitAddForm = (form) => {
+      if (addInFlight) {
         return;
       }
-      event.preventDefault();
       const url = customValue(form.querySelector('[name="url"]'));
+      if (!url) {
+        setStatus(root, __("Enter a feed or website URL first."), true);
+        return;
+      }
       const group = customValue(form.querySelector('[name="group"]'));
+      addInFlight = true;
       const addBuddy = async () => {
         if ((store.state.server?.subscriptions.length ?? 0) === 199) {
           const confirmed = await desktop().confirm({
@@ -1121,14 +1125,43 @@ var desktopModeFeedBuddy = function(exports) {
           setStatus(root, error instanceof Error ? error.message : String(error), true);
         }
       };
-      void addBuddy();
+      void addBuddy().finally(() => {
+        addInFlight = false;
+      });
+    };
+    const onSubmit = (event) => {
+      const form = event.target;
+      if (!form?.matches("[data-feed-buddy-add-form]")) {
+        return;
+      }
+      event.preventDefault();
+      submitAddForm(form);
+    };
+    const onFieldSubmit = (event) => {
+      const form = event.target?.closest(
+        "[data-feed-buddy-add-form]"
+      );
+      if (!form) {
+        return;
+      }
+      event.preventDefault();
+      submitAddForm(form);
     };
     const onClick = (event) => {
       const target = event.target;
       const actionElement = target?.closest(
-        "[data-feed-buddy-action], [data-feed-buddy-about], [data-feed-buddy-manage], [data-feed-buddy-refresh], [data-feed-buddy-sound], [data-feed-buddy-mark-all], [data-feed-buddy-add-first], [data-feed-buddy-close-manager]"
+        "[data-feed-buddy-action], [data-feed-buddy-about], [data-feed-buddy-manage], [data-feed-buddy-refresh], [data-feed-buddy-sound], [data-feed-buddy-mark-all], [data-feed-buddy-add-first], [data-feed-buddy-close-manager], [data-feed-buddy-add-submit]"
       );
       if (!actionElement) {
+        return;
+      }
+      if (actionElement.matches("[data-feed-buddy-add-submit]")) {
+        const form = actionElement.closest(
+          "[data-feed-buddy-add-form]"
+        );
+        if (form) {
+          submitAddForm(form);
+        }
         return;
       }
       if (actionElement.matches("[data-feed-buddy-manage], [data-feed-buddy-add-first]")) {
@@ -1256,6 +1289,7 @@ var desktopModeFeedBuddy = function(exports) {
     };
     root.addEventListener("wpd-pick", onPick);
     root.addEventListener("submit", onSubmit);
+    root.addEventListener("wpd-submit", onFieldSubmit);
     root.addEventListener("click", onClick);
     root.addEventListener("keydown", onSecretKeyDown);
     context.markLoading();
@@ -1275,6 +1309,7 @@ var desktopModeFeedBuddy = function(exports) {
     return () => {
       root.removeEventListener("wpd-pick", onPick);
       root.removeEventListener("submit", onSubmit);
+      root.removeEventListener("wpd-submit", onFieldSubmit);
       root.removeEventListener("click", onClick);
       root.removeEventListener("keydown", onSecretKeyDown);
       for (const cleanup of chimeCleanups) {

@@ -64,7 +64,12 @@ const subscribers = new Set<
 const send = vi.fn();
 const openWindow = vi.fn( () => true );
 const applyWindowTheme = vi.fn();
-const requests: Array< { url: string; signal?: AbortSignal | null } > = [];
+const requests: Array< {
+	url: string;
+	method?: string;
+	body?: string;
+	signal?: AbortSignal | null;
+} > = [];
 
 function jsonResponse( value: unknown ): Response {
 	return new Response( JSON.stringify( value ), {
@@ -115,6 +120,67 @@ function clientState(
 	};
 }
 
+function postedSubscriptions(): typeof requests {
+	return requests.filter(
+		( request ) =>
+			'POST' === request.method && request.url.endsWith( '/subscriptions' ),
+	);
+}
+
+/**
+ * Mount the reader with the manager pane open and the add-feed form
+ * pre-filled, mirroring the markup `feed_buddy_render_reader_template()`
+ * emits.
+ */
+async function mountManager( url: string ): Promise< {
+	container: HTMLElement;
+	teardown: () => void;
+} > {
+	const store = getStore();
+	Object.assign( store.state, clientState( { managerOpen: true } ) );
+	store.notify();
+	requests.length = 0;
+
+	const container = document.createElement( 'div' );
+	container.innerHTML = `
+		<div data-feed-buddy-reader>
+			<wpd-select data-feed-buddy-feed-select></wpd-select>
+			<div data-feed-buddy-empty hidden>
+				<h2 data-feed-buddy-empty-title></h2>
+				<p data-feed-buddy-empty-copy></p>
+				<wpd-button data-feed-buddy-add-first></wpd-button>
+			</div>
+			<ol data-feed-buddy-items></ol>
+			<div data-feed-buddy-loading hidden></div>
+			<aside data-feed-buddy-manager hidden>
+				<form data-feed-buddy-add-form>
+					<wpd-text-field name="url"${ url ? ` value="${ url }"` : '' }></wpd-text-field>
+					<wpd-text-field name="group" value="NEWS"></wpd-text-field>
+					<wpd-button type="submit" data-feed-buddy-add-submit>Add buddy</wpd-button>
+				</form>
+				<div data-feed-buddy-manager-list></div>
+			</aside>
+			<div data-feed-buddy-status></div>
+		</div>
+	`;
+
+	const context: NativeRenderContext = {
+		signal: new AbortController().signal,
+		onResize: () => () => undefined,
+		onHide: () => () => undefined,
+		onShow: () => () => undefined,
+		markLoading: vi.fn(),
+		markReady: vi.fn(),
+		window: {
+			send: () => undefined,
+			on: () => () => undefined,
+		},
+	};
+
+	const teardown = await mountReader( container, context );
+	return { container, teardown };
+}
+
 beforeAll( () => {
 	const api: DesktopApi = {
 		ready: ( callback ) => callback(),
@@ -129,7 +195,12 @@ beforeAll( () => {
 		},
 		fetch: async ( input, init ) => {
 			const url = String( input );
-			requests.push( { url, signal: init?.signal } );
+			requests.push( {
+				url,
+				method: init?.method,
+				body: typeof init?.body === 'string' ? init.body : undefined,
+				signal: init?.signal,
+			} );
 			return jsonResponse( url.includes( '/items?' ) ? itemsPage : serverState );
 		},
 		openWindow,
@@ -387,5 +458,65 @@ describe( 'SOL Inbound Monologue UI', () => {
 			'feed-buddy-reader',
 			null,
 		);
+	} );
+
+	// `<wpd-button>` and `<wpd-text-field>` keep their native controls
+	// in a shadow root, so the surrounding `<form>` never receives a
+	// native `submit` event. Adding a feed has to be driven by the
+	// button's click and the field's `wpd-submit` event instead.
+	it.each( [
+		{
+			label: 'the Add buddy button click',
+			url: 'https://example.com/new.xml',
+			fire: ( form: HTMLElement ) =>
+				form
+					.querySelector< HTMLElement >( '[data-feed-buddy-add-submit]' )!
+					.click(),
+		},
+		{
+			label: 'Enter in the URL field',
+			url: 'https://example.com/second.xml',
+			fire: ( form: HTMLElement ) =>
+				form
+					.querySelector< HTMLElement >( '[name="url"]' )!
+					.dispatchEvent(
+						new CustomEvent( 'wpd-submit', {
+							bubbles: true,
+							composed: true,
+						} ),
+					),
+		},
+	] )( 'adds a feed from $label', async ( { url, fire } ) => {
+		const { container, teardown } = await mountManager( url );
+		expect( postedSubscriptions() ).toHaveLength( 0 );
+
+		fire( container.querySelector< HTMLElement >( '[data-feed-buddy-add-form]' )! );
+
+		await vi.waitFor( () => {
+			expect( postedSubscriptions() ).toHaveLength( 1 );
+		} );
+		expect( JSON.parse( postedSubscriptions()[ 0 ].body! ) ).toEqual( {
+			url,
+			group: 'NEWS',
+		} );
+
+		teardown();
+	} );
+
+	it( 'ignores an empty add-feed submission without calling the server', async () => {
+		const { container, teardown } = await mountManager( '' );
+		const before = requests.length;
+
+		container
+			.querySelector< HTMLElement >( '[data-feed-buddy-add-submit]' )!
+			.click();
+		await Promise.resolve();
+
+		expect( requests ).toHaveLength( before );
+		expect(
+			container.querySelector( '[data-feed-buddy-status]' )?.textContent,
+		).toContain( 'Enter a feed or website URL first.' );
+
+		teardown();
 	} );
 } );

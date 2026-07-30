@@ -1065,14 +1065,28 @@ async function mountReader(
 		void loadItemsForSelection( context.signal );
 	};
 
-	const onSubmit = ( event: Event ): void => {
-		const form = event.target as HTMLFormElement | null;
-		if ( ! form?.matches( '[data-feed-buddy-add-form]' ) ) {
+	// `<wpd-button>` and `<wpd-text-field>` render their native
+	// `<button>` / `<input>` inside a shadow root, so neither is a
+	// form control of the light-DOM `<form>` around them — form
+	// association does not cross a shadow boundary. Clicking the
+	// submit button therefore fires no `submit` event, and Enter in a
+	// field triggers no implicit submission. The component kit's own
+	// `<wpd-form>` sidesteps this the same way: drive submission from
+	// the button's click and the field's `wpd-submit` event, and treat
+	// the native `submit` listener as a fallback for plain controls.
+	let addInFlight = false;
+
+	const submitAddForm = ( form: HTMLFormElement ): void => {
+		if ( addInFlight ) {
 			return;
 		}
-		event.preventDefault();
 		const url = customValue( form.querySelector( '[name="url"]' ) );
+		if ( ! url ) {
+			setStatus( root, __( 'Enter a feed or website URL first.' ), true );
+			return;
+		}
 		const group = customValue( form.querySelector( '[name="group"]' ) );
+		addInFlight = true;
 		const addBuddy = async (): Promise< void > => {
 			if ( ( store.state.server?.subscriptions.length ?? 0 ) === 199 ) {
 				const confirmed = await desktop().confirm( {
@@ -1103,18 +1117,51 @@ async function mountReader(
 				setStatus( root, error instanceof Error ? error.message : String( error ), true );
 			}
 		};
-		void addBuddy();
+		void addBuddy().finally( () => {
+			addInFlight = false;
+		} );
+	};
+
+	const onSubmit = ( event: Event ): void => {
+		const form = event.target as HTMLFormElement | null;
+		if ( ! form?.matches( '[data-feed-buddy-add-form]' ) ) {
+			return;
+		}
+		event.preventDefault();
+		submitAddForm( form );
+	};
+
+	// Enter inside a `<wpd-text-field>`; the event is retargeted to the
+	// host element, so `closest()` resolves against the light DOM.
+	const onFieldSubmit = ( event: Event ): void => {
+		const form = ( event.target as Element | null )?.closest< HTMLFormElement >(
+			'[data-feed-buddy-add-form]',
+		);
+		if ( ! form ) {
+			return;
+		}
+		event.preventDefault();
+		submitAddForm( form );
 	};
 
 	const onClick = ( event: Event ): void => {
 		const target = event.target as Element | null;
 		const actionElement = target?.closest< HTMLElement >(
-			'[data-feed-buddy-action], [data-feed-buddy-about], [data-feed-buddy-manage], [data-feed-buddy-refresh], [data-feed-buddy-sound], [data-feed-buddy-mark-all], [data-feed-buddy-add-first], [data-feed-buddy-close-manager]',
+			'[data-feed-buddy-action], [data-feed-buddy-about], [data-feed-buddy-manage], [data-feed-buddy-refresh], [data-feed-buddy-sound], [data-feed-buddy-mark-all], [data-feed-buddy-add-first], [data-feed-buddy-close-manager], [data-feed-buddy-add-submit]',
 		);
 		if ( ! actionElement ) {
 			return;
 		}
 
+		if ( actionElement.matches( '[data-feed-buddy-add-submit]' ) ) {
+			const form = actionElement.closest< HTMLFormElement >(
+				'[data-feed-buddy-add-form]',
+			);
+			if ( form ) {
+				submitAddForm( form );
+			}
+			return;
+		}
 		if ( actionElement.matches( '[data-feed-buddy-manage], [data-feed-buddy-add-first]' ) ) {
 			store.state.managerOpen = true;
 			store.notify();
@@ -1256,6 +1303,7 @@ async function mountReader(
 
 	root.addEventListener( 'wpd-pick', onPick );
 	root.addEventListener( 'submit', onSubmit );
+	root.addEventListener( 'wpd-submit', onFieldSubmit );
 	root.addEventListener( 'click', onClick );
 	root.addEventListener( 'keydown', onSecretKeyDown );
 
@@ -1277,6 +1325,7 @@ async function mountReader(
 	return () => {
 		root.removeEventListener( 'wpd-pick', onPick );
 		root.removeEventListener( 'submit', onSubmit );
+		root.removeEventListener( 'wpd-submit', onFieldSubmit );
 		root.removeEventListener( 'click', onClick );
 		root.removeEventListener( 'keydown', onSecretKeyDown );
 		for ( const cleanup of chimeCleanups ) {
