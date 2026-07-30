@@ -52,6 +52,8 @@ beforeEach( () => {
 	};
 	agentsChatStore.state.activeAgent = null;
 	agentsChatStore.state.transcripts = {};
+	agentsChatStore.state.conversationIds = {};
+	agentsChatStore.state.conversationsRev = 0;
 } );
 
 afterEach( () => {
@@ -130,14 +132,13 @@ describe( 'agent chat window', () => {
 		( body.querySelector( '.dm-agent-chat__composer wpd-button' ) as HTMLElement ).click();
 		await flush();
 
-		const [ url, init ] = fetchMock.mock.calls[ 0 ] as [
-			string,
-			RequestInit,
-		];
-		expect( url ).toBe(
+		const invoke = fetchMock.mock.calls.find( ( c ) =>
+			String( c[ 0 ] ).includes( '/invoke' ),
+		) as [ string, RequestInit ];
+		expect( invoke[ 0 ] ).toBe(
 			'https://example.test/wp-json/desktop-mode/v1/agents/5/invoke',
 		);
-		expect( JSON.parse( String( init.body ) ) ).toEqual( {
+		expect( JSON.parse( String( invoke[ 1 ].body ) ) ).toEqual( {
 			message: 'Audit post 1',
 			source: 'chat',
 			// First message of the conversation — nothing to replay yet.
@@ -187,13 +188,14 @@ describe( 'agent chat window', () => {
 		expect( agentText.innerHTML ).toContain( '<strong>Done</strong>' );
 		expect( agentText.innerHTML ).toContain( '<code>code</code>' );
 
-		// New chat clears the transcript (and with it the replayed history).
+		// New chat (sidebar) clears the transcript and detaches it from
+		// its persisted conversation.
+		agentsChatStore.state.conversationIds[ 5 ] = 42;
 		(
-			body.querySelector(
-				'.dm-agent-chat__head-actions wpd-button',
-			) as HTMLElement
+			body.querySelector( '.dm-agent-chat__new' ) as HTMLElement
 		 ).click();
 		expect( agentsChatStore.state.transcripts[ 5 ] ).toEqual( [] );
+		expect( agentsChatStore.state.conversationIds[ 5 ] ).toBeNull();
 		expect( body.querySelector( '.dm-agent-chat__line' ) ).toBeNull();
 
 		if ( typeof cleanup === 'function' ) {
@@ -238,8 +240,10 @@ describe( 'agent chat window', () => {
 		 ).click();
 		await flush();
 
-		const [ , init ] = fetchMock.mock.calls[ 0 ] as [ string, RequestInit ];
-		const sent = JSON.parse( String( init.body ) ) as {
+		const invoke = fetchMock.mock.calls.find( ( c ) =>
+			String( c[ 0 ] ).includes( '/invoke' ),
+		) as [ string, RequestInit ];
+		const sent = JSON.parse( String( invoke[ 1 ].body ) ) as {
 			message: string;
 			history: Array< { role: string; text: string } >;
 		};
@@ -320,14 +324,13 @@ describe( 'agent chat window', () => {
 			targets[ 0 ].onDrop( { payload } );
 			await flush();
 
-			const [ url, init ] = fetchMock.mock.calls[ 0 ] as [
-				string,
-				RequestInit,
-			];
-			expect( url ).toBe(
+			const invoke = fetchMock.mock.calls.find( ( c ) =>
+				String( c[ 0 ] ).includes( '/invoke' ),
+			) as [ string, RequestInit ];
+			expect( invoke[ 0 ] ).toBe(
 				'https://example.test/wp-json/desktop-mode/v1/agents/5/invoke',
 			);
-			const sent = JSON.parse( String( init.body ) ) as {
+			const sent = JSON.parse( String( invoke[ 1 ].body ) ) as {
 				message: string;
 				source: string;
 			};
@@ -340,6 +343,71 @@ describe( 'agent chat window', () => {
 			}
 		} finally {
 			delete ( window as unknown as Record< string, unknown > ).wp;
+		}
+	} );
+
+	test( 'the sidebar lists conversations and clicking one loads it', async () => {
+		const summary = {
+			id: 77,
+			agentId: 9,
+			agentName: 'Historian',
+			agentDescription: 'Remembers things.',
+			agentAvatarUrl: 'https://example.test/bot.svg',
+			title: 'Summarize post 12',
+			messageCount: 2,
+			createdAt: '2026-07-30T10:00:00Z',
+			updatedAt: '2026-07-30T10:05:00Z',
+		};
+		const fetchMock: FetchMock = vi.fn( async ( input: unknown ) => {
+			const url = String( input );
+			if ( url.endsWith( '/agents/conversations' ) ) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => [ summary ],
+				} as unknown as Response;
+			}
+			if ( url.endsWith( '/agents/conversations/77' ) ) {
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ( {
+						...summary,
+						messages: [
+							{ role: 'user', text: 'Summarize post 12', at: 1 },
+							{ role: 'agent', text: 'Done — here it is.', at: 2 },
+						],
+					} ),
+				} as unknown as Response;
+			}
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ( {} ),
+			} as unknown as Response;
+		} );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		await flush();
+
+		// The list paints even with no active agent.
+		const row = body.querySelector< HTMLElement >( '.dm-agent-chat__conv' );
+		expect( row ).not.toBeNull();
+		expect( row!.textContent ).toContain( 'Summarize post 12' );
+
+		row!.click();
+		await flush();
+
+		// The conversation's agent became active with its transcript.
+		expect( agentsChatStore.state.activeAgent?.id ).toBe( 9 );
+		expect( agentsChatStore.state.conversationIds[ 9 ] ).toBe( 77 );
+		expect( body.textContent ).toContain( 'Historian' );
+		expect( body.textContent ).toContain( 'Done — here it is.' );
+
+		if ( typeof cleanup === 'function' ) {
+			cleanup();
 		}
 	} );
 

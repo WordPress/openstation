@@ -32,6 +32,13 @@ import {
 	dispatchAgentDrop,
 	invokeAgentIntoTranscript,
 } from './agents-dispatch';
+import {
+	deleteConversation,
+	listConversations,
+	openConversation,
+	type AgentConversationSummary,
+} from './agents-conversations';
+import { wpdConfirm } from './ui/components/wpd-confirm-dialog/wpd-confirm-dialog';
 
 const WINDOW_ID = 'desktop-mode-agent-run';
 
@@ -102,10 +109,185 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		) ?? body;
 
 	let busy = false;
+	// Sidebar list state. Refetched when the store's conversationsRev
+	// moves (a save/delete happened) — never polled.
+	let conversations: AgentConversationSummary[] = [];
+	let conversationsLoaded = false;
+	let seenRev = -1;
+
+	const refreshConversations = (): void => {
+		const cfg = getRunConfig();
+		if ( ! cfg ) {
+			conversationsLoaded = true;
+			return;
+		}
+		void listConversations( {
+			restRoot: cfg.restRoot,
+			restNonce: cfg.restNonce,
+		} )
+			.then( ( rows ) => {
+				conversations = rows;
+			} )
+			.catch( () => {
+				conversations = [];
+			} )
+			.finally( () => {
+				conversationsLoaded = true;
+				paint();
+			} );
+	};
+
+	const startNewChat = ( agent: AgentChatAgent ): void => {
+		// Resets the live transcript AND detaches it from its persisted
+		// conversation — the next exchange creates a fresh row (the old
+		// one stays in the sidebar).
+		agentsChatStore.state.transcripts[ agent.id ] = [];
+		if ( ! agentsChatStore.state.conversationIds ) {
+			agentsChatStore.state.conversationIds = {};
+		}
+		agentsChatStore.state.conversationIds[ agent.id ] = null;
+		agentsChatStore.notify();
+	};
+
+	const removeConversation = async (
+		row: AgentConversationSummary,
+	): Promise< void > => {
+		const cfg = getRunConfig();
+		if ( ! cfg ) {
+			return;
+		}
+		const ok = await wpdConfirm( {
+			title: __( 'Delete conversation?', 'desktop-mode' ),
+			message: __( 'Cannot be undone.', 'desktop-mode' ),
+			confirmLabel: __( 'Delete', 'desktop-mode' ),
+			danger: true,
+		} );
+		if ( ! ok ) {
+			return;
+		}
+		try {
+			await deleteConversation(
+				{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
+				row.id,
+			);
+		} catch {
+			return;
+		}
+		const state = agentsChatStore.state;
+		if ( state.conversationIds?.[ row.agentId ] === row.id ) {
+			// Deleting the OPEN conversation also clears the transcript
+			// — keeping it would silently recreate the row on next send.
+			state.transcripts[ row.agentId ] = [];
+			state.conversationIds[ row.agentId ] = null;
+		}
+		state.conversationsRev = ( state.conversationsRev ?? 0 ) + 1;
+		agentsChatStore.notify();
+	};
+
+	const buildSidebar = ( agent: AgentChatAgent | null ): HTMLElement => {
+		const cfg = getRunConfig();
+		const sidebar = document.createElement( 'div' );
+		sidebar.className = 'dm-agent-chat__sidebar';
+
+		const newChat = document.createElement( 'wpd-button' );
+		newChat.className = 'dm-agent-chat__new';
+		newChat.textContent = __( '+ New chat', 'desktop-mode' );
+		if ( ! agent || busy ) {
+			newChat.setAttribute( 'disabled', '' );
+		}
+		newChat.addEventListener( 'click', () => {
+			if ( agent && ! busy ) {
+				startNewChat( agent );
+			}
+		} );
+		sidebar.appendChild( newChat );
+
+		const list = document.createElement( 'div' );
+		list.className = 'dm-agent-chat__convs';
+		const activeId = agent
+			? agentsChatStore.state.conversationIds?.[ agent.id ] ?? null
+			: null;
+
+		if ( conversationsLoaded && conversations.length === 0 ) {
+			const none = document.createElement( 'div' );
+			none.className = 'dm-agent-chat__convs-empty';
+			none.textContent = __( 'No conversations yet.', 'desktop-mode' );
+			list.appendChild( none );
+		}
+		for ( const row of conversations ) {
+			const item = document.createElement( 'div' );
+			item.className = 'dm-agent-chat__conv';
+			if ( row.id === activeId ) {
+				item.classList.add( 'dm-agent-chat__conv--active' );
+			}
+			item.setAttribute( 'role', 'button' );
+			item.tabIndex = 0;
+			item.title = `${ row.agentName } — ${ row.title }`;
+
+			const face = document.createElement( 'img' );
+			face.className = 'dm-agent-chat__conv-avatar';
+			face.src = row.agentAvatarUrl;
+			face.alt = '';
+			const label = document.createElement( 'span' );
+			label.className = 'dm-agent-chat__conv-title';
+			label.textContent = row.title;
+
+			const open = (): void => {
+				if ( busy || ! cfg ) {
+					return;
+				}
+				void openConversation(
+					{ restRoot: cfg.restRoot, restNonce: cfg.restNonce },
+					row.id,
+				).catch( ( err ) => {
+					// eslint-disable-next-line no-console
+					console.warn(
+						'[desktop-mode/agents] conversation load failed:',
+						err,
+					);
+				} );
+			};
+			item.addEventListener( 'click', open );
+			item.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
+				if ( e.key === 'Enter' || e.key === ' ' ) {
+					e.preventDefault();
+					open();
+				}
+			} );
+
+			// Feature-specific micro-control — a full wpd-button would
+			// out-weigh the row it lives in.
+			const del = document.createElement( 'button' );
+			del.type = 'button';
+			del.className = 'dm-agent-chat__conv-delete';
+			del.textContent = '×';
+			del.setAttribute(
+				'aria-label',
+				__( 'Delete conversation', 'desktop-mode' ),
+			);
+			del.addEventListener( 'click', ( e ) => {
+				e.stopPropagation();
+				void removeConversation( row );
+			} );
+
+			item.append( face, label, del );
+			list.appendChild( item );
+		}
+		sidebar.appendChild( list );
+		return sidebar;
+	};
 
 	const paint = (): void => {
 		const agent = agentsChatStore.state.activeAgent;
 		root.replaceChildren();
+
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'dm-agent-chat';
+		wrap.appendChild( buildSidebar( agent ) );
+
+		const main = document.createElement( 'div' );
+		main.className = 'dm-agent-chat__main';
+		wrap.appendChild( main );
 
 		if ( ! agent ) {
 			const empty = document.createElement( 'wpd-empty-state' );
@@ -117,16 +299,14 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			empty.setAttribute(
 				'description',
 				__(
-					'Open an agent from the Agents section of the site folder and press Chat.',
+					'Open an agent from the Agents section of the site folder, or pick a past conversation.',
 					'desktop-mode',
 				),
 			);
-			root.appendChild( empty );
+			main.appendChild( empty );
+			root.appendChild( wrap );
 			return;
 		}
-
-		const wrap = document.createElement( 'div' );
-		wrap.className = 'dm-agent-chat';
 
 		const head = document.createElement( 'div' );
 		head.className = 'dm-agent-chat__head';
@@ -142,27 +322,15 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		desc.className = 'dm-agent-chat__desc';
 		desc.textContent = agent.description;
 		title.append( name, desc );
-		const actions = document.createElement( 'div' );
-		actions.className = 'dm-agent-chat__head-actions';
-		const newChat = document.createElement( 'wpd-button' );
-		newChat.textContent = __( 'New chat', 'desktop-mode' );
-		newChat.addEventListener( 'click', () => {
-			// Transcripts are session-only (in-memory store); a new
-			// chat simply resets this agent's conversation, which also
-			// resets the history replayed to the runner.
-			agentsChatStore.state.transcripts[ agent.id ] = [];
-			agentsChatStore.notify();
-		} );
-		actions.appendChild( newChat );
-		head.append( avatar, title, actions );
-		wrap.appendChild( head );
+		head.append( avatar, title );
+		main.appendChild( head );
 
 		const scroll = document.createElement( 'div' );
 		scroll.className = 'dm-agent-chat__scroll';
 		for ( const message of transcriptFor( agent ) ) {
 			scroll.appendChild( messageRow( message, agent ) );
 		}
-		wrap.appendChild( scroll );
+		main.appendChild( scroll );
 
 		const composer = document.createElement( 'div' );
 		composer.className = 'dm-agent-chat__composer';
@@ -200,7 +368,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		input.addEventListener( 'wpd-submit', submit );
 		send.addEventListener( 'click', submit );
 		composer.append( input, send );
-		wrap.appendChild( composer );
+		main.appendChild( composer );
 
 		root.appendChild( wrap );
 		scroll.scrollTop = scroll.scrollHeight;
@@ -341,7 +509,16 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 		} );
 	}
 
-	const unsubscribe = agentsChatStore.subscribe( paint );
+	const unsubscribe = agentsChatStore.subscribe( () => {
+		const rev = agentsChatStore.state.conversationsRev ?? 0;
+		if ( rev !== seenRev ) {
+			seenRev = rev;
+			refreshConversations();
+		}
+		paint();
+	} );
+	seenRev = agentsChatStore.state.conversationsRev ?? 0;
+	refreshConversations();
 	paint();
 	return () => {
 		deregisterDrop?.();

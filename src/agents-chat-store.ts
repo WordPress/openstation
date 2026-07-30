@@ -36,13 +36,29 @@ export interface AgentChatMessage {
 export interface AgentsChatState {
 	/** Agent the chat window should show. Null until an opener seeds it. */
 	activeAgent: AgentChatAgent | null;
-	/** Per-agent transcript, keyed by agent user id. Session-only. */
+	/** Per-agent transcript, keyed by agent user id. */
 	transcripts: Record< number, AgentChatMessage[] >;
+	/**
+	 * Persisted-conversation id backing each agent's live transcript,
+	 * keyed by agent user id. Null/absent = an unsaved conversation
+	 * (created server-side on the first completed exchange).
+	 */
+	conversationIds: Record< number, number | null >;
+	/**
+	 * Bumped after every conversation save/delete so the sidebar knows
+	 * to refetch its list without polling.
+	 */
+	conversationsRev: number;
 }
 
 export const agentsChatStore = createSharedStore< AgentsChatState >(
 	'desktop-mode/agents-chat',
-	() => ( { activeAgent: null, transcripts: {} } ),
+	() => ( {
+		activeAgent: null,
+		transcripts: {},
+		conversationIds: {},
+		conversationsRev: 0,
+	} ),
 );
 
 /**
@@ -56,6 +72,12 @@ export function openAgentChat( agent: AgentChatAgent ): void {
 	agentsChatStore.state.activeAgent = agent;
 	if ( ! agentsChatStore.state.transcripts[ agent.id ] ) {
 		agentsChatStore.state.transcripts[ agent.id ] = [];
+	}
+	if ( ! agentsChatStore.state.conversationIds ) {
+		// Defensive: an older bundle may have seeded the store before
+		// this shape landed; heal in place.
+		agentsChatStore.state.conversationIds = {};
+		agentsChatStore.state.conversationsRev = 0;
 	}
 	agentsChatStore.notify();
 }

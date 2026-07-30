@@ -68,7 +68,7 @@ const DESKTOP_MODE_AGENT_RUNNER_LOG_CAP  = 50;
  * prompt (and the bill) without losing the turns that actually decide
  * a follow-up like "yes, do it".
  */
-const DESKTOP_MODE_AGENT_HISTORY_TURN_CAP = 20;
+const DESKTOP_MODE_AGENT_HISTORY_TURN_CAP = 50;
 const DESKTOP_MODE_AGENT_HISTORY_TEXT_CAP = 4000;
 
 /**
@@ -555,8 +555,20 @@ function desktop_mode_agent_runner_sanitize_history( $history ) {
 		);
 	}
 
-	if ( count( $clean ) > DESKTOP_MODE_AGENT_HISTORY_TURN_CAP ) {
-		$clean = array_slice( $clean, -DESKTOP_MODE_AGENT_HISTORY_TURN_CAP );
+	/**
+	 * Filters how many conversation turns a caller may replay into a
+	 * run. Each turn is additionally capped to
+	 * {@see DESKTOP_MODE_AGENT_HISTORY_TEXT_CAP} characters, so this is
+	 * the knob that bounds the prompt (and the bill) per invocation.
+	 *
+	 * @param int $turn_cap Maximum replayed turns.
+	 */
+	$turn_cap = (int) apply_filters(
+		'desktop_mode_agent_history_turn_cap',
+		DESKTOP_MODE_AGENT_HISTORY_TURN_CAP
+	);
+	if ( $turn_cap > 0 && count( $clean ) > $turn_cap ) {
+		$clean = array_slice( $clean, -$turn_cap );
 	}
 
 	return $clean;

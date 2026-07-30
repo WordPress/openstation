@@ -65,6 +65,7 @@ function desktop_mode_agents_load() {
 	require_once DESKTOP_MODE_DIR . 'includes/agents/abilities.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/runner.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/rest.php';
+	require_once DESKTOP_MODE_DIR . 'includes/agents/conversations.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/privacy.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/run-window.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/my-wordpress.php';

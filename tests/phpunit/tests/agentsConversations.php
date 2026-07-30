@@ -1,0 +1,362 @@
+<?php
+/**
+ * Tests for persisted agent chat conversations — sanitization, CRUD
+ * round-trips, strict ownership, and the caps. Handlers are invoked
+ * directly (the house pattern) with `WP_REST_Request` objects.
+ *
+ * @package WordPress
+ * @subpackage UnitTests
+ *
+ * @group desktop-mode
+ * @group desktop-mode-agents
+ */
+class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
+
+	protected static $admin_id;
+	protected static $editor_id;
+	protected static $agent_id;
+
+	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
+		self::$admin_id  = $factory->user->create( array( 'role' => 'administrator' ) );
+		self::$editor_id = $factory->user->create( array( 'role' => 'editor' ) );
+
+		wp_set_current_user( self::$admin_id );
+		$agent = desktop_mode_agent_create(
+			array(
+				'name'         => 'Conversation Agent',
+				'role'         => 'author',
+				'instructions' => 'Be terse.',
+			)
+		);
+		self::$agent_id = is_array( $agent ) ? (int) $agent['id'] : (int) $agent->ID;
+		wp_set_current_user( 0 );
+	}
+
+	public function set_up() {
+		parent::set_up();
+		wp_set_current_user( self::$admin_id );
+	}
+
+	private function request( $method, $path, array $params = array() ) {
+		$req = new WP_REST_Request( $method, '/desktop-mode/v1' . $path );
+		foreach ( $params as $k => $v ) {
+			$req->set_param( $k, $v );
+		}
+		return $req;
+	}
+
+	private function create_conversation( array $messages = array() ) {
+		if ( empty( $messages ) ) {
+			$messages = array(
+				array(
+					'role' => 'user',
+					'text' => 'Summarize post 12 for me please',
+					'at'   => 1000,
+				),
+				array(
+					'role' => 'agent',
+					'text' => 'Here is the summary.',
+					'at'   => 2000,
+				),
+			);
+		}
+		$response = desktop_mode_agents_rest_conversations_create(
+			$this->request(
+				'POST',
+				'/agents/conversations',
+				array(
+					'agentId'  => self::$agent_id,
+					'messages' => $messages,
+				)
+			)
+		);
+		$this->assertNotWPError( $response );
+		return $response->get_data();
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_conversations_register_routes
+	 */
+	public function test_routes_registered() {
+		do_action( 'rest_api_init' );
+		$routes = rest_get_server()->get_routes( 'desktop-mode/v1' );
+		$this->assertArrayHasKey( '/desktop-mode/v1/agents/conversations', $routes );
+		$this->assertArrayHasKey( '/desktop-mode/v1/agents/conversations/(?P<id>\d+)', $routes );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_rest_conversations_create
+	 */
+	public function test_create_derives_title_and_owner() {
+		$data = $this->create_conversation();
+
+		$this->assertSame( self::$agent_id, $data['agentId'] );
+		$this->assertSame( 'Conversation Agent', $data['agentName'] );
+		$this->assertSame( 'Summarize post 12 for me please', $data['title'] );
+		$this->assertSame( 2, $data['messageCount'] );
+		$this->assertSame( 'user', $data['messages'][0]['role'] );
+
+		$post = get_post( $data['id'] );
+		$this->assertSame( DESKTOP_MODE_AGENT_CHAT_POST_TYPE, $post->post_type );
+		$this->assertSame( self::$admin_id, (int) $post->post_author );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_rest_conversations_create
+	 */
+	public function test_create_rejects_non_agent_target() {
+		$response = desktop_mode_agents_rest_conversations_create(
+			$this->request(
+				'POST',
+				'/agents/conversations',
+				array(
+					'agentId'  => self::$editor_id,
+					'messages' => array(
+						array(
+							'role' => 'user',
+							'text' => 'hi',
+						),
+					),
+				)
+			)
+		);
+		$this->assertWPError( $response );
+		$this->assertSame( 'desktop_mode_agent_not_found', $response->get_error_code() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_conversation_sanitize_messages
+	 */
+	public function test_sanitizer_filters_roles_and_drops_tool_output() {
+		$clean = desktop_mode_agent_conversation_sanitize_messages(
+			array(
+				array(
+					'role'      => 'agent',
+					'text'      => 'Done.',
+					'at'        => 5,
+					'toolCalls' => array(
+						array(
+							'callId' => 'c1',
+							'name'   => 'desktop-mode/get-post',
+							'args'   => array( 'post_id' => 12 ),
+							'output' => array( 'content' => str_repeat( 'x', 5000 ) ),
+							'error'  => null,
+						),
+					),
+				),
+				array(
+					'role' => 'system',
+					'text' => 'invalid role',
+				),
+				array(
+					'role' => 'user',
+					'text' => '',
+				),
+				'not-a-row',
+			)
+		);
+
+		$this->assertCount( 1, $clean );
+		$this->assertSame( 'desktop-mode/get-post', $clean[0]['toolCalls'][0]['name'] );
+		$this->assertArrayNotHasKey( 'output', $clean[0]['toolCalls'][0] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_conversation_sanitize_messages
+	 */
+	public function test_sanitizer_caps_message_count() {
+		$many = array();
+		for ( $i = 0; $i < DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP + 25; $i++ ) {
+			$many[] = array(
+				'role' => 'user',
+				'text' => "row {$i}",
+			);
+		}
+		$clean = desktop_mode_agent_conversation_sanitize_messages( $many );
+		$this->assertCount( DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP, $clean );
+		// Newest rows survive.
+		$this->assertSame( 'row ' . ( DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP + 24 ), end( $clean )['text'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_rest_conversations_list
+	 */
+	public function test_list_is_scoped_to_the_caller() {
+		$this->create_conversation();
+
+		$mine = desktop_mode_agents_rest_conversations_list()->get_data();
+		$this->assertCount( 1, $mine );
+		$this->assertArrayNotHasKey( 'messages', $mine[0], 'The list must stay light — no message bodies.' );
+
+		// Another user sees nothing — including administrators-of-other-people.
+		wp_set_current_user( self::$editor_id );
+		$theirs = desktop_mode_agents_rest_conversations_list()->get_data();
+		$this->assertSame( array(), $theirs );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_rest_conversations_get
+	 * @covers ::desktop_mode_agents_rest_conversations_update
+	 * @covers ::desktop_mode_agents_rest_conversations_delete
+	 */
+	public function test_foreign_conversations_read_as_missing() {
+		$data = $this->create_conversation();
+		wp_set_current_user( self::$editor_id );
+
+		$get = desktop_mode_agents_rest_conversations_get(
+			$this->request( 'GET', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
+		);
+		$this->assertWPError( $get );
+		$this->assertSame( 404, $get->get_error_data()['status'] );
+
+		$update = desktop_mode_agents_rest_conversations_update(
+			$this->request(
+				'PUT',
+				"/agents/conversations/{$data['id']}",
+				array(
+					'id'       => $data['id'],
+					'messages' => array(
+						array(
+							'role' => 'user',
+							'text' => 'hijack',
+						),
+					),
+				)
+			)
+		);
+		$this->assertWPError( $update );
+
+		$del = desktop_mode_agents_rest_conversations_delete(
+			$this->request( 'DELETE', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
+		);
+		$this->assertWPError( $del );
+		$this->assertInstanceOf( WP_Post::class, get_post( $data['id'] ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_rest_conversations_update
+	 */
+	public function test_update_replaces_messages_and_retitles() {
+		$data = $this->create_conversation();
+
+		$response = desktop_mode_agents_rest_conversations_update(
+			$this->request(
+				'PUT',
+				"/agents/conversations/{$data['id']}",
+				array(
+					'id'       => $data['id'],
+					'messages' => array(
+						array(
+							'role' => 'user',
+							'text' => 'A different opener',
+							'at'   => 1,
+						),
+						array(
+							'role' => 'agent',
+							'text' => 'A different answer',
+							'at'   => 2,
+						),
+						array(
+							'role' => 'user',
+							'text' => 'Follow-up',
+							'at'   => 3,
+						),
+					),
+				)
+			)
+		);
+		$this->assertNotWPError( $response );
+		$updated = $response->get_data();
+		$this->assertSame( 3, $updated['messageCount'] );
+		$this->assertSame( 'A different opener', $updated['title'] );
+
+		$reread = desktop_mode_agents_rest_conversations_get(
+			$this->request( 'GET', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
+		)->get_data();
+		$this->assertSame( 'Follow-up', end( $reread['messages'] )['text'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_rest_conversations_delete
+	 */
+	public function test_delete_removes_the_row() {
+		$data = $this->create_conversation();
+		$response = desktop_mode_agents_rest_conversations_delete(
+			$this->request( 'DELETE', "/agents/conversations/{$data['id']}", array( 'id' => $data['id'] ) )
+		);
+		$this->assertNotWPError( $response );
+		$this->assertNull( get_post( $data['id'] ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_conversations_prune
+	 */
+	public function test_creating_past_the_cap_prunes_the_oldest() {
+		$tighten = static function () {
+			return 2;
+		};
+		add_filter( 'desktop_mode_agent_conversation_cap', $tighten );
+
+		try {
+			$first = $this->create_conversation(
+				array(
+					array(
+						'role' => 'user',
+						'text' => 'the oldest conversation',
+					),
+				)
+			);
+			// Age it so the modified-date ordering is unambiguous.
+			global $wpdb;
+			$wpdb->update(
+				$wpdb->posts,
+				array( 'post_modified_gmt' => '2020-01-01 00:00:00' ),
+				array( 'ID' => $first['id'] )
+			);
+			clean_post_cache( $first['id'] );
+
+			$second = $this->create_conversation(
+				array(
+					array(
+						'role' => 'user',
+						'text' => 'still here',
+					),
+				)
+			);
+			$this->assertInstanceOf( WP_Post::class, get_post( $first['id'] ), 'Under the cap nothing is pruned.' );
+
+			// The third create pushes past cap=2 — the aged row goes.
+			$third = $this->create_conversation(
+				array(
+					array(
+						'role' => 'user',
+						'text' => 'the newest conversation',
+					),
+				)
+			);
+			$this->assertNull( get_post( $first['id'] ) );
+			$this->assertInstanceOf( WP_Post::class, get_post( $second['id'] ) );
+			$this->assertInstanceOf( WP_Post::class, get_post( $third['id'] ) );
+		} finally {
+			remove_filter( 'desktop_mode_agent_conversation_cap', $tighten );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_runner_sanitize_history
+	 */
+	public function test_history_replay_cap_is_fifty() {
+		$this->assertSame( 50, DESKTOP_MODE_AGENT_HISTORY_TURN_CAP );
+
+		$many = array();
+		for ( $i = 0; $i < 60; $i++ ) {
+			$many[] = array(
+				'role' => 'user',
+				'text' => "turn {$i}",
+			);
+		}
+		$clean = desktop_mode_agent_runner_sanitize_history( $many );
+		$this->assertCount( 50, $clean );
+		$this->assertSame( 'turn 59', end( $clean )['text'] );
+	}
+}

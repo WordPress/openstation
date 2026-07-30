@@ -27,6 +27,7 @@ import {
 	type AgentChatAgent,
 	type AgentChatMessage,
 } from './agents-chat-store';
+import { persistAgentTranscript } from './agents-conversations';
 import type { AgentInvokeResult } from './my-wordpress/agents-types';
 
 /** Entity kinds agents understand — mirrors the trigger config enum. */
@@ -316,6 +317,11 @@ export async function invokeAgentIntoTranscript(
 	}
 	pending.pending = false;
 	agentsChatStore.notify();
+
+	// Persist the exchange (create on first save, replace afterwards).
+	// Fire-and-forget by design: the chat already painted the answer,
+	// and the persist helper swallows its own failures.
+	void persistAgentTranscript( agent, rest );
 }
 
 /**

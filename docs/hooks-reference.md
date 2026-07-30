@@ -4164,6 +4164,24 @@ considers itself available even without the WP 7.0 AI Client.
 - **Param** `string $instructions` — system instruction.
 - **Param** `int $agent_user_id`
 
+### `desktop_mode_agent_history_turn_cap` — Experimental *(filter)*
+
+How many conversation turns a caller may replay into one agent run
+via the `history` param of `POST /agents/{id}/invoke`. Each turn is
+additionally capped to 4000 characters, so this is the knob that
+bounds the prompt (and the bill) per invocation. Default 50.
+
+- **Param** `int $turn_cap`
+
+### `desktop_mode_agent_conversation_cap` — Experimental *(filter)*
+
+How many persisted chat conversations are kept per user (the
+`desktop_mode_chat` post type behind `/agents/conversations`).
+Creating past the cap prunes the caller's least recently updated
+rows. Default 100.
+
+- **Param** `int $cap`
+
 ### `desktop_mode_agent_trigger_kinds` — Experimental *(filter)*
 
 The trigger-kind catalogue (`chat`, `send-to`, `drag`, `hook`,
