@@ -47,9 +47,11 @@ class Tests_DesktopMode_AgentsAbilities extends WP_UnitTestCase {
 	 */
 	public function test_registration_and_annotations() {
 		$expectations = array(
-			'desktop-mode/get-post'    => true,
-			'desktop-mode/get-media'   => true,
-			'desktop-mode/update-post' => false,
+			'desktop-mode/get-post'     => true,
+			'desktop-mode/get-media'    => true,
+			'desktop-mode/update-post'  => false,
+			'desktop-mode/update-media' => false,
+			'desktop-mode/create-post'  => false,
 		);
 		foreach ( $expectations as $name => $readonly ) {
 			$ability = wp_get_ability( $name );
@@ -126,6 +128,89 @@ class Tests_DesktopMode_AgentsAbilities extends WP_UnitTestCase {
 
 		$this->assertWPError( $out );
 		$this->assertSame( 'desktop_mode_agent_media_not_found', $out->get_error_code() );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_ability_update_media
+	 */
+	public function test_update_media_writes_alt_and_title() {
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$out = wp_get_ability( 'desktop-mode/update-media' )->execute(
+			array(
+				'attachment_id' => self::$attachment_id,
+				'alt_text'      => 'A person smiling at the camera',
+				'title'         => 'Portrait, cropped',
+			)
+		);
+
+		$this->assertNotWPError( $out );
+		$this->assertTrue( $out['updated'] );
+		$this->assertSame(
+			'A person smiling at the camera',
+			get_post_meta( self::$attachment_id, '_wp_attachment_image_alt', true )
+		);
+		$this->assertSame( 'Portrait, cropped', get_post( self::$attachment_id )->post_title );
+	}
+
+	/**
+	 * Editing someone else's attachment requires the same capability
+	 * wp-admin does — an author-role caller who doesn't own it is
+	 * refused.
+	 *
+	 * @covers ::desktop_mode_agents_ability_update_media_can
+	 */
+	public function test_update_media_denied_without_edit_capability() {
+		wp_set_current_user( self::$author_id );
+
+		$out = wp_get_ability( 'desktop-mode/update-media' )->execute(
+			array(
+				'attachment_id' => self::$attachment_id,
+				'alt_text'      => 'nope',
+			)
+		);
+		$this->assertWPError( $out );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agents_ability_create_post
+	 */
+	public function test_create_post_is_always_a_draft_by_the_caller() {
+		wp_set_current_user( self::$author_id );
+
+		$out = wp_get_ability( 'desktop-mode/create-post' )->execute(
+			array(
+				'title'   => 'Traducción: hola',
+				'content' => '<p>Contenido traducido.</p>',
+			)
+		);
+
+		$this->assertNotWPError( $out );
+		$this->assertSame( 'draft', $out['status'] );
+
+		$post = get_post( $out['id'] );
+		$this->assertSame( 'draft', $post->post_status );
+		$this->assertSame( 'post', $post->post_type );
+		$this->assertSame( self::$author_id, (int) $post->post_author );
+		$this->assertSame( 'Traducción: hola', $post->post_title );
+	}
+
+	/**
+	 * Page creation gates on `edit_pages`, which authors lack.
+	 *
+	 * @covers ::desktop_mode_agents_ability_create_post_can
+	 */
+	public function test_create_page_denied_for_authors() {
+		wp_set_current_user( self::$author_id );
+
+		$out = wp_get_ability( 'desktop-mode/create-post' )->execute(
+			array(
+				'title'   => 'Nope',
+				'content' => 'x',
+				'type'    => 'page',
+			)
+		);
+		$this->assertWPError( $out );
 	}
 
 	/**
