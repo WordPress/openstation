@@ -133,7 +133,7 @@
 	--wpd-button-fg: var( --dm-drafts-accent, #2271b1 );
 }
 
-.dm-drafts__spark[ aria-expanded='true' ] {
+.dm-drafts__spark[aria-expanded='true'] {
 	opacity: 1;
 	--wpd-button-bg: color-mix(
 		in srgb,
