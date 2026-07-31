@@ -406,9 +406,11 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_default_os_settings
 	 */
-	public function test_default_window_reveal() {
+	public function test_default_window_reveal_is_off() {
 		$defaults = desktop_mode_default_os_settings();
-		$this->assertSame( 'sweep', $defaults['windowReveal'] );
+		// A reveal plays on every window load, so it is the user's to
+		// opt into rather than something the shell turns on for them.
+		$this->assertSame( 'none', $defaults['windowReveal'] );
 	}
 
 	/**
@@ -430,7 +432,21 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_every_built_in_window_reveal() {
-		foreach ( array( 'sweep', 'iris', 'curtain', 'blinds', 'diagonal' ) as $id ) {
+		$built_ins = array(
+			'sweep',
+			'rise',
+			'diagonal',
+			'iris',
+			'diamond',
+			'curtain',
+			'shutter',
+			'blinds',
+			'slats',
+			'mosaic',
+			'radar',
+			'obturator',
+		);
+		foreach ( $built_ins as $id ) {
 			$clean = desktop_mode_sanitize_os_settings(
 				array( 'windowReveal' => $id )
 			);
@@ -449,11 +465,11 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$this->assertSame( 'iriswipescript', $clean['windowReveal'] );
 
 		// Nothing left after stripping falls back to the default rather
-		// than persisting an empty id the JS side would read as "none".
+		// than persisting an empty id.
 		$clean = desktop_mode_sanitize_os_settings(
 			array( 'windowReveal' => '!!!' )
 		);
-		$this->assertSame( 'sweep', $clean['windowReveal'] );
+		$this->assertSame( 'none', $clean['windowReveal'] );
 	}
 
 	/**
@@ -463,7 +479,7 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		$clean = desktop_mode_sanitize_os_settings(
 			array( 'windowReveal' => array( 'iris' ) )
 		);
-		$this->assertSame( 'sweep', $clean['windowReveal'] );
+		$this->assertSame( 'none', $clean['windowReveal'] );
 	}
 
 	/**

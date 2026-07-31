@@ -26,8 +26,6 @@ import {
 	irisPair,
 	irisSurface,
 	mosaicPair,
-	obturatorPair,
-	obturatorSurface,
 	polygonWithHoles,
 	radarPair,
 	risePair,
@@ -66,8 +64,56 @@ const PAIRS = {
 	diamond: diamondPair(),
 	mosaic: mosaicPair(),
 	radar: radarPair(),
-	obturator: obturatorPair(),
 };
+
+/** Parse a `polygon( … )` value into `[x, y]` vertices. */
+function vertices( value: string ): [ number, number ][] {
+	const inner = value.slice( value.indexOf( '(' ) + 1, value.lastIndexOf( ')' ) );
+	return inner
+		.split( ',' )
+		.map( ( part ) => part.trim() )
+		.filter( Boolean )
+		.map( ( part ) => {
+			const [ x, y ] = part.split( /\s+/ ).map( ( n ) => parseFloat( n ) );
+			return [ x, y ] as [ number, number ];
+		} );
+}
+
+/** Ray-cast point-in-polygon. The blades are simple quads. */
+function covers( value: string, x: number, y: number ): boolean {
+	const pts = vertices( value );
+	let inside = false;
+	for ( let i = 0, j = pts.length - 1; i < pts.length; j = i++ ) {
+		const [ xi, yi ] = pts[ i ];
+		const [ xj, yj ] = pts[ j ];
+		if (
+			yi > y !== yj > y &&
+			x < ( ( xj - xi ) * ( y - yi ) ) / ( yj - yi ) + xi
+		) {
+			inside = ! inside;
+		}
+	}
+	return inside;
+}
+
+/** How many of the six blades cover a point at openness `t`. */
+function bladesCovering( t: number, x: number, y: number ): number {
+	let n = 0;
+	for ( let i = 0; i < 6; i++ ) {
+		if ( covers( obturatorBlade( i, t ), x, y ) ) {
+			n++;
+		}
+	}
+	return n;
+}
+
+/** A sample of points spread across the window body. */
+const GRID: [ number, number ][] = [];
+for ( let x = 2; x <= 98; x += 8 ) {
+	for ( let y = 2; y <= 98; y += 8 ) {
+		GRID.push( [ x, y ] );
+	}
+}
 
 describe( 'reveals/shapes.ts — the interpolation contract', () => {
 	test.each( Object.entries( PAIRS ) )(
@@ -178,37 +224,6 @@ describe( 'reveals/shapes.ts — coverage at the endpoints', () => {
 		}
 		return out;
 	}
-
-	test( 'the obturator aperture starts closed', () => {
-		// Every blade collapsed onto the centre — nothing uncovered.
-		expect(
-			blades( obturatorSurface( 0 ) ).every(
-				( [ x, y ] ) => x === 50 && y === 50,
-			),
-		).toBe( true );
-	} );
-
-	test( 'the obturator aperture ends past the corners', () => {
-		// A hexagon's INSCRIBED radius is what has to clear a corner
-		// (~70.71%), not its circumscribed one — the corner sits
-		// opposite an edge, not a vertex.
-		const inscribed = blades( obturatorPair().to ).map(
-			( [ x, y ] ) => Math.hypot( x - 50, y - 50 ) * Math.cos( Math.PI / 6 ),
-		);
-		expect( Math.min( ...inscribed ) ).toBeGreaterThan( 70.71 );
-	} );
-
-	test( 'the obturator rotates as it opens', () => {
-		// The pivot is what makes it read as a mechanical iris rather
-		// than a growing hexagon. Track one blade's bearing across the
-		// animation: it has to turn, not merely move outward.
-		const bearing = ( t: number ): number => {
-			const [ x, y ] = blades( obturatorSurface( t ) )[ 0 ];
-			return Math.atan2( y - 50, x - 50 );
-		};
-		expect( bearing( 1 ) ).toBeGreaterThan( bearing( 0.5 ) );
-		expect( bearing( 0.5 ) ).toBeGreaterThan( bearing( 0.25 ) );
-	} );
 
 	test( 'diagonal starts covering the box at both extremes of y', () => {
 		// At y=0 and y=100 the covered span must reach x=0, otherwise a

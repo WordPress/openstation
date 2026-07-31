@@ -31,6 +31,58 @@
  * Helpers in `./shapes` build matched pairs for the common cases.
  */
 
+/**
+ * One animated layer of a reveal — a matched `clip-path` pair, same
+ * contract as a single-layer def's own `from` / `to`.
+ */
+export interface WindowRevealLayer {
+	/** `clip-path` while this layer still covers its share of the body. */
+	from: string;
+	/** `clip-path` once it has retracted. Same shape function as `from`. */
+	to: string;
+	/**
+	 * Paint for THIS layer, overriding the reveal's `surfaceColor` and
+	 * the theme token.
+	 *
+	 * The thing that makes overlapping parts visible at all. Layers of
+	 * one colour composite into a single silhouette however they are
+	 * shaped — the part on top is indistinguishable from the part
+	 * beneath it, so the overlap that makes a mechanism a mechanism
+	 * simply does not render. Give neighbouring layers different tones
+	 * and every overlap draws itself: the upper layer's tone wins, and
+	 * its boundary across the lower one is the seam.
+	 *
+	 * `obturator` shades its six leaves as if lit from above, which is
+	 * why you can see one lying across the next.
+	 */
+	color?: string;
+}
+
+/** Timing handed to a custom renderer when its reveal plays. */
+export interface WindowRevealRenderContext {
+	/** How long the reveal runs, in ms. Already resolved and clamped. */
+	duration: number;
+	/** CSS easing to use. */
+	easing: string;
+	/** ms to wait before starting, so the spinner's fade can settle. */
+	delay: number;
+}
+
+/** What a custom renderer hands back to the shell. */
+export interface WindowRevealRendered {
+	/**
+	 * The covering element. Appended into the window body as the
+	 * reveal's single layer, and removed when the reveal finishes.
+	 */
+	element: HTMLElement;
+	/**
+	 * Start the animation. Return every `Animation` driving it — the
+	 * shell hangs teardown off the longest-running one and cancels
+	 * them all if the window reloads mid-reveal.
+	 */
+	play: ( ctx: WindowRevealRenderContext ) => Animation[];
+}
+
 export interface WindowRevealDef {
 	/**
 	 * Unique id matching `/^[a-z0-9_/-]+$/` — lower-case alphanum plus
@@ -47,8 +99,10 @@ export interface WindowRevealDef {
 	 * `clip-path` value for the covering surface at the START of the
 	 * reveal. Must describe a shape that covers the whole window body —
 	 * anything it leaves uncovered shows the content early.
+	 *
+	 * Required unless the def supplies {@link layers} instead.
 	 */
-	from: string;
+	from?: string;
 	/**
 	 * `clip-path` value at the END of the reveal. Must describe an
 	 * empty (or fully off-box) shape, so the content is completely
@@ -56,8 +110,52 @@ export interface WindowRevealDef {
 	 *
 	 * Must use the same shape function as {@link from} — see the
 	 * interpolation contract above.
+	 *
+	 * Required unless the def supplies {@link layers} instead.
 	 */
-	to: string;
+	to?: string;
+	/**
+	 * Several independent covering layers instead of one, each with its
+	 * own matched pair. Supply this OR `from` / `to`, never both.
+	 *
+	 * Use it when the effect depends on pieces **overlapping** each
+	 * other, which a single shape cannot express: one `clip-path` is
+	 * one region, so anything it leaves uncovered is uncovered, full
+	 * stop. With layers, what the user sees uncovered is whatever ALL
+	 * of them leave uncovered — an intersection rather than a shape.
+	 *
+	 * That is exactly what a camera iris is, and why `obturator` uses
+	 * this: six blades, each covering the half-plane beyond its own
+	 * inner edge, leaving a hexagonal aperture between them that grows
+	 * as they retract and slide across one another. Drawn as one hole
+	 * in one surface it would be a growing hexagon, with no blades and
+	 * nothing overlapping.
+	 *
+	 * Every layer animates over the same duration and easing, and each
+	 * gets its own trailing edge — so a mechanism's parts stay visibly
+	 * separate rather than fusing into one silhouette.
+	 */
+	layers?: WindowRevealLayer[];
+	/**
+	 * Build the covering DOM yourself, instead of describing it as
+	 * `clip-path` layers. Supply this OR `from`/`to` OR `layers`.
+	 *
+	 * The escape hatch for effects a stack of clipped boxes cannot
+	 * express. The case that forced it: a camera iris has a **cyclic**
+	 * overlap — every leaf over the next, the last back under the
+	 * first — and paint order is a line, so no stack of layers can
+	 * represent it. Rendered as SVG the problem disappears, because
+	 * the leaves are paths under one mask rather than boxes in a
+	 * z-order, and the animation reduces to a rotation per leaf.
+	 *
+	 * You still get the shell's timing for free: when the reveal plays,
+	 * how long it runs, the user's speed override, the spinner
+	 * hand-off, reduced-motion, and teardown. What you own is the DOM
+	 * and the animations over it.
+	 *
+	 * Called once per window load, so keep it cheap and stateless.
+	 */
+	render?: () => WindowRevealRendered;
 	/**
 	 * Animation duration in ms. Defaults to
 	 * `DEFAULT_REVEAL_DURATION_MS`. Values outside 80–4000 ms are
@@ -84,6 +182,18 @@ export interface WindowRevealDef {
 	 * the reveal.
 	 */
 	surfaceColor?: string;
+	/**
+	 * Paint for the trailing edge, overriding the
+	 * `--desktop-mode-window-reveal-edge` theme token.
+	 *
+	 * Same warning as {@link surfaceColor}, with one extra use: a
+	 * multi-layer reveal usually wants an edge DARKER than its own
+	 * surface, because that dark sliver along each layer's inner border
+	 * is the only thing separating one overlapping part from the next.
+	 * `obturator` sets both for that reason — without it, six
+	 * same-coloured blades read as a single mass.
+	 */
+	edgeColor?: string;
 	/**
 	 * How far, in ms, the reveal's leading EDGE trails the surface
 	 * itself. Defaults to `DEFAULT_REVEAL_EDGE_LAG_MS`; `0` disables

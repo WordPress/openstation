@@ -54,27 +54,49 @@ describe( 'reveals/registry.ts — built-ins', () => {
 		);
 	} );
 
-	test( 'every built-in carries a label, a description and a matched pair', async () => {
-		const { getWindowReveal } = await loadRegistry();
+	test( 'every built-in carries a label, a description and matched pairs', async () => {
+		const { getWindowReveal, revealLayerPairs } = await loadRegistry();
 		for ( const id of BUILT_INS ) {
 			const def = getWindowReveal( id );
 			expect( def, id ).toBeDefined();
 			expect( def?.label, id ).toBeTruthy();
 			expect( def?.description, id ).toBeTruthy();
-			expect( def?.from, id ).toBeTruthy();
-			expect( def?.to, id ).toBeTruthy();
-			expect( def?.from, id ).not.toBe( def?.to );
+			if ( typeof def!.render === 'function' ) {
+				// A rendered reveal owns its DOM; it has no pairs.
+				continue;
+			}
+			// Single-pair and multi-layer defs both normalize to a
+			// non-empty list of pairs that actually go somewhere.
+			const pairs = revealLayerPairs( def! );
+			expect( pairs.length, id ).toBeGreaterThan( 0 );
+			for ( const pair of pairs ) {
+				expect( pair.from, id ).toBeTruthy();
+				expect( pair.to, id ).toBeTruthy();
+				expect( pair.from, id ).not.toBe( pair.to );
+			}
 		}
 	} );
 
-	test( 'only the camera shutter paints its own surface', async () => {
-		// Every other reveal is a shape the site colours through the
-		// theme token; hard-coding paint takes that choice away. The
-		// shutter is the exception because near-black blades ARE what
-		// make it a shutter.
+	test( 'the camera shutter renders itself rather than clipping layers', async () => {
+		// A lens iris has a cyclic overlap, and paint order is linear —
+		// no stack of clipped layers can represent it. It renders SVG
+		// instead; the mechanism itself is covered in
+		// `window-reveal-obturator.test.ts`.
+		const { getWindowReveal, revealLayerPairs } = await loadRegistry();
+		const def = getWindowReveal( 'obturator' )!;
+		expect( typeof def.render ).toBe( 'function' );
+		expect( def.from ).toBeUndefined();
+		expect( def.to ).toBeUndefined();
+		expect( def.layers ).toBeUndefined();
+		expect( revealLayerPairs( def ) ).toEqual( [] );
+	} );
+
+	test( 'no built-in hard-codes a single surface colour', async () => {
+		// A reveal is a shape; the site colours it through the theme
+		// token. Hard-coding paint takes that choice away from every
+		// theme the reveal will ever run under.
 		const { getWindowReveal } = await loadRegistry();
-		expect( getWindowReveal( 'obturator' )?.surfaceColor ).toBeTruthy();
-		for ( const id of BUILT_INS.filter( ( i ) => i !== 'obturator' ) ) {
+		for ( const id of BUILT_INS ) {
 			expect( getWindowReveal( id )?.surfaceColor, id ).toBeUndefined();
 		}
 	} );

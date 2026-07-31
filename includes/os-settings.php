@@ -83,9 +83,9 @@ function desktop_mode_default_os_settings() {
 		'appliedThemeRecommendations' => array(),
 		'unfocusEffect'               => 'darken',
 		// Window-reveal id — the clip-path transition that uncovers a
-		// window's content once it finishes loading. `sweep` is the
-		// shipped default; `none` restores the plain opacity fade.
-		'windowReveal'                => 'sweep',
+		// window's content once it finishes loading. Off by default;
+		// `none` is the plain opacity fade the shell has always had.
+		'windowReveal'                => 'none',
 		// Global reveal duration override in ms. 0 means "use each
 		// reveal's own tuned timing" — the shipped reveals have
 		// durations chosen per shape (Radar's full turn is slower

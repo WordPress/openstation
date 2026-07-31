@@ -2279,11 +2279,14 @@ The surface is a **sibling of the `<iframe>`** inside `.desktop-mode-window__bod
 | `id` | `string` | Unique. `[a-z0-9_/-]+` (slashes welcome for `vendor/sub-id`). `'none'` is reserved (the selector's "no reveal" sentinel). Re-registering replaces. |
 | `label` | `string` | Shown in the selector. |
 | `description` | `string` | Optional. Shown under the selector when this reveal is active. |
-| `from` | `string` | `clip-path` for the covering surface at the START. Must cover the whole body — anything it leaves uncovered shows the content early. |
-| `to` | `string` | `clip-path` at the END. Must be empty or fully off-box, so the content is completely uncovered when the animation lands. |
+| `from` | `string` | `clip-path` for the covering surface at the START. Must cover the whole body — anything it leaves uncovered shows the content early. Required unless you supply `layers`. |
+| `to` | `string` | `clip-path` at the END. Must be empty or fully off-box, so the content is completely uncovered when the animation lands. Required unless you supply `layers`. |
+| `layers` | `{ from, to, color? }[]` | Several independent covering layers instead of one. See **Multi-layer reveals** below. |
+| `render` | `() => { element, play }` | Build the covering DOM yourself. See **Rendering your own** below. Supply exactly one of `from`/`to`, `layers`, or `render`. |
 | `duration` | `number` | Optional, ms. Defaults to `460`. Clamped to 80–4000. Overridden by the user's OS-Settings speed and by the theme token — see **Speed** below. |
 | `easing` | `string` | Optional CSS easing. Defaults to `cubic-bezier( 0.33, 0, 0.2, 1 )`. |
-| `surfaceColor` | `string` | Optional `background` value for the covering surface, overriding the theme token. Reach for it only when the paint **is** the reveal — see the note below. |
+| `surfaceColor` | `string` | Optional `background` for the covering surface, overriding the theme token. Reach for it only when the paint **is** the reveal — see the note below. |
+| `edgeColor` | `string` | Optional `background` for the trailing edge, overriding the theme token. A multi-layer reveal usually wants this **darker** than its surface. |
 | `edgeLag` | `number` | Optional, ms the leading edge trails the surface. Defaults to `70`; `0` drops the edge layer. Clamped to 0–600. Overridden outright by the `--desktop-mode-window-reveal-edge-thickness` theme token. |
 | `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
 
@@ -2303,7 +2306,56 @@ wp.desktop.ready( () => {
 } );
 ```
 
-**Two layers.** The **surface**, painted in `--desktop-mode-window-reveal-surface` (**white** by default — it has to be opaque or there is nothing to reveal *from*), and behind it an optional **edge**, painted in `--desktop-mode-window-reveal-edge` (**`transparent`** by default, i.e. off).
+**Multi-layer reveals.** One `clip-path` describes one region, so anything it leaves uncovered *is* uncovered. When the effect depends on pieces **overlapping** each other, that isn't enough — and `layers` is the answer: what the user sees uncovered becomes whatever *all* the layers leave uncovered, an intersection rather than a shape.
+
+**Rendering your own.** `render` is the escape hatch for effects a stack of clipped boxes cannot express. It returns `{ element, play }`: the shell appends your element as the reveal's single layer, then calls `play({ duration, easing, delay })` when the moment comes and hangs teardown off the animations you return.
+
+You still get the shell's timing for free — when the reveal plays, how long, the user's speed override, the spinner hand-off, reduced-motion, and cleanup. What you own is the DOM and the animations over it.
+
+`obturator` is the built-in that needs it, and the reason is instructive. A lens iris has a **cyclic** overlap: every leaf lies over the next, and the last tucks back under the first. That is a circular dependency, and paint order is a linear one — no stack of DOM layers can represent it. Built from layers, the last one has nothing drawn over it and keeps a visibly disproportionate share of the covered area, which reads as one flat region exactly where a seam belongs.
+
+As SVG the problem dissolves rather than being worked around: six equilateral wedges tile a hexagon over the window and each slides tangentially, under a `<mask>` built from the same paths. Nothing restacks — every frame is one `translate` per wedge plus mask compositing, so it stays deterministic and on the compositor. Each wedge's own stroke is what makes the seams render regardless of what is painted over it.
+
+```javascript
+wp.desktop.registerWindowReveal( {
+    id:      'acme/iris',
+    label:   'Iris',
+    edgeLag: 0,             // a rendered reveal has no trailing-edge layer
+    render:  () => {
+        const element = buildMySvg();
+        return {
+            element,
+            play: ( { duration, easing, delay } ) =>
+                bladesOf( element ).map( ( blade ) =>
+                    blade.animate(
+                        [ { transform: 'rotate(0deg)' }, { transform: 'rotate(48deg)' } ],
+                        { duration, easing, delay, fill: 'both' },
+                    ),
+                ),
+        };
+    },
+} );
+```
+
+Every layer shares the reveal's duration and easing.
+
+**Give neighbouring layers different `color`s.** This is not decoration — it is the only thing that makes an overlap visible. Layers of one colour composite into a single silhouette however they are shaped: the part on top is indistinguishable from the part beneath, so the lying-across that makes a mechanism a mechanism never renders. Different tones and every overlap draws itself, because the upper layer's tone wins and its boundary across the lower one *is* the seam. `obturator` shades its six leaves as if lit from above.
+
+The trailing edge cannot do this job. Every edge layer paints behind every surface layer, so an edge only ever shows `union( edges ) − union( surfaces )` — one band around the uncovered area, never per-part seams. Multi-layer reveals normally want `edgeLag: 0`.
+
+```javascript
+wp.desktop.registerWindowReveal( {
+    id:      'acme/split-doors',
+    label:   'Split doors',
+    edgeLag: 0,
+    layers:  [
+        { from: 'inset( 0% 50% 0% 0% )', to: 'inset( 0% 100% 0% 0% )', color: '#3a3a47' },
+        { from: 'inset( 0% 0% 0% 50% )', to: 'inset( 0% 0% 0% 100% )', color: '#4a4a59' },
+    ],
+} );
+```
+
+**Two layer kinds.** The **surface**, painted in `--desktop-mode-window-reveal-surface` (**white** by default — it has to be opaque or there is nothing to reveal *from*), and behind it an optional **edge**, painted in `--desktop-mode-window-reveal-edge` (**`transparent`** by default, i.e. off).
 
 Either layer whose paint resolves to nothing is **dropped rather than animated**. That is what makes `transparent` a working "turn this layer off" value for a theme, and what keeps the off-by-default edge from costing an animation on every window load. The edge runs the *same* `from` → `to` keyframes over a slightly longer duration, so it is permanently a little less far along and peeks out past the surface as a band hugging the clip boundary.
 
@@ -2329,11 +2381,11 @@ Whatever wins, `edgeLag` is scaled by the same ratio, so the edge band keeps its
 - **The reveal always plays**, including on loads fast enough that the spinner's 120 ms entry delay meant it never painted. What varies is only when the animation starts: after the spinner's 250 ms fade-out when there was a spinner, immediately when there was not.
 - **It replays on every load edge** the spinner replays on — a reload, an in-window navigation, a tab switch — not only on first open.
 - **`prefers-reduced-motion` skips the animation** and uncovers the content directly. Same for environments without the Web Animations API.
-- **The colours are theme tokens**: `--desktop-mode-window-reveal-surface` (white) and `--desktop-mode-window-reveal-edge` (`transparent` — no edge). A def can override the surface for itself with `surfaceColor`, but should not unless the paint is the point: `obturator` is the only built-in that does, because near-black blades are what make it a camera shutter.
+- **The colours are theme tokens**: `--desktop-mode-window-reveal-surface` (white) and `--desktop-mode-window-reveal-edge` (`transparent` — no edge). A def can override them with `surfaceColor` / `edgeColor`, or per layer with `layers[].color`, but should not unless the paint is the point. `obturator` is the only built-in that does, and only per layer: its six leaves have to differ from one another or the mechanism reads as a single shape.
 - **A desktop theme can recommend a reveal**, via `recommendedOsSettings.windowReveal` and `recommendedOsSettings.windowRevealDuration` — applied once on first activation, or on demand from the Themes tab's "Apply recommended layout and effects" button.
 - **Registration is JS-only.** Unlike unfocus effects, there is no `desktop_mode_register_window_reveal_script()` PHP companion yet, so a reveal registered by a plugin activated mid-session appears in the selector only after a reload. Same known gap as palettes.
 
-The raw `desktop-mode.window-reveals` JS filter receives the registry array on every read, mirroring `desktop-mode.unfocus-effects` — use it to reorder, remove, or conditionally swap reveals. The user's selection persists in the `windowReveal` OS-settings key (reveal id or `'none'`; default `'sweep'`), readable via `getOsSettings().windowReveal`. An unknown id (a deactivated plugin's reveal still named in user meta) resolves to no reveal rather than to a substitute, and starts working again the moment that plugin re-registers it.
+The raw `desktop-mode.window-reveals` JS filter receives the registry array on every read, mirroring `desktop-mode.unfocus-effects` — use it to reorder, remove, or conditionally swap reveals. The user's selection persists in the `windowReveal` OS-settings key (reveal id or `'none'`, the default — reveals are opt-in), readable via `getOsSettings().windowReveal`. An unknown id (a deactivated plugin's reveal still named in user meta) resolves to no reveal rather than to a substitute, and starts working again the moment that plugin re-registers it.
 
 See [`docs/examples/window-reveal.md`](./examples/window-reveal.md) for a copy-paste recipe, including how to build an interpolable `polygon()` pair.
 
@@ -2783,7 +2835,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `desktop-mode-admin-bar-<mode>` body class), `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'sweep'` default, `'none'` disables) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `desktop-mode-admin-bar-<mode>` body class), `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript

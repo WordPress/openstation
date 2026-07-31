@@ -72,6 +72,7 @@ import {
 	LOADING_OVERLAY_FADE_OUT_MS,
 	LOADING_OVERLAY_SHOW_DELAY_MS,
 } from '../window/constants';
+import { createSharedStore } from '../shared-store';
 import { getActiveWindowReveal, getActiveWindowRevealDuration } from './engine';
 import {
 	clampRevealDuration,
@@ -80,8 +81,13 @@ import {
 	DEFAULT_REVEAL_EASING,
 	getWindowReveal,
 	REVEAL_DURATION_AUTO,
+	revealLayerPairs,
 } from './registry';
-import type { WindowRevealDef } from './types';
+import type {
+	WindowRevealDef,
+	WindowRevealLayer,
+	WindowRevealRenderContext,
+} from './types';
 
 /**
  * Class shared by BOTH reveal layers. Every CSS rule that needs to
@@ -92,6 +98,18 @@ export const REVEAL_SURFACE_CLASS = 'desktop-mode-window__reveal';
 
 /** Modifier marking the trailing edge layer. */
 export const REVEAL_EDGE_CLASS = 'desktop-mode-window__reveal--edge';
+
+/**
+ * Modifier on a layer whose paint comes from its own DOM rather than
+ * from the surface token — a custom `render()`.
+ *
+ * It suppresses the token background outright. Without it the host is
+ * an opaque rectangle UNDER the renderer's own output, so the effect
+ * uncovers that rectangle instead of the page, and the real content
+ * only appears when the layer is finally removed — a clean animation
+ * followed by an abrupt pop.
+ */
+export const REVEAL_CUSTOM_CLASS = 'desktop-mode-window__reveal--custom';
 
 /**
  * Modifier on the window body while a reveal is playing. Its CSS rule
@@ -122,8 +140,42 @@ const ARMED_AT_ATTR = 'data-desktop-mode-reveal-armed';
  */
 const REVEAL_ID_ATTR = 'data-desktop-mode-reveal';
 
+/**
+ * Which of the def's layers this element draws. A single-layer reveal
+ * has one; `obturator` has one per blade. Read back at play time so
+ * each element animates its OWN matched pair — the blades of a
+ * mechanism are not interchangeable.
+ *
+ * @internal
+ */
+const LAYER_INDEX_ATTR = 'data-desktop-mode-reveal-layer';
+
 /** Running animations, so a re-arm can cancel the one it replaces. */
 const running = new WeakMap< HTMLElement, Animation >();
+
+/**
+ * `play` callbacks of custom-rendered reveals, keyed by the element
+ * they belong to. A rendered reveal is armed in one call and played in
+ * another, and the closure over its own DOM is what has to survive
+ * between them — so it travels with the element rather than in a slot
+ * a second window would overwrite.
+ *
+ * **Shared-store backed, and it has to be.** The two halves run in
+ * DIFFERENT BUNDLES: a window's first layers are built by
+ * `createWindowElement` in the window-system bundle, while the shell
+ * bundle is what plays them. A plain module-level `WeakMap` gives each
+ * bundle its own copy, so the arm writes into one and the play reads
+ * an empty other — the reveal is silently dropped on every window
+ * OPEN, while reload still works because that path arms from the shell
+ * side. See AGENTS.md → "Cross-bundle state".
+ *
+ * @internal
+ */
+type RenderedPlay = ( ctx: WindowRevealRenderContext ) => Animation[];
+const renderedStore = createSharedStore< {
+	plays: WeakMap< HTMLElement, RenderedPlay >;
+} >( 'desktop-mode/window-reveal-rendered', () => ( { plays: new WeakMap() } ) );
+const rendered = renderedStore.state.plays;
 
 /**
  * True when the user has asked for reduced motion. Defensive about
@@ -365,9 +417,25 @@ function findSurface( body: HTMLElement ): HTMLElement | null {
 	);
 }
 
-/** Resolve the trailing edge layer inside a body, or `null`. @internal */
+/** Resolve the FIRST trailing edge layer inside a body, or `null`. @internal */
 function findEdge( body: HTMLElement ): HTMLElement | null {
 	return body.querySelector< HTMLElement >( `:scope .${ REVEAL_EDGE_CLASS }` );
+}
+
+/** Every covering surface inside a body — one per def layer. @internal */
+function findSurfaces( body: HTMLElement ): HTMLElement[] {
+	return Array.from(
+		body.querySelectorAll< HTMLElement >(
+			`:scope .${ REVEAL_SURFACE_CLASS }:not( .${ REVEAL_EDGE_CLASS } )`,
+		),
+	);
+}
+
+/** Every trailing edge inside a body — one per def layer. @internal */
+function findEdges( body: HTMLElement ): HTMLElement[] {
+	return Array.from(
+		body.querySelectorAll< HTMLElement >( `:scope .${ REVEAL_EDGE_CLASS }` ),
+	);
 }
 
 /** Every reveal layer inside a body, in DOM order. @internal */
@@ -387,6 +455,8 @@ function findLayers( body: HTMLElement ): HTMLElement[] {
  */
 function createLayer(
 	def: WindowRevealDef,
+	pair: WindowRevealLayer,
+	index: number,
 	armedAt: number,
 	edge: boolean,
 ): HTMLElement {
@@ -395,18 +465,20 @@ function createLayer(
 		? `${ REVEAL_SURFACE_CLASS } ${ REVEAL_EDGE_CLASS }`
 		: REVEAL_SURFACE_CLASS;
 	// A def that owns its paint writes it inline, which outranks the
-	// stylesheet's token rule. The edge layer never takes it — a
-	// reveal's identity colour is its surface, and the edge stays the
-	// theme's to decide.
-	if ( ! edge && typeof def.surfaceColor === 'string' && def.surfaceColor !== '' ) {
-		layer.style.background = def.surfaceColor;
+	// stylesheet's token rule. A per-layer colour is more specific
+	// still: it is what lets neighbouring parts of one mechanism be
+	// told apart, which no single colour can express.
+	const paint = edge ? def.edgeColor : pair.color ?? def.surfaceColor;
+	if ( typeof paint === 'string' && paint !== '' ) {
+		layer.style.background = paint;
 	}
 	// Purely decorative — the window's `role="dialog"` label and the
 	// spinner's own SR label are the loading announcements.
 	layer.setAttribute( 'aria-hidden', 'true' );
 	layer.setAttribute( REVEAL_ID_ATTR, def.id );
+	layer.setAttribute( LAYER_INDEX_ATTR, String( index ) );
 	layer.setAttribute( ARMED_AT_ATTR, String( armedAt ) );
-	layer.style.clipPath = def.from;
+	layer.style.clipPath = pair.from;
 	return layer;
 }
 
@@ -432,12 +504,58 @@ export function createRevealLayers(): HTMLElement[] {
 	if ( ! def ) {
 		return [];
 	}
+	// A def that renders its own DOM gets one layer: whatever it built.
+	// It carries the reveal's marker classes so every existing rule and
+	// lookup — the loading-state selectors, the re-arm sweep, teardown
+	// — keeps working without knowing how the layer was made.
+	if ( typeof def.render === 'function' ) {
+		let built;
+		try {
+			built = def.render();
+		} catch ( err ) {
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[desktop-mode] window reveal "${ def.id }" render threw:`,
+					err,
+				);
+			}
+			return [];
+		}
+		if ( ! built?.element || typeof built.play !== 'function' ) {
+			return [];
+		}
+		const host = built.element;
+		host.classList.add( REVEAL_SURFACE_CLASS );
+		// Its own DOM is the paint; the token background would sit
+		// underneath as an opaque rectangle and be what the effect
+		// uncovers, instead of the page.
+		host.classList.add( REVEAL_CUSTOM_CLASS );
+		host.setAttribute( 'aria-hidden', 'true' );
+		host.setAttribute( REVEAL_ID_ATTR, def.id );
+		host.setAttribute( LAYER_INDEX_ATTR, '0' );
+		host.setAttribute( ARMED_AT_ATTR, String( Date.now() ) );
+		rendered.set( host, built.play );
+		return [ host ];
+	}
+
+	const pairs = revealLayerPairs( def );
+	if ( pairs.length === 0 ) {
+		return [];
+	}
 	const armedAt = Date.now();
 	const layers: HTMLElement[] = [];
+	// Every edge first, then every surface: the two classes carry their
+	// own `z-index`, and keeping the groups contiguous means one
+	// layer's shadow can never land on top of a neighbouring layer's
+	// face.
 	if ( clampRevealEdgeLag( def.edgeLag ) > 0 ) {
-		layers.push( createLayer( def, armedAt, true ) );
+		pairs.forEach( ( pair, i ) =>
+			layers.push( createLayer( def, pair, i, armedAt, true ) ),
+		);
 	}
-	layers.push( createLayer( def, armedAt, false ) );
+	pairs.forEach( ( pair, i ) =>
+		layers.push( createLayer( def, pair, i, armedAt, false ) ),
+	);
 	return layers;
 }
 
@@ -505,6 +623,55 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 		elapsed >= LOADING_OVERLAY_SHOW_DELAY_MS ? LOADING_OVERLAY_FADE_OUT_MS : 0;
 
 	const { duration, edgeLag } = resolveTiming( body, def );
+	const easingValue = def.easing ?? DEFAULT_REVEAL_EASING;
+
+	// A custom-rendered reveal drives its own animation. It also skips
+	// the paint check below: that check reads a layer's background, and
+	// a renderer's paint lives inside its own DOM (an `<svg>`, a
+	// canvas) where a background colour says nothing about whether
+	// anything is drawn.
+	const playRendered = rendered.get( surface );
+	if ( playRendered ) {
+		body.classList.add( REVEALING_BODY_CLASS );
+		const finishRendered = (): void => {
+			running.delete( surface );
+			surface.remove();
+			body.classList.remove( REVEALING_BODY_CLASS );
+		};
+		if ( prefersReducedMotion() || typeof surface.animate !== 'function' ) {
+			window.setTimeout( finishRendered, delay );
+			return;
+		}
+		let animations: Animation[] = [];
+		try {
+			animations = playRendered( {
+				duration,
+				easing: easingValue,
+				delay,
+			} );
+		} catch ( err ) {
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[desktop-mode] window reveal "${ def.id }" play threw:`,
+					err,
+				);
+			}
+		}
+		if ( animations.length === 0 ) {
+			finishRendered();
+			return;
+		}
+		// They all share one duration, so any of them answers for when
+		// the reveal is done.
+		animations[ 0 ].addEventListener( 'finish', finishRendered );
+		animations[ 0 ].addEventListener( 'cancel', () => {
+			running.delete( surface );
+			body.classList.remove( REVEALING_BODY_CLASS );
+		} );
+		// A re-arm cancels through the same map every other layer uses.
+		running.set( surface, animations[ 0 ] );
+		return;
+	}
 
 	// Drop every layer that would paint nothing — the shipped default,
 	// since both colour tokens are `transparent`. This is what keeps a
@@ -513,12 +680,14 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 	// no reveal to play at all: bail before the `--revealing` class, so
 	// the content takes its ordinary fade-in instead of being pinned to
 	// full opacity by a transition that is not happening.
+	// Colour comes from one token (or one def field) for every layer, so
+	// one representative of each group answers for the whole group.
 	const edge = findEdge( body );
 	if ( edge && ( edgeLag <= 0 || paintsNothing( edge ) ) ) {
-		edge.remove();
+		findEdges( body ).forEach( ( el ) => el.remove() );
 	}
 	if ( paintsNothing( surface ) ) {
-		surface.remove();
+		findSurfaces( body ).forEach( ( el ) => el.remove() );
 	}
 	const painting = findLayers( body );
 	if ( painting.length === 0 ) {
@@ -540,39 +709,56 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 		return;
 	}
 
-	const easing = def.easing ?? DEFAULT_REVEAL_EASING;
-	const keyframes = [ { clipPath: def.from }, { clipPath: def.to } ];
+	const easing = easingValue;
+	const pairs = revealLayerPairs( def );
 
-	const play = ( layer: HTMLElement, layerDuration: number ): Animation => {
+	/**
+	 * Animate one element with the pair belonging to ITS layer. A
+	 * mechanism's parts are not interchangeable — blade 3 has to run
+	 * blade 3's path — so the index travels on the element rather than
+	 * being inferred from DOM order, which a dropped group would shift.
+	 */
+	const play = ( layer: HTMLElement, layerDuration: number ): Animation | null => {
+		const pair = pairs[ Number( layer.getAttribute( LAYER_INDEX_ATTR ) ) ];
+		if ( ! pair ) {
+			// The def was re-registered mid-load with fewer layers.
+			// Uncover rather than leave a layer that cannot animate.
+			layer.remove();
+			return null;
+		}
 		// Hint the compositor for the duration only. Left on permanently
 		// it would keep a layer alive for every window in the shell; the
 		// element is removed on finish, which retires the hint with it.
 		layer.style.willChange = 'clip-path';
-		const animation = layer.animate( keyframes, {
-			duration: layerDuration,
-			easing,
-			delay,
-			// `both` holds the `from` shape through the delay, so the
-			// layers stay fully covering while the spinner fades.
-			fill: 'both',
-		} );
+		const animation = layer.animate(
+			[ { clipPath: pair.from }, { clipPath: pair.to } ],
+			{
+				duration: layerDuration,
+				easing,
+				delay,
+				// `both` holds the `from` shape through the delay, so the
+				// layers stay fully covering while the spinner fades.
+				fill: 'both',
+			},
+		);
 		running.set( layer, animation );
 		return animation;
 	};
 
-	// Only layers that survived the paint check are animated. The edge
-	// runs the identical keyframes over a longer span, which is what
-	// keeps it permanently a little behind the surface and therefore
-	// visible as a band along the boundary — and makes it the last
-	// layer to land, so teardown hangs off it when it is there.
-	const survivingSurface = findSurface( body );
-	const survivingEdge = findEdge( body );
-	const surfaceAnimation = survivingSurface
-		? play( survivingSurface, duration )
-		: null;
-	const edgeAnimation = survivingEdge
-		? play( survivingEdge, duration + edgeLag )
-		: null;
+	// Only layers that survived the paint check are animated. Every edge
+	// runs its own layer's keyframes over a longer span, which is what
+	// keeps it permanently a little behind its surface and therefore
+	// visible as a band along that layer's boundary — and makes the
+	// edges the last to land, so teardown hangs off one of them.
+	const surfaceAnimations = findSurfaces( body )
+		.map( ( el ) => play( el, duration ) )
+		.filter( ( a ): a is Animation => a !== null );
+	const edgeAnimations = findEdges( body )
+		.map( ( el ) => play( el, duration + edgeLag ) )
+		.filter( ( a ): a is Animation => a !== null );
+
+	const surfaceAnimation = surfaceAnimations[ 0 ] ?? null;
+	const edgeAnimation = edgeAnimations[ 0 ] ?? null;
 
 	// Events rather than the `finished` promise: cancelling an animation
 	// rejects that promise, and a window closed mid-reveal would surface

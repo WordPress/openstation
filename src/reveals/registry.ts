@@ -29,14 +29,14 @@ import {
 	diamondPair,
 	irisPair,
 	mosaicPair,
-	obturatorPair,
 	radarPair,
 	risePair,
 	shutterPair,
 	slatsPair,
 	sweepPair,
 } from './shapes';
-import type { WindowRevealDef } from './types';
+import { renderObturator } from './obturator';
+import type { WindowRevealDef, WindowRevealLayer } from './types';
 
 type RegistryListener = () => void;
 
@@ -167,6 +167,64 @@ export function clampRevealEdgeLag( lag: number | undefined ): number {
 }
 
 /**
+ * A def's animated layers, normalized. A single-layer def (the common
+ * case) yields one entry built from its own `from` / `to`; a
+ * multi-layer def yields its `layers` verbatim.
+ *
+ * Every consumer works in terms of this list, so nothing downstream
+ * needs to know which form a def was written in.
+ *
+ * @param def A registered reveal.
+ * @return One matched pair per layer. Empty only for a malformed def.
+ */
+export function revealLayerPairs( def: WindowRevealDef ): WindowRevealLayer[] {
+	if ( typeof def.render === 'function' ) {
+		// A custom renderer owns its own DOM; there are no clip-path
+		// pairs to normalize.
+		return [];
+	}
+	if ( Array.isArray( def.layers ) && def.layers.length > 0 ) {
+		return def.layers;
+	}
+	if ( typeof def.from === 'string' && typeof def.to === 'string' ) {
+		return [ { from: def.from, to: def.to } ];
+	}
+	return [];
+}
+
+/**
+ * Validate one matched pair, returning the reasons it cannot be
+ * animated. See the interpolation contract in `./types`.
+ *
+ * @internal
+ */
+function pairErrors( pair: Partial< WindowRevealLayer >, label: string ): string[] {
+	const errors: string[] = [];
+	const fromOk = typeof pair.from === 'string' && pair.from.trim() !== '';
+	const toOk = typeof pair.to === 'string' && pair.to.trim() !== '';
+	if ( ! fromOk ) {
+		errors.push( `${ label }.from (missing — the clip-path covering the window)` );
+	}
+	if ( ! toOk ) {
+		errors.push( `${ label }.to (missing — the clip-path uncovering the window)` );
+	}
+	if ( fromOk && toOk ) {
+		const a = shapeFunction( pair.from as string );
+		const b = shapeFunction( pair.to as string );
+		if ( a === '' || b === '' ) {
+			errors.push(
+				`${ label }.from|to (must be shape functions, e.g. \`inset( … )\` or \`polygon( … )\` — bare keywords like \`none\` cannot be animated)`,
+			);
+		} else if ( a !== b ) {
+			errors.push(
+				`${ label }.from|to (must use the same shape function to interpolate — got \`${ a }()\` and \`${ b }()\`)`,
+			);
+		}
+	}
+	return errors;
+}
+
+/**
  * Register (or replace) a window reveal. Re-registering the same id
  * replaces the previous entry — mirrors WordPress's `register_*`
  * semantics where the latest call wins.
@@ -197,26 +255,38 @@ export function registerWindowReveal( def: WindowRevealDef ): void {
 		if ( typeof def.label !== 'string' || def.label.trim() === '' ) {
 			errors.push( 'label (missing)' );
 		}
-		const fromOk = typeof def.from === 'string' && def.from.trim() !== '';
-		const toOk = typeof def.to === 'string' && def.to.trim() !== '';
-		if ( ! fromOk ) {
-			errors.push( 'from (missing — the clip-path covering the window)' );
-		}
-		if ( ! toOk ) {
-			errors.push( 'to (missing — the clip-path uncovering the window)' );
-		}
-		if ( fromOk && toOk ) {
-			const a = shapeFunction( def.from );
-			const b = shapeFunction( def.to );
-			if ( a === '' || b === '' ) {
-				errors.push(
-					'from|to (must be shape functions, e.g. `inset( … )` or `polygon( … )` — bare keywords like `none` cannot be animated)',
-				);
-			} else if ( a !== b ) {
-				errors.push(
-					`from|to (must use the same shape function to interpolate — got \`${ a }()\` and \`${ b }()\`)`,
-				);
+		const hasRender = def.render !== undefined;
+		const hasLayers = Array.isArray( def.layers );
+		const hasPair = def.from !== undefined || def.to !== undefined;
+		if ( hasRender && typeof def.render !== 'function' ) {
+			errors.push( 'render (not a function)' );
+		} else if ( hasRender && ( hasLayers || hasPair ) ) {
+			errors.push(
+				'render|layers|from|to (supply exactly one of: a from/to pair, a layers array, or a render function)',
+			);
+		} else if ( hasRender ) {
+			// A renderer owns its DOM outright — nothing else to check.
+		} else if ( hasLayers && hasPair ) {
+			errors.push(
+				'layers|from|to (supply EITHER a single from/to pair OR a layers array, not both)',
+			);
+		} else if ( hasLayers ) {
+			if ( def.layers!.length === 0 ) {
+				errors.push( 'layers (empty — supply at least one matched pair)' );
 			}
+			def.layers!.forEach( ( layer, i ) => {
+				if ( ! layer || typeof layer !== 'object' ) {
+					errors.push( `layers[ ${ i } ] (not an object)` );
+					return;
+				}
+				errors.push( ...pairErrors( layer, `layers[ ${ i } ]` ) );
+			} );
+		} else {
+			// Single-layer form. Report against the bare field names, so
+			// the overwhelmingly common case reads as it always has.
+			errors.push(
+				...pairErrors( def, '' ).map( ( e ) => e.replace( /^\./, '' ) ),
+			);
 		}
 	}
 
@@ -440,18 +510,20 @@ registerWindowReveal( {
 	id: 'obturator',
 	label: __( 'Camera shutter' ),
 	description: __(
-		'Six dark blades pivot open from the centre, like the iris of a camera lens.',
+		'Six wedges slide aside in unison, opening a hexagonal aperture from the centre like the iris of a camera lens.',
 	),
-	...obturatorPair(),
-	duration: 640,
-	// The one built-in that paints its own surface. Every other reveal
-	// is a shape the site colours through
-	// `--desktop-mode-window-reveal-surface`, which is transparent by
-	// default; this one IS the near-black of a shutter blade, and in
-	// any other colour it stops being a camera shutter. Deliberately
-	// not pure black — a shutter blade reads as very dark grey, and
-	// #000 against a dark window frame loses the aperture's edge.
-	surfaceColor: '#0b0b0e',
+	// Rendered rather than described as clip-path layers. A lens iris
+	// has a CYCLIC overlap — every leaf over the next, the last back
+	// under the first — and paint order is linear, so no stack of
+	// layers can represent it. As SVG the wedges are paths under one
+	// mask, each sliding tangentially, and the cycle stops mattering.
+	// See `src/reveals/obturator.ts`.
+	render: renderObturator,
+	duration: 720,
+	// A rendered reveal is a single element: the shell's trailing-edge
+	// layer never applies to it, and the leaves' own outlines do that
+	// job far better anyway. See `src/reveals/obturator.ts`.
+	edgeLag: 0,
 } );
 
 registerWindowReveal( {

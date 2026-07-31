@@ -216,6 +216,87 @@ gradient or image works as well as a flat colour. Setting either to
 `transparent` turns that layer off — the shell drops it instead of
 animating something invisible.
 
+## Reveals with more than one moving part
+
+One `clip-path` is one region, so anything it leaves uncovered is
+uncovered. If your effect depends on pieces **overlapping** — a
+mechanism rather than a shape — supply `layers` instead of `from`/`to`.
+The uncovered area then becomes whatever *all* the layers leave
+uncovered:
+
+```javascript
+wp.desktop.registerWindowReveal( {
+    id:      'acme/split-doors',
+    label:   'Split doors',
+    edgeLag: 0,
+    layers:  [
+        { from: 'inset( 0% 50% 0% 0% )', to: 'inset( 0% 100% 0% 0% )', color: '#3a3a47' },
+        { from: 'inset( 0% 0% 0% 50% )', to: 'inset( 0% 0% 0% 100% )', color: '#4a4a59' },
+    ],
+} );
+```
+
+Each layer keeps the same interpolation contract and shares the
+reveal's duration and easing.
+
+**Give neighbouring layers different `color`s.** It is the only thing
+that makes an overlap visible. Layers of one colour composite into a
+single silhouette however you shape them — the part on top is
+indistinguishable from the part beneath, so the lying-across that makes
+a mechanism a mechanism never renders. With different tones, every
+overlap draws itself: the upper layer's tone wins, and its boundary
+across the lower one *is* the seam.
+
+Don't reach for the trailing edge to do this. Every edge layer paints
+behind every surface layer, so an edge can only ever show
+`union( edges ) − union( surfaces )` — one band around the uncovered
+area, never per-part seams. Set `edgeLag: 0` on a multi-layer reveal.
+
+## When layers aren't enough: `render`
+
+Some effects a stack of clipped boxes simply cannot express. `render`
+hands you the DOM instead:
+
+```javascript
+wp.desktop.registerWindowReveal( {
+    id:      'acme/iris',
+    label:   'Iris',
+    edgeLag: 0,             // a rendered reveal has no trailing-edge layer
+    render:  () => {
+        const element = buildMySvg();
+        return {
+            element,
+            play: ( { duration, easing, delay } ) =>
+                bladesOf( element ).map( ( blade ) =>
+                    blade.animate(
+                        [ { transform: 'rotate(0deg)' }, { transform: 'rotate(48deg)' } ],
+                        { duration, easing, delay, fill: 'both' },
+                    ),
+                ),
+        };
+    },
+} );
+```
+
+The shell still owns the timing — when it plays, how long it runs, the
+user's speed setting, the spinner hand-off, reduced-motion, teardown.
+You own the element and the animations, and return every `Animation`
+so the shell can wait on them and cancel them if the window reloads
+mid-reveal.
+
+The built-in `obturator` is why this exists. A lens iris has a
+**cyclic** overlap — every leaf over the next, and the last back under
+the first. That is a circular dependency; paint order is a linear one,
+so no stack of layers can represent it. Built from layers, the last one
+has nothing drawn over it and keeps a visibly disproportionate share of
+the area, which reads as one flat region exactly where a seam belongs.
+
+As SVG it dissolves: six equilateral wedges tile a hexagon over the
+window and each slides tangentially, under a `<mask>` built from the
+same paths. Nothing restacks — every frame is one `translate` per wedge
+plus mask compositing. See
+[`src/reveals/obturator.ts`](../../src/reveals/obturator.ts).
+
 ### When the paint IS the reveal
 
 A def can carry its own surface paint with `surfaceColor`, overriding
@@ -237,6 +318,10 @@ away from every theme your plugin will ever run under. The one shipped
 exception is `obturator` (Camera shutter), whose near-black blades are
 what make it a camera shutter rather than a hexagon. Reach for it only
 when the same is true of yours.
+
+`edgeColor` works the same way, and a multi-layer reveal usually needs
+it: set it **darker** than your surface, or the overlapping parts read
+as a single mass with no visible seams between them.
 
 A desktop theme can also *recommend* a reveal and a speed through its
 manifest, applied once on the user's first activation — see

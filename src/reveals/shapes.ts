@@ -80,25 +80,6 @@ const BLIND_SLATS = 6;
  */
 const VERTICAL_SLATS = 8;
 
-/**
- * Blades in the camera-shutter aperture. Six is the count a real
- * mechanical iris most often has, and a hexagon reads as unmistakably
- * *mechanical* next to the smooth `iris` circle — which is the whole
- * reason both exist.
- *
- * @internal
- */
-const OBTURATOR_BLADES = 6;
-
-/**
- * Degrees the aperture rotates as it opens. A real iris's blades
- * pivot rather than simply sliding outward, and the twist is what
- * sells it; without it the shape is just a growing hexagon.
- *
- * @internal
- */
-const OBTURATOR_SPIN_DEG = 32;
-
 /** Mosaic grid — columns × rows of tiles that open together. @internal */
 const MOSAIC_COLS = 4;
 const MOSAIC_ROWS = 3;
@@ -389,39 +370,6 @@ export function radarSurface( angleDeg: number ): string {
 		] );
 	}
 	return polygonWithHoles( OUTER, [ reverse( arc ) ] );
-}
-
-/**
- * Surface for the **camera shutter** reveal: the full box with a
- * regular-polygon hole that both grows and rotates, like the blades of
- * a mechanical iris pivoting open.
- *
- * The hexagon's inscribed radius at full size is `cos( 30° ) × 105 ≈
- * 91%`, comfortably past the ~70.71% a corner sits at, so the aperture
- * clears the whole window rather than leaving wedges behind.
- *
- * @param t Openness, 0 (fully covered) to 1 (fully open).
- */
-export function obturatorSurface( t: number ): string {
-	const radius = t * CORNER_REACH;
-	const spin = ( t * OBTURATOR_SPIN_DEG * Math.PI ) / 180;
-	const ring: RevealPoint[] = [];
-	for ( let i = 0; i < OBTURATOR_BLADES; i++ ) {
-		const angle =
-			spin - Math.PI / 2 + ( i / OBTURATOR_BLADES ) * Math.PI * 2;
-		ring.push( [
-			50 + Math.cos( angle ) * radius,
-			50 + Math.sin( angle ) * radius,
-		] );
-	}
-	return polygonWithHoles( OUTER, [ reverse( ring ) ] );
-}
-
-/**
- * Matched `{ from, to }` pair for the **camera shutter** reveal.
- */
-export function obturatorPair(): { from: string; to: string } {
-	return { from: obturatorSurface( 0 ), to: obturatorSurface( 1 ) };
 }
 
 /**

@@ -593,6 +593,104 @@ describe( 'reveals/surface.ts — the leading edge', () => {
 	} );
 } );
 
+describe( 'reveals/surface.ts — custom-rendered reveals', () => {
+	/** A minimal renderer: one div, one animation. */
+	function stubRenderer(): {
+		id: string;
+		label: string;
+		render: () => { element: HTMLElement; play: () => Animation[] };
+	} {
+		return {
+			id: 'acme/rendered',
+			label: 'Rendered',
+			render: () => {
+				const element = document.createElement( 'div' );
+				element.dataset.mine = 'yes';
+				return {
+					element,
+					play: () => [
+						element.animate(
+							[ { opacity: '1' }, { opacity: '0' } ],
+							{ duration: 10 },
+						),
+					],
+				};
+			},
+		};
+	}
+
+	test( 'the host suppresses the surface token’s paint', async () => {
+		// Its own DOM is the paint. Left carrying the token background,
+		// the host is an opaque rectangle UNDERNEATH the renderer's
+		// output — so the effect uncovers that rectangle rather than the
+		// page, and the real content only appears when the layer is
+		// removed. A clean animation followed by an abrupt pop.
+		const { surface, engine, registry } = await load();
+		registry.registerWindowReveal( stubRenderer() );
+		engine.setActiveWindowRevealId( 'acme/rendered' );
+
+		const layers = surface.createRevealLayers();
+		expect( layers ).toHaveLength( 1 );
+		expect( layers[ 0 ].classList.contains( surface.REVEAL_CUSTOM_CLASS ) ).toBe(
+			true,
+		);
+		expect( layers[ 0 ].dataset.mine ).toBe( 'yes' );
+	} );
+
+	test( 'a renderer armed in one bundle still plays from another', async () => {
+		// The real shape of the bug this guards. A window's first layers
+		// are built by `createWindowElement` in the WINDOW-SYSTEM bundle,
+		// and the SHELL bundle is what plays them. Module-level state
+		// gives each bundle its own copy, so the arm writes into one map
+		// and the play reads an empty other — the reveal vanished on
+		// every window OPEN while reload still worked, because that path
+		// arms from the shell side.
+		//
+		// Two module instances WITHOUT resetting the shared stores
+		// between them is exactly that situation.
+		installAnimateStub();
+		const armSide = await load();
+		armSide.registry.registerWindowReveal( stubRenderer() );
+		armSide.engine.setActiveWindowRevealId( 'acme/rendered' );
+
+		const win = makeWindow();
+		armSide.surface.armWindowReveal( win );
+		expect( layersOf( win ) ).toHaveLength( 1 );
+
+		// A second, independent copy of the module — the other bundle.
+		vi.resetModules();
+		const playSide: Surface = await import( '../../src/reveals/surface' );
+		expect( playSide ).not.toBe( armSide.surface );
+
+		playSide.playWindowReveal( win );
+
+		// Still on screen and animating: the play was found. Before the
+		// fix the layer was dropped here and nothing ran.
+		expect( layersOf( win ) ).toHaveLength( 1 );
+		expect(
+			bodyOf( win ).classList.contains( playSide.REVEALING_BODY_CLASS ),
+		).toBe( true );
+	} );
+
+	test( 'a renderer that throws leaves the window uncovered', async () => {
+		const spy = vi
+			.spyOn( console, 'error' )
+			.mockImplementation( () => undefined );
+		const { surface, engine, registry } = await load();
+		registry.registerWindowReveal( {
+			id: 'acme/broken-render',
+			label: 'Broken',
+			render: () => {
+				throw new Error( 'boom' );
+			},
+		} );
+		engine.setActiveWindowRevealId( 'acme/broken-render' );
+		expect( surface.createRevealLayers() ).toEqual( [] );
+		expect( spy ).toHaveBeenCalled();
+		spy.mockRestore();
+	} );
+} );
+
 describe( 'reveals/surface.ts — surface paint', () => {
 	test( 'a def’s surfaceColor is written inline, beating the token', async () => {
 		const { surface, engine, registry } = await load();
@@ -627,6 +725,28 @@ describe( 'reveals/surface.ts — surface paint', () => {
 			.createRevealLayers()
 			.find( ( l ) => l.classList.contains( surface.REVEAL_EDGE_CLASS ) )!;
 		expect( edge.style.background ).toBe( '' );
+	} );
+
+	test( 'a per-layer colour beats the def’s surfaceColor', async () => {
+		// Overlapping parts are only visible when neighbours differ, so
+		// the layer's own tone has to outrank a def-wide one.
+		const { surface, engine, registry } = await load();
+		registry.registerWindowReveal( {
+			id: 'acme/shaded',
+			label: 'Shaded',
+			surfaceColor: '#111111',
+			layers: [
+				{ from: 'inset( 0% )', to: 'inset( 100% )', color: '#ff0000' },
+				{ from: 'inset( 0% )', to: 'inset( 100% )' },
+			],
+			edgeLag: 0,
+		} );
+		engine.setActiveWindowRevealId( 'acme/shaded' );
+		const layers = surface.createRevealLayers();
+		expect( layers ).toHaveLength( 2 );
+		expect( layers[ 0 ].style.background ).toBe( 'rgb(255, 0, 0)' );
+		// The layer without its own tone falls back to the def's.
+		expect( layers[ 1 ].style.background ).toBe( 'rgb(17, 17, 17)' );
 	} );
 
 	test( 'a transparent surface AND edge means no reveal at all', async () => {

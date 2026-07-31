@@ -199,10 +199,11 @@ export const DEFAULTS: OsSettingsState = {
 	// will append to it.
 	appliedThemeRecommendations: [],
 	unfocusEffect: 'darken',
-	// `'sweep'` — the calmest of the shipped reveals, and the one that
-	// reads correctly at any window size. `'none'` restores the plain
-	// opacity fade for users who want no transition at all.
-	windowReveal: 'sweep',
+	// Off by default. A reveal is a deliberate flourish on every single
+	// window load, which is the wrong thing to opt a user into on
+	// their behalf — they choose one in OS Settings → Effects. `'none'`
+	// keeps the plain opacity fade the shell has always had.
+	windowReveal: 'none',
 	// 0 = use each reveal's own tuned duration. Any other value is a
 	// global override in ms, set from OS Settings → Effects.
 	windowRevealDuration: 0,

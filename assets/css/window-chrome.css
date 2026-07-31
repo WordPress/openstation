@@ -1004,6 +1004,18 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 /*
+ * A reveal that renders its own DOM (`WindowRevealDef.render`) paints
+ * itself — an `<svg>`, a canvas, whatever it built. The surface token
+ * must NOT apply underneath it: an opaque rectangle behind the
+ * renderer's output is what the effect would end up uncovering, so the
+ * animation would play against a flat colour and the real content
+ * would only appear when the layer is finally removed.
+ */
+.desktop-mode-window__reveal--custom {
+	background: none;
+}
+
+/*
  * While a reveal plays, pin the content to full opacity with no
  * transition. Dropping `--loading` normally starts a 250 ms content
  * fade-in; a reveal running over that fade would show a
