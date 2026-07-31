@@ -71,7 +71,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 6px 8px;
+	padding: 7px 8px;
 	border-radius: 8px;
 	cursor: pointer;
 }
@@ -85,20 +85,51 @@
 }
 
 .dm-agent-chat__conv-avatar {
-	width: 20px;
-	height: 20px;
-	border-radius: 50%;
 	flex: none;
-	background: #fff;
 }
 
-.dm-agent-chat__conv-title {
+/* Two-line row: agent + time on top, the tail of the last message
+   below. Both lines clamp to one line — the sidebar is 190px wide and
+   a wrapping row would push the next conversation out of reach. */
+.dm-agent-chat__conv-text {
 	flex: 1;
 	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.dm-agent-chat__conv-top {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.dm-agent-chat__conv-name {
+	flex: 1;
+	min-width: 0;
+	font-size: 12px;
+	font-weight: 600;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	font-size: 12px;
+}
+
+.dm-agent-chat__conv-time {
+	flex: none;
+	font-size: 11px;
+	opacity: 0.55;
+	font-variant-numeric: tabular-nums;
+}
+
+.dm-agent-chat__conv-preview {
+	min-width: 0;
+	font-size: 11.5px;
+	opacity: 0.65;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .dm-agent-chat__conv-delete {
@@ -136,10 +167,6 @@
 }
 
 .dm-agent-chat__avatar {
-	width: 40px;
-	height: 40px;
-	border-radius: 50%;
-	background: #fff;
 	flex: none;
 }
 
@@ -216,21 +243,6 @@
 	word-break: break-all;
 }
 
-/* Section-level loading — same scale curve as the My WordPress
-   preview loader and the window-loading overlay, instead of the
-   bare 48px component default. */
-.dm-agents__loading {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 100%;
-	min-height: 320px;
-}
-
-.dm-agents__loading wpd-spinner {
-	--wpd-spinner-size: clamp( 96px, 14vw, 192px );
-}
-
 /* Call-to-action buttons under an agent answer. */
 .dm-agent-chat__ctas {
 	display: flex;
@@ -276,11 +288,82 @@
 }
 
 .dm-agent-chat__msg-avatar {
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
-	background: #fff;
 	flex: none;
+}
+
+/* The object a drop / "Send to" handed the agent. Rendered instead of
+   the runner-facing sentence, and clickable — it opens the entity's
+   admin screen in its own window. */
+.dm-agent-chat__attachment {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	inline-size: 100%;
+	min-inline-size: 0;
+	padding: 8px 10px;
+	border: 1px solid rgba( 255, 255, 255, 0.35 );
+	border-radius: 10px;
+	background: rgba( 255, 255, 255, 0.16 );
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.dm-agent-chat__attachment:hover,
+.dm-agent-chat__attachment:focus-visible {
+	background: rgba( 255, 255, 255, 0.28 );
+}
+
+.dm-agent-chat__msg--agent .dm-agent-chat__attachment,
+.dm-agent-chat__msg--error .dm-agent-chat__attachment {
+	border-color: var( --desktop-mode-border, rgba( 0, 0, 0, 0.12 ) );
+	background: rgba( 0, 0, 0, 0.04 );
+}
+
+.dm-agent-chat__msg--agent .dm-agent-chat__attachment:hover,
+.dm-agent-chat__msg--error .dm-agent-chat__attachment:hover {
+	background: rgba( 0, 0, 0, 0.08 );
+}
+
+.dm-agent-chat__attachment-icon {
+	flex: none;
+	font-size: 20px;
+	inline-size: 20px;
+	block-size: 20px;
+}
+
+.dm-agent-chat__attachment-text {
+	flex: 1;
+	min-inline-size: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.dm-agent-chat__attachment-title {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agent-chat__attachment-meta {
+	font-size: 11px;
+	opacity: 0.75;
+}
+
+.dm-agent-chat__attachment-open {
+	flex: none;
+	font-size: 15px;
+	inline-size: 15px;
+	block-size: 15px;
+	opacity: 0.7;
+}
+
+.dm-agent-chat__msg-caption {
+	font-size: 11px;
+	opacity: 0.75;
 }
 
 /* The in-flight bubble: wide enough to read as a live surface, not a

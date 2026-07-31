@@ -24,6 +24,10 @@ export interface AgentConversationSummary {
 	agentDescription: string;
 	agentAvatarUrl: string;
 	title: string;
+	/** Tail of the last message — the sidebar's second line. */
+	preview: string;
+	/** Role that spoke last (`user` | `agent` | `error`), or ''. */
+	lastRole: string;
 	messageCount: number;
 	createdAt: string;
 	updatedAt: string;

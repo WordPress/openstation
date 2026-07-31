@@ -42,6 +42,11 @@ import {
 	subscribeFootprintTarget,
 } from './footprint-target';
 import {
+	AGENTS_ENTITY_ID,
+	readAgentEditorTarget,
+	subscribeAgentEditorTarget,
+} from '../agents-editor-target';
+import {
 	renderBreadcrumbs,
 	type BreadcrumbSegment,
 } from '../desktop-files/breadcrumbs';
@@ -6124,7 +6129,13 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 	// because it lives in a shared store rather than this module's
 	// `pendingRoute`. Consume + clear so a later plain open lands on
 	// root.
+	// A pending agent-editor target (set cross-bundle by an avatar
+	// click in the Agent chat window) routes to the Agents section the
+	// same way. The section renderer — not this router — consumes and
+	// clears the target, because it needs the agent id to preselect
+	// the row and runs synchronously inside `navigate()`.
 	const footprint = readFootprintTarget();
+	const agentEditor = readAgentEditorTarget();
 	let initialRoute: Route;
 	if ( footprint.userId && footprint.userId > 0 ) {
 		initialRoute = footprintRouteFor(
@@ -6132,6 +6143,8 @@ function renderInto( body: HTMLElement ): ( () => void ) | undefined {
 			footprint.userName,
 		);
 		clearFootprintTarget();
+	} else if ( agentEditor.agentId && agentEditor.agentId > 0 ) {
+		initialRoute = { kind: 'list', entityId: AGENTS_ENTITY_ID };
 	} else {
 		initialRoute = pendingRoute ?? { kind: 'root' };
 	}
@@ -6486,6 +6499,17 @@ if ( desktopGlobal ) {
 			footprintRouteFor( next.userId, next.userName ),
 		);
 		clearFootprintTarget();
+	} );
+
+	// Warm re-target for the Agents section — same cold/warm split as
+	// the footprint above. The section renderer clears the target as
+	// it consumes it, and its own clear notifies with a null id, which
+	// this guard drops.
+	subscribeAgentEditorTarget( ( next ) => {
+		if ( ! next.agentId || next.agentId <= 0 || ! activeState ) {
+			return;
+		}
+		navigate( activeState, { kind: 'list', entityId: AGENTS_ENTITY_ID } );
 	} );
 
 	// Live-tile pruning on trash. Every live My WordPress list body

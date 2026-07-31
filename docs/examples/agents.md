@@ -138,6 +138,30 @@ wp.desktop.whenReady( () => {
 } );
 ```
 
+### Hand the agent an object
+
+A transcript row may carry an `attachment` — the entity the message is
+about. The chat renders it as a card instead of the message text, and
+clicking the card opens that object's admin screen in its own window.
+The drag-drop and "Send to" intakes both set it; a plugin pushing its
+own row can too:
+
+```js
+store.state.transcripts[ 12 ].push( {
+	role: 'user',
+	// The prose is what the RUNNER reads — keep it explicit.
+	text: 'Review the post "Hello world" (id 188).',
+	at: Date.now(),
+	// The card is what the USER sees.
+	attachment: { kind: 'post', id: 188, title: 'Hello world' },
+} );
+store.notify();
+```
+
+`kind` is one of `post`, `page`, `media`, `user`, `comment`. The
+attachment is persisted with the conversation, so a reopened
+transcript still shows the card.
+
 ## Safety knobs
 
 ```php

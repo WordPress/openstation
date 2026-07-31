@@ -43,6 +43,10 @@ import { createSharedStore } from '../shared-store';
 import { refreshSendToAgents } from './agents-send-to';
 import { openAgentChat } from '../agents-chat-store';
 import {
+	clearAgentEditorTarget,
+	readAgentEditorTarget,
+} from '../agents-editor-target';
+import {
 	agentAcceptsDrop,
 	describeDragEntity,
 	dispatchAgentDrop,
@@ -103,6 +107,18 @@ function agentsConfig(): AgentsSectionConfig {
 			connectorsUrl: '',
 			runWindowId: 'desktop-mode-agent-run',
 		}
+	);
+}
+
+/**
+ * Whether the site folder still exposes a Users section. The
+ * GitHub-style contributions view is a route under it, so the
+ * "View contributions" button hides when a filter dropped the entity.
+ */
+function hasUsersEntity(): boolean {
+	const { entities } = getConfig();
+	return (
+		Array.isArray( entities ) && entities.some( ( e ) => e.id === 'users' )
 	);
 }
 
@@ -252,6 +268,26 @@ async function sendAgentToDesktop( agent: Agent ): Promise< string > {
 	}
 }
 
+/**
+ * `<wpd-option>` list for a role picker. A role the agent already
+ * carries but the site no longer registers (a plugin that shipped it
+ * was deactivated) is appended so the select shows the truth instead
+ * of silently reading as the first registered role.
+ */
+function roleOptions( roles: RoleChoice[], current: string ) {
+	const known = roles.some( ( r ) => r.slug === current );
+	return html`
+		${ roles.map(
+			( role ) => html`
+				<wpd-option value=${ role.slug }>${ role.label }</wpd-option>
+			`,
+		) }
+		${ current && ! known
+			? html`<wpd-option value=${ current }>${ current }</wpd-option>`
+			: html`` }
+	`;
+}
+
 function draftFromAgent( agent: Agent | null ): AgentsState[ 'draft' ] {
 	return {
 		name: agent?.name ?? '',
@@ -284,6 +320,17 @@ export function renderAgents( host: EntityRenderHost ): void {
 		draft: draftFromAgent( null ),
 		createDraft: { name: '', description: '', instructions: '', role: 'author' },
 	};
+
+	// Arriving from an agent avatar in the chat window: preselect that
+	// agent. Consumed HERE rather than in the router because this
+	// renderer runs synchronously inside `navigate()` — the target is
+	// guaranteed to still be set, and clearing it here means a later
+	// plain open of the section lands wherever the user left it.
+	const pendingEditor = readAgentEditorTarget();
+	if ( pendingEditor.agentId && pendingEditor.agentId > 0 ) {
+		state.selectedId = pendingEditor.agentId;
+		clearAgentEditorTarget();
+	}
 
 	let disposed = false;
 	const mountId = ++agentsMountSeq;
@@ -594,8 +641,31 @@ export function renderAgents( host: EntityRenderHost ): void {
 		`;
 	};
 
+	// "Create agent" lives ABOVE the list, not after the last row: at
+	// the bottom of a scrolling column it drifts off-screen exactly on
+	// the sites that have enough agents to need it.
 	const listPane = () => html`
-		<div class="dm-agents__list" role="listbox" aria-label=${ __( 'Agents', 'desktop-mode' ) }>
+		<div class="dm-agents__sidebar">
+			${ cfg.canManage
+				? html`
+						<div class="dm-agents__list-toolbar">
+							<wpd-button
+								class="dm-agents__create"
+								variant="primary"
+								?disabled=${ state.saving }
+								@click=${ () => {
+									state.creating = true;
+									state.notice = '';
+									void ensureRoles();
+									paint();
+								} }
+							>
+								${ __( '+ Create agent', 'desktop-mode' ) }
+							</wpd-button>
+						</div>
+				  `
+				: html`` }
+			<div class="dm-agents__list" role="listbox" aria-label=${ __( 'Agents', 'desktop-mode' ) }>
 			${ state.agents.map(
 				( agent ) => html`
 					<div
@@ -625,22 +695,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 					</div>
 				`,
 			) }
-			${ cfg.canManage
-				? html`
-						<wpd-button
-							class="dm-agents__create"
-							?disabled=${ state.saving }
-							@click=${ () => {
-								state.creating = true;
-								state.notice = '';
-								void ensureRoles();
-								paint();
-							} }
-						>
-							${ __( '+ Create agent', 'desktop-mode' ) }
-						</wpd-button>
-				  `
-				: html`` }
+			</div>
 		</div>
 	`;
 
@@ -717,14 +772,31 @@ export function renderAgents( host: EntityRenderHost ): void {
 							${ __( 'Role', 'desktop-mode' ) }: ${ agent.role }
 					  </p>`
 					: html`
-							<wpd-text-field
-								label=${ __( 'Role', 'desktop-mode' ) }
-								value=${ state.draft.role }
-								@wpd-input-change=${ ( e: CustomEvent< { value: string } > ) => {
-									state.draft.role = e.detail.value;
-									paint();
-								} }
-							></wpd-text-field>
+							${ state.roles
+								? html`
+										<wpd-select
+											label=${ __( 'Role', 'desktop-mode' ) }
+											value=${ state.draft.role }
+											@wpd-pick=${ ( e: CustomEvent< { value: string } > ) => {
+												state.draft.role =
+													e.detail?.value ?? state.draft.role;
+												paint();
+											} }
+										>
+											${ roleOptions( state.roles, state.draft.role ) }
+										</wpd-select>
+								  `
+								: html`
+										<wpd-select
+											label=${ __( 'Role', 'desktop-mode' ) }
+											value=${ state.draft.role }
+											disabled
+										>
+											<wpd-option value=${ state.draft.role }>
+												${ state.draft.role }
+											</wpd-option>
+										</wpd-select>
+								  ` }
 							<p class="dm-agents__hint">
 								${ __(
 									'The agent acts with this role\'s capabilities — pick the least privilege that still lets it do its job.',
@@ -754,7 +826,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 
 	const toolsPane = ( agent: Agent ) => {
 		if ( state.abilities === null ) {
-			return html`<div class="dm-agents__pane"><wpd-spinner></wpd-spinner></div>`;
+			return html`<div class="dm-agents__pane dm-agents__pane--loading">
+				<wpd-spinner></wpd-spinner>
+			</div>`;
 		}
 		const byCategory = new Map< string, Ability[] >();
 		for ( const ability of state.abilities ) {
@@ -881,7 +955,9 @@ export function renderAgents( host: EntityRenderHost ): void {
 
 	const triggersPane = ( agent: Agent ) => {
 		if ( state.triggerKinds === null ) {
-			return html`<div class="dm-agents__pane"><wpd-spinner></wpd-spinner></div>`;
+			return html`<div class="dm-agents__pane dm-agents__pane--loading">
+				<wpd-spinner></wpd-spinner>
+			</div>`;
 		}
 		const kindLabel = ( slug: string ): string =>
 			state.triggerKinds?.find( ( k ) => k.slug === slug )?.label ?? slug;
@@ -992,11 +1068,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 								state.createDraft.role = e.detail?.value ?? state.createDraft.role;
 							} }
 						>
-							${ state.roles.map(
-								( role ) => html`
-									<wpd-option value=${ role.slug }>${ role.label }</wpd-option>
-								`,
-							) }
+							${ roleOptions( state.roles, state.createDraft.role ) }
 						</wpd-select>
 				  `
 				: html`<wpd-spinner></wpd-spinner>` }
@@ -1064,9 +1136,26 @@ export function renderAgents( host: EntityRenderHost ): void {
 					<h3>${ agent.name }</h3>
 					<span class="dm-agents__detail-slug">@agent-${ agent.slug }</span>
 				</div>
+			</div>
+			<div class="dm-agents__detail-actions">
 				<wpd-button @click=${ () => openAgentProfile( agent ) }>
 					${ __( 'Open profile', 'desktop-mode' ) }
 				</wpd-button>
+				${ hasUsersEntity()
+					? html`
+							<wpd-button
+								@click=${ () =>
+									host.navigate( {
+										kind: 'user-footprint',
+										entityId: 'users',
+										userId: agent.id,
+										userName: agent.name,
+									} ) }
+							>
+								${ __( 'View contributions', 'desktop-mode' ) }
+							</wpd-button>
+					  `
+					: html`` }
 				${ cfg.canManage
 					? html`
 							<wpd-button
@@ -1086,6 +1175,7 @@ export function renderAgents( host: EntityRenderHost ): void {
 				${ cfg.canInvoke
 					? html`
 							<wpd-button
+								variant="primary"
 								?disabled=${ state.aiReady === false }
 								@click=${ () => openChatWindow( agent ) }
 							>
@@ -1150,6 +1240,10 @@ export function renderAgents( host: EntityRenderHost ): void {
 	paint();
 	void load();
 	void probeAi();
+	// The Define pane's role picker needs the catalogue as soon as an
+	// agent is selected, which happens the moment the list resolves —
+	// fetch alongside the list rather than on the first click.
+	void ensureRoles();
 }
 
 registerEntityKind( 'agent', renderAgents );

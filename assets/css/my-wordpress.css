@@ -1900,11 +1900,19 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	box-sizing: border-box;
 }
 
+/* Section-level loading — same scale curve as the My WordPress
+   preview loader and the window-loading overlay, instead of the bare
+   48px component default. */
 .dm-agents__loading {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	height: 100%;
+	min-height: 320px;
+}
+
+.dm-agents__loading wpd-spinner {
+	--wpd-spinner-size: clamp( 96px, 14vw, 192px );
 }
 
 .dm-agents__layout {
@@ -1914,14 +1922,42 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	gap: 12px;
 }
 
+/* Sidebar column: a fixed "Create agent" header over the scrolling
+   list. The button used to be the list's last child, which put it out
+   of reach on any site with enough agents to need it. */
+.dm-agents__sidebar {
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 260px;
+	/* `min-width: auto` on a flex item resolves to its min-content
+	   width, and the rows carry long `white-space: nowrap` descriptions
+	   — without this the column ignores its 260px basis and eats the
+	   detail pane. The scroll container used to be this item, whose
+	   non-visible overflow zeroed the minimum for free. */
+	min-width: 0;
+	min-height: 0;
+	border-inline-end: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__list-toolbar {
+	flex: none;
+	display: flex;
+	padding-block-end: 8px;
+	padding-inline-end: 8px;
+}
+
+.dm-agents__list-toolbar .dm-agents__create {
+	flex: 1;
+}
+
 .dm-agents__list {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
-	flex: 0 0 260px;
+	flex: 1;
+	min-height: 0;
 	overflow-y: auto;
-	padding-right: 4px;
-	border-right: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	padding-inline-end: 4px;
 }
 
 .dm-agents__row {
@@ -1971,9 +2007,6 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	text-overflow: ellipsis;
 }
 
-.dm-agents__create {
-	margin-top: 8px;
-}
 
 .dm-agents__detail {
 	flex: 1;
@@ -2013,6 +2046,15 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	opacity: 0.6;
 }
 
+/* Verbs get their own row under the identity block: the set grows
+   (profile, contributions, desktop, chat, delete) and squeezing them
+   beside the name truncated it first. */
+.dm-agents__detail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
 .dm-agents__tabs {
 	display: flex;
 	gap: 4px;
@@ -2042,6 +2084,20 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	flex-direction: column;
 	gap: 10px;
 	padding-bottom: 12px;
+}
+
+/* Pane-level loading: same big, centered WordPress mark the section
+   loader uses, instead of a bare 48px spinner pinned to the top-left
+   of the pane. */
+.dm-agents__pane--loading {
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	min-height: 260px;
+}
+
+.dm-agents__pane--loading wpd-spinner {
+	--wpd-spinner-size: clamp( 96px, 12vw, 160px );
 }
 
 .dm-agents__hint {

@@ -102,6 +102,152 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The list's second line reads from the END of the conversation:
+	 * the title comes from the first user message, so every chat that
+	 * starts the same way looks identical without it.
+	 *
+	 * @covers ::desktop_mode_agent_conversation_preview
+	 */
+	public function test_preview_reads_the_tail_of_the_last_message() {
+		$short = desktop_mode_agent_conversation_preview(
+			array(
+				array(
+					'role' => 'user',
+					'text' => 'Summarize post 12',
+					'at'   => 1,
+				),
+				array(
+					'role' => 'agent',
+					'text' => "Done.\n\nHere  it is.",
+					'at'   => 2,
+				),
+			)
+		);
+		// Whitespace is collapsed so a multi-line answer stays one line.
+		$this->assertSame( 'Done. Here it is.', $short );
+
+		$tail = str_repeat( 'a', 200 ) . ' and search relevance.';
+		$long = desktop_mode_agent_conversation_preview(
+			array(
+				array(
+					'role' => 'agent',
+					'text' => $tail,
+					'at'   => 1,
+				),
+			)
+		);
+		$this->assertStringStartsWith( '…', $long );
+		$this->assertStringEndsWith( 'and search relevance.', $long );
+		$this->assertSame(
+			DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP + 1,
+			mb_strlen( $long )
+		);
+
+		$this->assertSame( '', desktop_mode_agent_conversation_preview( array() ) );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_conversation_preview
+	 */
+	public function test_preview_prefers_the_attachment_title() {
+		$preview = desktop_mode_agent_conversation_preview(
+			array(
+				array(
+					'role'       => 'user',
+					'text'       => 'The user dropped the post "Hello world" (id 12) onto you.',
+					'at'         => 1,
+					'attachment' => array(
+						'kind'  => 'post',
+						'id'    => 12,
+						'title' => 'Hello world',
+					),
+				),
+			)
+		);
+		$this->assertSame( 'Hello world', $preview );
+	}
+
+	/**
+	 * A dropped / "Send to" object survives the round-trip so a
+	 * reopened conversation still renders the clickable card.
+	 *
+	 * @covers ::desktop_mode_agent_conversation_sanitize_attachment
+	 * @covers ::desktop_mode_agent_conversation_prepare
+	 */
+	public function test_attachments_round_trip_and_are_validated() {
+		$data = $this->create_conversation(
+			array(
+				array(
+					'role'       => 'user',
+					'text'       => 'Handle this one.',
+					'at'         => 1,
+					'attachment' => array(
+						'kind'  => 'media',
+						'id'    => '44',
+						'title' => '<em>Hornet</em>',
+					),
+				),
+				array(
+					'role'       => 'agent',
+					'text'       => 'Rejected — unknown kind.',
+					'at'         => 2,
+					'attachment' => array(
+						'kind'  => 'widget',
+						'id'    => 7,
+						'title' => 'Nope',
+					),
+				),
+				array(
+					'role'       => 'agent',
+					'text'       => 'Rejected — no id.',
+					'at'         => 3,
+					'attachment' => array(
+						'kind'  => 'post',
+						'id'    => 0,
+						'title' => 'Nope',
+					),
+				),
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'kind'  => 'media',
+				'id'    => 44,
+				'title' => 'Hornet',
+			),
+			$data['messages'][0]['attachment']
+		);
+		$this->assertArrayNotHasKey( 'attachment', $data['messages'][1] );
+		$this->assertArrayNotHasKey( 'attachment', $data['messages'][2] );
+
+		// Titleless attachments fall back to the id so the card always
+		// has something to render.
+		$this->assertSame(
+			'#9',
+			desktop_mode_agent_conversation_sanitize_attachment(
+				array(
+					'kind' => 'user',
+					'id'   => 9,
+				)
+			)['title']
+		);
+		$this->assertNull(
+			desktop_mode_agent_conversation_sanitize_attachment( 'not-an-array' )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_conversation_prepare
+	 */
+	public function test_prepare_ships_preview_and_last_role() {
+		$data = $this->create_conversation();
+
+		$this->assertSame( 'Here is the summary.', $data['preview'] );
+		$this->assertSame( 'agent', $data['lastRole'] );
+	}
+
+	/**
 	 * @covers ::desktop_mode_agents_rest_conversations_create
 	 */
 	public function test_create_rejects_non_agent_target() {

@@ -9,6 +9,10 @@ import {
 	agentsChatStore,
 	openAgentChat,
 } from '../../src/agents-chat-store';
+import {
+	agentEditorTarget,
+	clearAgentEditorTarget,
+} from '../../src/agents-editor-target';
 
 const WINDOW_ID = 'desktop-mode-agent-run';
 
@@ -154,7 +158,7 @@ describe( 'agent chat window', () => {
 		}
 	} );
 
-	test( 'rows carry avatars, agent markdown renders, and New chat resets', () => {
+	test( 'rows carry avatars, agent markdown renders, and New chat resets', async () => {
 		const body = makeBody();
 		const cleanup = getRender()( body );
 		openAgentChat( {
@@ -170,11 +174,18 @@ describe( 'agent chat window', () => {
 		agentsChatStore.notify();
 
 		// WhatsApp-style: agent avatar left row, viewer avatar from the
-		// window config on the user row.
+		// window config on the user row. `<wpd-avatar>` rather than a
+		// bare `<img>` so a Gravatar-less viewer gets initials instead
+		// of the mystery-person silhouette — the URL lands on the
+		// element once the resolver's probe settles.
+		await flush();
 		const agentAvatar = body.querySelector(
 			'.dm-agent-chat__line--agent .dm-agent-chat__msg-avatar',
-		) as HTMLImageElement;
-		expect( agentAvatar?.src ).toBe( 'https://example.test/agent.svg' );
+		) as HTMLElement;
+		expect( agentAvatar?.tagName.toLowerCase() ).toBe( 'wpd-avatar' );
+		expect( agentAvatar?.getAttribute( 'src' ) ).toBe(
+			'https://example.test/agent.svg',
+		);
 		expect(
 			body.querySelector(
 				'.dm-agent-chat__line--user .dm-agent-chat__msg-avatar',
@@ -468,6 +479,8 @@ describe( 'agent chat window', () => {
 			agentDescription: 'Remembers things.',
 			agentAvatarUrl: 'https://example.test/bot.svg',
 			title: 'Summarize post 12',
+			preview: '…and search relevance.',
+			lastRole: 'agent',
 			messageCount: 2,
 			createdAt: '2026-07-30T10:00:00Z',
 			updatedAt: '2026-07-30T10:05:00Z',
@@ -506,10 +519,24 @@ describe( 'agent chat window', () => {
 		const cleanup = getRender()( body );
 		await flush();
 
-		// The list paints even with no active agent.
+		// The list paints even with no active agent. Two lines: who the
+		// conversation is with, and where it got to — NOT the title,
+		// which repeats across every conversation that opens the same
+		// way. The title stays as the row tooltip.
 		const row = body.querySelector< HTMLElement >( '.dm-agent-chat__conv' );
 		expect( row ).not.toBeNull();
-		expect( row!.textContent ).toContain( 'Summarize post 12' );
+		expect(
+			row!.querySelector( '.dm-agent-chat__conv-name' )!.textContent,
+		).toBe( 'Historian' );
+		expect(
+			row!.querySelector( '.dm-agent-chat__conv-preview' )!.textContent,
+		).toBe( '…and search relevance.' );
+		const time = row!.querySelector< HTMLTimeElement >(
+			'.dm-agent-chat__conv-time',
+		)!;
+		expect( time.dateTime ).toBe( '2026-07-30T10:05:00Z' );
+		expect( time.textContent ).not.toBe( '' );
+		expect( row!.title ).toContain( 'Summarize post 12' );
 
 		row!.click();
 		await flush();
@@ -522,6 +549,119 @@ describe( 'agent chat window', () => {
 
 		if ( typeof cleanup === 'function' ) {
 			cleanup();
+		}
+	} );
+
+	test( 'clicking a conversation avatar opens the agent editor, not the conversation', async () => {
+		const summary = {
+			id: 77,
+			agentId: 9,
+			agentName: 'Historian',
+			agentDescription: 'Remembers things.',
+			agentAvatarUrl: 'https://example.test/bot.svg',
+			title: 'Summarize post 12',
+			preview: 'Done.',
+			lastRole: 'agent',
+			messageCount: 2,
+			createdAt: '2026-07-30T10:00:00Z',
+			updatedAt: '2026-07-30T10:05:00Z',
+		};
+		const fetchMock: FetchMock = vi.fn( async ( input: unknown ) => ( {
+			ok: true,
+			status: 200,
+			json: async () =>
+				String( input ).endsWith( '/agents/conversations' )
+					? [ summary ]
+					: {},
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		const openWindow = vi.fn( () => true );
+		( window as unknown as Record< string, unknown > ).wp = {
+			desktop: { openWindow },
+		};
+
+		try {
+			const body = makeBody();
+			const cleanup = getRender()( body );
+			await flush();
+
+			const avatar = body.querySelector< HTMLElement >(
+				'.dm-agent-chat__conv-avatar',
+			)!;
+			expect( avatar.hasAttribute( 'clickable' ) ).toBe( true );
+			avatar.click();
+			await flush();
+
+			expect( openWindow ).toHaveBeenCalledWith(
+				'desktop-mode-my-wordpress',
+				{ source: 'agents/editor' },
+			);
+			expect( agentEditorTarget.state.agentId ).toBe( 9 );
+			// The row's own click handler must NOT have run — the
+			// conversation stays closed.
+			expect( agentsChatStore.state.activeAgent ).toBeNull();
+
+			if ( typeof cleanup === 'function' ) {
+				cleanup();
+			}
+		} finally {
+			clearAgentEditorTarget();
+			delete ( window as unknown as Record< string, unknown > ).wp;
+		}
+	} );
+
+	test( 'a message attachment renders as a card that opens the object', () => {
+		const open = vi.fn();
+		( window as unknown as Record< string, unknown > ).wp = {
+			desktop: {
+				config: { adminUrl: 'https://example.test/wp-admin/' },
+				deriveWindowId: () => 'post-php-188',
+				windowManager: { open },
+			},
+		};
+
+		try {
+			const body = makeBody();
+			const cleanup = getRender()( body );
+			openAgentChat( {
+				id: 5,
+				name: 'Audit Agent',
+				description: '',
+				avatarUrl: 'data:image/svg+xml;base64,x',
+			} );
+			agentsChatStore.state.transcripts[ 5 ] = [
+				{
+					role: 'user',
+					text: 'The user dropped the post "Hello world" (id 188) onto you.',
+					at: 1,
+					attachment: { kind: 'post', id: 188, title: 'Hello world' },
+				},
+			];
+			agentsChatStore.notify();
+
+			const card = body.querySelector< HTMLElement >(
+				'.dm-agent-chat__attachment',
+			)!;
+			expect( card ).not.toBeNull();
+			expect( card.textContent ).toContain( 'Hello world' );
+			// The runner-facing sentence is replaced by the card.
+			expect( body.textContent ).not.toContain( 'The user dropped' );
+
+			card.click();
+			expect( open ).toHaveBeenCalledWith(
+				expect.objectContaining( {
+					id: 'post-php-188',
+					url: 'https://example.test/wp-admin/post.php?post=188&action=edit',
+					title: 'Hello world',
+				} ),
+			);
+
+			if ( typeof cleanup === 'function' ) {
+				cleanup();
+			}
+		} finally {
+			delete ( window as unknown as Record< string, unknown > ).wp;
 		}
 	} );
 

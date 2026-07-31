@@ -25,6 +25,7 @@ import {
 	agentsChatStore,
 	openAgentChat,
 	type AgentChatAgent,
+	type AgentChatAttachment,
 	type AgentChatMessage,
 } from './agents-chat-store';
 import { persistAgentTranscript } from './agents-conversations';
@@ -213,7 +214,17 @@ export function dispatchAgentSendTo(
 		composeSendToMessage( entity ),
 		rest,
 		'send-to',
+		attachmentFromEntity( entity ),
 	);
+}
+
+/**
+ * The stored, chat-renderable form of a dropped / sent entity.
+ * Spelled out field by field so the transcript payload stays a stable
+ * triple even if {@link DroppedEntity} grows.
+ */
+function attachmentFromEntity( entity: DroppedEntity ): AgentChatAttachment {
+	return { kind: entity.kind, id: entity.id, title: entity.title };
 }
 
 /**
@@ -257,6 +268,7 @@ export async function invokeAgentIntoTranscript(
 	message: string,
 	rest: { restRoot: string; restNonce: string },
 	source: 'chat' | 'drag' | 'send-to',
+	attachment?: AgentChatAttachment,
 ): Promise< void > {
 	openAgentChat( agent );
 	const transcript = agentsChatStore.state.transcripts[ agent.id ];
@@ -267,7 +279,10 @@ export async function invokeAgentIntoTranscript(
 	const history = transcript
 		.filter( ( row ) => ! row.pending && row.role !== 'error' )
 		.map( ( row ) => ( { role: row.role, text: row.text } ) );
-	transcript.push( { role: 'user', text: message, at: Date.now() } );
+	// The attachment rides ALONGSIDE the composed sentence, never
+	// instead of it: the model keeps reading the same prose it always
+	// did, the chat gains an object it can open.
+	transcript.push( { role: 'user', text: message, at: Date.now(), attachment } );
 	const pending: AgentChatMessage = {
 		role: 'agent',
 		text: __( 'Working…', 'desktop-mode' ),
@@ -347,5 +362,6 @@ export function dispatchAgentDrop(
 		composeDropMessage( entity ),
 		rest,
 		'drag',
+		attachmentFromEntity( entity ),
 	);
 }

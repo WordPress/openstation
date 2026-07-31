@@ -26,10 +26,24 @@ export interface AgentChatAgent {
 	avatarUrl: string;
 }
 
+/**
+ * The entity a message carried into the conversation — a drag drop or
+ * a "Send to" pick. Stored as the identity triple only; the chat
+ * resolves the object's admin URL at click time, so an old transcript
+ * never holds a stale link.
+ */
+export interface AgentChatAttachment {
+	kind: 'post' | 'page' | 'media' | 'user' | 'comment';
+	id: number;
+	title: string;
+}
+
 /** One transcript row. */
 export interface AgentChatMessage {
 	role: 'user' | 'agent' | 'error';
 	text: string;
+	/** Object the user handed the agent with this message, if any. */
+	attachment?: AgentChatAttachment;
 	toolCalls?: AgentToolCall[];
 	/** Confirmation buttons the answer carries (agent rows only). */
 	callToActions?: AgentCallToAction[];

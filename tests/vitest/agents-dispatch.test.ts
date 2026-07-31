@@ -175,6 +175,13 @@ describe( 'dispatchAgentDrop', () => {
 		const transcript = agentsChatStore.state.transcripts[ 9 ];
 		expect( transcript ).toHaveLength( 2 );
 		expect( transcript[ 0 ].role ).toBe( 'user' );
+		// The dropped object rides the row so the chat can render it as
+		// a card the user can open — the runner still gets the prose.
+		expect( transcript[ 0 ].attachment ).toEqual( {
+			kind: 'media',
+			id: 44,
+			title: 'Hornet',
+		} );
 		expect( transcript[ 1 ].role ).toBe( 'agent' );
 		expect( transcript[ 1 ].text ).toBe( 'Done, new attachment 99.' );
 		expect( transcript[ 1 ].pending ).toBe( false );

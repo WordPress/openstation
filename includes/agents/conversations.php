@@ -39,6 +39,19 @@ const DESKTOP_MODE_AGENT_CONVERSATION_MESSAGE_CAP = 200;
 /** Stored per-message text cap. Wider than the runner's replay cap so long answers reload intact. */
 const DESKTOP_MODE_AGENT_CONVERSATION_TEXT_CAP = 20000;
 
+/** Characters of the last message shown as the sidebar's second line. */
+const DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP = 80;
+
+/**
+ * Entity kinds a message attachment may reference — mirrors the
+ * client's `DroppedEntityKind` and the drag-trigger config enum.
+ *
+ * @return string[]
+ */
+function desktop_mode_agent_conversation_attachment_kinds() {
+	return array( 'post', 'page', 'media', 'user', 'comment' );
+}
+
 /**
  * Register the conversation post type. Private plumbing: no admin UI,
  * no front-end queries, no revisions; rows die with their author.
@@ -71,6 +84,11 @@ add_action( 'init', 'desktop_mode_agent_conversations_register_post_type', 5 );
  * timestamp. Tool calls keep name/args/error for the transcript
  * display but DROP `output` — tool outputs can embed entire post
  * bodies and are never rendered.
+ *
+ * An `attachment` block survives too: the entity a drop or a "Send
+ * to" pick carried into the conversation, so a reopened transcript
+ * still renders the clickable object card instead of only the
+ * boilerplate sentence the model was handed.
  *
  * @param mixed $messages Incoming message rows.
  * @return array<int, array<string, mixed>>
@@ -113,6 +131,13 @@ function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
 			$entry['ctaUsed'] = true;
 		}
 
+		if ( isset( $row['attachment'] ) ) {
+			$attachment = desktop_mode_agent_conversation_sanitize_attachment( $row['attachment'] );
+			if ( null !== $attachment ) {
+				$entry['attachment'] = $attachment;
+			}
+		}
+
 		if ( isset( $row['toolCalls'] ) && is_array( $row['toolCalls'] ) ) {
 			$calls = array();
 			foreach ( $row['toolCalls'] as $call ) {
@@ -142,6 +167,35 @@ function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
 }
 
 /**
+ * Normalize one message attachment, or null when the block does not
+ * describe an entity this site understands.
+ *
+ * Only the identity triple is stored — kind, id, title. The client
+ * resolves the object's URL at click time from the kind, so a
+ * renamed or re-permalinked entity never leaves a stale link behind
+ * in an old transcript.
+ *
+ * @param mixed $raw Incoming attachment block.
+ * @return array<string, mixed>|null
+ */
+function desktop_mode_agent_conversation_sanitize_attachment( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		return null;
+	}
+	$kind = isset( $raw['kind'] ) ? sanitize_key( (string) $raw['kind'] ) : '';
+	$id   = isset( $raw['id'] ) ? (int) $raw['id'] : 0;
+	if ( $id <= 0 || ! in_array( $kind, desktop_mode_agent_conversation_attachment_kinds(), true ) ) {
+		return null;
+	}
+	$title = isset( $raw['title'] ) ? trim( wp_strip_all_tags( (string) $raw['title'] ) ) : '';
+	return array(
+		'kind'  => $kind,
+		'id'    => $id,
+		'title' => '' !== $title ? mb_substr( $title, 0, 200 ) : '#' . $id,
+	);
+}
+
+/**
  * Derive a list title from the first user message.
  *
  * @param array $messages Sanitized messages.
@@ -154,6 +208,38 @@ function desktop_mode_agent_conversation_title( array $messages ) {
 		}
 	}
 	return __( 'Conversation', 'desktop-mode' );
+}
+
+/**
+ * The sidebar's second line: the TAIL of the last message.
+ *
+ * The title is derived from the FIRST user message, which makes every
+ * conversation with the same opener look identical in the list. The
+ * preview answers the other question — "where did this one get to?" —
+ * so it reads from the end ("…and search relevance.") rather than the
+ * beginning. An attachment-carrying row previews the object instead of
+ * the boilerplate sentence the model was handed.
+ *
+ * @param array $messages Sanitized messages.
+ * @return string
+ */
+function desktop_mode_agent_conversation_preview( array $messages ) {
+	$last = empty( $messages ) ? null : $messages[ count( $messages ) - 1 ];
+	if ( ! is_array( $last ) ) {
+		return '';
+	}
+	if ( isset( $last['attachment']['title'] ) ) {
+		return (string) $last['attachment']['title'];
+	}
+
+	$text = trim( (string) preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) $last['text'] ) ) );
+	if ( '' === $text ) {
+		return '';
+	}
+	if ( mb_strlen( $text ) <= DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP ) {
+		return $text;
+	}
+	return '…' . mb_substr( $text, -DESKTOP_MODE_AGENT_CONVERSATION_PREVIEW_CAP );
 }
 
 /**
@@ -192,6 +278,8 @@ function desktop_mode_agent_conversation_prepare( WP_Post $post, $with_messages 
 		$messages = array();
 	}
 
+	$last = empty( $messages ) ? null : $messages[ count( $messages ) - 1 ];
+
 	$out = array(
 		'id'               => (int) $post->ID,
 		'agentId'          => $agent_id,
@@ -199,6 +287,10 @@ function desktop_mode_agent_conversation_prepare( WP_Post $post, $with_messages 
 		'agentDescription' => $agent ? (string) get_user_meta( $agent_id, '_desktop_mode_agent_description', true ) : '',
 		'agentAvatarUrl'   => function_exists( 'desktop_mode_agent_avatar_url' ) ? desktop_mode_agent_avatar_url() : '',
 		'title'            => (string) $post->post_title,
+		// Second sidebar line + who spoke last, so the list can say
+		// where each conversation got to instead of repeating its opener.
+		'preview'          => desktop_mode_agent_conversation_preview( $messages ),
+		'lastRole'         => is_array( $last ) && isset( $last['role'] ) ? (string) $last['role'] : '',
 		'messageCount'     => count( $messages ),
 		'createdAt'        => mysql2date( 'c', $post->post_date_gmt, false ),
 		'updatedAt'        => mysql2date( 'c', $post->post_modified_gmt, false ),

@@ -16,17 +16,26 @@
  * @public
  */
 
-import { __ } from './i18n';
+import { __, sprintf } from './i18n';
 import { renderMarkdown } from './markdown';
+import './ui/components/wpd-avatar/wpd-avatar';
 import './ui/components/wpd-button/wpd-button';
 import './ui/components/wpd-empty-state/wpd-empty-state';
 import './ui/components/wpd-spinner/wpd-spinner';
 import './ui/components/wpd-textarea/wpd-textarea';
+import { applyAvatarSrc } from './ui/util/avatar-resolve';
 import {
 	agentsChatStore,
 	type AgentChatAgent,
+	type AgentChatAttachment,
 	type AgentChatMessage,
 } from './agents-chat-store';
+import { openAgentEditor } from './agents-editor-target';
+import {
+	attachmentIcon,
+	attachmentKindLabel,
+	openAttachmentWindow,
+} from './agents-entity-window';
 import {
 	describeDragEntity,
 	dispatchAgentDrop,
@@ -92,6 +101,132 @@ function getRunConfig(): RunWindowConfig | null {
 		| RunWindowConfig
 		| undefined;
 	return cfg && typeof cfg.restRoot === 'string' ? cfg : null;
+}
+
+/**
+ * Sidebar timestamp: time of day for today, "Yesterday", the weekday
+ * inside the last week, a short date beyond that. Same ladder every
+ * messaging app uses — the point is recency at a glance, not
+ * precision, so the full stamp goes in the row's `title` instead.
+ */
+function formatConversationTime( iso: string ): string {
+	const when = new Date( iso );
+	if ( Number.isNaN( when.getTime() ) ) {
+		return '';
+	}
+	const now = new Date();
+	const startOfDay = ( d: Date ): number =>
+		new Date( d.getFullYear(), d.getMonth(), d.getDate() ).getTime();
+	const days = Math.round(
+		( startOfDay( now ) - startOfDay( when ) ) / 86400000,
+	);
+	if ( days <= 0 ) {
+		return when.toLocaleTimeString( undefined, {
+			hour: 'numeric',
+			minute: '2-digit',
+		} );
+	}
+	if ( days === 1 ) {
+		return __( 'Yesterday', 'desktop-mode' );
+	}
+	if ( days < 7 ) {
+		return when.toLocaleDateString( undefined, { weekday: 'short' } );
+	}
+	return when.toLocaleDateString( undefined, {
+		month: 'short',
+		day: 'numeric',
+	} );
+}
+
+/**
+ * Build a `<wpd-avatar>`. Gravatar URLs go through the probe so users
+ * with no registered Gravatar get their initials tile instead of the
+ * mystery-person silhouette (a raw Gravatar URL answers 200 with the
+ * silhouette, so the component's own error fallback never fires).
+ */
+function buildAvatar(
+	className: string,
+	size: number,
+	src: string,
+	name: string,
+): HTMLElement {
+	const avatar = document.createElement( 'wpd-avatar' );
+	avatar.className = className;
+	avatar.setAttribute( 'size', String( size ) );
+	avatar.setAttribute( 'name', name );
+	avatar.setAttribute( 'alt', name );
+	if ( src ) {
+		applyAvatarSrc( avatar, src );
+	}
+	return avatar;
+}
+
+/**
+ * Turn an avatar into the agent's editor shortcut: clickable tile,
+ * and both the click and the Enter/Space keydown stop at the avatar so
+ * a row that is itself a button doesn't fire twice.
+ */
+function linkAvatarToAgentEditor( avatar: HTMLElement, agentId: number ): void {
+	avatar.setAttribute( 'clickable', '' );
+	avatar.setAttribute(
+		'title',
+		__( 'Open the agent in My WordPress', 'desktop-mode' ),
+	);
+	avatar.addEventListener( 'click', ( e: Event ) => {
+		e.stopPropagation();
+		openAgentEditor( agentId );
+	} );
+	avatar.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
+		if ( e.key === 'Enter' || e.key === ' ' ) {
+			e.stopPropagation();
+		}
+	} );
+}
+
+/**
+ * The object a drop / "Send to" handed the agent, as a card the user
+ * can open. Clicking it opens the entity's admin screen in its own
+ * window — the conversation stays put.
+ */
+function attachmentCard( attachment: AgentChatAttachment ): HTMLElement {
+	const card = document.createElement( 'button' );
+	card.type = 'button';
+	card.className = 'dm-agent-chat__attachment';
+	card.title = sprintf(
+		/* translators: 1: entity kind (Post, Media, …), 2: entity title. */
+		__( 'Open the %1$s "%2$s"', 'desktop-mode' ),
+		attachmentKindLabel( attachment.kind ),
+		attachment.title,
+	);
+
+	const icon = document.createElement( 'span' );
+	icon.className = `dm-agent-chat__attachment-icon dashicons ${ attachmentIcon(
+		attachment.kind,
+	) }`;
+	icon.setAttribute( 'aria-hidden', 'true' );
+
+	const text = document.createElement( 'span' );
+	text.className = 'dm-agent-chat__attachment-text';
+	const title = document.createElement( 'span' );
+	title.className = 'dm-agent-chat__attachment-title';
+	title.textContent = attachment.title;
+	const meta = document.createElement( 'span' );
+	meta.className = 'dm-agent-chat__attachment-meta';
+	meta.textContent = `${ attachmentKindLabel( attachment.kind ) } · #${
+		attachment.id
+	}`;
+	text.append( title, meta );
+
+	const chevron = document.createElement( 'span' );
+	chevron.className =
+		'dm-agent-chat__attachment-open dashicons dashicons-external';
+	chevron.setAttribute( 'aria-hidden', 'true' );
+
+	card.append( icon, text, chevron );
+	card.addEventListener( 'click', () => {
+		openAttachmentWindow( attachment );
+	} );
+	return card;
 }
 
 function transcriptFor( agent: AgentChatAgent ): AgentChatMessage[] {
@@ -222,15 +357,39 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			}
 			item.setAttribute( 'role', 'button' );
 			item.tabIndex = 0;
+			// The title (first user message) is the one line the rows
+			// have in common when a workflow always opens the same way —
+			// it belongs in the tooltip, not as the row's identity.
 			item.title = `${ row.agentName } — ${ row.title }`;
 
-			const face = document.createElement( 'img' );
-			face.className = 'dm-agent-chat__conv-avatar';
-			face.src = row.agentAvatarUrl;
-			face.alt = '';
+			const face = buildAvatar(
+				'dm-agent-chat__conv-avatar',
+				28,
+				row.agentAvatarUrl,
+				row.agentName,
+			);
+			if ( row.agentId > 0 ) {
+				linkAvatarToAgentEditor( face, row.agentId );
+			}
+
+			// Two lines: who the conversation is with, and where it got
+			// to. The timestamp rides the first line, right-aligned.
 			const label = document.createElement( 'span' );
-			label.className = 'dm-agent-chat__conv-title';
-			label.textContent = row.title;
+			label.className = 'dm-agent-chat__conv-text';
+			const top = document.createElement( 'span' );
+			top.className = 'dm-agent-chat__conv-top';
+			const name = document.createElement( 'span' );
+			name.className = 'dm-agent-chat__conv-name';
+			name.textContent = row.agentName;
+			const time = document.createElement( 'time' );
+			time.className = 'dm-agent-chat__conv-time';
+			time.dateTime = row.updatedAt;
+			time.textContent = formatConversationTime( row.updatedAt );
+			top.append( name, time );
+			const preview = document.createElement( 'span' );
+			preview.className = 'dm-agent-chat__conv-preview';
+			preview.textContent = row.preview || row.title;
+			label.append( top, preview );
 
 			const open = (): void => {
 				if ( busy || ! cfg ) {
@@ -310,10 +469,13 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 
 		const head = document.createElement( 'div' );
 		head.className = 'dm-agent-chat__head';
-		const avatar = document.createElement( 'img' );
-		avatar.className = 'dm-agent-chat__avatar';
-		avatar.src = agent.avatarUrl;
-		avatar.alt = '';
+		const avatar = buildAvatar(
+			'dm-agent-chat__avatar',
+			40,
+			agent.avatarUrl,
+			agent.name,
+		);
+		linkAvatarToAgentEditor( avatar, agent.id );
 		const title = document.createElement( 'div' );
 		title.className = 'dm-agent-chat__title';
 		const name = document.createElement( 'strong' );
@@ -390,18 +552,32 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 
 		// WhatsApp-style avatars: the agent on the left, the viewer on
 		// the right. Error rows sit on the agent side, avatar-less.
-		let avatarUrl = '';
+		// `<wpd-avatar>` rather than a bare `<img>` so a viewer with no
+		// registered Gravatar gets their initials instead of the
+		// mystery-person silhouette.
 		if ( message.role === 'agent' ) {
-			avatarUrl = agent.avatarUrl;
+			line.appendChild(
+				buildAvatar(
+					'dm-agent-chat__msg-avatar',
+					28,
+					agent.avatarUrl,
+					agent.name,
+				),
+			);
 		} else if ( message.role === 'user' ) {
-			avatarUrl = getRunConfig()?.currentUser?.avatarUrl ?? '';
-		}
-		if ( avatarUrl ) {
-			const face = document.createElement( 'img' );
-			face.className = 'dm-agent-chat__msg-avatar';
-			face.src = avatarUrl;
-			face.alt = '';
-			line.appendChild( face );
+			const viewer = getRunConfig()?.currentUser;
+			// Nothing to draw when the config carries no viewer — an
+			// empty initials disc would read as a broken avatar.
+			if ( viewer?.avatarUrl || viewer?.name ) {
+				line.appendChild(
+					buildAvatar(
+						'dm-agent-chat__msg-avatar',
+						28,
+						viewer.avatarUrl ?? '',
+						viewer.name ?? '',
+					),
+				);
+			}
 		}
 
 		const row = document.createElement( 'div' );
@@ -410,17 +586,31 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 			row.classList.add( 'dm-agent-chat__msg--pending' );
 		}
 		line.appendChild( row );
-		const text = document.createElement( 'div' );
-		text.className = 'dm-agent-chat__msg-text';
-		if ( message.role === 'agent' && ! message.pending ) {
-			// Agent answers arrive as markdown; renderMarkdown escapes
-			// the input before re-interpreting tokens, so the result is
-			// safe for innerHTML.
-			text.innerHTML = renderMarkdown( message.text );
+
+		if ( message.attachment ) {
+			// The row's `text` is the sentence the RUNNER was handed
+			// ("The user dropped the post … onto you. Handle it …") —
+			// machine-facing boilerplate that reads as noise in a chat.
+			// The card says the same thing better, and unlike the
+			// sentence it opens the object.
+			row.appendChild( attachmentCard( message.attachment ) );
+			const caption = document.createElement( 'div' );
+			caption.className = 'dm-agent-chat__msg-caption';
+			caption.textContent = __( 'Shared with the agent', 'desktop-mode' );
+			row.appendChild( caption );
 		} else {
-			text.textContent = message.text;
+			const text = document.createElement( 'div' );
+			text.className = 'dm-agent-chat__msg-text';
+			if ( message.role === 'agent' && ! message.pending ) {
+				// Agent answers arrive as markdown; renderMarkdown escapes
+				// the input before re-interpreting tokens, so the result is
+				// safe for innerHTML.
+				text.innerHTML = renderMarkdown( message.text );
+			} else {
+				text.textContent = message.text;
+			}
+			row.appendChild( text );
 		}
-		row.appendChild( text );
 		if ( message.pending ) {
 			const spinner = document.createElement( 'wpd-spinner' );
 			row.appendChild( spinner );
