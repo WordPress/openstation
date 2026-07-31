@@ -502,6 +502,14 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
 
 	for ( $turn = 1; $turn <= DESKTOP_MODE_AGENT_RUNNER_MAX_TURNS; $turn++ ) {
 		$generated = desktop_mode_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
+		if ( is_wp_error( $generated ) && desktop_mode_agent_generate_error_is_transient( $generated ) ) {
+			// One bounded retry for provider-side flaps (an Anthropic
+			// 2xx with an empty `content`, a failed models-list fetch,
+			// a gateway timeout). Each of these resolves on a fresh
+			// request far more often than not — a manual "try again"
+			// was already the working recovery, so automate it once.
+			$generated = desktop_mode_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
+		}
 		if ( is_wp_error( $generated ) ) {
 			return $generated;
 		}
@@ -587,6 +595,28 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
 		$history[] = array(
 			'type'    => 'tool_results',
 			'results' => $results,
+		);
+	}
+
+	// Cap reached with the model still asking for tools. Force one
+	// last TOOL-LESS generate over the transcript so far: with nothing
+	// to call, the model can only produce a final answer from what it
+	// already gathered. A best-effort summary beats discarding the
+	// whole run (observed on Anthropic: a model happily spends the cap
+	// re-searching before it answers).
+	$generated = desktop_mode_agent_runner_generate( $agent_user_id, $history, array(), $instructions );
+	if ( is_wp_error( $generated ) && desktop_mode_agent_generate_error_is_transient( $generated ) ) {
+		$generated = desktop_mode_agent_runner_generate( $agent_user_id, $history, array(), $instructions );
+	}
+	if ( ! is_wp_error( $generated )
+		&& empty( $generated['function_calls'] )
+		&& isset( $generated['text'] ) && is_string( $generated['text'] ) && '' !== trim( $generated['text'] ) ) {
+		$answer = desktop_mode_agent_parse_answer( $generated['text'] );
+		return array(
+			'text'          => $answer['text'],
+			'callToActions' => $answer['callToActions'],
+			'toolCalls'     => $tool_trace,
+			'turns'         => DESKTOP_MODE_AGENT_RUNNER_MAX_TURNS + 1,
 		);
 	}
 
@@ -790,6 +820,40 @@ function desktop_mode_agent_parse_answer( $text ) {
 }
 
 /**
+ * Whether a failed generation looks like a one-off provider flap worth
+ * retrying, as opposed to a request the provider deterministically
+ * rejects (an invalid schema, a too-large prompt, a bad key).
+ *
+ * The signatures are message-based because the AI Client SDK surfaces
+ * provider exceptions as text: the Anthropic provider throws
+ * "Unexpected Anthropic API response: Missing the "content" key." for
+ * a 2xx whose `content` is empty, the model finder reports "No models
+ * found …" when a provider's models-list fetch failed, and gateway
+ * errors arrive as "… (502/503/504)".
+ *
+ * @param WP_Error $error Failed generation.
+ * @return bool
+ */
+function desktop_mode_agent_generate_error_is_transient( WP_Error $error ) {
+	$message = $error->get_error_message();
+
+	$signatures = array(
+		'Missing the "content" key', // Anthropic 2xx, empty content array.
+		'No models found',           // Provider models-list fetch flapped.
+		'cURL error 28',             // Transport timeout.
+		'Operation timed out',
+	);
+	foreach ( $signatures as $signature ) {
+		if ( false !== stripos( $message, $signature ) ) {
+			return true;
+		}
+	}
+
+	// Provider/gateway 5xx — the SDK formats statuses like "(504)".
+	return (bool) preg_match( '/\(50[0-9]\)/', $message );
+}
+
+/**
  * One generate turn: pre-filter first (tests / alternative runtimes),
  * then the Core AI Client via the Copilot's adapter.
  *
@@ -806,7 +870,10 @@ function desktop_mode_agent_runner_generate( $agent_user_id, array $history, arr
 	 * Pre-filter one generation turn. Return a non-null
 	 * `{ text, function_calls, message }` array (or a WP_Error) to
 	 * short-circuit the Core AI Client — the seam PHPUnit and
-	 * alternative runtimes plug into.
+	 * alternative runtimes plug into. On a transient provider failure
+	 * (see {@see desktop_mode_agent_generate_error_is_transient()}) the
+	 * loop retries the turn once, so the filter can be invoked twice
+	 * for the same turn.
 	 *
 	 * @param array|WP_Error|null $generated     Null to proceed with the AI Client.
 	 * @param array               $history       Neutral history rows.

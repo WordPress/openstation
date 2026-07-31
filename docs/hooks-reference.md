@@ -4231,7 +4231,10 @@ Pre-filter for one generation turn. Return a non-null
 `{ text, function_calls, message }` array (or a `WP_Error`) to
 short-circuit the Core AI Client — the seam PHPUnit and alternative
 runtimes plug into. When any callback is attached, the runner
-considers itself available even without the WP 7.0 AI Client.
+considers itself available even without the WP 7.0 AI Client. On a
+transient provider failure (a gateway 5xx, a timeout, an empty
+Anthropic `content`, a failed models-list fetch) the loop retries the
+turn once, so the filter can be invoked twice for the same turn.
 
 - **Param** `array|WP_Error|null $generated` — null to proceed with the AI Client.
 - **Param** `array $history` — neutral history rows (`{ type: 'user_text'|'assistant'|'tool_results', … }`).
