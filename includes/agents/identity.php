@@ -5,36 +5,23 @@
  * Each agent has a real row in `wp_users` so capability checks, edit
  * locks, comment attribution, and the standard WP audit trail work
  * without a parallel ACL. The row is "synthetic" only in that every
- * login path is blocked — the agent never authenticates; it is
- * invoked on the site's behalf.
+ * login and session path is blocked — the agent never authenticates;
+ * it is invoked on the site's behalf.
  *
- * Blocked paths: the `authenticate` filter rejects password attempts
- * (covers wp-login.php and XML-RPC), `allow_password_reset` rejects
- * reset emails, application passwords are unavailable for agents, and
- * profile-change notification emails are suppressed. The wp-admin
- * Users list gains a "Type" column so administrators can tell
- * synthetic accounts apart.
+ * Those blocks, and `desktop_mode_agent_is_agent()` itself, live in
+ * guard.php, which loads unconditionally. This file owns the row
+ * lifecycle (create / delete) and the identity surface: the bot avatar
+ * and the wp-admin Users list "Type" column, so administrators can
+ * tell synthetic accounts apart.
  *
- * Meta constants live in store.php; this file owns the user row.
+ * Definition meta constants live in store.php.
  *
  * @package WPDesktopMode
  */
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Whether the given user is a Desktop Mode agent.
- *
- * @param int|WP_User|null $user User id or object.
- * @return bool
- */
-function desktop_mode_agent_is_agent( $user ) {
-	$user_id = $user instanceof WP_User ? $user->ID : (int) $user;
-	if ( $user_id <= 0 ) {
-		return false;
-	}
-	return '1' === (string) get_user_meta( $user_id, DESKTOP_MODE_AGENT_USER_MARKER_META, true );
-}
+require_once DESKTOP_MODE_DIR . 'includes/agents/guard.php';
 
 /**
  * Resolve a unique `user_login` for an agent given its desired slug.
@@ -181,82 +168,6 @@ function desktop_mode_agent_delete( $user_id, $reassign = null ) {
 
 	return true;
 }
-
-// ---------------------------------------------------------------------------
-// Login blocks
-// ---------------------------------------------------------------------------
-
-/**
- * Block password authentication for agent users.
- *
- * Returns a `WP_Error` instead of the user object so wp-login.php
- * surfaces the message inline. Covers XML-RPC too — it authenticates
- * through the same filter chain.
- *
- * @param WP_User|WP_Error|null $user Current candidate from the chain.
- * @return WP_User|WP_Error|null
- */
-function desktop_mode_agent_block_authentication( $user ) {
-	if ( $user instanceof WP_User && desktop_mode_agent_is_agent( $user ) ) {
-		return new WP_Error(
-			'desktop_mode_agent_login_blocked',
-			__( 'This account is a Desktop Mode agent. Login is disabled.', 'desktop-mode' )
-		);
-	}
-	return $user;
-}
-add_filter( 'authenticate', 'desktop_mode_agent_block_authentication', 30 );
-
-/**
- * Block password-reset emails for agent users.
- *
- * @param bool $allow   Whether to allow the reset.
- * @param int  $user_id Target user id.
- * @return bool
- */
-function desktop_mode_agent_block_password_reset( $allow, $user_id ) {
-	if ( desktop_mode_agent_is_agent( $user_id ) ) {
-		return false;
-	}
-	return $allow;
-}
-add_filter( 'allow_password_reset', 'desktop_mode_agent_block_password_reset', 10, 2 );
-
-/**
- * Application passwords are the one credential that could authenticate
- * a never-logs-in account over REST — refuse to make them available
- * for agents.
- *
- * @param bool    $available Whether application passwords are available.
- * @param WP_User $user      The user being checked.
- * @return bool
- */
-function desktop_mode_agent_block_application_passwords( $available, $user ) {
-	if ( $user instanceof WP_User && desktop_mode_agent_is_agent( $user ) ) {
-		return false;
-	}
-	return $available;
-}
-add_filter( 'wp_is_application_passwords_available_for_user', 'desktop_mode_agent_block_application_passwords', 10, 2 );
-
-/**
- * Suppress the password/email-changed notification emails for agents —
- * the synthetic address is never delivered to, and a bounced
- * notification per definition edit is pure noise in the mail log.
- *
- * @param bool  $send Whether to send the notification.
- * @param array $user The original user array before changes.
- * @return bool
- */
-function desktop_mode_agent_suppress_change_emails( $send, $user ) {
-	$user_id = is_array( $user ) && isset( $user['ID'] ) ? (int) $user['ID'] : 0;
-	if ( $user_id > 0 && desktop_mode_agent_is_agent( $user_id ) ) {
-		return false;
-	}
-	return $send;
-}
-add_filter( 'send_password_change_email', 'desktop_mode_agent_suppress_change_emails', 10, 2 );
-add_filter( 'send_email_change_email', 'desktop_mode_agent_suppress_change_emails', 10, 2 );
 
 // ---------------------------------------------------------------------------
 // Identity surface

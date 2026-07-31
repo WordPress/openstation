@@ -8,7 +8,8 @@ If you are **building a plugin** that interacts with the desktop shell — opens
 
 1. **[Getting Started](./getting-started.md)** — your first hook, in five minutes.
 2. **[Event-Driven Framework](./event-driven-framework.md)** — *Stable.* The mental model: framework as transport, apps own UX policy. Read once before building anything non-trivial.
-3. **[Architecture](./architecture.md)** — what renders where, and why.
+3. **[Agents Security Model](./agents-security.md)** — *Experimental.* The trust model for the one part of the framework that acts with capability: why agents can never authenticate, why a run is ceilinged at the invoker's capabilities, why tool output is untrusted input, and why granting an agent a role is granting capability. **Read before registering an ability agents can call or adding a trigger intake.**
+4. **[Architecture](./architecture.md)** — what renders where, and why.
 4. **[Hooks Reference](./hooks-reference.md)** — every PHP action and filter, with signatures, defaults, and minimal examples.
 5. **[JavaScript Reference](./javascript-reference.md)** — CustomEvents on `document`, the `window.wp.desktop` API, and the iframe `postMessage` bridge.
 6. **[API Index](./api-index.md)** — single-page table of every `wp.desktop.*` method, CustomEvent, and `postMessage` type with its current status. Use this when you need to grep the surface, then jump to the per-API reference for details.

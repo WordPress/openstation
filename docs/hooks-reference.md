@@ -4086,6 +4086,13 @@ Features → Extended options, admin-only, default off). While the flag
 is off none of these hooks exist — `includes/agents/bootstrap.php`
 skips every module file.
 
+**One exception**: `includes/agents/guard.php` loads unconditionally,
+ahead of the flag. It owns `desktop_mode_agent_is_agent()` and every
+login/session block. Disabling the feature does not delete agent user
+rows, and a row whose blocks unloaded with the feature would accept
+application passwords and password resets again — so the blocks are a
+property of the rows, not of the feature.
+
 An agent is a synthetic `wp_users` row (login-blocked) whose entire
 definition lives as user meta on that row: description, instructions
 (system prompt), ability allowlist, triggers, model override, rate
@@ -4093,6 +4100,12 @@ limit. There are no revisions on user meta — the
 `desktop_mode_agent_{created,updated,deleted}` actions below ARE the
 audit trail; each carries before/after values for logging plugins to
 persist.
+
+Agents act with capability, so read
+[Agents security model](./agents-security.md) before registering an
+ability agents can call or widening any of the gates below. The short
+version: an agent's run is ceilinged at the invoker's own capabilities,
+and tool output is untrusted input.
 
 ### `desktop_mode_agents_enabled` — Experimental *(filter)*
 
@@ -4144,6 +4157,15 @@ consumes it.
 Filters one tool result before it re-enters the LLM context and
 before it lands in the invocation trace. The sanitization seam —
 strip fields the model has no business seeing.
+
+Tool output is **untrusted input**: it carries site content that a
+lower-privileged user may have authored (a comment body, a submitted
+draft, alt text). The runner wraps every result in an
+`<untrusted-tool-output>` fence and instructs the model to treat the
+contents as data, never instructions. That is mitigation, not a
+guarantee — this filter is where you strip anything an ability returns
+that the model should never see in the first place. See
+[Agents security model](./agents-security.md).
 
 - **Param** `mixed $output` — raw ability output.
 - **Param** `string $slug` — ability slug.
@@ -4215,19 +4237,91 @@ extension path stays `wp_register_ability()`.
 
 ### `desktop_mode_agent_allowed_roles` — Experimental *(filter)*
 
-Roles an agent may be assigned. The result is always intersected with
-the acting user's `get_editable_roles()` — the filter can narrow or
-extend the whitelist but never bypass the editable-roles constraint.
+Candidate roles an agent may be assigned. Each survivor is intersected
+with `get_editable_roles()` and then run through
+`desktop_mode_agent_actor_can_assign_role`, so this filter can narrow
+or extend the candidate list but a role it adds still has to clear both
+constraints.
 
 - **Param** `string[] $whitelist` — default `administrator`, `editor`, `author`, `contributor`.
+
+### `desktop_mode_agent_actor_can_assign_role` — Experimental *(filter)*
+
+Whether the acting user may grant a role to an agent. An agent runs
+with its role's capabilities, so granting the role IS granting
+capability. Defaults require `promote_users`, plus a genuine
+administrator (super admin on multisite) for the `administrator` role.
+
+Note `get_editable_roles()` alone is **not** a per-user constraint —
+core implements it as a bare `apply_filters( 'editable_roles',
+wp_roles()->roles )` with no reference to the current user, so on a
+stock install it excludes nothing. This filter is the actual gate.
+
+Use it for automation that creates agents outside a request context
+(activation routines, WP-CLI, provisioning jobs), where there is no
+current user and the default answer is a hard no.
+
+- **Param** `bool $can`
+- **Param** `string $role` — role slug being assigned.
+- **Param** `int $user_id` — acting user id (0 when there is none).
+
+### `desktop_mode_agent_restrict_to_invoker` — Experimental *(filter)*
+
+Whether one run is capped at the invoking user's capabilities. Default
+true whenever a human triggered the run.
+
+The runner switches the current user to the agent for the whole tool
+loop, so ability `permission_callback`s evaluate against the agent's
+role. Alongside that switch it installs a `user_has_cap` filter that
+turns off every primitive capability the invoker does not hold — an
+agent must never do on your behalf what you could not do yourself.
+Without it the module is a confused deputy: invoking is gated on
+`edit_posts`, agents may hold `administrator`.
+
+Returning `false` lets the agent act with its full role. Only
+appropriate when the message cannot be influenced by a lower-privileged
+user. Returning `true` for a system-context run (`$invoker_id` 0) is a
+no-op — there is no cap set to intersect with.
+
+- **Param** `bool $restrict`
+- **Param** `int $agent_user_id`
+- **Param** `int $invoker_id` — 0 when there is no invoker.
+
+### `desktop_mode_agent_user_can_invoke_agent` — Experimental *(filter)*
+
+Whether the current user may invoke a **specific** agent through a
+specific source. `desktop_mode_agents_user_can_invoke` is the site-wide
+half ("may this user invoke agents at all"); this is the per-agent
+half.
+
+Default: honours the `capability` declared in the matching trigger's
+config. An agent with no trigger for that source, or one declaring no
+capability, falls back to the route-level check — requiring a
+configured trigger would lock out every agent created before triggers
+were set up.
+
+- **Param** `bool $can`
+- **Param** `int $agent_user_id`
+- **Param** `string $source` — `chat`, `drag`, or `send-to`.
+- **Param** `array|null $trigger` — the matching trigger row, if any.
 
 ### `desktop_mode_agent_default_rate_limit` — Experimental *(filter)*
 
 Default invocations-per-hour cap applied when the agent has no
-per-agent override.
+per-agent override. Bounds one agent.
 
 - **Param** `int $limit` — default 60.
 - **Param** `int $agent_user_id`
+
+### `desktop_mode_agent_invoker_rate_limit` — Experimental *(filter)*
+
+Per-user cap on agent invocations per hour, counted across every agent
+on the site. Bounds the *person*: the per-agent limit does nothing to
+stop one user walking every agent in turn and spending the AI budget N
+times over. System-context runs (no invoker) are not counted.
+
+- **Param** `int $limit` — default 120.
+- **Param** `int $invoker_id`
 
 ### `desktop_mode_agents_user_can_read` / `desktop_mode_agents_user_can_manage` / `desktop_mode_agents_user_can_invoke` — Experimental *(filters)*
 
@@ -4238,11 +4332,13 @@ read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
 
 ### PHP helpers — Experimental
 
-- `desktop_mode_agent_is_agent( $user )` — marker-meta test.
-- `desktop_mode_agent_create( $args )` / `desktop_mode_agent_update( $user_id, $fields )` / `desktop_mode_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action).
+- `desktop_mode_agent_is_agent( $user )` — marker-meta test. Available even when the agents feature is off (guard.php).
+- `desktop_mode_agent_create( $args )` / `desktop_mode_agent_update( $user_id, $fields )` / `desktop_mode_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action). These are **privileged internal APIs**: they enforce role assignment (see `desktop_mode_agent_actor_can_assign_role`) but assume the caller already checked who is asking. The REST surface does that with `edit_users`; a direct caller must do the same.
 - `desktop_mode_agent_get_agents( $args )` — list every agent.
 - `desktop_mode_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
-- `desktop_mode_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, tool loop, turn cap 8, rate limit). `$context['source']` names the trigger; `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 20 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
+- `desktop_mode_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, invoker cap ceiling, tool loop, turn cap 8, rate limits). `$context['source']` names the trigger; `$context['invoker']` is the user whose capabilities ceiling the run (defaults to `get_current_user_id()`; pass `0` deliberately for a system-context run); `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 50 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
+- `desktop_mode_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate. Call it before `desktop_mode_agent_invoke()` from any new trigger intake.
+- `desktop_mode_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null.
 - `desktop_mode_agent_runner_get_log( $agent_user_id )` — recent invocations (capped at 50).
 - `desktop_mode_agents_abilities_catalogue()` — the picker catalogue.
 

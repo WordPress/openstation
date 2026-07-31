@@ -30,12 +30,16 @@
 
 defined( 'ABSPATH' ) || exit;
 
+require_once DESKTOP_MODE_DIR . 'includes/agents/guard.php';
+
 /**
  * Meta keys owned by the agents store. Constants so the other layer
  * files reuse them instead of typing the literals.
  *
+ * `DESKTOP_MODE_AGENT_USER_MARKER_META` is the exception — it lives in
+ * guard.php, which loads unconditionally, because the agent test has to
+ * resolve even when this module does not load.
  */
-const DESKTOP_MODE_AGENT_USER_MARKER_META  = '_desktop_mode_agent';
 const DESKTOP_MODE_AGENT_DESCRIPTION_META  = '_desktop_mode_agent_description';
 const DESKTOP_MODE_AGENT_INSTRUCTIONS_META = '_desktop_mode_agent_instructions';
 const DESKTOP_MODE_AGENT_ABILITIES_META    = '_desktop_mode_agent_abilities';
@@ -480,12 +484,71 @@ function desktop_mode_agent_hooks_catalogue() {
 }
 
 /**
- * Roles an agent may be assigned, constrained to what the acting user
- * can hand out.
+ * Whether the acting user may grant `$role` to an agent.
  *
- * The whitelist keeps agents in the standard content-role band; the
- * `get_editable_roles()` intersection prevents a user from minting an
- * agent with a role they could not assign to a human.
+ * An agent runs with its role's capabilities, so granting a role IS
+ * granting capability — it has to be gated like the promotion it is.
+ * Three constraints, all of which must hold:
+ *
+ *  1. `promote_users` — the capability wp-admin requires to set anyone's
+ *     role. `edit_users` alone is not enough: role plugins hand
+ *     `edit_users` to shop-manager-shaped roles routinely.
+ *  2. `get_editable_roles()` — core's extension point for "roles this
+ *     install lets you hand out". NOTE this is a site-wide filtered
+ *     list, NOT a per-user one: core's implementation is a bare
+ *     `apply_filters( 'editable_roles', wp_roles()->roles )` with no
+ *     reference to the current user. It is a useful constraint because
+ *     plugins like WooCommerce filter it, but on a stock install it
+ *     excludes nothing, so it cannot be the only gate.
+ *  3. `administrator` additionally requires the actor to genuinely be
+ *     an administrator (super admin on multisite). This is the one that
+ *     stops an `edit_users`-capable non-admin minting an agent that
+ *     outranks them — the capability the agent would then act with.
+ *
+ * @param string $role Role slug being assigned.
+ * @return bool
+ */
+function desktop_mode_agent_actor_can_assign_role( $role ) {
+	$role = sanitize_key( (string) $role );
+	$can  = current_user_can( 'promote_users' );
+
+	if ( $can && 'administrator' === $role ) {
+		$can = is_multisite()
+			? is_super_admin()
+			: ( current_user_can( 'manage_options' ) && current_user_can( 'create_users' ) );
+	}
+
+	/**
+	 * Filter whether the acting user may assign a role to an agent.
+	 *
+	 * The seam for automation that legitimately creates agents outside
+	 * a request context (an activation routine, WP-CLI, a scheduled
+	 * provisioning job), where there is no current user and the default
+	 * answer is therefore a hard no.
+	 *
+	 * Granting a role here grants the capabilities an agent will act
+	 * with — widen it only for code paths you control.
+	 *
+	 * @param bool   $can     Whether the assignment is allowed.
+	 * @param string $role    Role slug being assigned.
+	 * @param int    $user_id Acting user id (0 when there is none).
+	 */
+	return (bool) apply_filters(
+		'desktop_mode_agent_actor_can_assign_role',
+		$can,
+		$role,
+		get_current_user_id()
+	);
+}
+
+/**
+ * Roles an agent may be assigned, constrained to what the acting user
+ * can actually hand out.
+ *
+ * The whitelist keeps agents in the standard content-role band; each
+ * survivor is then run through
+ * {@see desktop_mode_agent_actor_can_assign_role()}, which is where the
+ * real gating lives.
  *
  * @return string[] Role slugs.
  */
@@ -495,9 +558,10 @@ function desktop_mode_agent_allowed_roles() {
 	/**
 	 * Filter the roles an agent may be assigned.
 	 *
-	 * The result is always intersected with the acting user's
-	 * `get_editable_roles()` — the filter can narrow or extend the
-	 * whitelist but never bypass the editable-roles constraint.
+	 * The result is always intersected with `get_editable_roles()` and
+	 * then filtered through the per-role actor check — this filter can
+	 * narrow or extend the candidate list, but a role it adds still has
+	 * to clear both constraints.
 	 *
 	 * @param string[] $whitelist Default role slugs.
 	 */
@@ -511,7 +575,16 @@ function desktop_mode_agent_allowed_roles() {
 	}
 	$editable = array_keys( get_editable_roles() );
 
-	return array_values( array_intersect( array_map( 'strval', $whitelist ), $editable ) );
+	$candidates = array_intersect( array_map( 'strval', $whitelist ), $editable );
+
+	$allowed = array();
+	foreach ( $candidates as $role ) {
+		if ( desktop_mode_agent_actor_can_assign_role( $role ) ) {
+			$allowed[] = $role;
+		}
+	}
+
+	return array_values( $allowed );
 }
 
 // ---------------------------------------------------------------------------
@@ -584,6 +657,77 @@ function desktop_mode_agent_get_model( $user_id ) {
  */
 function desktop_mode_agent_get_rate_limit( $user_id ) {
 	return (int) get_user_meta( (int) $user_id, DESKTOP_MODE_AGENT_RATE_LIMIT_META, true );
+}
+
+// ---------------------------------------------------------------------------
+// Per-agent invocation gate
+// ---------------------------------------------------------------------------
+
+/**
+ * The agent's trigger row for a given invocation source, if any.
+ *
+ * Source slugs on the invoke route map 1:1 onto trigger kinds
+ * (`chat`, `drag`, `send-to`).
+ *
+ * @param int    $agent_user_id Agent user id.
+ * @param string $source        Invocation source slug.
+ * @return array|null Trigger row, or null when the agent declares none
+ *                    for this source.
+ */
+function desktop_mode_agent_trigger_for_source( $agent_user_id, $source ) {
+	$source = sanitize_key( (string) $source );
+	foreach ( desktop_mode_agent_get_triggers( (int) $agent_user_id ) as $trigger ) {
+		if ( isset( $trigger['kind'] ) && $source === $trigger['kind'] ) {
+			return $trigger;
+		}
+	}
+	return null;
+}
+
+/**
+ * Whether the current user may invoke THIS agent through THIS source.
+ *
+ * The route-level `desktop_mode_agents_user_can_invoke()` check is
+ * site-wide — it answers "may this user invoke agents at all". This is
+ * the per-agent half: a trigger may declare a `capability` in its
+ * config, and until it is enforced here the field is decorative. The
+ * Triggers pane collects it and the store persists it, so an
+ * administrator restricting an agent to `manage_options` has every
+ * reason to believe it took effect.
+ *
+ * An agent with no trigger for the source, or a trigger that declares
+ * no capability, is left to the route-level check — requiring a
+ * configured trigger would lock out every agent created before triggers
+ * were set up, which is all of them by default.
+ *
+ * @param int    $agent_user_id Agent user id.
+ * @param string $source        Invocation source slug.
+ * @return bool
+ */
+function desktop_mode_agent_user_can_invoke_agent( $agent_user_id, $source = 'chat' ) {
+	$trigger    = desktop_mode_agent_trigger_for_source( $agent_user_id, $source );
+	$capability = '';
+	if ( is_array( $trigger ) && isset( $trigger['config']['capability'] ) ) {
+		$capability = trim( (string) $trigger['config']['capability'] );
+	}
+
+	$can = '' === $capability || current_user_can( $capability );
+
+	/**
+	 * Filter whether the current user may invoke a specific agent.
+	 *
+	 * @param bool       $can           Whether invocation is allowed.
+	 * @param int        $agent_user_id Agent user id.
+	 * @param string     $source        Invocation source slug.
+	 * @param array|null $trigger       The matching trigger row, if any.
+	 */
+	return (bool) apply_filters(
+		'desktop_mode_agent_user_can_invoke_agent',
+		$can,
+		(int) $agent_user_id,
+		(string) $source,
+		$trigger
+	);
 }
 
 // ---------------------------------------------------------------------------

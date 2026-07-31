@@ -61,7 +61,7 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/games/users/search` | GET | `includes/games/rest.php` | same games gate |
 | `/agents` | GET / POST | `includes/agents/rest.php` | GET `edit_posts`, POST `edit_users` (both filterable; whole module behind the `agents` extended option) |
 | `/agents/{id}` | GET / POST / DELETE | `includes/agents/rest.php` | GET `edit_posts`, POST/DELETE `edit_users` (filterable) |
-| `/agents/{id}/invoke` | POST | `includes/agents/rest.php` | `edit_posts` (filterable via `desktop_mode_agents_user_can_invoke`) + per-agent rate limit |
+| `/agents/{id}/invoke` | POST | `includes/agents/rest.php` | `edit_posts` (filterable via `desktop_mode_agents_user_can_invoke`), then the per-agent gate `desktop_mode_agent_user_can_invoke_agent()` (honours the trigger's `capability`) + per-invoker and per-agent rate limits. The run itself is ceilinged at the caller's own capabilities — see [`docs/agents-security.md`](../../docs/agents-security.md) |
 | `/agents/abilities` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
 | `/agents/trigger-kinds` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
 | `/agents/hooks-catalogue` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |

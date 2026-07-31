@@ -4,10 +4,11 @@
  *
  * Agents are durable workers that live on the site as real WordPress
  * users and act through the WordPress Abilities API under their own
- * role and capabilities. Two layers:
+ * role and capabilities. Three layers:
  *
- *  - Identity   — a synthetic `wp_users` row with every login path
- *                 blocked → identity.php
+ *  - Guard      — the marker meta, the agent test, and every login /
+ *                 session block → guard.php (ALWAYS loaded)
+ *  - Identity   — the synthetic `wp_users` row itself → identity.php
  *  - Definition — everything else (system prompt, description, ability
  *                 allowlist, triggers, model override, rate limit) as
  *                 user meta on that row → store.php
@@ -17,14 +18,23 @@
  * the "Agent chat" native window (run-window.php), and the Agents
  * section inside the site folder (my-wordpress.php).
  *
- * The whole module is opt-in behind the `agents` extended option —
- * while off, none of these files load: no user-meta registration, no
- * REST routes, no window, no site-folder entity.
+ * The module is opt-in behind the `agents` extended option — while
+ * off, no user-meta registration, no REST routes, no window, no
+ * site-folder entity. The one exception is guard.php: see below.
  *
  * @package WPDesktopMode
  */
 
 defined( 'ABSPATH' ) || exit;
+
+/**
+ * The authentication guard loads unconditionally, ahead of the feature
+ * flag. Disabling the Agents framework does not delete the agent user
+ * rows, and an agent row whose login blocks unloaded with the feature
+ * would accept application passwords and password resets again. The
+ * blocks are a property of the rows, not of the feature.
+ */
+require_once DESKTOP_MODE_DIR . 'includes/agents/guard.php';
 
 /**
  * Whether the Agents framework is enabled site-wide.

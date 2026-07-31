@@ -440,11 +440,25 @@ function desktop_mode_agents_rest_invoke( WP_REST_Request $request ) {
 		);
 	}
 
+	$source = (string) $request['source'];
+
+	// Per-agent gate. The route's `permission_callback` cannot run this
+	// one: it has no access to the resolved agent, and the capability an
+	// agent requires is a property of that agent's trigger config.
+	if ( ! desktop_mode_agent_user_can_invoke_agent( (int) $user->ID, $source ) ) {
+		return new WP_Error(
+			'desktop_mode_agents_forbidden',
+			__( 'You do not have permission to invoke this agent.', 'desktop-mode' ),
+			array( 'status' => rest_authorization_required_code() )
+		);
+	}
+
 	$result = desktop_mode_agent_invoke(
 		(int) $user->ID,
 		(string) $request['message'],
 		array(
-			'source'  => (string) $request['source'],
+			'source'  => $source,
+			'invoker' => get_current_user_id(),
 			'history' => (array) $request['history'],
 		)
 	);
