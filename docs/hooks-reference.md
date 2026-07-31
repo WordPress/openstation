@@ -4376,6 +4376,32 @@ times over. System-context runs (no invoker) are not counted.
 - **Param** `int $limit` — default 120.
 - **Param** `int $invoker_id`
 
+### `desktop_mode_agent_http_timeout` — Experimental *(filter)*
+
+Seconds allowed for one agent generation request to the AI provider,
+replacing the WordPress HTTP default of 5.
+
+The AI Client's HTTP adapter issues provider calls through
+`wp_safe_remote_request()` and sets a `timeout` arg only when the caller
+supplies `RequestOptions`. Without one the WordPress default applies,
+and a generation over a long post routinely exceeds it — the transport
+aborts mid-flight and the SDK reports it as a *network* error, which at
+the UI is indistinguishable from the provider being down.
+
+The override is scoped to the AI Client call, so tool dispatch between
+turns keeps the site's normal timeout, and it only ever **raises** the
+value — a site already allowing longer keeps its own. It bounds a single
+request, not the whole run: the loop makes up to 8.
+
+Return `0` to leave the site's timeout untouched.
+
+- **Param** `int $timeout` — seconds; default 180 (`DESKTOP_MODE_AGENT_HTTP_TIMEOUT`).
+
+```php
+// Slow local model — allow five minutes per turn.
+add_filter( 'desktop_mode_agent_http_timeout', fn() => 300 );
+```
+
 ### `desktop_mode_agents_user_can_read` / `desktop_mode_agents_user_can_manage` / `desktop_mode_agents_user_can_invoke` — Experimental *(filters)*
 
 The three permission gates on the REST surface and the UI. Defaults:

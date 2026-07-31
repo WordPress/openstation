@@ -44,7 +44,14 @@ function desktop_mode_agents_register_abilities() {
 		'desktop-mode/get-post',
 		array(
 			'label'               => __( 'Get post by id', 'desktop-mode' ),
-			'description'         => 'Return a post — title, content, excerpt, status, author, dates — by its numeric id. Honours the caller\'s read capability.',
+			// The rawness of `content` is load-bearing for any agent that
+			// edits posts, and it belongs here rather than in a prompt:
+			// stated once on the ability, every agent's generated tool
+			// manifest carries it. Saying it only in an agent's own
+			// instructions leaves every other agent guessing, and a
+			// cautious one will refuse to write rather than risk
+			// flattening blocks.
+			'description'         => 'Return a post — title, content, excerpt, status, author, dates — by its numeric id. `content` is the RAW stored content exactly as saved, with block delimiter comments (`<!-- wp:… -->`) intact; it is never rendered output, so it is safe to edit and write back. Honours the caller\'s read capability.',
 			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -164,7 +171,7 @@ function desktop_mode_agents_register_abilities() {
 		'desktop-mode/create-post',
 		array(
 			'label'               => __( 'Create draft post', 'desktop-mode' ),
-			'description'         => 'Create a NEW post or page as a DRAFT, authored by the calling user. The status is always draft: this ability can never publish. Use it to produce reviewable content (translations, variants, generated drafts) without touching any existing post.',
+			'description'         => 'Create a NEW post or page as a DRAFT, authored by the calling user. The status is always draft: this ability can never publish. Use it to produce reviewable content (translations, variants, generated drafts) without touching any existing post. `content` is stored RAW, exactly as passed, so send block markup with its delimiter comments (`<!-- wp:… -->`) intact.',
 			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -208,7 +215,7 @@ function desktop_mode_agents_register_abilities() {
 		'desktop-mode/update-post',
 		array(
 			'label'               => __( 'Update post', 'desktop-mode' ),
-			'description'         => 'Update fields on an existing post. Accepts any subset of title / content / excerpt / status. Honours the edit_post capability of the calling user.',
+			'description'         => 'Update fields on an existing post. Accepts any subset of title / content / excerpt / status. `content` is stored RAW, exactly as passed, so send block markup with its delimiter comments (`<!-- wp:… -->`) intact — passing rendered HTML would flatten the post\'s blocks. Honours the edit_post capability of the calling user.',
 			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',

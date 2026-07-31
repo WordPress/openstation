@@ -148,6 +148,14 @@ Registering an ability agents can call:
       `desktop_mode_agent_tool_result`?
 - [ ] Is `meta.annotations.readonly` set honestly? The Copilot's
       server-dispatched tool loop uses it as a security boundary.
+- [ ] Does the `description` state every fact the model needs to use
+      the result safely? It is the ONLY place such a fact reaches every
+      caller: abilities are offered as native function declarations, so
+      the description is in context whether or not any agent's prompt
+      mentions the tool. `desktop-mode/get-post` saying its `content` is
+      raw stored markup is the worked example — an agent told only by
+      its own instructions leaves every other agent guessing, and a
+      cautious one stops rather than risk writing rendered HTML back.
 
 Adding a trigger intake:
 

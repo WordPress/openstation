@@ -270,7 +270,13 @@ function desktop_mode_ai_register_abilities() {
 		'desktop-mode/list-admin-pages',
 		array(
 			'label'               => __( 'List admin pages', 'desktop-mode' ),
-			'description'         => 'Returns the full catalog of WordPress admin (wp-admin) destinations — pages for managing posts, categories, users, plugins, themes, settings, etc. Call this when the user asks "where can I find X?", "how do I get to Y?", "where are the settings for Z?" — any navigational question about the admin UI. Once you have the catalog, select the 1-3 most relevant entries for the user\'s query and include them in your answer under admin_links with answer_type="navigation". The catalog is small and stable so one call is enough.',
+			// Describes the TOOL, not the caller's answer format: agents
+			// and the Copilot consume the same registry, and the
+			// Copilot's `admin_links` / `answer_type` contract exists in
+			// its own system prompt and answer schema. Naming those
+			// fields here would instruct an agent to emit a shape its
+			// answer schema does not have.
+			'description'         => 'Returns the full catalog of WordPress admin (wp-admin) destinations — pages for managing posts, categories, users, plugins, themes, settings, etc. Call this when the user asks "where can I find X?", "how do I get to Y?", "where are the settings for Z?" — any navigational question about the admin UI. Each entry carries a title, url, icon, and description, so pick the few most relevant to the query. The catalog is small and stable so one call is enough.',
 			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -293,7 +299,7 @@ function desktop_mode_ai_register_abilities() {
 		'desktop-mode/search-wporg-plugins',
 		array(
 			'label'               => __( 'Search WordPress.org plugins', 'desktop-mode' ),
-			'description'         => 'Searches the official WordPress.org plugin directory. Use this when the user asks for a plugin recommendation — e.g. "is there a plugin for SEO?", "find me a backup plugin", "a caching plugin", "form builder". Returns up to 10 plugins with name, description, rating, active install count, and an admin URL that opens the plugin-info / install screen directly. Present the results as admin_links with answer_type="navigation", titled "Plugin Name · 5M+ installs · 4.8★".',
+			'description'         => 'Searches the official WordPress.org plugin directory. Use this when the user asks for a plugin recommendation — e.g. "is there a plugin for SEO?", "find me a backup plugin", "a caching plugin", "form builder". Returns up to 10 plugins with name, description, rating, active install count, and an admin URL that opens the plugin-info / install screen directly.',
 			'category'            => DESKTOP_MODE_AI_ABILITY_CATEGORY,
 			'input_schema'        => array(
 				'type'                 => 'object',

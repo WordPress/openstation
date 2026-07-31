@@ -698,4 +698,125 @@ class Tests_DesktopMode_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'Accept', $result['callToActions'][0]['label'] );
 		$this->assertSame( 'Approved.', $result['callToActions'][0]['reply'] );
 	}
+
+	// -----------------------------------------------------------------
+	// Provider request timeout
+	// -----------------------------------------------------------------
+
+	/**
+	 * The WordPress default of 5s aborts a generation over a long post
+	 * mid-flight, surfacing as an opaque network error.
+	 *
+	 * @covers ::desktop_mode_agent_with_http_timeout
+	 */
+	public function test_http_timeout_is_raised_for_the_provider_request() {
+		$seen = null;
+		desktop_mode_agent_with_http_timeout(
+			static function () use ( &$seen ) {
+				$seen = apply_filters( 'http_request_timeout', 5, 'https://api.anthropic.com/v1/messages' );
+			}
+		);
+
+		$this->assertSame( DESKTOP_MODE_AGENT_HTTP_TIMEOUT, $seen );
+	}
+
+	/**
+	 * Released afterwards — an agent run must not widen the timeout for
+	 * unrelated requests later in the same page load.
+	 *
+	 * @covers ::desktop_mode_agent_with_http_timeout
+	 */
+	public function test_http_timeout_is_released_after_the_call() {
+		desktop_mode_agent_with_http_timeout( static function () {} );
+
+		$this->assertSame( 5, apply_filters( 'http_request_timeout', 5, 'https://example.com/' ) );
+	}
+
+	/**
+	 * Released even when the provider call throws, or one failure would
+	 * leak the raised timeout for the rest of the request.
+	 *
+	 * @covers ::desktop_mode_agent_with_http_timeout
+	 */
+	public function test_http_timeout_is_released_when_the_callback_throws() {
+		try {
+			desktop_mode_agent_with_http_timeout(
+				static function () {
+					throw new RuntimeException( 'provider exploded' );
+				}
+			);
+			$this->fail( 'Expected the exception to propagate.' );
+		} catch ( RuntimeException $e ) {
+			$this->assertSame( 'provider exploded', $e->getMessage() );
+		}
+
+		$this->assertSame( 5, apply_filters( 'http_request_timeout', 5, 'https://example.com/' ) );
+	}
+
+	/**
+	 * Only ever raises: a site that already allows longer keeps its own
+	 * value.
+	 *
+	 * @covers ::desktop_mode_agent_with_http_timeout
+	 */
+	public function test_http_timeout_never_lowers_a_larger_site_value() {
+		$larger = DESKTOP_MODE_AGENT_HTTP_TIMEOUT + 120;
+		$seen   = null;
+
+		desktop_mode_agent_with_http_timeout(
+			static function () use ( &$seen, $larger ) {
+				$seen = apply_filters( 'http_request_timeout', $larger, 'https://api.anthropic.com/v1/messages' );
+			}
+		);
+
+		$this->assertSame( $larger, $seen );
+	}
+
+	/**
+	 * The filter is the opt-out: 0 leaves the site's timeout untouched.
+	 *
+	 * @covers ::desktop_mode_agent_with_http_timeout
+	 */
+	public function test_http_timeout_filter_can_disable_the_override() {
+		add_filter( 'desktop_mode_agent_http_timeout', '__return_zero' );
+
+		$seen = null;
+		desktop_mode_agent_with_http_timeout(
+			static function () use ( &$seen ) {
+				$seen = apply_filters( 'http_request_timeout', 5, 'https://api.anthropic.com/v1/messages' );
+			}
+		);
+
+		remove_filter( 'desktop_mode_agent_http_timeout', '__return_zero' );
+		$this->assertSame( 5, $seen );
+	}
+
+	/**
+	 * The override wraps the AI Client call only, so it never widens the
+	 * timeout for the rest of a run: the `desktop_mode_agent_runner_generate`
+	 * pre-filter short-circuits ahead of the wrapper and sees the site's
+	 * normal value, as does every tool dispatched between turns.
+	 *
+	 * @covers ::desktop_mode_agent_runner_generate
+	 */
+	public function test_override_is_scoped_to_the_ai_client_call() {
+		$agent  = $this->create_agent();
+		$during = null;
+
+		$this->stub_generate(
+			static function () use ( &$during ) {
+				$during = apply_filters( 'http_request_timeout', 5, 'https://example.com/' );
+				return array(
+					'text'           => 'done',
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = desktop_mode_agent_invoke( $agent->ID, 'go' );
+
+		$this->assertNotWPError( $result );
+		$this->assertSame( 5, $during );
+	}
 }

@@ -69,6 +69,24 @@ defined( 'ABSPATH' ) || exit;
 const DESKTOP_MODE_AGENT_RUNNER_MAX_TURNS = 8;
 
 /**
+ * Seconds to allow one provider generation request, replacing the
+ * WordPress HTTP default of 5.
+ *
+ * The AI Client's HTTP adapter issues provider calls through
+ * `wp_safe_remote_request()` and only sets a `timeout` arg when the
+ * caller supplies `RequestOptions`. Without one the WordPress default
+ * applies, and a generation over a long post routinely exceeds it — the
+ * transport aborts mid-flight and the SDK reports it as a network
+ * error, indistinguishable at the UI from the provider being down.
+ *
+ * Sized for the worst realistic single turn (a long post read in full
+ * and rewritten), not for the whole run: the loop makes up to
+ * `DESKTOP_MODE_AGENT_RUNNER_MAX_TURNS` requests and this bounds each
+ * one independently.
+ */
+const DESKTOP_MODE_AGENT_HTTP_TIMEOUT = 180;
+
+/**
  * User-meta key holding the invocation log for an agent, capped at
  * `DESKTOP_MODE_AGENT_RUNNER_LOG_CAP` rows — older entries roll off
  * the front as new ones are appended.
@@ -810,17 +828,67 @@ function desktop_mode_agent_runner_generate( $agent_user_id, array $history, arr
 		desktop_mode_ai_user_text_message( desktop_mode_agent_runner_compose_prompt( $history ) ),
 	);
 
-	return desktop_mode_ai_client_generate(
-		$agent_user_id,
-		$messages,
-		$tool_defs,
-		// Constrain the final answer to { text, call_to_actions } so
-		// confirmations arrive as renderable buttons, not typed-reply
-		// requests. Tool-call turns are unaffected — the model either
-		// calls a function or emits the JSON answer.
-		desktop_mode_agent_answer_schema(),
-		(string) $instructions . "\n\n" . desktop_mode_agent_answer_prompt_appendix()
+	return desktop_mode_agent_with_http_timeout(
+		static function () use ( $agent_user_id, $messages, $tool_defs, $instructions ) {
+			return desktop_mode_ai_client_generate(
+				$agent_user_id,
+				$messages,
+				$tool_defs,
+				// Constrain the final answer to { text, call_to_actions } so
+				// confirmations arrive as renderable buttons, not typed-reply
+				// requests. Tool-call turns are unaffected — the model either
+				// calls a function or emits the JSON answer.
+				desktop_mode_agent_answer_schema(),
+				(string) $instructions . "\n\n" . desktop_mode_agent_answer_prompt_appendix()
+			);
+		}
 	);
+}
+
+/**
+ * Run a callback with the WordPress HTTP timeout raised for the
+ * provider request it makes.
+ *
+ * Scoped to the generation call rather than the whole run: tool
+ * dispatch happens outside it, so an ability that fetches something
+ * keeps the site's normal timeout and cannot hide a hung request behind
+ * the agent's allowance.
+ *
+ * The filter only ever RAISES the value — a site that already allows
+ * longer keeps its own setting — and it is removed in `finally` so it
+ * can never leak onto an unrelated request on the same page load.
+ *
+ * @param callable $callback Callback issuing the provider request.
+ * @return mixed The callback's return value.
+ */
+function desktop_mode_agent_with_http_timeout( callable $callback ) {
+	/**
+	 * Filter the HTTP timeout, in seconds, allowed for one agent
+	 * generation request. Return 0 or less to leave the site's timeout
+	 * untouched.
+	 *
+	 * @param int $timeout Seconds. Default DESKTOP_MODE_AGENT_HTTP_TIMEOUT.
+	 */
+	$timeout = (int) apply_filters( 'desktop_mode_agent_http_timeout', DESKTOP_MODE_AGENT_HTTP_TIMEOUT );
+
+	if ( $timeout <= 0 ) {
+		return $callback();
+	}
+
+	$raise = static function ( $current ) use ( $timeout ) {
+		return max( (int) $current, $timeout );
+	};
+
+	// Last, so it sees whatever the site settled on — and because it
+	// only raises, running last cannot undo another plugin's larger
+	// value.
+	add_filter( 'http_request_timeout', $raise, PHP_INT_MAX );
+
+	try {
+		return $callback();
+	} finally {
+		remove_filter( 'http_request_timeout', $raise, PHP_INT_MAX );
+	}
 }
 
 /**
