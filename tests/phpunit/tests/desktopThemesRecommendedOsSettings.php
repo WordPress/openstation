@@ -81,6 +81,40 @@ class Tests_DesktopMode_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 			$schema['windowRadius']['enum']
 		);
 		$this->assertTrue( $schema['dockRailRenderer']['slug'] );
+		$this->assertTrue( $schema['windowReveal']['slug'] );
+		$this->assertSame(
+			array(
+				'min' => DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN,
+				'max' => DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX,
+			),
+			$schema['windowRevealDuration']['int']
+		);
+	}
+
+	/**
+	 * The `int` grammar is filterable like the other two, and a
+	 * malformed range drops rather than reaching the sanitizer.
+	 *
+	 * @covers ::desktop_mode_desktop_theme_recommended_os_settings_schema
+	 */
+	public function test_int_rules_are_filterable_and_validated() {
+		add_filter(
+			'desktop_mode_desktop_theme_recommended_os_settings_schema',
+			static function ( $schema ) {
+				$schema['acmeDelay']    = array( 'int' => array( 'min' => 0, 'max' => 500 ) );
+				$schema['acmeNoRange']  = array( 'int' => true );
+				$schema['acmeBackward'] = array( 'int' => array( 'min' => 900, 'max' => 100 ) );
+				return $schema;
+			}
+		);
+
+		$schema = desktop_mode_desktop_theme_recommended_os_settings_schema();
+		$this->assertSame(
+			array( 'min' => 0, 'max' => 500 ),
+			$schema['acmeDelay']['int']
+		);
+		$this->assertArrayNotHasKey( 'acmeNoRange', $schema );
+		$this->assertArrayNotHasKey( 'acmeBackward', $schema );
 	}
 
 	/**
@@ -113,22 +147,65 @@ class Tests_DesktopMode_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	public function test_every_core_key_round_trips() {
 		$clean = desktop_mode_sanitize_desktop_theme_recommended_os_settings(
 			array(
-				'dockSize'         => 'large',
-				'desktopLayout'    => 'unified',
-				'windowRadius'     => 'round',
-				'dockRailRenderer' => 'default',
+				'dockSize'             => 'large',
+				'desktopLayout'        => 'unified',
+				'windowRadius'         => 'round',
+				'dockRailRenderer'     => 'default',
+				'windowReveal'         => 'iris',
+				'windowRevealDuration' => 700,
 			)
 		);
 
 		$this->assertSame(
 			array(
-				'dockSize'         => 'large',
-				'desktopLayout'    => 'unified',
-				'windowRadius'     => 'round',
-				'dockRailRenderer' => 'default',
+				'dockSize'             => 'large',
+				'desktopLayout'        => 'unified',
+				'windowRadius'         => 'round',
+				'dockRailRenderer'     => 'default',
+				'windowReveal'         => 'iris',
+				'windowRevealDuration' => 700,
 			),
 			$clean
 		);
+	}
+
+	/**
+	 * A numeric recommendation is CLAMPED rather than dropped: a theme
+	 * asking for something outside the playable range is still
+	 * expressing a direction, and the nearest playable value is the
+	 * honest reading of it.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_recommended_os_settings
+	 */
+	public function test_int_recommendations_clamp_rather_than_drop() {
+		$clean = desktop_mode_sanitize_desktop_theme_recommended_os_settings(
+			array( 'windowRevealDuration' => 999999 )
+		);
+		$this->assertSame(
+			DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX,
+			$clean['windowRevealDuration']
+		);
+
+		$clean = desktop_mode_sanitize_desktop_theme_recommended_os_settings(
+			array( 'windowRevealDuration' => 1 )
+		);
+		$this->assertSame(
+			DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN,
+			$clean['windowRevealDuration']
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_desktop_theme_recommended_os_settings
+	 */
+	public function test_non_numeric_int_recommendation_drops() {
+		$clean = desktop_mode_sanitize_desktop_theme_recommended_os_settings(
+			array(
+				'windowRevealDuration' => 'quick',
+				'windowReveal'         => 'iris',
+			)
+		);
+		$this->assertSame( array( 'windowReveal' => 'iris' ), $clean );
 	}
 
 	/**

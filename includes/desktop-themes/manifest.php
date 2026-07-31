@@ -875,6 +875,7 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
  *   "dockSize":         "large",
  *   "desktopLayout":    "unified",
  *   "windowRadius":     "default",
+ *   "adminBarMode":     "dynamic",
  *   "dockRailRenderer": "default"
  * }
  * ```
@@ -894,7 +895,7 @@ function desktop_mode_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
  * @internal
  *
  * @param mixed $raw Raw `recommendedOsSettings` value.
- * @return array<string,string>
+ * @return array<string,string|int>
  */
 function desktop_mode_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 	if ( ! is_array( $raw ) ) {
@@ -903,7 +904,23 @@ function desktop_mode_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 	$schema = desktop_mode_desktop_theme_recommended_os_settings_schema();
 	$out    = array();
 	foreach ( $schema as $key => $rule ) {
-		if ( ! isset( $raw[ $key ] ) || ! is_string( $raw[ $key ] ) ) {
+		if ( ! isset( $raw[ $key ] ) ) {
+			continue;
+		}
+		// Numeric grammar — clamped into range rather than dropped, so a
+		// theme asking for something outside what the shell will play
+		// still gets the nearest thing it will.
+		if ( isset( $rule['int'] ) ) {
+			if ( ! is_numeric( $raw[ $key ] ) ) {
+				continue;
+			}
+			$out[ $key ] = max(
+				(int) $rule['int']['min'],
+				min( (int) $rule['int']['max'], (int) round( (float) $raw[ $key ] ) )
+			);
+			continue;
+		}
+		if ( ! is_string( $raw[ $key ] ) ) {
 			continue;
 		}
 		$value = trim( $raw[ $key ] );

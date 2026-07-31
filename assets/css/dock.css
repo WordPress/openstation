@@ -79,13 +79,24 @@
 	background-repeat: var( --desktop-mode-dock-item-image-repeat, no-repeat );
 	background-size: var( --desktop-mode-dock-item-image-size, auto );
 	background-position: var( --desktop-mode-dock-item-image-position, center );
-	color: rgba( 255, 255, 255, 0.7 );
+	/*
+	 * Dock glyph colour. The literal is what this rule always said;
+	 * the token is the name a theme aims at when its dock strip is
+	 * not dark. See the "Dock glyphs" block in variables.css.
+	 */
+	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.7 ) );
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
 .desktop-mode-dock__item-primary:hover {
-	background-color: rgba( 255, 255, 255, 0.15 );
-	color: var( --wpd-fg-on-accent, #fff );
+	background-color: var(
+		--desktop-mode-dock-item-bg-hover,
+		rgba( 255, 255, 255, 0.15 )
+	);
+	color: var(
+		--desktop-mode-dock-icon-color-hover,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	transform: scale( 1.1 );
 }
 
@@ -94,7 +105,10 @@
 }
 
 .desktop-mode-dock__item-primary:focus-visible {
-	outline: 2px solid rgba( 255, 255, 255, 0.7 );
+	outline: 2px solid var(
+		--desktop-mode-dock-item-outline,
+		rgba( 255, 255, 255, 0.7 )
+	);
 	outline-offset: 2px;
 }
 
@@ -124,7 +138,12 @@
 	line-height: 1;
 }
 
-/* SVG icon (for custom post types with data:image/svg+xml icons). */
+/* SVG icon (for custom post types with data:image/svg+xml icons).
+ *
+ * The FALLBACK path now: `_makeSvgIcon()` paints these as a mask
+ * filled with `currentColor` (see `__item-mask` below) and only lands
+ * here when the mask refuses the URL — one carrying quotes, spaces or
+ * parens. The filter is what that fallback still needs. */
 .desktop-mode-dock__item-svg {
 	width: var( --desktop-mode-dock-icon-size, 20px );
 	height: var( --desktop-mode-dock-icon-size, 20px );
@@ -134,7 +153,9 @@
 	/* Some plugin SVGs ship hardcoded `fill="..."` attributes inside
 	   the markup, which override `fill: currentColor` and make the
 	   icon keep its brand color. Force the monochrome white palette
-	   to match dashicons. */
+	   to match dashicons. Flattens to WHITE specifically, which is why
+	   the mask path is preferred: a filter has no colour to name, so a
+	   theme cannot reach it. */
 	filter: brightness(0) invert(1);
 	transition: opacity 0.15s ease;
 }
@@ -144,19 +165,28 @@
 }
 
 /*
- * Desktop-theme TINTED icon — the glyph is painted as a CSS mask
- * filled with the colour the theme named, so only the source
- * artwork's alpha is used.
+ * MASKED icon — the glyph is painted as a CSS mask filled with a
+ * colour, so only the source artwork's alpha is used.
+ *
+ * Two callers, one shape:
+ *
+ *   - A desktop theme's tinted iconset, filled with the colour the
+ *     theme named for that slot.
+ *   - Every other plugin / CPT image icon, filled with
+ *     `currentColor` — which is `--desktop-mode-dock-icon-color`, the
+ *     same token the dashicons follow.
  *
  * Deliberately NOT `__item-svg`: that class force-whitens its content
- * with `filter: brightness(0) invert(1)` so plugin SVGs carrying
- * hardcoded `fill` attributes still match the dock. Here the fill is
- * the whole point, and the filter would flatten every theme's colour
- * to white.
+ * with `filter: brightness(0) invert(1)`. Both mechanisms discard the
+ * artwork's colours and keep its alpha, but only one of them has a
+ * colour a theme can name.
  *
- * Full opacity at rest, unlike the untinted icon paths: a theme that
- * names a colour has already decided how prominent its glyphs should
- * be, and dimming it to 0.7 would silently mix it with the dock.
+ * Full opacity, unlike `__item-svg`'s 0.7: the fill carries its own
+ * alpha. Unthemed that is `rgba( 255, 255, 255, 0.7 )` at rest and
+ * `#fff` on hover — exactly what the filter plus the opacity pair
+ * used to compute — and a theme that names a colour has already
+ * decided how prominent its glyphs should be, so dimming it again
+ * would silently mix it with the dock.
  *
  * @since 0.9.8
  */
@@ -378,9 +408,14 @@
 	transform: scale( 1.03 );
 }
 
-/* System tiles — same footprint as menu tiles, no badges, no rails. */
+/* System tiles — same footprint as menu tiles, no badges, no rails.
+ *
+ * Reads the SAME glyph token as a menu tile, with its own literal as
+ * the fallback: unthemed, system tiles keep sitting a notch brighter
+ * than the rest (0.8 vs 0.7); themed, one colour covers every glyph
+ * in the dock rather than leaving these four stranded white. */
 .desktop-mode-dock__item--system .desktop-mode-dock__item-primary {
-	color: rgba( 255, 255, 255, 0.8 );
+	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );
 }
 
 /* -----------------------------------------------------------------------------

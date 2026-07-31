@@ -359,14 +359,32 @@
  * drive the coloring via custom properties that inherit through
  * the boundary. The component reads `--wpd-btn-color`,
  * `--wpd-btn-bg-hover`, etc. and paints accordingly.
+ *
+ * Focused control glyphs are white at 70% — correct against the
+ * default focused title bar, which is the admin theme colour and so
+ * always a mid-to-dark fill, and invisible against a pale one. A
+ * theme could not reach them: these declarations land on the WINDOW
+ * element, so a `--wpd-btn-color` set at the shell root loses to
+ * them, and the same names also drive buttons outside the title bar
+ * (sticky notes, the desk chrome) that a theme usually does not want
+ * to move in the same stroke.
+ *
+ * `--desktop-mode-titlebar-btn-focused-*` mirrors the unfocused set
+ * below, name for name, so the two halves of the title bar are
+ * addressed the same way. Every one is UNDECLARED and falls back to
+ * the literal it replaced, so an unthemed shell paints exactly what
+ * it painted before.
+ *
+ * There is no `-danger-hover` twin: destructive red is semantic, not
+ * chrome, and both halves already resolve it through `--wpd-danger`.
  */
 .desktop-mode-window--focused {
-	--wpd-btn-color: rgba( 255, 255, 255, 0.7 );
-	--wpd-btn-color-hover: #fff;
-	--wpd-btn-bg-hover: rgba( 255, 255, 255, 0.18 );
-	--wpd-btn-bg-active: rgba( 255, 255, 255, 0.25 );
-	--wpd-btn-outline: rgba( 255, 255, 255, 0.65 );
-	--wpd-btn-danger-hover: #d63638;
+	--wpd-btn-color: var( --desktop-mode-titlebar-btn-focused-color, rgba( 255, 255, 255, 0.7 ) );
+	--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-focused-color-hover, #fff );
+	--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );
+	--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );
+	--wpd-btn-outline: var( --desktop-mode-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );
+	--wpd-btn-danger-hover: var( --wpd-danger, #d63638 );
 }
 
 .desktop-mode-window:not( .desktop-mode-window--focused ) {
@@ -553,23 +571,32 @@
  * the workaround no longer buys anything. Left where it is for now —
  * relocating it is behaviour-neutral churn. */
 
-/* Focused window: meta buttons visible. */
+/* Focused window: meta buttons visible.
+ *
+ * Screen-meta buttons are not `<wpd-window-button>` — they are plain
+ * buttons in the light DOM, so they paint themselves instead of
+ * reading the `--wpd-btn-*` bridge. They sit in the same title bar
+ * against the same fill, so they take the same
+ * `--desktop-mode-titlebar-btn-focused-*` tokens, each keeping its own
+ * literal as the fallback: unthemed they stay a touch dimmer at rest
+ * than the window controls (0.65 vs 0.7), themed they move together
+ * rather than one cluster going legible and the other staying white. */
 .desktop-mode-window--focused .desktop-mode-window__meta-btn {
-	color: rgba(255, 255, 255, 0.65);
+	color: var( --desktop-mode-titlebar-btn-focused-color, rgba(255, 255, 255, 0.65) );
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:hover {
-	color: var( --wpd-fg-on-accent, #fff );
-	background: rgba(255, 255, 255, 0.18);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:focus-visible {
-	color: var( --wpd-fg-on-accent, #fff );
-	background: rgba(255, 255, 255, 0.18);
-	outline: 2px solid rgba(255, 255, 255, 0.6);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	outline: 2px solid var( --desktop-mode-titlebar-btn-focused-outline, rgba(255, 255, 255, 0.6) );
 	outline-offset: 1px;
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn--active {
-	color: var( --wpd-fg-on-accent, #fff );
-	background: rgba(255, 255, 255, 0.25);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
 }
 
 /* Unfocused window: divider and buttons adapt to light title bar. */
@@ -881,11 +908,22 @@ wpd-tab-chip + wpd-tab-chip {
 	opacity: 0;
 	/* Default (loaded → loading-removed) — fade out immediately. */
 	transition: opacity 0.25s ease;
-	z-index: 1;
+	/*
+	 * Above both reveal layers (z-index 2 and 3), so the spinner stays
+	 * readable for the whole load and the surface it is sitting on only
+	 * becomes visible once the spinner has faded out.
+	 */
+	z-index: 4;
 }
 
+/*
+ * Content hidden while loading. The reveal surface is excluded
+ * alongside the spinner overlay: it is chrome, not content, and fading
+ * it to transparent would show the very content it exists to cover.
+ */
 .desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
+.desktop-mode-window__body--loading
+	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
 	opacity: 0;
 	transition: opacity 0.25s ease;
 }
@@ -903,9 +941,92 @@ wpd-tab-chip + wpd-tab-chip {
 	.desktop-mode-window__iframe,
 	.desktop-mode-window__loading,
 	.desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-	.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
+	.desktop-mode-window__body--loading
+		> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
 		transition: none;
 	}
+}
+
+/*
+ * Window reveal — the opaque layers a window's content is uncovered
+ * from once it reports ready. Painted for every window (of either
+ * kind) from construction, animated away by `src/reveals/surface.ts`,
+ * then removed.
+ *
+ * They are SIBLINGS of the iframe, never wrappers. `clip-path` is
+ * animated on these elements alone, so the content below keeps its own
+ * compositing layer, its hit-testing, and its stacking context — a
+ * reveal cannot swallow a click or re-rasterize the page it is
+ * uncovering. Native window content gets the identical treatment for
+ * the same reason.
+ *
+ * `--desktop-mode-window-reveal-surface` is a theme token, white by
+ * default — the surface has to be opaque or there is nothing to reveal
+ * from. The EDGE token is `transparent` by default instead, since an
+ * edge is an accent rather than the effect itself. Either layer that
+ * computes to no paint is skipped rather than animated. A def may
+ * override the surface for itself with an inline `background` (see
+ * `WindowRevealDef.surfaceColor`), which is how `obturator` gets its
+ * near-black shutter blades regardless of the token.
+ *
+ * No `transition` here on purpose — the shape is driven entirely by
+ * the Web Animations API, which needs a matched `from` / `to` pair a
+ * CSS transition cannot express. Reduced motion is handled JS-side by
+ * removing the layers instead of animating them.
+ */
+.desktop-mode-window__reveal {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: var( --desktop-mode-window-reveal-surface, #fff );
+	z-index: 3;
+}
+
+/*
+ * The reveal's leading edge. Same element shape, same keyframes, run
+ * over a slightly longer duration so it trails the surface — the sliver
+ * of it that is not yet covered by the surface IS the edge band. That
+ * is why this needs no shape of its own, and why every reveal (built-in
+ * or third-party) gets an edge that follows its geometry exactly.
+ *
+ * Behind the surface, still above the content.
+ *
+ * `--desktop-mode-window-reveal-edge` is `transparent` by default, and
+ * the shell drops the layer entirely while it computes that way — so
+ * the default costs no element and no animation. Give the token a
+ * colour (or a gradient) to turn the edge on across every reveal at
+ * once. `--desktop-mode-window-reveal-edge-thickness` tunes how wide
+ * the band is; `edgeLag: 0` on a def opts a single reveal out.
+ */
+.desktop-mode-window__reveal--edge {
+	background: var( --desktop-mode-window-reveal-edge, transparent );
+	z-index: 2;
+}
+
+/*
+ * A reveal that renders its own DOM (`WindowRevealDef.render`) paints
+ * itself — an `<svg>`, a canvas, whatever it built. The surface token
+ * must NOT apply underneath it: an opaque rectangle behind the
+ * renderer's output is what the effect would end up uncovering, so the
+ * animation would play against a flat colour and the real content
+ * would only appear when the layer is finally removed.
+ */
+.desktop-mode-window__reveal--custom {
+	background: none;
+}
+
+/*
+ * While a reveal plays, pin the content to full opacity with no
+ * transition. Dropping `--loading` normally starts a 250 ms content
+ * fade-in; a reveal running over that fade would show a
+ * half-transparent strip along its leading edge. Beats the base
+ * `.desktop-mode-window__iframe` rule on specificity, so no
+ * `!important` is needed.
+ */
+.desktop-mode-window__body--revealing
+	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
+	opacity: 1;
+	transition: none;
 }
 
 /*

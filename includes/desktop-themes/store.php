@@ -432,13 +432,19 @@ function desktop_mode_desktop_theme_texture_slots() {
  *               to PHP, so an unknown value is provably wrong and is
  *               dropped here.
  *   - `slug`  — a `sanitize_key()`-clean id whose validity only the
- *               JS registry knows (`dockRailRenderer` resolves against
- *               renderers registered at runtime, by core AND by
- *               plugins). PHP checks the charset; the shell drops the
- *               key at apply time when nothing is registered under
- *               that id, which is the same "resolve at use time"
- *               contract `desktop_mode_sanitize_os_settings()` already
- *               follows for the user's own `dockRailRenderer`.
+ *               JS registry knows (`dockRailRenderer` and
+ *               `windowReveal` resolve against things registered at
+ *               runtime, by core AND by plugins). PHP checks the
+ *               charset; the shell drops the key at apply time when
+ *               nothing is registered under that id, which is the same
+ *               "resolve at use time" contract
+ *               `desktop_mode_sanitize_os_settings()` already follows
+ *               for the user's own `dockRailRenderer`.
+ *   - `int`   — a whole number clamped into `{ min, max }`. Clamped
+ *               rather than dropped: a theme asking for a reveal
+ *               slower than the shell will play is expressing "slow",
+ *               and the honest reading of that is the slowest we do
+ *               play.
  *
  * A key absent from this table is dropped from the manifest. That is
  * the point: a theme RECOMMENDS presentation, so it may only reach
@@ -446,14 +452,22 @@ function desktop_mode_desktop_theme_texture_slots() {
  * theme to arrange for them — never a feature toggle, a capability
  * gate, or anything that changes what the shell can do.
  *
- * @return array<string,array{enum?:string[],slug?:bool}>
+ * @return array<string,array{enum?:string[],slug?:bool,int?:array{min:int,max:int}}>
  */
 function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 	$schema = array(
-		'dockSize'         => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES ),
-		'desktopLayout'    => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS ),
-		'windowRadius'     => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII ),
-		'dockRailRenderer' => array( 'slug' => true ),
+		'dockSize'             => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES ),
+		'desktopLayout'        => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS ),
+		'windowRadius'         => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII ),
+		'adminBarMode'         => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES ),
+		'dockRailRenderer'     => array( 'slug' => true ),
+		'windowReveal'         => array( 'slug' => true ),
+		'windowRevealDuration' => array(
+			'int' => array(
+				'min' => DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN,
+				'max' => DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX,
+			),
+		),
 	);
 	/**
 	 * Filters the OS-settings keys a desktop theme may recommend.
@@ -462,7 +476,8 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 	 * Settings can opt it into theme recommendations by adding an
 	 * entry here — `array( 'enum' => array( … ) )` for a closed set,
 	 * `array( 'slug' => true )` for a registry id resolved at apply
-	 * time.
+	 * time, `array( 'int' => array( 'min' => …, 'max' => … ) )` for a
+	 * clamped whole number.
 	 *
 	 * Anything added is written into user meta the first time a user
 	 * activates a theme that recommends it, so keep the list to
@@ -470,7 +485,7 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 	 * do not belong here.
 	 *
 	 * @param array<string,array> $schema Map of settings key =>
-	 *                                    `{ enum }` or `{ slug }`.
+	 *                                    `{ enum }`, `{ slug }`, or `{ int }`.
 	 */
 	$schema = (array) apply_filters(
 		'desktop_mode_desktop_theme_recommended_os_settings_schema',
@@ -496,6 +511,22 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 		}
 		if ( ! empty( $rule['slug'] ) ) {
 			$out[ $key ] = array( 'slug' => true );
+			continue;
+		}
+		if (
+			! empty( $rule['int'] )
+			&& is_array( $rule['int'] )
+			&& isset( $rule['int']['min'], $rule['int']['max'] )
+			&& is_numeric( $rule['int']['min'] )
+			&& is_numeric( $rule['int']['max'] )
+			&& (int) $rule['int']['min'] <= (int) $rule['int']['max']
+		) {
+			$out[ $key ] = array(
+				'int' => array(
+					'min' => (int) $rule['int']['min'],
+					'max' => (int) $rule['int']['max'],
+				),
+			);
 		}
 	}
 	return $out;

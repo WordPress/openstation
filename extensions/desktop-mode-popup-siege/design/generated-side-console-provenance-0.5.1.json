@@ -1,0 +1,33 @@
+{
+	"game": "popup-breaker",
+	"version": "0.5.1",
+	"approval": "selected-for-prototype-runtime",
+	"role": "prototype-runtime blank decorative OpenStation side console",
+	"participantVisible": true,
+	"prototypeRuntime": true,
+	"productionRuntime": false,
+	"runtimeTranslationBuild": "0.5.1",
+	"imagegenMode": "built-in",
+	"promptRecord": "games/popup-breaker/docs/imagegen-art-brief-0.5.1.md",
+	"source": {
+		"path": "games/popup-breaker/assets/images/popup-siege-side-console-0.5.1-source.png",
+		"width": 771,
+		"height": 2041,
+		"bytes": 1570150,
+		"sha256": "63244315047e5aa134e4ad7c3529114da8cdd17bee848ad0086c65b2bedb7f0b",
+		"alpha": false
+	},
+	"derivative": {
+		"path": "games/popup-breaker/assets/images/popup-siege-side-console-0.5.1.png",
+		"width": 771,
+		"height": 2041,
+		"bytes": 1395103,
+		"sha256": "701ea0805f3e0fa54c46b97d217a75abadda9bb8bf43ad752eb2fa1f012d967e",
+		"alpha": true,
+		"derivation": "Built-in Imagegen flat chroma-key source; local soft-matte border-key removal with despill."
+	},
+	"criticVerdict": "pass-for-prototype-runtime",
+	"tasteVerdict": "refine-selected",
+	"geometryManifest": "games/popup-breaker/assets/popup-siege-ui-system-0.5.1.json",
+	"productionGate": "Fresh Human Fun Proof and human visual approval remain pending."
+}

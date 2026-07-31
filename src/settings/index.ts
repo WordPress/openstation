@@ -42,6 +42,7 @@ import type { WallpaperTeardown } from '../wallpapers/types';
 import * as registry from '../wallpapers/registry';
 import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
+	ADMIN_BAR_MODES,
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
 	WINDOW_RADII,
@@ -184,12 +185,15 @@ export class OsSettings implements SettingsCtx {
 			accent: this.state.accent,
 			dockSize: this.state.dockSize,
 			windowRadius: this.state.windowRadius,
+			adminBarMode: this.state.adminBarMode,
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
 			desktopTheme: this.state.desktopTheme,
 			appliedThemeRecommendations:
 				this.state.appliedThemeRecommendations.slice(),
 			unfocusEffect: this.state.unfocusEffect,
+			windowReveal: this.state.windowReveal,
+			windowRevealDuration: this.state.windowRevealDuration,
 			windowLinkRenderer: this.state.windowLinkRenderer,
 			windowLinkVisibility: this.state.windowLinkVisibility,
 			windowLinksEnabled: this.state.windowLinksEnabled,
@@ -348,6 +352,22 @@ export class OsSettings implements SettingsCtx {
 			'--desktop-mode-window-radius',
 			`${ windowRadius.value }px`,
 		);
+
+		// Admin-bar mode — a body class rather than a shell-scoped
+		// attribute, because the thing it styles (`#wpadminbar`) is a
+		// SIBLING of the shell, not a descendant. PHP writes the same
+		// class on `admin_body_class` so the first paint is already
+		// correct; re-writing it here is what makes a pick in OS
+		// Settings take effect without a reload.
+		const adminBarMode =
+			ADMIN_BAR_MODES.find( ( m ) => m.id === this.state.adminBarMode ) ??
+			ADMIN_BAR_MODES[ 0 ];
+		for ( const mode of ADMIN_BAR_MODES ) {
+			document.body.classList.toggle(
+				`desktop-mode-admin-bar-${ mode.id }`,
+				mode.id === adminBarMode.id,
+			);
+		}
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on

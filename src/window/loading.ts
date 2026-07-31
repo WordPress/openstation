@@ -18,19 +18,18 @@
  */
 
 import { HOOKS, addAction } from './../hooks';
+import { armWindowReveal, playWindowReveal } from '../reveals/surface';
+import { LOADING_OVERLAY_FADE_OUT_MS } from './constants';
 import { ensureLoadingOverlay, removeLoadingOverlay } from './dom';
 
 /**
- * Duration of the body-content fade-out before the overlay
- * element is removed from the DOM. Must match the
- * `transition: opacity` duration in
- * `assets/css/window-chrome.css` for `.desktop-mode-window__loading`
- * — overshooting wastes a frame, undershooting yanks the spinner
- * mid-fade.
+ * Duration of the body-content fade-out before the overlay element is
+ * removed from the DOM. Shared with the reveal surface, which waits the
+ * same span before it starts receding.
  *
  * @internal
  */
-const FADE_OUT_MS = 250;
+const FADE_OUT_MS = LOADING_OVERLAY_FADE_OUT_MS;
 
 let _installed = false;
 
@@ -96,6 +95,13 @@ function _installSubscriptions(): void {
 			}
 			body.classList.add( 'desktop-mode-window__body--loading' );
 			ensureLoadingOverlay( el );
+			// Re-arm the reveal surface. The FIRST arm happens in
+			// `createWindowElement`, because the construction-time
+			// `markWindowContentLoading()` fires before the window is in
+			// the document and `findWindowElement` above cannot see it
+			// yet. This edge covers every subsequent load — reload,
+			// in-window navigation, tab switch.
+			armWindowReveal( el );
 		},
 	);
 
@@ -114,6 +120,13 @@ function _installSubscriptions(): void {
 				return;
 			}
 			body.classList.remove( 'desktop-mode-window__body--loading' );
+			// Start the reveal in the SAME tick the loading modifier is
+			// dropped. `playWindowReveal` adds the `--revealing` class,
+			// whose rule pins the content to full opacity with no
+			// transition — deferring it by even a frame would let the
+			// body's normal 250 ms content fade start first and show a
+			// half-transparent strip along the reveal's leading edge.
+			playWindowReveal( el );
 			// Defer the overlay removal until the CSS fade-out has
 			// settled. Without this, the overlay disappears on the
 			// same frame the modifier flips off and the spinner

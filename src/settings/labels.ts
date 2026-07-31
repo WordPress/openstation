@@ -10,6 +10,7 @@
 import { __ } from '../i18n';
 import type {
 	AccentId,
+	AdminBarModeId,
 	DesktopLayoutId,
 	DockPlacementId,
 	DockSizeId,
@@ -59,6 +60,22 @@ export function translateWindowRadiusLabel(
 			return __( 'Default' );
 		case 'round':
 			return __( 'Round' );
+		default:
+			return fallback;
+	}
+}
+
+export function translateAdminBarModeLabel(
+	id: AdminBarModeId,
+	fallback: string,
+): string {
+	switch ( id ) {
+		case 'static':
+			return __( 'Static' );
+		case 'dynamic':
+			return __( 'Dynamic' );
+		case 'hidden':
+			return __( 'Hidden' );
 		default:
 			return fallback;
 	}

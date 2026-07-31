@@ -106,7 +106,7 @@ function desktop_mode_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
 	}
 	// Provider + model are chosen by the Core AI Client; Desktop Mode pins neither.
 
-	$json = $builder->as_json_response( $schema )->generate_text();
+	$json = $builder->as_json_response( desktop_mode_ai_normalize_response_schema( $schema ) )->generate_text();
 	if ( is_wp_error( $json ) ) {
 		return $json;
 	}

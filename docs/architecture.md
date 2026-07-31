@@ -136,6 +136,7 @@ Persistence:
 
 - `dockRailRenderer` lives on `OsSettingsState` (REST-synced to user meta via `/wp-json/desktop-mode/v1/os-settings`). The field takes any `sanitize_key()`-clean string; the JS-side registry resolves at use time and falls back to `'default'` when the named renderer is missing (plugin deactivated, typo). No server-side allow-list — renderers register from JS at runtime.
 - `unfocusEffect` lives on `OsSettingsState` the same way (default `'darken'`, `'none'` disables). The value is an unfocus-effect registry id or `'none'`; it is lower-cased and stripped to `[a-z0-9_/-]` server-side (slashes preserved so `vendor/sub-id` round-trips — unlike `sanitize_key()`). The engine resolves it at use time and treats an unknown id as "no effect". Plugin effects register from JS at runtime; PHP opt-in via `desktop_mode_register_unfocus_effect_script()` adds the `serverUnfocusEffectScripts` payload entry so a plugin's effect surfaces in OS Settings → Effects without an F5.
+- `windowReveal` follows the same pattern (default `'none'` — reveals are opt-in), and drives the transition that uncovers a window's content once it finishes loading. The shell paints an opaque surface (`.desktop-mode-window__reveal`) into the window body at construction and on every subsequent loading edge, then animates its `clip-path` away on `WINDOW_CONTENT_LOADED`. The surface is a sibling of the `<iframe>`, so clipping never touches the framed document, the content's compositing layer, or its hit-testing; native windows take the identical path. Shapes come from `src/reveals/shapes.ts`, which guarantees interpolable `from`/`to` pairs (same shape function, constant vertex count, holes made by reverse winding rather than `evenodd`). Two layers are painted: the surface (`--desktop-mode-window-reveal-surface`) and, behind it, a leading edge (`--desktop-mode-window-reveal-edge`) running the same keyframes over a longer span so it trails as a band along the clip boundary — which is how every reveal gets an edge matching its own geometry without describing one. The surface token is white (it must be opaque or there is nothing to reveal from) and the edge token `transparent`; either layer that resolves to no paint is dropped rather than animated, which both makes `transparent` a working per-layer off switch and keeps the opt-in edge free until a theme colours it. A def may override either colour via `surfaceColor` / `edgeColor`, or per layer via `layers[].color` — `obturator` is the only built-in that does, shading each of its six leaves differently. That per-layer tone is what renders an overlap at all: same-coloured layers composite into one silhouette, and no trailing edge can substitute, because an edge only ever shows `union( edges ) − union( surfaces )` — one band around the uncovered area, never per-part seams. Multi-layer reveals therefore normally set `edgeLag: 0`. A def may also ship `layers` (several matched pairs) instead of one `from`/`to`, which is what lets a reveal be a mechanism whose parts overlap rather than a single shape: A def may instead ship `render()`, taking over the covering DOM entirely while keeping the shell's timing — `obturator` uses it, because a lens iris has a cyclic overlap (every leaf over the next, the last back under the first) that a linear paint order cannot represent; as SVG it becomes six equilateral `<path>` wedges sliding tangentially under a shared `<mask>`, with no restacking at all (`src/reveals/obturator.ts`). `--desktop-mode-window-reveal-edge-thickness` (a `%`/unitless fraction of travel, or an absolute time) overrides the def's `edgeLag`. Duration resolves user setting (`windowRevealDuration`, `0` = per reveal) → `--desktop-mode-window-reveal-duration` theme token → the def's own `duration`, with the edge lag scaled by the same ratio so the band keeps its apparent width. Themes may also recommend `windowReveal` / `windowRevealDuration` through `recommendedOsSettings`; the latter is the first user of the schema's `int` grammar. Registration is JS-only for now — there is no `serverWindowRevealScripts` payload entry, so a reveal from a plugin activated mid-session needs an F5 to appear in OS Settings → Effects (the same known gap as palettes).
 - `windowLinkRenderer` / `windowLinkVisibility` follow the `unfocusEffect` pattern for the window-links feature — visual ties between windows showing related content (`src/window-links/`). The renderer id uses the same `[a-z0-9_/-]` charset (default `'svg-splines'`, `'none'` disables; the render host falls back to the built-in for unknown ids); visibility is the closed set `'always' | 'focus' | 'off'` (default `'always'`). Three boolean feature switches (`windowLinksEnabled`, `windowLinkRaiseOnFocus`, `windowLinkHighlight`, all default `true`) live in OS Settings → Features and gate the whole feature / the group-raise / the related-window outline respectively. PHP opt-in via `desktop_mode_register_window_link_renderer_script()` adds the `serverWindowLinkRendererScripts` payload entry. The active renderer mounts into a dedicated overlay layer (`#desktop-mode-window-links`, `z-index: var(--desktop-mode-z-window-links, 50)` — above the widget layer, behind the windows, `pointer-events: none`) that exists only while a relation group is renderable. Per-window content identity arrives from the chromeless bridge's `desktop-mode-content-identity` postMessage, built by `desktop_mode_build_content_identity()` in `includes/window-links.php` and filterable via `desktop_mode_window_content_identity`. The identity also carries `related` navigation items (the title bar's Related menu; filter `desktop_mode_window_related_entities`), and `GET /wp-json/desktop-mode/v1/content-identity?post=N` (`edit_post`-gated) recomputes a post's identity outside a page render — the bridge's block-editor save-watcher hits it after every real save and re-announces, so the menu and the window ties stay fresh without a reload.
 
 See [`docs/dock-customization.md`](./dock-customization.md) for the plugin-author overview and [`docs/examples/`](./examples/README.md) for full walk-throughs.
@@ -307,6 +308,50 @@ WordPress 7.0 adds its own command-palette admin-bar icon (`#wp-admin-bar-comman
 - **Ask AI** — natural-language questions routed through `/ai/search` (read-only [Abilities](hooks-reference.md) + content search). It **suggests** (answers, entity cards, `admin_links` the user clicks) and never auto-runs a command. Offered only when a provider is configured *and* the toggle is on.
 
 A **mode switch** in the header flips between them (replacing the `/` shortcut); it appears only when Ask AI is available. Each mode keeps its own input draft, and the last AI answer is re-shown when returning to Ask AI. The **OS Settings → Features → "AI assistant"** toggle (`ai.enabled`, off by default, provider-gated) enables Ask AI and makes it the default mode on open (off → Commands). The overlay reads provider status + the toggle live via `AiAssistantConfig.isAiAvailable()` / `isOverrideEnabled()`, so connecting a provider or flipping the toggle takes effect on the next open without a reload.
+
+### AI Agents (opt-in)
+
+Behind the `agents` extended option (default off; while off,
+`includes/agents/bootstrap.php` loads nothing). An agent is split
+across exactly two layers:
+
+- **Identity — a synthetic `wp_users` row.** Real role, real
+  capabilities, real attribution in revisions/comments/audit trails.
+  Every login path is blocked (`authenticate` filter, password reset,
+  application passwords), the address is a never-delivered synthetic
+  email, and the wp-admin Users list labels the row "Agent".
+- **Definition — user meta on that row.** Description, instructions
+  (system prompt), ability allowlist, triggers, model override, and
+  rate limit live in the `_desktop_mode_agent_*` key family
+  (`includes/agents/store.php` owns every key). User meta has no
+  revisions, so the `desktop_mode_agent_{created,updated,deleted}`
+  actions carry before/after values and ARE the audit trail.
+
+**Tools are the WordPress Abilities API.** The Tools picker is a view
+over `wp_get_abilities()` (with honest read-only vs mutating badges
+from `meta.annotations.readonly`); the picks are the allowlist meta;
+each call dispatches through `WP_Ability::execute()` so the ability's
+own `permission_callback` gates it. Unlike the AI Copilot (read-only
+abilities only), agents may be granted mutating abilities — the
+compensating controls are the explicit allowlist set by an
+`edit_users` human plus the agent's role.
+
+**The runner** (`includes/agents/runner.php`) generates through the
+same Core AI Client adapter the Copilot uses
+(`desktop_mode_ai_client_generate()` over `wp_ai_client_prompt()`),
+loops tool calls to a hard 8-turn cap, and runs the whole loop with
+`wp_set_current_user()` switched to the agent (restored in `finally`)
+so permission callbacks see the agent's role, not the human caller.
+Per-agent hourly rate limits ride a transient counter.
+
+**Surfaces:** `/desktop-mode/v1/agents` REST CRUD + `/invoke`
+(`includes/rest/README.md`), the Agents section inside the site folder
+(server: `desktop_mode_my_wordpress_entities` filter; client: the
+`agent` entity kind via `registerEntityKind()`), and the lazy
+`desktop-mode-agent-run` chat window fed through the cross-bundle
+`desktop-mode/agents-chat` shared store. Phase A ships the chat
+trigger; send-to/drag, hook, endpoint, and agent-to-agent intakes are
+declared in the trigger-kind catalogue and land in later phases.
 
 ## CSS layering
 

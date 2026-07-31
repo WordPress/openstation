@@ -79,6 +79,7 @@ import {
 } from './title-bar-buttons/registry';
 import { createTitleBarButtonRegistrySync } from './title-bar-buttons/server-sync';
 import { type UnfocusEffectDef } from './effects/types';
+import { type WindowRevealDef } from './reveals/types';
 import { startWindowLinksEngine } from './window-links/engine';
 import { startWindowLinkRenderHost } from './window-links/render-host';
 import { bootRelatedEntities } from './related-entities';
@@ -90,6 +91,7 @@ import type {
 import { createUnfocusEffectRegistrySync } from './effects/server-sync';
 import { createWindowLinkRendererRegistrySync } from './window-links/server-sync';
 import { startUnfocusEngine } from './effects/unfocus-engine';
+import { startWindowRevealEngine } from './reveals/engine';
 import { createDockRailRendererSync } from './dock-rail/server-sync';
 import {
 	type WindowThemeDef,
@@ -232,6 +234,7 @@ import {
 } from './desktop-files';
 import { isSyntheticPlacement, mountFilesLayer } from './desktop-files/layer';
 import { installRecycleBinDropTargets } from './desktop-files/recycle-bin-targets';
+import { installAgentTileDropHandlers } from './desktop-files/agent-drop-targets';
 import { startFilesHeartbeat } from './desktop-files/heartbeat';
 import { startFilesRestoreSync } from './desktop-files/restore-sync';
 import { buildOccupiedSet, snapToEmptyCell } from './desktop-files/grid';
@@ -1116,6 +1119,25 @@ export interface WpDesktopPublicApi {
 	unregisterUnfocusEffect: ( id: string ) => void;
 	/** Snapshot of registered unfocus effects (filter applied). */
 	listUnfocusEffects: () => UnfocusEffectDef[];
+	/**
+	 * Register a window reveal — the `clip-path` transition that
+	 * uncovers a window's content once it has finished loading,
+	 * selectable in OS Settings → Effects. Ship a matched `from` / `to`
+	 * pair describing the opaque covering surface: `from` covers the
+	 * whole window, `to` is empty. Both must use the same shape
+	 * function or the values cannot interpolate — registration rejects
+	 * a mismatched pair rather than letting it flicker at runtime. Set
+	 * `owner` to the script handle for live unregistration on
+	 * deactivation. The five built-ins are registered through this same
+	 * API.
+	 *
+	 * Throws a `RegistrationError` on validation failure.
+	 */
+	registerWindowReveal: ( def: WindowRevealDef ) => void;
+	/** Remove a previously registered window reveal. */
+	unregisterWindowReveal: ( id: string ) => void;
+	/** Snapshot of registered window reveals (filter applied). */
+	listWindowReveals: () => WindowRevealDef[];
 	/**
 	 * Window content relations — which piece of content each window
 	 * shows and how windows group around a shared root (a comment
@@ -2913,6 +2935,13 @@ function init(): void {
 	// it only listens to existing window-lifecycle events.
 	startUnfocusEngine( { manager, osSettings } );
 
+	// Window-reveal engine — tracks which reveal the user picked so the
+	// next window load can play it. Deliberately not a subscriber on
+	// the content-loaded hook: `src/window/loading.ts` already owns
+	// that edge and drives the surface directly, which keeps the class
+	// toggles in a single deterministic order.
+	startWindowRevealEngine( { osSettings } );
+
 	// Window-links relations engine — tracks per-window content
 	// identity and relation groups. Pure state + events; the link
 	// render host below owns the visuals.
@@ -3389,6 +3418,9 @@ function init(): void {
 	// Deferred to idle: drop targets only matter when the user is
 	// actively dragging, never on first paint.
 	scheduleIdleBoot( () => installRecycleBinDropTargets( dragManager ) );
+	// Agent user tiles accept entity drops (inert while the agents
+	// extended option is off — no tile carries `isAgent` then).
+	scheduleIdleBoot( () => installAgentTileDropHandlers() );
 
 	// Wire the cross-feature Heartbeat bus before any consumer
 	// (presence, recycle bin, third-party plugins) registers a

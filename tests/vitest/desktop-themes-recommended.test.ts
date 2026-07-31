@@ -72,14 +72,33 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 				dockSize: 'large',
 				desktopLayout: 'unified',
 				windowRadius: 'round',
+				adminBarMode: 'dynamic',
 				dockRailRenderer: 'default',
 			} ),
 		).toEqual( {
 			dockSize: 'large',
 			desktopLayout: 'unified',
 			windowRadius: 'round',
+			adminBarMode: 'dynamic',
 			dockRailRenderer: 'default',
 		} );
+	} );
+
+	test( 'every admin-bar mode is accepted', () => {
+		for ( const mode of [ 'static', 'dynamic', 'hidden' ] ) {
+			expect( sanitizeRecommendedOsSettings( { adminBarMode: mode } ) ).toEqual(
+				{ adminBarMode: mode },
+			);
+		}
+	} );
+
+	test( 'an unknown admin-bar mode drops', () => {
+		expect(
+			sanitizeRecommendedOsSettings( {
+				adminBarMode: 'peekaboo',
+				dockSize: 'large',
+			} ),
+		).toEqual( { dockSize: 'large' } );
 	} );
 
 	test( 'out-of-enum values drop and the rest survive', () => {
@@ -128,8 +147,40 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 			'dockSize',
 			'desktopLayout',
 			'windowRadius',
+			'adminBarMode',
 			'dockRailRenderer',
+			'windowReveal',
+			'windowRevealDuration',
 		] );
+	} );
+
+	test( 'keeps a window-reveal id on the slug charset', () => {
+		expect(
+			sanitizeRecommendedOsSettings( { windowReveal: 'iris' } ),
+		).toEqual( { windowReveal: 'iris' } );
+	} );
+
+	test( 'clamps a reveal duration instead of dropping it', () => {
+		// A theme asking for something outside the playable range is
+		// still expressing a direction; the nearest playable duration
+		// is the honest reading of it.
+		expect(
+			sanitizeRecommendedOsSettings( { windowRevealDuration: 99_999 } ),
+		).toEqual( { windowRevealDuration: 4000 } );
+		expect(
+			sanitizeRecommendedOsSettings( { windowRevealDuration: 1 } ),
+		).toEqual( { windowRevealDuration: 80 } );
+		expect(
+			sanitizeRecommendedOsSettings( { windowRevealDuration: 512.6 } ),
+		).toEqual( { windowRevealDuration: 513 } );
+	} );
+
+	test( 'drops a non-numeric reveal duration', () => {
+		expect(
+			sanitizeRecommendedOsSettings( {
+				windowRevealDuration: '700' as unknown as number,
+			} ),
+		).toEqual( {} );
 	} );
 } );
 
@@ -150,6 +201,27 @@ describe( 'resolveRecommendedOsSettings', () => {
 				dockRailRenderer: 'orbit-rail',
 			} ),
 		).toEqual( { dockSize: 'large' } );
+	} );
+
+	test( 'keeps a registered window reveal, and `none`', () => {
+		expect( resolveRecommendedOsSettings( { windowReveal: 'iris' } ) ).toEqual(
+			{ windowReveal: 'iris' },
+		);
+		// `none` is the selector's "no reveal" sentinel rather than a
+		// registration, so a theme recommending a deliberately plain
+		// shell must survive the registry check.
+		expect( resolveRecommendedOsSettings( { windowReveal: 'none' } ) ).toEqual(
+			{ windowReveal: 'none' },
+		);
+	} );
+
+	test( 'drops an unregistered reveal, keeping every other key', () => {
+		expect(
+			resolveRecommendedOsSettings( {
+				windowRevealDuration: 700,
+				windowReveal: 'ghost-reveal',
+			} ),
+		).toEqual( { windowRevealDuration: 700 } );
 	} );
 
 	test( 'the renderer survives once its plugin registers it', () => {

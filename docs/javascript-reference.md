@@ -2264,6 +2264,137 @@ Remove an effect by id, or read the current list (post-filter). `listUnfocusEffe
 
 ---
 
+### `registerWindowReveal( def )` — Experimental
+
+Register a **window reveal** — the transition that uncovers a window's content once it has finished loading, surfaced in **OS Settings → Effects → "Window reveal"**. The shell paints an opaque surface over the window body for the whole load (the same span the `<wpd-spinner>` overlay covers), then animates that surface's `clip-path` away. The twelve built-ins (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`) are registered through this same hook.
+
+The surface is a **sibling of the `<iframe>`** inside `.desktop-mode-window__body`, never a wrapper and never inside the framed document. Nothing is injected into the page being revealed, the content keeps its own compositing layer and hit-testing, and native windows are treated identically to iframe windows. A reveal cannot interfere with what it reveals.
+
+**Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, a missing `from`/`to`, or a `from`/`to` pair that cannot interpolate).
+
+**`WindowRevealDef`:**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | `string` | Unique. `[a-z0-9_/-]+` (slashes welcome for `vendor/sub-id`). `'none'` is reserved (the selector's "no reveal" sentinel). Re-registering replaces. |
+| `label` | `string` | Shown in the selector. |
+| `description` | `string` | Optional. Shown under the selector when this reveal is active. |
+| `from` | `string` | `clip-path` for the covering surface at the START. Must cover the whole body — anything it leaves uncovered shows the content early. Required unless you supply `layers`. |
+| `to` | `string` | `clip-path` at the END. Must be empty or fully off-box, so the content is completely uncovered when the animation lands. Required unless you supply `layers`. |
+| `layers` | `{ from, to, color? }[]` | Several independent covering layers instead of one. See **Multi-layer reveals** below. |
+| `render` | `() => { element, play }` | Build the covering DOM yourself. See **Rendering your own** below. Supply exactly one of `from`/`to`, `layers`, or `render`. |
+| `duration` | `number` | Optional, ms. Defaults to `460`. Clamped to 80–4000. Overridden by the user's OS-Settings speed and by the theme token — see **Speed** below. |
+| `easing` | `string` | Optional CSS easing. Defaults to `cubic-bezier( 0.33, 0, 0.2, 1 )`. |
+| `surfaceColor` | `string` | Optional `background` for the covering surface, overriding the theme token. Reach for it only when the paint **is** the reveal — see the note below. |
+| `edgeColor` | `string` | Optional `background` for the trailing edge, overriding the theme token. A multi-layer reveal usually wants this **darker** than its surface. |
+| `edgeLag` | `number` | Optional, ms the leading edge trails the surface. Defaults to `70`; `0` drops the edge layer. Clamped to 0–600. Overridden outright by the `--desktop-mode-window-reveal-edge-thickness` theme token. |
+| `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
+
+> **`from` and `to` are a matched pair, not two independent values.** CSS only interpolates a `clip-path` between values using the **same shape function** — and, for `polygon()`, the same **vertex count** and fill rule. A mismatched pair is not an error to the browser: it jumps between the two values at the halfway mark, which reads as a flicker on a window that just finished loading. Registration rejects a mismatched shape function outright rather than letting that ship. Vertex counts are your responsibility; build both endpoints from one function so the ring structure cannot drift.
+
+```javascript
+wp.desktop.ready( () => {
+    wp.desktop.registerWindowReveal( {
+        id:       'acme/rise',
+        label:    'Rise',
+        // Same shape function at both ends, so the pair interpolates.
+        from:     'inset( 0% 0% 0% 0% )',
+        to:       'inset( 0% 0% 100% 0% )',
+        duration: 420,
+        owner:    'my-plugin-reveals',
+    } );
+} );
+```
+
+**Multi-layer reveals.** One `clip-path` describes one region, so anything it leaves uncovered *is* uncovered. When the effect depends on pieces **overlapping** each other, that isn't enough — and `layers` is the answer: what the user sees uncovered becomes whatever *all* the layers leave uncovered, an intersection rather than a shape.
+
+**Rendering your own.** `render` is the escape hatch for effects a stack of clipped boxes cannot express. It returns `{ element, play }`: the shell appends your element as the reveal's single layer, then calls `play({ duration, easing, delay })` when the moment comes and hangs teardown off the animations you return.
+
+You still get the shell's timing for free — when the reveal plays, how long, the user's speed override, the spinner hand-off, reduced-motion, and cleanup. What you own is the DOM and the animations over it.
+
+`obturator` is the built-in that needs it, and the reason is instructive. A lens iris has a **cyclic** overlap: every leaf lies over the next, and the last tucks back under the first. That is a circular dependency, and paint order is a linear one — no stack of DOM layers can represent it. Built from layers, the last one has nothing drawn over it and keeps a visibly disproportionate share of the covered area, which reads as one flat region exactly where a seam belongs.
+
+As SVG the problem dissolves rather than being worked around: six equilateral wedges tile a hexagon over the window and each slides tangentially, under a `<mask>` built from the same paths. Nothing restacks — every frame is one `translate` per wedge plus mask compositing, so it stays deterministic and on the compositor. Each wedge's own stroke is what makes the seams render regardless of what is painted over it.
+
+```javascript
+wp.desktop.registerWindowReveal( {
+    id:      'acme/iris',
+    label:   'Iris',
+    edgeLag: 0,             // a rendered reveal has no trailing-edge layer
+    render:  () => {
+        const element = buildMySvg();
+        return {
+            element,
+            play: ( { duration, easing, delay } ) =>
+                bladesOf( element ).map( ( blade ) =>
+                    blade.animate(
+                        [ { transform: 'rotate(0deg)' }, { transform: 'rotate(48deg)' } ],
+                        { duration, easing, delay, fill: 'both' },
+                    ),
+                ),
+        };
+    },
+} );
+```
+
+Every layer shares the reveal's duration and easing.
+
+**Give neighbouring layers different `color`s.** This is not decoration — it is the only thing that makes an overlap visible. Layers of one colour composite into a single silhouette however they are shaped: the part on top is indistinguishable from the part beneath, so the lying-across that makes a mechanism a mechanism never renders. Different tones and every overlap draws itself, because the upper layer's tone wins and its boundary across the lower one *is* the seam. `obturator` shades its six leaves as if lit from above.
+
+The trailing edge cannot do this job. Every edge layer paints behind every surface layer, so an edge only ever shows `union( edges ) − union( surfaces )` — one band around the uncovered area, never per-part seams. Multi-layer reveals normally want `edgeLag: 0`.
+
+```javascript
+wp.desktop.registerWindowReveal( {
+    id:      'acme/split-doors',
+    label:   'Split doors',
+    edgeLag: 0,
+    layers:  [
+        { from: 'inset( 0% 50% 0% 0% )', to: 'inset( 0% 100% 0% 0% )', color: '#3a3a47' },
+        { from: 'inset( 0% 0% 0% 50% )', to: 'inset( 0% 0% 0% 100% )', color: '#4a4a59' },
+    ],
+} );
+```
+
+**Two layer kinds.** The **surface**, painted in `--desktop-mode-window-reveal-surface` (**white** by default — it has to be opaque or there is nothing to reveal *from*), and behind it an optional **edge**, painted in `--desktop-mode-window-reveal-edge` (**`transparent`** by default, i.e. off).
+
+Either layer whose paint resolves to nothing is **dropped rather than animated**. That is what makes `transparent` a working "turn this layer off" value for a theme, and what keeps the off-by-default edge from costing an animation on every window load. The edge runs the *same* `from` → `to` keyframes over a slightly longer duration, so it is permanently a little less far along and peeks out past the surface as a band hugging the clip boundary.
+
+That is why you never describe an edge shape: a time lag follows any geometry. `blinds` gets six thin lines, `iris` an opening ring, `radar` a rotating spoke — and so does a shape you invent, with no extra work.
+
+The edge colour ships as **`transparent`**, and while it computes that way the shell drops the layer instead of animating something invisible — so the default costs no element and no animation. A theme turns it on by giving the token a colour (or a gradient), with no JS and no per-reveal configuration. Two further knobs:
+
+| | |
+|---|---|
+| `--desktop-mode-window-reveal-edge-thickness` | How wide the band is. `15%` / `0.15` is a fraction of the reveal's **travel** (holds its apparent width at any speed or window size); `70ms` / `0.07s` is an absolute lag. Undeclared by default, in which case the def's `edgeLag` decides. Overrides `edgeLag` outright — thickness belongs to the theme's look, not to one reveal. |
+| `edgeLag: 0` on a def | Opts a single reveal out of having an edge at all. |
+
+**Speed.** The duration a reveal actually runs at resolves highest-first:
+
+1. **The user's OS-Settings speed** (`windowRevealDuration`, ms; `0` means "per reveal"). An explicit choice, and the one thing a theme must not out-rank.
+2. **The `--desktop-mode-window-reveal-duration` theme token** — a theme's house pace. Undeclared by default. Accepts `420ms`, `0.42s`, or a bare `420`.
+3. **The def's own `duration`.**
+
+Whatever wins, `edgeLag` is scaled by the same ratio, so the edge band keeps its apparent width at any speed — its width is a fraction of the travel, not a span of time.
+
+**Behaviour worth knowing:**
+
+- **The reveal always plays**, including on loads fast enough that the spinner's 120 ms entry delay meant it never painted. What varies is only when the animation starts: after the spinner's 250 ms fade-out when there was a spinner, immediately when there was not.
+- **It replays on every load edge** the spinner replays on — a reload, an in-window navigation, a tab switch — not only on first open.
+- **`prefers-reduced-motion` skips the animation** and uncovers the content directly. Same for environments without the Web Animations API.
+- **The colours are theme tokens**: `--desktop-mode-window-reveal-surface` (white) and `--desktop-mode-window-reveal-edge` (`transparent` — no edge). A def can override them with `surfaceColor` / `edgeColor`, or per layer with `layers[].color`, but should not unless the paint is the point. `obturator` is the only built-in that does, and only per layer: its six leaves have to differ from one another or the mechanism reads as a single shape.
+- **A desktop theme can recommend a reveal**, via `recommendedOsSettings.windowReveal` and `recommendedOsSettings.windowRevealDuration` — applied once on first activation, or on demand from the Themes tab's "Apply recommended layout and effects" button.
+- **Registration is JS-only.** Unlike unfocus effects, there is no `desktop_mode_register_window_reveal_script()` PHP companion yet, so a reveal registered by a plugin activated mid-session appears in the selector only after a reload. Same known gap as palettes.
+
+The raw `desktop-mode.window-reveals` JS filter receives the registry array on every read, mirroring `desktop-mode.unfocus-effects` — use it to reorder, remove, or conditionally swap reveals. The user's selection persists in the `windowReveal` OS-settings key (reveal id or `'none'`, the default — reveals are opt-in), readable via `getOsSettings().windowReveal`. An unknown id (a deactivated plugin's reveal still named in user meta) resolves to no reveal rather than to a substitute, and starts working again the moment that plugin re-registers it.
+
+See [`docs/examples/window-reveal.md`](./examples/window-reveal.md) for a copy-paste recipe, including how to build an interpolable `polygon()` pair.
+
+### `unregisterWindowReveal( id )` / `listWindowReveals()` — Experimental
+
+Remove a reveal by id, or read the current list (post-filter). `listWindowReveals()` always includes the twelve built-ins unless a filter removed them. Unregistering is idempotent; a reveal unregistered while a window is mid-load leaves that window's content uncovered rather than stranded under a surface it can no longer animate.
+
+---
+
 ### `wp.desktop.relations` — Experimental
 
 Window content relations: which piece of content each window shows, and how windows group around a shared **root** (a post edit window is the root; its comment / media windows are children). The shell draws visual ties between group members — see [`registerWindowLinkRenderer`](#registerwindowlinkrenderer-def---experimental) for the pluggable rendering and [`docs/examples/window-links.md`](./examples/window-links.md) for recipes.
@@ -2704,7 +2835,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | Field | Type | Notes |
 |---|---|---|
 | `isAdmin` | `boolean` | `true` when current user has `manage_options`. |
-| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
+| `getOsSettings()` | `function` | Snapshot of the persisted OS Settings state — `{ wallpaper, accent, dockSize, windowRadius, unfocusEffect, ai: { enabled } }` plus `adminBarMode` (`'static'` \| `'dynamic'` \| `'hidden'` — how the WordPress admin bar presents above the shell; emitted as a `desktop-mode-admin-bar-<mode>` body class), `desktopLayout`, `dockRailRenderer`, `desktopTheme`, `appliedThemeRecommendations`, the native-window opt-ins (`nativePostsEnabled`, `nativePostsHiddenColumns`, `nativePagesEnabled`, `nativeUsersEnabled`, `nativePluginsEnabled`, `nativeCommentsEnabled`), `developerModeEnabled`, `foldersSharingEnabled`, `itemVisibility`, `dockOrder`, and `dockPromotedPositions` — see `OsSettingsSnapshot` in `src/settings/registry.ts` for the authoritative shape. `unfocusEffect` is the active unfocused-window effect id (`'darken'` default, `'none'` disables). `windowReveal` is the active window-reveal id — the clip-path transition that uncovers a window's content when it finishes loading (`'none'` by default; reveals are opt-in) — and `windowRevealDuration` is the global speed override in ms (`0`, the default, means each reveal keeps its own timing). `ai.enabled` is the per-user AI assistant toggle (opt-in, default off; enable-able only once a provider is configured in Settings → Connectors). `developerModeEnabled` (default `false`) gates developer-facing surfaces — the Starter Widget in the add-widget picker and the OS Settings → Components tab's missing-import-warner demo — set from OS Settings → Features. **Removed:** `ai.apiKey`, `ai.transport`, `ai.provider` and `ai.model` were removed — credentials live in WordPress Core's Settings → Connectors and provider + model selection is delegated to the Core AI Client. Read-only; returns a defensive copy. |
 | `subscribeOsSettings( cb )` | `function` | Subscribe to in-panel OS Settings changes (user toggles a feature in the Features tab, etc.). Returns an unsubscribe function. Fires on local edits only — cross-device changes arrive on the next page load. |
 
 ```javascript
@@ -2939,7 +3070,7 @@ wp.desktop.updateOsSettings(
 
 - **Whitelist semantics.** Only keys present on the public `OsSettingsSnapshot` shape are honored; unknown (or wrong-typed) keys are silently ignored, so a typo'd field can't bloat the persisted state. Collection fields are sanitized on the way in (`nativePostsHiddenColumns` / `dockOrder` entries must be non-empty strings, `itemVisibility` values must be one of `'both' | 'dock' | 'desktop' | 'hidden'`, `dockPromotedPositions` values must be finite `{ x, y }` coordinates).
 - **Persistence.** The write runs through the same pipeline as the panel: a `localStorage` cache write plus a debounced REST sync (250 ms window).
-- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `desktopLayout`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. Every other key is state-only.
+- **Presentation keys apply live.** A patch touching `wallpaper`, `accent`, `dockSize`, `windowRadius`, `adminBarMode`, `desktopLayout`, `dockRailRenderer` or `desktopTheme` also runs the shell's apply pass, so the change is visible immediately rather than on the next page load. `unfocusEffect` repaints too, through the subscriber above rather than the apply pass. `windowReveal` and `windowRevealDuration` reach the shell the same way, and take effect on the next window load. Every other key is state-only.
 - **Subscribers fire.** Both the top-level `wp.desktop.subscribeOsSettings( cb )` and every settings tab's `ctx.subscribeOsSettings` see the new snapshot.
 - **Observable save lifecycle.** Each phase fires on `document` as [`desktop-mode-os-settings-save-lifecycle`](#desktop-mode-os-settings-save-lifecycle--stable) (`'pending'` → `'saving'` → `'saved'` / `'failed'`), same as a built-in tab's save. `<wpd-save-status auto>` renders it for free.
 - **`opts.windowId`** attributes the in-flight REST sync to a specific window's title-bar activity dot (defaults to the OS Settings window).
@@ -5386,6 +5517,7 @@ wp.desktop.desktopThemes.applyRecommendedOsSettings(
 | `dockSize` | `string` | `compact` \| `default` \| `large` |
 | `desktopLayout` | `string` | `classic` \| `unified` \| `spatial` |
 | `windowRadius` | `string` | `sharp` \| `default` \| `round` |
+| `adminBarMode` | `string` | `static` \| `dynamic` \| `hidden` |
 | `dockRailRenderer` | `string` | A registered dock rail renderer id. |
 
 **`setActive()` is presentation only.** It swaps the stylesheet and
@@ -5533,6 +5665,121 @@ content. Accepts an `http(s)` or `data:image/` URL and paints it as a
 `currentColor`-tinted CSS mask, which preserves the `--wpd-btn-*`
 focused/unfocused tinting contract. **Only the alpha channel is used**
 — control glyphs are monochrome silhouettes by design.
+
+---
+
+## AI Agents — client surface *(Experimental)*
+
+Opt-in behind the `agents` extended option; nothing below exists while
+the flag is off. The PHP contract lives in
+[Hooks Reference — AI Agents](./hooks-reference.md#ai-agents).
+
+### REST client
+
+The Agents section talks to `/desktop-mode/v1/agents` (see
+`includes/rest/README.md` for the route map). The canonical agent
+shape every route returns:
+
+```ts
+interface Agent {
+	id: number;          // wp_users.ID
+	slug: string;        // user_login minus the 'agent-' prefix
+	name: string;
+	description: string;
+	instructions: string; // system prompt
+	role: string;
+	abilities: string[]; // ability slugs (allowlist)
+	triggers: Array< { kind: string; config: Record< string, unknown > } >;
+	model: string;
+	rateLimit: number;   // invocations/hour, 0 = platform default
+	avatarUrl: string;
+}
+```
+
+`POST /agents/{id}/invoke` with `{ message, source?, history? }`
+returns `{ text, toolCalls, turns }` where each tool call is
+`{ callId, name, args, output, error }`.
+
+`history` is the prior conversation (`[ { role: 'user'|'agent', text },
+… ]`, oldest first) and is **required for multi-turn work**: each
+invocation is otherwise stateless, so a follow-up ("yes, do it")
+arrives with no idea which entity was being discussed. The server caps
+it at the 20 most recent turns, 4000 characters each. Both in-tree
+intakes (typing in the chat window, and drops) go through
+`invokeAgentIntoTranscript()` in `src/agents-dispatch.ts`, which
+snapshots the transcript before appending the new message.
+
+### Site folder integration
+
+The server appends an `agents` entity (`kind: 'agent'`) to the site
+folder window via the `desktop_mode_my_wordpress_entities` filter,
+and ships an `agents` block on the window config:
+
+```ts
+interface AgentsSectionConfig {
+	canManage: boolean;   // edit_users (filterable)
+	canInvoke: boolean;   // edit_posts (filterable)
+	aiAvailable: boolean; // WP 7.0 AI Client + Abilities API present
+	aiStatusUrl: string;  // live provider probe (/ai/status)
+	connectorsUrl: string;
+	runWindowId: string;  // 'desktop-mode-agent-run'
+}
+```
+
+The `agent` entity-kind renderer is registered through the standard
+`registerEntityKind()` seam — plugins can override it like any other
+kind.
+
+### Chat window + shared store
+
+The `desktop-mode-agent-run` native window is a lazy bundle
+(`agent-run-window[.min].js`) that registers its render callback on
+`window.desktopModeNativeWindows['desktop-mode-agent-run']`. Openers
+seed the cross-bundle store and open the window:
+
+```ts
+// Both bundles share one live object via createSharedStore.
+const store = wp.desktop.createSharedStore( 'desktop-mode/agents-chat', () => ( {
+	activeAgent: null, // { id, name, description, avatarUrl } | null
+	transcripts: {},   // Record<agentId, Array<{ role, text, toolCalls?, at, pending? }>>
+} ) );
+store.state.activeAgent = { id, name, description, avatarUrl };
+store.notify();
+wp.desktop.openWindow( 'desktop-mode-agent-run', { source: 'my-plugin' } );
+```
+
+Transcripts are session-only; nothing persists client-side.
+
+### Drag & drop intake
+
+Agents accept entity drops (`post`, `page`, `media`, `user`,
+`comment`) on three surfaces, all dispatching through the shared
+`src/agents-dispatch.ts` engine (compose message → seed the chat
+store → open the chat window → `POST /invoke` with `source: 'drag'`):
+
+- **Agent rows** in the site folder's Agents section — drop targets
+  registered per row via `wp.desktop.dragManager`.
+- **Agent user tiles on the wallpaper** — opted in through the files
+  layer's tile-payload-handler seam. Gating is payload-driven: the
+  server inlines `isAgent: true` and `agentDragKinds` into the
+  desktop user-file payload (`agentDragKinds` mirrors the drag
+  trigger's `entityKinds`; `null` = no drag trigger, drops rejected;
+  `[]` = accepts every kind).
+- **The open Agent chat window** — accepts drops for the active agent
+  without drag-trigger gating (dropping into an open conversation is
+  explicit intent, like typing).
+
+Double-clicking an agent's user tile on the desktop opens the Agent
+chat window (the built-in `agent-chat` opener, gated by a per-file
+`appliesTo` predicate on `file.shape.isAgent`) instead of the user
+profile; human user tiles are unaffected. The user-file payload
+carries `agentDescription` so the chat header can show the agent's
+"when to use" line without a REST roundtrip.
+
+Accepted drag payload types are the in-tree entity carriers:
+`'shortcut'` (site folder tiles, `wpd-tile` drag-out; `attachment`
+maps to `media`, pages are detected via `bridgePayload.postType`) and
+`'desktop-file'` (wallpaper tiles, via `placement.file`).
 
 ---
 

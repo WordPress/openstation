@@ -19,6 +19,7 @@
 
 import type { DesktopConfig } from '../types';
 import {
+	ADMIN_BAR_MODES,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
@@ -29,6 +30,7 @@ import {
 } from './constants';
 import type {
 	AccentId,
+	AdminBarModeId,
 	AiSettings,
 	CustomGradient,
 	CustomImage,
@@ -110,6 +112,11 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		windowRadius: WINDOW_RADII.some( ( r ) => r.id === parsed.windowRadius )
 			? ( parsed.windowRadius as WindowRadiusId )
 			: DEFAULTS.windowRadius,
+		adminBarMode: ADMIN_BAR_MODES.some(
+			( m ) => m.id === parsed.adminBarMode,
+		)
+			? ( parsed.adminBarMode as AdminBarModeId )
+			: DEFAULTS.adminBarMode,
 		desktopLayout: DESKTOP_LAYOUTS.some(
 			( l ) => l.id === parsed.desktopLayout,
 		)
@@ -161,6 +168,22 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_/-]+$/.test( parsed.unfocusEffect )
 				? parsed.unfocusEffect
 				: DEFAULTS.unfocusEffect,
+		// Window reveal — same id charset as unfocus effects; the
+		// surface resolves at play time and treats an unknown id as
+		// "no reveal".
+		windowReveal:
+			typeof parsed.windowReveal === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.windowReveal )
+				? parsed.windowReveal
+				: DEFAULTS.windowReveal,
+		// Reveal duration override — 0 (or anything out of range) means
+		// "use each reveal's own timing"; the surface clamps the rest.
+		windowRevealDuration:
+			typeof parsed.windowRevealDuration === 'number' &&
+			Number.isFinite( parsed.windowRevealDuration ) &&
+			parsed.windowRevealDuration > 0
+				? Math.min( 4000, Math.max( 80, Math.round( parsed.windowRevealDuration ) ) )
+				: DEFAULTS.windowRevealDuration,
 		// Window-link renderer — same id charset as unfocus effects;
 		// the render host resolves at use time and falls back to the
 		// built-in `svg-splines` for unknown ids.

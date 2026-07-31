@@ -6,7 +6,6 @@
  * BEM-ish prefix, container-relative geometry, theming via the
  * desktop-mode-variables CSS custom properties).
  *
- * @since 0.8.0
  */
 
 .desktop-mode-my-wordpress {
@@ -1884,4 +1883,227 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	/* Lets the embedded `__media-pane` keep its own padding without
 	 * fighting the summary bar's spacing. */
 	display: block;
+}
+
+/* ------------------------------------------------------------------ */
+/* Agents section (`agent` entity kind — src/my-wordpress/agents-renderer.ts) */
+/* ------------------------------------------------------------------ */
+
+.dm-agents {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	padding: 12px;
+	gap: 10px;
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.dm-agents__loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+}
+
+.dm-agents__layout {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	gap: 12px;
+}
+
+.dm-agents__list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 0 0 260px;
+	overflow-y: auto;
+	padding-right: 4px;
+	border-right: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.dm-agents__row:hover {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+.dm-agents__row.is-selected {
+	background: var( --desktop-mode-selected, rgba( 0, 0, 0, 0.1 ) );
+}
+
+.dm-agents__row-avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: #fff;
+	flex: none;
+}
+
+.dm-agents__row-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	flex: 1;
+}
+
+.dm-agents__row-name {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agents__row-desc {
+	font-size: 12px;
+	opacity: 0.65;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agents__create {
+	margin-top: 8px;
+}
+
+.dm-agents__detail {
+	flex: 1;
+	min-width: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.dm-agents__detail-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.dm-agents__detail-avatar {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	background: #fff;
+	flex: none;
+}
+
+.dm-agents__detail-title {
+	flex: 1;
+	min-width: 0;
+}
+
+.dm-agents__detail-title h3 {
+	margin: 0;
+	font-size: 16px;
+}
+
+.dm-agents__detail-slug {
+	font-size: 12px;
+	opacity: 0.6;
+}
+
+.dm-agents__tabs {
+	display: flex;
+	gap: 4px;
+	border-bottom: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__tab {
+	appearance: none;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 6px 10px;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.dm-agents__tab.is-active {
+	border-bottom-color: var( --desktop-mode-accent, #2271b1 );
+	opacity: 1;
+	font-weight: 600;
+}
+
+.dm-agents__pane {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding-bottom: 12px;
+}
+
+.dm-agents__hint {
+	margin: 0;
+	font-size: 12px;
+	opacity: 0.7;
+}
+
+.dm-agents__category {
+	margin: 8px 0 0;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
+}
+
+.dm-agents__ability {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 2px 8px;
+	align-items: center;
+	padding: 4px 0;
+}
+
+.dm-agents__ability-desc {
+	grid-column: 1 / -1;
+	margin: 0;
+	font-size: 12px;
+	opacity: 0.6;
+}
+
+.dm-agents__trigger {
+	border: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border-radius: 8px;
+	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.dm-agents__trigger-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dm-agents__trigger-summary {
+	flex: 1;
+	font-size: 12px;
+	opacity: 0.65;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agents__trigger-config {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+}
+
+.dm-agents__actions {
+	display: flex;
+	gap: 8px;
 }

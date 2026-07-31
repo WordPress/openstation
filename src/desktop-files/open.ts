@@ -45,7 +45,7 @@ export async function openFile(
 		return false;
 	}
 
-	const opener = resolveOpener( file.type() );
+	const opener = resolveOpener( file.type(), file );
 	if ( ! opener ) {
 		doAction( 'desktop-mode.files.open-failed', {
 			reason: 'no-opener',

@@ -161,12 +161,16 @@ The PHP and JS sides are independent: shipping only the PHP class is enough to g
 - `getTypes(): DesktopFileTypeDef[]`
 - `resolve( shape: DesktopFileShape ): DesktopFile`
 - `subscribe( cb: () => void ): () => void` — registry-change listener.
-- `registerOpener( FileOpenerDef ): void`
+- `registerOpener( FileOpenerDef ): void` — `FileOpenerDef` accepts an
+  optional `appliesTo( file )` predicate for per-FILE openers (e.g. the
+  built-in `agent-chat` opener applies only to user files whose user is
+  an agent). Predicate-bearing openers are excluded from type-level
+  listings where no file is available (the default-apps settings tab).
 - `unregisterOpener( id: string ): void`
 - `getOpener( id: string ): FileOpenerDef | null`
 - `getOpeners(): FileOpenerDef[]`
-- `getOpenersForType( type: string ): FileOpenerDef[]`
-- `resolveOpener( type: string ): FileOpenerDef | null`
+- `getOpenersForType( type: string, file?: DesktopFile ): FileOpenerDef[]`
+- `resolveOpener( type: string, file?: DesktopFile ): FileOpenerDef | null`
 - `subscribeOpeners( cb ): () => void`
 - `getUserAssociations(): Record< string, string >`
 - `open( file: DesktopFile ): Promise< boolean >` — full dispatcher.

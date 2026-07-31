@@ -1493,20 +1493,7 @@ export class Dock {
 		//     too. The mask class below is the same size and opacity
 		//     behaviour without the filter.
 		if ( tint !== null && ! icon.startsWith( 'dashicons-' ) ) {
-			const masked = document.createElement( 'span' );
-			masked.className = 'desktop-mode-dock__item-mask';
-			masked.setAttribute( 'aria-hidden', 'true' );
-			// Geometry inline as well as in the stylesheet. A masked
-			// span has no intrinsic size — unlike the `<img>` it
-			// replaces — so if its CSS rule is missing for ANY reason
-			// (a stale cached stylesheet, a host that strips our CSS,
-			// a plugin resetting spans) the icon collapses to nothing
-			// and simply disappears. The element that needs the size
-			// should carry it.
-			masked.style.width = 'var( --desktop-mode-dock-icon-size, 20px )';
-			masked.style.height = 'var( --desktop-mode-dock-icon-size, 20px )';
-			masked.style.display = 'block';
-			masked.style.flexShrink = '0';
+			const masked = this._makeMaskSpan();
 			if ( applyIconMask( masked, icon, tint ) ) {
 				return masked;
 			}
@@ -1588,10 +1575,67 @@ export class Dock {
 	}
 
 	/**
-	 * Build an SVG-background icon tile. Shared between the data-URI
-	 * branch of {@link resolveIcon} and the native-menu extractor.
+	 * A span shaped like a dock glyph, ready to be painted as a mask.
+	 *
+	 * Geometry inline as well as in the stylesheet. A masked span has
+	 * no intrinsic size — unlike the `<img>` it replaces — so if its
+	 * CSS rule is missing for ANY reason (a stale cached stylesheet, a
+	 * host that strips our CSS, a plugin resetting spans) the icon
+	 * collapses to nothing and simply disappears. The element that
+	 * needs the size should carry it.
+	 */
+	private _makeMaskSpan(): HTMLElement {
+		const el = document.createElement( 'span' );
+		el.className = 'desktop-mode-dock__item-mask';
+		el.setAttribute( 'aria-hidden', 'true' );
+		el.style.width = 'var( --desktop-mode-dock-icon-size, 20px )';
+		el.style.height = 'var( --desktop-mode-dock-icon-size, 20px )';
+		el.style.display = 'block';
+		el.style.flexShrink = '0';
+		return el;
+	}
+
+	/**
+	 * Build an SVG icon tile. Shared between the data-URI branch of
+	 * {@link resolveIcon} and the native-menu extractor.
+	 *
+	 * **Monochrome by mask, not by filter.** The dock has always
+	 * flattened plugin artwork to one colour — `filter: brightness(0)
+	 * invert(1)` on the fallback span below, so an SVG shipping a
+	 * hardcoded `fill` still matches its dashicon neighbours.
+	 * Flattening is the right call and stays. WHAT it flattens to is
+	 * the part nothing could reach: a filter has no colour to name, so
+	 * these icons stayed white on a dock a theme had repainted pale.
+	 *
+	 * A mask filled with `currentColor` flattens identically — both
+	 * paths keep only the source's alpha — and lands on the tile's own
+	 * glyph colour, so plugin art now follows
+	 * `--desktop-mode-dock-icon-color` like every other glyph. Unthemed
+	 * that colour is `rgba( 255, 255, 255, 0.7 )` at rest and `#fff` on
+	 * hover: the same two values the filter and its opacity pair
+	 * produced before, which is why nothing moves by default.
+	 *
+	 * `src/icon.ts` reaches the same place from the other direction —
+	 * it masks silhouette art and leaves fixed-colour art alone. The
+	 * dock masks both, because the dock had already decided every
+	 * plugin icon is monochrome.
+	 *
+	 * The background-image span stays as the fallback for anything the
+	 * mask can't take — a URL carrying quotes, spaces or parens — so no
+	 * icon can disappear on account of this.
 	 */
 	private _makeSvgIcon( bgValue: string ): HTMLElement {
+		// The native-menu harvest hands us a computed
+		// `background-image` verbatim, so unwrap before validating:
+		// `isMaskableIcon()` rejects the quotes and parens of the
+		// `url( … )` wrapper, not the URL inside it.
+		const unwrapped = /^url\(\s*(['"]?)(.+?)\1\s*\)$/.exec( bgValue );
+		const bare = unwrapped ? unwrapped[ 2 ] : bgValue;
+		const masked = this._makeMaskSpan();
+		if ( applyIconMask( masked, bare, 'currentColor' ) ) {
+			return masked;
+		}
+
 		const el = document.createElement( 'span' );
 		el.className = 'desktop-mode-dock__item-svg';
 		el.style.backgroundImage = bgValue.startsWith( 'url(' )

@@ -42,6 +42,45 @@ const OVERVIEW_INERT_ELEMENTS = [
 	'desktop-mode-widgets',
 ];
 
+const OVERVIEW_FULLSCREEN_DATA_KEY = 'wpdHadFullscreenBeforeOverview';
+
+/**
+ * Make a minimized window usable as an overview thumbnail without
+ * changing its logical minimized state.
+ */
+export function prepareWindowForOverviewLayout( w: Window ): void {
+	if ( w.state !== 'minimized' ) {
+		return;
+	}
+	w.element.style.removeProperty( 'content-visibility' );
+	if ( w.iframe ) {
+		w.iframe.style.visibility = '';
+	}
+	if ( w.element.classList.contains( 'desktop-mode-window--fullscreen' ) ) {
+		w.element.classList.remove( 'desktop-mode-window--fullscreen' );
+		w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ] = 'true';
+	}
+}
+
+function restoreOverviewFullscreenClass( w: Window ): void {
+	if ( w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ] !== 'true' ) {
+		return;
+	}
+	w.element.classList.add( 'desktop-mode-window--fullscreen' );
+	delete w.element.dataset[ OVERVIEW_FULLSCREEN_DATA_KEY ];
+}
+
+/** Restore any render-suppression / state-class changes made for overview. */
+export function restoreWindowAfterOverviewLayout( w: Window ): void {
+	restoreOverviewFullscreenClass( w );
+	if ( w.state === 'minimized' ) {
+		w.element.style.setProperty( 'content-visibility', 'hidden' );
+		if ( w.iframe ) {
+			w.iframe.style.visibility = 'hidden';
+		}
+	}
+}
+
 /**
  * Toggle inert on every direct child of #wpbody-content so focus
  * can't land on hidden screen-options, help panels, or admin
@@ -80,43 +119,12 @@ export function enterOverview( mgr: WindowManager ): void {
 	if ( mgr._overviewActive ) {
 		return;
 	}
-	// "Show Desktop → Overview" unwind. If every window on the active
-	// desktop is minimized — the canonical Show Desktop state — entering
-	// overview would otherwise show an empty grid, contradicting the
-	// user's expectation that Overview reveals their work. Restore them
-	// first so they participate in the layout below, allowing them to be
-	// selected and focused in their restored states.
-	const onActive = mgr._stack.filter(
-		( w ) => w.config.desktopId === mgr._activeDesktopId,
-	);
-	if (
-		onActive.length > 0 &&
-		onActive.every( ( w ) => w.state === 'minimized' )
-	) {
-		for ( const w of onActive ) {
-			try {
-				w.restore();
-			} catch ( err ) {
-				if ( typeof console !== 'undefined' ) {
-					console.error(
-						'[desktop-mode] enterOverview: window.restore() threw for',
-						w.id,
-						err,
-					);
-				}
-			}
-		}
-	}
-	// Overview shows only the ACTIVE desktop's windows in the main
-	// grid; windows on other desktops stay hidden underneath. The top
-	// bar (rendered later) gives the user a way to switch. Native
-	// windows (OS Settings, Jorvy, etc.) participate as first-class
-	// citizens — clicking their thumbnail focuses them, they lay
-	// out in the grid, they count toward the top-bar tile's window
-	// count.
+	// Overview shows windows on the active desktop, including minimized
+	// ones. Minimized windows are rendered with a visual indicator
+	// (lower opacity) so the user can see all their work at a glance.
+	// Clicking a minimized thumbnail restores + focuses it on exit.
 	const eligible = mgr._stack.filter(
 		( w ) =>
-			w.state !== 'minimized' &&
 			w.config.desktopId === mgr._activeDesktopId,
 	);
 	// Even with zero windows on the active desktop we still enter
@@ -160,6 +168,7 @@ export function enterOverview( mgr: WindowManager ): void {
 		if ( w.state === 'fullscreen' ) {
 			w.toggleFullscreen();
 		}
+		prepareWindowForOverviewLayout( w );
 	}
 
 	// Target rect for the layout. `computeOverviewLayout` expects
@@ -713,12 +722,28 @@ export function exitOverview(
 	}
 
 	if ( selected ) {
+		// Restore minimized windows before focusing so the user lands
+		// on a visible window, not an invisible-but-focused one.
+		if ( selected.state === 'minimized' ) {
+			restoreOverviewFullscreenClass( selected );
+			selected.restore();
+		}
 		// Focus first so z-index and focused-class are right from the
 		// moment the animation starts — no pop-to-top late in the
 		// transition.
 		mgr.focus( selected );
 		if ( maximize ) {
 			selected.maximize();
+		}
+	}
+
+	// Remove overview class immediately for windows that are STILL minimized
+	// (unselected ones). This strips the opacity override and transform-origin,
+	// allowing them to smoothly fade out and shrink into their minimized state
+	// during the 280ms transition, instead of staying visible and snapping away.
+	for ( const w of mgr._stack ) {
+		if ( w.state === 'minimized' ) {
+			w.element.classList.remove( 'desktop-mode-window--overview' );
 		}
 	}
 
@@ -748,6 +773,7 @@ export function exitOverview(
 		mgr._overviewExitTimeoutId = null;
 		for ( const w of mgr._stack ) {
 			w.element.classList.remove( 'desktop-mode-window--overview' );
+			restoreWindowAfterOverviewLayout( w );
 		}
 		for ( const label of mgr._overviewLabels.values() ) {
 			label.remove();

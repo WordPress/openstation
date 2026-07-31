@@ -34,6 +34,20 @@ function openConfig( id: string ) {
 	};
 }
 
+/**
+ * Fire a synthetic `transitionend` for the `opacity` property on `el`.
+ *
+ * `Window.minimize()` registers a one-shot `transitionend` listener that
+ * hides `content-visibility` and iframe visibility once the opacity
+ * transition settles. This helper lets tests advance past that listener
+ * without waiting on real animation frames.
+ */
+function dispatchOpacityTransitionEnd( el: HTMLElement ): void {
+	const event = new Event( 'transitionend' ) as TransitionEvent;
+	Object.defineProperty( event, 'propertyName', { value: 'opacity' } );
+	el.dispatchEvent( event );
+}
+
 describe( 'WindowManager — virtual desktops', async () => {
 	let hooks: FakeWpHooks;
 	let desktopArea: HTMLElement;
@@ -261,11 +275,12 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( c.element.classList.contains( 'desktop-mode-window--overview' ) ).toBe( true );
 	} );
 
-	test( 'enterOverview restores all minimized windows when the active desktop is in Show Desktop state', async () => {
-		// Reproduces the "Show Desktop → Overview shows nothing" bug.
-		// With every window on the active desktop minimized, Overview's
-		// `state !== 'minimized'` eligibility filter would otherwise
-		// produce an empty grid.
+	test( 'enterOverview shows minimized windows in grid without restoring them', async () => {
+		// Previously the "Show Desktop → Overview" path auto-restored
+		// all minimized windows to avoid an empty grid. Now minimized
+		// windows participate in the grid directly, preserving the
+		// user's minimization choice but rendering them as visible
+		// thumbnails (dimmed via CSS).
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		a.minimize();
@@ -275,16 +290,96 @@ describe( 'WindowManager — virtual desktops', async () => {
 
 		manager.enterOverview();
 
-		// Both windows are back in 'normal' state and now wear the
-		// overview class — the grid actually contains them.
-		expect( a.state ).toBe( 'normal' );
-		expect( b.state ).toBe( 'normal' );
+		// Windows stay minimized — overview does not auto-restore.
+		expect( a.state ).toBe( 'minimized' );
+		expect( b.state ).toBe( 'minimized' );
+		// But they now participate in the grid thumbnails.
 		expect(
 			a.element.classList.contains( 'desktop-mode-window--overview' ),
 		).toBe( true );
 		expect(
 			b.element.classList.contains( 'desktop-mode-window--overview' ),
 		).toBe( true );
+	} );
+
+	test( 'enterOverview makes completed-minimize windows renderable for thumbnails', async () => {
+		// Regression guard for the "minimized thumbnail renders blank" bug.
+		// After the minimize transition fires, `content-visibility: hidden`
+		// and `iframe.style.visibility = 'hidden'` are set on the window.
+		// enterOverview must reverse these so the overview thumbnail shows
+		// actual content instead of a blank slot.
+		const a = await manager.open( openConfig( 'a' ) );
+		a.minimize();
+		dispatchOpacityTransitionEnd( a.element );
+		expect( a.element.style.getPropertyValue( 'content-visibility' ) ).toBe(
+			'hidden',
+		);
+		if ( a.iframe ) {
+			expect( a.iframe.style.visibility ).toBe( 'hidden' );
+		}
+
+		manager.enterOverview();
+
+		expect( a.element.style.getPropertyValue( 'content-visibility' ) ).toBe(
+			'',
+		);
+		if ( a.iframe ) {
+			expect( a.iframe.style.visibility ).toBe( '' );
+		}
+		expect(
+			a.element.classList.contains( 'desktop-mode-window--overview' ),
+		).toBe( true );
+	} );
+
+	test( 'pending minimize transition does not re-hide an overview thumbnail', async () => {
+		// The minimize() transitionend listener must NOT re-apply
+		// content-visibility/iframe visibility when the window is in overview
+		// mode. If it did, the thumbnail would go blank again after the
+		// transition fires, undoing enterOverview's render-suppression fix.
+		const a = await manager.open( openConfig( 'a' ) );
+		a.minimize();
+
+		manager.enterOverview();
+		dispatchOpacityTransitionEnd( a.element );
+
+		expect( a.element.style.getPropertyValue( 'content-visibility' ) ).toBe(
+			'',
+		);
+		if ( a.iframe ) {
+			expect( a.iframe.style.visibility ).toBe( '' );
+		}
+		expect(
+			a.element.classList.contains( 'desktop-mode-window--overview' ),
+		).toBe( true );
+	} );
+
+	test( 'selecting a minimized fullscreen thumbnail restores fullscreen class before restore', async () => {
+		// When a minimized fullscreen window is selected in overview, the
+		// `--fullscreen` class must be reapplied on the DOM element *before*
+		// the win.restore() call. If the class is not present when the state
+		// flips to 'fullscreen', the exit-overview layout logic will treat it
+		// as a regular window and skip the fullscreen resize path, leaving the
+		// thumbnail-sized layout after selection.
+		const a = await manager.open( openConfig( 'a' ) );
+		a.toggleFullscreen();
+		a.minimize();
+
+		manager.enterOverview();
+		expect( a.state ).toBe( 'minimized' );
+		expect(
+			a.element.classList.contains( 'desktop-mode-window--fullscreen' ),
+		).toBe( false );
+
+		manager.exitOverview( a );
+
+		expect( a.state ).toBe( 'fullscreen' );
+		expect(
+			a.element.classList.contains( 'desktop-mode-window--fullscreen' ),
+		).toBe( true );
+		expect(
+			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+		).toBe( true );
+		expect( a.element.dataset.wpdHadFullscreenBeforeOverview ).toBeUndefined();
 	} );
 
 	test( 'Enter key in overview exits without selecting a window', async () => {
@@ -299,11 +394,11 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( manager._overviewActive ).toBe( false );
 	} );
 
-	test( 'enterOverview leaves partially-minimized desktops alone', async () => {
-		// Counterpart guarantee: only the "everything minimized" path
-		// auto-restores. If the user minimized one window manually, the
-		// other two are visible and Overview should show only the
-		// non-minimized cohort (existing behaviour preserved).
+	test( 'enterOverview includes minimized windows in the grid thumbnails', async () => {
+		// When only some windows are minimized, the Overview grid now
+		// includes all windows (minimized and visible alike) so the
+		// tile count badge and the grid are consistent. Minimized
+		// windows appear dimmed via CSS.
 		const a = await manager.open( openConfig( 'a' ) );
 		const b = await manager.open( openConfig( 'b' ) );
 		const c = await manager.open( openConfig( 'c' ) );
@@ -315,15 +410,22 @@ describe( 'WindowManager — virtual desktops', async () => {
 		expect( a.state ).toBe( 'minimized' );
 		expect( b.state ).toBe( 'normal' );
 		expect( c.state ).toBe( 'normal' );
-		expect(
-			a.element.classList.contains( 'desktop-mode-window--overview' ),
-		).toBe( false );
-		expect(
-			b.element.classList.contains( 'desktop-mode-window--overview' ),
-		).toBe( true );
-		expect(
-			c.element.classList.contains( 'desktop-mode-window--overview' ),
-		).toBe( true );
+
+		// All three windows — minimized and visible — participate in
+		// the grid.
+		const gridTiles = manager._desktop.querySelectorAll< HTMLElement >(
+			'.desktop-mode-window--overview',
+		);
+		expect( gridTiles ).toHaveLength( 3 );
+
+		// The count badge in the active desktop's tile matches the
+		// number of grid tiles — the original badge/grid mismatch
+		// regression is fixed.
+		const badge = manager._overviewTopBar!.querySelector(
+			'.desktop-mode-overview-top-bar__tile-count',
+		);
+		expect( badge ).not.toBeNull();
+		expect( Number( badge!.textContent ) ).toBe( gridTiles.length );
 	} );
 
 	test( 'snapshot preserves geometry for windows on non-active desktops', async () => {

@@ -57,6 +57,37 @@ class Desktop_Mode_User_File extends Desktop_Mode_File {
 		// can build a `<a href>` to the author's posts on drop into
 		// Gutenberg without a REST roundtrip.
 		$shape['link']  = $user ? (string) get_author_posts_url( (int) $user->ID ) : '';
+
+		// Desktop Mode agent surface. `isAgent` marks the tile; the
+		// drag-trigger entity kinds ship inline so the tile drop
+		// handler can gate synchronously without an agents REST
+		// roundtrip: null = no drag trigger configured (tile rejects
+		// drops), [] = drag trigger with no filter (accepts every
+		// entity kind). Guarded — the agents module is behind the
+		// `agents` extended option.
+		if (
+			$user
+			&& function_exists( 'desktop_mode_agent_is_agent' )
+			&& desktop_mode_agent_is_agent( $user->ID )
+		) {
+			$shape['isAgent'] = true;
+			// The "when to use" line — the chat window's subtitle when
+			// the tile opener starts a conversation.
+			$shape['agentDescription'] = desktop_mode_agent_get_description( (int) $user->ID );
+			$drag_kinds                = null;
+			foreach ( desktop_mode_agent_get_triggers( (int) $user->ID ) as $trigger ) {
+				if ( 'drag' !== ( isset( $trigger['kind'] ) ? $trigger['kind'] : '' ) ) {
+					continue;
+				}
+				$kinds      = isset( $trigger['config']['entityKinds'] ) && is_array( $trigger['config']['entityKinds'] )
+					? $trigger['config']['entityKinds']
+					: array();
+				$drag_kinds = array_values( array_map( 'strval', $kinds ) );
+				break;
+			}
+			$shape['agentDragKinds'] = $drag_kinds;
+		}
+
 		return $shape;
 	}
 

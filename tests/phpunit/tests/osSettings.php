@@ -23,6 +23,46 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_admin_bar_mode_is_static() {
+		$defaults = desktop_mode_default_os_settings();
+		$this->assertArrayHasKey( 'adminBarMode', $defaults );
+		$this->assertSame( 'static', $defaults['adminBarMode'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_known_admin_bar_mode() {
+		foreach ( DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES as $mode ) {
+			$clean = desktop_mode_sanitize_os_settings( array( 'adminBarMode' => $mode ) );
+			$this->assertSame( $mode, $clean['adminBarMode'], "mode '{$mode}' should round-trip" );
+		}
+	}
+
+	/**
+	 * An unusable value must not survive into user meta — the shell
+	 * would emit `desktop-mode-admin-bar-<junk>`, which matches no
+	 * rule, and the bar would silently render static while the
+	 * picker showed something else.
+	 *
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_to_default_for_unknown_admin_bar_mode() {
+		$clean = desktop_mode_sanitize_os_settings( array( 'adminBarMode' => 'peekaboo' ) );
+		$this->assertSame( 'static', $clean['adminBarMode'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_falls_back_when_admin_bar_mode_missing() {
+		$clean = desktop_mode_sanitize_os_settings( array( 'wallpaper' => 'dark' ) );
+		$this->assertSame( 'static', $clean['adminBarMode'] );
+	}
+
+	/**
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
 	public function test_sanitize_keeps_known_layout_value() {
@@ -352,6 +392,169 @@ class Tests_DesktopMode_OsSettings extends WP_UnitTestCase {
 		);
 		$loaded = desktop_mode_get_os_settings( $user_id );
 		$this->assertTrue( $loaded['developerModeEnabled'] );
+	}
+
+	// ────────────────────────────────────────────────────────────────
+	// windowReveal — the clip-path transition that uncovers a window's
+	// content once it finishes loading. Ids follow the JS registry
+	// charset (slashes for vendor/sub-id) and are deliberately NOT
+	// allow-listed: the JS surface resolves at play time and treats an
+	// unknown id as "no reveal", so a reveal belonging to a
+	// temporarily-deactivated plugin survives the round-trip.
+	// ────────────────────────────────────────────────────────────────
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_window_reveal_is_off() {
+		$defaults = desktop_mode_default_os_settings();
+		// A reveal plays on every window load, so it is the user's to
+		// opt into rather than something the shell turns on for them.
+		$this->assertSame( 'none', $defaults['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_namespaced_window_reveal() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowReveal' => 'vendor/shutter' )
+		);
+		$this->assertSame( 'vendor/shutter', $clean['windowReveal'] );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowReveal' => 'none' )
+		);
+		$this->assertSame( 'none', $clean['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_keeps_every_built_in_window_reveal() {
+		$built_ins = array(
+			'sweep',
+			'rise',
+			'diagonal',
+			'iris',
+			'diamond',
+			'curtain',
+			'shutter',
+			'blinds',
+			'slats',
+			'mosaic',
+			'radar',
+			'obturator',
+		);
+		foreach ( $built_ins as $id ) {
+			$clean = desktop_mode_sanitize_os_settings(
+				array( 'windowReveal' => $id )
+			);
+			$this->assertSame( $id, $clean['windowReveal'] );
+		}
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_strips_bad_window_reveal_chars() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowReveal' => 'Iris Wipe!<script>' )
+		);
+		// Uppercase folds, everything outside [a-z0-9_/-] drops.
+		$this->assertSame( 'iriswipescript', $clean['windowReveal'] );
+
+		// Nothing left after stripping falls back to the default rather
+		// than persisting an empty id.
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowReveal' => '!!!' )
+		);
+		$this->assertSame( 'none', $clean['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_rejects_non_string() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowReveal' => array( 'iris' ) )
+		);
+		$this->assertSame( 'none', $clean['windowReveal'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_default_os_settings
+	 */
+	public function test_default_window_reveal_duration_is_per_reveal() {
+		$defaults = desktop_mode_default_os_settings();
+		// 0 is the "no override" sentinel — every reveal keeps the
+		// duration its own def asked for.
+		$this->assertSame( 0, $defaults['windowRevealDuration'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_duration_clamps_into_range() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowRevealDuration' => 700 )
+		);
+		$this->assertSame( 700, $clean['windowRevealDuration'] );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowRevealDuration' => 999999 )
+		);
+		$this->assertSame( 4000, $clean['windowRevealDuration'] );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowRevealDuration' => 5 )
+		);
+		$this->assertSame( 80, $clean['windowRevealDuration'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_duration_keeps_the_zero_sentinel() {
+		// 0 is a real value, not a missing one: it means "per reveal".
+		// Clamping it up to the minimum would silently take the choice
+		// away from anyone who picked "Default".
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowRevealDuration' => 0 )
+		);
+		$this->assertSame( 0, $clean['windowRevealDuration'] );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowRevealDuration' => -40 )
+		);
+		$this->assertSame( 0, $clean['windowRevealDuration'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_window_reveal_duration_rejects_non_numeric() {
+		$clean = desktop_mode_sanitize_os_settings(
+			array( 'windowRevealDuration' => 'fast' )
+		);
+		$this->assertSame( 0, $clean['windowRevealDuration'] );
+	}
+
+	/**
+	 * The setting has to survive a save → load round-trip through user
+	 * meta, since that is the path the shell actually reads at boot.
+	 *
+	 * @covers ::desktop_mode_get_os_settings
+	 */
+	public function test_window_reveal_round_trips_through_user_meta() {
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		update_user_meta(
+			$user_id,
+			'desktop_mode_os_settings',
+			desktop_mode_sanitize_os_settings( array( 'windowReveal' => 'blinds' ) )
+		);
+		$loaded = desktop_mode_get_os_settings( $user_id );
+		$this->assertSame( 'blinds', $loaded['windowReveal'] );
 	}
 
 	// ────────────────────────────────────────────────────────────────

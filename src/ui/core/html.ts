@@ -606,6 +606,18 @@ function disposeChildState( state: ChildState ): void {
 		return;
 	}
 	if ( state.shape === 'template' ) {
+		// Dispose the instance's own child parts FIRST. A part whose
+		// anchor sits at the template's top level inserts its content
+		// as SIBLINGS of `state.nodes` (not descendants), so removing
+		// only the originally cloned nodes leaks everything those
+		// slots rendered — the "stale pane left behind after the slot
+		// switched templates" bug.
+		for ( const part of state.parts ) {
+			if ( part.kind === 'node' && part.child.state ) {
+				disposeChildState( part.child.state );
+				part.child.state = null;
+			}
+		}
 		for ( const node of state.nodes ) {
 			if ( node.parentNode ) {
 				node.parentNode.removeChild( node );

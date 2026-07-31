@@ -312,6 +312,68 @@ Read `assets/css/variables.css` for the full set.
 }
 ```
 
+#### Window reveal
+
+One token owns the surface a window's content is uncovered from once it
+finishes loading (OS Settings → Effects → "Window reveal"):
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-window-reveal-surface` | Fill of the receding reveal surface. White by default |
+| `--desktop-mode-window-reveal-edge` | Fill of the band trailing the reveal's clip boundary. `transparent` by default |
+| `--desktop-mode-window-reveal-edge-thickness` | How wide that band is. Undeclared by default |
+| `--desktop-mode-window-reveal-duration` | How long a reveal runs. Undeclared by default |
+
+```json
+"tokens": {
+  "--desktop-mode-window-reveal-surface": "#12122a",
+  "--desktop-mode-window-reveal-edge": "#7c5cff",
+  "--desktop-mode-window-reveal-edge-thickness": "12%",
+  "--desktop-mode-window-reveal-duration": "620ms"
+}
+```
+
+**Surface** is **white** by default. It has to be opaque or there is
+nothing to reveal *from* — the content would simply be visible the
+whole time and the clip animation would paint nothing. Set it to
+`var( --desktop-mode-window-bg )` to follow your window colour, or to a
+brand colour, a gradient, or an image; the surface is a plain element
+and the animation clips it rather than recolouring it. `transparent` is
+also a legitimate value, meaning "no covering surface" — the shell then
+skips the layer rather than animating something invisible.
+
+One reveal ignores this token: **Camera shutter** paints its own
+near-black blades, because in any other colour it stops being a camera
+shutter.
+
+**Edge** is the band that travels with the clip boundary and draws each
+reveal's shape — six lines on Blinds, an opening ring on Iris, a
+rotating spoke on Radar. It is **`transparent` by default**: the reveal
+reads as the page arriving, and a hard graphic edge on top of that is a
+deliberate look rather than the neutral one. Give it a colour and the
+band turns on for every reveal the user might pick, yours or a
+plugin's, with nothing else to configure — the band follows whatever
+shape the active reveal has. While the token computes transparent the
+shell skips the layer entirely, so leaving it alone costs nothing.
+
+Gradients and images work as well as flat colours.
+
+**Edge thickness** takes either a fraction of the reveal's *travel* —
+`12%`, or the equivalent unitless `0.12` — or an absolute time like
+`70ms`. Prefer the fraction: the band then holds its apparent width at
+any reveal speed and any window size, because its width is a share of
+how far the shape moves rather than a span of time. Undeclared by
+default, in which case each reveal's own `edgeLag` decides; declare it
+and it wins outright, since thickness is a property of your look rather
+than of any one reveal. `0%` suppresses the band while leaving the
+colour in place.
+
+**Duration** is **undeclared by default** and accepts `620ms`, `0.62s`,
+or a bare `620` (read as ms). It sets the house pace for every reveal
+the user might pick — but a user who has chosen a speed in OS Settings
+→ Effects out-ranks it, the same way the window-corner preset out-ranks
+a theme's `--desktop-mode-window-radius`. Their choice stays theirs.
+
 #### Tooltips
 
 Two shell tokens own every tooltip in the shell — the dock tile
@@ -347,6 +409,57 @@ them keeps the tooltip look the shell has always had.
 Secondary text inside the richer tooltips — the hover card's excerpt —
 still follows `--wpd-fg-muted`; these two cover the surface and the
 primary text on it.
+
+#### Dock glyphs
+
+`--desktop-mode-dock-bg` repaints the strip. These four repaint what
+sits *on* it:
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-dock-icon-color` | The glyph at rest |
+| `--desktop-mode-dock-icon-color-hover` | The glyph on hover / peek |
+| `--desktop-mode-dock-item-bg-hover` | The wash behind a hovered tile |
+| `--desktop-mode-dock-item-outline` | The keyboard focus ring |
+
+```json
+"tokens": {
+  "--desktop-mode-dock-bg": "rgba( 244, 243, 255, 0.86 )",
+  "--desktop-mode-dock-icon-color": "rgba( 26, 22, 58, 0.72 )",
+  "--desktop-mode-dock-icon-color-hover": "#12102b",
+  "--desktop-mode-dock-item-bg-hover": "rgba( 26, 22, 58, 0.1 )",
+  "--desktop-mode-dock-item-outline": "rgba( 26, 22, 58, 0.65 )"
+}
+```
+
+**Set them whenever your dock is pale.** The four literals behind
+these tokens are all white — a glyph at 70%, brightening to full on
+hover, over a 15% white wash, with a 70% white focus ring. That reads
+against the default translucent-black strip and disappears the moment
+you give the dock a light background. Recolouring the strip alone is
+the most common way a first theme ends up with an invisible dock.
+
+`--desktop-mode-dock-icon-color` is a **colour**, not a fill, which
+matters if your iconset uses
+[`"iconColor": "currentColor"`](#icon-slots): those icons are masked
+with the glyph colour, so this single token drives dashicons, your own
+artwork, and the hover transition together.
+
+System tiles — OS Settings, the recycle bin, and their neighbours —
+read the same `--desktop-mode-dock-icon-color`. Unthemed they sit one
+notch brighter than menu tiles; once you name a colour they join the
+rest rather than staying stranded white.
+
+This reaches **plugin and custom-post-type artwork too**, not just
+dashicons and your own iconset. The dock has always flattened those
+SVGs to one colour so a brand mark can't shout over its neighbours;
+they are now flattened by a `currentColor` mask rather than by a
+force-to-white filter, so they land on your glyph colour like
+everything else. A URL the mask can't take — one carrying literal
+quotes, spaces or parens — still falls back to the white filter.
+
+All four are **undeclared by default**, so a theme that ignores them
+keeps the dock the shell has always had.
 
 ### A note on WordPress core's CSS
 
@@ -577,10 +690,13 @@ that intent travel with the theme instead of living in a setup guide.
 
 ```json
 "recommendedOsSettings": {
-  "dockSize":         "large",
-  "desktopLayout":    "unified",
-  "windowRadius":     "default",
-  "dockRailRenderer": "default"
+  "dockSize":             "large",
+  "desktopLayout":        "unified",
+  "windowRadius":         "default",
+  "adminBarMode":         "dynamic",
+  "dockRailRenderer":     "default",
+  "windowReveal":         "iris",
+  "windowRevealDuration": 620
 }
 ```
 
@@ -598,9 +714,9 @@ activates it — and never again.**
   dock back to compact, re-pick the theme — it stays compact.
 
 The way back is the user's to take: **OS Settings → Themes** shows an
-**Apply &lt;theme&gt;'s recommended layout** button for the active
-theme when it recommends something, and that is the only path that
-applies a recommendation a second time. It sets the settings and
+**Apply &lt;theme&gt;'s recommended layout and effects** button for the
+active theme when it recommends something, and that is the only path
+that applies a recommendation a second time. It sets the settings and
 nothing else — the dock resizing under the cursor is the feedback.
 
 This is the same posture as [wallpapers](#it-is-a-pick-not-an-act),
@@ -619,20 +735,31 @@ still apply.
 | `dockSize` | `compact`, `default`, `large` |
 | `desktopLayout` | `classic`, `unified`, `spatial` |
 | `windowRadius` | `sharp`, `default`, `round` |
+| `adminBarMode` | `static`, `dynamic`, `hidden` — how the WordPress admin bar presents above the shell. `dynamic` parks it off the top edge behind a peek strip that reveals on hover or keyboard focus; `hidden` removes it, leaving the dock's **Exit Desktop Mode** tile as the route back to classic admin. A theme wanting an edge-to-edge desk recommends one of the two. |
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
+| `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
+| `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
 
-`dockRailRenderer` is the one field validated in two places: PHP
-checks the charset, and the shell checks — at apply time — that
-something is actually registered under that id. Recommend a renderer
-a site doesn't have and the key is skipped; the rest of your
-recommendations still apply.
+`dockRailRenderer` and `windowReveal` are the two fields validated in
+two places: PHP checks the charset, and the shell checks — at apply
+time — that something is actually registered under that id. Recommend
+a renderer or reveal a site doesn't have and the key is skipped; the
+rest of your recommendations still apply. (`windowReveal: "none"` is
+exempt: it is the "no reveal" sentinel rather than a registration.)
+
+`windowRevealDuration` is the one **numeric** recommendation, and it is
+**clamped rather than dropped** — a theme asking for something slower
+than the shell will play is expressing "slow", and the nearest playable
+duration is the honest reading of that.
 
 Nothing else is reachable. The allow-list is presentation only, so a
 manifest cannot flip a feature toggle, a capability-adjacent
 preference, or another theme's activation. A site can widen the list
-through `desktop_mode_desktop_theme_recommended_os_settings_schema`,
-and even then the shell only writes a key that already exists and
-already holds a string.
+through `desktop_mode_desktop_theme_recommended_os_settings_schema`
+— `{ enum }` for a closed set, `{ slug }` for a registry id resolved
+at apply time, `{ int => { min, max } }` for a clamped number — and
+even then the shell only writes a key that already exists and whose
+current value has the same type as the one being recommended.
 
 ### What a user actually sees
 
@@ -1070,12 +1197,50 @@ saying.** Concretely:
 Requires `manage_options` by default (filterable via
 `desktop_mode_desktop_theme_upload_capability`).
 
-**Unfocused window controls.** These are title-bar chrome, so they
-follow the title bar's own text colour rather than the body palette.
-Set `--desktop-mode-titlebar-color` and the shell derives legible
-unfocused glyphs from it automatically. Override precisely with
+**Window controls.** These are title-bar chrome, so they follow the
+title bar's own colours rather than the body palette, and each focus
+state is addressed separately.
+
+*Unfocused* glyphs are derived for you: set
+`--desktop-mode-titlebar-color` and the shell mixes legible unfocused
+controls out of it automatically. Override precisely with
 `--desktop-mode-titlebar-btn-color`, `-color-hover`, `-bg-hover`, and
 `-bg-active` when you want exact control.
+
+*Focused* glyphs cannot be derived — they sit on
+`--desktop-mode-titlebar-bg-focused`, which you may set to anything
+from near-black to a pastel, and CSS has no contrast-safe function of
+a background colour. So they stay white at 70% until you say
+otherwise, through the mirror-image set:
+
+| Token | Role |
+|---|---|
+| `--desktop-mode-titlebar-btn-focused-color` | Glyph at rest |
+| `--desktop-mode-titlebar-btn-focused-color-hover` | Glyph on hover / press |
+| `--desktop-mode-titlebar-btn-focused-bg-hover` | Hover wash behind a control |
+| `--desktop-mode-titlebar-btn-focused-bg-active` | Pressed / active wash |
+| `--desktop-mode-titlebar-btn-focused-outline` | Keyboard focus ring |
+
+```json
+"tokens": {
+  "--desktop-mode-titlebar-bg-focused": "#ded9ff",
+  "--desktop-mode-titlebar-color-focused": "#12102b",
+  "--desktop-mode-titlebar-btn-focused-color": "rgba( 18, 16, 43, 0.7 )",
+  "--desktop-mode-titlebar-btn-focused-color-hover": "#12102b",
+  "--desktop-mode-titlebar-btn-focused-bg-hover": "rgba( 18, 16, 43, 0.12 )",
+  "--desktop-mode-titlebar-btn-focused-bg-active": "rgba( 18, 16, 43, 0.18 )",
+  "--desktop-mode-titlebar-btn-focused-outline": "rgba( 18, 16, 43, 0.65 )"
+}
+```
+
+A pale focused title bar is exactly the case to set them for: without
+them the active window is the one window whose close button you cannot
+see. The screen-meta buttons (Screen Options, Help) and the `⋯` menu
+trigger sit in the same bar and read the same tokens, so one pass
+covers every button in the title bar.
+
+Close-button red is deliberately not in either set — it is semantic
+signal, not chrome, and both states resolve it through `--wpd-danger`.
 
 **Activate:** every user picks their own theme on the same tab —
 including users who cannot upload. The library is site-wide;

@@ -103,6 +103,9 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerUnfocusEffect` | `( def: UnfocusEffectDef ) => void` | Experimental |
 | `unregisterUnfocusEffect` | `( id: string ) => void` | Experimental |
 | `listUnfocusEffects` | `() => UnfocusEffectDef[]` | Experimental |
+| `registerWindowReveal` | `( def: WindowRevealDef ) => void` | Experimental |
+| `unregisterWindowReveal` | `( id: string ) => void` | Experimental |
+| `listWindowReveals` | `() => WindowRevealDef[]` | Experimental |
 | `registerWindowLinkRenderer` | `( def: WindowLinkRendererDef ) => void` | Experimental |
 | `unregisterWindowLinkRenderer` | `( id: string ) => void` | Experimental |
 | `listWindowLinkRenderers` | `() => WindowLinkRendererDef[]` | Experimental |
@@ -174,6 +177,19 @@ Inside an iframe window, after the chromeless bridge installs the API:
 | `startOAuth` | `( service: string, opts? ) => Promise<{ ok: true, service }>` *(framework owns state nonce + popup + postMessage round-trip)* | Stable |
 
 ---
+
+### AI Agents *(Experimental — behind the `agents` extended option)*
+
+No dedicated `wp.desktop.agents` namespace yet — the surface is REST +
+shared-store + registries. Index:
+
+| Surface | Where | Status |
+|---|---|---|
+| Trust model, capability ceiling, untrusted tool output | [`agents-security.md`](./agents-security.md) | Experimental |
+| `/desktop-mode/v1/agents[…]` REST routes | [`includes/rest/README.md`](../includes/rest/README.md) | Experimental |
+| `desktop_mode_agent_*` PHP helpers, actions, filters | [`hooks-reference.md`](./hooks-reference.md#ai-agents) | Experimental |
+| `desktop-mode/agents-chat` shared-store key + `desktop-mode-agent-run` window | [`javascript-reference.md`](./javascript-reference.md#ai-agents--client-surface-experimental) | Experimental |
+| `agent` site-folder entity kind | `registerEntityKind()` seam | Experimental |
 
 ## CustomEvents on `document`
 

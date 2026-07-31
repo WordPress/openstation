@@ -1324,6 +1324,42 @@ add_filter( 'desktop_mode_accent_colors', function () {
 
 ---
 
+### `desktop_mode_admin_bar_mode` — Stable
+
+Overrides how the WordPress admin bar presents above the shell for the current request, regardless of the user's own **OS Settings → Appearance → Admin bar** pick. The resolved value is emitted as a `desktop-mode-admin-bar-<mode>` body class on `admin_body_class`, which is what `assets/css/desktop.css` keys off.
+
+```php
+apply_filters( 'desktop_mode_admin_bar_mode', string $mode );
+```
+
+| Mode | Behavior |
+|---|---|
+| `static` | The bar is pinned above the shell and the shell starts below it. Default, and vanilla behavior. |
+| `dynamic` | The bar parks off the top edge leaving a visible seam (`--desktop-mode-admin-bar-peek`, `4px`), and slides back in on hover, keyboard focus, or tap. The pointer target is larger than the seam — an invisible reveal zone extends `--desktop-mode-admin-bar-reveal-zone` (`16px`) below it, so the band to hit is `20px` from the top of the viewport. The shell takes the full viewport. |
+| `hidden` | The bar is not rendered. The shell takes the full viewport. |
+
+A value outside the three coerces back to `static`. The same three ids are the user-facing setting (`adminBarMode` in `wp.desktop.getOsSettings()`) and a [theme recommendation key](desktop-themes.md#fields).
+
+**`hidden` removes the "Switch to Classic Admin" toggle**, so it is not the only way out of the shell — the dock's core rail always carries an **Exit Desktop Mode** tile hitting the same endpoint. Keep it that way if you add modes of your own.
+
+**Example — pin the bar for anyone who can't reach the dock's exit tile:**
+
+```php
+add_filter( 'desktop_mode_admin_bar_mode', function ( $mode ) {
+    return current_user_can( 'manage_options' ) ? $mode : 'static';
+} );
+```
+
+**Example — kiosk: no admin bar, ever:**
+
+```php
+add_filter( 'desktop_mode_admin_bar_mode', function () {
+    return 'hidden';
+} );
+```
+
+---
+
 ### `desktop_mode_toast_types` — Stable
 
 Extends the toast-notification type map the shell consumes when a plugin calls `wp.desktop.toast( id, … )`. Each entry is `{ id, label, icon, tone }` where `tone` is one of `positive | warning | critical | neutral`. Entries with an unknown tone are dropped.
@@ -1649,6 +1685,8 @@ Mutate the JSON Schema handed to the provider for structured-output comment anal
 apply_filters( 'desktop_mode_ai_schema_comment', array $schema );
 ```
 
+You don't need to write the provider's strict-mode boilerplate: after the filter runs, every object subschema in the tree is stamped with `additionalProperties: false` (the key strict structured output requires and JSON Schema treats as optional). Add a nested object and it will pass validation. Strict mode does still reject numeric/string constraints (`minimum`, `maxLength`, …) and recursive `$ref`s — those are not repaired for you.
+
 ### `desktop_mode_ai_comment_prompt` — Stable
 
 Customise the user-side prompt handed to the model for comment analysis. The filter receives the default prompt plus the comment object.
@@ -1709,6 +1747,8 @@ The JSON Schema the model must answer in. Changing the shape changes the REST re
 ```php
 apply_filters( 'desktop_mode_drafts_ai_schema', array $schema, WP_Post $post );
 ```
+
+As with [`desktop_mode_ai_schema_comment`](#desktop_mode_ai_schema_comment--experimental), object subschemas are stamped with `additionalProperties: false` after the filter runs, so a nested object you add doesn't have to carry the provider's strict-mode boilerplate itself.
 
 ### `desktop_mode_drafts_ai_content_limit` — Experimental
 
@@ -3996,17 +4036,30 @@ add_filter(
         $schema['acmeDensity'] = array( 'enum' => array( 'cosy', 'roomy' ) );
         // An id resolved against a JS registry at apply time.
         $schema['acmeRenderer'] = array( 'slug' => true );
+        // A whole number, clamped into range.
+        $schema['acmeDelay'] = array( 'int' => array( 'min' => 0, 'max' => 500 ) );
         return $schema;
     }
 );
 ```
 
-Core ships four entries: `dockSize`, `desktopLayout` and
-`windowRadius` as `enum` rules mirroring the matching
-`DESKTOP_MODE_OS_SETTINGS_*` constants, and `dockRailRenderer` as a
-`slug` rule.
+Core ships seven entries: `dockSize`, `desktopLayout`, `windowRadius`
+and `adminBarMode` as `enum` rules mirroring the matching
+`DESKTOP_MODE_OS_SETTINGS_*` constants; `dockRailRenderer` and
+`windowReveal` as `slug` rules; and `windowRevealDuration` as an `int`
+rule bounded by `DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN` /
+`_MAX`.
 
-An entry with neither a non-empty `enum` array nor `slug => true` is
+Three grammars:
+
+| Grammar | Shape | Validation |
+|---|---|---|
+| `enum` | `array( 'enum' => array( … ) )` | Value must be in the list, else the key drops. |
+| `slug` | `array( 'slug' => true )` | PHP checks the `sanitize_key()` charset; the shell drops the key at apply time when nothing is registered under that id. |
+| `int` | `array( 'int' => array( 'min' => …, 'max' => … ) )` | Numeric values are **clamped** into range rather than dropped; non-numeric values drop. |
+
+An entry with none of a non-empty `enum` array, `slug => true`, or a
+well-formed `int` range (`min` and `max` both numeric, `min <= max`) is
 dropped — a malformed rule fails closed rather than admitting
 anything.
 
@@ -4014,11 +4067,11 @@ anything.
 > user activates a theme that recommends it, so keep the list to
 > **presentation**. Feature switches and capability-adjacent settings
 > do not belong in a theme manifest. The shell applies a recommended
-> key only when the setting already exists and already holds a string,
-> so a widened schema still cannot introduce a setting or flip a
-> boolean.
+> key only when the setting already exists and its current value has
+> the **same type** as the recommended one, so a widened schema still
+> cannot introduce a setting, retype one, or flip a boolean.
 
-- **Param** `array<string,array> $schema` — map of settings key => `{ enum }` or `{ slug }`.
+- **Param** `array<string,array> $schema` — map of settings key => `{ enum }`, `{ slug }`, or `{ int }`.
 - **Return** `array<string,array>`
 
 ### `desktop_mode_desktop_theme_font_caps` — Experimental *(filter)*
@@ -4076,6 +4129,271 @@ How many themes are announced to the shell. Default 24.
 
 - **Param** `int $cap`
 - **Return** `int`
+
+---
+
+## AI Agents
+
+Opt-in module behind the `agents` extended option (OS Settings →
+Features → Extended options, admin-only, default off). While the flag
+is off none of these hooks exist — `includes/agents/bootstrap.php`
+skips every module file.
+
+**One exception**: `includes/agents/guard.php` loads unconditionally,
+ahead of the flag. It owns `desktop_mode_agent_is_agent()` and every
+login/session block. Disabling the feature does not delete agent user
+rows, and a row whose blocks unloaded with the feature would accept
+application passwords and password resets again — so the blocks are a
+property of the rows, not of the feature.
+
+An agent is a synthetic `wp_users` row (login-blocked) whose entire
+definition lives as user meta on that row: description, instructions
+(system prompt), ability allowlist, triggers, model override, rate
+limit. There are no revisions on user meta — the
+`desktop_mode_agent_{created,updated,deleted}` actions below ARE the
+audit trail; each carries before/after values for logging plugins to
+persist.
+
+Agents act with capability, so read
+[Agents security model](./agents-security.md) before registering an
+ability agents can call or widening any of the gates below. The short
+version: an agent's run is ceilinged at the invoker's own capabilities,
+and tool output is untrusted input.
+
+### `desktop_mode_agents_enabled` — Experimental *(filter)*
+
+Whether the agents framework is enabled site-wide. Runs on
+`plugins_loaded` (priority 5) to decide whether the module loads at
+all, and again wherever the enabled state is consulted.
+
+- **Param** `bool $enabled` — default: the `agents` extended option.
+
+### `desktop_mode_agent_created` — Experimental *(action)*
+
+Fires after `desktop_mode_agent_create()` finishes writing the user
+row and definition meta.
+
+- **Param** `int $user_id` — agent user id.
+- **Param** `array $args` — sanitized creation fields `{ name, role, description, instructions, abilities }`.
+- **Param** `int $actor_id` — user who created the agent.
+
+### `desktop_mode_agent_updated` — Experimental *(action)*
+
+Fires once per `desktop_mode_agent_update()` call that changed at
+least one field. No-op updates never fire it.
+
+- **Param** `int $user_id` — agent user id.
+- **Param** `array $changed` — map of `field => { from, to }` for every field that changed (`name`, `role`, `description`, `instructions`, `abilities`, `triggers`, `model`, `rateLimit`).
+- **Param** `int $actor_id` — user who made the change.
+
+### `desktop_mode_agent_deleted` — Experimental *(action)*
+
+Fires after `desktop_mode_agent_delete()` removed the user row (and
+with it every definition meta row).
+
+- **Param** `int $user_id` — agent user id (row no longer exists when this fires).
+- **Param** `int $actor_id` — user who deleted the agent.
+
+### `desktop_mode_agent_completed` — Experimental *(action)*
+
+Fires after every successful invocation. The audit + chaining seam:
+logging plugins persist the run, and the future agent-to-agent trigger
+consumes it.
+
+- **Param** `int $agent_user_id`
+- **Param** `string $message` — the submitted message.
+- **Param** `array $result` — `{ text, toolCalls, turns }`.
+- **Param** `array $context` — invocation context; convention: `source` names the trigger (`chat`, `send-to`, `hook`, …).
+
+### `desktop_mode_agent_tool_result` — Experimental *(filter)*
+
+Filters one tool result before it re-enters the LLM context and
+before it lands in the invocation trace. The sanitization seam —
+strip fields the model has no business seeing.
+
+Tool output is **untrusted input**: it carries site content that a
+lower-privileged user may have authored (a comment body, a submitted
+draft, alt text). The runner wraps every result in an
+`<untrusted-tool-output>` fence and instructs the model to treat the
+contents as data, never instructions. That is mitigation, not a
+guarantee — this filter is where you strip anything an ability returns
+that the model should never see in the first place. See
+[Agents security model](./agents-security.md).
+
+- **Param** `mixed $output` — raw ability output.
+- **Param** `string $slug` — ability slug.
+- **Param** `array $args` — call arguments.
+- **Param** `int $agent_user_id`
+
+### `desktop_mode_agent_runner_generate` — Experimental *(filter)*
+
+Pre-filter for one generation turn. Return a non-null
+`{ text, function_calls, message }` array (or a `WP_Error`) to
+short-circuit the Core AI Client — the seam PHPUnit and alternative
+runtimes plug into. When any callback is attached, the runner
+considers itself available even without the WP 7.0 AI Client.
+
+- **Param** `array|WP_Error|null $generated` — null to proceed with the AI Client.
+- **Param** `array $history` — neutral history rows (`{ type: 'user_text'|'assistant'|'tool_results', … }`).
+- **Param** `array $tool_defs` — neutral tool definitions (`{ name, description, parameters }`).
+- **Param** `string $instructions` — system instruction.
+- **Param** `int $agent_user_id`
+
+### `desktop_mode_agent_history_turn_cap` — Experimental *(filter)*
+
+How many conversation turns a caller may replay into one agent run
+via the `history` param of `POST /agents/{id}/invoke`. Each turn is
+additionally capped to 4000 characters, so this is the knob that
+bounds the prompt (and the bill) per invocation. Default 50.
+
+- **Param** `int $turn_cap`
+
+### `desktop_mode_agent_conversation_cap` — Experimental *(filter)*
+
+How many persisted chat conversations are kept per user (the
+`desktop_mode_chat` post type behind `/agents/conversations`).
+Creating past the cap prunes the caller's least recently updated
+rows. Default 100.
+
+- **Param** `int $cap`
+
+### `desktop_mode_agent_trigger_kinds` — Experimental *(filter)*
+
+The trigger-kind catalogue (`chat`, `send-to`, `drag`, `hook`,
+`endpoint`, `agent`). Each entry declares `slug`, `label`,
+`description`, `icon`, and a JSON-Schema `config_schema` for its
+`trigger.config` shape. `chat` and `drag` are wired; the other kinds
+are declared so configuration can be stored ahead of their intakes.
+The `drag` config's `entityKinds` gates which entity drops the agent
+accepts (empty = every kind; no drag trigger = drops rejected), and
+ships inline on the agent's desktop user-file payload as
+`agentDragKinds` so tile drop gating is synchronous.
+
+- **Param** `array $kinds`
+
+### `desktop_mode_agent_hooks_catalogue` — Experimental *(filter)*
+
+Curated hook suggestions offered by the Hook-trigger configurator
+(`{ hook, when }` rows). Not a whitelist yet — the intake lands in a
+later phase.
+
+- **Param** `array $hooks`
+
+### `desktop_mode_agent_abilities_catalogue` — Experimental *(filter)*
+
+The abilities catalogue behind the Tools picker: every registered
+ability projected to `{ slug, label, description, category, readonly }`.
+Sites can narrow the pickable set or append rows; the preferred
+extension path stays `wp_register_ability()`.
+
+- **Param** `array $catalogue`
+
+### `desktop_mode_agent_allowed_roles` — Experimental *(filter)*
+
+Candidate roles an agent may be assigned. Each survivor is intersected
+with `get_editable_roles()` and then run through
+`desktop_mode_agent_actor_can_assign_role`, so this filter can narrow
+or extend the candidate list but a role it adds still has to clear both
+constraints.
+
+- **Param** `string[] $whitelist` — default `administrator`, `editor`, `author`, `contributor`.
+
+### `desktop_mode_agent_actor_can_assign_role` — Experimental *(filter)*
+
+Whether the acting user may grant a role to an agent. An agent runs
+with its role's capabilities, so granting the role IS granting
+capability. Defaults require `promote_users`, plus a genuine
+administrator (super admin on multisite) for the `administrator` role.
+
+Note `get_editable_roles()` alone is **not** a per-user constraint —
+core implements it as a bare `apply_filters( 'editable_roles',
+wp_roles()->roles )` with no reference to the current user, so on a
+stock install it excludes nothing. This filter is the actual gate.
+
+Use it for automation that creates agents outside a request context
+(activation routines, WP-CLI, provisioning jobs), where there is no
+current user and the default answer is a hard no.
+
+- **Param** `bool $can`
+- **Param** `string $role` — role slug being assigned.
+- **Param** `int $user_id` — acting user id (0 when there is none).
+
+### `desktop_mode_agent_restrict_to_invoker` — Experimental *(filter)*
+
+Whether one run is capped at the invoking user's capabilities. Default
+true whenever a human triggered the run.
+
+The runner switches the current user to the agent for the whole tool
+loop, so ability `permission_callback`s evaluate against the agent's
+role. Alongside that switch it installs a `user_has_cap` filter that
+turns off every primitive capability the invoker does not hold — an
+agent must never do on your behalf what you could not do yourself.
+Without it the module is a confused deputy: invoking is gated on
+`edit_posts`, agents may hold `administrator`.
+
+Returning `false` lets the agent act with its full role. Only
+appropriate when the message cannot be influenced by a lower-privileged
+user. Returning `true` for a system-context run (`$invoker_id` 0) is a
+no-op — there is no cap set to intersect with.
+
+- **Param** `bool $restrict`
+- **Param** `int $agent_user_id`
+- **Param** `int $invoker_id` — 0 when there is no invoker.
+
+### `desktop_mode_agent_user_can_invoke_agent` — Experimental *(filter)*
+
+Whether the current user may invoke a **specific** agent through a
+specific source. `desktop_mode_agents_user_can_invoke` is the site-wide
+half ("may this user invoke agents at all"); this is the per-agent
+half.
+
+Default: honours the `capability` declared in the matching trigger's
+config. An agent with no trigger for that source, or one declaring no
+capability, falls back to the route-level check — requiring a
+configured trigger would lock out every agent created before triggers
+were set up.
+
+- **Param** `bool $can`
+- **Param** `int $agent_user_id`
+- **Param** `string $source` — `chat`, `drag`, or `send-to`.
+- **Param** `array|null $trigger` — the matching trigger row, if any.
+
+### `desktop_mode_agent_default_rate_limit` — Experimental *(filter)*
+
+Default invocations-per-hour cap applied when the agent has no
+per-agent override. Bounds one agent.
+
+- **Param** `int $limit` — default 60.
+- **Param** `int $agent_user_id`
+
+### `desktop_mode_agent_invoker_rate_limit` — Experimental *(filter)*
+
+Per-user cap on agent invocations per hour, counted across every agent
+on the site. Bounds the *person*: the per-agent limit does nothing to
+stop one user walking every agent in turn and spending the AI budget N
+times over. System-context runs (no invoker) are not counted.
+
+- **Param** `int $limit` — default 120.
+- **Param** `int $invoker_id`
+
+### `desktop_mode_agents_user_can_read` / `desktop_mode_agents_user_can_manage` / `desktop_mode_agents_user_can_invoke` — Experimental *(filters)*
+
+The three permission gates on the REST surface and the UI. Defaults:
+read `edit_posts`, manage `edit_users`, invoke `edit_posts`.
+
+- **Param** `bool $can`
+
+### PHP helpers — Experimental
+
+- `desktop_mode_agent_is_agent( $user )` — marker-meta test. Available even when the agents feature is off (guard.php).
+- `desktop_mode_agent_create( $args )` / `desktop_mode_agent_update( $user_id, $fields )` / `desktop_mode_agent_delete( $user_id, $reassign )` — the orchestrators (the only write paths; each fires its audit action). These are **privileged internal APIs**: they enforce role assignment (see `desktop_mode_agent_actor_can_assign_role`) but assume the caller already checked who is asking. The REST surface does that with `edit_users`; a direct caller must do the same.
+- `desktop_mode_agent_get_agents( $args )` — list every agent.
+- `desktop_mode_agent_get_{description,instructions,abilities,triggers,model,rate_limit}( $user_id )` — definition getters.
+- `desktop_mode_agent_invoke( $agent_user_id, $message, $context )` — run the agent (identity switch, invoker cap ceiling, tool loop, turn cap 8, rate limits). `$context['source']` names the trigger; `$context['invoker']` is the user whose capabilities ceiling the run (defaults to `get_current_user_id()`; pass `0` deliberately for a system-context run); `$context['history']` replays prior conversation turns (`[ { role: 'user'|'agent', text }, … ]`, oldest first, capped at the 50 most recent × 4000 chars each). **Pass the history for any follow-up message**: without it the run is contextless, so "yes, do it" resolves against nothing and the agent may act on a different entity than the one just discussed.
+- `desktop_mode_agent_user_can_invoke_agent( $agent_user_id, $source )` — the per-agent invocation gate. Call it before `desktop_mode_agent_invoke()` from any new trigger intake.
+- `desktop_mode_agent_trigger_for_source( $agent_user_id, $source )` — the agent's trigger row for an invocation source, or null.
+- `desktop_mode_agent_runner_get_log( $agent_user_id )` — recent invocations (capped at 50).
+- `desktop_mode_agents_abilities_catalogue()` — the picker catalogue.
 
 ---
 

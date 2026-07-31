@@ -1,0 +1,85 @@
+.siege-game[data-asset-version="0.3.0"] .siege-actions {
+	gap: 0.34rem;
+}
+
+.siege-game[data-asset-version="0.3.0"] .siege-actions button {
+	padding-inline: 0.62rem;
+}
+
+.siege-game[data-asset-version="0.3.0"] [data-action="sound"],
+.siege-game[data-asset-version="0.3.0"] [data-action="effects"] {
+	border-color: #8ca8d3;
+	border-right-color: #263d62;
+	border-bottom-color: #263d62;
+	background: #17315d;
+	color: #eaf1ff;
+	font: 700 0.64rem/1 "Courier New", monospace;
+	letter-spacing: 0.02em;
+}
+
+.siege-game[data-asset-version="0.3.0"] [data-action="sound"][aria-pressed="true"],
+.siege-game[data-asset-version="0.3.0"] [data-action="effects"][aria-pressed="true"] {
+	border-color: #d3fff7;
+	border-right-color: #176455;
+	border-bottom-color: #176455;
+	background: #25584f;
+	color: #f2fffc;
+}
+
+.siege-game[data-asset-version="0.3.0"] [data-action="sound"][aria-pressed="false"],
+.siege-game[data-asset-version="0.3.0"] [data-action="effects"][aria-pressed="false"] {
+	background: #232a38;
+	color: #9ca8bb;
+}
+
+.siege-game[data-asset-version="0.3.0"]
+	.siege-card--results
+	[data-role="result-title"]:focus {
+	outline: none;
+}
+
+@container popup-siege (max-width: 900px) {
+	.siege-game[data-asset-version="0.3.0"] [data-action="sound"],
+	.siege-game[data-asset-version="0.3.0"] [data-action="effects"] {
+		display: inline-grid;
+		width: 44px;
+		min-width: 44px;
+		padding-inline: 0;
+		place-items: center;
+		font-size: 0;
+	}
+
+	.siege-game[data-asset-version="0.3.0"] [data-action="sound"]::before {
+		content: "♫";
+		font-size: 1rem;
+	}
+
+	.siege-game[data-asset-version="0.3.0"] [data-action="effects"]::before {
+		content: "FX";
+		font-size: 0.67rem;
+	}
+}
+
+@container popup-siege (max-width: 430px) {
+	.siege-game[data-asset-version="0.3.0"] .siege-actions {
+		gap: 0.25rem;
+	}
+
+	.siege-game[data-asset-version="0.3.0"] .siege-actions button {
+		min-width: 42px;
+		padding-inline: 0.45rem;
+	}
+}
+
+@media (forced-colors: active) {
+	.siege-game[data-asset-version="0.3.0"] [data-action="sound"],
+	.siege-game[data-asset-version="0.3.0"] [data-action="effects"],
+	.siege-game[data-asset-version="0.3.0"]
+		[data-action="sound"][aria-pressed="true"],
+	.siege-game[data-asset-version="0.3.0"]
+		[data-action="effects"][aria-pressed="true"] {
+		border-color: ButtonText;
+		background: ButtonFace;
+		color: ButtonText;
+	}
+}

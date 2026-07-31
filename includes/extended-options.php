@@ -23,6 +23,12 @@
  *     `includes/games/bootstrap.php` skips every module file, so the
  *     framework consumes no resources at all (see
  *     `desktop_mode_games_enabled()`).
+ *   - agents: when true, the AI Agents framework loads — synthetic
+ *     agent users, the `/desktop-mode/v1/agents` REST surface, the
+ *     Agents section in My WordPress, and the Agent chat window.
+ *     **Defaults to `false`** — agents are opt-IN. While off,
+ *     `includes/agents/bootstrap.php` skips every module file (see
+ *     `desktop_mode_agents_enabled()`).
  *
  * @package WPDesktopMode
  */
@@ -39,12 +45,13 @@ const DESKTOP_MODE_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
 /**
  * Returns the extended options with defaults filled in.
  *
- * @return array{ media_library_enhanced: bool, games: bool }
+ * @return array{ media_library_enhanced: bool, games: bool, agents: bool }
  */
 function desktop_mode_get_extended_options() {
 	$defaults = array(
 		'media_library_enhanced' => true,
 		'games'                  => false,
+		'agents'                 => false,
 	);
 	$raw = get_option( DESKTOP_MODE_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {

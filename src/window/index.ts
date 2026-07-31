@@ -1510,7 +1510,11 @@ export class Window {
 		// unloading the page.) Browsers without content-visibility
 		// ignore the property and keep today's behavior.
 		this.element.addEventListener( 'transitionend', ( e: TransitionEvent ) => {
-			if ( e.propertyName === 'opacity' && this.state === 'minimized' ) {
+			if (
+				e.propertyName === 'opacity' &&
+				this.state === 'minimized' &&
+				! this.element.classList.contains( 'desktop-mode-window--overview' )
+			) {
 				if ( this.iframe ) {
 					this.iframe.style.visibility = 'hidden';
 				}
@@ -3444,4 +3448,3 @@ export class Window {
 		openActionsMenu( this );
 	}
 }
-

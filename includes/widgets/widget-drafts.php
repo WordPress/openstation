@@ -320,7 +320,7 @@ function desktop_mode_rest_draft_suggestions( WP_REST_Request $request ) {
 	try {
 		$json = wp_ai_client_prompt( desktop_mode_drafts_ai_prompt_text( $post ) )
 			->using_system_instruction( desktop_mode_drafts_ai_instructions( $post ) )
-			->as_json_response( desktop_mode_drafts_ai_schema( $post ) )
+			->as_json_response( desktop_mode_ai_normalize_response_schema( desktop_mode_drafts_ai_schema( $post ) ) )
 			->generate_text();
 	} catch ( \Throwable $e ) {
 		$json = new WP_Error( 'desktop_mode_ai_failed', $e->getMessage() );

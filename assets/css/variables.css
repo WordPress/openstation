@@ -25,6 +25,37 @@
 	--desktop-mode-window-border: rgba(0, 0, 0, 0.12);
 	--desktop-mode-window-radius: 8px;
 	--desktop-mode-window-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+	/*
+	 * Fill of the surface a window's content is revealed from once it
+	 * finishes loading (OS Settings → Effects → "Window reveal").
+	 *
+	 * White: the surface has to be opaque or there is nothing to reveal
+	 * FROM — the content would simply be visible the whole time and the
+	 * clip animation would paint nothing. A theme retints it with any
+	 * paint value (`var( --desktop-mode-window-bg )` to follow the
+	 * window, a brand colour, a gradient, an image), and `transparent`
+	 * is a legitimate value meaning "no covering surface" — the shell
+	 * skips the layer rather than animating something invisible.
+	 *
+	 * A reveal may override this for itself when the paint IS the
+	 * reveal; `obturator` (Camera shutter) is the one built-in that
+	 * does, because near-black blades are what make it a shutter.
+	 */
+	--desktop-mode-window-reveal-surface: #fff;
+	/*
+	 * Fill of the reveal's leading edge — the band that travels with
+	 * the clip boundary and draws each reveal's shape (six lines on
+	 * Blinds, an opening ring on Iris, a rotating spoke on Radar).
+	 *
+	 * `transparent` by default: the reveal reads as the page arriving,
+	 * and a hard graphic edge on top of that is a deliberate look
+	 * rather than the neutral one. A theme (or any stylesheet) opts in
+	 * by giving this a colour — no JS and no per-reveal configuration
+	 * needed, because the band follows whatever shape the active
+	 * reveal has. While it computes to fully transparent the shell
+	 * skips the layer altogether, so the default costs nothing.
+	 */
+	--desktop-mode-window-reveal-edge: transparent;
 	--desktop-mode-window-shadow-focused: 0 12px 48px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
 
 	/* Title bar — focused bg/color resolve via the scheme overrides below. */
@@ -192,6 +223,45 @@
 	 */
 
 	/*
+	 * ---- Title-bar control glyphs -----------------------------
+	 *
+	 * The colour of the buttons themselves — minimise / maximise /
+	 * close, the ⋯ menu trigger, and the screen-meta cluster — in
+	 * each of the two title-bar states.
+	 *
+	 *   Focused    --desktop-mode-titlebar-btn-focused-color
+	 *              --desktop-mode-titlebar-btn-focused-color-hover
+	 *              --desktop-mode-titlebar-btn-focused-bg-hover
+	 *              --desktop-mode-titlebar-btn-focused-bg-active
+	 *              --desktop-mode-titlebar-btn-focused-outline
+	 *   Unfocused  --desktop-mode-titlebar-btn-color
+	 *              --desktop-mode-titlebar-btn-color-hover
+	 *              --desktop-mode-titlebar-btn-bg-hover
+	 *              --desktop-mode-titlebar-btn-bg-active
+	 *
+	 * Undeclared, like everything above: each rule reads
+	 * `var( --name, <the literal it always had> )`.
+	 *
+	 * The unfocused half additionally DERIVES from
+	 * `--desktop-mode-titlebar-color` under an active desktop theme,
+	 * so most themes never need to name it. The focused half cannot
+	 * do the same — its glyphs sit on `-bg-focused`, a fill a theme
+	 * may set to anything from near-black to a pastel, and there is
+	 * no contrast-safe function of a background colour in CSS. So it
+	 * stays explicit: white at 70% until a theme says otherwise.
+	 *
+	 * Why these need names at all: the declarations land on the
+	 * WINDOW element (`.desktop-mode-window--focused`), which outranks
+	 * a `--wpd-btn-*` set at the shell root, and those names are
+	 * shared with buttons outside the title bar. A theme had no way to
+	 * recolour a focused control without also moving sticky-note and
+	 * desk chrome.
+	 *
+	 * Consumers: window-chrome.css (control cluster, ⋯ trigger,
+	 * screen-meta buttons).
+	 */
+
+	/*
 	 * ---- Typography ------------------------------------------
 	 *
 	 * Also deliberately UNDECLARED, for the same reason as the
@@ -279,6 +349,39 @@
 	 * cover the surface and the primary text on it.
 	 */
 
+	/*
+	 * ---- Dock glyphs ------------------------------------------
+	 *
+	 * `--desktop-mode-dock-bg` below is declared, so a theme can and
+	 * does repaint the strip. What it paints ON the strip was, until
+	 * these tokens, fixed white — the glyph, its hover brightening,
+	 * the hover wash behind the tile, and the focus ring. Set the
+	 * dock to anything pale and every tile went blank.
+	 *
+	 *   --desktop-mode-dock-icon-color        glyph at rest
+	 *   --desktop-mode-dock-icon-color-hover  glyph on hover / peek
+	 *   --desktop-mode-dock-item-bg-hover     wash behind the tile
+	 *   --desktop-mode-dock-item-outline      keyboard focus ring
+	 *
+	 * Undeclared, like the palette: each site reads
+	 * `var( --name, <the literal it always had> )`. System tiles
+	 * (OS Settings, recycle bin, …) read the same `-icon-color` with
+	 * their own slightly brighter literal behind it, so unthemed they
+	 * keep their notch of extra prominence and themed they follow the
+	 * single colour the theme named.
+	 *
+	 * Named a *colour*, not a fill, on purpose: every image glyph in
+	 * the dock is painted as a mask filled with this colour — a
+	 * theme's own iconset via `"iconColor": "currentColor"`, and
+	 * plugin / CPT artwork via `currentColor` on the tile. So one
+	 * token drives dashicons, theme art, plugin art, and the hover
+	 * transition between them. The `__item-svg` fallback (a URL the
+	 * mask can't take) still force-whitens; see the note in dock.css.
+	 *
+	 * Consumers: dock.css, dock-peek.css (which re-states the hover
+	 * rule and so must read the same two tokens).
+	 */
+
 	/* Dock */
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;
@@ -345,6 +448,28 @@
 	--desktop-mode-tile-label-weight: 400;
 	--desktop-mode-tile-label-smoothing: auto;
 	--desktop-mode-tile-label-color: var(--desktop-mode-tile-fg);
+
+	/*
+	 * Admin bar — how many pixels of the bar stay on screen while it
+	 * is parked off the top edge in `dynamic` mode. This is the
+	 * VISIBLE seam only: small enough to read as "nothing is there".
+	 * Themes may retune it; `0` makes the bar invisible until hovered.
+	 */
+	--desktop-mode-admin-bar-peek: 4px;
+
+	/*
+	 * How far BELOW the parked bar the invisible reveal zone reaches.
+	 * Decoupled from the peek on purpose — the seam wants to be a
+	 * hairline, the pointer target wants to be forgiving, and tying
+	 * them together forces one of the two to be wrong. The band the
+	 * user actually has to hit is `peek + this`.
+	 *
+	 * CEILING: keep `peek + reveal-zone` comfortably under the admin
+	 * bar's own height (32px, 46px below 783px). Past that, leaving
+	 * the revealed bar drops the pointer straight back into the zone,
+	 * which re-reveals it — an oscillation loop, not a wider target.
+	 */
+	--desktop-mode-admin-bar-reveal-zone: 16px;
 
 	/* Z-index layers */
 	--desktop-mode-z-base: 100;

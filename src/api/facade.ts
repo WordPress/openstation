@@ -86,6 +86,11 @@ import {
 	registerUnfocusEffect,
 	unregisterUnfocusEffect,
 } from '../effects/registry';
+import {
+	listWindowReveals,
+	registerWindowReveal,
+	unregisterWindowReveal,
+} from '../reveals/registry';
 import { relationsApi } from '../window-links/engine';
 import {
 	listWindowLinkRenderers,
@@ -206,6 +211,7 @@ export const RESERVED_NAMESPACE_KEYS: ReadonlySet< string > = new Set( [
 	'registerTitleBarButton',
 	'unregisterTitleBarButton', 'listTitleBarButtons',
 	'registerUnfocusEffect', 'unregisterUnfocusEffect', 'listUnfocusEffects',
+	'registerWindowReveal', 'unregisterWindowReveal', 'listWindowReveals',
 	'relations',
 	'registerWindowLinkRenderer', 'unregisterWindowLinkRenderer',
 	'listWindowLinkRenderers',
@@ -397,6 +403,10 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 				osSettings.state.windowRadius =
 					patch.windowRadius as typeof osSettings.state.windowRadius;
 			}
+			if ( typeof patch.adminBarMode === 'string' ) {
+				osSettings.state.adminBarMode =
+					patch.adminBarMode as typeof osSettings.state.adminBarMode;
+			}
 			if ( typeof patch.desktopLayout === 'string' ) {
 				osSettings.state.desktopLayout =
 					patch.desktopLayout as typeof osSettings.state.desktopLayout;
@@ -409,6 +419,13 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			}
 			if ( typeof patch.unfocusEffect === 'string' ) {
 				osSettings.state.unfocusEffect = patch.unfocusEffect;
+			}
+			if ( typeof patch.windowReveal === 'string' ) {
+				osSettings.state.windowReveal = patch.windowReveal;
+			}
+			if ( typeof patch.windowRevealDuration === 'number' ) {
+				osSettings.state.windowRevealDuration =
+					patch.windowRevealDuration;
 			}
 			if ( typeof patch.dockRailRenderer === 'string' ) {
 				osSettings.state.dockRailRenderer = patch.dockRailRenderer;
@@ -555,11 +572,15 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 			// `apply()` knows nothing about it. The unfocus engine
 			// listens on `subscribeOsSettings`, which `save()` above
 			// already fired, so that key repaints on its own.
+			// `windowReveal` is absent for the same reason: the reveal
+			// engine reads it off the same subscription, and it only
+			// takes effect on the NEXT window load either way.
 			if (
 				typeof patch.wallpaper === 'string' ||
 				typeof patch.accent === 'string' ||
 				typeof patch.dockSize === 'string' ||
 				typeof patch.windowRadius === 'string' ||
+				typeof patch.adminBarMode === 'string' ||
 				typeof patch.desktopLayout === 'string' ||
 				typeof patch.dockRailRenderer === 'string' ||
 				typeof patch.desktopTheme === 'string'
@@ -600,6 +621,9 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		registerUnfocusEffect,
 		unregisterUnfocusEffect,
 		listUnfocusEffects,
+		registerWindowReveal,
+		unregisterWindowReveal,
+		listWindowReveals,
 		relations: relationsApi,
 		registerWindowLinkRenderer,
 		unregisterWindowLinkRenderer,

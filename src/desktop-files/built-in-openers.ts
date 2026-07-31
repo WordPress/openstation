@@ -15,8 +15,10 @@
  * is fully booted).
  */
 
+import { __ } from '../i18n';
 import { registerOpener } from './openers';
 import type { DesktopFile } from './file';
+import { openAgentChatWindow } from '../agents-dispatch';
 import { mountFilesLayer } from './layer';
 import { mountFolderStatusBar } from './folder-status-bar';
 import { attachIconCanvasMenu } from '../icon-canvas/menu';
@@ -97,6 +99,41 @@ export function registerBuiltInFileOpeners(): void {
 			kind: 'url',
 			url: ( file: DesktopFile ) =>
 				`${ adminBase() }post.php?post=${ encodeURIComponent( file.ref() ) }&action=edit`,
+		},
+	} );
+
+	// Agent user tiles open the Agent chat, not the profile — the
+	// per-file predicate keeps this opener invisible to human users
+	// (and to the type-level default-apps settings). Registered
+	// before the profile opener so the default-flag scan (sort
+	// order) picks it for agents.
+	registerOpener( {
+		id: 'agent-chat',
+		label: __( 'Agent chat', 'desktop-mode' ),
+		types: [ 'user' ],
+		isDefault: true,
+		sort: 5,
+		appliesTo: ( file: DesktopFile ) =>
+			( file.shape as { isAgent?: boolean } ).isAgent === true,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile ) => {
+				const shape = file.shape as {
+					ref: string;
+					title: string;
+					previewUrl?: string;
+					agentDescription?: string;
+				};
+				openAgentChatWindow(
+					{
+						id: Number.parseInt( shape.ref, 10 ),
+						name: shape.title,
+						description: shape.agentDescription ?? '',
+						avatarUrl: shape.previewUrl ?? '',
+					},
+					'agents-open',
+				);
+			},
 		},
 	} );
 

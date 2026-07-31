@@ -23,6 +23,7 @@ import {
 	markWindowContentReady,
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
+import { createRevealLayers } from '../reveals/surface';
 
 /**
  * Carrier symbol used to stash a window's config on its outer
@@ -588,6 +589,23 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// `WINDOW_LOADING_OVERLAY` filter (global) — see
 	// `createLoadingOverlay` above.
 	body.appendChild( createLoadingOverlay( config ) );
+
+	// Reveal layers — the opaque surface the window's content is
+	// uncovered from once it reports ready, plus its trailing edge.
+	// Both sit UNDER the loading overlay so the spinner stays readable
+	// throughout the load, and both are siblings of the iframe rather
+	// than wrappers, so clipping them can never affect the content's
+	// own painting or hit-testing.
+	//
+	// Armed here rather than from the `WINDOW_CONTENT_LOADING`
+	// subscriber because the `markWindowContentLoading()` call below
+	// fires while this element is still detached — the subscriber
+	// resolves windows by `document.getElementById` and would find
+	// nothing. Re-arms on later loads go through `armWindowReveal`.
+	// Empty when the user's reveal is `'none'`.
+	for ( const layer of createRevealLayers() ) {
+		body.appendChild( layer );
+	}
 
 	// Mark this window as being in the loading state from the moment
 	// the body element exists. Plugins or shell code that subscribe to

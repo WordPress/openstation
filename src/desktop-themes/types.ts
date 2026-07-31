@@ -34,12 +34,34 @@ export interface RecommendedOsSettings {
 	/** `sharp` | `default` | `round`. */
 	windowRadius?: string;
 	/**
-	 * Dock rail-renderer id. Unlike the three enums above, validity is
+	 * `static` | `dynamic` | `hidden` — how the WordPress admin bar
+	 * presents above the shell. A theme that wants an edge-to-edge
+	 * desk recommends `dynamic` (auto-hide, reveals on hover) or
+	 * `hidden`.
+	 */
+	adminBarMode?: string;
+	/**
+	 * Dock rail-renderer id. Unlike the enums above, validity is
 	 * only knowable at runtime — the apply pass drops this key when no
 	 * renderer is registered under the id, rather than writing an
 	 * unresolvable value into the user's settings.
 	 */
 	dockRailRenderer?: string;
+	/**
+	 * Window-reveal id — the transition that uncovers a window's
+	 * content once it has loaded. Same runtime-validity story as
+	 * {@link dockRailRenderer}: the apply pass drops the key when no
+	 * reveal is registered under the id. `'none'` is always valid; it
+	 * is the "no reveal" sentinel rather than a registration.
+	 */
+	windowReveal?: string;
+	/**
+	 * Global reveal duration in ms, overriding each reveal's own
+	 * timing. The one numeric recommendation — clamped to 80–4000.
+	 * Omit it (rather than recommending `0`) to leave the user's speed
+	 * alone.
+	 */
+	windowRevealDuration?: number;
 }
 
 /**

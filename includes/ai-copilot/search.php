@@ -577,6 +577,11 @@ function desktop_mode_ai_normalize_tool_schema( $schema ) {
 		);
 	}
 
+	// Recursively drop the WordPress-only arg-schema keys
+	// (`sanitize_callback` / `validate_callback` / `arg_options`) —
+	// see the helper's docblock for why this must run at every depth.
+	$schema = desktop_mode_ai_strip_wp_schema_keys( $schema );
+
 	// Top-level tool parameters must be the literal "object", never a union.
 	$schema['type'] = 'object';
 
@@ -589,6 +594,75 @@ function desktop_mode_ai_normalize_tool_schema( $schema ) {
 	// stripped top-level combinator) gets an empty object for the same reason.
 	if ( ! isset( $schema['properties'] ) || array() === $schema['properties'] ) {
 		$schema['properties'] = (object) array();
+	}
+
+	return $schema;
+}
+
+/**
+ * Recursively removes the WordPress-only arg-schema keys from a tool schema.
+ *
+ * WordPress arg schemas legally extend JSON Schema with PHP-callable keys —
+ * `sanitize_callback`, `validate_callback`, and (on meta args) `arg_options`.
+ * Abilities registered from REST arg definitions carry them at every property
+ * level, and providers that validate tool schemas strictly reject any unknown
+ * field ("Invalid JSON payload received. Unknown name \"sanitize_callback\""),
+ * 400-ing the whole request over one property.
+ *
+ * The walk is structure-aware, not a blind key sweep: maps under `properties` /
+ * `patternProperties` are keyed by PROPERTY NAME, so a property that happens to
+ * be called `sanitize_callback` is preserved — only its schema value is
+ * cleaned. Recursion covers every position a subschema can occupy: property
+ * values, `items` (single schema or tuple list), array-shaped
+ * `additionalProperties`, and nested `oneOf` / `allOf` / `anyOf` branches
+ * (which are kept — only the TOP level of the tool schema strips combinators).
+ *
+ * @since 0.9.8
+ *
+ * @param array $schema A tool parameters (sub)schema.
+ * @return array The schema without WP-only keys, at any depth.
+ */
+function desktop_mode_ai_strip_wp_schema_keys( array $schema ) {
+	unset( $schema['sanitize_callback'], $schema['validate_callback'], $schema['arg_options'] );
+
+	foreach ( array( 'properties', 'patternProperties' ) as $map_key ) {
+		if ( isset( $schema[ $map_key ] ) && is_array( $schema[ $map_key ] ) ) {
+			foreach ( $schema[ $map_key ] as $name => $sub ) {
+				if ( is_array( $sub ) ) {
+					$schema[ $map_key ][ $name ] = desktop_mode_ai_strip_wp_schema_keys( $sub );
+				}
+			}
+		}
+	}
+
+	if ( isset( $schema['items'] ) && is_array( $schema['items'] ) ) {
+		$items   = $schema['items'];
+		$is_list = array_keys( $items ) === range( 0, count( $items ) - 1 );
+		if ( $is_list && array() !== $items ) {
+			// Tuple form — a list of schemas.
+			foreach ( $items as $i => $sub ) {
+				if ( is_array( $sub ) ) {
+					$items[ $i ] = desktop_mode_ai_strip_wp_schema_keys( $sub );
+				}
+			}
+			$schema['items'] = $items;
+		} else {
+			$schema['items'] = desktop_mode_ai_strip_wp_schema_keys( $items );
+		}
+	}
+
+	if ( isset( $schema['additionalProperties'] ) && is_array( $schema['additionalProperties'] ) ) {
+		$schema['additionalProperties'] = desktop_mode_ai_strip_wp_schema_keys( $schema['additionalProperties'] );
+	}
+
+	foreach ( array( 'oneOf', 'allOf', 'anyOf' ) as $combinator ) {
+		if ( isset( $schema[ $combinator ] ) && is_array( $schema[ $combinator ] ) ) {
+			foreach ( $schema[ $combinator ] as $i => $sub ) {
+				if ( is_array( $sub ) ) {
+					$schema[ $combinator ][ $i ] = desktop_mode_ai_strip_wp_schema_keys( $sub );
+				}
+			}
+		}
 	}
 
 	return $schema;

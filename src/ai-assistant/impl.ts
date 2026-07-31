@@ -34,109 +34,6 @@ import {
 } from '../commands';
 
 // ---------------------------------------------------------------------------
-// Minimal Markdown renderer
-// ---------------------------------------------------------------------------
-//
-// AI responses arrive with basic markdown — **bold**, *italic*, `code`,
-// bullet / ordered lists, and [link](url) tokens. WordPress has no
-// built-in JS markdown parser and pulling in a library just for this
-// would add ~40 kB, so we hand-roll a minimal subset that covers the
-// shapes the agent actually emits.
-//
-// Safety: every input passes through HTML escaping FIRST, then markdown
-// tokens are re-interpreted into safe HTML. URLs are filtered to
-// http/https only — no javascript:, data:, or vbscript: links reach
-// the DOM. Result is safe to set as innerHTML.
-//
-// Intentionally NOT supported (to keep it minimal):
-//   - fenced code blocks (```)
-//   - headings (# ## ###)
-//   - tables, blockquotes, images, nested lists
-//
-// If the agent produces any of those they'll appear as literal text —
-// harmless. The system prompt steers toward short, conversational
-// responses where these don't typically appear.
-
-/** HTML-escape text for safe interpolation into innerHTML contexts. */
-function escapeHtmlForMd( s: string ): string {
-	return s
-		.replace( /&/g, '&amp;' )
-		.replace( /</g, '&lt;' )
-		.replace( />/g, '&gt;' )
-		.replace( /"/g, '&quot;' );
-}
-
-/** Apply inline markdown tokens to an already-escaped string. */
-function renderInlineMd( s: string ): string {
-	return s
-		// Links [text](url) — must run first so URLs don't get
-		// interpreted as other tokens. Reject non-http(s) schemes.
-		.replace(
-			/\[([^\]]+)\]\(([^)]+)\)/g,
-			( _m, label: string, url: string ) => {
-				if ( ! /^https?:\/\//i.test( url.trim() ) ) {
-					return label;
-				}
-				return `<a href="${ url.trim() }" target="_blank" rel="noopener noreferrer">${ label }</a>`;
-			},
-		)
-		// Bold **text** — run before italic so ** doesn't partially match *.
-		.replace( /\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>' )
-		// Italic *text* (single asterisk, word-boundary guarded).
-		.replace( /(?<![*\w])\*([^*\n]+?)\*(?![*\w])/g, '<em>$1</em>' )
-		// Italic _text_.
-		.replace( /(?<![_\w])_([^_\n]+?)_(?![_\w])/g, '<em>$1</em>' )
-		// Inline code `snippet`.
-		.replace( /`([^`\n]+?)`/g, '<code>$1</code>' );
-}
-
-/**
- * Render a short markdown string to safe HTML.
- *
- * @param md Raw markdown-ish text (typically an AI response).
- * @return HTML string, safe to set via innerHTML.
- */
-function renderMarkdown( md: string ): string {
-	if ( ! md ) {
-		return '';
-	}
-
-	// Escape first so user / model text can't inject markup.
-	const safe = escapeHtmlForMd( md );
-
-	// Split into paragraph blocks on blank lines.
-	const blocks = safe.split( /\n\s*\n/ );
-	const out: string[] = [];
-
-	for ( const raw of blocks ) {
-		const lines = raw.split( /\n/ ).map( ( l ) => l.trim() ).filter( ( l ) => l !== '' );
-		if ( lines.length === 0 ) {
-			continue;
-		}
-
-		const isUL = lines.every( ( l ) => /^[-*]\s+/.test( l ) );
-		const isOL = lines.every( ( l ) => /^\d+\.\s+/.test( l ) );
-
-		if ( isUL ) {
-			const items = lines.map(
-				( l ) => `<li>${ renderInlineMd( l.replace( /^[-*]\s+/, '' ) ) }</li>`,
-			);
-			out.push( `<ul>${ items.join( '' ) }</ul>` );
-		} else if ( isOL ) {
-			const items = lines.map(
-				( l ) => `<li>${ renderInlineMd( l.replace( /^\d+\.\s+/, '' ) ) }</li>`,
-			);
-			out.push( `<ol>${ items.join( '' ) }</ol>` );
-		} else {
-			// Paragraph. Single \n inside a paragraph becomes <br>.
-			out.push( `<p>${ renderInlineMd( lines.join( '<br>' ) ) }</p>` );
-		}
-	}
-
-	return out.join( '' );
-}
-
-// ---------------------------------------------------------------------------
 // SVG icons
 // ---------------------------------------------------------------------------
 
@@ -181,6 +78,7 @@ const ICON_SITE_LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" fill="cu
 export type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AskFn } from '../ai/ask';
+import { renderMarkdown } from '../markdown';
 
 type AnswerType = 'entity' | 'navigation' | 'chat';
 

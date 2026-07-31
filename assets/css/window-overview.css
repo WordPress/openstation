@@ -69,6 +69,14 @@
 }
 
 /*
+ * Minimized windows shown in overview are rendered slightly dimmed
+ * so the user can distinguish them from active windows at a glance.
+ */
+.desktop-mode-window--overview.desktop-mode-window--minimized {
+	opacity: 0.6;
+}
+
+/*
  * Mission-Control-style dimming: once ANY window is hovered, every
  * OTHER window dims and desaturates slightly — creating a clear
  * focal point without needing the hovered one to grow or lift.

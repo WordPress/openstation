@@ -2,8 +2,8 @@
  * Applying a desktop theme's recommended OS settings.
  *
  * A theme may ship a `recommendedOsSettings` block — the dock size,
- * desktop layout, window radius and dock rail renderer its author
- * designed it against. The contract, in one sentence: **a
+ * desktop layout, window radius, dock rail renderer, and window-reveal
+ * style and speed its author designed it against. The contract, in one sentence: **a
  * recommendation is applied once, when the user first activates the
  * theme, and never again.**
  *
@@ -14,7 +14,7 @@
  * arrangement and whatever they are wearing now is their own choice.
  *
  * The one way back is deliberate and user-initiated: the Themes tab's
- * "Apply recommended layout" action calls in here with
+ * "Apply recommended layout and effects" action calls in here with
  * `{ force: true }`.
  *
  * This module mutates the state object it is given and does NOT
@@ -37,8 +37,9 @@ const LEDGER_CAP = 64;
 export interface ApplyThemeRecommendationsOptions {
 	/**
 	 * Re-apply even when this theme's recommendations were already
-	 * seeded for this user. This is the "Apply recommended layout"
-	 * button, and it is the ONLY way a second application happens.
+	 * seeded for this user. This is the "Apply recommended layout and
+	 * effects" button, and it is the ONLY way a second application
+	 * happens.
 	 */
 	force?: boolean;
 }
@@ -85,18 +86,19 @@ export function applyThemeRecommendations(
 	// Written generically rather than key-by-key so a site that has
 	// widened the schema through
 	// `desktop_mode_desktop_theme_recommended_os_settings_schema`
-	// reaches its own key too. Two guards keep that safe: the key must
-	// already exist on the state object, and the incoming value must
-	// be a string — so a recommendation can never introduce a setting
-	// or flip a boolean feature switch.
+	// reaches its own key too. Three guards keep that safe: the value
+	// must be a string or a number, the key must already exist on the
+	// state object, and the two types must MATCH — so a recommendation
+	// can never introduce a setting, retype an existing one, or flip a
+	// boolean feature switch.
 	const target = state as unknown as Record< string, unknown >;
-	const applied: Record< string, string > = {};
+	const applied: Record< string, string | number > = {};
 	for ( const key of keys ) {
 		const value = ( recommended as Record< string, unknown > )[ key ];
-		if ( typeof value !== 'string' || ! ( key in state ) ) {
+		if ( typeof value !== 'string' && typeof value !== 'number' ) {
 			continue;
 		}
-		if ( typeof target[ key ] !== 'string' ) {
+		if ( ! ( key in state ) || typeof target[ key ] !== typeof value ) {
 			continue;
 		}
 		target[ key ] = value;
@@ -120,7 +122,7 @@ export function applyThemeRecommendations(
 /**
  * Whether this theme has an arrangement to offer that the shell can
  * actually apply right now — the question the "Apply recommended
- * layout" button asks before rendering itself.
+ * layout and effects" button asks before rendering itself.
  *
  * @public
  *
