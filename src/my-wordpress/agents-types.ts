@@ -71,9 +71,22 @@ export interface AgentToolCall {
 	error: string | null;
 }
 
+/**
+ * One call-to-action offered by an agent answer that needs the user's
+ * confirmation — rendered as a button; pressing it sends `reply` back
+ * as the user's next message.
+ */
+export interface AgentCallToAction {
+	id: string;
+	label: string;
+	style: 'primary' | 'secondary' | 'danger';
+	reply: string;
+}
+
 /** Result of `POST /agents/:id/invoke`. */
 export interface AgentInvokeResult {
 	text: string;
+	callToActions?: AgentCallToAction[];
 	toolCalls: AgentToolCall[];
 	turns: number;
 }

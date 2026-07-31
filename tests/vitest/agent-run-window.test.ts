@@ -346,6 +346,120 @@ describe( 'agent chat window', () => {
 		}
 	} );
 
+	test( 'call-to-action answers render buttons and pressing one replies', async () => {
+		const fetchMock: FetchMock = vi.fn( async ( input: unknown, init?: RequestInit ) => {
+			const url = String( input );
+			if ( url.includes( '/invoke' ) ) {
+				const sent = JSON.parse( String( init?.body ) ) as {
+					message: string;
+				};
+				if ( sent.message === 'Propose the update.' ) {
+					return {
+						ok: true,
+						status: 200,
+						json: async () => ( {
+							text: 'Approve the TL;DR for post 188?',
+							callToActions: [
+								{
+									id: 'approve',
+									label: 'Accept',
+									style: 'primary',
+									reply: 'Approved. Apply the TL;DR to post 188.',
+								},
+								{
+									id: 'cancel',
+									label: 'Cancel',
+									style: 'secondary',
+									reply: 'Cancelled.',
+								},
+							],
+							toolCalls: [],
+							turns: 1,
+						} ),
+					} as unknown as Response;
+				}
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ( {
+						text: 'Applied.',
+						toolCalls: [],
+						turns: 1,
+					} ),
+				} as unknown as Response;
+			}
+			return {
+				ok: true,
+				status: 200,
+				json: async () => ( {} ),
+			} as unknown as Response;
+		} );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fetchMock;
+
+		const body = makeBody();
+		const cleanup = getRender()( body );
+		openAgentChat( {
+			id: 5,
+			name: 'TLDR Editor',
+			description: '',
+			avatarUrl: 'https://example.test/bot.svg',
+		} );
+
+		const input = body.querySelector( 'wpd-textarea' ) as HTMLElement & {
+			value: string;
+		};
+		input.value = 'Propose the update.';
+		(
+			body.querySelector(
+				'.dm-agent-chat__composer wpd-button',
+			) as HTMLElement
+		 ).click();
+		await flush();
+
+		// Buttons render under the agent's answer with their variants.
+		const buttons = body.querySelectorAll< HTMLElement >(
+			'.dm-agent-chat__ctas wpd-button',
+		);
+		expect( buttons ).toHaveLength( 2 );
+		expect( buttons[ 0 ].textContent ).toBe( 'Accept' );
+		expect( buttons[ 0 ].getAttribute( 'variant' ) ).toBe( 'primary' );
+		expect( buttons[ 0 ].hasAttribute( 'disabled' ) ).toBe( false );
+
+		// Pressing Accept sends the reply as a visible user turn.
+		buttons[ 0 ].click();
+		await flush();
+
+		const replyCall = fetchMock.mock.calls.find( ( c ) => {
+			if ( ! String( c[ 0 ] ).includes( '/invoke' ) ) {
+				return false;
+			}
+			const sent = JSON.parse(
+				String( ( c[ 1 ] as RequestInit ).body ),
+			) as { message: string };
+			return sent.message === 'Approved. Apply the TL;DR to post 188.';
+		} );
+		expect( replyCall ).toBeTruthy();
+		expect( body.textContent ).toContain(
+			'Approved. Apply the TL;DR to post 188.',
+		);
+		expect( body.textContent ).toContain( 'Applied.' );
+
+		// The spent buttons persist but are disabled.
+		const spent = body.querySelectorAll< HTMLElement >(
+			'.dm-agent-chat__ctas wpd-button',
+		);
+		expect( spent[ 0 ].hasAttribute( 'disabled' ) ).toBe( true );
+		expect(
+			agentsChatStore.state.transcripts[ 5 ].some(
+				( m ) => m.ctaUsed === true,
+			),
+		).toBe( true );
+
+		if ( typeof cleanup === 'function' ) {
+			cleanup();
+		}
+	} );
+
 	test( 'the sidebar lists conversations and clicking one loads it', async () => {
 		const summary = {
 			id: 77,

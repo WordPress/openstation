@@ -13,7 +13,10 @@
  */
 
 import { createSharedStore } from './shared-store';
-import type { AgentToolCall } from './my-wordpress/agents-types';
+import type {
+	AgentCallToAction,
+	AgentToolCall,
+} from './my-wordpress/agents-types';
 
 /** The slice of an agent the chat window needs to paint its header. */
 export interface AgentChatAgent {
@@ -28,6 +31,10 @@ export interface AgentChatMessage {
 	role: 'user' | 'agent' | 'error';
 	text: string;
 	toolCalls?: AgentToolCall[];
+	/** Confirmation buttons the answer carries (agent rows only). */
+	callToActions?: AgentCallToAction[];
+	/** True once one of the buttons was pressed — they stay disabled. */
+	ctaUsed?: boolean;
 	at: number;
 	/** True while the invocation round-trip is in flight. */
 	pending?: boolean;

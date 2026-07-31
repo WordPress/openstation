@@ -100,7 +100,7 @@ function desktop_mode_agent_runner_available() {
  *                              … ]`, oldest first) so a follow-up
  *                              message resolves against what was
  *                              already said.
- * @return array|WP_Error `{ text: string, toolCalls: array, turns: int }` on success.
+ * @return array|WP_Error `{ text: string, callToActions: array, toolCalls: array, turns: int }` on success.
  */
 function desktop_mode_agent_invoke( $agent_user_id, $message, $context = array() ) {
 	$user = get_userdata( (int) $agent_user_id );
@@ -160,9 +160,10 @@ function desktop_mode_agent_invoke( $agent_user_id, $message, $context = array()
 			(int) $user->ID,
 			$message,
 			array(
-				'text'      => '',
-				'toolCalls' => array(),
-				'turns'     => 0,
+				'text'          => '',
+				'callToActions' => array(),
+				'toolCalls'     => array(),
+				'turns'         => 0,
 			),
 			$result->get_error_message()
 		);
@@ -180,7 +181,7 @@ function desktop_mode_agent_invoke( $agent_user_id, $message, $context = array()
 	 *
 	 * @param int    $agent_user_id Agent user id.
 	 * @param string $message       Submitted message.
-	 * @param array  $result        `{ text, toolCalls, turns }`.
+	 * @param array  $result        `{ text, callToActions, toolCalls, turns }`.
 	 * @param array  $context       Invocation context passed to
 	 *                              `desktop_mode_agent_invoke()`.
 	 */
@@ -290,7 +291,7 @@ function desktop_mode_agent_runner_build_tools( array $ability_slugs ) {
  * @param array  $tool_defs     Neutral tool definitions.
  * @param array  $slug_by_name  Tool-name → ability-slug map.
  * @param array  $prior         Sanitized prior conversation turns.
- * @return array|WP_Error `{ text, toolCalls, turns }`.
+ * @return array|WP_Error `{ text, callToActions, toolCalls, turns }`.
  */
 function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message, array $tool_defs, array $slug_by_name, array $prior = array() ) {
 	// Neutral history rows:
@@ -320,10 +321,14 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
 			: array();
 
 		if ( empty( $function_calls ) ) {
+			$answer = desktop_mode_agent_parse_answer(
+				isset( $generated['text'] ) && is_string( $generated['text'] ) ? $generated['text'] : ''
+			);
 			return array(
-				'text'      => isset( $generated['text'] ) && is_string( $generated['text'] ) ? $generated['text'] : '',
-				'toolCalls' => $tool_trace,
-				'turns'     => $turn,
+				'text'          => $answer['text'],
+				'callToActions' => $answer['callToActions'],
+				'toolCalls'     => $tool_trace,
+				'turns'         => $turn,
 			);
 		}
 
@@ -406,6 +411,154 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
 }
 
 /**
+ * JSON Schema every agent's FINAL answer is constrained to (via the
+ * AI Client's structured output, `as_json_response()`): the markdown
+ * answer in `text`, plus optional `call_to_actions` the chat renders
+ * as buttons when the agent needs the user's confirmation instead of
+ * a typed reply. Each action's `reply` is the literal message sent
+ * back as the user's next turn when its button is pressed.
+ *
+ * @return array
+ */
+function desktop_mode_agent_answer_schema() {
+	return array(
+		'type'       => 'object',
+		'properties' => array(
+			'text'            => array(
+				'type'        => 'string',
+				'description' => 'The answer, in markdown.',
+			),
+			'call_to_actions' => array(
+				'type'        => 'array',
+				'description' => 'Buttons to render when user confirmation or a choice is required. Empty when no input is needed.',
+				'items'       => array(
+					'type'       => 'object',
+					'properties' => array(
+						'id'    => array( 'type' => 'string' ),
+						'label' => array(
+							'type'        => 'string',
+							'description' => 'Short button label, e.g. "Accept".',
+						),
+						'style' => array(
+							'type' => 'string',
+							'enum' => array( 'primary', 'secondary', 'danger' ),
+						),
+						'reply' => array(
+							'type'        => 'string',
+							'description' => 'The literal message sent back as the user\'s answer when this button is pressed.',
+						),
+					),
+					'required'   => array( 'id', 'label', 'reply' ),
+				),
+			),
+		),
+		'required'   => array( 'text' ),
+	);
+}
+
+/**
+ * System-instruction appendix teaching the answer convention. Appended
+ * to every agent's own instructions so existing agents pick up
+ * call-to-action buttons without editing their prompts.
+ *
+ * @return string
+ */
+function desktop_mode_agent_answer_prompt_appendix() {
+	return 'Your final answer is JSON: `text` (markdown) plus `call_to_actions`. '
+		. 'When you need the user to confirm or choose before you act (approving a proposed update, picking between options), '
+		. 'put the proposal in `text` and offer each choice as a call-to-action: a short `label` (button text, e.g. "Accept"), '
+		. 'a `style` ("primary" for the main action, "danger" for destructive ones, "secondary" otherwise), and a `reply` — '
+		. 'the exact message that will come back as the user\'s next turn when they press the button, so make it unambiguous '
+		. '(e.g. "Approved. Apply the proposed TL;DR to post 188."). '
+		. 'Leave `call_to_actions` empty when no input is needed. Never ask the user to type a confirmation that buttons could express.';
+}
+
+/** Caps on sanitized call-to-actions: rows, label chars, reply chars. */
+const DESKTOP_MODE_AGENT_CTA_CAP       = 4;
+const DESKTOP_MODE_AGENT_CTA_LABEL_CAP = 40;
+const DESKTOP_MODE_AGENT_CTA_REPLY_CAP = 500;
+
+/**
+ * Normalize model-supplied call-to-actions to the renderable shape.
+ *
+ * @param mixed $raw Raw `call_to_actions` value from the model.
+ * @return array<int, array{id:string,label:string,style:string,reply:string}>
+ */
+function desktop_mode_agent_sanitize_call_to_actions( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		return array();
+	}
+	$clean = array();
+	$seen  = array();
+	foreach ( $raw as $index => $row ) {
+		if ( count( $clean ) >= DESKTOP_MODE_AGENT_CTA_CAP ) {
+			break;
+		}
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$label = isset( $row['label'] ) ? trim( wp_strip_all_tags( (string) $row['label'] ) ) : '';
+		$reply = isset( $row['reply'] ) ? trim( (string) $row['reply'] ) : '';
+		if ( '' === $label || '' === $reply ) {
+			continue;
+		}
+		$id = isset( $row['id'] ) ? sanitize_key( (string) $row['id'] ) : '';
+		if ( '' === $id || isset( $seen[ $id ] ) ) {
+			$id = 'cta-' . ( (int) $index + 1 );
+		}
+		$seen[ $id ] = true;
+
+		$style = isset( $row['style'] ) ? sanitize_key( (string) $row['style'] ) : '';
+		if ( ! in_array( $style, array( 'primary', 'secondary', 'danger' ), true ) ) {
+			$style = 'secondary';
+		}
+
+		$clean[] = array(
+			'id'    => $id,
+			'label' => mb_substr( $label, 0, DESKTOP_MODE_AGENT_CTA_LABEL_CAP ),
+			'style' => $style,
+			'reply' => mb_substr( $reply, 0, DESKTOP_MODE_AGENT_CTA_REPLY_CAP ),
+		);
+	}
+	return $clean;
+}
+
+/**
+ * Parse a final model answer against the answer schema, leniently.
+ *
+ * Providers that honour `as_json_response()` return the JSON object
+ * (sometimes fenced); pre-filter runtimes and older providers may
+ * return plain text. Anything that doesn't decode to `{ text: … }`
+ * passes through verbatim with no call-to-actions — structured
+ * answers degrade to today's behavior, never the other way around.
+ *
+ * @param string $text Raw final answer text.
+ * @return array{text:string, callToActions:array}
+ */
+function desktop_mode_agent_parse_answer( $text ) {
+	$raw     = (string) $text;
+	$decoded = json_decode( trim( $raw ), true );
+	if ( ! is_array( $decoded ) ) {
+		// Tolerate a ```json fence around the object.
+		if ( preg_match( '/^```(?:json)?\s*(\{.*\})\s*```$/s', trim( $raw ), $m ) ) {
+			$decoded = json_decode( $m[1], true );
+		}
+	}
+	if ( ! is_array( $decoded ) || ! isset( $decoded['text'] ) || ! is_string( $decoded['text'] ) ) {
+		return array(
+			'text'          => $raw,
+			'callToActions' => array(),
+		);
+	}
+	return array(
+		'text'          => $decoded['text'],
+		'callToActions' => desktop_mode_agent_sanitize_call_to_actions(
+			isset( $decoded['call_to_actions'] ) ? $decoded['call_to_actions'] : null
+		),
+	);
+}
+
+/**
  * One generate turn: pre-filter first (tests / alternative runtimes),
  * then the Core AI Client via the Copilot's adapter.
  *
@@ -449,7 +602,17 @@ function desktop_mode_agent_runner_generate( $agent_user_id, array $history, arr
 		desktop_mode_ai_user_text_message( desktop_mode_agent_runner_compose_prompt( $history ) ),
 	);
 
-	return desktop_mode_ai_client_generate( $agent_user_id, $messages, $tool_defs, null, (string) $instructions );
+	return desktop_mode_ai_client_generate(
+		$agent_user_id,
+		$messages,
+		$tool_defs,
+		// Constrain the final answer to { text, call_to_actions } so
+		// confirmations arrive as renderable buttons, not typed-reply
+		// requests. Tool-call turns are unaffected — the model either
+		// calls a function or emits the JSON answer.
+		desktop_mode_agent_answer_schema(),
+		(string) $instructions . "\n\n" . desktop_mode_agent_answer_prompt_appendix()
+	);
 }
 
 /**

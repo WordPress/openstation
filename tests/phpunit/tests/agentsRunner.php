@@ -595,4 +595,107 @@ class Tests_DesktopMode_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'log me', $log[0]['message'] );
 		$this->assertSame( 'logged answer', $log[0]['text'] );
 	}
+
+	/**
+	 * @covers ::desktop_mode_agent_parse_answer
+	 * @covers ::desktop_mode_agent_sanitize_call_to_actions
+	 */
+	public function test_parse_answer_is_lenient() {
+		// Plain text degrades to today's behavior.
+		$plain = desktop_mode_agent_parse_answer( 'Just words.' );
+		$this->assertSame( 'Just words.', $plain['text'] );
+		$this->assertSame( array(), $plain['callToActions'] );
+
+		// The structured shape parses, with sanitized actions.
+		$json = wp_json_encode(
+			array(
+				'text'            => 'Apply the TL;DR to post 188?',
+				'call_to_actions' => array(
+					array(
+						'id'    => 'approve',
+						'label' => 'Accept',
+						'style' => 'primary',
+						'reply' => 'Approved. Apply the proposed TL;DR to post 188.',
+					),
+					array(
+						'id'    => 'cancel',
+						'label' => 'Cancel',
+						'style' => 'not-a-style',
+						'reply' => 'Cancelled.',
+					),
+					array(
+						'label' => 'No reply — dropped',
+					),
+				),
+			)
+		);
+		$parsed = desktop_mode_agent_parse_answer( $json );
+		$this->assertSame( 'Apply the TL;DR to post 188?', $parsed['text'] );
+		$this->assertCount( 2, $parsed['callToActions'] );
+		$this->assertSame( 'approve', $parsed['callToActions'][0]['id'] );
+		$this->assertSame( 'primary', $parsed['callToActions'][0]['style'] );
+		// Unknown style falls back to secondary.
+		$this->assertSame( 'secondary', $parsed['callToActions'][1]['style'] );
+
+		// A ```json fence around the object is tolerated.
+		$fenced = desktop_mode_agent_parse_answer( "```json\n" . $json . "\n```" );
+		$this->assertSame( 'Apply the TL;DR to post 188?', $fenced['text'] );
+		$this->assertCount( 2, $fenced['callToActions'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_agent_sanitize_call_to_actions
+	 */
+	public function test_call_to_actions_caps() {
+		$many = array();
+		for ( $i = 0; $i < DESKTOP_MODE_AGENT_CTA_CAP + 3; $i++ ) {
+			$many[] = array(
+				'id'    => "a{$i}",
+				'label' => str_repeat( 'L', DESKTOP_MODE_AGENT_CTA_LABEL_CAP + 20 ),
+				'reply' => str_repeat( 'R', DESKTOP_MODE_AGENT_CTA_REPLY_CAP + 20 ),
+			);
+		}
+		$clean = desktop_mode_agent_sanitize_call_to_actions( $many );
+		$this->assertCount( DESKTOP_MODE_AGENT_CTA_CAP, $clean );
+		$this->assertSame( DESKTOP_MODE_AGENT_CTA_LABEL_CAP, mb_strlen( $clean[0]['label'] ) );
+		$this->assertSame( DESKTOP_MODE_AGENT_CTA_REPLY_CAP, mb_strlen( $clean[0]['reply'] ) );
+	}
+
+	/**
+	 * A structured final answer surfaces as text + callToActions on the
+	 * invoke result.
+	 *
+	 * @covers ::desktop_mode_agent_invoke
+	 */
+	public function test_invoke_returns_call_to_actions() {
+		$agent = $this->create_agent();
+		$this->stub_generate(
+			static function () {
+				return array(
+					'text'           => (string) wp_json_encode(
+						array(
+							'text'            => 'Approve the update?',
+							'call_to_actions' => array(
+								array(
+									'id'    => 'approve',
+									'label' => 'Accept',
+									'style' => 'primary',
+									'reply' => 'Approved.',
+								),
+							),
+						)
+					),
+					'function_calls' => array(),
+					'message'        => null,
+				);
+			}
+		);
+
+		$result = desktop_mode_agent_invoke( $agent->ID, 'Propose the update.' );
+		$this->assertNotWPError( $result );
+		$this->assertSame( 'Approve the update?', $result['text'] );
+		$this->assertCount( 1, $result['callToActions'] );
+		$this->assertSame( 'Accept', $result['callToActions'][0]['label'] );
+		$this->assertSame( 'Approved.', $result['callToActions'][0]['reply'] );
+	}
 }

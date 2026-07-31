@@ -327,8 +327,11 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 
 		const scroll = document.createElement( 'div' );
 		scroll.className = 'dm-agent-chat__scroll';
-		for ( const message of transcriptFor( agent ) ) {
-			scroll.appendChild( messageRow( message, agent ) );
+		const transcript = transcriptFor( agent );
+		for ( const [ i, message ] of transcript.entries() ) {
+			scroll.appendChild(
+				messageRow( message, agent, i === transcript.length - 1 ),
+			);
 		}
 		main.appendChild( scroll );
 
@@ -377,6 +380,7 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 	const messageRow = (
 		message: AgentChatMessage,
 		agent: AgentChatAgent,
+		isLast = false,
 	): HTMLElement => {
 		const line = document.createElement( 'div' );
 		line.className = `dm-agent-chat__line dm-agent-chat__line--${ message.role }`;
@@ -438,6 +442,40 @@ function renderChat( body: HTMLElement ): ( () => void ) | void {
 				tools.appendChild( toolRow );
 			}
 			row.appendChild( tools );
+		}
+		// Confirmation buttons the answer carries. Only the LATEST
+		// message's buttons are live — once the conversation moves on
+		// (or a button was pressed) they render disabled, so the stored
+		// transcript keeps showing what was offered without re-arming
+		// stale choices.
+		if (
+			message.callToActions &&
+			message.callToActions.length > 0 &&
+			! message.pending
+		) {
+			const ctas = document.createElement( 'div' );
+			ctas.className = 'dm-agent-chat__ctas';
+			const live = isLast && ! message.ctaUsed && ! busy;
+			for ( const cta of message.callToActions ) {
+				const btn = document.createElement( 'wpd-button' );
+				btn.setAttribute( 'variant', cta.style ?? 'secondary' );
+				btn.textContent = cta.label;
+				if ( ! live ) {
+					btn.setAttribute( 'disabled', '' );
+				}
+				btn.addEventListener( 'click', () => {
+					if ( ! live || ! cta.reply ) {
+						return;
+					}
+					message.ctaUsed = true;
+					// The reply lands as a visible user message and runs
+					// like a typed turn — the stored history shows
+					// exactly what was approved.
+					void sendMessage( agent, cta.reply );
+				} );
+				ctas.appendChild( btn );
+			}
+			row.appendChild( ctas );
 		}
 		return line;
 	};

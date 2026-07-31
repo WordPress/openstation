@@ -100,6 +100,19 @@ function desktop_mode_agent_conversation_sanitize_messages( $messages ) {
 			'at'   => isset( $row['at'] ) ? (int) $row['at'] : 0,
 		);
 
+		// Call-to-action buttons survive with the message so a reopened
+		// conversation still shows them (spent ones stay disabled via
+		// `ctaUsed`). Reuses the runner's sanitizer — same caps.
+		if ( isset( $row['callToActions'] ) && function_exists( 'desktop_mode_agent_sanitize_call_to_actions' ) ) {
+			$ctas = desktop_mode_agent_sanitize_call_to_actions( $row['callToActions'] );
+			if ( ! empty( $ctas ) ) {
+				$entry['callToActions'] = $ctas;
+			}
+		}
+		if ( ! empty( $row['ctaUsed'] ) ) {
+			$entry['ctaUsed'] = true;
+		}
+
 		if ( isset( $row['toolCalls'] ) && is_array( $row['toolCalls'] ) ) {
 			$calls = array();
 			foreach ( $row['toolCalls'] as $call ) {

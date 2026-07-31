@@ -311,6 +311,12 @@ export async function invokeAgentIntoTranscript(
 			result.text ||
 			__( 'The agent finished without a text answer.', 'desktop-mode' );
 		pending.toolCalls = result.toolCalls;
+		if (
+			Array.isArray( result.callToActions ) &&
+			result.callToActions.length > 0
+		) {
+			pending.callToActions = result.callToActions;
+		}
 	} catch ( err ) {
 		pending.role = 'error';
 		pending.text = err instanceof Error ? err.message : String( err );

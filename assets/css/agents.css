@@ -216,6 +216,14 @@
 	word-break: break-all;
 }
 
+/* Call-to-action buttons under an agent answer. */
+.dm-agent-chat__ctas {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 2px;
+}
+
 .dm-agent-chat__composer {
 	display: flex;
 	align-items: flex-end;

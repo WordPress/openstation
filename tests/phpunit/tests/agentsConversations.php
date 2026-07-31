@@ -162,6 +162,35 @@ class Tests_DesktopMode_AgentsConversations extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Call-to-action buttons round-trip with the message, including the
+	 * spent flag, so reopened conversations render them disabled.
+	 *
+	 * @covers ::desktop_mode_agent_conversation_sanitize_messages
+	 */
+	public function test_sanitizer_keeps_call_to_actions() {
+		$clean = desktop_mode_agent_conversation_sanitize_messages(
+			array(
+				array(
+					'role'          => 'agent',
+					'text'          => 'Approve?',
+					'ctaUsed'       => true,
+					'callToActions' => array(
+						array(
+							'id'    => 'approve',
+							'label' => 'Accept',
+							'style' => 'primary',
+							'reply' => 'Approved.',
+						),
+					),
+				),
+			)
+		);
+		$this->assertTrue( $clean[0]['ctaUsed'] );
+		$this->assertSame( 'Accept', $clean[0]['callToActions'][0]['label'] );
+		$this->assertSame( 'Approved.', $clean[0]['callToActions'][0]['reply'] );
+	}
+
+	/**
 	 * @covers ::desktop_mode_agent_conversation_sanitize_messages
 	 */
 	public function test_sanitizer_caps_message_count() {
