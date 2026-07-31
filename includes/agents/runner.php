@@ -503,15 +503,15 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
 	for ( $turn = 1; $turn <= DESKTOP_MODE_AGENT_RUNNER_MAX_TURNS; $turn++ ) {
 		$generated = desktop_mode_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
 		if ( is_wp_error( $generated ) && desktop_mode_agent_generate_error_is_transient( $generated ) ) {
-			// One bounded retry for provider-side flaps (an Anthropic
-			// 2xx with an empty `content`, a failed models-list fetch,
-			// a gateway timeout). Each of these resolves on a fresh
-			// request far more often than not — a manual "try again"
-			// was already the working recovery, so automate it once.
+			// One bounded retry for provider-side hiccups (a failed
+			// models-list fetch, a gateway timeout, a borderline
+			// refusal). A manual "try again" was already the working
+			// recovery for the flaky ones — automate it once, never
+			// loop.
 			$generated = desktop_mode_agent_runner_generate( $agent_user_id, $history, $tool_defs, $instructions );
 		}
 		if ( is_wp_error( $generated ) ) {
-			return $generated;
+			return desktop_mode_agent_humanize_generate_error( $generated );
 		}
 
 		$function_calls = isset( $generated['function_calls'] ) && is_array( $generated['function_calls'] )
@@ -825,11 +825,17 @@ function desktop_mode_agent_parse_answer( $text ) {
  * rejects (an invalid schema, a too-large prompt, a bad key).
  *
  * The signatures are message-based because the AI Client SDK surfaces
- * provider exceptions as text: the Anthropic provider throws
+ * provider exceptions as text: the model finder reports "No models
+ * found …" when a provider's models-list fetch failed, gateway errors
+ * arrive as "… (502/503/504)", and the Anthropic provider throws
  * "Unexpected Anthropic API response: Missing the "content" key." for
- * a 2xx whose `content` is empty, the model finder reports "No models
- * found …" when a provider's models-list fetch failed, and gateway
- * errors arrive as "… (502/503/504)".
+ * a 2xx whose `content` array is empty. The last one is usually a
+ * model REFUSAL (`stop_reason: "refusal"` — the provider crashes on
+ * the empty content before reaching its own refusal handling), which
+ * a retry rarely changes; it stays in the list because borderline
+ * refusals are stochastic and one extra request is cheap, and
+ * {@see desktop_mode_agent_humanize_generate_error()} explains the
+ * failure when the retry doesn't help.
  *
  * @param WP_Error $error Failed generation.
  * @return bool
@@ -838,7 +844,7 @@ function desktop_mode_agent_generate_error_is_transient( WP_Error $error ) {
 	$message = $error->get_error_message();
 
 	$signatures = array(
-		'Missing the "content" key', // Anthropic 2xx, empty content array.
+		'Missing the "content" key', // Anthropic refusal surfaced as a parse error.
 		'No models found',           // Provider models-list fetch flapped.
 		'cURL error 28',             // Transport timeout.
 		'Operation timed out',
@@ -851,6 +857,33 @@ function desktop_mode_agent_generate_error_is_transient( WP_Error $error ) {
 
 	// Provider/gateway 5xx — the SDK formats statuses like "(504)".
 	return (bool) preg_match( '/\(50[0-9]\)/', $message );
+}
+
+/**
+ * Translate known-cryptic provider failures into something a user can
+ * act on. The Anthropic provider reports a model refusal
+ * (`stop_reason: "refusal"`, empty `content` array) as a parse error —
+ * "Missing the "content" key" — which reads like a plugin bug when it
+ * actually means the model's safety system declined the request
+ * (observed live: a translation request refused with
+ * `stop_details.category: "bio"` over innocuous demo content). The
+ * original message is preserved in the error data.
+ *
+ * @param WP_Error $error Failed generation.
+ * @return WP_Error
+ */
+function desktop_mode_agent_humanize_generate_error( WP_Error $error ) {
+	if ( false !== stripos( $error->get_error_message(), 'Missing the "content" key' ) ) {
+		return new WP_Error(
+			'desktop_mode_agent_provider_refusal',
+			__( 'The AI provider returned an empty answer — its safety system most likely declined this request. Rephrase and try again, or switch the provider in Settings → Connectors.', 'desktop-mode' ),
+			array(
+				'status' => 502,
+				'detail' => $error->get_error_message(),
+			)
+		);
+	}
+	return $error;
 }
 
 /**
@@ -950,16 +983,32 @@ function desktop_mode_agent_with_http_timeout( callable $callback ) {
 	$raise = static function ( $current ) use ( $timeout ) {
 		return max( (int) $current, $timeout );
 	};
+	$raise_float = static function ( $current ) use ( $timeout ) {
+		return max( (float) $current, (float) $timeout );
+	};
 
 	// Last, so it sees whatever the site settled on — and because it
 	// only raises, running last cannot undo another plugin's larger
 	// value.
+	//
+	// BOTH filters matter. `http_request_timeout` covers transports
+	// that fall back to the WordPress default, but Core's
+	// `WP_AI_Client_Prompt_Builder` constructor pins an EXPLICIT
+	// 30-second timeout via the SDK's `RequestOptions`, which reaches
+	// the transport directly and bypasses the WordPress default
+	// entirely ("cURL error 28: Operation timed out after 30007
+	// milliseconds"). Its own `wp_ai_client_default_request_timeout`
+	// filter runs inside `wp_ai_client_prompt()` — i.e. inside the
+	// callback below — so raising it here is scoped exactly like the
+	// generic one.
 	add_filter( 'http_request_timeout', $raise, PHP_INT_MAX );
+	add_filter( 'wp_ai_client_default_request_timeout', $raise_float, PHP_INT_MAX );
 
 	try {
 		return $callback();
 	} finally {
 		remove_filter( 'http_request_timeout', $raise, PHP_INT_MAX );
+		remove_filter( 'wp_ai_client_default_request_timeout', $raise_float, PHP_INT_MAX );
 	}
 }
 

@@ -765,6 +765,28 @@ class Tests_DesktopMode_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The AI Client pins an EXPLICIT 30s timeout via `RequestOptions`
+	 * in the `WP_AI_Client_Prompt_Builder` constructor, bypassing the
+	 * WordPress HTTP default entirely — the wrapper must raise its
+	 * `wp_ai_client_default_request_timeout` filter too, or long
+	 * generations die at 30s ("timed out after 30007 milliseconds").
+	 *
+	 * @covers ::desktop_mode_agent_with_http_timeout
+	 */
+	public function test_ai_client_request_timeout_is_raised_too() {
+		$seen = null;
+		desktop_mode_agent_with_http_timeout(
+			static function () use ( &$seen ) {
+				$seen = apply_filters( 'wp_ai_client_default_request_timeout', 30.0 );
+			}
+		);
+
+		$this->assertSame( (float) DESKTOP_MODE_AGENT_HTTP_TIMEOUT, $seen );
+		// Released afterwards, like the generic filter.
+		$this->assertSame( 30.0, apply_filters( 'wp_ai_client_default_request_timeout', 30.0 ) );
+	}
+
+	/**
 	 * Released afterwards — an agent run must not widen the timeout for
 	 * unrelated requests later in the same page load.
 	 *
@@ -948,6 +970,32 @@ class Tests_DesktopMode_AgentsRunner extends WP_UnitTestCase {
 		$result = desktop_mode_agent_invoke( $agent->ID, 'Say hi.' );
 		$this->assertWPError( $result );
 		$this->assertSame( 1, $calls );
+	}
+
+	/**
+	 * A provider refusal (surfaced by the Anthropic plugin as the
+	 * cryptic missing-content parse error) is translated into an
+	 * actionable message once the retry doesn't help.
+	 *
+	 * @covers ::desktop_mode_agent_humanize_generate_error
+	 */
+	public function test_refusal_is_translated_for_the_user() {
+		$agent = $this->create_agent();
+		$this->stub_generate(
+			static function () {
+				return new WP_Error(
+					'desktop_mode_ai_error',
+					'Unexpected Anthropic API response: Missing the "content" key.'
+				);
+			}
+		);
+
+		$result = desktop_mode_agent_invoke( $agent->ID, 'Translate this.' );
+		$this->assertWPError( $result );
+		$this->assertSame( 'desktop_mode_agent_provider_refusal', $result->get_error_code() );
+		$this->assertStringContainsString( 'safety system', $result->get_error_message() );
+		// The provider's original message survives for debugging.
+		$this->assertStringContainsString( 'Missing the "content" key', $result->get_error_data()['detail'] );
 	}
 
 	/**
