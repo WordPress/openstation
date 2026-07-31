@@ -1,5 +1,21 @@
+/*
+ * Palette.
+ *
+ * The widget card is declared here alongside the two content roots
+ * because the shell's widget frame — the chrome header with the drag
+ * grip, title, and close button — is a SIBLING of the body slot that
+ * `.feed-buddy-widget` mounts into, not a descendant of it. Custom
+ * properties only inherit downward, so scoping the palette to the
+ * content roots alone left every `var(--feed-buddy-*)` in the card
+ * and chrome rules below unresolved. An unresolvable `var()` is
+ * invalid at computed-value time: `background` fell back to its
+ * initial value and the title bar rendered fully transparent, with
+ * the wallpaper showing through behind the (correctly white) title
+ * text.
+ */
 .feed-buddy-reader,
-.feed-buddy-widget {
+.feed-buddy-widget,
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"] {
 	--feed-buddy-blue: #063eb7;
 	--feed-buddy-blue-dark: #001f78;
 	--feed-buddy-system: #c0c0c0;
@@ -14,6 +30,28 @@
 	--feed-buddy-border-dark: #3d3d3d;
 	--feed-buddy-border-mid: #808080;
 	--feed-buddy-border-light: #fff;
+
+	/*
+	 * Title-bar colours, shared by the widget chrome and the native
+	 * reader window. `applyReaderTheme()` in src/index.ts installs
+	 * the same two values as `--desktop-mode-titlebar-bg-focused` /
+	 * `--desktop-mode-titlebar-color-focused` on the reader window —
+	 * keep the pairs in step so the two surfaces stay consistent.
+	 *
+	 * The FOCUSED colour is the one the widget uses: widget cards
+	 * have no focus state, and the blue bar is what the user sees on
+	 * the active reader window.
+	 */
+	--feed-buddy-titlebar-bg: var(--feed-buddy-blue);
+	--feed-buddy-titlebar-color: #fff;
+
+	/*
+	 * Title-bar control chips. The close button's hover is the shell's
+	 * own danger token, not one of these — see the control rules near
+	 * the bottom of the widget block.
+	 */
+	--feed-buddy-titlebar-btn-bg: #002a86;
+	--feed-buddy-titlebar-btn-bg-hover: #1a4fd0;
 }
 
 .feed-buddy-reader,
@@ -380,7 +418,7 @@
 	overflow: hidden;
 	border: 1px solid #111;
 	border-radius: 0;
-	background: var(--feed-buddy-system);
+	background: var(--feed-buddy-system, #c0c0c0);
 	backdrop-filter: none;
 	-webkit-backdrop-filter: none;
 	color: #111;
@@ -393,19 +431,25 @@
 	box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 
+/*
+ * Widget chrome — the shell's own title bar, dressed to match the
+ * native reader window's focused title bar. The shell leaves the
+ * chrome background transparent by default (the card behind it
+ * supplies the surface), so the colour has to be stated here.
+ */
 .desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.desktop-mode-widgets__chrome {
 	min-height: 29px;
 	gap: 6px;
 	padding: 4px 6px;
 	border-bottom: 1px solid #00154f;
-	background: var(--feed-buddy-blue);
-	color: #fff;
+	background: var(--feed-buddy-titlebar-bg, #063eb7);
+	color: var(--feed-buddy-titlebar-color, #fff);
 }
 
 .desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.desktop-mode-widgets__title {
-	color: #fff;
+	color: var(--feed-buddy-titlebar-color, #fff);
 	font-size: 13px;
 	font-weight: 700;
 }
@@ -415,14 +459,68 @@
 	opacity: 0.8;
 }
 
+/*
+ * Title-bar controls.
+ *
+ * The shell's own hover rules are weaker selectors than the base
+ * rule right below, so they lose the cascade and the buttons had no
+ * hover state at all — the resting navy simply stayed put. States
+ * have to be restated at this specificity.
+ *
+ * Full opacity at rest, unlike the shell's dimmed default: these
+ * read as solid Win2k-era controls, and the background swap (not a
+ * fade) is what carries the interaction.
+ */
 .desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.desktop-mode-widgets__card-close,
 .desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
 	.desktop-mode-widgets__card-redock {
 	border: 1px solid rgba(255, 255, 255, 0.7);
 	border-radius: 0;
-	background: #002a86;
+	background: var(--feed-buddy-titlebar-btn-bg, #002a86);
+	color: var(--feed-buddy-titlebar-color, #fff);
+	opacity: 1;
+}
+
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-redock:hover,
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-redock:focus-visible {
+	background: var(--feed-buddy-titlebar-btn-bg-hover, #1a4fd0);
+	color: var(--feed-buddy-titlebar-color, #fff);
+}
+
+/*
+ * Close hovers to the same red wash as the reader window's close
+ * control — that one is a `<wpd-window-button danger>`, which paints
+ * `--wpd-btn-danger-hover` on hover. Reading the same token here
+ * keeps the two title bars in step, including under a desktop theme
+ * that retints it.
+ */
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-close:hover,
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-close:focus-visible {
+	border-color: rgba(255, 255, 255, 0.9);
+	background: var(--wpd-btn-danger-hover, var(--wpd-danger, #d63638));
 	color: #fff;
+}
+
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-close:active,
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-redock:active {
+	/* Pressed = inset borders, the period-correct "pushed in" tell. */
+	border-color: var(--feed-buddy-border-dark) var(--feed-buddy-border-light)
+		var(--feed-buddy-border-light) var(--feed-buddy-border-dark);
+}
+
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-close:focus-visible,
+.desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]
+	.desktop-mode-widgets__card-redock:focus-visible {
+	outline: 2px solid var(--feed-buddy-focus, #ffbf47);
+	outline-offset: 1px;
 }
 
 .desktop-mode-widgets__card[data-widget-id="feed-buddy/buddy-list"]

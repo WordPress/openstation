@@ -58,7 +58,19 @@ function feed_buddy_register_assets() {
 }
 
 /**
- * Register the buddy widget and native reader window.
+ * Register the buddy widget, the native reader window, and the
+ * launcher icon.
+ *
+ * The window's own `placement => 'dock'` puts a launcher tile on the
+ * dock, but a docked native window is not a *placeable item* — the
+ * OS Settings "Apps & Icons" tab builds its list from the dock-item
+ * payload plus `desktop_mode_register_icon()` registrations, so a
+ * window-only registration never shows up there and the user has no
+ * way to move it to the wallpaper or hide it. Registering the icon
+ * alongside the window is the pattern the other bundled extensions
+ * follow; the shell dedupes the two (an icon whose `window` target
+ * is already a docked native window is not synthesized onto the dock
+ * a second time).
  */
 function feed_buddy_register_surfaces() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
@@ -112,6 +124,27 @@ function feed_buddy_register_surfaces() {
 	);
 	if ( is_wp_error( $widget ) ) {
 		error_log( '[feed-buddy] widget registration failed: ' . $widget->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+	}
+
+	// Guarded: older Desktop Mode builds shipped the window and widget
+	// registries without the icon one. Missing icon support costs the
+	// Apps & Icons row, not the extension.
+	if ( ! function_exists( 'desktop_mode_register_icon' ) ) {
+		return;
+	}
+
+	$icon = desktop_mode_register_icon(
+		'feed-buddy-reader',
+		array(
+			'title'        => __( 'SOL Inbound Monologue', 'desktop-mode-feed-buddy' ),
+			'icon'         => 'dashicons-rss',
+			'window'       => 'feed-buddy-reader',
+			'position'     => 70,
+			'capabilities' => array( 'read' ),
+		)
+	);
+	if ( is_wp_error( $icon ) ) {
+		error_log( '[feed-buddy] icon registration failed: ' . $icon->get_error_message() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 }
 
