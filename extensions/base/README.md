@@ -2,7 +2,7 @@
 
 Shared base library for Desktop Mode extensions.
 
-Removes ~250 LOC of boilerplate per extension — script registration, AJAX bundle serving with config injection + `customElements.whenDefined` race-defender, native-window registration, REST permission gates.
+Removes ~250 LOC of boilerplate per extension — script registration, AJAX bundle serving with config injection (plus a fire-and-forget `customElements.whenDefined( 'wpd-table' )` probe whose Promise is discarded — it does NOT defer the bundle's render callback, so render callbacks that need the `<wpd-*>` upgrade must await it themselves), native-window registration, REST permission gates.
 
 ## PHP base classes
 

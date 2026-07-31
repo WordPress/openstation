@@ -1,8 +1,11 @@
 /**
  * Desktop Mode type definitions.
- *
- * @since 6.9.0
  */
+
+// Type-only cross-import — erased at compile time, so the mutual
+// reference with `window-links/types.ts` (which imports WindowState
+// from here) is safe.
+import type { WindowContentRef } from './window-links/types';
 
 /**
  * Window state enum.
@@ -215,10 +218,26 @@ export interface WindowConfig {
 	 * (carries `$args['script']`); plugins that open iframe windows
 	 * directly may set this themselves. Empty / undefined when the
 	 * window comes from a core admin page with no plugin owner.
-	 *
-	 * @since 0.6.0
 	 */
 	ownerHandle?: string;
+	/**
+	 * Open-time content identity — the piece of content this window
+	 * shows, and (through `content.root`) the relation group it
+	 * belongs to. Seeds `wp.desktop.relations` the moment the window
+	 * opens; for iframe admin pages the chromeless bridge later
+	 * announces the authoritative identity and overwrites this seed.
+	 * See `src/window-links/types.ts` and
+	 * `docs/examples/window-links.md`.
+	 */
+	content?: WindowContentRef;
+	/**
+	 * Exclude this window from session snapshots — it will not be
+	 * restored on the next boot. For transient companion windows whose
+	 * URL doesn't survive a session: the editor-preview window's URL
+	 * embeds a `preview_nonce` scoped to an autosave revision, so
+	 * restoring it would resurrect a dead link with no pairing state.
+	 */
+	ephemeral?: boolean;
 	/**
 	 * Per-window appearance overrides — themes (CSS variables),
 	 * controls (close / minimize / maximize layout + custom buttons),
@@ -230,8 +249,6 @@ export interface WindowConfig {
 	 * `registerWindowSlot()` / `registerWindowChrome()` registries plus
 	 * the `match` predicate; this field is the registration-time
 	 * shortcut for windows that opt in directly.
-	 *
-	 * @since 0.6.0
 	 */
 	appearance?: WindowAppearance;
 	/**
@@ -253,8 +270,6 @@ export interface WindowConfig {
 	 *     looks the same), add a filter on
 	 *     `HOOKS.WINDOW_LOADING_OVERLAY` instead — runs AFTER this
 	 *     callback, so a global theme can still override.
-	 *
-	 * @since 0.6.0
 	 */
 	loading?: {
 		render?: (
@@ -285,7 +300,6 @@ export interface WindowConfig {
  *      id; defaults to `'core/standard'`.
  *
  * @public
- * @since 0.6.0
  */
 export interface WindowAppearance {
 	/** Theme override (CSS variables). */
@@ -309,7 +323,6 @@ export interface WindowAppearance {
  * useful for one-off windows that don't merit a registration.
  *
  * @public
- * @since 0.6.0
  */
 export type WindowThemeRef =
 	| { themeId: string; tokens?: never }
@@ -334,7 +347,6 @@ export type WindowThemeRef =
  *     Defaults to `'right'`.
  *
  * @public
- * @since 0.6.0
  */
 export interface WindowControlsConfig {
 	order?: string[];
@@ -350,7 +362,6 @@ export interface WindowControlsConfig {
  * window, so the window arg is implied.
  *
  * @public
- * @since 0.6.0
  */
 export interface WindowControlInline {
 	id: string;
@@ -367,13 +378,12 @@ export interface WindowControlInline {
  * left-to-right order:
  *
  * `before-titlebar` (above the bar) → `before-icon` → `icon` →
- * `title` → `after-title` → screen-meta cluster → menu (iframe-only)
- * → custom-button left slot → `before-controls` → `controls` →
- * `after-controls` → custom-button right slot → `after-titlebar`
- * (below the bar).
+ * activity indicator → `title` → `after-title` → custom-button left
+ * slot → screen-meta cluster → ⋯ actions menu → custom-button right
+ * slot → `before-controls` → `controls` → `after-controls` →
+ * `after-titlebar` (below the bar).
  *
  * @public
- * @since 0.6.0
  */
 export type WindowSlotName =
 	| 'before-titlebar'
@@ -402,7 +412,6 @@ export type WindowSlotName =
  *     hide the title or icon for a custom-chrome look.
  *
  * @public
- * @since 0.6.0
  */
 export type WindowSlotConfig =
 	| { html: string }
@@ -434,7 +443,6 @@ export type WindowSlotConfig =
  * ```
  *
  * @public
- * @since 0.10.0
  */
 export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 'submenu' | 'x' | 'y' > {
 	/** Optional `#hash`-style URL for history. Auto-generated from `id` when absent. */
@@ -458,8 +466,6 @@ export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 
 	 * Replaces ~50 lines of per-plugin postMessage plumbing with a
 	 * single config block. When you set this, **don't pass `render`**
 	 * — the shell synthesises the body for you.
-	 *
-	 * @since 0.18.0
 	 */
 	iframeContent?: NativeWindowIframeContent;
 }
@@ -469,7 +475,6 @@ export interface NativeWindowDef extends Omit< WindowConfig, 'native' | 'url' | 
  * shell-managed iframe. Used by `NativeWindowDef.iframeContent`.
  *
  * @public
- * @since 0.18.0
  */
 export interface NativeWindowIframeContent {
 	/**
@@ -525,7 +530,6 @@ export interface NativeWindowIframeContent {
  * care about render strategy stays render-strategy-agnostic.
  *
  * @public
- * @since 0.5.5
  */
 export interface NativeRenderContext {
 	/**
@@ -561,8 +565,6 @@ export interface NativeRenderContext {
 		 *
 		 * Idempotent: calling twice in a row only fires the
 		 * `WINDOW_CONTENT_LOADING` hook once (edge-triggered).
-		 *
-		 * @since 0.6.0
 		 */
 		markLoading(): void;
 		/**
@@ -577,8 +579,6 @@ export interface NativeRenderContext {
 		 *
 		 * Idempotent: only fires `WINDOW_CONTENT_LOADED` on the
 		 * loading → ready transition.
-		 *
-		 * @since 0.6.0
 		 */
 		markReady(): void;
 	};
@@ -588,15 +588,11 @@ export interface NativeRenderContext {
 	 * Same semantics — provided so render bodies can destructure
 	 * `{ markLoading, markReady, signal, onResize }` without dipping
 	 * into the nested `ctx.window` shape.
-	 *
-	 * @since 0.8.2
 	 */
 	markLoading(): void;
 
 	/**
 	 * Top-level alias of {@link NativeRenderContext.window.markReady}.
-	 *
-	 * @since 0.8.2
 	 */
 	markReady(): void;
 
@@ -617,8 +613,6 @@ export interface NativeRenderContext {
 	 *
 	 * Aborts on close BEFORE the user's render-returned teardown
 	 * runs, so async paths see the signal flip first.
-	 *
-	 * @since 0.8.2
 	 */
 	signal: AbortSignal;
 
@@ -634,8 +628,6 @@ export interface NativeRenderContext {
 	 * — that field still works (registration-time setup); this is
 	 * the runtime-time equivalent for callers who want to hook
 	 * lazily from inside the render callback.
-	 *
-	 * @since 0.8.2
 	 */
 	onResize( cb: ( width: number, height: number ) => void ): () => void;
 
@@ -644,8 +636,6 @@ export interface NativeRenderContext {
 	 * remains in the DOM — plugins typically pause animations,
 	 * intervals, or IntersectionObservers here so they don't burn
 	 * CPU when the user can't see them.
-	 *
-	 * @since 0.8.2
 	 */
 	onHide( cb: () => void ): () => void;
 
@@ -653,8 +643,6 @@ export interface NativeRenderContext {
 	 * Subscribe to "the window was just restored from minimized".
 	 * The mirror of `onHide` — resume animations / poll cycles
 	 * that were paused while hidden.
-	 *
-	 * @since 0.8.2
 	 */
 	onShow( cb: () => void ): () => void;
 }
@@ -672,7 +660,6 @@ export interface NativeRenderContext {
  * / `url` unset, while a failed XHR fills them all.
  *
  * @public
- * @since 0.10.0
  */
 export interface MonitorEntry {
 	/** Unix timestamp in milliseconds (Date.now()). */
@@ -711,7 +698,6 @@ export interface MonitorEntry {
  * disappear cleanly.
  *
  * @public
- * @since 0.10.0
  */
 export interface NativeWindowServerEntry {
 	/** Window id + dock-tile id. */
@@ -743,15 +729,13 @@ export interface NativeWindowServerEntry {
 	 * from the registered script handle. Injected as inline `<script>`
 	 * tags before the lazy-load `<script src>` so the data lands the
 	 * same way `wp_print_scripts()` would have printed it.
-	 *
-	 * @since 0.6.0
 	 */
 	scriptBefore?: string[];
-	/** `wp_add_inline_script( $h, $code, 'after' )` strings. Injected after the body's `load` event. @since 0.6.0 */
+	/** `wp_add_inline_script( $h, $code, 'after' )` strings. Injected after the body's `load` event. */
 	scriptAfter?: string[];
-	/** Precomputed `wp_localize_script()` `var x = …;` blobs. Injected before the body. @since 0.6.0 */
+	/** Precomputed `wp_localize_script()` `var x = …;` blobs. Injected before the body. */
 	scriptL10n?: string[];
-	/** `wp.i18n.setLocaleData(…)` snippet from `wp_set_script_translations()`. Injected before everything. @since 0.6.0 */
+	/** `wp.i18n.setLocaleData(…)` snippet from `wp_set_script_translations()`. Injected before everything. */
 	scriptTranslations?: string;
 	/**
 	 * Absolute URL of the plugin's enqueued stylesheet. Shell injects a
@@ -760,27 +744,21 @@ export interface NativeWindowServerEntry {
 	 * finished `wp_print_styles` before the plugin was activated, so
 	 * its CSS would otherwise be missing until F5. Empty when the
 	 * plugin declared no `style` arg.
-	 *
-	 * @since 0.18.1
 	 */
 	styleUrl?: string;
-	/** WordPress style handle (informational). @since 0.18.1 */
+	/** WordPress style handle (informational). */
 	styleHandle?: string;
 	/**
 	 * `wp_add_inline_style( $h, $css )` blobs harvested from the
 	 * registered style handle. Emitted as a `<style>` tag immediately
 	 * after the `<link>` so cascade order matches what
 	 * `WP_Styles::print_inline_style()` would have written.
-	 *
-	 * @since 0.18.1
 	 */
 	styleInline?: string[];
 	/**
 	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
 	 * windows registered via `desktop_mode_register_window()`. Devtools
 	 * read this off `Window.config.ownerHandle` once the window opens.
-	 *
-	 * @since 0.6.0
 	 */
 	ownerHandle: string;
 	/**
@@ -795,8 +773,6 @@ export interface NativeWindowServerEntry {
 	 * (`<wpd-tabs>` + `<wpd-tabpanel>` per entry). This field is
 	 * metadata — useful for plugins that want to inspect or extend
 	 * a window's tab list without re-parsing the template.
-	 *
-	 * @since 0.11.0
 	 */
 	tabs?: NativeWindowTabEntry[];
 }
@@ -807,7 +783,6 @@ export interface NativeWindowServerEntry {
  * registered `desktop_mode_register_window_tab()` entry.
  *
  * @public
- * @since 0.11.0
  */
 export interface NativeWindowTabEntry {
 	value: string;
@@ -817,13 +792,9 @@ export interface NativeWindowTabEntry {
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -842,7 +813,6 @@ export interface NativeWindowTabEntry {
  * plugins surface in the widget picker without a shell reload.
  *
  * @public
- * @since 0.10.0
  */
 export interface DesktopWidgetServerEntry {
 	id: string;
@@ -861,13 +831,9 @@ export interface DesktopWidgetServerEntry {
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -882,7 +848,6 @@ export interface DesktopWidgetServerEntry {
  * forwards to the normal wallpaper registry.
  *
  * @public
- * @since 0.10.0
  */
 export interface DesktopWallpaperServerEntry {
 	id: string;
@@ -897,21 +862,95 @@ export interface DesktopWallpaperServerEntry {
 	 *
 	 * When set, the shell can register the wallpaper purely from
 	 * the server-side entry without any accompanying JS bundle.
-	 *
-	 * @since 0.11.0
 	 */
 	value: string;
+	/**
+	 * Optional plain-text description shown in OS Settings when the
+	 * wallpaper is the active selection. The shell overlays it onto the
+	 * JS def when the def itself doesn't carry one.
+	 */
+	description?: string;
 	/** Absolute URL of the plugin's enqueued script. Empty when no script was declared. */
 	scriptUrl: string;
 	/** WordPress script handle (informational). */
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
+	scriptTranslations?: string;
+}
+
+/**
+ * Server-declared desktop-theme entry passed from PHP via
+ * `serverDesktopThemes`. One per installed ZIP or
+ * `desktop_mode_register_desktop_theme()` call.
+ *
+ * Unlike every other `server*` payload, this one carries no script:
+ * a desktop theme is a compiled stylesheet plus an icon map, and the
+ * shell needs nothing else to apply it.
+ *
+ * Structurally identical to `DesktopThemeEntry` in
+ * `src/desktop-themes/types.ts` — kept separate because that one is
+ * the post-sanitization shape the registry guarantees, while this is
+ * the wire shape, which is only as trustworthy as the
+ * `desktop_mode_desktop_themes` filter that produced it.
+ *
+ * @public
+ */
+export interface DesktopThemeServerEntry {
+	id: string;
+	slug: string;
+	name: string;
+	version: string;
+	author: string;
+	description: string;
+	/** Absolute URL of the preview image, or `''`. */
+	previewUrl: string;
+	/** Absolute URL of the compiled stylesheet (uploaded themes). */
+	cssUrl: string;
+	/** Compiled stylesheet text (code-registered themes). */
+	cssText: string;
+	tokens: Record< string, string >;
+	/** Slot => `dashicons-*` class or absolute image URL. */
+	icons: Record< string, string >;
+	installedAt: number;
+	source: 'upload' | 'code';
+}
+
+/**
+ * Server-declared game entry passed from PHP via `serverGames`.
+ * One entry per `desktop_mode_register_game()` call.
+ *
+ * Unlike wallpapers, game scripts are NOT loaded on sync — the
+ * metadata here is enough to paint the Games launcher grid and the
+ * scoreboard tabs; `scriptUrl` is fetched lazily on first launch
+ * and publishes the full `GameDef` (with its `render` callback) on
+ * `window.desktopModeGames[ id ]`.
+ *
+ * @public
+ */
+export interface DesktopGameServerEntry {
+	id: string;
+	title: string;
+	/** Plain-text launcher-tile description. */
+	description: string;
+	/** Dashicon class, http(s) URL, or `data:` URI. */
+	icon: string;
+	/** Scoreboard column declarations, in display order. */
+	scoreColumns: Array< {
+		key: string;
+		label: string;
+		type: 'number' | 'time' | 'text';
+	} >;
+	/** Arbitrary server-declared config blob handed to the game's launch context. */
+	config: Record< string, unknown >;
+	/** Absolute URL of the game's (lazily loaded) script. */
+	scriptUrl: string;
+	/** WordPress script handle (informational). */
+	scriptHandle: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
 	scriptTranslations?: string;
 }
 
@@ -928,20 +967,15 @@ export interface DesktopWallpaperServerEntry {
  * any open palette without a reload.
  *
  * @public
- * @since 0.15.0
  */
 export interface DesktopCommandScriptServerEntry {
 	/** WordPress script handle — doubles as the command `owner` key used for live unregistration. */
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -953,7 +987,6 @@ export interface DesktopCommandScriptServerEntry {
  * deactivation.
  *
  * @public
- * @since 0.18.0
  */
 export interface DesktopDockRailRendererScriptServerEntry {
 	handle: string;
@@ -976,7 +1009,6 @@ export interface DesktopDockRailRendererScriptServerEntry {
  * Advisory today — reserved for future pre-registration shims.
  *
  * @public
- * @since 0.15.0
  */
 export interface DesktopCommandServerEntry {
 	slug: string;
@@ -991,17 +1023,11 @@ export interface DesktopCommandServerEntry {
 	 * unregistration on plugin deactivation without requiring the plugin
 	 * to set `owner` on each JS `registerCommand` call — the sync walks
 	 * the previous payload's slug→handle mapping when a handle leaves.
-	 *
-	 * @since 0.15.0
 	 */
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1016,20 +1042,15 @@ export interface DesktopCommandServerEntry {
  * OS Settings window (subscribed to the tab registry) repaints.
  *
  * @public
- * @since 0.17.0
  */
 export interface DesktopSettingsTabScriptServerEntry {
 	/** WordPress script handle — doubles as the tab `owner` key used for live unregistration. */
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1041,20 +1062,15 @@ export interface DesktopSettingsTabScriptServerEntry {
  * window-class registry subscriber repaints every open window.
  *
  * @public
- * @since 0.17.0
  */
 export interface DesktopTitleBarButtonScriptServerEntry {
 	/** WordPress script handle — doubles as the button `owner` key for live unregistration. */
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1067,20 +1083,36 @@ export interface DesktopTitleBarButtonScriptServerEntry {
  * the OS Settings selector without an F5.
  *
  * @public
- * @since 0.26.0
  */
 export interface DesktopUnfocusEffectScriptServerEntry {
 	/** WordPress script handle — doubles as the effect `owner` key for live unregistration. */
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
+	scriptTranslations?: string;
+}
+
+/**
+ * Server-declared window-link renderer script entry. One per
+ * `desktop_mode_register_window_link_renderer_script()` call. The
+ * shell injects each `scriptUrl` on mid-session activation; the
+ * loaded script calls `wp.desktop.registerWindowLinkRenderer()` and
+ * the registry subscriber surfaces the renderer in OS Settings →
+ * Effects → Window links without an F5.
+ *
+ * @public
+ */
+export interface DesktopWindowLinkRendererScriptServerEntry {
+	/** WordPress script handle — doubles as the renderer `owner` key for live unregistration. */
+	handle: string;
+	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
+	scriptUrl: string;
+	scriptBefore?: string[];
+	scriptAfter?: string[];
+	scriptL10n?: string[];
 	scriptTranslations?: string;
 }
 
@@ -1092,20 +1124,15 @@ export interface DesktopUnfocusEffectScriptServerEntry {
  * subscriber repaints every open window the theme matches.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowThemeScriptServerEntry {
 	/** WordPress script handle — doubles as the theme `owner` key for live unregistration. */
 	handle: string;
 	/** Absolute URL of the plugin's enqueued script. Empty entries are dropped by the PHP payload builder. */
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1120,7 +1147,6 @@ export interface DesktopWindowThemeScriptServerEntry {
  * theme to every window).
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowThemeServerEntry {
 	id: string;
@@ -1129,13 +1155,9 @@ export interface DesktopWindowThemeServerEntry {
 	priority: number;
 	scriptUrl: string;
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1144,18 +1166,13 @@ export interface DesktopWindowThemeServerEntry {
  * `desktop_mode_register_window_control_script()` call.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowControlScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1164,7 +1181,6 @@ export interface DesktopWindowControlScriptServerEntry {
  * to {@link DesktopWindowControlScriptServerEntry}.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowControlServerEntry {
 	id: string;
@@ -1174,13 +1190,9 @@ export interface DesktopWindowControlServerEntry {
 	order: number;
 	scriptUrl: string;
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1189,18 +1201,13 @@ export interface DesktopWindowControlServerEntry {
  * `desktop_mode_register_window_slot_script()` call.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowSlotScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1212,7 +1219,6 @@ export interface DesktopWindowSlotScriptServerEntry {
  * unregister calls.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowSlotServerEntry {
 	id: string;
@@ -1220,13 +1226,9 @@ export interface DesktopWindowSlotServerEntry {
 	order: number;
 	scriptUrl: string;
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1248,7 +1250,6 @@ export interface DesktopWindowSlotServerEntry {
  * When `match` is omitted, the notice renders on every window.
  *
  * @public
- * @since 0.22.0
  */
 export interface DesktopWindowNoticeServerEntry {
 	id: string;
@@ -1271,18 +1272,13 @@ export interface DesktopWindowNoticeServerEntry {
  * Marked Experimental — the chrome render contract may change.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowChromeScriptServerEntry {
 	handle: string;
 	scriptUrl: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1291,20 +1287,15 @@ export interface DesktopWindowChromeScriptServerEntry {
  * to {@link DesktopWindowChromeScriptServerEntry}. Marked Experimental.
  *
  * @public
- * @since 0.6.0
  */
 export interface DesktopWindowChromeServerEntry {
 	id: string;
 	label: string;
 	scriptUrl: string;
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1317,7 +1308,6 @@ export interface DesktopWindowChromeServerEntry {
  * payload's id→handle mapping when a handle leaves.
  *
  * @public
- * @since 0.17.0
  */
 export interface DesktopSettingsTabServerEntry {
 	id: string;
@@ -1334,13 +1324,9 @@ export interface DesktopSettingsTabServerEntry {
 	scriptUrl: string;
 	/** WordPress script handle this tab belongs to. */
 	scriptHandle: string;
-	/** @since 0.6.0 */
 	scriptBefore?: string[];
-	/** @since 0.6.0 */
 	scriptAfter?: string[];
-	/** @since 0.6.0 */
 	scriptL10n?: string[];
-	/** @since 0.6.0 */
 	scriptTranslations?: string;
 }
 
@@ -1349,7 +1335,6 @@ export interface DesktopSettingsTabServerEntry {
  * that opens a native window or a URL on click. Registered via PHP
  * with `desktop_mode_register_icon()`.
  *
- * @since 0.11.0
  * @public
  */
 export interface DesktopIconServerEntry {
@@ -1367,8 +1352,6 @@ export interface DesktopIconServerEntry {
 	 * regardless of `position` and are not user-draggable. Used for
 	 * built-in shortcuts like "My WordPress" that should always sit
 	 * in the same place. Default `false`.
-	 *
-	 * @since 0.8.0
 	 */
 	pinned?: boolean;
 }
@@ -1468,6 +1451,15 @@ export interface SessionWindow {
 	 * to the active desktop when missing.
 	 */
 	desktopId?: string;
+	/**
+	 * `true` for native windows (OS Settings, Bug Report, anything
+	 * registered via `desktop_mode_register_window()` /
+	 * `wp.desktop.registerWindow`). These reopen through the
+	 * native-window registry by id rather than by pointing an iframe
+	 * at `url` — which for a native window is only a `#slug` marker.
+	 * Absent on plain admin-page windows.
+	 */
+	native?: boolean;
 	url: string;
 	title: string;
 	icon: string;
@@ -1517,6 +1509,14 @@ export interface DesktopConfig {
 	/** The active color scheme slug. */
 	colorScheme: string;
 	/**
+	 * Baseline fingerprint of the admin menu at boot. The live
+	 * menu-refresh pipeline seeds its last-known signature from this so
+	 * an off-allowlist menu change (e.g. a custom post type registered
+	 * through a settings tool) is detected against the boot state
+	 * without a wasted refresh probe. Empty string when unavailable.
+	 */
+	menuSig?: string;
+	/**
 	 * Dock items derived from the admin menu. Core WordPress pages
 	 * (Dashboard, Posts, Plugins, Users, Settings, CPTs) are ordered
 	 * first; plugin-contributed top-level menus (`admin.php?page=*`)
@@ -1549,34 +1549,50 @@ export interface DesktopConfig {
 	 */
 	serverWallpapers: DesktopWallpaperServerEntry[];
 	/**
+	 * Server-declared games (from `desktop_mode_register_game()`).
+	 * Sync registers metadata-only stubs so the Games window and
+	 * scoreboard paint without downloading game code; the script is
+	 * loaded lazily on first launch.
+	 */
+	serverGames?: DesktopGameServerEntry[];
+	/**
+	 * Server-declared desktop themes — the whole-OS reskin library
+	 * (uploaded ZIPs plus anything registered via
+	 * `desktop_mode_register_desktop_theme()`). Metadata + a compiled
+	 * stylesheet reference; no JS is ever involved.
+	 */
+	serverDesktopThemes?: DesktopThemeServerEntry[];
+	/**
+	 * Whether this user may upload / delete desktop themes. Gates the
+	 * management controls in OS Settings → Themes; picking a theme is
+	 * available to everyone.
+	 */
+	canManageDesktopThemes?: boolean;
+	/**
+	 * REST base for the desktop-theme upload / delete routes.
+	 */
+	desktopThemesUrl?: string;
+	/**
 	 * Script handles opted-in via `desktop_mode_register_command_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new slash-commands appear in the palette without a reload.
-	 *
-	 * @since 0.15.0
 	 */
 	serverCommandScripts?: DesktopCommandScriptServerEntry[];
 	/**
 	 * Server-declared command metadata (from `desktop_mode_register_command()`).
 	 * Advisory today — reserved for future pre-registration shims.
-	 *
-	 * @since 0.15.0
 	 */
 	serverCommands?: DesktopCommandServerEntry[];
 	/**
 	 * Script handles opted-in via `desktop_mode_register_settings_tab_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new OS Settings tabs appear without a reload.
-	 *
-	 * @since 0.17.0
 	 */
 	serverSettingsTabScripts?: DesktopSettingsTabScriptServerEntry[];
 	/**
 	 * Server-declared settings-tab metadata (from
 	 * `desktop_mode_register_settings_tab()`). Enables live unregistration
 	 * on deactivation without per-call `owner` in JS.
-	 *
-	 * @since 0.17.0
 	 */
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
 	/**
@@ -1584,8 +1600,6 @@ export interface DesktopConfig {
 	 * `desktop_mode_register_dock_rail_renderer_script()`. Shell loads
 	 * each URL on boot and on mid-session activation so plugin
 	 * renderers surface in OS Settings → Dock style without an F5.
-	 *
-	 * @since 0.18.0
 	 */
 	serverDockRailRendererScripts?: DesktopDockRailRendererScriptServerEntry[];
 	/**
@@ -1593,8 +1607,6 @@ export interface DesktopConfig {
 	 * `desktop_mode_register_titlebar_button_script()`. Shell injects
 	 * each URL on boot and on mid-session activation so newly-
 	 * installed plugins paint their title-bar buttons live.
-	 *
-	 * @since 0.17.0
 	 */
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
 	/**
@@ -1603,18 +1615,23 @@ export interface DesktopConfig {
 	 * each URL on boot and on mid-session activation so newly-installed
 	 * plugins surface their unfocus effect in OS Settings → Effects
 	 * live. Owner-tagged registrations live-unregister on deactivation.
-	 *
-	 * @since 0.26.0
 	 */
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
+	/**
+	 * Script handles opted-in via
+	 * `desktop_mode_register_window_link_renderer_script()`. Shell
+	 * injects each URL on boot and on mid-session activation so
+	 * newly-installed plugins surface their window-link renderer in OS
+	 * Settings → Effects → Window links live. Owner-tagged
+	 * registrations live-unregister on deactivation.
+	 */
+	serverWindowLinkRendererScripts?: DesktopWindowLinkRendererScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_window_theme_script()`. The shell loads
 	 * each script on activation; the script calls
 	 * `wp.desktop.registerWindowTheme()` so window themes appear live.
 	 * Owner-tagged registrations live-unregister on deactivation.
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowThemeScripts?: DesktopWindowThemeScriptServerEntry[];
 	/**
@@ -1623,51 +1640,37 @@ export interface DesktopConfig {
 	 * the script-handle list — pre-registers themes shell-side so
 	 * stylesheet-only themes (no JS) work, and so the sync can map
 	 * id → handle for live unregistration without per-call JS owner.
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowThemes?: DesktopWindowThemeServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_window_control_script()`.
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowControlScripts?: DesktopWindowControlScriptServerEntry[];
 	/**
 	 * Server-declared control metadata (from
 	 * `desktop_mode_register_window_control()`).
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowControls?: DesktopWindowControlServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_window_slot_script()`.
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowSlotScripts?: DesktopWindowSlotScriptServerEntry[];
 	/**
 	 * Server-declared slot metadata (from
 	 * `desktop_mode_register_window_slot()`).
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowSlots?: DesktopWindowSlotServerEntry[];
 	/**
 	 * Script handles opted-in via
 	 * `desktop_mode_register_window_chrome_script()`. **Experimental** —
 	 * the chrome render contract may change.
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowChromeScripts?: DesktopWindowChromeScriptServerEntry[];
 	/**
 	 * Server-declared custom-chrome metadata (from
 	 * `desktop_mode_register_window_chrome()`). **Experimental.**
-	 *
-	 * @since 0.6.0
 	 */
 	serverWindowChromes?: DesktopWindowChromeServerEntry[];
 	/**
@@ -1676,8 +1679,6 @@ export interface DesktopConfig {
 	 * as a `<wpd-notice>` inside the matching window's
 	 * `after-titlebar` slot. Pure declarative data — no script handle
 	 * required.
-	 *
-	 * @since 0.22.0
 	 */
 	serverWindowNotices?: DesktopWindowNoticeServerEntry[];
 	/**
@@ -1685,8 +1686,6 @@ export interface DesktopConfig {
 	 * The shell renders these as shortcut tiles on the wallpaper;
 	 * click-through opens either the referenced native window (if
 	 * `window` is set) or the URL (if `url` is set).
-	 *
-	 * @since 0.11.0
 	 */
 	desktopIcons?: DesktopIconServerEntry[];
 	/**
@@ -1694,8 +1693,6 @@ export interface DesktopConfig {
 	 * Plugin-registered file types arrive here so the JS-side
 	 * registry can mirror the metadata (label, sort) without
 	 * requiring a JS file ride along.
-	 *
-	 * @since 0.9.0
 	 */
 	serverFileTypes?: Array< {
 		id: string;
@@ -1714,8 +1711,6 @@ export interface DesktopConfig {
 	 * only — the JS bundle that registers the opener carries the
 	 * executable handler. The OS Settings → File Associations tab
 	 * (Phase 5) renders pickers from this list.
-	 *
-	 * @since 0.9.0
 	 */
 	serverFileOpeners?: Array< {
 		id: string;
@@ -1735,47 +1730,47 @@ export interface DesktopConfig {
 	 * (from the `desktop_mode_file_associations` user meta). Empty
 	 * when no overrides set; the JS opener resolver falls back to
 	 * defaults for missing entries.
-	 *
-	 * @since 0.9.0
 	 */
 	userFileAssociations?: Record< string, string >;
 	/**
 	 * Base REST URL for the Files-on-the-Desktop endpoints
 	 * (`/desktop-mode/v1/files`). Trailing path appended by
 	 * the JS client (`/placements`, `/folders`, `/associations`).
-	 *
-	 * @since 0.9.0
 	 */
 	filesUrl?: string;
+	/**
+	 * Base REST URL for the pinned-notes endpoints
+	 * (`/desktop-mode/v1/notes`). The notes layer only boots when
+	 * this is present.
+	 */
+	notesUrl?: string;
+	/**
+	 * Whether the current user can author posts (`edit_posts`). Gates
+	 * the "Convert to post" note affordance (inline button + Posts dock
+	 * drop target). Absent on older server payloads → treated as false.
+	 */
+	canCreatePosts?: boolean;
 	/**
 	 * Roles eligible to appear in the folder Share Settings role
 	 * picker. Server applies `desktop_mode_files_share_eligible_roles`
 	 * before serializing — default = roles with `edit_posts`.
-	 *
-	 * @since 0.18.0
 	 */
 	shareEligibleRoles?: Array< { slug: string; name: string } >;
 	/**
 	 * Numeric WordPress user id of the viewer. Surfaced for shell
 	 * code that gates UI on ownership (e.g. only render the folder
 	 * Share button when the viewer is the folder's owner).
-	 *
-	 * @since 0.18.0
 	 */
 	currentUserId?: number;
 	/**
 	 * REST URL of the user-search autocomplete endpoint, gated by
 	 * `edit_posts`. Used by `<wpd-user-search>` in the Share
 	 * Settings modal.
-	 *
-	 * @since 0.18.0
 	 */
 	filesUsersSearchUrl?: string;
 	/**
 	 * Base REST URL for /folders — the Share Settings modal appends
 	 * `/{id}/shares` / `/{id}/shares/{shareId}` etc.
-	 *
-	 * @since 0.18.0
 	 */
 	folderSharesUrl?: string;
 	/**
@@ -1785,8 +1780,6 @@ export interface DesktopConfig {
 	 * `serverCallbacks` map. Plugins that ship neither still
 	 * receive a `desktop-mode.wallpaper-context-menu.activated`
 	 * action they can subscribe to.
-	 *
-	 * @since 0.9.0
 	 */
 	serverWallpaperMenuItems?: Array< {
 		id: string;
@@ -1804,8 +1797,6 @@ export interface DesktopConfig {
 	 * REST API root from `rest_url()`. Compose arbitrary REST
 	 * endpoints with `joinRestUrl()` so plain-permalink installs
 	 * (`?rest_route=/`) work alongside pretty `/wp-json/` installs.
-	 *
-	 * @since 0.8.8
 	 */
 	restUrl?: string;
 	/** REST endpoint for media uploads (wp/v2/media). */
@@ -1818,10 +1809,22 @@ export interface DesktopConfig {
 	 * `desktop_mode_drop_max_size`. See
 	 * {@link import('./os-file-drop/types').DropConfig} for the
 	 * single source of truth on the shape.
-	 *
-	 * @since 0.30.0
 	 */
 	dropConfig?: import( './os-file-drop/types' ).DropConfig;
+	/**
+	 * Real per-user desktop storage config (DESKMOD-45). Injected
+	 * by `desktop_mode_stored_files_inject_shell_config()`.
+	 */
+	desktopStorage?: {
+		/** Viewer holds the (filterable) upload capability. */
+		canUpload: boolean;
+		/** Per-file upload cap in bytes (0 = no client cap). */
+		maxBytes: number;
+		/** Per-user total quota in bytes (0 = unlimited). */
+		quotaBytes: number;
+		/** Server has ZipArchive — folder zip downloads work. */
+		zipAvailable: boolean;
+	};
 	/** REST endpoint for saving the default-window preference. */
 	defaultWindowUrl: string;
 	/**
@@ -1850,8 +1853,6 @@ export interface DesktopConfig {
 	 * the `iframeContent: { bridge: true }` auto-inject path on
 	 * `registerWindow` and exposed for plugins that need to inject
 	 * the bridge into their own same-origin iframes manually.
-	 *
-	 * @since 0.18.0
 	 */
 	iframeBridgeUrl?: string;
 	/** Nonce for the REST endpoint (X-WP-Nonce header). */
@@ -1875,8 +1876,6 @@ export interface DesktopConfig {
 	 * Optional in the type so older payloads (pre-bug-fix shells) fail
 	 * soft to `undefined` / falsy — keeping the previous (session-
 	 * suppress) behaviour for callers that never see the new flag.
-	 *
-	 * @since 0.8.4
 	 */
 	fromPortalIntent?: boolean;
 	/**
@@ -1884,8 +1883,6 @@ export interface DesktopConfig {
 	 * installable-pill state. Always present in shell-mode requests.
 	 * Optional in the type so older payloads (or chromeless contexts
 	 * that never see this blob) fail soft.
-	 *
-	 * @since 0.8.0
 	 */
 	pwa?: PwaConfig;
 	/**
@@ -1893,24 +1890,70 @@ export interface DesktopConfig {
 	 * server-side via `desktop_mode_accent_colors`. Optional — the TS
 	 * side falls back to a built-in default list when this is missing
 	 * (older PHP builds, hostile filter that returned garbage, etc.).
-	 *
-	 * @since 0.11.0
 	 */
 	accentColors?: AccentColor[];
 	/**
 	 * Toast-notification type map. Filterable server-side via
 	 * `desktop_mode_toast_types`. Optional — same fallback story as
 	 * `accentColors`.
-	 *
-	 * @since 0.11.0
 	 */
 	toastTypes?: ToastTypeDef[];
+	/**
+	 * Pending WordPress core update (from `desktop_mode_get_core_update()`),
+	 * or `null`/omitted when none is pending. The shell resolves the art
+	 * and renders it — see `src/update-notice.ts`.
+	 */
+	coreUpdate?: {
+		/** Version shown in the message — major branch when crossing, else exact. */
+		version: string;
+		/** Exact available version — the dismissal key (a newer point release re-notifies). */
+		available?: string;
+		/** Major branch (e.g. `7.0`) — the art key. */
+		branch?: string;
+		url: string;
+		/** True when moving into a new major (the shell then shows the codename). */
+		crossing?: boolean;
+	} | null;
+	/**
+	 * The remaining global WordPress Core admin notices, re-derived from
+	 * server state so the shell can surface each once instead of letting them
+	 * repeat per window. The update nag is `coreUpdate` above; these are the
+	 * rest (maintenance, recovery mode, default password, …). See
+	 * `src/core-notices.ts`.
+	 */
+	coreNotices?: Array< {
+		/** Stable notice id — the per-notice dismissal key. */
+		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
+		/** Human-readable message (already translated server-side). */
+		message: string;
+		/** Optional action-button label. */
+		actionLabel?: string;
+		/** Admin URL the action opens as a window. */
+		actionUrl?: string;
+	} >;
+	/**
+	 * Allowlisted plugin/library global admin notices (e.g. Action Scheduler's
+	 * past-due warning), re-derived from state and surfaced once — same shape
+	 * and treatment as {@link coreNotices}.
+	 */
+	pluginNotices?: Array< {
+		/** Stable notice id — the per-notice dismissal key. */
+		id: string;
+		/** Window title for the action target (falls back to the action label). */
+		title?: string;
+		/** Human-readable message (already translated server-side). */
+		message: string;
+		/** Optional action-button label. */
+		actionLabel?: string;
+		/** Admin URL the action opens as a window. */
+		actionUrl?: string;
+	} >;
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
 	 * server-side via `desktop_mode_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.
-	 *
-	 * @since 0.11.0
 	 */
 	defaultWallpaper?: string;
 	/**
@@ -1920,36 +1963,40 @@ export interface DesktopConfig {
 	 * changes back to `osSettingsUrl` so user meta stays the durable source.
 	 *
 	 * Optional — absent on older PHP builds that predate this field.
-	 *
-	 * @since 0.14.0
 	 */
 	osSettings?: Record<string, unknown>;
 	/**
 	 * REST endpoint for reading/writing OS settings.
-	 * @since 0.14.0
 	 */
 	osSettingsUrl?: string;
 	/**
 	 * REST endpoint for the AI content search.
 	 * Shape: `desktop-mode/v1/ai/search`.
-	 * @since 0.14.0
 	 */
 	aiSearchUrl?: string;
 	/**
 	 * SSE streaming endpoint for the agentic search — admin-ajax.php with
 	 * `action=desktop_mode_ai_search_stream` pre-filled. The JS EventSource appends
 	 * &nonce= and &query= when connecting.
-	 * @since 0.14.0
 	 */
 	aiSearchStreamUrl?: string;
+	/**
+	 * AI assistant availability + per-user state. Governs whether the Cmd+K
+	 * assistant and its admin-bar icon appear, and the setup placeholder.
+	 * `null` when the AI Copilot module isn't loaded.
+	 */
+	aiAssistant?: import( './settings/types' ).AiAssistantConfig | null;
+	/**
+	 * REST endpoint to re-check AI provider availability without a reload
+	 * (used by OS Settings → Features after a connector is configured).
+	 */
+	aiStatusUrl?: string;
 	/**
 	 * Fully-qualified URL of the lazy-loaded AI Assistant bundle —
 	 * the script `<script>`-injected by the main-bundle stub on the
 	 * user's first invocation. PHP picks `.js` vs `.min.js` based on
 	 * `SCRIPT_DEBUG` and appends `?ver=DESKTOP_MODE_VERSION` for
 	 * cache busting.
-	 *
-	 * @since 0.8.4
 	 */
 	aiAssistantBundleUrl?: string;
 	/**
@@ -1958,8 +2005,6 @@ export interface DesktopConfig {
 	 * first time the user opens OS Settings → About. Hosts a single
 	 * 25 kB PixiJS particle scene; never reached unless the user
 	 * navigates to that tab.
-	 *
-	 * @since 0.8.4
 	 */
 	aboutSceneBundleUrl?: string;
 	/**
@@ -1969,8 +2014,6 @@ export interface DesktopConfig {
 	 * panel section renderer + the ~13 `<wpd-*>` component classes
 	 * that only the panel uses, so nothing about Settings ships in
 	 * `desktop.min.js`.
-	 *
-	 * @since 0.8.4
 	 */
 	osSettingsPanelBundleUrl?: string;
 	/**
@@ -1980,8 +2023,6 @@ export interface DesktopConfig {
 	 * needed for triggered actions (toast.show, wpdConfirm,
 	 * right-click). Main pre-loads this after first paint so the
 	 * first user trigger feels instant.
-	 *
-	 * @since 0.8.4
 	 */
 	shellOverlaysBundleUrl?: string;
 	/**
@@ -1989,40 +2030,32 @@ export interface DesktopConfig {
 	 * 11). The `Window` class + its DOM / pointer / tab / chrome
 	 * helpers live here; the main bundle's `WindowManager.open()`
 	 * (now async) `<script>`-injects this on demand.
-	 *
-	 * @since 0.8.4
 	 */
 	windowSystemBundleUrl?: string;
 	/**
-	 * Platform-wide AI settings — only present for admins (null for
-	 * non-admin users so the key is never leaked in the page source).
-	 * @since 0.14.0
-	 */
-	aiPlatformSettings?: { enabled: boolean; provider: string; apiKey: string } | null;
-	/**
-	 * REST endpoint for reading/writing platform AI settings (admin only).
-	 * @since 0.14.0
-	 */
-	aiPlatformSettingsUrl?: string;
-	/**
 	 * Whether the current user has the `manage_options` capability.
-	 * @since 0.14.0
 	 */
 	currentUserIsAdmin?: boolean;
 	/**
 	 * Platform-wide extended options (admin-only). Contains toggles
 	 * for optional site-level enhancements such as Media Library
 	 * drag-and-drop. Null for non-admin users.
-	 * @since 0.14.0
 	 */
 	extendedOptions?: {
 		media_library_enhanced: boolean;
+		games: boolean;
+		agents: boolean;
 	} | null;
 	/**
 	 * REST endpoint for reading/writing extended options (admin only).
-	 * @since 0.14.0
 	 */
 	extendedOptionsUrl?: string;
+	/**
+	 * Whether the games framework is enabled site-wide (the `games`
+	 * extended option). Exposed to every user — when `false` the shell
+	 * skips the challenges Heartbeat channel. Absent means enabled.
+	 */
+	gamesEnabled?: boolean;
 	/**
 	 * Sticky-notes (Gutenberg Guidelines experiment) availability.
 	 *
@@ -2032,10 +2065,8 @@ export interface DesktopConfig {
 	 * Experiments) is active. The shell skips booting the sticky-notes
 	 * layer when `false`, avoiding the `wp/v2/guidelines` +
 	 * `wp/v2/wp_guideline_type` REST probes that 404 without it. Absent
-	 * on shells older than 0.11.0 → treated as available (boot and
+	 * on shells older than 0.5.0 → treated as available (boot and
 	 * swallow), preserving prior behavior.
-	 *
-	 * @since 0.11.0
 	 */
 	stickyNotes?: {
 		available: boolean;
@@ -2046,8 +2077,6 @@ export interface DesktopConfig {
  * Per-user PWA UI state — install-hint dismissal flag and the
  * notifications-enabled record. Mirrored from the
  * `/desktop-mode/v1/pwa-state` REST endpoint.
- *
- * @since 0.8.0
  */
 export interface PwaUserState {
 	installHintDismissed: boolean;
@@ -2056,8 +2085,6 @@ export interface PwaUserState {
 
 /**
  * Progressive-web-app config block on `desktopModeConfig.pwa`.
- *
- * @since 0.8.0
  */
 export interface PwaConfig {
 	/** Absolute URL of the web-app manifest. */
@@ -2086,8 +2113,6 @@ export interface PwaConfig {
 
 /**
  * A single entry in the OS Settings accent-color picker.
- *
- * @since 0.11.0
  */
 export interface AccentColor {
 	id: string;
@@ -2097,8 +2122,6 @@ export interface AccentColor {
 
 /**
  * A single toast-notification type declared by the server.
- *
- * @since 0.11.0
  */
 export interface ToastTypeDef {
 	id: string;
@@ -2120,8 +2143,6 @@ export interface ToastTypeDef {
  * desktop window instead of navigating the current iframe out of chromeless
  * mode. Anything else is `action` — the parent proxies execution back
  * into the iframe via `desktop-mode-commands-invoke`.
- *
- * @since 0.16.0
  */
 export interface HarvestedCommand {
 	name: string;
@@ -2147,7 +2168,7 @@ export interface HarvestedCommand {
 }
 
 // -----------------------------------------------------------------------------
-// Bridge events — moved to `src/protocol/window-messages.ts` in 1.0.
+// Bridge events — moved to `src/protocol/window-messages.ts`.
 // Re-exported here for backwards compatibility; new code should
 // import from `@protocol/window-messages` (or via `@protocol/guards`
 // for the `isBridgeEvent` / `assertBridgeEventType` helpers).

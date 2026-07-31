@@ -6,7 +6,6 @@
  * Pixi dependency.
  *
  * @public
- * @since 0.9.2
  */
 
 import type { GalaxyTab, GraphNodePayload } from './types';

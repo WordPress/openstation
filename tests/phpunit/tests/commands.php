@@ -133,6 +133,31 @@ class Tests_DesktopMode_Commands extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The documented (Stable) contract for
+	 * `desktop_mode_command_script_registered` says it also fires when
+	 * `desktop_mode_register_command()` implicitly registers its
+	 * `script` argument — not only on direct
+	 * `desktop_mode_register_command_script()` calls.
+	 *
+	 * @covers ::desktop_mode_register_command
+	 */
+	public function test_registered_action_fires_on_implicit_script_registration() {
+		$calls = array();
+		add_action( 'desktop_mode_command_script_registered', function ( $handle ) use ( &$calls ) {
+			$calls[] = $handle;
+		} );
+		$slug   = 'cmd-test-i-' . uniqid();
+		$handle = 'cmd-script-i-' . uniqid();
+		desktop_mode_register_command( array(
+			'slug'   => $slug,
+			'label'  => 'Lights',
+			'script' => $handle,
+		) );
+
+		$this->assertContains( $handle, $calls );
+	}
+
+	/**
 	 * @covers ::desktop_mode_register_command_script
 	 */
 	public function test_registered_action_fires_per_call() {

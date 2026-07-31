@@ -7,7 +7,7 @@ built-ins — `darken` (dims), `frost` (frosted-glass blur), and
 `grayscale` (drains colour) — each registered through the exact same
 public hook a plugin would use. This page shows a plugin adding its own.
 
-**Status:** Experimental since 0.26.0.
+**Status:** Experimental.
 
 ## How it works
 
@@ -113,4 +113,4 @@ live-unregister your effect when the plugin is deactivated.
   the registry array on every read — reorder, remove, or conditionally
   swap effects, mirroring `desktop-mode.wallpapers`.
 
-See also: [`registerUnfocusEffect`](../javascript-reference.md#registerunfocuseffect-def--experimental--since-0260) in the JavaScript reference and [`desktop_mode_register_unfocus_effect_script`](../hooks-reference.md#desktop_mode_register_unfocus_effect_script-handle--experimental-php-function-since-0260) in the hooks reference.
+See also: [`registerUnfocusEffect`](../javascript-reference.md#registerunfocuseffect-def---experimental) in the JavaScript reference and [`desktop_mode_register_unfocus_effect_script`](../hooks-reference.md#desktop_mode_register_unfocus_effect_script-handle---experimental-php-function) in the hooks reference.

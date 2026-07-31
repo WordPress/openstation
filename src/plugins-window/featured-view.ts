@@ -12,7 +12,6 @@
  * search, no filter: the surface is small by design.
  *
  * @public
- * @since 0.20.0
  */
 
 import { __, sprintf } from '../i18n';

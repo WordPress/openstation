@@ -19,8 +19,6 @@
  * shared `--desktop-mode-status-*` palette so the bar reads the same as
  * the rest of the shell. Every visual surface — track, fill, height,
  * radius, label color/size — is overridable via CSS custom properties.
- *
- * @since 0.31.0
  */
 
 import { Component, defineComponent, html, type TemplateResult } from '../../core';
@@ -86,7 +84,7 @@ export class WpdProgressBar extends Component {
 		cssProps: [
 			{
 				name: '--wpd-progress-track-bg',
-				default: 'var(--desktop-mode-control-bg, rgba(0,0,0,0.08))',
+				default: 'var(--wpd-surface-sunken, rgba(0,0,0,0.08))',
 			},
 			{
 				name: '--wpd-progress-fill',

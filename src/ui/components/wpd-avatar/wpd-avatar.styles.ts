@@ -46,7 +46,7 @@ export const avatarStyles = css`
 		border-radius: 50%;
 		overflow: hidden;
 		background: var( --desktop-mode-window-bg, #f0f0f1 );
-		color: #fff;
+		color: var( --wpd-fg-on-accent, #fff );
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -98,8 +98,8 @@ export const avatarStyles = css`
 		border-radius: 50%;
 		background: radial-gradient(
 			circle at var( --wpd-avatar-glare-x ) var( --wpd-avatar-glare-y ),
-			rgba( 255, 255, 255, 0.55 ) 0%,
-			rgba( 255, 255, 255, 0 ) 55%
+			var( --wpd-scrim, rgba( 255, 255, 255, 0.55 ) ) 0%,
+			var( --wpd-hover, rgba( 255, 255, 255, 0 ) ) 55%
 		);
 		opacity: var( --wpd-avatar-hover );
 		mix-blend-mode: overlay;
@@ -129,8 +129,17 @@ export const avatarStyles = css`
 	}
 
 	.wpd-avatar__tile img {
-		width: 100%;
-		height: 100%;
+		/*
+		 * Bleed 1px past the tile on every side. At exactly 100% the
+		 * circular clip and the image edge land on the same subpixel
+		 * boundary, and the tile's transform (tilt + scale) makes the
+		 * rounding disagree — leaving a hairline crescent of the tile
+		 * background showing through the rim. Overshooting puts the
+		 * seam outside the clip, where overflow:hidden eats it.
+		 */
+		width: calc( 100% + 2px );
+		height: calc( 100% + 2px );
+		margin: -1px;
 		object-fit: cover;
 		display: block;
 		/* Lift the image one notch in 3D space so it sits above the
@@ -156,13 +165,13 @@ export const avatarStyles = css`
 	}
 
 	.wpd-avatar__dot--online {
-		background: var( --desktop-mode-success, #00a32a );
+		background: var( --wpd-success-fg, #00a32a );
 	}
 	.wpd-avatar__dot--inactive {
-		background: var( --desktop-mode-warning, #dba617 );
+		background: var( --wpd-warning-fg, #dba617 );
 	}
 	.wpd-avatar__dot--offline {
-		background: var( --desktop-mode-muted, #8c8f94 );
+		background: var( --wpd-fg-muted, #8c8f94 );
 	}
 
 	/* Respect user preference — disable the tilt + glare entirely

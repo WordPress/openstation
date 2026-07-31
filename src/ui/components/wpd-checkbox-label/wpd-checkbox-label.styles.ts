@@ -6,7 +6,7 @@ export const styles = css`
 		align-items: center;
 		gap: 6px;
 		font-size: 12px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		cursor: pointer;
 	}
 	label {
@@ -18,5 +18,13 @@ export const styles = css`
 	input[ type='checkbox' ] {
 		accent-color: var( --wp-admin-theme-color, #2271b1 );
 		cursor: pointer;
+	}
+	:host( [ disabled ] ) {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	:host( [ disabled ] ) label,
+	:host( [ disabled ] ) input[ type='checkbox' ] {
+		cursor: not-allowed;
 	}
 `;

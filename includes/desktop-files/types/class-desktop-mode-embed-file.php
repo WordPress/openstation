@@ -12,13 +12,12 @@
  * the current desktop area on the JS side).
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.18.0
+ * The `embed` desktop file type.
  */
 class Desktop_Mode_Embed_File extends Desktop_Mode_File {
 

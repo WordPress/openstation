@@ -22,8 +22,6 @@
  *   <wpd-code block copy>
  *     SELECT * FROM wp_posts WHERE post_status = 'publish';
  *   </wpd-code>
- *
- * @since 0.17.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -38,7 +36,7 @@ export class WpdCode extends Component {
 		summary:
 			'Inline monospace code badge — safe for URLs, flag names, and any string that would otherwise steal keypresses if rendered as <wpd-key>. Set `block` for a multi-line snippet box. Set `copy` for a built-in copy-to-clipboard affordance.',
 		status: 'experimental',
-		since: '0.17.0',
+		since: '0.5.1',
 		props: [
 			{
 				name: 'block',
@@ -50,7 +48,7 @@ export class WpdCode extends Component {
 				name: 'copy',
 				type: 'boolean',
 				description:
-					'When present, adds a copy-to-clipboard button. Hover-revealed on inline variants, always visible on `block`. Fires a `wpd-copy` event after a successful copy.',
+					'When present, adds a copy-to-clipboard button. Always visible (dimmed) on inline variants; hover/focus-revealed in the top-right corner on `block`. Fires a `wpd-copy` event after a successful copy.',
 			},
 		],
 		slots: [
@@ -65,7 +63,7 @@ export class WpdCode extends Component {
 		],
 		cssProps: [
 			{ name: '--wpd-code-bg', default: 'rgba(0,0,0,0.06)' },
-			{ name: '--wpd-code-fg', default: 'var(--desktop-mode-text)' },
+			{ name: '--wpd-code-fg', default: 'var(--wpd-fg)' },
 			{ name: '--wpd-code-border', default: '1px solid rgba(0,0,0,0.08)' },
 			{ name: '--wpd-code-padding', default: '0.1em 0.4em' },
 			{ name: '--wpd-code-block-padding', default: '10px 12px' },

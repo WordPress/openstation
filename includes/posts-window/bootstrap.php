@@ -9,18 +9,17 @@
  *
  * Public PHP surface (all filterable):
  *
+ *   - desktop_mode_posts_window_user_can_register
  *   - desktop_mode_posts_window_user_can_use
  *   - desktop_mode_posts_window_args
  *   - desktop_mode_posts_window_template_html
  *   - desktop_mode_posts_window_query_args
  *
- * The dock-side swap (Posts tile → native window when opt-in is on) is
- * implemented JS-side in `src/dock.ts` via a cancelable
- * `desktop-mode-dock-open-request` document event — this module owns
- * only the window itself, not the entry point.
+ * The URL-remap swap (Posts tile → native window when opt-in is on) is
+ * implemented JS-side in `src/desktop.ts` via `registerNativeUrlRemap`
+ * — this module owns only the window itself, not the entry point.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;

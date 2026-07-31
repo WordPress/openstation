@@ -12,8 +12,11 @@
  * Recognised shapes (in resolution order):
  *
  *   1. `'dashicons-…'`             → `<span class="dashicons dashicons-…">`
- *   2. `'data:image/svg+xml;base64,…'` → `<span>` with the SVG as a
- *      CSS background-image (the safe path; SVG-as-background can't
+ *   2. `'data:image/svg+xml;base64,…'` → `<span>`. Art drawn in
+ *      `currentColor` is painted as a CSS mask so it takes the
+ *      surface's text colour (white on a dark dock, dark on a light
+ *      title bar); everything else is painted as a CSS
+ *      background-image (the safe path; SVG-as-background can't
  *      execute scripts).
  *   3. `'data:image/(png|jpeg|gif|webp|x-icon|…);base64,…'` → `<img>`.
  *      Used by the favicon resolver to paint a downloaded favicon
@@ -24,11 +27,57 @@
  *      one or two letters of `title`. Color is hashed deterministically
  *      from the title so the same plugin gets the same swatch
  *      across reloads.
- *
- * @since 0.18.0
  */
 
 import { hashTitleToHue } from './ui/util/hash-hue';
+import { resolveThemedIcon, resolveThemedIconColor } from './desktop-themes/icons';
+import { applyIconMask } from './desktop-themes/paint-tinted-icon';
+
+const SVG_URI_PREFIX = 'data:image/svg+xml;base64,';
+
+/**
+ * Memo for {@link isSilhouetteSvg}. Icons re-render on every dock and
+ * wallpaper repaint, and the answer for a given URI never changes.
+ */
+const silhouetteCache = new Map< string, boolean >();
+
+/**
+ * Whether a base64 SVG data URI is a *silhouette* — art drawn in
+ * `currentColor` rather than in fixed colours.
+ *
+ * The art declares its own intent. There is no registration flag to
+ * keep in sync, and no way for the declaration to disagree with the
+ * drawing, because it IS the drawing: an SVG that names
+ * `currentColor` is asking to be filled by whatever surface it lands
+ * on, and the only rendering path that can honour that is the mask.
+ *
+ * Fixed-colour art (the Games icons, a plugin's brand mark) contains
+ * no `currentColor` and keeps the background-image path, unchanged.
+ */
+function isSilhouetteSvg( icon: string ): boolean {
+	const cached = silhouetteCache.get( icon );
+	if ( cached !== undefined ) {
+		return cached;
+	}
+
+	let silhouette = false;
+	try {
+		silhouette = atob( icon.slice( SVG_URI_PREFIX.length ) ).includes(
+			'currentColor',
+		);
+	} catch {
+		// Malformed base64 despite the charset check (bad padding).
+		// Not a silhouette; the caller paints it the ordinary way.
+	}
+
+	// Bound the memo — a site with a long tail of plugin icons should
+	// not grow it without limit. Clearing costs one re-decode.
+	if ( silhouetteCache.size >= 256 ) {
+		silhouetteCache.clear();
+	}
+	silhouetteCache.set( icon, silhouette );
+	return silhouette;
+}
 
 export interface RenderIconOptions {
 	/**
@@ -43,6 +92,16 @@ export interface RenderIconOptions {
 	 * the framework's internal class names.
 	 */
 	className?: string;
+	/**
+	 * Desktop-theme icon slot this icon occupies (see
+	 * `src/desktop-themes/slots.ts`). When an active desktop theme
+	 * overrides the slot, its icon is painted INSTEAD of `icon` —
+	 * the substitution happens before the shape dispatcher below, so
+	 * a theme can turn a dashicon into a PNG or vice versa.
+	 *
+	 * Omit it and nothing about this function changes.
+	 */
+	slot?: string;
 }
 
 /**
@@ -52,37 +111,85 @@ export interface RenderIconOptions {
  * the result.
  *
  * @public
- * @since 0.18.0
  */
 export function renderIcon( icon: string, opts: RenderIconOptions ): HTMLElement {
 	const className = opts.className ?? '';
 	const title = opts.title ?? '';
 
-	// 1. Dashicon class.
+	// 0. Desktop-theme substitution. Runs before the shape dispatcher
+	//    so a themed replacement goes through exactly the same
+	//    rendering paths as a native icon — a theme that swaps a
+	//    dashicon for an SVG URL gets the `<img>` branch for free.
+	//    `resolveThemedIcon` is a single null check when no theme is
+	//    active, so this costs effectively nothing by default.
+	let tint: string | null = null;
+	if ( opts.slot ) {
+		const themed = resolveThemedIcon( opts.slot );
+		if ( themed !== null ) {
+			icon = themed;
+		}
+		// A tint applies to whatever ends up being painted — including
+		// the shell's OWN icon when the theme overrode only the colour.
+		// "Recolour every icon, replace none" is a legitimate theme.
+		tint = resolveThemedIconColor( opts.slot );
+	}
+
+	// 1. Dashicon class. A tint is simply `color` — it is a font glyph.
 	if ( typeof icon === 'string' && icon.startsWith( 'dashicons-' ) ) {
 		const el = document.createElement( 'span' );
 		el.className = `dashicons ${ icon } ${ className }`.trim();
 		el.setAttribute( 'aria-hidden', 'true' );
+		if ( tint !== null ) {
+			el.style.color = tint;
+		}
 		return el;
 	}
 
-	// 2. Inline SVG data URI — paint as background-image. We re-validate
-	// the base64 payload shape because icons registered from JS skip the
-	// PHP sanitizer.
+	// 1b. Tinted image — painted as a mask rather than an `<img>`, so
+	//     the fill comes from the theme and only the artwork's alpha
+	//     is used. Placed ahead of every image branch below because it
+	//     replaces all of them: data-URI SVG, data-URI raster, and
+	//     http(s) URLs are all maskable.
+	if ( tint !== null && typeof icon === 'string' ) {
+		const el = document.createElement( 'span' );
+		el.className = className;
+		el.setAttribute( 'aria-hidden', 'true' );
+		el.style.display = 'inline-block';
+		if ( applyIconMask( el, icon, tint ) ) {
+			return el;
+		}
+		// Not maskable (letter-badge fallback, `none`, a malformed
+		// value) — fall through and paint it the ordinary way.
+	}
+
+	// 2. Inline SVG data URI. Silhouette art paints as a mask, fixed-
+	// colour art as a background-image. We re-validate the base64
+	// payload shape because icons registered from JS skip the PHP
+	// sanitizer.
 	if (
 		typeof icon === 'string' &&
 		icon.startsWith( 'data:image/svg+xml;base64,' )
 	) {
-		const base64Part = icon.slice( 'data:image/svg+xml;base64,'.length );
+		const base64Part = icon.slice( SVG_URI_PREFIX.length );
 		if ( /^[A-Za-z0-9+/=]+$/.test( base64Part ) ) {
 			const el = document.createElement( 'span' );
 			el.className = className;
 			el.setAttribute( 'aria-hidden', 'true' );
+			el.style.display = 'inline-block';
+
+			// A background-image cannot inherit colour, so art drawn in
+			// `currentColor` would paint black — invisible on a dark
+			// dock. Painted as a mask it takes the surface's text
+			// colour instead, which is the only reason to draw it that
+			// way. Falls through if the browser refuses the mask.
+			if ( isSilhouetteSvg( icon ) && applyIconMask( el, icon, 'currentColor' ) ) {
+				return el;
+			}
+
 			el.style.backgroundImage = `url("${ icon }")`;
 			el.style.backgroundRepeat = 'no-repeat';
 			el.style.backgroundPosition = 'center';
 			el.style.backgroundSize = 'contain';
-			el.style.display = 'inline-block';
 			return el;
 		}
 		// Malformed — fall through.

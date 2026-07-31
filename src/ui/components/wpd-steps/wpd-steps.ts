@@ -21,8 +21,6 @@
  *   </wpd-steps>
  *
  * Mark a step with `done` to render a ✓ instead of the number.
- *
- * @since 0.17.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -37,7 +35,7 @@ export class WpdSteps extends Component {
 		summary:
 			'Ordered/numbered-steps container. Children are <wpd-step> elements; numbers are assigned via a CSS counter so insertions renumber automatically. Use for onboarding, setup flows, migration guides.',
 		status: 'experimental',
-		since: '0.17.0',
+		since: '0.5.1',
 		slots: [
 			{
 				name: '(default)',
@@ -75,7 +73,7 @@ export class WpdStep extends Component {
 		summary:
 			'A single numbered step inside <wpd-steps>. Renders an auto-numbered chip and an optional bold title above the slotted body.',
 		status: 'experimental',
-		since: '0.17.0',
+		since: '0.5.1',
 		props: [
 			{
 				name: 'title',
@@ -102,7 +100,7 @@ export class WpdStep extends Component {
 			{ name: '--wpd-step-chip-fg', default: '#fff' },
 			{
 				name: '--wpd-step-chip-done-bg',
-				default: 'var(--desktop-mode-muted)',
+				default: 'var(--wpd-fg-muted)',
 			},
 			{ name: '--wpd-step-chip-font-size', default: '13px' },
 		],

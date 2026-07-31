@@ -4,12 +4,13 @@
  * Pure functions that produce the initial window element tree. Called
  * once per window at construction; never touched again after the
  * `Window` constructor wires up event listeners.
- *
- * @since 0.8.1
  */
 
 import type { WindowConfig } from '../types';
-import { sanitizeClassName, urlMatchKey } from '../utils';
+import { urlMatchKey } from '../utils';
+import { renderIcon } from '../icon';
+import { slotForTileId } from '../desktop-themes/slots';
+import { paintThemedControlIcon } from '../window-chrome/controls/paint-themed-icon';
 import { __, sprintf } from '../i18n';
 // Side-effect import — registers `<wpd-spinner>` so the loading
 // overlay rendered below upgrades synchronously when the body is
@@ -22,6 +23,7 @@ import {
 	markWindowContentReady,
 } from '../window-channels';
 import { HOOKS, applyFilters } from '../hooks';
+import { createRevealLayers } from '../reveals/surface';
 
 /**
  * Carrier symbol used to stash a window's config on its outer
@@ -63,8 +65,6 @@ function getWindowConfigFromElement( el: HTMLElement ): WindowConfig | undefined
  * Origin snapshot taken at module load. The same-origin gate in
  * `withChromelessParam` compares against this value so a mutation of
  * `window.location` after boot can't relax the cross-origin guard.
- *
- * @since 0.11.0
  */
 const INITIAL_ORIGIN = window.location.origin;
 
@@ -102,7 +102,7 @@ export function withChromelessParam( url: string ): string | null {
  */
 export function updateFullscreenBodyClass(): void {
 	const hasFullscreen =
-		document.querySelectorAll( '.desktop-mode-window--fullscreen' ).length > 0;
+		document.querySelectorAll( '.desktop-mode-window--fullscreen:not(.desktop-mode-window--minimized)' ).length > 0;
 	document.body.classList.toggle( 'desktop-mode-has-fullscreen-window', hasFullscreen );
 }
 
@@ -161,7 +161,6 @@ function buildDefaultLoadingOverlay(): HTMLElement {
  * doesn't strand the user with a broken window — the shell
  * falls back to whatever overlay was last good.
  *
- * @since 0.6.0
  * @internal
  */
 function createLoadingOverlay( config: WindowConfig ): HTMLElement {
@@ -220,7 +219,6 @@ function createLoadingOverlay( config: WindowConfig ): HTMLElement {
  * because `markContentLoaded` was called twice in a row) silently
  * no-ops.
  *
- * @since 0.6.0
  * @internal
  */
 export function removeLoadingOverlay( windowEl: HTMLElement ): void {
@@ -241,7 +239,6 @@ export function removeLoadingOverlay( windowEl: HTMLElement ): void {
  * window element wasn't created via `createWindowElement` (test
  * fixtures, hand-rolled DOM).
  *
- * @since 0.6.0
  * @internal
  */
 export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
@@ -266,7 +263,6 @@ export function ensureLoadingOverlay( windowEl: HTMLElement ): void {
  * slots without parsing data attributes. Empty by default — the
  * shell or plugins fill it via the slot pipeline.
  *
- * @since 0.6.0
  * @internal
  */
 function createSlotHost( name: string ): HTMLElement {
@@ -338,6 +334,11 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	//                              Iframe-only — skipped for native.
 	const menuBtn = document.createElement( 'wpd-window-button' );
 	menuBtn.setAttribute( 'icon', 'menu' );
+	// Themed override for the ⋯ glyph. Goes through the same helper
+	// the control cluster uses, so `WINDOW_CONTROL_MENU` behaves
+	// identically to the other seven control slots even though the
+	// menu button is built here rather than by `paintWindowControls`.
+	paintThemedControlIcon( menuBtn, 'core/menu' );
 	menuBtn.setAttribute( 'aria-label', __( 'Window actions' ) );
 	menuBtn.setAttribute( 'aria-haspopup', 'menu' );
 	menuBtn.setAttribute( 'aria-expanded', 'false' );
@@ -396,7 +397,7 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		menuPanel.appendChild( openInNew );
 	}
 
-	// "Reload" — was a built-in title-bar control until 0.6.2. Moved
+	// "Reload" — was a built-in title-bar control. Moved
 	// here because it's an infrequent action that didn't earn the
 	// permanent real estate. No-op for native windows; safe to show.
 	if ( ! config.native ) {
@@ -433,9 +434,19 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// Default content for `icon` and `title` reproduces the legacy
 	// title-bar visual; the other slots are empty by default.
 	const slotIcon = createSlotHost( 'icon' );
-	const iconEl = document.createElement( 'span' );
-	iconEl.className = `desktop-mode-window__icon dashicons ${ sanitizeClassName( config.icon ) }`;
-	iconEl.setAttribute( 'aria-hidden', 'true' );
+	// `renderIcon` is the canonical dispatcher for every icon shape a
+	// window can register (dashicons class, SVG/raster data URI,
+	// http(s) URL, letter-badge fallback). Rendering only the
+	// dashicons shape here left data-URI icons — e.g. the Games
+	// window's gamepad SVG — invisible in the title bar.
+	const iconEl = renderIcon( config.icon, {
+		title: config.title,
+		className: 'desktop-mode-window__icon',
+		// A desktop theme can replace a window's title-bar icon by
+		// slot — either the generic `DEFAULT_APP_ICON` or the
+		// per-window `APP:<id>` form.
+		slot: slotForTileId( config.id ),
+	} );
 	slotIcon.appendChild( iconEl );
 
 	const slotTitle = createSlotHost( 'title' );
@@ -578,6 +589,23 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 	// `WINDOW_LOADING_OVERLAY` filter (global) — see
 	// `createLoadingOverlay` above.
 	body.appendChild( createLoadingOverlay( config ) );
+
+	// Reveal layers — the opaque surface the window's content is
+	// uncovered from once it reports ready, plus its trailing edge.
+	// Both sit UNDER the loading overlay so the spinner stays readable
+	// throughout the load, and both are siblings of the iframe rather
+	// than wrappers, so clipping them can never affect the content's
+	// own painting or hit-testing.
+	//
+	// Armed here rather than from the `WINDOW_CONTENT_LOADING`
+	// subscriber because the `markWindowContentLoading()` call below
+	// fires while this element is still detached — the subscriber
+	// resolves windows by `document.getElementById` and would find
+	// nothing. Re-arms on later loads go through `armWindowReveal`.
+	// Empty when the user's reveal is `'none'`.
+	for ( const layer of createRevealLayers() ) {
+		body.appendChild( layer );
+	}
 
 	// Mark this window as being in the loading state from the moment
 	// the body element exists. Plugins or shell code that subscribe to

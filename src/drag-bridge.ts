@@ -36,8 +36,6 @@
  *
  * Payload type is a discriminated union keyed on `kind`. The receiver
  * switches on `kind` to decide what block to create.
- *
- * @since 0.14.0
  */
 
 /**
@@ -263,8 +261,8 @@ export class DragBridge implements DragBridgeApi {
 	};
 
 	private _startDrag( payload: DragBridgePayload ): void {
-		// Legacy Media Library patch (`assets/js/media-library-enhanced.js`,
-		// since 0.14.0) emits payloads without a `kind` field — just
+		// Legacy Media Library patch (`assets/js/media-library-enhanced.js`)
+		// emits payloads without a `kind` field — just
 		// `{ id, url, title, alt, mime, sizes, thumbnailUrl }`. Normalize
 		// to the tagged union here so every downstream consumer
 		// (Gutenberg drop-receiver, future plugin receivers) only

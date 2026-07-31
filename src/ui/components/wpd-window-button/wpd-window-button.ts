@@ -27,6 +27,14 @@
  * Attributes:
  *   - `icon="minimize" | "maximize" | "fullscreen" | "fullscreen-exit"
  *          | "detach" | "reload" | "close" | "menu"` — picks a built-in SVG
+ *   - `icon-src="https://… | data:image/…"` — paints an external
+ *     image as a CSS MASK tinted with `currentColor`, not as an
+ *     `<img>`. That is what preserves the `--wpd-btn-*` /
+ *     `currentColor` focused-vs-unfocused tinting contract the whole
+ *     title bar depends on. The practical consequence for desktop-
+ *     theme authors: **control glyphs are monochrome silhouettes** —
+ *     only the alpha channel of the source image is used. Wins over
+ *     `icon`, which in turn wins over slotted content.
  *   - `active` — boolean, applies the pressed-down look
  *   - `danger` — boolean, swaps hover to a red wash (used by the
  *     close button)
@@ -87,8 +95,41 @@ const ICONS: Record<string, string> = {
 		'<circle cx="9" cy="6" r="1.2" fill="currentColor"/>',
 };
 
+/**
+ * Validate an `icon-src` value before it is interpolated into a CSS
+ * `url('…')`.
+ *
+ * The scheme allowlist is the security floor (`javascript:` and
+ * friends never reach the stylesheet). The character denylist is what
+ * makes the interpolation itself safe: the value lands inside
+ * `url('…')` inside a `style` attribute, so what must be impossible is
+ * closing that string or that attribute. With no quote, paren,
+ * backslash, angle bracket, or whitespace, neither can happen.
+ *
+ * A semicolon is deliberately NOT on the list: `data:image/svg+xml;
+ * base64,…` needs one, and inside a quoted CSS string a `;` is an
+ * ordinary character — it can only end a declaration once the string
+ * has been closed, which the quote ban already prevents.
+ *
+ * @param raw Candidate value.
+ * @return The value, or `''` when it must not be painted.
+ */
+function sanitizeIconSrc( raw: string ): string {
+	const value = ( raw ?? '' ).trim();
+	if ( value === '' || value.length > 4096 ) {
+		return '';
+	}
+	if ( ! /^(https?:\/\/|data:image\/)/i.test( value ) ) {
+		return '';
+	}
+	if ( /['"()\\<>\s]/.test( value ) ) {
+		return '';
+	}
+	return value;
+}
+
 export class WpdWindowButton extends Component {
-	static props = [ 'icon', 'active', 'danger' ] as const;
+	static props = [ 'icon', 'icon-src', 'active', 'danger' ] as const;
 	static styles = [ styles ];
 
 	static help = {
@@ -136,8 +177,17 @@ export class WpdWindowButton extends Component {
 	} as const;
 
 	protected render() {
-		const iconKey =
-			( this as unknown as { icon: string | null } ).icon || '';
+		// `icon-src` wins: a desktop theme that overrode this control's
+		// glyph should not have to also clear the built-in `icon`
+		// attribute the shell set.
+		const iconSrc = sanitizeIconSrc(
+			( this as unknown as { 'icon-src'?: string | null } )[ 'icon-src' ] ||
+				this.getAttribute( 'icon-src' ) ||
+				'',
+		);
+		const iconKey = iconSrc
+			? ''
+			: ( this as unknown as { icon: string | null } ).icon || '';
 		// The built-in icon map returns a raw markup string. We feed
 		// it into the template via an attribute-bound span with
 		// `innerHTML` on connect — but the templater handles text
@@ -146,6 +196,22 @@ export class WpdWindowButton extends Component {
 		// is known. The wrapper has no dynamic content; the slot
 		// shows what the consumer provides for custom icons.
 		const svgInner = ICONS[ iconKey ] || '';
+		if ( iconSrc ) {
+			// CSS `mask` + `background-color: currentColor` rather than
+			// an `<img>`: an image would paint its own colours and go
+			// deaf to `--wpd-btn-color`, so a themed close button would
+			// stop turning white on a focused title bar.
+			return html`
+				<button type="button">
+					<span
+						class="themed-icon"
+						aria-hidden="true"
+						style="-webkit-mask: url('${ iconSrc }') center / contain no-repeat; mask: url('${ iconSrc }') center / contain no-repeat;"
+					></span>
+					<slot></slot>
+				</button>
+			`;
+		}
 		return html`
 			<button type="button">
 				<svg

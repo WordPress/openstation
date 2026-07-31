@@ -14,16 +14,16 @@
  *
  * The overlay stays open until the user explicitly closes it with the ×
  * button, the Escape key, or Cmd+K again.
- *
- * @since 0.14.0
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
 import { wpdConfirm } from '../wpd-confirm';
 import { trackedFetch } from '../tracked-fetch';
+import { decodeHTML } from '../utils';
 import {
 	filterCommands,
 	findCommand,
+	listCommands,
 	listEagerCommands,
 	parseCommandInput,
 	subscribeCommands,
@@ -32,109 +32,6 @@ import {
 	type CommandSuggestion,
 	type DesktopCommand,
 } from '../commands';
-
-// ---------------------------------------------------------------------------
-// Minimal Markdown renderer
-// ---------------------------------------------------------------------------
-//
-// AI responses arrive with basic markdown — **bold**, *italic*, `code`,
-// bullet / ordered lists, and [link](url) tokens. WordPress has no
-// built-in JS markdown parser and pulling in a library just for this
-// would add ~40 kB, so we hand-roll a minimal subset that covers the
-// shapes the agent actually emits.
-//
-// Safety: every input passes through HTML escaping FIRST, then markdown
-// tokens are re-interpreted into safe HTML. URLs are filtered to
-// http/https only — no javascript:, data:, or vbscript: links reach
-// the DOM. Result is safe to set as innerHTML.
-//
-// Intentionally NOT supported (to keep it minimal):
-//   - fenced code blocks (```)
-//   - headings (# ## ###)
-//   - tables, blockquotes, images, nested lists
-//
-// If the agent produces any of those they'll appear as literal text —
-// harmless. The system prompt steers toward short, conversational
-// responses where these don't typically appear.
-
-/** HTML-escape text for safe interpolation into innerHTML contexts. */
-function escapeHtmlForMd( s: string ): string {
-	return s
-		.replace( /&/g, '&amp;' )
-		.replace( /</g, '&lt;' )
-		.replace( />/g, '&gt;' )
-		.replace( /"/g, '&quot;' );
-}
-
-/** Apply inline markdown tokens to an already-escaped string. */
-function renderInlineMd( s: string ): string {
-	return s
-		// Links [text](url) — must run first so URLs don't get
-		// interpreted as other tokens. Reject non-http(s) schemes.
-		.replace(
-			/\[([^\]]+)\]\(([^)]+)\)/g,
-			( _m, label: string, url: string ) => {
-				if ( ! /^https?:\/\//i.test( url.trim() ) ) {
-					return label;
-				}
-				return `<a href="${ url.trim() }" target="_blank" rel="noopener noreferrer">${ label }</a>`;
-			},
-		)
-		// Bold **text** — run before italic so ** doesn't partially match *.
-		.replace( /\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>' )
-		// Italic *text* (single asterisk, word-boundary guarded).
-		.replace( /(?<![*\w])\*([^*\n]+?)\*(?![*\w])/g, '<em>$1</em>' )
-		// Italic _text_.
-		.replace( /(?<![_\w])_([^_\n]+?)_(?![_\w])/g, '<em>$1</em>' )
-		// Inline code `snippet`.
-		.replace( /`([^`\n]+?)`/g, '<code>$1</code>' );
-}
-
-/**
- * Render a short markdown string to safe HTML.
- *
- * @param md Raw markdown-ish text (typically an AI response).
- * @return HTML string, safe to set via innerHTML.
- */
-function renderMarkdown( md: string ): string {
-	if ( ! md ) {
-		return '';
-	}
-
-	// Escape first so user / model text can't inject markup.
-	const safe = escapeHtmlForMd( md );
-
-	// Split into paragraph blocks on blank lines.
-	const blocks = safe.split( /\n\s*\n/ );
-	const out: string[] = [];
-
-	for ( const raw of blocks ) {
-		const lines = raw.split( /\n/ ).map( ( l ) => l.trim() ).filter( ( l ) => l !== '' );
-		if ( lines.length === 0 ) {
-			continue;
-		}
-
-		const isUL = lines.every( ( l ) => /^[-*]\s+/.test( l ) );
-		const isOL = lines.every( ( l ) => /^\d+\.\s+/.test( l ) );
-
-		if ( isUL ) {
-			const items = lines.map(
-				( l ) => `<li>${ renderInlineMd( l.replace( /^[-*]\s+/, '' ) ) }</li>`,
-			);
-			out.push( `<ul>${ items.join( '' ) }</ul>` );
-		} else if ( isOL ) {
-			const items = lines.map(
-				( l ) => `<li>${ renderInlineMd( l.replace( /^\d+\.\s+/, '' ) ) }</li>`,
-			);
-			out.push( `<ol>${ items.join( '' ) }</ol>` );
-		} else {
-			// Paragraph. Single \n inside a paragraph becomes <br>.
-			out.push( `<p>${ renderInlineMd( lines.join( '<br>' ) ) }</p>` );
-		}
-	}
-
-	return out.join( '' );
-}
 
 // ---------------------------------------------------------------------------
 // SVG icons
@@ -163,6 +60,17 @@ const ICON_ARROW = `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden=
 	<polyline points="6,3 11,8 6,13"/>
 </svg>`;
 
+// Magnifier shown in Commands mode where the sparkle would read as "AI".
+const ICON_SEARCH = `<svg viewBox="0 0 20 20" width="15" height="15" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+	<circle cx="9" cy="9" r="6"/>
+	<line x1="13.5" y1="13.5" x2="18" y2="18"/>
+</svg>`;
+
+// `siteLogo` from @wordpress/icons — the modal's title glyph.
+const ICON_SITE_LOGO = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true" focusable="false">
+	<path d="M12 4c-4.4 0-8 3.6-8 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8Zm0 1.5c3.4 0 6.2 2.7 6.5 6l-1.2-.6-.8-.4c-.1 0-.2 0-.3-.1H16c-.1-.2-.4-.2-.7 0l-2.9 2.1L9 11.3h-.7L5.5 13v-1.1c0-3.6 2.9-6.5 6.5-6.5Zm0 13c-2.7 0-5-1.7-6-4l2.8-1.7 3.5 1.2h.4s.2 0 .4-.2l2.9-2.1.4.2c.6.3 1.4.7 2.1 1.1-.5 3.1-3.2 5.4-6.4 5.4Z"/>
+</svg>`;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -170,6 +78,7 @@ const ICON_ARROW = `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden=
 export type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AiAssistantApi, AiAssistantConfig } from './types';
 import type { AskFn } from '../ai/ask';
+import { renderMarkdown } from '../markdown';
 
 type AnswerType = 'entity' | 'navigation' | 'chat';
 
@@ -261,6 +170,7 @@ export class AiAssistant implements AiAssistantApi {
 	private _aiSearchUrl: string;
 	private _aiSearchStreamUrl: string;
 	private _restNonce: string;
+	private _adminUrl: string;
 	private _currentStream: EventSource | null = null;
 	/**
 	 * Reads the user's preferred live-progress transport from OS Settings.
@@ -268,6 +178,28 @@ export class AiAssistant implements AiAssistantApi {
 	 * conservative choice for hosts that may block SSE.
 	 */
 	private _getTransport: () => 'sse' | 'off';
+
+	/** Live: is AI mode usable (APIs present + provider configured)? */
+	private _isAiAvailable: () => boolean;
+	/** Live: is the "Override…" toggle on (default to AI mode)? */
+	private _isOverrideEnabled: () => boolean;
+	/**
+	 * Current surface. `commands` = a command palette (always available);
+	 * `ai` = natural-language questions (only when AI is available).
+	 */
+	private _mode: 'commands' | 'ai' = 'commands';
+	/** Per-mode input drafts so switching modes preserves each mode's text. */
+	private _modeInput: { commands: string; ai: string } = {
+		commands: '',
+		ai: '',
+	};
+	/**
+	 * The last AI answer, kept so returning to Ask AI mode re-shows it
+	 * (switching to Commands replaces the results DOM).
+	 */
+	private _lastAiResult: { query: string; data: SearchResult } | null = null;
+	private _currentRemoteCommands: DesktopCommand[] = [];
+	private _remoteSearchToken = 0;
 
 	/** Index of the highlighted command in the filtered list (keyboard nav). */
 	private _selectedCommand = 0;
@@ -291,7 +223,10 @@ export class AiAssistant implements AiAssistantApi {
 		this._aiSearchUrl = config.aiSearchUrl;
 		this._aiSearchStreamUrl = config.aiSearchStreamUrl;
 		this._restNonce = config.restNonce;
+		this._adminUrl = config.adminUrl;
 		this._getTransport = config.getTransport ?? ( () => 'off' );
+		this._isAiAvailable = config.isAiAvailable ?? ( () => false );
+		this._isOverrideEnabled = config.isOverrideEnabled ?? ( () => false );
 
 		this._el = this._buildDOM();
 		document.body.appendChild( this._el );
@@ -313,15 +248,12 @@ export class AiAssistant implements AiAssistantApi {
 			if ( ! this._isOpen ) {
 				return;
 			}
-			// Refresh when in slash-command mode, or when the input is
-			// empty and we're showing eager commands — harvested
-			// commands arrive asynchronously after panel open, so the
-			// empty-input view has to react to registry changes too.
-			if ( this._input.value.startsWith( '/' ) ) {
-				this._renderCommandMode();
-			} else if ( this._input.value === '' && listEagerCommands().length > 0 ) {
-				this._renderCommandMode();
-			}
+			// Harvested commands (Gutenberg block actions, plugin commands)
+			// arrive asynchronously after the panel opens; refresh the
+			// current surface so they appear live. `_renderForMode` is a
+			// no-op while the user is typing an AI question, so it won't
+			// clobber in-progress results.
+			this._renderForMode();
 		} );
 	}
 
@@ -342,22 +274,20 @@ export class AiAssistant implements AiAssistantApi {
 		// every open feels like a fresh conversation — no stale query,
 		// no leftover command highlight.
 		this._input.value = '';
+		this._modeInput = { commands: '', ai: '' };
+		this._lastAiResult = null;
+		this._currentRemoteCommands = [];
+		this._remoteSearchToken++;
 		this._selectedCommand = 0;
 		this._submitBtn.classList.remove( 'has-value' );
-		// Empty input on open: surface the *contextual* commands
-		// (Gutenberg's Duplicate / Add before / pattern actions,
-		// editor toggles harvested from the focused iframe). Those
-		// are what the user is most likely reaching for in the
-		// current context. If nothing contextual is available
-		// (native window focused, or no iframe at all), fall back
-		// to the AI suggestions surface so plain typing submits to
-		// the AI. The shell baseline ("Go to: Posts" etc.) is
-		// intentionally NOT here — it's reachable via `/<query>`.
-		if ( listEagerCommands().length > 0 ) {
-			this._renderCommandMode();
-		} else {
-			this._renderSuggestions();
-		}
+		// Open in the mode the "Override…" toggle asks for: AI when it's
+		// on (and a provider is configured), else the Commands palette.
+		// Commands mode on empty input lists every command (contextual
+		// ones from the focused iframe pinned first); AI mode pins those
+		// contextual commands then invites a question.
+		this._mode = this._defaultMode();
+		this._updateModeUI();
+		this._renderForMode();
 
 		this._el.removeAttribute( 'hidden' );
 		void this._el.offsetHeight;
@@ -410,8 +340,6 @@ export class AiAssistant implements AiAssistantApi {
 	 * Programmatic Copilot entry point. Injected by `desktop.ts` via
 	 * {@link attachAsk} after the shell config is ready so plugins
 	 * can `wp.desktop.ai.ask( '…' )` without poking the DOM.
-	 *
-	 * @since 0.17.0
 	 */
 	public ask: AskFn = () => {
 		throw new Error(
@@ -422,6 +350,163 @@ export class AiAssistant implements AiAssistantApi {
 	/** Late-binding helper used by `desktop.ts`. Not part of the public API. */
 	public attachAsk( fn: AskFn ): void {
 		this.ask = fn;
+	}
+
+	// ------------------------------------------------------------------
+	// Modes — Commands (always) + AI (when a provider is configured)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Is AI mode available at all? Gated on the "Override…" toggle *and* a
+	 * configured provider. When off, the assistant is a plain command
+	 * palette — no AI, no mode switch.
+	 */
+	private _aiModeAllowed(): boolean {
+		return this._isAiAvailable() && this._isOverrideEnabled();
+	}
+
+	/** The mode ⌘K opens in: AI when the override toggle is on, else Commands. */
+	private _defaultMode(): 'commands' | 'ai' {
+		return this._aiModeAllowed() ? 'ai' : 'commands';
+	}
+
+	/** Switch mode, repaint the toggle + list, and refocus the input. */
+	private _setMode( mode: 'commands' | 'ai' ): void {
+		const next = mode === 'ai' && ! this._aiModeAllowed() ? 'commands' : mode;
+		if ( next !== this._mode ) {
+			// Each mode keeps its own draft: stash the current one, restore
+			// the target's (e.g. an AI question survives a detour into
+			// Commands and back).
+			this._modeInput[ this._mode ] = this._input.value;
+			this._mode = next;
+			this._input.value = this._modeInput[ next ];
+			this._submitBtn.classList.toggle(
+				'has-value',
+				this._input.value.trim().length > 0,
+			);
+		}
+		this._selectedCommand = 0;
+		this._selectedSuggestion = 0;
+		this._updateModeUI();
+		// Returning to Ask AI with the same question re-shows its answer;
+		// otherwise paint the mode's normal surface.
+		if (
+			this._mode === 'ai' &&
+			this._lastAiResult &&
+			this._lastAiResult.query === this._input.value.trim()
+		) {
+			this._showResult( this._lastAiResult.query, this._lastAiResult.data );
+		} else {
+			this._renderForMode();
+		}
+		this._input.focus();
+	}
+
+	/** Reflect the active mode on the switch + input placeholder + input icon. */
+	private _updateModeUI(): void {
+		const showSwitch = this._aiModeAllowed();
+		const sw = this._el.querySelector< HTMLElement >( '.desktop-mode-ai__modes' );
+		if ( sw ) {
+			sw.hidden = ! showSwitch;
+			sw.querySelectorAll< HTMLButtonElement >( '[data-mode]' ).forEach( ( b ) => {
+				const active = b.dataset.mode === this._mode;
+				b.classList.toggle( 'is-active', active );
+				b.setAttribute( 'aria-pressed', String( active ) );
+			} );
+		}
+		this._input.placeholder =
+			this._mode === 'ai' ? 'How can I help?' : 'Search commands…';
+		// The input glyph hints the mode: sparkle for AI, magnifier for
+		// Commands (where a sparkle would read as "AI").
+		const inputIcon = this._el.querySelector< HTMLElement >(
+			'.desktop-mode-ai__input-icon',
+		);
+		if ( inputIcon ) {
+			inputIcon.innerHTML = this._mode === 'ai' ? ICON_SPARKLE : ICON_SEARCH;
+		}
+	}
+
+	/**
+	 * Are we showing the command list (so keyboard arrows drive it)?
+	 * True for `/slug` (any mode), for all plain input in Commands mode,
+	 * and for empty input with contextual commands in AI mode.
+	 */
+	private _isPickMode( parsed: ReturnType< typeof parseCommandInput > ): boolean {
+		if ( parsed.isCommand && parsed.hasArgsPart ) {
+			return false; // args mode
+		}
+		if ( parsed.isCommand ) {
+			return true; // /slug picker
+		}
+		if ( this._mode === 'commands' ) {
+			return true; // Commands mode filters the registry live
+		}
+		return this._input.value === '' && listEagerCommands().length > 0;
+	}
+
+	/** The command list for the current input + mode. */
+	private _commandMatches(): DesktopCommand[] {
+		const parsed = parseCommandInput( this._input.value );
+		if ( parsed.isCommand ) {
+			return this._sortCommands(
+				filterCommands( parsed.slug ).filter( ( c ) => c.eager !== true ),
+			);
+		}
+		if ( this._mode === 'ai' ) {
+			return this._sortCommands( listEagerCommands() );
+		}
+		const q = this._input.value.trim();
+		const local = this._sortCommands( q === '' ? listCommands() : filterCommands( q ) );
+		return [ ...local, ...this._currentRemoteCommands ];
+	}
+
+	/** Run a picked command, or lock it in for args when it takes them. */
+	private _pickCommand( cmd: DesktopCommand ): void {
+		if ( typeof cmd.suggest === 'function' ) {
+			this._input.value = `/${ cmd.slug } `;
+			this._submitBtn.classList.add( 'has-value' );
+			this._input.focus();
+			this._renderCommandMode();
+			return;
+		}
+		void this._runCommand( cmd, '' );
+	}
+
+	/** Paint the right surface for the current mode + input state. */
+	private _renderForMode(): void {
+		const parsed = parseCommandInput( this._input.value );
+		if ( parsed.isCommand || this._mode === 'commands' ) {
+			this._renderCommandMode();
+			return;
+		}
+		// AI mode. Contextual commands (Gutenberg block actions, etc.) are a
+		// persistent convenience here — pinned on empty input, and kept
+		// visible while composing a question (typing shouldn't dismiss them).
+		const hasEager = listEagerCommands().length > 0;
+		if ( this._input.value.trim() === '' ) {
+			if ( hasEager ) {
+				this._renderCommandMode();
+			} else {
+				this._renderSuggestions();
+			}
+			return;
+		}
+		// A shown AI answer stays put for follow-up edits.
+		if ( this._resultsEl.querySelector( '.desktop-mode-ai__bubble' ) ) {
+			return;
+		}
+		if ( hasEager ) {
+			this._renderCommandMode();
+		} else {
+			// No pinned commands and no answer — clear a stale suggestions hint.
+			const showingSuggestions = this._resultsEl.querySelector(
+				'.desktop-mode-ai__suggestions',
+			);
+			if ( showingSuggestions ) {
+				this._resultsEl.innerHTML = '';
+				this._resultsEl.hidden = true;
+			}
+		}
 	}
 
 	// ------------------------------------------------------------------
@@ -440,6 +525,20 @@ export class AiAssistant implements AiAssistantApi {
 		this._el.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
 			if ( e.key === 'Escape' ) {
 				e.stopPropagation();
+				this.close();
+			}
+		} );
+
+		// Click outside the panel closes. The backdrop is pointer-events:none,
+		// so clicks in the dimmed area land on the overlay container (_el);
+		// anything inside the panel is ignored. mousedown (not click) so a
+		// text selection that starts in the panel and drags out doesn't close.
+		this._el.addEventListener( 'mousedown', ( e: MouseEvent ) => {
+			const target = e.target;
+			if (
+				! ( target instanceof Element ) ||
+				! target.closest( '.desktop-mode-ai__panel' )
+			) {
 				this.close();
 			}
 		} );
@@ -473,6 +572,17 @@ export class AiAssistant implements AiAssistantApi {
 		// Close button.
 		this._closeBtn.addEventListener( 'click', () => this.close() );
 
+		// Mode switch (Commands ↔ AI) — replaces the `/` shortcut.
+		this._el
+			.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__mode' )
+			.forEach( ( b ) => {
+				b.addEventListener( 'click', () =>
+					this._setMode(
+						b.dataset.mode === 'ai' ? 'ai' : 'commands',
+					),
+				);
+			} );
+
 		// Submit.
 		this._submitBtn.addEventListener( 'click', () => this._onSubmit() );
 
@@ -485,18 +595,12 @@ export class AiAssistant implements AiAssistantApi {
 			const parsed = parseCommandInput( this._input.value );
 
 			// -----------------------------------------------------------
-			// PICK MODE — user is typing a slug after "/", OR the input
-			// is empty and we're showing the full contextual command
-			// list eagerly (so the user never has to type `/` just to
-			// see what's available).
+			// PICK MODE — the command list is showing (Commands mode, a
+			// `/slug` picker in either mode, or AI mode's pinned contextual
+			// commands on empty input). Arrows/Enter drive that list.
 			// -----------------------------------------------------------
-			const eagerPicking = parsed.isCommand === false && this._input.value === '' && listEagerCommands().length > 0;
-			if ( ( parsed.isCommand && ! parsed.hasArgsPart ) || eagerPicking ) {
-				const matches = this._sortCommands(
-					eagerPicking
-						? listEagerCommands()
-						: filterCommands( parsed.slug ).filter( ( c ) => c.eager !== true ),
-				);
+			if ( this._isPickMode( parsed ) ) {
+				const matches = this._commandMatches();
 				if ( e.key === 'ArrowDown' ) {
 					e.preventDefault();
 					this._selectedCommand = Math.min(
@@ -514,7 +618,7 @@ export class AiAssistant implements AiAssistantApi {
 					this._paintCommandSelection();
 					return;
 				}
-				if ( e.key === 'Tab' && matches.length > 0 && ! eagerPicking ) {
+				if ( e.key === 'Tab' && matches.length > 0 && parsed.isCommand ) {
 					e.preventDefault();
 					const pick = matches[ this._selectedCommand ] ?? matches[ 0 ];
 					this._input.value = `/${ pick.slug } `;
@@ -526,11 +630,14 @@ export class AiAssistant implements AiAssistantApi {
 				if ( e.key === 'Enter' && ! e.shiftKey ) {
 					e.preventDefault();
 					if ( matches.length === 0 ) {
-						this._showError( `Unknown command: /${ parsed.slug }` );
+						if ( parsed.isCommand ) {
+							this._showError( `Unknown command: /${ parsed.slug }` );
+						}
+						// Commands mode with no match: nothing to run.
 						return;
 					}
 					const pick = matches[ this._selectedCommand ] ?? matches[ 0 ];
-					this._runCommand( pick, '' );
+					this._pickCommand( pick );
 					return;
 				}
 			}
@@ -599,20 +706,19 @@ export class AiAssistant implements AiAssistantApi {
 			this._selectedCommand = 0;
 			this._selectedSuggestion = 0;
 
-			if ( this._input.value.startsWith( '/' ) ) {
-				this._renderCommandMode();
-			} else if ( ! hasValue ) {
-				// Empty input: eager (contextual) commands if any are
-				// registered, otherwise the AI suggestions surface.
-				if ( listEagerCommands().length > 0 ) {
-					this._renderCommandMode();
-				} else {
-					this._renderSuggestions();
-				}
+			const parsed = parseCommandInput( this._input.value );
+			const q = this._input.value.trim();
+
+			if ( ! parsed.isCommand && this._mode === 'commands' && q.length > 0 ) {
+				void this._fetchRemoteCommands( q );
 			} else {
-				// User is typing a regular AI query and had results from
-				// a prior run; leave them visible so they can keep editing.
+				this._currentRemoteCommands = [];
+				this._remoteSearchToken++;
 			}
+
+			// Commands mode filters the registry live; AI mode keeps prior
+			// results while typing a question (see `_renderForMode`).
+			this._renderForMode();
 		} );
 
 		// Reset the keyboard-nav guard on any real pointer movement.
@@ -636,16 +742,28 @@ export class AiAssistant implements AiAssistantApi {
 	// ------------------------------------------------------------------
 
 	private async _onSubmit(): Promise<void> {
-		const raw = this._input.value.trim();
-		if ( ! raw || this._isSearching ) {
+		if ( this._isSearching ) {
+			return;
+		}
+		const parsed = parseCommandInput( this._input.value );
+
+		// Command list showing (Commands mode, a `/slug` picker, or AI
+		// mode's pinned contextual commands): run the highlighted command.
+		if ( this._isPickMode( parsed ) ) {
+			const matches = this._commandMatches();
+			const pick = matches[ this._selectedCommand ] ?? matches[ 0 ];
+			if ( pick ) {
+				this._pickCommand( pick );
+			}
 			return;
 		}
 
-		// Slash-command dispatch. Anything starting with `/` is treated
-		// as a plugin-contributed command — we look up the slug and
-		// invoke its handler. Non-command input falls through to the
-		// AI search path as before.
-		const parsed = parseCommandInput( this._input.value );
+		const raw = this._input.value.trim();
+		if ( ! raw ) {
+			return;
+		}
+
+		// `/slug args` — dispatch the locked-in command.
 		if ( parsed.isCommand ) {
 			const cmd = findCommand( parsed.slug );
 			if ( ! cmd ) {
@@ -656,6 +774,7 @@ export class AiAssistant implements AiAssistantApi {
 			return;
 		}
 
+		// AI mode: a natural-language question.
 		await this._runSearch( raw, null, 0 );
 	}
 
@@ -762,9 +881,16 @@ export class AiAssistant implements AiAssistantApi {
 	 */
 	private _renderCommandResult( _cmd: DesktopCommand, result: CommandResult ): void {
 		if ( result === undefined || result === null ) {
-			// Silent success — clear any prior bubble.
-			this._resultsEl.innerHTML = '';
-			this._resultsEl.hidden = true;
+			// Silent success (a side-effect command). If it dismissed the
+			// palette (called ctx.close), just clear; if it left the palette
+			// open (e.g. "View site" opened a new tab), return to the live
+			// surface so the command list is usable again.
+			if ( this._isOpen ) {
+				this._renderForMode();
+			} else {
+				this._resultsEl.innerHTML = '';
+				this._resultsEl.hidden = true;
+			}
 			return;
 		}
 
@@ -961,6 +1087,73 @@ export class AiAssistant implements AiAssistantApi {
 		}
 	}
 
+	/**
+	 * Fetch posts/pages via `/wp/v2/search` and store as pickable
+	 * command items. 200 ms debounce + token-based staleness guard.
+	 * Only fires in Commands mode.
+	 */
+	private async _fetchRemoteCommands( query: string ): Promise<void> {
+		const token = ++this._remoteSearchToken;
+		try {
+			// Debounce typing
+			await new Promise( ( resolve ) => setTimeout( resolve, 200 ) );
+			if ( token !== this._remoteSearchToken ) {
+				return;
+			}
+
+			const res = await trackedFetch(
+				`/wp-json/wp/v2/search?search=${ encodeURIComponent( query ) }&subtype=post,page`,
+				{
+					headers: { 'X-WP-Nonce': this._restNonce },
+				},
+				{ silent: true },
+			);
+
+			if ( ! res.ok ) {
+				return;
+			}
+
+			const items = ( await res.json().catch( () => [] ) ) as Array<{
+				id: number;
+				title: string;
+				subtype: string;
+				url: string;
+			}>;
+
+			if ( token !== this._remoteSearchToken ) {
+				return;
+			}
+
+			this._currentRemoteCommands = items.map( ( item ) => {
+				const isPage = item.subtype === 'page';
+				const editUrl = new URL( 'post.php', this._adminUrl );
+				editUrl.searchParams.set( 'post', String( item.id ) );
+				editUrl.searchParams.set( 'action', 'edit' );
+				const href = editUrl.toString();
+				const title = decodeHTML( item.title || '(No title)' );
+				const icon = isPage ? 'dashicons-admin-page' : 'dashicons-admin-post';
+
+				return {
+					slug: `post-${ item.id }`,
+					label: title,
+					description: isPage ? 'Page' : 'Post',
+					icon,
+					eager: false,
+					run: ( _args, ctx ) => {
+						ctx.openInWindow( href, title, icon );
+					},
+				};
+			} );
+
+			// Re-render so new matches appear in Commands mode.
+			if ( this._isOpen ) {
+				this._renderForMode();
+			}
+		} catch ( err ) {
+			// Ignore network errors for background search
+		}
+	}
+
 	// ------------------------------------------------------------------
 	// Open helpers — everything opens as a legacy iframe window, not a
 	// new browser tab, so the admin experience stays inside the desktop.
@@ -974,17 +1167,17 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	/**
-	 * Open OS Settings on the AI tab so the user can enable AI in one
-	 * click from the "AI features are not enabled" error state. Closes
-	 * the assistant first so the settings window isn't hidden behind
+	 * Open OS Settings on the Features tab so the user can turn the
+	 * assistant on in one click from the "assistant is off" error state.
+	 * Closes the assistant first so the settings window isn't hidden behind
 	 * it, and drops the stored focus target so closing doesn't bounce
 	 * focus back to the launcher away from the settings window.
 	 */
-	private _openAiSettings(): void {
+	private _openAssistantSettings(): void {
 		const shell = this._getDesktopShell();
 		this._previousFocus = null;
 		this.close();
-		shell?.openOsSettings?.( { tabId: 'ai' } );
+		shell?.openOsSettings?.( { tabId: 'features' } );
 	}
 
 	private _openInLegacyWindow( url: string, title: string, icon?: string ): void {
@@ -995,14 +1188,13 @@ export class AiAssistant implements AiAssistantApi {
 			window.open( url, '_blank', 'noopener' );
 			return;
 		}
-		// `windowManager.open()` requires a non-empty `id`. Use the
-		// shell's own URL→id helper so the window we open coalesces
-		// with any existing window pointing at the same admin page
-		// (matches what clicking the dock would do). Fall back to a
-		// URL-derived synthetic id when the helper isn't exposed —
-		// older shells, or contrived test environments.
+		// `windowManager.open()` requires a non-empty `id`. Reuse the
+		// shell's URL→id helper so the window coalesces with any existing
+		// one for the same admin page, matching dock launches. Fall back
+		// to a URL-derived synthetic id when the helper isn't available —
+		// older shells and test doubles.
 		const id = shell.deriveWindowId
-			? shell.deriveWindowId( url )
+			? shell.deriveWindowId( url, this._adminUrl )
 			: 'desktop-mode-ai-' + url.replace( /[^a-z0-9]+/gi, '-' ).slice( 0, 80 );
 		shell.windowManager.open( {
 			id,
@@ -1039,26 +1231,18 @@ export class AiAssistant implements AiAssistantApi {
 			// Fall through to picking mode when the slug doesn't match.
 		}
 
-		// Picking mode splits the registry into two disjoint surfaces:
-		//   - Empty input: eager (contextual) commands only — Gutenberg
-		//     block actions, pattern shortcuts, editor toggles, etc.
-		//     The non-eager baseline ("Go to: Posts") is intentionally
-		//     hidden here so the empty palette stays a small,
-		//     context-relevant list.
-		//   - `/<query>`: slash-only commands (non-eager). Eager
-		//     commands are excluded here — the user has announced
-		//     "I'm looking for a tool to invoke" and mixing in
-		//     contextual actions is noise.
-		const eagerPicking = parsed.isCommand === false && this._input.value === '';
-		const filtered = eagerPicking
-			? listEagerCommands()
-			: filterCommands( parsed.slug ).filter( ( c ) => c.eager !== true );
-		const matches = this._sortCommands( filtered );
+		// Picking mode. The candidate set depends on mode + input
+		// (see `_commandMatches`): Commands mode lists the whole registry
+		// (contextual commands pinned first) and filters live; `/<query>`
+		// filters the slash-only baseline; AI mode pins only contextual
+		// commands on empty input.
+		const matches = this._commandMatches();
 
 		if ( matches.length === 0 ) {
+			const q = parsed.isCommand ? `/${ parsed.slug }` : this._input.value.trim();
 			this._resultsEl.innerHTML = `
 				<div class="desktop-mode-ai__state desktop-mode-ai__state--empty">
-					<span>No commands matching <strong>/${ this._esc( parsed.slug ) }</strong>.</span>
+					<span>No commands matching <strong>${ this._esc( q ) }</strong>.</span>
 				</div>
 			`;
 			return;
@@ -1069,13 +1253,20 @@ export class AiAssistant implements AiAssistantApi {
 			this._selectedCommand = 0;
 		}
 
+		// Only show the selection highlight when the list is keyboard-driven.
+		// In AI mode while typing a question the commands are still shown (a
+		// convenience) but Enter asks the AI, so a highlighted row would
+		// mislead.
+		const pickable = this._isPickMode( parsed );
+
 		const items = matches
 			.map( ( c, i ) => {
-				const selected = i === this._selectedCommand ? ' is-selected' : '';
+				const selected = pickable && i === this._selectedCommand ? ' is-selected' : '';
+				const isEntity = this._isEntityResultCommand( c );
 				return `
 					<button
 						type="button"
-						class="desktop-mode-ai__cmd-item${ selected }"
+						class="desktop-mode-ai__cmd-item${ selected }${ isEntity ? ' is-entity-result' : '' }"
 						data-slug="${ this._esc( c.slug ) }"
 						data-index="${ i }"
 					>
@@ -1096,25 +1287,38 @@ export class AiAssistant implements AiAssistantApi {
 			} )
 			.join( '' );
 
+		// The "Commands" heading is redundant with the "Command palette" title
+		// in Commands mode. Keep it only in AI mode — it labels the
+		// contextual (eager) commands section above the assistant input.
+		const heading =
+			this._mode === 'ai' && listEagerCommands().length > 0
+				? '<p class="desktop-mode-ai__suggestions-label">Suggested commands</p>'
+				: '';
 		this._resultsEl.innerHTML = `
 			<div class="desktop-mode-ai__cmd-list">
-				<p class="desktop-mode-ai__suggestions-label">Commands</p>
+				${ heading }
 				${ items }
 			</div>
 		`;
 
-		// Click handlers — clicking a row autocompletes and locks the
-		// command in, ready for args. If the command takes no args the
-		// user can just press Enter right after.
+		// Click handlers — clicking a row runs the command (or locks it in
+		// for args when it takes them), like a command palette.
+		// NOTE: `findCommand()` only searches the command registry, but
+		// remote entity-search results from `_fetchRemoteCommands` live
+		// in `_currentRemoteCommands` — they're NOT registered. We use
+		// `data-index` to look up from the fresh match list instead.
 		this._resultsEl
 			.querySelectorAll< HTMLButtonElement >( '.desktop-mode-ai__cmd-item' )
 			.forEach( ( btn ) => {
 				btn.addEventListener( 'click', () => {
-					const slug = btn.dataset.slug ?? '';
-					this._input.value = `/${ slug } `;
-					this._submitBtn.classList.add( 'has-value' );
-					this._input.focus();
-					this._renderCommandMode();
+					const idx = parseInt( btn.dataset.index ?? '', 10 );
+					if ( ! Number.isNaN( idx ) ) {
+						const clickMatches = this._commandMatches();
+						const cmd = clickMatches[ idx ];
+						if ( cmd ) {
+							this._pickCommand( cmd );
+						}
+					}
 				} );
 				btn.addEventListener( 'mouseenter', () => {
 					// Ignore `mouseenter` fired by the DOM landing under
@@ -1289,6 +1493,11 @@ export class AiAssistant implements AiAssistantApi {
 		} );
 	}
 
+	/** Identify remote entity-search results without tying styling to slug naming. */
+	private _isEntityResultCommand( cmd: DesktopCommand ): boolean {
+		return this._currentRemoteCommands.includes( cmd );
+	}
+
 	/**
 	 * Flip the is-selected class on the command rows without re-rendering
 	 * the whole list. Re-rendering caused two bad effects: (a) fresh DOM
@@ -1365,21 +1574,20 @@ export class AiAssistant implements AiAssistantApi {
 	private _showError( message: string, code?: string ): void {
 		this._resultsEl.hidden = false;
 
-		// The "AI not enabled" case is recoverable in one click, so we
-		// turn the "OS Settings → AI Settings" mention in the message
-		// into an inline link that opens OS Settings on the AI tab.
-		// Keyed on the server error code, not the wording, so the
-		// affordance survives copy tweaks; the regex spans whatever sits
-		// between the two anchors (arrow, spacing) and falls back to a
-		// trailing link if the phrase is absent.
+		// The "assistant is off" case is recoverable in one click, so we
+		// turn the "OS Settings → Features" mention in the message into an
+		// inline link that opens OS Settings on the Features tab. Keyed on
+		// the server error code, not the wording, so the affordance survives
+		// copy tweaks; the regex spans whatever sits between the two anchors
+		// (arrow, spacing) and falls back to a trailing link if absent.
 		if ( code === 'desktop_mode_ai_disabled' ) {
 			const escaped = this._esc( message );
 			const linkify = ( text: string ) =>
 				`<button type="button" class="desktop-mode-ai__settings-link">${ text }</button>`;
-			const phrase = /OS Settings.*?AI Settings/;
+			const phrase = /OS Settings.*?Features/;
 			const withLink = phrase.test( escaped )
 				? escaped.replace( phrase, ( match ) => linkify( match ) )
-				: `${ escaped } ${ linkify( 'AI Settings' ) }`;
+				: `${ escaped } ${ linkify( 'Features' ) }`;
 			this._resultsEl.innerHTML = `
 				<div class="desktop-mode-ai__state desktop-mode-ai__state--error">
 					<span>${ withLink }</span>
@@ -1387,7 +1595,7 @@ export class AiAssistant implements AiAssistantApi {
 			`;
 			this._resultsEl
 				.querySelector< HTMLButtonElement >( '.desktop-mode-ai__settings-link' )
-				?.addEventListener( 'click', () => this._openAiSettings() );
+				?.addEventListener( 'click', () => this._openAssistantSettings() );
 			return;
 		}
 
@@ -1399,6 +1607,11 @@ export class AiAssistant implements AiAssistantApi {
 	}
 
 	private _showResult( query: string, data: SearchResult ): void {
+		// Remember AI answers (command results pass an empty query) so
+		// returning to Ask AI mode can re-show them.
+		if ( query !== '' ) {
+			this._lastAiResult = { query, data };
+		}
 		this._resultsEl.hidden = false;
 
 		// Assistant-styled message bubble appears at the top of every
@@ -1549,7 +1762,7 @@ export class AiAssistant implements AiAssistantApi {
 		el.className = 'desktop-mode-ai';
 		el.setAttribute( 'role', 'dialog' );
 		el.setAttribute( 'aria-modal', 'true' );
-		el.setAttribute( 'aria-label', 'AI Assistant' );
+		el.setAttribute( 'aria-label', 'Site Assistant' );
 		el.setAttribute( 'aria-hidden', 'true' );
 		el.setAttribute( 'hidden', '' );
 
@@ -1557,8 +1770,12 @@ export class AiAssistant implements AiAssistantApi {
 			<div class="desktop-mode-ai__backdrop" aria-hidden="true"></div>
 			<div class="desktop-mode-ai__panel">
 				<div class="desktop-mode-ai__header">
-					<span class="desktop-mode-ai__header-icon">${ ICON_SPARKLE }</span>
-					<span class="desktop-mode-ai__header-label">AI Assistant</span>
+					<span class="desktop-mode-ai__header-icon">${ ICON_SITE_LOGO }</span>
+					<span class="desktop-mode-ai__header-label">Site Assistant</span>
+					<div class="desktop-mode-ai__modes" role="group" aria-label="Assistant mode" hidden>
+						<button type="button" class="desktop-mode-ai__mode" data-mode="ai" aria-pressed="false">Ask AI</button>
+						<button type="button" class="desktop-mode-ai__mode" data-mode="commands" aria-pressed="false">Commands</button>
+					</div>
 					<button type="button" class="desktop-mode-ai__close" aria-label="Close">
 						${ ICON_CLOSE }
 					</button>
@@ -1571,7 +1788,7 @@ export class AiAssistant implements AiAssistantApi {
 						placeholder="How can I help?"
 						autocomplete="off"
 						spellcheck="false"
-						aria-label="Ask the AI assistant"
+						aria-label="Ask the assistant"
 					/>
 					<button type="button" class="desktop-mode-ai__submit" aria-label="Send">
 						${ ICON_RETURN }
@@ -1580,10 +1797,7 @@ export class AiAssistant implements AiAssistantApi {
 				<div class="desktop-mode-ai__results" hidden></div>
 				<div class="desktop-mode-ai__footer">
 					<span class="desktop-mode-ai__footer-hint">
-						Your assistant for finding content and navigating wp-admin
-					</span>
-					<span class="desktop-mode-ai__footer-keys" aria-hidden="true">
-						<kbd>&#8629;</kbd> ask
+						Your assistant to quickly navigate and manage your entire site.
 					</span>
 				</div>
 			</div>

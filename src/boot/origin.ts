@@ -13,8 +13,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 export const INITIAL_ORIGIN: string = window.location.origin;

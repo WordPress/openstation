@@ -9,8 +9,6 @@
  * falls back to "no persistence" silently. Widgets that truly
  * require persistence can wire their own defensive re-read after
  * set, but most shouldn't need to.
- *
- * @since 0.10.0
  */
 
 import type { WidgetStorage } from './types';

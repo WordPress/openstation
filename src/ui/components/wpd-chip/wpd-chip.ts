@@ -23,7 +23,6 @@
  * affordances, animations are all consumer-driven).
  *
  * @public
- * @since 0.8.0
  */
 
 import { Component, defineComponent, html } from '../../core';

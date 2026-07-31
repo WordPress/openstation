@@ -13,14 +13,16 @@
  *   1. Fetch the page HTML via `wp_safe_remote_get()` — the `_safe_`
  *      flavour blocks loopback / private-IP fetches, which prevents
  *      this user-supplied-URL endpoint from doubling as an SSRF
- *      pivot.
+ *      pivot. The download is capped via `limit_response_size` so
+ *      a hostile host can't stream an unbounded body into memory.
  *   2. Parse the response with `DOMDocument` (libxml errors silenced
  *      because real-world HTML is gnarly). Walk for the first
  *      `<link rel="icon|shortcut icon|apple-touch-icon" href="…">`
  *      and resolve the href against the page URL.
  *   3. Fall back to `<scheme>://<host>/favicon.ico` when no link tag
  *      is present.
- *   4. Fetch the candidate icon via `wp_safe_remote_get()`. Reject
+ *   4. Fetch the candidate icon via `wp_safe_remote_get()`, with
+ *      the download truncated at one byte over the size cap. Reject
  *      anything that isn't `image/*`, anything bigger than the
  *      configured size cap, and anything `getimagesizefromstring()`
  *      can't recognize (catches HTML pages whose servers lie about
@@ -35,7 +37,6 @@
  * a synthetic data URI to override).
  *
  * @package WPDesktopMode
- * @since   0.20.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -49,6 +50,14 @@ defined( 'ABSPATH' ) || exit;
 const DESKTOP_MODE_FAVICON_MAX_BYTES = 256 * 1024;
 
 /**
+ * Maximum page-HTML download size, in bytes, for the step-1 page
+ * fetch. The `<link rel="icon">` tags live in `<head>`, so 1 MB
+ * is plenty; the cap stops a malicious or sloppy host from
+ * streaming an unbounded body into memory before the parser runs.
+ */
+const DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES = 1024 * 1024;
+
+/**
  * Per-request HTTP timeout, in seconds. Two fetches happen worst-
  * case (page + icon) so the user-visible wait caps around 2× this
  * value. Tune downward if QA finds the dialog "Create" button
@@ -58,8 +67,6 @@ const DESKTOP_MODE_FAVICON_TIMEOUT = 4;
 
 /**
  * Resolve a page URL to a base64 data URI of its favicon.
- *
- * @since 0.20.0
  *
  * @param string $page_url HTTP(S) URL of the target page.
  * @return string|null Data URI on success; `null` on any failure.
@@ -71,8 +78,6 @@ function desktop_mode_resolve_favicon( $page_url ) {
 	 * Filters the favicon data URI before it is returned to the
 	 * caller. Plugins can override (return a synthetic data URI),
 	 * suppress (return `null`), or pass through.
-	 *
-	 * @since 0.20.0
 	 *
 	 * @param string|null $result   Base64 data URI, or `null` if
 	 *                              the resolver could not produce one.
@@ -93,7 +98,6 @@ function desktop_mode_resolve_favicon( $page_url ) {
  * `desktop_mode_resolve_favicon` filter runs (a plugin can't sneak
  * its filter past the validation by hooking the internal helper).
  *
- * @since 0.20.0
  * @internal
  *
  * @param string $page_url Page URL.
@@ -109,7 +113,7 @@ function desktop_mode_resolve_favicon_internal( $page_url ) {
 		return null;
 	}
 
-	$page_response = wp_safe_remote_get( $page_url, desktop_mode_favicon_request_args() );
+	$page_response = wp_safe_remote_get( $page_url, desktop_mode_favicon_request_args( DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES ) );
 	$page_body     = '';
 	if ( ! is_wp_error( $page_response ) && 200 === (int) wp_remote_retrieve_response_code( $page_response ) ) {
 		$page_body = (string) wp_remote_retrieve_body( $page_response );
@@ -128,17 +132,28 @@ function desktop_mode_resolve_favicon_internal( $page_url ) {
 /**
  * Common request args for both the page fetch and the icon fetch.
  *
- * @since 0.20.0
+ * `limit_response_size` makes WP_Http stop reading at the cap, so
+ * an oversize (or maliciously unbounded) body is truncated during
+ * the download instead of being buffered whole into memory before
+ * the size check runs.
+ *
  * @internal
  *
+ * @param int $limit_response_size Maximum response body size, in
+ *                                 bytes, enforced by WP_Http while
+ *                                 downloading. Default one byte over
+ *                                 `DESKTOP_MODE_FAVICON_MAX_BYTES`,
+ *                                 so the post-fetch size check still
+ *                                 rejects truncated over-cap bodies.
  * @return array
  */
-function desktop_mode_favicon_request_args() {
+function desktop_mode_favicon_request_args( $limit_response_size = DESKTOP_MODE_FAVICON_MAX_BYTES + 1 ) {
 	return array(
-		'timeout'     => DESKTOP_MODE_FAVICON_TIMEOUT,
-		'redirection' => 3,
-		'user-agent'  => 'WP Desktop Mode favicon resolver/1.0',
-		'headers'     => array(
+		'timeout'             => DESKTOP_MODE_FAVICON_TIMEOUT,
+		'redirection'         => 3,
+		'user-agent'          => 'WP Desktop Mode favicon resolver/1.0',
+		'limit_response_size' => (int) $limit_response_size,
+		'headers'             => array(
 			'Accept' => 'text/html,application/xhtml+xml,image/*;q=0.9,*/*;q=0.5',
 		),
 	);
@@ -150,7 +165,6 @@ function desktop_mode_favicon_request_args() {
  * `$base_url`. Returns the absolute icon URL, or `''` if none
  * found.
  *
- * @since 0.20.0
  * @internal
  *
  * @param string $html     Page body.
@@ -221,7 +235,6 @@ function desktop_mode_favicon_extract_link_href( $html, $base_url ) {
  * Resolve a possibly-relative `href` against `$base_url`. Returns
  * `''` if the result isn't an http(s) URL.
  *
- * @since 0.20.0
  * @internal
  *
  * @param string $href     Link href (absolute, scheme-relative, or path).
@@ -266,7 +279,6 @@ function desktop_mode_favicon_absolutize_url( $href, $base_url ) {
 /**
  * Fetch the candidate icon URL and encode it as a data URI.
  *
- * @since 0.20.0
  * @internal
  *
  * @param string $icon_url Absolute http(s) URL of the icon.
@@ -315,7 +327,6 @@ function desktop_mode_favicon_fetch_as_data_uri( $icon_url ) {
  * Map a `Content-Type` header to a known image subtype, or `null`
  * if the type isn't on the allowlist.
  *
- * @since 0.20.0
  * @internal
  *
  * @param string $content_type Lowercased `Content-Type` value

@@ -25,8 +25,6 @@
  * Origin trust: messages whose `e.origin !== window.location.origin`
  * are dropped. Same-origin admin scripts can still forge messages,
  * but the browser's same-origin boundary is the real defence.
- *
- * @since 0.22.0
  */
 
 // ---------------------------------------------------------------------
@@ -321,8 +319,6 @@ function isDropMsg( m: unknown ): m is DropMsg {
  * take effect mid-drag, the drop fires INSIDE the canvas iframe and
  * never reaches the parent's `onBridgeDrop`. This stash + native
  * handler is the iframe-side catch.
- *
- * @since 0.22.0
  */
 let stashedBridgePayload: DragBridgePayload | null = null;
 

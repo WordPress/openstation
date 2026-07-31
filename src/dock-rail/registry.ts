@@ -1,12 +1,10 @@
 /**
  * Desktop Mode — Dock rail renderer registry.
  *
- * Mirrors the submenu renderer registry pattern (`src/submenu/registry.ts`).
- * Same shape, same DX. The active id mirrors `state.dockRailRenderer`;
+ * Same shared-store registry shape/DX as `src/wallpapers/registry.ts`
+ * and `src/settings/registry.ts`. The active id mirrors `state.dockRailRenderer`;
  * the layout dispatcher reads {@link resolveActive} when it
  * (re)builds a rail.
- *
- * @since 0.18.0
  */
 
 import { createSharedStore } from '../shared-store';

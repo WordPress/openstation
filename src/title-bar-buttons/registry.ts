@@ -13,8 +13,6 @@
  * (see {@link Window.renderCustomTitleBarButtons}); registering or
  * unregistering after a window is open triggers a global refresh
  * via the subscriber list.
- *
- * @since 0.17.0
  */
 
 import { throwOnRegistrationErrors } from '../registration-errors';
@@ -157,8 +155,6 @@ const TITLE_BAR_BUTTON_ID = /^[a-z0-9_/-]+$/;
  * stay empty used to have to inspect a console warning to discover
  * the field they got wrong; an audible throw turns that into a
  * stack frame they read at registration time.
- *
- * @since 0.18.0  Throws on validation failure (was: returned `false`).
  *
  * @param  def Button definition.
  * @throws {RegistrationError} when `def` fails validation.

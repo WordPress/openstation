@@ -15,8 +15,6 @@
  * Phase 4 will add a real diff view here. v1 stays text-only — most
  * conflicts are "two tabs of the same editor"; offering reload /
  * overwrite covers them without the diff complexity.
- *
- * @since 0.18.0
  */
 
 export type ConflictChoice = 'reload' | 'overwrite' | 'cancel';

@@ -3,7 +3,7 @@
  * close.
  *
  * `core/detach` (Open in browser tab) and `core/reload` used to live
- * here but moved into the title-bar three-dots menu in 0.6.2 — those
+ * here but moved into the title-bar three-dots menu — those
  * actions are infrequent enough that they didn't earn permanent real
  * estate alongside minimize / maximize / close. The wiring lives in
  * `src/window/dom.ts` (menu-item construction) and
@@ -19,15 +19,13 @@
  * Built-ins do NOT carry an `owner` — server-sync's owner-bulk
  * teardown skips them, so a plugin deactivating can't accidentally
  * blow away the close button.
- *
- * @since 0.6.0
  */
 
 import { __ } from '../../i18n';
 import { registerWindowControl } from './registry';
 
 /**
- * Register the six built-in title-bar controls. Idempotent — calling
+ * Register the four built-in title-bar controls. Idempotent — calling
  * it twice replaces the entries with identical definitions.
  *
  * Called once by the shell during boot. Plugins should NOT call this;

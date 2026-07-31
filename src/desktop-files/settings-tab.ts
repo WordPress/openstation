@@ -7,8 +7,6 @@
  * `PUT /associations` REST endpoint and updates the JS-side
  * association map so subsequent `wp.desktop.files.open()` calls
  * pick up the new choice without a reload.
- *
- * @since 0.9.0
  */
 
 import { registerSettingsTab } from '../settings/registry';

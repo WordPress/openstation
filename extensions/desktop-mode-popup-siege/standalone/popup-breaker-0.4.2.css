@@ -1,0 +1,437 @@
+.siege-game.siege-game--control-deck-042 {
+	--siege-deck-042-cream: #fff0bc;
+	--siege-deck-042-mint: #86f4d2;
+	--siege-deck-042-amber: #ffdc62;
+}
+
+.siege-game.siege-game--control-deck-042 .siege-header {
+	display: block;
+	min-height: 120px;
+	padding: 0.5rem 0.75rem 0.65rem;
+	border: 0;
+	background:
+		linear-gradient(180deg, rgb(4 8 16 / 92%), rgb(8 14 27 / 86%)),
+		linear-gradient(90deg, transparent, rgb(79 103 139 / 12%), transparent);
+	box-shadow:
+		inset 0 -1px 0 rgb(119 146 182 / 18%),
+		0 8px 24px rgb(0 0 0 / 24%);
+}
+
+.siege-game.siege-game--control-deck-042 .siege-header__chassis {
+	position: relative;
+	display: grid;
+	grid-template-areas: "brand hud actions";
+	grid-template-columns: 270px minmax(0, 1fr) 230px;
+	gap: 0;
+	width: min(100%, 960px);
+	height: 102px;
+	margin-inline: auto;
+	padding: 8px;
+	border: 3px solid #080b0f;
+	background:
+		radial-gradient(circle at 12px 12px, #05080c 0 3px, #939a9f 3.5px 4.5px, transparent 5px),
+		radial-gradient(circle at calc(100% - 12px) 12px, #05080c 0 3px, #939a9f 3.5px 4.5px, transparent 5px),
+		radial-gradient(circle at 12px calc(100% - 12px), #05080c 0 3px, #939a9f 3.5px 4.5px, transparent 5px),
+		radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), #05080c 0 3px, #939a9f 3.5px 4.5px, transparent 5px),
+		linear-gradient(180deg, #778089 0 3px, #333b44 3px 100%);
+	box-shadow:
+		inset 0 0 0 2px #b8bdc1,
+		inset 0 0 0 5px #141a20,
+		inset 0 -6px 0 #0b0f14,
+		0 8px 18px rgb(0 0 0 / 38%);
+}
+
+.siege-game.siege-game--control-deck-042
+	.siege-header__chassis::after {
+	position: absolute;
+	bottom: -7px;
+	left: 50%;
+	width: 74px;
+	height: 7px;
+	border: 2px solid #090c11;
+	border-top: 0;
+	background: linear-gradient(90deg, #252d35, #59636c 50%, #252d35);
+	content: "";
+	transform: translateX(-50%);
+}
+
+.siege-game.siege-game--control-deck-042 .siege-brand,
+.siege-game.siege-game--control-deck-042 .siege-hud,
+.siege-game.siege-game--control-deck-042 .siege-actions {
+	height: 80px;
+	border: 0;
+	outline: 0;
+	box-shadow: none;
+}
+
+.siege-game.siege-game--control-deck-042 .siege-brand {
+	grid-area: brand;
+	gap: 0.38rem;
+	align-content: center;
+	padding: 0.58rem 0.82rem 0.5rem;
+	border-right: 3px solid #05080d;
+	background: #09162c;
+	box-shadow:
+		inset 0 0 0 2px #2c4260,
+		inset 0 -10px 20px rgb(0 0 0 / 18%);
+}
+
+.siege-game.siege-game--control-deck-042 .siege-brand::after {
+	display: none;
+}
+
+.siege-game.siege-game--control-deck-042 .siege-brand strong {
+	font-size: 2.35rem;
+	line-height: 0.86;
+	letter-spacing: 0.025em;
+	text-shadow:
+		2px 2px 0 #241c08,
+		0 0 9px rgb(255 218 90 / 14%);
+}
+
+.siege-game.siege-game--control-deck-042 .siege-brand__kicker {
+	gap: 0.4rem;
+	justify-content: center;
+	color: var(--siege-deck-042-cream);
+	font-size: 0.58rem;
+	letter-spacing: 0.08em;
+}
+
+.siege-game.siege-game--control-deck-042
+	.siege-brand__kicker::before,
+.siege-game.siege-game--control-deck-042
+	.siege-brand__kicker::after {
+	width: 1rem;
+	background: var(--siege-deck-042-amber);
+}
+
+.siege-game.siege-game--control-deck-042 .siege-hud {
+	grid-area: hud;
+	grid-template-columns: repeat(4, minmax(54px, 1fr));
+	padding: 5px;
+	border-right: 3px solid #05080d;
+	background: #06152a;
+	box-shadow:
+		inset 0 0 0 2px #223956,
+		inset 0 -12px 22px rgb(0 0 0 / 16%);
+}
+
+.siege-game.siege-game--control-deck-042 .siege-hud > span {
+	gap: 0.35rem;
+	align-content: center;
+	padding: 0.28rem 0.24rem;
+	border: 0;
+	border-right: 1px solid #213b5e;
+	background: linear-gradient(180deg, rgb(10 31 59 / 70%), rgb(5 19 38 / 50%));
+	box-shadow: none;
+}
+
+.siege-game.siege-game--control-deck-042 .siege-hud > span:last-child {
+	border-right: 0;
+}
+
+.siege-game.siege-game--control-deck-042 .siege-hud small {
+	color: var(--siege-deck-042-cream);
+	font-size: 0.57rem;
+	letter-spacing: 0.075em;
+	text-shadow: 1px 1px 0 #2d2304;
+}
+
+.siege-game.siege-game--control-deck-042 .siege-hud b {
+	color: var(--siege-deck-042-mint);
+	font-size: 1.25rem;
+	letter-spacing: 0.025em;
+	text-shadow:
+		0 0 8px rgb(93 255 211 / 28%),
+		1px 1px 0 #09271f;
+}
+
+.siege-game.siege-game--control-deck-042 .siege-actions {
+	grid-area: actions;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(44px, 1fr));
+	gap: 4px;
+	width: 100%;
+	padding: 4px;
+	background: #131a21;
+	box-shadow:
+		inset 0 0 0 2px #3c444b,
+		inset 0 -9px 18px rgb(0 0 0 / 18%);
+}
+
+.siege-game.siege-game--control-deck-042[data-phase="playing"]
+	.siege-actions,
+.siege-game.siege-game--control-deck-042[data-phase="paused"]
+	.siege-actions {
+	grid-template-columns: repeat(4, minmax(44px, 1fr));
+}
+
+.siege-game.siege-game--control-deck-042 .siege-actions button,
+.siege-game.siege-game--control-deck-042 [data-action="sound"],
+.siege-game.siege-game--control-deck-042 [data-action="effects"] {
+	width: auto;
+	min-width: 44px;
+	height: 72px;
+	min-height: 72px;
+	padding: 0.36rem 0.1rem 0.28rem;
+	border-width: 2px;
+	box-shadow:
+		inset 1px 1px 0 rgb(255 255 255 / 18%),
+		inset -1px -1px 0 rgb(0 0 0 / 38%),
+		0 2px 0 #05070a;
+}
+
+.siege-game.siege-game--control-deck-042
+	[data-action="sound"][aria-pressed="true"],
+.siege-game.siege-game--control-deck-042
+	[data-action="effects"][aria-pressed="true"] {
+	border-color: #779681;
+	border-right-color: #10261a;
+	border-bottom-color: #10261a;
+	background: linear-gradient(180deg, #315c43, #203e30);
+}
+
+.siege-game.siege-game--control-deck-042 [data-action="pause"] {
+	border-color: #b5a267;
+	border-right-color: #4a3a12;
+	border-bottom-color: #4a3a12;
+	background: linear-gradient(180deg, #7b642a, #57451d);
+}
+
+.siege-game.siege-game--control-deck-042
+	.siege-actions
+	[data-action="close"] {
+	border-color: #c88780;
+	border-right-color: #48120e;
+	border-bottom-color: #48120e;
+	background: linear-gradient(180deg, #8b3a32, #63251f);
+}
+
+.siege-game.siege-game--control-deck-042 .siege-actions button:hover {
+	filter: brightness(1.12);
+}
+
+@container popup-siege (max-width: 760px) {
+	.siege-game.siege-game--control-deck-042 .siege-header {
+		min-height: 130px;
+		padding: 0.38rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-header__chassis {
+		grid-template-areas:
+			"brand actions"
+			"hud hud";
+		grid-template-columns: minmax(126px, 1fr) 220px;
+		grid-template-rows: 54px 50px;
+		width: 100%;
+		height: 116px;
+		padding: 4px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand,
+	.siege-game.siege-game--control-deck-042 .siege-actions {
+		height: 54px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand {
+		padding: 0.35rem 0.58rem 0.3rem;
+		border-right-width: 3px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand strong {
+		font-size: 1.36rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand__kicker {
+		font-size: 0.45rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud {
+		height: 50px;
+		padding: 3px;
+		border-top: 3px solid #05080d;
+		border-right: 0;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud > span {
+		gap: 0.12rem;
+		padding: 0.12rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud small {
+		font-size: 0.46rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud b {
+		font-size: 0.8rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-actions {
+		gap: 3px;
+		padding: 3px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-actions button,
+	.siege-game.siege-game--control-deck-042 [data-action="sound"],
+	.siege-game.siege-game--control-deck-042 [data-action="effects"] {
+		height: 48px;
+		min-height: 48px;
+		padding: 0.2rem 0.08rem 0.16rem;
+	}
+}
+
+@container popup-siege (max-height: 650px) {
+	.siege-game.siege-game--control-deck-042 .siege-header {
+		min-height: 64px;
+		padding: 0.25rem 0.5rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-header__chassis {
+		grid-template-areas: "brand hud actions";
+		grid-template-columns:
+			minmax(150px, 0.76fr)
+			minmax(230px, 1.2fr)
+			204px;
+		grid-template-rows: 48px;
+		width: min(100%, 820px);
+		height: 56px;
+		padding: 4px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand,
+	.siege-game.siege-game--control-deck-042 .siege-hud,
+	.siege-game.siege-game--control-deck-042 .siege-actions {
+		height: 48px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand {
+		padding: 0.3rem 0.58rem 0.26rem;
+		border-right: 3px solid #05080d;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand strong {
+		font-size: 1.25rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand__kicker {
+		font-size: 0.42rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud {
+		padding: 3px;
+		border-top: 0;
+		border-right: 3px solid #05080d;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud > span {
+		gap: 0.1rem;
+		padding: 0.1rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud small {
+		font-size: 0.41rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud b {
+		font-size: 0.72rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-actions {
+		gap: 3px;
+		padding: 2px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-actions button,
+	.siege-game.siege-game--control-deck-042 [data-action="sound"],
+	.siege-game.siege-game--control-deck-042 [data-action="effects"] {
+		height: 44px;
+		min-height: 44px;
+		padding: 0.16rem 0.08rem 0.12rem;
+	}
+}
+
+@container popup-siege (max-width: 430px) {
+	.siege-game.siege-game--control-deck-042 .siege-header {
+		min-height: 130px;
+		padding: 0.38rem 0.25rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-header__chassis {
+		grid-template-areas:
+			"brand actions"
+			"hud hud";
+		grid-template-columns: minmax(112px, 1fr) 194px;
+		grid-template-rows: 54px 50px;
+		width: 100%;
+		height: 116px;
+		padding: 4px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand,
+	.siege-game.siege-game--control-deck-042 .siege-actions {
+		height: 54px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand {
+		padding-inline: 0.42rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand strong {
+		font-size: 1.08rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-brand__kicker {
+		gap: 0.22rem;
+		font-size: 0.39rem;
+		letter-spacing: 0.05em;
+	}
+
+	.siege-game.siege-game--control-deck-042
+		.siege-brand__kicker::before,
+	.siege-game.siege-game--control-deck-042
+		.siege-brand__kicker::after {
+		width: 0.38rem;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-hud {
+		height: 50px;
+		padding: 3px;
+		border-top: 3px solid #05080d;
+		border-right: 0;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-actions {
+		gap: 2px;
+		padding: 3px;
+	}
+
+	.siege-game.siege-game--control-deck-042 .siege-actions button,
+	.siege-game.siege-game--control-deck-042 [data-action="sound"],
+	.siege-game.siege-game--control-deck-042 [data-action="effects"] {
+		height: 48px;
+		min-height: 48px;
+	}
+}
+
+@media (forced-colors: active) {
+	.siege-game.siege-game--control-deck-042 .siege-header,
+	.siege-game.siege-game--control-deck-042 .siege-header__chassis,
+	.siege-game.siege-game--control-deck-042 .siege-brand,
+	.siege-game.siege-game--control-deck-042 .siege-hud,
+	.siege-game.siege-game--control-deck-042 .siege-hud > span,
+	.siege-game.siege-game--control-deck-042 .siege-actions,
+	.siege-game.siege-game--control-deck-042 .siege-actions button {
+		border-color: ButtonText;
+		outline-color: ButtonText;
+		background: ButtonFace;
+		color: ButtonText;
+		box-shadow: none;
+		filter: none;
+		text-shadow: none;
+	}
+
+	.siege-game.siege-game--control-deck-042
+		.siege-header__chassis::after {
+		display: none;
+	}
+}

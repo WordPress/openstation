@@ -11,12 +11,11 @@
  * resources. We guard with a monotonic generation counter — every
  * apply() increments it; a mount that resolves on a stale generation
  * tears itself down instead of inserting into the DOM.
- *
- * @since 0.6.0
  */
 
 import { doAction, HOOKS } from '../hooks';
 import { loadModules } from '../modules/registry';
+import { getWallpaperSettings } from './settings-store';
 import type {
 	CanvasWallpaperDef,
 	CssWallpaperDef,
@@ -35,6 +34,7 @@ export function createContext(
 		pluginUrl,
 		prefersReducedMotion: prefersReducedMotion(),
 		visible: ! document.hidden,
+		settings: getWallpaperSettings( id ),
 	};
 }
 
@@ -43,6 +43,17 @@ function prefersReducedMotion(): boolean {
 		return false;
 	}
 	return window.matchMedia( '( prefers-reduced-motion: reduce )' ).matches;
+}
+
+/**
+ * Suspend/resume surface exposed publicly as `wp.desktop.wallpaper`.
+ *
+ * @public
+ */
+export interface WallpaperSuspendApi {
+	suspend: ( reason: string ) => void;
+	resume: ( reason: string ) => void;
+	isSuspended: () => boolean;
 }
 
 /**
@@ -58,15 +69,22 @@ export class WallpaperLayer {
 	/** Currently-active canvas wallpaper state, if any. */
 	private active: { id: string; teardown: WallpaperTeardown } | null = null;
 
+	/**
+	 * Held suspend reasons, refcounted — two `suspend('game:a')` calls
+	 * need two `resume('game:a')` calls. The layer is suspended while
+	 * any reason is held.
+	 */
+	private suspendReasons = new Map< string, number >();
+
+	/** Frozen-frame overlay shown while suspended (best-effort). */
+	private freezeOverlay: HTMLCanvasElement | null = null;
+
+	/** The live canvas hidden behind the freeze overlay. */
+	private frozenCanvas: HTMLElement | null = null;
+
 	/** Bound listener so we can remove it in dispose(). */
 	private boundVisibilityChange = (): void => {
-		if ( ! this.active ) {
-			return;
-		}
-		doAction( HOOKS.WALLPAPER_VISIBILITY, {
-			id: this.active.id,
-			state: document.hidden ? 'hidden' : 'visible',
-		} );
+		this.emitEffectiveVisibility();
 	};
 
 	constructor( element: HTMLElement, pluginUrl: string ) {
@@ -100,11 +118,64 @@ export class WallpaperLayer {
 	}
 
 	/**
+	 * Suspend wallpaper animation — e.g. while a game renders its own
+	 * canvas. Refcounted per reason; the wallpaper stays suspended
+	 * until every held reason is resumed. On the first held reason the
+	 * layer freezes the current frame into a bitmap overlay
+	 * (best-effort) and re-emits the effective visibility so mounted
+	 * scenes stop their tickers. The scene is never destroyed.
+	 */
+	public suspend( reason: string ): void {
+		const wasSuspended = this.isSuspended();
+		this.suspendReasons.set(
+			reason,
+			( this.suspendReasons.get( reason ) ?? 0 ) + 1,
+		);
+		if ( wasSuspended ) {
+			return;
+		}
+		this.installFreezeOverlay();
+		this.emitSuspendAction();
+		this.emitEffectiveVisibility();
+	}
+
+	/**
+	 * Release one hold on a suspend reason. Animation resumes once no
+	 * reason remains held. Unknown reasons are ignored.
+	 */
+	public resume( reason: string ): void {
+		const count = this.suspendReasons.get( reason );
+		if ( count === undefined ) {
+			return;
+		}
+		if ( count > 1 ) {
+			this.suspendReasons.set( reason, count - 1 );
+			return;
+		}
+		this.suspendReasons.delete( reason );
+		if ( this.isSuspended() ) {
+			return;
+		}
+		this.removeFreezeOverlay();
+		this.emitSuspendAction();
+		this.emitEffectiveVisibility();
+	}
+
+	/** Whether any suspend reason is currently held. */
+	public isSuspended(): boolean {
+		return this.suspendReasons.size > 0;
+	}
+
+	/**
 	 * Imperative teardown entry point — called from desktop.ts on
 	 * `pagehide` so a canvas wallpaper's ticker doesn't compete with
 	 * the session-beacon flush at unload.
 	 */
 	public teardownActive(): void {
+		// Drop the freeze overlay before (or without) a canvas teardown:
+		// a wallpaper switch while suspended must not leave a stale
+		// bitmap of the old wallpaper behind.
+		this.removeFreezeOverlay();
 		if ( ! this.active ) {
 			// CSS-only wallpapers still leave their custom property on
 			// the shell; nothing to remove.
@@ -179,6 +250,13 @@ export class WallpaperLayer {
 			}
 			this.active = { id: def.id, teardown };
 			doAction( HOOKS.WALLPAPER_MOUNTED, { id: def.id, container: this.element, ctx } );
+			// A wallpaper applied while the layer is suspended (or the
+			// tab hidden) must not start animating: tell it about the
+			// effective state right away. Freshly-mounted scenes show
+			// their first frame, so no bitmap overlay is needed here.
+			if ( this.isEffectivelyHidden() ) {
+				this.emitEffectiveVisibility();
+			}
 		};
 
 		depsReady.then(
@@ -216,6 +294,84 @@ export class WallpaperLayer {
 				this.handleMountFailure( def.id, err );
 			},
 		);
+	}
+
+	/** Hidden tab OR held suspend reason — what mounted scenes act on. */
+	private isEffectivelyHidden(): boolean {
+		return document.hidden || this.isSuspended();
+	}
+
+	/**
+	 * Re-emit `WALLPAPER_VISIBILITY` with the effective state. Both the
+	 * `visibilitychange` listener and suspend/resume route through this,
+	 * so a tab re-focus during suspension cannot restart animation.
+	 */
+	private emitEffectiveVisibility(): void {
+		if ( ! this.active ) {
+			return;
+		}
+		doAction( HOOKS.WALLPAPER_VISIBILITY, {
+			id: this.active.id,
+			state: this.isEffectivelyHidden() ? 'hidden' : 'visible',
+		} );
+	}
+
+	private emitSuspendAction(): void {
+		doAction( HOOKS.WALLPAPER_SUSPEND, {
+			id: this.active?.id ?? null,
+			suspended: this.isSuspended(),
+			reasons: Array.from( this.suspendReasons.keys() ),
+		} );
+	}
+
+	/**
+	 * Freeze the current frame: copy the live wallpaper canvas onto a
+	 * 2D overlay canvas layered above it, then hide the live canvas.
+	 * Best-effort — Pixi's WebGL canvas has no `preserveDrawingBuffer`,
+	 * so the draw can produce a blank on some drivers; on any failure
+	 * we skip the overlay entirely (a canvas whose ticker stops keeps
+	 * presenting its last frame anyway).
+	 */
+	private installFreezeOverlay(): void {
+		if ( this.freezeOverlay || ! this.active ) {
+			return;
+		}
+		const source = this.element.querySelector( 'canvas' );
+		if ( ! source || source.width === 0 || source.height === 0 ) {
+			return;
+		}
+		try {
+			const overlay = document.createElement( 'canvas' );
+			overlay.width = source.width;
+			overlay.height = source.height;
+			const ctx2d = overlay.getContext( '2d' );
+			if ( ! ctx2d ) {
+				return;
+			}
+			ctx2d.drawImage( source, 0, 0 );
+			overlay.className = 'desktop-mode-wallpaper-freeze';
+			overlay.style.position = 'absolute';
+			overlay.style.inset = '0';
+			overlay.style.width = '100%';
+			overlay.style.height = '100%';
+			overlay.style.pointerEvents = 'none';
+			overlay.setAttribute( 'aria-hidden', 'true' );
+			this.element.appendChild( overlay );
+			source.style.visibility = 'hidden';
+			this.freezeOverlay = overlay;
+			this.frozenCanvas = source;
+		} catch {
+			// Tainted canvas / driver quirk — skip the overlay.
+		}
+	}
+
+	private removeFreezeOverlay(): void {
+		this.freezeOverlay?.remove();
+		this.freezeOverlay = null;
+		if ( this.frozenCanvas ) {
+			this.frozenCanvas.style.visibility = '';
+			this.frozenCanvas = null;
+		}
 	}
 
 	private handleMountFailure( id: string, err: unknown ): void {

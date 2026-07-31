@@ -6,7 +6,6 @@
  * BEM-ish prefix, container-relative geometry, theming via the
  * desktop-mode-variables CSS custom properties).
  *
- * @since 0.8.0
  */
 
 .desktop-mode-my-wordpress {
@@ -19,7 +18,7 @@
 		--desktop-mode-font,
 		-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
 	);
-	color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	color: var( --desktop-mode-my-wordpress-fg, var( --wpd-fg, #1d2327 ) );
 	/* Window background — separate from the wallpaper bg so the
 	 * folder window reads as a real OS window even when the desktop
 	 * gradient is dark. Themes / plugins can override
@@ -31,7 +30,7 @@
 	);
 	/* Light-context tile color tokens — same recipe as the folder
 	 * window. Tiles inside My WordPress paint dark-on-light. */
-	--desktop-mode-tile-fg: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	--desktop-mode-tile-fg: var( --desktop-mode-my-wordpress-fg, var( --wpd-fg, #1d2327 ) );
 	--desktop-mode-tile-fg-muted: rgba( 0, 0, 0, 0.55 );
 	--desktop-mode-tile-hover-bg: var(
 		--desktop-mode-hover,
@@ -44,7 +43,7 @@
 	--desktop-mode-tile-label-shadow: none;
 	--desktop-mode-tile-label-weight: 500;
 	--desktop-mode-tile-label-smoothing: antialiased;
-	--desktop-mode-tile-label-color: var( --desktop-mode-my-wordpress-fg, #1d2327 );
+	--desktop-mode-tile-label-color: var( --desktop-mode-my-wordpress-fg, var( --wpd-fg, #1d2327 ) );
 }
 
 /* Pinned-icon visual cue — used by `desktop-mode-icon--pinned` (the
@@ -83,7 +82,7 @@
 	align-items: center;
 	gap: 8px;
 	padding: 8px 12px;
-	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-bottom: 1px solid var( --wpd-border, #dcdcde );
 	background: transparent;
 }
 
@@ -138,15 +137,15 @@
  * white window background. The dark default (white-on-dark) reads
  * as invisible against `--desktop-mode-window-bg`. */
 .desktop-mode-my-wordpress > .desktop-mode-folder-status-bar {
-	border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-top: 1px solid var( --wpd-border, #dcdcde );
 	background: transparent;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 .desktop-mode-my-wordpress
 	> .desktop-mode-folder-status-bar
 	button.desktop-mode-folder-status-bar__segment:hover {
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) ) );
 }
 
 /* ----- Tile canvas (root + entity list) -----
@@ -222,8 +221,8 @@
 	line-height: 18px;
 	text-align: center;
 	border-radius: 50%;
-	background: var( --desktop-mode-danger, #b32d2e );
-	color: #fff;
+	background: var( --desktop-mode-danger, var( --wpd-danger, #b32d2e ) );
+	color: var( --wpd-fg-on-accent, #fff );
 	box-shadow:
 		0 0 0 1.5px rgba( 0, 0, 0, 0.4 ),
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
@@ -239,7 +238,7 @@
 	padding: 6px 8px;
 	border-radius: 4px;
 	background: rgba( 179, 45, 46, 0.08 );
-	color: var( --desktop-mode-danger, #b32d2e );
+	color: var( --desktop-mode-danger, var( --wpd-danger, #b32d2e ) );
 	font-size: 12px;
 	font-weight: 600;
 }
@@ -277,7 +276,7 @@
 
 .desktop-mode-my-wordpress__list {
 	overflow-y: scroll;
-	border-inline-end: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-inline-end: 1px solid var( --wpd-border, #dcdcde );
 	min-width: 0;
 }
 
@@ -302,7 +301,7 @@
 
 .desktop-mode-my-wordpress__list::-webkit-scrollbar-thumb,
 .desktop-mode-my-wordpress__grid::-webkit-scrollbar-thumb {
-	background: rgba( 0, 0, 0, 0.25 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.25 ) );
 	border-radius: 6px;
 	border: 3px solid transparent;
 	background-clip: padding-box;
@@ -310,7 +309,7 @@
 
 .desktop-mode-my-wordpress__list::-webkit-scrollbar-thumb:hover,
 .desktop-mode-my-wordpress__grid::-webkit-scrollbar-thumb:hover {
-	background: rgba( 0, 0, 0, 0.4 );
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.4 ) );
 	background-clip: padding-box;
 }
 
@@ -358,9 +357,9 @@
 .desktop-mode-my-wordpress__skeleton-label {
 	background: linear-gradient(
 		90deg,
-		var( --desktop-mode-skeleton-low, rgba( 0, 0, 0, 0.05 ) ) 0%,
-		var( --desktop-mode-skeleton-high, rgba( 0, 0, 0, 0.13 ) ) 50%,
-		var( --desktop-mode-skeleton-low, rgba( 0, 0, 0, 0.05 ) ) 100%
+		var( --desktop-mode-skeleton-low, var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) ) ) 0%,
+		var( --desktop-mode-skeleton-high, var( --wpd-hover, rgba( 0, 0, 0, 0.13 ) ) ) 50%,
+		var( --desktop-mode-skeleton-low, var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) ) ) 100%
 	);
 	background-size: 200% 100%;
 	animation: desktop-mode-my-wordpress-skeleton-shimmer 1.4s ease-in-out
@@ -408,7 +407,7 @@
 	align-items: center;
 	justify-content: center;
 	height: 100%;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 	font-size: 13px;
 	padding: 24px;
 	text-align: center;
@@ -450,7 +449,7 @@
 
 .desktop-mode-my-wordpress__article-meta {
 	margin: 0 0 16px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	font-size: 12px;
 }
 
@@ -475,7 +474,7 @@
 .desktop-mode-my-wordpress__article-footer {
 	margin-top: 24px;
 	padding-top: 16px;
-	border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-top: 1px solid var( --wpd-border, #dcdcde );
 	display: flex;
 	justify-content: flex-end;
 	align-items: center;
@@ -489,12 +488,12 @@
 .desktop-mode-my-wordpress__error {
 	padding: 32px 24px;
 	text-align: center;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 	font-size: 13px;
 }
 
 .desktop-mode-my-wordpress__error {
-	color: var( --desktop-mode-danger, #b32d2e );
+	color: var( --desktop-mode-danger, var( --wpd-danger, #b32d2e ) );
 }
 
 /* ----- Hover tooltip (floats over body) ----- */
@@ -503,9 +502,15 @@
 	position: fixed;
 	z-index: 100000;
 	max-width: 320px;
-	background: var( --desktop-mode-surface, #fff );
-	color: var( --desktop-mode-fg, #1d2327 );
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: var(
+		--desktop-mode-tooltip-bg,
+		var( --desktop-mode-surface, var( --wpd-surface, #fff ) )
+	);
+	color: var(
+		--desktop-mode-tooltip-fg,
+		var( --desktop-mode-fg, #1d2327 )
+	);
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 6px;
 	padding: 12px;
 	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.18 );
@@ -529,7 +534,7 @@
 
 .desktop-mode-my-wordpress__tooltip-excerpt {
 	margin: 0;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	line-height: 1.4;
 }
 
@@ -605,7 +610,7 @@
 }
 
 .desktop-mode-my-wordpress__user-links a {
-	color: var( --desktop-mode-link, #2271b1 );
+	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
 	text-decoration: none;
 }
 
@@ -619,7 +624,7 @@
 	color: var( --desktop-mode-fg, #1d2327 );
 	margin: 0 0 16px;
 	padding-left: 12px;
-	border-left: 3px solid var( --desktop-mode-border, #dcdcde );
+	border-left: 3px solid var( --wpd-border, #dcdcde );
 }
 
 /* ----- Stat cards row ----- */
@@ -637,8 +642,8 @@
 	gap: 2px;
 	padding: 12px 14px;
 	border-radius: 8px;
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.04 ) );
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
+	border: 1px solid var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-my-wordpress__user-stat-value {
@@ -651,14 +656,14 @@
 
 .desktop-mode-my-wordpress__user-stat-label {
 	font-size: 12px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 
 .desktop-mode-my-wordpress__user-stat-caption {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 /* ----- 12-month activity sparkline ----- */
@@ -670,7 +675,7 @@
 .desktop-mode-my-wordpress__user-section h3 {
 	font-size: 13px;
 	font-weight: 600;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	margin: 0 0 8px;
@@ -707,7 +712,7 @@
 }
 
 .desktop-mode-my-wordpress__user-spark-bar--empty {
-	background: var( --desktop-mode-border, #dcdcde );
+	background: var( --wpd-border, #dcdcde );
 	min-height: 2px;
 	height: 2px !important;
 }
@@ -715,7 +720,7 @@
 .desktop-mode-my-wordpress__user-spark-label {
 	font-size: 10px;
 	text-align: center;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 /* ----- Milestones ----- */
@@ -729,7 +734,7 @@
 
 .desktop-mode-my-wordpress__user-milestones dt {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	margin-bottom: 2px;
@@ -758,12 +763,12 @@
 	gap: 2px;
 	padding: 8px 10px;
 	border-radius: 6px;
-	background: rgba( 0, 0, 0, 0.02 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
 }
 
 .desktop-mode-my-wordpress__user-recent a {
 	font-weight: 600;
-	color: var( --desktop-mode-link, #2271b1 );
+	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
 	text-decoration: none;
 }
 
@@ -773,7 +778,7 @@
 
 .desktop-mode-my-wordpress__user-recent-meta {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 /* ----- Top categories chips ----- */
@@ -791,8 +796,8 @@
 	padding: 4px 10px;
 	border-radius: 999px;
 	font-size: 12px;
-	background: rgba( 0, 0, 0, 0.05 );
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
+	border: 1px solid var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-my-wordpress__user-chip--tag {
@@ -830,11 +835,11 @@
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 .desktop-mode-my-wordpress__term-icon--category {
-	background: linear-gradient( 135deg, #2271b1 0%, #135e96 100% );
+	background: linear-gradient( 135deg, var( --wpd-accent, #2271b1 ) 0%, var( --wpd-accent-strong, #135e96 ) 100% );
 	box-shadow: 0 4px 12px rgba( 34, 113, 177, 0.32 );
 }
 
@@ -845,7 +850,7 @@
 
 .desktop-mode-my-wordpress__user-role--category {
 	background: rgba( 34, 113, 177, 0.12 );
-	color: #135e96;
+	color: var( --wpd-accent-strong, #135e96 );
 }
 
 .desktop-mode-my-wordpress__user-role--tag {
@@ -866,8 +871,8 @@
 	gap: 10px;
 	padding: 8px 12px;
 	border-radius: 8px;
-	background: rgba( 0, 0, 0, 0.03 );
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
+	border: 1px solid var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-my-wordpress__term-author-avatar {
@@ -894,7 +899,7 @@
 
 .desktop-mode-my-wordpress__term-author-count {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 /* ---------------------------------------------------------------
@@ -907,7 +912,7 @@
 
 .desktop-mode-my-wordpress__comment-status--approved {
 	background: rgba( 34, 113, 177, 0.12 );
-	color: #135e96;
+	color: var( --wpd-accent-strong, #135e96 );
 }
 
 .desktop-mode-my-wordpress__comment-status--pending {
@@ -917,18 +922,18 @@
 
 .desktop-mode-my-wordpress__comment-status--spam {
 	background: rgba( 179, 45, 46, 0.14 );
-	color: #b32d2e;
+	color: var( --wpd-danger-hover, #b32d2e );
 }
 
 .desktop-mode-my-wordpress__comment-status--trash {
-	background: rgba( 0, 0, 0, 0.08 );
-	color: var( --desktop-mode-muted, #50575e );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.08 ) );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 .desktop-mode-my-wordpress__comment-date-badge {
 	background: transparent;
-	color: var( --desktop-mode-muted, #50575e );
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	color: var( --wpd-fg-muted, #50575e );
+	border: 1px solid var( --wpd-border, #dcdcde );
 	text-transform: none;
 	letter-spacing: normal;
 }
@@ -947,7 +952,7 @@
 .desktop-mode-my-wordpress__comment-quote-lead {
 	font-size: 11px;
 	font-weight: 600;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	margin-bottom: 4px;
@@ -962,9 +967,9 @@
  * card background so it reads as the focal element. */
 .desktop-mode-my-wordpress__comment-body {
 	padding: 14px 16px;
-	background: rgba( 0, 0, 0, 0.03 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
 	border-radius: 8px;
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border: 1px solid var( --wpd-border, #dcdcde );
 }
 
 /* Parent-post card under the comment body. */
@@ -974,13 +979,13 @@
 	gap: 4px;
 	padding: 10px 14px;
 	border-radius: 8px;
-	background: rgba( 0, 0, 0, 0.04 );
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
+	border: 1px solid var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-my-wordpress__comment-post-title {
 	font-weight: 600;
-	color: var( --desktop-mode-link, #2271b1 );
+	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
 	text-decoration: none;
 }
 
@@ -990,7 +995,7 @@
 
 .desktop-mode-my-wordpress__comment-post-meta {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 /* Replies list. */
@@ -1009,8 +1014,8 @@
 	align-items: flex-start;
 	padding: 10px 12px;
 	border-radius: 8px;
-	background: rgba( 0, 0, 0, 0.02 );
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.02 ) );
+	border: 1px solid var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-my-wordpress__comment-reply-avatar {
@@ -1041,7 +1046,7 @@
 
 .desktop-mode-my-wordpress__comment-reply-when {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 .desktop-mode-my-wordpress__comment-reply-excerpt {
@@ -1170,12 +1175,12 @@
 }
 
 .desktop-mode-my-wordpress__footprint-section {
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border: 1px solid var( --wpd-border, #dcdcde );
 	border-radius: 12px;
 	padding: 18px 20px;
 	background: var(
 		--desktop-mode-my-wordpress-surface,
-		var( --desktop-mode-surface, rgba( 255, 255, 255, 0.6 ) )
+		var( --desktop-mode-surface, var( --wpd-surface, rgba( 255, 255, 255, 0.6 ) ) )
 	);
 	box-shadow: 0 1px 2px rgba( 0, 0, 0, 0.04 );
 	/* The parent `.__footprint` is a flex column with `overflow-y:
@@ -1195,7 +1200,7 @@
 	font-weight: 600;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 /* ----- Hero ----- */
@@ -1212,7 +1217,7 @@
 		rgba( 34, 113, 177, 0.02 ) 60%,
 		transparent 100%
 	);
-	border: 1px solid var( --desktop-mode-border, #dcdcde );
+	border: 1px solid var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-my-wordpress__footprint-avatar {
@@ -1270,8 +1275,8 @@
 }
 
 .desktop-mode-my-wordpress__footprint-since {
-	background: rgba( 0, 0, 0, 0.06 );
-	color: var( --desktop-mode-muted, #50575e );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 /* ----- Headline stats row (4 cards) ----- */
@@ -1285,7 +1290,7 @@
 
 .desktop-mode-my-wordpress__footprint-stats-row
 	.desktop-mode-my-wordpress__user-stat {
-	background: var( --desktop-mode-surface, rgba( 255, 255, 255, 0.9 ) );
+	background: var( --desktop-mode-surface, var( --wpd-surface, rgba( 255, 255, 255, 0.9 ) ) );
 	box-shadow: 0 1px 4px rgba( 0, 0, 0, 0.04 );
 }
 
@@ -1326,7 +1331,7 @@
 .desktop-mode-my-wordpress__footprint-weekday {
 	font-size: 10px;
 	line-height: 11px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	white-space: nowrap;
 }
 
@@ -1347,7 +1352,7 @@
 	width: 11px;
 	height: 11px;
 	border-radius: 2px;
-	background: var( --desktop-mode-border, #ebedf0 );
+	background: var( --wpd-border, #ebedf0 );
 	display: inline-block;
 	transition: transform 0.12s ease;
 }
@@ -1357,7 +1362,7 @@
 }
 
 .desktop-mode-my-wordpress__footprint-cell--l0 {
-	background: rgba( 0, 0, 0, 0.06 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
 }
 
 .desktop-mode-my-wordpress__footprint-cell--l1 {
@@ -1387,12 +1392,12 @@
 	align-items: center;
 	justify-content: flex-end;
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 }
 
 .desktop-mode-my-wordpress__footprint-legend-label {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	padding: 0 4px;
 }
 
@@ -1412,7 +1417,7 @@
 
 .desktop-mode-my-wordpress__footprint-chart-caption {
 	font-size: 12px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	margin-bottom: 6px;
 }
 
@@ -1449,7 +1454,7 @@
 }
 
 .desktop-mode-my-wordpress__footprint-bar--empty {
-	background: var( --desktop-mode-border, #dcdcde );
+	background: var( --wpd-border, #dcdcde );
 	height: 2px !important;
 	min-height: 2px;
 }
@@ -1461,7 +1466,7 @@
 	right: 0;
 	text-align: center;
 	font-size: 10px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 /* ----- Most-prolific-month callout ----- */
@@ -1484,7 +1489,7 @@
 	font-size: 11px;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	font-weight: 600;
 }
 
@@ -1498,7 +1503,7 @@
 .desktop-mode-my-wordpress__footprint-callout-detail {
 	margin: 0;
 	font-size: 13px;
-	color: var( --desktop-mode-muted, #50575e );
+	color: var( --wpd-fg-muted, #50575e );
 	max-width: 480px;
 }
 
@@ -1521,7 +1526,7 @@
 	top: 4px;
 	bottom: 4px;
 	width: 2px;
-	background: var( --desktop-mode-border, #dcdcde );
+	background: var( --wpd-border, #dcdcde );
 	border-radius: 1px;
 }
 
@@ -1544,15 +1549,15 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --desktop-mode-surface, #fff );
+	background: var( --desktop-mode-surface, var( --wpd-surface, #fff ) );
 	border: 2px solid var( --wp-admin-theme-color, #2271b1 );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
 .desktop-mode-my-wordpress__footprint-event--comment
 	.desktop-mode-my-wordpress__footprint-dot {
-	border-color: var( --desktop-mode-muted, #787c82 );
-	color: var( --desktop-mode-muted, #787c82 );
+	border-color: var( --wpd-fg-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 .desktop-mode-my-wordpress__footprint-dot .dashicons {
@@ -1573,7 +1578,7 @@
 .desktop-mode-my-wordpress__footprint-event-title {
 	font-weight: 600;
 	font-size: 13px;
-	color: var( --desktop-mode-link, #2271b1 );
+	color: var( --desktop-mode-link, var( --wpd-accent, #2271b1 ) );
 	text-decoration: none;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1586,7 +1591,7 @@ a.desktop-mode-my-wordpress__footprint-event-title:hover {
 
 .desktop-mode-my-wordpress__footprint-event-meta {
 	font-size: 11px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 /* ----- Footer actions ----- */
@@ -1692,7 +1697,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 }
 
 .desktop-mode-my-wordpress__media-tile:hover {
-	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --desktop-mode-hover, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
 }
 
 /* Media tiles inherit the canonical `.desktop-mode-file-tile--selected`
@@ -1737,7 +1742,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	width: auto;
 	height: auto;
 	font-size: 36px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 .desktop-mode-my-wordpress__media-tile .desktop-mode-file-tile__label {
@@ -1769,7 +1774,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: var( --desktop-mode-media-visual-bg, rgba( 0, 0, 0, 0.04 ) );
+	background: var( --desktop-mode-media-visual-bg, var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) ) );
 	border-radius: 8px;
 	min-height: 200px;
 	max-height: 480px;
@@ -1787,7 +1792,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	font-size: 96px;
 	width: 96px;
 	height: 96px;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 }
 
 .desktop-mode-my-wordpress__media-doc-link {
@@ -1812,12 +1817,12 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 }
 
 .desktop-mode-my-wordpress__media-meta-term {
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 	margin: 0;
 }
 
 .desktop-mode-my-wordpress__media-meta-value {
-	color: var( --desktop-mode-text, #1d2327 );
+	color: var( --wpd-fg, #1d2327 );
 	word-break: break-word;
 	margin: 0;
 }
@@ -1827,7 +1832,7 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	flex-wrap: wrap;
 	gap: 8px;
 	padding-top: 8px;
-	border-top: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-top: 1px solid var( --wpd-border, #dcdcde );
 }
 
 /* ----- Media drill-in ----- */
@@ -1865,12 +1870,12 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 /* Right-pane summary bar sits ABOVE the inline media preview. */
 .desktop-mode-my-wordpress__media-detail-summary-bar {
 	padding: 12px 16px;
-	border-bottom: 1px solid var( --desktop-mode-border, #dcdcde );
+	border-bottom: 1px solid var( --wpd-border, #dcdcde );
 }
 
 .desktop-mode-my-wordpress__media-detail-summary {
 	margin: 0;
-	color: var( --desktop-mode-muted, #787c82 );
+	color: var( --wpd-fg-muted, #787c82 );
 	font-size: 13px;
 }
 
@@ -1878,4 +1883,283 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	/* Lets the embedded `__media-pane` keep its own padding without
 	 * fighting the summary bar's spacing. */
 	display: block;
+}
+
+/* ------------------------------------------------------------------ */
+/* Agents section (`agent` entity kind — src/my-wordpress/agents-renderer.ts) */
+/* ------------------------------------------------------------------ */
+
+.dm-agents {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	padding: 12px;
+	gap: 10px;
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+/* Section-level loading — same scale curve as the My WordPress
+   preview loader and the window-loading overlay, instead of the bare
+   48px component default. */
+.dm-agents__loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	min-height: 320px;
+}
+
+.dm-agents__loading wpd-spinner {
+	--wpd-spinner-size: clamp( 96px, 14vw, 192px );
+}
+
+.dm-agents__layout {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	gap: 12px;
+}
+
+/* Sidebar column: a fixed "Create agent" header over the scrolling
+   list. The button used to be the list's last child, which put it out
+   of reach on any site with enough agents to need it. */
+.dm-agents__sidebar {
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 260px;
+	/* `min-width: auto` on a flex item resolves to its min-content
+	   width, and the rows carry long `white-space: nowrap` descriptions
+	   — without this the column ignores its 260px basis and eats the
+	   detail pane. The scroll container used to be this item, whose
+	   non-visible overflow zeroed the minimum for free. */
+	min-width: 0;
+	min-height: 0;
+	border-inline-end: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__list-toolbar {
+	flex: none;
+	display: flex;
+	padding-block-end: 8px;
+	padding-inline-end: 8px;
+}
+
+.dm-agents__list-toolbar .dm-agents__create {
+	flex: 1;
+}
+
+.dm-agents__list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding-inline-end: 4px;
+}
+
+.dm-agents__row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.dm-agents__row:hover {
+	background: var( --desktop-mode-hover, rgba( 0, 0, 0, 0.06 ) );
+}
+
+.dm-agents__row.is-selected {
+	background: var( --desktop-mode-selected, rgba( 0, 0, 0, 0.1 ) );
+}
+
+.dm-agents__row-avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	background: #fff;
+	flex: none;
+}
+
+.dm-agents__row-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	flex: 1;
+}
+
+.dm-agents__row-name {
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agents__row-desc {
+	font-size: 12px;
+	opacity: 0.65;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+
+.dm-agents__detail {
+	flex: 1;
+	min-width: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.dm-agents__detail-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.dm-agents__detail-avatar {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	background: #fff;
+	flex: none;
+}
+
+.dm-agents__detail-title {
+	flex: 1;
+	min-width: 0;
+}
+
+.dm-agents__detail-title h3 {
+	margin: 0;
+	font-size: 16px;
+}
+
+.dm-agents__detail-slug {
+	font-size: 12px;
+	opacity: 0.6;
+}
+
+/* Verbs get their own row under the identity block: the set grows
+   (profile, contributions, desktop, chat, delete) and squeezing them
+   beside the name truncated it first. */
+.dm-agents__detail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.dm-agents__tabs {
+	display: flex;
+	gap: 4px;
+	border-bottom: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+.dm-agents__tab {
+	appearance: none;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 6px 10px;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.dm-agents__tab.is-active {
+	border-bottom-color: var( --desktop-mode-accent, #2271b1 );
+	opacity: 1;
+	font-weight: 600;
+}
+
+.dm-agents__pane {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding-bottom: 12px;
+}
+
+/* Pane-level loading: same big, centered WordPress mark the section
+   loader uses, instead of a bare 48px spinner pinned to the top-left
+   of the pane. */
+.dm-agents__pane--loading {
+	align-items: center;
+	justify-content: center;
+	flex: 1;
+	min-height: 260px;
+}
+
+.dm-agents__pane--loading wpd-spinner {
+	--wpd-spinner-size: clamp( 96px, 12vw, 160px );
+}
+
+.dm-agents__hint {
+	margin: 0;
+	font-size: 12px;
+	opacity: 0.7;
+}
+
+.dm-agents__category {
+	margin: 8px 0 0;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
+}
+
+.dm-agents__ability {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 2px 8px;
+	align-items: center;
+	padding: 4px 0;
+}
+
+.dm-agents__ability-desc {
+	grid-column: 1 / -1;
+	margin: 0;
+	font-size: 12px;
+	opacity: 0.6;
+}
+
+.dm-agents__trigger {
+	border: 1px solid var( --desktop-mode-border, rgba( 0, 0, 0, 0.08 ) );
+	border-radius: 8px;
+	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.dm-agents__trigger-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.dm-agents__trigger-summary {
+	flex: 1;
+	font-size: 12px;
+	opacity: 0.65;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.dm-agents__trigger-config {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 14px;
+}
+
+.dm-agents__actions {
+	display: flex;
+	gap: 8px;
 }

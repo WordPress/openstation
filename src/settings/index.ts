@@ -8,7 +8,7 @@
  * (title bars, dock chips, focus rings, window chrome) inherits the new
  * values without per-rule plumbing.
  *
- * As of 0.6.0, wallpapers are registry-driven: built-in presets live in
+ * Wallpapers are registry-driven: built-in presets live in
  * `src/wallpapers/built-in.ts`, third-party plugins register via the
  * public `wp.desktop.registerWallpaper()` / `desktop-mode.wallpapers`
  * filter, and this module is responsible only for
@@ -20,7 +20,7 @@
  *     produce swatches and hosting each selected wallpaper's optional
  *     in-panel editor (`renderEditor`).
  *
- * The 1,400-line monolith was split in 0.6.1 into this folder:
+ * The 1,400-line monolith was split into this folder:
  *
  *   src/settings/
  *   ├── index.ts           — this file: class + panel composition
@@ -35,16 +35,17 @@
  *       ├── custom-image.ts — upload + library tabs
  *       ├── accent.ts      — accent swatch row
  *       └── dock-size.ts   — segmented dock-size control
- *
- * @since 0.5.0
  */
 
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import * as registry from '../wallpapers/registry';
+import { seedWallpaperSettings } from '../wallpapers/settings-store';
 import {
+	ADMIN_BAR_MODES,
 	DEFAULT_WALLPAPER_ID,
 	DOCK_SIZES,
+	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
@@ -55,6 +56,7 @@ import {
 	type OsSettingsSaveLifecycleDetail,
 } from './state';
 import { setActiveDockRailRenderer } from '../dock-rail';
+import { applyDesktopTheme } from '../desktop-themes/apply';
 import type {
 	OsSettingsConfig,
 	OsSettingsState,
@@ -182,9 +184,21 @@ export class OsSettings implements SettingsCtx {
 			wallpaper: this.state.wallpaper,
 			accent: this.state.accent,
 			dockSize: this.state.dockSize,
+			windowRadius: this.state.windowRadius,
+			adminBarMode: this.state.adminBarMode,
 			desktopLayout: this.state.desktopLayout,
 			dockRailRenderer: this.state.dockRailRenderer,
+			desktopTheme: this.state.desktopTheme,
+			appliedThemeRecommendations:
+				this.state.appliedThemeRecommendations.slice(),
 			unfocusEffect: this.state.unfocusEffect,
+			windowReveal: this.state.windowReveal,
+			windowRevealDuration: this.state.windowRevealDuration,
+			windowLinkRenderer: this.state.windowLinkRenderer,
+			windowLinkVisibility: this.state.windowLinkVisibility,
+			windowLinksEnabled: this.state.windowLinksEnabled,
+			windowLinkRaiseOnFocus: this.state.windowLinkRaiseOnFocus,
+			windowLinkHighlight: this.state.windowLinkHighlight,
 			ai: { ...this.state.ai },
 			nativePostsEnabled: this.state.nativePostsEnabled,
 			nativePostsHiddenColumns: this.state.nativePostsHiddenColumns.slice(),
@@ -192,6 +206,7 @@ export class OsSettings implements SettingsCtx {
 			nativeUsersEnabled: this.state.nativeUsersEnabled,
 			nativePluginsEnabled: this.state.nativePluginsEnabled,
 			nativeCommentsEnabled: this.state.nativeCommentsEnabled,
+			developerModeEnabled: this.state.developerModeEnabled,
 			foldersSharingEnabled: this.state.foldersSharingEnabled,
 			itemVisibility: { ...this.state.itemVisibility },
 			dockOrder: this.state.dockOrder.slice(),
@@ -274,6 +289,13 @@ export class OsSettings implements SettingsCtx {
 			return;
 		}
 
+		// Mirror the persisted per-wallpaper settings into the shared
+		// runtime store BEFORE the layer mounts anything, so the mount's
+		// `ctx.settings` reads the user's saved values. apply() runs on
+		// boot, on every settings change, and after a save-failure
+		// rollback — re-seeding on each covers all three paths.
+		seedWallpaperSettings( this.state.wallpaperSettings );
+
 		// Wallpaper — look up in the registry. Fall back to the
 		// server-declared default id (via `desktop_mode_default_wallpaper`)
 		// if the saved wallpaper was registered by a plugin that's no
@@ -292,6 +314,9 @@ export class OsSettings implements SettingsCtx {
 		const accent = accents.find( ( a ) => a.id === this.state.accent ) ?? accents[ 0 ];
 		const dockSize =
 			DOCK_SIZES.find( ( d ) => d.id === this.state.dockSize ) ?? DOCK_SIZES[ 1 ];
+		const windowRadius =
+			WINDOW_RADII.find( ( r ) => r.id === this.state.windowRadius ) ??
+			WINDOW_RADII[ 1 ];
 
 		// Set on <html> rather than the shell so the cascade reaches
 		// siblings of #desktop-mode-shell — specifically the WordPress
@@ -303,6 +328,46 @@ export class OsSettings implements SettingsCtx {
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
 		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );
+		root.style.setProperty(
+			'--desktop-mode-window-radius',
+			`${ windowRadius.value }px`,
+		);
+		// ALSO on the shell element, and this one is not redundant.
+		//
+		// A desktop theme may declare `--desktop-mode-window-radius`
+		// in its `tokens`, and the compiled stylesheet writes it on
+		// `.desktop-mode-shell[data-desktop-mode-desktop-theme="…"]`
+		// and `body.desktop-mode-desktop-theme-…`. Both of those
+		// MATCH an ancestor of every window, while the `:root` write
+		// above only reaches windows by inheritance — so the theme
+		// would win and the Window-corners preset would silently do
+		// nothing for as long as that theme was worn.
+		//
+		// An inline style on the shell outranks any selector, so the
+		// user's pick is authoritative. A theme that wants a
+		// particular radius asks for it through
+		// `recommendedOsSettings.windowRadius`, which sets the user's
+		// preference once and leaves it theirs to change.
+		shell.style.setProperty(
+			'--desktop-mode-window-radius',
+			`${ windowRadius.value }px`,
+		);
+
+		// Admin-bar mode — a body class rather than a shell-scoped
+		// attribute, because the thing it styles (`#wpadminbar`) is a
+		// SIBLING of the shell, not a descendant. PHP writes the same
+		// class on `admin_body_class` so the first paint is already
+		// correct; re-writing it here is what makes a pick in OS
+		// Settings take effect without a reload.
+		const adminBarMode =
+			ADMIN_BAR_MODES.find( ( m ) => m.id === this.state.adminBarMode ) ??
+			ADMIN_BAR_MODES[ 0 ];
+		for ( const mode of ADMIN_BAR_MODES ) {
+			document.body.classList.toggle(
+				`desktop-mode-admin-bar-${ mode.id }`,
+				mode.id === adminBarMode.id,
+			);
+		}
 
 		// Desktop layout is driven by an attribute on the shell root;
 		// the layout dispatcher (desktop.ts) reads it on init and on
@@ -323,6 +388,13 @@ export class OsSettings implements SettingsCtx {
 		// server / localStorage, `apply()` runs, registry mirrors
 		// the persisted choice.
 		setActiveDockRailRenderer( this.state.dockRailRenderer );
+
+		// Desktop theme. One line covers every path that can change
+		// it — boot, picking a theme in the Themes tab, resetting
+		// settings, and the rollback after a failed save all funnel
+		// through `apply()`. `applyDesktopTheme` dedupes on the active
+		// id, so the repeated calls this makes cost two comparisons.
+		applyDesktopTheme( this.state.desktopTheme );
 	}
 
 	public save( opts: { windowId?: string } = {} ): void {
@@ -355,7 +427,7 @@ export class OsSettings implements SettingsCtx {
 	/**
 	 * Render the settings panel into the given native-window body.
 	 *
-	 * Lazy since 0.8.4 — the actual rendering logic plus every
+	 * Lazy — the actual rendering logic plus every
 	 * `<wpd-*>` component the panel uses lives in
 	 * `src/settings/panel.ts`, compiled into its own Vite target
 	 * `os-settings-panel[.min].js`. The script is injected on the

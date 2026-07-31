@@ -1,8 +1,8 @@
 /**
  * Desktop Mode — Files-on-the-desktop entry point.
  *
- * Importing this module side-effect registers the seven built-in
- * file types and the seven built-in openers with their respective
+ * Importing this module side-effect registers the ten built-in
+ * file types and the ten built-in openers with their respective
  * registries, then exposes the public API on `wp.desktop.files`.
  *
  * Higher phases extend this module with the REST/store layer
@@ -10,8 +10,6 @@
  * context menu (Phase 4), the file-associations settings tab
  * (Phase 5), folder sharing + Heartbeat sync (Phase 6), and the
  * Recycle-Bin drop integration (Phase 7).
- *
- * @since 0.9.0
  */
 
 import { DefaultDesktopFile, DesktopFile } from './file';
@@ -44,6 +42,7 @@ import { installEmbedPersistence } from './embed-window';
 import { registerFileAssociationsTab } from './settings-tab';
 import { installShareMenuItems } from './share-menu-items';
 import { installShareInviteBanner } from './share-invite-banner';
+import { installUploadMenuItems } from './upload-menu-items';
 import { ingestPendingInvites, type PendingInvite } from './shares-store';
 import * as filesRest from './rest';
 import {
@@ -65,6 +64,7 @@ registerBuiltInFileOpeners();
 installEmbedPersistence();
 registerFileAssociationsTab();
 installShareMenuItems();
+installUploadMenuItems();
 // Hydrate the shares store from the shell config snapshot BEFORE the
 // banner subscribes — the heartbeat-driven path only fires the
 // subscriber when new rows land, so the refresh case (rows seeded

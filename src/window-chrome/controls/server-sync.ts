@@ -9,8 +9,6 @@
  *
  * Built-in controls (`core/*`) carry no `owner` so server-sync's
  * owner-bulk teardown can never blow them away.
- *
- * @since 0.6.0
  */
 
 import { doAction, HOOKS } from '../../hooks';

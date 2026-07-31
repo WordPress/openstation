@@ -47,17 +47,57 @@ for path in "${include[@]}"; do
 	fi
 done
 
-# Vite build output: every gitignored .js under assets/js/. Listed by
-# `git ls-files --others --ignored --exclude-standard`, which only
-# returns files that exist on disk — so a missing build is detected as
-# "no files found", not as a stale hard-coded list. Adding a new bundle
-# in vite.config.js does not require updating this script.
-mapfile -t built < <(git ls-files --others --ignored --exclude-standard -- 'assets/js/*.js')
+# Vite build output: derive the expected bundle list from the `fileBase`
+# entries in vite.config.js — each target builds `<fileBase>.js` (dev)
+# and `<fileBase>.min.js` (prod). Adding a new bundle in vite.config.js
+# does not require updating this script, and — unlike splicing whatever
+# gitignored .js happens to be on disk — stale bundles left behind by
+# other branches can never sneak into a release zip.
+#
+# Only the MINIFIED bundles ship. The unminified dev builds total
+# ~4-5 MB (desktop.js alone is >1 MB) and never load at runtime on a
+# release install: `desktop_mode_asset_suffix()` (includes/helpers.php)
+# probes for `assets/js/desktop.js` and serves `.min` when the dev
+# bundles are absent, so even a SCRIPT_DEBUG site degrades gracefully
+# instead of 404ing.
+mapfile -t bases < <(sed -n "s/^[[:space:]]*fileBase:[[:space:]]*'\([^']*\)',\{0,1\}[[:space:]]*$/\1/p" vite.config.js)
 
-if (( ${#built[@]} == 0 )); then
-	echo "error: no built JS found under assets/js/ — run 'npm run build' first." >&2
+if (( ${#bases[@]} == 0 )); then
+	echo "error: no 'fileBase' entries found in vite.config.js." >&2
+	echo "       Has the TARGETS map changed shape? Update bin/package.sh." >&2
 	exit 1
 fi
+
+built=()
+for base in "${bases[@]}"; do
+	file="assets/js/$base.min.js"
+	if [[ ! -f "$file" ]]; then
+		echo "error: expected bundle '$file' not found — run 'npm run build' first." >&2
+		exit 1
+	fi
+	built+=("$file")
+done
+
+# Reject gitignored .js under assets/js/ that no vite target produces —
+# stale output from another branch would otherwise be unaccounted for.
+# Tracked hand-written files (admin-bar.js, media-library-enhanced.js)
+# ship via `git archive` and are not listed here. Dev bundles
+# (`<base>.js`) are legitimate on-disk build output — expected but
+# not shipped.
+declare -A expected=()
+for file in "${built[@]}"; do
+	expected["$file"]=1
+done
+for base in "${bases[@]}"; do
+	expected["assets/js/$base.js"]=1
+done
+while IFS= read -r file; do
+	if [[ -z "${expected[$file]:-}" ]]; then
+		echo "error: '$file' is not produced by any vite.config.js target." >&2
+		echo "       Stale build output? Remove it ('git clean -fX assets/js/') and re-run." >&2
+		exit 1
+	fi
+done < <(git ls-files --others --ignored --exclude-standard -- 'assets/js/*.js')
 
 git archive --worktree-attributes --prefix="$prefix/" HEAD -- "${include[@]}" | tar -x -C "$tmp"
 
@@ -65,6 +105,10 @@ for file in "${built[@]}"; do
 	cp "$file" "$tmp/$prefix/$file"
 done
 
+# `zip -r` UPDATES an existing archive in place — entries removed from
+# the staging tree (e.g. dev bundles that no longer ship) would survive
+# from a previous run. Always start from a fresh file.
+rm -f "$root/$out"
 ( cd "$tmp" && zip -qr "$root/$out" "$prefix" )
 
 echo "Wrote $out"

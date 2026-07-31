@@ -30,8 +30,6 @@
  * `admin-ajax.php` is intentionally NOT covered. Admin-ajax uses
  * per-action `_wpnonce` parameters with different action strings;
  * the `wp_rest` nonce wouldn't validate there.
- *
- * @since 0.20.0
  */
 
 const NONCE_HEADER = 'X-WP-Nonce';

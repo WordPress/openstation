@@ -1,0 +1,121 @@
+/*
+ * =============================================================================
+ * Desktop Mode — Starter Widget styles
+ * =============================================================================
+ *
+ * NAMING CONVENTION
+ * -----------------
+ * Prefix every class with a short namespace unique to your widget.
+ * This file uses "dm-starter__" — change it to match your widget name.
+ * Without a prefix, your styles can collide with the shell's own classes
+ * or another plugin's widget running on the same page.
+ *
+ * CSS CUSTOM PROPERTIES
+ * ---------------------
+ * Desktop Mode sets these variables on the card body element. Using them
+ * means your widget automatically respects the user's chosen theme
+ * (light, dark, or any custom accent colour) without any extra code.
+ *
+ *   --wpd-color-text          Primary text — body copy, headings
+ *   --wpd-color-text-subtle   Muted text — labels, timestamps, metadata
+ *   --wpd-color-border        Divider lines and borders
+ *   --wpd-color-accent        Brand blue — use for buttons, highlights, links
+ *   --wpd-color-surface       The card's glass background (rarely needed)
+ *
+ * Always provide a fallback value as the second argument to var() in case
+ * the shell loads in an unexpected context:
+ *   color: var(--wpd-color-text, #1a1a1a);
+ *
+ * LAYOUT
+ * ------
+ * The card body is a block-level element with 12px padding on all sides.
+ * Your root element should fill it completely:
+ *   height: 100%; display: flex; flex-direction: column;
+ *
+ * Use flex: 1 on the main content area so it expands to fill available
+ * space, and flex-shrink: 0 on fixed-height elements like headers and
+ * footers so they do not compress when the card is resized small.
+ *
+ * RESPONSIVE SIZING
+ * -----------------
+ * When a widget is resizable, the card can be made very small by the user.
+ * Use min-width: 0 on flex children that contain text so they truncate
+ * cleanly rather than overflowing. Use white-space: nowrap + overflow:
+ * hidden + text-overflow: ellipsis on single-line text that must not wrap.
+ *
+ * Avoid fixed pixel widths on any element the user might resize. Use
+ * percentage widths or flex layout so the widget reflows gracefully.
+ */
+
+/* Root container — fills the card body and stacks children vertically. */
+.dm-starter {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	height: 100%;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-size: 13px;
+	color: var(--wpd-color-text, #1a1a1a);
+	/* Prevent the root from exceeding the card body width. */
+	min-width: 0;
+}
+
+/*
+ * Header bar — small, uppercase label that identifies the widget.
+ * flex-shrink: 0 keeps it at a fixed height even when the card is tiny.
+ * This pattern (header + flex:1 body + optional footer) is the standard
+ * layout used by all the built-in widgets.
+ */
+.dm-starter__header {
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--wpd-color-text-subtle, #6b7280);
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--wpd-color-border, #e5e7eb);
+	/* Fixed height — does not grow or shrink with the card. */
+	flex-shrink: 0;
+	/* Truncate if the label is too wide for a very narrow card. */
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/*
+ * Main content area — flex: 1 makes this fill all remaining vertical space
+ * between the header and the counter button below it.
+ * min-width: 0 prevents text from overflowing its flex container.
+ */
+.dm-starter__body {
+	flex: 1;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--wpd-color-text, #1a1a1a);
+	min-width: 0;
+	/* Allow long post titles to wrap rather than overflow. */
+	overflow-wrap: break-word;
+}
+
+/*
+ * Counter button — demonstrates using --wpd-color-accent for interactive
+ * elements so the button colour matches the user's chosen shell accent.
+ * flex-shrink: 0 keeps it at its natural height at the bottom of the card.
+ */
+.dm-starter__counter {
+	flex-shrink: 0;
+	background: var(--wpd-color-accent, #3b82f6);
+	color: #fff;
+	border: none;
+	border-radius: 6px;
+	padding: 6px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	cursor: pointer;
+	/* Subtle hover/active feedback without JavaScript. */
+	transition: opacity 0.15s ease;
+	/* Prevent the button from stretching full width in a flex column. */
+	align-self: flex-start;
+}
+.dm-starter__counter:hover  { opacity: 0.85; }
+.dm-starter__counter:active { opacity: 0.70; }

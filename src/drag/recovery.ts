@@ -17,8 +17,6 @@
  * boots that never drag pay nothing. They are never removed — keeping
  * them attached forever costs three idle listeners and avoids race
  * conditions around session end vs handler removal.
- *
- * @since 0.18.0
  */
 
 let _installed = false;

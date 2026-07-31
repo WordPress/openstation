@@ -13,21 +13,24 @@
  *   1. Only intercept GETs whose path starts with `/desktop-mode/` or
  *      `/wp-admin/`. Everything else falls through to the network with
  *      no SW involvement.
- *   2. Static assets shipped by this plugin (CSS / JS / icons under
- *      `/wp-content/plugins/desktop-mode/assets/`) — stale-while-
- *      revalidate. Lets a returning user open the shell instantly
- *      while the SW updates the cache in the background.
+ *   2. Static assets shipped by this plugin (under
+ *      `/wp-content/plugins/desktop-mode/assets/`): CSS / images /
+ *      fonts — stale-while-revalidate, letting a returning user open
+ *      the shell instantly while the SW updates the cache in the
+ *      background. JS bundles — network-first with cache fallback,
+ *      so a fresh deploy reaches online users immediately.
  *   3. Everything else (HTML, REST, AJAX) — network-only with an
  *      offline fallback for navigation requests so the user sees a
  *      friendly placeholder instead of the browser's default offline
  *      page.
  *
- * Push + notification-click handlers are registered as no-ops in v1.
- * They claim the events so a future v2 push payload doesn't fall
- * through to the browser's default — but emit nothing themselves
- * until the push REST surface ships.
- *
- * @since 0.8.0
+ * The `push` handler is a no-op in v1 — it claims the event so a
+ * future v2 push payload doesn't fall through to the browser's
+ * default, but emits nothing until the push REST surface ships.
+ * The `notificationclick` handler is live: it closes the
+ * notification, focuses an existing `/desktop-mode/` window client,
+ * or opens `notification.data.url` (default `/desktop-mode/`) when
+ * none exists.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -353,18 +356,7 @@ async function staleWhileRevalidate( req: Request ): Promise< Response > {
 	// the SWR path, the lookup matched the stale `?ver=` entry, SWR
 	// returned the stale bytes immediately. Users saw old CSS / old JS
 	// for as long as the SW lived in their profile. Fixed in pwa-5.
-	let cached = await cache.match( req );
-	// **Static precache fallback: `ignoreSearch: true`.** The precache
-	// list stores UNVERSIONED URLs (`assets/css/desktop.css`); runtime
-	// requests carry `?ver=<mtime>`. So a precache match REQUIRES
-	// ignoring the search params on the lookup. Only used as fallback
-	// when the runtime cache has nothing — that way the precache acts
-	// purely as a "real bytes when nothing else is around" fallback,
-	// without overriding fresh runtime cache entries.
-	if ( ! cached ) {
-		const staticCache = await caches.open( STATIC_CACHE );
-		cached = await staticCache.match( req, { ignoreSearch: true } );
-	}
+	const cached = await cache.match( req );
 	// eslint-disable-next-line no-restricted-syntax -- service-worker context, no `wp.desktop` global available; raw fetch is the API.
 	const network = fetch( req )
 		.then( ( res ) => {
@@ -375,13 +367,37 @@ async function staleWhileRevalidate( req: Request ): Promise< Response > {
 		} )
 		.catch( () => undefined );
 	if ( cached ) {
+		// Exact `?ver=` hit — genuinely the bytes for this URL.
 		// Refresh in the background; return the cached copy now.
 		void network;
 		return cached;
 	}
+
+	// No runtime entry for THIS version. The precache could answer —
+	// it stores UNVERSIONED URLs, so an `ignoreSearch` lookup always
+	// matches — but it must NOT answer first.
+	//
+	// That was a real bug, and a long-lived one. Edit a stylesheet →
+	// WordPress stamps a new `?ver=<mtime>` → runtime cache misses →
+	// the precache matched the OLD bytes with `ignoreSearch: true` and
+	// SWR returned them immediately. Every CSS change was invisible on
+	// the load that shipped it and only appeared on the next one, for
+	// the four sheets in `PRECACHE_PATHS`. The symptom was worst when
+	// a stylesheet and a bundle had to land together — freshly-shipped
+	// JS rendering elements the stale CSS had no rules for, so icons
+	// came out unsized and therefore invisible until a hard reload.
+	//
+	// A version-mismatched precache entry is stale BY CONSTRUCTION, so
+	// it is only ever an offline fallback. Go to the network first and
+	// fall back to it if that fails.
 	const fresh = await network;
 	if ( fresh ) {
 		return fresh;
+	}
+	const staticCache = await caches.open( STATIC_CACHE );
+	const precached = await staticCache.match( req, { ignoreSearch: true } );
+	if ( precached ) {
+		return precached;
 	}
 	return new Response( '', { status: 504 } );
 }

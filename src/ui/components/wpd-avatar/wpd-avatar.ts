@@ -18,8 +18,6 @@
  * <wpd-avatar name="Eric Andersen" presence="online"></wpd-avatar>
  * <wpd-avatar user-id="42" name="Pat" size="lg"></wpd-avatar>
  * ```
- *
- * @since 0.22.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -47,7 +45,7 @@ export class WpdAvatar extends Component {
 		summary:
 			'Image-or-initials user tile with an optional presence dot. Falls back to a deterministic-hue letter tile when src is empty. Set user-id to auto-subscribe the dot to desktop-mode-presence-changed.',
 		status: 'stable',
-		since: '0.22.0',
+		since: '0.6.0',
 		props: [
 			{ name: 'src', type: 'string', description: 'Image URL. Falls back to initials when empty or load fails.' },
 			{ name: 'alt', type: 'string', description: 'Alt text for the image. Defaults to `name` when omitted.' },
@@ -67,11 +65,16 @@ export class WpdAvatar extends Component {
 				type: 'number',
 				description: 'When set AND presence is unset, auto-subscribes to desktop-mode-presence-changed and updates the dot.',
 			},
+			{
+				name: 'clickable',
+				type: 'boolean attribute',
+				description: 'Renders the tile as a focusable button that emits wpd-avatar-click. Omit for a decorative tile that lets clicks pass through to the surrounding row.',
+			},
 		],
 		events: [
 			{
 				name: 'wpd-avatar-click',
-				description: 'Fires on click of the tile. Detail carries userId when set.',
+				description: 'Fires on click when the `clickable` attribute is set. Detail carries userId when set.',
 				detail: '{ userId: number | null }',
 			},
 		],
@@ -184,9 +187,9 @@ export class WpdAvatar extends Component {
 
 		// Non-clickable: a plain `<div>` so the surrounding row's
 		// click handler isn't fighting a focusable inner element for
-		// the click target / :active visual feedback. The host emits
-		// `wpd-avatar-click` from a delegate listener so the DOM
-		// contract stays the same regardless of the inner element.
+		// the click target / :active visual feedback. Non-clickable
+		// tiles do NOT emit `wpd-avatar-click` — only the `clickable`
+		// button branch wires the handler.
 		return html`
 			<div
 				class="wpd-avatar__tile"

@@ -25,6 +25,37 @@
 	--desktop-mode-window-border: rgba(0, 0, 0, 0.12);
 	--desktop-mode-window-radius: 8px;
 	--desktop-mode-window-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+	/*
+	 * Fill of the surface a window's content is revealed from once it
+	 * finishes loading (OS Settings → Effects → "Window reveal").
+	 *
+	 * White: the surface has to be opaque or there is nothing to reveal
+	 * FROM — the content would simply be visible the whole time and the
+	 * clip animation would paint nothing. A theme retints it with any
+	 * paint value (`var( --desktop-mode-window-bg )` to follow the
+	 * window, a brand colour, a gradient, an image), and `transparent`
+	 * is a legitimate value meaning "no covering surface" — the shell
+	 * skips the layer rather than animating something invisible.
+	 *
+	 * A reveal may override this for itself when the paint IS the
+	 * reveal; `obturator` (Camera shutter) is the one built-in that
+	 * does, because near-black blades are what make it a shutter.
+	 */
+	--desktop-mode-window-reveal-surface: #fff;
+	/*
+	 * Fill of the reveal's leading edge — the band that travels with
+	 * the clip boundary and draws each reveal's shape (six lines on
+	 * Blinds, an opening ring on Iris, a rotating spoke on Radar).
+	 *
+	 * `transparent` by default: the reveal reads as the page arriving,
+	 * and a hard graphic edge on top of that is a deliberate look
+	 * rather than the neutral one. A theme (or any stylesheet) opts in
+	 * by giving this a colour — no JS and no per-reveal configuration
+	 * needed, because the band follows whatever shape the active
+	 * reveal has. While it computes to fully transparent the shell
+	 * skips the layer altogether, so the default costs nothing.
+	 */
+	--desktop-mode-window-reveal-edge: transparent;
 	--desktop-mode-window-shadow-focused: 0 12px 48px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
 
 	/* Title bar — focused bg/color resolve via the scheme overrides below. */
@@ -45,10 +76,336 @@
 	--desktop-mode-resize-size: 20px;
 	--desktop-mode-resize-color: rgba(0, 0, 0, 0.15);
 
+	/*
+	 * ---- The `--wpd-*` UI palette -----------------------------
+	 *
+	 * The single vocabulary for every surface, text tone, border,
+	 * and status colour inside window BODIES — the `<wpd-*>`
+	 * component kit AND the feature stylesheets both read these.
+	 * Setting one value retints everything that uses it.
+	 *
+	 *   Surfaces   --wpd-surface           cards, panels, table rows
+	 *              --wpd-surface-elevated  headers, raised strips
+	 *              --wpd-surface-sunken    wells, recessed areas
+	 *   Text       --wpd-fg                body text
+	 *              --wpd-fg-muted          secondary / metadata
+	 *              --wpd-fg-faint          disabled
+	 *              --wpd-fg-on-accent      text on a filled surface
+	 *   Lines      --wpd-border            hairlines
+	 *              --wpd-border-strong     emphasized dividers
+	 *   Interaction
+	 *              --wpd-hover             row / tile hover wash
+	 *              --wpd-scrim             modal + overlay backdrop
+	 *   Accent     --wpd-accent            primary action
+	 *              --wpd-accent-strong     its hover / active state
+	 *   Status     --wpd-danger  --wpd-danger-hover
+	 *              --wpd-warning-fg  --wpd-warning-bg  --wpd-warning-border
+	 *              --wpd-info-fg     --wpd-info-bg
+	 *              --wpd-success-fg
+	 *
+	 * ## Why none of them are declared here
+	 *
+	 * They are deliberately left UNSET. Every consuming site reads
+	 * its token as `var( --wpd-x, <the literal that was always
+	 * there> )`, so with no desktop theme active the computed value
+	 * is exactly what it was before this palette existed — the
+	 * default look cannot drift, and there is no flag day.
+	 *
+	 * Declaring defaults here would be actively wrong: the same
+	 * token legitimately carries different fallbacks at different
+	 * sites (`--wpd-border` is `#dcdcde` in the settings panel and
+	 * `rgba( 0, 0, 0, 0.08 )` inside `<wpd-table>`), tuned to each
+	 * surface. One `:root` value would flatten all of them and
+	 * silently restyle the default UI.
+	 *
+	 * A desktop theme sets whichever of these it wants in its
+	 * `theme.json` `tokens` block; the compiled stylesheet declares
+	 * them on the shell root + body, and every fallback in the tree
+	 * is overridden at once. See docs/desktop-themes.md.
+	 *
+	 * @since 0.9.7
+	 */
+
+	/*
+	 * ---- Desktop-theme texture family -------------------------
+	 *
+	 * These are DELIBERATELY not declared here. Every rule that
+	 * consumes one reads it as `var( --name, <initial> )`, so an
+	 * unset variable resolves to the CSS initial value and costs
+	 * exactly nothing. Declaring them with `none` up here would be
+	 * equivalent but would imply they are part of the default
+	 * palette — they are not. They exist only while an uploaded or
+	 * code-registered desktop theme is active, and only the
+	 * compiled theme stylesheet ever sets them.
+	 *
+	 *   TITLEBAR          --desktop-mode-titlebar-image
+	 *                     --desktop-mode-titlebar-image-repeat
+	 *                     --desktop-mode-titlebar-image-size
+	 *   TITLEBAR_FOCUSED  --desktop-mode-titlebar-image-focused
+	 *                       (falls back to the unfocused image)
+	 *   WINDOW_FRAME      --desktop-mode-window-border-image-source
+	 *                     --desktop-mode-window-border-image-slice
+	 *                     --desktop-mode-window-border-image-width
+	 *                     --desktop-mode-window-border-image-repeat
+	 *   WINDOW_CORNER_*   --desktop-mode-window-corner-{ne,nw,se,sw}-image
+	 *                     --desktop-mode-window-corner-size (shared)
+	 *                     --desktop-mode-window-corner-inset (shared;
+	 *                       how far inside the rounded corner the
+	 *                       ornament sits. Defaults to the resize
+	 *                       handle's 3px overhang plus a share of
+	 *                       --desktop-mode-window-radius, because the
+	 *                       window clips its descendants)
+	 *   WINDOW_FRAME_FOCUSED
+	 *                     --desktop-mode-window-border-image-focused-*
+	 *                       (same four sub-properties as WINDOW_FRAME)
+	 *   WINDOW_BODY       --desktop-mode-window-body-image
+	 *   TABBAR            --desktop-mode-tabs-image
+	 *   TITLEBAR_CONTROLS --desktop-mode-titlebar-controls-image
+	 *   TITLEBAR_BUTTON   --wpd-btn-bg-image
+	 *   DOCK              --desktop-mode-dock-bg-image
+	 *                     --desktop-mode-dock-bg-image-repeat
+	 *                     --desktop-mode-dock-bg-image-size
+	 *   DOCK_ITEM         --desktop-mode-dock-item-image
+	 *   DESKTOP           --desktop-mode-desktop-image
+	 *                     --desktop-mode-desktop-image-repeat
+	 *                     --desktop-mode-desktop-image-size
+	 *   ICON_TILE         --desktop-mode-tile-image
+	 *   WIDGET            --desktop-mode-widget-image
+	 *   MENU              --wpd-menu-bg-image
+	 *   DIALOG            --wpd-dialog-bg-image
+	 *   SCRIM             --wpd-scrim-image
+	 *   PANEL             --wpd-panel-bg-image
+	 *   TOAST             --wpd-toast-bg-image
+	 *   TABLE_HEADER      --wpd-table-header-bg-image
+	 *   BUTTON            --wpd-button-bg-image
+	 *
+	 * Every `image` slot also gets `<prop>-repeat` and `<prop>-size`
+	 * companions (the corners share one `-size`, and
+	 * TITLEBAR_FOCUSED inherits TITLEBAR's).
+	 *
+	 * Consumers: window-chrome.css (titlebar, frame, body, tab bar),
+	 * window-states.css (corners), dock.css, desktop.css (wallpaper,
+	 * icons, widgets), and the `<wpd-*>` component stylesheets under
+	 * `src/ui/components/` for the last seven.
+	 * Authoring reference: docs/desktop-themes.md.
+	 *
+	 * @since 0.9.7
+	 */
+
+	/*
+	 * ---- Title-bar control cluster ----------------------------
+	 *
+	 * Also undeclared, and for a load-bearing reason: the cluster and
+	 * the control faces are TRANSPARENT by default, so a themed
+	 * title-bar texture runs edge to edge underneath them and the
+	 * buttons float on the artwork. A plate behind the controls is a
+	 * choice a theme makes, not a default the framework imposes.
+	 *
+	 *   Cluster   --desktop-mode-titlebar-controls-bg
+	 *             --desktop-mode-titlebar-controls-image (+ -repeat,
+	 *               -size, -position)
+	 *             --desktop-mode-titlebar-controls-radius
+	 *             --desktop-mode-titlebar-controls-padding (inline)
+	 *             --desktop-mode-titlebar-controls-gap
+	 *   Screen-meta cluster
+	 *             --desktop-mode-titlebar-meta-bg / -image / -radius
+	 *               (radius falls through to the controls radius)
+	 *   Each face --wpd-btn-bg          resting colour
+	 *             --wpd-btn-bg-image    (+ -repeat, -size, -position)
+	 *             --wpd-btn-radius
+	 *   Dividers  --desktop-mode-titlebar-divider
+	 *             --desktop-mode-titlebar-divider-unfocused
+	 *
+	 * Consumers: window-chrome.css and the `<wpd-window-button>`
+	 * shadow stylesheet.
+	 *
+	 * @since 0.9.8
+	 */
+
+	/*
+	 * ---- Title-bar control glyphs -----------------------------
+	 *
+	 * The colour of the buttons themselves — minimise / maximise /
+	 * close, the ⋯ menu trigger, and the screen-meta cluster — in
+	 * each of the two title-bar states.
+	 *
+	 *   Focused    --desktop-mode-titlebar-btn-focused-color
+	 *              --desktop-mode-titlebar-btn-focused-color-hover
+	 *              --desktop-mode-titlebar-btn-focused-bg-hover
+	 *              --desktop-mode-titlebar-btn-focused-bg-active
+	 *              --desktop-mode-titlebar-btn-focused-outline
+	 *   Unfocused  --desktop-mode-titlebar-btn-color
+	 *              --desktop-mode-titlebar-btn-color-hover
+	 *              --desktop-mode-titlebar-btn-bg-hover
+	 *              --desktop-mode-titlebar-btn-bg-active
+	 *
+	 * Undeclared, like everything above: each rule reads
+	 * `var( --name, <the literal it always had> )`.
+	 *
+	 * The unfocused half additionally DERIVES from
+	 * `--desktop-mode-titlebar-color` under an active desktop theme,
+	 * so most themes never need to name it. The focused half cannot
+	 * do the same — its glyphs sit on `-bg-focused`, a fill a theme
+	 * may set to anything from near-black to a pastel, and there is
+	 * no contrast-safe function of a background colour in CSS. So it
+	 * stays explicit: white at 70% until a theme says otherwise.
+	 *
+	 * Why these need names at all: the declarations land on the
+	 * WINDOW element (`.desktop-mode-window--focused`), which outranks
+	 * a `--wpd-btn-*` set at the shell root, and those names are
+	 * shared with buttons outside the title bar. A theme had no way to
+	 * recolour a focused control without also moving sticky-note and
+	 * desk chrome.
+	 *
+	 * Consumers: window-chrome.css (control cluster, ⋯ trigger,
+	 * screen-meta buttons).
+	 */
+
+	/*
+	 * ---- Typography ------------------------------------------
+	 *
+	 * Also deliberately UNDECLARED, for the same reason as the
+	 * `--wpd-*` palette: every consuming rule reads
+	 * `font-family: var( --name, <the literal that was always
+	 * there> )`, so an unset token computes to exactly what it
+	 * always did. A desktop theme sets them (and may ship the
+	 * `@font-face` rules to back them) and the whole shell changes
+	 * typeface at once.
+	 *
+	 *   --desktop-mode-font           shell chrome: dock labels,
+	 *                                 desktop icons, widgets
+	 *   --desktop-mode-titlebar-font  window title bars; falls back
+	 *                                 to --desktop-mode-font
+	 *   --wpd-font                    window BODIES + the `<wpd-*>`
+	 *                                 component kit
+	 *   --wpd-font-mono               code, hashes, file sizes,
+	 *                                 log output
+	 *
+	 * The split matters: a theme can put a display face on the
+	 * chrome while window content stays on a readable text face,
+	 * which is what real desktop environments do.
+	 *
+	 * Note that iframe windows render a real wp-admin document in a
+	 * separate browsing context that the theme stylesheet does not
+	 * reach — these tokens style the shell and native windows.
+	 *
+	 * @since 0.9.8
+	 */
+
+	/*
+	 * ---- Badges ----------------------------------------------
+	 *
+	 * Undeclared, and DERIVED rather than fixed. Every badge sizes
+	 * itself off the icon it decorates — the dock badge off
+	 * `--desktop-mode-dock-icon-size`, the wallpaper badges off
+	 * `--desktop-mode-icon-image-size` — so a user who picks a large
+	 * dock, or a theme that scales its icons, doesn't end up with a
+	 * speck stuck to an oversized tile. At the default sizes the
+	 * derivations resolve to the exact values these rules used to
+	 * hardcode.
+	 *
+	 *   Dock          --desktop-mode-dock-badge-size (overrides the
+	 *                   whole derivation; font + padding follow it)
+	 *                 --desktop-mode-dock-badge-font-size / -padding
+	 *                 --desktop-mode-dock-badge-offset / -bg / -fg
+	 *                 --desktop-mode-dock-badge-font-weight
+	 *   Desktop icon  --desktop-mode-icon-badge-size / -font-size
+	 *                 --desktop-mode-icon-badge-padding / -bg / -fg
+	 *   Recycle bin   --desktop-mode-recycle-badge-size / -font-size
+	 *                   / -bg / -fg. Falls through to the generic
+	 *                   icon-badge token, so "badges are 22px" reaches
+	 *                   the bin too.
+	 *
+	 * @since 0.9.8
+	 */
+
+	/*
+	 * ---- Tooltips ---------------------------------------------
+	 *
+	 * Undeclared, like the palette above — every tooltip reads
+	 * `var( --desktop-mode-tooltip-bg, <the chain it always had> )`,
+	 * so an unthemed shell renders exactly as before.
+	 *
+	 *   --desktop-mode-tooltip-bg   the chip / card surface
+	 *   --desktop-mode-tooltip-fg   its primary text
+	 *
+	 * They exist because tooltips used to borrow their two colours
+	 * from unrelated families — `--wpd-scrim` (an overlay BACKDROP)
+	 * or `--wpd-surface-elevated` for the surface, `--wpd-fg-on-accent`
+	 * for the text. Those pairings hold for the default look and come
+	 * apart under a custom theme: a theme that sets `--wpd-scrim` to a
+	 * translucent wash for its modals turns every tooltip translucent
+	 * with it, and a light theme that sets `--wpd-surface-elevated`
+	 * light while `--wpd-fg-on-accent` stays white renders white text
+	 * on a white tooltip. A theme could not fix either without
+	 * breaking the modal backdrop or the text on its accent buttons,
+	 * because it had no name for "tooltip" to aim at. Now it does.
+	 *
+	 * Consumers: dock.css (dock tile tooltip), content-graph.css
+	 * (satellite tooltip), my-wordpress.css (entity hover card).
+	 *
+	 * Secondary text inside the richer tooltips — the hover card's
+	 * excerpt — still follows `--wpd-fg-muted`; these two tokens
+	 * cover the surface and the primary text on it.
+	 */
+
+	/*
+	 * ---- Dock glyphs ------------------------------------------
+	 *
+	 * `--desktop-mode-dock-bg` below is declared, so a theme can and
+	 * does repaint the strip. What it paints ON the strip was, until
+	 * these tokens, fixed white — the glyph, its hover brightening,
+	 * the hover wash behind the tile, and the focus ring. Set the
+	 * dock to anything pale and every tile went blank.
+	 *
+	 *   --desktop-mode-dock-icon-color        glyph at rest
+	 *   --desktop-mode-dock-icon-color-hover  glyph on hover / peek
+	 *   --desktop-mode-dock-item-bg-hover     wash behind the tile
+	 *   --desktop-mode-dock-item-outline      keyboard focus ring
+	 *
+	 * Undeclared, like the palette: each site reads
+	 * `var( --name, <the literal it always had> )`. System tiles
+	 * (OS Settings, recycle bin, …) read the same `-icon-color` with
+	 * their own slightly brighter literal behind it, so unthemed they
+	 * keep their notch of extra prominence and themed they follow the
+	 * single colour the theme named.
+	 *
+	 * Named a *colour*, not a fill, on purpose: every image glyph in
+	 * the dock is painted as a mask filled with this colour — a
+	 * theme's own iconset via `"iconColor": "currentColor"`, and
+	 * plugin / CPT artwork via `currentColor` on the tile. So one
+	 * token drives dashicons, theme art, plugin art, and the hover
+	 * transition between them. The `__item-svg` fallback (a URL the
+	 * mask can't take) still force-whitens; see the note in dock.css.
+	 *
+	 * Consumers: dock.css, dock-peek.css (which re-states the hover
+	 * rule and so must read the same two tokens).
+	 */
+
 	/* Dock */
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;
 	--desktop-mode-dock-bg: rgba(0, 0, 0, 0.4);
+	/*
+	 * Hairline between the dock and the desktop. Reaches the side
+	 * placements (as a single inline-edge border) AND the floating
+	 * bottom pill (as its full outline). Set `transparent` for a
+	 * borderless dock.
+	 *
+	 * The bottom pill's own chrome is separately overridable, because
+	 * it is deliberately a different piece of glass — a warmer tint, a
+	 * brighter top edge, an inset highlight, a drop shadow. Each falls
+	 * back to the shared value above it:
+	 *
+	 *   --desktop-mode-dock-floating-bg
+	 *   --desktop-mode-dock-floating-border      (→ dock-border)
+	 *   --desktop-mode-dock-floating-border-top  (→ floating-border)
+	 *   --desktop-mode-dock-floating-highlight
+	 *   --desktop-mode-dock-floating-shadow
+	 *
+	 * @since 0.9.8 the floating pill honours these at all; it used to
+	 *              hardcode every one of them.
+	 */
 	--desktop-mode-dock-border: rgba(255, 255, 255, 0.08);
 
 	/*
@@ -92,11 +449,62 @@
 	--desktop-mode-tile-label-smoothing: auto;
 	--desktop-mode-tile-label-color: var(--desktop-mode-tile-fg);
 
+	/*
+	 * Admin bar — how many pixels of the bar stay on screen while it
+	 * is parked off the top edge in `dynamic` mode. This is the
+	 * VISIBLE seam only: small enough to read as "nothing is there".
+	 * Themes may retune it; `0` makes the bar invisible until hovered.
+	 */
+	--desktop-mode-admin-bar-peek: 4px;
+
+	/*
+	 * How far BELOW the parked bar the invisible reveal zone reaches.
+	 * Decoupled from the peek on purpose — the seam wants to be a
+	 * hairline, the pointer target wants to be forgiving, and tying
+	 * them together forces one of the two to be wrong. The band the
+	 * user actually has to hit is `peek + this`.
+	 *
+	 * CEILING: keep `peek + reveal-zone` comfortably under the admin
+	 * bar's own height (32px, 46px below 783px). Past that, leaving
+	 * the revealed bar drops the pointer straight back into the zone,
+	 * which re-reveals it — an oscillation loop, not a wider target.
+	 */
+	--desktop-mode-admin-bar-reveal-zone: 16px;
+
 	/* Z-index layers */
 	--desktop-mode-z-base: 100;
 	--desktop-mode-z-dock: 200;
 	--desktop-mode-z-adminbar: 9991;
 	--desktop-mode-z-fullscreen: 99999;
+	/* Window-link layer — above widgets (z 1), behind windows (z 100+). */
+	--desktop-mode-z-window-links: 50;
+
+	/*
+	 * Window-link ties (relation splines between windows). The accent
+	 * follows the admin color scheme. Solid colors only — the resting
+	 * dimming is done with stroke-opacity/fill-opacity in
+	 * window-links.css, NOT color-mix(): an unresolvable color-mix()
+	 * inside a custom property makes the consuming declaration invalid
+	 * at computed-value time, which turns SVG strokes invisible and
+	 * marker fills black (the written rgba() fallback declaration is
+	 * already gone from the cascade by then). Overridable per scheme
+	 * or by plugins/themes without touching the renderer.
+	 *
+	 * @since 0.9.4
+	 */
+	--desktop-mode-window-link-color: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-window-link-color-active: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-window-link-width: 1.5px;
+	--desktop-mode-window-link-accent: var(--wp-admin-theme-color, #2271b1);
+	/*
+	 * Halo behind related windows (`.desktop-mode-window--linked`).
+	 * A literal rgba of the default admin blue rather than a
+	 * color-mix() of the accent — same no-color-mix rationale as
+	 * above: if this token failed to resolve, the whole box-shadow
+	 * declaration (elevation shadow included) would go invalid.
+	 * Schemes/plugins that retint the accent should override this too.
+	 */
+	--desktop-mode-window-link-glow: rgba(34, 113, 177, 0.45);
 }
 
 /*

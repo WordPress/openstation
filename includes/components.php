@@ -5,19 +5,20 @@
  * Two companion helpers live here:
  *
  *   - {@see desktop_mode_component()} prints a `<wpd-*>` tag with
- *     safely-escaped attributes. The intent is explicit (we're
- *     rendering a kit component, not arbitrary HTML) and the
- *     escape discipline is automatic.
+ *     safely-escaped attributes (plus its style-array
+ *     serializers). The intent is explicit (we're rendering a kit
+ *     component, not arbitrary HTML) and the escape discipline is
+ *     automatic.
  *
- *   - {@see desktop_mode_register_window()} collapses the
- *     boilerplate for declaring a PHP-owned native window: one
- *     call emits the `<template>` the shell clones, enqueues
- *     the plugin's JS render bundle, and wires a dock tile on
- *     window-ready. Plugins write the template callback
- *     + the render callback on the JS side — the plumbing is ours.
+ *   - {@see desktop_mode_enqueue_script()} wraps
+ *     `wp_enqueue_script()` with the `desktop-mode` + `wp-hooks`
+ *     dependencies pre-wired, so shell-extending scripts always
+ *     load after `wp.desktop.*` and `wp.hooks` are available.
+ *
+ * {@see desktop_mode_register_window()} moved to
+ * `includes/registries/native-windows.php`.
  *
  * @package WPDesktopMode
- * @since   0.10.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -72,9 +73,6 @@ defined( 'ABSPATH' ) || exit;
  * ), $children );
  * ```
  *
- * @since 0.10.0
- * @since 0.13.0 `style` accepts an array of CSS declarations.
- *
  * @param string                $tag     Tag name, e.g. `wpd-button`.
  *                                       Whitelisted to the `wpd-*` prefix
  *                                       to prevent the helper being
@@ -98,7 +96,7 @@ function desktop_mode_component( $tag, $attrs = array(), $content = '' ) {
 					esc_html__( 'desktop_mode_component() only accepts tags with the wpd- prefix; got "%s".', 'desktop-mode' ),
 					esc_html( $tag )
 				),
-				'0.10.0'
+				'0.5.0'
 			);
 		}
 		return;
@@ -148,7 +146,7 @@ function desktop_mode_component( $tag, $attrs = array(), $content = '' ) {
 					esc_html( $key ),
 					esc_html( $tag )
 				),
-				'0.18.0'
+				'0.5.2'
 			);
 			continue;
 		}
@@ -178,8 +176,6 @@ function desktop_mode_component( $tag, $attrs = array(), $content = '' ) {
  * interpreting raw numeric values — keeping the same list in
  * one place so PHP `'padding' => 16` and JS `padding: 16` make
  * the same visual decision.
- *
- * @since 0.13.0
  */
 const DESKTOP_MODE_LENGTH_CSS_PROPERTIES = array(
 	'width', 'height',
@@ -214,8 +210,6 @@ const DESKTOP_MODE_LENGTH_CSS_PROPERTIES = array(
  * so callers can write `'padding' => 16` without remembering the
  * unit. The literal `0` is left unit-less because CSS treats it
  * as dimensionally valid on any property.
- *
- * @since 0.13.0
  *
  * @param array<string,mixed> $styles
  * @return string CSS declaration list, or empty string when no
@@ -256,8 +250,6 @@ function desktop_mode_serialize_style_array( $styles ) {
  * Everything else (strings, floats already unitted, calc(…)
  * expressions, color keywords) passes through verbatim.
  *
- * @since 0.13.0
- *
  * @param string $property CSS property name.
  * @param mixed  $value    Raw value (int, float, string).
  * @return string CSS value, or empty string when $value is
@@ -285,26 +277,26 @@ function desktop_mode_format_css_value( $property, $value ) {
 
 // Native-windows registry (register_window, allowed_html,
 // template-html builder, enqueue + render hooks) was moved to
-// `includes/registries/native-windows.php` in 0.8.1.
+// `includes/registries/native-windows.php`.
 
 
 
 // Widgets registry was moved to
-// `includes/registries/widgets.php` in 0.8.1.
+// `includes/registries/widgets.php`.
 
 
 
 // Wallpapers registry was moved to
-// `includes/registries/wallpapers.php` in 0.8.1.
+// `includes/registries/wallpapers.php`.
 
 
 // Desktop-icons registry was moved to
-// `includes/registries/icons.php` in 0.8.1.
+// `includes/registries/icons.php`.
 
 
 
 // Native-window tabs registry was moved to
-// `includes/registries/window-tabs.php` in 0.8.1.
+// `includes/registries/window-tabs.php`.
 
 
 /**
@@ -317,7 +309,9 @@ function desktop_mode_format_css_value( $property, $value ) {
  *     guaranteed available.
  *   - Runs AFTER `wp-hooks` so `wp.hooks.addAction( 'desktop-mode.init', ... )`
  *     works without the plugin author having to remember that dep.
- *   - Is only enqueued in the admin (shell only boots there).
+ *
+ * Intended to be called from `admin_enqueue_scripts` — the wrapper
+ * itself does not add an `is_admin()` guard.
  *
  * Drop-in replacement for the boilerplate:
  *
@@ -345,8 +339,6 @@ function desktop_mode_format_css_value( $property, $value ) {
  *     );
  * } );
  * ```
- *
- * @since 0.14.0
  *
  * @param string          $handle    Script handle.
  * @param string          $src       Full URL of the script, or path relative

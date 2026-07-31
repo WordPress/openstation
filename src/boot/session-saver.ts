@@ -10,8 +10,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { HOOKS, doAction } from '../hooks';
@@ -27,8 +25,6 @@ const SESSION_SAVE_DEBOUNCE_MS = 500;
  * function that schedules a debounced REST write on each call.
  * Also exposed on `wp.desktop.saveSession()` for plugins that want
  * to flush.
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export function createSessionSaver(
 	manager: WindowManager,

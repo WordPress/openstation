@@ -1,0 +1,303 @@
+/**
+ * Unit tests for `src/my-wordpress/agents-renderer.ts` — the `agent`
+ * entity-kind registration and the list/empty/detail paints.
+ */
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import '../../src/my-wordpress/agents-renderer';
+import { getEntityRenderer } from '../../src/my-wordpress/kind-registry';
+import type { EntityRenderHost } from '../../src/my-wordpress/kind-registry';
+import type { MyWordPressEntity } from '../../src/my-wordpress/types';
+import type { Agent } from '../../src/my-wordpress/agents-types';
+
+const WINDOW_ID = 'desktop-mode-my-wordpress';
+
+const ENTITY: MyWordPressEntity = {
+	id: 'agents',
+	label: 'Agents',
+	icon: 'data:image/svg+xml;base64,x',
+	restPath: 'desktop-mode/v1/agents',
+	kind: 'agent',
+};
+
+const AGENT: Agent = {
+	id: 12,
+	slug: 'audit',
+	name: 'Audit Agent',
+	description: 'Audits drafts.',
+	instructions: 'Audit the post.',
+	role: 'author',
+	abilities: [ 'desktop-mode/get-post' ],
+	triggers: [],
+	model: '',
+	rateLimit: 0,
+	avatarUrl: 'data:image/svg+xml;base64,x',
+};
+
+type FetchMock = ReturnType< typeof vi.fn >;
+
+function installConfig( overrides: Record< string, unknown > = {} ): void {
+	( window as unknown as Record< string, unknown > ).desktopModeWindowConfig = {
+		[ WINDOW_ID ]: {
+			restRoot: 'https://example.test/wp-json/',
+			restNonce: 'test-nonce',
+			entities: [ ENTITY ],
+			perPage: 24,
+			editPostUrlBase: '',
+			agents: {
+				canManage: true,
+				canInvoke: true,
+				aiAvailable: false,
+				aiStatusUrl: '',
+				connectorsUrl: 'https://example.test/wp-admin/options-connectors.php',
+				runWindowId: 'desktop-mode-agent-run',
+				...overrides,
+			},
+		},
+	};
+}
+
+function mockAgentList( agents: Agent[] ): FetchMock {
+	const fn = vi.fn( async () => ( {
+		ok: true,
+		status: 200,
+		json: async () => agents,
+	} ) as unknown as Response );
+	( globalThis as unknown as { fetch: FetchMock } ).fetch = fn;
+	return fn;
+}
+
+function makeHost(): EntityRenderHost & { teardowns: Array< () => void > } {
+	const body = document.createElement( 'div' );
+	document.body.appendChild( body );
+	const teardowns: Array< () => void > = [];
+	return {
+		body,
+		route: { kind: 'list', entityId: 'agents' },
+		navigate: () => void 0,
+		addTeardown: ( fn: () => void ) => teardowns.push( fn ),
+		teardowns,
+	};
+}
+
+async function flush(): Promise< void > {
+	await Promise.resolve();
+	await Promise.resolve();
+	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+}
+
+beforeEach( () => {
+	installConfig();
+} );
+
+afterEach( () => {
+	vi.restoreAllMocks();
+	document.body.replaceChildren();
+	delete ( window as unknown as Record< string, unknown > )
+		.desktopModeWindowConfig;
+} );
+
+describe( 'agents entity kind', () => {
+	test( 'registers the `agent` kind in the registry', () => {
+		expect( getEntityRenderer( 'agent' ) ).toBeTypeOf( 'function' );
+	} );
+
+	test( 'paints the agent list with name, description, and role', async () => {
+		mockAgentList( [ AGENT ] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		const row = host.body.querySelector( '.dm-agents__row' );
+		expect( row ).not.toBeNull();
+		expect( row!.textContent ).toContain( 'Audit Agent' );
+		expect( row!.textContent ).toContain( 'Audits drafts.' );
+		expect( row!.textContent ).toContain( 'author' );
+	} );
+
+	test( 'selecting an agent shows the Define pane with its fields', async () => {
+		mockAgentList( [ AGENT ] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		// First agent auto-selects; the detail head + tabs paint.
+		expect(
+			host.body.querySelector( '.dm-agents__detail-head' ),
+		).not.toBeNull();
+		const tabs = Array.from(
+			host.body.querySelectorAll( '.dm-agents__tab' ),
+		).map( ( el ) => el.textContent?.trim() );
+		expect( tabs ).toEqual( [ 'Define', 'Tools', 'Triggers' ] );
+
+		const nameField = host.body.querySelector( 'wpd-text-field' );
+		expect( nameField?.getAttribute( 'value' ) ).toBe( 'Audit Agent' );
+	} );
+
+	test( 'empty list paints the empty state with a create CTA', async () => {
+		mockAgentList( [] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		expect( host.body.querySelector( 'wpd-empty-state' ) ).not.toBeNull();
+		const create = host.body.querySelector( '.dm-agents__create' );
+		expect( create ).not.toBeNull();
+	} );
+
+	test( 'without manage capability there is no create button', async () => {
+		installConfig( { canManage: false } );
+		mockAgentList( [] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		expect( host.body.querySelector( '.dm-agents__create' ) ).toBeNull();
+	} );
+
+	test( 'missing AI client paints the warning notice', async () => {
+		mockAgentList( [ AGENT ] );
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		const notice = host.body.querySelector( 'wpd-notice' );
+		expect( notice ).not.toBeNull();
+		expect( notice!.textContent ).toContain( 'AI Client' );
+	} );
+
+	test( 'agent rows register drop targets gated by the drag trigger', async () => {
+		interface StubTarget {
+			id: string;
+			element: HTMLElement;
+			accept( payload: {
+				type: string;
+				data: Record< string, unknown >;
+			} ): boolean;
+		}
+		const targets: StubTarget[] = [];
+		( window as unknown as Record< string, unknown > ).wp = {
+			desktop: {
+				dragManager: {
+					registerDropTarget: ( target: StubTarget ) => {
+						targets.push( target );
+						return () => void 0;
+					},
+				},
+			},
+		};
+
+		try {
+			mockAgentList( [
+				{
+					...AGENT,
+					id: 21,
+					name: 'Media Agent',
+					triggers: [
+						{ kind: 'drag', config: { entityKinds: [ 'media' ] } },
+					],
+				},
+				{ ...AGENT, id: 22, name: 'No Drag Agent', triggers: [] },
+			] );
+			const host = makeHost();
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+
+			const mediaTarget = targets.find( ( t ) =>
+				t.id.endsWith( '-21' ),
+			);
+			const noDragTarget = targets.find( ( t ) =>
+				t.id.endsWith( '-22' ),
+			);
+			expect( mediaTarget ).toBeDefined();
+			expect( noDragTarget ).toBeDefined();
+
+			const mediaPayload = {
+				type: 'shortcut',
+				data: { kind: 'attachment', ref: '44', title: 'Hornet' },
+			};
+			const postPayload = {
+				type: 'shortcut',
+				data: { kind: 'post', ref: '7', title: 'Draft' },
+			};
+			expect( mediaTarget!.accept( mediaPayload ) ).toBe( true );
+			expect( mediaTarget!.accept( postPayload ) ).toBe( false );
+			// No drag trigger configured — every drop is rejected.
+			expect( noDragTarget!.accept( mediaPayload ) ).toBe( false );
+
+			// Teardown deregisters cleanly (host teardowns run).
+			host.teardowns.forEach( ( fn ) => fn() );
+		} finally {
+			delete ( window as unknown as Record< string, unknown > ).wp;
+		}
+	} );
+
+	test( 'agent rows are draggable out as user shortcuts', async () => {
+		const started: Array< Record< string, unknown > > = [];
+		( window as unknown as Record< string, unknown > ).wp = {
+			desktop: {
+				dragManager: {
+					registerDropTarget: () => () => void 0,
+					start: ( session: Record< string, unknown > ) => {
+						started.push( session );
+					},
+				},
+			},
+		};
+
+		try {
+			mockAgentList( [ { ...AGENT, id: 31, name: 'Draggable' } ] );
+			const host = makeHost();
+			getEntityRenderer( 'agent' )!( host, ENTITY );
+			await flush();
+
+			const row = host.body.querySelector< HTMLElement >(
+				'.dm-agents__row[data-agent-id="31"]',
+			);
+			expect( row ).not.toBeNull();
+			// jsdom has no PointerEvent; the handler only reads the
+			// MouseEvent fields (button, clientX/Y).
+			row!.dispatchEvent(
+				new MouseEvent( 'pointerdown', {
+					button: 0,
+					bubbles: true,
+					clientX: 10,
+					clientY: 10,
+				} ),
+			);
+
+			expect( started ).toHaveLength( 1 );
+			const payload = started[ 0 ].payload as {
+				type: string;
+				data: Record< string, unknown >;
+			};
+			expect( payload.type ).toBe( 'shortcut' );
+			expect( payload.data.kind ).toBe( 'user' );
+			expect( payload.data.ref ).toBe( '31' );
+			expect( payload.data.title ).toBe( 'Draggable' );
+
+			host.teardowns.forEach( ( fn ) => fn() );
+		} finally {
+			delete ( window as unknown as Record< string, unknown > ).wp;
+		}
+	} );
+
+	test( 'list REST failures paint the error notice', async () => {
+		const fn = vi.fn( async () => ( {
+			ok: false,
+			status: 500,
+			json: async () => ( { message: 'kaboom' } ),
+		} ) as unknown as Response );
+		( globalThis as unknown as { fetch: FetchMock } ).fetch = fn;
+		const host = makeHost();
+
+		getEntityRenderer( 'agent' )!( host, ENTITY );
+		await flush();
+
+		expect( host.body.textContent ).toContain( 'kaboom' );
+	} );
+} );

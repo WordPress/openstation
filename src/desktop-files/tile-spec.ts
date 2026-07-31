@@ -19,8 +19,6 @@
  * this generic renderer via a `placementToSpec()` adapter so the
  * `desktop-mode.files.tile-*` hook surface is unchanged for plugin
  * authors.
- *
- * @since 0.21.0
  */
 
 import { TILE_CLASS, getDragManager } from '../ui/components/wpd-tile/wpd-tile';
@@ -38,7 +36,6 @@ export { TILE_CLASS };
  * four light up a ribbon (everything else is treated as "no ribbon").
  *
  * @public
- * @since 0.21.0
  */
 export type TileStatus = 'draft' | 'pending' | 'private' | 'future' | string;
 
@@ -48,7 +45,6 @@ export type TileStatus = 'draft' | 'pending' | 'private' | 'future' | string;
  * canonical visual chrome.
  *
  * @public
- * @since 0.21.0
  */
 export interface TileSpec {
 	/** File-type slug — `'post'`, `'user'`, `'attachment'`, … */
@@ -131,7 +127,6 @@ export interface TileSpec {
  * events bubble up from the inner button.
  *
  * @public
- * @since 0.21.0
  */
 export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
 	const tile = document.createElement( 'wpd-tile' );
@@ -208,7 +203,6 @@ export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
  * with `{ kind, ref }` resolved against the file-type registry.
  *
  * @public
- * @since 0.21.0
  */
 export interface TileDragOutPayload {
 	/** File-type slug — `'post'`, `'user'`, `'attachment'`, … */
@@ -225,8 +219,6 @@ export interface TileDragOutPayload {
 	 * .entityId` so drop targets that need to act on the source
 	 * entity (notably the recycle bin's drag-to-trash) can resolve
 	 * which REST endpoint the `ref` belongs to.
-	 *
-	 * @since 0.22.0
 	 */
 	entityId?: string;
 	/**
@@ -235,8 +227,6 @@ export interface TileDragOutPayload {
 	 * iframe receivers (Gutenberg drop-receiver, future Media Library
 	 * receiver) can insert a block on `desktop-mode-drop`. See
 	 * `ShortcutDragData.bridgePayload`.
-	 *
-	 * @since 0.22.0
 	 */
 	bridgePayload?: import( '../drag-bridge' ).DragBridgePayload;
 }
@@ -247,7 +237,6 @@ export interface TileDragOutPayload {
  * truth — no builder duplicates this pointerdown dance any more.
  *
  * @public
- * @since 0.21.0
  *
  * @param tile    Tile element from `buildTileFromSpec`.
  * @param payload What the drop target receives.

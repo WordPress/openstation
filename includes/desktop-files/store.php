@@ -14,19 +14,18 @@
  * `desktop_mode_files_can_place` (filter) and the file's
  * `Desktop_Mode_File::can_read()` before writing.
  *
- * Tombstones are written for every successful remove / move-out
- * so the Phase-6 Heartbeat delta knows what to send.
+ * Tombstones are written only for permanent removals (hard
+ * deletes); soft-trash and moves are surfaced to clients via
+ * `updated_at_ms` / `trashed_at_ms` in the Heartbeat delta — see
+ * desktop_mode_files_write_tombstone() for the invariant.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Insert a placement.
- *
- * @since 0.9.0
  *
  * @param int    $user_id   Owner of the placement (the user the
  *                          tile lives on).
@@ -56,8 +55,6 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	 * Gate placement creation. Defaults to allowing the user to
 	 * place any type they can read; plugins use this to enforce
 	 * stricter rules (e.g. only admins may place users).
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param bool   $can     Default: file's `can_read( $user_id )`.
 	 * @param int    $user_id Owner.
@@ -127,7 +124,7 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	$wpdb->suppress_errors( $prev_suppress );
 	if ( false === $ok ) {
 		// Disambiguate the two cases hidden behind a generic `false`:
-		//   (a) The `placement_unique` index (since 0.8.0) collided
+		//   (a) The `placement_unique` index collided
 		//       with an existing row for this (user, parent, type,
 		//       ref). The collider may be active (the orphan placer
 		//       won a race against this caller, or a stale duplicate
@@ -198,8 +195,6 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	/**
 	 * Fires after a placement is created.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int   $id  Placement id.
 	 * @param array $row Inserted row.
 	 */
@@ -209,10 +204,11 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 }
 
 /**
- * Move / mutate a placement. Pass `null` for fields that should
- * stay untouched.
- *
- * @since 0.9.0
+ * Move / mutate a placement. Omit keys that should stay untouched.
+ * For `parent_id`, `x`, `y`, `sort_order` a `null` value is treated
+ * the same as omitting the key; for `meta`, an explicit
+ * `meta => null` CLEARS the column (keyed on array_key_exists) —
+ * omit the key to preserve it.
  *
  * @param int   $placement_id Placement id.
  * @param int   $user_id      Acting user (for capability gate).
@@ -231,6 +227,15 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	$row = desktop_mode_files_get_placement( $placement_id );
 	if ( ! $row ) {
 		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+	}
+
+	// Owner-lock for `upload` placements: only the stored file's
+	// owner may move them — folder-share write capability does NOT
+	// extend to uploaded files (recipients are read + download
+	// only; see stored-files-store.php).
+	$upload_lock = desktop_mode_files_upload_owner_lock( $row, $user_id );
+	if ( is_wp_error( $upload_lock ) ) {
+		return $upload_lock;
 	}
 
 	// Permission check. Owner of the row is always allowed. For
@@ -351,8 +356,6 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	/**
 	 * Fires after a placement is moved / mutated.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int   $id   Placement id.
 	 * @param array $next Row after the change.
 	 * @param array $prev Row before the change.
@@ -364,8 +367,6 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 
 /**
  * Remove a placement. Writes a tombstone for Phase-6 sync.
- *
- * @since 0.9.0
  *
  * @param int $placement_id Placement id.
  * @param int $user_id      Acting user.
@@ -379,6 +380,12 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	$row          = desktop_mode_files_get_placement( $placement_id );
 	if ( ! $row ) {
 		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+	}
+	// Owner-lock for `upload` placements — removal is destructive
+	// for real bytes, so only the stored file's owner may do it.
+	$upload_lock = desktop_mode_files_upload_owner_lock( $row, $user_id );
+	if ( is_wp_error( $upload_lock ) ) {
+		return $upload_lock;
 	}
 	// Same shared-namespace rule as the trash gate: owner of the
 	// row OR write cap on the parent folder.
@@ -405,8 +412,6 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 	/**
 	 * Fires after a placement is removed.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param int   $id  Placement id.
 	 * @param array $row Removed row.
 	 */
@@ -416,9 +421,42 @@ function desktop_mode_files_remove( $placement_id, $user_id ) {
 }
 
 /**
- * Read a single placement row by id.
+ * Owner-lock gate for `upload` placements. Returns a `WP_Error`
+ * when `$user_id` is NOT the underlying stored file's owner —
+ * uploaded files are immutable to everyone else, including folder
+ * write-collaborators (the deliberate divergence from the shared-
+ * namespace rule; recipients are read + download only). Returns
+ * `true` for every other file type, and falls back to the normal
+ * rules when the stored-file row is gone (dangling tiles must stay
+ * cleanable).
  *
- * @since 0.9.0
+ * @param array $row     Placement row.
+ * @param int   $user_id Acting user.
+ * @return true|WP_Error
+ */
+function desktop_mode_files_upload_owner_lock( $row, $user_id ) {
+	if ( ! is_array( $row ) || 'upload' !== (string) ( $row['file_type'] ?? '' ) ) {
+		return true;
+	}
+	if ( ! function_exists( 'desktop_mode_stored_files_get' ) ) {
+		return true;
+	}
+	$stored = desktop_mode_stored_files_get( (int) $row['file_ref'] );
+	if ( ! $stored ) {
+		return true;
+	}
+	if ( (int) $stored['owner_id'] === (int) $user_id ) {
+		return true;
+	}
+	return new WP_Error(
+		'desktop_mode_files_upload_owner_locked',
+		__( 'Only the file’s owner can move or delete an uploaded file.', 'desktop-mode' ),
+		array( 'status' => 403 )
+	);
+}
+
+/**
+ * Read a single placement row by id.
  *
  * @param int $placement_id Placement id.
  * @return array|null
@@ -440,8 +478,6 @@ function desktop_mode_files_get_placement( $placement_id ) {
  * List placements for a user under a given folder (0 = desktop
  * root). Honors the `desktop_mode_files_query_args` filter and
  * applies the file-type's `can_read()` per row.
- *
- * @since 0.9.0
  *
  * @param int $user_id   Viewer.
  * @param int $parent_id Folder id (0 for desktop root).
@@ -486,8 +522,6 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
 	);
 	/**
 	 * Filter the args used to read placements.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array $args        Defaults: `{ user_id, parent_id, share_view }`.
 	 * @param int   $user_id     Viewer.
@@ -578,8 +612,6 @@ function desktop_mode_files_get_for_user_folder( $user_id, $parent_id = 0 ) {
  *
  * Called by the placements list endpoint when the requested
  * folder is the root (`parent_id=0`).
- *
- * @since 0.9.0
  *
  * @param int $user_id Viewer.
  * @return int Total number of orphans that were auto-placed.
@@ -748,7 +780,7 @@ function desktop_mode_files_auto_place_orphans( $user_id ) {
 /**
  * Backwards-compat alias for the older folder-only name.
  *
- * @deprecated 0.9.0 Use {@see desktop_mode_files_auto_place_orphans}.
+ * @deprecated Use {@see desktop_mode_files_auto_place_orphans}.
  *
  * @param int $user_id Viewer.
  * @return int
@@ -761,7 +793,6 @@ function desktop_mode_files_auto_place_orphan_folders( $user_id ) {
  * Coerce wpdb's stringly-typed row into typed values + decoded
  * meta. Internal helper.
  *
- * @since 0.9.0
  * @internal
  *
  * @param array $row Raw wpdb row.
@@ -798,7 +829,7 @@ function desktop_mode_files_normalize_placement_row( $row ) {
  * `desktop_mode_files_compute_heartbeat_delta`. A tombstone on a
  * soft-trashed row lingers past restore and tells clients the row
  * is gone while it is in fact alive — see the "shared folder
- * disappears on refresh" bug fixed in 0.18.x.
+ * disappears on refresh" bug.
  *
  * Pair every revival path (`desktop_mode_files_restore_placement`,
  * `desktop_mode_files_restore_folder`, and the duplicate-key
@@ -806,8 +837,6 @@ function desktop_mode_files_normalize_placement_row( $row ) {
  * {@see desktop_mode_files_clear_tombstones_for} so a row coming
  * back to life never carries lingering tombstones from a previous
  * removal that turned out to be reversible.
- *
- * @since 0.9.0
  *
  * @param string $kind 'placement' | 'folder'.
  * @param int    $ref  Removed id.
@@ -834,8 +863,6 @@ function desktop_mode_files_write_tombstone( $kind, $ref ) {
  *
  * Idempotent — running it on a ref with no tombstones is a no-op.
  *
- * @since 0.18.0
- *
  * @param string $kind 'placement' | 'folder'.
  * @param int    $ref_id Row id whose tombstones should be dropped.
  */
@@ -861,8 +888,6 @@ function desktop_mode_files_clear_tombstones_for( $kind, $ref_id ) {
  * the retention window when the Heartbeat sync lands; for now 7d
  * is plenty since a client that's been offline that long will
  * always need a full REST resync anyway.
- *
- * @since 0.9.0
  */
 function desktop_mode_files_prune_tombstones() {
 	global $wpdb;
@@ -873,9 +898,9 @@ function desktop_mode_files_prune_tombstones() {
 add_action( 'desktop_mode_files_daily_prune', 'desktop_mode_files_prune_tombstones' );
 
 /**
- * Schedule the daily prune on activation.
- *
- * @since 0.9.0
+ * Schedule the daily prune. Hooked on `init` and idempotent via
+ * wp_next_scheduled(), so a manual file-copy install (no activation
+ * hook) still gets the cron event.
  */
 function desktop_mode_files_schedule_prune() {
 	if ( ! wp_next_scheduled( 'desktop_mode_files_daily_prune' ) ) {
@@ -901,8 +926,6 @@ add_action( 'init', 'desktop_mode_files_schedule_prune' );
  * Defends against pre-existing cycles in the data: if we re-visit a
  * cursor we've already seen, we treat it as a cycle and reject, so a
  * corrupted history can't drive this function into an infinite loop.
- *
- * @since 0.20.0
  *
  * @param int $user_id          Acting user.
  * @param int $moving_folder_id Folder being moved (its `folders.id`).

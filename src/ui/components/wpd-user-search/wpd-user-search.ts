@@ -16,8 +16,6 @@
  *
  * Multi-selection is up to the parent (the parent renders chips
  * for current picks and feeds an updated `exclude` list back).
- *
- * @since 0.18.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -42,7 +40,7 @@ export class WpdUserSearch extends Component {
 		summary:
 			'Debounced autocomplete over /desktop-mode/v1/files/users/search. Emits wpd-user-pick { user } when a row is chosen. Dropdown anchors as position: fixed so it escapes overflow:auto ancestors.',
 		status: 'experimental',
-		since: '0.18.0',
+		since: '0.8.5',
 		props: [
 			{ name: 'placeholder', type: 'string', description: 'Input placeholder text.' },
 			{

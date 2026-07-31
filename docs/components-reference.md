@@ -2,17 +2,25 @@
 
 Canonical mapping of every shipped web component: tag name → exported class → source file → one-line purpose. The runtime missing-component warner (`src/ui/components/missing-import-warner.ts`) points readers here.
 
-All components are **side-effect registered** by `desktop.min.js`. Plugin authors don't need to enqueue any extra script to use the tags — just emit `<wpd-foo>` markup. The class export is only needed for TypeScript types or programmatic instantiation.
+Components are **side-effect registered** at import time, per bundle, into the page-global custom-element registry. The shell bundle (`desktop[.min].js`) registers a core subset and pre-loads `shell-overlays[.min].js` (the toast / confirm-dialog / context-menu / menu / select / window-chrome kit) right after first paint, so those tags upgrade anywhere once the shell is up. Every other component registers only when a bundle that imports its module loads — emitting a `<wpd-foo>` tag that no loaded bundle has imported renders inert HTML, and the missing-component warner logs a `console.error` with the exact import line to add. Plugin bundles that render additional tags should import from `'desktop-mode'`: the package entry re-exports the component barrel, so any import from it registers every tag as a side effect. The class export is only needed for TypeScript types or programmatic instantiation.
 
 ## Source of truth
 
-`src/ui/components/index.ts` re-exports every component class AND the `WPD_COMPONENT_TAGS` constant — the array all the dev-time guards iterate. If this doc and the index disagree, the index wins. To add a new component:
+`src/ui/components/index.ts` re-exports every component class AND the `WPD_COMPONENT_TAGS` constant — the array all the dev-time guards iterate. The constant itself is defined in `src/ui/components/tags.ts` (the single source of truth, kept side-effect-free); the index re-exports it. If this doc and the index disagree, the index wins. To add a new component:
 
 1. Create `src/ui/components/<name>/<name>.ts`, `<name>.styles.ts`, `<name>.test.ts`.
-2. Add the class export + tag to `src/ui/components/index.ts`.
-3. Add the tag to `src/ui/components/tags.ts` (sourced by `WPD_COMPONENT_TAGS`).
+2. Add the class export to `src/ui/components/index.ts`.
+3. Add the tag to `src/ui/components/tags.ts` (the single source of `WPD_COMPONENT_TAGS`, re-exported by `index.ts`).
 4. Add a row to this table.
-5. Document via the `static help = { … }` block on the class — surfaced in OS Settings → Help live.
+5. Document via the `static help = { … }` block on the class — surfaced in OS Settings → Components live.
+
+## Browsing the kit at runtime
+
+**OS Settings → Components** (admin-only) renders this table live: every tag in `WPD_COMPONENT_TAGS`, with its props, slots, events, parts, CSS custom properties, and a working example rendered from the `static help.example` template.
+
+The tab side-effect-imports the whole component barrel so the list is the full kit rather than "whatever other bundles happen to have loaded" — the per-bundle registration model described above means an unimported component reaches no custom-element registry, and a tab that only enumerated registered tags silently under-reported itself.
+
+The search box above the list filters on the flattened descriptor, not just the title: tag name, summary, status, `static props` names, and the name *and* description of every documented prop, slot, event, part, and CSS custom property. Terms are ANDed and order-independent, so `field number` and `number clamp` both reach `<wpd-number-field>`.
 
 ## Layout & structure
 
@@ -46,7 +54,7 @@ All components are **side-effect registered** by `desktop.min.js`. Plugin author
 | `<wpd-tag-input>` | `WpdTagInput` | `wpd-tag-input/wpd-tag-input.ts` | Free-text tag entry with autocomplete. |
 | `<wpd-category-picker>` | `WpdCategoryPicker` | `wpd-category-picker/wpd-category-picker.ts` | Category tree picker. |
 | `<wpd-role-picker>` | `WpdRolePicker` | `wpd-role-picker/wpd-role-picker.ts` | WP role select. |
-| `<wpd-user-search>` | `WpdUserSearch` | `wpd-user-search/wpd-user-search.ts` | Live user autocomplete (`/users` REST). |
+| `<wpd-user-search>` | `WpdUserSearch` | `wpd-user-search/wpd-user-search.ts` | Live user autocomplete (`/desktop-mode/v1/files/users/search` REST). |
 
 ## Buttons & actions
 
@@ -64,7 +72,7 @@ All components are **side-effect registered** by `desktop.min.js`. Plugin author
 | `<wpd-flyout>` | `WpdFlyout` | `wpd-flyout/wpd-flyout.ts` | Anchored popover. Supports placement strategies. |
 | `<wpd-modal>` | `WpdModal` | `wpd-modal/wpd-modal.ts` | Full-overlay modal with focus trap. |
 | `<wpd-confirm-dialog>` | `WpdConfirmDialog`, `wpdConfirm` | `wpd-confirm-dialog/wpd-confirm-dialog.ts` | Confirm prompt — use `await wpdConfirm({...})` (never `window.confirm`). |
-| `<wpd-toast>` / `<wpd-toast-container>` | `WpdToast`, `WpdToastContainer` | `wpd-toast/wpd-toast.ts` | Bottom-edge toast notifications. |
+| `<wpd-toast>` / `<wpd-toast-container>` | `WpdToast`, `WpdToastContainer` | `wpd-toast/wpd-toast.ts` | Top-right (top inline-end) toast notifications. |
 | `<wpd-notice>` | `WpdNotice` | `wpd-notice/wpd-notice.ts` | Inline informational/warning notice. |
 
 ## Display & feedback
@@ -78,7 +86,7 @@ All components are **side-effect registered** by `desktop.min.js`. Plugin author
 | `<wpd-chip>` | `WpdChip` | `wpd-chip/wpd-chip.ts` | Tag/category chip with tone. |
 | `<wpd-key>` | `WpdKey` | `wpd-key/wpd-key.ts` | Keyboard shortcut display. |
 | `<wpd-code>` | `WpdCode` | `wpd-code/wpd-code.ts` | Inline / block monospace code with copy. |
-| `<wpd-spinner>` | `WpdSpinner` | `wpd-spinner/wpd-spinner.ts` | Loading spinner with preset variants. |
+| `<wpd-spinner>` | `WpdSpinner` | `wpd-spinner/wpd-spinner.ts` | Loading spinner with preset variants; `preset="inline"` is a bare arc for text-adjacent use. |
 | `<wpd-progress-bar>` | `WpdProgressBar` | `wpd-progress-bar/wpd-progress-bar.ts` | Determinate or indeterminate progress. |
 | `<wpd-save-status>` | `WpdSaveStatus` | `wpd-save-status/wpd-save-status.ts` | Title-bar save indicator (idle / saving / saved / failed). |
 | `<wpd-relative-time>` | `WpdRelativeTime` | `wpd-relative-time/wpd-relative-time.ts` | Auto-updating "2 min ago". |
@@ -91,7 +99,7 @@ All components are **side-effect registered** by `desktop.min.js`. Plugin author
 | --- | --- | --- | --- |
 | `<wpd-table>` | `WpdTable` | `wpd-table/wpd-table.ts` | Sortable, filterable data table with sub-tables. |
 | `<wpd-log>` | `WpdLog` | `wpd-log/wpd-log.ts` | Virtualized streaming log container. |
-| `<wpd-tile>` | `WpdTile` | `wpd-tile/wpd-tile.ts` | Desktop-style icon tile (used by file layer + dock). |
+| `<wpd-tile>` | `WpdTile` | `wpd-tile/wpd-tile.ts` | Desktop-style icon tile (used by the desktop file layer, folder windows, and the site folder). |
 
 ## Tabs & navigation
 
@@ -115,8 +123,10 @@ All components are **side-effect registered** by `desktop.min.js`. Plugin author
 import { WpdLog, type WpdLogRowRenderer } from 'desktop-mode';
 ```
 
-The runtime tag is already registered (no extra script needed) — the class import is for type-checking, subclassing, or programmatic instantiation. See [`use-from-a-plugin.md`](./use-from-a-plugin.md) for the local-install workflow.
+Not every class in the tables above is importable from `'desktop-mode'`. The package `exports` map exposes only the entry point (`src/public-api.ts`), which re-exports the **Stable** kit: `WpdAvatar`, `WpdBadge`, `WpdButton`, `WpdCheckboxLabel`, `WpdCluster`, `WpdCode`, `WpdColorField`, `WpdDisplay`, `WpdEmptyState`, `WpdGrid`, `WpdIcon`, `WpdKey`, `WpdLog`, `WpdMenu`, `WpdMenuItem`, `WpdPanel`, `WpdRangeField`, `WpdSection`, `WpdSegment`, `WpdSegmented`, `WpdStack`, `WpdStep`, `WpdSteps`, `WpdSwatch`, `WpdSwatchGrid`, `WpdTab`, `WpdTabChip`, `WpdTabs`, `WpdTextarea`, `WpdToast`, `WpdToastContainer`, `WpdWindowButton`. If `src/public-api.ts` and this list disagree, the source wins.
+
+The remaining classes are internal-only for now — subpath / source-path imports are blocked by the `exports` map — though their *tags* still work wherever a loaded bundle has registered them. The class import is for type-checking, subclassing, or programmatic instantiation; importing anything from `'desktop-mode'` also registers every tag as a side effect. See [`use-from-a-plugin.md`](./use-from-a-plugin.md) for the local-install workflow.
 
 ## Per-component help
 
-Every class has a `static help = { … }` block with full props / slots / events / examples / status. The OS Settings → Help tab iterates `WPD_COMPONENT_TAGS` and renders these descriptors live; that's the authoritative per-component reference. The table above is a directory; the `static help` block is the manual.
+Every class has a `static help = { … }` block with full props / slots / events / examples / status. The OS Settings → Components tab iterates `WPD_COMPONENT_TAGS` and renders these descriptors live; that's the authoritative per-component reference. The table above is a directory; the `static help` block is the manual.

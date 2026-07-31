@@ -18,8 +18,6 @@
  * The handler reduces it to the canonical id via
  * {@link canonicalItemId} before writing the override, so the
  * visibility map is always keyed by the registered item id.
- *
- * @since 0.25.0
  */
 
 import { __, sprintf } from './i18n';
@@ -142,8 +140,6 @@ export interface OpenItemVisibilityMenuOpts {
 	 * owned by an active, deactivatable plugin. When non-null the menu
 	 * surfaces a "Deactivate <title>" action that calls
 	 * `PUT /wp/v2/plugins/<file>` with `{ status: 'inactive' }`.
-	 *
-	 * @since 0.27.0
 	 */
 	pluginFile?: string | null;
 	/**
@@ -151,8 +147,6 @@ export interface OpenItemVisibilityMenuOpts {
 	 * dock tile is a sub-page (Analytics, Marketing, …) this is the
 	 * label we show in the destructive action — the user is
 	 * deactivating the plugin, not the tile.
-	 *
-	 * @since 0.27.0
 	 */
 	pluginName?: string | null;
 }
@@ -444,8 +438,6 @@ function openItemVisibilityMenuImmediate(
  * the admin menu — but the user right-clicked from the shell, not
  * from `plugins.php`, so we additionally call `wp.desktop.refreshMenu()`
  * (when available) to trigger the hidden-iframe probe.
- *
- * @since 0.27.0
  */
 async function confirmAndDeactivatePlugin(
 	pluginFile: string,
@@ -574,8 +566,6 @@ async function confirmAndDeactivatePlugin(
  *   3. Also walk every open window once more by url substring — covers
  *      `admin.php?page=<plugin-slug>…` instances that diverged from the
  *      registered dock url (deep links, custom navigations).
- *
- * @since 0.27.0
  */
 function closeWindowsForPlugin( pluginFile: string ): string[] {
 	interface DockItemLike {

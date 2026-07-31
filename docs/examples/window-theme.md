@@ -6,10 +6,10 @@ Themes are part of the four-layer window-chrome customization framework:
 
 | Layer | Surface | Status |
 |-------|---------|--------|
-| 1 | Themes (this doc) | Stable since 0.6.0 |
-| 2 | Controls — `registerWindowControl` | Stable since 0.6.0 |
-| 3 | Slots — `registerWindowSlot` | Stable since 0.6.0 |
-| 4 | Custom chrome render — `registerWindowChrome` | Experimental since 0.6.0 |
+| 1 | Themes (this doc) | Stable |
+| 2 | Controls — `registerWindowControl` | Stable |
+| 3 | Slots — `registerWindowSlot` | Stable |
+| 4 | Custom chrome render — `registerWindowChrome` | Experimental |
 
 This doc covers Layer 1 only.
 

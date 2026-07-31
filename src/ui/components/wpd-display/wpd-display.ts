@@ -23,8 +23,6 @@
  *
  * The host is a **live region** (`aria-live="polite"`) so screen
  * readers announce value changes without yanking focus.
- *
- * @since 0.10.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -46,7 +44,7 @@ export class WpdDisplay extends Component {
 		summary:
 			'Single-line numeric/text readout — right-aligned, tabular-nums, auto-ellipsized. The readout every calculator, stopwatch, ticker, counter, or meter reinvents. Host is aria-live="polite" so screen readers announce value changes without yanking focus.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'value',

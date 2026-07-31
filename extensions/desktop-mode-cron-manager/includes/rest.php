@@ -5,7 +5,6 @@
  * REST namespace: `/desktop-mode-cron-manager/v1`.
  *
  * @package DesktopModeCronManager
- * @since   0.22.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -14,8 +13,6 @@ const DESKTOP_MODE_CRON_MANAGER_REST_NAMESPACE = 'desktop-mode-cron-manager/v1';
 
 /**
  * Register REST routes.
- *
- * @since 0.22.0
  */
 function desktop_mode_cron_manager_register_rest_routes() {
 	register_rest_route(
@@ -70,8 +67,6 @@ add_action( 'rest_api_init', 'desktop_mode_cron_manager_register_rest_routes' );
 /**
  * Permission gate for every Cron Manager REST route.
  *
- * @since 0.22.0
- *
  * @return true|WP_Error
  */
 function desktop_mode_cron_manager_rest_permission() {
@@ -95,8 +90,6 @@ function desktop_mode_cron_manager_rest_permission() {
 /**
  * GET /events.
  *
- * @since 0.22.0
- *
  * @return WP_REST_Response
  */
 function desktop_mode_cron_manager_rest_list_events() {
@@ -109,8 +102,6 @@ function desktop_mode_cron_manager_rest_list_events() {
 
 /**
  * GET /schedules.
- *
- * @since 0.22.0
  *
  * @return WP_REST_Response
  */
@@ -125,8 +116,6 @@ function desktop_mode_cron_manager_rest_list_schedules() {
 /**
  * POST /events.
  *
- * @since 0.22.0
- *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
@@ -140,8 +129,6 @@ function desktop_mode_cron_manager_rest_create_event( WP_REST_Request $request )
 
 /**
  * PUT/PATCH /events.
- *
- * @since 0.22.0
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
@@ -160,8 +147,6 @@ function desktop_mode_cron_manager_rest_update_event( WP_REST_Request $request )
 /**
  * DELETE /events.
  *
- * @since 0.22.0
- *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
@@ -177,8 +162,6 @@ function desktop_mode_cron_manager_rest_delete_event( WP_REST_Request $request )
 
 /**
  * POST /events/run-now.
- *
- * @since 0.22.0
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error

@@ -23,7 +23,6 @@
  * `registerNativeUrlRemap`.
  *
  * @package WPDesktopMode
- * @since   0.19.0
  */
 
 defined( 'ABSPATH' ) || exit;

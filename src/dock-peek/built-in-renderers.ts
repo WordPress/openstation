@@ -14,8 +14,6 @@
  * filter directly to register their own.
  *
  * Bootstrapped from `desktop.ts` once the hook bus is up.
- *
- * @since 0.6.2
  */
 
 import { __ } from '../i18n';
@@ -169,7 +167,7 @@ function renderRecycleBin(
 	const label = document.createElement( 'span' );
 	label.className = 'desktop-mode-dock-peek__bin-label';
 	if ( count === 0 ) {
-		label.textContent = __( 'Recycle Bin — empty' );
+		label.textContent = __( 'Trash — empty' );
 	} else if ( count === 1 ) {
 		label.textContent = __( '1 item' );
 	} else if ( count > 99 ) {

@@ -1,5 +1,5 @@
 /**
- * Tests for the iframe postMessage handlers that landed in 0.11.0:
+ * Tests for the iframe postMessage handlers:
  * `desktop-mode-ready`, `desktop-mode-navigate`, and
  * `desktop-mode-notification`. The older handlers (`title-change`,
  * `focus-request`, etc.) are covered by the cross-module
@@ -23,6 +23,11 @@ import {
 	type FakeWpHooks,
 } from '../../tests/vitest/helpers/hooks-stub';
 
+const { wpdConfirm } = vi.hoisted( () => ( { wpdConfirm: vi.fn() } ) );
+vi.mock( '../ui/components/wpd-confirm-dialog/wpd-confirm-dialog', () => ( {
+	wpdConfirm,
+} ) );
+
 function mockWindow( overrides: Partial< Window > = {} ): Window {
 	const iframe = document.createElement( 'iframe' );
 	const element = document.createElement( 'div' );
@@ -32,6 +37,10 @@ function mockWindow( overrides: Partial< Window > = {} ): Window {
 		iframe,
 		onFocusRequest: null,
 		setTitle: vi.fn(),
+		destroy: vi.fn(),
+		_isDestroyed: false,
+		_closePending: false,
+		_iframeCloseTimeout: null,
 		...overrides,
 	} as unknown as Window;
 }
@@ -233,7 +242,17 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		return { openWindow, findDockEntry };
 	}
 
-	function mockAdminWindow( opts: { id: string; baseId?: string } ): {
+	function mockAdminWindow( opts: {
+		id: string;
+		baseId?: string;
+		/**
+		 * The URL the iframe is currently showing. Diverges from the
+		 * window's opening slug once the submenu tab strip re-points
+		 * the iframe in place. Omitted → no live URL readable, which
+		 * is the pre-navigation state.
+		 */
+		currentUrl?: string;
+	} ): {
 		win: Window;
 		assignSpy: ReturnType< typeof vi.fn >;
 	} {
@@ -258,6 +277,7 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 			onFocusRequest: null,
 			setTitle: vi.fn(),
 			close: vi.fn(),
+			getCurrentUrl: () => opts.currentUrl ?? '',
 		} as unknown as Window;
 		return { win, assignSpy };
 	}
@@ -313,6 +333,58 @@ describe( 'iframe-bridge: desktop-mode-iframe-admin-link', () => {
 		} );
 		expect( assignSpy ).not.toHaveBeenCalled();
 		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'click matching the live iframe slug navigates in place, not a new window', () => {
+		// Appearance window opened on `themes.php`, then re-pointed at
+		// `nav-menus.php` by the submenu tab strip. Its `baseId` still
+		// says `themes-php`, so the Menus screen's own tab links used
+		// to read as cross-page and spawn a window per click.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl:
+				window.location.origin +
+				'/wp-admin/nav-menus.php?desktop_mode_chromeless=1',
+		} );
+
+		const target =
+			window.location.origin + '/wp-admin/nav-menus.php?action=edit&menu=2';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+		expect( win.close ).not.toHaveBeenCalled();
+	} );
+
+	test( 'live slug never narrows the same-page set — baseId still matches', () => {
+		// A window that navigated away from its landing page must still
+		// treat a link BACK to that landing page as in-place.
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl: window.location.origin + '/wp-admin/nav-menus.php',
+		} );
+
+		const target = window.location.origin + '/wp-admin/themes.php';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( assignSpy ).toHaveBeenCalledWith( target );
+		expect( openWindow ).not.toHaveBeenCalled();
+	} );
+
+	test( 'live slug that matches neither side still opens a fresh window', () => {
+		const { openWindow } = bindFakeDispatcher();
+		const { win, assignSpy } = mockAdminWindow( {
+			id: 'themes-php',
+			currentUrl: window.location.origin + '/wp-admin/nav-menus.php',
+		} );
+
+		const target = window.location.origin + '/wp-admin/upload.php';
+		postToWindow( win, { type: 'desktop-mode-iframe-admin-link', url: target } );
+
+		expect( openWindow ).toHaveBeenCalledTimes( 1 );
+		expect( assignSpy ).not.toHaveBeenCalled();
 	} );
 
 	test( 'different-slug click without a dock entry uses the link label as title', () => {
@@ -658,5 +730,114 @@ describe( 'iframe-bridge: foreign events', () => {
 		);
 
 		expect( setTitleSpy ).not.toHaveBeenCalled();
+	} );
+} );
+
+describe( 'iframe-bridge: desktop-mode-bridge-beforeunload-response', () => {
+	beforeEach( () => {
+		installHooksStub();
+		wpdConfirm.mockReset();
+	} );
+	afterEach( () => clearHooksStub() );
+
+	test( 'prevent: false destroys the window without showing a dialog', async () => {
+		const win = mockWindow();
+
+		postToWindow( win, {
+			type: 'desktop-mode-bridge-beforeunload-response',
+			prevent: false,
+		} );
+		await vi.dynamicImportSettled();
+
+		expect( wpdConfirm ).not.toHaveBeenCalled();
+		expect( win.destroy ).toHaveBeenCalledTimes( 1 );
+		expect( win._closePending ).toBe( false );
+	} );
+
+	test( 'prevent: true, user confirms — destroys the window', async () => {
+		const win = mockWindow();
+		wpdConfirm.mockResolvedValue( true );
+
+		postToWindow( win, {
+			type: 'desktop-mode-bridge-beforeunload-response',
+			prevent: true,
+			message: 'You have unsaved edits.',
+		} );
+		await vi.dynamicImportSettled();
+		await vi.waitFor( () => expect( win.destroy ).toHaveBeenCalledTimes( 1 ) );
+
+		expect( wpdConfirm ).toHaveBeenCalledWith(
+			expect.objectContaining( { title: 'You have unsaved edits.', danger: true } ),
+		);
+	} );
+
+	test( 'prevent: true, user cancels — window stays open', async () => {
+		const win = mockWindow();
+		wpdConfirm.mockResolvedValue( false );
+
+		postToWindow( win, {
+			type: 'desktop-mode-bridge-beforeunload-response',
+			prevent: true,
+		} );
+		await vi.dynamicImportSettled();
+		await vi.waitFor( () => expect( wpdConfirm ).toHaveBeenCalledTimes( 1 ) );
+
+		expect( win.destroy ).not.toHaveBeenCalled();
+	} );
+
+	test( 'prevent: true, missing message — falls back to a default dialog title', async () => {
+		const win = mockWindow();
+		wpdConfirm.mockResolvedValue( false );
+
+		postToWindow( win, {
+			type: 'desktop-mode-bridge-beforeunload-response',
+			prevent: true,
+		} );
+		await vi.dynamicImportSettled();
+
+		expect( wpdConfirm ).toHaveBeenCalledWith(
+			expect.objectContaining( { title: 'Unsaved changes' } ),
+		);
+	} );
+
+	test( 'confirm dialog import failing still destroys the window (fail safe)', async () => {
+		const win = mockWindow();
+		wpdConfirm.mockRejectedValue( new Error( 'boom' ) );
+
+		postToWindow( win, {
+			type: 'desktop-mode-bridge-beforeunload-response',
+			prevent: true,
+		} );
+		await vi.dynamicImportSettled();
+		await vi.waitFor( () => expect( win.destroy ).toHaveBeenCalledTimes( 1 ) );
+	} );
+
+	test( 'ignores the response entirely if the window is already destroyed', async () => {
+		const win = mockWindow( { _isDestroyed: true } );
+
+		postToWindow( win, {
+			type: 'desktop-mode-bridge-beforeunload-response',
+			prevent: false,
+		} );
+		await vi.dynamicImportSettled();
+
+		expect( win.destroy ).not.toHaveBeenCalled();
+		expect( wpdConfirm ).not.toHaveBeenCalled();
+	} );
+
+	test( 'clears the pending safety timeout on any response', () => {
+		vi.useFakeTimers();
+		const clearSpy = vi.spyOn( global, 'clearTimeout' );
+		const timeoutId = setTimeout( () => {}, 500 );
+		const win = mockWindow( { _iframeCloseTimeout: timeoutId } );
+
+		postToWindow( win, {
+			type: 'desktop-mode-bridge-beforeunload-response',
+			prevent: false,
+		} );
+
+		expect( clearSpy ).toHaveBeenCalledWith( timeoutId );
+		expect( win._iframeCloseTimeout ).toBeNull();
+		vi.useRealTimers();
 	} );
 } );

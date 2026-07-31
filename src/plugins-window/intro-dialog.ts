@@ -16,7 +16,6 @@
  * haven't enqueued the plugins-window stylesheet at boot.
  *
  * @public
- * @since 0.9.0
  */
 
 import { __ } from '../i18n';
@@ -26,8 +25,6 @@ export type IntroResult = 'confirm' | 'settings' | 'cancel';
 /**
  * Show the Plugins-window intro. Returns a Promise that resolves
  * with the user's chosen action.
- *
- * @since 0.9.0
  */
 export async function showPluginsIntroDialog(): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {

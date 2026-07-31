@@ -22,7 +22,7 @@ export const multiselectStyles = css`
 		flex-direction: column;
 		gap: 4px;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		min-width: 0;
 	}
 
@@ -32,7 +32,7 @@ export const multiselectStyles = css`
 
 	.wpd-multiselect__label {
 		font-size: 12px;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 	}
 
 	.wpd-multiselect__trigger {
@@ -44,12 +44,12 @@ export const multiselectStyles = css`
 		width: 100%;
 		min-width: 0;
 		padding: 7px 12px 7px 12px;
-		background: rgba( 0, 0, 0, 0.05 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
 		border: 1px solid transparent;
 		border-radius: 7px;
 		font: inherit;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		cursor: pointer;
 		text-align: start;
 		transition: background-color 0.12s ease, border-color 0.12s ease,
@@ -57,7 +57,7 @@ export const multiselectStyles = css`
 	}
 
 	.wpd-multiselect__trigger:hover {
-		background: rgba( 0, 0, 0, 0.08 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.08 ) );
 	}
 
 	.wpd-multiselect__trigger:focus-visible {
@@ -85,14 +85,14 @@ export const multiselectStyles = css`
 	}
 
 	.wpd-multiselect__chevron {
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 		flex-shrink: 0;
 		transition: color 0.12s ease, transform 0.18s ease;
 	}
 
 	.wpd-multiselect__trigger:hover .wpd-multiselect__chevron,
 	.wpd-multiselect__trigger:focus-visible .wpd-multiselect__chevron {
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 	}
 
 	:host( [ open ] ) .wpd-multiselect__chevron {
@@ -123,7 +123,7 @@ function _installGlobalPopoverStyles(): void {
 	min-width: 200px;
 	padding: 4px 0;
 	background: var( --desktop-mode-window-bg, #fff );
-	color: var( --desktop-mode-text, #1d2327 );
+	color: var( --wpd-fg, #1d2327 );
 	border: 1px solid var( --desktop-mode-window-border, #c3c4c7 );
 	border-radius: 8px;
 	box-shadow: 0 8px 28px rgba( 0, 0, 0, 0.18 );
@@ -166,7 +166,7 @@ function _installGlobalPopoverStyles(): void {
 }
 
 .wpd-multiselect__option:hover {
-	background: rgba( 0, 0, 0, 0.05 );
+	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
 }
 
 .wpd-multiselect__option[ data-disabled='true' ] {
@@ -190,7 +190,7 @@ function _installGlobalPopoverStyles(): void {
 
 .wpd-multiselect__empty {
 	padding: 8px 12px;
-	color: var( --desktop-mode-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 	font-style: italic;
 }
 
@@ -199,7 +199,7 @@ function _installGlobalPopoverStyles(): void {
 	align-items: center;
 	gap: 8px;
 	padding: 8px 12px;
-	color: var( --desktop-mode-muted, #646970 );
+	color: var( --wpd-fg-muted, #646970 );
 	font-size: 12px;
 }
 

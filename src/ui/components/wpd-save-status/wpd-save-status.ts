@@ -11,7 +11,7 @@
  *   - `pill`            — the dot + an inline label ("Saving…",
  *     "Saved", error message). Use in panel headers.
  *
- * Four phases (driven by the `phase` attribute or, more typically,
+ * Five phases (driven by the `phase` attribute or, more typically,
  * an event the host auto-listens to):
  *
  *   - `idle`    — hidden (opacity 0, no pointer events).
@@ -20,10 +20,11 @@
  *   - `saving`  — REST request in flight. Same pulse.
  *   - `saved`   — change persisted. Green dot (briefly visible
  *                 before auto-clearing back to `idle`).
- *   - `failed`  — REST request errored. Red dot. The component
- *                 stays visible until the next phase transition,
- *                 and exposes the error message via `error` attr
- *                 (or the `wpd-save-status-error` slot).
+ *   - `failed`  — REST request errored. Red dot. Stays visible
+ *                 for `auto-clear-failed-ms` (default 6s) before
+ *                 fading back to `idle`; the error message is
+ *                 exposed via the `error` attribute (mirrored to
+ *                 the host `title` tooltip).
  *
  * # Auto-listen mode
  *
@@ -51,7 +52,6 @@
  * ```
  *
  * @public
- * @since 0.8.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -95,7 +95,7 @@ export class WpdSaveStatus extends Component {
 	static help = {
 		title: 'Save status',
 		summary:
-			'Tiny status indicator for "is this change saved yet?" affordances. Three layouts (dot / icon / pill), four phases, optional auto-listen to a save-lifecycle CustomEvent so every input in the panel inherits feedback for free.',
+			'Tiny status indicator for "is this change saved yet?" affordances. Three layouts (dot / icon / pill), five phases, optional auto-listen to a save-lifecycle CustomEvent so every input in the panel inherits feedback for free.',
 		status: 'experimental',
 		since: '0.8.0',
 		props: [

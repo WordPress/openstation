@@ -28,8 +28,6 @@
  *     too,
  *   - never removes or interferes with WordPress's own click / focus
  *     handlers on the tile.
- *
- * @since 0.14.0
  */
 
 ( function () {

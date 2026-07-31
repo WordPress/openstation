@@ -1,6 +1,6 @@
 # Send a notification
 
-Stable since 0.8.0.
+Stable.
 
 `wp.desktop.notify( opts )` is the one call you need. v1 ships local
 notifications (browser `Notification` API on the current page) with a
@@ -30,7 +30,7 @@ wp.desktop.notify( {
     onClick: ( notification ) => {
         window.focus();
         notification.close();
-        wp.desktop.openWindow( 'comments' );
+        wp.desktop.openWindow( 'desktop-mode-comments' );
     },
 } );
 ```
@@ -71,8 +71,9 @@ filter the notification *intent* (cancel before render) or just observe
 that one was shown:
 
 ```js
-wp.desktop.activity.filter(
-    'desktop-mode/notification-requested',
+wp.hooks.addFilter(
+    'desktop-mode.activity.desktop-mode/notification-requested',
+    'my-plugin/dnd',
     ( intent ) => {
         if ( isDoNotDisturbActive() ) {
             return { ...intent, cancel: true };
@@ -90,6 +91,13 @@ wp.desktop.activity.subscribe(
     },
 );
 ```
+
+Note the asymmetry: filter *registration* goes through
+`wp.hooks.addFilter` on the `desktop-mode.activity.<channel>` hook
+name. `wp.desktop.activity.filter( channel, value )` is the
+publisher-side *apply* call — it runs the registered filters against
+`value` and returns the result; passing it a callback registers
+nothing.
 
 ## Dismiss programmatically
 

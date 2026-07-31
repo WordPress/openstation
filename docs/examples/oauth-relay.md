@@ -4,7 +4,7 @@ Every plugin that integrates with an external service (Tumblr, Mastodon, Bluesky
 
 The framework ships a relay that owns those five steps. Plugins declare only what's plugin-specific: the authorize / token URLs, the client credentials, and a token-storage callback.
 
-*Stable API since 0.8.2.*
+*Stable.*
 
 ## Register the relay (PHP)
 
@@ -24,6 +24,8 @@ add_action( 'init', function () {
 } );
 ```
 
+Need to undo it? `desktop_mode_unregister_oauth_relay( $service )` removes a previously registered relay — the mirror of `desktop_mode_register_oauth_relay()`, handy for plugins that register conditionally and for PHPUnit teardowns.
+
 ## Start the flow (JavaScript)
 
 ```js
@@ -32,19 +34,19 @@ document.getElementById( 'connect-button' )
         try {
             const result = await wp.desktop.startOAuth( 'tumblrlike' );
             // result === { ok: true, service: 'tumblrlike' }
-            wp.desktop.toast?.( 'Connected!' );
+            wp.desktop.showToast( { message: 'Connected!' } );
         } catch ( err ) {
             // err.cause carries the failure payload:
             //   { ok: false, reason: 'invalid_state' | 'authorize_denied' |
             //                       'token_exchange_failed' | … , message: '…' }
-            wp.desktop.toast?.( err.message );
+            wp.desktop.showToast( { message: err.message } );
         }
     } );
 ```
 
 ## What the framework does
 
-1. **`POST /desktop-mode/v1/oauth/start`** — issues a 32-char `state` nonce, persists it in a 10-minute transient keyed to the user, returns the assembled authorize URL with the state appended.
+1. **`POST /desktop-mode/v1/oauth/start`** — issues a 32-char `state` nonce, persists it in a 10-minute transient keyed by the state value (with the issuing `user_id` stored in the transient payload), returns the assembled authorize URL with the state appended.
 2. **`window.open( authorize_url, … )`** — centred popup with sensible window features.
 3. **`postMessage` listener** — origin-checked against `window.location.origin`, type-discriminated on `'desktop-mode-oauth-callback'`. Cross-origin or wrong-type messages are ignored.
 4. **`GET /desktop-mode/v1/oauth/callback?code=…&state=…`** — server validates and *consumes* the state (single-use), POSTs to `token_url` with `grant_type=authorization_code`, parses JSON, calls the plugin's `on_success`, then renders an HTML page that `postMessage`s the opener and closes itself.
@@ -53,7 +55,7 @@ document.getElementById( 'connect-button' )
 ## What you DON'T have to write
 
 - The state nonce — server-issued, server-validated, single-use, transient-backed (no DB writes).
-- The popup orchestration — windowing math, `_blank` target, `noopener`, popup-blocked detection.
+- The popup orchestration — windowing math, a per-service named window target, popup-blocked detection. The popup deliberately keeps its `window.opener` reference (no `noopener`) so the callback page can `postMessage` the result back.
 - The opener's `postMessage` listener — origin check, type check, single-fire detachment.
 - The callback page that `postMessage`s the opener and closes — framework renders it.
 - The token-exchange POST — framework `wp_remote_post`s the `token_url` with the standard parameters and parses JSON.

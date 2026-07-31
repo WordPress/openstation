@@ -3,8 +3,8 @@
  *
  * A **control** is a button rendered in the title bar — close,
  * minimize, maximize, custom plugin actions. Built-in controls
- * (`core/minimize`, `core/maximize`, `core/focus-tab`, `core/detach`,
- * `core/close`) register here at shell boot in {@link
+ * (`core/minimize`, `core/maximize`, `core/focus-tab`, `core/close`)
+ * register here at shell boot in {@link
  * registerBuiltInControls} (Phase C); plugin authors register
  * additional controls via `wp.desktop.registerWindowControl()`. The
  * shell renders the control cluster from this registry, so plugins
@@ -13,11 +13,9 @@
  *
  * Generalises the title-bar-button registry pattern (`subscribe`
  * fan-out, `match` predicate, `owner`-based teardown). The
- * `registerTitleBarButton()` API (since 0.17.0) is preserved as a
+ * `registerTitleBarButton()` API is preserved as a
  * thin alias that delegates to this registry — existing plugins keep
  * working unchanged.
- *
- * @since 0.6.0
  */
 
 import { throwOnRegistrationErrors } from '../../registration-errors';

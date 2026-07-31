@@ -1,7 +1,7 @@
 /**
  * Animated WP Logo — wallpaper plugin entry.
  *
- * The first built-in canvas wallpaper. As of 0.8.4 this plugin ships
+ * The first built-in canvas wallpaper. This plugin ships
  * as its own Vite-built bundle (`assets/js/animated-logo-wallpaper[.min].js`)
  * that is only loaded when the matching `desktop_mode_register_wallpaper`
  * server registration tells the shell to inject the script handle —
@@ -14,13 +14,12 @@
  * `wp.desktop.registerWallpaper` from inside the bundle — the def is
  * registered via the WordPress `desktop_mode_register_wallpaper()`
  * server API in `includes/wallpapers.php`.
- *
- * @since 0.6.0
  */
 
 import type {
 	WallpaperContext,
 	WallpaperDef,
+	WallpaperPreviewContext,
 	WallpaperTeardown,
 } from '../../wallpapers/types';
 import { mountScene } from './scene';
@@ -40,6 +39,23 @@ const def: WallpaperDef = {
 	label: 'Animated WordPress Logo',
 	type: 'canvas',
 	preview: PREVIEW,
+	/**
+	 * Live tile preview for the OS Settings picker — the real particle
+	 * scene at tile scale. The scene sizes itself to its container, so
+	 * no dedicated preview path is needed; the swatch just gets a small
+	 * swarm.
+	 */
+	renderPreview: async (
+		container: HTMLElement,
+		ctx: WallpaperPreviewContext,
+	): Promise< WallpaperTeardown > => {
+		const scene = await mountScene( {
+			container,
+			logoUrl: `${ ctx.pluginUrl }/assets/images/wp-logo.png`,
+			prefersReducedMotion: ctx.prefersReducedMotion,
+		} );
+		return (): void => scene.destroy();
+	},
 	needs: [ 'pixijs' ],
 	mount: async (
 		container: HTMLElement,

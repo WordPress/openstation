@@ -27,7 +27,7 @@ desktop_mode_register_window( 'jorvy', array(
     // mid-session activation — without this, a peer plugin activated
     // from inside an open shell renders its window with no CSS until
     // the user reloads, because `wp_print_styles` already ran for the
-    // parent shell page. @since 0.18.1
+    // parent shell page.
     'style'    => 'jorvy-desktop',
     'template' => function () {
         ?>
@@ -107,7 +107,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
 ### `desktop_mode_register_window( $id, $args )`
 
-Declares the native window — its title, icon, initial dimensions, template markup, and render script. Returns `true` on success, `WP_Error` on any validation failure (missing `title`, missing `script`, non-callable `template`, unmet capability).
+Declares the native window — its title, icon, initial dimensions, template markup, and render script. Returns `true` on success, `WP_Error` on any validation failure (missing `title`, non-callable `template`, unmet capability). `script` is optional — omit it for a purely declarative window whose body is exactly the cloned template.
 
 ### `desktop_mode_register_icon( $id, $args )`
 
@@ -127,20 +127,22 @@ The `icon` arg accepts three formats. A fourth (`icon_svg`) is a convenience wra
 // 3. data:image/svg+xml URI — inline SVG, base64 or URL-encoded.
 'icon' => 'data:image/svg+xml;base64,' . base64_encode( '<svg …>…</svg>' ),
 
-// 4. icon_svg shorthand (since 0.8.2) — pass raw SVG and the framework
+// 4. icon_svg shorthand — pass raw SVG and the framework
 //    encodes it for you. Wins over `icon` when both are given.
 'icon_svg' => file_get_contents( __DIR__ . '/assets/jorvy.svg' ),
 ```
+
+**Drawing the SVG in `currentColor` makes it a silhouette** — the framework paints it as a CSS mask filled with the surface's text colour, so one drawing stays legible on the dark dock, on a light title bar, and on hover. Use fixed colours only for art that should keep them (a brand mark, a full-colour app icon). See [Silhouette icons](../javascript-reference.md#silhouette-icons) for the full rule.
 
 The shared sanitizer rejects `javascript:` URIs and any non-`image/svg+xml` `data:` scheme. SVG markup with an embedded `<script>` tag is rejected outright when passed via `icon_svg` (defence-in-depth — browsers also sandbox scripts inside `<img src="data:…">` SVGs, but we belt-and-braces). All four forms run through `desktop_mode_sanitize_dock_icon`, so a malformed value silently falls back to `dashicons-admin-generic`.
 
 ### Pinning a system icon
 
-Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree **My WordPress** folder.
+Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree pinned **site folder**.
 
 ```php
 desktop_mode_register_icon( 'my-wordpress', array(
-    'title'    => __( 'My WordPress', 'desktop-mode' ),
+    'title'    => desktop_mode_site_title(),
     'icon'     => 'dashicons-wordpress',
     'window'   => 'desktop-mode-my-wordpress',
     'pinned'   => true,
@@ -162,7 +164,7 @@ Native windows render in JS because a `render( body )` callback can't cross the 
 2. Enable desktop mode via the admin-bar toggle.
 3. A star icon labeled *Jorvy* appears on the wallpaper.
 4. Click it — the Marvel-quote panel opens; the quote rotates every ten seconds.
-5. Check the action history: `desktop_mode_window_registered` and `desktop_mode_icon_registered` each fired once.
+5. Check the action history: `desktop_mode_native_window_registered` and `desktop_mode_icon_registered` each fired once.
 
 ## Error handling
 
@@ -176,7 +178,7 @@ The `WP_Error` contract means you find typos at plugin-load time, not at first-c
 
 ## Decorating the rendered grid
 
-When you need to enhance the wallpaper icons themselves — a cursor adornment, a status dot, a drag handle — subscribe to `HOOKS.DESKTOP_ICONS_RENDERED`. Since 0.25.0 the payload hands you the rendered container *and* a map of `id → tile element`, so your decorator doesn't have to query the DOM (and doesn't have to re-query on every live menu refresh — the hook fires exactly when the grid is rebuilt):
+When you need to enhance the wallpaper icons themselves — a cursor adornment, a status dot, a drag handle — subscribe to `HOOKS.DESKTOP_ICONS_RENDERED`. The payload hands you the rendered container *and* a map of `id → tile element`, so your decorator doesn't have to query the DOM (and doesn't have to re-query on every live menu refresh — the hook fires exactly when the grid is rebuilt):
 
 ```js
 wp.desktop.hooks.addAction(

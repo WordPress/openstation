@@ -5,8 +5,6 @@
  * the previous group and shows the new one without destroying
  * anything — iframe state, scroll position, in-page JS state all
  * survive a switch. Only one desktop is active at any time.
- *
- * @since 0.8.1
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -14,7 +12,12 @@ import { __, sprintf } from '../i18n';
 import type { Desktop } from '../types';
 import type { Window } from '../window';
 import { computeOverviewLayout } from './geometry';
-import { createOverviewLabel, refreshOverviewTopBar } from './overview';
+import {
+	createOverviewLabel,
+	prepareWindowForOverviewLayout,
+	refreshOverviewTopBar,
+	restoreWindowAfterOverviewLayout,
+} from './overview';
 import { OVERVIEW_TOP_BAR_RESERVE } from './overview-constants';
 import type { WindowManager } from './index';
 
@@ -294,6 +297,7 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 			w.element.style.transform = snap.transform;
 			w.element.style.transition = snap.transition;
 			w.element.classList.remove( 'desktop-mode-window--overview' );
+			restoreWindowAfterOverviewLayout( w );
 		}
 	}
 	for ( const label of mgr._overviewLabels.values() ) {
@@ -311,7 +315,6 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 	//    they're windows with content, nothing special.
 	const eligible = mgr._stack.filter(
 		( w ) =>
-			w.state !== 'minimized' &&
 			w.config.desktopId === mgr._activeDesktopId,
 	);
 	if ( eligible.length === 0 ) {
@@ -323,6 +326,7 @@ export function relayoutOverviewForActiveDesktop( mgr: WindowManager ): void {
 			transform: w.element.style.transform || '',
 			transition: w.element.style.transition || '',
 		} );
+		prepareWindowForOverviewLayout( w );
 	}
 
 	// At this point the dock has already collapsed (we're mid-

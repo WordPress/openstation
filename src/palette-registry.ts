@@ -22,8 +22,6 @@
  *
  * Single-palette case degenerates cleanly: Cmd+K opens, Cmd+K again
  * closes (because cycling past the last lands on "nothing open").
- *
- * @since 0.14.0
  */
 
 /**
@@ -232,6 +230,12 @@ export function installPaletteShortcut(): void {
 			if ( e.shiftKey || e.altKey ) {
 				return;
 			}
+			// Always claim Cmd+K inside the desktop shell — Core's command
+			// palette is never the right UI here (its commands are harvested
+			// into the shell and its own callbacks hard-navigate out of the
+			// window model), so we suppress it unconditionally. The assistant
+			// registers itself as a palette at boot and stays registered, so
+			// `cyclePalettes()` opens it.
 			e.preventDefault();
 			e.stopImmediatePropagation();
 			cyclePalettes();

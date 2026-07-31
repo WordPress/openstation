@@ -91,4 +91,4 @@ wp.desktop.hooks.addAction(
 ## Related
 
 - [`desktop_mode_arrange_menu_items` filter](../hooks-reference.md#desktop_mode_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
-- [`desktop-mode.arrange.*` action family](../javascript-reference.md#arrange--snap--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.
+- [`desktop-mode.arrange.*` action family](../javascript-reference.md#arrange--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.

@@ -335,7 +335,7 @@ describe( 'WindowManager — opening a window with a submenu', async () => {
 		expect( manager.getAll().length ).toBe( 1 );
 		win.onOpenInNewWindow!( win );
 		// `onOpenInNewWindow`'s `void this.openNew( … )` is
-		// fire-and-forget since 0.8.4 (window-system + shell-
+		// fire-and-forget (window-system + shell-
 		// overlays are both lazy-loaded). The `openNew()` body
 		// awaits `Promise.all( [ ensureWindowSystemLoaded( '' ),
 		// ensureShellOverlaysLoaded( '' ) ] )` — both resolve

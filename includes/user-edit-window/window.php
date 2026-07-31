@@ -13,18 +13,17 @@
  * `mountProfileActivityAt`) that power the Profile tab; the only
  * difference is the wrapper template (no Users tab strip; just
  * the sidebar layout) and the way the target user id is resolved
- * (always read from the shared store; no fallback to current user).
+ * (read from the shared store when a row click / URL remap set a
+ * target, falling back to the viewer's own id — which is how
+ * `profile.php` opens).
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Echoes the User Edit window's template body.
- *
- * @since 0.18.0
  */
 function desktop_mode_user_edit_window_render_template() {
 	ob_start();
@@ -46,8 +45,6 @@ function desktop_mode_user_edit_window_render_template() {
 	/**
 	 * Filter the User Edit window's template HTML.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_user_edit_window_template_html', $html );
@@ -65,8 +62,6 @@ function desktop_mode_user_edit_window_render_template() {
  * `admin_color_scheme_picker` action: each entry carries the
  * scheme `name` and a `colors` tuple (typically 3-4 hex strings)
  * used to render mini-swatch previews — not just a slug list.
- *
- * @since 0.18.0
  *
  * @return array<string,array{name:string,colors:array<int,string>,icon_colors?:array<string,string>}>
  */
@@ -123,14 +118,12 @@ function desktop_mode_user_edit_window_color_schemes() {
 
 /**
  * Register the User Edit native window on `init`.
- *
- * @since 0.18.0
  */
 function desktop_mode_user_edit_window_register_window() {
-	$viewer_id = (int) get_current_user_id();
-	if ( $viewer_id <= 0 ) {
+	if ( ! desktop_mode_user_edit_window_user_can_register() ) {
 		return;
 	}
+	$viewer_id = (int) get_current_user_id();
 
 	$window_args = array(
 		'title'      => __( 'Edit user', 'desktop-mode' ),

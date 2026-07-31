@@ -10,7 +10,6 @@
  * register their own slugs (e.g. `update-available`).
  *
  * @package WPDesktopMode
- * @since   0.11.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,8 +24,6 @@ defined( 'ABSPATH' ) || exit;
  *   - `icon` is a Dashicons class rendered alongside the message.
  *   - `tone` is one of `positive | warning | critical | neutral` — the
  *     shell maps this to its color palette.
- *
- * @since 0.11.0
  *
  * @return array<int, array{id: string, label: string, icon: string, tone: string}>
  */
@@ -76,11 +73,10 @@ function desktop_mode_get_toast_types() {
 	 * ```
 	 *
 	 * Non-array returns fall back to defaults. Entries whose `id` is
-	 * empty, whose `tone` is not one of `positive|warning|critical|
-	 * neutral`, or whose `icon` isn't a sanitizable Dashicons-shaped
-	 * class are dropped.
-	 *
-	 * @since 0.11.0
+	 * empty or whose `tone` is not one of `positive|warning|critical|
+	 * neutral` are dropped. An `icon` that doesn't survive
+	 * `sanitize_html_class()` falls back to `dashicons-info`; a missing
+	 * `label` falls back to the ucfirst'd `id`.
 	 *
 	 * @param array $defaults Built-in toast types.
 	 */

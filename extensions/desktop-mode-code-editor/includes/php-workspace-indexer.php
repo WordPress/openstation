@@ -10,7 +10,6 @@
  * symbols with zero changes to the JS layer.
  *
  * @package DesktopModeCodeEditor
- * @since   0.22.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -43,8 +42,6 @@ const DESKTOP_MODE_CODE_EDITOR_WORKSPACE_DEFAULT_SKIP_DIRS = array(
 
 /**
  * Read the cached index.
- *
- * @since 0.22.0
  *
  * @return array{ version: int, files: array<string, array> }
  */
@@ -86,7 +83,6 @@ function desktop_mode_code_editor_flush_workspace_index() {
  * Yield every PHP file under the workspace root that's eligible
  * for indexing.
  *
- * @since 0.22.0
  * @internal
  *
  * @return Generator<string> Absolute paths.
@@ -101,8 +97,6 @@ function desktop_mode_code_editor_iter_workspace_php_files() {
 	 * Filter the list of subdirectory names that the workspace
 	 * walker skips. Comparison is by exact basename.
 	 *
-	 * @since 0.22.0
-	 *
 	 * @param string[] $dirs
 	 */
 	$skip_dirs = (array) apply_filters(
@@ -114,8 +108,6 @@ function desktop_mode_code_editor_iter_workspace_php_files() {
 	/**
 	 * Optional regex run against each filename — return non-empty
 	 * to provide a custom skip pattern.
-	 *
-	 * @since 0.22.0
 	 *
 	 * @param string $regex
 	 */
@@ -161,8 +153,6 @@ function desktop_mode_code_editor_iter_workspace_php_files() {
 
 /**
  * Scan a single PHP file, return its symbols.
- *
- * @since 0.22.0
  *
  * @param string $absolute_path File to scan.
  * @return array[] List of symbol entries.
@@ -355,8 +345,6 @@ function desktop_mode_code_editor_collect_namespace_name( array $tokens, $start 
 /**
  * Walk the workspace and refresh the index.
  *
- * @since 0.22.0
- *
  * @param int $file_budget Max files to fully scan in this call.
  * @return array Updated index (also persisted).
  */
@@ -404,8 +392,6 @@ function desktop_mode_code_editor_refresh_workspace_index( $file_budget = 200 ) 
 /**
  * Refresh a single file's entry in the workspace index.
  *
- * @since 0.22.0
- *
  * @param string $absolute_path
  */
 function desktop_mode_code_editor_refresh_workspace_file( $absolute_path ) {
@@ -434,8 +420,6 @@ function desktop_mode_code_editor_refresh_workspace_file( $absolute_path ) {
  * Hook into the save flow so the workspace index stays fresh on
  * every successful write.
  *
- * @since 0.22.0
- *
  * @param string $abs Absolute path the user just saved.
  */
 function desktop_mode_code_editor_workspace_index_on_save( $abs ) {
@@ -449,8 +433,6 @@ add_action( 'desktop_mode_code_editor_after_save', 'desktop_mode_code_editor_wor
 
 /**
  * Merge workspace symbols into the WP-core symbol pool.
- *
- * @since 0.22.0
  *
  * @param array $pool Existing pool (from WP core).
  * @return array
@@ -481,8 +463,6 @@ add_filter( 'desktop_mode_code_editor_php_index_extra_symbols', 'desktop_mode_co
 
 /**
  * Look up a workspace symbol by exact name.
- *
- * @since 0.22.0
  *
  * @param string $name
  * @return array|null

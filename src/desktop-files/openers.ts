@@ -18,17 +18,16 @@
  *
  * Three handler kinds are supported:
  *
- *   - `url`     — handler returns a URL; the framework calls
- *                 `wp.desktop.openWindow` with that URL so the
- *                 result lands in a chromeless iframe window.
+ *   - `url`     — handler returns a URL; the framework opens it in
+ *                 a chromeless iframe window via
+ *                 `wp.desktop.windowManager.open`.
  *   - `window`  — handler points at a registered native-window id
  *                 plus optional per-file `config`; the framework
- *                 calls `wp.desktop.openWindow( windowId, … )`.
+ *                 opens the window by id (see the `config` caveat
+ *                 on {@link NativeWindowOpenerHandler}).
  *   - `js`      — handler is a free-form callback the plugin owns.
  *                 Runs in the shell context. Useful for modals,
  *                 quick-actions, "preview" affordances.
- *
- * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';
@@ -48,7 +47,13 @@ export interface NativeWindowOpenerHandler {
 	kind: 'window';
 	/** Native-window id registered via `desktop_mode_register_window`. */
 	windowId: string;
-	/** Optional per-file config the window receives via `wp.desktop.getWindowConfig`. */
+	/**
+	 * Optional per-file config. Caveat: the computed config is
+	 * currently dropped by the shell's opener wiring (it opens the
+	 * window by id without forwarding it), so it never reaches
+	 * `wp.desktop.getWindowConfig` — don't rely on per-file config
+	 * delivery yet.
+	 */
 	config?: ( file: DesktopFile ) => unknown;
 }
 
@@ -92,6 +97,14 @@ export interface FileOpenerDef {
 	isDefault?: boolean;
 	/** Sort order in pickers. Lower wins. Default 100. */
 	sort?: number;
+	/**
+	 * Optional per-FILE predicate: the opener only applies to files
+	 * it returns true for (e.g. the agent-chat opener applies to
+	 * user files whose user is an agent). Openers with a predicate
+	 * are excluded from type-level listings where no file is
+	 * available to test (the default-apps settings tab).
+	 */
+	appliesTo?: ( file: DesktopFile ) => boolean;
 	handler: OpenerHandler;
 }
 
@@ -135,6 +148,8 @@ export function registerOpener( def: FileOpenerDef ): void {
 		types: def.types.slice(),
 		isDefault: !! def.isDefault,
 		sort: typeof def.sort === 'number' ? def.sort : 100,
+		appliesTo:
+			typeof def.appliesTo === 'function' ? def.appliesTo : undefined,
 		handler: def.handler,
 	} );
 	doAction( 'desktop-mode.files.opener-registered', def.id, def );
@@ -173,9 +188,20 @@ export function getOpeners(): FileOpenerDef[] {
 	return arr;
 }
 
-/** Returns every opener that handles `type`. */
-export function getOpenersForType( type: string ): FileOpenerDef[] {
-	return getOpeners().filter( ( e ) => e.types.includes( type ) );
+/**
+ * Returns every opener that handles `type`. With a `file`, per-file
+ * predicates are evaluated against it; without one, predicate-bearing
+ * openers are excluded (there is nothing to test them against).
+ */
+export function getOpenersForType(
+	type: string,
+	file?: DesktopFile,
+): FileOpenerDef[] {
+	return getOpeners()
+		.filter( ( e ) => e.types.includes( type ) )
+		.filter( ( e ) =>
+			e.appliesTo ? file !== undefined && e.appliesTo( file ) : true,
+		);
 }
 
 /**
@@ -183,8 +209,11 @@ export function getOpenersForType( type: string ): FileOpenerDef[] {
  * user. Plugins can override the result via the
  * `desktop-mode.files.resolve-opener` filter.
  */
-export function resolveOpener( type: string ): FileOpenerDef | null {
-	const candidates = getOpenersForType( type );
+export function resolveOpener(
+	type: string,
+	file?: DesktopFile,
+): FileOpenerDef | null {
+	const candidates = getOpenersForType( type, file );
 	if ( candidates.length === 0 ) {
 		return null;
 	}

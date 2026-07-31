@@ -7,13 +7,12 @@
  * appear: on the dock, on the wallpaper, on both surfaces, or
  * nowhere. The choice writes to `state.itemVisibility` and the layout
  * dispatcher's settings subscription refreshes the rails live.
- *
- * @since 0.25.0
  */
 
 import { __ } from '../../i18n';
 import { html, render } from '../../ui/core';
 import { renderIcon } from '../../icon';
+import { slotForTileId } from '../../desktop-themes/slots';
 import type { ItemVisibility, SettingsCtx } from '../types';
 import type { OsSettingsSnapshot } from '../registry';
 import { listPlaceableItems } from '../item-placement';
@@ -132,6 +131,12 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 													title: row.title,
 													className:
 														'desktop-mode-apps-icons__icon',
+													// Preview the themed
+													// icon so this list
+													// matches the dock.
+													slot: slotForTileId(
+														row.id,
+													),
 												} ) }
 												<div class="desktop-mode-apps-icons__title">
 													${ row.title }

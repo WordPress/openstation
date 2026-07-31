@@ -14,8 +14,8 @@
  * can be rendered with this component.
  *
  * Pure presentation + event-driven. Pass `segments`; emit
- * `wpd-chain-remove` `{ index, id }` when × is activated on the
- * leaf. Consumers handle persistence + rollback.
+ * `wpd-chain-remove` `{ index, id, segment }` when × is activated
+ * on any segment. Consumers handle persistence + rollback.
  *
  * ```js
  * const chain = document.createElement( 'wpd-crumb-chain' );
@@ -31,7 +31,6 @@
  * ```
  *
  * @public
- * @since 0.8.0
  */
 
 import { Component, defineComponent, html } from '../../core';

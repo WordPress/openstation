@@ -13,7 +13,10 @@
  *      `postMessage`s the parent shell with `type:
  *      'desktop-mode-recycle-bin-changed'`. The parent dispatches our
  *      `CustomEvent`, the open window refreshes. Cost: ~zero unless
- *      a delete actually happened in this request.
+ *      a delete actually happened in this request. The per-domain
+ *      `desktop-mode.<type>.changed` list-refresh broadcasts ride the
+ *      generic content-changes emitter instead (the changelog below
+ *      delegates into `includes/content-changes.php`).
  *
  *   2. **Catch-all path — Heartbeat**
  *      Every delete also bumps a single autoload=false option
@@ -31,7 +34,6 @@
  * in within the heartbeat cadence (15s active, 60s away).
  *
  * @package WPDesktopMode
- * @since   0.20.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -44,8 +46,6 @@ const DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION = '_desktop_mode_recycle_bin_change
  * Backed by a function-static so it survives across hook callbacks
  * within the same PHP request. Reading without args returns the
  * current value; passing `true` sets it.
- *
- * @since 0.20.0
  *
  * @param bool|null $set Set the flag.
  * @return bool
@@ -68,8 +68,6 @@ function desktop_mode_recycle_bin_request_dirty( $set = null ) {
  * Stored as autoload=false to keep the option out of the always-
  * loaded options query — recycle-bin polling is a "you opened the
  * window, you opted in" cost, not a per-pageload cost.
- *
- * @since 0.20.0
  */
 function desktop_mode_recycle_bin_signal_change() {
 	$ts = (int) round( microtime( true ) * 1000 );
@@ -81,8 +79,6 @@ function desktop_mode_recycle_bin_signal_change() {
 	 * bumped. Subscribers can use this to push their own real-time
 	 * signal (websocket, SSE, etc.) without re-hooking every delete
 	 * action individually.
-	 *
-	 * @since 0.20.0
 	 *
 	 * @param int $ts Milliseconds-since-epoch timestamp of the change.
 	 */
@@ -98,8 +94,6 @@ function desktop_mode_recycle_bin_signal_change() {
  * `attachment`, …). Subscribers — the recycle bin window, plus
  * any plugin that registered a domain listener — react.
  *
- * @since 0.20.0
- *
  * @param int    $post_id Post id being mutated.
  * @param string $action  One of 'trashed', 'untrashed', 'deleted'.
  */
@@ -114,11 +108,15 @@ function desktop_mode_recycle_bin_signal_change_for_post( $post_id, $action = 't
 /**
  * Per-request changelog: `[ post_type ][ action ] = int[] ids`.
  *
- * Reads when called without args; mutates when called with a
- * post_type. Static-store pattern, same shape as the dirty
- * helper above so test introspection is symmetric.
+ * Thin wrapper over the generic content-changes recorder
+ * (`includes/content-changes.php`) — the generic module
+ * owns the changelog AND the per-domain `desktop-mode.<type>.changed`
+ * footer broadcasts, so a trash and a save flow through one emitter.
+ * The wrapper is kept because the recycle-bin hook wiring below and
+ * third-party code grep for it.
  *
- * @since 0.21.0
+ * Reads when called without args; records when called with a
+ * post_type.
  *
  * @param string $post_type Optional. Mutate this domain.
  * @param int    $post_id   Optional. Id to record.
@@ -126,19 +124,10 @@ function desktop_mode_recycle_bin_signal_change_for_post( $post_id, $action = 't
  * @return array Full changelog when called with no args.
  */
 function desktop_mode_recycle_bin_record_change( $post_type = '', $post_id = 0, $action = '' ) {
-	static $log = array();
-
-	if ( '' === $post_type ) {
-		return $log;
+	if ( '' !== $post_type ) {
+		desktop_mode_content_changes_record( (string) $post_type, (int) $post_id, (string) $action );
 	}
-	if ( ! isset( $log[ $post_type ] ) ) {
-		$log[ $post_type ] = array();
-	}
-	if ( ! isset( $log[ $post_type ][ $action ] ) ) {
-		$log[ $post_type ][ $action ] = array();
-	}
-	$log[ $post_type ][ $action ][] = (int) $post_id;
-	return $log;
+	return desktop_mode_content_changes_log();
 }
 
 /**
@@ -156,8 +145,6 @@ function desktop_mode_recycle_bin_record_change( $post_type = '', $post_id = 0, 
  * can refresh if its `seenTs` is older. The cost is one cached
  * `get_option` + ~12 lines of inline JS per chromeless render.
  *
- * @since 0.20.0
- *
  * @return bool
  */
 function desktop_mode_recycle_bin_should_emit_footer_signal() {
@@ -171,8 +158,6 @@ function desktop_mode_recycle_bin_should_emit_footer_signal() {
 	/**
 	 * Filter whether to emit the chromeless footer postMessage on
 	 * the current request.
-	 *
-	 * @since 0.20.0
 	 *
 	 * @param bool $emit Default true on any chromeless render. The
 	 *                   `desktop_mode_recycle_bin_request_dirty()` helper
@@ -192,49 +177,32 @@ function desktop_mode_recycle_bin_should_emit_footer_signal() {
  * script is ~14 lines uncompressed, doesn't import jQuery, and is
  * a no-op when `window.parent === window` (defensive — the same
  * gate the existing chromeless bridge uses).
- *
- * @since 0.20.0
  */
 function desktop_mode_recycle_bin_emit_footer_signal() {
 	if ( ! desktop_mode_recycle_bin_should_emit_footer_signal() ) {
 		return;
 	}
 
-	$ts        = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
-	$changelog = desktop_mode_recycle_bin_record_change();
+	$ts = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
 
-	if ( $ts <= 0 && empty( $changelog ) ) {
+	if ( $ts <= 0 ) {
 		// Nothing has ever been trashed via this site — no point
 		// teaching the parent shell about a 0 high-water mark.
 		return;
 	}
 
-	// Per-domain broadcast envelope: one entry per affected
-	// post_type, with verb-keyed id lists. The parent shell's
-	// `installBroadcastReceiver` translates each into a
-	// `desktop-mode.<post_type>.changed` broadcast — the bin (and
-	// any plugin that subscribes to that exact topic) reacts.
-	$broadcasts = array();
-	foreach ( $changelog as $post_type => $by_action ) {
-		foreach ( $by_action as $action => $ids ) {
-			$broadcasts[] = array(
-				'topic'   => 'desktop-mode.' . $post_type . '.changed',
-				'payload' => array(
-					'source' => 'admin',
-					'action' => (string) $action,
-					'ids'    => array_values( array_unique( array_map( 'intval', $ids ) ) ),
-				),
-			);
-		}
-	}
-	$broadcasts_json = wp_json_encode( $broadcasts );
+	// Only the bin-specific ts signal is emitted here. The per-domain
+	// `desktop-mode.<post_type>.changed` broadcasts moved to the
+	// generic content-changes emitter (`includes/content-changes.php`,
+	// same `admin_footer` slot) — the bin's changelog delegates into
+	// it, so a trash and a save flow through one emitter and each
+	// type/action pair is broadcast exactly once per render.
 	?>
 	<script id="desktop-mode-recycle-bin-realtime-signal">
 		( function () {
 			if ( window.parent === window ) {
 				return;
 			}
-			var origin = window.location.origin;
 			try {
 				window.parent.postMessage(
 					{
@@ -242,28 +210,9 @@ function desktop_mode_recycle_bin_emit_footer_signal() {
 						ts: <?php echo (int) $ts; ?>,
 						source: 'chromeless'
 					},
-					origin
+					window.location.origin
 				);
 			} catch ( _err ) { /* swallow */ }
-
-			/*
-			 * Per-domain broadcast envelopes — one postMessage per
-			 * affected post type. The parent shell's broadcast
-			 * receiver fans these out as `desktop-mode.<type>.changed`
-			 * subscriptions. Only emitted when the request actually
-			 * mutated something: a no-op chromeless render skips this
-			 * branch entirely.
-			 */
-			var broadcasts = <?php echo $broadcasts_json ? $broadcasts_json : '[]'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>;
-			for ( var i = 0; i < broadcasts.length; i++ ) {
-				try {
-					window.parent.postMessage( {
-						type: 'desktop-mode-broadcast',
-						topic: broadcasts[ i ].topic,
-						payload: broadcasts[ i ].payload
-					}, origin );
-				} catch ( _err ) { /* swallow */ }
-			}
 		} )();
 	</script>
 	<?php
@@ -278,8 +227,6 @@ function desktop_mode_recycle_bin_emit_footer_signal() {
  * sending `desktop_mode_recycle_bin_seen_ts` in its outgoing data; if the
  * key is absent we early-return so users without the bin open pay
  * zero per tick.
- *
- * @since 0.20.0
  *
  * @param array $response Heartbeat response (passed by ref via filter).
  * @param array $data     Client-sent payload.
@@ -296,18 +243,27 @@ function desktop_mode_recycle_bin_heartbeat_received( $response, $data ) {
 		return $response;
 	}
 
-	$seen   = (int) $data['desktop_mode_recycle_bin_seen_ts'];
-	$latest = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$seen    = (int) $data['desktop_mode_recycle_bin_seen_ts'];
+	$latest  = (int) get_option( DESKTOP_MODE_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$changed = $latest > $seen;
 
-	// Authoritative count travels on every tick — it's the cheapest
-	// way to keep the dock/icon badge truthful when the bin window
-	// is closed. `desktop_mode_recycle_bin_count()` is a fast COUNT(*) that
-	// hits the same option-cached query each post-status.
 	$response['desktop_mode_recycle_bin'] = array(
-		'changed' => $latest > $seen,
+		'changed' => $changed,
 		'ts'      => $latest,
-		'count'   => desktop_mode_recycle_bin_count(),
 	);
+
+	// The authoritative count only travels when something actually
+	// changed since the client's high-water mark. The count cannot
+	// drift without the change-ts bumping (every capture / restore /
+	// purge bumps it), so an unchanged tick would recompute the same
+	// number — `desktop_mode_recycle_bin_count()` runs up to two
+	// COUNT(*) WP_Querys plus a comment count, a real per-tick cost
+	// multiplied across every user with the shell open. The client
+	// treats `count` as optional and keeps its current badge value
+	// when the key is absent.
+	if ( $changed ) {
+		$response['desktop_mode_recycle_bin']['count'] = desktop_mode_recycle_bin_count();
+	}
 
 	return $response;
 }
@@ -322,8 +278,6 @@ function desktop_mode_recycle_bin_heartbeat_received( $response, $data ) {
  *
  * Hooked together inside one bootstrap to make the wiring auditable
  * — `grep desktop_mode_recycle_bin_signal_change` finds every emitter.
- *
- * @since 0.20.0
  */
 function desktop_mode_recycle_bin_register_realtime_hooks() {
 	add_action( 'wp_trash_post', function ( $post_id ) {
@@ -340,9 +294,9 @@ function desktop_mode_recycle_bin_register_realtime_hooks() {
 	// `untrashed_comment` / `deleted_comment` fire from
 	// `wp_set_comment_status`. Map each into our changelog so the
 	// chromeless footer can broadcast `desktop-mode.comment.changed`
-	// to the Comments-list iframe; the bin doesn't capture comments
-	// today, but having the topic available means a third-party
-	// "comment trash" plugin can opt in by hooking the changelog.
+	// to the Comments-list iframe; the bin captures and lists trashed
+	// comments too, and third-party plugins can subscribe to the same
+	// topic by hooking the changelog.
 	add_action( 'trashed_comment', function ( $comment_id ) {
 		desktop_mode_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
 		desktop_mode_recycle_bin_signal_change();

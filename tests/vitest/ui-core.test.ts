@@ -97,6 +97,20 @@ describe( 'wpd-ui html renderer', () => {
 		expect( first.textContent ).toBe( 'two' );
 	} );
 
+	test( 'remounts when the container was cleared behind the renderer\'s back', () => {
+		// Hosts that mix imperative DOM management with the templater
+		// (the OS Settings editor slot did) can wipe the container
+		// between renders. The cached mount must not take the
+		// update-in-place fast path against those detached nodes —
+		// that renders nothing, silently.
+		const update = ( value: string ) =>
+			render( html`<p>${ value }</p>`, host );
+		update( 'one' );
+		host.innerHTML = '';
+		update( 'two' );
+		expect( host.querySelector( 'p' )?.textContent ).toBe( 'two' );
+	} );
+
 	test( 'no-op re-render doesn\'t touch the text-node slot', () => {
 		const update = ( value: string ) =>
 			render( html`<p>${ value }</p>`, host );
@@ -120,6 +134,37 @@ describe( 'wpd-ui html renderer', () => {
 	test( 'arrays in text flatten to concatenated strings', () => {
 		render( html`<p>${ [ 'a', 'b', 'c' ] }</p>`, host );
 		expect( host.querySelector( 'p' )?.textContent ).toBe( 'abc' );
+	} );
+
+	test( 'switching a slot between templates disposes top-level slot content', () => {
+		// The inner templates keep their own slots at TOP level (not
+		// wrapped in an element), so their content is inserted as
+		// siblings of the instance's cloned nodes. Switching the outer
+		// slot to a different template must remove that content too —
+		// regression: the Agents detail pane leaked its tabs + form
+		// after deleting the last agent swapped in the empty state.
+		const detail = ( label: string ) => html`
+			<span class="head">${ label }</span>
+			${ html`<nav class="tabs">${ label }</nav>` }
+			${ html`<form class="pane">${ label }</form>` }
+		`;
+		const empty = html`<p class="empty">nothing here</p>`;
+
+		render( html`<div class="wrap">${ detail( 'A' ) }</div>`, host );
+		expect( host.querySelector( '.head' ) ).not.toBeNull();
+		expect( host.querySelector( '.tabs' ) ).not.toBeNull();
+		expect( host.querySelector( '.pane' ) ).not.toBeNull();
+
+		render( html`<div class="wrap">${ empty }</div>`, host );
+		expect( host.querySelector( '.empty' ) ).not.toBeNull();
+		expect( host.querySelector( '.head' ) ).toBeNull();
+		expect( host.querySelector( '.tabs' ) ).toBeNull();
+		expect( host.querySelector( '.pane' ) ).toBeNull();
+
+		// And back — the empty state must not leak either.
+		render( html`<div class="wrap">${ detail( 'B' ) }</div>`, host );
+		expect( host.querySelector( '.empty' ) ).toBeNull();
+		expect( host.querySelector( '.pane' )?.textContent ).toContain( 'B' );
 	} );
 
 	test( 'different strings identity triggers a full remount', () => {

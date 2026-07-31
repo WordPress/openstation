@@ -18,6 +18,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 - [Current State](#current-state)
 - [Still ahead](#still-ahead)
 - [Repository layout](#repository-layout)
+- [Bundled extensions](#bundled-extensions)
 - [How to run it](#how-to-run-it)
   - [Quick install](#quick-install)
   - [Development setup](#development-setup)
@@ -36,7 +37,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OS Settings — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `desktop_mode_mode_init`, `desktop_mode_shell_before` / `_after`, and the `desktop_mode_shell_config` filter are the main extension points.
 
 - **Window system — iframe + native**
-  Iframe windows load admin pages with `?wp_desktop=1` (chromeless mode). Native windows render directly in the parent DOM via `desktop_mode_register_window()` / `wp.desktop.registerWindow()` — multi-tab native windows are supported through `desktop_mode_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
+  Iframe windows load admin pages with `?desktop_mode_chromeless=1` (chromeless mode). Native windows render directly in the parent DOM via `desktop_mode_register_window()` / `wp.desktop.registerWindow()` — multi-tab native windows are supported through `desktop_mode_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
 
 - **Dock**
   One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is the user's OS Settings preference. Core menus are ordered before plugin menus; per-item hiding via `desktop_mode_dock_placement` (`'hidden'`). Per-item multi-window support via `desktop_mode_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
@@ -101,8 +102,6 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 
 See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit together and [`docs/hooks-reference.md`](./docs/hooks-reference.md) for the hook surface (current and planned).
 
-See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit together and [`docs/hooks-reference.md`](./docs/hooks-reference.md) for the hook surface (current and planned).
-
 ---
 
 ## Repository layout
@@ -118,12 +117,13 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── accents.php              wallpapers.php      toast-types.php
 │   ├── media-query.php
 │   └── ai-copilot/              # AI assistant (OpenAI client, analysis, search, jobs)
-├── assets/                # compiled CSS + JS (Vite output; tracked in git)
+├── assets/                # hand-authored CSS + JS build output
 │   ├── css/  desktop.css, windows.css, dock.css, chromeless.css, variables.css
-│   └── js/   desktop.js, desktop.min.js, chromeless bridge, media-library enhancements
+│   └── js/   Vite bundles (gitignored; regenerate with npm run build) — only
+│             admin-bar.js and media-library-enhanced.js are hand-written and tracked
 ├── src/                   # TypeScript source — compiled by Vite
 │   ├── desktop.ts / dock.ts / hooks.ts / commands.ts / palette-registry.ts
-│   ├── ai-assistant.ts / drag-bridge.ts / toast.ts / desktop-icons.ts
+│   ├── ai-assistant/ + drag-bridge.ts / toast.ts / desktop-icons.ts
 │   ├── native-windows.ts / built-in-commands.ts / public-api.ts / types.ts
 │   ├── window/          # Window class — DOM, pointer, tabs, iframe bridge
 │   ├── window-manager/  # stack, desktops, arrange, snap, overview
@@ -134,6 +134,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── modules/         # vendor-script lazy-loader
 │   └── plugins/         # built-in demos (animated-logo-wallpaper)
 ├── docs/                  # developer-facing docs (source of truth for plugin authors)
+├── extensions/            # bundled sibling plugins (see "Bundled extensions" below)
 ├── tests/                 # PHPUnit + Vitest
 ├── languages/             # .po / .mo (es shipped)
 ├── bin/                   # package-zip helpers
@@ -142,6 +143,18 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 ├── vitest.config.ts
 └── tsconfig.json
 ```
+
+---
+
+## Bundled extensions
+
+The `extensions/` directory hosts sibling plugins that build on Desktop Mode's public APIs. Each one is a standalone WordPress plugin (`Requires Plugins: desktop-mode`) installed from its own zip — run `./bin/package-extensions.sh` to build one `<slug>.zip` per extension under `dist/`; see [`docs/RELEASE.md`](./docs/RELEASE.md#packaging-extensions) for the full packaging steps. (`extensions/base/` is a shared base library for extension authors, not an installable plugin.)
+
+- **Code Editor** (`desktop-mode-code-editor`) — a Monaco-backed Code editor native window for browsing and editing files inside `wp-content`. Editing requires the `edit_plugins` capability and is disabled entirely when `DISALLOW_FILE_EDIT` is set.
+- **Cron Manager** (`desktop-mode-cron-manager`) — a Cron Jobs native window for browsing, editing, deleting, and running WP-Cron events. Gated by `manage_options`.
+- **Popup Siege** (`desktop-mode-popup-siege`) — a 90-second Breakout-style archive rescue game with Desktop Mode leaderboards, play-time tracking, and score-to-beat challenges. The deterministic game runtime is lazy-loaded on first play.
+- **SOL Inbound Monologue** (`desktop-mode-feed-buddy`) — an AIM-era RSS/Atom reader with a movable buddy-list widget, a native conversation-style reader window, per-user subscriptions and unread state, safe server-side feed discovery, and optional synthesized chimes.
+- **phpMyAdmin** (`desktop-mode-phpmyadmin`) — embeds a bundled phpMyAdmin install as a native window. **Local environments only**: the window registers solely when `wp_get_environment_type()` is `'local'`, because the bundled phpMyAdmin runs with `auth_type=config` and reuses the WordPress DB credentials — any visitor who finds the URL gets full DB access. The `manage_options` check only hides the shortcut from lower-privilege users; it does **not** gate the underlying URL.
 
 ---
 
@@ -169,13 +182,13 @@ npm install
 
 The plugin uses **[Vite](https://vitejs.dev/)** in library mode. esbuild handles transpile and minify, so builds finish in ~70 ms per bundle.
 
-**Full build** — produces every bundle (`npm run build:desktop`, `:iframe-bridge`, `:recycle-bin`, `:posts-window`):
+**Full build** — runs the PixiJS vendor-copy step plus every `build:*` target defined in `package.json` (one Vite bundle each; the `scripts` block in `package.json` and the entry map in `vite.config.js` are the authoritative target list):
 
 ```bash
 npm run build
 ```
 
-Writes:
+Writes one `assets/js/<target>.js` / `.min.js` pair per target, including:
 
 - `assets/js/desktop.js` / `.min.js` — main shell bundle (loaded based on `SCRIPT_DEBUG`).
 - `assets/js/iframe-bridge.js` / `.min.js` — opt-in bridge that gives any same-origin iframe access to `wp.desktop.iframe.*`.

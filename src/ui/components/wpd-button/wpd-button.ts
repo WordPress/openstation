@@ -22,6 +22,7 @@
  * `docs/components-reference.md`):
  *
  *   --wpd-button-bg              — background color
+ *   --wpd-button-bg-hover        — hover wash (ghost + secondary)
  *   --wpd-button-fg              — text color
  *   --wpd-button-border          — shorthand for the border
  *   --wpd-button-border-radius   — corner radius (default 6px)
@@ -92,6 +93,10 @@ export class WpdButton extends Component {
 		parts: [ { name: 'button', description: 'Underlying <button> element.' } ],
 		cssProps: [
 			{ name: '--wpd-button-bg', description: 'Background color.' },
+			{
+				name: '--wpd-button-bg-hover',
+				description: 'Hover wash (ghost + secondary variants).',
+			},
 			{ name: '--wpd-button-fg', description: 'Text color.' },
 			{ name: '--wpd-button-border', description: 'Border shorthand.' },
 			{ name: '--wpd-button-border-radius', default: '6px' },
@@ -115,9 +120,19 @@ export class WpdButton extends Component {
 	protected render() {
 		const disabled =
 			( this as unknown as { disabled: string | null } ).disabled !== null;
+		const busy =
+			( this as unknown as { busy: string | null } ).busy !== null;
 		const type = ( this as unknown as { type: string | null } ).type || 'button';
 		return html`
-			<button part="button" type=${ type } ?disabled=${ disabled }>
+			<button
+				part="button"
+				type=${ type }
+				?disabled=${ disabled || busy }
+				aria-busy=${ busy ? 'true' : 'false' }
+			>
+				${ busy
+					? html`<span class="wpd-button__spinner" aria-hidden="true"></span>`
+					: '' }
 				<slot></slot>
 			</button>
 		`;

@@ -1,6 +1,6 @@
 # The event-driven framework
 
-**Stable** — formalized in 0.5.5.
+**Stable.**
 
 The Desktop Mode plugin is structured as a small, opinionated **OS
 shell** plus a set of **apps** (the recycle bin, the code editor,
@@ -67,8 +67,19 @@ const store  = wp.desktop.createSharedStore( 'my/state', () => ( { x: 0 } ) );
 
 If you're building a "show this thing only when the user can't
 already see my window" UI, `windowManager.isActive(id)` is the
-canonical query — it collapses three sub-checks (window exists,
-not minimized, focused) into one boolean.
+canonical query — it collapses four sub-checks (window exists,
+not minimized, focused, on the active virtual desktop) into one
+boolean. A window that's focused on a Space the user has since
+switched away from does NOT count as active.
+
+For a multi-instance window (`multi: true`, ids like
+`${baseId}-2`, `${baseId}-3`), `isActive(id)` only ever answers
+for one exact id. Use `windowManager.isActiveByBaseId(baseId)`
+instead — it returns `true` if *any* instance sharing that
+`baseId` is the currently focused window (still scoped to the
+active desktop). This is the query `src/recycle-bin/badge.ts`
+switched to so its badge doesn't stay suppressed while the user
+is looking at a *different* recycle-bin instance.
 
 ### Layer 2 — window lifecycle
 
@@ -93,12 +104,12 @@ flavour fits.
 | CustomEvent | Detail |
 |---|---|
 | `desktop-mode-window-opened`      | `{ windowId, page, title, url }` |
-| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized }` |
+| `desktop-mode-window-reopened`    | `{ windowId, baseId, wasMinimized, navigated }` — `navigated`: the request carried a URL the window wasn't showing, so the existing iframe navigated to it in place |
 | `desktop-mode-window-focused`     | `{ windowId }` |
-| `desktop-mode-window-blurred`     | `{ windowId, focusedTo }`  *(since 0.5.5)* |
+| `desktop-mode-window-blurred`     | `{ windowId, focusedTo }` |
 | `desktop-mode-window-closing`     | `{ windowId, element }` |
 | `desktop-mode-window-closed`      | `{ windowId }` |
-| `desktop-mode-window-changed`     | `{ windowId, reason, state }` |
+| `desktop-mode-window-changed`     | `{ windowId?: string, reason: 'moved' \| 'resized' \| 'state' \| 'cascade' \| 'tile', state?: WindowState }` — batch-arrange dispatches (`'cascade'` / `'tile'`) omit `windowId`/`state` |
 
 Same payloads on `wp.hooks` actions:
 `HOOKS.WINDOW_OPENED`, `…_FOCUSED`, `…_BLURRED`, `…_CLOSED`,
@@ -251,8 +262,10 @@ mirrors here so plugins can subscribe through one unified API:
 |---|---|---|
 | `desktop-mode/toast-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-show on every `showToast()`. |
 | `desktop-mode/toast-shown` | No (post-render) | After the toast lands in the DOM. |
-| `desktop-mode/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` / `dock.setAttention()`. |
-| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` (since 0.24.0) so a single subscriber can compose across surfaces. |
+| `desktop-mode/notification-requested` | Yes — `cancel: true` to drop, mutate to rewrite | Pre-render on every `wp.desktop.notify()`. |
+| `desktop-mode/notification-shown` | No (post-render) | After the notification (or its toast fallback) renders — payload carries `fallback: 'toast' \| null`. |
+| `desktop-mode/window-attention-requested` | Yes — `cancel: true` for DND, mutate `mode`/`durationMs` to scale | Pre-attention on every `Window.requestAttention()` (which then routes the filtered result to the rails' `setAttention()`). Direct `dock.setAttention()` calls bypass the filter. |
+| `desktop-mode/badge-changed` | No | Every `setBadge()` on dock / taskbar / icons. Payload carries `rail: 'dock' \| 'taskbar' \| 'icon'` so a single subscriber can compose across surfaces. |
 | `desktop-mode/open-requested` | No | Every `wp.desktop.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
 | `desktop-mode/presence-changed` | No | Every presence transition (mirror of the `desktop-mode-presence-changed` CustomEvent). |
 | `desktop-mode/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
@@ -307,7 +320,7 @@ and **route data** between plugins. The framework's job is NOT
 to make UX decisions on the plugin's behalf.
 
 An earlier version of the framework had the *Dock* auto-suppress
-badges while a window was active. We reverted that in 0.5.5 — the
+badges while a window was active. We reverted that — the
 reasons:
 
 - The Dock can't know what every app's badge means. A "5 unread
@@ -338,11 +351,11 @@ function repaintBadge() {
     const active  = wp.desktop.windowManager.isActive( WINDOW_ID );
     const visible = active ? 0 : total;
     // Plugin's policy. The rails just render whatever we pass.
-    // Three calls; the rail that owns the id paints, the others
-    // silently no-op. One activity event fires.
-    wp.desktop.dock?.setBadge?.(    WINDOW_ID, visible );
-    wp.desktop.taskbar?.setBadge?.( WINDOW_ID, visible );
-    wp.desktop.icons?.setBadge?.(   WINDOW_ID, visible );
+    // The rail that owns the id paints, the others silently
+    // no-op. One activity event fires.
+    wp.desktop.dock?.setBadge?.(     WINDOW_ID, visible );
+    wp.desktop.sideDock?.setBadge?.( WINDOW_ID, visible );
+    wp.desktop.icons?.setBadge?.(    WINDOW_ID, visible );
 }
 
 // React to either axis changing.
@@ -358,6 +371,24 @@ wp.desktop.activity.subscribe( 'inbox/unread-changed', repaintBadge );
 );
 repaintBadge(); // initial paint
 ```
+
+**Multi-instance windows** (`multi: true`) need
+`windowManager.isActiveByBaseId( baseId )` instead of `isActive(
+id )` in `repaintBadge()` above — otherwise the badge only
+suppresses for the exact instance id first opened, and stays
+visible while the user is looking at instance `-2` or `-3`. See
+[`src/recycle-bin/badge.ts`](../src/recycle-bin/badge.ts) for the
+full pattern, including matching lifecycle events across every
+instance id sharing the base.
+
+**There is no `wp.desktop.taskbar` accessor.** The three badge
+rails are `wp.desktop.dock` (the primary bottom rail),
+`wp.desktop.sideDock` (the Classic-layout left rail — `null` in
+Unified / Spatial), and `wp.desktop.icons` (wallpaper shortcuts).
+The `rail` discriminator on emitted events is a separate axis:
+the bottom-anchored primary dock stamps `rail: 'taskbar'` onto
+the events it emits (e.g. `desktop-mode/badge-changed`), while
+`sideDock` stamps `rail: 'dock'` and the icon rail `rail: 'icon'`.
 
 ## What NOT to do (anti-patterns)
 
@@ -378,6 +409,22 @@ shape, dedupes for free, namespaced.
 **Don't** wire a `document.addEventListener('desktop-mode-window-*', …)`
 when `wp.desktop.onWindow(id, handlers)` already does the
 windowId filter for you. Faster to write, easier to type.
+
+## OS-level events beyond windows
+
+Not every transition is a window transition. The framework announces
+OS-level state changes on the same dual surface (document
+CustomEvent + hook action) so apps decide their own policy:
+
+| CustomEvent | Hook | Meaning |
+|---|---|---|
+| `desktop-mode-auth-lost` | `desktop-mode.auth.lost` | The login session expired (Heartbeat `wp-auth-check` verdict). Pause pollers; requests will 401. |
+| `desktop-mode-auth-restored` | `desktop-mode.auth.restored` | The session is back and cached nonces are fresh again — resume + re-sync. |
+
+Consistent with the framework's transport-not-policy rule, the shell
+doesn't pause anyone's poller itself — it tells you, you decide. See
+[Session expiry & recovery](./javascript-reference.md#session-expiry--recovery-stable)
+for the full contract.
 
 ## Reference
 

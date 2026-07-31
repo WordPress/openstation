@@ -16,8 +16,6 @@ defined( 'ABSPATH' ) || exit;
  * Allows users to switch between classic admin and desktop mode,
  * which renders admin screens in draggable, resizable windows.
  *
- * @since 0.1.0
- *
  * @param WP_Admin_Bar $wp_admin_bar The WP_Admin_Bar instance.
  */
 function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
@@ -173,8 +171,6 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		 *
 		 * Entries with missing/invalid `id` or `title` are dropped.
 		 *
-		 * @since 0.6.2
-		 *
 		 * @param array $items Existing custom items (default empty).
 		 */
 		$custom = apply_filters( 'desktop_mode_arrange_menu_items', array() );
@@ -232,33 +228,12 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 		}
 	}
 
-	// AI Assistant trigger — shown when desktop mode is active AND the
-	// current user has AI features configured. Clicking (or pressing
-	// Cmd+K anywhere) opens the spotlight-style AI overlay.
-	if ( $is_active && function_exists( 'desktop_mode_ai_is_enabled' ) && desktop_mode_ai_is_enabled( get_current_user_id() ) ) {
-		// Use dashicons-admin-comments (speech bubble) — same rendering
-		// path as the toggle + arrange buttons, no SVG / HTML parsing
-		// issues in the admin-bar context. The ⌘K badge is added via
-		// a CSS ::after on the label so it never touches the DOM.
-		$wp_admin_bar->add_node(
-			array(
-				'parent' => 'top-secondary',
-				'id'     => 'desktop-ai-assistant',
-				'title'  => '<span class="ab-icon dashicons dashicons-admin-comments" aria-hidden="true"></span>'
-					. '<span class="ab-label">' . esc_html__( 'Ask AI', 'desktop-mode' ) . '</span>',
-				'href'   => '#',
-				'meta'   => array(
-					'class'    => 'desktop-ai-btn',
-					'title'    => __( 'Open AI Assistant (Cmd+K)', 'desktop-mode' ),
-					'tabindex' => 0,
-				),
-			)
-		);
-	}
 
 	// "Keyboard shortcuts" trigger — shown only when desktop mode is
-	// active. Dispatches `desktop-mode-open-help` on click; the shell
-	// answers by opening the Keyboard Shortcuts reference window.
+	// active. Clicking toggles the keyboard-shortcuts popover wired by
+	// assets/js/admin-bar.js (wireShortcutsPopover); the popover content
+	// is translated server-side and shipped via the `shortcuts` key of
+	// the desktopModeAdminBar config blob below.
 	if ( $is_active ) {
 		$wp_admin_bar->add_node(
 			array(
@@ -303,12 +278,13 @@ function desktop_mode_admin_bar_toggle( $wp_admin_bar ) {
 add_action( 'admin_bar_menu', 'desktop_mode_admin_bar_toggle', 190 );
 
 /**
- * Enqueues the inline CSS and JS for the desktop mode toggle.
+ * Enqueues the CSS and JS for the desktop mode toggle.
  *
- * Uses `admin-bar` as the carrier handle so the inline assets always ship
- * with the admin bar itself — no matter which admin screen is showing.
- *
- * @since 0.1.0
+ * The CSS is inline, attached to the `admin-bar` style handle so it always
+ * ships with the admin bar itself — no matter which admin screen is showing.
+ * The JS is the external assets/js/admin-bar.js bundle, registered as
+ * `desktop-mode-admin-bar` with `admin-bar` as a dependency; its config is
+ * emitted as an inline JSON literal `before` the script.
  */
 function desktop_mode_enqueue_toggle_assets() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
@@ -318,7 +294,6 @@ function desktop_mode_enqueue_toggle_assets() {
 	$css = '
 		#wpadminbar #wp-admin-bar-desktop-mode-toggle > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-layout-menu > .ab-item,
-		#wpadminbar #wp-admin-bar-desktop-ai-assistant > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-fullscreen > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-bug-report > .ab-item,
 		#wpadminbar #wp-admin-bar-desktop-help > .ab-item {
@@ -328,7 +303,6 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		#wpadminbar #wp-admin-bar-desktop-mode-toggle .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-icon,
-		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-fullscreen .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-bug-report .ab-icon,
 		#wpadminbar #wp-admin-bar-desktop-help .ab-icon {
@@ -368,53 +342,6 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		@media screen and (max-width: 782px) {
 			#wp-admin-bar-desktop-mode-toggle .ab-label {
-				display: none;
-			}
-		}
-
-		/* AI Assistant admin-bar button — same icon/label pattern as the
-		   desktop-mode-toggle; ⌘K badge added via CSS ::after so we keep
-		   the title HTML clean and avoid admin-bar sanitisation edge-cases. */
-		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons,
-		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons {
-			font: normal 20px/1 dashicons;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-		}
-		#wp-admin-bar-desktop-ai-assistant .ab-icon.dashicons::before {
-			content: "\f101";
-			top: 0;
-			position: static;
-			/* See note on desktop-mode-toggle above — inherit so the
-			   icon matches the rest of the admin-bar dashicons
-			   across all WP profile color schemes. */
-			color: inherit;
-		}
-		/* ⌘K badge rendered purely in CSS to the right of the label.
-		   inline-flex + align-items:center centers the glyph inside
-		   its own padding box; a 1px upward translate compensates
-		   for the optical sag from the admin-bar label baseline. */
-		#wpadminbar #wp-admin-bar-desktop-ai-assistant .ab-label::after {
-			content: "\2318K";
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			margin-inline-start: 5px;
-			font-size: 10px;
-			line-height: 1;
-			padding: 2px 5px;
-			background: rgba( 255, 255, 255, 0.1 );
-			border: 1px solid rgba( 255, 255, 255, 0.18 );
-			border-radius: 3px;
-			color: rgba( 255, 255, 255, 0.55 );
-			vertical-align: middle;
-			font-weight: 400;
-			letter-spacing: 0;
-			position: relative;
-			top: -1px;
-		}
-		@media screen and (max-width: 782px) {
-			#wp-admin-bar-desktop-ai-assistant .ab-label {
 				display: none;
 			}
 		}
@@ -510,9 +437,9 @@ function desktop_mode_enqueue_toggle_assets() {
 			padding: 12px 14px;
 			min-width: 460px;
 			max-width: min( 90vw, 720px );
-			background: var( --desktop-mode-window-bg, #fff );
-			color: var( --desktop-mode-text, #1d2327 );
-			border: 1px solid var( --desktop-mode-window-border, #c3c4c7 );
+			background: var( --wpd-surface, var( --desktop-mode-window-bg, #fff ) );
+			color: var( --wpd-fg, #1d2327 );
+			border: 1px solid var( --wpd-border, var( --desktop-mode-window-border, #c3c4c7 ) );
 			border-radius: 8px;
 			box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
 				0 2px 6px rgba( 0, 0, 0, 0.08 );
@@ -534,7 +461,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			font-weight: 600;
 			letter-spacing: 0.04em;
 			text-transform: uppercase;
-			color: var( --desktop-mode-muted-fg, #50575e );
+			color: var( --wpd-fg-muted, #50575e );
 			line-height: 1.2;
 		}
 		#wpadminbar .desktop-mode-shortcuts-popover__table {
@@ -547,7 +474,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			padding: 6px 8px;
 			vertical-align: middle;
 			text-align: left;
-			border-bottom: 1px solid rgba( 0, 0, 0, 0.06 );
+			border-bottom: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.06 ) );
 			color: inherit;
 			font-weight: 400;
 			font-size: 12px;
@@ -556,7 +483,7 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wpadminbar .desktop-mode-shortcuts-popover__table th {
 			font-weight: 600;
 			font-size: 11px;
-			color: var( --desktop-mode-muted-fg, #50575e );
+			color: var( --wpd-fg-muted, #50575e );
 			letter-spacing: 0.02em;
 		}
 		#wpadminbar .desktop-mode-shortcuts-popover__table tbody tr:last-child td {
@@ -566,7 +493,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			white-space: nowrap;
 		}
 		#wpadminbar .desktop-mode-shortcuts-popover__note {
-			color: var( --desktop-mode-muted-fg, #50575e );
+			color: var( --wpd-fg-muted, #50575e );
 			font-size: 11px;
 		}
 		#wpadminbar .desktop-mode-shortcuts-popover__list {
@@ -584,7 +511,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			gap: 12px;
 			padding: 4px 8px;
 			border-radius: 4px;
-			background: rgba( 0, 0, 0, 0.03 );
+			background: var( --wpd-surface-sunken, rgba( 0, 0, 0, 0.03 ) );
 		}
 		#wpadminbar .desktop-mode-shortcuts-popover__keys {
 			display: inline-flex;
@@ -599,11 +526,11 @@ function desktop_mode_enqueue_toggle_assets() {
 			min-width: 22px;
 			height: 20px;
 			padding: 0 5px;
-			border: 1px solid rgba( 0, 0, 0, 0.18 );
+			border: 1px solid var( --wpd-border-strong, rgba( 0, 0, 0, 0.18 ) );
 			border-bottom-width: 2px;
 			border-radius: 4px;
-			background: #fff;
-			color: var( --desktop-mode-text, #1d2327 );
+			background: var( --wpd-surface-elevated, #fff );
+			color: var( --wpd-fg, #1d2327 );
 			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 			font-size: 11px;
 			font-weight: 600;
@@ -612,7 +539,7 @@ function desktop_mode_enqueue_toggle_assets() {
 		}
 		#wpadminbar .desktop-mode-shortcuts-popover__plus {
 			font-size: 10px;
-			color: var( --desktop-mode-muted-fg, #50575e );
+			color: var( --wpd-fg-muted, #50575e );
 		}
 		#wpadminbar .desktop-mode-shortcuts-popover__description {
 			color: inherit;
@@ -660,17 +587,25 @@ function desktop_mode_enqueue_toggle_assets() {
 
 		/* Arrange submenu — aligned visually with the <wpd-menu> component
 		   (src/ui/components/wpd-menu/wpd-menu.styles.ts). The submenu
-		   flips from the native dark-on-dark admin bar to a light theme
-		   (white bg, dark text) so it matches the rest of our UI AND so
-		   the hover state stays legible (a light tint on a dark bg
-		   would render as invisible overlap with native admin-bar hover
-		   colors). Selectors prefixed with #wpadminbar to win the
-		   admin-bar specificity without !important. */
+		   breaks out of the native dark-on-dark admin bar and paints
+		   itself from the `--wpd-*` panel palette instead, so it matches
+		   the rest of our UI and stays legible under any desktop theme.
+
+		   Surface and text MUST come from the same palette. They used to
+		   not: the background read `--desktop-mode-window-bg` (which a
+		   theme sets) while the text read `--desktop-mode-text` (which
+		   nothing has ever defined, so it always fell back to near-black).
+		   Any dark theme therefore rendered near-black text on its own
+		   near-black panel. Keep both sides on `--wpd-surface` /
+		   `--wpd-fg` and that class of bug cannot come back.
+
+		   Selectors prefixed with #wpadminbar to win the admin-bar
+		   specificity without !important. */
 		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-sub-wrapper {
-			background: var( --desktop-mode-window-bg, #fff );
+			background: var( --wpd-surface, var( --desktop-mode-window-bg, #fff ) );
 			padding: 4px;
 			min-width: 220px;
-			border: 1px solid var( --desktop-mode-window-border, #c3c4c7 );
+			border: 1px solid var( --wpd-border, var( --desktop-mode-window-border, #c3c4c7 ) );
 			border-radius: 8px;
 			box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
 				0 2px 6px rgba( 0, 0, 0, 0.08 );
@@ -691,7 +626,7 @@ function desktop_mode_enqueue_toggle_assets() {
 			padding: 6px 10px;
 			font-size: 13px;
 			line-height: 1.3;
-			color: var( --desktop-mode-text, #1d2327 );
+			color: var( --wpd-fg, #1d2327 );
 			background: transparent;
 			border-radius: 6px;
 			transition: background-color 0.12s ease, color 0.12s ease;
@@ -703,8 +638,8 @@ function desktop_mode_enqueue_toggle_assets() {
 		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-sub-wrapper .ab-submenu > li > .ab-item:hover,
 		#wpadminbar #wp-admin-bar-desktop-layout-menu .ab-sub-wrapper .ab-submenu > li > .ab-item:focus,
 		#wpadminbar.nojq #wp-admin-bar-desktop-layout-menu .ab-sub-wrapper .ab-submenu > li:hover > .ab-item {
-			background: rgba( 0, 0, 0, 0.06 );
-			color: #000;
+			background: var( --wpd-hover, rgba( 0, 0, 0, 0.06 ) );
+			color: var( --wpd-fg, #000 );
 		}
 		#wp-admin-bar-desktop-layout-snap .desktop-mode-layout-checkbox {
 			flex-shrink: 0;

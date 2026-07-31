@@ -22,8 +22,6 @@
  * Emits `wpd-checkbox-change` with `{ checked, value }` on user
  * toggles — same event name `<wpd-checkbox-label>` uses so callers
  * can listen at a common ancestor and treat both identically.
- *
- * @since 0.11.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -38,7 +36,7 @@ export class WpdCheckbox extends Component {
 		summary:
 			'Standalone checkbox primitive. Paints the native control with the admin accent colour and optionally renders an inline label. Use when you need full control over label placement.',
 		status: 'stable',
-		since: '0.11.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'checked',
@@ -69,7 +67,7 @@ export class WpdCheckbox extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Label colour.' },
+			{ name: '--wpd-fg', description: 'Label colour.' },
 		],
 		example: html`
 			<wpd-stack gap="4">

@@ -14,8 +14,6 @@
  *      `desktop-mode-open-bug-report`).
  *   2. The dock system tile registered in `src/desktop.ts`.
  *   3. Future: a desktop widget. Same target, no special-casing.
- *
- * @since 0.6.2
  */
 
 import { __ } from '../i18n';
@@ -23,7 +21,7 @@ import { __ } from '../i18n';
 /** Public window id — shared with `src/desktop.ts` for tile + opener wiring. */
 export const BUG_REPORT_WINDOW_ID = 'desktop-mode-bug-report';
 
-/** GitHub repo the issue is filed against. Filterable per-site. */
+/** GitHub repo the issue is filed against. */
 const REPO_OWNER = 'WordPress';
 const REPO_NAME = 'desktop-mode';
 

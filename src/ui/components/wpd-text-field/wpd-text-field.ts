@@ -27,8 +27,6 @@
  * as `<wpd-range-field>`). Callers that need Enter-to-submit can
  * listen for the `wpd-submit` event the component fires when the
  * user presses Enter without Shift.
- *
- * @since 0.11.0
  */
 
 import {
@@ -63,7 +61,7 @@ export class WpdTextField extends Component {
 		summary:
 			'Labelled text input primitive. Two-way reflects `value`, emits wpd-input-change per keystroke, wpd-input-commit on blur/change, and wpd-submit on Enter. Optional password reveal toggle.',
 		status: 'stable',
-		since: '0.11.0',
+		since: '0.5.0',
 		props: [
 			{ name: 'label', type: 'string', description: 'Visible label above the input.' },
 			{ name: 'value', type: 'string', description: 'Current input value; reflected two-way.' },
@@ -116,9 +114,9 @@ export class WpdTextField extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Text colour.' },
-			{ name: '--desktop-mode-muted', description: 'Label + suffix colour.' },
-			{ name: '--desktop-mode-border', description: 'Input outline.' },
+			{ name: '--wpd-fg', description: 'Text colour.' },
+			{ name: '--wpd-fg-muted', description: 'Label + suffix colour.' },
+			{ name: '--wpd-border', description: 'Input outline.' },
 			{ name: '--desktop-mode-window-bg', description: 'Input background.' },
 		],
 		example: html`

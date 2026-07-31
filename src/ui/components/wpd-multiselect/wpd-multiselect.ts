@@ -24,7 +24,6 @@
  * Emits `wpd-pick` with `{ value, values }` on every change.
  *
  * @public
- * @since 0.8.0
  */
 
 import {
@@ -84,13 +83,13 @@ export class WpdMultiselect extends Component {
 				name: 'name',
 				type: 'string',
 				description:
-					'Forwarded to the hidden form-field for HTML form submission.',
+					'Reserved for HTML form submission; not yet wired to a form field.',
 			},
 			{
 				name: 'open',
 				type: 'boolean attribute',
 				description:
-					'Reflects the open state of the popover. Toggle programmatically to open/close, or read from a CSS selector.',
+					'Read-only reflection of the popover state, set by the component when it opens/closes. Useful from a CSS selector; toggling it programmatically does not open/close the popover — click the trigger instead.',
 			},
 		],
 		slots: [
@@ -121,8 +120,8 @@ export class WpdMultiselect extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Label + value colour.' },
-			{ name: '--desktop-mode-muted', description: 'Placeholder + chevron colour.' },
+			{ name: '--wpd-fg', description: 'Label + value colour.' },
+			{ name: '--wpd-fg-muted', description: 'Placeholder + chevron colour.' },
 		],
 		example: html`
 			<wpd-multiselect value="1,4" label="Authors">
@@ -137,8 +136,6 @@ export class WpdMultiselect extends Component {
 	 * Declarative item-list setter. Replaces the existing
 	 * `<wpd-option>` children with a fresh set; preserves any values
 	 * that still match.
-	 *
-	 * @since 0.8.0
 	 */
 	set items( list: ReadonlyArray< { value: string; label: string } > ) {
 		const existing = this.querySelectorAll( ':scope > wpd-option' );
@@ -221,8 +218,6 @@ export class WpdMultiselect extends Component {
 	 * tree. Used by infinite-scroll consumers — call when the next
 	 * page lands, then set `loadingMore = false` and update
 	 * `hasMore` based on whether more pages remain.
-	 *
-	 * @since 0.8.0
 	 */
 	appendItems(
 		more: ReadonlyArray< { value: string; label: string } >,

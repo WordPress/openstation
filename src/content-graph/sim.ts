@@ -16,13 +16,13 @@
  *     don't drift to infinity.
  *
  * Integration: explicit Euler with velocity damping. Cooling is
- * handled by `alpha`, which decays each tick and gates motion via
- * `velocity *= alpha`. When alpha falls under a threshold the sim is
- * considered settled and the ticker is parked until the user shakes
- * it (drag, filter change, focus).
+ * handled by `alpha`, which decays each tick and gates motion by
+ * scaling the position update (`x += vx * alpha`); velocity itself
+ * is damped by the fixed `damping` factor. When alpha falls under a
+ * threshold the sim is considered settled and the ticker is parked
+ * until the user shakes it (drag, filter change, focus).
  *
  * @public
- * @since 0.8.2
  */
 
 import type { GraphEdge, GraphNode } from './types';

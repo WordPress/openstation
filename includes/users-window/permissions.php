@@ -20,15 +20,12 @@
  * mutating anything.
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Whether the user is eligible to have the Users window registered.
- *
- * @since 0.18.0
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -43,8 +40,6 @@ function desktop_mode_users_window_user_can_register( $user_id = null ) {
 	 * dock click use the native window?" is the JS-side
 	 * `nativeUsersEnabled` flag.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param bool $can     Default: `list_users` capability.
 	 * @param int  $user_id User being checked.
 	 */
@@ -58,8 +53,6 @@ function desktop_mode_users_window_user_can_register( $user_id = null ) {
 /**
  * Combined cap-and-opt-in check. Used by callers that want the
  * combined answer (e.g. analytics, an arrange-menu entry).
- *
- * @since 0.18.0
  *
  * @param int|null $user_id Optional.
  * @return bool
@@ -81,8 +74,6 @@ function desktop_mode_users_window_user_can_use( $user_id = null ) {
 	 * Filter whether the current user has opted into the native Users
 	 * experience.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
@@ -93,14 +84,14 @@ function desktop_mode_users_window_user_can_use( $user_id = null ) {
  * Resolve the role slugs the current viewer is allowed to assign to
  * the given target user.
  *
- * Honors core's `editable_roles` filter and applies the standard
- * role-hierarchy rules: a user can only assign roles whose
- * capabilities are a subset of their own. We compute this server-side
- * and surface the result on the row so the UI can hide options the
- * viewer can't apply, but the REST mutation route re-derives the
- * exact same list and rejects anything outside it.
- *
- * @since 0.18.0
+ * Honors core's `editable_roles` filter. Note core's default returns
+ * EVERY registered role (administrator included) to any user with
+ * `promote_users` — there is no built-in capability-subset hierarchy
+ * in core. Sites wanting stricter rules must filter `editable_roles`
+ * or `desktop_mode_users_window_assignable_roles` below. We compute
+ * the list server-side and surface it on the row so the UI can hide
+ * options the viewer can't apply; the REST mutation routes call this
+ * same filtered helper and reject anything outside it.
  *
  * @param int $viewer_id Requesting user.
  * @param int $target_id Target user (optional — used by filters).
@@ -150,11 +141,10 @@ function desktop_mode_users_window_assignable_roles( $viewer_id, $target_id = 0 
 	 * would let them"). Returning an empty array fully disables role
 	 * mutation for the viewer.
 	 *
-	 * Returning a SUPERSET of the default has no effect on the REST
-	 * endpoint — that re-derives `get_editable_roles()` itself, this
-	 * filter only widens / narrows what the UI surfaces.
-	 *
-	 * @since 0.18.0
+	 * Returning a SUPERSET widens the REST endpoints too — both the
+	 * bulk-role route and the create-user route validate the requested
+	 * role against this same filtered list (see `rest.php`), so only
+	 * add roles you genuinely intend to make assignable.
 	 *
 	 * @param string[] $slugs    Default role slug list.
 	 * @param int      $viewer_id

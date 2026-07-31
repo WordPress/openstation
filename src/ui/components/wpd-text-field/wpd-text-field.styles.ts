@@ -11,17 +11,17 @@ import { css } from '../../core';
 export const textFieldStyles = css`
 	/*
 	 * Host is block-level flex so the field fills its parent cell
-	 * (grid row col=N, flex container, plain block container). The
-	 * pre-0.12 inline-flex default left the native <input> at its
-	 * intrinsic width while the host spanned the full cell, which
-	 * looked wrong inside a wpd-row.
+	 * (grid row col=N, flex container, plain block container). An
+	 * inline-flex default would leave the native <input> at its
+	 * intrinsic width while the host spans the full cell, which
+	 * looks wrong inside a wpd-row.
 	 */
 	:host {
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		min-width: 0;
 	}
 	:host( [ hidden ] ) {
@@ -30,7 +30,7 @@ export const textFieldStyles = css`
 
 	.wpd-text-field__label {
 		font-size: 12px;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 	}
 
 	.wpd-text-field__row {
@@ -49,11 +49,11 @@ export const textFieldStyles = css`
 		box-sizing: border-box;
 		padding: 7px 10px;
 		background: var( --desktop-mode-window-bg, #fff );
-		border: 1px solid var( --desktop-mode-border, #dcdcde );
+		border: 1px solid var( --wpd-border, #dcdcde );
 		border-radius: 6px;
 		font: inherit;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		transition: border-color 0.12s ease, box-shadow 0.12s ease;
 	}
 
@@ -67,7 +67,7 @@ export const textFieldStyles = css`
 		transform: translateY( -50% );
 		pointer-events: none;
 		font-size: 12px;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 	}
 
 	/* Reveal (show/hide) toggle — only rendered on password-type fields
@@ -90,7 +90,7 @@ export const textFieldStyles = css`
 		padding: 0;
 		border: none;
 		background: transparent;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 		cursor: pointer;
 		border-radius: 0 6px 6px 0;
 		transition: color 0.12s ease;
@@ -132,7 +132,7 @@ export const textFieldStyles = css`
 	}
 
 	input:hover {
-		border-color: var( --desktop-mode-muted, #8c8f94 );
+		border-color: var( --wpd-fg-muted, #8c8f94 );
 	}
 	input:focus-visible {
 		outline: none;
@@ -142,11 +142,11 @@ export const textFieldStyles = css`
 	input:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
-		background: rgba( 0, 0, 0, 0.03 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
 	}
 
 	input[ aria-invalid='true' ] {
-		border-color: #d63638;
+		border-color: var( --wpd-danger, #d63638 );
 	}
 	input[ aria-invalid='true' ]:focus-visible {
 		box-shadow: 0 0 0 1px #d63638;

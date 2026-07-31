@@ -21,8 +21,6 @@
  * `osSettings.apply()` — if the user's current selection was the
  * wallpaper leaving, the apply path falls back to a built-in
  * default rather than leaving a dead id in place.
- *
- * @since 0.10.0
  */
 
 import { doAction, HOOKS } from './../hooks';
@@ -67,6 +65,9 @@ export function createWallpaperRegistrySync(
 				id: entry.id,
 				error: err,
 			} );
+			// Don't mark the URL as loaded — a transient load failure
+			// should be re-fetched on the next sync.
+			return;
 		}
 		loadedScripts.add( entry.scriptUrl );
 	};
@@ -97,6 +98,7 @@ export function createWallpaperRegistrySync(
 			type: 'css',
 			value: entry.value,
 			preview: entry.preview !== '' ? entry.preview : entry.value,
+			description: entry.description || undefined,
 		};
 	};
 
@@ -120,7 +122,13 @@ export function createWallpaperRegistrySync(
 		}
 
 		await ensureScript( entry );
-		const def = readDef( entry.id );
+		let def = readDef( entry.id );
+		// PHP owns metadata: overlay the server-declared description when
+		// the JS def didn't carry one (typical — descriptions are
+		// registered translatably on the PHP side).
+		if ( def && ! def.description && entry.description ) {
+			def = { ...def, description: entry.description };
+		}
 		if ( ! def ) {
 			doAction( HOOKS.SHELL_ERROR, {
 				scope: 'wallpaper-missing-def',

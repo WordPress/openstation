@@ -6,7 +6,6 @@
  * `getDragManager` / `stripTags` definitions.
  *
  * @public
- * @since 0.21.0
  */
 
 import type { DragManagerApi } from '../drag';
@@ -18,7 +17,6 @@ import type { DragManagerApi } from '../drag';
  * `installPublicApi(desktopApi)` has wired the manager).
  *
  * @public
- * @since 0.21.0
  */
 export function getDragManager(): DragManagerApi | null {
 	const api = (
@@ -34,7 +32,6 @@ export function getDragManager(): DragManagerApi | null {
  * HTML would; callers that need full fidelity should keep the HTML.
  *
  * @public
- * @since 0.21.0
  */
 export function stripTags( html: string ): string {
 	const div = document.createElement( 'div' );

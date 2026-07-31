@@ -12,9 +12,10 @@
  *     result. Called on microtask after any prop / attr change.
  *   - `static styles` array of `css\`\`` results, adopted onto the
  *     shadow root (or inlined as `<style>` tags when shadow is off).
- *   - Opt-in Shadow DOM via `static shadow = true`. Default is
- *     light DOM so the existing OS Settings CSS cascade still
- *     reaches inside the components.
+ *   - Shadow DOM by default (`static shadow = true`) so `<slot>`
+ *     works and component styles don't leak. Opt out with
+ *     `static shadow = false` for layout-only wrappers that must
+ *     sit in the outer CSS cascade (rare).
  *   - Structured custom events via `this.emit(name, detail)`.
  *
  * Not included (by design): property types / validators, attribute
@@ -22,8 +23,6 @@
  * attributes and deserialize manually when needed), lifecycle
  * callbacks beyond connected / disconnected, directive support
  * inside `html\`\``.
- *
- * @since 0.9.0
  */
 
 import { render, type TemplateResult } from './html';
@@ -136,8 +135,6 @@ export abstract class Component extends HTMLElement {
 	 *
 	 * Getter returns the current `classList` as a plain array for
 	 * symmetric read/write.
-	 *
-	 * @since 0.13.0
 	 */
 	get classNames(): string[] {
 		return Array.from( this.classList );

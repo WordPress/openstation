@@ -6,7 +6,7 @@ Plugin authors looking for the canonical route URL → handler map start here; t
 
 ## Namespace
 
-All in-tree routes register under `desktop-mode/v1`. Extensions are expected to register under `desktop-mode-<extension>/v1` (the `extensions/base/Desktop_Mode_Extension_Rest` base enforces this).
+All in-tree routes register under `desktop-mode/v1`. Extensions are expected to register under `desktop-mode-<extension>/v1` (declared via the `extensions/base/Desktop_Mode_Extension_Rest` base's `namespace()` method; the base does not enforce a particular namespace — its docblock also permits `desktop-mode/v1`).
 
 ## Routes
 
@@ -17,18 +17,55 @@ All in-tree routes register under `desktop-mode/v1`. Extensions are expected to 
 | `/intros/seen` | POST | `includes/seen-intros.php` | logged-in + desktop mode enabled |
 | `/intros` | DELETE | `includes/seen-intros.php` | logged-in + desktop mode enabled |
 | `/os-settings` | GET / POST | `includes/os-settings.php` | logged-in + desktop mode enabled |
-| `/extended-options/*` | various | `includes/extended-options.php` | `manage_options` |
+| `/extended-options` | GET / POST | `includes/extended-options.php` | `manage_options` |
 | `/pwa-state` | GET / POST | `includes/pwa.php` | logged-in + desktop mode enabled |
-| `/devtools/*` | various | `includes/devtools.php` | `manage_options` |
+| `/debug` | GET | `includes/devtools.php` | `manage_options` (filterable via `desktop_mode_debug_rest_permission`) |
 | `/presence` | GET / POST | `includes/presence.php` | logged-in + desktop mode enabled |
-| `/posts/*` | various | `includes/posts-window/window.php` | `edit_posts` |
-| `/my-wordpress/comments/*` | various | `includes/my-wordpress/comment-stats.php` | `read` |
-| `/my-wordpress/terms/*` | various | `includes/my-wordpress/term-stats.php` | `read` |
-| `/my-wordpress/users/*` | various | `includes/my-wordpress/user-stats.php` | `list_users` |
+| `/oauth/start` | POST | `includes/oauth-relay.php` | logged-in |
+| `/oauth/callback` | GET | `includes/oauth-relay.php` | public (validated by the state nonce) |
+| `/term-counts` | GET | `includes/posts-window/window.php` | `edit_posts` |
+| `/tag-cooccurrence` | GET | `includes/posts-window/window.php` | `edit_posts` |
+| `/users` | POST | `includes/users-window/rest.php` | `create_users` |
+| `/users/bulk-role` | POST | `includes/users-window/rest.php` | `promote_users` |
+| `/users/bulk-delete` | POST | `includes/users-window/rest.php` | `delete_users` (`remove_users` on multisite) |
+| `/users/{id}/send-password-reset` | POST | `includes/users-window/rest.php` | `edit_users` |
+| `/users/{id}/resend-welcome` | POST | `includes/users-window/rest.php` | `edit_users` |
+| `/users/{id}/insights` | GET | `includes/user-edit-window/rest.php` | `edit_user` on the target user |
+| `/users/{id}/destroy-sessions` | POST | `includes/user-edit-window/rest.php` | `edit_user` on the target user |
+| `/users/{id}/application-passwords` | GET / POST | `includes/user-edit-window/rest.php` | `edit_user` on the target user |
+| `/users/{id}/application-passwords/{uuid}` | DELETE | `includes/user-edit-window/rest.php` | `edit_user` on the target user |
+| `/comments/bulk` | POST | `includes/comments-window/rest.php` | `moderate_comments` |
+| `/comments/reply` | POST | `includes/comments-window/rest.php` | `edit_posts` |
+| `/comments/insights/{email}` | GET | `includes/comments-window/rest.php` | `moderate_comments` |
+| `/comments/counts` | GET | `includes/comments-window/rest.php` | `edit_posts` |
+| `/comments/ai-settings` | GET / POST | `includes/comments-window/ai-moderation.php` | `manage_options` |
+| `/content-graph/post-types` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `desktop_mode_content_graph_user_can_use`) |
+| `/content-graph/nodes` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `desktop_mode_content_graph_user_can_use`) |
+| `/content-graph/post/{id}` | GET | `includes/content-graph/rest.php` | `edit_posts` (filterable via `desktop_mode_content_graph_user_can_use`) |
+| `/comment-stats/{id}` | GET | `includes/my-wordpress/comment-stats.php` | logged-in |
+| `/term-stats/{taxonomy}/{id}` | GET | `includes/my-wordpress/term-stats.php` | logged-in + `read` |
+| `/user-stats/{id}` | GET | `includes/my-wordpress/user-stats.php` | logged-in |
+| `/user-footprint/{id}` | GET | `includes/my-wordpress/user-footprint.php` | logged-in |
+| `/media-usage/{id}` | GET | `includes/my-wordpress/media-usage.php` | `read_post` on the attachment |
 | `/recycle-bin/*` | various | `includes/recycle-bin/rest.php` | `delete_posts` (per-route gate) |
-| `/desktop-files/*` | various | `includes/desktop-files/rest.php` | logged-in + per-file caps |
+| `/files/*` | various | `includes/desktop-files/rest.php` | logged-in + desktop mode enabled (share routes add a sharing gate) |
 | `/ai/search` | POST | `includes/ai-copilot/search.php` | logged-in + AI feature flag |
 | `/ai/platform-settings` | GET / POST | `includes/ai-copilot/platform-settings.php` | `manage_options` |
+| `/games/{game}/scores` | GET / POST | `includes/games/rest.php` | logged-in + desktop mode enabled + `read` (filterable via `desktop_mode_games_rest_permission`) |
+| `/games/{game}/playtime` | POST | `includes/games/rest.php` | same games gate |
+| `/games/playtime` | GET | `includes/games/rest.php` | same games gate |
+| `/games/challenges` | GET / POST | `includes/games/rest.php` | same games gate (create also passes `desktop_mode_games_can_challenge`) |
+| `/games/challenges/{id}/accept` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
+| `/games/challenges/{id}/decline` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
+| `/games/challenges/{id}/complete` | POST | `includes/games/rest.php` | same games gate + challenge recipient |
+| `/games/users/search` | GET | `includes/games/rest.php` | same games gate |
+| `/agents` | GET / POST | `includes/agents/rest.php` | GET `edit_posts`, POST `edit_users` (both filterable; whole module behind the `agents` extended option) |
+| `/agents/{id}` | GET / POST / DELETE | `includes/agents/rest.php` | GET `edit_posts`, POST/DELETE `edit_users` (filterable) |
+| `/agents/{id}/invoke` | POST | `includes/agents/rest.php` | `edit_posts` (filterable via `desktop_mode_agents_user_can_invoke`), then the per-agent gate `desktop_mode_agent_user_can_invoke_agent()` (honours the trigger's `capability`) + per-invoker and per-agent rate limits. The run itself is ceilinged at the caller's own capabilities — see [`docs/agents-security.md`](../../docs/agents-security.md) |
+| `/agents/abilities` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
+| `/agents/trigger-kinds` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
+| `/agents/hooks-catalogue` | GET | `includes/agents/rest.php` | `edit_posts` (filterable) |
+| `/agents/roles` | GET | `includes/agents/rest.php` | `edit_users` (filterable) |
 
 ## Conventions
 

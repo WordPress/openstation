@@ -1,6 +1,6 @@
 # PWA install — surface your own button
 
-Stable since 0.8.0.
+Stable.
 
 The framework already registers a persistent "Install" tile on the
 dock (`id: 'desktop-mode-pwa-install'`). Clicking it dispatches the

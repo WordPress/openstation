@@ -29,19 +29,19 @@
  *       },
  *   ] );
  *
- * Public JS surface (since 0.8.2):
+ * Public JS surface:
  *
- *   const { tokens } = await wp.desktop.startOAuth( 'example' );
+ *   const { ok, service } = await wp.desktop.startOAuth( 'example' );
+ *   // Tokens stay server-side — persisted by your `on_success` callback.
  *
  * REST routes:
  *
  *   POST /desktop-mode/v1/oauth/start    body: { service: string }
  *     → { authorize_url: string, state: string }
- *   GET  /desktop-mode/v1/oauth/callback ?service&code&state
+ *   GET  /desktop-mode/v1/oauth/callback ?code&state&error
  *     → HTML page that postMessages the opener and closes
  *
  * @package Desktop_Mode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -51,8 +51,6 @@ const DESKTOP_MODE_OAUTH_STATE_TTL        = 600; // 10 minutes.
 
 /**
  * Register an OAuth relay for `$service`.
- *
- * @since 0.8.2
  *
  * @param string $service Slug identifying the service. Lowercased,
  *                        sanitized via `sanitize_key`.
@@ -150,8 +148,6 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
 	 * Fires after an OAuth relay is registered. Use this to layer
 	 * observability or to extend behaviour.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param string $service The service slug.
 	 * @param array  $entry   The stored registry entry minus the secrets
 	 *                        (`client_secret` is masked).
@@ -169,7 +165,6 @@ function desktop_mode_register_oauth_relay( $service, $args = array() ) {
  * Static registry for OAuth relays. Mirror of the icon / native-
  * window / wallpaper registries.
  *
- * @since 0.8.2
  * @internal
  */
 function desktop_mode_oauth_relay_registry( $service = '', $entry = null ) {
@@ -193,8 +188,6 @@ function desktop_mode_oauth_relay_registry( $service = '', $entry = null ) {
  * `desktop_mode_register_oauth_relay()` — handy for plugins that
  * register conditionally and for PHPUnit teardowns.
  *
- * @since 0.8.2
- *
  * @param string $service Service slug passed to register.
  * @return void
  */
@@ -208,9 +201,8 @@ function desktop_mode_unregister_oauth_relay( $service ) {
 
 /**
  * The redirect URI the popup posts back to. Same for every service —
- * `service` is carried as a query arg.
- *
- * @since 0.8.2
+ * the framework recovers the service from the state transient, so no
+ * service query arg is needed.
  *
  * @return string
  */
@@ -220,9 +212,8 @@ function desktop_mode_oauth_redirect_uri() {
 
 /**
  * Generate a fresh state nonce, persist it in a transient keyed by
- * `user_id + state`, and return the value the popup will round-trip.
- *
- * @since 0.8.2
+ * the state value (with `user_id` + `service` stored in the transient
+ * payload), and return the value the popup will round-trip.
  *
  * @param int    $user_id The user starting the flow.
  * @param string $service The service slug being authorized.
@@ -251,8 +242,6 @@ function desktop_mode_oauth_issue_state( $user_id, $service ) {
  * Single-use: a successful read deletes the transient so a replay
  * with the same state fails.
  *
- * @since 0.8.2
- *
  * @param string $state State value from the callback query.
  * @return array{user_id:int,service:string,issued:int}|null
  */
@@ -277,8 +266,6 @@ function desktop_mode_oauth_consume_state( $state ) {
 /**
  * REST: `POST /desktop-mode/v1/oauth/start` — issue a state and
  * return the assembled authorize URL.
- *
- * @since 0.8.2
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
@@ -323,8 +310,6 @@ function desktop_mode_rest_oauth_start( WP_REST_Request $request ) {
 	 * for Google, `force_login=true` for Twitter, `prompt=consent`,
 	 * etc.) without having to fork the relay.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param array  $query   Default query params.
 	 * @param string $service Service slug.
 	 * @param array  $entry   Registry entry (with secrets redacted).
@@ -350,8 +335,6 @@ function desktop_mode_rest_oauth_start( WP_REST_Request $request ) {
  * REST: `GET /desktop-mode/v1/oauth/callback` — exchange the auth
  * code for tokens, fire the registered `on_success` handler, then
  * render an HTML page that `postMessage`s the opener and closes.
- *
- * @since 0.8.2
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
@@ -454,8 +437,6 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
 	 * re-render dock items, or surface a "connected" toast in
 	 * sibling windows via the activity bus.
 	 *
-	 * @since 0.8.2
-	 *
 	 * @param string $service Service slug.
 	 * @param int    $user_id User who connected.
 	 */
@@ -488,14 +469,13 @@ function desktop_mode_rest_oauth_callback( WP_REST_Request $request ) {
  * (defence-in-depth — our payload values are server-built, but
  * filters could mutate them).
  *
- * @since 0.8.2
  * @internal
  *
  * @param array $payload `{ ok: bool, service?: string, reason?: string, message?: string }`.
  * @return string
  */
 function desktop_mode_oauth_build_callback_html( array $payload ) {
-	// `JSON_HEX_TAG` escapes `<` and `>` as `<` / `>` so a
+	// `JSON_HEX_TAG` escapes `<` and `>` as `\u003C` / `\u003E` so a
 	// `</script>` smuggled into any string value can't terminate the
 	// script block early. `JSON_UNESCAPED_SLASHES` keeps URLs
 	// readable in DevTools.
@@ -551,8 +531,6 @@ body { font-family: -apple-system, system-ui, sans-serif; padding: 24px; color: 
  * unit tests reading `$response->get_data()` still see the body
  * (the filter only fires when the response is actually served).
  *
- * @since 0.8.2
- *
  * @param array $payload `{ ok: bool, service?: string, reason?: string, message?: string }`.
  * @return WP_REST_Response
  */
@@ -578,7 +556,7 @@ function desktop_mode_oauth_render_callback_html( array $payload ) {
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: text/html; charset=utf-8' );
 		}
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is esc_js()-escaped during build in `desktop_mode_oauth_build_callback_html`.
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statically-built HTML; embedded payload is wp_json_encode( …, JSON_HEX_TAG )-escaped during build in `desktop_mode_oauth_build_callback_html`.
 		echo $html;
 		// `true` tells WP_REST_Server we already served the response,
 		// short-circuiting the json-encode + `echo` path that follows.
@@ -597,8 +575,6 @@ function desktop_mode_oauth_render_callback_html( array $payload ) {
  * so capability denial returns the canonical service-not-allowed
  * error rather than the REST-level "forbidden".
  *
- * @since 0.8.2
- *
  * @return true|WP_Error
  */
 function desktop_mode_rest_oauth_start_permission() {
@@ -614,8 +590,6 @@ function desktop_mode_rest_oauth_start_permission() {
 
 /**
  * Register the OAuth REST routes on `rest_api_init`.
- *
- * @since 0.8.2
  *
  * @return void
  */

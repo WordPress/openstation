@@ -4,8 +4,6 @@
  * Component authors import from here:
  *
  *     import { Component, html, css, defineComponent } from '../core';
- *
- * @since 0.9.0
  */
 
 export { Component, defineComponent } from './component';

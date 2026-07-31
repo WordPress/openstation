@@ -20,7 +20,6 @@
  * of its shares: always writes, never visible in the shares table.
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -41,8 +40,6 @@ defined( 'ABSPATH' ) || exit;
  * `desktop_mode_files_sharing_enabled_for` filter (e.g. force-off
  * on a multisite subsite, gate by capability, etc.).
  *
- * @since 0.18.x
- *
  * @param int $user_id Viewer id. `0` is treated as disabled.
  * @return bool
  */
@@ -58,8 +55,6 @@ function desktop_mode_files_sharing_enabled_for( $user_id ) {
 	}
 	/**
 	 * Filter the per-user folder-sharing kill switch.
-	 *
-	 * @since 0.18.x
 	 *
 	 * @param bool $enabled Default reads from OS Settings.
 	 * @param int  $user_id Viewer.
@@ -100,19 +95,16 @@ function desktop_mode_files_share_principal_types() {
  * generalisation (or a per-type opener) can hit the same store
  * functions with a different `$target_type`.
  *
- * @since 0.18.0
- *
  * @return string[]
  */
 function desktop_mode_files_shareable_types() {
 	/**
 	 * Filter the list of target types that support sharing.
 	 *
-	 * @since 0.18.0
-	 *
-	 * @param string[] $types Default `[ 'folder' ]`.
+	 * @param string[] $types Default `[ 'folder', 'file' ]` ('file'
+	 *                        = stored uploads).
 	 */
-	$types = (array) apply_filters( 'desktop_mode_files_shareable_types', array( 'folder' ) );
+	$types = (array) apply_filters( 'desktop_mode_files_shareable_types', array( 'folder', 'file' ) );
 	return array_values( array_unique( array_filter( array_map( 'strval', $types ) ) ) );
 }
 
@@ -120,8 +112,6 @@ function desktop_mode_files_shareable_types() {
  * Owner of a shareable target. Defaults to the folder owner when
  * `$target_type === 'folder'`. Plugins extending the system to a
  * new type register a filter that returns the correct owner id.
- *
- * @since 0.18.0
  *
  * @param string $target_type Target type slug.
  * @param string $target_id   Target id (stringified — folder ids
@@ -136,11 +126,14 @@ function desktop_mode_files_share_target_owner( $target_type, $target_id ) {
 		if ( $folder ) {
 			$owner = (int) $folder['owner_id'];
 		}
+	} elseif ( 'file' === $target_type && function_exists( 'desktop_mode_stored_files_get' ) ) {
+		$file = desktop_mode_stored_files_get( (int) $target_id );
+		if ( $file ) {
+			$owner = (int) $file['owner_id'];
+		}
 	}
 	/**
 	 * Filter the owner of a shareable target.
-	 *
-	 * @since 0.18.0
 	 *
 	 * @param int    $owner       Default owner. 0 = unknown.
 	 * @param string $target_type Target type slug.
@@ -165,8 +158,6 @@ function desktop_mode_files_share_states() {
  * via the `desktop_mode_files_share_eligible_roles` filter — site
  * owners typically use this to whitelist a custom team role.
  *
- * @since 0.18.0
- *
  * @return array<int, array{ slug:string, name:string }>
  */
 function desktop_mode_files_share_eligible_roles() {
@@ -186,8 +177,6 @@ function desktop_mode_files_share_eligible_roles() {
 	/**
 	 * Filter the roles eligible to appear in the folder share picker.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param array<int, array{ slug:string, name:string }> $roles Default = roles with `edit_posts`.
 	 */
 	$out = (array) apply_filters( 'desktop_mode_files_share_eligible_roles', $out );
@@ -199,8 +188,6 @@ function desktop_mode_files_share_eligible_roles() {
  * Default: only the folder's owner. Plugins (e.g. a team-admin
  * extension) can broaden this via the filter.
  *
- * @since 0.18.0
- *
  * @param int $folder_id Folder id.
  * @param int $user_id   Viewer.
  * @return bool
@@ -210,8 +197,6 @@ function desktop_mode_files_share_can_manage( $folder_id, $user_id ) {
 	$can    = $folder && (int) $folder['owner_id'] === (int) $user_id;
 	/**
 	 * Filter who can manage a folder's share rules.
-	 *
-	 * @since 0.18.0
 	 *
 	 * @param bool       $can     Default: owner-only.
 	 * @param int        $folder_id Folder id.
@@ -224,7 +209,6 @@ function desktop_mode_files_share_can_manage( $folder_id, $user_id ) {
 /**
  * Coerce a raw wpdb shares row to typed values.
  *
- * @since 0.18.0
  * @internal
  *
  * @param array $row Raw wpdb row.
@@ -233,6 +217,13 @@ function desktop_mode_files_share_can_manage( $folder_id, $user_id ) {
 function desktop_mode_files_normalize_share_row( $row ) {
 	return array(
 		'id'             => (int) $row['id'],
+		// `target_type` defaults to 'folder' for rows that predate
+		// the column. The `folder_id` column carries the TARGET id —
+		// a folder id for folder shares, a stored-file id for
+		// `target_type='file'` rows (historical column name).
+		'target_type'    => isset( $row['target_type'] ) && '' !== (string) $row['target_type']
+			? (string) $row['target_type']
+			: 'folder',
 		'folder_id'      => (int) $row['folder_id'],
 		'principal_type' => (string) $row['principal_type'],
 		'principal_ref'  => (string) $row['principal_ref'],
@@ -248,8 +239,6 @@ function desktop_mode_files_normalize_share_row( $row ) {
 
 /**
  * Read a single share row by id.
- *
- * @since 0.18.0
  *
  * @param int $share_id Share id.
  * @return array|null
@@ -270,8 +259,6 @@ function desktop_mode_files_get_share( $share_id ) {
 /**
  * Every share row for a folder. Owner-internal view.
  *
- * @since 0.18.0
- *
  * @param int $folder_id Folder id.
  * @return array[]
  */
@@ -280,7 +267,7 @@ function desktop_mode_files_get_folder_shares( $folder_id ) {
 	$tables = desktop_mode_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE folder_id = %d ORDER BY invited_at_ms ASC, id ASC",
+			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d ORDER BY invited_at_ms ASC, id ASC",
 			(int) $folder_id
 		),
 		ARRAY_A
@@ -294,8 +281,6 @@ function desktop_mode_files_get_folder_shares( $folder_id ) {
 
 /**
  * Invite a principal to a folder.
- *
- * @since 0.18.0
  *
  * @param int    $folder_id      Folder id.
  * @param int    $actor_id       Actor (must be able to manage the folder).
@@ -361,7 +346,7 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 	$existing = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['shares']}
-			WHERE folder_id = %d AND principal_type = %s AND principal_ref = %s",
+			WHERE target_type = 'folder' AND folder_id = %d AND principal_type = %s AND principal_ref = %s",
 			$folder_id,
 			$principal_type,
 			$principal_ref
@@ -389,6 +374,7 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 		$ok = $wpdb->insert(
 			$tables['shares'],
 			array(
+				'target_type'    => 'folder',
 				'folder_id'      => $folder_id,
 				'principal_type' => $principal_type,
 				'principal_ref'  => $principal_ref,
@@ -397,7 +383,7 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 				'invited_by'     => $actor_id,
 				'invited_at_ms'  => $now,
 			),
-			array( '%d', '%s', '%s', '%s', '%s', '%d', '%d' )
+			array( '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%d' )
 		);
 		if ( false === $ok ) {
 			return new WP_Error( 'desktop_mode_files_share_insert_failed', __( 'Failed to record share.', 'desktop-mode' ), array( 'status' => 500 ) );
@@ -411,8 +397,6 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 	/**
 	 * Fires after a share is invited (or re-invited).
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param int   $share_id Share id.
 	 * @param array $row      Share row.
 	 * @param int   $actor_id Acting user.
@@ -424,8 +408,6 @@ function desktop_mode_folder_share_invite( $folder_id, $actor_id, $principal_typ
 
 /**
  * Revoke a share. Owner-side action.
- *
- * @since 0.18.0
  *
  * @param int $share_id Share id.
  * @param int $actor_id Actor.
@@ -476,8 +458,6 @@ function desktop_mode_folder_share_revoke( $share_id, $actor_id ) {
 	/**
 	 * Fires after a share is revoked.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param int   $share_id Share id.
 	 * @param array $row      Share row (last-known state).
 	 * @param int   $actor_id Acting user.
@@ -489,8 +469,6 @@ function desktop_mode_folder_share_revoke( $share_id, $actor_id ) {
 
 /**
  * Update the capability on a share. Owner-side action.
- *
- * @since 0.18.0
  *
  * @param int    $share_id   Share id.
  * @param int    $actor_id   Actor.
@@ -524,8 +502,6 @@ function desktop_mode_folder_share_update_capability( $share_id, $actor_id, $cap
 	/**
 	 * Fires after a share's capability is changed.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param int   $share_id Share id.
 	 * @param array $next     Row after.
 	 * @param array $prev     Row before.
@@ -539,7 +515,6 @@ function desktop_mode_folder_share_update_capability( $share_id, $actor_id, $cap
 /**
  * Read this user's decision row for a share (role-principal only).
  *
- * @since 0.18.0
  * @internal
  *
  * @param int $share_id Share id.
@@ -572,7 +547,6 @@ function desktop_mode_files_get_user_decision( $share_id, $user_id ) {
 /**
  * Upsert a per-user decision (role-principal opt-in state).
  *
- * @since 0.18.0
  * @internal
  *
  * @param int    $share_id Share id.
@@ -604,8 +578,6 @@ function desktop_mode_files_upsert_user_decision( $share_id, $user_id, $state ) 
  *   - role-principal: state lives on the per-user decisions
  *     table. Absence = 'pending' (user hasn't decided yet).
  *
- * @since 0.18.0
- *
  * @param array $share_row Normalized share row.
  * @param int   $user_id   Viewer.
  * @return string 'pending' | 'accepted' | 'denied'
@@ -628,8 +600,6 @@ function desktop_mode_files_share_user_state( $share_row, $user_id ) {
  * Recipient accepts a share. Creates the recipient's placement of
  * the folder at their desktop root.
  *
- * @since 0.18.0
- *
  * @param int $share_id Share id.
  * @param int $user_id  Acting user (must be the share's principal).
  * @return array|WP_Error Share row on success.
@@ -639,7 +609,7 @@ function desktop_mode_folder_share_accept( $share_id, $user_id ) {
 	$share_id = (int) $share_id;
 	$user_id  = (int) $user_id;
 	$row      = desktop_mode_files_get_share( $share_id );
-	if ( ! $row ) {
+	if ( ! $row || 'folder' !== $row['target_type'] ) {
 		return new WP_Error( 'desktop_mode_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( ! desktop_mode_files_share_principal_matches_user( $row, $user_id ) ) {
@@ -679,8 +649,6 @@ function desktop_mode_folder_share_accept( $share_id, $user_id ) {
 	/**
 	 * Fires after a share is accepted by its recipient.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param int   $share_id Share id.
 	 * @param array $row      Updated share row.
 	 * @param int   $user_id  Acting user (recipient).
@@ -693,8 +661,6 @@ function desktop_mode_folder_share_accept( $share_id, $user_id ) {
 /**
  * Recipient denies a share.
  *
- * @since 0.18.0
- *
  * @param int $share_id Share id.
  * @param int $user_id  Recipient.
  * @return array|WP_Error Share row on success.
@@ -704,7 +670,7 @@ function desktop_mode_folder_share_deny( $share_id, $user_id ) {
 	$share_id = (int) $share_id;
 	$user_id  = (int) $user_id;
 	$row      = desktop_mode_files_get_share( $share_id );
-	if ( ! $row ) {
+	if ( ! $row || 'folder' !== $row['target_type'] ) {
 		return new WP_Error( 'desktop_mode_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( ! desktop_mode_files_share_principal_matches_user( $row, $user_id ) ) {
@@ -746,8 +712,6 @@ function desktop_mode_folder_share_deny( $share_id, $user_id ) {
 	/**
 	 * Fires after a share is denied.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param int   $share_id Share id.
 	 * @param array $row      Updated share row.
 	 * @param int   $user_id  Acting user (recipient).
@@ -762,8 +726,6 @@ function desktop_mode_folder_share_deny( $share_id, $user_id ) {
  * the user access to `$folder_id` (user-principal or matching
  * role-principal) and marks them as denied, then scrubs their
  * local placements. Idempotent — no-op if the user has no share.
- *
- * @since 0.18.0
  *
  * @param int $folder_id Folder id.
  * @param int $user_id   Recipient leaving.
@@ -790,7 +752,7 @@ function desktop_mode_folder_share_leave( $folder_id, $user_id ) {
 	$tables = desktop_mode_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT * FROM {$tables['shares']} WHERE folder_id = %d",
+			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
 			$folder_id
 		),
 		ARRAY_A
@@ -818,8 +780,6 @@ function desktop_mode_folder_share_leave( $folder_id, $user_id ) {
 		 * from `_denied` (owner-side audit) because this is always
 		 * recipient-initiated, after acceptance.
 		 *
-		 * @since 0.18.0
-		 *
 		 * @param int   $share_id Share id.
 		 * @param array $row      Share row (last-known).
 		 * @param int   $user_id  Recipient leaving.
@@ -842,7 +802,6 @@ function desktop_mode_folder_share_leave( $folder_id, $user_id ) {
 /**
  * Does `$share_row` target `$user_id` (directly or by role)?
  *
- * @since 0.18.0
  * @internal
  *
  * @param array $share_row Normalized share row.
@@ -871,8 +830,6 @@ function desktop_mode_files_share_principal_matches_user( $share_row, $user_id )
  * Capability `$user_id` holds on `$folder_id`. `write` beats `read`
  * beats `none`. Owner always returns `'write'`. `share_mode='all'`
  * yields a default of `'read'` (filterable).
- *
- * @since 0.18.0
  *
  * @param int $folder_id Folder id.
  * @param int $user_id   Viewer.
@@ -906,8 +863,6 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
 		/**
 		 * Filter the default capability for `share_mode='all'`.
 		 *
-		 * @since 0.18.0
-		 *
 		 * @param string $cap     Default 'read'.
 		 * @param int    $folder_id Folder id.
 		 * @param int    $user_id   Viewer.
@@ -927,7 +882,7 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
-			WHERE folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
+			WHERE target_type = 'folder' AND folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
 			$folder_id
 		),
 		ARRAY_A
@@ -940,7 +895,7 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
 			"SELECT s.id, s.principal_type, s.principal_ref, s.capability
 			FROM {$tables['shares']} s
 			INNER JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d AND d.state = 'accepted'
-			WHERE s.folder_id = %d AND s.principal_type = 'role'",
+			WHERE s.target_type = 'folder' AND s.folder_id = %d AND s.principal_type = 'role'",
 			$user_id,
 			$folder_id
 		),
@@ -977,8 +932,6 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
 	/**
 	 * Filter the resolved capability.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param string $cap     'none' | 'read' | 'write'.
 	 * @param int    $folder_id Folder id.
 	 * @param int    $user_id   Viewer.
@@ -1005,8 +958,6 @@ function desktop_mode_folder_share_user_capability( $folder_id, $user_id ) {
  * `shares IN (…) JOIN decisions` for role-principal accepted
  * rows. Replaces the previous loop that fired up to two queries
  * per ancestor (32 on cold caches at the 16-level cap).
- *
- * @since 0.18.0
  *
  * @param int $folder_id Folder whose ancestors to walk.
  * @param int $user_id   Viewer.
@@ -1062,7 +1013,8 @@ function desktop_mode_folder_share_user_capability_cascade( $folder_id, $user_id
 	$user_rows = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT folder_id, capability FROM {$tables['shares']}
-			WHERE folder_id IN ($ids_csv)
+			WHERE target_type = 'folder'
+				AND folder_id IN ($ids_csv)
 				AND principal_type = 'user'
 				AND principal_ref = %s
 				AND state = 'accepted'",
@@ -1093,7 +1045,8 @@ function desktop_mode_folder_share_user_capability_cascade( $folder_id, $user_id
 				"SELECT s.folder_id, s.capability
 				FROM {$tables['shares']} s
 				INNER JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d AND d.state = 'accepted'
-				WHERE s.folder_id IN ($ids_csv)
+				WHERE s.target_type = 'folder'
+					AND s.folder_id IN ($ids_csv)
 					AND s.principal_type = 'role'
 					AND s.principal_ref IN ($role_placeholders)",
 				$args
@@ -1119,10 +1072,12 @@ function desktop_mode_folder_share_user_capability_cascade( $folder_id, $user_id
  * `desktop_mode_folder_share_user_capability` minus the cascade
  * walk — owner / share rows / role decisions only.
  *
- * Cascade callers use this to query a single ancestor without
- * triggering another cascade walk underneath.
+ * Currently uncalled: the cascade resolver
+ * (`desktop_mode_folder_share_user_capability_cascade`) resolves
+ * every ancestor via three batched `IN (…)` queries instead of
+ * querying ancestors one at a time. Kept as a single-folder,
+ * non-cascading resolver.
  *
- * @since 0.18.0
  * @internal
  */
 function desktop_mode_folder_share_user_capability_direct( $folder_id, $user_id ) {
@@ -1154,7 +1109,7 @@ function desktop_mode_folder_share_user_capability_direct( $folder_id, $user_id 
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
-			WHERE folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
+			WHERE target_type = 'folder' AND folder_id = %d AND principal_type = 'user' AND state = 'accepted'",
 			$folder_id
 		),
 		ARRAY_A
@@ -1164,7 +1119,7 @@ function desktop_mode_folder_share_user_capability_direct( $folder_id, $user_id 
 			"SELECT s.id, s.principal_type, s.principal_ref, s.capability
 			FROM {$tables['shares']} s
 			INNER JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d AND d.state = 'accepted'
-			WHERE s.folder_id = %d AND s.principal_type = 'role'",
+			WHERE s.target_type = 'folder' AND s.folder_id = %d AND s.principal_type = 'role'",
 			$user_id,
 			$folder_id
 		),
@@ -1201,8 +1156,6 @@ function desktop_mode_folder_share_user_capability_direct( $folder_id, $user_id 
  *
  * Hard-capped at 16 levels deep + a visited set to make pathological
  * inputs (cycles, deep nests) bounded.
- *
- * @since 0.18.0
  *
  * @param int $folder_id Folder whose ancestors to walk.
  * @param int $limit     Max ancestor count (default 16).
@@ -1261,8 +1214,6 @@ function desktop_mode_folder_ancestors( $folder_id, $limit = 16 ) {
  * Pending invites for `$user_id` across every folder. Used by the
  * heartbeat `shares.pending` payload.
  *
- * @since 0.18.0
- *
  * @param int $user_id Viewer.
  * @param int $since_ms Optional. Only include rows with `invited_at_ms > since`.
  * @return array[]
@@ -1288,7 +1239,8 @@ function desktop_mode_files_get_pending_shares_for_user( $user_id, $since_ms = 0
 		$wpdb->prepare(
 			"SELECT s.* FROM {$tables['shares']} s
 			INNER JOIN {$tables['folders']} f ON f.id = s.folder_id AND f.trashed_at_ms IS NULL
-			WHERE s.state = 'pending'
+			WHERE s.target_type = 'folder'
+				AND s.state = 'pending'
 				AND s.invited_at_ms > %d
 				AND s.principal_type = 'user'
 				AND s.principal_ref = %s
@@ -1312,7 +1264,8 @@ function desktop_mode_files_get_pending_shares_for_user( $user_id, $since_ms = 0
 				"SELECT s.* FROM {$tables['shares']} s
 				INNER JOIN {$tables['folders']} f ON f.id = s.folder_id AND f.trashed_at_ms IS NULL
 				LEFT JOIN {$tables['decisions']} d ON d.share_id = s.id AND d.user_id = %d
-				WHERE s.invited_at_ms > %d
+				WHERE s.target_type = 'folder'
+					AND s.invited_at_ms > %d
 					AND s.principal_type = 'role'
 					AND s.principal_ref IN ($placeholders)
 					AND ( d.state IS NULL OR d.state = 'pending' )
@@ -1335,7 +1288,6 @@ function desktop_mode_files_get_pending_shares_for_user( $user_id, $since_ms = 0
  * mutation should bump the parent folder so heartbeat clients pick
  * up the change in the same delta window.
  *
- * @since 0.18.0
  * @internal
  *
  * @param int $folder_id Folder id.
@@ -1356,8 +1308,6 @@ function desktop_mode_files_bump_folder_updated_at( $folder_id ) {
  * Recipient-scoped trash. Removes the recipient's placement of the
  * folder + their placements INSIDE the folder. Does NOT cascade
  * into the shared icon namespace (other users' placements survive).
- *
- * @since 0.18.0
  *
  * @param int $folder_id Folder id.
  * @param int $user_id   Recipient.
@@ -1416,7 +1366,7 @@ function desktop_mode_files_trash_folder_for_user( $folder_id, $user_id ) {
 		// row is also being upserted as alive — causing the row to
 		// disappear from the desktop on every heartbeat tick. See
 		// the user-reported "shared folder vanishes after refresh"
-		// bug fixed in 0.18.x.
+		// bug.
 		$count++;
 	}
 	return $count;
@@ -1427,8 +1377,6 @@ function desktop_mode_files_trash_folder_for_user( $folder_id, $user_id ) {
  * placements they "own" inside a shared folder. The ownership
  * check at the placement level passes (each user has their own
  * placement row), so the gate needs an extra read-only veto.
- *
- * @since 0.18.0
  *
  * @param bool  $can     Default decision (ownership match).
  * @param int   $user_id Acting user.
@@ -1509,8 +1457,6 @@ add_filter( 'desktop_mode_files_user_can_trash_placement', 'desktop_mode_files_s
  * settings modal + role picker have what they need without
  * round-tripping.
  *
- * @since 0.18.0
- *
  * @param array $config Shell config.
  * @return array
  */
@@ -1566,8 +1512,6 @@ add_filter( 'desktop_mode_shell_config', 'desktop_mode_files_share_inject_shell_
  * of `$parent_id`. Internal helper used by share-accept and
  * fan-out. Mirrors the grid math in `src/desktop-files/grid.ts`
  * (padding 16 + col 96 + row 110).
- *
- * @since 0.18.0
  *
  * @param int    $user_id   Viewer.
  * @param int    $parent_id Folder id (0 = desktop root).

@@ -43,8 +43,6 @@ function desktop_mode_default_desktop() {
  * assume at least one desktop exists at boot — the shell can't
  * function with zero desktops.
  *
- * @since 0.4.0
- *
  * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
 function desktop_mode_empty_session() {
@@ -63,10 +61,8 @@ function desktop_mode_empty_session() {
  * Always returns a well-shaped array so callers don't have to defend
  * against corrupt or partial meta.
  *
- * @since 0.4.0
- *
  * @param int $user_id The user ID.
- * @return array{windows: array, focused: string, updated: int}
+ * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
 function desktop_mode_get_session( $user_id ) {
 	$user_id = (int) $user_id;
@@ -108,10 +104,7 @@ function desktop_mode_get_session( $user_id ) {
  * with real wall-clock ordering on same-machine multi-tab setups.
  *
  * Equal timestamps (two writes in the same second) are accepted —
- * that's a tie and whichever the server processes first wins, which
- * matches the pre-0.8 behavior for simultaneous saves.
- *
- * @since 0.4.0
+ * that's a tie and whichever the server processes first wins.
  *
  * @param int   $user_id The user ID.
  * @param array $session Raw session payload (will be sanitized).
@@ -145,8 +138,6 @@ function desktop_mode_save_session( $user_id, $session ) {
 /**
  * Clears a user's saved desktop session.
  *
- * @since 0.4.0
- *
  * @param int $user_id The user ID.
  * @return bool True on success.
  */
@@ -165,10 +156,8 @@ function desktop_mode_clear_session( $user_id ) {
  * geometry to sane integer ranges, and normalizes the state enum.
  * Windows beyond {@see DESKTOP_MODE_SESSION_MAX_WINDOWS} are dropped.
  *
- * @since 0.4.0
- *
  * @param mixed $session Raw session data from the client.
- * @return array{windows: array, focused: string, updated: int}
+ * @return array{windows: array, desktops: array, activeDesktop: string, focused: string, updated: int}
  */
 function desktop_mode_sanitize_session( $session ) {
 	$clean = desktop_mode_empty_session();
@@ -285,23 +274,38 @@ function desktop_mode_sanitize_session( $session ) {
 				$base_id = $id;
 			}
 
-			$url = isset( $win['url'] ) ? esc_url_raw( (string) $win['url'] ) : '';
-			// Only allow URLs that land inside our own wp-admin — both
-			// a safety net against storing arbitrary origins in user meta
-			// and a guarantee the restore path won't try to iframe a
-			// cross-origin page. Host+path parsing rejects tricks like
-			// `//evil.com/wp-admin/…` that a raw prefix check would miss.
-			if ( '' === $url || ! desktop_mode_url_is_same_admin( $url ) ) {
-				continue;
+			// Native windows (OS Settings, Bug Report, anything from
+			// `desktop_mode_register_window()`) carry no admin URL —
+			// the shell reconstructs them from the registry by id. Their
+			// `url` is a `#slug` marker, which would fail the same-admin
+			// check below and drop the window from the session entirely.
+			// Synthesise the marker server-side instead of trusting (or
+			// storing) whatever string the client sent: nothing ever
+			// navigates to it, so there is no reason to round-trip a
+			// client-controlled value through user meta.
+			$is_native = ! empty( $win['native'] );
+
+			if ( $is_native ) {
+				$url = '#' . $id;
+			} else {
+				$url = isset( $win['url'] ) ? esc_url_raw( (string) $win['url'] ) : '';
+				// Only allow URLs that land inside our own wp-admin — both
+				// a safety net against storing arbitrary origins in user meta
+				// and a guarantee the restore path won't try to iframe a
+				// cross-origin page. Host+path parsing rejects tricks like
+				// `//evil.com/wp-admin/…` that a raw prefix check would miss.
+				if ( '' === $url || ! desktop_mode_url_is_same_admin( $url ) ) {
+					continue;
+				}
+				// Strip transient/routing flags before storage. The chromeless
+				// `desktop_mode_chromeless` flag is an iframe-only concern and must never
+				// end up in a top-level URL (e.g., the portal's entry URL);
+				// the portal and classic flags only live on a single request.
+				$url = remove_query_arg(
+					array( 'desktop_mode_chromeless', DESKTOP_MODE_PORTAL_FLAG, DESKTOP_MODE_CLASSIC_FLAG ),
+					$url
+				);
 			}
-			// Strip transient/routing flags before storage. The chromeless
-			// `desktop_mode_chromeless` flag is an iframe-only concern and must never
-			// end up in a top-level URL (e.g., the portal's entry URL);
-			// the portal and classic flags only live on a single request.
-			$url = remove_query_arg(
-				array( 'desktop_mode_chromeless', DESKTOP_MODE_PORTAL_FLAG, DESKTOP_MODE_CLASSIC_FLAG ),
-				$url
-			);
 
 			$state = isset( $win['state'] ) ? (string) $win['state'] : 'normal';
 			if ( ! in_array( $state, DESKTOP_MODE_SESSION_STATES, true ) ) {
@@ -331,6 +335,14 @@ function desktop_mode_sanitize_session( $session ) {
 				'width'     => desktop_mode_sanitize_session_dimension( $win['width'] ?? 800, 0, 20000 ),
 				'height'    => desktop_mode_sanitize_session_dimension( $win['height'] ?? 600, 0, 20000 ),
 			);
+
+			// Marks the entry for the shell's restore path: native
+			// windows reopen through the native-window registry, not by
+			// pointing an iframe at a URL. Only written when true so
+			// sessions of plain admin windows keep their existing shape.
+			if ( $is_native ) {
+				$entry['native'] = true;
+			}
 
 			// Sanitize external sub-tabs. Each entry carries a URL
 			// (any http/https — external tabs are explicitly for links
@@ -396,13 +408,10 @@ function desktop_mode_sanitize_session( $session ) {
  * bounds, falling back to `$min` for anything non-numeric so the
  * window restores to a sane geometry rather than colliding with 0.
  *
- * `INF`, `NAN`, and array/object input are rejected by `is_numeric()`
- * before the `(int)` cast, eliminating any overflow or type-juggling
- * surprise.
- *
- * @since 0.4.0
- * @since 0.11.0 Rejects non-numeric input explicitly instead of
- *               relying on PHP's permissive `(int)` cast.
+ * Array/object input and non-numeric strings are rejected by
+ * `is_numeric()`; float `INF`/`NAN` pass that gate but cast to 0 and
+ * are then clamped into `[min, max]`, so no out-of-range value
+ * survives.
  *
  * @param mixed $value The raw value.
  * @param int   $min   Minimum allowed value.
@@ -429,8 +438,6 @@ function desktop_mode_sanitize_session_dimension( $value, $min, $max ) {
 /**
  * Registers the REST routes used by the desktop shell to load and save
  * the current user's session.
- *
- * @since 0.4.0
  */
 function desktop_mode_register_session_rest_routes() {
 	register_rest_route(
@@ -468,9 +475,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_session_rest_routes' );
  * desktop mode enabled. See {@see desktop_mode_rest_require_enabled()}
  * for why `read` alone is insufficient.
  *
- * @since 0.4.0
- * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
- *
  * @return true|WP_Error
  */
 function desktop_mode_rest_session_permission() {
@@ -480,8 +484,6 @@ function desktop_mode_rest_session_permission() {
 /**
  * GET /desktop-mode/v1/session — returns the caller's session.
  *
- * @since 0.4.0
- *
  * @return WP_REST_Response
  */
 function desktop_mode_rest_get_session() {
@@ -490,8 +492,6 @@ function desktop_mode_rest_get_session() {
 
 /**
  * POST /desktop-mode/v1/session — replaces the caller's session.
- *
- * @since 0.4.0
  *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The stored session (after sanitization).
@@ -505,8 +505,6 @@ function desktop_mode_rest_save_session( WP_REST_Request $request ) {
 
 /**
  * DELETE /desktop-mode/v1/session — clears the caller's session.
- *
- * @since 0.4.0
  *
  * @return WP_REST_Response
  */

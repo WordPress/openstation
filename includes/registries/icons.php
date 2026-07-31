@@ -16,7 +16,6 @@
  * hook-fire time, so existing call sites resolve from any module.
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -45,8 +44,6 @@ defined( 'ABSPATH' ) || exit;
  * ) );
  * ```
  *
- * @since 0.11.0
- *
  * @param string $id   Icon id. Must be a kebab-case-ish slug.
  * @param array  $args {
  *     Icon registration options.
@@ -67,7 +64,6 @@ defined( 'ABSPATH' ) || exit;
  *                                  `icon` when both are supplied. Markup
  *                                  containing a `<script>` tag is rejected
  *                                  with `desktop_mode_invalid_icon_svg`.
- *                                  @since 0.8.2
  *     @type string   $window       Id of a registered native window to
  *                                  open on click. Mutually exclusive
  *                                  with `url`.
@@ -82,7 +78,7 @@ defined( 'ABSPATH' ) || exit;
  *                                  `position`, and is never user-
  *                                  draggable. Reserved for built-in
  *                                  shortcuts like "My WordPress".
- *                                  Default `false`. @since 0.8.0
+ *                                  Default `false`.
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
  *                                  `WP_Error desktop_mode_capability_denied`.
@@ -202,11 +198,9 @@ function desktop_mode_register_icon( $id, $args = array() ) {
 	 * Does NOT fire when `desktop_mode_register_icon()` returns a
 	 * `WP_Error`.
 	 *
-	 * @since 0.11.0
-	 *
 	 * @param string $id    The icon id.
 	 * @param array  $entry The stored registry entry (id, title,
-	 *                      icon, window, url, position).
+	 *                      icon, window, url, position, pinned).
 	 */
 	do_action( 'desktop_mode_icon_registered', $id, $entry );
 
@@ -218,7 +212,6 @@ function desktop_mode_register_icon( $id, $args = array() ) {
  * {@see desktop_mode_register_icon()}. Same static-store pattern as
  * the widget + native-window + wallpaper registries.
  *
- * @since 0.11.0
  * @internal
  */
 function desktop_mode_desktop_icon_registry( $id = '', $entry = null ) {
@@ -248,8 +241,6 @@ function desktop_mode_desktop_icon_registry( $id = '', $entry = null ) {
  * mid-request, and for PHPUnit teardowns that shouldn't leak
  * registrations into other tests.
  *
- * @since 0.8.0
- *
  * @param string $id Icon id passed to `desktop_mode_register_icon()`.
  * @return void
  */
@@ -267,8 +258,6 @@ function desktop_mode_unregister_icon( $id ) {
  * entries registered by others — mirrors the wallpaper payload
  * builder's filter discipline.
  *
- * @since 0.11.0
- *
  * @return array[]
  */
 function desktop_mode_build_desktop_icons_payload() {
@@ -281,9 +270,7 @@ function desktop_mode_build_desktop_icons_payload() {
 	 * Filters the full desktop-icon registry before it ships to the
 	 * shell. Each entry is the shape stored by
 	 * `desktop_mode_register_icon()` (`id`, `title`, `icon`, `window`,
-	 * `url`, `position`). Return a reordered / filtered array.
-	 *
-	 * @since 0.11.0
+	 * `url`, `position`, `pinned`). Return a reordered / filtered array.
 	 *
 	 * @param array[] $registry The registered icon entries.
 	 */

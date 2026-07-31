@@ -18,7 +18,6 @@
  *   - desktop_mode_plugins_window_browse_response
  *   - desktop_mode_plugins_window_info_response
  *   - desktop_mode_plugins_window_review_parser
- *   - desktop_mode_plugins_window_card_extras
  *
  * The dock-side swap (Plugins tile → native window when opt-in is on)
  * is implemented JS-side in `src/desktop.ts` via
@@ -33,7 +32,6 @@
  * (`includes/plugins-window/rest-fields.php`).
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;

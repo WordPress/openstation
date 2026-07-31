@@ -6,8 +6,6 @@
  * captured state and reach into the rest of the shell only via
  * the `deriveWindowId` utility, so they're safe to live in their
  * own module — and to test in isolation.
- *
- * @since 0.8.1
  */
 
 import { deriveWindowId } from '../utils';
@@ -27,8 +25,6 @@ export const VIEWPORT_CLAMP_MARGIN = 12;
  * `multi` / `submenu` flags. Used by `openCurrentPage()` to
  * decide whether the page being opened should inherit dock
  * metadata.
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export function findDockEntryForUrl(
 	url: string,
@@ -46,21 +42,18 @@ export function findDockEntryForUrl(
 
 /**
  * Clamp a persisted window's geometry to fit inside the current
- * desktop area, preserving the window's aspect ratio when the
- * saved size exceeds the area. Handles the ultrawide-to-laptop
- * transition gracefully:
+ * desktop area. Handles the ultrawide-to-laptop transition
+ * gracefully:
  *
  *   - A window that sat at x=2800 on a 3440px desktop gets pulled
  *     back onto the smaller viewport.
- *   - A window bigger than the viewport is scaled down, not
- *     cropped.
+ *   - A window bigger than the viewport is shrunk to fit (each
+ *     axis clamped independently — aspect ratio is not preserved).
  *   - Negative positions (shouldn't happen but defend anyway)
- *     become 0.
+ *     clamp to the 12px margin.
  *
  * Returns a plain geometry object — caller applies it to the
  * `WindowConfig`.
- *
- * @since 0.8.1 (extracted from desktop.ts)
  */
 export function clampGeometryToViewport(
 	win: SessionWindow,

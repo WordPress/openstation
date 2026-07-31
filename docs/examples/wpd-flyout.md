@@ -1,6 +1,6 @@
 # `<wpd-flyout>` — window-scoped sliding card
 
-For the recurring "auxiliary card that slides in inside a window" pattern. Account panels, filter sidebars, navigation drawers, settings overlays — each one had ~120 LOC of bespoke wiring before. The component bakes the spec the wpd-tumblr 0.1.x prototype validated by hand: containment, margins from every edge, focus capture-and-restore (with `preventScroll`), focus trap, click-outside-via-pointerdown scoped to the window, no backdrop by default. *Experimental since 0.8.2.*
+For the recurring "auxiliary card that slides in inside a window" pattern. Account panels, filter sidebars, navigation drawers, settings overlays — each one had ~120 LOC of bespoke wiring before. The component bakes the spec the wpd-tumblr 0.1.x prototype validated by hand: containment, margins from every edge, focus capture-and-restore (with `preventScroll`), focus trap, click-outside-via-pointerdown scoped to the window, no backdrop by default. *Experimental.*
 
 ## Containment is the headline
 
@@ -124,5 +124,5 @@ When the component disconnects (the host is removed from the DOM, or its window 
 
 ## See also
 
-- [`wpd-confirm-dialog.md`](./register-command.md) — the modal Yes/No sibling for "block everything until the user decides".
+- [`<wpd-confirm-dialog>`](../components-reference.md) — the modal Yes/No sibling for "block everything until the user decides".
 - [`layout-primitives.md`](./layout-primitives.md) — `<wpd-*>` layout components for the panel content.

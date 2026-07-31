@@ -1,0 +1,375 @@
+/**
+ * Alphabet Soup — game window styles.
+ *
+ * Scoped to `.soup`. The board is a Pixi canvas painting the pot;
+ * the HUD, the find-list side panel, and the overlays are DOM
+ * layered around it. Dark, warm, arcade-bright accents.
+ */
+
+.soup {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: #150d28;
+	overflow: hidden;
+	container-type: inline-size;
+}
+
+.soup__hud {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 8px 14px;
+	background: rgba( 20, 12, 40, 0.95 );
+	color: #f3efff;
+	font-variant-numeric: tabular-nums;
+	font-size: 13px;
+}
+
+.soup__hud-score {
+	font-weight: 700;
+}
+
+.soup__hud-streak {
+	color: #ffd166;
+	font-weight: 700;
+	min-width: 2.5em;
+}
+
+.soup__hud-timer {
+	color: #90e0ef;
+	font-weight: 600;
+}
+
+.soup__hud-timer--low {
+	color: #ff5470;
+	animation: soup-timer-pulse 1s ease-in-out infinite;
+}
+
+@keyframes soup-timer-pulse {
+	50% {
+		opacity: 0.45;
+	}
+}
+
+.soup__hud-wave {
+	color: #c77dff;
+}
+
+.soup__hud-ribbon {
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: #8e44ad;
+	color: #fff;
+	font-weight: 600;
+}
+
+/* Always the HUD's last child — pinned to the far end. */
+.soup__hud-sound {
+	margin-inline-start: auto;
+	padding: 2px 6px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.soup__hud-sound:hover,
+.soup__hud-sound:focus-visible {
+	background: rgba( 243, 239, 255, 0.18 );
+}
+
+.soup__body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+.soup__stage {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+}
+
+.soup__canvas {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	touch-action: none;
+}
+
+/* The find-list side panel — the pot's menu card. */
+.soup__words {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 148px;
+	padding: 14px 12px;
+	background: rgba( 255, 255, 255, 0.04 );
+	border-inline-start: 1px solid rgba( 255, 255, 255, 0.08 );
+	overflow-y: auto;
+}
+
+.soup__words-heading {
+	margin: 0;
+	color: rgba( 243, 239, 255, 0.65 );
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.soup__words-list {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.soup__word-chip {
+	margin: 0;
+	padding: 4px 10px;
+	border: 1px solid rgba( 243, 239, 255, 0.25 );
+	border-radius: 999px;
+	color: #f3efff;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-align: center;
+	transition: opacity 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.soup__word-chip--found {
+	opacity: 0.55;
+	text-decoration: line-through;
+}
+
+/* Narrow windows: the menu card slides under the pot. */
+@container (max-width: 620px) {
+	.soup__body {
+		flex-direction: column;
+	}
+
+	.soup__words {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		width: auto;
+		max-height: 96px;
+		border-inline-start: 0;
+		border-block-start: 1px solid rgba( 255, 255, 255, 0.08 );
+	}
+
+	.soup__words-heading {
+		flex-basis: 100%;
+	}
+
+	.soup__words-list {
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+}
+
+.soup__overlay {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	background: rgba( 12, 7, 24, 0.6 );
+	cursor: pointer;
+	z-index: 5;
+	overflow-y: auto;
+}
+
+.soup__overlay[hidden] {
+	display: none;
+}
+
+.soup__overlay-message {
+	margin: 0;
+	padding: 14px 22px;
+	border-radius: 10px;
+	background: #241736;
+	color: #f3efff;
+	font-size: 16px;
+	box-shadow: 0 8px 30px rgba( 0, 0, 0, 0.35 );
+}
+
+.soup__over-panel {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	max-width: min( 480px, 92% );
+	padding: 22px 28px;
+	border-radius: 14px;
+	background: #241736;
+	color: #f3efff;
+	box-shadow: 0 8px 30px rgba( 0, 0, 0, 0.4 );
+	cursor: default;
+	text-align: center;
+}
+
+.soup__over-heading {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 700;
+}
+
+.soup__over-stats {
+	margin: 0;
+	font-size: 14px;
+	color: rgba( 243, 239, 255, 0.85 );
+}
+
+.soup__over-save {
+	margin: 0;
+	font-size: 12px;
+	color: rgba( 243, 239, 255, 0.55 );
+}
+
+/* The share card preview — the real 1200×630 canvas, scaled down. */
+.soup__share-canvas {
+	width: 100%;
+	max-width: 360px;
+	border-radius: 10px;
+	box-shadow: 0 6px 24px rgba( 0, 0, 0, 0.45 );
+}
+
+.soup__share-actions {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.soup__share-status {
+	font-size: 12px;
+	color: #ffd166;
+}
+
+.soup__over-actions {
+	display: flex;
+	gap: 10px;
+	margin-block-start: 6px;
+}
+
+.soup__button {
+	padding: 6px 16px;
+	border-radius: 8px;
+	border: 1px solid rgba( 243, 239, 255, 0.5 );
+	background: transparent;
+	color: #f3efff;
+	font: inherit;
+	cursor: pointer;
+}
+
+.soup__button--primary {
+	background: #ffd166;
+	border-color: #ffd166;
+	color: #241736;
+	font-weight: 700;
+}
+
+.soup__button:hover {
+	filter: brightness( 1.15 );
+}
+
+.soup__over-replay {
+	margin: 0;
+	max-width: 340px;
+	font-size: 12px;
+	color: #ffd166;
+}
+
+/* Pre-game mode menu. */
+
+.soup__menu {
+	cursor: default;
+}
+
+/* Pot-size picker — one worldwide puzzle per size. */
+.soup__menu-sizes {
+	display: flex;
+	gap: 8px;
+	margin-block-start: 2px;
+}
+
+.soup__size-chip {
+	padding: 4px 12px;
+	border-radius: 999px;
+	border: 1px solid rgba( 243, 239, 255, 0.3 );
+	background: transparent;
+	color: #f3efff;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.soup__size-chip:hover,
+.soup__size-chip:focus-visible {
+	border-color: rgba( 255, 209, 102, 0.7 );
+}
+
+.soup__size-chip--current {
+	background: #ffd166;
+	border-color: #ffd166;
+	color: #241736;
+}
+
+.soup__menu-option-played {
+	font-size: 11px;
+	color: #ffd166;
+	max-width: 170px;
+}
+
+.soup__menu-options {
+	display: flex;
+	gap: 12px;
+	margin-block-start: 4px;
+}
+
+.soup__menu-option {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	min-width: 150px;
+	padding: 14px 16px;
+	border-radius: 10px;
+	border: 1px solid rgba( 243, 239, 255, 0.3 );
+	background: rgba( 255, 255, 255, 0.05 );
+	color: #f3efff;
+	font: inherit;
+	cursor: pointer;
+	transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.soup__menu-option:hover,
+.soup__menu-option:focus-visible {
+	transform: translateY( -2px );
+	box-shadow: 0 6px 18px rgba( 0, 0, 0, 0.35 );
+}
+
+.soup__menu-option--current {
+	border-color: #ffd166;
+	box-shadow: inset 0 0 0 1px #ffd166;
+}
+
+.soup__menu-option-label {
+	font-size: 17px;
+	font-weight: 700;
+}
+
+.soup__menu-option-hint {
+	font-size: 12px;
+	color: rgba( 243, 239, 255, 0.65 );
+	max-width: 170px;
+}

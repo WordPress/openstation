@@ -2,23 +2,20 @@
 /**
  * Desktop Mode — built-in file-type registrations.
  *
- * Registers the seven file types that ship with the plugin
+ * Registers the file types that ship with the plugin
  * through the same public API third-party plugins use. Hooked on
  * `init` priority 5 so the types land in the registry before the
  * shell config is built and before any third-party plugin that
  * wants to react via `desktop_mode_file_type_registered`.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Registers the built-in file types (post, user, attachment,
- * term, comment, folder, bookmark).
- *
- * @since 0.9.0
+ * Registers the built-in file types (post, attachment, user,
+ * term, comment, bookmark, folder, shortcut, link, embed).
  */
 function desktop_mode_register_builtin_file_types() {
 	$types = array(
@@ -33,6 +30,12 @@ function desktop_mode_register_builtin_file_types() {
 			'label' => __( 'Media', 'desktop-mode' ),
 			'class' => 'Desktop_Mode_Attachment_File',
 			'sort'  => 20,
+		),
+		array(
+			'type'  => 'upload',
+			'label' => __( 'Uploaded file', 'desktop-mode' ),
+			'class' => 'Desktop_Mode_Upload_File',
+			'sort'  => 25,
 		),
 		array(
 			'type'  => 'user',

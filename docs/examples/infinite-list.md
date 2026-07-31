@@ -2,7 +2,7 @@
 
 Every infinite-scroll plugin in the wild reinvents the same five primitives — `IntersectionObserver` on a sentinel below the last row, an `AbortController` to cancel in-flight pages on filter change, dedup-by-id so refetches don't render the same row twice, cursor pagination, and a "loading more" indicator separate from the window-level spinner.
 
-`wp.desktop.createInfiniteList()` ships every piece of that. *Stable since 0.8.2.*
+`wp.desktop.createInfiniteList()` ships every piece of that. *Stable.*
 
 ## Minimal recipe
 
@@ -77,7 +77,7 @@ If the slow old request resolves AFTER the new one has started, the helper drops
 Native windows: pair the call with the new render-`ctx.signal` so destroy fires on close.
 
 ```js
-window.desktopModeNativeWindows[ 'my-feed/inbox' ] = ( body, { signal } ) => {
+window.desktopModeNativeWindows[ 'my-feed-inbox' ] = ( body, { signal } ) => {
     const root = body.querySelector( '.feed' );
     const list = wp.desktop.createInfiniteList( {
         root,
@@ -122,7 +122,7 @@ moreBar.type = 'button';
 moreBar.textContent = 'Load more';
 root.appendChild( moreBar );
 
-wp.desktop.createInfiniteList( {
+const list = wp.desktop.createInfiniteList( {
     root,
     sentinel: moreBar,
     fetchPage, getId, renderItem,

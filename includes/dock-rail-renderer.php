@@ -15,8 +15,6 @@
  * back through the registry's chain (user pick → `default`) and the
  * dispatcher rebuilds the rails with whatever resolves.
  *
- * @since 0.18.0
- *
  * @package WPDesktopMode
  */
 
@@ -45,8 +43,6 @@ defined( 'ABSPATH' ) || exit;
  * with `owner: 'orbit-rail'` (matching the handle) so deactivation
  * cleanly removes the renderer.
  *
- * @since 0.18.0
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
@@ -64,8 +60,6 @@ function desktop_mode_register_dock_rail_renderer_script( $handle ) {
 	/**
 	 * Fires after a desktop dock rail renderer script handle is registered.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_dock_rail_renderer_script_registered', $handle );
@@ -77,7 +71,6 @@ function desktop_mode_register_dock_rail_renderer_script( $handle ) {
  * Internal module-level registry for dock rail renderer script handles.
  * Read by the payload builder, written by the registration API.
  *
- * @since 0.18.0
  * @internal
  *
  * @param string    $handle Script handle to read or write.
@@ -101,9 +94,8 @@ function desktop_mode_dock_rail_renderer_script_registry( $handle = '', $value =
 }
 
 /**
- * Flush the registry. Tests call this in `set_up`.
- *
- * @since 0.18.0
+ * Test-only: clear the registry between PHPUnit cases. See
+ * {@see desktop_mode_flush_script_handle_registries()}.
  */
 function desktop_mode_flush_dock_rail_renderer_script_registry() {
 	desktop_mode_dock_rail_renderer_script_registry( '__flush__' );
@@ -115,8 +107,6 @@ function desktop_mode_flush_dock_rail_renderer_script_registry() {
  * scriptTranslations }` entry; handles that aren't currently enqueued
  * (plugin not active this request) resolve to an empty URL and are
  * dropped.
- *
- * @since 0.18.0
  *
  * @return array[]
  */

@@ -1,8 +1,8 @@
-# Example: extend the Recycle Bin
+# Example: extend the Trash
 
-The Recycle Bin window (id `desktop-mode-recycle-bin`) catches deleted attachments into the WordPress trash and lists every trashed post / page / media item with restore + permanent-delete actions. It's filterable end-to-end so plugins can add post types, columns, audit logging, or custom capability gates.
+The Trash window (id `desktop-mode-recycle-bin`) catches deleted attachments into the WordPress trash and lists every trashed post / page / media item with restore + permanent-delete actions. It's filterable end-to-end so plugins can add post types, columns, audit logging, or custom capability gates.
 
-> Status: **Experimental** since 0.19.0. Hook names are stable; the JS column-filter shape may grow.
+> Status: **Experimental**. Hook names are stable; the JS column-filter shape may grow.
 
 ## Add a custom post type to the bin
 
@@ -44,25 +44,23 @@ The window + icon registrations are skipped entirely when the gate returns false
 
 ## Bypass the bin for a specific deletion
 
-When a plugin needs to permanently delete an attachment without the round-trip through trash:
+When a plugin needs to permanently delete an attachment without the round-trip through trash, pass the force flag:
 
 ```php
-$result = apply_filters( 'desktop_mode_recycle_bin_should_capture', false, $post );
-// or, more idiomatically, force-delete:
 wp_delete_attachment( $attachment_id, true );
 ```
 
-`wp_delete_attachment( $id, true )` with the force flag skips capture automatically — the filter is the per-call escape hatch when you can't pass `force_delete = true`.
+`wp_delete_attachment( $id, true )` skips capture automatically — the bin only records items that travel through the WP trash. A per-deletion escape-hatch filter (`desktop_mode_recycle_bin_should_capture`) is a reserved name in the [hooks reference](../hooks-reference.md#trash) but is **not yet fired** — don't subscribe to it until its status flips.
 
-By default media files are NOT auto-routed through Trash: vanilla WordPress permanent-deletes attachments on first click, and the Recycle Bin tracks only posts, pages, and comments. Sites that want media in the bin should define `MEDIA_TRASH` in `wp-config.php`:
+By default media files are NOT auto-routed through Trash: vanilla WordPress permanent-deletes attachments on first click, and the Trash tracks only posts, pages, and comments. Sites that want media in the bin should define `MEDIA_TRASH` in `wp-config.php`:
 
 ```php
 define( 'MEDIA_TRASH', true );
 ```
 
-Once set, deleting from the Media library routes the attachment through the WP trash and the Recycle Bin window surfaces it automatically (`attachment` is already in the default `desktop_mode_recycle_bin_capture_post_types` list). The constant has to live in `wp-config.php` because Core locks it before any plugin loads.
+Once set, deleting from the Media library routes the attachment through the WP trash and the Trash window surfaces it automatically (`attachment` is already in the default `desktop_mode_recycle_bin_capture_post_types` list). The constant has to live in `wp-config.php` because Core locks it before any plugin loads.
 
-The Recycle Bin toolbar reflects this gate visually: the **Media** filter segment is hidden unless `MEDIA_TRASH` is on, so users on the default WP setup don't see a tab that can never have rows under it.
+The Trash toolbar reflects this gate visually: the **Media** filter segment is hidden unless `MEDIA_TRASH` is on, so users on the default WP setup don't see a tab that can never have rows under it.
 
 ## Add a custom column to the table
 
@@ -144,6 +142,6 @@ wp.hooks.addAction(
 
 ## See also
 
-- [Hooks reference — Recycle Bin](../hooks-reference.md#recycle-bin) — every filter and action with full signatures.
+- [Hooks reference — Trash](../hooks-reference.md#trash) — every filter and action with full signatures.
 - [Data table example](./data-table.md) — the `<wpd-table>` primitive the bin renders.
 - [Native windows](./native-windows.md) — the `desktop_mode_register_window()` API the bin builds on.

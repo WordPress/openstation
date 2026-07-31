@@ -14,6 +14,10 @@
  * the same gate). Sensitive fields (email, IP) are NOT returned
  * from this endpoint — `user-stats.php` carries those for the
  * preview pane, and the footprint focuses on activity patterns.
+ * Timeline rows whose underlying post is not published are only
+ * emitted when the viewer passes `current_user_can( 'read_post' )`
+ * for that post, so draft/pending/private/future titles never leak
+ * to ordinary logged-in users.
  *
  * Payload shape:
  *
@@ -45,15 +49,12 @@
  * the per-day "posts" count.
  *
  * @package WPDesktopMode
- * @since   0.20.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.20.0
  */
 function desktop_mode_my_wordpress_register_user_footprint_route() {
 	register_rest_route(
@@ -79,8 +80,6 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_footprint_
 
 /**
  * Aggregator callback. See the file docblock for the payload shape.
- *
- * @since 0.20.0
  *
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
@@ -340,7 +339,7 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	$timeline_comments = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT c.comment_ID, c.comment_post_ID, c.comment_date_gmt, c.comment_approved,
-				p.post_title
+				p.post_title, p.post_status
 			FROM {$wpdb->comments} c
 			LEFT JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
 			WHERE c.user_id = %d
@@ -375,8 +374,16 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 		ARRAY_A
 	);
 	$timeline = array();
+	// Per-row gate: rows for non-published posts (draft, pending,
+	// private, future, …) carry titles the viewer may not be allowed
+	// to see. `read_post` resolves to the right meta cap per status,
+	// so authors/editors keep their full timeline while ordinary
+	// logged-in users only see published work.
 	foreach ( (array) $timeline_posts as $p ) {
 		$pid = (int) $p['ID'];
+		if ( 'publish' !== (string) $p['post_status'] && ! current_user_can( 'read_post', $pid ) ) {
+			continue;
+		}
 		$timeline[] = array(
 			'kind'   => 'post',
 			'date'   => mysql2date( 'c', $p['post_date_gmt'], false ),
@@ -389,6 +396,13 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	}
 	foreach ( (array) $timeline_comments as $c ) {
 		$pid = (int) $c['comment_post_ID'];
+		// LEFT-joined parent: a NULL status means the post is gone —
+		// nothing to leak, keep the row (title is already ''). A
+		// non-published parent leaks its title via the join, so it
+		// gets the same `read_post` gate as the post rows above.
+		if ( isset( $c['post_status'] ) && 'publish' !== (string) $c['post_status'] && ! current_user_can( 'read_post', $pid ) ) {
+			continue;
+		}
 		$timeline[] = array(
 			'kind'   => 'comment',
 			'date'   => mysql2date( 'c', $c['comment_date_gmt'], false ),
@@ -400,6 +414,9 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	}
 	foreach ( (array) $timeline_updates as $u ) {
 		$pid = (int) $u['parent_id'];
+		if ( 'publish' !== (string) $u['post_status'] && ! current_user_can( 'read_post', $pid ) ) {
+			continue;
+		}
 		$timeline[] = array(
 			'kind'   => 'post-update',
 			'date'   => mysql2date( 'c', $u['last_save'], false ),
@@ -501,8 +518,6 @@ function desktop_mode_my_wordpress_user_footprint_callback( $request ) {
 	 * the My WordPress folder window. Plugins can extend the timeline
 	 * with their own activity rows, or replace the streak math with
 	 * something domain-specific.
-	 *
-	 * @since 0.20.0
 	 *
 	 * @param array $payload Footprint payload.
 	 * @param int   $user_id Subject user id.

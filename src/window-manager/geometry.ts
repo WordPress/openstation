@@ -4,8 +4,6 @@
  * Pure math for the `tile()` grid picker, the snap cell-size validator,
  * and the Overview thumbnail layout. No DOM side effects, no class
  * references — everything takes numbers + returns numbers.
- *
- * @since 0.8.1
  */
 
 import type { Window } from '../window';

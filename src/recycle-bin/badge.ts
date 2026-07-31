@@ -17,8 +17,6 @@
  * The badge caps the rendered value at 99 — anything higher
  * shows as `99+` so the pill stays compact regardless of how
  * full the trash gets.
- *
- * @since 0.21.0
  */
 
 import { addAction, HOOKS } from '../hooks';
@@ -69,7 +67,7 @@ interface WpDesktopBadgeRails {
 	dock?: BadgeRails | null;
 	taskbar?: BadgeRails | null;
 	icons?: BadgeRails;
-	windowManager?: { isActive?: ( id: string ) => boolean };
+	windowManager?: { isActive?: ( id: string ) => boolean; isActiveByBaseId?: ( baseId: string ) => boolean };
 }
 function getDesktopApi(): WpDesktopBadgeRails | undefined {
 	return ( window as unknown as { wp?: { desktop?: WpDesktopBadgeRails } } )
@@ -184,7 +182,11 @@ function paintBadge( count: number ): void {
  * `desktop.js` so that's rare, but cheap to handle).
  */
 function isBinWindowActive(): boolean {
-	return !! getDesktopApi()?.windowManager?.isActive?.( TARGET_ID );
+	const mgr = getDesktopApi()?.windowManager;
+	if ( mgr?.isActiveByBaseId ) {
+		return mgr.isActiveByBaseId( TARGET_ID );
+	}
+	return !! mgr?.isActive?.( TARGET_ID );
 }
 
 /**
@@ -295,7 +297,12 @@ function wireWindowLifecycleSignals(): void {
 	const ns = 'desktop-mode/recycle-bin/badge-lifecycle';
 	const repaint = ( payload: unknown ): void => {
 		const detail = payload as { windowId?: string };
-		if ( detail?.windowId !== TARGET_ID ) {
+		const windowId = detail?.windowId;
+		if ( ! windowId ) {
+			return;
+		}
+		const isBin = windowId === TARGET_ID || windowId.startsWith( TARGET_ID + '-' );
+		if ( ! isBin ) {
 			return;
 		}
 		paintBadge( store.state.current );
@@ -378,17 +385,17 @@ function wireBroadcastDeltas(): void {
 				break;
 		}
 	};
-	subscribe( 'desktop-mode.post.changed', onDomain );
-	subscribe( 'desktop-mode.page.changed', onDomain );
-	subscribe( 'desktop-mode.attachment.changed', onDomain );
-	subscribe( 'desktop-mode.comment.changed', onDomain );
-	// Files-on-the-desktop trash mutations (URL placements, plugin
-	// shortcuts, user folders). Without these, dragging a URL tile to
-	// the Recycle Bin trashes the placement but the dock badge stays
-	// at its previous value until the next Heartbeat tick.
-	subscribe( 'desktop-mode.placement.changed', onDomain );
-	subscribe( 'desktop-mode.shortcut.changed', onDomain );
-	subscribe( 'desktop-mode.folder.changed', onDomain );
+	// Dynamic post-type slugs from the PHP shell config + fixed non-post-type
+	// extras the Recycle Bin always captures. The extras never vary so there
+	// is no PHP filter for them; they live here where their meaning is clear.
+	const cfg = ( window as unknown as {
+		desktopModeConfig?: { recycleBinPostTypes?: string[] };
+	} ).desktopModeConfig;
+	const postTypes = cfg?.recycleBinPostTypes ?? [ 'post', 'page', 'attachment' ];
+	const fixedExtras = [ 'comment', 'placement', 'shortcut', 'folder' ];
+	for ( const slug of [ ...postTypes, ...fixedExtras ] ) {
+		subscribe( `desktop-mode.${ slug }.changed`, onDomain );
+	}
 }
 
 /**
@@ -426,8 +433,11 @@ function wirePostMessageFastPath(): void {
 
 /**
  * Heartbeat probe. Sends `desktop_mode_recycle_bin_seen_ts` on every
- * outgoing tick; reads `desktop_mode_recycle_bin: { ts, count }` off the
- * response. This is the catch-all channel — within 15 s (active
+ * outgoing tick; reads `desktop_mode_recycle_bin: { ts, count? }` off the
+ * response. The server only attaches `count` when something changed
+ * since our high-water mark (an unchanged tick would recompute the
+ * same number); when the key is absent the badge keeps its current
+ * value. This is the catch-all channel — within 15 s (active
  * tab) or 60 s (background tab) of a mutation anywhere on the
  * site, the badge resyncs to the authoritative count.
  *

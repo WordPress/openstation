@@ -256,7 +256,7 @@ The difference is **scope**: `exceptIds` applies only to one call site; the filt
 |---|---|
 | `ctx.close()` | Dismiss the AI Assistant panel. |
 | `ctx.openInWindow( url, title, icon? )` | Open a wp-admin URL in a legacy iframe window inside the desktop. |
-| `ctx.confirm( message, details? )` *(since 0.14.0)* | Prompt the user to confirm a destructive action. Returns `Promise<boolean>`. |
+| `ctx.confirm( message, details? )` | Prompt the user to confirm a destructive action. Returns `Promise<boolean>`. |
 
 ---
 
@@ -281,5 +281,5 @@ The difference is **scope**: `exceptIds` applies only to one call site; the filt
 
 ## Related
 
-- [JavaScript reference › `registerCommand`](../javascript-reference.md#registercommand-def--stable)
+- [JavaScript reference › `registerCommand`](../javascript-reference.md#registercommand-def---stable)
 - [React to window events](./react-to-window-events.md) — for event-driven plugin UI that isn't a slash-command.

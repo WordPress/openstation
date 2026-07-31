@@ -12,8 +12,6 @@
  *      folder's `shareSummary.shared` flag is true.
  *
  * Activated once on boot from `src/desktop-files/index.ts`.
- *
- * @since 0.18.0
  */
 
 import { addFilter, addAction } from '../hooks';

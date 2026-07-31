@@ -15,8 +15,6 @@
  * Falls back to the native `fetch` only when the desktop
  * bundle hasn't booted yet (rare; tests, headless paths). All
  * in-shell callers should hit the framework helper.
- *
- * @since 0.9.0
  */
 
 import { injectRestNonce } from './inject-rest-nonce';
@@ -30,8 +28,6 @@ export interface TrackedFetchOpts {
 	 * badge polls). The runtime accepts this field on
 	 * `wp.desktop.fetch`; declared here so the typed wrapper can
 	 * forward it without needing per-feature widening.
-	 *
-	 * @since 0.8.1
 	 */
 	silent?: boolean;
 }

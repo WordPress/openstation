@@ -13,8 +13,6 @@
  * plugins by id. This is the building block for a cross-plugin
  * shared-dependency story that keeps bundle sizes down without
  * forcing everyone through our vendor/ folder.
- *
- * @since 0.6.0
  */
 
 import { loadVendorScript } from '../wallpapers/vendor-loader';

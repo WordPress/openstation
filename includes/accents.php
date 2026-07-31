@@ -10,7 +10,6 @@
  * the list to a single approved value.
  *
  * @package WPDesktopMode
- * @since   0.11.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -28,8 +27,6 @@ defined( 'ABSPATH' ) || exit;
  * mutate the list via the `desktop_mode_accent_colors` filter — entries
  * whose `value` fails `sanitize_hex_color()` are dropped silently so a
  * bad filter return can't inject arbitrary CSS into the shell.
- *
- * @since 0.11.0
  *
  * @return array<int, array{id: string, label: string, value: string}>
  */
@@ -61,8 +58,6 @@ function desktop_mode_get_accent_colors() {
 	 * Individual entries missing an `id`, `label`, or whose `value`
 	 * isn't a valid hex color are dropped — the shell can't render
 	 * half-formed swatches safely.
-	 *
-	 * @since 0.11.0
 	 *
 	 * @param array $defaults Built-in swatches.
 	 */

@@ -6,7 +6,7 @@
  *
  *   GET /post-types
  *     Lists the types eligible for the graph (`slug`, `label`, `icon`,
- *     `count`).
+ *     `count`, `taxonomies`).
  *
  *   GET /nodes?types=post,page,...
  *     Returns the full `{ nodes, edges, stats }` tuple. Cached server-
@@ -18,15 +18,12 @@
  *         attached_media, revisions }.
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Capability check shared across every endpoint.
- *
- * @since 0.8.2
  *
  * @return bool
  */
@@ -36,8 +33,6 @@ function desktop_mode_content_graph_rest_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_register_routes() {
 	register_rest_route(
@@ -86,16 +81,18 @@ add_action( 'rest_api_init', 'desktop_mode_content_graph_register_routes' );
 /**
  * GET /post-types
  *
- * @since 0.8.2
- *
  * @return WP_REST_Response
  */
 function desktop_mode_content_graph_rest_post_types() {
 	$types = desktop_mode_content_graph_post_types();
 	$out   = array();
 	foreach ( $types as $entry ) {
-		$slug   = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
-		$counts = $slug ? wp_count_posts( $slug ) : null;
+		$slug = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
+		// 'readable' scopes the private bucket to posts the current
+		// user can actually read (others' private posts require the
+		// type's read_private_posts capability), keeping the filter-bar
+		// counts consistent with the rows /nodes returns.
+		$counts = $slug ? wp_count_posts( $slug, 'readable' ) : null;
 		$count  = 0;
 		if ( $counts && isset( $counts->publish ) ) {
 			$count = (int) $counts->publish;
@@ -104,10 +101,11 @@ function desktop_mode_content_graph_rest_post_types() {
 			}
 		}
 		$out[] = array(
-			'slug'  => $slug,
-			'label' => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
-			'icon'  => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
-			'count' => $count,
+			'slug'       => $slug,
+			'label'      => isset( $entry['label'] ) ? (string) $entry['label'] : $slug,
+			'icon'       => isset( $entry['icon'] ) ? (string) $entry['icon'] : 'dashicons-admin-post',
+			'count'      => $count,
+			'taxonomies' => $entry['taxonomies'],
 		);
 	}
 	return rest_ensure_response( $out );
@@ -115,8 +113,6 @@ function desktop_mode_content_graph_rest_post_types() {
 
 /**
  * GET /nodes
- *
- * @since 0.8.2
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response
@@ -126,13 +122,72 @@ function desktop_mode_content_graph_rest_nodes( WP_REST_Request $request ) {
 	$types = '' === $raw
 		? wp_list_pluck( desktop_mode_content_graph_post_types(), 'slug' )
 		: array_map( 'trim', explode( ',', $raw ) );
-	return rest_ensure_response( desktop_mode_content_graph_build( (array) $types ) );
+	$payload = desktop_mode_content_graph_build( (array) $types );
+	return rest_ensure_response( desktop_mode_content_graph_filter_payload_for_user( $payload ) );
+}
+
+/**
+ * Strip revision-derived data the current user may not see from a
+ * graph payload before it goes out.
+ *
+ * Revision authorship is edit-level data in core (wp/v2 exposes a
+ * post's revisions only behind `edit_post`), so each node's
+ * `contributor_ids` — distinct revision authors — are emptied for
+ * posts the user cannot `edit_post`. Authors-catalog entries that
+ * were referenced only via stripped contributor ids are removed too.
+ * This runs at response time, not build time, because the cached
+ * payload is shared across users of the same privilege tier.
+ *
+ * @param array $payload Payload from `desktop_mode_content_graph_build()`.
+ * @return array
+ */
+function desktop_mode_content_graph_filter_payload_for_user( array $payload ) {
+	if ( empty( $payload['nodes'] ) || ! is_array( $payload['nodes'] ) ) {
+		return $payload;
+	}
+
+	// Bulk-warm the post cache for the cap checks — only nodes that
+	// actually carry contributor ids need an edit_post decision.
+	$check_ids = array();
+	foreach ( $payload['nodes'] as $node ) {
+		if ( ! empty( $node['contributor_ids'] ) && ! empty( $node['id'] ) ) {
+			$check_ids[] = (int) $node['id'];
+		}
+	}
+	if ( ! empty( $check_ids ) && function_exists( '_prime_post_caches' ) ) {
+		_prime_post_caches( $check_ids, false, false );
+	}
+
+	$referenced = array();
+	foreach ( $payload['nodes'] as $i => $node ) {
+		$id       = isset( $node['id'] ) ? (int) $node['id'] : 0;
+		$contribs = isset( $node['contributor_ids'] ) && is_array( $node['contributor_ids'] )
+			? $node['contributor_ids']
+			: array();
+		if ( ! empty( $contribs ) && ! current_user_can( 'edit_post', $id ) ) {
+			$contribs                                  = array();
+			$payload['nodes'][ $i ]['contributor_ids'] = array();
+		}
+		$author_id = isset( $node['author_id'] ) ? (int) $node['author_id'] : 0;
+		if ( $author_id > 0 ) {
+			$referenced[ $author_id ] = true;
+		}
+		foreach ( $contribs as $cid ) {
+			if ( (int) $cid > 0 ) {
+				$referenced[ (int) $cid ] = true;
+			}
+		}
+	}
+
+	if ( isset( $payload['groups']['authors'] ) && is_array( $payload['groups']['authors'] ) ) {
+		$payload['groups']['authors'] = array_intersect_key( $payload['groups']['authors'], $referenced );
+	}
+
+	return $payload;
 }
 
 /**
  * GET /post/<id>
- *
- * @since 0.8.2
  *
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
@@ -155,12 +210,17 @@ function desktop_mode_content_graph_rest_post_detail( WP_REST_Request $request )
 		);
 	}
 
+	// Revision history (and the identities of who edited the post) is
+	// edit-level data in core — wp/v2 only exposes revisions behind
+	// edit_post. Mirror that: readers get comment-author contributors
+	// only, no revision list.
+	$can_edit     = current_user_can( 'edit_post', $post->ID );
 	$author       = desktop_mode_content_graph_format_user( (int) $post->post_author );
-	$contributors = desktop_mode_content_graph_collect_contributors( $post );
+	$contributors = desktop_mode_content_graph_collect_contributors( $post, $can_edit );
 	$comments     = desktop_mode_content_graph_collect_comments( $post );
 	$categories   = desktop_mode_content_graph_collect_terms( $post );
 	$attached     = desktop_mode_content_graph_collect_attached_media( $post );
-	$revisions    = desktop_mode_content_graph_collect_revisions( $post );
+	$revisions    = $can_edit ? desktop_mode_content_graph_collect_revisions( $post ) : array();
 
 	return rest_ensure_response(
 		array(
@@ -188,8 +248,6 @@ function desktop_mode_content_graph_rest_post_detail( WP_REST_Request $request )
 /**
  * Format a user record for the side panel.
  *
- * @since 0.8.2
- *
  * @param int $user_id
  * @return array|null
  */
@@ -216,25 +274,29 @@ function desktop_mode_content_graph_format_user( $user_id ) {
  * current author) plus distinct comment authors who have a
  * registered user account.
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
+ * @param bool    $include_revision_authors Whether to include revision
+ *                authors. Pass false for users who cannot `edit_post`
+ *                the post — revision authorship is edit-level data;
+ *                approved comment authors are public either way.
  * @return array[]
  */
-function desktop_mode_content_graph_collect_contributors( WP_Post $post ) {
+function desktop_mode_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true ) {
 	$author_id = (int) $post->post_author;
 	$ids       = array();
-	$revs      = wp_get_post_revisions(
-		$post->ID,
-		array(
-			'posts_per_page' => 100,
-			'fields'         => 'ids',
-		)
-	);
-	foreach ( (array) $revs as $rev_id ) {
-		$rev = get_post( $rev_id );
-		if ( $rev && (int) $rev->post_author > 0 && (int) $rev->post_author !== $author_id ) {
-			$ids[ (int) $rev->post_author ] = true;
+	if ( $include_revision_authors ) {
+		$revs = wp_get_post_revisions(
+			$post->ID,
+			array(
+				'posts_per_page' => 100,
+				'fields'         => 'ids',
+			)
+		);
+		foreach ( (array) $revs as $rev_id ) {
+			$rev = get_post( $rev_id );
+			if ( $rev && (int) $rev->post_author > 0 && (int) $rev->post_author !== $author_id ) {
+				$ids[ (int) $rev->post_author ] = true;
+			}
 		}
 	}
 	$comment_users = get_comments(
@@ -262,8 +324,6 @@ function desktop_mode_content_graph_collect_contributors( WP_Post $post ) {
 
 /**
  * Collect approved comments (most recent first, capped at 50).
- *
- * @since 0.8.2
  *
  * @param WP_Post $post
  * @return array[]
@@ -295,8 +355,6 @@ function desktop_mode_content_graph_collect_comments( WP_Post $post ) {
 /**
  * Collect every taxonomy term attached to the post (categories, tags,
  * and any custom taxonomy registered for the post type).
- *
- * @since 0.8.2
  *
  * @param WP_Post $post
  * @return array[]
@@ -331,8 +389,6 @@ function desktop_mode_content_graph_collect_terms( WP_Post $post ) {
  * Collect attached media (anything with this post as its `post_parent`)
  * plus any media referenced from a `wp:image` block. Returns up to 50.
  *
- * @since 0.8.2
- *
  * @param WP_Post $post
  * @return array[]
  */
@@ -356,8 +412,6 @@ function desktop_mode_content_graph_collect_attached_media( WP_Post $post ) {
 
 /**
  * Collect post revisions (most recent first, capped at 30).
- *
- * @since 0.8.2
  *
  * @param WP_Post $post
  * @return array[]

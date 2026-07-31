@@ -11,7 +11,7 @@ The classic case: **Live Preview**. The user is editing a post; a sidebar button
 | "Open a sibling window from inside this iframe" | `wp.desktop.send( 'request-open-window', { url } )` — parent listens via `Window.on` | Symmetric `Window.send` / `wp.desktop.send` channel, no per-target wiring. |
 | "Connect back to the parent so I can publish updates" | `wp.desktop.iframe.requestConnection({ topics })` | Iframe initiates; parent's `HOOKS.IFRAME_CONNECTION_REQUEST` filter decides accept/reject. |
 | "What window am I living in?" | `wp.desktop.iframe.windowId` / `await wp.desktop.iframe.whenWindowId()` | Resolved after the parent's first handshake. |
-| "Did the parent shell even hear me?" | `wp.desktop.iframe.publish` now `console.warn`s on dropped messages (since 0.22.0) | Watch DevTools. |
+| "Did the parent shell even hear me?" | `wp.desktop.iframe.publish` now `console.warn`s on dropped messages | Watch DevTools. |
 
 ## Recipe: PluginSidebar opens a Preview window with live content streaming
 
@@ -27,17 +27,27 @@ The classic case: **Live Preview**. The user is editing a post; a sidebar button
 import { addAction, HOOKS } from 'desktop-mode';
 
 addAction( HOOKS.WINDOW_OPENED, 'my-plugin/wire-editor', ( e ) => {
-    if ( ! e.windowId.startsWith( 'edit-post' ) ) {
+    // Iframe window ids are slugified admin filenames plus identity
+    // params: post.php → `post-php`, post.php?post=123 → `post-php-post-123`,
+    // post-new.php → `post-new-php`.
+    if (
+        ! e.windowId.startsWith( 'post-php' ) &&
+        ! e.windowId.startsWith( 'post-new-php' )
+    ) {
         return;
     }
     const editor = wp.desktop.windowManager.getById( e.windowId );
     if ( ! editor ) return;
 
-    editor.on( 'request-open-preview', ( payload ) => {
+    editor.on( 'request-open-preview', async ( payload ) => {
         const previewId = `preview-of-${ editor.id }`;
-        const preview = wp.desktop.openWindow( 'native:my-plugin-preview', {
+        // `registerWindow` takes a single definition object, opens (or
+        // focuses) the window immediately, and resolves with its
+        // DesktopWindow handle. `previewRender` is defined in step 3.
+        const preview = await wp.desktop.registerWindow( {
             id: previewId,
             title: 'Live Preview',
+            render: previewRender,
         } );
         // Open a connection back to the editor's iframe so we can forward
         // its content updates to the preview window's native render.
@@ -120,27 +130,26 @@ registerPlugin( 'my-plugin-preview', { render: PreviewSidebar } );
 
 ### 3. Preview window's native render (also runs in the shell bundle)
 
-```javascript
-wp.desktop.registerWindow( 'native:my-plugin-preview', {
-    native: true,
-    render( body, ctx ) {
-        body.innerHTML = '<iframe id="preview-frame" style="width:100%; height:100%; border:none"></iframe>';
-        const iframe = body.querySelector( '#preview-frame' );
+There is no separate register-now/open-later step — `wp.desktop.registerWindow( def )` registers AND opens in one call (step 1 makes it), so the render callback is just a plain function referenced from the definition:
 
-        // Listen for content updates forwarded by the parent from the
-        // editor iframe (step 1 wires the forwarder).
-        ctx.window.on( 'preview:html', ( html ) => {
-            iframe.srcdoc = html;
-        } );
-    },
-} );
+```javascript
+function previewRender( body, ctx ) {
+    body.innerHTML = '<iframe id="preview-frame" style="width:100%; height:100%; border:none"></iframe>';
+    const iframe = body.querySelector( '#preview-frame' );
+
+    // Listen for content updates forwarded by the parent from the
+    // editor iframe (step 1 wires the forwarder).
+    ctx.window.on( 'preview:html', ( html ) => {
+        iframe.srcdoc = html;
+    } );
+}
 ```
 
 ## What's happening under the hood
 
 1. **PluginSidebar runs inside the Gutenberg iframe.** That iframe has the standalone iframe-bridge installed (auto-enqueued on every admin page for desktop-mode users), which exposes `wp.desktop.send`, `wp.desktop.iframe.publish`, and `wp.desktop.iframe.windowId`.
 2. **Step 2's `wp.desktop.send`** turns into a `desktop-mode-window-publish` postMessage to the parent. The parent's `Window.on(...)` subscribers for THIS window's id fire — step 1's handler is one of them.
-3. **Step 1 opens the Preview window** and immediately opens a typed connection back to the editor's iframe via `wp.desktop.connect(editor.id, { topics })`. The connection handshakes through `desktop-mode-bridge-handshake` / `…-ack`.
+3. **Step 1 opens the Preview window** via `wp.desktop.registerWindow( def )` — which opens (or focuses) the window immediately and resolves with its `DesktopWindow` handle — and then opens a typed connection back to the editor's iframe via `wp.desktop.connect(editor.id, { topics })`. The connection handshakes through `desktop-mode-bridge-handshake` / `…-ack`.
 4. **Step 2's `wp.desktop.iframe.publish`** fans editor content out over every open connection. The parent's `conn.subscribe(...)` fires, and we forward into the preview window's native channel via `preview.send(...)`.
 5. **Step 3 listens** on the preview's own channel via `ctx.window.on(...)` — no postMessage on this side; it's all in-process.
 
@@ -148,12 +157,12 @@ wp.desktop.registerWindow( 'native:my-plugin-preview', {
 
 If `wp.desktop.send(...)` (or `wp.desktop.iframe.publish(...)`) does nothing visible:
 
-- **No connection open** → since 0.22.0 `publish` logs a `console.warn` when there are zero connections. Open DevTools (in the iframe's frame), look for `[desktop-mode] wp.desktop.iframe.publish dropped`.
+- **No connection open** → `publish` logs a `console.warn` when there are zero connections. Open DevTools (in the iframe's frame), look for `[desktop-mode] wp.desktop.iframe.publish dropped`.
 - **No subscriber** → no warning by design. Add an `addAction(HOOKS.CONNECTION_OPENED, …)` log on the parent side to confirm the connection actually opened.
-- **Cross-origin iframe** → bridges hard-filter on `window.location.origin`. The Gutenberg editor-canvas (nested iframe inside post.php) uses `srcdoc` which inherits the parent's origin, so it's fine; arbitrary cross-origin iframes silently drop. See [`bridge-protocol.md`](../bridge-protocol.md#cross-origin-iframes) for the explicit non-goal.
+- **Cross-origin iframe** → bridges hard-filter on `window.location.origin`. The Gutenberg editor-canvas (nested iframe inside post.php) uses `srcdoc` which inherits the parent's origin, so it's fine; arbitrary cross-origin iframes silently drop. See [`bridge-protocol.md`](../bridge-protocol.md#cross-origin-iframes--explicit-non-goal) for the explicit non-goal.
 
 ## Related
 
 - [`connect-to-window.md`](./connect-to-window.md) — the inverse topology (parent-initiated).
-- [`code-editor-open.md`](./code-editor-open.md) — sibling-window opens via a different protocol (`desktop-mode-code-open` postMessage).
+- [`code-editor-open.md`](./code-editor-open.md) — sibling-window opens via a different protocol (`wp-desktop-code-open` postMessage).
 - [`../bridge-protocol.md`](../bridge-protocol.md) — full message catalog.

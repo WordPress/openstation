@@ -19,8 +19,6 @@
  * The store is intentionally framework-agnostic — Phase 3 wires
  * a tiny render loop on top, but plugin authors who want to
  * read the placements list synchronously can do so directly.
- *
- * @since 0.9.0
  */
 
 import { createSharedStore, type SharedStore } from '../shared-store';
@@ -186,6 +184,37 @@ export function subscribeFilesStore( cb: ( state: FilesState ) => void ): () => 
 /** Synchronous reader for the current state. */
 export function getFilesState(): FilesState {
 	return getFilesStore().getState() as FilesState;
+}
+
+/**
+ * Resolve the store's CURRENT version of a placement, falling back
+ * to the given snapshot when the store no longer tracks it.
+ *
+ * Tile event handlers capture the placement that existed when the
+ * tile was wired; the fast-path repaints (`tryPatchPositions` /
+ * `tryPatchIncremental` in `layer.ts`) reuse tile DOM without
+ * re-wiring, so a captured snapshot can be stale by event time —
+ * old title after an in-place rename, old coords after a drag.
+ * Handlers should route through this at event time instead of
+ * trusting the closure.
+ */
+export function currentPlacement( snapshot: RestPlacementShape ): RestPlacementShape {
+	const state = getFilesState();
+	const sameFolder = state.placementsByFolder
+		.get( snapshot.parentId )
+		?.find( ( p ) => p && p.id === snapshot.id );
+	if ( sameFolder ) {
+		return sameFolder;
+	}
+	// Parent changed between wire time and event time — scan the
+	// remaining buckets before giving up.
+	for ( const list of state.placementsByFolder.values() ) {
+		const hit = list.find( ( p ) => p && p.id === snapshot.id );
+		if ( hit ) {
+			return hit;
+		}
+	}
+	return snapshot;
 }
 
 /** Test-only — clears every map. */

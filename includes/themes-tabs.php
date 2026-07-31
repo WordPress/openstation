@@ -18,7 +18,6 @@
  * Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
  *
  * @package Desktop_Mode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -30,8 +29,6 @@ defined( 'ABSPATH' ) || exit;
  * Skipped for every menu other than `themes.php` and for users who
  * lack the `install_themes` capability — matching what classic
  * admin's "Add Theme" page-title-action enforces.
- *
- * @since 0.8.2
  *
  * @param array  $dock_item The dock item data (id, title, icon, url,
  *                          badge, submenu, multi, placement, isCore).
@@ -97,13 +94,11 @@ add_filter( 'desktop_mode_dock_item', 'desktop_mode_inject_appearance_tabs', 10,
  * chrome on next paint).
  *
  * The minimum-viable shim: inline JS that reads the real `browse`
- * value via URLSearchParams, finds the matching `[data-sort]` tab,
- * and sets `current` + `aria-current` on it. A MutationObserver on
- * `.filter-links` keeps the tab synced if WP's router fires again
- * (e.g. the user picks Latest, then comes back to Popular via the
- * route's pushState).
- *
- * @since 0.8.2
+ * value dynamically via URLSearchParams on every check, finds the
+ * matching `[data-sort]` tab, and sets `current` + `aria-current` on it.
+ * A MutationObserver on `.filter-links` keeps the tab synced when WP's
+ * router fires or state changes (e.g. switching tabs to Latest or
+ * returning via pushState).
  */
 function desktop_mode_theme_install_active_tab_script() {
 	if ( ! desktop_mode_is_chromeless_request() ) {
@@ -115,11 +110,17 @@ function desktop_mode_theme_install_active_tab_script() {
 
 	$js = <<<'JS'
 ( function () {
-    var browseParam = new URLSearchParams( window.location.search ).get( 'browse' );
-    if ( ! browseParam ) {
+    function getBrowseParam() {
+        return new URLSearchParams( window.location.search ).get( 'browse' );
+    }
+    if ( ! getBrowseParam() ) {
         return;
     }
     function applyActiveTab() {
+        var browseParam = getBrowseParam();
+        if ( ! browseParam ) {
+            return true;
+        }
         var match = document.querySelector(
             '.filter-links li > a[data-sort="' + browseParam + '"]'
         );

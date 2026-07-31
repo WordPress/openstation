@@ -22,7 +22,6 @@
  *     user. `time` is the ISO-8601 timestamp of the lock heartbeat.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -34,8 +33,6 @@ defined( 'ABSPATH' ) || exit;
  *   - The post isn't locked.
  *   - The current user is the lock holder (no point flagging yourself).
  *   - The current user can't edit the post (don't leak who's editing).
- *
- * @since 0.8.0
  *
  * @param int $post_id Post id.
  * @return array{userId:int,userName:string,userAvatarUrl:string,time:string}|null
@@ -89,17 +86,24 @@ function desktop_mode_my_wordpress_post_lock_payload( $post_id ) {
  * Sources, merged in order:
  *   1. Co-Authors Plus, when installed — `get_coauthors()` returns
  *      user objects (or guest authors with a different shape).
- *   2. Anything plugins return from the
+ *   2. Revision authors — everyone who has saved the post leaves a
+ *      revision row stamped with their user id.
+ *   3. The `_edit_last` post meta — who saved the post most
+ *      recently; the only signal on installs with revisions
+ *      disabled.
+ *   4. Anything plugins return from the
  *      `desktop_mode_my_wordpress_post_contributors` filter, which
  *      receives the post id + the running user-id list. Filter
  *      contract is plain int[] for ergonomics; we expand each id
  *      into the structured shape afterwards.
  *
+ * Gated on `edit_post`, same as the lock payload above — returns an
+ * empty array for users who can't edit the post, so revision-author
+ * identities never leak to read-only viewers.
+ *
  * The post's `post_author` is intentionally NOT included here —
  * it's already surfaced by the canonical "Author" sub-folder.
  * Contributors is the *additional* people surface.
- *
- * @since 0.8.0
  *
  * @param int $post_id Post id.
  * @return array<int,array{userId:int,userName:string,userAvatarUrl:string}>
@@ -109,6 +113,11 @@ function desktop_mode_my_wordpress_post_contributors_payload( $post_id ) {
 	if ( $post_id <= 0 ) {
 		return array();
 	}
+
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return array();
+	}
+
 	$post = get_post( $post_id );
 	if ( ! $post ) {
 		return array();
@@ -193,8 +202,6 @@ function desktop_mode_my_wordpress_post_contributors_payload( $post_id ) {
 	 *     }, 10, 2 );
 	 * ```
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param int[] $ids     Contributor user ids gathered so far
 	 *                       (from Co-Authors Plus, etc.).
 	 * @param int   $post_id Post id.
@@ -241,8 +248,6 @@ function desktop_mode_my_wordpress_post_contributors_payload( $post_id ) {
  *   - `desktop_mode_lock`         — active edit-lock holder.
  *   - `desktop_mode_contributors` — additional contributor users
  *                                   beyond the primary author.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_lock_field() {
 	$types = get_post_types(
@@ -286,7 +291,7 @@ function desktop_mode_my_wordpress_register_lock_field() {
 					return desktop_mode_my_wordpress_post_contributors_payload( $post_id );
 				},
 				'schema'       => array(
-					'description' => __( 'Additional contributor users beyond the primary author. Sourced from Co-Authors Plus when present, plus anything plugins return via `desktop_mode_my_wordpress_post_contributors`.', 'desktop-mode' ),
+					'description' => __( 'Additional contributor users beyond the primary author. Sourced from Co-Authors Plus when present, revision authors, the `_edit_last` meta, plus anything plugins return via `desktop_mode_my_wordpress_post_contributors`. Empty for requesters who cannot edit the post.', 'desktop-mode' ),
 					'type'        => 'array',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,

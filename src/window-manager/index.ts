@@ -18,8 +18,6 @@
  * folder may touch them, but nothing outside `src/window-manager/`
  * should. Kept `public` at the TypeScript level only because `private`
  * prevents sibling modules from seeing them.
- *
- * @since 6.9.0
  */
 
 import { HOOKS, doAction, applyFilters } from '../hooks';
@@ -32,6 +30,7 @@ import type {
 	WindowState,
 } from '../types';
 import type { Window } from '../window';
+import { urlReuseKey } from '../utils';
 import {
 	ensureWindowSystemLoaded,
 	windowSystemBundleUrl,
@@ -63,8 +62,9 @@ import {
 	commitSnapIfPending,
 	updateSnapZoneForDrag,
 } from './snap-zones';
-import { enterOverview, exitOverview } from './overview';
+import { cancelOverviewTimers, enterOverview, exitOverview } from './overview';
 import { loadNativeWindowGeometry } from './native-window-geometry';
+import { clampWindowPosition } from '../window/pointer';
 
 /** Base z-index for desktop windows. */
 const BASE_Z_INDEX = 100;
@@ -79,7 +79,6 @@ const CASCADE_OFFSET = 30;
  * being baked into the `WindowConfig`.
  *
  * @public
- * @since 0.25.0
  */
 export interface ResolvedWindowGeometry {
 	x: number;
@@ -120,7 +119,6 @@ export interface ResolvedWindowGeometry {
  *     `callerPinned: true` does not mean "leave it alone."
  *
  * @public
- * @since 0.25.0
  */
 export interface WindowGeometryContext {
 	windowId: string;
@@ -153,6 +151,13 @@ export class WindowManager {
 
 	/** Counter for cascade positioning. */
 	private cascadeIndex = 0;
+
+	/**
+	 * Config staged by {@link seedWindowRestoreState}, keyed by window
+	 * id and consumed by the first `createWindow` that claims each id.
+	 * Empty outside of session restore.
+	 */
+	private _pendingRestoreState = new Map< string, Partial< WindowConfig > >();
 
 	/**
 	 * Virtual desktops ("Spaces"). Always at least one entry — the
@@ -254,6 +259,22 @@ export class WindowManager {
 	 * @internal
 	 */
 	public _overviewAddTileFocused = false;
+	/**
+	 * Handle of the pending "grid animation settled" timer scheduled
+	 * by `enterOverview()`. Tracked so `destroy()` can cancel it —
+	 * otherwise a caller that discards the manager mid-transition
+	 * leaves a real `setTimeout` that fires later and reaches for
+	 * globals (`window.wp.hooks`) that may already be torn down.
+	 * @internal
+	 */
+	public _overviewEnterTimeoutId: number | null = null;
+	/**
+	 * Handle of the pending "exit animation settled" timer scheduled
+	 * by `exitOverview()`. Same rationale as
+	 * {@link _overviewEnterTimeoutId}.
+	 * @internal
+	 */
+	public _overviewExitTimeoutId: number | null = null;
 
 	// ---- Snap-zone state (edge-snap + split overview) ----
 
@@ -362,9 +383,12 @@ export class WindowManager {
 	/**
 	 * Re-apply state-driven bounds to any window whose geometry is
 	 * derived from the desktop area's dimensions: maximized (full
-	 * area) and snapped-left / snapped-right (half area). Called from
-	 * the desktop-area ResizeObserver so shrinking the browser window
-	 * drags the stateful windows along with it.
+	 * area) and snapped-left / snapped-right (half area). Also
+	 * clamps normal (floating) windows to the GRAB_MARGIN boundaries
+	 * so they are not stranded off-screen when the viewport shrinks.
+	 *
+	 * Called from the desktop-area ResizeObserver so shrinking the
+	 * browser window drags the windows along with it.
 	 *
 	 * Inlines the geometry writes instead of calling `applySnap` —
 	 * that method emits `_emitChange('state')` which would spam the
@@ -407,6 +431,18 @@ export class WindowManager {
 				w.element.style.top = '0px';
 				w.element.style.width = `${ halfW }px`;
 				w.element.style.height = `${ height }px`;
+			} else if ( w.state === 'normal' ) {
+				const currentX = parseInt( w.element.style.left, 10 ) || 0;
+				const currentY = parseInt( w.element.style.top, 10 ) || 0;
+				const width = w.element.offsetWidth || 0;
+
+				const safe = clampWindowPosition( currentX, currentY, width, parent.clientWidth, parent.clientHeight );
+
+				if ( currentX !== safe.x || currentY !== safe.y ) {
+					w.element.classList.add( 'desktop-mode-window--reflowing' );
+					w.element.style.left = `${ safe.x }px`;
+					w.element.style.top = `${ safe.y }px`;
+				}
 			}
 		}
 
@@ -435,6 +471,15 @@ export class WindowManager {
 	 * exactly like strict id matching. For multi pages, clicking the
 	 * dock icon while a window is already open focuses the
 	 * most-recent instance rather than creating a twin.
+	 *
+	 * URL-aware reuse: when the matched window is NOT already showing
+	 * the requested URL (and the request isn't for the window's home
+	 * / dock landing URL), the existing iframe navigates to it in
+	 * place — an action URL like
+	 * `plugins.php?action=activate&…&_wpnonce=…` actually runs
+	 * instead of being dropped by a bare focus. The
+	 * `desktop-mode-window-reopened` event reports which path was
+	 * taken via its `navigated` flag.
 	 *
 	 * To force a brand-new instance alongside an existing one, use
 	 * {@link openNew}.
@@ -487,6 +532,31 @@ export class WindowManager {
 			if ( wasMinimized ) {
 				existing.restore();
 			}
+			// URL-aware reuse. Focusing alone only satisfies the
+			// caller when the window is already showing the requested
+			// URL — or when the request is for the window's "home"
+			// URL (a dock / menu click on an already-open,
+			// sub-navigated window must NOT yank it back to its
+			// landing page). Any other URL is a real navigation the
+			// user expects to run in this window. The canonical
+			// failure before this check: the post-install "Activate"
+			// link (`plugins.php?action=activate&plugin=…&_wpnonce=…`)
+			// clicked while a Plugins window was already open focused
+			// that window and silently dropped the activation.
+			let navigated = false;
+			if ( ! existing.config.native ) {
+				const requestedKey = urlReuseKey( config.url );
+				const alreadyThere =
+					requestedKey === urlReuseKey( existing.getCurrentUrl() ) ||
+					requestedKey === urlReuseKey( existing.config.url || '' ) ||
+					requestedKey ===
+						urlReuseKey(
+							existing.config.parentUrl ?? existing.config.url ?? '',
+						);
+				if ( ! alreadyThere ) {
+					navigated = existing.navigateTo( config.url );
+				}
+			}
 			// Plugins (messages, code-editor, …) routinely call
 			// `wp.desktop.openWindow(id)` to "switch the window to
 			// this state" — selecting a conversation, opening a file,
@@ -504,6 +574,7 @@ export class WindowManager {
 				windowId: existing.id,
 				baseId,
 				wasMinimized,
+				navigated,
 			};
 			document.dispatchEvent(
 				new CustomEvent( 'desktop-mode-window-reopened', { detail: reopenedDetail } ),
@@ -534,12 +605,26 @@ export class WindowManager {
 	 * would hide the primary; landing a twin on top of the primary's
 	 * remembered position would hide it too. Callers can override
 	 * either default by passing `initialState` / `x` / `y` explicitly.
+	 *
+	 * A caller-supplied `id` that differs from `baseId` and isn't
+	 * taken yet is honoured VERBATIM rather than being reassigned to
+	 * the next free slot. Session restore depends on this: it replays
+	 * saved instance ids (`edit-php-2`) and anything keyed by window
+	 * id — the focused-window pointer in the same session payload,
+	 * per-window plugin state, `wp.desktop.onWindow( id )`
+	 * subscriptions — only lines up if the restored window comes back
+	 * under the id it was saved with. Slot allocation still applies
+	 * to every other caller (a plain duplicate request passes
+	 * `id === baseId`).
 	 */
 	public async openNew(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string },
 	): Promise< Window > {
 		const baseId = config.baseId || config.id;
-		const nextId = this.nextInstanceId( baseId );
+		const nextId =
+			config.id !== baseId && ! this.getById( config.id )
+				? config.id
+				: this.nextInstanceId( baseId );
 		const cascadeX = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		const cascadeY = 40 + ( this.cascadeIndex % 8 ) * CASCADE_OFFSET;
 		return this.createWindow( {
@@ -559,6 +644,17 @@ export class WindowManager {
 	private async createWindow(
 		config: Partial<WindowConfig> & { id: string; url: string; title: string; baseId?: string },
 	): Promise< Window > {
+		// Apply (and consume) anything session restore staged for this
+		// id — see {@link seedWindowRestoreState}. Merged before the
+		// geometry resolution below so the seeded x / y / size / state
+		// register as caller-pinned and win over the localStorage
+		// fallback, exactly as if the opener had passed them.
+		const staged = this._pendingRestoreState.get( config.id );
+		if ( staged ) {
+			this._pendingRestoreState.delete( config.id );
+			config = { ...config, ...staged };
+		}
+
 		const desktopRect = this._desktop.getBoundingClientRect();
 		const defaultWidth = Math.min( Math.round( desktopRect.width * 0.8 ), 1200 );
 		const defaultHeight = Math.min( Math.round( desktopRect.height * 0.8 ), 800 );
@@ -995,6 +1091,36 @@ export class WindowManager {
 		doAction( HOOKS.WINDOW_FOCUSED, focusedDetail );
 	}
 
+	/**
+	 * Raise a window to just below the top of the stack WITHOUT
+	 * changing focus — the focused window stays on top and keeps
+	 * keyboard/visual focus; the raised window surfaces above
+	 * everything else. No focus/blur events fire (this is a silent
+	 * restack, not a focus change).
+	 *
+	 * Used by the window-links feature to bring a relation group
+	 * forward when one of its members is focused; available to
+	 * plugins for any "surface my companion window" affordance.
+	 *
+	 * @param windowId Window to raise. Unknown ids and the focused
+	 *                 window itself are no-ops.
+	 */
+	public raise( windowId: string ): void {
+		const win = this.getById( windowId );
+		if ( ! win || this._stack.length < 2 ) {
+			return;
+		}
+		const idx = this._stack.indexOf( win );
+		if ( idx === -1 || idx === this._stack.length - 1 ) {
+			return;
+		}
+		this._stack.splice( idx, 1 );
+		this._stack.splice( this._stack.length - 1, 0, win );
+		this._stack.forEach( ( w, i ) => {
+			w.setZIndex( BASE_Z_INDEX + i );
+		} );
+	}
+
 	/** Remove a window from the stack and DOM. */
 	private remove( win: Window ): void {
 		const idx = this._stack.indexOf( win );
@@ -1120,6 +1246,16 @@ export class WindowManager {
 			.sort( ( a, b ) => instanceSlot( a.id ) - instanceSlot( b.id ) );
 	}
 
+	/**
+	 * Get every open window sharing the given baseId on the active desktop,
+	 * ordered by instance slot.
+	 */
+	public getAllByBaseIdOnActiveDesktop( baseId: string ): Window[] {
+		return this.getAllByBaseId( baseId ).filter(
+			( w ) => ( w.config.desktopId || this._activeDesktopId ) === this._activeDesktopId,
+		);
+	}
+
 	/** Get all open windows. */
 	public getAll(): Window[] {
 		return [ ...this._stack ];
@@ -1161,8 +1297,6 @@ export class WindowManager {
 	 * `getById(id) && state !== 'minimized' && focused` can
 	 * collapse to this.
 	 *
-	 * @since 0.5.5
-	 *
 	 * @param id Window id to query.
 	 * @return True when the user is actively looking at this window.
 	 */
@@ -1174,8 +1308,31 @@ export class WindowManager {
 		if ( win.state === 'minimized' ) {
 			return false;
 		}
+		const winDesktop = win.config.desktopId || this._activeDesktopId;
+		if ( winDesktop !== this._activeDesktopId ) {
+			return false;
+		}
 		const focused = this.getFocused();
 		return !! focused && focused.id === id;
+	}
+
+	/**
+	 * Like {@link isActive}, but returns true if *any* window with the
+	 * given baseId is currently active.
+	 */
+	public isActiveByBaseId( baseId: string ): boolean {
+		const focused = this.getFocused();
+		if ( ! focused ) {
+			return false;
+		}
+		if ( focused.state === 'minimized' ) {
+			return false;
+		}
+		const winDesktop = focused.config.desktopId || this._activeDesktopId;
+		if ( winDesktop !== this._activeDesktopId ) {
+			return false;
+		}
+		return ( focused.config.baseId || focused.id ) === baseId;
 	}
 
 	// ---- Virtual desktop delegations ----
@@ -1208,8 +1365,6 @@ export class WindowManager {
 	 * `desktop-mode.primary-desktop-id` so downstream code that wants a
 	 * different convention (e.g. a pinned "Inbox" desktop) can override
 	 * without having to fork the manager.
-	 *
-	 * @since 0.14.0
 	 */
 	public getPrimaryDesktopId(): string {
 		const all = this.getDesktops();
@@ -1249,8 +1404,6 @@ export class WindowManager {
 	 *
 	 *   4. `desktop-mode.windows.after-close-all` — action. Detail:
 	 *      `{ closed: number, skipped: Window[] }`.
-	 *
-	 * @since 0.14.0
 	 *
 	 * @param options           Close options.
 	 * @param options.exceptIds Window ids to skip even before the filter runs.
@@ -1312,11 +1465,14 @@ export class WindowManager {
 	 * rolling the loop themselves.
 	 *
 	 * @public
-	 * @since 0.18.0
 	 */
 	public minimizeAll(): Window[] {
 		const minimized: Window[] = [];
 		for ( const win of this._stack.slice() ) {
+			const winDesktop = win.config.desktopId || this._activeDesktopId;
+			if ( winDesktop !== this._activeDesktopId ) {
+				continue;
+			}
 			if ( win.state === 'minimized' ) {
 				continue;
 			}
@@ -1347,7 +1503,6 @@ export class WindowManager {
 	 * selectively.
 	 *
 	 * @public
-	 * @since 0.18.0
 	 */
 	public restoreFrom( windows: Window[] ): void {
 		if ( ! Array.isArray( windows ) ) {
@@ -1356,6 +1511,10 @@ export class WindowManager {
 		const live = new Set( this._stack );
 		for ( const win of windows ) {
 			if ( ! live.has( win ) ) {
+				continue;
+			}
+			const winDesktop = win.config.desktopId || this._activeDesktopId;
+			if ( winDesktop !== this._activeDesktopId ) {
 				continue;
 			}
 			if ( win.state !== 'minimized' ) {
@@ -1385,10 +1544,11 @@ export class WindowManager {
 	 * Mirrors the wallpaper-click gesture exactly, in one call.
 	 *
 	 * @public
-	 * @since 0.18.0
 	 */
 	public toggleShowDesktop(): boolean {
-		const all = this._stack.slice();
+		const all = this._stack.filter(
+			( w ) => ( w.config.desktopId || this._activeDesktopId ) === this._activeDesktopId,
+		);
 		if ( all.length === 0 ) {
 			return false;
 		}
@@ -1432,6 +1592,27 @@ export class WindowManager {
 	}
 	public exitOverview( selected?: Window, maximize = false ): void {
 		exitOverview( this, selected, maximize );
+	}
+
+	/**
+	 * Release resources this instance owns outside its own DOM
+	 * subtree: the document-level overview key handler and any
+	 * pending overview transition timers. Removing `desktop` from the
+	 * DOM does not reach either of those — a caller discarding a
+	 * manager instance (tests; a future SPA-style unmount) that skips
+	 * this leaves a real `setTimeout` to fire later and reach for
+	 * globals that may already be gone, plus a `keydown` listener on
+	 * `document` that keeps responding on behalf of a manager nothing
+	 * else references.
+	 *
+	 * Safe to call unconditionally — a no-op when overview was never
+	 * entered or was already cleanly exited.
+	 */
+	public destroy(): void {
+		if ( this._overviewActive ) {
+			exitOverview( this );
+		}
+		cancelOverviewTimers( this );
 	}
 
 	/**
@@ -1487,20 +1668,32 @@ export class WindowManager {
 	 */
 	public snapshot(): Session {
 		const focused = this.getFocused();
-		// Native windows aren't persistable — their `render` callback
-		// is a JS closure, not something we can serialize and
-		// rehydrate server-side. Skip them from both the window list
-		// and the focused id so a freshly booted shell doesn't try
-		// (and fail) to restore a window it can't reconstruct.
-		const persistable = this._stack.filter( ( w ) => ! w.config.native );
+		// A native window's `render` callback is a JS closure and can't
+		// be serialized — but it doesn't need to be. Every native
+		// window that can be reopened is addressable by id through the
+		// native-window registry (or the shell's own dispatcher for
+		// built-ins like OS Settings), so the session persists the id
+		// and the restore path reconstructs from there. Windows whose
+		// id is no longer registered at restore time — a deactivated
+		// plugin — are skipped by the opener.
+		//
+		// Ephemeral windows are the real opt-out: their URL doesn't
+		// survive a session (editor-preview nonces), so they're skipped
+		// from both the window list and the focused id.
+		const persistable = this._stack.filter( ( w ) => ! w.config.ephemeral );
 		const windows: SessionWindow[] = persistable.map( ( w ) => {
 			const snap = w.getSnapshot();
 			const externalTabs = w.getExternalTabsSnapshot();
+			const native = !! w.config.native;
 			return {
 				id: w.id,
 				baseId: w.config.baseId || w.id,
 				desktopId: w.config.desktopId || this._activeDesktopId,
-				url: w.getCurrentUrl(),
+				...( native ? { native: true } : {} ),
+				// Native windows have no navigable URL — `config.url` is
+				// the `#slug` marker they were opened with, and
+				// `getCurrentUrl()` reads an iframe they don't have.
+				url: native ? w.config.url || `#${ w.id }` : w.getCurrentUrl(),
 				title: w.config.title,
 				icon: w.config.icon,
 				state: snap.state,
@@ -1511,7 +1704,7 @@ export class WindowManager {
 				...( externalTabs.length > 0 ? { externalTabs } : {} ),
 			};
 		} );
-		const focusedId = focused && ! focused.config.native ? focused.id : '';
+		const focusedId = focused && ! focused.config.ephemeral ? focused.id : '';
 
 		return {
 			windows,
@@ -1520,6 +1713,36 @@ export class WindowManager {
 			focused: focusedId,
 			updated: Math.floor( Date.now() / 1000 ),
 		};
+	}
+
+	/**
+	 * Stage per-window config to merge into the NEXT window opened
+	 * under each id, then forget it.
+	 *
+	 * Session restore needs this for native windows. A native window
+	 * is reopened by asking its owner to open it —
+	 * `nativeWindows.openById( id )`, or the shell's own
+	 * `openOsSettings()` — and those callers build their own
+	 * `manager.open()` config from the registry. There is no argument
+	 * to thread saved geometry, desktop assignment, or minimized state
+	 * through, and no reason for every opener to grow one: the
+	 * restore-time values belong to the restore, not to the window's
+	 * definition.
+	 *
+	 * Seeding them here inverts that — restore states what it wants
+	 * before triggering the opens, and `createWindow` applies it to
+	 * whichever window claims each id. Entries are consumed on first
+	 * use, so a later user-initiated open of the same window is
+	 * unaffected. Ids that never open (a plugin deactivated since the
+	 * session was saved) simply leave a stale entry behind, which the
+	 * next `seedWindowRestoreState` call clears.
+	 *
+	 * Call BEFORE the opens it should apply to.
+	 */
+	public seedWindowRestoreState(
+		entries: Record< string, Partial< WindowConfig > >,
+	): void {
+		this._pendingRestoreState = new Map( Object.entries( entries ) );
 	}
 
 	public seedDesktops( desktops: Desktop[], activeDesktopId: string ): void {

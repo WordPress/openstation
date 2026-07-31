@@ -11,8 +11,6 @@
  * Emits `wpd-role-toggle { slug, selected }` whenever a chip is
  * clicked. The parent owns the source of truth — the component
  * just reflects the `selected` CSV attribute.
- *
- * @since 0.18.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -32,7 +30,7 @@ export class WpdRolePicker extends Component {
 		summary:
 			'Chip multi-select for WordPress roles. Reads eligible roles from desktopModeConfig.shareEligibleRoles; emits wpd-role-toggle { slug, selected } on every change.',
 		status: 'experimental',
-		since: '0.18.0',
+		since: '0.8.5',
 		props: [
 			{
 				name: 'selected',

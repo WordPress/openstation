@@ -6,8 +6,6 @@
  * the native-window opener) are injected at boot via
  * {@link installOpenDeps} so the opener module stays free of a
  * direct import on `desktop.ts` (which would create a cycle).
- *
- * @since 0.9.0
  */
 
 import { doAction } from '../hooks';
@@ -47,7 +45,7 @@ export async function openFile(
 		return false;
 	}
 
-	const opener = resolveOpener( file.type() );
+	const opener = resolveOpener( file.type(), file );
 	if ( ! opener ) {
 		doAction( 'desktop-mode.files.open-failed', {
 			reason: 'no-opener',

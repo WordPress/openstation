@@ -93,7 +93,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 	// ----------------------------------------------------------------
 
 	/**
-	 * Opt-in Beta as of 0.10.0: an admin who has not turned the native
+	 * Opt-in Beta: an admin who has not turned the native
 	 * Plugins window on gets the classic iframe. Opting in opens the gate.
 	 *
 	 * @covers ::desktop_mode_plugins_window_user_can_use
@@ -217,7 +217,7 @@ class Tests_DesktopMode_PluginsWindowRegistration extends WP_UnitTestCase {
 
 	/**
 	 * Default OS Settings payload must include the flag with its
-	 * documented default (false / opt-in Beta as of 0.10.0).
+	 * documented default (false / opt-in Beta).
 	 *
 	 * @covers ::desktop_mode_default_os_settings
 	 */

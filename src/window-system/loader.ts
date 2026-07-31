@@ -2,7 +2,7 @@
  * Main-bundle loader for the lazy `window-system[.min].js` bundle.
  *
  * Ships in `desktop.min.js`. `WindowManager.open()` / `openNew()`
- * (which became async in 0.8.4) call `ensureWindowSystemLoaded()`
+ * (both async) call `ensureWindowSystemLoaded()`
  * before constructing any `Window` instance — the factory is
  * published on `window.desktopModeWindowSystem` by the lazy
  * bundle's entry.
@@ -21,8 +21,6 @@
  *     guarantee that the factory is registered. Resolves
  *     immediately on the sync fast path (already loaded OR no URL
  *     configured — the test-environment fallback).
- *
- * @since 0.8.4
  */
 
 import type { WindowSystemApi } from './types';
@@ -130,11 +128,11 @@ export async function ensureWindowSystemLoaded(
 		//     reads `window.desktopModeWindowSystem`, which is the
 		//     right failure mode.
 		//
-		//   - Mis-configured production deploys. Returning the
-		//     undefined slot causes the caller's
-		//     `factory.createWindow( … )` to throw immediately
-		//     with a clear stack — better than silently
-		//     rejecting and leaving the user with a hung click.
+		//   - Mis-configured production deploys. We throw an
+		//     explicit, descriptive Error (rejecting the returned
+		//     promise) — far easier to diagnose than returning the
+		//     undefined slot and letting the caller crash later
+		//     with an opaque TypeError on `factory.createWindow( … )`.
 		const fn = window.desktopModeWindowSystem;
 		if ( fn ) {
 			return fn;

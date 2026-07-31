@@ -48,6 +48,8 @@ describe( 'Dock — dock-peek instance fan-out for synthesized icon tile', () =>
 				windows.find( ( w ) => w.id === id ),
 			getAllByBaseId: ( baseId: string ) =>
 				windows.filter( ( w ) => w.config.baseId === baseId ),
+			getAllByBaseIdOnActiveDesktop: ( baseId: string ) =>
+				windows.filter( ( w ) => w.config.baseId === baseId ),
 			getActiveDesktopId: () => 'default-1',
 		} as unknown as WindowManager;
 

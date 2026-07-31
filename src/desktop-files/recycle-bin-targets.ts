@@ -22,20 +22,23 @@
  * broadcast.
  *
  * Re-discovery: the wallpaper's bin tile is rebuilt on every store
- * change (the FilesLayer's wholesale repaint). We listen for both
- * `desktop-mode-files-changed` (store mutations) and
- * `HOOKS.DOCK_AFTER_RENDER` (legacy dock rebuild) and a
+ * change (the FilesLayer's wholesale repaint). We listen for
+ * `desktop-mode-files-changed` (store mutations),
+ * `HOOKS.DESKTOP_ICONS_RENDERED` (legacy icon-rail rebuild), and
+ * `HOOKS.DOCK_AFTER_RENDER` (legacy dock rebuild), plus a
  * `MutationObserver` on the wallpaper area as a belt-and-braces
  * fallback so the drop target is guaranteed to point at the LIVE
  * DOM element.
- *
- * @since 0.18.0
  */
 
 import { __ } from '../i18n';
 import { addAction, HOOKS } from '../hooks';
 import type { DragManagerApi, DragSession } from '../drag';
 import { trashByFileType } from './trash';
+import {
+	recycleBinPayloadAccepts,
+	recycleBinPayloadDrop,
+} from './recycle-bin-payloads';
 import type { RestPlacementShape } from './rest';
 import type { ShortcutDragData } from './drag-payloads';
 
@@ -75,7 +78,7 @@ const RECYCLE_BIN_WINDOW_ID = 'desktop-mode-recycle-bin';
  * preference. The first matching element wins.
  *
  *   - `.desktop-mode-file-tile[data-file-ref="…"]` — the unified
- *     files layer's representation (current default since 0.9.0).
+ *     files layer's representation (current default).
  *   - `[data-icon-id="…"]` — legacy desktop-icons rail
  *     (`src/desktop-icons.ts`), still rendered when the files
  *     layer is absent.
@@ -198,7 +201,12 @@ function registerOn(
 				const data = payload.data as Partial< ShortcutDragData >;
 				return isTrashableShortcut( data );
 			}
-			return false;
+			// Payload types this module doesn't own (the pinned-notes
+			// `'note'` drag today) can be claimed by a registered bin
+			// payload handler — the drop-target registry allows one
+			// target per element, so other features route their trash
+			// gesture through these shared targets.
+			return recycleBinPayloadAccepts( payload );
 		},
 		onEnter: () => {
 			el.setAttribute( TRASH_DROP_ACTIVE_ATTR, '' );
@@ -206,11 +214,17 @@ function registerOn(
 		onLeave: () => {
 			el.removeAttribute( TRASH_DROP_ACTIVE_ATTR );
 		},
-		onDrop: ( session ) => {
+		onDrop: ( session, ev ) => {
 			el.removeAttribute( TRASH_DROP_ACTIVE_ATTR );
 			if ( isDesktopFilePayload( session ) ) {
 				const placement = session.payload.data.placement;
 				void trashByFileType( placement );
+				return;
+			}
+			if (
+				session.payload.type !== 'shortcut' &&
+				recycleBinPayloadDrop( session, ev )
+			) {
 				return;
 			}
 			if ( isShortcutPayload( session ) ) {
@@ -250,8 +264,9 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 	// Re-register the bin TILE drop target whenever the wallpaper
 	// might have rebuilt it. The unified files layer rebuilds tile
 	// DOM on every store change (`desktop-mode-files-changed`); the
+	// legacy icon rail rebuilds on `DESKTOP_ICONS_RENDERED`; the
 	// legacy dock rail rebuilds on `DOCK_AFTER_RENDER`. We listen to
-	// both and re-discover via `findBinTile()`. Idempotent
+	// all three and re-discover via `findBinTile()`. Idempotent
 	// re-registration via the registry's id-based replacement.
 	const reprobeTile = (): void => {
 		const el = findBinTile();
@@ -282,9 +297,12 @@ export function installRecycleBinDropTargets( dragManager: DragManagerApi ): voi
 	document.addEventListener( 'desktop-mode-files-changed', reprobeTile );
 
 	// Legacy desktop-icons rail rebuild signal — `renderDesktopIcons`
-	// fires this CustomEvent (and the dock-after-render hook) on each
-	// render.
-	document.addEventListener( 'desktop-mode-desktop-icons-rendered', reprobeTile );
+	// fires this hook action on each render that changed the DOM.
+	addAction(
+		HOOKS.DESKTOP_ICONS_RENDERED,
+		'desktop-mode/files/recycle-bin-icons-target',
+		reprobeTile,
+	);
 	addAction(
 		HOOKS.DOCK_AFTER_RENDER,
 		'desktop-mode/files/recycle-bin-dock-target',

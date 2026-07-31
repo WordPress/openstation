@@ -5,8 +5,7 @@
  * instead of through the full `init()` happy path. Keep the predicate
  * pure — no DOM, no manager, no side effects.
  *
- * The five-case truth table (mirrors the comment block in
- * `desktop.ts`):
+ * The six-case truth table:
  *
  *   1. `fromPortal=false`
  *        → user navigated to a specific admin URL directly. Open it.
@@ -29,12 +28,18 @@
  *        → user turned the default window off. Show an empty desk.
  *
  *   5. `fromPortal=true` + `fromPortalIntent=false` + session empty
- *      + default enabled
+ *      + default enabled + default is a normal admin URL (not a
+ *      `native:<id>` marker)
  *        → clean slate, default window set. The portal already
  *          forwarded to its URL, so opening `currentPage` populates
  *          the desktop with the user's chosen startup.
  *
- * @since 0.8.4
+ *   6. `fromPortal=true` + `fromPortalIntent=false` + session empty
+ *      + default enabled + default is a `native:<id>` marker
+ *        → suppress. Native markers aren't redirectable, so the
+ *          portal sent the user to admin home — `currentPage` is NOT
+ *          the chosen startup. `desktop.ts` opens the native window
+ *          itself after the manager and native registry are wired.
  */
 
 export interface AutoOpenInputs {

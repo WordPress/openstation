@@ -16,7 +16,6 @@
  * activity indicator picks it up.
  *
  * @public
- * @since 0.9.0
  */
 
 import { trackedFetch } from '../tracked-fetch';
@@ -414,7 +413,6 @@ export interface UpdatePluginResult {
  * through `enqueueUpdateJob` to serialize.
  *
  * @public
- * @since 0.18.0
  */
 export async function updateInstalledPlugin(
 	plugin: InstalledPlugin,
@@ -461,7 +459,6 @@ export async function updateInstalledPlugin(
  * new value.
  *
  * @public
- * @since 0.21.0
  */
 export async function toggleAutoUpdate(
 	plugin: InstalledPlugin,

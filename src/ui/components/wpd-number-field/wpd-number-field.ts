@@ -28,8 +28,6 @@
  * isn't a valid number yet") should use `<wpd-text-field>`
  * directly — this component deliberately drops non-finite input
  * from its event stream.
- *
- * @since 0.11.0
  */
 
 import {
@@ -61,7 +59,7 @@ export class WpdNumberField extends Component {
 		summary:
 			'Labelled numeric input. Wraps <wpd-text-field> semantics but forces type="number" and emits already-parsed numbers, clamping to min/max on commit.',
 		status: 'stable',
-		since: '0.11.0',
+		since: '0.5.0',
 		props: [
 			{ name: 'label', type: 'string', description: 'Visible label above the input.' },
 			{ name: 'value', type: 'number (string)', description: 'Current numeric value; two-way reflected.' },
@@ -98,9 +96,9 @@ export class WpdNumberField extends Component {
 			},
 		],
 		cssProps: [
-			{ name: '--desktop-mode-text', description: 'Text colour.' },
-			{ name: '--desktop-mode-muted', description: 'Label + suffix colour.' },
-			{ name: '--desktop-mode-border', description: 'Input outline.' },
+			{ name: '--wpd-fg', description: 'Text colour.' },
+			{ name: '--wpd-fg-muted', description: 'Label + suffix colour.' },
+			{ name: '--wpd-border', description: 'Input outline.' },
 			{ name: '--desktop-mode-window-bg', description: 'Input background.' },
 		],
 		example: html`

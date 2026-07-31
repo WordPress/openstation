@@ -13,9 +13,12 @@
 	width: 100%;
 	height: 100%;
 	background: var( --wpd-surface, #f7f8fb );
-	color: var( --wpd-text, #1a1f2b );
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-		'Helvetica Neue', Arial, sans-serif;
+	color: var( --wpd-fg, #1a1f2b );
+	font-family: var(
+		--wpd-font,
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif
+	);
 }
 
 /* ---------- Toolbar ------------------------------------------------- */
@@ -26,7 +29,7 @@
 	gap: 8px;
 	padding: 10px 14px;
 	border-bottom: 1px solid var( --wpd-border, #e2e6ec );
-	background: var( --wpd-surface-2, #fff );
+	background: var( --wpd-surface-elevated, #fff );
 }
 
 .desktop-mode-content-graph__header-row {
@@ -68,7 +71,7 @@
 	border: 1px solid var( --wpd-border, #d8dde4 );
 	border-radius: 999px;
 	background: transparent;
-	color: var( --wpd-text-muted, #5a6473 );
+	color: var( --wpd-fg-muted, #5a6473 );
 	font-size: 12px;
 	cursor: pointer;
 	transition: background 0.12s ease, border-color 0.12s ease,
@@ -77,7 +80,7 @@
 
 .desktop-mode-content-graph__chip:hover {
 	background: var( --wpd-hover, rgba( 79, 139, 243, 0.08 ) );
-	color: var( --wpd-text, #1a1f2b );
+	color: var( --wpd-fg, #1a1f2b );
 }
 
 .desktop-mode-content-graph__chip.is-active {
@@ -136,7 +139,7 @@
 	margin: 0;
 	padding: 4px;
 	list-style: none;
-	background: var( --wpd-surface-2, #fff );
+	background: var( --wpd-surface-elevated, #fff );
 	border: 1px solid var( --wpd-border, #d8dde4 );
 	border-radius: 8px;
 	box-shadow: 0 6px 18px rgba( 17, 24, 39, 0.08 );
@@ -174,7 +177,7 @@
 
 .desktop-mode-content-graph__search-type {
 	font-size: 11px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 }
@@ -199,7 +202,7 @@
 	padding: 5px 10px;
 	border: 1px solid var( --wpd-border, #d8dde4 );
 	border-radius: 6px;
-	background: var( --wpd-surface-2, #fff );
+	background: var( --wpd-surface-elevated, #fff );
 	color: inherit;
 	font-size: 12px;
 	cursor: pointer;
@@ -220,7 +223,7 @@
 .desktop-mode-content-graph__toolbar-status {
 	margin-left: 8px;
 	font-size: 11px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	font-variant-numeric: tabular-nums;
 }
 
@@ -242,11 +245,14 @@
 	padding: 5px 12px;
 	border-radius: 999px;
 	background: var( --wpd-cg-cluster-color, #2c6be5 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	font-size: 14px;
 	font-weight: 700;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-		'Helvetica Neue', Arial, sans-serif;
+	font-family: var(
+		--wpd-font,
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif
+	);
 	white-space: nowrap;
 	box-shadow: 0 0 0 1.5px rgba( 255, 255, 255, 0.85 ),
 		0 1px 3px rgba( 0, 0, 0, 0.18 );
@@ -346,7 +352,7 @@
 	padding: 4px 8px 4px 4px;
 	border-radius: 6px;
 	cursor: pointer;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	font-size: 12px;
 	font-weight: 500;
 	max-width: 100%;
@@ -356,7 +362,7 @@
 
 .desktop-mode-content-graph__panel-breadcrumb-back:hover {
 	background: var( --wpd-hover, rgba( 0, 0, 0, 0.05 ) );
-	color: var( --wpd-text, #1a1f2b );
+	color: var( --wpd-fg, #1a1f2b );
 }
 
 .desktop-mode-content-graph__panel-breadcrumb-arrow {
@@ -380,7 +386,7 @@
 	width: 320px;
 	flex-shrink: 0;
 	border-left: 1px solid var( --wpd-border, #e2e6ec );
-	background: var( --wpd-surface-2, #fff );
+	background: var( --wpd-surface-elevated, #fff );
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -470,7 +476,7 @@
 .desktop-mode-content-graph__panel-meta {
 	margin: 4px 0 0;
 	font-size: 11px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 }
@@ -478,7 +484,7 @@
 .desktop-mode-content-graph__panel-close {
 	background: transparent;
 	border: 0;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	cursor: pointer;
 	padding: 2px;
 	border-radius: 4px;
@@ -512,7 +518,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	background: var( --wpd-surface-2, #fff );
+	background: var( --wpd-surface-elevated, #fff );
 	/*
 	 * iOS navigation curve — quick out, slow in. 240ms matches
 	 * UIKit's default push/pop duration closely enough for the
@@ -558,7 +564,7 @@
 	display: block;
 	font-size: 10px;
 	font-weight: 600;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	margin-bottom: 4px;
@@ -610,7 +616,7 @@
 
 .desktop-mode-content-graph__panel-date-value {
 	font-size: 12px;
-	color: var( --wpd-text, #1a1f2b );
+	color: var( --wpd-fg, #1a1f2b );
 	font-variant-numeric: tabular-nums;
 }
 
@@ -642,12 +648,12 @@
 	font-size: 16px;
 	font-weight: 600;
 	font-variant-numeric: tabular-nums;
-	color: var( --wpd-text, #1a1f2b );
+	color: var( --wpd-fg, #1a1f2b );
 }
 
 .desktop-mode-content-graph__panel-stat-label {
 	font-size: 10px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -670,7 +676,7 @@
 .desktop-mode-content-graph__btn--primary {
 	border-color: var( --wpd-accent, #2c6be5 );
 	background: var( --wpd-accent, #2c6be5 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 .desktop-mode-content-graph__btn--primary:hover {
@@ -691,7 +697,7 @@
 .desktop-mode-content-graph__panel-empty {
 	margin: 0;
 	font-size: 12px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	font-style: italic;
 }
 
@@ -735,7 +741,7 @@
 
 .desktop-mode-content-graph__panel-detail-handle span {
 	font-size: 11px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -745,7 +751,7 @@
 	margin: 0;
 	font-size: 13px;
 	line-height: 1.5;
-	color: var( --wpd-text, #1a1f2b );
+	color: var( --wpd-fg, #1a1f2b );
 }
 
 .desktop-mode-content-graph__panel-detail-link {
@@ -766,7 +772,7 @@
 .desktop-mode-content-graph__panel-detail-html {
 	font-size: 13px;
 	line-height: 1.5;
-	color: var( --wpd-text, #1a1f2b );
+	color: var( --wpd-fg, #1a1f2b );
 	background: var( --wpd-surface, #f7f8fb );
 	border: 1px solid var( --wpd-border, #eef0f4 );
 	border-radius: 6px;
@@ -800,7 +806,7 @@
 
 .desktop-mode-content-graph__panel-detail-quote span {
 	font-size: 12px;
-	color: var( --wpd-text-muted, #4b5563 );
+	color: var( --wpd-fg-muted, #4b5563 );
 }
 
 .desktop-mode-content-graph__panel-detail-thumb {
@@ -835,13 +841,13 @@
 	font-weight: 500;
 	border-radius: 999px;
 	background: var( --wpd-surface, #f1f3f7 );
-	color: var( --wpd-text-muted, #4b5563 );
+	color: var( --wpd-fg-muted, #4b5563 );
 	border: 1px solid var( --wpd-border, #e2e6ec );
 }
 
 .desktop-mode-content-graph__panel-badge--blue {
 	background: rgba( 44, 107, 229, 0.12 );
-	color: #1f4ea8;
+	color: var( --wpd-accent-strong, #1f4ea8 );
 	border-color: rgba( 44, 107, 229, 0.35 );
 }
 
@@ -897,7 +903,7 @@
 .desktop-mode-content-graph__panel-chip-count {
 	font-variant-numeric: tabular-nums;
 	font-size: 11px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 }
 
 .desktop-mode-content-graph__panel-author-list {
@@ -946,7 +952,7 @@
 
 .desktop-mode-content-graph__panel-milestone-key {
 	font-size: 12px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 }
 
 .desktop-mode-content-graph__panel-replies {
@@ -979,14 +985,14 @@
 
 .desktop-mode-content-graph__panel-reply header span {
 	font-size: 11px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 }
 
 .desktop-mode-content-graph__panel-reply p {
 	margin: 0;
 	font-size: 12px;
 	line-height: 1.45;
-	color: var( --wpd-text-muted, #4b5563 );
+	color: var( --wpd-fg-muted, #4b5563 );
 }
 
 .desktop-mode-content-graph__panel-detail-loading {
@@ -995,7 +1001,7 @@
 	gap: 8px;
 	padding: 8px 0;
 	font-size: 12px;
-	color: var( --wpd-text-muted, #6b7280 );
+	color: var( --wpd-fg-muted, #6b7280 );
 }
 
 .desktop-mode-content-graph__panel-stat-row {
@@ -1027,8 +1033,14 @@
 	gap: 2px;
 	max-width: 240px;
 	padding: 6px 10px;
-	background: var( --wpd-surface-2, #1a1f2b );
-	color: #fff;
+	background: var(
+		--desktop-mode-tooltip-bg,
+		var( --wpd-surface-elevated, #1a1f2b )
+	);
+	color: var(
+		--desktop-mode-tooltip-fg,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	border-radius: 6px;
 	box-shadow: 0 4px 14px rgba( 17, 24, 39, 0.18 );
 	font-size: 12px;

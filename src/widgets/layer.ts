@@ -20,8 +20,6 @@
  * (which start at z-index 100). The column never intercepts window
  * drag / resize — only its own cards + `+` button are interactive,
  * everything else passes through.
- *
- * @since 0.7.0
  */
 
 import { doAction, HOOKS } from '../hooks';
@@ -30,9 +28,11 @@ import * as registry from './registry';
 import { openWidgetPicker, refreshWidgetPicker } from './picker';
 import { applyGeometry, buildFrame, type Frame } from './frame';
 import {
+	loadDockedHeights,
 	loadEnabledIds,
 	loadGeometry,
 	readRawEnabled,
+	saveDockedHeights,
 	saveEnabledIds,
 	saveGeometry,
 } from './state';
@@ -63,6 +63,7 @@ export class WidgetLayer {
 	private pluginUrl: string;
 	private enabledIds: string[];
 	private geometry: Record< string, WidgetGeometry >;
+	private dockedHeights: Record< string, number >;
 	private mounted: Map< string, MountedWidget > = new Map();
 
 	/**
@@ -89,6 +90,7 @@ export class WidgetLayer {
 		this.pluginUrl = pluginUrl;
 		this.enabledIds = loadEnabledIds();
 		this.geometry = loadGeometry();
+		this.dockedHeights = loadDockedHeights();
 		this.floatingHost = floatingHost ?? root.parentElement ?? root;
 
 		this.listEl = document.createElement( 'div' );
@@ -164,6 +166,12 @@ export class WidgetLayer {
 		if ( this.geometry[ id ] ) {
 			delete this.geometry[ id ];
 			saveGeometry( this.geometry );
+		}
+		// Same for the docked-height record — a re-add starts at the
+		// widget's natural (content-driven) height.
+		if ( this.dockedHeights[ id ] !== undefined ) {
+			delete this.dockedHeights[ id ];
+			saveDockedHeights( this.dockedHeights );
 		}
 		this.unmountById( id );
 		this.paintEmptyState();
@@ -271,10 +279,16 @@ export class WidgetLayer {
 		const initialGeometry = def.movable === true ? this.geometry[ id ] : undefined;
 		const frame = buildFrame(
 			def,
-			{ floatingParent: this.floatingHost, geometry: initialGeometry },
+			{
+				floatingParent: this.floatingHost,
+				geometry: initialGeometry,
+				dockedHeight: this.dockedHeights[ id ],
+			},
 			{
 				onRemove: () => this.remove( id ),
 				onGeometryChanged: ( geom ) => this.persistGeometry( id, geom ),
+				onDockedHeightChanged: ( height ) =>
+					this.persistDockedHeight( id, height ),
 				onLiberate: ( geom ) => this.liberate( id, geom ),
 				onRedock: () => this.redock( id ),
 			},
@@ -443,9 +457,6 @@ export class WidgetLayer {
 	 * removed as part of the same write so CSS rules that depend
 	 * on it (re-dock button visibility, absolute positioning) flip
 	 * back in one paint.
-	 *
-	 * @since 0.7.0 (private)
-	 * @since 0.25.0 (public)
 	 */
 	public redock( id: string ): void {
 		const record = this.mounted.get( id );
@@ -461,13 +472,16 @@ export class WidgetLayer {
 		}
 		// Strip the inline geometry so the card renders back at its
 		// flex-column natural size — no phantom left/top offsets
-		// bleed into column layout.
+		// bleed into column layout. A persisted docked height (from a
+		// previous column resize) is re-applied instead of cleared.
 		const card = record.frame.card;
 		card.classList.remove( 'desktop-mode-widgets__card--floating' );
 		card.style.left = '';
 		card.style.top = '';
 		card.style.width = '';
-		card.style.height = '';
+		const dockedHeight = this.dockedHeights[ id ];
+		card.style.height =
+			dockedHeight !== undefined ? `${ dockedHeight }px` : '';
 		// Re-append before the add-tile so the card lands at the
 		// bottom of the existing stack (matches the new-widget
 		// insertion order — "most recently added / redocked is last").
@@ -478,6 +492,14 @@ export class WidgetLayer {
 	private persistGeometry( id: string, geometry: WidgetGeometry ): void {
 		this.geometry[ id ] = geometry;
 		saveGeometry( this.geometry );
+	}
+
+	private persistDockedHeight( id: string, height: number ): void {
+		if ( ! Number.isFinite( height ) || height <= 0 ) {
+			return;
+		}
+		this.dockedHeights[ id ] = height;
+		saveDockedHeights( this.dockedHeights );
 	}
 
 	/**

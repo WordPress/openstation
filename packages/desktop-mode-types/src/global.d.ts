@@ -8,10 +8,14 @@
  * full `WpDesktopPublicApi` surface through `wp.desktop.*` with
  * no import.
  *
- * Mirrors the existing in-tree `src/global.d.ts` but namespaced
- * for npm distribution.
- *
- * @since 0.8.1
+ * Intentionally diverges from the in-tree `src/global.d.ts`
+ * (which only merges an optional `desktop?` slot into a shared
+ * `WpGlobal` interface): this package additionally declares a
+ * bare, non-optional `const wp.desktop` ambient. Plugin bundles
+ * consuming this package run only after the shell has booted —
+ * `window.wp.desktop` is guaranteed to exist — so the README's
+ * bare `wp.desktop.*` examples type-check without optional
+ * chaining or guards.
  */
 
 import type { WpDesktopPublicApi } from '../../../src/desktop';

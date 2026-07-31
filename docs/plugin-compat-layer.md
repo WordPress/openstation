@@ -31,9 +31,9 @@ When it isn't: plugins that compile literal pixel values into their CSS (SCSS in
 
 ### Tier 2 — Runtime offset neutralizer
 
-**File**: `includes/render.php` → `desktop_mode_chromeless_offset_neutralizer_script()`.
+**File**: `includes/render/chromeless-bridge.php` → `desktop_mode_chromeless_offset_neutralizer_script()`.
 
-Inline script injected at `admin_head` priority 1. On `DOMContentLoaded` and again at `load`, walks every positioned element (`fixed | sticky | absolute`) and overrides any `top` value matching the admin-bar offset set (defaults: `32px`, `46px`) to `0px !important`.
+Inline script injected at `admin_head` priority 1. Runs one full walk at `DOMContentLoaded` over every positioned element (`fixed | sticky | absolute`), overriding any `top` value matching the admin-bar offset set (defaults: `32px`, `46px`) to `0px !important`; a `MutationObserver` then corrects late-added nodes (React-mounted components, etc.) as they appear. A second full walk at `load` only runs as a fallback on browsers without `MutationObserver`.
 
 Match is exact-pixel — we don't catch `top: 33px`. False positives are possible but unlikely; a plugin would have to use `32px` for an unrelated reason AND need that exact value to remain inside chromeless.
 
@@ -86,7 +86,7 @@ When it isn't: there is no when-it-isn't here. If a generic mechanism doesn't re
 
 ## The dock side: menu data adaptations
 
-Some plugins register WordPress admin menu entries in shapes that our dock can't naively render. These adaptations live in `includes/helpers.php` (`desktop_mode_build_dock_items()`, `desktop_mode_menu_item_url()`) and have PHPUnit coverage.
+Some plugins register WordPress admin menu entries in shapes that our dock can't naively render. These adaptations live in `includes/core/payload.php` (`desktop_mode_build_dock_items()`, `desktop_mode_menu_item_url()`) and have PHPUnit coverage.
 
 ### Embedded query parameters in menu slugs
 
@@ -95,6 +95,16 @@ Some plugins register WordPress admin menu entries in shapes that our dock can't
 **Fix**: `desktop_mode_menu_item_url()` splits the slug on the first `&`, encodes only the page portion, and rebuilds the URL via `add_query_arg()` so each value is encoded once and `&` separators stay literal.
 
 **Plugins this addresses**: every wc-admin React route (Customers, Analytics, Marketing, …); also Yoast SEO and other plugins that pack paths into menu slugs.
+
+### Legacy file-path menu slugs (`vendor/file.php`)
+
+Old-school plugins register their admin page with a file-path slug — `add_management_page( …, 'wp-sweep/admin.php' )` — instead of a plain slug. The slug contains `.php`, so a naive "does it look like an admin file?" test routes it to `admin_url( 'wp-sweep/admin.php' )`, a 404. WordPress actually serves the page at `tools.php?page=wp-sweep/admin.php` (the slug is a key in the `$_parent_pages` global, exactly like a plain plugin-page slug).
+
+**Fix**: both URL resolvers — `desktop_mode_menu_item_url()` (dock / window tabs) and `desktop_mode_build_command_menu_map()` (command palette) — check `$_parent_pages` for the raw slug **before** the direct-file test. A registered slug goes through the canonical `menu_page_url()`-style resolution regardless of what characters it contains; only unregistered `.php` slugs are treated as real files under `wp-admin/`.
+
+**Refinement**: the registered-page check alone over-matched. URL-style slugs — ACF's `add_menu_page( …, 'edit.php?post_type=acf-field-group' )` — *also* land in `$_parent_pages`, yet reference a real `wp-admin/` file; routing them through `admin.php?page=…` makes core's dispatcher die with "Cannot load edit.php?post_type=acf-field-group." The resolvers now apply the same tiebreaker classic admin's `menu-header.php` uses: `desktop_mode_is_admin_file_slug()` strips the query portion and checks whether the remaining path exists under `wp-admin/`. A real admin file stays a direct link even when registered; a registered non-file slug (WP-Sweep) still resolves through its parent.
+
+**Plugins this addresses**: WP-Sweep; any plugin still using the pre-3.0-era file-path registration style; ACF and any plugin registering URL-style menu slugs (`edit.php?post_type=…`).
 
 ### `esc_url_raw()` for JSON contexts
 
@@ -120,7 +130,7 @@ Plugins (notably WooCommerce's `wc-addons` Extensions row) register `menu_title 
 
 Core does not register `theme-install.php` as a submenu of `themes.php` — classic admin only surfaces it through the in-page "Add Theme" `.page-title-action` button at the top of `themes.php`. Inside chromeless that button scrolls out of view on first paint (the focus-target heuristic on the visible theme grid steals the scroll position), leaving no entry point to the install flow.
 
-**Fix**: `desktop_mode_inject_appearance_tabs()` (in `includes/themes-tabs.php`) hooks `desktop_mode_dock_item` and prepends `{ title: 'Add Theme', url: theme-install.php }` to the Appearance dock item's submenu when the current user has `install_themes`. The chromeless CSS rule that previously kept the page-title-action visible on `themes.php` has been removed (`assets/css/chromeless.css`) so the in-page button stays hidden — the tab is the canonical entry point.
+**Fix**: `desktop_mode_inject_appearance_tabs()` (in `includes/themes-tabs.php`) hooks `desktop_mode_dock_item` and prepends `{ title: 'Add Theme', url: theme-install.php }` to the Appearance dock item's submenu when the current user has `install_themes`. An explicit per-page rule in `assets/css/chromeless.css` (`.desktop-mode-chromeless.themes-php .wrap > .page-title-action { display: none; }`) hides the in-page button on `themes.php` — the tab is the canonical entry point, while the global rule keeping `.page-title-action` visible on other pages stays intact.
 
 Resulting tab order: Appearance | Add Theme | Editor | Fonts | …
 
@@ -230,7 +240,7 @@ Decision tree, in order:
 1. **Does the plugin use `var(...)` to read an admin-chrome dimension?** → Tier 1 already covers it. Verify by inspecting the iframe's computed styles.
 2. **Is the offending CSS rule a `top: <pixel>` on a positioned element, with an admin-bar-height pixel value?** → Tier 2 covers it. Verify the value is in the default set or extend via `desktop_mode_chromeless_admin_bar_top_values`.
 3. **Is the offending CSS rule selector-targetable and self-contained?** → Tier 3 — write a scoped CSS override in `chromeless.css`. Follow the docblock template above.
-4. **Is the breakage in menu data, not CSS?** → Add a dock-side adaptation in `includes/helpers.php` and a PHPUnit test under `tests/phpunit/tests/desktopModeBuildDockItems.php` (or `desktopModeMenuItemUrl.php` if it's a URL-builder issue).
+4. **Is the breakage in menu data, not CSS?** → Add a dock-side adaptation in `includes/core/payload.php` and a PHPUnit test under `tests/phpunit/tests/desktopModeBuildDockItems.php` (or `desktopModeMenuItemUrl.php` if it's a URL-builder issue).
 5. **Is a block-editor script crashing at module load because of a missing `wp_enqueue_script()` dep?** → Add a registration-mutation shim under `includes/compat/<plugin>.php` and a PHPUnit test that pins the shape. Follow `includes/compat/divi.php` as the template.
 6. **Is it none of the above?** Open an issue. Don't escalate to broad fixes (`overflow: hidden` on body, JS-rewriting stylesheets, etc.) without a discussion — those tend to break more than they fix.
 

@@ -16,15 +16,12 @@
  * holding `edit_plugins`, with `DISALLOW_FILE_EDIT` honoured).
  *
  * @package DesktopModeCodeEditor
- * @since   0.22.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Permission gate for every editor REST route.
- *
- * @since 0.22.0
  *
  * @return true|WP_Error
  */
@@ -48,8 +45,6 @@ function desktop_mode_code_editor_rest_permission() {
 	/**
 	 * Filter the capability required to use the code editor.
 	 *
-	 * @since 0.22.0
-	 *
 	 * @param string $capability Default `edit_plugins`.
 	 */
 	$cap = (string) apply_filters( 'desktop_mode_code_editor_required_capability', 'edit_plugins' );
@@ -67,8 +62,6 @@ function desktop_mode_code_editor_rest_permission() {
 /**
  * Wrap a REST handler so PHP notices / warnings printed under
  * WP_DEBUG don't leak into the response body.
- *
- * @since 0.22.0
  *
  * @param callable $handler `function( WP_REST_Request ): array|WP_REST_Response|WP_Error`.
  * @return callable
@@ -91,8 +84,6 @@ function desktop_mode_code_editor_rest_handler( $handler ) {
 
 /**
  * Register the editor's REST routes.
- *
- * @since 0.22.0
  */
 function desktop_mode_code_editor_register_rest_routes() {
 	register_rest_route(
@@ -222,8 +213,6 @@ add_action( 'rest_api_init', 'desktop_mode_code_editor_register_rest_routes' );
 /**
  * GET /tree?path=<rel>
  *
- * @since 0.22.0
- *
  * @param WP_REST_Request $request
  * @return array|WP_Error
  */
@@ -256,8 +245,6 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 
 	/**
 	 * Filter whether dotfiles appear in the tree.
-	 *
-	 * @since 0.22.0
 	 *
 	 * @param bool $include_dotfiles
 	 */
@@ -323,8 +310,6 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 	/**
 	 * Filter the directory entries before returning them.
 	 *
-	 * @since 0.22.0
-	 *
 	 * @param array  $entries List of entry arrays.
 	 * @param string $rel     Relative directory path being listed.
 	 * @param string $abs     Absolute directory path.
@@ -339,8 +324,6 @@ function desktop_mode_code_editor_rest_tree( WP_REST_Request $request ) {
 
 /**
  * GET /file?path=<rel>
- *
- * @since 0.22.0
  *
  * @param WP_REST_Request $request
  * @return array|WP_Error
@@ -361,8 +344,6 @@ function desktop_mode_code_editor_rest_read_file( WP_REST_Request $request ) {
 
 	/**
 	 * Maximum file size (bytes) the editor will read. Default 5 MB.
-	 *
-	 * @since 0.22.0
 	 *
 	 * @param int $bytes
 	 */
@@ -415,8 +396,6 @@ function desktop_mode_code_editor_rest_read_file( WP_REST_Request $request ) {
 /**
  * POST/PUT /file
  *
- * @since 0.22.0
- *
  * @param WP_REST_Request $request
  * @return array|WP_Error
  */
@@ -456,8 +435,6 @@ function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
 	/**
 	 * Cap on the bytes a single save can write. Default 5 MB.
 	 *
-	 * @since 0.22.0
-	 *
 	 * @param int $bytes
 	 */
 	$max_bytes = (int) apply_filters( 'desktop_mode_code_editor_max_save_bytes', 5 * 1024 * 1024 );
@@ -482,8 +459,6 @@ function desktop_mode_code_editor_rest_write_file( WP_REST_Request $request ) {
 /**
  * GET /php-symbols?prefix=&kinds=&limit=
  *
- * @since 0.22.0
- *
  * @param WP_REST_Request $request
  * @return array
  */
@@ -504,8 +479,6 @@ function desktop_mode_code_editor_rest_php_symbols( WP_REST_Request $request ) {
 
 	/**
 	 * Filterable max result count.
-	 *
-	 * @since 0.22.0
 	 *
 	 * @param int $limit
 	 */
@@ -537,8 +510,6 @@ function desktop_mode_code_editor_rest_php_symbols( WP_REST_Request $request ) {
  *
  * Drop the workspace index and rebuild from scratch.
  *
- * @since 0.22.0
- *
  * @return array
  */
 function desktop_mode_code_editor_rest_php_symbols_rescan() {
@@ -552,8 +523,6 @@ function desktop_mode_code_editor_rest_php_symbols_rescan() {
 
 /**
  * GET /php-symbols/<name>
- *
- * @since 0.22.0
  *
  * @param WP_REST_Request $request
  * @return array|WP_Error

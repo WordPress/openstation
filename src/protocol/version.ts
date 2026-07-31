@@ -1,8 +1,9 @@
 /**
  * Desktop Mode bridge protocol version.
  *
- * Outgoing messages from this build identify themselves with this
- * version so peers (other iframes, native windows, third-party
+ * Reserved version constant for the bridge protocol. Messages do
+ * not yet carry it; once outgoing messages are stamped with this
+ * value, peers (other iframes, native windows, third-party
  * extensions) can negotiate or warn on incompatibility.
  *
  * Bumping rules (independent of the plugin version):
@@ -13,8 +14,6 @@
  *   - **Major** — breaking: a payload shape changes or a required
  *     field is removed. Bump whenever a long-lived peer could be
  *     in the wild that still speaks the old shape.
- *
- * @since 0.8.1
  */
 
 export const PROTOCOL_VERSION = '0.8.1' as const;

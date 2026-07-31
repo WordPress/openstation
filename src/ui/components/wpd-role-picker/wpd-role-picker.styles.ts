@@ -14,23 +14,23 @@ export const rolePickerStyles = css`
 		gap: 6px;
 		padding: 4px 10px;
 		border-radius: 999px;
-		background: rgba( 255, 255, 255, 0.06 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.06 ) );
 		color: inherit;
-		border: 1px solid rgba( 255, 255, 255, 0.12 );
+		border: 1px solid var( --wpd-border, rgba( 255, 255, 255, 0.12 ) );
 		cursor: pointer;
 		font: inherit;
 	}
 	.chip:hover {
-		background: rgba( 255, 255, 255, 0.12 );
+		background: var( --wpd-hover, rgba( 255, 255, 255, 0.12 ) );
 	}
 	.chip[ aria-pressed='true' ] {
 		background: var( --wp-admin-theme-color, #2271b1 );
 		border-color: var( --wp-admin-theme-color, #2271b1 );
-		color: #fff;
+		color: var( --wpd-fg-on-accent, #fff );
 	}
 
 	.empty {
-		color: rgba( 255, 255, 255, 0.5 );
+		color: var( --wpd-fg-muted, rgba( 255, 255, 255, 0.5 ) );
 		font-size: 12px;
 	}
 `;

@@ -8,14 +8,12 @@
  * constructs the element, sets attributes, listens for
  * `wpd-confirm` / `wpd-cancel`, resolves the promise.
  *
- * The pre-0.8.4 implementation lived inside
+ * The implementation previously lived inside
  * `src/ui/components/wpd-confirm-dialog/wpd-confirm-dialog.ts`
  * alongside the class. Splitting it out lets Rollup tree-shake
  * the class out of `desktop.min.js` since the only references
  * left in main are this function — which only uses
  * `document.createElement( 'wpd-confirm-dialog' )` and DOM APIs.
- *
- * @since 0.8.4
  */
 
 import {

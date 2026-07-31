@@ -16,15 +16,12 @@
  *     `moderate_comments`.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_comment_stats_route() {
 	register_rest_route(
@@ -50,8 +47,6 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_comment_stats_r
 
 /**
  * Aggregator callback.
- *
- * @since 0.8.0
  *
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
@@ -179,17 +174,22 @@ function desktop_mode_my_wordpress_comment_stats_callback( $request ) {
 	}
 
 	// ----- Replies (direct children) -----------------------------------
-	$reply_rows = $wpdb->get_results(
+	// Static SQL literal — must not go through a %s placeholder, which
+	// would quote it into an adjacent string literal and break the clause.
+	$reply_status_sql = $can_moderate
+		? "comment_approved IN ( '0', '1' )"
+		: "comment_approved = '1'";
+	$reply_rows       = $wpdb->get_results(
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $reply_status_sql is a fixed literal chosen above; no user input.
 		$wpdb->prepare(
 			"SELECT comment_ID, comment_author, comment_author_email,
 				comment_date_gmt, comment_content, comment_approved, user_id
 			FROM {$wpdb->comments}
 			WHERE comment_parent = %d
-				AND ( comment_approved = '1' %s )
+				AND {$reply_status_sql}
 			ORDER BY comment_date_gmt ASC
 			LIMIT 20",
-			$comment->comment_ID,
-			$can_moderate ? "OR comment_approved = '0'" : ''
+			$comment->comment_ID
 		),
 		ARRAY_A
 	);
@@ -246,8 +246,6 @@ function desktop_mode_my_wordpress_comment_stats_callback( $request ) {
 
 	/**
 	 * Filter the per-comment dossier payload.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param array $payload    Stats payload.
 	 * @param int   $comment_id Comment id.

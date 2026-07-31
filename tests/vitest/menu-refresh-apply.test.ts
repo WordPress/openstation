@@ -69,8 +69,10 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		commands: ReturnType< typeof vi.fn >;
 		settingsTabs: ReturnType< typeof vi.fn >;
 		titleBarButtons: ReturnType< typeof vi.fn >;
+		games: ReturnType< typeof vi.fn >;
 	};
 	renderIcons: ReturnType< typeof vi.fn >;
+	syncShortcuts: ReturnType< typeof vi.fn >;
 } {
 	const dock = makeDock();
 	const desktopArea = document.createElement( 'div' );
@@ -83,8 +85,10 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		settingsTabs: vi.fn().mockResolvedValue( undefined ),
 		titleBarButtons: vi.fn().mockResolvedValue( undefined ),
 		dockRailRenderers: vi.fn().mockResolvedValue( undefined ),
+		games: vi.fn().mockResolvedValue( undefined ),
 	};
 	const renderIcons = vi.fn();
+	const syncShortcuts = vi.fn();
 
 	const deps: MenuRefreshDeps = {
 		applyDockItems: ( items ) => dock.replaceItems( items ),
@@ -97,10 +101,12 @@ function makeDeps( overrides: Partial< MenuRefreshDeps > = {} ): {
 		syncServerSettingsTabs: syncs.settingsTabs,
 		syncServerTitleBarButtons: syncs.titleBarButtons,
 		syncServerDockRailRenderers: syncs.dockRailRenderers,
+		syncServerGames: syncs.games,
 		renderIcons,
+		syncShortcuts,
 		...overrides,
 	};
-	return { deps, dock, desktopArea, config, syncs, renderIcons };
+	return { deps, dock, desktopArea, config, syncs, renderIcons, syncShortcuts };
 }
 
 const MIN_DOCK = [ { id: 'dashboard', title: 'Dashboard' } ] as const;
@@ -115,7 +121,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 	} );
 
 	test( 'no-ops when dockItems is missing or empty (degraded REST response)', () => {
-		const { deps, dock, syncs, renderIcons } = makeDeps();
+		const { deps, dock, syncs, renderIcons, syncShortcuts } = makeDeps();
 		const apply = createApplyPayload( deps );
 
 		apply( {} );
@@ -124,6 +130,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( dock.replaceItems ).not.toHaveBeenCalled();
 		expect( syncs.nativeWindows ).not.toHaveBeenCalled();
 		expect( renderIcons ).not.toHaveBeenCalled();
+		expect( syncShortcuts ).not.toHaveBeenCalled();
 	} );
 
 	test( 'rebuilds the dock from a fresh dockItems array', () => {
@@ -138,6 +145,27 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( config.dockItems ).toBe( items );
 	} );
 
+	// Spatial's core-icon synthesis (and ordinary promoted shortcuts)
+	// must stay current when a plugin activation/deactivation changes
+	// the dock-item list live — otherwise the files-layer shortcut set
+	// only refreshes on the next OS Settings change.
+	test( 'syncShortcuts runs after a fresh dockItems array is applied', () => {
+		const { deps, dock, syncShortcuts } = makeDeps();
+		const apply = createApplyPayload( deps );
+
+		apply( { dockItems: [ ...MIN_DOCK ] } );
+
+		expect( syncShortcuts ).toHaveBeenCalledTimes( 1 );
+		expect( dock.replaceItems ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'syncShortcuts is optional — omitting it does not throw', () => {
+		const { deps } = makeDeps( { syncShortcuts: undefined } );
+		const apply = createApplyPayload( deps );
+
+		expect( () => apply( { dockItems: [ ...MIN_DOCK ] } ) ).not.toThrow();
+	} );
+
 	test( 'forwards every server-* array to its dedicated sync', () => {
 		const { deps, syncs } = makeDeps();
 		const apply = createApplyPayload( deps );
@@ -150,6 +178,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		const tabScripts = [ { handle: 'p-b', scriptUrl: 'b.js' } ];
 		const tabs = [ { id: 'tab1' } ];
 		const titleScripts = [ { handle: 'p-c', scriptUrl: 'c.js' } ];
+		const games = [ { id: 'inkfall' } ];
 
 		apply( {
 			dockItems: [ ...MIN_DOCK ],
@@ -161,6 +190,7 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			serverSettingsTabScripts: tabScripts,
 			serverSettingsTabs: tabs,
 			serverTitleBarButtonScripts: titleScripts,
+			serverGames: games,
 		} );
 
 		expect( syncs.nativeWindows ).toHaveBeenCalledWith( nativeWindows );
@@ -169,6 +199,24 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 		expect( syncs.commands ).toHaveBeenCalledWith( cmdScripts, cmds );
 		expect( syncs.settingsTabs ).toHaveBeenCalledWith( tabScripts, tabs );
 		expect( syncs.titleBarButtons ).toHaveBeenCalledWith( titleScripts );
+		expect( syncs.games ).toHaveBeenCalledWith( games );
+	} );
+
+	test( 'serverGames payload updates config.serverGames', () => {
+		const { deps, syncs, config } = makeDeps();
+		const apply = createApplyPayload( deps );
+		const games = [ { id: 'inkfall' } ];
+
+		apply( { dockItems: [ ...MIN_DOCK ], serverGames: games } );
+
+		expect( syncs.games ).toHaveBeenCalledWith( games );
+		expect( config.serverGames ).toEqual( games );
+
+		// Absent key = "no change", NOT "clear".
+		syncs.games.mockClear();
+		apply( { dockItems: [ ...MIN_DOCK ] } );
+		expect( syncs.games ).not.toHaveBeenCalled();
+		expect( config.serverGames ).toEqual( games );
 	} );
 
 	// THE PRIMARY REGRESSION GUARD.
@@ -328,6 +376,60 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 			expect(
 				events.filter( ( e ) => e.registry === 'native-windows' ),
 			).toHaveLength( 0 );
+		} );
+	} );
+
+	// GH#296: the payload's `updateCounts` must repaint the admin-bar
+	// "updates" notifier — the top-left circle-arrows count is static
+	// server HTML that otherwise survives every in-window update run.
+	describe( 'updateCounts live-refresh (GH#296)', () => {
+		test( 'fresh counts repaint #wp-admin-bar-updates; zero hides it', () => {
+			document.body.innerHTML = `
+				<ul id="wp-admin-bar-root-default">
+					<li id="wp-admin-bar-updates">
+						<a class="ab-item" href="https://example.test/wp-admin/update-core.php">
+							<span class="ab-icon" aria-hidden="true"></span>
+							<span class="ab-label" aria-hidden="true">3</span>
+							<span class="screen-reader-text updates-available-text">3 updates available</span>
+						</a>
+					</li>
+				</ul>
+			`;
+			const { deps } = makeDeps();
+			const apply = createApplyPayload( deps );
+
+			apply( {
+				dockItems: [ ...MIN_DOCK ],
+				updateCounts: {
+					total: 0,
+					formatted: '0',
+					text: '0 updates available',
+					url: 'https://example.test/wp-admin/update-core.php',
+				},
+			} );
+
+			const node = document.getElementById( 'wp-admin-bar-updates' )!;
+			expect( node.style.display ).toBe( 'none' );
+			document.body.innerHTML = '';
+		} );
+
+		test( 'missing key (older bridge): leaves the node untouched', () => {
+			document.body.innerHTML = `
+				<ul id="wp-admin-bar-root-default">
+					<li id="wp-admin-bar-updates">
+						<a class="ab-item" href="#"><span class="ab-label">3</span></a>
+					</li>
+				</ul>
+			`;
+			const { deps } = makeDeps();
+			const apply = createApplyPayload( deps );
+
+			apply( { dockItems: [ ...MIN_DOCK ] } );
+
+			const node = document.getElementById( 'wp-admin-bar-updates' )!;
+			expect( node.style.display ).not.toBe( 'none' );
+			expect( node.querySelector( '.ab-label' )?.textContent ).toBe( '3' );
+			document.body.innerHTML = '';
 		} );
 	} );
 

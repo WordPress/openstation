@@ -10,9 +10,11 @@
 import { __ } from '../i18n';
 import type {
 	AccentId,
+	AdminBarModeId,
 	DesktopLayoutId,
 	DockPlacementId,
 	DockSizeId,
+	WindowRadiusId,
 } from './types';
 
 export function translateAccentLabel( id: AccentId, fallback: string ): string {
@@ -42,6 +44,38 @@ export function translateDockSizeLabel( id: DockSizeId, fallback: string ): stri
 			return __( 'Default' );
 		case 'large':
 			return __( 'Large' );
+		default:
+			return fallback;
+	}
+}
+
+export function translateWindowRadiusLabel(
+	id: WindowRadiusId,
+	fallback: string,
+): string {
+	switch ( id ) {
+		case 'sharp':
+			return __( 'Sharp' );
+		case 'default':
+			return __( 'Default' );
+		case 'round':
+			return __( 'Round' );
+		default:
+			return fallback;
+	}
+}
+
+export function translateAdminBarModeLabel(
+	id: AdminBarModeId,
+	fallback: string,
+): string {
+	switch ( id ) {
+		case 'static':
+			return __( 'Static' );
+		case 'dynamic':
+			return __( 'Dynamic' );
+		case 'hidden':
+			return __( 'Hidden' );
 		default:
 			return fallback;
 	}

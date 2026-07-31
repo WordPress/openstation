@@ -9,8 +9,6 @@
  * extends {@link DesktopFile}; the PHP-side `serialize()` filter
  * lets them attach extra fields, and the TS class consumes those
  * fields via `shape as MyShape` casts in the subclass methods.
- *
- * @since 0.9.0
  */
 
 export interface DesktopFileShape {

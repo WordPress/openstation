@@ -17,8 +17,6 @@
  *
  * Extracted from `src/desktop.ts` during the architecture-0.8.1
  * boot decomposition (phase 5).
- *
- * @since 0.8.1
  */
 
 import { HOOKS, doAction } from '../hooks';
@@ -35,7 +33,10 @@ import type {
 	DesktopSettingsTabServerEntry,
 	DesktopTitleBarButtonScriptServerEntry,
 	DesktopUnfocusEffectScriptServerEntry,
+	DesktopWindowLinkRendererScriptServerEntry,
 	DesktopWallpaperServerEntry,
+	DesktopGameServerEntry,
+	DesktopThemeServerEntry,
 	DesktopWidgetServerEntry,
 	NativeWindowServerEntry,
 } from '../types';
@@ -48,6 +49,14 @@ import type {
  * happy path.
  */
 const MENU_REFRESH_TIMEOUT_MS = 8000;
+
+/**
+ * Trailing debounce for `desktop-mode-updates-changed` nudges. Long
+ * enough to collapse the burst from several open windows reporting the
+ * same shiny-update run, short enough that the badge repaint still
+ * reads as immediate.
+ */
+const UPDATES_REFRESH_DEBOUNCE_MS = 600;
 
 export interface MenuRefreshDeps {
 	layoutDispatcher: LayoutDispatcher | null;
@@ -70,18 +79,22 @@ export interface MenuRefreshDeps {
 	syncServerUnfocusEffects: (
 		scripts: DesktopUnfocusEffectScriptServerEntry[],
 	) => Promise< void >;
+	syncServerWindowLinkRenderers: (
+		scripts: DesktopWindowLinkRendererScriptServerEntry[],
+	) => Promise< void >;
 	syncServerDockRailRenderers: (
 		scripts: DesktopDockRailRendererScriptServerEntry[],
 	) => Promise< void >;
+	syncServerGames: ( list: DesktopGameServerEntry[] ) => Promise< void >;
+	/** See `MenuRefreshDeps.syncServerDesktopThemes` in `../menu-refresh-apply`. */
+	syncServerDesktopThemes?: ( list: DesktopThemeServerEntry[] ) => void;
 	renderIcons: ( icons: DesktopIconServerEntry[] | undefined ) => void;
+	/** See `MenuRefreshDeps.syncShortcuts` in `../menu-refresh-apply`. */
+	syncShortcuts?: () => void;
 }
 
 /**
  * Wire the live menu-refresh pipeline.
- *
- * @since 0.8.1 (extracted from desktop.ts; argument list collected
- *               into a single options object so future syncers
- *               don't grow the parameter list).
  *
  * @return An async function plugins can call to force a refresh.
  */
@@ -97,8 +110,12 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
+		syncServerGames,
+		syncServerDesktopThemes,
 		renderIcons,
+		syncShortcuts,
 	} = deps;
 
 	const applyPayload = createApplyPayload( {
@@ -112,44 +129,37 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		syncServerSettingsTabs,
 		syncServerTitleBarButtons,
 		syncServerUnfocusEffects,
+		syncServerWindowLinkRenderers,
 		syncServerDockRailRenderers,
+		syncServerGames,
+		syncServerDesktopThemes,
 		renderIcons,
+		syncShortcuts,
 	} );
 
-	window.addEventListener( 'message', ( e: MessageEvent ) => {
-		if ( e.origin !== INITIAL_ORIGIN ) {
-			return;
-		}
-		const data = e.data as {
-			type?: string;
-			payload?: {
-				dockItems?: unknown;
-				nativeWindows?: unknown;
-				serverWidgets?: unknown;
-				serverWallpapers?: unknown;
-				serverCommandScripts?: unknown;
-				serverCommands?: unknown;
-				serverSettingsTabScripts?: unknown;
-				serverSettingsTabs?: unknown;
-				serverDockRailRendererScripts?: unknown;
-				serverTitleBarButtonScripts?: unknown;
-				serverUnfocusEffectScripts?: unknown;
-				desktopIcons?: unknown;
-			};
-		} | null;
-		if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
-			return;
-		}
+	// Fingerprint of the admin menu the dock currently reflects. Seeded
+	// from the boot config so the first off-allowlist menu change (vs.
+	// boot state) is detected without a wasted probe, and thereafter
+	// updated only when a full payload is applied (it carries its own
+	// `menuSig`). Signature messages are compared against it but never
+	// mutate it — see the handler below.
+	let lastMenuSig: string =
+		typeof config.menuSig === 'string' ? config.menuSig : '';
+	// Guard so a burst of signature messages (rapid window navigation)
+	// can't spawn overlapping refresh probes for the same change.
+	let sigRefreshInFlight = false;
 
-		// The chromeless bridge always embeds a fresh menu payload
-		// captured from real admin context — plugins that gate
-		// `admin_menu` on `is_admin()` at load time registered
-		// normally there. Messages without a payload are stale /
-		// out-of-spec and ignored.
-		if ( data.payload ) {
-			applyPayload( data.payload );
-		}
-	} );
+	// `desktop-mode-updates-changed` scheduling state. The chromeless
+	// bridge nudges after Core's shiny (AJAX) plugin/theme updates and
+	// deletes complete (GH#296); the nudge carries no payload, so the
+	// shell answers with one refresh probe. Debounce collapses a burst
+	// (several windows watching the same run), and the in-flight flag +
+	// queued bit guarantee a nudge that lands mid-probe still gets a
+	// fresh probe afterwards — that probe's counts would predate the
+	// change that triggered the nudge.
+	let updatesRefreshTimer: number | null = null;
+	let updatesRefreshInFlight = false;
+	let updatesRefreshQueued = false;
 
 	const refresh = (): Promise< void > => {
 		if ( ! config.adminUrl ) {
@@ -202,9 +212,9 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 				if ( ! data || data.type !== 'desktop-mode-plugins-changed' ) {
 					return;
 				}
-				// The shell-wide listener registered above will apply
-				// the payload. We just need to know the probe
-				// completed so we can dispose the iframe.
+				// The shell-wide `message` listener applies the payload
+				// (and adopts its signature). Here we just need to know
+				// the probe completed so we can dispose the iframe.
 				cleanup();
 			};
 
@@ -220,6 +230,120 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 			document.body.appendChild( iframe );
 		} );
 	};
+
+	const runUpdatesRefresh = (): void => {
+		if ( updatesRefreshInFlight ) {
+			updatesRefreshQueued = true;
+			return;
+		}
+		updatesRefreshInFlight = true;
+		void refresh().finally( () => {
+			updatesRefreshInFlight = false;
+			if ( updatesRefreshQueued ) {
+				updatesRefreshQueued = false;
+				runUpdatesRefresh();
+			}
+		} );
+	};
+
+	const scheduleUpdatesRefresh = (): void => {
+		if ( updatesRefreshTimer !== null ) {
+			window.clearTimeout( updatesRefreshTimer );
+		}
+		updatesRefreshTimer = window.setTimeout( () => {
+			updatesRefreshTimer = null;
+			runUpdatesRefresh();
+		}, UPDATES_REFRESH_DEBOUNCE_MS );
+	};
+
+	window.addEventListener( 'message', ( e: MessageEvent ) => {
+		if ( e.origin !== INITIAL_ORIGIN ) {
+			return;
+		}
+		const data = e.data as {
+			type?: string;
+			sig?: unknown;
+			payload?: {
+				dockItems?: unknown;
+				nativeWindows?: unknown;
+				serverWidgets?: unknown;
+				serverWallpapers?: unknown;
+				serverCommandScripts?: unknown;
+				serverCommands?: unknown;
+				serverSettingsTabScripts?: unknown;
+				serverSettingsTabs?: unknown;
+				serverDockRailRendererScripts?: unknown;
+				serverTitleBarButtonScripts?: unknown;
+				serverUnfocusEffectScripts?: unknown;
+				serverWindowLinkRendererScripts?: unknown;
+				serverGames?: unknown;
+				serverDesktopThemes?: unknown;
+				desktopIcons?: unknown;
+				menuSig?: unknown;
+			};
+		} | null;
+		if ( ! data ) {
+			return;
+		}
+
+		if ( data.type === 'desktop-mode-plugins-changed' ) {
+			// The chromeless bridge always embeds a fresh menu payload
+			// captured from real admin context — plugins that gate
+			// `admin_menu` on `is_admin()` at load time registered
+			// normally there. Messages without a payload are stale /
+			// out-of-spec and ignored.
+			if ( data.payload ) {
+				applyPayload( data.payload );
+				// The payload carries the authoritative signature for the
+				// state we just applied — adopt it so a later signature
+				// message for the same menu doesn't trigger a redundant
+				// refresh.
+				if ( typeof data.payload.menuSig === 'string' ) {
+					lastMenuSig = data.payload.menuSig;
+				}
+			}
+			return;
+		}
+
+		if ( data.type === 'desktop-mode-updates-changed' ) {
+			// A chromeless page reports that Core's shiny updater just
+			// finished a plugin/theme update or delete run. The update
+			// transient changed server-side without any navigation, so
+			// no full payload is coming on its own — spend one probe to
+			// pull fresh badge + admin-bar counts. GH#296.
+			scheduleUpdatesRefresh();
+			return;
+		}
+
+		if ( data.type === 'desktop-mode-menu-signature' ) {
+			// A chromeless page off the full-payload allowlist reported
+			// its menu fingerprint. If it differs from the state the dock
+			// currently reflects, the admin menu changed somewhere we
+			// don't otherwise watch (a CPT registered via a settings tool,
+			// a plugin that adds a menu on save) — spend one refresh probe
+			// to reconcile. GH#325.
+			//
+			// `lastMenuSig` is deliberately NOT updated here: it tracks the
+			// state the dock actually reflects, so it moves only when a
+			// payload is applied (the branch above, or the probe's own
+			// payload). The in-flight guard collapses a burst of reports
+			// into a single probe; leaving `lastMenuSig` untouched means a
+			// probe that times out is retried on the next navigation
+			// rather than silently swallowed.
+			const sig = data.sig;
+			if (
+				typeof sig === 'string' &&
+				sig !== '' &&
+				sig !== lastMenuSig &&
+				! sigRefreshInFlight
+			) {
+				sigRefreshInFlight = true;
+				void refresh().finally( () => {
+					sigRefreshInFlight = false;
+				} );
+			}
+		}
+	} );
 
 	return refresh;
 }

@@ -1,0 +1,1356 @@
+/*
+ * Popup Siege UI System 0.6.0
+ *
+ * This is the only current-build presentation layer. Historical wrappers keep
+ * their frozen stylesheets, while the 0.6.0 wrapper loads the 0.2.0 structural
+ * foundation plus this file. All current chrome uses one stable feature class.
+ */
+
+/* 1. Design tokens -------------------------------------------------------- */
+
+#popup-breaker-preview .siege-game.siege-game--design-system-050 {
+	--siege-ui-shell-image:
+		url("../games/popup-breaker/assets/images/popup-siege-side-console-0.5.1.png");
+	--siege-ui-stage-share: 68.1818%;
+	--siege-ui-console-share: 31.8182%;
+	--siege-ui-bar-share: 5.724%;
+	--siege-ui-rail-share: 5.405%;
+	--siege-ui-appliance-ratio: 704 / 629;
+	--siege-ui-shell-light: #fff4dc;
+	--siege-ui-shell-shadow: #514761;
+	--siege-ui-shell-edge: #21174c;
+	--siege-ui-cream: #fff6d8;
+	--siege-ui-mint: #86f0cf;
+	--siege-ui-yellow: #ffd64f;
+	--siege-ui-pink: #ff55ad;
+	--siege-ui-ink: #071b2d;
+	--siege-ui-brand-x: 25.5%;
+	--siege-ui-brand-y: 9.4%;
+	--siege-ui-brand-width: 54%;
+	--siege-ui-brand-height: 9%;
+	--siege-ui-hud-x: 25.2%;
+	--siege-ui-hud-y: 22.65%;
+	--siege-ui-hud-width: 54.2%;
+	--siege-ui-hud-height: 32.7%;
+	--siege-ui-controls-x: 24.3%;
+	--siege-ui-controls-y: 61.22%;
+	--siege-ui-controls-width: 55.9%;
+	--siege-ui-controls-height: 26.53%;
+	--siege-ui-control-column-gap: 1%;
+	--siege-ui-control-row-gap: 3.1%;
+	--siege-ui-control-icon-track: 72fr;
+	--siege-ui-control-label-track: 28fr;
+	--siege-ui-focus: #fff6c8;
+	--siege-ui-shadow:
+		0 22px 70px rgb(0 0 0 / 48%),
+		0 0 0 2px var(--siege-ui-shell-edge);
+	grid-template-rows: minmax(0, 1fr);
+	overflow: hidden;
+}
+
+/* 2. Appliance layout ----------------------------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-body {
+	display: grid;
+	grid-template-rows: minmax(0, 1fr);
+	align-content: stretch;
+	min-width: 0;
+	min-height: 0;
+	height: 100%;
+	padding: 0.35rem 0.45rem;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-browser {
+	display: grid;
+	grid-template-areas:
+		"bar header"
+		"stage header"
+		"rail rail";
+	grid-template-columns:
+		minmax(0, var(--siege-ui-stage-share))
+		minmax(0, var(--siege-ui-console-share));
+	grid-template-rows:
+		var(--siege-ui-bar-share)
+		minmax(0, 1fr)
+		var(--siege-ui-rail-share);
+	align-self: center;
+	align-content: stretch;
+	width: min(calc(100% - 8px), calc(111.9237cqh - 8.954px));
+	min-width: 0;
+	height: auto;
+	max-height: calc(100% - 8px);
+	margin: auto;
+	overflow: visible;
+	border: 0;
+	border-radius: 0;
+	aspect-ratio: var(--siege-ui-appliance-ratio);
+	background: transparent;
+	box-shadow: var(--siege-ui-shadow);
+}
+
+/* 3. Side-console shell --------------------------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-header {
+	position: relative;
+	z-index: 2;
+	grid-area: header;
+	display: block;
+	width: 100%;
+	min-width: 0;
+	height: 100%;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	overflow: visible;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-header::before {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: 0;
+	background: var(--siege-ui-shell-image) center / 100% 100% no-repeat;
+	clip-path: none;
+	content: "";
+	filter: drop-shadow(0 8px 12px rgb(5 2 25 / 42%));
+	pointer-events: none;
+	transform: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-header::after {
+	display: none;
+	content: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-header__chassis {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+	display: block;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	clip-path: none;
+	filter: none;
+}
+
+/* 4. Live logo ------------------------------------------------------------ */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-brand {
+	position: absolute;
+	top: var(--siege-ui-brand-y);
+	left: var(--siege-ui-brand-x);
+	display: grid;
+	width: var(--siege-ui-brand-width);
+	height: var(--siege-ui-brand-height);
+	margin: 0;
+	padding: 0.08rem 0.24rem 0.12rem;
+	place-items: center;
+	overflow: hidden;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	clip-path: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-brand
+	strong {
+	position: relative;
+	display: grid;
+	grid-template-rows: auto auto;
+	gap: 0.02em;
+	width: 100%;
+	height: 100%;
+	margin: 0;
+	padding: 0 0 0.12em;
+	place-content: center;
+	place-items: center;
+	color: inherit;
+	font: inherit;
+	letter-spacing: normal;
+	text-shadow: none;
+	white-space: normal;
+	transform: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-brand
+	strong::after {
+	position: absolute;
+	right: 15%;
+	bottom: 0;
+	left: 15%;
+	height: max(1px, 0.2cqh);
+	border-radius: 999px;
+	background: var(--siege-ui-pink);
+	box-shadow: 0 1px 0 #401a50;
+	content: "";
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-brand__eyebrow {
+	color: var(--siege-ui-mint);
+	font: 800 clamp(0.36rem, 0.94cqh, 0.58rem) / 1 "Courier New",
+		monospace;
+	letter-spacing: 0.2em;
+	text-indent: 0.2em;
+	text-shadow: 0 1px 0 var(--siege-ui-ink);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-brand__wordmark {
+	color: var(--siege-ui-yellow);
+	font: italic 900 clamp(0.92rem, 2.68cqh, 1.5rem) / 0.84
+		"Arial Black", "Helvetica Neue", Arial, sans-serif;
+	letter-spacing: -0.055em;
+	text-shadow:
+		-1px 1px 0 #247f91,
+		1px 2px 0 #492354;
+	transform: skewX(-5deg);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-brand__kicker {
+	display: none;
+}
+
+/* 5. HUD instruments ------------------------------------------------------ */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-hud {
+	position: absolute;
+	top: var(--siege-ui-hud-y);
+	left: var(--siege-ui-hud-x);
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-rows: repeat(2, minmax(0, 1fr));
+	width: var(--siege-ui-hud-width);
+	min-width: 0;
+	height: var(--siege-ui-hud-height);
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-hud
+	> span {
+	display: grid;
+	gap: 0.18rem;
+	align-content: center;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0.16rem 0.04rem;
+	overflow: hidden;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	text-align: center;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-hud
+	small {
+	overflow: hidden;
+	color: #f4dfa4;
+	font: 800 clamp(0.33rem, 0.9cqh, 0.53rem) / 1 "Courier New",
+		monospace;
+	letter-spacing: 0.045em;
+	text-overflow: clip;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-hud
+	b {
+	overflow: hidden;
+	color: var(--siege-ui-mint);
+	font: 800 clamp(0.64rem, 1.76cqh, 1.04rem) / 1 "Courier New",
+		monospace;
+	letter-spacing: 0.015em;
+	text-overflow: clip;
+	text-shadow:
+		0 0 8px rgb(124 231 197 / 35%),
+		1px 1px 0 #06231c;
+	white-space: nowrap;
+}
+
+/* 6. Control bank --------------------------------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions {
+	position: absolute;
+	top: var(--siege-ui-controls-y);
+	left: var(--siege-ui-controls-x);
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-rows: repeat(2, minmax(0, 1fr));
+	grid-auto-flow: row;
+	grid-auto-columns: auto;
+	column-gap: var(--siege-ui-control-column-gap);
+	row-gap: var(--siege-ui-control-row-gap);
+	width: var(--siege-ui-controls-width);
+	height: var(--siege-ui-controls-height);
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	button,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions__pause-slot {
+	display: grid;
+	grid-template:
+		[icon] minmax(0, var(--siege-ui-control-icon-track))
+		[label] minmax(0, var(--siege-ui-control-label-track))
+		/ minmax(0, 1fr);
+	align-items: stretch;
+	justify-items: center;
+	width: 100%;
+	min-width: 0;
+	height: 100%;
+	min-height: 0;
+	margin: 0;
+	padding: 5% 4% 5%;
+	overflow: hidden;
+	border: 0;
+	border-radius: 7%;
+	background: rgb(2 4 12 / 8%);
+	color: var(--siege-ui-cream);
+	font-size: 0;
+	line-height: 1;
+	text-align: center;
+	text-shadow: 1px 2px 0 rgb(0 0 0 / 70%);
+	box-shadow: none;
+	filter: none;
+	transform: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	button::before,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions__pause-slot::before {
+	grid-area: icon / 1;
+	align-self: center;
+	justify-self: center;
+	margin: 0;
+	color: var(--siege-ui-cream);
+	font: 900 clamp(0.92rem, 3.15cqh, 1.72rem) / 1
+		"Arial Black", Impact, sans-serif;
+	letter-spacing: 0;
+	text-shadow: 1px 2px 0 rgb(0 0 0 / 70%);
+	transform: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	button::after,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions__pause-slot::after {
+	grid-area: label / 1;
+	align-self: center;
+	justify-self: center;
+	margin: 0;
+	color: var(--siege-ui-cream);
+	font: 800 clamp(0.35rem, 1cqh, 0.54rem) / 1 "Courier New",
+		monospace;
+	letter-spacing: 0.035em;
+	text-shadow: 1px 2px 0 rgb(57 37 4 / 70%);
+	transform: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	[data-action="sound"] {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	[data-action="effects"] {
+	grid-column: 2;
+	grid-row: 1;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	[data-action="pause"],
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="menu"]
+	.siege-actions__pause-slot {
+	grid-column: 1;
+	grid-row: 2;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	[data-action="close"] {
+	grid-column: 2;
+	grid-row: 2;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions__pause-slot {
+	display: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="menu"]
+	.siege-actions__pause-slot {
+	display: grid;
+	opacity: 0.58;
+	filter: saturate(0.45);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="sound"]::before {
+	content: "♫";
+	font-size: clamp(1.05rem, 3.55cqh, 1.9rem);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="sound"]::after {
+	content: "MUSIC";
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="effects"]::before {
+	width: clamp(1.08rem, 3.6cqh, 1.82rem);
+	height: clamp(0.92rem, 3.15cqh, 1.58rem);
+	margin: 0;
+	background: currentColor;
+	content: "";
+	-webkit-mask:
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 28'%3E%3Cpath fill='black' d='M2 10h6l8-7v22l-8-7H2zM20 8a2 2 0 0 1 3-1 10 10 0 0 1 0 14 2 2 0 1 1-3-3 6 6 0 0 0 0-8 2 2 0 0 1 0-2Zm5-5a2 2 0 0 1 3 0 16 16 0 0 1 0 22 2 2 0 0 1-3-3 12 12 0 0 0 0-16 2 2 0 0 1 0-3Z'/%3E%3C/svg%3E")
+		center / contain no-repeat;
+	mask:
+		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 28'%3E%3Cpath fill='black' d='M2 10h6l8-7v22l-8-7H2zM20 8a2 2 0 0 1 3-1 10 10 0 0 1 0 14 2 2 0 1 1-3-3 6 6 0 0 0 0-8 2 2 0 0 1 0-2Zm5-5a2 2 0 0 1 3 0 16 16 0 0 1 0 22 2 2 0 0 1-3-3 12 12 0 0 0 0-16 2 2 0 0 1 0-3Z'/%3E%3C/svg%3E")
+		center / contain no-repeat;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="effects"]::after {
+	content: "FX";
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="sound"][aria-pressed="false"],
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="effects"][aria-pressed="false"] {
+	background: rgb(2 5 9 / 44%);
+	color: #b9b5a8;
+	filter: saturate(0.25);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="sound"][aria-pressed="false"]::before,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="sound"][aria-pressed="false"]::after,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="effects"][aria-pressed="false"]::before,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="effects"][aria-pressed="false"]::after {
+	color: #b9b5a8;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="pause"]::before,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="menu"]
+	.siege-actions__pause-slot::before {
+	content: "Ⅱ";
+	font-family: Impact, "Arial Black", sans-serif;
+	letter-spacing: -0.08em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="pause"]::after,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="menu"]
+	.siege-actions__pause-slot::after {
+	content: "PAUSE";
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="pause"][data-control-mode="resume"]::before {
+	content: "▶";
+	font-size: clamp(0.86rem, 2.75cqh, 1.48rem);
+	letter-spacing: 0;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	[data-action="pause"][data-control-mode="resume"]::after {
+	content: "RESUME";
+	font-size: clamp(0.29rem, 0.83cqh, 0.44rem);
+	letter-spacing: 0;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	[data-action="close"]::before {
+	content: "×";
+	font: 900 clamp(1.08rem, 3.55cqh, 1.9rem) / 0.8 Arial, sans-serif;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	[data-action="close"]::after {
+	content: "CLOSE";
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	button:hover {
+	background: rgb(255 255 255 / 9%);
+	filter: brightness(1.08);
+	transform: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	button:active {
+	background: rgb(0 0 0 / 7%);
+	filter: brightness(0.96);
+	transform: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-actions
+	button:focus-visible {
+	outline: 2px solid var(--siege-ui-focus);
+	outline-offset: -5px;
+	box-shadow:
+		inset 0 0 0 1px var(--siege-ui-ink),
+		inset 0 0 0 3px var(--siege-ui-focus);
+	transform: none;
+}
+
+/* 7. Browser chrome ------------------------------------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-browser__bar {
+	z-index: 1;
+	grid-area: bar;
+	display: grid;
+	grid-template-columns: 24px minmax(0, 1fr) auto;
+	gap: 0.45rem;
+	align-items: center;
+	min-width: 0;
+	min-height: 0;
+	padding: 0.2rem 0.36rem;
+	overflow: hidden;
+	border-top: 3px solid var(--siege-ui-shell-light);
+	border-right: 0;
+	border-bottom: 2px solid #4c515d;
+	border-left: 3px solid var(--siege-ui-shell-light);
+	background: #d5d2ca;
+	color: #14161b;
+	font: 700 clamp(0.42rem, 1cqh, 0.63rem) / 1 "Courier New",
+		monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-browser__icon {
+	display: grid;
+	width: min(22px, 3.5cqh);
+	height: min(22px, 3.5cqh);
+	place-items: center;
+	background: #121d60;
+	color: #fff;
+	font: 900 clamp(0.52rem, 1.2cqh, 0.8rem) / 1 Georgia, serif;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-browser__address {
+	min-width: 0;
+	overflow: hidden;
+	padding: 0.22rem 0.36rem;
+	border: 2px inset #fff;
+	background: #fff;
+	color: #14161b;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-browser__status {
+	display: block;
+	overflow: hidden;
+	color: #173e2e;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-stage {
+	grid-area: stage;
+	width: 100%;
+	min-width: 0;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+	border-right: 0;
+	border-left: 3px solid var(--siege-ui-shell-light);
+	aspect-ratio: auto;
+	background: #071326;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-browser__rail {
+	z-index: 3;
+	grid-area: rail;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 0.7rem;
+	align-items: center;
+	min-width: 0;
+	min-height: 0;
+	padding: 0.2rem 0.4rem;
+	overflow: hidden;
+	border-top: 2px solid #5a5e66;
+	border-right: 3px solid var(--siege-ui-shell-shadow);
+	border-bottom: 3px solid var(--siege-ui-shell-shadow);
+	border-left: 3px solid var(--siege-ui-shell-light);
+	background: #d5d2ca;
+	color: #11141a;
+	font: 700 clamp(0.42rem, 0.95cqh, 0.61rem) / 1.1 "Courier New",
+		monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-help {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-status {
+	width: auto;
+	max-width: none;
+	min-width: 0;
+	overflow: hidden;
+	color: #121721;
+	text-align: left;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache {
+	display: grid;
+	grid-template-columns: auto 58px 34px;
+	gap: 0.35rem;
+	align-items: center;
+	min-width: 0;
+	color: #263446;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache
+	> span {
+	letter-spacing: 0.08em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache
+	> i {
+	display: block;
+	width: 58px;
+	height: 8px;
+	overflow: hidden;
+	border: 1px solid #4c5360;
+	background: #fff;
+	box-shadow: inset 0 0 0 1px #8c919b;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache
+	> i
+	> b {
+	display: block;
+	width: 100%;
+	height: 100%;
+	background: #173d91;
+	transform: scaleX(0);
+	transform-origin: left center;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache
+	strong {
+	color: #344054;
+	font-size: 0.58rem;
+	text-align: right;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache[data-active="true"] {
+	color: #6a190e;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache[data-active="true"]
+	> i
+	> b {
+	background: linear-gradient(90deg, #ffcf4a, #ff6a48);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-cache[data-active="true"]
+	strong {
+	color: #8a1d0e;
+}
+
+/* 8. Gameplay feedback restored under the stable feature class ------------ */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-renderer {
+	isolation: isolate;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-target-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	pointer-events: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-target__ghost {
+	fill: rgb(15 26 50 / 8%);
+	stroke: rgb(132 230 255 / 72%);
+	stroke-dasharray: 7 5;
+	stroke-width: 2;
+	vector-effect: non-scaling-stroke;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-target__halo {
+	fill: rgb(255 38 76 / 8%);
+	stroke: #ff3659;
+	stroke-dasharray: 4 3;
+	stroke-width: 2;
+	transform-box: fill-box;
+	transform-origin: center;
+	vector-effect: non-scaling-stroke;
+	animation: siege-ui-target-pulse 720ms ease-in-out infinite alternate;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-target__corner {
+	fill: none;
+	stroke: #fff2b8;
+	stroke-linecap: square;
+	stroke-width: 3;
+	vector-effect: non-scaling-stroke;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050
+	.siege-target[data-solid="false"] {
+	opacity: 0.52;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="menu"]
+	.siege-overlay {
+	background: rgb(5 12 27 / 14%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="paused"]
+	.siege-overlay,
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="results"]
+	.siege-overlay {
+	background: rgb(3 8 19 / 52%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050[data-phase="results"]
+	.siege-card {
+	border-color: #8daee6;
+	box-shadow:
+		0 22px 70px rgb(0 0 0 / 82%),
+		inset 0 0 0 3px rgb(120 155 211 / 12%);
+}
+
+@keyframes siege-ui-target-pulse {
+	from {
+		opacity: 0.62;
+		transform: scale(0.94);
+	}
+
+	to {
+		opacity: 1;
+		transform: scale(1.04);
+	}
+}
+
+/* 9. Four-level run and replay-forward Results ---------------------------- */
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-browser__rail {
+	grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-badge {
+	display: block;
+	min-width: 0;
+	padding: 0.2rem 0.35rem;
+	border: 1px solid #47566c;
+	background: #f5cf58;
+	color: #111827;
+	font-weight: 900;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-toast {
+	position: absolute;
+	top: 16%;
+	left: 50%;
+	z-index: 8;
+	display: grid;
+	width: min(76%, 330px);
+	gap: 0.22rem;
+	padding: 0.75rem 1rem 0.85rem;
+	border: 2px solid #f5cf58;
+	background: rgb(5 18 38 / 96%);
+	box-shadow:
+		0 12px 34px rgb(0 0 0 / 65%),
+		inset 0 0 0 2px rgb(111 241 210 / 16%);
+	color: #f8fbff;
+	text-align: center;
+	pointer-events: none;
+	transform: translate(-50%, -8px);
+	opacity: 0;
+	transition:
+		opacity 140ms ease-out,
+		transform 180ms ease-out;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-toast[data-visible="true"] {
+	opacity: 1;
+	transform: translate(-50%, 0);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-toast[hidden] {
+	display: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-toast
+	small {
+	color: #82efd7;
+	font: 800 0.62rem/1 "Courier New", monospace;
+	letter-spacing: 0.13em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-toast
+	strong {
+	color: #f5cf58;
+	font: 900 clamp(1.25rem, 4.7cqh, 2rem) / 0.95 Impact,
+		"Arial Black", sans-serif;
+	letter-spacing: 0.04em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-toast
+	span {
+	color: #d8e6f7;
+	font: 700 0.74rem/1.25 "Courier New", monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-card--results {
+	width: min(90%, 410px);
+	gap: 0.55rem;
+	padding: clamp(0.8rem, 3.6cqh, 1.45rem);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-card--results
+	h2 {
+	font-size: clamp(1.65rem, 6.2cqh, 2.7rem);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-card--results
+	[data-role="result-title"]:focus {
+	outline: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-card--results
+	[data-role="result-copy"] {
+	display: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	margin: 0;
+	padding: 0;
+	border: 1px solid #405579;
+	list-style: none;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey
+	li {
+	display: grid;
+	min-width: 0;
+	gap: 0.16rem;
+	padding: 0.42rem 0.2rem;
+	border-right: 1px solid #405579;
+	background: rgb(4 14 31 / 62%);
+	color: #8193af;
+	text-align: center;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey
+	li:last-child {
+	border-right: 0;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey
+	li[data-state="complete"] {
+	background: rgb(23 94 78 / 72%);
+	color: #adffe9;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey
+	li[data-state="current"] {
+	background: #f5cf58;
+	color: #111827;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey
+	span {
+	font: 900 0.68rem/1 "Courier New", monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey
+	strong {
+	overflow: hidden;
+	font: 800 0.42rem/1.1 "Courier New", monospace;
+	letter-spacing: 0.04em;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-level-journey
+	em {
+	color: currentColor;
+	font: 900 0.36rem/1 "Courier New", monospace;
+	font-style: normal;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-replay-pitch {
+	display: grid;
+	gap: 0.2rem;
+	padding: 0.55rem 0.65rem;
+	border-left: 4px solid #f5cf58;
+	background: rgb(23 51 83 / 68%);
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-replay-pitch
+	strong {
+	color: #f5cf58;
+	font: 900 0.58rem/1 "Courier New", monospace;
+	letter-spacing: 0.12em;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-replay-pitch
+	span {
+	color: #e4eefb;
+	font: 700 0.72rem/1.3 "Courier New", monospace;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-card--results
+	.siege-card__buttons {
+	grid-template-columns: minmax(0, 1fr) auto;
+}
+
+#popup-breaker-preview
+	.siege-game.siege-game--design-system-050.siege-game--level-system-060
+	.siege-card--results
+	[data-action="restart"] {
+	min-height: 52px;
+	box-shadow: inset 0 0 0 2px rgb(255 255 255 / 38%);
+}
+
+/* 10. Narrow appliance tuning; placement and control registration stay fixed */
+
+@container popup-siege (max-width: 520px) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-body {
+		padding: 0.25rem;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-browser {
+		width: calc(100% - 4px);
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-browser__bar {
+		grid-template-columns: 21px minmax(0, 1fr);
+		gap: 0.2rem;
+		padding: 0.12rem 0.2rem;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-browser__status {
+		display: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-browser__rail {
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		gap: 0.2rem;
+		padding-inline: 0.2rem;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-badge {
+		padding-inline: 0.2rem;
+		font-size: 0.48rem;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-cache {
+		grid-template-columns: auto minmax(18px, 42px) 28px;
+		gap: 0.18rem;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-cache
+		> i {
+		width: 100%;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-journey
+		strong,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-journey
+		em {
+		display: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-card--results {
+		width: 94%;
+	}
+}
+
+/* 11. Accessibility modes ------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-target__halo {
+		animation: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-toast {
+		transition: none;
+	}
+}
+
+@media (forced-colors: active) {
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-header::before {
+		display: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-header {
+		border: 2px solid CanvasText;
+		background: Canvas;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-brand,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-hud,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-actions
+		button,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-actions__pause-slot {
+		border: 1px solid CanvasText;
+		background: Canvas;
+		color: CanvasText;
+		box-shadow: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-brand__eyebrow,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-brand__wordmark,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-hud
+		small,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-hud
+		b,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-actions
+		button::before,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-actions
+		button::after,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-actions__pause-slot::before,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-actions__pause-slot::after {
+		color: CanvasText;
+		text-shadow: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-brand
+		strong::after {
+		background: CanvasText;
+		box-shadow: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+	[data-action="effects"]::before {
+		background: CanvasText;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-target__ghost {
+		fill: none;
+		stroke: CanvasText;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-target__halo,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050
+		.siege-target__corner {
+		fill: none;
+		stroke: Highlight;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-badge,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-toast,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-journey
+		li,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-replay-pitch {
+		border-color: CanvasText;
+		background: Canvas;
+		color: CanvasText;
+		box-shadow: none;
+	}
+
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-toast
+		*,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-level-journey
+		*,
+	#popup-breaker-preview
+		.siege-game.siege-game--design-system-050.siege-game--level-system-060
+		.siege-replay-pitch
+		* {
+		color: CanvasText;
+	}
+}

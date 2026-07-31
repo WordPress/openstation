@@ -12,7 +12,6 @@
  * matches: a short welcome, a few highlights, two buttons.
  *
  * @public
- * @since 0.18.0
  */
 
 import { __ } from '../i18n';
@@ -25,8 +24,6 @@ export type IntroResult = 'confirm' | 'settings' | 'cancel';
 /**
  * Show the Pages-window intro. Returns a Promise that resolves with
  * the user's chosen action.
- *
- * @since 0.18.0
  */
 export async function showPagesIntroDialog(): Promise< IntroResult > {
 	return new Promise< IntroResult >( ( resolve ) => {

@@ -13,13 +13,12 @@
  * Goes through a `desktop-mode.window.chrome.controls` filter on every
  * paint so plugins can mutate the resolved control list without
  * registering anything (handy for cross-cutting decorators).
- *
- * @since 0.6.0
  */
 
 import { applyFilters, doAction, HOOKS } from '../../hooks';
 import { controlsForWindow, type WindowControlDef } from './registry';
 import { paintTitleBarButtonIcon } from '../../title-bar-buttons/paint-icon';
+import { paintThemedControlIcon } from './paint-themed-icon';
 
 import type { Window as DesktopWindow } from '../../window';
 import type { WindowControlsConfig } from '../../types';
@@ -192,11 +191,15 @@ function buildControlElement(
 			return { element: host };
 		}
 	} else {
-		// Icon — same three accepted shapes as title-bar buttons.
-		// Reuses the shared `paintTitleBarButtonIcon` helper so dashicons
+		// Icon. An active desktop theme gets first refusal on this
+		// control's glyph; only when it doesn't override the slot do
+		// we fall back to the registered icon, painted through the
+		// shared `paintTitleBarButtonIcon` helper so dashicons
 		// classes, inline SVG, and built-in icon keys all work
 		// identically here.
-		paintTitleBarButtonIcon( host, def.icon ?? '' );
+		if ( ! paintThemedControlIcon( host, def.id ) ) {
+			paintTitleBarButtonIcon( host, def.icon ?? '' );
+		}
 		if ( typeof def.onClick === 'function' ) {
 			const handler = ( ev: Event ): void => {
 				ev.stopPropagation();

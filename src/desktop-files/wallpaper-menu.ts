@@ -4,14 +4,12 @@
  * Clicking empty wallpaper used to call `manager.toggleShowDesktop()`
  * directly. Phase 4 replaces that with a small floating menu —
  * the desktop-OS equivalent of the right-click "Create folder /
- * Show desktop / OS Settings / Wallpapers" affordance.
+ * New URL / Sort by / Show desktop / OS Settings" affordance.
  *
  * Plugins extend the menu via the `desktop-mode.wallpaper-context-menu`
  * filter (JS) or the `desktop_mode_wallpaper_context_menu_items`
  * filter (PHP, carried in the shell payload as
  * `serverWallpaperMenuItems`). Both lists are merged at click time.
- *
- * @since 0.9.0
  */
 
 import { applyFilters, doAction } from '../hooks';

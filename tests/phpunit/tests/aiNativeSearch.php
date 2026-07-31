@@ -2,7 +2,7 @@
 /**
  * Tests for the AI assistant's native-keyword content search.
  *
- * As of 0.11.0 the `search_posts` / `search_pages` / `search_comments` /
+ * The `search_posts` / `search_pages` / `search_comments` /
  * `search_comments_by_post` tools run WordPress's native search
  * (`WP_Query` `s=` / `get_comments` `search=`) instead of filtering on the
  * `_desktop_mode_ai_analysis` meta. These tests prove content that was

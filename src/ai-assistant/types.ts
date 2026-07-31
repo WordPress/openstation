@@ -5,8 +5,6 @@
  * interface without dragging the full `impl.ts` (38 kB) along with
  * it. The impl bundle re-exports the same interface from
  * `./impl.ts` (its native declaration site) — keep the two in sync.
- *
- * @since 0.8.4
  */
 
 import type { AskFn } from '../ai/ask';
@@ -16,8 +14,6 @@ import type { AskFn } from '../ai/ask';
  * `wp.desktop.ai`. Implemented by both the lazy stub (main bundle)
  * and the real `AiAssistant` class (in the lazy-loaded
  * `ai-assistant` bundle).
- *
- * @since 0.14.0
  */
 export interface AiAssistantApi {
 	open(): void;
@@ -27,8 +23,6 @@ export interface AiAssistantApi {
 	/**
 	 * Programmatic access to the AI Copilot — same endpoint the
 	 * overlay uses. Wired by `desktop.ts` via {@link AiAssistantStubMethods.attachAsk}.
-	 *
-	 * @since 0.17.0
 	 */
 	ask: AskFn;
 }
@@ -43,7 +37,28 @@ export interface AiAssistantConfig {
 	aiSearchUrl: string;
 	aiSearchStreamUrl: string;
 	restNonce: string;
+	/**
+	 * Base admin URL (e.g. `'http://example.com/wp-admin/'`). Used to
+	 * resolve relative admin paths into absolute URLs when opening
+	 * entity search results (posts, pages) in legacy windows.
+	 */
+	adminUrl: string;
 	getTransport?: () => 'sse' | 'off';
+	/**
+	 * Whether the AI mode is usable — the AI APIs are present and a
+	 * provider is configured. When false the assistant is a pure command
+	 * palette (Commands mode only, no mode switch). Read live so the
+	 * overlay reflects a provider being (dis)connected without a reload.
+	 */
+	isAiAvailable?: () => boolean;
+	/**
+	 * The "AI assistant" toggle (OS Settings → Features). When on (and a
+	 * provider is configured), the assistant offers the AI mode and opens
+	 * in it by default, and the Commands/Ask AI switch appears; when off,
+	 * it's a plain command palette. Read live so flipping the toggle takes
+	 * effect on the next open.
+	 */
+	isOverrideEnabled?: () => boolean;
 }
 
 /**

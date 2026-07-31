@@ -164,7 +164,7 @@ class Tests_DesktopMode_Security extends WP_UnitTestCase {
 
 	/**
 	 * Non-SVG `data:` schemes and malformed SVG data URIs return the
-	 * fallback. The pre-0.18.x blanket rejection was overzealous, but
+	 * fallback. The earlier blanket rejection was overzealous, but
 	 * the targeted rejection of the dangerous shapes still holds.
 	 *
 	 * @covers ::desktop_mode_sanitize_dock_icon

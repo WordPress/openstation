@@ -15,13 +15,13 @@
             "%1$s — %2$d posts": [
                 ""
             ],
-            "%d comments": [
+            "%d comment": [
                 ""
             ],
             "%d d ago": [
                 ""
             ],
-            "%d days": [
+            "%d day": [
                 ""
             ],
             "%d h ago": [
@@ -33,13 +33,13 @@
             "%d mo ago": [
                 ""
             ],
-            "%d posts": [
+            "%d post": [
                 ""
             ],
-            "%d posts in this category.": [
+            "%d post in this category.": [
                 ""
             ],
-            "%d posts tagged with this.": [
+            "%d post tagged with this.": [
                 ""
             ],
             "%d received": [
@@ -69,7 +69,8 @@
             "(no title)": [
                 ""
             ],
-            "+ %d pages": [
+            "+ %d page": [
+                "Subpáginas de %s",
                 "Subpáginas de %s"
             ],
             "+ Child": [
@@ -98,6 +99,9 @@
             ],
             "Active sessions & app access": [
                 ""
+            ],
+            "Add New Page": [
+                "Añadir nuevo escritorio"
             ],
             "Add New Post": [
                 "Añadir nuevo escritorio"

@@ -1,6 +1,6 @@
 # Plugins window — extras
 
-Recipes for plugin authors that want to extend the native Plugins window. Every PHP hook listed below is documented in [`docs/hooks-reference.md`](../hooks-reference.md#native-plugins-window-since-090); JS-side surface lives in [`docs/javascript-reference.md`](../javascript-reference.md#native-plugins-window-since-090).
+Recipes for plugin authors that want to extend the native Plugins window. Every PHP hook listed below is documented in [`docs/hooks-reference.md`](../hooks-reference.md#native-plugins-window); JS-side surface lives in [`docs/javascript-reference.md`](../javascript-reference.md#native-plugins-window).
 
 ---
 
@@ -26,9 +26,10 @@ add_filter(
 );
 ```
 
-JS side, push the new segment into the toolbar before the bundle paints:
+JS side — **Planned, not yet implemented**: the `desktop_mode.pluginsWindow.browseFilters` filter below does not exist yet (the Browse segments are currently hard-coded in the bundle). The intended shape, once the JS filter registry lands:
 
 ```js
+// Planned — not yet implemented.
 addFilter(
     'desktop_mode.pluginsWindow.browseFilters',
     'my-plugin/curated',
@@ -157,7 +158,7 @@ import { setPluginsWindowTab } from 'desktop-mode/plugins-window/tab-target';
 const myButton = document.querySelector( '#explore-plugins' )!;
 myButton.addEventListener( 'click', () => {
     setPluginsWindowTab( 'browse' );
-    window.wp.desktop.openWindow( { id: 'desktop-mode-plugins' } );
+    window.wp.desktop.openWindow( 'desktop-mode-plugins' );
 } );
 ```
 

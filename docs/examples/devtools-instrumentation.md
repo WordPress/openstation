@@ -60,20 +60,20 @@ wp.desktop.ready( () => {
         label: 'Devtools',
         icon:  'dashicons-bug',
         match: () => true,                // every window gets the bug
-        onClick: ( ctx ) => {
+        onClick: ( win ) => {
             const sessionId = wp.desktop.devtools.debug.startSession();
 
             // Attach the session header to every outgoing request.
             const stop = wp.desktop.devtools.addRequestHeader(
-                ctx.window.id,
+                win.id,
                 'X-WP-Debug-Session',
                 sessionId,
             );
 
             // Open (or focus) the inspector window.
             const inspector = wp.desktop.registerWindow( {
-                id:    `sql-inspector-${ ctx.window.id }`,
-                title: `SQL — ${ ctx.window.config.title }`,
+                id:    `sql-inspector-${ win.id }`,
+                title: `SQL — ${ win.config.title }`,
                 icon:  'dashicons-search',
                 native: true,
                 width:  640,
@@ -84,7 +84,7 @@ wp.desktop.ready( () => {
                         <wpd-stack gap="8" style="padding:8px;">
                             <wpd-cluster gap="6">
                                 <wpd-badge tone="success">Attached</wpd-badge>
-                                <span style="opacity:0.7">${ ctx.window.config.ownerHandle || 'core' }</span>
+                                <span style="opacity:0.7">${ win.config.ownerHandle || 'core' }</span>
                             </wpd-cluster>
                             <!--
                               row-height="22" is fixed-row-height mode (fast path).
@@ -150,7 +150,7 @@ The shell aggregates: as long as any subscriber for the window has `observe: tru
 
 ## ownerHandle attribution
 
-Every window registered via `desktop_mode_register_window( $args )` (with `'script' => 'my-plugin-handle'`) carries that handle through to `Window.config.ownerHandle`. Devtools read it for attribution:
+Every window registered via `desktop_mode_register_window( $id, $args )` (with `'script' => 'my-plugin-handle'` in `$args`) carries that handle through to `Window.config.ownerHandle`. Devtools read it for attribution:
 
 ```js
 wp.desktop.registerTitleBarButton( {

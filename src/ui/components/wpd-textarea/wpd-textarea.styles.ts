@@ -11,7 +11,7 @@ export const textareaStyles = css`
 		flex-direction: column;
 		gap: 4px;
 		font-size: 13px;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		min-width: 0;
 	}
 	:host( [ hidden ] ) {
@@ -20,7 +20,7 @@ export const textareaStyles = css`
 
 	.wpd-textarea__label {
 		font-size: 12px;
-		color: var( --desktop-mode-muted, #646970 );
+		color: var( --wpd-fg-muted, #646970 );
 	}
 
 	textarea {
@@ -32,18 +32,18 @@ export const textareaStyles = css`
 		box-sizing: border-box;
 		padding: 8px 10px;
 		background: var( --desktop-mode-window-bg, #fff );
-		border: 1px solid var( --desktop-mode-border, #dcdcde );
+		border: 1px solid var( --wpd-border, #dcdcde );
 		border-radius: 6px;
 		font: inherit;
 		font-size: 13px;
 		line-height: 1.45;
-		color: var( --desktop-mode-text, #1d2327 );
+		color: var( --wpd-fg, #1d2327 );
 		resize: vertical;
 		transition: border-color 0.12s ease, box-shadow 0.12s ease;
 	}
 
 	textarea:hover {
-		border-color: var( --desktop-mode-muted, #8c8f94 );
+		border-color: var( --wpd-fg-muted, #8c8f94 );
 	}
 	textarea:focus-visible {
 		outline: none;
@@ -53,11 +53,11 @@ export const textareaStyles = css`
 	textarea:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
-		background: rgba( 0, 0, 0, 0.03 );
+		background: var( --wpd-hover, rgba( 0, 0, 0, 0.03 ) );
 	}
 
 	textarea[ aria-invalid='true' ] {
-		border-color: #d63638;
+		border-color: var( --wpd-danger, #d63638 );
 	}
 	textarea[ aria-invalid='true' ]:focus-visible {
 		box-shadow: 0 0 0 1px #d63638;

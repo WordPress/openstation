@@ -11,21 +11,99 @@
  * Functions here take the `Window` instance as their first argument
  * (`win`) so the class keeps its public surface unchanged while the
  * heavy logic lives out of the orchestrator file.
- *
- * @since 0.8.1
  */
 
 import { __, sprintf } from '../i18n';
 import { showToast } from '../toast';
-import { urlMatchKey } from '../utils';
+import { pageIdentityKey, urlMatchKey } from '../utils';
 import { EXTERNAL_IFRAME_READY_TIMEOUT_MS } from './constants';
 import { withChromelessParam } from './dom';
 import type { Window } from './index';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 /**
+ * Find the submenu tab that owns the page `currentUrl` sits on, for
+ * the case where no tab's URL matches it outright.
+ *
+ * A submenu tab points at one landing URL, but the screen behind it
+ * usually has more states than that: `nav-menus.php` also renders as
+ * `?action=locations` and `?action=edit&menu=2`, a list table paginates
+ * into `?paged=2`, a settings screen redirects back with
+ * `?settings-updated=true`. All of those are still that tab's page and
+ * should keep it lit.
+ *
+ * A candidate must clear two bars:
+ *
+ *   1. Same {@link pageIdentityKey} — same admin file, and agreeing on
+ *      the params that genuinely separate pages (`post_type`,
+ *      `taxonomy`, `page`, …). This is what keeps Categories from
+ *      claiming Tags.
+ *   2. Every param the tab's own URL declares is present in the current
+ *      URL with the same value. A tab is only a candidate for URLs that
+ *      are *inside* it — `admin.php?page=x&tab=test` never claims
+ *      `admin.php?page=x&tab=other`.
+ *
+ * Among survivors the most specific wins (most params declared), so a
+ * plugin that registers both `?page=x` and `?page=x&tab=test` as
+ * separate submenu entries lights the deeper one on the deeper URL and
+ * falls back to the parent entry on any other `tab=` value.
+ */
+function findPageOwnerTab(
+	submenuTabs: NodeListOf< HTMLElement >,
+	currentUrl: string,
+): HTMLElement | null {
+	let current: URL;
+	try {
+		current = new URL( currentUrl, window.location.origin );
+	} catch {
+		return null;
+	}
+	const currentIdentity = pageIdentityKey( currentUrl );
+
+	let best: HTMLElement | null = null;
+	let bestScore = -1;
+	for ( const tab of submenuTabs ) {
+		const tabUrl = tab.dataset.url;
+		if ( ! tabUrl || pageIdentityKey( tabUrl ) !== currentIdentity ) {
+			continue;
+		}
+		let parsed: URL;
+		try {
+			parsed = new URL( tabUrl, window.location.origin );
+		} catch {
+			continue;
+		}
+		let score = 0;
+		let contradicted = false;
+		for ( const [ key, value ] of parsed.searchParams ) {
+			if (
+				key === 'desktop_mode_chromeless' ||
+				key === 'desktop_mode_portal'
+			) {
+				continue;
+			}
+			if ( current.searchParams.get( key ) !== value ) {
+				contradicted = true;
+				break;
+			}
+			score++;
+		}
+		if ( ! contradicted && score > bestScore ) {
+			best = tab;
+			bestScore = score;
+		}
+	}
+	return best;
+}
+
+/**
  * Update the active tab to whichever submenu URL matches the iframe's
  * current location. Called after every iframe navigation.
+ *
+ * An exact URL match wins outright. Failing that, the tab whose page
+ * the current URL belongs to is lit — see {@link findPageOwnerTab} —
+ * so drilling into a screen's own sub-views (`nav-menus.php?action=
+ * locations`, `edit.php?paged=2`) doesn't blank the strip.
  *
  * Only submenu tabs participate in URL-based matching. External
  * sub-tabs and the injected "main" tab manage their own active state
@@ -50,9 +128,19 @@ export function syncActiveTab( win: Window, currentUrl: string ): void {
 		return;
 	}
 	const activeKey = urlMatchKey( currentUrl );
+	let active: HTMLElement | null = null;
 	for ( const tab of submenuTabs ) {
 		const tabUrl = tab.dataset.url;
-		const isActive = !! tabUrl && urlMatchKey( tabUrl ) === activeKey;
+		if ( tabUrl && urlMatchKey( tabUrl ) === activeKey ) {
+			active = tab;
+			break;
+		}
+	}
+	if ( ! active ) {
+		active = findPageOwnerTab( submenuTabs, currentUrl );
+	}
+	for ( const tab of submenuTabs ) {
+		const isActive = tab === active;
 		tab.classList.toggle( 'desktop-mode-window__tab--active', isActive );
 		tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
 	}
@@ -425,7 +513,7 @@ export function handleTabStripClick( win: Window, e: Event ): void {
 			// once the next page hydrates (and the iframe `load`
 			// event is the floor signal). Without this, in-place
 			// submenu navigation showed no spinner — visible only
-			// after we added the synthetic main tab in 0.18.x, which
+			// after we added the synthetic main tab, which
 			// gave users a reason to navigate within tabs instead of
 			// closing + reopening the window.
 			win.markContentLoading();

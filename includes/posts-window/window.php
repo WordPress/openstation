@@ -15,15 +15,12 @@
  * customizing the layout.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Echoes the native Posts window's template body.
- *
- * @since 0.8.0
  */
 function desktop_mode_posts_window_render_template() {
 	ob_start();
@@ -137,8 +134,6 @@ function desktop_mode_posts_window_render_template() {
 	 * render callback can find its mount points, or rename them and
 	 * update the matching constants in `src/posts-window/index.ts`.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_posts_window_template_html', $html );
@@ -154,12 +149,10 @@ function desktop_mode_posts_window_render_template() {
  * Register the native Posts window on `init` (priority 20, after
  * `components.php` has bootstrapped the registry).
  *
- * Gated on `desktop_mode_posts_window_user_can_use()` — when the user
- * has not opted in (or lacks `edit_posts`), the window is simply not
- * registered and the dock-click swap silently falls back to the
- * iframe path.
- *
- * @since 0.8.0
+ * Gated on `desktop_mode_posts_window_user_can_register()` — cap-only,
+ * so when the user lacks `edit_posts` the window is simply not
+ * registered. The opt-in toggle is enforced at runtime by the JS-side
+ * URL remap, so flipping it mid-session never requires a reload.
  */
 function desktop_mode_posts_window_register_window() {
 	// Cap-only gate so that flipping the opt-in mid-session doesn't
@@ -210,8 +203,6 @@ function desktop_mode_posts_window_register_window() {
 	/**
 	 * Filter the args used to register the native Posts window.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_posts_window_args', $window_args );
@@ -231,8 +222,6 @@ add_action( 'init', 'desktop_mode_posts_window_register_window', 20 );
  * a list of CPTs) without forking the bundle. The JS bundle merges
  * these on top of the page/per-page/search/status/sort args it
  * generates per request.
- *
- * @since 0.8.0
  *
  * @return array
  */
@@ -258,8 +247,6 @@ function desktop_mode_posts_window_default_query_args() {
 	 * CPT, or extend `_fields` to ship more columns. The bundle merges
 	 * these on top of pagination/search/status/sort args.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param array $args Default args.
 	 */
 	return (array) apply_filters( 'desktop_mode_posts_window_query_args', $args );
@@ -274,8 +261,6 @@ function desktop_mode_posts_window_default_query_args() {
  * tag queries are unaffected because AND with one term is identical
  * to IN. The filter is scoped to GET `/wp/v2/posts`-style queries so
  * other endpoints' tax_query semantics aren't touched.
- *
- * @since 0.8.0
  *
  * @param array           $args    `WP_Query` args after the REST controller
  *                                 prepared them.
@@ -320,8 +305,6 @@ add_filter( 'rest_post_query', 'desktop_mode_posts_window_tags_and_filter', 10, 
  * REST view context. The per-term query is one cheap COUNT(*) on a
  * pre-indexed join, so 50 terms = 50 light queries — acceptable for
  * an admin UI.
- *
- * @since 0.8.0
  */
 function desktop_mode_posts_window_register_count_field() {
 	foreach ( array( 'category', 'post_tag' ) as $taxonomy ) {
@@ -371,8 +354,6 @@ add_action( 'rest_api_init', 'desktop_mode_posts_window_register_count_field' );
  * in one stroke — no enumerating keys, no race window where an
  * old entry might still be served. Stale entries fall out of the
  * DB naturally via the transient TTL.
- *
- * @since 0.8.5
  */
 function desktop_mode_posts_window_terms_cache_version() {
 	$v = (int) get_option( 'desktop_mode_terms_cache_version', 0 );
@@ -394,8 +375,6 @@ function desktop_mode_posts_window_terms_cache_version() {
  * The signature is intentionally argument-tolerant — each hook
  * passes different positional args (object_id, term_id, taxonomy,
  * …) and PHP just ignores extras for a no-param target.
- *
- * @since 0.8.5
  */
 function desktop_mode_posts_window_terms_cache_invalidate() {
 	$v = desktop_mode_posts_window_terms_cache_version();
@@ -442,8 +421,6 @@ add_action( 'before_delete_post', 'desktop_mode_posts_window_terms_cache_invalid
  * regardless of which subset they ask for.
  *
  * GET `/desktop-mode/v1/term-counts?taxonomy=category&ids=1,4,7`
- *
- * @since 0.8.0
  */
 function desktop_mode_posts_window_register_term_counts_route() {
 	register_rest_route(
@@ -570,8 +547,6 @@ function desktop_mode_posts_window_term_counts_callback( $request ) {
  * trash, auto-draft, inherit). Post type is bounded to the
  * taxonomy's declared `object_type` so e.g. page-attached terms
  * don't bleed into the post-tag graph.
- *
- * @since 0.8.5
  */
 function desktop_mode_posts_window_register_tag_cooccurrence_route() {
 	register_rest_route(

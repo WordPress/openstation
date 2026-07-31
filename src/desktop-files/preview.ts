@@ -15,14 +15,15 @@
  * entity preview pane.
  *
  * @public
- * @since 0.8.0
  */
 
 import { applyFilters } from '../hooks';
 import { __, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
-import type { RestPlacementShape } from './rest';
+import { formatBytes } from '../os-file-drop/format-bytes';
+import { navigateToDownload } from './download-nav';
+import { getUploadDownloadUrl, type RestPlacementShape } from './rest';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 interface FetchInit extends RequestInit {
@@ -162,6 +163,8 @@ async function renderByType(
 			return renderShortcutPreview( file );
 		case 'attachment':
 			return renderAttachmentPreview( file.ref, file );
+		case 'upload':
+			return renderUploadPreview( file );
 		case 'user':
 			return renderUserSummary( file.ref, file );
 		case 'term':
@@ -620,6 +623,103 @@ async function renderAttachmentPreview(
 		a.rel = 'noopener noreferrer';
 		p.appendChild( a );
 		wrap.appendChild( p );
+	}
+	return wrap;
+}
+
+/**
+ * Stored uploads (real desktop storage). Media kinds the browser
+ * can render inline (image / video / audio) preview via the
+ * authenticated download URL — subresource loads ignore the
+ * `attachment` disposition, so the bytes display without ever
+ * exposing a direct file URL. Everything else gets a friendly
+ * no-preview note plus a Download action.
+ *
+ * Plugins add previews for further types (PDF, 3D models, …)
+ * through the `desktop-mode.files.preview` filter — return a
+ * custom element for `file.type === 'upload'` placements whose
+ * `mime`/`kind` you recognize, and it fully replaces this
+ * built-in.
+ */
+function renderUploadPreview(
+	file: RestPlacementShape[ 'file' ],
+): HTMLElement {
+	const wrap = articleShell();
+	const h = document.createElement( 'h2' );
+	h.className = 'desktop-mode-my-wordpress__article-title';
+	h.textContent = file.title || __( 'Uploaded file', 'desktop-mode' );
+	wrap.appendChild( h );
+
+	const mime = typeof file.mime === 'string' ? ( file.mime as string ) : '';
+	const sizeBytes =
+		typeof file.sizeBytes === 'number' ? ( file.sizeBytes as number ) : 0;
+	const kind = typeof file.kind === 'string' ? ( file.kind as string ) : 'file';
+
+	const meta = document.createElement( 'p' );
+	meta.className = 'desktop-mode-my-wordpress__article-meta';
+	meta.textContent = [ mime, sizeBytes > 0 ? formatBytes( sizeBytes ) : '' ]
+		.filter( Boolean )
+		.join( ' · ' );
+	wrap.appendChild( meta );
+
+	const fileId = parseInt( file.ref, 10 );
+	const noPreviewNote = (): HTMLElement => {
+		const p = document.createElement( 'p' );
+		p.className = 'desktop-mode-my-wordpress__article-meta desktop-mode-files__no-preview';
+		p.textContent = __(
+			'No preview available for this file type.',
+			'desktop-mode',
+		);
+		return p;
+	};
+
+	if ( fileId > 0 && kind === 'image' ) {
+		const img = document.createElement( 'img' );
+		img.className = 'desktop-mode-my-wordpress__article-hero';
+		img.src = getUploadDownloadUrl( fileId );
+		img.alt = file.title || '';
+		// Formats the browser can't decode (HEIC on Chromium, …)
+		// degrade to the no-preview note instead of a broken glyph.
+		img.addEventListener( 'error', () => {
+			img.replaceWith( noPreviewNote() );
+		} );
+		wrap.appendChild( img );
+	} else if ( fileId > 0 && kind === 'video' ) {
+		const video = document.createElement( 'video' );
+		video.className = 'desktop-mode-my-wordpress__article-hero';
+		video.controls = true;
+		video.preload = 'metadata';
+		video.src = getUploadDownloadUrl( fileId );
+		video.addEventListener( 'error', () => {
+			video.replaceWith( noPreviewNote() );
+		} );
+		wrap.appendChild( video );
+	} else if ( fileId > 0 && kind === 'audio' ) {
+		const audio = document.createElement( 'audio' );
+		audio.controls = true;
+		audio.preload = 'metadata';
+		audio.src = getUploadDownloadUrl( fileId );
+		audio.style.width = '100%';
+		audio.addEventListener( 'error', () => {
+			audio.replaceWith( noPreviewNote() );
+		} );
+		wrap.appendChild( audio );
+	} else {
+		wrap.appendChild( noPreviewNote() );
+	}
+
+	if ( fileId > 0 ) {
+		const footer = document.createElement( 'footer' );
+		footer.className = 'desktop-mode-my-wordpress__article-footer';
+		const downloadBtn = document.createElement( 'wpd-button' );
+		downloadBtn.setAttribute( 'variant', 'primary' );
+		downloadBtn.textContent = __( 'Download', 'desktop-mode' );
+		downloadBtn.addEventListener( 'click', () => {
+			// Minted at click time — nonces expire.
+			navigateToDownload( getUploadDownloadUrl( fileId ) );
+		} );
+		footer.appendChild( downloadBtn );
+		wrap.appendChild( footer );
 	}
 	return wrap;
 }

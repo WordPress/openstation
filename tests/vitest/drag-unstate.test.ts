@@ -8,7 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
-import { handleDragStart } from '../../src/window/pointer';
+import { clampWindowPosition, handleDragStart } from '../../src/window/pointer';
 import { Window } from '../../src/window';
 import type { WindowConfig } from '../../src/types';
 
@@ -39,6 +39,16 @@ function mountWindow( cfg: WindowConfig ): {
 	document.body.appendChild( parent );
 	const win = new Window( cfg );
 	parent.appendChild( win.element );
+
+	Object.defineProperty( win.element, 'offsetWidth', {
+		get: () => parseInt( win.element.style.width, 10 ) || 0,
+		configurable: true,
+	} );
+	Object.defineProperty( win.element, 'offsetHeight', {
+		get: () => parseInt( win.element.style.height, 10 ) || 0,
+		configurable: true,
+	} );
+
 	return {
 		win,
 		parent,
@@ -234,6 +244,53 @@ describe( 'drag auto-unstate', () => {
 		cleanup();
 	} );
 
+	test( 'un-snap from SNAPPED-LEFT clamps the anchor at the edge — no drag dead zone', () => {
+		// Regression (DESKMOD-24): a snapped-LEFT window whose saved
+		// floating width exceeds the half-screen used to re-anchor at
+		// a NEGATIVE left. The drag offsets derived from that
+		// unclamped position, so the move-loop clamp pinned the window
+		// at x=0 until the cursor had traveled the whole overshoot —
+		// the window slid along the left edge instead of following
+		// the pointer.
+		const handle = mountWindow( baseConfig() );
+		const { win, cleanup } = handle;
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { /* noop */ } } );
+		// Snapped-left title bar spans the LEFT HALF of a 1600 px
+		// desktop area.
+		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 0, top: 0, right: 800, bottom: 40,
+				width: 800, height: 40, x: 0, y: 0, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+
+		win.state = 'snapped-left';
+		win.element.classList.add( 'desktop-mode-window--snapped-left' );
+		win.element.style.left = '0px';
+		win.element.style.top = '0px';
+		win.element.style.width = '800px';
+		win.element.style.height = '900px';
+		// Saved floating width (1200) is WIDER than the half-screen
+		// (800) — the mid-bar grab ratio would anchor left at
+		// 420 - 0.5 * 1200 = -180 without the clamp.
+		win._savedGeometry = { x: 40, y: 40, width: 1200, height: 700 };
+
+		handleDragStart( win, fakePointer( win._titleBar, 400, 20 ) );
+		fakeMove( win._titleBar, 400, 20, 20, 0 );
+
+		// The un-state committed at the clamped edge, not off-screen.
+		expect( win.state ).toBe( 'normal' );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( 0 );
+
+		// The VERY NEXT move must translate 1:1 — cursor +100 px right
+		// puts the window at left=100. Before the fix the offset math
+		// kept x negative (clamped back to 0) until the cursor passed
+		// the whole -180 px overshoot.
+		fakeMove( win._titleBar, 400, 20, 120, 0 );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( 100 );
+		cleanup();
+	} );
+
 	test( 'drag from maximized WITHOUT saved geometry falls back to 60% of parent', () => {
 		const handle = mountWindow( baseConfig() );
 		const { win, cleanup } = handle;
@@ -296,5 +353,61 @@ describe( 'drag auto-unstate', () => {
 		expect( win.element.classList.contains( 'desktop-mode-window--dragging' ) ).toBe( false );
 		expect( win._isDragging ).toBe( false );
 		cleanup();
+	} );
+
+	test( 'drag bounds: allows bleeding off left, right, and bottom up to GRAB_MARGIN, locks top at y=0', () => {
+		const handle = mountWindow( baseConfig() );
+		const { win, cleanup } = handle;
+		Object.defineProperty( win._titleBar, 'setPointerCapture', { value: () => { /* noop */ } } );
+		Object.defineProperty( win._titleBar, 'getBoundingClientRect', {
+			value: () => ( {
+				left: 100, top: 100, right: 900, bottom: 140,
+				width: 800, height: 40, x: 100, y: 100, toJSON: () => ( {} ),
+			} ) as DOMRect,
+		} );
+
+		win.element.style.left = '100px';
+		win.element.style.top = '100px';
+		win.element.style.width = '800px';
+		win.element.style.height = '600px';
+
+		handleDragStart( win, fakePointer( win._titleBar, 150, 110 ) );
+
+		// 1. Drag far past the left edge -> minX = GRAB_MARGIN (40) - width (800) = -760px
+		fakeMove( win._titleBar, 150, 110, -1000, 0 );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( -760 );
+
+		// 2. Drag far past the top edge -> strictly locked at y = 0 (EDGE_MARGIN)
+		fakeMove( win._titleBar, 150, 110, 0, -1000 );
+		expect( parseInt( win.element.style.top, 10 ) ).toBe( 0 );
+
+		// 3. Drag far past the right edge -> desktop.clientWidth (1600) - GRAB_MARGIN (40) = 1560px
+		fakeMove( win._titleBar, 150, 110, 3000, 0 );
+		expect( parseInt( win.element.style.left, 10 ) ).toBe( 1560 );
+
+		// 4. Drag far past the bottom edge -> desktop.clientHeight (900) - GRAB_MARGIN (40) = 860px
+		fakeMove( win._titleBar, 150, 110, 0, 3000 );
+		expect( parseInt( win.element.style.top, 10 ) ).toBe( 860 );
+
+		cleanup();
+	} );
+} );
+
+describe( 'clampWindowPosition', () => {
+	test( 'clamps left/right/bottom to GRAB_MARGIN and top to EDGE_MARGIN', () => {
+		// Inside desktop bounds (no clamping needed)
+		expect( clampWindowPosition( 100, 100, 800, 1600, 900 ) ).toEqual( { x: 100, y: 100 } );
+
+		// Off left edge: minX = GRAB_MARGIN (40) - width (800) = -760
+		expect( clampWindowPosition( -1000, 100, 800, 1600, 900 ) ).toEqual( { x: -760, y: 100 } );
+
+		// Off top edge: minY = EDGE_MARGIN = 0
+		expect( clampWindowPosition( 100, -500, 800, 1600, 900 ) ).toEqual( { x: 100, y: 0 } );
+
+		// Off right edge: maxX = 1600 - GRAB_MARGIN (40) = 1560
+		expect( clampWindowPosition( 2000, 100, 800, 1600, 900 ) ).toEqual( { x: 1560, y: 100 } );
+
+		// Off bottom edge: maxY = 900 - GRAB_MARGIN (40) = 860
+		expect( clampWindowPosition( 100, 2000, 800, 1600, 900 ) ).toEqual( { x: 100, y: 860 } );
 	} );
 } );

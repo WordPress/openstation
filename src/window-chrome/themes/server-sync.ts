@@ -28,8 +28,6 @@
  * Themes pre-registered via PHP metadata (`serverWindowThemes`)
  * register their tokens shell-side too, without waiting for a JS
  * round trip — this is what enables stylesheet-only themes.
- *
- * @since 0.6.0
  */
 
 import { doAction, HOOKS } from '../../hooks';

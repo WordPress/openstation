@@ -21,8 +21,6 @@
  * Both are intentionally thin — they don't introduce new runtime
  * state. Plugins that outgrow them can always call the underlying
  * APIs directly.
- *
- * @since 0.10.0
  */
 
 import { activity } from './activity';
@@ -62,7 +60,6 @@ import {
  * argument to `onWindow`).
  *
  * @public
- * @since 0.10.0
  */
 export interface WindowLifecycleHandlers {
 	opened?: () => void;
@@ -72,15 +69,22 @@ export interface WindowLifecycleHandlers {
 	 * the user/caller is asking to "show this window". A typical
 	 * use is to re-orient content (focus a tab, scroll to a row).
 	 * Payload mirrors the `WINDOW_REOPENED` action: `{ baseId,
-	 * wasMinimized }`. *Since 0.5.5.*
+	 * wasMinimized, navigated }`. `navigated` is
+	 * `true` when the open request carried a URL the window wasn't
+	 * already showing and the framework navigated the existing
+	 * iframe to it in place; always `false` for native windows.
 	 */
-	reopened?: ( payload: { baseId: string; wasMinimized: boolean } ) => void;
+	reopened?: ( payload: {
+		baseId: string;
+		wasMinimized: boolean;
+		navigated?: boolean;
+	} ) => void;
 	focused?: () => void;
 	/**
 	 * Window lost focus to another window. Payload: `{ focusedTo }` —
 	 * the id of the window that took over (so subscribers can
 	 * decide whether the blur transitions to a peer they care
-	 * about). *Since 0.5.5.*
+	 * about).
 	 */
 	blurred?: ( payload: { focusedTo: string | null } ) => void;
 	closing?: ( payload: { element: HTMLElement } ) => void;
@@ -88,11 +92,11 @@ export interface WindowLifecycleHandlers {
 	minimized?: () => void;
 	restored?: () => void;
 	maximized?: () => void;
-	/** *Since 0.5.5.* Fires when the window leaves maximized state. */
+	/** Fires when the window leaves maximized state. */
 	unmaximized?: () => void;
-	/** *Since 0.5.5.* Fires when the window enters fullscreen / focus mode. */
+	/** Fires when the window enters fullscreen / focus mode. */
 	fullscreenEntered?: () => void;
-	/** *Since 0.5.5.* Fires when the window exits fullscreen / focus mode. */
+	/** Fires when the window exits fullscreen / focus mode. */
 	fullscreenExited?: () => void;
 	resized?: ( payload: { width: number; height: number } ) => void;
 	/** Body-resized — fires on every paint where body dimensions change. */
@@ -317,12 +321,40 @@ function buildNativeRenderContext( windowId: string ): {
 export { buildNativeRenderContext as _buildNativeRenderContext };
 
 /**
+ * Resolve the id of the window a native render callback is mounting
+ * into, by walking up from the body element to the window root
+ * (`id="wp-window-<windowId>"`, stamped by `createWindowElement`).
+ *
+ * `Window.hydrateNative()` runs AFTER the element is appended to the
+ * desktop, so by render time the ancestry is always present — the
+ * `fallback` only covers a detached body (a unit test rendering into
+ * a bare `<div>`, a future code path that pre-renders off-DOM).
+ *
+ * The same `wp-window-` walk backs `os-file-drop/manager.ts` and
+ * `drag/iframe-drop-targets.ts`; this is the id-of-record for
+ * anything that has a DOM node but not a `Window` reference.
+ *
+ * @internal
+ */
+function resolveMountedWindowId(
+	body: HTMLElement,
+	fallback: string,
+): string {
+	const root = body.closest< HTMLElement >( '[id^="wp-window-"]' );
+	const id = root?.id.slice( 'wp-window-'.length );
+	return id ? id : fallback;
+}
+
+/**
  * Synthesise a `render( body )` callback that renders an iframe
  * inside the native window's body and manages its lifecycle:
  *
  *   - Creates the `<iframe>` with the configured URL + sandbox.
- *   - On the iframe's `load` event, calls `onReady( send )` and
- *     flushes any messages queued before load.
+ *   - On the iframe's `load` event, marks the window content ready
+ *     (flushing any `Window.send()` payloads queued before load in
+ *     FIFO order) and resolves the promise the shell awaits before
+ *     clearing the window's loading state. Readiness needs no
+ *     callback from the plugin.
  *   - Listens for `message` events whose `event.source` matches
  *     the iframe's `contentWindow` (the source-check every plugin
  *     would otherwise reinvent) and forwards `event.data` to
@@ -337,14 +369,25 @@ export { buildNativeRenderContext as _buildNativeRenderContext };
  * — wired in by `createRegisterWindow` below so the plugin's own
  * `onClose` also runs.
  *
+ * `registeredId` is the id the PLUGIN asked for, which is NOT
+ * necessarily the id the window ends up with — `manager.open()`
+ * suffixes it (`chat` → `chat-2`) whenever an instance of the same
+ * baseId is already open on another virtual desktop, and `openNew`
+ * always does. Every id-keyed call below therefore resolves the LIVE
+ * instance id off the mounted DOM instead (see
+ * {@link resolveMountedWindowId}); `registeredId` is only the
+ * fallback for the theoretical case where the body isn't inside a
+ * window root yet.
+ *
  * @internal
  */
 function buildIframeContentRender(
 	cfg: NativeWindowIframeContent,
 	cleanups: ( () => void )[],
-	windowId: string,
+	registeredId: string,
 ): ( body: HTMLElement ) => Promise< void > {
 	return ( body: HTMLElement ) => {
+		const windowId = resolveMountedWindowId( body, registeredId );
 		const iframe = document.createElement( 'iframe' );
 		iframe.style.width = '100%';
 		iframe.style.height = '100%';
@@ -547,7 +590,18 @@ export function createRegisterWindow(
 		// here; the Window class wraps it at hydration time.
 
 		const userOnClose = def.onClose;
-		const onClose: typeof userOnClose = cleanups.length
+		// Wrap on "this def CAN produce cleanups", never on
+		// `cleanups.length`. The array is populated by the synthesised
+		// render callback, which doesn't run until `manager.open()`
+		// below hydrates the window — so at this point it is always
+		// empty and the length check wrapped nothing. Every
+		// `iframeContent` window therefore leaked: its synthetic-iframe
+		// registration outlived the close (a stale `_syntheticIframes`
+		// entry pointing at a detached iframe, which the next instance
+		// of the same id would then find instead of its own), and its
+		// `message` listener stayed on `window` for the rest of the
+		// session.
+		const onClose: typeof userOnClose = def.iframeContent
 			? ( () => {
 				for ( const fn of cleanups ) {
 					try {
@@ -645,8 +699,6 @@ export function createRegisterWindow(
  */
 /**
  * Optional flags for {@link onWindow}.
- *
- * @since 0.5.5
  */
 export interface OnWindowOptions {
 	/**
@@ -763,7 +815,6 @@ export function onWindow(
  * plugins that stick to the JS-only path self-manage their tiles.
  *
  * @public
- * @since 0.10.0
  */
 export interface NativeWindowRegistryDeps {
 	manager: WindowManager;
@@ -793,8 +844,7 @@ export interface NativeWindowRegistryDeps {
  * `onHide`, `onShow`, `markLoading`, `markReady`, plus the nested
  * `window.send/on` channel API. Existing unary callbacks
  * (`( body ) => …`) keep working — `ctx` is detected by arity, never
- * required. *Since 0.8.2 for the ctx arg; the unary form has been the
- * contract since 0.10.0.*
+ * required.
  *
  * @public
  */
@@ -805,6 +855,32 @@ type RenderCallback = (
 
 interface NativeWindowGlobals {
 	desktopModeNativeWindows?: Record< string, RenderCallback | undefined >;
+	/**
+	 * Deprecated legacy registry bag. Extension bundles built before
+	 * the rename (cron-manager, code-editor, phpMyAdmin) register
+	 * their render callbacks here; the shell merges it at read time
+	 * so those windows stay interactive. New code must register on
+	 * `desktopModeNativeWindows`.
+	 */
+	wpDesktopNativeWindows?: Record< string, RenderCallback | undefined >;
+}
+
+/**
+ * Resolve the render-callback registry, merging the deprecated
+ * `wpDesktopNativeWindows` bag under the canonical
+ * `desktopModeNativeWindows` one (canonical wins on id collisions).
+ *
+ * Merged at every read — not copied once at load — because some
+ * legacy bundles rewrite their entry after the bundle executes
+ * (e.g. cron-manager's whenDefined wrapper), so a boot-time copy
+ * would capture a stale callback.
+ */
+function readGlobalRegistry(): Record< string, RenderCallback | undefined > {
+	const g = window as unknown as NativeWindowGlobals;
+	return {
+		...( g.wpDesktopNativeWindows || {} ),
+		...( g.desktopModeNativeWindows || {} ),
+	};
 }
 
 /**
@@ -852,8 +928,6 @@ export interface NativeWindowSync {
 	 * windows do: every "+" yields a duplicate, not a focus-existing.
 	 *
 	 * Returns `false` when the id isn't registered.
-	 *
-	 * @since 0.19.0
 	 */
 	openNewById: ( id: string ) => boolean;
 }
@@ -884,8 +958,6 @@ export function createNativeWindowSync(
 	 * replay path uniform between native and classic windows. The
 	 * caller can suppress it by passing an explicit `initialState`
 	 * on the `manager.open` call.
-	 *
-	 * @since 0.8.5
 	 */
 	const resolveSizeForEntry = (
 		entry: NativeWindowServerEntry,
@@ -1001,10 +1073,7 @@ export function createNativeWindowSync(
 	};
 
 	const openFromEntry = ( entry: NativeWindowServerEntry ): void => {
-		const globalRegistry =
-			( window as unknown as NativeWindowGlobals ).desktopModeNativeWindows ||
-			{};
-		const render = globalRegistry[ entry.id ];
+		const render = readGlobalRegistry()[ entry.id ];
 
 		// Pre-populate the window body with the cloned template, then
 		// hand it to the optional render callback. The render contract
@@ -1059,10 +1128,7 @@ export function createNativeWindowSync(
 	 * its own template clone and its own teardown.
 	 */
 	const openNewFromEntry = ( entry: NativeWindowServerEntry ): void => {
-		const globalRegistry =
-			( window as unknown as NativeWindowGlobals ).desktopModeNativeWindows ||
-			{};
-		const render = globalRegistry[ entry.id ];
+		const render = readGlobalRegistry()[ entry.id ];
 
 		const finalRender: RenderCallback = ( body, ctx ) => {
 			body.appendChild( cloneTemplate( entry.templateId ) );

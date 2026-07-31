@@ -16,7 +16,6 @@
  *   $ts = (int) get_user_meta( $user_id, '_desktop_mode_last_login_at', true );
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -25,8 +24,6 @@ defined( 'ABSPATH' ) || exit;
  * The user meta key carrying the last successful login's UTC unix
  * timestamp. Public surface — exposed so other plugins can read /
  * sort by it.
- *
- * @since 0.18.0
  */
 const DESKTOP_MODE_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
 
@@ -37,8 +34,6 @@ const DESKTOP_MODE_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
  * cookie set, so any cap-eligible user reaching this point is
  * legitimately logged in. We record server time (`time()`), which
  * is always UTC by convention in PHP — match it on the read side.
- *
- * @since 0.18.0
  *
  * @param string  $user_login Login of the user (unused).
  * @param WP_User $user       The user object.
@@ -64,8 +59,6 @@ function desktop_mode_users_window_record_login( $user_login, $user = null ) {
 	 * Fires after the last-login meta has been written. Lets plugins
 	 * piggy-back on the same hook to update their own last-seen
 	 * tracking without duplicating the `wp_login` listener.
-	 *
-	 * @since 0.18.0
 	 *
 	 * @param int $user_id   User id whose login was recorded.
 	 * @param int $timestamp Unix timestamp written.

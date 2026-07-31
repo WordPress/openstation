@@ -14,6 +14,7 @@
  */
 
 import { Component, defineComponent, html } from '../../core';
+import { __ } from '../../../i18n';
 import { containerStyles, toastStyles } from './wpd-toast.styles';
 
 export class WpdToastContainer extends Component {
@@ -51,7 +52,7 @@ export class WpdToastContainer extends Component {
 defineComponent( 'wpd-toast-container', WpdToastContainer );
 
 export class WpdToast extends Component {
-	static props = [ 'action', 'state' ] as const;
+	static props = [ 'action', 'state', 'dismissible' ] as const;
 	static styles = [ toastStyles ];
 
 	static help = {
@@ -71,6 +72,11 @@ export class WpdToast extends Component {
 				type: "'in' | 'out'",
 				description: 'Drives the CSS fade transition. Set to "in" when rendered, flip to "out" before removal.',
 			},
+			{
+				name: 'dismissible',
+				type: 'boolean',
+				description: 'When set, a close (×) button renders on the right and emits wpd-toast-dismiss on click. Use for persistent toasts the user must be able to close.',
+			},
 		],
 		slots: [
 			{ name: '(default)', description: 'Message text.' },
@@ -79,6 +85,11 @@ export class WpdToast extends Component {
 			{
 				name: 'wpd-toast-action',
 				description: 'Fires when the action button is clicked.',
+				detail: '{}',
+			},
+			{
+				name: 'wpd-toast-dismiss',
+				description: 'Fires when the close (×) button is clicked.',
 				detail: '{}',
 			},
 		],
@@ -97,10 +108,11 @@ export class WpdToast extends Component {
 	protected render() {
 		const action =
 			( this as unknown as { action: string | null } ).action || '';
-		// Always render the button element; `?hidden` keeps it out
-		// of the accessibility tree when there's no action. Means
-		// a single stable template across render passes (my
-		// templater doesn't swap subtrees mid-run).
+		const dismissible = this.hasAttribute( 'dismissible' );
+		// Always render the buttons; `?hidden` keeps them out of the
+		// accessibility tree when unused. Means a single stable
+		// template across render passes (my templater doesn't swap
+		// subtrees mid-run).
 		return html`
 			<span class="wpd-toast__label"><slot></slot></span>
 			<button
@@ -110,6 +122,23 @@ export class WpdToast extends Component {
 			>
 				${ action }
 			</button>
+			<button
+				type="button"
+				class="wpd-toast__close"
+				aria-label=${ __( 'Dismiss' ) }
+				?hidden=${ ! dismissible }
+				@click=${ ( e: Event ) => this._onDismiss( e ) }
+			>
+				<svg viewBox="0 0 14 14" width="12" height="12" aria-hidden="true" focusable="false">
+					<path
+						d="M3 3 L11 11 M11 3 L3 11"
+						stroke="currentColor"
+						stroke-width="1.7"
+						stroke-linecap="round"
+						fill="none"
+					></path>
+				</svg>
+			</button>
 		`;
 	}
 
@@ -117,6 +146,12 @@ export class WpdToast extends Component {
 		e.preventDefault();
 		e.stopPropagation();
 		this.emit( 'wpd-toast-action', {} );
+	}
+
+	private _onDismiss( e: Event ): void {
+		e.preventDefault();
+		e.stopPropagation();
+		this.emit( 'wpd-toast-dismiss', {} );
 	}
 }
 defineComponent( 'wpd-toast', WpdToast );

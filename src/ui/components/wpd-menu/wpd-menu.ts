@@ -37,7 +37,7 @@ export class WpdMenu extends Component {
 		cssProps: [
 			{ name: '--desktop-mode-window-bg', description: 'Menu background.' },
 			{ name: '--desktop-mode-window-border', description: 'Menu border.' },
-			{ name: '--desktop-mode-text', description: 'Item text colour.' },
+			{ name: '--wpd-fg', description: 'Item text colour.' },
 		],
 		example: html`
 			<wpd-menu>

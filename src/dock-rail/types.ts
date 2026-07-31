@@ -12,8 +12,6 @@
  * Plugin authors `register()`, implement `mount()`, and return a
  * controller. The shell handles error isolation and live-sync
  * registration.
- *
- * @since 0.18.0
  */
 
 import type {
@@ -74,8 +72,6 @@ export interface DockRailMountDeps {
 	 * admin — or that wants to ignore the layout's partitioning
 	 * logic for its own UX — reads this. Updates with every live
 	 * menu refresh.
-	 *
-	 * @since 0.18.0
 	 */
 	fullMenu: DockItem[];
 	/**
@@ -92,8 +88,6 @@ export interface DockRailMountDeps {
 	 * for menu items + system tiles. Live updates still flow
 	 * through the controller's `appendSystemItem` /
 	 * `removeSystemItem` hooks.
-	 *
-	 * @since 0.18.0
 	 */
 	fullSystemTiles: SystemDockItem[];
 	orientation: DockOrientation;
@@ -118,8 +112,6 @@ export interface DockRailMountDeps {
 	 * (`deriveWindowId`) is exposed via this callback so plugin and
 	 * default renderers address the same window with the same id at
 	 * runtime.
-	 *
-	 * @since 0.18.0
 	 */
 	openSubmenuPick( item: DockItem, sub: SubmenuItem ): void;
 	openSystemItem( item: SystemDockItem ): void;
@@ -191,7 +183,6 @@ export interface DockRailController {
  * `dockRailRenderer` OS Settings pick (default `'default'`).
  *
  * @public
- * @since 0.18.0
  */
 export interface DockRailRenderer {
 	/**

@@ -12,8 +12,6 @@
  * Shared via `wp.desktop.createSharedStore` so a future split of
  * the user-edit code into its own bundle keeps the same single
  * source of truth across bundles (per CLAUDE.md guidance).
- *
- * @since 0.18.0
  */
 
 interface SharedStoreApi< T > {

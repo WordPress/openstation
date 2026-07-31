@@ -13,8 +13,6 @@
  * the next page reload — graceful backwards-compat. Open windows
  * repaint live via the registry's subscribe fan-out (see
  * `Window.renderCustomTitleBarButtons`).
- *
- * @since 0.17.0
  */
 
 import { doAction, HOOKS } from './../hooks';

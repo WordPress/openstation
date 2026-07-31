@@ -9,21 +9,19 @@
  * categories, role + member-since) without forcing the client to
  * make N parallel REST calls.
  *
- * Permissions: anyone with `list_users` sees full data; everyone
- * else sees the public subset (display name, avatar, post archive
- * link, public post counts). Sensitive fields (email, registered
- * date, role) are gated on the cap.
+ * Permissions: anyone with `list_users` — or the subject user
+ * viewing their own dossier — sees full data; everyone else sees
+ * the public subset (display name, avatar, post archive link,
+ * published-only counts and recent posts). Sensitive fields
+ * (email, registered date, role) are gated on the cap.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Register the route.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_user_stats_route() {
 	register_rest_route(
@@ -52,8 +50,6 @@ add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_user_stats_rout
 /**
  * Aggregator callback. Returns the dossier shape (see file
  * docblock above for fields).
- *
- * @since 0.8.0
  *
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
@@ -157,15 +153,34 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		}
 	}
 
+	if ( ! $can_see_private ) {
+		// Viewers without `list_users` (and who aren't the subject)
+		// only get published counts — see the permissions note in
+		// the file docblock.
+		$post_counts = array(
+			'publish' => $post_counts['publish'],
+			'total'   => $post_counts['publish'],
+		);
+		$page_counts = array(
+			'publish' => $page_counts['publish'],
+			'total'   => $page_counts['publish'],
+		);
+	}
+
 	// Comments received on posts authored by this user, approved only.
-	$comments_received = (int) $wpdb->get_var(
+	// Non-privileged viewers only see engagement on published content.
+	$received_status_sql = $can_see_private
+		? "p.post_status NOT IN ( 'auto-draft', 'trash' )"
+		: "p.post_status = 'publish'";
+	$comments_received   = (int) $wpdb->get_var(
 		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal status clause chosen above.
 			"SELECT COUNT(c.comment_ID)
 			FROM {$wpdb->comments} c
 			INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
 			WHERE p.post_author = %d
 				AND c.comment_approved = '1'
-				AND p.post_status NOT IN ( 'auto-draft', 'trash' )",
+				AND {$received_status_sql}",
 			$user_id
 		)
 	);
@@ -182,13 +197,18 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 	);
 
 	// Total content (posts + pages + any custom public post types).
-	$cpt_count = (int) $wpdb->get_var(
+	// Same gating as above: published-only unless privileged.
+	$cpt_status_sql = $can_see_private
+		? "post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )"
+		: "post_status = 'publish'";
+	$cpt_count      = (int) $wpdb->get_var(
 		$wpdb->prepare(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal status clause chosen above.
 			"SELECT COUNT(*)
 			FROM {$wpdb->posts}
 			WHERE post_author = %d
 				AND post_type NOT IN ( 'post', 'page', 'attachment', 'revision', 'nav_menu_item' )
-				AND post_status NOT IN ( 'auto-draft', 'inherit', 'trash' )",
+				AND {$cpt_status_sql}",
 			$user_id
 		)
 	);
@@ -201,12 +221,16 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		'cpt'              => $cpt_count,
 	);
 
-	// ----- Recent posts (latest 5, any public-ish status) --------------
+	// ----- Recent posts (latest 5) -------------------------------------
+	// Privileged viewers also see private/scheduled/draft/pending;
+	// everyone else gets published posts only.
 	$recent_posts = get_posts(
 		array(
 			'author'           => $user_id,
 			'post_type'        => array( 'post', 'page' ),
-			'post_status'      => array( 'publish', 'private', 'future', 'draft', 'pending' ),
+			'post_status'      => $can_see_private
+				? array( 'publish', 'private', 'future', 'draft', 'pending' )
+				: array( 'publish' ),
 			'posts_per_page'   => 5,
 			'orderby'          => 'date',
 			'order'            => 'DESC',
@@ -283,7 +307,8 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 		);
 	}
 
-	// ----- First & last published, plus longest streak -----------------
+	// ----- First & last published --------------------------------------
+	// (Streak math lives in the separate user-footprint endpoint.)
 	$first_post = $wpdb->get_var(
 		$wpdb->prepare(
 			"SELECT MIN(post_date_gmt) FROM {$wpdb->posts}
@@ -317,8 +342,6 @@ function desktop_mode_my_wordpress_user_stats_callback( $request ) {
 	 * the My WordPress folder window. Plugins can drop additional
 	 * stat sections (badges, milestones, contribution streaks)
 	 * here without forking the JS render.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param array $payload Stats payload.
 	 * @param int   $user_id Subject user id.

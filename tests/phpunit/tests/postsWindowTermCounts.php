@@ -5,7 +5,7 @@
  * Bulk count endpoint that returns `{ term_id: count }` for every
  * requested term, mirroring core's `_update_post_term_count` status
  * filtering (trash + auto-draft + inherit excluded; drafts, pending,
- * future, private all included). Since 0.8.5 the endpoint caches
+ * future, private all included). The endpoint caches
  * the WHOLE taxonomy's count map under one transient — clients with
  * different ID subsets all project out of the same cached map.
  *

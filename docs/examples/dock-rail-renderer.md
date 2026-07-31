@@ -20,7 +20,7 @@ For lighter touches (animations, classNames, wrappers, custom
 tooltips), use the [decoration hooks](./dock-decoration-hooks.md)
 instead — they layer on top of *any* renderer.
 
-**Status:** Stable since 0.18.0. Versioned (`apiVersion: 1`); a
+**Status:** Stable. Versioned (`apiVersion: 1`); a
 renderer that doesn't speak the current version is rejected at
 registration.
 
@@ -40,11 +40,11 @@ interface DockRailRenderer {
 interface DockRailMountDeps {
     container:        HTMLElement;                    // your renderer owns this
     items:            DockItem[];                     // rail-scoped slice (see "Two cohorts" below)
-    fullMenu:         DockItem[];                     // since 0.18.0 — complete admin menu
-    fullSystemTiles:  SystemDockItem[];               // since 0.18.0 — every JS-registered system tile
+    fullMenu:         DockItem[];                     // complete admin menu
+    fullSystemTiles:  SystemDockItem[];               // every JS-registered system tile
     orientation:      'left' | 'right' | 'bottom';
     openItem(         item ): void;                   // primary tile click — routes through window manager
-    openSubmenuPick(  item, sub: SubmenuItem ): void; // since 0.18.0 — submenu link click
+    openSubmenuPick(  item, sub: SubmenuItem ): void; // submenu link click
     openSystemItem(   item ): void;                   // OS Settings / plugin native-window tiles
     windowManager:    WindowManager;
     adminUrl:         string;
@@ -79,8 +79,8 @@ Dock items split into views the renderer can read at mount time:
 | Field | What it carries | Use it when… |
 |---|---|---|
 | `items` | The **rail-scoped slice** the layout dispatcher routed to *this* rail. | You want to honour the layout's intent. Classic primary rail sees plugin items only; the side rail (default renderer) sees core items. Unified sees everything. Spatial sees plugin items only (core renders as wallpaper icons). |
-| `fullMenu` *(since 0.18.0)* | The **complete admin menu** regardless of rail. | You want to paint a unified view ignoring the layout's partitioning. A "ring" or "stage" renderer that surfaces every menu in one circle reads `fullMenu`. |
-| `fullSystemTiles` *(since 0.18.0)* | Every **JS-registered system tile** — OS Settings, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
+| `fullMenu` | The **complete admin menu** regardless of rail. | You want to paint a unified view ignoring the layout's partitioning. A "ring" or "stage" renderer that surfaces every menu in one circle reads `fullMenu`. |
+| `fullSystemTiles` | Every **JS-registered system tile** — OS Settings, plugin-owned native-window launchers, the recycle bin, etc. | You want to apply uniform treatment (partition by `submenu.length > 0`, sort, decorate, badge) across every dockable thing in one pass — without maintaining parallel collections for menu items + system tiles. |
 
 A renderer that doesn't care about the layout split (it draws every
 menu on screen no matter which rail it's mounted on) reads
@@ -200,9 +200,9 @@ mount( { fullMenu, openItem, openSubmenuPick } ) {
 ```
 
 > **Don't pass a string to `windowManager.open()`.** It accepts a
-> config object only — passing a URL string silently produces a
-> hung iframe with no console error. Use `openItem` /
-> `openSubmenuPick` instead; they build the right config shape.
+> config object only — passing a URL string throws a `TypeError`
+> at the call site. Use `openItem` / `openSubmenuPick` instead;
+> they build the right config shape.
 
 A renderer that calls `windowManager.open()` directly works today
 but might silently miss a future feature. Stick to the callbacks
@@ -317,12 +317,16 @@ instance — backwards compat for plugins that read the API
 directly. With a custom renderer active, both return `null`
 because the controller doesn't expose a `Dock`. Plugins that need
 renderer-agnostic access (drive a badge from somewhere else) should
-prefer the **public API methods** that route through the dispatcher
-rather than reading `wp.desktop.dock` directly:
+fan the update across every rail with optional chaining (see
+[the dock-badge example](./dock-badge.md)) rather than reading
+`wp.desktop.dock` alone:
 
 ```js
-// Renderer-agnostic: works regardless of active renderer.
-wp.desktop.windowManager.broadcast( /* … */ );
+// Renderer-agnostic: the rails that own the id paint, the
+// missing handles silently no-op.
+wp.desktop.dock?.setBadge?.(    'edit.php', 3 );
+wp.desktop.taskbar?.setBadge?.( 'edit.php', 3 );
+wp.desktop.icons?.setBadge?.(   'edit.php', 3 );
 
 // Renderer-specific: only works when the default renderer is active.
 wp.desktop.dock?.setBadge( 'edit.php', 3 );

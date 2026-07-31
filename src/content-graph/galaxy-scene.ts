@@ -29,7 +29,6 @@
  * "is the mode active" branching everywhere.
  *
  * @public
- * @since 0.9.2
  */
 
 import { __, _n, sprintf } from '../i18n';
@@ -513,7 +512,7 @@ export class GalaxyScene {
 		// try/catch absorbs the residual cases (same recipe as
 		// `GraphScene.destroy()`).
 		try {
-			this.app?.destroy( true, { children: true } );
+			this.app?.destroy( { removeView: true }, { children: true } );
 		} catch {
 			// Pixi sometimes throws on teardown races — best-effort.
 		}

@@ -6,20 +6,29 @@
  * "histogram" with one row per star bucket. Every paintable token
  * reads from a CSS custom property so callers can theme just the
  * fills (matching their plugin brand) without overriding the layout.
- *
- * @since 0.21.0
  */
 import { css } from '../../core';
 
 export const styles = css`
 	:host {
 		display: block;
-		--_track: var( --wpd-rating-track, rgba( 0, 0, 0, 0.08 ) );
+		--_track: var(
+			--wpd-rating-track,
+			var( --wpd-border, rgba( 0, 0, 0, 0.08 ) )
+		);
 		--_fill: var( --wpd-rating-fill,
 			linear-gradient( 90deg, #f5af00 0%, #ffd245 100% ) );
+		/* The filled star keeps its gold: that colour is the meaning,
+		   not chrome, and it reads on a light or dark card alike. */
 		--_star: var( --wpd-rating-star, #f5af00 );
-		--_star-empty: var( --wpd-rating-star-empty, rgba( 0, 0, 0, 0.18 ) );
-		--_surface: var( --wpd-rating-surface, var( --wpd-surface-raised, rgba( 255, 255, 255, 0.7 ) ) );
+		/* The EMPTY star and the track are neutral black washes, which
+		   disappear entirely on a dark surface — so they follow the
+		   palette instead. */
+		--_star-empty: var(
+			--wpd-rating-star-empty,
+			var( --wpd-fg-faint, rgba( 0, 0, 0, 0.18 ) )
+		);
+		--_surface: var( --wpd-rating-surface, var( --wpd-surface-elevated, rgba( 255, 255, 255, 0.7 ) ) );
 		--_border: var( --wpd-rating-border, var( --wpd-border, rgba( 0, 0, 0, 0.08 ) ) );
 		--_fg: var( --wpd-rating-fg, var( --wpd-fg, inherit ) );
 		--_fg-muted: var( --wpd-rating-fg-muted, var( --wpd-fg-muted, #666 ) );

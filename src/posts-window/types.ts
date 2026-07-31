@@ -17,7 +17,6 @@
  * `desktop_mode.postsWindow.columns` reach into that shape.
  *
  * @public
- * @since 0.8.0
  */
 
 import type { WpdTable } from '../ui/components/wpd-table/wpd-table';

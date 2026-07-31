@@ -1,19 +1,18 @@
 /**
  * Type guards for the bridge protocol.
  *
- * Replaces the ~20 inline `data?.type === 'desktop-mode-*'` checks
- * spread across the iframe bridge, the connection bridge, the
- * commands harvester, the recycle-bin realtime channel, the
- * drag-bridge, and the various extension consumers. Each of those
- * now imports a guard from `@protocol/guards`, which gives them:
+ * Intended to replace the ~20 inline `data?.type === 'desktop-mode-*'`
+ * checks spread across the iframe bridge, the connection bridge,
+ * the commands harvester, the recycle-bin realtime channel, the
+ * drag-bridge, and the various extension consumers. Adoption is
+ * incremental — most consumers still hand-check the literals; new
+ * code should import a guard from `@protocol/guards`, which gives it:
  *
  *   - Single source of truth for the message-type string set.
  *   - Narrowed unknown → BridgeEvent so the calling code drops a
  *     pile of `as Bridge…` casts.
  *   - One assertion path (`assertBridgeEventType`) for handlers
  *     that demand a specific variant.
- *
- * @since 0.8.1
  */
 
 import {

@@ -262,6 +262,53 @@ describe( 'Window — state transitions are mutually exclusive', () => {
 		).toBe( true );
 	} );
 
+	test( 'fullscreen → minimize: clears fullscreen body class while minimized', () => {
+		// Regression guard for the admin-bar bug: minimizing a
+		// fullscreen window used to leave
+		// `body.desktop-mode-has-fullscreen-window` in place, keeping
+		// the admin bar hidden even though no fullscreen window was
+		// visible. `updateFullscreenBodyClass()` now ignores windows
+		// that are fullscreen *and* minimized, and `minimize()` re-runs
+		// it for the fullscreen path.
+		handle.win.toggleFullscreen();
+		expect(
+			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+		).toBe( true );
+
+		handle.win.minimize();
+
+		expect(
+			document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+		).toBe( false );
+	} );
+
+	test( 'minimizing one fullscreen window keeps body class for another visible fullscreen window', () => {
+		// The `:not(--minimized)` selector must count *visible*
+		// fullscreen windows only — but any one of them is enough to
+		// keep the class. Guards against a "simplification" that keys
+		// the class off the window being minimized instead of scanning
+		// the document.
+		const other = mountWindow( baseConfig( { id: 'w2' } ) );
+		try {
+			handle.win.toggleFullscreen();
+			other.win.toggleFullscreen();
+
+			handle.win.minimize();
+
+			expect(
+				document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+			).toBe( true );
+
+			other.win.minimize();
+
+			expect(
+				document.body.classList.contains( 'desktop-mode-has-fullscreen-window' ),
+			).toBe( false );
+		} finally {
+			other.cleanup();
+		}
+	} );
+
 	test( 'fullscreen → minimize → restore: refreshes focus-button aria-pressed/label', () => {
 		// The focus (fullscreen) title-bar button is rendered by the
 		// controls system, so the easiest reliable way to assert its

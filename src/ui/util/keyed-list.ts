@@ -48,8 +48,6 @@
  *   } );
  * }
  * ```
- *
- * @since 0.22.10
  */
 
 const NODE_KEY_PROP = '__desktop_modeKeyedListKey';

@@ -1,6 +1,7 @@
 <?php
 /**
- * Tests for the "My WordPress" pinned virtual folder.
+ * Tests for the pinned virtual site folder (module slug
+ * `my-wordpress`; the window is titled after the site itself).
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -28,6 +29,7 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		remove_all_filters( 'desktop_mode_my_wordpress_window_args' );
 		remove_all_filters( 'desktop_mode_my_wordpress_icon_args' );
 		remove_all_filters( 'desktop_mode_my_wordpress_entities' );
+		remove_all_filters( 'desktop_mode_site_title' );
 		parent::tear_down();
 	}
 
@@ -64,6 +66,54 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The folder is named after the site, not after the software
+	 * running it — the window title, the pinned icon, and the
+	 * `siteName` config the bundle uses for its breadcrumb root all
+	 * come from `desktop_mode_site_title()`.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_register_window
+	 */
+	public function test_window_and_icon_are_titled_after_the_site() {
+		$original = get_option( 'blogname' );
+		update_option( 'blogname', "Izzi's Gym" );
+
+		desktop_mode_my_wordpress_register_window();
+
+		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+
+		update_option( 'blogname', $original );
+
+		$this->assertSame( "Izzi's Gym", $entry['title'] );
+		$this->assertSame( "Izzi's Gym", $entry['config']['siteName'] );
+		$this->assertSame( "Izzi's Gym", $icon['title'] );
+	}
+
+	/**
+	 * Retitling via `desktop_mode_site_title` reaches the window, the
+	 * icon, and the bundle config in one hook.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_register_window
+	 */
+	public function test_site_title_filter_retitles_the_folder() {
+		add_filter(
+			'desktop_mode_site_title',
+			static function () {
+				return 'Workspace';
+			}
+		);
+
+		desktop_mode_my_wordpress_register_window();
+
+		$entry = desktop_mode_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon  = desktop_mode_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+
+		$this->assertSame( 'Workspace', $entry['title'] );
+		$this->assertSame( 'Workspace', $entry['config']['siteName'] );
+		$this->assertSame( 'Workspace', $icon['title'] );
+	}
+
+	/**
 	 * Default entities are Posts, Pages, and Users; the filter is
 	 * the extension point for additional kinds.
 	 *
@@ -75,6 +125,7 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		$this->assertContains( 'posts', $ids );
 		$this->assertContains( 'pages', $ids );
 		$this->assertContains( 'users', $ids );
+		$this->assertContains( 'media', $ids );
 
 		// Users entity declares `kind: 'user'` so the bundle picks
 		// the user-shaped render path.
@@ -85,7 +136,14 @@ class Tests_DesktopMode_MyWordpress extends WP_UnitTestCase {
 		$this->assertSame( 'user', $by_id['users']['kind'] );
 		$this->assertSame( 'post', $by_id['posts']['kind'] );
 		$this->assertSame( 'post', $by_id['pages']['kind'] );
+		$this->assertSame( 'media', $by_id['media']['kind'] );
 		$this->assertSame( 'wp/v2/users', $by_id['users']['restPath'] );
+
+		// Post type mapping for cross-window sync
+		$this->assertSame( 'post', $by_id['posts']['post_type'] );
+		$this->assertSame( 'page', $by_id['pages']['post_type'] );
+		$this->assertSame( 'attachment', $by_id['media']['post_type'] );
+		$this->assertArrayNotHasKey( 'post_type', $by_id['users'] );
 	}
 
 	/**

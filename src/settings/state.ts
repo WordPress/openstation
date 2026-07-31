@@ -11,32 +11,33 @@
  *
  * Writes:
  *   - localStorage: synchronous, every `saveState()` call.
- *   - User meta (REST): debounced 1 500 ms after the last change via
- *     `scheduleSyncToServer()`. The JS layer fires `saveState()` on every
+ *   - User meta (REST): debounced 250 ms after the last change via
+ *     `_scheduleSyncToServer()`. The JS layer fires `saveState()` on every
  *     preference change so the debounce collapse rapid edits (e.g. dragging
  *     the gradient angle slider) into a single network request.
  */
 
 import type { DesktopConfig } from '../types';
 import {
-	getAiProviders,
-	AI_TRANSPORTS,
+	ADMIN_BAR_MODES,
 	DEFAULTS,
 	DESKTOP_LAYOUTS,
 	DOCK_SIZES,
 	STORAGE_KEY,
+	WINDOW_RADII,
 	getAccents,
 	getDefaultWallpaperId,
 } from './constants';
 import type {
 	AccentId,
+	AdminBarModeId,
 	AiSettings,
-	AiTransportId,
 	CustomGradient,
 	CustomImage,
 	DesktopLayoutId,
 	DockSizeId,
 	OsSettingsState,
+	WindowRadiusId,
 } from './types';
 import { isHexColor } from './utils';
 import { trackedFetch } from '../tracked-fetch';
@@ -108,6 +109,14 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 		dockSize: DOCK_SIZES.some( ( d ) => d.id === parsed.dockSize )
 			? ( parsed.dockSize as DockSizeId )
 			: DEFAULTS.dockSize,
+		windowRadius: WINDOW_RADII.some( ( r ) => r.id === parsed.windowRadius )
+			? ( parsed.windowRadius as WindowRadiusId )
+			: DEFAULTS.windowRadius,
+		adminBarMode: ADMIN_BAR_MODES.some(
+			( m ) => m.id === parsed.adminBarMode,
+		)
+			? ( parsed.adminBarMode as AdminBarModeId )
+			: DEFAULTS.adminBarMode,
 		desktopLayout: DESKTOP_LAYOUTS.some(
 			( l ) => l.id === parsed.desktopLayout,
 		)
@@ -121,6 +130,36 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_-]+$/.test( parsed.dockRailRenderer )
 				? parsed.dockRailRenderer
 				: DEFAULTS.dockRailRenderer,
+		// Desktop theme — mirrors the PHP sanitizer exactly: a
+		// `sanitize_key()`-clean slug, or the empty string for the
+		// system default. Note the `*` quantifier (not `+`): unlike
+		// every other id field here, EMPTY IS A REAL VALUE, and a `+`
+		// would silently rewrite "System default" to whatever the
+		// default happened to be.
+		desktopTheme:
+			typeof parsed.desktopTheme === 'string' &&
+			/^[a-z0-9_-]*$/.test( parsed.desktopTheme )
+				? parsed.desktopTheme
+				: DEFAULTS.desktopTheme,
+		// Seeded-theme ledger — `sanitize_key()`-clean slugs, capped at
+		// the most recent 64 (the same end PHP trims from; the writer
+		// appends, so keeping the head would discard the entry just
+		// written and re-arm that theme's one-time seed). Slugs of
+		// themes that are no longer installed survive on purpose:
+		// forgetting one would let a reinstall re-seed over settings
+		// the user has since chosen.
+		appliedThemeRecommendations: Array.isArray(
+			parsed.appliedThemeRecommendations,
+		)
+			? Array.from(
+				new Set(
+					parsed.appliedThemeRecommendations.filter(
+						( v ): v is string =>
+							typeof v === 'string' && /^[a-z0-9_-]+$/.test( v ),
+					),
+				),
+			).slice( -64 )
+			: DEFAULTS.appliedThemeRecommendations.slice(),
 		// Unfocus effect — any registry id (`vendor/sub-id` allowed) or
 		// the `'none'` sentinel survives; the engine resolves at use
 		// time and treats an unknown id as "no effect".
@@ -129,8 +168,51 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			/^[a-z0-9_/-]+$/.test( parsed.unfocusEffect )
 				? parsed.unfocusEffect
 				: DEFAULTS.unfocusEffect,
+		// Window reveal — same id charset as unfocus effects; the
+		// surface resolves at play time and treats an unknown id as
+		// "no reveal".
+		windowReveal:
+			typeof parsed.windowReveal === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.windowReveal )
+				? parsed.windowReveal
+				: DEFAULTS.windowReveal,
+		// Reveal duration override — 0 (or anything out of range) means
+		// "use each reveal's own timing"; the surface clamps the rest.
+		windowRevealDuration:
+			typeof parsed.windowRevealDuration === 'number' &&
+			Number.isFinite( parsed.windowRevealDuration ) &&
+			parsed.windowRevealDuration > 0
+				? Math.min( 4000, Math.max( 80, Math.round( parsed.windowRevealDuration ) ) )
+				: DEFAULTS.windowRevealDuration,
+		// Window-link renderer — same id charset as unfocus effects;
+		// the render host resolves at use time and falls back to the
+		// built-in `svg-splines` for unknown ids.
+		windowLinkRenderer:
+			typeof parsed.windowLinkRenderer === 'string' &&
+			/^[a-z0-9_/-]+$/.test( parsed.windowLinkRenderer )
+				? parsed.windowLinkRenderer
+				: DEFAULTS.windowLinkRenderer,
+		windowLinkVisibility:
+			parsed.windowLinkVisibility === 'focus' ||
+			parsed.windowLinkVisibility === 'always' ||
+			parsed.windowLinkVisibility === 'off'
+				? parsed.windowLinkVisibility
+				: DEFAULTS.windowLinkVisibility,
+		windowLinksEnabled:
+			typeof parsed.windowLinksEnabled === 'boolean'
+				? parsed.windowLinksEnabled
+				: DEFAULTS.windowLinksEnabled,
+		windowLinkRaiseOnFocus:
+			typeof parsed.windowLinkRaiseOnFocus === 'boolean'
+				? parsed.windowLinkRaiseOnFocus
+				: DEFAULTS.windowLinkRaiseOnFocus,
+		windowLinkHighlight:
+			typeof parsed.windowLinkHighlight === 'boolean'
+				? parsed.windowLinkHighlight
+				: DEFAULTS.windowLinkHighlight,
 		customGradient: sanitizeCustomGradient( parsed.customGradient ),
 		customImage: sanitizeCustomImage( parsed.customImage ),
+		wallpaperSettings: sanitizeWallpaperSettings( parsed.wallpaperSettings ),
 		libraryHdOnly:
 			typeof parsed.libraryHdOnly === 'boolean'
 				? parsed.libraryHdOnly
@@ -179,6 +261,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showPostStatusRibbons === 'boolean'
 				? parsed.showPostStatusRibbons
 				: DEFAULTS.showPostStatusRibbons,
+		developerModeEnabled:
+			typeof parsed.developerModeEnabled === 'boolean'
+				? parsed.developerModeEnabled
+				: DEFAULTS.developerModeEnabled,
 		foldersSharingEnabled:
 			typeof parsed.foldersSharingEnabled === 'boolean'
 				? parsed.foldersSharingEnabled
@@ -189,6 +275,80 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			parsed.dockPromotedPositions,
 		),
 	};
+}
+
+/**
+ * Coerce an untrusted `wallpaperSettings` value into per-wallpaper
+ * scalar bags. Non-scalar values are dropped; ids follow the
+ * wallpaper-id charset (`vendor/sub-id` slashes allowed, mirroring
+ * the unfocus-effect ids); keys follow the JS identifier-ish charset
+ * wallpaper authors use (`camelCase`, hyphens, underscores). Capped
+ * at 64 wallpapers × 32 keys with 256-char string values so a
+ * corrupted server payload can't bloat the cell.
+ */
+export function sanitizeWallpaperSettings(
+	raw: unknown,
+): Record< string, Record< string, string | number | boolean > > {
+	if ( ! raw || typeof raw !== 'object' || Array.isArray( raw ) ) {
+		return {};
+	}
+	const out: Record<
+		string,
+		Record< string, string | number | boolean >
+	> = {};
+	let idCount = 0;
+	for ( const [ id, bag ] of Object.entries(
+		raw as Record< string, unknown >,
+	) ) {
+		if ( idCount >= 64 ) {
+			break;
+		}
+		if (
+			typeof id !== 'string' ||
+			id === '' ||
+			! /^[a-z0-9_/-]+$/.test( id )
+		) {
+			continue;
+		}
+		if ( ! bag || typeof bag !== 'object' || Array.isArray( bag ) ) {
+			continue;
+		}
+		const clean: Record< string, string | number | boolean > = {};
+		let keyCount = 0;
+		for ( const [ key, value ] of Object.entries(
+			bag as Record< string, unknown >,
+		) ) {
+			if ( keyCount >= 32 ) {
+				break;
+			}
+			if (
+				typeof key !== 'string' ||
+				key === '' ||
+				! /^[a-zA-Z0-9_-]+$/.test( key )
+			) {
+				continue;
+			}
+			if ( typeof value === 'boolean' ) {
+				clean[ key ] = value;
+			} else if (
+				typeof value === 'number' &&
+				Number.isFinite( value )
+			) {
+				clean[ key ] = value;
+			} else if ( typeof value === 'string' ) {
+				clean[ key ] = value.slice( 0, 256 );
+			} else {
+				continue;
+			}
+			keyCount++;
+		}
+		if ( keyCount === 0 ) {
+			continue;
+		}
+		out[ id ] = clean;
+		idCount++;
+	}
+	return out;
 }
 
 function sanitizeItemVisibility(
@@ -318,8 +478,6 @@ let _lastConfirmedState: OsSettingsState | null = null;
 /**
  * Prime the rollback baseline. Called once after `loadState()` so
  * the FIRST failed save still has somewhere to roll back to.
- *
- * @since 0.8.0
  */
 export function setLastConfirmedState( state: OsSettingsState ): void {
 	_lastConfirmedState = _cloneState( state );
@@ -335,7 +493,14 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 		...state,
 		customGradient: { ...state.customGradient },
 		customImage: state.customImage ? { ...state.customImage } : null,
-		ai: { ...state.ai, apiKeys: { ...state.ai.apiKeys } },
+		wallpaperSettings: Object.fromEntries(
+			Object.entries( state.wallpaperSettings ).map( ( [ k, v ] ) => [
+				k,
+				{ ...v },
+			] ),
+		),
+		ai: { ...state.ai },
+		appliedThemeRecommendations: state.appliedThemeRecommendations.slice(),
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },
 		dockOrder: state.dockOrder.slice(),
@@ -494,8 +659,6 @@ function _postToServer( state: OsSettingsState, windowId?: string | null ): void
  * canonical example) replace their state with this snapshot and
  * re-render so the controls visually revert to the last-confirmed
  * values, not the optimistic ones the user just attempted.
- *
- * @since 0.8.0
  */
 export type OsSettingsSavePhase = 'pending' | 'saving' | 'saved' | 'failed';
 
@@ -538,6 +701,7 @@ export function structuredDefaults(): OsSettingsState {
 		...DEFAULTS,
 		customGradient: { ...DEFAULTS.customGradient },
 		customImage: null,
+		wallpaperSettings: { ...DEFAULTS.wallpaperSettings },
 		ai: { ...DEFAULTS.ai },
 		// Clone the collection fields too. A shallow `...DEFAULTS`
 		// aliases these nested objects, so a later in-place mutation
@@ -550,6 +714,7 @@ export function structuredDefaults(): OsSettingsState {
 		// objects to share. If `DEFAULTS.dockPromotedPositions` ever
 		// ships seeded entries, its `{ x, y }` values would need a
 		// deeper clone here.
+		appliedThemeRecommendations: [ ...DEFAULTS.appliedThemeRecommendations ],
 		itemVisibility: { ...DEFAULTS.itemVisibility },
 		dockOrder: [ ...DEFAULTS.dockOrder ],
 		dockPromotedPositions: { ...DEFAULTS.dockPromotedPositions },
@@ -558,36 +723,11 @@ export function structuredDefaults(): OsSettingsState {
 
 export function sanitizeAi( raw: unknown ): AiSettings {
 	if ( ! raw || typeof raw !== 'object' ) {
-		return { ...DEFAULTS.ai, apiKeys: {} };
+		return { ...DEFAULTS.ai };
 	}
-	const { enabled, provider, apiKey, apiKeys, transport } = raw as Partial< AiSettings >;
-	const known = getAiProviders();
-	const validProvider =
-		typeof provider === 'string' && known.some( ( p ) => p.id === provider )
-			? provider
-			: DEFAULTS.ai.provider;
-
-	const cleanKeys: Record< string, string > = {};
-	if ( apiKeys && typeof apiKeys === 'object' ) {
-		for ( const [ pid, val ] of Object.entries( apiKeys ) ) {
-			if ( typeof val === 'string' ) {
-				cleanKeys[ pid ] = val.slice( 0, 512 );
-			}
-		}
-	}
-
-	const validTransport: AiTransportId =
-		typeof transport === 'string' &&
-		AI_TRANSPORTS.some( ( t ) => t.id === transport )
-			? ( transport as AiTransportId )
-			: DEFAULTS.ai.transport;
-
+	const { enabled } = raw as Partial< AiSettings >;
 	return {
 		enabled: typeof enabled === 'boolean' ? enabled : DEFAULTS.ai.enabled,
-		provider: validProvider,
-		apiKey: typeof apiKey === 'string' ? apiKey : DEFAULTS.ai.apiKey,
-		apiKeys: cleanKeys,
-		transport: validTransport,
 	};
 }
 

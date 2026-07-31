@@ -8,13 +8,12 @@
  * differently per post type via `desktop_mode_file_serialize`.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `post` desktop file type.
  */
 class Desktop_Mode_Post_File extends Desktop_Mode_File {
 

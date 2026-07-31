@@ -12,8 +12,6 @@
  * runs `apply` / `clear` callbacks for effects that need to touch the
  * DOM directly. The engine (`unfocus-engine.ts`) owns *when* an effect
  * is applied; the def owns *what* it does.
- *
- * @since 0.26.0
  */
 
 export interface UnfocusEffectDef {

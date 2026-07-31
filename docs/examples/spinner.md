@@ -1,8 +1,10 @@
 # Example: loading spinner
 
-`<wpd-spinner>` is a self-contained, animated WordPress-mark loading indicator with four curated presets and full per-attribute overrides. CSS variables drive both the disc color and the W-mark accent so the spinner matches any theme.
+`<wpd-spinner>` is a self-contained, animated WordPress-mark loading indicator with five curated presets and full per-attribute overrides. CSS variables drive both the disc color and the W-mark accent so the spinner matches any theme.
 
-> Status: **Experimental** since 0.18.0.
+Four of the presets are re-tunings of the same mark-and-rings artwork. The fifth, `inline`, is a different indicator for a different job — see [Inline: spinners that sit beside text](#inline-spinners-that-sit-beside-text).
+
+> Status: **Experimental**.
 
 ## Drop-in
 
@@ -11,6 +13,7 @@
 <wpd-spinner preset="comet" size="80"></wpd-spinner>
 <wpd-spinner preset="orbit" color="#0f4c6b"></wpd-spinner>
 <wpd-spinner preset="pulse" accent="#fff8e7"></wpd-spinner>
+<wpd-spinner preset="inline"></wpd-spinner>              <!-- 16px bare arc, currentColor -->
 ```
 
 ## Presets
@@ -21,6 +24,7 @@
 | `comet` | Long arcs + 5 trailing dots all spinning the same way. Reads as a comet trail. |
 | `orbit` | Half-rings counter-rotating with an opacity breathe. Reads as a planetary orbit. |
 | `pulse` | Short arcs + 8 dots + scale + opacity pulse. Reads as a heartbeat. |
+| `inline` | One track ring, one rotating arc. No WordPress mark, no concentric rings, no dots. Defaults to 16px and `currentColor`. |
 
 Pick one and stop:
 
@@ -33,6 +37,30 @@ Want to remix? Every knob from the prototype is overridable on the same element.
 ```html
 <wpd-spinner preset="comet" sp1="6" dots="8"></wpd-spinner>
 ```
+
+## Inline: spinners that sit beside text
+
+The other four presets share one piece of artwork: a filled disc carrying the four-path WordPress "W", ringed by three concentric arcs and optionally a fourth ring of dots. It is built for a viewBox roughly 150 units across, and it needs about **40px** of real estate to be recognisable. Below that, every stroke lands under a physical pixel and the whole thing greys out into a smudge — the user sees *something moved*, not *the site is working*.
+
+`inline` is the answer for the other case: a spinner that has to live beside a line of text — inside a button, at the head of a list row, next to a status line.
+
+```html
+<wpd-spinner preset="inline"></wpd-spinner>
+<wpd-spinner preset="inline" size="14" label="Thinking"></wpd-spinner>
+```
+
+Two differences beyond the artwork, both deliberate:
+
+- **It defaults to 16px**, not 48px. An inline spinner that has to be told its own size every time is a footgun.
+- **It inherits `currentColor`** instead of `--wp-admin-theme-color`. It belongs to the text it interrupts, so it tints itself from that text and can never lose contrast against a surface the component knows nothing about — a glass widget card over an arbitrary wallpaper, say. Pass `color` to override.
+
+The tempo and arc-length knobs still apply, so you can slow it down or lengthen the arc like any other preset:
+
+```html
+<wpd-spinner preset="inline" sp1="14" a1="35"></wpd-spinner>
+```
+
+Everything else (`dots`, `gap`, `pulse`, `sp2`/`sp3`, `a2`/`a3`, `accent`) is inert here — there is no disc, no mark, and no second or third ring for them to act on.
 
 ## Colors
 
@@ -75,8 +103,8 @@ The accent (W mark) defaults to white because the canonical WP loader is white-o
 
 | Attribute | Type | What it does |
 |---|---|---|
-| `preset` | `"classic" \| "comet" \| "orbit" \| "pulse"` | Visual personality. Default `classic`. |
-| `size` | integer (px) or CSS length | Sets `--wpd-spinner-size`. |
+| `preset` | `"classic" \| "comet" \| "orbit" \| "pulse" \| "inline"` | Visual personality. Default `classic`. |
+| `size` | integer (px) or CSS length | Sets `--wpd-spinner-size`. Default `48` — `16` under `preset="inline"`. |
 | `color` | CSS color | Sets `--wpd-spinner-color`. |
 | `accent` | CSS color | Sets `--wpd-spinner-accent` (the W). |
 | `sp1`, `sp2`, `sp3` | integer (deciseconds) | Per-ring rotation duration; 12 → 1.2s. |

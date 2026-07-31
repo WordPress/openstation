@@ -13,7 +13,6 @@
  * a tag main also ships is safe (just inert).
  *
  * @public
- * @since 0.9.0
  */
 
 import { trackedFetch } from '../tracked-fetch';

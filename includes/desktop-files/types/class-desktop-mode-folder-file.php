@@ -3,20 +3,17 @@
  * Desktop Mode — `folder` file type.
  *
  * Folders are first-class files. The reference is the folder's
- * row id in `{$wpdb->prefix}desktop_mode_folders` (added in
- * Phase 2). Until that table lands, instantiating a folder file
- * is harmless: title falls back to a constructor-provided label
- * stored on the placement, and `exists()` is gated on the
- * presence of the folder row.
+ * row id in `{$wpdb->prefix}desktop_mode_folders`. When the row
+ * is missing, title() falls back to a generic "Folder" label and
+ * `exists()` returns false.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `folder` desktop file type.
  */
 class Desktop_Mode_Folder_File extends Desktop_Mode_File {
 
@@ -48,7 +45,7 @@ class Desktop_Mode_Folder_File extends Desktop_Mode_File {
 		if ( (int) $row['owner_id'] === (int) $user_id ) {
 			return true;
 		}
-		// Since 0.18.0 the capability resolver is the authority —
+		// The capability resolver is the authority —
 		// it knows about direct shares, role decisions, AND cascade
 		// (a folder nested inside a shared folder is reachable).
 		if ( function_exists( 'desktop_mode_folder_share_user_capability' ) ) {

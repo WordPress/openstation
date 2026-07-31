@@ -17,8 +17,6 @@
  * Components without a descriptor still appear in the Help tab with
  * a fallback rendering built from `static props`; the descriptor is
  * how authors enrich that baseline.
- *
- * @since 0.16.0
  */
 
 import type { TemplateResult } from './html';

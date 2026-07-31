@@ -21,10 +21,9 @@
  *   - **Click empty space** → close the focused node + post fan.
  *
  * @public
- * @since 0.8.0
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import { joinRestUrl } from '../rest-url';
 import { trackedFetch } from '../tracked-fetch';
 import { type PostsWindowClient, type TermRow } from './rest';
@@ -83,7 +82,13 @@ interface PixiApp {
 	ticker?: { stop(): void };
 	init( opts: unknown ): Promise< void >;
 	render(): void;
-	destroy( clearStage?: boolean, opts?: unknown ): void;
+	/**
+	 * First arg is Pixi's `RendererDestroyOptions`. Pass an options
+	 * object, never a literal `true` — `true` triggers
+	 * `releaseGlobalResources()` and corrupts every other live
+	 * Application on the page (see the teardown comment below).
+	 */
+	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 interface PixiText extends PixiContainer {
 	text: string;
@@ -2538,7 +2543,11 @@ export async function mountCategoriesMindmap(
 		meta.className = 'wpd-mindmap__sidebar-meta';
 		meta.textContent = sprintf(
 			/* translators: %d: post count. */
-			__( '%d posts in this category.' ),
+			_n(
+				'%d post in this category.',
+				'%d posts in this category.',
+				node.count,
+			),
 			node.count,
 		);
 		sidebar.appendChild( meta );
@@ -2973,7 +2982,7 @@ export async function mountCategoriesMindmap(
 			countEl.className = 'wpd-mindmap__search-meta';
 			countEl.textContent = sprintf(
 				/* translators: %d: number of posts assigned to a category. */
-				__( '%d posts' ),
+				_n( '%d post', '%d posts', n.count ),
 				n.count,
 			);
 			btn.appendChild( nameEl );
@@ -3055,34 +3064,24 @@ export async function mountCategoriesMindmap(
 		ro.disconnect();
 		stage.removeEventListener( 'wheel', onWheel );
 		document.removeEventListener( 'click', onDocClickSearch );
-		// Pixi v8 has a known multi-Application destroy race: tearing
-		// down one `Pixi.Application` on a page hosting another live
-		// one (here: the Content Graph window) corrupts the
-		// surviving app's batcher pipe map, and the next frame crashes
-		// with "Cannot read properties of null (reading 'clear')" in
-		// `Batcher.break()` — looping forever via rAF.
-		//
-		// Tried and rejected:
-		//   - `destroy(true, { children: true })` (no `texture: true`): still crashes.
-		//   - Deferred destroy via `setTimeout(64)`: still crashes.
-		//   - `sharedTicker: false` on the Content Graph app: still crashes
-		//     (the race lives below the ticker layer).
-		//
-		// What actually works: don't call `app.destroy()` at all.
-		// Stop our ticker, remove the canvas from the DOM, and let
-		// the page's GC reclaim the orphaned Pixi resources once the
-		// references drop. Leaks one mindmap-sized app per
-		// open/close cycle (~hundreds of KB of GPU memory) — small
-		// enough to be acceptable on every realistic session length.
+		// The old "multi-Application destroy race" here turned out to be
+		// `app.destroy( true, … )`: a literal `true` as the first arg
+		// makes Pixi run `releaseGlobalResources()`, which clears the
+		// PAGE-GLOBAL BigPool / TexturePool singletons out from under
+		// every other live Application (the Content Graph window's
+		// batcher then crash-looped with "Cannot read properties of null
+		// (reading 'clear')" in `Batcher.break()`). Destroying with
+		// `{ removeView: true }` skips the global release, so a full,
+		// leak-free destroy is safe again.
 		try {
 			app.ticker?.stop();
 		} catch {
 			// Best-effort.
 		}
 		try {
-			app.canvas?.remove();
+			app.destroy( { removeView: true }, { children: true } );
 		} catch {
-			// Best-effort.
+			// Best-effort — Pixi sometimes throws on teardown races.
 		}
 		host.replaceChildren();
 		host.classList.remove( 'wpd-mindmap' );

@@ -35,7 +35,7 @@ The dock is built from the admin `$menu` global by default. To surface a purely 
 ```php
 add_filter( 'desktop_mode_dock_items', function ( $items ) {
     $items[] = array(
-        'slug'     => 'my-extension-panel',
+        'id'       => 'my-extension-panel',
         'title'    => 'My Panel',
         'icon'     => 'dashicons-superhero',
         'url'      => admin_url( 'admin.php?page=my-extension' ),
@@ -83,7 +83,7 @@ await trackedFetch( '/wp-json/myplugin/v1/save', init, {
 
 > **Lint enforces this.** Raw `fetch()` and `window.fetch()` calls fail lint. The handful of legitimate exceptions (the wrapper itself, the PWA service worker, genuinely-silent background pollers) are documented inline with `eslint-disable-next-line` comments.
 
-See [`javascript-reference.md`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable-since-080) for the full signature.
+See [`javascript-reference.md`](./javascript-reference.md#wpdesktopfetch-input-init-opts---stable) for the full signature.
 
 ## 5. React to window events (JavaScript)
 

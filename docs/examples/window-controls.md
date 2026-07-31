@@ -1,6 +1,6 @@
 # Window controls
 
-The title-bar control cluster (close / minimize / maximize / focus / detach) is rendered from a registry plugins can extend, reorder, hide, or replace per-window. Built-in controls live in the same registry as plugin controls, addressed by the stable ids `core/minimize`, `core/maximize`, `core/focus-tab`, `core/detach`, `core/close`.
+The title-bar control cluster (close / minimize / maximize / focus) is rendered from a registry plugins can extend, reorder, hide, or replace per-window. Built-in controls live in the same registry as plugin controls, addressed by the stable ids `core/minimize`, `core/maximize`, `core/focus-tab`, `core/close`. (Detach and reload moved into the title-bar three-dots menu and are no longer registry controls.)
 
 This is **Layer 2** of the four-layer window-chrome customization framework. See [Window themes](./window-theme.md) for Layer 1.
 
@@ -32,7 +32,7 @@ Controls listed in `order` render in that order; controls not listed keep their 
 
 ```js
 wp.desktop.applyWindowControls( 'edit-post', {
-    hide: [ 'core/detach', 'core/focus-tab' ],
+    hide: [ 'core/focus-tab' ],
 } );
 ```
 

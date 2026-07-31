@@ -3,7 +3,6 @@
  * Cron Manager window, icon, and asset registration.
  *
  * @package DesktopModeCronManager
- * @since   0.22.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -19,14 +18,12 @@ defined( 'ABSPATH' ) || exit;
  * `wp_localize_script` / `wp_add_inline_script` data that can be
  * dropped on the lazy-load path, and no admin-template hook that has
  * to fire on the consuming user's environment.
- *
- * @since 0.22.0
  */
 function desktop_mode_cron_manager_register_assets() {
 	wp_register_style(
 		'desktop-mode-cron-manager',
 		DESKTOP_MODE_CRON_MANAGER_URL . 'assets/css/cron-manager.css',
-		array( 'wp-desktop-variables', 'dashicons' ),
+		array( 'desktop-mode-variables', 'dashicons' ),
 		DESKTOP_MODE_CRON_MANAGER_VERSION
 	);
 
@@ -38,11 +35,11 @@ function desktop_mode_cron_manager_register_assets() {
 	wp_register_script(
 		'desktop-mode-cron-manager',
 		$bundle_url,
-		// `wp-desktop` — the prebuilt bundle reaches into the
+		// `desktop-mode` — the prebuilt bundle reaches into the
 		// `<wpd-table>` / `<wpd-select>` / `<wpd-text-field>` setters
 		// the moment the window opens, so the custom-element classes
 		// must be defined first.
-		array( 'wp-i18n', 'wp-desktop' ),
+		array( 'wp-i18n', 'desktop-mode' ),
 		DESKTOP_MODE_CRON_MANAGER_VERSION,
 		true
 	);
@@ -66,8 +63,6 @@ function desktop_mode_cron_manager_register_assets() {
  * window id (`wpdm-cron-manager`) are kept on the legacy spelling
  * because the prebuilt bundle hardcodes them — renaming would require
  * rebuilding from source.
- *
- * @since 0.22.0
  */
 function desktop_mode_cron_manager_serve_bundle() {
 	if ( ! desktop_mode_cron_manager_user_can_use() ) {
@@ -112,8 +107,6 @@ function desktop_mode_cron_manager_serve_bundle() {
  * attributes are intentionally kept on the legacy `wpdm-` spelling —
  * the prebuilt JS bundle queries them by exactly those selectors and
  * cannot be rebuilt from this directory.
- *
- * @since 0.22.0
  */
 function desktop_mode_cron_manager_render_template() {
 	ob_start();
@@ -197,8 +190,6 @@ function desktop_mode_cron_manager_render_template() {
 	/**
 	 * Filter the Cron Manager window template HTML.
 	 *
-	 * @since 0.22.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	echo apply_filters( 'desktop_mode_cron_manager_template_html', $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -206,8 +197,6 @@ function desktop_mode_cron_manager_render_template() {
 
 /**
  * Register the Cron Manager window and desktop icon.
- *
- * @since 0.22.0
  */
 function desktop_mode_cron_manager_register_window() {
 	if ( ! desktop_mode_cron_manager_user_can_use() ) {
@@ -223,14 +212,12 @@ function desktop_mode_cron_manager_register_window() {
 		'height'       => 620,
 		'min_width'    => 640,
 		'min_height'   => 420,
-		'placement'    => 'taskbar',
+		'placement'    => 'dock',
 		'capabilities' => array( 'manage_options' ),
 	);
 
 	/**
 	 * Filter args used to register the Cron Manager native window.
-	 *
-	 * @since 0.22.0
 	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
@@ -254,8 +241,6 @@ function desktop_mode_cron_manager_register_window() {
 	/**
 	 * Filter args used to register the Cron Manager desktop icon.
 	 *
-	 * @since 0.22.0
-	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_cron_manager_icon_args', $icon_args );
@@ -265,8 +250,6 @@ function desktop_mode_cron_manager_register_window() {
 
 /**
  * Enqueue the Cron Manager stylesheet for any desktop-mode admin page.
- *
- * @since 0.22.0
  */
 function desktop_mode_cron_manager_enqueue_style() {
 	if ( ! desktop_mode_cron_manager_user_can_use() ) {
@@ -281,8 +264,6 @@ function desktop_mode_cron_manager_enqueue_style() {
  * No-ops cleanly when Desktop Mode is missing — REST routes and the
  * `cron_schedules` filter (registered in store.php) keep working so
  * scheduled events that depend on the custom intervals don't drop.
- *
- * @since 0.22.0
  */
 function desktop_mode_cron_manager_maybe_init_ui() {
 	if ( ! function_exists( 'desktop_mode_register_window' ) ) {

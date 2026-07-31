@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 
 add_filter( 'desktop_mode_mode_enabled', function ( $enabled, $user_id ) {
     // Contributors stay in classic admin.
-    if ( user_can( $user_id, 'contributor' ) && ! user_can( $user_id, 'edit_posts' ) ) {
+    if ( user_can( $user_id, 'contributor' ) ) {
         return false;
     }
 

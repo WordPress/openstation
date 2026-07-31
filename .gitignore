@@ -3,6 +3,7 @@
 /desktop-mode.zip
 /dist/
 /tests/phpunit/.phpunit.result.cache
+/.scratch/
 
 # Vite build output under assets/js/ — regenerate locally with `npm run
 # build`. Adding a new bundle in vite.config.js does not require updating
@@ -11,6 +12,14 @@
 /assets/js/*.js
 !/assets/js/admin-bar.js
 !/assets/js/media-library-enhanced.js
+
+# Vite bundle-visualizer reports (`${fileBase}.report.html`) — dev-only.
+/assets/js/*.report.html
+
+# Local wp-env overrides — per-checkout ports so several worktree
+# instances can run in parallel. See docs/DEVELOPMENT.md.
+/.wp-env.override.json
+/.wp-env.tests.override.json
 
 .DS_Store
 

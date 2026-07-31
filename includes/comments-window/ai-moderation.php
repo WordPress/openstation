@@ -14,9 +14,9 @@
  * REST field so the bundle can render it on hover.
  *
  * The Comments window NEVER runs the AI itself — it routes everything
- * through the AI Copilot pipeline so a site's existing provider
- * config (`includes/ai-copilot/settings.php`) is the single source of
- * truth for API keys, provider selection, and rate-limiting.
+ * through the AI Copilot pipeline, which routes generation through the
+ * WordPress AI Client — so a site's Settings → Connectors config is the
+ * single source of truth for provider credentials and selection.
  *
  * SECURITY POSTURE
  * ================
@@ -33,7 +33,6 @@
  *     an AI provider — it just stays inert.
  *
  * @package WPDesktopMode
- * @since   0.19.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -43,8 +42,6 @@ const DESKTOP_MODE_COMMENTS_AI_OPTION = 'desktop_mode_comments_ai_moderation';
 
 /**
  * Returns whether AI moderation for new comments is currently enabled.
- *
- * @since 0.19.0
  *
  * @return bool
  */
@@ -58,8 +55,6 @@ function desktop_mode_comments_ai_is_enabled() {
 	 * gating by environment (staging vs. production) or by feature
 	 * flag.
 	 *
-	 * @since 0.19.0
-	 *
 	 * @param bool $enabled Current option value.
 	 */
 	return (bool) apply_filters(
@@ -69,26 +64,29 @@ function desktop_mode_comments_ai_is_enabled() {
 }
 
 /**
- * On every new comment, queue an AI analysis job — but only when the
- * site has the Comments AI toggle on AND the AI Copilot has a
- * resolvable admin / API key. Idempotent: the AI job pipeline
- * dedupes on `comment_<id>`, so a re-fire from `edit_comment`
- * doesn't double-spend tokens.
+ * On every new or edited comment, queue an AI analysis job — but only when
+ * the site has the Comments AI toggle on AND a text-generation provider is
+ * configured in Settings → Connectors. Idempotent: the AI job pipeline
+ * dedupes on `comment_<id>` while a job is pending, so overlapping fires
+ * (e.g. `wp_insert_comment` + a quick `edit_comment`) don't double-spend
+ * tokens, while an edit after a prior verdict re-analyzes to keep the
+ * spam-confidence meta fresh.
  *
- * Runs at priority 25 — AFTER the AI Copilot's own `priority 20`
- * hook in `includes/ai-copilot/hooks.php`. The Copilot's hook runs
- * for every install where any admin has AI enabled; we layer on top
- * to also fire when an anonymous commenter posts on a site whose
- * admin opted into Comments AI but didn't enable the Copilot more
- * broadly.
+ * This is the sole scheduler for comment analysis: the assistant being
+ * enabled no longer triggers analysis on its own (comment scoring is an
+ * opt-in Comments-window feature, off by default).
  *
- * @since 0.19.0
- *
- * @param int $comment_id Newly-inserted comment id.
+ * @param int $comment_id The comment id (from `wp_insert_comment` or `edit_comment`).
  */
 function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	if ( $comment_id <= 0 || ! desktop_mode_comments_ai_is_enabled() ) {
+		return;
+	}
+
+	// No usable provider configured in Connectors — stay inert so the toggle
+	// is safe to leave on before a provider is set up.
+	if ( ! desktop_mode_comments_ai_provider_configured() ) {
 		return;
 	}
 
@@ -100,20 +98,17 @@ function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 		return;
 	}
 
-	if ( ! function_exists( 'desktop_mode_ai_resolve_user_id' )
-		|| ! function_exists( 'desktop_mode_ai_is_enabled' )
-		|| ! function_exists( 'desktop_mode_ai_schedule_job' )
-	) {
+	if ( ! function_exists( 'desktop_mode_ai_schedule_job' ) ) {
 		return;
 	}
 
+	// Comment scoring is a site-wide moderation feature: it is gated ONLY by
+	// the "Score new comments with AI" toggle + a configured Connector, never
+	// by any user's per-user assistant toggle. The user id below is passed
+	// through purely for attribution/observability — the analysis job reads
+	// none of it (the provider comes from Connectors), so the commenter's own
+	// id (0 for anonymous) is fine.
 	$user_id = (int) $comment->user_id;
-	if ( $user_id <= 0 || ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		$user_id = (int) desktop_mode_ai_resolve_user_id();
-	}
-	if ( $user_id <= 0 || ! desktop_mode_ai_is_enabled( $user_id ) ) {
-		return;
-	}
 
 	desktop_mode_ai_schedule_job(
 		'desktop_mode_ai_analyze_comment',
@@ -122,6 +117,9 @@ function desktop_mode_comments_ai_on_new_comment( $comment_id ) {
 	);
 }
 add_action( 'wp_insert_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
+// Re-analyze on edit so the spam-confidence meta stays fresh under normal
+// moderation flows (the verdict filter always trusts the latest analysis).
+add_action( 'edit_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 1 );
 
 /**
  * Fold the AI verdict into the per-row spam-confidence score.
@@ -135,8 +133,6 @@ add_action( 'wp_insert_comment', 'desktop_mode_comments_ai_on_new_comment', 25, 
  * the latest verdict the AI produced, even if it's a few days old.
  * Re-analysis happens automatically on `edit_comment`, so the meta
  * stays fresh under normal moderation flows.
- *
- * @since 0.19.0
  *
  * @param int        $score   Default heuristic score (0–100).
  * @param WP_Comment $comment Comment object.
@@ -182,8 +178,6 @@ add_filter(
  * on the site has wired up an API key. It's a UX cue — the toggle
  * stays writable even when it's `false` so an admin who's about to
  * configure the provider can flip this on first.
- *
- * @since 0.19.0
  */
 function desktop_mode_comments_ai_register_rest_route() {
 	register_rest_route(
@@ -218,8 +212,6 @@ add_action( 'rest_api_init', 'desktop_mode_comments_ai_register_rest_route' );
 /**
  * REST GET handler — returns the current state + provider hint.
  *
- * @since 0.19.0
- *
  * @return WP_REST_Response
  */
 function desktop_mode_comments_ai_rest_get() {
@@ -235,8 +227,6 @@ function desktop_mode_comments_ai_rest_get() {
 /**
  * REST POST handler — updates the toggle.
  *
- * @since 0.19.0
- *
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response
  */
@@ -246,8 +236,6 @@ function desktop_mode_comments_ai_rest_post( WP_REST_Request $request ) {
 
 	/**
 	 * Fires after the Comments AI moderation toggle is changed.
-	 *
-	 * @since 0.19.0
 	 *
 	 * @param bool $enabled New state.
 	 */
@@ -263,22 +251,16 @@ function desktop_mode_comments_ai_rest_post( WP_REST_Request $request ) {
 }
 
 /**
- * Whether the site has at least one admin with AI configured.
+ * Whether a usable AI text-generation provider is configured in Connectors.
  *
- * Cheap; reads the resolved-admin id and checks
- * `desktop_mode_ai_is_enabled` against it. Returns `false` when the
- * AI Copilot bundle isn't loaded.
- *
- * @since 0.19.0
+ * Delegates to the AI Copilot's capability check
+ * ({@see desktop_mode_ai_provider_configured()}), which inspects the WordPress
+ * AI Client's provider registry without making a network request. Returns
+ * `false` when the AI Copilot bundle isn't loaded.
  *
  * @return bool
  */
 function desktop_mode_comments_ai_provider_configured() {
-	if ( ! function_exists( 'desktop_mode_ai_resolve_user_id' )
-		|| ! function_exists( 'desktop_mode_ai_is_enabled' )
-	) {
-		return false;
-	}
-	$user_id = (int) desktop_mode_ai_resolve_user_id();
-	return $user_id > 0 && desktop_mode_ai_is_enabled( $user_id );
+	return function_exists( 'desktop_mode_ai_provider_configured' )
+		&& desktop_mode_ai_provider_configured();
 }

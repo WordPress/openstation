@@ -15,20 +15,44 @@
  *   PATCH  /folders/(?P<id>\d+)        Update a folder.
  *   DELETE /folders/(?P<id>\d+)        Delete a folder.
  *
+ *   GET    /folders/(?P<id>\d+)/shares List a folder's shares
+ *                                       (owner only).
+ *   POST   /folders/(?P<id>\d+)/shares Invite a user/role (owner only).
+ *   PATCH  /folders/(?P<id>\d+)/shares/(?P<shareId>\d+)
+ *                                       Change a share's capability.
+ *   DELETE /folders/(?P<id>\d+)/shares/(?P<shareId>\d+)
+ *                                       Revoke a share.
+ *   POST   /folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/accept
+ *                                       Accept an invite (recipient).
+ *   POST   /folders/(?P<id>\d+)/shares/(?P<shareId>\d+)/deny
+ *                                       Deny an invite (recipient).
+ *   POST   /folders/(?P<id>\d+)/leave  Leave a shared folder
+ *                                       (recipient).
+ *
+ *   GET    /users/search               Share-picker autocomplete.
+ *   POST   /folder-sharing-tables/purge
+ *                                       Drop the folder-sharing tables
+ *                                       (site admin only).
+ *
  *   PUT    /associations               Replace the viewer's full
  *                                       `{ type => opener_id }` map.
  *
  * Permission: every route requires a logged-in user with desktop
- * mode enabled. Per-row gating happens inside the store.
+ * mode enabled. Per-row gating happens inside the store. On top of
+ * that base, the share/accept/deny/leave routes also gate on the
+ * viewer's folder-sharing OS Setting via
+ * `desktop_mode_files_rest_share_permission`, `/users/search`
+ * additionally requires `edit_posts`, and the sharing-tables purge
+ * requires `manage_options`.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * Base permission check shared by the desktop-files REST routes:
+ * requires a logged-in user with desktop mode enabled.
  */
 function desktop_mode_files_rest_permission() {
 	if ( ! is_user_logged_in() ) {
@@ -47,8 +71,6 @@ function desktop_mode_files_rest_permission() {
  * exist) when the viewer has the folder-sharing feature toggled
  * off in OS Settings — no information leak about whether the
  * feature is even installed.
- *
- * @since 0.18.x
  */
 function desktop_mode_files_rest_share_permission() {
 	$base = desktop_mode_files_rest_permission();
@@ -73,8 +95,6 @@ function desktop_mode_files_rest_share_permission() {
  * (currently: drop the folder-sharing tables). Requires
  * `manage_options` — site-wide schema mutation should never be
  * exposed below that capability.
- *
- * @since 0.18.x
  */
 function desktop_mode_files_rest_admin_permission() {
 	if ( ! current_user_can( 'manage_options' ) ) {
@@ -89,8 +109,6 @@ function desktop_mode_files_rest_admin_permission() {
 
 /**
  * Register the routes.
- *
- * @since 0.9.0
  */
 function desktop_mode_files_register_rest_routes() {
 	$ns = 'desktop-mode/v1';
@@ -263,6 +281,39 @@ function desktop_mode_files_register_rest_routes() {
 	) );
 }
 add_action( 'rest_api_init', 'desktop_mode_files_register_rest_routes' );
+
+/**
+ * Inline the root folder's placements into the boot-time shell
+ * config so the desktop file grid hydrates without a REST
+ * round-trip — this was the only REST call the shell had to await
+ * before revealing the desktop. Mirrors the GET /placements handler
+ * for `folder=0` exactly (same orphan backfill, same shape) so the
+ * client store can't tell the difference; the JS consumer
+ * (`src/desktop-files/layer.ts`) consumes the key one-shot, so any
+ * later re-hydration still goes through REST for fresh state.
+ *
+ * The `desktop_mode_shell_config` filter only runs while rendering
+ * the shell for an enabled, logged-in user — the same gate the REST
+ * permission callback enforces.
+ *
+ * @param array $config Shell config.
+ * @return array
+ */
+function desktop_mode_files_inject_boot_placements( $config ) {
+	$user_id = get_current_user_id();
+	if ( $user_id <= 0 ) {
+		return $config;
+	}
+	desktop_mode_files_auto_place_orphans( $user_id );
+	$rows = desktop_mode_files_get_for_user_folder( $user_id, 0 );
+	$out  = array();
+	foreach ( $rows as $row ) {
+		$out[] = desktop_mode_files_shape_placement( $row );
+	}
+	$config['filesBootPlacements'] = $out;
+	return $config;
+}
+add_filter( 'desktop_mode_shell_config', 'desktop_mode_files_inject_boot_placements', 20 );
 
 /**
  * GET /placements
@@ -489,8 +540,6 @@ function desktop_mode_files_rest_save_associations( WP_REST_Request $req ) {
  * camelCase and merges in the resolved `Desktop_Mode_File`
  * shape so the JS side can render without a second fetch.
  *
- * @since 0.9.0
- *
  * @param array|null $row Normalized placement row.
  * @return array
  */
@@ -498,15 +547,33 @@ function desktop_mode_files_shape_placement( $row ) {
 	if ( ! is_array( $row ) ) {
 		return array();
 	}
-	$file  = desktop_mode_resolve_file( $row['file_type'], $row['file_ref'] );
-	$shape = $file ? $file->serialize() : array(
-		'type'       => $row['file_type'],
-		'ref'        => $row['file_ref'],
-		'title'      => '',
-		'icon'       => 'dashicons-warning',
-		'previewUrl' => '',
-		'exists'     => false,
-	);
+	// Access-gated rows (shared-folder view, viewer lacks read on
+	// the underlying entity) get a redacted shape — the viewer may
+	// learn THAT the owner placed something here, not WHAT it is.
+	// Skipping the resolver keeps entity metadata (title, permalink,
+	// status, roles, …) from crossing the read-access boundary; the
+	// tile renderer paints the lock overlay off `accessGated`.
+	$access_gated = ! empty( $row['access_gated'] );
+	if ( $access_gated ) {
+		$shape = array(
+			'type'       => $row['file_type'],
+			'ref'        => $row['file_ref'],
+			'title'      => __( 'Restricted item', 'desktop-mode' ),
+			'icon'       => 'dashicons-lock',
+			'previewUrl' => '',
+			'exists'     => true,
+		);
+	} else {
+		$file  = desktop_mode_resolve_file( $row['file_type'], $row['file_ref'] );
+		$shape = $file ? $file->serialize() : array(
+			'type'       => $row['file_type'],
+			'ref'        => $row['file_ref'],
+			'title'      => '',
+			'icon'       => 'dashicons-warning',
+			'previewUrl' => '',
+			'exists'     => false,
+		);
+	}
 	// `canTrash` carries the server's answer to "can the viewer
 	// move this placement to the recycle bin?" so the client can
 	// proactively suppress the trash affordance — both the tile's
@@ -535,15 +602,13 @@ function desktop_mode_files_shape_placement( $row ) {
 		// `accessGated` is true when the viewer can't read the
 		// underlying entity but the placement is shown anyway (the
 		// shared-folder-view UX). Tile renderer surfaces it as a
-		// lock overlay + tooltip.
-		'accessGated'  => ! empty( $row['access_gated'] ),
+		// lock overlay + tooltip; the `file` shape above is redacted.
+		'accessGated'  => $access_gated,
 		'canTrash'     => $can_trash,
 	);
 }
 
 /**
- * @since 0.9.0
- *
  * @param array|null $row Folder row.
  * @return array
  */
@@ -568,9 +633,16 @@ function desktop_mode_files_shape_folder( $row ) {
 				$accepted_count++;
 			}
 		}
+		// `shared` is viewer-agnostic — recipients need it for the
+		// shared-folder badge. The recipient COUNT is owner-internal
+		// (the dedicated shares endpoint gates the full roster on
+		// `share_can_manage`), so only managers get the real number;
+		// every other viewer sees `0`, keeping the wire shape stable.
+		$can_manage = function_exists( 'desktop_mode_files_share_can_manage' )
+			&& desktop_mode_files_share_can_manage( (int) $row['id'], get_current_user_id() );
 		$shape['shareSummary'] = array(
 			'shared'         => $has_all || $accepted_count > 0,
-			'recipientCount' => $accepted_count + ( $has_all ? 1 : 0 ),
+			'recipientCount' => $can_manage ? $accepted_count + ( $has_all ? 1 : 0 ) : 0,
 		);
 	}
 	return $shape;
@@ -586,8 +658,6 @@ function desktop_mode_files_shape_folder( $row ) {
  * The 409 body carries a structured `data` payload the client
  * surfaces as a toast: `{ reason, actor: { id,name,avatar },
  * current: { parentId, parentName, updatedAtMs } }`.
- *
- * @since 0.18.0
  *
  * @param int             $current_ms Current `updated_at_ms` on the row.
  * @param WP_REST_Request $req        Inbound request.
@@ -605,12 +675,13 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	}
 	// Prefer `updated_by` (v10+) so the conflict toast attributes
 	// the change to the SESSION that won the race. Falls back to
-	// `user_id` (placement creator) or `owner_id` (folder owner)
-	// for legacy rows from before the column was added — in a
-	// non-shared-write workflow those still happen to be the right
-	// person; in shared-write the toast may be slightly misleading
-	// for the lifetime of pre-v10 rows. New mutations stamp the
-	// column accurately. See `desktop_mode_files_ensure_updated_by_column`.
+	// `owner_id` (placement creator / folder owner) for legacy
+	// rows from before the v10 `updated_by` column was added — in
+	// a non-shared-write workflow that still happens to be the
+	// right person; in shared-write the toast may be slightly
+	// misleading for the lifetime of pre-v10 rows. New mutations
+	// stamp the column accurately. See
+	// `desktop_mode_files_ensure_updated_by_column`.
 	$actor_id = 0;
 	if ( isset( $row['updated_by'] ) && (int) $row['updated_by'] > 0 ) {
 		$actor_id = (int) $row['updated_by'];
@@ -632,13 +703,16 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 	}
 
 	// PII gate. The conflict toast names the actor (display name +
-	// avatar) only when the requesting viewer is in the same
-	// collaboration scope as the actor — i.e. owns the row, owns
-	// the parent folder, or has at least read access to the parent
-	// folder via the shares table. For any other viewer the actor
-	// degrades to a generic "another session" — `id: 0`, empty
-	// name + avatar — so a write attempt can't be used to enumerate
-	// other users' display names.
+	// avatar) and the row's parent folder only when the requesting
+	// viewer is in the same collaboration scope as the actor — i.e.
+	// owns the row, owns the parent folder, or has at least read
+	// access to the parent folder via the shares table. For any
+	// other viewer the actor degrades to a generic "another
+	// session" — `id: 0`, empty name + avatar — and `current`
+	// drops the parent id/name, so a write attempt can't be used
+	// to enumerate other users' display names or folder names
+	// (this check runs BEFORE the store's ownership gate, so the
+	// 409 body must not leak what the later 403 would protect).
 	$viewer_id        = (int) get_current_user_id();
 	$viewer_owns_row  = isset( $row['owner_id'] ) && (int) $row['owner_id'] === $viewer_id;
 	$viewer_can_see   = $viewer_owns_row;
@@ -664,8 +738,8 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 				'reason'  => $reason,
 				'actor'   => $actor_payload,
 				'current' => array(
-					'parentId'    => $parent_id,
-					'parentName'  => $parent_name,
+					'parentId'    => $viewer_can_see ? $parent_id : 0,
+					'parentName'  => $viewer_can_see ? $parent_name : '',
 					'updatedAtMs' => (int) $current_ms,
 				),
 			),
@@ -675,8 +749,6 @@ function desktop_mode_files_check_if_match( $current_ms, WP_REST_Request $req, $
 
 /**
  * Shape a share row for the wire.
- *
- * @since 0.18.0
  *
  * @param array|null $row Normalized share row.
  * @return array
@@ -764,8 +836,6 @@ function desktop_mode_files_rest_create_share( WP_REST_Request $req ) {
  * mismatched URL never escalates permission — but the routes are
  * hierarchical (`/folders/{id}/shares/{shareId}/…`), so honoring
  * both path segments is the contract callers expect.
- *
- * @since 0.18.x
  *
  * @param WP_REST_Request $req Request.
  * @return array|WP_Error
@@ -882,8 +952,6 @@ function desktop_mode_files_rest_leave_folder( WP_REST_Request $req ) {
  * `install_schema` and recreates the empty tables — keeps the
  * code path that ASSUMES the tables exist (e.g. heartbeat
  * delivery queries) working even after a purge.
- *
- * @since 0.18.x
  */
 function desktop_mode_files_rest_purge_sharing_tables() {
 	global $wpdb;
@@ -893,8 +961,6 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 	/**
 	 * Filter the list of table names dropped by the
 	 * "Delete folder sharing data" admin action.
-	 *
-	 * @since 0.18.x
 	 *
 	 * @param string[] $tables Default = shares + decisions.
 	 */
@@ -944,8 +1010,6 @@ function desktop_mode_files_rest_purge_sharing_tables() {
 	 * that mirror share state into their own storage can react
 	 * here.
 	 *
-	 * @since 0.18.x
-	 *
 	 * @param string[] $dropped Table names that were dropped.
 	 */
 	do_action( 'desktop_mode_files_sharing_tables_purged', $dropped );
@@ -961,8 +1025,6 @@ function desktop_mode_files_rest_purge_sharing_tables() {
  * `desktop_mode_files_rest_permission` would let any logged-in
  * desktop-mode user pull the directory, which is too broad for an
  * autocomplete that exposes display names + emails.
- *
- * @since 0.18.0
  */
 function desktop_mode_files_rest_search_users_permission() {
 	$base = desktop_mode_files_rest_permission();
@@ -978,8 +1040,6 @@ function desktop_mode_files_rest_search_users_permission() {
 /**
  * GET /files/users/search?q=<>&exclude=<csv> — autocomplete for the
  * folder share picker.
- *
- * @since 0.18.0
  */
 function desktop_mode_files_rest_search_users( WP_REST_Request $req ) {
 	$q       = trim( (string) $req->get_param( 'q' ) );
@@ -1009,8 +1069,6 @@ function desktop_mode_files_rest_search_users( WP_REST_Request $req ) {
 
 	/**
 	 * Filter the WP_User_Query args used by the share picker.
-	 *
-	 * @since 0.18.0
 	 *
 	 * @param array $args Default args.
 	 * @param array $req  Request params (`q`, `exclude`).

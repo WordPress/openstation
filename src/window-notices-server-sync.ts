@@ -7,8 +7,6 @@
  * calling {@link registerWindowNotice} for each. Re-runs on every
  * `desktop-mode-plugins-changed` payload so plugin activation /
  * deactivation reflects without an F5.
- *
- * @since 0.22.0
  */
 
 import {

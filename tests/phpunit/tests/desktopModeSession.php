@@ -174,6 +174,116 @@ class Tests_DesktopMode_Session extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Native windows carry a `#slug` marker instead of an admin URL.
+	 * The same-admin URL check used to drop them from the session
+	 * entirely, so OS Settings (and every plugin-registered native
+	 * window) never came back after a reload.
+	 *
+	 * @covers ::desktop_mode_sanitize_session
+	 */
+	public function test_sanitize_keeps_native_windows() {
+		$session = array(
+			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
+			'activeDesktop' => 'desktop-1',
+			'windows'       => array(
+				array(
+					'id'     => 'desktop-mode-os-settings',
+					'native' => true,
+					'url'    => '#os-settings',
+					'title'  => 'OS Settings',
+					'icon'   => 'dashicons-desktop',
+					'state'  => 'normal',
+					'x'      => 120,
+					'y'      => 90,
+					'width'  => 820,
+					'height' => 720,
+				),
+			),
+		);
+
+		$clean = desktop_mode_sanitize_session( $session );
+
+		$this->assertCount( 1, $clean['windows'] );
+		$this->assertTrue( $clean['windows'][0]['native'] );
+		$this->assertSame( 'desktop-mode-os-settings', $clean['windows'][0]['id'] );
+		$this->assertSame( 820, $clean['windows'][0]['width'] );
+	}
+
+	/**
+	 * The stored marker is built from the sanitized id, never from
+	 * the client's `url`. Nothing navigates to it, so there's no
+	 * reason to round-trip a client-controlled string through user
+	 * meta.
+	 *
+	 * @covers ::desktop_mode_sanitize_session
+	 */
+	public function test_sanitize_rebuilds_native_url_from_the_id() {
+		$session = array(
+			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
+			'activeDesktop' => 'desktop-1',
+			'windows'       => array(
+				array(
+					'id'     => 'my-plugin-panel',
+					'native' => true,
+					'url'    => 'https://evil.example.com/steal',
+					'title'  => 'Panel',
+					'icon'   => 'dashicons-admin-generic',
+					'state'  => 'normal',
+					'x'      => 0,
+					'y'      => 0,
+					'width'  => 400,
+					'height' => 300,
+				),
+			),
+		);
+
+		$clean = desktop_mode_sanitize_session( $session );
+
+		$this->assertCount( 1, $clean['windows'] );
+		$this->assertSame( '#my-plugin-panel', $clean['windows'][0]['url'] );
+	}
+
+	/**
+	 * Non-native windows keep the strict same-admin URL gate.
+	 *
+	 * @covers ::desktop_mode_sanitize_session
+	 */
+	public function test_sanitize_still_drops_foreign_urls_for_iframe_windows() {
+		$session = array(
+			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
+			'activeDesktop' => 'desktop-1',
+			'windows'       => array(
+				$this->make_window( array(
+					'id'  => 'evil',
+					'url' => 'https://evil.example.com/wp-admin/edit.php',
+				) ),
+			),
+		);
+
+		$clean = desktop_mode_sanitize_session( $session );
+
+		$this->assertCount( 0, $clean['windows'] );
+	}
+
+	/**
+	 * Absent `native` stays absent — sessions of plain admin windows
+	 * keep the shape they already had.
+	 *
+	 * @covers ::desktop_mode_sanitize_session
+	 */
+	public function test_sanitize_omits_native_flag_for_iframe_windows() {
+		$session = array(
+			'desktops'      => array( array( 'id' => 'desktop-1', 'label' => 'A' ) ),
+			'activeDesktop' => 'desktop-1',
+			'windows'       => array( $this->make_window() ),
+		);
+
+		$clean = desktop_mode_sanitize_session( $session );
+
+		$this->assertArrayNotHasKey( 'native', $clean['windows'][0] );
+	}
+
+	/**
 	 * @covers ::desktop_mode_sanitize_session
 	 */
 	public function test_sanitize_caps_desktops_at_max() {

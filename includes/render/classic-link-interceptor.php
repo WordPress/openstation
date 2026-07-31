@@ -14,7 +14,6 @@
  * slicing (phase 6).
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -35,8 +34,6 @@ defined( 'ABSPATH' ) || exit;
  * the classic flag. Skips modifier-clicks (cmd/ctrl/shift/alt), targets
  * other than `_self`, downloads, anchors, and non-http schemes so we
  * don't break "open in new tab" or mailto links.
- *
- * @since 0.4.0
  */
 function desktop_mode_classic_link_interceptor() {
 	if ( ! desktop_mode_is_classic_request() ) {

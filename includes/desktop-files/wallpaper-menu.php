@@ -7,8 +7,8 @@
  * filtering the array — empty by default, so no menu items
  * arrive from the server unless plugins add them.
  *
- * The four built-in items (Create folder, Show desktop, OS
- * Settings, Wallpapers) are JS-defined inside the shell — they
+ * The built-in items (Create folder, New URL, Sort by, Show
+ * desktop, OS Settings) are JS-defined inside the shell — they
  * need access to closures we'd lose across the wire. Server
  * items take a `callbackId` string the JS bundle resolves in
  * its `serverCallbacks` map; plugins that don't ship a JS
@@ -17,15 +17,12 @@
  * instead.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Builds the server-borne wallpaper-menu items.
- *
- * @since 0.9.0
  *
  * @return array[]
  */
@@ -37,8 +34,6 @@ function desktop_mode_build_wallpaper_menu_items() {
 	 *
 	 * Each item must have at least `id` and `label`. Optional:
 	 * `icon`, `sort`, `disabled`, `callbackId`.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array[] $items Items list.
 	 */

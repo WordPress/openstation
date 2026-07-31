@@ -12,7 +12,6 @@
  * PHP slicing (phase 6).
  *
  * @package Desktop_Mode
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -55,19 +54,18 @@ defined( 'ABSPATH' ) || exit;
  * };
  * ```
  *
- * @since 0.10.0
- * @since 0.11.0 Returns `WP_Error` on validation failure instead of
- *               silent `false`. Legacy `if ( $result )` callers remain
- *               correct because `WP_Error` is truthy.
- *
  * @param string $id   Widget id. Must match the key the JS side
  *                     uses on `window.desktopModeWidgets[ … ]`.
  * @param array  $args {
  *     @type string   $label          Human-readable picker label. Required.
  *     @type string   $description    Picker subtitle. Default empty.
- *     @type string   $icon           Dashicons class for the picker. Required.
+ *     @type string   $icon           Dashicons class for the picker.
+ *                                    Default 'dashicons-admin-generic'.
  *     @type string   $script         Enqueued script handle that owns
- *                                    the mount callback. Required.
+ *                                    the mount callback. Optional — omit
+ *                                    when the mount callback is declared
+ *                                    by a script already on the shell
+ *                                    page. Default empty.
  *     @type bool     $movable        Allow drag out of the right column.
  *     @type bool     $resizable      Allow user resize.
  *     @type int      $min_width
@@ -156,8 +154,6 @@ function desktop_mode_register_widget( $id, $args = array() ) {
 	 * Does NOT fire when `desktop_mode_register_widget()` returns a
 	 * `WP_Error`.
 	 *
-	 * @since 0.11.0
-	 *
 	 * @param string $id    The widget id.
 	 * @param array  $entry The stored registry entry.
 	 */
@@ -171,7 +167,6 @@ function desktop_mode_register_widget( $id, $args = array() ) {
  * {@see desktop_mode_register_widget()}. Same pattern as
  * {@see desktop_mode_native_window_registry()}.
  *
- * @since 0.10.0
  * @internal
  */
 function desktop_mode_desktop_widget_registry( $id = '', $entry = null ) {
@@ -192,8 +187,6 @@ function desktop_mode_desktop_widget_registry( $id = '', $entry = null ) {
  * attaches the resolved script URL (`wp_scripts()` lookup) so
  * the shell can dynamically inject the script on mid-session
  * plugin activation.
- *
- * @since 0.10.0
  *
  * @return array[]
  */
@@ -235,8 +228,6 @@ function desktop_mode_build_desktop_widgets_payload() {
  * Enqueue plugin-registered widget scripts on the shell page so
  * widgets active at boot time have their mount callbacks
  * available without any dynamic-load roundtrip.
- *
- * @since 0.10.0
  */
 function desktop_mode_enqueue_desktop_widget_scripts() {
 	if ( ! desktop_mode_is_enabled() || desktop_mode_is_chromeless_request() || desktop_mode_is_classic_request() ) {

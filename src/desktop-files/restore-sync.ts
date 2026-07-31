@@ -23,8 +23,6 @@
  * `listPlacements` / `listFolders` always return the authoritative
  * current state, so a restore lands in the store within one round-
  * trip regardless of whether heartbeat deltas are working.
- *
- * @since 0.7.3
  */
 
 import { subscribe } from '../broadcast';

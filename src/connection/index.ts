@@ -24,8 +24,6 @@
  * `subscribe( topic, cb )` fires on every inbound match. Plugin
  * authors don't need to know whether their target is an iframe or
  * a native window — that's the whole point.
- *
- * @since 0.17.0
  */
 
 import { applyFilters, doAction, HOOKS } from './../hooks';
@@ -502,10 +500,11 @@ export function createConnectionBridge( manager: WindowManager ) {
 	 *
 	 * Iframe-initiated connection requests (`requestConnection()`)
 	 * arrive here too — they carry a `requestId` instead of a
-	 * `connectionId`. The shell fires
-	 * `HOOKS.IFRAME_CONNECTION_REQUEST` with `accept()` / `reject()`
-	 * helpers; if no subscriber decides, the next-tick filter
-	 * defaults to accept.
+	 * `connectionId`. The shell applies the
+	 * `HOOKS.IFRAME_CONNECTION_REQUEST` filter synchronously
+	 * (default `true` = accept; return `false` to reject, or
+	 * `{ topics }` to accept with a narrowed topic list) and
+	 * replies with `desktop-mode-bridge-connection-ack`.
 	 *
 	 * `windowId` identifies the window the message came from — the
 	 * iframe-bridge handler in `src/window/iframe-bridge.ts` looks
@@ -561,8 +560,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 		 * `{ topics }` to accept (optionally narrowing the topic
 		 * list), `true` / `undefined` for the default
 		 * accept-with-original-topics.
-		 *
-		 * @since 0.18.0
 		 *
 		 * @param {boolean|Object} accept Default `true` (accept).
 		 * @param {Object}         ctx    `{ windowId, requestId, topics }`.
@@ -658,7 +655,6 @@ export function createConnectionBridge( manager: WindowManager ) {
 	 * Connection reference; pick whichever fits the call site.
 	 *
 	 * @public
-	 * @since 0.22.0
 	 */
 	const getConnection = (
 		connectionId: string,

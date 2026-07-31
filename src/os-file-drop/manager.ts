@@ -16,7 +16,9 @@
  *   - Chromeless admin iframes — handled by the chromeless bridge
  *     embedded in `includes/render/chromeless-bridge.php`, which
  *     intercepts iframe-side drops and `postMessage`s the raw
- *     `File[]` up to the parent shell (see `forwardIframeDrops`).
+ *     `File[]` up to the parent shell (see the OS-file drop
+ *     forwarder block there — `bridgeHasFiles` /
+ *     `bridgeDropTargetWantsFile`).
  *
  * Filtering: every dropped file is checked against the
  * server-supplied allowed-mime list and the size cap. Rejected
@@ -28,14 +30,14 @@
  * The manager is mounted by `desktop.ts` at boot and lives for
  * the lifetime of the shell. There is at most one instance —
  * `mountOsFileDropManager()` is idempotent.
- *
- * @since 0.30.0
  */
 
 import { applyFilters, doAction } from '../hooks';
 import { showToast } from '../toast';
 import { FILE_DROP_HOOKS } from './hooks';
+import { collectDroppedTree, snapshotEntries } from './traversal';
 import type {
+	DesktopStorageConfig,
 	DropConfig,
 	DropContext,
 	DropFileEntry,
@@ -57,10 +59,14 @@ interface SentinelHost {
 /**
  * Selectors of in-iframe drop receivers we leave untouched —
  * Gutenberg's drop zone, the legacy media uploader, and any
- * element a plugin marks with `data-drop-zone`. The chromeless
- * bridge consults this list before escalating an OS-file drop
- * up to the parent shell, so plugins that own their own file
- * handling inside an iframe keep working.
+ * element a plugin marks with `data-drop-zone`. Only the
+ * parent-shell no-op handler (`mountNoOp`) consults this list.
+ * The iframe-side bridges keep their own independent copies of
+ * the same selectors — `bridgeDropPassthroughSelectors` in
+ * `includes/render/chromeless-bridge.php` and
+ * `dropPassthroughSelectors` in `src/iframe-bridge-standalone.ts`
+ * — anyone changing one must update all three (and the list in
+ * `docs/bridge-protocol.md`).
  *
  * Public surface — re-exported via the bridge protocol doc.
  */
@@ -102,6 +108,21 @@ export function dragHasFiles( ev: DragEvent ): boolean {
 	return false;
 }
 
+/**
+ * Resolve the shell window hosting `el`, or `undefined`. Window
+ * roots carry NO data attribute — the id is encoded in the element
+ * id (`wp-window-<windowId>`, stamped by `createWindowElement()` in
+ * `src/window/dom.ts`).
+ */
+export function windowIdFromElement( el: Element | null ): string | undefined {
+	const root = el?.closest?.( '.desktop-mode-window' ) as HTMLElement | null;
+	if ( ! root ) {
+		return undefined;
+	}
+	const m = /^wp-window-(.+)$/.exec( root.id || '' );
+	return m ? m[ 1 ] : undefined;
+}
+
 /** Resolve a posted-from `Window` source to its host window id. */
 function resolveWindowIdFromSource(
 	source: MessageEventSource | null,
@@ -112,6 +133,10 @@ function resolveWindowIdFromSource(
 	const iframes = document.querySelectorAll< HTMLIFrameElement >( 'iframe' );
 	for ( const f of Array.from( iframes ) ) {
 		if ( f.contentWindow === source ) {
+			const fromRoot = windowIdFromElement( f );
+			if ( fromRoot ) {
+				return fromRoot;
+			}
 			const host = f.closest( '[data-window-id]' );
 			return host?.getAttribute( 'data-window-id' ) || undefined;
 		}
@@ -124,11 +149,25 @@ interface MountOptions {
 	mediaUrl: string;
 	restNonce: string;
 	/**
+	 * Files REST base (`…/desktop-mode/v1/files`) — required for the
+	 * desktop-storage destination. Absent = Media Library only.
+	 */
+	filesUrl?: string;
+	/**
+	 * Desktop-storage config. Absent / `canUpload: false` keeps the
+	 * legacy Media-Library-only behavior.
+	 */
+	storage?: DesktopStorageConfig;
+	/**
 	 * Dialog opener — the dialog module is lazy-loaded so its
 	 * `<wpd-modal>` import doesn't ship in the boot path for
 	 * users who never drop a file. Wired by `index.ts`.
 	 */
-	openDialog: ( entries: DropFileEntry[], ctx: DropContext ) => Promise< void >;
+	openDialog: (
+		entries: DropFileEntry[],
+		ctx: DropContext,
+		extra?: { forceDesktop?: boolean; emptyDirs?: string[] },
+	) => Promise< void >;
 }
 
 interface MountedManager {
@@ -231,13 +270,22 @@ export function mountOsFileDropManager( opts: MountOptions ): MountedManager {
 		}
 		ev.preventDefault();
 		resetOverlay();
+		// Snapshot the Entries API view SYNCHRONOUSLY — the item
+		// list is cleared the moment this handler yields. Only the
+		// entries walk can see directories (and their empty dirs);
+		// `dataTransfer.files` flattens and mis-reports folders.
+		const entries = snapshotEntries( ev.dataTransfer?.items );
+		const ctx = classifyDropTarget( ev );
+		if ( entries.some( ( e ) => e.isDirectory ) ) {
+			void handleTreeDrop( entries, ctx, opts );
+			return;
+		}
 		const files = ev.dataTransfer?.files
 			? Array.from( ev.dataTransfer.files )
 			: [];
 		if ( files.length === 0 ) {
 			return;
 		}
-		const ctx = classifyDropTarget( ev );
 		void handleFiles( files, ctx, opts );
 	};
 
@@ -422,32 +470,70 @@ function mountNoOp(): MountedManager {
  * filter and inspect the file themselves; the `surface` label is
  * advisory.
  */
-function classifyDropTarget( ev: DragEvent ): DropContext {
+export function classifyDropTarget( ev: DragEvent ): DropContext {
 	const x = ev.clientX;
 	const y = ev.clientY;
 	let node: Element | null = ev.target as Element | null;
 	while ( node && node !== document.body ) {
-		if ( node.tagName === 'IFRAME' ) {
-			const id = ( node as HTMLIFrameElement ).closest(
-				'[data-window-id]',
+		// A folder TILE — Finder parity: dropping onto the closed
+		// folder icon files the upload INTO that folder. Checked
+		// before the generic markers because the tile also sits
+		// inside a files layer (whose `data-folder-id` is the
+		// tile's PARENT, not the tile's own folder).
+		if (
+			node.classList.contains( 'desktop-mode-file-tile' ) &&
+			( node as HTMLElement ).dataset.fileType === 'folder'
+		) {
+			const tileRef = Number(
+				( node as HTMLElement ).dataset.fileRef ?? 0,
 			);
+			if ( Number.isFinite( tileRef ) && tileRef > 0 ) {
+				return { surface: 'folder', folderId: tileRef, x, y };
+			}
+		}
+		if ( node.tagName === 'IFRAME' ) {
 			return {
 				surface: 'iframe',
-				windowId: id?.getAttribute( 'data-window-id' ) || undefined,
+				windowId: windowIdFromElement( node ),
 				x,
 				y,
 			};
 		}
-		if ( node.hasAttribute( 'data-window-id' ) ) {
-			return {
-				surface: 'window',
-				windowId: node.getAttribute( 'data-window-id' ) || undefined,
-				x,
-				y,
-			};
+		if (
+			node.classList.contains( 'desktop-mode-window' ) ||
+			node.hasAttribute( 'data-window-id' )
+		) {
+			const windowId =
+				windowIdFromElement( node ) ??
+				( node.getAttribute( 'data-window-id' ) || undefined );
+			// Folder windows carry a deterministic id
+			// (`desktop-mode-folder-<folderId>`) — recover the folder
+			// even when the drop missed the files-layer element
+			// (empty area below the tiles, preview pane, status bar).
+			const folderMatch = windowId
+				? /^desktop-mode-folder-(\d+)/.exec( windowId )
+				: null;
+			if ( folderMatch ) {
+				return {
+					surface: 'folder',
+					folderId: Number( folderMatch[ 1 ] ),
+					windowId,
+					x,
+					y,
+				};
+			}
+			return { surface: 'window', windowId, x, y };
 		}
-		if ( node.classList.contains( 'desktop-mode-folder-grid' ) ) {
-			return { surface: 'folder', x, y };
+		if ( ( node as HTMLElement ).dataset?.folderId !== undefined ) {
+			// The files-layer host stamps `data-folder-id` (0 for the
+			// desktop root). A non-zero id means a folder surface.
+			const folderId = Number(
+				( node as HTMLElement ).dataset.folderId,
+			);
+			if ( Number.isFinite( folderId ) && folderId > 0 ) {
+				return { surface: 'folder', folderId, x, y };
+			}
+			return { surface: 'wallpaper', x, y };
 		}
 		if (
 			node.id === 'desktop-mode-wallpaper' ||
@@ -528,6 +614,69 @@ export async function handleFiles(
 	} );
 
 	await opts.openDialog( entries, ctx );
+}
+
+/**
+ * Folder-tree drop pipeline: traverse → policy filter → dialog in
+ * forced-desktop mode (the Media Library has no tree concept).
+ * Exported for tests.
+ */
+export async function handleTreeDrop(
+	entries: FileSystemEntry[],
+	ctx: DropContext,
+	opts: MountOptions,
+): Promise< void > {
+	if ( ! opts.storage?.canUpload || ! opts.filesUrl ) {
+		showToast( {
+			message: 'Folder uploads need desktop storage, which is not available for your account.',
+		} );
+		return;
+	}
+	const tree = await collectDroppedTree( entries );
+	const detected = applyFilters(
+		FILE_DROP_HOOKS.FILES_DETECTED,
+		tree.files.map( ( t ) => t.file ),
+		ctx,
+	) as File[];
+	if ( ! Array.isArray( detected ) ) {
+		return;
+	}
+	const detectedSet = new Set( detected );
+	const kept = tree.files.filter( ( t ) => detectedSet.has( t.file ) );
+	if ( kept.length === 0 && tree.emptyDirs.length === 0 ) {
+		return;
+	}
+
+	const { accepted, rejected } = partitionByPolicy(
+		kept.map( ( t ) => t.file ),
+		opts.config,
+	);
+	if ( rejected.length > 0 ) {
+		doAction( FILE_DROP_HOOKS.FILES_REJECTED, {
+			rejections: rejected,
+			context: ctx,
+		} );
+		showToast( {
+			message:
+				rejected.length === 1
+					? rejected[ 0 ].message
+					: `${ rejected.length } files couldn't be uploaded.`,
+		} );
+	}
+	const relByFile = new Map( kept.map( ( t ) => [ t.file, t.relativePath ] ) );
+	const entriesForDialog: DropFileEntry[] = accepted.map( ( { file, mime } ) => ( {
+		file,
+		mime,
+		fields: defaultFields( file, mime ),
+		relativePath: relByFile.get( file ) ?? '',
+	} ) );
+	if ( entriesForDialog.length === 0 && tree.emptyDirs.length === 0 ) {
+		return;
+	}
+	await opts.openDialog( entriesForDialog, ctx, {
+		forceDesktop: true,
+		emptyDirs: tree.emptyDirs,
+	} );
 }
 
 /**

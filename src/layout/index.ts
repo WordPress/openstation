@@ -19,8 +19,6 @@
  * Backed by `createSharedStore` so a registration from one bundle
  * (the main shell) is visible to every other bundle (recycle bin,
  * posts window, plugin extras).
- *
- * @since 0.8.1
  */
 
 import { createSharedStore } from '../shared-store';
@@ -38,8 +36,6 @@ const store = createSharedStore< LayoutState >( 'desktop-mode/layout', () => ( {
 
 /**
  * Read the active layout synchronously.
- *
- * @since 0.8.1
  */
 export function getCurrentLayout(): DesktopLayoutId {
 	return store.state.layout;
@@ -49,8 +45,6 @@ export function getCurrentLayout(): DesktopLayoutId {
  * Publish the active layout. The shell calls this every time the
  * dispatcher rebuilds; plugin code should NOT call this — the
  * source of truth is OS Settings.
- *
- * @since 0.8.1
  *
  * @internal
  */
@@ -66,10 +60,9 @@ export function setCurrentLayout( layout: DesktopLayoutId ): void {
  * Subscribe to layout changes. Returns an unsubscribe function.
  *
  * The callback fires synchronously inside `setCurrentLayout` —
- * after the value has been written, before
- * `desktop-mode-layout-changed` is dispatched on `document`.
- *
- * @since 0.8.1
+ * after the value has been written. Note the shell publishes here
+ * after `desktop-mode-layout-changed` has already been dispatched
+ * on `document`.
  */
 export function subscribeLayout(
 	cb: ( layout: DesktopLayoutId ) => void,

@@ -7,6 +7,12 @@
  *   - A trailing "Ghost Card" with a dashed outline + breathing pulse
  *     (click → spawn a fresh instance via `windowManager.openNew()`).
  *
+ * Cards include a lightweight "preview" mode (Aero Peek–style):
+ *   - Hover → the window appears so you can see its content.
+ *   - Move away → the window returns to its previous state (minimized
+ *     snap back, or the previously-focused window comes back).
+ *   - Click → the action is committed permanently.
+ *
  * The peek replaces the legacy "+" chip on multi-instance dock items.
  * Visible affordance, no keyboard required — the Ghost Card visually
  * announces itself as a slot for "something that doesn't exist yet."
@@ -14,8 +20,6 @@
  * Pointer-only: touch devices skip the peek and fall back to plain
  * tap-to-focus / tap-to-open. Hover popovers don't translate to touch
  * cleanly, and Phase 5–6 is where the mobile shell takes over.
- *
- * @since 0.6.2
  */
 
 import { __, sprintf } from '../i18n';
@@ -87,6 +91,21 @@ const HIDE_DELAY_MS = 220;
 const STAGGER_MS = 32;
 
 /**
+ * Tracks a peek card's temporary "preview" state — what the window
+ * looked like before the user hovered the card, so we can snap it
+ * back when the pointer leaves without a click.
+ */
+interface PreviewEntry {
+	/** The window was minimized before the hover. */
+	wasMinimized: boolean;
+	/**
+	 * The window that was focused before the hover (null if none or
+	 * if the previewed window was already focused).
+	 */
+	previouslyFocusedId: string | null;
+}
+
+/**
  * Attach hover-peek behavior to a dock tile. Returns a teardown
  * function that detaches every listener and removes the popover.
  */
@@ -97,6 +116,9 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 	let showTimer: number | null = null;
 	let hideTimer: number | null = null;
 	let inside = false;
+
+	/** Preview state keyed by window id, scoped to this popover's lifetime. */
+	let previewByWindowId: Map< string, PreviewEntry > | null = null;
 
 	const cancelShow = (): void => {
 		if ( showTimer !== null ) {
@@ -114,10 +136,13 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 	const tearDown = (): void => {
 		cancelShow();
 		cancelHide();
+		tile.removeAttribute( 'data-peek-active' );
 		if ( popover ) {
 			popover.remove();
 			popover = null;
 		}
+		previewByWindowId?.clear();
+		previewByWindowId = null;
 		deps.suppressTooltip( false );
 	};
 
@@ -168,7 +193,9 @@ export function attachDockPeek( deps: DockPeekDeps ): () => void {
 
 	const showPeek = (): void => {
 		deps.suppressTooltip( true );
-		popover = buildPopover( deps, () => tearDown() );
+		tile.setAttribute( 'data-peek-active', '' );
+		previewByWindowId = new Map();
+		popover = buildPopover( deps, () => tearDown(), previewByWindowId );
 		document.body.appendChild( popover );
 		// Inherit the user's WP color-scheme variables. The popover is
 		// body-attached (outside `.desktop-mode-shell`), so the scheme
@@ -221,7 +248,11 @@ function shouldShowPeek( deps: DockPeekDeps ): boolean {
 }
 
 /** Build the popover surface + cards. */
-function buildPopover( deps: DockPeekDeps, dismiss: () => void ): HTMLElement {
+function buildPopover(
+	deps: DockPeekDeps,
+	dismiss: () => void,
+	previewByWindowId: Map< string, PreviewEntry >,
+): HTMLElement {
 	const root = document.createElement( 'div' );
 	root.className = 'desktop-mode-dock-peek';
 	root.setAttribute( 'role', 'menu' );
@@ -238,7 +269,7 @@ function buildPopover( deps: DockPeekDeps, dismiss: () => void ): HTMLElement {
 	const instances = deps.getInstances();
 	let cardIndex = 0;
 	for ( const win of instances ) {
-		const card = buildInstanceCard( win, deps, cardIndex++, dismiss );
+		const card = buildInstanceCard( win, deps, cardIndex++, dismiss, previewByWindowId );
 		cards.appendChild( card );
 	}
 
@@ -248,6 +279,20 @@ function buildPopover( deps: DockPeekDeps, dismiss: () => void ): HTMLElement {
 	}
 
 	return root;
+}
+
+/**
+ * Restores `win` if it's minimized, clearing the peek card's collapsed
+ * `data-state` along with it so the CSS stops hiding the card's body.
+ */
+function restoreIfMinimized( win: WPWindow, card?: HTMLElement ): void {
+	if ( win.state !== 'minimized' ) {
+		return;
+	}
+	win.restore();
+	if ( card ) {
+		delete card.dataset.state;
+	}
 }
 
 /**
@@ -261,12 +306,18 @@ function buildPopover( deps: DockPeekDeps, dismiss: () => void ): HTMLElement {
  * gives each card a distinct visual identity (color + title + icon),
  * which is what users actually use to recognize an open window at a
  * glance.
+ *
+ * Cards now include a lightweight "preview" mode (Aero Peek–style):
+ *   - Hover → the window appears so you can see its content.
+ *   - Move away → the window returns to its previous state.
+ *   - Click → the action is committed permanently.
  */
 function buildInstanceCard(
 	win: WPWindow,
 	deps: DockPeekDeps,
 	index: number,
 	dismiss: () => void,
+	previewByWindowId: Map< string, PreviewEntry >,
 ): HTMLElement {
 	const card = document.createElement( 'button' );
 	card.type = 'button';
@@ -348,20 +399,82 @@ function buildInstanceCard(
 	}
 	card.appendChild( body );
 
+	// Mark minimized cards for collapsed CSS.
+	if ( win.state === 'minimized' ) {
+		card.dataset.state = 'minimized';
+	}
+
+	/**
+	 * Commit (clear) any active preview for this window so the
+	 * pointerleave snap-back is suppressed — used on click so the
+	 * permanent focus action isn't reverted.
+	 */
+	const commitPreview = (): void => {
+		previewByWindowId.delete( win.id );
+		delete card.dataset.preview;
+	};
+
+	/**
+	 * Revert a preview: return the window to the state it was in
+	 * before the hover that triggered the preview.
+	 */
+	const revertPreview = ( entry: PreviewEntry ): void => {
+		commitPreview();
+		if ( entry.wasMinimized ) {
+			win.minimize();
+			card.dataset.state = 'minimized';
+		} else if ( entry.previouslyFocusedId ) {
+			const prevWin = deps.windowManager.getById( entry.previouslyFocusedId );
+			if ( prevWin ) {
+				deps.windowManager.focus( prevWin );
+			}
+		}
+	};
+
 	card.addEventListener( 'click', () => {
+		// Commit the preview before dismiss so the pointerleave
+		// triggered by popover removal is a no-op.
+		commitPreview();
 		spawnFocusViewTransition( deps, win, card, dismiss );
 	} );
 
-	// Hover-to-raise: bringing the live window forward on pointerenter
-	// gives the peek a "scrub through my windows" feel — Mission
-	// Control on macOS, Windows 7 Aero Peek. Skip if the target is
-	// already focused so a re-enter into the same card doesn't churn
-	// the focus stack and re-fire window-focused listeners.
+	// Hover → preview mode: temporarily show the window with a
+	// snap-back when the pointer leaves.
 	card.addEventListener( 'pointerenter', () => {
-		if ( deps.windowManager.getFocused() === win ) {
+		// Already in preview — nothing to do.
+		if ( previewByWindowId.has( win.id ) ) {
 			return;
 		}
-		deps.windowManager.focus( win );
+
+		const wasMinimized = win.state === 'minimized';
+		const previouslyFocused = deps.windowManager.getFocused();
+		const previouslyFocusedId: string | null =
+			previouslyFocused && previouslyFocused !== win
+				? previouslyFocused.id
+				: null;
+
+		// Only track preview if we're actually changing window state.
+		if ( wasMinimized || previouslyFocusedId !== null ) {
+			previewByWindowId.set( win.id, {
+				wasMinimized,
+				previouslyFocusedId,
+			} );
+			card.dataset.preview = '';
+		}
+
+		if ( wasMinimized ) {
+			restoreIfMinimized( win, card );
+		} else if ( previouslyFocused && previouslyFocused !== win ) {
+			deps.windowManager.focus( win );
+		}
+	} );
+
+	// Leave → snap back to the pre-hover state.
+	card.addEventListener( 'pointerleave', () => {
+		const entry = previewByWindowId.get( win.id );
+		if ( entry ) {
+			revertPreview( entry );
+		}
 	} );
 
 	// Apply the whole-card filter LAST so plugins can wrap or replace
@@ -398,6 +511,7 @@ function spawnFocusViewTransition(
 	const vtName = `desktop-mode-peek-card-${ win.id }`;
 	const focus = (): void => {
 		dismiss();
+		restoreIfMinimized( win, card );
 		deps.windowManager.focus( win );
 	};
 	if ( typeof doc.startViewTransition !== 'function' ) {
@@ -545,11 +659,11 @@ function positionPopover(
 		popover.style.left = `${ rect.left + rect.width / 2 }px`;
 		popover.style.top = `${ rect.top - 12 }px`;
 	} else if ( orientation === 'right' ) {
-		popover.style.top = `${ rect.top + rect.height / 2 }px`;
+		popover.style.top = `${ rect.top }px`;
 		popover.style.left = `${ rect.left - 12 }px`;
 	} else {
 		// Left dock (default).
-		popover.style.top = `${ rect.top + rect.height / 2 }px`;
+		popover.style.top = `${ rect.top }px`;
 		popover.style.left = `${ rect.right + 12 }px`;
 	}
 

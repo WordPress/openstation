@@ -28,8 +28,6 @@
  *
  * Consumers wire `click` / `dblclick` / `contextmenu` directly on
  * the `<wpd-tile>` element. No custom-event surface.
- *
- * @since 0.21.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -73,7 +71,6 @@ function statusRibbonsEnabled(): boolean {
  * reuse the same accessor — single source of truth.
  *
  * @public
- * @since 0.21.0
  */
 export function getDragManager(): DragManagerApi | null {
 	const api = (
@@ -108,7 +105,7 @@ export class WpdTile extends Component {
 		summary:
 			'Canonical file/entity tile. Used across the wallpaper, folder windows, every My WordPress section, and plugin surfaces. Renders the standard `.desktop-mode-file-tile` chrome + optional status ribbon and wires the shared drag-out helper.',
 		status: 'experimental',
-		since: '0.21.0',
+		since: '0.8.6',
 		props: [
 			{ name: 'type', type: 'string' },
 			{ name: 'ref', type: 'string' },

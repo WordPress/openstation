@@ -13,6 +13,7 @@
  * @group desktop-mode
  *
  * @covers ::desktop_mode_inject_appearance_tabs
+ * @covers ::desktop_mode_theme_install_active_tab_script
  */
 class Tests_DesktopMode_InjectAppearanceTabs extends WP_UnitTestCase {
 
@@ -154,5 +155,33 @@ class Tests_DesktopMode_InjectAppearanceTabs extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 10, $priority );
+	}
+
+	/**
+	 * Tests that desktop_mode_theme_install_active_tab_script() registers on
+	 * `admin_footer` at priority 100 and outputs the inline active tab script.
+	 *
+	 * @covers ::desktop_mode_theme_install_active_tab_script
+	 */
+	public function test_theme_install_active_tab_script_registered_and_emits_dynamic_browse_param() {
+		$priority = has_action(
+			'admin_footer',
+			'desktop_mode_theme_install_active_tab_script'
+		);
+		$this->assertSame( 100, $priority );
+
+		$_GET['desktop_mode_chromeless'] = '1';
+		$GLOBALS['pagenow']              = 'theme-install.php';
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		ob_start();
+		desktop_mode_theme_install_active_tab_script();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'function getBrowseParam()', $output );
+
+		unset( $_GET['desktop_mode_chromeless'] );
+		unset( $GLOBALS['pagenow'] );
+		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 	}
 }

@@ -21,4 +21,3 @@ enable_guidelines_experiment() {
 }
 
 enable_guidelines_experiment cli
-enable_guidelines_experiment tests-cli

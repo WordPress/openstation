@@ -25,8 +25,6 @@
  * keep their renderer until the next page reload (graceful
  * backwards-compat). Plugin authors using the documented pattern get
  * full live activate/deactivate behaviour.
- *
- * @since 0.18.0
  */
 
 import { doAction, HOOKS } from './../hooks';

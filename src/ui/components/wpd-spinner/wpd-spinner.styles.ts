@@ -22,6 +22,17 @@ export const styles = css`
 		display: none;
 	}
 
+	/* The inline indicator lives beside a line of text: text-sized by
+	   default, and tinted from the text rather than from the admin
+	   theme color, so it can't lose contrast against a surface the
+	   component knows nothing about. Both are plain defaults — the
+	   size / color attributes still win, since those reflect onto
+	   inline styles on the host. */
+	:host( [ preset='inline' ] ) {
+		--wpd-spinner-color: currentColor;
+		--wpd-spinner-size: 16px;
+	}
+
 	.root,
 	.root svg {
 		display: block;
@@ -33,7 +44,7 @@ export const styles = css`
 	   configurable via the host's --wpd-spinner-accent (or the
 	   shorthand "accent" attribute). */
 	.root svg .mark {
-		fill: var( --wpd-spinner-accent, #fff );
+		fill: var( --wpd-spinner-accent, var( --wpd-accent, #fff ) );
 	}
 
 	@keyframes wpd-spinner-spin {

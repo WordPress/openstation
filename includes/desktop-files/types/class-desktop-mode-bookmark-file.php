@@ -9,13 +9,12 @@
  * the base shape works without it.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.9.0
+ * The `bookmark` desktop file type.
  */
 class Desktop_Mode_Bookmark_File extends Desktop_Mode_File {
 

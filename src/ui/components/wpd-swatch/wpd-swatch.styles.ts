@@ -47,6 +47,9 @@ export const styles = css`
 	}
 	button {
 		appearance: none;
+		/* Anchor absolutely-positioned slotted overlays (the wallpaper
+		 * grid's live-preview layer) to the tile. */
+		position: relative;
 		width: 100%;
 		height: 100%;
 		padding: 0;

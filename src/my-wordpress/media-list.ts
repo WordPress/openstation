@@ -12,7 +12,6 @@
  * the PHP `desktop_mode_my_wordpress_preview_actions` descriptor).
  *
  * @public
- * @since 0.21.0
  */
 
 import { __, _n, sprintf } from '../i18n';
@@ -37,8 +36,6 @@ import { stripTags } from './dom-utils';
  * Lives in module scope but is keyed by entity id — switching from
  * Media to a different entity clears the field, which is the
  * intentional UX for "fresh field per entity".
- *
- * @since 0.22.0
  */
 const lastQueryByMediaEntity = new Map< string, string >();
 
@@ -58,9 +55,7 @@ interface MediaListContext {
 	entity: MyWordPressEntity;
 	host: EntityRenderHost;
 	previewActions: MediaPreviewAction[];
-	/** @since 0.22.0 */
 	query: string;
-	/** @since 0.22.0 */
 	abort: AbortController | null;
 }
 
@@ -453,7 +448,6 @@ function renderEmpty( host: HTMLElement, message: string ): void {
  * Paint the Media browse view into `host.body`.
  *
  * @public
- * @since 0.21.0
  */
 export function renderMediaList(
 	host: EntityRenderHost,

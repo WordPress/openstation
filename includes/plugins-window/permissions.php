@@ -15,7 +15,6 @@
  * re-validate every cap before mutating anything.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -26,8 +25,6 @@ defined( 'ABSPATH' ) || exit;
  * Cap-only check — the opt-in toggle is a runtime, JS-side gate. A
  * user who toggles the setting on AFTER load needs the window
  * already registered for the JS-side remap to find it.
- *
- * @since 0.9.0
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
@@ -42,8 +39,6 @@ function desktop_mode_plugins_window_user_can_register( $user_id = null ) {
 	 * dock click use the native window?" is the JS-side
 	 * `nativePluginsEnabled` flag.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param bool $can     Default: `activate_plugins` capability.
 	 * @param int  $user_id User being checked.
 	 */
@@ -57,8 +52,6 @@ function desktop_mode_plugins_window_user_can_register( $user_id = null ) {
 /**
  * Combined cap-and-opt-in check. Used by callers that want the
  * combined answer (e.g. analytics, an arrange-menu entry).
- *
- * @since 0.9.0
  *
  * @param int|null $user_id Optional.
  * @return bool
@@ -80,8 +73,6 @@ function desktop_mode_plugins_window_user_can_use( $user_id = null ) {
 	 * Filter whether the current user has opted into the native
 	 * Plugins experience.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
@@ -92,8 +83,6 @@ function desktop_mode_plugins_window_user_can_use( $user_id = null ) {
  * Capability flags surfaced to the JS bundle so the UI can hide
  * actions the viewer can't perform. Server still re-validates every
  * mutation, so a tampered flag here changes nothing security-wise.
- *
- * @since 0.9.0
  *
  * @param int|null $user_id Optional.
  * @return array{install:bool,delete:bool,upload:bool,activate:bool,update:bool}
@@ -139,8 +128,6 @@ function desktop_mode_plugins_window_caps( $user_id = null ) {
  * use the `manage_network_plugins` capability as the user-facing
  * equivalent (true for super admins, false for everyone else).
  *
- * @since 0.21.0
- *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
@@ -177,8 +164,6 @@ function desktop_mode_plugins_window_auto_updates_enabled( $user_id = null ) {
 	 * column entirely (Core hides it when the auto-update subsystem is
 	 * disabled or when the viewer isn't on a network admin screen on
 	 * multisite).
-	 *
-	 * @since 0.21.0
 	 *
 	 * @param bool $enabled Default gate result.
 	 * @param int  $user_id User being checked.

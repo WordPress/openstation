@@ -1,8 +1,8 @@
-# Add an action button to a My WordPress preview pane
+# Add an action button to a site folder preview pane
 
-**Status: Experimental — since 0.21.0**
+**Status: Experimental**
 
-The My WordPress native window (Posts / Pages / Users / Media)
+The site folder native window (Posts / Pages / Users / Media)
 exposes a uniform right-pane action surface. Plugins declare a
 descriptor on the **PHP** side (capability + MIME + script handle)
 and wire the JS handler via a `wp.hooks` filter. This recipe walks
@@ -161,7 +161,7 @@ wp.desktop.myWordpress.registerEntityKind(
 
 You can call `registerEntityKind` at script-load time — no timing
 guard needed. The main desktop bundle installs an early-load stub
-that buffers calls; when the lazy My WordPress bundle mounts (on
+that buffers calls; when the lazy site-folder bundle mounts (on
 first open of the window), it drains the queue.
 
 The renderer receives the same `EntityRenderHost` the built-in

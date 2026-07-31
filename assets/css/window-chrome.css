@@ -38,6 +38,19 @@
 	border: 1px solid var(--desktop-mode-window-border);
 	border-radius: var(--desktop-mode-window-radius);
 	box-shadow: var(--desktop-mode-window-shadow);
+	/*
+	 * Desktop-theme window frame (WINDOW_FRAME texture slot). All
+	 * four properties default to their CSS initial value via the
+	 * `var( …, fallback )` second argument, so with no theme active
+	 * this costs nothing and the 1px border above stays in charge.
+	 * A theme that sets `--desktop-mode-window-border-image-source`
+	 * takes the frame over entirely — border-image paints on top of
+	 * (and visually replaces) the border. See docs/desktop-themes.md.
+	 */
+	border-image-source: var(--desktop-mode-window-border-image-source, none);
+	border-image-slice: var(--desktop-mode-window-border-image-slice, 100%);
+	border-image-width: var(--desktop-mode-window-border-image-width, 1);
+	border-image-repeat: var(--desktop-mode-window-border-image-repeat, stretch);
 	overflow: hidden;
 	min-width: 320px;
 	min-height: 200px;
@@ -96,6 +109,29 @@
 /* Focused window gets elevated shadow and distinct title bar. */
 .desktop-mode-window--focused {
 	box-shadow: var(--desktop-mode-window-shadow-focused);
+	/*
+	 * WINDOW_FRAME_FOCUSED texture slot. Each property falls through
+	 * the unfocused WINDOW_FRAME value before reaching its initial, so
+	 * a theme shipping one frame gets it on both states and a theme
+	 * shipping two gets a frame that lights up on focus — the same
+	 * fallback chain TITLEBAR_FOCUSED uses.
+	 */
+	border-image-source: var(
+		--desktop-mode-window-border-image-focused-source,
+		var(--desktop-mode-window-border-image-source, none)
+	);
+	border-image-slice: var(
+		--desktop-mode-window-border-image-focused-slice,
+		var(--desktop-mode-window-border-image-slice, 100%)
+	);
+	border-image-width: var(
+		--desktop-mode-window-border-image-focused-width,
+		var(--desktop-mode-window-border-image-width, 1)
+	);
+	border-image-repeat: var(
+		--desktop-mode-window-border-image-focused-repeat,
+		var(--desktop-mode-window-border-image-repeat, stretch)
+	);
 }
 
 /* Title bar. */
@@ -112,8 +148,31 @@
 	align-items: center;
 	height: var(--desktop-mode-titlebar-height);
 	padding: 0 8px;
-	background: var(--desktop-mode-titlebar-bg);
+	background-color: var(--desktop-mode-titlebar-bg);
+	/*
+	 * Desktop-theme title-bar texture (TITLEBAR slot). `none` when
+	 * unset, so the background-color above is the whole story for
+	 * an unthemed shell. The `-repeat` / `-size` companions are
+	 * declared unconditionally with their CSS initial values as
+	 * fallbacks — cheaper than a second selector and it keeps the
+	 * shorthand from resetting them.
+	 */
+	background-image: var(--desktop-mode-titlebar-image, none);
+	background-repeat: var(--desktop-mode-titlebar-image-repeat, repeat);
+	background-size: var(--desktop-mode-titlebar-image-size, auto);
+	background-position: var(--desktop-mode-titlebar-image-position, center);
 	color: var(--desktop-mode-titlebar-color);
+	/*
+	 * Title bars can carry their own face — a display typeface here
+	 * with a text face in the body is the classic desktop split. Two
+	 * levels of fallback: the title-bar token, then the shell-wide
+	 * one, then `inherit`, which is what an undeclared font-family
+	 * would have computed to anyway. Unthemed shells are unchanged.
+	 */
+	font-family: var(
+		--desktop-mode-titlebar-font,
+		var(--desktop-mode-font, inherit)
+	);
 	cursor: default;
 	user-select: none;
 	flex-shrink: 0;
@@ -121,7 +180,16 @@
 }
 
 .desktop-mode-window--focused .desktop-mode-window__titlebar {
-	background: var(--desktop-mode-titlebar-bg-focused);
+	background-color: var(--desktop-mode-titlebar-bg-focused);
+	/*
+	 * TITLEBAR_FOCUSED slot. Falls back through the unfocused
+	 * TITLEBAR image before reaching `none`, so a theme that ships
+	 * only one title-bar texture gets it on both states for free.
+	 */
+	background-image: var(
+		--desktop-mode-titlebar-image-focused,
+		var(--desktop-mode-titlebar-image, none)
+	);
 	color: var(--desktop-mode-titlebar-color-focused);
 }
 
@@ -131,6 +199,12 @@
 	width: 18px;
 	height: 18px;
 	flex-shrink: 0;
+}
+
+/* Letter-badge fallback (unrecognized icon values) — shrink the
+ * one-/two-letter monogram so it fits the 18px icon box. */
+.desktop-mode-window__icon.desktop-mode-icon-letter {
+	font-size: 9px;
 }
 
 /* Activity indicator slot — sits between the icon and the title.
@@ -164,12 +238,55 @@
 	line-height: var(--desktop-mode-titlebar-height);
 }
 
-/* Window control buttons container. */
+/*
+ * Window control buttons container.
+ *
+ * The cluster is TRANSPARENT by default, which is the whole point: a
+ * themed title-bar texture runs edge to edge underneath it, and the
+ * buttons float on the artwork rather than sitting on a plate. Every
+ * property below resolves to exactly that when unset.
+ *
+ * A theme that wants a plate instead sets `--desktop-mode-titlebar-
+ * controls-bg` (and optionally the TITLEBAR_CONTROLS texture slot,
+ * a radius, and some inline padding) — the classic "the controls live
+ * in their own well" look, without the framework picking it for
+ * everyone.
+ *
+ * `padding-block` stays 0 so the cluster never changes the title
+ * bar's height; only the inline padding is themable.
+ *
+ * @since 0.9.8
+ */
 .desktop-mode-window__controls {
 	display: flex;
-	gap: 4px;
+	gap: var( --desktop-mode-titlebar-controls-gap, 4px );
 	align-items: center;
 	flex-shrink: 0;
+	padding-inline: var( --desktop-mode-titlebar-controls-padding, 0 );
+	border-radius: var( --desktop-mode-titlebar-controls-radius, 0 );
+	background-color: var( --desktop-mode-titlebar-controls-bg, transparent );
+	background-image: var( --desktop-mode-titlebar-controls-image, none );
+	background-repeat: var( --desktop-mode-titlebar-controls-image-repeat, repeat );
+	background-size: var( --desktop-mode-titlebar-controls-image-size, auto );
+	background-position: var( --desktop-mode-titlebar-controls-image-position, center );
+}
+
+/*
+ * Same treatment for the Screen Options / Help cluster, so a theme
+ * that plates one can plate the other and keep them consistent.
+ * Falls through to the controls tokens, so setting the pair above is
+ * enough for both.
+ */
+.desktop-mode-window__screen-meta {
+	border-radius: var(
+		--desktop-mode-titlebar-meta-radius,
+		var( --desktop-mode-titlebar-controls-radius, 0 )
+	);
+	background-color: var( --desktop-mode-titlebar-meta-bg, transparent );
+	background-image: var( --desktop-mode-titlebar-meta-image, none );
+	background-repeat: var( --desktop-mode-titlebar-meta-image-repeat, repeat );
+	background-size: var( --desktop-mode-titlebar-meta-image-size, auto );
+	background-position: var( --desktop-mode-titlebar-meta-image-position, center );
 }
 
 /*
@@ -242,23 +359,81 @@
  * drive the coloring via custom properties that inherit through
  * the boundary. The component reads `--wpd-btn-color`,
  * `--wpd-btn-bg-hover`, etc. and paints accordingly.
+ *
+ * Focused control glyphs are white at 70% — correct against the
+ * default focused title bar, which is the admin theme colour and so
+ * always a mid-to-dark fill, and invisible against a pale one. A
+ * theme could not reach them: these declarations land on the WINDOW
+ * element, so a `--wpd-btn-color` set at the shell root loses to
+ * them, and the same names also drive buttons outside the title bar
+ * (sticky notes, the desk chrome) that a theme usually does not want
+ * to move in the same stroke.
+ *
+ * `--desktop-mode-titlebar-btn-focused-*` mirrors the unfocused set
+ * below, name for name, so the two halves of the title bar are
+ * addressed the same way. Every one is UNDECLARED and falls back to
+ * the literal it replaced, so an unthemed shell paints exactly what
+ * it painted before.
+ *
+ * There is no `-danger-hover` twin: destructive red is semantic, not
+ * chrome, and both halves already resolve it through `--wpd-danger`.
  */
 .desktop-mode-window--focused {
-	--wpd-btn-color: rgba( 255, 255, 255, 0.7 );
-	--wpd-btn-color-hover: #fff;
-	--wpd-btn-bg-hover: rgba( 255, 255, 255, 0.18 );
-	--wpd-btn-bg-active: rgba( 255, 255, 255, 0.25 );
-	--wpd-btn-outline: rgba( 255, 255, 255, 0.65 );
-	--wpd-btn-danger-hover: #d63638;
+	--wpd-btn-color: var( --desktop-mode-titlebar-btn-focused-color, rgba( 255, 255, 255, 0.7 ) );
+	--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-focused-color-hover, #fff );
+	--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba( 255, 255, 255, 0.18 ) );
+	--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba( 255, 255, 255, 0.25 ) );
+	--wpd-btn-outline: var( --desktop-mode-titlebar-btn-focused-outline, rgba( 255, 255, 255, 0.65 ) );
+	--wpd-btn-danger-hover: var( --wpd-danger, #d63638 );
 }
 
 .desktop-mode-window:not( .desktop-mode-window--focused ) {
-	--wpd-btn-color: rgba( 0, 0, 0, 0.45 );
-	--wpd-btn-color-hover: rgba( 0, 0, 0, 0.85 );
-	--wpd-btn-bg-hover: rgba( 0, 0, 0, 0.08 );
-	--wpd-btn-bg-active: rgba( 0, 0, 0, 0.12 );
+	--wpd-btn-color: var( --desktop-mode-titlebar-btn-color, rgba( 0, 0, 0, 0.45 ) );
+	--wpd-btn-color-hover: var( --desktop-mode-titlebar-btn-color-hover, rgba( 0, 0, 0, 0.85 ) );
+	--wpd-btn-bg-hover: var( --desktop-mode-titlebar-btn-bg-hover, rgba( 0, 0, 0, 0.08 ) );
+	--wpd-btn-bg-active: var( --desktop-mode-titlebar-btn-bg-active, rgba( 0, 0, 0, 0.12 ) );
 	--wpd-btn-outline: var( --wp-admin-theme-color, #2271b1 );
-	--wpd-btn-danger-hover: #d63638;
+	--wpd-btn-danger-hover: var( --wpd-danger, #d63638 );
+}
+
+/*
+ * Unfocused control glyphs under an active desktop theme.
+ *
+ * The rule above paints them BLACK at 45% — correct against the
+ * default light unfocused title bar (`#f0f0f1`), invisible against a
+ * dark themed one. They can't simply follow the palette either:
+ * these are title-bar chrome, so the colour they owe allegiance to is
+ * the title bar's own text colour, not the window body's.
+ *
+ * Deriving it with `color-mix` means a theme gets legible unfocused
+ * controls for free from the `--desktop-mode-titlebar-color` it was
+ * already setting — no extra tokens to discover. The four
+ * `--desktop-mode-titlebar-btn-*` overrides above still win when an
+ * author wants exact control.
+ *
+ * Scoped to `[data-desktop-mode-desktop-theme]` on purpose: the
+ * default title-bar colour is `#50575e`, so applying this
+ * unconditionally would lighten the unfocused glyphs on every
+ * unthemed shell. No theme, no change.
+ */
+.desktop-mode-shell[ data-desktop-mode-desktop-theme ]
+	.desktop-mode-window:not( .desktop-mode-window--focused ) {
+	--wpd-btn-color: var(
+		--desktop-mode-titlebar-btn-color,
+		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 72%, transparent )
+	);
+	--wpd-btn-color-hover: var(
+		--desktop-mode-titlebar-btn-color-hover,
+		var( --desktop-mode-titlebar-color, #50575e )
+	);
+	--wpd-btn-bg-hover: var(
+		--desktop-mode-titlebar-btn-bg-hover,
+		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 18%, transparent )
+	);
+	--wpd-btn-bg-active: var(
+		--desktop-mode-titlebar-btn-bg-active,
+		color-mix( in srgb, var( --desktop-mode-titlebar-color, #50575e ) 26%, transparent )
+	);
 }
 
 /* ---------------------------------------------------------------
@@ -291,11 +466,17 @@
 .desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
 	margin-inline-start: 8px;
 	padding-inline-start: 8px;
-	border-inline-start: 1px solid rgba(255, 255, 255, 0.15);
+	/* Tokenized so a theme can retint it — or set `transparent` and
+	 * let its own title-bar artwork carry the separation. */
+	border-inline-start: 1px solid
+		var( --desktop-mode-titlebar-divider, rgba(255, 255, 255, 0.15) );
 }
 
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__titlebar:has(.desktop-mode-window__menu-btn) .desktop-mode-window__controls {
-	border-inline-start-color: rgba(0, 0, 0, 0.1);
+	border-inline-start-color: var(
+		--desktop-mode-titlebar-divider-unfocused,
+		rgba(0, 0, 0, 0.1)
+	);
 }
 
 /*
@@ -311,6 +492,37 @@
 	z-index: 2;
 }
 
+/*
+ * "Related" dropdown — opened by the related-entities title-bar
+ * button (`src/related-entities/`). The panel ALSO carries
+ * `.desktop-mode-window__menu-panel` (positioning + the drag-tracker
+ * exclusion come from there); this class only layers the related-menu
+ * extras: an internal scroll cap for media-heavy posts and a sane
+ * minimum width.
+ */
+.desktop-mode-window__related-panel {
+	max-height: min( 60vh, 420px );
+	overflow-y: auto;
+	min-width: 180px;
+}
+
+/* Section header inside the Related dropdown ("Categories", "Media"). */
+.desktop-mode-window__related-group {
+	padding: 6px 12px 2px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	opacity: 0.6;
+	color: var( --wpd-fg );
+}
+
+.desktop-mode-window__related-group:not(:first-child) {
+	margin-block-start: 4px;
+	border-block-start: 1px solid rgba( 128, 128, 128, 0.25 );
+	padding-block-start: 8px;
+}
+
 /* ---------------------------------------------------------------
  * Screen Meta buttons (Screen Options / Help) in the title bar.
  * Positioned right after the title text, visually separated from
@@ -324,7 +536,8 @@
 	flex-shrink: 0;
 	margin-inline-end: 8px;
 	padding-inline-end: 8px;
-	border-inline-end: 1px solid rgba(255, 255, 255, 0.15);
+	border-inline-end: 1px solid
+		var( --desktop-mode-titlebar-divider, rgba(255, 255, 255, 0.15) );
 }
 
 /* Hide the divider when there are no screen-meta buttons. */
@@ -351,44 +564,54 @@
 	width: 18px;
 	height: 18px;
 }
-/* The flex-centring override for the dashicon glyph lives in
- * `windows.css` rather than here. `windows.css` is mtime-stamped
- * (per `desktop_mode_register_assets` in includes/assets.php) so
- * its URL changes whenever it does, but `@import`-ed sub-sheets
- * like this one are fetched without a version query and the
- * browser will serve a stale cached copy across edits to this
- * file. Co-locating cache-sensitive overrides with the parent
- * stylesheet is the rule of the road here. */
+/* The flex-centring override for the dashicon glyph currently lives
+ * in `windows.css`. That placement was a cache workaround from when
+ * this file was an `@import` sub-sheet with no `?ver=` of its own;
+ * it is now a separately registered, filemtime-stamped handle, so
+ * the workaround no longer buys anything. Left where it is for now —
+ * relocating it is behaviour-neutral churn. */
 
-/* Focused window: meta buttons visible. */
+/* Focused window: meta buttons visible.
+ *
+ * Screen-meta buttons are not `<wpd-window-button>` — they are plain
+ * buttons in the light DOM, so they paint themselves instead of
+ * reading the `--wpd-btn-*` bridge. They sit in the same title bar
+ * against the same fill, so they take the same
+ * `--desktop-mode-titlebar-btn-focused-*` tokens, each keeping its own
+ * literal as the fallback: unthemed they stay a touch dimmer at rest
+ * than the window controls (0.65 vs 0.7), themed they move together
+ * rather than one cluster going legible and the other staying white. */
 .desktop-mode-window--focused .desktop-mode-window__meta-btn {
-	color: rgba(255, 255, 255, 0.65);
+	color: var( --desktop-mode-titlebar-btn-focused-color, rgba(255, 255, 255, 0.65) );
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:hover {
-	color: #fff;
-	background: rgba(255, 255, 255, 0.18);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn:focus-visible {
-	color: #fff;
-	background: rgba(255, 255, 255, 0.18);
-	outline: 2px solid rgba(255, 255, 255, 0.6);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-hover, rgba(255, 255, 255, 0.18) );
+	outline: 2px solid var( --desktop-mode-titlebar-btn-focused-outline, rgba(255, 255, 255, 0.6) );
 	outline-offset: 1px;
 }
 .desktop-mode-window--focused .desktop-mode-window__meta-btn--active {
-	color: #fff;
-	background: rgba(255, 255, 255, 0.25);
+	color: var( --desktop-mode-titlebar-btn-focused-color-hover, var( --wpd-fg-on-accent, #fff ) );
+	background: var( --desktop-mode-titlebar-btn-focused-bg-active, rgba(255, 255, 255, 0.25) );
 }
 
 /* Unfocused window: divider and buttons adapt to light title bar. */
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__screen-meta {
-	border-inline-end-color: rgba(0, 0, 0, 0.1);
+	border-inline-end-color: var(
+		--desktop-mode-titlebar-divider-unfocused,
+		rgba(0, 0, 0, 0.1)
+	);
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn {
 	color: rgba(0, 0, 0, 0.3);
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn:hover {
 	color: rgba(0, 0, 0, 0.6);
-	background: rgba(0, 0, 0, 0.08);
+	background: var( --wpd-hover, rgba(0, 0, 0, 0.08) );
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn--active {
 	color: rgba(0, 0, 0, 0.6);
@@ -406,7 +629,12 @@
 	flex-shrink: 0;
 	gap: 2px;
 	padding: 0 8px;
-	background: var(--desktop-mode-tabs-bg, #f6f7f7);
+	background-color: var( --desktop-mode-tabs-bg, var( --wpd-surface-elevated, #f6f7f7 ) );
+	/* TABBAR texture slot — layered over the strip's own colour. */
+	background-image: var( --desktop-mode-tabs-image, none );
+	background-repeat: var( --desktop-mode-tabs-image-repeat, repeat );
+	background-size: var( --desktop-mode-tabs-image-size, auto );
+	background-position: var( --desktop-mode-tabs-image-position, center );
 	border-bottom: 1px solid var(--desktop-mode-window-border);
 	overflow-x: auto;
 	overflow-y: hidden;
@@ -452,7 +680,7 @@
 	padding: 0 12px;
 	border: none;
 	background: transparent;
-	color: var(--desktop-mode-tabs-color, #50575e);
+	color: var( --desktop-mode-tabs-color, var( --wpd-fg-muted, #50575e ) );
 	font: inherit;
 	font-size: 12px;
 	line-height: 1;
@@ -465,7 +693,7 @@
 
 .desktop-mode-window__tab:hover {
 	color: var(--wp-admin-theme-color, #2271b1);
-	background: rgba(0, 0, 0, 0.03);
+	background: var( --wpd-hover, rgba(0, 0, 0, 0.03) );
 }
 
 .desktop-mode-window__tab:focus-visible {
@@ -513,6 +741,23 @@ wpd-tab-chip + wpd-tab-chip {
 	flex: 1;
 	position: relative;
 	overflow: hidden;
+	/*
+	 * WINDOW_BODY texture slot. Visible behind native window content
+	 * and behind any iframe whose page has a transparent background;
+	 * an opaque wp-admin page inside an iframe paints over it, which
+	 * is why a theme wanting texture everywhere reaches for DESKTOP
+	 * and the chrome slots instead.
+	 */
+	background-image: var( --desktop-mode-window-body-image, none );
+	background-repeat: var( --desktop-mode-window-body-image-repeat, repeat );
+	background-size: var( --desktop-mode-window-body-image-size, auto );
+	background-position: var( --desktop-mode-window-body-image-position, center );
+	/*
+	 * Body typeface. `--wpd-font` is the component kit's own token, so
+	 * one declaration here reaches every `<wpd-*>` element inside the
+	 * window: shadow DOM inherits `font-family` through the boundary.
+	 */
+	font-family: var( --wpd-font, inherit );
 }
 
 /* Iframe fills the window body. */
@@ -526,12 +771,114 @@ wpd-tab-chip + wpd-tab-chip {
 	transition: opacity 0.25s ease;
 }
 
-/* Cross-window drag drop-overlay rules live in windows.css, NOT here.
- * Putting them in this @import'd sub-sheet means browsers can serve a
- * stale cached copy even when the parent windows.css has been cache-
- * busted by mtime, leaving the drag stuck at the iframe boundary
- * until the user manually clears their stylesheet cache. Keep them
- * co-located with the @import declarations themselves. */
+/*
+ * Headings inside native window bodies.
+ *
+ * WordPress core's `wp-admin/css/common.css` styles headings with
+ * BARE ELEMENT selectors — `h1 { color: #1d2327 }` and
+ * `h2, h3 { color: #1d2327 }`. Native windows render in the parent
+ * shell rather than in an iframe, so those rules reach straight into
+ * our light-DOM window content: an `<h3>` in a `<wpd-card>` came out
+ * near-black on a dark theme while every sibling paragraph correctly
+ * followed the palette.
+ *
+ * The specificity here is doing real work. It has to sit BETWEEN two
+ * other rules:
+ *
+ *   core `h3`                                        (0,0,1)  must lose
+ *   THIS rule                                        (0,0,1)  wins on source order
+ *   `.desktop-mode-my-wordpress__user-section h3`    (0,1,1)  must still win
+ *
+ * `:where()` contributes zero specificity, so the selector below
+ * weighs the same as core's bare `h3` and beats it only because our
+ * stylesheet prints later — while any of our own class-scoped heading
+ * rules continue to override it. Raising this to a plain
+ * `.desktop-mode-window__body h3` would tie with those and break them
+ * depending on file order.
+ *
+ * The `#1d2327` fallback is core's own value, so with no theme active
+ * the computed colour is unchanged.
+ */
+:where( .desktop-mode-window__body ) :is( h1, h2, h3, h4, h5, h6 ) {
+	color: var( --wpd-fg, #1d2327 );
+}
+
+/*
+ * Same story, same fix, for the other bare-element rules core ships:
+ *
+ *   a    { color: #2271b1 }
+ *   code { background: #f0f0f1 }
+ *
+ * `code` is the worse of the two — a light chip background with
+ * palette-coloured text on it inverts to unreadable the moment a
+ * theme goes dark. Both fallbacks are core's own values, so the
+ * default is unchanged.
+ *
+ * Form controls (`input`, `textarea`, `select`) are deliberately NOT
+ * included: core styles those through attribute selectors that carry
+ * real specificity, native windows overwhelmingly use the `<wpd-*>`
+ * components instead, and a half-applied override there would look
+ * worse than leaving them alone.
+ */
+:where( .desktop-mode-window__body ) a {
+	color: var( --wpd-accent, #2271b1 );
+}
+
+:where( .desktop-mode-window__body ) code {
+	background: var( --wpd-surface-sunken, #f0f0f1 );
+	color: var( --wpd-fg, inherit );
+}
+
+/*
+ * Raw form controls in native window bodies.
+ *
+ * Core's `forms.css` styles these through ATTRIBUTE selectors —
+ * `input[type="search"], select, textarea { background-color: #fff;
+ * color: #1e1e1e; border: 1px solid #949494 }` — which weighs
+ * (0,1,1). That beats a plain class selector, so a control our own
+ * CSS had already tokenized (My WordPress's search box reads
+ * `background: var( --wpd-surface, #fff )` and has done all along)
+ * still came out white: core simply outranked it.
+ *
+ * Hence `.desktop-mode-window__body` + `:is( input[type], … )`, which
+ * weighs (0,2,1) and wins. `<wpd-*>` form components are untouched —
+ * they live in shadow DOM, where none of this reaches.
+ *
+ * Fallbacks are core's own values, so an unthemed shell is unchanged.
+ */
+.desktop-mode-window__body
+	:is(
+		input[ type="text" ],
+		input[ type="search" ],
+		input[ type="email" ],
+		input[ type="url" ],
+		input[ type="tel" ],
+		input[ type="number" ],
+		input[ type="password" ],
+		input[ type="date" ],
+		input[ type="datetime-local" ],
+		input[ type="month" ],
+		input[ type="time" ],
+		input[ type="week" ],
+		select,
+		textarea
+	) {
+	background-color: var( --wpd-surface, #fff );
+	color: var( --wpd-fg, #1e1e1e );
+	border-color: var( --wpd-border-strong, #949494 );
+}
+
+.desktop-mode-window__body :is( input, textarea )::placeholder {
+	color: var( --wpd-fg-muted, #646970 );
+}
+
+/* Cross-window drag drop-overlay rules currently live in windows.css.
+ * That was originally a cache workaround — this file was an `@import`
+ * sub-sheet with no `?ver=` of its own, so edits here could be served
+ * stale indefinitely. It is now a separately registered handle with
+ * its own filemtime stamp, so the workaround is obsolete and those
+ * rules could move back here. Left in place for now because moving
+ * them is a behaviour-neutral churn better done on its own. */
 
 /*
  * Loading-state overlay — painted by `src/window/dom.ts` into
@@ -561,11 +908,22 @@ wpd-tab-chip + wpd-tab-chip {
 	opacity: 0;
 	/* Default (loaded → loading-removed) — fade out immediately. */
 	transition: opacity 0.25s ease;
-	z-index: 1;
+	/*
+	 * Above both reveal layers (z-index 2 and 3), so the spinner stays
+	 * readable for the whole load and the surface it is sitting on only
+	 * becomes visible once the spinner has faded out.
+	 */
+	z-index: 4;
 }
 
+/*
+ * Content hidden while loading. The reveal surface is excluded
+ * alongside the spinner overlay: it is chrome, not content, and fading
+ * it to transparent would show the very content it exists to cover.
+ */
 .desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
+.desktop-mode-window__body--loading
+	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
 	opacity: 0;
 	transition: opacity 0.25s ease;
 }
@@ -583,9 +941,92 @@ wpd-tab-chip + wpd-tab-chip {
 	.desktop-mode-window__iframe,
 	.desktop-mode-window__loading,
 	.desktop-mode-window__body--loading > .desktop-mode-window__iframe,
-	.desktop-mode-window__body--loading > :not(.desktop-mode-window__loading) {
+	.desktop-mode-window__body--loading
+		> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
 		transition: none;
 	}
+}
+
+/*
+ * Window reveal — the opaque layers a window's content is uncovered
+ * from once it reports ready. Painted for every window (of either
+ * kind) from construction, animated away by `src/reveals/surface.ts`,
+ * then removed.
+ *
+ * They are SIBLINGS of the iframe, never wrappers. `clip-path` is
+ * animated on these elements alone, so the content below keeps its own
+ * compositing layer, its hit-testing, and its stacking context — a
+ * reveal cannot swallow a click or re-rasterize the page it is
+ * uncovering. Native window content gets the identical treatment for
+ * the same reason.
+ *
+ * `--desktop-mode-window-reveal-surface` is a theme token, white by
+ * default — the surface has to be opaque or there is nothing to reveal
+ * from. The EDGE token is `transparent` by default instead, since an
+ * edge is an accent rather than the effect itself. Either layer that
+ * computes to no paint is skipped rather than animated. A def may
+ * override the surface for itself with an inline `background` (see
+ * `WindowRevealDef.surfaceColor`), which is how `obturator` gets its
+ * near-black shutter blades regardless of the token.
+ *
+ * No `transition` here on purpose — the shape is driven entirely by
+ * the Web Animations API, which needs a matched `from` / `to` pair a
+ * CSS transition cannot express. Reduced motion is handled JS-side by
+ * removing the layers instead of animating them.
+ */
+.desktop-mode-window__reveal {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: var( --desktop-mode-window-reveal-surface, #fff );
+	z-index: 3;
+}
+
+/*
+ * The reveal's leading edge. Same element shape, same keyframes, run
+ * over a slightly longer duration so it trails the surface — the sliver
+ * of it that is not yet covered by the surface IS the edge band. That
+ * is why this needs no shape of its own, and why every reveal (built-in
+ * or third-party) gets an edge that follows its geometry exactly.
+ *
+ * Behind the surface, still above the content.
+ *
+ * `--desktop-mode-window-reveal-edge` is `transparent` by default, and
+ * the shell drops the layer entirely while it computes that way — so
+ * the default costs no element and no animation. Give the token a
+ * colour (or a gradient) to turn the edge on across every reveal at
+ * once. `--desktop-mode-window-reveal-edge-thickness` tunes how wide
+ * the band is; `edgeLag: 0` on a def opts a single reveal out.
+ */
+.desktop-mode-window__reveal--edge {
+	background: var( --desktop-mode-window-reveal-edge, transparent );
+	z-index: 2;
+}
+
+/*
+ * A reveal that renders its own DOM (`WindowRevealDef.render`) paints
+ * itself — an `<svg>`, a canvas, whatever it built. The surface token
+ * must NOT apply underneath it: an opaque rectangle behind the
+ * renderer's output is what the effect would end up uncovering, so the
+ * animation would play against a flat colour and the real content
+ * would only appear when the layer is finally removed.
+ */
+.desktop-mode-window__reveal--custom {
+	background: none;
+}
+
+/*
+ * While a reveal plays, pin the content to full opacity with no
+ * transition. Dropping `--loading` normally starts a 250 ms content
+ * fade-in; a reveal running over that fade would show a
+ * half-transparent strip along its leading edge. Beats the base
+ * `.desktop-mode-window__iframe` rule on specificity, so no
+ * `!important` is needed.
+ */
+.desktop-mode-window__body--revealing
+	> :not(.desktop-mode-window__loading):not(.desktop-mode-window__reveal) {
+	opacity: 1;
+	transition: none;
 }
 
 /*
@@ -601,6 +1042,35 @@ wpd-tab-chip + wpd-tab-chip {
 }
 
 /*
+ * Double-buffer twin for `Window.swapReload()` — the silent refresh
+ * the editor-preview companion uses. The twin loads UNDERNEATH the
+ * visible frame at full opacity: a normal, fully-rasterized paint
+ * target, completely covered by the (opaque) old frame while it
+ * loads. Deliberately not `opacity: 0`-on-top or
+ * `visibility: hidden` — browsers defer rasterizing invisible
+ * iframes, and revealing such a frame paints its blank background
+ * before its raster lands (a white blink).
+ *
+ * Stacking: positioned elements paint above static ones regardless
+ * of DOM order, so the buffer (absolute) would land on top of the
+ * static primary frame — `--swap-front` elevates the OLD frame for
+ * the duration of the swap instead. The swap itself is instant and
+ * animation-free: removing the old frame exposes the ready-painted
+ * twin in the same compositor frame. At no point is unpainted
+ * content the only thing on screen.
+ */
+.desktop-mode-window__iframe--buffer {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.desktop-mode-window__iframe--swap-front {
+	position: relative;
+	z-index: 1;
+}
+
+/*
  * Native window body — fills the window but lets its contents scroll
  * independently. Iframe bodies use `overflow: hidden` so the iframe
  * controls its own scroll; native bodies render real document content
@@ -608,8 +1078,13 @@ wpd-tab-chip + wpd-tab-chip {
  */
 .desktop-mode-window__body--native {
 	overflow: auto;
-	color: #1d2327;
-	background: var(--desktop-mode-window-bg);
+	color: var( --wpd-fg, #1d2327 );
+	/* background-COLOR, not the shorthand. This is a modifier on the
+	 * SAME element as `.desktop-mode-window__body`, at the same
+	 * specificity and later in source order — the shorthand would
+	 * reset the WINDOW_BODY texture declared there, which is exactly
+	 * the surface native windows exist to show. */
+	background-color: var(--desktop-mode-window-bg);
 }
 
 /*
@@ -674,6 +1149,48 @@ wpd-tab-chip + wpd-tab-chip {
 	width: 18px;
 	height: 18px;
 	display: block;
+}
+
+/*
+ * Busy state for custom title-bar buttons — a gentle opacity pulse
+ * while a round-trip is in flight (e.g. the editor-preview eye
+ * waiting on the editor's autosave before opening the preview).
+ * Driven by `aria-busy="true"` + this class, both set by the button's
+ * render callback.
+ */
+.desktop-mode-window__btn--busy {
+	animation: desktop-mode-btn-busy-pulse 1s ease-in-out infinite;
+	pointer-events: none;
+}
+
+@keyframes desktop-mode-btn-busy-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.4;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.desktop-mode-window__btn--busy {
+		animation: none;
+		opacity: 0.6;
+	}
+}
+
+/*
+ * Disabled state for custom title-bar buttons — visible but inert
+ * (e.g. the editor-preview eye on an unsaved "Add New" screen, where
+ * there is nothing to preview until the first save). The button keeps
+ * pointer events so its explanatory tooltip/toast still works;
+ * `aria-disabled` carries the semantics.
+ */
+.desktop-mode-window__btn--disabled {
+	opacity: 0.4;
+	cursor: default;
 }
 
 /* ----------------------------------------------------------------

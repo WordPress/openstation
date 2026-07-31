@@ -9,13 +9,12 @@
  * pointing at the same URL can carry different labels.
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * @since 0.18.0
+ * The `link` desktop file type.
  */
 class Desktop_Mode_Link_File extends Desktop_Mode_File {
 

@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — built-in JS openers for the seven file types.
+ * Desktop Mode — built-in JS openers for the built-in file types.
  *
  * Mirrors `includes/desktop-files/built-in-openers.php` — same
  * ids, same labels, same `isDefault` flags. The PHP side ships
@@ -13,12 +13,12 @@
  * which means the openers are ready before `wp.desktop.config`
  * exists, and the lookup happens at click time (when the shell
  * is fully booted).
- *
- * @since 0.9.0
  */
 
+import { __ } from '../i18n';
 import { registerOpener } from './openers';
 import type { DesktopFile } from './file';
+import { openAgentChatWindow } from '../agents-dispatch';
 import { mountFilesLayer } from './layer';
 import { mountFolderStatusBar } from './folder-status-bar';
 import { attachIconCanvasMenu } from '../icon-canvas/menu';
@@ -36,6 +36,8 @@ import {
 import { renderPlacementPreview, renderPreviewEmpty } from './preview';
 import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
+import { findMenuEntryForUrl } from './menu-entry';
+import { navigateToDownload } from './download-nav';
 
 interface ConfigShape {
 	adminUrl?: string;
@@ -45,6 +47,32 @@ function adminBase(): string {
 	const cfg = ( window.wp as { desktop?: { config?: ConfigShape } } | undefined )?.desktop?.config;
 	const url = cfg?.adminUrl ?? '/wp-admin/';
 	return url.endsWith( '/' ) ? url : `${ url }/`;
+}
+
+/**
+ * The server-sanitized URL of a bookmark/link tile, or `''`.
+ *
+ * The PHP `serialize()` for these types runs the stored ref
+ * through `esc_url_raw()` and ships the result as `shape.url` —
+ * read that field (like the preview pane does) instead of the
+ * raw `ref()`. Re-validate the protocol client-side as well so a
+ * shape mangled after the fact can't smuggle a `javascript:` or
+ * `data:` URL into `window.open`.
+ */
+function sanitizedWebUrl( file: DesktopFile ): string {
+	const url = typeof file.shape.url === 'string' ? file.shape.url : '';
+	if ( ! url ) {
+		return '';
+	}
+	try {
+		const parsed = new URL( url, window.location.href );
+		if ( parsed.protocol !== 'http:' && parsed.protocol !== 'https:' ) {
+			return '';
+		}
+	} catch {
+		return '';
+	}
+	return url;
 }
 
 export function registerBuiltInFileOpeners(): void {
@@ -71,6 +99,41 @@ export function registerBuiltInFileOpeners(): void {
 			kind: 'url',
 			url: ( file: DesktopFile ) =>
 				`${ adminBase() }post.php?post=${ encodeURIComponent( file.ref() ) }&action=edit`,
+		},
+	} );
+
+	// Agent user tiles open the Agent chat, not the profile — the
+	// per-file predicate keeps this opener invisible to human users
+	// (and to the type-level default-apps settings). Registered
+	// before the profile opener so the default-flag scan (sort
+	// order) picks it for agents.
+	registerOpener( {
+		id: 'agent-chat',
+		label: __( 'Agent chat', 'desktop-mode' ),
+		types: [ 'user' ],
+		isDefault: true,
+		sort: 5,
+		appliesTo: ( file: DesktopFile ) =>
+			( file.shape as { isAgent?: boolean } ).isAgent === true,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile ) => {
+				const shape = file.shape as {
+					ref: string;
+					title: string;
+					previewUrl?: string;
+					agentDescription?: string;
+				};
+				openAgentChatWindow(
+					{
+						id: Number.parseInt( shape.ref, 10 ),
+						name: shape.title,
+						description: shape.agentDescription ?? '',
+						avatarUrl: shape.previewUrl ?? '',
+					},
+					'agents-open',
+				);
+			},
 		},
 	} );
 
@@ -112,6 +175,27 @@ export function registerBuiltInFileOpeners(): void {
 			kind: 'url',
 			url: ( file: DesktopFile ) =>
 				`${ adminBase() }comment.php?action=editcomment&c=${ encodeURIComponent( file.ref() ) }`,
+		},
+	} );
+
+	// Uploaded files (real desktop storage): double-click downloads.
+	// Preview openers are a follow-up; download is the v1 default.
+	registerOpener( {
+		id: 'desktop-mode-upload-download',
+		label: 'Download',
+		types: [ 'upload' ],
+		isDefault: true,
+		sort: 10,
+		handler: {
+			kind: 'js',
+			open: ( file: DesktopFile ) => {
+				const fileId = parseInt( file.ref(), 10 );
+				if ( ! fileId ) {
+					return;
+				}
+				// URL minted at click time — nonces expire.
+				navigateToDownload( filesRest.getUploadDownloadUrl( fileId ) );
+			},
 		},
 	} );
 
@@ -456,7 +540,7 @@ export function registerBuiltInFileOpeners(): void {
 						// `wp-window-<url-slug>` — two parallel
 						// windows with independent minimize/focus
 						// state, dock indicator never reflects
-						// what's open. Fixed in 0.8.9. Falls back to
+						// what's open (since fixed). Falls back to
 						// the legacy `desktop-icon-…` id only when
 						// adminUrl isn't available (defensive — the
 						// shell config should always be present by
@@ -465,12 +549,22 @@ export function registerBuiltInFileOpeners(): void {
 						const id = adminUrl
 							? deriveWindowId( u.toString(), adminUrl )
 							: `desktop-icon-${ file.ref() }`;
+						// Enrich with the matching admin-menu entry so
+						// the window gets the same submenu tab strip /
+						// parent-tab / multi behavior as a dock open.
+						// Without this, Spatial-layout core tiles (and
+						// any dock-promoted shortcut) opened windows
+						// with no tab strip at all.
+						const entry = findMenuEntryForUrl( u.toString() );
 						wp.windowManager.open( {
 							id,
 							baseId: id,
 							url: u.toString(),
+							parentUrl: entry?.url ?? u.toString(),
 							title: file.title(),
 							icon: file.icon(),
+							submenu: entry?.submenu,
+							multi: !! entry?.multi,
 						} );
 					} catch {
 						// Malformed URL — silently ignore. The
@@ -492,7 +586,7 @@ export function registerBuiltInFileOpeners(): void {
 		handler: {
 			kind: 'js',
 			open: ( file: DesktopFile ) => {
-				const url = file.ref();
+				const url = sanitizedWebUrl( file );
 				if ( ! url ) {
 					return;
 				}
@@ -514,7 +608,7 @@ export function registerBuiltInFileOpeners(): void {
 		handler: {
 			kind: 'js',
 			open: ( file: DesktopFile ) => {
-				const url = file.ref();
+				const url = sanitizedWebUrl( file );
 				if ( ! url ) {
 					return;
 				}

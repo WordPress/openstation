@@ -11,7 +11,6 @@
  * almost no win in WordPress-plugin/theme work.
  *
  * @public
- * @since 0.18.0
  */
 
 import type * as Monaco from 'monaco-editor';

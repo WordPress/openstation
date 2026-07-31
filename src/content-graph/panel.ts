@@ -20,14 +20,14 @@
  * the summary plus an "Open in WordPress" button.
  *
  * @public
- * @since 0.8.2
  */
 
-import { __, sprintf } from '../i18n';
+import { __, _n, sprintf } from '../i18n';
 import {
 	fetchCommentStats,
 	fetchTermStats,
 	fetchUserStats,
+	getConfig,
 } from './rest';
 import type {
 	CommentRef,
@@ -272,14 +272,16 @@ export function renderPanel(
 		href: string,
 		labelText: string,
 		icon: string,
-		// Per-entity disambiguator. The framework's `deriveWindowId()`
-		// strips the `post` / `user_id` / `tag_ID` / `item` query
-		// params from the URL when computing the id (they're not in
-		// IDENTITY_PARAMS), so every post-edit url collapses to a
-		// single window id and clicking "Open" on a second post just
-		// focuses the first one's editor. Pass an entity-specific
-		// suffix (e.g. `post-42`, `user-7`) to keep each entity on
-		// its own window. See issue #150.
+		// Per-entity disambiguator for URLs whose entity param the
+		// framework's `deriveWindowId()` strips (not in
+		// IDENTITY_PARAMS) — without it every such url collapses to a
+		// single window id and clicking "Open" on a second entity just
+		// focuses the first one's window. Still needed for `user_id`
+		// and `revision`; do NOT pass it for params `deriveWindowId`
+		// already treats as identity (`post`, `c`, `tag_ID`, `item`) —
+		// a suffix there forks the id away from every other open path
+		// (dock, links, the Related menu) and produces DUPLICATE
+		// windows for the same entity. See issue #150.
 		windowKey?: string,
 	): void => {
 		const api = desktopApi();
@@ -510,7 +512,11 @@ export function renderPanel(
 		const api = desktopApi();
 		if ( api.myWordpress ) {
 			const myWp = button( {
-				label: __( 'Open in My WordPress' ),
+				label: sprintf(
+					// translators: %s is the site title.
+					__( 'Open in %s' ),
+					getConfig().siteName?.trim() || __( 'WordPress' ),
+				),
 				icon: 'dashicons-wordpress',
 				primary: true,
 			} );
@@ -772,7 +778,6 @@ export function renderPanel(
 				href: term.edit_url,
 				title: term.name,
 				primary: true,
-				windowKey: `term-${ term.taxonomy }-${ term.id }`,
 			} ),
 		);
 	};
@@ -869,7 +874,6 @@ export function renderPanel(
 				href: comment.edit_url,
 				title: authorName || __( 'Comment' ),
 				primary: true,
-				windowKey: `comment-${ comment.id }`,
 			} ),
 		);
 	};
@@ -901,7 +905,6 @@ export function renderPanel(
 				href: media.edit_url,
 				title: media.title,
 				primary: true,
-				windowKey: `media-${ media.id }`,
 			} ),
 		);
 	};
@@ -1159,7 +1162,7 @@ export function renderPanel(
 			'desktop-mode-content-graph__panel-section-label';
 		labelEl.textContent = sprintf(
 			/* translators: %d: number of comment replies. */
-			__( 'Replies (%d)' ),
+			_n( 'Reply (%d)', 'Replies (%d)', replies.length ),
 			replies.length,
 		);
 		wrap.appendChild( labelEl );

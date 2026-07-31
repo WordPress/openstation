@@ -24,8 +24,6 @@
  * `preloadShellOverlays( … )` in `src/shell-overlays/loader.ts`)
  * so by the time the user triggers an overlay, the components are
  * already registered.
- *
- * @since 0.8.4
  */
 
 // Action-triggered overlays (Stage 9).

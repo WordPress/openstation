@@ -9,7 +9,6 @@
  * permission story (see `permissions.php` + `rest.php`).
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -22,8 +21,6 @@ defined( 'ABSPATH' ) || exit;
  * shared JS bundle binds to the same hooks regardless of window
  * mode (the namespace is an internal contract — both windows use
  * the same template machinery).
- *
- * @since 0.18.0
  */
 function desktop_mode_users_window_render_template() {
 	$can_create = current_user_can( 'create_users' );
@@ -225,8 +222,6 @@ function desktop_mode_users_window_render_template() {
 	/**
 	 * Filter the native Users window's template HTML.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_users_window_template_html', $html );
@@ -243,8 +238,6 @@ function desktop_mode_users_window_render_template() {
 
 /**
  * Register the native Users window on `init` (priority 20).
- *
- * @since 0.18.0
  */
 function desktop_mode_users_window_register_window() {
 	if ( ! desktop_mode_users_window_user_can_register() ) {
@@ -343,8 +336,6 @@ function desktop_mode_users_window_register_window() {
 	/**
 	 * Filter the args used to register the native Users window.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
 	$window_args = (array) apply_filters( 'desktop_mode_users_window_args', $window_args );
@@ -359,8 +350,6 @@ add_action( 'init', 'desktop_mode_users_window_register_window', 20 );
 
 /**
  * Default REST query args for the Users window.
- *
- * @since 0.18.0
  *
  * @return array
  */
@@ -389,8 +378,6 @@ function desktop_mode_users_window_default_query_args() {
 	/**
 	 * Filter the default outbound REST query args for the Users window.
 	 *
-	 * @since 0.18.0
-	 *
 	 * @param array $args Default args.
 	 */
 	return (array) apply_filters( 'desktop_mode_users_window_query_args', $args );
@@ -401,8 +388,6 @@ function desktop_mode_users_window_default_query_args() {
  *
  * Used by the Users window's role FILTER (vs. role-CHANGE menu —
  * see {@see desktop_mode_users_window_role_label_map()} for that).
- *
- * @since 0.18.0
  *
  * @return array<string,string>
  */
@@ -420,8 +405,6 @@ function desktop_mode_users_window_all_roles_map() {
 /**
  * Build the `{ slug: label }` map for roles the viewer is allowed
  * to assign. Empty when the viewer lacks `promote_users`.
- *
- * @since 0.18.0
  *
  * @param int $viewer_id Viewer's user id.
  * @return array<string,string>
@@ -454,9 +437,12 @@ function desktop_mode_users_window_role_label_map( $viewer_id ) {
  *
  * Each field returns sensible empty defaults when the viewer lacks
  * the cap to see the value, so the JS never has to defend against
- * "field present but null".
- *
- * @since 0.18.0
+ * "field present but null". The fields register on every REST request
+ * (the `user` resource is partially public — published authors are
+ * visible to anyone), so `desktop_mode_last_login` and
+ * `desktop_mode_presence` gate on `list_users` (or self) inside their
+ * callbacks; `desktop_mode_user_stats` stays open because it only
+ * counts published content.
  */
 function desktop_mode_users_window_register_rest_fields() {
 	register_rest_field(
@@ -507,6 +493,12 @@ function desktop_mode_users_window_register_rest_fields() {
 				if ( $id <= 0 ) {
 					return null;
 				}
+				// Last-login time is sensitive. Only viewers who can see
+				// the Users list — or the user themselves — get the
+				// real value.
+				if ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) {
+					return null;
+				}
 				$ts = (int) get_user_meta( $id, DESKTOP_MODE_LAST_LOGIN_META_KEY, true );
 				return $ts > 0 ? $ts : null;
 			},
@@ -526,6 +518,12 @@ function desktop_mode_users_window_register_rest_fields() {
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
 				if ( $id <= 0 || ! function_exists( 'desktop_mode_presence_status_for_user' ) ) {
+					return 'offline';
+				}
+				// Live presence is sensitive. Only viewers who can see
+				// the Users list — or the user themselves — get the
+				// real value.
+				if ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) {
 					return 'offline';
 				}
 				return (string) desktop_mode_presence_status_for_user( $id );
@@ -591,8 +589,6 @@ add_action( 'rest_api_init', 'desktop_mode_users_window_register_rest_fields' );
  * Site default is keyed under `''` (empty string) so the form can
  * reflect "Site default — English (United States)" as the default
  * choice without forcing the user to know which slug to send.
- *
- * @since 0.18.0
  *
  * @return array<string,string>
  */

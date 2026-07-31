@@ -18,9 +18,6 @@
  * filter overrides.
  *
  * @public
- * @since 0.18.0
- * @since 0.8.6 Added `.gif` variants for plugins like Elementor that
- *              ship animated GIF icons on the wp.org SVN.
  */
 
 const WP_ORG_ASSET_RE =

@@ -13,7 +13,6 @@
  * `wp.desktop.registerTitleBarButton( … )` — the predicate, render,
  * and onClick all live in the plugin's TypeScript / JavaScript.
  *
- * @since 0.17.0
  * @package WPDesktopMode
  */
 
@@ -44,8 +43,6 @@ defined( 'ABSPATH' ) || exit;
  * call. Otherwise the button stays until the next page reload —
  * graceful backwards-compat.
  *
- * @since 0.17.0
- *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
@@ -63,8 +60,6 @@ function desktop_mode_register_titlebar_button_script( $handle ) {
 	/**
 	 * Fires after a desktop title-bar button script handle is registered.
 	 *
-	 * @since 0.17.0
-	 *
 	 * @param string $handle The registered script handle.
 	 */
 	do_action( 'desktop_mode_titlebar_button_script_registered', $handle );
@@ -75,7 +70,6 @@ function desktop_mode_register_titlebar_button_script( $handle ) {
 /**
  * Internal module-level registry for title-bar button script handles.
  *
- * @since 0.17.0
  * @internal
  *
  * @param string    $handle Script handle to read or write.
@@ -101,8 +95,6 @@ function desktop_mode_desktop_titlebar_button_script_registry( $handle = '', $va
 /**
  * Test-only: clear the registry between PHPUnit cases. See
  * {@see desktop_mode_flush_script_handle_registries()}.
- *
- * @since 0.18.0
  */
 function desktop_mode_flush_desktop_titlebar_button_script_registry() {
 	desktop_mode_desktop_titlebar_button_script_registry( '__flush__' );
@@ -112,9 +104,7 @@ function desktop_mode_flush_desktop_titlebar_button_script_registry() {
  * Build the script-handle payload fed to the shell. Handles that
  * aren't currently enqueued resolve to an empty URL and are dropped.
  *
- * @since 0.17.0
- *
- * @return array[] List of `{ handle, scriptUrl }` entries.
+ * @return array[] List of `{ handle, scriptUrl, scriptBefore, scriptAfter, scriptL10n, scriptTranslations }` entries.
  */
 function desktop_mode_build_desktop_titlebar_button_scripts_payload() {
 	$registry = desktop_mode_desktop_titlebar_button_script_registry();

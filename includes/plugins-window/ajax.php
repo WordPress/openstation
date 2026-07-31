@@ -17,6 +17,8 @@
  *   wp_ajax_desktop_mode_plugins_info     — `plugins_api( 'plugin_information' )`
  *   wp_ajax_desktop_mode_plugins_reviews  — wp.org reviews scrape (DOMDocument)
  *   wp_ajax_desktop_mode_plugins_upload   — `Plugin_Upgrader::install()` from $_FILES
+ *   wp_ajax_desktop_mode_plugins_featured — curated + requires_plugins-discovered
+ *                                           gallery (`plugins_api`)
  *
  * Install-by-slug is handled by Core's existing `wp_ajax_install_plugin`
  * — the JS calls it directly with the standard `'updates'` nonce. We
@@ -27,7 +29,6 @@
  * `wp-includes/`. No custom handler needed there.
  *
  * @package WPDesktopMode
- * @since   0.9.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -38,8 +39,6 @@ defined( 'ABSPATH' ) || exit;
  * Uses `check_ajax_referer( …, …, false )` so a missing/expired
  * nonce surfaces as a clean JSON error rather than a `wp_die()` —
  * the JS wraps every call in a `wp.desktop.fetch` and expects JSON.
- *
- * @since 0.9.0
  *
  * @param string $cap Capability the requester must hold.
  * @return true|WP_Error True on pass, WP_Error on rejection.
@@ -65,8 +64,6 @@ function desktop_mode_plugins_window_ajax_guard( $cap ) {
 
 /**
  * Send a `WP_Error` as a JSON response, then exit.
- *
- * @since 0.9.0
  *
  * @param WP_Error $error
  * @return void
@@ -97,8 +94,6 @@ function desktop_mode_plugins_window_ajax_error( WP_Error $error ) {
  *   - tag       string, optional
  *   - page      int,    default 1
  *   - per_page  int,    default 24, capped at 60
- *
- * @since 0.9.0
  */
 function desktop_mode_plugins_window_ajax_browse() {
 	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
@@ -169,8 +164,6 @@ function desktop_mode_plugins_window_ajax_browse() {
 	/**
 	 * Filter the args passed to `plugins_api( 'query_plugins', … )`.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param array $api_args   Args passed to plugins_api.
 	 * @param array $raw_params Sanitized request params.
 	 */
@@ -208,8 +201,6 @@ function desktop_mode_plugins_window_ajax_browse() {
 	/**
 	 * Filter the browse response before it's cached + sent.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param array $payload  `{ plugins, info }`.
 	 * @param array $api_args Args used.
 	 */
@@ -231,8 +222,6 @@ add_action( 'wp_ajax_desktop_mode_plugins_browse', 'desktop_mode_plugins_window_
  *
  * Body params:
  *   - slug  string, required
- *
- * @since 0.9.0
  */
 function desktop_mode_plugins_window_ajax_info() {
 	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
@@ -298,8 +287,6 @@ function desktop_mode_plugins_window_ajax_info() {
 	/**
 	 * Filter the plugin-information response before it's cached + sent.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param array  $payload Result, cast to array.
 	 * @param string $slug    Plugin slug.
 	 */
@@ -325,8 +312,6 @@ add_action( 'wp_ajax_desktop_mode_plugins_info', 'desktop_mode_plugins_window_aj
  * `{ items: [], parsed: false, reason: '<code>' }`. Caller is
  * expected to fall back to the histogram-only view on `parsed: false`.
  * Cache success 1h, failure 15m so wp.org can recover quickly.
- *
- * @since 0.9.0
  */
 function desktop_mode_plugins_window_ajax_reviews() {
 	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
@@ -361,8 +346,6 @@ function desktop_mode_plugins_window_ajax_reviews() {
 	 * fall through to the default parser. Items must each be an
 	 * associative array with `author`, `stars` (int 1–5), `excerpt`,
 	 * `date`, and (optional) `url` keys.
-	 *
-	 * @since 0.9.0
 	 *
 	 * @param array|null $items Override list, or null for default behaviour.
 	 * @param string     $slug  Plugin slug.
@@ -454,8 +437,6 @@ add_action( 'wp_ajax_desktop_mode_plugins_reviews', 'desktop_mode_plugins_window
  * The wp.org review HTML may change without notice — wrap every
  * navigation in `try`/`catch` and bail to `null` on any failure so
  * the JS can fall back to the histogram-only view.
- *
- * @since 0.9.0
  *
  * @param string $html
  * @return array<int,array<string,mixed>>|null
@@ -589,8 +570,6 @@ function desktop_mode_plugins_window_parse_reviews_html( $html ) {
  * returns JSON. By the time this callback fires, the
  * `Plugin_Upgrader`, `WP_Ajax_Upgrader_Skin`, and `wp_handle_upload`
  * symbols are already loaded (admin-ajax loads them).
- *
- * @since 0.9.0
  */
 function desktop_mode_plugins_window_ajax_upload() {
 	$guard = desktop_mode_plugins_window_ajax_guard( 'upload_plugins' );
@@ -769,8 +748,6 @@ function desktop_mode_plugins_window_ajax_upload() {
 	 * Fires after the Plugins window has installed a plugin from an
 	 * uploaded .zip. Hook callers receive the resolved plugin file.
 	 *
-	 * @since 0.9.0
-	 *
 	 * @param string $plugin_file Plugin file (e.g. "akismet/akismet.php").
 	 */
 	do_action( 'desktop_mode_plugins_window_installed', $plugin_file );
@@ -819,8 +796,6 @@ add_action( 'wp_ajax_desktop_mode_plugins_upload', 'desktop_mode_plugins_window_
  * `plugins_api( 'plugin_information' )` so the card has up-to-date
  * icons, descriptions, and install counts without us caching them.
  *
- * @since 0.20.0
- *
  * @return string[] List of wp.org plugin slugs.
  */
 function desktop_mode_plugins_window_featured_slugs() {
@@ -838,8 +813,6 @@ function desktop_mode_plugins_window_featured_slugs() {
 	 * Plugin authors can prepend (or remove) entries to recommend their
 	 * own Desktop-Mode-aware add-ons. Order is preserved — the first
 	 * slug renders first in the gallery.
-	 *
-	 * @since 0.20.0
 	 *
 	 * @param string[] $slugs Plugin slugs.
 	 */
@@ -871,14 +844,12 @@ function desktop_mode_plugins_window_featured_slugs() {
  *   2. Auto-discovered slugs from `plugins_api( 'query_plugins' )` whose
  *      `requires_plugins` array contains `desktop-mode`. wp.org has no
  *      server-side filter for this today, so we run a broad query and
- *      filter client-side server-side. Deduped against the curated set.
+ *      filter server-side. Deduped against the curated set.
  *
  * Body params: (none)
  *
  * Cached for 1h. Failures cached for 15m so a flaky wp.org doesn't
  * hammer the API on every tab open.
- *
- * @since 0.20.0
  */
 function desktop_mode_plugins_window_ajax_featured() {
 	$guard = desktop_mode_plugins_window_ajax_guard( 'install_plugins' );
@@ -938,7 +909,7 @@ function desktop_mode_plugins_window_ajax_featured() {
 		);
 		if ( is_wp_error( $info ) || ! is_object( $info ) ) {
 			// Skip — a curated slug that 404s shouldn't tank the whole
-			// tab. Logged via WP_Error so debug builds can spot it.
+			// tab.
 			continue;
 		}
 		$row             = (array) $info;
@@ -1002,8 +973,6 @@ function desktop_mode_plugins_window_ajax_featured() {
 	 * Use this to inject server-side curated rows (e.g. premium /
 	 * private plugins not on wp.org), or to enforce a hard cap on the
 	 * response.
-	 *
-	 * @since 0.20.0
 	 *
 	 * @param array $payload  `{ plugins: [...], info: {...} }`.
 	 * @param array $curated  Curated slug list.

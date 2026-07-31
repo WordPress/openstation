@@ -22,8 +22,6 @@
  * renderers); plumbing a new positional arg through every renderer is
  * the kind of churn this design exists to avoid. A renderer that
  * doesn't want the remap behaviour simply doesn't call `tryRemap()`.
- *
- * @since 0.8.0
  */
 
 import type { OsSettingsSnapshot } from './settings/registry';
@@ -63,8 +61,6 @@ export interface NativeUrlRemap {
 	 * window's render callback reads. Synchronous; throwing here
 	 * does NOT block the open — the framework still tries the
 	 * native open and falls back if it fails.
-	 *
-	 * @since 0.18.0
 	 */
 	onMatch?( url: string, parsed: URL ): void;
 }
@@ -106,8 +102,6 @@ export function bindNativeUrlRemap( bound: RemapDeps ): void {
 
 /**
  * Register (or replace) a remap entry. Returns an unregister function.
- *
- * @since 0.8.0
  *
  * @param entry Remap descriptor.
  * @return Unregister function.
@@ -167,8 +161,6 @@ export function listNativeUrlRemaps(): NativeUrlRemap[] {
  * align their open / focused indicators with the native window's id
  * instead of the iframe slug derived from the URL.
  *
- * @since 0.8.0
- *
  * @param url Raw admin URL the caller would have loaded.
  * @return Native window id the URL maps to, or `null`.
  */
@@ -204,8 +196,6 @@ export function resolveNativeUrlRemap( url: string ): string | null {
  * returns `true`. Returns `false` when no entry matched, when the
  * matching entry's gate said no, or when `openById()` reported the
  * native window is not registered for the current user.
- *
- * @since 0.8.0
  *
  * @param url Raw admin URL the caller would have loaded.
  * @return Whether the URL was remapped to a native window.

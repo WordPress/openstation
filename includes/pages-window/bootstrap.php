@@ -10,6 +10,7 @@
  *
  * Public PHP surface (all filterable):
  *
+ *   - desktop_mode_pages_window_user_can_register
  *   - desktop_mode_pages_window_user_can_use
  *   - desktop_mode_pages_window_args
  *   - desktop_mode_pages_window_template_html
@@ -19,7 +20,6 @@
  * implemented JS-side in `src/desktop.ts` via `registerNativeUrlRemap`.
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;

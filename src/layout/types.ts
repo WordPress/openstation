@@ -6,8 +6,6 @@
  * module re-exports it under the `@layout/*` alias so consumers
  * that only care about the layout (not the broader settings
  * surface) have a focused import path.
- *
- * @since 0.8.1
  */
 
 export type { DesktopLayoutId } from '../settings/types';

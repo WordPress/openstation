@@ -30,7 +30,6 @@
  *     focused node as it moves with the simulation.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __, sprintf } from '../i18n';

@@ -24,8 +24,79 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
+		delete_user_meta( self::$admin_id, DESKTOP_MODE_OS_SETTINGS_META_KEY );
+		remove_all_filters( 'desktop_mode_admin_bar_mode' );
 		unset( $_GET['desktop_mode_chromeless'], $_GET[ DESKTOP_MODE_CLASSIC_FLAG ] );
 		parent::tear_down();
+	}
+
+	/**
+	 * The admin-bar mode has to ride along on the body class rather
+	 * than wait for the shell's JS apply pass — the bar has already
+	 * painted by then, so a user who picked `hidden` would see it
+	 * flash on every navigation.
+	 *
+	 * @covers ::desktop_mode_admin_body_classes
+	 */
+	public function test_body_class_carries_default_admin_bar_mode() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$this->assertStringContainsString(
+			'desktop-mode-admin-bar-static',
+			desktop_mode_admin_body_classes( '' )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_admin_body_classes
+	 * @covers ::desktop_mode_get_admin_bar_mode
+	 */
+	public function test_body_class_reflects_saved_admin_bar_mode() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
+
+		$classes = desktop_mode_admin_body_classes( '' );
+
+		$this->assertStringContainsString( 'desktop-mode-admin-bar-dynamic', $classes );
+		$this->assertStringNotContainsString( 'desktop-mode-admin-bar-static', $classes );
+	}
+
+	/**
+	 * Classic mode is vanilla admin — no shell, and therefore no
+	 * business restyling the admin bar.
+	 *
+	 * @covers ::desktop_mode_admin_body_classes
+	 */
+	public function test_body_class_omits_admin_bar_mode_when_desktop_mode_off() {
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
+
+		$this->assertStringNotContainsString(
+			'desktop-mode-admin-bar-',
+			desktop_mode_admin_body_classes( '' )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_get_admin_bar_mode
+	 */
+	public function test_admin_bar_mode_filter_overrides_the_user_pick() {
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
+		add_filter( 'desktop_mode_admin_bar_mode', static fn () => 'static' );
+
+		$this->assertSame( 'static', desktop_mode_get_admin_bar_mode() );
+	}
+
+	/**
+	 * A filter returning something outside the enum fails closed to
+	 * the always-visible mode, never to a class no CSS rule matches.
+	 *
+	 * @covers ::desktop_mode_get_admin_bar_mode
+	 */
+	public function test_admin_bar_mode_filter_result_is_validated() {
+		desktop_mode_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
+		add_filter( 'desktop_mode_admin_bar_mode', static fn () => 'peekaboo' );
+
+		$this->assertSame( 'static', desktop_mode_get_admin_bar_mode() );
 	}
 
 	/**
@@ -230,6 +301,51 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Chromeless iframes must not load core's session-expired login
+	 * modal — the parent shell owns the single prompt (DESKMOD-49).
+	 *
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_chromeless_suppresses_wp_auth_check_load() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		$this->assertFalse(
+			desktop_mode_chromeless_suppress_auth_check( true ),
+			'Chromeless iframes must not load the wp-auth-check modal.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_shell_keeps_wp_auth_check_load() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+
+		$this->assertTrue(
+			desktop_mode_chromeless_suppress_auth_check( true ),
+			'The parent shell keeps core\'s modal — it is the single login prompt.'
+		);
+		$this->assertFalse(
+			desktop_mode_chromeless_suppress_auth_check( false ),
+			'A false verdict from earlier filters must pass through unchanged.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_chromeless_suppress_auth_check
+	 */
+	public function test_auth_check_suppression_is_registered() {
+		$this->assertNotFalse(
+			has_filter(
+				'wp_auth_check_load',
+				'desktop_mode_chromeless_suppress_auth_check'
+			),
+			'desktop_mode_chromeless_suppress_auth_check should hook wp_auth_check_load.'
+		);
+	}
+
+	/**
 	 * @covers ::desktop_mode_chromeless_bridge_script
 	 */
 	public function test_bridge_script_emits_nothing_outside_chromeless() {
@@ -305,6 +421,64 @@ class Tests_DesktopMode_Render extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression(
 			"/kind === 'admin'.*?e\\.preventDefault\\(\\).*?desktop-mode-iframe-admin-link/s",
 			$output
+		);
+	}
+
+	/**
+	 * Clicks inside NESTED same-origin iframes (Gutenberg's
+	 * editor-canvas, TinyMCE's visual mode) never reach the outer
+	 * document's pointerdown listener — the bridge must attach its
+	 * focus escalation inside them too, or clicking into the canvas
+	 * of an unfocused editor window is swallowed and the window never
+	 * activates.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_escalates_focus_from_nested_frames() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		$this->assertStringContainsString( 'desktop-mode-focus-request', $output );
+		$this->assertStringContainsString( 'hookNestedFrames', $output );
+		$this->assertStringContainsString(
+			"doc.addEventListener( 'pointerdown', postFocusRequest, true )",
+			$output
+		);
+	}
+
+	/**
+	 * The nested-frame sweep must walk each mutation record's
+	 * `addedNodes`, never re-query the whole document. The observer
+	 * is installed in EVERY chromeless iframe, so a document-wide
+	 * `querySelectorAll( 'iframe' )` per mutation batch would put an
+	 * O(DOM) tree walk on Gutenberg's typing path — exactly when the
+	 * editor mutates hardest and the editor-preview pairing is live.
+	 *
+	 * @covers ::desktop_mode_chromeless_bridge_script
+	 */
+	public function test_bridge_script_nested_frame_sweep_is_scoped_to_added_nodes() {
+		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
+		$_GET['desktop_mode_chromeless'] = '1';
+
+		ob_start();
+		desktop_mode_chromeless_bridge_script();
+		$output = ob_get_clean();
+
+		// The observer callback iterates addedNodes and hands each
+		// one to the scoped sweep.
+		$this->assertStringContainsString( 'records[ r ].addedNodes', $output );
+		$this->assertStringContainsString( 'hookNestedFrames( added[ n ] )', $output );
+
+		// The sweep queries within its root, not the document.
+		$this->assertStringContainsString( "root.querySelectorAll( 'iframe' )", $output );
+		$this->assertStringNotContainsString(
+			"document.querySelectorAll( 'iframe' )",
+			$output,
+			'Nested-frame sweep must stay scoped to added subtrees, not re-query the document.'
 		);
 	}
 

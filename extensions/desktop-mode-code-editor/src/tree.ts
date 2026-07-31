@@ -11,7 +11,6 @@
  * plugin needs the same shape, promote.
  *
  * @internal
- * @since 0.18.0
  */
 
 import { fetchTree, type TreeEntry } from './rest';

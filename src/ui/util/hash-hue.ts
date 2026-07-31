@@ -10,8 +10,6 @@
  *
  * Cheap, deterministic, not security-adjacent. Empty input falls back
  * to a neutral blue-gray so callers don't have to guard against it.
- *
- * @since 0.22.0
  */
 
 export function hashTitleToHue( input: string ): number {

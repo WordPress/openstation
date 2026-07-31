@@ -20,41 +20,37 @@ const DESKTOP_MODE_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 /** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
 
+/** Valid window-radius IDs — mirrors the TS `WINDOW_RADII` constant. */
+const DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
+
+/**
+ * Valid admin-bar mode IDs — mirrors the TS `ADMIN_BAR_MODES` constant.
+ *
+ * `static` keeps the WordPress admin bar pinned above the shell (the
+ * default), `dynamic` auto-hides it to a peek strip that reveals on
+ * hover or keyboard focus, and `hidden` removes it entirely.
+ */
+const DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
+
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
 const DESKTOP_MODE_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
 
 /**
- * Valid AI live-progress transports — mirrors the TS `AI_TRANSPORTS` constant.
+ * Playable range for the window-reveal duration override, in ms.
+ * Mirrors `MIN_REVEAL_DURATION_MS` / `MAX_REVEAL_DURATION_MS` in
+ * `src/reveals/registry.ts`.
  *
- * - `sse` — Server-Sent Events; real-time progress ticks. Requires the host
- *   to allow long-lived `text/event-stream` connections.
- * - `off` — single request, no progress ticks. Works everywhere; the user
- *   sees "Thinking…" until the final answer.
- *
- * Default is `off` because some hosts (locked-down shared environments,
- * proxies that buffer responses) silently drop SSE mid-stream, which surfaces
- * to the user as "Lost connection to the assistant".
+ * `0` sits OUTSIDE this range on purpose: it is the "no override"
+ * sentinel, not a duration, and is handled before the clamp.
  */
-const DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS = array( 'sse', 'off' );
-
-/**
- * Built-in AI provider IDs.
- *
- * Other providers register themselves via {@see desktop_mode_register_ai_provider()};
- * sanitization no longer gates the field against this list (the active-provider
- * resolver does the existence check at lookup time).
- *
- * @deprecated 0.18.0 Kept for backwards compatibility; use the provider registry.
- */
-const DESKTOP_MODE_OS_SETTINGS_AI_PROVIDERS = array( 'openai' );
+const DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN = 80;
+const DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
 
 /**
  * Returns a well-shaped default OS settings array.
  *
  * Mirrors the TypeScript `DEFAULTS` constant so a fresh user account
  * gets the same starting state in both environments.
- *
- * @since 0.14.0
  *
  * @return array
  */
@@ -63,32 +59,83 @@ function desktop_mode_default_os_settings() {
 		'wallpaper'                   => 'dark',
 		'accent'                      => 'wp-blue',
 		'dockSize'                    => 'default',
+		'windowRadius'                => 'default',
+		// How the WordPress admin bar presents above the shell.
+		// `static` is vanilla behavior and the shipped default.
+		'adminBarMode'                => 'static',
 		'desktopLayout'               => 'classic',
 		'dockRailRenderer'            => 'default',
+		// Active desktop-theme slug, or `''` for the system default.
+		// Site-wide library (`includes/desktop-themes/`), per-user
+		// activation. Not validated against the installed list here —
+		// the enqueue path checks existence on every request, so a
+		// deleted theme degrades silently instead of needing a
+		// user-meta rewrite.
+		'desktopTheme'                => '',
+		// Slugs of the desktop themes whose `recommendedOsSettings`
+		// block has already been applied for this user. A theme's
+		// recommendations are seeded ONCE — the first time the user
+		// activates it — and this list is the record of that. It is
+		// what makes "never overwrite a user's later choices" true:
+		// re-activating a theme they have worn before changes
+		// nothing. The Themes tab's "Apply recommended layout" action
+		// is the deliberate way back. Capped at 64 slugs.
+		'appliedThemeRecommendations' => array(),
 		'unfocusEffect'               => 'darken',
+		// Window-reveal id — the clip-path transition that uncovers a
+		// window's content once it finishes loading. Off by default;
+		// `none` is the plain opacity fade the shell has always had.
+		'windowReveal'                => 'none',
+		// Global reveal duration override in ms. 0 means "use each
+		// reveal's own tuned timing" — the shipped reveals have
+		// durations chosen per shape (Radar's full turn is slower
+		// than Sweep's straight line), and one flat number would
+		// lose that.
+		'windowRevealDuration'        => 0,
+		// Window-link renderer id — how relation ties between windows
+		// are drawn (see includes/window-links.php). `svg-splines` is
+		// the shipped built-in; `none` disables the visuals.
+		'windowLinkRenderer'          => 'svg-splines',
+		// When the ties are visible: 'always' (default), 'focus' (only
+		// while a group member is focused), or 'off'.
+		'windowLinkVisibility'        => 'always',
+		// Master switch for the window-links feature (OS Settings →
+		// Features). Off unmounts the visuals AND the group behaviors
+		// below; the style knobs above keep their values for when it
+		// comes back on.
+		'windowLinksEnabled'          => true,
+		// Focusing a relation-group member raises its related windows
+		// to just below it (silent restack, no focus theft).
+		'windowLinkRaiseOnFocus'      => true,
+		// Related windows of the focused member get a subtle outline.
+		'windowLinkHighlight'         => true,
 		'customGradient'              => array(
 			'from'  => '#2271b1',
 			'to'    => '#7c3aed',
 			'angle' => 135,
 		),
 		'customImage'                 => null,
+		// Per-wallpaper settings bags, keyed by wallpaper id — the
+		// values a wallpaper's `renderConfig` dialog writes (e.g. the
+		// Snow wallpaper's wind / particle count / flake size /
+		// background). Scalar values only; the wallpaper owns the keys'
+		// meaning. Missing ids mean "never configured" — the wallpaper
+		// falls back to its defaults. Capped at 64 wallpapers × 32 keys.
+		'wallpaperSettings'           => array(),
 		'libraryHdOnly'               => true,
 		'ai'                          => array(
-			'enabled'   => false,
-			'provider'  => 'openai',
-			'apiKey'    => '',     // Legacy field — treated as the OpenAI key for backwards compat.
-			'apiKeys'   => array(), // Per-provider keys: { [provider_id]: string }.
-			'transport' => 'off',   // Live-progress transport: 'sse' | 'off'. Default off — see DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS.
+			'enabled' => false,    // AI assistant is opt-in; enabled from OS Settings → Features once a provider is configured.
 		),
 		// Per-user opt-IN for the native Posts window. When true,
 		// clicking the Posts dock tile opens the `<wpd-table>`-driven
 		// native window instead of the chromeless `edit.php` iframe.
-		// Default OFF as of 0.10.0 — the native windows are now opt-in
+		// Default OFF — the native windows are opt-in
 		// Beta. Fresh installs land on the classic iframe; users turn
 		// this on in OS Settings → Features → Beta features to try it.
 		// Per-user override of the WordPress Heartbeat interval, in
-		// seconds. 60s matches Core's "idle" default; values below
-		// 15 force a lower `minimalInterval` too. See
+		// seconds. 60s matches Core's "idle" default; the allowed
+		// rates (15/30/45/60) all sit at or above Core's 15 s
+		// `minimalInterval` floor. See
 		// `desktop_mode_apply_heartbeat_rate_setting` for the
 		// `heartbeat_settings` filter that applies this.
 		'heartbeatRate'               => 60,
@@ -127,6 +174,12 @@ function desktop_mode_default_os_settings() {
 		// scheduled). On by default — surfaces unpublished work at
 		// a glance. Per-user.
 		'showPostStatusRibbons'       => true,
+		// Unlocks developer-facing surfaces meant for plugin
+		// authors: the Starter Widget appears in the add-widget
+		// picker, and the OS Settings → Components tab runs its
+		// intentional missing-import-warner demo. Off by default.
+		// Per-user.
+		'developerModeEnabled'        => false,
 		// Per-user opt-OUT for the folder-sharing feature. Defaults
 		// ON. When false:
 		// - The Share button, share-settings modal, "Leave shared
@@ -171,8 +224,6 @@ function desktop_mode_default_os_settings() {
  * Always returns a fully-shaped array so the JS side doesn't need to
  * defend against partial or missing keys.
  *
- * @since 0.14.0
- *
  * @param int $user_id The user ID.
  * @return array
  */
@@ -192,8 +243,6 @@ function desktop_mode_get_os_settings( $user_id ) {
 
 /**
  * Saves sanitized OS settings for a user.
- *
- * @since 0.14.0
  *
  * @param int   $user_id  The user ID.
  * @param mixed $settings Raw settings payload from the client.
@@ -215,8 +264,6 @@ function desktop_mode_save_os_settings( $user_id, $settings ) {
  * Unknown keys are ignored; known keys are coerced field-by-field so a
  * partial save (e.g., only accent changed) merges cleanly with the
  * defaults rather than wiping unset fields.
- *
- * @since 0.14.0
  *
  * @param mixed $raw Raw settings from the client or user meta.
  * @return array Sanitized settings.
@@ -244,6 +291,17 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (string) $raw['dockSize']
 		: $defaults['dockSize'];
 
+	// Window radius — must be one of the three known values.
+	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], DESKTOP_MODE_OS_SETTINGS_WINDOW_RADII, true )
+		? (string) $raw['windowRadius']
+		: $defaults['windowRadius'];
+
+	// Admin-bar mode — must be one of the three known values.
+	$admin_bar_mode = isset( $raw['adminBarMode'] )
+		&& in_array( $raw['adminBarMode'], DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES, true )
+		? (string) $raw['adminBarMode']
+		: $defaults['adminBarMode'];
+
 	// Desktop layout — must be one of the three known values
 	// (`classic`, `unified`, `spatial`). Default `classic`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
@@ -251,11 +309,6 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (string) $raw['desktopLayout']
 		: $defaults['desktopLayout'];
 
-	// Submenu renderer id — accept any sanitize_key()-clean string.
-	// We don't gate on a server-side allow-list because renderers
-	// register from JS at runtime; existence is checked by the
-	// client at resolve time and falls back to `'default'` when
-	// missing.
 	// Dock rail renderer id — accept any sanitize_key()-clean
 	// string. JS-side registry resolves at use time and falls back
 	// to `'default'` when the picked renderer isn't registered.
@@ -265,6 +318,44 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		if ( '' !== $slug ) {
 			$dock_rail_renderer = $slug;
 		}
+	}
+
+	// Desktop theme slug — a pattern check, NOT an allow-list, the
+	// same idiom as `dockRailRenderer` above. Validating against the
+	// installed-theme option here would load (and unserialize) that
+	// option on every single settings write for a value the enqueue
+	// path re-checks anyway. `''` is the system default and is a
+	// legitimate value, so an empty/absent key keeps the default.
+	$desktop_theme = $defaults['desktopTheme'];
+	if ( isset( $raw['desktopTheme'] ) && is_string( $raw['desktopTheme'] ) ) {
+		$desktop_theme = sanitize_key( $raw['desktopTheme'] );
+	}
+
+	// appliedThemeRecommendations — list of desktop-theme slugs whose
+	// recommendations this user has already been seeded with. Unknown
+	// slugs are kept (a deleted-then-reinstalled theme must not
+	// re-seed and clobber the settings the user has since chosen).
+	$applied_theme_recommendations = $defaults['appliedThemeRecommendations'];
+	if ( isset( $raw['appliedThemeRecommendations'] ) && is_array( $raw['appliedThemeRecommendations'] ) ) {
+		$applied_theme_recommendations = array();
+		foreach ( $raw['appliedThemeRecommendations'] as $theme_slug ) {
+			if ( ! is_string( $theme_slug ) || '' === $theme_slug ) {
+				continue;
+			}
+			$theme_slug = sanitize_key( $theme_slug );
+			if ( '' === $theme_slug ) {
+				continue;
+			}
+			$applied_theme_recommendations[] = $theme_slug;
+		}
+		// Keep the MOST RECENT 64, not the first 64 — the client
+		// appends, so trimming from the front would silently discard
+		// the entry that was just written and let the theme re-seed on
+		// the next activation.
+		$applied_theme_recommendations = array_slice(
+			array_values( array_unique( $applied_theme_recommendations ) ),
+			-64
+		);
 	}
 
 	// Unfocus effect id — accept the `none` sentinel or any registry id.
@@ -281,6 +372,71 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 			$unfocus_effect = $slug;
 		}
 	}
+
+	// Window-reveal id — same id charset and same no-allow-list
+	// reasoning as the unfocus effect above. The JS surface resolves at
+	// play time and treats an unknown id as "no reveal", so a reveal
+	// belonging to a temporarily-deactivated plugin survives the
+	// round-trip and starts working again the moment it re-registers.
+	$window_reveal = $defaults['windowReveal'];
+	if ( isset( $raw['windowReveal'] ) && is_string( $raw['windowReveal'] ) ) {
+		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['windowReveal'] ) );
+		if ( '' !== $slug ) {
+			$window_reveal = $slug;
+		}
+	}
+
+	// Window-reveal duration override — 0 (the default) means "leave
+	// each reveal's own timing alone". Anything else is clamped into
+	// the playable range rather than rejected: a value past the end of
+	// the range still expresses a direction, and the nearest playable
+	// duration is the honest reading of it.
+	$window_reveal_duration = $defaults['windowRevealDuration'];
+	if ( isset( $raw['windowRevealDuration'] ) && is_numeric( $raw['windowRevealDuration'] ) ) {
+		$requested = (int) round( (float) $raw['windowRevealDuration'] );
+		if ( $requested > 0 ) {
+			$window_reveal_duration = max(
+				DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN,
+				min( DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX, $requested )
+			);
+		} else {
+			$window_reveal_duration = 0;
+		}
+	}
+
+	// Window-link renderer id — same id charset as unfocus effects
+	// (slashes allowed for `vendor/sub-id`). No allow-list: the JS
+	// render host resolves at use time and falls back to the built-in
+	// `svg-splines` when the picked renderer isn't registered.
+	$window_link_renderer = $defaults['windowLinkRenderer'];
+	if ( isset( $raw['windowLinkRenderer'] ) && is_string( $raw['windowLinkRenderer'] ) ) {
+		$slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $raw['windowLinkRenderer'] ) );
+		if ( '' !== $slug ) {
+			$window_link_renderer = $slug;
+		}
+	}
+
+	// Window-link visibility — small closed set.
+	$window_link_visibility = $defaults['windowLinkVisibility'];
+	if (
+		isset( $raw['windowLinkVisibility'] )
+		&& in_array( $raw['windowLinkVisibility'], array( 'focus', 'always', 'off' ), true )
+	) {
+		$window_link_visibility = $raw['windowLinkVisibility'];
+	}
+
+	// Window-links feature switches — plain booleans.
+	$window_links_enabled = isset( $raw['windowLinksEnabled'] )
+		? (bool) $raw['windowLinksEnabled']
+		: $defaults['windowLinksEnabled'];
+
+	$window_link_raise_on_focus = isset( $raw['windowLinkRaiseOnFocus'] )
+		? (bool) $raw['windowLinkRaiseOnFocus']
+		: $defaults['windowLinkRaiseOnFocus'];
+
+	$window_link_highlight = isset( $raw['windowLinkHighlight'] )
+		? (bool) $raw['windowLinkHighlight']
+		: $defaults['windowLinkHighlight'];
 
 	// Custom gradient — { from, to: valid hex; angle: int 0–360 }.
 	$custom_gradient = $defaults['customGradient'];
@@ -314,59 +470,70 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		}
 	}
 
+	// wallpaperSettings — map<wallpaper id, map<key, scalar>>. Wallpaper
+	// ids follow the same charset as unfocus-effect ids (slashes allowed
+	// for `vendor/sub-id` namespacing); setting keys follow the JS
+	// identifier-ish charset wallpaper authors use (camelCase, hyphens,
+	// underscores). Values must be scalar — booleans and numbers pass
+	// through typed, strings are sanitized and length-capped. Unknown
+	// wallpaper ids are kept (a deactivated wallpaper plugin's settings
+	// should survive reactivation). Capped at 64 ids × 32 keys.
+	$wallpaper_settings = array();
+	if ( isset( $raw['wallpaperSettings'] ) && is_array( $raw['wallpaperSettings'] ) ) {
+		$id_count = 0;
+		foreach ( $raw['wallpaperSettings'] as $wp_id => $bag ) {
+			if ( $id_count >= 64 ) {
+				break;
+			}
+			if ( ! is_string( $wp_id ) || '' === $wp_id || ! is_array( $bag ) ) {
+				continue;
+			}
+			$wp_slug = preg_replace( '/[^a-z0-9_\/-]/', '', strtolower( $wp_id ) );
+			if ( '' === $wp_slug ) {
+				continue;
+			}
+			$clean_bag = array();
+			$key_count = 0;
+			foreach ( $bag as $key => $value ) {
+				if ( $key_count >= 32 ) {
+					break;
+				}
+				if ( ! is_string( $key ) || '' === $key || ! preg_match( '/^[a-zA-Z0-9_-]+$/', $key ) ) {
+					continue;
+				}
+				if ( is_bool( $value ) ) {
+					$clean_bag[ $key ] = $value;
+				} elseif ( is_int( $value ) || is_float( $value ) ) {
+					if ( ! is_finite( (float) $value ) ) {
+						continue;
+					}
+					$clean_bag[ $key ] = $value;
+				} elseif ( is_string( $value ) ) {
+					$clean_bag[ $key ] = mb_substr( sanitize_text_field( $value ), 0, 256 );
+				} else {
+					continue;
+				}
+				++$key_count;
+			}
+			if ( empty( $clean_bag ) ) {
+				continue;
+			}
+			$wallpaper_settings[ $wp_slug ] = $clean_bag;
+			++$id_count;
+		}
+	}
+
 	// Library HD only — boolean.
 	$library_hd_only = isset( $raw['libraryHdOnly'] ) ? (bool) $raw['libraryHdOnly'] : $defaults['libraryHdOnly'];
 
-	// AI settings.
+	// AI settings — just the per-user on/off toggle. Provider + model selection
+	// is delegated to the Core AI Client, so there is no preference to persist.
 	$ai = $defaults['ai'];
 	if ( isset( $raw['ai'] ) && is_array( $raw['ai'] ) ) {
 		$raw_ai = $raw['ai'];
 
 		if ( isset( $raw_ai['enabled'] ) ) {
 			$ai['enabled'] = (bool) $raw_ai['enabled'];
-		}
-
-		// Provider — accept any sanitize_key()-clean string. We don't gate
-		// on the registry here because providers register on `init` and
-		// sanitize may run earlier (REST boot). Existence is checked at
-		// lookup time by `desktop_mode_ai_get_active_provider_id()`.
-		if ( isset( $raw_ai['provider'] ) && is_string( $raw_ai['provider'] ) ) {
-			$slug = sanitize_key( $raw_ai['provider'] );
-			if ( '' !== $slug ) {
-				$ai['provider'] = $slug;
-			}
-		}
-
-		// API key — strip tags and limit length. The key is opaque to us;
-		// we just store what the user gives. 512 chars is generous for any
-		// real API key while preventing runaway meta writes.
-		if ( isset( $raw_ai['apiKey'] ) && is_string( $raw_ai['apiKey'] ) ) {
-			$ai['apiKey'] = substr( sanitize_text_field( $raw_ai['apiKey'] ), 0, 512 );
-		}
-
-		// Live-progress transport — must be one of the known values.
-		if (
-			isset( $raw_ai['transport'] )
-			&& is_string( $raw_ai['transport'] )
-			&& in_array( $raw_ai['transport'], DESKTOP_MODE_OS_SETTINGS_AI_TRANSPORTS, true )
-		) {
-			$ai['transport'] = $raw_ai['transport'];
-		}
-
-		// Per-provider keys map. Limited to 32 entries to bound storage.
-		if ( isset( $raw_ai['apiKeys'] ) && is_array( $raw_ai['apiKeys'] ) ) {
-			$keys = array();
-			foreach ( $raw_ai['apiKeys'] as $pid => $val ) {
-				if ( count( $keys ) >= 32 ) {
-					break;
-				}
-				$slug = sanitize_key( (string) $pid );
-				if ( '' === $slug || ! is_string( $val ) ) {
-					continue;
-				}
-				$keys[ $slug ] = substr( sanitize_text_field( $val ), 0, 512 );
-			}
-			$ai['apiKeys'] = $keys;
 		}
 	}
 
@@ -433,6 +600,10 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 	$show_post_status_ribbons = isset( $raw['showPostStatusRibbons'] )
 		? (bool) $raw['showPostStatusRibbons']
 		: $defaults['showPostStatusRibbons'];
+
+	$developer_mode_enabled = isset( $raw['developerModeEnabled'] )
+		? (bool) $raw['developerModeEnabled']
+		: $defaults['developerModeEnabled'];
 
 	$folders_sharing_enabled = isset( $raw['foldersSharingEnabled'] )
 		? (bool) $raw['foldersSharingEnabled']
@@ -535,11 +706,23 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'wallpaper'                   => $wallpaper,
 		'accent'                      => $accent,
 		'dockSize'                    => $dock_size,
+		'windowRadius'                => $window_radius,
+		'adminBarMode'                => $admin_bar_mode,
 		'desktopLayout'               => $desktop_layout,
 		'dockRailRenderer'            => $dock_rail_renderer,
+		'desktopTheme'                => $desktop_theme,
+		'appliedThemeRecommendations' => $applied_theme_recommendations,
 		'unfocusEffect'               => $unfocus_effect,
+		'windowReveal'                => $window_reveal,
+		'windowRevealDuration'        => $window_reveal_duration,
+		'windowLinkRenderer'          => $window_link_renderer,
+		'windowLinkVisibility'        => $window_link_visibility,
+		'windowLinksEnabled'          => $window_links_enabled,
+		'windowLinkRaiseOnFocus'      => $window_link_raise_on_focus,
+		'windowLinkHighlight'         => $window_link_highlight,
 		'customGradient'              => $custom_gradient,
 		'customImage'                 => $custom_image,
+		'wallpaperSettings'           => $wallpaper_settings,
 		'libraryHdOnly'               => $library_hd_only,
 		'ai'                          => $ai,
 		'heartbeatRate'               => $heartbeat_rate,
@@ -551,6 +734,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativeCommentsEnabled'       => $native_comments_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
+		'developerModeEnabled'        => $developer_mode_enabled,
 		'foldersSharingEnabled'       => $folders_sharing_enabled,
 		'itemVisibility'              => $item_visibility,
 		'dockOrder'                   => $dock_order,
@@ -560,8 +744,6 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 
 /**
  * Registers the REST routes for OS settings.
- *
- * @since 0.14.0
  */
 function desktop_mode_register_os_settings_rest_routes() {
 	register_rest_route(
@@ -596,8 +778,6 @@ add_action( 'rest_api_init', 'desktop_mode_register_os_settings_rest_routes' );
  * see {@see desktop_mode_rest_require_enabled()} for why `read` alone is
  * insufficient.
  *
- * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
- *
  * @return true|WP_Error
  */
 function desktop_mode_rest_os_settings_permission() {
@@ -607,8 +787,6 @@ function desktop_mode_rest_os_settings_permission() {
 /**
  * GET /desktop-mode/v1/os-settings
  *
- * @since 0.14.0
- *
  * @return WP_REST_Response
  */
 function desktop_mode_rest_get_os_settings() {
@@ -617,8 +795,6 @@ function desktop_mode_rest_get_os_settings() {
 
 /**
  * POST /desktop-mode/v1/os-settings
- *
- * @since 0.14.0
  *
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
@@ -633,15 +809,12 @@ function desktop_mode_rest_save_os_settings( WP_REST_Request $request ) {
 /**
  * Apply the per-user Heartbeat-rate preference to the
  * `heartbeat_settings` Core filter. WordPress reads these settings
- * once at page load to size both the initial AJAX interval and the
- * floor (`minimalInterval`) that prevents JS from speeding things
- * up. We mirror both so a 5-second rate actually fires every five
- * seconds (Core's default floor is 15).
+ * once at page load. We set `interval` only; the allowed rates
+ * (15/30/45/60 s) all sit at or above Core's 15 s
+ * `minimalInterval` floor, so the floor never needs overriding.
  *
  * Only applies to users with Desktop Mode enabled — non-desktop
  * sessions keep Core's defaults. Anonymous requests skip too.
- *
- * @since 0.18.0
  *
  * @param array $settings Filtered Heartbeat settings.
  * @return array

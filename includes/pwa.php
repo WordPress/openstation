@@ -28,7 +28,6 @@
  *          a hint for the v2 push PR.
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -38,15 +37,11 @@ defined( 'ABSPATH' ) || exit;
  *
  * Kept as a constant so the JS-side script localisation and the
  * `parse_request` matcher cannot drift apart.
- *
- * @since 0.8.0
  */
 const DESKTOP_MODE_PWA_MANIFEST_FRAGMENT = 'manifest.webmanifest';
 
 /**
  * URL fragment for the service worker.
- *
- * @since 0.8.0
  */
 const DESKTOP_MODE_PWA_SW_FRAGMENT = 'sw.js';
 
@@ -55,15 +50,11 @@ const DESKTOP_MODE_PWA_SW_FRAGMENT = 'sw.js';
  *
  * Today: `installHintDismissed` (bool), `notificationsEnabled` (bool).
  * Future: `pushSubscription` (object) when phase 4 lands.
- *
- * @since 0.8.0
  */
 const DESKTOP_MODE_PWA_USER_META = 'desktop_mode_pwa_state';
 
 /**
  * Builds the absolute manifest URL.
- *
- * @since 0.8.0
  *
  * @return string
  */
@@ -73,8 +64,6 @@ function desktop_mode_pwa_manifest_url() {
 
 /**
  * Builds the absolute service-worker URL.
- *
- * @since 0.8.0
  *
  * @return string
  */
@@ -95,8 +84,6 @@ function desktop_mode_pwa_sw_url() {
  * and causing the "Install <site> as an app" tile to surface the
  * "another app is handling installs" toast.
  *
- * @since 0.8.6
- *
  * @return bool
  */
 function desktop_mode_pwa_force_replace_sw() {
@@ -106,8 +93,6 @@ function desktop_mode_pwa_force_replace_sw() {
 	 * Return `true` to take over from a foreign PWA plugin's service
 	 * worker so desktop-mode's "Install as app" affordance works on
 	 * sites where another plugin's SW is already active.
-	 *
-	 * @since 0.8.6
 	 *
 	 * @param bool $force_replace Defaults to `false` (yield to existing SWs).
 	 */
@@ -119,8 +104,6 @@ function desktop_mode_pwa_force_replace_sw() {
  *
  * Mirrors `desktop_mode_is_portal_request()`'s strategy: read the
  * unparsed REQUEST_URI rather than relying on rewrite-rule resolution.
- *
- * @since 0.8.0
  *
  * @return string Empty string when not a PWA endpoint, otherwise one
  *                of `'manifest'` | `'sw'`.
@@ -134,7 +117,9 @@ function desktop_mode_pwa_endpoint_kind() {
 	if ( '' === $path ) {
 		return '';
 	}
-	$portal = '/' . trim( DESKTOP_MODE_PORTAL_PATH, '/' ) . '/';
+	$home_path = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+	$home_path = is_string( $home_path ) ? rtrim( $home_path, '/' ) : '';
+	$portal    = $home_path . '/' . trim( DESKTOP_MODE_PORTAL_PATH, '/' ) . '/';
 	if ( $path === $portal . DESKTOP_MODE_PWA_MANIFEST_FRAGMENT ) {
 		return 'manifest';
 	}
@@ -156,8 +141,6 @@ function desktop_mode_pwa_endpoint_kind() {
  * user revisits the install URL; the SW is fetched by the browser
  * with no cookies on update checks. Both reveal only data already
  * surfaced by the front-end (site name, blog icon, plugin version).
- *
- * @since 0.8.0
  *
  * @param WP $wp Current WordPress environment instance (unused).
  */
@@ -184,8 +167,6 @@ add_action( 'parse_request', 'desktop_mode_pwa_handle_request' );
 /**
  * Builds the manifest array, applies the `desktop_mode_pwa_manifest`
  * filter, encodes as JSON and prints it.
- *
- * @since 0.8.0
  */
 function desktop_mode_pwa_serve_manifest() {
 	$manifest = desktop_mode_pwa_build_manifest();
@@ -198,8 +179,6 @@ function desktop_mode_pwa_serve_manifest() {
 	 * deep-link entries, change `display` to `'fullscreen'`. Returning
 	 * a non-array silently disables the manifest — no PHP warning, but
 	 * the browser will fail the install criterion.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param array $manifest Manifest associative array.
 	 */
@@ -219,8 +198,6 @@ function desktop_mode_pwa_serve_manifest() {
 
 /**
  * Assembles the default manifest fields.
- *
- * @since 0.8.0
  *
  * @return array
  */
@@ -325,8 +302,6 @@ function desktop_mode_pwa_build_manifest() {
  * mask would crop into. Plugins shipping a full-bleed maskable
  * variant should replace the array via `desktop_mode_pwa_manifest`.
  *
- * @since 0.8.0
- *
  * @return array<int, array<string, string>>
  */
 function desktop_mode_pwa_default_icons() {
@@ -385,16 +360,14 @@ function desktop_mode_pwa_default_icons() {
  * that didn't run `npm run build`). Logging gives the operator a
  * concrete pointer; 503 (vs. 404) tells the browser the SW genuinely
  * isn't available right now and it should retry later.
- *
- * @since 0.8.0
  */
 function desktop_mode_pwa_serve_service_worker() {
-	$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+	$suffix = desktop_mode_asset_suffix();
 	$path   = DESKTOP_MODE_DIR . 'assets/js/sw' . $suffix . '.js';
 
 	if ( ! file_exists( $path ) ) {
-		// Avoid logging in the test environment where vfsStream paths
-		// are expected to fail; only log when ABSPATH is real.
+		// Guard against hosts that disable error_log() via the
+		// `disable_functions` ini directive.
 		if ( function_exists( 'error_log' ) ) {
 			error_log( '[desktop-mode] service worker bundle missing at ' . $path . ' — run `npm run build` to generate it.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		}
@@ -450,8 +423,6 @@ function desktop_mode_pwa_serve_service_worker() {
  * "install" criterion silently fails. Putting them in `<head>` (rather
  * than via `wp_localize_script`'s inline script tag) is what the
  * spec requires.
- *
- * @since 0.8.0
  */
 function desktop_mode_pwa_render_head_tags() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
@@ -488,8 +459,6 @@ add_action( 'admin_head', 'desktop_mode_pwa_render_head_tags', 1 );
 /**
  * Reads the per-user PWA UI state.
  *
- * @since 0.8.0
- *
  * @param int $user_id Defaults to current user.
  * @return array{installHintDismissed: bool, notificationsEnabled: bool}
  */
@@ -511,8 +480,6 @@ function desktop_mode_pwa_get_user_state( $user_id = 0 ) {
  * Writes the per-user PWA UI state, merging with the existing blob so
  * partial updates from the JS side don't wipe other keys.
  *
- * @since 0.8.0
- *
  * @param array $patch   Partial state to merge.
  * @param int   $user_id Defaults to current user.
  */
@@ -527,8 +494,6 @@ function desktop_mode_pwa_update_user_state( array $patch, $user_id = 0 ) {
 
 /**
  * Registers the `/desktop-mode/v1/pwa-state` REST routes.
- *
- * @since 0.8.0
  */
 function desktop_mode_pwa_register_rest_routes() {
 	register_rest_route(
@@ -569,9 +534,6 @@ add_action( 'rest_api_init', 'desktop_mode_pwa_register_rest_routes' );
  * with desktop mode enabled. See
  * {@see desktop_mode_rest_require_enabled()}.
  *
- * @since 0.8.0
- * @since 0.8.10 Hardened to require desktop mode enabled (was `read`).
- *
  * @return true|WP_Error
  */
 function desktop_mode_pwa_rest_permission() {
@@ -580,8 +542,6 @@ function desktop_mode_pwa_rest_permission() {
 
 /**
  * GET handler — returns the current user's PWA state.
- *
- * @since 0.8.0
  */
 function desktop_mode_pwa_rest_get_state() {
 	return rest_ensure_response( desktop_mode_pwa_get_user_state() );
@@ -589,8 +549,6 @@ function desktop_mode_pwa_rest_get_state() {
 
 /**
  * POST handler — merges the supplied keys into the user's state.
- *
- * @since 0.8.0
  *
  * @param WP_REST_Request $request REST request.
  */

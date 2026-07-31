@@ -10,7 +10,7 @@ the dock you want to own":
 | [**Decoration hooks**](./examples/dock-decoration-hooks.md) | A few classNames, a wrapper, a tooltip, an after-render decoration. | You want to nudge the visual without owning the rail. Cheap, composable across plugins. |
 | [**Dock rail renderer**](./examples/dock-rail-renderer.md) | The entire rail. Layout, animation, click-handling, lifecycle. | You want a circular ring, Stage-Manager stack, floating cluster, or anything that doesn't fit a row of tiles. |
 
-Both are **Stable** since 0.18.0. Pick the smallest layer that
+Both are **Stable**. Pick the smallest layer that
 solves your problem.
 
 ---
@@ -114,9 +114,10 @@ wp.desktop.ready( () => {
 
 The user picks `Aurora Arc` in OS Settings → Appearance → Dock
 style. The glow decoration applies regardless. If the plugin is
-deactivated, both registrations sweep away (matching `owner:
-'aurora-dock'`); the user falls back to the shipped baseline
-without a reload.
+deactivated, the rail renderer sweeps away (matching `owner:
+'aurora-dock'`) and the user falls back to the shipped baseline
+without a reload; the decoration filter stays registered on the
+hook bus until the next full page load.
 
 ---
 
@@ -177,8 +178,8 @@ plugins written against v1 keep working until they opt in to v2.
 
 | Surface | API version | Since |
 |---|---|---|
-| Decoration hooks | n/a — hook bus | 0.18.0 |
-| `registerDockRailRenderer` | 1 | 0.18.0 |
+| Decoration hooks | n/a — hook bus | 0.6.0 |
+| `registerDockRailRenderer` | 1 | 0.6.0 |
 
 ---
 
@@ -186,7 +187,7 @@ plugins written against v1 keep working until they opt in to v2.
 
 A plugin that wants to compose against the dock without committing
 to a specific layer reaches for these instead of DOM scraping. All
-**Stable since 0.18.0**:
+**Stable**:
 
 | API | Returns | Use it for |
 |---|---|---|
@@ -221,4 +222,4 @@ See the full reference for the [`DockItem` shape](./javascript-reference.md#dock
 - **[Decoration hooks recipes](./examples/dock-decoration-hooks.md)** — six examples from one-line classNames to grid-wide IntersectionObservers.
 - **[Rail renderer walk-through](./examples/dock-rail-renderer.md)** — full "ring" implementation with circular layout math.
 - **[JavaScript Reference](./javascript-reference.md#dock-decoration)** — every API entry, every hook, every type.
-- **[Architecture](./architecture.md#dock-customization-two-registries)** — how the registries plug into the layout dispatcher and the live menu-refresh pipeline.
+- **[Architecture](./architecture.md#dock-customization--two-registries)** — how the registries plug into the layout dispatcher and the live menu-refresh pipeline.

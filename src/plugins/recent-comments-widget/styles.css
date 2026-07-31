@@ -1,0 +1,115 @@
+.dm-comments__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--wpd-color-border, #e5e7eb);
+	margin-bottom: 4px;
+	flex-shrink: 0;
+	min-width: 0;
+}
+.dm-comments__title {
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--wpd-color-text-subtle, #6b7280);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.dm-comments__badge {
+	background: #f59e0b;
+	color: #fff;
+	border-radius: 10px;
+	padding: 1px 7px;
+	font-size: 10px;
+	font-weight: 700;
+	display: none;
+	flex-shrink: 0;
+	margin-left: 6px;
+}
+.dm-comments__badge--visible { display: inline-block; }
+.dm-comments__list {
+	overflow-y: auto;
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.dm-comments__row {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 0;
+	border-bottom: 1px solid var(--wpd-color-border, #f3f4f6);
+	min-width: 0;
+}
+.dm-comments__row:last-child { border-bottom: none; }
+.dm-comments__avatar {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: var(--wpd-color-accent, #3b82f6);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	font-size: 11px;
+	flex-shrink: 0;
+}
+.dm-comments__body {
+	flex: 1;
+	min-width: 0;
+}
+.dm-comments__meta {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-wrap: wrap;
+	margin-bottom: 2px;
+	min-width: 0;
+}
+.dm-comments__author {
+	font-weight: 600;
+	font-size: 11px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+	max-width: 50%;
+}
+.dm-comments__status {
+	border-radius: 8px;
+	padding: 1px 6px;
+	font-size: 9px;
+	font-weight: 700;
+	color: #fff;
+	flex-shrink: 0;
+}
+.dm-comments__time {
+	font-size: 10px;
+	color: var(--wpd-color-text-subtle, #9ca3af);
+	margin-left: auto;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+.dm-comments__post {
+	font-size: 10px;
+	color: var(--wpd-color-text-subtle, #9ca3af);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.dm-comments__empty,
+.dm-comments__error {
+	padding: 12px 0;
+	font-size: 11px;
+	color: var(--wpd-color-text-subtle, #9ca3af);
+	text-align: center;
+}
+.dm-comments__error { color: #ef4444; }

@@ -27,8 +27,6 @@
  * to peer-app activity channels. They query window state when they
  * need to (`windowManager.isActive(id)`) and decide for themselves
  * what to do. The framework is the bus, not the policy.
- *
- * @since 0.5.5
  */
 
 import {
@@ -90,8 +88,6 @@ export interface ActivityChannelMap {
 	 * Framework: `wp.desktop.notify()` was called. Filter to cancel
 	 * (`cancel: true`), mutate fields, or audit before the
 	 * Notification surface (or its toast fallback) is rendered.
-	 *
-	 * @since 0.8.0
 	 */
 	'desktop-mode/notification-requested': {
 		title: string;
@@ -109,8 +105,6 @@ export interface ActivityChannelMap {
 	 * so analytics can distinguish "user has notifications muted"
 	 * from "user explicitly hides nothing." `fallback: null` means
 	 * a real OS-level notification went up.
-	 *
-	 * @since 0.8.0
 	 */
 	'desktop-mode/notification-shown': {
 		title: string;
@@ -123,11 +117,12 @@ export interface ActivityChannelMap {
 		fallback: 'toast' | null;
 	};
 	/**
-	 * Framework: a window's `requestAttention` (or
-	 * `Dock.setAttention`) was called. Filter to cancel
-	 * (`cancel: true`) for DND modes / reduced-motion, mutate
-	 * `mode` / `durationMs` / `intensity` to scale the
-	 * animation, or audit.
+	 * Framework: `Window.requestAttention()` was called. The
+	 * filtered result is routed to the dock/taskbar tiles via
+	 * `setAttention()`, which does not re-apply this filter.
+	 * Filter to cancel (`cancel: true`) for DND modes /
+	 * reduced-motion, mutate `mode` / `durationMs` / `intensity`
+	 * to scale the animation, or audit.
 	 */
 	'desktop-mode/window-attention-requested': {
 		windowId: string;
@@ -210,7 +205,9 @@ function hookName< K extends keyof ActivityChannelMap >( channel: K ): string {
 /**
  * Counter that produces unique handler namespaces inside this
  * module so multiple subscribers to the same channel don't
- * clobber each other when removed.
+ * clobber each other when removed. Per-bundle module state: each
+ * compiled bundle carries its own copy starting at zero, so the
+ * namespaces it mints are only unique within that bundle.
  */
 let subscribeSeq = 0;
 
@@ -253,9 +250,14 @@ export interface ActivityApi {
 }
 
 /**
- * Shared singleton — every bundle that imports this module ends up
- * with the same handler-namespace counter via the underlying
- * `wp.hooks` global. Safe to call from anywhere.
+ * Activity bus entry point. The handler registry lives on the
+ * `wp.hooks` global, so publishes, subscriptions, and filters
+ * interoperate across bundles — but the handler-namespace counter
+ * above is per-bundle module state, NOT shared: two bundles
+ * subscribing through their own copies of this module can mint the
+ * same namespace, and an unsubscribe removes every callback
+ * registered under that namespace. Safe to call from anywhere
+ * within a single bundle.
  */
 export const activity: ActivityApi = {
 	publish( channel, payload ) {

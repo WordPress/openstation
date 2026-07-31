@@ -1,22 +1,18 @@
 /**
  * Vite configuration for the WP Desktop Mode plugin.
  *
- * Builds two TypeScript entries into IIFE bundles:
+ * Builds the TypeScript entries listed in the `TARGETS` map below into
+ * IIFE bundle pairs under `assets/js/`:
  *
- *   `src/desktop.ts` →
- *     - `assets/js/desktop.js`     (development, unminified — loaded when SCRIPT_DEBUG is true)
- *     - `assets/js/desktop.min.js` (production, esbuild-minified — loaded otherwise)
- *
- *   `src/iframe-bridge-standalone.ts` →
- *     - `assets/js/iframe-bridge.js`     (development)
- *     - `assets/js/iframe-bridge.min.js` (production)
+ *   `<fileBase>.js`     (development, unminified — loaded when SCRIPT_DEBUG is true)
+ *   `<fileBase>.min.js` (production, esbuild-minified — loaded otherwise)
  *
  * Which entry the current invocation builds is controlled by the
- * `DESKTOP_MODE_TARGET` env var (`desktop` — default — or `iframe-bridge`).
- * `npm run build` runs Vite four times (two targets × two modes).
+ * `DESKTOP_MODE_TARGET` env var (`desktop` is the default). `npm run build`
+ * invokes every target — one `build:<target>` script per entry in
+ * `package.json`, each running Vite twice (dev + prod mode).
  * `npm run dev` watches and rebuilds the unminified `desktop` bundle
- * only — iframe-bridge changes are rare so a one-shot
- * `npm run build:iframe-bridge` covers them.
+ * only — other targets need a one-shot `npm run build:<target>`.
  *
  * **Source policy:** `assets/js/*.js` is build output. NEVER hand-edit
  * those files — only edit the TS sources under `src/` and run a build.
@@ -329,6 +325,35 @@ const TARGETS = {
 		fileBase: 'content-graph',
 		iifeName: 'desktopModeContentGraph',
 	},
+	// Games hub — launcher grid + scoreboard + challenges client.
+	// Registers a render callback on
+	// `window.desktopModeNativeWindows['desktop-mode-games']`; the
+	// games registry itself is shared cross-bundle via
+	// `createSharedStore`. `<wpd-*>` tags come from the main bundle.
+	games: {
+		entry:    'src/games/entry.ts',
+		fileBase: 'games',
+		iifeName: 'desktopModeGames',
+	},
+	// Inkfall — the built-in typing game. Lazy-loaded by the games
+	// framework on first launch; publishes its GameDef on
+	// `window.desktopModeGames.inkfall`. Loads PixiJS through the
+	// module registry like content-graph / the canvas wallpapers.
+	'game-inkfall': {
+		entry:    'src/games/inkfall/index.ts',
+		fileBase: 'game-inkfall',
+		iifeName: 'desktopModeGameInkfall',
+	},
+	// Alphabet Soup — the built-in daily word search. Seeded by the
+	// current date (dd-mm-yyyy) so the puzzle is identical worldwide;
+	// lazy-loaded by the games framework on first launch; publishes
+	// its GameDef on `window.desktopModeGames['alphabet-soup']`.
+	// Loads PixiJS through the module registry like Inkfall.
+	'game-alphabet-soup': {
+		entry:    'src/games/alphabet-soup/index.ts',
+		fileBase: 'game-alphabet-soup',
+		iifeName: 'desktopModeGameAlphabetSoup',
+	},
 	// Service worker — own bundle so it can be served from a stable
 	// path with the `Service-Worker-Allowed: /` header. The IIFE
 	// wrapper is harmless inside a SW context: top-level
@@ -385,6 +410,28 @@ const TARGETS = {
 		fileBase: 'animated-logo-wallpaper',
 		iifeName: 'desktopModeAnimatedLogoWallpaper',
 	},
+	// Living Tree wallpaper — built-in canvas wallpaper that renders the
+	// site as a growing plant organism (posts=leaves, comments=flowers,
+	// tags=lianas, users=fireflies, traffic=wind). PixiJS-driven, lazy-
+	// loaded by the wallpaper server-sync when selected. Publishes the
+	// `WallpaperDef` on `window.desktopModeWallpapers['wp-living-tree']`.
+	// See docs/living-tree-algorithm.md.
+	'living-tree-wallpaper': {
+		entry:    'src/plugins/living-tree-wallpaper/index.ts',
+		fileBase: 'living-tree-wallpaper',
+		iifeName: 'desktopModeLivingTreeWallpaper',
+	},
+	// Snow wallpaper — built-in canvas wallpaper: PixiJS snowfall that
+	// accumulates on window tops (via `wp.desktop.getWallpaperSurfaces`)
+	// and melts away. Lazy-loaded by the wallpaper server-sync when
+	// selected. Publishes the `WallpaperDef` on
+	// `window.desktopModeWallpapers['wp-snow']`; first built-in
+	// consumer of the `renderConfig` wallpaper-settings dialog.
+	'snow-wallpaper': {
+		entry:    'src/plugins/snow-wallpaper/index.ts',
+		fileBase: 'snow-wallpaper',
+		iifeName: 'desktopModeSnowWallpaper',
+	},
 	// About-scene — the PixiJS particle scene rendered inside OS
 	// Settings → About. ~25 kB of code that only ever runs after the
 	// user explicitly opens that tab. Loaded by the main-bundle
@@ -406,6 +453,27 @@ const TARGETS = {
 		entry:    'src/settings/panel-entry.ts',
 		fileBase: 'os-settings-panel',
 		iifeName: 'desktopModeOsSettingsPanel',
+	},
+	// Item-visibility menu — the right-click "hide from dock /
+	// desktop" menu + plugin provenance actions. Pure interaction UI
+	// that can never be on screen at first paint; injected by the
+	// main bundle's `src/item-visibility-menu-loader.ts` shim on the
+	// first right-click. Publishes
+	// `window.desktopModeItemVisibilityMenu`.
+	'item-visibility-menu': {
+		entry:    'src/item-visibility-menu-entry.ts',
+		fileBase: 'item-visibility-menu',
+		iifeName: 'desktopModeItemVisibilityMenu',
+	},
+	// Release card — the vinyl core-update announcement (card DOM +
+	// animation CSS + art resolver). Only needed when an update is
+	// pending; injected by `maybeShowUpdate()` in
+	// `src/update-notice.ts` after it confirms there is something to
+	// announce. Publishes `window.desktopModeReleaseCard`.
+	'release-card': {
+		entry:    'src/release-card-entry.ts',
+		fileBase: 'release-card',
+		iifeName: 'desktopModeReleaseCardBundle',
 	},
 	// Shell overlays — toast, confirm dialog, context menus (Stage 9).
 	// Components for action-triggered overlays that aren't constructed
@@ -444,6 +512,67 @@ const TARGETS = {
 		fileBase: 'widget-heartbeat',
 		iifeName: 'desktopModeHeartbeatWidget',
 	},
+	'widget-recent-comments': {
+		entry:    'src/plugins/recent-comments-widget/index.ts',
+		fileBase: 'widget-recent-comments',
+		iifeName: 'desktopModeRecentCommentsWidget',
+	},
+	'widget-drafts': {
+		entry:    'src/plugins/drafts-widget/index.ts',
+		fileBase: 'widget-drafts',
+		iifeName: 'desktopModeDraftsWidget',
+	},
+	'widget-post-stats': {
+		entry:    'src/plugins/post-stats-widget/index.ts',
+		fileBase: 'widget-post-stats',
+		iifeName: 'desktopModePostStatsWidget',
+	},
+	'widget-site-views': {
+		entry:    'src/plugins/site-views-widget/index.ts',
+		fileBase: 'widget-site-views',
+		iifeName: 'desktopModeSiteViewsWidget',
+	},
+
+	'widget-jazz-quote': {
+		entry:    'src/plugins/jazz-quote-widget/index.ts',
+		fileBase: 'widget-jazz-quote',
+		iifeName: 'desktopModeJazzQuoteWidget',
+	},
+	'widget-starter': {
+		entry:    'src/plugins/starter-widget/index.ts',
+		fileBase: 'widget-starter',
+		iifeName: 'desktopModeStarterWidget',
+	},
+	// Note Pad widget — the pinned-notes composer. Ships JS + a
+	// co-located `styles.css` chunk (`widget-notes[.min].css`) that
+	// `includes/widgets/widget-notes.php` registers.
+	'widget-notes': {
+		entry:    'src/plugins/notes-widget/index.ts',
+		fileBase: 'widget-notes',
+		iifeName: 'desktopModeNotesWidget',
+	},
+	// Focus Timer widget — a countdown that links to a window and
+	// shakes it (via Window.shake()) with an alarm when time is up.
+	// Ships JS + a co-located `styles.css` chunk (widget-focus-timer[.min].css)
+	// that includes/widgets/widget-focus-timer.php registers.
+	'widget-focus-timer': {
+		entry:    'src/plugins/focus-timer-widget/index.ts',
+		fileBase: 'widget-focus-timer',
+		iifeName: 'desktopModeFocusTimerWidget',
+	},
+
+	// "Agent chat" window — conversation surface for the agents
+	// framework (extended option `agents`). Registers a render
+	// callback on `window.desktopModeNativeWindows['desktop-mode-agent-run']`
+	// and consumes the `<wpd-*>` tags defined by the main bundle plus
+	// the cross-bundle `desktop-mode/agents-chat` shared store seeded
+	// by the My WordPress Agents section.
+	'agent-run-window': {
+		entry:    'src/agent-run-window.ts',
+		fileBase: 'agent-run-window',
+		iifeName: 'desktopModeAgentRunWindow',
+	},
+
 };
 
 export default defineConfig( ( { mode } ) => {

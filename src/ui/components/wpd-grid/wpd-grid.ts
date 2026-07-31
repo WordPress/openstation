@@ -17,13 +17,11 @@
  *   - `rows`    — integer row count (default `auto`; omit for
  *                 content-driven sizing).
  *   - `gap`     — px between grid cells.
- *   - `cell-gap`, `column-gap`, `row-gap` — per-axis overrides.
+ *   - `column-gap`, `row-gap` — per-axis overrides.
  *
  * No `role` is emitted — this is a pure layout primitive.
  * Accessibility semantics are the caller's choice (wrap in
  * `role="grid"` or `role="radiogroup"` if warranted).
- *
- * @since 0.10.0
  */
 
 import { Component, defineComponent, html } from '../../core';
@@ -38,7 +36,7 @@ export class WpdGrid extends Component {
 		summary:
 			'Neutral CSS grid container. The 2-D twin of <wpd-stack>/<wpd-cluster>. No role is emitted — callers wrap in role="grid"/"radiogroup" if warranted.',
 		status: 'stable',
-		since: '0.10.0',
+		since: '0.5.0',
 		props: [
 			{
 				name: 'columns',

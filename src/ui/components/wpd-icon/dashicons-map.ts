@@ -25,7 +25,6 @@
  * console noise).
  *
  * @public
- * @since 0.18.0
  */
 
 let _cache: Map< string, string > | null = null;
@@ -118,8 +117,6 @@ function buildMap(): Map< string, string > {
  * Callers that render via `<wpd-icon>` get the resolution
  * automatically; this is exported for ad-hoc DOM construction
  * where pulling in the component is overkill.
- *
- * @since 0.18.0
  */
 export function resolveDashicon( name: string ): string | null {
 	if ( ! _cache ) {
@@ -136,8 +133,6 @@ export function resolveDashicon( name: string ): string | null {
  * calls this once on `DOMContentLoaded` AND on the `load` event so
  * scripts that boot before the dashicons sheet has parsed don't
  * end up with a permanently empty cache.
- *
- * @since 0.18.0
  */
 export function refreshDashiconCache(): void {
 	_cache = buildMap();

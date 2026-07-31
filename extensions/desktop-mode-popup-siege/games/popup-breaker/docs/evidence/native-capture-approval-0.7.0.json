@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "gameId": "popup-siege",
+  "gameVersion": "0.7.0",
+  "rulesVersion": 3,
+  "sourceSha256": "93b05b7d9ac2e73462ee20dd0385dc69cbbf1118ad12d3458ca57a087b7f0292",
+  "artifact": {
+    "path": "evidence/showcase-previews/popup-siege-gallery-v1.png",
+    "sha256": "001fee50c086e98c5bde687d9841b1953e1eaabe844bd9b2eebb67c94a82a2e7",
+    "width": 1536,
+    "height": 960
+  },
+  "review": {
+    "reviewedAt": "2026-07-28T23:45:40Z",
+    "reviewerRole": "independent-native-size-presentation-approver",
+    "producerIndependent": true,
+    "verdict": "approve",
+    "observations": [
+      "The game is primary and the right-side console is a distinct secondary rail.",
+      "Console icons and labels are centered consistently.",
+      "Essential type is legible at native size.",
+      "No clipping, collision, or accidental overlap is visible.",
+      "Both active popup X targets have strong visual priority."
+    ],
+    "minorRoughEdge": "The console gloss and purple outline are assertive but do not steal priority.",
+    "scope": [
+      "this exact PNG",
+      "native-size hierarchy",
+      "side-console placement",
+      "label and icon alignment",
+      "type legibility",
+      "overlap and clipping",
+      "target priority"
+    ],
+    "notProven": [
+      "interaction",
+      "responsive layouts",
+      "alternate states",
+      "animation",
+      "audio",
+      "implementation correctness",
+      "fun"
+    ]
+  }
+}

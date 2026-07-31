@@ -12,7 +12,8 @@
  * scope is parsed with `DOMDocument`, every `<a href>` is scanned, and
  * each href is resolved with `url_to_postid()`. We cache the full
  * `{ nodes, edges }` tuple in a transient keyed on the requested
- * `types` plus a hash of the relevant rows' `post_modified_gmt`. Any
+ * `types`, the viewer's private-post privilege tier, plus a hash of
+ * the relevant rows' `post_modified_gmt`. Any
  * change to a participating post invalidates the hash, so save_post
  * implicitly refreshes the graph the next time it's requested. We
  * also explicitly bust the cache on `save_post` and `deleted_post` so
@@ -20,7 +21,6 @@
  * the transient.
  *
  * @package WPDesktopMode
- * @since   0.8.2
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -36,8 +36,6 @@ const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
 /**
  * Build (or reuse the cached version of) the graph payload for the
  * requested post types.
- *
- * @since 0.8.2
  *
  * @param string[] $types Post type slugs. Filtered against the public
  *                        post-type registry, attachments excluded.
@@ -98,6 +96,8 @@ function desktop_mode_content_graph_build( array $types ) {
 	// we don't N+1 `wp_get_post_revisions` per node.
 	$contribs_by_post = desktop_mode_content_graph_collect_post_contributors( $post_ids );
 
+	$default_category = max( 1, (int) get_option( 'default_category', 1 ) );
+
 	$nodes       = array();
 	$nodes_by_id = array();
 	$author_ids  = array();
@@ -118,6 +118,16 @@ function desktop_mode_content_graph_build( array $types ) {
 		$post_cats = isset( $terms_by_post[ $id ]['category'] )
 			? $terms_by_post[ $id ]['category']
 			: array();
+		// A category-supporting post with zero terms is what WP treats
+		// as "in the default category" at authoring time (core auto-
+		// assigns it on save for `post`). Mirror that here so such
+		// posts group under the real default-category cluster instead
+		// of the client's synthetic "Uncategorized" pseudo-cluster
+		// (`cat:uncat`, kept client-side only as a stale-payload
+		// fallback).
+		if ( empty( $post_cats ) && is_object_in_taxonomy( $row->post_type, 'category' ) ) {
+			$post_cats = array( $default_category );
+		}
 		$post_tags = isset( $terms_by_post[ $id ]['post_tag'] )
 			? $terms_by_post[ $id ]['post_tag']
 			: array();
@@ -250,8 +260,6 @@ function desktop_mode_content_graph_build( array $types ) {
  * AND to be among the slugs declared by
  * `desktop_mode_content_graph_post_types()`.
  *
- * @since 0.8.2
- *
  * @param string[] $types
  * @return string[]
  */
@@ -273,70 +281,101 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
 }
 
 /**
+ * Build the SQL WHERE fragment (plus its `prepare()` values and a
+ * cache-key signature) scoping graph rows to posts the current user
+ * is allowed to read.
+ *
+ * Published posts are always in scope. Private posts of a type are
+ * only included when the user holds that type's `read_private_posts`
+ * capability; for the remaining types the user still sees their OWN
+ * private posts (mirroring core's `WP_Query` status semantics for
+ * logged-in users). Logged-in users additionally see their OWN drafts
+ * (the Galaxy view's "Drafts" tab); other users' drafts never surface.
+ *
+ * The `key` element encodes the resulting privilege tier (and, for
+ * logged-in users, the user id) so cached payloads are never served
+ * across privilege levels or between users.
+ *
+ * @param string[] $types Already normalized.
+ * @return array{ where: string, values: array, key: string }
+ */
+function desktop_mode_content_graph_visibility_sql( array $types ) {
+	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+	$values       = $types;
+
+	$priv_types = array();
+	foreach ( $types as $type ) {
+		$type_obj = get_post_type_object( $type );
+		$cap      = ( $type_obj && ! empty( $type_obj->cap->read_private_posts ) )
+			? $type_obj->cap->read_private_posts
+			: 'read_private_posts';
+		if ( current_user_can( $cap ) ) {
+			$priv_types[] = $type;
+		}
+	}
+
+	$status_clauses = array( "post_status = 'publish'" );
+	$key_parts      = array( 'priv=' . implode( ',', $priv_types ) );
+
+	if ( ! empty( $priv_types ) ) {
+		$priv_placeholders = implode( ',', array_fill( 0, count( $priv_types ), '%s' ) );
+		$status_clauses[]  = "( post_status = 'private' AND post_type IN ( {$priv_placeholders} ) )";
+		$values            = array_merge( $values, $priv_types );
+	}
+
+	$user_id = get_current_user_id();
+	if ( $user_id > 0 && count( $priv_types ) < count( $types ) ) {
+		$status_clauses[] = "( post_status = 'private' AND post_author = %d )";
+		$values[]         = $user_id;
+		$key_parts[]      = 'own=' . $user_id;
+	}
+
+	if ( $user_id > 0 ) {
+		// The Galaxy view's "Drafts" tab surfaces the viewer's own
+		// drafts; other users' unpublished work stays invisible. The
+		// key part buckets cached payloads per user so one editor's
+		// drafts never bleed into another's view.
+		$status_clauses[] = "( post_status = 'draft' AND post_author = %d )";
+		$values[]         = $user_id;
+		$key_parts[]      = 'drafts=' . $user_id;
+	}
+
+	$where = "post_type IN ( {$placeholders} ) AND ( " . implode( ' OR ', $status_clauses ) . ' )';
+
+	return array(
+		'where'  => $where,
+		'values' => $values,
+		'key'    => implode( '|', $key_parts ),
+	);
+}
+
+/**
  * Cache key for `{ nodes, edges }` for a given type set. Includes a
  * short hash of the participating rows' post_modified_gmt so any
- * relevant edit busts the cache implicitly.
- *
- * @since 0.8.2
+ * relevant edit busts the cache implicitly, plus the viewer's
+ * privilege-tier signature so a payload built for a user who can read
+ * private posts is never served to one who can't (and vice versa).
  *
  * @param string[] $types Already normalized.
  * @return string
  */
 function desktop_mode_content_graph_cache_key( array $types ) {
 	global $wpdb;
-	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
-	// Hash MUST match the set of rows fetched in
-	// `desktop_mode_content_graph_fetch_rows()` — including this user's
-	// own drafts when logged in, so cache invalidates on draft edits too.
-	// The shared status-clause helper keeps the two row sets in lockstep.
-	list( $status_sql, $draft_args ) = desktop_mode_content_graph_status_clause();
-	$current_user_id                 = (int) get_current_user_id();
+	$visibility = desktop_mode_content_graph_visibility_sql( $types );
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$hash = (string) $wpdb->get_var(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is composed of literals in desktop_mode_content_graph_status_clause().
 			"SELECT MD5( GROUP_CONCAT( CONCAT( ID, ':', post_modified_gmt ) ORDER BY ID ) )
 			 FROM {$wpdb->posts}
-			 WHERE {$status_sql}
-			 AND post_type IN ( {$placeholders} )",
-			array_merge( $draft_args, $types )
+			 WHERE {$visibility['where']}",
+			$visibility['values']
 		)
 	);
 	// phpcs:enable
 	if ( '' === $hash || null === $hash ) {
 		$hash = 'empty';
 	}
-	// Bucket the cache key by user so two editors see independently-built
-	// payloads (their own drafts won't bleed into each other's view).
-	return DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX . substr(
-		md5( implode( ',', $types ) . '|u' . $current_user_id . '|' . $hash ),
-		0,
-		24
-	);
-}
-
-/**
- * Post-status WHERE clause shared by the cache-key hash and the row
- * fetch. Published + private posts for everyone, plus the current
- * user's own drafts when logged in (other users' drafts must never
- * surface). The two call sites MUST select the same row set — the
- * cache key hashes exactly the rows the fetch would return — which is
- * why the clause lives in one place.
- *
- * @since 0.9.2
- *
- * @return array{0: string, 1: int[]} SQL fragment (may contain a `%d`
- *                                    placeholder) + its prepare() args.
- */
-function desktop_mode_content_graph_status_clause() {
-	$current_user_id = (int) get_current_user_id();
-	if ( $current_user_id > 0 ) {
-		return array(
-			"( post_status IN ( 'publish', 'private' ) OR ( post_status = 'draft' AND post_author = %d ) )",
-			array( $current_user_id ),
-		);
-	}
-	return array( "post_status IN ( 'publish', 'private' )", array() );
+	return DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_PREFIX . substr( md5( implode( ',', $types ) . '|' . $visibility['key'] . '|' . $hash ), 0, 24 );
 }
 
 /**
@@ -344,28 +383,26 @@ function desktop_mode_content_graph_status_clause() {
  * (including `post_content`) so the link extractor can run without N+1
  * `get_post()` calls.
  *
- * @since 0.8.2
+ * Rows are scoped to what the current user can read: published posts,
+ * private posts only where the user holds the type's
+ * `read_private_posts` capability (or authored the post), plus the
+ * user's own drafts. See
+ * `desktop_mode_content_graph_visibility_sql()`.
  *
  * @param string[] $types Already normalized.
  * @return WP_Post[]
  */
 function desktop_mode_content_graph_fetch_rows( array $types ) {
 	global $wpdb;
-	$placeholders = implode( ',', array_fill( 0, count( $types ), '%s' ) );
-	// Include the current user's own drafts so the Galaxy view's
-	// "Drafts" tab has something to surface without exposing other
-	// users' unpublished work. Other-user drafts stay invisible.
-	list( $status_sql, $draft_args ) = desktop_mode_content_graph_status_clause();
+	$visibility = desktop_mode_content_graph_visibility_sql( $types );
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $status_sql is composed of literals in desktop_mode_content_graph_status_clause().
 			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date, post_modified_gmt, comment_count
 			 FROM {$wpdb->posts}
-			 WHERE {$status_sql}
-			 AND post_type IN ( {$placeholders} )
+			 WHERE {$visibility['where']}
 			 ORDER BY post_date DESC",
-			array_merge( $draft_args, $types )
+			$visibility['values']
 		)
 	);
 	// phpcs:enable
@@ -392,8 +429,6 @@ function desktop_mode_content_graph_fetch_rows( array $types ) {
  * Pull every internal-target post id out of a chunk of post_content.
  * Uses DOMDocument for robustness against malformed HTML, then
  * `url_to_postid()` to resolve each href.
- *
- * @since 0.8.2
  *
  * @param string $content
  * @return int[] Unique target post ids (order preserved).
@@ -447,8 +482,6 @@ function desktop_mode_content_graph_extract_internal_links( $content ) {
  * carrying the `desktop_mode_cg_` prefix. We don't have a per-type
  * index so we wipe globally, the cost is one extra build on next
  * open which dominates the time-savings on subsequent opens.
- *
- * @since 0.8.2
  */
 function desktop_mode_content_graph_flush_cache() {
 	global $wpdb;
@@ -493,8 +526,6 @@ add_action( 'set_object_terms', 'desktop_mode_content_graph_flush_cache' );
  * `category` and `post_tag` taxonomies in a single query. Used to
  * populate the per-node `category_ids` / `tag_ids` arrays without N+1
  * `wp_get_object_terms` calls.
- *
- * @since 0.8.6
  *
  * @param int[] $post_ids
  * @return array<int, array<string, int[]>>  Outer key = post id; inner
@@ -551,8 +582,6 @@ function desktop_mode_content_graph_collect_post_terms( array $post_ids ) {
  * revision children. Includes the primary author if they also
  * authored a revision; the caller is expected to filter that out.
  *
- * @since 0.8.6
- *
  * @param int[] $post_ids
  * @return array<int, int[]>  post_id => list of contributor user ids.
  */
@@ -595,8 +624,6 @@ function desktop_mode_content_graph_collect_post_contributors( array $post_ids )
  * Build a `{ id => { name } }` catalog for the given author ids.
  * Uses one `WP_User_Query` rather than per-id `get_userdata` calls.
  *
- * @since 0.8.6
- *
  * @param int[] $author_ids
  * @return array<int, array{ name: string }>
  */
@@ -625,8 +652,6 @@ function desktop_mode_content_graph_format_author_catalog( array $author_ids ) {
  * Build a `{ id => { name } }` catalog for the given term ids in a
  * single taxonomy. Uses `get_terms` with `include` so the names come
  * back in one query.
- *
- * @since 0.8.6
  *
  * @param int[]  $term_ids
  * @param string $taxonomy

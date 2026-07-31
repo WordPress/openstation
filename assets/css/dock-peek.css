@@ -33,14 +33,35 @@
 		filter 240ms ease-out;
 }
 
-.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary {
+/* Same two glyph/wash tokens as the base hover rule in dock.css —
+ * this sheet re-states hover to add the lift and the drop shadow, and
+ * it wins on specificity, so a theme that only reached the base rule
+ * would see its colour vanish the moment the peek sheet loaded.
+ *
+ * `background-color`, not the `background` shorthand it used to be:
+ * the shorthand also reset `background-image`, which erased the
+ * DOCK_ITEM texture from under the cursor on any theme that ships
+ * one. dock.css sets the resting wash as a colour for exactly this
+ * reason — "so it composes with the texture rather than erasing it" —
+ * and this rule quietly undid it on hover. */
+.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
+.desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
+	background-color: var(
+		--desktop-mode-dock-item-bg-hover,
+		rgba( 255, 255, 255, 0.15 )
+	);
+	color: var(
+		--desktop-mode-dock-icon-color-hover,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	transform: scale( 1.08 );
 	filter: drop-shadow( 0 4px 8px rgba( 0, 0, 0, 0.18 ) );
 }
 
 @media ( prefers-reduced-motion: reduce ) {
 	.desktop-mode-dock__item-primary,
-	.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary {
+	.desktop-mode-dock__item:hover .desktop-mode-dock__item-primary,
+	.desktop-mode-dock__item[data-peek-active] .desktop-mode-dock__item-primary {
 		transition: none;
 		transform: none;
 	}
@@ -93,19 +114,24 @@
    there so the popover floats off-edge with a gap. The
    `--peek-clamp-x/y` props are added by JS when the popover would
    otherwise overflow the viewport — they nudge it inward without
-   losing the orientation translate. */
+   losing the orientation translate.
+
+   Docks: top-aligned to the tile so the popover grows downward
+   when minimized cards expand. The old vertical-centre
+   anchor pushed the top edge into the browser's bar on growth.
+   Bottom dock: stays above the tile, growing upward. */
 .desktop-mode-dock-peek[ data-orientation = "left" ] {
 	transform:
 		translate(
 			var( --peek-clamp-x, 0 ),
-			calc( -50% + var( --peek-clamp-y, 0px ) )
+			var( --peek-clamp-y, 0 )
 		);
 }
 .desktop-mode-dock-peek[ data-orientation = "right" ] {
 	transform:
 		translate(
 			calc( -100% + var( --peek-clamp-x, 0px ) ),
-			calc( -50% + var( --peek-clamp-y, 0px ) )
+			var( --peek-clamp-y, 0 )
 		);
 }
 .desktop-mode-dock-peek[ data-orientation = "bottom" ] {
@@ -227,13 +253,17 @@
 	transform: translateX( 0 ) scale( 1 );
 }
 
-.desktop-mode-dock-peek__card:hover {
-	border-color: rgba( 255, 255, 255, 0.24 );
-	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.4 );
+/* Aero Peek hover: accent border + glow on every previewed card, not
+   just minimumzd ones.*/
+.desktop-mode-dock-peek__card--instance:hover {
+	border-color: var( --desktop-mode-accent, #2271b1 );
+	box-shadow:
+		0 0 14px -2px var( --desktop-mode-accent, #2271b1 ),
+		0 4px 14px -4px rgba( 0, 0, 0, 0.4 );
 }
 
 .desktop-mode-dock-peek__card:focus-visible {
-	outline: 2px solid var( --desktop-mode-accent, #2271b1 );
+	outline: 2px solid var( --wpd-accent, #2271b1 );
 	outline-offset: 2px;
 }
 
@@ -377,7 +407,7 @@
 		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 65%, #1d2327 ) 0%,
 		color-mix( in srgb, var( --wp-admin-theme-color, #2271b1 ) 35%, #1d2327 ) 100%
 	);
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 }
 
 .desktop-mode-dock-peek__os-hero {
@@ -537,8 +567,8 @@
 	   popover's parent surface uses `color-mix(--desktop-mode-bg)`,
 	   which goes near-white on light themes — without our own
 	   backdrop the Ghost Card was white-on-white. */
-	background: rgba( 0, 0, 0, 0.32 );
-	color: #fff;
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.32 ) );
+	color: var( --wpd-fg-on-accent, #fff );
 	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.45 );
 	font-size: 13px;
 	font-weight: 500;
@@ -548,8 +578,8 @@
 .desktop-mode-dock-peek__card--ghost:hover {
 	border-style: solid;
 	border-color: rgba( 255, 255, 255, 0.55 );
-	background: rgba( 0, 0, 0, 0.45 );
-	color: #fff;
+	background: var( --wpd-scrim, rgba( 0, 0, 0, 0.45 ) );
+	color: var( --wpd-fg-on-accent, #fff );
 	animation: none;
 	transform: scale( 1.02 );
 	box-shadow: 0 4px 14px -4px rgba( 0, 0, 0, 0.5 );
@@ -575,7 +605,7 @@
 }
 
 .desktop-mode-dock-peek__card--ghost:hover .desktop-mode-dock-peek__card-plus {
-	color: var( --desktop-mode-accent, #4f9cff );
+	color: var( --wpd-accent, #4f9cff );
 }
 
 @keyframes desktop-mode-dock-peek-breathe {
@@ -616,4 +646,13 @@
 		animation-duration: 280ms;
 		animation-timing-function: cubic-bezier( 0.22, 1, 0.36, 1 );
 	}
+}
+
+/* Collapse minimized cards to just the titlebar. */
+.desktop-mode-dock-peek__card[data-state="minimized"] {
+	min-height: 0;
+	opacity: 0.85;
+}
+.desktop-mode-dock-peek__card[data-state="minimized"] > :not(.desktop-mode-dock-peek__card-titlebar) {
+	display: none;
 }

@@ -15,16 +15,18 @@
  *   1. Sets `window.<config_global>` with REST URLs + nonce.
  *   2. Streams the prebuilt bundle (.js or .min.js depending on
  *      SCRIPT_DEBUG).
- *   3. Closes with a `customElements.whenDefined('wpd-table')`
- *      wrapper so the bundle's render callback waits until the
- *      `<wpd-*>` custom-element classes are upgraded — defends
- *      against the upgrade race on first window-open.
+ *   3. Closes with a best-effort `customElements.whenDefined(
+ *      'wpd-table' )` probe whose Promise is discarded — it does
+ *      NOT defer the bundle's render callback. Extensions whose
+ *      first render depends on upgraded `<wpd-*>` elements must
+ *      defend against the upgrade race themselves (see the
+ *      desktop-mode-cron-manager bundle trailer for a wrapper
+ *      that does).
  *
  * Concrete subclasses declare the constants the base needs;
  * everything else is inherited.
  *
  * @package Desktop_Mode_Extension_Base
- * @since   0.8.1
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -32,7 +34,7 @@ defined( 'ABSPATH' ) || exit;
 if ( ! class_exists( 'Desktop_Mode_Extension_Window' ) ) :
 
 /**
- * @since 0.8.1
+ * Base class an extension subclasses to declare its native window.
  */
 abstract class Desktop_Mode_Extension_Window {
 
@@ -134,7 +136,7 @@ abstract class Desktop_Mode_Extension_Window {
 		wp_register_script(
 			$this->asset_handle(),
 			$bundle_url,
-			array( 'wp-i18n', 'wp-desktop' ),
+			array( 'wp-i18n', 'desktop-mode' ),
 			$this->version(),
 			true
 		);
@@ -142,7 +144,7 @@ abstract class Desktop_Mode_Extension_Window {
 		wp_register_style(
 			$this->asset_handle(),
 			$this->plugin_url() . 'assets/css/' . $this->asset_handle() . '.css',
-			array( 'wp-desktop-variables', 'dashicons' ),
+			array( 'desktop-mode-variables', 'dashicons' ),
 			$this->version()
 		);
 	}
@@ -169,10 +171,12 @@ abstract class Desktop_Mode_Extension_Window {
 
 	/**
 	 * Hook callback — serves the bundle on
-	 * `wp_ajax_<bundle_action>`. The bundle is wrapped in a
-	 * `customElements.whenDefined` race-defender so the render
-	 * callback only registers once the `<wpd-*>` tags are
-	 * upgraded.
+	 * `wp_ajax_<bundle_action>`. The trailing
+	 * `customElements.whenDefined( 'wpd-table' )` call is a
+	 * fire-and-forget probe (its Promise is discarded) — it does
+	 * not wrap or defer the bundle's render callback. Render
+	 * callbacks that need the `<wpd-*>` upgrade must wait for it
+	 * themselves.
 	 *
 	 * Subclasses normally don't override this.
 	 */
@@ -202,6 +206,10 @@ abstract class Desktop_Mode_Extension_Window {
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- prebuilt bundle file controlled by the plugin.
 		echo file_get_contents( $file );
 
+		// Fire-and-forget probe only: the Promise is discarded, so
+		// this does NOT defer the render callback past the `<wpd-*>`
+		// upgrade. Render callbacks that need upgraded elements must
+		// await `customElements.whenDefined()` themselves.
 		echo "\n;( function () {\n";
 		echo "  if ( ! window.customElements ) { return; }\n";
 		echo "  if ( window.customElements.whenDefined ) {\n";

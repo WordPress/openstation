@@ -3,7 +3,6 @@
  * Desktop Mode — Native User Edit (single user) window bootstrap.
  *
  * @package WPDesktopMode
- * @since   0.18.0
  */
 
 defined( 'ABSPATH' ) || exit;

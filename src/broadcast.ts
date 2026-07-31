@@ -29,7 +29,6 @@
  *     `document.addEventListener( 'desktop-mode-broadcast', … )`.
  *
  * @public
- * @since 0.21.0
  */
 
 import { activity } from './activity';
@@ -106,9 +105,8 @@ export function broadcast< T = unknown >( topic: string, payload: T ): void {
 	// Mirror onto the framework activity bus so in-tab consumers
 	// can subscribe via the unified `wp.desktop.activity.subscribe`
 	// surface instead of having to know about the broadcast bus.
-	// Cross-tab BroadcastChannel + cross-iframe postMessage fanout
-	// below stays the broadcast module's job — activity is in-tab
-	// only by design.
+	// The cross-iframe postMessage fanout below stays the broadcast
+	// module's job — activity is in-tab only by design.
 	activity.publish(
 		filteredTopic as `${ string }/${ string }`,
 		filteredPayload,
@@ -197,9 +195,12 @@ export function subscribe< T = unknown >(
  * iframe-bridge or from arbitrary `window.parent.postMessage`)
  * into local `broadcast()` calls. Same-origin check enforced.
  *
- * Also handles the inverse: messages forwarded from the parent
- * to iframes are silently ignored when received again on the
- * parent (we tag every fanout with `_fromParent: true`).
+ * Messages carrying `_fromParent: true` are ignored — a reserved
+ * loop guard. No current sender sets it (the fanout in
+ * `broadcast()` doesn't tag, and the chromeless bridge never
+ * echoes parent messages back), but any relay that re-posts a
+ * parent-originated broadcast upstream should set it so the bus
+ * doesn't loop.
  *
  * @internal
  */
@@ -220,12 +221,11 @@ export function installBroadcastReceiver(): void {
 		if ( ! data || data.type !== POSTMESSAGE_TYPE ) {
 			return;
 		}
-		// Ignore the messages we're sending OUT to iframes — they
-		// arrive back on the parent's own handler if the iframe
-		// happens to relay (some bridges do). The fanout in
-		// `broadcast()` doesn't tag, but iframe re-publishes from
-		// the standalone iframe-bridge do; this guard keeps the
-		// bus from looping.
+		// Reserved loop guard. Nothing in-tree sets `_fromParent`
+		// today — the fanout in `broadcast()` doesn't tag, and the
+		// chromeless bridge never echoes parent messages back — but
+		// any relay that re-posts a parent-originated broadcast
+		// upstream must set it so the bus doesn't loop.
 		if ( data._fromParent ) {
 			return;
 		}

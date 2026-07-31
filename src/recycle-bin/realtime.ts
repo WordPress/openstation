@@ -25,8 +25,6 @@
  *
  * Idempotent — `start()` is safe to call multiple times and
  * `stop()` always tears down everything `start()` installed.
- *
- * @since 0.20.0
  */
 
 const EVENT_NAME = 'desktop-mode-recycle-bin-changed';

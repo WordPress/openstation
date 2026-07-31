@@ -27,8 +27,6 @@
  * Controls that live outside a native window (or whose plugin
  * author passed an explicit `id`) are left alone — the function is
  * opt-in per component via a connected-callback check.
- *
- * @since 0.12.0
  */
 
 /**

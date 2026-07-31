@@ -21,7 +21,17 @@
 	display: flex;
 	align-items: center;
 	z-index: var( --desktop-mode-z-dock );
-	background: var( --desktop-mode-dock-bg );
+	background-color: var( --desktop-mode-dock-bg );
+	/*
+	 * Desktop-theme dock texture (DOCK slot). Layered OVER the dock
+	 * background colour, so a theme can ship a semi-transparent
+	 * texture and still get the translucent wash underneath. `none`
+	 * when unset — no theme, no cost.
+	 */
+	background-image: var( --desktop-mode-dock-bg-image, none );
+	background-repeat: var( --desktop-mode-dock-bg-image-repeat, repeat );
+	background-size: var( --desktop-mode-dock-bg-image-size, auto );
+	background-position: var( --desktop-mode-dock-bg-image-position, center );
 	backdrop-filter: blur( 20px );
 	-webkit-backdrop-filter: blur( 20px );
 	flex-shrink: 0;
@@ -57,14 +67,36 @@
 	border-radius: 10px;
 	cursor: pointer;
 	padding: 0;
-	background: transparent;
-	color: rgba( 255, 255, 255, 0.7 );
+	background-color: transparent;
+	/*
+	 * DOCK_ITEM texture slot — the face of a single dock tile, so a
+	 * theme can give every launcher a physical key/plate instead of
+	 * relying on the dock strip's texture showing through. Painted
+	 * under the icon; the hover wash below is a background-COLOR so
+	 * it composes with the texture rather than erasing it.
+	 */
+	background-image: var( --desktop-mode-dock-item-image, none );
+	background-repeat: var( --desktop-mode-dock-item-image-repeat, no-repeat );
+	background-size: var( --desktop-mode-dock-item-image-size, auto );
+	background-position: var( --desktop-mode-dock-item-image-position, center );
+	/*
+	 * Dock glyph colour. The literal is what this rule always said;
+	 * the token is the name a theme aims at when its dock strip is
+	 * not dark. See the "Dock glyphs" block in variables.css.
+	 */
+	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.7 ) );
 	transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
 .desktop-mode-dock__item-primary:hover {
-	background: rgba( 255, 255, 255, 0.15 );
-	color: #fff;
+	background-color: var(
+		--desktop-mode-dock-item-bg-hover,
+		rgba( 255, 255, 255, 0.15 )
+	);
+	color: var(
+		--desktop-mode-dock-icon-color-hover,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	transform: scale( 1.1 );
 }
 
@@ -73,8 +105,29 @@
 }
 
 .desktop-mode-dock__item-primary:focus-visible {
-	outline: 2px solid rgba( 255, 255, 255, 0.7 );
+	outline: 2px solid var(
+		--desktop-mode-dock-item-outline,
+		rgba( 255, 255, 255, 0.7 )
+	);
 	outline-offset: 2px;
+}
+
+/* Stacked card hint on hover — a second card peeks from behind the
+   icon when the tile has multiple open windows. Only visible on hover so
+   it never conflicts with focused tiles. */
+.desktop-mode-dock__item--stacked:hover .desktop-mode-dock__item-primary::before,
+.desktop-mode-dock__item--stacked[data-peek-active] .desktop-mode-dock__item-primary::before {
+	content: "";
+	position: absolute;
+	top: -4px;
+	inset-inline-start: -4px;
+	width: 100%;
+	height: 100%;
+	border-radius: inherit;
+	background: rgba( 255, 255, 255, 0.06 );
+	border: 1px solid rgba( 255, 255, 255, 0.10 );
+	z-index: -1;
+	pointer-events: none;
 }
 
 /* Dashicon inside dock item. */
@@ -85,7 +138,12 @@
 	line-height: 1;
 }
 
-/* SVG icon (for custom post types with data:image/svg+xml icons). */
+/* SVG icon (for custom post types with data:image/svg+xml icons).
+ *
+ * The FALLBACK path now: `_makeSvgIcon()` paints these as a mask
+ * filled with `currentColor` (see `__item-mask` below) and only lands
+ * here when the mask refuses the URL — one carrying quotes, spaces or
+ * parens. The filter is what that fallback still needs. */
 .desktop-mode-dock__item-svg {
 	width: var( --desktop-mode-dock-icon-size, 20px );
 	height: var( --desktop-mode-dock-icon-size, 20px );
@@ -95,13 +153,48 @@
 	/* Some plugin SVGs ship hardcoded `fill="..."` attributes inside
 	   the markup, which override `fill: currentColor` and make the
 	   icon keep its brand color. Force the monochrome white palette
-	   to match dashicons. */
+	   to match dashicons. Flattens to WHITE specifically, which is why
+	   the mask path is preferred: a filter has no colour to name, so a
+	   theme cannot reach it. */
 	filter: brightness(0) invert(1);
 	transition: opacity 0.15s ease;
 }
 
 .desktop-mode-dock__item-primary:hover .desktop-mode-dock__item-svg {
 	opacity: 1;
+}
+
+/*
+ * MASKED icon — the glyph is painted as a CSS mask filled with a
+ * colour, so only the source artwork's alpha is used.
+ *
+ * Two callers, one shape:
+ *
+ *   - A desktop theme's tinted iconset, filled with the colour the
+ *     theme named for that slot.
+ *   - Every other plugin / CPT image icon, filled with
+ *     `currentColor` — which is `--desktop-mode-dock-icon-color`, the
+ *     same token the dashicons follow.
+ *
+ * Deliberately NOT `__item-svg`: that class force-whitens its content
+ * with `filter: brightness(0) invert(1)`. Both mechanisms discard the
+ * artwork's colours and keep its alpha, but only one of them has a
+ * colour a theme can name.
+ *
+ * Full opacity, unlike `__item-svg`'s 0.7: the fill carries its own
+ * alpha. Unthemed that is `rgba( 255, 255, 255, 0.7 )` at rest and
+ * `#fff` on hover — exactly what the filter plus the opacity pair
+ * used to compute — and a theme that names a colour has already
+ * decided how prominent its glyphs should be, so dimming it again
+ * would silently mix it with the dock.
+ *
+ * @since 0.9.8
+ */
+.desktop-mode-dock__item-mask {
+	width: var( --desktop-mode-dock-icon-size, 20px );
+	height: var( --desktop-mode-dock-icon-size, 20px );
+	display: block;
+	flex-shrink: 0;
 }
 
 /*
@@ -116,10 +209,13 @@
 	width: 28px;
 	height: 28px;
 	border-radius: 8px;
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	font-size: 15px;
 	font-weight: 700;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family: var(
+		--desktop-mode-font,
+		-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+	);
 	line-height: 1;
 	letter-spacing: 0;
 	text-shadow: 0 1px 1px rgba( 0, 0, 0, 0.22 );
@@ -154,7 +250,7 @@
 	border: 2px solid var( --desktop-mode-dock-bg, rgba( 0, 0, 0, 0.4 ) );
 	border-radius: 50%;
 	background: var( --wp-admin-theme-color, #2271b1 );
-	color: #fff;
+	color: var( --wpd-fg-on-accent, #fff );
 	cursor: pointer;
 	transition: background-color 0.15s ease, transform 0.15s ease;
 	z-index: 1;
@@ -165,7 +261,7 @@
 }
 
 .desktop-mode-dock__item-new:hover {
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 	color: var( --wp-admin-theme-color, #2271b1 );
 }
 
@@ -178,19 +274,58 @@
  * corner. Ring matches the dock bg so it reads as "punched out."
  * Badge positioning is placement-aware via the blocks below. */
 .desktop-mode-dock__badge {
+	/*
+	 * Badge geometry DERIVES from the dock's icon size instead of
+	 * being pinned to 16px.
+	 *
+	 * The dock is user-sizable (18 / 20 / 26px icons via OS Settings →
+	 * dock size). A fixed badge tracked none of that: at "Large" it
+	 * read as a speck stuck to an oversized tile. The ratios below are
+	 * chosen so the DEFAULT dock (20px icons) resolves to exactly the
+	 * old numbers — 16px box, 10px text, ~5px padding — so nothing
+	 * moves for anyone who hasn't changed the setting.
+	 *
+	 * `--desktop-mode-dock-badge-size` overrides the whole derivation
+	 * for themes that want a specific badge; the font size and padding
+	 * then follow it, so one token is usually enough.
+	 */
+	--desktop-mode-dock-badge-computed-size: var(
+		--desktop-mode-dock-badge-size,
+		calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.8 )
+	);
 	position: absolute;
-	min-width: 16px;
-	height: 16px;
-	padding: 0 5px;
+	min-width: var( --desktop-mode-dock-badge-computed-size );
+	height: var( --desktop-mode-dock-badge-computed-size );
+	padding: 0 var(
+		--desktop-mode-dock-badge-padding,
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.3 )
+	);
 	box-sizing: border-box;
 	border-radius: 999px;
-	background: linear-gradient( 180deg, #ff5a5a 0%, #d63638 100% );
-	color: #fff;
+	background: var(
+		--desktop-mode-dock-badge-bg,
+		linear-gradient( 180deg, #ff5a5a 0%, var( --wpd-danger, #d63638 ) 100% )
+	);
+	color: var( --desktop-mode-dock-badge-fg, var( --wpd-fg-on-accent, #fff ) );
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 10px;
-	font-weight: 700;
+	/*
+	 * 0.625 of the badge box — 10px on the default 16px badge, the
+	 * value this rule carried before the geometry was derived. It is
+	 * the right weight for a menu tile's alert count: these badges sit
+	 * on the tile CORNER where the pill itself carries the signal, so
+	 * the digit only has to confirm it.
+	 *
+	 * The Recycle Bin's badge is a different problem and has its own
+	 * ratio below — it sits INSIDE the bin glyph, where the pill reads
+	 * as part of the artwork and the number has to carry itself.
+	 */
+	font-size: var(
+		--desktop-mode-dock-badge-font-size,
+		calc( var( --desktop-mode-dock-badge-computed-size ) * 0.625 )
+	);
+	font-weight: var( --desktop-mode-dock-badge-font-weight, 700 );
 	line-height: 1;
 	letter-spacing: 0.01em;
 	text-align: center;
@@ -200,8 +335,8 @@
 		0 1px 3px rgba( 0, 0, 0, 0.35 );
 	pointer-events: none;
 	transition: transform 0.15s ease;
-	top: -3px;
-	inset-inline-end: -3px;
+	top: var( --desktop-mode-dock-badge-offset, -3px );
+	inset-inline-end: var( --desktop-mode-dock-badge-offset, -3px );
 }
 
 .desktop-mode-dock__item:hover .desktop-mode-dock__badge {
@@ -215,15 +350,48 @@
  * marker instead of a red alert on the tile corner.
  */
 .desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ] .desktop-mode-dock__badge {
-	top: 20px;
-	inset-inline-end: 7px;
-	min-width: 13px;
-	height: 13px;
-	padding: 0 3px;
+	/*
+	 * Sized off the dock icon like every other badge, so it tracks the
+	 * dock-size setting instead of sitting at a fixed 13px on an icon
+	 * that may be 18, 20 or 26px.
+	 *
+	 * Deliberately quieter than the corner alert badge above — this is
+	 * ambient state, not a notification — but it still has to be a
+	 * READABLE number. It was 13px with an 8px digit, which is below
+	 * the point where a count reads as a count.
+	 *
+	 * Override chain: bin-specific token → the generic dock-badge
+	 * token → the derivation, so a theme that says "dock badges are
+	 * 20px" reaches the bin without naming it.
+	 */
+	--desktop-mode-dock-recycle-badge-computed-size: var(
+		--desktop-mode-dock-recycle-badge-size,
+		var(
+			--desktop-mode-dock-badge-size,
+			calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.75 )
+		)
+	);
+	top: calc( var( --desktop-mode-dock-icon-size, 20px ) * 1 );
+	inset-inline-end: calc( var( --desktop-mode-dock-icon-size, 20px ) * 0.35 );
+	min-width: var( --desktop-mode-dock-recycle-badge-computed-size );
+	height: var( --desktop-mode-dock-recycle-badge-computed-size );
+	padding: 0 calc( var( --desktop-mode-dock-recycle-badge-computed-size ) * 0.25 );
 	border-radius: 999px;
-	background: rgba( 29, 35, 39, 0.72 );
-	color: rgba( 255, 255, 255, 0.92 );
-	font-size: 8px;
+	background: var(
+		--desktop-mode-dock-recycle-badge-bg,
+		rgba( 29, 35, 39, 0.72 )
+	);
+	color: var(
+		--desktop-mode-dock-recycle-badge-fg,
+		rgba( 255, 255, 255, 0.92 )
+	);
+	font-size: var(
+		--desktop-mode-dock-recycle-badge-font-size,
+		var(
+			--desktop-mode-dock-badge-font-size,
+			calc( var( --desktop-mode-dock-recycle-badge-computed-size ) * 0.8 )
+		)
+	);
 	font-weight: 700;
 	letter-spacing: 0;
 	box-shadow:
@@ -232,13 +400,22 @@
 }
 
 .desktop-mode-dock__item[ data-system-id="desktop-mode-recycle-bin" ]:hover .desktop-mode-dock__badge {
-	top: 20px;
+	/* Re-assert the derived offset, not a literal: the base rule above
+	 * is overridden by the generic `__item:hover .__badge` rule, and
+	 * hardcoding 20px here would strand the badge the moment the dock
+	 * icon size changed. */
+	top: calc( var( --desktop-mode-dock-icon-size, 20px ) * 1 );
 	transform: scale( 1.03 );
 }
 
-/* System tiles — same footprint as menu tiles, no badges, no rails. */
+/* System tiles — same footprint as menu tiles, no badges, no rails.
+ *
+ * Reads the SAME glyph token as a menu tile, with its own literal as
+ * the fallback: unthemed, system tiles keep sitting a notch brighter
+ * than the rest (0.8 vs 0.7); themed, one colour covers every glyph
+ * in the dock rather than leaving these four stranded white. */
 .desktop-mode-dock__item--system .desktop-mode-dock__item-primary {
-	color: rgba( 255, 255, 255, 0.8 );
+	color: var( --desktop-mode-dock-icon-color, rgba( 255, 255, 255, 0.8 ) );
 }
 
 /* -----------------------------------------------------------------------------
@@ -335,8 +512,14 @@
 .desktop-mode-dock__tooltip {
 	position: fixed;
 	padding: 6px 12px;
-	background: rgba( 0, 0, 0, 0.85 );
-	color: #fff;
+	background: var(
+		--desktop-mode-tooltip-bg,
+		var( --wpd-scrim, rgba( 0, 0, 0, 0.85 ) )
+	);
+	color: var(
+		--desktop-mode-tooltip-fg,
+		var( --wpd-fg-on-accent, #fff )
+	);
 	font-size: 12px;
 	font-weight: 400;
 	line-height: 1.4;
@@ -450,7 +633,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 }
 
 .desktop-mode-dock[ data-desktop-mode-dock-placement="left" ]
@@ -490,7 +673,7 @@
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 }
 
 .desktop-mode-dock[ data-desktop-mode-dock-placement="right" ]
@@ -581,6 +764,27 @@
 	display: none;
 }
 
+/*
+ * Drop an empty `__scroll` from the flex flow entirely. When only
+ * system tiles are present (e.g. just the Recycle Bin), the empty
+ * wrapper would otherwise still occupy the rail: its `flex-grow`
+ * stretches it — shoving the lone `__pinned` tile to the far edge on
+ * vertical docks — and the inter-wrapper `gap` leaves a phantom
+ * offset that nudges the tile off-center on the bottom dock. Removing
+ * it lets the dock center the lone system tile. As soon as a menu
+ * tile is added the `:has()` no longer matches and normal flow
+ * resumes.
+ *
+ * The `[data-desktop-mode-dock-placement]` qualifier is load-bearing:
+ * the per-placement rules that set `display: flex` on `__scroll` are
+ * (0,3,0); this selector must out-specify them, so it carries the
+ * placement attribute to reach (0,4,0).
+ */
+.desktop-mode-dock[ data-desktop-mode-dock-placement ]
+	.desktop-mode-dock__scroll:not(:has( .desktop-mode-dock__item )) {
+	display: none;
+}
+
 /* Tooltip — anchor modifiers are applied directly to the tooltip
  * element (NOT via a descendant selector on `.desktop-mode-dock`)
  * because the tooltip lives in `document.body`. JS writes the
@@ -641,16 +845,55 @@
 
 	/* Warmer, more saturated glass tint than vertical placements so
 	 * the floating pill reads as a distinct piece of chrome rather
-	 * than a section of the sidebar. */
-	background: rgba( 22, 22, 26, 0.42 );
+	 * than a section of the sidebar.
+	 *
+	 * background-COLOR, not the shorthand: the base `.desktop-mode-dock`
+	 * rule declares the DOCK texture slot's background-image, and a
+	 * shorthand here would reset it — a themed dock texture would
+	 * simply never appear in the bottom placement.
+	 *
+	 * The tint is its own token rather than `--desktop-mode-dock-bg`
+	 * precisely because the two are meant to differ; a theme that
+	 * wants them identical points this at the same value. */
+	background-color: var(
+		--desktop-mode-dock-floating-bg,
+		rgba( 22, 22, 26, 0.42 )
+	);
 	backdrop-filter: blur( 28px ) saturate( 170% );
 	-webkit-backdrop-filter: blur( 28px ) saturate( 170% );
 
-	border: 1px solid rgba( 255, 255, 255, 0.12 );
-	border-block-start: 1px solid rgba( 255, 255, 255, 0.18 );
+	/*
+	 * Hairline + inset highlight. These used to be hardcoded, which
+	 * meant a theme could restyle every dock placement EXCEPT this
+	 * one and had no way to remove the outline it saw floating over
+	 * an empty desktop.
+	 *
+	 * The chain matters: the floating-specific token wins, then the
+	 * general `--desktop-mode-dock-border` (so a theme that tokenized
+	 * its side docks gets the pill for free, which is what anyone
+	 * setting that token expects), then the literal. Set either to
+	 * `transparent` for a borderless pill.
+	 */
+	border: 1px solid var(
+		--desktop-mode-dock-floating-border,
+		var( --desktop-mode-dock-border, rgba( 255, 255, 255, 0.12 ) )
+	);
+	border-block-start: 1px solid var(
+		--desktop-mode-dock-floating-border-top,
+		var(
+			--desktop-mode-dock-floating-border,
+			var( --desktop-mode-dock-border, rgba( 255, 255, 255, 0.18 ) )
+		)
+	);
 	box-shadow:
-		inset 0 1px 0 rgba( 255, 255, 255, 0.08 ),
-		0 10px 32px rgba( 0, 0, 0, 0.45 );
+		inset 0 1px 0 var(
+			--desktop-mode-dock-floating-highlight,
+			rgba( 255, 255, 255, 0.08 )
+		),
+		0 10px 32px var(
+			--desktop-mode-dock-floating-shadow,
+			rgba( 0, 0, 0, 0.45 )
+		);
 }
 
 /* Active-indicator dot — below the tile, macOS-style. */
@@ -660,12 +903,12 @@
 	position: absolute;
 	inset-inline-start: 50%;
 	top: auto;
-	bottom: -4px;
+	bottom: -3px;
 	transform: translateX( -50% );
 	width: 4px;
 	height: 4px;
 	border-radius: 50%;
-	background: #fff;
+	background: var( --wpd-surface, #fff );
 }
 
 .desktop-mode-dock[ data-desktop-mode-dock-placement="bottom" ]
@@ -749,8 +992,9 @@ body.desktop-mode-show-desktop-active
 	flex: 1 1 auto;
 	min-width: 0;
 	padding-top: 4px;
+	padding-bottom: 6px;
 	overflow-x: auto;
-	overflow-y: hidden;
+	overflow-y: visible;
 	scrollbar-width: none;
 }
 
@@ -767,6 +1011,7 @@ body.desktop-mode-show-desktop-active
 	/* Match the scroll wrapper's badge clearance so system tiles sit
 	 * on the same vertical baseline as the menu tiles. */
 	padding-top: 4px;
+	padding-bottom: 6px;
 }
 
 /* Separator — vertical hairline between menu tiles and system tiles.
@@ -782,7 +1027,13 @@ body.desktop-mode-show-desktop-active
 	   intrinsic height, leaving the hairline effectively invisible.
 	   28px matches the dock tile inner glyph area. */
 	height: 28px;
-	margin: auto 4px auto 8px;
+	/* Symmetric horizontal margin so the divider sits centered in the
+	 * inter-tile gap: the 6px flex gap on each side (`__scroll`→`__pinned`
+	 * on the left, `__pinned`'s own gap on the right) plus an equal 6px
+	 * margin per side balances out. An asymmetric margin here nudges the
+	 * divider — and the whole menu cluster with it — off the pill's
+	 * center. */
+	margin: auto 6px;
 	background: var( --desktop-mode-dock-border );
 	flex-shrink: 0;
 }

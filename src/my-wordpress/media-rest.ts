@@ -12,7 +12,6 @@
  * loading indicator + the activity bus.
  *
  * @public
- * @since 0.21.0
  */
 
 import { joinRestUrl } from '../rest-url';
@@ -63,7 +62,6 @@ async function readErrorMessage(
  * from a single round-trip per page.
  *
  * @public
- * @since 0.21.0
  */
 export async function fetchMediaPage(
 	entity: MyWordPressEntity,
@@ -73,8 +71,6 @@ export async function fetchMediaPage(
 		/**
 		 * Optional search query. Passed verbatim to `/wp/v2/media` as
 		 * `?search=…`, which matches attachment titles + filenames.
-		 *
-		 * @since 0.22.0
 		 */
 		search?: string;
 		signal?: AbortSignal;
@@ -128,7 +124,6 @@ export async function fetchMediaPage(
  * page (which would lose the user's scroll position).
  *
  * @public
- * @since 0.31.0
  */
 export async function fetchMediaItem(
 	mediaId: number,
@@ -163,7 +158,6 @@ export async function fetchMediaItem(
  * affordance in the media grid.
  *
  * @public
- * @since 0.31.0
  */
 export async function deleteMediaItem( mediaId: number ): Promise< void > {
 	const cfg = getConfig();
@@ -189,7 +183,6 @@ export async function deleteMediaItem( mediaId: number ): Promise< void > {
  * given attachment.
  *
  * @public
- * @since 0.21.0
  */
 export async function fetchMediaUsage( mediaId: number ): Promise< MediaUsage > {
 	const cfg = getConfig();

@@ -5,9 +5,9 @@
  * Native window with id `desktop-mode-my-wordpress`, opened from a
  * pinned desktop icon that always sits in the top-left of the grid
  * (`pinned: true`, `position: -1`). The bundle renders a two-pane
- * file-explorer UI with breadcrumb navigation: root shows Posts and
- * Pages folder tiles, and clicking either drills into an
- * infinite-scroll list of entities with a rendered HTML preview pane.
+ * file-explorer UI with breadcrumb navigation: root shows Posts,
+ * Pages, Users, and Media folder tiles, and clicking one drills into
+ * an infinite-scroll list of entities with a per-kind preview pane.
  *
  * Filterable surface (mirrors the recycle-bin / posts-window modules):
  *
@@ -18,7 +18,6 @@
  *   - `desktop_mode_my_wordpress_template_html`
  *
  * @package WPDesktopMode
- * @since   0.8.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -29,8 +28,6 @@ defined( 'ABSPATH' ) || exit;
  * Mirrors the recycle-bin gate — anyone who can edit posts can
  * browse posts and pages.
  *
- * @since 0.8.0
- *
  * @return bool
  */
 function desktop_mode_my_wordpress_user_can_use() {
@@ -40,47 +37,48 @@ function desktop_mode_my_wordpress_user_can_use() {
 	 * Filter whether the current user can see the My WordPress
 	 * pinned icon and window.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
 	return (bool) apply_filters( 'desktop_mode_my_wordpress_user_can_use', $can );
 }
 
 /**
- * Build the entity list shipped to the bundle. Posts, Pages, and —
- * since 0.20.0 — Users. Future phases add Comments, Tags,
- * Categories, Themes, and Plugins.
+ * Build the entity list shipped to the bundle. Posts, Pages,
+ * Users, and Media. Future phases add
+ * Comments, Tags, Categories, Themes, and Plugins.
  *
  * The optional `kind` field tells the bundle how to render entries
  * of this entity: `'post'` (default) renders the standard
  * title/excerpt/featured-image tile and the rendered-HTML preview;
  * `'user'` renders an avatar + display-name tile and routes to the
- * user dossier preview. Plugins extending the entity list with a
- * post-shaped collection can omit the field; user-shaped
- * collections must set `'user'`.
- *
- * @since 0.8.0
+ * user dossier preview; `'media'` renders a thumbnail-grid tile and
+ * routes to the media preview pane. Plugins extending the entity
+ * list with a post-shaped collection can omit the field; user- and
+ * media-shaped collections must set `'user'` / `'media'`.
+ * The optional `post_type` field specifies the WP post-type
+ * slug used for `desktop-mode.<slug>.changed` cross-window broadcasts.
  *
  * @return array[] Each entry is `array( 'id', 'label', 'icon',
- *                 'restPath', 'kind' )`. `restPath` is appended to
+ *                 'restPath', 'kind', 'post_type' )`. `restPath` is appended to
  *                 the `restRoot` config to derive the list URL.
  */
 function desktop_mode_my_wordpress_entities() {
 	$entities = array(
 		array(
-			'id'       => 'posts',
-			'label'    => __( 'Posts', 'desktop-mode' ),
-			'icon'     => 'dashicons-admin-post',
-			'restPath' => 'wp/v2/posts',
-			'kind'     => 'post',
+			'id'        => 'posts',
+			'label'     => __( 'Posts', 'desktop-mode' ),
+			'icon'      => 'dashicons-admin-post',
+			'restPath'  => 'wp/v2/posts',
+			'kind'      => 'post',
+			'post_type' => 'post',
 		),
 		array(
-			'id'       => 'pages',
-			'label'    => __( 'Pages', 'desktop-mode' ),
-			'icon'     => 'dashicons-admin-page',
-			'restPath' => 'wp/v2/pages',
-			'kind'     => 'post',
+			'id'        => 'pages',
+			'label'     => __( 'Pages', 'desktop-mode' ),
+			'icon'      => 'dashicons-admin-page',
+			'restPath'  => 'wp/v2/pages',
+			'kind'      => 'post',
+			'post_type' => 'page',
 		),
 		array(
 			'id'       => 'users',
@@ -90,11 +88,12 @@ function desktop_mode_my_wordpress_entities() {
 			'kind'     => 'user',
 		),
 		array(
-			'id'       => 'media',
-			'label'    => __( 'Media', 'desktop-mode' ),
-			'icon'     => 'dashicons-admin-media',
-			'restPath' => 'wp/v2/media',
-			'kind'     => 'media',
+			'id'        => 'media',
+			'label'     => __( 'Media', 'desktop-mode' ),
+			'icon'      => 'dashicons-admin-media',
+			'restPath'  => 'wp/v2/media',
+			'kind'      => 'media',
+			'post_type' => 'attachment',
 		),
 	);
 
@@ -111,7 +110,9 @@ function desktop_mode_my_wordpress_entities() {
 	 * break existing consumers. The `kind` field is optional and
 	 * defaults to `'post'` for back-compat.
 	 *
-	 * @since 0.8.0
+	 * Optional fields:
+	 *   - `kind`      — render strategy (`'post'` default, `'user'`, `'media'`).
+	 *   - `post_type` — WP post-type slug for cross-window broadcast topic `desktop-mode.<slug>.changed`.
 	 *
 	 * @param array[] $entities Default entities.
 	 */
@@ -122,8 +123,6 @@ function desktop_mode_my_wordpress_entities() {
 /**
  * Render the My WordPress window's static template body. The bundle
  * mounts its UI into `[data-desktop-mode-my-wordpress-root]`.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_render_template() {
 	ob_start();
@@ -143,8 +142,6 @@ function desktop_mode_my_wordpress_render_template() {
 	/**
 	 * Filter the My WordPress window's template HTML.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param string $html Default template HTML.
 	 */
 	$filtered = (string) apply_filters( 'desktop_mode_my_wordpress_template_html', $html );
@@ -159,16 +156,16 @@ function desktop_mode_my_wordpress_render_template() {
 /**
  * Register the native window + the pinned wallpaper icon on `init`,
  * priority 20 — after `components.php` boots the registry.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_register_window() {
 	if ( ! desktop_mode_my_wordpress_user_can_use() ) {
 		return;
 	}
 
+	$site_title = desktop_mode_site_title();
+
 	$window_args = array(
-		'title'      => __( 'My WordPress', 'desktop-mode' ),
+		'title'      => $site_title,
 		'icon'       => 'dashicons-wordpress',
 		'template'   => 'desktop_mode_my_wordpress_render_template',
 		'script'     => 'desktop-mode-my-wordpress',
@@ -183,6 +180,7 @@ function desktop_mode_my_wordpress_register_window() {
 			'restNonce'       => wp_create_nonce( 'wp_rest' ),
 			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
 			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
+			'siteName'        => $site_title,
 			'entities'        => desktop_mode_my_wordpress_entities(),
 			'perPage'         => 24,
 			'mediaPerPage'    => 48,
@@ -194,8 +192,6 @@ function desktop_mode_my_wordpress_register_window() {
 
 	/**
 	 * Filter the args used to register the My WordPress native window.
-	 *
-	 * @since 0.8.0
 	 *
 	 * @param array $window_args Args passed to `desktop_mode_register_window()`.
 	 */
@@ -209,7 +205,7 @@ function desktop_mode_my_wordpress_register_window() {
 	}
 
 	$icon_args = array(
-		'title'    => __( 'My WordPress', 'desktop-mode' ),
+		'title'    => $site_title,
 		'icon'     => 'dashicons-wordpress',
 		'window'   => 'desktop-mode-my-wordpress',
 		'pinned'   => true,
@@ -223,8 +219,6 @@ function desktop_mode_my_wordpress_register_window() {
 	 * sort order — useful for sites that want the shortcut to feel
 	 * like any other plugin icon.
 	 *
-	 * @since 0.8.0
-	 *
 	 * @param array $icon_args Args passed to `desktop_mode_register_icon()`.
 	 */
 	$icon_args = (array) apply_filters( 'desktop_mode_my_wordpress_icon_args', $icon_args );
@@ -237,8 +231,6 @@ add_action( 'init', 'desktop_mode_my_wordpress_register_window', 20 );
  * Enqueue the bundle's CSS in admin context. The script is lazy-
  * loaded by the native-window sync and so does not need an
  * `admin_enqueue_scripts` call.
- *
- * @since 0.8.0
  */
 function desktop_mode_my_wordpress_enqueue_styles() {
 	if ( ! desktop_mode_my_wordpress_user_can_use() ) {

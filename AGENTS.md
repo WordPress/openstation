@@ -9,6 +9,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
   - [Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wpdesktopfetch-or-trackedfetch-never-raw-fetch)
   - [Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wpdesktopconfirm-or-wpdconfirm-never-windowconfirmalertprompt)
   - [Use `wpd-*` components, not raw HTML controls](#use-wpd--components-not-raw-html-controls)
+  - [No version-history annotations in docs or comments](#no-version-history-annotations-in-docs-or-comments)
 - [Workflow](#workflow)
   - [Always run `npm run build` after all the changes](#always-run-npm-run-build-after-all-the-changes)
   - [Always branch + PR, never commit to trunk](#always-branch--pr-never-commit-to-trunk)
@@ -32,7 +33,9 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 
 **`assets/js/*.js` is build output. Treat it as if it were `dist/`.**
 
-Every shipped JS bundle has a TypeScript source under `src/`. The active build targets (and their TS entries) are listed in `package.json` under the `build:*` scripts; `npm run build` runs them all. The actual entry file for each target is in `vite.config.js`, selected by the `DESKTOP_MODE_TARGET` env var.
+Every built JS bundle has a TypeScript source under `src/`. The active build targets (and their TS entries) are listed in `package.json` under the `build:*` scripts; `npm run build` runs them all. The actual entry file for each target is in `vite.config.js`, selected by the `DESKTOP_MODE_TARGET` env var.
+
+Two hand-written files are the exception and stay tracked in git: `assets/js/admin-bar.js` and `assets/js/media-library-enhanced.js` (see the re-includes in `.gitignore`) — edit those directly; everything else under `assets/js/` is build output.
 
 Process for any JS change:
 
@@ -102,6 +105,17 @@ Concrete checklist when adding UI:
 
 The `<wpd-context-menu>` / `<wpd-context-menu-option>` and `<wpd-confirm-dialog>` pair are good examples, they replaced ~200 LOC of duplicated DOM construction across the wallpaper menu, the tile context menu, the create-folder dialog, and the recycle-bin/posts-window confirm prompts.
 
+### No version-history annotations in docs or comments
+
+**Document functionality, never when that functionality was added or changed.** No `@since X.Y.Z` docblock tags, no `Stable *(0.8.3)*` status stamps, no "(since 0.8.4)" / "as of 0.9.1" / "added in 0.8.0" / "fixed in 0.8.5" asides — in PHP, TS, or Markdown. Status labels stay (`Stable`, `Experimental`, `Beta`, `Planned`, `@deprecated`), but bare, with no version attached. Git history is the changelog; the docs and docblocks describe what the current release does.
+
+The two deliberate exceptions:
+
+- `docs/migration-*.md` — migration notes are version-anchored by design; they (and index entries pointing at them) keep their version references.
+- Named refactors that a migration doc defines (e.g. "architecture-0.8.1") may be referenced by that name in file headers.
+
+If a change is big enough that "when did this change?" matters to plugin authors, that's a breaking change: write a `docs/migration-*.md` note instead of an inline version stamp.
+
 ---
 
 ## Workflow
@@ -129,7 +143,7 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 - **Read before speculating.** When asked how a mechanism works (refresh flow, hook order, bridge protocol), grep the code first. Hand-waving gets caught.
 - **Don't implement architectural changes unilaterally.** PHP API additions, payload shape changes, and new registry-sync modules are all load-bearing for plugin authors. Propose, get the green light, then code.
 - **Let the user test before committing.** Sync to local dev, wait for verification, then commit. Avoid the eager-push trail of partial fixes.
-- **Plugin Check** runs in CI as the `plugin-check` job (uses `wordpress/plugin-check-action@v1`, currently `ignore-warnings: true` while we baseline). For local runs: `npm run env:start` then `npm run check:plugin`. Don't add it to a pre-commit hook, it needs a live WP/WP-CLI and is too slow per-commit.
+- **Plugin Check** runs in CI as the `plugin-check` job (runs `wp plugin check` inside its own wp-env — a dedicated `.wp-env.plugin-check.json` generated in `ci.yml` that mounts the built zip — with `--ignore-warnings` plus an `--ignore-codes` baseline; the `wordpress/plugin-check-action@v1` path was dropped because its zip source hangs `wp-env start` on GitHub runners, see the comment in `ci.yml`). For local runs: `npm run env:start` then `npm run check:plugin`. Don't add it to a pre-commit hook, it needs a live WP/WP-CLI and is too slow per-commit.
 
 ---
 
@@ -139,24 +153,32 @@ i18n re-extraction is a batched pre-translation step, not a per-PR chore. Don't 
 
 When the user installs or activates a plugin, the **chromeless bridge** inside the `plugins.php` iframe postMessages `desktop-mode-plugins-changed` to the parent shell with a **payload captured in real admin context** (plugins that gate `admin_menu` on `is_admin()` at load time register correctly there; a REST roundtrip from the shell cannot replicate that, so don't try).
 
-Payload shape (`includes/render.php` builds it, `src/desktop.ts` consumes it):
+Payload shape (`desktop_mode_build_menu_payload()` in `includes/core/payload.php` builds it, `includes/render/chromeless-bridge.php` emits it, `src/menu-refresh-apply.ts` owns the consumer contract — `createApplyPayload()` there returns the `applyPayload` function that `src/boot/menu-refresh.ts` wires up):
 
 ```
-{ dockItems, taskbarItems, nativeWindows, serverWidgets, serverWallpapers,
+{ dockItems, nativeWindows, serverWidgets, serverWallpapers,
   serverCommandScripts, serverCommands,
   serverSettingsTabScripts, serverSettingsTabs,
-  serverTitleBarButtonScripts,
-  desktopIcons }
+  serverDockRailRendererScripts, serverTitleBarButtonScripts,
+  serverUnfocusEffectScripts, serverWindowLinkRendererScripts,
+  serverWindowThemeScripts, serverWindowThemes,
+  serverWindowControlScripts, serverWindowControls,
+  serverWindowSlotScripts, serverWindowSlots,
+  serverWindowChromeScripts, serverWindowChromes,
+  serverWindowNotices, serverGames, serverDesktopThemes,
+  desktopIcons, updateCounts }
 ```
 
-- **PHP-declared** things are in the payload: dock, taskbar, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
+- **PHP-declared** things are in the payload: dock, native windows, widgets, wallpapers. The shell diffs them and fires `registry.subscribe` listeners → UI repaints. No F5.
 - For widgets and wallpapers, the pattern is: PHP payload carries metadata + `scriptUrl`; the `server-sync` module (`src/{widgets,wallpapers}/server-sync.ts`) dynamically loads the plugin's JS, which then publishes a full def on a global (`window.desktopModeWallpapers[id]` / `window.desktopModeWidgets[id]`). The sync reads the def and registers it.
 - **Commands** use the same pattern via `desktop_mode_register_command_script( $handle )` (primary, minimum-ceremony) or `desktop_mode_register_command( $args )` (optional, declares metadata server-side). Sync module: `src/commands/server-sync.ts`. Live unregistration on deactivation works for commands that either (a) declare `script` in PHP metadata, or (b) set `owner` on their JS `registerCommand` call. Plugins that do neither still require F5 on deactivate, graceful backwards-compat.
-- **OS Settings tabs** use the same pattern via `desktop_mode_register_settings_tab_script( $handle )` (primary) or `desktop_mode_register_settings_tab( $args )` (optional, id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, ai=20, extended=30, help=40) are interleaved with the registry in `src/settings/index.ts` `renderPanel()` and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
-- **AI Copilot extensibility** lives on a different axis from the live-refresh payloads, it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus a persistent server-tool registry in `includes/ai-copilot/tools-registry.php`. Two distinct registration surfaces: `desktop_mode_register_ai_tool( $args )` for PHP-dispatched tools (handler runs server-side, capability-gated, never visible to users who lack the cap), and client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `desktop_mode_ai_{search_started,tool_called,search_completed,search_error,tool_registered}`, every call carries a shared `request_id` UUID for trace correlation. `wp.desktop.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side, the server only emits a slug+args intent; the client invokes.
+- **OS Settings tabs** use the same pattern via `desktop_mode_register_settings_tab_script( $handle )` (primary) or `desktop_mode_register_settings_tab( $args )` (optional, id/label/capability/order/script). Sync module: `src/settings/server-sync.ts`; registry: `src/settings/registry.ts`; built-in tabs (appearance=10, themes=12, apps-icons=22, features=25, effects=27, help=40; help is admin-only and labelled "Components" in the UI, About is pinned last via `order: Number.MAX_SAFE_INTEGER`, and Features hosts the admin-only Extended options section) are interleaved with the registry in `src/settings/panel.ts` `renderOsSettingsPanel()` (lazy-loaded by the `renderPanel()` stub in `src/settings/index.ts`) and re-painted live via `subscribeSettingsTabs`. Same (a)/(b) live-unregister rules as commands.
+- **AI Copilot extensibility** lives on a different axis from the live-refresh payloads, it's all per-request wiring inside `/ai/search` (`includes/ai-copilot/search.php`) plus the WordPress Abilities API. Two distinct registration surfaces. **Server-dispatched tools are abilities** (`includes/ai-copilot/abilities.php`): register with `wp_register_ability()` on `wp_abilities_api_init`, under the `desktop-mode` category registered on `wp_abilities_api_categories_init`. The loop offers the model every registered ability whose `meta.annotations.readonly` is set and runs the chosen one through `wp_get_ability()->execute()`, which is where `permission_callback` and input-schema validation happen. There's no Desktop-Mode-specific opt-in: register a read-only ability (yours, Core's, another plugin's) and the assistant can call it. Read-only is a **security boundary, not an oversight**: a search turn can be driven by attacker-controlled content (comment or post text landing in a tool result), so the model is never handed an ability that could change the site. Model-facing tool names are the ability name minus its namespace with dashes as underscores (`desktop-mode/search-posts` → `search_posts`, see `desktop_mode_ai_ability_tool_name()`), which keeps the system prompt, answer schema, and progress labels stable across the migration. The second surface is client-side `registerCommand({ aiCallable: true })` for JS-dispatched slash-commands the AI can pick via `/ai/search`'s `command_tools` param. The full filter/action surface is `desktop_mode_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,request,tools,command_tools,command_allowed,tool_result,answer}` + observability actions `desktop_mode_ai_{search_started,tool_called,search_completed,search_error}`, every call carries a shared `request_id` UUID for trace correlation. `desktop_mode_register_ai_tool()` and the `desktop_mode_ai_tool_registered` action were removed in 0.9.4, see `docs/migration-ai-connectors.md`. `wp.desktop.ai.ask()` (`src/ai/ask.ts`) is the client-side programmatic entry point; it harvests `aiCallable: true` commands into `command_tools` and handles the server's `answer_type: 'tool_call'` short-circuit by running `run()` locally. The command's `run` function always lives JS-side, the server only emits a slug+args intent; the client invokes.
+- **Games** (`desktop_mode_register_game( $id, $args )`) use the metadata + `scriptUrl` pattern with one deliberate deviation: `src/games/server-sync.ts` registers metadata-only **stubs** on sync (no script load — the metadata is enough for the Games launcher grid + scoreboard tabs) and `launchGame()` in `src/games/launch.ts` fetches the script on first play, reading the full def off `window.desktopModeGames[id]`. Games are heavyweight (game bundle + PixiJS + a dictionary asset); eager loading would tax every boot for nothing.
+- **Desktop themes** (`desktop_mode_register_desktop_theme()`, plus admin-uploaded ZIPs) ship metadata + a compiled stylesheet reference and carry **no script at all**, which makes `src/desktop-themes/server-sync.ts` the one synchronous reconciler in the family. Losing the ACTIVE theme from the payload deactivates it locally without saving — the server already treats an orphaned selection as the system default on every request.
 - **Palettes** (`registerPalette`) are the remaining JS-registered-only gap. No server-side opt-in yet; a new plugin's palette won't appear until F5. Same fix shape as commands if/when needed: `desktop_mode_register_palette_script( $handle )` + payload key + clone the sync module.
 
-**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`desktop_mode_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `applyPayload()` in `desktop.ts`. Don't invent a different mechanism.
+**When fixing this kind of "why doesn't X update live?" gap**, match the existing pattern: add server-side registration API (`desktop_mode_register_*`), extend the payload with a `server*` array including `scriptUrl`, add a `src/*/server-sync.ts` module modeled on the wallpaper one, wire it into `createApplyPayload()` in `src/menu-refresh-apply.ts`. Don't invent a different mechanism.
 
 ### Event-driven framework
 
@@ -206,13 +228,15 @@ The primitive is also exposed on the public API as `wp.desktop.createSharedStore
 
 ### Running PHPUnit
 
-`npm run test:php` runs the suite inside wp-env. `.wp-env.json` remaps the dev/tests WP ports to **8890 / 8891** so it coexists with the user's Core-checkout dev environment on 8889. CI uses the same script.
+`npm run test:php` runs the suite inside a **dedicated wp-env instance** defined by `.wp-env.tests.json` (wp-env's `--config` flag; the `test:php*` scripts pass it for you). The QA instance (`.wp-env.json`, port **8890**) and the tests instance (port **8891**) are two independent stacks; `testsEnvironment: false` in both configs disables wp-env's deprecated built-in dual-environment mode. Ports are remapped from wp-env's defaults so both coexist with the user's Core-checkout dev environment on 8889. CI uses the same scripts.
 
 ```bash
-npm run env:start    # idempotent; brings the wp-env stack up if needed
-npm run test:php     # full suite
+npm run env:start:tests   # idempotent; brings the PHPUnit wp-env instance up if needed
+npm run test:php          # full suite
 npm run test:php -- --filter='Tests_DesktopMode_Render'   # one class
 ```
+
+`npm run env:start` is for the manual-QA instance only; it no longer brings up test containers.
 
 History: an earlier port collision against `wordpress-develop-wordpress-develop-1` (8889) made starting wp-env destructive. The remapped ports remove that hazard, wp-env and the Core checkout can both be up at the same time.
 
@@ -243,6 +267,7 @@ The full index lives in [`docs/README.md`](docs/README.md). Quick reference:
 | `docs/pwa.md` | Caching policy, manifest emission, SW scope/registration, or `wp.desktop.notify` / `pwa.*` surface changes. |
 | `docs/plugin-compat-layer.md` | A chromeless-CSS shim, offset neutralizer, or dock-builder adaptation for a third-party plugin shape is added/changed. |
 | `docs/dock-customization.md` | Dock rendering, ordering, or decoration hooks change. |
+| `docs/desktop-themes.md` | The desktop-theme manifest format, icon/texture slot lists, value grammar, or fallback semantics change. **Slot names must stay equal on both sides** (`desktop_mode_desktop_theme_icon_slots()` ↔ `src/desktop-themes/slots.ts`). |
 | `docs/files-on-desktop.md` | Desktop file/folder behavior, tile metadata, or placement changes. |
 | `docs/folder-sharing.md` | Folder-sharing API, ACL model, or REST routes change. |
 | `docs/migration-*.md` | A breaking change ships, write a migration note here in the same PR. |

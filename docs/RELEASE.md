@@ -8,9 +8,15 @@ Maintainer guide. Users install by downloading `/releases/latest/download/deskto
 ./bin/release.sh 0.5.0
 ```
 
-Bumps all three version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if the tree is dirty, you're not on trunk, local trunk is out of sync with origin, or CI fails. Resumable — re-running after a mid-flow failure picks up where it left off.
+Refreshes translation files (`npm run i18n`), drafts a `= X.Y.Z =` changelog block into `readme.txt` from GitHub's auto-generated release notes, then stops at **a single interactive gate**: it shows the block and requires an explicit `y` to continue — on every path, including `--skip-changelog` and resumed runs, and with a loud warning if the block is missing. Editing `readme.txt` while the prompt waits is supported: the bump commit picks up the file as saved, and the script re-prints the block if it changed. Answering `n` stops the release with nothing committed; fix the block and re-run — leftovers are tolerated, the draft merge is idempotent, and your edits survive, so the re-run lands straight back at the gate. If `readme.txt` already has a `= X.Y.Z =` block (hand-written, or committed by a feature PR), the draft still runs: existing entries are kept, only drafted bullets not already present verbatim are appended, and the appended ones are listed — watch for semantic duplicates. After confirmation it bumps all four version locations, commits, pushes to trunk, **waits for CI green**, tags, pushes the tag. Aborts cleanly if you're not on trunk, local trunk is out of sync with origin, CI fails, or the working tree has changes beyond the script-owned files (`languages/` and `readme.txt` leftovers from an aborted attempt are fine; they're re-reviewed and swept into the bump commit). Resumable — re-running after a mid-flow failure picks up where it left off.
 
-The tag push fires [`.github/workflows/release.yml`](.github/workflows/release.yml), which builds and publishes a GitHub Release with `desktop-mode.zip` attached.
+Flags:
+
+- `--skip-i18n` — skip the translation-file refresh. Use for hotfix releases where you don't want `.pot`/`.po`/`.json` churn in the bump commit.
+- `--skip-changelog` — skip drafting the `readme.txt` changelog block. Use when you've already hand-written it, or for hotfixes with nothing notable to log. The interactive changelog confirmation still runs; only the drafting step is skipped.
+- `--dry-run-changelog` — print the changelog draft that would be inserted into `readme.txt`, then exit without modifying any files or pushing.
+
+The tag push fires [`.github/workflows/release.yml`](../.github/workflows/release.yml), which builds and publishes a GitHub Release with `desktop-mode.zip` attached.
 
 Requires the `gh` CLI authenticated (`gh auth status`).
 
@@ -26,8 +32,8 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 
 | Tool | Purpose |
 |---|---|
-| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `DESKTOP_MODE_VERSION`. |
-| `bin/package.sh` | Packages `desktop-mode.zip` from HEAD + current built JS. Errors if the build is stale. |
+| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `DESKTOP_MODE_VERSION`, `readme.txt` `Stable tag:`. |
+| `bin/package.sh` | Packages `desktop-mode.zip` from HEAD + current built JS. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `desktop_mode_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
 | `release.yml` — `push: tags: v*` | Build + publish the GitHub Release. |
 
@@ -57,7 +63,7 @@ Tags carry the `v` prefix (`v0.5.0`); `package.json` and the plugin header store
 For local testing without publishing:
 
 ```bash
-npm run package   # builds + writes desktop-mode.zip at the repo root
+npm run package   # packages desktop-mode.zip at the repo root (run npm run build first)
 ```
 
 The zip has the exact contents the workflow uploads.
@@ -70,6 +76,8 @@ Sibling plugins under `extensions/` (e.g. `desktop-mode-cron-manager`,
 ```bash
 ./bin/package-extensions.sh             # writes to dist/
 ./bin/package-extensions.sh /tmp/out    # writes to a custom dir
+./bin/package-extensions.sh /tmp/out desktop-mode-popup-siege
+                                        # packages one named extension
 ```
 
 Each extension produces one `<slug>.zip` under `dist/` (gitignored).
@@ -82,7 +90,8 @@ matching `<slug>.php` plugin file. For each, it:
    zip into `assets/vendor/phpmyadmin/`, the directory is gitignored).
 2. Stages tracked + untracked-but-not-gitignored files via
    `git ls-files -co --exclude-standard`, so packaging works on
-   uncommitted work too.
+   uncommitted work too. If an extension ships a `.distignore`, matching
+   repository-only files are left out of the release artifact.
 3. Splices any `assets/vendor/*` working-tree content back in (vendors
    are gitignored by convention so end users still get a zip that
    activates without a setup step).
@@ -94,7 +103,7 @@ the version in the extension's plugin header before re-packaging.
 
 ## Troubleshooting
 
-**`Version mismatch — tag 'X' vs package.json=Y header=Y DESKTOP_MODE_VERSION=Y`**
+**`Version mismatch — tag 'X' vs package.json=Y header=Y DESKTOP_MODE_VERSION=Y readme.txt Stable tag=Y`**
 You pushed a tag without bumping first, or bumped but didn't push the bump commit before tagging. Fix locally, delete the broken tag (`git push --delete origin vX.Y.Z`), re-tag from the correct commit, push again.
 
 **`bin/release.sh` aborts with "working tree is dirty"**

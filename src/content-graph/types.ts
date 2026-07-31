@@ -6,7 +6,6 @@
  * side just types the wire payloads.
  *
  * @public
- * @since 0.8.2
  */
 
 export interface PostTypeDescriptor {
@@ -14,6 +13,10 @@ export interface PostTypeDescriptor {
 	label: string;
 	icon: string;
 	count: number;
+	taxonomies?: {
+		category: boolean;
+		post_tag: boolean;
+	};
 }
 
 export interface GraphNodePayload {
@@ -302,6 +305,12 @@ export interface ContentGraphConfig {
 	editUserUrl: string;
 	editCommentUrl: string;
 	mediaUrl: string;
+	/**
+	 * The site's own name, used to label the detail panel's
+	 * "Open in <site>" action. Sourced from
+	 * `desktop_mode_site_title()` server-side.
+	 */
+	siteName?: string;
 	postTypes: PostTypeDescriptor[];
 	/**
 	 * The view mode the user last chose — `'graph'` or `'galaxy'`.

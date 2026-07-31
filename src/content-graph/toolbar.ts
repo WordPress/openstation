@@ -15,7 +15,6 @@
  * whenever the segmented control flips.
  *
  * @public
- * @since 0.8.2
  */
 
 import { __, sprintf } from '../i18n';

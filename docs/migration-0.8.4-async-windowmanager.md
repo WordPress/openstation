@@ -314,4 +314,4 @@ materially change the "open a window" cost.
 - Pre-load hook in shell boot: `src/desktop.ts` (search for `preloadWindowSystem`)
 - Shared-store contract for chrome registries: `src/window-chrome/{controls,slots,themes,chrome}/registry.ts` + `src/title-bar-buttons/registry.ts` (all back their state on `createSharedStore` since 0.8.4 so the lazy bundle sees the same registry main writes to — see `AGENTS.md` for the underlying primitive)
 - PHP-side lazy-bundle URL helper: `$lazy_bundle_url( … )` in `includes/render/assets.php` (uses `filemtime()` so rebuilds invalidate the browser cache without bumping `DESKTOP_MODE_VERSION`)
-- Migration discussion: see Stage 11 in `BUNDLE-SIZE-REPORT.md`.
+- Migration discussion: [PR #190 — "Faster Desktop Mode, main bundle cut by 59 %"](https://github.com/WordPress/desktop-mode/pull/190).

@@ -9,8 +9,6 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Handles saving the user's desktop mode preference via AJAX.
- *
- * @since 0.1.0
  */
 function desktop_mode_ajax_save() {
 	check_ajax_referer( 'save-desktop-mode', 'nonce' );
@@ -28,8 +26,6 @@ function desktop_mode_ajax_save() {
 	 * Filters whether desktop mode is available for this user.
 	 *
 	 * Plugins can disable desktop mode for certain roles, capabilities, or conditions.
-	 *
-	 * @since 0.1.0
 	 *
 	 * @param bool $enabled Whether desktop mode is enabled. Default true.
 	 * @param int  $user_id The current user ID.
