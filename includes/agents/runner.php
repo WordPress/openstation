@@ -590,12 +590,17 @@ function desktop_mode_agent_runner_loop( $agent_user_id, $instructions, $message
  * a typed reply. Each action's `reply` is the literal message sent
  * back as the user's next turn when its button is pressed.
  *
+ * Every object node declares `additionalProperties: false` because strict
+ * structured output requires it; {@see desktop_mode_ai_normalize_response_schema()}
+ * enforces the same thing at the provider boundary.
+ *
  * @return array
  */
 function desktop_mode_agent_answer_schema() {
 	return array(
-		'type'       => 'object',
-		'properties' => array(
+		'type'                 => 'object',
+		'additionalProperties' => false,
+		'properties'           => array(
 			'text'            => array(
 				'type'        => 'string',
 				'description' => 'The answer, in markdown.',
@@ -604,8 +609,9 @@ function desktop_mode_agent_answer_schema() {
 				'type'        => 'array',
 				'description' => 'Buttons to render when user confirmation or a choice is required. Empty when no input is needed.',
 				'items'       => array(
-					'type'       => 'object',
-					'properties' => array(
+					'type'                 => 'object',
+					'additionalProperties' => false,
+					'properties'           => array(
 						'id'    => array( 'type' => 'string' ),
 						'label' => array(
 							'type'        => 'string',
@@ -620,11 +626,11 @@ function desktop_mode_agent_answer_schema() {
 							'description' => 'The literal message sent back as the user\'s answer when this button is pressed.',
 						),
 					),
-					'required'   => array( 'id', 'label', 'reply' ),
+					'required'             => array( 'id', 'label', 'reply' ),
 				),
 			),
 		),
-		'required'   => array( 'text' ),
+		'required'             => array( 'text' ),
 	);
 }
 

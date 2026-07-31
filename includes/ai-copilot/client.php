@@ -155,7 +155,10 @@ function desktop_mode_ai_client_generate( $user_id, array $messages, array $tool
 	}
 
 	if ( is_array( $answer_schema ) ) {
-		$builder = $builder->as_json_response( $answer_schema );
+		// Strict structured output: providers reject an object subschema that
+		// doesn't set `additionalProperties: false`, and one such node 400s the
+		// whole turn. Normalize here so no schema author has to know that.
+		$builder = $builder->as_json_response( desktop_mode_ai_normalize_response_schema( $answer_schema ) );
 	}
 
 	$result = $builder->generate_result();

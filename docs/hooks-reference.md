@@ -1685,6 +1685,8 @@ Mutate the JSON Schema handed to the provider for structured-output comment anal
 apply_filters( 'desktop_mode_ai_schema_comment', array $schema );
 ```
 
+You don't need to write the provider's strict-mode boilerplate: after the filter runs, every object subschema in the tree is stamped with `additionalProperties: false` (the key strict structured output requires and JSON Schema treats as optional). Add a nested object and it will pass validation. Strict mode does still reject numeric/string constraints (`minimum`, `maxLength`, …) and recursive `$ref`s — those are not repaired for you.
+
 ### `desktop_mode_ai_comment_prompt` — Stable
 
 Customise the user-side prompt handed to the model for comment analysis. The filter receives the default prompt plus the comment object.
@@ -1745,6 +1747,8 @@ The JSON Schema the model must answer in. Changing the shape changes the REST re
 ```php
 apply_filters( 'desktop_mode_drafts_ai_schema', array $schema, WP_Post $post );
 ```
+
+As with [`desktop_mode_ai_schema_comment`](#desktop_mode_ai_schema_comment--experimental), object subschemas are stamped with `additionalProperties: false` after the filter runs, so a nested object you add doesn't have to carry the provider's strict-mode boilerplate itself.
 
 ### `desktop_mode_drafts_ai_content_limit` — Experimental
 
