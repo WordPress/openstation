@@ -644,11 +644,16 @@ function desktop_mode_agent_answer_schema() {
 							'description' => 'The literal message sent back as the user\'s answer when this button is pressed.',
 						),
 					),
-					'required'             => array( 'id', 'label', 'reply' ),
+					// Strict structured output: `required` must list
+					// EVERY property — optional fields don't exist in
+					// strict mode. The sanitizer still defaults a
+					// bad/missing style to `secondary` for lenient
+					// (pre-filter / non-strict) answers.
+					'required'             => array( 'id', 'label', 'style', 'reply' ),
 				),
 			),
 		),
-		'required'             => array( 'text' ),
+		'required'             => array( 'text', 'call_to_actions' ),
 	);
 }
 

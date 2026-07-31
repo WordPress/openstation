@@ -288,7 +288,51 @@ class Tests_DesktopMode_AiResponseSchemaNormalization extends WP_UnitTestCase {
 
 		$this->assertFalse( $schema['additionalProperties'] );
 		$this->assertFalse( $schema['properties']['call_to_actions']['items']['additionalProperties'] );
+		// OpenAI strict mode: `required` must list EVERY property.
+		// `style` missing from the items' required (and call_to_actions
+		// from the root's) was the second 400 after additionalProperties.
+		$this->assertSame(
+			array_keys( $schema['properties'] ),
+			$schema['required']
+		);
+		$items = $schema['properties']['call_to_actions']['items'];
+		$this->assertSame( array_keys( $items['properties'] ), $items['required'] );
 		$this->assertSame( $schema, desktop_mode_ai_normalize_response_schema( $schema ) );
+	}
+
+	/**
+	 * A partial `required` list is repaired to cover every property —
+	 * strict mode has no optional fields ("'required' is required to be
+	 * supplied and to be an array including every key in properties").
+	 *
+	 * @covers ::desktop_mode_ai_normalize_response_schema
+	 */
+	public function test_partial_required_is_repaired() {
+		$schema = array(
+			'type'       => 'object',
+			'properties' => array(
+				'text'  => array( 'type' => 'string' ),
+				'items' => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'label' => array( 'type' => 'string' ),
+							'style' => array( 'type' => 'string' ),
+						),
+						'required'   => array( 'label' ),
+					),
+				),
+			),
+			'required'   => array( 'text' ),
+		);
+
+		$normalized = desktop_mode_ai_normalize_response_schema( $schema );
+		$this->assertSame( array( 'text', 'items' ), $normalized['required'] );
+		$this->assertSame(
+			array( 'label', 'style' ),
+			$normalized['properties']['items']['items']['required']
+		);
 	}
 
 	/**

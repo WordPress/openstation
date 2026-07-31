@@ -55,6 +55,15 @@ defined( 'ABSPATH' ) || exit;
 function desktop_mode_ai_normalize_response_schema( array $schema ) {
 	if ( desktop_mode_ai_schema_is_object_node( $schema ) ) {
 		$schema['additionalProperties'] = false;
+		if ( isset( $schema['properties'] ) && is_array( $schema['properties'] ) && array() !== $schema['properties'] ) {
+			// Strict structured output (OpenAI `strict: true`) also
+			// demands that `required` lists EVERY key in `properties` —
+			// optional fields do not exist in strict mode, and one
+			// missing key 400s the whole request ("'required' is
+			// required to be supplied and to be an array including
+			// every key in properties").
+			$schema['required'] = array_keys( $schema['properties'] );
+		}
 	}
 
 	foreach ( array( 'properties', 'patternProperties', '$defs', 'definitions' ) as $map_key ) {
