@@ -216,6 +216,21 @@
 	word-break: break-all;
 }
 
+/* Section-level loading — same scale curve as the My WordPress
+   preview loader and the window-loading overlay, instead of the
+   bare 48px component default. */
+.dm-agents__loading {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	min-height: 320px;
+}
+
+.dm-agents__loading wpd-spinner {
+	--wpd-spinner-size: clamp( 96px, 14vw, 192px );
+}
+
 /* Call-to-action buttons under an agent answer. */
 .dm-agent-chat__ctas {
 	display: flex;

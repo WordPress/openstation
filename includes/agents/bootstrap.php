@@ -61,6 +61,7 @@ function desktop_mode_agents_load() {
 	}
 
 	require_once DESKTOP_MODE_DIR . 'includes/agents/store.php';
+	require_once DESKTOP_MODE_DIR . 'includes/agents/defaults.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/identity.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/abilities.php';
 	require_once DESKTOP_MODE_DIR . 'includes/agents/runner.php';
