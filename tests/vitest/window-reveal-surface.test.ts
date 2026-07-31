@@ -1127,3 +1127,55 @@ describe( 'reveals/surface.ts — playWindowReveal lifecycle', () => {
 		vi.unstubAllGlobals();
 	} );
 } );
+
+describe( 'reveals/surface.ts — failure containment', () => {
+	test( 'uncovers the window instead of throwing when `animate()` refuses its input', async () => {
+		// Registration validates `easing`, but a def injected through
+		// the `desktop-mode.window-reveals` filter never went through
+		// registration — `animate()` can still throw. The one
+		// unacceptable outcome is a window stranded under the opaque
+		// armed surface.
+		( Element.prototype as unknown as { animate: unknown } ).animate =
+			() => {
+				throw new TypeError( 'unparsable easing' );
+			};
+		const errorSpy = vi
+			.spyOn( console, 'error' )
+			.mockImplementation( () => {} );
+		const { surface, engine } = await load();
+		engine.setActiveWindowRevealId( 'sweep' );
+		const win = makeWindow();
+		surface.armWindowReveal( win );
+
+		expect( () => surface.playWindowReveal( win ) ).not.toThrow();
+		expect( layersOf( win ) ).toHaveLength( 0 );
+		expect(
+			bodyOf( win ).classList.contains( surface.REVEALING_BODY_CLASS ),
+		).toBe( false );
+		expect( errorSpy ).toHaveBeenCalled();
+		errorSpy.mockRestore();
+	} );
+
+	test( 'uncovers the window when the reveals filter throws at play time', async () => {
+		// The play-time def lookup runs the `desktop-mode.window-reveals`
+		// filter; a plugin's throwing callback must degrade to "no
+		// reveal", not propagate with the surface still covering the
+		// window.
+		const hooks = installHooksStub();
+		const errorSpy = vi
+			.spyOn( console, 'error' )
+			.mockImplementation( () => {} );
+		const { surface, engine } = await load();
+		engine.setActiveWindowRevealId( 'sweep' );
+		const win = makeWindow();
+		surface.armWindowReveal( win );
+		hooks.addFilter( 'desktop-mode.window-reveals', 'test/boom', () => {
+			throw new Error( 'boom' );
+		} );
+
+		expect( () => surface.playWindowReveal( win ) ).not.toThrow();
+		expect( layersOf( win ) ).toHaveLength( 0 );
+		expect( errorSpy ).toHaveBeenCalled();
+		errorSpy.mockRestore();
+	} );
+} );

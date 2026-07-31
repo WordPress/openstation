@@ -2270,7 +2270,7 @@ Register a **window reveal** — the transition that uncovers a window's content
 
 The surface is a **sibling of the `<iframe>`** inside `.desktop-mode-window__body`, never a wrapper and never inside the framed document. Nothing is injected into the page being revealed, the content keeps its own compositing layer and hit-testing, and native windows are treated identically to iframe windows. A reveal cannot interfere with what it reveals.
 
-**Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, a missing `from`/`to`, or a `from`/`to` pair that cannot interpolate).
+**Throws** a `RegistrationError` on validation failure (bad/missing `id`, the reserved id `'none'`, a missing `from`/`to`, a `from`/`to` pair that cannot interpolate, or an `easing` the browser cannot parse).
 
 **`WindowRevealDef`:**
 
@@ -2284,11 +2284,11 @@ The surface is a **sibling of the `<iframe>`** inside `.desktop-mode-window__bod
 | `layers` | `{ from, to, color? }[]` | Several independent covering layers instead of one. See **Multi-layer reveals** below. |
 | `render` | `() => { element, play }` | Build the covering DOM yourself. See **Rendering your own** below. Supply exactly one of `from`/`to`, `layers`, or `render`. |
 | `duration` | `number` | Optional, ms. Defaults to `460`. Clamped to 80–4000. Overridden by the user's OS-Settings speed and by the theme token — see **Speed** below. |
-| `easing` | `string` | Optional CSS easing. Defaults to `cubic-bezier( 0.33, 0, 0.2, 1 )`. |
+| `easing` | `string` | Optional CSS easing. Defaults to `cubic-bezier( 0.33, 0, 0.2, 1 )`. Validated at registration: an easing `Element.animate()` cannot parse is rejected there, instead of throwing at play time with the covering surface over the window. |
 | `surfaceColor` | `string` | Optional `background` for the covering surface, overriding the theme token. Reach for it only when the paint **is** the reveal — see the note below. |
 | `edgeColor` | `string` | Optional `background` for the trailing edge, overriding the theme token. A multi-layer reveal usually wants this **darker** than its surface. |
 | `edgeLag` | `number` | Optional, ms the leading edge trails the surface. Defaults to `70`; `0` drops the edge layer. Clamped to 0–600. Overridden outright by the `--desktop-mode-window-reveal-edge-thickness` theme token. |
-| `owner` | `string` | Optional. Set to your script handle for live-unregister-on-deactivate. |
+| `owner` | `string` | Optional. Your script handle, as a grouping tag. The live-unregister sweep on plugin deactivation is **not wired for reveals yet** — see **Registration is JS-only** below. Setting it now means your reveal is swept the moment that sweep lands, with no def change. |
 
 > **`from` and `to` are a matched pair, not two independent values.** CSS only interpolates a `clip-path` between values using the **same shape function** — and, for `polygon()`, the same **vertex count** and fill rule. A mismatched pair is not an error to the browser: it jumps between the two values at the halfway mark, which reads as a flicker on a window that just finished loading. Registration rejects a mismatched shape function outright rather than letting that ship. Vertex counts are your responsibility; build both endpoints from one function so the ring structure cannot drift.
 
@@ -2383,7 +2383,7 @@ Whatever wins, `edgeLag` is scaled by the same ratio, so the edge band keeps its
 - **`prefers-reduced-motion` skips the animation** and uncovers the content directly. Same for environments without the Web Animations API.
 - **The colours are theme tokens**: `--desktop-mode-window-reveal-surface` (white) and `--desktop-mode-window-reveal-edge` (`transparent` — no edge). A def can override them with `surfaceColor` / `edgeColor`, or per layer with `layers[].color`, but should not unless the paint is the point. `obturator` is the only built-in that does, and only per layer: its six leaves have to differ from one another or the mechanism reads as a single shape.
 - **A desktop theme can recommend a reveal**, via `recommendedOsSettings.windowReveal` and `recommendedOsSettings.windowRevealDuration` — applied once on first activation, or on demand from the Themes tab's "Apply recommended layout and effects" button.
-- **Registration is JS-only.** Unlike unfocus effects, there is no `desktop_mode_register_window_reveal_script()` PHP companion yet, so a reveal registered by a plugin activated mid-session appears in the selector only after a reload. Same known gap as palettes.
+- **Registration is JS-only.** Unlike unfocus effects, there is no `desktop_mode_register_window_reveal_script()` PHP companion yet, so a reveal registered by a plugin activated mid-session appears in the selector only after a reload — and a deactivated plugin's reveal stays listed until a reload too (`owner` is recorded, but nothing sweeps by it on deactivation yet). Same known gap as palettes.
 
 The raw `desktop-mode.window-reveals` JS filter receives the registry array on every read, mirroring `desktop-mode.unfocus-effects` — use it to reorder, remove, or conditionally swap reveals. The user's selection persists in the `windowReveal` OS-settings key (reveal id or `'none'`, the default — reveals are opt-in), readable via `getOsSettings().windowReveal`. An unknown id (a deactivated plugin's reveal still named in user meta) resolves to no reveal rather than to a substitute, and starts working again the moment that plugin re-registers it.
 

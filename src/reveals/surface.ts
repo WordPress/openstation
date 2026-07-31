@@ -607,7 +607,21 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 	}
 	// Resolve against the reveal that ARMED this surface, not the one
 	// selected right now — see REVEAL_ID_ATTR.
-	const def = getWindowReveal( surface.getAttribute( REVEAL_ID_ATTR ) ?? '' );
+	let def: WindowRevealDef | undefined;
+	try {
+		def = getWindowReveal( surface.getAttribute( REVEAL_ID_ATTR ) ?? '' );
+	} catch ( err ) {
+		// The lookup runs the `desktop-mode.window-reveals` filter, and
+		// a throwing filter callback lands here — with the armed opaque
+		// surface already over the window. Degrade to "no reveal" so the
+		// content is uncovered no matter what a plugin's filter does.
+		if ( typeof console !== 'undefined' ) {
+			console.error(
+				'[desktop-mode] window-reveal lookup threw; uncovering without a reveal:',
+				err,
+			);
+		}
+	}
 	if ( ! def ) {
 		findLayers( body ).forEach( ( layer ) => layer.remove() );
 		return;
@@ -730,17 +744,34 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 		// it would keep a layer alive for every window in the shell; the
 		// element is removed on finish, which retires the hint with it.
 		layer.style.willChange = 'clip-path';
-		const animation = layer.animate(
-			[ { clipPath: pair.from }, { clipPath: pair.to } ],
-			{
-				duration: layerDuration,
-				easing,
-				delay,
-				// `both` holds the `from` shape through the delay, so the
-				// layers stay fully covering while the spinner fades.
-				fill: 'both',
-			},
-		);
+		let animation: Animation;
+		try {
+			animation = layer.animate(
+				[ { clipPath: pair.from }, { clipPath: pair.to } ],
+				{
+					duration: layerDuration,
+					easing,
+					delay,
+					// `both` holds the `from` shape through the delay, so the
+					// layers stay fully covering while the spinner fades.
+					fill: 'both',
+				},
+			);
+		} catch ( err ) {
+			// Registration validates `easing`, but a def injected by the
+			// `desktop-mode.window-reveals` filter never went through
+			// registration — and `animate()` throws on input it cannot
+			// parse. Uncover rather than leave the window under a
+			// surface that cannot animate away.
+			if ( typeof console !== 'undefined' ) {
+				console.error(
+					`[desktop-mode] window reveal "${ def.id }" failed to animate; uncovering:`,
+					err,
+				);
+			}
+			layer.remove();
+			return null;
+		}
 		running.set( layer, animation );
 		return animation;
 	};
@@ -759,6 +790,15 @@ export function playWindowReveal( windowEl: HTMLElement ): void {
 
 	const surfaceAnimation = surfaceAnimations[ 0 ] ?? null;
 	const edgeAnimation = edgeAnimations[ 0 ] ?? null;
+
+	// Every layer can bail inside `play()` — a def re-registered
+	// mid-load with fewer layers, or `animate()` refusing its input.
+	// The layers are already gone; what `finish()` still owns is the
+	// `--revealing` pin, which must not outlive the reveal.
+	if ( ! surfaceAnimation && ! edgeAnimation ) {
+		finish();
+		return;
+	}
 
 	// Events rather than the `finished` promise: cancelling an animation
 	// rejects that promise, and a window closed mid-reveal would surface

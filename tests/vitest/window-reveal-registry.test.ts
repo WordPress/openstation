@@ -2,7 +2,7 @@
  * Unit tests for `src/reveals/registry.ts`.
  *
  * Shared-store-backed like the unfocus-effect registry, so each test
- * resets the stores and re-imports fresh. The five built-ins are seeded
+ * resets the stores and re-imports fresh. The built-ins are seeded
  * at module load through the public `register()` path, so a fresh
  * import always starts with them present.
  *
@@ -193,6 +193,49 @@ describe( 'reveals/registry.ts — registration', () => {
 		expect( () =>
 			registerWindowReveal( { ...valid, label: '  ' } ),
 		).toThrow( /label/ );
+	} );
+
+	test( 'rejects a non-string easing', async () => {
+		const { registerWindowReveal } = await loadRegistry();
+		expect( () =>
+			registerWindowReveal( {
+				...valid,
+				easing: 42 as unknown as string,
+			} ),
+		).toThrow( /easing/ );
+	} );
+
+	test( 'rejects an easing the browser cannot parse', async () => {
+		// jsdom ships no `KeyframeEffect`, so model a browser whose
+		// constructor rejects what it cannot parse — the same parser
+		// `Element.animate()` runs, which is exactly why an unparsable
+		// easing has to die at registration and not at play time, when
+		// the opaque surface is already covering the window.
+		vi.stubGlobal(
+			'KeyframeEffect',
+			class {
+				constructor(
+					_target: null,
+					_keyframes: null,
+					options: { easing?: string },
+				) {
+					if ( options.easing === 'ease-out-back' ) {
+						throw new TypeError( 'unparsable easing' );
+					}
+				}
+			},
+		);
+		try {
+			const { registerWindowReveal, getWindowReveal } =
+				await loadRegistry();
+			expect( () =>
+				registerWindowReveal( { ...valid, easing: 'ease-out-back' } ),
+			).toThrow( /easing/ );
+			registerWindowReveal( { ...valid, easing: 'linear' } );
+			expect( getWindowReveal( 'acme/wipe' )?.easing ).toBe( 'linear' );
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	} );
 
 	test( 'accepts a polygon pair with equal vertex counts', async () => {

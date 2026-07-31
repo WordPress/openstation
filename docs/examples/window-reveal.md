@@ -35,9 +35,12 @@ wp.desktop.ready( () => {
 Enqueue that as a normal admin script and the reveal appears in the
 selector on the next load.
 
-`owner` should be your script handle. It is what lets the shell
-unregister your reveal live when your plugin is deactivated, instead of
-leaving a dead entry in the user's selector until they reload.
+`owner` should be your script handle. Today it is only a tag: the
+live-unregister sweep on plugin deactivation is not wired for reveals
+yet (same known gap as palettes), so a deactivated plugin's reveal
+stays in the selector until the next reload. Set it anyway — the moment
+the sweep lands, your reveal starts being cleaned up live, with no def
+change on your side.
 
 ## The one rule: `from` and `to` must interpolate
 

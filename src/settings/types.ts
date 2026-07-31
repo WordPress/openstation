@@ -140,7 +140,8 @@ export interface OsSettingsState {
 	 * uncovers a window's content once it has finished loading.
 	 * Resolves through the window-reveal registry; `'none'` means no
 	 * reveal (the plain opacity fade), and an unknown id is treated as
-	 * `'none'` until/if a matching reveal registers. Default `'sweep'`.
+	 * `'none'` until/if a matching reveal registers. Default `'none'`
+	 * — reveals are opt-in.
 	 */
 	windowReveal: string;
 	/**

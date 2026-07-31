@@ -6,7 +6,7 @@
  * plugins can register via `wp.desktop.registerWindowReveal()` and also
  * reach the raw filter for reorder / remove / conditional swap.
  *
- * The five built-ins are seeded here through the very same `register()`
+ * The built-ins are seeded here through the very same `register()`
  * the public hook calls — the shipped reveals dogfood the extensibility
  * API rather than taking a private shortcut.
  *
@@ -225,6 +225,27 @@ function pairErrors( pair: Partial< WindowRevealLayer >, label: string ): string
 }
 
 /**
+ * Whether the browser can parse `easing`. `Element.animate()` throws a
+ * `TypeError` on an easing it cannot parse — and it would do so at PLAY
+ * time, with the opaque armed surface already covering the window, so
+ * the string has to be rejected here at registration instead. A
+ * throwaway `KeyframeEffect` runs the same parser `animate()` uses.
+ * Environments without the Web Animations API (jsdom, reduced-motion
+ * fallback paths) accept everything: they never call `animate()`.
+ */
+function isParseableEasing( easing: string ): boolean {
+	if ( typeof KeyframeEffect !== 'function' ) {
+		return true;
+	}
+	try {
+		void new KeyframeEffect( null, null, { easing } );
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * Register (or replace) a window reveal. Re-registering the same id
  * replaces the previous entry — mirrors WordPress's `register_*`
  * semantics where the latest call wins.
@@ -288,6 +309,15 @@ export function registerWindowReveal( def: WindowRevealDef ): void {
 				...pairErrors( def, '' ).map( ( e ) => e.replace( /^\./, '' ) ),
 			);
 		}
+		if ( def.easing !== undefined ) {
+			if ( typeof def.easing !== 'string' || def.easing.trim() === '' ) {
+				errors.push( 'easing (not a non-empty string)' );
+			} else if ( ! isParseableEasing( def.easing ) ) {
+				errors.push(
+					'easing (not an easing the browser can parse — `Element.animate()` would throw at play time, with the covering surface already over the window)',
+				);
+			}
+		}
 	}
 
 	throwOnRegistrationErrors( 'WindowReveal', errors, def );
@@ -305,9 +335,14 @@ export function unregisterWindowReveal( id: string ): void {
 }
 
 /**
- * Remove every reveal registered by a given owner (script handle). Used
- * by the server-sync module on plugin deactivation. Returns the number
- * removed.
+ * Remove every reveal registered by a given owner (script handle).
+ * Returns the number removed.
+ *
+ * This is the grouped-eviction primitive for a live-unregister sweep on
+ * plugin deactivation — but reveals have no PHP script-registration
+ * companion yet (same known gap as palettes), so nothing calls it on
+ * the deactivation path today. Defs that set `owner` now start being
+ * swept the moment that sweep lands, with no def change.
  */
 export function unregisterWindowRevealsByOwner( owner: string ): number {
 	if ( ! owner ) {

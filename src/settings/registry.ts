@@ -89,8 +89,8 @@ export interface OsSettingsSnapshot {
 	unfocusEffect: string;
 	/**
 	 * Active window-reveal id — the `clip-path` transition that
-	 * uncovers a window's content when it finishes loading. `'sweep'`
-	 * is the shipped default; `'none'` disables the transition.
+	 * uncovers a window's content when it finishes loading. `'none'`
+	 * (no transition) is the default: reveals are opt-in.
 	 */
 	windowReveal: string;
 	/**

@@ -1127,9 +1127,10 @@ export interface WpDesktopPublicApi {
 	 * whole window, `to` is empty. Both must use the same shape
 	 * function or the values cannot interpolate — registration rejects
 	 * a mismatched pair rather than letting it flicker at runtime. Set
-	 * `owner` to the script handle for live unregistration on
-	 * deactivation. The five built-ins are registered through this same
-	 * API.
+	 * `owner` to the script handle to tag the reveal for grouped
+	 * removal — the live-unregister sweep on plugin deactivation is not
+	 * wired for reveals yet (same known gap as palettes). The built-ins
+	 * are registered through this same API.
 	 *
 	 * Throws a `RegistrationError` on validation failure.
 	 */
