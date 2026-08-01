@@ -30,6 +30,7 @@ Off by default. Users switch it on by right-clicking the wallpaper and picking *
 - [Rendering the chroma ring](#rendering-the-chroma-ring)
   - [The ribbon](#the-ribbon)
   - [Bands, not strokes](#bands-not-strokes)
+  - [Every edge is a curve](#every-edge-is-a-curve)
   - [The hologram](#the-hologram)
   - [The interior sheen](#the-interior-sheen)
 - [PHP API](#php-api)
@@ -273,7 +274,7 @@ Four passes over one resampled outline, back to front:
 
 ### The ribbon
 
-Everything is built on one resampled outline. `physics.points` is a *simulation* resolution, far too coarse to draw with directly, so `buildRibbon()` runs the standard Chaikin-style smoothing — quadratic curves through edge midpoints, rim points as controls — and samples that curve twice per rim segment, carrying an outward unit normal with every sample.
+Everything is built on one resampled outline. `physics.points` is a *simulation* resolution, far too coarse to draw with directly, so `buildRibbon()` runs the standard Chaikin-style smoothing — quadratic curves through edge midpoints, rim points as controls — and samples that curve four times per rim segment, carrying an outward unit normal with every sample.
 
 The outline the renderer sees therefore has no idea how many mass points it came from. That decoupling is what lets the physics run coarse (26 points) without the edge going faceted, and it is why the wobble reads as a rippling curve rather than a shivering polygon.
 
@@ -281,9 +282,30 @@ The outline the renderer sees therefore has no idea how many mass points it came
 
 Each pass used to be stroked **segment by segment**, which was the only way to run a hue ramp around a closed, deforming path — Pixi's gradients are linear and radial, and neither can. But it had a tell: consecutive round-capped strokes *overlap* at every joint, and under the additive blending the glow passes use, double coverage is double brightness. The ring came out beaded, one visible knob per rim point, and the outline read as a chain rather than a tube.
 
-So each pass is a **band** instead: one flat-filled quad per sample, spanning outward from the centreline, with adjacent quads sharing their edge coordinates *exactly*. Shared edges tile with neither gap nor overlap, so there is nowhere for a bright joint to form and the band is continuous by construction. `mascot-render.test.ts` asserts that bit-equality directly — it is the anti-beading invariant, and anything less is either a seam of wallpaper showing through or a joint glowing twice as bright.
+So each pass is a **band** instead: one filled cell per pair of samples, spanning outward from the centreline, with adjacent cells sharing their edge coordinates *exactly*. Shared edges tile with neither gap nor overlap, so there is nowhere for a bright joint to form and the band is continuous by construction. `mascot-render.test.ts` asserts that bit-equality directly — it is the anti-beading invariant, and anything less is either a seam of wallpaper showing through or a joint glowing twice as bright.
 
-Per-quad colour keeps the chroma sweep and buys the room for the hologram below: per-sample normals are exactly what a viewing-angle effect needs.
+Per-cell colour keeps the chroma sweep and buys the room for the hologram below: per-sample normals are exactly what a viewing-angle effect needs.
+
+### Every edge is a curve
+
+Cells were flat-sided quads to begin with, and that was the last source of visible facets. A chord across 15° of arc is invisible at the centreline and obvious 15 px out from it, because the offset boundary of the halo has the same corner count over a much longer perimeter — and the rim only carries 12 points.
+
+Now every cell edge is a **quadratic through three points**. A cell spans two ribbon samples and bulges through the one between them, which is exactly enough to pin the control point:
+
+```
+a quadratic is (a + 2c + b)/4 at t = 0.5,  so  c = 2m − (a + b)/2
+```
+
+Pixi tessellates adaptively from there, at a tolerance a little tighter than its default — the mascot is the one thing on the desk a user looks *at*.
+
+**This costs nothing.** Sampling doubled to four per rim segment and every stride doubled with it, so cells span the same arc and there are exactly as many as before; the extra samples buy curvature, not resolution. The curves themselves are shallow enough that the adaptive pass emits only a handful of points each.
+
+Two shapes need care:
+
+- The **body fill** is traced from the rim's own curve rather than from the ribbon. The rim *is* the curve the ribbon samples — segment `i` runs from `mid(i-1, i)` through the control point `rim[i]` to `mid(i, i+1)` — so handing Pixi the curve directly gives a silhouette with no facets at any rim resolution, for one `fill()` and `points` curve segments. Cheaper *and* smoother than the polygon it replaced.
+- The **innermost sheen shell** reaches the centroid, where all three inner points coincide. It is emitted as a wedge — one curved arc closed by two straight radii — rather than routed through the cell builder, which would hand Pixi a zero-length curve between three identical points.
+
+An odd stride has no halfway sample to curve through and falls back to flat quads.
 
 Because the body fill masks the inner half of the glow anyway, the two glow bands are built almost entirely *outward* from the centreline — half the geometry, and no risk of their inner edges crossing where the outline is concave. A sliver of inward reach remains so the body fill overlaps them rather than meeting them exactly, which would leave a hairline of wallpaper along the seam.
 
@@ -484,5 +506,5 @@ The preference is watched live, so toggling it at the OS level takes effect with
 - **Nothing downloads until the mascot is switched on.** The always-on cost is the controller.
 - The ticker stops on `visibilitychange`, and resumes with a drained accumulator so a tab that was hidden for a minute doesn't come back with a catch-up avalanche.
 - Surfaces are re-measured at 20 Hz, not per frame.
-- Per frame: six `Graphics.clear()` calls and roughly `5 × points` flat quads across the three ring bands, plus `3 × points` for the interior sheen's five shells (the halo is drawn at half resolution and the sheen at a third — both are blurred and faint, so nothing finer survives to a pixel a viewer could resolve), plus a blur pass over the halo and one over the sheen.
+- Per frame: six `Graphics.clear()` calls and roughly `5 × points` curved cells across the three ring bands, plus `3 × points` for the interior sheen's five shells (the halo is drawn at half resolution and the sheen at a third — both are blurred and faint, so nothing finer survives to a pixel a viewer could resolve), plus a blur pass over the halo and one over the sheen. The body is a single filled path of `points` curve segments.
 - The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OS Settings previews).

@@ -90,87 +90,169 @@ describe( 'buildRibbon', () => {
 	} );
 } );
 
-/** Minimal stand-in for the slice of `Graphics` the bands use. */
+/** One recorded path command. */
+interface Cmd {
+	op: 'moveTo' | 'lineTo' | 'quadraticCurveTo' | 'closePath' | 'poly';
+	args: number[];
+}
+
+/**
+ * Minimal stand-in for the slice of `Graphics` the renderer uses.
+ *
+ * Records the path commands verbatim so the tests can assert on the
+ * geometry actually handed to Pixi rather than on a summary of it.
+ */
 function recorder(): {
-	quads: number[][];
-	g: { poly: ( p: number[] ) => unknown; fill: ( s: unknown ) => unknown };
+	cmds: Cmd[];
+	cells: Cmd[][];
+	g: Record< string, ( ...args: never[] ) => unknown >;
 	colors: number[];
 } {
-	const quads: number[][] = [];
+	const cmds: Cmd[] = [];
 	const colors: number[] = [];
+	const record =
+		( op: Cmd[ 'op' ] ) =>
+		( ...args: number[] ): unknown => {
+			cmds.push( { op, args } );
+			return g;
+		};
 	const g = {
-		poly: ( p: number[] ) => {
-			quads.push( p );
+		moveTo: record( 'moveTo' ),
+		lineTo: record( 'lineTo' ),
+		quadraticCurveTo: record( 'quadraticCurveTo' ),
+		closePath: record( 'closePath' ),
+		poly: ( p: number[] ): unknown => {
+			cmds.push( { op: 'poly', args: p } );
 			return g;
 		},
-		fill: ( style: unknown ) => {
+		fill: ( style: unknown ): unknown => {
 			colors.push( ( style as { color: number } ).color );
 			return g;
 		},
+	} as unknown as Record< string, ( ...args: never[] ) => unknown >;
+
+	return {
+		cmds,
+		// One group per `fill()`, i.e. per cell.
+		get cells(): Cmd[][] {
+			const out: Cmd[][] = [];
+			let current: Cmd[] = [];
+			for ( const c of cmds ) {
+				current.push( c );
+				if ( 'closePath' === c.op || 'poly' === c.op ) {
+					out.push( current );
+					current = [];
+				}
+			}
+			return out;
+		},
+		g,
+		colors,
 	};
-	return { quads, g, colors };
+}
+
+/** First and last anchor of a recorded cell's outer edge. */
+function outerEdge( cell: Cmd[] ): { start: number[]; end: number[] } {
+	const move = cell.find( ( c ) => 'moveTo' === c.op );
+	const curve = cell.find( ( c ) => 'quadraticCurveTo' === c.op );
+	return {
+		start: move ? move.args : [],
+		// `quadraticCurveTo( cx, cy, x, y, smoothness )` — the control
+		// point, then the end anchor, then the tessellation tolerance.
+		end: curve ? curve.args.slice( 2, 4 ) : [],
+	};
 }
 
 describe( 'fillBand', () => {
-	const samples: RibbonSample[] = buildRibbon( ring( 10 ), CENTRE, 2 );
+	// Eight samples per rim segment, so a stride of 2 still leaves a
+	// halfway sample for every cell.
+	const samples: RibbonSample[] = buildRibbon( ring( 10 ), CENTRE, 4 );
 	const colors = samples.map( ( _, i ) => i );
 
-	test( 'emits one quad per sample and closes the ring', () => {
+	test( 'emits one curved cell per pair of samples', () => {
 		const rec = recorder();
-		fillBand(
-			rec.g as never,
-			samples,
-			colors,
-			6,
-			2,
-			1,
-		);
-		expect( rec.quads ).toHaveLength( samples.length );
-		expect( rec.colors ).toEqual( colors );
+		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
+		expect( rec.cells ).toHaveLength( samples.length / 2 );
+		// Two curved edges per cell — outer and inner. A cell with
+		// straight edges here means the control-point path was skipped
+		// and the facets are back.
+		for ( const cell of rec.cells ) {
+			expect(
+				cell.filter( ( c ) => 'quadraticCurveTo' === c.op ),
+			).toHaveLength( 2 );
+		}
 	} );
 
-	test( 'consecutive quads share their edge exactly', () => {
+	test( 'the curve passes through the halfway sample', () => {
+		// The whole point of the control-point solve: at t = 0.5 the
+		// quadratic must sit exactly on the ribbon, not inside the chord.
+		const rec = recorder();
+		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
+		const cell = rec.cells[ 0 ];
+		const [ ax, ay ] = outerEdge( cell ).start;
+		const curve = cell.find( ( c ) => 'quadraticCurveTo' === c.op ) as Cmd;
+		const [ cx, cy, bx, by ] = curve.args;
+		const midX = ( ax + 2 * cx + bx ) / 4;
+		const midY = ( ay + 2 * cy + by ) / 4;
+		const halfway = samples[ 1 ];
+		expect( midX ).toBeCloseTo( halfway.x + halfway.nx * 6, 9 );
+		expect( midY ).toBeCloseTo( halfway.y + halfway.ny * 6, 9 );
+	} );
+
+	test( 'consecutive cells share their edge exactly', () => {
 		// This is the anti-beading invariant. Anything less than bit
 		// equality here is either a seam of wallpaper showing through or
 		// a double-covered joint glowing twice as bright.
 		const rec = recorder();
-		fillBand( rec.g as never, samples, colors, 6, 2, 1 );
-		for ( let i = 0; i < rec.quads.length; i++ ) {
-			const cur = rec.quads[ i ];
-			const next = rec.quads[ ( i + 1 ) % rec.quads.length ];
-			// Current quad's trailing outer/inner pair is the next
-			// quad's leading pair.
-			expect( [ cur[ 2 ], cur[ 3 ] ] ).toEqual( [ next[ 0 ], next[ 1 ] ] );
-			expect( [ cur[ 4 ], cur[ 5 ] ] ).toEqual( [ next[ 6 ], next[ 7 ] ] );
+		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
+		const cells = rec.cells;
+		for ( let i = 0; i < cells.length; i++ ) {
+			const cur = outerEdge( cells[ i ] );
+			const next = outerEdge( cells[ ( i + 1 ) % cells.length ] );
+			expect( cur.end ).toEqual( next.start );
 		}
 	} );
 
-	test( 'stride decimates without breaking the loop', () => {
+	test( 'a wider stride decimates without breaking the loop', () => {
 		const rec = recorder();
-		fillBand( rec.g as never, samples, colors, 6, 2, 1, 2 );
-		expect( rec.quads ).toHaveLength( samples.length / 2 );
-		const last = rec.quads[ rec.quads.length - 1 ];
-		const first = rec.quads[ 0 ];
-		expect( [ last[ 2 ], last[ 3 ] ] ).toEqual( [ first[ 0 ], first[ 1 ] ] );
+		fillBand( rec.g as never, samples, colors, 6, 2, 1, 4 );
+		expect( rec.cells ).toHaveLength( samples.length / 4 );
+		const cells = rec.cells;
+		expect( outerEdge( cells[ cells.length - 1 ] ).end ).toEqual(
+			outerEdge( cells[ 0 ] ).start,
+		);
+	} );
+
+	test( 'an odd stride falls back to straight edges', () => {
+		// No halfway sample to curve through, so the cell has to stay a
+		// flat quad rather than inventing a control point.
+		const rec = recorder();
+		fillBand( rec.g as never, samples, colors, 6, 2, 1, 3 );
+		expect( rec.cmds.every( ( c ) => 'poly' === c.op ) ).toBe( true );
 	} );
 
 	test( 'a transparent or zero-width band draws nothing', () => {
 		const rec = recorder();
 		fillBand( rec.g as never, samples, colors, 6, 2, 0 );
 		fillBand( rec.g as never, samples, colors, 0, 0, 1 );
-		expect( rec.quads ).toHaveLength( 0 );
+		expect( rec.cmds ).toHaveLength( 0 );
 	} );
 } );
 
 describe( 'fillSheen', () => {
-	const samples: RibbonSample[] = buildRibbon( ring( 12 ), CENTRE, 2 );
+	const samples: RibbonSample[] = buildRibbon( ring( 12 ), CENTRE, 4 );
 	const colors = samples.map( () => 0xff00ff );
 
 	/** Every alpha the sheen asked for, in draw order. */
 	function alphas( scale = 1 ): number[] {
 		const seen: number[] = [];
+		const noop = (): unknown => g;
 		const g = {
-			poly: () => g,
+			poly: noop,
+			moveTo: noop,
+			lineTo: noop,
+			quadraticCurveTo: noop,
+			closePath: noop,
 			fill: ( style: unknown ) => {
 				seen.push( ( style as { alpha: number } ).alpha );
 				return g;
@@ -179,6 +261,23 @@ describe( 'fillSheen', () => {
 		fillSheen( g as never, samples, CENTRE, colors, scale );
 		return seen;
 	}
+
+	test( 'the shells are drawn as curves, and the innermost as wedges', () => {
+		const rec = recorder();
+		fillSheen( rec.g as never, samples, CENTRE, colors, 1 );
+		const cells = rec.cells;
+		expect( cells.length ).toBeGreaterThan( 0 );
+		expect( cells.every( ( c ) => c.some( ( x ) => 'quadraticCurveTo' === x.op ) ) )
+			.toBe( true );
+		// The innermost shell collapses to the centroid: one curved arc
+		// closed by two straight radii, never a zero-length curve
+		// between three coincident points.
+		const last = cells[ cells.length - 1 ];
+		expect( last.filter( ( c ) => 'quadraticCurveTo' === c.op ) ).toHaveLength(
+			1,
+		);
+		expect( last.filter( ( c ) => 'lineTo' === c.op ) ).toHaveLength( 1 );
+	} );
 
 	/** Shell alphas in order, outermost first. */
 	function shells(): number[] {

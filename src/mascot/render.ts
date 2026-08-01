@@ -26,13 +26,24 @@
  * The ring came out beaded, one visible knob per rim point, and the
  * outline read as a chain rather than a tube.
  *
- * So each pass is instead a **band**: one flat-filled quad per sample,
- * spanning outward from the centreline, with adjacent quads sharing
- * their edge coordinates *exactly*. Shared edges tile with neither gap
- * nor overlap, so there is nowhere for a bright joint to form and the
- * band is continuous by construction. Per-quad colour keeps the chroma
- * sweep, and gains the room for the hologram (see `chroma.ts`) —
- * per-sample normals are exactly what a viewing-angle effect needs.
+ * So each pass is instead a **band**: one filled cell per pair of
+ * samples, spanning outward from the centreline, with adjacent cells
+ * sharing their edge coordinates *exactly*. Shared edges tile with
+ * neither gap nor overlap, so there is nowhere for a bright joint to
+ * form and the band is continuous by construction. Per-cell colour
+ * keeps the chroma sweep, and gains the room for the hologram (see
+ * `chroma.ts`) — per-sample normals are exactly what a viewing-angle
+ * effect needs.
+ *
+ * **Every cell edge is a curve, not a chord.** A cell spans two ribbon
+ * samples and bulges through the one between them, which is enough to
+ * pin a quadratic ({@link controlThrough}); Pixi tessellates it
+ * adaptively from there. Flat-sided cells were the last source of
+ * visible facets in the ring — an offset boundary 15 px out from a
+ * 12-point rim shows its corners plainly — and curving them costs
+ * nothing, because the cells span the same arc they always did. The
+ * body fill goes further and is traced from the rim's own curve
+ * directly, so the silhouette has no facets at any rim resolution.
  *
  * Four passes, back to front:
  *
@@ -65,14 +76,26 @@ import type { Particle } from './environment';
 import type { MascotAppearance } from './types';
 
 /**
- * Curve samples drawn per rim segment.
+ * Curve samples taken per rim segment.
  *
- * Two is enough that the flat-sided band is geometrically invisible
- * (the sagitta across one quad is well under a tenth of a pixel at the
- * default radius) while keeping the per-frame quad count below what
- * the old segment-by-segment stroking cost.
+ * Four rather than two because a band cell now spans **two** samples
+ * and uses the one in between as the point its edge curves through
+ * (see {@link controlThrough}). Cells still span the same arc as
+ * before, so the per-frame cell count is unchanged — the extra samples
+ * buy curvature, not resolution.
  */
-const SAMPLES_PER_SEGMENT = 2;
+const SAMPLES_PER_SEGMENT = 4;
+
+/**
+ * Flatness tolerance handed to Pixi's adaptive curve tessellation,
+ * `0`–`0.99`; higher subdivides further.
+ *
+ * Above the library default because the mascot is the one thing on the
+ * desk a user looks *at*. The cells span 15–45° of arc, so the curves
+ * are shallow and the adaptive pass emits only a handful of points
+ * even at this tolerance.
+ */
+const CURVE_SMOOTHNESS = 0.85;
 
 /** One point on the smoothed outline, with its outward normal. */
 export interface RibbonSample {
@@ -219,24 +242,95 @@ export function buildRibbon(
 	return out;
 }
 
+/** A plain 2D point. */
+interface Point {
+	x: number;
+	y: number;
+}
+
 /**
- * Fill the closed outline described by `samples`.
+ * The control point of the quadratic that starts at `a`, ends at `b`,
+ * and passes exactly through `m` at its midpoint.
  *
- * The same point list the bands are built from, so the black body and
- * the ring can never disagree by a fraction of a pixel along a seam.
+ * A quadratic evaluates to `(a + 2c + b) / 4` at `t = 0.5`, so pinning
+ * that to `m` gives `c = 2m − (a + b)/2`. This is what turns three
+ * sampled points into a curve rather than two straight hops, and it is
+ * how every band edge in this module stops being a chord.
+ */
+function controlThrough( a: Point, m: Point, b: Point ): Point {
+	return {
+		x: 2 * m.x - ( a.x + b.x ) / 2,
+		y: 2 * m.y - ( a.y + b.y ) / 2,
+	};
+}
+
+/** Offset a ribbon sample along its normal. Positive is outward. */
+function offset( s: RibbonSample, by: number ): Point {
+	return { x: s.x + s.nx * by, y: s.y + s.ny * by };
+}
+
+/**
+ * Emit one closed band cell with curved outer and inner edges.
+ *
+ * `*A` → `*B` are the cell's corners and `*M` the point each edge
+ * bulges through. The two radial edges stay straight: they are a few
+ * pixels long and run between two rings that already agree on where
+ * they meet.
+ *
+ * The control point is symmetric under reversal, so the inner edge —
+ * traced backwards to close the path — reuses the same one.
+ */
+function curvedCell(
+	g: Graphics,
+	outerA: Point,
+	outerM: Point,
+	outerB: Point,
+	innerA: Point,
+	innerM: Point,
+	innerB: Point,
+): void {
+	const co = controlThrough( outerA, outerM, outerB );
+	const ci = controlThrough( innerA, innerM, innerB );
+	g.moveTo( outerA.x, outerA.y );
+	g.quadraticCurveTo( co.x, co.y, outerB.x, outerB.y, CURVE_SMOOTHNESS );
+	g.lineTo( innerB.x, innerB.y );
+	g.quadraticCurveTo( ci.x, ci.y, innerA.x, innerA.y, CURVE_SMOOTHNESS );
+	g.closePath();
+}
+
+/**
+ * Fill the body as one closed path of quadratic curves.
+ *
+ * Traced from the rim directly rather than from the ribbon, because
+ * the rim *is* the curve: segment `i` runs from `mid( i-1, i )` through
+ * the control point `rim[ i ]` to `mid( i, i+1 )`, which is exactly
+ * what {@link buildRibbon} samples. Handing Pixi the curve instead of
+ * the samples gives a silhouette with no facets at any rim resolution,
+ * for one `fill()` and `points` curve segments — cheaper *and* smoother
+ * than the polygon it replaces.
  */
 export function fillBody(
 	g: Graphics,
-	samples: readonly RibbonSample[],
+	rim: readonly Particle[],
 	color: number,
 	alpha: number,
 ): void {
-	if ( samples.length < 3 || alpha <= 0 ) {
+	const n = rim.length;
+	if ( n < 3 || alpha <= 0 ) {
 		return;
 	}
-	g.moveTo( samples[ 0 ].x, samples[ 0 ].y );
-	for ( let i = 1; i < samples.length; i++ ) {
-		g.lineTo( samples[ i ].x, samples[ i ].y );
+	const first = mid( rim[ n - 1 ], rim[ 0 ] );
+	g.moveTo( first.x, first.y );
+	for ( let i = 0; i < n; i++ ) {
+		const control = rim[ i ];
+		const next = mid( rim[ i ], rim[ ( i + 1 ) % n ] );
+		g.quadraticCurveTo(
+			control.x,
+			control.y,
+			next.x,
+			next.y,
+			CURVE_SMOOTHNESS,
+		);
 	}
 	g.closePath();
 	g.fill( { color, alpha } );
@@ -245,11 +339,15 @@ export function fillBody(
 /**
  * Draw one continuous band around the outline.
  *
- * Quad `i` spans from sample `i` to sample `i + stride`, `outer` pixels
- * out from the centreline and `inner` pixels in. Consecutive quads are
- * given *identical* coordinates along the edge they share, which is
- * what makes the band continuous: there is no seam to show through and
- * no overlap to double up under additive blending.
+ * Cell `i` spans from sample `i` to sample `i + stride`, `outer` pixels
+ * out from the centreline and `inner` pixels in, and **curves through**
+ * the sample halfway between the two. Consecutive cells are given
+ * *identical* coordinates along the edge they share, which is what
+ * makes the band continuous: there is no seam to show through and no
+ * overlap to double up under additive blending.
+ *
+ * An odd `stride` has no halfway sample to curve through and falls back
+ * to straight edges.
  *
  * @param g       Target graphics, already cleared.
  * @param samples Ribbon samples.
@@ -257,7 +355,7 @@ export function fillBody(
  * @param outer   Band reach outward from the centreline, in px.
  * @param inner   Band reach inward from the centreline, in px.
  * @param alpha   Fill alpha.
- * @param stride  Sample decimation. `2` halves the quad count.
+ * @param stride  Samples spanned per cell. Larger is fewer, wider cells.
  */
 export function fillBand(
 	g: Graphics,
@@ -266,26 +364,40 @@ export function fillBand(
 	outer: number,
 	inner: number,
 	alpha: number,
-	stride: number = 1,
+	stride: number = 2,
 ): void {
 	const m = samples.length;
 	if ( m < 3 || alpha <= 0 || outer + inner <= 0 ) {
 		return;
 	}
 	const step = Math.max( 1, Math.round( stride ) );
+	const half = step % 2 === 0 ? step / 2 : 0;
 	for ( let i = 0; i < m; i += step ) {
 		const a = samples[ i ];
 		const b = samples[ ( i + step ) % m ];
-		g.poly( [
-			a.x + a.nx * outer,
-			a.y + a.ny * outer,
-			b.x + b.nx * outer,
-			b.y + b.ny * outer,
-			b.x - b.nx * inner,
-			b.y - b.ny * inner,
-			a.x - a.nx * inner,
-			a.y - a.ny * inner,
-		] );
+		if ( half > 0 ) {
+			const c = samples[ ( i + half ) % m ];
+			curvedCell(
+				g,
+				offset( a, outer ),
+				offset( c, outer ),
+				offset( b, outer ),
+				offset( a, -inner ),
+				offset( c, -inner ),
+				offset( b, -inner ),
+			);
+		} else {
+			g.poly( [
+				a.x + a.nx * outer,
+				a.y + a.ny * outer,
+				b.x + b.nx * outer,
+				b.y + b.ny * outer,
+				b.x - b.nx * inner,
+				b.y - b.ny * inner,
+				a.x - a.nx * inner,
+				a.y - a.ny * inner,
+			] );
+		}
 		g.fill( { color: colors[ i % colors.length ], alpha } );
 	}
 }
@@ -300,9 +412,13 @@ export function fillBand(
  * so the body stays black and merely *catches* colour — the way a
  * holographic film over dark card does.
  *
- * The innermost shell reaches the centroid, where the quad collapses to
- * a triangle. Emitting the degenerate quad instead would leave Pixi's
- * triangulator to work that out on every sample of every frame.
+ * Cells span the widest arcs in the renderer — the shells are diffuse,
+ * so they are drawn coarse — which makes them the ones that most need
+ * curved edges. Each arc bulges through the sample halfway along it,
+ * lerped inward by the same amount as its ends.
+ *
+ * The innermost shell reaches the centroid, where the cell collapses to
+ * a wedge: one curved arc closed by two straight radii.
  *
  * @param g        Target graphics, already cleared.
  * @param samples  Ribbon samples.
@@ -311,7 +427,7 @@ export function fillBand(
  * @param centre.y Centroid y, in layer coordinates.
  * @param colors   One colour per sample.
  * @param scale    Overall strength, `0` draws nothing.
- * @param stride   Sample decimation.
+ * @param stride   Samples spanned per cell.
  */
 export function fillSheen(
 	g: Graphics,
@@ -319,30 +435,67 @@ export function fillSheen(
 	centre: { x: number; y: number },
 	colors: readonly number[],
 	scale: number,
-	stride: number = 3,
+	stride: number = 6,
 ): void {
 	const m = samples.length;
 	if ( m < 3 || scale <= 0 ) {
 		return;
 	}
 	const step = Math.max( 1, Math.round( stride ) );
-	const at = ( s: RibbonSample, t: number ): [ number, number ] => [
-		s.x + ( centre.x - s.x ) * t,
-		s.y + ( centre.y - s.y ) * t,
-	];
+	const half = step % 2 === 0 ? step / 2 : 0;
+	const at = ( s: RibbonSample, t: number ): Point => ( {
+		x: s.x + ( centre.x - s.x ) * t,
+		y: s.y + ( centre.y - s.y ) * t,
+	} );
 
 	for ( const shell of SHEEN_SHELLS ) {
 		for ( let i = 0; i < m; i += step ) {
 			const a = samples[ i ];
 			const b = samples[ ( i + step ) % m ];
-			const [ ax, ay ] = at( a, shell.from );
-			const [ bx, by ] = at( b, shell.from );
-			if ( shell.to >= 1 ) {
-				g.poly( [ ax, ay, bx, by, centre.x, centre.y ] );
+			const c = half > 0 ? samples[ ( i + half ) % m ] : null;
+			const outerA = at( a, shell.from );
+			const outerB = at( b, shell.from );
+			const innerA = shell.to >= 1 ? centre : at( a, shell.to );
+			const innerB = shell.to >= 1 ? centre : at( b, shell.to );
+
+			if ( c && shell.to >= 1 ) {
+				// Wedge: one curved arc closed by two straight radii.
+				// Routing this through `curvedCell` would hand Pixi a
+				// zero-length curve between three coincident points.
+				const arc = controlThrough( outerA, at( c, shell.from ), outerB );
+				g.moveTo( outerA.x, outerA.y );
+				g.quadraticCurveTo(
+					arc.x,
+					arc.y,
+					outerB.x,
+					outerB.y,
+					CURVE_SMOOTHNESS,
+				);
+				g.lineTo( centre.x, centre.y );
+				g.closePath();
+			} else if ( c ) {
+				curvedCell(
+					g,
+					outerA,
+					at( c, shell.from ),
+					outerB,
+					innerA,
+					at( c, shell.to ),
+					innerB,
+				);
+			} else if ( shell.to >= 1 ) {
+				g.poly( [ outerA.x, outerA.y, outerB.x, outerB.y, centre.x, centre.y ] );
 			} else {
-				const [ bx2, by2 ] = at( b, shell.to );
-				const [ ax2, ay2 ] = at( a, shell.to );
-				g.poly( [ ax, ay, bx, by, bx2, by2, ax2, ay2 ] );
+				g.poly( [
+					outerA.x,
+					outerA.y,
+					outerB.x,
+					outerB.y,
+					innerB.x,
+					innerB.y,
+					innerA.x,
+					innerA.y,
+				] );
 			}
 			g.fill( {
 				color: colors[ i % colors.length ],
@@ -445,8 +598,8 @@ function clamp( v: number, lo: number, hi: number ): number {
 /**
  * Draw one frame into the supplied layers.
  *
- * Cheap enough to run every tick: five `Graphics.clear()` calls plus
- * one flat quad per ribbon sample per band.
+ * Cheap enough to run every tick: six `Graphics.clear()` calls plus
+ * one curved cell per pair of ribbon samples per band.
  */
 export function drawMascot(
 	layers: MascotLayers,
@@ -494,18 +647,16 @@ export function drawMascot(
 		// The halo is blurred and nearly transparent, so it is drawn at
 		// half resolution — nothing about it survives to a pixel a
 		// viewer could resolve.
-		fillBand( layers.halo, samples, colors, w * 3 * glow, bleed, 0.12, 2 );
+		fillBand( layers.halo, samples, colors, w * 3 * glow, bleed, 0.12, 4 );
 		fillBand( layers.bloom, samples, colors, w * 1.4 * glow, bleed, 0.32 );
 	}
 
-	// 3 — the black body, masking the inner half of the glow.
+	// 3 — the black body, masking the inner half of the glow. Traced
+	// from the rim rather than the ribbon: the rim IS the curve the
+	// ribbon samples, so handing Pixi the curve itself gives a
+	// facet-free silhouette for less work than the polygon did.
 	layers.body.clear();
-	fillBody(
-		layers.body,
-		samples,
-		appearance.bodyColor,
-		appearance.bodyAlpha,
-	);
+	fillBody( layers.body, rim, appearance.bodyColor, appearance.bodyAlpha );
 
 	// 3b — the interior sheen. Its rake is the ring's, turned a quarter
 	// turn, and its hue ramp runs at a different rate: an inside that
@@ -540,7 +691,7 @@ export function drawMascot(
 		lighten( c, 0.3 + 0.45 * glint[ i ] ),
 	);
 	layers.core.clear();
-	fillBand( layers.core, samples, coreColors, w * 0.5, w * 0.5, 1 );
+	fillBand( layers.core, samples, coreColors, w * 0.5, w * 0.5, 1, 2 );
 
 	// Face.
 	const eyes = eyeLayout( frame, appearance );
