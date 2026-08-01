@@ -17,7 +17,7 @@ jobs:
     name: Lint · Types · Vitest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           # Don't leave the GITHUB_TOKEN in .git/config; later steps run
           # PR-authored code (npm scripts, build) and this job never needs
@@ -67,7 +67,7 @@ jobs:
         php: [ '8.3', '8.4' ]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           # Don't leave the GITHUB_TOKEN in .git/config; later steps run
           # PR-authored code (npm scripts, build) and this job never needs
@@ -124,7 +124,7 @@ jobs:
     name: Plugin Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7.0.1
         with:
           # Don't leave the GITHUB_TOKEN in .git/config; later steps run
           # PR-authored code (npm scripts, build) and this job never needs
