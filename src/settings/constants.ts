@@ -248,6 +248,7 @@ export const DEFAULTS: OsSettingsState = {
 	// opt-in Beta posture; cap-gated on `edit_posts` server-side.
 	nativeCommentsEnabled: false,
 	showDesktopOnWallpaperClick: false,
+	mascotEnabled: false,
 	showPostStatusRibbons: true,
 	developerModeEnabled: false,
 	foldersSharingEnabled: true,

@@ -27,6 +27,8 @@ const stubDeps = ( overrides: Partial< import( '../../src/desktop-files/wallpape
 		sortDateAsc: 'Date (oldest first)',
 		sortDateDesc: 'Date (newest first)',
 		newUrl: 'New URL',
+		showMascot: 'Show mascot',
+		hideMascot: 'Hide mascot',
 	},
 	...overrides,
 } );
@@ -88,6 +90,52 @@ describe( 'wallpaper context menu', () => {
 			.click();
 		expect( deps.createUrl ).toHaveBeenCalledTimes( 1 );
 		expect( document.querySelector( 'wpd-context-menu' ) ).toBeNull();
+	} );
+
+	test( 'the mascot entry only appears when a toggle is supplied', async () => {
+		const { buildMenuItems } = await load();
+		expect( buildMenuItems( stubDeps() ).map( ( i ) => i.id ) ).not.toContain(
+			'mascot',
+		);
+		const withToggle = buildMenuItems(
+			stubDeps( { toggleMascot: vi.fn() } ),
+		);
+		expect( withToggle.map( ( i ) => i.id ) ).toContain( 'mascot' );
+	} );
+
+	test( 'the mascot entry reflects and flips the current state', async () => {
+		const { buildMenuItems } = await load();
+		const toggleMascot = vi.fn();
+
+		const off = buildMenuItems(
+			stubDeps( { toggleMascot, mascotEnabled: false } ),
+		).find( ( i ) => i.id === 'mascot' );
+		expect( off?.label ).toBe( 'Show mascot' );
+		expect( off?.checked ).toBe( false );
+
+		const on = buildMenuItems(
+			stubDeps( { toggleMascot, mascotEnabled: true } ),
+		).find( ( i ) => i.id === 'mascot' );
+		expect( on?.label ).toBe( 'Hide mascot' );
+		expect( on?.checked ).toBe( true );
+
+		on?.onClick( new MouseEvent( 'click' ) );
+		expect( toggleMascot ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'the mascot entry sits between Show desktop and OS Settings', async () => {
+		const { buildMenuItems } = await load();
+		const ids = buildMenuItems( stubDeps( { toggleMascot: vi.fn() } ) ).map(
+			( i ) => i.id,
+		);
+		expect( ids ).toEqual( [
+			'create-folder',
+			'new-url',
+			'sort-by',
+			'show-desktop',
+			'mascot',
+			'os-settings',
+		] );
 	} );
 
 	test( 'serverItems are merged into the list', async () => {

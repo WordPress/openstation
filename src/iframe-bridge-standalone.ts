@@ -1177,6 +1177,7 @@ export function installEditorAutosaveHandler(): void {
 		__desktopModeScreenMetaInstalled?: boolean;
 		__desktopModeOsFileDropForwarderInstalled?: boolean;
 		__desktopModeDragHoverForwarderInstalled?: boolean;
+		__desktopModePointerForwarderInstalled?: boolean;
 	};
 	if ( ! sentinelHost.__desktopModeScreenMetaInstalled ) {
 		sentinelHost.__desktopModeScreenMetaInstalled = true;
@@ -1371,6 +1372,67 @@ export function installEditorAutosaveHandler(): void {
 				}
 			},
 			true,
+		);
+	}
+
+	/*
+	 * Pointer forwarder — OPT-IN, off by default. Mirrors the inline
+	 * equivalent in `includes/render/chromeless-bridge.php`.
+	 *
+	 * Pointer events don't cross iframe boundaries, so the parent
+	 * shell goes blind to the cursor the moment it enters a window.
+	 * Anything in the shell that needs the real cursor position while
+	 * it's over window content — today, the mascot's gaze
+	 * (`src/mascot/pointer.ts`) — gets a throttled stream of this
+	 * frame's client coordinates and rebases them through the iframe
+	 * element's own rect.
+	 *
+	 * Coordinates only, and only while a parent-side consumer has
+	 * armed it with `desktop-mode-pointer-track { enabled: true }`.
+	 * See `docs/bridge-protocol.md`.
+	 */
+	if ( ! sentinelHost.__desktopModePointerForwarderInstalled ) {
+		sentinelHost.__desktopModePointerForwarderInstalled = true;
+		let pointerTrackOn = false;
+		let pointerLastSent = 0;
+		window.addEventListener( 'message', ( e: MessageEvent ) => {
+			if ( e.origin !== window.location.origin ) {
+				return;
+			}
+			const data = e.data as { type?: string; enabled?: unknown } | null;
+			if ( ! data || data.type !== 'desktop-mode-pointer-track' ) {
+				return;
+			}
+			pointerTrackOn = data.enabled === true;
+		} );
+		document.addEventListener(
+			'pointermove',
+			( ev: PointerEvent ) => {
+				if ( ! pointerTrackOn ) {
+					return;
+				}
+				const now = Date.now();
+				// ~25 Hz. The consumer interpolates; a faster stream
+				// buys nothing visible and costs a postMessage per
+				// mouse move.
+				if ( now - pointerLastSent < 40 ) {
+					return;
+				}
+				pointerLastSent = now;
+				try {
+					window.parent.postMessage(
+						{
+							type: 'desktop-mode-pointer-move',
+							x: ev.clientX,
+							y: ev.clientY,
+						},
+						parentOrigin,
+					);
+				} catch {
+					/* cross-origin parent; swallow */
+				}
+			},
+			{ capture: true, passive: true },
 		);
 	}
 

@@ -97,6 +97,16 @@ export type BridgeEventFromIframe =
 	| {
 		type: 'desktop-mode-bridge-disconnect';
 		connectionId: string;
+	}
+	// Pointer position inside the iframe, in the iframe's own client
+	// coordinates. Only sent while the parent has armed the frame
+	// with `desktop-mode-pointer-track`; throttled to ~25 Hz by the
+	// forwarder. The parent rebases through the iframe element's
+	// bounding rect — see `src/mascot/pointer.ts`.
+	| {
+		type: 'desktop-mode-pointer-move';
+		x: number;
+		y: number;
 	};
 
 /** Bridge events sent from the parent shell to a chromeless iframe. */
@@ -145,6 +155,15 @@ export type BridgeEventToIframe =
 	| {
 		type: 'desktop-mode-bridge-disconnect';
 		connectionId: string;
+	}
+	// Arm / disarm the iframe's pointer forwarder. Off by default:
+	// a shell with no consumer never sends this and the iframe never
+	// installs a hot-path listener. Sent on consumer start (to every
+	// live iframe), on every `desktop-mode-bridge-ready` while a
+	// consumer is active, and with `enabled: false` on teardown.
+	| {
+		type: 'desktop-mode-pointer-track';
+		enabled: boolean;
 	};
 
 /** All bridge messages, in either direction. */
@@ -173,6 +192,7 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'desktop-mode-editor-autosave-response',
 	'desktop-mode-editor-live-saved',
 	'desktop-mode-bridge-handshake-ack',
+	'desktop-mode-pointer-move',
 	// To iframe.
 	'desktop-mode-focus',
 	'desktop-mode-color-scheme',
@@ -184,6 +204,7 @@ export const BRIDGE_EVENT_TYPES: ReadonlySet< BridgeEventType > = new Set( [
 	'desktop-mode-editor-live-watch',
 	'desktop-mode-editor-live-unwatch',
 	'desktop-mode-bridge-handshake',
+	'desktop-mode-pointer-track',
 	// Both directions share the same names.
 	'desktop-mode-bridge-publish',
 	'desktop-mode-bridge-disconnect',

@@ -2026,6 +2026,20 @@ export interface DesktopConfig {
 	 */
 	shellOverlaysBundleUrl?: string;
 	/**
+	 * Mascot appearance + physics from PHP
+	 * (`desktop_mode_mascot_config()`, filterable via
+	 * `desktop_mode_mascot_config`). Shape mirrors `MascotConfig` in
+	 * `src/mascot/types.ts`; the shell re-sanitizes it before use, so
+	 * a partial or malformed object is safe.
+	 */
+	mascot?: unknown;
+	/**
+	 * Fully-qualified URL of the lazy mascot bundle. The shell-side
+	 * `MascotController` script-injects this the first time the user
+	 * switches the mascot on from the wallpaper context menu.
+	 */
+	mascotBundleUrl?: string;
+	/**
 	 * Fully-qualified URL of the lazy window-system bundle (Stage
 	 * 11). The `Window` class + its DOM / pointer / tab / chrome
 	 * helpers live here; the main bundle's `WindowManager.open()`

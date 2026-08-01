@@ -1696,6 +1696,61 @@ function desktop_mode_chromeless_bridge_script() {
 	}
 
 	/*
+	 * Pointer forwarder — OPT-IN, off by default.
+	 *
+	 * Pointer events don't cross iframe boundaries, so the parent
+	 * shell goes blind to the cursor the moment it enters a window.
+	 * Anything in the shell that needs to know where the mouse
+	 * actually is while it's over window content — today, the
+	 * mascot's gaze (`src/mascot/pointer.ts`) — gets a throttled
+	 * stream of this frame's client coordinates and rebases them
+	 * through the iframe element's own rect.
+	 *
+	 * Strictly opt-in: the parent posts
+	 * `desktop-mode-pointer-track { enabled: true }` when a consumer
+	 * starts, and `{ enabled: false }` when the last one stops. A
+	 * shell with no consumer never turns this on and pays nothing.
+	 * `desktop-mode-bridge-ready` (emitted at the end of this script,
+	 * i.e. on every navigation) is the parent's cue to re-arm a
+	 * freshly-loaded frame.
+	 *
+	 * Coordinates only — no target element, no event object, nothing
+	 * about the page content. Purely observational: passive listener,
+	 * no `preventDefault()`.
+	 *
+	 * Sentinel-guarded: the standalone bridge bundle
+	 * (`iframe-bridge-standalone.ts`) installs the same forwarder.
+	 */
+	if ( ! window.__desktopModePointerForwarderInstalled ) {
+		window.__desktopModePointerForwarderInstalled = true;
+		var pointerTrackOn = false;
+		var pointerLastSent = 0;
+		window.addEventListener( 'message', function ( e ) {
+			if ( e.origin !== window.location.origin ) return;
+			if ( ! e.data || e.data.type !== 'desktop-mode-pointer-track' ) return;
+			pointerTrackOn = !! e.data.enabled;
+		} );
+		document.addEventListener( 'pointermove', function ( ev ) {
+			if ( ! pointerTrackOn ) return;
+			var now = Date.now();
+			// ~25 Hz. The consumer interpolates; a faster stream buys
+			// nothing visible and costs a postMessage per mouse move.
+			if ( now - pointerLastSent < 40 ) return;
+			pointerLastSent = now;
+			try {
+				window.parent.postMessage(
+					{
+						type: 'desktop-mode-pointer-move',
+						x: ev.clientX,
+						y: ev.clientY
+					},
+					window.location.origin
+				);
+			} catch ( err ) { /* cross-origin parent; swallow */ }
+		}, { capture: true, passive: true } );
+	}
+
+	/*
 	 * Cmd+K / Ctrl+K forwarder — single-press, unconditional.
 	 *
 	 * Native keydown events don't cross iframe boundaries. Inside a

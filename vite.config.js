@@ -464,6 +464,18 @@ const TARGETS = {
 		fileBase: 'os-settings-panel',
 		iifeName: 'desktopModeOsSettingsPanel',
 	},
+	// Mascot — the desk companion: a PixiJS soft-body blob with a
+	// chroma neon outline that floats over the wallpaper, falls onto
+	// nearby windows, watches the pointer, and can be dragged around.
+	// Off by default and toggled from the wallpaper context menu; the
+	// main bundle only carries `src/mascot/controller.ts`, which
+	// script-injects this bundle on the first switch-on. Publishes
+	// `window.desktopModeMountMascot`. See docs/mascot.md.
+	mascot: {
+		entry:    'src/mascot/entry.ts',
+		fileBase: 'mascot',
+		iifeName: 'desktopModeMascot',
+	},
 	// Item-visibility menu — the right-click "hide from dock /
 	// desktop" menu + plugin provenance actions. Pure interaction UI
 	// that can never be on screen at first paint; injected by the

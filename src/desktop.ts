@@ -215,6 +215,7 @@ import {
 	registerModule,
 	type ModuleDef,
 } from './modules/registry';
+import { MascotController, type MascotApi } from './mascot/controller';
 import { wpdConfirm } from './wpd-confirm';
 import { preloadShellOverlays } from './shell-overlays/loader';
 import { preloadWindowSystem } from './window-system/loader';
@@ -529,6 +530,19 @@ export interface WpDesktopPublicApi {
 	 * fires on every suspended/resumed transition.
 	 */
 	wallpaper: WallpaperSuspendApi;
+	/**
+	 * The desk mascot — a soft-body companion that floats over the
+	 * wallpaper, settles onto nearby windows under gravity, watches
+	 * the pointer, and can be dragged anywhere.
+	 *
+	 * Off by default; users toggle it from the wallpaper context
+	 * menu. `enable()` / `disable()` / `toggle()` persist the
+	 * preference exactly as the menu entry does, and `setConfig()`
+	 * live-applies appearance and physics changes on top of the
+	 * server-side `desktop_mode_mascot_config` filter. See
+	 * `docs/mascot.md`.
+	 */
+	mascot: MascotApi;
 	/**
 	 * Desktop games surface. `register()` adds a game to the shared
 	 * registry (launcher grid + scoreboard tabs repaint live);
@@ -1853,6 +1867,26 @@ function init(): void {
 		wallpaperLayer ?? new WallpaperLayer( document.createElement( 'div' ), pluginUrl ),
 	);
 	osSettings.apply();
+
+	// Mascot — the desk companion. A first-class shell layer (sibling
+	// of the wallpaper, painting above every window), but the main
+	// bundle only carries the controller: the PixiJS soft body lives
+	// in `mascot[.min].js` and is fetched the first time a user
+	// switches it on from the wallpaper context menu. Off by default,
+	// so most shells never touch it. See docs/mascot.md.
+	const mascotShellEl = document.getElementById( 'desktop-mode-shell' );
+	const mascot = new MascotController( {
+		shell: mascotShellEl ?? document.body,
+		bundleUrl: config.mascotBundleUrl ?? '',
+		serverConfig: config.mascot,
+		enabled: osSettings.state.mascotEnabled,
+		persist: ( enabled: boolean ) => {
+			osSettings.state.mascotEnabled = enabled;
+			osSettings.save();
+		},
+	} );
+	const mascotApi: MascotApi = mascot.api();
+	mascot.boot();
 
 	// Starter Widget developer-mode gate — must install its
 	// `desktop-mode.widgets` filter before `widgetLayer.hydrate()`
@@ -3403,6 +3437,7 @@ function init(): void {
 		dragManager,
 		connect: connectionBridge.connect,
 		getConnection: connectionBridge.getConnection,
+		mascot: mascotApi,
 		wallpaperSuspend: {
 			suspend: ( reason: string ) => wallpaperLayer?.suspend( reason ),
 			resume: ( reason: string ) => wallpaperLayer?.resume( reason ),
@@ -4125,6 +4160,10 @@ function init(): void {
 				currentSortMode: rootSortMode,
 				includeShowDesktop:
 					! osSettings.state.showDesktopOnWallpaperClick,
+				toggleMascot: () => {
+					void mascotApi.toggle();
+				},
+				mascotEnabled: mascotApi.isEnabled(),
 				labels: {
 					createFolder: 'New folder',
 					showDesktop: 'Show desktop',
@@ -4135,6 +4174,8 @@ function init(): void {
 					sortDateAsc: 'Date (oldest first)',
 					sortDateDesc: 'Date (newest first)',
 					newUrl: 'New URL',
+					showMascot: 'Show mascot',
+					hideMascot: 'Hide mascot',
 				},
 				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]

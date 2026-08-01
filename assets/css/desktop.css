@@ -333,6 +333,78 @@ body.desktop-mode-active #wpcontent {
 }
 
 /*
+ * Mascot layer — the desk companion.
+ *
+ * A sibling of the wallpaper inside the shell, but at the far end of
+ * the stack: the mascot paints ABOVE windows (it perches on them)
+ * and below the dock (it must never cover navigation). Created on
+ * demand by `src/mascot/controller.ts` and removed again when the
+ * user switches the mascot off, so a shell without a mascot has no
+ * extra element at all.
+ *
+ * The layer and its <canvas> are permanently inert. Making a
+ * full-shell canvas interactive — even conditionally, from a
+ * per-frame hit test — would swallow clicks meant for the window
+ * underneath. Only the small round `__handle` inside it takes
+ * pointer events, and it rides on the blob.
+ */
+.desktop-mode-mascot {
+	position: absolute;
+	inset: 0;
+	z-index: var(--desktop-mode-z-mascot);
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.desktop-mode-mascot__handle {
+	position: absolute;
+	/*
+	 * PHYSICAL `top` / `left`, deliberately — the one place in this
+	 * sheet that isn't logical. The handle is positioned every frame
+	 * by a `translate3d()` carrying the body's canvas coordinates,
+	 * and `transform` is always physical. Anchoring with
+	 * `inset-inline-start` would flip the origin to the right edge
+	 * under RTL while the translation kept pushing rightwards, and
+	 * the handle would walk off screen.
+	 */
+	top: 0;
+	left: 0;
+	border-radius: 50%;
+	pointer-events: auto;
+	cursor: grab;
+	/* Promote to its own layer: the handle is re-positioned via
+	 * `transform` on every animation frame. */
+	will-change: transform;
+	touch-action: none;
+}
+
+.desktop-mode-mascot__handle.is-dragging {
+	cursor: grabbing;
+}
+
+/*
+ * Overview (Exposé) hides the desk furniture so the window grid
+ * reads cleanly — the mascot goes with the widgets and the notes.
+ * `:has()` rather than a descendant selector because the mascot
+ * layer is a sibling of `.desktop-mode-shell__body`, not a child of
+ * the desktop area.
+ */
+.desktop-mode-mascot {
+	transition: opacity 160ms ease;
+}
+
+.desktop-mode-shell:has( .desktop-mode-area--overview ) .desktop-mode-mascot {
+	opacity: 0;
+}
+
+/*
+ * Reduced motion is handled in the simulation, not here: the runtime
+ * zeroes the idle float and the hue drift so the mascot holds still
+ * until the user actually interacts with it. Hiding it would be
+ * wrong — the user switched it on deliberately.
+ */
+
+/*
  * Desktop-theme wallpaper texture (DESKTOP slot).
  *
  * On a `::before` rather than this element's own background, because

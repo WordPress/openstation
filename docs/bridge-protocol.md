@@ -110,6 +110,21 @@ Native drag events don't cross iframe boundaries, so when the user holds any dra
 |---|---|---|---|
 | `desktop-mode-drag-hover` | iframe → parent | `{ payloadType: 'os-file' \| 'external' }` | "A drag is currently hovering me." Throttled to one message per 150 ms. Purely observational — the forwarder never calls `preventDefault()` and carries no coordinates or payload data; the parent resolves the hovered window from `MessageEvent.source` (the sender iframe **is** the hovered window). The parent resets its hover state when heartbeats stop (~1 s watchdog), so no end message exists or is needed. |
 
+### Pointer forwarder — `desktop-mode-pointer-*`
+
+Pointer events don't cross iframe boundaries either, so the shell goes blind to the cursor the moment it enters a window. Anything shell-side that needs the *real* cursor position while it's over window content — today, the mascot's gaze ([`mascot.md`](./mascot.md#looking-at-the-pointer-across-iframes)) — arms the iframe and rebases what comes back through the iframe element's bounding rect.
+
+Unlike the drag-hover heartbeat, this one is **opt-in**. It runs on every mouse move, so a shell with no consumer must not pay for it: the forwarder installs a no-op listener that returns immediately until the parent enables it.
+
+| Type | Direction | Carries | Purpose |
+|---|---|---|---|
+| `desktop-mode-pointer-track` | parent → iframe | `{ enabled: boolean }` | Arm / disarm. Broadcast to every live iframe when the first consumer starts, re-sent to any frame that announces `desktop-mode-bridge-ready` (so a frame re-arms after every navigation), and broadcast with `enabled: false` when the last consumer tears down. |
+| `desktop-mode-pointer-move` | iframe → parent | `{ x: number, y: number }` | The cursor in the iframe's own client coordinates. Throttled to one message per 40 ms (~25 Hz); the consumer interpolates. Coordinates only — no target element, no event object, nothing about the page content. Passive capture-phase listener; never calls `preventDefault()`. |
+
+Both bridges install the forwarder behind the shared `__desktopModePointerForwarderInstalled` sentinel, so a page carrying the inline chromeless bridge *and* the standalone bundle only forwards once.
+
+Parent side: the consumer resolves the sending frame by matching `MessageEvent.source` against each `<iframe>`'s `contentWindow` (cached in a `WeakMap`), then adds that element's `left` / `top`. A message from a frame it can't resolve is dropped rather than guessed at.
+
 ### Pre-close unsaved-changes query — `desktop-mode-bridge-beforeunload-*`
 
 Before tearing down an iframe-backed (non-native) window, `Window.close()` gives the page inside a chance to veto — the same protection a real browser tab close gets from the page's `beforeunload` handler, which a same-origin admin iframe never triggers on its own (there's no real navigation happening).

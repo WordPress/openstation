@@ -474,6 +474,16 @@ function desktop_mode_enqueue_assets() {
 			// overlays (toast, confirm dialog, context menus) feel
 			// instant the first time they fire.
 			'shellOverlaysBundleUrl' => $lazy_bundle_url( 'shell-overlays' ),
+			// Mascot — the desk companion. `mascot` carries the
+			// appearance + physics (see `desktop_mode_mascot_config()`);
+			// `mascotBundleUrl` is the lazy PixiJS bundle the shell
+			// controller injects the first time a user switches the
+			// mascot on from the wallpaper context menu. Shipping the
+			// URL unconditionally costs one short string and keeps the
+			// SCRIPT_DEBUG choice server-side, matching every other
+			// lazy bundle here.
+			'mascot'                 => desktop_mode_mascot_config(),
+			'mascotBundleUrl'        => $lazy_bundle_url( 'mascot' ),
 			// URL of the lazy window-system bundle (Stage 11).
 			// Holds the `Window` class and its DOM / pointer / tab /
 			// chrome helpers — the single largest module split out of

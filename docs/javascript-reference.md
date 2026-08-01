@@ -1611,6 +1611,44 @@ The games framework calls `suspend( 'game:<windowId>' )` / `resume(…)` around 
 
 ---
 
+### `wp.desktop.mascot` — Experimental
+
+The desk mascot: a soft-body companion that floats over the wallpaper, falls onto nearby windows, watches the pointer, and can be dragged anywhere. Off by default; users toggle it from the wallpaper context menu (**Show mascot** / **Hide mascot**).
+
+Full documentation — architecture, the simulation, the configuration table, the reason the canvas is never interactive — is in [mascot.md](./mascot.md).
+
+```typescript
+interface MascotApi {
+    isEnabled(): boolean;
+    enable(): Promise< void >;             // persists the preference
+    disable(): void;                       // persists; releases the WebGL context
+    toggle(): Promise< void >;             // what the menu entry calls
+    getPosition(): { x: number; y: number } | null;   // viewport coords, null when off
+    setPosition( x: number, y: number ): void;        // no-op when off
+    getConfig(): MascotConfig;
+    setConfig( partial: PartialMascotConfig ): void;  // merged, clamped, applied live
+}
+```
+
+`enable()` / `disable()` / `toggle()` write the per-user OS setting `mascotEnabled` exactly as the menu entry does; the mascot's resting position is browser-local (`localStorage`, key `desktop-mode-mascot-position`).
+
+The first `enable()` lazy-loads `assets/js/mascot[.min].js` and PixiJS — nothing about the simulation ships in `desktop.min.js`, so a user who never switches the mascot on never downloads it.
+
+```js
+wp.desktop.ready( () => {
+    // A bigger, calmer mascot for a kiosk screen.
+    wp.desktop.mascot.setConfig( {
+        appearance: { radius: 90, glow: 1.6 },
+        physics: { magnetStrength: 1400, floatAmplitude: 20 },
+    } );
+    void wp.desktop.mascot.enable();
+} );
+```
+
+Server-side defaults come from the `desktop_mode_mascot_config` PHP filter; the `desktop-mode.mascot.config` JS filter gets the last word before mount. Both are re-sanitized, so out-of-range values are clamped rather than rejected.
+
+---
+
 ### `wp.desktop.games` — Experimental
 
 The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.
@@ -3546,6 +3584,20 @@ This closes the gap where a custom post type registered through a settings tool 
 
 ---
 
+#### `desktop-mode-pointer-move` — Experimental
+
+The cursor's position inside this iframe, in the iframe's own client coordinates. Sent **only** while the parent has armed the frame with [`desktop-mode-pointer-track`](#desktop-mode-pointer-track--experimental), throttled to ~25 Hz, from a passive capture-phase listener that never calls `preventDefault()`.
+
+Pointer events don't cross iframe boundaries, so the shell goes blind to the cursor the moment it enters a window. Anything shell-side that needs the true cursor position over window content consumes this and rebases it through the iframe element's bounding rect. Today's consumer is the mascot's gaze ([mascot.md](./mascot.md#looking-at-the-pointer-across-iframes)).
+
+Coordinates only — no target element, no event object, nothing about the page's content.
+
+```typescript
+{ type: 'desktop-mode-pointer-move'; x: number; y: number }
+```
+
+---
+
 ### parent → iframe
 
 ```javascript
@@ -3600,6 +3652,18 @@ Asks the iframe to run a previously harvested `action`-kind command. Sent when t
 
 ```typescript
 { type: 'desktop-mode-commands-invoke'; name: string }
+```
+
+---
+
+#### `desktop-mode-pointer-track` — Experimental
+
+Arms or disarms the iframe's pointer forwarder (see [`desktop-mode-pointer-move`](#desktop-mode-pointer-move--experimental)). **Off by default**: a shell with no consumer never sends this and the iframe never installs the listener.
+
+The shell posts `{ enabled: true }` to every live iframe when a consumer starts, again to any frame that announces `desktop-mode-bridge-ready` (which fires on every navigation, so a frame re-arms itself after a page load), and `{ enabled: false }` when the last consumer tears down.
+
+```typescript
+{ type: 'desktop-mode-pointer-track'; enabled: boolean }
 ```
 
 ---
@@ -3664,6 +3728,21 @@ if ( wp.desktop.isReady() ) {
 | `desktop-mode.wallpaper.preview-params` | filter | Experimental | `Record<string, unknown> → Record<string, unknown>`, second arg `wallpaperId` — override a wallpaper's live-preview parameters before its `renderPreview` runs |
 | `desktop-mode.wallpaper.settings-changed` | action | Experimental | `{ id, settings }` — the user edited the wallpaper's settings through its `renderConfig` dialog; `settings` is the full post-merge bag. Mounted wallpapers live-apply from here |
 | `desktop-mode.wallpaper.surfaces` | filter | Stable | `WallpaperSurface[] → WallpaperSurface[]` — see below |
+
+#### Mascot
+
+The desk companion. Full documentation in [mascot.md](./mascot.md).
+
+| Hook | Kind | Status | Payload |
+|---|---|---|---|
+| `desktop-mode.mascot.config` | filter | Experimental | `MascotConfig → MascotConfig` — last word on appearance + physics before mount, on top of the `desktop_mode_mascot_config` PHP filter. Re-sanitized after your filter runs, so out-of-range values are clamped rather than rejected |
+| `desktop-mode.mascot.enabled` | action | Experimental | `{}` — the user switched it on |
+| `desktop-mode.mascot.disabled` | action | Experimental | `{}` — the user switched it off |
+| `desktop-mode.mascot.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating; viewport coordinates |
+| `desktop-mode.mascot.unmounted` | action | Experimental | `{}` — torn down, WebGL context released |
+| `desktop-mode.mascot.grabbed` | action | Experimental | `{ position: { x, y } }` — the user started dragging it |
+| `desktop-mode.mascot.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted |
+| `desktop-mode.mascot.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened, moved, or maximised on top of it, so it hopped clear of the window cluster |
 
 #### Arrange & Overview
 

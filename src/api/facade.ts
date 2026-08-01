@@ -159,6 +159,7 @@ import type { DragManagerApi } from '../drag';
 import type { WindowConnection, ConnectOptions } from '../connection';
 import type { WallpaperDef } from '../wallpapers/types';
 import type { WallpaperSuspendApi } from '../wallpapers/layer';
+import type { MascotApi } from '../mascot/controller';
 import { gamesApi } from '../games/api';
 import { applyDesktopTheme } from '../desktop-themes/apply';
 import {
@@ -262,6 +263,7 @@ export interface BuildPublicApiDeps {
 	connect: ( targetWindowId: string, opts?: ConnectOptions ) => WindowConnection;
 	getConnection: ( connectionId: string ) => WindowConnection | null;
 	wallpaperSuspend: WallpaperSuspendApi;
+	mascot: MascotApi;
 	config: DesktopConfig;
 }
 
@@ -296,6 +298,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		connect,
 		getConnection,
 		wallpaperSuspend,
+		mascot,
 		config,
 	} = deps;
 
@@ -337,6 +340,7 @@ export function buildPublicApi( deps: BuildPublicApiDeps ): WpDesktopPublicApi {
 		loadVendorScript,
 		getWallpaperSurfaces: () => collectWallpaperSurfaces( manager ),
 		wallpaper: wallpaperSuspend,
+		mascot,
 		games: gamesApi,
 		registerWindow,
 		openWindow: openWindowById,

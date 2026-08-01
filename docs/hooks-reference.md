@@ -1665,6 +1665,30 @@ apply_filters( 'desktop_mode_wallpaper_context_menu_items', array[] $items );
 
 ---
 
+### `desktop_mode_mascot_config` — Experimental
+
+The desk mascot's appearance and physics, shipped to the shell as `desktopModeConfig.mascot`. Returning a partial array is fine — anything you leave out keeps the reference design, and every value is re-clamped client-side before it reaches the simulation, so a filter can't produce a broken shell. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
+
+Full key/range table in [mascot.md](./mascot.md#configuration-reference).
+
+```php
+apply_filters( 'desktop_mode_mascot_config', array $config );
+```
+
+```php
+add_filter( 'desktop_mode_mascot_config', function ( $config ) {
+	// A slower, heavier, teal companion.
+	$config['appearance']['hueStart'] = 170;
+	$config['appearance']['hueSpan']  = 40;
+	$config['physics']['magnetStrength'] = 3400;
+	return $config;
+} );
+```
+
+The on/off state is not part of this filter — it is the per-user OS setting `mascotEnabled`, toggled from the wallpaper context menu.
+
+---
+
 ## AI Copilot hooks — Stable
 
 The AI assistant (Cmd+K palette) runs an agentic loop server-side, analyses entities on save, and exposes a search REST endpoint. Every decision point is hookable so plugins can adjust model selection, customise prompts, limit which entities get analysed, or react to analysis completion.

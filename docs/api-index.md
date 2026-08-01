@@ -67,6 +67,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerWallpaper` | `( def: WallpaperDef ) => void` | Stable |
 | `wallpaper` | `WallpaperSuspendApi` *(`suspend( reason )` / `resume( reason )` / `isSuspended()` — refcounted wallpaper pause)* | Experimental |
 | `games` | `GamesApi` *(`register` / `unregister` / `list` / `get` / `subscribe` / `launch` / `getPlaytime` — desktop games + unified scoreboard)* | Experimental |
+| `mascot` | `MascotApi` *(`isEnabled` / `enable` / `disable` / `toggle` / `getPosition` / `setPosition` / `getConfig` / `setConfig` — the soft-body desk companion; see [`mascot.md`](./mascot.md))* | Experimental |
 
 ### Cross-bundle / cross-window state
 
@@ -244,6 +245,8 @@ Typed messages between the parent shell and iframe windows. Full shapes in [`bri
 | `desktop-mode-drag-payload` *(reply to `-payload-request`)* | parent → iframe | Stable |
 | `desktop-mode-drag-over` / `-leave` / `desktop-mode-drop` | parent → iframe | Stable |
 | `desktop-mode-reauth-detected` *(session re-auth nudge)* | iframe → parent | Stable |
+| `desktop-mode-pointer-track` *(arm / disarm the pointer forwarder; off by default)* | parent → iframe | Experimental |
+| `desktop-mode-pointer-move` *(cursor position inside the iframe, ~25 Hz, only while armed)* | iframe → parent | Experimental |
 | `desktop-mode-editor-autosave-request` / `-response` *(preview-button autosave query)* | parent → iframe / iframe → parent | Experimental |
 | `desktop-mode-editor-live-watch` / `-unwatch` / `-live-saved` *(typing-driven preview refresh)* | parent → iframe / parent → iframe / iframe → parent | Experimental |
 
