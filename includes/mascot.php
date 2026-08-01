@@ -32,8 +32,9 @@ defined( 'ABSPATH' ) || exit;
  *                                hueSpan, hueDrift, saturation, lightness,
  *                                iridescence, outlineWidth, glow, glowBlur,
  *                                eyeColor, eyeScale ),
- *         'physics'    => array( points, shapeLobes, shapeAmount,
- *                                shapeAngle, radialStiffness, edgeStiffness,
+ *         'physics'    => array( points, shapePreset, shapeLobes,
+ *                                shapeAmount, shapeAngle, shapeShuffle,
+ *                                radialStiffness, edgeStiffness,
  *                                bendStiffness, pressure, damping,
  *                                airDamping, magnetStrength, magnetRange,
  *                                magnetGrip, magnetDamping, floatAmplitude,
@@ -71,10 +72,17 @@ function desktop_mode_mascot_config() {
 		),
 		'physics'    => array(
 			'points'          => 12,
-			// Nearly round, with a shallow dimple at the bottom centre.
+			// Silhouette: 'circle', 'blob', 'ghost', 'potato' or
+			// 'custom'. Nearly round, with a shallow dimple at the
+			// bottom centre.
+			'shapePreset'     => 'blob',
+			// Only read by the 'custom' preset.
 			'shapeLobes'      => 3,
-			'shapeAmount'     => 0.5,
-			'shapeAngle'      => -90,
+			'shapeAmount'     => 1,
+			'shapeAngle'      => 0,
+			// Seconds between the mascot picking a new silhouette at
+			// random and morphing into it. 0 holds shapePreset.
+			'shapeShuffle'    => 60,
 			'radialStiffness' => 460,
 			'edgeStiffness'   => 540,
 			'bendStiffness'   => 170,

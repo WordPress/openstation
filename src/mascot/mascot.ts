@@ -47,6 +47,7 @@ import type {
 	MascotConfig,
 	MascotHandle,
 	MascotMountOptions,
+	MascotShapePreset,
 } from './types';
 
 declare global {
@@ -70,6 +71,23 @@ const HANDLE_SCALE = 2.1;
 const AMBIENT_RAKE_RATE = 0.42;
 /** Body speed (layer px/s) at which the rake fully commits to the heading. */
 const FULL_RAKE_SPEED = 900;
+/** How long a silhouette change takes to ease across, in seconds. */
+const MORPH_SECONDS = 2.6;
+
+/**
+ * The stock silhouettes the shuffle draws from.
+ *
+ * `custom` is deliberately absent: it is a shape someone configured on
+ * purpose, and wandering into it at random would be indistinguishable
+ * from a bug.
+ */
+const SHUFFLE_SHAPES: readonly MascotShapePreset[] = [
+	'circle',
+	'blob',
+	'ghost',
+	'potato',
+];
+
 /**
  * Rake strength of a mascot that isn't going anywhere.
  *
@@ -163,6 +181,27 @@ export async function mountMascot(
 		? { x: options.position.x - origin.left, y: options.position.y - origin.top }
 		: defaultStart( size(), config.appearance.radius );
 
+	// ------------------------------------------------------------------
+	// Silhouette.
+	//
+	// The mascot picks a new stock shape every `shapeShuffle` seconds
+	// and eases into it. The transition is a blend of two rest
+	// profiles, not a redraw: the springs are handed the interpolated
+	// target and pull the body across, so the mascot can be poked,
+	// dragged, thrown and landed on a window mid-morph and the shape
+	// change simply carries on underneath. That is the whole reason the
+	// shape lives in rest lengths.
+	// ------------------------------------------------------------------
+
+	/** The silhouette being eased away from, or `null` when settled. */
+	let morphFrom: MascotShapePreset | null = null;
+	/** Seconds elapsed into the current morph. */
+	let morphAt = 0;
+	/** Seconds until the next shuffle. */
+	let nextShuffle = shuffleDelay( config.physics.shapeShuffle );
+	/** The silhouette currently being pulled toward. */
+	let shape: MascotShapePreset = config.physics.shapePreset;
+
 	/**
 	 * The rest silhouette, bound to whatever config is live.
 	 *
@@ -171,8 +210,49 @@ export async function mountMascot(
 	 * the body — the mascot morphs into its new shape instead of
 	 * popping into it.
 	 */
-	const profile = ( angle: number ): number =>
-		shapeProfile( angle, config.physics );
+	const profile = ( angle: number ): number => {
+		const to = shapeProfile( angle, { ...config.physics, shapePreset: shape } );
+		if ( ! morphFrom ) {
+			return to;
+		}
+		const from = shapeProfile( angle, {
+			...config.physics,
+			shapePreset: morphFrom,
+		} );
+		return from + ( to - from ) * smoothstep( morphAt / MORPH_SECONDS );
+	};
+
+	/** Advance the shuffle clock and the morph in progress. */
+	const updateShape = ( seconds: number ): void => {
+		if ( morphFrom ) {
+			morphAt += seconds;
+			if ( morphAt >= MORPH_SECONDS ) {
+				morphFrom = null;
+				morphAt = 0;
+			}
+		}
+		const every = config.physics.shapeShuffle;
+		if ( every <= 0 ) {
+			// Switched off mid-session: settle on the configured shape
+			// rather than freezing wherever the last shuffle left us.
+			shape = config.physics.shapePreset;
+			nextShuffle = 0;
+			return;
+		}
+		nextShuffle -= seconds;
+		if ( nextShuffle > 0 || morphFrom ) {
+			return;
+		}
+		const next = pickShape( shape );
+		nextShuffle = shuffleDelay( every );
+		if ( next === shape ) {
+			return;
+		}
+		morphFrom = shape;
+		morphAt = 0;
+		shape = next;
+		doAction( 'desktop-mode.mascot.shape-changed', { shape, from: morphFrom } );
+	};
 
 	let body: SoftBody = createSoftBody(
 		clamp( start.x, config.appearance.radius, size().width - config.appearance.radius ),
@@ -538,6 +618,7 @@ export async function mountMascot(
 		} );
 
 		updateTilt( seconds );
+		updateShape( seconds );
 
 		// Blink schedule.
 		if ( blinkStartedAt < 0 && elapsed >= nextBlinkAt ) {
@@ -719,7 +800,10 @@ function calmed( config: MascotConfig ): MascotConfig {
 	}
 	return {
 		appearance: { ...config.appearance, hueDrift: 0 },
-		physics: { ...config.physics, floatAmplitude: 0 },
+		// The silhouette shuffle goes with the bob and the shimmer: a
+		// mascot that reshapes itself while you are reading is textbook
+		// unsolicited animation.
+		physics: { ...config.physics, floatAmplitude: 0, shapeShuffle: 0 },
 	};
 }
 
@@ -851,4 +935,27 @@ function defaultStart(
 
 function clamp( v: number, lo: number, hi: number ): number {
 	return Math.min( Math.max( v, lo ), Math.max( lo, hi ) );
+}
+
+/** Smoothstep, so a morph eases out of one shape and into the next. */
+function smoothstep( t: number ): number {
+	const x = Math.min( 1, Math.max( 0, t ) );
+	return x * x * ( 3 - 2 * x );
+}
+
+/**
+ * How long to wait before the next shuffle.
+ *
+ * Jittered by ±25% so a mascot that has been on screen for an hour is
+ * still not something the eye can anticipate — a change exactly every
+ * sixty seconds reads as a timer, which is the opposite of alive.
+ */
+function shuffleDelay( every: number ): number {
+	return every > 0 ? every * ( 0.75 + Math.random() * 0.5 ) : 0;
+}
+
+/** A stock silhouette that isn't the one already showing. */
+function pickShape( current: MascotShapePreset ): MascotShapePreset {
+	const options = SHUFFLE_SHAPES.filter( ( s ) => s !== current );
+	return options[ Math.floor( Math.random() * options.length ) ] ?? current;
 }

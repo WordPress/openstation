@@ -76,15 +76,27 @@ import type { Particle } from './environment';
 import type { MascotAppearance } from './types';
 
 /**
- * Curve samples taken per rim segment.
+ * How many points the outline is resampled to, regardless of how many
+ * mass points the simulation runs.
  *
- * Four rather than two because a band cell now spans **two** samples
- * and uses the one in between as the point its edge curves through
- * (see {@link controlThrough}). Cells still span the same arc as
- * before, so the per-frame cell count is unchanged — the extra samples
- * buy curvature, not resolution.
+ * **This number is a colour resolution, not a geometric one.** Each
+ * band cell carries one flat colour, so a cell is also one step of the
+ * hue ramp — and at 24 cells the ring stops reading as a gradient and
+ * starts reading as a colour wheel, in ~5° jumps the eye picks out
+ * immediately at full saturation. At this density a cell spans a
+ * degree or two of hue, which is below what anyone can separate.
+ *
+ * Geometrically it is overkill, and deliberately so: the curved cell
+ * edges mean the outline was already smooth at a tenth of this. The
+ * cells are correspondingly tiny, so their curves tessellate to two or
+ * three points each and the extra cost is close to linear in the
+ * count.
+ *
+ * Fixing the *total* rather than a per-segment multiplier decouples the
+ * ring from `physics.points`: coarsening the simulation to nine mass
+ * points no longer coarsens the gradient with it.
  */
-const SAMPLES_PER_SEGMENT = 4;
+const RIBBON_SAMPLES = 144;
 
 /**
  * Flatness tolerance handed to Pixi's adaptive curve tessellation,
@@ -191,23 +203,30 @@ function mid( a: Particle, b: Particle ): { x: number; y: number } {
  * coincident rim points) falls back to the radial direction, which is
  * always defined.
  *
+ * The sample count is a *total*, not a per-segment multiplier, so the
+ * ring keeps its resolution when the simulation is coarsened. It is
+ * rounded up to a whole number of samples per rim segment and forced
+ * even, because a band cell spans two samples and curves through the
+ * one between them.
+ *
  * @param rim      Rim points, in layer coordinates.
  * @param centre   Body centre, used to orient the normals outward.
  * @param centre.x Centre x, in layer coordinates.
  * @param centre.y Centre y, in layer coordinates.
- * @param per      Samples per rim segment.
+ * @param total    Approximate number of samples around the whole ring.
  */
 export function buildRibbon(
 	rim: readonly Particle[],
 	centre: { x: number; y: number },
-	per: number = SAMPLES_PER_SEGMENT,
+	total: number = RIBBON_SAMPLES,
 ): RibbonSample[] {
 	const out: RibbonSample[] = [];
 	const n = rim.length;
 	if ( n < 3 ) {
 		return out;
 	}
-	const step = Math.max( 1, Math.round( per ) );
+	const wanted = Math.max( 2, Math.ceil( Math.max( 1, total ) / n ) );
+	const step = wanted % 2 === 0 ? wanted : wanted + 1;
 
 	for ( let i = 0; i < n; i++ ) {
 		const a = mid( rim[ ( i + n - 1 ) % n ], rim[ i ] );
@@ -633,6 +652,19 @@ export function drawMascot(
 	// a hairline of wallpaper showing along the seam.
 	const bleed = Math.max( 1, w * 0.4 );
 
+	// Strides as a share of the live sample count rather than fixed
+	// numbers, so the passes keep their relative resolution whatever
+	// `points` and RIBBON_SAMPLES work out to.
+	const cells = ( count: number ): number => {
+		const s = Math.max( 2, Math.round( samples.length / count ) );
+		return s % 2 === 0 ? s : s + 1;
+	};
+	// The crisp core and the bloom carry the gradient, so they run at
+	// full resolution. The halo and the sheen are blurred to the point
+	// that nothing finer than a dozen cells survives to a pixel.
+	const fine = 2;
+	const coarse = cells( 12 );
+
 	// 1 + 2 — glow passes. Widths scale with the core stroke so a
 	// plugin thickening the outline gets a proportionally bigger
 	// bloom instead of a thin line inside a fixed halo.
@@ -643,12 +675,16 @@ export function drawMascot(
 		// Alphas run a little above what the old stroked passes used:
 		// those double-covered themselves at every joint, and taking the
 		// overlap away takes some brightness with it.
-		//
-		// The halo is blurred and nearly transparent, so it is drawn at
-		// half resolution — nothing about it survives to a pixel a
-		// viewer could resolve.
-		fillBand( layers.halo, samples, colors, w * 3 * glow, bleed, 0.12, 4 );
-		fillBand( layers.bloom, samples, colors, w * 1.4 * glow, bleed, 0.32 );
+		fillBand( layers.halo, samples, colors, w * 3 * glow, bleed, 0.12, coarse );
+		fillBand(
+			layers.bloom,
+			samples,
+			colors,
+			w * 1.4 * glow,
+			bleed,
+			0.32,
+			fine,
+		);
 	}
 
 	// 3 — the black body, masking the inner half of the glow. Traced
@@ -679,6 +715,7 @@ export function drawMascot(
 				},
 			),
 			sheen,
+			cells( 8 ),
 		);
 	}
 
@@ -691,7 +728,7 @@ export function drawMascot(
 		lighten( c, 0.3 + 0.45 * glint[ i ] ),
 	);
 	layers.core.clear();
-	fillBand( layers.core, samples, coreColors, w * 0.5, w * 0.5, 1, 2 );
+	fillBand( layers.core, samples, coreColors, w * 0.5, w * 0.5, 1, fine );
 
 	// Face.
 	const eyes = eyeLayout( frame, appearance );

@@ -33,8 +33,29 @@ function ring( n: number, r = 50 ): Particle[] {
 const CENTRE = { x: 0, y: 0 };
 
 describe( 'buildRibbon', () => {
-	test( 'resamples the rim at the requested density', () => {
-		expect( buildRibbon( ring( 12 ), CENTRE, 3 ) ).toHaveLength( 36 );
+	test( 'hits the requested total, rounded up to an even per-segment', () => {
+		// 100 / 12 = 8.33 → 10 per segment (9 rounded up to even).
+		expect( buildRibbon( ring( 12 ), CENTRE, 100 ) ).toHaveLength( 120 );
+		expect( buildRibbon( ring( 10 ), CENTRE, 40 ) ).toHaveLength( 40 );
+	} );
+
+	test( 'the ring keeps its resolution when the rim is coarsened', () => {
+		// The point of a total rather than a per-segment multiplier:
+		// dropping the simulation to nine mass points must not coarsen
+		// the colour ramp with it.
+		const coarse = buildRibbon( ring( 9 ), CENTRE, 144 );
+		const fine = buildRibbon( ring( 36 ), CENTRE, 144 );
+		expect( coarse.length ).toBeGreaterThanOrEqual( 144 );
+		expect( fine.length ).toBeGreaterThanOrEqual( 144 );
+	} );
+
+	test( 'always yields an even count per segment, for the curve midpoints', () => {
+		// A cell spans two samples and curves through the one between
+		// them; an odd per-segment count would leave cells straddling a
+		// segment boundary with no midpoint of their own.
+		for ( const n of [ 7, 9, 11, 13 ] ) {
+			expect( buildRibbon( ring( n ), CENTRE, 50 ).length % 2 ).toBe( 0 );
+		}
 	} );
 
 	test( 'a rim too short to be a polygon draws nothing', () => {
@@ -166,7 +187,7 @@ function outerEdge( cell: Cmd[] ): { start: number[]; end: number[] } {
 describe( 'fillBand', () => {
 	// Eight samples per rim segment, so a stride of 2 still leaves a
 	// halfway sample for every cell.
-	const samples: RibbonSample[] = buildRibbon( ring( 10 ), CENTRE, 4 );
+	const samples: RibbonSample[] = buildRibbon( ring( 10 ), CENTRE, 40 );
 	const colors = samples.map( ( _, i ) => i );
 
 	test( 'emits one curved cell per pair of samples', () => {
@@ -240,7 +261,7 @@ describe( 'fillBand', () => {
 } );
 
 describe( 'fillSheen', () => {
-	const samples: RibbonSample[] = buildRibbon( ring( 12 ), CENTRE, 4 );
+	const samples: RibbonSample[] = buildRibbon( ring( 12 ), CENTRE, 48 );
 	const colors = samples.map( () => 0xff00ff );
 
 	/** Every alpha the sheen asked for, in draw order. */

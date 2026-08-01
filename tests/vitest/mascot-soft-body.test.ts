@@ -24,6 +24,10 @@ import {
 	type SoftBody,
 	type StepInput,
 } from '../../src/mascot/soft-body';
+import type {
+	MascotPhysics,
+	MascotShapePreset,
+} from '../../src/mascot/types';
 
 const BOUNDS = { width: 1200, height: 800 };
 
@@ -37,7 +41,10 @@ const BOUNDS = { width: 1200, height: 800 };
  * against a circle than against the shipped rounded triangle. The
  * profile gets its own block at the end.
  */
-const PHYSICS = { ...MASCOT_DEFAULTS.physics, shapeLobes: 0 };
+const PHYSICS = {
+	...MASCOT_DEFAULTS.physics,
+	shapePreset: 'circle' as const,
+};
 
 function input( over: Partial< StepInput > = {} ): StepInput {
 	return {
@@ -984,6 +991,24 @@ describe( 'the rest shape', () => {
 	const TRIANGLE = MASCOT_DEFAULTS.physics;
 	const profile = ( angle: number ): number => shapeProfile( angle, TRIANGLE );
 
+	/** The shipped physics with one silhouette swapped in. */
+	function withPreset( shapePreset: MascotShapePreset ): MascotPhysics {
+		return { ...MASCOT_DEFAULTS.physics, shapePreset };
+	}
+
+	/** Sample a preset's silhouette all the way round. */
+	function sweep(
+		physics: MascotPhysics,
+		steps = 720,
+	): { angle: number; r: number }[] {
+		const out = [];
+		for ( let i = 0; i < steps; i++ ) {
+			const angle = ( i / steps ) * Math.PI * 2;
+			out.push( { angle, r: shapeProfile( angle, physics ) } );
+		}
+		return out;
+	}
+
 	/** Radius of the rim point nearest `angle`, relative to the rest radius. */
 	function radiusAt( body: SoftBody, angle: number ): number {
 		let best = body.rim[ 0 ];
@@ -1005,14 +1030,44 @@ describe( 'the rest shape', () => {
 		);
 	}
 
-	test( 'a circle is the default for degenerate lobe counts', () => {
-		for ( const shapeLobes of [ 0, 1 ] ) {
-			expect( shapeProfile( 1.234, { ...TRIANGLE, shapeLobes } ) ).toBe( 1 );
+	test( 'the circle preset is exactly a circle', () => {
+		for ( const { r } of sweep( withPreset( 'circle' ) ) ) {
+			expect( r ).toBe( 1 );
 		}
-		expect( shapeProfile( 1.234, { ...TRIANGLE, shapeAmount: 0 } ) ).toBe( 1 );
 	} );
 
-	test( 'amount 1 is exactly the flat-sided limit for any lobe count', () => {
+	test( 'zero amount is a circle whatever the preset', () => {
+		// The one guarantee that has to hold across all of them, or
+		// `shapeAmount` means something different per preset.
+		for ( const p of [ 'blob', 'ghost', 'potato', 'custom' ] as const ) {
+			const flat = { ...withPreset( p ), shapeAmount: 0 };
+			for ( const { r } of sweep( flat, 60 ) ) {
+				expect( r ).toBe( 1 );
+			}
+		}
+	} );
+
+	test( 'every preset stays inside the limits the solver assumes', () => {
+		// `minStretch` / `maxStretch` bound the rim to an annulus around
+		// the rest shape. A preset that pushed past them on its own would
+		// be permanently fighting the relaxation pass.
+		for ( const p of [ 'blob', 'ghost', 'potato', 'custom' ] as const ) {
+			for ( const { r } of sweep( withPreset( p ) ) ) {
+				expect( r ).toBeGreaterThan( MASCOT_DEFAULTS.physics.minStretch );
+				expect( r ).toBeLessThan( MASCOT_DEFAULTS.physics.maxStretch );
+			}
+		}
+	} );
+
+	test( 'a degenerate lobe count falls back to a circle', () => {
+		for ( const shapeLobes of [ 0, 1 ] ) {
+			expect(
+				shapeProfile( 1.234, { ...withPreset( 'custom' ), shapeLobes } ),
+			).toBe( 1 );
+		}
+	} );
+
+	test( 'custom at amount 1 is the flat-sided limit for any lobe count', () => {
 		// `1 + a·cos(kθ)` has zero curvature at its side midpoints when
 		// a = 1/(1 + k²). That is what `shapeAmount: 1` has to mean, or
 		// the knob means something different for a triangle than for a
@@ -1020,7 +1075,7 @@ describe( 'the rest shape', () => {
 		for ( const k of [ 3, 4, 6 ] ) {
 			const at = ( angle: number ): number =>
 				shapeProfile( angle, {
-					...TRIANGLE,
+					...withPreset( 'custom' ),
 					shapeLobes: k,
 					shapeAmount: 1,
 					shapeAngle: 0,
@@ -1031,7 +1086,52 @@ describe( 'the rest shape', () => {
 		}
 	} );
 
-	test( 'the default puts a corner up and a flat side down', () => {
+	test( 'the ghost is a dome on top and feet underneath', () => {
+		const ghost = withPreset( 'ghost' );
+		// Top half: a clean circle, because both the squaring and the
+		// scallops are windowed to the underside. Anything else and it
+		// reads as a gear rather than a ghost.
+		for ( let i = 0; i <= 20; i++ ) {
+			const angle = -Math.PI + ( i / 20 ) * Math.PI;
+			expect( shapeProfile( angle, ghost ) ).toBeCloseTo( 1, 9 );
+		}
+		// Three feet along the bottom, at π/6, π/2 and 5π/6, with
+		// notches between them.
+		for ( const foot of [ Math.PI / 6, Math.PI / 2, ( 5 * Math.PI ) / 6 ] ) {
+			for ( const notch of [ Math.PI / 3, ( 2 * Math.PI ) / 3 ] ) {
+				expect( shapeProfile( foot, ghost ) ).toBeGreaterThan(
+					shapeProfile( notch, ghost ),
+				);
+			}
+		}
+		// Square shoulders: the lower diagonals push out well past the
+		// circle the top half traces.
+		expect( shapeProfile( Math.PI / 4, ghost ) ).toBeGreaterThan( 1.1 );
+	} );
+
+	test( 'the potato has no symmetry to speak of', () => {
+		const potato = withPreset( 'potato' );
+		// Mirror symmetry about any axis would mean r(θ) = r(2φ − θ) for
+		// some φ. Sample a spread of candidate axes and require every one
+		// of them to fail — a potato with an axis is a lemon.
+		for ( let a = 0; a < 12; a++ ) {
+			const axis = ( a / 12 ) * Math.PI;
+			let worst = 0;
+			for ( let i = 0; i < 60; i++ ) {
+				const angle = ( i / 60 ) * Math.PI * 2;
+				worst = Math.max(
+					worst,
+					Math.abs(
+						shapeProfile( angle, potato ) -
+							shapeProfile( 2 * axis - angle, potato ),
+					),
+				);
+			}
+			expect( worst ).toBeGreaterThan( 0.02 );
+		}
+	} );
+
+	test( 'the blob preset puts a corner up and a flat side down', () => {
 		// Screen coordinates: -90° is up, +90° is down.
 		const up = shapeProfile( -Math.PI / 2, TRIANGLE );
 		const down = shapeProfile( Math.PI / 2, TRIANGLE );
@@ -1093,11 +1193,28 @@ describe( 'the rest shape', () => {
 		expect( radiusAt( body, Math.PI / 2 ) ).toBeLessThan( 0.98 );
 	} );
 
+	test( 'every preset survives being simulated', () => {
+		// The presets are the one place a silhouette is authored by hand,
+		// so each one gets run through the solver: no NaN, no collapse,
+		// and the shape still standing at the end.
+		for ( const p of [ 'circle', 'ghost', 'potato' ] as const ) {
+			const physics = withPreset( p );
+			const body = createSoftBody( 600, 400, 56, 36, ( a ) =>
+				shapeProfile( a, physics ),
+			);
+			run( body, 2, { physics } );
+			expect( isFiniteBody( body ) ).toBe( true );
+			expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
+				body.restArea * 0.5,
+			);
+		}
+	} );
+
 	test( 'the outline never folds, even at a clover amount', () => {
 		// Past the flat-sided limit the sides bow inward. The angular
 		// gap constraint still has to hold: a self-intersecting rim is
 		// the one failure the body cannot recover from.
-		const clover = { ...TRIANGLE, shapeAmount: 1.4 };
+		const clover = { ...withPreset( 'custom' ), shapeAmount: 1.4 };
 		const body = createSoftBody( 600, 400, 56, 36, ( a ) =>
 			shapeProfile( a, clover ),
 		);

@@ -16,6 +16,7 @@ Off by default. Users switch it on by right-clicking the wallpaper and picking *
 - [Architecture](#architecture)
 - [The simulation](#the-simulation)
   - [The rest shape](#the-rest-shape)
+  - [Shuffling the silhouette](#shuffling-the-silhouette)
   - [Idle wobble](#idle-wobble)
   - [Hard limits](#hard-limits)
   - [The outline can never fold](#the-outline-can-never-fold)
@@ -104,19 +105,42 @@ Note that `damping` is the wobble knob. Turn it down and every landing rings for
 
 ### The rest shape
 
-The mascot is not a disc. `shapeLobes` / `shapeAmount` / `shapeAngle` give it a **rest profile** — a rounded polygon. The shipped values are a three-lobe profile at about half strength, corner up: nearly round, with a shallow dimple at the bottom centre and a little extra fullness at the lower left and right. Raise `shapeAmount` toward `1` and the same profile becomes a proper rounded triangle.
+The mascot is not a disc. `shapePreset` picks a silhouette:
 
-Crucially this is a *rest length*, not a mask or a drawn outline. The profile multiplies the per-point rest radius that every spring family already reads, so the mascot squashes, stretches, breathes, gets thrown and re-inflates exactly as a round one does; it simply settles into a triangle when nothing is acting on it. Nothing downstream has to know about it — the pressure term's target area is computed from the same `restR` array, so the gas inflates toward the triangle rather than fighting it.
+| Preset | Silhouette |
+|---|---|
+| `circle` | A perfect disc. |
+| `blob` | Nearly round, with a shallow dimple at the bottom centre and a little extra fullness at the lower left and right. The shipped default. |
+| `ghost` | Dome top, straight sides, three scalloped feet. |
+| `potato` | Lumpy and asymmetric. No symmetry at all. |
+| `custom` | A rounded polygon built from `shapeLobes` — `3` is a triangle, `4` a square. |
+
+Crucially this is a *rest length*, not a mask or a drawn outline. The profile multiplies the per-point rest radius that every spring family already reads, so the mascot squashes, stretches, breathes, gets thrown and re-inflates exactly as a round one does; it simply settles into this shape when nothing is acting on it. Nothing downstream has to know about it — the pressure term's target area is computed from the same `restR` array, so the gas inflates toward the shape rather than fighting it.
 
 ```
-r(θ) = radius · ( 1 + shapeAmount · 1/(1 + lobes²) · cos( lobes · (θ − shapeAngle) ) )
+r(θ) = radius · ( 1 + shapeAmount · deviation( θ − shapeAngle ) )
 ```
 
-**`shapeAmount` is a fraction of the flat-sided limit, not a raw amplitude.** The profile `1 + a·cos(kθ)` has exactly zero curvature at its side midpoints when `a = 1/(1 + k²)`, so `shapeAmount: 1` means "dead straight sides between rounded corners" — at any lobe count. Past `1` the sides bow inward and the shape reads as a clover rather than a polygon; `mascot-soft-body.test.ts` checks the angular-gap constraint still holds there. A raw amplitude would mean something different for a triangle than for a hexagon and force every caller to re-derive it.
+**Presets return a deviation from a circle, not a multiplier.** That is what lets `shapeAmount` mean the same thing for all of them: it scales the deviation, so `0` is always a circle and `1` is always the shape as authored. Every preset is authored **upright**, so `shapeAngle` is a rotation on top rather than part of the definition — and since the body never rotates on its own (rest angles are fixed in screen space) it is a permanent orientation, not a starting one.
 
-The body never rotates — rest angles are fixed in screen space — so `shapeAngle` is a permanent orientation rather than a starting one. The default (`-90`, straight up in screen coordinates) is both the most triangle-like reading and the one that rests neatly on the top edge of a window.
+For `custom`, "as authored" is the flat-sided limit: `1 + a·cos(kθ)` has exactly zero curvature at its side midpoints when `a = 1/(1 + k²)`, so `shapeAmount: 1` means "dead straight sides between rounded corners" at any lobe count. Past `1` the sides bow inward and the shape reads as a clover rather than a polygon; `mascot-soft-body.test.ts` checks the angular-gap constraint still holds there. A raw amplitude would mean something different for a triangle than for a hexagon and force every caller to re-derive it.
 
-`createSoftBody()` and `resetBody()` take the profile so the body is *born* the right shape. Without it the springs would pull a disc into a triangle over the first few hundred milliseconds — harmless, but visible as a morph at boot and after every escape hop. Changing the shape live through `setConfig` deliberately does *not* rebuild the body, so that one does morph, which is the right reading for a shape someone is tuning.
+Two of the presets are worth a note:
+
+- The **ghost** windows both of its ideas to the underside with `max(0, sin θ)`, which is what makes it read as a ghost rather than as a gear. The superellipse exponent eases from `2` (a circle) at the top to `4.2` at the bottom, pushing the lower diagonals out into square shoulders while the head stays a clean dome; `−cos(6θ)` then peaks at `π/6`, `π/2` and `5π/6` for three feet with notches between, its own peaks at the sides falling exactly where the window is zero.
+- The **potato** is four harmonics at incommensurable frequencies with unrelated phases — the cheapest honest way to get no symmetry at all, since any two of them would still read as a squashed something. Amplitudes sit just inside each harmonic's own convexity limit, so the lumps stay lumps; they can sum past it where two crests coincide, which is exactly the shallow dent a potato ought to have. There is a test that asserts no mirror axis survives.
+
+`createSoftBody()` and `resetBody()` take the profile so the body is *born* the right shape. Without it the springs would pull a disc into shape over the first few hundred milliseconds — harmless, but visible as a morph at boot and after every escape hop.
+
+### Shuffling the silhouette
+
+Every `shapeShuffle` seconds (default `60`, `0` to switch it off) the mascot picks a different stock silhouette and **eases into it** over about two and a half seconds. The delay is jittered ±25%, because a change exactly every sixty seconds reads as a timer, which is the opposite of alive. `custom` is never picked: it is a shape someone configured on purpose, and wandering into it at random would be indistinguishable from a bug.
+
+The transition is a blend of two rest profiles handed to the springs, not a redraw. The body is pulled across by the same forces that handle everything else, so the mascot can be poked, dragged, thrown, and landed on a window mid-morph and the shape change simply carries on underneath. That composability is the whole reason the shape lives in rest lengths — `stepSoftBody()` reads `body.profile` when the body has one, so the blend has exactly one place to live and the simulation never learns that a transition is happening.
+
+Each change fires `desktop-mode.mascot.shape-changed` with `{ shape, from }`.
+
+Under `prefers-reduced-motion: reduce` the shuffle is switched off along with the idle bob and the hue drift — a mascot that reshapes itself while you are reading is textbook unsolicited animation.
 
 ### Idle wobble
 
@@ -274,9 +298,13 @@ Four passes over one resampled outline, back to front:
 
 ### The ribbon
 
-Everything is built on one resampled outline. `physics.points` is a *simulation* resolution, far too coarse to draw with directly, so `buildRibbon()` runs the standard Chaikin-style smoothing — quadratic curves through edge midpoints, rim points as controls — and samples that curve four times per rim segment, carrying an outward unit normal with every sample.
+Everything is built on one resampled outline. `physics.points` is a *simulation* resolution, far too coarse to draw with directly, so `buildRibbon()` runs the standard Chaikin-style smoothing — quadratic curves through edge midpoints, rim points as controls — and samples that curve to a **fixed total of 144 points** around the ring, carrying an outward unit normal with every one.
 
-The outline the renderer sees therefore has no idea how many mass points it came from. That decoupling is what lets the physics run coarse (26 points) without the edge going faceted, and it is why the wobble reads as a rippling curve rather than a shivering polygon.
+A total rather than a per-segment multiplier, because that number is a **colour resolution, not a geometric one**. Each band cell carries one flat colour, so a cell is also one step of the hue ramp — and at a couple of dozen cells the ring stops reading as a gradient and starts reading as a colour wheel, in ~5° jumps the eye picks out immediately at full saturation. At 144 a cell spans a degree or two of hue, below what anyone can separate. Fixing the total also decouples the ring from `points`: coarsening the simulation to nine mass points no longer coarsens the gradient with it.
+
+Geometrically it is overkill, deliberately — the curved cell edges below mean the outline was already smooth at a tenth of this. The cells are correspondingly tiny, so their curves tessellate to two or three points each and the extra cost is close to linear in the count. The passes that don't carry the gradient (the halo and the sheen, both blurred past the point where anything finer survives) take a proportionally wider stride.
+
+The outline the renderer sees has no idea how many mass points it came from. That decoupling is what lets the physics run coarse without the edge going faceted, and it is why the wobble reads as a rippling curve rather than a shivering polygon.
 
 ### Bands, not strokes
 
@@ -387,9 +415,11 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 | Key | Default | Range | Meaning |
 |---|---|---|---|
 | `points` | `12` | 12–128 | Rim resolution. A *simulation* resolution — the renderer resamples it into a smooth curve, so raising it buys a busier silhouette and per-frame cost, not a rounder one. |
-| `shapeLobes` | `3` | 0–8 | Corners in the [rest shape](#the-rest-shape). `3` is a rounded triangle, `4` a rounded square, `0`/`1` a circle. |
-| `shapeAmount` | `0.5` | 0–1.4 | How cornered, as a fraction of the flat-sided limit. `1` gives dead straight sides; above that they bow inward into a clover. |
-| `shapeAngle` | `-90` | −360–360 | Where the first corner points, in degrees clockwise from 3 o'clock. Screen coordinates, so `-90` is up. |
+| `shapePreset` | `blob` | `circle` \| `blob` \| `ghost` \| `potato` \| `custom` | Which [silhouette](#the-rest-shape) the mascot settles into. Unknown names fall back to the default rather than throwing. |
+| `shapeLobes` | `3` | 0–8 | Corners, for the `custom` preset only. `3` is a rounded triangle, `4` a rounded square, `0`/`1` a circle. |
+| `shapeAmount` | `1` | 0–1.4 | How far the silhouette departs from a circle. `0` is a circle whatever the preset; `1` is the preset as authored. For `custom`, above `1` the sides bow inward into a clover. |
+| `shapeAngle` | `0` | −360–360 | Rotation in degrees clockwise from upright. Presets are authored upright, so `0` leaves them as designed. |
+| `shapeShuffle` | `60` | 0–3600 | Seconds between the mascot [picking a new silhouette](#shuffling-the-silhouette) at random and morphing into it. `0` holds `shapePreset`. |
 | `radialStiffness` | `460` | 0–2000 | Shape springs (rim ↔ centroid). |
 | `edgeStiffness` | `540` | 0–4000 | Surface tension. |
 | `bendStiffness` | `170` | 0–2000 | Crease resistance. |
@@ -475,6 +505,7 @@ All fire through `wp.hooks` on the `desktop-mode.mascot.*` namespace.
 | `desktop-mode.mascot.grabbed` | action | Experimental | `{ position: { x, y } }` — drag started. |
 | `desktop-mode.mascot.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted. |
 | `desktop-mode.mascot.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened on top of it and it hopped clear of the cluster. |
+| `desktop-mode.mascot.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new shape. Fires when the morph *starts*; it takes about 2.6 s to complete. |
 
 ```js
 wp.hooks.addAction(
@@ -495,7 +526,7 @@ The wallpaper context-menu entry is a normal menu item (`id: 'mascot'`), so the 
 
 The mascot is decorative: the layer carries `aria-hidden="true"` and exposes no controls. It conveys no information, so nothing is lost to assistive technology.
 
-**Reduced motion** is honoured in the simulation rather than by hiding the mascot. Under `prefers-reduced-motion: reduce` the idle bob (`floatAmplitude`) and the ring shimmer (`hueDrift`) are zeroed — and with `hueDrift`, the hologram's ambient rake — so the mascot holds still until the user interacts with it. Motion the user causes — a drag, a fall onto a window they just opened — is kept: WCAG's concern is unsolicited animation, and a companion that refuses to move when you pick it up isn't accessible, it's broken. A user who wants none of it switches the mascot off from the same menu they switched it on.
+**Reduced motion** is honoured in the simulation rather than by hiding the mascot. Under `prefers-reduced-motion: reduce` the idle bob (`floatAmplitude`), the ring shimmer (`hueDrift`, and with it the hologram's ambient rake) and the silhouette shuffle (`shapeShuffle`) are all zeroed, so the mascot holds still until the user interacts with it. Motion the user causes — a drag, a fall onto a window they just opened — is kept: WCAG's concern is unsolicited animation, and a companion that refuses to move when you pick it up isn't accessible, it's broken. A user who wants none of it switches the mascot off from the same menu they switched it on.
 
 The preference is watched live, so toggling it at the OS level takes effect without a reload.
 
@@ -506,5 +537,6 @@ The preference is watched live, so toggling it at the OS level takes effect with
 - **Nothing downloads until the mascot is switched on.** The always-on cost is the controller.
 - The ticker stops on `visibilitychange`, and resumes with a drained accumulator so a tab that was hidden for a minute doesn't come back with a catch-up avalanche.
 - Surfaces are re-measured at 20 Hz, not per frame.
-- Per frame: six `Graphics.clear()` calls and roughly `5 × points` curved cells across the three ring bands, plus `3 × points` for the interior sheen's five shells (the halo is drawn at half resolution and the sheen at a third — both are blurred and faint, so nothing finer survives to a pixel a viewer could resolve), plus a blur pass over the halo and one over the sheen. The body is a single filled path of `points` curve segments.
+- Per frame: six `Graphics.clear()` calls and roughly 150 curved cells — 72 each for the bloom and the core, which carry the gradient at full ribbon resolution, plus a dozen for the halo and forty across the sheen's five shells, both of which are blurred past the point where anything finer survives. Then a blur pass over the halo and one over the sheen. The body is a single filled path of `points` curve segments.
+- Ribbon resolution is fixed at 144 samples rather than scaled off `points`, so raising the rim resolution costs simulation time but not render time.
 - The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OS Settings previews).

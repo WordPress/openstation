@@ -3743,6 +3743,7 @@ The desk companion. Full documentation in [mascot.md](./mascot.md).
 | `desktop-mode.mascot.grabbed` | action | Experimental | `{ position: { x, y } }` — the user started dragging it |
 | `desktop-mode.mascot.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted |
 | `desktop-mode.mascot.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened, moved, or maximised on top of it, so it hopped clear of the window cluster |
+| `desktop-mode.mascot.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new stock shape (`circle` \| `blob` \| `ghost` \| `potato`). Fires when the morph starts, not when it finishes |
 
 #### Arrange & Overview
 

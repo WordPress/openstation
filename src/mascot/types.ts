@@ -74,6 +74,18 @@ export interface MascotAppearance {
 }
 
 /**
+ * Named rest silhouettes. See {@link MascotPhysics.shapePreset}.
+ *
+ * @public
+ */
+export type MascotShapePreset =
+	| 'circle'
+	| 'blob'
+	| 'ghost'
+	| 'potato'
+	| 'custom';
+
+/**
  * Simulation constants. Exposed so a plugin can make the mascot
  * heavier, bouncier, or stiffer without forking the bundle.
  *
@@ -83,21 +95,37 @@ export interface MascotPhysics {
 	/** Perimeter resolution — number of mass points on the rim. */
 	points: number;
 	/**
-	 * Corners in the mascot's rest shape. `3` is a rounded triangle,
-	 * `4` a rounded square, `0` or `1` a circle.
+	 * Which silhouette the mascot settles into.
 	 *
 	 * This is a *rest shape*, not a mask: it sets the length every
 	 * spring family pulls toward, so the mascot squashes, stretches,
-	 * breathes and recovers exactly as before — it just settles into a
-	 * triangle instead of a disc.
+	 * breathes and recovers exactly as a round one does — it just
+	 * settles into this shape when nothing is acting on it.
+	 *
+	 * | Preset | Silhouette |
+	 * |---|---|
+	 * | `circle` | A perfect disc. |
+	 * | `blob` | Nearly round, with a shallow dimple at the bottom centre. |
+	 * | `ghost` | Dome top, straight sides, three scalloped feet. |
+	 * | `potato` | Lumpy and asymmetric. No symmetry at all. |
+	 * | `custom` | Built from {@link shapeLobes}: a rounded polygon. |
+	 *
+	 * Every preset is authored **upright**, so {@link shapeAngle} is a
+	 * rotation on top rather than part of the definition.
+	 */
+	shapePreset: MascotShapePreset;
+	/**
+	 * Corners in the rest shape when {@link shapePreset} is `custom`.
+	 * `3` is a rounded triangle, `4` a rounded square, `0` or `1` a
+	 * circle. Ignored by every other preset.
 	 */
 	shapeLobes: number;
 	/**
-	 * How pronounced the corners are, as a fraction of the flat-sided
-	 * limit.
+	 * How strongly the silhouette departs from a circle. `0` is a
+	 * circle whatever the preset; `1` is the preset as designed.
 	 *
-	 * `0` is a circle. `1` is the most cornered a *convex* shape can
-	 * be: the profile `1 + a·cos(kθ)` has exactly zero curvature at
+	 * For `custom`, "as designed" is the most cornered a *convex* shape
+	 * can be: the profile `1 + a·cos(kθ)` has exactly zero curvature at
 	 * its side midpoints when `a = 1/(1 + k²)`, so `1` gives dead
 	 * straight sides between rounded corners. Past that the sides bow
 	 * inward and the shape reads as a clover rather than a polygon,
@@ -105,17 +133,26 @@ export interface MascotPhysics {
 	 */
 	shapeAmount: number;
 	/**
-	 * Which way the rest shape's first corner points, in degrees,
-	 * clockwise from the 3 o'clock direction (screen coordinates, so
-	 * `90` is straight down).
+	 * Rotation applied to the rest shape, in degrees clockwise from
+	 * upright (screen coordinates, so `90` turns it a quarter turn to
+	 * put what was the bottom on the left).
 	 *
-	 * The body never rotates — rest angles are fixed in screen space —
-	 * so this is the shape's permanent orientation. The default puts a
-	 * corner at the top and a flat side along the bottom, which is
-	 * both the most triangle-like reading and the one that rests
-	 * neatly on the top edge of a window.
+	 * The body never rotates on its own — rest angles are fixed in
+	 * screen space — so this is a permanent orientation, not a starting
+	 * one. `0` leaves every preset the way it was authored.
 	 */
 	shapeAngle: number;
+	/**
+	 * Seconds between the mascot picking a new silhouette at random and
+	 * morphing into it. `0` holds whatever {@link shapePreset} says.
+	 *
+	 * The change is a spring target, not a redraw: the mascot eases from
+	 * one shape to the next over a couple of seconds, and can be poked,
+	 * dragged or thrown throughout without the transition breaking.
+	 * `custom` is never picked — it is a shape someone configured on
+	 * purpose, not one of the stock silhouettes.
+	 */
+	shapeShuffle: number;
 	/** Radial spring constant (rim point ↔ core). */
 	radialStiffness: number;
 	/** Perimeter spring constant (rim point ↔ neighbour). */

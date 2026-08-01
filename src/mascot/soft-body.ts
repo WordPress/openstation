@@ -103,40 +103,119 @@ export interface SoftBody {
 	accumulator: number;
 }
 
+/** Quarter turn, in radians. Screen coordinates: `+π/2` is down. */
+const HALF_PI = Math.PI / 2;
+
+/**
+ * Amplitude of the `blob` preset.
+ *
+ * A three-lobe profile at half the flat-sided limit: nearly round,
+ * with a shallow dimple at the bottom centre and a little extra
+ * fullness at the lower left and right.
+ */
+const BLOB_AMPLITUDE = 0.05;
+
+/**
+ * The `ghost` silhouette's deviation from a circle.
+ *
+ * Two ideas, both windowed to the underside by `max( 0, sin θ )` so the
+ * top stays a clean dome — which is what makes it read as a ghost
+ * rather than as a gear:
+ *
+ *   - **Straight sides.** The superellipse exponent eases from `2` (a
+ *     circle) at the top to `4.2` at the bottom, which pushes the lower
+ *     diagonals out and gives the body its square shoulders. A constant
+ *     exponent would square the head off too.
+ *   - **Three feet.** `−cos( 6θ )` peaks at `π/6`, `π/2` and `5π/6` —
+ *     three bulges along the underside with notches between them — and
+ *     its own peaks at the sides fall exactly where the window is zero,
+ *     so they cost nothing.
+ */
+function ghostDeviation( angle: number ): number {
+	const under = Math.max( 0, Math.sin( angle ) );
+	const n = 2 + 2.2 * under;
+	const c = Math.abs( Math.cos( angle ) );
+	const s = Math.abs( Math.sin( angle ) );
+	const square =
+		1 / Math.pow( Math.pow( c, n ) + Math.pow( s, n ), 1 / n ) - 1;
+	const feet = -0.11 * Math.pow( under, 1.4 ) * Math.cos( 6 * angle );
+	return square + feet;
+}
+
+/**
+ * The `potato` silhouette's deviation from a circle.
+ *
+ * Four harmonics at incommensurable frequencies with unrelated phases,
+ * which is the cheapest honest way to get "no symmetry at all": any two
+ * of them would still read as a squashed something.
+ *
+ * The amplitudes sit just inside each harmonic's own convexity limit
+ * (`1/(1 + k²)`), so the lumps stay lumps. They can still sum past it
+ * where two crests coincide, which is exactly the shallow dent a potato
+ * ought to have — and the angular-gap constraint guarantees the outline
+ * cannot fold however they land.
+ */
+function potatoDeviation( angle: number ): number {
+	return (
+		0.12 * Math.cos( 2 * angle + 0.9 ) +
+		0.07 * Math.cos( 3 * angle - 2.1 ) +
+		0.03 * Math.cos( 5 * angle + 1.3 ) +
+		0.015 * Math.cos( 7 * angle - 0.4 )
+	);
+}
+
+/**
+ * A preset's deviation from a circle, in its own upright frame.
+ *
+ * Returning a *deviation* rather than a multiplier is what lets
+ * `shapeAmount` mean the same thing for every preset: it scales this,
+ * so `0` is always a circle and `1` is always the shape as authored.
+ */
+function presetDeviation( angle: number, physics: MascotPhysics ): number {
+	switch ( physics.shapePreset ) {
+		case 'circle':
+			return 0;
+		case 'ghost':
+			return ghostDeviation( angle );
+		case 'potato':
+			return potatoDeviation( angle );
+		case 'custom': {
+			const lobes = Math.round( physics.shapeLobes );
+			if ( lobes < 2 ) {
+				return 0;
+			}
+			// The flat-sided limit: where the curvature at the side
+			// midpoints reaches exactly zero, so `shapeAmount` of 1 means
+			// "dead straight sides between rounded corners" at any lobe
+			// count. One number that means the same thing for a triangle
+			// and a hexagon beats an amplitude re-derived per lobe count.
+			return ( 1 / ( 1 + lobes * lobes ) ) * Math.cos( lobes * angle );
+		}
+		default:
+			// 'blob' — a corner up, so a flat side sits along the bottom.
+			return BLOB_AMPLITUDE * Math.cos( 3 * ( angle + HALF_PI ) );
+	}
+}
+
 /**
  * The mascot's rest silhouette, as a multiplier on `radius` at one
  * angle around the ring.
  *
- * A rounded polygon written the only way a soft body can usefully
- * carry one — as a **rest length**, not a mask. Every spring family
- * reads its target from this, so the mascot squashes, stretches,
- * breathes, is thrown and recovers exactly as a disc-shaped one does;
- * it simply settles into a triangle when nothing is acting on it.
- *
- * The profile is `1 + a·cos( k·(θ − θ₀) )`, and `shapeAmount` is
- * expressed as a fraction of `1/(1 + k²)` rather than as a raw
- * amplitude. That constant is where the curvature at the *side
- * midpoints* reaches exactly zero, so `shapeAmount` of `1` means
- * "dead straight sides between rounded corners" at any lobe count,
- * and anything above it bows the sides inward into a clover. One
- * number that means the same thing for a triangle and a hexagon beats
- * an amplitude the caller has to re-derive per lobe count.
+ * Written the only way a soft body can usefully carry a shape — as a
+ * **rest length**, not a mask. Every spring family reads its target
+ * from this, so the mascot squashes, stretches, breathes, is thrown and
+ * recovers exactly as a disc-shaped one does; it simply settles into
+ * this silhouette when nothing is acting on it.
  *
  * @param angle   Rest angle of the point, in radians.
  * @param physics Simulation constants.
  */
 export function shapeProfile( angle: number, physics: MascotPhysics ): number {
-	const lobes = Math.round( physics.shapeLobes );
-	if ( lobes < 2 || physics.shapeAmount <= 0 ) {
+	if ( physics.shapeAmount <= 0 ) {
 		return 1;
 	}
-	const flatSided = 1 / ( 1 + lobes * lobes );
-	const amplitude = physics.shapeAmount * flatSided;
-	return (
-		1 +
-		amplitude *
-			Math.cos( lobes * ( angle - ( physics.shapeAngle * Math.PI ) / 180 ) )
-	);
+	const upright = angle - ( physics.shapeAngle * Math.PI ) / 180;
+	return 1 + physics.shapeAmount * presetDeviation( upright, physics );
 }
 
 /**
@@ -383,9 +462,15 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 	// fight at their natural frequency, and the outline buzzes
 	// instead of breathing. One target shape, three families
 	// agreeing on it.
+	// The body's own profile wins when it has one. That indirection is
+	// what lets the runtime morph between two silhouettes: it hands the
+	// body a blend of both, and every spring family follows the blend
+	// without knowing a transition is happening.
 	const restR = new Float64Array( n );
+	const shape = body.profile;
 	for ( let i = 0; i < n; i++ ) {
-		restR[ i ] = body.radius * shapeProfile( rim[ i ].angle, physics );
+		const a = rim[ i ].angle;
+		restR[ i ] = body.radius * ( shape ? shape( a ) : shapeProfile( a, physics ) );
 	}
 
 	const wobble = physics.idleWobble * wobbleFade;

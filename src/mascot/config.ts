@@ -20,6 +20,7 @@ import type {
 	MascotAppearance,
 	MascotConfig,
 	MascotPhysics,
+	MascotShapePreset,
 	PartialMascotConfig,
 } from './types';
 
@@ -64,13 +65,16 @@ export const MASCOT_DEFAULTS: MascotConfig = {
 		points: 12,
 		// Nearly round, with a shallow dimple at the bottom centre and a
 		// little extra fullness at the lower left and right — the
-		// reference silhouette. Same three-lobe profile as a triangle,
-		// pulled back to about half strength so the corners read as a
-		// blob's rather than a polygon's. `idleWobble` supplies the
-		// asymmetry that keeps it from looking constructed.
+		// reference silhouette. `idleWobble` supplies the asymmetry that
+		// keeps it from looking constructed.
+		shapePreset: 'blob',
+		// Only read by the `custom` preset.
 		shapeLobes: 3,
-		shapeAmount: 0.5,
-		shapeAngle: -90,
+		shapeAmount: 1,
+		shapeAngle: 0,
+		// Restless by design: a companion that is exactly the same shape
+		// every time you look at it stops being a companion.
+		shapeShuffle: 60,
 		// Deliberately soft and SLOW. Spring frequency is √k, so
 		// these set how fast the outline chases the shape underneath
 		// it: at k≈500 the rim answers at ~3.5 Hz, which reads as a
@@ -126,6 +130,7 @@ const LIMITS = {
 	shapeLobes: [ 0, 8 ],
 	shapeAmount: [ 0, 1.4 ],
 	shapeAngle: [ -360, 360 ],
+	shapeShuffle: [ 0, 3600 ],
 	radialStiffness: [ 0, 2000 ],
 	edgeStiffness: [ 0, 4000 ],
 	bendStiffness: [ 0, 2000 ],
@@ -192,6 +197,32 @@ function bool( candidate: unknown, fallback: boolean ): boolean {
 	return typeof candidate === 'boolean' ? candidate : fallback;
 }
 
+/** Every silhouette {@link MascotPhysics.shapePreset} accepts. */
+const SHAPE_PRESETS: readonly MascotShapePreset[] = [
+	'circle',
+	'blob',
+	'ghost',
+	'potato',
+	'custom',
+];
+
+/**
+ * Coerce a shape preset.
+ *
+ * Unknown names fall back rather than throwing, in keeping with the
+ * rest of the sanitizer: a plugin naming a preset we removed — or one
+ * from a newer build — should get the shipped silhouette, not a mascot
+ * that fails to mount.
+ */
+function preset(
+	candidate: unknown,
+	fallback: MascotShapePreset,
+): MascotShapePreset {
+	return SHAPE_PRESETS.includes( candidate as MascotShapePreset )
+		? ( candidate as MascotShapePreset )
+		: fallback;
+}
+
 /**
  * Merge an untrusted partial config over the defaults and clamp every
  * field. Always returns a complete, safe {@link MascotConfig}.
@@ -240,6 +271,7 @@ export function sanitizeMascotConfig(
 		// Rim resolution is rounded — a fractional point count would
 		// break the neighbour indexing in the soft body.
 		points: Math.round( num( p.points, base.physics.points, LIMITS.points ) ),
+		shapePreset: preset( p.shapePreset, base.physics.shapePreset ),
 		// Lobes are rounded for the same reason: the profile is
 		// evaluated as `cos( lobes · θ )`, and a fractional lobe count
 		// would leave the rest shape discontinuous where the ring
@@ -253,6 +285,11 @@ export function sanitizeMascotConfig(
 			LIMITS.shapeAmount,
 		),
 		shapeAngle: num( p.shapeAngle, base.physics.shapeAngle, LIMITS.shapeAngle ),
+		shapeShuffle: num(
+			p.shapeShuffle,
+			base.physics.shapeShuffle,
+			LIMITS.shapeShuffle,
+		),
 		radialStiffness: num(
 			p.radialStiffness,
 			base.physics.radialStiffness,
