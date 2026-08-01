@@ -6,10 +6,32 @@
  * heel) and the whole sweep rotates slowly, which is what gives the
  * ring its "chroma" shimmer instead of reading as a flat neon tube.
  *
- * The renderer strokes the rim segment-by-segment, asking this
- * module for one colour per segment. Keeping the colour maths here —
- * pure, no Pixi — means the palette is unit-testable and a plugin can
- * reuse it to match the mascot's ring in its own UI.
+ * On top of that ramp sits the **hologram**. A real holographic
+ * surface does not have a colour, it has a colour *per viewing angle*:
+ * tilt the sticker and the rainbow slides across it. The mascot has no
+ * viewer to track, so the rake direction {@link HoloView.tilt} stands
+ * in for one — it drifts slowly while the mascot is idle and swings
+ * toward the direction of travel as it moves, which is what makes the
+ * ring's colours flow when you throw the blob across the desk and
+ * settle again when it stops.
+ *
+ * Three terms build it, all keyed on `d = dot( outward normal, tilt )`,
+ * i.e. how squarely each patch of rim faces the rake:
+ *
+ *   - **Angle hue shift** — `d` displaces the hue, so opposite sides of
+ *     the ring sit at opposite ends of the shift and the whole band
+ *     re-sorts itself as the tilt turns.
+ *   - **Diffraction grating** — two incommensurable harmonics of fine
+ *     hue ripple around the perimeter. This is the detail that reads as
+ *     "holographic" rather than "gradient".
+ *   - **Specular glint** — a narrow, desaturating hotspot that slides
+ *     along the rim as the tilt turns. {@link holoSpecular} exposes it
+ *     separately so the renderer can push the crisp core stroke to
+ *     white exactly where the glint is.
+ *
+ * Keeping the colour maths here — pure, no Pixi — means the palette is
+ * unit-testable and a plugin can reuse it to match the mascot's ring in
+ * its own UI.
  */
 
 /* eslint-disable no-bitwise -- Pixi takes colours as packed 24-bit
@@ -81,34 +103,154 @@ export function lighten( rgb: number, amount: number ): number {
 }
 
 /**
- * Build the per-segment colour ramp for one frame.
+ * An outward unit normal, in the renderer's own `nx`/`ny` naming so a
+ * ribbon sample can be handed straight to {@link chromaRing} without
+ * copying a parallel array every frame.
+ */
+export interface HoloNormal {
+	nx: number;
+	ny: number;
+}
+
+/**
+ * The hologram's viewing geometry for one frame.
  *
- * Index `i` is the colour of the rim segment starting at rim point
- * `i`, walking the ring from its crown. `phase` rotates the whole
+ * @public
+ */
+export interface HoloView {
+	/**
+	 * Outward unit normal of every sample around the rim, index-aligned
+	 * with the requested colour count.
+	 */
+	normals: readonly HoloNormal[];
+	/**
+	 * Direction the virtual light rakes across the ring. Its
+	 * **magnitude** is the effect strength, `0` (no hologram) to `1`
+	 * (full swing), so a still mascot shimmers gently and a thrown one
+	 * flares.
+	 */
+	tilt: { x: number; y: number };
+}
+
+/**
+ * How far the viewing angle can displace the hue, in degrees.
+ *
+ * Wide enough that the two sides of the ring are visibly different
+ * colours rather than two shades of the same one — under that, the
+ * effect is only legible in a screenshot diff.
+ */
+const HOLO_HUE_SWING = 82;
+/** How far the diffraction grating can displace the hue, in degrees. */
+const HOLO_GRATING_SWING = 36;
+/** Tightness of the specular glint. Higher is a narrower hotspot. */
+const HOLO_GLINT_EXPONENT = 6;
+
+const TAU = Math.PI * 2;
+const DEG = Math.PI / 180;
+
+/**
+ * The diffraction ripple at one point on the ring.
+ *
+ * Two harmonics at incommensurable rates: any single sine reads as a
+ * regular scallop once it has gone round twice, which is exactly the
+ * "printed gradient" look the grating exists to break.
+ *
+ * @param t     Position around the ring, 0–1.
+ * @param phase Hue rotation in degrees.
+ */
+function grating( t: number, phase: number ): number {
+	return (
+		0.68 * Math.sin( t * TAU * 3 + phase * DEG * 2 ) +
+		0.32 * Math.sin( t * TAU * 5 - phase * DEG * 1.3 )
+	);
+}
+
+/**
+ * How squarely sample `i` faces the rake, `-1` to `1`, scaled by the
+ * tilt's own magnitude so a weak tilt is a weak effect everywhere.
+ */
+function rake( view: HoloView, i: number ): number {
+	const n = view.normals[ i % view.normals.length ];
+	if ( ! n ) {
+		return 0;
+	}
+	return n.nx * view.tilt.x + n.ny * view.tilt.y;
+}
+
+/**
+ * Build the per-sample colour ramp for one frame.
+ *
+ * Index `i` is the colour of the rim sample at `i / count` of the way
+ * around the ring, walking from its crown. `phase` rotates the whole
  * ramp — the caller passes `appearance.hueDrift * elapsedSeconds`.
  *
  * Lightness is modulated across the sweep (brightest a third of the
  * way round, dimmest opposite it) so the ring reads as lit from one
  * side rather than uniformly emissive.
  *
- * @param count      Number of segments — the rim resolution.
+ * Passing `view` layers the hologram on top; without it the result is
+ * the plain chroma ramp, which is also what `appearance.iridescence`
+ * of `0` produces.
+ *
+ * @param count      Number of samples — the rendered ring resolution.
  * @param phase      Hue rotation in degrees.
  * @param appearance Mascot appearance settings.
+ * @param view       Optional hologram viewing geometry.
  */
 export function chromaRing(
 	count: number,
 	phase: number,
 	appearance: MascotAppearance,
+	view?: HoloView,
 ): number[] {
 	const n = Math.max( 1, Math.round( count ) );
+	const holo = view ? Math.max( 0, appearance.iridescence ) : 0;
 	const out: number[] = new Array( n );
 	for ( let i = 0; i < n; i++ ) {
 		const t = i / n;
-		const hue = appearance.hueStart + appearance.hueSpan * t + phase;
+		let hue = appearance.hueStart + appearance.hueSpan * t + phase;
 		// Cosine hump peaking at t = 1/3 — the "lit side" of the ring.
 		const lift = 0.5 + 0.5 * Math.cos( ( t - 1 / 3 ) * Math.PI * 2 );
-		const lightness = appearance.lightness * ( 0.72 + 0.28 * lift );
-		out[ i ] = hslToRgbInt( hue, appearance.saturation, lightness );
+		let lightness = appearance.lightness * ( 0.72 + 0.28 * lift );
+		let saturation = appearance.saturation;
+
+		if ( holo > 0 && view ) {
+			const d = rake( view, i );
+			const ripple = grating( t, phase );
+			hue += holo * ( HOLO_HUE_SWING * d + HOLO_GRATING_SWING * ripple );
+			// The glint blows out to white; the ripple only breathes.
+			const glint = Math.pow( Math.max( 0, d ), HOLO_GLINT_EXPONENT );
+			lightness += holo * ( 0.32 * glint + 0.07 * ripple );
+			saturation *= 1 - Math.min( 1, holo ) * 0.45 * glint;
+		}
+
+		out[ i ] = hslToRgbInt( hue, saturation, lightness );
+	}
+	return out;
+}
+
+/**
+ * The specular glint per sample, `0`–`1`.
+ *
+ * Same term {@link chromaRing} folds into its lightness, exposed on its
+ * own so the renderer can drive anything else that should track the
+ * hotspot — today, how far the crisp core stroke is pushed to white.
+ *
+ * @param count      Number of samples.
+ * @param appearance Mascot appearance settings.
+ * @param view       Hologram viewing geometry.
+ */
+export function holoSpecular(
+	count: number,
+	appearance: MascotAppearance,
+	view: HoloView,
+): number[] {
+	const n = Math.max( 1, Math.round( count ) );
+	const holo = Math.max( 0, Math.min( 1, appearance.iridescence ) );
+	const out: number[] = new Array( n );
+	for ( let i = 0; i < n; i++ ) {
+		out[ i ] =
+			holo * Math.pow( Math.max( 0, rake( view, i ) ), HOLO_GLINT_EXPONENT );
 	}
 	return out;
 }

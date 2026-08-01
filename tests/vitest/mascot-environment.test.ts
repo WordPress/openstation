@@ -6,6 +6,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import {
+	clampOutsideChrome,
 	clampToBounds,
 	closestPointOn,
 	clusterBounds,
@@ -36,12 +37,28 @@ function obstacle( over: Partial< Obstacle > = {} ): Obstacle {
 	return {
 		id: 'window:posts',
 		kind: 'window',
+		face: 'top',
 		x: 100,
 		y: 200,
 		width: 400,
 		height: 300,
 		...over,
 	};
+}
+
+/** Layer size used by the chrome cases. */
+const LAYER = { width: 1200, height: 800 };
+
+/** The shell's left dock rail, as it actually reaches the mascot. */
+function leftRail( over: Partial< WallpaperSurface > = {} ): WallpaperSurface {
+	return surface( {
+		id: 'dock:edge',
+		kind: 'dock',
+		// The shell publishes a one-pixel strip on the dock's inner edge.
+		rect: { x: 71, y: 0, width: 1, height: 800 },
+		face: 'right',
+		...over,
+	} );
 }
 
 describe( 'collectObstacles', () => {
@@ -51,6 +68,7 @@ describe( 'collectObstacles', () => {
 			{
 				id: 'window:posts',
 				kind: 'window',
+				face: 'top',
 				x: 60,
 				y: 168,
 				width: 400,
@@ -84,6 +102,91 @@ describe( 'collectObstacles', () => {
 		);
 		expect( out ).toHaveLength( 1 );
 		expect( out[ 0 ].kind ).toBe( 'shell' );
+	} );
+
+	test( 'inflates the dock strip into a solid the rim can hit', () => {
+		// The bug this exists for: as published, the rail is one pixel
+		// wide, so a rim point 30 px inside the dock is inside nothing
+		// and the mascot sinks straight through.
+		const [ rail ] = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
+		expect( rail.x ).toBe( 0 );
+		expect( rail.width ).toBe( 72 );
+		expect( rail.height ).toBe( 800 );
+	} );
+
+	test( 'inflates a bottom dock downward', () => {
+		const [ dock ] = collectObstacles(
+			[
+				leftRail( {
+					rect: { x: 0, y: 740, width: 1200, height: 1 },
+					face: 'top',
+				} ),
+			],
+			{ left: 0, top: 0 },
+			LAYER,
+		);
+		expect( dock.y ).toBe( 740 );
+		expect( dock.height ).toBe( 60 );
+	} );
+
+	test( 'leaves windows and widgets as published', () => {
+		const [ win ] = collectObstacles( [ surface() ], { left: 0, top: 0 }, LAYER );
+		expect( [ win.x, win.y, win.width, win.height ] ).toEqual( [
+			100, 200, 400, 300,
+		] );
+	} );
+
+	test( 'without bounds the chrome is left as published', () => {
+		const [ rail ] = collectObstacles( [ leftRail() ], { left: 0, top: 0 } );
+		expect( rail.width ).toBe( 1 );
+	} );
+} );
+
+describe( 'clampOutsideChrome', () => {
+	const rail = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
+	const both = collectObstacles(
+		[
+			leftRail(),
+			leftRail( {
+				id: 'dock:edge:1',
+				rect: { x: 0, y: 740, width: 1200, height: 1 },
+				face: 'top',
+			} ),
+		],
+		{ left: 0, top: 0 },
+		LAYER,
+	);
+
+	test( 'a drag across the dock keeps a full radius of clearance', () => {
+		expect( clampOutsideChrome( { x: 20, y: 400 }, RADIUS, rail ) ).toEqual( {
+			x: 122,
+			y: 400,
+		} );
+	} );
+
+	test( 'pushes along the face, never the shallowest axis', () => {
+		// Shallowest-axis logic would send this one out the left of the
+		// layer — behind the dock, off screen.
+		const out = clampOutsideChrome( { x: 2, y: 400 }, RADIUS, rail );
+		expect( out.x ).toBeGreaterThan( 0 );
+	} );
+
+	test( 'a corner is cleared on both axes', () => {
+		const out = clampOutsideChrome( { x: 30, y: 780 }, RADIUS, both );
+		expect( out.x ).toBe( 122 );
+		expect( out.y ).toBe( 690 );
+	} );
+
+	test( 'leaves a point already clear of the dock alone', () => {
+		const p = { x: 600, y: 300 };
+		expect( clampOutsideChrome( p, RADIUS, both ) ).toEqual( p );
+	} );
+
+	test( 'windows are not chrome — resting against them is the point', () => {
+		const p = { x: 200, y: 300 };
+		expect(
+			clampOutsideChrome( p, RADIUS, [ obstacle() ] ),
+		).toEqual( p );
 	} );
 } );
 
@@ -304,6 +407,23 @@ describe( 'findEscape', () => {
 
 	test( 'an empty desk is never trapped', () => {
 		expect( findEscape( 300, 300, 50, [], bounds ) ).toBeNull();
+	} );
+
+	test( 'any depth inside the dock is trapped, and it leaves sideways', () => {
+		const rail = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
+		// A rail is narrower than the mascot, so the window depth rule
+		// (0.75 × radius) can never fire inside one. This has to be the
+		// bare inside-test, or a mascot in the dock stays there.
+		const out = findEscape( 40, 400, 50, rail, bounds );
+		expect( out ).not.toBeNull();
+		expect( out?.x ).toBe( 130 );
+		expect( out?.y ).toBe( 400 );
+	} );
+
+	test( 'resting against the dock is not trapped', () => {
+		const rail = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
+		// Centroid a radius clear of the rail's inner face.
+		expect( findEscape( 122, 400, 50, rail, bounds ) ).toBeNull();
 	} );
 
 	test( 'a shallow overlap is not trapped', () => {

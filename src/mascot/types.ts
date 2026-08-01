@@ -43,6 +43,17 @@ export interface MascotAppearance {
 	saturation: number;
 	/** Lightness of the ring at its brightest point, 0–1. */
 	lightness: number;
+	/**
+	 * Strength of the holographic response, `0`–`2`.
+	 *
+	 * `0` is a flat chroma ramp — the hue sweep and nothing else. Above
+	 * that, the ring also colours by *viewing angle*: the hue shifts,
+	 * a fine diffraction grating ripples around the perimeter, and a
+	 * white-hot glint slides along the edge, all steered by the
+	 * mascot's own motion. Values above `1` are deliberately
+	 * over-driven.
+	 */
+	iridescence: number;
 	/** Width of the crisp core stroke, in CSS pixels. */
 	outlineWidth: number;
 	/**

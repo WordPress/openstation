@@ -26,6 +26,7 @@
 import type { Application, Container, Graphics } from 'pixi.js';
 import { doAction } from '../hooks';
 import {
+	clampOutsideChrome,
 	collectObstacles,
 	findEscape,
 	magnetPull,
@@ -63,6 +64,19 @@ const BLINK_DURATION = 0.14;
 
 /** Handle size relative to the rest radius. */
 const HANDLE_SCALE = 2.1;
+
+/** Ambient rotation of the hologram's rake, rad/s. */
+const AMBIENT_RAKE_RATE = 0.42;
+/** Body speed (layer px/s) at which the rake fully commits to the heading. */
+const FULL_RAKE_SPEED = 900;
+/**
+ * Rake strength of a mascot that isn't going anywhere.
+ *
+ * Not much below the moving value: a hologram sitting still is still a
+ * hologram, and a rake that only bites once the mascot is thrown makes
+ * the effect look like a motion artefact rather than a surface.
+ */
+const IDLE_RAKE = 0.62;
 
 /**
  * How long the mascot has to stay buried inside a window before it
@@ -183,6 +197,66 @@ export async function mountMascot(
 	let dragTarget: { x: number; y: number } | null = null;
 	let dragGrab = { x: 0, y: 0 };
 
+	// Hologram rake — see `chroma.ts`. A slow ambient rotation stands in
+	// for a viewer shifting in their seat; the mascot's own velocity
+	// swings it toward the direction of travel and deepens it, which is
+	// what makes the ring's colours run when the blob is thrown and
+	// settle again when it stops. The ambient half is gated on
+	// `hueDrift`, so `calmed()` zeroing that for reduced motion stills
+	// the shimmer here too without a second preference to read.
+	let tiltAngle = 0;
+	let tilt = { x: 1, y: 0 };
+	/** Smoothed body velocity, layer px/s, for the rake above. */
+	let driftVx = 0;
+	let driftVy = 0;
+	let lastCore = { x: body.core.x, y: body.core.y };
+
+	/**
+	 * Forget the body's motion history.
+	 *
+	 * Called after every teleport — an escape hop, `setPosition`, a
+	 * resize clamp, a rebuild. Without it the jump lands in the velocity
+	 * EMA below as a several-thousand-px/s "throw" and the ring flares
+	 * for half a second over something the user never did.
+	 */
+	const forgetMotion = (): void => {
+		lastCore = { x: body.core.x, y: body.core.y };
+	};
+
+	/**
+	 * Advance the hologram's rake for one frame.
+	 *
+	 * The velocity is smoothed hard on purpose: a single frame's
+	 * centroid delta is far too noisy to steer a colour effect with, and
+	 * every contact bounce would strobe the ring.
+	 */
+	const updateTilt = ( seconds: number ): void => {
+		if ( seconds > 0 ) {
+			const vx = ( body.core.x - lastCore.x ) / seconds;
+			const vy = ( body.core.y - lastCore.y ) / seconds;
+			const blend = Math.min( 1, seconds * 6 );
+			driftVx += ( vx - driftVx ) * blend;
+			driftVy += ( vy - driftVy ) * blend;
+		}
+		forgetMotion();
+
+		if ( config.appearance.hueDrift !== 0 ) {
+			tiltAngle += seconds * AMBIENT_RAKE_RATE;
+		}
+		let x = Math.cos( tiltAngle );
+		let y = Math.sin( tiltAngle );
+
+		const speed = Math.hypot( driftVx, driftVy );
+		const lead = Math.min( 1, speed / FULL_RAKE_SPEED );
+		if ( speed > 1 ) {
+			x = x * ( 1 - lead ) + ( driftVx / speed ) * lead;
+			y = y * ( 1 - lead ) + ( driftVy / speed ) * lead;
+		}
+		const len = Math.hypot( x, y ) || 1;
+		const strength = IDLE_RAKE + ( 1 - IDLE_RAKE ) * lead;
+		tilt = { x: ( x / len ) * strength, y: ( y / len ) * strength };
+	};
+
 	const readSurfaces = ( nowMs: number ): void => {
 		if ( nowMs - lastSurfaceRead < SURFACE_REFRESH_MS ) {
 			return;
@@ -191,7 +265,7 @@ export async function mountMascot(
 		origin = originOf();
 		const surfaces = window.wp?.desktop?.getWallpaperSurfaces?.();
 		obstacles = Array.isArray( surfaces )
-			? collectObstacles( surfaces, origin )
+			? collectObstacles( surfaces, origin, size() )
 			: [];
 	};
 
@@ -234,9 +308,13 @@ export async function mountMascot(
 	const clampTarget = ( p: { x: number; y: number } ): { x: number; y: number } => {
 		const bounds = size();
 		const r = body.radius;
+		// Chrome first, layer bounds last: the dock push is the one that
+		// can send the target somewhere illegal (a rail on the far side
+		// of a narrow layer), and the bounds clamp is what catches it.
+		const clear = clampOutsideChrome( p, r, obstacles );
 		return {
-			x: clamp( p.x, r, Math.max( r, bounds.width - r ) ),
-			y: clamp( p.y, r, Math.max( r, bounds.height - r ) ),
+			x: clamp( clear.x, r, Math.max( r, bounds.width - r ) ),
+			y: clamp( clear.y, r, Math.max( r, bounds.height - r ) ),
 		};
 	};
 
@@ -405,6 +483,7 @@ export async function mountMascot(
 				if ( trappedFor >= TRAPPED_DWELL_S ) {
 					trappedFor = 0;
 					resetBody( body, escape.x, escape.y );
+					forgetMotion();
 					savePosition( toViewport() );
 					doAction( 'desktop-mode.mascot.displaced', {
 						position: toViewport(),
@@ -445,6 +524,8 @@ export async function mountMascot(
 			dragTarget,
 		} );
 
+		updateTilt( seconds );
+
 		// Blink schedule.
 		if ( blinkStartedAt < 0 && elapsed >= nextBlinkAt ) {
 			blinkStartedAt = elapsed;
@@ -470,6 +551,7 @@ export async function mountMascot(
 				elapsed,
 				gaze: cursor ? toLayer( cursor ) : null,
 				blink,
+				tilt,
 			},
 			config.appearance,
 		);
@@ -501,6 +583,7 @@ export async function mountMascot(
 		const y = clamp( body.core.y, r, Math.max( r, height - r ) );
 		if ( x !== body.core.x || y !== body.core.y ) {
 			translateBody( body, x, y );
+			forgetMotion();
 		}
 	} );
 	resizeObserver.observe( host );
@@ -549,6 +632,7 @@ export async function mountMascot(
 				clamp( x - origin.left, r, Math.max( r, bounds.width - r ) ),
 				clamp( y - origin.top, r, Math.max( r, bounds.height - r ) ),
 			);
+			forgetMotion();
 			savePosition( toViewport() );
 		},
 		setAnimating,
@@ -560,6 +644,7 @@ export async function mountMascot(
 				calm.appearance.radius !== config.appearance.radius;
 			config = calm;
 			applyGlow( pixi, layers, config );
+			applySheenBlur( pixi, layers, config );
 			sizeHandle( handle, config );
 			if ( rebuild ) {
 				const at = { x: body.core.x, y: body.core.y };
@@ -569,6 +654,7 @@ export async function mountMascot(
 					config.appearance.radius,
 					config.physics.points,
 				);
+				forgetMotion();
 			}
 		},
 		destroy: () => {
@@ -633,21 +719,27 @@ function buildLayers(
 	const halo: Graphics = new pixi.Graphics();
 	const bloom: Graphics = new pixi.Graphics();
 	const body: Graphics = new pixi.Graphics();
+	const sheen: Graphics = new pixi.Graphics();
 	const core: Graphics = new pixi.Graphics();
 	const eyes: Graphics = new pixi.Graphics();
 
 	halo.blendMode = 'add';
 	bloom.blendMode = 'add';
+	// Additive over the black fill: the sheen can only ever *lift* the
+	// interior toward colour, never darken or wash it out.
+	sheen.blendMode = 'add';
 
 	root.addChild( halo );
 	root.addChild( bloom );
 	root.addChild( body );
+	root.addChild( sheen );
 	root.addChild( core );
 	root.addChild( eyes );
 	app.stage.addChild( root );
 
-	const layers: MascotLayers = { root, halo, bloom, body, core, eyes };
+	const layers: MascotLayers = { root, halo, bloom, body, sheen, core, eyes };
 	applyGlow( pixi, layers, config );
+	applySheenBlur( pixi, layers, config );
 	return layers;
 }
 
@@ -676,6 +768,48 @@ function applyGlow(
 		];
 	} catch {
 		layers.halo.filters = [];
+	}
+}
+
+/**
+ * Blur the interior sheen.
+ *
+ * The sheen is a handful of flat concentric shells, and a flat shell
+ * against a flat shell is a hard edge. Unblurred, that reads as
+ * contour lines drawn inside the mascot, which caps how bright the
+ * sheen can get before the banding gives it away. Blurring the layer
+ * dissolves the radial steps and the angular facets both, so the
+ * shells can be few, coarse, and actually visible.
+ *
+ * Scaled off the radius rather than fixed: a kiosk-sized mascot needs
+ * a proportionally wider blur to hide the same number of shells.
+ *
+ * Guarded the same way {@link applyGlow} is — a trimmed Pixi build
+ * without `BlurFilter` gets a faintly banded sheen, not a broken
+ * mascot.
+ */
+function applySheenBlur(
+	pixi: typeof import( 'pixi.js' ),
+	layers: MascotLayers,
+	config: MascotConfig,
+): void {
+	const want = config.appearance.iridescence > 0;
+	if ( ! want || typeof pixi.BlurFilter !== 'function' ) {
+		layers.sheen.filters = [];
+		return;
+	}
+	try {
+		layers.sheen.filters = [
+			new pixi.BlurFilter( {
+				strength: Math.min(
+					24,
+					Math.max( 3, config.appearance.radius * 0.12 ),
+				),
+				quality: 2,
+			} ),
+		];
+	} catch {
+		layers.sheen.filters = [];
 	}
 }
 

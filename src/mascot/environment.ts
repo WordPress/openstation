@@ -31,6 +31,13 @@ import type { WallpaperSurface } from '../wallpapers/surfaces';
 export interface Obstacle {
 	id: string;
 	kind: WallpaperSurface[ 'kind' ];
+	/**
+	 * Which face of the rect the desk is on — carried through from the
+	 * surface. For chrome this is the *only* direction anything may
+	 * legally be pushed out toward: the other three sides of a dock run
+	 * off the edge of the screen.
+	 */
+	face: WallpaperSurface[ 'face' ];
 	x: number;
 	y: number;
 	width: number;
@@ -63,15 +70,55 @@ const MAGNET_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
 ] );
 
 /**
+ * Shell chrome: solid the whole way through, and anchored to an edge
+ * of the layer rather than floating in it.
+ */
+const CHROME_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
+	'dock',
+	'shell',
+] );
+
+/**
+ * Chrome the mascot may never be inside, at any depth.
+ *
+ * A window is somewhere the mascot rests *against* and can be nudged a
+ * pixel into without anyone minding. The dock is not: it holds the
+ * user's navigation, it is opaque, and a blob halfway behind it reads
+ * as broken rather than playful. The floor is deliberately not on this
+ * list — resting on it is the whole point.
+ */
+const FORBIDDEN_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
+	'dock',
+] );
+
+/**
  * Convert the shell's viewport-space surfaces into layer-local
  * obstacles, dropping degenerate rects.
  *
- * Thin synthetic strips (the 1-px shell floor, the dock edge) are
- * kept as-is: they are already the shape the collision solver wants.
+ * **Chrome is inflated back into a solid.** The shell publishes the
+ * dock and the floor as one-pixel strips along the face that matters,
+ * which is exactly right for the wallpapers that consume the same
+ * feed — snow piles on a line, rain splashes off one. It is useless to
+ * a soft body: a rim point that is already a centimetre inside the dock
+ * is not inside a 1-px sliver, so nothing pushes it back out and the
+ * mascot sinks straight through. Passing `bounds` re-inflates those
+ * strips away from their solid face, out to the edge of the layer, so
+ * the dock is a volume the rim collides with along its whole depth and
+ * there is no "behind the dock" to reach either.
+ *
+ * Windows and widget cards already arrive as full rects and are left
+ * alone.
+ *
+ * @param surfaces      Live surfaces, in viewport coordinates.
+ * @param origin        Mascot layer origin, for the rebase.
+ * @param bounds        Layer size. Omit to keep chrome as published.
+ * @param bounds.width  Layer width.
+ * @param bounds.height Layer height.
  */
 export function collectObstacles(
 	surfaces: readonly WallpaperSurface[],
 	origin: LayerOrigin,
+	bounds?: { width: number; height: number },
 ): Obstacle[] {
 	const out: Obstacle[] = [];
 	for ( const surface of surfaces ) {
@@ -79,16 +126,103 @@ export function collectObstacles(
 		if ( ! r || r.width <= 0 || r.height <= 0 ) {
 			continue;
 		}
+		let x = r.x - origin.left;
+		let y = r.y - origin.top;
+		let width = r.width;
+		let height = r.height;
+
+		if ( bounds && CHROME_KINDS.has( surface.kind ) ) {
+			// Grow away from the solid face until the layer edge.
+			if ( 'right' === surface.face ) {
+				width = x + width;
+				x = 0;
+			} else if ( 'left' === surface.face ) {
+				width = Math.max( width, bounds.width - x );
+			} else if ( 'top' === surface.face ) {
+				height = Math.max( height, bounds.height - y );
+			} else {
+				height = y + height;
+				y = 0;
+			}
+		}
+
 		out.push( {
 			id: surface.id,
 			kind: surface.kind,
-			x: r.x - origin.left,
-			y: r.y - origin.top,
-			width: r.width,
-			height: r.height,
+			face: surface.face,
+			x,
+			y,
+			width,
+			height,
 		} );
 	}
 	return out;
+}
+
+/**
+ * Push a point out of every piece of forbidden chrome it is inside,
+ * keeping a `radius` of clearance.
+ *
+ * Used on the **drag target**, so the hand can be swept across the dock
+ * without the mascot following it in. Contact alone would let the drag
+ * spring press the body a good way into the rail before the two
+ * balanced out, which is exactly the overlap this is meant to forbid.
+ *
+ * The push is always along the obstacle's own `face`. It is the only
+ * direction that can be right: chrome runs to the edge of the layer on
+ * its other three sides, so "shallowest axis" — the rule that suits a
+ * window floating in open desk — would happily shove the mascot off
+ * screen behind the dock.
+ *
+ * @param point     Desired body centre, layer-local.
+ * @param point.x   Desired centre x.
+ * @param point.y   Desired centre y.
+ * @param radius    Body rest radius, the clearance to keep.
+ * @param obstacles Live obstacle set.
+ */
+export function clampOutsideChrome(
+	point: { x: number; y: number },
+	radius: number,
+	obstacles: readonly Obstacle[],
+): { x: number; y: number } {
+	let { x, y } = point;
+	for ( const o of obstacles ) {
+		if ( ! FORBIDDEN_KINDS.has( o.kind ) ) {
+			continue;
+		}
+		if (
+			x <= o.x - radius ||
+			x >= o.x + o.width + radius ||
+			y <= o.y - radius ||
+			y >= o.y + o.height + radius
+		) {
+			continue;
+		}
+		( { x, y } = outsideFace( o, x, y, radius ) );
+	}
+	return { x, y };
+}
+
+/**
+ * The point `clear` px beyond an obstacle's solid face, holding the
+ * other axis where it was.
+ */
+function outsideFace(
+	o: Obstacle,
+	px: number,
+	py: number,
+	clear: number,
+): { x: number; y: number } {
+	if ( 'right' === o.face ) {
+		return { x: o.x + o.width + clear, y: py };
+	}
+	if ( 'left' === o.face ) {
+		return { x: o.x - clear, y: py };
+	}
+	if ( 'top' === o.face ) {
+		return { x: px, y: o.y - clear };
+	}
+	return { x: px, y: o.y + o.height + clear };
 }
 
 /**
@@ -288,7 +422,10 @@ const TRAPPED_DEPTH_FACTOR = 0.75;
  * Contact is not trapped — the mascot is *supposed* to rest against
  * windows, corners included. Trapped means its centre is buried
  * {@link TRAPPED_DEPTH_FACTOR} of a body deep inside one, which only
- * happens when geometry appears or moves over it. The contact solver
+ * happens when geometry appears or moves over it. Forbidden chrome —
+ * the dock — is the exception, and is checked first at any depth: the
+ * mascot is never allowed inside it, so there is no shallow case to
+ * tolerate. The contact solver
  * can't recover from that: rim points on opposite sides of the blob
  * get pushed toward opposite faces and the silhouette tears itself
  * apart.
@@ -319,6 +456,33 @@ export function findEscape(
 	obstacles: readonly Obstacle[],
 	bounds: { width: number; height: number },
 ): { x: number; y: number } | null {
+	// Forbidden chrome first, and on a different rule: *any* depth
+	// counts. The depth test below is calibrated for windows, which are
+	// hundreds of pixels across; a dock rail is usually narrower than
+	// the mascot, so a body sitting squarely inside one never reaches
+	// three quarters of a radius deep and would never be rescued. And
+	// contact cannot dig it out on its own — the rail's near face is the
+	// closest one for rim points on the desk side and its far face for
+	// the rest, so the solver pulls the body apart across it.
+	for ( const o of obstacles ) {
+		if ( ! FORBIDDEN_KINDS.has( o.kind ) ) {
+			continue;
+		}
+		if (
+			px <= o.x ||
+			px >= o.x + o.width ||
+			py <= o.y ||
+			py >= o.y + o.height
+		) {
+			continue;
+		}
+		const out = outsideFace( o, px, py, radius + 8 );
+		return {
+			x: Math.min( Math.max( out.x, radius ), Math.max( radius, bounds.width - radius ) ),
+			y: Math.min( Math.max( out.y, radius ), Math.max( radius, bounds.height - radius ) ),
+		};
+	}
+
 	const minDepth = radius * TRAPPED_DEPTH_FACTOR;
 	let trappedIn: Obstacle | null = null;
 	let deepest = minDepth;

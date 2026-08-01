@@ -4,7 +4,13 @@
  * simulation.
  */
 import { describe, expect, test } from 'vitest';
-import { chromaRing, hslToRgbInt, lighten } from '../../src/mascot/chroma';
+import {
+	chromaRing,
+	holoSpecular,
+	hslToRgbInt,
+	lighten,
+	type HoloView,
+} from '../../src/mascot/chroma';
 import { MASCOT_DEFAULTS, sanitizeMascotConfig } from '../../src/mascot/config';
 
 describe( 'hslToRgbInt', () => {
@@ -72,6 +78,61 @@ describe( 'chromaRing', () => {
 			expect( g ).toBeLessThan( r );
 			expect( g ).toBeLessThan( b );
 		}
+	} );
+} );
+
+describe( 'the hologram', () => {
+	/** Outward normals of `n` evenly spaced samples on a circle. */
+	function view( n: number, tilt: { x: number; y: number } ): HoloView {
+		const normals = [];
+		for ( let i = 0; i < n; i++ ) {
+			const a = ( i / n ) * Math.PI * 2;
+			normals.push( { nx: Math.cos( a ), ny: Math.sin( a ) } );
+		}
+		return { normals, tilt };
+	}
+
+	test( 'no view is the plain chroma ramp', () => {
+		const app = MASCOT_DEFAULTS.appearance;
+		expect( chromaRing( 16, 0, app ) ).toEqual(
+			chromaRing( 16, 0, app, undefined ),
+		);
+	} );
+
+	test( 'zero iridescence opts out even with a view', () => {
+		const app = { ...MASCOT_DEFAULTS.appearance, iridescence: 0 };
+		expect( chromaRing( 16, 0, app, view( 16, { x: 1, y: 0 } ) ) ).toEqual(
+			chromaRing( 16, 0, app ),
+		);
+	} );
+
+	test( 'turning the rake recolours the ring', () => {
+		const app = MASCOT_DEFAULTS.appearance;
+		const east = chromaRing( 24, 0, app, view( 24, { x: 1, y: 0 } ) );
+		const north = chromaRing( 24, 0, app, view( 24, { x: 0, y: -1 } ) );
+		// Same frame, same phase, same geometry — only the viewing angle
+		// moved, and a hologram that doesn't answer that isn't one.
+		expect( north ).not.toEqual( east );
+	} );
+
+	test( 'the glint tracks the rake and nothing else', () => {
+		const app = MASCOT_DEFAULTS.appearance;
+		const spec = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
+		// Sample 0 faces due east, straight into the rake.
+		expect( spec[ 0 ] ).toBeGreaterThan( 0.5 );
+		// The far side faces away, so it cannot glint at all.
+		expect( spec[ 12 ] ).toBe( 0 );
+		for ( const s of spec ) {
+			expect( s ).toBeGreaterThanOrEqual( 0 );
+			expect( s ).toBeLessThanOrEqual( 1 );
+		}
+	} );
+
+	test( 'a weaker rake is a weaker effect everywhere', () => {
+		const app = MASCOT_DEFAULTS.appearance;
+		const strong = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
+		const weak = holoSpecular( 24, app, view( 24, { x: 0.3, y: 0 } ) );
+		expect( weak[ 0 ] ).toBeLessThan( strong[ 0 ] );
 	} );
 } );
 

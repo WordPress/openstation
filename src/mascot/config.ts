@@ -29,7 +29,7 @@ import type {
  */
 export const MASCOT_DEFAULTS: MascotConfig = {
 	appearance: {
-		radius: 52,
+		radius: 56,
 		bodyColor: 0x05050a,
 		bodyAlpha: 1,
 		// Hot magenta at the top of the ring sweeping through violet
@@ -38,15 +38,20 @@ export const MASCOT_DEFAULTS: MascotConfig = {
 		hueSpan: -80,
 		hueDrift: 6,
 		saturation: 1,
-		lightness: 0.66,
-		outlineWidth: 4.5,
-		glow: 1,
+		lightness: 0.8,
+		iridescence: 2,
+		outlineWidth: 1,
+		glow: 3,
 		glowBlur: true,
 		eyeColor: 0xffffff,
 		eyeScale: 0.3,
 	},
 	physics: {
-		points: 34,
+		// The rim is a simulation resolution, not a drawing one: the
+		// renderer resamples it into a smooth curve, so points beyond
+		// what the shape needs buy nothing but per-frame cost and a
+		// busier, twitchier silhouette.
+		points: 12,
 		// Deliberately soft and SLOW. Spring frequency is √k, so
 		// these set how fast the outline chases the shape underneath
 		// it: at k≈500 the rim answers at ~3.5 Hz, which reads as a
@@ -94,6 +99,7 @@ const LIMITS = {
 	hueDrift: [ -180, 180 ],
 	saturation: [ 0, 1 ],
 	lightness: [ 0.15, 1 ],
+	iridescence: [ 0, 2 ],
 	outlineWidth: [ 0.5, 24 ],
 	glow: [ 0, 3 ],
 	eyeScale: [ 0.05, 0.6 ],
@@ -192,6 +198,11 @@ export function sanitizeMascotConfig(
 			LIMITS.saturation,
 		),
 		lightness: num( a.lightness, base.appearance.lightness, LIMITS.lightness ),
+		iridescence: num(
+			a.iridescence,
+			base.appearance.iridescence,
+			LIMITS.iridescence,
+		),
 		outlineWidth: num(
 			a.outlineWidth,
 			base.appearance.outlineWidth,

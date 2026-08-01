@@ -2,7 +2,7 @@
 
 **Status: Experimental.**
 
-The mascot is Desktop Mode's desk companion: a soft-body blob wrapped in a neon chroma ring, with two pill eyes that follow your cursor. It drifts over the wallpaper — breathing gently, never quite the same shape twice — is drawn to nearby windows like a magnet, and can be picked up and thrown anywhere on the desk.
+The mascot is Desktop Mode's desk companion: a soft-body blob wrapped in a continuous, holographic neon ring, with two pill eyes that follow your cursor. It drifts over the wallpaper — breathing gently, never quite the same shape twice — is drawn to nearby windows like a magnet, and can be picked up and thrown anywhere on the desk.
 
 It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; the mascot owns its own layer inside `#desktop-mode-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
 
@@ -21,8 +21,16 @@ Off by default. Users switch it on by right-clicking the wallpaper and picking *
   - [Squash and stretch](#squash-and-stretch)
   - [Throwing](#throwing)
 - [Environment awareness](#environment-awareness)
+  - [Windows are magnets, not ground](#windows-are-magnets-not-ground)
+  - [Chrome is inflated back into a solid](#chrome-is-inflated-back-into-a-solid)
+  - [The dock is forbidden, not merely solid](#the-dock-is-forbidden-not-merely-solid)
+  - [Getting out from under a window](#getting-out-from-under-a-window)
 - [Looking at the pointer, across iframes](#looking-at-the-pointer-across-iframes)
 - [Rendering the chroma ring](#rendering-the-chroma-ring)
+  - [The ribbon](#the-ribbon)
+  - [Bands, not strokes](#bands-not-strokes)
+  - [The hologram](#the-hologram)
+  - [The interior sheen](#the-interior-sheen)
 - [PHP API](#php-api)
 - [JavaScript API](#javascript-api)
 - [Hooks](#hooks)
@@ -187,6 +195,21 @@ Note that `strength` and `magnetRange` are measured **edge-to-edge**, not from t
 
 The shell floor and the dock are solid but not magnetic — magnetising to either would pin the mascot to the edge of the screen forever, since one of them is always nearby.
 
+### Chrome is inflated back into a solid
+
+The shell publishes the dock and the floor as **one-pixel strips** along the face that matters. That is exactly right for the wallpapers consuming the same feed — snow piles on a line, rain splashes off one — and useless to a soft body: a rim point already well inside the dock is not inside a 1-px sliver, so nothing pushes it back out and the mascot sinks straight through the rail.
+
+So `collectObstacles()` re-inflates chrome (`dock`, `shell`) away from its solid face, out to the edge of the mascot layer. The dock becomes a volume the rim collides with along its whole depth, and there is no "behind the dock" left to reach. Windows and widget cards already arrive as full rects and are passed through untouched.
+
+### The dock is forbidden, not merely solid
+
+A window is something the mascot rests *against*, and a pixel of overlap while the contact solver settles is nobody's problem. The dock is different: it holds the user's navigation, it is opaque, and a blob halfway behind it reads as broken rather than playful. Two extra rules hold that line — the floor is deliberately exempt from both, since resting on it is the whole point.
+
+- **The drag target is clamped out of it.** `clampOutsideChrome()` keeps a full body radius of clearance, so the hand can sweep across the dock without the mascot following it in. Contact alone would let the drag spring press the body a good way into the rail before the two balanced out, which is the overlap being forbidden.
+- **Any depth inside it counts as trapped.** The window rule — buried three quarters of a body deep — can never fire inside a rail narrower than the mascot, so `findEscape()` checks forbidden chrome first with a bare inside-test. Contact cannot dig the mascot out on its own either: the rail's near face is the closest one for rim points on the desk side and its far face for the rest, so the solver pulls the body apart across it.
+
+Both pushes go along the obstacle's own **face**, never the shallowest axis. Chrome runs to the edge of the layer on its other three sides, so the shallowest-axis rule that suits a window floating in open desk would happily shove the mascot off screen behind the dock.
+
 Because surfaces are read live, moving a window near the mascot draws it in; moving that window away releases it.
 
 ### Getting out from under a window
@@ -223,16 +246,59 @@ This is a general facility, not a mascot-private one: any shell-side feature tha
 
 ## Rendering the chroma ring
 
-Four stroked passes over one smoothed rim path, back to front:
+Four passes over one resampled outline, back to front:
 
 1. **halo** — very wide, very faint, additive, optionally blurred. Light spilling onto the wallpaper.
 2. **bloom** — medium width, additive. The bright fringe hugging the tube.
-3. **body** — the black fill. Drawn *after* the glow passes on purpose: it masks their inner halves, which is what makes the inside read as pure black rather than muddy purple.
-4. **core** — a thin near-white stroke. The over-exposed centre of the tube.
+3. **body** — the black fill. Drawn *after* the glow passes on purpose: it masks their inner halves, which is what makes the inside read as black rather than muddy purple.
+4. **sheen** — concentric shells of faint additive colour over that fill. The [interior sheen](#the-interior-sheen).
+5. **core** — a thin near-white band. The over-exposed centre of the tube.
 
-Each pass is stroked **segment by segment** so every segment carries its own colour from the hue ramp — that per-segment sweep is the "chroma". Pixi has gradient fills, but only linear and radial ones; neither can run a hue ramp around a closed, deforming path.
+### The ribbon
 
-The rim path is smoothed with quadratic curves through edge midpoints, so a 40-point polygon renders as a continuous curve and the soft-body wobble reads as a rippling outline rather than a shivering polygon.
+Everything is built on one resampled outline. `physics.points` is a *simulation* resolution, far too coarse to draw with directly, so `buildRibbon()` runs the standard Chaikin-style smoothing — quadratic curves through edge midpoints, rim points as controls — and samples that curve twice per rim segment, carrying an outward unit normal with every sample.
+
+The outline the renderer sees therefore has no idea how many mass points it came from. That decoupling is what lets the physics run coarse (26 points) without the edge going faceted, and it is why the wobble reads as a rippling curve rather than a shivering polygon.
+
+### Bands, not strokes
+
+Each pass used to be stroked **segment by segment**, which was the only way to run a hue ramp around a closed, deforming path — Pixi's gradients are linear and radial, and neither can. But it had a tell: consecutive round-capped strokes *overlap* at every joint, and under the additive blending the glow passes use, double coverage is double brightness. The ring came out beaded, one visible knob per rim point, and the outline read as a chain rather than a tube.
+
+So each pass is a **band** instead: one flat-filled quad per sample, spanning outward from the centreline, with adjacent quads sharing their edge coordinates *exactly*. Shared edges tile with neither gap nor overlap, so there is nowhere for a bright joint to form and the band is continuous by construction. `mascot-render.test.ts` asserts that bit-equality directly — it is the anti-beading invariant, and anything less is either a seam of wallpaper showing through or a joint glowing twice as bright.
+
+Per-quad colour keeps the chroma sweep and buys the room for the hologram below: per-sample normals are exactly what a viewing-angle effect needs.
+
+Because the body fill masks the inner half of the glow anyway, the two glow bands are built almost entirely *outward* from the centreline — half the geometry, and no risk of their inner edges crossing where the outline is concave. A sliver of inward reach remains so the body fill overlaps them rather than meeting them exactly, which would leave a hairline of wallpaper along the seam.
+
+### The hologram
+
+A real holographic surface does not have a colour, it has a colour *per viewing angle*: tilt the sticker and the rainbow slides across it. The mascot has no viewer to track, so a **rake direction** stands in for one. It drifts slowly while the mascot is idle and swings toward the direction of travel as it moves, so the ring's colours run when you throw the blob across the desk and settle again when it stops. Deformation feeds it for free — squash the body and its normals turn, so the colours turn with them.
+
+Three terms, all keyed on `d = dot( outward normal, rake )`, scaled by `appearance.iridescence`:
+
+| Term | What it does |
+|---|---|
+| Angle hue shift | `d` displaces the hue by up to ±62°, so opposite sides of the ring sit at opposite ends of the shift and the whole band re-sorts itself as the rake turns. |
+| Diffraction grating | Two incommensurable harmonics (3 and 5 cycles) of fine hue ripple around the perimeter. This is the detail that reads as "holographic" rather than "gradient" — a single sine reads as a regular scallop once it has gone round twice. |
+| Specular glint | A narrow, desaturating hotspot that slides along the rim as the rake turns. `holoSpecular()` exposes it separately so the crisp core band can be pushed hardest to white exactly where the glint sits. |
+
+The rake's own **magnitude** is the effect strength: `0.45` at rest, up to `1` at 900 px/s. The velocity behind it is a heavily smoothed centroid delta — a single frame's delta is far too noisy to steer a colour effect with, and every contact bounce would strobe the ring — and it is reset on every teleport (escape hop, `setPosition`, resize clamp, rebuild) so a jump never lands in it as a several-thousand-px/s "throw".
+
+The ambient half of the rake is gated on `hueDrift`, so the reduced-motion path that already zeroes the hue drift stills the shimmer too, without a second preference to read. Motion the user causes still colours the ring, in line with the rest of the mascot's reduced-motion policy.
+
+Set `appearance.iridescence` to `0` for the plain chroma ramp and nothing else.
+
+### The interior sheen
+
+The inside of the mascot is not flat black — it catches the hologram too, the way a holographic film laid over dark card does. Five concentric shells march from the outline to the centroid, each flat-filled per sample and each fainter than the last, standing in for the radial falloff a gradient would give if Pixi could produce one without minting a texture every frame. The innermost reaches the centroid, so it is a fan of triangles rather than a band.
+
+They are **additive**, so the sheen can only ever lift the interior toward colour, never darken or wash it out. Being adjacent rather than nested, the brightest lift anywhere inside the body is simply the largest alpha, and that is the whole budget. The body still has to read as black; the sheen is a film over it, not a paint job. `mascot-render.test.ts` pins the ceiling.
+
+**The layer is blurred**, and that is what makes the brightness affordable. A flat shell against a flat shell is a hard edge, and left alone it reads as a set of concentric contour lines drawn inside the mascot — which caps how bright the sheen can get before the banding gives it away. The blur dissolves the radial steps and the angular facets both, so the shells can be few (five), coarse (every third sample), and actually visible. Its strength scales off `radius`: a kiosk-sized mascot needs a proportionally wider blur to hide the same number of shells. The outermost shell starts a little way in from the outline so the blur spends itself on the interior rather than bleeding colour out over the ring.
+
+The sheen's rake is the ring's turned a quarter turn, and its hue ramp runs at a different rate — an inside that simply repeated the edge would read as a blurred copy of it rather than as a second surface catching the same light. It scales with `appearance.iridescence`, so `0` restores a flat black body and drops the blur pass entirely.
+
+### The face
 
 Eyes are white pills that inherit a fraction of the body's squash, offset toward the pointer with a saturating response (clamped inside the face), and blink on a randomised 2.6–7 s schedule.
 
@@ -270,17 +336,18 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 | `hueDrift` | `6` | −180–180 | Ring rotation, degrees per second. |
 | `saturation` | `1` | 0–1 | Ring saturation. |
 | `lightness` | `0.66` | 0.15–1 | Ring lightness at its brightest point. |
-| `outlineWidth` | `4.5` | 0.5–24 | Crisp core stroke width; the glow passes scale off it. |
+| `iridescence` | `0.85` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` is a flat chroma ramp over a flat black body; above `1` is deliberately over-driven. |
+| `outlineWidth` | `4.5` | 0.5–24 | Crisp core band width; the glow passes scale off it. |
 | `glow` | `1` | 0–3 | Bloom spread multiplier. `0` disables the halo passes. |
 | `glowBlur` | `true` | bool | Run a `BlurFilter` over the halo. Softer, one filter pass per frame. |
 | `eyeColor` | `#ffffff` | colour | Eye fill. |
-| `eyeScale` | `0.26` | 0.05–0.6 | Eye height as a fraction of `radius`. |
+| `eyeScale` | `0.3` | 0.05–0.6 | Eye height as a fraction of `radius`. |
 
 **`physics`**
 
 | Key | Default | Range | Meaning |
 |---|---|---|---|
-| `points` | `34` | 12–128 | Rim resolution. |
+| `points` | `26` | 12–128 | Rim resolution. A *simulation* resolution — the renderer resamples it into a smooth curve, so raising it buys a busier silhouette and per-frame cost, not a rounder one. |
 | `radialStiffness` | `460` | 0–2000 | Shape springs (rim ↔ centroid). |
 | `edgeStiffness` | `540` | 0–4000 | Surface tension. |
 | `bendStiffness` | `170` | 0–2000 | Crease resistance. |
@@ -386,7 +453,7 @@ The wallpaper context-menu entry is a normal menu item (`id: 'mascot'`), so the 
 
 The mascot is decorative: the layer carries `aria-hidden="true"` and exposes no controls. It conveys no information, so nothing is lost to assistive technology.
 
-**Reduced motion** is honoured in the simulation rather than by hiding the mascot. Under `prefers-reduced-motion: reduce` the idle bob (`floatAmplitude`) and the ring shimmer (`hueDrift`) are zeroed, so the mascot holds still until the user interacts with it. Motion the user causes — a drag, a fall onto a window they just opened — is kept: WCAG's concern is unsolicited animation, and a companion that refuses to move when you pick it up isn't accessible, it's broken. A user who wants none of it switches the mascot off from the same menu they switched it on.
+**Reduced motion** is honoured in the simulation rather than by hiding the mascot. Under `prefers-reduced-motion: reduce` the idle bob (`floatAmplitude`) and the ring shimmer (`hueDrift`) are zeroed — and with `hueDrift`, the hologram's ambient rake — so the mascot holds still until the user interacts with it. Motion the user causes — a drag, a fall onto a window they just opened — is kept: WCAG's concern is unsolicited animation, and a companion that refuses to move when you pick it up isn't accessible, it's broken. A user who wants none of it switches the mascot off from the same menu they switched it on.
 
 The preference is watched live, so toggling it at the OS level takes effect without a reload.
 
@@ -397,5 +464,5 @@ The preference is watched live, so toggling it at the OS level takes effect with
 - **Nothing downloads until the mascot is switched on.** The always-on cost is the controller.
 - The ticker stops on `visibilitychange`, and resumes with a drained accumulator so a tab that was hidden for a minute doesn't come back with a catch-up avalanche.
 - Surfaces are re-measured at 20 Hz, not per frame.
-- Per frame: five `Graphics.clear()` calls and roughly `4 × points` short path segments, plus one optional blur pass over the halo.
+- Per frame: six `Graphics.clear()` calls and roughly `5 × points` flat quads across the three ring bands, plus `3 × points` for the interior sheen's five shells (the halo is drawn at half resolution and the sheen at a third — both are blurred and faint, so nothing finer survives to a pixel a viewer could resolve), plus a blur pass over the halo and one over the sheen.
 - The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OS Settings previews).

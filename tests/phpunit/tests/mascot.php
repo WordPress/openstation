@@ -53,6 +53,7 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 			'hueDrift',
 			'saturation',
 			'lightness',
+			'iridescence',
 			'outlineWidth',
 			'glow',
 			'glowBlur',
