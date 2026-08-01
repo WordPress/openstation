@@ -30,17 +30,27 @@ import type {
 export const MASCOT_DEFAULTS: MascotConfig = {
 	appearance: {
 		radius: 56,
-		bodyColor: 0x05050a,
+		// The reference interior is dead black — the ring is the only
+		// thing emitting.
+		bodyColor: 0x03030a,
 		bodyAlpha: 1,
-		// Hot magenta at the top of the ring sweeping through violet
-		// into blue at the bottom — the reference gradient.
-		hueStart: 310,
-		hueSpan: -80,
+		// The reference gradient runs on the DIAGONAL: blue at the
+		// lower-right, magenta at the upper-left. The ramp starts at the
+		// 3 o'clock point and sweeps clockwise, so the two extremes want
+		// to land a half-turn apart at t = 0.125 and t = 0.625 — which
+		// is what these two numbers solve for.
+		hueStart: 235,
+		hueSpan: 125,
 		hueDrift: 6,
 		saturation: 1,
-		lightness: 0.8,
-		iridescence: 2,
-		outlineWidth: 1,
+		lightness: 0.75,
+		// Enough for the ring to stay alive under motion, low enough
+		// that it still reads as one clean magenta→blue sweep rather
+		// than a rainbow. The reference is a gradient, not a foil.
+		iridescence: 0.7,
+		// A thin bright core inside a wide soft glow — the whole look of
+		// the reference is that ratio.
+		outlineWidth: 2,
 		glow: 3,
 		glowBlur: true,
 		eyeColor: 0xffffff,
@@ -52,6 +62,15 @@ export const MASCOT_DEFAULTS: MascotConfig = {
 		// what the shape needs buy nothing but per-frame cost and a
 		// busier, twitchier silhouette.
 		points: 12,
+		// Nearly round, with a shallow dimple at the bottom centre and a
+		// little extra fullness at the lower left and right — the
+		// reference silhouette. Same three-lobe profile as a triangle,
+		// pulled back to about half strength so the corners read as a
+		// blob's rather than a polygon's. `idleWobble` supplies the
+		// asymmetry that keeps it from looking constructed.
+		shapeLobes: 3,
+		shapeAmount: 0.5,
+		shapeAngle: -90,
 		// Deliberately soft and SLOW. Spring frequency is √k, so
 		// these set how fast the outline chases the shape underneath
 		// it: at k≈500 the rim answers at ~3.5 Hz, which reads as a
@@ -104,6 +123,9 @@ const LIMITS = {
 	glow: [ 0, 3 ],
 	eyeScale: [ 0.05, 0.6 ],
 	points: [ 12, 128 ],
+	shapeLobes: [ 0, 8 ],
+	shapeAmount: [ 0, 1.4 ],
+	shapeAngle: [ -360, 360 ],
 	radialStiffness: [ 0, 2000 ],
 	edgeStiffness: [ 0, 4000 ],
 	bendStiffness: [ 0, 2000 ],
@@ -218,6 +240,19 @@ export function sanitizeMascotConfig(
 		// Rim resolution is rounded — a fractional point count would
 		// break the neighbour indexing in the soft body.
 		points: Math.round( num( p.points, base.physics.points, LIMITS.points ) ),
+		// Lobes are rounded for the same reason: the profile is
+		// evaluated as `cos( lobes · θ )`, and a fractional lobe count
+		// would leave the rest shape discontinuous where the ring
+		// closes — a permanent kink the springs would fight forever.
+		shapeLobes: Math.round(
+			num( p.shapeLobes, base.physics.shapeLobes, LIMITS.shapeLobes ),
+		),
+		shapeAmount: num(
+			p.shapeAmount,
+			base.physics.shapeAmount,
+			LIMITS.shapeAmount,
+		),
+		shapeAngle: num( p.shapeAngle, base.physics.shapeAngle, LIMITS.shapeAngle ),
 		radialStiffness: num(
 			p.radialStiffness,
 			base.physics.radialStiffness,

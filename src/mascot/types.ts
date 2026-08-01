@@ -82,6 +82,40 @@ export interface MascotAppearance {
 export interface MascotPhysics {
 	/** Perimeter resolution — number of mass points on the rim. */
 	points: number;
+	/**
+	 * Corners in the mascot's rest shape. `3` is a rounded triangle,
+	 * `4` a rounded square, `0` or `1` a circle.
+	 *
+	 * This is a *rest shape*, not a mask: it sets the length every
+	 * spring family pulls toward, so the mascot squashes, stretches,
+	 * breathes and recovers exactly as before — it just settles into a
+	 * triangle instead of a disc.
+	 */
+	shapeLobes: number;
+	/**
+	 * How pronounced the corners are, as a fraction of the flat-sided
+	 * limit.
+	 *
+	 * `0` is a circle. `1` is the most cornered a *convex* shape can
+	 * be: the profile `1 + a·cos(kθ)` has exactly zero curvature at
+	 * its side midpoints when `a = 1/(1 + k²)`, so `1` gives dead
+	 * straight sides between rounded corners. Past that the sides bow
+	 * inward and the shape reads as a clover rather than a polygon,
+	 * which is why the range runs a little beyond `1` but not far.
+	 */
+	shapeAmount: number;
+	/**
+	 * Which way the rest shape's first corner points, in degrees,
+	 * clockwise from the 3 o'clock direction (screen coordinates, so
+	 * `90` is straight down).
+	 *
+	 * The body never rotates — rest angles are fixed in screen space —
+	 * so this is the shape's permanent orientation. The default puts a
+	 * corner at the top and a flat side along the bottom, which is
+	 * both the most triangle-like reading and the one that rests
+	 * neatly on the top edge of a window.
+	 */
+	shapeAngle: number;
 	/** Radial spring constant (rim point ↔ core). */
 	radialStiffness: number;
 	/** Perimeter spring constant (rim point ↔ neighbour). */

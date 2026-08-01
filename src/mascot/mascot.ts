@@ -38,6 +38,7 @@ import {
 	addVelocity,
 	createSoftBody,
 	resetBody,
+	shapeProfile,
 	stepSoftBody,
 	translateBody,
 	type SoftBody,
@@ -162,11 +163,23 @@ export async function mountMascot(
 		? { x: options.position.x - origin.left, y: options.position.y - origin.top }
 		: defaultStart( size(), config.appearance.radius );
 
+	/**
+	 * The rest silhouette, bound to whatever config is live.
+	 *
+	 * Read through `config` rather than captured, so a `setConfig` that
+	 * only changes the shape retargets the springs without rebuilding
+	 * the body — the mascot morphs into its new shape instead of
+	 * popping into it.
+	 */
+	const profile = ( angle: number ): number =>
+		shapeProfile( angle, config.physics );
+
 	let body: SoftBody = createSoftBody(
 		clamp( start.x, config.appearance.radius, size().width - config.appearance.radius ),
 		clamp( start.y, config.appearance.radius, size().height - config.appearance.radius ),
 		config.appearance.radius,
 		config.physics.points,
+		profile,
 	);
 
 	// ------------------------------------------------------------------
@@ -653,6 +666,7 @@ export async function mountMascot(
 					at.y,
 					config.appearance.radius,
 					config.physics.points,
+					profile,
 				);
 				forgetMotion();
 			}

@@ -15,6 +15,7 @@ Off by default. Users switch it on by right-clicking the wallpaper and picking *
 - [For users](#for-users)
 - [Architecture](#architecture)
 - [The simulation](#the-simulation)
+  - [The rest shape](#the-rest-shape)
   - [Idle wobble](#idle-wobble)
   - [Hard limits](#hard-limits)
   - [The outline can never fold](#the-outline-can-never-fold)
@@ -85,13 +86,13 @@ The mascot sits below the dock deliberately: a companion that could cover your n
 
 ## The simulation
 
-A pressurised mass-spring ring — `physics.points` particles on a circle, wired by four force families:
+A pressurised mass-spring ring — `physics.points` particles laid out around the [rest shape](#the-rest-shape), wired by four force families:
 
 | Force | Constant | What it does |
 |---|---|---|
 | Edge springs | `edgeStiffness` | Surface tension between neighbouring rim points. |
 | Bend springs | `bendStiffness` | Rim ↔ rim+2; resists creasing, so a hard landing dents rather than folds. |
-| Shape springs | `radialStiffness` | Rim ↔ centroid; restores roundness. |
+| Shape springs | `radialStiffness` | Rim ↔ centroid; restores the rest shape. |
 | Pressure | `pressure` | Gas term proportional to lost area; makes the blob pancake *outward* on impact instead of just flattening. |
 
 Integration is semi-implicit Euler over fixed `subStep` slices (default 1/240 s), capped at `maxSubSteps` per frame. Fixed steps mean the same landing produces the same squash at 30 fps and at 144 fps.
@@ -99,6 +100,22 @@ Integration is semi-implicit Euler over fixed `subStep` slices (default 1/240 s)
 Damping is split in two on purpose. `damping` acts on each point's velocity **relative to the body's mean velocity**, so the jiggle settles while the body keeps its momentum. `airDamping` acts on everything, so a throw glides to a stop. A single combined constant makes the mascot feel like it is falling through syrup.
 
 Note that `damping` is the wobble knob. Turn it down and every landing rings for half a second and the mascot reads as "too many springs"; turn it up and it stiffens toward a solid.
+
+### The rest shape
+
+The mascot is not a disc. `shapeLobes` / `shapeAmount` / `shapeAngle` give it a **rest profile** — a rounded polygon. The shipped values are a three-lobe profile at about half strength, corner up: nearly round, with a shallow dimple at the bottom centre and a little extra fullness at the lower left and right. Raise `shapeAmount` toward `1` and the same profile becomes a proper rounded triangle.
+
+Crucially this is a *rest length*, not a mask or a drawn outline. The profile multiplies the per-point rest radius that every spring family already reads, so the mascot squashes, stretches, breathes, gets thrown and re-inflates exactly as a round one does; it simply settles into a triangle when nothing is acting on it. Nothing downstream has to know about it — the pressure term's target area is computed from the same `restR` array, so the gas inflates toward the triangle rather than fighting it.
+
+```
+r(θ) = radius · ( 1 + shapeAmount · 1/(1 + lobes²) · cos( lobes · (θ − shapeAngle) ) )
+```
+
+**`shapeAmount` is a fraction of the flat-sided limit, not a raw amplitude.** The profile `1 + a·cos(kθ)` has exactly zero curvature at its side midpoints when `a = 1/(1 + k²)`, so `shapeAmount: 1` means "dead straight sides between rounded corners" — at any lobe count. Past `1` the sides bow inward and the shape reads as a clover rather than a polygon; `mascot-soft-body.test.ts` checks the angular-gap constraint still holds there. A raw amplitude would mean something different for a triangle than for a hexagon and force every caller to re-derive it.
+
+The body never rotates — rest angles are fixed in screen space — so `shapeAngle` is a permanent orientation rather than a starting one. The default (`-90`, straight up in screen coordinates) is both the most triangle-like reading and the one that rests neatly on the top edge of a window.
+
+`createSoftBody()` and `resetBody()` take the profile so the body is *born* the right shape. Without it the springs would pull a disc into a triangle over the first few hundred milliseconds — harmless, but visible as a morph at boot and after every escape hop. Changing the shape live through `setConfig` deliberately does *not* rebuild the body, so that one does morph, which is the right reading for a shape someone is tuning.
 
 ### Idle wobble
 
@@ -329,16 +346,16 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 | Key | Default | Range | Meaning |
 |---|---|---|---|
 | `radius` | `56` | 16–220 | Rest radius in CSS pixels. |
-| `bodyColor` | `#05050a` | colour | Body fill. |
+| `bodyColor` | `#03030a` | colour | Body fill. |
 | `bodyAlpha` | `1` | 0–1 | Body fill opacity. |
-| `hueStart` | `310` | −720–720 | Hue in degrees at the crown of the ring. |
-| `hueSpan` | `-80` | −360–360 | Degrees of hue traversed around the ring. |
+| `hueStart` | `235` | −720–720 | Hue in degrees at the ramp's start, the 3 o'clock point of the ring. |
+| `hueSpan` | `125` | −360–360 | Degrees of hue traversed clockwise around the ring. The shipped pair puts blue at the lower right and magenta at the upper left. |
 | `hueDrift` | `6` | −180–180 | Ring rotation, degrees per second. |
 | `saturation` | `1` | 0–1 | Ring saturation. |
-| `lightness` | `0.66` | 0.15–1 | Ring lightness at its brightest point. |
-| `iridescence` | `0.85` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` is a flat chroma ramp over a flat black body; above `1` is deliberately over-driven. |
-| `outlineWidth` | `4.5` | 0.5–24 | Crisp core band width; the glow passes scale off it. |
-| `glow` | `1` | 0–3 | Bloom spread multiplier. `0` disables the halo passes. |
+| `lightness` | `0.75` | 0.15–1 | Ring lightness at its brightest point. |
+| `iridescence` | `0.7` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` is a flat chroma ramp over a flat black body; above `1` is deliberately over-driven. |
+| `outlineWidth` | `2` | 0.5–24 | Crisp core band width; the glow passes scale off it. A thin core inside a wide glow is the whole look. |
+| `glow` | `3` | 0–3 | Bloom spread multiplier. `0` disables the halo passes. |
 | `glowBlur` | `true` | bool | Run a `BlurFilter` over the halo. Softer, one filter pass per frame. |
 | `eyeColor` | `#ffffff` | colour | Eye fill. |
 | `eyeScale` | `0.3` | 0.05–0.6 | Eye height as a fraction of `radius`. |
@@ -347,7 +364,10 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 
 | Key | Default | Range | Meaning |
 |---|---|---|---|
-| `points` | `26` | 12–128 | Rim resolution. A *simulation* resolution — the renderer resamples it into a smooth curve, so raising it buys a busier silhouette and per-frame cost, not a rounder one. |
+| `points` | `12` | 12–128 | Rim resolution. A *simulation* resolution — the renderer resamples it into a smooth curve, so raising it buys a busier silhouette and per-frame cost, not a rounder one. |
+| `shapeLobes` | `3` | 0–8 | Corners in the [rest shape](#the-rest-shape). `3` is a rounded triangle, `4` a rounded square, `0`/`1` a circle. |
+| `shapeAmount` | `0.5` | 0–1.4 | How cornered, as a fraction of the flat-sided limit. `1` gives dead straight sides; above that they bow inward into a clover. |
+| `shapeAngle` | `-90` | −360–360 | Where the first corner points, in degrees clockwise from 3 o'clock. Screen coordinates, so `-90` is up. |
 | `radialStiffness` | `460` | 0–2000 | Shape springs (rim ↔ centroid). |
 | `edgeStiffness` | `540` | 0–4000 | Surface tension. |
 | `bendStiffness` | `170` | 0–2000 | Crease resistance. |

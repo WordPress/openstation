@@ -423,8 +423,10 @@ export function eyeLayout(
 		}
 	}
 
-	// Eye separation, also squashed with the body.
-	const gap = r * 0.34 * clamp( squashX, 0.5, 1.6 );
+	// Eye separation, also squashed with the body. Close-set: the
+	// reference face is two small pills near the middle, not a pair
+	// pushed out toward the edges.
+	const gap = r * 0.28 * clamp( squashX, 0.5, 1.6 );
 	// Sit the pair slightly above the geometric centre — the
 	// reference face reads as looking out, not down.
 	const cy = frame.centre.y - r * 0.02 + gy;

@@ -13,6 +13,25 @@ import {
 } from '../../src/mascot/chroma';
 import { MASCOT_DEFAULTS, sanitizeMascotConfig } from '../../src/mascot/config';
 
+/** Hue of a packed colour, in degrees. `-1` for a true grey. */
+function hueOf( r: number, g: number, b: number ): number {
+	const max = Math.max( r, g, b );
+	const min = Math.min( r, g, b );
+	const c = max - min;
+	if ( 0 === c ) {
+		return -1;
+	}
+	let h: number;
+	if ( max === r ) {
+		h = ( ( g - b ) / c ) % 6;
+	} else if ( max === g ) {
+		h = ( b - r ) / c + 2;
+	} else {
+		h = ( r - g ) / c + 4;
+	}
+	return ( ( h * 60 ) % 360 + 360 ) % 360;
+}
+
 describe( 'hslToRgbInt', () => {
 	test( 'maps the primaries', () => {
 		expect( hslToRgbInt( 0, 1, 0.5 ) ).toBe( 0xff0000 );
@@ -69,14 +88,17 @@ describe( 'chromaRing', () => {
 			lightness: 0.5,
 		} );
 		// Lightness still varies around the ring by design, so compare
-		// hue families rather than exact values: every entry should be
-		// some tint of the same magenta.
-		for ( const rgb of flat ) {
-			const r = ( rgb >> 16 ) & 0xff;
-			const g = ( rgb >> 8 ) & 0xff;
-			const b = rgb & 0xff;
-			expect( g ).toBeLessThan( r );
-			expect( g ).toBeLessThan( b );
+		// hue rather than exact values — and derive it rather than
+		// naming a colour, so the assertion stays true whatever
+		// `hueStart` the shipped design happens to use.
+		const hues = flat.map( ( rgb ) =>
+			hueOf( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff ),
+		);
+		for ( const h of hues ) {
+			// A degree of slack for 8-bit rounding: the ring is quantised
+			// to packed RGB, so two tints of one hue land a fraction of a
+			// degree apart coming back out.
+			expect( Math.abs( h - hues[ 0 ] ) ).toBeLessThan( 1 );
 		}
 	} );
 } );
@@ -222,6 +244,17 @@ describe( 'sanitizeMascotConfig', () => {
 		expect(
 			sanitizeMascotConfig( { physics: { points: 33.7 } } ).physics.points,
 		).toBe( 34 );
+		// Lobes round for the same reason: `cos( lobes · θ )` with a
+		// fractional count leaves the rest shape discontinuous where the
+		// ring closes, a permanent kink the springs would fight forever.
+		expect(
+			sanitizeMascotConfig( { physics: { shapeLobes: 3.4 } } ).physics
+				.shapeLobes,
+		).toBe( 3 );
+		expect(
+			sanitizeMascotConfig( { physics: { shapeLobes: 99, shapeAmount: 9 } } )
+				.physics,
+		).toMatchObject( { shapeLobes: 8, shapeAmount: 1.4 } );
 	} );
 
 	test( 'layers over a caller-supplied base', () => {

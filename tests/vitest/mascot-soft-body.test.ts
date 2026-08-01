@@ -17,6 +17,7 @@ import {
 	polygonArea,
 	resetBody,
 	rimCentroid,
+	shapeProfile,
 	stepSoftBody,
 	syncCore,
 	translateBody,
@@ -25,7 +26,18 @@ import {
 } from '../../src/mascot/soft-body';
 
 const BOUNDS = { width: 1200, height: 800 };
-const PHYSICS = MASCOT_DEFAULTS.physics;
+
+/**
+ * The shipped physics with the rest shape forced back to a circle.
+ *
+ * Almost every invariant below is phrased in terms of *roundness* —
+ * "an untouched blob keeps its shape", "a squashed blob re-inflates",
+ * "the silhouette stays inside an annulus". Those are statements about
+ * the body returning to its rest shape, and they read far more clearly
+ * against a circle than against the shipped rounded triangle. The
+ * profile gets its own block at the end.
+ */
+const PHYSICS = { ...MASCOT_DEFAULTS.physics, shapeLobes: 0 };
 
 function input( over: Partial< StepInput > = {} ): StepInput {
 	return {
@@ -965,5 +977,134 @@ describe( 'helpers', () => {
 			p.x += 25;
 		}
 		expect( rimCentroid( body.rim ).x ).toBeCloseTo( 125, 6 );
+	} );
+} );
+
+describe( 'the rest shape', () => {
+	const TRIANGLE = MASCOT_DEFAULTS.physics;
+	const profile = ( angle: number ): number => shapeProfile( angle, TRIANGLE );
+
+	/** Radius of the rim point nearest `angle`, relative to the rest radius. */
+	function radiusAt( body: SoftBody, angle: number ): number {
+		let best = body.rim[ 0 ];
+		let bestGap = Infinity;
+		for ( const p of body.rim ) {
+			const gap = Math.abs(
+				Math.atan2(
+					Math.sin( p.angle - angle ),
+					Math.cos( p.angle - angle ),
+				),
+			);
+			if ( gap < bestGap ) {
+				bestGap = gap;
+				best = p;
+			}
+		}
+		return (
+			Math.hypot( best.x - body.core.x, best.y - body.core.y ) / body.radius
+		);
+	}
+
+	test( 'a circle is the default for degenerate lobe counts', () => {
+		for ( const shapeLobes of [ 0, 1 ] ) {
+			expect( shapeProfile( 1.234, { ...TRIANGLE, shapeLobes } ) ).toBe( 1 );
+		}
+		expect( shapeProfile( 1.234, { ...TRIANGLE, shapeAmount: 0 } ) ).toBe( 1 );
+	} );
+
+	test( 'amount 1 is exactly the flat-sided limit for any lobe count', () => {
+		// `1 + a·cos(kθ)` has zero curvature at its side midpoints when
+		// a = 1/(1 + k²). That is what `shapeAmount: 1` has to mean, or
+		// the knob means something different for a triangle than for a
+		// hexagon.
+		for ( const k of [ 3, 4, 6 ] ) {
+			const at = ( angle: number ): number =>
+				shapeProfile( angle, {
+					...TRIANGLE,
+					shapeLobes: k,
+					shapeAmount: 1,
+					shapeAngle: 0,
+				} );
+			// Corner (θ = 0) and side midpoint (θ = π/k).
+			expect( at( 0 ) - 1 ).toBeCloseTo( 1 / ( 1 + k * k ), 12 );
+			expect( 1 - at( Math.PI / k ) ).toBeCloseTo( 1 / ( 1 + k * k ), 12 );
+		}
+	} );
+
+	test( 'the default puts a corner up and a flat side down', () => {
+		// Screen coordinates: -90° is up, +90° is down.
+		const up = shapeProfile( -Math.PI / 2, TRIANGLE );
+		const down = shapeProfile( Math.PI / 2, TRIANGLE );
+		expect( up ).toBeGreaterThan( 1 );
+		expect( down ).toBeLessThan( 1 );
+		expect( up ).toBeGreaterThan( down );
+	} );
+
+	test( 'a body is born the right shape, not a disc that morphs', () => {
+		const body = createSoftBody( 600, 400, 56, 36, profile );
+		expect( radiusAt( body, -Math.PI / 2 ) ).toBeGreaterThan( 1.02 );
+		expect( radiusAt( body, Math.PI / 2 ) ).toBeLessThan( 0.98 );
+	} );
+
+	test( 'the springs hold the shape rather than relaxing it away', () => {
+		// The real test of a rest-length implementation: leave it alone
+		// for two seconds and the corners must still be corners. A shape
+		// applied as a one-off displacement would have been eaten by the
+		// edge and pressure terms long before this.
+		const body = createSoftBody( 600, 400, 56, 36, profile );
+		run( body, 2, { physics: TRIANGLE } );
+		expect( radiusAt( body, -Math.PI / 2 ) ).toBeGreaterThan(
+			radiusAt( body, Math.PI / 2 ) + 0.05,
+		);
+	} );
+
+	test( 'a disc pulled into shape reaches the same silhouette', () => {
+		// No profile at build time, so this one starts as a circle and
+		// has to be dragged into a triangle by the springs alone. It is
+		// how a live `setConfig` shape change plays out.
+		const morphed = createSoftBody( 600, 400, 56, 36 );
+		run( morphed, 3, { physics: TRIANGLE } );
+		const born = createSoftBody( 600, 400, 56, 36, profile );
+		run( born, 3, { physics: TRIANGLE } );
+		expect( radiusAt( morphed, -Math.PI / 2 ) ).toBeCloseTo(
+			radiusAt( born, -Math.PI / 2 ),
+			1,
+		);
+	} );
+
+	test( 'the shape survives a squash and comes back', () => {
+		const body = createSoftBody( 600, 400, 56, 36, profile );
+		for ( const p of body.rim ) {
+			p.y = body.core.y + ( p.y - body.core.y ) * 0.2;
+		}
+		syncCore( body );
+		run( body, 3, { physics: TRIANGLE } );
+		expect( radiusAt( body, -Math.PI / 2 ) ).toBeGreaterThan(
+			radiusAt( body, Math.PI / 2 ) + 0.05,
+		);
+		expect( isFiniteBody( body ) ).toBe( true );
+	} );
+
+	test( 'resetBody re-forms the shape, not a circle', () => {
+		const body = createSoftBody( 600, 400, 56, 36, profile );
+		run( body, 1, { physics: TRIANGLE } );
+		resetBody( body, 300, 300 );
+		expect( radiusAt( body, -Math.PI / 2 ) ).toBeGreaterThan( 1.02 );
+		expect( radiusAt( body, Math.PI / 2 ) ).toBeLessThan( 0.98 );
+	} );
+
+	test( 'the outline never folds, even at a clover amount', () => {
+		// Past the flat-sided limit the sides bow inward. The angular
+		// gap constraint still has to hold: a self-intersecting rim is
+		// the one failure the body cannot recover from.
+		const clover = { ...TRIANGLE, shapeAmount: 1.4 };
+		const body = createSoftBody( 600, 400, 56, 36, ( a ) =>
+			shapeProfile( a, clover ),
+		);
+		run( body, 2, { physics: clover } );
+		expect( isFiniteBody( body ) ).toBe( true );
+		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
+			body.restArea * 0.4,
+		);
 	} );
 } );

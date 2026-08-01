@@ -89,6 +89,12 @@ export interface SoftBody {
 	rim: RimPoint[];
 	/** Rest radius. */
 	radius: number;
+	/**
+	 * Rest silhouette as a multiplier on {@link radius}, so the body
+	 * re-forms the right shape rather than a disc. `undefined` is a
+	 * circle.
+	 */
+	profile?: ( angle: number ) => number;
 	/** Rest area of the rim polygon, for the pressure term. */
 	restArea: number;
 	/** Seconds of simulated time, drives the idle float. */
@@ -97,21 +103,67 @@ export interface SoftBody {
 	accumulator: number;
 }
 
-/** Build a body at rest, centred on `(cx, cy)`. */
+/**
+ * The mascot's rest silhouette, as a multiplier on `radius` at one
+ * angle around the ring.
+ *
+ * A rounded polygon written the only way a soft body can usefully
+ * carry one — as a **rest length**, not a mask. Every spring family
+ * reads its target from this, so the mascot squashes, stretches,
+ * breathes, is thrown and recovers exactly as a disc-shaped one does;
+ * it simply settles into a triangle when nothing is acting on it.
+ *
+ * The profile is `1 + a·cos( k·(θ − θ₀) )`, and `shapeAmount` is
+ * expressed as a fraction of `1/(1 + k²)` rather than as a raw
+ * amplitude. That constant is where the curvature at the *side
+ * midpoints* reaches exactly zero, so `shapeAmount` of `1` means
+ * "dead straight sides between rounded corners" at any lobe count,
+ * and anything above it bows the sides inward into a clover. One
+ * number that means the same thing for a triangle and a hexagon beats
+ * an amplitude the caller has to re-derive per lobe count.
+ *
+ * @param angle   Rest angle of the point, in radians.
+ * @param physics Simulation constants.
+ */
+export function shapeProfile( angle: number, physics: MascotPhysics ): number {
+	const lobes = Math.round( physics.shapeLobes );
+	if ( lobes < 2 || physics.shapeAmount <= 0 ) {
+		return 1;
+	}
+	const flatSided = 1 / ( 1 + lobes * lobes );
+	const amplitude = physics.shapeAmount * flatSided;
+	return (
+		1 +
+		amplitude *
+			Math.cos( lobes * ( angle - ( physics.shapeAngle * Math.PI ) / 180 ) )
+	);
+}
+
+/**
+ * Build a body at rest, centred on `(cx, cy)`.
+ *
+ * `profile` is the rest silhouette — pass {@link shapeProfile} bound
+ * to the live physics config so the body is *born* the right shape.
+ * Leaving it out builds a disc, which the springs would then have to
+ * pull into shape over the first few hundred milliseconds: fine for a
+ * test, visible as a morph at boot and after every escape hop.
+ */
 export function createSoftBody(
 	cx: number,
 	cy: number,
 	radius: number,
 	count: number,
+	profile?: ( angle: number ) => number,
 ): SoftBody {
 	const n = Math.max( 3, Math.round( count ) );
 	const rim: RimPoint[] = [];
 	for ( let i = 0; i < n; i++ ) {
 		const angle = ( i / n ) * Math.PI * 2;
+		const r = radius * ( profile ? profile( angle ) : 1 );
 		rim.push( {
 			angle,
-			x: cx + Math.cos( angle ) * radius,
-			y: cy + Math.sin( angle ) * radius,
+			x: cx + Math.cos( angle ) * r,
+			y: cy + Math.sin( angle ) * r,
 			vx: 0,
 			vy: 0,
 		} );
@@ -120,6 +172,7 @@ export function createSoftBody(
 		core: { x: cx, y: cy, vx: 0, vy: 0 },
 		rim,
 		radius,
+		profile,
 		// Area of the regular n-gon inscribed in the rest circle —
 		// NOT πr². Using the circle's area would leave the polygon
 		// permanently under-inflated and the pressure term would push
@@ -207,7 +260,7 @@ export function addVelocity( body: SoftBody, vx: number, vy: number ): void {
 }
 
 /**
- * Snap the body back to a clean circle at `(x, y)`, at rest.
+ * Snap the body back to its clean rest shape at `(x, y)`, at rest.
  *
  * The recovery path for a mascot a window opened on top of: by the
  * time we notice, the contact solver has been pushing opposite sides
@@ -219,8 +272,9 @@ export function resetBody( body: SoftBody, x: number, y: number ): void {
 	const n = body.rim.length;
 	for ( let i = 0; i < n; i++ ) {
 		const p = body.rim[ i ];
-		p.x = x + Math.cos( p.angle ) * body.radius;
-		p.y = y + Math.sin( p.angle ) * body.radius;
+		const r = body.radius * ( body.profile ? body.profile( p.angle ) : 1 );
+		p.x = x + Math.cos( p.angle ) * r;
+		p.y = y + Math.sin( p.angle ) * r;
 		p.vx = 0;
 		p.vy = 0;
 	}
@@ -312,7 +366,9 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 
 	// --- Rest shape. --------------------------------------------------
 	//
-	// The rest radius isn't constant: `idleWobble` breathes it, per
+	// The rest radius isn't constant. Its base is the *rest profile* —
+	// `shapeLobes` / `shapeAmount` / `shapeAngle`, a rounded polygon —
+	// and `idleWobble` breathes on top of that, per
 	// point, so a floating mascot is never a perfect circle. Three
 	// spatial harmonics (2, 3 and 5 lobes) drift around the rim at
 	// incommensurable temporal frequencies, which means the springs
@@ -328,7 +384,9 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 	// instead of breathing. One target shape, three families
 	// agreeing on it.
 	const restR = new Float64Array( n );
-	restR.fill( body.radius );
+	for ( let i = 0; i < n; i++ ) {
+		restR[ i ] = body.radius * shapeProfile( rim[ i ].angle, physics );
+	}
 
 	const wobble = physics.idleWobble * wobbleFade;
 	if ( wobble > 0 ) {

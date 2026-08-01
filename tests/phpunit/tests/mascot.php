@@ -66,6 +66,9 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 
 		$physics = array(
 			'points',
+			'shapeLobes',
+			'shapeAmount',
+			'shapeAngle',
 			'radialStiffness',
 			'edgeStiffness',
 			'bendStiffness',
