@@ -37,6 +37,61 @@ export interface MyWordPressEntity {
 	 * The bundle prefixes 'desktop-mode.' and suffixes '.changed' for subscriptions.
 	 */
 	post_type?: string;
+	/**
+	 * Whether tiles in this section show the entity's featured image
+	 * in place of the section icon. Defaults to on — set false to keep
+	 * a uniform icon grid.
+	 */
+	thumbnails?: boolean;
+	/**
+	 * Tile size for this section's list view.
+	 *
+	 * `'large'` roughly doubles the icon well, for sections whose rows
+	 * carry a photograph worth looking at — a shop's products read as
+	 * a catalogue rather than a file list, and a corner ribbon has
+	 * room to be a corner flash instead of covering the subject.
+	 * Defaults to `'regular'`.
+	 */
+	tileSize?: 'regular' | 'large';
+	/**
+	 * Extra REST fields to request for this section's list rows,
+	 * appended to the `_fields` the window always asks for.
+	 *
+	 * The window sends an explicit `_fields` list, so a custom key a
+	 * section's endpoint returns would otherwise be filtered out of
+	 * the response before it reached the bundle. Declare it here to
+	 * keep it — the WooCommerce Orders section uses this to carry the
+	 * order status its tiles are banded by.
+	 */
+	listFields?: string[];
+	/**
+	 * Folder this section nests under at the root of the window.
+	 * Sections registered by the same plugin or theme share a group
+	 * id, so they render as one folder that drills into its members.
+	 * Null / omitted renders the section loose at the root.
+	 */
+	group?: string | null;
+	/** Folder label. Falls back to the group id. */
+	groupLabel?: string | null;
+	/** Folder icon — dashicon class, URL, or data URI. */
+	groupIcon?: string | null;
+	/** Sort weight among folders. Lower sorts first. */
+	groupOrder?: number | null;
+}
+
+/**
+ * Root-level folder grouping sections by the plugin or theme that
+ * registered them. Shipped from PHP via
+ * `desktop_mode_my_wordpress_post_type_groups`; the bundle falls back
+ * to deriving groups from the entity list when absent.
+ *
+ * @public
+ */
+export interface MyWordPressGroup {
+	id: string;
+	label: string;
+	icon: string;
+	order: number;
 }
 
 export interface MyWordPressConfig {
@@ -56,6 +111,11 @@ export interface MyWordPressConfig {
 	 */
 	editUserUrlBase?: string;
 	entities: MyWordPressEntity[];
+	/**
+	 * Ordered root-level folders. Derived from the entity list when
+	 * the server doesn't ship it.
+	 */
+	groups?: MyWordPressGroup[];
 	perPage: number;
 	/**
 	 * Per-page count for the Media grid. Media tiles are denser than
@@ -169,7 +229,13 @@ export interface EntityListItem {
 export interface EntityDetail {
 	id: number;
 	title: { rendered: string };
-	content: { rendered: string; protected?: boolean };
+	/**
+	 * Absent when the post type doesn't `supports( 'editor' )` — the
+	 * REST controller omits the field entirely rather than sending an
+	 * empty string. WooCommerce's `shop_coupon` is the in-tree
+	 * example. Always read it optionally.
+	 */
+	content?: { rendered: string; protected?: boolean };
 	excerpt?: { rendered: string };
 	date: string;
 	modified?: string;
@@ -342,6 +408,7 @@ export interface RelatedSummary {
 
 export type Route =
 	| { kind: 'root' }
+	| { kind: 'group'; groupId: string }
 	| { kind: 'list'; entityId: string }
 	| {
 			kind: 'detail';

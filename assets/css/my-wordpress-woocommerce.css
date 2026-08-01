@@ -1,0 +1,228 @@
+/**
+ * WooCommerce panels inside the site window.
+ *
+ * Two mount points, both provided by the site window's extension
+ * actions: the preview pane's `header` slot (product / order / coupon
+ * facts) and the folder view's group slot (store totals). The panel
+ * markup is identical in both, so one rule set covers them.
+ *
+ * Uses the shell's own custom properties throughout so the panels
+ * follow the active desktop theme and colour scheme without a single
+ * hard-coded colour beyond the status tints.
+ */
+
+.desktop-mode-woo-panel {
+	margin-block-end: 16px;
+	padding: 12px 14px;
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.12 ) );
+	border-radius: 8px;
+	background: var( --wpd-bg-subtle, rgba( 0, 0, 0, 0.02 ) );
+}
+
+.desktop-mode-woo-panel__title {
+	margin: 0 0 10px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --wpd-fg-muted, #787c82 );
+}
+
+.desktop-mode-woo-panel__rows {
+	display: grid;
+	/* `auto` label column so long values keep the space they need,
+	 * with a floor that stops one-word labels collapsing. */
+	grid-template-columns: minmax( 90px, auto ) 1fr;
+	gap: 6px 14px;
+	margin: 0;
+	font-size: 13px;
+}
+
+/* Each row is its own grid item pair — `display: contents` lets the
+ * wrapper carry the semantics (`<div>` grouping a `<dt>`/`<dd>`)
+ * while the two children land directly in the parent grid's columns. */
+.desktop-mode-woo-panel__row {
+	display: contents;
+}
+
+.desktop-mode-woo-panel__label {
+	margin: 0;
+	color: var( --wpd-fg-muted, #787c82 );
+}
+
+.desktop-mode-woo-panel__value {
+	margin: 0;
+	color: var( --wpd-fg, inherit );
+	overflow-wrap: anywhere;
+}
+
+/* Placeholder rows hold the panel's final height from the first
+ * frame, so the real data swaps in without shoving the folder tiles
+ * or the preview content down. Each placeholder is two grid cells
+ * carrying a muted bar. */
+.desktop-mode-woo-panel__row--placeholder > span {
+	display: block;
+	height: 1em;
+	border-radius: 3px;
+	background: var( --wpd-border, rgba( 0, 0, 0, 0.09 ) );
+}
+
+/* The value column reads as the "content" bar — narrower than its
+ * cell so the shell doesn't look like a solid block. */
+.desktop-mode-woo-panel__row--placeholder > span:last-child {
+	width: 60%;
+}
+
+@media ( prefers-reduced-motion: no-preference ) {
+	.desktop-mode-woo-panel[ aria-busy='true' ]
+		.desktop-mode-woo-panel__row--placeholder > span {
+		animation: desktop-mode-woo-pulse 1.4s ease-in-out infinite;
+	}
+}
+
+@keyframes desktop-mode-woo-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.45;
+	}
+}
+
+.desktop-mode-woo-panel__error {
+	grid-column: 1 / -1;
+	margin: 0;
+	color: var( --wpd-fg-muted, #787c82 );
+	font-size: 13px;
+}
+
+.desktop-mode-woo-panel__was {
+	color: var( --wpd-fg-muted, #787c82 );
+	margin-inline-end: 4px;
+}
+
+/* ----- Status pills ----- */
+
+.desktop-mode-woo-panel__pill {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.6;
+	/* `color-mix` keeps the tint legible in both colour schemes by
+	 * blending the semantic colour into the current surface rather
+	 * than committing to a fixed light-mode background. */
+	background: color-mix( in srgb, currentColor 14%, transparent );
+}
+
+.desktop-mode-woo-panel__pill--good {
+	color: var( --wpd-success, #007017 );
+}
+
+.desktop-mode-woo-panel__pill--warn {
+	color: var( --wpd-warning, #8a6116 );
+}
+
+.desktop-mode-woo-panel__pill--bad {
+	color: var( --wpd-danger, #b32d2e );
+}
+
+.desktop-mode-woo-panel__pill--neutral {
+	color: var( --wpd-fg-muted, #787c82 );
+}
+
+/* ----- Order line items ----- */
+
+.desktop-mode-woo-panel__items {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.desktop-mode-woo-panel__item {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding-block: 2px;
+}
+
+.desktop-mode-woo-panel__item-total {
+	color: var( --wpd-fg-muted, #787c82 );
+	white-space: nowrap;
+}
+
+.desktop-mode-woo-panel__email,
+.desktop-mode-woo-panel__link {
+	color: var( --wpd-accent, #2271b1 );
+}
+
+.desktop-mode-woo-panel__item-qty {
+	color: var( --wpd-fg-muted, #787c82 );
+	margin-inline-end: 4px;
+}
+
+/* ----- Tile badges ----- */
+
+/* Out-of-stock (and low-stock / sale) products carry a corner ribbon
+ * on the tile itself, not just a band heading — a merchant scanning
+ * the grid shouldn't have to read headings to spot an empty shelf.
+ *
+ * `<wpd-ribbon>` owns the 45° slice, the clipping and the tone
+ * colours; all that's needed here is to keep it off the pointer and
+ * step the type down to suit an 88px tile. The tile is already
+ * `position: absolute`, which is the positioned parent the ribbon
+ * anchors to. */
+wpd-ribbon.desktop-mode-woo-ribbon {
+	/* The component defaults to a 90px corner window with a 140px
+	 * banner — sized for a card, which swallows a tile whole. These
+	 * custom properties are its documented tuning surface. Values
+	 * here suit the large product tile (104px image well); the
+	 * regular-tile fallback below steps them down again. */
+	--wpd-ribbon-size: 64px;
+	--wpd-ribbon-banner-width: 92px;
+	--wpd-ribbon-padding: 3px 0;
+	--wpd-ribbon-font: 700 9px/1.4 var( --desktop-mode-font, system-ui );
+	--wpd-ribbon-tracking: 0.03em;
+	pointer-events: none;
+}
+
+/* Regular-sized tiles (a section that didn't opt into `tileSize:
+ * 'large'`) get a proportionally smaller ribbon. */
+.desktop-mode-my-wordpress__tiles:not( .desktop-mode-my-wordpress__tiles--large )
+	wpd-ribbon.desktop-mode-woo-ribbon {
+	--wpd-ribbon-size: 52px;
+	--wpd-ribbon-banner-width: 76px;
+	--wpd-ribbon-padding: 2px 0;
+	--wpd-ribbon-font: 700 8px/1.4 var( --desktop-mode-font, system-ui );
+}
+
+/* ----- Store panel on the folder view ----- */
+
+.desktop-mode-my-wordpress__group-extras:empty {
+	display: none;
+}
+
+.desktop-mode-my-wordpress__group-extras {
+	padding: 12px 16px 0;
+}
+
+.desktop-mode-woo-panel--store .desktop-mode-woo-panel__rows {
+	/* Three headline numbers read better side by side than stacked,
+	 * and the folder view has the full window width to spend. */
+	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
+	gap: 4px 24px;
+}
+
+.desktop-mode-woo-panel--store .desktop-mode-woo-panel__row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.desktop-mode-woo-panel--store .desktop-mode-woo-panel__value {
+	font-size: 20px;
+	font-weight: 600;
+}

@@ -42,28 +42,40 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 
 		// The author's content: 2 published + 1 draft + 1 private
 		// post, 1 published + 1 draft page, 1 published + 1 draft CPT.
+		//
+		// The six post/page rows compete for five `recent` slots, and
+		// the endpoint orders by `post_date` alone — the post factory
+		// sets no date, so without explicit ones all six share a
+		// timestamp and MySQL breaks the tie however the rows happen to
+		// be laid out. Explicit descending dates make the cut
+		// deterministic: the newest five (through the published page)
+		// are the ones `recent` should carry.
 		$this->published_post_id = self::factory()->post->create(
 			array(
 				'post_author' => self::$author_id,
 				'post_status' => 'publish',
+				'post_date'   => '2026-01-06 10:00:00',
 			)
 		);
 		self::factory()->post->create(
 			array(
 				'post_author' => self::$author_id,
 				'post_status' => 'publish',
+				'post_date'   => '2026-01-05 10:00:00',
 			)
 		);
 		$this->draft_post_id = self::factory()->post->create(
 			array(
 				'post_author' => self::$author_id,
 				'post_status' => 'draft',
+				'post_date'   => '2026-01-04 10:00:00',
 			)
 		);
 		$this->private_post_id = self::factory()->post->create(
 			array(
 				'post_author' => self::$author_id,
 				'post_status' => 'private',
+				'post_date'   => '2026-01-03 10:00:00',
 			)
 		);
 		self::factory()->post->create(
@@ -71,6 +83,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 				'post_author' => self::$author_id,
 				'post_type'   => 'page',
 				'post_status' => 'publish',
+				'post_date'   => '2026-01-02 10:00:00',
 			)
 		);
 		self::factory()->post->create(
@@ -78,6 +91,7 @@ class Tests_DesktopMode_MyWordpressUserStats extends WP_UnitTestCase {
 				'post_author' => self::$author_id,
 				'post_type'   => 'page',
 				'post_status' => 'draft',
+				'post_date'   => '2026-01-01 10:00:00',
 			)
 		);
 		self::factory()->post->create(

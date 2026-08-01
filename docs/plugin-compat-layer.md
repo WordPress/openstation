@@ -233,6 +233,65 @@ Detection is by visible text content on the clicked element rather than by selec
 
 > **Note**: shims 1–3 remain in place. Shim 1 (deps fix) is needed so the Divi block actually *renders* with its "Use Divi Builder" button — that label is what the click handler matches on. Shims 2 (`__Cypress__`) and 3 (preloader bridge) remain as defense-in-depth for users who *don't* take the handoff and let VB load inside the iframe anyway (e.g., older Divi versions that don't show our match-text buttons, or third-party plugins that activate VB through an unintercepted path).
 
+## The site-window side: WooCommerce
+
+`includes/my-wordpress/integrations/woocommerce.php` plus the
+`my-wordpress-woocommerce` bundle. Everything in both is inert unless
+`class_exists( 'WooCommerce' )`, and the bundle is enqueued only for
+users who can open the site window on a store — a site without
+WooCommerce ships and runs none of it.
+
+Three problems, each one a general shape worth recognising:
+
+**The folder name didn't fit.** Group labels come from the plugin's
+`Plugin Name` header, and "WooCommerce" wraps onto two lines in an
+88px tile. The `desktop_mode_my_wordpress_post_type_group` filter
+relabels the folder to **Woo** and swaps the generic plugin dashicon
+for WooCommerce's own mark. The mark is re-emitted with
+`fill="currentColor"` rather than WooCommerce's hard-coded grey, so
+`renderIcon()` masks it and the icon follows the desktop theme.
+WooCommerce builds the same glyph inline in
+`WC_Admin_Menus::admin_menu()` as a local variable, so there is nothing
+to read at runtime.
+
+**Orders were an empty folder.** `shop_order` is a registered
+`show_ui` post type, so the generic pass gave it a section — but
+WooCommerce's High-Performance Order Storage keeps orders in its own
+tables, not `wp_posts`, so the `WP_Query` behind that section returns
+nothing on any modern store. The integration registers its own Orders
+section at filter priority 5, claiming `post_type => 'shop_order'` so
+the generic pass skips it, pointed at
+`desktop-mode/v1/woocommerce/orders`. That route reads through
+`wc_get_orders()`, which is storage-agnostic — one code path serves
+HPOS and legacy stores alike. Rows are shaped like posts
+(`title.rendered`, `date`, `status`, `link`), so the window's existing
+list, detail, and pagination fetchers consume them unchanged.
+
+Order rows deliberately report `status: 'publish'`. The tile's status
+ribbon only speaks `draft` / `pending` / `private` / `future`, and a
+`wc-processing` value would paint a meaningless ribbon on every single
+order. The real status is in the right pane.
+
+**The right pane said nothing useful.** Products, orders and coupons
+got the generic post preview — a title and some prose. The bundle
+subscribes to
+[`desktop-mode.my-wordpress.preview-extras`](./javascript-reference.md#action--desktop-modemy-wordpresspreview-extras)
+and paints merchant facts into the `header` slot: price / stock /
+units sold for a product, total / customer / line items for an order,
+validity / discount / usage for a coupon. It also subscribes to
+[`desktop-mode.my-wordpress.group-extras`](./javascript-reference.md#action--desktop-modemy-wordpressgroup-extras)
+to show revenue this month, orders awaiting action, and out-of-stock
+count on the Woo folder itself. Data comes from
+`desktop-mode/v1/woocommerce/summary/<type>/<id>` and
+`/woocommerce/store`, both read-only and capability-gated (`edit_post`
+for products and coupons, the `shop_order` edit capability for orders
+and store totals).
+
+The integration talks to the site window only through the public
+action contract — nothing in `src/my-wordpress/index.ts` knows
+WooCommerce exists. A third-party plugin would write exactly the same
+code.
+
 ## Adding a new fix
 
 Decision tree, in order:
@@ -242,7 +301,8 @@ Decision tree, in order:
 3. **Is the offending CSS rule selector-targetable and self-contained?** → Tier 3 — write a scoped CSS override in `chromeless.css`. Follow the docblock template above.
 4. **Is the breakage in menu data, not CSS?** → Add a dock-side adaptation in `includes/core/payload.php` and a PHPUnit test under `tests/phpunit/tests/desktopModeBuildDockItems.php` (or `desktopModeMenuItemUrl.php` if it's a URL-builder issue).
 5. **Is a block-editor script crashing at module load because of a missing `wp_enqueue_script()` dep?** → Add a registration-mutation shim under `includes/compat/<plugin>.php` and a PHPUnit test that pins the shape. Follow `includes/compat/divi.php` as the template.
-6. **Is it none of the above?** Open an issue. Don't escalate to broad fixes (`overflow: hidden` on body, JS-rewriting stylesheets, etc.) without a discussion — those tend to break more than they fix.
+6. **Is a plugin's content shaped wrong in the site window** — an empty folder, a useless preview, a label that doesn't fit? → Add an integration under `includes/my-wordpress/integrations/<plugin>.php`, gated on the plugin being active, and drive the UI through the site window's public filters and actions rather than special-casing the window's own code. `woocommerce.php` is the template.
+7. **Is it none of the above?** Open an issue. Don't escalate to broad fixes (`overflow: hidden` on body, JS-rewriting stylesheets, etc.) without a discussion — those tend to break more than they fix.
 
 ## Test discipline
 

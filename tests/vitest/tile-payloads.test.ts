@@ -119,4 +119,90 @@ describe( 'tile-payload seam', () => {
 		off();
 		expect( tilePayloadAccepts( { type: 'note', source: document.body, data: {} }, ctx ) ).toBe( false );
 	} );
+
+	describe( 'several handlers per payload type', () => {
+		// Handlers are scoped to the tiles they recognize, so more
+		// than one feature can want the same payload type on different
+		// icons — `'shortcut'` alone is claimed by the agent drop
+		// targets in-tree and by any plugin accepting files on its own
+		// wallpaper icon. One handler per type meant the last
+		// registration silently replaced the others.
+		const forRef = ( ref: string, onDrop = vi.fn() ) => ( {
+			appliesTo: ( ctx: TilePayloadContext ) =>
+				ctx.placement.file.ref === ref,
+			acceptLabel: `drop on ${ ref }`,
+			accept: () => true,
+			onDrop,
+		} );
+
+		const ctxFor = ( ref: string ): TilePayloadContext => {
+			const p = placement( '' );
+			p.file.ref = ref;
+			return { placement: p };
+		};
+
+		test( 'a second handler does not displace the first', () => {
+			const first = vi.fn();
+			const second = vi.fn();
+			registerTilePayloadHandler( 'shortcut', forRef( 'agent-1', first ) );
+			registerTilePayloadHandler( 'shortcut', forRef( 'lienzo', second ) );
+
+			expect(
+				tilePayloadDrop(
+					session( 'shortcut' ),
+					{ clientX: 0, clientY: 0 },
+					ctxFor( 'agent-1' ),
+				),
+			).toBe( true );
+			expect( first ).toHaveBeenCalledTimes( 1 );
+			expect( second ).not.toHaveBeenCalled();
+
+			expect(
+				tilePayloadDrop(
+					session( 'shortcut' ),
+					{ clientX: 0, clientY: 0 },
+					ctxFor( 'lienzo' ),
+				),
+			).toBe( true );
+			expect( second ).toHaveBeenCalledTimes( 1 );
+		} );
+
+		test( 'the hover chip comes from the handler that claims the tile', () => {
+			registerTilePayloadHandler( 'shortcut', forRef( 'agent-1' ) );
+			registerTilePayloadHandler( 'shortcut', forRef( 'lienzo' ) );
+
+			expect(
+				tilePayloadAcceptLabel( 'shortcut', ctxFor( 'lienzo' ) ),
+			).toBe( 'drop on lienzo' );
+			expect(
+				tilePayloadAcceptLabel( 'shortcut', ctxFor( 'nobody' ) ),
+			).toBeUndefined();
+		} );
+
+		test( 'deregistering one leaves the others registered', () => {
+			const kept = vi.fn();
+			const off = registerTilePayloadHandler(
+				'shortcut',
+				forRef( 'agent-1' ),
+			);
+			registerTilePayloadHandler( 'shortcut', forRef( 'lienzo', kept ) );
+
+			off();
+
+			expect(
+				tilePayloadAccepts(
+					{ type: 'shortcut', source: document.body, data: {} },
+					ctxFor( 'agent-1' ),
+				),
+			).toBe( false );
+			expect(
+				tilePayloadDrop(
+					session( 'shortcut' ),
+					{ clientX: 0, clientY: 0 },
+					ctxFor( 'lienzo' ),
+				),
+			).toBe( true );
+			expect( kept ).toHaveBeenCalledTimes( 1 );
+		} );
+	} );
 } );

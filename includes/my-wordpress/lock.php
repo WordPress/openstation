@@ -240,9 +240,10 @@ function desktop_mode_my_wordpress_post_contributors_payload( $post_id ) {
 }
 
 /**
- * Register the REST fields on every public post type that runs
- * through the standard `/wp/v2/<type>` endpoint. Posts and pages
- * cover the Phase 1 surface; CPTs come along for free.
+ * Register the REST fields on every post type the site window can
+ * browse — public REST-exposed types plus the ones bridged under
+ * `desktop-mode/v1`. Posts and pages cover the Phase 1 surface; CPTs
+ * come along for free.
  *
  * Two fields:
  *   - `desktop_mode_lock`         — active edit-lock holder.
@@ -250,13 +251,7 @@ function desktop_mode_my_wordpress_post_contributors_payload( $post_id ) {
  *                                   beyond the primary author.
  */
 function desktop_mode_my_wordpress_register_lock_field() {
-	$types = get_post_types(
-		array(
-			'show_in_rest' => true,
-			'public'       => true,
-		),
-		'names'
-	);
+	$types = desktop_mode_my_wordpress_rest_field_post_types();
 
 	foreach ( $types as $type ) {
 		register_rest_field(

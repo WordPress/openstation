@@ -353,6 +353,67 @@ Per-agent hourly rate limits ride a transient counter.
 trigger; send-to/drag, hook, endpoint, and agent-to-agent intakes are
 declared in the trigger-kind catalogue and land in later phases.
 
+## Site folder — custom post types
+
+The site window's root grid is built from the entity list
+(`desktop_mode_my_wordpress_entities`). Beyond the four built-ins it
+now carries one section per **eligible custom post type**: non-builtin,
+`show_ui => true`, and editable by the current user
+(`includes/my-wordpress/post-types.php`). Sections registered by the
+same extension collapse into a single root folder that drills into its
+members — `Site › WooCommerce › Products` — via the bundle's `group`
+route.
+
+**Ownership attribution.** `registered_post_type` / `registered_taxonomy`
+fire during `init`, where `get_plugins()` does not yet exist — Core
+loads `wp-admin/includes/plugin.php` at `wp-admin/admin.php:102`, after
+`wp-load.php` has already run `init`. The tracker in
+`includes/core/payload.php` therefore records the **registering file
+path** (walking the backtrace to the first frame inside an extension
+directory, skipping Desktop Mode's own frames) and resolves it lazily:
+to a plugin file for the dock's attribution, and to a
+plugin / mu-plugin / theme group for the site window
+(`includes/my-wordpress/owner.php`). Group display names come from
+`get_file_data()` on the plugin header and `wp_get_theme()`, never from
+`get_plugins()` — both live in `wp-includes` and neither scans the
+plugins directory.
+
+Because the entity list is frozen into the window config at
+registration time and only emitted later on `admin_enqueue_scripts`,
+the window registers on `init` priority **99** — late enough that every
+plugin's `register_post_type()` call has run.
+
+**The non-REST bridge.** Post types registered with
+`show_in_rest => false` have no `wp/v2` collection, so
+`includes/my-wordpress/rest-post-type.php` re-exposes them at
+`desktop-mode/v1/post-type/<slug>` by subclassing Core's
+`WP_REST_Posts_Controller`. Inheriting the controller means `_fields`,
+`_embed`, `search`, `status`, and the `X-WP-Total` /
+`X-WP-TotalPages` headers behave exactly as on `wp/v2` — the bundle
+needs no special-casing, only a different `restPath`.
+
+The subclass is deliberately narrower than its parent, because these
+types opted out of REST on purpose:
+
+- Core's `get_items_permissions_check()` permits **public reads** in
+  `view` context. Both read checks and the delete check are overridden
+  to require the type's `edit_posts` capability in every context.
+- Only `GET` collection, `GET` item, and `DELETE` item (trash, for
+  recycle-bin parity) are registered — no create or update.
+- `desktop_mode_my_wordpress_post_type_rest_enabled` vetoes the bridge
+  per type; a vetoed type disappears from the window rather than
+  rendering a folder that cannot open.
+
+Two Core seams need overriding for a non-REST type to work at all, and
+neither is reachable by filter: `check_is_post_type_allowed()` reads
+`show_in_rest` (left inherited, every row is filtered out and the
+collection returns empty), and `rest_get_route_for_post()` /
+`rest_get_route_for_post_type_items()` both return `''` and bail
+*before* applying their own filters, so `self` / `collection` links are
+fixed in `prepare_links()` instead. `wp:featuredmedia` needs no fixing —
+it is built from the attachment's route, and `attachment` is
+REST-exposed.
+
 ## CSS layering
 
 Core layering only — feature windows ship their own per-feature sheets
@@ -378,7 +439,7 @@ Never edit Core's `common.css` or color scheme files. Everything we need is expo
 
 **Shipped** — unified dock with left / right / bottom placement (derived from the desktop layout chosen in OS Settings; the default "classic" layout pairs a left side dock with a bottom dock), multi-window orchestration + session restore, virtual desktops / Spaces, wallpaper registry, widget registry, overview + arrange + snap, native windows and tabs, AI assistant + slash commands + palette registry, cross-frame drag bridge for Media Library, OS Settings native window, accent + custom-gradient editor, toast notifications, iframe observability (`iframe-ready` / `iframe-error` / `iframe-network-completed`), letter-badge icon fallback, batch `closeAll()` with protection filter, primary-desktop filter, iframe command-palette bridge (harvests `@wordpress/commands` from the focused window into the shell palette; see "Command palette bridge" above), Gutenberg `wp_guideline` sticky artifacts as draggable per-desktop sticky notes when the `wp_guideline_type` taxonomy exposes an `artifact`/`artifacts` → `sticky` term, with REST boot hydration plus Heartbeat deltas for cross-tab updates. Because sticky notes ride on Gutenberg's Guidelines experiment (opt-in, 22.7+), the shell only boots the layer when that CPT + taxonomy are registered — gated server-side by `desktop_mode_sticky_notes_is_available()` (filter `desktop_mode_sticky_notes_available`) and surfaced to the client as `desktopModeConfig.stickyNotes.available`, so a site without the experiment never fires the 404-prone REST probes.
 
-**Pinned notes** — a second, plugin-owned notes surface, separate from the Guidelines-backed layer above. Notes are `wpd_note` posts (non-public CPT: not queryable, excluded from search, absent from core REST; `includes/notes/cpt.php`) with position (`_wpd_note_x`/`_wpd_note_y`, normalized 0–1), paper color (`_wpd_note_color`, whitelist via the `desktop_mode_notes_colors` filter), z-order (`_wpd_note_z`), and a creation-time jitter seed (`_wpd_note_seed`, hashed from the initial text and never rewritten — it drives each note's subtle paper tilt) in postmeta — the owner's placement is the canonical placement every viewer sees. The "public" checkbox maps to post status: `private` (default) ↔ `publish` (visible read-only, with author attribution, on every desktop-mode user's wallpaper). A custom REST controller at `/desktop-mode/v1/notes` (`includes/notes/rest.php`) enforces owner-only mutation (admins included) and optimistic concurrency (`updatedAtMs` token → 409 with the server copy); `includes/notes/heartbeat.php` streams cross-user deltas over the Heartbeat bus. Client-side, the **Note Pad widget** (`src/plugins/notes-widget/`, its own bundle) composes drafts that are torn off and dropped on the wallpaper as `'note-draft'` DragManager payloads; the notes layer (`src/notes/`, main bundle) renders the wall, the pushpin physics, and the trash flow. Trashed notes surface in the Trash via its filter pipeline (`includes/notes/recycle-bin.php`): owner-only view/restore/purge (replacing the bin's default `edit_post` gates, which would both expose private note text to admins and lock out subscriber owners), an owner-scoped badge count, and restore returning the note to its prior private/publish status. The bin's capture list includes every non-builtin `show_ui` post type, so third-party CPT trash appears alongside posts and pages by default. Because the drop-target registry allows one target per element, note payloads route through two seams consulted by the existing targets: `src/desktop-files/canvas-payloads.ts` (wallpaper create/reposition) and `src/desktop-files/recycle-bin-payloads.ts` (drag-to-bin soft-trash with Undo) — currently internal; promote via `wp.desktop.files.*` if third-party bundles need them.
+**Pinned notes** — a second, plugin-owned notes surface, separate from the Guidelines-backed layer above. Notes are `wpd_note` posts (non-public CPT: not queryable, excluded from search, absent from core REST; `includes/notes/cpt.php`) with position (`_wpd_note_x`/`_wpd_note_y`, normalized 0–1), paper color (`_wpd_note_color`, whitelist via the `desktop_mode_notes_colors` filter), z-order (`_wpd_note_z`), and a creation-time jitter seed (`_wpd_note_seed`, hashed from the initial text and never rewritten — it drives each note's subtle paper tilt) in postmeta — the owner's placement is the canonical placement every viewer sees. The "public" checkbox maps to post status: `private` (default) ↔ `publish` (visible read-only, with author attribution, on every desktop-mode user's wallpaper). A custom REST controller at `/desktop-mode/v1/notes` (`includes/notes/rest.php`) enforces owner-only mutation (admins included) and optimistic concurrency (`updatedAtMs` token → 409 with the server copy); `includes/notes/heartbeat.php` streams cross-user deltas over the Heartbeat bus. Client-side, the **Note Pad widget** (`src/plugins/notes-widget/`, its own bundle) composes drafts that are torn off and dropped on the wallpaper as `'note-draft'` DragManager payloads; the notes layer (`src/notes/`, main bundle) renders the wall, the pushpin physics, and the trash flow. Trashed notes surface in the Trash via its filter pipeline (`includes/notes/recycle-bin.php`): owner-only view/restore/purge (replacing the bin's default `edit_post` gates, which would both expose private note text to admins and lock out subscriber owners), an owner-scoped badge count, and restore returning the note to its prior private/publish status. The bin's capture list includes every non-builtin `show_ui` post type, so third-party CPT trash appears alongside posts and pages by default. Because the drop-target registry allows one target per element, note payloads route through two seams consulted by the existing targets: `src/desktop-files/canvas-payloads.ts` (wallpaper create/reposition) and `src/desktop-files/recycle-bin-payloads.ts` (drag-to-bin soft-trash with Undo) — still internal; promote via `wp.desktop.files.*` if third-party bundles need them. The sibling seam for accepting a drop on a *specific desktop icon*, `src/desktop-files/tile-payloads.ts`, **is** public as `wp.desktop.files.registerTilePayloadHandler( type, handler )` — the supported answer to "my plugin's icon rejects everything dropped on it", since a competing `DropTarget` on the tile element is always displaced by the layer's reject claimant. Handlers may share a payload type; resolution is first-registered whose `appliesTo` matches, so they only compete when claiming the same tile.
 
 **Games (0.9.6)** — opt-in site-wide, **off by default**: the `games` extended option (OS Settings → Features → Extended options; filter `desktop_mode_games_enabled`) gates the whole module in `includes/games/bootstrap.php` on `plugins_loaded` — while off, none of the games PHP loads (no schema check, REST routes, Heartbeat channel, window/icon) and `config.gamesEnabled: false` tells the shell to skip the challenges client; the two custom tables and play-time meta persist across disable/re-enable. A game system with a fixed **Games** hub window (Recycle-Bin-pattern native window + gamepad desktop icon; `includes/games/window.php`) laid out Steam-library style: a compact game grid across the top, and — for the selected game — a detail panel with description, **Play** / **Challenge** actions, the game's **unified scoreboard** (columns derived from its `score_columns`), and its challenges. Games register server-side via `desktop_mode_register_game( $id, $args )` (`includes/games/registry.php`) — metadata + a `script` handle + a `config` blob — shipped in the boot/live-refresh payload as the **`serverGames`** key; the shell registers metadata-only stubs and loads the game bundle **lazily on first launch** (`src/games/{registry,server-sync,launch}.ts`, exposed as `wp.desktop.games`). Two custom tables back persistence (`includes/games/schema.php`): `{$prefix}desktop_mode_game_scores` (`game`, `user_id`, `score` sort key, flexible `meta` JSON, epoch-ms timestamps) and `{$prefix}desktop_mode_game_challenges` (score-to-beat rows with a `pending → accepted|declined`, `accepted → completed` state machine and an `updated_at_ms` Heartbeat high-water mark). REST lives under `/desktop-mode/v1/games/*` (`includes/games/rest.php`): leaderboard GET/POST per game, challenge create/accept/decline/complete, and a games-scoped `/games/users/search` opponent picker gated on `read` (subscribers play too), plus **play-time tracking (0.9.7)**: the launcher measures each game window's active time client-side (the clock pauses while minimized) and flushes increments to `POST /games/{game}/playtime`; per-user lifetime totals accumulate in the `desktop_mode_game_playtime` user-meta map, with per-day buckets in `desktop_mode_game_playtime_days` (site-timezone days, rolling window) backing the hub's Steam-style "last two weeks" figure (`includes/games/playtime.php`, `src/games/playtime.ts`), readable via `GET /games/playtime` / `wp.desktop.games.getPlaytime()`. Challenge delivery rides the Heartbeat bus (`includes/games/heartbeat.php` ↔ `src/games/challenges-client.ts` in the main bundle, so notifications arrive with the hub closed); scores are client-asserted (arcade trust model) with the `desktop_mode_game_score_pre_save` veto filter as the anti-cheat extension point. Playing a game suspends the wallpaper via the refcounted `wp.desktop.wallpaper.suspend()/resume()` API (`src/wallpapers/layer.ts` — frozen-bitmap overlay + effective-visibility re-emission, so existing wallpapers pause with zero changes). The built-in **Inkfall** typing game (`src/games/inkfall/`, `includes/games/inkfall.php`) is the reference implementation: PixiJS v8 in a native window, and deliberately friendly vocabulary (musical notes, tearing words — no war terms anywhere). **Framework assets (0.9.8)**: the 20k-word dictionary is a games-framework asset (`assets/games/words.txt`, regenerated by `bin/build-game-words.mjs`, loader `src/games/dictionary.ts`) whose URL is merged into every game's payload `config` as `wordsUrl` (`includes/games/config.php`, filter `desktop_mode_games_words_url`) — one identical word list for every player. That shared list powers the second built-in game, **Alphabet Soup** (`src/games/alphabet-soup/`, `includes/games/alphabet-soup.php`): a daily word search seeded by the current date (`dd-mm-yyyy`, so the puzzle is the same worldwide), with three board sizes (8×8 / 12×12 / 16×16 — bigger pots hide more words; each (mode, size) pair is its own seeded puzzle), a three-wave Daily mode and a countdown **Time Attack** mode seeded from a different stream of the same date, a played-once-per-day ledger (replays are allowed after an upfront notice but never earn the card — word positions can be memorized), and a game-over **share card** — a generated 1200×630 PNG (canvas 2D, `src/games/share-card.ts`) shared via the native share sheet / clipboard / download, deliberately image-only (no URL: the admin is a private space).
 

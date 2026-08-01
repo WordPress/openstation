@@ -31,16 +31,11 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register `desktop_mode_attached_media` on every public post type.
+ * Register `desktop_mode_attached_media` on every post type the site
+ * window can browse.
  */
 function desktop_mode_my_wordpress_register_attached_media_field() {
-	$types = get_post_types(
-		array(
-			'show_in_rest' => true,
-			'public'       => true,
-		),
-		'names'
-	);
+	$types = desktop_mode_my_wordpress_rest_field_post_types();
 	foreach ( $types as $type ) {
 		if ( 'attachment' === $type ) {
 			continue;

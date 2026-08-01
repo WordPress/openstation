@@ -44,6 +44,7 @@ import { installShareMenuItems } from './share-menu-items';
 import { installShareInviteBanner } from './share-invite-banner';
 import { installUploadMenuItems } from './upload-menu-items';
 import { ingestPendingInvites, type PendingInvite } from './shares-store';
+import { registerTilePayloadHandler } from './tile-payloads';
 import * as filesRest from './rest';
 import {
 	getFilesState,
@@ -100,6 +101,18 @@ export const filesApi = {
 	subscribeOpeners,
 	getUserAssociations,
 	open: openFile,
+	/**
+	 * Accept drops on a desktop icon your plugin registered.
+	 *
+	 * Every non-folder tile carries a claimant that hard-rejects
+	 * foreign payloads, so a drop doesn't fall through to the
+	 * wallpaper. Fighting that claimant for the element doesn't work —
+	 * the drop-target registry allows one target per element and the
+	 * claimant is installed last. This is the cooperative seam: the
+	 * layer keeps owning the target and consults registered handlers
+	 * for the accept predicate, the hover chip, and the drop.
+	 */
+	registerTilePayloadHandler,
 	rest: filesRest,
 	store: {
 		get: getFilesStore,
@@ -115,6 +128,11 @@ export const filesApi = {
 };
 
 export type FilesApi = typeof filesApi;
+
+export type {
+	TilePayloadContext,
+	TilePayloadHandler,
+} from './tile-payloads';
 
 export {
 	DefaultDesktopFile,

@@ -98,9 +98,24 @@ export async function fetchEntityList(
 	const url = new URL( buildUrl( entity.restPath ) );
 	url.searchParams.set( 'page', String( params.page ) );
 	url.searchParams.set( 'per_page', String( params.perPage ) );
+	// Sections can widen the field list via `listFields` — anything
+	// not named here is stripped from the response by
+	// `rest_filter_response_fields()` before the bundle sees it.
 	url.searchParams.set(
 		'_fields',
-		'id,title,excerpt,date,status,featured_media,link,desktop_mode_lock,_links,_embedded',
+		[
+			'id',
+			'title',
+			'excerpt',
+			'date',
+			'status',
+			'featured_media',
+			'link',
+			'desktop_mode_lock',
+			'_links',
+			'_embedded',
+			...( entity.listFields ?? [] ),
+		].join( ',' ),
 	);
 	url.searchParams.set( '_embed', 'wp:featuredmedia' );
 	// Surface drafts/private/pending so authors see their unpublished

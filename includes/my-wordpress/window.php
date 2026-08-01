@@ -111,8 +111,13 @@ function desktop_mode_my_wordpress_entities() {
 	 * defaults to `'post'` for back-compat.
 	 *
 	 * Optional fields:
-	 *   - `kind`      — render strategy (`'post'` default, `'user'`, `'media'`).
-	 *   - `post_type` — WP post-type slug for cross-window broadcast topic `desktop-mode.<slug>.changed`.
+	 *   - `kind`       — render strategy (`'post'` default, `'user'`, `'media'`).
+	 *   - `post_type`  — WP post-type slug for cross-window broadcast topic `desktop-mode.<slug>.changed`.
+	 *   - `thumbnails` — set false to keep the section icon on every tile
+	 *                    instead of the entity's featured image.
+	 *   - `group`      — folder id this section nests under at the root
+	 *                    (null / omitted renders it loose at the root).
+	 *   - `groupLabel` — folder label. `groupIcon`, `groupOrder` follow.
 	 *
 	 * @param array[] $entities Default entities.
 	 */
@@ -155,7 +160,11 @@ function desktop_mode_my_wordpress_render_template() {
 
 /**
  * Register the native window + the pinned wallpaper icon on `init`,
- * priority 20 — after `components.php` boots the registry.
+ * priority 99 — after `components.php` boots the registry, and late
+ * enough that every plugin's `register_post_type()` call has already
+ * run. The entity list is frozen into the window config here and only
+ * emitted later on `admin_enqueue_scripts`, so a CPT registered after
+ * this point would never reach the bundle.
  */
 function desktop_mode_my_wordpress_register_window() {
 	if ( ! desktop_mode_my_wordpress_user_can_use() ) {
@@ -163,6 +172,8 @@ function desktop_mode_my_wordpress_register_window() {
 	}
 
 	$site_title = desktop_mode_site_title();
+
+	$entities = desktop_mode_my_wordpress_entities();
 
 	$window_args = array(
 		'title'      => $site_title,
@@ -181,7 +192,10 @@ function desktop_mode_my_wordpress_register_window() {
 			'editPostUrlBase' => esc_url_raw( admin_url( 'post.php' ) ),
 			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'siteName'        => $site_title,
-			'entities'        => desktop_mode_my_wordpress_entities(),
+			'entities'        => $entities,
+			'groups'          => function_exists( 'desktop_mode_my_wordpress_collect_groups' )
+				? desktop_mode_my_wordpress_collect_groups( $entities )
+				: array(),
 			'perPage'         => 24,
 			'mediaPerPage'    => 48,
 			'previewActions'  => function_exists( 'desktop_mode_my_wordpress_collect_preview_actions' )
@@ -225,7 +239,7 @@ function desktop_mode_my_wordpress_register_window() {
 
 	desktop_mode_register_icon( 'desktop-mode-my-wordpress', $icon_args );
 }
-add_action( 'init', 'desktop_mode_my_wordpress_register_window', 20 );
+add_action( 'init', 'desktop_mode_my_wordpress_register_window', 99 );
 
 /**
  * Enqueue the bundle's CSS in admin context. The script is lazy-

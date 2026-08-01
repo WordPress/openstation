@@ -840,8 +840,8 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
 		if ( '' === $pt ) {
 			return null;
 		}
-		$map = desktop_mode_get_typed_plugin_map();
-		return $map['post_type'][ $pt ] ?? null;
+		$file = desktop_mode_type_registrant_file( $pt, 'post_type' );
+		return null === $file ? null : desktop_mode_plugin_file_for_path( $file );
 	}
 	if ( false !== strpos( $slug, 'edit-tags.php?' ) && false !== strpos( $slug, 'taxonomy=' ) ) {
 		$qs = wp_parse_url( 'http://x/' . ltrim( $slug, '/' ), PHP_URL_QUERY );
@@ -850,23 +850,34 @@ function desktop_mode_lookup_taxonomy_or_post_type_plugin_file( $slug ) {
 		if ( '' === $tx ) {
 			return null;
 		}
-		$map = desktop_mode_get_typed_plugin_map();
-		return $map['taxonomy'][ $tx ] ?? null;
+		$file = desktop_mode_type_registrant_file( $tx, 'taxonomy' );
+		return null === $file ? null : desktop_mode_plugin_file_for_path( $file );
 	}
 	return null;
 }
 
 /**
- * Lazy accessor for the CPT/taxonomy → plugin file map. The map is
- * populated by `desktop_mode_record_type_registrant()` (hooked early on
+ * Lazy accessor for the CPT/taxonomy → registering-file map. The map is
+ * populated by `desktop_mode_record_type_registrant()` (hooked on
+ * `registered_post_type` / `registered_taxonomy`, which fire during
  * `init`), so by the time the dock payload is built — on
- * `admin_enqueue_scripts`, well after `init` — every plugin-registered
- * non-builtin type has an entry. Stored in a static so repeated
- * lookups during a single request don't trigger the populator twice.
+ * `admin_enqueue_scripts`, well after `init` — every non-builtin type
+ * registered from an extension has an entry. Stored in a static so
+ * repeated lookups during a single request don't trigger the populator
+ * twice.
+ *
+ * Values are **absolute filesystem paths**, not plugin files. Core does
+ * not load `wp-admin/includes/plugin.php` (where `get_plugins()` lives)
+ * until `wp-admin/admin.php` runs it *after* `wp-load.php` has already
+ * fired `init` — so a plugin file cannot be resolved at record time.
+ * Callers resolve the path lazily instead:
+ * `desktop_mode_lookup_taxonomy_or_post_type_plugin_file()` for the
+ * dock's plugin attribution, and the My WordPress group resolver for
+ * the plugin / mu-plugin / theme split.
  *
  * @return array{post_type: array<string,string>, taxonomy: array<string,string>}
  */
-function &desktop_mode_get_typed_plugin_map() {
+function &desktop_mode_get_typed_registrant_map() {
 	static $map = null;
 	if ( null === $map ) {
 		$map = array(
@@ -878,16 +889,28 @@ function &desktop_mode_get_typed_plugin_map() {
 }
 
 /**
- * Record the registering plugin file for a CPT or taxonomy. Hooked at
+ * Read the recorded registering file for a CPT or taxonomy.
+ *
+ * @param string $type Type name (CPT or taxonomy).
+ * @param string $kind Either `'post_type'` or `'taxonomy'`.
+ * @return string|null Absolute normalized path, or null when unrecorded.
+ */
+function desktop_mode_type_registrant_file( $type, $kind ) {
+	$map = desktop_mode_get_typed_registrant_map();
+	return $map[ $kind ][ $type ] ?? null;
+}
+
+/**
+ * Record the registering file for a CPT or taxonomy. Hooked at
  * `registered_post_type` / `registered_taxonomy` priority 9999 so we
  * fire after every other listener has run (lets a plugin re-register
  * its own type on top of someone else's — last writer wins, which
  * matches WP's runtime semantics).
  *
  * Resolution is via `debug_backtrace()`: walk frames until we hit one
- * whose `file` lives under `WP_PLUGIN_DIR`, then map the folder back
- * to a `get_plugins()` entry. Cheap — the backtrace is bounded to 12
- * frames and runs once per type registration, all during `init`.
+ * whose `file` lives inside an extension directory (plugins, mu-plugins,
+ * or a theme root). Cheap — the backtrace is bounded and runs once per
+ * type registration, all during `init`.
  *
  * @param string $type_or_post_type Type name (CPT or taxonomy).
  * @param string $kind              Either `'post_type'` or `'taxonomy'`.
@@ -912,39 +935,79 @@ function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
 		}
 	}
 
-	$plugin_file = desktop_mode_plugin_file_for_callback_backtrace();
-	if ( null === $plugin_file ) {
+	$file = desktop_mode_registrant_file_from_backtrace();
+	if ( null === $file ) {
 		return;
 	}
-	$map = &desktop_mode_get_typed_plugin_map();
-	$map[ $kind ][ $type_or_post_type ] = $plugin_file;
+	$map = &desktop_mode_get_typed_registrant_map();
+	$map[ $kind ][ $type_or_post_type ] = $file;
 }
 
 /**
- * Walk the current PHP backtrace and return the plugin file owning
- * the closest frame inside `WP_PLUGIN_DIR`. Returns null when no
- * frame qualifies or when `get_plugins()` isn't available (Core
- * hasn't loaded `wp-admin/includes/plugin.php` yet — true on
- * non-admin requests and very early admin bootstrap).
+ * The extension directories a registration can legitimately come from,
+ * normalized and trailing-slashed. Anything else (Core itself, a
+ * drop-in, `wp-config.php`) is not attributable to an extension.
+ *
+ * @return string[] Normalized directory prefixes.
+ */
+function desktop_mode_extension_dirs() {
+	static $dirs = null;
+	if ( null !== $dirs ) {
+		return $dirs;
+	}
+	$dirs = array();
+	if ( defined( 'WP_PLUGIN_DIR' ) ) {
+		$dirs[] = wp_normalize_path( WP_PLUGIN_DIR ) . '/';
+	}
+	if ( defined( 'WPMU_PLUGIN_DIR' ) ) {
+		$dirs[] = wp_normalize_path( WPMU_PLUGIN_DIR ) . '/';
+	}
+	foreach ( (array) get_theme_roots() as $theme_root ) {
+		// `get_theme_roots()` returns roots relative to `wp-content`
+		// when there's only one; `get_theme_root()` normalizes that.
+		$dirs[] = wp_normalize_path( get_theme_root( (string) $theme_root ) ) . '/';
+	}
+	$dirs = array_values( array_unique( array_filter( $dirs ) ) );
+	return $dirs;
+}
+
+/**
+ * Walk the current PHP backtrace and return the closest frame that
+ * lives inside an extension directory (plugin, mu-plugin, or theme).
+ *
+ * Frames belonging to Desktop Mode itself are skipped: this function is
+ * called from `payload.php`, which is under `WP_PLUGIN_DIR`, so the two
+ * innermost frames would otherwise match and attribute every registered
+ * type to us.
  *
  * Used by the CPT / taxonomy registration tracker to attribute
- * `register_post_type()` / `register_taxonomy()` calls without
- * forcing Core to load its admin include earlier than it would.
+ * `register_post_type()` / `register_taxonomy()` calls without forcing
+ * Core to load `wp-admin/includes/plugin.php` earlier than it would —
+ * `get_plugins()` does not exist yet at `init`.
  *
- * @return string|null Plugin file or null.
+ * @return string|null Normalized absolute path, or null.
  */
-function desktop_mode_plugin_file_for_callback_backtrace() {
-	if ( ! function_exists( 'get_plugins' ) ) {
+function desktop_mode_registrant_file_from_backtrace() {
+	$self_dir = defined( 'DESKTOP_MODE_DIR' ) ? wp_normalize_path( DESKTOP_MODE_DIR ) : '';
+	$self_dir = $self_dir ? trailingslashit( $self_dir ) : '';
+	$dirs     = desktop_mode_extension_dirs();
+	if ( empty( $dirs ) ) {
 		return null;
 	}
-	$bt = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 12 );
+
+	$bt = debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 20 );
 	foreach ( $bt as $frame ) {
 		if ( empty( $frame['file'] ) ) {
 			continue;
 		}
-		$plugin_file = desktop_mode_plugin_file_for_path( (string) $frame['file'] );
-		if ( null !== $plugin_file ) {
-			return $plugin_file;
+		$norm = wp_normalize_path( (string) $frame['file'] );
+		if ( '' !== $self_dir && 0 === strpos( $norm, $self_dir ) ) {
+			continue;
+		}
+		foreach ( $dirs as $dir ) {
+			if ( 0 === strpos( $norm, $dir ) ) {
+				return $norm;
+			}
 		}
 	}
 	return null;

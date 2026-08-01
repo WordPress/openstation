@@ -86,7 +86,10 @@ import type {
 	ContributorRef,
 	EntityDetail,
 	EntityListItem,
+	MediaPreviewSlot,
+	MyWordPressConfig,
 	MyWordPressEntity,
+	MyWordPressGroup,
 	Route,
 	SubRelation,
 	UserFootprint,
@@ -209,7 +212,13 @@ interface RenderState {
 }
 
 interface StatusContext {
-	view: 'root' | 'list' | 'detail' | 'sub-list' | 'user-footprint';
+	view:
+		| 'root'
+		| 'group'
+		| 'list'
+		| 'detail'
+		| 'sub-list'
+		| 'user-footprint';
 	entityId?: string;
 	postId?: number;
 	/**
@@ -277,6 +286,11 @@ function navigate(
 	state.body.replaceChildren();
 	if ( route.kind === 'root' ) {
 		renderRoot( state );
+		return;
+	}
+	// Group folders carry no entity id — dispatch before the lookup.
+	if ( route.kind === 'group' ) {
+		renderGroup( state, route.groupId );
 		return;
 	}
 	const entity = getEntity( route.entityId );
@@ -355,6 +369,8 @@ function routesEqual( a: Route, b: Route ): boolean {
 	switch ( a.kind ) {
 		case 'root':
 			return true;
+		case 'group':
+			return a.groupId === ( b as { groupId: string } ).groupId;
 		case 'list':
 			return a.entityId === ( b as { entityId: string } ).entityId;
 		case 'detail': {
@@ -382,12 +398,26 @@ function routesEqual( a: Route, b: Route ): boolean {
 	}
 }
 
+/**
+ * The route that shows a section's own folder tile — its group when it
+ * belongs to one, the root otherwise. Sections drill back out to where
+ * the user found them, not always to the root.
+ */
+function sectionParentRoute( entityId: string ): Route {
+	const entity = getEntity( entityId );
+	return entity?.group
+		? { kind: 'group', groupId: entity.group }
+		: { kind: 'root' };
+}
+
 function parentRoute( route: Route ): Route {
 	switch ( route.kind ) {
 		case 'root':
 			return route;
-		case 'list':
+		case 'group':
 			return { kind: 'root' };
+		case 'list':
+			return sectionParentRoute( route.entityId );
 		case 'detail':
 			return { kind: 'list', entityId: route.entityId };
 		case 'sub-list':
@@ -436,7 +466,31 @@ function updateBreadcrumbs( state: RenderState ): void {
 			},
 	);
 
-	if ( route.kind !== 'root' ) {
+	// The plugin / theme folder, when the current section lives in one.
+	// Present for the group view itself and for everything below a
+	// grouped section, so `Site › WooCommerce › Products › …` stays
+	// navigable at every depth.
+	let groupId: string | null | undefined = null;
+	if ( route.kind === 'group' ) {
+		groupId = route.groupId;
+	} else if ( route.kind !== 'root' ) {
+		groupId = getEntity( route.entityId )?.group;
+	}
+	if ( groupId ) {
+		const group = getGroup( groupId );
+		const groupLabel = group ? group.label : groupId;
+		segments.push(
+			route.kind === 'group'
+				? { label: groupLabel }
+				: {
+					label: groupLabel,
+					onClick: () =>
+						navigate( state, { kind: 'group', groupId } ),
+				},
+		);
+	}
+
+	if ( route.kind !== 'root' && route.kind !== 'group' ) {
 		const entity = getEntity( route.entityId );
 		const label = entity ? entity.label : route.entityId;
 		segments.push(
@@ -532,32 +586,116 @@ function subRelationLabel( relation: SubRelation ): string {
 	}
 }
 
-function renderRoot( state: RenderState ): void {
-	const cfg = getConfig();
+/**
+ * One folder tile in a folder grid — either a section (Posts, Media,
+ * Products) or a group folder standing in for a plugin or theme.
+ */
+interface FolderTileSpec {
+	/** Stable key for the persisted tile layout. */
+	key: string;
+	label: string;
+	icon: string;
+	/** Set on the tile as `data-entity-id` for section tiles. */
+	entityId?: string;
+	/** Set on the tile as `data-group-id` for group folders. */
+	groupId?: string;
+	/** Where a double-click goes. */
+	route: Route;
+	/**
+	 * Section to poll for a live "· 142" suffix. Group folders pass
+	 * `staticSuffix` instead — a count of their members, which needs
+	 * no request.
+	 */
+	countEntity?: MyWordPressEntity;
+	staticSuffix?: string;
+}
+
+/**
+ * Resolve the root-level folders. Prefers the server-shipped list
+ * (which carries the `desktop_mode_my_wordpress_post_type_groups`
+ * ordering) and falls back to deriving them from the entity list, so a
+ * plugin that appends sections through the JS API alone still groups.
+ */
+function getGroups( cfg: MyWordPressConfig ): MyWordPressGroup[] {
+	if ( Array.isArray( cfg.groups ) && cfg.groups.length > 0 ) {
+		return cfg.groups;
+	}
+	const seen = new Map< string, MyWordPressGroup >();
+	cfg.entities.forEach( ( entity ) => {
+		if ( ! entity.group || seen.has( entity.group ) ) {
+			return;
+		}
+		seen.set( entity.group, {
+			id: entity.group,
+			label: entity.groupLabel || entity.group,
+			icon: entity.groupIcon || 'dashicons-admin-plugins',
+			order: entity.groupOrder ?? 20,
+		} );
+	} );
+	return [ ...seen.values() ].sort( ( a, b ) =>
+		a.order === b.order
+			? a.label.localeCompare( b.label )
+			: a.order - b.order,
+	);
+}
+
+/** Sections belonging to a group, in registry order. */
+function getGroupEntities(
+	cfg: MyWordPressConfig,
+	groupId: string,
+): MyWordPressEntity[] {
+	return cfg.entities.filter( ( entity ) => entity.group === groupId );
+}
+
+/**
+ * Render a canvas of folder tiles. Shared by the root view and the
+ * per-group view so the tile chrome, the live count suffix, the
+ * broadcast-driven refresh, and the sort menu behave identically at
+ * every level.
+ *
+ * @param state  Render state.
+ * @param specs  Folder tiles to place, in registry order.
+ * @param scope  Layout / context-menu scope key. Distinct per view so
+ *               each folder remembers its own icon arrangement.
+ * @param atView Route kind this grid belongs to — stale count paints
+ *               are dropped once the user has navigated away.
+ */
+function renderFolderGrid(
+	state: RenderState,
+	specs: FolderTileSpec[],
+	scope: string,
+	atView: 'root' | 'group',
+): void {
 	const grid = document.createElement( 'div' );
 	grid.className =
 		'desktop-mode-my-wordpress__grid desktop-mode-my-wordpress__canvas';
 	grid.setAttribute( 'role', 'list' );
 
-	const layout = createTileLayout( grid, 'root' );
+	const layout = createTileLayout( grid, scope );
 	const select = createTileSelector();
 
-	const tilesByEntity = new Map< string, HTMLElement >();
+	const tilesByKey = new Map< string, HTMLElement >();
 
-	cfg.entities.forEach( ( entity, idx ) => {
+	specs.forEach( ( spec, idx ) => {
 		const tile = buildIconTile( {
 			role: 'folder',
-			icon: entity.icon,
-			label: entity.label,
+			icon: spec.icon,
+			label: spec.staticSuffix
+				? `${ spec.label } · ${ spec.staticSuffix }`
+				: spec.label,
 		} );
-		tile.dataset.entityId = entity.id;
-		tilesByEntity.set( entity.id, tile );
-		const tileKey = `entity:${ entity.id }`;
+		if ( spec.entityId ) {
+			tile.dataset.entityId = spec.entityId;
+		}
+		if ( spec.groupId ) {
+			tile.dataset.groupId = spec.groupId;
+		}
+		tilesByKey.set( spec.key, tile );
 		// Folders have no real "date" — synthesize one from registry
 		// order so date-sort still produces a deterministic outcome.
 		const synthDate = new Date( 2020, 0, 1 + idx ).toISOString();
-		layout.place( tile, tileKey, {
-			name: entity.label,
+		layout.place( tile, spec.key, {
+			name: spec.label,
 			date: synthDate,
 		} );
 		// Folder tiles use Finder-style semantics: single click
@@ -568,25 +706,29 @@ function renderRoot( state: RenderState ): void {
 		tile.addEventListener( 'click', () => select( tile ) );
 		tile.addEventListener( 'dblclick', ( e ) => {
 			e.preventDefault();
-			navigate( state, { kind: 'list', entityId: entity.id } );
+			navigate( state, spec.route );
 		} );
 		grid.appendChild( tile );
 	} );
 
-	// Fire one cheap count ping per entity in parallel so the root
-	// folder tiles can show "Posts · 142" / "Pages · 18". Each ping
-	// is `?per_page=1&_fields=id` — payload size of one id, total
-	// served via `X-WP-Total`. Failures fall through silently
-	// (the bare label is still useful).
-	cfg.entities.forEach( ( entity ) => {
+	// Fire one cheap count ping per section in parallel so the folder
+	// tiles can show "Posts · 142" / "Pages · 18". Each ping is
+	// `?per_page=1&_fields=id` — payload size of one id, total served
+	// via `X-WP-Total`. Failures fall through silently (the bare label
+	// is still useful).
+	specs.forEach( ( spec ) => {
+		const entity = spec.countEntity;
+		if ( ! entity ) {
+			return;
+		}
 		let fetchTimer: number | null = null;
 		const updateCount = () => {
 			void fetchEntityTotal( entity )
 				.then( ( total ) => {
-					if ( state.route.kind !== 'root' ) {
+					if ( state.route.kind !== atView ) {
 						return; // Navigated away — don't paint stale.
 					}
-					const tile = tilesByEntity.get( entity.id );
+					const tile = tilesByKey.get( spec.key );
 					if ( ! tile ) {
 						return;
 					}
@@ -594,7 +736,7 @@ function renderRoot( state: RenderState ): void {
 						'.desktop-mode-file-tile__label',
 					);
 					if ( label ) {
-						label.textContent = `${ entity.label } · ${ total.toLocaleString() }`;
+						label.textContent = `${ spec.label } · ${ total.toLocaleString() }`;
 					}
 				} )
 				.catch( () => {
@@ -603,8 +745,9 @@ function renderRoot( state: RenderState ): void {
 		};
 		updateCount();
 
-		// Subscribe to cross-window broadcast change signals so the root
-		// folder counters refresh reactively when items are mutated elsewhere.
+		// Subscribe to cross-window broadcast change signals so the
+		// folder counters refresh reactively when items are mutated
+		// elsewhere.
 		const topic = getBroadcastTopicForEntity( entity );
 		if ( topic ) {
 			const api = window.wp?.desktop;
@@ -620,7 +763,7 @@ function renderRoot( state: RenderState ): void {
 					}
 					fetchTimer = window.setTimeout( () => {
 						fetchTimer = null;
-						if ( state.route.kind === 'root' ) {
+						if ( state.route.kind === atView ) {
 							updateCount();
 						}
 					}, 150 );
@@ -637,7 +780,7 @@ function renderRoot( state: RenderState ): void {
 
 	state.body.appendChild( grid );
 	const menu = attachIconCanvasMenu( grid, {
-		scope: 'my-wordpress:root',
+		scope,
 		onSort: ( mode ) => layout.sort( mode ),
 	} );
 	state.teardown.push( () => menu.dispose() );
@@ -648,13 +791,92 @@ function renderRoot( state: RenderState ): void {
 		[
 			{
 				id: 'count',
-				label: pluralLabel( cfg.entities.length, 'folder', 'folders' ),
+				label: pluralLabel( specs.length, 'folder', 'folders' ),
 				align: 'start',
 				sort: 10,
 			},
 		],
-		{ view: 'root' },
+		{ view: atView },
 	);
+}
+
+/** Folder tile spec for a section. */
+function sectionFolderSpec( entity: MyWordPressEntity ): FolderTileSpec {
+	return {
+		key: `entity:${ entity.id }`,
+		label: entity.label,
+		icon: entity.icon,
+		entityId: entity.id,
+		route: { kind: 'list', entityId: entity.id },
+		countEntity: entity,
+	};
+}
+
+function renderRoot( state: RenderState ): void {
+	const cfg = getConfig();
+
+	// Grouped sections collapse into one folder per plugin / theme;
+	// everything else keeps its own root tile.
+	const groups = getGroups( cfg );
+	const specs: FolderTileSpec[] = cfg.entities
+		.filter( ( entity ) => ! entity.group )
+		.map( sectionFolderSpec );
+
+	groups.forEach( ( group ) => {
+		const members = getGroupEntities( cfg, group.id );
+		if ( members.length === 0 ) {
+			return;
+		}
+		specs.push( {
+			key: `group:${ group.id }`,
+			label: group.label,
+			icon: group.icon,
+			groupId: group.id,
+			route: { kind: 'group', groupId: group.id },
+			staticSuffix: String( members.length ),
+		} );
+	} );
+
+	renderFolderGrid( state, specs, 'my-wordpress:root', 'root' );
+}
+
+function renderGroup( state: RenderState, groupId: string ): void {
+	const cfg = getConfig();
+	const members = getGroupEntities( cfg, groupId );
+
+	if ( members.length === 0 ) {
+		renderError(
+			state,
+			__( 'That folder is empty.', 'desktop-mode' ),
+		);
+		return;
+	}
+
+	// `group-extras` slot — a panel above the folder tiles, for
+	// whole-folder context a plugin wants shown before the user picks
+	// a section (store totals on a shop folder, sync status on an
+	// importer's). Appended empty when nothing subscribes.
+	const extras = document.createElement( 'div' );
+	extras.className = 'desktop-mode-my-wordpress__group-extras';
+	doAction( 'desktop-mode.my-wordpress.group-extras', {
+		container: extras,
+		groupId,
+		group: getGroup( groupId ),
+		entityIds: members.map( ( entity ) => entity.id ),
+	} );
+	state.body.appendChild( extras );
+
+	renderFolderGrid(
+		state,
+		members.map( sectionFolderSpec ),
+		`my-wordpress:group:${ groupId }`,
+		'group',
+	);
+}
+
+/** Group descriptor for a group id, or null when unknown. */
+function getGroup( groupId: string ): MyWordPressGroup | null {
+	return getGroups( getConfig() ).find( ( g ) => g.id === groupId ) ?? null;
 }
 
 /**
@@ -668,6 +890,12 @@ function buildIconTile( spec: {
 	role: 'folder' | 'entry';
 	icon: string;
 	label: string;
+	/**
+	 * Preview image URL. `<wpd-tile>` renders it in place of `icon`
+	 * when set — the featured image for a post-kind entry, the
+	 * attachment thumbnail for media.
+	 */
+	thumbnail?: string;
 } ): HTMLElement {
 	// Adapter onto the canonical `buildTileFromSpec` — same visual
 	// chrome the desktop / folder windows use. The My WordPress
@@ -685,6 +913,7 @@ function buildIconTile( spec: {
 		icon: /^(https?:|data:)/.test( spec.icon )
 			? spec.icon
 			: sanitizeClass( spec.icon ),
+		thumbnail: spec.thumbnail || undefined,
 		role: spec.role,
 		extraClasses: [
 			'desktop-mode-my-wordpress__tile',
@@ -738,6 +967,80 @@ interface ListContext {
  * the user-facing rationale for that in the plan.
  */
 const lastQueryByEntity = new Map< string, string >();
+
+/**
+ * Optional banding for a section's list view: tiles are split into
+ * labelled bands instead of one flat canvas.
+ *
+ * Supplied by the `desktop-mode.my-wordpress.list-bands` filter. The
+ * WooCommerce Orders section uses it to keep orders needing attention
+ * apart from — and above — the settled ones.
+ *
+ * @public
+ */
+export interface ListBanding {
+	/**
+	 * Bands in render order. Lower `order` sorts first. `tone` tints
+	 * the band heading so a band that carries work to do reads
+	 * differently from one that's just an archive.
+	 */
+	bands: Array< {
+		id: string;
+		label: string;
+		order?: number;
+		tone?: 'warn' | 'danger';
+		/**
+		 * Rows this band is expected to hold. Bands with a positive
+		 * count are laid out before the first page arrives, so they
+		 * fill in place instead of appearing mid-scroll and shoving
+		 * whatever the user is reading down the page. Omit when the
+		 * count isn't cheaply knowable — the band then appears when
+		 * its first row lands.
+		 */
+		count?: number;
+	} >;
+	/**
+	 * Which band a row belongs to. Return null (or an id not in
+	 * `bands`) to drop the row into an unlabelled band at the end.
+	 */
+	assign: ( item: EntityListItem ) => string | null;
+}
+
+/**
+ * One rendered band: its own heading, canvas, and tile layout, so a
+ * band remembers its own icon arrangement independently.
+ */
+interface RenderedBand {
+	host: HTMLElement;
+	canvas: HTMLElement;
+	layout: TileLayout;
+	count: number;
+	countEl: HTMLElement;
+	order: number;
+}
+
+/**
+ * Resolve the banding for a section, or null when its tiles should
+ * render as one flat canvas (the default for every built-in section).
+ */
+function resolveBanding(
+	entity: MyWordPressEntity,
+): ListBanding | null {
+	const banding = applyFilters< ListBanding | null, [ MyWordPressEntity ] >(
+		'desktop-mode.my-wordpress.list-bands',
+		null,
+		entity,
+	);
+	if (
+		! banding ||
+		! Array.isArray( banding.bands ) ||
+		banding.bands.length === 0 ||
+		typeof banding.assign !== 'function'
+	) {
+		return null;
+	}
+	return banding;
+}
 
 function renderEntityList(
 	state: RenderState,
@@ -796,12 +1099,166 @@ function renderEntityList(
 	split.appendChild( right );
 	state.body.appendChild( split );
 
-	const tileLayout = createTileLayout( tiles, `entity:${ entity.id }` );
+	const banding = resolveBanding( entity );
+	const isLarge = entity.tileSize === 'large';
+	const tileMetrics = isLarge ? TILE_METRICS_LARGE : TILE_METRICS;
+	if ( isLarge ) {
+		// Drives the CSS side of the size step. The cell pitch above
+		// and this class have to agree — a wider tile in a cell that
+		// didn't grow overlaps its neighbour.
+		tiles.classList.add( 'desktop-mode-my-wordpress__tiles--large' );
+	}
+	const tileLayout = createTileLayout(
+		tiles,
+		`entity:${ entity.id }`,
+		tileMetrics,
+	);
 	const menu = attachIconCanvasMenu( tiles, {
 		scope: `my-wordpress:${ entity.id }`,
 		onSort: ( mode ) => tileLayout.sort( mode ),
 	} );
 	state.teardown.push( () => menu.dispose() );
+
+	if ( banding ) {
+		// When banded, the root container becomes a plain stack of
+		// band sections — each band owns its own positioned canvas.
+		tiles.classList.add( 'desktop-mode-my-wordpress__tiles--banded' );
+	}
+
+	/** Band sections, keyed by band id. */
+	const bands = new Map< string, RenderedBand >();
+
+	/**
+	 * Build a band section. Called up front for bands whose row count
+	 * the server could tell us, and on demand for the rest.
+	 */
+	const createBand = ( def: {
+		id: string;
+		label: string;
+		order?: number;
+		tone?: 'warn' | 'danger';
+	} ): RenderedBand => {
+		const host = document.createElement( 'section' );
+		host.className = 'desktop-mode-my-wordpress__band';
+		host.dataset.bandId = def.id;
+
+		const heading = document.createElement( 'h3' );
+		heading.className = 'desktop-mode-my-wordpress__band-title';
+		if ( def.tone ) {
+			heading.classList.add(
+				`desktop-mode-my-wordpress__band-title--${ def.tone }`,
+			);
+		}
+		const label = document.createElement( 'span' );
+		label.textContent = def.label;
+		const countEl = document.createElement( 'span' );
+		countEl.className = 'desktop-mode-my-wordpress__band-count';
+		heading.append( label, countEl );
+		host.appendChild( heading );
+
+		const canvas = document.createElement( 'div' );
+		canvas.className =
+			'desktop-mode-my-wordpress__tiles desktop-mode-my-wordpress__canvas';
+		if ( isLarge ) {
+			canvas.classList.add( 'desktop-mode-my-wordpress__tiles--large' );
+		}
+		canvas.setAttribute( 'role', 'list' );
+		host.appendChild( canvas );
+
+		const layout = createTileLayout(
+			canvas,
+			`entity:${ entity.id }:band:${ def.id }`,
+			tileMetrics,
+		);
+
+		const rendered: RenderedBand = {
+			host,
+			canvas,
+			layout,
+			count: 0,
+			countEl,
+			order: def.order ?? 0,
+		};
+		bands.set( def.id, rendered );
+
+		// Insert in band order rather than arrival order.
+		const after = [ ...bands.values() ]
+			.filter( ( b ) => b !== rendered && b.order > rendered.order )
+			.sort( ( a, b ) => a.order - b.order )[ 0 ];
+		if ( after ) {
+			tiles.insertBefore( host, after.host );
+		} else {
+			tiles.appendChild( host );
+		}
+
+		// Empty until its first row arrives — the heading would
+		// otherwise read as a band with nothing in it.
+		host.classList.add( 'desktop-mode-my-wordpress__band--empty' );
+
+		return rendered;
+	};
+
+	/**
+	 * Lay out every band the server could count, in order, before the
+	 * first page lands. Bands then fill in place; none appears late
+	 * and pushes content the user is already reading.
+	 */
+	const seedBands = (): void => {
+		if ( ! banding ) {
+			return;
+		}
+		banding.bands
+			.filter( ( def ) => ( def.count ?? 0 ) > 0 )
+			.forEach( ( def ) => createBand( def ) );
+	};
+
+	/**
+	 * Tear the bands down and re-seed them.
+	 *
+	 * A search replaces the result set wholesale, and the caller does
+	 * that by emptying the root container. That detaches the band
+	 * sections but leaves this map pointing at them — so the next page
+	 * of results was appended into orphaned canvases whose layouts
+	 * still held the previous rows' occupied cells, and the grid came
+	 * back overlapping and unscrollable.
+	 */
+	const resetBands = (): void => {
+		bands.forEach( ( band ) => {
+			band.layout.dispose();
+			band.host.remove();
+		} );
+		bands.clear();
+		seedBands();
+	};
+
+	seedBands();
+	// One teardown for however many bands exist at the time, rather
+	// than one per band ever created — a search re-seeds them.
+	state.teardown.push( () => {
+		bands.forEach( ( band ) => band.layout.dispose() );
+		bands.clear();
+	} );
+
+	/**
+	 * Get (or create) the band a row belongs to. A band appears the
+	 * moment its first row lands, in its `order` position, so bands
+	 * with nothing in them never take up space.
+	 */
+	const bandFor = ( item: EntityListItem ): RenderedBand | null => {
+		if ( ! banding ) {
+			return null;
+		}
+		let id: string | null = null;
+		try {
+			id = banding.assign( item );
+		} catch {
+			id = null;
+		}
+		const def =
+			banding.bands.find( ( b ) => b.id === id ) ??
+			banding.bands[ banding.bands.length - 1 ];
+		return bands.get( def.id ) ?? createBand( def );
+	};
 
 	const ctx: ListContext = {
 		page: 0,
@@ -924,7 +1381,37 @@ function renderEntityList(
 				return;
 			}
 			for ( const item of result.items ) {
-				tiles.appendChild( buildEntityTile( state, ctx, entity, item ) );
+				const band = bandFor( item );
+				const tile = buildEntityTile(
+					state,
+					ctx,
+					entity,
+					item,
+					band?.layout,
+				);
+				if ( band ) {
+					band.canvas.appendChild( tile );
+					band.count += 1;
+					band.countEl.textContent = String( band.count );
+					band.host.classList.remove(
+						'desktop-mode-my-wordpress__band--empty',
+					);
+				} else {
+					tiles.appendChild( tile );
+				}
+				// Tile decoration seam. Fired *after* the tile is in
+				// the DOM, because `<wpd-tile>` paints on connect and
+				// its paint clears any `<wpd-ribbon>` it finds — a
+				// decoration added before that is wiped on arrival.
+				// Subscribers that add a ribbon should also listen for
+				// `desktop-mode.tile.rendered` to survive re-paints
+				// (selection re-renders the tile).
+				doAction( 'desktop-mode.my-wordpress.list-tile', {
+					tile,
+					entityId: entity.id,
+					kind: entity.kind ?? 'post',
+					item,
+				} );
 				ctx.loaded += 1;
 			}
 			if ( ctx.page >= ctx.totalPages ) {
@@ -1004,6 +1491,7 @@ function renderEntityList(
 			// replace it with the new one in one frame.
 			tiles.replaceChildren();
 			ctx.layout.clear();
+			resetBands();
 			tiles.classList.remove(
 				'desktop-mode-my-wordpress__tiles--searching',
 			);
@@ -1030,9 +1518,30 @@ function renderEntityList(
 				ctx.done = true;
 			} else {
 				for ( const item of result.items ) {
-					tiles.appendChild(
-						buildEntityTile( state, ctx, entity, item ),
+					const band = bandFor( item );
+					const tile = buildEntityTile(
+						state,
+						ctx,
+						entity,
+						item,
+						band?.layout,
 					);
+					if ( band ) {
+						band.canvas.appendChild( tile );
+						band.count += 1;
+						band.countEl.textContent = String( band.count );
+						band.host.classList.remove(
+							'desktop-mode-my-wordpress__band--empty',
+						);
+					} else {
+						tiles.appendChild( tile );
+					}
+					doAction( 'desktop-mode.my-wordpress.list-tile', {
+						tile,
+						entityId: entity.id,
+						kind: entity.kind ?? 'post',
+						item,
+					} );
 					ctx.loaded += 1;
 				}
 			}
@@ -1046,6 +1555,7 @@ function renderEntityList(
 			);
 			tiles.replaceChildren();
 			ctx.layout.clear();
+			resetBands();
 			const msg =
 				err instanceof Error
 					? err.message
@@ -1200,9 +1710,9 @@ function showLoadingSkeleton(
 			}%`;
 		}
 		host.appendChild( tile );
-		maxBottom = Math.max( maxBottom, cell.y + TILE_H );
+		maxBottom = Math.max( maxBottom, cell.y + layout.metrics.h );
 	} );
-	host.style.minHeight = `${ maxBottom + TILE_PAD }px`;
+	host.style.minHeight = `${ maxBottom + layout.metrics.pad }px`;
 }
 
 function hideLoadingSkeleton( host: HTMLElement ): void {
@@ -1216,13 +1726,29 @@ function buildEntityTile(
 	ctx: ListContext,
 	entity: MyWordPressEntity,
 	item: EntityListItem,
+	/**
+	 * Layout to place the tile in. Banded sections pass their band's
+	 * own layout so each band keeps a separate icon arrangement;
+	 * everything else uses the section's single canvas.
+	 */
+	layout: TileLayout = ctx.layout,
 ): HTMLElement {
 	const titleText =
-		stripTags( item.title.rendered ) || __( '(no title)', 'desktop-mode' );
+		stripTags( item.title?.rendered ?? '' ) ||
+		__( '(no title)', 'desktop-mode' );
+	// The featured image reads better than a uniform dashicon wherever
+	// there is one — decisively so for image-led types like products.
+	// `fetchEntityList` already asks for `_embed=wp:featuredmedia`, so
+	// this costs no extra request. Sections can opt out with
+	// `thumbnails: false`; entries without a featured image fall back
+	// to the section icon.
+	const thumbnail =
+		entity.thumbnails === false ? '' : getThumbnail( item );
 	const tile = buildIconTile( {
 		role: 'entry',
 		icon: entity.icon,
 		label: titleText,
+		thumbnail,
 	} );
 	tile.dataset.entryId = String( item.id );
 	if ( item.status ) {
@@ -1313,7 +1839,7 @@ function buildEntityTile(
 	state.teardown.push( hideTooltip );
 
 	const tileKey = `entry:${ item.id }`;
-	ctx.layout.place( tile, tileKey, {
+	layout.place( tile, tileKey, {
 		name: titleText,
 		date: item.date || new Date( 0 ).toISOString(),
 	} );
@@ -1458,7 +1984,7 @@ async function renderPreview(
 				kind: 'detail',
 				entityId: entity.id,
 				postId: detail.id,
-				postTitle: stripTags( detail.title.rendered ),
+				postTitle: stripTags( detail.title?.rendered ?? '' ),
 			} );
 		},
 	} );
@@ -1515,13 +2041,20 @@ function appendPostArticle(
 
 	const heading = document.createElement( 'h2' );
 	heading.className = 'desktop-mode-my-wordpress__article-title';
-	heading.textContent = stripTags( detail.title.rendered );
+	heading.textContent =
+		stripTags( detail.title?.rendered ?? '' ) ||
+		__( '(no title)', 'desktop-mode' );
 	article.appendChild( heading );
 
 	const meta = buildPostMetaLine( detail );
 	if ( meta ) {
 		article.appendChild( meta );
 	}
+
+	// `header` slot — above the hero image and the rendered content.
+	// Where a plugin puts the facts that matter more than the prose
+	// (a product's price and stock, an order's total).
+	article.appendChild( postArticleSlot( 'header', detail, entity ) );
 
 	const thumb = getThumbnail( detail );
 	if ( thumb ) {
@@ -1532,12 +2065,24 @@ function appendPostArticle(
 		article.appendChild( img );
 	}
 
-	const content = document.createElement( 'div' );
-	content.className = 'desktop-mode-my-wordpress__article-content';
-	// `content.rendered` is sanitised server-side by core's
-	// `the_content` pipeline before it reaches the REST response.
-	content.innerHTML = detail.content.rendered;
-	article.appendChild( content );
+	// A post type that doesn't `supports` the editor has no `content`
+	// field in its REST response at all — WooCommerce's `shop_coupon`
+	// supports only `title`. Reading `.rendered` off the missing key
+	// threw before the article was ever appended, so the whole pane
+	// rendered blank. Fall back to the excerpt, then to nothing.
+	const contentHtml =
+		detail.content?.rendered ?? detail.excerpt?.rendered ?? '';
+	if ( contentHtml ) {
+		const content = document.createElement( 'div' );
+		content.className = 'desktop-mode-my-wordpress__article-content';
+		// Sanitised server-side by core's `the_content` pipeline
+		// before it reaches the REST response.
+		content.innerHTML = contentHtml;
+		article.appendChild( content );
+	}
+
+	// `meta` slot — after the content, before the action row.
+	article.appendChild( postArticleSlot( 'meta', detail, entity ) );
 
 	const footer = document.createElement( 'footer' );
 	footer.className = 'desktop-mode-my-wordpress__article-footer';
@@ -1560,13 +2105,51 @@ function appendPostArticle(
 	editBtn.setAttribute( 'variant', 'primary' );
 	editBtn.textContent = __( 'Open in editor', 'desktop-mode' );
 	editBtn.addEventListener( 'click', () => {
-		openEditor( entity, detail.id, stripTags( detail.title.rendered ) );
+		openEditor( entity, detail.id, stripTags( detail.title?.rendered ?? '' ) );
 	} );
 	footer.appendChild( editBtn );
 
 	article.appendChild( footer );
 
+	// `footer` slot — below the action row.
+	article.appendChild( postArticleSlot( 'footer', detail, entity ) );
+
 	host.appendChild( article );
+}
+
+/**
+ * Build a slot container and fire
+ * `desktop-mode.my-wordpress.preview-extras` against it, so plugins
+ * can append arbitrary DOM to a post-kind preview pane.
+ *
+ * Same action name and payload shape the media pane uses
+ * (`src/my-wordpress/media-preview.ts`) — one contract covers every
+ * section, so a subscriber written for media works here by checking
+ * `kind` / `entityId`. The container is always appended, empty or
+ * not: an empty `<div>` costs nothing and keeps slot order stable
+ * when several subscribers paint asynchronously.
+ *
+ * @param slot   Slot identifier.
+ * @param detail The post being previewed.
+ * @param entity The section it belongs to.
+ * @return The slot container.
+ */
+function postArticleSlot(
+	slot: MediaPreviewSlot,
+	detail: EntityDetail,
+	entity: MyWordPressEntity,
+): HTMLElement {
+	const host = document.createElement( 'div' );
+	host.className = `desktop-mode-my-wordpress__article-slot desktop-mode-my-wordpress__article-slot--${ slot }`;
+	host.dataset.slot = slot;
+	doAction( 'desktop-mode.my-wordpress.preview-extras', {
+		slot,
+		container: host,
+		entityId: entity.id,
+		kind: entity.kind ?? 'post',
+		item: detail as unknown as Record< string, unknown >,
+	} );
+	return host;
 }
 
 function buildPostMetaLine( detail: EntityDetail ): HTMLElement | null {
@@ -5554,9 +6137,33 @@ function createTileSelector(): ( tile: HTMLElement ) => void {
 // row's tile into the cell above. Tile label is clamped to 2 lines
 // via CSS in `my-wordpress.css`; if you change that clamp, raise
 // `TILE_H` to match.
-const TILE_W = 108;
-const TILE_H = 112;
-const TILE_PAD = 16;
+/**
+ * Grid cell pitch for a tile canvas. The tile visual itself is sized
+ * in CSS; these are the cell dimensions the layout walks, and the two
+ * have to move together — a wider tile in a cell that didn't grow
+ * overlaps its neighbour.
+ */
+interface TileMetrics {
+	w: number;
+	h: number;
+	pad: number;
+}
+
+/** Icon-led sections: posts, pages, users, plugin-defined kinds. */
+const TILE_METRICS: TileMetrics = { w: 108, h: 112, pad: 16 };
+
+/**
+ * Image-led sections. A section whose rows carry a photograph — a
+ * shop's products, most obviously — reads as a catalogue, not a file
+ * list: the picture is the thing being scanned, and at 48px it's a
+ * thumbnail of a thumbnail. Opted into per section with
+ * `tileSize: 'large'`.
+ *
+ * Sized so a corner ribbon reads as a corner flash rather than
+ * covering the subject. Cell pitch mirrors the regular metrics'
+ * ~20px horizontal and ~24px vertical breathing room around the tile.
+ */
+const TILE_METRICS_LARGE: TileMetrics = { w: 152, h: 176, pad: 16 };
 
 export interface TileSortable {
 	/** Used by `name-asc` / `name-desc`. Compared with `localeCompare`. */
@@ -5581,6 +6188,8 @@ interface TileEntry {
 interface TileLayout {
 	host: HTMLElement;
 	scope: string;
+	/** Cell pitch this canvas was built with. */
+	metrics: TileMetrics;
 	place: (
 		tile: HTMLElement,
 		key: string,
@@ -5609,7 +6218,14 @@ interface TileLayout {
 	dispose: () => void;
 }
 
-function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
+function createTileLayout(
+	host: HTMLElement,
+	scope: string,
+	metrics: TileMetrics = TILE_METRICS,
+): TileLayout {
+	// Shadowed so the cell math below reads unchanged whichever
+	// metrics the section asked for.
+	const { w: TILE_W, h: TILE_H, pad: TILE_PAD } = metrics;
 	const positions = loadPositions( scope );
 	const entries: TileEntry[] = [];
 	/**
@@ -5642,15 +6258,16 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 	const recomputeHostHeight = () => {
 		// Grow host so absolute tiles aren't clipped by the parent
 		// scroller. We track the lowest tile bottom edge.
+		//
+		// Measured from `entries`, not `host.children`: `place()` runs
+		// while the tile is still detached (the caller appends it
+		// afterwards), so a DOM walk misses whatever was just placed
+		// and the height stays a batch behind. On a banded list that
+		// showed up as the last, partially-filled row spilling out of
+		// its band and landing on top of the next band's heading.
 		let maxBottom = 0;
-		for ( const child of Array.from( host.children ) ) {
-			if ( ! ( child instanceof HTMLElement ) ) {
-				continue;
-			}
-			if ( ! child.classList.contains( 'desktop-mode-file-tile' ) ) {
-				continue;
-			}
-			const top = parseFloat( child.style.top || '0' );
+		for ( const entry of entries ) {
+			const top = parseFloat( entry.tile.style.top || '0' );
 			maxBottom = Math.max( maxBottom, top + TILE_H );
 		}
 		host.style.minHeight = `${ Math.max( 0, maxBottom + TILE_PAD ) }px`;
@@ -5941,6 +6558,7 @@ function createTileLayout( host: HTMLElement, scope: string ): TileLayout {
 	return {
 		host,
 		scope,
+		metrics,
 		place,
 		commit,
 		sort,

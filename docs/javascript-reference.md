@@ -5038,7 +5038,76 @@ resolveOpener( type: string ): FileOpenerDef | null;
 subscribeOpeners( cb: () => void ): () => void;
 getUserAssociations(): Record< string, string >;
 open( file: DesktopFile ): Promise< boolean >;
+registerTilePayloadHandler(
+    type: string,
+    handler: TilePayloadHandler,
+): () => void;
 ```
+
+### `registerTilePayloadHandler` — accepting drops on your own icon
+
+Every non-folder desktop tile carries a claimant that hard-rejects
+foreign payloads, so a drop can't fall through to the wallpaper
+underneath. That claimant is what shows the red "Can't drop here" chip.
+
+**Registering a competing `DropTarget` on the tile element does not
+work.** The drop-target registry allows one target per element and the
+claimant is installed last, so a target installed during
+`desktop-mode.files.tile-rendered` — which fires from inside
+`buildTile`, before the claimant — is immediately displaced. This is
+the cooperative seam instead: the layer keeps owning the target and
+consults registered handlers for the accept predicate, the hover chip,
+and the drop.
+
+```ts
+interface TilePayloadContext {
+    /** The placement backing the tile under the cursor. */
+    placement: RestPlacementShape;
+}
+
+interface TilePayloadHandler {
+    /**
+     * Cheap, payload-independent check on the placement — "is this a
+     * tile I care about?". Keep it as narrow as possible.
+     */
+    appliesTo( ctx: TilePayloadContext ): boolean;
+    /** Whether a concrete payload is acceptable on this tile. */
+    accept( data: Record< string, unknown >, ctx: TilePayloadContext ): boolean;
+    /** Chip label shown while a matching payload hovers the tile. */
+    acceptLabel: string;
+    onDrop(
+        session: DragSession,
+        ev: { clientX: number; clientY: number },
+        ctx: TilePayloadContext,
+    ): void;
+}
+```
+
+```js
+const off = wp.desktop.files.registerTilePayloadHandler( 'shortcut', {
+    appliesTo: ( { placement } ) => placement.file.ref === 'lienzo',
+    accept: ( data ) => data.kind === 'attachment',
+    acceptLabel: 'Open in Lienzo',
+    onDrop: ( session ) => {
+        openInLienzo( session.payload.data );
+    },
+} );
+```
+
+Several handlers may share a payload type — resolution is
+**first-registered whose `appliesTo` matches**, so handlers only ever
+compete when they claim the same tile for the same type. A handler
+whose `appliesTo` returns true for every placement will shadow every
+handler registered after it, so scope the predicate to your own icon.
+
+Payload `type` is the drag payload's type, not the file type:
+`'shortcut'` covers desktop icons, post/page references, and dock-item
+promotions; `'attachment'` covers Media Library drags; `'note'` covers
+pinned notes. Read `session.payload.data` for the payload itself.
+
+Returns a deregister function.
+
+See [Examples — accept drops on your desktop icon](./examples/tile-drop-handler.md).
 
 Resolution chain inside `resolveOpener`: user override (read from `userFileAssociations` in the shell config) → `isDefault` opener → first match → `null`. The result passes through the `desktop-mode.files.resolve-opener` filter.
 
@@ -5286,7 +5355,9 @@ raw server record (a `MediaListItem`, post `EntityListItem`, etc.).
 ### Action — `desktop-mode.my-wordpress.preview-extras`
 
 Inject DOM into named slots on the right pane (`'header' | 'meta'
-| 'footer'`). Fires once per slot per preview render.
+| 'footer'`). Fires once per slot per preview render, for **both**
+media previews and post-kind previews (posts, pages, and every CPT
+section) — one contract covers every section.
 
 ```ts
 wp.hooks.addAction(
@@ -5301,6 +5372,139 @@ wp.hooks.addAction(
     },
 );
 ```
+
+Payload:
+
+```ts
+interface PreviewExtras {
+    slot: 'header' | 'meta' | 'footer';
+    /** Append your DOM here. Always present, even when empty. */
+    container: HTMLElement;
+    /** Section id — `'posts'`, `'media'`, `'cpt-product'`, … */
+    entityId: string;
+    /** Render kind — `'post'`, `'user'`, `'media'`, or a custom one. */
+    kind: string;
+    /** The row being previewed (post or attachment). */
+    item: Record< string, unknown >;
+}
+```
+
+Slot order in a post-kind pane is `header` (above the featured image
+and the rendered content), `meta` (below the content, above the action
+row), then `footer`. Subscribers that fetch data should re-check
+`container.isConnected` before painting — the pane repaints on every
+selection change, and a slow request can outlive its pane.
+
+### Filter — `desktop-mode.my-wordpress.list-bands`
+
+Split a section's tiles into labelled bands instead of one flat
+canvas. Return `null` (the default) to leave the section ungrouped.
+
+```ts
+wp.hooks.addFilter(
+    'desktop-mode.my-wordpress.list-bands',
+    'my-plugin/by-status',
+    ( banding, entity ) => {
+        if ( entity.id !== 'cpt-ticket' ) {
+            return banding;
+        }
+        return {
+            bands: [
+                { id: 'open', label: 'Open', order: 10 },
+                { id: 'done', label: 'Closed', order: 20 },
+            ],
+            assign: ( item ) => ( item.ticket_state === 'open' ? 'open' : 'done' ),
+        };
+    },
+);
+```
+
+```ts
+interface ListBanding {
+    /** Bands in render order. Lower `order` renders first. */
+    bands: Array< { id: string; label: string; order?: number } >;
+    /**
+     * Which band a row belongs to. Return null — or an id not in
+     * `bands` — to fall into the last band, so keep a catch-all last.
+     */
+    assign: ( item: EntityListItem ) => string | null;
+}
+```
+
+A band renders the moment its first row lands, in its `order`
+position, so bands that stay empty never take up space. Each band gets
+its **own tile layout**, keyed `entity:<id>:band:<bandId>`, so
+rearranging icons in one band doesn't disturb another.
+
+Rows are banded as they arrive from the paginated list, so on a
+section with more rows than one page a band fills in as the user
+scrolls. Bands order the view; they don't re-query the server.
+
+**Custom fields:** the window sends an explicit `_fields` list, so a
+key your endpoint returns is stripped before the bundle sees it unless
+the section declares it in `listFields` (see
+[`desktop_mode_my_wordpress_entities`](./hooks-reference.md#desktop_mode_my_wordpress_entities--experimental)).
+
+### Action — `desktop-mode.my-wordpress.list-tile`
+
+Decorate a list tile. Fires once per tile, after the built-in chrome
+(status ribbon, lock badge) and before the tile is placed.
+
+```ts
+wp.hooks.addAction(
+    'desktop-mode.my-wordpress.list-tile',
+    'my-plugin/badge',
+    ( { tile, entityId, item } ) => {
+        if ( entityId !== 'cpt-product' || item.in_stock ) {
+            return;
+        }
+        const badge = document.createElement( 'span' );
+        badge.className = 'my-plugin-badge';
+        badge.textContent = 'Out of stock';
+        tile.appendChild( badge );
+    },
+);
+```
+
+Payload: `{ tile: HTMLElement; entityId: string; kind: string; item: EntityListItem }`.
+The tile is positioned, so a badge should be absolutely positioned
+within it.
+
+### Action — `desktop-mode.my-wordpress.group-extras`
+
+Inject a panel above the folder tiles when the user opens a plugin or
+theme folder. For whole-folder context worth showing before a section
+is picked — store totals on a shop folder, sync status on an
+importer's.
+
+```ts
+wp.hooks.addAction(
+    'desktop-mode.my-wordpress.group-extras',
+    'my-plugin/store-totals',
+    ( ctx ) => {
+        if ( ctx.groupId !== 'plugin:my-plugin' ) {
+            return;
+        }
+        ctx.container.appendChild( buildTotalsPanel() );
+    },
+);
+```
+
+Payload:
+
+```ts
+interface GroupExtras {
+    container: HTMLElement;
+    /** e.g. `'plugin:woocommerce'`, `'theme:twentytwentyfive'`. */
+    groupId: string;
+    group: { id: string; label: string; icon: string; order: number } | null;
+    /** Section ids inside this folder. */
+    entityIds: string[];
+}
+```
+
+The container is appended empty when nothing subscribes, and
+`:empty` hides it, so an unsubscribed folder is visually unchanged.
 
 ### Filter — `desktop-mode.my-wordpress.tile-context-menu`
 
@@ -5332,7 +5536,60 @@ the hook fires for every section.
 
 ### Filter — `desktop-mode.my-wordpress.status-bar` (existing)
 
-Already documented above — unchanged.
+Already documented above — unchanged, except that `ctx.view` gained a
+`'group'` member for the plugin-folder view described below.
+
+### Navigation — routes
+
+The window's internal `Route` union drives the breadcrumb and the back
+button. Renderers installed via `registerEntityKind()` receive the
+current route on their host and can navigate to any of these:
+
+```ts
+type Route =
+    | { kind: 'root' }
+    | { kind: 'group'; groupId: string }
+    | { kind: 'list'; entityId: string }
+    | { kind: 'detail'; entityId: string; postId: number; postTitle: string }
+    | { kind: 'sub-list'; entityId: string; postId: number; postTitle: string; relation: SubRelation }
+    | { kind: 'user-footprint'; entityId: string; userId: number; userName: string }
+    | { kind: 'media-detail'; entityId: string; mediaId: number; mediaTitle: string };
+```
+
+`'group'` renders the folder that collects every section sharing a
+`group` id — one per plugin or theme that registered custom post types.
+Its members are the sections whose descriptor carries that id; the
+breadcrumb reads `Site › WooCommerce › Products`, and a grouped
+section's parent route is its group rather than the root.
+
+### Section descriptors — grouping and thumbnails
+
+Entity descriptors reaching the bundle (from
+`desktop_mode_my_wordpress_entities` server-side, or appended in JS)
+carry four optional fields beyond the documented core set:
+
+```ts
+interface MyWordPressEntity {
+    // …id, label, icon, restPath, kind, post_type
+    /** false keeps the section icon on every tile. Default: on. */
+    thumbnails?: boolean;
+    /** Root folder id this section nests under. null → loose at root. */
+    group?: string | null;
+    groupLabel?: string | null;
+    groupIcon?: string | null;
+    groupOrder?: number | null;
+}
+```
+
+With `thumbnails` unset or `true`, a `'post'`-kind entry that has a
+featured image renders it in place of the section icon — the list
+request already asks for `_embed=wp:featuredmedia`, so no extra
+request is made. Entries without a featured image fall back to `icon`.
+
+The window config also ships the resolved folder list as
+`groups: MyWordPressGroup[]` (`{ id, label, icon, order }`). When it is
+absent the bundle derives the same list from the entity descriptors, so
+a JS-only plugin can group its sections without a server round trip.
 
 ### postMessage / CustomEvents
 

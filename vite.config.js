@@ -315,6 +315,16 @@ const TARGETS = {
 		fileBase: 'my-wordpress',
 		iifeName: 'desktopModeMyWordpress',
 	},
+	// WooCommerce integration for the site window — subscribes to the
+	// window's `preview-extras` / `group-extras` actions to paint
+	// merchant panels. Enqueued only when WooCommerce is active, and
+	// deliberately separate from the `my-wordpress` bundle so stores
+	// without WooCommerce ship none of it.
+	'my-wordpress-woocommerce': {
+		entry:    'src/my-wordpress/integrations/woocommerce.ts',
+		fileBase: 'my-wordpress-woocommerce',
+		iifeName: 'desktopModeMyWordpressWoo',
+	},
 	// Content Graph — PixiJS-driven force-directed map of every post
 	// and page (and any opt-in public CPT) wired together by their
 	// internal hyperlinks. Lazy-loads PixiJS via the same module

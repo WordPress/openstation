@@ -3106,8 +3106,125 @@ The list of entity types rendered as folder tiles in the window's root view. Eac
 - `restPath` — appended to `restRoot` (e.g. `wp/v2/posts`, `wp/v2/comments`).
 - `post_type` *(optional)* — WP post-type slug used to build the cross-window broadcast topic `desktop-mode.<slug>.changed`. Omit for entities without trash/restore support (e.g. Users). CPT entities registered via this filter should set `post_type` so list views refresh reactively on trash/restore.
 - `kind` *(optional)* — `'post'` (default for back-compat), `'user'`, or `'media'`. Drives the in-window render path: `'post'`-shaped entities use the title/excerpt/featured-image tile + rendered-HTML preview; `'user'`-shaped entities use the avatar-tile, the dossier preview, and the activity-footprint surface; `'media'`-shaped entities use the media-grid tile and the media drill-in preview ("used in" view). Omit the field to inherit the post path — works for any REST collection that ships `title.rendered` + `content.rendered`. Plugins can register further kinds on the JS side via `wp.desktop.myWordpress.registerEntityKind()`.
+- `listFields` *(optional)* — extra REST field names to request for this section's list rows. The window sends an explicit `_fields` list, so a custom key your endpoint returns is stripped before the bundle sees it unless it's named here. Used by the WooCommerce sections to carry the order status and product stock their tiles are banded and badged by.
+- `thumbnails` *(optional)* — `false` keeps the section icon on every tile. Defaults to on: a `'post'`-kind entry that has a featured image renders it in place of the icon (the list request already asks for `_embed=wp:featuredmedia`, so this costs no extra round trip). Entries without one fall back to `icon`.
+- `group` *(optional)* — id of the root-level folder this section nests under. Sections sharing a group id collapse into one folder tile at the root that drills into its members. Omit or pass `null` to render the section loose at the root next to Posts and Pages.
+- `groupLabel` / `groupIcon` / `groupOrder` *(optional)* — folder label, icon, and sort weight. Every member of a group should carry the same values; the first entry seen wins.
 
-Defaults ship `posts`, `pages`, `users`, and `media`. Plugins can pre-stage Comments / Tags / Categories without waiting for new code in this module — the bundle treats every entry uniformly.
+Defaults ship `posts`, `pages`, `users`, and `media`, followed by one section per eligible custom post type (see [`desktop_mode_my_wordpress_post_types`](#desktop_mode_my_wordpress_post_types--experimental)). Plugins can pre-stage Comments / Tags / Categories without waiting for new code in this module — the bundle treats every entry uniformly.
+
+### `desktop_mode_my_wordpress_post_types` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_post_types', string[] $slugs ): string[]
+```
+
+Post type slugs rendered as sections. The default set is every post type that is **not** a Core builtin, declares `show_ui => true`, and whose `cap->edit_posts` the current user holds — so `post` / `page` / `attachment` (already root sections) and editor infrastructure (`wp_block`, `wp_template`, `wp_navigation`) are excluded, as are internal bookkeeping types.
+
+The capability check has already run by the time this filter fires, so anything still in the array is editable by the current user. Adding a slug that is neither `show_in_rest` nor bridged produces a folder with no working endpoint.
+
+### `desktop_mode_my_wordpress_post_type_entity` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_post_type_entity', array $entity, WP_Post_Type $post_type ): array
+```
+
+The descriptor built for a single post type, before it is appended to `desktop_mode_my_wordpress_entities`. Same field contract as an entry in that filter.
+
+### `desktop_mode_my_wordpress_post_type_rest_enabled` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_post_type_rest_enabled', bool $enabled, string $post_type ): bool
+```
+
+Whether a post type registered with `show_in_rest => false` may be re-exposed on the Desktop Mode bridge route `desktop-mode/v1/post-type/<slug>` so the site window can browse it.
+
+Defaults to `true` for non-builtin `show_ui` types. The bridge is **read-and-trash only** (`GET` collection, `GET` item, `DELETE` item — no create or update) and requires the type's `edit_posts` capability in every context, never public. Return `false` to keep a type off the REST API entirely; the section then disappears from the window rather than rendering a folder that cannot open.
+
+### `desktop_mode_my_wordpress_post_type_group` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_post_type_group', array|null $group, string $post_type ): array|null
+```
+
+The root-level folder a post type belongs to, resolved from the file that called `register_post_type()`:
+
+| Registrant location | Group id | Label |
+|---|---|---|
+| `WP_PLUGIN_DIR/<folder>/…` | `plugin:<folder>` | the plugin's `Plugin Name` header |
+| `WPMU_PLUGIN_DIR/…` | `mu-plugin:<slug>` | the mu-plugin's `Plugin Name` header |
+| a theme root | `theme:<stylesheet>` | the theme's `Name` |
+| anything else | `null` | — renders loose at the root |
+
+Return `null` to pull a type out of its folder, or a descriptor (`id`, `label`, `icon`, `order`) to override the attribution — useful for a suite of plugins that should share one folder.
+
+### `desktop_mode_my_wordpress_post_type_groups` — Experimental (filter)
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_post_type_groups', array[] $groups, array[] $entities ): array[]
+```
+
+The ordered folder list shipped to the bundle, deduped from the entity descriptors and sorted by `order` then label. Removing an entry does not hide its post types — they fall back to rendering loose at the root. To move a type between folders, use `desktop_mode_my_wordpress_post_type_group` instead.
+
+### WooCommerce integration — Experimental (filters)
+
+Active only when WooCommerce is. See
+[Plugin compat layer](./plugin-compat-layer.md#the-site-window-side-woocommerce)
+for what the integration does and why.
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_woo_order_args', array $args, WP_REST_Request $request ): array
+```
+
+`wc_get_orders()` args for the site window's Orders section. Defaults
+to every registered order status, newest first, so the folder count
+matches WooCommerce's own Orders screen.
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_woo_summary', array $data, string $type, int $id ): array
+```
+
+The merchant summary rendered in the right pane. `$type` is one of
+`product`, `order`, `coupon`. Add keys and the bundle ignores them —
+paint them yourself by also subscribing to
+[`desktop-mode.my-wordpress.preview-extras`](./javascript-reference.md#action--desktop-modemy-wordpresspreview-extras).
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_woo_store', array $data ): array
+```
+
+The store headline numbers shown on the Woo folder — revenue this
+month, orders awaiting action, out-of-stock count.
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_woo_order_bands', array[] $bands ): array[]
+```
+
+The status bands the Orders section groups tiles into, ordered so the
+ones a merchant must act on come first. Each entry declares `id`,
+`label`, `order` (lower renders first), and `statuses` — WooCommerce
+status slugs **without** the `wc-` prefix. Keep a catch-all with no
+statuses last; it collects anything no other band claims.
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_woo_product_bands', array[] $bands ): array[]
+```
+
+The bands the Products section groups tiles into: out-of-stock and
+backorder first, then one band per `product_cat` term, then an
+uncategorised catch-all. Each entry declares `id`, `label`, `order`,
+and one matcher — `stock` (a stock-status slug) or `category` (a term
+slug). Stock bands win over category bands, so an empty shelf surfaces
+wherever the product is filed.
+
+```php
+apply_filters( 'desktop_mode_my_wordpress_woo_section_icons', array $icons ): array
+```
+
+Post type slug → dashicon class for the WooCommerce sections. These
+types are submenu entries under the WooCommerce menu, so they carry no
+`menu_icon` of their own and would otherwise fall back to the generic
+post pin.
 
 ### `desktop_mode_my_wordpress_template_html` — Experimental (filter)
 

@@ -83,7 +83,11 @@
 	gap: 8px;
 	padding: 8px 12px;
 	border-bottom: 1px solid var( --wpd-border, #dcdcde );
-	background: transparent;
+	/* Opaque and above the canvas: the tile canvas scrolls beneath
+	 * this row, and a transparent toolbar let tiles read through it. */
+	position: relative;
+	z-index: 4;
+	background: var( --wpd-bg, #fff );
 }
 
 .desktop-mode-my-wordpress__list-toolbar-search {
@@ -201,6 +205,159 @@
  * the folder windows + wallpaper tiles use. No section-specific
  * override here — visual parity across the whole shell.
  */
+
+/* Large tiles — sections that opt in with `tileSize: 'large'`.
+ *
+ * A section whose rows carry a photograph (a shop's products) reads
+ * as a catalogue, not a file list: the picture is what's being
+ * scanned, and at 48px it's a thumbnail of a thumbnail. Roughly
+ * doubling the icon well also gives a corner ribbon room to be a
+ * corner flash instead of covering the subject.
+ *
+ * The cell pitch lives in `TILE_METRICS_LARGE` (src/my-wordpress/
+ * index.ts) and the two MUST move together — a wider tile in a cell
+ * that didn't grow overlaps its neighbour. */
+.desktop-mode-my-wordpress__tiles--large .desktop-mode-file-tile {
+	width: 132px;
+}
+
+.desktop-mode-my-wordpress__tiles--large .desktop-mode-file-tile__visual,
+.desktop-mode-my-wordpress__tiles--large .desktop-mode-file-tile__icon {
+	width: 104px;
+	height: 104px;
+	font-size: 64px;
+}
+
+.desktop-mode-my-wordpress__tiles--large .desktop-mode-file-tile__preview {
+	width: 104px;
+	height: 104px;
+	border-radius: 8px;
+}
+
+/* Three lines of title at this width instead of two — a product name
+ * is long and the extra width earns the room. Matches the taller
+ * cell in `TILE_METRICS_LARGE`. */
+.desktop-mode-my-wordpress__tiles--large .desktop-mode-file-tile__label {
+	-webkit-line-clamp: 3;
+}
+
+/* Featured-image tiles. Entries that have a featured image render it
+ * in the icon well instead of the section dashicon — decisive for
+ * image-led types like WooCommerce products. The base
+ * `.desktop-mode-file-tile__preview` rule in `desktop-files.css`
+ * already sizes and crops it; all that's added here is a hairline
+ * border so a light-on-light photo still reads as a distinct object
+ * against the wallpaper, plus a neutral well behind it so a
+ * transparent PNG or a slow-loading image doesn't flash the
+ * wallpaper through. */
+.desktop-mode-my-wordpress__tile--entry .desktop-mode-file-tile__preview {
+	background: var(
+		--desktop-mode-media-tile-bg,
+		rgba( 0, 0, 0, 0.05 )
+	);
+	box-shadow: inset 0 0 0 1px rgba( 0, 0, 0, 0.12 );
+}
+
+/* Banded list views. A section can split its tiles into labelled
+ * bands (WooCommerce Orders groups by status, needs-attention first)
+ * instead of one flat canvas. The root container stops being a
+ * positioned canvas and becomes a plain stack; each band owns its
+ * own canvas below its heading. */
+.desktop-mode-my-wordpress__tiles--banded {
+	position: static;
+	min-height: 0;
+}
+
+.desktop-mode-my-wordpress__band + .desktop-mode-my-wordpress__band {
+	margin-block-start: 8px;
+}
+
+/* Bands are laid out in order before the first page arrives so none
+ * appears mid-scroll, but one that hasn't received a row yet stays
+ * out of the way rather than showing a heading over nothing. */
+.desktop-mode-my-wordpress__band--empty {
+	display: none;
+}
+
+.desktop-mode-my-wordpress__band-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	position: sticky;
+	/* Keeps the band label visible while scrolling a long band —
+	 * the whole point of banding is knowing what you're looking at. */
+	top: 0;
+	/* Above the absolutely-positioned tiles of every band, including
+	 * the ones that come later in the DOM. */
+	z-index: 3;
+	margin: 0;
+	padding: 6px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var( --wpd-fg-muted, #787c82 );
+	/* Near-opaque on purpose. Tiles scrolling underneath are behind
+	 * the bar, but at 85% they still read as ghostly blurred shapes
+	 * through it, which looks like a rendering fault rather than
+	 * frosted glass. The blur + saturate keeps the frosted feel while
+	 * the alpha stops the content beneath resolving into shapes. */
+	background: color-mix(
+		in srgb,
+		var( --wpd-bg, #fff ) 94%,
+		transparent
+	);
+	backdrop-filter: blur( 14px ) saturate( 180% );
+	border-block-end: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+}
+
+/* Browsers without `color-mix()` fall back to the flat surface —
+ * still opaque, just without the translucency. */
+@supports not ( background: color-mix( in srgb, red 50%, transparent ) ) {
+	.desktop-mode-my-wordpress__band-title {
+		background: var( --wpd-bg, #fff );
+	}
+}
+
+/* Attention-carrying bands (WooCommerce's "Needs attention",
+ * "Problems") tint their bar so the eye lands there first instead of
+ * having to read every heading. */
+.desktop-mode-my-wordpress__band-title--warn {
+	color: var( --wpd-warning, #8a6116 );
+	background: color-mix(
+		in srgb,
+		var( --wpd-warning, #8a6116 ) 12%,
+		var( --wpd-bg, #fff )
+	);
+	border-block-end-color: color-mix(
+		in srgb,
+		var( --wpd-warning, #8a6116 ) 35%,
+		transparent
+	);
+}
+
+.desktop-mode-my-wordpress__band-title--danger {
+	color: var( --wpd-danger, #b32d2e );
+	background: color-mix(
+		in srgb,
+		var( --wpd-danger, #b32d2e ) 12%,
+		var( --wpd-bg, #fff )
+	);
+	border-block-end-color: color-mix(
+		in srgb,
+		var( --wpd-danger, #b32d2e ) 35%,
+		transparent
+	);
+}
+
+.desktop-mode-my-wordpress__band-count {
+	padding: 0 6px;
+	border-radius: 999px;
+	font-size: 11px;
+	line-height: 1.7;
+	background: color-mix( in srgb, currentColor 16%, transparent );
+	color: inherit;
+}
 
 /* Lock state — another user is currently editing this post. We dim
  * the tile a touch and overlay a small dashicon-lock badge on the
