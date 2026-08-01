@@ -103,35 +103,13 @@
 	margin-inline-end: 4px;
 }
 
-/* ----- Status pills ----- */
-
+/* ----- Status pills -----
+ *
+ * `<wpd-badge>` owns the pill shape, the tone-coded dot and the
+ * theming tokens. Nothing to style here beyond keeping it on the
+ * baseline of its row. */
 .desktop-mode-woo-panel__pill {
-	display: inline-block;
-	padding: 1px 8px;
-	border-radius: 999px;
-	font-size: 12px;
-	font-weight: 600;
-	line-height: 1.6;
-	/* `color-mix` keeps the tint legible in both colour schemes by
-	 * blending the semantic colour into the current surface rather
-	 * than committing to a fixed light-mode background. */
-	background: color-mix( in srgb, currentColor 14%, transparent );
-}
-
-.desktop-mode-woo-panel__pill--good {
-	color: var( --wpd-success, #007017 );
-}
-
-.desktop-mode-woo-panel__pill--warn {
-	color: var( --wpd-warning, #8a6116 );
-}
-
-.desktop-mode-woo-panel__pill--bad {
-	color: var( --wpd-danger, #b32d2e );
-}
-
-.desktop-mode-woo-panel__pill--neutral {
-	color: var( --wpd-fg-muted, #787c82 );
+	vertical-align: middle;
 }
 
 /* ----- Order line items ----- */

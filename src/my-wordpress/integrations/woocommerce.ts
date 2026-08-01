@@ -24,6 +24,11 @@ import { trackedFetch } from '../../tracked-fetch';
 // main desktop bundle defines it too, but this bundle can load into a
 // window whose shell bundle hasn't, so it owns its own import.
 import '../../ui/components/wpd-ribbon/wpd-ribbon';
+import '../../ui/components/wpd-badge/wpd-badge';
+import type { WpdBadgeTone } from '../../ui/components/wpd-badge/wpd-badge';
+
+/** Tone vocabulary shared by the status pills and the tile ribbons. */
+type BadgeTone = WpdBadgeTone;
 
 /* -------------------------------------------------------------------
  * Contracts
@@ -328,8 +333,8 @@ function link( label: string, href: string ): Node {
 }
 
 /** A comma-separated run of links. */
-function linkList( refs: LinkedRef[] ): Node | null {
-	if ( refs.length === 0 ) {
+function linkList( refs: LinkedRef[] | undefined ): Node | null {
+	if ( ! refs || refs.length === 0 ) {
 		return null;
 	}
 	const wrap = document.createElement( 'span' );
@@ -368,15 +373,18 @@ function panel(
 	return host;
 }
 
-/** A coloured status pill — active/inactive, order status, stock. */
-function pill(
-	text: string,
-	tone: 'good' | 'warn' | 'bad' | 'neutral',
-): HTMLElement {
-	const el = document.createElement( 'span' );
-	el.className = `${ PANEL_CLASS }__pill ${ PANEL_CLASS }__pill--${ tone }`;
-	el.textContent = text;
-	return el;
+/**
+ * A status pill — active/inactive, order status, stock.
+ *
+ * `<wpd-badge>` owns the pill shape, the tone-coded dot and the
+ * theming tokens; this is just the tone mapping.
+ */
+function pill( text: string, tone: BadgeTone ): HTMLElement {
+	const badge = document.createElement( 'wpd-badge' );
+	badge.setAttribute( 'tone', tone );
+	badge.className = `${ PANEL_CLASS }__pill`;
+	badge.textContent = text;
+	return badge;
 }
 
 /** Price line — sale price with the regular price struck through. */
@@ -441,29 +449,54 @@ function paintPanel(
 	shell.setAttribute( 'aria-busy', 'true' );
 	host.appendChild( shell );
 
-	void load().then( ( result ) => {
-		if ( ! shell.isConnected ) {
-			return;
-		}
-		shell.removeAttribute( 'aria-busy' );
+	/** Swap the placeholders for a message. */
+	const fail = ( message: string ): void => {
 		const list = shell.querySelector( `.${ PANEL_CLASS }__rows` );
 		if ( ! list ) {
 			return;
 		}
 		list.replaceChildren();
-		if ( 'error' in result ) {
-			const note = document.createElement( 'p' );
-			note.className = `${ PANEL_CLASS }__error`;
-			note.textContent = result.error;
-			list.appendChild( note );
-			return;
-		}
-		result.rows.forEach( ( r ) => {
-			if ( r ) {
-				list.appendChild( r );
+		const note = document.createElement( 'p' );
+		note.className = `${ PANEL_CLASS }__error`;
+		note.textContent = message;
+		list.appendChild( note );
+	};
+
+	void load()
+		.then( ( result ) => {
+			if ( ! shell.isConnected ) {
+				return;
 			}
+			shell.removeAttribute( 'aria-busy' );
+			if ( 'error' in result ) {
+				fail( result.error );
+				return;
+			}
+			const list = shell.querySelector( `.${ PANEL_CLASS }__rows` );
+			if ( ! list ) {
+				return;
+			}
+			list.replaceChildren();
+			result.rows.forEach( ( r ) => {
+				if ( r ) {
+					list.appendChild( r );
+				}
+			} );
+		} )
+		.catch( ( err ) => {
+			// The payload passes through
+			// `desktop_mode_my_wordpress_woo_summary`, so a plugin can
+			// rename or drop a field the row builders read. Without
+			// this the panel sat on its placeholders forever, looking
+			// like a request that never came back.
+			if ( ! shell.isConnected ) {
+				return;
+			}
+			shell.removeAttribute( 'aria-busy' );
+			// eslint-disable-next-line no-console -- the panel shows a summary; the console carries the cause.
+			console.warn( '[desktop-mode] WooCommerce panel failed to render', err );
+			fail( __( 'Could not show WooCommerce details.', 'desktop-mode' ) );
 		} );
-	} );
 }
 
 /* -------------------------------------------------------------------
@@ -478,37 +511,37 @@ function paintPanel(
 function stockToneFor(
 	stockStatus: string,
 	stockLevel: number | null,
-): 'good' | 'warn' | 'bad' {
+): BadgeTone {
 	if ( stockStatus === 'outofstock' ) {
-		return 'bad';
+		return 'danger';
 	}
 	if ( stockStatus === 'onbackorder' ) {
-		return 'warn';
+		return 'warning';
 	}
 	if ( stockLevel !== null && stockLevel <= LOW_STOCK_THRESHOLD ) {
-		return 'warn';
+		return 'warning';
 	}
-	return 'good';
+	return 'success';
 }
 
 /** Order-status tint, keyed off WooCommerce's status slugs. */
-function orderToneFor( status: string ): 'good' | 'warn' | 'bad' | 'neutral' {
+function orderToneFor( status: string ): BadgeTone {
 	if ( status === 'completed' ) {
-		return 'good';
+		return 'success';
 	}
 	if (
 		status === 'processing' ||
 		status === 'on-hold' ||
 		status === 'pending'
 	) {
-		return 'warn';
+		return 'warning';
 	}
 	if (
 		status === 'cancelled' ||
 		status === 'failed' ||
 		status === 'refunded'
 	) {
-		return 'bad';
+		return 'danger';
 	}
 	return 'neutral';
 }
@@ -528,13 +561,18 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 				data.stockLevel,
 			);
 
+	// Fields are read defensively throughout: the payload passes
+	// through `desktop_mode_my_wordpress_woo_summary`, so a plugin can
+	// legitimately drop or rename any of them and a bare dereference
+	// would take the whole panel down.
+	const reviews = Number( data.reviews ) || 0;
 	const rating =
-		data.reviews > 0
+		reviews > 0
 			? sprintf(
 				/* translators: 1: average rating, 2: number of reviews. */
 				__( '%1$s ★ (%2$d)', 'desktop-mode' ),
-				data.rating.toFixed( 1 ),
-				data.reviews,
+				( Number( data.rating ) || 0 ).toFixed( 1 ),
+				reviews,
 			)
 			: '';
 
@@ -572,7 +610,10 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 		),
 		row( __( 'Rating', 'desktop-mode' ), rating ),
 		row( __( 'Type', 'desktop-mode' ), type ),
-		row( __( 'Categories', 'desktop-mode' ), data.categories.join( ', ' ) ),
+		row(
+			__( 'Categories', 'desktop-mode' ),
+			( data.categories ?? [] ).join( ', ' ),
+		),
 		row(
 			__( 'Open', 'desktop-mode' ),
 			data.editUrl || data.permalink
@@ -604,7 +645,8 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 function renderOrder( data: OrderSummary ): Array< HTMLElement | null > {
 	const items = document.createElement( 'ul' );
 	items.className = `${ PANEL_CLASS }__items`;
-	data.items.forEach( ( item ) => {
+	const lineItems = data.items ?? [];
+	lineItems.forEach( ( item ) => {
 		const li = document.createElement( 'li' );
 		li.className = `${ PANEL_CLASS }__item`;
 
@@ -645,7 +687,10 @@ function renderOrder( data: OrderSummary ): Array< HTMLElement | null > {
 		row( __( 'Subtotal', 'desktop-mode' ), data.subtotal ),
 		row( __( 'Shipping', 'desktop-mode' ), data.shipping ),
 		row( __( 'Discount', 'desktop-mode' ), data.discount ),
-		row( __( 'Coupons', 'desktop-mode' ), data.coupons.join( ', ' ) ),
+		row(
+			__( 'Coupons', 'desktop-mode' ),
+			( data.coupons ?? [] ).join( ', ' ),
+		),
 		row( __( 'Paid via', 'desktop-mode' ), data.paymentVia ),
 		row( __( 'Customer', 'desktop-mode' ), customer ),
 		row( __( 'Placed', 'desktop-mode' ), shortDate( data.placed ) ),
@@ -655,7 +700,7 @@ function renderOrder( data: OrderSummary ): Array< HTMLElement | null > {
 				__( 'Items (%d)', 'desktop-mode' ),
 				data.itemCount,
 			),
-			data.items.length > 0 ? items : null,
+			lineItems.length > 0 ? items : null,
 		),
 		row(
 			__( 'Open', 'desktop-mode' ),
@@ -691,10 +736,10 @@ function renderCoupon( data: CouponSummary ): Array< HTMLElement | null > {
 		row(
 			__( 'Status', 'desktop-mode' ),
 			data.active
-				? pill( __( 'Active', 'desktop-mode' ), 'good' )
+				? pill( __( 'Active', 'desktop-mode' ), 'success' )
 				: pill(
 					data.inactiveWhy || __( 'Inactive', 'desktop-mode' ),
-					'bad',
+					'danger',
 				),
 		),
 		row( __( 'Discount', 'desktop-mode' ), data.discount ),
@@ -730,7 +775,10 @@ function renderCoupon( data: CouponSummary ): Array< HTMLElement | null > {
 		row( __( 'Products', 'desktop-mode' ), linkList( data.products ) ),
 		row( __( 'Excludes', 'desktop-mode' ), linkList( data.excluded ) ),
 		row( __( 'Categories', 'desktop-mode' ), linkList( data.categories ) ),
-		row( __( 'Allowed emails', 'desktop-mode' ), data.emails.join( ', ' ) ),
+		row(
+			__( 'Allowed emails', 'desktop-mode' ),
+			( data.emails ?? [] ).join( ', ' ),
+		),
 		row(
 			__( 'Open', 'desktop-mode' ),
 			data.editUrl

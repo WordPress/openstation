@@ -184,6 +184,48 @@ class Tests_DesktopMode_MyWordpressWoocommerce extends WP_UnitTestCase {
 	}
 
 	/**
+	 * `rest_product_query` fires for every caller of that collection —
+	 * WooCommerce Blocks' Product Collection renders through it. The
+	 * band ordering must only apply to the site window's own requests,
+	 * or a storefront's chosen sort is silently replaced by ours.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_woo_is_banded_request
+	 */
+	public function test_band_ordering_only_claims_marked_requests() {
+		$marked = new WP_REST_Request( 'GET', '/wp/v2/product' );
+		$marked->set_param( DESKTOP_MODE_WOO_BANDED_PARAM, '1' );
+		$this->assertTrue(
+			desktop_mode_my_wordpress_woo_is_banded_request( $marked )
+		);
+
+		$plain = new WP_REST_Request( 'GET', '/wp/v2/product' );
+		$this->assertFalse(
+			desktop_mode_my_wordpress_woo_is_banded_request( $plain ),
+			'an unmarked request must keep its own ordering'
+		);
+
+		$this->assertFalse(
+			desktop_mode_my_wordpress_woo_is_banded_request( null )
+		);
+	}
+
+	/**
+	 * An unmarked query is returned untouched — no `post__in`, no
+	 * `orderby` rewrite.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_woo_order_products
+	 */
+	public function test_unmarked_product_queries_are_untouched() {
+		$args    = array( 'orderby' => 'price', 'order' => 'ASC' );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/product' );
+
+		$this->assertSame(
+			$args,
+			desktop_mode_my_wordpress_woo_order_products( $args, $request )
+		);
+	}
+
+	/**
 	 * The mark ships as a `currentColor` SVG so `renderIcon()` masks
 	 * it and the folder icon follows the desktop theme, rather than
 	 * being stuck on WooCommerce's hard-coded grey.

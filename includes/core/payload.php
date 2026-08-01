@@ -901,6 +901,43 @@ function desktop_mode_type_registrant_file( $type, $kind ) {
 }
 
 /**
+ * Whether this request will ever read the CPT / taxonomy attribution
+ * map, and is therefore worth paying a `debug_backtrace()` per
+ * non-builtin type registration to build it.
+ *
+ * Only admin-side surfaces consume it: the dock payload (built on
+ * `admin_enqueue_scripts`) and the site window's section list (built
+ * on `init`, admin only). A front-end page view registers exactly the
+ * same types — WooCommerce alone brings several — and would pay the
+ * whole cost for a map nothing reads.
+ *
+ * The predecessor of this function got the same effect by accident:
+ * it bailed when `get_plugins()` was undefined, which is every
+ * front-end request. That guard went away when the resolution moved to
+ * lazy path recording, so the gate is now explicit.
+ *
+ * @return bool
+ */
+function desktop_mode_should_track_type_registrants() {
+	$track = is_admin();
+
+	/**
+	 * Filter whether to record which extension registered each CPT and
+	 * taxonomy this request.
+	 *
+	 * The map drives the dock's "Deactivate <plugin>" action and the
+	 * site window's plugin folders. Return true on a front-end request
+	 * only if something there reads it — building it costs one bounded
+	 * backtrace per non-builtin type registration.
+	 *
+	 * **Status: Experimental**
+	 *
+	 * @param bool $track Default: admin requests only.
+	 */
+	return (bool) apply_filters( 'desktop_mode_track_type_registrants', $track );
+}
+
+/**
  * Record the registering file for a CPT or taxonomy. Hooked at
  * `registered_post_type` / `registered_taxonomy` priority 9999 so we
  * fire after every other listener has run (lets a plugin re-register
@@ -918,6 +955,9 @@ function desktop_mode_type_registrant_file( $type, $kind ) {
  */
 function desktop_mode_record_type_registrant( $type_or_post_type, $kind ) {
 	if ( '' === (string) $type_or_post_type ) {
+		return;
+	}
+	if ( ! desktop_mode_should_track_type_registrants() ) {
 		return;
 	}
 	// Skip Core builtin types — they're registered from Core itself

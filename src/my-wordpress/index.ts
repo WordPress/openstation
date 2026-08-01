@@ -617,26 +617,44 @@ interface FolderTileSpec {
  * plugin that appends sections through the JS API alone still groups.
  */
 function getGroups( cfg: MyWordPressConfig ): MyWordPressGroup[] {
-	if ( Array.isArray( cfg.groups ) && cfg.groups.length > 0 ) {
-		return cfg.groups;
-	}
-	const seen = new Map< string, MyWordPressGroup >();
+	// Server-declared groups keep the order PHP gave them — the
+	// `desktop_mode_my_wordpress_post_type_groups` filter can reorder
+	// them, and re-sorting here would undo that.
+	const merged: MyWordPressGroup[] = Array.isArray( cfg.groups )
+		? [ ...cfg.groups ]
+		: [];
+	const known = new Set( merged.map( ( group ) => group.id ) );
+
+	// Derive anything an entity references that the server didn't
+	// ship. This is per-group, not all-or-nothing: a section appended
+	// from JS carries its own group fields, and on a site that also
+	// has PHP-registered groups it would otherwise be filtered out of
+	// the root tiles (it has a `group`) without any folder collecting
+	// it (its group isn't in the server list) — the section would
+	// simply disappear.
 	cfg.entities.forEach( ( entity ) => {
-		if ( ! entity.group || seen.has( entity.group ) ) {
+		if ( ! entity.group || known.has( entity.group ) ) {
 			return;
 		}
-		seen.set( entity.group, {
+		known.add( entity.group );
+		const derived: MyWordPressGroup = {
 			id: entity.group,
 			label: entity.groupLabel || entity.group,
 			icon: entity.groupIcon || 'dashicons-admin-plugins',
 			order: entity.groupOrder ?? 20,
-		} );
+		};
+		// Slot it by `order` among the groups already present rather
+		// than appending, so a late-registered folder still lands
+		// where its weight says it should.
+		const at = merged.findIndex( ( group ) => group.order > derived.order );
+		if ( at === -1 ) {
+			merged.push( derived );
+		} else {
+			merged.splice( at, 0, derived );
+		}
 	} );
-	return [ ...seen.values() ].sort( ( a, b ) =>
-		a.order === b.order
-			? a.label.localeCompare( b.label )
-			: a.order - b.order,
-	);
+
+	return merged;
 }
 
 /** Sections belonging to a group, in registry order. */

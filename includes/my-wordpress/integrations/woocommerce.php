@@ -175,6 +175,7 @@ function desktop_mode_my_wordpress_woo_entity_icon( $entity, $post_type ) {
 	if ( 'shop_coupon' === $name ) {
 		$entity['thumbnails'] = false;
 		$entity['listFields'] = array( 'desktop_mode_woo' );
+		$entity['listQuery']  = array( DESKTOP_MODE_WOO_BANDED_PARAM => '1' );
 	}
 
 	// Products band by stock and category, both of which ride the
@@ -182,6 +183,7 @@ function desktop_mode_my_wordpress_woo_entity_icon( $entity, $post_type ) {
 	// doesn't strip it out of the list rows.
 	if ( 'product' === $name ) {
 		$entity['listFields'] = array( 'desktop_mode_woo' );
+		$entity['listQuery']  = array( DESKTOP_MODE_WOO_BANDED_PARAM => '1' );
 		// A catalogue is looked at, not read — the product photo is
 		// the thing being scanned, and it earns the bigger tile.
 		$entity['tileSize']   = 'large';
@@ -553,6 +555,31 @@ function desktop_mode_my_wordpress_woo_product_plan() {
 }
 
 /**
+ * Query parameter the site window's list requests carry so the band
+ * ordering filters can scope themselves. Declared on the section
+ * descriptor as `listQuery`, sent by `fetchEntityList()`.
+ */
+const DESKTOP_MODE_WOO_BANDED_PARAM = 'desktop_mode_bands';
+
+/**
+ * Whether a REST request asked for band ordering.
+ *
+ * `rest_product_query` / `rest_shop_coupon_query` fire for every caller
+ * of those collections, not just us — the Product Collection block
+ * renders through the same filter. Without this check a storefront's
+ * chosen sort order would be silently replaced by ours.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return bool
+ */
+function desktop_mode_my_wordpress_woo_is_banded_request( $request ) {
+	if ( ! $request instanceof WP_REST_Request ) {
+		return false;
+	}
+	return '1' === (string) $request->get_param( DESKTOP_MODE_WOO_BANDED_PARAM );
+}
+
+/**
  * A readable summary of whether the Products collection is being
  * band-ordered, for diagnosing a section whose bands look wrong.
  *
@@ -636,6 +663,14 @@ add_action( 'delete_product_cat', 'desktop_mode_my_wordpress_woo_flush_band_coun
  */
 function desktop_mode_my_wordpress_woo_order_products( $args, $request ) {
 	if ( ! desktop_mode_my_wordpress_woo_active() ) {
+		return $args;
+	}
+	// Only the site window's own requests. `rest_product_query` fires
+	// for every `wp/v2/product` caller — WooCommerce Blocks' Product
+	// Collection renders through it, so rewriting `orderby`
+	// unconditionally would silently replace a storefront's chosen
+	// sort with our band order.
+	if ( ! desktop_mode_my_wordpress_woo_is_banded_request( $request ) ) {
 		return $args;
 	}
 	// A search is the user asking for relevance, not for the band
@@ -833,6 +868,9 @@ function desktop_mode_my_wordpress_woo_coupon_bands_with_counts() {
  */
 function desktop_mode_my_wordpress_woo_order_coupons( $args, $request ) {
 	if ( ! desktop_mode_my_wordpress_woo_active() || ! empty( $request['search'] ) ) {
+		return $args;
+	}
+	if ( ! desktop_mode_my_wordpress_woo_is_banded_request( $request ) ) {
 		return $args;
 	}
 	$plan = desktop_mode_my_wordpress_woo_coupon_plan();
@@ -1418,6 +1456,52 @@ function desktop_mode_my_wordpress_woo_order_summary( $id ) {
 }
 
 /**
+ * Total discount a coupon has actually given customers — the number a
+ * merchant wants and WooCommerce never surfaces.
+ *
+ * There's no aggregate for this, so it means walking paid orders and
+ * summing the matching coupon line items. Bounded to the most recent
+ * 500 orders and cached, because the coupon preview pane hits this on
+ * every selection and the scan is by far the most expensive thing in
+ * the summary.
+ *
+ * @param WC_Coupon $coupon Coupon.
+ * @return float Total discount given.
+ */
+function desktop_mode_my_wordpress_woo_coupon_discount_given( $coupon ) {
+	$cache_key = 'desktop_mode_woo_coupon_given_' . $coupon->get_id();
+	$cached    = get_transient( $cache_key );
+	if ( false !== $cached ) {
+		return (float) $cached;
+	}
+
+	$granted = 0.0;
+	$code    = strtolower( $coupon->get_code() );
+	$orders  = wc_get_orders(
+		array(
+			'limit'  => 500,
+			'status' => array( 'wc-processing', 'wc-completed' ),
+			'return' => 'objects',
+		)
+	);
+	foreach ( (array) $orders as $maybe_order ) {
+		$order = is_scalar( $maybe_order ) ? wc_get_order( (int) $maybe_order ) : $maybe_order;
+		if ( ! $order instanceof WC_Abstract_Order ) {
+			continue;
+		}
+		foreach ( $order->get_items( 'coupon' ) as $line ) {
+			if ( strtolower( $line->get_code() ) === $code ) {
+				$granted += (float) $line->get_discount();
+			}
+		}
+	}
+
+	set_transient( $cache_key, $granted, 5 * MINUTE_IN_SECONDS );
+
+	return $granted;
+}
+
+/**
  * Merchant facts for one coupon.
  *
  * @param int $id Coupon id.
@@ -1486,29 +1570,7 @@ function desktop_mode_my_wordpress_woo_coupon_summary( $id ) {
 		return $out;
 	};
 
-	// Total discount this coupon has actually given the customer —
-	// the number a merchant wants and WooCommerce never surfaces.
-	// Bounded to a sane page so a heavily-used coupon can't run away.
-	$granted = 0.0;
-	$orders  = wc_get_orders(
-		array(
-			'limit'  => 500,
-			'status' => array( 'wc-processing', 'wc-completed' ),
-			'return' => 'objects',
-		)
-	);
-	$code = strtolower( $coupon->get_code() );
-	foreach ( (array) $orders as $maybe_order ) {
-		$order = is_scalar( $maybe_order ) ? wc_get_order( (int) $maybe_order ) : $maybe_order;
-		if ( ! $order instanceof WC_Abstract_Order ) {
-			continue;
-		}
-		foreach ( $order->get_items( 'coupon' ) as $line ) {
-			if ( strtolower( $line->get_code() ) === $code ) {
-				$granted += (float) $line->get_discount();
-			}
-		}
-	}
+	$granted = desktop_mode_my_wordpress_woo_coupon_discount_given( $coupon );
 
 	return array(
 		'type'          => 'coupon',

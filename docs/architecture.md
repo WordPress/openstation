@@ -364,6 +364,18 @@ same extension collapse into a single root folder that drills into its
 members — `Site › WooCommerce › Products` — via the bundle's `group`
 route.
 
+**Query scoping.** The band ordering is pushed into `wp/v2/product` and
+the coupon bridge through `rest_product_query` /
+`rest_shop_coupon_query`, which fire for *every* consumer of those
+collections — WooCommerce Blocks' Product Collection renders through
+the same filter. The site window's list requests therefore carry a
+`desktop_mode_bands=1` marker (declared as `listQuery` on the section
+descriptor) and the filters no-op without it, so a storefront's chosen
+sort is never silently replaced. Two filters at the same priority
+fighting over `orderby` is exactly how this went wrong once already:
+WooCommerce Blocks hooks `rest_product_query` at 10 and ends with
+`array_merge( $args, …, $orderby_query )`, which is why ours runs at 99.
+
 **Ownership attribution.** `registered_post_type` / `registered_taxonomy`
 fire during `init`, where `get_plugins()` does not yet exist — Core
 loads `wp-admin/includes/plugin.php` at `wp-admin/admin.php:102`, after
@@ -373,7 +385,12 @@ path** (walking the backtrace to the first frame inside an extension
 directory, skipping Desktop Mode's own frames) and resolves it lazily:
 to a plugin file for the dock's attribution, and to a
 plugin / mu-plugin / theme group for the site window
-(`includes/my-wordpress/owner.php`). Group display names come from
+(`includes/my-wordpress/owner.php`). Recording is gated to admin
+requests (`desktop_mode_should_track_type_registrants`, filterable):
+only admin surfaces read the map, and a front-end page view registers
+the same types — paying a bounded `debug_backtrace()` per registration
+there would buy nothing. The predecessor of this code got the same
+effect by accident, bailing whenever `get_plugins()` was undefined. Group display names come from
 `get_file_data()` on the plugin header and `wp_get_theme()`, never from
 `get_plugins()` — both live in `wp-includes` and neither scans the
 plugins directory.

@@ -58,8 +58,18 @@ class Tests_DesktopMode_TypeRegistrant extends WP_UnitTestCase {
 		}
 	}
 
+	public function set_up() {
+		parent::set_up();
+		// Registrant tracking only runs where something reads the map.
+		// `is_admin()` consults `$current_screen` first, and the test
+		// suite starts on the front end.
+		set_current_screen( 'dashboard' );
+	}
+
 	public function tear_down() {
-		foreach ( array( 'dm_tracked', 'dm_selfattr' ) as $type ) {
+		set_current_screen( 'front' );
+		remove_all_filters( 'desktop_mode_track_type_registrants' );
+		foreach ( array( 'dm_tracked', 'dm_selfattr', 'dm_frontonly' ) as $type ) {
 			if ( post_type_exists( $type ) ) {
 				unregister_post_type( $type );
 			}
@@ -199,6 +209,47 @@ class Tests_DesktopMode_TypeRegistrant extends WP_UnitTestCase {
 		$this->assertNull(
 			desktop_mode_lookup_taxonomy_or_post_type_plugin_file( 'edit.php' )
 		);
+	}
+
+	/**
+	 * The map is only read by admin-side surfaces (the dock payload,
+	 * the site window's section list). A front-end page view registers
+	 * the same types and would pay a `debug_backtrace()` per
+	 * registration for a map nothing reads — the predecessor of this
+	 * code avoided that by accident, bailing whenever `get_plugins()`
+	 * was undefined.
+	 *
+	 * @covers ::desktop_mode_should_track_type_registrants
+	 */
+	public function test_tracking_is_skipped_off_the_admin() {
+		$this->assertTrue(
+			desktop_mode_should_track_type_registrants(),
+			'admin context tracks'
+		);
+
+		set_current_screen( 'front' );
+		$this->assertFalse(
+			desktop_mode_should_track_type_registrants(),
+			'front-end skips'
+		);
+
+		// Its own slug: the map is a per-request static, so a slug an
+		// earlier test in this class recorded would read back stale.
+		dm_registrant_fixture_register( 'dm_frontonly', 'post_type' );
+		$this->assertNull(
+			desktop_mode_type_registrant_file( 'dm_frontonly', 'post_type' ),
+			'nothing recorded off the admin'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_should_track_type_registrants
+	 */
+	public function test_tracking_is_filterable() {
+		set_current_screen( 'front' );
+		add_filter( 'desktop_mode_track_type_registrants', '__return_true' );
+
+		$this->assertTrue( desktop_mode_should_track_type_registrants() );
 	}
 
 	/**

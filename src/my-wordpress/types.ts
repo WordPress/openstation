@@ -65,6 +65,16 @@ export interface MyWordPressEntity {
 	 */
 	listFields?: string[];
 	/**
+	 * Extra query parameters sent with this section's list requests.
+	 *
+	 * Lets a section mark its own requests so server-side query
+	 * filters can scope themselves to the site window instead of
+	 * rewriting every REST caller's query. The WooCommerce sections
+	 * use it to opt into band ordering, which must not leak into a
+	 * storefront block's `wp/v2/product` request.
+	 */
+	listQuery?: Record< string, string >;
+	/**
 	 * Folder this section nests under at the root of the window.
 	 * Sections registered by the same plugin or theme share a group
 	 * id, so they render as one folder that drills into its members.

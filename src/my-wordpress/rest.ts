@@ -118,6 +118,11 @@ export async function fetchEntityList(
 		].join( ',' ),
 	);
 	url.searchParams.set( '_embed', 'wp:featuredmedia' );
+	// Section-declared markers, so a server-side query filter can tell
+	// a site-window request from any other REST caller's.
+	for ( const [ key, value ] of Object.entries( entity.listQuery ?? {} ) ) {
+		url.searchParams.set( key, value );
+	}
 	// Surface drafts/private/pending so authors see their unpublished
 	// content too. Endpoint enforces `edit_posts` for non-publish
 	// statuses, so unauthorized users still only see what they can

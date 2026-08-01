@@ -5578,8 +5578,28 @@ interface MyWordPressEntity {
     groupLabel?: string | null;
     groupIcon?: string | null;
     groupOrder?: number | null;
+    /** Extra REST fields to keep on this section's list rows. */
+    listFields?: string[];
+    /** Extra query params sent with this section's list requests. */
+    listQuery?: Record< string, string >;
+    /** `'large'` roughly doubles the icon well. Default `'regular'`. */
+    tileSize?: 'regular' | 'large';
 }
 ```
+
+Groups from the server and groups derived from entity descriptors are
+**merged**, not either-or: a section appended from JS with a `group` the
+server doesn't know about still gets a folder, slotted by its
+`groupOrder` among the server's. Server-declared groups keep the order
+PHP gave them, so the
+`desktop_mode_my_wordpress_post_type_groups` filter's ordering is
+preserved.
+
+`listQuery` exists so a server-side query filter can tell a site-window
+request from any other REST caller's. `rest_product_query` fires for
+every consumer of that collection — the Product Collection block
+included — so a filter that reorders unconditionally silently replaces
+a storefront's chosen sort.
 
 With `thumbnails` unset or `true`, a `'post'`-kind entry that has a
 featured image renders it in place of the section icon — the list

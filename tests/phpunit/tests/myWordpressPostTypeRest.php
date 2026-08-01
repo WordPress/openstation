@@ -111,6 +111,32 @@ class Tests_DesktopMode_MyWordpressPostTypeRest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * In production the route is never registered for a user who
+	 * can't use the site window — they get a 404 before any
+	 * permission callback runs. The 401/403 tests above cover the
+	 * callback itself (defence in depth, since the routes are
+	 * registered per-request); this covers the outer gate.
+	 *
+	 * @covers ::desktop_mode_my_wordpress_register_post_type_routes
+	 */
+	public function test_routes_are_not_registered_for_users_who_cannot_use_the_window() {
+		foreach ( array( 0, self::$subscriber_id ) as $user_id ) {
+			wp_set_current_user( $user_id );
+
+			// Rebuild the server so registration re-runs as this user.
+			global $wp_rest_server;
+			$wp_rest_server = null;
+			add_action( 'rest_api_init', 'desktop_mode_my_wordpress_register_post_type_routes' );
+
+			$this->assertArrayNotHasKey(
+				'/desktop-mode/v1/post-type/dm_coupon',
+				rest_get_server()->get_routes(),
+				'route registered for user ' . $user_id
+			);
+		}
+	}
+
+	/**
 	 * @covers ::desktop_mode_my_wordpress_register_post_type_routes
 	 */
 	public function test_rest_enabled_filter_suppresses_registration() {
