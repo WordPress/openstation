@@ -22,8 +22,15 @@
  */
 
 import { doAction } from '../hooks';
+import { showToast } from '../toast';
 import { rest, store as filesStoreApi } from './layer-deps';
-import { buildTile, placementLabel, setTilePosition, TILE_CLASS } from './file-tile';
+import {
+	buildTile,
+	placementLabel,
+	placementVisual,
+	setTilePosition,
+	TILE_CLASS,
+} from './file-tile';
 import {
 	tilePayloadAccepts,
 	tilePayloadAcceptLabel,
@@ -36,6 +43,7 @@ import { resolve as resolveFileType } from './registry';
 import {
 	cellKey,
 	cellToPos,
+	buildOccupiedSet,
 	GRID_CELL_H,
 	GRID_CELL_W,
 	GRID_PADDING,
@@ -54,6 +62,8 @@ import type {
 	DesktopFileDragData,
 	ShortcutDragData,
 } from './drag-payloads';
+import { registerUrlIntakeTarget } from './url-intake';
+import { createWebBookmark } from './web-bookmarks';
 
 /**
  * Build a cross-frame bridge payload from a placement, or return
@@ -489,6 +499,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 			if ( tile ) {
 				applyTilePosition( tile, placement, pinnedSlots, displaced );
 				syncTileLabel( tile, placement );
+				syncTileVisual( tile, placement );
 				continue;
 			}
 			container.appendChild(
@@ -1140,6 +1151,93 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		resizeObserver.observe( host );
 	}
 
+	const unregisterUrlIntake = registerUrlIntakeTarget( {
+		host,
+		onUrl: async ( request ) => {
+			try {
+				let targetFolderId = folderId;
+				const eventElement = request.eventTarget instanceof Element
+					? request.eventTarget
+					: null;
+				const folderTile = eventElement?.closest< HTMLElement >(
+					`.${ TILE_CLASS }[data-file-type="folder"]`,
+				);
+				if ( folderTile && host.contains( folderTile ) ) {
+					const folderRef = Number( folderTile.dataset.fileRef ?? 0 );
+					if ( Number.isFinite( folderRef ) && folderRef > 0 ) {
+						targetFolderId = folderRef;
+					}
+				}
+
+				if (
+					targetFolderId !== folderId &&
+					! filesStoreApi.getState().hydratedFolders.has( targetFolderId )
+				) {
+					const response = await rest.listPlacements( targetFolderId );
+					filesStoreApi.setFolderPlacements(
+						targetFolderId,
+						response.placements,
+					);
+				}
+
+				const peers =
+					filesStoreApi.getState().placementsByFolder.get( targetFolderId ) ?? [];
+				const occupied = buildOccupiedSet( peers );
+				let cell;
+				if (
+					request.source === 'drop' &&
+					targetFolderId === folderId &&
+					typeof request.clientX === 'number' &&
+					typeof request.clientY === 'number'
+				) {
+					const rect = container.getBoundingClientRect();
+					cell = snapToEmptyCell(
+						Math.max( 0, request.clientX - rect.left ),
+						Math.max( 0, request.clientY - rect.top ),
+						occupied,
+						host,
+					);
+				} else {
+					cell = nextRowMajorCell(
+						occupied,
+						targetFolderId === folderId ? host : null,
+					);
+				}
+
+				const result = await createWebBookmark( {
+					folderId: targetFolderId,
+					url: request.url,
+					x: cell.x,
+					y: cell.y,
+					repositionExisting: request.source === 'drop',
+				} );
+				if ( targetFolderId === folderId ) {
+					setSelected( result.placement );
+				}
+				if ( request.source === 'drop' && targetFolderId === 0 ) {
+					doAction( 'desktop-mode.files.tile-manually-placed', {
+						folderId: 0,
+						placementId: result.placement.id,
+					} );
+				}
+				showToast( {
+					message: result.created
+						? 'Bookmark added.'
+						: 'That bookmark is already in this folder.',
+				} );
+			} catch ( err ) {
+				const detail = err instanceof Error ? err.message : '';
+				// eslint-disable-next-line no-console
+				console.error( '[desktop-mode] bookmark creation failed:', err );
+				showToast( {
+					message: detail.includes( 'read access' )
+						? 'You don’t have permission to add bookmarks to this folder.'
+						: 'Could not add that bookmark.',
+				} );
+			}
+		},
+	} );
+
 	return {
 		host,
 		folderId,
@@ -1153,6 +1251,7 @@ export function mountFilesLayer( host: HTMLElement, folderId = 0 ): FilesLayer {
 		reflow,
 		hydrated,
 		dispose() {
+			unregisterUrlIntake();
 			off();
 			resizeObserver?.disconnect();
 			resizeObserver = null;
@@ -1584,6 +1683,7 @@ function tryPatchPositions(
 			setTilePosition( tile, placement.x, placement.y );
 		}
 		syncTileLabel( tile, placement );
+		syncTileVisual( tile, placement );
 	}
 
 	return true;
@@ -1607,6 +1707,35 @@ function syncTileLabel(
 	const label = placementLabel( placement );
 	if ( tile.getAttribute( 'label' ) !== label ) {
 		tile.setAttribute( 'label', label );
+	}
+}
+
+/**
+ * Sync artwork on a reused tile. Web metadata enrichment updates
+ * `meta.iconUrl` after the tile is already visible; the fast repaint paths
+ * preserve DOM identity, so they must explicitly reflect the new icon.
+ */
+function syncTileVisual(
+	tile: HTMLElement,
+	placement: RestPlacementShape,
+): void {
+	const visual = placementVisual( placement );
+	for ( const [ attribute, value ] of [
+		[ 'thumbnail', visual.thumbnail ],
+		[ 'icon', visual.icon ],
+	] as const ) {
+		if ( value ) {
+			if ( tile.getAttribute( attribute ) !== value ) {
+				tile.setAttribute( attribute, value );
+			}
+		} else if ( tile.hasAttribute( attribute ) ) {
+			tile.removeAttribute( attribute );
+		}
+	}
+	if ( visual.favicon ) {
+		tile.setAttribute( 'favicon', '' );
+	} else {
+		tile.removeAttribute( 'favicon' );
 	}
 }
 

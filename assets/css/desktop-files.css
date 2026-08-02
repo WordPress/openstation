@@ -45,7 +45,8 @@
 	}
 }
 
-[ data-files-drop-active ] {
+[ data-files-drop-active ],
+[ data-desktop-mode-url-drop-active ] {
 	position: relative;
 	outline: 3px dashed var( --wp-admin-theme-color, #2271b1 );
 	outline-offset: -8px;
@@ -79,7 +80,8 @@
 }
 
 @media ( prefers-reduced-motion: reduce ) {
-	[ data-files-drop-active ] {
+	[ data-files-drop-active ],
+	[ data-desktop-mode-url-drop-active ] {
 		animation: none;
 	}
 }
@@ -535,6 +537,67 @@
 	height: 48px;
 	font-size: 32px;
 	line-height: 1;
+}
+
+/*
+ * Web favicons are normally 16–32 px. Stretching them to the standard 48 px
+ * tile well makes them soft; leaving them bare makes the whole bookmark read
+ * undersized beside folders and apps. The monitor supplies the desktop-scale
+ * silhouette while the artwork stays at its intrinsic size (capped at 24 px).
+ */
+.desktop-mode-file-tile__visual--favicon {
+	position: relative;
+	box-sizing: border-box;
+	padding-bottom: 8px;
+	color: currentColor;
+}
+
+.desktop-mode-file-tile__visual--favicon::before {
+	content: '';
+	position: absolute;
+	top: 3px;
+	left: 2px;
+	width: 44px;
+	height: 34px;
+	box-sizing: border-box;
+	border: 2px solid currentColor;
+	border-radius: 5px;
+	background: var( --desktop-mode-window-bg, #fff );
+	box-shadow:
+		inset 0 0 0 1px rgba( 0, 0, 0, 0.08 ),
+		0 1px 2px rgba( 0, 0, 0, 0.24 );
+}
+
+.desktop-mode-file-tile__visual--favicon::after {
+	content: '';
+	position: absolute;
+	left: 13px;
+	bottom: 2px;
+	width: 22px;
+	height: 8px;
+	box-sizing: border-box;
+	border-bottom: 2px solid currentColor;
+	background: linear-gradient( currentColor, currentColor ) center top / 2px 7px no-repeat;
+}
+
+.desktop-mode-file-tile__visual--favicon > .desktop-mode-file-tile__icon {
+	position: relative;
+	z-index: 1;
+}
+
+.desktop-mode-file-tile__visual--favicon > img.desktop-mode-file-tile__icon {
+	width: auto;
+	height: auto;
+	max-width: 24px;
+	max-height: 24px;
+	object-fit: contain;
+}
+
+.desktop-mode-file-tile__visual--favicon > span.desktop-mode-file-tile__icon {
+	width: 24px;
+	height: 24px;
+	font-size: 24px;
+	background-size: contain;
 }
 
 .desktop-mode-file-tile__preview {

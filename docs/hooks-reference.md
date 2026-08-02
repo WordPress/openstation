@@ -956,7 +956,7 @@ add_filter( 'desktop_mode_resolve_file_opener', function ( $opener_id, $type, $u
 
 ### `desktop_mode_resolve_favicon` — Stable
 
-Last-mile filter on the favicon data URI returned by `desktop_mode_resolve_favicon()`. The resolver runs inline during `POST /placements` for `link`-type placements: it fetches the page via `wp_safe_remote_get`, walks `<link rel="icon|shortcut icon|apple-touch-icon">`, falls back to `/favicon.ico`, and base64-encodes the bytes into a `data:image/<subtype>;base64,…` URI for the placement's `meta.iconUrl`. The filter lets plugins short-circuit the network round-trips (return a synthetic data URI), force-skip caching (return `null`), or post-process whatever the resolver produced.
+Last-mile filter on the favicon data URI returned by `desktop_mode_resolve_favicon()`. The resolver runs inline during `POST /placements` for external `link` and `bookmark` placements: it fetches the page via `wp_safe_remote_get`, walks `<link rel="icon|shortcut icon|apple-touch-icon">`, falls back to `/favicon.ico`, and base64-encodes the bytes into a `data:image/<subtype>;base64,…` URI for the placement's `meta.iconUrl`. The filter lets plugins short-circuit the network round-trips (return a synthetic data URI), force-skip caching (return `null`), or post-process whatever the resolver produced.
 
 ```php
 apply_filters( 'desktop_mode_resolve_favicon', ?string $data_uri, string $page_url );

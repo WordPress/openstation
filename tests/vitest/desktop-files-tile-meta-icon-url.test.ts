@@ -75,6 +75,10 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		);
 		expect( img ).not.toBeNull();
 		expect( img!.src ).toBe( PNG_DATA_URI );
+		expect( tile.hasAttribute( 'favicon' ) ).toBe( true );
+		expect(
+			tile.querySelector( '.desktop-mode-file-tile__visual--favicon' ),
+		).not.toBeNull();
 		// `<img>` is `draggable=true` by default — leaving it that
 		// way lets the browser hijack the parent tile's pointer
 		// gesture with a native image-drag, breaking rearrange.
@@ -104,6 +108,7 @@ describe( 'file-tile — meta.iconUrl precedence', () => {
 		expect( iconEl ).not.toBeNull();
 		expect( iconEl!.classList.contains( 'dashicons' ) ).toBe( true );
 		expect( iconEl!.classList.contains( 'dashicons-admin-links' ) ).toBe( true );
+		expect( tile.hasAttribute( 'favicon' ) ).toBe( false );
 	} );
 
 	test( 'missing meta falls back to file.icon() dashicon', async () => {

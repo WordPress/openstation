@@ -266,6 +266,17 @@ export function updatePlacement(
 	} );
 }
 
+/**
+ * Best-effort page-title/favicon enrichment for a persisted web placement.
+ * The server derives the URL from the placement id, so callers cannot turn
+ * this route into an arbitrary fetch primitive.
+ */
+export function enrichWebMetadata( id: number ): Promise< RestPlacementShape > {
+	return call< RestPlacementShape >( `/placements/${ id }/web-metadata`, {
+		method: 'POST',
+	} );
+}
+
 export function deletePlacement( id: number ): Promise< { deleted: true } > {
 	return call< { deleted: true } >( `/placements/${ id }`, { method: 'DELETE' } );
 }

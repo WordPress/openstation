@@ -82,6 +82,26 @@ export function withChromelessParam( url: string ): string | null {
 	return parsed.toString();
 }
 
+/** Validate a bookmark iframe URL, adding chromeless mode only on-site. */
+function withExternalIframePermission( url: string ): string | null {
+	let parsed: URL;
+	try {
+		parsed = new URL( url, INITIAL_ORIGIN );
+	} catch {
+		return null;
+	}
+	if (
+		( parsed.protocol !== 'http:' && parsed.protocol !== 'https:' ) ||
+		parsed.username ||
+		parsed.password
+	) {
+		return null;
+	}
+	return parsed.origin === INITIAL_ORIGIN
+		? withChromelessParam( url )
+		: url;
+}
+
 /**
  * Toggle `desktop-mode-has-fullscreen-window` on `<body>` based on whether
  * any window is currently in fullscreen state.
@@ -553,9 +573,12 @@ export function createWindowElement( config: WindowConfig ): HTMLElement {
 		// `config.url` is required for iframe windows — enforced at
 		// the type level (it's only marked optional to cover the
 		// native-window case, which never reaches this branch).
-		const chromelessSrc = config.url
-			? withChromelessParam( config.url )
-			: null;
+		let chromelessSrc: string | null = null;
+		if ( config.url ) {
+			chromelessSrc = config.allowExternalUrl
+				? withExternalIframePermission( config.url )
+				: withChromelessParam( config.url );
+		}
 		iframe.src = chromelessSrc ?? 'about:blank';
 
 		body.appendChild( iframe );

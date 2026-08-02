@@ -14,6 +14,8 @@ import { addAction, removeAction, HOOKS } from '../hooks';
 import * as filesRest from './rest';
 import type { DesktopFile } from './file';
 import type { OpenerContext } from './openers';
+import { registerTitleBarButton } from '../title-bar-buttons/registry';
+import { serializedWebUrl } from './web-url';
 
 interface SavedGeometry {
 	x: number;
@@ -24,6 +26,7 @@ interface SavedGeometry {
 
 interface EmbedMeta {
 	name?: string;
+	iconUrl?: string;
 	window?: SavedGeometry;
 }
 
@@ -53,13 +56,10 @@ export function openEmbedWindow(
 	file: DesktopFile,
 	ctx?: OpenerContext,
 ): void {
-	const url = file.ref();
+	const url = serializedWebUrl( file );
 	if ( ! url ) {
 		return;
 	}
-	// External URLs only — same-origin URLs would be served as
-	// chromeless admin pages anyway, but we don't second-guess the
-	// user; whatever they pasted lands in the iframe src as-is.
 	const wm = ( window.wp as
 		| { desktop?: { windowManager?: WindowManagerLike } }
 		| undefined )?.desktop?.windowManager;
@@ -80,8 +80,9 @@ export function openEmbedWindow(
 		id: windowId,
 		baseId: windowId,
 		url,
+		allowExternalUrl: true,
 		title,
-		icon: file.icon(),
+		icon: meta?.iconUrl?.trim() || file.icon(),
 		minWidth: MIN_W,
 		minHeight: MIN_H,
 	};
@@ -114,6 +115,25 @@ export function openEmbedWindow(
 	}
 
 	wm.open( cfg );
+}
+
+let titleBarButtonInstalled = false;
+
+/** Keep the browser escape hatch visible even when a site blocks framing. */
+export function installEmbedTitleBarButton(): void {
+	if ( titleBarButtonInstalled ) {
+		return;
+	}
+	titleBarButtonInstalled = true;
+	registerTitleBarButton( {
+		id: 'desktop-mode/embed-open-browser',
+		label: 'Open in browser',
+		icon: 'dashicons-external',
+		placement: 'right',
+		order: 10,
+		match: ( desktopWindow ) => desktopWindow.id.startsWith( ID_PREFIX ),
+		onClick: ( desktopWindow ) => desktopWindow.detach(),
+	} );
 }
 
 /**

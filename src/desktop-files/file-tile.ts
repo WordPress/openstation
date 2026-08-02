@@ -53,6 +53,36 @@ export function placementLabel( placement: RestPlacementShape ): string {
 	return metaName !== '' ? metaName : resolveFileType( placement.file ).title();
 }
 
+interface PlacementVisual {
+	thumbnail: string;
+	icon: string;
+	favicon: boolean;
+}
+
+/**
+ * Resolve the current tile artwork from placement metadata and file defaults.
+ * Exported for the layer's DOM-reuse paths so late favicon enrichment can
+ * update an existing tile without forcing a wholesale grid rebuild.
+ */
+export function placementVisual( placement: RestPlacementShape ): PlacementVisual {
+	const file = resolveFileType( placement.file );
+	const thumbnail = file.previewUrl();
+	const metaIconUrl =
+		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
+			? ( placement.meta as { iconUrl: string } ).iconUrl.trim()
+			: '';
+
+	return {
+		thumbnail,
+		icon: thumbnail
+			? ''
+			: ( metaIconUrl ||
+				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
+				file.icon() ),
+		favicon: ! thumbnail && metaIconUrl !== '',
+	};
+}
+
 /**
  * Convert a placement into the generic spec the unified renderer
  * consumes. Picks up per-placement `meta.iconUrl` / `meta.name`
@@ -62,22 +92,15 @@ function placementToSpec(
 	placement: RestPlacementShape,
 	folderId: number,
 ): TileSpec {
-	const file = resolveFileType( placement.file );
-	const previewUrl = file.previewUrl();
-
 	const label = placementLabel( placement );
-
-	const metaIconUrl =
-		placement.meta && typeof ( placement.meta as { iconUrl?: unknown } ).iconUrl === 'string'
-			? ( placement.meta as { iconUrl: string } ).iconUrl.trim()
-			: '';
+	const visual = placementVisual( placement );
 
 	return {
 		type: placement.file.type,
 		ref: placement.file.ref,
 		label,
 		// Preview wins over icon (matches the previous behavior).
-		thumbnail: previewUrl || undefined,
+		thumbnail: visual.thumbnail || undefined,
 		// Precedence when no preview exists:
 		//   per-placement `meta.iconUrl`  (the user/plugin said so
 		//                                  about THIS tile)
@@ -86,11 +109,8 @@ function placementToSpec(
 		//   → the file type's own icon.
 		// The per-placement override outranks the theme on purpose:
 		// it is specific, deliberate, and about one object.
-		icon: previewUrl
-			? undefined
-			: ( metaIconUrl ||
-				resolveThemedIcon( slotForFileType( placement.file.type ) ) ||
-				file.icon() ),
+		icon: visual.icon || undefined,
+		favicon: visual.favicon,
 		x: placement.x,
 		y: placement.y,
 		dataset: {
@@ -137,9 +157,7 @@ export function buildTile(
 		tile.appendChild( extra );
 	}
 
-	tile.addEventListener( 'dblclick', ( e ) => {
-		e.preventDefault();
-		e.stopPropagation();
+	const activate = (): void => {
 		// Re-read the live placement — the layer's fast-path repaints
 		// reuse this tile's DOM without re-wiring, so the captured
 		// `placement` can be stale by now (an in-place rename would
@@ -163,7 +181,26 @@ export function buildTile(
 				meta: live.meta,
 			},
 		} );
+	};
+
+	tile.addEventListener( 'dblclick', ( e ) => {
+		e.preventDefault();
+		e.stopPropagation();
+		activate();
 	} );
+
+	// `<wpd-tile>` maps both Enter and Space to click. Desktop files use
+	// Space/click for selection, but Enter is the keyboard equivalent of
+	// double-click Open, so claim Enter before the component synthesizes
+	// a selection-only click.
+	tile.addEventListener( 'keydown', ( e: KeyboardEvent ) => {
+		if ( e.key !== 'Enter' || e.isComposing ) {
+			return;
+		}
+		e.preventDefault();
+		e.stopImmediatePropagation();
+		activate();
+	}, true );
 
 	// Internal consumer: `share-menu-items.ts` paints the shared-
 	// folder badge on every render. Kept on the placement-shaped

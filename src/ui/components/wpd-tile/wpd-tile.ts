@@ -84,6 +84,7 @@ const REACTIVE_PROPS = [
 	'ref',
 	'label',
 	'icon',
+	'favicon',
 	'thumbnail',
 	'kind',
 	'status',
@@ -111,6 +112,7 @@ export class WpdTile extends Component {
 			{ name: 'ref', type: 'string' },
 			{ name: 'label', type: 'string' },
 			{ name: 'icon', type: 'string', description: 'Dashicon class / URL / data URI. Ignored when `thumbnail` is set.' },
+			{ name: 'favicon', type: 'boolean', description: 'Frames a web icon at its intrinsic size inside a monitor silhouette.' },
 			{ name: 'thumbnail', type: 'string', description: 'Preview image URL. Renders as `<img>` and wins over `icon`.' },
 			{ name: 'kind', type: '`entry` | `folder`' },
 			{ name: 'status', type: '`draft` | `pending` | `private` | `future` | `publish`' },
@@ -186,6 +188,7 @@ export class WpdTile extends Component {
 		const ref = this.getAttribute( 'ref' ) ?? '';
 		const label = this.getAttribute( 'label' ) ?? '';
 		const icon = this.getAttribute( 'icon' ) ?? '';
+		const favicon = this.hasAttribute( 'favicon' );
 		const thumbnail = this.getAttribute( 'thumbnail' ) ?? '';
 		const kind = this.getAttribute( 'kind' ) ?? 'entry';
 		const status = this.getAttribute( 'status' ) ?? '';
@@ -272,6 +275,9 @@ export class WpdTile extends Component {
 
 		const visual = document.createElement( 'span' );
 		visual.className = `${ TILE_CLASS }__visual`;
+		if ( favicon && icon && ! thumbnail ) {
+			visual.classList.add( `${ TILE_CLASS }__visual--favicon` );
+		}
 		if ( thumbnail ) {
 			const img = document.createElement( 'img' );
 			img.src = thumbnail;

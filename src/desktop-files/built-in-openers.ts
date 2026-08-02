@@ -38,6 +38,7 @@ import { openEmbedWindow } from './embed-window';
 import { deriveWindowId } from '../utils';
 import { findMenuEntryForUrl } from './menu-entry';
 import { navigateToDownload } from './download-nav';
+import { serializedWebUrl } from './web-url';
 
 interface ConfigShape {
 	adminUrl?: string;
@@ -47,32 +48,6 @@ function adminBase(): string {
 	const cfg = ( window.wp as { desktop?: { config?: ConfigShape } } | undefined )?.desktop?.config;
 	const url = cfg?.adminUrl ?? '/wp-admin/';
 	return url.endsWith( '/' ) ? url : `${ url }/`;
-}
-
-/**
- * The server-sanitized URL of a bookmark/link tile, or `''`.
- *
- * The PHP `serialize()` for these types runs the stored ref
- * through `esc_url_raw()` and ships the result as `shape.url` —
- * read that field (like the preview pane does) instead of the
- * raw `ref()`. Re-validate the protocol client-side as well so a
- * shape mangled after the fact can't smuggle a `javascript:` or
- * `data:` URL into `window.open`.
- */
-function sanitizedWebUrl( file: DesktopFile ): string {
-	const url = typeof file.shape.url === 'string' ? file.shape.url : '';
-	if ( ! url ) {
-		return '';
-	}
-	try {
-		const parsed = new URL( url, window.location.href );
-		if ( parsed.protocol !== 'http:' && parsed.protocol !== 'https:' ) {
-			return '';
-		}
-	} catch {
-		return '';
-	}
-	return url;
 }
 
 export function registerBuiltInFileOpeners(): void {
@@ -586,7 +561,7 @@ export function registerBuiltInFileOpeners(): void {
 		handler: {
 			kind: 'js',
 			open: ( file: DesktopFile ) => {
-				const url = sanitizedWebUrl( file );
+				const url = serializedWebUrl( file );
 				if ( ! url ) {
 					return;
 				}
@@ -608,7 +583,7 @@ export function registerBuiltInFileOpeners(): void {
 		handler: {
 			kind: 'js',
 			open: ( file: DesktopFile ) => {
-				const url = sanitizedWebUrl( file );
+				const url = serializedWebUrl( file );
 				if ( ! url ) {
 					return;
 				}

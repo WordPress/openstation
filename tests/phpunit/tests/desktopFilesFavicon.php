@@ -267,6 +267,57 @@ class Tests_DesktopMode_Files_Favicon extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * @covers ::desktop_mode_web_metadata_extract_title
+	 */
+	public function test_extracts_sanitized_bounded_page_title() {
+		$title = desktop_mode_web_metadata_extract_title(
+			'<html><head><title>  Example &amp; Co. <b>Workbench</b>  </title></head></html>'
+		);
+		$this->assertSame( 'Example & Co. Workbench', $title );
+		$this->assertLessThanOrEqual(
+			160,
+			strlen( desktop_mode_web_metadata_extract_title( '<title>' . str_repeat( 'a', 220 ) . '</title>' ) )
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_files_resolve_web_metadata
+	 */
+	public function test_metadata_resolves_title_and_icon_with_one_page_fetch() {
+		$html       = '<html><head><title>Example Domain</title><link rel="icon" href="/icon.png"></head></html>';
+		$page_calls = 0;
+		$page       = $this->http_response( $html );
+		$icon       = $this->http_response( self::PNG_BYTES, 200, 'image/png' );
+		add_filter(
+			'pre_http_request',
+			static function ( $preempt, $args, $url ) use ( &$page_calls, $page, $icon ) {
+				if ( false !== strpos( $url, '/icon.png' ) ) {
+					return $icon;
+				}
+				$page_calls++;
+				return $page;
+			},
+			10,
+			3
+		);
+
+		$metadata = desktop_mode_files_resolve_web_metadata( 'https://example.com/path' );
+		$this->assertSame( 1, $page_calls );
+		$this->assertSame( 'Example Domain', $metadata['name'] );
+		$this->assertSame( $this->expected_png_data_uri(), $metadata['iconUrl'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_files_normalize_web_url
+	 */
+	public function test_web_url_validation_rejects_credentials_and_unsafe_schemes() {
+		$this->assertSame( 'https://example.com/path', desktop_mode_files_normalize_web_url( 'https://example.com/path' ) );
+		$this->assertSame( '', desktop_mode_files_normalize_web_url( 'https://user:pass@example.com/' ) );
+		$this->assertSame( '', desktop_mode_files_normalize_web_url( 'javascript:alert(1)' ) );
+		$this->assertSame( '', desktop_mode_files_normalize_web_url( "https://example.com/\nhttps://other.test/" ) );
+	}
+
 	// Note: SSRF protection (loopback / private-IP rejection) is
 	// `wp_safe_remote_get`'s job, not ours — not unit-testable here
 	// because `pre_http_request` runs BEFORE `wp_http_validate_url`,

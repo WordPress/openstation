@@ -32,7 +32,8 @@ defined( 'ABSPATH' ) || exit;
  * @param int    $parent_id Folder id, or 0 for the desktop root.
  * @param string $type      File-type slug.
  * @param string $ref       Entity reference.
- * @param array  $args      Optional. `x`, `y`, `sort_order`, `meta`.
+ * @param array  $args      Optional. `x`, `y`, `sort_order`, `meta`,
+ *                          `preserve_meta_on_duplicate`.
  * @return int|WP_Error Placement id on success, `WP_Error` otherwise.
  */
 function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = array() ) {
@@ -90,10 +91,11 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 	$args = wp_parse_args(
 		$args,
 		array(
-			'x'          => 0,
-			'y'          => 0,
-			'sort_order' => 0,
-			'meta'       => null,
+			'x'                          => 0,
+			'y'                          => 0,
+			'sort_order'                 => 0,
+			'meta'                       => null,
+			'preserve_meta_on_duplicate' => false,
 		)
 	);
 
@@ -171,6 +173,15 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 		// this is a no-op in the soft-trashed branch above.
 		desktop_mode_files_clear_tombstones_for( 'placement', $existing_id );
 
+		$duplicate_meta = $args['meta'];
+		if ( $args['preserve_meta_on_duplicate'] ) {
+			$stored_meta = ! empty( $existing['meta'] ) ? json_decode( (string) $existing['meta'], true ) : array();
+			$incoming    = is_array( $args['meta'] ) ? $args['meta'] : array();
+			// Stored keys win: a stale repeat-create must not undo a rename,
+			// resolved icon, or saved window geometry.
+			$duplicate_meta = array_merge( $incoming, is_array( $stored_meta ) ? $stored_meta : array() );
+		}
+
 		$move = desktop_mode_files_move(
 			$existing_id,
 			$user_id,
@@ -179,7 +190,7 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 				'x'          => (int) $args['x'],
 				'y'          => (int) $args['y'],
 				'sort_order' => (int) $args['sort_order'],
-				'meta'       => $args['meta'],
+				'meta'       => $duplicate_meta,
 			)
 		);
 		if ( is_wp_error( $move ) ) {
@@ -189,6 +200,30 @@ function desktop_mode_files_place( $user_id, $parent_id, $type, $ref, $args = ar
 		return $existing_id;
 	}
 	$id = (int) $wpdb->insert_id;
+	if ( $id <= 0 ) {
+		// SQLite-backed environments have occasionally committed an INSERT
+		// without carrying the generated id back through `$wpdb->insert_id`.
+		// The placement identity is unique, so recover the committed row
+		// instead of returning id 0 and fatalling while shaping the response.
+		$id = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$tables['placements']}
+				WHERE owner_id = %d
+					AND parent_id = %d
+					AND file_type = %s
+					AND file_ref = %s
+				ORDER BY id DESC
+				LIMIT 1",
+				$user_id,
+				max( 0, $parent_id ),
+				$type,
+				$ref
+			)
+		);
+	}
+	if ( $id <= 0 ) {
+		return new WP_Error( 'desktop_mode_files_insert_failed', __( 'Failed to read the new placement.', 'desktop-mode' ), array( 'status' => 500 ) );
+	}
 
 	$row['id'] = $id;
 
@@ -338,7 +373,10 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 		return true; // No-op.
 	}
 
-	$set['updated_at_ms'] = desktop_mode_files_now_ms();
+	// Treat this timestamp as the row version as well as its wall-clock time.
+	// Two mutations can land in the same millisecond during fast UI updates;
+	// always advance it so compare-and-swap callers can distinguish them.
+	$set['updated_at_ms'] = max( desktop_mode_files_now_ms(), (int) $row['updated_at_ms'] + 1 );
 	$fmt[]                = '%d';
 	// Track who actually fired this mutation so a future
 	// `If-Match` 409 can name the session that won the race,
@@ -362,6 +400,65 @@ function desktop_mode_files_move( $placement_id, $user_id, $changes = array() ) 
 	 */
 	do_action( 'desktop_mode_file_moved', $placement_id, $next, $row );
 
+	return true;
+}
+
+/**
+ * Replace placement metadata only when the row still matches a known version.
+ *
+ * Web metadata arrives after a remote request. A rename, move, or window resize
+ * may win while that request is in flight, so the ordinary read/merge/write
+ * sequence is not sufficient: it can overwrite the newer metadata between the
+ * final read and write. This compare-and-swap keeps that merge atomic; callers
+ * may reload and retry when the version changed.
+ *
+ * @internal
+ *
+ * @param int   $placement_id Placement id.
+ * @param int   $user_id      Acting user.
+ * @param int   $expected_ms  Expected `updated_at_ms` value.
+ * @param array $meta         Complete merged metadata value.
+ * @return true|WP_Error
+ */
+function desktop_mode_files_replace_meta_if_unchanged( $placement_id, $user_id, $expected_ms, array $meta ) {
+	global $wpdb;
+
+	$authorized = desktop_mode_files_move( $placement_id, $user_id, array() );
+	if ( is_wp_error( $authorized ) ) {
+		return $authorized;
+	}
+
+	$previous = desktop_mode_files_get_placement( $placement_id );
+	if ( ! $previous || ! empty( $previous['trashed_at_ms'] ) ) {
+		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+	}
+	if ( (int) $previous['updated_at_ms'] !== (int) $expected_ms ) {
+		return new WP_Error( 'desktop_mode_files_metadata_race', __( 'The placement changed while metadata was loading.', 'desktop-mode' ), array( 'status' => 409 ) );
+	}
+
+	$tables = desktop_mode_files_table_names();
+	$now    = max( desktop_mode_files_now_ms(), (int) $expected_ms + 1 );
+	$updated = $wpdb->update(
+		$tables['placements'],
+		array(
+			'meta'          => wp_json_encode( $meta ),
+			'updated_at_ms' => $now,
+			'updated_by'    => (int) $user_id,
+		),
+		array(
+			'id'             => (int) $placement_id,
+			'updated_at_ms'  => (int) $expected_ms,
+			'trashed_at_ms'  => null,
+		),
+		array( '%s', '%d', '%d' ),
+		array( '%d', '%d', '%s' )
+	);
+	if ( 1 !== $updated ) {
+		return new WP_Error( 'desktop_mode_files_metadata_race', __( 'The placement changed while metadata was loading.', 'desktop-mode' ), array( 'status' => 409 ) );
+	}
+
+	$next = desktop_mode_files_get_placement( $placement_id );
+	do_action( 'desktop_mode_file_moved', (int) $placement_id, $next, $previous );
 	return true;
 }
 
@@ -815,6 +912,7 @@ function desktop_mode_files_normalize_placement_row( $row ) {
 		'y'             => (int) $row['y'],
 		'sort_order'    => (int) $row['sort_order'],
 		'updated_at_ms' => (int) $row['updated_at_ms'],
+		'trashed_at_ms' => ! empty( $row['trashed_at_ms'] ) ? (int) $row['trashed_at_ms'] : null,
 		'meta'          => is_array( $meta ) ? $meta : null,
 	);
 }

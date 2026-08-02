@@ -212,6 +212,7 @@ export async function restoreSession(
 			desktopId: win.desktopId,
 			multi: !! dockEntry?.multi,
 			url: win.url,
+			allowExternalUrl: win.id.startsWith( 'desktop-mode-embed-' ),
 			// `dockEntry?.url` is the parent menu's landing page —
 			// recover it so the synthetic "back to parent" tab in
 			// the in-window strip points at the dock URL even when

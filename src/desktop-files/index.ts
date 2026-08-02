@@ -38,7 +38,10 @@ import {
 import { installOpenDeps, openFile, type OpenDeps } from './open';
 import { registerBuiltInFileTypes } from './built-in-types';
 import { registerBuiltInFileOpeners } from './built-in-openers';
-import { installEmbedPersistence } from './embed-window';
+import {
+	installEmbedPersistence,
+	installEmbedTitleBarButton,
+} from './embed-window';
 import { registerFileAssociationsTab } from './settings-tab';
 import { installShareMenuItems } from './share-menu-items';
 import { installShareInviteBanner } from './share-invite-banner';
@@ -63,6 +66,7 @@ import type { DesktopFileShape, DesktopFileTypeServerEntry } from './types';
 registerBuiltInFileTypes();
 registerBuiltInFileOpeners();
 installEmbedPersistence();
+installEmbedTitleBarButton();
 registerFileAssociationsTab();
 installShareMenuItems();
 installUploadMenuItems();

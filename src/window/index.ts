@@ -1873,8 +1873,7 @@ export class Window {
 	}
 
 	/**
-	 * Open the window's current URL in a new browser tab as classic
-	 * wp-admin.
+	 * Open the window's current URL in a new browser tab.
 	 *
 	 * Strips the chromeless `desktop_mode_chromeless` flag and the transient
 	 * `desktop_mode_portal` flag, and tags the URL with
@@ -1884,29 +1883,39 @@ export class Window {
 	 * request; once the browser renders the page, the user's in-tab
 	 * navigation returns to normal admin flow.
 	 *
-	 * The desktop window itself stays open — detach is a branch, not
-	 * a move. If the user wants to close it afterwards, they can.
+	 * External HTTP(S) URLs are preserved exactly. Same-origin wp-admin
+	 * URLs have Desktop Mode's transient flags removed and receive the
+	 * classic-mode escape flag. The desktop window itself stays open —
+	 * detach is a branch, not a move.
 	 */
 	public detach(): void {
 		const current = this.getCurrentUrl();
 		let url: URL;
+		let target = current;
 		try {
 			url = new URL( current, INITIAL_ORIGIN );
 		} catch {
 			return;
 		}
-		if ( url.origin !== INITIAL_ORIGIN ) {
+		if (
+			( url.protocol !== 'http:' && url.protocol !== 'https:' ) ||
+			url.username ||
+			url.password
+		) {
 			return;
 		}
-		url.searchParams.delete( 'desktop_mode_chromeless' );
-		url.searchParams.delete( 'desktop_mode_portal' );
-		url.searchParams.set( 'desktop_mode_classic', '1' );
+		if ( url.origin === INITIAL_ORIGIN ) {
+			url.searchParams.delete( 'desktop_mode_chromeless' );
+			url.searchParams.delete( 'desktop_mode_portal' );
+			url.searchParams.set( 'desktop_mode_classic', '1' );
+			target = url.toString();
+		}
 
 		// `noopener` is required for security (tabs should not be able
 		// to reach back into window.opener), and it also lets the
 		// browser move the new tab to its own process.
-		window.open( url.toString(), '_blank', 'noopener' );
-		doAction( HOOKS.WINDOW_DETACHED, { windowId: this.id, url: url.toString() } );
+		window.open( target, '_blank', 'noopener,noreferrer' );
+		doAction( HOOKS.WINDOW_DETACHED, { windowId: this.id, url: target } );
 	}
 
 	/**

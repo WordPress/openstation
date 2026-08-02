@@ -248,6 +248,7 @@ import {
 } from './desktop-files/wallpaper-menu';
 import { openCreateFolderDialog } from './desktop-files/create-folder-dialog';
 import { openUrlDialog } from './desktop-files/url-dialog';
+import { createWebBookmark } from './desktop-files/web-bookmarks';
 import type {
 	DesktopConfig,
 	DesktopWallpaperServerEntry,
@@ -4081,15 +4082,13 @@ function init(): void {
 					submitLabel: 'Create',
 					onSubmit: async ( { name, url } ) => {
 						const cell = cellAtClick();
-						const placement = await filesRest.createPlacement( {
-							type: 'link',
-							ref: url,
-							parentId: 0,
+						await createWebBookmark( {
+							folderId: 0,
+							url,
 							x: cell.x,
 							y: cell.y,
-							meta: name ? { name } : undefined,
+							name,
 						} );
-						filesApi.store.upsertPlacement( placement );
 					},
 				} );
 			};
@@ -4113,8 +4112,8 @@ function init(): void {
 				},
 				createUrl: () =>
 					createUrlPlacement(
-						'New URL',
-						'Opens the URL in a new browser tab.',
+						'New bookmark',
+						'Opens the URL in a desktop window.',
 					),
 				toggleShowDesktop: () => manager.toggleShowDesktop(),
 				openOsSettings: () => openOsSettings(),
@@ -4134,7 +4133,7 @@ function init(): void {
 					sortNameDesc: 'Name (Z → A)',
 					sortDateAsc: 'Date (oldest first)',
 					sortDateDesc: 'Date (newest first)',
-					newUrl: 'New URL',
+					newUrl: 'New bookmark',
 				},
 				serverItems: ( config.serverWallpaperMenuItems as
 				| ServerWallpaperMenuItem[]

@@ -9,6 +9,8 @@
  *   POST   /placements                 Create a placement.
  *   PATCH  /placements/(?P<id>\d+)     Move / update a placement.
  *   DELETE /placements/(?P<id>\d+)     Remove a placement.
+ *   POST   /placements/(?P<id>\d+)/web-metadata
+ *                                       Enrich a web bookmark.
  *
  *   GET    /folders                    List folders visible to the viewer.
  *   POST   /folders                    Create a folder.
@@ -149,6 +151,12 @@ function desktop_mode_files_register_rest_routes() {
 			'permission_callback' => 'desktop_mode_files_rest_permission',
 			'callback'            => 'desktop_mode_files_rest_delete_placement',
 		),
+	) );
+
+	register_rest_route( $ns, '/files/placements/(?P<id>\d+)/web-metadata', array(
+		'methods'             => WP_REST_Server::CREATABLE,
+		'permission_callback' => 'desktop_mode_files_rest_permission',
+		'callback'            => 'desktop_mode_files_rest_enrich_web_metadata',
 	) );
 
 	register_rest_route( $ns, '/files/folders', array(
@@ -347,11 +355,18 @@ function desktop_mode_files_rest_create_placement( WP_REST_Request $req ) {
 	$ref  = (string) $req->get_param( 'ref' );
 	$meta = $req->get_param( 'meta' );
 
-	// `link` placements get a server-resolved favicon stuffed onto
+	if ( 'embed' === $type ) {
+		$ref = desktop_mode_files_normalize_web_url( $ref );
+		if ( '' === $ref ) {
+			return new WP_Error( 'desktop_mode_files_invalid_web_url', __( 'Enter a valid HTTP or HTTPS URL without credentials.', 'desktop-mode' ), array( 'status' => 400 ) );
+		}
+	}
+
+	// External `link` / `bookmark` placements get a server-resolved favicon stuffed onto
 	// `meta.iconUrl` so the tile renderer can paint it without the
 	// browser making a third-party request on every render. Other
 	// types skip the resolver entirely (no extra fetch latency).
-	if ( 'link' === $type && '' !== $ref ) {
+	if ( in_array( $type, array( 'link', 'bookmark' ), true ) && '' !== $ref ) {
 		$icon_data_uri = desktop_mode_resolve_favicon( $ref );
 		if ( is_string( $icon_data_uri ) && '' !== $icon_data_uri ) {
 			$meta_arr             = is_array( $meta ) ? $meta : array();
@@ -366,17 +381,83 @@ function desktop_mode_files_rest_create_placement( WP_REST_Request $req ) {
 		$type,
 		$ref,
 		array(
-			'x'          => (int) $req->get_param( 'x' ),
-			'y'          => (int) $req->get_param( 'y' ),
-			'sort_order' => (int) $req->get_param( 'sortOrder' ),
-			'meta'       => $meta,
+			'x'                          => (int) $req->get_param( 'x' ),
+			'y'                          => (int) $req->get_param( 'y' ),
+			'sort_order'                 => (int) $req->get_param( 'sortOrder' ),
+			'meta'                       => $meta,
+			'preserve_meta_on_duplicate' => 'embed' === $type,
 		)
 	);
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
 	$row = desktop_mode_files_get_placement( $id );
+	if ( ! $row ) {
+		return new WP_Error( 'desktop_mode_files_not_found_after_create', __( 'The bookmark was saved but could not be read back.', 'desktop-mode' ), array( 'status' => 500 ) );
+	}
 	return rest_ensure_response( desktop_mode_files_shape_placement( $row ) );
+}
+
+/**
+ * POST /placements/<id>/web-metadata
+ *
+ * The URL comes exclusively from the stored placement. A capability
+ * check runs before the remote request and again before the merge so a
+ * deleted or moved placement cannot be resurrected by a slow response.
+ */
+function desktop_mode_files_rest_enrich_web_metadata( WP_REST_Request $req ) {
+	$id      = (int) $req['id'];
+	$user_id = get_current_user_id();
+	$current = desktop_mode_files_get_placement( $id );
+	if ( ! $current || ! empty( $current['trashed_at_ms'] ) ) {
+		return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+	}
+	if ( 'embed' !== (string) $current['file_type'] ) {
+		return new WP_Error( 'desktop_mode_files_not_web_bookmark', __( 'This placement is not a web bookmark.', 'desktop-mode' ), array( 'status' => 400 ) );
+	}
+
+	$authorized = desktop_mode_files_move( $id, $user_id, array() );
+	if ( is_wp_error( $authorized ) ) {
+		return $authorized;
+	}
+
+	$metadata = desktop_mode_files_resolve_web_metadata( (string) $current['file_ref'] );
+
+	for ( $attempt = 0; $attempt < 3; $attempt++ ) {
+		$latest = desktop_mode_files_get_placement( $id );
+		if ( ! $latest || ! empty( $latest['trashed_at_ms'] ) || 'embed' !== (string) $latest['file_type'] ) {
+			return new WP_Error( 'desktop_mode_files_not_found', __( 'Placement not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		}
+
+		$meta    = is_array( $latest['meta'] ) ? $latest['meta'] : array();
+		$changed = false;
+		if ( empty( $meta['name'] ) && ! empty( $metadata['name'] ) ) {
+			$meta['name'] = (string) $metadata['name'];
+			$changed      = true;
+		}
+		if ( ! empty( $metadata['iconUrl'] ) && ( ! isset( $meta['iconUrl'] ) || $meta['iconUrl'] !== $metadata['iconUrl'] ) ) {
+			$meta['iconUrl'] = (string) $metadata['iconUrl'];
+			$changed         = true;
+		}
+		if ( ! $changed ) {
+			return rest_ensure_response( desktop_mode_files_shape_placement( $latest ) );
+		}
+
+		$updated = desktop_mode_files_replace_meta_if_unchanged(
+			$id,
+			$user_id,
+			(int) $latest['updated_at_ms'],
+			$meta
+		);
+		if ( ! is_wp_error( $updated ) ) {
+			return rest_ensure_response( desktop_mode_files_shape_placement( desktop_mode_files_get_placement( $id ) ) );
+		}
+		if ( 'desktop_mode_files_metadata_race' !== $updated->get_error_code() ) {
+			return $updated;
+		}
+	}
+
+	return new WP_Error( 'desktop_mode_files_metadata_race', __( 'The placement kept changing while metadata was loading.', 'desktop-mode' ), array( 'status' => 409 ) );
 }
 
 /**

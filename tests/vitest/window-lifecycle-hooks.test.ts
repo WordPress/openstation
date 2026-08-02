@@ -205,12 +205,14 @@ describe( 'Window — lifecycle hook firing', () => {
 		openSpy.mockRestore();
 	} );
 
-	test( 'detach refuses cross-origin URLs and fires nothing', () => {
+	test( 'detach preserves cross-origin URLs exactly', () => {
 		handle.cleanup();
+		const externalUrl = 'https://evil.example.com/a%2Fb?desktop_mode_portal=1&keep=%2F#frag';
 		handle = mountWindow(
 			baseConfig( {
 				id: 'external',
-				url: 'https://evil.example.com/wp-admin/',
+				url: externalUrl,
+				allowExternalUrl: true,
 			} ),
 		);
 		const openSpy = vi
@@ -220,10 +222,16 @@ describe( 'Window — lifecycle hook firing', () => {
 		const log = recordActions( hooks, LIFECYCLE_HOOKS );
 		handle.win.detach();
 
-		expect(
-			log.some( ( e ) => e.name === 'desktop-mode.window.detached' ),
-		).toBe( false );
-		expect( openSpy ).not.toHaveBeenCalled();
+		expect( openSpy ).toHaveBeenCalledWith(
+			externalUrl,
+			'_blank',
+			'noopener,noreferrer',
+		);
+		const evt = log.find( ( e ) => e.name === 'desktop-mode.window.detached' );
+		expect( evt?.args[ 0 ] ).toEqual( {
+			windowId: 'external',
+			url: externalUrl,
+		} );
 
 		openSpy.mockRestore();
 	} );

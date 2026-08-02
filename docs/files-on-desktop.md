@@ -44,9 +44,9 @@ A **file type** is a slug that points the registry at the right subclass. The bu
 | `link` | `Desktop_Mode_Link_File` | URL string — opens in a new browser tab |
 | `embed` | `Desktop_Mode_Embed_File` | URL string — opens in an iframe-backed desktop window; geometry persists on `placement.meta.window` |
 
-`link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name` (set by the wallpaper-menu "New URL" entry) — the tile renderer prefers it over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
+`link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name`. The wallpaper-menu "New bookmark" entry, URL drops, and URL pastes create `embed` placements. A user-entered name is preserved; otherwise the hostname appears immediately and is replaced by a fetched page title when enrichment succeeds. The tile renderer prefers the placement name over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
 
-`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl`. The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes, enforced during the download via `limit_response_size` (WP_Http stops reading one byte over the cap, and the truncated over-cap body is then rejected by the size check — never buffered whole); the cap keeps `meta` blobs small. The step-1 page-HTML fetch is itself capped at 1 MB (`DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES`). Plugins can short-circuit or override the resolved value via the `desktop_mode_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
+Web placements can carry a server-resolved favicon on `placement.meta.iconUrl`. The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. External `link` and `bookmark` creation resolves it inline; the tile uses it immediately when present and updates in place if the metadata arrives later. Favicons render at their intrinsic size, capped at 24 px, inside a 48 px monitor frame so small native artwork stays crisp while matching the visual weight of neighboring desktop icons. New `embed` bookmarks are usable immediately, then call `POST /placements/<id>/web-metadata` in the background to merge a sanitized page title and favicon without replacing a later rename, saved window geometry, or other metadata. Resolution uses `wp_safe_remote_get` + `DOMDocument`, with a `/favicon.ico` fallback. When it fails — bad host, network error, oversized body, content-type mismatch — metadata is left alone and the tile keeps its hostname and generic icon. Icons are capped at 256 KB raw bytes and page HTML at 1 MB. Plugins can continue to short-circuit or override favicon resolution through the `desktop_mode_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type.
 
 `page` and any custom post type collapse into `post`; `category` and `post_tag` collapse into `term`. UI labels per concrete post type / taxonomy come from the `desktop_mode_file_serialize` filter — there's no need to register a separate type for every CPT.
 
@@ -286,6 +286,7 @@ All under `/wp-json/desktop-mode/v1/files`. Permission gate: logged-in + desktop
 | `POST` | `/placements` | `{ parentId?, type, ref, x?, y?, sortOrder?, meta? }` |
 | `PATCH` | `/placements/<id>` | `{ parentId?, x?, y?, sortOrder?, meta? }` |
 | `DELETE` | `/placements/<id>` | Soft-trash to the recycle bin (restorable). Pass `?force=1` to permanently purge. |
+| `POST` | `/placements/<id>/web-metadata` | Resolve and merge the stored `embed` URL's page title and favicon. The request body cannot choose a URL. |
 | `GET` | `/folders` | List folders the viewer owns (Phase 6 expands to shared folders). |
 | `POST` | `/folders` | `{ name, shareMode?, shareMeta? }` |
 | `PATCH` | `/folders/<id>` | `{ name?, shareMode?, shareMeta? }` |
@@ -465,9 +466,13 @@ Legacy: HTML5 drag (`setShortcutDragPayload` /
 `dataTransfer`, but is deprecated. New code uses the
 manager.
 
-### Open
+### URL intake and open
 
-Double-click on a tile resolves the placement's serialized shape into a `DesktopFile` instance and calls `wp.desktop.files.open()`, which routes through the opener registry (Phase 1).
+Dropping one URL on the wallpaper or an open folder creates an `embed` bookmark in the nearest free grid cell. Dropping on a closed folder tile creates it inside that folder. Paste uses the currently active desktop or folder surface and the next free cell. Intake prefers `text/uri-list` (ignoring comment lines) and falls back to standalone `text/plain`; it accepts HTTP/HTTPS URLs and domain-like values normalized to HTTPS, and rejects credentials, unsafe schemes, arbitrary prose, and file drags. Paste is ignored while an editable control, modal, or iframe owns focus. Only one bookmark is created per gesture.
+
+When the same URL already exists in a folder, a drop repositions and selects it while paste only selects it; stored names, icons, and window geometry remain intact. The layer announces creation, duplicate selection, and invalid input through the accessible toast surface.
+
+Double-click or Enter on a selected tile resolves the placement's serialized shape into a `DesktopFile` instance and calls `wp.desktop.files.open()`, which routes through the opener registry (Phase 1). Single-click and Space select without opening. `embed` URLs are validated again before an iframe window is created. Because sites may block framing with `X-Frame-Options` or CSP and that cannot be detected reliably, bookmark windows always show an **Open in browser** title-bar action as well as the overflow-menu command. External URLs are passed through exactly when detached; only same-origin WordPress/admin URLs receive Desktop Mode query adjustments.
 
 ### Plugin extension points
 
@@ -505,7 +510,7 @@ Clicking empty wallpaper used to call `windowManager.toggleShowDesktop()` direct
 | Id | Label | Behavior |
 |---|---|---|
 | `create-folder` | New folder | Prompts for a name, then `POST /folders`. |
-| `new-url` | New URL | Prompts for a name + URL, then `POST /placements` with a `link` placement (the tile opens the URL in a new browser tab). |
+| `new-url` | New bookmark | Prompts for an optional name + URL, then creates an `embed` placement that opens inside an iframe-backed desktop window. |
 | `sort-by` | Sort by | Submenu with checkable options: Name (A → Z), Name (Z → A), Date (newest first), Date (oldest first); re-sorts the desktop icons. |
 | `show-desktop` | Show desktop | Calls `windowManager.toggleShowDesktop()` (the legacy single-click gesture). |
 | `os-settings` | OS Settings | Opens the OS Settings window. |

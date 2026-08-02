@@ -328,6 +328,48 @@ describe( 'FilesLayer', () => {
 		handle.dispose();
 	} );
 
+	test( 'late favicon metadata repaints an external link icon without rebuilding the tile', async () => {
+		const { layer, store, rest } = await load();
+		store.__resetFilesStoreForTests();
+		rest.installRestDeps( { baseUrl: 'https://example.test/files', nonce: 'n' } );
+		setupRestStub();
+		const linkFile = {
+			type: 'link',
+			ref: 'https://example.test/',
+			title: 'example.test',
+			icon: 'dashicons-admin-links',
+			previewUrl: '',
+			exists: true,
+		};
+		store.setFolderPlacements( 0, [ placement( 1, { file: linkFile } ) ] );
+
+		const host = document.createElement( 'div' );
+		document.body.appendChild( host );
+		const handle = layer.mountFilesLayer( host, 0 );
+		const tile = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		tile.dataset.testMark = 'kept';
+		expect( tile.getAttribute( 'icon' ) ).toBe( 'dashicons-admin-links' );
+
+		const favicon = 'https://example.test/favicon.ico';
+		store.upsertPlacement( placement( 1, {
+			file: linkFile,
+			meta: { iconUrl: favicon },
+			updatedAtMs: 2,
+		} ), 'remote' );
+
+		const after = host.querySelector< HTMLElement >( '.desktop-mode-file-tile' )!;
+		expect( after.dataset.testMark ).toBe( 'kept' );
+		expect( after.getAttribute( 'icon' ) ).toBe( favicon );
+		expect( after.hasAttribute( 'favicon' ) ).toBe( true );
+		expect(
+			after.querySelector( '.desktop-mode-file-tile__visual--favicon' ),
+		).not.toBeNull();
+		expect(
+			after.querySelector< HTMLImageElement >( '.desktop-mode-file-tile__icon' )?.src,
+		).toBe( favicon );
+		handle.dispose();
+	} );
+
 	test( 'rename arriving together with an add still repaints the label (incremental path)', async () => {
 		const { layer, store, rest } = await load();
 		store.__resetFilesStoreForTests();

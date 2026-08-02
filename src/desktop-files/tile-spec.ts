@@ -55,6 +55,8 @@ export interface TileSpec {
 	label: string;
 	/** Dashicon class, http(s) URL, or data: URI. Ignored if `thumbnail` is set. */
 	icon?: string;
+	/** Paint the icon inside the compact web/monitor frame. */
+	favicon?: boolean;
 	/**
 	 * Preview image URL (replaces the icon for media tiles + the
 	 * desktop link favicon). Renders as `<img class="…__preview">`.
@@ -136,6 +138,9 @@ export function buildTileFromSpec( spec: TileSpec ): HTMLElement {
 	tile.setAttribute( 'label', spec.label );
 	if ( spec.icon ) {
 		tile.setAttribute( 'icon', spec.icon );
+	}
+	if ( spec.favicon ) {
+		tile.setAttribute( 'favicon', '' );
 	}
 	if ( spec.thumbnail ) {
 		tile.setAttribute( 'thumbnail', spec.thumbnail );

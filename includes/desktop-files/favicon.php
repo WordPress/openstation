@@ -72,7 +72,8 @@ const DESKTOP_MODE_FAVICON_TIMEOUT = 4;
  * @return string|null Data URI on success; `null` on any failure.
  */
 function desktop_mode_resolve_favicon( $page_url ) {
-	$result = desktop_mode_resolve_favicon_internal( (string) $page_url );
+	$metadata = desktop_mode_resolve_web_metadata_internal( (string) $page_url );
+	$result   = isset( $metadata['iconUrl'] ) ? $metadata['iconUrl'] : null;
 
 	/**
 	 * Filters the favicon data URI before it is returned to the
@@ -92,6 +93,63 @@ function desktop_mode_resolve_favicon( $page_url ) {
 }
 
 /**
+ * Resolve the best-effort display metadata for a web placement.
+ *
+ * The existing favicon filter remains the single extension point for
+ * icon resolution. Page titles are deliberately not filterable here:
+ * callers may still rename the placement, and the REST merge never
+ * overwrites a non-empty name.
+ *
+ * @param string $page_url HTTP(S) page URL.
+ * @return array{name?:string,iconUrl?:string}
+ */
+function desktop_mode_files_resolve_web_metadata( $page_url ) {
+	$metadata = desktop_mode_resolve_web_metadata_internal( (string) $page_url );
+	$icon     = isset( $metadata['iconUrl'] ) ? $metadata['iconUrl'] : null;
+	$filtered = apply_filters( 'desktop_mode_resolve_favicon', $icon, (string) $page_url );
+
+	if ( is_string( $filtered ) && '' !== $filtered ) {
+		$metadata['iconUrl'] = $filtered;
+	} else {
+		unset( $metadata['iconUrl'] );
+	}
+
+	return $metadata;
+}
+
+/**
+ * Validate a serialized placement URL without accepting credentials or
+ * non-web schemes.
+ *
+ * @param string $url Candidate URL.
+ * @return string Sanitized URL, or an empty string when invalid.
+ */
+function desktop_mode_files_normalize_web_url( $url ) {
+	$url = trim( (string) $url );
+	if ( '' === $url || preg_match( '/[\r\n]/', $url ) ) {
+		return '';
+	}
+
+	$parts = wp_parse_url( $url );
+	if (
+		! is_array( $parts )
+		|| empty( $parts['host'] )
+		|| empty( $parts['scheme'] )
+		|| isset( $parts['user'] )
+		|| isset( $parts['pass'] )
+	) {
+		return '';
+	}
+
+	$scheme = strtolower( (string) $parts['scheme'] );
+	if ( 'http' !== $scheme && 'https' !== $scheme ) {
+		return '';
+	}
+
+	return esc_url_raw( $url, array( 'http', 'https' ) );
+}
+
+/**
  * Internal resolver — see {@see desktop_mode_resolve_favicon}.
  *
  * Kept separate so the public function is the only place the
@@ -104,14 +162,26 @@ function desktop_mode_resolve_favicon( $page_url ) {
  * @return string|null
  */
 function desktop_mode_resolve_favicon_internal( $page_url ) {
-	$parts = wp_parse_url( $page_url );
-	if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
-		return null;
+	$metadata = desktop_mode_resolve_web_metadata_internal( $page_url );
+	return isset( $metadata['iconUrl'] ) ? $metadata['iconUrl'] : null;
+}
+
+/**
+ * Resolve title and favicon with one bounded page request.
+ *
+ * @internal
+ *
+ * @param string $page_url Page URL.
+ * @return array{name?:string,iconUrl?:string}
+ */
+function desktop_mode_resolve_web_metadata_internal( $page_url ) {
+	$page_url = desktop_mode_files_normalize_web_url( $page_url );
+	if ( '' === $page_url ) {
+		return array();
 	}
-	$scheme = isset( $parts['scheme'] ) ? strtolower( $parts['scheme'] ) : '';
-	if ( 'http' !== $scheme && 'https' !== $scheme ) {
-		return null;
-	}
+
+	$parts  = wp_parse_url( $page_url );
+	$scheme = strtolower( (string) $parts['scheme'] );
 
 	$page_response = wp_safe_remote_get( $page_url, desktop_mode_favicon_request_args( DESKTOP_MODE_FAVICON_MAX_PAGE_BYTES ) );
 	$page_body     = '';
@@ -119,14 +189,62 @@ function desktop_mode_resolve_favicon_internal( $page_url ) {
 		$page_body = (string) wp_remote_retrieve_body( $page_response );
 	}
 
+	$metadata      = array();
+	$title         = '' !== $page_body ? desktop_mode_web_metadata_extract_title( $page_body ) : '';
 	$candidate_url = '' !== $page_body
 		? desktop_mode_favicon_extract_link_href( $page_body, $page_url )
 		: '';
+	if ( '' !== $title ) {
+		$metadata['name'] = $title;
+	}
 	if ( '' === $candidate_url ) {
 		$candidate_url = $scheme . '://' . $parts['host'] . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' ) . '/favicon.ico';
 	}
 
-	return desktop_mode_favicon_fetch_as_data_uri( $candidate_url );
+	$icon = desktop_mode_favicon_fetch_as_data_uri( $candidate_url );
+	if ( is_string( $icon ) && '' !== $icon ) {
+		$metadata['iconUrl'] = $icon;
+	}
+
+	return $metadata;
+}
+
+/**
+ * Extract and sanitize the first HTML title.
+ *
+ * @internal
+ *
+ * @param string $html Page body.
+ * @return string
+ */
+function desktop_mode_web_metadata_extract_title( $html ) {
+	if ( ! class_exists( 'DOMDocument' ) ) {
+		if ( ! preg_match( '/<title\b[^>]*>(.*?)<\/title>/is', (string) $html, $matches ) ) {
+			return '';
+		}
+		$title = wp_strip_all_tags( (string) $matches[1] );
+		$title = html_entity_decode( $title, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$title = sanitize_text_field( preg_replace( '/\s+/u', ' ', trim( $title ) ) );
+		return function_exists( 'mb_substr' ) ? mb_substr( $title, 0, 160 ) : substr( $title, 0, 160 );
+	}
+
+	$dom         = new DOMDocument();
+	$prev_errors = libxml_use_internal_errors( true );
+	$dom->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NOWARNING | LIBXML_NOERROR );
+	libxml_clear_errors();
+	libxml_use_internal_errors( $prev_errors );
+
+	$titles = $dom->getElementsByTagName( 'title' );
+	if ( ! $titles || 0 === $titles->length ) {
+		return '';
+	}
+
+	$title = html_entity_decode( (string) $titles->item( 0 )->textContent, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	$title = sanitize_text_field( preg_replace( '/\s+/u', ' ', trim( $title ) ) );
+	if ( function_exists( 'mb_substr' ) ) {
+		return mb_substr( $title, 0, 160 );
+	}
+	return substr( $title, 0, 160 );
 }
 
 /**
@@ -172,6 +290,13 @@ function desktop_mode_favicon_request_args( $limit_response_size = DESKTOP_MODE_
  * @return string
  */
 function desktop_mode_favicon_extract_link_href( $html, $base_url ) {
+	if ( ! class_exists( 'DOMDocument' ) ) {
+		// Metadata is best-effort. The caller will fall back to the
+		// origin's `/favicon.ico`, which is preferable to a PHP fatal in
+		// lightweight browser runtimes that omit ext-dom.
+		return '';
+	}
+
 	$dom         = new DOMDocument();
 	$prev_errors = libxml_use_internal_errors( true );
 	// `LIBXML_NOWARNING | LIBXML_NOERROR` suppresses libxml's stderr
@@ -315,6 +440,9 @@ function desktop_mode_favicon_fetch_as_data_uri( $icon_url ) {
 	// `.ico` files in some PHP builds. SVG is XML, not a recognized
 	// image format by getimagesize, so we skip the check for it.
 	if ( 'svg+xml' !== $subtype ) {
+		if ( ! function_exists( 'getimagesizefromstring' ) ) {
+			return null;
+		}
 		$dimensions = @getimagesizefromstring( $body );
 		if ( false === $dimensions ) {
 			return null;

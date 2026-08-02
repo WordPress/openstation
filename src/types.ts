@@ -125,6 +125,12 @@ export interface WindowConfig {
 	 */
 	native?: boolean;
 	/**
+	 * Permit a validated external HTTP(S) URL in this iframe. The normal
+	 * admin-window path remains same-origin-only; web bookmark windows opt
+	 * in explicitly and provide their own permanent browser fallback.
+	 */
+	allowExternalUrl?: boolean;
+	/**
 	 * Render callback for native windows. Invoked once after the window
 	 * element mounts; receives the `.desktop-mode-window__body` and
 	 * an optional render context whose `window.send` / `window.on`

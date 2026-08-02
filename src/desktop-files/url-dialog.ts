@@ -14,6 +14,7 @@
  */
 
 import { applyFilters, doAction } from '../hooks';
+import { normalizeWebUrl } from './web-url';
 // Pre-registered globally by the lazy shell-overlays bundle (Stage 10) — see src/shell-overlays/entry.ts.
 
 const ROOT_CLASS = 'desktop-mode-url-dialog';
@@ -178,14 +179,9 @@ export function openUrlDialog( options: UrlDialogOptions ): void {
 			showError( 'Please enter a URL.' );
 			return;
 		}
-		// Coerce bare hostnames into a fully-qualified https:// URL.
-		const finalUrl = /^[a-z][a-z0-9+\-.]*:/i.test( url ) ? url : `https://${ url }`;
-		try {
-			// Validate by parsing.
-			// eslint-disable-next-line no-new
-			new URL( finalUrl );
-		} catch {
-			showError( 'That doesn\'t look like a valid URL.' );
+		const finalUrl = normalizeWebUrl( url );
+		if ( ! finalUrl ) {
+			showError( 'Enter an HTTP or HTTPS URL without a username or password.' );
 			return;
 		}
 		const name = readValue( nameField ).trim();
