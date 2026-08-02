@@ -6,6 +6,7 @@
  * implementation (which would create a circular-import trap).
  */
 
+import type { MioLook } from '../mio/types';
 import type { WallpaperLayer } from '../wallpapers/layer';
 import type { WallpaperTeardown } from '../wallpapers/types';
 import type { ADMIN_BAR_MODES, DOCK_SIZES, WINDOW_RADII } from './constants';
@@ -282,6 +283,17 @@ export interface OsSettingsState {
 	 * time it flips true. Off by default. See `docs/mio.md`.
 	 */
 	mioEnabled: boolean;
+	/**
+	 * The user's own Mio, as built in "Make it yours" — colours, ring,
+	 * glow, hologram, and silhouette. Only the keys they actually
+	 * changed are stored, so a site that later ships a different Mio
+	 * still shows through everywhere the user has no opinion.
+	 *
+	 * Here rather than in localStorage because it is a preference about
+	 * the person, not the machine: ten minutes spent building a
+	 * companion should be waiting on their phone. See `docs/mio.md`.
+	 */
+	mioStyle: MioLook;
 	/**
 	 * When true, post-type tiles inside the My WordPress window
 	 * carry a diagonal corner ribbon (`Draft` / `Pending` /

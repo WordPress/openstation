@@ -205,4 +205,161 @@ class Tests_DesktopMode_Mio extends WP_UnitTestCase {
 		$stored = desktop_mode_get_os_settings( $user_id );
 		$this->assertTrue( $stored['mioEnabled'] );
 	}
+
+	/**
+	 * A look someone builds in "Make it yours" is stored per user, not
+	 * per browser — that is the whole point of it living here rather
+	 * than in localStorage.
+	 *
+	 * @covers ::desktop_mode_get_os_settings
+	 */
+	public function test_look_persists_to_user_meta() {
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $user_id );
+
+		$clean = desktop_mode_sanitize_os_settings(
+			array(
+				'mioStyle' => array(
+					'appearance' => array( 'glow' => 2.5 ),
+					'physics'    => array( 'shapePreset' => 'star' ),
+				),
+			)
+		);
+		update_user_meta( $user_id, 'desktop_mode_os_settings', $clean );
+
+		$stored = desktop_mode_get_os_settings( $user_id );
+		$this->assertSame( 2.5, $stored['mioStyle']['appearance']['glow'] );
+		$this->assertSame( 'star', $stored['mioStyle']['physics']['shapePreset'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_os_settings
+	 */
+	public function test_sanitize_defaults_look_when_absent() {
+		$clean = desktop_mode_sanitize_os_settings( array() );
+		$this->assertSame(
+			array(
+				'appearance' => array(),
+				'physics'    => array(),
+			),
+			$clean['mioStyle']
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_mio_look
+	 */
+	public function test_sanitize_look_keeps_known_keys() {
+		$clean = desktop_mode_sanitize_mio_look(
+			array(
+				'appearance' => array(
+					'glow'      => 1.75,
+					'hueStart'  => 210,
+					'hueLoop'   => false,
+					'bodyColor' => '#ff00aa',
+				),
+				'physics'    => array(
+					'shapePreset' => 'heart',
+					'shapeAmount' => 0.8,
+					'idleWobble'  => 0,
+				),
+			)
+		);
+
+		$this->assertSame( 1.75, $clean['appearance']['glow'] );
+		$this->assertSame( 210, $clean['appearance']['hueStart'] );
+		$this->assertFalse( $clean['appearance']['hueLoop'] );
+		$this->assertSame( '#ff00aa', $clean['appearance']['bodyColor'] );
+		$this->assertSame( 'heart', $clean['physics']['shapePreset'] );
+		$this->assertSame( 0.8, $clean['physics']['shapeAmount'] );
+		$this->assertSame( 0, $clean['physics']['idleWobble'] );
+	}
+
+	/**
+	 * The one that matters: a stored look must never be a route into
+	 * the spring constants. They are the site's, they interact, and a
+	 * corrupt row that could reach them could make Mio unstable.
+	 *
+	 * @covers ::desktop_mode_sanitize_mio_look
+	 */
+	public function test_sanitize_look_drops_unknown_keys() {
+		$clean = desktop_mode_sanitize_mio_look(
+			array(
+				'appearance' => array(
+					'glow'      => 1,
+					'notAThing' => 'x',
+				),
+				'physics'    => array(
+					'shapePreset'     => 'star',
+					'radialStiffness' => 9000,
+					'pressure'        => 0,
+					'damping'         => 0,
+				),
+			)
+		);
+
+		$this->assertSame( array( 'glow' => 1 ), $clean['appearance'] );
+		$this->assertSame( array( 'shapePreset' => 'star' ), $clean['physics'] );
+	}
+
+	/**
+	 * @covers ::desktop_mode_sanitize_mio_look
+	 */
+	public function test_sanitize_look_survives_nonsense() {
+		foreach ( array( null, 'nope', 42, array( 'appearance' => 'nope' ) ) as $raw ) {
+			$this->assertSame(
+				array(
+					'appearance' => array(),
+					'physics'    => array(),
+				),
+				desktop_mode_sanitize_mio_look( $raw )
+			);
+		}
+	}
+
+	/**
+	 * Non-finite floats survive a JSON round-trip as `null`, so they
+	 * are dropped rather than stored as a key the client then has to
+	 * defend against.
+	 *
+	 * @covers ::desktop_mode_sanitize_mio_look
+	 */
+	public function test_sanitize_look_drops_non_finite_numbers() {
+		$clean = desktop_mode_sanitize_mio_look(
+			array(
+				'appearance' => array(
+					'glow'       => INF,
+					'saturation' => NAN,
+					'lightness'  => 0.5,
+				),
+			)
+		);
+		$this->assertSame( array( 'lightness' => 0.5 ), $clean['appearance'] );
+	}
+
+	/**
+	 * The PHP whitelist and the TS one have to agree, or a control the
+	 * panel can move is one the account never remembers.
+	 *
+	 * @covers ::desktop_mode_mio_look_appearance_keys
+	 * @covers ::desktop_mode_mio_look_physics_keys
+	 */
+	public function test_look_whitelists_mirror_the_config() {
+		$config = desktop_mode_mio_config();
+
+		foreach ( desktop_mode_mio_look_appearance_keys() as $key ) {
+			$this->assertArrayHasKey(
+				$key,
+				$config['appearance'],
+				"Appearance key {$key} is storable but not configurable."
+			);
+		}
+		foreach ( desktop_mode_mio_look_physics_keys() as $key ) {
+			$this->assertArrayHasKey(
+				$key,
+				$config['physics'],
+				"Look-physics key {$key} is storable but not configurable."
+			);
+		}
+	}
 }

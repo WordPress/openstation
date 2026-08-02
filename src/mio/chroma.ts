@@ -218,11 +218,22 @@ export function chromaRing(
 		// (`hueDrift`) hides that by keeping the seam moving — which is
 		// why it was invisible until the rotation was switched off.
 		//
-		// `hueLoop` walks the span out and back instead — a triangle
-		// wave, `0 → 1 → 0` — so the two ends of the ring are the same
-		// colour by construction and there is nothing to hide. Costs
-		// symmetry across the ring, which for a two-colour sweep reads
-		// as deliberate rather than as a fault.
+		// `hueLoop` walks the span out and back instead, so the two ends
+		// of the ring are the same colour by construction and there is
+		// nothing to hide.
+		//
+		// **It walks it on a raised cosine, not a triangle.** A triangle
+		// wave closes the loop but only in *value*: its slope flips sign
+		// the instant it turns, so both turning points carry a crease —
+		// the hue runs one way, stops dead, and runs back. That crease is
+		// the "it goes round and then the colour isn't seamless" tell,
+		// and it is a seam in everything but name. `½ − ½·cos( 2πt )`
+		// meets itself in value *and* rate: the sweep eases to a stop at
+		// each extreme and eases away again, so the ring reads as one
+		// continuous band with no beginning. It also spends longer near
+		// the two end colours and crosses the middle faster, which is
+		// what a three-stop gradient does anyway.
+		//
 		// `hueAngle` rotates where the ramp starts. It matters most with
 		// `hueLoop`, whose two extremes are pinned to the ends of the
 		// mirror — without it they would always sit at 3 and 9 o'clock,
@@ -231,7 +242,7 @@ export function chromaRing(
 		const shifted =
 			( ( ( t - ( appearance.hueAngle + spin ) / 360 ) % 1 ) + 1 ) % 1;
 		const ramp = appearance.hueLoop
-			? 1 - Math.abs( 1 - 2 * shifted )
+			? 0.5 - 0.5 * Math.cos( shifted * TAU )
 			: shifted;
 		let hue = appearance.hueStart + appearance.hueSpan * ramp + phase;
 		// Cosine hump peaking at t = 1/3 — the "lit side" of the ring.

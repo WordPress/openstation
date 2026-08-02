@@ -118,7 +118,58 @@ export type MioShapePreset =
 	| 'blob'
 	| 'ghost'
 	| 'potato'
+	| 'star'
+	| 'flower'
+	| 'heart'
+	| 'diamond'
+	| 'drop'
+	| 'cloud'
 	| 'custom';
+
+/**
+ * The part of {@link MioPhysics} that is a *look* rather than a feel,
+ * and therefore the part "Make it yours" is allowed to write.
+ *
+ * The line is not "shape versus motion", it is **rest lengths versus
+ * spring constants**. Everything here modulates the target the springs
+ * are already chasing, so the worst a user can do with it is pick
+ * something they don't like: a silhouette they find ugly, or a
+ * companion that sits too still. Everything *else* in `MioPhysics` is
+ * a constant those springs are tuned with — the values interact, and a
+ * user who makes Mio unstable from a slider has no way to know which
+ * slider did it. That half stays the site's.
+ *
+ * @public
+ */
+export type MioLookPhysics = Pick<
+	MioPhysics,
+	| 'shapePreset'
+	| 'shapeLobes'
+	| 'shapeAmount'
+	| 'shapeAngle'
+	| 'shapeShuffle'
+	| 'idleWobble'
+	| 'idleWobbleSpeed'
+>;
+
+/**
+ * Everything "Make it yours" is allowed to change, in one bag.
+ *
+ * This is what gets stored — per user, in user meta, inside the OS
+ * Settings blob — so a look someone builds on their laptop is waiting
+ * for them on their phone. Both halves are **partials**: only the keys
+ * the user actually moved are recorded, so a site that later changes
+ * its shipped Mio still shows through everywhere the user did not have
+ * an opinion.
+ *
+ * @public
+ */
+export interface MioLook {
+	/** Colour, ring, glow, hologram, body, eyes. */
+	appearance: Partial< MioAppearance >;
+	/** Silhouette, the shuffle, and the idle wobble. */
+	physics: Partial< MioLookPhysics >;
+}
 
 /**
  * Simulation constants. Exposed so a plugin can make Mio
@@ -143,10 +194,20 @@ export interface MioPhysics {
 	 * | `blob` | Nearly round, with a shallow dimple at the bottom centre. |
 	 * | `ghost` | Dome top, straight sides, three scalloped feet. |
 	 * | `potato` | Lumpy and asymmetric. No symmetry at all. |
+	 * | `star` | Five narrow points, one straight up. |
+	 * | `flower` | Six rounded petals. |
+	 * | `heart` | Cleft at the crown, point at the foot. |
+	 * | `diamond` | Four points — up, down, and both sides. |
+	 * | `drop` | A teardrop, tip up. |
+	 * | `cloud` | Three billows across the top, flat below. |
 	 * | `custom` | Built from {@link shapeLobes}: a rounded polygon. |
 	 *
 	 * Every preset is authored **upright**, so {@link shapeAngle} is a
 	 * rotation on top rather than part of the definition.
+	 *
+	 * The detailed presets need a finer rim than the shipped twelve
+	 * points to be themselves, and the runtime densifies the rim while
+	 * one is on screen — {@link points} is a floor, not a ceiling.
 	 */
 	shapePreset: MioShapePreset;
 	/**

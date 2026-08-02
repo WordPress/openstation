@@ -240,6 +240,12 @@ const SHAPE_PRESETS: readonly MioShapePreset[] = [
 	'blob',
 	'ghost',
 	'potato',
+	'star',
+	'flower',
+	'heart',
+	'diamond',
+	'drop',
+	'cloud',
 	'custom',
 ];
 

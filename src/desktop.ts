@@ -1895,6 +1895,17 @@ function init(): void {
 			osSettings.state.mioEnabled = enabled;
 			osSettings.save();
 		},
+		// The look someone builds in "Make it yours" rides the OS
+		// Settings blob into user meta, so it follows them to their
+		// other browsers and devices — the same route `mioEnabled`
+		// already takes. `save()` writes localStorage synchronously and
+		// debounces the REST call, which is why this can be handed
+		// every slider frame.
+		savedLook: osSettings.state.mioStyle,
+		persistLook: ( look ) => {
+			osSettings.state.mioStyle = look;
+			osSettings.save();
+		},
 	} );
 	const mioApi: MioApi = mio.api();
 	mio.boot();

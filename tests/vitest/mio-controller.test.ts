@@ -131,11 +131,13 @@ describe( 'MioController', () => {
 	test( 'setStyle persists and survives a remount', async () => {
 		const { MioController } = await load();
 		const mount = stubMount();
+		const persistLook = vi.fn();
 		const controller = new MioController( {
 			shell: shell(),
 			bundleUrl: 'https://example.test/mio.js',
 			enabled: true,
 			persist: vi.fn(),
+			persistLook,
 		} );
 		controller.boot();
 		await vi.waitFor( () => expect( mount.handles ).toHaveLength( 1 ) );
@@ -143,69 +145,128 @@ describe( 'MioController', () => {
 		controller.api().setStyle( { glow: 2.5 } );
 		expect( controller.api().getConfig().appearance.glow ).toBe( 2.5 );
 		expect( mount.handles[ 0 ].applyConfig ).toHaveBeenCalled();
+		expect( persistLook ).toHaveBeenCalledWith( {
+			appearance: { glow: 2.5 },
+			physics: {},
+		} );
 
-		// A fresh controller — i.e. the next page load — reads it back.
+		// A fresh controller handed what was stored — i.e. the next page
+		// load, with the look coming back from user meta.
 		const next = new MioController( {
 			shell: shell(),
 			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
+			savedLook: persistLook.mock.calls[ 0 ][ 0 ],
 		} );
 		expect( next.api().getConfig().appearance.glow ).toBe( 2.5 );
 	} );
 
-	test( 'a saved style is clamped like any other untrusted input', async () => {
-		window.localStorage.setItem(
-			'desktop-mode-mio-style',
-			JSON.stringify( { glow: 999, saturation: -4 } ),
-		);
+	test( 'setStyle splits a flat look into appearance and physics', async () => {
 		const { MioController } = await load();
+		const persistLook = vi.fn();
 		const controller = new MioController( {
 			shell: shell(),
 			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
+			persistLook,
 		} );
-		const { appearance } = controller.api().getConfig();
-		expect( appearance.glow ).toBe( 3 );
-		expect( appearance.saturation ).toBe( 0 );
+
+		// The stiffness rides along in the same object and must be
+		// dropped: the panel is not a way into the springs.
+		controller.api().setStyle( {
+			glow: 2,
+			shapePreset: 'star',
+			idleWobble: 0,
+			radialStiffness: 4,
+		} as never );
+
+		const config = controller.api().getConfig();
+		expect( config.appearance.glow ).toBe( 2 );
+		expect( config.physics.shapePreset ).toBe( 'star' );
+		expect( config.physics.idleWobble ).toBe( 0 );
+		expect( config.physics.radialStiffness ).toBe(
+			MIO_DEFAULTS.physics.radialStiffness,
+		);
+		expect( persistLook ).toHaveBeenCalledWith( {
+			appearance: { glow: 2 },
+			physics: { shapePreset: 'star', idleWobble: 0 },
+		} );
 	} );
 
-	test( 'a corrupt saved style is ignored, not fatal', async () => {
-		window.localStorage.setItem( 'desktop-mode-mio-style', '{{{not json' );
+	test( 'a saved look is clamped like any other untrusted input', async () => {
 		const { MioController } = await load();
 		const controller = new MioController( {
 			shell: shell(),
 			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
+			savedLook: {
+				appearance: { glow: 999, saturation: -4 },
+				physics: { shapePreset: 'nonsense', shapeAmount: 40 },
+			},
 		} );
-		expect( controller.api().getConfig().appearance.glow ).toBe(
-			MIO_DEFAULTS.appearance.glow,
-		);
+		const { appearance, physics } = controller.api().getConfig();
+		expect( appearance.glow ).toBe( 3 );
+		expect( appearance.saturation ).toBe( 0 );
+		// An unknown preset falls back rather than throwing.
+		expect( physics.shapePreset ).toBe( MIO_DEFAULTS.physics.shapePreset );
+		expect( physics.shapeAmount ).toBe( 1.4 );
+	} );
+
+	test( 'a corrupt saved look is ignored, not fatal', async () => {
+		const { MioController } = await load();
+		for ( const savedLook of [
+			'{{{not json',
+			42,
+			[ 'nope' ],
+			{ appearance: 'nope' },
+			null,
+		] ) {
+			const controller = new MioController( {
+				shell: shell(),
+				bundleUrl: 'https://example.test/mio.js',
+				enabled: false,
+				persist: vi.fn(),
+				savedLook,
+			} );
+			expect( controller.api().getConfig().appearance.glow ).toBe(
+				MIO_DEFAULTS.appearance.glow,
+			);
+		}
 	} );
 
 	test( 'resetStyle forgets the saved look and restores the site default', async () => {
 		const { MioController } = await load();
 		const mount = stubMount();
+		const persistLook = vi.fn();
 		const controller = new MioController( {
 			shell: shell(),
 			bundleUrl: 'https://example.test/mio.js',
 			enabled: true,
 			persist: vi.fn(),
+			persistLook,
 		} );
 		controller.boot();
 		await vi.waitFor( () => expect( mount.handles ).toHaveLength( 1 ) );
 
 		controller.api().setStyle( { glow: 0 } );
+		controller.api().setStyle( { shapePreset: 'heart' } );
 		controller.api().resetStyle();
 
 		expect( controller.api().getConfig().appearance.glow ).toBe(
 			MIO_DEFAULTS.appearance.glow,
 		);
-		expect(
-			window.localStorage.getItem( 'desktop-mode-mio-style' ),
-		).toBeNull();
+		expect( controller.api().getConfig().physics.shapePreset ).toBe(
+			MIO_DEFAULTS.physics.shapePreset,
+		);
+		// The empty look is written too — "Restore Mio" has to travel to
+		// the user's other devices, and only a save can carry it.
+		expect( persistLook ).toHaveBeenLastCalledWith( {
+			appearance: {},
+			physics: {},
+		} );
 	} );
 
 	test( 'setConfig does NOT persist — only setStyle does', async () => {
@@ -213,16 +274,55 @@ describe( 'MioController', () => {
 		// nudging Mio for a moment shouldn't silently become the user's
 		// saved look.
 		const { MioController } = await load();
+		const persistLook = vi.fn();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: false,
+			persist: vi.fn(),
+			persistLook,
+		} );
+		controller.api().setConfig( { appearance: { glow: 0.25 } } );
+		expect( persistLook ).not.toHaveBeenCalled();
+		expect( controller.api().getLook() ).toEqual( {
+			appearance: {},
+			physics: {},
+		} );
+	} );
+
+	test( 'commitStyle writes the current look on demand', async () => {
+		const { MioController } = await load();
+		const persistLook = vi.fn();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: false,
+			persist: vi.fn(),
+			persistLook,
+		} );
+		controller.api().setStyle( { glow: 1 } );
+		persistLook.mockClear();
+
+		controller.api().commitStyle();
+		expect( persistLook ).toHaveBeenCalledWith( {
+			appearance: { glow: 1 },
+			physics: {},
+		} );
+	} );
+
+	test( 'the look survives a controller with nowhere to persist it', async () => {
+		// `persistLook` is optional — a host that hasn't wired storage
+		// should still get a working panel for the session.
+		const { MioController } = await load();
 		const controller = new MioController( {
 			shell: shell(),
 			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
 		} );
-		controller.api().setConfig( { appearance: { glow: 0.25 } } );
-		expect(
-			window.localStorage.getItem( 'desktop-mode-mio-style' ),
-		).toBeNull();
+		controller.api().setStyle( { glow: 1.5 } );
+		controller.api().commitStyle();
+		expect( controller.api().getConfig().appearance.glow ).toBe( 1.5 );
 	} );
 
 	test( 'toggling off parks the instance rather than destroying it', async () => {

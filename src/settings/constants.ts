@@ -249,6 +249,9 @@ export const DEFAULTS: OsSettingsState = {
 	nativeCommentsEnabled: false,
 	showDesktopOnWallpaperClick: false,
 	mioEnabled: false,
+	// No opinions: the user has not been to "Make it yours" yet, so
+	// they get whatever Mio the site ships.
+	mioStyle: { appearance: {}, physics: {} },
 	showPostStatusRibbons: true,
 	developerModeEnabled: false,
 	foldersSharingEnabled: true,

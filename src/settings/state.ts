@@ -40,6 +40,7 @@ import type {
 	WindowRadiusId,
 } from './types';
 import { isHexColor } from './utils';
+import { sanitizeMioLook } from '../mio/look';
 import { trackedFetch } from '../tracked-fetch';
 
 // -----------------------------------------------------------------------
@@ -261,6 +262,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.mioEnabled === 'boolean'
 				? parsed.mioEnabled
 				: DEFAULTS.mioEnabled,
+		// Shape check only — what a *legal* hue or silhouette is stays
+		// `sanitizeMioConfig`'s call, and it runs on everything headed
+		// for the simulation whatever route it arrived by.
+		mioStyle: sanitizeMioLook( parsed.mioStyle ),
 		showPostStatusRibbons:
 			typeof parsed.showPostStatusRibbons === 'boolean'
 				? parsed.showPostStatusRibbons
@@ -504,6 +509,10 @@ function _cloneState( state: OsSettingsState ): OsSettingsState {
 			] ),
 		),
 		ai: { ...state.ai },
+		mioStyle: {
+			appearance: { ...state.mioStyle.appearance },
+			physics: { ...state.mioStyle.physics },
+		},
 		appliedThemeRecommendations: state.appliedThemeRecommendations.slice(),
 		nativePostsHiddenColumns: state.nativePostsHiddenColumns.slice(),
 		itemVisibility: { ...state.itemVisibility },

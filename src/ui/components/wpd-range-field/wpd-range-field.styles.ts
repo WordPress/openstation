@@ -13,7 +13,13 @@ export const styles = css`
 		accent-color: var( --wp-admin-theme-color, #2271b1 );
 	}
 	.wpd-range-field__value {
-		min-width: 3ch;
+		/* Fixed, not min-width: the readout shares a row with the
+		   track, so a box that grows with its contents shoves the
+		   slider sideways under the thumb the user is dragging. The
+		   width comes from the range's own bounds — see
+		   \`readoutWidth()\`. */
+		width: var( --wpd-range-readout-width, 3ch );
+		flex: none;
 		text-align: end;
 		font-variant-numeric: tabular-nums;
 		color: var( --wpd-fg, #1d2327 );

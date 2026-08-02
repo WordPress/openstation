@@ -42,6 +42,8 @@ import {
 import {
 	addVelocity,
 	createSoftBody,
+	presetRimPoints,
+	resampleBody,
 	resetBody,
 	shapeProfile,
 	stepSoftBody,
@@ -80,6 +82,18 @@ const FULL_RAKE_SPEED = 900;
 const MORPH_SECONDS = 2.6;
 
 /**
+ * Ceiling on the rim resolution a silhouette may ask for.
+ *
+ * `presetRimPoints()` is a request, not a demand: `custom` derives its
+ * answer from a lobe count a plugin supplies, and nothing else in the
+ * shape system bounds it. The simulation is linear in the point count
+ * across six passes per sub-step at 240 Hz, so this is the line
+ * between "a detailed shape costs a little more" and "a shape config
+ * can tax every frame".
+ */
+const MAX_RIM_POINTS = 64;
+
+/**
  * The stock silhouettes the shuffle draws from.
  *
  * `custom` is deliberately absent: it is a shape someone configured on
@@ -91,6 +105,12 @@ const SHUFFLE_SHAPES: readonly MioShapePreset[] = [
 	'blob',
 	'ghost',
 	'potato',
+	'star',
+	'flower',
+	'heart',
+	'diamond',
+	'drop',
+	'cloud',
 ];
 
 /**
@@ -227,6 +247,53 @@ export async function mountMio(
 		return from + ( to - from ) * smoothstep( morphAt / MORPH_SECONDS );
 	};
 
+	/**
+	 * Rim resolution the silhouettes in play need right now.
+	 *
+	 * `physics.points` is a **floor, not a ceiling**: a five-pointed
+	 * star cannot exist on twelve mass points (see `presetRimPoints`),
+	 * so the runtime lends the shape the resolution it needs and takes
+	 * it back when the shape goes away. Both ends of a morph are
+	 * counted, or the shape being eased away from would be resampled
+	 * out from under the blend halfway through the transition.
+	 */
+	const neededPoints = (): number =>
+		Math.min(
+			MAX_RIM_POINTS,
+			Math.max(
+				config.physics.points,
+				presetRimPoints( { ...config.physics, shapePreset: shape } ),
+				morphFrom
+					? presetRimPoints( { ...config.physics, shapePreset: morphFrom } )
+					: 0,
+			),
+		);
+
+	/**
+	 * Ease toward a silhouette chosen from outside the shuffle — the
+	 * "Make it yours" shape picker, or a plugin calling `setConfig`.
+	 *
+	 * It cannot be left to {@link updateShape} to notice: that only
+	 * adopts `config.physics.shapePreset` when the shuffle is switched
+	 * off, so with it on a user's pick would sit unapplied until the
+	 * next random change came round. Picking a shape has to show the
+	 * shape.
+	 *
+	 * @param next Silhouette to ease into.
+	 */
+	const retargetShape = ( next: MioShapePreset ): void => {
+		if ( next === shape ) {
+			return;
+		}
+		morphFrom = shape;
+		morphAt = 0;
+		shape = next;
+		// Give the pick its full turn on screen rather than however
+		// long was left on a clock the user cannot see.
+		nextShuffle = shuffleDelay( config.physics.shapeShuffle );
+		doAction( 'desktop-mode.mio.shape-changed', { shape, from: morphFrom } );
+	};
+
 	/** Advance the shuffle clock and the morph in progress. */
 	const updateShape = ( seconds: number ): void => {
 		if ( morphFrom ) {
@@ -240,7 +307,10 @@ export async function mountMio(
 		if ( every <= 0 ) {
 			// Switched off mid-session: settle on the configured shape
 			// rather than freezing wherever the last shuffle left us.
-			shape = config.physics.shapePreset;
+			// Eased, not snapped — unticking "change shape on its own"
+			// while Mio happens to be a star should look like it going
+			// home, not like a glitch.
+			retargetShape( config.physics.shapePreset );
 			nextShuffle = 0;
 			return;
 		}
@@ -263,9 +333,22 @@ export async function mountMio(
 		clamp( start.x, config.appearance.radius, size().width - config.appearance.radius ),
 		clamp( start.y, config.appearance.radius, size().height - config.appearance.radius ),
 		config.appearance.radius,
-		config.physics.points,
+		neededPoints(),
 		profile,
 	);
+
+	/**
+	 * Densify or coarsen the rim to whatever the current silhouette
+	 * needs, preserving the pose. A no-op on the overwhelming majority
+	 * of frames — the resolution only moves when a shuffle starts or
+	 * finishes.
+	 */
+	const syncResolution = (): void => {
+		const want = neededPoints();
+		if ( want !== body.rim.length ) {
+			resampleBody( body, want );
+		}
+	};
 
 	// ------------------------------------------------------------------
 	// Interaction handle — see the module header for why the canvas
@@ -649,6 +732,7 @@ export async function mountMio(
 
 		updateTilt( seconds );
 		updateShape( seconds );
+		syncResolution();
 
 		// Blink schedule.
 		if ( blinkStartedAt < 0 && elapsed >= nextBlinkAt ) {
@@ -780,7 +864,14 @@ export async function mountMio(
 			const rebuild =
 				calm.physics.points !== config.physics.points ||
 				calm.appearance.radius !== config.appearance.radius;
+			const pickedShape =
+				calm.physics.shapePreset !== config.physics.shapePreset
+					? calm.physics.shapePreset
+					: null;
 			config = calm;
+			if ( pickedShape ) {
+				retargetShape( pickedShape );
+			}
 			applyGlow( pixi, layers, config );
 			applySheenBlur( pixi, layers, config );
 			sizeHandle( handle, config );
@@ -790,10 +881,17 @@ export async function mountMio(
 					at.x,
 					at.y,
 					config.appearance.radius,
-					config.physics.points,
+					neededPoints(),
 					profile,
 				);
 				forgetMotion();
+			} else {
+				// A config that only changed the silhouette retargets the
+				// springs rather than rebuilding — but the new shape may
+				// want a finer rim than the old one, and waiting for the
+				// next tick would morph the first frames at the old
+				// resolution.
+				syncResolution();
 			}
 		},
 		destroy: () => {

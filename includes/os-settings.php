@@ -174,6 +174,17 @@ function desktop_mode_default_os_settings() {
 		// pointer. Off by default; toggled from the wallpaper context
 		// menu. Per-user. See `docs/mio.md`.
 		'mioEnabled'               => false,
+		// The user's own Mio, as built in "Make it yours": partial
+		// appearance + silhouette overrides, both empty until they
+		// touch a control. Stored per user rather than per browser
+		// because it is a preference about the person — ten minutes
+		// spent building a companion should be waiting on their phone.
+		// Sanitized by `desktop_mode_sanitize_mio_look()`; the ranges
+		// are enforced client-side in `sanitizeMioConfig()`.
+		'mioStyle'                    => array(
+			'appearance' => array(),
+			'physics'    => array(),
+		),
 		// Diagonal corner ribbon on My WordPress tiles whose post
 		// status isn't `publish` (draft / pending / private /
 		// scheduled). On by default — surfaces unpublished work at
@@ -606,6 +617,13 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['mioEnabled']
 		: $defaults['mioEnabled'];
 
+	// A missing key means "no look saved yet", which sanitizes to the
+	// same pair of empty arrays the defaults carry — so this needs no
+	// isset() branch of its own.
+	$mio_style = desktop_mode_sanitize_mio_look(
+		isset( $raw['mioStyle'] ) ? $raw['mioStyle'] : null
+	);
+
 	$show_post_status_ribbons = isset( $raw['showPostStatusRibbons'] )
 		? (bool) $raw['showPostStatusRibbons']
 		: $defaults['showPostStatusRibbons'];
@@ -743,6 +761,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativeCommentsEnabled'       => $native_comments_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
 		'mioEnabled'               => $mio_enabled,
+		'mioStyle'                    => $mio_style,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
 		'developerModeEnabled'        => $developer_mode_enabled,
 		'foldersSharingEnabled'       => $folders_sharing_enabled,

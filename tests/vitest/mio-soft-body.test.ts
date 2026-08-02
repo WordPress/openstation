@@ -15,6 +15,8 @@ import {
 	addVelocity,
 	createSoftBody,
 	polygonArea,
+	presetRimPoints,
+	resampleBody,
 	resetBody,
 	rimCentroid,
 	shapeProfile,
@@ -1036,10 +1038,24 @@ describe( 'the rest shape', () => {
 		}
 	} );
 
+	/** Every silhouette there is, `circle` excepted where noted. */
+	const ALL_PRESETS = [
+		'blob',
+		'ghost',
+		'potato',
+		'star',
+		'flower',
+		'heart',
+		'diamond',
+		'drop',
+		'cloud',
+		'custom',
+	] as const;
+
 	test( 'zero amount is a circle whatever the preset', () => {
 		// The one guarantee that has to hold across all of them, or
 		// `shapeAmount` means something different per preset.
-		for ( const p of [ 'blob', 'ghost', 'potato', 'custom' ] as const ) {
+		for ( const p of ALL_PRESETS ) {
 			const flat = { ...withPreset( p ), shapeAmount: 0 };
 			for ( const { r } of sweep( flat, 60 ) ) {
 				expect( r ).toBe( 1 );
@@ -1051,12 +1067,100 @@ describe( 'the rest shape', () => {
 		// `minStretch` / `maxStretch` bound the rim to an annulus around
 		// the rest shape. A preset that pushed past them on its own would
 		// be permanently fighting the relaxation pass.
-		for ( const p of [ 'blob', 'ghost', 'potato', 'custom' ] as const ) {
+		for ( const p of ALL_PRESETS ) {
 			for ( const { r } of sweep( withPreset( p ) ) ) {
 				expect( r ).toBeGreaterThan( MIO_DEFAULTS.physics.minStretch );
 				expect( r ).toBeLessThan( MIO_DEFAULTS.physics.maxStretch );
 			}
 		}
+	} );
+
+	test( 'every preset is a shape you can actually see', () => {
+		// The prominence guarantee. `circle` is the deliberate flat one;
+		// `blob` is the reference silhouette and is meant to be subtle.
+		// Everything else exists to be recognised across a desktop, and
+		// a preset whose deviation rounds to nothing is a shuffle that
+		// looks like a bug.
+		for ( const p of ALL_PRESETS ) {
+			if ( p === 'blob' ) {
+				continue;
+			}
+			const radii = sweep( withPreset( p ) ).map( ( s ) => s.r );
+			const spread = Math.max( ...radii ) - Math.min( ...radii );
+			expect( spread ).toBeGreaterThan( 0.1 );
+		}
+	} );
+
+	test( 'no preset is upside down', () => {
+		// Each of these was authored with one named feature at the
+		// crown. Screen coordinates put the crown at −π/2, and the sign
+		// is easy to drop — this is the test that catches it.
+		const crownIsHighest = ( p: MioShapePreset ): boolean => {
+			const at = ( angle: number ): number =>
+				shapeProfile( angle, withPreset( p ) );
+			const crown = at( -Math.PI / 2 );
+			const foot = at( Math.PI / 2 );
+			return crown > foot;
+		};
+		// A point up: star, teardrop, and the cloud's middle billow.
+		for ( const p of [ 'star', 'drop', 'cloud' ] as const ) {
+			expect( crownIsHighest( p ) ).toBe( true );
+		}
+		// The diamond points up *and* down, so it has no higher end —
+		// what it must not do is point at the diagonals instead, which
+		// is what a half-lobe phase error would produce.
+		const diamond = withPreset( 'diamond' );
+		expect( shapeProfile( -Math.PI / 2, diamond ) ).toBeGreaterThan(
+			shapeProfile( -Math.PI / 4, diamond ),
+		);
+		expect( shapeProfile( -Math.PI / 2, diamond ) ).toBeCloseTo(
+			shapeProfile( Math.PI / 2, diamond ),
+			12,
+		);
+		const heart = withPreset( 'heart' );
+		expect( shapeProfile( -Math.PI / 2, heart ) ).toBeLessThan( 1 );
+		expect( shapeProfile( Math.PI / 2, heart ) ).toBeGreaterThan( 1 );
+		// …and its two lobes are mirror images, not two bumps that
+		// drifted apart.
+		for ( let i = 1; i < 12; i++ ) {
+			const off = ( i / 12 ) * Math.PI;
+			expect( shapeProfile( -Math.PI / 2 + off, heart ) ).toBeCloseTo(
+				shapeProfile( -Math.PI / 2 - off, heart ),
+				12,
+			);
+		}
+	} );
+
+	test( 'the star has five points, the flower six petals', () => {
+		// Count local maxima the same way the eye does: a crest is a
+		// sample higher than both its neighbours.
+		const crests = ( p: MioShapePreset ): number => {
+			const radii = sweep( withPreset( p ), 360 ).map( ( s ) => s.r );
+			let count = 0;
+			for ( let i = 0; i < radii.length; i++ ) {
+				const prev = radii[ ( i - 1 + radii.length ) % radii.length ];
+				const next = radii[ ( i + 1 ) % radii.length ];
+				if ( radii[ i ] > prev && radii[ i ] >= next ) {
+					count++;
+				}
+			}
+			return count;
+		};
+		expect( crests( 'star' ) ).toBe( 5 );
+		expect( crests( 'flower' ) ).toBe( 6 );
+		expect( crests( 'diamond' ) ).toBe( 4 );
+		expect( crests( 'drop' ) ).toBe( 1 );
+	} );
+
+	test( 'a star point is narrower than a flower petal', () => {
+		// What separates the two shapes is not lobe count, it is crest
+		// width: the star spends most of its perimeter in the valleys.
+		const aboveMean = ( p: MioShapePreset ): number => {
+			const radii = sweep( withPreset( p ), 720 ).map( ( s ) => s.r );
+			const mean = radii.reduce( ( a, b ) => a + b, 0 ) / radii.length;
+			return radii.filter( ( r ) => r > mean ).length / radii.length;
+		};
+		expect( aboveMean( 'star' ) ).toBeLessThan( aboveMean( 'flower' ) );
 	} );
 
 	test( 'a degenerate lobe count falls back to a circle', () => {
@@ -1223,5 +1327,181 @@ describe( 'the rest shape', () => {
 		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
 			body.restArea * 0.4,
 		);
+	} );
+
+	test( 'the pointed presets hold their shape under the springs', () => {
+		// A star is the hardest thing the solver is asked to hold: five
+		// concave valleys, and the pressure term pushing outward on
+		// every one of them. If the springs can settle into it and stay
+		// there, everything gentler is safe.
+		for ( const p of [ 'star', 'heart', 'drop', 'flower' ] as const ) {
+			const physics = {
+				...withPreset( p ),
+				points: presetRimPoints( withPreset( p ) ),
+			};
+			const body = createSoftBody(
+				600,
+				400,
+				56,
+				physics.points,
+				( a ) => shapeProfile( a, physics ),
+			);
+			run( body, 3, { physics } );
+			expect( isFiniteBody( body ) ).toBe( true );
+
+			// Still the shape it was born as: the deepest valley is
+			// still meaningfully deeper than the tallest crest.
+			const radii = body.rim.map( ( q ) =>
+				Math.hypot( q.x - body.core.x, q.y - body.core.y ),
+			);
+			const spread =
+				( Math.max( ...radii ) - Math.min( ...radii ) ) / body.radius;
+			expect( spread ).toBeGreaterThan( 0.15 );
+		}
+	} );
+} );
+
+describe( 'rim resolution', () => {
+	test( 'a preset asks for the resolution its detail needs', () => {
+		// The floor is what the shipped Mio runs at; the detailed
+		// silhouettes need more, or their features fall below what a
+		// twelve-point ring can represent at all.
+		const at = ( shapePreset: MioShapePreset ): number =>
+			presetRimPoints( { ...MIO_DEFAULTS.physics, shapePreset } );
+
+		expect( at( 'circle' ) ).toBe( 12 );
+		expect( at( 'blob' ) ).toBe( 12 );
+		// Roughly six samples per feature: a five-pointed star needs
+		// far more ring than a three-lobed blob.
+		expect( at( 'star' ) ).toBeGreaterThanOrEqual( 5 * 6 );
+		expect( at( 'flower' ) ).toBeGreaterThanOrEqual( 6 * 6 );
+		expect( at( 'star' ) ).toBeGreaterThan( at( 'potato' ) );
+		// `custom` scales with the lobe count it is handed.
+		expect(
+			presetRimPoints( {
+				...MIO_DEFAULTS.physics,
+				shapePreset: 'custom',
+				shapeLobes: 6,
+			} ),
+		).toBeGreaterThan(
+			presetRimPoints( {
+				...MIO_DEFAULTS.physics,
+				shapePreset: 'custom',
+				shapeLobes: 3,
+			} ),
+		);
+	} );
+
+	test( 'a star is unrecognisable at the shipped resolution', () => {
+		// The bug the whole mechanism exists for. Twelve points give a
+		// five-lobed profile 2.4 samples per point — below the two it
+		// takes to represent one at all — so consecutive mass points
+		// land more than half a lobe apart and the ring they describe
+		// is not a faint star, it is a different, jagged shape.
+		//
+		// Measured as the worst gap between the ring the points
+		// describe and the silhouette they were sampled from.
+		const physics = { ...MIO_DEFAULTS.physics, shapePreset: 'star' as const };
+		const worstError = ( count: number ): number => {
+			const sampled: number[] = [];
+			for ( let i = 0; i < count; i++ ) {
+				sampled.push( shapeProfile( ( i / count ) * Math.PI * 2, physics ) );
+			}
+			let worst = 0;
+			for ( let i = 0; i < 720; i++ ) {
+				const angle = ( i / 720 ) * Math.PI * 2;
+				// Where the ring sits at this angle, between the two mass
+				// points bracketing it.
+				const u = ( angle / ( Math.PI * 2 ) ) * count;
+				const lo = Math.floor( u );
+				const t = u - lo;
+				const a = sampled[ lo % count ];
+				const b = sampled[ ( lo + 1 ) % count ];
+				worst = Math.max(
+					worst,
+					Math.abs( a + ( b - a ) * t - shapeProfile( angle, physics ) ),
+				);
+			}
+			return worst;
+		};
+		// A quarter of the rest radius out of place: not a star.
+		expect( worstError( 12 ) ).toBeGreaterThan( 0.25 );
+		// At the resolution the preset asks for, within a few percent.
+		expect( worstError( presetRimPoints( physics ) ) ).toBeLessThan( 0.05 );
+	} );
+
+	test( 'resampling preserves position, size and pose', () => {
+		const physics = { ...MIO_DEFAULTS.physics, shapePreset: 'circle' as const };
+		const body = createSoftBody( 600, 400, 56, 12 );
+		run( body, 0.5, { physics } );
+		const before = { x: body.core.x, y: body.core.y };
+		const areaBefore = Math.abs( polygonArea( body.rim ) );
+
+		resampleBody( body, 40 );
+
+		expect( body.rim ).toHaveLength( 40 );
+		// Sub-pixel: the radial re-projection nudges the centroid a
+		// little, which is the price of not letting the body deflate.
+		expect( body.core.x ).toBeCloseTo( before.x, 1 );
+		expect( body.core.y ).toBeCloseTo( before.y, 1 );
+		// Within a percent: new points are re-projected onto the
+		// outline's own radius rather than left on the chords, which is
+		// what stops a body that reshapes all day from deflating.
+		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
+			areaBefore * 0.99,
+		);
+		// Rest angles are evenly spaced again, or every spring family
+		// would be reading a rest length for the wrong place on the ring.
+		body.rim.forEach( ( p, i ) => {
+			expect( p.angle ).toBeCloseTo( ( i / 40 ) * Math.PI * 2, 12 );
+		} );
+	} );
+
+	test( 'resampling up and down again does not shrink Mio', () => {
+		// A shuffle between a star and a circle resamples twice a
+		// minute, all day. Any per-resample loss compounds.
+		const body = createSoftBody( 600, 400, 56, 12 );
+		const area = Math.abs( polygonArea( body.rim ) );
+		for ( let i = 0; i < 20; i++ ) {
+			resampleBody( body, 40 );
+			resampleBody( body, 12 );
+		}
+		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
+			area * 0.98,
+		);
+	} );
+
+	test( 'the rest area follows the resolution', () => {
+		// It is the inscribed n-gon's area, not the circle's. Leave it
+		// stale and the pressure term inflates Mio to match a polygon it
+		// is no longer made of.
+		const body = createSoftBody( 600, 400, 56, 12 );
+		resampleBody( body, 48 );
+		expect( body.restArea ).toBeCloseTo(
+			0.5 * 48 * 56 * 56 * Math.sin( ( 2 * Math.PI ) / 48 ),
+			6,
+		);
+	} );
+
+	test( 'a resampled body carries on simulating', () => {
+		const physics = { ...MIO_DEFAULTS.physics, shapePreset: 'star' as const };
+		const body = createSoftBody( 600, 400, 56, 12, ( a ) =>
+			shapeProfile( a, physics ),
+		);
+		run( body, 0.3, { physics } );
+		resampleBody( body, presetRimPoints( physics ) );
+		run( body, 2, { physics } );
+		expect( isFiniteBody( body ) ).toBe( true );
+		expect( Math.abs( polygonArea( body.rim ) ) ).toBeGreaterThan(
+			body.restArea * 0.5,
+		);
+	} );
+
+	test( 'a degenerate resample is refused rather than obeyed', () => {
+		const body = createSoftBody( 600, 400, 56, 12 );
+		resampleBody( body, 12 );
+		expect( body.rim ).toHaveLength( 12 );
+		resampleBody( body, 1 );
+		expect( body.rim ).toHaveLength( 3 );
 	} );
 } );

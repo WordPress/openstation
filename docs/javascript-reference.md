@@ -1622,19 +1622,31 @@ interface MioApi {
     isEnabled(): boolean;
     enable(): Promise< void >;             // persists the preference
     disable(): void;                       // persists; stops + hides, keeps the context
-    setStyle( partial ): void;             // appearance only; applies live AND saves per browser
-    resetStyle(): void;                    // forget the saved style, restore the site's Mio
+    setStyle( partial ): void;             // the user's look; applies live AND saves to their account
+    getLook(): MioLook;                    // the user's own look, as stored
+    commitStyle(): void;                   // write it now — what closing the panel calls
+    resetStyle(): void;                    // forget the saved look, restore the site's Mio
     toggle(): Promise< void >;             // what the menu entry calls
     getPosition(): { x: number; y: number } | null;   // viewport coords, null when off
     setPosition( x: number, y: number ): void;        // no-op when off
     getConfig(): MioConfig;
     setConfig( partial: PartialMioConfig ): void;  // merged, clamped, applied live
 }
+
+interface MioLook {
+    appearance: Partial< MioAppearance >;   // colour, ring, glow, hologram, body, eyes
+    physics: Partial< MioLookPhysics >;     // silhouette, shuffle, idle wobble
+}
 ```
 
-`enable()` / `disable()` / `toggle()` write the per-user OS setting `mioEnabled` exactly as the dock tile does. Two things are browser-local instead, both in `localStorage`: the resting position (`desktop-mode-mio-position`) and the user's own style (`desktop-mode-mio-style`, written by `setStyle()` and cleared by `resetStyle()`).
+`enable()` / `disable()` / `toggle()` write the per-user OS setting `mioEnabled` exactly as the dock tile does. **The user's look is per-user too** — it rides the same OS Settings blob as `mioStyle`, so a Mio built on a laptop is waiting on the phone. Only the resting position is browser-local (`localStorage`, `desktop-mode-mio-position`): where Mio sits is a fact about one screen, how it looks is a fact about the person.
 
-`setStyle()` takes **appearance keys only** — no physics, and not `radius`. It is what the right-click → "Make it yours" panel writes on every control movement, and unlike `setConfig()` it persists. Reach for `setConfig()` when a plugin wants to adjust Mio programmatically without that adjustment becoming the user's saved look.
+`setStyle()` takes a **flat bag** of appearance keys and the look-physics keys — `shapePreset`, `shapeLobes`, `shapeAmount`, `shapeAngle`, `shapeShuffle`, `idleWobble`, `idleWobbleSpeed` — and splits them itself. Anything else is dropped: `radius` is a size rather than a look, and the spring constants are the site's. Every call applies live *and* records the change; `commitStyle()` flushes it immediately (the style panel calls it on close). Reach for `setConfig()` when a plugin wants to adjust Mio programmatically without that adjustment becoming the user's saved look.
+
+```js
+// Give Mio a shape, and stop it changing on its own.
+wp.desktop.mio.setStyle( { shapePreset: 'star', shapeShuffle: 0 } );
+```
 
 The first `enable()` lazy-loads `assets/js/mio[.min].js` and PixiJS — nothing about the simulation ships in `desktop.min.js`, so a user who never switches Mio on never downloads it.
 

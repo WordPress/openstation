@@ -153,3 +153,122 @@ function desktop_mode_mio_config() {
 
 	return is_array( $config ) ? $config : $defaults;
 }
+
+/**
+ * Appearance keys a stored user look may carry.
+ *
+ * Mirrors `APPEARANCE_KEYS` in `src/mio/look.ts`. A whitelist rather
+ * than "whatever the client sent", because this lands in user meta:
+ * an unbounded key set is an unbounded row.
+ *
+ * @return string[]
+ */
+function desktop_mode_mio_look_appearance_keys() {
+	return array(
+		'radius',
+		'bodyColor',
+		'bodyAlpha',
+		'hueStart',
+		'hueSpan',
+		'hueDrift',
+		'hueLoop',
+		'hueAngle',
+		'hueSpin',
+		'saturation',
+		'lightness',
+		'iridescence',
+		'outlineWidth',
+		'glow',
+		'glowBlur',
+		'eyeColor',
+		'eyeScale',
+	);
+}
+
+/**
+ * Physics keys a stored user look may carry.
+ *
+ * Mirrors `LOOK_PHYSICS_KEYS` in `src/mio/look.ts`. Every one of them
+ * modulates a rest length. The spring constants are deliberately
+ * absent: they are the site's, they interact, and a stored preference
+ * that could reach them would be a way for a corrupt row to make Mio
+ * unstable.
+ *
+ * @return string[]
+ */
+function desktop_mode_mio_look_physics_keys() {
+	return array(
+		'shapePreset',
+		'shapeLobes',
+		'shapeAmount',
+		'shapeAngle',
+		'shapeShuffle',
+		'idleWobble',
+		'idleWobbleSpeed',
+	);
+}
+
+/**
+ * Sanitizes a user's saved Mio look for storage in user meta.
+ *
+ * **A shape check, not a clamp.** It answers "are these the right keys
+ * carrying the right kinds of value" and nothing more. Deciding what a
+ * legal hue, silhouette or spring constant is stays with
+ * `sanitizeMioConfig()` in `src/mio/config.ts`, which runs on
+ * everything headed for the simulation whatever route it arrived by.
+ * Two validators with overlapping opinions about ranges is how ranges
+ * drift apart.
+ *
+ * Only the keys the user actually changed are kept, so a site that
+ * later ships a different Mio still shows through everywhere its users
+ * have no opinion.
+ *
+ * @param mixed $raw Raw look from the client or user meta.
+ * @return array {
+ *     @type array $appearance Partial appearance overrides.
+ *     @type array $physics    Partial silhouette + idle overrides.
+ * }
+ */
+function desktop_mode_sanitize_mio_look( $raw ) {
+	$clean = array(
+		'appearance' => array(),
+		'physics'    => array(),
+	);
+
+	if ( ! is_array( $raw ) ) {
+		return $clean;
+	}
+
+	$groups = array(
+		'appearance' => desktop_mode_mio_look_appearance_keys(),
+		'physics'    => desktop_mode_mio_look_physics_keys(),
+	);
+
+	foreach ( $groups as $group => $keys ) {
+		if ( ! isset( $raw[ $group ] ) || ! is_array( $raw[ $group ] ) ) {
+			continue;
+		}
+		foreach ( $keys as $key ) {
+			if ( ! isset( $raw[ $group ][ $key ] ) ) {
+				continue;
+			}
+			$value = $raw[ $group ][ $key ];
+			if ( is_bool( $value ) ) {
+				$clean[ $group ][ $key ] = $value;
+			} elseif ( is_int( $value ) || is_float( $value ) ) {
+				// Reject non-finite floats outright: they survive JSON
+				// round-trips as `null` and would land in the blob as a
+				// key the client then has to defend against.
+				if ( is_finite( (float) $value ) ) {
+					$clean[ $group ][ $key ] = 0 + $value;
+				}
+			} elseif ( is_string( $value ) ) {
+				// The only string-valued keys are `shapePreset` and the
+				// two colours in `#rrggbb` form.
+				$clean[ $group ][ $key ] = sanitize_text_field( $value );
+			}
+		}
+	}
+
+	return $clean;
+}

@@ -167,6 +167,41 @@ describe( 'the looping gradient', () => {
 		expect( Math.abs( h[ 0 ] - h[ 32 ] ) ).toBeGreaterThan( 70 );
 	} );
 
+	test( 'the loop turns smoothly — no crease where the sweep reverses', () => {
+		// Closing the loop in *value* is not enough. A triangle wave
+		// does that, and its slope still flips sign the instant it
+		// turns: the hue runs one way, stops dead, and runs back. That
+		// crease reads as a seam even though no two neighbours are far
+		// apart, which is exactly the "it goes round and then the
+		// colour isn't seamless" report this test exists for.
+		//
+		// Second differences make it visible. A raised cosine bends by
+		// a fraction of its own step size; a triangle bends by twice it
+		// at the turn.
+		const n = 180;
+		const h = hues(
+			chromaRing( n, 0, {
+				...MIO_DEFAULTS.appearance,
+				hueLoop: true,
+				hueSpan: -200,
+				iridescence: 0,
+			} ),
+		);
+		const step = ( i: number ): number => {
+			const a = h[ i % n ];
+			const b = h[ ( i + 1 ) % n ];
+			// Shortest way round the wheel, signed.
+			return ( ( b - a + 540 ) % 360 ) - 180;
+		};
+		let worstBend = 0;
+		let totalStep = 0;
+		for ( let i = 0; i < n; i++ ) {
+			worstBend = Math.max( worstBend, Math.abs( step( i + 1 ) - step( i ) ) );
+			totalStep += Math.abs( step( i ) );
+		}
+		expect( worstBend ).toBeLessThan( totalStep / n );
+	} );
+
 	test( 'hueAngle rotates where the extremes land', () => {
 		const base = { ...MIO_DEFAULTS.appearance, iridescence: 0 };
 		const at0 = hues( chromaRing( 64, 0, { ...base, hueAngle: 0 } ) );

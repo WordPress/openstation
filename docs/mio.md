@@ -126,13 +126,19 @@ Note that `damping` is the wobble knob. Turn it down and every landing rings for
 
 Mio is not a disc. `shapePreset` picks a silhouette:
 
-| Preset | Silhouette |
-|---|---|
-| `circle` | A perfect disc. |
-| `blob` | Nearly round, with a shallow dimple at the bottom centre and a little extra fullness at the lower left and right. The shipped default. |
-| `ghost` | Dome top, straight sides, three scalloped feet. |
-| `potato` | Lumpy and asymmetric. No symmetry at all. |
-| `custom` | A rounded polygon built from `shapeLobes` — `3` is a triangle, `4` a square. |
+| Preset | Silhouette | Rim points |
+|---|---|---|
+| `circle` | A perfect disc. | 12 |
+| `blob` | Nearly round, with a shallow dimple at the bottom centre and a little extra fullness at the lower left and right. The shipped default. | 12 |
+| `potato` | Lumpy and asymmetric. No symmetry at all. | 24 |
+| `diamond` | Four points — up, down, and both sides. | 24 |
+| `ghost` | Dome top, straight sides, three scalloped feet. | 26 |
+| `drop` | A teardrop, tip up. | 28 |
+| `heart` | Cleft at the crown, point at the foot. | 32 |
+| `cloud` | Three billows across the top, flat below. | 32 |
+| `flower` | Six rounded petals. | 36 |
+| `star` | Five narrow points, one straight up. | 40 |
+| `custom` | A rounded polygon built from `shapeLobes` — `3` is a triangle, `4` a square. | `shapeLobes × 7` |
 
 Crucially this is a *rest length*, not a mask or a drawn outline. The profile multiplies the per-point rest radius that every spring family already reads, so Mio squashes, stretches, breathes, gets thrown and re-inflates exactly as a round one does; it simply settles into this shape when nothing is acting on it. Nothing downstream has to know about it — the pressure term's target area is computed from the same `restR` array, so the gas inflates toward the shape rather than fighting it.
 
@@ -144,10 +150,28 @@ r(θ) = radius · ( 1 + shapeAmount · deviation( θ − shapeAngle ) )
 
 For `custom`, "as authored" is the flat-sided limit: `1 + a·cos(kθ)` has exactly zero curvature at its side midpoints when `a = 1/(1 + k²)`, so `shapeAmount: 1` means "dead straight sides between rounded corners" at any lobe count. Past `1` the sides bow inward and the shape reads as a clover rather than a polygon; `mio-soft-body.test.ts` checks the angular-gap constraint still holds there. A raw amplitude would mean something different for a triangle than for a hexagon and force every caller to re-derive it.
 
-Two of the presets are worth a note:
+A few of the presets are worth a note:
 
-- The **ghost** windows both of its ideas to the underside with `max(0, sin θ)`, which is what makes it read as a ghost rather than as a gear. The superellipse exponent eases from `2` (a circle) at the top to `4.2` at the bottom, pushing the lower diagonals out into square shoulders while the head stays a clean dome; `−cos(6θ)` then peaks at `π/6`, `π/2` and `5π/6` for three feet with notches between, its own peaks at the sides falling exactly where the window is zero.
+- The **ghost** windows both of its ideas to the underside with `max(0, sin θ)`, which is what makes it read as a ghost rather than as a gear. The superellipse exponent eases from `2` (a circle) at the top to `5.2` at the bottom, pushing the lower diagonals out into square shoulders while the head stays a clean dome; `−cos(6θ)` then peaks at `π/6`, `π/2` and `5π/6` for three feet with notches between, its own peaks at the sides falling exactly where the window is zero.
 - The **potato** is four harmonics at incommensurable frequencies with unrelated phases — the cheapest honest way to get no symmetry at all, since any two of them would still read as a squashed something. Amplitudes sit just inside each harmonic's own convexity limit, so the lumps stay lumps; they can sum past it where two crests coincide, which is exactly the shallow dent a potato ought to have. There is a test that asserts no mirror axis survives.
+- The **star** is a *cubed* crest rather than a plain `cos(5θ)`, and that exponent is the whole difference between a star and a five-petal flower: it narrows the points to about a third of the perimeter and leaves the valleys between them broad and shallow. `mio-soft-body.test.ts` pins the distinction by measuring what fraction of the ring sits above its own mean radius — less for the star than for the flower.
+- The **heart** is three named features rather than harmonics (cleft, lobes, tip), because a heart has no periodicity worth exploiting. Its phase is folded about the vertical axis before the lobes are evaluated, which is what guarantees they are mirror images instead of two separately-tuned bumps that drift apart.
+
+#### Everything figurative is authored upright
+
+`upright( θ )` re-expresses the rest angle so **`0` is straight up**, and every figurative preset is written against it. Screen coordinates put the crown at `−π/2`, which is a miserable frame to author in: every "this bit points up" reads as a minus sign, and one dropped sign is a shape that ships upside down. Against the upright phase `cos( kφ )` peaks at the crown by construction. `mio-soft-body.test.ts` has a test called *no preset is upside down* that checks each one's named feature is where it claims to be.
+
+#### A rest shape can only be as detailed as the ring carrying it
+
+This is the constraint that decides how prominent a silhouette can be, and it is not obvious. The profile is evaluated **once per mass point**, so a five-pointed star on the shipped twelve-point rim gets 2.4 samples per point — below the two it takes to represent one at all. What comes out is not a faint star, it is a *different, lumpy shape* whose lumps land wherever the sampling phase puts them; and the renderer's smoothing pass then rounds off what little survived. Detailed shapes that read as "vaguely wrong blobs, half of them upside down" are this, every time.
+
+So each preset declares the resolution it needs (`presetRimPoints()`, the right-hand column above — roughly six samples per feature, which is where the smoothed outline stops losing amplitude) and the runtime lends it to them:
+
+- **`physics.points` is a floor, not a ceiling.** The shipped twelve is what `circle` and `blob` run at; a star borrows forty for as long as it is on screen and gives them back.
+- Both ends of a morph are counted, or the shape being eased away from would be resampled out from under the blend halfway through the transition.
+- `MAX_RIM_POINTS` (64) caps it, because `custom` derives its answer from a lobe count a plugin supplies and nothing else bounds that.
+
+`resampleBody()` does the change **in place**, mid-throw if need be: rebuilding would drop the current deformation, the velocities and the float phase on the floor, which is a visible pop and exactly the artefact the morph exists to avoid. New points are interpolated around the existing ring and then re-projected onto the outline's own radius — a plain lerp puts them on the chords between old points, which shrinks the body a little *every* resample, and a Mio that reshapes itself all day would slowly deflate. There is a test that resamples up and down twenty times and checks the area.
 
 `createSoftBody()` and `resetBody()` take the profile so the body is *born* the right shape. Without it the springs would pull a disc into shape over the first few hundred milliseconds — harmless, but visible as a morph at boot and after every escape hop.
 
@@ -238,16 +262,44 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 
 ### What it can change, and what it can't
 
-**Style only — the `appearance` group, minus `radius`.**
+**Look only — the `appearance` group minus `radius`, plus the five shape keys.**
 
 | Section | Controls |
 |---|---|
+| Shape | `shapePreset`, `shapeLobes` (polygon only), `shapeAmount`, `shapeAngle`, `shapeShuffle` |
+| Idle | `idleWobble` (on/off + strength), `idleWobbleSpeed` |
 | Colour | `hueStart`, `hueSpan`, `saturation`, `lightness` |
-| Ring | `outlineWidth`, `glow`, `glowBlur` |
+| Ring | `outlineWidth`, `glow` |
 | Gradient | `hueAngle`, `hueLoop`, `hueSpin`, `hueDrift` |
 | Hologram | Holographic on/off, `iridescence` |
 | Body | `bodyColor`, `bodyAlpha` |
 | Eyes | `eyeColor`, `eyeScale` |
+
+**Shape** and **Idle** are the two places the panel reaches into `physics`, and the line is not "shape versus motion" — it is **rest lengths versus spring constants**. Both of them modulate the target the springs are already chasing, so the worst a user can do is pick something they don't like: a silhouette they find ugly, or a companion that sits too still. The constants those springs are *tuned* with stay out of reach. `wp.desktop.mio.setStyle()` enforces that with a key whitelist rather than a type, because the object it is handed may have come from storage.
+
+**Change shape on its own** is `shapeShuffle`: ticked, Mio picks a new stock silhouette about every minute and eases into it; unticked, it settles back into whichever shape the picker says and stays there. Unticking mid-shuffle eases home rather than snapping — a companion that jumps when you untick a box reads as a glitch.
+
+**Wobble when idle** is `idleWobble`: unticked, Mio holds a still silhouette instead of breathing. Ticking it back on returns to the shipped strength, and the two sliders beneath tune amplitude and rate. Unticking repaints the section, because sliders that no longer do anything should not sit there implying they do.
+
+The **Corners** slider appears only for `Polygon` (`custom`), the one preset that reads `shapeLobes`. A control that does nothing for ten of the eleven shapes teaches people to ignore it.
+
+**There is no "soften the glow" toggle.** `glowBlur` stays on. The unblurred halo is a hard-edged disc of colour behind the ring — not a look anyone was choosing on purpose, just what the glow looks like before it is finished. The key survives in the config for `desktop_mode_mio_config`, which is where a site that needs the filter pass gone for performance can still drop it.
+
+**Every readout is fixed to two decimals and a fixed width.** The numbers sit on the same row as their tracks, so a readout that grows with its contents shoves the slider sideways *under the thumb the user is dragging*. `<wpd-range-field>` sizes the box from the range's own bounds rather than from the value it happens to be showing (see its `decimals` prop), which fixes the shift for every slider in the shell, not just Mio's.
+
+### Surprise me
+
+A randomizer, next to Restore. It writes both halves of a look at once and repaints the panel from what it applied.
+
+**A randomizer is a taste filter, not a dice roll.** Uniform noise across every slider produces a grey, dim, seam-ridden thing about nine times in ten, and a user who presses the button twice and gets two of those concludes the feature is broken rather than that they were unlucky. So `randomMioLook()` narrows every range to the part of the space that still reads as Mio:
+
+- **The hue is free, the rest is not.** Any hue on the wheel is a legitimate Mio; a desaturated, half-lit one is not.
+- **The gradient always loops.** A random look with a colour seam in it is just a bug the user asked for.
+- **Upright, always.** `shapeAngle` stays `0`. An upside-down heart is not a variation, it is a mistake.
+- **The shuffle is not touched.** Whether Mio changes shape on its own is a decision the user made in the panel; a randomizer that silently switched it back on would be overriding them.
+- **`circle` and `custom` are never picked** — the former is the one preset with nothing to look at, the latter is a shape someone configured on purpose.
+
+It takes an injectable `random()`, so `mio-randomize.test.ts` can pin the extremes rather than sample and hope. One of those tests asserts that every value it produces survives `sanitizeMioConfig` **unchanged** — a random look that gets clamped on the way in is a range nobody meant.
 
 **`hueSpin` vs `hueDrift`** is the distinction worth understanding before touching either. `hueSpin` turns the same magenta→violet→blue sweep around the ring — the palette is preserved exactly, only its orientation moves. `hueDrift` rewrites the hues themselves, so Mio cycles through colours that are not its own. Rotating position keeps the identity; rotating hue discards it. Both ship at `0`, and both stop under reduced motion.
 
@@ -263,19 +315,42 @@ The Holographic toggle is a shortcut for `iridescence` — off writes `0`, on wr
 
 Mio never treats the panel as an obstacle. The collision set comes from `getWallpaperSurfaces()`, which seeds windows, the shell floor, docks and widget cards — a dialog on `document.body` is none of those, so there is nothing to bump into.
 
-No physics. Those belong to the site, they interact in ways a flat list of sliders hides (stiffness against damping against pressure), and a user who makes Mio unstable from a slider has no way to know which slider did it. Not `radius` either: how big the companion is on the desk is a layout decision, not a look.
+No spring constants. Those belong to the site, they interact in ways a flat list of sliders hides (stiffness against damping against pressure), and a user who makes Mio unstable from a slider has no way to know which slider did it. Not `radius` either: how big the companion is on the desk is a layout decision, not a look.
 
-`mio-style-panel.test.ts` enforces the boundary by walking every control in the panel, firing it, and asserting that the set of keys written contains no physics key and never `radius` — so a control added later can't quietly widen the scope.
+`mio-style-panel.test.ts` enforces the boundary in both directions: it walks every control, fires it, and asserts that every key written falls inside one of the two whitelists (never `radius`) — *and* that between them the controls reach every key those whitelists contain. A control added later cannot quietly widen the scope, and a config key added later cannot quietly stay unreachable.
 
 ### Where it is saved
 
-`localStorage`, under `desktop-mode-mio-style`, alongside the resting position. It is a personal preference about a decorative thing on one person's machine — it does not belong in user meta, and it should not be in the `desktop_mode_mio_config` filter's way.
+**In the user's account, not the browser.** The look rides the OS Settings blob as `mioStyle` — the same route `mioEnabled` already takes — into the `desktop_mode_os_settings` user meta row. A Mio someone spends ten minutes building on their laptop is waiting for them on their phone, and in a private window, and after they clear site data.
 
-It merges **last**, after server config and the JS filter. Everything before it is something a site decided; this is something a person decided about their own companion. Values are clamped by `sanitizeMioConfig` like any other untrusted input, so a hand-edited or stale entry produces a plain-looking Mio rather than a broken one, and a corrupt entry is ignored entirely rather than blocking the mount.
+The resting *position* stays in `localStorage`, and the contrast is the rule: the look is a fact about the person, where Mio sits is a fact about one screen.
+
+```
+setStyle  →  splitMioLook()  →  controller merges into its MioLook
+                             →  osSettings.state.mioStyle = look
+                             →  saveState()  →  localStorage (synchronous, a cache)
+                                            →  POST /desktop-mode/v1/os-settings (debounced)
+                                            →  update_user_meta()
+```
+
+`saveState()` writes the local cache synchronously and debounces the network call, which is why every slider frame can be handed to it without thinking about it. **Closing the panel commits once more** — `closeMioStylePanel()` calls `wp.desktop.mio.commitStyle()` — because closing the dialog is the moment a user thinks of themselves as having finished, and it is the moment worth making sure their account agrees.
+
+Only the keys the user actually moved are stored. A look is a **partial** on both halves, so a site that later changes its shipped Mio still shows through everywhere its users have no opinion.
+
+Two sanitizers guard the trip, and they are deliberately not the same thing:
+
+| | Where | What it decides |
+|---|---|---|
+| `sanitizeMioLook()` / `desktop_mode_sanitize_mio_look()` | `src/mio/look.ts`, `includes/mio.php` | **Shape check.** Which keys may be stored, and that their values are storable scalars. |
+| `sanitizeMioConfig()` | `src/mio/config.ts` | **Clamp.** What a legal hue, silhouette or spring constant is. |
+
+Two validators with overlapping opinions about ranges is how ranges drift apart, so the storage layer has none. It only refuses keys — and the key it refuses hardest is anything in `physics` outside `LOOK_PHYSICS_KEYS`, because a stored preference that could reach the spring constants would be a way for a corrupt row to make Mio unstable.
+
+The look merges **last**, after server config and the JS filter. Everything before it is something a site decided; this is something a person decided about their own companion. A corrupt or stale value produces a plain-looking Mio rather than a broken one, and never blocks the mount.
 
 **`setStyle` persists; `setConfig` does not.** That split is deliberate: `setConfig` is the programmatic surface, and a plugin nudging Mio for a moment shouldn't silently become the user's saved look.
 
-**Restore Mio** clears the saved style and repaints the panel from the restored config — every control's value is stale after a reset, so the panel is rebuilt rather than just the config being reset.
+**Restore Mio** clears the saved look and repaints the panel from the restored config — every control's value is stale after a reset, so the panel is rebuilt rather than just the config being reset. The cleared look is *written*, not merely forgotten: an empty look is a statement ("I want the site's Mio"), and only a save carries it to the user's other devices.
 
 ---
 
@@ -411,16 +486,22 @@ A hue ramp of `hueStart + hueSpan · t` does not meet itself. It ends a whole sp
 
 That was invisible for as long as the ramp rotated: `hueDrift` kept the seam moving, and a moving seam reads as shimmer. Stop the rotation and it just sits there, which is exactly what the official Mio needs to do.
 
-**`hueLoop` walks the span out and back** — a triangle wave, `0 → 1 → 0` — so both ends of the ring are the same colour by construction and there is nothing to hide:
+**`hueLoop` walks the span out and back**, so both ends of the ring are the same colour by construction and there is nothing to hide:
 
 ```
-ramp = hueLoop ? 1 − |1 − 2·t| : t
+ramp = hueLoop ? ½ − ½·cos( 2πt ) : t
 hue  = hueStart + hueSpan · ramp
 ```
 
+**It walks it on a raised cosine, not a triangle.** Closing the loop in *value* is not enough, and this is the subtle half. A triangle wave (`1 − |1 − 2t|`) meets itself perfectly at the wrap and still leaves a visible defect, because its **slope** flips sign the instant it turns: the hue runs one way around the ring, stops dead, and runs back. No two neighbouring samples are far apart — the worst-step test passes — and yet the eye finds both turning points immediately, because a crease in a gradient reads as a seam whatever the maths says. That is the "it goes round the 360 and then the colour isn't seamless" report.
+
+A raised cosine meets itself in value *and* rate: the sweep eases to a stop at each extreme and eases away again. It also spends longer near the two end colours and crosses the middle faster, which is what a three-stop gradient does anyway.
+
+`mio-config.test.ts` pins both properties. The worst hue step between neighbours all the way round: over 60° with the loop off, under 6° with it on. And the worst *second difference* — how sharply the sweep bends — below the typical step size, which a triangle fails by a factor of two at its turns.
+
 The cost is symmetry: the ring mirrors about the ramp's axis. For a two-colour sweep that reads as deliberate rather than as a fault, which is why the artwork can get away with being still.
 
-Mirroring pins the two extremes to the ends of the triangle, so **`hueAngle`** exists to aim them — without it they would always sit at 3 and 9 o'clock, and the official gradient runs on a shallow diagonal. `mio-config.test.ts` measures the worst hue step between neighbours all the way round the ring: over 60° with the loop off, under 6° with it on.
+Mirroring pins the two extremes to the ends of the sweep, so **`hueAngle`** exists to aim them — without it they would always sit at 3 and 9 o'clock, and the official gradient runs on a shallow diagonal.
 
 ### The hologram
 
@@ -539,7 +620,12 @@ add_filter( 'desktop_mode_mio_config', function ( $config ) {
 
 ### User preference
 
-The on/off state is the per-user OS setting `mioEnabled` (default `false`), stored in the `desktop_mode_os_settings` user meta and sanitized by `desktop_mode_sanitize_os_settings()`. Two things are browser-local instead, both in `localStorage`: the resting position (`desktop-mode-mio-position`) and the user's own style (`desktop-mode-mio-style`, see [Make it yours](#make-it-yours)).
+Two per-user OS settings, both in the `desktop_mode_os_settings` user meta and sanitized by `desktop_mode_sanitize_os_settings()`:
+
+- **`mioEnabled`** (default `false`) — whether Mio is on.
+- **`mioStyle`** — the user's own look, `{ appearance, physics }`, both partial and both empty until they open ["Make it yours"](#make-it-yours). Sanitized by `desktop_mode_sanitize_mio_look()`.
+
+One thing is browser-local, in `localStorage`: the resting position (`desktop-mode-mio-position`). Where Mio sits is a fact about one screen; everything else about it is a fact about the person.
 
 ---
 
@@ -557,8 +643,10 @@ The on/off state is the per-user OS setting `mioEnabled` (default `false`), stor
 | `setPosition` | `( x, y ) => void` | No-op when off. |
 | `getConfig` | `() => MioConfig` | The resolved config in force. |
 | `setConfig` | `( partial ) => void` | Merged and clamped over the current config, applied live. Does **not** persist. |
-| `setStyle` | `( partial: Partial<MioAppearance> ) => void` | Applies an appearance change live **and remembers it for this browser**. What ["Make it yours"](#make-it-yours) writes. |
-| `resetStyle` | `() => void` | Forgets the saved style; back to the Mio this site ships. |
+| `setStyle` | `( partial: Partial<MioAppearance & MioLookPhysics> ) => void` | Applies part of the user's look live **and saves it to their account**. Takes a flat bag and splits it; anything outside the two whitelists is dropped. What ["Make it yours"](#make-it-yours) writes. |
+| `getLook` | `() => MioLook` | The user's own look — `{ appearance, physics }`, both partial. |
+| `commitStyle` | `() => void` | Writes the current look now. What closing the panel calls. |
+| `resetStyle` | `() => void` | Forgets the saved look; back to the Mio this site ships. |
 
 ```js
 wp.desktop.ready( () => {

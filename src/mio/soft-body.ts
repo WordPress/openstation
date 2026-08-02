@@ -106,6 +106,9 @@ export interface SoftBody {
 /** Quarter turn, in radians. Screen coordinates: `+π/2` is down. */
 const HALF_PI = Math.PI / 2;
 
+/** Full turn, in radians. */
+const TAU = Math.PI * 2;
+
 /**
  * Amplitude of the `blob` preset.
  *
@@ -116,6 +119,41 @@ const HALF_PI = Math.PI / 2;
 const BLOB_AMPLITUDE = 0.05;
 
 /**
+ * Rest angle re-expressed so that **`0` is straight up**, wrapped to
+ * `[0, 2π)`.
+ *
+ * Screen coordinates put `−π/2` at the top and `+π/2` at the bottom,
+ * which is a miserable frame to author a silhouette in: every "this
+ * bit points up" reads as a minus sign, and one dropped sign is a
+ * shape that ships upside down. Every figurative preset below is
+ * written against this phase instead, so `cos( kφ )` peaks at the
+ * crown by construction and the feature that should point up cannot
+ * quietly end up pointing down.
+ *
+ * Wrapping matters for {@link heartDeviation}, which folds the phase
+ * about the vertical axis and needs a single, monotone turn to fold.
+ */
+function uprightPhase( angle: number ): number {
+	return ( ( ( angle + HALF_PI ) % TAU ) + TAU ) % TAU;
+}
+
+/**
+ * One crest of a `k`-lobed wave, `0`–`1`, sharpened by `power`.
+ *
+ * `cos( kφ )` alone gives lobes and valleys of equal width, which
+ * reads as a flower whatever `k` is. Raising the half-shifted cosine
+ * to a power narrows the crests and broadens the valleys between them
+ * — the difference between a six-petal bloom and a five-pointed star.
+ *
+ * Callers subtract the wave's own mean so the result is a deviation
+ * that averages to zero, i.e. so a preset changes Mio's shape without
+ * also changing its size.
+ */
+function crest( cosine: number, power: number ): number {
+	return Math.pow( 0.5 + 0.5 * cosine, power );
+}
+
+/**
  * The `ghost` silhouette's deviation from a circle.
  *
  * Two ideas, both windowed to the underside by `max( 0, sin θ )` so the
@@ -123,22 +161,25 @@ const BLOB_AMPLITUDE = 0.05;
  * rather than as a gear:
  *
  *   - **Straight sides.** The superellipse exponent eases from `2` (a
- *     circle) at the top to `4.2` at the bottom, which pushes the lower
+ *     circle) at the top to `5.2` at the bottom, which pushes the lower
  *     diagonals out and gives the body its square shoulders. A constant
  *     exponent would square the head off too.
  *   - **Three feet.** `−cos( 6θ )` peaks at `π/6`, `π/2` and `5π/6` —
  *     three bulges along the underside with notches between them — and
  *     its own peaks at the sides fall exactly where the window is zero,
  *     so they cost nothing.
+ *
+ * Authored in the raw screen angle rather than {@link upright}: both
+ * terms are windowed on `sin θ`, which is already the underside.
  */
 function ghostDeviation( angle: number ): number {
 	const under = Math.max( 0, Math.sin( angle ) );
-	const n = 2 + 2.2 * under;
+	const n = 2 + 3.2 * under;
 	const c = Math.abs( Math.cos( angle ) );
 	const s = Math.abs( Math.sin( angle ) );
 	const square =
 		1 / Math.pow( Math.pow( c, n ) + Math.pow( s, n ), 1 / n ) - 1;
-	const feet = -0.11 * Math.pow( under, 1.4 ) * Math.cos( 6 * angle );
+	const feet = -0.17 * Math.pow( under, 1.4 ) * Math.cos( 6 * angle );
 	return square + feet;
 }
 
@@ -157,11 +198,87 @@ function ghostDeviation( angle: number ): number {
  */
 function potatoDeviation( angle: number ): number {
 	return (
-		0.12 * Math.cos( 2 * angle + 0.9 ) +
-		0.07 * Math.cos( 3 * angle - 2.1 ) +
-		0.03 * Math.cos( 5 * angle + 1.3 ) +
-		0.015 * Math.cos( 7 * angle - 0.4 )
+		0.16 * Math.cos( 2 * angle + 0.9 ) +
+		0.095 * Math.cos( 3 * angle - 2.1 ) +
+		0.036 * Math.cos( 5 * angle + 1.3 ) +
+		0.019 * Math.cos( 7 * angle - 0.4 )
 	);
+}
+
+/**
+ * The `star` silhouette: five narrow points, one of them straight up.
+ *
+ * A cubed crest is what makes it a star rather than a five-petal
+ * flower — the points occupy roughly a third of the perimeter and the
+ * valleys between them are broad and shallow, which is also what keeps
+ * the shape inside what the springs can hold. `0.3125` is the cubed
+ * crest's own mean, subtracted so the star is the same size as the
+ * circle it replaces.
+ */
+function starDeviation( phase: number ): number {
+	return 0.58 * ( crest( Math.cos( 5 * phase ), 3 ) - 0.3125 );
+}
+
+/** The `flower` silhouette: six rounded petals, one pointing up. */
+function flowerDeviation( phase: number ): number {
+	return 0.34 * ( crest( Math.cos( 6 * phase ), 2 ) - 0.375 );
+}
+
+/** The `diamond` silhouette: four points — up, down, and both sides. */
+function diamondDeviation( phase: number ): number {
+	return 0.34 * ( crest( Math.cos( 4 * phase ), 2 ) - 0.375 );
+}
+
+/**
+ * The `drop` silhouette: a teardrop, tip up.
+ *
+ * A single very narrow crest (`cos⁸`) rather than a lobed wave — the
+ * whole shape is "circle, plus one spike". The eighth power is what
+ * separates a teardrop from an egg: anything gentler spreads the tip
+ * into a dome.
+ */
+function dropDeviation( phase: number ): number {
+	return 0.72 * ( Math.pow( Math.max( 0, Math.cos( phase ) ), 8 ) - 0.1367 );
+}
+
+/**
+ * The `cloud` silhouette: three billows across the top, flat below.
+ *
+ * The upper window is `√( cos φ )` rather than `cos φ` so the billows
+ * keep their height almost all the way out to the shoulders instead of
+ * fading into the sides, and the underside is pulled in by a squared
+ * window so the cloud sits on a flat base.
+ */
+function cloudDeviation( phase: number ): number {
+	const up = Math.max( 0, Math.cos( phase ) );
+	const down = Math.max( 0, -Math.cos( phase ) );
+	return (
+		0.34 *
+		( Math.sqrt( up ) * ( 0.5 + 0.5 * Math.cos( 5 * phase ) ) -
+			0.7 * down * down -
+			0.0247 )
+	);
+}
+
+/**
+ * The `heart` silhouette: cleft at the crown, point at the foot.
+ *
+ * Three narrow terms rather than harmonics, because a heart is a shape
+ * with three named features and no periodicity worth exploiting:
+ *
+ *   - **Cleft** — a deep, narrow notch exactly at the crown.
+ *   - **Lobes** — a bulge one radian either side of it. The phase is
+ *     folded about the vertical axis first, which is what guarantees
+ *     the two lobes are mirror images rather than two separately-tuned
+ *     bumps that drift apart.
+ *   - **Tip** — a very narrow spike at the foot.
+ */
+function heartDeviation( phase: number ): number {
+	const fold = phase > Math.PI ? TAU - phase : phase;
+	const cleft = -0.34 * Math.pow( Math.max( 0, Math.cos( phase ) ), 6 );
+	const lobes = 0.3 * Math.pow( Math.max( 0, Math.cos( fold - 1 ) ), 3 );
+	const tip = 0.34 * Math.pow( Math.max( 0, -Math.cos( phase ) ), 8 );
+	return cleft + lobes + tip + 0.02;
 }
 
 /**
@@ -179,6 +296,18 @@ function presetDeviation( angle: number, physics: MioPhysics ): number {
 			return ghostDeviation( angle );
 		case 'potato':
 			return potatoDeviation( angle );
+		case 'star':
+			return starDeviation( uprightPhase( angle ) );
+		case 'flower':
+			return flowerDeviation( uprightPhase( angle ) );
+		case 'diamond':
+			return diamondDeviation( uprightPhase( angle ) );
+		case 'drop':
+			return dropDeviation( uprightPhase( angle ) );
+		case 'cloud':
+			return cloudDeviation( uprightPhase( angle ) );
+		case 'heart':
+			return heartDeviation( uprightPhase( angle ) );
 		case 'custom': {
 			const lobes = Math.round( physics.shapeLobes );
 			if ( lobes < 2 ) {
@@ -194,6 +323,56 @@ function presetDeviation( angle: number, physics: MioPhysics ): number {
 		default:
 			// 'blob' — a corner up, so a flat side sits along the bottom.
 			return BLOB_AMPLITUDE * Math.cos( 3 * ( angle + HALF_PI ) );
+	}
+}
+
+/**
+ * The rim resolution a silhouette needs to actually be that
+ * silhouette.
+ *
+ * **A rest shape can only be as detailed as the ring carrying it.**
+ * The profile is evaluated once per mass point, so a five-pointed star
+ * on the shipped twelve-point rim gets 2.4 samples per point — below
+ * the two it takes to represent one at all. What comes out is not a
+ * faint star, it is a *different, lumpy shape* whose lumps land
+ * wherever the sampling phase puts them: the reason detailed presets
+ * used to read as vaguely-wrong blobs, and as often as not upside
+ * down. The renderer's smoothing pass then rounds off what little
+ * survived.
+ *
+ * So each preset declares the resolution it needs and the runtime
+ * densifies the rim to it (see `resampleBody`), which keeps the
+ * shipped twelve points for the shapes that are happy with twelve and
+ * spends more only while a demanding shape is on screen. Roughly six
+ * samples per feature, which is where the smoothed outline stops
+ * losing amplitude.
+ *
+ * @param physics Simulation constants — the preset and, for `custom`,
+ *                its lobe count.
+ * @return Minimum number of rim points.
+ */
+export function presetRimPoints( physics: MioPhysics ): number {
+	switch ( physics.shapePreset ) {
+		case 'star':
+			return 40;
+		case 'flower':
+			return 36;
+		case 'heart':
+		case 'cloud':
+			return 32;
+		case 'drop':
+			return 28;
+		case 'ghost':
+			return 26;
+		case 'potato':
+		case 'diamond':
+			return 24;
+		case 'custom':
+			return Math.max( 12, Math.round( physics.shapeLobes ) * 7 );
+		default:
+			// 'circle' and 'blob' — three lobes at most; twelve points
+			// carry them with room to spare.
+			return 12;
 	}
 }
 
@@ -260,6 +439,78 @@ export function createSoftBody(
 		elapsed: 0,
 		accumulator: 0,
 	};
+}
+
+/**
+ * Change the rim resolution of a live body, in place, without losing
+ * its pose.
+ *
+ * The counterpart to {@link presetRimPoints}: a silhouette that needs
+ * forty mass points has to be able to get them *while Mio is on the
+ * desk*, mid-morph, possibly mid-throw. Rebuilding the body instead
+ * would drop the current deformation, the velocities and the
+ * accumulated float phase on the floor — a visible pop, and exactly
+ * the "it re-formed itself" artefact the morph exists to avoid.
+ *
+ * New points are interpolated around the existing ring and then
+ * **corrected back onto the outline's own radius**. That correction is
+ * the whole trick: a plain lerp puts new points on the chords between
+ * old ones, which shrinks the body a little every time it is
+ * resampled, and a shape that shuffles all day would deflate. Lerping
+ * the radius separately and re-projecting is exact for a circle and
+ * within a fraction of a pixel for anything else.
+ *
+ * @param body  Body to resample. Mutated.
+ * @param count Desired number of rim points; clamped to at least 3.
+ */
+export function resampleBody( body: SoftBody, count: number ): void {
+	const n = Math.max( 3, Math.round( count ) );
+	const old = body.rim;
+	const from = old.length;
+	if ( n === from || from < 3 ) {
+		return;
+	}
+	syncCore( body );
+	const cx = body.core.x;
+	const cy = body.core.y;
+
+	const radius = ( p: Particle ): number => Math.hypot( p.x - cx, p.y - cy );
+
+	const rim: RimPoint[] = new Array( n );
+	for ( let i = 0; i < n; i++ ) {
+		const u = ( i / n ) * from;
+		const lo = Math.floor( u );
+		const t = u - lo;
+		const a = old[ lo % from ];
+		const b = old[ ( lo + 1 ) % from ];
+		let x = a.x + ( b.x - a.x ) * t;
+		let y = a.y + ( b.y - a.y ) * t;
+		// Re-project onto the interpolated radius. Skip it at the
+		// centroid, where the direction is undefined and the point has
+		// nowhere to be pushed to anyway.
+		const dist = Math.hypot( x - cx, y - cy );
+		if ( dist > 1e-6 ) {
+			const want = radius( a ) + ( radius( b ) - radius( a ) ) * t;
+			x = cx + ( ( x - cx ) / dist ) * want;
+			y = cy + ( ( y - cy ) / dist ) * want;
+		}
+		rim[ i ] = {
+			angle: ( i / n ) * TAU,
+			x,
+			y,
+			vx: a.vx + ( b.vx - a.vx ) * t,
+			vy: a.vy + ( b.vy - a.vy ) * t,
+		};
+	}
+
+	body.rim = rim;
+	// The rest area is the inscribed n-gon's, so it moves with the
+	// resolution even though the body has not changed size. Leave it
+	// stale and the pressure term inflates or deflates Mio to match a
+	// polygon it no longer is.
+	body.restArea =
+		0.5 * n * body.radius * body.radius * Math.sin( ( 2 * Math.PI ) / n );
+	syncCore( body );
 }
 
 /** Signed area of the rim polygon (shoelace). */

@@ -9,13 +9,20 @@
  * the thing being edited is right there and the preview *is* the
  * product.
  *
- * **Style only.** The panel exposes `appearance` and nothing else. No
- * physics: those are the site's, they interact (stiffness against
- * damping against pressure), and a user who makes Mio unstable from a
- * slider has no way to know which slider did it. Not `radius` either —
- * how big the companion is on the desk is a layout decision, not a
- * look. What is left is colour, glow, iridescence, and the proportions
- * of the ring and eyes.
+ * **Look only.** The panel exposes `appearance` plus the five *shape*
+ * keys, and nothing else. No stiffnesses, no damping, no pressure:
+ * those are the site's, they interact, and a user who makes Mio
+ * unstable from a slider has no way to know which slider did it. A
+ * silhouette cannot destabilise anything — it is a rest length the
+ * same springs already chase — so it belongs with the colours. Not
+ * `radius` either: how big the companion is on the desk is a layout
+ * decision, not a look.
+ *
+ * **Where it is saved.** In the user's account, not this browser.
+ * Every control writes through `setStyle` / `setShape`, which record
+ * the change in the OS Settings blob on its way to user meta, and
+ * closing the panel commits once more — so a Mio built on a laptop is
+ * waiting on the phone.
  *
  * The whole module lives in the lazy Mio bundle, so a shell whose user
  * has never switched Mio on never loads a byte of it.
@@ -37,19 +44,32 @@ import '../ui/components/wpd-checkbox/wpd-checkbox';
 
 import { openWithShellOverlays } from '../shell-overlays/loader';
 import { __ } from '../i18n';
-import type { MioAppearance, MioConfig } from './types';
+import { MIO_DEFAULTS } from './config';
+import { randomMioLook } from './randomize';
+import type {
+	MioAppearance,
+	MioConfig,
+	MioLookPhysics,
+	MioPhysics,
+	MioShapePreset,
+} from './types';
 
 /** The slice of `wp.desktop.mio` this panel drives. */
 interface MioStyleApi {
 	getConfig: () => MioConfig;
-	setStyle: ( partial: Partial< MioAppearance > ) => void;
+	setStyle: ( partial: Partial< MioAppearance & MioLookPhysics > ) => void;
+	commitStyle: () => void;
 	resetStyle: () => void;
 }
 
 function api(): MioStyleApi | null {
 	const mio = ( window as unknown as { wp?: { desktop?: { mio?: MioStyleApi } } } )
 		.wp?.desktop?.mio;
-	return mio && typeof mio.setStyle === 'function' ? mio : null;
+	return mio &&
+		typeof mio.setStyle === 'function' &&
+		typeof mio.commitStyle === 'function'
+		? mio
+		: null;
 }
 
 /** Class on the context menu, so the open/close helpers can find it. */
@@ -79,30 +99,47 @@ function hexToInt( hex: string ): number | null {
  * Controls.
  * ---------------------------------------------------------------- */
 
-/** One slider, bound to a numeric appearance key. */
+/** Everything the panel is allowed to write, in one flat bag. */
+type LookPartial = Partial< MioAppearance & MioLookPhysics >;
+
+/** The live values behind those keys, read straight off the config. */
+type LookValues = MioAppearance & MioPhysics;
+
+/** One slider, bound to a numeric key of the look. */
 interface SliderSpec {
-	key: keyof MioAppearance;
+	key: keyof MioAppearance | keyof MioLookPhysics;
 	label: string;
 	min: number;
 	max: number;
 	step: number;
 }
 
+/**
+ * Decimal places every readout in this panel shows.
+ *
+ * Fixed rather than derived from each slider's own step, so the column
+ * of numbers down the right-hand side lines up instead of ragging in
+ * and out as the values change. `<wpd-range-field>` sizes the box from
+ * the range, so nothing shifts while dragging either.
+ */
+const READOUT_DECIMALS = '2';
+
 function slider(
 	spec: SliderSpec,
-	appearance: MioAppearance,
-	onChange: ( partial: Partial< MioAppearance > ) => void,
+	values: LookValues,
+	onChange: ( partial: LookPartial ) => void,
 ): HTMLElement {
 	const el = document.createElement( 'wpd-range-field' );
 	el.setAttribute( 'label', spec.label );
 	el.setAttribute( 'min', String( spec.min ) );
 	el.setAttribute( 'max', String( spec.max ) );
 	el.setAttribute( 'step', String( spec.step ) );
-	el.setAttribute( 'value', String( appearance[ spec.key ] ) );
+	el.setAttribute( 'decimals', READOUT_DECIMALS );
+	el.setAttribute( 'value', String( values[ spec.key ] ) );
 	el.addEventListener( 'wpd-range-change', ( e: Event ) => {
 		const value = ( e as CustomEvent< { value?: number } > ).detail?.value;
 		if ( typeof value === 'number' && Number.isFinite( value ) ) {
-			onChange( { [ spec.key ]: value } as Partial< MioAppearance > );
+			onChange( { [ spec.key ]: value } as LookPartial );
 		}
 	} );
 	return el;
@@ -144,6 +181,56 @@ function toggle(
 	return el;
 }
 
+/**
+ * The silhouettes offered in the picker, in the order they appear.
+ *
+ * Round things first, then the figurative ones, then the parametric
+ * escape hatch — a list someone scans top to bottom rather than an
+ * alphabetical one they have to read.
+ *
+ * Labels are built lazily inside a function because `__()` needs the
+ * translations to have loaded, and this module is imported at bundle
+ * evaluation time.
+ */
+function shapeOptions(): { value: MioShapePreset; label: string }[] {
+	return [
+		{ value: 'blob', label: __( 'Blob' ) },
+		{ value: 'circle', label: __( 'Circle' ) },
+		{ value: 'potato', label: __( 'Potato' ) },
+		{ value: 'ghost', label: __( 'Ghost' ) },
+		{ value: 'star', label: __( 'Star' ) },
+		{ value: 'flower', label: __( 'Flower' ) },
+		{ value: 'heart', label: __( 'Heart' ) },
+		{ value: 'diamond', label: __( 'Diamond' ) },
+		{ value: 'drop', label: __( 'Teardrop' ) },
+		{ value: 'cloud', label: __( 'Cloud' ) },
+		{ value: 'custom', label: __( 'Polygon' ) },
+	];
+}
+
+/** The silhouette picker. */
+function shapePicker(
+	current: MioShapePreset,
+	onPick: ( preset: MioShapePreset ) => void,
+): HTMLElement {
+	const el = document.createElement( 'wpd-select' );
+	el.setAttribute( 'label', __( 'Shape' ) );
+	el.setAttribute( 'value', current );
+	for ( const option of shapeOptions() ) {
+		const item = document.createElement( 'wpd-option' );
+		item.setAttribute( 'value', option.value );
+		item.textContent = option.label;
+		el.appendChild( item );
+	}
+	el.addEventListener( 'wpd-pick', ( e: Event ) => {
+		const value = ( e as CustomEvent< { value?: string } > ).detail?.value;
+		if ( value ) {
+			onPick( value as MioShapePreset );
+		}
+	} );
+	return el;
+}
+
 function section( heading: string, children: HTMLElement[] ): HTMLElement {
 	const el = document.createElement( 'wpd-section' );
 	el.setAttribute( 'heading', heading );
@@ -157,11 +244,26 @@ function section( heading: string, children: HTMLElement[] ): HTMLElement {
  * The panel.
  * ---------------------------------------------------------------- */
 
-/** Close any open style panel. */
+/**
+ * Close any open style panel, saving the look on the way out.
+ *
+ * Every control already writes through `setStyle` / `setShape`, so the
+ * look is never only in the DOM — this final commit is about *when*
+ * rather than *whether*. Closing the dialog is the moment a user
+ * thinks of themselves as having finished, and it is the moment worth
+ * making sure their account agrees.
+ *
+ * Only commits when a panel was actually open: this is also the
+ * dedupe call at the top of `openMioStylePanelImmediate()` and the
+ * teardown call in `mio.ts`, and neither should cost a write.
+ */
 export function closeMioStylePanel(): void {
-	document
-		.querySelectorAll( `.${ PANEL_CLASS }` )
-		.forEach( ( el ) => el.remove() );
+	const open = document.querySelectorAll( `.${ PANEL_CLASS }` );
+	if ( ! open.length ) {
+		return;
+	}
+	open.forEach( ( el ) => el.remove() );
+	api()?.commitStyle();
 }
 
 /**
@@ -198,11 +300,122 @@ function openMioStylePanelImmediate(): void {
 
 	const body = document.createElement( 'div' );
 	const paint = (): void => {
-		const appearance = mio.getConfig().appearance;
-		const set = ( partial: Partial< MioAppearance > ): void =>
-			mio.setStyle( partial );
+		const config = mio.getConfig();
+		const appearance = config.appearance;
+		const physics = config.physics;
+		// One bag to read from, because one setter writes it. The two
+		// groups share no key names, so the merge is lossless and the
+		// split on the way back out is unambiguous.
+		const current: LookValues = { ...appearance, ...physics };
+		const set = ( partial: LookPartial ): void => mio.setStyle( partial );
+
+		// Only the polygon reads `shapeLobes`, so only the polygon gets
+		// the slider — a control that does nothing for ten of the
+		// eleven shapes teaches people to ignore it.
+		const corners: HTMLElement[] =
+			physics.shapePreset === 'custom'
+				? [
+					slider(
+						{
+							key: 'shapeLobes',
+							label: __( 'Corners' ),
+							min: 2,
+							max: 8,
+							step: 1,
+						},
+						current,
+						set,
+					),
+				]
+				: [];
 
 		body.replaceChildren(
+			section( __( 'Shape' ), [
+				shapePicker( physics.shapePreset, ( preset ) => {
+					set( { shapePreset: preset } );
+					// The corner slider appears and disappears with the
+					// polygon, and every other control's value has just
+					// been superseded.
+					paint();
+				} ),
+				...corners,
+				slider(
+					{
+						key: 'shapeAmount',
+						label: __( 'Shape strength' ),
+						min: 0,
+						max: 1.4,
+						step: 0.05,
+					},
+					current,
+					set,
+				),
+				slider(
+					{
+						key: 'shapeAngle',
+						label: __( 'Rotation' ),
+						min: 0,
+						max: 360,
+						step: 1,
+					},
+					current,
+					set,
+				),
+				toggle(
+					__( 'Change shape on its own' ),
+					physics.shapeShuffle > 0,
+					( next ) => {
+						// Off is `0`; on goes back to the shipped minute,
+						// which is also what the site's own config would
+						// have said if the user had never touched this.
+						set( {
+							shapeShuffle: next
+								? MIO_DEFAULTS.physics.shapeShuffle
+								: 0,
+						} );
+					},
+				),
+			] ),
+			section( __( 'Idle' ), [
+				toggle(
+					__( 'Wobble when idle' ),
+					physics.idleWobble > 0,
+					( next ) => {
+						// Unticked, Mio holds a still silhouette instead of
+						// breathing. The two sliders below go with it, so
+						// repaint — they would otherwise sit there showing
+						// values that no longer do anything.
+						set( {
+							idleWobble: next
+								? MIO_DEFAULTS.physics.idleWobble
+								: 0,
+						} );
+						paint();
+					},
+				),
+				slider(
+					{
+						key: 'idleWobble',
+						label: __( 'Wobble strength' ),
+						min: 0,
+						max: 0.4,
+						step: 0.005,
+					},
+					current,
+					set,
+				),
+				slider(
+					{
+						key: 'idleWobbleSpeed',
+						label: __( 'Wobble speed' ),
+						min: 0,
+						max: 4,
+						step: 0.05,
+					},
+					current,
+					set,
+				),
+			] ),
 			section( __( 'Colour' ), [
 				slider(
 					{
@@ -212,7 +425,7 @@ function openMioStylePanelImmediate(): void {
 						max: 360,
 						step: 1,
 					},
-					appearance,
+					current,
 					set,
 				),
 				slider(
@@ -223,7 +436,7 @@ function openMioStylePanelImmediate(): void {
 						max: 360,
 						step: 1,
 					},
-					appearance,
+					current,
 					set,
 				),
 				slider(
@@ -234,7 +447,7 @@ function openMioStylePanelImmediate(): void {
 						max: 1,
 						step: 0.01,
 					},
-					appearance,
+					current,
 					set,
 				),
 				slider(
@@ -245,7 +458,7 @@ function openMioStylePanelImmediate(): void {
 						max: 1,
 						step: 0.01,
 					},
-					appearance,
+					current,
 					set,
 				),
 			] ),
@@ -258,7 +471,7 @@ function openMioStylePanelImmediate(): void {
 						max: 24,
 						step: 0.5,
 					},
-					appearance,
+					current,
 					set,
 				),
 				slider(
@@ -269,12 +482,16 @@ function openMioStylePanelImmediate(): void {
 						max: 3,
 						step: 0.05,
 					},
-					appearance,
+					current,
 					set,
 				),
-				toggle( __( 'Soften the glow' ), appearance.glowBlur, ( next ) =>
-					set( { glowBlur: next } ),
-				),
+				// No "soften the glow" toggle. `glowBlur` stays on: the
+				// unblurred halo is a hard-edged disc of colour behind the
+				// ring, which is not a look anyone was choosing on purpose
+				// — it is what the glow looks like before it is finished.
+				// The key survives for the `desktop_mode_mio_config`
+				// filter, which is where a site that needs to drop the
+				// filter pass for performance can still do it.
 			] ),
 			section( __( 'Gradient' ), [
 				slider(
@@ -285,7 +502,7 @@ function openMioStylePanelImmediate(): void {
 						max: 360,
 						step: 1,
 					},
-					appearance,
+					current,
 					set,
 				),
 				toggle(
@@ -301,7 +518,7 @@ function openMioStylePanelImmediate(): void {
 						max: 60,
 						step: 1,
 					},
-					appearance,
+					current,
 					set,
 				),
 				slider(
@@ -312,7 +529,7 @@ function openMioStylePanelImmediate(): void {
 						max: 60,
 						step: 1,
 					},
-					appearance,
+					current,
 					set,
 				),
 			] ),
@@ -338,7 +555,7 @@ function openMioStylePanelImmediate(): void {
 						max: 2,
 						step: 0.05,
 					},
-					appearance,
+					current,
 					set,
 				),
 			] ),
@@ -352,7 +569,7 @@ function openMioStylePanelImmediate(): void {
 						max: 1,
 						step: 0.01,
 					},
-					appearance,
+					current,
 					set,
 				),
 			] ),
@@ -366,7 +583,7 @@ function openMioStylePanelImmediate(): void {
 						max: 0.6,
 						step: 0.01,
 					},
-					appearance,
+					current,
 					set,
 				),
 			] ),
@@ -375,8 +592,23 @@ function openMioStylePanelImmediate(): void {
 	paint();
 	modal.appendChild( body );
 
-	// Footer. "Restore Mio" repaints the whole panel rather than just
-	// resetting the config, because every control's value is now stale.
+	// Footer. Both of the first two repaint the whole panel rather than
+	// only writing the config, because every control's value is now
+	// stale.
+	//
+	// "Surprise me" sits next to "Restore Mio" on purpose: they are the
+	// two ends of the same idea, and having the undo in arm's reach is
+	// what makes a randomizer worth pressing twice.
+	const surprise = document.createElement( 'wpd-button' );
+	surprise.setAttribute( 'slot', 'footer' );
+	surprise.setAttribute( 'variant', 'secondary' );
+	surprise.textContent = __( 'Surprise me' );
+	surprise.addEventListener( 'click', () => {
+		const look = randomMioLook();
+		mio.setStyle( { ...look.appearance, ...look.physics } );
+		paint();
+	} );
+
 	const restore = document.createElement( 'wpd-button' );
 	restore.setAttribute( 'slot', 'footer' );
 	restore.setAttribute( 'variant', 'secondary' );
@@ -392,6 +624,7 @@ function openMioStylePanelImmediate(): void {
 	done.textContent = __( 'Done' );
 	done.addEventListener( 'click', () => closeMioStylePanel() );
 
+	modal.appendChild( surprise );
 	modal.appendChild( restore );
 	modal.appendChild( done );
 	modal.addEventListener( 'wpd-modal-cancel', () => closeMioStylePanel() );
