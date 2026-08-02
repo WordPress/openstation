@@ -6,6 +6,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 
 - [Hard rules](#hard-rules)
   - [Never hand-edit JS in `assets/js/`](#never-hand-edit-js-in-assetsjs)
+  - [Never regenerate the Legacy theme manifest](#never-regenerate-the-legacy-theme-manifest)
   - [Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wpdesktopfetch-or-trackedfetch-never-raw-fetch)
   - [Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wpdesktopconfirm-or-wpdconfirm-never-windowconfirmalertprompt)
   - [Use `wpd-*` components, not raw HTML controls](#use-wpd--components-not-raw-html-controls)
@@ -48,6 +49,16 @@ Process for any JS change:
 If you ever find yourself reaching for `assets/js/*.js` directly, stop and write the TS instead. Hand-edited JS is overwritten by the next `npm run build` and produces no TS-checked types, a silent class of bug.
 
 **Lint scope:** `npm run lint` runs on `src/**/*.ts` only. Test files under `tests/vitest/` aren't in the lint config (typescript-eslint project doesn't include them); rely on `npm run typecheck` + `npm run test:js` to catch issues there.
+
+### Never regenerate the Legacy theme manifest
+
+`assets/desktop-themes/legacy/theme.json` is a **frozen snapshot**. It is the built-in [Legacy desktop theme](docs/desktop-themes.md#the-legacy-theme--start-here): every design token at the value it resolved to with no theme active, at the moment the snapshot was taken.
+
+**Changing a default does NOT mean updating Legacy.** Someone wearing it asked for the old look and is entitled to keep it; a manifest that tracked the code would silently turn the theme back into a no-op every release. Nothing regenerates it — not the build, not CI, not a hook — and nothing should.
+
+`bin/build-legacy-theme-manifest.mjs` is the archaeology tool that produced it, kept for provenance. Run it bare to see how far today's defaults have drifted from the snapshot; it writes nothing without `--write`, and `--write` is for minting a **new** snapshot theme under a **new** id, not for rewriting this one.
+
+Two things do belong in the JSON's neighbourhood: `Tests_DesktopMode_DesktopThemesLegacy` fails if a value stops satisfying the manifest's value grammar (otherwise a silent drop), and the judgement calls behind the snapshot — which literal won when a name was read with several, what stays undeclared because it follows the admin colour scheme — are documented in the `SKIP` / `HAND_PICK` / `PALETTE` tables at the top of the script.
 
 ### Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`
 

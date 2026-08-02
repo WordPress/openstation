@@ -6,6 +6,12 @@
  * upload tile and the per-card delete button appear only for users
  * who hold the theme-management capability
  * (`canManageDesktopThemes`).
+ *
+ * Code-registered themes (`source: 'code'`) never get a delete
+ * button: there is no file to remove and the REST route rightly
+ * 404s on them, so offering the control would only ever produce an
+ * error. A plugin that ships a theme takes it away by unregistering
+ * it — see the built-in "Legacy" theme.
  */
 
 import { __, sprintf } from '../../i18n';
@@ -219,7 +225,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 						: '' }
 				</span>
 			</button>
-			${ canManage
+			${ canManage && theme.source !== 'code'
 				? html`<button
 						type="button"
 						class="desktop-mode-os-settings__theme-delete"

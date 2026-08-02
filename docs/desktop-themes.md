@@ -16,6 +16,7 @@ to the window control glyphs. It ships as a ZIP containing a
 > `desktop_theme` / `desktopTheme` naming to keep them apart.
 
 - [The security model](#the-security-model)
+- [The Legacy theme — start here](#the-legacy-theme--start-here)
 - [ZIP layout](#zip-layout)
 - [`theme.json`](#themejson)
 - [Tokens](#tokens)
@@ -76,6 +77,94 @@ file extension rather than read from the manifest.
 The practical consequence for you: if a value isn't in the grammar
 below, it silently doesn't apply. That is deliberate, and it is why
 this feature can be open to site admins at all.
+
+---
+
+## The Legacy theme — start here
+
+Desktop Mode ships one theme of its own, called **Desktop Mode
+(Legacy)**, and it is the fastest way to write your first one.
+
+Legacy is the shell's own defaults *written down*: every design token
+the chrome and the `<wpd-*>` component kit read, at the value it
+resolved to with no theme active. Roughly 380 declarations, in one
+file, sorted. Wearing it changes almost nothing — that is the point.
+Its job is to save you the archaeology of finding out that
+`--wpd-fg-muted` is `#50575e`, that the dock glyph sits at 70% white,
+and that the unfocused close button is `rgba( 0, 0, 0, 0.45 )`.
+
+**To write a theme, fork it.** The manifest lives at
+`assets/desktop-themes/legacy/theme.json` inside the plugin, and
+`npm run package:legacy-theme` writes
+`dist/desktop-mode-legacy-theme.zip` — a normal, installable theme
+ZIP. Change the `id`, change the `name`, change the twenty values you
+care about, delete the rest (whatever you delete keeps its default —
+see [Fallback semantics](#fallback-semantics)), and upload.
+
+### It does not move
+
+Legacy is a **snapshot, frozen on purpose**. When Desktop Mode's own
+defaults change — a warmer dock, a different hairline, a new accent
+— Legacy goes on declaring exactly what it declares today. Nothing
+regenerates it: not the build, not CI, not the plugin at runtime. PHP
+reads that one committed file and registers it, and that is the whole
+mechanism.
+
+This is the promise the theme is for. Someone who picks Legacy is
+asking to keep the look they know, and a manifest that quietly
+tracked the code would take it away from them one release at a time
+— while also making the theme a no-op again for anyone forking it as
+a reference. If a later release drifts far enough to be worth
+capturing, that is a *new* snapshot theme under a new id, not a
+rewrite of this one.
+
+The practical consequence for you: fork it and you have a stable
+floor. Values you keep will still mean what they meant, and values
+the shell changes underneath you are exactly the ones your fork is
+already pinning.
+
+### It is always there, and it cannot be deleted
+
+Legacy is **code-registered**
+([from PHP](#registering-a-theme-from-php)) rather than uploaded, so
+it is present on every install and the delete route does not apply to
+it — there is no file to remove, and its card carries no delete
+button. A site that genuinely does not want it in the picker
+unregisters it:
+
+```php
+add_action( 'init', function () {
+    desktop_mode_unregister_desktop_theme( 'desktop-mode/legacy' );
+}, 20 );
+```
+
+### What it deliberately leaves out
+
+Legacy declares what is *fixed* about the default look, not what is
+*conditional* about it. Four families stay out, each because naming a
+literal would make the theme differ from the unthemed shell rather
+than reproduce it:
+
+| Left out | Why |
+|---|---|
+| Anything that follows `--wp-admin-theme-color` — the accent, the focused title bar, window-link splines, the selection ring | They track the user's WordPress admin colour scheme. A hex would pin Midnight and Ectoplasm to Fresh blue. |
+| Context-dependent tokens — `--desktop-mode-fg`, `--desktop-mode-surface`, `--desktop-mode-tooltip-bg` / `-fg`, the colour-picker greys | They read light on the desk and dark inside a window. One value breaks one of the two. |
+| Derived sizes — the dock / icon / recycle badge families | They size themselves off the icon they decorate, so a literal freezes them against a large dock. |
+| Texture-slot properties (`*-image`, `*-border-image-*`) | Those are written by [`textures`](#textures), not by `tokens`. |
+
+If you want one of them, name it in your own theme — Legacy leaving
+it undeclared is a statement about *defaults*, not a restriction.
+
+### One honest caveat
+
+Legacy is a *canonical* snapshot, not a byte-for-byte one. A handful
+of palette names were read with slightly different literals at
+different sites as the codebase grew — `--wpd-hover` at 4% in one
+stylesheet and 6% in another, `--wpd-surface-elevated` as `#f6f7f7`
+here and `#fff` there. Legacy picks one value per name, which is what
+naming a palette *means*; wearing it unifies those few near-duplicates
+rather than reproducing each of them. Nothing moves, nothing changes
+contrast, and everything that was one colour stays that colour.
 
 ---
 

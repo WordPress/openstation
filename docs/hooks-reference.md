@@ -4069,6 +4069,20 @@ Filters one sanitized manifest before it is compiled and stored.
 - **Param** `string $slug`
 - **Return** `array`
 
+### `desktop_mode_legacy_theme_manifest_path` — Experimental *(filter)*
+
+Absolute path the built-in **Desktop Mode (Legacy)** theme reads its
+`theme.json` from. Legacy is a frozen snapshot of the shell's own
+defaults, registered from code on `init` priority 5 — see
+[desktop-themes.md](./desktop-themes.md#the-legacy-theme--start-here).
+Point this at your own file to ship a forked token set under the same
+registration; to remove the theme entirely, call
+`desktop_mode_unregister_desktop_theme( 'desktop-mode/legacy' )` on
+`init` at a priority above 5.
+
+- **Param** `string $path` — defaults to `assets/desktop-themes/legacy/theme.json` inside the plugin.
+- **Return** `string`
+
 ### `desktop_mode_desktop_theme_upload_capability` — Experimental *(filter)*
 
 Capability required to upload or delete themes. Default
