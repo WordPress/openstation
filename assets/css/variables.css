@@ -18,6 +18,22 @@
 :root {
 	/* Desktop area */
 	--desktop-mode-bg: linear-gradient(135deg, #1d2327 0%, #2c3338 50%, #1d2327 100%);
+	/*
+	 * Flat colour painted on the shell itself, behind every other
+	 * layer including the wallpaper.
+	 *
+	 * The shell is `position: fixed` over the classic admin page, and
+	 * that page is WHITE. Anything that leaves a layer unpainted for a
+	 * single frame — a canvas wallpaper's context being disturbed, the
+	 * compositor re-rasterising after a large GPU layer goes away —
+	 * shows it. This is the floor that makes that impossible: the worst
+	 * a dropped frame can now look like is the desk's own colour.
+	 *
+	 * Deliberately a solid rather than `--desktop-mode-bg`: it is never
+	 * seen when things are working, so it should cost one flat fill,
+	 * not a second gradient rasterisation on every shell repaint.
+	 */
+	--desktop-mode-backstop: #1d2327;
 	--desktop-mode-area-inset: 0;
 
 	/* Window chrome */

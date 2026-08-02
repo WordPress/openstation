@@ -301,6 +301,15 @@ body.desktop-mode-active #wpcontent {
 	overflow: hidden;
 	z-index: var(--desktop-mode-z-base);
 	/*
+	 * Opaque floor. The wallpaper paints over this and is what anyone
+	 * actually sees — but the wallpaper is one layer among several,
+	 * and behind this shell is the classic admin page, which is WHITE.
+	 * Without a background here, any frame in which the wallpaper
+	 * doesn't paint flashes that white through the whole viewport.
+	 * See `--desktop-mode-backstop`.
+	 */
+	background: var(--desktop-mode-backstop, #1d2327);
+	/*
 	 * Shell typeface. Every piece of chrome that doesn't set its own
 	 * face inherits from here — dock labels, desktop icon labels,
 	 * widgets, the overview. Windows override with `--wpd-font` on
@@ -338,9 +347,11 @@ body.desktop-mode-active #wpcontent {
  * A sibling of the wallpaper inside the shell, but at the far end of
  * the stack: Mio paints ABOVE windows (it perches on them)
  * and below the dock (it must never cover navigation). Created on
- * demand by `src/mio/controller.ts` and removed again when the
- * user switches Mio off, so a shell without Mio has no
- * extra element at all.
+ * demand by `src/mio/controller.ts`. A shell whose user has never
+ * switched Mio on has no extra element at all; switching it off
+ * hides this one rather than removing it, because the instance is
+ * parked (WebGL context intact) rather than destroyed — see the
+ * `parked` field there.
  *
  * The layer and its <canvas> are permanently inert. Making a
  * full-shell canvas interactive — even conditionally, from a

@@ -1621,7 +1621,7 @@ Full documentation — architecture, the simulation, the configuration table, th
 interface MioApi {
     isEnabled(): boolean;
     enable(): Promise< void >;             // persists the preference
-    disable(): void;                       // persists; releases the WebGL context
+    disable(): void;                       // persists; stops + hides, keeps the context
     toggle(): Promise< void >;             // what the menu entry calls
     getPosition(): { x: number; y: number } | null;   // viewport coords, null when off
     setPosition( x: number, y: number ): void;        // no-op when off
@@ -3742,7 +3742,7 @@ The desk companion. Full documentation in [mio.md](./mio.md).
 | `desktop-mode.mio.enabled` | action | Experimental | `{}` — the user switched it on |
 | `desktop-mode.mio.disabled` | action | Experimental | `{}` — the user switched it off |
 | `desktop-mode.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating; viewport coordinates |
-| `desktop-mode.mio.unmounted` | action | Experimental | `{}` — torn down, WebGL context released |
+| `desktop-mode.mio.unmounted` | action | Experimental | `{}` — the instance was genuinely destroyed and its WebGL context released. **Not** the signal for "the user switched Mio off": that parks the instance and fires `disabled`. In practice this only fires on page teardown |
 | `desktop-mode.mio.grabbed` | action | Experimental | `{ position: { x, y } }` — the user started dragging it |
 | `desktop-mode.mio.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted |
 | `desktop-mode.mio.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened, moved, or maximised on top of it, so it hopped clear of the window cluster |

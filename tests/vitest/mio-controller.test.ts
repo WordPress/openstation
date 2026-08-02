@@ -128,7 +128,10 @@ describe( 'MioController', () => {
 		expect( mount.calls ).toHaveLength( 1 );
 	} );
 
-	test( 'toggling off destroys the handle and removes the layer', async () => {
+	test( 'toggling off parks the instance rather than destroying it', async () => {
+		// Releasing a WebGL context makes the browser re-rasterise the
+		// whole shell, which is what surfaced as a white flash. No
+		// toggle may do it — the instance is stopped and hidden instead.
 		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
 		const persist = vi.fn();
@@ -144,8 +147,63 @@ describe( 'MioController', () => {
 		controller.api().disable();
 
 		expect( persist ).toHaveBeenCalledWith( false );
-		expect( mount.handles[ 0 ].destroy ).toHaveBeenCalled();
-		expect( document.getElementById( MIO_LAYER_ID ) ).toBeNull();
+		expect( mount.handles[ 0 ].destroy ).not.toHaveBeenCalled();
+		expect( mount.handles[ 0 ].setAnimating ).toHaveBeenCalledWith( false );
+		// The layer stays in the DOM, hidden and inert.
+		const layer = document.getElementById( MIO_LAYER_ID );
+		expect( layer?.style.display ).toBe( 'none' );
+	} );
+
+	test( 'disabling records where Mio was, not where hiding leaves it', async () => {
+		// Regression: hiding the layer makes the host report zero size,
+		// and every position derived from a zero-size host is the
+		// top-left corner. The resting place has to be read first.
+		const { MioController } = await load();
+		const mount = stubMount();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: true,
+			persist: vi.fn(),
+		} );
+		controller.boot();
+		await vi.waitFor( () => expect( mount.handles ).toHaveLength( 1 ) );
+
+		controller.api().disable();
+
+		// The stub handle rests at (10, 20) — that, not a corner.
+		expect(
+			JSON.parse(
+				window.localStorage.getItem( 'desktop-mode-mio-position' ) ??
+					'null',
+			),
+		).toEqual( { x: 10, y: 20 } );
+	} );
+
+	test( 're-enabling wakes the parked instance, it does not build a new one', async () => {
+		// The payoff of parking, and the thing that proves no second
+		// WebGL context was created: `mount` is never called twice.
+		const { MioController, MIO_LAYER_ID } = await load();
+		const mount = stubMount();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: true,
+			persist: vi.fn(),
+		} );
+		controller.boot();
+		await vi.waitFor( () => expect( mount.handles ).toHaveLength( 1 ) );
+
+		controller.api().disable();
+		await controller.api().enable();
+
+		expect( mount.calls ).toHaveLength( 1 );
+		expect( mount.handles[ 0 ].setAnimating ).toHaveBeenLastCalledWith(
+			true,
+		);
+		const layer = document.getElementById( MIO_LAYER_ID );
+		expect( layer?.isConnected ).toBe( true );
+		expect( layer?.style.display ).toBe( '' );
 	} );
 
 	test( 'a fast on-off-on cycle never leaves two mios behind', async () => {

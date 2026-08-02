@@ -124,6 +124,24 @@ export class MioController {
 	private options: MioControllerOptions;
 	private layer: HTMLElement | null = null;
 	private handle: MioHandle | null = null;
+	/**
+	 * A stopped-but-alive instance, kept across a disable.
+	 *
+	 * Switching Mio off does NOT release its WebGL context. Releasing
+	 * one is the single most disruptive thing this module can ask the
+	 * browser to do — a full-viewport GPU layer disappears, the
+	 * compositor re-rasterises, and on some frames that surfaces as a
+	 * white flash across the shell. Parking sidesteps it: the ticker
+	 * stops, the layer is hidden, and the context simply stays put
+	 * until the page goes away.
+	 *
+	 * The cost is one idle context and its canvas for the rest of the
+	 * page's life, and only for a user who switched Mio on at least
+	 * once. A user who never touches it still allocates nothing. The
+	 * payoff beyond the flash is that re-enabling is instant: no
+	 * bundle fetch, no Pixi boot, no re-created context.
+	 */
+	private parked: { handle: MioHandle; layer: HTMLElement } | null = null;
 	private config: MioConfig;
 	private enabled: boolean;
 	/**
@@ -230,6 +248,19 @@ export class MioController {
 		if ( this.handle ) {
 			return;
 		}
+		// Wake a parked instance rather than building a new one. This
+		// is the common path for anyone toggling Mio, and it is
+		// synchronous — no bundle load, no Pixi boot, no new context.
+		const parked = this.parked;
+		if ( parked ) {
+			this.parked = null;
+			parked.layer.style.removeProperty( 'display' );
+			parked.handle.applyConfig( this.config );
+			parked.handle.setAnimating( true );
+			this.handle = parked.handle;
+			this.layer = parked.layer;
+			return;
+		}
 		try {
 			await this.loadBundle();
 		} catch ( err ) {
@@ -260,23 +291,54 @@ export class MioController {
 			return;
 		}
 		// Toggled off (or re-toggled) while Pixi was booting. The
-		// disable path already ran and found no handle to destroy, so
-		// this mount has to clean up after itself — including the
-		// layer `ensureLayer()` re-created a moment ago.
+		// disable path already ran and found no handle to park, so this
+		// mount has to put its own instance away — parked rather than
+		// destroyed, for the same reason the disable path parks: no
+		// toggle should ever release a WebGL context.
 		if ( generation !== this.generation || ! this.enabled ) {
-			handle.destroy();
-			this.layer?.remove();
+			const layer = this.layer;
 			this.layer = null;
+			handle.setAnimating( false );
+			if ( layer ) {
+				layer.style.display = 'none';
+				this.parked = { handle, layer };
+			} else {
+				handle.destroy();
+			}
 			return;
 		}
 		this.handle = handle;
 	}
 
+	/**
+	 * Take Mio off the desk.
+	 *
+	 * **Nothing is destroyed here.** The instance is parked instead —
+	 * ticker stopped, layer hidden, WebGL context left alone — because
+	 * releasing the context is what makes the browser re-rasterise the
+	 * whole shell, and that is what surfaces as a white flash. See
+	 * {@link parked}.
+	 *
+	 * The position is read while the layer is still laid out. Hiding it
+	 * makes the host report zero size, and every position derived from
+	 * a zero-size host is the top-left corner.
+	 */
 	private unmount(): void {
-		this.handle?.destroy();
+		const handle = this.handle;
+		const layer = this.layer;
 		this.handle = null;
-		this.layer?.remove();
 		this.layer = null;
+		if ( ! handle || ! layer ) {
+			layer?.remove();
+			return;
+		}
+		const resting = handle.getPosition();
+		if ( resting ) {
+			writePosition( resting );
+		}
+		handle.setAnimating( false );
+		layer.style.display = 'none';
+		this.parked = { handle, layer };
 	}
 
 	private loadBundle(): Promise< void > {

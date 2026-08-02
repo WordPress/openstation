@@ -668,6 +668,19 @@ export async function mountMio(
 		if ( destroyed ) {
 			return;
 		}
+		// A detached or hidden host reports zero, and `size()` floors
+		// that to 1 so the renderer never sees a zero dimension. Clamping
+		// the body into a 1×1 layer parks it at (radius, radius) — the
+		// top-left corner — and because the drop is persisted, Mio comes
+		// back there on the next enable. There is nothing meaningful to
+		// clamp into while the layer is off screen, so don't.
+		if (
+			! host.isConnected ||
+			host.clientWidth <= 0 ||
+			host.clientHeight <= 0
+		) {
+			return;
+		}
 		const { width, height } = size();
 		app.renderer.resize( width, height );
 		origin = originOf();
@@ -757,7 +770,13 @@ export async function mountMio(
 				return;
 			}
 			destroyed = true;
-			savePosition( toViewport() );
+			// Only persist a position that still means something. The
+			// teardown runs a frame after the layer is detached, and a
+			// position derived from a detached host's origin is fiction.
+			// The caller records where Mio was before detaching it.
+			if ( host.isConnected ) {
+				savePosition( toViewport() );
+			}
 			app.ticker.remove( tick );
 			resizeObserver.disconnect();
 			document.removeEventListener( 'visibilitychange', onVisibility );

@@ -40,6 +40,7 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
 - [Hooks](#hooks)
 - [Accessibility](#accessibility)
 - [Performance](#performance)
+  - [Switching off parks, it does not destroy](#switching-off-parks-it-does-not-destroy)
 
 ---
 
@@ -476,7 +477,7 @@ The on/off state is the per-user OS setting `mioEnabled` (default `false`), stor
 |---|---|---|
 | `isEnabled` | `() => boolean` | |
 | `enable` | `() => Promise<void>` | Persists the preference; resolves once on screen. |
-| `disable` | `() => void` | Persists; releases the WebGL context. |
+| `disable` | `() => void` | Persists; stops and hides Mio. Does *not* release the WebGL context — see [Switching off parks, it does not destroy](#switching-off-parks-it-does-not-destroy). |
 | `toggle` | `() => Promise<void>` | What the wallpaper menu entry calls. |
 | `getPosition` | `() => { x, y } \| null` | Viewport coordinates; `null` when off. |
 | `setPosition` | `( x, y ) => void` | No-op when off. |
@@ -514,7 +515,7 @@ All fire through `wp.hooks` on the `desktop-mode.mio.*` namespace.
 | `desktop-mode.mio.enabled` | action | Experimental | `{}` — user switched it on. |
 | `desktop-mode.mio.disabled` | action | Experimental | `{}` — user switched it off. |
 | `desktop-mode.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating. |
-| `desktop-mode.mio.unmounted` | action | Experimental | `{}` — torn down. |
+| `desktop-mode.mio.unmounted` | action | Experimental | `{}` — genuinely destroyed, WebGL context released. **Not** the "user switched Mio off" signal — that parks the instance and fires `disabled`. |
 | `desktop-mode.mio.grabbed` | action | Experimental | `{ position: { x, y } }` — drag started. |
 | `desktop-mode.mio.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted. |
 | `desktop-mode.mio.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened on top of it and it hopped clear of the cluster. |
@@ -553,3 +554,18 @@ The preference is watched live, so toggling it at the OS level takes effect with
 - Per frame: six `Graphics.clear()` calls and roughly 150 curved cells — 72 each for the bloom and the core, which carry the gradient at full ribbon resolution, plus a dozen for the halo and forty across the sheen's five shells, both of which are blurred past the point where anything finer survives. Then a blur pass over the halo and one over the sheen. The body is a single filled path of `points` curve segments.
 - Ribbon resolution is fixed at 144 samples rather than scaled off `points`, so raising the rim resolution costs simulation time but not render time.
 - The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OS Settings previews).
+
+### Switching off parks, it does not destroy
+
+Releasing a WebGL context is the single most disruptive thing this module can ask the browser to do. A full-viewport GPU layer disappears, the compositor re-rasterises, and on some frames that surfaced as a **white flash across the shell** — intermittent, and much more visible on a page that already has other live Pixi applications.
+
+So switching Mio off stops the ticker, hides the layer, and leaves the context alone. It is destroyed when the page goes away, not when the user toggles.
+
+Two consequences worth knowing:
+
+- The `#desktop-mode-mio` element stays in the DOM while Mio is off, `display: none`. A shell whose user has *never* switched Mio on still has no element and no context — the cost is only paid once someone has actually used it, and it is one idle context plus its canvas.
+- Re-enabling is instant: no bundle fetch, no Pixi boot, no new context. `mount` runs exactly once per page load however many times the user toggles, which is what `mio-controller.test.ts` asserts.
+
+The position is read **before** the layer is hidden. A hidden host reports zero size, and every position derived from a zero-size host is the top-left corner — which is exactly the bug that shipped when the teardown was merely deferred rather than removed. The `ResizeObserver` ignores a detached or zero-size host for the same reason.
+
+A dark backstop on the shell (`--desktop-mode-backstop`) covers the rest of the class: the shell sits over the white classic-admin page, so *any* layer failing to paint for a frame used to show white. Now the worst case is the desk's own colour.

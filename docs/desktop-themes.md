@@ -290,6 +290,14 @@ A dark theme's minimum viable body palette:
 `--desktop-mode-*` names must match `^--desktop-mode-[a-z0-9-]+$`.
 Read `assets/css/variables.css` for the full set.
 
+> **Set `--desktop-mode-backstop` if your desk is light.** It is the
+> flat colour painted on the shell behind every other layer, including
+> the wallpaper. Nothing is normally seen through it — it exists so
+> that a frame in which some layer fails to paint shows the desk's own
+> colour rather than the white admin page the shell sits over. It
+> defaults to the dark `#1d2327`, which would read as a dark blink on a
+> light theme.
+
 > **`--desktop-mode-window-radius` is not one of them in practice.**
 > The Window-corners preset in OS Settings writes that property as an
 > inline style on the shell root, which outranks any stylesheet rule,
