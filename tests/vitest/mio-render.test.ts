@@ -1,5 +1,5 @@
 /**
- * Mascot renderer geometry — the resampled outline the whole ring is
+ * Mio renderer geometry — the resampled outline the whole ring is
  * built on, and the band tiling that keeps it continuous.
  *
  * The two properties worth defending here are the ones that were bugs
@@ -9,7 +9,7 @@
  * additive blending and beads the ring at every joint.
  */
 import { describe, expect, test } from 'vitest';
-import { MASCOT_DEFAULTS } from '../../src/mascot/config';
+import { MIO_DEFAULTS } from '../../src/mio/config';
 import {
 	buildRibbon,
 	eyeLayout,
@@ -17,8 +17,8 @@ import {
 	fillSheen,
 	type RenderFrame,
 	type RibbonSample,
-} from '../../src/mascot/render';
-import type { Particle } from '../../src/mascot/environment';
+} from '../../src/mio/render';
+import type { Particle } from '../../src/mio/environment';
 
 /** A rim of `n` points on a circle of `r` about the origin. */
 function ring( n: number, r = 50 ): Particle[] {
@@ -344,8 +344,8 @@ describe( 'eyeLayout', () => {
 	} );
 
 	test( 'a blink collapses the pills without moving them', () => {
-		const open = eyeLayout( frame(), MASCOT_DEFAULTS.appearance );
-		const shut = eyeLayout( frame( { blink: 1 } ), MASCOT_DEFAULTS.appearance );
+		const open = eyeLayout( frame(), MIO_DEFAULTS.appearance );
+		const shut = eyeLayout( frame( { blink: 1 } ), MIO_DEFAULTS.appearance );
 		expect( shut.height ).toBeLessThan( open.height * 0.1 );
 		expect( shut.left ).toEqual( open.left );
 	} );
@@ -353,11 +353,11 @@ describe( 'eyeLayout', () => {
 	test( 'gaze saturates instead of sliding off the face', () => {
 		const near = eyeLayout(
 			frame( { gaze: { x: 120, y: 0 } } ),
-			MASCOT_DEFAULTS.appearance,
+			MIO_DEFAULTS.appearance,
 		);
 		const far = eyeLayout(
 			frame( { gaze: { x: 9000, y: 0 } } ),
-			MASCOT_DEFAULTS.appearance,
+			MIO_DEFAULTS.appearance,
 		);
 		expect( far.left.x ).toBeGreaterThan( near.left.x );
 		expect( far.left.x - near.left.x ).toBeLessThan( 5 );

@@ -1,11 +1,11 @@
 /**
- * Mascot pointer tracking — including the cross-iframe half, which
+ * Mio pointer tracking — including the cross-iframe half, which
  * is the whole reason this module exists: pointer events stop at an
- * iframe boundary, so a mascot floating over a window would otherwise
+ * iframe boundary, so Mio floating over a window would otherwise
  * lose the cursor exactly where it matters most.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { createPointerTracker } from '../../src/mascot/pointer';
+import { createPointerTracker } from '../../src/mio/pointer';
 
 const ORIGIN = 'http://localhost:3000';
 

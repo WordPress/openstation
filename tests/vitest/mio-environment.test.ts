@@ -1,7 +1,7 @@
 /**
- * Mascot environment awareness — turning the shell's live collision
+ * Mio environment awareness — turning the shell's live collision
  * surfaces into obstacles, deciding how hard nearby windows pull,
- * resolving contact, and digging the mascot out when a window opens
+ * resolving contact, and digging Mio out when a window opens
  * on top of it.
  */
 import { describe, expect, test } from 'vitest';
@@ -16,7 +16,7 @@ import {
 	magnetPull,
 	resolveObstacleCollisions,
 	type Obstacle,
-} from '../../src/mascot/environment';
+} from '../../src/mio/environment';
 import type { WallpaperSurface } from '../../src/wallpapers/surfaces';
 
 /** Body radius used throughout — the magnet works edge-to-edge. */
@@ -49,7 +49,7 @@ function obstacle( over: Partial< Obstacle > = {} ): Obstacle {
 /** Layer size used by the chrome cases. */
 const LAYER = { width: 1200, height: 800 };
 
-/** The shell's left dock rail, as it actually reaches the mascot. */
+/** The shell's left dock rail, as it actually reaches Mio. */
 function leftRail( over: Partial< WallpaperSurface > = {} ): WallpaperSurface {
 	return surface( {
 		id: 'dock:edge',
@@ -107,7 +107,7 @@ describe( 'collectObstacles', () => {
 	test( 'inflates the dock strip into a solid the rim can hit', () => {
 		// The bug this exists for: as published, the rail is one pixel
 		// wide, so a rim point 30 px inside the dock is inside nothing
-		// and the mascot sinks straight through.
+		// and Mio sinks straight through.
 		const [ rail ] = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
 		expect( rail.x ).toBe( 0 );
 		expect( rail.width ).toBe( 72 );
@@ -220,7 +220,7 @@ describe( 'closestPointOn', () => {
 } );
 
 describe( 'magnetPull', () => {
-	test( 'is null with an empty desk — the mascot floats', () => {
+	test( 'is null with an empty desk — Mio floats', () => {
 		expect( magnetPull( 300, 100, RADIUS, [], 240 ) ).toBeNull();
 	} );
 
@@ -327,7 +327,7 @@ describe( 'magnetPull', () => {
 	test( 'strength reaches exactly 1 on contact', () => {
 		// The bug this guards: a centroid-based falloff tops out
 		// around 0.9 for a resting body, leaving a permanent sliver of
-		// idle float driving a mascot that should be sitting still.
+		// idle float driving Mio that should be sitting still.
 		expect( magnetPull( 300, 150, RADIUS, [ obstacle() ], 240 )?.strength ).toBe(
 			1,
 		);
@@ -411,9 +411,9 @@ describe( 'findEscape', () => {
 
 	test( 'any depth inside the dock is trapped, and it leaves sideways', () => {
 		const rail = collectObstacles( [ leftRail() ], { left: 0, top: 0 }, LAYER );
-		// A rail is narrower than the mascot, so the window depth rule
+		// A rail is narrower than Mio, so the window depth rule
 		// (0.75 × radius) can never fire inside one. This has to be the
-		// bare inside-test, or a mascot in the dock stays there.
+		// bare inside-test, or Mio in the dock stays there.
 		const out = findEscape( 40, 400, 50, rail, bounds );
 		expect( out ).not.toBeNull();
 		expect( out?.x ).toBe( 130 );
@@ -456,7 +456,7 @@ describe( 'findEscape', () => {
 	} );
 
 	test( 'picks the side it is actually closest to', () => {
-		// A window with room on every side; the mascot is trapped
+		// A window with room on every side; Mio is trapped
 		// just inside its left edge.
 		const win = obstacle( { x: 400, y: 200, width: 400, height: 300 } );
 		const out = findEscape( 445, 430, 50, [ win ], bounds );
@@ -466,7 +466,7 @@ describe( 'findEscape', () => {
 
 	test( 'skips a side with no room and takes the next-nearest', () => {
 		// Flush against the layer's left edge: the left candidate
-		// would sit off-canvas, so the mascot goes over the top
+		// would sit off-canvas, so Mio goes over the top
 		// instead of being parked outside the viewport.
 		const win = obstacle( { x: 20, y: 200, width: 400, height: 300 } );
 		const out = findEscape( 70, 430, 50, [ win ], bounds );

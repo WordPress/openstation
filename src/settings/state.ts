@@ -257,10 +257,10 @@ function _parseRaw( parsed: Partial<OsSettingsState> ): OsSettingsState {
 			typeof parsed.showDesktopOnWallpaperClick === 'boolean'
 				? parsed.showDesktopOnWallpaperClick
 				: DEFAULTS.showDesktopOnWallpaperClick,
-		mascotEnabled:
-			typeof parsed.mascotEnabled === 'boolean'
-				? parsed.mascotEnabled
-				: DEFAULTS.mascotEnabled,
+		mioEnabled:
+			typeof parsed.mioEnabled === 'boolean'
+				? parsed.mioEnabled
+				: DEFAULTS.mioEnabled,
 		showPostStatusRibbons:
 			typeof parsed.showPostStatusRibbons === 'boolean'
 				? parsed.showPostStatusRibbons

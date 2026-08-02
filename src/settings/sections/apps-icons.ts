@@ -15,7 +15,10 @@ import { renderIcon } from '../../icon';
 import { slotForTileId } from '../../desktop-themes/slots';
 import type { ItemVisibility, SettingsCtx } from '../types';
 import type { OsSettingsSnapshot } from '../registry';
-import { listPlaceableItems } from '../item-placement';
+import {
+	listPlaceableItems,
+	type PlaceableSystemTile,
+} from '../item-placement';
 import type { DesktopConfig } from '../../types';
 import type { DockItem } from '../../dock';
 
@@ -43,6 +46,22 @@ function readDockItems(): DockItem[] {
 	} ) );
 }
 
+/**
+ * Read the system tiles that opted into this list.
+ *
+ * Shell-owned affordances attached straight to a rail — Mio's
+ * toggle is the shipped example. They carry no server-side icon entry,
+ * so they only reach this tab through the live API.
+ */
+function readSystemTiles(): PlaceableSystemTile[] {
+	const api = ( window as unknown as {
+		wp?: { desktop?: { listSystemTiles?: () => PlaceableSystemTile[] } };
+	} ).wp?.desktop;
+	return typeof api?.listSystemTiles === 'function'
+		? api.listSystemTiles()
+		: [];
+}
+
 function readDesktopIcons(): import( '../../types' ).DesktopIconServerEntry[] {
 	const cfg = ( window as unknown as { desktopModeConfig?: DesktopConfig } )
 		.desktopModeConfig;
@@ -66,6 +85,20 @@ function getPlacementOptions(): PlacementOption[] {
 		{ id: 'desktop', label: __( 'On the desktop' ) },
 		{ id: 'dock', label: __( 'On the dock' ) },
 		{ id: 'both', label: __( 'On both' ) },
+		{ id: 'hidden', label: __( 'Hidden' ) },
+	];
+}
+
+/**
+ * Options for a row that can only ever live on the dock.
+ *
+ * System tiles carry no server-side icon entry for the wallpaper grid
+ * to synthesize from, so offering "on the desktop" would read as a
+ * placement and behave as a disappearance.
+ */
+function getDockOnlyOptions(): PlacementOption[] {
+	return [
+		{ id: 'dock', label: __( 'On the dock' ) },
 		{ id: 'hidden', label: __( 'Hidden' ) },
 	];
 }
@@ -102,7 +135,12 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 	): void => {
 		const dockItems = readDockItems();
 		const desktopIcons = readDesktopIcons();
-		const rows = listPlaceableItems( dockItems, desktopIcons, visibility );
+		const rows = listPlaceableItems(
+			dockItems,
+			desktopIcons,
+			visibility,
+			readSystemTiles(),
+		);
 
 		render(
 			html`
@@ -147,7 +185,10 @@ export function buildAppsIconsSection( ctx: SettingsCtx ): HTMLElement {
 												value=${ row.placement }
 												@wpd-pick=${ onPlacementChange( row.id ) }
 											>
-												${ getPlacementOptions().map(
+												${ ( row.dockOnly
+													? getDockOnlyOptions()
+													: getPlacementOptions()
+												).map(
 													( o ) =>
 														html`<wpd-option
 															value=${ o.id }

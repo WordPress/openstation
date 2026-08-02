@@ -1,12 +1,12 @@
 /**
- * Desktop Mode — Mascot pointer tracking.
+ * Desktop Mode — Mio pointer tracking.
  *
- * The mascot looks at the cursor. That is trivially easy right up
+ * Mio looks at the cursor. That is trivially easy right up
  * until the cursor moves over a window, because a window's content
  * is a chromeless `<iframe>` and pointer events do not cross frame
  * boundaries — the parent document simply stops hearing about the
- * mouse. Since the mascot floats *above* windows, that is most of
- * the desk, and a mascot whose gaze freezes the moment you touch a
+ * mouse. Since Mio floats *above* windows, that is most of
+ * the desk, and Mio whose gaze freezes the moment you touch a
  * window looks broken rather than alive.
  *
  * So this module tracks two sources and merges them:
@@ -22,7 +22,7 @@
  * the tracker broadcasts `desktop-mode-pointer-track` when it starts
  * and again whenever an iframe announces `desktop-mode-bridge-ready`
  * (which fires on every navigation), and broadcasts the disable on
- * teardown. A shell with no mascot pays nothing.
+ * teardown. A shell with no companion pays nothing.
  *
  * See `docs/bridge-protocol.md` for the message contract.
  */

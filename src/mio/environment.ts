@@ -1,11 +1,11 @@
 /**
- * Desktop Mode — Mascot environment awareness.
+ * Desktop Mode — Mio environment awareness.
  *
- * The mascot is not a decal painted over the wallpaper: it knows
+ * Mio is not a decal painted over the wallpaper: it knows
  * what is on the desk. Every frame the simulation asks the shell for
  * the live collision surfaces (`wp.desktop.getWallpaperSurfaces()` —
  * window rects, widget cards, the dock edge, the shell floor),
- * converts them into the mascot layer's own coordinate space, and
+ * converts them into Mio layer's own coordinate space, and
  * feeds them to the soft body as solid obstacles.
  *
  * Two behaviours come out of that:
@@ -16,9 +16,9 @@
  *   - **Gravity gating.** Gravity is not a constant. It ramps in as
  *     a *window* (or widget card) comes within
  *     `physics.gravityRange`, and ramps back out when the desk
- *     empties around the mascot — at which point it floats. The
+ *     empties around Mio — at which point it floats. The
  *     shell floor and the dock are solid but never trigger gravity;
- *     otherwise gravity would be permanently on and the mascot would
+ *     otherwise gravity would be permanently on and Mio would
  *     never float.
  *
  * Every function here is pure and DOM-free so the behaviour is unit
@@ -27,7 +27,7 @@
 
 import type { WallpaperSurface } from '../wallpapers/surfaces';
 
-/** An axis-aligned solid rect in mascot-layer coordinates. */
+/** An axis-aligned solid rect in mio-layer coordinates. */
 export interface Obstacle {
 	id: string;
 	kind: WallpaperSurface[ 'kind' ];
@@ -52,16 +52,16 @@ export interface Particle {
 	vy: number;
 }
 
-/** Origin of the mascot layer in viewport coordinates. */
+/** Origin of Mio layer in viewport coordinates. */
 export interface LayerOrigin {
 	left: number;
 	top: number;
 }
 
 /**
- * Surface kinds that attract the mascot, and that it can be trapped
+ * Surface kinds that attract Mio, and that it can be trapped
  * inside of. The shell floor and the dock are solid but inert:
- * magnetising to either would pin the mascot to the edge of the
+ * magnetising to either would pin Mio to the edge of the
  * screen forever, since one of them is always nearby.
  */
 const MAGNET_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
@@ -79,9 +79,9 @@ const CHROME_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
 ] );
 
 /**
- * Chrome the mascot may never be inside, at any depth.
+ * Chrome Mio may never be inside, at any depth.
  *
- * A window is somewhere the mascot rests *against* and can be nudged a
+ * A window is somewhere Mio rests *against* and can be nudged a
  * pixel into without anyone minding. The dock is not: it holds the
  * user's navigation, it is opaque, and a blob halfway behind it reads
  * as broken rather than playful. The floor is deliberately not on this
@@ -101,7 +101,7 @@ const FORBIDDEN_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
  * feed — snow piles on a line, rain splashes off one. It is useless to
  * a soft body: a rim point that is already a centimetre inside the dock
  * is not inside a 1-px sliver, so nothing pushes it back out and the
- * mascot sinks straight through. Passing `bounds` re-inflates those
+ * Mio sinks straight through. Passing `bounds` re-inflates those
  * strips away from their solid face, out to the edge of the layer, so
  * the dock is a volume the rim collides with along its whole depth and
  * there is no "behind the dock" to reach either.
@@ -110,7 +110,7 @@ const FORBIDDEN_KINDS: ReadonlySet< WallpaperSurface[ 'kind' ] > = new Set( [
  * alone.
  *
  * @param surfaces      Live surfaces, in viewport coordinates.
- * @param origin        Mascot layer origin, for the rebase.
+ * @param origin        Mio layer origin, for the rebase.
  * @param bounds        Layer size. Omit to keep chrome as published.
  * @param bounds.width  Layer width.
  * @param bounds.height Layer height.
@@ -164,14 +164,14 @@ export function collectObstacles(
  * keeping a `radius` of clearance.
  *
  * Used on the **drag target**, so the hand can be swept across the dock
- * without the mascot following it in. Contact alone would let the drag
+ * without Mio following it in. Contact alone would let the drag
  * spring press the body a good way into the rail before the two
  * balanced out, which is exactly the overlap this is meant to forbid.
  *
  * The push is always along the obstacle's own `face`. It is the only
  * direction that can be right: chrome runs to the edge of the layer on
  * its other three sides, so "shallowest axis" — the rule that suits a
- * window floating in open desk — would happily shove the mascot off
+ * window floating in open desk — would happily shove Mio off
  * screen behind the dock.
  *
  * @param point     Desired body centre, layer-local.
@@ -263,7 +263,7 @@ export interface MagnetPull {
 	 * a body resting against a window has its *centroid* a whole
 	 * radius away, so a centroid-based falloff would top out around
 	 * 0.9 and leave a permanent sliver of idle float driving a
-	 * mascot that is supposed to be sitting still.
+	 * Mio that is supposed to be sitting still.
 	 */
 	strength: number;
 	/**
@@ -276,20 +276,20 @@ export interface MagnetPull {
 
 /**
  * The pull of the nearest window, or `null` when the desk is empty
- * around the mascot.
+ * around Mio.
  *
  * Windows attract rather than weigh: there is no global "down". The
- * mascot is drawn to the closest point on the nearest window's edge
+ * Mio is drawn to the closest point on the nearest window's edge
  * from whatever direction it is in — above, beside, below — sticks
  * there, and squashes against it. Away from every window it floats.
  *
  * Only the *nearest* window pulls. Summing every window in range
  * looks more physical and behaves worse: between two windows the
- * forces cancel and the mascot hovers in the gap, twitching, instead
+ * forces cancel and Mio hovers in the gap, twitching, instead
  * of committing to one of them.
  *
  * Strength is smoothstepped so approach and release read as the
- * mascot *noticing* a window rather than a switch flipping.
+ * Mio *noticing* a window rather than a switch flipping.
  *
  * @param px        Body centre X, layer-local.
  * @param py        Body centre Y, layer-local.
@@ -349,8 +349,8 @@ export function magnetPull(
  * bounding rect.
  *
  * A tiled or stacked group of windows is one obstacle as far as the
- * mascot is concerned. Ejecting from a single window in the middle
- * of a tiled row would drop the mascot straight into its neighbour,
+ * Mio is concerned. Ejecting from a single window in the middle
+ * of a tiled row would drop Mio straight into its neighbour,
  * and the next frame would eject it again — a pinball loop across
  * the desk. Escaping the *cluster* leaves it beside the group.
  *
@@ -403,10 +403,10 @@ export function clusterBounds(
  * call it trapped, as a fraction of the body radius.
  *
  * The obvious test — "is the centre inside a window?" — is far too
- * eager. A mascot magnet-stuck to a corner has the contact solver
+ * eager. Mio magnet-stuck to a corner has the contact solver
  * pushing its rim toward two faces at once, and the centroid dips a
  * few pixels past the edge as a matter of course. With a bare
- * inside-test that reads as trapped and the mascot teleports away
+ * inside-test that reads as trapped and Mio teleports away
  * from a corner it was perfectly happy resting on.
  *
  * Genuine engulfment puts the centre at least half a body deep,
@@ -416,15 +416,15 @@ export function clusterBounds(
 const TRAPPED_DEPTH_FACTOR = 0.75;
 
 /**
- * Where to teleport a mascot that a window has opened on top of, or
+ * Where to teleport Mio that a window has opened on top of, or
  * `null` when it isn't trapped.
  *
- * Contact is not trapped — the mascot is *supposed* to rest against
+ * Contact is not trapped — Mio is *supposed* to rest against
  * windows, corners included. Trapped means its centre is buried
  * {@link TRAPPED_DEPTH_FACTOR} of a body deep inside one, which only
  * happens when geometry appears or moves over it. Forbidden chrome —
  * the dock — is the exception, and is checked first at any depth: the
- * mascot is never allowed inside it, so there is no shallow case to
+ * Mio is never allowed inside it, so there is no shallow case to
  * tolerate. The contact solver
  * can't recover from that: rim points on opposite sides of the blob
  * get pushed toward opposite faces and the silhouette tears itself
@@ -432,12 +432,12 @@ const TRAPPED_DEPTH_FACTOR = 0.75;
  *
  * The escape target is the midpoint of the nearest side of the
  * window *cluster*, offset outward by the body radius. Midpoints,
- * not corners, so the mascot lands somewhere it can actually rest;
+ * not corners, so Mio lands somewhere it can actually rest;
  * the cluster rather than the single window so a tiled group doesn't
  * bounce it from one window to the next.
  *
  * Candidates that would leave the layer are dropped. If every side
- * is off-screen (a maximised window), the mascot goes to the centre
+ * is off-screen (a maximised window), Mio goes to the centre
  * of the largest free margin instead — and if there isn't one, the
  * layer centre, which at least is not inside a broken state.
  *
@@ -459,7 +459,7 @@ export function findEscape(
 	// Forbidden chrome first, and on a different rule: *any* depth
 	// counts. The depth test below is calibrated for windows, which are
 	// hundreds of pixels across; a dock rail is usually narrower than
-	// the mascot, so a body sitting squarely inside one never reaches
+	// Mio, so a body sitting squarely inside one never reaches
 	// three quarters of a radius deep and would never be rescued. And
 	// contact cannot dig it out on its own — the rail's near face is the
 	// closest one for rim points on the desk side and its far face for
@@ -570,7 +570,7 @@ export function findEscape(
  *
  * Resolution is per-obstacle along the shallowest penetration axis —
  * the standard AABB response. It is deliberately not a swept test:
- * the mascot moves at desk speeds, the sub-step is 1/240 s, and
+ * Mio moves at desk speeds, the sub-step is 1/240 s, and
  * tunnelling through a 1-px floor strip is prevented by clamping the
  * body to the layer bounds separately.
  *
@@ -630,9 +630,9 @@ export function resolveObstacleCollisions(
 }
 
 /**
- * Keep a particle inside the layer. The mascot may hang off an edge
+ * Keep a particle inside the layer. Mio may hang off an edge
  * visually, but its rim points never leave the canvas — otherwise a
- * throw at the viewport edge would lose the mascot for good.
+ * throw at the viewport edge would lose Mio for good.
  *
  * @param p           Particle, mutated in place.
  * @param width       Layer width.

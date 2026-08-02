@@ -1,12 +1,12 @@
 /**
- * Mascot controller — the always-on half that lives in the main
+ * Mio controller — the always-on half that lives in the main
  * bundle: layer ownership, the lazy bundle load, the enable/disable
  * lifecycle, and the config merge chain.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { clearHooksStub, installHooksStub } from './helpers/hooks-stub';
-import { MASCOT_DEFAULTS } from '../../src/mascot/config';
-import type { MascotHandle, MascotMountOptions } from '../../src/mascot/types';
+import { MIO_DEFAULTS } from '../../src/mio/config';
+import type { MioHandle, MioMountOptions } from '../../src/mio/types';
 
 const loadVendorScript = vi.fn< ( url: string ) => Promise< void > >();
 
@@ -14,10 +14,10 @@ vi.mock( '../../src/wallpapers/vendor-loader', () => ( {
 	loadVendorScript: ( url: string ) => loadVendorScript( url ),
 } ) );
 
-type ControllerModule = typeof import( '../../src/mascot/controller' );
+type ControllerModule = typeof import( '../../src/mio/controller' );
 
 async function load(): Promise< ControllerModule > {
-	return await import( '../../src/mascot/controller' );
+	return await import( '../../src/mio/controller' );
 }
 
 /**
@@ -28,16 +28,16 @@ async function load(): Promise< ControllerModule > {
  * actually run. Tests that need it earlier call `install()`.
  */
 function stubMount(): {
-	calls: MascotMountOptions[];
-	handles: MascotHandle[];
+	calls: MioMountOptions[];
+	handles: MioHandle[];
 	install: () => void;
 } {
-	const calls: MascotMountOptions[] = [];
-	const handles: MascotHandle[] = [];
+	const calls: MioMountOptions[] = [];
+	const handles: MioHandle[] = [];
 	const install = (): void => {
-		window.desktopModeMountMascot = ( options ) => {
+		window.desktopModeMountMio = ( options ) => {
 			calls.push( options );
-			const handle: MascotHandle = {
+			const handle: MioHandle = {
 				getPosition: () => ( { x: 10, y: 20 } ),
 				setPosition: vi.fn(),
 				setAnimating: vi.fn(),
@@ -71,50 +71,50 @@ beforeEach( () => {
 afterEach( () => {
 	clearHooksStub();
 	document.body.innerHTML = '';
-	delete window.desktopModeMountMascot;
+	delete window.desktopModeMountMio;
 } );
 
-describe( 'MascotController', () => {
+describe( 'MioController', () => {
 	test( 'stays inert — and downloads nothing — while switched off', async () => {
-		const { MascotController } = await load();
+		const { MioController } = await load();
 		stubMount();
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
 		} );
 		controller.boot();
 		await Promise.resolve();
 		expect( loadVendorScript ).not.toHaveBeenCalled();
-		expect( document.getElementById( 'desktop-mode-mascot' ) ).toBeNull();
+		expect( document.getElementById( 'desktop-mode-mio' ) ).toBeNull();
 	} );
 
 	test( 'boots straight away when the saved preference is on', async () => {
-		const { MascotController, MASCOT_LAYER_ID } = await load();
+		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: true,
 			persist: vi.fn(),
 		} );
 		controller.boot();
 		await vi.waitFor( () => expect( mount.calls ).toHaveLength( 1 ) );
 		expect( loadVendorScript ).toHaveBeenCalledWith(
-			'https://example.test/mascot.js',
+			'https://example.test/mio.js',
 		);
-		expect( document.getElementById( MASCOT_LAYER_ID ) ).not.toBeNull();
-		expect( mount.calls[ 0 ].host.id ).toBe( MASCOT_LAYER_ID );
+		expect( document.getElementById( MIO_LAYER_ID ) ).not.toBeNull();
+		expect( mount.calls[ 0 ].host.id ).toBe( MIO_LAYER_ID );
 	} );
 
 	test( 'toggling on persists, mounts, and fires the action', async () => {
-		const { MascotController } = await load();
+		const { MioController } = await load();
 		const mount = stubMount();
 		const persist = vi.fn();
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist,
 		} );
@@ -129,12 +129,12 @@ describe( 'MascotController', () => {
 	} );
 
 	test( 'toggling off destroys the handle and removes the layer', async () => {
-		const { MascotController, MASCOT_LAYER_ID } = await load();
+		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
 		const persist = vi.fn();
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: true,
 			persist,
 		} );
@@ -145,11 +145,11 @@ describe( 'MascotController', () => {
 
 		expect( persist ).toHaveBeenCalledWith( false );
 		expect( mount.handles[ 0 ].destroy ).toHaveBeenCalled();
-		expect( document.getElementById( MASCOT_LAYER_ID ) ).toBeNull();
+		expect( document.getElementById( MIO_LAYER_ID ) ).toBeNull();
 	} );
 
-	test( 'a fast on-off-on cycle never leaves two mascots behind', async () => {
-		const { MascotController } = await load();
+	test( 'a fast on-off-on cycle never leaves two mios behind', async () => {
+		const { MioController } = await load();
 		const mount = stubMount();
 		// Hold the bundle load open so the first mount is still in
 		// flight when the user changes their mind.
@@ -164,9 +164,9 @@ describe( 'MascotController', () => {
 				} ),
 		);
 
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
 		} );
@@ -179,11 +179,11 @@ describe( 'MascotController', () => {
 		// The in-flight mount noticed the generation bump and bailed.
 		expect( mount.calls ).toHaveLength( 0 );
 		expect( api.isEnabled() ).toBe( false );
-		expect( document.getElementById( 'desktop-mode-mascot' ) ).toBeNull();
+		expect( document.getElementById( 'desktop-mode-mio' ) ).toBeNull();
 	} );
 
 	test( 'a mount that loses the race cleans up its own layer', async () => {
-		const { MascotController, MASCOT_LAYER_ID } = await load();
+		const { MioController, MIO_LAYER_ID } = await load();
 		const mount = stubMount();
 		// The user switches off *while Pixi is booting*, i.e. after
 		// the mount call has started. The earlier generation guard
@@ -192,7 +192,7 @@ describe( 'MascotController', () => {
 		mount.install();
 		const handles: Array< { destroy: ReturnType< typeof vi.fn > } > = [];
 		let disableMidMount: () => void = () => undefined;
-		window.desktopModeMountMascot = async () => {
+		window.desktopModeMountMio = async () => {
 			disableMidMount();
 			const handle = {
 				getPosition: () => ( { x: 0, y: 0 } ),
@@ -205,9 +205,9 @@ describe( 'MascotController', () => {
 			return handle;
 		};
 
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
 		} );
@@ -216,18 +216,18 @@ describe( 'MascotController', () => {
 		await api.enable();
 
 		expect( handles[ 0 ].destroy ).toHaveBeenCalled();
-		expect( document.getElementById( MASCOT_LAYER_ID ) ).toBeNull();
+		expect( document.getElementById( MIO_LAYER_ID ) ).toBeNull();
 	} );
 
 	test( 'a failed bundle load is not cached — the next toggle retries', async () => {
-		const { MascotController } = await load();
+		const { MioController } = await load();
 		stubMount();
 		const warn = vi.spyOn( console, 'warn' ).mockImplementation( () => undefined );
 		loadVendorScript.mockRejectedValue( new Error( 'offline' ) );
 
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: false,
 			persist: vi.fn(),
 		} );
@@ -242,9 +242,9 @@ describe( 'MascotController', () => {
 	} );
 
 	test( 'server config layers over the defaults and is clamped', async () => {
-		const { MascotController } = await load();
+		const { MioController } = await load();
 		stubMount();
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
 			bundleUrl: '',
 			enabled: false,
@@ -261,28 +261,28 @@ describe( 'MascotController', () => {
 		expect( config.physics.magnetStrength ).toBe( 0 );
 		// Untouched keys keep the reference design.
 		expect( config.appearance.hueSpan ).toBe(
-			MASCOT_DEFAULTS.appearance.hueSpan,
+			MIO_DEFAULTS.appearance.hueSpan,
 		);
 	} );
 
-	test( 'the desktop-mode.mascot.config filter can restyle the mascot', async () => {
-		const { MascotController } = await load();
+	test( 'the desktop-mode.mio.config filter can restyle Mio', async () => {
+		const { MioController } = await load();
 		stubMount();
 		const hooks = ( window.wp as {
 			hooks: { addFilter: ( ...a: unknown[] ) => void };
 		} ).hooks;
 		hooks.addFilter(
-			'desktop-mode.mascot.config',
+			'desktop-mode.mio.config',
 			'test/teal',
 			( value ) => {
-				const config = value as typeof MASCOT_DEFAULTS;
+				const config = value as typeof MIO_DEFAULTS;
 				return {
 					...config,
 					appearance: { ...config.appearance, hueStart: 170 },
 				};
 			},
 		);
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
 			bundleUrl: '',
 			enabled: false,
@@ -291,12 +291,12 @@ describe( 'MascotController', () => {
 		expect( controller.api().getConfig().appearance.hueStart ).toBe( 170 );
 	} );
 
-	test( 'setConfig live-applies to a mounted mascot', async () => {
-		const { MascotController } = await load();
+	test( 'setConfig live-applies to a mounted mio', async () => {
+		const { MioController } = await load();
 		const mount = stubMount();
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: true,
 			persist: vi.fn(),
 		} );
@@ -314,15 +314,15 @@ describe( 'MascotController', () => {
 	} );
 
 	test( 'the saved position round-trips through localStorage', async () => {
-		const { MascotController } = await load();
+		const { MioController } = await load();
 		const mount = stubMount();
 		window.localStorage.setItem(
-			'desktop-mode-mascot-position',
+			'desktop-mode-mio-position',
 			JSON.stringify( { x: 640, y: 480 } ),
 		);
-		const controller = new MascotController( {
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: true,
 			persist: vi.fn(),
 		} );
@@ -333,17 +333,17 @@ describe( 'MascotController', () => {
 
 		mount.calls[ 0 ].savePosition( { x: 12, y: 34 } );
 		expect(
-			window.localStorage.getItem( 'desktop-mode-mascot-position' ),
+			window.localStorage.getItem( 'desktop-mode-mio-position' ),
 		).toBe( JSON.stringify( { x: 12, y: 34 } ) );
 	} );
 
 	test( 'a corrupt saved position is ignored rather than thrown', async () => {
-		const { MascotController } = await load();
+		const { MioController } = await load();
 		const mount = stubMount();
-		window.localStorage.setItem( 'desktop-mode-mascot-position', 'not-json' );
-		const controller = new MascotController( {
+		window.localStorage.setItem( 'desktop-mode-mio-position', 'not-json' );
+		const controller = new MioController( {
 			shell: shell(),
-			bundleUrl: 'https://example.test/mascot.js',
+			bundleUrl: 'https://example.test/mio.js',
 			enabled: true,
 			persist: vi.fn(),
 		} );

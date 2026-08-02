@@ -268,7 +268,7 @@ The full index lives in [`docs/README.md`](docs/README.md). Quick reference:
 | `docs/plugin-compat-layer.md` | A chromeless-CSS shim, offset neutralizer, or dock-builder adaptation for a third-party plugin shape is added/changed. |
 | `docs/dock-customization.md` | Dock rendering, ordering, or decoration hooks change. |
 | `docs/desktop-themes.md` | The desktop-theme manifest format, icon/texture slot lists, value grammar, or fallback semantics change. **Slot names must stay equal on both sides** (`desktop_mode_desktop_theme_icon_slots()` ↔ `src/desktop-themes/slots.ts`). |
-| `docs/mascot.md` | The mascot's simulation, appearance/physics config keys, layer stacking, or `wp.desktop.mascot` surface changes. **The four soft-body failure modes documented there (no core particle; edge-normal pressure; one rest shape shared by every spring family; angular-order constraint against folding) are load-bearing — read before touching `src/mascot/soft-body.ts`.** |
+| `docs/mio.md` | Mio's simulation, appearance/physics config keys, layer stacking, or `wp.desktop.mio` surface changes. **The four soft-body failure modes documented there (no core particle; edge-normal pressure; one rest shape shared by every spring family; angular-order constraint against folding) are load-bearing — read before touching `src/mio/soft-body.ts`.** |
 | `docs/files-on-desktop.md` | Desktop file/folder behavior, tile metadata, or placement changes. |
 | `docs/folder-sharing.md` | Folder-sharing API, ACL model, or REST routes change. |
 | `docs/migration-*.md` | A breaking change ships, write a migration note here in the same PR. |

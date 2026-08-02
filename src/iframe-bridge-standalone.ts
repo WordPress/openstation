@@ -1382,8 +1382,8 @@ export function installEditorAutosaveHandler(): void {
 	 * Pointer events don't cross iframe boundaries, so the parent
 	 * shell goes blind to the cursor the moment it enters a window.
 	 * Anything in the shell that needs the real cursor position while
-	 * it's over window content — today, the mascot's gaze
-	 * (`src/mascot/pointer.ts`) — gets a throttled stream of this
+	 * it's over window content — today, Mio's gaze
+	 * (`src/mio/pointer.ts`) — gets a throttled stream of this
 	 * frame's client coordinates and rebases them through the iframe
 	 * element's own rect.
 	 *

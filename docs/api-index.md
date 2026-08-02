@@ -67,7 +67,7 @@ The full surface is documented in [`javascript-reference.md`](./javascript-refer
 | `registerWallpaper` | `( def: WallpaperDef ) => void` | Stable |
 | `wallpaper` | `WallpaperSuspendApi` *(`suspend( reason )` / `resume( reason )` / `isSuspended()` — refcounted wallpaper pause)* | Experimental |
 | `games` | `GamesApi` *(`register` / `unregister` / `list` / `get` / `subscribe` / `launch` / `getPlaytime` — desktop games + unified scoreboard)* | Experimental |
-| `mascot` | `MascotApi` *(`isEnabled` / `enable` / `disable` / `toggle` / `getPosition` / `setPosition` / `getConfig` / `setConfig` — the soft-body desk companion; see [`mascot.md`](./mascot.md))* | Experimental |
+| `mio` | `MioApi` *(`isEnabled` / `enable` / `disable` / `toggle` / `getPosition` / `setPosition` / `getConfig` / `setConfig` — the soft-body desk companion; see [`mio.md`](./mio.md))* | Experimental |
 
 ### Cross-bundle / cross-window state
 

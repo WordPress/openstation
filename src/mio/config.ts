@@ -1,34 +1,34 @@
 /**
- * Desktop Mode — Mascot configuration defaults + sanitizer.
+ * Desktop Mode — Mio configuration defaults + sanitizer.
  *
- * The mascot's look and physics are configurable from three places,
+ * Mio's look and physics are configurable from three places,
  * highest priority last:
  *
- *   1. {@link MASCOT_DEFAULTS} — the reference design.
- *   2. PHP — `desktop_mode_mascot_config` filter, shipped in the
- *      shell config as `desktopModeConfig.mascot`.
- *   3. JS — the `desktop-mode.mascot.config` filter, applied by the
+ *   1. {@link MIO_DEFAULTS} — the reference design.
+ *   2. PHP — `desktop_mode_mio_config` filter, shipped in the
+ *      shell config as `desktopModeConfig.mio`.
+ *   3. JS — the `desktop-mode.mio.config` filter, applied by the
  *      controller right before mount.
  *
  * Every value that reaches the simulation goes through
- * {@link sanitizeMascotConfig} first: a plugin returning a negative
- * radius or 4,000 rim points should get a clamped mascot, not a
+ * {@link sanitizeMioConfig} first: a plugin returning a negative
+ * radius or 4,000 rim points should get a clamped Mio, not a
  * hung tab.
  */
 
 import type {
-	MascotAppearance,
-	MascotConfig,
-	MascotPhysics,
-	MascotShapePreset,
-	PartialMascotConfig,
+	MioAppearance,
+	MioConfig,
+	MioPhysics,
+	MioShapePreset,
+	PartialMioConfig,
 } from './types';
 
 /**
- * The reference mascot: a black blob with a magenta→violet neon ring
+ * The reference mio: a black blob with a magenta→violet neon ring
  * and two white pill eyes.
  */
-export const MASCOT_DEFAULTS: MascotConfig = {
+export const MIO_DEFAULTS: MioConfig = {
 	appearance: {
 		radius: 56,
 		// The reference interior is dead black — the ring is the only
@@ -197,8 +197,8 @@ function bool( candidate: unknown, fallback: boolean ): boolean {
 	return typeof candidate === 'boolean' ? candidate : fallback;
 }
 
-/** Every silhouette {@link MascotPhysics.shapePreset} accepts. */
-const SHAPE_PRESETS: readonly MascotShapePreset[] = [
+/** Every silhouette {@link MioPhysics.shapePreset} accepts. */
+const SHAPE_PRESETS: readonly MioShapePreset[] = [
 	'circle',
 	'blob',
 	'ghost',
@@ -211,34 +211,34 @@ const SHAPE_PRESETS: readonly MascotShapePreset[] = [
  *
  * Unknown names fall back rather than throwing, in keeping with the
  * rest of the sanitizer: a plugin naming a preset we removed — or one
- * from a newer build — should get the shipped silhouette, not a mascot
+ * from a newer build — should get the shipped silhouette, not Mio
  * that fails to mount.
  */
 function preset(
 	candidate: unknown,
-	fallback: MascotShapePreset,
-): MascotShapePreset {
-	return SHAPE_PRESETS.includes( candidate as MascotShapePreset )
-		? ( candidate as MascotShapePreset )
+	fallback: MioShapePreset,
+): MioShapePreset {
+	return SHAPE_PRESETS.includes( candidate as MioShapePreset )
+		? ( candidate as MioShapePreset )
 		: fallback;
 }
 
 /**
  * Merge an untrusted partial config over the defaults and clamp every
- * field. Always returns a complete, safe {@link MascotConfig}.
+ * field. Always returns a complete, safe {@link MioConfig}.
  */
-export function sanitizeMascotConfig(
+export function sanitizeMioConfig(
 	raw: unknown,
-	base: MascotConfig = MASCOT_DEFAULTS,
-): MascotConfig {
-	const partial: PartialMascotConfig =
+	base: MioConfig = MIO_DEFAULTS,
+): MioConfig {
+	const partial: PartialMioConfig =
 		raw && typeof raw === 'object' && ! Array.isArray( raw )
-			? ( raw as PartialMascotConfig )
+			? ( raw as PartialMioConfig )
 			: {};
 	const a = partial.appearance ?? {};
 	const p = partial.physics ?? {};
 
-	const appearance: MascotAppearance = {
+	const appearance: MioAppearance = {
 		radius: num( a.radius, base.appearance.radius, LIMITS.radius ),
 		bodyColor: color( a.bodyColor, base.appearance.bodyColor ),
 		bodyAlpha: num( a.bodyAlpha, base.appearance.bodyAlpha, LIMITS.bodyAlpha ),
@@ -267,7 +267,7 @@ export function sanitizeMascotConfig(
 		eyeScale: num( a.eyeScale, base.appearance.eyeScale, LIMITS.eyeScale ),
 	};
 
-	const physics: MascotPhysics = {
+	const physics: MioPhysics = {
 		// Rim resolution is rounded — a fractional point count would
 		// break the neighbour indexing in the soft body.
 		points: Math.round( num( p.points, base.physics.points, LIMITS.points ) ),

@@ -160,6 +160,8 @@ export interface LayoutDispatcher {
 		title: string;
 		icon: string;
 		affinity: SystemTileAffinity;
+		/** Whether the tile opts into the Apps & Icons list. */
+		placeable: boolean;
 	} >;
 	/**
 	 * Look up a system tile by id. Returns the underlying
@@ -702,6 +704,7 @@ export function createLayoutDispatcher(
 				title: entry.item.title,
 				icon: entry.item.icon,
 				affinity: entry.affinity,
+				placeable: entry.item.placeable === true,
 			} ) ),
 		getSystemTile: ( id: string ): SystemDockItem | null =>
 			systemTiles.get( id )?.item ?? null,

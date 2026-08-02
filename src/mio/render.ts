@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mascot renderer.
+ * Desktop Mode — Mio renderer.
  *
  * Draws one frame of the soft body as the reference design: a pure
  * black blob wrapped in a neon "chroma" ring, with two white pill
@@ -54,7 +54,7 @@
  *      the tube.
  *   3. `body`  — the black fill. Drawn AFTER the two glow passes on
  *      purpose: it masks their inner halves, which is what makes the
- *      inside of the mascot read as black instead of a muddy purple,
+ *      inside of Mio read as black instead of a muddy purple,
  *      exactly as in the reference art.
  *   3b. `sheen` — concentric shells of faint additive colour over that
  *      fill, so the interior catches the hologram the way a
@@ -73,7 +73,7 @@
 import type { Container, Graphics } from 'pixi.js';
 import { chromaRing, holoSpecular, lighten, type HoloView } from './chroma';
 import type { Particle } from './environment';
-import type { MascotAppearance } from './types';
+import type { MioAppearance } from './types';
 
 /**
  * How many points the outline is resampled to, regardless of how many
@@ -102,7 +102,7 @@ const RIBBON_SAMPLES = 144;
  * Flatness tolerance handed to Pixi's adaptive curve tessellation,
  * `0`–`0.99`; higher subdivides further.
  *
- * Above the library default because the mascot is the one thing on the
+ * Above the library default because Mio is the one thing on the
  * desk a user looks *at*. The cells span 15–45° of arc, so the curves
  * are shallow and the adaptive pass emits only a handful of points
  * even at this tolerance.
@@ -129,7 +129,7 @@ export interface RenderFrame {
 	/** Seconds since mount — drives the hue drift and the blink. */
 	elapsed: number;
 	/**
-	 * Where the mascot is looking, in layer coordinates, or `null`
+	 * Where Mio is looking, in layer coordinates, or `null`
 	 * when the pointer's position is unknown (cursor outside the
 	 * document and no iframe reporting). The eyes recentre.
 	 */
@@ -138,14 +138,14 @@ export interface RenderFrame {
 	blink: number;
 	/**
 	 * Direction the hologram's virtual light rakes across the ring,
-	 * magnitude `0`–`1` for strength. Steered by the mascot's motion —
-	 * see `mascot.ts`.
+	 * magnitude `0`–`1` for strength. Steered by Mio's motion —
+	 * see `mio.ts`.
 	 */
 	tilt: { x: number; y: number };
 }
 
 /** Pixi display objects the renderer owns. */
-export interface MascotLayers {
+export interface MioLayers {
 	root: Container;
 	halo: Graphics;
 	bloom: Graphics;
@@ -167,9 +167,9 @@ export interface MascotLayers {
  *
  * **A flat shell against a flat shell is a hard edge**, and left alone
  * that reads as a set of concentric contour lines drawn inside the
- * mascot — which puts a ceiling on how bright the sheen can get before
+ * Mio — which puts a ceiling on how bright the sheen can get before
  * the banding gives it away. The layer is blurred instead (see
- * `applySheenBlur` in `mascot.ts`), which dissolves both the radial
+ * `applySheenBlur` in `mio.ts`), which dissolves both the radial
  * steps and the angular facets, and buys the alphas below the headroom
  * to actually be visible. That is also why the shells are coarse: five
  * of them, drawn every third sample. Nothing finer survives the blur.
@@ -553,13 +553,13 @@ function rimBounds( rim: readonly Particle[] ): {
 /**
  * Where the eyes sit and how they are deformed this frame.
  *
- * Split out of {@link drawMascot} because it is the one piece of the
+ * Split out of {@link drawMio} because it is the one piece of the
  * renderer with behaviour worth asserting in a test: gaze clamping,
  * blink collapse, and squash inheritance.
  */
 export function eyeLayout(
 	frame: RenderFrame,
-	appearance: MascotAppearance,
+	appearance: MioAppearance,
 ): {
 	left: { x: number; y: number };
 	right: { x: number; y: number };
@@ -620,10 +620,10 @@ function clamp( v: number, lo: number, hi: number ): number {
  * Cheap enough to run every tick: six `Graphics.clear()` calls plus
  * one curved cell per pair of ribbon samples per band.
  */
-export function drawMascot(
-	layers: MascotLayers,
+export function drawMio(
+	layers: MioLayers,
 	frame: RenderFrame,
-	appearance: MascotAppearance,
+	appearance: MioAppearance,
 ): void {
 	const { rim } = frame;
 	if ( rim.length < 3 ) {

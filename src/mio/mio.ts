@@ -1,25 +1,25 @@
 /**
- * Desktop Mode — Mascot runtime.
+ * Desktop Mode — Mio runtime.
  *
  * Owns the PixiJS application, the simulation loop, the drag
- * interaction, and the mascot's awareness of the desk around it.
+ * interaction, and Mio's awareness of the desk around it.
  * Everything expensive lives in this bundle; the always-on shell only
- * ships `src/mascot/controller.ts`.
+ * ships `src/mio/controller.ts`.
  *
  * **Coordinate spaces.** The shell reports collision surfaces in
  * viewport coordinates; the Pixi canvas draws in coordinates local to
- * the mascot layer. The layer's own `getBoundingClientRect()` is the
+ * Mio layer. The layer's own `getBoundingClientRect()` is the
  * conversion, refreshed on the same throttle as the surfaces so the
  * two never disagree by a frame.
  *
  * **Why the canvas never takes pointer events.** The layer spans the
  * whole shell. If the canvas were interactive, every click anywhere
- * on the desk would land on the mascot instead of the window under
+ * on the desk would land on Mio instead of the window under
  * it, and toggling `pointer-events` per frame from a hit test races
  * the very click it is meant to route. Instead a small invisible
  * round *handle* element rides on the blob: it is the only
- * interactive part of the layer, so a click one pixel off the mascot
- * reaches whatever is underneath, exactly as if the mascot weren't
+ * interactive part of the layer, so a click one pixel off Mio
+ * reaches whatever is underneath, exactly as if Mio weren't
  * there.
  */
 
@@ -33,7 +33,7 @@ import {
 	type Obstacle,
 } from './environment';
 import { createPointerTracker, type PointerTracker } from './pointer';
-import { drawMascot, type MascotLayers } from './render';
+import { drawMio, type MioLayers } from './render';
 import {
 	addVelocity,
 	createSoftBody,
@@ -44,10 +44,10 @@ import {
 	type SoftBody,
 } from './soft-body';
 import type {
-	MascotConfig,
-	MascotHandle,
-	MascotMountOptions,
-	MascotShapePreset,
+	MioConfig,
+	MioHandle,
+	MioMountOptions,
+	MioShapePreset,
 } from './types';
 
 declare global {
@@ -81,7 +81,7 @@ const MORPH_SECONDS = 2.6;
  * purpose, and wandering into it at random would be indistinguishable
  * from a bug.
  */
-const SHUFFLE_SHAPES: readonly MascotShapePreset[] = [
+const SHUFFLE_SHAPES: readonly MioShapePreset[] = [
 	'circle',
 	'blob',
 	'ghost',
@@ -89,19 +89,19 @@ const SHUFFLE_SHAPES: readonly MascotShapePreset[] = [
 ];
 
 /**
- * Rake strength of a mascot that isn't going anywhere.
+ * Rake strength of Mio that isn't going anywhere.
  *
  * Not much below the moving value: a hologram sitting still is still a
- * hologram, and a rake that only bites once the mascot is thrown makes
+ * hologram, and a rake that only bites once Mio is thrown makes
  * the effect look like a motion artefact rather than a surface.
  */
 const IDLE_RAKE = 0.62;
 
 /**
- * How long the mascot has to stay buried inside a window before it
+ * How long Mio has to stay buried inside a window before it
  * hops clear, in seconds.
  *
- * Long enough that a mascot flying through a window on a hard throw
+ * Long enough that Mio flying through a window on a hard throw
  * carries itself out under its own momentum; short enough that a
  * window opening on top of it is corrected before the user reads it
  * as broken.
@@ -109,28 +109,28 @@ const IDLE_RAKE = 0.62;
 const TRAPPED_DWELL_S = 0.22;
 
 /**
- * Boot the mascot into `options.host`.
+ * Boot Mio into `options.host`.
  *
  * Resolves `null` (after a console warning) when PixiJS could not be
- * loaded — the shell treats that as "mascot unavailable" and leaves
+ * loaded — the shell treats that as "Mio unavailable" and leaves
  * the setting on so it retries on the next page load.
  */
-export async function mountMascot(
-	options: MascotMountOptions,
-): Promise< MascotHandle | null > {
+export async function mountMio(
+	options: MioMountOptions,
+): Promise< MioHandle | null > {
 	const api = window.wp?.desktop;
 	if ( api?.loadModules ) {
 		try {
 			await api.loadModules( [ 'pixijs' ] );
 		} catch ( err ) {
-			console.warn( '[desktop-mode/mascot] PixiJS failed to load.', err );
+			console.warn( '[desktop-mode/mio] PixiJS failed to load.', err );
 			return null;
 		}
 	}
 	const pixi = window.PIXI;
 	if ( ! pixi ) {
 		console.warn(
-			'[desktop-mode/mascot] window.PIXI is undefined; cannot mount.',
+			'[desktop-mode/mio] window.PIXI is undefined; cannot mount.',
 		);
 		return null;
 	}
@@ -184,30 +184,30 @@ export async function mountMascot(
 	// ------------------------------------------------------------------
 	// Silhouette.
 	//
-	// The mascot picks a new stock shape every `shapeShuffle` seconds
+	// Mio picks a new stock shape every `shapeShuffle` seconds
 	// and eases into it. The transition is a blend of two rest
 	// profiles, not a redraw: the springs are handed the interpolated
-	// target and pull the body across, so the mascot can be poked,
+	// target and pull the body across, so Mio can be poked,
 	// dragged, thrown and landed on a window mid-morph and the shape
 	// change simply carries on underneath. That is the whole reason the
 	// shape lives in rest lengths.
 	// ------------------------------------------------------------------
 
 	/** The silhouette being eased away from, or `null` when settled. */
-	let morphFrom: MascotShapePreset | null = null;
+	let morphFrom: MioShapePreset | null = null;
 	/** Seconds elapsed into the current morph. */
 	let morphAt = 0;
 	/** Seconds until the next shuffle. */
 	let nextShuffle = shuffleDelay( config.physics.shapeShuffle );
 	/** The silhouette currently being pulled toward. */
-	let shape: MascotShapePreset = config.physics.shapePreset;
+	let shape: MioShapePreset = config.physics.shapePreset;
 
 	/**
 	 * The rest silhouette, bound to whatever config is live.
 	 *
 	 * Read through `config` rather than captured, so a `setConfig` that
 	 * only changes the shape retargets the springs without rebuilding
-	 * the body — the mascot morphs into its new shape instead of
+	 * the body — Mio morphs into its new shape instead of
 	 * popping into it.
 	 */
 	const profile = ( angle: number ): number => {
@@ -251,7 +251,7 @@ export async function mountMascot(
 		morphFrom = shape;
 		morphAt = 0;
 		shape = next;
-		doAction( 'desktop-mode.mascot.shape-changed', { shape, from: morphFrom } );
+		doAction( 'desktop-mode.mio.shape-changed', { shape, from: morphFrom } );
 	};
 
 	let body: SoftBody = createSoftBody(
@@ -267,7 +267,7 @@ export async function mountMascot(
 	// itself stays inert.
 	// ------------------------------------------------------------------
 	const handle = document.createElement( 'div' );
-	handle.className = 'desktop-mode-mascot__handle';
+	handle.className = 'desktop-mode-mio__handle';
 	handle.setAttribute( 'aria-hidden', 'true' );
 	sizeHandle( handle, config );
 	host.appendChild( handle );
@@ -291,7 +291,7 @@ export async function mountMascot(
 	let dragGrab = { x: 0, y: 0 };
 
 	// Hologram rake — see `chroma.ts`. A slow ambient rotation stands in
-	// for a viewer shifting in their seat; the mascot's own velocity
+	// for a viewer shifting in their seat; Mio's own velocity
 	// swings it toward the direction of travel and deepens it, which is
 	// what makes the ring's colours run when the blob is thrown and
 	// settle again when it stops. The ambient half is gated on
@@ -378,13 +378,13 @@ export async function mountMascot(
 	// Two things make this feel like picking something up rather than
 	// dragging a DOM node:
 	//
-	//   - The drag target is clamped inside the layer, so the mascot
+	//   - The drag target is clamped inside the layer, so Mio
 	//     can never be hauled out of the canvas it lives in.
 	//   - Release is *never* missed. Pointer capture is the happy
 	//     path, but a drop outside the layer, a pointer the browser
 	//     cancels mid-gesture, an alt-tab, or a capture that never
 	//     took would all otherwise strand `dragging = true` and leave
-	//     the mascot glued to a cursor it can no longer see. Window-
+	//     Mio glued to a cursor it can no longer see. Window-
 	//     level `pointerup` / `pointercancel` / `blur` plus
 	//     `lostpointercapture` close every one of those doors.
 	// ------------------------------------------------------------------
@@ -417,7 +417,7 @@ export async function mountMascot(
 		}
 		dragging = true;
 		dragPointerId = e.pointerId;
-		// Grab offset: the mascot keeps its position relative to the
+		// Grab offset: Mio keeps its position relative to the
 		// cursor instead of snapping its centre under it.
 		const local = toLayer( { x: e.clientX, y: e.clientY } );
 		dragGrab = { x: body.core.x - local.x, y: body.core.y - local.y };
@@ -433,7 +433,7 @@ export async function mountMascot(
 			/* Capture is a nicety; the window-level fallbacks cover it. */
 		}
 		e.preventDefault();
-		doAction( 'desktop-mode.mascot.grabbed', { position: toViewport() } );
+		doAction( 'desktop-mode.mio.grabbed', { position: toViewport() } );
 	};
 
 	const onDragMove = ( e: PointerEvent ): void => {
@@ -486,13 +486,13 @@ export async function mountMascot(
 			}
 		}
 
-		// The throw. Without this the mascot inherits only whatever
+		// The throw. Without this Mio inherits only whatever
 		// velocity the drag spring happened to hold, which is always
 		// short of the hand — flicks land dead.
 		if ( throwIt ) {
 			const boost = config.physics.throwBoost;
 			// Clamp so a jittery trackpad sample can't fire the
-			// mascot across the desk at 20,000 px/s.
+			// Mio across the desk at 20,000 px/s.
 			const maxSpeed = 4000;
 			const speed = Math.hypot( flickVx, flickVy );
 			const scale =
@@ -504,7 +504,7 @@ export async function mountMascot(
 
 		const dropped = toViewport();
 		savePosition( dropped );
-		doAction( 'desktop-mode.mascot.dropped', { position: dropped } );
+		doAction( 'desktop-mode.mio.dropped', { position: dropped } );
 	};
 
 	const onDragEnd = ( e: PointerEvent ): void => {
@@ -551,7 +551,7 @@ export async function mountMascot(
 		const bounds = size();
 
 		// Trapped? A window opened, moved, or maximised over the
-		// mascot. The contact solver can't dig its way out of that —
+		// Mio. The contact solver can't dig its way out of that —
 		// rim points on opposite sides get pushed toward opposite
 		// faces and the silhouette tears — so hop out of the whole
 		// window cluster and re-form clean.
@@ -560,7 +560,7 @@ export async function mountMascot(
 		// engulfment. `findEscape` requires real depth, so resting in
 		// a corner (where the centroid routinely dips a few pixels
 		// past an edge) doesn't count. And the condition has to hold
-		// for TRAPPED_DWELL_S, so a mascot thrown *through* a window
+		// for TRAPPED_DWELL_S, so Mio thrown *through* a window
 		// rides its own momentum out instead of being teleported
 		// mid-flight.
 		if ( ! dragging ) {
@@ -578,7 +578,7 @@ export async function mountMascot(
 					resetBody( body, escape.x, escape.y );
 					forgetMotion();
 					savePosition( toViewport() );
-					doAction( 'desktop-mode.mascot.displaced', {
+					doAction( 'desktop-mode.mio.displaced', {
 						position: toViewport(),
 					} );
 				}
@@ -606,7 +606,7 @@ export async function mountMascot(
 			physics: config.physics,
 			magnet,
 			// Windows stay solid even while you're dragging: the
-			// mascot lives ON the desk, and being able to shove it
+			// Mio lives ON the desk, and being able to shove it
 			// inside a window reads as the physics giving up. The
 			// crush that used to cause is handled at the source
 			// instead, by `physics.dragMaxAccel` bounding how hard
@@ -636,7 +636,7 @@ export async function mountMascot(
 		}
 
 		const cursor = pointer.get();
-		drawMascot(
+		drawMio(
 			layers,
 			{
 				rim: body.rim,
@@ -651,7 +651,7 @@ export async function mountMascot(
 		);
 
 		// Ride the handle on the body. Anchored on the *rim centroid*,
-		// not the rest position, so a squashed or mid-throw mascot is
+		// not the rest position, so a squashed or mid-throw Mio is
 		// still grabbable where it actually looks like it is.
 		const half = ( body.radius * HANDLE_SCALE ) / 2;
 		handle.style.transform = `translate3d(${ body.core.x - half }px, ${
@@ -671,7 +671,7 @@ export async function mountMascot(
 		const { width, height } = size();
 		app.renderer.resize( width, height );
 		origin = originOf();
-		// Pull the mascot back inside a shrunken shell.
+		// Pull Mio back inside a shrunken shell.
 		const r = body.radius;
 		const x = clamp( body.core.x, r, Math.max( r, width - r ) );
 		const y = clamp( body.core.y, r, Math.max( r, height - r ) );
@@ -714,7 +714,7 @@ export async function mountMascot(
 		}
 	}
 
-	doAction( 'desktop-mode.mascot.mounted', { position: toViewport() } );
+	doAction( 'desktop-mode.mio.mounted', { position: toViewport() } );
 
 	return {
 		getPosition: () => toViewport(),
@@ -730,7 +730,7 @@ export async function mountMascot(
 			savePosition( toViewport() );
 		},
 		setAnimating,
-		applyConfig: ( next: MascotConfig ) => {
+		applyConfig: ( next: MioConfig ) => {
 			requested = next;
 			const calm = calmed( next );
 			const rebuild =
@@ -775,23 +775,23 @@ export async function mountMascot(
 			// Application on the page (the active wallpaper, the
 			// content graph, OS Settings previews).
 			app.destroy( { removeView: true }, { children: true, texture: true } );
-			doAction( 'desktop-mode.mascot.unmounted', {} );
+			doAction( 'desktop-mode.mio.unmounted', {} );
 		},
 	};
 }
 
 /**
- * Strip the mascot's *ambient* motion when the user has asked for
+ * Strip Mio's *ambient* motion when the user has asked for
  * reduced motion: no idle bob, no sway, no hue shimmer.
  *
  * Motion the user causes — a drag, a fall onto a window they just
  * opened, the squash on landing — is deliberately kept. WCAG's
  * concern is unsolicited animation, and a companion that refuses to
  * move when you pick it up isn't accessible, it's broken. A user who
- * wants none of it switches the mascot off in the same menu they
+ * wants none of it switches Mio off in the same menu they
  * switched it on.
  */
-function calmed( config: MascotConfig ): MascotConfig {
+function calmed( config: MioConfig ): MioConfig {
 	const reduce =
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
@@ -801,7 +801,7 @@ function calmed( config: MascotConfig ): MascotConfig {
 	return {
 		appearance: { ...config.appearance, hueDrift: 0 },
 		// The silhouette shuffle goes with the bob and the shimmer: a
-		// mascot that reshapes itself while you are reading is textbook
+		// Mio that reshapes itself while you are reading is textbook
 		// unsolicited animation.
 		physics: { ...config.physics, floatAmplitude: 0, shapeShuffle: 0 },
 	};
@@ -811,8 +811,8 @@ function calmed( config: MascotConfig ): MascotConfig {
 function buildLayers(
 	pixi: typeof import( 'pixi.js' ),
 	app: Application,
-	config: MascotConfig,
-): MascotLayers {
+	config: MioConfig,
+): MioLayers {
 	const root: Container = new pixi.Container();
 	const halo: Graphics = new pixi.Graphics();
 	const bloom: Graphics = new pixi.Graphics();
@@ -835,7 +835,7 @@ function buildLayers(
 	root.addChild( eyes );
 	app.stage.addChild( root );
 
-	const layers: MascotLayers = { root, halo, bloom, body, sheen, core, eyes };
+	const layers: MioLayers = { root, halo, bloom, body, sheen, core, eyes };
 	applyGlow( pixi, layers, config );
 	applySheenBlur( pixi, layers, config );
 	return layers;
@@ -845,12 +845,12 @@ function buildLayers(
  * Attach (or remove) the blur on the widest glow pass.
  *
  * Guarded: a trimmed Pixi build without `BlurFilter` still renders a
- * perfectly good mascot, just with a crisper halo.
+ * perfectly good Mio, just with a crisper halo.
  */
 function applyGlow(
 	pixi: typeof import( 'pixi.js' ),
-	layers: MascotLayers,
-	config: MascotConfig,
+	layers: MioLayers,
+	config: MioConfig,
 ): void {
 	const want = config.appearance.glowBlur && config.appearance.glow > 0;
 	if ( ! want || typeof pixi.BlurFilter !== 'function' ) {
@@ -874,22 +874,22 @@ function applyGlow(
  *
  * The sheen is a handful of flat concentric shells, and a flat shell
  * against a flat shell is a hard edge. Unblurred, that reads as
- * contour lines drawn inside the mascot, which caps how bright the
+ * contour lines drawn inside Mio, which caps how bright the
  * sheen can get before the banding gives it away. Blurring the layer
  * dissolves the radial steps and the angular facets both, so the
  * shells can be few, coarse, and actually visible.
  *
- * Scaled off the radius rather than fixed: a kiosk-sized mascot needs
+ * Scaled off the radius rather than fixed: a kiosk-sized Mio needs
  * a proportionally wider blur to hide the same number of shells.
  *
  * Guarded the same way {@link applyGlow} is — a trimmed Pixi build
  * without `BlurFilter` gets a faintly banded sheen, not a broken
- * mascot.
+ * Mio.
  */
 function applySheenBlur(
 	pixi: typeof import( 'pixi.js' ),
-	layers: MascotLayers,
-	config: MascotConfig,
+	layers: MioLayers,
+	config: MioConfig,
 ): void {
 	const want = config.appearance.iridescence > 0;
 	if ( ! want || typeof pixi.BlurFilter !== 'function' ) {
@@ -912,7 +912,7 @@ function applySheenBlur(
 }
 
 /** Size the drag handle to the current rest radius. */
-function sizeHandle( handle: HTMLElement, config: MascotConfig ): void {
+function sizeHandle( handle: HTMLElement, config: MioConfig ): void {
 	const px = `${ config.appearance.radius * HANDLE_SCALE }px`;
 	handle.style.width = px;
 	handle.style.height = px;
@@ -946,7 +946,7 @@ function smoothstep( t: number ): number {
 /**
  * How long to wait before the next shuffle.
  *
- * Jittered by ±25% so a mascot that has been on screen for an hour is
+ * Jittered by ±25% so Mio that has been on screen for an hour is
  * still not something the eye can anticipate — a change exactly every
  * sixty seconds reads as a timer, which is the opposite of alive.
  */
@@ -955,7 +955,7 @@ function shuffleDelay( every: number ): number {
 }
 
 /** A stock silhouette that isn't the one already showing. */
-function pickShape( current: MascotShapePreset ): MascotShapePreset {
+function pickShape( current: MioShapePreset ): MioShapePreset {
 	const options = SHUFFLE_SHAPES.filter( ( s ) => s !== current );
 	return options[ Math.floor( Math.random() * options.length ) ] ?? current;
 }

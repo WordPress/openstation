@@ -1702,7 +1702,7 @@ function desktop_mode_chromeless_bridge_script() {
 	 * shell goes blind to the cursor the moment it enters a window.
 	 * Anything in the shell that needs to know where the mouse
 	 * actually is while it's over window content — today, the
-	 * mascot's gaze (`src/mascot/pointer.ts`) — gets a throttled
+	 * Mio's gaze (`src/mio/pointer.ts`) — gets a throttled
 	 * stream of this frame's client coordinates and rebases them
 	 * through the iframe element's own rect.
 	 *

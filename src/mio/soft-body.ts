@@ -1,5 +1,5 @@
 /**
- * Desktop Mode — Mascot soft body.
+ * Desktop Mode — Mio soft body.
  *
  * A pressurised mass-spring ring. `points` particles sit on a circle
  * and are wired together by three families of springs plus an
@@ -13,7 +13,7 @@
  *     rest radius, restoring roundness after a squash.
  *   - **Pressure** — an outward push proportional to how much area
  *     the polygon has lost against its rest area. This is what makes
- *     the mascot *pancake outward* when it lands on a window rather
+ *     Mio *pancake outward* when it lands on a window rather
  *     than simply flattening into a line.
  *
  * **Why there is no core particle.** The obvious model — a heavy
@@ -21,7 +21,7 @@
  * the blob hard enough and the centre punches through the contact
  * plane; the rim clamps on the window's top edge, the centre settles
  * *below* it, and the radial springs are perfectly happy there (a
- * hanging-bob equilibrium). The mascot ends up as a dome welded to
+ * hanging-bob equilibrium). Mio ends up as a dome welded to
  * the window edge and never recovers. Deriving the centre from the
  * rim instead — classic shape matching — removes the second
  * equilibrium entirely: there is no independent centre left to
@@ -42,7 +42,7 @@
  * point's velocity **relative to the body's mean velocity**, so the
  * jiggle settles while the body keeps its momentum;
  * `physics.airDamping` acts on everything, so a throw eventually
- * comes to rest. One combined constant would make the mascot feel
+ * comes to rest. One combined constant would make Mio feel
  * like it was falling through syrup.
  *
  * Pure and DOM-free: the renderer reads the resulting point cloud,
@@ -56,12 +56,12 @@ import {
 	type Obstacle,
 	type Particle,
 } from './environment';
-import type { MascotPhysics } from './types';
+import type { MioPhysics } from './types';
 
 /**
  * Speed (px/s) at which `physics.speedStretch` is fully applied.
  * Below it the stretch scales linearly, so a slow drag deforms the
- * mascot slightly and a fast flick deforms it fully.
+ * Mio slightly and a fast flick deforms it fully.
  */
 const STRETCH_FULL_SPEED = 1200;
 
@@ -77,12 +77,12 @@ export interface RimPoint extends Particle {
 	angle: number;
 }
 
-/** Complete mascot body state. */
+/** Complete Mio body state. */
 export interface SoftBody {
 	/**
-	 * Derived centre of mass — the mascot's "position". Recomputed
+	 * Derived centre of mass — Mio's "position". Recomputed
 	 * from the rim after every sub-step; writing to it does nothing.
-	 * Use {@link translateBody} to move the mascot.
+	 * Use {@link translateBody} to move Mio.
 	 */
 	core: Particle;
 	/** Rim particles, ordered counter-clockwise in screen space. */
@@ -171,7 +171,7 @@ function potatoDeviation( angle: number ): number {
  * `shapeAmount` mean the same thing for every preset: it scales this,
  * so `0` is always a circle and `1` is always the shape as authored.
  */
-function presetDeviation( angle: number, physics: MascotPhysics ): number {
+function presetDeviation( angle: number, physics: MioPhysics ): number {
 	switch ( physics.shapePreset ) {
 		case 'circle':
 			return 0;
@@ -198,19 +198,19 @@ function presetDeviation( angle: number, physics: MascotPhysics ): number {
 }
 
 /**
- * The mascot's rest silhouette, as a multiplier on `radius` at one
+ * Mio's rest silhouette, as a multiplier on `radius` at one
  * angle around the ring.
  *
  * Written the only way a soft body can usefully carry a shape — as a
  * **rest length**, not a mask. Every spring family reads its target
- * from this, so the mascot squashes, stretches, breathes, is thrown and
+ * from this, so Mio squashes, stretches, breathes, is thrown and
  * recovers exactly as a disc-shaped one does; it simply settles into
  * this silhouette when nothing is acting on it.
  *
  * @param angle   Rest angle of the point, in radians.
  * @param physics Simulation constants.
  */
-export function shapeProfile( angle: number, physics: MascotPhysics ): number {
+export function shapeProfile( angle: number, physics: MioPhysics ): number {
 	if ( physics.shapeAmount <= 0 ) {
 		return 1;
 	}
@@ -325,7 +325,7 @@ export function translateBody( body: SoftBody, x: number, y: number ): void {
 /**
  * Add a velocity to the whole body, preserving its deformation.
  *
- * Used to throw the mascot on release: the drag spring alone leaves
+ * Used to throw Mio on release: the drag spring alone leaves
  * it with whatever velocity the spring happened to have, which is
  * always less than the hand's. Injecting the pointer's own velocity
  * is what makes a flick feel like a flick.
@@ -341,7 +341,7 @@ export function addVelocity( body: SoftBody, vx: number, vy: number ): void {
 /**
  * Snap the body back to its clean rest shape at `(x, y)`, at rest.
  *
- * The recovery path for a mascot a window opened on top of: by the
+ * The recovery path for Mio a window opened on top of: by the
  * time we notice, the contact solver has been pushing opposite sides
  * of the rim toward opposite faces and the silhouette is mangled.
  * Re-forming is both cheaper and better-looking than trying to
@@ -363,10 +363,10 @@ export function resetBody( body: SoftBody, x: number, y: number ): void {
 
 /** Per-frame inputs to {@link stepSoftBody}. */
 export interface StepInput {
-	physics: MascotPhysics;
+	physics: MioPhysics;
 	/**
 	 * Pull toward the nearest window, or `null` when the desk is
-	 * empty around the mascot and it should float.
+	 * empty around Mio and it should float.
 	 */
 	magnet: MagnetPull | null;
 	/** Live obstacle set in layer coordinates. */
@@ -374,7 +374,7 @@ export interface StepInput {
 	/** Layer size; the body is clamped inside it. */
 	bounds: { width: number; height: number };
 	/**
-	 * Pointer target while the user is dragging the mascot, in layer
+	 * Pointer target while the user is dragging Mio, in layer
 	 * coordinates. `null` when not dragging.
 	 */
 	dragTarget: { x: number; y: number } | null;
@@ -427,7 +427,7 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 
 	// How strongly a window has hold of us, 0–1. Hoisted because it
 	// gates both the external pull below and the idle wobble in the
-	// shape springs: a mascot clamped to a window should sit still
+	// shape springs: Mio clamped to a window should sit still
 	// against it, not keep breathing.
 	const pull = input.magnet;
 	const strength = pull ? Math.min( 1, Math.max( 0, pull.strength ) ) : 0;
@@ -448,7 +448,7 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 	// The rest radius isn't constant. Its base is the *rest profile* —
 	// `shapeLobes` / `shapeAmount` / `shapeAngle`, a rounded polygon —
 	// and `idleWobble` breathes on top of that, per
-	// point, so a floating mascot is never a perfect circle. Three
+	// point, so a floating Mio is never a perfect circle. Three
 	// spatial harmonics (2, 3 and 5 lobes) drift around the rim at
 	// incommensurable temporal frequencies, which means the springs
 	// are continuously tensing and releasing and the silhouette never
@@ -488,7 +488,7 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 
 	// Squash and stretch. The rest shape becomes an ellipse elongated
 	// along the direction of travel and narrowed across it by the
-	// reciprocal — area-preserving, so a mascot yanked across the
+	// reciprocal — area-preserving, so Mio yanked across the
 	// desk draws out behind the cursor without appearing to gain
 	// mass, and rounds back off as it slows.
 	//
@@ -580,7 +580,7 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 	//
 	// The normals have to come from the edges, not from
 	// "point minus centroid". A radial formulation looks equivalent
-	// and silently kills the mascot: squash the blob flat and every
+	// and silently kills Mio: squash the blob flat and every
 	// radial direction becomes horizontal, so a fully collapsed
 	// sliver is a perfect equilibrium of the shape springs, the edge
 	// springs, the bend springs AND radial pressure at once —
@@ -640,14 +640,14 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 	// External acceleration.
 	//
 	// Windows are magnets, not ground: the pull points at the nearest
-	// window's edge from wherever the mascot happens to be, and fades
+	// window's edge from wherever Mio happens to be, and fades
 	// in with proximity. What's left over (`1 - strength`) is the
-	// floating regime: simple harmonic motion, so the mascot bobs
+	// floating regime: simple harmonic motion, so Mio bobs
 	// with amplitude `floatAmplitude` instead of drifting off-screen,
 	// plus a slower, shallower sway at an incommensurable frequency
 	// so the two never resolve into an obvious loop.
 	//
-	// The float is scaled down as the magnet takes hold — a mascot
+	// The float is scaled down as the magnet takes hold — Mio
 	// stuck to a window should sit still against it, not vibrate.
 	// ---------------------------------------------------------------
 	const w = physics.floatSpeed;
@@ -667,10 +667,10 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 		// and the pair limit-cycles forever. Against a flat face that
 		// is invisible (the bounce is purely normal and friction eats
 		// it), but in a corner the pull is diagonal, so every cycle
-		// also slides the body along one face and the mascot orbits
+		// also slides the body along one face and Mio orbits
 		// the corner, visibly wobbling and never settling.
 		//
-		// With a rest gap the force is zero exactly where the mascot
+		// With a rest gap the force is zero exactly where Mio
 		// should sit — `magnetGrip` of a radius pressed in, which is
 		// what produces the squash — negative if it gets pushed
 		// deeper, positive if it drifts off. A real equilibrium that
@@ -684,7 +684,7 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 
 		// Contact damping. Scaled by grip strength, and applied to
 		// the whole body rather than just the pull axis so tangential
-		// creep along a face dies too — a mascot stuck to a magnet
+		// creep along a face dies too — Mio stuck to a magnet
 		// should feel held, not skating.
 		const hold = physics.magnetDamping * strength;
 		extX -= centre.vx * hold;
@@ -713,7 +713,7 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 
 		// Cap it. The spring force grows without bound as the cursor
 		// pulls away from a body that cannot follow — hold the
-		// pointer inside a window and the mascot is pressed into the
+		// pointer inside a window and Mio is pressed into the
 		// glass with arbitrary force until it flattens. Capped, it
 		// presses firmly against the obstacle and stops there, which
 		// is what pushing a jelly into a wall actually looks like.
@@ -747,16 +747,16 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 
 	// --- Hard limits + contact, solved together. -------------------------
 	//
-	// Springs decide how the mascot feels; the limits decide what it
+	// Springs decide how Mio feels; the limits decide what it
 	// can never become. The two have to be *interleaved*, not
 	// sequenced: run every limit and then every contact, and the
 	// contact pass simply re-breaks the limits it was meant to
-	// respect. Measured — dragging the mascot into the corner of a
+	// respect. Measured — dragging Mio into the corner of a
 	// window that way crushed it to a third of its rest radius
 	// despite a 0.55 floor.
 	//
 	// Alternating them lets each react to the other. Contact goes
-	// last so it always has the final word: a mascot a little past a
+	// last so it always has the final word: Mio a little past a
 	// stretch limit is a cosmetic blip, one whose rim pokes through a
 	// window is not.
 	const contacting = new Uint8Array( n );
@@ -806,12 +806,12 @@ function substep( body: SoftBody, dt: number, input: StepInput ): void {
 	// Angular order last, unconditionally. A fold is the one failure
 	// the body cannot recover from on its own — every distance-based
 	// constraint is perfectly happy with a folded ring, so once it
-	// happens the mascot stays a crescent forever. That outranks
+	// happens Mio stays a crescent forever. That outranks
 	// everything else, including non-penetration.
 	//
 	// The cost is real but tiny: a repair rotates points about the
 	// centroid, which can carry one across an obstacle edge. Measured
-	// at 0.32 px worst case while deliberately shoving the mascot
+	// at 0.32 px worst case while deliberately shoving Mio
 	// into a window, and it only runs at all when the ring is
 	// actually broken — a healthy body returns from the first check.
 	enforceAngularOrder( body, physics.minAngularGap );
@@ -824,12 +824,12 @@ function clamp( v: number, lo: number, hi: number ): number {
 /**
  * Keep the rim in angular order around the centroid.
  *
- * **This is what stops the mascot turning into a crescent.** Bounding
+ * **This is what stops Mio turning into a crescent.** Bounding
  * how far each point may sit from the centre says nothing about the
  * *order* they sit in: let two neighbours swap angular places and the
  * outline folds back through itself, and the folded shape can satisfy
  * every radial limit, every edge limit and the pressure term at once.
- * It is a stable configuration — once folded, the mascot stays a
+ * It is a stable configuration — once folded, Mio stays a
  * comma shape forever, because nothing in a distance-only constraint
  * set can tell it apart from a legal blob.
  *
@@ -913,7 +913,7 @@ function enforceAngularOrder( body: SoftBody, minGapFraction: number ): void {
 
 	// Lay the points back out on the repaired angles. The base is
 	// chosen so the total angular movement is zero — repairing a fold
-	// must not also spin the mascot.
+	// must not also spin Mio.
 	const target = new Float64Array( n );
 	target[ 0 ] = angle[ 0 ];
 	for ( let i = 1; i < n; i++ ) {
@@ -973,7 +973,7 @@ function rotateAbout(
  * Clamp the distance between two particles into `[minLen, maxLen]`.
  *
  * A positional projection, not a force: springs decide how the
- * mascot *feels*, limits decide what it can never *become*. Forces
+ * Mio *feels*, limits decide what it can never *become*. Forces
  * alone can always be overwhelmed — a hard enough contact, a big
  * enough drag, an unlucky frame delta — and the failure looks
  * catastrophic (a blob crushed to a line, or torn into a spike)
@@ -1046,7 +1046,7 @@ function limitDistance(
 function enforceLimits(
 	body: SoftBody,
 	restR: Float64Array,
-	physics: MascotPhysics,
+	physics: MioPhysics,
 	pinned: Uint8Array | null = null,
 ): void {
 	const rim = body.rim;
@@ -1097,7 +1097,7 @@ function enforceLimits(
 		// hard impact lands the visible frame mid-violation. Braking
 		// on approach means the violation mostly never happens —
 		// physically a hydraulic bump stop, and it reads as the
-		// mascot having a firm core rather than a hard clamp.
+		// Mio having a firm core rather than a hard clamp.
 		const zoneLo = lo * BUMP_ZONE;
 		const zoneHi = hi / BUMP_ZONE;
 		if ( len < zoneLo && radial < 0 && zoneLo > lo ) {

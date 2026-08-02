@@ -2026,19 +2026,19 @@ export interface DesktopConfig {
 	 */
 	shellOverlaysBundleUrl?: string;
 	/**
-	 * Mascot appearance + physics from PHP
-	 * (`desktop_mode_mascot_config()`, filterable via
-	 * `desktop_mode_mascot_config`). Shape mirrors `MascotConfig` in
-	 * `src/mascot/types.ts`; the shell re-sanitizes it before use, so
+	 * Mio appearance + physics from PHP
+	 * (`desktop_mode_mio_config()`, filterable via
+	 * `desktop_mode_mio_config`). Shape mirrors `MioConfig` in
+	 * `src/mio/types.ts`; the shell re-sanitizes it before use, so
 	 * a partial or malformed object is safe.
 	 */
-	mascot?: unknown;
+	mio?: unknown;
 	/**
-	 * Fully-qualified URL of the lazy mascot bundle. The shell-side
-	 * `MascotController` script-injects this the first time the user
-	 * switches the mascot on from the wallpaper context menu.
+	 * Fully-qualified URL of the lazy Mio bundle. The shell-side
+	 * `MioController` script-injects this the first time the user
+	 * switches Mio on from the wallpaper context menu.
 	 */
-	mascotBundleUrl?: string;
+	mioBundleUrl?: string;
 	/**
 	 * Fully-qualified URL of the lazy window-system bundle (Stage
 	 * 11). The `Window` class + its DOM / pointer / tab / chrome

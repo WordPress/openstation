@@ -333,13 +333,13 @@ body.desktop-mode-active #wpcontent {
 }
 
 /*
- * Mascot layer — the desk companion.
+ * Mio layer — the desk companion.
  *
  * A sibling of the wallpaper inside the shell, but at the far end of
- * the stack: the mascot paints ABOVE windows (it perches on them)
+ * the stack: Mio paints ABOVE windows (it perches on them)
  * and below the dock (it must never cover navigation). Created on
- * demand by `src/mascot/controller.ts` and removed again when the
- * user switches the mascot off, so a shell without a mascot has no
+ * demand by `src/mio/controller.ts` and removed again when the
+ * user switches Mio off, so a shell without Mio has no
  * extra element at all.
  *
  * The layer and its <canvas> are permanently inert. Making a
@@ -348,15 +348,15 @@ body.desktop-mode-active #wpcontent {
  * underneath. Only the small round `__handle` inside it takes
  * pointer events, and it rides on the blob.
  */
-.desktop-mode-mascot {
+.desktop-mode-mio {
 	position: absolute;
 	inset: 0;
-	z-index: var(--desktop-mode-z-mascot);
+	z-index: var(--desktop-mode-z-mio);
 	overflow: hidden;
 	pointer-events: none;
 }
 
-.desktop-mode-mascot__handle {
+.desktop-mode-mio__handle {
 	position: absolute;
 	/*
 	 * PHYSICAL `top` / `left`, deliberately — the one place in this
@@ -378,28 +378,28 @@ body.desktop-mode-active #wpcontent {
 	touch-action: none;
 }
 
-.desktop-mode-mascot__handle.is-dragging {
+.desktop-mode-mio__handle.is-dragging {
 	cursor: grabbing;
 }
 
 /*
  * Overview (Exposé) hides the desk furniture so the window grid
- * reads cleanly — the mascot goes with the widgets and the notes.
- * `:has()` rather than a descendant selector because the mascot
+ * reads cleanly — Mio goes with the widgets and the notes.
+ * `:has()` rather than a descendant selector because Mio
  * layer is a sibling of `.desktop-mode-shell__body`, not a child of
  * the desktop area.
  */
-.desktop-mode-mascot {
+.desktop-mode-mio {
 	transition: opacity 160ms ease;
 }
 
-.desktop-mode-shell:has( .desktop-mode-area--overview ) .desktop-mode-mascot {
+.desktop-mode-shell:has( .desktop-mode-area--overview ) .desktop-mode-mio {
 	opacity: 0;
 }
 
 /*
  * Reduced motion is handled in the simulation, not here: the runtime
- * zeroes the idle float and the hue drift so the mascot holds still
+ * zeroes the idle float and the hue drift so Mio holds still
  * until the user actually interacts with it. Hiding it would be
  * wrong — the user switched it on deliberately.
  */

@@ -1,12 +1,12 @@
-# The Mascot
+# Mio
 
 **Status: Experimental.**
 
-The mascot is Desktop Mode's desk companion: a soft-body blob wrapped in a continuous, holographic neon ring, with two pill eyes that follow your cursor. It drifts over the wallpaper — breathing gently, never quite the same shape twice — is drawn to nearby windows like a magnet, and can be picked up and thrown anywhere on the desk.
+Mio is Desktop Mode's desk companion: a soft-body blob wrapped in a continuous, holographic neon ring, with two pill eyes that follow your cursor. It drifts over the wallpaper — breathing gently, never quite the same shape twice — is drawn to nearby windows like a magnet, and can be picked up and thrown anywhere on the desk.
 
-It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; the mascot owns its own layer inside `#desktop-mode-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
+It is a **first-class shell layer**, not a widget. Widgets are cards pinned to a rail with a fixed placement contract; Mio owns its own layer inside `#desktop-mode-shell`, paints above every window, and goes where it likes. That distinction is the whole point — a companion that had to live in the widget column wouldn't be a companion.
 
-Off by default. Users switch it on by right-clicking the wallpaper and picking **Show mascot**.
+Off by default. Users switch it on from its **dock tile**, and can hide the tile itself from OS Settings → Apps & Icons.
 
 ---
 
@@ -14,6 +14,7 @@ Off by default. Users switch it on by right-clicking the wallpaper and picking *
 
 - [For users](#for-users)
 - [Architecture](#architecture)
+  - [What it costs a shell that has it switched off](#what-it-costs-a-shell-that-has-it-switched-off)
 - [The simulation](#the-simulation)
   - [The rest shape](#the-rest-shape)
   - [Shuffling the silhouette](#shuffling-the-silhouette)
@@ -46,12 +47,13 @@ Off by default. Users switch it on by right-clicking the wallpaper and picking *
 
 | Action | How |
 |---|---|
-| Show / hide | Right-click the wallpaper → **Show mascot** / **Hide mascot** |
+| Show / hide | Click the **Mio** tile on the bottom dock. The tile's dot lights while the companion is on screen. |
+| Get rid of the tile | OS Settings → **Apps & Icons** → Mio → **Hidden** |
 | Move it | Drag it anywhere. It trails your cursor. |
 | Throw it | Let go mid-flick and it keeps going, gliding to a stop. |
 | Where it rests | Persisted per browser (`localStorage`); the on/off preference is per user (server-side). |
 
-Near a window, the mascot is attracted to it: it slides over from whatever direction it was in, sticks to the nearest edge — top, side, underneath — and squashes against it. Out in open space nothing pulls on it, so it floats, bobbing and slowly changing shape.
+Near a window, Mio is attracted to it: it slides over from whatever direction it was in, sticks to the nearest edge — top, side, underneath — and squashes against it. Out in open space nothing pulls on it, so it floats, bobbing and slowly changing shape.
 
 Open a window on top of it and it hops clear rather than being buried.
 
@@ -59,14 +61,25 @@ Open a window on top of it and it hops clear rather than being buried.
 
 ## Architecture
 
-Two halves, split so a user who never switches the mascot on never downloads it.
+Two halves, split so a user who never switches Mio on never downloads it.
 
 | Piece | Ships in | Job |
 |---|---|---|
-| `src/mascot/controller.ts` | `desktop[.min].js` (always) | Owns the layer element and the on/off preference; script-injects the bundle below on first activation. ~2 kB. |
-| `src/mascot/entry.ts` → `assets/js/mascot[.min].js` | Lazy | PixiJS app, soft-body simulation, renderer, drag, pointer tracking. ~14 kB min, plus the shared vendored PixiJS. |
+| `src/mio/controller.ts` | `desktop[.min].js` (always) | Owns the layer element and the on/off preference; script-injects the bundle below on first activation. ~2 kB. |
+| `src/mio/entry.ts` → `assets/js/mio[.min].js` | Lazy | PixiJS app, soft-body simulation, renderer, drag, pointer tracking. ~25 kB min, plus the shared vendored PixiJS. |
 
-The lazy bundle publishes `window.desktopModeMountMascot`, the same publish-a-global pattern the wallpaper, widget, and about-scene bundles use. The controller `await`s the load, calls the global, and holds the returned handle.
+### What it costs a shell that has it switched off
+
+The whole of it, and it is worth being precise because the answer is "almost nothing":
+
+- **No script and no stylesheet** are enqueued for Mio, ever. Nothing in `includes/render/assets.php` registers one.
+- The shell config carries two keys: `mioBundleUrl` (a URL string) and `mio` (the appearance + physics blob — **~470 bytes gzipped**). The config ships whether or not Mio is on, because fetching it on first toggle would mean the `desktop_mode_mio_config` filter silently didn't apply until the next reload.
+- In the always-on bundle: `MioController` (~2 kB) and the dock tile's definition (a few hundred bytes).
+- PixiJS, the soft body, the renderer, the pointer tracker and the ~25 kB Mio bundle are **script-injected on the first toggle** and never touched otherwise.
+
+Hiding the dock tile from Apps & Icons removes the tile, not the controller — the controller is what would restore Mio the user had left switched on, so it boots regardless.
+
+The lazy bundle publishes `window.desktopModeMountMio`, the same publish-a-global pattern the wallpaper, widget, and about-scene bundles use. The controller `await`s the load, calls the global, and holds the returned handle.
 
 ```
 #desktop-mode-shell
@@ -75,14 +88,14 @@ The lazy bundle publishes `window.desktopModeMountMascot`, the same publish-a-gl
 │   ├── #desktop-mode-dock         z-index 200
 │   └── #desktop-mode-area
 │       └── .desktop-mode-window   z-index 100 + stack index
-└── #desktop-mode-mascot           z-index 190   ← above windows, below the dock
+└── #desktop-mode-mio           z-index 190   ← above windows, below the dock
     ├── <canvas>                   pointer-events: none, always
-    └── .desktop-mode-mascot__handle   the only interactive pixel
+    └── .desktop-mode-mio__handle   the only interactive pixel
 ```
 
-**Why the canvas is never interactive.** The layer spans the whole shell. An interactive canvas would swallow every click meant for the window underneath, and toggling `pointer-events` from a per-frame hit test races the very click it is meant to route. Instead a small round handle element rides on the blob and is the only thing in the layer that takes pointer events, so a click one pixel off the mascot reaches whatever is beneath it, exactly as if the mascot weren't there.
+**Why the canvas is never interactive.** The layer spans the whole shell. An interactive canvas would swallow every click meant for the window underneath, and toggling `pointer-events` from a per-frame hit test races the very click it is meant to route. Instead a small round handle element rides on the blob and is the only thing in the layer that takes pointer events, so a click one pixel off Mio reaches whatever is beneath it, exactly as if Mio weren't there.
 
-The mascot sits below the dock deliberately: a companion that could cover your navigation is a bug, not a feature.
+Mio sits below the dock deliberately: a companion that could cover your navigation is a bug, not a feature.
 
 ---
 
@@ -99,13 +112,13 @@ A pressurised mass-spring ring — `physics.points` particles laid out around th
 
 Integration is semi-implicit Euler over fixed `subStep` slices (default 1/240 s), capped at `maxSubSteps` per frame. Fixed steps mean the same landing produces the same squash at 30 fps and at 144 fps.
 
-Damping is split in two on purpose. `damping` acts on each point's velocity **relative to the body's mean velocity**, so the jiggle settles while the body keeps its momentum. `airDamping` acts on everything, so a throw glides to a stop. A single combined constant makes the mascot feel like it is falling through syrup.
+Damping is split in two on purpose. `damping` acts on each point's velocity **relative to the body's mean velocity**, so the jiggle settles while the body keeps its momentum. `airDamping` acts on everything, so a throw glides to a stop. A single combined constant makes Mio feel like it is falling through syrup.
 
-Note that `damping` is the wobble knob. Turn it down and every landing rings for half a second and the mascot reads as "too many springs"; turn it up and it stiffens toward a solid.
+Note that `damping` is the wobble knob. Turn it down and every landing rings for half a second and Mio reads as "too many springs"; turn it up and it stiffens toward a solid.
 
 ### The rest shape
 
-The mascot is not a disc. `shapePreset` picks a silhouette:
+Mio is not a disc. `shapePreset` picks a silhouette:
 
 | Preset | Silhouette |
 |---|---|
@@ -115,7 +128,7 @@ The mascot is not a disc. `shapePreset` picks a silhouette:
 | `potato` | Lumpy and asymmetric. No symmetry at all. |
 | `custom` | A rounded polygon built from `shapeLobes` — `3` is a triangle, `4` a square. |
 
-Crucially this is a *rest length*, not a mask or a drawn outline. The profile multiplies the per-point rest radius that every spring family already reads, so the mascot squashes, stretches, breathes, gets thrown and re-inflates exactly as a round one does; it simply settles into this shape when nothing is acting on it. Nothing downstream has to know about it — the pressure term's target area is computed from the same `restR` array, so the gas inflates toward the shape rather than fighting it.
+Crucially this is a *rest length*, not a mask or a drawn outline. The profile multiplies the per-point rest radius that every spring family already reads, so Mio squashes, stretches, breathes, gets thrown and re-inflates exactly as a round one does; it simply settles into this shape when nothing is acting on it. Nothing downstream has to know about it — the pressure term's target area is computed from the same `restR` array, so the gas inflates toward the shape rather than fighting it.
 
 ```
 r(θ) = radius · ( 1 + shapeAmount · deviation( θ − shapeAngle ) )
@@ -123,7 +136,7 @@ r(θ) = radius · ( 1 + shapeAmount · deviation( θ − shapeAngle ) )
 
 **Presets return a deviation from a circle, not a multiplier.** That is what lets `shapeAmount` mean the same thing for all of them: it scales the deviation, so `0` is always a circle and `1` is always the shape as authored. Every preset is authored **upright**, so `shapeAngle` is a rotation on top rather than part of the definition — and since the body never rotates on its own (rest angles are fixed in screen space) it is a permanent orientation, not a starting one.
 
-For `custom`, "as authored" is the flat-sided limit: `1 + a·cos(kθ)` has exactly zero curvature at its side midpoints when `a = 1/(1 + k²)`, so `shapeAmount: 1` means "dead straight sides between rounded corners" at any lobe count. Past `1` the sides bow inward and the shape reads as a clover rather than a polygon; `mascot-soft-body.test.ts` checks the angular-gap constraint still holds there. A raw amplitude would mean something different for a triangle than for a hexagon and force every caller to re-derive it.
+For `custom`, "as authored" is the flat-sided limit: `1 + a·cos(kθ)` has exactly zero curvature at its side midpoints when `a = 1/(1 + k²)`, so `shapeAmount: 1` means "dead straight sides between rounded corners" at any lobe count. Past `1` the sides bow inward and the shape reads as a clover rather than a polygon; `mio-soft-body.test.ts` checks the angular-gap constraint still holds there. A raw amplitude would mean something different for a triangle than for a hexagon and force every caller to re-derive it.
 
 Two of the presets are worth a note:
 
@@ -134,25 +147,25 @@ Two of the presets are worth a note:
 
 ### Shuffling the silhouette
 
-Every `shapeShuffle` seconds (default `60`, `0` to switch it off) the mascot picks a different stock silhouette and **eases into it** over about two and a half seconds. The delay is jittered ±25%, because a change exactly every sixty seconds reads as a timer, which is the opposite of alive. `custom` is never picked: it is a shape someone configured on purpose, and wandering into it at random would be indistinguishable from a bug.
+Every `shapeShuffle` seconds (default `60`, `0` to switch it off) Mio picks a different stock silhouette and **eases into it** over about two and a half seconds. The delay is jittered ±25%, because a change exactly every sixty seconds reads as a timer, which is the opposite of alive. `custom` is never picked: it is a shape someone configured on purpose, and wandering into it at random would be indistinguishable from a bug.
 
-The transition is a blend of two rest profiles handed to the springs, not a redraw. The body is pulled across by the same forces that handle everything else, so the mascot can be poked, dragged, thrown, and landed on a window mid-morph and the shape change simply carries on underneath. That composability is the whole reason the shape lives in rest lengths — `stepSoftBody()` reads `body.profile` when the body has one, so the blend has exactly one place to live and the simulation never learns that a transition is happening.
+The transition is a blend of two rest profiles handed to the springs, not a redraw. The body is pulled across by the same forces that handle everything else, so Mio can be poked, dragged, thrown, and landed on a window mid-morph and the shape change simply carries on underneath. That composability is the whole reason the shape lives in rest lengths — `stepSoftBody()` reads `body.profile` when the body has one, so the blend has exactly one place to live and the simulation never learns that a transition is happening.
 
-Each change fires `desktop-mode.mascot.shape-changed` with `{ shape, from }`.
+Each change fires `desktop-mode.mio.shape-changed` with `{ shape, from }`.
 
-Under `prefers-reduced-motion: reduce` the shuffle is switched off along with the idle bob and the hue drift — a mascot that reshapes itself while you are reading is textbook unsolicited animation.
+Under `prefers-reduced-motion: reduce` the shuffle is switched off along with the idle bob and the hue drift — Mio that reshapes itself while you are reading is textbook unsolicited animation.
 
 ### Idle wobble
 
-A floating mascot is never a perfect circle. Three spatial harmonics — 2, 3 and 5 lobes — drift around the rim at incommensurable temporal frequencies, continuously tensing and releasing the shape springs, so the silhouette is always softly changing and never repeats a pose.
+A floating Mio is never a perfect circle. Three spatial harmonics — 2, 3 and 5 lobes — drift around the rim at incommensurable temporal frequencies, continuously tensing and releasing the shape springs, so the silhouette is always softly changing and never repeats a pose.
 
-This modulates the springs' **rest length**, not the point positions, which keeps it a real physical effect rather than an overlay: a poke, a landing, or a throw still overrides it, and the shape settles back into breathing afterwards. It fades out while a magnet has hold and while the user is dragging — in both cases the deformation should read as what's happening to the mascot, not as ambient motion.
+This modulates the springs' **rest length**, not the point positions, which keeps it a real physical effect rather than an overlay: a poke, a landing, or a throw still overrides it, and the shape settles back into breathing afterwards. It fades out while a magnet has hold and while the user is dragging — in both cases the deformation should read as what's happening to Mio, not as ambient motion.
 
-**Every spring family must read its rest length from the same wobbled shape.** This is the third failure mode worth knowing about, and unlike the other two it is a visual bug rather than a physical one: breathe the shape springs alone and the edge springs go on defending the *original* perimeter. The two families fight at their natural frequency and the outline buzzes — a fine, fast flicker — instead of breathing. So the per-point rest radius is computed once per sub-step and every consumer derives from it: shape springs directly, edge and bend springs as the chord `(rᵢ + rⱼ)·sin(stride·π/n)`, and the pressure term as `restArea × meanScale²`. `mascot-soft-body.test.ts` guards this by measuring the second difference of each vertex's radius: smooth breathing has almost none, a fighting ring has plenty.
+**Every spring family must read its rest length from the same wobbled shape.** This is the third failure mode worth knowing about, and unlike the other two it is a visual bug rather than a physical one: breathe the shape springs alone and the edge springs go on defending the *original* perimeter. The two families fight at their natural frequency and the outline buzzes — a fine, fast flicker — instead of breathing. So the per-point rest radius is computed once per sub-step and every consumer derives from it: shape springs directly, edge and bend springs as the chord `(rᵢ + rⱼ)·sin(stride·π/n)`, and the pressure term as `restArea × meanScale²`. `mio-soft-body.test.ts` guards this by measuring the second difference of each vertex's radius: smooth breathing has almost none, a fighting ring has plenty.
 
 ### Hard limits
 
-Springs decide how the mascot *feels*. They cannot decide what it can never *become*: a force can always be overwhelmed by a hard enough contact, a big enough drag, or an unlucky frame delta, and the failure mode is catastrophic rather than merely soft — a blob crushed to a line, or torn into a spike.
+Springs decide how Mio *feels*. They cannot decide what it can never *become*: a force can always be overwhelmed by a hard enough contact, a big enough drag, or an unlucky frame delta, and the failure mode is catastrophic rather than merely soft — a blob crushed to a line, or torn into a spike.
 
 So on top of the forces, every constraint carries a hard length limit — `minStretch` to `maxStretch` of its rest length — enforced by a positional relaxation pass:
 
@@ -163,7 +176,7 @@ Both particles move half of any correction, so momentum is conserved, and the re
 
 **Ordering matters, and it took three attempts to get right.**
 
-1. *Limits, then contact.* Contact simply re-breaks the limits it was meant to respect. Dragging the mascot into a window corner crushed it to a third of its radius despite the 0.55 floor.
+1. *Limits, then contact.* Contact simply re-breaks the limits it was meant to respect. Dragging Mio into a window corner crushed it to a third of its radius despite the 0.55 floor.
 2. *Contact, then limits.* The limits hold — and the rim pokes up to 15 px into windows on hard impacts. Worse: interpenetration is the artefact users actually notice.
 3. *What ships.* Interleave both for `limitIterations` passes, then a final contact pass (so nothing is ever left inside a window), then a last limit pass **restricted to points contact didn't touch**. The points crushed by an impact are on the far side of the body from the surface and are free — nothing holds them, they were carried in by momentum — so correcting only those restores the silhouette without pushing a pinned point back through the geometry pinning it. The momentum-cancelling shift also skips pinned points: they're held by the world, and the world absorbs the reaction.
 
@@ -173,13 +186,13 @@ Note the guarantee is exact for a free body and best-effort under contact: a rim
 
 ### The outline can never fold
 
-Distance limits bound how far each point sits from the centre. They say nothing about the **order** the points sit in — and that omission has a spectacular failure mode. Let two neighbours swap angular places and the outline folds back through itself. The folded shape satisfies every radial limit, every edge limit, and the pressure term simultaneously, so it is a perfectly stable configuration: the mascot becomes a crescent and stays one for the rest of the session, because nothing in a distance-only constraint set can tell it apart from a legal blob.
+Distance limits bound how far each point sits from the centre. They say nothing about the **order** the points sit in — and that omission has a spectacular failure mode. Let two neighbours swap angular places and the outline folds back through itself. The folded shape satisfies every radial limit, every edge limit, and the pressure term simultaneously, so it is a perfectly stable configuration: Mio becomes a crescent and stays one for the rest of the session, because nothing in a distance-only constraint set can tell it apart from a legal blob.
 
 `minAngularGap` closes it. Consecutive rim points must keep at least a quarter of their even angular spacing, which makes the swap unreachable. Combined with the radial limits it is a hard guarantee of a **simple** polygon: a ring whose vertex angles strictly increase around an interior point is star-shaped, and a star-shaped polygon cannot self-intersect.
 
-The enforcement has to be **global**. Pushing individual pairs apart — the obvious local sweep — cannot work: the gaps around a ring are not independent, they must total exactly 2π, so widening one necessarily narrows another and the sweep chases its own tail. A tangled ring stays tangled. Instead the whole gap vector is projected onto the nearest valid one: clamp every gap to the minimum, then rescale the slack so the total is exactly one turn. Corrections are pure rotations about the centroid — orthogonal to the radial limits, so the two families never fight — and their mean angular drift is projected out so repairing a fold doesn't also spin the mascot.
+The enforcement has to be **global**. Pushing individual pairs apart — the obvious local sweep — cannot work: the gaps around a ring are not independent, they must total exactly 2π, so widening one necessarily narrows another and the sweep chases its own tail. A tangled ring stays tangled. Instead the whole gap vector is projected onto the nearest valid one: clamp every gap to the minimum, then rescale the slack so the total is exactly one turn. Corrections are pure rotations about the centroid — orthogonal to the radial limits, so the two families never fight — and their mean angular drift is projected out so repairing a fold doesn't also spin Mio.
 
-It runs last, after contact, because a fold is the one failure the body cannot recover from on its own. That ordering costs a measured **0.32 px** of window overlap in the worst case (deliberately shoving the mascot into a window), and the pass is a complete no-op on a healthy body — `mascot-soft-body.test.ts` proves the trajectories are bit-identical with the constraint switched off.
+It runs last, after contact, because a fold is the one failure the body cannot recover from on its own. That ordering costs a measured **0.32 px** of window overlap in the worst case (deliberately shoving Mio into a window), and the pass is a complete no-op on a healthy body — `mio-soft-body.test.ts` proves the trajectories are bit-identical with the constraint switched off.
 
 **Measured over 3000 frames of torture** — hard flings in every direction, direct rim mangling, drags held deep inside windows:
 
@@ -191,7 +204,7 @@ It runs last, after contact, because a fold is the one failure the body cannot r
 
 ### Squash and stretch
 
-Moving deforms the mascot along its heading: the rest shape becomes an ellipse with semi-axes `k` and `1/k` (`k = 1 + speedStretch × min(1, speed / 1200)`), elongated along the direction of travel and narrowed across it. Being area-preserving, a mascot yanked across the desk draws out behind the cursor without appearing to gain mass, and rounds back off as it slows.
+Moving deforms Mio along its heading: the rest shape becomes an ellipse with semi-axes `k` and `1/k` (`k = 1 + speedStretch × min(1, speed / 1200)`), elongated along the direction of travel and narrowed across it. Being area-preserving, Mio yanked across the desk draws out behind the cursor without appearing to gain mass, and rounds back off as it slows.
 
 The alignment for each rim point comes from its **rest angle**, not its current position — reading the deformed geometry would feed the stretch back into itself and the shape would run away.
 
@@ -199,25 +212,25 @@ Because it rides on the same rest-shape mechanism as the idle wobble, it compose
 
 ### Throwing
 
-Let go mid-flick and the mascot keeps going. The drag spring alone leaves it with whatever velocity the spring happened to hold, which is always short of the hand, so flicks land dead. Instead the runtime keeps an exponential moving average of the pointer's velocity during the drag and injects it into the body on release (`addVelocity`), scaled by `physics.throwBoost` and clamped so a jittery trackpad sample can't fire the mascot across the desk. `airDamping` then bleeds it off.
+Let go mid-flick and Mio keeps going. The drag spring alone leaves it with whatever velocity the spring happened to hold, which is always short of the hand, so flicks land dead. Instead the runtime keeps an exponential moving average of the pointer's velocity during the drag and injects it into the body on release (`addVelocity`), scaled by `physics.throwBoost` and clamped so a jittery trackpad sample can't fire Mio across the desk. `airDamping` then bleeds it off.
 
 A single last-two-points velocity sample is far too noisy to throw with — one stationary frame at release and the flick dies. Hence the EMA.
 
 Four design decisions are worth knowing before you touch `soft-body.ts`, because all four were bugs first. Two are here; the other two are [one rest shape shared by every spring family](#idle-wobble) and [the angular-order constraint](#the-outline-can-never-fold).
 
-**There is no core particle.** The obvious model — a heavy centre mass with radial springs out to the rim — is bistable. Land the blob hard enough and the centre punches through the contact plane; the rim clamps on the window's top edge, the centre settles *below* it, and the springs are perfectly happy there (a hanging-bob equilibrium). The mascot ends up a dome welded to the window edge and never recovers. The centre is derived from the rim instead (classic shape matching), which removes the second equilibrium entirely.
+**There is no core particle.** The obvious model — a heavy centre mass with radial springs out to the rim — is bistable. Land the blob hard enough and the centre punches through the contact plane; the rim clamps on the window's top edge, the centre settles *below* it, and the springs are perfectly happy there (a hanging-bob equilibrium). Mio ends up a dome welded to the window edge and never recovers. The centre is derived from the rim instead (classic shape matching), which removes the second equilibrium entirely.
 
-**Pressure uses edge normals, not radial ones.** "Point minus centroid" looks equivalent and silently kills the mascot: squash the blob flat and every radial direction becomes horizontal, so a fully collapsed sliver is a simultaneous equilibrium of the shape springs, the edge springs, the bend springs *and* radial pressure. Gravity walks the body into it and it never comes back up. Edge normals survive the degenerate case, because the top and bottom chains of a flat sliver are traversed in opposite directions and push apart.
+**Pressure uses edge normals, not radial ones.** "Point minus centroid" looks equivalent and silently kills Mio: squash the blob flat and every radial direction becomes horizontal, so a fully collapsed sliver is a simultaneous equilibrium of the shape springs, the edge springs, the bend springs *and* radial pressure. Gravity walks the body into it and it never comes back up. Edge normals survive the degenerate case, because the top and bottom chains of a flat sliver are traversed in opposite directions and push apart.
 
 ---
 
 ## Environment awareness
 
-Every frame (throttled to 20 Hz) the mascot asks the shell for the live collision set via `wp.desktop.getWallpaperSurfaces()` — the same surfaces the snow wallpaper piles on — and converts them into its own coordinate space. Window rects, widget cards, the dock edge, and the shell floor all become solid obstacles the rim collides with.
+Every frame (throttled to 20 Hz) Mio asks the shell for the live collision set via `wp.desktop.getWallpaperSurfaces()` — the same surfaces the snow wallpaper piles on — and converts them into its own coordinate space. Window rects, widget cards, the dock edge, and the shell floor all become solid obstacles the rim collides with.
 
 ### Windows are magnets, not ground
 
-There is **no global "down"**. A window attracts the mascot toward the closest point on its edge from whatever direction the mascot is in, so it can just as happily stick to the underside of a window as sit on top of one. Strength smoothsteps in from `0` at `physics.magnetRange` to `1` on contact, and the idle float fades out as it takes hold, so a stuck mascot sits still rather than vibrating against the surface.
+There is **no global "down"**. A window attracts Mio toward the closest point on its edge from whatever direction Mio is in, so it can just as happily stick to the underside of a window as sit on top of one. Strength smoothsteps in from `0` at `physics.magnetRange` to `1` on contact, and the idle float fades out as it takes hold, so a stuck Mio sits still rather than vibrating against the surface.
 
 ```
 distance to nearest window       magnet
@@ -227,62 +240,62 @@ distance to nearest window       magnet
     touching                       1.0   stuck, squashed
 ```
 
-Only the **nearest** window pulls. Summing every window in range looks more physical and behaves worse: parked between two windows the forces cancel and the mascot hovers in the gap twitching, instead of committing to one of them.
+Only the **nearest** window pulls. Summing every window in range looks more physical and behaves worse: parked between two windows the forces cancel and Mio hovers in the gap twitching, instead of committing to one of them.
 
-**The magnet is a spring with a rest position, not a constant pull** — and that distinction is the difference between a mascot that settles and one that never stops moving. A constant pull has no equilibrium: it drives the body into the surface, the contact solver bounces it back, and the pair limit-cycles forever. Against a flat face that is invisible, because the bounce is purely normal and friction eats it. In a **corner** the pull is diagonal, so every cycle also slides the body along one face, and the mascot visibly orbits the corner, wobbling, indefinitely.
+**The magnet is a spring with a rest position, not a constant pull** — and that distinction is the difference between Mio that settles and one that never stops moving. A constant pull has no equilibrium: it drives the body into the surface, the contact solver bounces it back, and the pair limit-cycles forever. Against a flat face that is invisible, because the bounce is purely normal and friction eats it. In a **corner** the pull is diagonal, so every cycle also slides the body along one face, and Mio visibly orbits the corner, wobbling, indefinitely.
 
-With a rest gap the force is zero exactly where the mascot should sit — `magnetGrip` of a radius pressed in, which is also what produces the resting squash — negative if it gets pushed deeper, positive if it drifts off. A real equilibrium, which `magnetDamping` can then settle into. Both `mascot-soft-body.test.ts` cases (flat face and corner) assert the body comes to rest.
+With a rest gap the force is zero exactly where Mio should sit — `magnetGrip` of a radius pressed in, which is also what produces the resting squash — negative if it gets pushed deeper, positive if it drifts off. A real equilibrium, which `magnetDamping` can then settle into. Both `mio-soft-body.test.ts` cases (flat face and corner) assert the body comes to rest.
 
-Note that `strength` and `magnetRange` are measured **edge-to-edge**, not from the centroid. A body resting against a window has its centroid a whole radius away, so a centroid-based falloff would top out around 0.9 and leave a permanent sliver of idle float driving a mascot that is supposed to be sitting still.
+Note that `strength` and `magnetRange` are measured **edge-to-edge**, not from the centroid. A body resting against a window has its centroid a whole radius away, so a centroid-based falloff would top out around 0.9 and leave a permanent sliver of idle float driving Mio that is supposed to be sitting still.
 
-The shell floor and the dock are solid but not magnetic — magnetising to either would pin the mascot to the edge of the screen forever, since one of them is always nearby.
+The shell floor and the dock are solid but not magnetic — magnetising to either would pin Mio to the edge of the screen forever, since one of them is always nearby.
 
 ### Chrome is inflated back into a solid
 
-The shell publishes the dock and the floor as **one-pixel strips** along the face that matters. That is exactly right for the wallpapers consuming the same feed — snow piles on a line, rain splashes off one — and useless to a soft body: a rim point already well inside the dock is not inside a 1-px sliver, so nothing pushes it back out and the mascot sinks straight through the rail.
+The shell publishes the dock and the floor as **one-pixel strips** along the face that matters. That is exactly right for the wallpapers consuming the same feed — snow piles on a line, rain splashes off one — and useless to a soft body: a rim point already well inside the dock is not inside a 1-px sliver, so nothing pushes it back out and Mio sinks straight through the rail.
 
-So `collectObstacles()` re-inflates chrome (`dock`, `shell`) away from its solid face, out to the edge of the mascot layer. The dock becomes a volume the rim collides with along its whole depth, and there is no "behind the dock" left to reach. Windows and widget cards already arrive as full rects and are passed through untouched.
+So `collectObstacles()` re-inflates chrome (`dock`, `shell`) away from its solid face, out to the edge of Mio layer. The dock becomes a volume the rim collides with along its whole depth, and there is no "behind the dock" left to reach. Windows and widget cards already arrive as full rects and are passed through untouched.
 
 ### The dock is forbidden, not merely solid
 
-A window is something the mascot rests *against*, and a pixel of overlap while the contact solver settles is nobody's problem. The dock is different: it holds the user's navigation, it is opaque, and a blob halfway behind it reads as broken rather than playful. Two extra rules hold that line — the floor is deliberately exempt from both, since resting on it is the whole point.
+A window is something Mio rests *against*, and a pixel of overlap while the contact solver settles is nobody's problem. The dock is different: it holds the user's navigation, it is opaque, and a blob halfway behind it reads as broken rather than playful. Two extra rules hold that line — the floor is deliberately exempt from both, since resting on it is the whole point.
 
-- **The drag target is clamped out of it.** `clampOutsideChrome()` keeps a full body radius of clearance, so the hand can sweep across the dock without the mascot following it in. Contact alone would let the drag spring press the body a good way into the rail before the two balanced out, which is the overlap being forbidden.
-- **Any depth inside it counts as trapped.** The window rule — buried three quarters of a body deep — can never fire inside a rail narrower than the mascot, so `findEscape()` checks forbidden chrome first with a bare inside-test. Contact cannot dig the mascot out on its own either: the rail's near face is the closest one for rim points on the desk side and its far face for the rest, so the solver pulls the body apart across it.
+- **The drag target is clamped out of it.** `clampOutsideChrome()` keeps a full body radius of clearance, so the hand can sweep across the dock without Mio following it in. Contact alone would let the drag spring press the body a good way into the rail before the two balanced out, which is the overlap being forbidden.
+- **Any depth inside it counts as trapped.** The window rule — buried three quarters of a body deep — can never fire inside a rail narrower than Mio, so `findEscape()` checks forbidden chrome first with a bare inside-test. Contact cannot dig Mio out on its own either: the rail's near face is the closest one for rim points on the desk side and its far face for the rest, so the solver pulls the body apart across it.
 
-Both pushes go along the obstacle's own **face**, never the shallowest axis. Chrome runs to the edge of the layer on its other three sides, so the shallowest-axis rule that suits a window floating in open desk would happily shove the mascot off screen behind the dock.
+Both pushes go along the obstacle's own **face**, never the shallowest axis. Chrome runs to the edge of the layer on its other three sides, so the shallowest-axis rule that suits a window floating in open desk would happily shove Mio off screen behind the dock.
 
-Because surfaces are read live, moving a window near the mascot draws it in; moving that window away releases it.
+Because surfaces are read live, moving a window near Mio draws it in; moving that window away releases it.
 
 ### Getting out from under a window
 
-Contact is fine — the mascot is *supposed* to rest against windows. Being **engulfed** is not, and it happens the moment you open, move, or maximise a window over the mascot's position. The contact solver cannot recover from that on its own: rim points on opposite sides of the blob get pushed toward opposite faces and the silhouette tears itself apart.
+Contact is fine — Mio is *supposed* to rest against windows. Being **engulfed** is not, and it happens the moment you open, move, or maximise a window over Mio's position. The contact solver cannot recover from that on its own: rim points on opposite sides of the blob get pushed toward opposite faces and the silhouette tears itself apart.
 
-So when the body's centre lands inside a window, the mascot hops out:
+So when the body's centre lands inside a window, Mio hops out:
 
-1. Merge every window overlapping the offender, transitively, into one **cluster** rect (an 8 px slack closes the hairline seams between snapped windows). A tiled row is one obstacle — escaping a single window in the middle of it would drop the mascot straight into its neighbour and pinball across the desk.
+1. Merge every window overlapping the offender, transitively, into one **cluster** rect (an 8 px slack closes the hairline seams between snapped windows). A tiled row is one obstacle — escaping a single window in the middle of it would drop Mio straight into its neighbour and pinball across the desk.
 2. Offer the **midpoint of each side** of that cluster, pushed out by the body radius. Midpoints, not corners, so it lands somewhere it can actually rest.
 3. Discard sides that would leave the layer, take the nearest of what's left, and re-form the body clean at that point (`resetBody`).
 4. Nothing fits — a maximised window — so take the centre of the widest leftover strip of desk. Nothing left over at all, so the layer centre.
 
-The hop fires `desktop-mode.mascot.displaced`.
+The hop fires `desktop-mode.mio.displaced`.
 
 ---
 
 ## Looking at the pointer, across iframes
 
-The mascot watches the cursor. That is trivial until the cursor moves over a window, because a window's content is a chromeless `<iframe>` and pointer events do not cross frame boundaries. Since the mascot floats *above* windows, that is most of the desk — a mascot whose gaze freezes the moment you touch a window looks broken, not alive.
+Mio watches the cursor. That is trivial until the cursor moves over a window, because a window's content is a chromeless `<iframe>` and pointer events do not cross frame boundaries. Since Mio floats *above* windows, that is most of the desk — Mio whose gaze freezes the moment you touch a window looks broken, not alive.
 
 So the shell merges two sources:
 
 1. `pointermove` on the shell document — wallpaper, dock, window chrome.
 2. `desktop-mode-pointer-move` messages forwarded by the chromeless bridge inside each window iframe, rebased into viewport coordinates through the iframe element's rect.
 
-The iframe-side forwarder is **opt-in and off by default**. The parent broadcasts `desktop-mode-pointer-track { enabled: true }` when a consumer starts, re-arms each frame when it announces `desktop-mode-bridge-ready` (which fires on every navigation), and broadcasts `{ enabled: false }` on teardown. A shell with no mascot never turns it on and pays nothing.
+The iframe-side forwarder is **opt-in and off by default**. The parent broadcasts `desktop-mode-pointer-track { enabled: true }` when a consumer starts, re-arms each frame when it announces `desktop-mode-bridge-ready` (which fires on every navigation), and broadcasts `{ enabled: false }` on teardown. A shell with no companion never turns it on and pays nothing.
 
 Coordinates only — no target element, no event object, nothing about page content — throttled to ~25 Hz, passive listener, never `preventDefault()`. Both bridge entry points (the inline PHP bridge and `iframe-bridge-standalone.ts`) install the same forwarder behind a shared sentinel. See [`bridge-protocol.md`](./bridge-protocol.md).
 
-This is a general facility, not a mascot-private one: any shell-side feature that needs the true cursor position over window content can consume the same messages.
+This is a general facility, not Mio-private one: any shell-side feature that needs the true cursor position over window content can consume the same messages.
 
 ---
 
@@ -310,7 +323,7 @@ The outline the renderer sees has no idea how many mass points it came from. Tha
 
 Each pass used to be stroked **segment by segment**, which was the only way to run a hue ramp around a closed, deforming path — Pixi's gradients are linear and radial, and neither can. But it had a tell: consecutive round-capped strokes *overlap* at every joint, and under the additive blending the glow passes use, double coverage is double brightness. The ring came out beaded, one visible knob per rim point, and the outline read as a chain rather than a tube.
 
-So each pass is a **band** instead: one filled cell per pair of samples, spanning outward from the centreline, with adjacent cells sharing their edge coordinates *exactly*. Shared edges tile with neither gap nor overlap, so there is nowhere for a bright joint to form and the band is continuous by construction. `mascot-render.test.ts` asserts that bit-equality directly — it is the anti-beading invariant, and anything less is either a seam of wallpaper showing through or a joint glowing twice as bright.
+So each pass is a **band** instead: one filled cell per pair of samples, spanning outward from the centreline, with adjacent cells sharing their edge coordinates *exactly*. Shared edges tile with neither gap nor overlap, so there is nowhere for a bright joint to form and the band is continuous by construction. `mio-render.test.ts` asserts that bit-equality directly — it is the anti-beading invariant, and anything less is either a seam of wallpaper showing through or a joint glowing twice as bright.
 
 Per-cell colour keeps the chroma sweep and buys the room for the hologram below: per-sample normals are exactly what a viewing-angle effect needs.
 
@@ -324,7 +337,7 @@ Now every cell edge is a **quadratic through three points**. A cell spans two ri
 a quadratic is (a + 2c + b)/4 at t = 0.5,  so  c = 2m − (a + b)/2
 ```
 
-Pixi tessellates adaptively from there, at a tolerance a little tighter than its default — the mascot is the one thing on the desk a user looks *at*.
+Pixi tessellates adaptively from there, at a tolerance a little tighter than its default — Mio is the one thing on the desk a user looks *at*.
 
 **This costs nothing.** Sampling doubled to four per rim segment and every stride doubled with it, so cells span the same arc and there are exactly as many as before; the extra samples buy curvature, not resolution. The curves themselves are shallow enough that the adaptive pass emits only a handful of points each.
 
@@ -339,7 +352,7 @@ Because the body fill masks the inner half of the glow anyway, the two glow band
 
 ### The hologram
 
-A real holographic surface does not have a colour, it has a colour *per viewing angle*: tilt the sticker and the rainbow slides across it. The mascot has no viewer to track, so a **rake direction** stands in for one. It drifts slowly while the mascot is idle and swings toward the direction of travel as it moves, so the ring's colours run when you throw the blob across the desk and settle again when it stops. Deformation feeds it for free — squash the body and its normals turn, so the colours turn with them.
+A real holographic surface does not have a colour, it has a colour *per viewing angle*: tilt the sticker and the rainbow slides across it. Mio has no viewer to track, so a **rake direction** stands in for one. It drifts slowly while Mio is idle and swings toward the direction of travel as it moves, so the ring's colours run when you throw the blob across the desk and settle again when it stops. Deformation feeds it for free — squash the body and its normals turn, so the colours turn with them.
 
 Three terms, all keyed on `d = dot( outward normal, rake )`, scaled by `appearance.iridescence`:
 
@@ -351,17 +364,17 @@ Three terms, all keyed on `d = dot( outward normal, rake )`, scaled by `appearan
 
 The rake's own **magnitude** is the effect strength: `0.45` at rest, up to `1` at 900 px/s. The velocity behind it is a heavily smoothed centroid delta — a single frame's delta is far too noisy to steer a colour effect with, and every contact bounce would strobe the ring — and it is reset on every teleport (escape hop, `setPosition`, resize clamp, rebuild) so a jump never lands in it as a several-thousand-px/s "throw".
 
-The ambient half of the rake is gated on `hueDrift`, so the reduced-motion path that already zeroes the hue drift stills the shimmer too, without a second preference to read. Motion the user causes still colours the ring, in line with the rest of the mascot's reduced-motion policy.
+The ambient half of the rake is gated on `hueDrift`, so the reduced-motion path that already zeroes the hue drift stills the shimmer too, without a second preference to read. Motion the user causes still colours the ring, in line with the rest of Mio's reduced-motion policy.
 
 Set `appearance.iridescence` to `0` for the plain chroma ramp and nothing else.
 
 ### The interior sheen
 
-The inside of the mascot is not flat black — it catches the hologram too, the way a holographic film laid over dark card does. Five concentric shells march from the outline to the centroid, each flat-filled per sample and each fainter than the last, standing in for the radial falloff a gradient would give if Pixi could produce one without minting a texture every frame. The innermost reaches the centroid, so it is a fan of triangles rather than a band.
+The inside of Mio is not flat black — it catches the hologram too, the way a holographic film laid over dark card does. Five concentric shells march from the outline to the centroid, each flat-filled per sample and each fainter than the last, standing in for the radial falloff a gradient would give if Pixi could produce one without minting a texture every frame. The innermost reaches the centroid, so it is a fan of triangles rather than a band.
 
-They are **additive**, so the sheen can only ever lift the interior toward colour, never darken or wash it out. Being adjacent rather than nested, the brightest lift anywhere inside the body is simply the largest alpha, and that is the whole budget. The body still has to read as black; the sheen is a film over it, not a paint job. `mascot-render.test.ts` pins the ceiling.
+They are **additive**, so the sheen can only ever lift the interior toward colour, never darken or wash it out. Being adjacent rather than nested, the brightest lift anywhere inside the body is simply the largest alpha, and that is the whole budget. The body still has to read as black; the sheen is a film over it, not a paint job. `mio-render.test.ts` pins the ceiling.
 
-**The layer is blurred**, and that is what makes the brightness affordable. A flat shell against a flat shell is a hard edge, and left alone it reads as a set of concentric contour lines drawn inside the mascot — which caps how bright the sheen can get before the banding gives it away. The blur dissolves the radial steps and the angular facets both, so the shells can be few (five), coarse (every third sample), and actually visible. Its strength scales off `radius`: a kiosk-sized mascot needs a proportionally wider blur to hide the same number of shells. The outermost shell starts a little way in from the outline so the blur spends itself on the interior rather than bleeding colour out over the ring.
+**The layer is blurred**, and that is what makes the brightness affordable. A flat shell against a flat shell is a hard edge, and left alone it reads as a set of concentric contour lines drawn inside Mio — which caps how bright the sheen can get before the banding gives it away. The blur dissolves the radial steps and the angular facets both, so the shells can be few (five), coarse (every third sample), and actually visible. Its strength scales off `radius`: a kiosk-sized Mio needs a proportionally wider blur to hide the same number of shells. The outermost shell starts a little way in from the outline so the blur spends itself on the interior rather than bleeding colour out over the ring.
 
 The sheen's rake is the ring's turned a quarter turn, and its hue ramp runs at a different rate — an inside that simply repeated the edge would read as a blurred copy of it rather than as a second surface catching the same light. It scales with `appearance.iridescence`, so `0` restores a flat black body and drops the blur pass entirely.
 
@@ -373,14 +386,14 @@ Eyes are white pills that inherit a fraction of the body's squash, offset toward
 
 ## PHP API
 
-### `desktop_mode_mascot_config()`
+### `desktop_mode_mio_config()`
 
-Returns the appearance + physics configuration shipped to the shell in `desktopModeConfig.mascot`. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
+Returns the appearance + physics configuration shipped to the shell in `desktopModeConfig.mio`. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
 
-Every value is re-clamped client-side, so a filter that returns nonsense produces a plain-looking mascot, never a broken shell.
+Every value is re-clamped client-side, so a filter that returns nonsense produces a plain-looking Mio, never a broken shell.
 
 ```php
-add_filter( 'desktop_mode_mascot_config', function ( $config ) {
+add_filter( 'desktop_mode_mio_config', function ( $config ) {
 	// A slower, heavier, teal companion.
 	$config['appearance']['hueStart'] = 170;
 	$config['appearance']['hueSpan']  = 40;
@@ -415,11 +428,11 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 | Key | Default | Range | Meaning |
 |---|---|---|---|
 | `points` | `12` | 12–128 | Rim resolution. A *simulation* resolution — the renderer resamples it into a smooth curve, so raising it buys a busier silhouette and per-frame cost, not a rounder one. |
-| `shapePreset` | `blob` | `circle` \| `blob` \| `ghost` \| `potato` \| `custom` | Which [silhouette](#the-rest-shape) the mascot settles into. Unknown names fall back to the default rather than throwing. |
+| `shapePreset` | `blob` | `circle` \| `blob` \| `ghost` \| `potato` \| `custom` | Which [silhouette](#the-rest-shape) Mio settles into. Unknown names fall back to the default rather than throwing. |
 | `shapeLobes` | `3` | 0–8 | Corners, for the `custom` preset only. `3` is a rounded triangle, `4` a rounded square, `0`/`1` a circle. |
 | `shapeAmount` | `1` | 0–1.4 | How far the silhouette departs from a circle. `0` is a circle whatever the preset; `1` is the preset as authored. For `custom`, above `1` the sides bow inward into a clover. |
 | `shapeAngle` | `0` | −360–360 | Rotation in degrees clockwise from upright. Presets are authored upright, so `0` leaves them as designed. |
-| `shapeShuffle` | `60` | 0–3600 | Seconds between the mascot [picking a new silhouette](#shuffling-the-silhouette) at random and morphing into it. `0` holds `shapePreset`. |
+| `shapeShuffle` | `60` | 0–3600 | Seconds between Mio [picking a new silhouette](#shuffling-the-silhouette) at random and morphing into it. `0` holds `shapePreset`. |
 | `radialStiffness` | `460` | 0–2000 | Shape springs (rim ↔ centroid). |
 | `edgeStiffness` | `540` | 0–4000 | Surface tension. |
 | `bendStiffness` | `170` | 0–2000 | Crease resistance. |
@@ -443,7 +456,7 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 | `maxStretch` | `1.7` | 1–4 | Hard ceiling on every spring's length. The two ranges are disjoint around `1`, so the limits can never be inverted. |
 | `minAngularGap` | `0.25` | 0–0.9 | Minimum angular spacing between rim points, as a fraction of even spacing. Stops the outline folding. `0` disables. |
 | `limitIterations` | `3` | 0–8 | Relaxation passes enforcing the stretch limits. `0` disables them. |
-| `dragMaxAccel` | `9000` | 100–200000 | Ceiling on the drag spring's force, so a cursor held inside a window can't press the mascot flat. |
+| `dragMaxAccel` | `9000` | 100–200000 | Ceiling on the drag spring's force, so a cursor held inside a window can't press Mio flat. |
 | `subStep` | `1/240` | 1/1000–1/30 | Fixed simulation step, in seconds. |
 | `maxSubSteps` | `8` | 1–32 | Sub-steps consumed per frame. |
 
@@ -451,13 +464,13 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 
 ### User preference
 
-The on/off state is the per-user OS setting `mascotEnabled` (default `false`), stored in the `desktop_mode_os_settings` user meta and sanitized by `desktop_mode_sanitize_os_settings()`. The resting position is browser-local (`localStorage`, key `desktop-mode-mascot-position`).
+The on/off state is the per-user OS setting `mioEnabled` (default `false`), stored in the `desktop_mode_os_settings` user meta and sanitized by `desktop_mode_sanitize_os_settings()`. The resting position is browser-local (`localStorage`, key `desktop-mode-mio-position`).
 
 ---
 
 ## JavaScript API
 
-### `wp.desktop.mascot`
+### `wp.desktop.mio`
 
 | Member | Signature | Notes |
 |---|---|---|
@@ -467,17 +480,17 @@ The on/off state is the per-user OS setting `mascotEnabled` (default `false`), s
 | `toggle` | `() => Promise<void>` | What the wallpaper menu entry calls. |
 | `getPosition` | `() => { x, y } \| null` | Viewport coordinates; `null` when off. |
 | `setPosition` | `( x, y ) => void` | No-op when off. |
-| `getConfig` | `() => MascotConfig` | The resolved config in force. |
+| `getConfig` | `() => MioConfig` | The resolved config in force. |
 | `setConfig` | `( partial ) => void` | Merged and clamped over the current config, applied live. |
 
 ```js
 wp.desktop.ready( () => {
-	// A bigger, calmer mascot for a kiosk screen.
-	wp.desktop.mascot.setConfig( {
+	// A bigger, calmer Mio for a kiosk screen.
+	wp.desktop.mio.setConfig( {
 		appearance: { radius: 90, glow: 1.6 },
 		physics: { magnetStrength: 1400, floatAmplitude: 20 },
 	} );
-	void wp.desktop.mascot.enable();
+	void wp.desktop.mio.enable();
 } );
 ```
 
@@ -489,28 +502,28 @@ wp.desktop.ready( () => {
 
 | Hook | Type | Status | Payload |
 |---|---|---|---|
-| `desktop_mode_mascot_config` | filter | Experimental | `array $config` — appearance + physics. |
+| `desktop_mode_mio_config` | filter | Experimental | `array $config` — appearance + physics. |
 
 ### JavaScript
 
-All fire through `wp.hooks` on the `desktop-mode.mascot.*` namespace.
+All fire through `wp.hooks` on the `desktop-mode.mio.*` namespace.
 
 | Hook | Type | Status | Payload |
 |---|---|---|---|
-| `desktop-mode.mascot.config` | filter | Experimental | `MascotConfig` — last word on appearance/physics before mount. Re-sanitized after your filter runs. |
-| `desktop-mode.mascot.enabled` | action | Experimental | `{}` — user switched it on. |
-| `desktop-mode.mascot.disabled` | action | Experimental | `{}` — user switched it off. |
-| `desktop-mode.mascot.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating. |
-| `desktop-mode.mascot.unmounted` | action | Experimental | `{}` — torn down. |
-| `desktop-mode.mascot.grabbed` | action | Experimental | `{ position: { x, y } }` — drag started. |
-| `desktop-mode.mascot.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted. |
-| `desktop-mode.mascot.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened on top of it and it hopped clear of the cluster. |
-| `desktop-mode.mascot.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new shape. Fires when the morph *starts*; it takes about 2.6 s to complete. |
+| `desktop-mode.mio.config` | filter | Experimental | `MioConfig` — last word on appearance/physics before mount. Re-sanitized after your filter runs. |
+| `desktop-mode.mio.enabled` | action | Experimental | `{}` — user switched it on. |
+| `desktop-mode.mio.disabled` | action | Experimental | `{}` — user switched it off. |
+| `desktop-mode.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating. |
+| `desktop-mode.mio.unmounted` | action | Experimental | `{}` — torn down. |
+| `desktop-mode.mio.grabbed` | action | Experimental | `{ position: { x, y } }` — drag started. |
+| `desktop-mode.mio.dropped` | action | Experimental | `{ position: { x, y } }` — dropped; the position is already persisted. |
+| `desktop-mode.mio.displaced` | action | Experimental | `{ position: { x, y } }` — a window opened on top of it and it hopped clear of the cluster. |
+| `desktop-mode.mio.shape-changed` | action | Experimental | `{ shape, from }` — the silhouette shuffle picked a new shape. Fires when the morph *starts*; it takes about 2.6 s to complete. |
 
 ```js
 wp.hooks.addAction(
-	'desktop-mode.mascot.dropped',
-	'my-plugin/mascot',
+	'desktop-mode.mio.dropped',
+	'my-plugin/mio',
 	( { position } ) => {
 		// eslint-disable-next-line no-console
 		console.log( 'the blob landed at', position );
@@ -518,15 +531,15 @@ wp.hooks.addAction(
 );
 ```
 
-The wallpaper context-menu entry is a normal menu item (`id: 'mascot'`), so the existing `desktop-mode.wallpaper-context-menu` filter can relabel, reorder, or remove it like any other.
+The dock tile is a normal system tile (`id: 'desktop-mode-mio-toggle'`), so `wp.desktop.getSystemTile()` can read it and the dock's decoration hooks can restyle it like any other.
 
 ---
 
 ## Accessibility
 
-The mascot is decorative: the layer carries `aria-hidden="true"` and exposes no controls. It conveys no information, so nothing is lost to assistive technology.
+Mio is decorative: the layer carries `aria-hidden="true"` and exposes no controls. It conveys no information, so nothing is lost to assistive technology.
 
-**Reduced motion** is honoured in the simulation rather than by hiding the mascot. Under `prefers-reduced-motion: reduce` the idle bob (`floatAmplitude`), the ring shimmer (`hueDrift`, and with it the hologram's ambient rake) and the silhouette shuffle (`shapeShuffle`) are all zeroed, so the mascot holds still until the user interacts with it. Motion the user causes — a drag, a fall onto a window they just opened — is kept: WCAG's concern is unsolicited animation, and a companion that refuses to move when you pick it up isn't accessible, it's broken. A user who wants none of it switches the mascot off from the same menu they switched it on.
+**Reduced motion** is honoured in the simulation rather than by hiding Mio. Under `prefers-reduced-motion: reduce` the idle bob (`floatAmplitude`), the ring shimmer (`hueDrift`, and with it the hologram's ambient rake) and the silhouette shuffle (`shapeShuffle`) are all zeroed, so Mio holds still until the user interacts with it. Motion the user causes — a drag, a fall onto a window they just opened — is kept: WCAG's concern is unsolicited animation, and a companion that refuses to move when you pick it up isn't accessible, it's broken. A user who wants none of it switches Mio off from the same menu they switched it on.
 
 The preference is watched live, so toggling it at the OS level takes effect without a reload.
 
@@ -534,7 +547,7 @@ The preference is watched live, so toggling it at the OS level takes effect with
 
 ## Performance
 
-- **Nothing downloads until the mascot is switched on.** The always-on cost is the controller.
+- **Nothing downloads until Mio is switched on.** The always-on cost is the controller.
 - The ticker stops on `visibilitychange`, and resumes with a drained accumulator so a tab that was hidden for a minute doesn't come back with a catch-up avalanche.
 - Surfaces are re-measured at 20 Hz, not per frame.
 - Per frame: six `Graphics.clear()` calls and roughly 150 curved cells — 72 each for the bloom and the core, which carry the gradient at full ribbon resolution, plus a dozen for the halo and forty across the sheen's five shells, both of which are blurred past the point where anything finer survives. Then a blur pass over the halo and one over the sheen. The body is a single filled path of `points` curve segments.

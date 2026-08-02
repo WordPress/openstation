@@ -277,12 +277,11 @@ export interface OsSettingsState {
 	 */
 	showDesktopOnWallpaperClick: boolean;
 	/**
-	 * Whether the desk mascot is on. Toggled from the wallpaper
-	 * context menu; the shell lazy-loads
-	 * `assets/js/mascot[.min].js` the first time it flips true.
-	 * Off by default. See `docs/mascot.md`.
+	 * Whether Mio, the desk companion, is on. Toggled from Mio's dock
+	 * tile; the shell lazy-loads `assets/js/mio[.min].js` the first
+	 * time it flips true. Off by default. See `docs/mio.md`.
 	 */
-	mascotEnabled: boolean;
+	mioEnabled: boolean;
 	/**
 	 * When true, post-type tiles inside the My WordPress window
 	 * carry a diagonal corner ribbon (`Draft` / `Pending` /

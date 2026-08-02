@@ -1665,18 +1665,18 @@ apply_filters( 'desktop_mode_wallpaper_context_menu_items', array[] $items );
 
 ---
 
-### `desktop_mode_mascot_config` — Experimental
+### `desktop_mode_mio_config` — Experimental
 
-The desk mascot's appearance and physics, shipped to the shell as `desktopModeConfig.mascot`. Returning a partial array is fine — anything you leave out keeps the reference design, and every value is re-clamped client-side before it reaches the simulation, so a filter can't produce a broken shell. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
+Mio's appearance and physics, shipped to the shell as `desktopModeConfig.mio`. Returning a partial array is fine — anything you leave out keeps the reference design, and every value is re-clamped client-side before it reaches the simulation, so a filter can't produce a broken shell. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
 
-Full key/range table in [mascot.md](./mascot.md#configuration-reference).
+Full key/range table in [mio.md](./mio.md#configuration-reference).
 
 ```php
-apply_filters( 'desktop_mode_mascot_config', array $config );
+apply_filters( 'desktop_mode_mio_config', array $config );
 ```
 
 ```php
-add_filter( 'desktop_mode_mascot_config', function ( $config ) {
+add_filter( 'desktop_mode_mio_config', function ( $config ) {
 	// A slower, heavier, teal companion.
 	$config['appearance']['hueStart'] = 170;
 	$config['appearance']['hueSpan']  = 40;
@@ -1685,7 +1685,7 @@ add_filter( 'desktop_mode_mascot_config', function ( $config ) {
 } );
 ```
 
-The on/off state is not part of this filter — it is the per-user OS setting `mascotEnabled`, toggled from the wallpaper context menu.
+The on/off state is not part of this filter — it is the per-user OS setting `mioEnabled`, toggled from Mio's dock tile.
 
 ---
 

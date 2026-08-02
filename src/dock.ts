@@ -68,6 +68,19 @@ export interface SystemDockItem {
 	 * callback to spawn a fresh instance.
 	 */
 	onOpenNew?: () => void;
+	/**
+	 * Whether the tile appears in OS Settings → Apps & Icons, so the
+	 * user can hide it.
+	 *
+	 * Opt-in rather than the default, because most system tiles are
+	 * load-bearing: OS Settings is how you reach the very screen that
+	 * would hide it. Set this on tiles that are genuinely optional
+	 * decoration — Mio's toggle is the canonical case.
+	 *
+	 * The visibility override is honoured whether or not this is set;
+	 * all it controls is whether a row is offered.
+	 */
+	placeable?: boolean;
 }
 
 /**
@@ -2095,6 +2108,14 @@ export class Dock {
 			this.hooksNamespace,
 			refresh,
 		);
+		// The escape hatch for tiles whose active dot answers a
+		// question about something other than windows — see the hook's
+		// own docblock.
+		window.wp?.hooks?.addAction?.(
+			HOOKS.DOCK_REFRESH_ACTIVE,
+			this.hooksNamespace,
+			refresh,
+		);
 	}
 
 	/**
@@ -2130,6 +2151,10 @@ export class Dock {
 		);
 		window.wp?.hooks?.removeAction?.(
 			HOOKS.WINDOW_MINIMIZED,
+			this.hooksNamespace,
+		);
+		window.wp?.hooks?.removeAction?.(
+			HOOKS.DOCK_REFRESH_ACTIVE,
 			this.hooksNamespace,
 		);
 		window.wp?.hooks?.removeAction?.(

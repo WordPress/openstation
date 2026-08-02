@@ -1,16 +1,16 @@
 /**
- * Desktop Mode — Mascot chroma ring.
+ * Desktop Mode — Mio chroma ring.
  *
- * The mascot's outline is not one colour: hue sweeps around the
+ * Mio's outline is not one colour: hue sweeps around the
  * perimeter (magenta at the crown, through violet, into blue at the
  * heel) and the whole sweep rotates slowly, which is what gives the
  * ring its "chroma" shimmer instead of reading as a flat neon tube.
  *
  * On top of that ramp sits the **hologram**. A real holographic
  * surface does not have a colour, it has a colour *per viewing angle*:
- * tilt the sticker and the rainbow slides across it. The mascot has no
+ * tilt the sticker and the rainbow slides across it. Mio has no
  * viewer to track, so the rake direction {@link HoloView.tilt} stands
- * in for one — it drifts slowly while the mascot is idle and swings
+ * in for one — it drifts slowly while Mio is idle and swings
  * toward the direction of travel as it moves, which is what makes the
  * ring's colours flow when you throw the blob across the desk and
  * settle again when it stops.
@@ -30,7 +30,7 @@
  *     white exactly where the glint is.
  *
  * Keeping the colour maths here — pure, no Pixi — means the palette is
- * unit-testable and a plugin can reuse it to match the mascot's ring in
+ * unit-testable and a plugin can reuse it to match Mio's ring in
  * its own UI.
  */
 
@@ -38,7 +38,7 @@
  * ints; shifting channels in and out is the native representation,
  * not a clever trick. */
 
-import type { MascotAppearance } from './types';
+import type { MioAppearance } from './types';
 
 /**
  * HSL → packed 24-bit RGB.
@@ -126,7 +126,7 @@ export interface HoloView {
 	/**
 	 * Direction the virtual light rakes across the ring. Its
 	 * **magnitude** is the effect strength, `0` (no hologram) to `1`
-	 * (full swing), so a still mascot shimmers gently and a thrown one
+	 * (full swing), so a still Mio shimmers gently and a thrown one
 	 * flares.
 	 */
 	tilt: { x: number; y: number };
@@ -194,13 +194,13 @@ function rake( view: HoloView, i: number ): number {
  *
  * @param count      Number of samples — the rendered ring resolution.
  * @param phase      Hue rotation in degrees.
- * @param appearance Mascot appearance settings.
+ * @param appearance Mio appearance settings.
  * @param view       Optional hologram viewing geometry.
  */
 export function chromaRing(
 	count: number,
 	phase: number,
-	appearance: MascotAppearance,
+	appearance: MioAppearance,
 	view?: HoloView,
 ): number[] {
 	const n = Math.max( 1, Math.round( count ) );
@@ -237,12 +237,12 @@ export function chromaRing(
  * hotspot — today, how far the crisp core stroke is pushed to white.
  *
  * @param count      Number of samples.
- * @param appearance Mascot appearance settings.
+ * @param appearance Mio appearance settings.
  * @param view       Hologram viewing geometry.
  */
 export function holoSpecular(
 	count: number,
-	appearance: MascotAppearance,
+	appearance: MioAppearance,
 	view: HoloView,
 ): number[] {
 	const n = Math.max( 1, Math.round( count ) );

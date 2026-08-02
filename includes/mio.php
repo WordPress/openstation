@@ -1,20 +1,20 @@
 <?php
 /**
- * Desktop Mode — Mascot.
+ * Desktop Mode — Mio.
  *
  * Server side of the desk companion: the appearance / physics
  * defaults shipped to the shell, and the filter plugins use to
  * restyle or re-tune it.
  *
- * The mascot itself is a lazy JS bundle (`assets/js/mascot[.min].js`)
+ * Mio itself is a lazy JS bundle (`assets/js/mio[.min].js`)
  * that the shell injects the first time a user switches it on from
  * the wallpaper context menu. Nothing here enqueues anything — the
- * bundle URL travels in the shell config as `mascotBundleUrl`, and
- * the on/off preference lives in OS Settings as `mascotEnabled`.
+ * bundle URL travels in the shell config as `mioBundleUrl`, and
+ * the on/off preference lives in OS Settings as `mioEnabled`.
  *
  * Every value is re-clamped client-side in
- * `src/mascot/config.ts::sanitizeMascotConfig()`, so a filter that
- * returns nonsense produces a plain-looking mascot rather than a
+ * `src/mio/config.ts::sanitizeMioConfig()`, so a filter that
+ * returns nonsense produces a plain-looking Mio rather than a
  * broken shell.
  *
  * @package WPDesktopMode
@@ -23,9 +23,9 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Returns the mascot configuration for the current user.
+ * Returns Mio configuration for the current user.
  *
- * Shape mirrors `MascotConfig` in `src/mascot/types.ts`:
+ * Shape mirrors `MioConfig` in `src/mio/types.ts`:
  *
  *     array(
  *         'appearance' => array( radius, bodyColor, bodyAlpha, hueStart,
@@ -49,9 +49,9 @@ defined( 'ABSPATH' ) || exit;
  * Colours may be given as integers (`0x05050a`) or CSS hex strings
  * (`'#05050a'`); the client accepts both.
  *
- * @return array Mascot configuration.
+ * @return array Mio configuration.
  */
-function desktop_mode_mascot_config() {
+function desktop_mode_mio_config() {
 	$defaults = array(
 		'appearance' => array(
 			'radius'       => 56,
@@ -80,7 +80,7 @@ function desktop_mode_mascot_config() {
 			'shapeLobes'      => 3,
 			'shapeAmount'     => 1,
 			'shapeAngle'      => 0,
-			// Seconds between the mascot picking a new silhouette at
+			// Seconds between Mio picking a new silhouette at
 			// random and morphing into it. 0 holds shapePreset.
 			'shapeShuffle'    => 60,
 			'radialStiffness' => 460,
@@ -113,15 +113,15 @@ function desktop_mode_mascot_config() {
 	);
 
 	/**
-	 * Filters the mascot's appearance and physics.
+	 * Filters Mio's appearance and physics.
 	 *
 	 * Runs once per shell render. Returning a partial array is fine —
 	 * anything missing falls back to the reference design, and every
 	 * value is clamped client-side before it reaches the simulation.
 	 *
-	 * Example — a slower, heavier, teal mascot:
+	 * Example — a slower, heavier, teal mio:
 	 *
-	 *     add_filter( 'desktop_mode_mascot_config', function ( $config ) {
+	 *     add_filter( 'desktop_mode_mio_config', function ( $config ) {
 	 *         $config['appearance']['hueStart']      = 170;
 	 *         $config['appearance']['hueSpan']       = 40;
 	 *         $config['physics']['magnetStrength']   = 3400;
@@ -130,7 +130,7 @@ function desktop_mode_mascot_config() {
 	 *
 	 * @param array $defaults Default configuration, as documented above.
 	 */
-	$config = apply_filters( 'desktop_mode_mascot_config', $defaults );
+	$config = apply_filters( 'desktop_mode_mio_config', $defaults );
 
 	return is_array( $config ) ? $config : $defaults;
 }

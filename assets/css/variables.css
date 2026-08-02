@@ -479,11 +479,11 @@
 	/* Window-link layer — above widgets (z 1), behind windows (z 100+). */
 	--desktop-mode-z-window-links: 50;
 	/*
-	 * Mascot layer — above every window (windows run 100 + stack
+	 * Mio layer — above every window (windows run 100 + stack
 	 * index) so the companion can perch on top of them, but below
 	 * the dock (200) so it never covers navigation.
 	 */
-	--desktop-mode-z-mascot: 190;
+	--desktop-mode-z-mio: 190;
 
 	/*
 	 * Window-link ties (relation splines between windows). The accent

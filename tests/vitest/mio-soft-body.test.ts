@@ -1,6 +1,6 @@
 /**
- * Mascot soft body — the spring/pressure simulation that gives the
- * mascot its jelly.
+ * Mio soft body — the spring/pressure simulation that gives the
+ * Mio its jelly.
  *
  * These are behavioural invariants rather than golden numbers: a
  * blob at rest stays round, a squashed blob re-inflates, a magnet
@@ -9,8 +9,8 @@
  * produces NaN even when fed a hostile frame delta.
  */
 import { describe, expect, test } from 'vitest';
-import { MASCOT_DEFAULTS } from '../../src/mascot/config';
-import { magnetPull, type Obstacle } from '../../src/mascot/environment';
+import { MIO_DEFAULTS } from '../../src/mio/config';
+import { magnetPull, type Obstacle } from '../../src/mio/environment';
 import {
 	addVelocity,
 	createSoftBody,
@@ -23,11 +23,11 @@ import {
 	translateBody,
 	type SoftBody,
 	type StepInput,
-} from '../../src/mascot/soft-body';
+} from '../../src/mio/soft-body';
 import type {
-	MascotPhysics,
-	MascotShapePreset,
-} from '../../src/mascot/types';
+	MioPhysics,
+	MioShapePreset,
+} from '../../src/mio/types';
 
 const BOUNDS = { width: 1200, height: 800 };
 
@@ -42,7 +42,7 @@ const BOUNDS = { width: 1200, height: 800 };
  * profile gets its own block at the end.
  */
 const PHYSICS = {
-	...MASCOT_DEFAULTS.physics,
+	...MIO_DEFAULTS.physics,
 	shapePreset: 'circle' as const,
 };
 
@@ -280,7 +280,7 @@ describe( 'stepSoftBody', () => {
 	} );
 
 	test( 'the magnet works sideways — there is no global down', () => {
-		// A tall window to the right; the mascot starts level with it.
+		// A tall window to the right; Mio starts level with it.
 		const window_: Obstacle = {
 			id: 'window:tall',
 			kind: 'window',
@@ -300,14 +300,14 @@ describe( 'stepSoftBody', () => {
 		expect( Math.abs( body.core.y - 400 ) ).toBeLessThan( 60 );
 	} );
 
-	test( 'a mascot parked in a corner comes to rest', () => {
+	test( 'Mio parked in a corner comes to rest', () => {
 		// Regression guard for the corner limit cycle. A magnet that
 		// pulls with constant force has no equilibrium: it drives the
 		// body into the surface, the contact solver bounces it back,
 		// forever. Against a flat face that's invisible — the bounce
 		// is purely normal and friction eats it. In a corner the pull
 		// is diagonal, so every cycle also slides the body along one
-		// face and the mascot visibly orbits the corner.
+		// face and Mio visibly orbits the corner.
 		const window_: Obstacle = {
 			id: 'window:posts',
 			kind: 'window',
@@ -346,7 +346,7 @@ describe( 'stepSoftBody', () => {
 		expect( worstSpeed ).toBeLessThan( 2 );
 	} );
 
-	test( 'a mascot resting on a flat face comes to rest', () => {
+	test( 'Mio resting on a flat face comes to rest', () => {
 		const window_: Obstacle = {
 			id: 'window:posts',
 			kind: 'window',
@@ -646,7 +646,7 @@ describe( 'hard stretch limits', () => {
 	} );
 
 	test( 'they stay out of the way in ordinary use', () => {
-		// A mascot drifting onto a window under its own magnet never
+		// Mio drifting onto a window under its own magnet never
 		// deforms enough for a limit to engage — they must not be
 		// quietly stiffening the everyday feel.
 		const window_: Obstacle = {
@@ -786,7 +786,7 @@ describe( 'the outline can never fold', () => {
 	test( 'without the angular constraint it folds and stays folded', () => {
 		// The bug this guards: a folded ring satisfies every
 		// distance-based constraint — radial limits, edge limits,
-		// pressure — so nothing pulls it back out and the mascot is a
+		// pressure — so nothing pulls it back out and Mio is a
 		// crescent for the rest of the session.
 		const out = torture( { ...PHYSICS, minAngularGap: 0 } );
 		expect( out.broken ).toBeGreaterThan( 100 );
@@ -808,7 +808,7 @@ describe( 'the outline can never fold', () => {
 		expect( isSimplePolygon( body ) ).toBe( true );
 	} );
 
-	test( 'repairing a fold does not walk the mascot across the desk', () => {
+	test( 'repairing a fold does not walk Mio across the desk', () => {
 		// Individual points must move a long way to unfold — that's
 		// the repair working. The *body* must not: the corrections
 		// are rotations about the centroid and their mean angular
@@ -857,7 +857,7 @@ describe( 'the outline can never fold', () => {
 } );
 
 describe( 'dragging against windows', () => {
-	test( 'the mascot cannot be shoved inside a window', () => {
+	test( 'Mio cannot be shoved inside a window', () => {
 		const window_: Obstacle = {
 			id: 'window:posts',
 			kind: 'window',
@@ -940,7 +940,7 @@ describe( 'resetBody', () => {
 		const body = createSoftBody( 100, 100, 50, 24 );
 		// Mangle it: shove alternating points in opposite directions,
 		// the shape the contact solver produces when a window opens on
-		// top of the mascot.
+		// top of Mio.
 		body.rim.forEach( ( p, i ) => {
 			p.x += i % 2 === 0 ? 60 : -60;
 			p.vx = 500;
@@ -988,17 +988,17 @@ describe( 'helpers', () => {
 } );
 
 describe( 'the rest shape', () => {
-	const TRIANGLE = MASCOT_DEFAULTS.physics;
+	const TRIANGLE = MIO_DEFAULTS.physics;
 	const profile = ( angle: number ): number => shapeProfile( angle, TRIANGLE );
 
 	/** The shipped physics with one silhouette swapped in. */
-	function withPreset( shapePreset: MascotShapePreset ): MascotPhysics {
-		return { ...MASCOT_DEFAULTS.physics, shapePreset };
+	function withPreset( shapePreset: MioShapePreset ): MioPhysics {
+		return { ...MIO_DEFAULTS.physics, shapePreset };
 	}
 
 	/** Sample a preset's silhouette all the way round. */
 	function sweep(
-		physics: MascotPhysics,
+		physics: MioPhysics,
 		steps = 720,
 	): { angle: number; r: number }[] {
 		const out = [];
@@ -1053,8 +1053,8 @@ describe( 'the rest shape', () => {
 		// be permanently fighting the relaxation pass.
 		for ( const p of [ 'blob', 'ghost', 'potato', 'custom' ] as const ) {
 			for ( const { r } of sweep( withPreset( p ) ) ) {
-				expect( r ).toBeGreaterThan( MASCOT_DEFAULTS.physics.minStretch );
-				expect( r ).toBeLessThan( MASCOT_DEFAULTS.physics.maxStretch );
+				expect( r ).toBeGreaterThan( MIO_DEFAULTS.physics.minStretch );
+				expect( r ).toBeLessThan( MIO_DEFAULTS.physics.maxStretch );
 			}
 		}
 	} );

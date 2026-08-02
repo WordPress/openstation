@@ -897,6 +897,21 @@ export const HOOKS = {
 	 */
 	DOCK_AFTER_RENDER: 'desktop-mode.dock.after-render',
 	/**
+	 * Action a plugin *fires* (rather than listens to) when the state
+	 * behind a tile's active dot has changed for a reason the dock
+	 * cannot observe.
+	 *
+	 * The dock repaints its indicators on window lifecycle events,
+	 * which covers every tile whose `isOpen()` is a question about
+	 * windows. A system tile answering some other question — the
+	 * Mio's is "is the companion on screen?" — has no such event,
+	 * and its dot would sit stale until the next unrelated window
+	 * change. Fire this after flipping that state.
+	 *
+	 * No payload: the dock re-queries every tile.
+	 */
+	DOCK_REFRESH_ACTIVE: 'desktop-mode.dock.refresh-active',
+	/**
 	 * Filter, runs once per tile while the renderer is composing the
 	 * className list. Plugins may add, remove, or reorder classes.
 	 * Signature: `( classes: string[], detail: DockTileContext ) =>

@@ -1,5 +1,5 @@
 /**
- * Mascot configuration — the chroma palette maths and the sanitizer
+ * Mio configuration — the chroma palette maths and the sanitizer
  * that stands between an untrusted PHP/plugin config and the
  * simulation.
  */
@@ -10,8 +10,8 @@ import {
 	hslToRgbInt,
 	lighten,
 	type HoloView,
-} from '../../src/mascot/chroma';
-import { MASCOT_DEFAULTS, sanitizeMascotConfig } from '../../src/mascot/config';
+} from '../../src/mio/chroma';
+import { MIO_DEFAULTS, sanitizeMioConfig } from '../../src/mio/config';
 
 /** Hue of a packed colour, in degrees. `-1` for a true grey. */
 function hueOf( r: number, g: number, b: number ): number {
@@ -64,16 +64,16 @@ describe( 'lighten', () => {
 
 describe( 'chromaRing', () => {
 	test( 'returns one colour per segment', () => {
-		expect( chromaRing( 24, 0, MASCOT_DEFAULTS.appearance ) ).toHaveLength( 24 );
+		expect( chromaRing( 24, 0, MIO_DEFAULTS.appearance ) ).toHaveLength( 24 );
 	} );
 
 	test( 'sweeps hue around the ring', () => {
-		const ring = chromaRing( 8, 0, MASCOT_DEFAULTS.appearance );
+		const ring = chromaRing( 8, 0, MIO_DEFAULTS.appearance );
 		expect( new Set( ring ).size ).toBeGreaterThan( 1 );
 	} );
 
 	test( 'phase rotates the ramp rather than recolouring it', () => {
-		const app = { ...MASCOT_DEFAULTS.appearance, hueSpan: -360, lightness: 0.5 };
+		const app = { ...MIO_DEFAULTS.appearance, hueSpan: -360, lightness: 0.5 };
 		const base = chromaRing( 8, 0, app );
 		// One full span of phase brings the ramp back to itself.
 		const wrapped = chromaRing( 8, -360, app );
@@ -82,7 +82,7 @@ describe( 'chromaRing', () => {
 
 	test( 'a zero-span ring is monochrome', () => {
 		const flat = chromaRing( 6, 0, {
-			...MASCOT_DEFAULTS.appearance,
+			...MIO_DEFAULTS.appearance,
 			hueSpan: 0,
 			// Kill the lit-side lightness hump so only hue is in play.
 			lightness: 0.5,
@@ -115,21 +115,21 @@ describe( 'the hologram', () => {
 	}
 
 	test( 'no view is the plain chroma ramp', () => {
-		const app = MASCOT_DEFAULTS.appearance;
+		const app = MIO_DEFAULTS.appearance;
 		expect( chromaRing( 16, 0, app ) ).toEqual(
 			chromaRing( 16, 0, app, undefined ),
 		);
 	} );
 
 	test( 'zero iridescence opts out even with a view', () => {
-		const app = { ...MASCOT_DEFAULTS.appearance, iridescence: 0 };
+		const app = { ...MIO_DEFAULTS.appearance, iridescence: 0 };
 		expect( chromaRing( 16, 0, app, view( 16, { x: 1, y: 0 } ) ) ).toEqual(
 			chromaRing( 16, 0, app ),
 		);
 	} );
 
 	test( 'turning the rake recolours the ring', () => {
-		const app = MASCOT_DEFAULTS.appearance;
+		const app = MIO_DEFAULTS.appearance;
 		const east = chromaRing( 24, 0, app, view( 24, { x: 1, y: 0 } ) );
 		const north = chromaRing( 24, 0, app, view( 24, { x: 0, y: -1 } ) );
 		// Same frame, same phase, same geometry — only the viewing angle
@@ -138,7 +138,7 @@ describe( 'the hologram', () => {
 	} );
 
 	test( 'the glint tracks the rake and nothing else', () => {
-		const app = MASCOT_DEFAULTS.appearance;
+		const app = MIO_DEFAULTS.appearance;
 		const spec = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
 		// Sample 0 faces due east, straight into the rake.
 		expect( spec[ 0 ] ).toBeGreaterThan( 0.5 );
@@ -151,32 +151,32 @@ describe( 'the hologram', () => {
 	} );
 
 	test( 'a weaker rake is a weaker effect everywhere', () => {
-		const app = MASCOT_DEFAULTS.appearance;
+		const app = MIO_DEFAULTS.appearance;
 		const strong = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
 		const weak = holoSpecular( 24, app, view( 24, { x: 0.3, y: 0 } ) );
 		expect( weak[ 0 ] ).toBeLessThan( strong[ 0 ] );
 	} );
 } );
 
-describe( 'sanitizeMascotConfig', () => {
+describe( 'sanitizeMioConfig', () => {
 	test( 'a missing config is the reference design', () => {
-		expect( sanitizeMascotConfig( undefined ) ).toEqual( MASCOT_DEFAULTS );
-		expect( sanitizeMascotConfig( null ) ).toEqual( MASCOT_DEFAULTS );
-		expect( sanitizeMascotConfig( 'nope' ) ).toEqual( MASCOT_DEFAULTS );
-		expect( sanitizeMascotConfig( [] ) ).toEqual( MASCOT_DEFAULTS );
+		expect( sanitizeMioConfig( undefined ) ).toEqual( MIO_DEFAULTS );
+		expect( sanitizeMioConfig( null ) ).toEqual( MIO_DEFAULTS );
+		expect( sanitizeMioConfig( 'nope' ) ).toEqual( MIO_DEFAULTS );
+		expect( sanitizeMioConfig( [] ) ).toEqual( MIO_DEFAULTS );
 	} );
 
 	test( 'merges a partial override', () => {
-		const out = sanitizeMascotConfig( { appearance: { radius: 80 } } );
+		const out = sanitizeMioConfig( { appearance: { radius: 80 } } );
 		expect( out.appearance.radius ).toBe( 80 );
 		expect( out.appearance.hueStart ).toBe(
-			MASCOT_DEFAULTS.appearance.hueStart,
+			MIO_DEFAULTS.appearance.hueStart,
 		);
-		expect( out.physics ).toEqual( MASCOT_DEFAULTS.physics );
+		expect( out.physics ).toEqual( MIO_DEFAULTS.physics );
 	} );
 
 	test( 'clamps hostile numbers instead of rejecting them', () => {
-		const out = sanitizeMascotConfig( {
+		const out = sanitizeMioConfig( {
 			appearance: { radius: -400, glow: 999 },
 			physics: { points: 100000, magnetStrength: -50, idleWobble: 9 },
 		} );
@@ -188,30 +188,30 @@ describe( 'sanitizeMascotConfig', () => {
 	} );
 
 	test( 'ignores non-numeric junk', () => {
-		const out = sanitizeMascotConfig( {
+		const out = sanitizeMioConfig( {
 			appearance: { radius: 'huge', eyeScale: null },
 			physics: { damping: {} },
 		} as never );
-		expect( out.appearance.radius ).toBe( MASCOT_DEFAULTS.appearance.radius );
+		expect( out.appearance.radius ).toBe( MIO_DEFAULTS.appearance.radius );
 		expect( out.appearance.eyeScale ).toBe(
-			MASCOT_DEFAULTS.appearance.eyeScale,
+			MIO_DEFAULTS.appearance.eyeScale,
 		);
-		expect( out.physics.damping ).toBe( MASCOT_DEFAULTS.physics.damping );
+		expect( out.physics.damping ).toBe( MIO_DEFAULTS.physics.damping );
 	} );
 
 	test( 'accepts CSS hex colours as well as ints', () => {
 		expect(
-			sanitizeMascotConfig( { appearance: { bodyColor: '#ff8800' } } as never )
+			sanitizeMioConfig( { appearance: { bodyColor: '#ff8800' } } as never )
 				.appearance.bodyColor,
 		).toBe( 0xff8800 );
 		expect(
-			sanitizeMascotConfig( { appearance: { eyeColor: 'f0a' } } as never )
+			sanitizeMioConfig( { appearance: { eyeColor: 'f0a' } } as never )
 				.appearance.eyeColor,
 		).toBe( 0xff00aa );
 		expect(
-			sanitizeMascotConfig( { appearance: { eyeColor: 'not-a-colour' } } as never )
+			sanitizeMioConfig( { appearance: { eyeColor: 'not-a-colour' } } as never )
 				.appearance.eyeColor,
-		).toBe( MASCOT_DEFAULTS.appearance.eyeColor );
+		).toBe( MIO_DEFAULTS.appearance.eyeColor );
 	} );
 
 	test( 'the stretch limits can never cross', () => {
@@ -224,7 +224,7 @@ describe( 'sanitizeMascotConfig', () => {
 			{ minStretch: 3, maxStretch: 1.2 },
 			{ minStretch: 1, maxStretch: 1 },
 		] ) {
-			const out = sanitizeMascotConfig( { physics: attempt } );
+			const out = sanitizeMioConfig( { physics: attempt } );
 			expect( out.physics.minStretch ).toBeLessThanOrEqual(
 				out.physics.maxStretch,
 			);
@@ -232,7 +232,7 @@ describe( 'sanitizeMascotConfig', () => {
 	} );
 
 	test( 'stretch limits clamp into their own ranges', () => {
-		const out = sanitizeMascotConfig( {
+		const out = sanitizeMioConfig( {
 			physics: { minStretch: -5, maxStretch: 99, limitIterations: 40 },
 		} );
 		expect( out.physics.minStretch ).toBe( 0.1 );
@@ -242,24 +242,24 @@ describe( 'sanitizeMascotConfig', () => {
 
 	test( 'rounds the rim resolution to an integer', () => {
 		expect(
-			sanitizeMascotConfig( { physics: { points: 33.7 } } ).physics.points,
+			sanitizeMioConfig( { physics: { points: 33.7 } } ).physics.points,
 		).toBe( 34 );
 		// Lobes round for the same reason: `cos( lobes · θ )` with a
 		// fractional count leaves the rest shape discontinuous where the
 		// ring closes, a permanent kink the springs would fight forever.
 		expect(
-			sanitizeMascotConfig( { physics: { shapeLobes: 3.4 } } ).physics
+			sanitizeMioConfig( { physics: { shapeLobes: 3.4 } } ).physics
 				.shapeLobes,
 		).toBe( 3 );
 		expect(
-			sanitizeMascotConfig( { physics: { shapeLobes: 99, shapeAmount: 9 } } )
+			sanitizeMioConfig( { physics: { shapeLobes: 99, shapeAmount: 9 } } )
 				.physics,
 		).toMatchObject( { shapeLobes: 8, shapeAmount: 1.4 } );
 	} );
 
 	test( 'layers over a caller-supplied base', () => {
-		const base = sanitizeMascotConfig( { appearance: { radius: 90 } } );
-		const out = sanitizeMascotConfig( { physics: { magnetStrength: 100 } }, base );
+		const base = sanitizeMioConfig( { appearance: { radius: 90 } } );
+		const out = sanitizeMioConfig( { physics: { magnetStrength: 100 } }, base );
 		expect( out.appearance.radius ).toBe( 90 );
 		expect( out.physics.magnetStrength ).toBe( 100 );
 	} );

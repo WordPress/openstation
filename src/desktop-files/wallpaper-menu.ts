@@ -372,23 +372,6 @@ export function buildMenuItems( deps: WallpaperMenuDeps ): WallpaperMenuItem[] {
 						onClick: () => deps.toggleShowDesktop(),
 					} as WallpaperMenuItem,
 			] ),
-		// The mascot toggle lives here rather than in OS Settings
-		// because the mascot lives on the wallpaper: right-clicking
-		// the desk is where you reach for the things that sit on it.
-		...( deps.toggleMascot
-			? [
-					{
-						id: 'mascot',
-						label: deps.mascotEnabled
-							? deps.labels.hideMascot
-							: deps.labels.showMascot,
-						icon: 'dashicons-buddicons-replies',
-						sort: 24,
-						checked: deps.mascotEnabled,
-						onClick: () => deps.toggleMascot?.(),
-					} as WallpaperMenuItem,
-			]
-			: [] ),
 		{
 			id: 'os-settings',
 			label: deps.labels.osSettings,
@@ -459,14 +442,6 @@ export interface WallpaperMenuDeps {
 	 * Default `true`.
 	 */
 	includeShowDesktop?: boolean;
-	/**
-	 * Flip the desk mascot on or off. Omit to leave the entry out of
-	 * the menu entirely — used by callers that build the menu
-	 * without a live shell (tests, the icon-canvas menu).
-	 */
-	toggleMascot?: () => void;
-	/** Whether the mascot is currently on — drives the label + check. */
-	mascotEnabled?: boolean;
 	labels: {
 		createFolder: string;
 		showDesktop: string;
@@ -477,8 +452,6 @@ export interface WallpaperMenuDeps {
 		sortDateAsc: string;
 		sortDateDesc: string;
 		newUrl: string;
-		showMascot: string;
-		hideMascot: string;
 	};
 	serverItems?: ServerWallpaperMenuItem[];
 	serverCallbacks?: Record< string, () => void | Promise< void > >;

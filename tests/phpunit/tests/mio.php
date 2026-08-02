@@ -1,8 +1,8 @@
 <?php
 /**
- * Tests for the mascot's server surface: the configuration shipped
- * to the shell (`desktop_mode_mascot_config()` and its filter) and
- * the `mascotEnabled` per-user preference's trip through the OS
+ * Tests for Mio's server surface: the configuration shipped
+ * to the shell (`desktop_mode_mio_config()` and its filter) and
+ * the `mioEnabled` per-user preference's trip through the OS
  * Settings sanitizer.
  *
  * The client re-clamps everything, so the job here is narrower but
@@ -14,35 +14,35 @@
  * @subpackage UnitTests
  *
  * @group desktop-mode
- * @group desktop-mode-mascot
+ * @group desktop-mode-mio
  */
-class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
+class Tests_DesktopMode_Mio extends WP_UnitTestCase {
 
 	public function tear_down() {
-		remove_all_filters( 'desktop_mode_mascot_config' );
+		remove_all_filters( 'desktop_mode_mio_config' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::desktop_mode_mascot_config
+	 * @covers ::desktop_mode_mio_config
 	 */
 	public function test_config_has_both_sections() {
-		$config = desktop_mode_mascot_config();
+		$config = desktop_mode_mio_config();
 		$this->assertIsArray( $config );
 		$this->assertArrayHasKey( 'appearance', $config );
 		$this->assertArrayHasKey( 'physics', $config );
 	}
 
 	/**
-	 * The shape has to match `MascotConfig` in
-	 * `src/mascot/types.ts`. A key that exists on one side only is
+	 * The shape has to match `MioConfig` in
+	 * `src/mio/types.ts`. A key that exists on one side only is
 	 * silently ignored by the sanitizer, so the mismatch would never
 	 * surface as an error — just as a knob that does nothing.
 	 *
-	 * @covers ::desktop_mode_mascot_config
+	 * @covers ::desktop_mode_mio_config
 	 */
 	public function test_config_carries_every_documented_key() {
-		$config = desktop_mode_mascot_config();
+		$config = desktop_mode_mio_config();
 
 		$appearance = array(
 			'radius',
@@ -104,21 +104,21 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::desktop_mode_mascot_config
+	 * @covers ::desktop_mode_mio_config
 	 */
 	public function test_config_is_json_encodable() {
 		// It travels to the browser inside the shell config blob; a
 		// value `wp_json_encode()` chokes on would break the whole
-		// payload, not just the mascot.
-		$this->assertIsString( wp_json_encode( desktop_mode_mascot_config() ) );
+		// payload, not just Mio.
+		$this->assertIsString( wp_json_encode( desktop_mode_mio_config() ) );
 	}
 
 	/**
-	 * @covers ::desktop_mode_mascot_config
+	 * @covers ::desktop_mode_mio_config
 	 */
-	public function test_filter_can_retune_the_mascot() {
+	public function test_filter_can_retune_the_mio() {
 		add_filter(
-			'desktop_mode_mascot_config',
+			'desktop_mode_mio_config',
 			static function ( $config ) {
 				$config['appearance']['hueStart']    = 170;
 				$config['physics']['magnetStrength'] = 3400;
@@ -126,7 +126,7 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 			}
 		);
 
-		$config = desktop_mode_mascot_config();
+		$config = desktop_mode_mio_config();
 		$this->assertSame( 170, $config['appearance']['hueStart'] );
 		$this->assertSame( 3400, $config['physics']['magnetStrength'] );
 	}
@@ -135,12 +135,12 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 	 * A filter that returns something other than an array must not
 	 * poison the shell config — fall back to the defaults.
 	 *
-	 * @covers ::desktop_mode_mascot_config
+	 * @covers ::desktop_mode_mio_config
 	 */
 	public function test_non_array_filter_return_falls_back_to_defaults() {
-		add_filter( 'desktop_mode_mascot_config', '__return_false' );
+		add_filter( 'desktop_mode_mio_config', '__return_false' );
 
-		$config = desktop_mode_mascot_config();
+		$config = desktop_mode_mio_config();
 		$this->assertIsArray( $config );
 		$this->assertArrayHasKey( 'appearance', $config );
 	}
@@ -148,10 +148,10 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 	/**
 	 * @covers ::desktop_mode_default_os_settings
 	 */
-	public function test_mascot_is_off_by_default() {
+	public function test_mio_is_off_by_default() {
 		$defaults = desktop_mode_default_os_settings();
-		$this->assertArrayHasKey( 'mascotEnabled', $defaults );
-		$this->assertFalse( $defaults['mascotEnabled'] );
+		$this->assertArrayHasKey( 'mioEnabled', $defaults );
+		$this->assertFalse( $defaults['mioEnabled'] );
 	}
 
 	/**
@@ -161,32 +161,32 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 	 *
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
-	public function test_sanitize_round_trips_mascot_enabled() {
-		$on = desktop_mode_sanitize_os_settings( array( 'mascotEnabled' => true ) );
-		$this->assertTrue( $on['mascotEnabled'] );
+	public function test_sanitize_round_trips_mio_enabled() {
+		$on = desktop_mode_sanitize_os_settings( array( 'mioEnabled' => true ) );
+		$this->assertTrue( $on['mioEnabled'] );
 
-		$off = desktop_mode_sanitize_os_settings( array( 'mascotEnabled' => false ) );
-		$this->assertFalse( $off['mascotEnabled'] );
+		$off = desktop_mode_sanitize_os_settings( array( 'mioEnabled' => false ) );
+		$this->assertFalse( $off['mioEnabled'] );
 	}
 
 	/**
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
-	public function test_sanitize_coerces_truthy_mascot_values() {
-		$clean = desktop_mode_sanitize_os_settings( array( 'mascotEnabled' => '1' ) );
-		$this->assertTrue( $clean['mascotEnabled'] );
+	public function test_sanitize_coerces_truthy_mio_values() {
+		$clean = desktop_mode_sanitize_os_settings( array( 'mioEnabled' => '1' ) );
+		$this->assertTrue( $clean['mioEnabled'] );
 
-		$clean = desktop_mode_sanitize_os_settings( array( 'mascotEnabled' => '' ) );
-		$this->assertFalse( $clean['mascotEnabled'] );
+		$clean = desktop_mode_sanitize_os_settings( array( 'mioEnabled' => '' ) );
+		$this->assertFalse( $clean['mioEnabled'] );
 	}
 
 	/**
 	 * @covers ::desktop_mode_sanitize_os_settings
 	 */
-	public function test_sanitize_defaults_mascot_when_absent() {
+	public function test_sanitize_defaults_mio_when_absent() {
 		$clean = desktop_mode_sanitize_os_settings( array() );
-		$this->assertArrayHasKey( 'mascotEnabled', $clean );
-		$this->assertFalse( $clean['mascotEnabled'] );
+		$this->assertArrayHasKey( 'mioEnabled', $clean );
+		$this->assertFalse( $clean['mioEnabled'] );
 	}
 
 	/**
@@ -196,10 +196,10 @@ class Tests_DesktopMode_Mascot extends WP_UnitTestCase {
 		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $user_id );
 
-		$clean = desktop_mode_sanitize_os_settings( array( 'mascotEnabled' => true ) );
+		$clean = desktop_mode_sanitize_os_settings( array( 'mioEnabled' => true ) );
 		update_user_meta( $user_id, 'desktop_mode_os_settings', $clean );
 
 		$stored = desktop_mode_get_os_settings( $user_id );
-		$this->assertTrue( $stored['mascotEnabled'] );
+		$this->assertTrue( $stored['mioEnabled'] );
 	}
 }

@@ -112,7 +112,7 @@ Native drag events don't cross iframe boundaries, so when the user holds any dra
 
 ### Pointer forwarder — `desktop-mode-pointer-*`
 
-Pointer events don't cross iframe boundaries either, so the shell goes blind to the cursor the moment it enters a window. Anything shell-side that needs the *real* cursor position while it's over window content — today, the mascot's gaze ([`mascot.md`](./mascot.md#looking-at-the-pointer-across-iframes)) — arms the iframe and rebases what comes back through the iframe element's bounding rect.
+Pointer events don't cross iframe boundaries either, so the shell goes blind to the cursor the moment it enters a window. Anything shell-side that needs the *real* cursor position while it's over window content — today, Mio's gaze ([`mio.md`](./mio.md#looking-at-the-pointer-across-iframes)) — arms the iframe and rebases what comes back through the iframe element's bounding rect.
 
 Unlike the drag-hover heartbeat, this one is **opt-in**. It runs on every mouse move, so a shell with no consumer must not pay for it: the forwarder installs a no-op listener that returns immediately until the parent enables it.
 

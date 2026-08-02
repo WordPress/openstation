@@ -169,11 +169,11 @@ function desktop_mode_default_os_settings() {
 		// the entry stays in the menu and left clicks on the wallpaper
 		// do nothing. Per-user.
 		'showDesktopOnWallpaperClick' => false,
-		// The desk mascot — a soft-body companion that floats over
+		// Mio — a soft-body companion that floats over
 		// the wallpaper, settles onto nearby windows, and watches the
 		// pointer. Off by default; toggled from the wallpaper context
-		// menu. Per-user. See `docs/mascot.md`.
-		'mascotEnabled'               => false,
+		// menu. Per-user. See `docs/mio.md`.
+		'mioEnabled'               => false,
 		// Diagonal corner ribbon on My WordPress tiles whose post
 		// status isn't `publish` (draft / pending / private /
 		// scheduled). On by default — surfaces unpublished work at
@@ -602,9 +602,9 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		? (bool) $raw['showDesktopOnWallpaperClick']
 		: $defaults['showDesktopOnWallpaperClick'];
 
-	$mascot_enabled = isset( $raw['mascotEnabled'] )
-		? (bool) $raw['mascotEnabled']
-		: $defaults['mascotEnabled'];
+	$mio_enabled = isset( $raw['mioEnabled'] )
+		? (bool) $raw['mioEnabled']
+		: $defaults['mioEnabled'];
 
 	$show_post_status_ribbons = isset( $raw['showPostStatusRibbons'] )
 		? (bool) $raw['showPostStatusRibbons']
@@ -742,7 +742,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePluginsEnabled'        => $native_plugins_enabled,
 		'nativeCommentsEnabled'       => $native_comments_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
-		'mascotEnabled'               => $mascot_enabled,
+		'mioEnabled'               => $mio_enabled,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
 		'developerModeEnabled'        => $developer_mode_enabled,
 		'foldersSharingEnabled'       => $folders_sharing_enabled,

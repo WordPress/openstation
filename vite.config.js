@@ -464,17 +464,17 @@ const TARGETS = {
 		fileBase: 'os-settings-panel',
 		iifeName: 'desktopModeOsSettingsPanel',
 	},
-	// Mascot — the desk companion: a PixiJS soft-body blob with a
+	// Mio — the desk companion: a PixiJS soft-body blob with a
 	// chroma neon outline that floats over the wallpaper, falls onto
 	// nearby windows, watches the pointer, and can be dragged around.
-	// Off by default and toggled from the wallpaper context menu; the
-	// main bundle only carries `src/mascot/controller.ts`, which
+	// Off by default and toggled from Mio's dock tile; the
+	// main bundle only carries `src/mio/controller.ts`, which
 	// script-injects this bundle on the first switch-on. Publishes
-	// `window.desktopModeMountMascot`. See docs/mascot.md.
-	mascot: {
-		entry:    'src/mascot/entry.ts',
-		fileBase: 'mascot',
-		iifeName: 'desktopModeMascot',
+	// `window.desktopModeMountMio`. See docs/mio.md.
+	mio: {
+		entry:    'src/mio/entry.ts',
+		fileBase: 'mio',
+		iifeName: 'desktopModeMio',
 	},
 	// Item-visibility menu — the right-click "hide from dock /
 	// desktop" menu + plugin provenance actions. Pure interaction UI

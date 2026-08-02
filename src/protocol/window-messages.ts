@@ -102,7 +102,7 @@ export type BridgeEventFromIframe =
 	// coordinates. Only sent while the parent has armed the frame
 	// with `desktop-mode-pointer-track`; throttled to ~25 Hz by the
 	// forwarder. The parent rebases through the iframe element's
-	// bounding rect — see `src/mascot/pointer.ts`.
+	// bounding rect — see `src/mio/pointer.ts`.
 	| {
 		type: 'desktop-mode-pointer-move';
 		x: number;

@@ -122,7 +122,7 @@ require_once DESKTOP_MODE_DIR . 'includes/window-links.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-chrome.php';
 require_once DESKTOP_MODE_DIR . 'includes/window-notices.php';
 require_once DESKTOP_MODE_DIR . 'includes/wallpapers.php';
-require_once DESKTOP_MODE_DIR . 'includes/mascot.php';
+require_once DESKTOP_MODE_DIR . 'includes/mio.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/heartbeat.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-comments.php';
 require_once DESKTOP_MODE_DIR . 'includes/widgets/widget-post-stats.php';

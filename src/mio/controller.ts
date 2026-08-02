@@ -1,92 +1,140 @@
 /**
- * Desktop Mode — Mascot controller (shell side).
+ * Desktop Mode — Mio controller (shell side).
  *
- * The always-on half of the mascot: a few hundred bytes in
+ * The always-on half of Mio: a few hundred bytes in
  * `desktop[.min].js` that own the layer element, the on/off
  * preference, and the lazy load of the real thing.
  *
  * The simulation, PixiJS, and the renderer live in
- * `assets/js/mascot[.min].js` and are fetched the first time the
- * mascot is switched on. A user who never turns it on never
+ * `assets/js/mio[.min].js` and are fetched the first time the
+ * Mio is switched on. A user who never turns it on never
  * downloads a byte of it.
  *
- * The mascot is a **first-class shell layer**, not a widget: it owns
+ * Mio is a **first-class shell layer**, not a widget: it owns
  * a sibling of the wallpaper inside `#desktop-mode-shell`, paints
  * above every window, and is not bound by the widget column's
- * placement rules. Widgets are cards on a rail; the mascot roams.
+ * placement rules. Widgets are cards on a rail; Mio roams.
  */
 
-import { applyFilters, doAction } from '../hooks';
+import { applyFilters, doAction, HOOKS } from '../hooks';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
-import { MASCOT_DEFAULTS, sanitizeMascotConfig } from './config';
+import { MIO_DEFAULTS, sanitizeMioConfig } from './config';
 import type {
-	MascotConfig,
-	MascotHandle,
-	MascotMountFn,
-	PartialMascotConfig,
+	MioConfig,
+	MioHandle,
+	MioMountFn,
+	PartialMioConfig,
 } from './types';
 
-/** localStorage key for the mascot's resting place. */
-const POSITION_KEY = 'desktop-mode-mascot-position';
+/** localStorage key for Mio's resting place. */
+const POSITION_KEY = 'desktop-mode-mio-position';
 
 /** Id of the layer element the controller creates inside the shell. */
-export const MASCOT_LAYER_ID = 'desktop-mode-mascot';
+export const MIO_LAYER_ID = 'desktop-mode-mio';
 
-export interface MascotControllerOptions {
+/**
+ * Id of the dock tile that toggles Mio.
+ *
+ * Doubles as the key OS Settings → Apps & Icons writes its visibility
+ * override under, so it has to be stable.
+ */
+export const MIO_TILE_ID = 'desktop-mode-mio-toggle';
+
+/**
+ * Mio's dock icon: the ring and the eyes, and nothing else.
+ *
+ * A portrait rather than a symbol. Dashicons has no mark that means
+ * "your desk companion", and the nearest stand-ins (a superhero, a
+ * speech balloon) say something else entirely — the only icon that
+ * reads as Mio is Mio.
+ *
+ * **The alpha has to carry the identity, not the colour.** A desktop
+ * theme may tint any dock icon, and `renderIcon()` implements a tint
+ * by painting the art as a *mask*: the fill comes from the theme and
+ * only the artwork's alpha survives. An earlier version of this icon
+ * drew a near-black body disc under the ring — faithful to the real
+ * thing, and it collapsed under the mask to a flat filled circle,
+ * because a disc is exactly what its alpha is. So there is no body
+ * here. The centre is transparent, the ring is a stroke, and the eyes
+ * are the only other thing with any coverage, which means the
+ * silhouette *is* the face. Tinted it reads as a ring with two eyes;
+ * untinted it keeps the neon sweep below.
+ *
+ * Kept as readable source and base64-encoded once at module load, so
+ * the art stays reviewable in a diff instead of arriving as an opaque
+ * blob. No `currentColor` anywhere — that keyword routes art down a
+ * second, always-on mask path in `src/icon.ts` and would throw the
+ * gradient away even on an untinted dock.
+ */
+const MIO_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+<defs><linearGradient id="mio" x1="19" y1="19" x2="5" y2="5" gradientUnits="userSpaceOnUse">
+<stop offset="0" stop-color="#3f6dff"/><stop offset=".5" stop-color="#a855f7"/><stop offset="1" stop-color="#ff4fd8"/>
+</linearGradient></defs>
+<circle cx="12" cy="12" r="8.2" fill="none" stroke="url(#mio)" stroke-width="2.6"/>
+<rect x="8" y="9.6" width="2.9" height="4.8" rx="1.45" fill="#fff"/>
+<rect x="13.1" y="9.6" width="2.9" height="4.8" rx="1.45" fill="#fff"/>
+</svg>`;
+
+/** The same art as a data URI, ready for `renderIcon()`. */
+export const MIO_TILE_ICON = `data:image/svg+xml;base64,${ btoa(
+	MIO_ICON_SVG,
+) }`;
+
+export interface MioControllerOptions {
 	/** Shell element the layer is appended to. */
 	shell: HTMLElement;
-	/** URL of the lazy mascot bundle, from the shell config. */
+	/** URL of the lazy Mio bundle, from the shell config. */
 	bundleUrl: string;
-	/** Server-side config (`desktop_mode_mascot_config` filter output). */
+	/** Server-side config (`desktop_mode_mio_config` filter output). */
 	serverConfig?: unknown;
-	/** Whether the user's saved preference has the mascot on. */
+	/** Whether the user's saved preference has Mio on. */
 	enabled: boolean;
 	/** Persist the on/off preference. Called on every user toggle. */
 	persist: ( enabled: boolean ) => void;
 }
 
 /**
- * Public shape exposed as `wp.desktop.mascot`.
+ * Public shape exposed as `wp.desktop.mio`.
  *
  * @public
  */
-export interface MascotApi {
-	/** Whether the mascot is currently switched on. */
+export interface MioApi {
+	/** Whether Mio is currently switched on. */
 	isEnabled: () => boolean;
-	/** Switch the mascot on. Resolves once it is on screen. */
+	/** Switch Mio on. Resolves once it is on screen. */
 	enable: () => Promise< void >;
-	/** Switch the mascot off and release the WebGL context. */
+	/** Switch Mio off and release the WebGL context. */
 	disable: () => void;
 	/** Flip the current state. Resolves once the change is applied. */
 	toggle: () => Promise< void >;
 	/** Body centre in viewport coordinates, or `null` when off. */
 	getPosition: () => { x: number; y: number } | null;
-	/** Move the mascot. No-op when off. */
+	/** Move Mio. No-op when off. */
 	setPosition: ( x: number, y: number ) => void;
 	/** The resolved configuration currently in force. */
-	getConfig: () => MascotConfig;
+	getConfig: () => MioConfig;
 	/**
 	 * Merge a partial configuration over the current one and apply it
-	 * live. Values are clamped; see `docs/mascot.md`.
+	 * live. Values are clamped; see `docs/mio.md`.
 	 */
-	setConfig: ( partial: PartialMascotConfig ) => void;
+	setConfig: ( partial: PartialMioConfig ) => void;
 }
 
-export class MascotController {
-	private options: MascotControllerOptions;
+export class MioController {
+	private options: MioControllerOptions;
 	private layer: HTMLElement | null = null;
-	private handle: MascotHandle | null = null;
-	private config: MascotConfig;
+	private handle: MioHandle | null = null;
+	private config: MioConfig;
 	private enabled: boolean;
 	/**
 	 * Bumped on every enable/disable. An in-flight mount compares it
 	 * on resolve and self-destructs if the user has since changed
-	 * their mind — otherwise a fast on-off-on lands two mascots.
+	 * their mind — otherwise a fast on-off-on lands two mios.
 	 */
 	private generation = 0;
 	private loading: Promise< void > | null = null;
 
-	public constructor( options: MascotControllerOptions ) {
+	public constructor( options: MioControllerOptions ) {
 		this.options = options;
 		this.enabled = options.enabled;
 		this.config = this.resolveConfig();
@@ -99,7 +147,7 @@ export class MascotController {
 		}
 	}
 
-	public api(): MascotApi {
+	public api(): MioApi {
 		return {
 			isEnabled: () => this.enabled,
 			enable: () => this.setEnabled( true ),
@@ -110,15 +158,15 @@ export class MascotController {
 			getPosition: () => this.handle?.getPosition() ?? null,
 			setPosition: ( x: number, y: number ) => this.handle?.setPosition( x, y ),
 			getConfig: () => this.config,
-			setConfig: ( partial: PartialMascotConfig ) => {
-				this.config = sanitizeMascotConfig( partial, this.config );
+			setConfig: ( partial: PartialMioConfig ) => {
+				this.config = sanitizeMioConfig( partial, this.config );
 				this.handle?.applyConfig( this.config );
 			},
 		};
 	}
 
 	/**
-	 * Turn the mascot on or off, persisting the preference and firing
+	 * Turn Mio on or off, persisting the preference and firing
 	 * the lifecycle action. Re-entrant-safe.
 	 */
 	public async setEnabled( next: boolean ): Promise< void > {
@@ -128,7 +176,11 @@ export class MascotController {
 		this.enabled = next;
 		this.generation++;
 		this.options.persist( next );
-		doAction( next ? 'desktop-mode.mascot.enabled' : 'desktop-mode.mascot.disabled', {} );
+		doAction( next ? 'desktop-mode.mio.enabled' : 'desktop-mode.mio.disabled', {} );
+		// Repaint the dock tile's active dot. Its `isOpen()` asks
+		// whether the companion is on screen, which is not a question
+		// about windows, so no window event will ever fire for it.
+		doAction( HOOKS.DOCK_REFRESH_ACTIVE, {} );
 		if ( next ) {
 			await this.mount();
 		} else {
@@ -138,34 +190,34 @@ export class MascotController {
 
 	/**
 	 * Merge server config, defaults, and the JS filter into the
-	 * configuration the mascot actually runs with.
+	 * configuration Mio actually runs with.
 	 */
-	private resolveConfig(): MascotConfig {
-		const fromServer = sanitizeMascotConfig(
+	private resolveConfig(): MioConfig {
+		const fromServer = sanitizeMioConfig(
 			this.options.serverConfig,
-			MASCOT_DEFAULTS,
+			MIO_DEFAULTS,
 		);
-		const filtered = applyFilters< MascotConfig, [] >(
-			'desktop-mode.mascot.config',
+		const filtered = applyFilters< MioConfig, [] >(
+			'desktop-mode.mio.config',
 			fromServer,
 		);
 		// A filter is untrusted input like any other — re-sanitize.
-		return sanitizeMascotConfig( filtered, fromServer );
+		return sanitizeMioConfig( filtered, fromServer );
 	}
 
 	private ensureLayer(): HTMLElement {
 		if ( this.layer && this.layer.isConnected ) {
 			return this.layer;
 		}
-		const existing = document.getElementById( MASCOT_LAYER_ID );
+		const existing = document.getElementById( MIO_LAYER_ID );
 		if ( existing ) {
 			this.layer = existing;
 			return existing;
 		}
 		const el = document.createElement( 'div' );
-		el.id = MASCOT_LAYER_ID;
-		el.className = 'desktop-mode-mascot';
-		// Decorative: the mascot conveys no information a screen
+		el.id = MIO_LAYER_ID;
+		el.className = 'desktop-mode-mio';
+		// Decorative: Mio conveys no information a screen
 		// reader needs, and its drag handle is not a control.
 		el.setAttribute( 'aria-hidden', 'true' );
 		this.options.shell.appendChild( el );
@@ -181,16 +233,16 @@ export class MascotController {
 		try {
 			await this.loadBundle();
 		} catch ( err ) {
-			console.warn( '[desktop-mode/mascot] bundle failed to load.', err );
+			console.warn( '[desktop-mode/mio] bundle failed to load.', err );
 			return;
 		}
 		if ( generation !== this.generation || ! this.enabled ) {
 			return;
 		}
-		const mount: MascotMountFn | undefined = window.desktopModeMountMascot;
+		const mount: MioMountFn | undefined = window.desktopModeMountMio;
 		if ( typeof mount !== 'function' ) {
 			console.warn(
-				'[desktop-mode/mascot] bundle loaded but did not publish window.desktopModeMountMascot.',
+				'[desktop-mode/mio] bundle loaded but did not publish window.desktopModeMountMio.',
 			);
 			return;
 		}
@@ -228,13 +280,13 @@ export class MascotController {
 	}
 
 	private loadBundle(): Promise< void > {
-		if ( typeof window.desktopModeMountMascot === 'function' ) {
+		if ( typeof window.desktopModeMountMio === 'function' ) {
 			return Promise.resolve();
 		}
 		if ( ! this.loading ) {
 			if ( ! this.options.bundleUrl ) {
 				return Promise.reject(
-					new Error( 'No mascot bundle URL in the shell config.' ),
+					new Error( 'No Mio bundle URL in the shell config.' ),
 				);
 			}
 			this.loading = loadVendorScript( this.options.bundleUrl ).catch(
@@ -272,11 +324,11 @@ function readPosition(): { x: number; y: number } | null {
 	}
 }
 
-/** Persist the mascot's resting place. */
+/** Persist Mio's resting place. */
 function writePosition( pos: { x: number; y: number } ): void {
 	try {
 		window.localStorage.setItem( POSITION_KEY, JSON.stringify( pos ) );
 	} catch {
-		/* Private mode / quota — the mascot just recentres next load. */
+		/* Private mode / quota — Mio just recentres next load. */
 	}
 }

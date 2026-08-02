@@ -192,7 +192,7 @@ to a specific layer reaches for these instead of DOM scraping. All
 | API | Returns | Use it for |
 |---|---|---|
 | `wp.desktop.openOsSettings( opts? )` | `void` | Portable opener for the shell's OS Settings window — same window the dock tile opens. Avoids the Classic-layout gotcha where the OS Settings tile lives on a different rail than your custom renderer. Pass `{ tabId }` (e.g. `'ai'`, `'features'`) to deep-link to a specific tab. |
-| `wp.desktop.listSystemTiles()` | `Array<{ id, title, icon, affinity }>` | Enumerate every JS-registered system tile (OS Settings, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
+| `wp.desktop.listSystemTiles()` | `Array<{ id, title, icon, affinity, placeable }>` | Enumerate every JS-registered system tile (OS Settings, Mio toggle, plugin native-window launchers). Compose your own launcher palette without scraping the DOM. |
 | `wp.desktop.getSystemTile( id )` | `SystemDockItem \| null` | Fetch a specific tile to invoke its `onOpen()` callback. |
 | `wp.desktop.getMenuItems()` | `DockItem[]` | The complete admin-menu list, regardless of how the active layout would partition it. Renderer-agnostic alternative to `mount-deps.fullMenu`. |
 | `wp.desktop.deriveWindowId( url )` | `string` | The same id the default renderer uses to open a tile. Custom renderers that build their own window configs use this so switching renderer mid-session preserves open windows. |

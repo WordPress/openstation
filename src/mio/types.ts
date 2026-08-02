@@ -1,25 +1,25 @@
 /**
- * Desktop Mode — Mascot shared types.
+ * Desktop Mode — Mio shared types.
  *
  * Split out of the implementation modules so the always-on shell
- * controller (`src/mascot/controller.ts`, main bundle) and the lazy
- * PixiJS bundle (`src/mascot/entry.ts`) agree on one contract without
+ * controller (`src/mio/controller.ts`, main bundle) and the lazy
+ * PixiJS bundle (`src/mio/entry.ts`) agree on one contract without
  * the controller dragging the simulation into `desktop.min.js`.
  *
  * Everything here is data — no imports, no runtime. Third-party
  * plugins read these shapes off the public API
- * (`wp.desktop.mascot`) and through the
- * `desktop-mode.mascot.config` filter.
+ * (`wp.desktop.mio`) and through the
+ * `desktop-mode.mio.config` filter.
  */
 
 /**
- * Visual identity of the mascot: a near-black soft blob wrapped in a
+ * Visual identity of Mio: a near-black soft blob wrapped in a
  * neon "chroma" ring whose hue sweeps around the perimeter, with two
  * white pill eyes that track the pointer.
  *
  * @public
  */
-export interface MascotAppearance {
+export interface MioAppearance {
 	/** Rest radius of the body, in CSS pixels. */
 	radius: number;
 	/** Body fill colour (24-bit RGB int). Near-black by design. */
@@ -50,7 +50,7 @@ export interface MascotAppearance {
 	 * that, the ring also colours by *viewing angle*: the hue shifts,
 	 * a fine diffraction grating ripples around the perimeter, and a
 	 * white-hot glint slides along the edge, all steered by the
-	 * mascot's own motion. Values above `1` are deliberately
+	 * Mio's own motion. Values above `1` are deliberately
 	 * over-driven.
 	 */
 	iridescence: number;
@@ -74,11 +74,11 @@ export interface MascotAppearance {
 }
 
 /**
- * Named rest silhouettes. See {@link MascotPhysics.shapePreset}.
+ * Named rest silhouettes. See {@link MioPhysics.shapePreset}.
  *
  * @public
  */
-export type MascotShapePreset =
+export type MioShapePreset =
 	| 'circle'
 	| 'blob'
 	| 'ghost'
@@ -86,19 +86,19 @@ export type MascotShapePreset =
 	| 'custom';
 
 /**
- * Simulation constants. Exposed so a plugin can make the mascot
+ * Simulation constants. Exposed so a plugin can make Mio
  * heavier, bouncier, or stiffer without forking the bundle.
  *
  * @public
  */
-export interface MascotPhysics {
+export interface MioPhysics {
 	/** Perimeter resolution — number of mass points on the rim. */
 	points: number;
 	/**
-	 * Which silhouette the mascot settles into.
+	 * Which silhouette Mio settles into.
 	 *
 	 * This is a *rest shape*, not a mask: it sets the length every
-	 * spring family pulls toward, so the mascot squashes, stretches,
+	 * spring family pulls toward, so Mio squashes, stretches,
 	 * breathes and recovers exactly as a round one does — it just
 	 * settles into this shape when nothing is acting on it.
 	 *
@@ -113,7 +113,7 @@ export interface MascotPhysics {
 	 * Every preset is authored **upright**, so {@link shapeAngle} is a
 	 * rotation on top rather than part of the definition.
 	 */
-	shapePreset: MascotShapePreset;
+	shapePreset: MioShapePreset;
 	/**
 	 * Corners in the rest shape when {@link shapePreset} is `custom`.
 	 * `3` is a rounded triangle, `4` a rounded square, `0` or `1` a
@@ -143,10 +143,10 @@ export interface MascotPhysics {
 	 */
 	shapeAngle: number;
 	/**
-	 * Seconds between the mascot picking a new silhouette at random and
+	 * Seconds between Mio picking a new silhouette at random and
 	 * morphing into it. `0` holds whatever {@link shapePreset} says.
 	 *
-	 * The change is a spring target, not a redraw: the mascot eases from
+	 * The change is a spring target, not a redraw: Mio eases from
 	 * one shape to the next over a couple of seconds, and can be poked,
 	 * dragged or thrown throughout without the transition breaking.
 	 * `custom` is never picked — it is a shape someone configured on
@@ -164,43 +164,43 @@ export interface MascotPhysics {
 	/**
 	 * Internal damping (per second) applied to each rim point's
 	 * velocity *relative to the body core*. Damps the jiggle without
-	 * air-braking the mascot as a whole — higher is gooier, lower is
+	 * air-braking Mio as a whole — higher is gooier, lower is
 	 * wobblier.
 	 */
 	damping: number;
 	/**
-	 * Whole-body drag (per second). Bleeds off a throw so the mascot
+	 * Whole-body drag (per second). Bleeds off a throw so Mio
 	 * glides to a stop instead of pinballing forever.
 	 */
 	airDamping: number;
 	/**
 	 * Attraction (px/s²) toward the nearest window at full strength.
 	 *
-	 * Windows are **magnets**, not ground: the mascot is pulled to
+	 * Windows are **magnets**, not ground: Mio is pulled to
 	 * the closest point on the nearest window's edge from whatever
 	 * direction it happens to be in, sticks there, and squashes
 	 * against it. There is no global "down" — away from every window
-	 * the mascot simply floats.
+	 * Mio simply floats.
 	 */
 	magnetStrength: number;
 	/**
 	 * How close (CSS px) a window has to be before its magnet starts
-	 * to bite, measured edge-to-edge. Beyond this the mascot floats
+	 * to bite, measured edge-to-edge. Beyond this Mio floats
 	 * freely.
 	 */
 	magnetRange: number;
 	/**
-	 * How hard the magnet holds the mascot against a window, as a
+	 * How hard the magnet holds Mio against a window, as a
 	 * fraction of the body radius pressed into the surface. This is
 	 * the resting position of the magnet spring, so it's also what
-	 * sets the squash: `0` rests the mascot exactly touching, with no
+	 * sets the squash: `0` rests Mio exactly touching, with no
 	 * deformation; `0.3` flattens it noticeably against the edge.
 	 */
 	magnetGrip: number;
 	/**
 	 * Contact damping (per second) while the magnet has hold. Kills
 	 * the residual bounce and any tangential creep along the surface,
-	 * so a stuck mascot reads as held rather than skating.
+	 * so a stuck Mio reads as held rather than skating.
 	 */
 	magnetDamping: number;
 	/** Amplitude (px) of the idle float bob. */
@@ -209,14 +209,14 @@ export interface MascotPhysics {
 	floatSpeed: number;
 	/**
 	 * Idle wobble: how far the resting silhouette breathes, as a
-	 * fraction of {@link MascotAppearance.radius}.
+	 * fraction of {@link MioAppearance.radius}.
 	 *
-	 * A floating mascot shouldn't be a perfect circle. Three slow
+	 * A floating Mio shouldn't be a perfect circle. Three slow
 	 * spatial harmonics drift around the rim at incommensurable
 	 * speeds, continuously tensing and releasing the shape springs,
 	 * so the outline is always softly changing without ever settling
 	 * into a visible loop. Fades out as a magnet takes hold — a
-	 * mascot stuck to a window holds still.
+	 * Mio stuck to a window holds still.
 	 */
 	idleWobble: number;
 	/** Speed (radians/s) of the idle wobble's slowest harmonic. */
@@ -224,12 +224,12 @@ export interface MascotPhysics {
 	/**
 	 * Squash and stretch: how far the body elongates along its
 	 * velocity when moving, as a fraction of the radius at full
-	 * speed. The classic animation cue — drag the mascot quickly and
+	 * speed. The classic animation cue — drag Mio quickly and
 	 * it draws out behind the cursor; let it settle and it rounds
 	 * back off.
 	 *
 	 * Area-preserving: it stretches along the direction of travel and
-	 * narrows across it by the reciprocal, so the mascot never looks
+	 * narrows across it by the reciprocal, so Mio never looks
 	 * like it gained mass. `0` disables it.
 	 */
 	speedStretch: number;
@@ -240,7 +240,7 @@ export interface MascotPhysics {
 	/** Spring constant pulling the body toward the drag pointer. */
 	dragStiffness: number;
 	/**
-	 * How much of the pointer's velocity the mascot keeps when you
+	 * How much of the pointer's velocity Mio keeps when you
 	 * let go. `1` throws it at exactly the speed your hand was
 	 * moving; `0` drops it dead. Above `1` it out-runs your hand.
 	 */
@@ -248,13 +248,13 @@ export interface MascotPhysics {
 	/**
 	 * Hard lower limit on every spring's length, as a fraction of its
 	 * rest length. A spring may not be compressed past this no matter
-	 * what force is applied — the mascot cannot be crushed flat.
+	 * what force is applied — Mio cannot be crushed flat.
 	 */
 	minStretch: number;
 	/**
 	 * Hard upper limit on every spring's length, as a fraction of its
 	 * rest length. A spring may not be stretched past this — the
-	 * mascot cannot be pulled into a spike or torn open.
+	 * Mio cannot be pulled into a spike or torn open.
 	 */
 	maxStretch: number;
 	/**
@@ -262,7 +262,7 @@ export interface MascotPhysics {
 	 * fraction of their even spacing (`2π / points`).
 	 *
 	 * Stops the outline folding back through itself — the failure
-	 * that turns the mascot into a permanent crescent, because a
+	 * that turns Mio into a permanent crescent, because a
 	 * folded ring satisfies every distance-based constraint and so
 	 * never recovers. Together with the stretch limits it guarantees
 	 * a star-shaped, non-self-intersecting silhouette. `0` disables.
@@ -279,7 +279,7 @@ export interface MascotPhysics {
 	 *
 	 * Without it the spring force grows without bound as the cursor
 	 * pulls away from a body that can't follow — hold the pointer
-	 * inside a window and the mascot is pressed into the glass with
+	 * inside a window and Mio is pressed into the glass with
 	 * arbitrary force until it flattens. Capped, it presses firmly
 	 * and stops there.
 	 */
@@ -291,19 +291,19 @@ export interface MascotPhysics {
 }
 
 /**
- * Full mascot configuration. Merged server → filter → mount.
+ * Full Mio configuration. Merged server → filter → mount.
  *
  * @public
  */
-export interface MascotConfig {
-	appearance: MascotAppearance;
-	physics: MascotPhysics;
+export interface MioConfig {
+	appearance: MioAppearance;
+	physics: MioPhysics;
 }
 
 /** Partial config as it arrives from PHP / a plugin filter. */
-export type PartialMascotConfig = {
-	appearance?: Partial< MascotAppearance >;
-	physics?: Partial< MascotPhysics >;
+export type PartialMioConfig = {
+	appearance?: Partial< MioAppearance >;
+	physics?: Partial< MioPhysics >;
 };
 
 /**
@@ -311,14 +311,14 @@ export type PartialMascotConfig = {
  *
  * @public
  */
-export interface MascotMountOptions {
+export interface MioMountOptions {
 	/** Layer element the Pixi canvas is appended to. Covers the shell. */
 	host: HTMLElement;
 	/** Resolved configuration. */
-	config: MascotConfig;
+	config: MioConfig;
 	/**
 	 * Last saved position in **viewport** coordinates, or `null` for a
-	 * first run (the mascot picks a spot near the lower-inline edge).
+	 * first run (Mio picks a spot near the lower-inline edge).
 	 */
 	position: { x: number; y: number } | null;
 	/** Persist a new resting position. Debounced by the caller. */
@@ -327,11 +327,11 @@ export interface MascotMountOptions {
 
 /**
  * What the lazy bundle hands back so the controller can drive and
- * eventually tear down the mascot.
+ * eventually tear down Mio.
  *
  * @public
  */
-export interface MascotHandle {
+export interface MioHandle {
 	/** Current body centre, in viewport coordinates. */
 	getPosition: () => { x: number; y: number };
 	/** Teleport the body (keeps the soft-body deformation coherent). */
@@ -339,22 +339,22 @@ export interface MascotHandle {
 	/** Pause / resume the simulation without unmounting. */
 	setAnimating: ( animating: boolean ) => void;
 	/** Live-apply a configuration change. */
-	applyConfig: ( config: MascotConfig ) => void;
+	applyConfig: ( config: MioConfig ) => void;
 	/** Destroy the Pixi app, listeners, and DOM. Idempotent. */
 	destroy: () => void;
 }
 
-/** Global published by the lazy mascot bundle. */
-export type MascotMountFn = (
-	options: MascotMountOptions,
-) => Promise< MascotHandle | null >;
+/** Global published by the lazy Mio bundle. */
+export type MioMountFn = (
+	options: MioMountOptions,
+) => Promise< MioHandle | null >;
 
 declare global {
 	interface Window {
 		/**
-		 * Published by `assets/js/mascot[.min].js`. The shell-side
+		 * Published by `assets/js/mio[.min].js`. The shell-side
 		 * controller script-injects that bundle and calls this.
 		 */
-		desktopModeMountMascot?: MascotMountFn;
+		desktopModeMountMio?: MioMountFn;
 	}
 }
