@@ -639,11 +639,13 @@ export function drawMio(
 		normals: samples,
 		tilt: frame.tilt,
 	};
+	const spin = appearance.hueSpin * frame.elapsed;
 	const colors = chromaRing(
 		samples.length,
 		appearance.hueDrift * frame.elapsed,
 		appearance,
 		view,
+		spin,
 	);
 
 	const w = appearance.outlineWidth;
@@ -713,6 +715,7 @@ export function drawMio(
 					normals: samples,
 					tilt: { x: -frame.tilt.y, y: frame.tilt.x },
 				},
+				spin,
 			),
 			sheen,
 			cells( 8 ),

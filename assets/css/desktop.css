@@ -394,6 +394,54 @@ body.desktop-mode-active #wpcontent {
 }
 
 /*
+ * "Make it yours" panel — a live-preview dialog, not a modal.
+ *
+ * `<wpd-modal>` is built for the usual case: dim the page, blur it
+ * slightly, put the decision in front of everything. Every one of
+ * those defaults is wrong here, because the thing being edited is
+ * ON the page and the whole point is watching it change.
+ *
+ *   - No scrim and no `backdrop-filter`, or the companion the sliders
+ *     are driving is a blurred grey smudge behind them.
+ *   - `pointer-events: none` on the scrim so the desk stays live: Mio
+ *     can still be picked up and thrown while the panel is open, and a
+ *     click on the wallpaper doesn't dismiss the panel mid-adjustment.
+ *     `::part(dialog)` puts them back for the box itself.
+ *   - Parked against the inline end rather than centred, so it isn't
+ *     sitting on top of the subject.
+ *
+ * Mio never treats the panel as an obstacle: the collision set comes
+ * from `getWallpaperSurfaces()`, which seeds windows, the shell floor,
+ * docks and widget cards — a dialog on `document.body` is none of
+ * those, so there is nothing to bump into.
+ */
+.desktop-mode-mio-panel {
+	background: transparent;
+	background-image: none;
+	backdrop-filter: none;
+	pointer-events: none;
+	justify-content: flex-end;
+	padding-inline-end: clamp(16px, 4vw, 64px);
+}
+
+/*
+ * Both halves are required, and the second one is easy to miss.
+ *
+ * `::part(dialog)` reaches the box in the modal's SHADOW tree — its
+ * header, title and close button inherit from there. But the controls
+ * are slotted LIGHT-DOM children of `<wpd-modal>`, and slotted content
+ * inherits from its light-DOM parent (the host) rather than from the
+ * shadow ancestor it is projected into. So the host's
+ * `pointer-events: none` reaches them regardless of what the part
+ * says, and without this second rule every slider and button in the
+ * panel is inert while looking perfectly normal.
+ */
+.desktop-mode-mio-panel::part(dialog),
+.desktop-mode-mio-panel > * {
+	pointer-events: auto;
+}
+
+/*
  * Overview (Exposé) hides the desk furniture so the window grid
  * reads cleanly — Mio goes with the widgets and the notes.
  * `:has()` rather than a descendant selector because Mio

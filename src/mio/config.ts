@@ -31,28 +31,63 @@ import type {
 export const MIO_DEFAULTS: MioConfig = {
 	appearance: {
 		radius: 56,
-		// The reference interior is dead black — the ring is the only
-		// thing emitting.
-		bodyColor: 0x03030a,
+		// The official artwork fills the body with flat black.
+		bodyColor: 0x000000,
 		bodyAlpha: 1,
-		// The reference gradient runs on the DIAGONAL: blue at the
-		// lower-right, magenta at the upper-left. The ramp starts at the
-		// 3 o'clock point and sweeps clockwise, so the two extremes want
-		// to land a half-turn apart at t = 0.125 and t = 0.625 — which
-		// is what these two numbers solve for.
-		hueStart: 235,
-		hueSpan: 125,
-		hueDrift: 6,
+		/*
+		 * Read off the official `mio.svg` rather than guessed from a
+		 * screenshot. Its ring is one linear gradient with three stops:
+		 *
+		 *   #EF42E8  hue 302  magenta   at the gradient's start
+		 *   #AA67FF  hue 266  violet    midway
+		 *   #5E8BFF  hue 223  blue      at the end
+		 *
+		 * so the sweep is 302 → 223, i.e. a span of −79. The gradient
+		 * axis runs from just below 3 o'clock up to the opposite
+		 * shoulder — about 23° — which is what `hueAngle` aims the
+		 * mirror at.
+		 */
+		hueStart: 302,
+		hueSpan: -79,
+		hueAngle: 23,
+		// The official Mio holds still. `hueLoop` is what lets it: a
+		// straight ramp ends a span away from where it started, and
+		// with no rotation to keep that seam moving it just sits there.
+		/*
+		 * Both still, and they are not the same kind of still.
+		 *
+		 * `hueDrift` rewrites the hues, so Mio cycles through colours
+		 * that are not its own — that is the one thing the official
+		 * palette must never do. `hueSpin` turns the same
+		 * magenta→violet→blue sweep around the ring, which keeps the
+		 * palette exactly and is the most a default Mio should ever
+		 * animate. Shipped at zero to match the artwork; the panel has
+		 * a slider for anyone who wants the ring to turn.
+		 */
+		hueDrift: 0,
+		hueSpin: 0,
+		hueLoop: true,
 		saturation: 1,
-		lightness: 0.75,
-		// Enough for the ring to stay alive under motion, low enough
-		// that it still reads as one clean magenta→blue sweep rather
-		// than a rainbow. The reference is a gradient, not a foil.
-		iridescence: 0.7,
-		// A thin bright core inside a wide soft glow — the whole look of
-		// the reference is that ratio.
-		outlineWidth: 2,
-		glow: 3,
+		lightness: 0.66,
+		/*
+		 * Off, because the official Mio has no hologram: `mio.svg` is a
+		 * flat three-stop gradient with a dead-black interior, and this
+		 * is the value that reproduces it. Zero also switches off the
+		 * interior sheen, which the artwork likewise doesn't have.
+		 *
+		 * The effect is not gone, just not the default — "Make it
+		 * yours" has a slider, and one number here brings it back for a
+		 * whole site.
+		 */
+		iridescence: 0,
+		// The artwork strokes its ring at 13 units on a body of roughly
+		// 240 — 5.4%, which at this radius is 3px.
+		outlineWidth: 3,
+		// The artwork's own glow is a pair of soft radial washes at 34%
+		// opacity, not a neon bloom hugging the ring. At `3` the halo
+		// and bloom passes were adding light the reference simply does
+		// not have; `1` is the width those passes were designed around.
+		glow: 1,
 		glowBlur: true,
 		eyeColor: 0xffffff,
 		eyeScale: 0.3,
@@ -120,6 +155,8 @@ const LIMITS = {
 	hueStart: [ -720, 720 ],
 	hueSpan: [ -360, 360 ],
 	hueDrift: [ -180, 180 ],
+	hueAngle: [ -360, 360 ],
+	hueSpin: [ -180, 180 ],
 	saturation: [ 0, 1 ],
 	lightness: [ 0.15, 1 ],
 	iridescence: [ 0, 2 ],
@@ -245,6 +282,9 @@ export function sanitizeMioConfig(
 		hueStart: num( a.hueStart, base.appearance.hueStart, LIMITS.hueStart ),
 		hueSpan: num( a.hueSpan, base.appearance.hueSpan, LIMITS.hueSpan ),
 		hueDrift: num( a.hueDrift, base.appearance.hueDrift, LIMITS.hueDrift ),
+		hueLoop: bool( a.hueLoop, base.appearance.hueLoop ),
+		hueAngle: num( a.hueAngle, base.appearance.hueAngle, LIMITS.hueAngle ),
+		hueSpin: num( a.hueSpin, base.appearance.hueSpin, LIMITS.hueSpin ),
 		saturation: num(
 			a.saturation,
 			base.appearance.saturation,

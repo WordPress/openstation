@@ -29,8 +29,9 @@ defined( 'ABSPATH' ) || exit;
  *
  *     array(
  *         'appearance' => array( radius, bodyColor, bodyAlpha, hueStart,
- *                                hueSpan, hueDrift, saturation, lightness,
- *                                iridescence, outlineWidth, glow, glowBlur,
+ *                                hueSpan, hueDrift, hueLoop, hueAngle,
+ *                                saturation, lightness, iridescence,
+ *                                outlineWidth, glow, glowBlur,
  *                                eyeColor, eyeScale ),
  *         'physics'    => array( points, shapePreset, shapeLobes,
  *                                shapeAmount, shapeAngle, shapeShuffle,
@@ -55,17 +56,35 @@ function desktop_mode_mio_config() {
 	$defaults = array(
 		'appearance' => array(
 			'radius'       => 56,
-			'bodyColor'    => '#03030a',
+			'bodyColor'    => '#000000',
 			'bodyAlpha'    => 1,
-			// Blue at the lower right, magenta at the upper left.
-			'hueStart'     => 235,
-			'hueSpan'      => 125,
-			'hueDrift'     => 6,
+			// Read off the official `mio.svg`: a three-stop gradient
+			// from #EF42E8 (hue 302) through #AA67FF to #5E8BFF
+			// (hue 223), on an axis about 23 degrees off horizontal.
+			'hueStart'     => 302,
+			'hueSpan'      => -79,
+			'hueAngle'     => 23,
+			// The official Mio holds still; hueLoop is what lets it,
+			// by walking the span out and back so the ring meets
+			// itself instead of ending a span away with a visible seam.
+			// Two kinds of still. hueDrift rewrites the hues, so Mio
+			// cycles through colours that are not its own — the one
+			// thing the official palette must never do. hueSpin turns
+			// the same sweep around the ring, keeping the palette, and
+			// is the most a default Mio should ever animate.
+			'hueDrift'     => 0,
+			'hueSpin'      => 0,
+			'hueLoop'      => true,
 			'saturation'   => 1,
-			'lightness'    => 0.75,
-			'iridescence'  => 0.7,
-			'outlineWidth' => 2,
-			'glow'         => 3,
+			'lightness'    => 0.66,
+			// The official artwork has no hologram and no interior
+			// sheen — a flat gradient over dead black. One number here
+			// turns both back on for a whole site.
+			'iridescence'  => 0,
+			'outlineWidth' => 3,
+			// The artwork's glow is a pair of soft radial washes at 34%
+			// opacity, not a neon bloom hugging the ring.
+			'glow'         => 1,
 			'glowBlur'     => true,
 			'eyeColor'     => '#ffffff',
 			'eyeScale'     => 0.3,

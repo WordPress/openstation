@@ -20,6 +20,7 @@ import { applyFilters, doAction, HOOKS } from '../hooks';
 import { loadVendorScript } from '../wallpapers/vendor-loader';
 import { MIO_DEFAULTS, sanitizeMioConfig } from './config';
 import type {
+	MioAppearance,
 	MioConfig,
 	MioHandle,
 	MioMountFn,
@@ -28,6 +29,9 @@ import type {
 
 /** localStorage key for Mio's resting place. */
 const POSITION_KEY = 'desktop-mode-mio-position';
+
+/** localStorage key for the user's own "Make it yours" style. */
+const STYLE_KEY = 'desktop-mode-mio-style';
 
 /** Id of the layer element the controller creates inside the shell. */
 export const MIO_LAYER_ID = 'desktop-mode-mio';
@@ -118,6 +122,22 @@ export interface MioApi {
 	 * live. Values are clamped; see `docs/mio.md`.
 	 */
 	setConfig: ( partial: PartialMioConfig ) => void;
+	/**
+	 * Apply a partial *appearance* live and remember it for this
+	 * browser — what the "Make it yours" panel writes on every slider
+	 * move.
+	 *
+	 * Distinct from {@link setConfig}, which is the programmatic
+	 * surface and deliberately doesn't persist: a plugin adjusting Mio
+	 * for a moment shouldn't silently become the user's saved look.
+	 * Appearance only — physics and `radius` are the site's business.
+	 */
+	setStyle: ( partial: Partial< MioAppearance > ) => void;
+	/**
+	 * Forget the saved style and go back to the Mio this site ships —
+	 * server config plus the `desktop-mode.mio.config` filter.
+	 */
+	resetStyle: () => void;
 }
 
 export class MioController {
@@ -151,6 +171,15 @@ export class MioController {
 	 */
 	private generation = 0;
 	private loading: Promise< void > | null = null;
+	/**
+	 * The user's own look, as set from "Make it yours".
+	 *
+	 * Appearance keys only, and browser-local like the resting
+	 * position: it is a personal preference about a decorative thing,
+	 * not site configuration, so it does not belong in user meta and
+	 * certainly not in the `desktop_mode_mio_config` filter's way.
+	 */
+	private style: Partial< MioAppearance > = {};
 
 	public constructor( options: MioControllerOptions ) {
 		this.options = options;
@@ -180,6 +209,21 @@ export class MioController {
 				this.config = sanitizeMioConfig( partial, this.config );
 				this.handle?.applyConfig( this.config );
 			},
+			setStyle: ( partial: Partial< MioAppearance > ) => {
+				this.style = { ...this.style, ...partial };
+				writeStyle( this.style );
+				this.config = sanitizeMioConfig(
+					{ appearance: partial },
+					this.config,
+				);
+				this.handle?.applyConfig( this.config );
+			},
+			resetStyle: () => {
+				this.style = {};
+				clearStyle();
+				this.config = this.resolveConfig();
+				this.handle?.applyConfig( this.config );
+			},
 		};
 	}
 
@@ -207,8 +251,12 @@ export class MioController {
 	}
 
 	/**
-	 * Merge server config, defaults, and the JS filter into the
-	 * configuration Mio actually runs with.
+	 * Merge server config, defaults, the JS filter, and the user's own
+	 * saved style into the configuration Mio actually runs with.
+	 *
+	 * The user's style goes last on purpose. Everything before it is
+	 * something a site decided; this is something a person decided, on
+	 * their own machine, about how their own companion looks.
 	 */
 	private resolveConfig(): MioConfig {
 		const fromServer = sanitizeMioConfig(
@@ -220,7 +268,9 @@ export class MioController {
 			fromServer,
 		);
 		// A filter is untrusted input like any other — re-sanitize.
-		return sanitizeMioConfig( filtered, fromServer );
+		const resolved = sanitizeMioConfig( filtered, fromServer );
+		this.style = readStyle();
+		return sanitizeMioConfig( { appearance: this.style }, resolved );
 	}
 
 	private ensureLayer(): HTMLElement {
@@ -361,6 +411,49 @@ export class MioController {
 			);
 		}
 		return this.loading;
+	}
+}
+
+/**
+ * Read the user's saved style overrides.
+ *
+ * Returns `{}` for anything unreadable — a corrupt entry should make
+ * Mio look like the site's Mio, never stop it from mounting. Values
+ * are not validated here; `sanitizeMioConfig` clamps every one of
+ * them on the way in, and it is the only thing that should be
+ * deciding what a legal appearance is.
+ */
+function readStyle(): Partial< MioAppearance > {
+	try {
+		const raw = window.localStorage.getItem( STYLE_KEY );
+		if ( ! raw ) {
+			return {};
+		}
+		const parsed: unknown = JSON.parse( raw );
+		return parsed && typeof parsed === 'object' && ! Array.isArray( parsed )
+			? ( parsed as Partial< MioAppearance > )
+			: {};
+	} catch {
+		return {};
+	}
+}
+
+/** Persist the user's style overrides. */
+function writeStyle( style: Partial< MioAppearance > ): void {
+	try {
+		window.localStorage.setItem( STYLE_KEY, JSON.stringify( style ) );
+	} catch {
+		/* Private mode, quota, disabled storage — a look that doesn't
+		 * survive a reload is not worth breaking the toggle over. */
+	}
+}
+
+/** Forget the user's style overrides, restoring the site's Mio. */
+function clearStyle(): void {
+	try {
+		window.localStorage.removeItem( STYLE_KEY );
+	} catch {
+		/* See `writeStyle`. */
 	}
 }
 

@@ -37,8 +37,43 @@ export interface MioAppearance {
 	 * relatively narrow span rather than a full rainbow.
 	 */
 	hueSpan: number;
-	/** Hue rotation, degrees per second. Keeps the ring alive. */
+	/**
+	 * Hue rotation, degrees per second. `0` holds the ring still.
+	 *
+	 * With {@link hueLoop} off, this is also what hides the seam where
+	 * the hue ramp wraps — a still ring shows it plainly.
+	 */
 	hueDrift: number;
+	/**
+	 * Whether the hue ramp walks out and back so the ring meets itself.
+	 *
+	 * A straight ramp ends a full {@link hueSpan} from where it
+	 * started, leaving a hard colour seam at the wrap. `true` mirrors
+	 * it into a triangle wave, so both ends of the ring are the same
+	 * colour by construction — which is what makes a *still* ring
+	 * (`hueDrift: 0`) look continuous instead of cut.
+	 */
+	hueLoop: boolean;
+	/**
+	 * Where the hue ramp starts around the ring, in degrees clockwise
+	 * from the 3 o'clock point.
+	 *
+	 * With {@link hueLoop} on, the ramp's two extremes are pinned to
+	 * the ends of the mirror, so this is the only way to aim them:
+	 * `0` puts them at 3 and 9 o'clock, `90` at 6 and 12.
+	 */
+	hueAngle: number;
+	/**
+	 * How fast {@link hueAngle} turns, in degrees per second. `0` holds
+	 * the gradient where it is.
+	 *
+	 * The difference from {@link hueDrift} is what moves. This spins
+	 * the gradient *around the ring* — the same magenta→blue sweep,
+	 * pointing somewhere else — while `hueDrift` rewrites the hues
+	 * themselves, so Mio cycles through colours that are not its own.
+	 * Rotating position keeps the palette; rotating hue does not.
+	 */
+	hueSpin: number;
 	/** Saturation of the ring, 0–1. */
 	saturation: number;
 	/** Lightness of the ring at its brightest point, 0–1. */

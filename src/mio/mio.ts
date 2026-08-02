@@ -35,6 +35,11 @@ import {
 import { createPointerTracker, type PointerTracker } from './pointer';
 import { drawMio, type MioLayers } from './render';
 import {
+	closeMioMenu,
+	closeMioStylePanel,
+	openMioMenu,
+} from './style-panel';
+import {
 	addVelocity,
 	createSoftBody,
 	resetBody,
@@ -299,6 +304,10 @@ export async function mountMio(
 	// the shimmer here too without a second preference to read.
 	let tiltAngle = 0;
 	let tilt = { x: 1, y: 0 };
+	/** Live `prefers-reduced-motion`, kept current by `onMotionChange`. */
+	let reducedMotion =
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
 	/** Smoothed body velocity, layer px/s, for the rake above. */
 	let driftVx = 0;
 	let driftVy = 0;
@@ -333,7 +342,13 @@ export async function mountMio(
 		}
 		forgetMotion();
 
-		if ( config.appearance.hueDrift !== 0 ) {
+		// The hologram's ambient rake is unsolicited motion, so it stops
+		// under reduced motion — and only under reduced motion. It used
+		// to be gated on `hueDrift !== 0` as a proxy for that, which
+		// worked only for as long as a still ring implied a calmed one.
+		// The official Mio holds its hues still by choice, so the proxy
+		// now says "reduced motion" about a perfectly ordinary desk.
+		if ( ! reducedMotion ) {
 			tiltAngle += seconds * AMBIENT_RAKE_RATE;
 		}
 		let x = Math.cos( tiltAngle );
@@ -524,7 +539,22 @@ export async function mountMio(
 	const onLostCapture = (): void => finishDrag( true );
 	const onWindowBlur = (): void => finishDrag( false );
 
+	/**
+	 * Right-click opens Mio's own menu.
+	 *
+	 * Bound to the handle, which is the only part of the layer that
+	 * takes pointer events — the canvas is inert by design, so a
+	 * right-click one pixel off Mio still reaches the wallpaper and
+	 * gets the desk's menu, exactly as if Mio weren't there.
+	 */
+	const onHandleContextMenu = ( e: MouseEvent ): void => {
+		e.preventDefault();
+		e.stopPropagation();
+		openMioMenu( { x: e.clientX, y: e.clientY } );
+	};
+
 	handle.addEventListener( 'pointerdown', onHandleDown );
+	handle.addEventListener( 'contextmenu', onHandleContextMenu );
 	handle.addEventListener( 'lostpointercapture', onLostCapture );
 	// Window-level, capture phase: these fire wherever the pointer
 	// ends up — over an iframe, over the dock, off the layer entirely.
@@ -708,6 +738,7 @@ export async function mountMio(
 			? window.matchMedia( '(prefers-reduced-motion: reduce)' )
 			: null;
 	const onMotionChange = (): void => {
+		reducedMotion = motionQuery?.matches === true;
 		config = calmed( requested );
 	};
 	motionQuery?.addEventListener?.( 'change', onMotionChange );
@@ -782,7 +813,10 @@ export async function mountMio(
 			document.removeEventListener( 'visibilitychange', onVisibility );
 			motionQuery?.removeEventListener?.( 'change', onMotionChange );
 			handle.removeEventListener( 'pointerdown', onHandleDown );
+			handle.removeEventListener( 'contextmenu', onHandleContextMenu );
 			handle.removeEventListener( 'lostpointercapture', onLostCapture );
+			closeMioMenu();
+			closeMioStylePanel();
 			window.removeEventListener( 'pointermove', onDragMove, true );
 			window.removeEventListener( 'pointerup', onDragEnd, true );
 			window.removeEventListener( 'pointercancel', onDragCancel, true );
@@ -818,7 +852,10 @@ function calmed( config: MioConfig ): MioConfig {
 		return config;
 	}
 	return {
-		appearance: { ...config.appearance, hueDrift: 0 },
+		// Both ways the ring can move on its own: rewriting the hues,
+		// and turning the gradient around the ring. Neither is
+		// something the user asked for.
+		appearance: { ...config.appearance, hueDrift: 0, hueSpin: 0 },
 		// The silhouette shuffle goes with the bob and the shimmer: a
 		// Mio that reshapes itself while you are reading is textbook
 		// unsolicited animation.

@@ -193,22 +193,47 @@ function rake( view: HoloView, i: number ): number {
  * of `0` produces.
  *
  * @param count      Number of samples — the rendered ring resolution.
- * @param phase      Hue rotation in degrees.
+ * @param phase      Hue rotation in degrees (`hueDrift × elapsed`).
  * @param appearance Mio appearance settings.
  * @param view       Optional hologram viewing geometry.
+ * @param spin       Positional rotation of the ramp, in degrees
+ *                   (`hueSpin × elapsed`). Turns the gradient around
+ *                   the ring without touching the hues themselves.
  */
 export function chromaRing(
 	count: number,
 	phase: number,
 	appearance: MioAppearance,
 	view?: HoloView,
+	spin: number = 0,
 ): number[] {
 	const n = Math.max( 1, Math.round( count ) );
 	const holo = view ? Math.max( 0, appearance.iridescence ) : 0;
 	const out: number[] = new Array( n );
 	for ( let i = 0; i < n; i++ ) {
 		const t = i / n;
-		let hue = appearance.hueStart + appearance.hueSpan * t + phase;
+		// A plain `hueStart + hueSpan · t` ramp does not meet itself:
+		// it ends a whole span away from where it began, so the ring
+		// carries a hard seam at the wrap. Rotating the ramp
+		// (`hueDrift`) hides that by keeping the seam moving — which is
+		// why it was invisible until the rotation was switched off.
+		//
+		// `hueLoop` walks the span out and back instead — a triangle
+		// wave, `0 → 1 → 0` — so the two ends of the ring are the same
+		// colour by construction and there is nothing to hide. Costs
+		// symmetry across the ring, which for a two-colour sweep reads
+		// as deliberate rather than as a fault.
+		// `hueAngle` rotates where the ramp starts. It matters most with
+		// `hueLoop`, whose two extremes are pinned to the ends of the
+		// mirror — without it they would always sit at 3 and 9 o'clock,
+		// and the official artwork's gradient runs on a shallow
+		// diagonal.
+		const shifted =
+			( ( ( t - ( appearance.hueAngle + spin ) / 360 ) % 1 ) + 1 ) % 1;
+		const ramp = appearance.hueLoop
+			? 1 - Math.abs( 1 - 2 * shifted )
+			: shifted;
+		let hue = appearance.hueStart + appearance.hueSpan * ramp + phase;
 		// Cosine hump peaking at t = 1/3 — the "lit side" of the ring.
 		const lift = 0.5 + 0.5 * Math.cos( ( t - 1 / 3 ) * Math.PI * 2 );
 		let lightness = appearance.lightness * ( 0.72 + 0.28 * lift );

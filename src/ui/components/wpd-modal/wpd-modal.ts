@@ -60,6 +60,13 @@ export class WpdModal extends Component {
 					'Fires when the user dismisses the modal (ESC, click-outside, close button). Cancelable; calling `preventDefault()` keeps the modal open.',
 			},
 		],
+		parts: [
+			{
+				name: 'dialog',
+				description:
+					'The dialog box itself, inside the scrim. Reach for it when a consumer needs the scrim and the box to behave differently — e.g. a live-preview panel that makes the scrim transparent and click-through (`pointer-events: none` on the host) while keeping the box interactive (`::part(dialog) { pointer-events: auto }`).',
+			},
+		],
 	} as const;
 
 	private _prevFocus: HTMLElement | null = null;
@@ -181,7 +188,7 @@ export class WpdModal extends Component {
 		const title = this.getAttribute( 'title' ) ?? '';
 		const mandatory = this.hasAttribute( 'mandatory' );
 		return html`
-			<div class="dialog" tabindex="-1">
+			<div part="dialog" class="dialog" tabindex="-1">
 				${ title
 					? html`
 						<div class="header">

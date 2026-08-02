@@ -1622,6 +1622,8 @@ interface MioApi {
     isEnabled(): boolean;
     enable(): Promise< void >;             // persists the preference
     disable(): void;                       // persists; stops + hides, keeps the context
+    setStyle( partial ): void;             // appearance only; applies live AND saves per browser
+    resetStyle(): void;                    // forget the saved style, restore the site's Mio
     toggle(): Promise< void >;             // what the menu entry calls
     getPosition(): { x: number; y: number } | null;   // viewport coords, null when off
     setPosition( x: number, y: number ): void;        // no-op when off
@@ -1630,7 +1632,9 @@ interface MioApi {
 }
 ```
 
-`enable()` / `disable()` / `toggle()` write the per-user OS setting `mioEnabled` exactly as the menu entry does; Mio's resting position is browser-local (`localStorage`, key `desktop-mode-mio-position`).
+`enable()` / `disable()` / `toggle()` write the per-user OS setting `mioEnabled` exactly as the dock tile does. Two things are browser-local instead, both in `localStorage`: the resting position (`desktop-mode-mio-position`) and the user's own style (`desktop-mode-mio-style`, written by `setStyle()` and cleared by `resetStyle()`).
+
+`setStyle()` takes **appearance keys only** — no physics, and not `radius`. It is what the right-click → "Make it yours" panel writes on every control movement, and unlike `setConfig()` it persists. Reach for `setConfig()` when a plugin wants to adjust Mio programmatically without that adjustment becoming the user's saved look.
 
 The first `enable()` lazy-loads `assets/js/mio[.min].js` and PixiJS — nothing about the simulation ships in `desktop.min.js`, so a user who never switches Mio on never downloads it.
 

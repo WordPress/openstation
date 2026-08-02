@@ -23,6 +23,9 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
   - [The outline can never fold](#the-outline-can-never-fold)
   - [Squash and stretch](#squash-and-stretch)
   - [Throwing](#throwing)
+- [Make it yours](#make-it-yours)
+  - [What it can change, and what it can't](#what-it-can-change-and-what-it-cant)
+  - [Where it is saved](#where-it-is-saved)
 - [Environment awareness](#environment-awareness)
   - [Windows are magnets, not ground](#windows-are-magnets-not-ground)
   - [Chrome is inflated back into a solid](#chrome-is-inflated-back-into-a-solid)
@@ -33,6 +36,7 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
   - [The ribbon](#the-ribbon)
   - [Bands, not strokes](#bands-not-strokes)
   - [Every edge is a curve](#every-edge-is-a-curve)
+  - [A gradient that loops](#a-gradient-that-loops)
   - [The hologram](#the-hologram)
   - [The interior sheen](#the-interior-sheen)
 - [PHP API](#php-api)
@@ -49,6 +53,7 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
 | Action | How |
 |---|---|
 | Show / hide | Click the **Mio** tile on the bottom dock. The tile's dot lights while the companion is on screen. |
+| Restyle it | Right-click Mio → **Make it yours**. See [Make it yours](#make-it-yours). |
 | Get rid of the tile | OS Settings → **Apps & Icons** → Mio → **Hidden** |
 | Move it | Drag it anywhere. It trails your cursor. |
 | Throw it | Let go mid-flick and it keeps going, gliding to a stop. |
@@ -225,6 +230,55 @@ Four design decisions are worth knowing before you touch `soft-body.ts`, because
 
 ---
 
+## Make it yours
+
+Right-clicking Mio opens a one-item context menu; the item opens a panel of controls bound live to `wp.desktop.mio.setStyle()`. There is no Apply button — every control writes on input, so the companion changes under the dialog while you drag. The thing being edited is right there, so the preview *is* the product.
+
+Right-click is bound to the **handle**, the only part of the layer that takes pointer events. A right-click one pixel off Mio still reaches the wallpaper and gets the desk's own menu, exactly as if Mio weren't there.
+
+### What it can change, and what it can't
+
+**Style only — the `appearance` group, minus `radius`.**
+
+| Section | Controls |
+|---|---|
+| Colour | `hueStart`, `hueSpan`, `saturation`, `lightness` |
+| Ring | `outlineWidth`, `glow`, `glowBlur` |
+| Gradient | `hueAngle`, `hueLoop`, `hueSpin`, `hueDrift` |
+| Hologram | Holographic on/off, `iridescence` |
+| Body | `bodyColor`, `bodyAlpha` |
+| Eyes | `eyeColor`, `eyeScale` |
+
+**`hueSpin` vs `hueDrift`** is the distinction worth understanding before touching either. `hueSpin` turns the same magenta→violet→blue sweep around the ring — the palette is preserved exactly, only its orientation moves. `hueDrift` rewrites the hues themselves, so Mio cycles through colours that are not its own. Rotating position keeps the identity; rotating hue discards it. Both ship at `0`, and both stop under reduced motion.
+
+The Holographic toggle is a shortcut for `iridescence` — off writes `0`, on writes the strength the effect was designed around — and it repaints the panel afterwards, because the slider beneath it would otherwise keep showing the value the toggle just replaced.
+
+### It is a live preview, not a modal
+
+`<wpd-modal>` dims the page, blurs it, and puts itself in front of everything. Every one of those defaults is wrong here, because the thing being edited is *on* the page and the whole point is watching it change. The panel overrides all three:
+
+- **No scrim, no `backdrop-filter`** — otherwise the companion the sliders are driving is a blurred grey smudge behind them.
+- **`pointer-events: none` on the scrim**, restored on the dialog box through the modal's `::part(dialog)`. The desk stays live: Mio can be picked up and thrown while the panel is open, and a click on the wallpaper doesn't dismiss the panel mid-adjustment.
+- **Parked against the inline end** rather than centred, so it isn't sitting on top of its own subject.
+
+Mio never treats the panel as an obstacle. The collision set comes from `getWallpaperSurfaces()`, which seeds windows, the shell floor, docks and widget cards — a dialog on `document.body` is none of those, so there is nothing to bump into.
+
+No physics. Those belong to the site, they interact in ways a flat list of sliders hides (stiffness against damping against pressure), and a user who makes Mio unstable from a slider has no way to know which slider did it. Not `radius` either: how big the companion is on the desk is a layout decision, not a look.
+
+`mio-style-panel.test.ts` enforces the boundary by walking every control in the panel, firing it, and asserting that the set of keys written contains no physics key and never `radius` — so a control added later can't quietly widen the scope.
+
+### Where it is saved
+
+`localStorage`, under `desktop-mode-mio-style`, alongside the resting position. It is a personal preference about a decorative thing on one person's machine — it does not belong in user meta, and it should not be in the `desktop_mode_mio_config` filter's way.
+
+It merges **last**, after server config and the JS filter. Everything before it is something a site decided; this is something a person decided about their own companion. Values are clamped by `sanitizeMioConfig` like any other untrusted input, so a hand-edited or stale entry produces a plain-looking Mio rather than a broken one, and a corrupt entry is ignored entirely rather than blocking the mount.
+
+**`setStyle` persists; `setConfig` does not.** That split is deliberate: `setConfig` is the programmatic surface, and a plugin nudging Mio for a moment shouldn't silently become the user's saved look.
+
+**Restore Mio** clears the saved style and repaints the panel from the restored config — every control's value is stale after a reset, so the panel is rebuilt rather than just the config being reset.
+
+---
+
 ## Environment awareness
 
 Every frame (throttled to 20 Hz) Mio asks the shell for the live collision set via `wp.desktop.getWallpaperSurfaces()` — the same surfaces the snow wallpaper piles on — and converts them into its own coordinate space. Window rects, widget cards, the dock edge, and the shell floor all become solid obstacles the rim collides with.
@@ -351,6 +405,23 @@ An odd stride has no halfway sample to curve through and falls back to flat quad
 
 Because the body fill masks the inner half of the glow anyway, the two glow bands are built almost entirely *outward* from the centreline — half the geometry, and no risk of their inner edges crossing where the outline is concave. A sliver of inward reach remains so the body fill overlaps them rather than meeting them exactly, which would leave a hairline of wallpaper along the seam.
 
+### A gradient that loops
+
+A hue ramp of `hueStart + hueSpan · t` does not meet itself. It ends a whole span from where it began, so the ring carries a hard colour seam at the wrap — magenta butted straight against blue.
+
+That was invisible for as long as the ramp rotated: `hueDrift` kept the seam moving, and a moving seam reads as shimmer. Stop the rotation and it just sits there, which is exactly what the official Mio needs to do.
+
+**`hueLoop` walks the span out and back** — a triangle wave, `0 → 1 → 0` — so both ends of the ring are the same colour by construction and there is nothing to hide:
+
+```
+ramp = hueLoop ? 1 − |1 − 2·t| : t
+hue  = hueStart + hueSpan · ramp
+```
+
+The cost is symmetry: the ring mirrors about the ramp's axis. For a two-colour sweep that reads as deliberate rather than as a fault, which is why the artwork can get away with being still.
+
+Mirroring pins the two extremes to the ends of the triangle, so **`hueAngle`** exists to aim them — without it they would always sit at 3 and 9 o'clock, and the official gradient runs on a shallow diagonal. `mio-config.test.ts` measures the worst hue step between neighbours all the way round the ring: over 60° with the loop off, under 6° with it on.
+
 ### The hologram
 
 A real holographic surface does not have a colour, it has a colour *per viewing angle*: tilt the sticker and the rainbow slides across it. Mio has no viewer to track, so a **rake direction** stands in for one. It drifts slowly while Mio is idle and swings toward the direction of travel as it moves, so the ring's colours run when you throw the blob across the desk and settle again when it stops. Deformation feeds it for free — squash the body and its normals turn, so the colours turn with them.
@@ -410,16 +481,19 @@ add_filter( 'desktop_mode_mio_config', function ( $config ) {
 | Key | Default | Range | Meaning |
 |---|---|---|---|
 | `radius` | `56` | 16–220 | Rest radius in CSS pixels. |
-| `bodyColor` | `#03030a` | colour | Body fill. |
+| `bodyColor` | `#000000` | colour | Body fill. |
 | `bodyAlpha` | `1` | 0–1 | Body fill opacity. |
-| `hueStart` | `235` | −720–720 | Hue in degrees at the ramp's start, the 3 o'clock point of the ring. |
-| `hueSpan` | `125` | −360–360 | Degrees of hue traversed clockwise around the ring. The shipped pair puts blue at the lower right and magenta at the upper left. |
-| `hueDrift` | `6` | −180–180 | Ring rotation, degrees per second. |
+| `hueStart` | `302` | −720–720 | Hue in degrees where the ramp starts. |
+| `hueSpan` | `-79` | −360–360 | Degrees of hue the ramp traverses. The shipped pair is the official artwork's magenta → violet → blue. |
+| `hueLoop` | `true` | bool | Walk the span out and back so the ring [meets itself](#a-gradient-that-loops). `false` is a straight ramp, which leaves a seam at the wrap unless `hueDrift` keeps it moving. |
+| `hueAngle` | `23` | −360–360 | Where the ramp starts around the ring, degrees clockwise from 3 o'clock. With `hueLoop` on this is the only way to aim the two extremes. |
+| `hueDrift` | `0` | −180–180 | Rewrites the hues, degrees per second — Mio cycles through colours that are not its own. `0`, and the official Mio should keep it there. |
+| `hueSpin` | `0` | −180–180 | Turns the gradient around the ring, degrees per second. Keeps the palette exactly; the most a default Mio should ever animate. |
 | `saturation` | `1` | 0–1 | Ring saturation. |
-| `lightness` | `0.75` | 0.15–1 | Ring lightness at its brightest point. |
-| `iridescence` | `0.7` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` is a flat chroma ramp over a flat black body; above `1` is deliberately over-driven. |
-| `outlineWidth` | `2` | 0.5–24 | Crisp core band width; the glow passes scale off it. A thin core inside a wide glow is the whole look. |
-| `glow` | `3` | 0–3 | Bloom spread multiplier. `0` disables the halo passes. |
+| `lightness` | `0.66` | 0.15–1 | Ring lightness at its brightest point. |
+| `iridescence` | `0` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` — the official Mio has neither. Above `1` is deliberately over-driven. |
+| `outlineWidth` | `3` | 0.5–24 | Crisp core band width; the glow passes scale off it. A thin core inside a wide glow is the whole look. |
+| `glow` | `1` | 0–3 | Bloom spread multiplier. `0` disables the halo passes. The artwork's own glow is a pair of soft radial washes, not a neon bloom — `1` is the width the passes were designed around. |
 | `glowBlur` | `true` | bool | Run a `BlurFilter` over the halo. Softer, one filter pass per frame. |
 | `eyeColor` | `#ffffff` | colour | Eye fill. |
 | `eyeScale` | `0.3` | 0.05–0.6 | Eye height as a fraction of `radius`. |
@@ -465,7 +539,7 @@ add_filter( 'desktop_mode_mio_config', function ( $config ) {
 
 ### User preference
 
-The on/off state is the per-user OS setting `mioEnabled` (default `false`), stored in the `desktop_mode_os_settings` user meta and sanitized by `desktop_mode_sanitize_os_settings()`. The resting position is browser-local (`localStorage`, key `desktop-mode-mio-position`).
+The on/off state is the per-user OS setting `mioEnabled` (default `false`), stored in the `desktop_mode_os_settings` user meta and sanitized by `desktop_mode_sanitize_os_settings()`. Two things are browser-local instead, both in `localStorage`: the resting position (`desktop-mode-mio-position`) and the user's own style (`desktop-mode-mio-style`, see [Make it yours](#make-it-yours)).
 
 ---
 
@@ -482,7 +556,9 @@ The on/off state is the per-user OS setting `mioEnabled` (default `false`), stor
 | `getPosition` | `() => { x, y } \| null` | Viewport coordinates; `null` when off. |
 | `setPosition` | `( x, y ) => void` | No-op when off. |
 | `getConfig` | `() => MioConfig` | The resolved config in force. |
-| `setConfig` | `( partial ) => void` | Merged and clamped over the current config, applied live. |
+| `setConfig` | `( partial ) => void` | Merged and clamped over the current config, applied live. Does **not** persist. |
+| `setStyle` | `( partial: Partial<MioAppearance> ) => void` | Applies an appearance change live **and remembers it for this browser**. What ["Make it yours"](#make-it-yours) writes. |
+| `resetStyle` | `() => void` | Forgets the saved style; back to the Mio this site ships. |
 
 ```js
 wp.desktop.ready( () => {

@@ -128,6 +128,103 @@ describe( 'MioController', () => {
 		expect( mount.calls ).toHaveLength( 1 );
 	} );
 
+	test( 'setStyle persists and survives a remount', async () => {
+		const { MioController } = await load();
+		const mount = stubMount();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: true,
+			persist: vi.fn(),
+		} );
+		controller.boot();
+		await vi.waitFor( () => expect( mount.handles ).toHaveLength( 1 ) );
+
+		controller.api().setStyle( { glow: 2.5 } );
+		expect( controller.api().getConfig().appearance.glow ).toBe( 2.5 );
+		expect( mount.handles[ 0 ].applyConfig ).toHaveBeenCalled();
+
+		// A fresh controller — i.e. the next page load — reads it back.
+		const next = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: false,
+			persist: vi.fn(),
+		} );
+		expect( next.api().getConfig().appearance.glow ).toBe( 2.5 );
+	} );
+
+	test( 'a saved style is clamped like any other untrusted input', async () => {
+		window.localStorage.setItem(
+			'desktop-mode-mio-style',
+			JSON.stringify( { glow: 999, saturation: -4 } ),
+		);
+		const { MioController } = await load();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: false,
+			persist: vi.fn(),
+		} );
+		const { appearance } = controller.api().getConfig();
+		expect( appearance.glow ).toBe( 3 );
+		expect( appearance.saturation ).toBe( 0 );
+	} );
+
+	test( 'a corrupt saved style is ignored, not fatal', async () => {
+		window.localStorage.setItem( 'desktop-mode-mio-style', '{{{not json' );
+		const { MioController } = await load();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: false,
+			persist: vi.fn(),
+		} );
+		expect( controller.api().getConfig().appearance.glow ).toBe(
+			MIO_DEFAULTS.appearance.glow,
+		);
+	} );
+
+	test( 'resetStyle forgets the saved look and restores the site default', async () => {
+		const { MioController } = await load();
+		const mount = stubMount();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: true,
+			persist: vi.fn(),
+		} );
+		controller.boot();
+		await vi.waitFor( () => expect( mount.handles ).toHaveLength( 1 ) );
+
+		controller.api().setStyle( { glow: 0 } );
+		controller.api().resetStyle();
+
+		expect( controller.api().getConfig().appearance.glow ).toBe(
+			MIO_DEFAULTS.appearance.glow,
+		);
+		expect(
+			window.localStorage.getItem( 'desktop-mode-mio-style' ),
+		).toBeNull();
+	} );
+
+	test( 'setConfig does NOT persist — only setStyle does', async () => {
+		// The programmatic surface must stay programmatic: a plugin
+		// nudging Mio for a moment shouldn't silently become the user's
+		// saved look.
+		const { MioController } = await load();
+		const controller = new MioController( {
+			shell: shell(),
+			bundleUrl: 'https://example.test/mio.js',
+			enabled: false,
+			persist: vi.fn(),
+		} );
+		controller.api().setConfig( { appearance: { glow: 0.25 } } );
+		expect(
+			window.localStorage.getItem( 'desktop-mode-mio-style' ),
+		).toBeNull();
+	} );
+
 	test( 'toggling off parks the instance rather than destroying it', async () => {
 		// Releasing a WebGL context makes the browser re-rasterise the
 		// whole shell, which is what surfaced as a white flash. No

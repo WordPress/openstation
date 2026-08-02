@@ -103,7 +103,100 @@ describe( 'chromaRing', () => {
 	} );
 } );
 
+describe( 'the looping gradient', () => {
+	/** Hue of each entry, in degrees. */
+	function hues( ring: number[] ): number[] {
+		return ring.map( ( rgb ) =>
+			hueOf( ( rgb >> 16 ) & 0xff, ( rgb >> 8 ) & 0xff, rgb & 0xff ),
+		);
+	}
+
+	/** Largest hue step between neighbours, walking the ring closed. */
+	function worstStep( ring: number[] ): number {
+		const h = hues( ring );
+		let worst = 0;
+		for ( let i = 0; i < h.length; i++ ) {
+			const a = h[ i ];
+			const b = h[ ( i + 1 ) % h.length ];
+			// Shortest way round the colour wheel.
+			const d = Math.abs( ( ( a - b + 540 ) % 360 ) - 180 );
+			worst = Math.max( worst, d );
+		}
+		return worst;
+	}
+
+	test( 'a straight ramp leaves a seam where the ring meets itself', () => {
+		// The bug the loop exists for. With no rotation to keep it
+		// moving, the wrap point is a hard jump of a whole span.
+		const straight = chromaRing( 64, 0, {
+			...MIO_DEFAULTS.appearance,
+			hueLoop: false,
+			hueSpan: -79,
+			iridescence: 0,
+		} );
+		expect( worstStep( straight ) ).toBeGreaterThan( 60 );
+	} );
+
+	test( 'looping removes it — every step is a small one', () => {
+		const looped = chromaRing( 64, 0, {
+			...MIO_DEFAULTS.appearance,
+			hueLoop: true,
+			hueSpan: -79,
+			iridescence: 0,
+		} );
+		// 79 degrees walked out and back over 64 samples: ~2.5 per step.
+		expect( worstStep( looped ) ).toBeLessThan( 6 );
+	} );
+
+	test( 'the shipped default is seamless', () => {
+		expect( worstStep( chromaRing( 64, 0, MIO_DEFAULTS.appearance ) ) )
+			.toBeLessThan( 6 );
+	} );
+
+	test( 'the loop is a mirror: both ends of the ring agree', () => {
+		const ring = chromaRing( 64, 0, {
+			...MIO_DEFAULTS.appearance,
+			hueAngle: 0,
+			iridescence: 0,
+		} );
+		// t = 0 and t = 1 are the same point, so the first entry and
+		// the one before the wrap must be within a step of each other.
+		const h = hues( ring );
+		expect( Math.abs( h[ 0 ] - h[ h.length - 1 ] ) ).toBeLessThan( 6 );
+		// And the extremes sit half a turn apart.
+		expect( Math.abs( h[ 0 ] - h[ 32 ] ) ).toBeGreaterThan( 70 );
+	} );
+
+	test( 'hueAngle rotates where the extremes land', () => {
+		const base = { ...MIO_DEFAULTS.appearance, iridescence: 0 };
+		const at0 = hues( chromaRing( 64, 0, { ...base, hueAngle: 0 } ) );
+		const at90 = hues( chromaRing( 64, 0, { ...base, hueAngle: 90 } ) );
+		// A quarter turn of 64 samples is 16. The ramp should have
+		// moved by exactly that — within 8-bit rounding, since the hue
+		// makes a round trip through packed RGB on the way out.
+		expect( Math.abs( at90[ 16 ] - at0[ 0 ] ) ).toBeLessThan( 0.5 );
+	} );
+
+	test( 'a still ring is genuinely still', () => {
+		// `hueDrift: 0` means elapsed time changes nothing.
+		const app = MIO_DEFAULTS.appearance;
+		expect( app.hueDrift ).toBe( 0 );
+		expect( chromaRing( 32, app.hueDrift * 12, app ) ).toEqual(
+			chromaRing( 32, app.hueDrift * 900, app ),
+		);
+	} );
+} );
+
 describe( 'the hologram', () => {
+	/**
+	 * An appearance with the hologram switched ON.
+	 *
+	 * The shipped default is `iridescence: 0` — the official Mio has no
+	 * hologram — so these tests, which are about the mechanism rather
+	 * than the default, have to ask for it explicitly.
+	 */
+	const HOLO = { ...MIO_DEFAULTS.appearance, iridescence: 0.85 };
+
 	/** Outward normals of `n` evenly spaced samples on a circle. */
 	function view( n: number, tilt: { x: number; y: number } ): HoloView {
 		const normals = [];
@@ -129,7 +222,7 @@ describe( 'the hologram', () => {
 	} );
 
 	test( 'turning the rake recolours the ring', () => {
-		const app = MIO_DEFAULTS.appearance;
+		const app = HOLO;
 		const east = chromaRing( 24, 0, app, view( 24, { x: 1, y: 0 } ) );
 		const north = chromaRing( 24, 0, app, view( 24, { x: 0, y: -1 } ) );
 		// Same frame, same phase, same geometry — only the viewing angle
@@ -138,7 +231,7 @@ describe( 'the hologram', () => {
 	} );
 
 	test( 'the glint tracks the rake and nothing else', () => {
-		const app = MIO_DEFAULTS.appearance;
+		const app = HOLO;
 		const spec = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
 		// Sample 0 faces due east, straight into the rake.
 		expect( spec[ 0 ] ).toBeGreaterThan( 0.5 );
@@ -151,7 +244,7 @@ describe( 'the hologram', () => {
 	} );
 
 	test( 'a weaker rake is a weaker effect everywhere', () => {
-		const app = MIO_DEFAULTS.appearance;
+		const app = HOLO;
 		const strong = holoSpecular( 24, app, view( 24, { x: 1, y: 0 } ) );
 		const weak = holoSpecular( 24, app, view( 24, { x: 0.3, y: 0 } ) );
 		expect( weak[ 0 ] ).toBeLessThan( strong[ 0 ] );
