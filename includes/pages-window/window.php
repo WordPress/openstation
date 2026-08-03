@@ -6,7 +6,7 @@
  * adapted for the `page` post type:
  *   - No taxonomy tabs (pages have no Categories/Tags surface in core).
  *   - Hierarchical: surfaces a Parent column and `orderby=menu_order` default.
- *   - Same lock badge via the `open_station_lock` REST field.
+ *   - Same lock badge via the `openstation_lock` REST field.
  *
  * @package OpenStation
  */
@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * are the contract the JS bundle relies on — keep them intact (or
  * rename via the filter) when customizing the layout.
  */
-function open_station_pages_window_render_template() {
+function openstation_pages_window_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-posts" data-os-posts-root>
@@ -106,10 +106,10 @@ function open_station_pages_window_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_pages_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_pages_window_template_html', $html );
 
-	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
-		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -118,15 +118,15 @@ function open_station_pages_window_render_template() {
 /**
  * Register the native Pages window on `init` (priority 20).
  */
-function open_station_pages_window_register_window() {
-	if ( ! open_station_pages_window_user_can_register() ) {
+function openstation_pages_window_register_window() {
+	if ( ! openstation_pages_window_user_can_register() ) {
 		return;
 	}
 
 	$window_args = array(
 		'title'      => __( 'Pages', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-page',
-		'template'   => 'open_station_pages_window_render_template',
+		'template'   => 'openstation_pages_window_render_template',
 		// Both Posts and Pages share a single bundle — `index.ts`
 		// registers `desktop-mode-posts` AND `desktop-mode-pages` from
 		// the same module. Loading `os-posts-window` for the
@@ -156,8 +156,8 @@ function open_station_pages_window_register_window() {
 			'usersUrl'        => esc_url_raw( rest_url( 'wp/v2/users' ) ),
 			'currentUserId'   => (int) get_current_user_id(),
 			'defaultPerPage'  => 20,
-			'queryArgs'       => open_station_pages_window_default_query_args(),
-			'introSeen'       => open_station_has_seen_intro( get_current_user_id(), 'pages' ),
+			'queryArgs'       => openstation_pages_window_default_query_args(),
+			'introSeen'       => openstation_has_seen_intro( get_current_user_id(), 'pages' ),
 			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 			// Reading-page assignments — surfaced so the title cell can
 			// paint "Front page" / "Posts page" badges on matching rows
@@ -170,42 +170,42 @@ function open_station_pages_window_register_window() {
 			// raw slug when a theme registers a template the table
 			// hasn't seen — better to show "page-fullwidth.php" than to
 			// hide which template is in use.
-			'pageTemplates'   => open_station_pages_window_template_labels(),
+			'pageTemplates'   => openstation_pages_window_template_labels(),
 		),
 	);
 
 	/**
 	 * Filter the args used to register the native Pages window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_pages_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_pages_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-pages', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-pages', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Native Pages window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'open_station_pages_window_register_window', 20 );
+add_action( 'init', 'openstation_pages_window_register_window', 20 );
 
 /**
  * Default REST query args for the Pages window.
  *
  * @return array
  */
-function open_station_pages_window_default_query_args() {
+function openstation_pages_window_default_query_args() {
 	$args = array(
 		// Pages are usually shallow + ordered by menu_order; embed the
 		// author + featured media for the table cells.
 		'_embed'  => 'author,wp:featuredmedia',
-		// `slug`, `template`, `link` and the custom `open_station_comment_count`
+		// `slug`, `template`, `link` and the custom `openstation_comment_count`
 		// field are pulled in for the new Slug / Template / Comments
 		// columns and the public-URL "View" quick-action. Missing them
 		// from the whitelist costs nothing on the wire (REST will skip
 		// them) but does silently break the column — keep them here.
 		'_fields' =>
-			'id,title,status,date,date_gmt,modified,modified_gmt,author,parent,menu_order,slug,link,template,comment_status,excerpt,open_station_lock,open_station_comment_count,_links,_embedded',
+			'id,title,status,date,date_gmt,modified,modified_gmt,author,parent,menu_order,slug,link,template,comment_status,excerpt,openstation_lock,openstation_comment_count,_links,_embedded',
 		'orderby' => 'menu_order',
 		'order'   => 'asc',
 	);
@@ -215,7 +215,7 @@ function open_station_pages_window_default_query_args() {
 	 *
 	 * @param array $args Default args.
 	 */
-	return (array) apply_filters( 'open_station_pages_window_query_args', $args );
+	return (array) apply_filters( 'openstation_pages_window_query_args', $args );
 }
 
 /**
@@ -229,7 +229,7 @@ function open_station_pages_window_default_query_args() {
  *
  * @return array<string,string>
  */
-function open_station_pages_window_template_labels() {
+function openstation_pages_window_template_labels() {
 	$labels = array(
 		'' => __( 'Default template', 'desktop-mode' ),
 	);
@@ -248,11 +248,11 @@ function open_station_pages_window_template_labels() {
 	 *
 	 * @param array<string,string> $labels Slug → human label.
 	 */
-	return (array) apply_filters( 'open_station_pages_window_template_labels', $labels );
+	return (array) apply_filters( 'openstation_pages_window_template_labels', $labels );
 }
 
 /**
- * Register the `open_station_comment_count` REST field on `page`.
+ * Register the `openstation_comment_count` REST field on `page`.
  *
  * The default `/wp/v2/pages` response doesn't include a comment
  * count — surfacing one alongside the row keeps parity with the
@@ -264,10 +264,10 @@ function open_station_pages_window_template_labels() {
  * comments via the classic admin and can be wired the same way
  * if/when the Posts window grows the column.
  */
-function open_station_pages_window_register_comment_count_field() {
+function openstation_pages_window_register_comment_count_field() {
 	register_rest_field(
 		'page',
-		'open_station_comment_count',
+		'openstation_comment_count',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -285,5 +285,5 @@ function open_station_pages_window_register_comment_count_field() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_pages_window_register_comment_count_field' );
+add_action( 'rest_api_init', 'openstation_pages_window_register_comment_count_field' );
 

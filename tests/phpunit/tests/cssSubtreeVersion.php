@@ -7,7 +7,7 @@
  * `windows.css` used to `@import` six sub-sheets and ship them under
  * a single `os-windows` handle. An `@import` URL carries no
  * `?ver=`, so when a sub-sheet changed there was no URL anywhere for
- * the browser to invalidate. `open_station_css_subtree_version()` was
+ * the browser to invalidate. `openstation_css_subtree_version()` was
  * the mitigation: stamp the PARENT with the max mtime of the whole
  * import subtree.
  *
@@ -61,7 +61,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		open_station_register_assets();
+		openstation_register_assets();
 	}
 
 	// ------------------------------------------------------------------
@@ -72,7 +72,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	 * No window stylesheet may go back to `@import`. An `@import`ed
 	 * sheet cannot be cache-busted — that is the entire bug.
 	 *
-	 * @covers ::open_station_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_window_sheets_do_not_use_import() {
 		$sheets = array_merge(
@@ -81,7 +81,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 			array_values( self::$deferred )
 		);
 		foreach ( $sheets as $relative ) {
-			$path = OPEN_STATION_DIR . $relative;
+			$path = OPENSTATION_DIR . $relative;
 			$this->assertFileExists( $path );
 			$css = (string) file_get_contents( $path );
 			// Strip comments first — these files discuss `@import` at
@@ -99,7 +99,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	 * Every window sheet is registered on its own handle, stamped
 	 * with its own `filemtime`, so each has a real cache key.
 	 *
-	 * @covers ::open_station_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_each_window_sheet_has_its_own_filemtime_stamp() {
 		$styles = wp_styles();
@@ -113,7 +113,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 				"{$handle} is not registered."
 			);
 			$this->assertSame(
-				(string) filemtime( OPEN_STATION_DIR . $relative ),
+				(string) filemtime( OPENSTATION_DIR . $relative ),
 				(string) $styles->registered[ $handle ]->ver,
 				"{$handle} is not stamped with its own filemtime."
 			);
@@ -125,7 +125,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	 * `os-windows` still sits at the end so its own rules
 	 * keep winning ties.
 	 *
-	 * @covers ::open_station_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_dependency_chain_preserves_cascade_order() {
 		$styles   = wp_styles();
@@ -169,7 +169,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	 * `@import`s, and `includes/render/assets.php` still enqueues
 	 * only `os-windows`.
 	 *
-	 * @covers ::open_station_register_assets
+	 * @covers ::openstation_register_assets
 	 */
 	public function test_entry_handle_pulls_in_the_whole_chain() {
 		$styles = wp_styles();
@@ -193,10 +193,10 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	 * no plugin stylesheet uses `@import` any more, and pinning this
 	 * to one that did would re-introduce the coupling we just removed.
 	 *
-	 * @covers ::open_station_css_subtree_version
+	 * @covers ::openstation_css_subtree_version
 	 */
 	public function test_version_covers_imported_sub_sheets() {
-		$dir    = OPEN_STATION_DIR . 'assets/css';
+		$dir    = OPENSTATION_DIR . 'assets/css';
 		$parent = $dir . '/__test-parent.css';
 		$child  = $dir . '/__test-child.css';
 
@@ -207,7 +207,7 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 		touch( $parent, time() - 500 );
 		touch( $child, time() );
 
-		$version = open_station_css_subtree_version( 'assets/css/__test-parent.css', '0' );
+		$version = openstation_css_subtree_version( 'assets/css/__test-parent.css', '0' );
 
 		$this->assertGreaterThanOrEqual(
 			(int) filemtime( $child ),
@@ -220,12 +220,12 @@ class Tests_OpenStation_CssSubtreeVersion extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_css_subtree_version
+	 * @covers ::openstation_css_subtree_version
 	 */
 	public function test_missing_file_falls_back() {
 		$this->assertSame(
 			'fallback',
-			open_station_css_subtree_version( 'assets/css/does-not-exist.css', 'fallback' )
+			openstation_css_subtree_version( 'assets/css/does-not-exist.css', 'fallback' )
 		);
 	}
 }

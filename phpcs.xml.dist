@@ -27,18 +27,19 @@
 		slug, which stays `desktop-mode` — that is the WordPress.org
 		directory and the plugin's update path, so it cannot change.
 		The code is prefixed for the brand instead, hence the explicit
-		list: `open_station_*` / `OPEN_STATION_*` for the plugin itself,
-		plus the short `osc` / `osm` namespaces the bundled phpMyAdmin
-		and cron-manager extensions use in their prebuilt bundles.
+		list: `openstation_*` / `OPENSTATION_*` for the plugin itself
+		(one word, like `wordpress_` rather than `word_press_`), plus
+		the `wpdc` / `wpdm` namespaces the bundled phpMyAdmin and
+		cron-manager extensions keep — their window ids are persisted
+		and their prebuilt bundles hardcode the selectors.
 	-->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="open_station"/>
-				<element value="OPEN_STATION"/>
 				<element value="openstation"/>
-				<element value="osc"/>
-				<element value="osm"/>
+				<element value="OPENSTATION"/>
+				<element value="wpdc"/>
+				<element value="wpdm"/>
 			</property>
 		</properties>
 	</rule>

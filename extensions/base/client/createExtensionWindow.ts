@@ -1,7 +1,7 @@
 /**
  * OpenStation — Extension client-side window helper.
  *
- * Companion JS-side helper to the PHP `Open_Station_Extension_Window`
+ * Companion JS-side helper to the PHP `OpenStation_Extension_Window`
  * base. Removes the per-extension boilerplate that fetches the
  * config blob from the bundle's global, registers the render
  * callback against `window.openStationNativeWindows[ id ]`, and

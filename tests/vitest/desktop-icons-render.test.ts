@@ -5,7 +5,7 @@
  * http(s) URLs and Dashicons class strings — anything else fell
  * through to a `dashicons + sanitizeClassName(entry.icon)` glue
  * path. A `data:image/svg+xml;base64,…` icon (the shape produced
- * by `open_station_register_icon( … 'icon_svg' => '<svg…/>' … )`
+ * by `openstation_register_icon( … 'icon_svg' => '<svg…/>' … )`
  * and by any plugin assigning a sanitized data URI) wound up as a
  * malformed Dashicons class name → empty square.
  *

@@ -20,7 +20,7 @@
  * or shadowed by our root-scope `register()`. We detect any foreign
  * registration before registering and bail with a console warning
  * unless the operator explicitly opts in via the
- * `open_station_pwa_force_replace_sw` PHP filter (returning `true`
+ * `openstation_pwa_force_replace_sw` PHP filter (returning `true`
  * surfaces as `forceReplace` on the JS-side config object).
  */
 
@@ -34,7 +34,7 @@ import type { PwaConfig } from '../types';
  *   - `'registered'` — our SW is the controller (or activating).
  *   - `'foreign-sw'` — another SW (at any scope) is already registered
  *     on this origin and we bailed rather than usurp it. Operators can
- *     opt in via the `open_station_pwa_force_replace_sw` PHP filter.
+ *     opt in via the `openstation_pwa_force_replace_sw` PHP filter.
  *   - `'unsupported'` — `navigator.serviceWorker` not available, or the
  *     origin isn't secure.
  *   - `'failed'` — `register()` threw.
@@ -191,7 +191,7 @@ export async function registerServiceWorker(
 				console.warn(
 					'[openstation] another service worker is already registered (' +
 						foreign.scope +
-						'); skipping openstation SW. Set open_station_pwa_force_replace_sw=true to override.',
+						'); skipping openstation SW. Set openstation_pwa_force_replace_sw=true to override.',
 				);
 			}
 			return null;

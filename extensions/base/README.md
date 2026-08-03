@@ -6,8 +6,8 @@ Removes ~250 LOC of boilerplate per extension — script registration, AJAX bund
 
 ## PHP base classes
 
-- **`Open_Station_Extension_Window`** — extend, declare `window_id()` / `asset_handle()` / `plugin_url()` / `plugin_dir()` / `version()` / `bundle_action()` / `config_global()` / `window_args()` / `config_payload()`, then call `boot()` from the entry plugin file. The base wires `init`, `plugins_loaded`, and `wp_ajax_<bundle_action>`.
-- **`Open_Station_Extension_Rest`** — extend, declare `namespace()` and `routes()`, call `boot()`. The base wires `rest_api_init` and provides a default permission callback that gates on `is_user_logged_in()` + your `required_caps()`.
+- **`OpenStation_Extension_Window`** — extend, declare `window_id()` / `asset_handle()` / `plugin_url()` / `plugin_dir()` / `version()` / `bundle_action()` / `config_global()` / `window_args()` / `config_payload()`, then call `boot()` from the entry plugin file. The base wires `init`, `plugins_loaded`, and `wp_ajax_<bundle_action>`.
+- **`OpenStation_Extension_Rest`** — extend, declare `namespace()` and `routes()`, call `boot()`. The base wires `rest_api_init` and provides a default permission callback that gates on `is_user_logged_in()` + your `required_caps()`.
 
 ## Client helper
 

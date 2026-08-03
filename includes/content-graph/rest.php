@@ -27,21 +27,21 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return bool
  */
-function open_station_content_graph_rest_permission() {
-	return open_station_content_graph_user_can_use();
+function openstation_content_graph_rest_permission() {
+	return openstation_content_graph_user_can_use();
 }
 
 /**
  * Register the routes.
  */
-function open_station_content_graph_register_routes() {
+function openstation_content_graph_register_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/content-graph/post-types',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_content_graph_rest_post_types',
-			'permission_callback' => 'open_station_content_graph_rest_permission',
+			'callback'            => 'openstation_content_graph_rest_post_types',
+			'permission_callback' => 'openstation_content_graph_rest_permission',
 		)
 	);
 	register_rest_route(
@@ -49,8 +49,8 @@ function open_station_content_graph_register_routes() {
 		'/content-graph/nodes',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_content_graph_rest_nodes',
-			'permission_callback' => 'open_station_content_graph_rest_permission',
+			'callback'            => 'openstation_content_graph_rest_nodes',
+			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
 				'types' => array(
 					'description' => 'Comma-separated list of post type slugs to include.',
@@ -65,8 +65,8 @@ function open_station_content_graph_register_routes() {
 		'/content-graph/post/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_content_graph_rest_post_detail',
-			'permission_callback' => 'open_station_content_graph_rest_permission',
+			'callback'            => 'openstation_content_graph_rest_post_detail',
+			'permission_callback' => 'openstation_content_graph_rest_permission',
 			'args'                => array(
 				'id' => array(
 					'type'     => 'integer',
@@ -76,15 +76,15 @@ function open_station_content_graph_register_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_content_graph_register_routes' );
+add_action( 'rest_api_init', 'openstation_content_graph_register_routes' );
 
 /**
  * GET /post-types
  *
  * @return WP_REST_Response
  */
-function open_station_content_graph_rest_post_types() {
-	$types = open_station_content_graph_post_types();
+function openstation_content_graph_rest_post_types() {
+	$types = openstation_content_graph_post_types();
 	$out   = array();
 	foreach ( $types as $entry ) {
 		$slug = isset( $entry['slug'] ) ? (string) $entry['slug'] : '';
@@ -117,13 +117,13 @@ function open_station_content_graph_rest_post_types() {
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
-function open_station_content_graph_rest_nodes( WP_REST_Request $request ) {
+function openstation_content_graph_rest_nodes( WP_REST_Request $request ) {
 	$raw   = (string) $request->get_param( 'types' );
 	$types = '' === $raw
-		? wp_list_pluck( open_station_content_graph_post_types(), 'slug' )
+		? wp_list_pluck( openstation_content_graph_post_types(), 'slug' )
 		: array_map( 'trim', explode( ',', $raw ) );
-	$payload = open_station_content_graph_build( (array) $types );
-	return rest_ensure_response( open_station_content_graph_filter_payload_for_user( $payload ) );
+	$payload = openstation_content_graph_build( (array) $types );
+	return rest_ensure_response( openstation_content_graph_filter_payload_for_user( $payload ) );
 }
 
 /**
@@ -138,10 +138,10 @@ function open_station_content_graph_rest_nodes( WP_REST_Request $request ) {
  * This runs at response time, not build time, because the cached
  * payload is shared across users of the same privilege tier.
  *
- * @param array $payload Payload from `open_station_content_graph_build()`.
+ * @param array $payload Payload from `openstation_content_graph_build()`.
  * @return array
  */
-function open_station_content_graph_filter_payload_for_user( array $payload ) {
+function openstation_content_graph_filter_payload_for_user( array $payload ) {
 	if ( empty( $payload['nodes'] ) || ! is_array( $payload['nodes'] ) ) {
 		return $payload;
 	}
@@ -192,19 +192,19 @@ function open_station_content_graph_filter_payload_for_user( array $payload ) {
  * @param WP_REST_Request $request
  * @return WP_REST_Response|WP_Error
  */
-function open_station_content_graph_rest_post_detail( WP_REST_Request $request ) {
+function openstation_content_graph_rest_post_detail( WP_REST_Request $request ) {
 	$id   = (int) $request['id'];
 	$post = $id > 0 ? get_post( $id ) : null;
 	if ( ! $post ) {
 		return new WP_Error(
-			'open_station_content_graph_post_not_found',
+			'openstation_content_graph_post_not_found',
 			__( 'Post not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( ! current_user_can( 'read_post', $id ) ) {
 		return new WP_Error(
-			'open_station_content_graph_forbidden',
+			'openstation_content_graph_forbidden',
 			__( 'Insufficient permissions.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -215,12 +215,12 @@ function open_station_content_graph_rest_post_detail( WP_REST_Request $request )
 	// edit_post. Mirror that: readers get comment-author contributors
 	// only, no revision list.
 	$can_edit     = current_user_can( 'edit_post', $post->ID );
-	$author       = open_station_content_graph_format_user( (int) $post->post_author );
-	$contributors = open_station_content_graph_collect_contributors( $post, $can_edit );
-	$comments     = open_station_content_graph_collect_comments( $post );
-	$categories   = open_station_content_graph_collect_terms( $post );
-	$attached     = open_station_content_graph_collect_attached_media( $post );
-	$revisions    = $can_edit ? open_station_content_graph_collect_revisions( $post ) : array();
+	$author       = openstation_content_graph_format_user( (int) $post->post_author );
+	$contributors = openstation_content_graph_collect_contributors( $post, $can_edit );
+	$comments     = openstation_content_graph_collect_comments( $post );
+	$categories   = openstation_content_graph_collect_terms( $post );
+	$attached     = openstation_content_graph_collect_attached_media( $post );
+	$revisions    = $can_edit ? openstation_content_graph_collect_revisions( $post ) : array();
 
 	return rest_ensure_response(
 		array(
@@ -251,7 +251,7 @@ function open_station_content_graph_rest_post_detail( WP_REST_Request $request )
  * @param int $user_id
  * @return array|null
  */
-function open_station_content_graph_format_user( $user_id ) {
+function openstation_content_graph_format_user( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return null;
@@ -281,7 +281,7 @@ function open_station_content_graph_format_user( $user_id ) {
  *                approved comment authors are public either way.
  * @return array[]
  */
-function open_station_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true ) {
+function openstation_content_graph_collect_contributors( WP_Post $post, $include_revision_authors = true ) {
 	$author_id = (int) $post->post_author;
 	$ids       = array();
 	if ( $include_revision_authors ) {
@@ -314,7 +314,7 @@ function open_station_content_graph_collect_contributors( WP_Post $post, $includ
 	}
 	$out = array();
 	foreach ( array_keys( $ids ) as $uid ) {
-		$entry = open_station_content_graph_format_user( $uid );
+		$entry = openstation_content_graph_format_user( $uid );
 		if ( $entry ) {
 			$out[] = $entry;
 		}
@@ -328,7 +328,7 @@ function open_station_content_graph_collect_contributors( WP_Post $post, $includ
  * @param WP_Post $post
  * @return array[]
  */
-function open_station_content_graph_collect_comments( WP_Post $post ) {
+function openstation_content_graph_collect_comments( WP_Post $post ) {
 	$comments = get_comments(
 		array(
 			'post_id' => $post->ID,
@@ -359,7 +359,7 @@ function open_station_content_graph_collect_comments( WP_Post $post ) {
  * @param WP_Post $post
  * @return array[]
  */
-function open_station_content_graph_collect_terms( WP_Post $post ) {
+function openstation_content_graph_collect_terms( WP_Post $post ) {
 	$taxes = get_object_taxonomies( $post->post_type, 'objects' );
 	$out   = array();
 	foreach ( $taxes as $tax ) {
@@ -392,7 +392,7 @@ function open_station_content_graph_collect_terms( WP_Post $post ) {
  * @param WP_Post $post
  * @return array[]
  */
-function open_station_content_graph_collect_attached_media( WP_Post $post ) {
+function openstation_content_graph_collect_attached_media( WP_Post $post ) {
 	$attachments = get_attached_media( '', $post );
 	$out         = array();
 	foreach ( $attachments as $att ) {
@@ -416,7 +416,7 @@ function open_station_content_graph_collect_attached_media( WP_Post $post ) {
  * @param WP_Post $post
  * @return array[]
  */
-function open_station_content_graph_collect_revisions( WP_Post $post ) {
+function openstation_content_graph_collect_revisions( WP_Post $post ) {
 	$revs = wp_get_post_revisions(
 		$post->ID,
 		array(
@@ -428,7 +428,7 @@ function open_station_content_graph_collect_revisions( WP_Post $post ) {
 		$out[] = array(
 			'id'       => (int) $rev->ID,
 			'date'     => mysql2date( 'c', $rev->post_date_gmt, false ),
-			'author'   => open_station_content_graph_format_user( (int) $rev->post_author ),
+			'author'   => openstation_content_graph_format_user( (int) $rev->post_author ),
 			'edit_url' => (string) admin_url( 'revision.php?revision=' . (int) $rev->ID ),
 		);
 	}

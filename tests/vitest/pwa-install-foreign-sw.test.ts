@@ -9,7 +9,7 @@
  *   - `getInstallTileDef(...).onOpen` surfaces the foreign-SW-specific
  *     toast (rather than the generic "not available" fallback) once the
  *     status flips, so users see the actionable message naming the
- *     `open_station_pwa_force_replace_sw` filter.
+ *     `openstation_pwa_force_replace_sw` filter.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
@@ -184,7 +184,7 @@ describe( 'install tile — foreign-SW toast surfacing', () => {
 		const msg = ( showToast.mock.calls[ 0 ][ 0 ] as { message: string } )
 			.message;
 		expect( msg ).toMatch(
-			/another plugin's service worker|open_station_pwa_force_replace_sw/,
+			/another plugin's service worker|openstation_pwa_force_replace_sw/,
 		);
 	} );
 
@@ -204,7 +204,7 @@ describe( 'install tile — foreign-SW toast surfacing', () => {
 		expect( showToast ).toHaveBeenCalledTimes( 1 );
 		const msg = ( showToast.mock.calls[ 0 ][ 0 ] as { message: string } )
 			.message;
-		expect( msg ).not.toMatch( /open_station_pwa_force_replace_sw/ );
+		expect( msg ).not.toMatch( /openstation_pwa_force_replace_sw/ );
 		expect( msg ).toMatch( /isn't available right now/ );
 	} );
 } );

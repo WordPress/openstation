@@ -23,13 +23,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function open_station_my_wordpress_register_comment_stats_route() {
+function openstation_my_wordpress_register_comment_stats_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/comment-stats/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_my_wordpress_comment_stats_callback',
+			'callback'            => 'openstation_my_wordpress_comment_stats_callback',
 			'permission_callback' => static function () {
 				return is_user_logged_in();
 			},
@@ -43,7 +43,7 @@ function open_station_my_wordpress_register_comment_stats_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_my_wordpress_register_comment_stats_route' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_comment_stats_route' );
 
 /**
  * Aggregator callback.
@@ -51,13 +51,13 @@ add_action( 'rest_api_init', 'open_station_my_wordpress_register_comment_stats_r
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
  */
-function open_station_my_wordpress_comment_stats_callback( $request ) {
+function openstation_my_wordpress_comment_stats_callback( $request ) {
 	global $wpdb;
 	$comment_id = (int) $request->get_param( 'id' );
 	$comment    = get_comment( $comment_id );
 	if ( ! $comment ) {
 		return new WP_Error(
-			'open_station_comment_not_found',
+			'openstation_comment_not_found',
 			__( 'Comment not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -71,7 +71,7 @@ function open_station_my_wordpress_comment_stats_callback( $request ) {
 
 	if ( ! $is_approved && ! $can_moderate && ! $is_self ) {
 		return new WP_Error(
-			'open_station_comment_forbidden',
+			'openstation_comment_forbidden',
 			__( 'You do not have permission to view this comment.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -251,7 +251,7 @@ function open_station_my_wordpress_comment_stats_callback( $request ) {
 	 * @param int   $comment_id Comment id.
 	 */
 	return apply_filters(
-		'open_station_my_wordpress_comment_stats',
+		'openstation_my_wordpress_comment_stats',
 		$payload,
 		$comment_id
 	);

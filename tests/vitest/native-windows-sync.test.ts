@@ -4,7 +4,7 @@
  * server's `nativeWindows` payload.
  *
  * The bug class this file guards against: a plugin that registers a
- * `open_station_register_window( … )` should appear on the dock the
+ * `openstation_register_window( … )` should appear on the dock the
  * moment it's activated from the chromeless plugins.php iframe, and
  * disappear the moment it's deactivated — both without a page reload.
  * The `applyPayload` path forwards `nativeWindows` to this sync; if

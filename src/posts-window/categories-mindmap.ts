@@ -513,7 +513,7 @@ export async function mountCategoriesMindmap(
 		showToast( title, err );
 
 	function isUncategorized( term: TermRow ): boolean {
-		// Server-side `open_station_is_default` is the canonical
+		// Server-side `openstation_is_default` is the canonical
 		// signal — it reads `get_option('default_category')`, which
 		// works on any locale (Spanish "Sin categoría", German
 		// "Allgemein", etc) regardless of slug or id. Fall back to
@@ -2840,7 +2840,7 @@ export async function mountCategoriesMindmap(
 	async function refreshCountsViaBulk(): Promise< void > {
 		// Defensive fallback — hit the plugin's bulk-count endpoint
 		// to get an authoritative count per term. The
-		// `open_station_count` REST field is the primary source but
+		// `openstation_count` REST field is the primary source but
 		// some hosts strip it (caching, custom REST handlers); the
 		// bulk endpoint runs a single GROUP BY query and never
 		// returns stale data.

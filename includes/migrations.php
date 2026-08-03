@@ -5,7 +5,7 @@
  * A tiny, option-versioned migration runner modeled on the lazy schema
  * installer in `includes/desktop-files/schema.php`: a stored option holds
  * the highest migration version that has run; on every admin load we
- * compare it against {@see OPEN_STATION_MIGRATION_VERSION} and run any
+ * compare it against {@see OPENSTATION_MIGRATION_VERSION} and run any
  * pending migrations exactly once. Guarded so it is a cheap no-op after
  * the first successful pass.
  *
@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  * Highest migration version shipped by the plugin.
  *
  * Bump this (and add a matching branch in
- * {@see open_station_run_pending_migrations}) whenever a new one-time
+ * {@see openstation_run_pending_migrations}) whenever a new one-time
  * migration is needed.
  *
  * - 1: native list windows flipped from opt-out (default ON) to opt-in
@@ -39,10 +39,10 @@ defined( 'ABSPATH' ) || exit;
  *   existing desk keeps a blue accent on every focus ring, tab underline
  *   and sort arrow.
  */
-const OPEN_STATION_MIGRATION_VERSION = 4;
+const OPENSTATION_MIGRATION_VERSION = 4;
 
 /** Option storing the highest migration version that has run. autoload=no. */
-const OPEN_STATION_MIGRATION_OPTION = 'desktop_mode_migration_version';
+const OPENSTATION_MIGRATION_OPTION = 'desktop_mode_migration_version';
 
 /**
  * Runs any pending migrations, then records the new high-water mark.
@@ -52,17 +52,17 @@ const OPEN_STATION_MIGRATION_OPTION = 'desktop_mode_migration_version';
  *
  * @return void
  */
-function open_station_maybe_run_migrations() {
-	$installed = (int) get_option( OPEN_STATION_MIGRATION_OPTION, 0 );
-	if ( $installed >= OPEN_STATION_MIGRATION_VERSION ) {
+function openstation_maybe_run_migrations() {
+	$installed = (int) get_option( OPENSTATION_MIGRATION_OPTION, 0 );
+	if ( $installed >= OPENSTATION_MIGRATION_VERSION ) {
 		return;
 	}
 
-	open_station_run_pending_migrations( $installed );
+	openstation_run_pending_migrations( $installed );
 
-	update_option( OPEN_STATION_MIGRATION_OPTION, OPEN_STATION_MIGRATION_VERSION, false );
+	update_option( OPENSTATION_MIGRATION_OPTION, OPENSTATION_MIGRATION_VERSION, false );
 }
-add_action( 'admin_init', 'open_station_maybe_run_migrations' );
+add_action( 'admin_init', 'openstation_maybe_run_migrations' );
 
 /**
  * Dispatches each migration whose version is newer than what has run.
@@ -70,23 +70,23 @@ add_action( 'admin_init', 'open_station_maybe_run_migrations' );
  * @param int $from The highest migration version already applied.
  * @return void
  */
-function open_station_run_pending_migrations( $from ) {
+function openstation_run_pending_migrations( $from ) {
 	$from = (int) $from;
 
 	if ( $from < 1 ) {
-		open_station_migrate_os_settings_optin();
+		openstation_migrate_os_settings_optin();
 	}
 
 	if ( $from < 2 ) {
-		open_station_migrate_unschedule_post_term_ai();
+		openstation_migrate_unschedule_post_term_ai();
 	}
 
 	if ( $from < 3 ) {
-		open_station_migrate_delete_ai_keys();
+		openstation_migrate_delete_ai_keys();
 	}
 
 	if ( $from < 4 ) {
-		open_station_migrate_brand_defaults();
+		openstation_migrate_brand_defaults();
 	}
 }
 
@@ -94,7 +94,7 @@ function open_station_run_pending_migrations( $from ) {
  * Migration 4 — move the pre-brand defaults onto the OpenStation ones.
  *
  * The stored OS-settings snapshot outranks the shipped default, so
- * changing `open_station_default_os_settings()` reaches new accounts and
+ * changing `openstation_default_os_settings()` reaches new accounts and
  * nobody else. Every existing desk would keep `wp-blue` on its focus
  * rings, tab underlines, sort arrows and selection washes, and keep the
  * graphite `dark` desk under the station's chrome — a half-applied
@@ -112,7 +112,7 @@ function open_station_run_pending_migrations( $from ) {
  *
  * @return void
  */
-function open_station_migrate_brand_defaults() {
+function openstation_migrate_brand_defaults() {
 	/**
 	 * Filters the pre-brand => brand value map the rebrand migration
 	 * applies, keyed by OS-settings field. Return an empty array to skip
@@ -121,7 +121,7 @@ function open_station_migrate_brand_defaults() {
 	 * @param array $map Map of setting key => array( 'from' => old, 'to' => new ).
 	 */
 	$map = (array) apply_filters(
-		'open_station_brand_migration_map',
+		'openstation_brand_migration_map',
 		array(
 			'accent'    => array( 'from' => 'wp-blue', 'to' => 'pulse' ),
 			'wallpaper' => array( 'from' => 'dark', 'to' => 'galaxy' ),
@@ -134,13 +134,13 @@ function open_station_migrate_brand_defaults() {
 	$user_ids = get_users(
 		array(
 			'fields'       => 'ID',
-			'meta_key'     => OPEN_STATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
+			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);
 
 	foreach ( $user_ids as $user_id ) {
-		$raw = get_user_meta( (int) $user_id, OPEN_STATION_OS_SETTINGS_META_KEY, true );
+		$raw = get_user_meta( (int) $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
 		if ( ! is_array( $raw ) ) {
 			continue;
 		}
@@ -158,7 +158,7 @@ function open_station_migrate_brand_defaults() {
 		}
 
 		if ( $changed ) {
-			open_station_save_os_settings( (int) $user_id, $raw );
+			openstation_save_os_settings( (int) $user_id, $raw );
 		}
 	}
 }
@@ -181,7 +181,7 @@ function open_station_migrate_brand_defaults() {
  *
  * @return void
  */
-function open_station_migrate_os_settings_optin() {
+function openstation_migrate_os_settings_optin() {
 	$flags = array(
 		'nativePostsEnabled',
 		'nativePagesEnabled',
@@ -193,13 +193,13 @@ function open_station_migrate_os_settings_optin() {
 	$user_ids = get_users(
 		array(
 			'fields'     => 'ID',
-			'meta_key'   => OPEN_STATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
+			'meta_key'   => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);
 
 	foreach ( $user_ids as $user_id ) {
-		$raw = get_user_meta( (int) $user_id, OPEN_STATION_OS_SETTINGS_META_KEY, true );
+		$raw = get_user_meta( (int) $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
 		if ( ! is_array( $raw ) ) {
 			continue;
 		}
@@ -219,7 +219,7 @@ function open_station_migrate_os_settings_optin() {
 		// Re-save through the canonical sanitizer so the cleared flags are
 		// backfilled with the new `false` default and the rest of the
 		// settings array is normalized exactly as a client write would be.
-		open_station_save_os_settings( (int) $user_id, $raw );
+		openstation_save_os_settings( (int) $user_id, $raw );
 	}
 }
 
@@ -238,7 +238,7 @@ function open_station_migrate_os_settings_optin() {
  *
  * @return void
  */
-function open_station_migrate_unschedule_post_term_ai() {
+function openstation_migrate_unschedule_post_term_ai() {
 	wp_unschedule_hook( 'desktop_mode_ai_analyze_post' );
 	wp_unschedule_hook( 'desktop_mode_ai_analyze_term' );
 }
@@ -255,20 +255,20 @@ function open_station_migrate_unschedule_post_term_ai() {
  *
  * @return void
  */
-function open_station_migrate_delete_ai_keys() {
+function openstation_migrate_delete_ai_keys() {
 	// Platform-wide key option (formerly `desktop_mode_ai_platform`).
 	delete_option( 'desktop_mode_ai_platform' );
 
 	$user_ids = get_users(
 		array(
 			'fields'       => 'ID',
-			'meta_key'     => OPEN_STATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; guarded to run once.
+			'meta_key'     => OPENSTATION_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; guarded to run once.
 			'meta_compare' => 'EXISTS',
 		)
 	);
 
 	foreach ( $user_ids as $user_id ) {
-		$raw = get_user_meta( (int) $user_id, OPEN_STATION_OS_SETTINGS_META_KEY, true );
+		$raw = get_user_meta( (int) $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
 		if ( ! is_array( $raw ) || ! isset( $raw['ai'] ) || ! is_array( $raw['ai'] ) ) {
 			continue;
 		}
@@ -288,6 +288,6 @@ function open_station_migrate_delete_ai_keys() {
 			continue;
 		}
 
-		open_station_save_os_settings( (int) $user_id, $raw );
+		openstation_save_os_settings( (int) $user_id, $raw );
 	}
 }

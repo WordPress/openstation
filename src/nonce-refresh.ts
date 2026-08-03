@@ -28,7 +28,7 @@
  *     } );
  *
  * The matching action must be published from PHP via the
- * `open_station_nonce_refresh_actions` filter so the server
+ * `openstation_nonce_refresh_actions` filter so the server
  * actually ships it.
  *
  * `registerNonceTarget()` below is an internal helper the

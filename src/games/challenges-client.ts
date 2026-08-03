@@ -4,7 +4,7 @@
  * Lives in the always-on shell bundle — like the recycle-bin badge —
  * because challenge delivery must work even when the Games window
  * has never been opened this session. Wires the Heartbeat bus
- * (`open_station_games_subscribe` out, `open_station_games` in),
+ * (`openstation_games_subscribe` out, `openstation_games` in),
  * feeds the shared challenges store, and owns the notification
  * policy:
  *
@@ -130,13 +130,13 @@ export function bootGamesChallenges( deps: GamesChallengesClientDeps ): void {
 		return;
 	}
 
-	heartbeat.contribute( 'open_station_games_subscribe', () => ( {
+	heartbeat.contribute( 'openstation_games_subscribe', () => ( {
 		challengesVersion: challengesState().version,
 	} ) );
 
 	heartbeat.subscribe< {
 		challenges?: GameChallengeRow[];
-	} >( 'open_station_games', ( payload ) => {
+	} >( 'openstation_games', ( payload ) => {
 		if ( Array.isArray( payload?.challenges ) ) {
 			ingestChallenges( payload.challenges );
 		}

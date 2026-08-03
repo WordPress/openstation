@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function open_station_plugins_window_user_can_register( $user_id = null ) {
+function openstation_plugins_window_user_can_register( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 	$can     = $user_id > 0 && user_can( $user_id, 'activate_plugins' );
 
@@ -43,7 +43,7 @@ function open_station_plugins_window_user_can_register( $user_id = null ) {
 	 * @param int  $user_id User being checked.
 	 */
 	return (bool) apply_filters(
-		'open_station_plugins_window_user_can_register',
+		'openstation_plugins_window_user_can_register',
 		$can,
 		$user_id
 	);
@@ -56,14 +56,14 @@ function open_station_plugins_window_user_can_register( $user_id = null ) {
  * @param int|null $user_id Optional.
  * @return bool
  */
-function open_station_plugins_window_user_can_use( $user_id = null ) {
+function openstation_plugins_window_user_can_use( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
-	$cap_ok = open_station_plugins_window_user_can_register( $user_id );
+	$cap_ok = openstation_plugins_window_user_can_register( $user_id );
 
 	$opt_in = false;
-	if ( $cap_ok && function_exists( 'open_station_get_os_settings' ) ) {
-		$settings = open_station_get_os_settings( $user_id );
+	if ( $cap_ok && function_exists( 'openstation_get_os_settings' ) ) {
+		$settings = openstation_get_os_settings( $user_id );
 		$opt_in   = ! empty( $settings['nativePluginsEnabled'] );
 	}
 
@@ -76,7 +76,7 @@ function open_station_plugins_window_user_can_use( $user_id = null ) {
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
-	return (bool) apply_filters( 'open_station_plugins_window_user_can_use', $can, $user_id );
+	return (bool) apply_filters( 'openstation_plugins_window_user_can_use', $can, $user_id );
 }
 
 /**
@@ -87,7 +87,7 @@ function open_station_plugins_window_user_can_use( $user_id = null ) {
  * @param int|null $user_id Optional.
  * @return array{install:bool,delete:bool,upload:bool,activate:bool,update:bool}
  */
-function open_station_plugins_window_caps( $user_id = null ) {
+function openstation_plugins_window_caps( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
 	return array(
@@ -98,7 +98,7 @@ function open_station_plugins_window_caps( $user_id = null ) {
 		// Mirrors Core's `current_user_can( 'update_plugins' )` gate on
 		// the inline "Update now" link in `wp_plugin_update_row()` — the
 		// JS uses it to hide the Update action for editors / non-admin
-		// roles even when `open_station_update_available.available` is
+		// roles even when `openstation_update_available.available` is
 		// true. Server-side, `wp_ajax_update_plugin` re-checks the cap.
 		'update'   => $user_id > 0 && user_can( $user_id, 'update_plugins' ),
 	);
@@ -131,7 +131,7 @@ function open_station_plugins_window_caps( $user_id = null ) {
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function open_station_plugins_window_auto_updates_enabled( $user_id = null ) {
+function openstation_plugins_window_auto_updates_enabled( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
 	$enabled = false;
@@ -168,5 +168,5 @@ function open_station_plugins_window_auto_updates_enabled( $user_id = null ) {
 	 * @param bool $enabled Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
-	return (bool) apply_filters( 'open_station_plugins_window_auto_updates_enabled', $enabled, $user_id );
+	return (bool) apply_filters( 'openstation_plugins_window_auto_updates_enabled', $enabled, $user_id );
 }

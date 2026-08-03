@@ -11,7 +11,7 @@ Add a feature flag + REST endpoint to the shell config so your TypeScript can re
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'open_station_shell_config', function ( $config ) {
+add_filter( 'openstation_shell_config', function ( $config ) {
     $config['myFeature'] = array(
         'enabled'  => (bool) get_option( 'my_ext_feature_enabled' ),
         'endpoint' => esc_url_raw( rest_url( 'my-ext/v1/stats' ) ),
@@ -46,5 +46,5 @@ document.addEventListener( 'os-init', () => {
 
 ## Related
 
-- [Hooks Reference — `open_station_shell_config`](../hooks-reference.md#open_station_shell_config--stable)
+- [Hooks Reference — `openstation_shell_config`](../hooks-reference.md#openstation_shell_config--stable)
 - [JavaScript Reference — `os-init`](../javascript-reference.md#os-init--stable)

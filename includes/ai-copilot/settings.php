@@ -25,8 +25,8 @@ defined( 'ABSPATH' ) || exit;
  * @param int $user_id
  * @return array{ enabled: bool }
  */
-function open_station_ai_get_settings( $user_id ) {
-	$os = open_station_get_os_settings( (int) $user_id );
+function openstation_ai_get_settings( $user_id ) {
+	$os = openstation_get_os_settings( (int) $user_id );
 	$ai = isset( $os['ai'] ) && is_array( $os['ai'] ) ? $os['ai'] : array();
 	return array(
 		'enabled' => isset( $ai['enabled'] ) ? (bool) $ai['enabled'] : false,
@@ -43,7 +43,7 @@ function open_station_ai_get_settings( $user_id ) {
  *
  * @return bool
  */
-function open_station_ai_is_available() {
+function openstation_ai_is_available() {
 	return function_exists( 'wp_ai_client_prompt' )
 		&& function_exists( 'wp_get_connectors' )
 		&& function_exists( 'wp_register_ability' )
@@ -59,15 +59,15 @@ function open_station_ai_is_available() {
  * (which Core populates from the configured Connectors). This is what plain
  * text-generation features — e.g. comment scoring, which only needs structured
  * text output — gate on. The agentic assistant needs more; see
- * {@see open_station_ai_assistant_provider_configured()}.
+ * {@see openstation_ai_assistant_provider_configured()}.
  *
  * Credentials are supplied by Core from the configured Connector; no API request
  * is made.
  *
  * @return bool
  */
-function open_station_ai_provider_configured() {
-	if ( ! open_station_ai_is_available() ) {
+function openstation_ai_provider_configured() {
+	if ( ! openstation_ai_is_available() ) {
 		return false;
 	}
 	return (bool) wp_ai_client_prompt( 'test' )->is_supported_for_text_generation();
@@ -89,14 +89,14 @@ function open_station_ai_provider_configured() {
  *
  * @return bool
  */
-function open_station_ai_assistant_provider_configured() {
-	if ( ! open_station_ai_is_available() ) {
+function openstation_ai_assistant_provider_configured() {
+	if ( ! openstation_ai_is_available() ) {
 		return false;
 	}
 
-	$probe = open_station_ai_capability_probe_declaration();
+	$probe = openstation_ai_capability_probe_declaration();
 	if ( ! $probe ) {
-		return open_station_ai_provider_configured();
+		return openstation_ai_provider_configured();
 	}
 
 	return (bool) wp_ai_client_prompt( 'test' )
@@ -114,7 +114,7 @@ function open_station_ai_assistant_provider_configured() {
  *
  * @return object|null A `FunctionDeclaration`, or null.
  */
-function open_station_ai_capability_probe_declaration() {
+function openstation_ai_capability_probe_declaration() {
 	$class = '\WordPress\AiClient\Tools\DTO\FunctionDeclaration';
 	if ( ! class_exists( $class ) ) {
 		return null;
@@ -135,14 +135,14 @@ function open_station_ai_capability_probe_declaration() {
  *
  * This is purely the per-user toggle (default off, opt-in). Availability of the Core
  * APIs and whether a provider key is set are separate, orthogonal checks
- * ({@see open_station_ai_is_available()} / {@see open_station_ai_provider_configured()})
+ * ({@see openstation_ai_is_available()} / {@see openstation_ai_provider_configured()})
  * so callers can distinguish "user turned it off" from "not set up yet".
  *
  * @param int $user_id
  * @return bool
  */
-function open_station_ai_is_enabled( $user_id ) {
-	$ai = open_station_ai_get_settings( (int) $user_id );
+function openstation_ai_is_enabled( $user_id ) {
+	$ai = openstation_ai_get_settings( (int) $user_id );
 	return ! empty( $ai['enabled'] );
 }
 
@@ -166,12 +166,12 @@ function open_station_ai_is_enabled( $user_id ) {
  * @param int|null $user_id Defaults to the current user.
  * @return array{ available: bool, providerConfigured: bool, assistantProviderConfigured: bool, enabled: bool, connectorsUrl: string }
  */
-function open_station_ai_assistant_config( $user_id = null ) {
+function openstation_ai_assistant_config( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
 	$connectors_url = admin_url( 'options-connectors.php' );
 
-	if ( ! open_station_ai_is_available() ) {
+	if ( ! openstation_ai_is_available() ) {
 		return array(
 			'available'                   => false,
 			'providerConfigured'          => false,
@@ -181,12 +181,12 @@ function open_station_ai_assistant_config( $user_id = null ) {
 		);
 	}
 
-	$ai = open_station_ai_get_settings( $user_id );
+	$ai = openstation_ai_get_settings( $user_id );
 
 	return array(
 		'available'                   => true,
-		'providerConfigured'          => open_station_ai_provider_configured(),
-		'assistantProviderConfigured' => open_station_ai_assistant_provider_configured(),
+		'providerConfigured'          => openstation_ai_provider_configured(),
+		'assistantProviderConfigured' => openstation_ai_assistant_provider_configured(),
 		'enabled'                     => (bool) $ai['enabled'],
 		'connectorsUrl'               => $connectors_url,
 	);
@@ -195,31 +195,31 @@ function open_station_ai_assistant_config( $user_id = null ) {
 /**
  * REST: GET `desktop-mode/v1/ai/status`.
  *
- * Returns the current {@see open_station_ai_assistant_config()} so the shell
+ * Returns the current {@see openstation_ai_assistant_config()} so the shell
  * can re-check provider availability without a page reload — e.g. after the
  * user configures an AI provider in Settings → Connectors.
  */
-function open_station_register_ai_status_rest_route() {
+function openstation_register_ai_status_rest_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/ai/status',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_rest_ai_status',
+			'callback'            => 'openstation_rest_ai_status',
 			'permission_callback' => static function () {
 				return is_user_logged_in() && current_user_can( 'read' );
 			},
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_ai_status_rest_route' );
+add_action( 'rest_api_init', 'openstation_register_ai_status_rest_route' );
 
 /**
  * REST handler for the AI status probe.
  *
  * @return WP_REST_Response
  */
-function open_station_rest_ai_status() {
-	return rest_ensure_response( open_station_ai_assistant_config() );
+function openstation_rest_ai_status() {
+	return rest_ensure_response( openstation_ai_assistant_config() );
 }
 

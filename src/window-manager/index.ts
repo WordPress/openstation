@@ -111,7 +111,7 @@ export interface ResolvedWindowGeometry {
  *     "leave the user's layout alone" should bail when this is true.
  *   - `callerPinned`: the caller of `manager.open()` passed at least
  *     one of `{ x, y, width, height, initialState }` explicitly. For
- *     native windows registered via `open_station_register_window()`
+ *     native windows registered via `openstation_register_window()`
  *     this is usually `true` (the framework's native-window opener
  *     passes the registry's declared dimensions); for admin-page
  *     iframe windows opened from the dock this is usually `false`.

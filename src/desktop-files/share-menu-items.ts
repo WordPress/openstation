@@ -97,7 +97,7 @@ export function installShareMenuItems(): void {
 			}
 			// Resolve ownership through the canonical folder row
 			// in the shared store (the placement.file shape doesn't
-			// always carry ownerId — depends on Open_Station_Folder_File
+			// always carry ownerId — depends on OpenStation_Folder_File
 			// serialize()). Falls back to placement-side hint.
 			const ownerId =
 				folderOwnerId( folderId ) || placementOwnerId( placement );

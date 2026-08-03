@@ -15,13 +15,13 @@
 defined( 'ABSPATH' ) || exit;
 
 /** User meta key for OS Settings. */
-const OPEN_STATION_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
+const OPENSTATION_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 
 /** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */
-const OPEN_STATION_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
+const OPENSTATION_OS_SETTINGS_DOCK_SIZES = array( 'compact', 'default', 'large' );
 
 /** Valid window-radius IDs — mirrors the TS `WINDOW_RADII` constant. */
-const OPEN_STATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
+const OPENSTATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round' );
 
 /**
  * Valid admin-bar mode IDs — mirrors the TS `ADMIN_BAR_MODES` constant.
@@ -30,10 +30,10 @@ const OPEN_STATION_OS_SETTINGS_WINDOW_RADII = array( 'sharp', 'default', 'round'
  * default), `dynamic` auto-hides it to a peek strip that reveals on
  * hover or keyboard focus, and `hidden` removes it entirely.
  */
-const OPEN_STATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
+const OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES = array( 'static', 'dynamic', 'hidden' );
 
 /** Valid desktop-layout IDs — mirrors the TS `DESKTOP_LAYOUTS` constant. */
-const OPEN_STATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
+const OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 'spatial' );
 
 /**
  * Playable range for the window-reveal duration override, in ms.
@@ -43,8 +43,8 @@ const OPEN_STATION_OS_SETTINGS_DESKTOP_LAYOUTS = array( 'classic', 'unified', 's
  * `0` sits OUTSIDE this range on purpose: it is the "no override"
  * sentinel, not a duration, and is handled before the clamp.
  */
-const OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MIN = 80;
-const OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
+const OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN = 80;
+const OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
 
 /**
  * Returns a well-shaped default OS settings array.
@@ -54,7 +54,7 @@ const OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
  *
  * @return array
  */
-function open_station_default_os_settings() {
+function openstation_default_os_settings() {
 	return array(
 		'wallpaper'                   => 'galaxy',
 		'accent'                      => 'pulse',
@@ -136,7 +136,7 @@ function open_station_default_os_settings() {
 		// seconds. 60s matches Core's "idle" default; the allowed
 		// rates (15/30/45/60) all sit at or above Core's 15 s
 		// `minimalInterval` floor. See
-		// `open_station_apply_heartbeat_rate_setting` for the
+		// `openstation_apply_heartbeat_rate_setting` for the
 		// `heartbeat_settings` filter that applies this.
 		'heartbeatRate'               => 60,
 		'nativePostsEnabled'          => false,
@@ -179,7 +179,7 @@ function open_station_default_os_settings() {
 		// touch a control. Stored per user rather than per browser
 		// because it is a preference about the person — ten minutes
 		// spent building a companion should be waiting on their phone.
-		// Sanitized by `open_station_sanitize_mio_look()`; the ranges
+		// Sanitized by `openstation_sanitize_mio_look()`; the ranges
 		// are enforced client-side in `sanitizeMioConfig()`.
 		'mioStyle'                    => array(
 			'appearance' => array(),
@@ -243,18 +243,18 @@ function open_station_default_os_settings() {
  * @param int $user_id The user ID.
  * @return array
  */
-function open_station_get_os_settings( $user_id ) {
+function openstation_get_os_settings( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
-		return open_station_default_os_settings();
+		return openstation_default_os_settings();
 	}
 
-	$raw = get_user_meta( $user_id, OPEN_STATION_OS_SETTINGS_META_KEY, true );
+	$raw = get_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, true );
 	if ( ! is_array( $raw ) ) {
-		return open_station_default_os_settings();
+		return openstation_default_os_settings();
 	}
 
-	return open_station_sanitize_os_settings( $raw );
+	return openstation_sanitize_os_settings( $raw );
 }
 
 /**
@@ -264,14 +264,14 @@ function open_station_get_os_settings( $user_id ) {
  * @param mixed $settings Raw settings payload from the client.
  * @return bool True on success, false otherwise.
  */
-function open_station_save_os_settings( $user_id, $settings ) {
+function openstation_save_os_settings( $user_id, $settings ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
 	}
 
-	$clean = open_station_sanitize_os_settings( $settings );
-	return false !== update_user_meta( $user_id, OPEN_STATION_OS_SETTINGS_META_KEY, $clean );
+	$clean = openstation_sanitize_os_settings( $settings );
+	return false !== update_user_meta( $user_id, OPENSTATION_OS_SETTINGS_META_KEY, $clean );
 }
 
 /**
@@ -284,8 +284,8 @@ function open_station_save_os_settings( $user_id, $settings ) {
  * @param mixed $raw Raw settings from the client or user meta.
  * @return array Sanitized settings.
  */
-function open_station_sanitize_os_settings( $raw ) {
-	$defaults = open_station_default_os_settings();
+function openstation_sanitize_os_settings( $raw ) {
+	$defaults = openstation_default_os_settings();
 
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
@@ -303,25 +303,25 @@ function open_station_sanitize_os_settings( $raw ) {
 		: $defaults['accent'];
 
 	// Dock size — must be one of the three known values.
-	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], OPEN_STATION_OS_SETTINGS_DOCK_SIZES, true )
+	$dock_size = isset( $raw['dockSize'] ) && in_array( $raw['dockSize'], OPENSTATION_OS_SETTINGS_DOCK_SIZES, true )
 		? (string) $raw['dockSize']
 		: $defaults['dockSize'];
 
 	// Window radius — must be one of the three known values.
-	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], OPEN_STATION_OS_SETTINGS_WINDOW_RADII, true )
+	$window_radius = isset( $raw['windowRadius'] ) && in_array( $raw['windowRadius'], OPENSTATION_OS_SETTINGS_WINDOW_RADII, true )
 		? (string) $raw['windowRadius']
 		: $defaults['windowRadius'];
 
 	// Admin-bar mode — must be one of the three known values.
 	$admin_bar_mode = isset( $raw['adminBarMode'] )
-		&& in_array( $raw['adminBarMode'], OPEN_STATION_OS_SETTINGS_ADMIN_BAR_MODES, true )
+		&& in_array( $raw['adminBarMode'], OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES, true )
 		? (string) $raw['adminBarMode']
 		: $defaults['adminBarMode'];
 
 	// Desktop layout — must be one of the three known values
 	// (`classic`, `unified`, `spatial`). Default `classic`.
 	$desktop_layout = isset( $raw['desktopLayout'] )
-		&& in_array( $raw['desktopLayout'], OPEN_STATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
+		&& in_array( $raw['desktopLayout'], OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS, true )
 		? (string) $raw['desktopLayout']
 		: $defaults['desktopLayout'];
 
@@ -412,8 +412,8 @@ function open_station_sanitize_os_settings( $raw ) {
 		$requested = (int) round( (float) $raw['windowRevealDuration'] );
 		if ( $requested > 0 ) {
 			$window_reveal_duration = max(
-				OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MIN,
-				min( OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MAX, $requested )
+				OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN,
+				min( OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX, $requested )
 			);
 		} else {
 			$window_reveal_duration = 0;
@@ -554,7 +554,7 @@ function open_station_sanitize_os_settings( $raw ) {
 	}
 
 	// Heartbeat rate — one of the four allowed values. The PHP
-	// filter `open_station_apply_heartbeat_rate_setting` reads
+	// filter `openstation_apply_heartbeat_rate_setting` reads
 	// this and passes it through to `heartbeat_settings` so
 	// WordPress Core itself reduces the interval on the next page
 	// load. 5 s is intentionally excluded: Core's
@@ -620,7 +620,7 @@ function open_station_sanitize_os_settings( $raw ) {
 	// A missing key means "no look saved yet", which sanitizes to the
 	// same pair of empty arrays the defaults carry — so this needs no
 	// isset() branch of its own.
-	$mio_style = open_station_sanitize_mio_look(
+	$mio_style = openstation_sanitize_mio_look(
 		isset( $raw['mioStyle'] ) ? $raw['mioStyle'] : null
 	);
 
@@ -774,20 +774,20 @@ function open_station_sanitize_os_settings( $raw ) {
 /**
  * Registers the REST routes for OS settings.
  */
-function open_station_register_os_settings_rest_routes() {
+function openstation_register_os_settings_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/os-settings',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'open_station_rest_get_os_settings',
-				'permission_callback' => 'open_station_rest_os_settings_permission',
+				'callback'            => 'openstation_rest_get_os_settings',
+				'permission_callback' => 'openstation_rest_os_settings_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'open_station_rest_save_os_settings',
-				'permission_callback' => 'open_station_rest_os_settings_permission',
+				'callback'            => 'openstation_rest_save_os_settings',
+				'permission_callback' => 'openstation_rest_os_settings_permission',
 				'args'                => array(
 					'settings' => array(
 						'required' => true,
@@ -798,19 +798,19 @@ function open_station_register_os_settings_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_os_settings_rest_routes' );
+add_action( 'rest_api_init', 'openstation_register_os_settings_rest_routes' );
 
 /**
  * Permission gate for OS settings REST routes.
  *
  * Requires the caller to be logged in *and* have OpenStation enabled —
- * see {@see open_station_rest_require_enabled()} for why `read` alone is
+ * see {@see openstation_rest_require_enabled()} for why `read` alone is
  * insufficient.
  *
  * @return true|WP_Error
  */
-function open_station_rest_os_settings_permission() {
-	return open_station_rest_require_enabled();
+function openstation_rest_os_settings_permission() {
+	return openstation_rest_require_enabled();
 }
 
 /**
@@ -818,8 +818,8 @@ function open_station_rest_os_settings_permission() {
  *
  * @return WP_REST_Response
  */
-function open_station_rest_get_os_settings() {
-	return rest_ensure_response( open_station_get_os_settings( get_current_user_id() ) );
+function openstation_rest_get_os_settings() {
+	return rest_ensure_response( openstation_get_os_settings( get_current_user_id() ) );
 }
 
 /**
@@ -828,11 +828,11 @@ function open_station_rest_get_os_settings() {
  * @param WP_REST_Request $request The REST request.
  * @return WP_REST_Response The saved settings (after sanitization).
  */
-function open_station_rest_save_os_settings( WP_REST_Request $request ) {
+function openstation_rest_save_os_settings( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$payload = $request->get_param( 'settings' );
-	open_station_save_os_settings( $user_id, $payload );
-	return rest_ensure_response( open_station_get_os_settings( $user_id ) );
+	openstation_save_os_settings( $user_id, $payload );
+	return rest_ensure_response( openstation_get_os_settings( $user_id ) );
 }
 
 /**
@@ -848,7 +848,7 @@ function open_station_rest_save_os_settings( WP_REST_Request $request ) {
  * @param array $settings Filtered Heartbeat settings.
  * @return array
  */
-function open_station_apply_heartbeat_rate_setting( $settings ) {
+function openstation_apply_heartbeat_rate_setting( $settings ) {
 	if ( ! is_array( $settings ) ) {
 		$settings = array();
 	}
@@ -856,10 +856,10 @@ function open_station_apply_heartbeat_rate_setting( $settings ) {
 	if ( $user_id <= 0 ) {
 		return $settings;
 	}
-	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled( $user_id ) ) {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled( $user_id ) ) {
 		return $settings;
 	}
-	$os   = open_station_get_os_settings( $user_id );
+	$os   = openstation_get_os_settings( $user_id );
 	$rate = isset( $os['heartbeatRate'] ) ? (int) $os['heartbeatRate'] : 0;
 	if ( ! in_array( $rate, array( 15, 30, 45, 60 ), true ) ) {
 		return $settings;
@@ -867,4 +867,4 @@ function open_station_apply_heartbeat_rate_setting( $settings ) {
 	$settings['interval'] = $rate;
 	return $settings;
 }
-add_filter( 'heartbeat_settings', 'open_station_apply_heartbeat_rate_setting' );
+add_filter( 'heartbeat_settings', 'openstation_apply_heartbeat_rate_setting' );

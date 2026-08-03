@@ -21,7 +21,7 @@
  *
  *   2. Per-target re-validation inside the callback:
  *        - bulk-role and create validate the requested role against
- *          the filtered `open_station_users_window_assignable_roles()`
+ *          the filtered `openstation_users_window_assignable_roles()`
  *          list and reject any role outside it. What stops an Editor
  *          from forging a promote-to-Administrator request is the
  *          `promote_users` permission_callback — and, as defense in
@@ -41,13 +41,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the five routes.
  */
-function open_station_users_window_register_rest_routes() {
+function openstation_users_window_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/users/bulk-role',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_users_window_rest_bulk_role',
+			'callback'            => 'openstation_users_window_rest_bulk_role',
 			'permission_callback' => static function () {
 				return current_user_can( 'promote_users' );
 			},
@@ -70,7 +70,7 @@ function open_station_users_window_register_rest_routes() {
 		'/users/(?P<id>\d+)/send-password-reset',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_users_window_rest_send_password_reset',
+			'callback'            => 'openstation_users_window_rest_send_password_reset',
 			'permission_callback' => static function () {
 				return current_user_can( 'edit_users' );
 			},
@@ -88,7 +88,7 @@ function open_station_users_window_register_rest_routes() {
 		'/users/(?P<id>\d+)/resend-welcome',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_users_window_rest_resend_welcome',
+			'callback'            => 'openstation_users_window_rest_resend_welcome',
 			'permission_callback' => static function () {
 				return current_user_can( 'edit_users' );
 			},
@@ -106,7 +106,7 @@ function open_station_users_window_register_rest_routes() {
 		'/users',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_users_window_rest_create',
+			'callback'            => 'openstation_users_window_rest_create',
 			'permission_callback' => static function () {
 				return current_user_can( 'create_users' );
 			},
@@ -135,7 +135,7 @@ function open_station_users_window_register_rest_routes() {
 		'/users/bulk-delete',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_users_window_rest_bulk_delete',
+			'callback'            => 'openstation_users_window_rest_bulk_delete',
 			'permission_callback' => static function () {
 				return is_multisite()
 					? current_user_can( 'remove_users' )
@@ -155,7 +155,7 @@ function open_station_users_window_register_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_users_window_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_users_window_register_rest_routes' );
 
 /**
  * `POST /users/bulk-role`
@@ -169,7 +169,7 @@ add_action( 'rest_api_init', 'open_station_users_window_register_rest_routes' );
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
-function open_station_users_window_rest_bulk_role( $req ) {
+function openstation_users_window_rest_bulk_role( $req ) {
 	$ids  = array_values(
 		array_filter(
 			array_map( 'intval', (array) $req->get_param( 'ids' ) ),
@@ -182,7 +182,7 @@ function open_station_users_window_rest_bulk_role( $req ) {
 
 	if ( empty( $ids ) ) {
 		return new WP_Error(
-			'open_station_users_no_ids',
+			'openstation_users_no_ids',
 			__( 'No user ids supplied.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -193,10 +193,10 @@ function open_station_users_window_rest_bulk_role( $req ) {
 	$ids = array_slice( $ids, 0, 100 );
 
 	$viewer_id = (int) get_current_user_id();
-	$assignable = open_station_users_window_assignable_roles( $viewer_id );
+	$assignable = openstation_users_window_assignable_roles( $viewer_id );
 	if ( ! in_array( $role, $assignable, true ) ) {
 		return new WP_Error(
-			'open_station_users_role_forbidden',
+			'openstation_users_role_forbidden',
 			__( 'You are not allowed to assign this role.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -264,19 +264,19 @@ function open_station_users_window_rest_bulk_role( $req ) {
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
-function open_station_users_window_rest_send_password_reset( $req ) {
+function openstation_users_window_rest_send_password_reset( $req ) {
 	$id   = (int) $req->get_param( 'id' );
 	$user = $id > 0 ? get_userdata( $id ) : null;
 	if ( ! $user instanceof WP_User ) {
 		return new WP_Error(
-			'open_station_users_not_found',
+			'openstation_users_not_found',
 			__( 'User not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( ! current_user_can( 'edit_user', $id ) ) {
 		return new WP_Error(
-			'open_station_users_forbidden',
+			'openstation_users_forbidden',
 			__( 'You are not allowed to send a password reset for this user.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -294,7 +294,7 @@ function open_station_users_window_rest_send_password_reset( $req ) {
 	$last         = (int) get_transient( $throttle_key );
 	if ( $last > 0 && ( time() - $last ) < 60 ) {
 		return new WP_Error(
-			'open_station_users_throttled',
+			'openstation_users_throttled',
 			__( 'A reset email was already sent recently. Try again in a minute.', 'desktop-mode' ),
 			array( 'status' => 429 )
 		);
@@ -328,19 +328,19 @@ function open_station_users_window_rest_send_password_reset( $req ) {
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
-function open_station_users_window_rest_resend_welcome( $req ) {
+function openstation_users_window_rest_resend_welcome( $req ) {
 	$id   = (int) $req->get_param( 'id' );
 	$user = $id > 0 ? get_userdata( $id ) : null;
 	if ( ! $user instanceof WP_User ) {
 		return new WP_Error(
-			'open_station_users_not_found',
+			'openstation_users_not_found',
 			__( 'User not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( ! current_user_can( 'edit_user', $id ) ) {
 		return new WP_Error(
-			'open_station_users_forbidden',
+			'openstation_users_forbidden',
 			__( 'You are not allowed to email this user.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -356,7 +356,7 @@ function open_station_users_window_rest_resend_welcome( $req ) {
 	$last         = (int) get_transient( $throttle_key );
 	if ( $last > 0 && ( time() - $last ) < 60 ) {
 		return new WP_Error(
-			'open_station_users_throttled',
+			'openstation_users_throttled',
 			__( 'A welcome email was already sent recently. Try again in a minute.', 'desktop-mode' ),
 			array( 'status' => 429 )
 		);
@@ -388,7 +388,7 @@ function open_station_users_window_rest_resend_welcome( $req ) {
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
-function open_station_users_window_rest_bulk_delete( $req ) {
+function openstation_users_window_rest_bulk_delete( $req ) {
 	$ids       = array_values(
 		array_filter(
 			array_map( 'intval', (array) $req->get_param( 'ids' ) ),
@@ -402,7 +402,7 @@ function open_station_users_window_rest_bulk_delete( $req ) {
 
 	if ( empty( $ids ) ) {
 		return new WP_Error(
-			'open_station_users_no_ids',
+			'openstation_users_no_ids',
 			__( 'No user ids supplied.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -492,7 +492,7 @@ function open_station_users_window_rest_bulk_delete( $req ) {
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
-function open_station_users_window_rest_create( $req ) {
+function openstation_users_window_rest_create( $req ) {
 	$username = sanitize_user( (string) $req->get_param( 'username' ), true );
 	$email    = sanitize_email( (string) $req->get_param( 'email' ) );
 	$first    = sanitize_text_field( (string) $req->get_param( 'first_name' ) );
@@ -505,35 +505,35 @@ function open_station_users_window_rest_create( $req ) {
 
 	if ( '' === $username ) {
 		return new WP_Error(
-			'open_station_users_username_required',
+			'openstation_users_username_required',
 			__( 'Username is required.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( ! validate_username( $username ) ) {
 		return new WP_Error(
-			'open_station_users_username_invalid',
+			'openstation_users_username_invalid',
 			__( 'Username is not valid.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( '' === $email || ! is_email( $email ) ) {
 		return new WP_Error(
-			'open_station_users_email_invalid',
+			'openstation_users_email_invalid',
 			__( 'A valid email address is required.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( username_exists( $username ) ) {
 		return new WP_Error(
-			'open_station_users_username_exists',
+			'openstation_users_username_exists',
 			__( 'That username is already in use.', 'desktop-mode' ),
 			array( 'status' => 409 )
 		);
 	}
 	if ( email_exists( $email ) ) {
 		return new WP_Error(
-			'open_station_users_email_exists',
+			'openstation_users_email_exists',
 			__( 'That email is already in use.', 'desktop-mode' ),
 			array( 'status' => 409 )
 		);
@@ -546,8 +546,8 @@ function open_station_users_window_rest_create( $req ) {
 	if ( '' === $role ) {
 		$role = (string) get_option( 'default_role', 'subscriber' );
 	}
-	$assignable = open_station_users_window_assignable_roles( (int) get_current_user_id() );
-	// `open_station_users_window_assignable_roles` is gated on
+	$assignable = openstation_users_window_assignable_roles( (int) get_current_user_id() );
+	// `openstation_users_window_assignable_roles` is gated on
 	// `promote_users` — viewers with `create_users` but not
 	// `promote_users` need a fallback. Allow them to assign the
 	// default role only.
@@ -556,7 +556,7 @@ function open_station_users_window_rest_create( $req ) {
 	}
 	if ( ! in_array( $role, $assignable, true ) ) {
 		return new WP_Error(
-			'open_station_users_role_forbidden',
+			'openstation_users_role_forbidden',
 			__( 'You are not allowed to assign that role.', 'desktop-mode' ),
 			array( 'status' => 403 )
 		);
@@ -589,7 +589,7 @@ function open_station_users_window_rest_create( $req ) {
 
 	// Locale (post-create — `wp_insert_user` doesn't take it).
 	if ( '' !== $locale ) {
-		$locale_slugs = array_keys( open_station_users_window_locales_map() );
+		$locale_slugs = array_keys( openstation_users_window_locales_map() );
 		if ( in_array( $locale, $locale_slugs, true ) ) {
 			update_user_meta( (int) $user_id, 'locale', $locale );
 		}
@@ -610,7 +610,7 @@ function open_station_users_window_rest_create( $req ) {
 	 * @param array   $args    Sanitized args used for creation.
 	 */
 	do_action(
-		'open_station_users_window_user_created',
+		'openstation_users_window_user_created',
 		(int) $user_id,
 		get_userdata( (int) $user_id ),
 		$userdata

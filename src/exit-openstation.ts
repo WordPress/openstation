@@ -14,7 +14,7 @@
 import type { SystemDockItem } from './dock';
 import { __ } from './i18n';
 
-export const EXIT_OPEN_STATION_TILE_ID = 'os-exit';
+export const EXIT_OPENSTATION_TILE_ID = 'os-exit';
 
 interface AdminBarConfig {
 	nonce?: string;
@@ -35,7 +35,7 @@ declare global {
  */
 export function getExitOpenStationTileDef(): SystemDockItem {
 	return {
-		id: EXIT_OPEN_STATION_TILE_ID,
+		id: EXIT_OPENSTATION_TILE_ID,
 		title: __( 'Exit OpenStation' ),
 		// `dashicons-exit` (door with arrow) is the clearest "leave"
 		// glyph in the WordPress set, distinct from `dashicons-desktop`

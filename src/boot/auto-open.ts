@@ -14,7 +14,7 @@
  *        → portal redirected here BECAUSE the user followed a link
  *          to a specific admin page (admin-bar "Edit Post", a
  *          bookmark, etc.). The intent flag was added by
- *          `open_station_handle_portal_request` only when the
+ *          `openstation_handle_portal_request` only when the
  *          redirect resolved from `?target=…`. Open the URL — it's
  *          user intent, not a default the portal had to pick.
  *

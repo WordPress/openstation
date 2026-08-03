@@ -13,15 +13,15 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		open_station_games_install_schema();
+		openstation_games_install_schema();
 	}
 
 	/**
-	 * @covers ::open_station_games_install_schema
+	 * @covers ::openstation_games_install_schema
 	 */
 	public function test_schema_creates_both_tables() {
 		global $wpdb;
-		$tables = open_station_games_table_names();
+		$tables = openstation_games_table_names();
 		$this->assertCount( 2, $tables );
 		foreach ( $tables as $name ) {
 			$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $name ) );
@@ -30,22 +30,22 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_games_install_schema
+	 * @covers ::openstation_games_install_schema
 	 */
 	public function test_schema_stamps_version_option() {
 		$this->assertSame(
-			OPEN_STATION_GAMES_SCHEMA_VERSION,
-			get_option( OPEN_STATION_GAMES_SCHEMA_OPTION )
+			OPENSTATION_GAMES_SCHEMA_VERSION,
+			get_option( OPENSTATION_GAMES_SCHEMA_OPTION )
 		);
 	}
 
 	/**
-	 * @covers ::open_station_games_install_schema
+	 * @covers ::openstation_games_install_schema
 	 */
 	public function test_install_is_idempotent() {
 		// A second run must not throw or drop data.
 		global $wpdb;
-		$tables = open_station_games_table_names();
+		$tables = openstation_games_table_names();
 		$wpdb->insert(
 			$tables['scores'],
 			array(
@@ -56,35 +56,35 @@ class Tests_OpenStation_GamesSchema extends WP_UnitTestCase {
 				'created_at_ms' => 1,
 			)
 		);
-		open_station_games_install_schema();
+		openstation_games_install_schema();
 		$count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tables['scores']}" );
 		$this->assertSame( 1, $count );
 	}
 
 	/**
-	 * @covers ::open_station_games_maybe_install_schema
+	 * @covers ::openstation_games_maybe_install_schema
 	 */
 	public function test_maybe_install_noops_on_matching_version() {
 		$fired = 0;
 		add_action(
-			'open_station_games_schema_installed',
+			'openstation_games_schema_installed',
 			static function () use ( &$fired ) {
 				$fired++;
 			}
 		);
-		open_station_games_maybe_install_schema();
+		openstation_games_maybe_install_schema();
 		$this->assertSame( 0, $fired );
 
-		update_option( OPEN_STATION_GAMES_SCHEMA_OPTION, '0' );
-		open_station_games_maybe_install_schema();
+		update_option( OPENSTATION_GAMES_SCHEMA_OPTION, '0' );
+		openstation_games_maybe_install_schema();
 		$this->assertSame( 1, $fired );
 	}
 
 	/**
-	 * @covers ::open_station_games_now_ms
+	 * @covers ::openstation_games_now_ms
 	 */
 	public function test_now_ms_is_epoch_milliseconds() {
-		$now = open_station_games_now_ms();
+		$now = openstation_games_now_ms();
 		$this->assertIsInt( $now );
 		$this->assertGreaterThan( 1_000_000_000_000, $now );
 	}

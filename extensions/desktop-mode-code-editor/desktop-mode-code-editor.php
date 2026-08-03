@@ -17,14 +17,14 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OPEN_STATION_CODE_EDITOR_FILE', __FILE__ );
-define( 'OPEN_STATION_CODE_EDITOR_DIR', plugin_dir_path( __FILE__ ) );
-define( 'OPEN_STATION_CODE_EDITOR_URL', plugin_dir_url( __FILE__ ) );
-define( 'OPEN_STATION_CODE_EDITOR_VERSION', '0.22.11' );
-define( 'OPEN_STATION_CODE_EDITOR_REST_NAMESPACE', 'desktop-mode-code-editor/v1' );
+define( 'OPENSTATION_CODE_EDITOR_FILE', __FILE__ );
+define( 'OPENSTATION_CODE_EDITOR_DIR', plugin_dir_path( __FILE__ ) );
+define( 'OPENSTATION_CODE_EDITOR_URL', plugin_dir_url( __FILE__ ) );
+define( 'OPENSTATION_CODE_EDITOR_VERSION', '0.22.11' );
+define( 'OPENSTATION_CODE_EDITOR_REST_NAMESPACE', 'desktop-mode-code-editor/v1' );
 
-require_once OPEN_STATION_CODE_EDITOR_DIR . 'includes/filesystem.php';
-require_once OPEN_STATION_CODE_EDITOR_DIR . 'includes/php-indexer.php';
-require_once OPEN_STATION_CODE_EDITOR_DIR . 'includes/php-workspace-indexer.php';
-require_once OPEN_STATION_CODE_EDITOR_DIR . 'includes/rest.php';
-require_once OPEN_STATION_CODE_EDITOR_DIR . 'includes/window.php';
+require_once OPENSTATION_CODE_EDITOR_DIR . 'includes/filesystem.php';
+require_once OPENSTATION_CODE_EDITOR_DIR . 'includes/php-indexer.php';
+require_once OPENSTATION_CODE_EDITOR_DIR . 'includes/php-workspace-indexer.php';
+require_once OPENSTATION_CODE_EDITOR_DIR . 'includes/rest.php';
+require_once OPENSTATION_CODE_EDITOR_DIR . 'includes/window.php';

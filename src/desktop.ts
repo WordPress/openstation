@@ -227,7 +227,7 @@ import { preloadWindowSystem } from './window-system/loader';
 import type { WallpaperDef } from './wallpapers/types';
 // Each built-in plugin ships as its own lazy-loaded
 // bundle and is registered through the same server-side
-// `open_station_register_wallpaper()` / `open_station_register_*()` APIs
+// `openstation_register_wallpaper()` / `openstation_register_*()` APIs
 // third-party plugins use, so the shell no longer pulls them into
 // `desktop.min.js`. See `includes/wallpapers.php` for the animated
 // WP logo wallpaper's registration.
@@ -544,7 +544,7 @@ export interface OpenStationPublicApi {
 	 * menu. `enable()` / `disable()` / `toggle()` persist the
 	 * preference exactly as the menu entry does, and `setConfig()`
 	 * live-applies appearance and physics changes on top of the
-	 * server-side `open_station_mio_config` filter. See
+	 * server-side `openstation_mio_config` filter. See
 	 * `docs/mio.md`.
 	 */
 	mio: MioApi;
@@ -554,7 +554,7 @@ export interface OpenStationPublicApi {
 	 * `launch()` opens a game in its native window, suspending the
 	 * wallpaper for the duration. Scores/challenges persist only for
 	 * games also registered server-side via
-	 * `open_station_register_game()`.
+	 * `openstation_register_game()`.
 	 */
 	games: GamesApi;
 	/** Convenience: register a widget via `os.widgets` filter. */
@@ -615,7 +615,7 @@ export interface OpenStationPublicApi {
 	 * Open (or focus) a server-registered native window by id —
 	 * the same path the dock click + wallpaper-icon click go
 	 * through, so callers inherit the cloned-template body that
-	 * `open_station_register_window( 'template' )` declared.
+	 * `openstation_register_window( 'template' )` declared.
 	 *
 	 * Returns `true` if the window was opened (or already open and
 	 * was focused), `false` if no native window is registered with
@@ -722,7 +722,7 @@ export interface OpenStationPublicApi {
 	 * Start the OAuth relay flow for `service`. The framework owns
 	 * the `state`-nonce + popup + `postMessage` round-trip; the
 	 * plugin only declares the service via PHP
-	 * `open_station_register_oauth_relay( 'tumblr', [...] )` and
+	 * `openstation_register_oauth_relay( 'tumblr', [...] )` and
 	 * persists the tokens its `on_success` callback receives.
 	 *
 	 * Returns a Promise that resolves with the success payload
@@ -746,7 +746,7 @@ export interface OpenStationPublicApi {
 	) => Promise< import( './oauth-relay' ).OAuthCallbackPayload >;
 	/**
 	 * Load a vendor script once, memoized. The optional `extras` bag
-	 * mirrors what `open_station_resolve_script_payload()` harvests
+	 * mirrors what `openstation_resolve_script_payload()` harvests
 	 * from a registered handle's `wp_localize_script` /
 	 * `wp_add_inline_script` / `wp_set_script_translations` data.
 	 * Bundles loaded via the shell's native-window / widgets / commands
@@ -815,7 +815,7 @@ export interface OpenStationPublicApi {
 	 * to surface their changes without a full reload.
 	 *
 	 * Implemented as a hidden 1×1 iframe pointing at
-	 * `admin.php?open_station_chromeless=1&open_station_menu_refresh=1` whose
+	 * `admin.php?openstation_chromeless=1&openstation_menu_refresh=1` whose
 	 * chromeless bridge postMessages a fresh payload from real admin
 	 * context. Same pipeline as the auto-refresh path, so plugin
 	 * menus that gate on `is_admin()` register correctly.
@@ -1221,7 +1221,7 @@ export interface OpenStationPublicApi {
 	/**
 	 * Desktop themes — whole-OS reskins installed as a ZIP of a
 	 * manifest plus images, or registered from PHP with
-	 * `open_station_register_desktop_theme()`.
+	 * `openstation_register_desktop_theme()`.
 	 *
 	 * NOT the same thing as {@link listWindowThemes} above: a WINDOW
 	 * theme restyles one window's chrome, a DESKTOP theme restyles
@@ -1486,7 +1486,7 @@ export interface OpenStationPublicApi {
 	 *   request + response headers (default summary covers method/
 	 *   url/status/duration only).
 	 * - `debug` is a generic per-session pub/sub bus backed by REST
-	 *   polling — pair it with PHP `open_station_debug_publish()`.
+	 *   polling — pair it with PHP `openstation_debug_publish()`.
 	 */
 	devtools: import( './devtools' ).DevtoolsApi;
 	/**
@@ -1664,7 +1664,7 @@ export interface OpenStationPublicApi {
 	registerNamespace: ( name: string, api: object ) => void;
 	/**
 	 * Read the bundle-bound config blob shipped via the `'config'`
-	 * arg on `open_station_register_window( $id, [ 'config' => … ] )`.
+	 * arg on `openstation_register_window( $id, [ 'config' => … ] )`.
 	 * Returns `undefined` when no config was registered for `id`.
 	 *
 	 * Recommended over reading `window.openStationWindowConfig[ id ]`
@@ -1732,7 +1732,7 @@ export interface OpenStationPublicApi {
 		 * Most useful values for "why isn't my bundle running?"
 		 * debugging:
 		 * - `loadPath: 'eager' | 'lazy' | 'unknown'` — eager means
-		 *   `open_station_enqueue_native_window_scripts` printed the
+		 *   `openstation_enqueue_native_window_scripts` printed the
 		 *   tag through `wp_print_scripts`; lazy means the shell
 		 *   appended a `<script>` via `loadVendorScript`. Lazy + a
 		 *   missing `configPresent` is the historical
@@ -1779,7 +1779,7 @@ declare global {
 		openStationConfig?: DesktopConfig;
 		/**
 		 * Per-window config blobs, one entry per
-		 * `open_station_register_window( $id, [ 'config' => … ] )`.
+		 * `openstation_register_window( $id, [ 'config' => … ] )`.
 		 * Read via {@link OpenStationPublicApi.getWindowConfig} rather
 		 * than touching this global directly — the storage location
 		 * may evolve.
@@ -2672,7 +2672,7 @@ function init(): void {
 	//      + `fromPortalIntent=true`
 	//                              → the portal redirected here, but it
 	//      did so because the user followed a link to a specific
-	//      admin page (the `open_station_redirect_plain_admin_to_portal`
+	//      admin page (the `openstation_redirect_plain_admin_to_portal`
 	//      → `?target=…` round-trip). Honor the URL regardless of
 	//      saved-session state; the page they asked for opens on top
 	//      of the restored stack.
@@ -2887,7 +2887,7 @@ function init(): void {
 	// native-window tiles route through the dispatcher.)
 
 	// Widget-registry sync — same story for the right-column widget
-	// layer. Plugins declare widgets via `open_station_register_widget()`;
+	// layer. Plugins declare widgets via `openstation_register_widget()`;
 	// the shell adds / removes defs from its registry as plugins
 	// activate / deactivate mid-session, dynamically loading the
 	// plugin's script so the mount callback lands on
@@ -2901,7 +2901,7 @@ function init(): void {
 
 	// Wallpaper-registry sync — third instance of the same pattern,
 	// same reasoning. Plugins declare wallpapers via
-	// `open_station_register_wallpaper()`; the shell loads the
+	// `openstation_register_wallpaper()`; the shell loads the
 	// plugin's JS, reads the full `WallpaperDef` off
 	// `window.openStationWallpapers[ id ]`, and adds / removes it
 	// from the registry as activation / deactivation plays out.
@@ -2959,7 +2959,7 @@ function init(): void {
 
 	// Command-palette sync — mirrors the widget / wallpaper pattern for
 	// slash-commands registered by plugins via
-	// `open_station_register_command_script()`. Loads each opted-in
+	// `openstation_register_command_script()`. Loads each opted-in
 	// script URL on boot (idempotent if WP already enqueued it) and on
 	// mid-session plugins-changed signals, so a newly-installed plugin's
 	// commands appear in the palette without a reload. Deactivation
@@ -2974,7 +2974,7 @@ function init(): void {
 
 	// Settings-tab sync — same pattern as commands, for OS Settings
 	// tabs registered by plugins via
-	// `open_station_register_settings_tab_script()`. Injects each
+	// `openstation_register_settings_tab_script()`. Injects each
 	// opted-in script so a plugin's `registerSettingsTab()` call
 	// lands and the (possibly open) OS Settings window repaints.
 	const syncServerSettingsTabs = createSettingsTabRegistrySync();
@@ -3044,7 +3044,7 @@ function init(): void {
 	// Related-entities title-bar button — "Related" dropdown on any
 	// window whose content identity carries navigation targets
 	// (comments, terms, media for posts/pages; plugins add their own
-	// via the `open_station_window_related_entities` PHP filter or the
+	// via the `openstation_window_related_entities` PHP filter or the
 	// `os.related-entities.items` JS filter). Picking an item
 	// opens it as its own window, consulting `tryNativeUrlRemap()` first
 	// so a native window claims it when the viewer opted in. Deep links
@@ -3080,7 +3080,7 @@ function init(): void {
 	// the official front-end preview (`get_preview_post_link()`) as a
 	// companion window snapped right; the companion auto-reloads on
 	// every save and closes with its editor. Visibility follows the
-	// identity's `previewUrl` (see `open_station_window_preview_url()`
+	// identity's `previewUrl` (see `openstation_window_preview_url()`
 	// in `includes/window-links.php`).
 	bootEditorPreview( { manager } );
 
@@ -3101,9 +3101,9 @@ function init(): void {
 
 	// Window-theme sync — Layer 1 of the chrome-customization
 	// framework. Loads scripts opted-in via
-	// `open_station_register_window_theme_script()` AND honors
+	// `openstation_register_window_theme_script()` AND honors
 	// PHP-declared metadata themes (token-only stylesheets) via
-	// `open_station_register_window_theme()`. Live activation /
+	// `openstation_register_window_theme()`. Live activation /
 	// deactivation paints / unpaints the theme on every open window
 	// the predicate matches.
 	const syncServerWindowThemes = createWindowThemeRegistrySync();
@@ -3284,14 +3284,14 @@ function init(): void {
 
 	// Public-API alias for the lower-level `manager.open({ native:
 	// true, … })` path. Plugins that build their UI entirely in JS
-	// (no PHP `open_station_register_window`) reach for this. The
+	// (no PHP `openstation_register_window`) reach for this. The
 	// PHP-registered native-window path goes through
 	// `nativeWindows.openById` instead — which pre-clones the
 	// template into the body before render fires.
 	const registerWindow = createRegisterWindow( manager );
 
 	// Desktop icons — shortcut tiles on the wallpaper, registered
-	// server-side via `open_station_register_icon()`. Re-rendered on
+	// server-side via `openstation_register_icon()`. Re-rendered on
 	// every live menu refresh so a plugin activation adds / removes
 	// tiles without a full shell reload.
 	//

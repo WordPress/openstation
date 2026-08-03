@@ -10,7 +10,7 @@ The default gate is WordPress's own `upload_files` capability
 (Authors and up). A trusted intranet can open storage to everyone:
 
 ```php
-add_filter( 'open_station_stored_files_upload_capability', static function () {
+add_filter( 'openstation_stored_files_upload_capability', static function () {
 	return 'read'; // every logged-in openstation user
 } );
 ```
@@ -18,7 +18,7 @@ add_filter( 'open_station_stored_files_upload_capability', static function () {
 ## Enforce a per-user quota
 
 ```php
-add_filter( 'open_station_stored_files_user_quota_bytes', static function ( $quota, $user_id ) {
+add_filter( 'openstation_stored_files_user_quota_bytes', static function ( $quota, $user_id ) {
 	if ( user_can( $user_id, 'manage_options' ) ) {
 		return 0; // admins: unlimited
 	}
@@ -26,7 +26,7 @@ add_filter( 'open_station_stored_files_user_quota_bytes', static function ( $quo
 }, 10, 2 );
 ```
 
-Over-quota uploads fail with `open_station_stored_files_quota_exceeded`.
+Over-quota uploads fail with `openstation_stored_files_quota_exceeded`.
 
 ## Allow a file type WordPress rejects by default
 
@@ -36,7 +36,7 @@ scoped `upload_mimes` hook (a plain `mimes` override could only
 narrow):
 
 ```php
-add_filter( 'open_station_stored_files_allowed_mimes', static function ( $mimes ) {
+add_filter( 'openstation_stored_files_allowed_mimes', static function ( $mimes ) {
 	$mimes['stl'] = 'model/stl';
 	$mimes['md']  = 'text/markdown';
 	return $mimes;
@@ -49,13 +49,13 @@ applies on top and should stay that way.
 ## React to uploads and downloads
 
 ```php
-add_action( 'open_station_stored_file_uploaded', static function ( $file_id, $placement_id, $user_id ) {
-	$file = open_station_stored_files_get( $file_id );
+add_action( 'openstation_stored_file_uploaded', static function ( $file_id, $placement_id, $user_id ) {
+	$file = openstation_stored_files_get( $file_id );
 	error_log( sprintf( 'user %d uploaded %s (%d bytes)', $user_id, $file['display_name'], $file['size_bytes'] ) );
 }, 10, 3 );
 
 // Download audit trail.
-add_action( 'open_station_stored_file_downloaded', static function ( $file_id, $user_id ) {
+add_action( 'openstation_stored_file_downloaded', static function ( $file_id, $user_id ) {
 	do_action( 'my_audit_log', 'file-download', compact( 'file_id', 'user_id' ) );
 }, 10, 2 );
 ```
@@ -66,7 +66,7 @@ Single-file shares are read + download only, user principals only —
 the invite/accept flow mirrors folder sharing:
 
 ```php
-$share_id = open_station_stored_file_share_invite( $file_id, $owner_id, $recipient_user_id );
+$share_id = openstation_stored_file_share_invite( $file_id, $owner_id, $recipient_user_id );
 // Recipient's next heartbeat carries the invite; on accept the
 // framework plants the tile at their desktop root.
 ```
@@ -75,7 +75,7 @@ Listen to the same actions folder shares fire — the row carries
 `target_type => 'file'`:
 
 ```php
-add_action( 'open_station_files_share_accepted', static function ( $share_id, $row ) {
+add_action( 'openstation_files_share_accepted', static function ( $share_id, $row ) {
 	if ( 'file' === ( $row['target_type'] ?? 'folder' ) ) {
 		// A stored file share was accepted.
 	}

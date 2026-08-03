@@ -3,7 +3,7 @@
  *
  * Built as its own Vite target (`widget-heartbeat`) — both JS and
  * the widget's CSS ship out of the main `desktop.min.js` bundle.
- * PHP registers the widget via `open_station_register_widget()`
+ * PHP registers the widget via `openstation_register_widget()`
  * with the script handle `os-heartbeat-widget`; the
  * shell's widgets `server-sync` loads this bundle the first time
  * the picker renders or the widget mounts.
@@ -14,7 +14,7 @@
 
 // Side-effect CSS import — Vite emits a separate
 // `widget-heartbeat[.min].css` chunk next to the JS. PHP eagerly
-// enqueues this stylesheet via `open_station_enqueue_heartbeat_widget_styles`
+// enqueues this stylesheet via `openstation_enqueue_heartbeat_widget_styles`
 // so it's in the DOM before the (lazy-loaded) JS runs — avoids
 // any flash of unstyled content while the layout is still
 // computing flex constraints.
@@ -160,7 +160,7 @@ const HEART_SIZE = 52;
  * Mount callback. The framework's widget `server-sync` reads this
  * from `window.openStationWidgets` after the bundle loads and
  * pairs it with the server-supplied metadata from
- * `open_station_register_widget()`. Sizing constraints
+ * `openstation_register_widget()`. Sizing constraints
  * (310 × 230, non-resizable) live on the PHP side now.
  */
 const mount = async (

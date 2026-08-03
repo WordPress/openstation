@@ -45,7 +45,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		parent::set_up();
 		// Each test starts from a clean transient cache so we exercise
 		// the build path and not a cached payload from a prior test.
-		open_station_content_graph_flush_cache();
+		openstation_content_graph_flush_cache();
 	}
 
 	public function test_other_users_private_posts_excluded_without_read_private_posts() {
@@ -65,7 +65,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		);
 
 		wp_set_current_user( self::$author_a_id );
-		$payload = open_station_content_graph_build( array( 'post' ) );
+		$payload = openstation_content_graph_build( array( 'post' ) );
 		$ids     = $this->node_ids( $payload );
 
 		$this->assertContains( $public_id, $ids );
@@ -86,7 +86,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		);
 
 		wp_set_current_user( self::$author_a_id );
-		$payload = open_station_content_graph_build( array( 'post' ) );
+		$payload = openstation_content_graph_build( array( 'post' ) );
 
 		$this->assertContains(
 			$private_id,
@@ -105,7 +105,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		);
 
 		wp_set_current_user( self::$editor_id );
-		$payload = open_station_content_graph_build( array( 'post' ) );
+		$payload = openstation_content_graph_build( array( 'post' ) );
 
 		$this->assertContains( $private_id, $this->node_ids( $payload ) );
 	}
@@ -121,12 +121,12 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 
 		// Prime the cache as a privileged user.
 		wp_set_current_user( self::$editor_id );
-		$editor_payload = open_station_content_graph_build( array( 'post' ) );
+		$editor_payload = openstation_content_graph_build( array( 'post' ) );
 		$this->assertContains( $private_id, $this->node_ids( $editor_payload ) );
 
 		// A lower-privilege user must NOT be served the cached payload.
 		wp_set_current_user( self::$author_a_id );
-		$author_payload = open_station_content_graph_build( array( 'post' ) );
+		$author_payload = openstation_content_graph_build( array( 'post' ) );
 		$this->assertNotContains(
 			$private_id,
 			$this->node_ids( $author_payload ),
@@ -135,7 +135,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 
 		// And the privileged user keeps their richer payload afterwards.
 		wp_set_current_user( self::$editor_id );
-		$editor_payload = open_station_content_graph_build( array( 'post' ) );
+		$editor_payload = openstation_content_graph_build( array( 'post' ) );
 		$this->assertContains( $private_id, $this->node_ids( $editor_payload ) );
 	}
 
@@ -161,7 +161,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		wp_set_current_user( self::$author_a_id );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-graph/nodes' );
 		$request->set_param( 'types', 'post' );
-		$data = rest_ensure_response( open_station_content_graph_rest_nodes( $request ) )->get_data();
+		$data = rest_ensure_response( openstation_content_graph_rest_nodes( $request ) )->get_data();
 		$node = $this->find_node( $data, $post_id );
 
 		$this->assertSame(
@@ -179,7 +179,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 		wp_set_current_user( self::$author_b_id );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-graph/nodes' );
 		$request->set_param( 'types', 'post' );
-		$data = rest_ensure_response( open_station_content_graph_rest_nodes( $request ) )->get_data();
+		$data = rest_ensure_response( openstation_content_graph_rest_nodes( $request ) )->get_data();
 		$node = $this->find_node( $data, $post_id );
 
 		$this->assertContains( self::$editor_id, $node['contributor_ids'] );
@@ -285,7 +285,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 	protected function detail_response( $post_id ) {
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/content-graph/post/' . $post_id );
 		$request->set_param( 'id', $post_id );
-		$response = open_station_content_graph_rest_post_detail( $request );
+		$response = openstation_content_graph_rest_post_detail( $request );
 		$this->assertNotWPError( $response );
 		return rest_ensure_response( $response )->get_data();
 	}
@@ -295,7 +295,7 @@ class Tests_OpenStation_ContentGraphVisibility extends WP_UnitTestCase {
 	 * @return int
 	 */
 	protected function post_type_count( $slug ) {
-		$data = rest_ensure_response( open_station_content_graph_rest_post_types() )->get_data();
+		$data = rest_ensure_response( openstation_content_graph_rest_post_types() )->get_data();
 		foreach ( $data as $entry ) {
 			if ( $slug === $entry['slug'] ) {
 				return (int) $entry['count'];

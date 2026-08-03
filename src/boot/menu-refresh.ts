@@ -6,12 +6,12 @@
  * chromeless bridge in `render.php` always emits a payload from
  * real admin context — both for the implicit case (`plugins.php`
  * etc.) and for the explicit refresh probe
- * (`?open_station_menu_refresh=1`) — so a single mechanism handles
+ * (`?openstation_menu_refresh=1`) — so a single mechanism handles
  * every refresh.
  *
  * `bindMenuRefresh()` returns an async function plugins can call
  * to force a refresh. The implementation spawns a 1×1 hidden
- * iframe at `admin.php?open_station_chromeless=1&open_station_menu_refresh=1`,
+ * iframe at `admin.php?openstation_chromeless=1&openstation_menu_refresh=1`,
  * waits for the bridge's payload message, then disposes the
  * iframe.
  *
@@ -168,8 +168,8 @@ export function bindMenuRefresh( deps: MenuRefreshDeps ): () => Promise< void > 
 		const probeUrl = ( () => {
 			try {
 				const url = new URL( 'admin.php', config.adminUrl );
-				url.searchParams.set( 'open_station_chromeless', '1' );
-				url.searchParams.set( 'open_station_menu_refresh', '1' );
+				url.searchParams.set( 'openstation_chromeless', '1' );
+				url.searchParams.set( 'openstation_menu_refresh', '1' );
 				return url.toString();
 			} catch ( _err ) {
 				return null;

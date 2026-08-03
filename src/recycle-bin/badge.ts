@@ -51,7 +51,7 @@ const TARGET_ID = 'desktop-mode-recycle-bin';
 // Heartbeat field. `wp.heartbeat`'s `data` object is delivered as
 // `_POST['data'][ <key> ]` server-side; the key IS the field name
 // our `heartbeat_received` filter reads.
-const HEARTBEAT_FIELD = 'open_station_recycle_bin_seen_ts';
+const HEARTBEAT_FIELD = 'openstation_recycle_bin_seen_ts';
 
 /**
  * Narrow shape of `wp.os` we depend on here. Pulled in via
@@ -255,7 +255,7 @@ export function startRecycleBinBadge(
 		Number.isFinite( cfgCountNum );
 	if ( ! cfgCountIsHealthy ) {
 		warn(
-			'openStationConfig.recycleBinCount is missing — PHP filter `open_station_shell_config` did not deliver. Check your PHP error log for `[os-bin debug]` lines.',
+			'openStationConfig.recycleBinCount is missing — PHP filter `openstation_shell_config` did not deliver. Check your PHP error log for `[os-bin debug]` lines.',
 			{ cfg },
 		);
 	}
@@ -432,8 +432,8 @@ function wirePostMessageFastPath(): void {
 }
 
 /**
- * Heartbeat probe. Sends `open_station_recycle_bin_seen_ts` on every
- * outgoing tick; reads `open_station_recycle_bin: { ts, count? }` off the
+ * Heartbeat probe. Sends `openstation_recycle_bin_seen_ts` on every
+ * outgoing tick; reads `openstation_recycle_bin: { ts, count? }` off the
  * response. The server only attaches `count` when something changed
  * since our high-water mark (an unchanged tick would recompute the
  * same number); when the key is absent the badge keeps its current
@@ -465,13 +465,13 @@ function wireHeartbeatProbe(): void {
 	$( document ).on( 'heartbeat-tick', ( ...args: unknown[] ) => {
 		const response = args[ 1 ] as
 			| {
-				open_station_recycle_bin?: {
+				openstation_recycle_bin?: {
 					ts?: number;
 					count?: number;
 				};
 			}
 			| undefined;
-		const block = response?.open_station_recycle_bin;
+		const block = response?.openstation_recycle_bin;
 		log( 'heartbeat-tick', { hasBlock: !! block, block } );
 		if ( ! block ) {
 			return;

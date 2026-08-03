@@ -2,7 +2,7 @@
 /**
  * Window notices — declarative top-of-window banners.
  *
- * Plugins call `open_station_register_window_notice()` to surface a
+ * Plugins call `openstation_register_window_notice()` to surface a
  * tone-coded banner at the top of every window matching a `match`
  * predicate (or every window by default). The shell renders the
  * notice via the `<os-notice>` web component inside the window's
@@ -14,7 +14,7 @@
  * Example:
  *
  * ```php
- * open_station_register_window_notice( array(
+ * openstation_register_window_notice( array(
  *     'id'      => 'my-plugin/welcome',
  *     'tone'    => 'info',
  *     'message' => '<strong>Welcome!</strong> Read the <a href="…">docs</a>.',
@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string[]
  */
-function open_station_window_notice_tones() {
+function openstation_window_notice_tones() {
 	return array( 'info', 'success', 'warning', 'error', 'danger', 'neutral' );
 }
 
@@ -49,7 +49,7 @@ function open_station_window_notice_tones() {
  *                               but `<script>` and other unsafe
  *                               markup are stripped.
  *     @type string $tone        Optional. One of
- *                               {@see open_station_window_notice_tones()}.
+ *                               {@see openstation_window_notice_tones()}.
  *                               Default `info`.
  *     @type bool   $dismissible Optional. Show a close button.
  *                               Default `true`.
@@ -86,7 +86,7 @@ function open_station_window_notice_tones() {
  *                               URL also contains `wc-admin` — not
  *                               on every Posts window AND every
  *                               wc-admin-URL window. Use two
- *                               separate `open_station_register_window_notice()`
+ *                               separate `openstation_register_window_notice()`
  *                               calls for OR-across-selector-types.
  *
  *                               When omitted, the notice paints on
@@ -98,7 +98,7 @@ function open_station_window_notice_tones() {
  * @return true|WP_Error `true` on success; `WP_Error` on validation
  *                       failure.
  */
-function open_station_register_window_notice( $args = array() ) {
+function openstation_register_window_notice( $args = array() ) {
 	$defaults = array(
 		'id'          => '',
 		'message'     => '',
@@ -112,31 +112,31 @@ function open_station_register_window_notice( $args = array() ) {
 
 	$id = (string) $args['id'];
 	if ( '' === $id ) {
-		return open_station_registration_error(
-			'open_station_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Window notice registration requires a non-empty `id`.', 'desktop-mode' )
 		);
 	}
 	if ( ! preg_match( '/^[a-z0-9_\\/-]+$/i', $id ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_id',
+		return openstation_registration_error(
+			'openstation_invalid_id',
 			__( 'Window notice `id` must be alphanumeric with hyphens, underscores, or slashes.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 
 	if ( '' === (string) $args['message'] ) {
-		return open_station_registration_error(
-			'open_station_missing_message',
+		return openstation_registration_error(
+			'openstation_missing_message',
 			__( 'Window notice registration requires a non-empty `message`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 
 	$tone = (string) $args['tone'];
-	if ( ! in_array( $tone, open_station_window_notice_tones(), true ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_tone',
+	if ( ! in_array( $tone, openstation_window_notice_tones(), true ) ) {
+		return openstation_registration_error(
+			'openstation_invalid_tone',
 			__( 'Window notice `tone` must be one of the documented values.', 'desktop-mode' ),
 			array(
 				'id'   => $id,
@@ -163,7 +163,7 @@ function open_station_register_window_notice( $args = array() ) {
 		'order'       => (int) $args['order'],
 	);
 
-	open_station_window_notice_registry( $entry['id'], $entry );
+	openstation_window_notice_registry( $entry['id'], $entry );
 
 	/**
 	 * Fires after a window notice is successfully registered.
@@ -171,7 +171,7 @@ function open_station_register_window_notice( $args = array() ) {
 	 * @param string $id    The notice id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'open_station_window_notice_registered', $entry['id'], $entry );
+	do_action( 'openstation_window_notice_registered', $entry['id'], $entry );
 
 	return true;
 }
@@ -185,7 +185,7 @@ function open_station_register_window_notice( $args = array() ) {
  * @param array|null $entry Entry to store, or `null` to read.
  * @return array|null
  */
-function open_station_window_notice_registry( $id = '', $entry = null ) {
+function openstation_window_notice_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $id ) {
@@ -211,20 +211,20 @@ function open_station_window_notice_registry( $id = '', $entry = null ) {
  *
  * @internal
  */
-function open_station_flush_window_notice_registry() {
-	open_station_window_notice_registry( '__flush__' );
+function openstation_flush_window_notice_registry() {
+	openstation_window_notice_registry( '__flush__' );
 }
 
 /**
  * Build the payload shipped to the shell. Each entry is the stored
  * registry record, runnable through the
- * `open_station_window_notices` filter so plugins can mutate the
+ * `openstation_window_notices` filter so plugins can mutate the
  * final list (e.g. add a dynamic notice computed at request time).
  *
  * @return array[]
  */
-function open_station_build_window_notices_payload() {
-	$registry = open_station_window_notice_registry();
+function openstation_build_window_notices_payload() {
+	$registry = openstation_window_notice_registry();
 	$entries  = is_array( $registry ) ? array_values( $registry ) : array();
 
 	/**
@@ -235,7 +235,7 @@ function open_station_build_window_notices_payload() {
 	 *
 	 * @param array[] $entries List of notice entries.
 	 */
-	$entries = apply_filters( 'open_station_window_notices', $entries );
+	$entries = apply_filters( 'openstation_window_notices', $entries );
 
 	// Re-sort by order for deterministic emission, then by id.
 	usort(

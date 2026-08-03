@@ -51,8 +51,8 @@ function broadcastFilesChange(
 
 /**
  * Surface a non-blocking error toast when a trash attempt is
- * rejected (typically by the `open_station_files_forbidden` 403 from
- * `open_station_files_user_can_trash_placement`). Defensive: the
+ * rejected (typically by the `openstation_files_forbidden` 403 from
+ * `openstation_files_user_can_trash_placement`). Defensive: the
  * tile-menu entry and the drop target's `accept` are both gated on
  * `placement.canTrash` so the user shouldn't be able to reach this
  * path through the normal UI, but legacy clients and concurrent
@@ -71,12 +71,12 @@ function showTrashErrorToast( err: unknown ): void {
 	}
 	const raw = err instanceof Error ? err.message : String( err );
 	// `call()` formats REST failures as
-	// "[openstation] files REST 403: open_station_files_forbidden …".
+	// "[openstation] files REST 403: openstation_files_forbidden …".
 	// Strip the prefix + error code so the user-facing toast keeps
 	// just the human-readable reason.
 	const friendly = raw
 		.replace( /^\[openstation\][^:]*:\s*/, '' )
-		.replace( /^open_station_files_[a-z_]+\s*/, '' );
+		.replace( /^openstation_files_[a-z_]+\s*/, '' );
 	api.showToast( {
 		message: friendly || 'Could not move this item to the recycle bin.',
 		duration: 5000,

@@ -58,7 +58,7 @@ describe( 'syncActiveTab', () => {
 			[ 'Menus', ADMIN + 'nav-menus.php' ],
 		] );
 
-		syncActiveTab( win, ADMIN + 'nav-menus.php?open_station_chromeless=1' );
+		syncActiveTab( win, ADMIN + 'nav-menus.php?openstation_chromeless=1' );
 
 		expect( activeLabels( win ) ).toEqual( [ 'Menus' ] );
 	} );

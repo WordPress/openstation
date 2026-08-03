@@ -173,23 +173,23 @@ No JS required, and no opt-in step. The agent loop advertises the ability to the
 Every call is trace-able via three actions that share a `request_id`:
 
 ```php
-add_action( 'open_station_ai_search_started', function ( $ctx ) {
+add_action( 'openstation_ai_search_started', function ( $ctx ) {
     // { query, user_id, request_id }
     my_logger()->info( 'ai.started', $ctx );
 } );
 
-add_action( 'open_station_ai_tool_called', function ( $ctx ) {
+add_action( 'openstation_ai_tool_called', function ( $ctx ) {
     // { tool_name, args, user_id, request_id }
     my_logger()->debug( 'ai.tool', $ctx );
 } );
 
-add_action( 'open_station_ai_search_completed', function ( $ctx ) {
+add_action( 'openstation_ai_search_completed', function ( $ctx ) {
     // { query, user_id, request_id, answer_type, iterations, usage, model }
     // usage = { prompt, completion, total } tokens; model = { id, name } (or null).
     my_logger()->info( 'ai.completed', $ctx );
 } );
 
-add_action( 'open_station_ai_search_error', function ( $err ) {
+add_action( 'openstation_ai_search_error', function ( $err ) {
     my_logger()->error( 'ai.error', $err );
 } );
 ```

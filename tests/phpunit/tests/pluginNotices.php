@@ -70,27 +70,27 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 
 	public function tear_down() {
 		ActionScheduler_Store::$fake_count = 0;
-		unset( $_GET['open_station_chromeless'] );
+		unset( $_GET['openstation_chromeless'] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		remove_all_filters( 'open_station_plugin_notices' );
+		remove_all_filters( 'openstation_plugin_notices' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::open_station_plugin_notice_action_scheduler
+	 * @covers ::openstation_plugin_notice_action_scheduler
 	 */
 	public function test_no_notice_when_no_pastdue_actions() {
 		ActionScheduler_Store::$fake_count = 0;
-		$this->assertNull( open_station_plugin_notice_action_scheduler() );
+		$this->assertNull( openstation_plugin_notice_action_scheduler() );
 	}
 
 	/**
-	 * @covers ::open_station_plugin_notice_action_scheduler
+	 * @covers ::openstation_plugin_notice_action_scheduler
 	 */
 	public function test_notice_reports_pastdue_count() {
 		ActionScheduler_Store::$fake_count = 15;
 
-		$notice = open_station_plugin_notice_action_scheduler();
+		$notice = openstation_plugin_notice_action_scheduler();
 		$this->assertIsArray( $notice );
 		$this->assertSame( 'action-scheduler-pastdue', $notice['id'] );
 		$this->assertStringContainsString( '15', $notice['message'] );
@@ -99,50 +99,50 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_plugin_notice_action_scheduler
+	 * @covers ::openstation_plugin_notice_action_scheduler
 	 */
 	public function test_no_notice_without_capability() {
 		ActionScheduler_Store::$fake_count = 15;
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$this->assertNull( open_station_plugin_notice_action_scheduler() );
+		$this->assertNull( openstation_plugin_notice_action_scheduler() );
 	}
 
 	/**
-	 * @covers ::open_station_get_plugin_notices
+	 * @covers ::openstation_get_plugin_notices
 	 */
 	public function test_aggregate_includes_action_scheduler() {
 		ActionScheduler_Store::$fake_count = 3;
 
-		$ids = wp_list_pluck( open_station_get_plugin_notices(), 'id' );
+		$ids = wp_list_pluck( openstation_get_plugin_notices(), 'id' );
 		$this->assertContains( 'action-scheduler-pastdue', $ids );
 	}
 
 	/**
-	 * @covers ::open_station_get_plugin_notices
+	 * @covers ::openstation_get_plugin_notices
 	 */
 	public function test_filter_can_suppress_all() {
 		ActionScheduler_Store::$fake_count = 3;
-		add_filter( 'open_station_plugin_notices', '__return_empty_array' );
+		add_filter( 'openstation_plugin_notices', '__return_empty_array' );
 
-		$this->assertSame( array(), open_station_get_plugin_notices() );
+		$this->assertSame( array(), openstation_get_plugin_notices() );
 	}
 
 	/**
 	 * The chromeless suppressor detaches Action Scheduler's past-due notice.
 	 *
-	 * @covers ::open_station_chromeless_suppress_plugin_notices
+	 * @covers ::openstation_chromeless_suppress_plugin_notices
 	 */
 	public function test_suppressor_removes_notice_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		add_action(
 			'admin_notices',
 			array( ActionScheduler_AdminView::instance(), 'maybe_check_pastdue_actions' )
 		);
 
-		open_station_chromeless_suppress_plugin_notices();
+		openstation_chromeless_suppress_plugin_notices();
 
 		$this->assertFalse(
 			has_action(
@@ -155,7 +155,7 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 	/**
 	 * Outside a chromeless request the notice is left in place.
 	 *
-	 * @covers ::open_station_chromeless_suppress_plugin_notices
+	 * @covers ::openstation_chromeless_suppress_plugin_notices
 	 */
 	public function test_suppressor_leaves_notice_when_not_chromeless() {
 		add_action(
@@ -163,7 +163,7 @@ class Tests_OpenStation_PluginNotices extends WP_UnitTestCase {
 			array( ActionScheduler_AdminView::instance(), 'maybe_check_pastdue_actions' )
 		);
 
-		open_station_chromeless_suppress_plugin_notices();
+		openstation_chromeless_suppress_plugin_notices();
 
 		$this->assertNotFalse(
 			has_action(

@@ -7,7 +7,7 @@
  *   1. **Fast path — chromeless iframe**
  *      Every recycle-bin-relevant action (`wp_trash_post`,
  *      `untrash_post`, `before_delete_post`, plus our four
- *      `open_station_recycle_bin_*` actions) flips a per-request
+ *      `openstation_recycle_bin_*` actions) flips a per-request
  *      static flag. At `admin_footer`, if the request is chromeless
  *      AND the flag is set, we emit a 12-line inline script that
  *      `postMessage`s the parent shell with `type:
@@ -23,7 +23,7 @@
  *      `_desktop_mode_recycle_bin_change_ts` (a millisecond timestamp).
  *      The Heartbeat `heartbeat_received` filter checks the client's
  *      last-seen ts — if the option is newer, the response includes
- *      `open_station_recycle_bin: { changed, ts }`. The bin only subscribes
+ *      `openstation_recycle_bin: { changed, ts }`. The bin only subscribes
  *      while its window is open, so users without the bin open pay
  *      zero. The cost per tick is one cached option read.
  *
@@ -38,7 +38,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-const OPEN_STATION_RECYCLE_BIN_CHANGE_OPTION = '_desktop_mode_recycle_bin_change_ts';
+const OPENSTATION_RECYCLE_BIN_CHANGE_OPTION = '_desktop_mode_recycle_bin_change_ts';
 
 /**
  * Per-request "did this request trigger a recycle-bin change" flag.
@@ -50,7 +50,7 @@ const OPEN_STATION_RECYCLE_BIN_CHANGE_OPTION = '_desktop_mode_recycle_bin_change
  * @param bool|null $set Set the flag.
  * @return bool
  */
-function open_station_recycle_bin_request_dirty( $set = null ) {
+function openstation_recycle_bin_request_dirty( $set = null ) {
 	static $dirty = false;
 	if ( null !== $set ) {
 		$dirty = (bool) $set;
@@ -69,10 +69,10 @@ function open_station_recycle_bin_request_dirty( $set = null ) {
  * loaded options query — recycle-bin polling is a "you opened the
  * window, you opted in" cost, not a per-pageload cost.
  */
-function open_station_recycle_bin_signal_change() {
+function openstation_recycle_bin_signal_change() {
 	$ts = (int) round( microtime( true ) * 1000 );
-	update_option( OPEN_STATION_RECYCLE_BIN_CHANGE_OPTION, $ts, false );
-	open_station_recycle_bin_request_dirty( true );
+	update_option( OPENSTATION_RECYCLE_BIN_CHANGE_OPTION, $ts, false );
+	openstation_recycle_bin_request_dirty( true );
 
 	/**
 	 * Fires after the recycle bin's "something changed" signal is
@@ -82,7 +82,7 @@ function open_station_recycle_bin_signal_change() {
 	 *
 	 * @param int $ts Milliseconds-since-epoch timestamp of the change.
 	 */
-	do_action( 'open_station_recycle_bin_signal', $ts );
+	do_action( 'openstation_recycle_bin_signal', $ts );
 }
 
 /**
@@ -97,12 +97,12 @@ function open_station_recycle_bin_signal_change() {
  * @param int    $post_id Post id being mutated.
  * @param string $action  One of 'trashed', 'untrashed', 'deleted'.
  */
-function open_station_recycle_bin_signal_change_for_post( $post_id, $action = 'trashed' ) {
+function openstation_recycle_bin_signal_change_for_post( $post_id, $action = 'trashed' ) {
 	$post = get_post( $post_id );
 	if ( $post instanceof WP_Post ) {
-		open_station_recycle_bin_record_change( (string) $post->post_type, (int) $post_id, (string) $action );
+		openstation_recycle_bin_record_change( (string) $post->post_type, (int) $post_id, (string) $action );
 	}
-	open_station_recycle_bin_signal_change();
+	openstation_recycle_bin_signal_change();
 }
 
 /**
@@ -123,11 +123,11 @@ function open_station_recycle_bin_signal_change_for_post( $post_id, $action = 't
  * @param string $action    Optional. Verb (trashed/untrashed/deleted).
  * @return array Full changelog when called with no args.
  */
-function open_station_recycle_bin_record_change( $post_type = '', $post_id = 0, $action = '' ) {
+function openstation_recycle_bin_record_change( $post_type = '', $post_id = 0, $action = '' ) {
 	if ( '' !== $post_type ) {
-		open_station_content_changes_record( (string) $post_type, (int) $post_id, (string) $action );
+		openstation_content_changes_record( (string) $post_type, (int) $post_id, (string) $action );
 	}
-	return open_station_content_changes_log();
+	return openstation_content_changes_log();
 }
 
 /**
@@ -147,11 +147,11 @@ function open_station_recycle_bin_record_change( $post_type = '', $post_id = 0, 
  *
  * @return bool
  */
-function open_station_recycle_bin_should_emit_footer_signal() {
-	if ( ! function_exists( 'open_station_is_chromeless_request' ) ) {
+function openstation_recycle_bin_should_emit_footer_signal() {
+	if ( ! function_exists( 'openstation_is_chromeless_request' ) ) {
 		return false;
 	}
-	if ( ! open_station_is_chromeless_request() ) {
+	if ( ! openstation_is_chromeless_request() ) {
 		return false;
 	}
 
@@ -160,13 +160,13 @@ function open_station_recycle_bin_should_emit_footer_signal() {
 	 * the current request.
 	 *
 	 * @param bool $emit Default true on any chromeless render. The
-	 *                   `open_station_recycle_bin_request_dirty()` helper
+	 *                   `openstation_recycle_bin_request_dirty()` helper
 	 *                   reports whether THIS request itself mutated
 	 *                   state — useful inside the filter for plugins
 	 *                   that only want to ride the "this request
 	 *                   trashed something" signal.
 	 */
-	return (bool) apply_filters( 'open_station_recycle_bin_emit_footer_signal', true );
+	return (bool) apply_filters( 'openstation_recycle_bin_emit_footer_signal', true );
 }
 
 /**
@@ -178,12 +178,12 @@ function open_station_recycle_bin_should_emit_footer_signal() {
  * a no-op when `window.parent === window` (defensive — the same
  * gate the existing chromeless bridge uses).
  */
-function open_station_recycle_bin_emit_footer_signal() {
-	if ( ! open_station_recycle_bin_should_emit_footer_signal() ) {
+function openstation_recycle_bin_emit_footer_signal() {
+	if ( ! openstation_recycle_bin_should_emit_footer_signal() ) {
 		return;
 	}
 
-	$ts = (int) get_option( OPEN_STATION_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$ts = (int) get_option( OPENSTATION_RECYCLE_BIN_CHANGE_OPTION, 0 );
 
 	if ( $ts <= 0 ) {
 		// Nothing has ever been trashed via this site — no point
@@ -224,7 +224,7 @@ function open_station_recycle_bin_emit_footer_signal() {
  *
  * The Heartbeat API runs server-side every 15s (active window),
  * 60s (background tab), or 120s (idle). The bin's tab opts in by
- * sending `open_station_recycle_bin_seen_ts` in its outgoing data; if the
+ * sending `openstation_recycle_bin_seen_ts` in its outgoing data; if the
  * key is absent we early-return so users without the bin open pay
  * zero per tick.
  *
@@ -232,22 +232,22 @@ function open_station_recycle_bin_emit_footer_signal() {
  * @param array $data     Client-sent payload.
  * @return array
  */
-function open_station_recycle_bin_heartbeat_received( $response, $data ) {
+function openstation_recycle_bin_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( ! isset( $data['open_station_recycle_bin_seen_ts'] ) ) {
+	if ( ! isset( $data['openstation_recycle_bin_seen_ts'] ) ) {
 		return $response;
 	}
-	if ( function_exists( 'open_station_recycle_bin_user_can_use' ) && ! open_station_recycle_bin_user_can_use() ) {
+	if ( function_exists( 'openstation_recycle_bin_user_can_use' ) && ! openstation_recycle_bin_user_can_use() ) {
 		return $response;
 	}
 
-	$seen    = (int) $data['open_station_recycle_bin_seen_ts'];
-	$latest  = (int) get_option( OPEN_STATION_RECYCLE_BIN_CHANGE_OPTION, 0 );
+	$seen    = (int) $data['openstation_recycle_bin_seen_ts'];
+	$latest  = (int) get_option( OPENSTATION_RECYCLE_BIN_CHANGE_OPTION, 0 );
 	$changed = $latest > $seen;
 
-	$response['open_station_recycle_bin'] = array(
+	$response['openstation_recycle_bin'] = array(
 		'changed' => $changed,
 		'ts'      => $latest,
 	);
@@ -256,13 +256,13 @@ function open_station_recycle_bin_heartbeat_received( $response, $data ) {
 	// changed since the client's high-water mark. The count cannot
 	// drift without the change-ts bumping (every capture / restore /
 	// purge bumps it), so an unchanged tick would recompute the same
-	// number — `open_station_recycle_bin_count()` runs up to two
+	// number — `openstation_recycle_bin_count()` runs up to two
 	// COUNT(*) WP_Querys plus a comment count, a real per-tick cost
 	// multiplied across every user with the shell open. The client
 	// treats `count` as optional and keeps its current badge value
 	// when the key is absent.
 	if ( $changed ) {
-		$response['open_station_recycle_bin']['count'] = open_station_recycle_bin_count();
+		$response['openstation_recycle_bin']['count'] = openstation_recycle_bin_count();
 	}
 
 	return $response;
@@ -271,23 +271,23 @@ function open_station_recycle_bin_heartbeat_received( $response, $data ) {
 /**
  * Wire the deletion hooks. We listen for both the WordPress core
  * verbs (`wp_trash_post`, `untrash_post`, `before_delete_post`) and
- * our own `open_station_recycle_bin_*` lifecycle actions — the former
+ * our own `openstation_recycle_bin_*` lifecycle actions — the former
  * catches deletes that bypass our REST endpoints (Quick Edit, REST
  * `DELETE`, WP-CLI, list-table bulk actions); the latter catches
  * the bin's own restore/purge so other tabs see the change.
  *
  * Hooked together inside one bootstrap to make the wiring auditable
- * — `grep open_station_recycle_bin_signal_change` finds every emitter.
+ * — `grep openstation_recycle_bin_signal_change` finds every emitter.
  */
-function open_station_recycle_bin_register_realtime_hooks() {
+function openstation_recycle_bin_register_realtime_hooks() {
 	add_action( 'wp_trash_post', function ( $post_id ) {
-		open_station_recycle_bin_signal_change_for_post( $post_id, 'trashed' );
+		openstation_recycle_bin_signal_change_for_post( $post_id, 'trashed' );
 	} );
 	add_action( 'untrash_post', function ( $post_id ) {
-		open_station_recycle_bin_signal_change_for_post( $post_id, 'untrashed' );
+		openstation_recycle_bin_signal_change_for_post( $post_id, 'untrashed' );
 	} );
 	add_action( 'before_delete_post', function ( $post_id ) {
-		open_station_recycle_bin_signal_change_for_post( $post_id, 'deleted' );
+		openstation_recycle_bin_signal_change_for_post( $post_id, 'deleted' );
 	} );
 
 	// Comments use a different verb space — `trashed_comment` /
@@ -298,25 +298,25 @@ function open_station_recycle_bin_register_realtime_hooks() {
 	// comments too, and third-party plugins can subscribe to the same
 	// topic by hooking the changelog.
 	add_action( 'trashed_comment', function ( $comment_id ) {
-		open_station_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
-		open_station_recycle_bin_signal_change();
+		openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'trashed' );
+		openstation_recycle_bin_signal_change();
 	} );
 	add_action( 'untrashed_comment', function ( $comment_id ) {
-		open_station_recycle_bin_record_change( 'comment', (int) $comment_id, 'untrashed' );
-		open_station_recycle_bin_signal_change();
+		openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'untrashed' );
+		openstation_recycle_bin_signal_change();
 	} );
 	add_action( 'deleted_comment', function ( $comment_id ) {
-		open_station_recycle_bin_record_change( 'comment', (int) $comment_id, 'deleted' );
-		open_station_recycle_bin_signal_change();
+		openstation_recycle_bin_record_change( 'comment', (int) $comment_id, 'deleted' );
+		openstation_recycle_bin_signal_change();
 	} );
 
-	add_action( 'open_station_recycle_bin_item_captured', 'open_station_recycle_bin_signal_change' );
-	add_action( 'open_station_recycle_bin_after_restore', 'open_station_recycle_bin_signal_change' );
-	add_action( 'open_station_recycle_bin_after_purge', 'open_station_recycle_bin_signal_change' );
-	add_action( 'open_station_recycle_bin_emptied', 'open_station_recycle_bin_signal_change' );
+	add_action( 'openstation_recycle_bin_item_captured', 'openstation_recycle_bin_signal_change' );
+	add_action( 'openstation_recycle_bin_after_restore', 'openstation_recycle_bin_signal_change' );
+	add_action( 'openstation_recycle_bin_after_purge', 'openstation_recycle_bin_signal_change' );
+	add_action( 'openstation_recycle_bin_emptied', 'openstation_recycle_bin_signal_change' );
 
-	add_action( 'admin_footer', 'open_station_recycle_bin_emit_footer_signal', 100 );
+	add_action( 'admin_footer', 'openstation_recycle_bin_emit_footer_signal', 100 );
 
-	add_filter( 'heartbeat_received', 'open_station_recycle_bin_heartbeat_received', 10, 2 );
+	add_filter( 'heartbeat_received', 'openstation_recycle_bin_heartbeat_received', 10, 2 );
 }
-add_action( 'init', 'open_station_recycle_bin_register_realtime_hooks', 5 );
+add_action( 'init', 'openstation_recycle_bin_register_realtime_hooks', 5 );

@@ -9,7 +9,7 @@
  *
  * Plugins extend the right pane via the
  * `os.my-wordpress.preview-actions` JS filter (paired with
- * the PHP `open_station_my_wordpress_preview_actions` descriptor).
+ * the PHP `openstation_my_wordpress_preview_actions` descriptor).
  *
  * @public
  */

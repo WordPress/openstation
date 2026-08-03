@@ -1,10 +1,10 @@
 {
 	"manifestVersion": 2,
 	"id": "desktop-mode/legacy",
-	"name": "OpenStation (Legacy)",
+	"name": "Desktop Mode (Legacy)",
 	"version": "1.0.0",
 	"author": "OpenStation",
-	"description": "The look OpenStation had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.",
+	"description": "The look Desktop Mode had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.",
 	"preview": "preview.svg",
 	"recommendedOsSettings": {
 		"accent": "wp-blue"

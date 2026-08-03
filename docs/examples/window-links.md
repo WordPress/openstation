@@ -55,10 +55,10 @@ wp.os.relations.set( windowB, { type: 'post', id: 2, links: [ { type: 'post', id
 
 ## 2. Announce identity for your own admin screen (PHP)
 
-Iframe windows get their identity from the chromeless bridge. Add your screen via the `open_station_window_content_identity` filter — it runs in real admin context, so you can resolve parents the URL doesn't carry:
+Iframe windows get their identity from the chromeless bridge. Add your screen via the `openstation_window_content_identity` filter — it runs in real admin context, so you can resolve parents the URL doesn't carry:
 
 ```php
-add_filter( 'open_station_window_content_identity', function ( $identity, $screen ) {
+add_filter( 'openstation_window_content_identity', function ( $identity, $screen ) {
     if ( $screen && 'acme_order_page' === $screen->id && isset( $_GET['order'] ) ) {
         $order = acme_get_order( absint( $_GET['order'] ) );
         if ( $order ) {
@@ -163,7 +163,7 @@ add_action( 'admin_enqueue_scripts', function () {
     );
     wp_enqueue_script( 'acme-link-renderer' );
 } );
-open_station_register_window_link_renderer_script( 'acme-link-renderer' );
+openstation_register_window_link_renderer_script( 'acme-link-renderer' );
 ```
 
 Your renderer appears in the OS Settings selector the moment the plugin activates — no reload. With `owner` set (above), deactivation live-unregisters it; if it was the active pick, the shell falls back to `svg-splines`.
@@ -175,5 +175,5 @@ The built-in splines read CSS custom properties — restyle without replacing th
 ## Related
 
 - [`javascript-reference.md`](../javascript-reference.md) — `wp.os.relations`, `registerWindowLinkRenderer`, frame shapes, events, JS filters (including `os.window-links.content` to rewrite identities and `os.window-links.renderer` to force-swap the active renderer).
-- [`hooks-reference.md`](../hooks-reference.md) — `open_station_window_content_identity`, `open_station_register_window_link_renderer_script()`.
+- [`hooks-reference.md`](../hooks-reference.md) — `openstation_window_content_identity`, `openstation_register_window_link_renderer_script()`.
 - [`bridge-protocol.md`](../bridge-protocol.md) — the `os-content-identity` message.

@@ -92,8 +92,8 @@ wp.os.applyWindowChrome( 'edit-post', null );
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `open_station_window_chrome_script_registered` | action | `( string $handle )` | Fires after `open_station_register_window_chrome_script()` succeeds. |
-| `open_station_window_chrome_registered` | action | `( string $id, array $entry )` | Fires after `open_station_register_window_chrome()` stores metadata. |
+| `openstation_window_chrome_script_registered` | action | `( string $handle )` | Fires after `openstation_register_window_chrome_script()` succeeds. |
+| `openstation_window_chrome_registered` | action | `( string $id, array $entry )` | Fires after `openstation_register_window_chrome()` stores metadata. |
 
 ### JavaScript
 

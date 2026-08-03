@@ -20,11 +20,17 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** Transient key the built snapshot is cached under. */
-const OPEN_STATION_LIVING_TREE_CACHE_KEY = 'desktop_mode_living_tree_snapshot';
+/**
+ * Transient key the built snapshot is cached under.
+ *
+ * Keeps its pre-rebrand spelling so live caches stay addressable. Not
+ * to be confused with the `openstation_living_tree_snapshot` filter,
+ * which once shared this string and is now deliberately decoupled.
+ */
+const OPENSTATION_LIVING_TREE_CACHE_KEY = 'desktop_mode_living_tree_snapshot';
 
 /** Cache lifetime for the snapshot. */
-const OPEN_STATION_LIVING_TREE_CACHE_TTL = 6 * HOUR_IN_SECONDS;
+const OPENSTATION_LIVING_TREE_CACHE_TTL = 6 * HOUR_IN_SECONDS;
 
 /**
  * Whether the current user may read the Living Tree snapshot.
@@ -34,7 +40,7 @@ const OPEN_STATION_LIVING_TREE_CACHE_TTL = 6 * HOUR_IN_SECONDS;
  *
  * @return bool
  */
-function open_station_living_tree_user_can_use() {
+function openstation_living_tree_user_can_use() {
 	$can = current_user_can( 'read' );
 
 	/**
@@ -42,41 +48,41 @@ function open_station_living_tree_user_can_use() {
 	 *
 	 * @param bool $can Default: the `read` capability.
 	 */
-	return (bool) apply_filters( 'open_station_living_tree_user_can_use', $can );
+	return (bool) apply_filters( 'openstation_living_tree_user_can_use', $can );
 }
 
 /**
  * Register the snapshot route.
  */
-function open_station_living_tree_register_routes() {
+function openstation_living_tree_register_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/living-tree/snapshot',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_living_tree_rest_snapshot',
-			'permission_callback' => 'open_station_living_tree_user_can_use',
+			'callback'            => 'openstation_living_tree_rest_snapshot',
+			'permission_callback' => 'openstation_living_tree_user_can_use',
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_living_tree_register_routes' );
+add_action( 'rest_api_init', 'openstation_living_tree_register_routes' );
 
 /**
  * GET /living-tree/snapshot — cached snapshot response.
  *
  * @return WP_REST_Response
  */
-function open_station_living_tree_rest_snapshot() {
-	$cached = get_transient( OPEN_STATION_LIVING_TREE_CACHE_KEY );
+function openstation_living_tree_rest_snapshot() {
+	$cached = get_transient( OPENSTATION_LIVING_TREE_CACHE_KEY );
 	if ( is_array( $cached ) ) {
 		return rest_ensure_response( $cached );
 	}
 
-	$snapshot = open_station_living_tree_build_snapshot();
+	$snapshot = openstation_living_tree_build_snapshot();
 	set_transient(
-		OPEN_STATION_LIVING_TREE_CACHE_KEY,
+		OPENSTATION_LIVING_TREE_CACHE_KEY,
 		$snapshot,
-		OPEN_STATION_LIVING_TREE_CACHE_TTL
+		OPENSTATION_LIVING_TREE_CACHE_TTL
 	);
 
 	return rest_ensure_response( $snapshot );
@@ -86,12 +92,12 @@ function open_station_living_tree_rest_snapshot() {
  * Invalidate the cached snapshot. Wired to the content-mutation hooks so
  * the tree re-DNAs on the next load after the site changes.
  */
-function open_station_living_tree_flush_cache() {
-	delete_transient( OPEN_STATION_LIVING_TREE_CACHE_KEY );
+function openstation_living_tree_flush_cache() {
+	delete_transient( OPENSTATION_LIVING_TREE_CACHE_KEY );
 }
-add_action( 'save_post', 'open_station_living_tree_flush_cache' );
-add_action( 'deleted_post', 'open_station_living_tree_flush_cache' );
-add_action( 'comment_post', 'open_station_living_tree_flush_cache' );
+add_action( 'save_post', 'openstation_living_tree_flush_cache' );
+add_action( 'deleted_post', 'openstation_living_tree_flush_cache' );
+add_action( 'comment_post', 'openstation_living_tree_flush_cache' );
 
 /**
  * Build the compact site DNA snapshot.
@@ -103,7 +109,7 @@ add_action( 'comment_post', 'open_station_living_tree_flush_cache' );
  *
  * @return array The snapshot, matching the JS `TreeSnapshot` shape.
  */
-function open_station_living_tree_build_snapshot() {
+function openstation_living_tree_build_snapshot() {
 	$posts    = wp_count_posts( 'post' );
 	$pages    = wp_count_posts( 'page' );
 	$comments = wp_count_comments();
@@ -114,18 +120,18 @@ function open_station_living_tree_build_snapshot() {
 	$snapshot = array(
 		'siteUrl'         => (string) home_url(),
 		'siteName'        => (string) get_bloginfo( 'name' ),
-		'installEpoch'    => open_station_living_tree_install_epoch(),
-		'siteAgeDays'     => open_station_living_tree_site_age_days(),
+		'installEpoch'    => openstation_living_tree_install_epoch(),
+		'siteAgeDays'     => openstation_living_tree_site_age_days(),
 		'totalPosts'      => isset( $posts->publish ) ? (int) $posts->publish : 0,
 		'totalPages'      => isset( $pages->publish ) ? (int) $pages->publish : 0,
 		'totalCategories' => is_wp_error( $categories ) ? 0 : (int) $categories,
 		'totalTags'       => is_wp_error( $tags ) ? 0 : (int) $tags,
 		'totalComments'   => isset( $comments->approved ) ? (int) $comments->approved : 0,
-		'activeUsers'     => open_station_living_tree_active_users(),
-		'traffic'         => open_station_living_tree_traffic(),
-		'seoHealth'       => open_station_living_tree_seo_health(),
-		'performance'     => open_station_living_tree_performance(),
-		'branches'        => open_station_living_tree_branch_dna(),
+		'activeUsers'     => openstation_living_tree_active_users(),
+		'traffic'         => openstation_living_tree_traffic(),
+		'seoHealth'       => openstation_living_tree_seo_health(),
+		'performance'     => openstation_living_tree_performance(),
+		'branches'        => openstation_living_tree_branch_dna(),
 	);
 
 	/**
@@ -136,5 +142,5 @@ function open_station_living_tree_build_snapshot() {
 	 *
 	 * @param array $snapshot The compact site DNA.
 	 */
-	return apply_filters( 'desktop_mode_living_tree_snapshot', $snapshot );
+	return apply_filters( 'openstation_living_tree_snapshot', $snapshot );
 }

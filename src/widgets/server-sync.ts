@@ -3,7 +3,7 @@
  *
  * Symmetrical to the native-window sync (`src/native-windows.ts`):
  * plugins declare their widget metadata server-side via
- * `open_station_register_widget()`, and this module diffs the shell's
+ * `openstation_register_widget()`, and this module diffs the shell's
  * current registry against the fresh payload on every live refresh.
  * New entries trigger dynamic script loading so the plugin's mount
  * callback (`window.openStationWidgets[ id ]`) becomes available

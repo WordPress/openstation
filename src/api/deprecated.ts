@@ -2,7 +2,7 @@
  * Deprecation helpers for the public API.
  *
  * The architecture-0.8.1 refactor renamed a handful of legacy
- * surfaces (`osm_*` PHP hooks → `open_station_*`, the occasional
+ * surfaces (`osm_*` PHP hooks → `openstation_*`, the occasional
  * stray `wp.os.fooLegacy()` JS method) to bring everything
  * under one prefix. We promised plugin authors that no existing
  * name would silently disappear: instead, every renamed surface

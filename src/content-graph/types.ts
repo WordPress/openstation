@@ -291,7 +291,7 @@ export interface ContentGraphConfig {
 	/**
 	 * The site's own name, used to label the detail panel's
 	 * "Open in <site>" action. Sourced from
-	 * `open_station_site_title()` server-side.
+	 * `openstation_site_title()` server-side.
 	 */
 	siteName?: string;
 	postTypes: PostTypeDescriptor[];

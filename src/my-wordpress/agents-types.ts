@@ -93,7 +93,7 @@ export interface AgentInvokeResult {
 
 /**
  * Agents block injected into the site folder window config by
- * `open_station_agents_my_wordpress_window_args()`.
+ * `openstation_agents_my_wordpress_window_args()`.
  */
 export interface AgentsSectionConfig {
 	canManage: boolean;

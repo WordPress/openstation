@@ -8,7 +8,7 @@
  *
  * @group openstation
  *
- * @covers ::open_station_build_dock_items
+ * @covers ::openstation_build_dock_items
  */
 class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
@@ -30,16 +30,16 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$menu                   = array();
 		$submenu                = array();
 		wp_set_current_user( self::$admin_id );
-		open_station_flush_script_handle_registries();
+		openstation_flush_script_handle_registries();
 	}
 
 	public function tear_down() {
 		global $menu, $submenu;
 		$menu    = $this->original_menu;
 		$submenu = $this->original_submenu;
-		remove_all_filters( 'open_station_dock_items' );
-		remove_all_filters( 'open_station_dock_item' );
-		remove_all_filters( 'open_station_dock_placement' );
+		remove_all_filters( 'openstation_dock_items' );
+		remove_all_filters( 'openstation_dock_item' );
+		remove_all_filters( 'openstation_dock_placement' );
 		parent::tear_down();
 	}
 
@@ -62,7 +62,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	public function test_returns_empty_array_when_menu_globals_are_empty() {
 		global $menu;
 		$menu = array();
-		$this->assertSame( array(), open_station_build_dock_items() );
+		$this->assertSame( array(), openstation_build_dock_items() );
 	}
 
 	public function test_skips_separators() {
@@ -72,7 +72,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertCount( 1, $items );
 		$this->assertSame( 'Posts', $items[0]['title'] );
@@ -85,7 +85,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertCount( 1, $items );
 		$this->assertSame( 'Posts', $items[0]['title'] );
@@ -103,7 +103,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Settings', 'manage_options', 'options-general.php' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$titles = wp_list_pluck( $items, 'title' );
 		$this->assertContains( 'Read', $titles );
@@ -134,7 +134,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'Appearance', $items[0]['title'] );
 		$this->assertSame( 3, $items[0]['badge'] );
@@ -204,7 +204,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		);
 
 		try {
-			$items = open_station_build_dock_items();
+			$items = openstation_build_dock_items();
 			$this->assertSame( 1, $items[0]['badge'] );
 		} finally {
 			delete_site_transient( 'update_plugins' );
@@ -236,7 +236,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 		delete_site_transient( 'update_plugins' );
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 		$this->assertSame( 0, $items[0]['badge'] );
 	}
 
@@ -244,7 +244,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 		$this->assertSame( 0, $items[0]['badge'] );
 	}
 
@@ -255,7 +255,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Custom', 'read', 'custom.php', '', '', 'menu-custom', '' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
 
@@ -271,7 +271,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Tags', 'manage_categories', 'edit-tags.php?taxonomy=post_tag' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		// Self-link stripped — only the two genuine children survive.
 		$this->assertCount( 2, $items[0]['submenu'] );
@@ -291,7 +291,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Tags', 'read', 'edit-tags.php?taxonomy=post_tag' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		// `All Posts` is the self-link (stripped). `Add New` is
 		// capability-filtered out (subscribers can't `edit_posts`).
@@ -320,7 +320,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Extensions', 'manage_options', 'wc-addons-shop' ),
 		);
 
-		$items  = open_station_build_dock_items();
+		$items  = openstation_build_dock_items();
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
 
 		$this->assertContains( 'Home', $titles );
@@ -351,7 +351,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Menus', 'edit_theme_options', 'nav-menus.php' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$titles = wp_list_pluck( $items[0]['submenu'], 'title' );
 		$this->assertNotContains( 'Themes', $titles ); // self-link strip
@@ -379,7 +379,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		$submenu['edit-comments.php'] = array(
 			array( 'Comments', 'edit_posts', 'edit-comments.php' ),
 		);
-		$leaf_only = open_station_build_dock_items();
+		$leaf_only = openstation_build_dock_items();
 		$this->assertSame( array(), $leaf_only[0]['submenu'] );
 
 		// A parent with one self-link + one real child — only the
@@ -388,7 +388,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Comments', 'edit_posts', 'edit-comments.php' ),
 			array( 'Recent', 'edit_posts', 'edit-comments.php?status=approved' ),
 		);
-		$with_real_child = open_station_build_dock_items();
+		$with_real_child = openstation_build_dock_items();
 		$this->assertCount( 1, $with_real_child[0]['submenu'] );
 		$this->assertSame( 'Recent', $with_real_child[0]['submenu'][0]['title'] );
 	}
@@ -419,7 +419,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Products', 'read', 'edit.php?post_type=product' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertCount( 1, $items );
 		$this->assertSame(
@@ -448,7 +448,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Add New',   'edit_posts', 'post-new.php' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( admin_url( 'edit.php' ), $items[0]['url'] );
 		// Self-link still gets stripped; only the real child remains.
@@ -473,18 +473,18 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			array( 'Public',     'read',           'public-page' ), // visible
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertCount( 1, $items );
 		$this->assertSame( admin_url( 'admin.php?page=public-page' ), $items[0]['url'] );
 	}
 
-	public function test_open_station_dock_item_filter_can_modify_each_entry() {
+	public function test_openstation_dock_item_filter_can_modify_each_entry() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 
 		add_filter(
-			'open_station_dock_item',
+			'openstation_dock_item',
 			function ( $item, $slug ) {
 				$item['title'] = strtoupper( $item['title'] );
 				$item['slug']  = $slug;
@@ -494,23 +494,23 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			2
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 		$this->assertSame( 'POSTS', $items[0]['title'] );
 		$this->assertSame( 'edit.php', $items[0]['slug'] );
 	}
 
-	public function test_open_station_dock_items_filter_can_replace_full_list() {
+	public function test_openstation_dock_items_filter_can_replace_full_list() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ) );
 
 		add_filter(
-			'open_station_dock_items',
+			'openstation_dock_items',
 			function () {
 				return array( array( 'id' => 'replaced', 'title' => 'Replaced' ) );
 			}
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 		$this->assertCount( 1, $items );
 		$this->assertSame( 'replaced', $items[0]['id'] );
 	}
@@ -519,13 +519,13 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * Dashicons values are passed through intact — these are CSS class
 	 * names baked into Core's menu config and safe to render.
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_dashicon_class_preserved() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', 'dashicons-admin-post' ) );
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-post', $items[0]['icon'] );
 	}
@@ -534,13 +534,13 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * Falling back to the generic icon when the menu row doesn't supply
 	 * one (or supplies an empty string) keeps the shell renderable.
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_falls_back_to_generic_when_empty() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Posts', 'edit_posts', 'edit.php', '', '', '', '' ) );
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
@@ -550,7 +550,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * The shell has no special handling for them, so collapsing to the
 	 * generic dashicon gives a safe, visible fallback.
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_none_and_div_collapse_to_generic() {
 		global $menu;
@@ -559,7 +559,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Div',  'read', 'div.php',  '', '', 'hook-div',  'div' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 		$this->assertSame( 'dashicons-admin-generic', $items[1]['icon'] );
@@ -569,7 +569,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * http(s) URLs — e.g. a plugin bundling its own PNG — pass through
 	 * esc_url_raw so scheme-shaped bytes can't slip past.
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_http_url_preserved_after_sanitizing() {
 		global $menu;
@@ -577,7 +577,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'X', 'read', 'x.php', '', '', 'hook-x', 'https://example.com/icon.png' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'https://example.com/icon.png', $items[0]['icon'] );
 	}
@@ -589,18 +589,18 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * scripts inside the SVG just like an `<img>` would, so passing
 	 * a well-formed `data:image/svg+xml;base64,…` value through is
 	 * safe and necessary — without it every plugin tile collapses to
-	 * the gear fallback. The strict regex in `open_station_sanitize_dock_icon`
+	 * the gear fallback. The strict regex in `openstation_sanitize_dock_icon`
 	 * still rejects malformed shapes and non-SVG `data:` schemes
 	 * (covered by sibling tests).
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_well_formed_svg_data_uri_passes_through() {
 		global $menu;
 		$svg  = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=';
 		$menu = array( $this->make_menu_row( 'Y', 'read', 'y.php', '', '', 'hook-y', $svg ) );
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( $svg, $items[0]['icon'] );
 	}
@@ -610,13 +610,13 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * the shell wrote it to an `<img src>` or anchor. Must be dropped to
 	 * the fallback icon, not passed through.
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_javascript_url_is_rejected() {
 		global $menu;
 		$menu = array( $this->make_menu_row( 'Z', 'read', 'z.php', '', '', 'hook-z', 'javascript:alert(1)' ) );
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
@@ -626,7 +626,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * common XSS vector and must be rejected, even though `data:` itself
 	 * is allowed for the SVG case.
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_non_svg_data_uri_is_rejected() {
 		global $menu;
@@ -634,7 +634,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'A', 'read', 'a.php', '', '', 'hook-a', 'data:text/html,<script>alert(1)</script>' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-generic', $items[0]['icon'] );
 	}
@@ -644,7 +644,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * hostile plugin break out of the class attribute on the shell side.
 	 * Strip everything that isn't a legal dashicon class character.
 	 *
-	 * @covers ::open_station_sanitize_dock_icon
+	 * @covers ::openstation_sanitize_dock_icon
 	 */
 	public function test_icon_dashicon_breakout_attempt_is_scrubbed() {
 		global $menu;
@@ -652,7 +652,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'B', 'read', 'b.php', '', '', 'hook-b', 'dashicons-admin-post" onerror="alert(1)' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 
 		$this->assertSame( 'dashicons-admin-postonerroralert1', $items[0]['icon'] );
 		$this->assertStringNotContainsString( '"', $items[0]['icon'] );
@@ -666,9 +666,9 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * a visual separator between the core cluster and the plugin
 	 * cluster.
 	 *
-	 * @covers ::open_station_build_dock_items
-	 * @covers ::open_station_is_core_menu_slug
-	 * @covers ::open_station_dock_placement
+	 * @covers ::openstation_build_dock_items
+	 * @covers ::openstation_is_core_menu_slug
+	 * @covers ::openstation_dock_placement
 	 */
 	public function test_placement_distinguishes_core_from_plugin_menus() {
 		global $menu;
@@ -684,7 +684,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Yoast SEO', 'read', 'wpseo_dashboard' ),
 		);
 
-		$items = open_station_build_dock_items();
+		$items = openstation_build_dock_items();
 		$by_id = array();
 		foreach ( $items as $item ) {
 			$by_id[ $item['id'] ] = $item;
@@ -713,23 +713,23 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * They should be treated as Core (left dock) because conceptually
 	 * they're content, same as Posts and Pages.
 	 *
-	 * @covers ::open_station_is_core_menu_slug
+	 * @covers ::openstation_is_core_menu_slug
 	 */
 	public function test_cpt_routes_count_as_core() {
-		$this->assertTrue( open_station_is_core_menu_slug( 'edit.php?post_type=product' ) );
-		$this->assertTrue( open_station_is_core_menu_slug( 'edit.php?post_type=wp_block' ) );
+		$this->assertTrue( openstation_is_core_menu_slug( 'edit.php?post_type=product' ) );
+		$this->assertTrue( openstation_is_core_menu_slug( 'edit.php?post_type=wp_block' ) );
 	}
 
 	/**
-	 * `open_station_dock_placement` lets plugins + site admins hide
+	 * `openstation_dock_placement` lets plugins + site admins hide
 	 * any menu item from the dock. Returning anything else coerces
 	 * back to `'dock'` (the default).
 	 *
-	 * @covers ::open_station_dock_placement
+	 * @covers ::openstation_dock_placement
 	 */
 	public function test_placement_filter_can_hide_items() {
 		add_filter(
-			'open_station_dock_placement',
+			'openstation_dock_placement',
 			static function ( $placement, $slug ) {
 				if ( 'background-tool' === $slug ) {
 					return 'hidden';
@@ -741,27 +741,27 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		);
 
 		// Hidden items disappear from the dock.
-		$this->assertSame( 'hidden', open_station_dock_placement( 'background-tool' ) );
+		$this->assertSame( 'hidden', openstation_dock_placement( 'background-tool' ) );
 		// Unrelated slugs still get the default answer.
-		$this->assertSame( 'dock', open_station_dock_placement( 'edit.php' ) );
-		$this->assertSame( 'dock', open_station_dock_placement( 'jetpack' ) );
+		$this->assertSame( 'dock', openstation_dock_placement( 'edit.php' ) );
+		$this->assertSame( 'dock', openstation_dock_placement( 'jetpack' ) );
 	}
 
 	/**
 	 * A filter that returns garbage is ignored — items default to
 	 * `'dock'` to keep the shell rendering predictably.
 	 *
-	 * @covers ::open_station_dock_placement
+	 * @covers ::openstation_dock_placement
 	 */
 	public function test_placement_filter_rejects_unknown_values() {
 		add_filter(
-			'open_station_dock_placement',
+			'openstation_dock_placement',
 			static function () {
 				return 'sidebar'; // not a valid placement
 			}
 		);
-		$this->assertSame( 'dock', open_station_dock_placement( 'edit.php' ) );
-		$this->assertSame( 'dock', open_station_dock_placement( 'some-plugin' ) );
+		$this->assertSame( 'dock', openstation_dock_placement( 'edit.php' ) );
+		$this->assertSame( 'dock', openstation_dock_placement( 'some-plugin' ) );
 	}
 
 	/**
@@ -770,12 +770,12 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * from the unified dock payload while still being a valid
 	 * server-side menu entry.
 	 *
-	 * @covers ::open_station_dock_placement
-	 * @covers ::open_station_build_menu_payload
+	 * @covers ::openstation_dock_placement
+	 * @covers ::openstation_build_menu_payload
 	 */
 	public function test_hidden_placement_removes_item_from_dock() {
 		add_filter(
-			'open_station_dock_placement',
+			'openstation_dock_placement',
 			static function ( $placement, $slug ) {
 				if ( 'background-tool' === $slug ) {
 					return 'hidden';
@@ -786,7 +786,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			2
 		);
 
-		$this->assertSame( 'hidden', open_station_dock_placement( 'background-tool' ) );
+		$this->assertSame( 'hidden', openstation_dock_placement( 'background-tool' ) );
 
 		global $menu;
 		$menu = array(
@@ -794,7 +794,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			$this->make_menu_row( 'Other Plugin', 'manage_options', 'other-plugin' ),
 		);
 
-		$payload  = open_station_build_menu_payload();
+		$payload  = openstation_build_menu_payload();
 		$dock_ids = wp_list_pluck( $payload['dockItems'], 'id' );
 
 		$this->assertNotContains( 'menu-background-tool', $dock_ids );
@@ -807,7 +807,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * top-left circle-arrows badge is static server HTML that would
 	 * otherwise show its boot-time count until a hard refresh.
 	 *
-	 * @covers ::open_station_build_menu_payload
+	 * @covers ::openstation_build_menu_payload
 	 */
 	public function test_payload_carries_update_counts() {
 		require_once ABSPATH . 'wp-admin/includes/update.php';
@@ -829,7 +829,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			)
 		);
 
-		$payload = open_station_build_menu_payload();
+		$payload = openstation_build_menu_payload();
 
 		$this->assertArrayHasKey( 'updateCounts', $payload );
 		$counts = $payload['updateCounts'];
@@ -840,7 +840,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 
 		// And the zero case — the client hides the node on this signal.
 		set_site_transient( 'update_plugins', (object) array( 'response' => array() ) );
-		$payload = open_station_build_menu_payload();
+		$payload = openstation_build_menu_payload();
 		$this->assertSame( 0, $payload['updateCounts']['total'] );
 	}
 
@@ -850,13 +850,13 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * short-circuits before reflecting on $wp_filter, so the dock never
 	 * shows a "Deactivate" action for Dashboard, Posts, Plugins, etc.
 	 *
-	 * @covers ::open_station_resolve_menu_plugin_file
+	 * @covers ::openstation_resolve_menu_plugin_file
 	 */
 	public function test_resolve_plugin_file_returns_null_for_core_slugs() {
-		$this->assertNull( open_station_resolve_menu_plugin_file( 'index.php' ) );
-		$this->assertNull( open_station_resolve_menu_plugin_file( 'plugins.php' ) );
-		$this->assertNull( open_station_resolve_menu_plugin_file( 'edit.php' ) );
-		$this->assertNull( open_station_resolve_menu_plugin_file( 'edit.php?post_type=page' ) );
+		$this->assertNull( openstation_resolve_menu_plugin_file( 'index.php' ) );
+		$this->assertNull( openstation_resolve_menu_plugin_file( 'plugins.php' ) );
+		$this->assertNull( openstation_resolve_menu_plugin_file( 'edit.php' ) );
+		$this->assertNull( openstation_resolve_menu_plugin_file( 'edit.php?post_type=page' ) );
 	}
 
 	/**
@@ -865,11 +865,11 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * the deactivate option entirely — better than a false positive
 	 * that would 404 on the REST mutation.
 	 *
-	 * @covers ::open_station_resolve_menu_plugin_file
+	 * @covers ::openstation_resolve_menu_plugin_file
 	 */
 	public function test_resolve_plugin_file_returns_null_for_unknown_slug() {
 		$this->assertNull(
-			open_station_resolve_menu_plugin_file( 'nonexistent-menu-slug-xyz' )
+			openstation_resolve_menu_plugin_file( 'nonexistent-menu-slug-xyz' )
 		);
 	}
 
@@ -881,7 +881,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * self-deactivate path handles that scenario with the right
 	 * confirmation + reload affordances.
 	 *
-	 * @covers ::open_station_resolve_menu_plugin_file
+	 * @covers ::openstation_resolve_menu_plugin_file
 	 */
 	/**
 	 * Positive path: a callback whose declaring file lives under
@@ -893,8 +893,8 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 * path) and a matching entry in `get_plugins()`. The fixture is
 	 * written, included, used, and torn down within a single test.
 	 *
-	 * @covers ::open_station_resolve_menu_plugin_file
-	 * @covers ::open_station_plugin_file_for_path
+	 * @covers ::openstation_resolve_menu_plugin_file
+	 * @covers ::openstation_plugin_file_for_path
 	 */
 	public function test_resolve_plugin_file_returns_plugin_basename_when_callback_lives_in_plugin_dir() {
 		$fake_folder   = 'dm-positive-resolver-fixture';
@@ -939,7 +939,7 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		// permanently pick up `dm-positive-resolver-fixture` as an
 		// installed plugin on subsequent runs.
 		try {
-			$resolved = open_station_resolve_menu_plugin_file( $slug );
+			$resolved = openstation_resolve_menu_plugin_file( $slug );
 			$this->assertSame( $fake_basename, $resolved );
 		} finally {
 			remove_action( $hookname, 'dm_positive_resolver_fixture_render' );
@@ -962,16 +962,16 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 	 *
 	 * To exercise the guard specifically (not the "no callback in
 	 * WP_PLUGIN_DIR" early return), we register a real OpenStation
-	 * function — `open_station_is_pure_core_file()` — as the callback
+	 * function — `openstation_is_pure_core_file()` — as the callback
 	 * on a fake page hook. Reflection on that function returns a
 	 * filename inside `WP_PLUGIN_DIR/desktop-mode/…`, so the resolver
 	 * walks through the page-hook reflection branch, matches the
 	 * openstation plugin file, then hits the `$self_basename` guard
 	 * and returns null.
 	 *
-	 * @covers ::open_station_resolve_menu_plugin_file
+	 * @covers ::openstation_resolve_menu_plugin_file
 	 */
-	public function test_resolve_plugin_file_excludes_open_station_itself() {
+	public function test_resolve_plugin_file_excludes_openstation_itself() {
 		$slug     = 'os-self-exclusion-test';
 		$hookname = get_plugin_page_hookname( $slug, '' );
 
@@ -979,11 +979,11 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 		// fails, the test is exercising the wrong branch and should be
 		// re-thought rather than silently regress to the old "outside
 		// WP_PLUGIN_DIR" path.
-		$callback_file = ( new ReflectionFunction( 'open_station_is_pure_core_file' ) )
+		$callback_file = ( new ReflectionFunction( 'openstation_is_pure_core_file' ) )
 			->getFileName();
 		$this->assertNotFalse(
 			$callback_file,
-			'Cannot reflect on open_station_is_pure_core_file — test cannot exercise self-exclusion.'
+			'Cannot reflect on openstation_is_pure_core_file — test cannot exercise self-exclusion.'
 		);
 		$this->assertStringStartsWith(
 			wp_normalize_path( WP_PLUGIN_DIR ) . '/',
@@ -991,11 +991,11 @@ class Tests_OpenStation_BuildDockItems extends WP_UnitTestCase {
 			'OpenStation must live under WP_PLUGIN_DIR for the self-exclusion branch to trigger.'
 		);
 
-		add_action( $hookname, 'open_station_is_pure_core_file' );
+		add_action( $hookname, 'openstation_is_pure_core_file' );
 		try {
-			$resolved = open_station_resolve_menu_plugin_file( $slug );
+			$resolved = openstation_resolve_menu_plugin_file( $slug );
 		} finally {
-			remove_action( $hookname, 'open_station_is_pure_core_file' );
+			remove_action( $hookname, 'openstation_is_pure_core_file' );
 		}
 
 		$this->assertNull( $resolved );

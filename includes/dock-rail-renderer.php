@@ -4,7 +4,7 @@
  *
  * Mirrors `includes/commands.php` exactly — a plugin enqueues a JS
  * bundle that registers a renderer with `wp.os.registerDockRailRenderer()`,
- * then calls `open_station_register_dock_rail_renderer_script( $handle )`
+ * then calls `openstation_register_dock_rail_renderer_script( $handle )`
  * to opt the script into the live-refresh payload. The shell loads
  * the script over the chromeless bridge on activation, the JS calls
  * `registerDockRailRenderer()`, and the OS Settings → Dock style picker
@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * add_action( 'open_station_shell_assets', function () {
+ * add_action( 'openstation_shell_assets', function () {
  *     wp_register_script(
  *         'orbit-rail',
  *         plugin_dir_url( __FILE__ ) . 'orbit-rail.js',
@@ -36,7 +36,7 @@ defined( 'ABSPATH' ) || exit;
  *     );
  *     wp_enqueue_script( 'orbit-rail' );
  * } );
- * open_station_register_dock_rail_renderer_script( 'orbit-rail' );
+ * openstation_register_dock_rail_renderer_script( 'orbit-rail' );
  * ```
  *
  * The script's JS side calls `wp.os.registerDockRailRenderer( { … } )`
@@ -46,23 +46,23 @@ defined( 'ABSPATH' ) || exit;
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function open_station_register_dock_rail_renderer_script( $handle ) {
+function openstation_register_dock_rail_renderer_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return open_station_registration_error(
-			'open_station_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Dock rail renderer script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	open_station_dock_rail_renderer_script_registry( $handle, true );
+	openstation_dock_rail_renderer_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop dock rail renderer script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'open_station_dock_rail_renderer_script_registered', $handle );
+	do_action( 'openstation_dock_rail_renderer_script_registered', $handle );
 
 	return true;
 }
@@ -77,7 +77,7 @@ function open_station_register_dock_rail_renderer_script( $handle ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function open_station_dock_rail_renderer_script_registry( $handle = '', $value = null ) {
+function openstation_dock_rail_renderer_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -95,10 +95,10 @@ function open_station_dock_rail_renderer_script_registry( $handle = '', $value =
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see open_station_flush_script_handle_registries()}.
+ * {@see openstation_flush_script_handle_registries()}.
  */
-function open_station_flush_dock_rail_renderer_script_registry() {
-	open_station_dock_rail_renderer_script_registry( '__flush__' );
+function openstation_flush_dock_rail_renderer_script_registry() {
+	openstation_dock_rail_renderer_script_registry( '__flush__' );
 }
 
 /**
@@ -110,8 +110,8 @@ function open_station_flush_dock_rail_renderer_script_registry() {
  *
  * @return array[]
  */
-function open_station_build_dock_rail_renderer_scripts_payload() {
-	$registry = open_station_dock_rail_renderer_script_registry();
+function openstation_build_dock_rail_renderer_scripts_payload() {
+	$registry = openstation_dock_rail_renderer_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -122,10 +122,10 @@ function open_station_build_dock_rail_renderer_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = open_station_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			open_station_warn_unresolvable_script_handle(
-				'open_station_register_dock_rail_renderer_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_dock_rail_renderer_script',
 				'Dock rail renderer',
 				(string) $handle
 			);

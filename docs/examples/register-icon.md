@@ -16,7 +16,7 @@ A one-PHP-file companion plugin that puts a shortcut tile on the desktop wallpap
 defined( 'ABSPATH' ) || exit;
 
 // 1. The native window — a small panel the shell renders into.
-open_station_register_window( 'jorvy', array(
+openstation_register_window( 'jorvy', array(
     'title'    => __( 'Jorvy', 'jorvy' ),
     'icon'     => 'dashicons-star-filled',
     'width'    => 320,
@@ -41,7 +41,7 @@ open_station_register_window( 'jorvy', array(
 
 // 2. The shortcut tile on the wallpaper — clicking it opens the
 //    registered native window (matched by id).
-open_station_register_icon( 'jorvy', array(
+openstation_register_icon( 'jorvy', array(
     'title'    => __( 'Jorvy', 'jorvy' ),
     'icon'     => 'dashicons-star-filled',
     'window'   => 'jorvy',
@@ -52,7 +52,7 @@ open_station_register_icon( 'jorvy', array(
 //    `window.openStationNativeWindows[ 'jorvy' ]` so the shell can
 //    invoke it when the window opens.
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'open_station_is_enabled' ) || ! open_station_is_enabled() ) {
+    if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
         return;
     }
     wp_enqueue_script(
@@ -63,7 +63,7 @@ add_action( 'admin_enqueue_scripts', function () {
         true
     );
     // Match: register the style handle named in `'style' => …` above.
-    // `wp_register_style` is enough — `open_station_register_window()`
+    // `wp_register_style` is enough — `openstation_register_window()`
     // resolves the handle on its own; the shell decides whether to
     // print it at boot or lazy-inject it mid-session.
     wp_register_style(
@@ -105,11 +105,11 @@ add_action( 'admin_enqueue_scripts', function () {
 
 ## What each call buys you
 
-### `open_station_register_window( $id, $args )`
+### `openstation_register_window( $id, $args )`
 
 Declares the native window — its title, icon, initial dimensions, template markup, and render script. Returns `true` on success, `WP_Error` on any validation failure (missing `title`, non-callable `template`, unmet capability). `script` is optional — omit it for a purely declarative window whose body is exactly the cloned template.
 
-### `open_station_register_icon( $id, $args )`
+### `openstation_register_icon( $id, $args )`
 
 Drops a clickable tile on the wallpaper at the `position` you specify (lower numbers render top-left). The `window` key must match the id of a registered native window; the alternative is `url` (either a same-origin admin URL that opens as an iframe window, or an off-site URL that opens in a new browser tab). Mutually exclusive.
 
@@ -134,15 +134,15 @@ The `icon` arg accepts three formats. A fourth (`icon_svg`) is a convenience wra
 
 **Drawing the SVG in `currentColor` makes it a silhouette** — the framework paints it as a CSS mask filled with the surface's text colour, so one drawing stays legible on the dark dock, on a light title bar, and on hover. Use fixed colours only for art that should keep them (a brand mark, a full-colour app icon). See [Silhouette icons](../javascript-reference.md#silhouette-icons) for the full rule.
 
-The shared sanitizer rejects `javascript:` URIs and any non-`image/svg+xml` `data:` scheme. SVG markup with an embedded `<script>` tag is rejected outright when passed via `icon_svg` (defence-in-depth — browsers also sandbox scripts inside `<img src="data:…">` SVGs, but we belt-and-braces). All four forms run through `open_station_sanitize_dock_icon`, so a malformed value silently falls back to `dashicons-admin-generic`.
+The shared sanitizer rejects `javascript:` URIs and any non-`image/svg+xml` `data:` scheme. SVG markup with an embedded `<script>` tag is rejected outright when passed via `icon_svg` (defence-in-depth — browsers also sandbox scripts inside `<img src="data:…">` SVGs, but we belt-and-braces). All four forms run through `openstation_sanitize_dock_icon`, so a malformed value silently falls back to `dashicons-admin-generic`.
 
 ### Pinning a system icon
 
 Pass `pinned => true` for built-in shortcuts that should always sit in the same place. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as non-draggable surface — useful for "always there" launchers like the in-tree pinned **site folder**.
 
 ```php
-open_station_register_icon( 'my-wordpress', array(
-    'title'    => open_station_site_title(),
+openstation_register_icon( 'my-wordpress', array(
+    'title'    => openstation_site_title(),
     'icon'     => 'dashicons-wordpress',
     'window'   => 'desktop-mode-my-wordpress',
     'pinned'   => true,
@@ -164,14 +164,14 @@ Native windows render in JS because a `render( body )` callback can't cross the 
 2. Enable OpenStation via the admin-bar toggle.
 3. A star icon labeled *Jorvy* appears on the wallpaper.
 4. Click it — the Marvel-quote panel opens; the quote rotates every ten seconds.
-5. Check the action history: `open_station_native_window_registered` and `open_station_icon_registered` each fired once.
+5. Check the action history: `openstation_native_window_registered` and `openstation_icon_registered` each fired once.
 
 ## Error handling
 
 If you want to see the error path in action, comment out the `'title'` argument in the icon registration and watch the error log:
 
 ```
-[jorvy] registration failed: open_station_missing_title — Desktop icon registration requires a non-empty `title`.
+[jorvy] registration failed: openstation_missing_title — Desktop icon registration requires a non-empty `title`.
 ```
 
 The `WP_Error` contract means you find typos at plugin-load time, not at first-click time.
@@ -207,6 +207,6 @@ The hook is suppressed when the rendered DOM is unchanged (fingerprint short-cir
 
 ## See also
 
-- [`open_station_register_window()`](../hooks-reference.md#registration-functions) — full argument reference and error-code table.
-- [`open_station_icon_registered`](../hooks-reference.md#open_station_icon_registered--stable) — the post-registration action.
-- [`open_station_icons`](../hooks-reference.md#open_station_icons--stable) — filter for hiding/reordering icons registered by others.
+- [`openstation_register_window()`](../hooks-reference.md#registration-functions) — full argument reference and error-code table.
+- [`openstation_icon_registered`](../hooks-reference.md#openstation_icon_registered--stable) — the post-registration action.
+- [`openstation_icons`](../hooks-reference.md#openstation_icons--stable) — filter for hiding/reordering icons registered by others.

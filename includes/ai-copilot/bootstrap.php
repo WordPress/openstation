@@ -3,7 +3,7 @@
  * OpenStation — AI Copilot bootstrap.
  *
  * Loads all sub-modules in dependency order: settings helpers first so
- * every other file can call `open_station_ai_get_settings()` immediately.
+ * every other file can call `openstation_ai_get_settings()` immediately.
  *
  * @package OpenStation
  */

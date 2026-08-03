@@ -49,7 +49,7 @@
     root.appendChild(iframe);
   }
   const registry = window.openStationNativeWindows ?? (window.openStationNativeWindows = {});
-  registry["osc-phpmyadmin"] = (body) => {
+  registry["wpdc-phpmyadmin"] = (body) => {
     renderPhpMyAdmin(body);
   };
 

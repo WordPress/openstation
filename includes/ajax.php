@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Handles saving the user's OpenStation preference via AJAX.
  */
-function open_station_ajax_save() {
+function openstation_ajax_save() {
 	check_ajax_referer( 'save-openstation', 'nonce' );
 
 	// A valid nonce proves *this* request was authored by the current
@@ -19,7 +19,7 @@ function open_station_ajax_save() {
 	// minimum cap every admin-visible role carries; subscribers on sites
 	// that revoke it have no business flipping an admin-UI preference.
 	if ( ! current_user_can( 'read' ) ) {
-		wp_send_json_error( 'open_station_forbidden', 403 );
+		wp_send_json_error( 'openstation_forbidden', 403 );
 	}
 
 	/**
@@ -30,9 +30,9 @@ function open_station_ajax_save() {
 	 * @param bool $enabled Whether OpenStation is enabled. Default true.
 	 * @param int  $user_id The current user ID.
 	 */
-	$allowed = apply_filters( 'open_station_mode_enabled', true, get_current_user_id() );
+	$allowed = apply_filters( 'openstation_mode_enabled', true, get_current_user_id() );
 	if ( ! $allowed ) {
-		wp_send_json_error( 'open_station_disabled' );
+		wp_send_json_error( 'openstation_disabled' );
 	}
 
 	$enabled = ! empty( $_POST['enabled'] ) && '1' === $_POST['enabled'] ? '1' : '';
@@ -57,10 +57,10 @@ function open_station_ajax_save() {
 	//
 	// Disabling from the shell jumps to a plain admin URL — NOT the
 	// portal, which would auto-re-enable the mode via the
-	// `open_station_portal_auto_enable` filter and trap the user in a
+	// `openstation_portal_auto_enable` filter and trap the user in a
 	// loop.
 	$redirect = '1' === $enabled
-		? admin_url( 'index.php?' . OPEN_STATION_PORTAL_FLAG . '=1' )
+		? admin_url( 'index.php?' . OPENSTATION_PORTAL_FLAG . '=1' )
 		: admin_url();
 
 	wp_send_json_success(
@@ -70,4 +70,4 @@ function open_station_ajax_save() {
 		)
 	);
 }
-add_action( 'wp_ajax_save-openstation', 'open_station_ajax_save' );
+add_action( 'wp_ajax_save-openstation', 'openstation_ajax_save' );

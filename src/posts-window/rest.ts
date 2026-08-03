@@ -128,7 +128,7 @@ export interface PostsWindowConfig {
 
 /**
  * Active edit-lock holder for a row, surfaced via the
- * `open_station_lock` REST field registered in
+ * `openstation_lock` REST field registered in
  * `includes/my-wordpress/lock.php`. `null` when the row isn't
  * locked, when the requester lacks edit caps, or when the
  * requester is the lock holder.
@@ -175,14 +175,14 @@ export interface PostListItem {
 	template?: string;
 	/**
 	 * Comments count for this row, surfaced via the
-	 * `open_station_comment_count` REST field registered in
+	 * `openstation_comment_count` REST field registered in
 	 * `includes/pages-window/window.php`. Absent for callers that
 	 * don't include the field in `_fields`.
 	 */
-	open_station_comment_count?: number;
+	openstation_comment_count?: number;
 	comment_status: 'open' | 'closed';
 	excerpt?: { rendered: string; protected?: boolean };
-	open_station_lock?: PostListItemLock | null;
+	openstation_lock?: PostListItemLock | null;
 	_embedded?: {
 		author?: Array< {
 			id: number;
@@ -282,7 +282,7 @@ export interface TermRow {
 	/**
 	 * Whether this term is the taxonomy's default fallback (e.g.
 	 * Uncategorized for category; populated server-side via the
-	 * `open_station_is_default` REST field). `false` when the field
+	 * `openstation_is_default` REST field). `false` when the field
 	 * isn't surfaced (older PHP build) or the term isn't the default.
 	 */
 	isDefault: boolean;
@@ -441,7 +441,7 @@ export function createPostsWindowClient(
 		if ( ! cfg ) {
 			throw new Error(
 				`[${ windowId }] config blob is missing — was the window opened ` +
-					'without registration? See the matching `open_station_register_window()` ' +
+					'without registration? See the matching `openstation_register_window()` ' +
 					'call in `includes/{posts,pages}-window/window.php`.',
 			);
 		}
@@ -789,7 +789,7 @@ export function createPostsWindowClient(
 		url.searchParams.set( 'page', String( params.page ?? 1 ) );
 		url.searchParams.set(
 			'_fields',
-			'id,name,slug,parent,count,description,open_station_count,open_station_is_default',
+			'id,name,slug,parent,count,description,openstation_count,openstation_is_default',
 		);
 		url.searchParams.set( 'orderby', params.orderby ?? 'name' );
 		url.searchParams.set( 'order', params.order ?? 'asc' );
@@ -808,11 +808,11 @@ export function createPostsWindowClient(
 				// Prefer the any-status count (includes drafts + pending)
 				// when the server emits it; fall back to core's `count`
 				// for older PHP builds that predate the custom field.
-				const anyCount = ( t as { open_station_count?: number } )
-					.open_station_count;
+				const anyCount = ( t as { openstation_count?: number } )
+					.openstation_count;
 				const isDefault =
-					( t as { open_station_is_default?: boolean } )
-						.open_station_is_default === true;
+					( t as { openstation_is_default?: boolean } )
+						.openstation_is_default === true;
 				return {
 					id: ( t.id as number ) ?? 0,
 					name: ( t.name as string ) ?? '',

@@ -8,7 +8,7 @@
  * same-origin `/wp-admin/` `<a href>` and `<form action>` so
  * navigations within the tab stay classic — server-side
  * redirects are handled by
- * `open_station_classic_preserve_redirect()` in routing.php.
+ * `openstation_classic_preserve_redirect()` in routing.php.
  *
  * Extracted from `render.php` during the architecture-0.8.1 PHP
  * slicing (phase 6).
@@ -28,19 +28,19 @@ defined( 'ABSPATH' ) || exit;
  * `admin_init` portal redirect kicks in. The JS here re-stamps the flag
  * on every same-origin `/wp-admin/` `<a href>` and `<form action>` so
  * navigations within the tab stay classic. Server-side redirects are
- * covered by {@see open_station_classic_preserve_redirect}.
+ * covered by {@see openstation_classic_preserve_redirect}.
  *
  * Narrowly scoped: only runs when the current request itself carries
  * the classic flag. Skips modifier-clicks (cmd/ctrl/shift/alt), targets
  * other than `_self`, downloads, anchors, and non-http schemes so we
  * don't break "open in new tab" or mailto links.
  */
-function open_station_classic_link_interceptor() {
-	if ( ! open_station_is_classic_request() ) {
+function openstation_classic_link_interceptor() {
+	if ( ! openstation_is_classic_request() ) {
 		return;
 	}
 
-	$flag_literal = wp_json_encode( OPEN_STATION_CLASSIC_FLAG );
+	$flag_literal = wp_json_encode( OPENSTATION_CLASSIC_FLAG );
 
 	$js = "
 ( function () {
@@ -111,4 +111,4 @@ function open_station_classic_link_interceptor() {
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_footer', 'open_station_classic_link_interceptor' );
+add_action( 'admin_footer', 'openstation_classic_link_interceptor' );

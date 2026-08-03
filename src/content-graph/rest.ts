@@ -35,7 +35,7 @@ export function getConfig(): ContentGraphConfig {
 	const cfg = map[ WINDOW_ID ] as ContentGraphConfig | undefined;
 	if ( ! cfg ) {
 		throw new Error(
-			'Corkboard config missing — open_station_register_window args lost in transit.',
+			'Corkboard config missing — openstation_register_window args lost in transit.',
 		);
 	}
 	return cfg;

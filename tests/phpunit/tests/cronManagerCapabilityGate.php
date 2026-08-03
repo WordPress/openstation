@@ -2,7 +2,7 @@
 /**
  * Tests for the Cron Manager capability gate.
  *
- * Covers `open_station_cron_manager_user_can_use()` — the single
+ * Covers `openstation_cron_manager_user_can_use()` — the single
  * authorization chokepoint shared by every Cron Manager REST route and
  * by the window/icon registration. On multisite the gate MUST require
  * `manage_network` (Super Admin): per-site Administrators hold
@@ -25,27 +25,27 @@ class Tests_OpenStation_CronManagerCapabilityGate extends WP_UnitTestCase {
 		self::$editor_id     = $factory->user->create( array( 'role' => 'editor' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 
-		if ( ! function_exists( 'open_station_cron_manager_user_can_use' ) ) {
+		if ( ! function_exists( 'openstation_cron_manager_user_can_use' ) ) {
 			require_once dirname( __DIR__, 3 ) . '/extensions/desktop-mode-cron-manager/includes/store.php';
 		}
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'open_station_cron_manager_user_can_use' );
+		remove_all_filters( 'openstation_cron_manager_user_can_use' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::open_station_cron_manager_user_can_use
+	 * @covers ::openstation_cron_manager_user_can_use
 	 */
 	public function test_logged_out_user_cannot_use() {
 		wp_set_current_user( 0 );
 
-		$this->assertFalse( open_station_cron_manager_user_can_use() );
+		$this->assertFalse( openstation_cron_manager_user_can_use() );
 	}
 
 	/**
-	 * @covers ::open_station_cron_manager_user_can_use
+	 * @covers ::openstation_cron_manager_user_can_use
 	 */
 	public function test_single_site_administrator_can_use() {
 		if ( is_multisite() ) {
@@ -54,11 +54,11 @@ class Tests_OpenStation_CronManagerCapabilityGate extends WP_UnitTestCase {
 
 		wp_set_current_user( self::$admin_id );
 
-		$this->assertTrue( open_station_cron_manager_user_can_use() );
+		$this->assertTrue( openstation_cron_manager_user_can_use() );
 	}
 
 	/**
-	 * @covers ::open_station_cron_manager_user_can_use
+	 * @covers ::openstation_cron_manager_user_can_use
 	 */
 	public function test_single_site_editor_cannot_use() {
 		if ( is_multisite() ) {
@@ -67,14 +67,14 @@ class Tests_OpenStation_CronManagerCapabilityGate extends WP_UnitTestCase {
 
 		wp_set_current_user( self::$editor_id );
 
-		$this->assertFalse( open_station_cron_manager_user_can_use() );
+		$this->assertFalse( openstation_cron_manager_user_can_use() );
 	}
 
 	/**
 	 * Per-site Administrators must NOT pass the gate on multisite —
 	 * `manage_options` alone is not a code-execution capability there.
 	 *
-	 * @covers ::open_station_cron_manager_user_can_use
+	 * @covers ::openstation_cron_manager_user_can_use
 	 */
 	public function test_multisite_site_administrator_cannot_use() {
 		if ( ! is_multisite() ) {
@@ -84,11 +84,11 @@ class Tests_OpenStation_CronManagerCapabilityGate extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 
 		$this->assertTrue( current_user_can( 'manage_options' ) );
-		$this->assertFalse( open_station_cron_manager_user_can_use() );
+		$this->assertFalse( openstation_cron_manager_user_can_use() );
 	}
 
 	/**
-	 * @covers ::open_station_cron_manager_user_can_use
+	 * @covers ::openstation_cron_manager_user_can_use
 	 */
 	public function test_multisite_super_admin_can_use() {
 		if ( ! is_multisite() ) {
@@ -98,7 +98,7 @@ class Tests_OpenStation_CronManagerCapabilityGate extends WP_UnitTestCase {
 		wp_set_current_user( self::$admin_id );
 		grant_super_admin( self::$admin_id );
 
-		$this->assertTrue( open_station_cron_manager_user_can_use() );
+		$this->assertTrue( openstation_cron_manager_user_can_use() );
 
 		revoke_super_admin( self::$admin_id );
 	}
@@ -106,15 +106,15 @@ class Tests_OpenStation_CronManagerCapabilityGate extends WP_UnitTestCase {
 	/**
 	 * The documented filter must still be able to grant (or deny) access.
 	 *
-	 * @covers ::open_station_cron_manager_user_can_use
+	 * @covers ::openstation_cron_manager_user_can_use
 	 */
 	public function test_filter_can_override_the_default_gate() {
 		wp_set_current_user( self::$subscriber_id );
 
-		$this->assertFalse( open_station_cron_manager_user_can_use() );
+		$this->assertFalse( openstation_cron_manager_user_can_use() );
 
-		add_filter( 'open_station_cron_manager_user_can_use', '__return_true' );
+		add_filter( 'openstation_cron_manager_user_can_use', '__return_true' );
 
-		$this->assertTrue( open_station_cron_manager_user_can_use() );
+		$this->assertTrue( openstation_cron_manager_user_can_use() );
 	}
 }

@@ -69,7 +69,7 @@ You can use `<os-panel>` directly inside a render callback without a body — th
 ## Full example — the converter re-implemented
 
 ```php
-open_station_register_window( 'converter', array(
+openstation_register_window( 'converter', array(
     'title'    => __( 'Unit Converter', 'my-plugin' ),
     'width'    => 420,
     'height'   => 320,
@@ -153,10 +153,10 @@ window.openStationNativeWindows.converter = function ( body ) {
 
 ## Inline styles via the `style` array
 
-`open_station_component()` accepts `style` as either the usual string value or an associative array of CSS-property → value pairs. The array form serializes to a single `style="…"` attribute with auto-unit for length-shaped properties.
+`openstation_component()` accepts `style` as either the usual string value or an associative array of CSS-property → value pairs. The array form serializes to a single `style="…"` attribute with auto-unit for length-shaped properties.
 
 ```php
-open_station_component( 'os-stack', array(
+openstation_component( 'os-stack', array(
     'gap'   => 12,
     'style' => array(
         'padding'       => 0,
@@ -172,7 +172,7 @@ The array form is the ergonomic path — it mirrors the React/Vue `style` prop. 
 ### Plain string form still works
 
 ```php
-open_station_component( 'os-stack', array(
+openstation_component( 'os-stack', array(
     'style' => 'padding: 0; margin-top: 16px',
 ), $children );
 ```

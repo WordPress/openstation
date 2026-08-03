@@ -20,7 +20,7 @@ preserving the standard WordPress contract — but the `'config'` arg
 below is the discoverable, supported way to ship config and is the one
 we recommend for new windows.
 
-## Recipe — `'config'` arg on `open_station_register_window`
+## Recipe — `'config'` arg on `openstation_register_window`
 
 ```php
 <?php
@@ -39,7 +39,7 @@ add_action( 'init', function () {
         return;
     }
 
-    open_station_register_window( 'my-plugin-cron', array(
+    openstation_register_window( 'my-plugin-cron', array(
         'title'    => __( 'Cron Jobs', 'my-plugin' ),
         'icon'     => 'dashicons-clock',
         'template' => 'my_plugin_render_cron_template',
@@ -84,7 +84,7 @@ In the bundle:
 ## When to use `wp_localize_script` instead
 
 If you already attach config via `wp_localize_script( $handle, $name, $data )`
-on a handle declared as `'script'` of `open_station_register_window()`,
+on a handle declared as `'script'` of `openstation_register_window()`,
 that path also lands on both eager and lazy — the shell
 harvests the handle's `extra` data into the payload and re-injects it
 before the lazy `<script>` tag. So `wp_localize_script` keeps working,

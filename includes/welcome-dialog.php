@@ -22,7 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Slug stored in `desktop_mode_seen_intros` for this dialog. */
-const OPEN_STATION_WELCOME_INTRO_SLUG = 'activation-welcome';
+const OPENSTATION_WELCOME_INTRO_SLUG = 'activation-welcome';
 
 /**
  * Decides whether the welcome dialog should render on the current request.
@@ -43,27 +43,27 @@ const OPEN_STATION_WELCOME_INTRO_SLUG = 'activation-welcome';
  *    as a duplicate dialog, because the fire-and-forget seen-intro POST
  *    races the redirect into the shell and often loses.
  * 5. The user has not already dismissed this intro.
- * 6. The `open_station_show_welcome_dialog` filter returns truthy, so
+ * 6. The `openstation_show_welcome_dialog` filter returns truthy, so
  *    sites can suppress the dialog entirely (e.g. managed-host onboarding
  *    flows that ship their own).
  *
  * @return bool
  */
-function open_station_should_show_welcome_dialog() {
+function openstation_should_show_welcome_dialog() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return false;
 	}
 	if ( ! current_user_can( 'read' ) ) {
 		return false;
 	}
-	if ( function_exists( 'open_station_is_chromeless_request' ) && open_station_is_chromeless_request() ) {
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
 		return false;
 	}
-	if ( function_exists( 'open_station_is_enabled' ) && open_station_is_enabled() ) {
+	if ( function_exists( 'openstation_is_enabled' ) && openstation_is_enabled() ) {
 		return false;
 	}
 	$user_id = get_current_user_id();
-	if ( open_station_has_seen_intro( $user_id, OPEN_STATION_WELCOME_INTRO_SLUG ) ) {
+	if ( openstation_has_seen_intro( $user_id, OPENSTATION_WELCOME_INTRO_SLUG ) ) {
 		return false;
 	}
 
@@ -76,7 +76,7 @@ function open_station_should_show_welcome_dialog() {
 	 * @param bool $show    Whether to render the dialog. Default true.
 	 * @param int  $user_id Current user ID.
 	 */
-	return (bool) apply_filters( 'open_station_show_welcome_dialog', true, $user_id );
+	return (bool) apply_filters( 'openstation_show_welcome_dialog', true, $user_id );
 }
 
 /**
@@ -88,8 +88,8 @@ function open_station_should_show_welcome_dialog() {
  * admin theme. The dismiss button POSTs to the seen-intros REST route,
  * which is exactly the same endpoint the in-shell intros use.
  */
-function open_station_render_welcome_dialog() {
-	if ( ! open_station_should_show_welcome_dialog() ) {
+function openstation_render_welcome_dialog() {
+	if ( ! openstation_should_show_welcome_dialog() ) {
 		return;
 	}
 
@@ -97,7 +97,7 @@ function open_station_render_welcome_dialog() {
 	$rest_nonce  = wp_create_nonce( 'wp_rest' );
 	$ajax_url    = esc_url_raw( admin_url( 'admin-ajax.php' ) );
 	$ajax_nonce  = wp_create_nonce( 'save-openstation' );
-	$slug        = OPEN_STATION_WELCOME_INTRO_SLUG;
+	$slug        = OPENSTATION_WELCOME_INTRO_SLUG;
 
 	// All user-facing strings are passed through translation; the dialog
 	// is keyboard-dismissible (Escape) and moves initial focus to the
@@ -148,15 +148,15 @@ function open_station_render_welcome_dialog() {
 		padding: 24px;
 		background: radial-gradient(
 				ellipse at 30% 20%,
-				rgba( 56, 189, 248, 0.32 ),
+				rgba( 236, 155, 255, 0.32 ),
 				transparent 60%
 			),
 			radial-gradient(
 				ellipse at 70% 80%,
-				rgba( 16, 185, 129, 0.26 ),
+				rgba( 147, 240, 198, 0.26 ),
 				transparent 55%
 			),
-			rgba( 8, 14, 26, 0.62 );
+			rgba( 12, 11, 15, 0.62 );
 		backdrop-filter: blur( 14px ) saturate( 140% );
 		-webkit-backdrop-filter: blur( 14px ) saturate( 140% );
 		animation: os-welcome-fade 360ms cubic-bezier( 0.22, 1, 0.36, 1 );
@@ -190,12 +190,12 @@ function open_station_render_welcome_dialog() {
 		background: linear-gradient(
 			145deg,
 			rgba( 255, 255, 255, 0.98 ) 0%,
-			rgba( 244, 250, 253, 0.98 ) 100%
+			rgba( 255, 251, 255, 0.98 ) 100%
 		);
 		box-shadow:
 			0 1px 0 rgba( 255, 255, 255, 0.85 ) inset,
-			0 30px 60px -20px rgba( 8, 47, 73, 0.55 ),
-			0 18px 36px -18px rgba( 14, 165, 233, 0.45 );
+			0 30px 60px -20px rgba( 26, 23, 33, 0.55 ),
+			0 18px 36px -18px rgba( 242, 82, 252, 0.45 );
 		animation: os-welcome-pop 460ms cubic-bezier( 0.22, 1, 0.36, 1 ) both;
 		animation-delay: 60ms;
 	}
@@ -207,9 +207,9 @@ function open_station_render_welcome_dialog() {
 		padding: 1px;
 		background: linear-gradient(
 			135deg,
-			rgba( 14, 165, 233, 0.65 ),
-			rgba( 6, 182, 212, 0.55 ),
-			rgba( 16, 185, 129, 0.55 )
+			rgba( 242, 82, 252, 0.65 ),
+			rgba( 236, 155, 255, 0.55 ),
+			rgba( 147, 240, 198, 0.55 )
 		);
 		-webkit-mask: linear-gradient( #000 0 0 ) content-box,
 			linear-gradient( #000 0 0 );
@@ -222,9 +222,9 @@ function open_station_render_welcome_dialog() {
 		padding: 36px 36px 24px;
 		background: linear-gradient(
 			135deg,
-			#0f172a 0%,
-			#0e7490 45%,
-			#06b6d4 100%
+			#0c0b0f 0%,
+			#2a2533 45%,
+			#ec9bff 100%
 		);
 		background-size: 200% 200%;
 		animation: os-welcome-shimmer 14s ease infinite alternate;
@@ -236,8 +236,8 @@ function open_station_render_welcome_dialog() {
 		position: absolute;
 		inset: 0;
 		background:
-			radial-gradient( circle at 85% 15%, rgba( 56, 189, 248, 0.35 ), transparent 45% ),
-			radial-gradient( circle at 15% 90%, rgba( 16, 185, 129, 0.22 ), transparent 50% ),
+			radial-gradient( circle at 85% 15%, rgba( 236, 155, 255, 0.35 ), transparent 45% ),
+			radial-gradient( circle at 15% 90%, rgba( 147, 240, 198, 0.22 ), transparent 50% ),
 			linear-gradient( rgba( 255, 255, 255, 0.05 ) 1px, transparent 1px ) 0 0 / 28px 28px,
 			linear-gradient( 90deg, rgba( 255, 255, 255, 0.05 ) 1px, transparent 1px ) 0 0 / 28px 28px;
 		pointer-events: none;
@@ -264,8 +264,8 @@ function open_station_render_welcome_dialog() {
 		width: 6px;
 		height: 6px;
 		border-radius: 50%;
-		background: #22d3ee;
-		box-shadow: 0 0 0 4px rgba( 34, 211, 238, 0.28 );
+		background: #ec9bff;
+		box-shadow: 0 0 0 4px rgba( 236, 155, 255, 0.28 );
 	}
 	.os-welcome__title {
 		margin: 14px 0 6px;
@@ -285,12 +285,12 @@ function open_station_render_welcome_dialog() {
 		padding: 24px 36px 24px;
 		font-size: 14.5px;
 		line-height: 1.6;
-		color: #1f2937;
+		color: #1a1721;
 	}
 	.os-welcome__lede {
 		margin: 0;
 		font-size: 14.5px;
-		color: #374151;
+		color: #33303a;
 	}
 	.os-welcome__features {
 		display: grid;
@@ -306,12 +306,12 @@ function open_station_render_welcome_dialog() {
 		background: linear-gradient(
 			145deg,
 			rgba( 255, 255, 255, 0.85 ),
-			rgba( 240, 249, 255, 0.85 )
+			rgba( 255, 251, 255, 0.85 )
 		);
-		border: 1px solid rgba( 14, 165, 233, 0.18 );
+		border: 1px solid rgba( 242, 82, 252, 0.18 );
 		border-radius: 12px;
 		box-shadow: 0 1px 0 rgba( 255, 255, 255, 0.9 ) inset,
-			0 2px 6px -2px rgba( 8, 47, 73, 0.08 );
+			0 2px 6px -2px rgba( 26, 23, 33, 0.08 );
 	}
 	.os-welcome__feature-icon {
 		position: absolute;
@@ -323,8 +323,8 @@ function open_station_render_welcome_dialog() {
 		align-items: center;
 		justify-content: center;
 		border-radius: 9px;
-		background: linear-gradient( 135deg, rgba( 14, 165, 233, 0.16 ), rgba( 16, 185, 129, 0.16 ) );
-		border: 1px solid rgba( 14, 165, 233, 0.22 );
+		background: linear-gradient( 135deg, rgba( 242, 82, 252, 0.16 ), rgba( 147, 240, 198, 0.16 ) );
+		border: 1px solid rgba( 242, 82, 252, 0.22 );
 		font-size: 16px;
 		line-height: 1;
 	}
@@ -333,13 +333,13 @@ function open_station_render_welcome_dialog() {
 		margin: 0 0 2px;
 		font-size: 13.5px;
 		font-weight: 700;
-		color: #0f172a;
+		color: #0c0b0f;
 	}
 	.os-welcome__feature-desc {
 		margin: 0;
 		font-size: 12.5px;
 		line-height: 1.5;
-		color: #475569;
+		color: #b3afb5;
 	}
 	.os-welcome__hint {
 		display: flex;
@@ -349,13 +349,13 @@ function open_station_render_welcome_dialog() {
 		padding: 14px 16px;
 		background: linear-gradient(
 			135deg,
-			rgba( 14, 165, 233, 0.08 ),
-			rgba( 16, 185, 129, 0.08 )
+			rgba( 242, 82, 252, 0.08 ),
+			rgba( 147, 240, 198, 0.08 )
 		);
-		border: 1px solid rgba( 14, 165, 233, 0.22 );
+		border: 1px solid rgba( 242, 82, 252, 0.22 );
 		border-radius: 12px;
 		font-size: 13.5px;
-		color: #0c4a6e;
+		color: #0c0b0f;
 	}
 	.os-welcome__hint-icon {
 		flex-shrink: 0;
@@ -365,7 +365,7 @@ function open_station_render_welcome_dialog() {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient( 135deg, #0ea5e9, #06b6d4 );
+		background: linear-gradient( 135deg, #f252fc, #ec9bff );
 		color: #fff;
 		font-size: 14px;
 		line-height: 1;
@@ -380,11 +380,11 @@ function open_station_render_welcome_dialog() {
 		padding: 2px 6px;
 		margin: 0 2px;
 		background: rgba( 255, 255, 255, 0.85 );
-		border: 1px solid rgba( 14, 165, 233, 0.28 );
+		border: 1px solid rgba( 242, 82, 252, 0.28 );
 		border-radius: 5px;
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		font-size: 12px;
-		color: #0369a1;
+		color: #2a2533;
 	}
 	.os-welcome__actions {
 		display: flex;
@@ -411,39 +411,46 @@ function open_station_render_welcome_dialog() {
 			background 120ms ease, color 120ms ease;
 	}
 	.os-welcome__btn:focus-visible {
-		outline: 2px solid #0ea5e9;
+		outline: 2px solid #f252fc;
 		outline-offset: 2px;
 	}
 	.os-welcome__btn--ghost {
 		background: transparent;
-		color: #475569;
+		color: #b3afb5;
 		border-color: transparent;
 	}
 	.os-welcome__btn--ghost:hover {
-		background: rgba( 15, 23, 42, 0.06 );
-		color: #0f172a;
+		background: rgba( 12, 11, 15, 0.06 );
+		color: #0c0b0f;
 	}
 	.os-welcome__btn--secondary {
-		color: #0369a1;
-		background: rgba( 14, 165, 233, 0.10 );
-		border-color: rgba( 14, 165, 233, 0.28 );
+		color: #2a2533;
+		background: rgba( 242, 82, 252, 0.10 );
+		border-color: rgba( 242, 82, 252, 0.28 );
 	}
 	.os-welcome__btn--secondary:hover {
-		background: rgba( 14, 165, 233, 0.16 );
-		color: #075985;
+		background: rgba( 242, 82, 252, 0.16 );
+		color: #1a1721;
 	}
 	.os-welcome__btn--primary {
-		color: #fff;
-		background: linear-gradient( 135deg, #0369a1, #0ea5e9 55%, #06b6d4 );
+		color: #fffbff;
+		/*
+		 * Ends on Pulse, not Nebula. `background-position` slides this
+		 * on hover, so every stop carries the label at some point, and
+		 * Nebula is light enough that Starlight text on it falls to
+		 * ~1.6:1. White-on-Pulse is what <os-button variant="primary">
+		 * already uses.
+		 */
+		background: linear-gradient( 135deg, #2a2533, #a12bb0 45%, #f252fc );
 		background-size: 180% 180%;
-		box-shadow: 0 10px 24px -10px rgba( 14, 165, 233, 0.75 ),
-			0 4px 10px -4px rgba( 6, 182, 212, 0.55 );
+		box-shadow: 0 10px 24px -10px rgba( 242, 82, 252, 0.75 ),
+			0 4px 10px -4px rgba( 236, 155, 255, 0.55 );
 	}
 	.os-welcome__btn--primary:hover {
 		transform: translateY( -1px );
 		background-position: 100% 50%;
-		box-shadow: 0 14px 30px -12px rgba( 14, 165, 233, 0.85 ),
-			0 6px 14px -4px rgba( 6, 182, 212, 0.65 );
+		box-shadow: 0 14px 30px -12px rgba( 242, 82, 252, 0.85 ),
+			0 6px 14px -4px rgba( 236, 155, 255, 0.65 );
 	}
 	.os-welcome__btn--primary:active {
 		transform: translateY( 0 );
@@ -778,4 +785,4 @@ function open_station_render_welcome_dialog() {
 </script>
 	<?php
 }
-add_action( 'admin_footer', 'open_station_render_welcome_dialog' );
+add_action( 'admin_footer', 'openstation_render_welcome_dialog' );

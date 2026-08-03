@@ -15,13 +15,13 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * The allowlisted plugin/library notices for the current user, as shell
- * descriptors (same shape as `open_station_get_core_notices()`).
+ * descriptors (same shape as `openstation_get_core_notices()`).
  *
  * @return array<int,array{id:string,title:string,message:string,actionLabel:string,actionUrl:string}>
  */
-function open_station_get_plugin_notices() {
+function openstation_get_plugin_notices() {
 	$builders = array(
-		'open_station_plugin_notice_action_scheduler',
+		'openstation_plugin_notice_action_scheduler',
 	);
 
 	$notices = array();
@@ -39,7 +39,7 @@ function open_station_get_plugin_notices() {
 	 *
 	 * @param array $notices List of notice descriptors.
 	 */
-	return apply_filters( 'open_station_plugin_notices', $notices );
+	return apply_filters( 'openstation_plugin_notices', $notices );
 }
 
 /**
@@ -52,7 +52,7 @@ function open_station_get_plugin_notices() {
  *
  * @return array|null
  */
-function open_station_plugin_notice_action_scheduler() {
+function openstation_plugin_notice_action_scheduler() {
 	if ( ! class_exists( 'ActionScheduler_Store' ) || ! function_exists( 'as_get_datetime_object' ) ) {
 		return null;
 	}
@@ -120,10 +120,10 @@ function open_station_plugin_notice_action_scheduler() {
 /**
  * Detaches the allowlisted plugin/library notices inside chromeless iframes so
  * they don't repeat in every window — the shell surfaces each once (see
- * `open_station_get_plugin_notices()`).
+ * `openstation_get_plugin_notices()`).
  */
-function open_station_chromeless_suppress_plugin_notices() {
-	if ( ! open_station_is_chromeless_request() ) {
+function openstation_chromeless_suppress_plugin_notices() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 
@@ -138,4 +138,4 @@ function open_station_chromeless_suppress_plugin_notices() {
 		}
 	}
 }
-add_action( 'admin_init', 'open_station_chromeless_suppress_plugin_notices' );
+add_action( 'admin_init', 'openstation_chromeless_suppress_plugin_notices' );

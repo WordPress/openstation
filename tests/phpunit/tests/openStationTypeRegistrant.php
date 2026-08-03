@@ -68,7 +68,7 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 
 	public function tear_down() {
 		set_current_screen( 'front' );
-		remove_all_filters( 'open_station_track_type_registrants' );
+		remove_all_filters( 'openstation_track_type_registrants' );
 		foreach ( array( 'dm_tracked', 'dm_selfattr', 'dm_frontonly' ) as $type ) {
 			if ( post_type_exists( $type ) ) {
 				unregister_post_type( $type );
@@ -86,13 +86,13 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	 * Before it, the tracker bailed on every request because
 	 * `get_plugins()` does not exist yet at `init`.
 	 *
-	 * @covers ::open_station_record_type_registrant
-	 * @covers ::open_station_type_registrant_file
+	 * @covers ::openstation_record_type_registrant
+	 * @covers ::openstation_type_registrant_file
 	 */
 	public function test_records_the_registering_plugin_file() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
-		$file = open_station_type_registrant_file( 'dm_tracked', 'post_type' );
+		$file = openstation_type_registrant_file( 'dm_tracked', 'post_type' );
 
 		$this->assertNotNull( $file );
 		$this->assertSame( wp_normalize_path( self::$fixture_file ), $file );
@@ -101,14 +101,14 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	/**
 	 * Taxonomies go through the same tracker.
 	 *
-	 * @covers ::open_station_record_type_registrant
+	 * @covers ::openstation_record_type_registrant
 	 */
 	public function test_records_taxonomies_too() {
 		dm_registrant_fixture_register( 'dm_tracked_tax', 'taxonomy' );
 
 		$this->assertSame(
 			wp_normalize_path( self::$fixture_file ),
-			open_station_type_registrant_file( 'dm_tracked_tax', 'taxonomy' )
+			openstation_type_registrant_file( 'dm_tracked_tax', 'taxonomy' )
 		);
 	}
 
@@ -116,12 +116,12 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	 * The recorded path resolves to a group the site window can render
 	 * a folder for.
 	 *
-	 * @covers ::open_station_my_wordpress_post_type_group
+	 * @covers ::openstation_my_wordpress_post_type_group
 	 */
 	public function test_recorded_path_resolves_to_a_plugin_group() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
-		$group = open_station_my_wordpress_post_type_group( 'dm_tracked' );
+		$group = openstation_my_wordpress_post_type_group( 'dm_tracked' );
 
 		$this->assertIsArray( $group );
 		$this->assertSame( 'plugin:dm-registrant-fixture', $group['id'] );
@@ -134,35 +134,35 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	 * the site would be attributed to OpenStation. Registering from
 	 * this test file (which is inside the plugin) must record nothing.
 	 *
-	 * @covers ::open_station_registrant_file_from_backtrace
+	 * @covers ::openstation_registrant_file_from_backtrace
 	 */
-	public function test_does_not_attribute_types_to_open_station_itself() {
+	public function test_does_not_attribute_types_to_openstation_itself() {
 		register_post_type( 'dm_selfattr', array( 'public' => true ) );
 
 		$this->assertNull(
-			open_station_type_registrant_file( 'dm_selfattr', 'post_type' )
+			openstation_type_registrant_file( 'dm_selfattr', 'post_type' )
 		);
 	}
 
 	/**
 	 * Core's own types are skipped before the backtrace even runs.
 	 *
-	 * @covers ::open_station_record_type_registrant
+	 * @covers ::openstation_record_type_registrant
 	 */
 	public function test_builtin_types_are_not_recorded() {
-		$this->assertNull( open_station_type_registrant_file( 'post', 'post_type' ) );
-		$this->assertNull( open_station_type_registrant_file( 'page', 'post_type' ) );
-		$this->assertNull( open_station_type_registrant_file( 'category', 'taxonomy' ) );
+		$this->assertNull( openstation_type_registrant_file( 'post', 'post_type' ) );
+		$this->assertNull( openstation_type_registrant_file( 'page', 'post_type' ) );
+		$this->assertNull( openstation_type_registrant_file( 'category', 'taxonomy' ) );
 	}
 
 	/**
 	 * Unrecorded types read back as null rather than raising.
 	 *
-	 * @covers ::open_station_type_registrant_file
+	 * @covers ::openstation_type_registrant_file
 	 */
 	public function test_unknown_type_reads_back_null() {
 		$this->assertNull(
-			open_station_type_registrant_file( 'dm_never_registered', 'post_type' )
+			openstation_type_registrant_file( 'dm_never_registered', 'post_type' )
 		);
 	}
 
@@ -172,14 +172,14 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	 * registering plugin and this tracker is the only way to know.
 	 * It silently never fired before the lazy rewrite.
 	 *
-	 * @covers ::open_station_lookup_taxonomy_or_post_type_plugin_file
+	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
 	 */
 	public function test_slug_lookup_resolves_the_registering_plugin() {
 		dm_registrant_fixture_register( 'dm_tracked', 'post_type' );
 
 		$this->assertSame(
 			'dm-registrant-fixture/dm-registrant-fixture.php',
-			open_station_lookup_taxonomy_or_post_type_plugin_file(
+			openstation_lookup_taxonomy_or_post_type_plugin_file(
 				'edit.php?post_type=dm_tracked'
 			)
 		);
@@ -189,25 +189,25 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	 * A type registered from outside `WP_PLUGIN_DIR` has no plugin to
 	 * attribute it to — the dock must not invent one.
 	 *
-	 * @covers ::open_station_lookup_taxonomy_or_post_type_plugin_file
+	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
 	 */
 	public function test_slug_lookup_returns_null_for_non_plugin_registrants() {
 		$this->assertNull(
-			open_station_lookup_taxonomy_or_post_type_plugin_file(
+			openstation_lookup_taxonomy_or_post_type_plugin_file(
 				'edit.php?post_type=dm_never_registered'
 			)
 		);
 	}
 
 	/**
-	 * @covers ::open_station_lookup_taxonomy_or_post_type_plugin_file
+	 * @covers ::openstation_lookup_taxonomy_or_post_type_plugin_file
 	 */
 	public function test_slug_lookup_ignores_non_type_slugs() {
 		$this->assertNull(
-			open_station_lookup_taxonomy_or_post_type_plugin_file( 'plugins.php' )
+			openstation_lookup_taxonomy_or_post_type_plugin_file( 'plugins.php' )
 		);
 		$this->assertNull(
-			open_station_lookup_taxonomy_or_post_type_plugin_file( 'edit.php' )
+			openstation_lookup_taxonomy_or_post_type_plugin_file( 'edit.php' )
 		);
 	}
 
@@ -219,17 +219,17 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 	 * code avoided that by accident, bailing whenever `get_plugins()`
 	 * was undefined.
 	 *
-	 * @covers ::open_station_should_track_type_registrants
+	 * @covers ::openstation_should_track_type_registrants
 	 */
 	public function test_tracking_is_skipped_off_the_admin() {
 		$this->assertTrue(
-			open_station_should_track_type_registrants(),
+			openstation_should_track_type_registrants(),
 			'admin context tracks'
 		);
 
 		set_current_screen( 'front' );
 		$this->assertFalse(
-			open_station_should_track_type_registrants(),
+			openstation_should_track_type_registrants(),
 			'front-end skips'
 		);
 
@@ -237,26 +237,26 @@ class Tests_OpenStation_TypeRegistrant extends WP_UnitTestCase {
 		// earlier test in this class recorded would read back stale.
 		dm_registrant_fixture_register( 'dm_frontonly', 'post_type' );
 		$this->assertNull(
-			open_station_type_registrant_file( 'dm_frontonly', 'post_type' ),
+			openstation_type_registrant_file( 'dm_frontonly', 'post_type' ),
 			'nothing recorded off the admin'
 		);
 	}
 
 	/**
-	 * @covers ::open_station_should_track_type_registrants
+	 * @covers ::openstation_should_track_type_registrants
 	 */
 	public function test_tracking_is_filterable() {
 		set_current_screen( 'front' );
-		add_filter( 'open_station_track_type_registrants', '__return_true' );
+		add_filter( 'openstation_track_type_registrants', '__return_true' );
 
-		$this->assertTrue( open_station_should_track_type_registrants() );
+		$this->assertTrue( openstation_should_track_type_registrants() );
 	}
 
 	/**
-	 * @covers ::open_station_extension_dirs
+	 * @covers ::openstation_extension_dirs
 	 */
 	public function test_extension_dirs_cover_plugins_mu_plugins_and_themes() {
-		$dirs = open_station_extension_dirs();
+		$dirs = openstation_extension_dirs();
 
 		$this->assertContains( trailingslashit( wp_normalize_path( WP_PLUGIN_DIR ) ), $dirs );
 		$this->assertContains( trailingslashit( wp_normalize_path( WPMU_PLUGIN_DIR ) ), $dirs );

@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  * Register Popup Siege's discovery metadata and lazy-loaded browser runtime.
  */
 function popup_siege_register_game() {
-	if ( ! function_exists( 'open_station_register_game' ) ) {
+	if ( ! function_exists( 'openstation_register_game' ) ) {
 		return;
 	}
 
@@ -35,7 +35,7 @@ function popup_siege_register_game() {
 	$config           = $manifest['config'];
 	$config['cssUrl'] = plugins_url( $style, POPUP_SIEGE_FILE );
 
-	open_station_register_game(
+	openstation_register_game(
 		$manifest['id'],
 		array(
 			'title'         => $manifest['title'],

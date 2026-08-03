@@ -11,7 +11,7 @@
  * or admin would see every draft on the site, not their own).
  * Refresh: every 60 seconds while the tab is visible, plus an
  * immediate refresh when a window closes or blurs.
- * Requires: OpenStation 0.18.0+ (open_station_register_widget).
+ * Requires: OpenStation 0.18.0+ (openstation_register_widget).
  *
  * @package OpenStation
  */
@@ -21,44 +21,44 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the JS + CSS assets.
  */
-function open_station_register_drafts_widget_assets() {
-	$suffix  = open_station_asset_suffix();
-	$version = defined( 'OPEN_STATION_VERSION' ) ? OPEN_STATION_VERSION : '0';
+function openstation_register_drafts_widget_assets() {
+	$suffix  = openstation_asset_suffix();
+	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
 
-	$js_path  = OPEN_STATION_DIR . 'assets/js/widget-drafts' . $suffix . '.js';
-	$css_path = OPEN_STATION_DIR . 'assets/js/widget-drafts' . $suffix . '.css';
+	$js_path  = OPENSTATION_DIR . 'assets/js/widget-drafts' . $suffix . '.js';
+	$css_path = OPENSTATION_DIR . 'assets/js/widget-drafts' . $suffix . '.css';
 
 	wp_register_style(
 		'os-drafts-widget',
-		OPEN_STATION_URL . 'assets/js/widget-drafts' . $suffix . '.css',
+		OPENSTATION_URL . 'assets/js/widget-drafts' . $suffix . '.css',
 		array(),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
 	wp_register_script(
 		'os-drafts-widget',
-		OPEN_STATION_URL . 'assets/js/widget-drafts' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/widget-drafts' . $suffix . '.js',
 		array( 'wp-api-fetch' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
 }
-add_action( 'init', 'open_station_register_drafts_widget_assets', 5 );
+add_action( 'init', 'openstation_register_drafts_widget_assets', 5 );
 
 /**
  * Eagerly enqueue the CSS on shell pages so there is no flash of
  * unstyled content while the lazy JS bundle loads.
  */
-function open_station_enqueue_drafts_widget_styles() {
-	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
+function openstation_enqueue_drafts_widget_styles() {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( function_exists( 'open_station_is_chromeless_request' ) && open_station_is_chromeless_request() ) {
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
 		return;
 	}
 	wp_enqueue_style( 'os-drafts-widget' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_drafts_widget_styles', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_drafts_widget_styles', 20 );
 
 /**
  * Register the widget definition.
@@ -67,11 +67,11 @@ add_action( 'admin_enqueue_scripts', 'open_station_enqueue_drafts_widget_styles'
  *                       rejects the entry (e.g. the viewer lacks
  *                       `edit_posts`), false if the registry is absent.
  */
-function open_station_register_drafts_widget() {
-	if ( ! function_exists( 'open_station_register_widget' ) ) {
+function openstation_register_drafts_widget() {
+	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return false;
 	}
-	return open_station_register_widget(
+	return openstation_register_widget(
 		'desktop-mode/drafts',
 		array(
 			'label'          => __( 'Drafts', 'desktop-mode' ),
@@ -91,7 +91,7 @@ function open_station_register_drafts_widget() {
 		)
 	);
 }
-add_action( 'init', 'open_station_register_drafts_widget', 6 );
+add_action( 'init', 'openstation_register_drafts_widget', 6 );
 
 
 /**
@@ -112,14 +112,14 @@ add_action( 'init', 'open_station_register_drafts_widget', 6 );
  *
  * @return void
  */
-function open_station_register_drafts_ai_routes() {
+function openstation_register_drafts_ai_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/draft-suggestions',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_rest_draft_suggestions',
-			'permission_callback' => 'open_station_rest_draft_suggestions_permission',
+			'callback'            => 'openstation_rest_draft_suggestions',
+			'permission_callback' => 'openstation_rest_draft_suggestions_permission',
 			'args'                => array(
 				'post_id' => array(
 					'required'          => true,
@@ -130,7 +130,7 @@ function open_station_register_drafts_ai_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_drafts_ai_routes' );
+add_action( 'rest_api_init', 'openstation_register_drafts_ai_routes' );
 
 /**
  * Permission gate: the user can edit the target post, and AI is configured.
@@ -142,7 +142,7 @@ add_action( 'rest_api_init', 'open_station_register_drafts_ai_routes' );
  * @param WP_REST_Request $request Request.
  * @return true|WP_Error
  */
-function open_station_rest_draft_suggestions_permission( WP_REST_Request $request ) {
+function openstation_rest_draft_suggestions_permission( WP_REST_Request $request ) {
 	$post_id = absint( $request['post_id'] );
 	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
 		return new WP_Error(
@@ -151,9 +151,9 @@ function open_station_rest_draft_suggestions_permission( WP_REST_Request $reques
 			array( 'status' => rest_authorization_required_code() )
 		);
 	}
-	if ( ! function_exists( 'open_station_ai_provider_configured' ) || ! open_station_ai_provider_configured() ) {
+	if ( ! function_exists( 'openstation_ai_provider_configured' ) || ! openstation_ai_provider_configured() ) {
 		return new WP_Error(
-			'open_station_ai_unavailable',
+			'openstation_ai_unavailable',
 			__( 'No AI provider is configured.', 'desktop-mode' ),
 			array( 'status' => 503 )
 		);
@@ -169,7 +169,7 @@ function open_station_rest_draft_suggestions_permission( WP_REST_Request $reques
  * @param WP_Post $post The draft being described.
  * @return string
  */
-function open_station_drafts_ai_instructions( WP_Post $post ) {
+function openstation_drafts_ai_instructions( WP_Post $post ) {
 	$instructions = 'You are a writing assistant for a WordPress author. Given a draft post\'s current title and content, help them finish and file it. Provide: exactly 3 concise, compelling title options (about 70 characters max each); one 1-2 sentence excerpt suitable as the post summary; 3 to 6 lowercase topical tags; 1 to 2 categories (strongly prefer the site\'s existing categories listed above — only propose a new concise name if none fit); and a readiness check.
 
 The readiness check MUST be strict and evidence-based. Judge only STRUCTURE and COMPLETENESS: does the draft have a clear introduction, enough substance/depth, at least one concrete example or detail, and a conclusion? The "missing" array lists only what is GENUINELY ABSENT from the text you were given. CRITICAL: never invent, guess, or hallucinate problems. Do NOT claim there are typos, misspellings, or cut-off/incomplete sentences unless you can quote the exact offending text verbatim from the draft — if you are not quoting real text, do not mention it. If the draft already has an intro, body with a concrete detail, and a conclusion and reads as complete, return an EMPTY "missing" array and say it looks ready in the summary.
@@ -182,7 +182,7 @@ Write everything in the same language as the draft. Do not invent facts that are
 	 * @param string  $instructions System instruction text.
 	 * @param WP_Post $post         The draft being described.
 	 */
-	return (string) apply_filters( 'open_station_drafts_ai_instructions', $instructions, $post );
+	return (string) apply_filters( 'openstation_drafts_ai_instructions', $instructions, $post );
 }
 
 /**
@@ -191,7 +191,7 @@ Write everything in the same language as the draft. Do not invent facts that are
  * @param WP_Post $post The draft being described.
  * @return array
  */
-function open_station_drafts_ai_schema( WP_Post $post ) {
+function openstation_drafts_ai_schema( WP_Post $post ) {
 	$schema = array(
 		'type'                 => 'object',
 		'additionalProperties' => false,
@@ -244,7 +244,7 @@ function open_station_drafts_ai_schema( WP_Post $post ) {
 	 * @param array   $schema JSON schema.
 	 * @param WP_Post $post   The draft being described.
 	 */
-	return (array) apply_filters( 'open_station_drafts_ai_schema', $schema, $post );
+	return (array) apply_filters( 'openstation_drafts_ai_schema', $schema, $post );
 }
 
 /**
@@ -253,7 +253,7 @@ function open_station_drafts_ai_schema( WP_Post $post ) {
  * @param WP_Post $post The draft being described.
  * @return string
  */
-function open_station_drafts_ai_prompt_text( WP_Post $post ) {
+function openstation_drafts_ai_prompt_text( WP_Post $post ) {
 	$title   = (string) $post->post_title;
 	$content = trim( (string) preg_replace( '/\s+/', ' ', wp_strip_all_tags( (string) $post->post_content ) ) );
 
@@ -263,7 +263,7 @@ function open_station_drafts_ai_prompt_text( WP_Post $post ) {
 	 * @param int     $limit Character limit.
 	 * @param WP_Post $post  The draft being described.
 	 */
-	$limit = (int) apply_filters( 'open_station_drafts_ai_content_limit', 4000, $post );
+	$limit = (int) apply_filters( 'openstation_drafts_ai_content_limit', 4000, $post );
 
 	// mb_substr so a long draft isn't cut mid-multibyte-character.
 	if ( $limit > 0 && mb_strlen( $content ) > $limit ) {
@@ -296,10 +296,10 @@ function open_station_drafts_ai_prompt_text( WP_Post $post ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function open_station_rest_draft_suggestions( WP_REST_Request $request ) {
+function openstation_rest_draft_suggestions( WP_REST_Request $request ) {
 	if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 		return new WP_Error(
-			'open_station_ai_unavailable',
+			'openstation_ai_unavailable',
 			__( 'AI is not available on this site.', 'desktop-mode' ),
 			array( 'status' => 503 )
 		);
@@ -318,17 +318,17 @@ function open_station_rest_draft_suggestions( WP_REST_Request $request ) {
 	// scorer uses. The SDK can throw as well as return a WP_Error, so both
 	// paths land on the same 502.
 	try {
-		$json = wp_ai_client_prompt( open_station_drafts_ai_prompt_text( $post ) )
-			->using_system_instruction( open_station_drafts_ai_instructions( $post ) )
-			->as_json_response( open_station_ai_normalize_response_schema( open_station_drafts_ai_schema( $post ) ) )
+		$json = wp_ai_client_prompt( openstation_drafts_ai_prompt_text( $post ) )
+			->using_system_instruction( openstation_drafts_ai_instructions( $post ) )
+			->as_json_response( openstation_ai_normalize_response_schema( openstation_drafts_ai_schema( $post ) ) )
 			->generate_text();
 	} catch ( \Throwable $e ) {
-		$json = new WP_Error( 'open_station_ai_failed', $e->getMessage() );
+		$json = new WP_Error( 'openstation_ai_failed', $e->getMessage() );
 	}
 
 	if ( is_wp_error( $json ) ) {
 		return new WP_Error(
-			'open_station_ai_failed',
+			'openstation_ai_failed',
 			$json->get_error_message(),
 			array( 'status' => 502 )
 		);
@@ -337,7 +337,7 @@ function open_station_rest_draft_suggestions( WP_REST_Request $request ) {
 	$data = json_decode( (string) $json, true );
 	if ( ! is_array( $data ) ) {
 		return new WP_Error(
-			'open_station_ai_parse',
+			'openstation_ai_parse',
 			__( 'The AI response could not be parsed.', 'desktop-mode' ),
 			array( 'status' => 502 )
 		);
@@ -346,13 +346,13 @@ function open_station_rest_draft_suggestions( WP_REST_Request $request ) {
 	$readiness = isset( $data['readiness'] ) && is_array( $data['readiness'] ) ? $data['readiness'] : array();
 
 	$suggestions = array(
-		'titles'     => open_station_drafts_clean_list( isset( $data['titles'] ) ? $data['titles'] : array(), 5 ),
+		'titles'     => openstation_drafts_clean_list( isset( $data['titles'] ) ? $data['titles'] : array(), 5 ),
 		'excerpt'    => trim( wp_strip_all_tags( (string) ( isset( $data['excerpt'] ) ? $data['excerpt'] : '' ) ) ),
-		'tags'       => open_station_drafts_clean_list( isset( $data['tags'] ) ? $data['tags'] : array(), 8 ),
-		'categories' => open_station_drafts_clean_list( isset( $data['categories'] ) ? $data['categories'] : array(), 5 ),
+		'tags'       => openstation_drafts_clean_list( isset( $data['tags'] ) ? $data['tags'] : array(), 8 ),
+		'categories' => openstation_drafts_clean_list( isset( $data['categories'] ) ? $data['categories'] : array(), 5 ),
 		'readiness'  => array(
 			'summary' => trim( wp_strip_all_tags( (string) ( isset( $readiness['summary'] ) ? $readiness['summary'] : '' ) ) ),
-			'missing' => open_station_drafts_clean_list( isset( $readiness['missing'] ) ? $readiness['missing'] : array(), 5 ),
+			'missing' => openstation_drafts_clean_list( isset( $readiness['missing'] ) ? $readiness['missing'] : array(), 5 ),
 		),
 	);
 
@@ -365,7 +365,7 @@ function open_station_rest_draft_suggestions( WP_REST_Request $request ) {
 	 * @param array   $suggestions { titles, excerpt, tags, categories, readiness }.
 	 * @param WP_Post $post        The draft the suggestions describe.
 	 */
-	$suggestions = (array) apply_filters( 'open_station_drafts_ai_suggestions', $suggestions, $post );
+	$suggestions = (array) apply_filters( 'openstation_drafts_ai_suggestions', $suggestions, $post );
 
 	return new WP_REST_Response( $suggestions, 200 );
 }
@@ -377,7 +377,7 @@ function open_station_rest_draft_suggestions( WP_REST_Request $request ) {
  * @param int   $max  Maximum entries to keep.
  * @return string[]
  */
-function open_station_drafts_clean_list( $list, $max ) {
+function openstation_drafts_clean_list( $list, $max ) {
 	$out = array();
 	foreach ( (array) $list as $item ) {
 		if ( ! is_scalar( $item ) ) {
@@ -403,14 +403,14 @@ function open_station_drafts_clean_list( $list, $max ) {
  *
  * @return void
  */
-function open_station_register_drafts_apply_route() {
+function openstation_register_drafts_apply_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/draft-apply',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_rest_draft_apply',
-			'permission_callback' => 'open_station_rest_draft_apply_permission',
+			'callback'            => 'openstation_rest_draft_apply',
+			'permission_callback' => 'openstation_rest_draft_apply_permission',
 			'args'                => array(
 				'post_id'    => array(
 					'required'          => true,
@@ -431,7 +431,7 @@ function open_station_register_drafts_apply_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_drafts_apply_route' );
+add_action( 'rest_api_init', 'openstation_register_drafts_apply_route' );
 
 /**
  * Permission gate: the user can edit the target post.
@@ -439,7 +439,7 @@ add_action( 'rest_api_init', 'open_station_register_drafts_apply_route' );
  * @param WP_REST_Request $request Request.
  * @return true|WP_Error
  */
-function open_station_rest_draft_apply_permission( WP_REST_Request $request ) {
+function openstation_rest_draft_apply_permission( WP_REST_Request $request ) {
 	$post_id = absint( $request['post_id'] );
 	if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) {
 		return new WP_Error(
@@ -457,7 +457,7 @@ function open_station_rest_draft_apply_permission( WP_REST_Request $request ) {
  * @param WP_REST_Request $request Request.
  * @return WP_REST_Response|WP_Error
  */
-function open_station_rest_draft_apply( WP_REST_Request $request ) {
+function openstation_rest_draft_apply( WP_REST_Request $request ) {
 	$post_id = absint( $request['post_id'] );
 	$post    = get_post( $post_id );
 	if ( ! $post instanceof WP_Post ) {
@@ -488,7 +488,7 @@ function open_station_rest_draft_apply( WP_REST_Request $request ) {
 		$result = wp_update_post( $update, true );
 		if ( is_wp_error( $result ) ) {
 			return new WP_Error(
-				'open_station_apply_failed',
+				'openstation_apply_failed',
 				$result->get_error_message(),
 				array( 'status' => 500 )
 			);
@@ -555,7 +555,7 @@ function open_station_rest_draft_apply( WP_REST_Request $request ) {
 	 * @param array   $applied Fields written: { title?, excerpt?, tags?, categories? }.
 	 * @param WP_Post $post    The post as it was before the update.
 	 */
-	do_action( 'open_station_drafts_suggestion_applied', $post_id, $applied, $post );
+	do_action( 'openstation_drafts_suggestion_applied', $post_id, $applied, $post );
 
 	return new WP_REST_Response( array( 'applied' => $applied ), 200 );
 }

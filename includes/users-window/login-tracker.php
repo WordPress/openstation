@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  * timestamp. Public surface — exposed so other plugins can read /
  * sort by it.
  */
-const OPEN_STATION_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
+const OPENSTATION_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
 
 /**
  * Record the login timestamp on every `wp_login` action.
@@ -38,7 +38,7 @@ const OPEN_STATION_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
  * @param string  $user_login Login of the user (unused).
  * @param WP_User $user       The user object.
  */
-function open_station_users_window_record_login( $user_login, $user = null ) {
+function openstation_users_window_record_login( $user_login, $user = null ) {
 	$user_id = 0;
 	if ( $user instanceof WP_User ) {
 		$user_id = (int) $user->ID;
@@ -53,7 +53,7 @@ function open_station_users_window_record_login( $user_login, $user = null ) {
 		return;
 	}
 
-	update_user_meta( $user_id, OPEN_STATION_LAST_LOGIN_META_KEY, time() );
+	update_user_meta( $user_id, OPENSTATION_LAST_LOGIN_META_KEY, time() );
 
 	/**
 	 * Fires after the last-login meta has been written. Lets plugins
@@ -63,6 +63,6 @@ function open_station_users_window_record_login( $user_login, $user = null ) {
 	 * @param int $user_id   User id whose login was recorded.
 	 * @param int $timestamp Unix timestamp written.
 	 */
-	do_action( 'open_station_users_window_login_recorded', $user_id, time() );
+	do_action( 'openstation_users_window_login_recorded', $user_id, time() );
 }
-add_action( 'wp_login', 'open_station_users_window_record_login', 10, 2 );
+add_action( 'wp_login', 'openstation_users_window_record_login', 10, 2 );

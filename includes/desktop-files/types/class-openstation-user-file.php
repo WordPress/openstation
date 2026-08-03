@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `user` desktop file type.
  */
-class Open_Station_User_File extends Open_Station_File {
+class OpenStation_User_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'user';
@@ -67,15 +67,15 @@ class Open_Station_User_File extends Open_Station_File {
 		// `agents` extended option.
 		if (
 			$user
-			&& function_exists( 'open_station_agent_is_agent' )
-			&& open_station_agent_is_agent( $user->ID )
+			&& function_exists( 'openstation_agent_is_agent' )
+			&& openstation_agent_is_agent( $user->ID )
 		) {
 			$shape['isAgent'] = true;
 			// The "when to use" line — the chat window's subtitle when
 			// the tile opener starts a conversation.
-			$shape['agentDescription'] = open_station_agent_get_description( (int) $user->ID );
+			$shape['agentDescription'] = openstation_agent_get_description( (int) $user->ID );
 			$drag_kinds                = null;
-			foreach ( open_station_agent_get_triggers( (int) $user->ID ) as $trigger ) {
+			foreach ( openstation_agent_get_triggers( (int) $user->ID ) as $trigger ) {
 				if ( 'drag' !== ( isset( $trigger['kind'] ) ? $trigger['kind'] : '' ) ) {
 					continue;
 				}

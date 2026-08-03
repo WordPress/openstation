@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `upload` desktop file type.
  */
-class Open_Station_Upload_File extends Open_Station_File {
+class OpenStation_Upload_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'upload';
@@ -57,7 +57,7 @@ class Open_Station_Upload_File extends Open_Station_File {
 		if ( ! $row ) {
 			return false;
 		}
-		return open_station_stored_file_user_can_read( (int) $row['id'], $user_id );
+		return openstation_stored_file_user_can_read( (int) $row['id'], $user_id );
 	}
 
 	public function serialize(): array {
@@ -100,9 +100,9 @@ class Open_Station_Upload_File extends Open_Station_File {
 
 	private function row(): ?array {
 		$id = (int) $this->ref;
-		if ( $id <= 0 || ! function_exists( 'open_station_stored_files_get' ) ) {
+		if ( $id <= 0 || ! function_exists( 'openstation_stored_files_get' ) ) {
 			return null;
 		}
-		return open_station_stored_files_get( $id );
+		return openstation_stored_files_get( $id );
 	}
 }

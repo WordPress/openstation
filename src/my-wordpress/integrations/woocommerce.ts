@@ -44,7 +44,7 @@ interface OrderBand {
 
 /**
  * A band the server decided on. Rows carry their band id on
- * `open_station_woo.band`, and the collection is already ordered to
+ * `openstation_woo.band`, and the collection is already ordered to
  * match, so the client only has to render.
  */
 interface WooBand {
@@ -96,7 +96,7 @@ interface ListBanding {
 	assign: ( item: Record< string, unknown > ) => string | null;
 }
 
-/** The `open_station_woo` REST field on a product row. */
+/** The `openstation_woo` REST field on a product row. */
 interface ProductRowFacts {
 	stockStatus: string;
 	stockLevel: number | null;
@@ -485,7 +485,7 @@ function paintPanel(
 		} )
 		.catch( ( err ) => {
 			// The payload passes through
-			// `open_station_my_wordpress_woo_summary`, so a plugin can
+			// `openstation_my_wordpress_woo_summary`, so a plugin can
 			// rename or drop a field the row builders read. Without
 			// this the panel sat on its placeholders forever, looking
 			// like a request that never came back.
@@ -562,7 +562,7 @@ function renderProduct( data: ProductSummary ): Array< HTMLElement | null > {
 			);
 
 	// Fields are read defensively throughout: the payload passes
-	// through `open_station_my_wordpress_woo_summary`, so a plugin can
+	// through `openstation_my_wordpress_woo_summary`, so a plugin can
 	// legitimately drop or rename any of them and a bare dereference
 	// would take the whole panel down.
 	const reviews = Number( data.reviews ) || 0;
@@ -824,15 +824,15 @@ function summaryTypeFor( entityId: string ): Summary[ 'type' ] | null {
 	return null;
 }
 
-/** Read the `open_station_woo` REST field off a product list row. */
+/** Read the `openstation_woo` REST field off a product list row. */
 function productFacts( item: Record< string, unknown > ): ProductRowFacts | null {
-	const facts = item.open_station_woo as ProductRowFacts | null | undefined;
+	const facts = item.openstation_woo as ProductRowFacts | null | undefined;
 	return facts && typeof facts.stockStatus === 'string' ? facts : null;
 }
 
 /** The server-decided band id on any WooCommerce list row. */
 function wooBand( item: Record< string, unknown > ): string | null {
-	const facts = item.open_station_woo as { band?: string } | null | undefined;
+	const facts = item.openstation_woo as { band?: string } | null | undefined;
 	return facts && typeof facts.band === 'string' ? facts.band : null;
 }
 

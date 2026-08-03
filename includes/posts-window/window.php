@@ -7,7 +7,7 @@
  * which the JS-side dock intercept rewrites to open this window when
  * `nativePostsEnabled` is on.
  *
- * The shell wraps the template echoed by `open_station_posts_window_render_template()`
+ * The shell wraps the template echoed by `openstation_posts_window_render_template()`
  * in `<template id="os-native-window-desktop-mode-posts">` and
  * clones it into the window body BEFORE the JS render callback fires.
  * The `data-os-posts-*` hooks below are the contract the JS
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Echoes the native Posts window's template body.
  */
-function open_station_posts_window_render_template() {
+function openstation_posts_window_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-posts" data-os-posts-root>
@@ -36,7 +36,7 @@ function open_station_posts_window_render_template() {
 				<header class="os-posts__toolbar" data-os-posts-toolbar>
 					<div class="os-posts__toolbar-left">
 						<?php // Status segments are populated by the JS bundle from the
-						// (filterable) `open_station.postsWindow.statusSegments` list,
+						// (filterable) `openstation.postsWindow.statusSegments` list,
 						// so a plugin can add CPT-specific statuses without forking
 						// this template. The empty-string `value` mirrors the "All"
 						// sentinel so the parent control paints it as selected on
@@ -50,7 +50,7 @@ function open_station_posts_window_render_template() {
 					<div class="os-posts__toolbar-right" data-os-posts-bulk hidden>
 						<span class="os-posts__count" data-os-posts-count></span>
 						<?php // Bulk-action buttons rendered from the JS-side
-						// `open_station.postsWindow.bulkActions` registry — defaults
+						// `openstation.postsWindow.bulkActions` registry — defaults
 						// ship "Move to trash"; plugins extend with Duplicate,
 						// Export, Bulk Publish, etc. ?>
 						<span class="os-posts__bulk-actions" data-os-posts-bulk-actions></span>
@@ -136,10 +136,10 @@ function open_station_posts_window_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_posts_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_posts_window_template_html', $html );
 
-	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
-		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -149,12 +149,12 @@ function open_station_posts_window_render_template() {
  * Register the native Posts window on `init` (priority 20, after
  * `components.php` has bootstrapped the registry).
  *
- * Gated on `open_station_posts_window_user_can_register()` — cap-only,
+ * Gated on `openstation_posts_window_user_can_register()` — cap-only,
  * so when the user lacks `edit_posts` the window is simply not
  * registered. The opt-in toggle is enforced at runtime by the JS-side
  * URL remap, so flipping it mid-session never requires a reload.
  */
-function open_station_posts_window_register_window() {
+function openstation_posts_window_register_window() {
 	// Cap-only gate so that flipping the opt-in mid-session doesn't
 	// require an F5. The opt-in is a runtime check on the JS-side
 	// remap (`enabled: ( s ) => s.nativePostsEnabled === true` in
@@ -162,14 +162,14 @@ function open_station_posts_window_register_window() {
 	// cheap — the script + template + REST nonce all live in the
 	// payload only, the actual fetch only happens when the user
 	// opens the window.
-	if ( ! open_station_posts_window_user_can_register() ) {
+	if ( ! openstation_posts_window_user_can_register() ) {
 		return;
 	}
 
 	$window_args = array(
 		'title'      => __( 'Posts', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-post',
-		'template'   => 'open_station_posts_window_render_template',
+		'template'   => 'openstation_posts_window_render_template',
 		'script'     => 'os-posts-window',
 		'style'      => 'os-posts-window',
 		'width'      => 1100,
@@ -191,11 +191,11 @@ function open_station_posts_window_register_window() {
 			'usersUrl'         => esc_url_raw( rest_url( 'wp/v2/users' ) ),
 			'currentUserId'    => (int) get_current_user_id(),
 			'defaultPerPage'   => 20,
-			'queryArgs'        => open_station_posts_window_default_query_args(),
+			'queryArgs'        => openstation_posts_window_default_query_args(),
 			// First-open intro dialog wiring — see `includes/seen-intros.php`.
 			// `introSeen` is the boot-time snapshot; the bundle marks the
 			// intro seen via `introUrl` after the user dismisses the dialog.
-			'introSeen'        => open_station_has_seen_intro( get_current_user_id(), 'posts' ),
+			'introSeen'        => openstation_has_seen_intro( get_current_user_id(), 'posts' ),
 			'introUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 		),
 	);
@@ -203,17 +203,17 @@ function open_station_posts_window_register_window() {
 	/**
 	 * Filter the args used to register the native Posts window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_posts_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_posts_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-posts', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-posts', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Native Posts window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'open_station_posts_window_register_window', 20 );
+add_action( 'init', 'openstation_posts_window_register_window', 20 );
 
 /**
  * Default REST query args the JS bundle uses on every list fetch.
@@ -225,19 +225,19 @@ add_action( 'init', 'open_station_posts_window_register_window', 20 );
  *
  * @return array
  */
-function open_station_posts_window_default_query_args() {
+function openstation_posts_window_default_query_args() {
 	$args = array(
 		// `_embed` pulls author + taxonomy + featured-media side-loads
 		// into `_embedded`, so the table can render avatars, term
 		// chips, and thumbnails without N extra round-trips per row.
 		'_embed' => 'author,wp:term,wp:featuredmedia',
-		// `open_station_lock` is the REST field registered by My WordPress'
+		// `openstation_lock` is the REST field registered by My WordPress'
 		// `lock.php` on every public post type — it tells us whether
 		// another user is currently editing the row. Surfacing it on the
 		// native Posts table means the title cell can paint a small lock
 		// icon without an extra fetch.
 		'_fields' =>
-			'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,open_station_lock,_links,_embedded',
+			'id,title,status,date,date_gmt,modified,modified_gmt,author,categories,tags,comment_status,excerpt,openstation_lock,_links,_embedded',
 	);
 
 	/**
@@ -249,13 +249,13 @@ function open_station_posts_window_default_query_args() {
 	 *
 	 * @param array $args Default args.
 	 */
-	return (array) apply_filters( 'open_station_posts_window_query_args', $args );
+	return (array) apply_filters( 'openstation_posts_window_query_args', $args );
 }
 
 /**
  * Switch the post-tag tax_query operator from the WP REST default `IN`
  * (any-of, OR) to `AND` (every-of, intersection) when the Posts window
- * client opts in via the `open_station_tags_match=all` URL flag.
+ * client opts in via the `openstation_tags_match=all` URL flag.
  *
  * The flag is sent only when more than one tag is selected — single-
  * tag queries are unaffected because AND with one term is identical
@@ -267,11 +267,11 @@ function open_station_posts_window_default_query_args() {
  * @param WP_REST_Request $request Active REST request.
  * @return array Possibly-mutated args.
  */
-function open_station_posts_window_tags_and_filter( $args, $request ) {
+function openstation_posts_window_tags_and_filter( $args, $request ) {
 	if ( ! ( $request instanceof WP_REST_Request ) ) {
 		return $args;
 	}
-	$flag = $request->get_param( 'open_station_tags_match' );
+	$flag = $request->get_param( 'openstation_tags_match' );
 	if ( 'all' !== $flag ) {
 		return $args;
 	}
@@ -288,7 +288,7 @@ function open_station_posts_window_tags_and_filter( $args, $request ) {
 	}
 	return $args;
 }
-add_filter( 'rest_post_query', 'open_station_posts_window_tags_and_filter', 10, 2 );
+add_filter( 'rest_post_query', 'openstation_posts_window_tags_and_filter', 10, 2 );
 
 /**
  * Surface a "non-trashed posts" count alongside core's `count` field
@@ -301,18 +301,18 @@ add_filter( 'rest_post_query', 'open_station_posts_window_tags_and_filter', 10, 
  * so the user can see "this category has 3 unpublished drafts" — a
  * detail core's count silently hides.
  *
- * The field is `open_station_count` and lives on the term object in
+ * The field is `openstation_count` and lives on the term object in
  * REST view context. The per-term query is one cheap COUNT(*) on a
  * pre-indexed join, so 50 terms = 50 light queries — acceptable for
  * an admin UI.
  */
-function open_station_posts_window_register_count_field() {
+function openstation_posts_window_register_count_field() {
 	foreach ( array( 'category', 'post_tag' ) as $taxonomy ) {
 		register_rest_field(
 			$taxonomy,
-			'open_station_count',
+			'openstation_count',
 			array(
-				'get_callback' => 'open_station_posts_window_term_count_any',
+				'get_callback' => 'openstation_posts_window_term_count_any',
 				'schema'       => array(
 					'description' => __( 'Number of non-trashed posts (any status) in this term.', 'desktop-mode' ),
 					'type'        => 'integer',
@@ -328,9 +328,9 @@ function open_station_posts_window_register_count_field() {
 		// reliable id.
 		register_rest_field(
 			$taxonomy,
-			'open_station_is_default',
+			'openstation_is_default',
 			array(
-				'get_callback' => 'open_station_posts_window_term_is_default',
+				'get_callback' => 'openstation_posts_window_term_is_default',
 				'schema'       => array(
 					'description' => __( 'Whether this term is the taxonomy\'s default (fallback) term.', 'desktop-mode' ),
 					'type'        => 'boolean',
@@ -341,13 +341,13 @@ function open_station_posts_window_register_count_field() {
 		);
 	}
 }
-add_action( 'rest_api_init', 'open_station_posts_window_register_count_field' );
+add_action( 'rest_api_init', 'openstation_posts_window_register_count_field' );
 
 /**
  * Shared site-wide cache version for any term-derived endpoint
  * payload (bulk counts, tag cooccurrence, …). Stored in a non-
  * autoloaded option and bumped by
- * `open_station_posts_window_terms_cache_invalidate()` whenever a
+ * `openstation_posts_window_terms_cache_invalidate()` whenever a
  * post/term change could move the derived data. The version is
  * baked into every transient cache key, so a single
  * `update_option()` retires the entire family of cached payloads
@@ -355,7 +355,7 @@ add_action( 'rest_api_init', 'open_station_posts_window_register_count_field' );
  * old entry might still be served. Stale entries fall out of the
  * DB naturally via the transient TTL.
  */
-function open_station_posts_window_terms_cache_version() {
+function openstation_posts_window_terms_cache_version() {
 	$v = (int) get_option( 'desktop_mode_terms_cache_version', 0 );
 	if ( $v <= 0 ) {
 		$v = 1;
@@ -376,8 +376,8 @@ function open_station_posts_window_terms_cache_version() {
  * passes different positional args (object_id, term_id, taxonomy,
  * …) and PHP just ignores extras for a no-param target.
  */
-function open_station_posts_window_terms_cache_invalidate() {
-	$v = open_station_posts_window_terms_cache_version();
+function openstation_posts_window_terms_cache_invalidate() {
+	$v = openstation_posts_window_terms_cache_version();
 	update_option(
 		'desktop_mode_terms_cache_version',
 		$v + 1,
@@ -388,28 +388,28 @@ function open_station_posts_window_terms_cache_invalidate() {
 // `wp_set_object_terms()` runs — covers post saves that change
 // terms, term-delete cleanup, REST PATCH on a post's tags array,
 // classic-editor flows, the lot. It's the ground truth.
-add_action( 'set_object_terms', 'open_station_posts_window_terms_cache_invalidate' );
+add_action( 'set_object_terms', 'openstation_posts_window_terms_cache_invalidate' );
 // Term identity changes — a renamed term doesn't shift pair counts
 // but a deleted term does (its relationships go away). Invalidating
 // on every term mutation costs one option write per edit, which is
 // fine for the typical category/tag edit cadence.
-add_action( 'created_term', 'open_station_posts_window_terms_cache_invalidate' );
-add_action( 'edited_term', 'open_station_posts_window_terms_cache_invalidate' );
-add_action( 'delete_term', 'open_station_posts_window_terms_cache_invalidate' );
+add_action( 'created_term', 'openstation_posts_window_terms_cache_invalidate' );
+add_action( 'edited_term', 'openstation_posts_window_terms_cache_invalidate' );
+add_action( 'delete_term', 'openstation_posts_window_terms_cache_invalidate' );
 // Status flips that change what the SQL counts. Both endpoints
 // exclude 'trash', 'auto-draft', and 'inherit'; trashing or
 // restoring a post adds and removes counts/pairs from the graph.
-add_action( 'wp_trash_post', 'open_station_posts_window_terms_cache_invalidate' );
-add_action( 'untrashed_post', 'open_station_posts_window_terms_cache_invalidate' );
+add_action( 'wp_trash_post', 'openstation_posts_window_terms_cache_invalidate' );
+add_action( 'untrashed_post', 'openstation_posts_window_terms_cache_invalidate' );
 // Pre-delete fires while term_relationships still exist; the row
 // will be gone by the time the next query runs. Belt-and-braces
 // alongside set_object_terms (which fires during delete cleanup
 // on most modern WP versions).
-add_action( 'before_delete_post', 'open_station_posts_window_terms_cache_invalidate' );
+add_action( 'before_delete_post', 'openstation_posts_window_terms_cache_invalidate' );
 
 /**
  * Bulk count endpoint — returns `{ term_id: count }` for every
- * requested term in one query. The `open_station_count` REST field
+ * requested term in one query. The `openstation_count` REST field
  * (per-term) is the canonical source, but on installs where the
  * field isn't reaching the response (caching, REST middleware,
  * stale `_fields` whitelist) the JS calls this endpoint as a
@@ -422,13 +422,13 @@ add_action( 'before_delete_post', 'open_station_posts_window_terms_cache_invalid
  *
  * GET `/desktop-mode/v1/term-counts?taxonomy=category&ids=1,4,7`
  */
-function open_station_posts_window_register_term_counts_route() {
+function openstation_posts_window_register_term_counts_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/term-counts',
 		array(
 			'methods'             => 'GET',
-			'callback'            => 'open_station_posts_window_term_counts_callback',
+			'callback'            => 'openstation_posts_window_term_counts_callback',
 			'permission_callback' => function () {
 				return current_user_can( 'edit_posts' );
 			},
@@ -446,15 +446,15 @@ function open_station_posts_window_register_term_counts_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_posts_window_register_term_counts_route' );
+add_action( 'rest_api_init', 'openstation_posts_window_register_term_counts_route' );
 
-function open_station_posts_window_term_counts_callback( $request ) {
+function openstation_posts_window_term_counts_callback( $request ) {
 	global $wpdb;
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
 	$tax_obj  = get_taxonomy( $taxonomy );
 	if ( ! $tax_obj ) {
 		return new WP_Error(
-			'open_station_invalid_taxonomy',
+			'openstation_invalid_taxonomy',
 			__( 'Unknown taxonomy.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -474,7 +474,7 @@ function open_station_posts_window_term_counts_callback( $request ) {
 	// ID subset out of the same cached map, so a window that asks
 	// for IDs [1, 4, 7] and one that asks for [4, 11, 22] share the
 	// same cache hit. Key shape: `dmtcnt_v<version>_<taxonomy>`.
-	$cache_version = open_station_posts_window_terms_cache_version();
+	$cache_version = openstation_posts_window_terms_cache_version();
 	$cache_key     = sprintf( 'dmtcnt_v%d_%s', $cache_version, $taxonomy );
 	$counts        = get_transient( $cache_key );
 	if ( ! is_array( $counts ) ) {
@@ -548,13 +548,13 @@ function open_station_posts_window_term_counts_callback( $request ) {
  * taxonomy's declared `object_type` so e.g. page-attached terms
  * don't bleed into the post-tag graph.
  */
-function open_station_posts_window_register_tag_cooccurrence_route() {
+function openstation_posts_window_register_tag_cooccurrence_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/tag-cooccurrence',
 		array(
 			'methods'             => 'GET',
-			'callback'            => 'open_station_posts_window_tag_cooccurrence_callback',
+			'callback'            => 'openstation_posts_window_tag_cooccurrence_callback',
 			'permission_callback' => function () {
 				return current_user_can( 'edit_posts' );
 			},
@@ -574,16 +574,16 @@ function open_station_posts_window_register_tag_cooccurrence_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_posts_window_register_tag_cooccurrence_route' );
+add_action( 'rest_api_init', 'openstation_posts_window_register_tag_cooccurrence_route' );
 
-function open_station_posts_window_tag_cooccurrence_callback( $request ) {
+function openstation_posts_window_tag_cooccurrence_callback( $request ) {
 	global $wpdb;
 
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
 	$tax_obj  = get_taxonomy( $taxonomy );
 	if ( ! $tax_obj ) {
 		return new WP_Error(
-			'open_station_invalid_taxonomy',
+			'openstation_invalid_taxonomy',
 			__( 'Unknown taxonomy.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -601,7 +601,7 @@ function open_station_posts_window_tag_cooccurrence_callback( $request ) {
 	// option bump makes every old entry unreachable without us
 	// having to enumerate keys. Taxonomy + limit are part of the key
 	// because they change the response shape.
-	$cache_version = open_station_posts_window_terms_cache_version();
+	$cache_version = openstation_posts_window_terms_cache_version();
 	$cache_key     = sprintf(
 		'dmwco_v%d_%s_l%d',
 		$cache_version,
@@ -711,14 +711,14 @@ function open_station_posts_window_tag_cooccurrence_callback( $request ) {
 }
 
 /**
- * REST get_callback for `open_station_is_default`. Reads the
+ * REST get_callback for `openstation_is_default`. Reads the
  * taxonomy's default-term option (e.g. `default_category`) and
  * compares against the current term's id.
  *
  * @param array $term Term array as serialized by core's REST term controller.
  * @return bool
  */
-function open_station_posts_window_term_is_default( $term ) {
+function openstation_posts_window_term_is_default( $term ) {
 	$taxonomy = isset( $term['taxonomy'] ) ? (string) $term['taxonomy'] : '';
 	$term_id  = isset( $term['id'] ) ? (int) $term['id'] : 0;
 	if ( '' === $taxonomy || $term_id <= 0 ) {
@@ -730,14 +730,14 @@ function open_station_posts_window_term_is_default( $term ) {
 }
 
 /**
- * REST get_callback for `open_station_count`. Counts every post in
+ * REST get_callback for `openstation_count`. Counts every post in
  * the term except trashed + auto-draft (mirrors what users
  * conceptually mean by "posts in this category").
  *
  * @param array $term Term array as serialized by core's REST term controller.
  * @return int
  */
-function open_station_posts_window_term_count_any( $term ) {
+function openstation_posts_window_term_count_any( $term ) {
 	global $wpdb;
 	$taxonomy = isset( $term['taxonomy'] ) ? (string) $term['taxonomy'] : '';
 	$term_id  = isset( $term['id'] ) ? (int) $term['id'] : 0;

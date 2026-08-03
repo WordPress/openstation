@@ -10,7 +10,7 @@
  *
  *   1. Register the JS bundle and CSS with WordPress so they can be loaded.
  *   2. Enqueue the CSS eagerly on shell pages (prevents flash of unstyled content).
- *   3. Announce the widget to OpenStation via open_station_register_widget()
+ *   3. Announce the widget to OpenStation via openstation_register_widget()
  *      so it appears in the widget picker.
  *
  * The PHP side does NOT contain any widget logic. All the rendering, data
@@ -22,14 +22,14 @@
  * ------------------------------
  * 1. Copy this file to includes/widgets/widget-my.php
  * 2. Replace every "starter" in function names with your widget name
- *    e.g. open_station_register_starter_* → open_station_register_my_*
+ *    e.g. openstation_register_starter_* → openstation_register_my_*
  * 3. Replace "widget-starter" in asset filenames with "widget-my"
  * 4. Replace 'desktop-mode/starter' with your widget id — must match
  *    the WIDGET_ID constant in your JS file exactly
  * 5. Update label, description, icon, and size constraints
  * 6. Add a require_once line for this file in desktop-mode.php
  *
- * Requires: OpenStation 0.18.0+ (open_station_register_widget).
+ * Requires: OpenStation 0.18.0+ (openstation_register_widget).
  *
  * @package OpenStation
  */
@@ -63,26 +63,26 @@ defined( 'ABSPATH' ) || exit;
  * VERSION STRINGS
  * Using filemtime() as the version means the browser cache is busted
  * automatically whenever the file changes on disk — no manual version bumping.
- * Falls back to OPEN_STATION_VERSION if the file does not exist yet (e.g.
+ * Falls back to OPENSTATION_VERSION if the file does not exist yet (e.g.
  * during development before the first build).
  */
-function open_station_register_starter_widget_assets() {
-	$suffix  = open_station_asset_suffix();
-	$version = defined( 'OPEN_STATION_VERSION' ) ? OPEN_STATION_VERSION : '0';
+function openstation_register_starter_widget_assets() {
+	$suffix  = openstation_asset_suffix();
+	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
 
-	$js_path  = OPEN_STATION_DIR . 'assets/js/widget-starter' . $suffix . '.js';
-	$css_path = OPEN_STATION_DIR . 'assets/js/widget-starter' . $suffix . '.css';
+	$js_path  = OPENSTATION_DIR . 'assets/js/widget-starter' . $suffix . '.js';
+	$css_path = OPENSTATION_DIR . 'assets/js/widget-starter' . $suffix . '.css';
 
 	wp_register_style(
 		'os-starter-widget',                              // Handle name — referenced in wp_enqueue_style() below.
-		OPEN_STATION_URL . 'assets/js/widget-starter' . $suffix . '.css',
+		OPENSTATION_URL . 'assets/js/widget-starter' . $suffix . '.css',
 		array(),                                                    // No CSS dependencies.
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
 	wp_register_script(
-		'os-starter-widget',                              // Handle name — passed as 'script' to open_station_register_widget().
-		OPEN_STATION_URL . 'assets/js/widget-starter' . $suffix . '.js',
+		'os-starter-widget',                              // Handle name — passed as 'script' to openstation_register_widget().
+		OPENSTATION_URL . 'assets/js/widget-starter' . $suffix . '.js',
 		array( 'wp-api-fetch' ),                                    // List WordPress script handles your widget depends on.
 		                                                            // 'wp-api-fetch' is available on every admin page and handles
 		                                                            // REST nonces automatically. Remove it if your widget does
@@ -91,8 +91,8 @@ function open_station_register_starter_widget_assets() {
 		true                                                        // Load in the footer — always true for widget scripts.
 	);
 }
-add_action( 'init', 'open_station_register_starter_widget_assets', 5 );
-// Priority 5 — must run before open_station_register_starter_widget() at priority 6
+add_action( 'init', 'openstation_register_starter_widget_assets', 5 );
+// Priority 5 — must run before openstation_register_starter_widget() at priority 6
 // so the script handle exists when register_widget() looks it up.
 
 /**
@@ -105,19 +105,19 @@ add_action( 'init', 'open_station_register_starter_widget_assets', 5 );
  *
  * The two guards below prevent the stylesheet loading on pages where
  * OpenStation is not active:
- *   open_station_is_enabled()            — user has OpenStation turned on
- *   open_station_is_chromeless_request() — not an iframe content request
+ *   openstation_is_enabled()            — user has OpenStation turned on
+ *   openstation_is_chromeless_request() — not an iframe content request
  */
-function open_station_enqueue_starter_widget_styles() {
-	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
+function openstation_enqueue_starter_widget_styles() {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( function_exists( 'open_station_is_chromeless_request' ) && open_station_is_chromeless_request() ) {
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
 		return;
 	}
 	wp_enqueue_style( 'os-starter-widget' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_starter_widget_styles', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_starter_widget_styles', 20 );
 
 /**
  * Announce the widget to OpenStation.
@@ -150,13 +150,13 @@ add_action( 'admin_enqueue_scripts', 'open_station_enqueue_starter_widget_styles
  *                           current user or the widget will not register for them.
  *                           e.g. array( 'edit_posts', 'publish_posts' )
  */
-function open_station_register_starter_widget() {
-	if ( ! function_exists( 'open_station_register_widget' ) ) {
+function openstation_register_starter_widget() {
+	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		// OpenStation is not active — bail gracefully.
 		return;
 	}
 
-	open_station_register_widget(
+	openstation_register_widget(
 		// First argument: widget id.
 		// Must exactly match the WIDGET_ID constant in your JS file and the
 		// key used in window.openStationWidgets[ id ] at the bottom of index.ts.
@@ -175,5 +175,5 @@ function open_station_register_starter_widget() {
 		)
 	);
 }
-add_action( 'init', 'open_station_register_starter_widget', 6 );
+add_action( 'init', 'openstation_register_starter_widget', 6 );
 // Priority 6 — runs after the asset registration at priority 5.

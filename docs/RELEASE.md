@@ -32,8 +32,8 @@ Hyphenated versions publish as GitHub pre-releases, so `/releases/latest` keeps 
 
 | Tool | Purpose |
 |---|---|
-| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPEN_STATION_VERSION`, `readme.txt` `Stable tag:`. |
-| `bin/package.sh` | Packages `desktop-mode.zip` from HEAD + current built JS. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `open_station_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any vite target is left behind there. |
+| `bin/bump-version.sh <version>` | Syncs `package.json`, `package-lock.json`, plugin header, `OPENSTATION_VERSION`, `readme.txt` `Stable tag:`. |
+| `bin/package.sh` | Packages `desktop-mode.zip` from HEAD + current built JS. Derives the expected bundle list from `vite.config.js` TARGETS and ships each target's `<fileBase>.min.js` **only** — the unminified dev bundles (~4–5 MB) stay out of the zip; `openstation_asset_suffix()` falls back to `.min` on installs where they're absent, so a `SCRIPT_DEBUG` site degrades gracefully. Errors if any expected `.min.js` is missing under `assets/js/`, or if a stale gitignored `.js` not produced by any vite target is left behind there. |
 | `bin/release.sh <version>` | Full end-to-end release. |
 | `release.yml` — `push: tags: v*` | Build + publish the GitHub Release. |
 
@@ -43,7 +43,7 @@ Four places, kept in sync by `bin/bump-version.sh`:
 
 - `package.json` → `"version"` (and `package-lock.json` via `npm version`)
 - `desktop-mode.php` → plugin header `Version:`
-- `desktop-mode.php` → `OPEN_STATION_VERSION` constant
+- `desktop-mode.php` → `OPENSTATION_VERSION` constant
 - `readme.txt` → `Stable tag:` (wp.org rejects submissions when this drifts from the plugin header `Version:`)
 
 The `release` job re-reads all four at tag time and fails with a clear error if any doesn't match the tag. This catches "forgot to bump one".
@@ -103,7 +103,7 @@ the version in the extension's plugin header before re-packaging.
 
 ## Troubleshooting
 
-**`Version mismatch — tag 'X' vs package.json=Y header=Y OPEN_STATION_VERSION=Y readme.txt Stable tag=Y`**
+**`Version mismatch — tag 'X' vs package.json=Y header=Y OPENSTATION_VERSION=Y readme.txt Stable tag=Y`**
 You pushed a tag without bumping first, or bumped but didn't push the bump commit before tagging. Fix locally, delete the broken tag (`git push --delete origin vX.Y.Z`), re-tag from the correct commit, push again.
 
 **`bin/release.sh` aborts with "working tree is dirty"**

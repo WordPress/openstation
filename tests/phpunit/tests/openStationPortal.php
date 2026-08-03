@@ -30,16 +30,16 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		unset(
 			$_SERVER['REQUEST_URI'],
 			$_SERVER['REQUEST_METHOD'],
-			$_GET[ OPEN_STATION_PORTAL_FLAG ],
-			$_GET[ OPEN_STATION_PORTAL_INTENT_FLAG ],
-			$_GET[ OPEN_STATION_CLASSIC_FLAG ],
-			$_GET['open_station_chromeless']
+			$_GET[ OPENSTATION_PORTAL_FLAG ],
+			$_GET[ OPENSTATION_PORTAL_INTENT_FLAG ],
+			$_GET[ OPENSTATION_CLASSIC_FLAG ],
+			$_GET['openstation_chromeless']
 		);
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		delete_user_meta( self::$admin_id, OPEN_STATION_SESSION_META_KEY );
+		delete_user_meta( self::$admin_id, OPENSTATION_SESSION_META_KEY );
 		delete_user_meta( self::$subscriber_id, 'desktop_mode_mode' );
-		remove_all_filters( 'open_station_portal_auto_enable' );
-		remove_all_filters( 'open_station_admin_redirect_to_portal' );
+		remove_all_filters( 'openstation_portal_auto_enable' );
+		remove_all_filters( 'openstation_admin_redirect_to_portal' );
 		parent::tear_down();
 	}
 
@@ -48,7 +48,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * target, same interception technique as capture_redirect() below.
 	 */
 	private function capture_admin_init_redirect() {
-		return $this->capture_with( 'open_station_redirect_plain_admin_to_portal' );
+		return $this->capture_with( 'openstation_redirect_plain_admin_to_portal' );
 	}
 
 	/**
@@ -65,7 +65,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 */
 	private function capture_redirect( $request_uri ) {
 		$_SERVER['REQUEST_URI'] = $request_uri;
-		return $this->capture_with( 'open_station_handle_portal_request', null );
+		return $this->capture_with( 'openstation_handle_portal_request', null );
 	}
 
 	/**
@@ -80,14 +80,14 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$captured = null;
 		$filter   = function ( $location ) use ( &$captured ) {
 			$captured = $location;
-			throw new RuntimeException( 'open_station_test_redirect_intercepted' );
+			throw new RuntimeException( 'openstation_test_redirect_intercepted' );
 		};
 		add_filter( 'wp_redirect', $filter, 10, 1 );
 
 		try {
 			$callable( ...$args );
 		} catch ( RuntimeException $e ) {
-			if ( 'open_station_test_redirect_intercepted' !== $e->getMessage() ) {
+			if ( 'openstation_test_redirect_intercepted' !== $e->getMessage() ) {
 				throw $e;
 			}
 		} finally {
@@ -98,62 +98,93 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_portal_url
+	 * @covers ::openstation_portal_url
 	 */
 	public function test_portal_url_is_canonical() {
-		$this->assertSame( home_url( '/openstation/' ), open_station_portal_url() );
+		$this->assertSame( home_url( '/openstation/' ), openstation_portal_url() );
 	}
 
 	/**
-	 * @covers ::open_station_is_portal_request
+	 * @covers ::openstation_is_portal_request
 	 */
 	public function test_is_portal_request_detects_exact_path() {
 		$_SERVER['REQUEST_URI'] = '/openstation';
-		$this->assertTrue( open_station_is_portal_request() );
+		$this->assertTrue( openstation_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::open_station_is_portal_request
+	 * @covers ::openstation_is_portal_request
 	 */
 	public function test_is_portal_request_detects_trailing_slash() {
 		$_SERVER['REQUEST_URI'] = '/openstation/';
-		$this->assertTrue( open_station_is_portal_request() );
+		$this->assertTrue( openstation_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::open_station_is_portal_request
+	 * @covers ::openstation_is_portal_request
 	 */
 	public function test_is_portal_request_ignores_query_string() {
 		$_SERVER['REQUEST_URI'] = '/openstation/?foo=bar';
-		$this->assertTrue( open_station_is_portal_request() );
+		$this->assertTrue( openstation_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::open_station_is_portal_request
+	 * @covers ::openstation_is_portal_request
 	 */
 	public function test_is_portal_request_rejects_subpaths() {
 		$_SERVER['REQUEST_URI'] = '/openstation/foo';
-		$this->assertFalse( open_station_is_portal_request() );
+		$this->assertFalse( openstation_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::open_station_is_portal_request
+	 * The portal answered to `/desktop-mode/` before the rebrand, and
+	 * that is a bookmarkable address, so it keeps working.
+	 *
+	 * @covers ::openstation_is_portal_request
+	 */
+	public function test_is_portal_request_accepts_the_legacy_path() {
+		foreach ( array( '/desktop-mode', '/desktop-mode/', '/desktop-mode/?foo=bar' ) as $uri ) {
+			$_SERVER['REQUEST_URI'] = $uri;
+			$this->assertTrue( openstation_is_portal_request(), $uri );
+		}
+	}
+
+	/**
+	 * The legacy path is an alias, not a second canonical address:
+	 * subpaths under it are no more valid than under the current one.
+	 *
+	 * @covers ::openstation_is_portal_request
+	 */
+	public function test_is_portal_request_rejects_legacy_subpaths() {
+		$_SERVER['REQUEST_URI'] = '/desktop-mode/foo';
+		$this->assertFalse( openstation_is_portal_request() );
+	}
+
+	/**
+	 * @covers ::openstation_portal_url
+	 */
+	public function test_portal_url_stays_canonical_despite_the_alias() {
+		$this->assertSame( home_url( '/openstation/' ), openstation_portal_url() );
+	}
+
+	/**
+	 * @covers ::openstation_is_portal_request
 	 */
 	public function test_is_portal_request_rejects_unrelated_paths() {
 		$_SERVER['REQUEST_URI'] = '/wp-admin/';
-		$this->assertFalse( open_station_is_portal_request() );
+		$this->assertFalse( openstation_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::open_station_is_portal_request
+	 * @covers ::openstation_is_portal_request
 	 */
 	public function test_is_portal_request_false_when_uri_missing() {
 		unset( $_SERVER['REQUEST_URI'] );
-		$this->assertFalse( open_station_is_portal_request() );
+		$this->assertFalse( openstation_is_portal_request() );
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_handler_is_noop_when_not_portal() {
 		wp_set_current_user( self::$admin_id );
@@ -163,7 +194,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_logged_out_user_redirected_to_login() {
 		wp_set_current_user( 0 );
@@ -171,11 +202,11 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 
 		$this->assertNotNull( $redirect );
 		$this->assertStringContainsString( 'wp-login.php', $redirect );
-		$this->assertStringContainsString( rawurlencode( open_station_portal_url() ), $redirect );
+		$this->assertStringContainsString( rawurlencode( openstation_portal_url() ), $redirect );
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_logged_in_user_auto_enabled() {
 		wp_set_current_user( self::$admin_id );
@@ -187,7 +218,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_portal_redirects_to_admin_with_flag() {
 		wp_set_current_user( self::$admin_id );
@@ -195,15 +226,15 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 
 		$this->assertNotNull( $redirect );
 		$this->assertStringStartsWith( admin_url(), $redirect );
-		$this->assertStringContainsString( OPEN_STATION_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_auto_enable_filter_can_disable_auto_toggle() {
 		wp_set_current_user( self::$admin_id );
-		add_filter( 'open_station_portal_auto_enable', '__return_false' );
+		add_filter( 'openstation_portal_auto_enable', '__return_false' );
 
 		$this->capture_redirect( '/openstation/' );
 
@@ -211,7 +242,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_auto_enable_filter_receives_user_id() {
 		wp_set_current_user( self::$admin_id );
@@ -219,7 +250,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$received_id = null;
 
 		add_filter(
-			'open_station_portal_auto_enable',
+			'openstation_portal_auto_enable',
 			function ( $enable, $user_id ) use ( &$received_id ) {
 				$received_id = $user_id;
 				return $enable;
@@ -234,7 +265,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_auto_enable_noop_when_meta_already_set() {
 		wp_set_current_user( self::$admin_id );
@@ -248,27 +279,27 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_portal_entry_url
+	 * @covers ::openstation_portal_entry_url
 	 */
 	public function test_entry_url_falls_back_to_dashboard_when_session_empty() {
-		$this->assertSame( admin_url( 'index.php' ), open_station_portal_entry_url( self::$admin_id ) );
+		$this->assertSame( admin_url( 'index.php' ), openstation_portal_entry_url( self::$admin_id ) );
 	}
 
 	/**
 	 * The portal navigates the top window. A focused-window URL carrying
-	 * `open_station_chromeless=1` (iframe flag) would land the top window in chromeless
+	 * `openstation_chromeless=1` (iframe flag) would land the top window in chromeless
 	 * mode with no admin bar, no toggle, and no way out. Strip it.
 	 *
-	 * @covers ::open_station_portal_entry_url
+	 * @covers ::openstation_portal_entry_url
 	 */
 	public function test_entry_url_strips_chromeless_flag() {
-		open_station_save_session(
+		openstation_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
 					array(
 						'id'     => 'wp-window-plugins-php',
-						'url'    => admin_url( 'plugins.php?open_station_chromeless=1&paged=2' ),
+						'url'    => admin_url( 'plugins.php?openstation_chromeless=1&paged=2' ),
 						'title'  => 'Plugins',
 						'icon'   => 'dashicons-admin-plugins',
 						'state'  => 'normal',
@@ -282,17 +313,17 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 			)
 		);
 
-		$entry = open_station_portal_entry_url( self::$admin_id );
+		$entry = openstation_portal_entry_url( self::$admin_id );
 
-		$this->assertStringNotContainsString( 'open_station_chromeless=1', $entry );
+		$this->assertStringNotContainsString( 'openstation_chromeless=1', $entry );
 	}
 
 	/**
-	 * @covers ::open_station_portal_entry_url
+	 * @covers ::openstation_portal_entry_url
 	 */
 	public function test_entry_url_returns_focused_window_url() {
 		$target = admin_url( 'edit.php?post_type=page' );
-		open_station_save_session(
+		openstation_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
@@ -323,14 +354,14 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( $target, open_station_portal_entry_url( self::$admin_id ) );
+		$this->assertSame( $target, openstation_portal_entry_url( self::$admin_id ) );
 	}
 
 	/**
-	 * @covers ::open_station_portal_entry_url
+	 * @covers ::openstation_portal_entry_url
 	 */
 	public function test_entry_url_falls_back_when_focused_missing() {
-		open_station_save_session(
+		openstation_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
@@ -350,14 +381,14 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 			)
 		);
 
-		$this->assertSame( admin_url( 'index.php' ), open_station_portal_entry_url( self::$admin_id ) );
+		$this->assertSame( admin_url( 'index.php' ), openstation_portal_entry_url( self::$admin_id ) );
 	}
 
 	/**
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	/**
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_sends_desktop_user_to_portal() {
 		wp_set_current_user( self::$admin_id );
@@ -366,13 +397,13 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 
 		$redirect = $this->capture_admin_init_redirect();
 
-		$this->assertSame( open_station_portal_url(), $redirect );
+		$this->assertSame( openstation_portal_url(), $redirect );
 	}
 
 	/**
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
-	public function test_admin_redirect_noop_when_open_station_off() {
+	public function test_admin_redirect_noop_when_openstation_off() {
 		wp_set_current_user( self::$admin_id );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
 
@@ -380,31 +411,31 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_on_chromeless_request() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
-		$_GET['open_station_chromeless']        = '1';
+		$_GET['openstation_chromeless']        = '1';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
 	/**
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_when_portal_flag_already_present() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD']    = 'GET';
-		$_GET[ OPEN_STATION_PORTAL_FLAG ] = '1';
+		$_GET[ OPENSTATION_PORTAL_FLAG ] = '1';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
 	/**
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_on_post_method() {
 		wp_set_current_user( self::$admin_id );
@@ -415,7 +446,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_on_admin_post_page() {
 		wp_set_current_user( self::$admin_id );
@@ -436,25 +467,25 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * alone so the user can view the page as classic wp-admin in a new
 	 * tab without flipping off OpenStation account-wide.
 	 *
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_noop_when_classic_flag_present() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD']      = 'GET';
-		$_GET[ OPEN_STATION_CLASSIC_FLAG ] = '1';
+		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
 
 	/**
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_filter_can_disable() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$_SERVER['REQUEST_METHOD'] = 'GET';
-		add_filter( 'open_station_admin_redirect_to_portal', '__return_false' );
+		add_filter( 'openstation_admin_redirect_to_portal', '__return_false' );
 
 		$this->assertNull( $this->capture_admin_init_redirect() );
 	}
@@ -470,7 +501,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * We use `esc_url_raw` instead, which preserves percent-encoded
 	 * chars while still stripping control sequences.
 	 *
-	 * @covers ::open_station_redirect_plain_admin_to_portal
+	 * @covers ::openstation_redirect_plain_admin_to_portal
 	 */
 	public function test_admin_redirect_preserves_percent_encoded_slashes() {
 		wp_set_current_user( self::$admin_id );
@@ -502,20 +533,20 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * portal handler's `target` round-trip when a user lands on
 	 * `/openstation/?target=<encoded>`.
 	 *
-	 * @covers ::open_station_handle_portal_request
-	 * @covers ::open_station_sanitize_portal_target
+	 * @covers ::openstation_handle_portal_request
+	 * @covers ::openstation_sanitize_portal_target
 	 */
 	public function test_portal_target_preserves_percent_encoded_slashes() {
 		wp_set_current_user( self::$admin_id );
 
-		// Simulate what `open_station_redirect_plain_admin_to_portal`
+		// Simulate what `openstation_redirect_plain_admin_to_portal`
 		// would have produced after capturing an activate URL.
 		$raw_uri              = '/wp-admin/plugins.php?action=activate&plugin=desktop-mode-cron-manager%2Fdesktop-mode-cron-manager.php&_wpnonce=abc123';
 		$_GET['target']       = $raw_uri;
 		$_SERVER['REQUEST_URI'] = '/openstation/?target=' . rawurlencode( $raw_uri );
 
 		try {
-			$redirect = $this->capture_with( 'open_station_handle_portal_request', null );
+			$redirect = $this->capture_with( 'openstation_handle_portal_request', null );
 		} finally {
 			unset( $_GET['target'] );
 		}
@@ -529,7 +560,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	public function test_portal_honors_session_focused_window() {
 		wp_set_current_user( self::$admin_id );
 		$target_path = 'edit.php?post_type=page';
-		open_station_save_session(
+		openstation_save_session(
 			self::$admin_id,
 			array(
 				'windows' => array(
@@ -552,7 +583,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$redirect = $this->capture_redirect( '/openstation/' );
 
 		$this->assertStringContainsString( 'post_type=page', $redirect );
-		$this->assertStringContainsString( OPEN_STATION_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
 	}
 
 	/**
@@ -561,7 +592,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * the portal picked the landing page itself (default window /
 	 * session-focused), so a restored session shouldn't be disturbed.
 	 *
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_portal_bare_visit_omits_intent_flag() {
 		wp_set_current_user( self::$admin_id );
@@ -569,8 +600,8 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$redirect = $this->capture_redirect( '/openstation/' );
 
 		$this->assertNotNull( $redirect );
-		$this->assertStringContainsString( OPEN_STATION_PORTAL_FLAG . '=1', $redirect );
-		$this->assertStringNotContainsString( OPEN_STATION_PORTAL_INTENT_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG . '=1', $redirect );
 	}
 
 	/**
@@ -580,7 +611,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * Without the intent flag the shell would suppress the auto-open
 	 * whenever the user has a saved session, swallowing their click.
 	 *
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_portal_target_redirect_carries_intent_flag() {
 		wp_set_current_user( self::$admin_id );
@@ -589,7 +620,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$_SERVER['REQUEST_URI'] = '/openstation/?target=' . rawurlencode( $raw_uri );
 
 		try {
-			$redirect = $this->capture_with( 'open_station_handle_portal_request', null );
+			$redirect = $this->capture_with( 'openstation_handle_portal_request', null );
 		} finally {
 			unset( $_GET['target'] );
 		}
@@ -598,8 +629,8 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'post.php', $redirect );
 		$this->assertStringContainsString( 'post=104', $redirect );
 		$this->assertStringContainsString( 'action=edit', $redirect );
-		$this->assertStringContainsString( OPEN_STATION_PORTAL_FLAG . '=1', $redirect );
-		$this->assertStringContainsString( OPEN_STATION_PORTAL_INTENT_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( OPENSTATION_PORTAL_INTENT_FLAG . '=1', $redirect );
 	}
 
 	/**
@@ -608,7 +639,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * to the session/default landing — which is portal-picked, not
 	 * user intent. The intent flag must NOT survive that fallback.
 	 *
-	 * @covers ::open_station_handle_portal_request
+	 * @covers ::openstation_handle_portal_request
 	 */
 	public function test_portal_invalid_target_does_not_set_intent_flag() {
 		wp_set_current_user( self::$admin_id );
@@ -616,14 +647,14 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		$_SERVER['REQUEST_URI'] = '/openstation/?target=' . rawurlencode( '/somewhere-not-admin/foo.php' );
 
 		try {
-			$redirect = $this->capture_with( 'open_station_handle_portal_request', null );
+			$redirect = $this->capture_with( 'openstation_handle_portal_request', null );
 		} finally {
 			unset( $_GET['target'] );
 		}
 
 		$this->assertNotNull( $redirect );
-		$this->assertStringContainsString( OPEN_STATION_PORTAL_FLAG . '=1', $redirect );
-		$this->assertStringNotContainsString( OPEN_STATION_PORTAL_INTENT_FLAG . '=1', $redirect );
+		$this->assertStringContainsString( OPENSTATION_PORTAL_FLAG . '=1', $redirect );
+		$this->assertStringNotContainsString( OPENSTATION_PORTAL_INTENT_FLAG . '=1', $redirect );
 	}
 
 	/**
@@ -633,20 +664,20 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 	 * clicking the dock icon for an already-auto-opened page would
 	 * spawn a duplicate window.
 	 *
-	 * @covers ::open_station_handle_portal_request
-	 * @covers ::open_station_sanitize_portal_target
+	 * @covers ::openstation_handle_portal_request
+	 * @covers ::openstation_sanitize_portal_target
 	 */
 	public function test_portal_target_with_existing_intent_flag_is_normalised() {
 		wp_set_current_user( self::$admin_id );
 		// User crafts (or a bookmark embeds) a target whose query string
 		// already carries the intent marker. The sanitizer drops the
 		// duplicate so we don't end up with `…intent=1&…intent=1`.
-		$raw_uri                = '/wp-admin/edit.php?post_type=page&' . OPEN_STATION_PORTAL_INTENT_FLAG . '=1';
+		$raw_uri                = '/wp-admin/edit.php?post_type=page&' . OPENSTATION_PORTAL_INTENT_FLAG . '=1';
 		$_GET['target']         = $raw_uri;
 		$_SERVER['REQUEST_URI'] = '/openstation/?target=' . rawurlencode( $raw_uri );
 
 		try {
-			$redirect = $this->capture_with( 'open_station_handle_portal_request', null );
+			$redirect = $this->capture_with( 'openstation_handle_portal_request', null );
 		} finally {
 			unset( $_GET['target'] );
 		}
@@ -655,7 +686,7 @@ class Tests_OpenStation_Portal extends WP_UnitTestCase {
 		// Exactly one occurrence of the intent flag in the final URL.
 		$this->assertSame(
 			1,
-			substr_count( $redirect, OPEN_STATION_PORTAL_INTENT_FLAG . '=1' )
+			substr_count( $redirect, OPENSTATION_PORTAL_INTENT_FLAG . '=1' )
 		);
 	}
 }

@@ -8,12 +8,12 @@ The shell exposes three primitives that compose into a complete devtool:
 |---|---|
 | `wp.os.devtools.addRequestHeader(windowId, name, value)` | Contribute an HTTP header to every fetch / XHR / sendBeacon from the target window. Multiple devtools can contribute the same header — the shell joins values per RFC 7230 (`v1, v2, v3`). |
 | `wp.os.devtools.onRequest(windowId, cb, { observe })` | Subscribe to every completed request from the target window. `observe: true` includes request + response headers in the payload. |
-| `wp.os.devtools.debug.{startSession, publish, subscribe}` | Generic per-session pub/sub bus, server- and client-side. PHP capture publishes via `open_station_debug_publish()`; the JS shell polls and replays. |
+| `wp.os.devtools.debug.{startSession, publish, subscribe}` | Generic per-session pub/sub bus, server- and client-side. PHP capture publishes via `openstation_debug_publish()`; the JS shell polls and replays. |
 
 Plus a server-side helper:
 
 ```php
-$session_id = open_station_debug_session_for_request();
+$session_id = openstation_debug_session_for_request();
 if ( '' !== $session_id ) {
     // request came from an instrumented window
 }
@@ -27,7 +27,7 @@ The end goal: when the user clicks the bug-icon dropdown on any window's title b
 
 ```php
 add_action( 'init', function () {
-    $session_id = open_station_debug_session_for_request();
+    $session_id = openstation_debug_session_for_request();
     if ( '' === $session_id || ! current_user_can( 'manage_options' ) ) {
         return;
     }
@@ -41,7 +41,7 @@ add_action( 'init', function () {
             return;
         }
         foreach ( $wpdb->queries as $q ) {
-            open_station_debug_publish( $session_id, 'query', array(
+            openstation_debug_publish( $session_id, 'query', array(
                 'sql'    => $q[0],
                 'time'   => $q[1],
                 'caller' => $q[2],
@@ -150,7 +150,7 @@ The shell aggregates: as long as any subscriber for the window has `observe: tru
 
 ## ownerHandle attribution
 
-Every window registered via `open_station_register_window( $id, $args )` (with `'script' => 'my-plugin-handle'` in `$args`) carries that handle through to `Window.config.ownerHandle`. Devtools read it for attribution:
+Every window registered via `openstation_register_window( $id, $args )` (with `'script' => 'my-plugin-handle'` in `$args`) carries that handle through to `Window.config.ownerHandle`. Devtools read it for attribution:
 
 ```js
 wp.os.registerTitleBarButton( {
@@ -164,7 +164,7 @@ When the URL is the only attribution surface (a window backed by a core admin pa
 
 ## REST endpoint surface
 
-The debug bus exposes a single REST route: `GET /desktop-mode/v1/debug?sessionId=…&since=…&channel=…` (or `channels[]=…&channels[]=…`). Permission: logged-in admin (`manage_options`); override via the `open_station_debug_rest_permission` filter. The `open_station_debug_publish` action fires synchronously on every publish for observability widgets that don't want to round-trip through the poll loop.
+The debug bus exposes a single REST route: `GET /desktop-mode/v1/debug?sessionId=…&since=…&channel=…` (or `channels[]=…&channels[]=…`). Permission: logged-in admin (`manage_options`); override via the `openstation_debug_rest_permission` filter. The `openstation_debug_publish` action fires synchronously on every publish for observability widgets that don't want to round-trip through the poll loop.
 
 ### Talking to the endpoint directly
 

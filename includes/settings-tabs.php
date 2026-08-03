@@ -5,20 +5,20 @@
  * Two entry points, mirroring the command-palette surface
  * ({@see includes/commands.php}):
  *
- *   - `open_station_register_settings_tab_script( $handle )` — primary,
+ *   - `openstation_register_settings_tab_script( $handle )` — primary,
  *     minimum-ceremony opt-in. Tells the shell: "this enqueued script
  *     registers OS Settings tabs; include it in the plugins-changed
  *     payload so it gets injected mid-session without a full reload."
  *
- *   - `open_station_register_settings_tab( $args )` — optional. Declares
+ *   - `openstation_register_settings_tab( $args )` — optional. Declares
  *     tab metadata server-side so the shell can live-unregister tabs on
  *     plugin deactivation without the JS having to tag every
  *     `registerSettingsTab()` with an `owner`.
  *
- * Both APIs feed `open_station_build_desktop_settings_tab_scripts_payload()`
- * and `open_station_build_desktop_settings_tabs_payload()`, which contribute
+ * Both APIs feed `openstation_build_desktop_settings_tab_scripts_payload()`
+ * and `openstation_build_desktop_settings_tabs_payload()`, which contribute
  * `serverSettingsTabScripts` and `serverSettingsTabs` to the shell
- * payload in `open_station_build_menu_payload()`.
+ * payload in `openstation_build_menu_payload()`.
  *
  * The tab's `render` callback lives JS-side — the PHP layer only
  * ferries identity and metadata.
@@ -44,36 +44,36 @@ defined( 'ABSPATH' ) || exit;
  *     );
  *     wp_enqueue_script( 'my-plugin-settings' );
  * } );
- * open_station_register_settings_tab_script( 'my-plugin-settings' );
+ * openstation_register_settings_tab_script( 'my-plugin-settings' );
  * ```
  *
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function open_station_register_settings_tab_script( $handle ) {
+function openstation_register_settings_tab_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return open_station_registration_error(
-			'open_station_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Settings tab script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	open_station_desktop_settings_tab_script_registry( $handle, true );
+	openstation_desktop_settings_tab_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop settings-tab script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'open_station_settings_tab_script_registered', $handle );
+	do_action( 'openstation_settings_tab_script_registered', $handle );
 
 	return true;
 }
 
 /**
  * Declare an OS Settings tab server-side. Optional companion to
- * `open_station_register_settings_tab_script()` — plugins that declare
+ * `openstation_register_settings_tab_script()` — plugins that declare
  * their tab here get live-unregister-on-deactivate for free; plugins
  * that don't can still set `owner` on their JS `registerSettingsTab()`
  * call, or accept "tab stays until next reload" as graceful fallback.
@@ -81,7 +81,7 @@ function open_station_register_settings_tab_script( $handle ) {
  * Example:
  *
  * ```php
- * open_station_register_settings_tab( array(
+ * openstation_register_settings_tab( array(
  *     'id'         => 'my-plugin',
  *     'label'      => __( 'My Plugin', 'my-plugin' ),
  *     'capability' => 'manage_options',
@@ -91,7 +91,7 @@ function open_station_register_settings_tab_script( $handle ) {
  * ```
  *
  * Implicitly registers the `script` handle via
- * `open_station_register_settings_tab_script()` when provided.
+ * `openstation_register_settings_tab_script()` when provided.
  *
  * @param array $args {
  *     @type string $id         Unique tab id, `[a-z0-9_-]+`. Required.
@@ -110,7 +110,7 @@ function open_station_register_settings_tab_script( $handle ) {
  * }
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function open_station_register_settings_tab( $args = array() ) {
+function openstation_register_settings_tab( $args = array() ) {
 	$defaults = array(
 		'id'         => '',
 		'label'      => '',
@@ -122,15 +122,15 @@ function open_station_register_settings_tab( $args = array() ) {
 
 	$id = (string) $args['id'];
 	if ( '' === $id || ! preg_match( '/^[a-z0-9_\-]+$/', $id ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_id',
+		return openstation_registration_error(
+			'openstation_invalid_id',
 			__( 'Settings tab registration requires a non-empty `id` matching [a-z0-9_-]+.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
-		return open_station_registration_error(
-			'open_station_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Settings tab registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -143,10 +143,10 @@ function open_station_register_settings_tab( $args = array() ) {
 		'order'      => (int) $args['order'],
 		'script'     => (string) $args['script'],
 	);
-	open_station_desktop_settings_tab_registry( $id, $entry );
+	openstation_desktop_settings_tab_registry( $id, $entry );
 
 	if ( '' !== $entry['script'] ) {
-		open_station_register_settings_tab_script( $entry['script'] );
+		openstation_register_settings_tab_script( $entry['script'] );
 	}
 
 	/**
@@ -155,14 +155,14 @@ function open_station_register_settings_tab( $args = array() ) {
 	 * @param string $id    The tab id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'open_station_settings_tab_registered', $id, $entry );
+	do_action( 'openstation_settings_tab_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for settings-tab script handles
- * declared via {@see open_station_register_settings_tab_script()}.
+ * declared via {@see openstation_register_settings_tab_script()}.
  *
  * @internal
  *
@@ -170,7 +170,7 @@ function open_station_register_settings_tab( $args = array() ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function open_station_desktop_settings_tab_script_registry( $handle = '', $value = null ) {
+function openstation_desktop_settings_tab_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -188,15 +188,15 @@ function open_station_desktop_settings_tab_script_registry( $handle = '', $value
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see open_station_flush_script_handle_registries()}.
+ * {@see openstation_flush_script_handle_registries()}.
  */
-function open_station_flush_desktop_settings_tab_script_registry() {
-	open_station_desktop_settings_tab_script_registry( '__flush__' );
+function openstation_flush_desktop_settings_tab_script_registry() {
+	openstation_desktop_settings_tab_script_registry( '__flush__' );
 }
 
 /**
  * Internal module-level registry for tabs declared via
- * {@see open_station_register_settings_tab()}.
+ * {@see openstation_register_settings_tab()}.
  *
  * @internal
  *
@@ -204,7 +204,7 @@ function open_station_flush_desktop_settings_tab_script_registry() {
  * @param array|null $entry Entry to store, or `null` to read.
  * @return array|null
  */
-function open_station_desktop_settings_tab_registry( $id = '', $entry = null ) {
+function openstation_desktop_settings_tab_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -223,8 +223,8 @@ function open_station_desktop_settings_tab_registry( $id = '', $entry = null ) {
  *
  * @return array[] List of `{ handle, scriptUrl, scriptBefore, scriptAfter, scriptL10n, scriptTranslations }` entries.
  */
-function open_station_build_desktop_settings_tab_scripts_payload() {
-	$registry = open_station_desktop_settings_tab_script_registry();
+function openstation_build_desktop_settings_tab_scripts_payload() {
+	$registry = openstation_desktop_settings_tab_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -235,10 +235,10 @@ function open_station_build_desktop_settings_tab_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = open_station_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
-			open_station_warn_unresolvable_script_handle(
-				'open_station_register_settings_tab_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_settings_tab_script',
 				'Settings-tab',
 				(string) $handle
 			);
@@ -259,15 +259,15 @@ function open_station_build_desktop_settings_tab_scripts_payload() {
 
 /**
  * Build the metadata payload for tabs declared via
- * {@see open_station_register_settings_tab()}. Each entry carries the
+ * {@see openstation_register_settings_tab()}. Each entry carries the
  * resolved `scriptUrl` alongside metadata so the shell's sync can
  * unregister tabs attributable to a script handle that just left the
  * `serverSettingsTabScripts` payload.
  *
  * @return array[]
  */
-function open_station_build_desktop_settings_tabs_payload() {
-	$registry = open_station_desktop_settings_tab_registry();
+function openstation_build_desktop_settings_tabs_payload() {
+	$registry = openstation_desktop_settings_tab_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -276,7 +276,7 @@ function open_station_build_desktop_settings_tabs_payload() {
 	foreach ( $registry as $entry ) {
 		$handle  = (string) $entry['script'];
 		$payload = '' !== $handle
-			? open_station_resolve_script_payload( $handle )
+			? openstation_resolve_script_payload( $handle )
 			: array(
 				'url'          => '',
 				'before'       => array(),

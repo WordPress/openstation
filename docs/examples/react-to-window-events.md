@@ -11,7 +11,7 @@ Log every window open/close/focus, and re-focus a specific window if the user op
  */
 defined( 'ABSPATH' ) || exit;
 
-add_action( 'open_station_mode_init', function () {
+add_action( 'openstation_mode_init', function () {
     wp_enqueue_script(
         'desktop-window-logger',
         plugin_dir_url( __FILE__ ) . 'logger.js',

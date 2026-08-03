@@ -16,7 +16,7 @@ copy-paste recipes see
 
 | Surface | Behaviour |
 |---|---|
-| **Web app manifest** | Served at `/openstation/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/index.php?desktop_mode_portal=1`, `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/openstation/` so existing installs aren't reset). Filterable via `open_station_pwa_manifest`. |
+| **Web app manifest** | Served at `/openstation/manifest.webmanifest`. Site name + short name, theme color, icons (Site Icon when set, plugin logo otherwise), `start_url=/wp-admin/index.php?desktop_mode_portal=1`, `scope=/wp-admin/` (narrowed from `/` so front-end links escape the PWA window; the manifest `id` stays at `/openstation/` so existing installs aren't reset). Filterable via `openstation_pwa_manifest`. |
 | **Service worker** | Served at `/openstation/sw.js` with `Service-Worker-Allowed: /`. Registered at root scope with a deliberately narrow fetch handler — it only intercepts paths under `/openstation/` and `/wp-admin/`, plus the plugin's own static assets. wp-admin HTML is **always** network-first (nonces would otherwise drift). |
 | **Install hint** | A system tile on the dock (`id: 'os-pwa-install'`) registered on shell boot — except when the shell is already running standalone. It is removed live when display-mode flips to standalone or when `getInstalledRelatedApps()` reports the app installed (Chromium); on Safari / Firefox it persists as a fallback. Clicking it dispatches the browser install prompt when the site is currently installable, otherwise shows a contextual toast ("already installed", "not yet"). |
 | **Local notifications** | `wp.os.notify({ title, body, icon, tag, onClick })` — uses the browser `Notification` API, falls back to a toast when permission is denied or the browser doesn't support it. |
@@ -42,10 +42,10 @@ focused toast pointing at the opt-in filter (rather than the generic
 actionable message instead of silently broken behaviour.
 
 To opt this install in, return `true` from the
-`open_station_pwa_force_replace_sw` filter:
+`openstation_pwa_force_replace_sw` filter:
 
 ```php
-add_filter( 'open_station_pwa_force_replace_sw', '__return_true' );
+add_filter( 'openstation_pwa_force_replace_sw', '__return_true' );
 ```
 
 The filter resolves at shell-config build time; effective on the next
@@ -71,11 +71,11 @@ stale buckets.
 
 | Symbol | Role |
 |---|---|
-| `open_station_pwa_manifest_url()` | Absolute URL of the manifest endpoint. |
-| `open_station_pwa_sw_url()` | Absolute URL of the service worker. |
-| `open_station_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
-| `open_station_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
-| `open_station_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
+| `openstation_pwa_manifest_url()` | Absolute URL of the manifest endpoint. |
+| `openstation_pwa_sw_url()` | Absolute URL of the service worker. |
+| `openstation_pwa_get_user_state( $user_id = 0 )` | Read the per-user PWA UI state. |
+| `openstation_pwa_update_user_state( array $patch, $user_id = 0 )` | Merge a partial update into the state. |
+| `openstation_pwa_manifest` (filter) | Mutate manifest fields before encoding. |
 
 REST routes:
 
@@ -83,7 +83,7 @@ REST routes:
 - `POST /wp-json/desktop-mode/v1/pwa-state` → merge partial state. Body: `{ installHintDismissed?: bool, notificationsEnabled?: bool }`.
 
 Both routes require a logged-in user with OpenStation enabled for
-their account (`open_station_rest_require_enabled()` — 401 when logged
+their account (`openstation_rest_require_enabled()` — 401 when logged
 out, 403 when OpenStation is off; hardened from plain `read` in
 0.9.0) and a valid `X-WP-Nonce`.
 
@@ -142,7 +142,7 @@ app via the "Share → Add to Home Screen" gesture, which picks up our
 ## What's coming next
 
 - **Phase 4 — Web Push.** VAPID keypair, REST routes for subscribe /
-  unsubscribe, server-side `open_station_push( $user_id, $payload )` PHP
+  unsubscribe, server-side `openstation_push( $user_id, $payload )` PHP
   helper, SW `push` payload renderer wired to the existing `notify()`
   intent shape. The v1 `wp.os.notify` API is the same call site —
   only the transport changes.

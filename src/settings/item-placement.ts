@@ -24,7 +24,7 @@ import type { ItemVisibility, OsSettingsState } from './types';
 /**
  * The two rails a placeable item can live on. Items registered through
  * the admin menu pipeline default to `'dock'`; items registered via
- * `open_station_register_icon()` default to `'desktop'`.
+ * `openstation_register_icon()` default to `'desktop'`.
  */
 export type NativeRail = 'dock' | 'desktop';
 

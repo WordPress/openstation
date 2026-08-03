@@ -213,7 +213,7 @@ describe( 'Mio style panel', () => {
 		//   - `glowBlur` stays on. The unblurred halo is a hard-edged
 		//     disc of colour behind the ring — not a look anyone chooses
 		//     on purpose. A site that needs the filter pass gone can
-		//     still drop it through `open_station_mio_config`.
+		//     still drop it through `openstation_mio_config`.
 		const OMITTED = [ 'radius', 'glowBlur' ];
 		const state = stubApi();
 		const { openMioStylePanel } = await load();

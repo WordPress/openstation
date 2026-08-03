@@ -104,7 +104,7 @@ describe( 'registry — normalization', () => {
 	} );
 
 	test( 'drops icon values that are not paintable', () => {
-		// PHP validated these, but a `desktop_mode_desktop_themes`
+		// PHP validated these, but a `openstation_desktop_themes`
 		// filter runs after sanitization and can put anything in.
 		const entry = normalizeEntry(
 			rawTheme( {
@@ -449,7 +449,7 @@ describe( 'slot maps', () => {
 			DESKTOP_THEME_SLOTS.BUG_REPORT,
 		);
 		expect( slotForTileId( 'os-exit' ) ).toBe(
-			DESKTOP_THEME_SLOTS.EXIT_OPEN_STATION,
+			DESKTOP_THEME_SLOTS.EXIT_OPENSTATION,
 		);
 		expect( slotForTileId( 'os-pwa-install' ) ).toBe(
 			DESKTOP_THEME_SLOTS.PWA_INSTALL,

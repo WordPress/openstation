@@ -99,7 +99,7 @@ describe( 'NotesLayer', () => {
 	} );
 
 	test( 'filter-added color slugs survive to the DOM unclamped', () => {
-		// A plugin can extend open_station_notes_colors server-side and
+		// A plugin can extend openstation_notes_colors server-side and
 		// ship its own [data-note-color="seafoam"] CSS — the client
 		// must not rewrite the slug to a built-in.
 		const layer = makeLayer();

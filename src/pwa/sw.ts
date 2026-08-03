@@ -202,7 +202,7 @@ sw.addEventListener( 'fetch', ( event: SWFetchEvent ) => {
 		// load, Chrome would forward the request with
 		// `Sec-Fetch-Dest: empty` instead of `iframe`, and the
 		// server-side Sec-Fetch fallback in
-		// `open_station_is_chromeless_request()` would fail to
+		// `openstation_is_chromeless_request()` would fail to
 		// detect the chromeless context. The plain-admin → portal
 		// redirect would then fire inside a chromeless iframe,
 		// rendering the entire desktop shell inside an existing
@@ -265,7 +265,7 @@ async function precache(): Promise< void > {
 }
 
 function pluginAssetBase(): string {
-	// Plugin URL — we can't read OPEN_STATION_URL from the JS-side
+	// Plugin URL — we can't read OPENSTATION_URL from the JS-side
 	// service-worker context, so we hardcode the conventional path.
 	// Hosts using a non-default `wp-content/plugins/` directory
 	// (Bedrock/Trellis's `web/app/plugins/`, Composer-based sites,

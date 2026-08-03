@@ -5,7 +5,7 @@
  * Adapts any public post type (post, page, CPT) to the file
  * surface. The concrete post type is read from `get_post_type()`
  * and exposed in the serialized shape so plugins can theme tiles
- * differently per post type via `open_station_file_serialize`.
+ * differently per post type via `openstation_file_serialize`.
  *
  * @package OpenStation
  */
@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `post` desktop file type.
  */
-class Open_Station_Post_File extends Open_Station_File {
+class OpenStation_Post_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'post';

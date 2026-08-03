@@ -56,7 +56,7 @@ config blob is being built.
 ```php
 // Narrow the allow-list — e.g. images only.
 add_filter(
-    'open_station_drop_allowed_mimes',
+    'openstation_drop_allowed_mimes',
     function ( $mimes_map ) {
         return array_filter(
             $mimes_map,
@@ -67,7 +67,7 @@ add_filter(
 
 // Tighten the per-file size cap for a specific role.
 add_filter(
-    'open_station_drop_max_size',
+    'openstation_drop_max_size',
     function ( $max, $user_id ) {
         $user = get_userdata( $user_id );
         if ( $user && in_array( 'editor', $user->roles, true ) ) {
@@ -228,5 +228,5 @@ attachment shape. See
 
 See [`docs/hooks-reference.md`](../hooks-reference.md) for the
 authoritative list, including the PHP-side
-`open_station_drop_allowed_mimes` and `open_station_drop_max_size`
+`openstation_drop_allowed_mimes` and `openstation_drop_max_size`
 filters.

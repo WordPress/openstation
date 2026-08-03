@@ -52,9 +52,9 @@ call this even when it is on the allowlist.
 ## Invoke an agent server-side
 
 ```php
-$agents = open_station_agent_get_agents();
+$agents = openstation_agent_get_agents();
 if ( $agents ) {
-	$result = open_station_agent_invoke(
+	$result = openstation_agent_invoke(
 		$agents[0]->ID,
 		'Summarize the last comment on the site.',
 		array( 'source' => 'my-plugin/cron' )
@@ -65,7 +65,7 @@ if ( $agents ) {
 }
 ```
 
-Every successful run fires `open_station_agent_completed` with the
+Every successful run fires `openstation_agent_completed` with the
 same result plus your context array.
 
 ## Audit every definition change
@@ -73,7 +73,7 @@ same result plus your context array.
 User meta has no revisions — these actions are the audit trail:
 
 ```php
-add_action( 'open_station_agent_updated', function ( $agent_id, $changed, $actor_id ) {
+add_action( 'openstation_agent_updated', function ( $agent_id, $changed, $actor_id ) {
 	foreach ( $changed as $field => $delta ) {
 		my_plugin_audit_log(
 			sprintf(
@@ -89,7 +89,7 @@ add_action( 'open_station_agent_updated', function ( $agent_id, $changed, $actor
 }, 10, 3 );
 ```
 
-`open_station_agent_created` and `open_station_agent_deleted` complete
+`openstation_agent_created` and `openstation_agent_deleted` complete
 the set.
 
 ## Declare a custom trigger kind
@@ -99,7 +99,7 @@ arrive in later phases. Declaring a kind makes it configurable in the
 Triggers pane today:
 
 ```php
-add_filter( 'open_station_agent_trigger_kinds', function ( $kinds ) {
+add_filter( 'openstation_agent_trigger_kinds', function ( $kinds ) {
 	$kinds[] = array(
 		'slug'          => 'my-plugin-webhook',
 		'label'         => __( 'My webhook', 'my-plugin' ),
@@ -116,8 +116,8 @@ add_filter( 'open_station_agent_trigger_kinds', function ( $kinds ) {
 } );
 ```
 
-Read it back with `open_station_agent_get_triggers( $agent_id )` and
-wire your own intake to `open_station_agent_invoke()`.
+Read it back with `openstation_agent_get_triggers( $agent_id )` and
+wire your own intake to `openstation_agent_invoke()`.
 
 ## Open a chat with an agent from JS
 
@@ -166,15 +166,15 @@ transcript still shows the card.
 
 ```php
 // Tighten who may invoke agents (default: edit_posts).
-add_filter( 'open_station_agents_user_can_invoke', function () {
+add_filter( 'openstation_agents_user_can_invoke', function () {
 	return current_user_can( 'manage_options' );
 } );
 
 // Platform-wide default rate limit (default: 60 runs/hour/agent).
-add_filter( 'open_station_agent_default_rate_limit', fn () => 10 );
+add_filter( 'openstation_agent_default_rate_limit', fn () => 10 );
 
 // Redact tool output before it re-enters the model context.
-add_filter( 'open_station_agent_tool_result', function ( $output, $slug ) {
+add_filter( 'openstation_agent_tool_result', function ( $output, $slug ) {
 	if ( is_array( $output ) ) {
 		unset( $output['user_email'] );
 	}

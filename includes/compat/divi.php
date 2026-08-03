@@ -84,7 +84,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return void
  */
-function open_station_compat_divi_fix_gutenberg_deps() {
+function openstation_compat_divi_fix_gutenberg_deps() {
 	global $wp_scripts;
 
 	if ( ! ( $wp_scripts instanceof WP_Scripts ) ) {
@@ -104,7 +104,7 @@ function open_station_compat_divi_fix_gutenberg_deps() {
 		}
 	}
 
-	if ( open_station_is_chromeless_request() ) {
+	if ( openstation_is_chromeless_request() ) {
 		wp_add_inline_script(
 			'et-builder-gutenberg',
 			'window.et_gb = window;',
@@ -112,7 +112,7 @@ function open_station_compat_divi_fix_gutenberg_deps() {
 		);
 	}
 }
-add_action( 'enqueue_block_editor_assets', 'open_station_compat_divi_fix_gutenberg_deps', 999 );
+add_action( 'enqueue_block_editor_assets', 'openstation_compat_divi_fix_gutenberg_deps', 999 );
 
 /**
  * Signal Divi's Visual Builder frame-helpers that the iframe context
@@ -160,18 +160,18 @@ add_action( 'enqueue_block_editor_assets', 'open_station_compat_divi_fix_gutenbe
  *
  * @return void
  */
-function open_station_compat_divi_vb_iframe_signal() {
+function openstation_compat_divi_vb_iframe_signal() {
 	if ( is_admin() ) {
 		return;
 	}
-	if ( ! open_station_is_enabled() ) {
+	if ( ! openstation_is_enabled() ) {
 		return;
 	}
 	// Bail when Divi isn't active — the inline script below is
 	// shaped entirely around Divi's frame-helpers and VB preloader.
 	// Other handlers in this file already gate on
-	// `open_station_compat_divi_is_active()`; this one was missed.
-	if ( ! open_station_compat_divi_is_active() ) {
+	// `openstation_compat_divi_is_active()`; this one was missed.
+	if ( ! openstation_compat_divi_is_active() ) {
 		return;
 	}
 	// `app_window=1` flags the inner VB iframe Divi spawns inside the
@@ -273,7 +273,7 @@ function open_station_compat_divi_vb_iframe_signal() {
 </script>
 	<?php
 }
-add_action( 'wp_head', 'open_station_compat_divi_vb_iframe_signal', 1 );
+add_action( 'wp_head', 'openstation_compat_divi_vb_iframe_signal', 1 );
 
 /**
  * Iframe-side: hijack clicks on Divi's "Use Divi Builder" /
@@ -309,11 +309,11 @@ add_action( 'wp_head', 'open_station_compat_divi_vb_iframe_signal', 1 );
  *
  * @return void
  */
-function open_station_compat_divi_eject_iframe_patch() {
-	if ( ! open_station_is_chromeless_request() ) {
+function openstation_compat_divi_eject_iframe_patch() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
-	if ( ! open_station_compat_divi_is_active() ) {
+	if ( ! openstation_compat_divi_is_active() ) {
 		return;
 	}
 	?>
@@ -395,7 +395,7 @@ function open_station_compat_divi_eject_iframe_patch() {
 </script>
 	<?php
 }
-add_action( 'admin_head', 'open_station_compat_divi_eject_iframe_patch', 0 );
+add_action( 'admin_head', 'openstation_compat_divi_eject_iframe_patch', 0 );
 
 /**
  * Parent-shell side: receive the handoff message, ask the user
@@ -415,32 +415,32 @@ add_action( 'admin_head', 'open_station_compat_divi_eject_iframe_patch', 0 );
  *
  * @return void
  */
-function open_station_compat_divi_eject_parent_listener() {
-	if ( ! open_station_is_enabled() ) {
+function openstation_compat_divi_eject_parent_listener() {
+	if ( ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( open_station_is_chromeless_request() || open_station_is_classic_request() ) {
+	if ( openstation_is_chromeless_request() || openstation_is_classic_request() ) {
 		return;
 	}
-	if ( ! open_station_compat_divi_is_active() ) {
+	if ( ! openstation_compat_divi_is_active() ) {
 		return;
 	}
 	?>
 <script id="os-compat-divi-vb-handoff-parent">
 ( function () {
 	// Reshape the iframe's URL into a top-level classic-admin URL.
-	// The iframe carries `open_station_chromeless=1`, which would
+	// The iframe carries `openstation_chromeless=1`, which would
 	// keep the chromeless render alive even at top level — leaving
 	// the user on what looks like the same headless Gutenberg they
 	// already had inside the window. We want a normal wp-admin page
 	// instead, so strip that flag and add `desktop_mode_classic=1`
-	// so our own `open_station_redirect_plain_admin_to_portal()` in
+	// so our own `openstation_redirect_plain_admin_to_portal()` in
 	// `includes/portal.php` skips its portal-bounce for this load.
 	function handoffUrl( raw ) {
 		try {
 			var parsed = new URL( String( raw || '' ), window.location.href );
 			if ( parsed.origin !== window.location.origin ) { return null; }
-			parsed.searchParams.delete( 'open_station_chromeless' );
+			parsed.searchParams.delete( 'openstation_chromeless' );
 			parsed.searchParams.set( 'desktop_mode_classic', '1' );
 			return parsed.toString();
 		} catch ( e ) { return null; }
@@ -476,7 +476,7 @@ function open_station_compat_divi_eject_parent_listener() {
 </script>
 	<?php
 }
-add_action( 'admin_footer', 'open_station_compat_divi_eject_parent_listener', 1 );
+add_action( 'admin_footer', 'openstation_compat_divi_eject_parent_listener', 1 );
 
 
 /**
@@ -487,7 +487,7 @@ add_action( 'admin_footer', 'open_station_compat_divi_eject_parent_listener', 1 
  * @return bool True when the Divi theme is active OR the Divi
  *              Builder plugin is active.
  */
-function open_station_compat_divi_is_active() {
+function openstation_compat_divi_is_active() {
 	$theme = wp_get_theme();
 	if ( $theme instanceof WP_Theme ) {
 		$name     = (string) $theme->get( 'Name' );

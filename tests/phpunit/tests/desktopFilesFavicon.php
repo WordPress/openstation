@@ -21,12 +21,12 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 		remove_all_filters( 'pre_http_request' );
-		remove_all_filters( 'open_station_resolve_favicon' );
+		remove_all_filters( 'openstation_resolve_favicon' );
 	}
 
 	public function tear_down() {
 		remove_all_filters( 'pre_http_request' );
-		remove_all_filters( 'open_station_resolve_favicon' );
+		remove_all_filters( 'openstation_resolve_favicon' );
 		parent::tear_down();
 	}
 
@@ -63,7 +63,7 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_resolves_link_tag_in_html() {
 		$html = '<html><head><link rel="icon" href="/icon.png"></head></html>';
@@ -72,12 +72,12 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			'example.com'          => $this->http_response( $html ),
 		) );
 
-		$result = open_station_resolve_favicon( 'https://example.com/page' );
+		$result = openstation_resolve_favicon( 'https://example.com/page' );
 		$this->assertSame( $this->expected_png_data_uri(), $result );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_resolves_apple_touch_icon_when_no_plain_icon() {
 		$html = '<html><head><link rel="apple-touch-icon" href="/apple.png"></head></html>';
@@ -86,12 +86,12 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			'example.com'           => $this->http_response( $html ),
 		) );
 
-		$result = open_station_resolve_favicon( 'https://example.com/' );
+		$result = openstation_resolve_favicon( 'https://example.com/' );
 		$this->assertSame( $this->expected_png_data_uri(), $result );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_falls_back_to_root_favicon_ico() {
 		$html = '<html><head><title>No icon link</title></head></html>';
@@ -100,12 +100,12 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			'example.com'             => $this->http_response( $html ),
 		) );
 
-		$result = open_station_resolve_favicon( 'https://example.com/some/page' );
+		$result = openstation_resolve_favicon( 'https://example.com/some/page' );
 		$this->assertSame( $this->expected_png_data_uri(), $result );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_resolves_relative_href_against_page_url() {
 		$html = '<html><head><link rel="icon" href="img/icon.png"></head></html>';
@@ -116,12 +116,12 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			'example.com'                  => $this->http_response( $html ),
 		) );
 
-		$result = open_station_resolve_favicon( 'https://example.com/sub/page' );
+		$result = openstation_resolve_favicon( 'https://example.com/sub/page' );
 		$this->assertSame( $this->expected_png_data_uri(), $result );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_rejects_non_image_content_type() {
 		$html = '<html><head><link rel="icon" href="/icon"></head></html>';
@@ -130,25 +130,25 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			'example.com'      => $this->http_response( $html ),
 		) );
 
-		$this->assertNull( open_station_resolve_favicon( 'https://example.com/' ) );
+		$this->assertNull( openstation_resolve_favicon( 'https://example.com/' ) );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_rejects_oversize_body() {
 		$html       = '<html><head><link rel="icon" href="/big.png"></head></html>';
-		$big_bytes  = str_repeat( 'x', OPEN_STATION_FAVICON_MAX_BYTES + 1 );
+		$big_bytes  = str_repeat( 'x', OPENSTATION_FAVICON_MAX_BYTES + 1 );
 		$this->stub_http( array(
 			'example.com/big.png' => $this->http_response( $big_bytes, 200, 'image/png' ),
 			'example.com'         => $this->http_response( $html ),
 		) );
 
-		$this->assertNull( open_station_resolve_favicon( 'https://example.com/' ) );
+		$this->assertNull( openstation_resolve_favicon( 'https://example.com/' ) );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_rejects_html_spoofing_png_content_type() {
 		$html       = '<html><head><link rel="icon" href="/spoofed.png"></head></html>';
@@ -158,11 +158,11 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			'example.com'             => $this->http_response( $html ),
 		) );
 
-		$this->assertNull( open_station_resolve_favicon( 'https://example.com/' ) );
+		$this->assertNull( openstation_resolve_favicon( 'https://example.com/' ) );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_returns_null_on_network_error() {
 		add_filter(
@@ -172,20 +172,20 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			}
 		);
 
-		$this->assertNull( open_station_resolve_favicon( 'https://example.com/' ) );
+		$this->assertNull( openstation_resolve_favicon( 'https://example.com/' ) );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_returns_null_for_non_http_url() {
-		$this->assertNull( open_station_resolve_favicon( 'ftp://example.com/' ) );
-		$this->assertNull( open_station_resolve_favicon( 'javascript:alert(1)' ) );
-		$this->assertNull( open_station_resolve_favicon( '' ) );
+		$this->assertNull( openstation_resolve_favicon( 'ftp://example.com/' ) );
+		$this->assertNull( openstation_resolve_favicon( 'javascript:alert(1)' ) );
+		$this->assertNull( openstation_resolve_favicon( '' ) );
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_filter_can_override_with_synthetic_uri() {
 		// Real resolver returns null — every fetch errors out — but
@@ -197,7 +197,7 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			}
 		);
 		add_filter(
-			'open_station_resolve_favicon',
+			'openstation_resolve_favicon',
 			static function () {
 				return 'data:image/png;base64,SYNTHETIC';
 			}
@@ -205,12 +205,12 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 
 		$this->assertSame(
 			'data:image/png;base64,SYNTHETIC',
-			open_station_resolve_favicon( 'https://example.com/' )
+			openstation_resolve_favicon( 'https://example.com/' )
 		);
 	}
 
 	/**
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_filter_can_force_null() {
 		// Resolver would succeed, but the filter forces null.
@@ -219,9 +219,9 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			'example.com/icon.png' => $this->http_response( self::PNG_BYTES, 200, 'image/png' ),
 			'example.com'          => $this->http_response( $html ),
 		) );
-		add_filter( 'open_station_resolve_favicon', '__return_null' );
+		add_filter( 'openstation_resolve_favicon', '__return_null' );
 
-		$this->assertNull( open_station_resolve_favicon( 'https://example.com/' ) );
+		$this->assertNull( openstation_resolve_favicon( 'https://example.com/' ) );
 	}
 
 	/**
@@ -231,8 +231,8 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 	 * maliciously unbounded) body instead of buffering it whole into
 	 * memory before the `strlen()` check runs.
 	 *
-	 * @covers ::open_station_favicon_request_args
-	 * @covers ::open_station_resolve_favicon
+	 * @covers ::openstation_favicon_request_args
+	 * @covers ::openstation_resolve_favicon
 	 */
 	public function test_fetches_send_limit_response_size() {
 		$html     = '<html><head><link rel="icon" href="/icon.png"></head></html>';
@@ -249,19 +249,19 @@ class Tests_OpenStation_Files_Favicon extends WP_UnitTestCase {
 			3
 		);
 
-		$result = open_station_resolve_favicon( 'https://example.com/page' );
+		$result = openstation_resolve_favicon( 'https://example.com/page' );
 		$this->assertSame( $this->expected_png_data_uri(), $result );
 
 		$this->assertArrayHasKey( 'https://example.com/page', $captured );
 		$this->assertSame(
-			OPEN_STATION_FAVICON_MAX_PAGE_BYTES,
+			OPENSTATION_FAVICON_MAX_PAGE_BYTES,
 			$captured['https://example.com/page']['limit_response_size'],
 			'Page fetch must cap the download at the page-HTML limit.'
 		);
 
 		$this->assertArrayHasKey( 'https://example.com/icon.png', $captured );
 		$this->assertSame(
-			OPEN_STATION_FAVICON_MAX_BYTES + 1,
+			OPENSTATION_FAVICON_MAX_BYTES + 1,
 			$captured['https://example.com/icon.png']['limit_response_size'],
 			'Icon fetch must cap the download one byte over the icon limit so the post-fetch size check still rejects truncated over-cap bodies.'
 		);

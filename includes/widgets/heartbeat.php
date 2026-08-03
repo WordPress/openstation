@@ -2,7 +2,7 @@
 /**
  * OpenStation — Heartbeat widget (built-in, lazy-loaded).
  *
- * Dogfoods the public `open_station_register_widget()` API for a
+ * Dogfoods the public `openstation_register_widget()` API for a
  * built-in widget: the metadata + script handle live here, the
  * JS + CSS ship as their own Vite bundle
  * (`assets/js/widget-heartbeat[.min].js` and matching `.css`).
@@ -20,32 +20,32 @@ defined( 'ABSPATH' ) || exit;
  * lazily via `wp_register_script()` / its URL. The CSS file
  * emitted by Vite alongside the JS is registered as its own
  * style handle and eagerly enqueued by
- * open_station_enqueue_heartbeat_widget_styles() below — the
+ * openstation_enqueue_heartbeat_widget_styles() below — the
  * widget server-sync only injects the JS, so the stylesheet must
  * ship ahead of time for the chrome to paint with the JS.
  */
-function open_station_register_heartbeat_widget_assets() {
-	$suffix  = open_station_asset_suffix();
-	$version = defined( 'OPEN_STATION_VERSION' ) ? OPEN_STATION_VERSION : '0';
+function openstation_register_heartbeat_widget_assets() {
+	$suffix  = openstation_asset_suffix();
+	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
 
-	$js_path  = OPEN_STATION_DIR . 'assets/js/widget-heartbeat' . $suffix . '.js';
-	$css_path = OPEN_STATION_DIR . 'assets/js/widget-heartbeat' . $suffix . '.css';
+	$js_path  = OPENSTATION_DIR . 'assets/js/widget-heartbeat' . $suffix . '.js';
+	$css_path = OPENSTATION_DIR . 'assets/js/widget-heartbeat' . $suffix . '.css';
 
 	wp_register_style(
 		'os-heartbeat-widget',
-		OPEN_STATION_URL . 'assets/js/widget-heartbeat' . $suffix . '.css',
+		OPENSTATION_URL . 'assets/js/widget-heartbeat' . $suffix . '.css',
 		array(),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 	wp_register_script(
 		'os-heartbeat-widget',
-		OPEN_STATION_URL . 'assets/js/widget-heartbeat' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/widget-heartbeat' . $suffix . '.js',
 		array( 'wp-hooks' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
 }
-add_action( 'init', 'open_station_register_heartbeat_widget_assets', 5 );
+add_action( 'init', 'openstation_register_heartbeat_widget_assets', 5 );
 
 /**
  * Register the widget itself. Sizing constraints + chrome metadata
@@ -53,11 +53,11 @@ add_action( 'init', 'open_station_register_heartbeat_widget_assets', 5 );
  * the widget exists at picker-render time, before the JS bundle
  * is even fetched.
  */
-function open_station_register_heartbeat_widget() {
-	if ( ! function_exists( 'open_station_register_widget' ) ) {
+function openstation_register_heartbeat_widget() {
+	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;
 	}
-	open_station_register_widget( 'desktop-mode/heartbeat', array(
+	openstation_register_widget( 'desktop-mode/heartbeat', array(
 		'label'          => __( 'Heartbeat', 'desktop-mode' ),
 		'description'    => __(
 			'A gently beating heart that pulses with the WordPress Heartbeat. The bar fills as the next tick approaches.',
@@ -75,7 +75,7 @@ function open_station_register_heartbeat_widget() {
 		'default_height' => 230,
 	) );
 }
-add_action( 'init', 'open_station_register_heartbeat_widget', 6 );
+add_action( 'init', 'openstation_register_heartbeat_widget', 6 );
 
 /**
  * Eagerly enqueue the widget's CSS handle when the current
@@ -99,18 +99,18 @@ add_action( 'init', 'open_station_register_heartbeat_widget', 6 );
  * that classic-override pages (`?desktop_mode_classic=1`) are
  * not excluded: they skip the shell but still receive the
  * (1.9 KB) stylesheet. The
- * `open_station_heartbeat_widget_eager_css` filter lets a
+ * `openstation_heartbeat_widget_eager_css` filter lets a
  * site owner opt out entirely without forking the plugin.
  */
-function open_station_enqueue_heartbeat_widget_styles() {
-	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
+function openstation_enqueue_heartbeat_widget_styles() {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
 	// Chromeless requests render content inside an iframe owned
 	// by a shell elsewhere — they never mount widgets themselves.
 	if (
-		function_exists( 'open_station_is_chromeless_request' )
-		&& open_station_is_chromeless_request()
+		function_exists( 'openstation_is_chromeless_request' )
+		&& openstation_is_chromeless_request()
 	) {
 		return;
 	}
@@ -124,10 +124,10 @@ function open_station_enqueue_heartbeat_widget_styles() {
 	 * @param bool $eager Default `true` once the chromeless +
 	 *                    openstation gates above have passed.
 	 */
-	$eager = (bool) apply_filters( 'open_station_heartbeat_widget_eager_css', true );
+	$eager = (bool) apply_filters( 'openstation_heartbeat_widget_eager_css', true );
 	if ( ! $eager ) {
 		return;
 	}
 	wp_enqueue_style( 'os-heartbeat-widget' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_heartbeat_widget_styles', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_heartbeat_widget_styles', 20 );

@@ -134,7 +134,7 @@ export interface WindowConfig {
 	 * Body content at call time depends on which entry point opened
 	 * the window:
 	 *
-	 *   - **`open_station_register_window()` (PHP)** — the shell clones
+	 *   - **`openstation_register_window()` (PHP)** — the shell clones
 	 *     the registered `<template>` into the body before the
 	 *     callback fires. Render = enhancement: query mount points,
 	 *     light them up. See `openStationNativeWindows[ id ]`.
@@ -143,7 +143,7 @@ export interface WindowConfig {
 	 *     empty; the callback constructs the DOM directly.
 	 *
 	 * The second argument is populated when `wp.os.registerWindow()`
-	 * (or `open_station_register_window()`) is the entry point —
+	 * (or `openstation_register_window()`) is the entry point —
 	 * legacy `windowManager.open()` callers still receive `body`
 	 * only; in that case use `wp.os.windowManager.getById(
 	 * id ).on/send` instead.
@@ -214,7 +214,7 @@ export interface WindowConfig {
 	 * registered this window. Surfaced so devtools / inspectors that
 	 * instrument a window from the outside can identify the owning
 	 * plugin without parsing URLs. Populated automatically for native
-	 * windows registered via `open_station_register_window( $args )`
+	 * windows registered via `openstation_register_window( $args )`
 	 * (carries `$args['script']`); plugins that open iframe windows
 	 * directly may set this themselves. Empty / undefined when the
 	 * window comes from a core admin page with no plugin owner.
@@ -690,7 +690,7 @@ export interface MonitorEntry {
 /**
  * Server-declared native-window entry passed from PHP via the
  * `nativeWindows` config field. One entry per
- * `open_station_register_window()` call. The shell automatically
+ * `openstation_register_window()` call. The shell automatically
  * adds + removes tiles to match this list across boots AND mid-
  * session plugin activation / deactivation — so activating a
  * plugin that registered via this helper makes its tile appear
@@ -757,7 +757,7 @@ export interface NativeWindowServerEntry {
 	styleInline?: string[];
 	/**
 	 * Attribution of the registering plugin. Mirrors `scriptHandle` for
-	 * windows registered via `open_station_register_window()`. Devtools
+	 * windows registered via `openstation_register_window()`. Devtools
 	 * read this off `Window.config.ownerHandle` once the window opens.
 	 */
 	ownerHandle: string;
@@ -765,7 +765,7 @@ export interface NativeWindowServerEntry {
 	 * Tab descriptors for this window. Always includes at least the
 	 * main tab (whose `template` renders the window's own body); if
 	 * additional tabs were registered via
-	 * `open_station_register_window_tab()` they follow in position
+	 * `openstation_register_window_tab()` they follow in position
 	 * order. Empty array is equivalent to "main tab only" — the
 	 * shell renders the window body directly without a tab strip.
 	 *
@@ -780,7 +780,7 @@ export interface NativeWindowServerEntry {
 /**
  * A single tab descriptor on a native window — either the main tab
  * (`isMain: true`) whose template is the window's own body, or a
- * registered `open_station_register_window_tab()` entry.
+ * registered `openstation_register_window_tab()` entry.
  *
  * @public
  */
@@ -801,7 +801,7 @@ export interface NativeWindowTabEntry {
 /**
  * Server-declared desktop-widget entry passed from PHP via the
  * `serverWidgets` config field. One entry per
- * `open_station_register_widget()` call.
+ * `openstation_register_widget()` call.
  *
  * The mount callback itself is not serializable; plugins register
  * it on `window.openStationWidgets[ <id> ]` as a `(container, ctx)
@@ -840,7 +840,7 @@ export interface DesktopWidgetServerEntry {
 /**
  * Server-declared wallpaper entry passed from PHP via
  * `serverWallpapers`. One entry per
- * `open_station_register_wallpaper()` call. Only metadata crosses
+ * `openstation_register_wallpaper()` call. Only metadata crosses
  * the wire; the plugin's mount / resolveValue / renderEditor
  * callbacks are announced via
  * `window.openStationWallpapers[ <id> ]` as a full `WallpaperDef`,
@@ -883,7 +883,7 @@ export interface DesktopWallpaperServerEntry {
 /**
  * Server-declared desktop-theme entry passed from PHP via
  * `serverDesktopThemes`. One per installed ZIP or
- * `open_station_register_desktop_theme()` call.
+ * `openstation_register_desktop_theme()` call.
  *
  * Unlike every other `server*` payload, this one carries no script:
  * a desktop theme is a compiled stylesheet plus an icon map, and the
@@ -893,7 +893,7 @@ export interface DesktopWallpaperServerEntry {
  * `src/desktop-themes/types.ts` — kept separate because that one is
  * the post-sanitization shape the registry guarantees, while this is
  * the wire shape, which is only as trustworthy as the
- * `desktop_mode_desktop_themes` filter that produced it.
+ * `openstation_desktop_themes` filter that produced it.
  *
  * @public
  */
@@ -919,7 +919,7 @@ export interface DesktopThemeServerEntry {
 
 /**
  * Server-declared game entry passed from PHP via `serverGames`.
- * One entry per `open_station_register_game()` call.
+ * One entry per `openstation_register_game()` call.
  *
  * Unlike wallpapers, game scripts are NOT loaded on sync — the
  * metadata here is enough to paint the Games launcher grid and the
@@ -957,8 +957,8 @@ export interface DesktopGameServerEntry {
 /**
  * Server-declared command-script entry passed from PHP via
  * `serverCommandScripts`. One entry per
- * `open_station_register_command_script()` call (or indirectly via
- * `open_station_register_command()`).
+ * `openstation_register_command_script()` call (or indirectly via
+ * `openstation_register_command()`).
  *
  * The shell injects each `scriptUrl` into the shell page on mid-
  * session plugin activation. The loaded script registers its commands
@@ -981,7 +981,7 @@ export interface DesktopCommandScriptServerEntry {
 
 /**
  * Server-declared dock rail renderer script entry — produced by
- * `open_station_register_dock_rail_renderer_script( $handle )`. Same
+ * `openstation_register_dock_rail_renderer_script( $handle )`. Same
  * shape as `DesktopCommandScriptServerEntry`; `handle` doubles as
  * the renderer's `owner` key for live unregistration on plugin
  * deactivation.
@@ -1001,7 +1001,7 @@ export interface DesktopDockRailRendererScriptServerEntry {
  * Server-declared command metadata passed from PHP via
  * `serverCommands`. Optional companion to
  * `DesktopCommandScriptServerEntry` — plugins declaring commands with
- * `open_station_register_command()` emit one entry per command so metadata
+ * `openstation_register_command()` emit one entry per command so metadata
  * is enumerable without executing the plugin's JS. The `run` function
  * still lives JS-side and is attached by the script referenced in
  * `scriptUrl` when it loads.
@@ -1034,8 +1034,8 @@ export interface DesktopCommandServerEntry {
 /**
  * Server-declared settings-tab script entry passed from PHP via
  * `serverSettingsTabScripts`. One entry per
- * `open_station_register_settings_tab_script()` call (or indirectly via
- * `open_station_register_settings_tab()`).
+ * `openstation_register_settings_tab_script()` call (or indirectly via
+ * `openstation_register_settings_tab()`).
  *
  * The shell injects each `scriptUrl` on mid-session plugin activation;
  * the loaded script calls `wp.os.registerSettingsTab()` and the
@@ -1056,7 +1056,7 @@ export interface DesktopSettingsTabScriptServerEntry {
 
 /**
  * Server-declared title-bar-button script entry. One per
- * `open_station_register_titlebar_button_script()` call. The shell
+ * `openstation_register_titlebar_button_script()` call. The shell
  * injects each `scriptUrl` on mid-session activation; the loaded
  * script calls `wp.os.registerTitleBarButton()` and the
  * window-class registry subscriber repaints every open window.
@@ -1076,7 +1076,7 @@ export interface DesktopTitleBarButtonScriptServerEntry {
 
 /**
  * Server-declared unfocus-effect script entry. One per
- * `open_station_register_unfocus_effect_script()` call. The shell
+ * `openstation_register_unfocus_effect_script()` call. The shell
  * injects each `scriptUrl` on mid-session activation; the loaded
  * script calls `wp.os.registerUnfocusEffect()` and the effects
  * registry subscriber re-runs the engine so the new effect appears in
@@ -1097,7 +1097,7 @@ export interface DesktopUnfocusEffectScriptServerEntry {
 
 /**
  * Server-declared window-link renderer script entry. One per
- * `open_station_register_window_link_renderer_script()` call. The
+ * `openstation_register_window_link_renderer_script()` call. The
  * shell injects each `scriptUrl` on mid-session activation; the
  * loaded script calls `wp.os.registerWindowLinkRenderer()` and
  * the registry subscriber surfaces the renderer in OS Settings →
@@ -1118,7 +1118,7 @@ export interface DesktopWindowLinkRendererScriptServerEntry {
 
 /**
  * Server-declared window-theme script entry. One per
- * `open_station_register_window_theme_script()` call. The shell
+ * `openstation_register_window_theme_script()` call. The shell
  * injects each `scriptUrl` on mid-session activation; the loaded
  * script calls `wp.os.registerWindowTheme()` and the chrome
  * subscriber repaints every open window the theme matches.
@@ -1139,7 +1139,7 @@ export interface DesktopWindowThemeScriptServerEntry {
 /**
  * Server-declared window-theme metadata entry. Optional companion to
  * {@link DesktopWindowThemeScriptServerEntry} — plugins that pre-declare
- * theme tokens server-side via `open_station_register_window_theme()`
+ * theme tokens server-side via `openstation_register_window_theme()`
  * get the theme registered on the shell side without needing a JS
  * round trip; ergonomic for designers who want a stylesheet-only
  * theme. The `scriptUrl` carries any optional companion JS that
@@ -1163,7 +1163,7 @@ export interface DesktopWindowThemeServerEntry {
 
 /**
  * Server-declared window-control script entry. One per
- * `open_station_register_window_control_script()` call.
+ * `openstation_register_window_control_script()` call.
  *
  * @public
  */
@@ -1198,7 +1198,7 @@ export interface DesktopWindowControlServerEntry {
 
 /**
  * Server-declared window-slot script entry. One per
- * `open_station_register_window_slot_script()` call.
+ * `openstation_register_window_slot_script()` call.
  *
  * @public
  */
@@ -1234,7 +1234,7 @@ export interface DesktopWindowSlotServerEntry {
 
 /**
  * Server-declared window-notice metadata entry — emitted by
- * `open_station_register_window_notice()`. Notices are pure
+ * `openstation_register_window_notice()`. Notices are pure
  * declarative data so there is no script handle.
  *
  * `match` is optional and supports three selectors (combine freely):
@@ -1267,7 +1267,7 @@ export interface DesktopWindowNoticeServerEntry {
 
 /**
  * Server-declared custom-chrome script entry. One per
- * `open_station_register_window_chrome_script()` call.
+ * `openstation_register_window_chrome_script()` call.
  *
  * Marked Experimental — the chrome render contract may change.
  *
@@ -1333,7 +1333,7 @@ export interface DesktopSettingsTabServerEntry {
 /**
  * Server-declared desktop icon — a shortcut tile on the wallpaper
  * that opens a native window or a URL on click. Registered via PHP
- * with `open_station_register_icon()`.
+ * with `openstation_register_icon()`.
  *
  * @public
  */
@@ -1419,7 +1419,7 @@ export interface DockItemConfig {
 	 * Whether this admin page supports multiple open windows. Determined
 	 * server-side — list screens (Posts, Pages, Media, Users, Comments,
 	 * taxonomies) are true by default; Settings / Tools / Dashboard are
-	 * false. Filterable via `open_station_dock_item_multi`.
+	 * false. Filterable via `openstation_dock_item_multi`.
 	 */
 	multi?: boolean;
 	/**
@@ -1453,7 +1453,7 @@ export interface SessionWindow {
 	desktopId?: string;
 	/**
 	 * `true` for native windows (OS Settings, Bug Report, anything
-	 * registered via `open_station_register_window()` /
+	 * registered via `openstation_register_window()` /
 	 * `wp.os.registerWindow`). These reopen through the
 	 * native-window registry by id rather than by pointing an iframe
 	 * at `url` — which for a native window is only a `#slug` marker.
@@ -1520,20 +1520,20 @@ export interface DesktopConfig {
 	 * Dock items derived from the admin menu. Core WordPress pages
 	 * (Dashboard, Posts, Plugins, Users, Settings, CPTs) are ordered
 	 * first; plugin-contributed top-level menus (`admin.php?page=*`)
-	 * follow. Items the `open_station_dock_placement` filter hid are
+	 * follow. Items the `openstation_dock_placement` filter hid are
 	 * omitted. Rendered as a single unified rail — the placement
 	 * (left / right / bottom) is the user's OS Settings preference.
 	 */
 	dockItems: DockItemConfig[];
 	/**
-	 * Server-declared native windows (from `open_station_register_window()`).
+	 * Server-declared native windows (from `openstation_register_window()`).
 	 * Shell auto-registers system tiles at boot + syncs them on every
 	 * live menu refresh so plugin activate / deactivate maps to tile
 	 * add / remove with no browser reload.
 	 */
 	nativeWindows: NativeWindowServerEntry[];
 	/**
-	 * Server-declared widgets (from `open_station_register_widget()`).
+	 * Server-declared widgets (from `openstation_register_widget()`).
 	 * Same lifecycle story as native windows — shell syncs the
 	 * widget registry + dynamically loads plugin scripts on mid-
 	 * session activation, so widgets appear in the picker without
@@ -1541,7 +1541,7 @@ export interface DesktopConfig {
 	 */
 	serverWidgets: DesktopWidgetServerEntry[];
 	/**
-	 * Server-declared wallpapers (from `open_station_register_wallpaper()`).
+	 * Server-declared wallpapers (from `openstation_register_wallpaper()`).
 	 * Same lifecycle as widgets + native windows — shell loads the
 	 * plugin's JS, reads the full `WallpaperDef` from the global,
 	 * and registers it. Deactivation unregisters + re-applies the
@@ -1549,7 +1549,7 @@ export interface DesktopConfig {
 	 */
 	serverWallpapers: DesktopWallpaperServerEntry[];
 	/**
-	 * Server-declared games (from `open_station_register_game()`).
+	 * Server-declared games (from `openstation_register_game()`).
 	 * Sync registers metadata-only stubs so the Games window and
 	 * scoreboard paint without downloading game code; the script is
 	 * loaded lazily on first launch.
@@ -1558,7 +1558,7 @@ export interface DesktopConfig {
 	/**
 	 * Server-declared desktop themes — the whole-OS reskin library
 	 * (uploaded ZIPs plus anything registered via
-	 * `open_station_register_desktop_theme()`). Metadata + a compiled
+	 * `openstation_register_desktop_theme()`). Metadata + a compiled
 	 * stylesheet reference; no JS is ever involved.
 	 */
 	serverDesktopThemes?: DesktopThemeServerEntry[];
@@ -1573,45 +1573,45 @@ export interface DesktopConfig {
 	 */
 	desktopThemesUrl?: string;
 	/**
-	 * Script handles opted-in via `open_station_register_command_script()`.
+	 * Script handles opted-in via `openstation_register_command_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new slash-commands appear in the palette without a reload.
 	 */
 	serverCommandScripts?: DesktopCommandScriptServerEntry[];
 	/**
-	 * Server-declared command metadata (from `open_station_register_command()`).
+	 * Server-declared command metadata (from `openstation_register_command()`).
 	 * Advisory today — reserved for future pre-registration shims.
 	 */
 	serverCommands?: DesktopCommandServerEntry[];
 	/**
-	 * Script handles opted-in via `open_station_register_settings_tab_script()`.
+	 * Script handles opted-in via `openstation_register_settings_tab_script()`.
 	 * Shell injects each URL on boot and on mid-session activation so
 	 * new OS Settings tabs appear without a reload.
 	 */
 	serverSettingsTabScripts?: DesktopSettingsTabScriptServerEntry[];
 	/**
 	 * Server-declared settings-tab metadata (from
-	 * `open_station_register_settings_tab()`). Enables live unregistration
+	 * `openstation_register_settings_tab()`). Enables live unregistration
 	 * on deactivation without per-call `owner` in JS.
 	 */
 	serverSettingsTabs?: DesktopSettingsTabServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_dock_rail_renderer_script()`. Shell loads
+	 * `openstation_register_dock_rail_renderer_script()`. Shell loads
 	 * each URL on boot and on mid-session activation so plugin
 	 * renderers surface in OS Settings → Dock style without an F5.
 	 */
 	serverDockRailRendererScripts?: DesktopDockRailRendererScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_titlebar_button_script()`. Shell injects
+	 * `openstation_register_titlebar_button_script()`. Shell injects
 	 * each URL on boot and on mid-session activation so newly-
 	 * installed plugins paint their title-bar buttons live.
 	 */
 	serverTitleBarButtonScripts?: DesktopTitleBarButtonScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_unfocus_effect_script()`. Shell injects
+	 * `openstation_register_unfocus_effect_script()`. Shell injects
 	 * each URL on boot and on mid-session activation so newly-installed
 	 * plugins surface their unfocus effect in OS Settings → Effects
 	 * live. Owner-tagged registrations live-unregister on deactivation.
@@ -1619,7 +1619,7 @@ export interface DesktopConfig {
 	serverUnfocusEffectScripts?: DesktopUnfocusEffectScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_window_link_renderer_script()`. Shell
+	 * `openstation_register_window_link_renderer_script()`. Shell
 	 * injects each URL on boot and on mid-session activation so
 	 * newly-installed plugins surface their window-link renderer in OS
 	 * Settings → Effects → Window links live. Owner-tagged
@@ -1628,7 +1628,7 @@ export interface DesktopConfig {
 	serverWindowLinkRendererScripts?: DesktopWindowLinkRendererScriptServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_window_theme_script()`. The shell loads
+	 * `openstation_register_window_theme_script()`. The shell loads
 	 * each script on activation; the script calls
 	 * `wp.os.registerWindowTheme()` so window themes appear live.
 	 * Owner-tagged registrations live-unregister on deactivation.
@@ -1636,7 +1636,7 @@ export interface DesktopConfig {
 	serverWindowThemeScripts?: DesktopWindowThemeScriptServerEntry[];
 	/**
 	 * Server-declared window-theme metadata (from
-	 * `open_station_register_window_theme()`). Optional companion to
+	 * `openstation_register_window_theme()`). Optional companion to
 	 * the script-handle list — pre-registers themes shell-side so
 	 * stylesheet-only themes (no JS) work, and so the sync can map
 	 * id → handle for live unregistration without per-call JS owner.
@@ -1644,52 +1644,52 @@ export interface DesktopConfig {
 	serverWindowThemes?: DesktopWindowThemeServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_window_control_script()`.
+	 * `openstation_register_window_control_script()`.
 	 */
 	serverWindowControlScripts?: DesktopWindowControlScriptServerEntry[];
 	/**
 	 * Server-declared control metadata (from
-	 * `open_station_register_window_control()`).
+	 * `openstation_register_window_control()`).
 	 */
 	serverWindowControls?: DesktopWindowControlServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_window_slot_script()`.
+	 * `openstation_register_window_slot_script()`.
 	 */
 	serverWindowSlotScripts?: DesktopWindowSlotScriptServerEntry[];
 	/**
 	 * Server-declared slot metadata (from
-	 * `open_station_register_window_slot()`).
+	 * `openstation_register_window_slot()`).
 	 */
 	serverWindowSlots?: DesktopWindowSlotServerEntry[];
 	/**
 	 * Script handles opted-in via
-	 * `open_station_register_window_chrome_script()`. **Experimental** —
+	 * `openstation_register_window_chrome_script()`. **Experimental** —
 	 * the chrome render contract may change.
 	 */
 	serverWindowChromeScripts?: DesktopWindowChromeScriptServerEntry[];
 	/**
 	 * Server-declared custom-chrome metadata (from
-	 * `open_station_register_window_chrome()`). **Experimental.**
+	 * `openstation_register_window_chrome()`). **Experimental.**
 	 */
 	serverWindowChromes?: DesktopWindowChromeServerEntry[];
 	/**
 	 * Server-declared window notices (from
-	 * `open_station_register_window_notice()`). Each entry is rendered
+	 * `openstation_register_window_notice()`). Each entry is rendered
 	 * as a `<os-notice>` inside the matching window's
 	 * `after-titlebar` slot. Pure declarative data — no script handle
 	 * required.
 	 */
 	serverWindowNotices?: DesktopWindowNoticeServerEntry[];
 	/**
-	 * Server-declared desktop icons (from `open_station_register_icon()`).
+	 * Server-declared desktop icons (from `openstation_register_icon()`).
 	 * The shell renders these as shortcut tiles on the wallpaper;
 	 * click-through opens either the referenced native window (if
 	 * `window` is set) or the URL (if `url` is set).
 	 */
 	desktopIcons?: DesktopIconServerEntry[];
 	/**
-	 * Server-declared file types (from `open_station_register_file_type()`).
+	 * Server-declared file types (from `openstation_register_file_type()`).
 	 * Plugin-registered file types arrive here so the JS-side
 	 * registry can mirror the metadata (label, sort) without
 	 * requiring a JS file ride along.
@@ -1707,7 +1707,7 @@ export interface DesktopConfig {
 	} >;
 	/**
 	 * Server-declared file openers (from
-	 * `open_station_register_file_opener()`). PHP ships metadata
+	 * `openstation_register_file_opener()`). PHP ships metadata
 	 * only — the JS bundle that registers the opener carries the
 	 * executable handler. The OS Settings → File Associations tab
 	 * (Phase 5) renders pickers from this list.
@@ -1752,7 +1752,7 @@ export interface DesktopConfig {
 	canCreatePosts?: boolean;
 	/**
 	 * Roles eligible to appear in the folder Share Settings role
-	 * picker. Server applies `open_station_files_share_eligible_roles`
+	 * picker. Server applies `openstation_files_share_eligible_roles`
 	 * before serializing — default = roles with `edit_posts`.
 	 */
 	shareEligibleRoles?: Array< { slug: string; name: string } >;
@@ -1805,15 +1805,15 @@ export interface DesktopConfig {
 	 * OS-file drop manager config. Drives the cross-shell drop
 	 * surface that catches files dragged in from the user's
 	 * native OS (Finder, Explorer, Nautilus). Server-side
-	 * filterable via `open_station_drop_allowed_mimes` /
-	 * `open_station_drop_max_size`. See
+	 * filterable via `openstation_drop_allowed_mimes` /
+	 * `openstation_drop_max_size`. See
 	 * {@link import('./os-file-drop/types').DropConfig} for the
 	 * single source of truth on the shape.
 	 */
 	dropConfig?: import( './os-file-drop/types' ).DropConfig;
 	/**
 	 * Real per-user desktop storage config (DESKMOD-45). Injected
-	 * by `open_station_stored_files_inject_shell_config()`.
+	 * by `openstation_stored_files_inject_shell_config()`.
 	 */
 	desktopStorage?: {
 		/** Viewer holds the (filterable) upload capability. */
@@ -1887,19 +1887,19 @@ export interface DesktopConfig {
 	pwa?: PwaConfig;
 	/**
 	 * Accent swatches shown in the OS Settings color picker. Filterable
-	 * server-side via `open_station_accent_colors`. Optional — the TS
+	 * server-side via `openstation_accent_colors`. Optional — the TS
 	 * side falls back to a built-in default list when this is missing
 	 * (older PHP builds, hostile filter that returned garbage, etc.).
 	 */
 	accentColors?: AccentColor[];
 	/**
 	 * Toast-notification type map. Filterable server-side via
-	 * `open_station_toast_types`. Optional — same fallback story as
+	 * `openstation_toast_types`. Optional — same fallback story as
 	 * `accentColors`.
 	 */
 	toastTypes?: ToastTypeDef[];
 	/**
-	 * Pending WordPress core update (from `open_station_get_core_update()`),
+	 * Pending WordPress core update (from `openstation_get_core_update()`),
 	 * or `null`/omitted when none is pending. The shell resolves the art
 	 * and renders it — see `src/update-notice.ts`.
 	 */
@@ -1952,7 +1952,7 @@ export interface DesktopConfig {
 	} >;
 	/**
 	 * Wallpaper slug applied on first boot for a new user. Filterable
-	 * server-side via `open_station_default_wallpaper`. Optional — an
+	 * server-side via `openstation_default_wallpaper`. Optional — an
 	 * empty string falls back to the TS default.
 	 */
 	defaultWallpaper?: string;
@@ -1976,7 +1976,7 @@ export interface DesktopConfig {
 	aiSearchUrl?: string;
 	/**
 	 * SSE streaming endpoint for the agentic search — admin-ajax.php with
-	 * `action=open_station_ai_search_stream` pre-filled. The JS EventSource appends
+	 * `action=openstation_ai_search_stream` pre-filled. The JS EventSource appends
 	 * &nonce= and &query= when connecting.
 	 */
 	aiSearchStreamUrl?: string;
@@ -1995,7 +1995,7 @@ export interface DesktopConfig {
 	 * Fully-qualified URL of the lazy-loaded AI Assistant bundle —
 	 * the script `<script>`-injected by the main-bundle stub on the
 	 * user's first invocation. PHP picks `.js` vs `.min.js` based on
-	 * `SCRIPT_DEBUG` and appends `?ver=OPEN_STATION_VERSION` for
+	 * `SCRIPT_DEBUG` and appends `?ver=OPENSTATION_VERSION` for
 	 * cache busting.
 	 */
 	aiAssistantBundleUrl?: string;
@@ -2027,8 +2027,8 @@ export interface DesktopConfig {
 	shellOverlaysBundleUrl?: string;
 	/**
 	 * Mio appearance + physics from PHP
-	 * (`open_station_mio_config()`, filterable via
-	 * `open_station_mio_config`). Shape mirrors `MioConfig` in
+	 * (`openstation_mio_config()`, filterable via
+	 * `openstation_mio_config`). Shape mirrors `MioConfig` in
 	 * `src/mio/types.ts`; the shell re-sanitizes it before use, so
 	 * a partial or malformed object is safe.
 	 */
@@ -2118,7 +2118,7 @@ export interface PwaConfig {
 	/**
 	 * When `true`, our service-worker registration takes over even if
 	 * another root-scope SW is already on the origin. Sourced from the
-	 * `open_station_pwa_force_replace_sw` PHP filter (default `false`)
+	 * `openstation_pwa_force_replace_sw` PHP filter (default `false`)
 	 * so operators can opt in when a foreign PWA plugin is blocking
 	 * openstation installability.
 	 */

@@ -119,7 +119,7 @@ The tree above is curated, not exhaustive — `src/` holds many more
 single-purpose modules and feature directories (drag bridge, devtools,
 sticky notes, …). Run `ls src/` for the full picture; the shipped
 bundles (and the TS entry behind each) are the `build:*` scripts in
-`package.json`, resolved via `OPEN_STATION_TARGET` in `vite.config.js`.
+`package.json`, resolved via `OPENSTATION_TARGET` in `vite.config.js`.
 
 ## Public vs internal
 
@@ -154,7 +154,7 @@ public _privateField: Map< string, unknown > = new Map();
 ## Adding a new hook
 
 1. **Name it.** Convention: `os.<domain>.<event>` (JS) or
-   `open_station_<domain>_<event>` (PHP). Add the constant to the `HOOKS`
+   `openstation_<domain>_<event>` (PHP). Add the constant to the `HOOKS`
    enum in `src/hooks.ts` with a JSDoc describing payload + timing.
 2. **Fire it.** `doAction( HOOKS.NEW_THING, payload )` for actions or
    `applyFilters( HOOKS.NEW_THING, value, context )` for filters.

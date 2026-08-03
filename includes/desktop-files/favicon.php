@@ -32,7 +32,7 @@
  * Failure at any step returns `null` — the caller treats this as
  * "no favicon, render the dashicons fallback". Never throws.
  *
- * Filter the final return value through `open_station_resolve_favicon`
+ * Filter the final return value through `openstation_resolve_favicon`
  * so plugins can short-circuit (return `null` to force-skip, return
  * a synthetic data URI to override).
  *
@@ -47,7 +47,7 @@ defined( 'ABSPATH' ) || exit;
  * sane and to avoid base64-encoding a multi-megabyte payload that
  * a malicious or sloppy host might serve at `/favicon.ico`.
  */
-const OPEN_STATION_FAVICON_MAX_BYTES = 256 * 1024;
+const OPENSTATION_FAVICON_MAX_BYTES = 256 * 1024;
 
 /**
  * Maximum page-HTML download size, in bytes, for the step-1 page
@@ -55,7 +55,7 @@ const OPEN_STATION_FAVICON_MAX_BYTES = 256 * 1024;
  * is plenty; the cap stops a malicious or sloppy host from
  * streaming an unbounded body into memory before the parser runs.
  */
-const OPEN_STATION_FAVICON_MAX_PAGE_BYTES = 1024 * 1024;
+const OPENSTATION_FAVICON_MAX_PAGE_BYTES = 1024 * 1024;
 
 /**
  * Per-request HTTP timeout, in seconds. Two fetches happen worst-
@@ -63,7 +63,7 @@ const OPEN_STATION_FAVICON_MAX_PAGE_BYTES = 1024 * 1024;
  * value. Tune downward if QA finds the dialog "Create" button
  * sitting too long.
  */
-const OPEN_STATION_FAVICON_TIMEOUT = 4;
+const OPENSTATION_FAVICON_TIMEOUT = 4;
 
 /**
  * Resolve a page URL to a base64 data URI of its favicon.
@@ -71,8 +71,8 @@ const OPEN_STATION_FAVICON_TIMEOUT = 4;
  * @param string $page_url HTTP(S) URL of the target page.
  * @return string|null Data URI on success; `null` on any failure.
  */
-function open_station_resolve_favicon( $page_url ) {
-	$result = open_station_resolve_favicon_internal( (string) $page_url );
+function openstation_resolve_favicon( $page_url ) {
+	$result = openstation_resolve_favicon_internal( (string) $page_url );
 
 	/**
 	 * Filters the favicon data URI before it is returned to the
@@ -83,7 +83,7 @@ function open_station_resolve_favicon( $page_url ) {
 	 *                              the resolver could not produce one.
 	 * @param string      $page_url The page URL that was resolved.
 	 */
-	$filtered = apply_filters( 'open_station_resolve_favicon', $result, (string) $page_url );
+	$filtered = apply_filters( 'openstation_resolve_favicon', $result, (string) $page_url );
 
 	if ( null === $filtered ) {
 		return null;
@@ -92,10 +92,10 @@ function open_station_resolve_favicon( $page_url ) {
 }
 
 /**
- * Internal resolver — see {@see open_station_resolve_favicon}.
+ * Internal resolver — see {@see openstation_resolve_favicon}.
  *
  * Kept separate so the public function is the only place the
- * `open_station_resolve_favicon` filter runs (a plugin can't sneak
+ * `openstation_resolve_favicon` filter runs (a plugin can't sneak
  * its filter past the validation by hooking the internal helper).
  *
  * @internal
@@ -103,7 +103,7 @@ function open_station_resolve_favicon( $page_url ) {
  * @param string $page_url Page URL.
  * @return string|null
  */
-function open_station_resolve_favicon_internal( $page_url ) {
+function openstation_resolve_favicon_internal( $page_url ) {
 	$parts = wp_parse_url( $page_url );
 	if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
 		return null;
@@ -113,20 +113,20 @@ function open_station_resolve_favicon_internal( $page_url ) {
 		return null;
 	}
 
-	$page_response = wp_safe_remote_get( $page_url, open_station_favicon_request_args( OPEN_STATION_FAVICON_MAX_PAGE_BYTES ) );
+	$page_response = wp_safe_remote_get( $page_url, openstation_favicon_request_args( OPENSTATION_FAVICON_MAX_PAGE_BYTES ) );
 	$page_body     = '';
 	if ( ! is_wp_error( $page_response ) && 200 === (int) wp_remote_retrieve_response_code( $page_response ) ) {
 		$page_body = (string) wp_remote_retrieve_body( $page_response );
 	}
 
 	$candidate_url = '' !== $page_body
-		? open_station_favicon_extract_link_href( $page_body, $page_url )
+		? openstation_favicon_extract_link_href( $page_body, $page_url )
 		: '';
 	if ( '' === $candidate_url ) {
 		$candidate_url = $scheme . '://' . $parts['host'] . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' ) . '/favicon.ico';
 	}
 
-	return open_station_favicon_fetch_as_data_uri( $candidate_url );
+	return openstation_favicon_fetch_as_data_uri( $candidate_url );
 }
 
 /**
@@ -142,14 +142,14 @@ function open_station_resolve_favicon_internal( $page_url ) {
  * @param int $limit_response_size Maximum response body size, in
  *                                 bytes, enforced by WP_Http while
  *                                 downloading. Default one byte over
- *                                 `OPEN_STATION_FAVICON_MAX_BYTES`,
+ *                                 `OPENSTATION_FAVICON_MAX_BYTES`,
  *                                 so the post-fetch size check still
  *                                 rejects truncated over-cap bodies.
  * @return array
  */
-function open_station_favicon_request_args( $limit_response_size = OPEN_STATION_FAVICON_MAX_BYTES + 1 ) {
+function openstation_favicon_request_args( $limit_response_size = OPENSTATION_FAVICON_MAX_BYTES + 1 ) {
 	return array(
-		'timeout'             => OPEN_STATION_FAVICON_TIMEOUT,
+		'timeout'             => OPENSTATION_FAVICON_TIMEOUT,
 		'redirection'         => 3,
 		'user-agent'          => 'WP OpenStation favicon resolver/1.0',
 		'limit_response_size' => (int) $limit_response_size,
@@ -171,7 +171,7 @@ function open_station_favicon_request_args( $limit_response_size = OPEN_STATION_
  * @param string $base_url URL of the page that produced `$html`.
  * @return string
  */
-function open_station_favicon_extract_link_href( $html, $base_url ) {
+function openstation_favicon_extract_link_href( $html, $base_url ) {
 	$dom         = new DOMDocument();
 	$prev_errors = libxml_use_internal_errors( true );
 	// `LIBXML_NOWARNING | LIBXML_NOERROR` suppresses libxml's stderr
@@ -223,7 +223,7 @@ function open_station_favicon_extract_link_href( $html, $base_url ) {
 		if ( '' === $href ) {
 			continue;
 		}
-		$absolute = open_station_favicon_absolutize_url( $href, $base_url );
+		$absolute = openstation_favicon_absolutize_url( $href, $base_url );
 		if ( '' !== $absolute ) {
 			return $absolute;
 		}
@@ -241,7 +241,7 @@ function open_station_favicon_extract_link_href( $html, $base_url ) {
  * @param string $base_url Page URL.
  * @return string
  */
-function open_station_favicon_absolutize_url( $href, $base_url ) {
+function openstation_favicon_absolutize_url( $href, $base_url ) {
 	$href = trim( $href );
 	if ( '' === $href ) {
 		return '';
@@ -284,11 +284,11 @@ function open_station_favicon_absolutize_url( $href, $base_url ) {
  * @param string $icon_url Absolute http(s) URL of the icon.
  * @return string|null
  */
-function open_station_favicon_fetch_as_data_uri( $icon_url ) {
+function openstation_favicon_fetch_as_data_uri( $icon_url ) {
 	if ( '' === $icon_url || ! preg_match( '#^https?://#i', $icon_url ) ) {
 		return null;
 	}
-	$response = wp_safe_remote_get( $icon_url, open_station_favicon_request_args() );
+	$response = wp_safe_remote_get( $icon_url, openstation_favicon_request_args() );
 	if ( is_wp_error( $response ) ) {
 		return null;
 	}
@@ -302,10 +302,10 @@ function open_station_favicon_fetch_as_data_uri( $icon_url ) {
 		return null;
 	}
 	$body = (string) wp_remote_retrieve_body( $response );
-	if ( '' === $body || strlen( $body ) > OPEN_STATION_FAVICON_MAX_BYTES ) {
+	if ( '' === $body || strlen( $body ) > OPENSTATION_FAVICON_MAX_BYTES ) {
 		return null;
 	}
-	$subtype = open_station_favicon_subtype_from_content_type( $content_type );
+	$subtype = openstation_favicon_subtype_from_content_type( $content_type );
 	if ( null === $subtype ) {
 		return null;
 	}
@@ -333,7 +333,7 @@ function open_station_favicon_fetch_as_data_uri( $icon_url ) {
  *                             (no parameters).
  * @return string|null
  */
-function open_station_favicon_subtype_from_content_type( $content_type ) {
+function openstation_favicon_subtype_from_content_type( $content_type ) {
 	$map = array(
 		'image/png'                  => 'png',
 		'image/jpeg'                 => 'jpeg',

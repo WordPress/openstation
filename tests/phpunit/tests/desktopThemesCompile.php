@@ -32,12 +32,12 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_empty_manifest_compiles_to_nothing() {
 		$this->assertSame(
 			'',
-			open_station_desktop_theme_compile_css( $this->manifest(), 'acme-neon', 'https://x.test/t' )
+			openstation_desktop_theme_compile_css( $this->manifest(), 'acme-neon', 'https://x.test/t' )
 		);
 	}
 
@@ -46,10 +46,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * and windows, the body class covers toasts / dialogs / tooltips /
 	 * context menus, which mount outside `#os-shell`.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_output_is_double_scoped() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array( 'tokens' => array( '--os-window-radius' => '14px' ) ) ),
 			'acme-neon',
 			'https://x.test/t'
@@ -62,10 +62,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_tokens_become_declarations() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'tokens' => array(
 					'--os-window-radius' => '14px',
@@ -84,17 +84,17 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * compiled file is written on every install and an unstable
 	 * ordering would churn it for no reason.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_output_is_deterministic_regardless_of_authoring_order() {
-		$a = open_station_desktop_theme_compile_css(
+		$a = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'tokens' => array( '--os-z' => '1px', '--os-a' => '2px' ),
 			) ),
 			'acme-neon',
 			'https://x.test/t'
 		);
-		$b = open_station_desktop_theme_compile_css(
+		$b = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'tokens' => array( '--os-a' => '2px', '--os-z' => '1px' ),
 			) ),
@@ -105,10 +105,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_textures_become_url_declarations() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'textures' => array(
 					'TITLEBAR' => array(
@@ -131,10 +131,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_border_image_textures() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'textures' => array(
 					'WINDOW_FRAME' => array(
@@ -159,10 +159,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * The four corner slots share one size token; the first declared
 	 * (in key-sorted order) wins.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_corner_slots_share_one_size_token() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'textures' => array(
 					'WINDOW_CORNER_NE' => array( 'type' => 'image', 'path' => 'ne.png', 'size' => '20px' ),
@@ -186,10 +186,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * `url("…")` wrapper unbreakable: no quote, paren, or whitespace
 	 * can survive the encoding.
 	 *
-	 * @covers ::open_station_desktop_theme_asset_url
+	 * @covers ::openstation_desktop_theme_asset_url
 	 */
 	public function test_asset_paths_are_url_encoded() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'textures' => array(
 					'DOCK' => array( 'type' => 'image', 'path' => 'my textures/a"b).png' ),
@@ -207,12 +207,12 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * Code-registered themes carry absolute URLs already; the compiler
 	 * must pass those through instead of joining them to a base.
 	 *
-	 * @covers ::open_station_desktop_theme_asset_url
+	 * @covers ::openstation_desktop_theme_asset_url
 	 */
 	public function test_absolute_asset_urls_pass_through() {
 		$this->assertSame(
 			'https://cdn.test/x.png',
-			open_station_desktop_theme_asset_url( 'https://cdn.test/x.png', '' )
+			openstation_desktop_theme_asset_url( 'https://cdn.test/x.png', '' )
 		);
 	}
 
@@ -221,10 +221,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * an at-rule, or an unescaped string. This is the "no author
 	 * string escapes its declaration" regression test.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_only_custom_property_declarations_are_emitted() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'name'   => '</style><script>alert(1)</script>',
 				'tokens' => array( '--os-window-radius' => '14px' ),
@@ -266,10 +266,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * compiler: add a slot, and it either works end to end or fails
 	 * here.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_every_registered_slot_emits_its_property() {
-		$slots = open_station_desktop_theme_texture_slots();
+		$slots = openstation_desktop_theme_texture_slots();
 
 		foreach ( $slots as $slot => $definition ) {
 			$type     = isset( $definition['type'] ) ? $definition['type'] : 'image';
@@ -277,7 +277,7 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 			$texture  = array( 'type' => $type, 'path' => 'x.png' );
 			$expected = 'border-image' === $type ? $prop . '-source: url(' : $prop . ': url(';
 
-			$css = open_station_desktop_theme_compile_css(
+			$css = openstation_desktop_theme_compile_css(
 				$this->manifest( array( 'textures' => array( $slot => $texture ) ) ),
 				'acme-neon',
 				'https://x.test/t'
@@ -296,7 +296,7 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * texture a surface the framework has never heard of by adding one
 	 * entry and shipping one CSS rule.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_a_filter_added_slot_compiles() {
 		$add = static function ( $slots ) {
@@ -306,9 +306,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 			);
 			return $slots;
 		};
-		add_filter( 'open_station_desktop_theme_texture_slots', $add );
+		add_filter( 'openstation_desktop_theme_texture_slots', $add );
 
-		$manifest = open_station_sanitize_desktop_theme_manifest(
+		$manifest = openstation_sanitize_desktop_theme_manifest(
 			array(
 				'manifestVersion' => 1,
 				'id'              => 'acme/neon',
@@ -325,9 +325,9 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 				return (string) $path;
 			}
 		);
-		$css = open_station_desktop_theme_compile_css( $manifest, 'acme-neon', 'https://x.test/t' );
+		$css = openstation_desktop_theme_compile_css( $manifest, 'acme-neon', 'https://x.test/t' );
 
-		remove_filter( 'open_station_desktop_theme_texture_slots', $add );
+		remove_filter( 'openstation_desktop_theme_texture_slots', $add );
 
 		$this->assertStringContainsString( '--acme-sidebar-image: url(', $css );
 		$this->assertStringContainsString( '--acme-sidebar-image-repeat: repeat-y;', $css );
@@ -338,16 +338,16 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * bug in whoever added it — it must not emit a malformed
 	 * declaration.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_slot_without_a_prop_emits_nothing() {
 		$add = static function ( $slots ) {
 			$slots['ACME_PROPLESS'] = array( 'type' => 'image' );
 			return $slots;
 		};
-		add_filter( 'open_station_desktop_theme_texture_slots', $add );
+		add_filter( 'openstation_desktop_theme_texture_slots', $add );
 
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'textures' => array(
 					'ACME_PROPLESS' => array( 'type' => 'image', 'path' => 'x.png' ),
@@ -357,7 +357,7 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 			'https://x.test/t'
 		);
 
-		remove_filter( 'open_station_desktop_theme_texture_slots', $add );
+		remove_filter( 'openstation_desktop_theme_texture_slots', $add );
 
 		$this->assertSame( '', $css );
 	}
@@ -367,10 +367,10 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	 * inherits the base slot's repeat + size, so it must not emit
 	 * companions of its own.
 	 *
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_variant_slot_emits_no_companions() {
-		$css = open_station_desktop_theme_compile_css(
+		$css = openstation_desktop_theme_compile_css(
 			$this->manifest( array(
 				'textures' => array(
 					'TITLEBAR_FOCUSED' => array(
@@ -391,12 +391,12 @@ class Tests_OpenStation_DesktopThemesCompile extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_empty_slug_compiles_to_nothing() {
 		$this->assertSame(
 			'',
-			open_station_desktop_theme_compile_css(
+			openstation_desktop_theme_compile_css(
 				$this->manifest( array( 'tokens' => array( '--os-a' => '1px' ) ) ),
 				'',
 				'https://x.test/t'

@@ -1,7 +1,7 @@
 /**
  * Plugins window — icon URL fallback chain.
  *
- * The PHP `open_station_icon_url` REST field returns the wp.org SVG by
+ * The PHP `openstation_icon_url` REST field returns the wp.org SVG by
  * default (`https://ps.w.org/<slug>/assets/icon.svg`). Plugins on the
  * .org repo ship a mix of formats — SVG, PNG, and animated GIF
  * (Elementor's icons are 128/256 GIFs, for example). A one-shot
@@ -13,7 +13,7 @@
  *
  * Custom URLs (not under `ps.w.org/<slug>/assets/`) bypass the chain —
  * one shot, then placeholder. That matches what the
- * `open_station_plugins_window_icon_url` filter docblock promises and
+ * `openstation_plugins_window_icon_url` filter docblock promises and
  * applies to both auto-detected local-folder icons and explicit
  * filter overrides.
  *
@@ -53,7 +53,7 @@ function buildCandidates( initialUrl: string ): string[] {
  * caller assigns to `img.src`).
  *
  * @param img         The `<img>` to monitor.
- * @param initialUrl  The URL returned by `open_station_icon_url`.
+ * @param initialUrl  The URL returned by `openstation_icon_url`.
  * @param onExhausted Invoked when every candidate has 404'd — the
  *                    caller should paint its placeholder.
  * @return The URL to assign to `img.src`.

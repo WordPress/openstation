@@ -6,7 +6,7 @@
  * boot, so it is the more honest thing to test.
  *
  * The pattern here MUST mirror the PHP sanitizer
- * (`open_station_sanitize_os_settings`). A value one side accepts and
+ * (`openstation_sanitize_os_settings`). A value one side accepts and
  * the other rewrites makes the setting flip on every reload.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';

@@ -23,14 +23,14 @@ defined( 'ABSPATH' ) || exit;
  * @param array $exporters Existing exporter registry.
  * @return array
  */
-function open_station_agents_register_personal_data_exporter( $exporters ) {
+function openstation_agents_register_personal_data_exporter( $exporters ) {
 	$exporters['os-agents'] = array(
 		'exporter_friendly_name' => __( 'OpenStation agents', 'desktop-mode' ),
-		'callback'               => 'open_station_agents_personal_data_exporter',
+		'callback'               => 'openstation_agents_personal_data_exporter',
 	);
 	return $exporters;
 }
-add_filter( 'wp_privacy_personal_data_exporters', 'open_station_agents_register_personal_data_exporter' );
+add_filter( 'wp_privacy_personal_data_exporters', 'openstation_agents_register_personal_data_exporter' );
 
 /**
  * Exporter callback.
@@ -39,9 +39,9 @@ add_filter( 'wp_privacy_personal_data_exporters', 'open_station_agents_register_
  * @param int    $page          1-indexed page (always done=true).
  * @return array
  */
-function open_station_agents_personal_data_exporter( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+function openstation_agents_personal_data_exporter( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 	$user = get_user_by( 'email', $email_address );
-	if ( ! $user || ! open_station_agent_is_agent( $user ) ) {
+	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
 		return array(
 			'data' => array(),
 			'done' => true,
@@ -67,15 +67,15 @@ function open_station_agents_personal_data_exporter( $email_address, $page = 1 )
 		),
 		array(
 			'name'  => __( 'Description', 'desktop-mode' ),
-			'value' => open_station_agent_get_description( (int) $user->ID ),
+			'value' => openstation_agent_get_description( (int) $user->ID ),
 		),
 		array(
 			'name'  => __( 'Instructions (system prompt)', 'desktop-mode' ),
-			'value' => open_station_agent_get_instructions( (int) $user->ID ),
+			'value' => openstation_agent_get_instructions( (int) $user->ID ),
 		),
 	);
 
-	$abilities = open_station_agent_get_abilities( (int) $user->ID );
+	$abilities = openstation_agent_get_abilities( (int) $user->ID );
 	if ( ! empty( $abilities ) ) {
 		$rows[] = array(
 			'name'  => __( 'Enabled abilities', 'desktop-mode' ),
@@ -83,7 +83,7 @@ function open_station_agents_personal_data_exporter( $email_address, $page = 1 )
 		);
 	}
 
-	$triggers = open_station_agent_get_triggers( (int) $user->ID );
+	$triggers = openstation_agent_get_triggers( (int) $user->ID );
 	if ( ! empty( $triggers ) ) {
 		$rows[] = array(
 			'name'  => __( 'Triggers (JSON)', 'desktop-mode' ),
@@ -91,7 +91,7 @@ function open_station_agents_personal_data_exporter( $email_address, $page = 1 )
 		);
 	}
 
-	$model = open_station_agent_get_model( (int) $user->ID );
+	$model = openstation_agent_get_model( (int) $user->ID );
 	if ( '' !== $model ) {
 		$rows[] = array(
 			'name'  => __( 'Model override', 'desktop-mode' ),
@@ -99,7 +99,7 @@ function open_station_agents_personal_data_exporter( $email_address, $page = 1 )
 		);
 	}
 
-	$rate_limit = open_station_agent_get_rate_limit( (int) $user->ID );
+	$rate_limit = openstation_agent_get_rate_limit( (int) $user->ID );
 	if ( $rate_limit > 0 ) {
 		$rows[] = array(
 			'name'  => __( 'Rate limit (per hour)', 'desktop-mode' ),
@@ -127,14 +127,14 @@ function open_station_agents_personal_data_exporter( $email_address, $page = 1 )
  * @param array $erasers Existing eraser registry.
  * @return array
  */
-function open_station_agents_register_personal_data_eraser( $erasers ) {
+function openstation_agents_register_personal_data_eraser( $erasers ) {
 	$erasers['os-agents'] = array(
 		'eraser_friendly_name' => __( 'OpenStation agents', 'desktop-mode' ),
-		'callback'             => 'open_station_agents_personal_data_eraser',
+		'callback'             => 'openstation_agents_personal_data_eraser',
 	);
 	return $erasers;
 }
-add_filter( 'wp_privacy_personal_data_erasers', 'open_station_agents_register_personal_data_eraser' );
+add_filter( 'wp_privacy_personal_data_erasers', 'openstation_agents_register_personal_data_eraser' );
 
 /**
  * Eraser callback. When the target email belongs to an agent, fully
@@ -145,9 +145,9 @@ add_filter( 'wp_privacy_personal_data_erasers', 'open_station_agents_register_pe
  * @param int    $page          1-indexed page (always done=true).
  * @return array
  */
-function open_station_agents_personal_data_eraser( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+function openstation_agents_personal_data_eraser( $email_address, $page = 1 ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 	$user = get_user_by( 'email', $email_address );
-	if ( ! $user || ! open_station_agent_is_agent( $user ) ) {
+	if ( ! $user || ! openstation_agent_is_agent( $user ) ) {
 		return array(
 			'items_removed'  => false,
 			'items_retained' => false,
@@ -156,7 +156,7 @@ function open_station_agents_personal_data_eraser( $email_address, $page = 1 ) {
 		);
 	}
 
-	$result = open_station_agent_delete( (int) $user->ID );
+	$result = openstation_agent_delete( (int) $user->ID );
 	if ( is_wp_error( $result ) ) {
 		return array(
 			'items_removed'  => false,

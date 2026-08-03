@@ -21,7 +21,7 @@ const pending = new Map<string, Promise<void>>();
 
 /**
  * Inline `extra` data harvested from a registered WP script handle by
- * {@link open_station_resolve_script_payload} on the server. Without
+ * {@link openstation_resolve_script_payload} on the server. Without
  * this, the lazy-load path would silently drop everything attached
  * via `wp_localize_script` / `wp_add_inline_script` /
  * `wp_set_script_translations` — the dynamically-appended `<script

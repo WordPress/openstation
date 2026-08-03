@@ -2,7 +2,7 @@
 /**
  * OpenStation — My WordPress: per-post attached-media REST field.
  *
- * Registers `open_station_attached_media` on every public post
+ * Registers `openstation_attached_media` on every public post
  * type. Returns the canonical set of attachment ids referenced by
  * the post — featured image + everything in `post_content` —
  * computed server-side where `attachment_url_to_postid()` is
@@ -21,7 +21,7 @@
  * Server has the full post object + WP core's URL→id resolver, so
  * one round-trip per detail-view fetches an authoritative list.
  *
- * Filterable via `open_station_my_wordpress_attached_media` for
+ * Filterable via `openstation_my_wordpress_attached_media` for
  * plugins (page builders, ACF, custom field handlers) to append
  * their own references.
  *
@@ -31,22 +31,22 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Register `open_station_attached_media` on every post type the site
+ * Register `openstation_attached_media` on every post type the site
  * window can browse.
  */
-function open_station_my_wordpress_register_attached_media_field() {
-	$types = open_station_my_wordpress_rest_field_post_types();
+function openstation_my_wordpress_register_attached_media_field() {
+	$types = openstation_my_wordpress_rest_field_post_types();
 	foreach ( $types as $type ) {
 		if ( 'attachment' === $type ) {
 			continue;
 		}
 		register_rest_field(
 			$type,
-			'open_station_attached_media',
+			'openstation_attached_media',
 			array(
 				'get_callback' => static function ( $post ) {
 					$id = isset( $post['id'] ) ? (int) $post['id'] : 0;
-					return open_station_my_wordpress_post_attached_media( $id );
+					return openstation_my_wordpress_post_attached_media( $id );
 				},
 				'schema'       => array(
 					'description' => __( 'Attachment ids referenced by this post — featured image plus every attachment found in post_content (block-class scan + raw `<img src>` URL resolution).', 'desktop-mode' ),
@@ -59,7 +59,7 @@ function open_station_my_wordpress_register_attached_media_field() {
 		);
 	}
 }
-add_action( 'rest_api_init', 'open_station_my_wordpress_register_attached_media_field' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_attached_media_field' );
 
 /**
  * Resolve every attachment referenced by `$post_id`. Featured
@@ -76,7 +76,7 @@ add_action( 'rest_api_init', 'open_station_my_wordpress_register_attached_media_
  * @param int $post_id Post id.
  * @return int[] Attachment ids, deduped, no order guarantee.
  */
-function open_station_my_wordpress_post_attached_media( $post_id ) {
+function openstation_my_wordpress_post_attached_media( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return array();
@@ -125,7 +125,7 @@ function open_station_my_wordpress_post_attached_media( $post_id ) {
 					continue;
 				}
 				$seen_urls[ $url ] = true;
-				$resolved = open_station_my_wordpress_resolve_attachment_url( $url );
+				$resolved = openstation_my_wordpress_resolve_attachment_url( $url );
 				if ( $resolved > 0 ) {
 					$ids[ $resolved ] = true;
 				}
@@ -145,7 +145,7 @@ function open_station_my_wordpress_post_attached_media( $post_id ) {
 	 * @param int[] $out      Attachment ids resolved by the core scan.
 	 * @param int   $post_id  Subject post id.
 	 */
-	$filtered = apply_filters( 'open_station_my_wordpress_attached_media', $out, $post_id );
+	$filtered = apply_filters( 'openstation_my_wordpress_attached_media', $out, $post_id );
 
 	if ( ! is_array( $filtered ) ) {
 		return $out;
@@ -170,7 +170,7 @@ function open_station_my_wordpress_post_attached_media( $post_id ) {
  * @param string $url Image URL pulled from `<img src>`.
  * @return int Attachment id, or 0 when no match.
  */
-function open_station_my_wordpress_resolve_attachment_url( $url ) {
+function openstation_my_wordpress_resolve_attachment_url( $url ) {
 	static $cache = array();
 	$url = (string) $url;
 	if ( '' === $url ) {

@@ -362,7 +362,7 @@
  * Admin bar AI button — ⌘K badge + sparkle icon
  * Styles applied via wp_add_inline_style( 'admin-bar', ... ) in PHP.
  * The styles here are for reference; the actual output lives in
- * includes/admin-bar.php :: open_station_enqueue_toggle_assets().
+ * includes/admin-bar.php :: openstation_enqueue_toggle_assets().
  * ------------------------------------------------------------------------- */
 
 /* (The admin-bar button styles are added inline in PHP to keep them

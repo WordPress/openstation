@@ -7,7 +7,7 @@ The Trash window (id `desktop-mode-recycle-bin`) catches deleted attachments int
 ## Add a custom post type to the bin
 
 ```php
-add_filter( 'open_station_recycle_bin_capture_post_types', function ( $types ) {
+add_filter( 'openstation_recycle_bin_capture_post_types', function ( $types ) {
     $types[] = 'product';
     return $types;
 } );
@@ -18,7 +18,7 @@ That's it — products that go through `wp_trash_post()` will now show up alongs
 ## Audit-log every restore
 
 ```php
-add_action( 'open_station_recycle_bin_after_restore', function ( $post_id ) {
+add_action( 'openstation_recycle_bin_after_restore', function ( $post_id ) {
     $user = wp_get_current_user();
     error_log( sprintf(
         '[recycle-bin] %s restored #%d',
@@ -35,7 +35,7 @@ The matching `..._after_purge` action gives you the post type as the second arg,
 By default the bin shows up for anyone with `edit_posts`. Lock it down to administrators:
 
 ```php
-add_filter( 'open_station_recycle_bin_user_can_use', function () {
+add_filter( 'openstation_recycle_bin_user_can_use', function () {
     return current_user_can( 'manage_options' );
 } );
 ```
@@ -50,7 +50,7 @@ When a plugin needs to permanently delete an attachment without the round-trip t
 wp_delete_attachment( $attachment_id, true );
 ```
 
-`wp_delete_attachment( $id, true )` skips capture automatically — the bin only records items that travel through the WP trash. A per-deletion escape-hatch filter (`open_station_recycle_bin_should_capture`) is a reserved name in the [hooks reference](../hooks-reference.md#trash) but is **not yet fired** — don't subscribe to it until its status flips.
+`wp_delete_attachment( $id, true )` skips capture automatically — the bin only records items that travel through the WP trash. A per-deletion escape-hatch filter (`openstation_recycle_bin_should_capture`) is a reserved name in the [hooks reference](../hooks-reference.md#trash) but is **not yet fired** — don't subscribe to it until its status flips.
 
 By default media files are NOT auto-routed through Trash: vanilla WordPress permanent-deletes attachments on first click, and the Trash tracks only posts, pages, and comments. Sites that want media in the bin should define `MEDIA_TRASH` in `wp-config.php`:
 
@@ -58,7 +58,7 @@ By default media files are NOT auto-routed through Trash: vanilla WordPress perm
 define( 'MEDIA_TRASH', true );
 ```
 
-Once set, deleting from the Media library routes the attachment through the WP trash and the Trash window surfaces it automatically (`attachment` is already in the default `open_station_recycle_bin_capture_post_types` list). The constant has to live in `wp-config.php` because Core locks it before any plugin loads.
+Once set, deleting from the Media library routes the attachment through the WP trash and the Trash window surfaces it automatically (`attachment` is already in the default `openstation_recycle_bin_capture_post_types` list). The constant has to live in `wp-config.php` because Core locks it before any plugin loads.
 
 The Trash toolbar reflects this gate visually: the **Media** filter segment is hidden unless `MEDIA_TRASH` is on, so users on the default WP setup don't see a tab that can never have rows under it.
 
@@ -68,7 +68,7 @@ The JS layer applies a filter to the column descriptor before assignment:
 
 ```js
 wp.hooks.addFilter(
-    'open_station.recycleBin.columns',
+    'openstation.recycleBin.columns',
     'myplugin/owner-column',
     ( cols ) => [
         ...cols,
@@ -84,10 +84,10 @@ wp.hooks.addFilter(
 );
 ```
 
-To populate a brand-new field on the row, mirror it on the PHP side via `open_station_recycle_bin_item`:
+To populate a brand-new field on the row, mirror it on the PHP side via `openstation_recycle_bin_item`:
 
 ```php
-add_filter( 'open_station_recycle_bin_item', function ( $item, $post ) {
+add_filter( 'openstation_recycle_bin_item', function ( $item, $post ) {
     $item[ 'department' ] = (string) get_post_meta( $post->ID, '_dept', true );
     return $item;
 }, 10, 2 );
@@ -96,7 +96,7 @@ add_filter( 'open_station_recycle_bin_item', function ( $item, $post ) {
 The `type_label` field on every row carries a human-readable label for the entity kind (`Post`, `Page`, `Media`, `Comment`, or the CPT's singular label). The bin renders it as a small inline badge next to the title; column-filter authors can also reuse it for their own cells. Override it from the same filter if your CPT needs a custom label:
 
 ```php
-add_filter( 'open_station_recycle_bin_item', function ( $item, $post ) {
+add_filter( 'openstation_recycle_bin_item', function ( $item, $post ) {
     if ( 'product' === $post->post_type ) {
         $item[ 'type_label' ] = __( 'Catalog item', 'myplugin' );
     }
@@ -109,7 +109,7 @@ add_filter( 'open_station_recycle_bin_item', function ( $item, $post ) {
 If you run a websocket or SSE service alongside WordPress, hook the unified signal so you don't have to subscribe to every delete action individually:
 
 ```php
-add_action( 'open_station_recycle_bin_signal', function ( $ts_ms ) {
+add_action( 'openstation_recycle_bin_signal', function ( $ts_ms ) {
     My_Realtime::publish( 'recycle-bin-changed', [ 'ts' => $ts_ms ] );
 } );
 ```
@@ -134,7 +134,7 @@ Or via the hook bus:
 
 ```js
 wp.hooks.addAction(
-    'open_station.recycleBin.changed',
+    'openstation.recycleBin.changed',
     'myplugin/refresh-media',
     ( payload ) => myPlugin.refreshMedia( payload ),
 );
@@ -144,4 +144,4 @@ wp.hooks.addAction(
 
 - [Hooks reference — Trash](../hooks-reference.md#trash) — every filter and action with full signatures.
 - [Data table example](./data-table.md) — the `<os-table>` primitive the bin renders.
-- [Native windows](./native-windows.md) — the `open_station_register_window()` API the bin builds on.
+- [Native windows](./native-windows.md) — the `openstation_register_window()` API the bin builds on.

@@ -26,10 +26,10 @@
 defined( 'ABSPATH' ) || exit;
 
 /** User meta key — see file header for shape. */
-const OPEN_STATION_SEEN_INTROS_META_KEY = 'desktop_mode_seen_intros';
+const OPENSTATION_SEEN_INTROS_META_KEY = 'desktop_mode_seen_intros';
 
 /** Hard cap so a malicious client cannot grow the list unbounded. */
-const OPEN_STATION_SEEN_INTROS_MAX = 64;
+const OPENSTATION_SEEN_INTROS_MAX = 64;
 
 /**
  * Returns the list of intro slugs the user has dismissed.
@@ -37,18 +37,18 @@ const OPEN_STATION_SEEN_INTROS_MAX = 64;
  * @param int $user_id User ID.
  * @return string[] Sanitized list (may be empty).
  */
-function open_station_get_seen_intros( $user_id ) {
+function openstation_get_seen_intros( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return array();
 	}
 
-	$raw = get_user_meta( $user_id, OPEN_STATION_SEEN_INTROS_META_KEY, true );
+	$raw = get_user_meta( $user_id, OPENSTATION_SEEN_INTROS_META_KEY, true );
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
 
-	return open_station_sanitize_seen_intros( $raw );
+	return openstation_sanitize_seen_intros( $raw );
 }
 
 /**
@@ -58,12 +58,12 @@ function open_station_get_seen_intros( $user_id ) {
  * @param string $slug    Intro slug (e.g. `'posts'`).
  * @return bool
  */
-function open_station_has_seen_intro( $user_id, $slug ) {
+function openstation_has_seen_intro( $user_id, $slug ) {
 	$slug = sanitize_key( (string) $slug );
 	if ( '' === $slug ) {
 		return false;
 	}
-	return in_array( $slug, open_station_get_seen_intros( $user_id ), true );
+	return in_array( $slug, openstation_get_seen_intros( $user_id ), true );
 }
 
 /**
@@ -76,24 +76,24 @@ function open_station_has_seen_intro( $user_id, $slug ) {
  * @param string $slug    Intro slug.
  * @return bool True on successful write (or no-op), false otherwise.
  */
-function open_station_mark_intro_seen( $user_id, $slug ) {
+function openstation_mark_intro_seen( $user_id, $slug ) {
 	$user_id = (int) $user_id;
 	$slug    = sanitize_key( (string) $slug );
 	if ( $user_id <= 0 || '' === $slug ) {
 		return false;
 	}
 
-	$current = open_station_get_seen_intros( $user_id );
+	$current = openstation_get_seen_intros( $user_id );
 	if ( in_array( $slug, $current, true ) ) {
 		return true;
 	}
 
 	$current[] = $slug;
-	$current   = array_slice( $current, 0, OPEN_STATION_SEEN_INTROS_MAX );
+	$current   = array_slice( $current, 0, OPENSTATION_SEEN_INTROS_MAX );
 
 	return false !== update_user_meta(
 		$user_id,
-		OPEN_STATION_SEEN_INTROS_META_KEY,
+		OPENSTATION_SEEN_INTROS_META_KEY,
 		$current
 	);
 }
@@ -105,12 +105,12 @@ function open_station_mark_intro_seen( $user_id, $slug ) {
  * @param int $user_id User ID.
  * @return bool True on success.
  */
-function open_station_clear_seen_intros( $user_id ) {
+function openstation_clear_seen_intros( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
 	}
-	return (bool) delete_user_meta( $user_id, OPEN_STATION_SEEN_INTROS_META_KEY );
+	return (bool) delete_user_meta( $user_id, OPENSTATION_SEEN_INTROS_META_KEY );
 }
 
 /**
@@ -119,7 +119,7 @@ function open_station_clear_seen_intros( $user_id ) {
  * @param mixed $raw Raw value.
  * @return string[]
  */
-function open_station_sanitize_seen_intros( $raw ) {
+function openstation_sanitize_seen_intros( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -134,7 +134,7 @@ function open_station_sanitize_seen_intros( $raw ) {
 		}
 		$out[] = $slug;
 	}
-	return array_slice( array_values( array_unique( $out ) ), 0, OPEN_STATION_SEEN_INTROS_MAX );
+	return array_slice( array_values( array_unique( $out ) ), 0, OPENSTATION_SEEN_INTROS_MAX );
 }
 
 /**
@@ -147,14 +147,14 @@ function open_station_sanitize_seen_intros( $raw ) {
  * Both return the post-mutation list so the client can refresh its
  * local snapshot without a follow-up GET.
  */
-function open_station_register_seen_intros_routes() {
+function openstation_register_seen_intros_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/intros/seen',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_rest_mark_intro_seen',
-			'permission_callback' => 'open_station_rest_seen_intros_permission',
+			'callback'            => 'openstation_rest_mark_intro_seen',
+			'permission_callback' => 'openstation_rest_seen_intros_permission',
 			'args'                => array(
 				'slug' => array(
 					'required' => true,
@@ -169,26 +169,26 @@ function open_station_register_seen_intros_routes() {
 		'/intros',
 		array(
 			'methods'             => WP_REST_Server::DELETABLE,
-			'callback'            => 'open_station_rest_clear_seen_intros',
-			'permission_callback' => 'open_station_rest_seen_intros_permission',
+			'callback'            => 'openstation_rest_clear_seen_intros',
+			'permission_callback' => 'openstation_rest_seen_intros_permission',
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_seen_intros_routes' );
+add_action( 'rest_api_init', 'openstation_register_seen_intros_routes' );
 
 /**
  * Permission gate for the seen-intros routes.
  *
  * In-shell intros (slug `posts`, `pages`, …) are only ever shown to a
  * user who has already entered OpenStation, so they keep the strict
- * {@see open_station_rest_require_enabled()} gate — `read` alone is
+ * {@see openstation_rest_require_enabled()} gate — `read` alone is
  * insufficient (every role, Subscriber included, carries `read`).
  *
  * The one exception is the first-run welcome dialog
- * ({@see OPEN_STATION_WELCOME_INTRO_SLUG}): it renders in the *classic*
+ * ({@see OPENSTATION_WELCOME_INTRO_SLUG}): it renders in the *classic*
  * admin precisely when OpenStation is NOT enabled, which is the only
  * state it ever appears in. Gating its dismissal behind
- * `open_station_rest_require_enabled()` would make the dismissal POST
+ * `openstation_rest_require_enabled()` would make the dismissal POST
  * return 403 every time, so the slug could never be recorded as seen and
  * the dialog re-rendered on every classic-admin page load. We therefore
  * let that single slug through for any logged-in `read`-capable account
@@ -199,9 +199,9 @@ add_action( 'rest_api_init', 'open_station_register_seen_intros_routes' );
  * @param WP_REST_Request $request The REST request.
  * @return true|WP_Error
  */
-function open_station_rest_seen_intros_permission( WP_REST_Request $request ) {
+function openstation_rest_seen_intros_permission( WP_REST_Request $request ) {
 	$slug = sanitize_key( (string) $request->get_param( 'slug' ) );
-	if ( defined( 'OPEN_STATION_WELCOME_INTRO_SLUG' ) && OPEN_STATION_WELCOME_INTRO_SLUG === $slug ) {
+	if ( defined( 'OPENSTATION_WELCOME_INTRO_SLUG' ) && OPENSTATION_WELCOME_INTRO_SLUG === $slug ) {
 		if ( ! is_user_logged_in() ) {
 			return new WP_Error(
 				'rest_forbidden',
@@ -219,7 +219,7 @@ function open_station_rest_seen_intros_permission( WP_REST_Request $request ) {
 		return true;
 	}
 
-	return open_station_rest_require_enabled();
+	return openstation_rest_require_enabled();
 }
 
 /**
@@ -228,19 +228,19 @@ function open_station_rest_seen_intros_permission( WP_REST_Request $request ) {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
-function open_station_rest_mark_intro_seen( WP_REST_Request $request ) {
+function openstation_rest_mark_intro_seen( WP_REST_Request $request ) {
 	$user_id = get_current_user_id();
 	$slug    = sanitize_key( (string) $request->get_param( 'slug' ) );
 	if ( '' === $slug ) {
 		return new WP_Error(
-			'open_station_invalid_intro_slug',
+			'openstation_invalid_intro_slug',
 			__( 'The `slug` parameter must be a non-empty string.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
-	open_station_mark_intro_seen( $user_id, $slug );
+	openstation_mark_intro_seen( $user_id, $slug );
 	return rest_ensure_response(
-		array( 'seenIntros' => open_station_get_seen_intros( $user_id ) )
+		array( 'seenIntros' => openstation_get_seen_intros( $user_id ) )
 	);
 }
 
@@ -249,10 +249,10 @@ function open_station_rest_mark_intro_seen( WP_REST_Request $request ) {
  *
  * @return WP_REST_Response
  */
-function open_station_rest_clear_seen_intros() {
+function openstation_rest_clear_seen_intros() {
 	$user_id = get_current_user_id();
-	open_station_clear_seen_intros( $user_id );
+	openstation_clear_seen_intros( $user_id );
 	return rest_ensure_response(
-		array( 'seenIntros' => open_station_get_seen_intros( $user_id ) )
+		array( 'seenIntros' => openstation_get_seen_intros( $user_id ) )
 	);
 }

@@ -25,23 +25,23 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'open_station_my_wordpress_user_can_use' );
-		remove_all_filters( 'open_station_my_wordpress_window_args' );
-		remove_all_filters( 'open_station_my_wordpress_icon_args' );
-		remove_all_filters( 'open_station_my_wordpress_entities' );
-		remove_all_filters( 'open_station_site_title' );
+		remove_all_filters( 'openstation_my_wordpress_user_can_use' );
+		remove_all_filters( 'openstation_my_wordpress_window_args' );
+		remove_all_filters( 'openstation_my_wordpress_icon_args' );
+		remove_all_filters( 'openstation_my_wordpress_entities' );
+		remove_all_filters( 'openstation_site_title' );
 		parent::tear_down();
 	}
 
 	/**
 	 * `init` registers both a native window and a pinned desktop icon.
 	 *
-	 * @covers ::open_station_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_registers_pinned_icon() {
-		open_station_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$icon = open_station_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$icon = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
 		$this->assertIsArray( $icon );
 		$this->assertTrue( $icon['pinned'] );
 		$this->assertSame( -1, $icon['position'] );
@@ -49,12 +49,12 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_registers_native_window_with_config() {
-		open_station_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$entry = open_station_native_window_registry( 'desktop-mode-my-wordpress' );
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'desktop-mode-my-wordpress', $entry['script'] );
 		$this->assertArrayHasKey( 'config', $entry );
@@ -69,18 +69,18 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	 * The folder is named after the site, not after the software
 	 * running it — the window title, the pinned icon, and the
 	 * `siteName` config the bundle uses for its breadcrumb root all
-	 * come from `open_station_site_title()`.
+	 * come from `openstation_site_title()`.
 	 *
-	 * @covers ::open_station_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_window_and_icon_are_titled_after_the_site() {
 		$original = get_option( 'blogname' );
 		update_option( 'blogname', "Izzi's Gym" );
 
-		open_station_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$entry = open_station_native_window_registry( 'desktop-mode-my-wordpress' );
-		$icon  = open_station_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon  = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
 
 		update_option( 'blogname', $original );
 
@@ -90,23 +90,23 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Retitling via `open_station_site_title` reaches the window, the
+	 * Retitling via `openstation_site_title` reaches the window, the
 	 * icon, and the bundle config in one hook.
 	 *
-	 * @covers ::open_station_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_site_title_filter_retitles_the_folder() {
 		add_filter(
-			'open_station_site_title',
+			'openstation_site_title',
 			static function () {
 				return 'Workspace';
 			}
 		);
 
-		open_station_my_wordpress_register_window();
+		openstation_my_wordpress_register_window();
 
-		$entry = open_station_native_window_registry( 'desktop-mode-my-wordpress' );
-		$icon  = open_station_desktop_icon_registry( 'desktop-mode-my-wordpress' );
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
+		$icon  = openstation_desktop_icon_registry( 'desktop-mode-my-wordpress' );
 
 		$this->assertSame( 'Workspace', $entry['title'] );
 		$this->assertSame( 'Workspace', $entry['config']['siteName'] );
@@ -117,10 +117,10 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	 * Default entities are Posts, Pages, and Users; the filter is
 	 * the extension point for additional kinds.
 	 *
-	 * @covers ::open_station_my_wordpress_entities
+	 * @covers ::openstation_my_wordpress_entities
 	 */
 	public function test_default_entities_are_posts_pages_and_users() {
-		$entities = open_station_my_wordpress_entities();
+		$entities = openstation_my_wordpress_entities();
 		$ids      = wp_list_pluck( $entities, 'id' );
 		$this->assertContains( 'posts', $ids );
 		$this->assertContains( 'pages', $ids );
@@ -147,10 +147,10 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_my_wordpress_entities
+	 * @covers ::openstation_my_wordpress_entities
 	 */
 	public function test_entities_filter_can_extend() {
-		add_filter( 'open_station_my_wordpress_entities', static function ( $entities ) {
+		add_filter( 'openstation_my_wordpress_entities', static function ( $entities ) {
 			$entities[] = array(
 				'id'       => 'comments',
 				'label'    => 'Comments',
@@ -160,42 +160,42 @@ class Tests_OpenStation_MyWordpress extends WP_UnitTestCase {
 			return $entities;
 		} );
 
-		$entities = open_station_my_wordpress_entities();
+		$entities = openstation_my_wordpress_entities();
 		$ids      = wp_list_pluck( $entities, 'id' );
 		$this->assertContains( 'comments', $ids );
 	}
 
 	/**
-	 * @covers ::open_station_my_wordpress_user_can_use
+	 * @covers ::openstation_my_wordpress_user_can_use
 	 */
 	public function test_subscriber_cannot_use_by_default() {
 		wp_set_current_user( self::$subscriber_id );
-		$this->assertFalse( open_station_my_wordpress_user_can_use() );
+		$this->assertFalse( openstation_my_wordpress_user_can_use() );
 	}
 
 	/**
-	 * @covers ::open_station_my_wordpress_user_can_use
+	 * @covers ::openstation_my_wordpress_user_can_use
 	 */
 	public function test_can_use_filter_overrides_default() {
 		wp_set_current_user( self::$subscriber_id );
-		add_filter( 'open_station_my_wordpress_user_can_use', '__return_true' );
-		$this->assertTrue( open_station_my_wordpress_user_can_use() );
+		add_filter( 'openstation_my_wordpress_user_can_use', '__return_true' );
+		$this->assertTrue( openstation_my_wordpress_user_can_use() );
 	}
 
 	/**
 	 * Window-args filter wins over the defaults.
 	 *
-	 * @covers ::open_station_my_wordpress_register_window
+	 * @covers ::openstation_my_wordpress_register_window
 	 */
 	public function test_window_args_filter_can_override_size() {
-		add_filter( 'open_station_my_wordpress_window_args', static function ( $args ) {
+		add_filter( 'openstation_my_wordpress_window_args', static function ( $args ) {
 			$args['width']  = 1280;
 			$args['height'] = 800;
 			return $args;
 		} );
 
-		open_station_my_wordpress_register_window();
-		$entry = open_station_native_window_registry( 'desktop-mode-my-wordpress' );
+		openstation_my_wordpress_register_window();
+		$entry = openstation_native_window_registry( 'desktop-mode-my-wordpress' );
 		$this->assertSame( 1280, $entry['width'] );
 		$this->assertSame( 800, $entry['height'] );
 	}

@@ -8,7 +8,7 @@
  *
  * The pastel tokens are shared with the Note Pad widget
  * (`widget-notes.css` consumes them) — keep the slug list in sync
- * with `open_station_notes_colors()` (PHP) and `src/notes/colors.ts`.
+ * with `openstation_notes_colors()` (PHP) and `src/notes/colors.ts`.
  */
 
 /* ------------------------------------------------------------------

@@ -111,7 +111,7 @@ export interface DockItem {
 	/**
 	 * Native-window id this tile targets, when known up front.
 	 * Populated for synthesized tiles built from a
-	 * `open_station_register_icon()` entry whose `window` field points
+	 * `openstation_register_icon()` entry whose `window` field points
 	 * at a registered native window (no `url`). The dock prefers this
 	 * over deriving an id from `url` for indicator + hover-peek
 	 * lookups — without it those synth tiles fall back to
@@ -130,13 +130,13 @@ export interface DockItem {
 	 * (Dashboard, Posts, Media, Plugins, Users, Settings, CPTs,
 	 * taxonomies). Used by the dock to render a visual separator
 	 * between core and plugin tiles. Server-side classifier lives
-	 * in `open_station_is_core_menu_slug`.
+	 * in `openstation_is_core_menu_slug`.
 	 */
 	isCore?: boolean;
 	/**
 	 * Plugin file (e.g. `woocommerce/woocommerce.php`) that owns this
 	 * menu, when resolvable. Set server-side by
-	 * `open_station_resolve_menu_plugin_file()`. Used by the dock
+	 * `openstation_resolve_menu_plugin_file()`. Used by the dock
 	 * right-click menu to surface a "Deactivate plugin" action. Always
 	 * `null` for core menus, mu-plugins, drop-ins, and OpenStation
 	 * itself — none of those are deactivatable via `wp/v2/plugins`.
@@ -1871,7 +1871,7 @@ export class Dock {
 		// Synthesized dock tiles (created from desktop icons promoted
 		// to the dock via the user's `itemVisibility` settings)
 		// carry id prefix `dock:<icon-id>`. Their native opener
-		// lives on the original `open_station_register_icon` entry —
+		// lives on the original `openstation_register_icon` entry —
 		// `window` for a native-window target, `url` otherwise.
 		// Without this branch the click would derive a window id
 		// from an empty URL and silently no-op.
@@ -2024,7 +2024,7 @@ export class Dock {
 	 * Resolve the window-manager key for a dock tile, in this order:
 	 *
 	 * 1. `item.windowId` — set by `applyDockPlacement` when the tile
-	 *    is synthesized from a `open_station_register_icon()` entry
+	 *    is synthesized from a `openstation_register_icon()` entry
 	 *    whose target is a native window. Native-window ids never
 	 *    pass through the URL → native-window remap layer, so we
 	 *    short-circuit before touching it.

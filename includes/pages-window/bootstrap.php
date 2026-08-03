@@ -10,11 +10,11 @@
  *
  * Public PHP surface (all filterable):
  *
- *   - open_station_pages_window_user_can_register
- *   - open_station_pages_window_user_can_use
- *   - open_station_pages_window_args
- *   - open_station_pages_window_template_html
- *   - open_station_pages_window_query_args
+ *   - openstation_pages_window_user_can_register
+ *   - openstation_pages_window_user_can_use
+ *   - openstation_pages_window_args
+ *   - openstation_pages_window_template_html
+ *   - openstation_pages_window_query_args
  *
  * The URL-remap swap (Pages tile → native window when opt-in is on) is
  * implemented JS-side in `src/desktop.ts` via `registerNativeUrlRemap`.

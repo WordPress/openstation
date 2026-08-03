@@ -1,7 +1,7 @@
 
 <?php
 /**
- * Tests for `open_station_component()` — the helper that plugin
+ * Tests for `openstation_component()` — the helper that plugin
  * authors use from PHP to emit safely-escaped `<os-*>` markup,
  * including the `style => [...]` array form for inline styles.
  *
@@ -19,7 +19,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	 */
 	private function render( $tag, $attrs = array(), $content = '' ) {
 		ob_start();
-		open_station_component( $tag, $attrs, $content );
+		openstation_component( $tag, $attrs, $content );
 		return (string) ob_get_clean();
 	}
 
@@ -28,7 +28,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	// ---------------------------------------------------------------
 
 	/**
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_style_array_serializes_to_inline_declarations() {
 		$html = $this->render( 'os-stack', array(
@@ -52,7 +52,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	 * passes through unit-less because `0` is dimensionally valid on
 	 * every CSS property.
 	 *
-	 * @covers ::open_station_format_css_value
+	 * @covers ::openstation_format_css_value
 	 */
 	public function test_style_array_auto_units_length_properties() {
 		$html = $this->render( 'os-stack', array(
@@ -76,7 +76,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_style_array_with_unit_strings_passes_through() {
 		$html = $this->render( 'os-stack', array(
@@ -92,7 +92,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_style_string_value_still_works() {
 		$html = $this->render( 'os-stack', array(
@@ -109,7 +109,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	 * injection attempts) are dropped silently. The rest of the
 	 * declarations still render.
 	 *
-	 * @covers ::open_station_serialize_style_array
+	 * @covers ::openstation_serialize_style_array
 	 */
 	public function test_style_array_drops_malformed_property_names() {
 		$html = $this->render( 'os-stack', array(
@@ -129,7 +129,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	 * Null / false values on individual style entries are dropped.
 	 * Useful for conditional styling: `'padding' => $dense ? 0 : null`.
 	 *
-	 * @covers ::open_station_serialize_style_array
+	 * @covers ::openstation_serialize_style_array
 	 */
 	public function test_style_array_drops_null_and_false_values() {
 		$html = $this->render( 'os-stack', array(
@@ -150,7 +150,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	 * Empty style array produces no `style` attribute at all —
 	 * avoids a dangling `style=""` in the rendered HTML.
 	 *
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_empty_style_array_produces_no_attribute() {
 		$html = $this->render( 'os-stack', array(
@@ -168,7 +168,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	 * escaped value (`onclick=&quot;…&quot;`), but the quote
 	 * escaping prevents it from becoming a new attribute.
 	 *
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_style_array_output_is_escaped() {
 		$html = $this->render( 'os-stack', array(
@@ -190,7 +190,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	// ---------------------------------------------------------------
 
 	/**
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_boolean_attribute_renders_bare() {
 		$html = $this->render( 'os-stack', array(
@@ -200,7 +200,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_numeric_zero_value_renders_as_padding_0() {
 		// The developer's original repro case — integer 0 as a
@@ -213,7 +213,7 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_component
+	 * @covers ::openstation_component
 	 */
 	public function test_content_is_echoed_verbatim() {
 		$html = $this->render( 'os-stack', array(), '<p>inner</p>' );
@@ -221,16 +221,16 @@ class Tests_OpenStation_Component extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_format_css_value
+	 * @covers ::openstation_format_css_value
 	 */
 	public function test_format_css_value_handles_edge_values() {
-		$this->assertSame( '', open_station_format_css_value( 'padding', null ) );
-		$this->assertSame( '', open_station_format_css_value( 'padding', false ) );
-		$this->assertSame( '', open_station_format_css_value( 'padding', '' ) );
-		$this->assertSame( '', open_station_format_css_value( 'padding', '  ' ) );
-		$this->assertSame( '12px', open_station_format_css_value( 'padding', 12 ) );
-		$this->assertSame( '12px', open_station_format_css_value( 'padding', '12' ) );
-		$this->assertSame( '1.5', open_station_format_css_value( 'opacity', 1.5 ) );
-		$this->assertSame( '0', open_station_format_css_value( 'padding', 0 ) );
+		$this->assertSame( '', openstation_format_css_value( 'padding', null ) );
+		$this->assertSame( '', openstation_format_css_value( 'padding', false ) );
+		$this->assertSame( '', openstation_format_css_value( 'padding', '' ) );
+		$this->assertSame( '', openstation_format_css_value( 'padding', '  ' ) );
+		$this->assertSame( '12px', openstation_format_css_value( 'padding', 12 ) );
+		$this->assertSame( '12px', openstation_format_css_value( 'padding', '12' ) );
+		$this->assertSame( '1.5', openstation_format_css_value( 'opacity', 1.5 ) );
+		$this->assertSame( '0', openstation_format_css_value( 'padding', 0 ) );
 	}
 }

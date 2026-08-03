@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `term` desktop file type.
  */
-class Open_Station_Term_File extends Open_Station_File {
+class OpenStation_Term_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'term';

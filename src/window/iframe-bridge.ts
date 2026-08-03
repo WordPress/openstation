@@ -666,10 +666,10 @@ function stampSourceReferer( url: URL, win: Window ): URL {
 		// passes the result downstream to logic that builds the
 		// next redirect, and a chromeless-flagged referer would loop
 		// the flag into places it doesn't belong. The post-redirect
-		// preserve filter (`open_station_chromeless_preserve_redirect`)
+		// preserve filter (`openstation_chromeless_preserve_redirect`)
 		// reattaches the flag where needed.
 		const cleaned = new URL( sourceUrl.href );
-		cleaned.searchParams.delete( 'open_station_chromeless' );
+		cleaned.searchParams.delete( 'openstation_chromeless' );
 		out.searchParams.set(
 			'_wp_http_referer',
 			cleaned.pathname + ( cleaned.search ? cleaned.search : '' ),

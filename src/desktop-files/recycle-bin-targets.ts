@@ -5,7 +5,7 @@
  * gesture from a desktop file tile:
  *
  *   1. The recycle-bin tile on the wallpaper. The bin is registered
- *      via `open_station_register_icon()` and surfaces in the unified
+ *      via `openstation_register_icon()` and surfaces in the unified
  *      files layer as a `'shortcut'` placement carrying
  *      `data-file-ref="desktop-mode-recycle-bin"`. We also accept the
  *      legacy desktop-icon rail (`[data-icon-id]`) and any dock-side

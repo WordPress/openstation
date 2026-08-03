@@ -20,7 +20,7 @@
  * same theme.
  *
  * Sanitized by PHP against
- * `open_station_desktop_theme_recommended_os_settings_schema()` and
+ * `openstation_desktop_theme_recommended_os_settings_schema()` and
  * re-checked in {@link normalizeEntry} — the payload passes through a
  * filter after sanitization, so the shell never treats it as trusted.
  *

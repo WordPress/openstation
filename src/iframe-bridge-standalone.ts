@@ -1166,8 +1166,8 @@ export function installEditorAutosaveHandler(): void {
 	// protocol.
 	//
 	// Used to live ONLY in the chromeless inline bridge (gated on
-	// `open_station_is_chromeless_request()`), so any internal navigation
-	// that dropped the `?open_station_chromeless=1` flag silently lost the title-
+	// `openstation_is_chromeless_request()`), so any internal navigation
+	// that dropped the `?openstation_chromeless=1` flag silently lost the title-
 	// bar icons. This standalone bridge is auto-enqueued on every
 	// admin page, so detection runs regardless. A sentinel global
 	// (`__openStationScreenMetaInstalled`) prevents double-emission

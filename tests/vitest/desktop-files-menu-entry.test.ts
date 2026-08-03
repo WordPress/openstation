@@ -94,7 +94,7 @@ describe( 'findMenuEntryForUrl', () => {
 		stubGlobals( { viaApi: [ TOOLS_ITEM ] } );
 		const { findMenuEntryForUrl } = await load();
 		const entry = findMenuEntryForUrl(
-			`${ ADMIN_URL }tools.php?open_station_chromeless=1`,
+			`${ ADMIN_URL }tools.php?openstation_chromeless=1`,
 		);
 		expect( entry?.id ).toBe( 'menu-tools' );
 	} );

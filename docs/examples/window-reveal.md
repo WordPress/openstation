@@ -371,7 +371,7 @@ wp.hooks.addFilter(
 ## Known limitation
 
 Registration is JS-only. There is no
-`open_station_register_window_reveal_script()` PHP companion yet, so a
+`openstation_register_window_reveal_script()` PHP companion yet, so a
 reveal shipped by a plugin the user activates mid-session shows up in
 the selector only after a page reload. Reveals from plugins that were
 already active work normally. The same gap applies to palettes.

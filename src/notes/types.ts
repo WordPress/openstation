@@ -1,7 +1,7 @@
 /**
  * OpenStation — Pinned notes types.
  *
- * The wire shape mirrors `open_station_notes_prepare()` in
+ * The wire shape mirrors `openstation_notes_prepare()` in
  * `includes/notes/rest.php`; the drag payload data shapes are the
  * cross-bundle contract between the Note Pad widget (its own IIFE
  * bundle) and the notes layer (main bundle). Only PLAIN DATA crosses
@@ -64,13 +64,13 @@ export interface NoteDragData {
 	[ key: string ]: unknown;
 }
 
-/** Heartbeat subscribe payload (`open_station_notes_subscribe`). */
+/** Heartbeat subscribe payload (`openstation_notes_subscribe`). */
 export interface NotesHeartbeatSubscribe {
 	knownIds: number[];
 	sinceMs: number;
 }
 
-/** Heartbeat response payload (`open_station_notes`). */
+/** Heartbeat response payload (`openstation_notes`). */
 export interface NotesHeartbeatPayload {
 	notes?: Note[];
 	removed?: number[];

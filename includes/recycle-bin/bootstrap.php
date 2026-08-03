@@ -10,12 +10,12 @@
  *
  * Public PHP surface (all filterable, all action-emitting):
  *
- *   - `open_station_recycle_bin_capture_post_types`
- *   - `open_station_recycle_bin_query_args`
- *   - `open_station_recycle_bin_items` / `open_station_recycle_bin_item`
- *   - `open_station_recycle_bin_user_can_view|restore|purge|use`
- *   - `open_station_recycle_bin_window_args` / `..._icon_args`
- *   - `open_station_recycle_bin_template_html`
+ *   - `openstation_recycle_bin_capture_post_types`
+ *   - `openstation_recycle_bin_query_args`
+ *   - `openstation_recycle_bin_items` / `openstation_recycle_bin_item`
+ *   - `openstation_recycle_bin_user_can_view|restore|purge|use`
+ *   - `openstation_recycle_bin_window_args` / `..._icon_args`
+ *   - `openstation_recycle_bin_template_html`
  *   - actions: `..._item_captured`, `..._before/after_restore`,
  *              `..._before/after_purge`, `..._emptied`
  *

@@ -30,10 +30,10 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'open_station_my_wordpress_post_type_group' );
-		remove_all_filters( 'open_station_my_wordpress_entities' );
-		remove_all_filters( 'open_station_my_wordpress_woo_order_bands' );
-		remove_all_filters( 'open_station_my_wordpress_woo_section_icons' );
+		remove_all_filters( 'openstation_my_wordpress_post_type_group' );
+		remove_all_filters( 'openstation_my_wordpress_entities' );
+		remove_all_filters( 'openstation_my_wordpress_woo_order_bands' );
+		remove_all_filters( 'openstation_my_wordpress_woo_section_icons' );
 		parent::tear_down();
 	}
 
@@ -42,12 +42,12 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	 * WooCommerce submenu entries, so they carry no `menu_icon` and
 	 * fall back to the generic post icon.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_entity_icon
+	 * @covers ::openstation_my_wordpress_woo_entity_icon
 	 */
 	public function test_woo_post_types_get_meaningful_icons() {
 		register_post_type( 'shop_coupon', array( 'public' => false, 'show_ui' => true ) );
 
-		$entity = open_station_my_wordpress_woo_entity_icon(
+		$entity = openstation_my_wordpress_woo_entity_icon(
 			array( 'icon' => 'dashicons-admin-post' ),
 			get_post_type_object( 'shop_coupon' )
 		);
@@ -64,17 +64,17 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	 * Products band by stock and category, both of which ride a custom
 	 * REST field that `_fields` would otherwise strip.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_entity_icon
+	 * @covers ::openstation_my_wordpress_woo_entity_icon
 	 */
 	public function test_products_declare_their_extra_list_field() {
 		register_post_type( 'product', array( 'public' => true, 'show_ui' => true ) );
 
-		$entity = open_station_my_wordpress_woo_entity_icon(
+		$entity = openstation_my_wordpress_woo_entity_icon(
 			array( 'icon' => 'dashicons-admin-post' ),
 			get_post_type_object( 'product' )
 		);
 
-		$this->assertSame( array( 'open_station_woo' ), $entity['listFields'] );
+		$this->assertSame( array( 'openstation_woo' ), $entity['listFields'] );
 		$this->assertSame( 'dashicons-products', $entity['icon'] );
 
 		unregister_post_type( 'product' );
@@ -83,12 +83,12 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	/**
 	 * Other post types pass through untouched.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_entity_icon
+	 * @covers ::openstation_my_wordpress_woo_entity_icon
 	 */
 	public function test_non_woo_types_keep_their_icon() {
 		register_post_type( 'dm_book', array( 'public' => true, 'show_ui' => true ) );
 
-		$entity = open_station_my_wordpress_woo_entity_icon(
+		$entity = openstation_my_wordpress_woo_entity_icon(
 			array( 'icon' => 'dashicons-book' ),
 			get_post_type_object( 'dm_book' )
 		);
@@ -100,26 +100,26 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_my_wordpress_woo_active
+	 * @covers ::openstation_my_wordpress_woo_active
 	 */
 	public function test_inert_without_woocommerce() {
-		$this->assertFalse( open_station_my_wordpress_woo_active() );
+		$this->assertFalse( openstation_my_wordpress_woo_active() );
 	}
 
 	/**
 	 * No WooCommerce means no Orders section — and, critically, no
 	 * fatal from calling `wc_get_orders()` on a site without it.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_entities
+	 * @covers ::openstation_my_wordpress_woo_entities
 	 */
 	public function test_no_orders_section_without_woocommerce() {
-		$ids = wp_list_pluck( open_station_my_wordpress_entities(), 'id' );
+		$ids = wp_list_pluck( openstation_my_wordpress_entities(), 'id' );
 
 		$this->assertNotContains( 'wc-orders', $ids );
 	}
 
 	/**
-	 * @covers ::open_station_my_wordpress_woo_register_routes
+	 * @covers ::openstation_my_wordpress_woo_register_routes
 	 */
 	public function test_no_routes_without_woocommerce() {
 		do_action( 'rest_api_init' );
@@ -130,11 +130,11 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_my_wordpress_woo_enqueue
+	 * @covers ::openstation_my_wordpress_woo_enqueue
 	 */
 	public function test_no_assets_enqueued_without_woocommerce() {
-		open_station_my_wordpress_woo_register_assets();
-		open_station_my_wordpress_woo_enqueue();
+		openstation_my_wordpress_woo_register_assets();
+		openstation_my_wordpress_woo_enqueue();
 
 		$this->assertFalse( wp_script_is( 'os-my-wordpress-woocommerce', 'enqueued' ) );
 		$this->assertFalse( wp_style_is( 'os-my-wordpress-woocommerce', 'enqueued' ) );
@@ -145,10 +145,10 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	 * folder is relabelled — and gets WooCommerce's own mark instead
 	 * of the generic plugin dashicon.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_group
+	 * @covers ::openstation_my_wordpress_woo_group
 	 */
 	public function test_group_is_relabelled_and_reiconed() {
-		$group = open_station_my_wordpress_woo_group(
+		$group = openstation_my_wordpress_woo_group(
 			array(
 				'id'    => 'plugin:woocommerce',
 				'label' => 'WooCommerce',
@@ -166,7 +166,7 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	/**
 	 * Other plugins' folders are left completely alone.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_group
+	 * @covers ::openstation_my_wordpress_woo_group
 	 */
 	public function test_group_ignores_other_plugins() {
 		$original = array(
@@ -178,9 +178,9 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 
 		$this->assertSame(
 			$original,
-			open_station_my_wordpress_woo_group( $original, 'acme_thing' )
+			openstation_my_wordpress_woo_group( $original, 'acme_thing' )
 		);
-		$this->assertNull( open_station_my_wordpress_woo_group( null, 'acme_thing' ) );
+		$this->assertNull( openstation_my_wordpress_woo_group( null, 'acme_thing' ) );
 	}
 
 	/**
@@ -189,23 +189,23 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	 * band ordering must only apply to the site window's own requests,
 	 * or a storefront's chosen sort is silently replaced by ours.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_is_banded_request
+	 * @covers ::openstation_my_wordpress_woo_is_banded_request
 	 */
 	public function test_band_ordering_only_claims_marked_requests() {
 		$marked = new WP_REST_Request( 'GET', '/wp/v2/product' );
-		$marked->set_param( OPEN_STATION_WOO_BANDED_PARAM, '1' );
+		$marked->set_param( OPENSTATION_WOO_BANDED_PARAM, '1' );
 		$this->assertTrue(
-			open_station_my_wordpress_woo_is_banded_request( $marked )
+			openstation_my_wordpress_woo_is_banded_request( $marked )
 		);
 
 		$plain = new WP_REST_Request( 'GET', '/wp/v2/product' );
 		$this->assertFalse(
-			open_station_my_wordpress_woo_is_banded_request( $plain ),
+			openstation_my_wordpress_woo_is_banded_request( $plain ),
 			'an unmarked request must keep its own ordering'
 		);
 
 		$this->assertFalse(
-			open_station_my_wordpress_woo_is_banded_request( null )
+			openstation_my_wordpress_woo_is_banded_request( null )
 		);
 	}
 
@@ -213,7 +213,7 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	 * An unmarked query is returned untouched — no `post__in`, no
 	 * `orderby` rewrite.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_order_products
+	 * @covers ::openstation_my_wordpress_woo_order_products
 	 */
 	public function test_unmarked_product_queries_are_untouched() {
 		$args    = array( 'orderby' => 'price', 'order' => 'ASC' );
@@ -221,7 +221,7 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 
 		$this->assertSame(
 			$args,
-			open_station_my_wordpress_woo_order_products( $args, $request )
+			openstation_my_wordpress_woo_order_products( $args, $request )
 		);
 	}
 
@@ -230,10 +230,10 @@ class Tests_OpenStation_MyWordpressWoocommerce extends WP_UnitTestCase {
 	 * it and the folder icon follows the desktop theme, rather than
 	 * being stuck on WooCommerce's hard-coded grey.
 	 *
-	 * @covers ::open_station_my_wordpress_woo_icon
+	 * @covers ::openstation_my_wordpress_woo_icon
 	 */
 	public function test_icon_is_tintable() {
-		$uri = open_station_my_wordpress_woo_icon();
+		$uri = openstation_my_wordpress_woo_icon();
 		$svg = base64_decode( substr( $uri, strlen( 'data:image/svg+xml;base64,' ) ) );
 
 		$this->assertStringContainsString( 'currentColor', $svg );

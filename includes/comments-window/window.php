@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Echoes the native Comments window's template body.
  */
-function open_station_comments_window_render_template() {
+function openstation_comments_window_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-comments os-comments--conversation" data-os-comments-root>
@@ -76,10 +76,10 @@ function open_station_comments_window_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_comments_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_comments_window_template_html', $html );
 
-	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
-		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -88,8 +88,8 @@ function open_station_comments_window_render_template() {
 /**
  * Register the native Comments window on `init` (priority 20).
  */
-function open_station_comments_window_register_window() {
-	if ( ! open_station_comments_window_user_can_register() ) {
+function openstation_comments_window_register_window() {
+	if ( ! openstation_comments_window_user_can_register() ) {
 		return;
 	}
 
@@ -98,7 +98,7 @@ function open_station_comments_window_register_window() {
 	$window_args = array(
 		'title'      => __( 'Comments', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-comments',
-		'template'   => 'open_station_comments_window_render_template',
+		'template'   => 'openstation_comments_window_render_template',
 		'script'     => 'os-comments-window',
 		'style'      => 'os-comments-window',
 		'width'      => 1180,
@@ -114,8 +114,8 @@ function open_station_comments_window_register_window() {
 			'commentsUrl'       => esc_url_raw( rest_url( 'wp/v2/comments' ) ),
 			'currentUserId'     => $viewer_id,
 			'defaultPerPage'    => 20,
-			'queryArgs'         => open_station_comments_window_default_query_args(),
-			'introSeen'         => open_station_has_seen_intro( $viewer_id, 'comments' ),
+			'queryArgs'         => openstation_comments_window_default_query_args(),
+			'introSeen'         => openstation_has_seen_intro( $viewer_id, 'comments' ),
 			'introUrl'          => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 
 			// Capability flags surfaced to the JS — UI hides actions
@@ -136,8 +136,8 @@ function open_station_comments_window_register_window() {
 			// intro dialog can branch on it without a separate fetch.
 			// Cap-gated mirror of what the REST endpoint would return.
 			'aiModeration'      => array(
-				'enabled'            => open_station_comments_ai_is_enabled(),
-				'providerConfigured' => open_station_comments_ai_provider_configured(),
+				'enabled'            => openstation_comments_ai_is_enabled(),
+				'providerConfigured' => openstation_comments_ai_provider_configured(),
 				'canManage'          => current_user_can( 'manage_options' ),
 			),
 
@@ -152,7 +152,7 @@ function open_station_comments_window_register_window() {
 				 * @param string $editor   Editor flavor slug.
 				 * @param int    $viewer_id Current user id.
 				 */
-				'open_station_comments_window_reply_editor',
+				'openstation_comments_window_reply_editor',
 				'rich',
 				$viewer_id
 			),
@@ -162,24 +162,24 @@ function open_station_comments_window_register_window() {
 	/**
 	 * Filter the args used to register the native Comments window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_comments_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_comments_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-comments', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-comments', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Native Comments window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'open_station_comments_window_register_window', 20 );
+add_action( 'init', 'openstation_comments_window_register_window', 20 );
 
 /**
  * Default REST query args for the Comments window.
  *
  * @return array
  */
-function open_station_comments_window_default_query_args() {
+function openstation_comments_window_default_query_args() {
 	// `context=edit` on `wp/v2/comments` requires `moderate_comments`
 	// — sending it as an author-without-moderate-cap 401s the entire
 	// list. Stick to `view` (every authenticated user can read it) and
@@ -190,8 +190,8 @@ function open_station_comments_window_default_query_args() {
 	$args = array(
 		/*
 		 * Exactly the fields the conversation view renders — no more.
-		 * Every `open_station_*` field is a computed REST field, and
-		 * `open_station_replies_count` runs its own `get_comments()`
+		 * Every `openstation_*` field is a computed REST field, and
+		 * `openstation_replies_count` runs its own `get_comments()`
 		 * COUNT per row, so an over-broad `_fields` is a per-row query
 		 * multiplier. The scoring fields (`spam_score`, `link_count`,
 		 * `akismet`, `ai_verdict`) are NOT requested here: nothing in
@@ -202,9 +202,9 @@ function open_station_comments_window_default_query_args() {
 		'_fields'  =>
 			'id,post,parent,author,author_name,author_avatar_urls,'
 			. 'date_gmt,content,status,'
-			. 'open_station_post_title,open_station_post_link,'
-			. 'open_station_can_edit,open_station_can_moderate,'
-			. 'open_station_replies_count',
+			. 'openstation_post_title,openstation_post_link,'
+			. 'openstation_can_edit,openstation_can_moderate,'
+			. 'openstation_replies_count',
 		'context'  => $context,
 		'per_page' => 20,
 		// 'hold' = pending. Use the wp/v2 status names where they differ
@@ -217,7 +217,7 @@ function open_station_comments_window_default_query_args() {
 	 *
 	 * @param array $args Default args.
 	 */
-	return (array) apply_filters( 'open_station_comments_window_query_args', $args );
+	return (array) apply_filters( 'openstation_comments_window_query_args', $args );
 }
 
 /**
@@ -226,10 +226,10 @@ function open_station_comments_window_default_query_args() {
  * Fields are computed lazily — none of them runs unless the bundle
  * explicitly requests them via `_fields`.
  */
-function open_station_comments_window_register_rest_fields() {
+function openstation_comments_window_register_rest_fields() {
 	register_rest_field(
 		'comment',
-		'open_station_post_title',
+		'openstation_post_title',
 		array(
 			'get_callback' => static function ( $row ) {
 				$post_id = isset( $row['post'] ) ? (int) $row['post'] : 0;
@@ -250,7 +250,7 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_post_link',
+		'openstation_post_link',
 		array(
 			'get_callback' => static function ( $row ) {
 				$post_id = isset( $row['post'] ) ? (int) $row['post'] : 0;
@@ -271,14 +271,14 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_spam_score',
+		'openstation_spam_score',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
 				if ( $id <= 0 ) {
 					return 0;
 				}
-				return (int) open_station_comments_window_spam_score( $id );
+				return (int) openstation_comments_window_spam_score( $id );
 			},
 			'schema'       => array(
 				'description' => __( 'Spam confidence score, 0–100.', 'desktop-mode' ),
@@ -293,7 +293,7 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_link_count',
+		'openstation_link_count',
 		array(
 			'get_callback' => static function ( $row ) {
 				$content = isset( $row['content']['raw'] )
@@ -313,7 +313,7 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_can_edit',
+		'openstation_can_edit',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -330,7 +330,7 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_can_moderate',
+		'openstation_can_moderate',
 		array(
 			'get_callback' => static function () {
 				return current_user_can( 'moderate_comments' );
@@ -346,7 +346,7 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_replies_count',
+		'openstation_replies_count',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -373,14 +373,14 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_ai_verdict',
+		'openstation_ai_verdict',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
-				if ( $id <= 0 || ! function_exists( 'open_station_ai_get_meta' ) ) {
+				if ( $id <= 0 || ! function_exists( 'openstation_ai_get_meta' ) ) {
 					return null;
 				}
-				$meta = open_station_ai_get_meta( 'comment', $id );
+				$meta = openstation_ai_get_meta( 'comment', $id );
 				if ( ! is_array( $meta ) ) {
 					return null;
 				}
@@ -403,7 +403,7 @@ function open_station_comments_window_register_rest_fields() {
 
 	register_rest_field(
 		'comment',
-		'open_station_akismet',
+		'openstation_akismet',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -425,4 +425,4 @@ function open_station_comments_window_register_rest_fields() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_comments_window_register_rest_fields' );
+add_action( 'rest_api_init', 'openstation_comments_window_register_rest_fields' );

@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * open_station_register_game( 'inkfall', array(
+ * openstation_register_game( 'inkfall', array(
  *     'title'         => __( 'Inkfall', 'desktop-mode' ),
  *     'description'   => __( 'Type the falling words.', 'desktop-mode' ),
  *     'icon_svg'      => '<svg …>…</svg>',
@@ -79,11 +79,11 @@ defined( 'ABSPATH' ) || exit;
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
-function open_station_register_game( $id, $args = array() ) {
+function openstation_register_game( $id, $args = array() ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
-		return open_station_registration_error(
-			'open_station_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Game id is required and must be a valid slug.', 'desktop-mode' )
 		);
 	}
@@ -106,15 +106,15 @@ function open_station_register_game( $id, $args = array() ) {
 		// consumed via `<img src=…>` (which sandboxes SVG scripts),
 		// but reject script tags outright anyway.
 		if ( false !== stripos( $svg, '<script' ) ) {
-			return open_station_registration_error(
-				'open_station_invalid_icon_svg',
+			return openstation_registration_error(
+				'openstation_invalid_icon_svg',
 				__( 'Game `icon_svg` must not contain a <script> tag.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
 		}
 		if ( 0 !== stripos( ltrim( $svg ), '<svg' ) ) {
-			return open_station_registration_error(
-				'open_station_invalid_icon_svg',
+			return openstation_registration_error(
+				'openstation_invalid_icon_svg',
 				__( 'Game `icon_svg` must start with a <svg> root element.', 'desktop-mode' ),
 				array( 'id' => $id )
 			);
@@ -124,8 +124,8 @@ function open_station_register_game( $id, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return open_station_registration_error(
-				'open_station_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this game.', 'desktop-mode' ),
@@ -137,15 +137,15 @@ function open_station_register_game( $id, $args = array() ) {
 	}
 
 	if ( '' === (string) $args['title'] ) {
-		return open_station_registration_error(
-			'open_station_missing_title',
+		return openstation_registration_error(
+			'openstation_missing_title',
 			__( 'Game registration requires a non-empty `title`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( '' === (string) $args['script'] ) {
-		return open_station_registration_error(
-			'open_station_missing_script',
+		return openstation_registration_error(
+			'openstation_missing_script',
 			__( 'Game registration requires a `script` handle that publishes the game def.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -155,23 +155,23 @@ function open_station_register_game( $id, $args = array() ) {
 		'id'            => $id,
 		'title'         => (string) $args['title'],
 		'description'   => sanitize_textarea_field( (string) $args['description'] ),
-		'icon'          => open_station_sanitize_dock_icon( (string) $args['icon'] ),
+		'icon'          => openstation_sanitize_dock_icon( (string) $args['icon'] ),
 		'script'        => (string) $args['script'],
-		'score_columns' => open_station_games_sanitize_score_columns( $args['score_columns'] ),
+		'score_columns' => openstation_games_sanitize_score_columns( $args['score_columns'] ),
 		'config'        => is_array( $args['config'] ) ? $args['config'] : array(),
 	);
-	open_station_games_registry( $id, $entry );
+	openstation_games_registry( $id, $entry );
 
 	/**
 	 * Fires after a desktop game is successfully registered.
 	 *
-	 * Does NOT fire when `open_station_register_game()` returns a
+	 * Does NOT fire when `openstation_register_game()` returns a
 	 * `WP_Error`.
 	 *
 	 * @param string $id    The game id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'open_station_game_registered', $id, $entry );
+	do_action( 'openstation_game_registered', $id, $entry );
 
 	return true;
 }
@@ -186,7 +186,7 @@ function open_station_register_game( $id, $args = array() ) {
  * @param mixed $columns Raw caller input.
  * @return array[] Sanitized `{ key, label, type }` rows.
  */
-function open_station_games_sanitize_score_columns( $columns ) {
+function openstation_games_sanitize_score_columns( $columns ) {
 	if ( ! is_array( $columns ) ) {
 		return array();
 	}
@@ -215,12 +215,12 @@ function open_station_games_sanitize_score_columns( $columns ) {
 
 /**
  * Internal module-level registry for games registered via
- * {@see open_station_register_game()}. Same static-store pattern as
+ * {@see openstation_register_game()}. Same static-store pattern as
  * the widget + wallpaper + native-window registries.
  *
  * @internal
  */
-function open_station_games_registry( $id = '', $entry = null ) {
+function openstation_games_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -243,24 +243,24 @@ function open_station_games_registry( $id = '', $entry = null ) {
  * @param string $id Game id.
  * @return bool Whether an entry was removed.
  */
-function open_station_unregister_game( $id ) {
+function openstation_unregister_game( $id ) {
 	$id = sanitize_key( (string) $id );
-	if ( '' === $id || null === open_station_games_registry( $id ) ) {
+	if ( '' === $id || null === openstation_games_registry( $id ) ) {
 		return false;
 	}
-	open_station_games_registry( $id, '__unset__' );
+	openstation_games_registry( $id, '__unset__' );
 	return true;
 }
 
 /**
- * The registered game entries with the `open_station_games` filter
+ * The registered game entries with the `openstation_games` filter
  * applied. This is the read path everything else (payload, REST
  * validation) goes through, so filter-registered games validate.
  *
  * @return array[] Entries keyed by game id.
  */
-function open_station_games_get_registered() {
-	$registry = open_station_games_registry();
+function openstation_games_get_registered() {
+	$registry = openstation_games_registry();
 
 	/**
 	 * Filters the server-declared game list. Mirrors the JS-side
@@ -270,7 +270,7 @@ function open_station_games_get_registered() {
 	 *
 	 * @param array[] $registry The registered game entries, keyed by id.
 	 */
-	$registry = apply_filters( 'open_station_games', $registry );
+	$registry = apply_filters( 'openstation_games', $registry );
 
 	return is_array( $registry ) ? $registry : array();
 }
@@ -282,12 +282,12 @@ function open_station_games_get_registered() {
  * @param string $id Game id.
  * @return bool
  */
-function open_station_games_is_registered( $id ) {
+function openstation_games_is_registered( $id ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
 		return false;
 	}
-	$registry = open_station_games_get_registered();
+	$registry = openstation_games_get_registered();
 	if ( isset( $registry[ $id ] ) ) {
 		return true;
 	}
@@ -308,13 +308,13 @@ function open_station_games_is_registered( $id ) {
  *
  * @return array[]
  */
-function open_station_build_desktop_games_payload() {
+function openstation_build_desktop_games_payload() {
 	// The module doesn't load when the framework is disabled, so this
 	// only guards a mid-request flip (the admin just saved the toggle).
-	if ( ! open_station_games_enabled() ) {
+	if ( ! openstation_games_enabled() ) {
 		return array();
 	}
-	$registry = open_station_games_get_registered();
+	$registry = openstation_games_get_registered();
 	if ( empty( $registry ) ) {
 		return array();
 	}
@@ -324,7 +324,7 @@ function open_station_build_desktop_games_payload() {
 			continue;
 		}
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
-		$payload = open_station_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		$out[]   = array(
 			'id'                 => (string) $entry['id'],
 			'title'              => isset( $entry['title'] ) ? (string) $entry['title'] : '',
@@ -343,7 +343,7 @@ function open_station_build_desktop_games_payload() {
 				)
 				: array(),
 			'config'             => array_merge(
-				open_station_games_framework_config(),
+				openstation_games_framework_config(),
 				isset( $entry['config'] ) && is_array( $entry['config'] ) ? $entry['config'] : array()
 			),
 			'scriptUrl'          => $payload['url'],

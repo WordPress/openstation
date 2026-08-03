@@ -23,29 +23,29 @@ defined( 'ABSPATH' ) || exit;
  * @param array $data     Client-sent payload.
  * @return array
  */
-function open_station_notes_heartbeat_received( $response, $data ) {
+function openstation_notes_heartbeat_received( $response, $data ) {
 	if ( ! is_array( $response ) ) {
 		$response = array();
 	}
-	if ( empty( $data['open_station_notes_subscribe'] ) || ! is_array( $data['open_station_notes_subscribe'] ) ) {
+	if ( empty( $data['openstation_notes_subscribe'] ) || ! is_array( $data['openstation_notes_subscribe'] ) ) {
 		return $response;
 	}
-	if ( ! function_exists( 'open_station_is_enabled' ) || ! open_station_is_enabled() ) {
+	if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
 		return $response;
 	}
 
-	$sub       = $data['open_station_notes_subscribe'];
+	$sub       = $data['openstation_notes_subscribe'];
 	$known_ids = isset( $sub['knownIds'] ) && is_array( $sub['knownIds'] )
 		? array_values( array_unique( array_filter( array_map( 'absint', $sub['knownIds'] ) ) ) )
 		: array();
 	$known_ids = array_slice( $known_ids, 0, 500 );
 	$since_ms  = isset( $sub['sinceMs'] ) ? max( 0, (int) $sub['sinceMs'] ) : 0;
 
-	$response['open_station_notes'] = open_station_notes_compute_heartbeat_delta( $known_ids, $since_ms, 100 );
+	$response['openstation_notes'] = openstation_notes_compute_heartbeat_delta( $known_ids, $since_ms, 100 );
 
 	return $response;
 }
-add_filter( 'heartbeat_received', 'open_station_notes_heartbeat_received', 5, 2 );
+add_filter( 'heartbeat_received', 'openstation_notes_heartbeat_received', 5, 2 );
 
 /**
  * Compute pinned-note Heartbeat deltas for the current user.
@@ -55,9 +55,9 @@ add_filter( 'heartbeat_received', 'open_station_notes_heartbeat_received', 5, 2 
  * @param int   $cap       Maximum notes to send in one tick.
  * @return array
  */
-function open_station_notes_compute_heartbeat_delta( $known_ids, $since_ms, $cap ) {
+function openstation_notes_compute_heartbeat_delta( $known_ids, $since_ms, $cap ) {
 	$cap       = max( 1, (int) $cap );
-	$query_ids = open_station_notes_query_changed_ids( $since_ms, $cap + 1 );
+	$query_ids = openstation_notes_query_changed_ids( $since_ms, $cap + 1 );
 	$truncated = count( $query_ids ) > $cap;
 	if ( $truncated ) {
 		$query_ids = array_slice( $query_ids, 0, $cap );
@@ -67,11 +67,11 @@ function open_station_notes_compute_heartbeat_delta( $known_ids, $since_ms, $cap
 	foreach ( $query_ids as $post_id ) {
 		$post = get_post( $post_id );
 		if ( $post instanceof WP_Post ) {
-			$notes[] = open_station_notes_prepare( $post );
+			$notes[] = openstation_notes_prepare( $post );
 		}
 	}
 
-	$alive_ids = open_station_notes_alive_known_ids( $known_ids );
+	$alive_ids = openstation_notes_alive_known_ids( $known_ids );
 	$removed   = array_values( array_diff( array_map( 'intval', $known_ids ), $alive_ids ) );
 
 	return array(
@@ -92,10 +92,10 @@ function open_station_notes_compute_heartbeat_delta( $known_ids, $since_ms, $cap
  * @param array $extra Extra WP_Query args merged into both halves.
  * @return int[] Matching post ids, own notes first.
  */
-function open_station_notes_query_visible_ids( $extra ) {
+function openstation_notes_query_visible_ids( $extra ) {
 	$user_id = get_current_user_id();
 	$base    = array(
-		'post_type'     => OPEN_STATION_NOTES_POST_TYPE,
+		'post_type'     => OPENSTATION_NOTES_POST_TYPE,
 		'fields'        => 'ids',
 		'no_found_rows' => true,
 	);
@@ -135,7 +135,7 @@ function open_station_notes_query_visible_ids( $extra ) {
  * @param int $limit    Max ids to return (per visibility half).
  * @return int[]
  */
-function open_station_notes_query_changed_ids( $since_ms, $limit ) {
+function openstation_notes_query_changed_ids( $since_ms, $limit ) {
 	$extra = array(
 		'posts_per_page' => max( 1, (int) $limit ),
 		'orderby'        => 'modified',
@@ -150,7 +150,7 @@ function open_station_notes_query_changed_ids( $since_ms, $limit ) {
 			),
 		);
 	}
-	return open_station_notes_query_visible_ids( $extra );
+	return openstation_notes_query_visible_ids( $extra );
 }
 
 /**
@@ -159,12 +159,12 @@ function open_station_notes_query_changed_ids( $since_ms, $limit ) {
  * @param int[] $known_ids Client-known note ids.
  * @return int[]
  */
-function open_station_notes_alive_known_ids( $known_ids ) {
+function openstation_notes_alive_known_ids( $known_ids ) {
 	$known_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $known_ids ) ) ) );
 	if ( empty( $known_ids ) ) {
 		return array();
 	}
-	return open_station_notes_query_visible_ids(
+	return openstation_notes_query_visible_ids(
 		array(
 			'post__in'       => $known_ids,
 			'posts_per_page' => count( $known_ids ),

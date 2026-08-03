@@ -174,8 +174,8 @@ export async function fetchComments(
  * Fields the conversation pane actually renders for a thread message.
  *
  * Narrower than the window's default `_fields`: the rail needs
- * `open_station_replies_count` (one `get_comments()` COUNT per row) and
- * `open_station_post_title`, a thread message does not. At up to 100
+ * `openstation_replies_count` (one `get_comments()` COUNT per row) and
+ * `openstation_post_title`, a thread message does not. At up to 100
  * rows per thread that per-row cost is the difference between one
  * cheap query and a hundred.
  */
@@ -189,10 +189,10 @@ const THREAD_FIELDS = [
 	'date_gmt',
 	'content',
 	'status',
-	'open_station_post_title',
-	'open_station_post_link',
-	'open_station_can_edit',
-	'open_station_can_moderate',
+	'openstation_post_title',
+	'openstation_post_link',
+	'openstation_can_edit',
+	'openstation_can_moderate',
 ].join( ',' );
 
 /**

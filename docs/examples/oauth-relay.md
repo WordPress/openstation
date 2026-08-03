@@ -10,7 +10,7 @@ The framework ships a relay that owns those five steps. Plugins declare only wha
 
 ```php
 add_action( 'init', function () {
-    open_station_register_oauth_relay( 'tumblrlike', array(
+    openstation_register_oauth_relay( 'tumblrlike', array(
         'authorize_url' => 'https://www.example.com/oauth2/authorize',
         'token_url'     => 'https://api.example.com/oauth2/token',
         'client_id'     => MYPLUGIN_CLIENT_ID,
@@ -24,7 +24,7 @@ add_action( 'init', function () {
 } );
 ```
 
-Need to undo it? `open_station_unregister_oauth_relay( $service )` removes a previously registered relay — the mirror of `open_station_register_oauth_relay()`, handy for plugins that register conditionally and for PHPUnit teardowns.
+Need to undo it? `openstation_unregister_oauth_relay( $service )` removes a previously registered relay — the mirror of `openstation_register_oauth_relay()`, handy for plugins that register conditionally and for PHPUnit teardowns.
 
 ## Start the flow (JavaScript)
 
@@ -64,9 +64,9 @@ document.getElementById( 'connect-button' )
 
 | Hook | Type | Payload | Use |
 |---|---|---|---|
-| `open_station_oauth_relay_registered` | action | `( string $service, array $entry )` *(secrets redacted)* | Observability — log every relay that gets wired up. |
-| `open_station_oauth_relay_connected` | action | `( string $service, int $user_id )` | Refresh badges, surface a "connected" toast in sibling windows via the activity bus. |
-| `open_station_oauth_authorize_query` | filter | `( array $query, string $service, array $entry )` | Inject service-specific extras like `access_type=offline`, `prompt=consent`, etc. |
+| `openstation_oauth_relay_registered` | action | `( string $service, array $entry )` *(secrets redacted)* | Observability — log every relay that gets wired up. |
+| `openstation_oauth_relay_connected` | action | `( string $service, int $user_id )` | Refresh badges, surface a "connected" toast in sibling windows via the activity bus. |
+| `openstation_oauth_authorize_query` | filter | `( array $query, string $service, array $entry )` | Inject service-specific extras like `access_type=offline`, `prompt=consent`, etc. |
 
 ## Failure paths and `reason` codes
 
@@ -87,19 +87,19 @@ The `payload.reason` discriminator lets your client-side code branch on what wen
 Default: any logged-in user can start a relay. Pass `capabilities` to require specific caps:
 
 ```php
-open_station_register_oauth_relay( 'admin-only-service', array(
+openstation_register_oauth_relay( 'admin-only-service', array(
     /* … URLs and creds … */
     'capabilities' => array( 'manage_options' ),
 ) );
 ```
 
-A user without the cap who tries to start the flow gets a `open_station_oauth_capability_denied` REST error and the popup never opens.
+A user without the cap who tries to start the flow gets a `openstation_oauth_capability_denied` REST error and the popup never opens.
 
 ## Security notes
 
 - **State nonces are single-use.** The first successful `consume_state` deletes the transient — a replay with the same state fails.
 - **Origin check on the listener.** The opener-side listener only honours `postMessage` events whose `origin === window.location.origin`. A malicious cross-origin tab that knows the user's state can't impersonate the callback page.
-- **Secrets stay server-side.** `client_secret` is never passed to the client — the token exchange runs entirely in the REST callback. The redaction also applies to the `open_station_oauth_relay_registered` action payload so observability logs don't leak credentials.
+- **Secrets stay server-side.** `client_secret` is never passed to the client — the token exchange runs entirely in the REST callback. The redaction also applies to the `openstation_oauth_relay_registered` action payload so observability logs don't leak credentials.
 - **Capabilities are checked on the start endpoint**, NOT on the callback. The callback's gate is the state nonce — which only the user who started the flow has.
 
 ## See also

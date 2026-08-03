@@ -309,7 +309,7 @@ export function renderGamesHub( body: HTMLElement ): ( () => void ) | void {
 			empty.setAttribute( 'heading', __( 'No games installed' ) );
 			empty.setAttribute(
 				'description',
-				__( 'Plugins can add games with open_station_register_game().' ),
+				__( 'Plugins can add games with openstation_register_game().' ),
 			);
 			grid.appendChild( empty );
 			disposeDetail();

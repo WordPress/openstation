@@ -4,7 +4,7 @@
  *
  * Mirrors the command-script / title-bar-button-script registration
  * pattern: minimum-ceremony PHP opt-in
- * (`open_station_register_unfocus_effect_script`) tells the shell which
+ * (`openstation_register_unfocus_effect_script`) tells the shell which
  * enqueued scripts contribute unfocus effects. The shell injects the
  * script URL into the live-refresh payload so a plugin activated
  * mid-session surfaces its effect in OS Settings → Effects immediately,
@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  *     );
  *     wp_enqueue_script( 'my-plugin-effects' );
  * } );
- * open_station_register_unfocus_effect_script( 'my-plugin-effects' );
+ * openstation_register_unfocus_effect_script( 'my-plugin-effects' );
  * ```
  *
  * For live unregistration on deactivation, the plugin's JS should set
@@ -48,23 +48,23 @@ defined( 'ABSPATH' ) || exit;
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function open_station_register_unfocus_effect_script( $handle ) {
+function openstation_register_unfocus_effect_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return open_station_registration_error(
-			'open_station_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Unfocus effect script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	open_station_desktop_unfocus_effect_script_registry( $handle, true );
+	openstation_desktop_unfocus_effect_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop unfocus-effect script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'open_station_unfocus_effect_script_registered', $handle );
+	do_action( 'openstation_unfocus_effect_script_registered', $handle );
 
 	return true;
 }
@@ -78,7 +78,7 @@ function open_station_register_unfocus_effect_script( $handle ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function open_station_desktop_unfocus_effect_script_registry( $handle = '', $value = null ) {
+function openstation_desktop_unfocus_effect_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -96,10 +96,10 @@ function open_station_desktop_unfocus_effect_script_registry( $handle = '', $val
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see open_station_flush_script_handle_registries()}.
+ * {@see openstation_flush_script_handle_registries()}.
  */
-function open_station_flush_desktop_unfocus_effect_script_registry() {
-	open_station_desktop_unfocus_effect_script_registry( '__flush__' );
+function openstation_flush_desktop_unfocus_effect_script_registry() {
+	openstation_desktop_unfocus_effect_script_registry( '__flush__' );
 }
 
 /**
@@ -108,8 +108,8 @@ function open_station_flush_desktop_unfocus_effect_script_registry() {
  *
  * @return array[] List of `{ handle, scriptUrl, … }` entries.
  */
-function open_station_build_desktop_unfocus_effect_scripts_payload() {
-	$registry = open_station_desktop_unfocus_effect_script_registry();
+function openstation_build_desktop_unfocus_effect_scripts_payload() {
+	$registry = openstation_desktop_unfocus_effect_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -120,13 +120,13 @@ function open_station_build_desktop_unfocus_effect_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = open_station_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
 			// Loud diagnostic — visible under WP_DEBUG. Deduped by
-			// `open_station_warn_unresolvable_script_handle` so the
+			// `openstation_warn_unresolvable_script_handle` so the
 			// notice fires once per handle per request.
-			open_station_warn_unresolvable_script_handle(
-				'open_station_register_unfocus_effect_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_unfocus_effect_script',
 				'Unfocus effect',
 				(string) $handle
 			);

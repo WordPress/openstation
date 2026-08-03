@@ -6,11 +6,11 @@
  * so they never affect the classic admin or the desktop shell.
  *
  * Plugin and theme developers: to add your own chromeless overrides,
- * enqueue a stylesheet on the 'open_station_chromeless_styles' action.
+ * enqueue a stylesheet on the 'openstation_chromeless_styles' action.
  * Your CSS just needs to target .os-chromeless as the body class.
  *
  * Example:
- *   add_action( 'open_station_chromeless_styles', function() {
+ *   add_action( 'openstation_chromeless_styles', function() {
  *       wp_enqueue_style( 'my-plugin-chromeless', plugin_dir_url( __FILE__ ) . 'chromeless.css' );
  *   } );
  *
@@ -168,7 +168,7 @@ html.wp-toolbar:has( body.os-chromeless ) {
  * entirely.
  *
  * Sites that prefer the cleaner Core-page look can hide the button
- * on specific pages via the `open_station_chromeless_styles`
+ * on specific pages via the `openstation_chromeless_styles`
  * action — e.g.:
  *
  *     body.edit-php .wrap > .page-title-action { display: none; }
@@ -189,7 +189,7 @@ html.wp-toolbar:has( body.os-chromeless ) {
  * any adjacent inline content like the `.subsubsub` filter row).
  *
  * Themes.php's native "Add Theme" button lives in the submenu tab
- * strip via `open_station_inject_appearance_tabs`
+ * strip via `openstation_inject_appearance_tabs`
  * (includes/themes-tabs.php), so its in-page page-title-action is
  * redundant on that one screen — keep the per-page hide rule below
  * so we don't ship two "Add Theme" entry points.
@@ -298,7 +298,7 @@ html.wp-toolbar:has( body.os-chromeless ) {
  * was permanently stealing the one-time orientation tour from every
  * user who never got to see it. Modal's focus trap is Tab-only and
  * doesn't fight the shell. Let it run. (See git history for the
- * removed `open_station_chromeless_editor_preferences` override.)
+ * removed `openstation_chromeless_editor_preferences` override.)
  * --------------------------------------------------------------- */
 .os-chromeless .edit-post-fullscreen-mode-close,
 .os-chromeless .edit-post-fullscreen-mode-close__view-mode-toggle,
@@ -434,7 +434,7 @@ html.wp-toolbar:has( body.os-chromeless ) {
  * Update nag
  * Core's global update / maintenance nags are detached server-side
  * inside chromeless iframes (see
- * `open_station_chromeless_suppress_update_nags()`) and re-surfaced
+ * `openstation_chromeless_suppress_update_nags()`) and re-surfaced
  * once by the shell as a single notice.
  * --------------------------------------------------------------- */
 .os-chromeless .update-nag {

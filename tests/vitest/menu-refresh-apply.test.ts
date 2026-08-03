@@ -221,10 +221,10 @@ describe( 'menu-refresh-apply.createApplyPayload', () => {
 
 	// THE PRIMARY REGRESSION GUARD.
 	//
-	// `desktopIcons` is in the PHP payload (`open_station_build_menu_payload`)
+	// `desktopIcons` is in the PHP payload (`openstation_build_menu_payload`)
 	// and was rendered at boot, but the live applier never read it —
 	// so a plugin that registered a wallpaper icon via
-	// `open_station_register_icon()` only appeared after F5 and likewise
+	// `openstation_register_icon()` only appeared after F5 and likewise
 	// stayed on the wallpaper after deactivation. This test pins both
 	// halves of the contract.
 	describe( 'desktopIcons live-refresh (regression)', () => {

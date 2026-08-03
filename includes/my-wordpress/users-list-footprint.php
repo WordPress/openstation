@@ -31,14 +31,14 @@ defined( 'ABSPATH' ) || exit;
  *
  * Hooked on `user_row_actions`. Returns the actions unchanged outside
  * a chromeless request, for an invalid user object, or when the
- * `open_station_user_footprint_row_action` filter opts the row out.
+ * `openstation_user_footprint_row_action` filter opts the row out.
  *
  * @param string[] $actions     Row action links keyed by slug.
  * @param WP_User  $user_object The user the row represents.
  * @return string[] Filtered row actions.
  */
-function open_station_user_footprint_row_action( $actions, $user_object ) {
-	if ( ! open_station_is_chromeless_request() ) {
+function openstation_user_footprint_row_action( $actions, $user_object ) {
+	if ( ! openstation_is_chromeless_request() ) {
 		return $actions;
 	}
 
@@ -60,7 +60,7 @@ function open_station_user_footprint_row_action( $actions, $user_object ) {
 	 * @param bool    $show        Whether to show the action. Default true.
 	 * @param WP_User $user_object The user the row represents.
 	 */
-	if ( ! apply_filters( 'open_station_user_footprint_row_action', true, $user_object ) ) {
+	if ( ! apply_filters( 'openstation_user_footprint_row_action', true, $user_object ) ) {
 		return $actions;
 	}
 
@@ -82,4 +82,4 @@ function open_station_user_footprint_row_action( $actions, $user_object ) {
 
 	return $actions;
 }
-add_filter( 'user_row_actions', 'open_station_user_footprint_row_action', 10, 2 );
+add_filter( 'user_row_actions', 'openstation_user_footprint_row_action', 10, 2 );

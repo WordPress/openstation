@@ -50,8 +50,8 @@
  * ```
  */
 
-const NODE_KEY_PROP = '__open_stationKeyedListKey';
-const NODE_DATA_PROP = '__open_stationKeyedListData';
+const NODE_KEY_PROP = '__openstationKeyedListKey';
+const NODE_DATA_PROP = '__openstationKeyedListData';
 
 export interface KeyedListOptions< T > {
 	/**
@@ -102,13 +102,13 @@ interface HostState {
  * the same module don't share indices.
  */
 function getHostState( host: HTMLElement ): HostState {
-	const cached = ( host as unknown as { __open_stationKeyedList?: HostState } )
-		.__open_stationKeyedList;
+	const cached = ( host as unknown as { __openstationKeyedList?: HostState } )
+		.__openstationKeyedList;
 	if ( cached ) {
 		return cached;
 	}
 	const fresh: HostState = { byKey: new Map() };
-	( host as unknown as { __open_stationKeyedList?: HostState } ).__open_stationKeyedList =
+	( host as unknown as { __openstationKeyedList?: HostState } ).__openstationKeyedList =
 		fresh;
 	return fresh;
 }
@@ -210,8 +210,8 @@ export function renderKeyedList< T >(
  * @public
  */
 export function clearKeyedList( host: HTMLElement ): void {
-	const cached = ( host as unknown as { __open_stationKeyedList?: HostState } )
-		.__open_stationKeyedList;
+	const cached = ( host as unknown as { __openstationKeyedList?: HostState } )
+		.__openstationKeyedList;
 	if ( ! cached ) {
 		return;
 	}
@@ -219,6 +219,6 @@ export function clearKeyedList( host: HTMLElement ): void {
 		entry.el.remove();
 	}
 	cached.byKey.clear();
-	delete ( host as unknown as { __open_stationKeyedList?: HostState } )
-		.__open_stationKeyedList;
+	delete ( host as unknown as { __openstationKeyedList?: HostState } )
+		.__openstationKeyedList;
 }

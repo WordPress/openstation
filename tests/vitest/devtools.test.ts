@@ -377,7 +377,7 @@ describe( 'devtools.debug', () => {
 
 	test( 'poll URL includes subscribed channels (regression: empty drains)', async () => {
 		// Server-side drain returns `{ events: [] }` when no channels
-		// are passed and no `open_station_debug_channels` filter
+		// are passed and no `openstation_debug_channels` filter
 		// contributor exists. The poll URL must therefore stamp every
 		// active subscription channel as `channels[]=…` so the server
 		// has the full set to walk. Regression for a real silent-fail

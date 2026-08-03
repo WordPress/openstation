@@ -21,19 +21,19 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 
 	public function set_up() {
 		parent::set_up();
-		open_station_files_install_schema();
+		openstation_files_install_schema();
 		wp_set_current_user( self::$admin_id );
-		remove_all_filters( 'open_station_resolve_favicon' );
+		remove_all_filters( 'openstation_resolve_favicon' );
 		remove_all_filters( 'pre_http_request' );
 	}
 
 	public function tear_down() {
 		global $wpdb;
-		$tables = open_station_files_table_names();
+		$tables = openstation_files_table_names();
 		foreach ( $tables as $t ) {
 			$wpdb->query( "TRUNCATE TABLE $t" );
 		}
-		remove_all_filters( 'open_station_resolve_favicon' );
+		remove_all_filters( 'openstation_resolve_favicon' );
 		remove_all_filters( 'pre_http_request' );
 		parent::tear_down();
 	}
@@ -47,12 +47,12 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_files_rest_create_placement
+	 * @covers ::openstation_files_rest_create_placement
 	 */
 	public function test_create_link_placement_stores_iconUrl_when_resolver_returns_data_uri() {
 		$synthetic = 'data:image/png;base64,SYNTH';
 		add_filter(
-			'open_station_resolve_favicon',
+			'openstation_resolve_favicon',
 			static function () use ( $synthetic ) {
 				return $synthetic;
 			}
@@ -67,7 +67,7 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 			'meta'     => array( 'name' => 'Example' ),
 		) );
 
-		$resp = open_station_files_rest_create_placement( $req );
+		$resp = openstation_files_rest_create_placement( $req );
 		$this->assertInstanceOf( 'WP_REST_Response', $resp );
 
 		$data = $resp->get_data();
@@ -79,10 +79,10 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_files_rest_create_placement
+	 * @covers ::openstation_files_rest_create_placement
 	 */
 	public function test_create_link_placement_omits_iconUrl_when_resolver_returns_null() {
-		add_filter( 'open_station_resolve_favicon', '__return_null' );
+		add_filter( 'openstation_resolve_favicon', '__return_null' );
 
 		$req = $this->build_request( array(
 			'type'     => 'link',
@@ -91,7 +91,7 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 			'meta'     => array( 'name' => 'Example' ),
 		) );
 
-		$resp = open_station_files_rest_create_placement( $req );
+		$resp = openstation_files_rest_create_placement( $req );
 		$this->assertInstanceOf( 'WP_REST_Response', $resp );
 		$data = $resp->get_data();
 		$this->assertSame( 'Example', $data['meta']['name'] );
@@ -99,13 +99,13 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_files_rest_create_placement
+	 * @covers ::openstation_files_rest_create_placement
 	 */
 	public function test_create_link_placement_works_without_user_meta() {
 		// No client-supplied `meta` at all — resolver still attaches
 		// `iconUrl`.
 		add_filter(
-			'open_station_resolve_favicon',
+			'openstation_resolve_favicon',
 			static function () {
 				return 'data:image/png;base64,XX';
 			}
@@ -117,19 +117,19 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 			'parentId' => 0,
 		) );
 
-		$resp = open_station_files_rest_create_placement( $req );
+		$resp = openstation_files_rest_create_placement( $req );
 		$data = $resp->get_data();
 		$this->assertIsArray( $data['meta'] );
 		$this->assertSame( 'data:image/png;base64,XX', $data['meta']['iconUrl'] );
 	}
 
 	/**
-	 * @covers ::open_station_files_rest_create_placement
+	 * @covers ::openstation_files_rest_create_placement
 	 */
 	public function test_create_non_link_placement_does_not_call_resolver() {
 		$called = 0;
 		add_filter(
-			'open_station_resolve_favicon',
+			'openstation_resolve_favicon',
 			static function ( $result ) use ( &$called ) {
 				$called++;
 				return $result;
@@ -142,18 +142,18 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 			'parentId' => 0,
 		) );
 
-		$resp = open_station_files_rest_create_placement( $req );
+		$resp = openstation_files_rest_create_placement( $req );
 		$this->assertInstanceOf( 'WP_REST_Response', $resp );
 		$this->assertSame( 0, $called );
 	}
 
 	/**
-	 * @covers ::open_station_files_rest_create_placement
+	 * @covers ::openstation_files_rest_create_placement
 	 */
 	public function test_create_link_with_empty_ref_skips_resolver() {
 		$called = 0;
 		add_filter(
-			'open_station_resolve_favicon',
+			'openstation_resolve_favicon',
 			static function ( $result ) use ( &$called ) {
 				$called++;
 				return $result;
@@ -166,10 +166,10 @@ class Tests_OpenStation_Files_RestPlacements extends WP_UnitTestCase {
 			'parentId' => 0,
 		) );
 
-		// `link` file's `can_read` returns true, but `open_station_files_place`
+		// `link` file's `can_read` returns true, but `openstation_files_place`
 		// still inserts even with an empty ref because the type permits it.
 		// The point of this test is that the resolver is never invoked.
-		open_station_files_rest_create_placement( $req );
+		openstation_files_rest_create_placement( $req );
 		$this->assertSame( 0, $called );
 	}
 }

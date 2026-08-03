@@ -10,9 +10,9 @@
  *   POST   /empty             — empties the visible bin
  *   GET    /count             — total items in the bin (badge polling)
  *
- * Permission gating delegates to `open_station_recycle_bin_user_can_*` per item;
+ * Permission gating delegates to `openstation_recycle_bin_user_can_*` per item;
  * the route-level callback only checks "are you logged in and in
- * OpenStation at all?" via `open_station_is_enabled()`.
+ * OpenStation at all?" via `openstation_is_enabled()`.
  *
  * @package OpenStation
  */
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register REST routes.
  */
-function open_station_recycle_bin_register_rest_routes() {
+function openstation_recycle_bin_register_rest_routes() {
 	$namespace = 'desktop-mode/v1';
 
 	register_rest_route(
@@ -30,8 +30,8 @@ function open_station_recycle_bin_register_rest_routes() {
 		'/recycle-bin',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'open_station_recycle_bin_rest_permission',
-			'callback'            => 'open_station_recycle_bin_rest_list',
+			'permission_callback' => 'openstation_recycle_bin_rest_permission',
+			'callback'            => 'openstation_recycle_bin_rest_list',
 			'args'                => array(
 				'page'     => array(
 					'type'              => 'integer',
@@ -62,8 +62,8 @@ function open_station_recycle_bin_register_rest_routes() {
 		'/recycle-bin/restore',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'open_station_recycle_bin_rest_permission',
-			'callback'            => 'open_station_recycle_bin_rest_restore',
+			'permission_callback' => 'openstation_recycle_bin_rest_permission',
+			'callback'            => 'openstation_recycle_bin_rest_restore',
 			// Accepts either `items: [{id, type}]` (preferred) or
 			// `ids: int[]` (legacy — assumes post-ish entities).
 			// Both registered as optional; the handler validates.
@@ -86,8 +86,8 @@ function open_station_recycle_bin_register_rest_routes() {
 		'/recycle-bin/purge',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'open_station_recycle_bin_rest_permission',
-			'callback'            => 'open_station_recycle_bin_rest_purge',
+			'permission_callback' => 'openstation_recycle_bin_rest_permission',
+			'callback'            => 'openstation_recycle_bin_rest_purge',
 			'args'                => array(
 				'items' => array(
 					'type'     => 'array',
@@ -107,8 +107,8 @@ function open_station_recycle_bin_register_rest_routes() {
 		'/recycle-bin/empty',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'permission_callback' => 'open_station_recycle_bin_rest_permission',
-			'callback'            => 'open_station_recycle_bin_rest_empty',
+			'permission_callback' => 'openstation_recycle_bin_rest_permission',
+			'callback'            => 'openstation_recycle_bin_rest_empty',
 		)
 	);
 
@@ -117,16 +117,16 @@ function open_station_recycle_bin_register_rest_routes() {
 		'/recycle-bin/count',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'permission_callback' => 'open_station_recycle_bin_rest_permission',
+			'permission_callback' => 'openstation_recycle_bin_rest_permission',
 			'callback'            => static function () {
 				return rest_ensure_response(
-					array( 'count' => open_station_recycle_bin_count() )
+					array( 'count' => openstation_recycle_bin_count() )
 				);
 			},
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_recycle_bin_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_recycle_bin_register_rest_routes' );
 
 /**
  * Route-level permission gate.
@@ -137,7 +137,7 @@ add_action( 'rest_api_init', 'open_station_recycle_bin_register_rest_routes' );
  *
  * @return bool|WP_Error
  */
-function open_station_recycle_bin_rest_permission() {
+function openstation_recycle_bin_rest_permission() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
 			'rest_forbidden',
@@ -145,7 +145,7 @@ function open_station_recycle_bin_rest_permission() {
 			array( 'status' => 401 )
 		);
 	}
-	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return new WP_Error(
 			'rest_forbidden',
 			__( 'OpenStation is not enabled for this user.', 'desktop-mode' ),
@@ -161,8 +161,8 @@ function open_station_recycle_bin_rest_permission() {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
-function open_station_recycle_bin_rest_list( $request ) {
-	$payload = open_station_recycle_bin_get_items(
+function openstation_recycle_bin_rest_list( $request ) {
+	$payload = openstation_recycle_bin_get_items(
 		array(
 			'page'     => (int) $request->get_param( 'page' ),
 			'per_page' => (int) $request->get_param( 'per_page' ),
@@ -180,9 +180,9 @@ function open_station_recycle_bin_rest_list( $request ) {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
-function open_station_recycle_bin_rest_restore( $request ) {
-	$items = open_station_recycle_bin_normalize_items( $request );
-	return rest_ensure_response( open_station_recycle_bin_apply_bulk( $items, 'open_station_recycle_bin_restore' ) );
+function openstation_recycle_bin_rest_restore( $request ) {
+	$items = openstation_recycle_bin_normalize_items( $request );
+	return rest_ensure_response( openstation_recycle_bin_apply_bulk( $items, 'openstation_recycle_bin_restore' ) );
 }
 
 /**
@@ -191,9 +191,9 @@ function open_station_recycle_bin_rest_restore( $request ) {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
-function open_station_recycle_bin_rest_purge( $request ) {
-	$items = open_station_recycle_bin_normalize_items( $request );
-	return rest_ensure_response( open_station_recycle_bin_apply_bulk( $items, 'open_station_recycle_bin_purge' ) );
+function openstation_recycle_bin_rest_purge( $request ) {
+	$items = openstation_recycle_bin_normalize_items( $request );
+	return rest_ensure_response( openstation_recycle_bin_apply_bulk( $items, 'openstation_recycle_bin_purge' ) );
 }
 
 /**
@@ -204,7 +204,7 @@ function open_station_recycle_bin_rest_purge( $request ) {
  * @param WP_REST_Request $request REST request.
  * @return array<int, array{id:int, type:string}>
  */
-function open_station_recycle_bin_normalize_items( $request ) {
+function openstation_recycle_bin_normalize_items( $request ) {
 	$out = array();
 
 	$items = $request->get_param( 'items' );
@@ -246,8 +246,8 @@ function open_station_recycle_bin_normalize_items( $request ) {
  *
  * @return WP_REST_Response
  */
-function open_station_recycle_bin_rest_empty() {
-	return rest_ensure_response( open_station_recycle_bin_empty() );
+function openstation_recycle_bin_rest_empty() {
+	return rest_ensure_response( openstation_recycle_bin_empty() );
 }
 
 /**
@@ -257,7 +257,7 @@ function open_station_recycle_bin_rest_empty() {
  * @param callable                               $callback `($id, $type) → true|WP_Error`.
  * @return array{ok:int[], errors:array<int, array{id:int, code:string, message:string}>}
  */
-function open_station_recycle_bin_apply_bulk( $items, $callback ) {
+function openstation_recycle_bin_apply_bulk( $items, $callback ) {
 	$ok     = array();
 	$errors = array();
 

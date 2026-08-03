@@ -122,8 +122,8 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 		$this->assertSame( 200, Feed_Buddy_Service::MAX_SUBSCRIPTIONS );
 	}
 
-	public function test_stylesheet_dependencies_use_registered_open_station_handles() {
-		open_station_register_assets();
+	public function test_stylesheet_dependencies_use_registered_openstation_handles() {
+		openstation_register_assets();
 		feed_buddy_register_assets();
 		$styles = wp_styles();
 		$this->assertArrayHasKey( 'desktop-mode-feed-buddy', $styles->registered );
@@ -391,7 +391,7 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 		$this->assertSame( $second_id, $state['subscriptions'][0]['id'] );
 	}
 
-	public function test_rest_permissions_and_open_station_registration() {
+	public function test_rest_permissions_and_openstation_registration() {
 		$controller = new Feed_Buddy_REST_Controller( $this->service );
 		wp_set_current_user( 0 );
 		$this->assertWPError( $controller->check_permission() );
@@ -416,8 +416,8 @@ class Test_Feed_Buddy_Service extends WP_UnitTestCase {
 
 		feed_buddy_register_assets();
 		feed_buddy_register_surfaces();
-		$window = open_station_native_window_registry( 'feed-buddy-reader' );
-		$widget = open_station_desktop_widget_registry( 'feed-buddy/buddy-list' );
+		$window = openstation_native_window_registry( 'feed-buddy-reader' );
+		$widget = openstation_desktop_widget_registry( 'feed-buddy/buddy-list' );
 		$this->assertSame( 'dock', $window['placement'] );
 		$this->assertSame( 760, $window['width'] );
 		$this->assertTrue( $widget['movable'] );

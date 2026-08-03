@@ -3,8 +3,8 @@
  *
  * Mirrors `src/commands/server-sync.ts` and the rest of the
  * server-sync family. Plugins opt in server-side via
- * `open_station_register_window_theme_script()` (and optionally
- * `open_station_register_window_theme()` for token-only themes); this
+ * `openstation_register_window_theme_script()` (and optionally
+ * `openstation_register_window_theme()` for token-only themes); this
  * module receives the resolved script URL list on every live refresh
  * and:
  *
@@ -19,7 +19,7 @@
  *          `registerWindowTheme({ …, owner: 'my-script-handle' })`.
  *       2. The id↔handle mapping captured from the *previous*
  *          `serverWindowThemes` payload — themes declared via
- *          `open_station_register_window_theme()` with a `script` arg
+ *          `openstation_register_window_theme()` with a `script` arg
  *          get this for free.
  *
  *     Themes registered via JS without an `owner` survive past

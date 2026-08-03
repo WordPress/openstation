@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `embed` desktop file type.
  */
-class Open_Station_Embed_File extends Open_Station_File {
+class OpenStation_Embed_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'embed';

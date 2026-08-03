@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the "View activity footprint" row action added to the
- * classic Users list table (`open_station_user_footprint_row_action`,
+ * classic Users list table (`openstation_user_footprint_row_action`,
  * hooked on `user_row_actions`).
  *
  * @package OpenStation
@@ -31,8 +31,8 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 		delete_user_meta( self::$editor_id, 'desktop_mode_mode' );
-		unset( $_GET['open_station_chromeless'], $_GET[ OPEN_STATION_CLASSIC_FLAG ] );
-		remove_all_filters( 'open_station_user_footprint_row_action' );
+		unset( $_GET['openstation_chromeless'], $_GET[ OPENSTATION_CLASSIC_FLAG ] );
+		remove_all_filters( 'openstation_user_footprint_row_action' );
 		parent::tear_down();
 	}
 
@@ -42,21 +42,21 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	 */
 	private function enable_chromeless( $user_id ) {
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 	}
 
 	/**
 	 * Run the filter against a user the way `WP_Users_List_Table` does.
 	 */
 	private function row_actions_for( $user_id ) {
-		return open_station_user_footprint_row_action(
+		return openstation_user_footprint_row_action(
 			array(),
 			get_userdata( $user_id )
 		);
 	}
 
 	/**
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_action_absent_when_mode_off() {
 		$actions = $this->row_actions_for( self::$editor_id );
@@ -67,7 +67,7 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	 * OpenStation on but a normal (non-iframe) request — the action
 	 * is omitted so it never renders as a dead link outside the shell.
 	 *
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_action_absent_when_enabled_but_not_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -81,17 +81,17 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	 * omitted (the link would otherwise open the profile editor under a
 	 * misleading "footprint" label).
 	 *
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_action_absent_in_detached_classic_tab() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET[ OPEN_STATION_CLASSIC_FLAG ] = '1';
+		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 		$actions                           = $this->row_actions_for( self::$editor_id );
 		$this->assertArrayNotHasKey( 'os-footprint', $actions );
 	}
 
 	/**
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_action_present_on_chromeless_request() {
 		$this->enable_chromeless( self::$admin_id );
@@ -108,7 +108,7 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	 * bridge reads, escapes the display name, and links to the user's
 	 * edit screen as the no-JS fallback.
 	 *
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_action_markup_attributes_and_escaping() {
 		$this->enable_chromeless( self::$admin_id );
@@ -132,7 +132,7 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	 * The viewer's own row falls back to `profile.php`, not
 	 * `user-edit.php` (which would redirect there anyway in core).
 	 *
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_self_row_fallback_uses_profile_php() {
 		$this->enable_chromeless( self::$admin_id );
@@ -142,14 +142,14 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The `open_station_user_footprint_row_action` filter can suppress
+	 * The `openstation_user_footprint_row_action` filter can suppress
 	 * the action for a given user.
 	 *
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_filter_can_suppress_the_action() {
 		$this->enable_chromeless( self::$admin_id );
-		add_filter( 'open_station_user_footprint_row_action', '__return_false' );
+		add_filter( 'openstation_user_footprint_row_action', '__return_false' );
 		$actions = $this->row_actions_for( self::$editor_id );
 		$this->assertArrayNotHasKey( 'os-footprint', $actions );
 	}
@@ -157,11 +157,11 @@ class Tests_OpenStation_MyWordpress_UsersListFootprint extends WP_UnitTestCase {
 	/**
 	 * An invalid user object leaves the incoming actions untouched.
 	 *
-	 * @covers ::open_station_user_footprint_row_action
+	 * @covers ::openstation_user_footprint_row_action
 	 */
 	public function test_invalid_user_object_returns_actions_unchanged() {
 		$this->enable_chromeless( self::$admin_id );
-		$actions = open_station_user_footprint_row_action(
+		$actions = openstation_user_footprint_row_action(
 			array( 'edit' => '<a>Edit</a>' ),
 			null
 		);

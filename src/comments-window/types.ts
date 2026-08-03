@@ -20,7 +20,7 @@ export type BulkAction =
  *
  * Fields are split by whether the window's default `_fields` asks for
  * them. The optional block is still registered server-side (and any
- * caller may request it via the `open_station_comments_window_query_args`
+ * caller may request it via the `openstation_comments_window_query_args`
  * filter) but is NOT part of the default payload — each one is a
  * computed REST field whose cost is paid per row, and the conversation
  * view renders none of them. Treat them as absent unless you widened
@@ -39,11 +39,11 @@ export interface CommentRow {
 	date_gmt: string;
 	content: { rendered?: string; raw?: string };
 	status: CommentStatus | string;
-	open_station_post_title: string;
-	open_station_post_link: string;
-	open_station_can_edit: boolean;
-	open_station_can_moderate: boolean;
-	open_station_replies_count: number;
+	openstation_post_title: string;
+	openstation_post_link: string;
+	openstation_can_edit: boolean;
+	openstation_can_moderate: boolean;
+	openstation_replies_count: number;
 
 	// Registered, but outside the default `_fields` — see above.
 	author_email?: string;
@@ -51,10 +51,10 @@ export interface CommentRow {
 	date?: string;
 	link?: string;
 	type?: string;
-	open_station_spam_score?: number;
-	open_station_link_count?: number;
-	open_station_akismet?: 'true' | 'false' | 'pending' | null;
-	open_station_ai_verdict?: AiVerdict | null;
+	openstation_spam_score?: number;
+	openstation_link_count?: number;
+	openstation_akismet?: 'true' | 'false' | 'pending' | null;
+	openstation_ai_verdict?: AiVerdict | null;
 }
 
 export interface AiVerdict {

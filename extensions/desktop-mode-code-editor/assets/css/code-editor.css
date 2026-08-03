@@ -8,7 +8,7 @@
  * @since 0.18.0
  */
 
-.osc-editor {
+.wpdc-editor {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
@@ -50,11 +50,11 @@
 	display: none;
 }
 
-.osc-editor:not(.osc-editor--loading) .osc-editor__monaco {
+.wpdc-editor:not(.osc-editor--loading) .osc-editor__monaco {
 	display: block;
 }
 
-.osc-editor:not(.osc-editor--loading) .osc-editor__loading {
+.wpdc-editor:not(.osc-editor--loading) .osc-editor__loading {
 	display: none;
 }
 

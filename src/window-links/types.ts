@@ -21,7 +21,7 @@ import type { WindowState } from '../types';
  * A ready-to-open navigation target related to a window's content —
  * one entry in the title bar's "Related" menu. Built server-side for
  * posts/pages (comments, assigned terms, attached media) and open to
- * plugins via the `open_station_window_related_entities` PHP filter
+ * plugins via the `openstation_window_related_entities` PHP filter
  * and the `os.related-entities.items` JS filter.
  */
 export interface RelatedEntityItem {

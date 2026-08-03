@@ -612,13 +612,13 @@ interface FolderTileSpec {
 
 /**
  * Resolve the root-level folders. Prefers the server-shipped list
- * (which carries the `open_station_my_wordpress_post_type_groups`
+ * (which carries the `openstation_my_wordpress_post_type_groups`
  * ordering) and falls back to deriving them from the entity list, so a
  * plugin that appends sections through the JS API alone still groups.
  */
 function getGroups( cfg: MyWordPressConfig ): MyWordPressGroup[] {
 	// Server-declared groups keep the order PHP gave them — the
-	// `open_station_my_wordpress_post_type_groups` filter can reorder
+	// `openstation_my_wordpress_post_type_groups` filter can reorder
 	// them, and re-sorting here would undo that.
 	const merged: MyWordPressGroup[] = Array.isArray( cfg.groups )
 		? [ ...cfg.groups ]
@@ -1813,7 +1813,7 @@ function buildEntityTile(
 	// tile itself (overlay lock badge + class for styling) so the
 	// user can see at a glance which posts to skip — and tooltip
 	// adds the locking user's name.
-	const lock = item.open_station_lock ?? null;
+	const lock = item.openstation_lock ?? null;
 	if ( lock ) {
 		tile.classList.add( 'os-my-wordpress__tile--locked' );
 		const badge = document.createElement( 'span' );
@@ -1899,7 +1899,7 @@ function buildTooltip( title: string, item: EntityListItem ): HTMLElement {
 	heading.textContent = title;
 	tip.appendChild( heading );
 
-	const lock = item.open_station_lock ?? null;
+	const lock = item.openstation_lock ?? null;
 	if ( lock ) {
 		const banner = document.createElement( 'div' );
 		banner.className = 'os-my-wordpress__tooltip-lock';
@@ -2313,9 +2313,9 @@ function renderDetail(
 
 		// Contributors — additional users beyond the post_author,
 		// sourced server-side from Co-Authors Plus + the
-		// `open_station_my_wordpress_post_contributors` filter.
+		// `openstation_my_wordpress_post_contributors` filter.
 		// Hide the folder when no extras exist.
-		const contributors = detail.open_station_contributors ?? [];
+		const contributors = detail.openstation_contributors ?? [];
 		if ( contributors.length > 0 ) {
 			subFolders.push( {
 				relation: 'contributors',
@@ -2742,7 +2742,7 @@ async function loadSubItems(
 		// images inserted via the cross-window drag-bridge or other
 		// paths that emit raw `<img>` without `wp-image-N` classes.
 		// Fall back to the client-side regex on older API responses.
-		const serverList = detail.open_station_attached_media;
+		const serverList = detail.openstation_attached_media;
 		if ( Array.isArray( serverList ) && serverList.length > 0 ) {
 			for ( const id of serverList ) {
 				if ( typeof id === 'number' && id > 0 ) {
@@ -2815,7 +2815,7 @@ async function loadSubItems(
 		// On a sub-item click we still upgrade to a full user fetch
 		// for the rich preview (bio, link) — see `contributorToView`.
 		const detail = await fetchEntityDetail( entity, postId );
-		const contribs = detail.open_station_contributors ?? [];
+		const contribs = detail.openstation_contributors ?? [];
 		return contribs.map( contributorToView );
 	}
 	if ( relation === 'revisions' ) {
@@ -3155,7 +3155,7 @@ function userToView( u: RelatedUser ): SubItemView {
 
 /**
  * Build a SubItemView from the compact `ContributorRef` shape that
- * the `open_station_contributors` REST field returns. The tile +
+ * the `openstation_contributors` REST field returns. The tile +
  * basic preview come from the embedded payload — no extra round-
  * trip for the tile. Clicking the tile fires the rich user-stats
  * endpoint for the dossier, falling back to the compact shape +
@@ -3599,7 +3599,7 @@ function termToView( t: RelatedTerm ): SubItemView {
  * cards (Posts / Comments / Distinct authors), 12-month activity
  * sparkline, milestones, recent posts (with author avatars), top
  * authors as cards, and co-occurring terms as chips. Source of
- * truth is the new `open_station/v1/term-stats/<tax>/<id>`
+ * truth is the new `openstation/v1/term-stats/<tax>/<id>`
  * endpoint — single round-trip per selection.
  */
 async function renderTermDossier( t: RelatedTerm ): Promise< HTMLElement > {
@@ -4768,7 +4768,7 @@ function buildUserTile(
 		}
 	}
 
-	const summary = item.open_station_summary;
+	const summary = item.openstation_summary;
 	const postCount = summary?.postCount ?? 0;
 	const roleLabel = ( summary?.roleLabels ?? [] )[ 0 ] ?? '';
 	if ( roleLabel || postCount > 0 ) {
@@ -4817,7 +4817,7 @@ function buildUserTile(
 
 	// Drag-out via the shared `attachTileDragOut`. The `'user'`
 	// file type's resolver + opener are already registered
-	// server-side (`Open_Station_User_File`), so a drop on any
+	// server-side (`OpenStation_User_File`), so a drop on any
 	// FilesLayer target POSTs a placement carrying
 	// `kind: 'user', ref: '<id>'` — no extra wiring needed here.
 	attachTileDragOut(
@@ -4898,7 +4898,7 @@ function buildUserTooltip(
 	heading.textContent = name;
 	tip.appendChild( heading );
 
-	const summary = item.open_station_summary;
+	const summary = item.openstation_summary;
 	const roleLabel = ( summary?.roleLabels ?? [] )[ 0 ];
 	const postCount = summary?.postCount ?? 0;
 	const lastActive = summary?.lastActive ?? '';

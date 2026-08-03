@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for Mio's server surface: the configuration shipped
- * to the shell (`open_station_mio_config()` and its filter) and
+ * to the shell (`openstation_mio_config()` and its filter) and
  * the `mioEnabled` per-user preference's trip through the OS
  * Settings sanitizer.
  *
@@ -19,15 +19,15 @@
 class Tests_OpenStation_Mio extends WP_UnitTestCase {
 
 	public function tear_down() {
-		remove_all_filters( 'open_station_mio_config' );
+		remove_all_filters( 'openstation_mio_config' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::open_station_mio_config
+	 * @covers ::openstation_mio_config
 	 */
 	public function test_config_has_both_sections() {
-		$config = open_station_mio_config();
+		$config = openstation_mio_config();
 		$this->assertIsArray( $config );
 		$this->assertArrayHasKey( 'appearance', $config );
 		$this->assertArrayHasKey( 'physics', $config );
@@ -39,10 +39,10 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	 * silently ignored by the sanitizer, so the mismatch would never
 	 * surface as an error — just as a knob that does nothing.
 	 *
-	 * @covers ::open_station_mio_config
+	 * @covers ::openstation_mio_config
 	 */
 	public function test_config_carries_every_documented_key() {
-		$config = open_station_mio_config();
+		$config = openstation_mio_config();
 
 		$appearance = array(
 			'radius',
@@ -107,21 +107,21 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_mio_config
+	 * @covers ::openstation_mio_config
 	 */
 	public function test_config_is_json_encodable() {
 		// It travels to the browser inside the shell config blob; a
 		// value `wp_json_encode()` chokes on would break the whole
 		// payload, not just Mio.
-		$this->assertIsString( wp_json_encode( open_station_mio_config() ) );
+		$this->assertIsString( wp_json_encode( openstation_mio_config() ) );
 	}
 
 	/**
-	 * @covers ::open_station_mio_config
+	 * @covers ::openstation_mio_config
 	 */
 	public function test_filter_can_retune_the_mio() {
 		add_filter(
-			'open_station_mio_config',
+			'openstation_mio_config',
 			static function ( $config ) {
 				$config['appearance']['hueStart']    = 170;
 				$config['physics']['magnetStrength'] = 3400;
@@ -129,7 +129,7 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 			}
 		);
 
-		$config = open_station_mio_config();
+		$config = openstation_mio_config();
 		$this->assertSame( 170, $config['appearance']['hueStart'] );
 		$this->assertSame( 3400, $config['physics']['magnetStrength'] );
 	}
@@ -138,21 +138,21 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	 * A filter that returns something other than an array must not
 	 * poison the shell config — fall back to the defaults.
 	 *
-	 * @covers ::open_station_mio_config
+	 * @covers ::openstation_mio_config
 	 */
 	public function test_non_array_filter_return_falls_back_to_defaults() {
-		add_filter( 'open_station_mio_config', '__return_false' );
+		add_filter( 'openstation_mio_config', '__return_false' );
 
-		$config = open_station_mio_config();
+		$config = openstation_mio_config();
 		$this->assertIsArray( $config );
 		$this->assertArrayHasKey( 'appearance', $config );
 	}
 
 	/**
-	 * @covers ::open_station_default_os_settings
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_mio_is_off_by_default() {
-		$defaults = open_station_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertArrayHasKey( 'mioEnabled', $defaults );
 		$this->assertFalse( $defaults['mioEnabled'] );
 	}
@@ -162,47 +162,47 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	 * sanitizer's allow-list misses it, the preference silently
 	 * reverts on every page load.
 	 *
-	 * @covers ::open_station_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_round_trips_mio_enabled() {
-		$on = open_station_sanitize_os_settings( array( 'mioEnabled' => true ) );
+		$on = openstation_sanitize_os_settings( array( 'mioEnabled' => true ) );
 		$this->assertTrue( $on['mioEnabled'] );
 
-		$off = open_station_sanitize_os_settings( array( 'mioEnabled' => false ) );
+		$off = openstation_sanitize_os_settings( array( 'mioEnabled' => false ) );
 		$this->assertFalse( $off['mioEnabled'] );
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_coerces_truthy_mio_values() {
-		$clean = open_station_sanitize_os_settings( array( 'mioEnabled' => '1' ) );
+		$clean = openstation_sanitize_os_settings( array( 'mioEnabled' => '1' ) );
 		$this->assertTrue( $clean['mioEnabled'] );
 
-		$clean = open_station_sanitize_os_settings( array( 'mioEnabled' => '' ) );
+		$clean = openstation_sanitize_os_settings( array( 'mioEnabled' => '' ) );
 		$this->assertFalse( $clean['mioEnabled'] );
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_defaults_mio_when_absent() {
-		$clean = open_station_sanitize_os_settings( array() );
+		$clean = openstation_sanitize_os_settings( array() );
 		$this->assertArrayHasKey( 'mioEnabled', $clean );
 		$this->assertFalse( $clean['mioEnabled'] );
 	}
 
 	/**
-	 * @covers ::open_station_get_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_preference_persists_to_user_meta() {
 		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $user_id );
 
-		$clean = open_station_sanitize_os_settings( array( 'mioEnabled' => true ) );
+		$clean = openstation_sanitize_os_settings( array( 'mioEnabled' => true ) );
 		update_user_meta( $user_id, 'desktop_mode_os_settings', $clean );
 
-		$stored = open_station_get_os_settings( $user_id );
+		$stored = openstation_get_os_settings( $user_id );
 		$this->assertTrue( $stored['mioEnabled'] );
 	}
 
@@ -211,13 +211,13 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	 * per browser — that is the whole point of it living here rather
 	 * than in localStorage.
 	 *
-	 * @covers ::open_station_get_os_settings
+	 * @covers ::openstation_get_os_settings
 	 */
 	public function test_look_persists_to_user_meta() {
 		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $user_id );
 
-		$clean = open_station_sanitize_os_settings(
+		$clean = openstation_sanitize_os_settings(
 			array(
 				'mioStyle' => array(
 					'appearance' => array( 'glow' => 2.5 ),
@@ -227,16 +227,16 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 		);
 		update_user_meta( $user_id, 'desktop_mode_os_settings', $clean );
 
-		$stored = open_station_get_os_settings( $user_id );
+		$stored = openstation_get_os_settings( $user_id );
 		$this->assertSame( 2.5, $stored['mioStyle']['appearance']['glow'] );
 		$this->assertSame( 'star', $stored['mioStyle']['physics']['shapePreset'] );
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_os_settings
+	 * @covers ::openstation_sanitize_os_settings
 	 */
 	public function test_sanitize_defaults_look_when_absent() {
-		$clean = open_station_sanitize_os_settings( array() );
+		$clean = openstation_sanitize_os_settings( array() );
 		$this->assertSame(
 			array(
 				'appearance' => array(),
@@ -247,10 +247,10 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_mio_look
+	 * @covers ::openstation_sanitize_mio_look
 	 */
 	public function test_sanitize_look_keeps_known_keys() {
-		$clean = open_station_sanitize_mio_look(
+		$clean = openstation_sanitize_mio_look(
 			array(
 				'appearance' => array(
 					'glow'      => 1.75,
@@ -280,10 +280,10 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	 * the spring constants. They are the site's, they interact, and a
 	 * corrupt row that could reach them could make Mio unstable.
 	 *
-	 * @covers ::open_station_sanitize_mio_look
+	 * @covers ::openstation_sanitize_mio_look
 	 */
 	public function test_sanitize_look_drops_unknown_keys() {
-		$clean = open_station_sanitize_mio_look(
+		$clean = openstation_sanitize_mio_look(
 			array(
 				'appearance' => array(
 					'glow'      => 1,
@@ -303,7 +303,7 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_mio_look
+	 * @covers ::openstation_sanitize_mio_look
 	 */
 	public function test_sanitize_look_survives_nonsense() {
 		foreach ( array( null, 'nope', 42, array( 'appearance' => 'nope' ) ) as $raw ) {
@@ -312,7 +312,7 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 					'appearance' => array(),
 					'physics'    => array(),
 				),
-				open_station_sanitize_mio_look( $raw )
+				openstation_sanitize_mio_look( $raw )
 			);
 		}
 	}
@@ -322,10 +322,10 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	 * are dropped rather than stored as a key the client then has to
 	 * defend against.
 	 *
-	 * @covers ::open_station_sanitize_mio_look
+	 * @covers ::openstation_sanitize_mio_look
 	 */
 	public function test_sanitize_look_drops_non_finite_numbers() {
-		$clean = open_station_sanitize_mio_look(
+		$clean = openstation_sanitize_mio_look(
 			array(
 				'appearance' => array(
 					'glow'       => INF,
@@ -341,20 +341,20 @@ class Tests_OpenStation_Mio extends WP_UnitTestCase {
 	 * The PHP whitelist and the TS one have to agree, or a control the
 	 * panel can move is one the account never remembers.
 	 *
-	 * @covers ::open_station_mio_look_appearance_keys
-	 * @covers ::open_station_mio_look_physics_keys
+	 * @covers ::openstation_mio_look_appearance_keys
+	 * @covers ::openstation_mio_look_physics_keys
 	 */
 	public function test_look_whitelists_mirror_the_config() {
-		$config = open_station_mio_config();
+		$config = openstation_mio_config();
 
-		foreach ( open_station_mio_look_appearance_keys() as $key ) {
+		foreach ( openstation_mio_look_appearance_keys() as $key ) {
 			$this->assertArrayHasKey(
 				$key,
 				$config['appearance'],
 				"Appearance key {$key} is storable but not configurable."
 			);
 		}
-		foreach ( open_station_mio_look_physics_keys() as $key ) {
+		foreach ( openstation_mio_look_physics_keys() as $key ) {
 			$this->assertArrayHasKey(
 				$key,
 				$config['physics'],

@@ -20,7 +20,7 @@ These four cover ~90% of plugin code. Reach for them before anything else:
 | [`wp.os.fetch( input, init?, opts? )`](#wposfetch-input-init-opts---stable) | **Every HTTP call from a plugin.** Routes through the framework so the active window's title-bar pulse + activity bus light up automatically. ESLint forbids raw `fetch()` in-tree. | **Stable** |
 | `wp.os.confirm( opts )` / `osConfirm()` | Modal Yes/No replacement for `window.confirm()`. ESLint forbids `confirm`/`alert`/`prompt` — use this. | **Stable** |
 | [`wp.os.ready( cb )`](#whenready--ready--isready) | Run a callback once the shell has booted (or immediately if already booted). Idiomatic boot pattern for any script enqueued with the `openstation` dep. | **Stable** |
-| [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `open_station_register_window( $id, … )` PHP-side. | **Stable** |
+| [`wp.os.openWindow( id, opts? )`](#wposopenwindow-id-opts---stable) | Open or focus a registered native window by id. Symmetric with `openstation_register_window( $id, … )` PHP-side. | **Stable** |
 
 ---
 
@@ -240,7 +240,7 @@ status didn't change — listeners only see real transitions, so
 "user came online" / "user went away" UIs hook here without
 debouncing themselves.
 
-The viewer-side filter (`open_station_presence_visible_users`) gates
+The viewer-side filter (`openstation_presence_visible_users`) gates
 which users surface in any one viewer's tab — a transition for a
 user the viewer can't see produces no event.
 
@@ -814,7 +814,7 @@ window.wp.os.windowManager.openNew( {
 } );
 ```
 
-The server-side `open_station_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#open_station_dock_item_multi--stable).
+The server-side `openstation_dock_item_multi` filter controls which admin pages ship with `multi: true` by default — see the [Hooks reference](./hooks-reference.md#openstation_dock_item_multi--stable).
 
 ---
 
@@ -870,7 +870,7 @@ Publish a payload into this window's content. **The unified abstraction over ifr
 For iframe windows (real iframes OR `iframeContent`-shorthand natives) the payload is delivered as `os-window-send` via `postMessage` and surfaces inside the iframe via `wp.os.on( channel, cb )` (the iframe-bridge installs the API on `wp.os`). For pure-native windows the payload is dispatched in-process to subscribers the render callback registered through its `windowApi.on( channel, cb )`.
 
 ```javascript
-const win = wp.os.windowManager.getById( 'osc-editor' );
+const win = wp.os.windowManager.getById( 'wpdc-editor' );
 win.send( 'editor:open-file', { path: 'plugins/foo/bar.php', line: 42 } );
 ```
 
@@ -883,7 +883,7 @@ Subscribe to a channel published BY this window's content. Mirror of `send()` fo
 Use `'*'` for a wildcard subscription that fires on every channel from this window.
 
 ```javascript
-const win = wp.os.windowManager.getById( 'osc-editor' );
+const win = wp.os.windowManager.getById( 'wpdc-editor' );
 const off = win.on( 'editor:saved', ( { path } ) => {
     toast( `${ path } saved.` );
 } );
@@ -911,7 +911,7 @@ Native targets fire `onOpen` on the next microtask (no handshake to wait for); i
 
 ### `wp.os.openWindow( id, opts? )` — Stable
 
-Open (or focus) a server-registered native window by id. Symmetric with `open_station_register_window( $id, ... )` — pass the same string.
+Open (or focus) a server-registered native window by id. Symmetric with `openstation_register_window( $id, ... )` — pass the same string.
 
 ```typescript
 wp.os.openWindow(
@@ -940,7 +940,7 @@ Conventional `source` values: `'dock'`, `'taskbar'`, `'icon'`, `'shortcut'`, `'p
 
 ```javascript
 // Open the Code editor (requires the desktop-mode-code-editor extension).
-wp.os.openWindow( 'osc-editor' );
+wp.os.openWindow( 'wpdc-editor' );
 
 // Cross-plugin: surface a sister plugin's monitoring dashboard.
 if ( ! wp.os.openWindow( 'alcazaba-monitor' ) ) {
@@ -948,7 +948,7 @@ if ( ! wp.os.openWindow( 'alcazaba-monitor' ) ) {
 }
 ```
 
-The Code editor ships as the standalone **OpenStation — Code Editor** extension; `osc-editor` only resolves when that plugin is active.
+The Code editor ships as the standalone **OpenStation — Code Editor** extension; `wpdc-editor` only resolves when that plugin is active.
 
 For programmatic deep-linking into the **Code editor** specifically (open + jump to a path/line), pair `openWindow` with the [`os-code-open` postMessage](./examples/code-editor-open.md) protocol. The shortcut `Ctrl/Cmd+Shift+E` does the same thing the user-facing way.
 
@@ -1010,7 +1010,7 @@ Rules:
 `opts` is the only addition. Resolution order for "which window's title bar pulses":
 
 1. **`opts.window`** — explicit `Window` reference. Use when you have the handle in scope (e.g. inside a render callback that received `ctx.window`).
-2. **`opts.windowId`** — id looked up via `wp.os.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `open_station_register_window( '…' )`).
+2. **`opts.windowId`** — id looked up via `wp.os.windowManager.getById(id)`. Use when you have the id but not the instance (it's the most common case for native-window bundles — they know their own id from `openstation_register_window( '…' )`).
 3. **focused window** — `manager.getFocused()`. Default. So inside a click handler, the click already focused the window and the fetch attributes to it without any extra wiring.
 
 `opts.silent: true` skips the indicator entirely. Reserved for background polls (heartbeat, presence, count-bumps) that shouldn't blink the title bar every tick. The fetch is otherwise identical.
@@ -1068,7 +1068,7 @@ Idempotent. Setting the same phase twice is a no-op except for resetting the aut
 
 ### `wp.os.getWindowConfig( id )` — Stable
 
-Read the bundle-bound config blob shipped via the `'config'` arg on `open_station_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.
+Read the bundle-bound config blob shipped via the `'config'` arg on `openstation_register_window( $id, [ 'config' => … ] )`. Returns `undefined` when no config was registered for `id`.
 
 ```js
 const cfg = wp.os.getWindowConfig( 'my-plugin-cron' );
@@ -1277,7 +1277,7 @@ See [`setBadge`](#setbadge--stable) above for the full rules across all three ra
 
 #### `DesktopIconServerEntry.pinned` — Stable
 
-Server-declared icons (registered via `open_station_register_icon( $id, [ 'pinned' => true ] )`) ship a boolean `pinned` flag in `config.desktopIcons[ n ].pinned`. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as a stable system surface — built-in shortcuts like the pinned **site folder** use it. Plugins that decorate icons (drag handles, custom menus) should opt out for tiles where `pinned === true`.
+Server-declared icons (registered via `openstation_register_icon( $id, [ 'pinned' => true ] )`) ship a boolean `pinned` flag in `config.desktopIcons[ n ].pinned`. Pinned icons render before any unpinned icon regardless of `position`, and the framework treats them as a stable system surface — built-in shortcuts like the pinned **site folder** use it. Plugins that decorate icons (drag handles, custom menus) should opt out for tiles where `pinned === true`.
 
 ---
 
@@ -1295,7 +1295,7 @@ window.wp.os.saveSession();
 
 Framework-level presence tracking — who's currently in the OpenStation WP-Admin and what their state is. Always available, regardless of which feature plugins (chat, collaboration, …) happen to be installed. Useful for any UI that wants to surface who's around: avatar dots, "online now" lists, collaborative cursors, real-time co-editing indicators, etc.
 
-The probe boots automatically on `os-init` and piggy-backs the WordPress Heartbeat — every tick (~15 s default in admin) the client sends `open_station_presence_active: true` plus `open_station_user_active: <bool>` (true when the user moused / typed within the last 5 minutes), and the server responds with the visible-users snapshot.
+The probe boots automatically on `os-init` and piggy-backs the WordPress Heartbeat — every tick (~15 s default in admin) the client sends `openstation_presence_active: true` plus `openstation_user_active: <bool>` (true when the user moused / typed within the last 5 minutes), and the server responds with the visible-users snapshot.
 
 ```javascript
 // Synchronous lookup for a single user.
@@ -1333,13 +1333,13 @@ wp.os.presence.applyBatch( [
 
 | Status     | Meaning                                                                                     |
 |------------|---------------------------------------------------------------------------------------------|
-| `online`   | Heartbeat within `open_station_presence_offline_after` AND user input within `open_station_presence_inactive_after`. |
-| `inactive` | Heartbeat present, but no input within `open_station_presence_inactive_after` (default 5 min). |
-| `offline`  | No heartbeat in `open_station_presence_offline_after` (default 2 min).                        |
+| `online`   | Heartbeat within `openstation_presence_offline_after` AND user input within `openstation_presence_inactive_after`. |
+| `inactive` | Heartbeat present, but no input within `openstation_presence_inactive_after` (default 5 min). |
+| `offline`  | No heartbeat in `openstation_presence_offline_after` (default 2 min).                        |
 
 **Visibility:**
 
-The server-side `open_station_presence_visible_users` filter gates which users surface to a given viewer. By default everyone tracked is visible to everyone tracked; plugins can narrow (e.g. "subscribers only see other subscribers") without the client knowing.
+The server-side `openstation_presence_visible_users` filter gates which users surface to a given viewer. By default everyone tracked is visible to everyone tracked; plugins can narrow (e.g. "subscribers only see other subscribers") without the client knowing.
 
 **Companion CustomEvent:** [`os-presence-changed`](#os-presence-changed--stable) fires once per status transition per user, with a `null` oldStatus on first sighting.
 
@@ -1587,7 +1587,7 @@ const off = wp.os.heartbeat.subscribe( 'my-plugin/payload', ( v ) => {
 
 **Why this exists.** Without a shared bus, every feature that wants to ride Heartbeat re-binds `jQuery(document).on('heartbeat-send', …)` itself. Three problems: (1) the boilerplate is identical, (2) no plugin can see what other plugins are contributing on the same tick, (3) a thrown error in any handler can strand later handlers on the same event. The bus consolidates the wiring, exposes the typed channel surface, and isolates errors per supplier/subscriber.
 
-**Built-in consumer.** `presence` contributes `open_station_presence_active` + `open_station_user_active` and subscribes to `open_station_presence`. Read [`src/presence/index.ts`](../src/presence/index.ts) for the canonical pattern.
+**Built-in consumer.** `presence` contributes `openstation_presence_active` + `openstation_user_active` and subscribes to `openstation_presence`. Read [`src/presence/index.ts`](../src/presence/index.ts) for the canonical pattern.
 
 ---
 
@@ -1661,7 +1661,7 @@ wp.os.ready( () => {
 } );
 ```
 
-Server-side defaults come from the `open_station_mio_config` PHP filter; the `os.mio.config` JS filter gets the last word before mount. Both are re-sanitized, so out-of-range values are clamped rather than rejected.
+Server-side defaults come from the `openstation_mio_config` PHP filter; the `os.mio.config` JS filter gets the last word before mount. Both are re-sanitized, so out-of-range values are clamped rather than rejected.
 
 ---
 
@@ -1669,7 +1669,7 @@ Server-side defaults come from the `open_station_mio_config` PHP filter; the `os
 
 The desktop games surface: a shared registry (the hub's game grid + per-game detail panel repaint live), and a launcher that opens games in native windows.
 
-The framework is **off by default** — an admin opts in site-wide (OS Settings → Features → Extended options; PHP filter `open_station_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`**: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.os.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.openStationConfig?.gamesEnabled` before wiring games UI of your own.
+The framework is **off by default** — an admin opts in site-wide (OS Settings → Features → Extended options; PHP filter `openstation_games_enabled`). While disabled, the shell config carries **`gamesEnabled: false`**: the server registers no games, no hub window, and no REST routes, and the shell skips the challenges Heartbeat channel. `wp.os.games` still exists (same API object), but the registry stays empty unless your own JS registers into it — check `window.openStationConfig?.gamesEnabled` before wiring games UI of your own.
 
 ```typescript
 interface GamesApi {
@@ -1683,7 +1683,7 @@ interface GamesApi {
 }
 ```
 
-**Registration model.** The canonical path is PHP: `open_station_register_game( $id, $args )` declares the discovery metadata (title, icon, description, `score_columns`, `config`) plus a `script` handle. The shell registers a metadata **stub** at boot — enough to paint the hub tile and the game's scoreboard — and `launch()` loads the script lazily on first play. The loaded script publishes the full def on the global:
+**Registration model.** The canonical path is PHP: `openstation_register_game( $id, $args )` declares the discovery metadata (title, icon, description, `score_columns`, `config`) plus a `script` handle. The shell registers a metadata **stub** at boot — enough to paint the hub tile and the game's scoreboard — and `launch()` loads the script lazily on first play. The loaded script publishes the full def on the global:
 
 ```javascript
 // Inside the game bundle (window.openStationGames is the games
@@ -1704,7 +1704,7 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
 
 `render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `os-game-<id>` (no dock tile).
 
-**Framework config keys**. For server-registered games, the payload merges framework-level keys underneath the game's own `config` (the game's keys win): **`config.wordsUrl`** is the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`) — identical for every player, so seeded games (Alphabet Soup's date-seeded daily puzzle) generate the same grid worldwide. Parse it with the framework loader (`src/games/dictionary.ts` — `loadDictionary( url )` → `{ size, pick( minLen, maxLen, rng ) }`); the PHP-side URL + filter is `open_station_games_words_url` in [hooks-reference.md](./hooks-reference.md).
+**Framework config keys**. For server-registered games, the payload merges framework-level keys underneath the game's own `config` (the game's keys win): **`config.wordsUrl`** is the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`) — identical for every player, so seeded games (Alphabet Soup's date-seeded daily puzzle) generate the same grid worldwide. Parse it with the framework loader (`src/games/dictionary.ts` — `loadDictionary( url )` → `{ size, pick( minLen, maxLen, rng ) }`); the PHP-side URL + filter is `openstation_games_words_url` in [hooks-reference.md](./hooks-reference.md).
 
 **Share cards**. `src/games/share-card.ts` renders a finished run as a 1200×630 PNG on a plain canvas (`renderShareCard( canvas, data )`) and `shareScoreCard( canvas, filename, title )` runs the one-tap chain: native share sheet with the file attached → clipboard image → download, reporting which path ran. Deliberately image-only — no URL, no caption. Alphabet Soup's game-over panel is the reference integration.
 
@@ -1712,9 +1712,9 @@ JS-only registrations (passing `render` directly to `register()`) work for the l
 
 The registry mirrors onto the **`os.games`** JS filter (constant `HOOKS.GAMES`), applied on every `list()` read.
 
-**Play time**. The launcher automatically tracks how long each game window is in front of the player — the clock pauses while the window is minimized — and flushes whole-second increments to `POST /desktop-mode/v1/games/{game}/playtime` (silently, roughly once a minute plus once on close). Totals are per user per game and accumulate for life across sessions and days; increments are also bucketed per site-timezone day (rolling window, default 30 days). `getPlaytime()` returns the current user's lifetime map; the full `GET /desktop-mode/v1/games/playtime` response is `{ playtime: { <game>: seconds }, daily: { <game>: { 'YYYY-MM-DD': seconds } }, today: 'YYYY-MM-DD' }`. The hub's detail panel renders a Steam-style strip from it — "Play time (last two weeks)" + "Play time (total)". Games don't need to do anything to participate. Server-side see `open_station_games_get_playtime()` / `open_station_games_get_playtime_daily()` and the `open_station_game_playtime_recorded` action in [hooks-reference.md](./hooks-reference.md).
+**Play time**. The launcher automatically tracks how long each game window is in front of the player — the clock pauses while the window is minimized — and flushes whole-second increments to `POST /desktop-mode/v1/games/{game}/playtime` (silently, roughly once a minute plus once on close). Totals are per user per game and accumulate for life across sessions and days; increments are also bucketed per site-timezone day (rolling window, default 30 days). `getPlaytime()` returns the current user's lifetime map; the full `GET /desktop-mode/v1/games/playtime` response is `{ playtime: { <game>: seconds }, daily: { <game>: { 'YYYY-MM-DD': seconds } }, today: 'YYYY-MM-DD' }`. The hub's detail panel renders a Steam-style strip from it — "Play time (last two weeks)" + "Play time (total)". Games don't need to do anything to participate. Server-side see `openstation_games_get_playtime()` / `openstation_games_get_playtime_daily()` and the `openstation_game_playtime_recorded` action in [hooks-reference.md](./hooks-reference.md).
 
-**Heartbeat channel.** Challenges deliver live over the shared bus: the shell contributes `open_station_games_subscribe: { challengesVersion: <lastSeenUpdatedAtMs> }` on every tick and the server answers with `open_station_games: { challenges: GameChallengeRow[], serverTimeMs, truncated }` — version-gated (quiet ticks carry nothing) and capped via the `open_station_games_heartbeat_max_rows` PHP filter. Recipients of a fresh challenge get a browser notification (toast fallback) + a persistent **Accept & Play** toast; challengers are notified when their challenge completes.
+**Heartbeat channel.** Challenges deliver live over the shared bus: the shell contributes `openstation_games_subscribe: { challengesVersion: <lastSeenUpdatedAtMs> }` on every tick and the server answers with `openstation_games: { challenges: GameChallengeRow[], serverTimeMs, truncated }` — version-gated (quiet ticks carry nothing) and capped via the `openstation_games_heartbeat_max_rows` PHP filter. Recipients of a fresh challenge get a browser notification (toast fallback) + a persistent **Accept & Play** toast; challengers are notified when their challenge completes.
 
 **Config global.** The Games hub bundle reads `window.openStationGamesConfig` (`restNonce`, `gamesUrlBase`, `challengesUrl`, `usersSearchUrl`), localized onto the `desktop-mode-games` handle.
 
@@ -1755,9 +1755,9 @@ wp.os.subscribe( 'posts/updated', ( { id } ) => {
 }
 ```
 
-Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `open_station_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer)) or a direct `wp.os.broadcast()` client-side — set a distinctive `source` so you can skip your own echoes.
+Publishers: the server-side changelog relayed through the chromeless footer (`source: 'admin'`), the block-editor save-watcher (`'editor'`), the Heartbeat catch-all (`'heartbeat'` — may repeat a change delivered earlier by a faster path; treat refreshes as idempotent), and client-side emitters that identify themselves (`'recycle-bin'`, `'posts-window'`, your plugin). Subscribing to your type's topic is all a list window needs to stay live; publishing is one `openstation_content_changes_record()` call server-side (see [hooks-reference.md → Content-change realtime layer](./hooks-reference.md#content-change-realtime-layer)) or a direct `wp.os.broadcast()` client-side — set a distinctive `source` so you can skip your own echoes.
 
-**Heartbeat fields** — the shell contributes `open_station_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `open_station_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
+**Heartbeat fields** — the shell contributes `openstation_content_changes_seen_ts` (server-ms high-water mark, `0` on the handshake tick) and consumes `openstation_content_changes: { ts, entries: [ { ts, type, action, ids } ] }`, re-broadcasting each fresh entry on this bus. Timestamps are server-clock; the first tick is a pure handshake so client/server skew can never drop changes.
 
 ---
 
@@ -2005,7 +2005,7 @@ window.wp.os.registerCommand( {
 
 **Errors** thrown from `run` are caught and rendered as an error bubble — the panel doesn't crash.
 
-**Live-refresh on plugin install/activate.** If your plugin's script is declared via `open_station_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
+**Live-refresh on plugin install/activate.** If your plugin's script is declared via `openstation_register_command_script()` (see the PHP docs), the shell injects it into the current shell page when the user installs or activates your plugin — your commands appear in the palette **without a reload**. For live *unregistration* on deactivation, set `owner` to the same WordPress script handle:
 
 ```javascript
 window.wp.os.registerCommand( {
@@ -2163,7 +2163,7 @@ const res = await wp.os.ai.ask( 'hey turn on the lights', {
 // res.message   === 'Lights ON.'  // string returns are lifted into message
 ```
 
-Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `open_station_ai_command_allowed` provides a second line of defence for per-role gating.
+Why opt-in: AI tool-calling is a paraphrasing channel, and handing the model every registered command (including destructive ones like `/delete_all_posts`) would turn a typo into a catastrophe. `aiCallable` is the single flag each command author decides for themselves. The PHP-side filter `openstation_ai_command_allowed` provides a second line of defence for per-role gating.
 
 **Security notes.**
 
@@ -2234,7 +2234,7 @@ Add a custom button to the title bar of any matching window. The right surface f
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `open_station_register_window` / `open_station_register_widget` accept (slashes welcome). Wider than `registerSettingsTab`'s id, which can't use slashes (that value is also used in CSS selectors). Re-registering replaces. |
+| `id` | `string` | Unique. `[a-z0-9_/-]+` — same `vendor/sub-id` shape that `openstation_register_window` / `openstation_register_widget` accept (slashes welcome). Wider than `registerSettingsTab`'s id, which can't use slashes (that value is also used in CSS selectors). Re-registering replaces. |
 | `label` | `string` | Tooltip + aria-label. |
 | `icon` | `string` | Dashicons class (`'dashicons-foo'`), inline SVG (`'<svg>…</svg>'`), or built-in key (`'minimize'` / `'menu'` / etc.). |
 | `placement` | `'left' \| 'right'` | Default `'left'` (next to title). `'right'` lands before the window controls. |
@@ -2262,7 +2262,7 @@ wp.os.ready( () => {
 PHP companion (so plugins activated mid-session paint live):
 
 ```php
-open_station_register_titlebar_button_script( 'my-plugin-titlebar' );
+openstation_register_titlebar_button_script( 'my-plugin-titlebar' );
 ```
 
 ### `unregisterTitleBarButton( id )` / `listTitleBarButtons()` — Experimental
@@ -2307,7 +2307,7 @@ wp.os.ready( () => {
 PHP companion (so plugins activated mid-session surface in the selector live):
 
 ```php
-open_station_register_unfocus_effect_script( 'my-plugin-effects' );
+openstation_register_unfocus_effect_script( 'my-plugin-effects' );
 ```
 
 The raw `os.unfocus-effects` JS filter receives the registry array on every read, mirroring `os.wallpapers` — use it to reorder, remove, or conditionally swap effects. The user's selection persists in the `unfocusEffect` OS-settings key (effect id or `'none'`; default `'darken'`), readable via `getOsSettings().unfocusEffect`.
@@ -2437,7 +2437,7 @@ Whatever wins, `edgeLag` is scaled by the same ratio, so the edge band keeps its
 - **`prefers-reduced-motion` skips the animation** and uncovers the content directly. Same for environments without the Web Animations API.
 - **The colours are theme tokens**: `--os-window-reveal-surface` (white) and `--os-window-reveal-edge` (`transparent` — no edge). A def can override them with `surfaceColor` / `edgeColor`, or per layer with `layers[].color`, but should not unless the paint is the point. `obturator` is the only built-in that does, and only per layer: its six leaves have to differ from one another or the mechanism reads as a single shape.
 - **A desktop theme can recommend a reveal**, via `recommendedOsSettings.windowReveal` and `recommendedOsSettings.windowRevealDuration` — applied once on first activation, or on demand from the Themes tab's "Apply recommended layout and effects" button.
-- **Registration is JS-only.** Unlike unfocus effects, there is no `open_station_register_window_reveal_script()` PHP companion yet, so a reveal registered by a plugin activated mid-session appears in the selector only after a reload — and a deactivated plugin's reveal stays listed until a reload too (`owner` is recorded, but nothing sweeps by it on deactivation yet). Same known gap as palettes.
+- **Registration is JS-only.** Unlike unfocus effects, there is no `openstation_register_window_reveal_script()` PHP companion yet, so a reveal registered by a plugin activated mid-session appears in the selector only after a reload — and a deactivated plugin's reveal stays listed until a reload too (`owner` is recorded, but nothing sweeps by it on deactivation yet). Same known gap as palettes.
 
 The raw `os.window-reveals` JS filter receives the registry array on every read, mirroring `os.unfocus-effects` — use it to reorder, remove, or conditionally swap reveals. The user's selection persists in the `windowReveal` OS-settings key (reveal id or `'none'`, the default — reveals are opt-in), readable via `getOsSettings().windowReveal`. An unknown id (a deactivated plugin's reveal still named in user meta) resolves to no reveal rather than to a substitute, and starts working again the moment that plugin re-registers it.
 
@@ -2480,7 +2480,7 @@ Window content relations: which piece of content each window shows, and how wind
 
 **How identities arrive** (any of the three):
 
-1. **Automatically** — the chromeless bridge announces the identity of every admin iframe page ([`os-content-identity`](./bridge-protocol.md)), resolved server-side in real admin context: post/page/CPT editors are roots; comment-edit and attached-media screens arrive pre-rooted at their parent post. PHP plugins extend this via the `open_station_window_content_identity` filter (see [hooks-reference](./hooks-reference.md)).
+1. **Automatically** — the chromeless bridge announces the identity of every admin iframe page ([`os-content-identity`](./bridge-protocol.md)), resolved server-side in real admin context: post/page/CPT editors are roots; comment-edit and attached-media screens arrive pre-rooted at their parent post. PHP plugins extend this via the `openstation_window_content_identity` filter (see [hooks-reference](./hooks-reference.md)).
 2. **At open time** — `WindowConfig.content?: WindowContentRef` seeds the identity the moment a window opens (native windows, session restores).
 3. **Programmatically** — `wp.os.relations.set( windowId, ref )`.
 
@@ -2519,7 +2519,7 @@ Any window whose content identity carries `related` items shows a **Related** bu
 | `url` | `string` | Admin URL the item opens. |
 | `count` | `number` | Optional count suffix — renders as `Comments (4)`. |
 
-**Where items come from:** the server builds them for posts/pages during the admin page render (comments with count, assigned terms, associated media) and any screen can contribute via the `open_station_window_related_entities` PHP filter (see [hooks-reference](./hooks-reference.md)). Client-side, the resolved list runs through the **`os.related-entities.items` JS filter** on every visibility check and menu build:
+**Where items come from:** the server builds them for posts/pages during the admin page render (comments with count, assigned terms, associated media) and any screen can contribute via the `openstation_window_related_entities` PHP filter (see [hooks-reference](./hooks-reference.md)). Client-side, the resolved list runs through the **`os.related-entities.items` JS filter** on every visibility check and menu build:
 
 ```javascript
 // ( items, { windowId, content } ) => items
@@ -2546,7 +2546,7 @@ Malformed entries are dropped item-wise; a non-array return falls back to the id
 
 ### The "Preview" (eye) title-bar button — Experimental
 
-Any window whose content identity carries a `previewUrl` shows a **Preview** button (eye icon, right side of the title bar, just before Related; registered through the public `registerTitleBarButton` surface as `desktop-mode/editor-preview`). The URL is built server-side by `open_station_window_preview_url()` for post/page/CPT edit screens — Gutenberg **and** classic — of viewable post types, so the eye appears exactly where the front end has something to show. On `post-new.php` (unsaved auto-draft, nothing to preview yet) the eye renders **disabled** — `aria-disabled="true"`, dimmed, tooltip "Save the post to enable its preview", a click explains via toast — and enables itself the moment the first save lands (the block editor's save-watcher refetches the identity live, no reload).
+Any window whose content identity carries a `previewUrl` shows a **Preview** button (eye icon, right side of the title bar, just before Related; registered through the public `registerTitleBarButton` surface as `desktop-mode/editor-preview`). The URL is built server-side by `openstation_window_preview_url()` for post/page/CPT edit screens — Gutenberg **and** classic — of viewable post types, so the eye appears exactly where the front end has something to show. On `post-new.php` (unsaved auto-draft, nothing to preview yet) the eye renders **disabled** — `aria-disabled="true"`, dimmed, tooltip "Save the post to enable its preview", a click explains via toast — and enables itself the moment the first save lands (the block editor's save-watcher refetches the identity live, no reload).
 
 Clicking the eye:
 
@@ -2580,7 +2580,7 @@ wp.hooks.addFilter(
 );
 ```
 
-The PHP-side control point is the `open_station_window_preview_url` filter (rewrite or suppress the URL per post — see [hooks-reference](./hooks-reference.md)). Related: `WindowConfig.ephemeral?: boolean` is a general flag — any window opened with it is excluded from session snapshots and never restored on boot.
+The PHP-side control point is the `openstation_window_preview_url` filter (rewrite or suppress the URL per post — see [hooks-reference](./hooks-reference.md)). Related: `WindowConfig.ephemeral?: boolean` is a general flag — any window opened with it is excluded from session snapshots and never restored on boot.
 
 ### `registerWindowLinkRenderer( def )` — Experimental
 
@@ -2600,7 +2600,7 @@ Register (or replace) a **window-link renderer** — how the relation ties betwe
 
 **`WindowLinkFrame`**: `{ groups, edges, obstacles, container: { width, height } }`. **`edges` is what renderers should iterate** — `[ { fromWindowId, toWindowId, kind, bidirectional, focused, elevated, from, to, fromZIndex, toZIndex } ]` with direction and mutual-merging already resolved (`elevated` marks edges touching the focused window — route those to `ctx.elevatedContainer`); `from`/`to` are `{ x, y, width, height }` rects relative to the layer, `null` when that endpoint is minimized / snapped into split view (`snapped-left` / `snapped-right` — a half-screen tile draws no ties; they reappear the moment the window is dragged back out) / on another virtual desktop (skip the edge). `obstacles` (`[ { windowId, rect, zIndex } ]`) lists EVERY visible window on the desk for occlusion-aware anchoring. The built-in renderer anchors each endpoint by preference: (1) the **shortest edge-to-edge connection** between the two windows (side-by-side windows connect straight across the gap at the overlap midpoint, offset windows via their facing corners) when that point is visible; (2) the classic center-ray border anchor while visible; (3) the midpoint of the closest visible border stretch when a higher window covers both — so a tie never appears to sprout from a window that is hiding its real endpoint. The pure helpers (`closestBorderAnchors`, `visibleBorderAnchor`, `isPointVisible`, `anchorOnBorder`, `controlPoint`) are exported from `src/window-links/geometry.ts` for custom renderers. `groups` (`[ { key, root, members: [ { windowId, role, content, rect, focused, state } ] } ]`) remains available for renderers that want group-level visuals (hulls, badges).
 
-The dual pull/push contract makes SVG/DOM **and** canvas/Pixi renderers first-class: DOM renderers redraw in `onFrame`; a Pixi renderer appends its canvas to `container`, runs its own ticker, and polls `getFrame()` (load Pixi via `wp.os.loadModules( [ 'pixijs' ] )`). See [`docs/examples/window-links.md`](./examples/window-links.md) for both shapes, plus the PHP `open_station_register_window_link_renderer_script()` opt-in that live-loads your renderer on plugin activation.
+The dual pull/push contract makes SVG/DOM **and** canvas/Pixi renderers first-class: DOM renderers redraw in `onFrame`; a Pixi renderer appends its canvas to `container`, runs its own ticker, and polls `getFrame()` (load Pixi via `wp.os.loadModules( [ 'pixijs' ] )`). See [`docs/examples/window-links.md`](./examples/window-links.md) for both shapes, plus the PHP `openstation_register_window_link_renderer_script()` opt-in that live-loads your renderer on plugin activation.
 
 The user's choices persist in OS-settings keys, all readable via `getOsSettings()`:
 
@@ -2881,7 +2881,7 @@ Register a tab in the OS Settings window. The tab is appended (or sorted-in by `
 | `label` | `string` | yes | Tab label. |
 | `capability` | `string` | no | Gates visibility. `'manage_options'` → admin-only; any other value (including omitting) → visible to everyone. |
 | `order` | `number` | no | Default `100`. Built-ins: appearance=10, themes=12, apps-icons=22, features=25, effects=27, help=40 (Components is admin-only; About is pinned last with a sentinel order). |
-| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `open_station_register_settings_tab_script()`. |
+| `owner` | `string` | no | When set, plugin deactivation live-unregisters every tab with this owner. Typically matches the WordPress script handle registered with `openstation_register_settings_tab_script()`. |
 | `render( body, ctx )` | `function` | yes | Receives the tabpanel body element and a ctx object (see below). Must be idempotent — the panel rebuilds on state resets. |
 
 **`ctx` shape:**
@@ -2969,7 +2969,7 @@ Open <os-code>chrome://flags</os-code> and enable
 <os-code>experimental-web-platform-features</os-code>.
 
 <os-code block>
-open_station_register_settings_tab( array(
+openstation_register_settings_tab( array(
     'id'    => 'my-plugin',
     'label' => 'My Plugin',
 ) );
@@ -2994,7 +2994,7 @@ Auto-numbered setup / onboarding flows. Numbers come from a CSS counter, so inse
 </os-steps>
 ```
 
-For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `open_station_register_settings_tab()` in PHP.
+For live *unregistration on deactivation*, either set `owner` (as above) to your script handle, or declare the tab with `openstation_register_settings_tab()` in PHP.
 
 ---
 
@@ -3237,7 +3237,7 @@ Custom rail renderers should use this so their icons look consistent with the de
 **Draw your SVG in `currentColor` and it adapts to every surface automatically.** No flag, no registration field: the art declares its own intent, and the declaration cannot drift out of sync with the drawing because it *is* the drawing.
 
 ```php
-// PHP — open_station_register_icon()
+// PHP — openstation_register_icon()
 'icon_svg' => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
     . '<rect x="8" y="12" width="48" height="40" rx="4" fill="none"'
     . ' stroke="currentColor" stroke-width="4"/>'
@@ -3253,7 +3253,7 @@ Two rules follow:
 
 An explicit desktop-theme icon colour still wins over `currentColor` — a theme that recolours a slot recolours silhouettes too.
 
-In-tree reference: `open_station_content_graph_icon_svg()` (the Corkboard).
+In-tree reference: `openstation_content_graph_icon_svg()` (the Corkboard).
 
 ---
 
@@ -3754,7 +3754,7 @@ The desk companion. Full documentation in [mio.md](./mio.md).
 
 | Hook | Kind | Status | Payload |
 |---|---|---|---|
-| `os.mio.config` | filter | Experimental | `MioConfig → MioConfig` — last word on appearance + physics before mount, on top of the `open_station_mio_config` PHP filter. Re-sanitized after your filter runs, so out-of-range values are clamped rather than rejected |
+| `os.mio.config` | filter | Experimental | `MioConfig → MioConfig` — last word on appearance + physics before mount, on top of the `openstation_mio_config` PHP filter. Re-sanitized after your filter runs, so out-of-range values are clamped rather than rejected |
 | `os.mio.enabled` | action | Experimental | `{}` — the user switched it on |
 | `os.mio.disabled` | action | Experimental | `{}` — the user switched it off |
 | `os.mio.mounted` | action | Experimental | `{ position: { x, y } }` — on screen and simulating; viewport coordinates |
@@ -3784,7 +3784,7 @@ Fired by the admin-bar "Arrange" menu's layout algorithms. The overview hooks co
 | `os.arrange.tile.dimensions` | filter | Stable | filters `{ cols, rows }`; context `{ windowCount, areaWidth, areaHeight }`. Override the auto-chosen grid (e.g., force a 3-column newsroom layout). Returns must be positive integers and `cols * rows >= windowCount`, otherwise the filter is ignored. |
 | `os.arrange.snap.changed` | action | Stable | `{ enabled }` — fires when the user toggles "Snap to grid" |
 | `os.arrange.snap.cell-size` | filter | Stable | filters `{ cellWidth, cellHeight }`; context `{ areaWidth, areaHeight }`. Override the auto-computed snap cell size (e.g., enforce a fixed 100×100 grid). Non-positive returns are ignored. |
-| `os.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `open_station_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
+| `os.arrange.custom-action` | action | Stable | `{ id }` — fires when the user clicks a plugin-registered Arrange-menu item (registered server-side via the `openstation_arrange_menu_items` PHP filter). The `id` matches the `id` field the plugin supplied. |
 
 #### Virtual desktops ("Spaces")
 
@@ -3993,7 +3993,7 @@ type WindowGeometryContext = {
 - The shell re-clamps `width`/`height` to the window's registered `minWidth`/`minHeight` after the filter returns — a buggy filter cannot ship a sub-minimum window.
 - `x`/`y` are NOT re-clamped to the desktop rect; plugins sometimes deliberately place windows partially off-screen. The filter is responsible for its own viewport math when it cares.
 - The filter runs *every time the window opens*, not just at registration — so a deactivation/reactivation of a plugin re-runs its filter with fresh `desktopRect` numbers.
-- Companion of `open_station_register_window`'s server-side `width` / `height` defaults: the filter sees those defaults as the starting `geometry` value, and `ctx.callerPinned` is `true` for native windows because the framework's own opener passes them through as explicit `manager.open()` args. The filter is free to override anyway — `callerPinned` is signal, not veto.
+- Companion of `openstation_register_window`'s server-side `width` / `height` defaults: the filter sees those defaults as the starting `geometry` value, and `ctx.callerPinned` is `true` for native windows because the framework's own opener passes them through as explicit `manager.open()` args. The filter is free to override anyway — `callerPinned` is signal, not veto.
 
 #### `DockItem` shape
 
@@ -4210,7 +4210,7 @@ type WallpaperConfig = ( container: HTMLElement, ctx: WallpaperConfigContext ) =
         ( () => void ) | Promise<() => void>;
 ```
 
-**`description`** — *Experimental.* A sentence or two shown in a styled card under the OS Settings picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `open_station_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
+**`description`** — *Experimental.* A sentence or two shown in a styled card under the OS Settings picker grid whenever the wallpaper is the active selection: what it is, where its data comes from, the story behind it. Plain text only — it renders as text, never as HTML. Server-registered wallpapers can pass `description` to `openstation_register_wallpaper()` instead; the shell overlays the server value onto the JS def when the def doesn't set one (handy for translatable descriptions).
 
 ### Minimal CSS wallpaper
 
@@ -4440,16 +4440,16 @@ The built-in Snow wallpaper (`src/plugins/snow-wallpaper/`) is the canonical in-
 | `ready( cb )` | Stable | **Recommended bootstrap entry point.** Run `cb` after `os.init` has fired — immediately (via microtask) if it already fired, queued otherwise. Safe for scripts loaded at any point in the lifecycle, including server-sync-injected plugin scripts. Short alias of `whenReady( cb )`. |
 | `whenReady( cb )` | Stable | Original name for `ready( cb )` — same behaviour; keep using it if you've already adopted it. |
 | `isReady()` | Stable | Synchronous boolean — has `os.init` fired yet. Branch between "register directly" and "schedule via `ready`" without racing. |
-| `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation, and whenever a chromeless page reports a [`os-menu-signature`](#os-menu-signature--stable) that differs from the shell's last-known value — so a custom post type added via a settings tool surfaces without a browser reload (GH#325). Manual calls spawn a hidden iframe at `admin.php?open_station_chromeless=1&open_station_menu_refresh=1` whose server-side handler short-circuits the response with the fresh menu payload (a `<script>` that postMessages `os-plugins-changed`) without rendering admin-header / admin-footer — resolves in milliseconds. The full chromeless bridge still emits the same payload when the iframe lands on a real admin page (`plugins.php` etc.). |
+| `refreshMenu()` | Stable | Force a refresh of the live admin-menu split. Auto-fired on plugin activation / deactivation, and whenever a chromeless page reports a [`os-menu-signature`](#os-menu-signature--stable) that differs from the shell's last-known value — so a custom post type added via a settings tool surfaces without a browser reload (GH#325). Manual calls spawn a hidden iframe at `admin.php?openstation_chromeless=1&openstation_menu_refresh=1` whose server-side handler short-circuits the response with the fresh menu payload (a `<script>` that postMessages `os-plugins-changed`) without rendering admin-header / admin-footer — resolves in milliseconds. The full chromeless bridge still emits the same payload when the iframe lands on a real admin page (`plugins.php` etc.). |
 | `setDefaultWindow( url \| null )` | Stable | Update the user's "open on startup" preference (`null` clears it). Async — persists through the REST endpoint; on success updates `config.defaultWindow` in place and dispatches the [`os-default-window-changed`](#os-default-window-changed--stable) CustomEvent on `document`. |
 | `openNewWindow( id, opts? )` | Stable | Spawn a brand-new instance of a registered native window, even when one is already open. See [`wp.os.openNewWindow`](#wposopennewwindow-id-opts---stable). |
-| `cloneTemplate( templateOrId )` | Stable | Clone a `<template>` element's contents into a fresh `DocumentFragment`. Accepts the element's DOM id or the element itself; throws if the reference doesn't resolve to a template. `open_station_register_window()` plugins don't need it — the shell pre-clones the declared template into the window body — it's for advanced re-cloning / custom hydration. |
+| `cloneTemplate( templateOrId )` | Stable | Clone a `<template>` element's contents into a fresh `DocumentFragment`. Accepts the element's DOM id or the element itself; throws if the reference doesn't resolve to a template. `openstation_register_window()` plugins don't need it — the shell pre-clones the declared template into the window body — it's for advanced re-cloning / custom hydration. |
 | `createInfiniteList( options )` | Stable | Infinite-scroll renderer: sentinel-driven `IntersectionObserver`, abortable in-flight pages, dedup-by-id, cursor pagination. Full recipe: [`docs/examples/infinite-list.md`](./examples/infinite-list.md). |
-| `startOAuth( service, options? )` | Stable | Start the OAuth relay flow for a service declared via PHP `open_station_register_oauth_relay()`. Resolves with the success payload, rejects with a tagged Error on failure. Full recipe: [`docs/examples/oauth-relay.md`](./examples/oauth-relay.md). |
+| `startOAuth( service, options? )` | Stable | Start the OAuth relay flow for a service declared via PHP `openstation_register_oauth_relay()`. Resolves with the success payload, rejects with a tagged Error on failure. Full recipe: [`docs/examples/oauth-relay.md`](./examples/oauth-relay.md). |
 | `getOsSettings()` | Stable | Defensive copy of the persisted OS Settings snapshot — same shape a settings tab's `ctx.getOsSettings()` returns. |
 | `subscribeOsSettings( cb )` | Stable | Subscribe to OS Settings changes; returns an unsubscribe function. Mirrors the settings-tab `ctx.subscribeOsSettings` API. |
 | `updateOsSettings( patch, opts? )` | Stable | Patch + persist the OS Settings state (whitelisted keys only). See [`updateOsSettings`](#updateossettings-patch-opts---stable). |
-| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `open_station_shell_config`. |
+| `config` | Stable | The `DesktopConfig` that booted the shell. Notable read-only fields plugins reach for: `pluginUrl` (no trailing slash) and `pluginVersion` (the active plugin semver — surfaced in OS Settings → About; useful for version-gated features); `stickyNotes.available` (boolean — whether Gutenberg's Guidelines experiment is registered, so the sticky-notes layer only boots when its REST routes exist); `notesUrl` (string — REST base for the pinned-notes controller at `/desktop-mode/v1/notes`; the notes layer only boots when present); `canCreatePosts` (boolean — whether the current user has `edit_posts`, gating the note "Convert to post" affordances). Filterable server-side via `openstation_shell_config`. |
 
 ### System tiles
 
@@ -4484,7 +4484,7 @@ wp.os.whenReady( () => {
 
 `registerSystemTile( item )` takes the tile definition only — there is no placement parameter and no return value. Every registration fires the `os.dock.item-appended` action with `{ id }`.
 
-**Why the bottom rail:** plugin-contributed admin menus live in the bottom pill already (see `open_station_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left rail focused on core WP.
+**Why the bottom rail:** plugin-contributed admin menus live in the bottom pill already (see `openstation_dock_placement`). Putting plugin-contributed shell launchers next to them keeps "everything plugin" in one place and keeps the left rail focused on core WP.
 
 ---
 
@@ -4612,7 +4612,7 @@ Server side, read the URL flag in your capture hook:
 
 ```php
 add_action( 'init', function () {
-    $sid = open_station_debug_session_for_request();
+    $sid = openstation_debug_session_for_request();
     if ( '' === $sid && isset( $_GET['wp_debug_session'] ) ) {
         $sid = sanitize_key( wp_unslash( $_GET['wp_debug_session'] ) );
     }
@@ -4622,13 +4622,13 @@ add_action( 'init', function () {
     if ( ! defined( 'SAVEQUERIES' ) ) {
         define( 'SAVEQUERIES', true );
     }
-    // … shutdown hook publishes via open_station_debug_publish( $sid, … )
+    // … shutdown hook publishes via openstation_debug_publish( $sid, … )
 }, 1 );
 ```
 
 ### `wp.os.devtools.debug` — Experimental
 
-Generic per-session pub/sub bus. Pair with PHP `open_station_debug_publish()`.
+Generic per-session pub/sub bus. Pair with PHP `openstation_debug_publish()`.
 
 ```js
 const sessionId = wp.os.devtools.debug.startSession();   // opaque uuid
@@ -4660,7 +4660,7 @@ wp.os.registerTitleBarButton( {
 } );
 ```
 
-Always populated for windows registered via PHP `open_station_register_window( $args )` (carries `$args['script']`); undefined for iframe windows backed by a core admin page.
+Always populated for windows registered via PHP `openstation_register_window( $args )` (carries `$args['script']`); undefined for iframe windows backed by a core admin page.
 
 ### postMessage protocol additions
 
@@ -5070,7 +5070,7 @@ interface RestPlacementShape {
      *     the drag when `=== false`.
      * Falsy for read-only recipients of a shared folder, for any
      * non-owner's root-placement of a shared folder (use "Leave
-     * shared folder" instead), and anything a `open_station_files_user_can_trash_placement`
+     * shared folder" instead), and anything a `openstation_files_user_can_trash_placement`
      * filter customisation has vetoed. `undefined` (legacy
      * payloads) falls through to existing REST-403 behavior.
      */
@@ -5388,7 +5388,7 @@ interface MyWordpressApi {
     /**
      * Register a renderer for a custom entity kind so a plugin
      * can ship its own section type without patching the bundle.
-     * Pair with a PHP entry in `open_station_my_wordpress_entities`
+     * Pair with a PHP entry in `openstation_my_wordpress_entities`
      * carrying the same `kind` slug.
      *
      * Returns an unregister function.
@@ -5543,7 +5543,7 @@ scrolls. Bands order the view; they don't re-query the server.
 **Custom fields:** the window sends an explicit `_fields` list, so a
 key your endpoint returns is stripped before the bundle sees it unless
 the section declares it in `listFields` (see
-[`open_station_my_wordpress_entities`](./hooks-reference.md#open_station_my_wordpress_entities--experimental)).
+[`openstation_my_wordpress_entities`](./hooks-reference.md#openstation_my_wordpress_entities--experimental)).
 
 ### Action — `os.my-wordpress.list-tile`
 
@@ -5665,7 +5665,7 @@ section's parent route is its group rather than the root.
 ### Section descriptors — grouping and thumbnails
 
 Entity descriptors reaching the bundle (from
-`open_station_my_wordpress_entities` server-side, or appended in JS)
+`openstation_my_wordpress_entities` server-side, or appended in JS)
 carry four optional fields beyond the documented core set:
 
 ```ts
@@ -5692,7 +5692,7 @@ Groups from the server and groups derived from entity descriptors are
 server doesn't know about still gets a folder, slotted by its
 `groupOrder` among the server's. Server-declared groups keep the order
 PHP gave them, so the
-`open_station_my_wordpress_post_type_groups` filter's ordering is
+`openstation_my_wordpress_post_type_groups` filter's ordering is
 preserved.
 
 `listQuery` exists so a server-side query filter can tell a site-window
@@ -5745,7 +5745,7 @@ into `window.openStationConfig.restNonce` (auto-injected by
 `window.openStationWindowConfig['desktop-mode-plugins']` would
 otherwise go stale after a day. The server's
 `heartbeat_received` filter (see
-[`open_station_nonce_refresh_actions`](./hooks-reference.md#open_station_nonce_refresh_actions--stable-filter))
+[`openstation_nonce_refresh_actions`](./hooks-reference.md#openstation_nonce_refresh_actions--stable-filter))
 ships a fresh `{ action: nonce }` map on every tick under the
 `desktop_mode_nonces` heartbeat field; the framework overwrites
 its own cached values in place. Defaults cover `wp_rest`,
@@ -5758,7 +5758,7 @@ plugin authors don't need to wire anything by hand.
 **For plugins that ship their own cached nonce** (an admin-ajax
 nonce keyed by a custom action, a private REST nonce, …): publish
 the action on PHP via
-[`open_station_nonce_refresh_actions`](./hooks-reference.md#open_station_nonce_refresh_actions--stable-filter),
+[`openstation_nonce_refresh_actions`](./hooks-reference.md#openstation_nonce_refresh_actions--stable-filter),
 then subscribe to the heartbeat field and read the action key off
 the returned map:
 
@@ -5795,7 +5795,7 @@ in a single round trip.
 When the login session expires, the desktop shows **one** login
 prompt: core's `wp-auth-check` modal in the parent shell. Chromeless
 iframes have theirs suppressed server-side
-(`open_station_chromeless_suppress_auth_check()`), so N open windows
+(`openstation_chromeless_suppress_auth_check()`), so N open windows
 no longer stack N identical modals.
 
 After the user re-authenticates (in the modal, or in another tab),
@@ -6096,7 +6096,7 @@ snapshots the transcript before appending the new message.
 ### Site folder integration
 
 The server appends an `agents` entity (`kind: 'agent'`) to the site
-folder window via the `open_station_my_wordpress_entities` filter,
+folder window via the `openstation_my_wordpress_entities` filter,
 and ships an `agents` block on the window config:
 
 ```ts

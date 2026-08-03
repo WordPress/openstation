@@ -4,8 +4,8 @@
  *
  * Adds two opt-in query parameters to `/wp/v2/media`:
  *
- *   - `open_station_min_width`  — only return images at least this many pixels wide.
- *   - `open_station_min_height` — only return images at least this many pixels tall.
+ *   - `openstation_min_width`  — only return images at least this many pixels wide.
+ *   - `openstation_min_height` — only return images at least this many pixels tall.
  *
  * The OS Settings wallpaper picker uses these to keep a site with thousands
  * of small product images from burying the handful of desktop-worthy HD
@@ -25,14 +25,14 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Numeric post-meta keys stamped on every image attachment. */
-const OPEN_STATION_META_WIDTH  = '_desktop_mode_width';
-const OPEN_STATION_META_HEIGHT = '_desktop_mode_height';
+const OPENSTATION_META_WIDTH  = '_desktop_mode_width';
+const OPENSTATION_META_HEIGHT = '_desktop_mode_height';
 
 /** Option key flipped to `1` once every image has been backfilled. */
-const OPEN_STATION_BACKFILL_DONE_OPTION = 'desktop_mode_media_dims_backfilled';
+const OPENSTATION_BACKFILL_DONE_OPTION = 'desktop_mode_media_dims_backfilled';
 
 /** How many legacy attachments to backfill per filtered REST request. */
-const OPEN_STATION_MEDIA_BACKFILL_BATCH = 50;
+const OPENSTATION_MEDIA_BACKFILL_BATCH = 50;
 
 /**
  * Stamp numeric dimension meta whenever an attachment's metadata is
@@ -45,7 +45,7 @@ const OPEN_STATION_MEDIA_BACKFILL_BATCH = 50;
  * @param int   $attachment_id  Attachment post ID.
  * @return array The metadata, unchanged — we only read from it.
  */
-function open_station_stamp_media_dimensions( $metadata, $attachment_id ) {
+function openstation_stamp_media_dimensions( $metadata, $attachment_id ) {
 	if ( ! is_array( $metadata ) ) {
 		return $metadata;
 	}
@@ -56,16 +56,16 @@ function open_station_stamp_media_dimensions( $metadata, $attachment_id ) {
 	// Stamp zero for images we can't measure (SVGs, broken files) so the
 	// backfill sweep knows we've already inspected this row and doesn't
 	// re-check it on every subsequent filtered request.
-	update_post_meta( $attachment_id, OPEN_STATION_META_WIDTH, max( 0, $width ) );
-	update_post_meta( $attachment_id, OPEN_STATION_META_HEIGHT, max( 0, $height ) );
+	update_post_meta( $attachment_id, OPENSTATION_META_WIDTH, max( 0, $width ) );
+	update_post_meta( $attachment_id, OPENSTATION_META_HEIGHT, max( 0, $height ) );
 
 	return $metadata;
 }
-add_filter( 'wp_generate_attachment_metadata', 'open_station_stamp_media_dimensions', 10, 2 );
-add_filter( 'wp_update_attachment_metadata', 'open_station_stamp_media_dimensions', 10, 2 );
+add_filter( 'wp_generate_attachment_metadata', 'openstation_stamp_media_dimensions', 10, 2 );
+add_filter( 'wp_update_attachment_metadata', 'openstation_stamp_media_dimensions', 10, 2 );
 
 /**
- * Register the `open_station_min_width` / `open_station_min_height` query parameters on
+ * Register the `openstation_min_width` / `openstation_min_height` query parameters on
  * the media collection so Core sanitizes them before they reach our
  * query filter. Without this, the params would still work but would
  * show up as unknown to any REST consumer introspecting the schema.
@@ -73,20 +73,20 @@ add_filter( 'wp_update_attachment_metadata', 'open_station_stamp_media_dimension
  * @param array $params Existing collection params.
  * @return array
  */
-function open_station_register_media_query_params( $params ) {
-	$params['open_station_min_width'] = array(
+function openstation_register_media_query_params( $params ) {
+	$params['openstation_min_width'] = array(
 		'description' => __( 'Only return images at least this many pixels wide.', 'desktop-mode' ),
 		'type'        => 'integer',
 		'minimum'     => 1,
 	);
-	$params['open_station_min_height'] = array(
+	$params['openstation_min_height'] = array(
 		'description' => __( 'Only return images at least this many pixels tall.', 'desktop-mode' ),
 		'type'        => 'integer',
 		'minimum'     => 1,
 	);
 	return $params;
 }
-add_filter( 'rest_attachment_collection_params', 'open_station_register_media_query_params' );
+add_filter( 'rest_attachment_collection_params', 'openstation_register_media_query_params' );
 
 /**
  * Inject meta_query clauses on the attachment REST query when either
@@ -98,9 +98,9 @@ add_filter( 'rest_attachment_collection_params', 'open_station_register_media_qu
  * @param WP_REST_Request $request The REST request.
  * @return array The query args, possibly with extra meta_query entries.
  */
-function open_station_filter_media_by_dimensions( $args, $request ) {
-	$min_width  = absint( $request->get_param( 'open_station_min_width' ) );
-	$min_height = absint( $request->get_param( 'open_station_min_height' ) );
+function openstation_filter_media_by_dimensions( $args, $request ) {
+	$min_width  = absint( $request->get_param( 'openstation_min_width' ) );
+	$min_height = absint( $request->get_param( 'openstation_min_height' ) );
 
 	if ( ! $min_width && ! $min_height ) {
 		return $args;
@@ -113,7 +113,7 @@ function open_station_filter_media_by_dimensions( $args, $request ) {
 	// dimension filters, but must never trigger database writes (or the
 	// NOT EXISTS sweep query) on a public, unauthenticated endpoint.
 	if ( is_user_logged_in() ) {
-		open_station_backfill_media_dimensions( OPEN_STATION_MEDIA_BACKFILL_BATCH );
+		openstation_backfill_media_dimensions( OPENSTATION_MEDIA_BACKFILL_BATCH );
 	}
 
 	$meta_query = isset( $args['meta_query'] ) && is_array( $args['meta_query'] )
@@ -123,7 +123,7 @@ function open_station_filter_media_by_dimensions( $args, $request ) {
 	$clauses = array();
 	if ( $min_width ) {
 		$clauses[] = array(
-			'key'     => OPEN_STATION_META_WIDTH,
+			'key'     => OPENSTATION_META_WIDTH,
 			'value'   => $min_width,
 			'compare' => '>=',
 			'type'    => 'NUMERIC',
@@ -131,7 +131,7 @@ function open_station_filter_media_by_dimensions( $args, $request ) {
 	}
 	if ( $min_height ) {
 		$clauses[] = array(
-			'key'     => OPEN_STATION_META_HEIGHT,
+			'key'     => OPENSTATION_META_HEIGHT,
 			'value'   => $min_height,
 			'compare' => '>=',
 			'type'    => 'NUMERIC',
@@ -156,7 +156,7 @@ function open_station_filter_media_by_dimensions( $args, $request ) {
 
 	return $args;
 }
-add_filter( 'rest_attachment_query', 'open_station_filter_media_by_dimensions', 10, 2 );
+add_filter( 'rest_attachment_query', 'openstation_filter_media_by_dimensions', 10, 2 );
 
 /**
  * Stamp dimension meta on up to $batch image attachments that don't
@@ -170,8 +170,8 @@ add_filter( 'rest_attachment_query', 'open_station_filter_media_by_dimensions', 
  * @param int $batch Maximum attachments to stamp this pass.
  * @return int Number of attachments stamped (0 when nothing remained).
  */
-function open_station_backfill_media_dimensions( $batch ) {
-	if ( get_option( OPEN_STATION_BACKFILL_DONE_OPTION ) ) {
+function openstation_backfill_media_dimensions( $batch ) {
+	if ( get_option( OPENSTATION_BACKFILL_DONE_OPTION ) ) {
 		return 0;
 	}
 
@@ -189,7 +189,7 @@ function open_station_backfill_media_dimensions( $batch ) {
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- one-shot backfill targeting the small subset of attachments that lack our dimension stamp; runs at most $batch rows per filtered request and stops once the site option flips.
 			'meta_query'             => array(
 				array(
-					'key'     => OPEN_STATION_META_WIDTH,
+					'key'     => OPENSTATION_META_WIDTH,
 					'compare' => 'NOT EXISTS',
 				),
 			),
@@ -201,7 +201,7 @@ function open_station_backfill_media_dimensions( $batch ) {
 		// If a plugin ever adds new images via a back door that bypasses
 		// `wp_generate_attachment_metadata`, those can be picked up by
 		// manually deleting this option.
-		update_option( OPEN_STATION_BACKFILL_DONE_OPTION, 1, false );
+		update_option( OPENSTATION_BACKFILL_DONE_OPTION, 1, false );
 		return 0;
 	}
 
@@ -217,8 +217,8 @@ function open_station_backfill_media_dimensions( $batch ) {
 
 		// Always stamp, even when zero — that's how the sweep query
 		// knows to skip this row on the next pass.
-		update_post_meta( $id, OPEN_STATION_META_WIDTH, max( 0, $width ) );
-		update_post_meta( $id, OPEN_STATION_META_HEIGHT, max( 0, $height ) );
+		update_post_meta( $id, OPENSTATION_META_WIDTH, max( 0, $width ) );
+		update_post_meta( $id, OPENSTATION_META_HEIGHT, max( 0, $height ) );
 	}
 
 	return count( $ids );

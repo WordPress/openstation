@@ -10,7 +10,7 @@
  *
  * @group openstation
  *
- * @covers ::open_station_menu_signature
+ * @covers ::openstation_menu_signature
  */
 class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 
@@ -59,7 +59,7 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 	public function test_returns_empty_string_when_menu_is_empty() {
 		global $menu;
 		$menu = array();
-		$this->assertSame( '', open_station_menu_signature() );
+		$this->assertSame( '', openstation_menu_signature() );
 	}
 
 	public function test_is_a_stable_md5_for_a_given_menu() {
@@ -69,8 +69,8 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 		);
 
-		$first  = open_station_menu_signature();
-		$second = open_station_menu_signature();
+		$first  = openstation_menu_signature();
+		$second = openstation_menu_signature();
 
 		$this->assertMatchesRegularExpression( '/^[0-9a-f]{32}$/', $first );
 		$this->assertSame( $first, $second, 'Signature must be deterministic for an unchanged menu.' );
@@ -86,10 +86,10 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$menu = array(
 			$this->make_menu_row( 'Dashboard', 'read', 'index.php' ),
 		);
-		$before = open_station_menu_signature();
+		$before = openstation_menu_signature();
 
 		$menu[] = $this->make_menu_row( 'Books', 'edit_posts', 'edit.php?post_type=book', 'dashicons-book-alt' );
-		$after  = open_station_menu_signature();
+		$after  = openstation_menu_signature();
 
 		$this->assertNotSame( $before, $after );
 	}
@@ -100,10 +100,10 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 			$this->make_menu_row( 'Dashboard', 'read', 'index.php' ),
 			$this->make_menu_row( 'Books', 'edit_posts', 'edit.php?post_type=book' ),
 		);
-		$before = open_station_menu_signature();
+		$before = openstation_menu_signature();
 
 		array_pop( $menu );
-		$after = open_station_menu_signature();
+		$after = openstation_menu_signature();
 
 		$this->assertNotSame( $before, $after );
 	}
@@ -111,10 +111,10 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 	public function test_changes_when_a_title_is_renamed() {
 		global $menu;
 		$menu   = array( $this->make_menu_row( 'Books', 'edit_posts', 'edit.php?post_type=book' ) );
-		$before = open_station_menu_signature();
+		$before = openstation_menu_signature();
 
 		$menu[0][0] = 'Publications';
-		$after      = open_station_menu_signature();
+		$after      = openstation_menu_signature();
 
 		$this->assertNotSame( $before, $after );
 	}
@@ -124,7 +124,7 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 	 * ride inside the menu title HTML and fluctuate constantly. They
 	 * must NOT move the signature — otherwise the dock would refresh on
 	 * every moderation/update-count tick. Mirrors the badge-strip in
-	 * open_station_build_dock_items().
+	 * openstation_build_dock_items().
 	 */
 	public function test_ignores_update_badge_count_changes() {
 		global $menu;
@@ -139,11 +139,11 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 				'dashicons-admin-plugins',
 			),
 		);
-		$two = open_station_menu_signature();
+		$two = openstation_menu_signature();
 
 		// Same menu, only the badge count moved 2 -> 5.
 		$menu[0][0] = 'Plugins <span class="update-plugins count-5"><span class="plugin-count">5</span></span>';
-		$five       = open_station_menu_signature();
+		$five       = openstation_menu_signature();
 
 		$this->assertSame( $two, $five, 'A changing update badge count must not churn the signature.' );
 	}
@@ -154,10 +154,10 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		$submenu['edit.php'] = array(
 			array( 'All Posts', 'edit_posts', 'edit.php' ),
 		);
-		$before = open_station_menu_signature();
+		$before = openstation_menu_signature();
 
 		$submenu['edit.php'][] = array( 'Add New', 'edit_posts', 'post-new.php' );
-		$after                 = open_station_menu_signature();
+		$after                 = openstation_menu_signature();
 
 		$this->assertNotSame( $before, $after, 'A new submenu entry must move the signature.' );
 	}
@@ -175,11 +175,11 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 		wp_set_current_user( $subscriber_id );
 
 		$menu   = array( $this->make_menu_row( 'Dashboard', 'read', 'index.php' ) );
-		$before = open_station_menu_signature();
+		$before = openstation_menu_signature();
 
 		// Add a menu the subscriber cannot access.
 		$menu[] = $this->make_menu_row( 'Settings', 'manage_options', 'options-general.php' );
-		$after  = open_station_menu_signature();
+		$after  = openstation_menu_signature();
 
 		$this->assertSame( $before, $after, 'An item the viewer lacks the cap for must not move their signature.' );
 	}
@@ -195,11 +195,11 @@ class Tests_OpenStation_MenuSignature extends WP_UnitTestCase {
 			array( '', 'read', 'separator1', '', 'wp-menu-separator' ),
 			$this->make_menu_row( 'Posts', 'edit_posts', 'edit.php' ),
 		);
-		$with_separator = open_station_menu_signature();
+		$with_separator = openstation_menu_signature();
 
 		unset( $menu[1] );
 		$menu           = array_values( $menu );
-		$without        = open_station_menu_signature();
+		$without        = openstation_menu_signature();
 
 		$this->assertSame( $with_separator, $without );
 	}

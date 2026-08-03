@@ -1876,7 +1876,7 @@ export class Window {
 	 * Open the window's current URL in a new browser tab as classic
 	 * wp-admin.
 	 *
-	 * Strips the chromeless `open_station_chromeless` flag and the transient
+	 * Strips the chromeless `openstation_chromeless` flag and the transient
 	 * `desktop_mode_portal` flag, and tags the URL with
 	 * `desktop_mode_classic=1` so the server-side admin_init redirect
 	 * (which otherwise forwards plain admin URLs to `/openstation/`)
@@ -1898,7 +1898,7 @@ export class Window {
 		if ( url.origin !== INITIAL_ORIGIN ) {
 			return;
 		}
-		url.searchParams.delete( 'open_station_chromeless' );
+		url.searchParams.delete( 'openstation_chromeless' );
 		url.searchParams.delete( 'desktop_mode_portal' );
 		url.searchParams.set( 'desktop_mode_classic', '1' );
 

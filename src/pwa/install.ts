@@ -253,7 +253,7 @@ async function onTileClick(
 	if ( getSwRegistrationStatus() === 'foreign-sw' ) {
 		showToast( {
 			message: __(
-				"Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the open_station_pwa_force_replace_sw filter to true.",
+				"Install isn't available — another plugin's service worker is active on this site. A site admin can opt in by setting the openstation_pwa_force_replace_sw filter to true.",
 			),
 		} );
 		return;

@@ -9,7 +9,7 @@ to the window control glyphs. It ships as a ZIP containing a
 `theme.json` manifest plus images and fonts. Nothing else.
 
 > **Desktop themes vs window themes.** OpenStation also has
-> *window themes* (`open_station_register_window_theme()`,
+> *window themes* (`openstation_register_window_theme()`,
 > `wp.os.registerWindowTheme`), which restyle **one window's**
 > chrome. Desktop themes restyle **the entire OS**. They are separate
 > features with separate registries; everything on this page uses the
@@ -141,7 +141,7 @@ unregisters it:
 
 ```php
 add_action( 'init', function () {
-    open_station_unregister_desktop_theme( 'desktop-mode/legacy' );
+    openstation_unregister_desktop_theme( 'desktop-mode/legacy' );
 }, 20 );
 ```
 
@@ -711,7 +711,7 @@ it is ignored.
 
 16 faces per theme, 4 sources per face, 8 MB per file, 32 MB per
 archive. Both face caps are filterable
-(`open_station_desktop_theme_font_caps`).
+(`openstation_desktop_theme_font_caps`).
 
 ### Practical notes
 
@@ -801,7 +801,7 @@ become the wallpaper ids.
 | `position` | `center center` (default), keywords, lengths, or percentages. |
 
 Twelve per theme, filterable via
-`open_station_desktop_theme_max_wallpapers`.
+`openstation_desktop_theme_max_wallpapers`.
 
 ### Ids are a stored preference — keep them stable
 
@@ -875,7 +875,7 @@ still apply.
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
 | `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
 | `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
-| `accent` | A registered accent-swatch id (OS Settings → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `open_station_accent_colors`. |
+| `accent` | A registered accent-swatch id (OS Settings → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `openstation_accent_colors`. |
 
 **`accent` is the one recommendation a theme cannot express any other
 way, and most themes want it.** The accent is a user setting written as
@@ -887,7 +887,7 @@ help: it is dropped, because the accent belongs to the user rather than
 to the theme. Recommending it is how a palette says "and this hue with
 it", once, on first activation.
 
-The built-in **OpenStation (Legacy)** theme is the worked example —
+The built-in **Desktop Mode (Legacy)** theme is the worked example —
 its whole recommendation block is `{ "accent": "wp-blue" }`, which is
 what makes the pre-brand chrome come back complete.
 
@@ -907,7 +907,7 @@ duration is the honest reading of that.
 Nothing else is reachable. The allow-list is presentation only, so a
 manifest cannot flip a feature toggle, a capability-adjacent
 preference, or another theme's activation. A site can widen the list
-through `open_station_desktop_theme_recommended_os_settings_schema`
+through `openstation_desktop_theme_recommended_os_settings_schema`
 — `{ enum }` for a closed set, `{ slug }` for a registry id resolved
 at apply time, `{ int => { min, max } }` for a clamped number — and
 even then the shell only writes a key that already exists and whose
@@ -940,7 +940,7 @@ extension. `name` must match `^dashicons-[a-z0-9-]+$`.
 | Group | Slots |
 |---|---|
 | Window controls | `WINDOW_CONTROL_MINIMIZE`, `WINDOW_CONTROL_MAXIMIZE`, `WINDOW_CONTROL_FULLSCREEN`, `WINDOW_CONTROL_FULLSCREEN_EXIT`, `WINDOW_CONTROL_CLOSE`, `WINDOW_CONTROL_MENU`, `WINDOW_CONTROL_RELOAD`, `WINDOW_CONTROL_DETACH` |
-| System tiles | `OS_SETTINGS`, `RECYCLE_BIN`, `BUG_REPORT`, `EXIT_OPEN_STATION`, `PWA_INSTALL` |
+| System tiles | `OS_SETTINGS`, `RECYCLE_BIN`, `BUG_REPORT`, `EXIT_OPENSTATION`, `PWA_INSTALL` |
 | Apps | `DEFAULT_APP_ICON`, plus `APP:<slug>` for any individual dock tile, desktop icon, or native window id |
 | Desktop files | `FOLDER`, `FILE_SHORTCUT`, `FILE_POST`, `FILE_ATTACHMENT`, `FILE_UPLOAD`, `FILE_USER`, `FILE_TERM`, `FILE_COMMENT`, `FILE_BOOKMARK`, `FILE_LINK`, `FILE_EMBED` |
 | Recycle-bin row actions | `RECYCLE_RESTORE`, `RECYCLE_DELETE` |
@@ -988,7 +988,7 @@ Per-slot overrides take a real colour, which is right when the colour
 "iconColor": "currentColor",
 "icons": {
   "OS_SETTINGS":       { "type": "image", "path": "icons/settings.svg" },
-  "EXIT_OPEN_STATION": { "type": "image", "path": "icons/exit.svg",
+  "EXIT_OPENSTATION": { "type": "image", "path": "icons/exit.svg",
                          "color": "#ff6b81" },
   "BUG_REPORT":        { "type": "image", "path": "icons/bug.svg",
                          "color": "#ffcf70" },
@@ -1247,7 +1247,7 @@ Two steps. Register the slot with the custom property you want it
 written to:
 
 ```php
-add_filter( 'open_station_desktop_theme_texture_slots', function ( $slots ) {
+add_filter( 'openstation_desktop_theme_texture_slots', function ( $slots ) {
     $slots['ACME_SIDEBAR'] = array(
         'type' => 'image',                   // or 'border-image'
         'prop' => '--acme-sidebar-image',    // the property base name
@@ -1294,7 +1294,7 @@ Slot names should be `UPPER_SNAKE` and namespaced by prefix
 (`ACME_SIDEBAR`, not `SIDEBAR`) so two plugins can't collide.
 
 The same trick works for icons via
-`open_station_desktop_theme_icon_slots`, with one extra obligation:
+`openstation_desktop_theme_icon_slots`, with one extra obligation:
 the JS side resolves icons, so a new icon slot must also exist in
 `src/desktop-themes/slots.ts` or the shell will never look it up.
 Texture slots have no such twin — they are pure CSS.
@@ -1347,7 +1347,7 @@ saying.** Concretely:
 
 **Install:** OS Settings → Themes → drop a `.zip` on the upload tile.
 Requires `manage_options` by default (filterable via
-`open_station_desktop_theme_upload_capability`).
+`openstation_desktop_theme_upload_capability`).
 
 **Window controls.** These are title-bar chrome, so they follow the
 title bar's own colours rather than the body palette, and each focus
@@ -1450,7 +1450,7 @@ absolute URLs you already serve instead of files in a ZIP.
 
 ```php
 add_action( 'init', function () {
-    open_station_register_desktop_theme( 'acme/neon-glass', array(
+    openstation_register_desktop_theme( 'acme/neon-glass', array(
         'name'     => __( 'Neon Glass', 'acme' ),
         'version'  => '1.0.0',
         'preview'  => plugins_url( 'theme/preview.png', __FILE__ ),

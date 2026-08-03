@@ -6,12 +6,12 @@
  * button appears only on windows whose content identity carries
  * related navigation targets — for posts/pages those are built
  * server-side (comments, assigned terms, attached media; see
- * `open_station_window_related_entities_for_post()` in
+ * `openstation_window_related_entities_for_post()` in
  * `includes/window-links.php`) and travel with the
  * `os-content-identity` bridge payload. Clicking an item
  * opens the target admin URL as its own desktop window.
  *
- * Developer surface: the `open_station_window_related_entities` PHP
+ * Developer surface: the `openstation_window_related_entities` PHP
  * filter adds items for any screen; the
  * `os.related-entities.items` JS filter
  * ({@link HOOKS.RELATED_ENTITIES_ITEMS}) rewrites the resolved list

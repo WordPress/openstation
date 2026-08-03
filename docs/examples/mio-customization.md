@@ -19,7 +19,7 @@ Return a partial array — anything you leave out keeps the reference design. Ev
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'open_station_mio_config', function ( $config ) {
+add_filter( 'openstation_mio_config', function ( $config ) {
 	// Brand colours: a teal-to-green ring instead of magenta-to-violet.
 	$config['appearance']['hueStart'] = 170;
 	$config['appearance']['hueSpan']  = 50;

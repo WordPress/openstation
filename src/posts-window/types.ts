@@ -10,11 +10,11 @@
  *   - `StatusSegment` — entries in the segmented control above the
  *     table (All / Published / Drafts / …).
  *   - `PostsWindowContext` — shell-managed handle handed to
- *     `BulkAction.run()` and the `open_station.postsWindow.opened`
+ *     `BulkAction.run()` and the `openstation.postsWindow.opened`
  *     subscribers.
  *
  * The PostListItem row shape lives in `./rest.ts`; columns added via
- * `open_station.postsWindow.columns` reach into that shape.
+ * `openstation.postsWindow.columns` reach into that shape.
  *
  * @public
  */
@@ -49,7 +49,7 @@ export interface PostsWindowContext {
 /**
  * A bulk action that appears in the toolbar when one or more rows
  * are selected. The shipped default is "Move to trash"; plugins
- * append/replace via the `open_station.postsWindow.bulkActions`
+ * append/replace via the `openstation.postsWindow.bulkActions`
  * filter.
  */
 export interface BulkAction {
@@ -85,7 +85,7 @@ export interface BulkAction {
  * A status filter segment in the segmented control above the table.
  * Defaults are All / Published / Drafts / Pending / Scheduled / Trash;
  * plugins extend or replace via
- * `open_station.postsWindow.statusSegments`.
+ * `openstation.postsWindow.statusSegments`.
  *
  * The `value` is sent verbatim as the REST `?status=…` param when the
  * segment is selected. Use `''` (empty string) for the "All" sentinel
@@ -99,7 +99,7 @@ export interface StatusSegment {
 
 /**
  * Detail shape of the `os-posts-window-data-loaded`
- * CustomEvent (and the matching `open_station.postsWindow.dataLoaded`
+ * CustomEvent (and the matching `openstation.postsWindow.dataLoaded`
  * hook-bus action). Fired after every successful refresh.
  */
 export interface PostsWindowDataLoadedDetail {

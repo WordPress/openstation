@@ -167,7 +167,7 @@ export const HOOKS = {
 	WALLPAPERS: 'os.wallpapers',
 	/**
 	 * Filter, receives the games registry array (`GameRegistryEntry[]`)
-	 * on every read. Mirrors the PHP-side `open_station_games` filter.
+	 * on every read. Mirrors the PHP-side `openstation_games` filter.
 	 */
 	GAMES: 'os.games',
 	/** Filter, receives the unfocused-window effect registry array. */
@@ -408,7 +408,7 @@ export const HOOKS = {
 	 * deliberate stylistic reasons); the filter is responsible for
 	 * its own viewport math when it cares.
 	 *
-	 * Companion of `open_station_register_window` server-side
+	 * Companion of `openstation_register_window` server-side
 	 * defaults — runs every time a window opens, not just at
 	 * registration.
 	 */
@@ -778,7 +778,7 @@ export const HOOKS = {
 
 	/**
 	 * Action, fires when a user clicks a desktop icon (a shortcut
-	 * tile registered server-side via `open_station_register_icon()`
+	 * tile registered server-side via `openstation_register_icon()`
 	 * and rendered on the wallpaper). Payload: `{ id: string,
 	 * target: 'window' | 'url' }`. Fires BEFORE the default open
 	 * action — plugins cannot cancel the open from this hook, but
@@ -1062,7 +1062,7 @@ export const HOOKS = {
 	/**
 	 * Action, fires when the user clicks a plugin-registered entry in
 	 * the Arrange admin-bar submenu (items added via the
-	 * `open_station_arrange_menu_items` PHP filter). Payload `{ id }`
+	 * `openstation_arrange_menu_items` PHP filter). Payload `{ id }`
 	 * where `id` is the item's `id` field as registered. Plugins
 	 * subscribe here to run their custom arrangement logic.
 	 */
@@ -1287,7 +1287,7 @@ export const HOOKS = {
 	 * item is `{ id, group, label, url, groupLabel?, icon?, count? }`.
 	 * The unfiltered list is whatever the window's content identity
 	 * carried in `related` (built server-side; see the
-	 * `open_station_window_related_entities` PHP filter). Add, drop, or
+	 * `openstation_window_related_entities` PHP filter). Add, drop, or
 	 * relabel items here — return an empty array to hide the button.
 	 */
 	RELATED_ENTITIES_ITEMS: 'os.related-entities.items',

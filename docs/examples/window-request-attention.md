@@ -90,7 +90,7 @@ wp.os.hooks.addFilter(
 ## Fallback for `placement: 'none'` windows
 
 A window registered without a tile (e.g.,
-`open_station_register_window( ..., [ 'placement' => 'none' ] )`)
+`openstation_register_window( ..., [ 'placement' => 'none' ] )`)
 has no rail tile to pulse. `requestAttention` falls back to a
 `setHighlight('persistent')` ring on the window itself, auto-cleared
 after `durationMs`. The API is therefore safe to call regardless of

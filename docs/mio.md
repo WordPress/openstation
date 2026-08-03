@@ -79,7 +79,7 @@ Two halves, split so a user who never switches Mio on never downloads it.
 The whole of it, and it is worth being precise because the answer is "almost nothing":
 
 - **No script and no stylesheet** are enqueued for Mio, ever. Nothing in `includes/render/assets.php` registers one.
-- The shell config carries two keys: `mioBundleUrl` (a URL string) and `mio` (the appearance + physics blob — **~470 bytes gzipped**). The config ships whether or not Mio is on, because fetching it on first toggle would mean the `open_station_mio_config` filter silently didn't apply until the next reload.
+- The shell config carries two keys: `mioBundleUrl` (a URL string) and `mio` (the appearance + physics blob — **~470 bytes gzipped**). The config ships whether or not Mio is on, because fetching it on first toggle would mean the `openstation_mio_config` filter silently didn't apply until the next reload.
 - In the always-on bundle: `MioController` (~2 kB) and the dock tile's definition (a few hundred bytes).
 - PixiJS, the soft body, the renderer, the pointer tracker and the ~25 kB Mio bundle are **script-injected on the first toggle** and never touched otherwise.
 
@@ -283,7 +283,7 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 
 The **Corners** slider appears only for `Polygon` (`custom`), the one preset that reads `shapeLobes`. A control that does nothing for ten of the eleven shapes teaches people to ignore it.
 
-**There is no "soften the glow" toggle.** `glowBlur` stays on. The unblurred halo is a hard-edged disc of colour behind the ring — not a look anyone was choosing on purpose, just what the glow looks like before it is finished. The key survives in the config for `open_station_mio_config`, which is where a site that needs the filter pass gone for performance can still drop it.
+**There is no "soften the glow" toggle.** `glowBlur` stays on. The unblurred halo is a hard-edged disc of colour behind the ring — not a look anyone was choosing on purpose, just what the glow looks like before it is finished. The key survives in the config for `openstation_mio_config`, which is where a site that needs the filter pass gone for performance can still drop it.
 
 **Every readout is fixed to two decimals and a fixed width.** The numbers sit on the same row as their tracks, so a readout that grows with its contents shoves the slider sideways *under the thumb the user is dragging*. `<os-range-field>` sizes the box from the range's own bounds rather than from the value it happens to be showing (see its `decimals` prop), which fixes the shift for every slider in the shell, not just Mio's.
 
@@ -341,7 +341,7 @@ Two sanitizers guard the trip, and they are deliberately not the same thing:
 
 | | Where | What it decides |
 |---|---|---|
-| `sanitizeMioLook()` / `open_station_sanitize_mio_look()` | `src/mio/look.ts`, `includes/mio.php` | **Shape check.** Which keys may be stored, and that their values are storable scalars. |
+| `sanitizeMioLook()` / `openstation_sanitize_mio_look()` | `src/mio/look.ts`, `includes/mio.php` | **Shape check.** Which keys may be stored, and that their values are storable scalars. |
 | `sanitizeMioConfig()` | `src/mio/config.ts` | **Clamp.** What a legal hue, silhouette or spring constant is. |
 
 Two validators with overlapping opinions about ranges is how ranges drift apart, so the storage layer has none. It only refuses keys — and the key it refuses hardest is anything in `physics` outside `LOOK_PHYSICS_KEYS`, because a stored preference that could reach the spring constants would be a way for a corrupt row to make Mio unstable.
@@ -539,14 +539,14 @@ Eyes are white pills that inherit a fraction of the body's squash, offset toward
 
 ## PHP API
 
-### `open_station_mio_config()`
+### `openstation_mio_config()`
 
 Returns the appearance + physics configuration shipped to the shell in `openStationConfig.mio`. Colours accept integers (`0x05050a`) or CSS hex strings (`'#05050a'`).
 
 Every value is re-clamped client-side, so a filter that returns nonsense produces a plain-looking Mio, never a broken shell.
 
 ```php
-add_filter( 'open_station_mio_config', function ( $config ) {
+add_filter( 'openstation_mio_config', function ( $config ) {
 	// A slower, heavier, teal companion.
 	$config['appearance']['hueStart'] = 170;
 	$config['appearance']['hueSpan']  = 40;
@@ -620,10 +620,10 @@ add_filter( 'open_station_mio_config', function ( $config ) {
 
 ### User preference
 
-Two per-user OS settings, both in the `desktop_mode_os_settings` user meta and sanitized by `open_station_sanitize_os_settings()`:
+Two per-user OS settings, both in the `desktop_mode_os_settings` user meta and sanitized by `openstation_sanitize_os_settings()`:
 
 - **`mioEnabled`** (default `false`) — whether Mio is on.
-- **`mioStyle`** — the user's own look, `{ appearance, physics }`, both partial and both empty until they open ["Make it yours"](#make-it-yours). Sanitized by `open_station_sanitize_mio_look()`.
+- **`mioStyle`** — the user's own look, `{ appearance, physics }`, both partial and both empty until they open ["Make it yours"](#make-it-yours). Sanitized by `openstation_sanitize_mio_look()`.
 
 One thing is browser-local, in `localStorage`: the resting position (`os-mio-position`). Where Mio sits is a fact about one screen; everything else about it is a fact about the person.
 
@@ -667,7 +667,7 @@ wp.os.ready( () => {
 
 | Hook | Type | Status | Payload |
 |---|---|---|---|
-| `open_station_mio_config` | filter | Experimental | `array $config` — appearance + physics. |
+| `openstation_mio_config` | filter | Experimental | `array $config` — appearance + physics. |
 
 ### JavaScript
 

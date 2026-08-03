@@ -26,7 +26,7 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 	public function set_up() {
 		parent::set_up();
 
-		if ( ! function_exists( 'open_station_register_window' ) ) {
+		if ( ! function_exists( 'openstation_register_window' ) ) {
 			$this->markTestSkipped( 'OpenStation is not loaded.' );
 		}
 
@@ -40,7 +40,7 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 		// re-registration overwrites rather than duplicates — but the
 		// icon leaks into the shared desktop-icons payload every other
 		// test in the process reads, so drop it explicitly.
-		open_station_unregister_icon( 'feed-buddy-reader' );
+		openstation_unregister_icon( 'feed-buddy-reader' );
 		wp_set_current_user( 0 );
 		parent::tear_down();
 	}
@@ -51,7 +51,7 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 	public function test_registers_reader_window() {
 		feed_buddy_register_surfaces();
 
-		$entry = open_station_native_window_registry( 'feed-buddy-reader' );
+		$entry = openstation_native_window_registry( 'feed-buddy-reader' );
 
 		$this->assertIsArray( $entry, 'Reader window should be registered.' );
 		$this->assertSame( 'dock', $entry['placement'] );
@@ -67,7 +67,7 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 	public function test_registers_buddy_list_widget() {
 		feed_buddy_register_surfaces();
 
-		$entry = open_station_desktop_widget_registry( 'feed-buddy/buddy-list' );
+		$entry = openstation_desktop_widget_registry( 'feed-buddy/buddy-list' );
 
 		$this->assertIsArray( $entry, 'Buddy-list widget should be registered.' );
 		$this->assertTrue( $entry['movable'] );
@@ -79,13 +79,13 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 	 *
 	 * Without this the extension has no row in OS Settings →
 	 * Apps & Icons: that list is built from dock items plus
-	 * `open_station_register_icon()` entries, and a docked native
+	 * `openstation_register_icon()` entries, and a docked native
 	 * window is neither.
 	 */
 	public function test_registers_launcher_icon_for_apps_and_icons() {
 		feed_buddy_register_surfaces();
 
-		$entry = open_station_desktop_icon_registry( 'feed-buddy-reader' );
+		$entry = openstation_desktop_icon_registry( 'feed-buddy-reader' );
 
 		$this->assertIsArray( $entry, 'Launcher icon should be registered.' );
 		$this->assertSame( 'feed-buddy-reader', $entry['window'] );
@@ -101,7 +101,7 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 	public function test_launcher_icon_reaches_the_desktop_icons_payload() {
 		feed_buddy_register_surfaces();
 
-		$ids = wp_list_pluck( open_station_build_desktop_icons_payload(), 'id' );
+		$ids = wp_list_pluck( openstation_build_desktop_icons_payload(), 'id' );
 
 		$this->assertContains( 'feed-buddy-reader', $ids );
 	}
@@ -113,11 +113,11 @@ class Test_Feed_Buddy_Registration extends WP_UnitTestCase {
 	 * survives whichever test in this process ran before this one.
 	 */
 	public function test_registers_nothing_when_logged_out() {
-		open_station_unregister_icon( 'feed-buddy-reader' );
+		openstation_unregister_icon( 'feed-buddy-reader' );
 		wp_set_current_user( 0 );
 
 		feed_buddy_register_surfaces();
 
-		$this->assertNull( open_station_desktop_icon_registry( 'feed-buddy-reader' ) );
+		$this->assertNull( openstation_desktop_icon_registry( 'feed-buddy-reader' ) );
 	}
 }

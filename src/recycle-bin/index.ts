@@ -366,11 +366,11 @@ function buildColumns(): OsTableColumn< RecycleBinItem >[] {
 
 	const hooks = window.wp?.hooks;
 	if ( hooks && typeof hooks.applyFilters === 'function' ) {
-		// Mirror the PHP `open_station_recycle_bin_columns` extension
+		// Mirror the PHP `openstation_recycle_bin_columns` extension
 		// point on the JS side so plugins can append/replace columns
 		// without forking the bundle.
 		return hooks.applyFilters(
-			'open_station.recycleBin.columns',
+			'openstation.recycleBin.columns',
 			cols,
 		) as OsTableColumn< RecycleBinItem >[];
 	}
@@ -944,7 +944,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 
 	const handleEmpty = async (): Promise< void > => {
 		// The server's empty endpoint purges the ENTIRE Trash — it takes
-		// no type/search scope (see open_station_recycle_bin_empty()).
+		// no type/search scope (see openstation_recycle_bin_empty()).
 		// The confirm copy must say so; claiming "the current view"
 		// while a filter is active would purge items the user filtered
 		// out of sight.
@@ -983,7 +983,7 @@ export function renderRecycleBin( body: HTMLElement ): void {
 				loop.skipped > 0
 					? [ {
 						id: 0,
-						code: 'open_station_recycle_bin_skipped',
+						code: 'openstation_recycle_bin_skipped',
 						message: sprintf(
 							/* translators: %d: skipped count. */
 							__( '%d item(s) skipped (insufficient permissions).' ),
@@ -1241,7 +1241,7 @@ function emitDoneEvent(
 
 	const hooks = window.wp?.hooks;
 	if ( hooks && typeof hooks.doAction === 'function' ) {
-		hooks.doAction( 'open_station.recycleBin.changed', detail );
+		hooks.doAction( 'openstation.recycleBin.changed', detail );
 	}
 
 	// Cross-window broadcast — one topic per affected post type so

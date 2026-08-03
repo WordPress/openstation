@@ -181,7 +181,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		handle = mountWindow(
 			baseConfig( {
 				id: 'posts',
-				url: `${ window.location.origin }/wp-admin/edit.php?open_station_chromeless=1`,
+				url: `${ window.location.origin }/wp-admin/edit.php?openstation_chromeless=1`,
 			} ),
 		);
 
@@ -199,7 +199,7 @@ describe( 'Window — lifecycle hook firing', () => {
 		expect( evt ).toBeDefined();
 		const payload = evt!.args[ 0 ] as { windowId: string; url: string };
 		expect( payload.windowId ).toBe( 'posts' );
-		expect( payload.url ).not.toContain( 'open_station_chromeless=1' );
+		expect( payload.url ).not.toContain( 'openstation_chromeless=1' );
 		expect( payload.url ).toContain( 'desktop_mode_classic=1' );
 
 		openSpy.mockRestore();

@@ -96,7 +96,7 @@ appliesTo: () => true,
 
 `placement.file` carries `type`, `ref`, `title`, `icon`, and
 `shortcutUrl` — `ref` is the id you passed to
-`open_station_register_icon()`.
+`openstation_register_icon()`.
 
 ## Feedback the user sees
 

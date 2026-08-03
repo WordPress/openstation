@@ -62,7 +62,7 @@ opt out:
 
 ```php
 add_filter(
-	'open_station_my_wordpress_post_type_rest_enabled',
+	'openstation_my_wordpress_post_type_rest_enabled',
 	static function ( $enabled, $post_type ) {
 		return 'acme_licence_key' === $post_type ? false : $enabled;
 	},
@@ -78,7 +78,7 @@ folder that can't open.
 
 ```php
 add_filter(
-	'open_station_my_wordpress_post_types',
+	'openstation_my_wordpress_post_types',
 	static function ( $slugs ) {
 		return array_values( array_diff( $slugs, array( 'acme_import_log' ) ) );
 	}
@@ -96,7 +96,7 @@ at one:
 
 ```php
 add_filter(
-	'open_station_my_wordpress_post_type_group',
+	'openstation_my_wordpress_post_type_group',
 	static function ( $group, $post_type ) {
 		$ours = array( 'acme_recipe', 'acme_menu', 'acme_ingredient' );
 		if ( ! in_array( $post_type, $ours, true ) ) {
@@ -128,7 +128,7 @@ icon grid:
 
 ```php
 add_filter(
-	'open_station_my_wordpress_post_type_entity',
+	'openstation_my_wordpress_post_type_entity',
 	static function ( $entity, $post_type ) {
 		if ( 'acme_import_log' === $post_type->name ) {
 			$entity['thumbnails'] = false;
@@ -144,13 +144,13 @@ add_filter(
 
 If you'd rather define the section yourself — a custom label, a
 different REST collection, your own render kind — add it through
-`open_station_my_wordpress_entities` with a `post_type` that matches.
+`openstation_my_wordpress_entities` with a `post_type` that matches.
 The automatic pass skips any type a section already covers, so there's
 no duplicate folder:
 
 ```php
 add_filter(
-	'open_station_my_wordpress_entities',
+	'openstation_my_wordpress_entities',
 	static function ( $entities ) {
 		$entities[] = array(
 			'id'         => 'acme-recipes',
@@ -172,6 +172,6 @@ add_filter(
 
 ## See also
 
-- [Hooks reference — site folder](../hooks-reference.md#open_station_my_wordpress_entities--experimental)
+- [Hooks reference — site folder](../hooks-reference.md#openstation_my_wordpress_entities--experimental)
 - [JavaScript reference — site folder](../javascript-reference.md#site-folder--extensibility-surface-experimental)
 - [Site folder — add a preview-pane action button](./my-wordpress-media-action.md)

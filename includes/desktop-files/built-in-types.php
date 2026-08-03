@@ -6,7 +6,7 @@
  * through the same public API third-party plugins use. Hooked on
  * `init` priority 5 so the types land in the registry before the
  * shell config is built and before any third-party plugin that
- * wants to react via `open_station_file_type_registered`.
+ * wants to react via `openstation_file_type_registered`.
  *
  * @package OpenStation
  */
@@ -17,82 +17,82 @@ defined( 'ABSPATH' ) || exit;
  * Registers the built-in file types (post, attachment, user,
  * term, comment, bookmark, folder, shortcut, link, embed).
  */
-function open_station_register_builtin_file_types() {
+function openstation_register_builtin_file_types() {
 	$types = array(
 		array(
 			'type'  => 'post',
 			'label' => __( 'Post', 'desktop-mode' ),
-			'class' => 'Open_Station_Post_File',
+			'class' => 'OpenStation_Post_File',
 			'sort'  => 10,
 		),
 		array(
 			'type'  => 'attachment',
 			'label' => __( 'Media', 'desktop-mode' ),
-			'class' => 'Open_Station_Attachment_File',
+			'class' => 'OpenStation_Attachment_File',
 			'sort'  => 20,
 		),
 		array(
 			'type'  => 'upload',
 			'label' => __( 'Uploaded file', 'desktop-mode' ),
-			'class' => 'Open_Station_Upload_File',
+			'class' => 'OpenStation_Upload_File',
 			'sort'  => 25,
 		),
 		array(
 			'type'  => 'user',
 			'label' => __( 'User', 'desktop-mode' ),
-			'class' => 'Open_Station_User_File',
+			'class' => 'OpenStation_User_File',
 			'sort'  => 30,
 		),
 		array(
 			'type'  => 'term',
 			'label' => __( 'Taxonomy term', 'desktop-mode' ),
-			'class' => 'Open_Station_Term_File',
+			'class' => 'OpenStation_Term_File',
 			'sort'  => 40,
 		),
 		array(
 			'type'  => 'comment',
 			'label' => __( 'Comment', 'desktop-mode' ),
-			'class' => 'Open_Station_Comment_File',
+			'class' => 'OpenStation_Comment_File',
 			'sort'  => 50,
 		),
 		array(
 			'type'  => 'bookmark',
 			'label' => __( 'Bookmark', 'desktop-mode' ),
-			'class' => 'Open_Station_Bookmark_File',
+			'class' => 'OpenStation_Bookmark_File',
 			'sort'  => 60,
 		),
 		array(
 			'type'  => 'folder',
 			'label' => __( 'Folder', 'desktop-mode' ),
-			'class' => 'Open_Station_Folder_File',
+			'class' => 'OpenStation_Folder_File',
 			'sort'  => 5,
 		),
 		array(
 			'type'  => 'shortcut',
 			'label' => __( 'Plugin shortcut', 'desktop-mode' ),
-			'class' => 'Open_Station_Shortcut_File',
+			'class' => 'OpenStation_Shortcut_File',
 			'sort'  => 1,
 		),
 		array(
 			'type'  => 'link',
 			'label' => __( 'Web link', 'desktop-mode' ),
-			'class' => 'Open_Station_Link_File',
+			'class' => 'OpenStation_Link_File',
 			'sort'  => 70,
 		),
 		array(
 			'type'  => 'embed',
 			'label' => __( 'Embedded web window', 'desktop-mode' ),
-			'class' => 'Open_Station_Embed_File',
+			'class' => 'OpenStation_Embed_File',
 			'sort'  => 80,
 		),
 	);
 
 	foreach ( $types as $args ) {
-		open_station_register_file_type( $args['type'], array(
+		openstation_register_file_type( $args['type'], array(
 			'label' => $args['label'],
 			'class' => $args['class'],
 			'sort'  => $args['sort'],
 		) );
 	}
 }
-add_action( 'init', 'open_station_register_builtin_file_types', 5 );
+add_action( 'init', 'openstation_register_builtin_file_types', 5 );

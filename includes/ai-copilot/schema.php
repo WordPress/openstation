@@ -14,18 +14,18 @@
  *
  * — and the whole request fails, not just the offending branch. That is a
  * trap for the schemas we ship (one missing key anywhere in the tree kills
- * the feature) and worse for the filtered ones: `open_station_ai_schema_comment`,
- * `open_station_drafts_ai_schema`, and any plugin that adds a nested object
+ * the feature) and worse for the filtered ones: `openstation_ai_schema_comment`,
+ * `openstation_drafts_ai_schema`, and any plugin that adds a nested object
  * would otherwise have to know the provider's strict-mode rules to add a
  * property safely.
  *
  * So normalization runs at the choke point instead of relying on every
- * author getting it right: `open_station_ai_normalize_response_schema()`
+ * author getting it right: `openstation_ai_normalize_response_schema()`
  * walks the tree and stamps `additionalProperties: false` on every object
  * subschema, at every depth, after the filters have run.
  *
  * Tool INPUT schemas are a different contract with different rules — see
- * `open_station_ai_normalize_tool_schema()` in search.php.
+ * `openstation_ai_normalize_tool_schema()` in search.php.
  *
  * @package OpenStation
  */
@@ -52,8 +52,8 @@ defined( 'ABSPATH' ) || exit;
  * @param array $schema A structured-output (sub)schema.
  * @return array The schema with `additionalProperties: false` on every object node.
  */
-function open_station_ai_normalize_response_schema( array $schema ) {
-	if ( open_station_ai_schema_is_object_node( $schema ) ) {
+function openstation_ai_normalize_response_schema( array $schema ) {
+	if ( openstation_ai_schema_is_object_node( $schema ) ) {
 		$schema['additionalProperties'] = false;
 		if ( isset( $schema['properties'] ) && is_array( $schema['properties'] ) && array() !== $schema['properties'] ) {
 			// Strict structured output (OpenAI `strict: true`) also
@@ -70,7 +70,7 @@ function open_station_ai_normalize_response_schema( array $schema ) {
 		if ( isset( $schema[ $map_key ] ) && is_array( $schema[ $map_key ] ) ) {
 			foreach ( $schema[ $map_key ] as $name => $sub ) {
 				if ( is_array( $sub ) ) {
-					$schema[ $map_key ][ $name ] = open_station_ai_normalize_response_schema( $sub );
+					$schema[ $map_key ][ $name ] = openstation_ai_normalize_response_schema( $sub );
 				}
 			}
 		}
@@ -83,12 +83,12 @@ function open_station_ai_normalize_response_schema( array $schema ) {
 			// Tuple form — a list of schemas.
 			foreach ( $items as $i => $sub ) {
 				if ( is_array( $sub ) ) {
-					$items[ $i ] = open_station_ai_normalize_response_schema( $sub );
+					$items[ $i ] = openstation_ai_normalize_response_schema( $sub );
 				}
 			}
 			$schema['items'] = $items;
 		} else {
-			$schema['items'] = open_station_ai_normalize_response_schema( $items );
+			$schema['items'] = openstation_ai_normalize_response_schema( $items );
 		}
 	}
 
@@ -96,14 +96,14 @@ function open_station_ai_normalize_response_schema( array $schema ) {
 		if ( isset( $schema[ $list_key ] ) && is_array( $schema[ $list_key ] ) ) {
 			foreach ( $schema[ $list_key ] as $i => $sub ) {
 				if ( is_array( $sub ) ) {
-					$schema[ $list_key ][ $i ] = open_station_ai_normalize_response_schema( $sub );
+					$schema[ $list_key ][ $i ] = openstation_ai_normalize_response_schema( $sub );
 				}
 			}
 		}
 	}
 
 	if ( isset( $schema['not'] ) && is_array( $schema['not'] ) ) {
-		$schema['not'] = open_station_ai_normalize_response_schema( $schema['not'] );
+		$schema['not'] = openstation_ai_normalize_response_schema( $schema['not'] );
 	}
 
 	return $schema;
@@ -120,7 +120,7 @@ function open_station_ai_normalize_response_schema( array $schema ) {
  * @param array $schema A structured-output (sub)schema.
  * @return bool
  */
-function open_station_ai_schema_is_object_node( array $schema ) {
+function openstation_ai_schema_is_object_node( array $schema ) {
 	if ( isset( $schema['type'] ) ) {
 		$types = is_array( $schema['type'] ) ? $schema['type'] : array( $schema['type'] );
 		return in_array( 'object', $types, true );

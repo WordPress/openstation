@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  * mode (the namespace is an internal contract — both windows use
  * the same template machinery).
  */
-function open_station_users_window_render_template() {
+function openstation_users_window_render_template() {
 	$can_create = current_user_can( 'create_users' );
 	ob_start();
 	?>
@@ -224,10 +224,10 @@ function open_station_users_window_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_users_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_users_window_template_html', $html );
 
-	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
-		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		// Backwards-compatible fallback for the rare case the helper
 		// isn't loaded yet (e.g. a plugin echoing the template
@@ -239,8 +239,8 @@ function open_station_users_window_render_template() {
 /**
  * Register the native Users window on `init` (priority 20).
  */
-function open_station_users_window_register_window() {
-	if ( ! open_station_users_window_user_can_register() ) {
+function openstation_users_window_register_window() {
+	if ( ! openstation_users_window_user_can_register() ) {
 		return;
 	}
 
@@ -249,7 +249,7 @@ function open_station_users_window_register_window() {
 	$window_args = array(
 		'title'      => __( 'Users', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-users',
-		'template'   => 'open_station_users_window_render_template',
+		'template'   => 'openstation_users_window_render_template',
 		// Reuse the Posts bundle — same script + style handles. The
 		// shared module branches on `cfg.mode` to render the Users
 		// view.
@@ -271,8 +271,8 @@ function open_station_users_window_register_window() {
 			'usersUrl'         => esc_url_raw( rest_url( 'wp/v2/users' ) ),
 			'currentUserId'    => $viewer_id,
 			'defaultPerPage'   => 20,
-			'queryArgs'        => open_station_users_window_default_query_args(),
-			'introSeen'        => open_station_has_seen_intro( $viewer_id, 'users' ),
+			'queryArgs'        => openstation_users_window_default_query_args(),
+			'introSeen'        => openstation_has_seen_intro( $viewer_id, 'users' ),
 			'introUrl'         => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 
 			// Capability flags surfaced to the JS — UI hides actions
@@ -289,16 +289,16 @@ function open_station_users_window_register_window() {
 
 			// Role list — `{ slug: name }` for every role the viewer
 			// can assign. Empty when the viewer lacks `promote_users`.
-			'assignableRoles'  => open_station_users_window_role_label_map( $viewer_id ),
+			'assignableRoles'  => openstation_users_window_role_label_map( $viewer_id ),
 			// Full role catalog for the role-FILTER dropdown (which
 			// shows EVERY role on the site, even those the viewer
 			// can't assign — they can still filter by them).
-			'allRoles'         => open_station_users_window_all_roles_map(),
+			'allRoles'         => openstation_users_window_all_roles_map(),
 
 			// Available site locales for the Add User form's
 			// language dropdown. `'site-default'` = empty string
 			// (the user inherits the site's locale).
-			'locales'          => open_station_users_window_locales_map(),
+			'locales'          => openstation_users_window_locales_map(),
 			'siteLocale'       => (string) get_locale(),
 			'defaultRole'      => (string) get_option( 'default_role', 'subscriber' ),
 			'createUserUrl'    => esc_url_raw(
@@ -324,8 +324,8 @@ function open_station_users_window_register_window() {
 				array(),
 				null
 			),
-			'colorSchemes'     => function_exists( 'open_station_user_edit_window_color_schemes' )
-				? open_station_user_edit_window_color_schemes()
+			'colorSchemes'     => function_exists( 'openstation_user_edit_window_color_schemes' )
+				? openstation_user_edit_window_color_schemes()
 				: array(),
 			'sendResetUrlBase' => esc_url_raw(
 				rest_url( 'desktop-mode/v1/users/' )
@@ -336,24 +336,24 @@ function open_station_users_window_register_window() {
 	/**
 	 * Filter the args used to register the native Users window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_users_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_users_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-users', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-users', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Native Users window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'open_station_users_window_register_window', 20 );
+add_action( 'init', 'openstation_users_window_register_window', 20 );
 
 /**
  * Default REST query args for the Users window.
  *
  * @return array
  */
-function open_station_users_window_default_query_args() {
+function openstation_users_window_default_query_args() {
 	$args = array(
 		// `_fields` whitelists the columns we render plus the four
 		// REST fields registered below. Skipping the whitelist would
@@ -361,8 +361,8 @@ function open_station_users_window_default_query_args() {
 		// emits — heavy on every page change.
 		'_fields'  =>
 			'id,name,slug,email,url,description,roles,registered_date,avatar_urls,'
-			. 'open_station_user_stats,open_station_last_login,open_station_presence,'
-			. 'open_station_can_edit,open_station_assignable_roles',
+			. 'openstation_user_stats,openstation_last_login,openstation_presence,'
+			. 'openstation_can_edit,openstation_assignable_roles',
 		// `who=authors` would hide subscribers — we want the full
 		// list. `context=edit` is required because `email`, `roles`,
 		// and `registered_date` are edit-context-only on
@@ -380,18 +380,18 @@ function open_station_users_window_default_query_args() {
 	 *
 	 * @param array $args Default args.
 	 */
-	return (array) apply_filters( 'open_station_users_window_query_args', $args );
+	return (array) apply_filters( 'openstation_users_window_query_args', $args );
 }
 
 /**
  * Build the `{ slug: label }` map for every role on the install.
  *
  * Used by the Users window's role FILTER (vs. role-CHANGE menu —
- * see {@see open_station_users_window_role_label_map()} for that).
+ * see {@see openstation_users_window_role_label_map()} for that).
  *
  * @return array<string,string>
  */
-function open_station_users_window_all_roles_map() {
+function openstation_users_window_all_roles_map() {
 	$roles = wp_roles();
 	$map   = array();
 	foreach ( (array) $roles->roles as $slug => $info ) {
@@ -409,12 +409,12 @@ function open_station_users_window_all_roles_map() {
  * @param int $viewer_id Viewer's user id.
  * @return array<string,string>
  */
-function open_station_users_window_role_label_map( $viewer_id ) {
-	$slugs = open_station_users_window_assignable_roles( (int) $viewer_id );
+function openstation_users_window_role_label_map( $viewer_id ) {
+	$slugs = openstation_users_window_assignable_roles( (int) $viewer_id );
 	if ( empty( $slugs ) ) {
 		return array();
 	}
-	$all = open_station_users_window_all_roles_map();
+	$all = openstation_users_window_all_roles_map();
 	$out = array();
 	foreach ( $slugs as $slug ) {
 		if ( isset( $all[ $slug ] ) ) {
@@ -429,25 +429,25 @@ function open_station_users_window_role_label_map( $viewer_id ) {
  *
  * Fields:
  *
- *   - open_station_user_stats         — `{ posts: int, pages: int, comments: int }`
- *   - open_station_last_login         — UTC unix timestamp, or null when never
- *   - open_station_presence           — 'online' | 'inactive' | 'offline'
- *   - open_station_can_edit           — viewer can edit / promote this row
- *   - open_station_assignable_roles   — role slugs the viewer can assign to this row
+ *   - openstation_user_stats         — `{ posts: int, pages: int, comments: int }`
+ *   - openstation_last_login         — UTC unix timestamp, or null when never
+ *   - openstation_presence           — 'online' | 'inactive' | 'offline'
+ *   - openstation_can_edit           — viewer can edit / promote this row
+ *   - openstation_assignable_roles   — role slugs the viewer can assign to this row
  *
  * Each field returns sensible empty defaults when the viewer lacks
  * the cap to see the value, so the JS never has to defend against
  * "field present but null". The fields register on every REST request
  * (the `user` resource is partially public — published authors are
- * visible to anyone), so `open_station_last_login` and
- * `open_station_presence` gate on `list_users` (or self) inside their
- * callbacks; `open_station_user_stats` stays open because it only
+ * visible to anyone), so `openstation_last_login` and
+ * `openstation_presence` gate on `list_users` (or self) inside their
+ * callbacks; `openstation_user_stats` stays open because it only
  * counts published content.
  */
-function open_station_users_window_register_rest_fields() {
+function openstation_users_window_register_rest_fields() {
 	register_rest_field(
 		'user',
-		'open_station_user_stats',
+		'openstation_user_stats',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -486,7 +486,7 @@ function open_station_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'open_station_last_login',
+		'openstation_last_login',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -499,7 +499,7 @@ function open_station_users_window_register_rest_fields() {
 				if ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) {
 					return null;
 				}
-				$ts = (int) get_user_meta( $id, OPEN_STATION_LAST_LOGIN_META_KEY, true );
+				$ts = (int) get_user_meta( $id, OPENSTATION_LAST_LOGIN_META_KEY, true );
 				return $ts > 0 ? $ts : null;
 			},
 			'schema'       => array(
@@ -513,11 +513,11 @@ function open_station_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'open_station_presence',
+		'openstation_presence',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id = isset( $row['id'] ) ? (int) $row['id'] : 0;
-				if ( $id <= 0 || ! function_exists( 'open_station_presence_status_for_user' ) ) {
+				if ( $id <= 0 || ! function_exists( 'openstation_presence_status_for_user' ) ) {
 					return 'offline';
 				}
 				// Live presence is sensitive. Only viewers who can see
@@ -526,7 +526,7 @@ function open_station_users_window_register_rest_fields() {
 				if ( get_current_user_id() !== $id && ! current_user_can( 'list_users' ) ) {
 					return 'offline';
 				}
-				return (string) open_station_presence_status_for_user( $id );
+				return (string) openstation_presence_status_for_user( $id );
 			},
 			'schema'       => array(
 				'description' => __( 'Live presence status: online / inactive / offline.', 'desktop-mode' ),
@@ -540,7 +540,7 @@ function open_station_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'open_station_can_edit',
+		'openstation_can_edit',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id     = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -561,7 +561,7 @@ function open_station_users_window_register_rest_fields() {
 
 	register_rest_field(
 		'user',
-		'open_station_assignable_roles',
+		'openstation_assignable_roles',
 		array(
 			'get_callback' => static function ( $row ) {
 				$id     = isset( $row['id'] ) ? (int) $row['id'] : 0;
@@ -569,7 +569,7 @@ function open_station_users_window_register_rest_fields() {
 				if ( $id <= 0 || $viewer <= 0 ) {
 					return array();
 				}
-				return array_values( open_station_users_window_assignable_roles( $viewer, $id ) );
+				return array_values( openstation_users_window_assignable_roles( $viewer, $id ) );
 			},
 			'schema'       => array(
 				'description' => __( 'Role slugs the requester can assign to this user.', 'desktop-mode' ),
@@ -581,7 +581,7 @@ function open_station_users_window_register_rest_fields() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_users_window_register_rest_fields' );
+add_action( 'rest_api_init', 'openstation_users_window_register_rest_fields' );
 
 /**
  * Build the `[ slug => label ]` map for the Add User locale picker.
@@ -592,7 +592,7 @@ add_action( 'rest_api_init', 'open_station_users_window_register_rest_fields' );
  *
  * @return array<string,string>
  */
-function open_station_users_window_locales_map() {
+function openstation_users_window_locales_map() {
 	$out = array(
 		'' => sprintf(
 			// translators: %s is the site's current locale (e.g. "en_US").

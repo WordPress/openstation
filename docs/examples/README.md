@@ -58,7 +58,7 @@ defined( 'ABSPATH' ) || exit;
 - [Cross-window devtools — instrumentation primitives](./devtools-instrumentation.md)
 - [Extend the Trash](./recycle-bin.md)
 - [Content changes — live-refresh every window listing your type](./content-changes.md)
-- [Customize note → post conversion — `open_station_notes_convert_post_args`](./notes-convert-to-post.md)
+- [Customize note → post conversion — `openstation_notes_convert_post_args`](./notes-convert-to-post.md)
 - [Programmatic folder sharing — invite from PHP, listen for share events](./share-folder.md)
 - [Real file storage — react to uploads, gate policy, share files from PHP](./desktop-file-storage.md)
 - [Native Posts window — default-on, remap registry, hooks](./native-posts.md)
@@ -67,12 +67,12 @@ defined( 'ABSPATH' ) || exit;
 - [Pulse a window's icon — `Window.requestAttention()`](./window-request-attention.md)
 - [Render a keyed list without losing clicks — `renderKeyedList()`](./keyed-list.md)
 - [Build a feed reader without the bookkeeping — `wp.os.createInfiniteList()`](./infinite-list.md)
-- [Connect to an external service via OAuth — `open_station_register_oauth_relay()`](./oauth-relay.md)
+- [Connect to an external service via OAuth — `openstation_register_oauth_relay()`](./oauth-relay.md)
 - [Share state across multi-bundle plugins — `wp.os.createSharedStore()`](./shared-store.md)
 - [Track who's around — `wp.os.presence`](./presence.md)
 - [Surface a custom "Install as App" button](./pwa-install.md)
 - [Send a notification — `wp.os.notify()`](./notify.md)
-- [Show a banner at the top of a window — `open_station_register_window_notice()`](./window-notice.md)
+- [Show a banner at the top of a window — `openstation_register_window_notice()`](./window-notice.md)
 - [Catch files dragged in from the host OS — `os.drop.*`](./os-file-drop.md)
 
 If your use case isn't here, check [Hooks Reference](../hooks-reference.md) and [JavaScript Reference](../javascript-reference.md) — everything we fire is documented there.

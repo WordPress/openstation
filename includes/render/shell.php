@@ -25,15 +25,15 @@ defined( 'ABSPATH' ) || exit;
  * classic sidebar, body, and footer are hidden with `body.os-active`
  * selectors.
  */
-function open_station_render_shell() {
-	if ( open_station_is_chromeless_request() || ! open_station_is_enabled() || open_station_is_classic_request() ) {
+function openstation_render_shell() {
+	if ( openstation_is_chromeless_request() || ! openstation_is_enabled() || openstation_is_classic_request() ) {
 		return;
 	}
 
 	/**
 	 * Fires right before the desktop shell markup is rendered.
 	 */
-	do_action( 'open_station_shell_before' );
+	do_action( 'openstation_shell_before' );
 
 	// Stamp the user's admin color scheme onto the shell root so the
 	// variables.css per-scheme selectors kick in before first paint —
@@ -47,8 +47,8 @@ function open_station_render_shell() {
 	// it from `applyDesktopTheme()` on boot would flash the default
 	// palette for a frame. Empty string when the user is on the
 	// system default (and nothing else about themes runs at all).
-	$desktop_theme = function_exists( 'open_station_active_desktop_theme_slug' )
-		? open_station_active_desktop_theme_slug()
+	$desktop_theme = function_exists( 'openstation_active_desktop_theme_slug' )
+		? openstation_active_desktop_theme_slug()
 		: '';
 	?>
 	<div id="os-shell" class="os-shell" data-os-scheme="<?php echo esc_attr( $scheme ); ?>"<?php echo '' !== $desktop_theme ? ' data-os-desktop-theme="' . esc_attr( $desktop_theme ) . '"' : ''; ?> role="application" aria-label="<?php esc_attr_e( 'Desktop shell', 'desktop-mode' ); ?>">
@@ -85,7 +85,7 @@ function open_station_render_shell() {
 	/**
 	 * Fires right after the desktop shell markup has rendered.
 	 */
-	do_action( 'open_station_shell_after' );
+	do_action( 'openstation_shell_after' );
 }
-add_action( 'in_admin_header', 'open_station_render_shell', 5 );
+add_action( 'in_admin_header', 'openstation_render_shell', 5 );
 

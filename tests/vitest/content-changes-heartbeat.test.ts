@@ -47,7 +47,7 @@ function boot(): JQueryHandlers {
 function sentSeenTs( handlers: JQueryHandlers ): unknown {
 	const data: Record< string, unknown > = {};
 	handlers[ 'heartbeat-send' ]?.( {}, data );
-	return data.open_station_content_changes_seen_ts;
+	return data.openstation_content_changes_seen_ts;
 }
 
 function tick(
@@ -55,7 +55,7 @@ function tick(
 	block: unknown,
 ): void {
 	handlers[ 'heartbeat-tick' ]?.( {}, {
-		open_station_content_changes: block,
+		openstation_content_changes: block,
 	} );
 }
 

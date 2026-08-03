@@ -48,7 +48,7 @@ import { decodeHTML } from '../../utils';
 // Pick a unique namespaced slug in the format 'yourplugin/widget-name'.
 // This same string must appear in THREE places:
 //   1. Here, as WIDGET_ID
-//   2. In your PHP file, as the first argument to open_station_register_widget()
+//   2. In your PHP file, as the first argument to openstation_register_widget()
 //   3. In the window.openStationWidgets registration at the bottom of this file
 //
 // WARNING: Do not rename this after your widget is live. It is the key used
@@ -308,7 +308,7 @@ w.openStationWidgets[ WIDGET_ID ] = mount;
 //   Replace "starter" with your name throughout. Update label/description/icon.
 //
 // STEP 6 — Require it in desktop-mode.php
-//   require_once OPEN_STATION_DIR . 'includes/widgets/widget-my.php';
+//   require_once OPENSTATION_DIR . 'includes/widgets/widget-my.php';
 //
 // STEP 7 — Add a Vite target in vite.config.js (inside the TARGETS object):
 //   'widget-my': {
@@ -318,8 +318,8 @@ w.openStationWidgets[ WIDGET_ID ] = mount;
 //   },
 //
 // STEP 8 — Add a build script in package.json (inside "scripts"):
-//   "build:widget-my": "OPEN_STATION_TARGET=widget-my vite build --mode development
-//       && OPEN_STATION_TARGET=widget-my vite build --mode production"
+//   "build:widget-my": "OPENSTATION_TARGET=widget-my vite build --mode development
+//       && OPENSTATION_TARGET=widget-my vite build --mode production"
 //
 // Then: npm run build:widget-my
 // =============================================================================

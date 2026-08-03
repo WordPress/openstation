@@ -507,7 +507,7 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 	snip.textContent = snippet( row );
 	const post = document.createElement( 'div' );
 	post.className = `${ NS }__thread-post`;
-	post.textContent = decodeHTML( row.open_station_post_title || '' );
+	post.textContent = decodeHTML( row.openstation_post_title || '' );
 	main.append( name, snip, post );
 
 	const meta = document.createElement( 'div' );
@@ -515,18 +515,18 @@ function threadItem( ctx: Ctx, row: CommentRow ): HTMLElement {
 	const time = timestamp( row.date_gmt, true );
 	time.className = `${ NS }__thread-time`;
 	meta.appendChild( time );
-	if ( row.open_station_replies_count > 0 ) {
+	if ( row.openstation_replies_count > 0 ) {
 		const rc = document.createElement( 'os-badge' );
 		rc.className = `${ NS }__reply-count`;
 		rc.setAttribute( 'tone', 'neutral' );
 		rc.setAttribute( 'no-dot', '' );
-		rc.textContent = String( row.open_station_replies_count );
+		rc.textContent = String( row.openstation_replies_count );
 		const rcLabel = document.createElement( 'span' );
 		rcLabel.className = 'screen-reader-text';
 		rcLabel.textContent = sprintf(
 			/* translators: %d: number of direct replies. */
 			__( '%d replies' ),
-			row.open_station_replies_count,
+			row.openstation_replies_count,
 		);
 		rc.appendChild( rcLabel );
 		meta.appendChild( rc );
@@ -544,7 +544,7 @@ function filterBanner( ctx: Ctx ): HTMLElement {
 	bar.className = `${ NS }__rail-filter`;
 	const label = document.createElement( 'span' );
 	label.className = `${ NS }__rail-filter-label`;
-	const title = ctx.threads[ 0 ]?.open_station_post_title;
+	const title = ctx.threads[ 0 ]?.openstation_post_title;
 	label.textContent = title
 		? /* translators: %s: post title. */ sprintf( __( 'On: %s' ), decodeHTML( title ) )
 		: __( 'Comments on this post' );
@@ -811,7 +811,7 @@ function convoHead( root: CommentRow ): HTMLElement {
 	kicker.className = `${ NS }__convo-kicker`;
 	kicker.textContent = __( 'In response to' );
 
-	const title = decodeHTML( root.open_station_post_title || __( '(no title)' ) );
+	const title = decodeHTML( root.openstation_post_title || __( '(no title)' ) );
 	// The title IS the edit affordance — a same-origin wp-admin link with
 	// no target, which the shell's link interceptor catches and mounts as
 	// a window (the same path the Drafts widget uses); it does NOT
@@ -844,10 +844,10 @@ function convoHead( root: CommentRow ): HTMLElement {
 
 	const actions = document.createElement( 'div' );
 	actions.className = `${ NS }__convo-head-actions`;
-	if ( root.open_station_post_link ) {
+	if ( root.openstation_post_link ) {
 		const a = document.createElement( 'a' );
 		a.className = `${ NS }__convo-link`;
-		a.href = root.open_station_post_link;
+		a.href = root.openstation_post_link;
 		a.target = '_blank';
 		a.rel = 'noopener';
 		a.append( document.createTextNode( __( 'View post' ) ), externalIcon() );
@@ -937,7 +937,7 @@ function messageActions( ctx: Ctx, row: CommentRow ): HTMLElement {
 	// Order mirrors wp-admin's comment row actions: the moderation verb
 	// first, then the authoring verbs, then the two destructive ones.
 	const items: HTMLElement[] = [];
-	if ( row.open_station_can_moderate ) {
+	if ( row.openstation_can_moderate ) {
 		const approveLabel = status === 'approved' ? __( 'Unapprove' ) : __( 'Approve' );
 		const approveAction: BulkAction = status === 'approved' ? 'unapprove' : 'approve';
 		items.push(
@@ -953,12 +953,12 @@ function messageActions( ctx: Ctx, row: CommentRow ): HTMLElement {
 			actionButton( __( 'Reply' ), 'default', () => openComposerFor( ctx, row ) ),
 		);
 	}
-	if ( row.open_station_can_edit ) {
+	if ( row.openstation_can_edit ) {
 		items.push(
 			actionButton( __( 'Edit' ), 'default', () => openInlineEdit( ctx, row ) ),
 		);
 	}
-	if ( row.open_station_can_moderate ) {
+	if ( row.openstation_can_moderate ) {
 		if ( status !== 'spam' ) {
 			items.push(
 				actionButton( __( 'Spam' ), 'danger', ( button ) =>
@@ -1295,7 +1295,7 @@ export async function renderConversation( body: HTMLElement ): Promise< void > {
 		totalPages: 1,
 		railSeq: 0,
 		announceIdentity: ( postId: number ) =>
-			announcePostIdentity( body, postId, ctx.threads[ 0 ]?.open_station_post_title ),
+			announcePostIdentity( body, postId, ctx.threads[ 0 ]?.openstation_post_title ),
 		announce: ( message: string ) => {
 			if ( statusEl ) {
 				statusEl.textContent = message;

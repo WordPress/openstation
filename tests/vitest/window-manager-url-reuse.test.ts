@@ -116,7 +116,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?open_station_chromeless=1`,
+			`${ PLUGINS_URL }?openstation_chromeless=1`,
 		);
 		const srcBefore = win.iframe!.src;
 
@@ -134,7 +134,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		// The user paged / filtered inside the window since opening it.
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?plugin_status=active&paged=2&open_station_chromeless=1`,
+			`${ PLUGINS_URL }?plugin_status=active&paged=2&openstation_chromeless=1`,
 		);
 
 		// Dock click — same landing URL the tile always carries.
@@ -149,7 +149,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?open_station_chromeless=1`,
+			`${ PLUGINS_URL }?openstation_chromeless=1`,
 		);
 
 		const again = await manager.open( openConfig( { url: ACTIVATE_URL } ) );
@@ -162,7 +162,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const target = new URL( assigned[ 0 ] );
 		expect( target.searchParams.get( 'action' ) ).toBe( 'activate' );
 		expect( target.searchParams.get( '_wpnonce' ) ).toBe( 'abc123' );
-		expect( target.searchParams.get( 'open_station_chromeless' ) ).toBe( '1' );
+		expect( target.searchParams.get( 'openstation_chromeless' ) ).toBe( '1' );
 		expect( reopenedDetails ).toHaveLength( 1 );
 		expect( reopenedDetails[ 0 ].navigated ).toBe( true );
 	} );
@@ -171,7 +171,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?open_station_chromeless=1`,
+			`${ PLUGINS_URL }?openstation_chromeless=1`,
 		);
 
 		// Cross-window links get `_wp_http_referer` stamped on by the
@@ -199,7 +199,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 
 		const target = new URL( win.iframe!.src );
 		expect( target.searchParams.get( 'action' ) ).toBe( 'activate' );
-		expect( target.searchParams.get( 'open_station_chromeless' ) ).toBe( '1' );
+		expect( target.searchParams.get( 'openstation_chromeless' ) ).toBe( '1' );
 		expect( reopenedDetails[ 0 ].navigated ).toBe( true );
 	} );
 
@@ -207,7 +207,7 @@ describe( 'WindowManager — URL-aware reuse on open()', () => {
 		const win = await manager.open( openConfig() );
 		const assigned = fakeContentWindow(
 			win.iframe!,
-			`${ PLUGINS_URL }?open_station_chromeless=1`,
+			`${ PLUGINS_URL }?openstation_chromeless=1`,
 		);
 		const srcBefore = win.iframe!.src;
 

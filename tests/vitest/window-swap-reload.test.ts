@@ -142,7 +142,7 @@ describe( 'Window.swapReload', () => {
 		);
 		expect( buffer.src ).toContain( 'fresh=1' );
 		// Same-origin gate rode along, like navigateTo.
-		expect( buffer.src ).toContain( 'open_station_chromeless=1' );
+		expect( buffer.src ).toContain( 'openstation_chromeless=1' );
 	} );
 
 	test( 'a newer swap supersedes an in-flight buffer; its late load is inert', async () => {

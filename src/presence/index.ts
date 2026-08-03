@@ -22,7 +22,7 @@
  * the same map of `{ status, lastSeenMs, lastActiveMs }` per user.
  *
  * **Wire.** A jQuery-Heartbeat probe sends
- * `open_station_presence_active: true` + `open_station_user_active:
+ * `openstation_presence_active: true` + `openstation_user_active:
  * <bool>` on every tick; the server (`includes/presence.php`)
  * records the bump and returns a snapshot in the response, which
  * lands in the shared store.
@@ -76,7 +76,7 @@ function noteUserActivity(): void {
  * we received and emits a state-change CustomEvent for each user
  * whose status flipped. We don't drop users not in the snapshot
  * (they may simply not be visible to this viewer) — the server
- * controls visibility via `open_station_presence_visible_users`.
+ * controls visibility via `openstation_presence_visible_users`.
  */
 function applySnapshot( block: HeartbeatBlock ): void {
 	if ( ! block || ! block.snapshot ) {
@@ -149,10 +149,10 @@ function applySnapshot( block: HeartbeatBlock ): void {
  * multiple times — only the first call wires anything up.
  *
  * Hooks the WordPress Heartbeat:
- *   - `heartbeat-send` — adds `open_station_presence_active: true` +
- *     `open_station_user_active: <recent input?>` so the server's
+ *   - `heartbeat-send` — adds `openstation_presence_active: true` +
+ *     `openstation_user_active: <recent input?>` so the server's
  *     handler bumps the right slot.
- *   - `heartbeat-tick` — reads `response.open_station_presence` and
+ *   - `heartbeat-tick` — reads `response.openstation_presence` and
  *     applies the snapshot to the shared store.
  *
  * Also subscribes a one-time `pointerdown` / `keydown` listener so
@@ -184,12 +184,12 @@ export function bootPresenceProbe(): void {
 
 	// Route through the framework's shared Heartbeat bus so the
 	// jQuery boilerplate lives in `src/heartbeat.ts` only.
-	heartbeat.contribute( 'open_station_presence_active', () => true );
+	heartbeat.contribute( 'openstation_presence_active', () => true );
 	heartbeat.contribute(
-		'open_station_user_active',
+		'openstation_user_active',
 		() => Date.now() - lastInputMs < ACTIVE_THRESHOLD_MS,
 	);
-	heartbeat.subscribe< HeartbeatBlock >( 'open_station_presence', ( block ) => {
+	heartbeat.subscribe< HeartbeatBlock >( 'openstation_presence', ( block ) => {
 		applySnapshot( block );
 	} );
 }

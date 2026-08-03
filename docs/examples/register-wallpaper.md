@@ -45,7 +45,7 @@ wp.os.ready( () => {
 
 The swatch appears in OS Settings next time the panel opens. Clicking it writes the value to `--os-bg` and persists the user's selection to `localStorage`.
 
-`description` (optional) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `open_station_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
+`description` (optional) is a sentence or two shown in a styled card under the picker grid while your wallpaper is the active selection — tell the user what they're looking at. Plain text only. When registering server-side, pass it to `openstation_register_wallpaper()` (translatable with `__()`); the shell overlays it onto your JS def automatically.
 
 ---
 

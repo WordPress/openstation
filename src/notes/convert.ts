@@ -5,7 +5,7 @@
  * with optimistic eviction, auto-opening the draft in the block editor,
  * and an Undo toast that reverses BOTH sides — restoring the note and
  * discarding the draft (the server's restore route consumes the note→
- * draft link, see `open_station_notes_rest_restore`). Mirrors the trash
+ * draft link, see `openstation_notes_rest_restore`). Mirrors the trash
  * flow (`src/notes/trash.ts`); the layer injects eviction/restore
  * callbacks so this module stays DOM-free.
  */

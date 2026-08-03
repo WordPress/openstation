@@ -15,7 +15,7 @@ and toasts on success.
 ## PHP — declare the descriptor
 
 ```php
-add_filter( 'open_station_my_wordpress_preview_actions', function ( $actions ) {
+add_filter( 'openstation_my_wordpress_preview_actions', function ( $actions ) {
     $actions[] = array(
         'id'         => 'my-plugin/compress-image',
         'label'      => __( 'Compress this image', 'my-plugin' ),
@@ -132,7 +132,7 @@ Need a section beyond Posts / Pages / Users / Media? Register a
 `kind` server-side **and** a renderer client-side:
 
 ```php
-add_filter( 'open_station_my_wordpress_entities', function ( $entities ) {
+add_filter( 'openstation_my_wordpress_entities', function ( $entities ) {
     $entities[] = array(
         'id'       => 'my-orders',
         'label'    => __( 'Orders', 'my-plugin' ),

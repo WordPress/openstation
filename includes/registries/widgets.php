@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Register a server-side desktop widget. Symmetric to
- * {@see open_station_register_window()} for the right-column widget
+ * {@see openstation_register_window()} for the right-column widget
  * layer: plugin declares the widget's metadata + script handle in
  * PHP; shell syncs its registry from the live payload so
  * activation / deactivation map to picker add / remove without a
@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  * Example:
  *
  * ```php
- * open_station_register_widget( 'myplugin/stats', array(
+ * openstation_register_widget( 'myplugin/stats', array(
  *     'label'          => __( 'Stats', 'my-plugin' ),
  *     'description'    => __( 'Live analytics rollup', 'my-plugin' ),
  *     'icon'           => 'dashicons-chart-bar',
@@ -76,15 +76,15 @@ defined( 'ABSPATH' ) || exit;
  *     @type int      $default_height First-mount floating height.
  *     @type string[] $capabilities   Gate: ALL caps must match. Any
  *                                    missed cap returns
- *                                    `WP_Error open_station_capability_denied`.
+ *                                    `WP_Error openstation_capability_denied`.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
-function open_station_register_widget( $id, $args = array() ) {
+function openstation_register_widget( $id, $args = array() ) {
 	$id = (string) $id;
 	if ( '' === $id ) {
-		return open_station_registration_error(
-			'open_station_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Widget id is required.', 'desktop-mode' )
 		);
 	}
@@ -108,8 +108,8 @@ function open_station_register_widget( $id, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return open_station_registration_error(
-				'open_station_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this widget.', 'desktop-mode' ),
@@ -124,8 +124,8 @@ function open_station_register_widget( $id, $args = array() ) {
 	// a plugin could register a widget whose mount callback is
 	// declared on the shell page's own JS (edge case; still valid).
 	if ( '' === (string) $args['label'] ) {
-		return open_station_registration_error(
-			'open_station_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Widget registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -146,30 +146,30 @@ function open_station_register_widget( $id, $args = array() ) {
 		'default_width'  => (int) $args['default_width'],
 		'default_height' => (int) $args['default_height'],
 	);
-	open_station_desktop_widget_registry( $id, $entry );
+	openstation_desktop_widget_registry( $id, $entry );
 
 	/**
 	 * Fires after a desktop widget is successfully registered.
 	 *
-	 * Does NOT fire when `open_station_register_widget()` returns a
+	 * Does NOT fire when `openstation_register_widget()` returns a
 	 * `WP_Error`.
 	 *
 	 * @param string $id    The widget id.
 	 * @param array  $entry The stored registry entry.
 	 */
-	do_action( 'open_station_widget_registered', $id, $entry );
+	do_action( 'openstation_widget_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for widgets registered via
- * {@see open_station_register_widget()}. Same pattern as
- * {@see open_station_native_window_registry()}.
+ * {@see openstation_register_widget()}. Same pattern as
+ * {@see openstation_native_window_registry()}.
  *
  * @internal
  */
-function open_station_desktop_widget_registry( $id = '', $entry = null ) {
+function openstation_desktop_widget_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -183,22 +183,22 @@ function open_station_desktop_widget_registry( $id = '', $entry = null ) {
 
 /**
  * Build the widget list for the shell payload. Runs through
- * every entry registered via `open_station_register_widget()` and
+ * every entry registered via `openstation_register_widget()` and
  * attaches the resolved script URL (`wp_scripts()` lookup) so
  * the shell can dynamically inject the script on mid-session
  * plugin activation.
  *
  * @return array[]
  */
-function open_station_build_desktop_widgets_payload() {
-	$registry = open_station_desktop_widget_registry();
+function openstation_build_desktop_widgets_payload() {
+	$registry = openstation_desktop_widget_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
 
 	$out = array();
 	foreach ( $registry as $entry ) {
-		$script_payload = open_station_resolve_script_payload( $entry['script'] );
+		$script_payload = openstation_resolve_script_payload( $entry['script'] );
 
 		$out[] = array(
 			'id'                => $entry['id'],
@@ -229,11 +229,11 @@ function open_station_build_desktop_widgets_payload() {
  * widgets active at boot time have their mount callbacks
  * available without any dynamic-load roundtrip.
  */
-function open_station_enqueue_desktop_widget_scripts() {
-	if ( ! open_station_is_enabled() || open_station_is_chromeless_request() || open_station_is_classic_request() ) {
+function openstation_enqueue_desktop_widget_scripts() {
+	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
 		return;
 	}
-	$registry = open_station_desktop_widget_registry();
+	$registry = openstation_desktop_widget_registry();
 	if ( ! is_array( $registry ) ) {
 		return;
 	}
@@ -243,4 +243,4 @@ function open_station_enqueue_desktop_widget_scripts() {
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_desktop_widget_scripts', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_desktop_widget_scripts', 20 );

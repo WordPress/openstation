@@ -8,7 +8,7 @@
  * is populated from the REST list endpoint at render time.
  *
  * Both registrations are filterable via the standard
- * `open_station_recycle_bin_window_args` / `open_station_recycle_bin_icon_args`
+ * `openstation_recycle_bin_window_args` / `openstation_recycle_bin_icon_args`
  * filters so a plugin can swap the icon, change the dimensions, or
  * restrict who sees the bin without touching this file.
  *
@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  * relies on — keep them intact (or rename via the filter) when
  * customizing the layout.
  */
-function open_station_recycle_bin_render_template() {
+function openstation_recycle_bin_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-recycle-bin" data-os-recycle-bin-root>
@@ -114,8 +114,8 @@ function open_station_recycle_bin_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_recycle_bin_template_html', $html );
-	echo wp_kses( $filtered, open_station_native_window_allowed_html() );
+	$filtered = (string) apply_filters( 'openstation_recycle_bin_template_html', $html );
+	echo wp_kses( $filtered, openstation_native_window_allowed_html() );
 }
 
 /**
@@ -127,7 +127,7 @@ function open_station_recycle_bin_render_template() {
  *
  * @return bool
  */
-function open_station_recycle_bin_user_can_use() {
+function openstation_recycle_bin_user_can_use() {
 	$can = current_user_can( 'edit_posts' );
 
 	/**
@@ -135,7 +135,7 @@ function open_station_recycle_bin_user_can_use() {
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
-	return (bool) apply_filters( 'open_station_recycle_bin_user_can_use', $can );
+	return (bool) apply_filters( 'openstation_recycle_bin_user_can_use', $can );
 }
 
 /**
@@ -144,15 +144,15 @@ function open_station_recycle_bin_user_can_use() {
  * Hooked at priority 20, after `components.php` has bootstrapped the
  * native-window registry — same timing as the code editor.
  */
-function open_station_recycle_bin_register_window() {
-	if ( ! open_station_recycle_bin_user_can_use() ) {
+function openstation_recycle_bin_register_window() {
+	if ( ! openstation_recycle_bin_user_can_use() ) {
 		return;
 	}
 
 	$window_args = array(
 		'title'      => __( 'Trash', 'desktop-mode' ),
 		'icon'       => 'dashicons-trash',
-		'template'   => 'open_station_recycle_bin_render_template',
+		'template'   => 'openstation_recycle_bin_render_template',
 		'script'     => 'desktop-mode-recycle-bin',
 		'width'      => 880,
 		'height'     => 560,
@@ -164,11 +164,11 @@ function open_station_recycle_bin_register_window() {
 	/**
 	 * Filter the args used to register the recycle bin native window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_recycle_bin_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_recycle_bin_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-recycle-bin', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-recycle-bin', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Recycle bin window registration failed: ' . $registered->get_error_message() );
@@ -185,13 +185,13 @@ function open_station_recycle_bin_register_window() {
 	/**
 	 * Filter the args used to register the recycle bin desktop icon.
 	 *
-	 * @param array $icon_args Args passed to `open_station_register_icon()`.
+	 * @param array $icon_args Args passed to `openstation_register_icon()`.
 	 */
-	$icon_args = (array) apply_filters( 'open_station_recycle_bin_icon_args', $icon_args );
+	$icon_args = (array) apply_filters( 'openstation_recycle_bin_icon_args', $icon_args );
 
-	open_station_register_icon( 'desktop-mode-recycle-bin', $icon_args );
+	openstation_register_icon( 'desktop-mode-recycle-bin', $icon_args );
 }
-add_action( 'init', 'open_station_recycle_bin_register_window', 20 );
+add_action( 'init', 'openstation_recycle_bin_register_window', 20 );
 
 /**
  * Localize REST endpoints for the JS bundle.
@@ -199,8 +199,8 @@ add_action( 'init', 'open_station_recycle_bin_register_window', 20 );
  * Same pattern as the code editor: the bundle reads its config off
  * `window.openStationRecycleBinConfig` and never hardcodes URLs.
  */
-function open_station_recycle_bin_localize_config() {
-	if ( ! open_station_recycle_bin_user_can_use() ) {
+function openstation_recycle_bin_localize_config() {
+	if ( ! openstation_recycle_bin_user_can_use() ) {
 		return;
 	}
 
@@ -214,13 +214,13 @@ function open_station_recycle_bin_localize_config() {
 			'purgeUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/purge' ) ),
 			'emptyUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/empty' ) ),
 			'countUrl'   => esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) ),
-			'postTypes'  => open_station_recycle_bin_capture_post_types(),
+			'postTypes'  => openstation_recycle_bin_capture_post_types(),
 		)
 	);
 
 	wp_enqueue_style( 'desktop-mode-recycle-bin' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_recycle_bin_localize_config', 30 );
+add_action( 'admin_enqueue_scripts', 'openstation_recycle_bin_localize_config', 30 );
 
 /**
  * Inject the initial trash count into the shell config so the
@@ -230,13 +230,13 @@ add_action( 'admin_enqueue_scripts', 'open_station_recycle_bin_localize_config',
  * @param array $config Shell config blob.
  * @return array
  */
-function open_station_recycle_bin_inject_shell_config( $config ) {
+function openstation_recycle_bin_inject_shell_config( $config ) {
 	if ( ! is_array( $config ) ) {
 		return $config;
 	}
-	$config['recycleBinCount']     = open_station_recycle_bin_count();
+	$config['recycleBinCount']     = openstation_recycle_bin_count();
 	$config['recycleBinCountUrl']  = esc_url_raw( rest_url( 'desktop-mode/v1/recycle-bin/count' ) );
-	$config['recycleBinPostTypes'] = open_station_recycle_bin_capture_post_types();
+	$config['recycleBinPostTypes'] = openstation_recycle_bin_capture_post_types();
 	return $config;
 }
-add_filter( 'open_station_shell_config', 'open_station_recycle_bin_inject_shell_config', 20 );
+add_filter( 'openstation_shell_config', 'openstation_recycle_bin_inject_shell_config', 20 );

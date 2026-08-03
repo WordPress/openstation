@@ -22,7 +22,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** User-meta key. */
-const OPEN_STATION_DEFAULT_WINDOW_META = 'desktop_mode_default_window';
+const OPENSTATION_DEFAULT_WINDOW_META = 'desktop_mode_default_window';
 
 /**
  * Fetch the user's default-window preference as a normalized array.
@@ -30,7 +30,7 @@ const OPEN_STATION_DEFAULT_WINDOW_META = 'desktop_mode_default_window';
  * @param int $user_id User ID. Falls back to the current user when 0.
  * @return array{enabled: bool, url: string} Always returns both keys.
  */
-function open_station_get_default_window( $user_id = 0 ) {
+function openstation_get_default_window( $user_id = 0 ) {
 	$user_id = $user_id ? (int) $user_id : get_current_user_id();
 	$fallback_url = admin_url( 'index.php' );
 	$default = array(
@@ -42,7 +42,7 @@ function open_station_get_default_window( $user_id = 0 ) {
 		return $default;
 	}
 
-	$raw = get_user_meta( $user_id, OPEN_STATION_DEFAULT_WINDOW_META, true );
+	$raw = get_user_meta( $user_id, OPENSTATION_DEFAULT_WINDOW_META, true );
 	if ( ! is_array( $raw ) ) {
 		return $default;
 	}
@@ -70,7 +70,7 @@ function open_station_get_default_window( $user_id = 0 ) {
  * @param string|null $url     URL to set, or null to disable.
  * @return bool True on success, false on invalid URL or unknown user.
  */
-function open_station_set_default_window( $user_id, $url ) {
+function openstation_set_default_window( $user_id, $url ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
@@ -79,7 +79,7 @@ function open_station_set_default_window( $user_id, $url ) {
 	if ( null === $url ) {
 		update_user_meta(
 			$user_id,
-			OPEN_STATION_DEFAULT_WINDOW_META,
+			OPENSTATION_DEFAULT_WINDOW_META,
 			array(
 				'enabled' => false,
 				'url'     => admin_url( 'index.php' ),
@@ -88,14 +88,14 @@ function open_station_set_default_window( $user_id, $url ) {
 		return true;
 	}
 
-	$clean = open_station_validate_default_window_url( $url );
+	$clean = openstation_validate_default_window_url( $url );
 	if ( '' === $clean ) {
 		return false;
 	}
 
 	update_user_meta(
 		$user_id,
-		OPEN_STATION_DEFAULT_WINDOW_META,
+		OPENSTATION_DEFAULT_WINDOW_META,
 		array(
 			'enabled' => true,
 			'url'     => $clean,
@@ -114,7 +114,7 @@ function open_station_set_default_window( $user_id, $url ) {
  * @param string $url Raw input.
  * @return string Fully-qualified admin URL or `native:<slug>` marker, or empty string if rejected.
  */
-function open_station_validate_default_window_url( $url ) {
+function openstation_validate_default_window_url( $url ) {
 	$url = trim( (string) $url );
 	if ( '' === $url ) {
 		return '';
@@ -172,16 +172,16 @@ function open_station_validate_default_window_url( $url ) {
  *
  * Body: `{ url: string | null }`. Null disables the default.
  */
-function open_station_register_default_window_routes() {
+function openstation_register_default_window_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/default-window',
 		array(
 			'methods'             => 'POST',
-			'callback'            => 'open_station_rest_set_default_window',
+			'callback'            => 'openstation_rest_set_default_window',
 			// Logged in + OpenStation enabled. `read` alone is too
-			// loose — see open_station_rest_require_enabled().
-			'permission_callback' => 'open_station_rest_require_enabled',
+			// loose — see openstation_rest_require_enabled().
+			'permission_callback' => 'openstation_rest_require_enabled',
 			// No schema type on `url` — the param is fundamentally
 			// mixed (string | null) and WP REST's multi-type schema
 			// validation has historically been flaky for this case
@@ -195,7 +195,7 @@ function open_station_register_default_window_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_default_window_routes' );
+add_action( 'rest_api_init', 'openstation_register_default_window_routes' );
 
 /**
  * REST handler — writes the default-window meta and returns the
@@ -211,7 +211,7 @@ add_action( 'rest_api_init', 'open_station_register_default_window_routes' );
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
-function open_station_rest_set_default_window( $request ) {
+function openstation_rest_set_default_window( $request ) {
 	$user_id = get_current_user_id();
 	$params  = $request->get_json_params();
 
@@ -224,26 +224,26 @@ function open_station_rest_set_default_window( $request ) {
 
 	// Null / missing / empty string all disable the default.
 	if ( null === $url || '' === $url ) {
-		open_station_set_default_window( $user_id, null );
-		return rest_ensure_response( open_station_get_default_window( $user_id ) );
+		openstation_set_default_window( $user_id, null );
+		return rest_ensure_response( openstation_get_default_window( $user_id ) );
 	}
 
 	if ( ! is_string( $url ) ) {
 		return new WP_Error(
-			'open_station_invalid_url',
+			'openstation_invalid_url',
 			__( 'The `url` parameter must be a string or null.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	$ok = open_station_set_default_window( $user_id, $url );
+	$ok = openstation_set_default_window( $user_id, $url );
 	if ( ! $ok ) {
 		return new WP_Error(
-			'open_station_invalid_url',
+			'openstation_invalid_url',
 			__( 'The URL is not a valid same-origin wp-admin URL.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 
-	return rest_ensure_response( open_station_get_default_window( $user_id ) );
+	return rest_ensure_response( openstation_get_default_window( $user_id ) );
 }

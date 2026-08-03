@@ -8,7 +8,7 @@
  *   `<fileBase>.min.js` (production, esbuild-minified — loaded otherwise)
  *
  * Which entry the current invocation builds is controlled by the
- * `OPEN_STATION_TARGET` env var (`desktop` is the default). `npm run build`
+ * `OPENSTATION_TARGET` env var (`desktop` is the default). `npm run build`
  * invokes every target — one `build:<target>` script per entry in
  * `package.json`, each running Vite twice (dev + prod mode).
  * `npm run dev` watches and rebuilds the unminified `desktop` bundle
@@ -410,7 +410,7 @@ const TARGETS = {
 	},
 	// Animated WP Logo wallpaper — built-in canvas wallpaper moved
 	// out of the main bundle in 0.8.4. PHP registers the wallpaper
-	// via `open_station_register_wallpaper()` with a `script` handle;
+	// via `openstation_register_wallpaper()` with a `script` handle;
 	// the shell's wallpaper sync loads this bundle only when the
 	// user selects (or hovers in OS Settings) the wallpaper. The
 	// bundle's only side effect is publishing the `WallpaperDef` on
@@ -524,7 +524,7 @@ const TARGETS = {
 	},
 	// Heartbeat widget — built-in PixiJS widget moved out of the
 	// main bundle in 0.18.0. Same registration shape third-party
-	// widgets use: PHP declares it via `open_station_register_widget()`
+	// widgets use: PHP declares it via `openstation_register_widget()`
 	// with the `os-heartbeat-widget` script handle; the
 	// shell's widgets server-sync loads the bundle on demand. The
 	// bundle ships JS + a co-located `styles.css` chunk so widget
@@ -599,11 +599,11 @@ const TARGETS = {
 
 export default defineConfig( ( { mode } ) => {
 	const isProd = mode === 'production';
-	const targetKey = process.env.OPEN_STATION_TARGET || 'desktop';
+	const targetKey = process.env.OPENSTATION_TARGET || 'desktop';
 	const target = TARGETS[ targetKey ];
 	if ( ! target ) {
 		throw new Error(
-			`vite.config.js: unknown OPEN_STATION_TARGET="${ targetKey }". ` +
+			`vite.config.js: unknown OPENSTATION_TARGET="${ targetKey }". ` +
 				`Expected one of: ${ Object.keys( TARGETS ).join( ', ' ) }.`,
 		);
 	}

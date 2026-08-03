@@ -11,12 +11,12 @@ require_once ABSPATH . 'wp-admin/includes/ajax-actions.php';
  * @group openstation
  * @group ajax
  *
- * @covers ::open_station_ajax_save
+ * @covers ::openstation_ajax_save
  */
 class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 
 	public function tear_down() {
-		remove_all_filters( 'open_station_mode_enabled' );
+		remove_all_filters( 'openstation_mode_enabled' );
 		parent::tear_down();
 	}
 
@@ -40,7 +40,7 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 		return json_decode( $this->_last_response, true );
 	}
 
-	public function test_enables_open_station_for_user() {
+	public function test_enables_openstation_for_user() {
 		$this->_setRole( 'administrator' );
 		$response = $this->dispatch( '1' );
 
@@ -65,7 +65,7 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 		$this->_setRole( 'administrator' );
 		$response = $this->dispatch( '1' );
 
-		$expected = admin_url( 'index.php?' . OPEN_STATION_PORTAL_FLAG . '=1' );
+		$expected = admin_url( 'index.php?' . OPENSTATION_PORTAL_FLAG . '=1' );
 		$this->assertSame( $expected, $response['data']['redirect'] );
 		// Sanity: this URL carries the portal flag the shell reads as
 		// `config.fromPortal=true` at boot.
@@ -73,10 +73,10 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 		// Sanity: it is NOT the home-relative `/openstation/` portal
 		// URL — that path keeps working for users hitting it directly,
 		// but the toggle no longer forwards through it.
-		$this->assertNotSame( open_station_portal_url(), $response['data']['redirect'] );
+		$this->assertNotSame( openstation_portal_url(), $response['data']['redirect'] );
 	}
 
-	public function test_disables_open_station_for_user() {
+	public function test_disables_openstation_for_user() {
 		$this->_setRole( 'administrator' );
 		update_user_meta( get_current_user_id(), 'desktop_mode_mode', '1' );
 
@@ -100,7 +100,7 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 		$response = $this->dispatch( '' );
 
 		$this->assertSame( admin_url(), $response['data']['redirect'] );
-		$this->assertNotSame( open_station_portal_url(), $response['data']['redirect'] );
+		$this->assertNotSame( openstation_portal_url(), $response['data']['redirect'] );
 	}
 
 	/**
@@ -139,18 +139,18 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 	}
 
 	/**
-	 * The open_station_mode_enabled filter must be honored: if a plugin
+	 * The openstation_mode_enabled filter must be honored: if a plugin
 	 * disables OpenStation for this user, the AJAX endpoint refuses
 	 * to update the meta.
 	 */
-	public function test_open_station_mode_enabled_filter_blocks_save() {
+	public function test_openstation_mode_enabled_filter_blocks_save() {
 		$this->_setRole( 'administrator' );
-		add_filter( 'open_station_mode_enabled', '__return_false' );
+		add_filter( 'openstation_mode_enabled', '__return_false' );
 
 		$response = $this->dispatch( '1' );
 
 		$this->assertFalse( $response['success'] );
-		$this->assertSame( 'open_station_disabled', $response['data'] );
+		$this->assertSame( 'openstation_disabled', $response['data'] );
 		$this->assertSame( '', get_user_meta( get_current_user_id(), 'desktop_mode_mode', true ) );
 	}
 
@@ -162,30 +162,30 @@ class Tests_OpenStation_AjaxSave extends WP_Ajax_UnitTestCase {
 	 */
 	public function test_user_without_read_cap_is_forbidden() {
 		// Build a throwaway role with no capabilities, including no `read`.
-		add_role( 'open_station_test_nonread', 'No Read', array() );
-		$uid = self::factory()->user->create( array( 'role' => 'open_station_test_nonread' ) );
+		add_role( 'openstation_test_nonread', 'No Read', array() );
+		$uid = self::factory()->user->create( array( 'role' => 'openstation_test_nonread' ) );
 		wp_set_current_user( $uid );
 
 		$response = $this->dispatch( '1' );
 
 		$this->assertFalse( $response['success'] );
-		$this->assertSame( 'open_station_forbidden', $response['data'] );
+		$this->assertSame( 'openstation_forbidden', $response['data'] );
 		$this->assertSame( '', get_user_meta( $uid, 'desktop_mode_mode', true ) );
 
-		remove_role( 'open_station_test_nonread' );
+		remove_role( 'openstation_test_nonread' );
 	}
 
 	/**
 	 * The filter receives the user ID so plugins can make role-based
 	 * decisions.
 	 */
-	public function test_open_station_mode_enabled_filter_receives_user_id() {
+	public function test_openstation_mode_enabled_filter_receives_user_id() {
 		$this->_setRole( 'administrator' );
 		$expected_id = get_current_user_id();
 		$received_id = null;
 
 		add_filter(
-			'open_station_mode_enabled',
+			'openstation_mode_enabled',
 			function ( $enabled, $user_id ) use ( &$received_id ) {
 				$received_id = $user_id;
 				return $enabled;

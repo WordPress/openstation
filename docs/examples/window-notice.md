@@ -18,7 +18,7 @@ window's `after-titlebar` slot.
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'init', function () {
-    open_station_register_window_notice( array(
+    openstation_register_window_notice( array(
         'id'      => 'my-plugin/welcome-posts',
         'tone'    => 'info',
         'message' => __(
@@ -34,7 +34,7 @@ add_action( 'init', function () {
 ## PHP — banner that applies to several "kinds" of window
 
 ```php
-open_station_register_window_notice( array(
+openstation_register_window_notice( array(
     'id'      => 'my-plugin/holiday-banner',
     'tone'    => 'warning',
     'message' => __( 'Holiday freeze in effect — content edits are read-only.', 'my-plugin' ),
@@ -55,7 +55,7 @@ For plugin pages whose window id is derived from a long URL (e.g.
 instead of trying to predict the slug:
 
 ```php
-open_station_register_window_notice( array(
+openstation_register_window_notice( array(
     'id'      => 'my-plugin/wc-promo',
     'tone'    => 'success',
     'message' => __( 'Black Friday rate now available on the API.', 'my-plugin' ),
@@ -76,7 +76,7 @@ Three selector types are accepted: `window` (single id), `windows`
   `wc-admin`*:
 
   ```php
-  open_station_register_window_notice( array(
+  openstation_register_window_notice( array(
       'id'    => 'my-plugin/wc-posts',
       // …
       'match' => array(
@@ -152,7 +152,7 @@ Pass `dismissible: false` (PHP) or the `not-dismissible` attribute
 hard-coded state messages like "Read-only mode."
 
 ```php
-open_station_register_window_notice( array(
+openstation_register_window_notice( array(
     'id'          => 'my-plugin/read-only',
     'tone'        => 'warning',
     'dismissible' => false,
@@ -162,7 +162,7 @@ open_station_register_window_notice( array(
 
 ## Stacking multiple notices
 
-Each call to `open_station_register_window_notice()` /
+Each call to `openstation_register_window_notice()` /
 `wp.os.registerWindowNotice()` registers an independent slot
 renderer. When multiple notices match the same window, they stack in
 `order` ascending (default 100). Set `order` explicitly to control
@@ -175,7 +175,7 @@ shell — handy for request-time banners (e.g. "your trial expires
 today"):
 
 ```php
-add_filter( 'open_station_window_notices', function ( $entries ) {
+add_filter( 'openstation_window_notices', function ( $entries ) {
     if ( my_plugin_trial_expires_today() ) {
         $entries[] = array(
             'id'      => 'my-plugin/trial-expires',

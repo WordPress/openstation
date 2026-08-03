@@ -10,13 +10,13 @@
  *
  * Public PHP surface (all filterable):
  *
- *   - open_station_comments_window_user_can_register
- *   - open_station_comments_window_user_can_use
- *   - open_station_comments_window_args
- *   - open_station_comments_window_template_html
- *   - open_station_comments_window_query_args
- *   - open_station_comments_window_spam_score
- *   - open_station_comments_window_reply_editor
+ *   - openstation_comments_window_user_can_register
+ *   - openstation_comments_window_user_can_use
+ *   - openstation_comments_window_args
+ *   - openstation_comments_window_template_html
+ *   - openstation_comments_window_query_args
+ *   - openstation_comments_window_spam_score
+ *   - openstation_comments_window_reply_editor
  *
  * The URL-remap swap (Comments tile → native window when opt-in is
  * on) is implemented JS-side in `src/desktop.ts` via

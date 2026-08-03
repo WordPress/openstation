@@ -34,18 +34,18 @@ defined( 'ABSPATH' ) || exit;
  * would accept application passwords and password resets again. The
  * blocks are a property of the rows, not of the feature.
  */
-require_once OPEN_STATION_DIR . 'includes/agents/guard.php';
+require_once OPENSTATION_DIR . 'includes/agents/guard.php';
 
 /**
  * Whether the Agents framework is enabled site-wide.
  *
  * Backed by the `agents` key of the extended options bundle
- * (`open_station_get_extended_options()`), default off — opt-in.
+ * (`openstation_get_extended_options()`), default off — opt-in.
  *
  * @return bool
  */
-function open_station_agents_enabled() {
-	$options = open_station_get_extended_options();
+function openstation_agents_enabled() {
+	$options = openstation_get_extended_options();
 	$enabled = ! empty( $options['agents'] );
 
 	/**
@@ -57,7 +57,7 @@ function open_station_agents_enabled() {
 	 *
 	 * @param bool $enabled Whether the Agents framework is enabled.
 	 */
-	return (bool) apply_filters( 'open_station_agents_enabled', $enabled );
+	return (bool) apply_filters( 'openstation_agents_enabled', $enabled );
 }
 
 /**
@@ -65,20 +65,20 @@ function open_station_agents_enabled() {
  *
  * @access private
  */
-function open_station_agents_load() {
-	if ( ! open_station_agents_enabled() ) {
+function openstation_agents_load() {
+	if ( ! openstation_agents_enabled() ) {
 		return;
 	}
 
-	require_once OPEN_STATION_DIR . 'includes/agents/store.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/defaults.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/identity.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/abilities.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/runner.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/rest.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/conversations.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/privacy.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/run-window.php';
-	require_once OPEN_STATION_DIR . 'includes/agents/my-wordpress.php';
+	require_once OPENSTATION_DIR . 'includes/agents/store.php';
+	require_once OPENSTATION_DIR . 'includes/agents/defaults.php';
+	require_once OPENSTATION_DIR . 'includes/agents/identity.php';
+	require_once OPENSTATION_DIR . 'includes/agents/abilities.php';
+	require_once OPENSTATION_DIR . 'includes/agents/runner.php';
+	require_once OPENSTATION_DIR . 'includes/agents/rest.php';
+	require_once OPENSTATION_DIR . 'includes/agents/conversations.php';
+	require_once OPENSTATION_DIR . 'includes/agents/privacy.php';
+	require_once OPENSTATION_DIR . 'includes/agents/run-window.php';
+	require_once OPENSTATION_DIR . 'includes/agents/my-wordpress.php';
 }
-add_action( 'plugins_loaded', 'open_station_agents_load', 5 );
+add_action( 'plugins_loaded', 'openstation_agents_load', 5 );

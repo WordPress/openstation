@@ -12,7 +12,7 @@
  * writes is ever executed or echoed into a `<style>` verbatim.
  *
  * Deliberately named "desktop theme" everywhere
- * (`open_station_desktop_theme*`, `serverDesktopThemes`,
+ * (`openstation_desktop_theme*`, `serverDesktopThemes`,
  * `src/desktop-themes/`) — never bare "theme" — because the plugin
  * already has per-window "window themes"
  * (`includes/window-chrome.php`) and the two are different features.
@@ -26,13 +26,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/store.php';
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/manifest.php';
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/compile.php';
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/install.php';
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/registry.php';
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/rest.php';
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/assets.php';
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/wallpapers.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/store.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/manifest.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/compile.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/install.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/registry.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/rest.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/assets.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/wallpapers.php';
 // After registry.php — it registers through that file's public API.
-require_once OPEN_STATION_DIR . 'includes/desktop-themes/builtin.php';
+require_once OPENSTATION_DIR . 'includes/desktop-themes/builtin.php';

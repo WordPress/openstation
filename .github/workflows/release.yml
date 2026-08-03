@@ -35,10 +35,10 @@ jobs:
           tag="${tag#v}"
           pkg=$(node -p "require('./package.json').version")
           header=$(grep -oP '^\s*\*\s*Version:\s*\K\S+' desktop-mode.php)
-          constant=$(grep -oP "OPEN_STATION_VERSION',\s*'\K[^']+" desktop-mode.php)
+          constant=$(grep -oP "OPENSTATION_VERSION',\s*'\K[^']+" desktop-mode.php)
           stable=$(grep -oP '^Stable tag:\s*\K\S+' readme.txt)
           if ! [[ "$tag" == "$pkg" && "$tag" == "$header" && "$tag" == "$constant" && "$tag" == "$stable" ]]; then
-            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header OPEN_STATION_VERSION=$constant readme.txt Stable tag=$stable"
+            echo "::error::Version mismatch — tag '$tag' vs package.json=$pkg header=$header OPENSTATION_VERSION=$constant readme.txt Stable tag=$stable"
             exit 1
           fi
 

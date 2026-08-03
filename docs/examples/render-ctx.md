@@ -1,6 +1,6 @@
 # The native-window render `ctx`
 
-Native windows registered via `open_station_register_window()` (or `wp.os.registerWindow()`) get a `render` callback. The callback receives a second `ctx` argument carrying the channel API and the rest of the window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, and top-level `markLoading`/`markReady` aliases for the loading-overlay controls.
+Native windows registered via `openstation_register_window()` (or `wp.os.registerWindow()`) get a `render` callback. The callback receives a second `ctx` argument carrying the channel API and the rest of the window-scoped helpers — a close-bound `AbortSignal`, lazy resize/hide/show subscribers, and top-level `markLoading`/`markReady` aliases for the loading-overlay controls.
 
 ```ts
 render: (

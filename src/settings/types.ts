@@ -13,7 +13,7 @@ import type { ADMIN_BAR_MODES, DOCK_SIZES, WINDOW_RADII } from './constants';
 
 /**
  * Accent id. Historically derived from the built-in `ACCENTS` tuple,
- * but accents now come from PHP (`open_station_accent_colors`) and a
+ * but accents now come from PHP (`openstation_accent_colors`) and a
  * theme can legitimately add its own swatch. String is the honest
  * type — validation happens at runtime in `getAccents()` / state
  * deserialization.

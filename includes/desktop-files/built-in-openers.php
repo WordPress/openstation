@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Registers the built-in openers (one per file type).
  */
-function open_station_register_builtin_file_openers() {
+function openstation_register_builtin_file_openers() {
 	$openers = array(
 		array(
 			'id'    => 'wp-post-editor',
@@ -73,7 +73,7 @@ function open_station_register_builtin_file_openers() {
 	);
 
 	foreach ( $openers as $args ) {
-		open_station_register_file_opener( $args['id'], array(
+		openstation_register_file_opener( $args['id'], array(
 			'label'      => $args['label'],
 			'types'      => $args['types'],
 			'is_default' => true,
@@ -81,4 +81,4 @@ function open_station_register_builtin_file_openers() {
 		) );
 	}
 }
-add_action( 'init', 'open_station_register_builtin_file_openers', 6 );
+add_action( 'init', 'openstation_register_builtin_file_openers', 6 );

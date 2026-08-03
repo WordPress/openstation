@@ -70,14 +70,14 @@ describe( 'presence', () => {
 		expect( getStatus( 99 ) ).toBe( 'offline' );
 	} );
 
-	test( 'heartbeat-send adds open_station_presence_active flag via the bus', async () => {
+	test( 'heartbeat-send adds openstation_presence_active flag via the bus', async () => {
 		const handlers = installFakeJQuery();
 		bootHeartbeatBus();
 		bootPresenceProbe();
 		const data: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]?.( {}, data );
-		expect( data.open_station_presence_active ).toBe( true );
-		expect( typeof data.open_station_user_active ).toBe( 'boolean' );
+		expect( data.openstation_presence_active ).toBe( true );
+		expect( typeof data.openstation_user_active ).toBe( 'boolean' );
 	} );
 
 	test( 'heartbeat-tick applies the snapshot to the shared store', async () => {
@@ -87,7 +87,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				open_station_presence: {
+				openstation_presence: {
 					serverTimeMs: 1234,
 					snapshot: {
 						'42': { status: 'online', lastSeenMs: 100, lastActiveMs: 100 },
@@ -110,7 +110,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				open_station_presence: {
+				openstation_presence: {
 					serverTimeMs: 1,
 					snapshot: { '1': { status: 'online', lastSeenMs: 1, lastActiveMs: 1 } },
 				},
@@ -137,7 +137,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				open_station_presence: {
+				openstation_presence: {
 					serverTimeMs: 1,
 					snapshot: { '42': { status: 'online', lastSeenMs: 1, lastActiveMs: 1 } },
 				},
@@ -147,7 +147,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				open_station_presence: {
+				openstation_presence: {
 					serverTimeMs: 2,
 					snapshot: { '42': { status: 'online', lastSeenMs: 2, lastActiveMs: 2 } },
 				},
@@ -157,7 +157,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				open_station_presence: {
+				openstation_presence: {
 					serverTimeMs: 3,
 					snapshot: {
 						'42': { status: 'inactive', lastSeenMs: 3, lastActiveMs: 0 },
@@ -178,7 +178,7 @@ describe( 'presence', () => {
 		handlers[ 'heartbeat-tick' ]?.(
 			{},
 			{
-				open_station_presence: {
+				openstation_presence: {
 					serverTimeMs: 1,
 					snapshot: { '7': { status: 'online', lastSeenMs: 1, lastActiveMs: 1 } },
 				},
@@ -207,7 +207,7 @@ describe( 'presence', () => {
 		markActive();
 		const data: Record< string, unknown > = {};
 		handlers[ 'heartbeat-send' ]?.( {}, data );
-		expect( data.open_station_user_active ).toBe( true );
+		expect( data.openstation_user_active ).toBe( true );
 	} );
 
 	test( 'applyPresenceBatch publishes status transition events', () => {

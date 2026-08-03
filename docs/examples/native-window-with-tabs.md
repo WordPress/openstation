@@ -2,7 +2,7 @@
 
 Two ways to add tabs to a native window:
 
-1. **[PHP-only (zero template boilerplate)](#option-a-php-only-registration)** — register the window, then register extra tabs with `open_station_register_window_tab()`. The shell emits the `<os-tabs>` + `<os-tabpanel>` markup for you. Matches the legacy iframe-window DX where submenus auto-become tabs.
+1. **[PHP-only (zero template boilerplate)](#option-a-php-only-registration)** — register the window, then register extra tabs with `openstation_register_window_tab()`. The shell emits the `<os-tabs>` + `<os-tabpanel>` markup for you. Matches the legacy iframe-window DX where submenus auto-become tabs.
 2. **[Hand-rolled markup (still supported)](#option-b-hand-rolled-os-tabpanel)** — write the `<os-tabs>` + `<os-tabpanel>` elements directly in your template callback. Auto-swap via `<os-tabpanel>` (from `0.5.0`) still handles pane visibility — you just author the tab strip yourself.
 
 Pick option A for the common case (static tab list, one plugin owns the window). Pick option B when you need dynamic tabs, conditional panes, or custom layouts the auto-wrap can't express.
@@ -18,7 +18,7 @@ Pick option A for the common case (static tab list, one plugin owns the window).
  */
 defined( 'ABSPATH' ) || exit;
 
-open_station_register_window( 'jorvy', array(
+openstation_register_window( 'jorvy', array(
     'title'          => __( 'Jorvy', 'jorvy' ),
     'main_tab_label' => __( 'Quotes', 'jorvy' ),  // first tab label; falls back to `title`
     'icon'           => 'dashicons-star-filled',
@@ -33,7 +33,7 @@ open_station_register_window( 'jorvy', array(
     },
 ) );
 
-open_station_register_window_tab( 'jorvy', array(
+openstation_register_window_tab( 'jorvy', array(
     'value'    => 'about',
     'label'    => __( 'About', 'jorvy' ),
     'position' => 10,
@@ -68,7 +68,7 @@ That's the entire tab-strip wiring. The shell produces this rendered template au
 </template>
 ```
 
-`<os-tabpanel>` auto-swap handles visibility — non-active panels arrive with `hidden` pre-stamped so first paint is correct regardless of upgrade order. `role="tablist"` / `role="tab"` / `role="tabpanel"` wired by the components. The wrap's `padding="16"` is configurable via the `main_tab_padding` registration arg or the `open_station_native_window_tab_wrap_padding` filter.
+`<os-tabpanel>` auto-swap handles visibility — non-active panels arrive with `hidden` pre-stamped so first paint is correct regardless of upgrade order. `role="tablist"` / `role="tab"` / `role="tabpanel"` wired by the components. The wrap's `padding="16"` is configurable via the `main_tab_padding` registration arg or the `openstation_native_window_tab_wrap_padding` filter.
 
 ### Companion-plugin extension
 
@@ -76,7 +76,7 @@ Another plugin can attach tabs to Jorvy's window without coordinating — a good
 
 ```php
 // jorvy-stats/jorvy-stats.php
-open_station_register_window_tab( 'jorvy', array(
+openstation_register_window_tab( 'jorvy', array(
     'value'    => 'stats',
     'label'    => __( 'Stats', 'jorvy-stats' ),
     'position' => 20,
@@ -126,7 +126,7 @@ Tabs that ship static markup need no JS at all — the About pane in the example
 Pass `script` on the tab registration. The shell enqueues the handle whenever the desktop shell loads (alongside the window's own script):
 
 ```php
-open_station_register_window_tab( 'jorvy', array(
+openstation_register_window_tab( 'jorvy', array(
     'value'    => 'stats',
     'label'    => __( 'Stats', 'jorvy-stats' ),
     'template' => 'jorvy_stats_template',
@@ -186,7 +186,7 @@ That is the whole wiring. Clicking a tab flips `hidden` on the matching `<os-tab
  */
 defined( 'ABSPATH' ) || exit;
 
-open_station_register_window( 'two-tab-demo', array(
+openstation_register_window( 'two-tab-demo', array(
     'title'  => __( 'Two-tab Demo', 'my-plugin' ),
     'icon'   => 'dashicons-layout',
     'width'  => 480,
@@ -231,7 +231,7 @@ open_station_register_window( 'two-tab-demo', array(
 ) );
 
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'open_station_is_enabled' ) || ! open_station_is_enabled() ) {
+    if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
         return;
     }
     wp_enqueue_script(
@@ -280,9 +280,9 @@ add_action( 'admin_enqueue_scripts', function () {
 ### Before (hand-wired panes)
 
 ```php
-open_station_component( 'os-tabs', [ 'value' => 'calc' ], $tab_children );
-open_station_component( 'os-stack', [ 'data-pane' => 'calc', 'gap' => 8 ], $calc_children );
-open_station_component( 'os-stack', [ 'data-pane' => 'convert', 'gap' => 6, 'hidden' => true ], $convert_children );
+openstation_component( 'os-tabs', [ 'value' => 'calc' ], $tab_children );
+openstation_component( 'os-stack', [ 'data-pane' => 'calc', 'gap' => 8 ], $calc_children );
+openstation_component( 'os-stack', [ 'data-pane' => 'convert', 'gap' => 6, 'hidden' => true ], $convert_children );
 ```
 
 ```js

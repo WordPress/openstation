@@ -13,7 +13,7 @@
  * Domain Path:       /languages
  *
  * Embeds a bundled phpMyAdmin install (~5.2.x) as a built-in app:
- * registered as a native desktop window (`osc-phpmyadmin`), pinned to
+ * registered as a native desktop window (`wpdc-phpmyadmin`), pinned to
  * the bottom taskbar, with a matching wallpaper icon.
  *
  * Hard constraints — fail-closed if any of these aren't met:
@@ -34,9 +34,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OPEN_STATION_PHPMYADMIN_FILE', __FILE__ );
-define( 'OPEN_STATION_PHPMYADMIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'OPEN_STATION_PHPMYADMIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'OPEN_STATION_PHPMYADMIN_VERSION', '0.19.0' );
+define( 'OPENSTATION_PHPMYADMIN_FILE', __FILE__ );
+define( 'OPENSTATION_PHPMYADMIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'OPENSTATION_PHPMYADMIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'OPENSTATION_PHPMYADMIN_VERSION', '0.19.0' );
 
-require_once OPEN_STATION_PHPMYADMIN_DIR . 'includes/window.php';
+require_once OPENSTATION_PHPMYADMIN_DIR . 'includes/window.php';

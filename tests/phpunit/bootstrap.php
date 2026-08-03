@@ -45,11 +45,11 @@ tests_add_filter(
 		// games test classes have the module available. Tests that
 		// exercise the disabled state remove this filter locally (the
 		// test framework restores hooks after every test).
-		add_filter( 'open_station_games_enabled', '__return_true' );
+		add_filter( 'openstation_games_enabled', '__return_true' );
 
 		// Same deal for the agents framework — force it on so the
 		// agents test classes have the module available.
-		add_filter( 'open_station_agents_enabled', '__return_true' );
+		add_filter( 'openstation_agents_enabled', '__return_true' );
 	}
 );
 

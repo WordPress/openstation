@@ -164,7 +164,7 @@ unifying iframe and native windows:
 
 ```js
 // Outside the window — anywhere in the shell.
-const win = wp.os.windowManager.getById( 'osc-editor' );
+const win = wp.os.windowManager.getById( 'wpdc-editor' );
 win.send( 'editor:open-file', { path: 'foo.php', line: 42 } );
 const off = win.on( 'editor:saved', ( payload ) => repaint( payload ) );
 
@@ -308,8 +308,8 @@ field. Errors in any one supplier or subscriber are logged and
 isolated; one bad handler can't strand peers.
 
 The framework's own features are built on top: `presence`
-contributes `open_station_presence_active` + `open_station_user_active`
-and subscribes to `open_station_presence`. Plugins that need a
+contributes `openstation_presence_active` + `openstation_user_active`
+and subscribes to `openstation_presence`. Plugins that need a
 per-tick delivery story (live counts, server-driven badges,
 session keep-alives) plug into the same bus.
 

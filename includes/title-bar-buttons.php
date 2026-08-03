@@ -3,7 +3,7 @@
  * Desktop title-bar button registration API.
  *
  * Mirrors the command-script / settings-tab-script registration
- * pattern: minimum-ceremony PHP opt-in (`open_station_register_titlebar_button_script`)
+ * pattern: minimum-ceremony PHP opt-in (`openstation_register_titlebar_button_script`)
  * tells the shell which enqueued scripts contribute title-bar
  * buttons. The shell injects the script URL into the live-refresh
  * payload so a plugin activated mid-session paints its button
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  *     );
  *     wp_enqueue_script( 'my-plugin-titlebar' );
  * } );
- * open_station_register_titlebar_button_script( 'my-plugin-titlebar' );
+ * openstation_register_titlebar_button_script( 'my-plugin-titlebar' );
  * ```
  *
  * For live unregistration on deactivation, the plugin's JS should
@@ -46,23 +46,23 @@ defined( 'ABSPATH' ) || exit;
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function open_station_register_titlebar_button_script( $handle ) {
+function openstation_register_titlebar_button_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return open_station_registration_error(
-			'open_station_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Title-bar button script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	open_station_desktop_titlebar_button_script_registry( $handle, true );
+	openstation_desktop_titlebar_button_script_registry( $handle, true );
 
 	/**
 	 * Fires after a desktop title-bar button script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'open_station_titlebar_button_script_registered', $handle );
+	do_action( 'openstation_titlebar_button_script_registered', $handle );
 
 	return true;
 }
@@ -76,7 +76,7 @@ function open_station_register_titlebar_button_script( $handle ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function open_station_desktop_titlebar_button_script_registry( $handle = '', $value = null ) {
+function openstation_desktop_titlebar_button_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -94,10 +94,10 @@ function open_station_desktop_titlebar_button_script_registry( $handle = '', $va
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see open_station_flush_script_handle_registries()}.
+ * {@see openstation_flush_script_handle_registries()}.
  */
-function open_station_flush_desktop_titlebar_button_script_registry() {
-	open_station_desktop_titlebar_button_script_registry( '__flush__' );
+function openstation_flush_desktop_titlebar_button_script_registry() {
+	openstation_desktop_titlebar_button_script_registry( '__flush__' );
 }
 
 /**
@@ -106,8 +106,8 @@ function open_station_flush_desktop_titlebar_button_script_registry() {
  *
  * @return array[] List of `{ handle, scriptUrl, scriptBefore, scriptAfter, scriptL10n, scriptTranslations }` entries.
  */
-function open_station_build_desktop_titlebar_button_scripts_payload() {
-	$registry = open_station_desktop_titlebar_button_script_registry();
+function openstation_build_desktop_titlebar_button_scripts_payload() {
+	$registry = openstation_desktop_titlebar_button_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -118,17 +118,17 @@ function open_station_build_desktop_titlebar_button_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = open_station_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
 			// Loud diagnostic — visible under WP_DEBUG. Plugin
 			// authors who pass a typo'd handle, or call our
 			// register helper before `wp_register_script()`, used
 			// to silently register nothing and stare at an empty
-			// title bar. Deduped by `open_station_warn_unresolvable_script_handle`
+			// title bar. Deduped by `openstation_warn_unresolvable_script_handle`
 			// so the notice fires exactly once per handle per
 			// request, not on every shell-config rebuild.
-			open_station_warn_unresolvable_script_handle(
-				'open_station_register_titlebar_button_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_titlebar_button_script',
 				'Title-bar button',
 				(string) $handle
 			);

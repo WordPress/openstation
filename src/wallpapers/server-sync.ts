@@ -5,7 +5,7 @@
  * `src/native-windows.ts`, `src/widgets/server-sync.ts` for the
  * symmetric versions on their own registries). Plugins declare
  * their wallpaper server-side via
- * `open_station_register_wallpaper()`; this module diffs the shell's
+ * `openstation_register_wallpaper()`; this module diffs the shell's
  * current wallpaper registry against the fresh payload on every
  * live refresh and bridges the plugin-side JS into the shell's
  * registry.

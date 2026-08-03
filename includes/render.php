@@ -10,8 +10,8 @@
  * rendering surface they always did.
  *
  *   - body-classes.php           — admin_body_class filter
- *   - assets.php                 — open_station_enqueue_assets()
- *   - shell.php                  — open_station_render_shell()
+ *   - assets.php                 — openstation_enqueue_assets()
+ *   - shell.php                  — openstation_render_shell()
  *   - chromeless-bridge.php      — chromeless iframe bridge +
  *                                  the offset-neutralizer script
  *   - classic-link-interceptor.php — detached-tab link rewriter

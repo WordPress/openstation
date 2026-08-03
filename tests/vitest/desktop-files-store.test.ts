@@ -168,14 +168,14 @@ describe( 'desktop-files REST client', () => {
 		vi.stubGlobal(
 			'fetch',
 			vi.fn( async () =>
-				new Response( JSON.stringify( { code: 'open_station_files_forbidden', message: 'No.' } ), {
+				new Response( JSON.stringify( { code: 'openstation_files_forbidden', message: 'No.' } ), {
 					status: 403,
 					headers: { 'Content-Type': 'application/json' },
 				} ),
 			),
 		);
 		await expect( rest.createPlacement( { type: 'post', ref: '1' } ) ).rejects.toThrow(
-			/open_station_files_forbidden/,
+			/openstation_files_forbidden/,
 		);
 	} );
 } );

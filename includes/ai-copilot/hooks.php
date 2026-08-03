@@ -14,7 +14,7 @@
  * the AI assistant finds them with native WordPress keyword search instead
  * (see search.php).
  *
- * Deduplication: a 120-second transient (`open_station_ai_q_<md5 of
+ * Deduplication: a 120-second transient (`openstation_ai_q_<md5 of
  * '{type}_{id}'>`) prevents the same comment from being queued twice when
  * WordPress fires the hook multiple times in one request.
  *
@@ -49,8 +49,8 @@ defined( 'ABSPATH' ) || exit;
  * @param array  $args      Arguments passed to the hook callback.
  * @param string $dedup_key Unique string used to build the transient key.
  */
-function open_station_ai_schedule_job( $hook, array $args, $dedup_key ) {
-	$transient = 'open_station_ai_q_' . md5( $dedup_key );
+function openstation_ai_schedule_job( $hook, array $args, $dedup_key ) {
+	$transient = 'openstation_ai_q_' . md5( $dedup_key );
 
 	if ( get_transient( $transient ) ) {
 		return; // Already queued within the guard window — skip.
@@ -80,7 +80,7 @@ function open_station_ai_schedule_job( $hook, array $args, $dedup_key ) {
 				fastcgi_finish_request();
 			}
 
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- generic dispatcher; caller passes a open_station_* hook name.
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- generic dispatcher; caller passes a openstation_* hook name.
 			do_action_ref_array( $hook, $args );
 		},
 		PHP_INT_MAX
@@ -100,7 +100,7 @@ function open_station_ai_schedule_job( $hook, array $args, $dedup_key ) {
  * @param int $fallback_user_id Author/owner to try when no current user.
  * @return int User ID, or 0 if none could be found.
  */
-function open_station_ai_resolve_user_id( $fallback_user_id = 0 ) {
+function openstation_ai_resolve_user_id( $fallback_user_id = 0 ) {
 	$uid = get_current_user_id();
 	if ( $uid > 0 ) {
 		return $uid;
@@ -113,7 +113,7 @@ function open_station_ai_resolve_user_id( $fallback_user_id = 0 ) {
 
 	// Last resort: any administrator with the assistant enabled. Scans the
 	// first 20 admins to avoid a full table scan on large sites.
-	return open_station_ai_find_enabled_user();
+	return openstation_ai_find_enabled_user();
 }
 
 /**
@@ -124,7 +124,7 @@ function open_station_ai_resolve_user_id( $fallback_user_id = 0 ) {
  *
  * @return int User ID, or 0 if none found.
  */
-function open_station_ai_find_enabled_user() {
+function openstation_ai_find_enabled_user() {
 	$admin_ids = get_users(
 		array(
 			'role'   => 'administrator',
@@ -134,7 +134,7 @@ function open_station_ai_find_enabled_user() {
 	);
 
 	foreach ( $admin_ids as $uid ) {
-		if ( open_station_ai_is_enabled( (int) $uid ) ) {
+		if ( openstation_ai_is_enabled( (int) $uid ) ) {
 			return (int) $uid;
 		}
 	}

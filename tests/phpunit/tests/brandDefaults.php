@@ -31,17 +31,17 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 	);
 
 	public function tear_down() {
-		remove_all_filters( 'open_station_wallpapers' );
-		remove_all_filters( 'open_station_default_wallpaper' );
-		remove_all_filters( 'open_station_accent_colors' );
+		remove_all_filters( 'openstation_wallpapers' );
+		remove_all_filters( 'openstation_default_wallpaper' );
+		remove_all_filters( 'openstation_accent_colors' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::open_station_register_builtin_wallpapers
+	 * @covers ::openstation_register_builtin_wallpapers
 	 */
 	public function test_brand_wallpapers_are_registered() {
-		$registry = open_station_desktop_wallpaper_registry();
+		$registry = openstation_desktop_wallpaper_registry();
 
 		foreach ( array_keys( self::WALLPAPERS ) as $id ) {
 			$this->assertArrayHasKey( $id, $registry, $id . ' is registered' );
@@ -55,14 +55,14 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 	 * raster files — and why a missing one would be invisible until
 	 * someone opened the picker.
 	 *
-	 * @covers ::open_station_register_builtin_wallpapers
+	 * @covers ::openstation_register_builtin_wallpapers
 	 */
 	public function test_brand_wallpaper_artwork_ships_and_is_referenced() {
 		foreach ( self::WALLPAPERS as $id => $file ) {
-			$path = OPEN_STATION_DIR . 'assets/wallpapers/' . $file;
+			$path = OPENSTATION_DIR . 'assets/wallpapers/' . $file;
 			$this->assertFileExists( $path, $file . ' ships with the plugin' );
 
-			$entry = open_station_desktop_wallpaper_registry( $id );
+			$entry = openstation_desktop_wallpaper_registry( $id );
 			$this->assertStringContainsString(
 				'assets/wallpapers/' . $file,
 				$entry['value'],
@@ -77,30 +77,30 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 	 * agree: the filterable helper the shell config reads, and the
 	 * per-user settings default a fresh account is seeded with.
 	 *
-	 * @covers ::open_station_get_default_wallpaper
-	 * @covers ::open_station_default_os_settings
+	 * @covers ::openstation_get_default_wallpaper
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_galaxy_is_the_default_desk() {
-		$this->assertSame( 'galaxy', open_station_get_default_wallpaper() );
+		$this->assertSame( 'galaxy', openstation_get_default_wallpaper() );
 
-		$defaults = open_station_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertSame( 'galaxy', $defaults['wallpaper'] );
 		$this->assertArrayHasKey(
 			'galaxy',
-			open_station_desktop_wallpaper_registry(),
+			openstation_desktop_wallpaper_registry(),
 			'the default desk is one that actually exists'
 		);
 	}
 
 	/**
-	 * @covers ::open_station_get_accent_colors
-	 * @covers ::open_station_default_os_settings
+	 * @covers ::openstation_get_accent_colors
+	 * @covers ::openstation_default_os_settings
 	 */
 	public function test_pulse_is_the_default_accent() {
-		$defaults = open_station_default_os_settings();
+		$defaults = openstation_default_os_settings();
 		$this->assertSame( 'pulse', $defaults['accent'] );
 
-		$accents = open_station_get_accent_colors();
+		$accents = openstation_get_accent_colors();
 		$byId    = array();
 		foreach ( $accents as $accent ) {
 			$byId[ $accent['id'] ] = $accent['value'];
@@ -121,10 +121,10 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 	 * their admin blue keeps it — the brand is the default, not the
 	 * only option.
 	 *
-	 * @covers ::open_station_get_accent_colors
+	 * @covers ::openstation_get_accent_colors
 	 */
 	public function test_wordpress_accents_are_still_offered() {
-		$ids = wp_list_pluck( open_station_get_accent_colors(), 'id' );
+		$ids = wp_list_pluck( openstation_get_accent_colors(), 'id' );
 
 		foreach ( array( 'wp-blue', 'indigo', 'teal', 'emerald', 'amber', 'rose' ) as $id ) {
 			$this->assertContains( $id, $ids );
@@ -138,7 +138,7 @@ class Tests_OpenStation_BrandDefaults extends WP_UnitTestCase {
 	 */
 	public function test_brand_typefaces_ship_with_the_plugin() {
 		foreach ( array( 'Geist-Variable.woff2', 'GeistMono-Variable.woff2', 'OFL.txt' ) as $file ) {
-			$this->assertFileExists( OPEN_STATION_DIR . 'assets/fonts/' . $file );
+			$this->assertFileExists( OPENSTATION_DIR . 'assets/fonts/' . $file );
 		}
 	}
 }

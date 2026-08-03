@@ -15,7 +15,7 @@
  *
  *   <!-- Multi-line snippet -->
  *   <os-code block>
- *     open_station_register_settings_tab( array( …) );
+ *     openstation_register_settings_tab( array( …) );
  *   </os-code>
  *
  *   <!-- Snippet with a built-in copy button -->

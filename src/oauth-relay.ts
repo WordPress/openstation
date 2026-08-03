@@ -1,6 +1,6 @@
 /**
  * `wp.os.startOAuth( service )` — client-side companion to the
- * PHP `open_station_register_oauth_relay()` API.
+ * PHP `openstation_register_oauth_relay()` API.
  *
  * Coordinates the popup + state-nonce + postMessage dance so plugin
  * authors don't write that code per integration. Returns a Promise

@@ -31,7 +31,7 @@
  * fails to load. Declaring the tokens here is what puts the station on
  * top of them — one declaration retints every surface that reads it.
  *
- * The way back is a theme, not an edit: **OpenStation (Legacy)**
+ * The way back is a theme, not an edit: **Desktop Mode (Legacy)**
  * (`assets/desktop-themes/legacy/theme.json`) is a frozen snapshot of
  * those pre-brand literals, and picking it in OS Settings → Themes
  * restores the old look wholesale. A desktop theme's compiled selector
@@ -108,7 +108,7 @@
  * element, and its stylesheet declares `os-variables` as a
  * dependency — so it always prints after this file and wins the tie.
  * Do not remove that dependency; see the note in
- * `open_station_enqueue_desktop_theme_style()`.
+ * `openstation_enqueue_desktop_theme_style()`.
  */
 body.os-active {
 	/*

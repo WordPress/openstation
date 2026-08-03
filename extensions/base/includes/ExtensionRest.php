@@ -12,17 +12,17 @@
  * plugin entry. The base wires `rest_api_init` and the
  * permission callback for you.
  *
- * @package Open_Station_Extension_Base
+ * @package OpenStation_Extension_Base
  */
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! class_exists( 'Open_Station_Extension_Rest' ) ) :
+if ( ! class_exists( 'OpenStation_Extension_Rest' ) ) :
 
 /**
  * Base class an extension subclasses to declare its REST routes.
  */
-abstract class Open_Station_Extension_Rest {
+abstract class OpenStation_Extension_Rest {
 
 	/**
 	 * REST namespace, e.g. `desktop-mode/v1` (the openstation

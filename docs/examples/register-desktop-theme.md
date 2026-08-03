@@ -8,7 +8,7 @@ Themes, but a plugin can ship one directly — same sanitizer, same
 compiler, same constraints. The only difference is that your assets
 are absolute URLs you already serve instead of files inside an archive.
 
-> Not the same as `open_station_register_window_theme()`, which
+> Not the same as `openstation_register_window_theme()`, which
 > restyles **one window's** chrome. This restyles the entire OS.
 
 ---
@@ -26,7 +26,7 @@ are absolute URLs you already serve instead of files inside an archive.
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'init', function () {
-    if ( ! function_exists( 'open_station_register_desktop_theme' ) ) {
+    if ( ! function_exists( 'openstation_register_desktop_theme' ) ) {
         return;
     }
 
@@ -34,7 +34,7 @@ add_action( 'init', function () {
         return plugins_url( 'theme/' . $file, __FILE__ );
     };
 
-    $result = open_station_register_desktop_theme( 'acme/neon-glass', array(
+    $result = openstation_register_desktop_theme( 'acme/neon-glass', array(
         'name'        => __( 'Neon Glass', 'acme-neon-glass' ),
         'version'     => '1.0.0',
         'author'      => 'Acme Design',

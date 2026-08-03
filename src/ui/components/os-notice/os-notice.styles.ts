@@ -52,6 +52,25 @@ export const styles = css`
 	}
 	::slotted( a ) {
 		color: var( --os-ui-notice-link, var( --wp-admin-theme-color, #2271b1 ) );
+		border-radius: 2px;
+	}
+	/*
+	 * Hover / focus resolve through a SECOND token, not the base one.
+	 * Both fell back to the admin theme colour before, so the two
+	 * states painted identically and the link looked inert — only
+	 * visible once the palette moved the base colour onto Pulse.
+	 */
+	::slotted( a:hover ),
+	::slotted( a:focus-visible ) {
+		color: var(
+			--os-ui-notice-link-hover,
+			var( --os-ui-accent-strong, #135e96 )
+		);
+	}
+	::slotted( a:focus-visible ) {
+		outline: 2px solid
+			var( --os-ui-notice-link-hover, var( --os-ui-accent-strong, #135e96 ) );
+		outline-offset: 2px;
 	}
 	::slotted( p:first-child ) {
 		margin-block-start: 0;

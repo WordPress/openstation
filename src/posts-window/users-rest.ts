@@ -31,13 +31,13 @@ export interface UserListItem {
 	roles: string[];
 	registered_date?: string;
 	avatar_urls?: Record< string, string >;
-	open_station_user_stats?: UserStats;
+	openstation_user_stats?: UserStats;
 	/** UTC unix timestamp; null when never recorded. */
-	open_station_last_login?: number | null;
-	open_station_presence?: UserPresence;
-	open_station_can_edit?: boolean;
+	openstation_last_login?: number | null;
+	openstation_presence?: UserPresence;
+	openstation_can_edit?: boolean;
 	/** Role slugs the viewer can assign to this row. */
-	open_station_assignable_roles?: string[];
+	openstation_assignable_roles?: string[];
 	[ key: string ]: unknown;
 }
 

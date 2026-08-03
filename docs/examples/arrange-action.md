@@ -13,7 +13,7 @@ The contract is a PHP filter (to register the menu item) plus a JS action (to ru
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'open_station_arrange_menu_items', function ( $items ) {
+add_filter( 'openstation_arrange_menu_items', function ( $items ) {
     $items[] = array(
         'id'          => 'diagonal',
         'title'       => __( 'Diagonal cascade', 'diagonal-cascade' ),
@@ -27,7 +27,7 @@ add_filter( 'open_station_arrange_menu_items', function ( $items ) {
 // main script handle; adding it as a dep guarantees `window.wp.os`
 // is populated by the time your code runs.
 add_action( 'admin_enqueue_scripts', function () {
-    if ( ! function_exists( 'open_station_is_enabled' ) || ! open_station_is_enabled() ) {
+    if ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {
         return;
     }
     wp_enqueue_script(
@@ -90,5 +90,5 @@ wp.os.hooks.addAction(
 
 ## Related
 
-- [`open_station_arrange_menu_items` filter](../hooks-reference.md#open_station_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
+- [`openstation_arrange_menu_items` filter](../hooks-reference.md#openstation_arrange_menu_items--stable) — full filter signature, field validation rules, position sorting.
 - [`os.arrange.*` action family](../javascript-reference.md#arrange--overview) — `cascade.starting`, `cascade.applied`, `tile.*`, `snap.changed`, `custom-action`.

@@ -35,7 +35,7 @@ class Tests_OpenStation_RecycleBinMediaTab extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_recycle_bin_render_template
+	 * @covers ::openstation_recycle_bin_render_template
 	 */
 	public function test_media_segment_hidden_when_media_trash_is_off() {
 		// Guard: this test only makes sense in the default MEDIA_TRASH=false
@@ -49,7 +49,7 @@ class Tests_OpenStation_RecycleBinMediaTab extends WP_UnitTestCase {
 		}
 
 		ob_start();
-		open_station_recycle_bin_render_template();
+		openstation_recycle_bin_render_template();
 		$html = (string) ob_get_clean();
 
 		$this->assertStringNotContainsString(

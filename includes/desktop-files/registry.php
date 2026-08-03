@@ -3,9 +3,9 @@
  * OpenStation — file-type registry.
  *
  * Maps a file-type slug (`'post'`, `'user'`, `'folder'`, …) to the
- * `Open_Station_File` subclass that adapts the underlying entity.
+ * `OpenStation_File` subclass that adapts the underlying entity.
  * Plugins extend the file system by registering their own subclass
- * via {@see open_station_register_file_type()}; the desktop UI then
+ * via {@see openstation_register_file_type()}; the desktop UI then
  * knows how to render and resolve their entities just like the
  * built-in types.
  *
@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Internal static-store registry. Mirrors the wallpaper / native-
- * window pattern (see `open_station_desktop_wallpaper_registry()`).
+ * window pattern (see `openstation_desktop_wallpaper_registry()`).
  *
  * @internal
  *
@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  * @return array|null Full store when `$type` is empty; entry when
  *                    looking one up; `null` when not found.
  */
-function open_station_file_type_registry( $type = '', $entry = null ) {
+function openstation_file_type_registry( $type = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $type ) {
@@ -45,7 +45,7 @@ function open_station_file_type_registry( $type = '', $entry = null ) {
  * @param array  $args {
  *     @type string   $label   Required. Human label for picker UIs.
  *     @type string   $class   Required. Fully-qualified
- *                             `Open_Station_File` subclass name.
+ *                             `OpenStation_File` subclass name.
  *     @type string   $script  Optional. Enqueued script handle for the
  *                             plugin's JS-side definition. The shell
  *                             dynamically loads the URL on activation
@@ -56,11 +56,11 @@ function open_station_file_type_registry( $type = '', $entry = null ) {
  * }
  * @return true|WP_Error `true` on success, `WP_Error` otherwise.
  */
-function open_station_register_file_type( $type, $args = array() ) {
+function openstation_register_file_type( $type, $args = array() ) {
 	$type = (string) $type;
 	if ( '' === $type ) {
-		return open_station_registration_error(
-			'open_station_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'File-type slug is required.', 'desktop-mode' )
 		);
 	}
@@ -76,8 +76,8 @@ function open_station_register_file_type( $type, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return open_station_registration_error(
-				'open_station_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this file type.', 'desktop-mode' ),
@@ -89,8 +89,8 @@ function open_station_register_file_type( $type, $args = array() ) {
 	}
 
 	if ( '' === (string) $args['label'] ) {
-		return open_station_registration_error(
-			'open_station_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'File-type registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'type' => $type )
 		);
@@ -98,16 +98,16 @@ function open_station_register_file_type( $type, $args = array() ) {
 
 	$class = (string) $args['class'];
 	if ( '' === $class || ! class_exists( $class ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_class',
+		return openstation_registration_error(
+			'openstation_invalid_class',
 			__( 'File-type registration requires an existing `class`.', 'desktop-mode' ),
 			array( 'type' => $type, 'class' => $class )
 		);
 	}
-	if ( ! is_subclass_of( $class, 'Open_Station_File' ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_class',
-			__( '`class` must extend `Open_Station_File`.', 'desktop-mode' ),
+	if ( ! is_subclass_of( $class, 'OpenStation_File' ) ) {
+		return openstation_registration_error(
+			'openstation_invalid_class',
+			__( '`class` must extend `OpenStation_File`.', 'desktop-mode' ),
 			array( 'type' => $type, 'class' => $class )
 		);
 	}
@@ -119,7 +119,7 @@ function open_station_register_file_type( $type, $args = array() ) {
 		'script' => (string) $args['script'],
 		'sort'   => (int) $args['sort'],
 	);
-	open_station_file_type_registry( $type, $entry );
+	openstation_file_type_registry( $type, $entry );
 
 	/**
 	 * Fires after a desktop file type is successfully registered.
@@ -128,7 +128,7 @@ function open_station_register_file_type( $type, $args = array() ) {
 	 * @param string $type  Type slug.
 	 * @param array  $entry Stored registry entry.
 	 */
-	do_action( 'open_station_file_type_registered', $type, $entry );
+	do_action( 'openstation_file_type_registered', $type, $entry );
 
 	return true;
 }
@@ -139,8 +139,8 @@ function open_station_register_file_type( $type, $args = array() ) {
  * @param string $type Type slug.
  * @return array|null Registry entry, or `null` if unknown.
  */
-function open_station_get_file_type( $type ) {
-	$entry = open_station_file_type_registry( (string) $type );
+function openstation_get_file_type( $type ) {
+	$entry = openstation_file_type_registry( (string) $type );
 	return is_array( $entry ) ? $entry : null;
 }
 
@@ -149,8 +149,8 @@ function open_station_get_file_type( $type ) {
  *
  * @return array[]
  */
-function open_station_get_file_types() {
-	$registry = open_station_file_type_registry();
+function openstation_get_file_types() {
+	$registry = openstation_file_type_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -161,7 +161,7 @@ function open_station_get_file_types() {
 	 *
 	 * @param array[] $registry Registered entries keyed by slug.
 	 */
-	$registry = apply_filters( 'open_station_file_types', $registry );
+	$registry = apply_filters( 'openstation_file_types', $registry );
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}
@@ -184,15 +184,15 @@ function open_station_get_file_types() {
 }
 
 /**
- * Resolves a `(type, ref)` tuple into a `Open_Station_File` instance,
+ * Resolves a `(type, ref)` tuple into a `OpenStation_File` instance,
  * or `null` if the type is unknown.
  *
  * @param string     $type File-type slug.
  * @param string|int $ref  Entity reference.
- * @return Open_Station_File|null
+ * @return OpenStation_File|null
  */
-function open_station_resolve_file( $type, $ref ) {
-	$entry = open_station_get_file_type( $type );
+function openstation_resolve_file( $type, $ref ) {
+	$entry = openstation_get_file_type( $type );
 	if ( null === $entry ) {
 		return null;
 	}
@@ -210,8 +210,8 @@ function open_station_resolve_file( $type, $ref ) {
  *
  * @return array[]
  */
-function open_station_build_file_types_payload() {
-	$entries = open_station_get_file_types();
+function openstation_build_file_types_payload() {
+	$entries = openstation_get_file_types();
 	if ( empty( $entries ) ) {
 		return array();
 	}
@@ -219,7 +219,7 @@ function open_station_build_file_types_payload() {
 	foreach ( $entries as $entry ) {
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
 		$payload = '' !== $handle
-			? open_station_resolve_script_payload( $handle )
+			? openstation_resolve_script_payload( $handle )
 			: array(
 				'url'          => '',
 				'before'       => array(),

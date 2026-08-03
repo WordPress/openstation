@@ -13,7 +13,7 @@
  *
  * Every cap-gated UI affordance reads from
  * `cfg.{canEdit,canPromote,canCreate,canDelete}` AND from the
- * per-row `open_station_can_edit` flag. The flags are UX hints —
+ * per-row `openstation_can_edit` flag. The flags are UX hints —
  * the server re-checks every mutation, so a tampered flag here
  * just lets the user click a button that fails the REST call.
  *
@@ -298,7 +298,7 @@ function buildIdentityCell(
 	// the per-user heartbeat). Avoid `user-id` auto-subscribe here
 	// since we already have a fresh snapshot — setting both would
 	// race the explicit value against the next heartbeat tick.
-	const presence = row.open_station_presence ?? 'offline';
+	const presence = row.openstation_presence ?? 'offline';
 	avatar.setAttribute( 'presence', presence );
 	const avatars = row.avatar_urls ?? {};
 	const rawAvatar =
@@ -430,7 +430,7 @@ function buildRoleCell(
 }
 
 function buildStatsCell( row: UserListItem ): HTMLElement {
-	const stats = row.open_station_user_stats ?? {
+	const stats = row.openstation_user_stats ?? {
 		posts: 0,
 		pages: 0,
 		comments: 0,
@@ -507,7 +507,7 @@ function relativeTime( ts: number ): string {
 function buildLastLoginCell( row: UserListItem ): HTMLElement {
 	const cell = document.createElement( 'span' );
 	cell.style.cssText = 'font-size:13px;font-variant-numeric:tabular-nums;';
-	const ts = row.open_station_last_login;
+	const ts = row.openstation_last_login;
 	if ( ! ts || typeof ts !== 'number' ) {
 		cell.textContent = __( 'Never' );
 		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
@@ -554,7 +554,7 @@ function buildActionsCell(
 		'display:inline-flex;gap:4px;align-items:center;';
 
 	const canEditViewer = cfg.canEdit === true;
-	const canEditRow = row.open_station_can_edit === true;
+	const canEditRow = row.openstation_can_edit === true;
 	if ( ! canEditViewer || ! canEditRow ) {
 		cell.textContent = '—';
 		cell.style.color = 'var(--wp-admin-theme-fg-muted, #8c8f94)';
@@ -710,7 +710,7 @@ function buildColumns(
 			label: __( 'Content' ),
 			width: '160px',
 			sortValue: ( row ) => {
-				const s = row.open_station_user_stats;
+				const s = row.openstation_user_stats;
 				return s ? s.posts + s.pages + s.comments : 0;
 			},
 			render: ( _v, row ) =>
@@ -722,8 +722,8 @@ function buildColumns(
 			width: '140px',
 			sortable: false,
 			sortValue: ( row ) =>
-				typeof row.open_station_last_login === 'number'
-					? row.open_station_last_login
+				typeof row.openstation_last_login === 'number'
+					? row.openstation_last_login
 					: 0,
 			render: ( _v, row ) =>
 				memoUserCell( cache, row.id, 'last_login', () =>
@@ -744,7 +744,7 @@ function buildColumns(
 
 	// Quick actions column — only shown when the viewer has any
 	// edit cap; cell falls back to "—" per-row when the row's
-	// `open_station_can_edit` is false (e.g. self-row, or a higher-
+	// `openstation_can_edit` is false (e.g. self-row, or a higher-
 	// privileged user).
 	if ( cfg.canEdit === true ) {
 		cols.push( {
@@ -782,20 +782,20 @@ function applyClientStatusFilter(
 		return rows;
 	}
 	if ( status === 'online' ) {
-		return rows.filter( ( r ) => r.open_station_presence === 'online' );
+		return rows.filter( ( r ) => r.openstation_presence === 'online' );
 	}
 	if ( status === 'recent' ) {
 		const now = Math.floor( Date.now() / 1000 );
 		return rows.filter( ( r ) => {
-			const ts = r.open_station_last_login;
+			const ts = r.openstation_last_login;
 			return typeof ts === 'number' && ts > 0 && now - ts < 86400 * 30;
 		} );
 	}
 	if ( status === 'never' ) {
 		return rows.filter(
 			( r ) =>
-				! r.open_station_last_login ||
-				typeof r.open_station_last_login !== 'number',
+				! r.openstation_last_login ||
+				typeof r.openstation_last_login !== 'number',
 		);
 	}
 	return rows;
@@ -1519,21 +1519,21 @@ function handleCreateError(
 	let summary = message;
 	if ( ! summary ) {
 		switch ( code ) {
-			case 'open_station_users_username_exists':
+			case 'openstation_users_username_exists':
 			case 'existing_user_login':
 				summary = __( 'That username is already in use.' );
 				break;
-			case 'open_station_users_email_exists':
+			case 'openstation_users_email_exists':
 			case 'existing_user_email':
 				summary = __( 'That email is already in use.' );
 				break;
-			case 'open_station_users_username_invalid':
+			case 'openstation_users_username_invalid':
 				summary = __( 'Username is not valid.' );
 				break;
-			case 'open_station_users_email_invalid':
+			case 'openstation_users_email_invalid':
 				summary = __( 'A valid email address is required.' );
 				break;
-			case 'open_station_users_role_forbidden':
+			case 'openstation_users_role_forbidden':
 				summary = __( 'You are not allowed to assign that role.' );
 				break;
 			default:
@@ -1542,20 +1542,20 @@ function handleCreateError(
 	}
 	form.setError( summary );
 	if (
-		code === 'open_station_users_username_exists' ||
+		code === 'openstation_users_username_exists' ||
 		code === 'existing_user_login' ||
-		code === 'open_station_users_username_invalid'
+		code === 'openstation_users_username_invalid'
 	) {
 		form.setFieldInvalid( 'username' );
 	}
 	if (
-		code === 'open_station_users_email_exists' ||
+		code === 'openstation_users_email_exists' ||
 		code === 'existing_user_email' ||
-		code === 'open_station_users_email_invalid'
+		code === 'openstation_users_email_invalid'
 	) {
 		form.setFieldInvalid( 'email' );
 	}
-	if ( code === 'open_station_users_role_forbidden' ) {
+	if ( code === 'openstation_users_role_forbidden' ) {
 		form.setFieldInvalid( 'role' );
 	}
 	notifyToast( summary, { kind: 'error' } );

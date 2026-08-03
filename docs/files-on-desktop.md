@@ -4,7 +4,7 @@
 
 The Files-on-the-Desktop system lets users place WordPress entities — posts, users, media, terms, comments, bookmarks — on their desktop wallpaper, organize them inside folders, and (in later phases) share folders with other users via Heartbeat-driven sync. Plugin authors extend the system by registering their own file types through the same surface the ten built-ins use.
 
-This is an evolving feature. Phase 0 (this document's current scope) establishes the registry and the `Open_Station_File` base class. Future phases layer in:
+This is an evolving feature. Phase 0 (this document's current scope) establishes the registry and the `OpenStation_File` base class. Future phases layer in:
 
 | Phase | Adds |
 |---|---|
@@ -20,11 +20,11 @@ Each phase ships independently and is documented as it lands.
 
 ## Mental model
 
-A **file** on the desktop is a `Open_Station_File` subclass adapting one WordPress entity (a post, a user, a comment …) to the shape the desktop UI expects: title, icon, preview, and a capability gate. Files don't know how to open themselves — that's a separate concern (Phase 1: the opener registry).
+A **file** on the desktop is a `OpenStation_File` subclass adapting one WordPress entity (a post, a user, a comment …) to the shape the desktop UI expects: title, icon, preview, and a capability gate. Files don't know how to open themselves — that's a separate concern (Phase 1: the opener registry).
 
 ### Files are references, not copies
 
-A placement is a **reference** to a WordPress entity, not a copy of it. Removing a placement drops the placement row only — the underlying post, user, attachment, comment, or term is **never** touched. The REST `DELETE /placements/<id>` defaults to a soft-trash into the recycle bin (restorable); `?force=1` permanently purges the row, and `open_station_files_remove()` is the hard-remove PHP API. Folder deletion cascades placements via tombstones but still leaves referenced entities intact. This is asserted in `Tests_OpenStation_FilesStore::test_remove_does_not_delete_underlying_entity` and is the core safety contract of the system. Plugins that want a "delete the post too" flow must call `wp_delete_post()` (or equivalent) themselves — the framework will not do it for them.
+A placement is a **reference** to a WordPress entity, not a copy of it. Removing a placement drops the placement row only — the underlying post, user, attachment, comment, or term is **never** touched. The REST `DELETE /placements/<id>` defaults to a soft-trash into the recycle bin (restorable); `?force=1` permanently purges the row, and `openstation_files_remove()` is the hard-remove PHP API. Folder deletion cascades placements via tombstones but still leaves referenced entities intact. This is asserted in `Tests_OpenStation_FilesStore::test_remove_does_not_delete_underlying_entity` and is the core safety contract of the system. Plugins that want a "delete the post too" flow must call `wp_delete_post()` (or equivalent) themselves — the framework will not do it for them.
 
 **The one deliberate exception is the `upload` type** (real file storage): an uploaded file has no life outside the desktop, so its placement OWNS the entity. Soft-trash keeps the bytes (restore works); when the owner's last placement of a file is **permanently** removed (recycle-bin purge / `?force=1`), the stored bytes, the row, its shares, and every recipient placement are deleted too. See [Real file storage](#real-file-storage-upload--experimental) below. Every other type keeps the reference contract unchanged.
 
@@ -32,23 +32,23 @@ A **file type** is a slug that points the registry at the right subclass. The bu
 
 | Slug | Class | Reference shape |
 |---|---|---|
-| `post` | `Open_Station_Post_File` | post id (numeric string) |
-| `attachment` | `Open_Station_Attachment_File` | attachment id |
-| `upload` | `Open_Station_Upload_File` | stored-file row id (real bytes on the server — see [Real file storage](#real-file-storage-upload--experimental)) |
-| `user` | `Open_Station_User_File` | user id |
-| `term` | `Open_Station_Term_File` | `"<taxonomy>:<term_id>"` |
-| `comment` | `Open_Station_Comment_File` | comment id |
-| `folder` | `Open_Station_Folder_File` | folder row id (Phase 2) |
-| `shortcut` | `Open_Station_Shortcut_File` | shortcut id; serialized shape carries `shortcutWindow` (registered native-window id) or `shortcutUrl` |
-| `bookmark` | `Open_Station_Bookmark_File` | URL string |
-| `link` | `Open_Station_Link_File` | URL string — opens in a new browser tab |
-| `embed` | `Open_Station_Embed_File` | URL string — opens in an iframe-backed desktop window; geometry persists on `placement.meta.window` |
+| `post` | `OpenStation_Post_File` | post id (numeric string) |
+| `attachment` | `OpenStation_Attachment_File` | attachment id |
+| `upload` | `OpenStation_Upload_File` | stored-file row id (real bytes on the server — see [Real file storage](#real-file-storage-upload--experimental)) |
+| `user` | `OpenStation_User_File` | user id |
+| `term` | `OpenStation_Term_File` | `"<taxonomy>:<term_id>"` |
+| `comment` | `OpenStation_Comment_File` | comment id |
+| `folder` | `OpenStation_Folder_File` | folder row id (Phase 2) |
+| `shortcut` | `OpenStation_Shortcut_File` | shortcut id; serialized shape carries `shortcutWindow` (registered native-window id) or `shortcutUrl` |
+| `bookmark` | `OpenStation_Bookmark_File` | URL string |
+| `link` | `OpenStation_Link_File` | URL string — opens in a new browser tab |
+| `embed` | `OpenStation_Embed_File` | URL string — opens in an iframe-backed desktop window; geometry persists on `placement.meta.window` |
 
 `link` and `embed` placements both carry an optional human-friendly label on `placement.meta.name` (set by the wallpaper-menu "New URL" entry) — the tile renderer prefers it over `file.title()` so two tiles pointing at the same URL can carry different labels. `embed` placements additionally persist `{ x, y, width, height }` on `placement.meta.window` after every drag-end / resize-end of the spawned window; the next open clamps that geometry to the current desktop area before restoring.
 
-`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl`. The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes, enforced during the download via `limit_response_size` (WP_Http stops reading one byte over the cap, and the truncated over-cap body is then rejected by the size check — never buffered whole); the cap keeps `meta` blobs small. The step-1 page-HTML fetch is itself capped at 1 MB (`OPEN_STATION_FAVICON_MAX_PAGE_BYTES`). Plugins can short-circuit or override the resolved value via the `open_station_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
+`link` placements also carry a server-resolved favicon on `placement.meta.iconUrl`. The string is a base64 data URI of the form `data:image/(png|jpeg|gif|webp|x-icon|svg+xml);base64,<payload>`. The favicon resolver runs inline during `POST /placements` (server-side, via `wp_safe_remote_get` + `DOMDocument` parsing of the page's `<link rel="icon">` tags, with a `/favicon.ico` fallback). When the resolver fails — bad host, network error, oversized body, content-type mismatch — `meta.iconUrl` is omitted and the tile falls back to the file type's dashicon. Icons are capped at 256 KB raw bytes, enforced during the download via `limit_response_size` (WP_Http stops reading one byte over the cap, and the truncated over-cap body is then rejected by the size check — never buffered whole); the cap keeps `meta` blobs small. The step-1 page-HTML fetch is itself capped at 1 MB (`OPENSTATION_FAVICON_MAX_PAGE_BYTES`). Plugins can short-circuit or override the resolved value via the `openstation_resolve_favicon` filter. The `meta.iconUrl` precedence is generic — any plugin can attach a custom per-placement icon (URL or data URI) on any type, not just `link`.
 
-`page` and any custom post type collapse into `post`; `category` and `post_tag` collapse into `term`. UI labels per concrete post type / taxonomy come from the `open_station_file_serialize` filter — there's no need to register a separate type for every CPT.
+`page` and any custom post type collapse into `post`; `category` and `post_tag` collapse into `term`. UI labels per concrete post type / taxonomy come from the `openstation_file_serialize` filter — there's no need to register a separate type for every CPT.
 
 ## Registering a file type
 
@@ -57,7 +57,7 @@ PHP:
 ```php
 add_action( 'init', static function () {
     require_once __DIR__ . '/class-jorvy-quote-file.php';
-    open_station_register_file_type( 'jorvy-quote', array(
+    openstation_register_file_type( 'jorvy-quote', array(
         'label' => __( 'Marvel quote', 'jorvy' ),
         'class' => 'Jorvy_Quote_File',
         'sort'  => 200,
@@ -65,10 +65,10 @@ add_action( 'init', static function () {
 }, 6 ); // priority 6 so we land after the built-ins (5).
 ```
 
-`Jorvy_Quote_File` extends `Open_Station_File` and overrides the methods that don't fit the defaults. The base shape is intentionally minimal:
+`Jorvy_Quote_File` extends `OpenStation_File` and overrides the methods that don't fit the defaults. The base shape is intentionally minimal:
 
 ```php
-class Jorvy_Quote_File extends Open_Station_File {
+class Jorvy_Quote_File extends OpenStation_File {
 
     public static function type(): string {
         return 'jorvy-quote';
@@ -116,12 +116,12 @@ The PHP and JS sides are independent: shipping only the PHP class is enough to g
 
 | Hook | Type | Signature | Purpose |
 |---|---|---|---|
-| `open_station_file_types` | filter | `( array[] $registry ) => array[]` | Final list of registered types, keyed by slug. Plugins can hide built-ins or swap a class out. |
-| `open_station_file_type_registered` | action | `( string $type, array $entry ) => void` | Fires after a successful `open_station_register_file_type()` call. Does NOT fire on `WP_Error`. |
-| `open_station_file_serialize` | filter | `( array $shape, Open_Station_File $file ) => array` | Last-mile mutation of the JS-bound shape. Attach badges, override labels, splice in custom render hints. |
-| `open_station_file_openers` | filter | `( array[] $registry ) => array[]` | Filter the opener registry. Hide built-ins, swap labels. |
-| `open_station_resolve_file_opener` | filter | `( string $opener_id, string $type, int $user_id ) => string` | Override the resolution chain — useful for forced role-based associations. |
-| `open_station_file_opener_registered` | action | `( string $id, array $entry ) => void` | Fires after a successful `open_station_register_file_opener()` call. |
+| `openstation_file_types` | filter | `( array[] $registry ) => array[]` | Final list of registered types, keyed by slug. Plugins can hide built-ins or swap a class out. |
+| `openstation_file_type_registered` | action | `( string $type, array $entry ) => void` | Fires after a successful `openstation_register_file_type()` call. Does NOT fire on `WP_Error`. |
+| `openstation_file_serialize` | filter | `( array $shape, OpenStation_File $file ) => array` | Last-mile mutation of the JS-bound shape. Attach badges, override labels, splice in custom render hints. |
+| `openstation_file_openers` | filter | `( array[] $registry ) => array[]` | Filter the opener registry. Hide built-ins, swap labels. |
+| `openstation_resolve_file_opener` | filter | `( string $opener_id, string $type, int $user_id ) => string` | Override the resolution chain — useful for forced role-based associations. |
+| `openstation_file_opener_registered` | action | `( string $id, array $entry ) => void` | Fires after a successful `openstation_register_file_opener()` call. |
 
 ### JavaScript
 
@@ -142,15 +142,15 @@ The PHP and JS sides are independent: shipping only the PHP class is enough to g
 
 ### PHP
 
-- `open_station_register_file_type( string $type, array $args ): true|WP_Error`
-- `open_station_get_file_type( string $type ): array|null`
-- `open_station_get_file_types(): array[]`
-- `open_station_resolve_file( string $type, $ref ): Open_Station_File|null`
-- `open_station_register_file_opener( string $id, array $args ): true|WP_Error`
-- `open_station_get_file_openers(): array[]`
-- `open_station_get_file_openers_for_type( string $type ): array[]`
-- `open_station_resolve_file_opener_id( string $type, int $user_id ): string`
-- `open_station_get_user_file_associations( int $user_id ): array<string,string>`
+- `openstation_register_file_type( string $type, array $args ): true|WP_Error`
+- `openstation_get_file_type( string $type ): array|null`
+- `openstation_get_file_types(): array[]`
+- `openstation_resolve_file( string $type, $ref ): OpenStation_File|null`
+- `openstation_register_file_opener( string $id, array $args ): true|WP_Error`
+- `openstation_get_file_openers(): array[]`
+- `openstation_get_file_openers_for_type( string $type ): array[]`
+- `openstation_resolve_file_opener_id( string $type, int $user_id ): string`
+- `openstation_get_user_file_associations( int $user_id ): array<string,string>`
 
 ### JavaScript (`wp.os.files`)
 
@@ -191,7 +191,7 @@ A **file opener** answers the question "what should happen when the user double-
 PHP-side metadata (the entry the OS Settings tab will show, and the entry the user-meta override is validated against):
 
 ```php
-open_station_register_file_opener( 'classic-editor', array(
+openstation_register_file_opener( 'classic-editor', array(
     'label'      => __( 'Classic Editor', 'classic-editor' ),
     'types'      => array( 'post' ),
     'is_default' => false,        // user must opt in via OS Settings
@@ -218,7 +218,7 @@ wp.os.files.registerOpener( {
 Three handler kinds:
 
 - `url` — handler returns a URL; the framework opens it in a chromeless iframe window via `wp.os.windowManager.open`. Optional `windowId(file)` and `title(file)` overrides.
-- `window` — handler points at a `open_station_register_window`-registered native-window id, with optional per-file `config(file)`. **Caveat:** the computed config is currently dropped by the shell's opener wiring (it opens the window by id without forwarding the config), so it never reaches `wp.os.getWindowConfig` — don't rely on per-file config delivery yet.
+- `window` — handler points at a `openstation_register_window`-registered native-window id, with optional per-file `config(file)`. **Caveat:** the computed config is currently dropped by the shell's opener wiring (it opens the window by id without forwarding the config), so it never reaches `wp.os.getWindowConfig` — don't rely on per-file config delivery yet.
 - `js` — handler runs free-form code in the shell context. Useful for modals, quick-actions, "preview" affordances.
 
 ### Built-in openers
@@ -236,7 +236,7 @@ Three handler kinds:
 | `desktop-mode-folder-window` | `folder` | `js` | Opens a native folder window (breadcrumbs, tile grid, preview pane, status bar). |
 | `desktop-mode-shortcut-opener` | `shortcut` | `js` | Opens the shortcut's registered native window (`shortcutWindow`) or its URL (`shortcutUrl`) in a desktop window — external origins fall back to a new browser tab. |
 
-The `desktop-mode-folder-window` and `desktop-mode-shortcut-opener` openers are registered JS-side only — unlike the other eight, they have no entry in the PHP metadata mirror (`includes/desktop-files/built-in-openers.php`), so don't expect them in `open_station_get_file_openers()`.
+The `desktop-mode-folder-window` and `desktop-mode-shortcut-opener` openers are registered JS-side only — unlike the other eight, they have no entry in the PHP metadata mirror (`includes/desktop-files/built-in-openers.php`), so don't expect them in `openstation_get_file_openers()`.
 
 ### Opening a file
 
@@ -254,7 +254,7 @@ The current user's `{ type → openerId }` choices live in user meta `desktop_mo
 Plugins that ship a "force-this-opener-for-role-X" feature should hook the resolution filter rather than touching user meta:
 
 ```php
-add_filter( 'open_station_resolve_file_opener', function ( $opener_id, $type, $user_id ) {
+add_filter( 'openstation_resolve_file_opener', function ( $opener_id, $type, $user_id ) {
     if ( 'post' === $type && user_can( $user_id, 'editor' ) ) {
         return 'classic-editor';
     }
@@ -266,7 +266,7 @@ add_filter( 'open_station_resolve_file_opener', function ( $opener_id, $type, $u
 
 ### Custom tables
 
-Three tables back the system, created via `dbDelta` on plugin activation and refreshed lazily on `admin_init` when `OPEN_STATION_FILES_SCHEMA_VERSION` mismatches the option.
+Three tables back the system, created via `dbDelta` on plugin activation and refreshed lazily on `admin_init` when `OPENSTATION_FILES_SCHEMA_VERSION` mismatches the option.
 
 | Table | Purpose | Key columns |
 |---|---|---|
@@ -295,27 +295,27 @@ All under `/wp-json/desktop-mode/v1/files`. Permission gate: logged-in + OpenSta
 ### PHP store API
 
 ```php
-open_station_files_place( int $user_id, int $parent_id, string $type, string $ref, array $args = [] ): int|WP_Error;
-open_station_files_move( int $placement_id, int $user_id, array $changes ): true|WP_Error;
-open_station_files_remove( int $placement_id, int $user_id ): true|WP_Error;
-open_station_files_get_placement( int $placement_id ): array|null;
-open_station_files_get_for_user_folder( int $user_id, int $parent_id = 0 ): array;
+openstation_files_place( int $user_id, int $parent_id, string $type, string $ref, array $args = [] ): int|WP_Error;
+openstation_files_move( int $placement_id, int $user_id, array $changes ): true|WP_Error;
+openstation_files_remove( int $placement_id, int $user_id ): true|WP_Error;
+openstation_files_get_placement( int $placement_id ): array|null;
+openstation_files_get_for_user_folder( int $user_id, int $parent_id = 0 ): array;
 
-open_station_files_create_folder( int $owner_id, array $args ): int|WP_Error;
-open_station_files_update_folder( int $folder_id, int $user_id, array $changes ): true|WP_Error;
-open_station_files_delete_folder( int $folder_id, int $user_id ): true|WP_Error;
-open_station_files_get_folder( int $folder_id ): array|null;
-open_station_files_get_visible_folders( int $user_id ): array;
+openstation_files_create_folder( int $owner_id, array $args ): int|WP_Error;
+openstation_files_update_folder( int $folder_id, int $user_id, array $changes ): true|WP_Error;
+openstation_files_delete_folder( int $folder_id, int $user_id ): true|WP_Error;
+openstation_files_get_folder( int $folder_id ): array|null;
+openstation_files_get_visible_folders( int $user_id ): array;
 
-open_station_files_share_modes(): array;          // ['private','users','roles','all']
-open_station_files_table_names(): array;
-open_station_files_now_ms(): int;
+openstation_files_share_modes(): array;          // ['private','users','roles','all']
+openstation_files_table_names(): array;
+openstation_files_now_ms(): int;
 ```
 
-Placement-write path actions: `open_station_file_placed( $id, $row )`, `open_station_file_moved( $id, $next, $prev )`, `open_station_file_unplaced( $id, $row )`.
-Folder-write path: `open_station_folder_created`, `_updated`, `_shared`, `_deleted`.
-Read filter: `open_station_files_query_args( $args, $user_id, $parent_id )`.
-Visibility filter (advisory in Phase 2, load-bearing in Phase 6): `open_station_files_visible_folders( $folders, $viewer_id )`.
+Placement-write path actions: `openstation_file_placed( $id, $row )`, `openstation_file_moved( $id, $next, $prev )`, `openstation_file_unplaced( $id, $row )`.
+Folder-write path: `openstation_folder_created`, `_updated`, `_shared`, `_deleted`.
+Read filter: `openstation_files_query_args( $args, $user_id, $parent_id )`.
+Visibility filter (advisory in Phase 2, load-bearing in Phase 6): `openstation_files_visible_folders( $folders, $viewer_id )`.
 
 ### JS store + REST
 
@@ -454,7 +454,7 @@ targets:
     placement with `parentId = folderId`).
 
 Pinned tiles (registered with `pinned: true` via
-`open_station_register_icon`) skip drag wiring entirely. A pointerdown
+`openstation_register_icon`) skip drag wiring entirely. A pointerdown
 on a pinned tile flashes a `--bump` animation and shows the
 `not-allowed` cursor so the (lack of) interaction reads as
 intentional rather than buggy.
@@ -534,7 +534,7 @@ wp.os.hooks.addFilter(
 PHP — for declarative items shipped with the plugin (no closures, since they don't serialize):
 
 ```php
-add_filter( 'open_station_wallpaper_context_menu_items', function ( $items ) {
+add_filter( 'openstation_wallpaper_context_menu_items', function ( $items ) {
     $items[] = [
         'id'         => 'my-plugin/help',
         'label'      => __( 'Help', 'my-plugin' ),
@@ -560,14 +560,14 @@ doAction( 'os.wallpaper-context-menu.activated', { id: string, callbackId: strin
 
 ### Visibility logic
 
-`open_station_files_get_visible_folders( $user_id )` returns the union of:
+`openstation_files_get_visible_folders( $user_id )` returns the union of:
 
 - Folders owned by `$user_id`.
 - Folders not owned by them whose `share_mode` resolves true for them:
   - `'all'` — every OpenStation user.
-  - `'users'` / `'roles'` — resolved through the shares + decisions tables via `open_station_folder_share_user_capability()`: an accepted user-principal share, or an accepted per-user decision on a role-principal share (see [folder-sharing.md](folder-sharing.md)). `share_meta` on the folders row is diagnostic only — it is never consulted for visibility.
+  - `'users'` / `'roles'` — resolved through the shares + decisions tables via `openstation_folder_share_user_capability()`: an accepted user-principal share, or an accepted per-user decision on a role-principal share (see [folder-sharing.md](folder-sharing.md)). `share_meta` on the folders row is diagnostic only — it is never consulted for visibility.
 
-Plugins can register a custom share mode by adding it to `open_station_files_share_modes` and computing the per-folder decision via `open_station_files_user_can_see_folder`.
+Plugins can register a custom share mode by adding it to `openstation_files_share_modes` and computing the per-folder decision via `openstation_files_user_can_see_folder`.
 
 ### Heartbeat protocol
 
@@ -576,7 +576,7 @@ Wire format:
 **Send (client → server):**
 
 ```js
-data.open_station_files_subscribe = {
+data.openstation_files_subscribe = {
     folderVersions: { '<folderId>': lastSeenUpdatedAtMs, … },
     placementsVersion: lastSeenUpdatedAtMs,
     sharesVersion: lastSeenInviteMs, // highwater of invitedAtMs across received invites
@@ -586,7 +586,7 @@ data.open_station_files_subscribe = {
 **Receive (server → client):**
 
 ```js
-response.open_station_files = {
+response.openstation_files = {
     placements: [ RestPlacementShape, … ], // upserts since placementsVersion
     folders:    [ RestFolderShape, … ],    // upserts (incl. share-mode flips)
     removed:    { placements: number[], folders: number[] }, // tombstone ids
@@ -600,7 +600,7 @@ Pending share invites ride the same heartbeat — `shares.pending` carries every
 
 The client merges upserts via the existing store helpers with `source: 'remote'`, so plugins listening to `os-files-changed` can disambiguate between local edits and incoming sync.
 
-When `truncated: true`, the framework issues a one-shot REST resync of every hydrated folder — the cap (`open_station_files_heartbeat_max_rows`, default 200 rows per payload) was hit and a partial delta would leave the client wedged.
+When `truncated: true`, the framework issues a one-shot REST resync of every hydrated folder — the cap (`openstation_files_heartbeat_max_rows`, default 200 rows per payload) was hit and a partial delta would leave the client wedged.
 
 ### Setting share mode
 
@@ -614,7 +614,7 @@ PATCH /wp-json/desktop-mode/v1/files/folders/<id>
 }
 ```
 
-The `open_station_folder_shared` action fires whenever `share_mode` or `share_meta` changes, giving plugins a single signal to subscribe to.
+The `openstation_folder_shared` action fires whenever `share_mode` or `share_meta` changes, giving plugins a single signal to subscribe to.
 
 ## Real file storage (`upload`) — Experimental
 
@@ -636,7 +636,7 @@ Even without it, the extensionless UUID names and the PHP-gated serving are the 
 
 - **Drag from the OS** onto the wallpaper, a folder window, or a closed folder tile. The upload dialog offers a destination selector — Desktop storage or Media Library (the pre-0.9.6 behavior). Defaults follow the drop's intent: folder-targeted drops go to Desktop (into that folder); flat desk drops default to Media Library when every file is a media kind (`image/*`, `video/*`, `audio/*`) and to Desktop otherwise; WordPress admin windows keep Media Library. Folder drops force Desktop storage and recreate the tree (empty directories included, via the drag path only). Dropping again while the dialog is open updates it to the latest drop (the earlier, unconfirmed batch is discarded).
 - **Pickers**: wallpaper context menu → "Upload files…" / "Upload folder…".
-- Capability gate: `upload_files` by default, filterable via `open_station_stored_files_upload_capability`. Per-file cap: `wp_max_upload_size()`, filterable down via `open_station_stored_files_max_upload_bytes`. Optional per-user quota: `open_station_stored_files_user_quota_bytes` (default unlimited). MIME policy: the user-scoped WordPress allow-list (widen with `open_station_stored_files_allowed_mimes` — it keeps core's re-check in agreement) plus a hard executable/config denylist (`php*`, `phtml`, `phar`, `.htaccess`, …) that also rejects double extensions.
+- Capability gate: `upload_files` by default, filterable via `openstation_stored_files_upload_capability`. Per-file cap: `wp_max_upload_size()`, filterable down via `openstation_stored_files_max_upload_bytes`. Optional per-user quota: `openstation_stored_files_user_quota_bytes` (default unlimited). MIME policy: the user-scoped WordPress allow-list (widen with `openstation_stored_files_allowed_mimes` — it keeps core's re-check in agreement) plus a hard executable/config denylist (`php*`, `phtml`, `phar`, `.htaccess`, …) that also rejects double extensions.
 
 ### REST routes
 
@@ -648,14 +648,14 @@ All under `/wp-json/desktop-mode/v1/files`, cookie + nonce auth:
 | `POST` | `/uploads/paths` | mkdir-p a directory path with no file (`parentId`, `relativePath`). Preserves empty directories from tree drops. |
 | `PATCH` | `/uploads/<id>` | Rename the display name (owner only). |
 | `GET` | `/uploads/<id>/download` | Stream the bytes, unmodified. `_wpnonce` accepted as a query param so plain `<a>` navigations work. |
-| `GET` | `/folders/<id>/download` | On-demand `.zip` of the folder's stored files (reference-type placements are skipped; empty sub-folders round-trip). Requires the PHP zip extension — 501 + a hidden affordance otherwise. Caps filterable via `open_station_stored_files_zip_caps` (default 1000 entries / 500 MB input). |
+| `GET` | `/folders/<id>/download` | On-demand `.zip` of the folder's stored files (reference-type placements are skipped; empty sub-folders round-trip). Requires the PHP zip extension — 501 + a hidden affordance otherwise. Caps filterable via `openstation_stored_files_zip_caps` (default 1000 entries / 500 MB input). |
 | `GET/POST` | `/uploads/<id>/shares` (+ `/<shareId>`, `/accept`, `/deny`, `/leave`) | Single-file sharing — see [folder-sharing.md](folder-sharing.md#single-file-shares). |
 
 Downloads answer **404** for files the viewer cannot read (existence masking). Not-found and no-access are indistinguishable.
 
 ### Ownership and sharing
 
-Uploaded files are **owner-locked**: only the stored file's owner may move, rename, or trash them — folder write-collaborators included (`open_station_files_upload_owner_locked` error, and `canTrash: false` in the shape). Recipients — via a shared folder or a direct file share — get read + download only. Direct file shares are hard-limited to the read tier.
+Uploaded files are **owner-locked**: only the stored file's owner may move, rename, or trash them — folder write-collaborators included (`openstation_files_upload_owner_locked` error, and `canTrash: false` in the shape). Recipients — via a shared folder or a direct file share — get read + download only. Direct file shares are hard-limited to the read tier.
 
 ### Lifecycle
 
@@ -663,7 +663,7 @@ Reconciliation runs on the existing daily prune: placement-less rows and row-les
 
 ### PHP surface
 
-`open_station_stored_files_get/create/rename/delete/purge()`, `open_station_stored_file_path()`, `open_station_stored_file_user_can_read()`, `open_station_stored_files_total_bytes()`, `open_station_stored_file_share_{invite,accept,deny,leave,revoke}()`. Actions: `open_station_stored_file_{created,uploaded,renamed,deleted,downloaded}`, `open_station_folder_zip_downloaded`. See [hooks-reference.md](hooks-reference.md#real-file-storage) for the filters.
+`openstation_stored_files_get/create/rename/delete/purge()`, `openstation_stored_file_path()`, `openstation_stored_file_user_can_read()`, `openstation_stored_files_total_bytes()`, `openstation_stored_file_share_{invite,accept,deny,leave,revoke}()`. Actions: `openstation_stored_file_{created,uploaded,renamed,deleted,downloaded}`, `openstation_folder_zip_downloaded`. See [hooks-reference.md](hooks-reference.md#real-file-storage) for the filters.
 
 ## What's NOT here yet
 

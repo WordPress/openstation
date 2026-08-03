@@ -17,11 +17,11 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OPEN_STATION_CRON_MANAGER_FILE', __FILE__ );
-define( 'OPEN_STATION_CRON_MANAGER_DIR', plugin_dir_path( __FILE__ ) );
-define( 'OPEN_STATION_CRON_MANAGER_URL', plugin_dir_url( __FILE__ ) );
-define( 'OPEN_STATION_CRON_MANAGER_VERSION', '0.22.11' );
+define( 'OPENSTATION_CRON_MANAGER_FILE', __FILE__ );
+define( 'OPENSTATION_CRON_MANAGER_DIR', plugin_dir_path( __FILE__ ) );
+define( 'OPENSTATION_CRON_MANAGER_URL', plugin_dir_url( __FILE__ ) );
+define( 'OPENSTATION_CRON_MANAGER_VERSION', '0.22.11' );
 
-require_once OPEN_STATION_CRON_MANAGER_DIR . 'includes/store.php';
-require_once OPEN_STATION_CRON_MANAGER_DIR . 'includes/rest.php';
-require_once OPEN_STATION_CRON_MANAGER_DIR . 'includes/window.php';
+require_once OPENSTATION_CRON_MANAGER_DIR . 'includes/store.php';
+require_once OPENSTATION_CRON_MANAGER_DIR . 'includes/rest.php';
+require_once OPENSTATION_CRON_MANAGER_DIR . 'includes/window.php';

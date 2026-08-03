@@ -6,7 +6,7 @@
  * upload failed, a plugin crashed, …). Each toast carries a `type`
  * slug that the shell maps to a color + icon. The defaults cover
  * `success`, `warning`, `error`, and `shell-error`; plugins and themes
- * extend the list via the {@see 'open_station_toast_types'} filter to
+ * extend the list via the {@see 'openstation_toast_types'} filter to
  * register their own slugs (e.g. `update-available`).
  *
  * @package OpenStation
@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array<int, array{id: string, label: string, icon: string, tone: string}>
  */
-function open_station_get_toast_types() {
+function openstation_get_toast_types() {
 	$defaults = array(
 		array(
 			'id'    => 'success',
@@ -61,7 +61,7 @@ function open_station_get_toast_types() {
 	 * Filters the toast-notification type map.
 	 *
 	 * ```php
-	 * add_filter( 'open_station_toast_types', function ( $types ) {
+	 * add_filter( 'openstation_toast_types', function ( $types ) {
 	 *     $types[] = array(
 	 *         'id'    => 'update-available',
 	 *         'label' => __( 'Update available', 'my-plugin' ),
@@ -80,7 +80,7 @@ function open_station_get_toast_types() {
 	 *
 	 * @param array $defaults Built-in toast types.
 	 */
-	$filtered = apply_filters( 'open_station_toast_types', $defaults );
+	$filtered = apply_filters( 'openstation_toast_types', $defaults );
 	if ( ! is_array( $filtered ) ) {
 		return $defaults;
 	}

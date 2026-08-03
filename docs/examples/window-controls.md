@@ -77,7 +77,7 @@ add_action( 'admin_enqueue_scripts', function () {
     );
     wp_enqueue_script( 'my-plugin-controls' );
 } );
-open_station_register_window_control_script( 'my-plugin-controls' );
+openstation_register_window_control_script( 'my-plugin-controls' );
 ```
 
 **controls.js**
@@ -146,8 +146,8 @@ wp.hooks.addFilter(
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `open_station_window_control_script_registered` | action | `( string $handle )` | Fires after `open_station_register_window_control_script()` succeeds. |
-| `open_station_window_control_registered` | action | `( string $id, array $entry )` | Fires after `open_station_register_window_control()` stores metadata. |
+| `openstation_window_control_script_registered` | action | `( string $handle )` | Fires after `openstation_register_window_control_script()` succeeds. |
+| `openstation_window_control_registered` | action | `( string $id, array $entry )` | Fires after `openstation_register_window_control()` stores metadata. |
 
 ### JavaScript
 

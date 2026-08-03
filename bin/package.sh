@@ -56,7 +56,7 @@ done
 #
 # Only the MINIFIED bundles ship. The unminified dev builds total
 # ~4-5 MB (desktop.js alone is >1 MB) and never load at runtime on a
-# release install: `open_station_asset_suffix()` (includes/helpers.php)
+# release install: `openstation_asset_suffix()` (includes/helpers.php)
 # probes for `assets/js/desktop.js` and serves `.min` when the dev
 # bundles are absent, so even a SCRIPT_DEBUG site degrades gracefully
 # instead of 404ing.

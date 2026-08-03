@@ -78,7 +78,7 @@ export function withChromelessParam( url: string ): string | null {
 	if ( parsed.origin !== INITIAL_ORIGIN ) {
 		return null;
 	}
-	parsed.searchParams.set( 'open_station_chromeless', '1' );
+	parsed.searchParams.set( 'openstation_chromeless', '1' );
 	return parsed.toString();
 }
 

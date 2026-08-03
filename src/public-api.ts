@@ -239,7 +239,7 @@ export type { KeyedListOptions } from './ui/util/keyed-list';
  * Native-window convenience wrappers. `registerWindow` is a compact
  * alias for the boilerplate-heavy `windowManager.open({ native: true, … })`
  * pattern. `cloneTemplate` is exported for advanced cases (re-cloning,
- * custom hydration) — `open_station_register_window()` plugins don't
+ * custom hydration) — `openstation_register_window()` plugins don't
  * need it because the shell pre-clones the template into the window
  * body before the render callback fires.
  */

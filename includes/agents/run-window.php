@@ -21,8 +21,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string Data URI.
  */
-function open_station_agent_run_window_icon() {
-	return open_station_agent_avatar_url();
+function openstation_agent_run_window_icon() {
+	return openstation_agent_avatar_url();
 }
 
 /**
@@ -32,22 +32,22 @@ function open_station_agent_run_window_icon() {
  *
  * @return void
  */
-function open_station_agent_run_register_assets() {
-	$version = OPEN_STATION_VERSION;
-	$suffix  = open_station_asset_suffix();
+function openstation_agent_run_register_assets() {
+	$version = OPENSTATION_VERSION;
+	$suffix  = openstation_asset_suffix();
 
-	$css_path = OPEN_STATION_DIR . 'assets/css/agents.css';
+	$css_path = OPENSTATION_DIR . 'assets/css/agents.css';
 	wp_register_style(
 		'desktop-mode-agent-run',
-		OPEN_STATION_URL . 'assets/css/agents.css',
+		OPENSTATION_URL . 'assets/css/agents.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
-	$js_path = OPEN_STATION_DIR . 'assets/js/agent-run-window' . $suffix . '.js';
+	$js_path = OPENSTATION_DIR . 'assets/js/agent-run-window' . $suffix . '.js';
 	wp_register_script(
 		'desktop-mode-agent-run',
-		OPEN_STATION_URL . 'assets/js/agent-run-window' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/agent-run-window' . $suffix . '.js',
 		array( 'wp-i18n' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
@@ -55,10 +55,10 @@ function open_station_agent_run_register_assets() {
 	wp_set_script_translations(
 		'desktop-mode-agent-run',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 }
-add_action( 'init', 'open_station_agent_run_register_assets', 5 );
+add_action( 'init', 'openstation_agent_run_register_assets', 5 );
 
 /**
  * Static template rendered into the window body — the bundle mounts
@@ -66,7 +66,7 @@ add_action( 'init', 'open_station_agent_run_register_assets', 5 );
  *
  * @return void
  */
-function open_station_agent_run_render_template() {
+function openstation_agent_run_render_template() {
 	?>
 	<div class="desktop-mode-agent-run" data-os-agent-run-root>
 		<div class="os-agent-run__loading">
@@ -82,20 +82,20 @@ function open_station_agent_run_render_template() {
  *
  * @return void
  */
-function open_station_agent_run_window_register() {
-	if ( ! function_exists( 'open_station_register_window' ) ) {
+function openstation_agent_run_window_register() {
+	if ( ! function_exists( 'openstation_register_window' ) ) {
 		return;
 	}
-	if ( ! open_station_agents_user_can_read() ) {
+	if ( ! openstation_agents_user_can_read() ) {
 		return;
 	}
 
-	$registered = open_station_register_window(
+	$registered = openstation_register_window(
 		'desktop-mode-agent-run',
 		array(
 			'title'      => __( 'Agent chat', 'desktop-mode' ),
-			'icon'       => open_station_agent_run_window_icon(),
-			'template'   => 'open_station_agent_run_render_template',
+			'icon'       => openstation_agent_run_window_icon(),
+			'template'   => 'openstation_agent_run_render_template',
 			'script'     => 'desktop-mode-agent-run',
 			'style'      => 'desktop-mode-agent-run',
 			'width'      => 760,
@@ -109,7 +109,7 @@ function open_station_agent_run_window_register() {
 			'config'     => array(
 				'restRoot'    => esc_url_raw( rest_url() ),
 				'restNonce'   => wp_create_nonce( 'wp_rest' ),
-				'canManage'   => open_station_agents_user_can_manage(),
+				'canManage'   => openstation_agents_user_can_manage(),
 				// The viewer — the chat paints their avatar next to
 				// their own messages, WhatsApp-style.
 				'currentUser' => array(
@@ -125,4 +125,4 @@ function open_station_agent_run_window_register() {
 		error_log( '[openstation] Agent chat window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'open_station_agent_run_window_register', 25 );
+add_action( 'init', 'openstation_agent_run_window_register', 25 );

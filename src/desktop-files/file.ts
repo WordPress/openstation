@@ -1,7 +1,7 @@
 /**
  * OpenStation — `DesktopFile` JS abstract base class.
  *
- * Mirrors the PHP {@link Open_Station_File}. Plugin authors extend
+ * Mirrors the PHP {@link OpenStation_File}. Plugin authors extend
  * this class on the JS side when they want to control rendering of
  * their file-type tiles beyond the metadata the PHP `serialize()`
  * call already shipped. The class is intentionally thin — most

@@ -7,7 +7,7 @@
  *
  * Most values are fallbacks. The live set comes from
  * `openStationConfig.accentColors` / `.defaultWallpaper`, populated by
- * PHP via `open_station_accent_colors` / `open_station_default_wallpaper`
+ * PHP via `openstation_accent_colors` / `openstation_default_wallpaper`
  * filters. The getters in this file do the `runtime config → fallback`
  * dance so callers never have to branch on "is the config hydrated?"
  */
@@ -43,7 +43,7 @@ export const DEFAULT_WALLPAPER_ID = 'galaxy';
  * This is the compile-time fallback list used when PHP doesn't hand
  * us a live `accentColors` array in `openStationConfig` — the live list
  * is what the picker actually renders. Plugins that want to
- * customise the list should hook `open_station_accent_colors` in PHP,
+ * customise the list should hook `openstation_accent_colors` in PHP,
  * not fork this constant.
  */
 export const DEFAULT_ACCENTS: readonly AccentColor[] = [
@@ -61,7 +61,7 @@ export const DEFAULT_ACCENTS: readonly AccentColor[] = [
  * Resolve the live accent-color list.
  *
  * Reads `window.wp.os.config.accentColors` (populated by PHP via
- * `open_station_accent_colors`) and validates each entry shape. Drops
+ * `openstation_accent_colors`) and validates each entry shape. Drops
  * malformed entries rather than letting a bad filter render broken
  * swatches. Falls back to {@link DEFAULT_ACCENTS} when the config is
  * missing or yields zero valid entries.

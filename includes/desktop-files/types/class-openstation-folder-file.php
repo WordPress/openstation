@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `folder` desktop file type.
  */
-class Open_Station_Folder_File extends Open_Station_File {
+class OpenStation_Folder_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'folder';
@@ -48,15 +48,15 @@ class Open_Station_Folder_File extends Open_Station_File {
 		// The capability resolver is the authority —
 		// it knows about direct shares, role decisions, AND cascade
 		// (a folder nested inside a shared folder is reachable).
-		if ( function_exists( 'open_station_folder_share_user_capability' ) ) {
-			$cap = open_station_folder_share_user_capability( (int) $row['id'], (int) $user_id );
+		if ( function_exists( 'openstation_folder_share_user_capability' ) ) {
+			$cap = openstation_folder_share_user_capability( (int) $row['id'], (int) $user_id );
 			if ( 'none' !== $cap ) {
 				return true;
 			}
 		}
 		// Back-compat fallback for legacy `share_meta` rows that
 		// pre-date the shares table.
-		$visible_ids = wp_list_pluck( open_station_files_get_visible_folders( $user_id ), 'id' );
+		$visible_ids = wp_list_pluck( openstation_files_get_visible_folders( $user_id ), 'id' );
 		return in_array( (int) $row['id'], array_map( 'intval', (array) $visible_ids ), true );
 	}
 
@@ -73,9 +73,9 @@ class Open_Station_Folder_File extends Open_Station_File {
 		if ( $id <= 0 ) {
 			return null;
 		}
-		if ( ! function_exists( 'open_station_files_get_folder' ) ) {
+		if ( ! function_exists( 'openstation_files_get_folder' ) ) {
 			return null;
 		}
-		return open_station_files_get_folder( $id );
+		return openstation_files_get_folder( $id );
 	}
 }

@@ -12,10 +12,10 @@
 class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 
 	/**
-	 * @covers ::open_station_create_registry
+	 * @covers ::openstation_create_registry
 	 */
 	public function test_create_registry_basic_read_write() {
-		$reg = open_station_create_registry();
+		$reg = openstation_create_registry();
 
 		// Empty initial state.
 		$this->assertSame( array(), $reg( '' ) );
@@ -33,10 +33,10 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_create_registry
+	 * @covers ::openstation_create_registry
 	 */
 	public function test_create_registry_replace_semantics() {
-		$reg = open_station_create_registry();
+		$reg = openstation_create_registry();
 		$reg( 'x', 'first' );
 		$reg( 'x', 'second' );
 		$this->assertSame( 'second', $reg( 'x' ) );
@@ -44,10 +44,10 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_create_registry
+	 * @covers ::openstation_create_registry
 	 */
 	public function test_create_registry_flush_clears_state() {
-		$reg = open_station_create_registry();
+		$reg = openstation_create_registry();
 		$reg( 'a', 1 );
 		$reg( 'b', 2 );
 		$this->assertCount( 2, $reg( '' ) );
@@ -57,28 +57,28 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_create_registry
+	 * @covers ::openstation_create_registry
 	 */
 	public function test_create_registry_instances_are_isolated() {
-		$a = open_station_create_registry();
-		$b = open_station_create_registry();
+		$a = openstation_create_registry();
+		$b = openstation_create_registry();
 		$a( 'shared', 'A-value' );
 		$this->assertNull( $b( 'shared' ) );
 	}
 
 	/**
-	 * @covers ::open_station_create_registry
+	 * @covers ::openstation_create_registry
 	 */
 	public function test_create_registry_accepts_initial_entries() {
-		$reg = open_station_create_registry( array( 'seed' => 'value' ) );
+		$reg = openstation_create_registry( array( 'seed' => 'value' ) );
 		$this->assertSame( 'value', $reg( 'seed' ) );
 	}
 
 	/**
-	 * @covers ::open_station_create_script_registry
+	 * @covers ::openstation_create_script_registry
 	 */
 	public function test_create_script_registry_read_write_default_false() {
-		$reg = open_station_create_script_registry();
+		$reg = openstation_create_script_registry();
 
 		$this->assertFalse( $reg( 'missing' ) );
 		$reg( 'handle-a', true );
@@ -90,10 +90,10 @@ class Tests_OpenStation_RegistryFactory extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_create_script_registry
+	 * @covers ::openstation_create_script_registry
 	 */
 	public function test_create_script_registry_flush() {
-		$reg = open_station_create_script_registry();
+		$reg = openstation_create_script_registry();
 		$reg( 'h', true );
 		$reg( '__flush__' );
 		$this->assertSame( array(), $reg( '' ) );

@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `attachment` desktop file type.
  */
-class Open_Station_Attachment_File extends Open_Station_File {
+class OpenStation_Attachment_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'attachment';

@@ -93,7 +93,7 @@ add_action( 'admin_enqueue_scripts', function () {
     );
     wp_enqueue_script( 'acme-effects' );
 } );
-open_station_register_unfocus_effect_script( 'acme-effects' );
+openstation_register_unfocus_effect_script( 'acme-effects' );
 ```
 
 The handle you pass here should match the `owner` on your
@@ -113,4 +113,4 @@ live-unregister your effect when the plugin is deactivated.
   the registry array on every read — reorder, remove, or conditionally
   swap effects, mirroring `os.wallpapers`.
 
-See also: [`registerUnfocusEffect`](../javascript-reference.md#registerunfocuseffect-def---experimental) in the JavaScript reference and [`open_station_register_unfocus_effect_script`](../hooks-reference.md#open_station_register_unfocus_effect_script-handle---experimental-php-function) in the hooks reference.
+See also: [`registerUnfocusEffect`](../javascript-reference.md#registerunfocuseffect-def---experimental) in the JavaScript reference and [`openstation_register_unfocus_effect_script`](../hooks-reference.md#openstation_register_unfocus_effect_script-handle---experimental-php-function) in the hooks reference.

@@ -2114,7 +2114,7 @@ export async function mountTagsCloud(
 	async function refreshCountsViaBulk(): Promise< void > {
 		// Defensive fallback — hit the plugin's bulk-count endpoint to
 		// get the authoritative "any non-trashed status" count per
-		// term. The `open_station_count` REST field on `/wp/v2/tags`
+		// term. The `openstation_count` REST field on `/wp/v2/tags`
 		// is the primary source (and `fetchTerms` already prefers it),
 		// but on hosts where REST middleware strips custom fields, the
 		// chip silently falls back to core's `count` — which only

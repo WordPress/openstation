@@ -15,16 +15,16 @@
  * always present by the time WordPress wants them.
  *
  * Functions in this file:
- *   - {@see open_station_url_is_same_admin()}      — same-origin admin URL predicate
- *   - {@see open_station_resolve_admin_target()}   — admin filename → URL resolver
- *   - {@see open_station_admin_target_allowlist()} — wp-admin filename allowlist
- *   - {@see open_station_is_chromeless_request()}  — chromeless request detection
- *   - {@see open_station_is_classic_request()}     — classic-override request detection
- *   - {@see open_station_chromeless_hide_admin_bar()} — `show_admin_bar` filter
- *   - {@see open_station_chromeless_suppress_admin_bar()} — `admin_init` action
- *   - {@see open_station_chromeless_preserve_redirect()} — `wp_redirect` filter
- *   - {@see open_station_classic_preserve_redirect()}    — `wp_redirect` filter
- *   - {@see open_station_is_admin_redirect_target()}     — internal predicate
+ *   - {@see openstation_url_is_same_admin()}      — same-origin admin URL predicate
+ *   - {@see openstation_resolve_admin_target()}   — admin filename → URL resolver
+ *   - {@see openstation_admin_target_allowlist()} — wp-admin filename allowlist
+ *   - {@see openstation_is_chromeless_request()}  — chromeless request detection
+ *   - {@see openstation_is_classic_request()}     — classic-override request detection
+ *   - {@see openstation_chromeless_hide_admin_bar()} — `show_admin_bar` filter
+ *   - {@see openstation_chromeless_suppress_admin_bar()} — `admin_init` action
+ *   - {@see openstation_chromeless_preserve_redirect()} — `wp_redirect` filter
+ *   - {@see openstation_classic_preserve_redirect()}    — `wp_redirect` filter
+ *   - {@see openstation_is_admin_redirect_target()}     — internal predicate
  *
  * @package OpenStation
  */
@@ -45,7 +45,7 @@ defined( 'ABSPATH' ) || exit;
  * @param string $url URL to test.
  * @return bool
  */
-function open_station_url_is_same_admin( $url ) {
+function openstation_url_is_same_admin( $url ) {
 	if ( ! is_string( $url ) || '' === $url ) {
 		return false;
 	}
@@ -88,18 +88,18 @@ function open_station_url_is_same_admin( $url ) {
  * @param string $file Bare admin filename (no path, no query string).
  * @return string|WP_Error Absolute admin URL on success, `WP_Error` otherwise.
  */
-function open_station_resolve_admin_target( $file ) {
+function openstation_resolve_admin_target( $file ) {
 	$file = is_string( $file ) ? trim( $file ) : '';
 	if ( '' === $file ) {
 		return new WP_Error(
-			'open_station_empty_target',
+			'openstation_empty_target',
 			__( 'Admin target cannot be empty.', 'desktop-mode' )
 		);
 	}
 
 	if ( false !== strpos( $file, '..' ) || false !== strpos( $file, '/' ) || false !== strpos( $file, '\\' ) ) {
 		return new WP_Error(
-			'open_station_invalid_target',
+			'openstation_invalid_target',
 			__( 'Admin target contains invalid path characters.', 'desktop-mode' )
 		);
 	}
@@ -110,14 +110,14 @@ function open_station_resolve_admin_target( $file ) {
 	// clearly bad inputs cheaply.
 	if ( ! preg_match( '/^[a-z0-9_-]+\.php$/i', $file ) ) {
 		return new WP_Error(
-			'open_station_invalid_target',
+			'openstation_invalid_target',
 			__( 'Admin target must be a plain .php filename.', 'desktop-mode' )
 		);
 	}
 
-	if ( ! in_array( strtolower( $file ), open_station_admin_target_allowlist(), true ) ) {
+	if ( ! in_array( strtolower( $file ), openstation_admin_target_allowlist(), true ) ) {
 		return new WP_Error(
-			'open_station_unknown_target',
+			'openstation_unknown_target',
 			__( 'Admin target does not exist.', 'desktop-mode' )
 		);
 	}
@@ -127,7 +127,7 @@ function open_station_resolve_admin_target( $file ) {
 
 /**
  * Returns the allowlist of canonical wp-admin top-level
- * filenames that {@see open_station_resolve_admin_target()}
+ * filenames that {@see openstation_resolve_admin_target()}
  * accepts.
  *
  * Hardcoded rather than read from disk so the plugin doesn't
@@ -138,7 +138,7 @@ function open_station_resolve_admin_target( $file ) {
  *
  * @return string[] Lowercased filenames including extension.
  */
-function open_station_admin_target_allowlist() {
+function openstation_admin_target_allowlist() {
 	$files = array(
 		'about.php',
 		'admin-ajax.php',
@@ -235,7 +235,7 @@ function open_station_admin_target_allowlist() {
 	 *
 	 * @param string[] $files Default allowlist.
 	 */
-	$files = (array) apply_filters( 'open_station_admin_target_allowlist', $files );
+	$files = (array) apply_filters( 'openstation_admin_target_allowlist', $files );
 
 	return array_values( array_unique( array_map( 'strtolower', array_filter( $files, 'is_string' ) ) ) );
 }
@@ -249,11 +249,11 @@ function open_station_admin_target_allowlist() {
  *
  * @return bool True if this is a chromeless (iframe) request.
  */
-function open_station_is_chromeless_request() {
-	if ( ! open_station_is_enabled() ) {
+function openstation_is_chromeless_request() {
+	if ( ! openstation_is_enabled() ) {
 		// Only allow chromeless mode if the user actually has
 		// OpenStation enabled. Prevents stripping admin chrome via
-		// a bare `?open_station_chromeless=1` parameter from a
+		// a bare `?openstation_chromeless=1` parameter from a
 		// logged-out URL.
 		return false;
 	}
@@ -261,7 +261,7 @@ function open_station_is_chromeless_request() {
 	// Primary signal — the explicit query flag the parent shell
 	// adds when opening windows.
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag, no state change.
-	if ( ! empty( $_GET['open_station_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['open_station_chromeless'] ) ) ) {
+	if ( ! empty( $_GET['openstation_chromeless'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['openstation_chromeless'] ) ) ) {
 		return true;
 	}
 
@@ -271,7 +271,7 @@ function open_station_is_chromeless_request() {
 	// JavaScript spoofing (the browser sets them itself).
 	//
 	// This catches the failure mode where an internal admin
-	// navigation drops the `?open_station_chromeless=1` query flag —
+	// navigation drops the `?openstation_chromeless=1` query flag —
 	// Gutenberg's `window.location` assignments, meta-refresh
 	// redirects, or any link the inline rewriter missed. The user
 	// is in an iframe on the same origin, has OpenStation enabled,
@@ -290,13 +290,13 @@ function open_station_is_chromeless_request() {
 	if ( 'iframe' === $fetch_dest && 'same-origin' === $fetch_site ) {
 		/**
 		 * Filter the Sec-Fetch fallback. Return false to require an
-		 * explicit `?open_station_chromeless=1` flag; useful for environments where a
+		 * explicit `?openstation_chromeless=1` flag; useful for environments where a
 		 * reverse proxy strips the `Sec-Fetch-*` headers and they
 		 * can't be trusted.
 		 *
 		 * @param bool $allow Default true.
 		 */
-		return (bool) apply_filters( 'open_station_chromeless_sec_fetch_fallback', true );
+		return (bool) apply_filters( 'openstation_chromeless_sec_fetch_fallback', true );
 	}
 
 	return false;
@@ -310,25 +310,25 @@ function open_station_is_chromeless_request() {
  * browser tab with `?desktop_mode_classic=1` so the user can view
  * that one page outside the desktop shell without disabling
  * OpenStation account-wide. The flag is a per-request override:
- * `open_station_is_enabled()` still returns true (the user's
+ * `openstation_is_enabled()` still returns true (the user's
  * preference hasn't changed), but the shell, shell assets, and
  * body class are skipped for this request so the classic admin
  * renders normally.
  *
- * Keep this separate from `open_station_is_enabled()` so the
+ * Keep this separate from `openstation_is_enabled()` so the
  * admin-bar toggle in the detached tab correctly reflects the
  * account state — letting the user disable OpenStation entirely
  * from the tab if they want to.
  *
  * @return bool True if the request carries `?desktop_mode_classic=1`.
  */
-function open_station_is_classic_request() {
+function openstation_is_classic_request() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
-	if ( empty( $_GET[ OPEN_STATION_CLASSIC_FLAG ] ) ) {
+	if ( empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) {
 		return false;
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only request flag.
-	return '1' === sanitize_text_field( wp_unslash( $_GET[ OPEN_STATION_CLASSIC_FLAG ] ) );
+	return '1' === sanitize_text_field( wp_unslash( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) );
 }
 
 /**
@@ -338,19 +338,19 @@ function open_station_is_classic_request() {
  * also sees a false return. In admin, `is_admin_bar_showing()`
  * short-circuits to true for any `is_admin()` request regardless
  * of this filter, so the actual render is stopped by
- * {@see open_station_chromeless_suppress_admin_bar()} below; this
+ * {@see openstation_chromeless_suppress_admin_bar()} below; this
  * filter is kept for completeness + tests.
  *
  * @param bool $show Whether the admin bar should be shown.
  * @return bool
  */
-function open_station_chromeless_hide_admin_bar( $show ) {
-	if ( open_station_is_chromeless_request() ) {
+function openstation_chromeless_hide_admin_bar( $show ) {
+	if ( openstation_is_chromeless_request() ) {
 		return false;
 	}
 	return $show;
 }
-add_filter( 'show_admin_bar', 'open_station_chromeless_hide_admin_bar' );
+add_filter( 'show_admin_bar', 'openstation_chromeless_hide_admin_bar' );
 
 /**
  * Suppresses the admin bar render inside chromeless iframes.
@@ -361,21 +361,21 @@ add_filter( 'show_admin_bar', 'open_station_chromeless_hide_admin_bar' );
  * detach the render action instead and let chromeless.css hide
  * the `wp-toolbar` padding on `<html>`.
  */
-function open_station_chromeless_suppress_admin_bar() {
-	if ( open_station_is_chromeless_request() ) {
+function openstation_chromeless_suppress_admin_bar() {
+	if ( openstation_is_chromeless_request() ) {
 		remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
 		remove_action( 'wp_body_open', 'wp_admin_bar_render', 0 );
 	}
 }
-add_action( 'admin_init', 'open_station_chromeless_suppress_admin_bar' );
+add_action( 'admin_init', 'openstation_chromeless_suppress_admin_bar' );
 
 /**
  * Detaches core's update / maintenance nags inside chromeless iframes so
  * they don't repeat in every window — the shell surfaces the update once
  * instead.
  */
-function open_station_chromeless_suppress_update_nags() {
-	if ( ! open_station_is_chromeless_request() ) {
+function openstation_chromeless_suppress_update_nags() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 	remove_action( 'admin_notices', 'update_nag', 3 );
@@ -383,16 +383,16 @@ function open_station_chromeless_suppress_update_nags() {
 	remove_action( 'admin_notices', 'maintenance_nag', 10 );
 	remove_action( 'network_admin_notices', 'maintenance_nag', 10 );
 }
-add_action( 'admin_init', 'open_station_chromeless_suppress_update_nags' );
+add_action( 'admin_init', 'openstation_chromeless_suppress_update_nags' );
 
 /**
  * Detaches the remaining global core admin notices inside chromeless iframes
  * so they don't repeat in every window — the shell re-derives and surfaces
- * each once (see `open_station_get_core_notices()`). The update / maintenance
- * nags are handled by `open_station_chromeless_suppress_update_nags()`.
+ * each once (see `openstation_get_core_notices()`). The update / maintenance
+ * nags are handled by `openstation_chromeless_suppress_update_nags()`.
  */
-function open_station_chromeless_suppress_core_notices() {
-	if ( ! open_station_is_chromeless_request() ) {
+function openstation_chromeless_suppress_core_notices() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 	remove_action( 'admin_notices', 'wp_recovery_mode_nag', 1 );
@@ -401,7 +401,7 @@ function open_station_chromeless_suppress_core_notices() {
 	remove_action( 'admin_notices', 'paused_plugins_notice', 5 );
 	remove_action( 'admin_notices', 'paused_themes_notice', 5 );
 }
-add_action( 'admin_init', 'open_station_chromeless_suppress_core_notices' );
+add_action( 'admin_init', 'openstation_chromeless_suppress_core_notices' );
 
 /**
  * Keeps core's session-expired login modal (`wp-auth-check`) out of
@@ -425,16 +425,16 @@ add_action( 'admin_init', 'open_station_chromeless_suppress_core_notices' );
  * @param bool $show Whether to load the authentication check.
  * @return bool
  */
-function open_station_chromeless_suppress_auth_check( $show ) {
-	if ( open_station_is_chromeless_request() ) {
+function openstation_chromeless_suppress_auth_check( $show ) {
+	if ( openstation_is_chromeless_request() ) {
 		return false;
 	}
 	return $show;
 }
-add_filter( 'wp_auth_check_load', 'open_station_chromeless_suppress_auth_check' );
+add_filter( 'wp_auth_check_load', 'openstation_chromeless_suppress_auth_check' );
 
 /**
- * Preserves the `open_station_chromeless` flag through admin
+ * Preserves the `openstation_chromeless` flag through admin
  * redirects.
  *
  * A chromeless iframe can be navigated away from chromeless mode
@@ -451,25 +451,25 @@ add_filter( 'wp_auth_check_load', 'open_station_chromeless_suppress_auth_check' 
  * chromeless. Anything else passes through unchanged.
  *
  * @param string $location The redirect URL.
- * @return string The redirect URL, with `open_station_chromeless=1` appended when applicable.
+ * @return string The redirect URL, with `openstation_chromeless=1` appended when applicable.
  */
-function open_station_chromeless_preserve_redirect( $location ) {
-	if ( empty( $location ) || ! open_station_is_chromeless_request() ) {
+function openstation_chromeless_preserve_redirect( $location ) {
+	if ( empty( $location ) || ! openstation_is_chromeless_request() ) {
 		return $location;
 	}
 
-	if ( ! open_station_is_admin_redirect_target( $location ) ) {
+	if ( ! openstation_is_admin_redirect_target( $location ) ) {
 		return $location;
 	}
 
 	// Don't double-append if the URL already carries the flag.
-	if ( false !== strpos( $location, 'open_station_chromeless=' ) ) {
+	if ( false !== strpos( $location, 'openstation_chromeless=' ) ) {
 		return $location;
 	}
 
-	return add_query_arg( 'open_station_chromeless', '1', $location );
+	return add_query_arg( 'openstation_chromeless', '1', $location );
 }
-add_filter( 'wp_redirect', 'open_station_chromeless_preserve_redirect', 999 );
+add_filter( 'wp_redirect', 'openstation_chromeless_preserve_redirect', 999 );
 
 /**
  * Preserves the `desktop_mode_classic` flag through admin
@@ -490,22 +490,22 @@ add_filter( 'wp_redirect', 'open_station_chromeless_preserve_redirect', 999 );
  * @param string $location The redirect URL.
  * @return string The redirect URL, with `desktop_mode_classic=1` appended when applicable.
  */
-function open_station_classic_preserve_redirect( $location ) {
-	if ( empty( $location ) || ! open_station_is_classic_request() ) {
+function openstation_classic_preserve_redirect( $location ) {
+	if ( empty( $location ) || ! openstation_is_classic_request() ) {
 		return $location;
 	}
 
-	if ( ! open_station_is_admin_redirect_target( $location ) ) {
+	if ( ! openstation_is_admin_redirect_target( $location ) ) {
 		return $location;
 	}
 
-	if ( false !== strpos( $location, OPEN_STATION_CLASSIC_FLAG . '=' ) ) {
+	if ( false !== strpos( $location, OPENSTATION_CLASSIC_FLAG . '=' ) ) {
 		return $location;
 	}
 
-	return add_query_arg( OPEN_STATION_CLASSIC_FLAG, '1', $location );
+	return add_query_arg( OPENSTATION_CLASSIC_FLAG, '1', $location );
 }
-add_filter( 'wp_redirect', 'open_station_classic_preserve_redirect', 999 );
+add_filter( 'wp_redirect', 'openstation_classic_preserve_redirect', 999 );
 
 /**
  * Whether `$location` is a redirect target that lands inside
@@ -528,7 +528,7 @@ add_filter( 'wp_redirect', 'open_station_classic_preserve_redirect', 999 );
  * @param string $location Raw redirect URL handed to `wp_redirect`.
  * @return bool
  */
-function open_station_is_admin_redirect_target( $location ) {
+function openstation_is_admin_redirect_target( $location ) {
 	$location = (string) $location;
 	if ( '' === $location ) {
 		return false;

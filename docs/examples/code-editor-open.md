@@ -29,7 +29,7 @@ Behaviour:
 
 - If the editor window is closed → it opens, then the message is replayed once the editor's render callback has mounted, then it scrolls to the requested line.
 - If the editor is already open → the message goes straight to the in-window listener, which fetches the file, opens (or focuses) a tab, and scrolls to the line.
-- The path is resolved through the editor's normal `open_station_code_editor_resolve_path()` safety check — `..` escapes, symlinks pointing outside the workspace, and disallowed extensions all fail closed.
+- The path is resolved through the editor's normal `openstation_code_editor_resolve_path()` safety check — `..` escapes, symlinks pointing outside the workspace, and disallowed extensions all fail closed.
 
 ### Use case: "view source" link in a plugin's admin page
 
@@ -82,7 +82,7 @@ The editor's listener rejects messages from any origin other than `window.locati
 For JS code running in the same realm as the desktop shell (rare — most plugin code runs inside iframes), the same effect is one call away:
 
 ```js
-wp.os.openWindow( 'osc-editor' );
+wp.os.openWindow( 'wpdc-editor' );
 // then — once you know the editor is ready —
 window.postMessage(
     { type: 'os-code-open', path: '...', line: 12 },

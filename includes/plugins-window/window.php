@@ -8,7 +8,7 @@
  * when `nativePluginsEnabled` is on.
  *
  * The shell wraps the template echoed by
- * `open_station_plugins_window_render_template()` in
+ * `openstation_plugins_window_render_template()` in
  * `<template id="os-native-window-desktop-mode-plugins">`
  * and clones it into the window body BEFORE the JS render callback
  * fires. The `data-os-plugins-*` hooks below are the
@@ -23,8 +23,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Echoes the native Plugins window's template body.
  */
-function open_station_plugins_window_render_template() {
-	$caps = open_station_plugins_window_caps();
+function openstation_plugins_window_render_template() {
+	$caps = openstation_plugins_window_caps();
 
 	ob_start();
 	?>
@@ -81,10 +81,10 @@ function open_station_plugins_window_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_plugins_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_plugins_window_template_html', $html );
 
-	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
-		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -99,17 +99,17 @@ function open_station_plugins_window_render_template() {
  * (`enabled: ( s ) => s.nativePluginsEnabled === true` in
  * `src/desktop.ts`).
  */
-function open_station_plugins_window_register_window() {
-	if ( ! open_station_plugins_window_user_can_register() ) {
+function openstation_plugins_window_register_window() {
+	if ( ! openstation_plugins_window_user_can_register() ) {
 		return;
 	}
 
-	$caps = open_station_plugins_window_caps();
+	$caps = openstation_plugins_window_caps();
 
 	$window_args = array(
 		'title'      => __( 'Plugins', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-plugins',
-		'template'   => 'open_station_plugins_window_render_template',
+		'template'   => 'openstation_plugins_window_render_template',
 		'script'     => 'os-plugins-window',
 		'style'      => 'os-plugins-window',
 		'width'      => 1180,
@@ -142,12 +142,12 @@ function open_station_plugins_window_register_window() {
 			// `WP_Plugins_List_Table::$show_autoupdates` uses (true only
 			// when the auto-update subsystem is enabled AND the viewer
 			// can update plugins). Per-row state still lives on the REST
-			// field `open_station_auto_update` so the JS knows whether
+			// field `openstation_auto_update` so the JS knows whether
 			// each individual row is enabled / forced / supported.
-			'autoUpdatesEnabled' => open_station_plugins_window_auto_updates_enabled(),
+			'autoUpdatesEnabled' => openstation_plugins_window_auto_updates_enabled(),
 			'currentUserId'   => (int) get_current_user_id(),
-			'introSeen'       => function_exists( 'open_station_has_seen_intro' )
-				? open_station_has_seen_intro( get_current_user_id(), 'plugins' )
+			'introSeen'       => function_exists( 'openstation_has_seen_intro' )
+				? openstation_has_seen_intro( get_current_user_id(), 'plugins' )
 				: true,
 			'introUrl'        => esc_url_raw( rest_url( 'desktop-mode/v1/intros/seen' ) ),
 			// The plugin file path WordPress uses to identify the
@@ -164,7 +164,7 @@ function open_station_plugins_window_register_window() {
 			// Comparing the raw `plugin_basename()` against the REST
 			// field always missed by exactly four characters, which
 			// silently skipped the self-deactivate reload.
-			'selfPluginFile'  => substr( plugin_basename( OPEN_STATION_FILE ), 0, -4 ),
+			'selfPluginFile'  => substr( plugin_basename( OPENSTATION_FILE ), 0, -4 ),
 			// The wp-admin root URL — the JS navigates here after a
 			// self-deactivate so the user lands on the classic
 			// Dashboard rather than reloading their current URL
@@ -177,14 +177,14 @@ function open_station_plugins_window_register_window() {
 	/**
 	 * Filter the args used to register the native Plugins window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_plugins_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_plugins_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-plugins', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-plugins', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Native Plugins window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'open_station_plugins_window_register_window', 20 );
+add_action( 'init', 'openstation_plugins_window_register_window', 20 );

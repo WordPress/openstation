@@ -11,11 +11,11 @@
  *
  * Filterable surface (mirrors the recycle-bin / posts-window modules):
  *
- *   - `open_station_my_wordpress_window_args`
- *   - `open_station_my_wordpress_icon_args`
- *   - `open_station_my_wordpress_user_can_use`
- *   - `open_station_my_wordpress_entities`
- *   - `open_station_my_wordpress_template_html`
+ *   - `openstation_my_wordpress_window_args`
+ *   - `openstation_my_wordpress_icon_args`
+ *   - `openstation_my_wordpress_user_can_use`
+ *   - `openstation_my_wordpress_entities`
+ *   - `openstation_my_wordpress_template_html`
  *
  * @package OpenStation
  */
@@ -30,7 +30,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return bool
  */
-function open_station_my_wordpress_user_can_use() {
+function openstation_my_wordpress_user_can_use() {
 	$can = current_user_can( 'edit_posts' );
 
 	/**
@@ -39,7 +39,7 @@ function open_station_my_wordpress_user_can_use() {
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
-	return (bool) apply_filters( 'open_station_my_wordpress_user_can_use', $can );
+	return (bool) apply_filters( 'openstation_my_wordpress_user_can_use', $can );
 }
 
 /**
@@ -62,7 +62,7 @@ function open_station_my_wordpress_user_can_use() {
  *                 'restPath', 'kind', 'post_type' )`. `restPath` is appended to
  *                 the `restRoot` config to derive the list URL.
  */
-function open_station_my_wordpress_entities() {
+function openstation_my_wordpress_entities() {
 	$entities = array(
 		array(
 			'id'        => 'posts',
@@ -121,7 +121,7 @@ function open_station_my_wordpress_entities() {
 	 *
 	 * @param array[] $entities Default entities.
 	 */
-	$filtered = apply_filters( 'open_station_my_wordpress_entities', $entities );
+	$filtered = apply_filters( 'openstation_my_wordpress_entities', $entities );
 	return is_array( $filtered ) ? array_values( $filtered ) : $entities;
 }
 
@@ -129,7 +129,7 @@ function open_station_my_wordpress_entities() {
  * Render the My WordPress window's static template body. The bundle
  * mounts its UI into `[data-os-my-wordpress-root]`.
  */
-function open_station_my_wordpress_render_template() {
+function openstation_my_wordpress_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-my-wordpress" data-os-my-wordpress-root>
@@ -149,10 +149,10 @@ function open_station_my_wordpress_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_my_wordpress_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_my_wordpress_template_html', $html );
 
-	$allowed_html = function_exists( 'open_station_native_window_allowed_html' )
-		? open_station_native_window_allowed_html()
+	$allowed_html = function_exists( 'openstation_native_window_allowed_html' )
+		? openstation_native_window_allowed_html()
 		: wp_kses_allowed_html( 'post' );
 
 	echo wp_kses( $filtered, $allowed_html );
@@ -166,19 +166,19 @@ function open_station_my_wordpress_render_template() {
  * emitted later on `admin_enqueue_scripts`, so a CPT registered after
  * this point would never reach the bundle.
  */
-function open_station_my_wordpress_register_window() {
-	if ( ! open_station_my_wordpress_user_can_use() ) {
+function openstation_my_wordpress_register_window() {
+	if ( ! openstation_my_wordpress_user_can_use() ) {
 		return;
 	}
 
-	$site_title = open_station_site_title();
+	$site_title = openstation_site_title();
 
-	$entities = open_station_my_wordpress_entities();
+	$entities = openstation_my_wordpress_entities();
 
 	$window_args = array(
 		'title'      => $site_title,
 		'icon'       => 'dashicons-wordpress',
-		'template'   => 'open_station_my_wordpress_render_template',
+		'template'   => 'openstation_my_wordpress_render_template',
 		'script'     => 'desktop-mode-my-wordpress',
 		'style'      => 'desktop-mode-my-wordpress',
 		'width'      => 960,
@@ -193,13 +193,13 @@ function open_station_my_wordpress_register_window() {
 			'editUserUrlBase' => esc_url_raw( admin_url( 'user-edit.php' ) ),
 			'siteName'        => $site_title,
 			'entities'        => $entities,
-			'groups'          => function_exists( 'open_station_my_wordpress_collect_groups' )
-				? open_station_my_wordpress_collect_groups( $entities )
+			'groups'          => function_exists( 'openstation_my_wordpress_collect_groups' )
+				? openstation_my_wordpress_collect_groups( $entities )
 				: array(),
 			'perPage'         => 24,
 			'mediaPerPage'    => 48,
-			'previewActions'  => function_exists( 'open_station_my_wordpress_collect_preview_actions' )
-				? open_station_my_wordpress_collect_preview_actions()
+			'previewActions'  => function_exists( 'openstation_my_wordpress_collect_preview_actions' )
+				? openstation_my_wordpress_collect_preview_actions()
 				: array(),
 		),
 	);
@@ -207,11 +207,11 @@ function open_station_my_wordpress_register_window() {
 	/**
 	 * Filter the args used to register the My WordPress native window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_my_wordpress_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_my_wordpress_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-my-wordpress', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-my-wordpress', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] My WordPress window registration failed: ' . $registered->get_error_message() );
@@ -233,23 +233,23 @@ function open_station_my_wordpress_register_window() {
 	 * sort order — useful for sites that want the shortcut to feel
 	 * like any other plugin icon.
 	 *
-	 * @param array $icon_args Args passed to `open_station_register_icon()`.
+	 * @param array $icon_args Args passed to `openstation_register_icon()`.
 	 */
-	$icon_args = (array) apply_filters( 'open_station_my_wordpress_icon_args', $icon_args );
+	$icon_args = (array) apply_filters( 'openstation_my_wordpress_icon_args', $icon_args );
 
-	open_station_register_icon( 'desktop-mode-my-wordpress', $icon_args );
+	openstation_register_icon( 'desktop-mode-my-wordpress', $icon_args );
 }
-add_action( 'init', 'open_station_my_wordpress_register_window', 99 );
+add_action( 'init', 'openstation_my_wordpress_register_window', 99 );
 
 /**
  * Enqueue the bundle's CSS in admin context. The script is lazy-
  * loaded by the native-window sync and so does not need an
  * `admin_enqueue_scripts` call.
  */
-function open_station_my_wordpress_enqueue_styles() {
-	if ( ! open_station_my_wordpress_user_can_use() ) {
+function openstation_my_wordpress_enqueue_styles() {
+	if ( ! openstation_my_wordpress_user_can_use() ) {
 		return;
 	}
 	wp_enqueue_style( 'desktop-mode-my-wordpress' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_my_wordpress_enqueue_styles', 30 );
+add_action( 'admin_enqueue_scripts', 'openstation_my_wordpress_enqueue_styles', 30 );

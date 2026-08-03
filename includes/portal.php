@@ -22,10 +22,21 @@
 defined( 'ABSPATH' ) || exit;
 
 /** The URL path that triggers the portal handler. */
-const OPEN_STATION_PORTAL_PATH = 'openstation';
+const OPENSTATION_PORTAL_PATH = 'openstation';
+
+/**
+ * The pre-rebrand portal path, still accepted.
+ *
+ * The portal was reachable at `/desktop-mode/` before the rename, and
+ * that address is the kind of thing people bookmark or pin. It is not
+ * canonical: {@see openstation_portal_url()} always emits the current
+ * path, and a visit here forwards into wp-admin exactly as the canonical
+ * path does, so the address bar self-corrects on the next hop.
+ */
+const OPENSTATION_PORTAL_PATH_LEGACY = 'desktop-mode';
 
 /** Query var the admin shell reads to know it was entered via the portal. */
-const OPEN_STATION_PORTAL_FLAG = 'desktop_mode_portal';
+const OPENSTATION_PORTAL_FLAG = 'desktop_mode_portal';
 
 /**
  * Query var set on portal redirects whose landing page came from an
@@ -37,7 +48,7 @@ const OPEN_STATION_PORTAL_FLAG = 'desktop_mode_portal';
  * toward this URL" (open it) from "portal had to forward somewhere"
  * (don't disturb the restored session).
  */
-const OPEN_STATION_PORTAL_INTENT_FLAG = 'desktop_mode_portal_intent';
+const OPENSTATION_PORTAL_INTENT_FLAG = 'desktop_mode_portal_intent';
 
 /**
  * Query var set by the window-title-bar "Detach" action. Tells the
@@ -45,15 +56,15 @@ const OPEN_STATION_PORTAL_INTENT_FLAG = 'desktop_mode_portal_intent';
  * user can view the page as classic wp-admin in a new tab even when
  * OpenStation is globally enabled for their account.
  */
-const OPEN_STATION_CLASSIC_FLAG = 'desktop_mode_classic';
+const OPENSTATION_CLASSIC_FLAG = 'desktop_mode_classic';
 
 /**
- * Returns the canonical portal URL, e.g. `https://example.com/desktop-mode/`.
+ * Returns the canonical portal URL, e.g. `https://example.com/openstation/`.
  *
  * @return string
  */
-function open_station_portal_url() {
-	return home_url( '/' . OPEN_STATION_PORTAL_PATH . '/' );
+function openstation_portal_url() {
+	return home_url( '/' . OPENSTATION_PORTAL_PATH . '/' );
 }
 
 /**
@@ -64,16 +75,16 @@ function open_station_portal_url() {
  *
  * @param WP $wp Current WordPress environment instance.
  */
-function open_station_handle_portal_request( $wp ) {
+function openstation_handle_portal_request( $wp ) {
 	unset( $wp );
 
-	if ( ! open_station_is_portal_request() ) {
+	if ( ! openstation_is_portal_request() ) {
 		return;
 	}
 
 	// Logged-out: bounce through login, returning to the portal URL.
 	if ( ! is_user_logged_in() ) {
-		wp_safe_redirect( wp_login_url( open_station_portal_url() ) );
+		wp_safe_redirect( wp_login_url( openstation_portal_url() ) );
 		exit;
 	}
 
@@ -99,7 +110,7 @@ function open_station_handle_portal_request( $wp ) {
 	 * @param bool $auto_enable Whether to auto-enable OpenStation.
 	 * @param int  $user_id     The current user's ID.
 	 */
-	$auto_enable = apply_filters( 'open_station_portal_auto_enable', true, $user_id );
+	$auto_enable = apply_filters( 'openstation_portal_auto_enable', true, $user_id );
 
 	// CSRF guard: only flip user-meta when the request is a same-origin
 	// top-level navigation. The portal is a GET URL by design (users
@@ -108,13 +119,13 @@ function open_station_handle_portal_request( $wp ) {
 	// same site (or a typed/bookmarked URL with no Referer/Sec-Fetch-
 	// Site). Off-origin hits still redirect into admin so shared
 	// links keep working; they just don't silently mutate user-meta.
-	if ( $auto_enable && open_station_portal_is_same_origin_navigation() && '1' !== get_user_meta( $user_id, 'desktop_mode_mode', true ) ) {
+	if ( $auto_enable && openstation_portal_is_same_origin_navigation() && '1' !== get_user_meta( $user_id, 'desktop_mode_mode', true ) ) {
 		update_user_meta( $user_id, 'desktop_mode_mode', '1' );
 	}
 
 	// Pick the landing page. Priority:
 	//   1. Explicit `target` query arg, if same-origin wp-admin URL.
-	//      This is how `open_station_redirect_plain_admin_to_portal` preserves
+	//      This is how `openstation_redirect_plain_admin_to_portal` preserves
 	//      the user's navigation intent when they follow a link to a
 	//      specific admin page (e.g. profile.php).
 	//   2. Last-focused window from the saved session.
@@ -126,23 +137,23 @@ function open_station_handle_portal_request( $wp ) {
 		// every `%XX` percent-encoded sequence from its input as an XSS
 		// safeguard, which mangles request URIs that legitimately carry
 		// encoded slashes (e.g. `plugin=dir%2Ffile.php`). The downstream
-		// `open_station_sanitize_portal_target` validates the URL
+		// `openstation_sanitize_portal_target` validates the URL
 		// rigorously (scheme rejection, traversal rejection, and a
 		// hardcoded allowlist of canonical wp-admin filenames — see
-		// `open_station_admin_target_allowlist()`) so we don't lose
+		// `openstation_admin_target_allowlist()`) so we don't lose
 		// any real safety by skipping `sanitize_text_field` here.
-		$target = open_station_sanitize_portal_target( esc_url_raw( wp_unslash( $_GET['target'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$target = openstation_sanitize_portal_target( esc_url_raw( wp_unslash( $_GET['target'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( '' !== $target ) {
 			$has_intent = true;
 		}
 	}
 	if ( '' === $target ) {
-		$target = open_station_portal_entry_url( $user_id );
+		$target = openstation_portal_entry_url( $user_id );
 	}
 
 	// Flag the forward so the shell can stamp the address bar back to
 	// /openstation/ via history.replaceState once it has loaded.
-	$target = add_query_arg( OPEN_STATION_PORTAL_FLAG, '1', $target );
+	$target = add_query_arg( OPENSTATION_PORTAL_FLAG, '1', $target );
 
 	// Second flag: the redirect resolved from an explicit `target`, so
 	// the shell should treat the resulting `currentPage` as user
@@ -150,13 +161,13 @@ function open_station_handle_portal_request( $wp ) {
 	// this, a bare `/openstation/` visit and a portal-redirected
 	// admin-bar click would be indistinguishable downstream.
 	if ( $has_intent ) {
-		$target = add_query_arg( OPEN_STATION_PORTAL_INTENT_FLAG, '1', $target );
+		$target = add_query_arg( OPENSTATION_PORTAL_INTENT_FLAG, '1', $target );
 	}
 
 	wp_safe_redirect( $target );
 	exit;
 }
-add_action( 'parse_request', 'open_station_handle_portal_request' );
+add_action( 'parse_request', 'openstation_handle_portal_request' );
 
 /**
  * Decides whether the current request to the portal can mutate
@@ -175,7 +186,7 @@ add_action( 'parse_request', 'open_station_handle_portal_request' );
  *
  * @return bool
  */
-function open_station_portal_is_same_origin_navigation() {
+function openstation_portal_is_same_origin_navigation() {
 	if ( ! empty( $_SERVER['HTTP_SEC_FETCH_SITE'] ) ) {
 		$site = strtolower( sanitize_text_field( wp_unslash( $_SERVER['HTTP_SEC_FETCH_SITE'] ) ) );
 		return in_array( $site, array( 'same-origin', 'same-site', 'none' ), true );
@@ -199,11 +210,13 @@ function open_station_portal_is_same_origin_navigation() {
  * Detects whether the current request is for the portal URL.
  *
  * Strips any query string and trailing slash and compares against
- * `/openstation` relative to the site's home path.
+ * `/openstation` relative to the site's home path. The pre-rebrand
+ * `/desktop-mode` path is accepted too, so bookmarks made before the
+ * rename still land in the shell.
  *
  * @return bool
  */
-function open_station_is_portal_request() {
+function openstation_is_portal_request() {
 	if ( empty( $_SERVER['REQUEST_URI'] ) ) {
 		return false;
 	}
@@ -220,10 +233,16 @@ function open_station_is_portal_request() {
 	$home_path = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
 	$home_path = is_string( $home_path ) ? rtrim( $home_path, '/' ) : '';
 
-	$expected = $home_path . '/' . OPEN_STATION_PORTAL_PATH;
-	$path     = '/' . ltrim( rtrim( $path, '/' ), '/' );
+	$path = '/' . ltrim( rtrim( $path, '/' ), '/' );
 
-	return $path === $expected;
+	return in_array(
+		$path,
+		array(
+			$home_path . '/' . OPENSTATION_PORTAL_PATH,
+			$home_path . '/' . OPENSTATION_PORTAL_PATH_LEGACY,
+		),
+		true
+	);
 }
 
 /**
@@ -241,15 +260,15 @@ function open_station_is_portal_request() {
  * — AJAX, REST, cron, admin-post.php, non-GET methods — so the hook
  * can't corrupt a form submission or break an API call.
  *
- * Disable via the `open_station_admin_redirect_to_portal` filter (return
+ * Disable via the `openstation_admin_redirect_to_portal` filter (return
  * false). Passthrough kicks in automatically when the current request
  * is chromeless or already carries the portal flag.
  */
-function open_station_redirect_plain_admin_to_portal() {
-	if ( ! open_station_is_enabled() ) {
+function openstation_redirect_plain_admin_to_portal() {
+	if ( ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( open_station_is_chromeless_request() ) {
+	if ( openstation_is_chromeless_request() ) {
 		return;
 	}
 	if ( wp_doing_ajax() || wp_doing_cron() ) {
@@ -264,7 +283,7 @@ function open_station_redirect_plain_admin_to_portal() {
 
 	// The portal handler adds this flag after it forwards into admin.
 	// Bailing here keeps us out of an infinite redirect loop.
-	if ( ! empty( $_GET[ OPEN_STATION_PORTAL_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( ! empty( $_GET[ OPENSTATION_PORTAL_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return;
 	}
 
@@ -272,7 +291,7 @@ function open_station_redirect_plain_admin_to_portal() {
 	// user can view one admin page classically without disabling desktop
 	// mode account-wide. Only affects the single request — subsequent
 	// navigations inside the tab lose the flag and follow normal rules.
-	if ( ! empty( $_GET[ OPEN_STATION_CLASSIC_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	if ( ! empty( $_GET[ OPENSTATION_CLASSIC_FLAG ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return;
 	}
 
@@ -290,7 +309,7 @@ function open_station_redirect_plain_admin_to_portal() {
 	 * @param bool $redirect Whether to redirect. Default true.
 	 * @param int  $user_id  The current user's ID.
 	 */
-	$redirect = apply_filters( 'open_station_admin_redirect_to_portal', true, get_current_user_id() );
+	$redirect = apply_filters( 'openstation_admin_redirect_to_portal', true, get_current_user_id() );
 	if ( ! $redirect ) {
 		return;
 	}
@@ -301,7 +320,7 @@ function open_station_redirect_plain_admin_to_portal() {
 	// to whichever window was last focused instead of the page they asked
 	// for. The portal handler reads `target`, validates it's same-origin
 	// wp-admin, and uses it as the entry URL.
-	$portal_url = open_station_portal_url();
+	$portal_url = openstation_portal_url();
 	// `esc_url_raw` instead of `sanitize_text_field`: the latter strips
 	// every `%XX` percent-encoded sequence, which corrupts URIs whose
 	// query string legitimately carries an encoded slash — e.g. WP's
@@ -315,7 +334,7 @@ function open_station_redirect_plain_admin_to_portal() {
 	wp_safe_redirect( $portal_url );
 	exit;
 }
-add_action( 'admin_init', 'open_station_redirect_plain_admin_to_portal' );
+add_action( 'admin_init', 'openstation_redirect_plain_admin_to_portal' );
 
 /**
  * Resolves the admin URL the portal should forward to for a given user.
@@ -326,22 +345,22 @@ add_action( 'admin_init', 'open_station_redirect_plain_admin_to_portal' );
  * dashboard.
  *
  * The portal navigates the TOP window, not an iframe, so any chromeless
- * `open_station_chromeless=1` flag baked into the stored URL is stripped — a leftover
+ * `openstation_chromeless=1` flag baked into the stored URL is stripped — a leftover
  * flag would land the user in a standalone chromeless page (no admin
  * bar, no toggle, no way out) instead of the shell.
  *
  * @param int $user_id The user whose session to consult.
  * @return string The admin URL to redirect to.
  */
-function open_station_portal_entry_url( $user_id ) {
-	$session = open_station_get_session( $user_id );
+function openstation_portal_entry_url( $user_id ) {
+	$session = openstation_get_session( $user_id );
 
 	// User's configured default-window preference. When disabled, we
 	// still have to forward SOMEWHERE (the portal is an HTTP redirect),
 	// so we land on the Dashboard URL — but the shell detects the
 	// `enabled=false` state via the config and skips the auto-open,
 	// leaving the user with an empty desktop as they chose.
-	$default_window = open_station_get_default_window( $user_id );
+	$default_window = openstation_get_default_window( $user_id );
 	$fallback       = $default_window['url'];
 
 	// Native marker (e.g. "native:os-settings") is not a
@@ -364,10 +383,10 @@ function open_station_portal_entry_url( $user_id ) {
 		if ( $win['id'] !== $session['focused'] ) {
 			continue;
 		}
-		if ( ! open_station_url_is_same_admin( $win['url'] ) ) {
+		if ( ! openstation_url_is_same_admin( $win['url'] ) ) {
 			return $fallback;
 		}
-		return remove_query_arg( array( 'open_station_chromeless', OPEN_STATION_PORTAL_FLAG ), $win['url'] );
+		return remove_query_arg( array( 'openstation_chromeless', OPENSTATION_PORTAL_FLAG ), $win['url'] );
 	}
 
 	return $fallback;
@@ -382,14 +401,14 @@ function open_station_portal_entry_url( $user_id ) {
  * Everything else returns an empty string so the caller falls back to
  * the saved-session entry URL.
  *
- * Strips `open_station_chromeless` and the portal flag from the query so the target
+ * Strips `openstation_chromeless` and the portal flag from the query so the target
  * doesn't chain us into a chromeless standalone load or an infinite
  * redirect loop.
  *
  * @param string $raw Raw value from `$_GET['target']` (already unslashed).
  * @return string A safe absolute admin URL, or '' if the input is invalid.
  */
-function open_station_sanitize_portal_target( $raw ) {
+function openstation_sanitize_portal_target( $raw ) {
 	if ( ! is_string( $raw ) || '' === $raw ) {
 		return '';
 	}
@@ -424,19 +443,19 @@ function open_station_sanitize_portal_target( $raw ) {
 	}
 
 	// Resolve against the hardcoded allowlist of canonical wp-admin
-	// filenames (see `open_station_admin_target_allowlist()`). A
+	// filenames (see `openstation_admin_target_allowlist()`). A
 	// regex alone would accept a plausible-looking filename that
 	// isn't a real core admin page (e.g. `custom_admin_page.php`)
 	// and effectively become an open redirect to a 404 page served
 	// under the admin path; the explicit allowlist closes that.
-	$target = open_station_resolve_admin_target( $file );
+	$target = openstation_resolve_admin_target( $file );
 	if ( is_wp_error( $target ) ) {
 		return '';
 	}
 
 	if ( is_string( $query ) && '' !== $query ) {
 		parse_str( $query, $args );
-		unset( $args['open_station_chromeless'], $args[ OPEN_STATION_PORTAL_FLAG ], $args[ OPEN_STATION_PORTAL_INTENT_FLAG ], $args['target'] );
+		unset( $args['openstation_chromeless'], $args[ OPENSTATION_PORTAL_FLAG ], $args[ OPENSTATION_PORTAL_INTENT_FLAG ], $args['target'] );
 		if ( ! empty( $args ) ) {
 			$target = add_query_arg( $args, $target );
 		}

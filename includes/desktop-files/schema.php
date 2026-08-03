@@ -32,22 +32,22 @@
  *
  * dbDelta is the only safe path for schema migrations against the
  * Core tables environment — Phase 6 re-uses this file by bumping
- * `OPEN_STATION_FILES_SCHEMA_VERSION` and adding columns.
+ * `OPENSTATION_FILES_SCHEMA_VERSION` and adding columns.
  *
  * @package OpenStation
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OPEN_STATION_FILES_SCHEMA_VERSION', '13' );
-define( 'OPEN_STATION_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
+define( 'OPENSTATION_FILES_SCHEMA_VERSION', '13' );
+define( 'OPENSTATION_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
  * Returns the per-table names with the active prefix applied.
  *
  * @return array{ placements: string, folders: string, tombstones: string, shares: string, decisions: string }
  */
-function open_station_files_table_names() {
+function openstation_files_table_names() {
 	global $wpdb;
 	return array(
 		'placements'   => $wpdb->prefix . 'desktop_mode_file_placements',
@@ -64,12 +64,12 @@ function open_station_files_table_names() {
  * `admin_init` (gated by a version-option mismatch) so a manual
  * file copy install still ends up with the tables.
  */
-function open_station_files_install_schema() {
+function openstation_files_install_schema() {
 	global $wpdb;
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-	$tables           = open_station_files_table_names();
+	$tables           = openstation_files_table_names();
 	$charset_collate  = $wpdb->get_charset_collate();
 
 	// Schema v2: adds trash columns to both placements
@@ -182,7 +182,7 @@ function open_station_files_install_schema() {
 	// `user_id` in place + the new `owner_id` NULL). Running the
 	// CHANGE COLUMN first means dbDelta sees the table already
 	// matches the desired shape.
-	open_station_files_rename_user_id_to_owner_id();
+	openstation_files_rename_user_id_to_owner_id();
 
 	dbDelta( $placements_sql );
 	dbDelta( $folders_sql );
@@ -193,7 +193,7 @@ function open_station_files_install_schema() {
 	// (no DEFAULT) — under some MySQL/MariaDB combos it silently
 	// skips the ADD COLUMN. Verify the v2 trash columns are
 	// physically present and ALTER them in directly when not.
-	open_station_files_ensure_trash_columns();
+	openstation_files_ensure_trash_columns();
 
 	// v4: clean up duplicate placements created by sessions that
 	// hit the auto-orphan-placer while the v2 trash columns were
@@ -202,13 +202,13 @@ function open_station_files_install_schema() {
 	// registered shortcut. Collapse runs of identical
 	// `(owner_id, parent_id, file_type, file_ref)` rows down to
 	// the lowest id.
-	open_station_files_dedupe_placements();
+	openstation_files_dedupe_placements();
 
 	// v5: enforce uniqueness at the DB level so a future bug
 	// (or a racing pair of REST requests) can never re-create
 	// the duplicate shortcuts again. Must run AFTER dedupe —
 	// adding a unique key against duplicate rows would fail.
-	open_station_files_ensure_unique_placement_index();
+	openstation_files_ensure_unique_placement_index();
 
 	// v9: belt-and-suspenders existence check for the shares +
 	// decisions tables. The folder-sharing feature is the
@@ -216,8 +216,8 @@ function open_station_files_install_schema() {
 	// the `share_meta` JSON column on the folders table remains
 	// for diagnostic purposes only and is not consulted by the
 	// visibility resolver.
-	open_station_files_ensure_shares_table();
-	open_station_files_ensure_decisions_table();
+	openstation_files_ensure_shares_table();
+	openstation_files_ensure_decisions_table();
 
 	// v10: `updated_by` column on placements so the If-Match 409
 	// conflict toast names the SESSION that actually won the race,
@@ -225,16 +225,16 @@ function open_station_files_install_schema() {
 	// shared-write scenario where User B (writer recipient) moves a
 	// placement and User C gets the conflict — without this column,
 	// the toast would blame User A (owner of the row).
-	open_station_files_ensure_updated_by_column();
+	openstation_files_ensure_updated_by_column();
 
-	update_option( OPEN_STATION_FILES_SCHEMA_OPTION, OPEN_STATION_FILES_SCHEMA_VERSION );
+	update_option( OPENSTATION_FILES_SCHEMA_OPTION, OPENSTATION_FILES_SCHEMA_VERSION );
 
 	/**
 	 * Fires after the files schema is installed / migrated.
 	 *
 	 * @param string $version The version that was installed.
 	 */
-	do_action( 'open_station_files_schema_installed', OPEN_STATION_FILES_SCHEMA_VERSION );
+	do_action( 'openstation_files_schema_installed', OPENSTATION_FILES_SCHEMA_VERSION );
 }
 
 /**
@@ -245,9 +245,9 @@ function open_station_files_install_schema() {
  *
  * @internal
  */
-function open_station_files_ensure_trash_columns() {
+function openstation_files_ensure_trash_columns() {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 
 	// Two-worker race protection: between the INFORMATION_SCHEMA
 	// check and the ALTER, a concurrent worker (cron + admin-init,
@@ -309,14 +309,14 @@ function open_station_files_ensure_trash_columns() {
  * same (owner, parent) are disallowed at the DB level; if legacy
  * duplicates of another type exist, the (error-suppressed)
  * `ADD UNIQUE` in
- * `open_station_files_ensure_unique_placement_index()` will fail
+ * `openstation_files_ensure_unique_placement_index()` will fail
  * and leave the index absent until those rows are cleaned up.
  *
  * @internal
  */
-function open_station_files_dedupe_placements() {
+function openstation_files_dedupe_placements() {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 
 	// Once the unique index exists, MySQL prevents duplicate
@@ -367,9 +367,9 @@ function open_station_files_dedupe_placements() {
  *
  * @internal
  */
-function open_station_files_ensure_unique_placement_index() {
+function openstation_files_ensure_unique_placement_index() {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 
 	$exists = (int) $wpdb->get_var(
@@ -402,7 +402,7 @@ function open_station_files_ensure_unique_placement_index() {
  * Add the v10 `updated_by` column to the placements table.
  *
  * Tracks which user last mutated the row (created, moved, restored).
- * Used by `open_station_files_check_if_match()` so the If-Match 409
+ * Used by `openstation_files_check_if_match()` so the If-Match 409
  * conflict toast attributes the change to the SESSION that won the
  * race rather than to the row's static owner — critical when a
  * writer recipient of a shared folder rearranges placements and
@@ -413,9 +413,9 @@ function open_station_files_ensure_unique_placement_index() {
  *
  * @internal
  */
-function open_station_files_ensure_updated_by_column() {
+function openstation_files_ensure_updated_by_column() {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 	$exists = (int) $wpdb->get_var(
 		$wpdb->prepare(
@@ -452,7 +452,7 @@ function open_station_files_ensure_updated_by_column() {
  * column name directly) and when the column is already renamed.
  *
  * Must run BEFORE `dbDelta( $placements_sql )` in
- * `open_station_files_install_schema()` — dbDelta does NOT rename
+ * `openstation_files_install_schema()` — dbDelta does NOT rename
  * columns, so against a v≤10 table whose definition says
  * `owner_id` it would ADD a new `owner_id` column and leave the
  * stale `user_id` in place. Running the CHANGE COLUMN first puts
@@ -466,9 +466,9 @@ function open_station_files_ensure_updated_by_column() {
  *
  * @internal
  */
-function open_station_files_rename_user_id_to_owner_id() {
+function openstation_files_rename_user_id_to_owner_id() {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$tbl    = $tables['placements'];
 
 	// Fresh install — the table doesn't exist yet; dbDelta creates
@@ -539,9 +539,9 @@ function open_station_files_rename_user_id_to_owner_id() {
  *
  * @internal
  */
-function open_station_files_ensure_shares_table() {
+function openstation_files_ensure_shares_table() {
 	global $wpdb;
-	$tables          = open_station_files_table_names();
+	$tables          = openstation_files_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 	$tbl             = $tables['shares'];
 
@@ -603,9 +603,9 @@ function open_station_files_ensure_shares_table() {
  *
  * @internal
  */
-function open_station_files_ensure_decisions_table() {
+function openstation_files_ensure_decisions_table() {
 	global $wpdb;
-	$tables          = open_station_files_table_names();
+	$tables          = openstation_files_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 	$tbl             = $tables['decisions'];
 
@@ -639,21 +639,21 @@ function open_station_files_ensure_decisions_table() {
  * version doesn't match the constant. Idempotent: `dbDelta`
  * itself is a no-op when the table already matches.
  */
-function open_station_files_maybe_install_schema() {
-	$installed = get_option( OPEN_STATION_FILES_SCHEMA_OPTION, '' );
-	if ( $installed === OPEN_STATION_FILES_SCHEMA_VERSION ) {
+function openstation_files_maybe_install_schema() {
+	$installed = get_option( OPENSTATION_FILES_SCHEMA_OPTION, '' );
+	if ( $installed === OPENSTATION_FILES_SCHEMA_VERSION ) {
 		return;
 	}
-	open_station_files_install_schema();
+	openstation_files_install_schema();
 }
-add_action( 'admin_init', 'open_station_files_maybe_install_schema' );
+add_action( 'admin_init', 'openstation_files_maybe_install_schema' );
 // REST + front-end requests never fire `admin_init` — without these
 // hooks a session that hits a REST endpoint before any admin page
 // load would query the placements / folders tables before the v2
 // trash columns exist, throwing wpdb errors and blanking the desktop.
-add_action( 'rest_api_init', 'open_station_files_maybe_install_schema' );
-add_action( 'init', 'open_station_files_maybe_install_schema', 1 );
-register_activation_hook( OPEN_STATION_FILE, 'open_station_files_install_schema' );
+add_action( 'rest_api_init', 'openstation_files_maybe_install_schema' );
+add_action( 'init', 'openstation_files_maybe_install_schema', 1 );
+register_activation_hook( OPENSTATION_FILE, 'openstation_files_install_schema' );
 
 /**
  * Current epoch-ms timestamp. Centralized so the store and the
@@ -661,6 +661,6 @@ register_activation_hook( OPEN_STATION_FILE, 'open_station_files_install_schema'
  *
  * @return int
  */
-function open_station_files_now_ms() {
+function openstation_files_now_ms() {
 	return (int) round( microtime( true ) * 1000 );
 }

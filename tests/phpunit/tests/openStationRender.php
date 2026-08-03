@@ -24,9 +24,9 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		delete_user_meta( self::$admin_id, OPEN_STATION_OS_SETTINGS_META_KEY );
-		remove_all_filters( 'open_station_admin_bar_mode' );
-		unset( $_GET['open_station_chromeless'], $_GET[ OPEN_STATION_CLASSIC_FLAG ] );
+		delete_user_meta( self::$admin_id, OPENSTATION_OS_SETTINGS_META_KEY );
+		remove_all_filters( 'openstation_admin_bar_mode' );
+		unset( $_GET['openstation_chromeless'], $_GET[ OPENSTATION_CLASSIC_FLAG ] );
 		parent::tear_down();
 	}
 
@@ -36,26 +36,26 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * painted by then, so a user who picked `hidden` would see it
 	 * flash on every navigation.
 	 *
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
 	public function test_body_class_carries_default_admin_bar_mode() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$this->assertStringContainsString(
 			'os-admin-bar-static',
-			open_station_admin_body_classes( '' )
+			openstation_admin_body_classes( '' )
 		);
 	}
 
 	/**
-	 * @covers ::open_station_admin_body_classes
-	 * @covers ::open_station_get_admin_bar_mode
+	 * @covers ::openstation_admin_body_classes
+	 * @covers ::openstation_get_admin_bar_mode
 	 */
 	public function test_body_class_reflects_saved_admin_bar_mode() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		open_station_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
+		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
 
-		$classes = open_station_admin_body_classes( '' );
+		$classes = openstation_admin_body_classes( '' );
 
 		$this->assertStringContainsString( 'os-admin-bar-dynamic', $classes );
 		$this->assertStringNotContainsString( 'os-admin-bar-static', $classes );
@@ -65,62 +65,62 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * Classic mode is vanilla admin — no shell, and therefore no
 	 * business restyling the admin bar.
 	 *
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
-	public function test_body_class_omits_admin_bar_mode_when_open_station_off() {
-		open_station_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
+	public function test_body_class_omits_admin_bar_mode_when_openstation_off() {
+		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
 
 		$this->assertStringNotContainsString(
 			'os-admin-bar-',
-			open_station_admin_body_classes( '' )
+			openstation_admin_body_classes( '' )
 		);
 	}
 
 	/**
-	 * @covers ::open_station_get_admin_bar_mode
+	 * @covers ::openstation_get_admin_bar_mode
 	 */
 	public function test_admin_bar_mode_filter_overrides_the_user_pick() {
-		open_station_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
-		add_filter( 'open_station_admin_bar_mode', static fn () => 'static' );
+		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'hidden' ) );
+		add_filter( 'openstation_admin_bar_mode', static fn () => 'static' );
 
-		$this->assertSame( 'static', open_station_get_admin_bar_mode() );
+		$this->assertSame( 'static', openstation_get_admin_bar_mode() );
 	}
 
 	/**
 	 * A filter returning something outside the enum fails closed to
 	 * the always-visible mode, never to a class no CSS rule matches.
 	 *
-	 * @covers ::open_station_get_admin_bar_mode
+	 * @covers ::openstation_get_admin_bar_mode
 	 */
 	public function test_admin_bar_mode_filter_result_is_validated() {
-		open_station_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
-		add_filter( 'open_station_admin_bar_mode', static fn () => 'peekaboo' );
+		openstation_save_os_settings( self::$admin_id, array( 'adminBarMode' => 'dynamic' ) );
+		add_filter( 'openstation_admin_bar_mode', static fn () => 'peekaboo' );
 
-		$this->assertSame( 'static', open_station_get_admin_bar_mode() );
+		$this->assertSame( 'static', openstation_get_admin_bar_mode() );
 	}
 
 	/**
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
 	public function test_body_class_unchanged_when_mode_off() {
-		$this->assertSame( 'foo', open_station_admin_body_classes( 'foo' ) );
+		$this->assertSame( 'foo', openstation_admin_body_classes( 'foo' ) );
 	}
 
 	/**
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
 	public function test_body_class_adds_active_when_mode_on() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$this->assertStringContainsString( 'os-active', open_station_admin_body_classes( '' ) );
+		$this->assertStringContainsString( 'os-active', openstation_admin_body_classes( '' ) );
 	}
 
 	/**
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
 	public function test_body_class_adds_chromeless_when_iframed() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
-		$this->assertStringContainsString( 'os-chromeless', open_station_admin_body_classes( '' ) );
+		$_GET['openstation_chromeless'] = '1';
+		$this->assertStringContainsString( 'os-chromeless', openstation_admin_body_classes( '' ) );
 	}
 
 	/**
@@ -128,13 +128,13 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * body class so the classic admin chrome isn't hidden in the detached
 	 * tab — even when the user's account still has OpenStation enabled.
 	 *
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
 	public function test_body_class_omits_active_when_classic_flag_present() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET[ OPEN_STATION_CLASSIC_FLAG ] = '1';
+		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 
-		$classes = open_station_admin_body_classes( 'foo' );
+		$classes = openstation_admin_body_classes( 'foo' );
 
 		$this->assertSame( 'foo', $classes );
 		$this->assertStringNotContainsString( 'os-active', $classes );
@@ -144,14 +144,14 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * Classic override must not short-circuit chromeless tagging —
 	 * defense in depth in case both flags land on the same request.
 	 *
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
 	public function test_chromeless_class_wins_over_classic_flag() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless']              = '1';
-		$_GET[ OPEN_STATION_CLASSIC_FLAG ] = '1';
+		$_GET['openstation_chromeless']              = '1';
+		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 
-		$classes = open_station_admin_body_classes( '' );
+		$classes = openstation_admin_body_classes( '' );
 
 		$this->assertStringContainsString( 'os-chromeless', $classes );
 		$this->assertStringNotContainsString( 'os-active', $classes );
@@ -161,37 +161,37 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * Chromeless wins over active — inside an iframe we want the
 	 * chromeless class, never the shell class.
 	 *
-	 * @covers ::open_station_admin_body_classes
+	 * @covers ::openstation_admin_body_classes
 	 */
 	public function test_chromeless_class_wins_over_active() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
-		$classes            = open_station_admin_body_classes( '' );
+		$_GET['openstation_chromeless'] = '1';
+		$classes            = openstation_admin_body_classes( '' );
 
 		$this->assertStringContainsString( 'os-chromeless', $classes );
 		$this->assertStringNotContainsString( 'os-active', $classes );
 	}
 
 	/**
-	 * @covers ::open_station_render_shell
+	 * @covers ::openstation_render_shell
 	 */
 	public function test_render_shell_emits_nothing_when_mode_off() {
 		ob_start();
-		open_station_render_shell();
+		openstation_render_shell();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
 	}
 
 	/**
-	 * @covers ::open_station_render_shell
+	 * @covers ::openstation_render_shell
 	 */
 	public function test_render_shell_emits_nothing_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		ob_start();
-		open_station_render_shell();
+		openstation_render_shell();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
@@ -202,27 +202,27 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * OpenStation enabled on the account — otherwise the detached tab
 	 * would render both the classic chrome and the floating shell.
 	 *
-	 * @covers ::open_station_render_shell
+	 * @covers ::openstation_render_shell
 	 */
 	public function test_render_shell_emits_nothing_on_classic_request() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET[ OPEN_STATION_CLASSIC_FLAG ] = '1';
+		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 
 		ob_start();
-		open_station_render_shell();
+		openstation_render_shell();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
 	}
 
 	/**
-	 * @covers ::open_station_render_shell
+	 * @covers ::openstation_render_shell
 	 */
 	public function test_render_shell_emits_markup_when_mode_on() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		ob_start();
-		open_station_render_shell();
+		openstation_render_shell();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'os-shell', $output );
@@ -231,42 +231,42 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_render_shell
+	 * @covers ::openstation_render_shell
 	 */
 	public function test_shell_before_and_after_actions_fire() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$order = array();
 		add_action(
-			'open_station_shell_before',
+			'openstation_shell_before',
 			function () use ( &$order ) {
 				$order[] = 'before';
 			}
 		);
 		add_action(
-			'open_station_shell_after',
+			'openstation_shell_after',
 			function () use ( &$order ) {
 				$order[] = 'after';
 			}
 		);
 
 		ob_start();
-		open_station_render_shell();
+		openstation_render_shell();
 		ob_end_clean();
 
 		$this->assertSame( array( 'before', 'after' ), $order );
 
-		remove_all_actions( 'open_station_shell_before' );
-		remove_all_actions( 'open_station_shell_after' );
+		remove_all_actions( 'openstation_shell_before' );
+		remove_all_actions( 'openstation_shell_after' );
 	}
 
 	/**
-	 * @covers ::open_station_render_shell
+	 * @covers ::openstation_render_shell
 	 */
 	public function test_render_shell_is_wired_to_in_admin_header() {
 		$this->assertSame(
 			5,
-			has_action( 'in_admin_header', 'open_station_render_shell' )
+			has_action( 'in_admin_header', 'openstation_render_shell' )
 		);
 	}
 
@@ -275,26 +275,26 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * chromeless iframes — the filter alone can't stop it because
 	 * `is_admin_bar_showing()` returns true unconditionally in admin.
 	 *
-	 * @covers ::open_station_chromeless_suppress_admin_bar
+	 * @covers ::openstation_chromeless_suppress_admin_bar
 	 */
 	public function test_chromeless_detaches_admin_bar_render_action() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		add_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
-		open_station_chromeless_suppress_admin_bar();
+		openstation_chromeless_suppress_admin_bar();
 
 		$this->assertFalse( has_action( 'in_admin_header', 'wp_admin_bar_render' ) );
 	}
 
 	/**
-	 * @covers ::open_station_chromeless_suppress_admin_bar
+	 * @covers ::openstation_chromeless_suppress_admin_bar
 	 */
 	public function test_non_chromeless_leaves_admin_bar_render_wired() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
-		open_station_chromeless_suppress_admin_bar();
+		openstation_chromeless_suppress_admin_bar();
 
 		$this->assertSame( 0, has_action( 'in_admin_header', 'wp_admin_bar_render' ) );
 		remove_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
@@ -304,69 +304,69 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * Chromeless iframes must not load core's session-expired login
 	 * modal — the parent shell owns the single prompt (DESKMOD-49).
 	 *
-	 * @covers ::open_station_chromeless_suppress_auth_check
+	 * @covers ::openstation_chromeless_suppress_auth_check
 	 */
 	public function test_chromeless_suppresses_wp_auth_check_load() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		$this->assertFalse(
-			open_station_chromeless_suppress_auth_check( true ),
+			openstation_chromeless_suppress_auth_check( true ),
 			'Chromeless iframes must not load the wp-auth-check modal.'
 		);
 	}
 
 	/**
-	 * @covers ::open_station_chromeless_suppress_auth_check
+	 * @covers ::openstation_chromeless_suppress_auth_check
 	 */
 	public function test_shell_keeps_wp_auth_check_load() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		$this->assertTrue(
-			open_station_chromeless_suppress_auth_check( true ),
+			openstation_chromeless_suppress_auth_check( true ),
 			'The parent shell keeps core\'s modal — it is the single login prompt.'
 		);
 		$this->assertFalse(
-			open_station_chromeless_suppress_auth_check( false ),
+			openstation_chromeless_suppress_auth_check( false ),
 			'A false verdict from earlier filters must pass through unchanged.'
 		);
 	}
 
 	/**
-	 * @covers ::open_station_chromeless_suppress_auth_check
+	 * @covers ::openstation_chromeless_suppress_auth_check
 	 */
 	public function test_auth_check_suppression_is_registered() {
 		$this->assertNotFalse(
 			has_filter(
 				'wp_auth_check_load',
-				'open_station_chromeless_suppress_auth_check'
+				'openstation_chromeless_suppress_auth_check'
 			),
-			'open_station_chromeless_suppress_auth_check should hook wp_auth_check_load.'
+			'openstation_chromeless_suppress_auth_check should hook wp_auth_check_load.'
 		);
 	}
 
 	/**
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_emits_nothing_outside_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
 	}
 
 	/**
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_emits_postmessage_glue_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'os-screen-meta', $output );
@@ -377,20 +377,20 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * Link interceptor must be inside the bridge script so stray clicks on
 	 * `<a href="/wp-admin/...">` don't kick the iframe out of chromeless mode.
 	 *
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_emits_link_interceptor_in_chromeless() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'rewriteAdminUrl', $output );
 		$this->assertStringContainsString( "addEventListener( 'click'", $output );
 		$this->assertStringContainsString( "addEventListener( 'submit'", $output );
-		$this->assertStringContainsString( "'open_station_chromeless'", $output );
+		$this->assertStringContainsString( "'openstation_chromeless'", $output );
 	}
 
 	/**
@@ -401,14 +401,14 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * cross-page clicks would trash the source iframe before the
 	 * parent could react.
 	 *
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_prevents_default_on_admin_links() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
 		// Pin the admin-branch shape: the prevent-default must sit
@@ -432,14 +432,14 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * of an unfocused editor window is swallowed and the window never
 	 * activates.
 	 *
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_escalates_focus_from_nested_frames() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( 'os-focus-request', $output );
@@ -458,14 +458,14 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * O(DOM) tree walk on Gutenberg's typing path — exactly when the
 	 * editor mutates hardest and the editor-preview pairing is live.
 	 *
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_nested_frame_sweep_is_scoped_to_added_nodes() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
 		// The observer callback iterates addedNodes and hands each
@@ -491,14 +491,14 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * spawned desktop window that takes seconds to load. Pin the skip list
 	 * so a future refactor doesn't silently bring the regression back.
 	 *
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_skips_wp_core_ajax_update_buttons() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
 		// Each class WP core's wp-admin/js/updates.js binds an AJAX
@@ -534,26 +534,26 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_classic_link_interceptor
+	 * @covers ::openstation_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_emits_nothing_without_flag() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		ob_start();
-		open_station_classic_link_interceptor();
+		openstation_classic_link_interceptor();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
 	}
 
 	/**
-	 * @covers ::open_station_classic_link_interceptor
+	 * @covers ::openstation_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_emits_script_when_flag_present() {
-		$_GET[ OPEN_STATION_CLASSIC_FLAG ] = '1';
+		$_GET[ OPENSTATION_CLASSIC_FLAG ] = '1';
 
 		ob_start();
-		open_station_classic_link_interceptor();
+		openstation_classic_link_interceptor();
 		$output = ob_get_clean();
 
 		$this->assertStringContainsString( '<script>', $output );
@@ -561,7 +561,7 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 		$this->assertStringContainsString( "addEventListener( 'click'", $output );
 		$this->assertStringContainsString( "addEventListener( 'submit'", $output );
 		// The rewritten URL must carry the same flag the server checks for.
-		$this->assertStringContainsString( '"' . OPEN_STATION_CLASSIC_FLAG . '"', $output );
+		$this->assertStringContainsString( '"' . OPENSTATION_CLASSIC_FLAG . '"', $output );
 	}
 
 	/**
@@ -569,11 +569,11 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * navigations. It must be wired on admin_footer or the first click
 	 * would escape back into the desktop shell.
 	 *
-	 * @covers ::open_station_classic_link_interceptor
+	 * @covers ::openstation_classic_link_interceptor
 	 */
 	public function test_classic_interceptor_is_wired_on_admin_footer() {
 		$this->assertNotFalse(
-			has_action( 'admin_footer', 'open_station_classic_link_interceptor' )
+			has_action( 'admin_footer', 'openstation_classic_link_interceptor' )
 		);
 	}
 
@@ -586,26 +586,26 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * other tests doesn't prove WordPress will call it — only this
 	 * has_action check does.
 	 *
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_chromeless_bridge_is_wired_on_admin_footer() {
 		$this->assertNotFalse(
-			has_action( 'admin_footer', 'open_station_chromeless_bridge_script' )
+			has_action( 'admin_footer', 'openstation_chromeless_bridge_script' )
 		);
 	}
 
 	/**
-	 * @covers ::open_station_chromeless_offset_neutralizer_script
+	 * @covers ::openstation_chromeless_offset_neutralizer_script
 	 */
 	public function test_chromeless_offset_neutralizer_is_wired_on_admin_head() {
 		$this->assertNotFalse(
-			has_action( 'admin_head', 'open_station_chromeless_offset_neutralizer_script' )
+			has_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script' )
 		);
 	}
 
 	/**
 	 * The hidden refresh-probe iframe `wp.os.refreshMenu()` spawns
-	 * lands on `admin.php?open_station_chromeless=1&open_station_menu_refresh=1`,
+	 * lands on `admin.php?openstation_chromeless=1&openstation_menu_refresh=1`,
 	 * which Core doesn't fire `admin_footer` for — so the
 	 * admin-footer-hosted bridge never emits its payload. The
 	 * `admin_init @ 99` handler short-circuits that request with the
@@ -613,12 +613,12 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * can't silently move it earlier than `wp-admin/menu.php` (which
 	 * populates `$menu`).
 	 *
-	 * @covers ::open_station_emit_menu_refresh_probe
+	 * @covers ::openstation_emit_menu_refresh_probe
 	 */
 	public function test_menu_refresh_probe_is_wired_on_admin_init() {
 		$this->assertSame(
 			99,
-			has_action( 'admin_init', 'open_station_emit_menu_refresh_probe' )
+			has_action( 'admin_init', 'openstation_emit_menu_refresh_probe' )
 		);
 	}
 
@@ -627,13 +627,13 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 	 * handler must be a silent no-op so it doesn't slip into normal
 	 * admin page loads.
 	 *
-	 * @covers ::open_station_emit_menu_refresh_probe
+	 * @covers ::openstation_emit_menu_refresh_probe
 	 */
 	public function test_menu_refresh_probe_skips_when_flag_missing() {
-		unset( $_GET['open_station_menu_refresh'] );
+		unset( $_GET['openstation_menu_refresh'] );
 
 		ob_start();
-		open_station_emit_menu_refresh_probe();
+		openstation_emit_menu_refresh_probe();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
@@ -641,44 +641,44 @@ class Tests_OpenStation_Render extends WP_UnitTestCase {
 
 	/**
 	 * Guard: chromeless gate. A request with the flag but no
-	 * `open_station_chromeless=1` (and no Sec-Fetch fallback) must NOT
+	 * `openstation_chromeless=1` (and no Sec-Fetch fallback) must NOT
 	 * emit the payload — the flag alone is forgeable from any tab.
 	 *
-	 * @covers ::open_station_emit_menu_refresh_probe
+	 * @covers ::openstation_emit_menu_refresh_probe
 	 */
 	public function test_menu_refresh_probe_skips_without_chromeless() {
-		unset( $_GET['open_station_chromeless'] );
-		$_GET['open_station_menu_refresh'] = '1';
+		unset( $_GET['openstation_chromeless'] );
+		$_GET['openstation_menu_refresh'] = '1';
 
 		ob_start();
-		open_station_emit_menu_refresh_probe();
+		openstation_emit_menu_refresh_probe();
 		$output = ob_get_clean();
 
 		$this->assertSame( '', $output );
 
-		unset( $_GET['open_station_menu_refresh'] );
+		unset( $_GET['openstation_menu_refresh'] );
 	}
 
 	/**
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_chromeless_after_action_fires_in_iframes() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		$fired = false;
 		add_action(
-			'open_station_chromeless_after',
+			'openstation_chromeless_after',
 			function () use ( &$fired ) {
 				$fired = true;
 			}
 		);
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		ob_end_clean();
 
 		$this->assertTrue( $fired );
-		remove_all_actions( 'open_station_chromeless_after' );
+		remove_all_actions( 'openstation_chromeless_after' );
 	}
 }

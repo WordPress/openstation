@@ -313,5 +313,5 @@ materially change the "open a window" cost.
 - Cross-bundle factory contract: `src/window-system/types.ts`
 - Pre-load hook in shell boot: `src/desktop.ts` (search for `preloadWindowSystem`)
 - Shared-store contract for chrome registries: `src/window-chrome/{controls,slots,themes,chrome}/registry.ts` + `src/title-bar-buttons/registry.ts` (all back their state on `createSharedStore` since 0.8.4 so the lazy bundle sees the same registry main writes to — see `AGENTS.md` for the underlying primitive)
-- PHP-side lazy-bundle URL helper: `$lazy_bundle_url( … )` in `includes/render/assets.php` (uses `filemtime()` so rebuilds invalidate the browser cache without bumping `OPEN_STATION_VERSION`)
+- PHP-side lazy-bundle URL helper: `$lazy_bundle_url( … )` in `includes/render/assets.php` (uses `filemtime()` so rebuilds invalidate the browser cache without bumping `OPENSTATION_VERSION`)
 - Migration discussion: [PR #190 — "Faster OpenStation, main bundle cut by 59 %"](https://github.com/WordPress/desktop-mode/pull/190).

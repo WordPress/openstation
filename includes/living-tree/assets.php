@@ -18,14 +18,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the Living Tree wallpaper script handle.
  */
-function open_station_living_tree_register_assets() {
-	$version = OPEN_STATION_VERSION;
-	$suffix  = open_station_asset_suffix();
+function openstation_living_tree_register_assets() {
+	$version = OPENSTATION_VERSION;
+	$suffix  = openstation_asset_suffix();
 
-	$js_path = OPEN_STATION_DIR . 'assets/js/living-tree-wallpaper' . $suffix . '.js';
+	$js_path = OPENSTATION_DIR . 'assets/js/living-tree-wallpaper' . $suffix . '.js';
 	wp_register_script(
 		'os-living-tree-wallpaper',
-		OPEN_STATION_URL . 'assets/js/living-tree-wallpaper' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/living-tree-wallpaper' . $suffix . '.js',
 		array( 'wp-hooks', 'wp-i18n' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
@@ -33,7 +33,7 @@ function open_station_living_tree_register_assets() {
 	wp_set_script_translations(
 		'os-living-tree-wallpaper',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 }
-add_action( 'init', 'open_station_living_tree_register_assets', 5 );
+add_action( 'init', 'openstation_living_tree_register_assets', 5 );

@@ -26,21 +26,21 @@
  * Concrete subclasses declare the constants the base needs;
  * everything else is inherited.
  *
- * @package Open_Station_Extension_Base
+ * @package OpenStation_Extension_Base
  */
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! class_exists( 'Open_Station_Extension_Window' ) ) :
+if ( ! class_exists( 'OpenStation_Extension_Window' ) ) :
 
 /**
  * Base class an extension subclasses to declare its native window.
  */
-abstract class Open_Station_Extension_Window {
+abstract class OpenStation_Extension_Window {
 
 	/**
 	 * Stable id for the native window. Matches the value passed
-	 * to `open_station_register_window()`.
+	 * to `openstation_register_window()`.
 	 */
 	abstract protected function window_id(): string;
 
@@ -71,7 +71,7 @@ abstract class Open_Station_Extension_Window {
 	/**
 	 * `wp_ajax_<action>` slug used to serve the bundle. Must be
 	 * unique across all extensions. Convention:
-	 * `open_station_<plugin>_bundle`.
+	 * `openstation_<plugin>_bundle`.
 	 */
 	abstract protected function bundle_action(): string;
 
@@ -83,7 +83,7 @@ abstract class Open_Station_Extension_Window {
 
 	/**
 	 * Native-window registration args passed to
-	 * `open_station_register_window()` minus the `script`,
+	 * `openstation_register_window()` minus the `script`,
 	 * `style`, and `id` fields the base fills in. Subclasses
 	 * declare title, icon, template, default size, etc.
 	 *
@@ -152,10 +152,10 @@ abstract class Open_Station_Extension_Window {
 	/**
 	 * Hook callback — registers the native window. Runs on
 	 * `plugins_loaded` so the openstation plugin's
-	 * `open_station_register_window()` is available.
+	 * `openstation_register_window()` is available.
 	 */
 	public function register_window(): void {
-		if ( ! function_exists( 'open_station_register_window' ) ) {
+		if ( ! function_exists( 'openstation_register_window' ) ) {
 			return;
 		}
 		$args = array_merge(
@@ -166,7 +166,7 @@ abstract class Open_Station_Extension_Window {
 				'style'  => $this->asset_handle(),
 			)
 		);
-		open_station_register_window( $this->window_id(), $args );
+		openstation_register_window( $this->window_id(), $args );
 	}
 
 	/**

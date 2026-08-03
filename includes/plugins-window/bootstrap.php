@@ -10,14 +10,14 @@
  *
  * Public PHP surface (all filterable):
  *
- *   - open_station_plugins_window_user_can_register
- *   - open_station_plugins_window_user_can_use
- *   - open_station_plugins_window_args
- *   - open_station_plugins_window_template_html
- *   - open_station_plugins_window_browse_args
- *   - open_station_plugins_window_browse_response
- *   - open_station_plugins_window_info_response
- *   - open_station_plugins_window_review_parser
+ *   - openstation_plugins_window_user_can_register
+ *   - openstation_plugins_window_user_can_use
+ *   - openstation_plugins_window_args
+ *   - openstation_plugins_window_template_html
+ *   - openstation_plugins_window_browse_args
+ *   - openstation_plugins_window_browse_response
+ *   - openstation_plugins_window_info_response
+ *   - openstation_plugins_window_review_parser
  *
  * The dock-side swap (Plugins tile → native window when opt-in is on)
  * is implemented JS-side in `src/desktop.ts` via

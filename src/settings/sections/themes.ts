@@ -41,7 +41,7 @@ const SYSTEM_DEFAULT = '';
  * What the "no theme" card is called.
  *
  * Not a translated string: it is the name of the shell's own look, the
- * same way "OpenStation (Legacy)" is the name of the theme beside it,
+ * same way "Desktop Mode (Legacy)" is the name of the theme beside it,
  * and a product name does not get translated. It reads as a peer of
  * the themes in the grid because that is exactly what it is — one
  * palette among several, and the one the plugin ships wearing.

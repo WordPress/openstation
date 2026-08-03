@@ -46,7 +46,7 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 	 * (a contributor replying on another author's post) must be rejected
 	 * with a 403 and no comment may be created.
 	 *
-	 * @covers ::open_station_comments_window_rest_reply
+	 * @covers ::openstation_comments_window_rest_reply
 	 */
 	public function test_reply_forbidden_without_edit_post_on_target_post() {
 		wp_set_current_user( self::$contributor_id );
@@ -59,7 +59,7 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 			)
 		);
 
-		$resp = open_station_comments_window_rest_reply(
+		$resp = openstation_comments_window_rest_reply(
 			$this->build_request(
 				array(
 					'parent'  => self::$comment_id,
@@ -69,7 +69,7 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $resp );
-		$this->assertSame( 'open_station_comments_forbidden', $resp->get_error_code() );
+		$this->assertSame( 'openstation_comments_forbidden', $resp->get_error_code() );
 		$this->assertSame( 403, $resp->get_error_data()['status'] );
 
 		$after = (int) get_comments(
@@ -85,12 +85,12 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 	/**
 	 * A user who can edit the target post replies successfully.
 	 *
-	 * @covers ::open_station_comments_window_rest_reply
+	 * @covers ::openstation_comments_window_rest_reply
 	 */
 	public function test_reply_allowed_for_user_who_can_edit_post() {
 		wp_set_current_user( self::$admin_id );
 
-		$resp = open_station_comments_window_rest_reply(
+		$resp = openstation_comments_window_rest_reply(
 			$this->build_request(
 				array(
 					'parent'  => self::$comment_id,
@@ -114,12 +114,12 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 	/**
 	 * A missing parent comment still 404s before the capability gate.
 	 *
-	 * @covers ::open_station_comments_window_rest_reply
+	 * @covers ::openstation_comments_window_rest_reply
 	 */
 	public function test_reply_missing_parent_returns_404() {
 		wp_set_current_user( self::$admin_id );
 
-		$resp = open_station_comments_window_rest_reply(
+		$resp = openstation_comments_window_rest_reply(
 			$this->build_request(
 				array(
 					'parent'  => PHP_INT_MAX,
@@ -129,7 +129,7 @@ class Tests_OpenStation_CommentsWindow_RestReply extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $resp );
-		$this->assertSame( 'open_station_comments_no_parent', $resp->get_error_code() );
+		$this->assertSame( 'openstation_comments_no_parent', $resp->get_error_code() );
 		$this->assertSame( 404, $resp->get_error_data()['status'] );
 	}
 }

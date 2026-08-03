@@ -27,8 +27,8 @@ mutations explicitly. One call per mutation:
  * After my plugin writes a row.
  */
 function myplugin_after_save_item( $item_id, $is_new ) {
-	if ( function_exists( 'open_station_content_changes_record' ) ) {
-		open_station_content_changes_record(
+	if ( function_exists( 'openstation_content_changes_record' ) ) {
+		openstation_content_changes_record(
 			'myplugin_item',                    // becomes os.myplugin_item.changed
 			$item_id,
 			$is_new ? 'created' : 'updated'     // or trashed / untrashed / deleted
@@ -49,7 +49,7 @@ The generic soft-reload matcher only understands `edit.php` /
 `admin.php?page=myplugin-items`, declare it:
 
 ```php
-add_filter( 'open_station_soft_reload_rules', function ( $rules ) {
+add_filter( 'openstation_soft_reload_rules', function ( $rules ) {
 	$rules[] = array(
 		'topic'       => 'os.myplugin_item.changed',
 		'path'        => 'admin.php',
@@ -99,12 +99,12 @@ refreshes must be idempotent), or a client emitter's own id.
 
 ```php
 // Keep a high-churn internal type out of the realtime system.
-add_filter( 'open_station_content_changes_should_record', function ( $record, $type ) {
+add_filter( 'openstation_content_changes_should_record', function ( $record, $type ) {
 	return 'myplugin_log_entry' === $type ? false : $record;
 }, 10, 2 );
 
 // Mirror every recorded change into your own realtime channel (SSE, websocket).
-add_action( 'open_station_content_change_recorded', function ( $type, $id, $action ) {
+add_action( 'openstation_content_change_recorded', function ( $type, $id, $action ) {
 	myplugin_sse_push( compact( 'type', 'id', 'action' ) );
 }, 10, 3 );
 ```

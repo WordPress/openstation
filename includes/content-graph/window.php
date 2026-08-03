@@ -4,11 +4,11 @@
  *
  * Filterable surface (mirrors the my-wordpress module shape):
  *
- *   - `open_station_content_graph_window_args`
- *   - `open_station_content_graph_icon_args`
- *   - `open_station_content_graph_user_can_use`
- *   - `open_station_content_graph_post_types`
- *   - `open_station_content_graph_template_html`
+ *   - `openstation_content_graph_window_args`
+ *   - `openstation_content_graph_icon_args`
+ *   - `openstation_content_graph_user_can_use`
+ *   - `openstation_content_graph_post_types`
+ *   - `openstation_content_graph_template_html`
  *
  * @package OpenStation
  */
@@ -45,7 +45,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string Raw `<svg>` markup.
  */
-function open_station_content_graph_icon_svg() {
+function openstation_content_graph_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
 		// The board itself — outlined, so it frames rather than fills.
 		. '<rect x="5" y="9" width="54" height="46" rx="4.5" fill="none" stroke="currentColor" stroke-width="4"/>'
@@ -72,7 +72,7 @@ function open_station_content_graph_icon_svg() {
  *
  * @return bool
  */
-function open_station_content_graph_user_can_use() {
+function openstation_content_graph_user_can_use() {
 	$can = current_user_can( 'edit_posts' );
 
 	/**
@@ -81,7 +81,7 @@ function open_station_content_graph_user_can_use() {
 	 *
 	 * @param bool $can Default: edit_posts capability.
 	 */
-	return (bool) apply_filters( 'open_station_content_graph_user_can_use', $can );
+	return (bool) apply_filters( 'openstation_content_graph_user_can_use', $can );
 }
 
 /**
@@ -92,7 +92,7 @@ function open_station_content_graph_user_can_use() {
  *
  * @return array[] Each entry: `array( 'slug', 'label', 'icon', 'taxonomies' )`.
  */
-function open_station_content_graph_post_types() {
+function openstation_content_graph_post_types() {
 	$types  = get_post_types( array( 'public' => true ), 'objects' );
 	$result = array();
 	foreach ( $types as $type ) {
@@ -124,7 +124,7 @@ function open_station_content_graph_post_types() {
 	 *
 	 * @param array[] $result Default: every public post type except attachment.
 	 */
-	$filtered = apply_filters( 'open_station_content_graph_post_types', $result );
+	$filtered = apply_filters( 'openstation_content_graph_post_types', $result );
 	$filtered = is_array( $filtered ) ? array_values( $filtered ) : $result;
 
 	foreach ( $filtered as $i => $entry ) {
@@ -142,7 +142,7 @@ function open_station_content_graph_post_types() {
  * Render the Content Graph window's static template body. The bundle
  * mounts its UI into `[data-os-content-graph-root]`.
  */
-function open_station_content_graph_render_template() {
+function openstation_content_graph_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-content-graph" data-os-content-graph-root>
@@ -164,10 +164,10 @@ function open_station_content_graph_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_content_graph_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_content_graph_template_html', $html );
 
-	$allowed_html = function_exists( 'open_station_native_window_allowed_html' )
-		? open_station_native_window_allowed_html()
+	$allowed_html = function_exists( 'openstation_native_window_allowed_html' )
+		? openstation_native_window_allowed_html()
 		: wp_kses_allowed_html( 'post' );
 
 	echo wp_kses( $filtered, $allowed_html );
@@ -177,17 +177,17 @@ function open_station_content_graph_render_template() {
  * Register the native window + the desktop icon on `init` priority 20,
  * matching the my-wordpress + recycle-bin modules.
  */
-function open_station_content_graph_register_window() {
-	if ( ! open_station_content_graph_user_can_use() ) {
+function openstation_content_graph_register_window() {
+	if ( ! openstation_content_graph_user_can_use() ) {
 		return;
 	}
 
-	$icon_uri = 'data:image/svg+xml;base64,' . base64_encode( open_station_content_graph_icon_svg() );
+	$icon_uri = 'data:image/svg+xml;base64,' . base64_encode( openstation_content_graph_icon_svg() );
 
 	$window_args = array(
 		'title'      => __( 'Corkboard', 'desktop-mode' ),
 		'icon'       => $icon_uri,
-		'template'   => 'open_station_content_graph_render_template',
+		'template'   => 'openstation_content_graph_render_template',
 		'script'     => 'desktop-mode-content-graph',
 		'style'      => 'desktop-mode-content-graph',
 		'width'      => 1080,
@@ -206,19 +206,19 @@ function open_station_content_graph_register_window() {
 			'mediaUrl'       => esc_url_raw( admin_url( 'upload.php' ) ),
 			// Labels the "Open in <site>" action on the detail panel,
 			// which hands off to the site folder window.
-			'siteName'       => open_station_site_title(),
-			'postTypes'      => open_station_content_graph_post_types(),
+			'siteName'       => openstation_site_title(),
+			'postTypes'      => openstation_content_graph_post_types(),
 		),
 	);
 
 	/**
 	 * Filter the args used to register the Content Graph native window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_content_graph_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_content_graph_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-content-graph', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-content-graph', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Content Graph window registration failed: ' . $registered->get_error_message() );
@@ -227,7 +227,7 @@ function open_station_content_graph_register_window() {
 
 	$icon_args = array(
 		'title'    => __( 'Corkboard', 'desktop-mode' ),
-		'icon_svg' => open_station_content_graph_icon_svg(),
+		'icon_svg' => openstation_content_graph_icon_svg(),
 		'window'   => 'desktop-mode-content-graph',
 		'pinned'   => false,
 		'position' => 20,
@@ -236,22 +236,22 @@ function open_station_content_graph_register_window() {
 	/**
 	 * Filter the args used to register the Content Graph desktop icon.
 	 *
-	 * @param array $icon_args Args passed to `open_station_register_icon()`.
+	 * @param array $icon_args Args passed to `openstation_register_icon()`.
 	 */
-	$icon_args = (array) apply_filters( 'open_station_content_graph_icon_args', $icon_args );
+	$icon_args = (array) apply_filters( 'openstation_content_graph_icon_args', $icon_args );
 
-	open_station_register_icon( 'desktop-mode-content-graph', $icon_args );
+	openstation_register_icon( 'desktop-mode-content-graph', $icon_args );
 }
-add_action( 'init', 'open_station_content_graph_register_window', 20 );
+add_action( 'init', 'openstation_content_graph_register_window', 20 );
 
 /**
  * Enqueue the bundle's CSS in admin context. The script is lazy-
  * loaded by the native-window sync.
  */
-function open_station_content_graph_enqueue_styles() {
-	if ( ! open_station_content_graph_user_can_use() ) {
+function openstation_content_graph_enqueue_styles() {
+	if ( ! openstation_content_graph_user_can_use() ) {
 		return;
 	}
 	wp_enqueue_style( 'desktop-mode-content-graph' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_content_graph_enqueue_styles', 30 );
+add_action( 'admin_enqueue_scripts', 'openstation_content_graph_enqueue_styles', 30 );

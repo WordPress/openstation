@@ -1,7 +1,7 @@
 /**
  * OpenStation — File-opener registry (JS side).
  *
- * Mirrors the PHP {@link open_station_register_file_opener}
+ * Mirrors the PHP {@link openstation_register_file_opener}
  * surface with one critical difference: this side carries the
  * executable handlers (URL builders, native-window openers, JS
  * callbacks) that PHP couldn't serialize. Plugins register
@@ -45,7 +45,7 @@ export interface UrlOpenerHandler {
 
 export interface NativeWindowOpenerHandler {
 	kind: 'window';
-	/** Native-window id registered via `open_station_register_window`. */
+	/** Native-window id registered via `openstation_register_window`. */
 	windowId: string;
 	/**
 	 * Optional per-file config. Caveat: the computed config is

@@ -22,7 +22,7 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_site_views_meta_callback
+	 * @covers ::openstation_site_views_meta_callback
 	 */
 	public function test_aggregates_todays_views_across_posts() {
 		$today = current_time( 'Y-m-d' );
@@ -31,7 +31,7 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 		update_post_meta( $a, '_post_views_' . $today, 3 );
 		update_post_meta( $b, '_post_views_' . $today, 4 );
 
-		$result = open_station_site_views_meta_callback( null );
+		$result = openstation_site_views_meta_callback( null );
 
 		$this->assertSame( 'post-meta', $result['source'] );
 		$this->assertTrue( $result['has_data'] );
@@ -42,23 +42,23 @@ class Tests_OpenStation_WidgetSiteViews extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_site_views_meta_callback
+	 * @covers ::openstation_site_views_meta_callback
 	 */
 	public function test_result_is_served_from_the_transient() {
 		$today = current_time( 'Y-m-d' );
 		$a     = self::factory()->post->create();
 		update_post_meta( $a, '_post_views_' . $today, 5 );
 
-		$first = open_station_site_views_meta_callback( null );
+		$first = openstation_site_views_meta_callback( null );
 		$this->assertSame( 5, end( $first['days'] )['views'] );
 
 		// Bump the counter after the first call — cache must win.
 		update_post_meta( $a, '_post_views_' . $today, 10 );
-		$second = open_station_site_views_meta_callback( null );
+		$second = openstation_site_views_meta_callback( null );
 		$this->assertSame( $first, $second, 'second call inside the TTL is a cache hit' );
 
 		delete_transient( 'desktop_mode_site_views_meta' );
-		$third = open_station_site_views_meta_callback( null );
+		$third = openstation_site_views_meta_callback( null );
 		$this->assertSame( 10, end( $third['days'] )['views'] );
 	}
 }

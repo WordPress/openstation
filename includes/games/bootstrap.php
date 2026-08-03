@@ -16,12 +16,12 @@
  * no Heartbeat channel, no window/icon — so the games framework costs
  * nothing beyond the option read below.
  * For third-party plugins the disabled state is indistinguishable from
- * OpenStation not being active: `open_station_register_game()` is
+ * OpenStation not being active: `openstation_register_game()` is
  * undefined, which the documented `function_exists()` guard already
  * handles (see docs/examples/register-game.md).
  *
  * Loading is deferred to `plugins_loaded` (priority 5) so any regular
- * plugin can hook the `open_station_games_enabled` filter in time to
+ * plugin can hook the `openstation_games_enabled` filter in time to
  * influence the decision.
  *
  * New `require_once` lines belong in the loader below so the rest of
@@ -36,12 +36,12 @@ defined( 'ABSPATH' ) || exit;
  * Whether the games framework is enabled site-wide.
  *
  * Backed by the `games` key of the extended options bundle
- * (`open_station_get_extended_options()`), default off — opt-in.
+ * (`openstation_get_extended_options()`), default off — opt-in.
  *
  * @return bool
  */
-function open_station_games_enabled() {
-	$options = open_station_get_extended_options();
+function openstation_games_enabled() {
+	$options = openstation_get_extended_options();
 	$enabled = ! empty( $options['games'] );
 
 	/**
@@ -53,7 +53,7 @@ function open_station_games_enabled() {
 	 *
 	 * @param bool $enabled Whether the games framework is enabled.
 	 */
-	return (bool) apply_filters( 'open_station_games_enabled', $enabled );
+	return (bool) apply_filters( 'openstation_games_enabled', $enabled );
 }
 
 /**
@@ -61,20 +61,20 @@ function open_station_games_enabled() {
  *
  * @access private
  */
-function open_station_games_load() {
-	if ( ! open_station_games_enabled() ) {
+function openstation_games_load() {
+	if ( ! openstation_games_enabled() ) {
 		return;
 	}
 
-	require_once OPEN_STATION_DIR . 'includes/games/schema.php';
-	require_once OPEN_STATION_DIR . 'includes/games/config.php';
-	require_once OPEN_STATION_DIR . 'includes/games/registry.php';
-	require_once OPEN_STATION_DIR . 'includes/games/store.php';
-	require_once OPEN_STATION_DIR . 'includes/games/playtime.php';
-	require_once OPEN_STATION_DIR . 'includes/games/rest.php';
-	require_once OPEN_STATION_DIR . 'includes/games/heartbeat.php';
-	require_once OPEN_STATION_DIR . 'includes/games/window.php';
-	require_once OPEN_STATION_DIR . 'includes/games/inkfall.php';
-	require_once OPEN_STATION_DIR . 'includes/games/alphabet-soup.php';
+	require_once OPENSTATION_DIR . 'includes/games/schema.php';
+	require_once OPENSTATION_DIR . 'includes/games/config.php';
+	require_once OPENSTATION_DIR . 'includes/games/registry.php';
+	require_once OPENSTATION_DIR . 'includes/games/store.php';
+	require_once OPENSTATION_DIR . 'includes/games/playtime.php';
+	require_once OPENSTATION_DIR . 'includes/games/rest.php';
+	require_once OPENSTATION_DIR . 'includes/games/heartbeat.php';
+	require_once OPENSTATION_DIR . 'includes/games/window.php';
+	require_once OPENSTATION_DIR . 'includes/games/inkfall.php';
+	require_once OPENSTATION_DIR . 'includes/games/alphabet-soup.php';
 }
-add_action( 'plugins_loaded', 'open_station_games_load', 5 );
+add_action( 'plugins_loaded', 'openstation_games_load', 5 );

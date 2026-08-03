@@ -101,6 +101,11 @@ export class OsNotice extends Component {
 			{ name: '--os-ui-notice-color', description: 'Text color.' },
 			{ name: '--os-ui-notice-border', description: 'Bottom border color.' },
 			{ name: '--os-ui-notice-link', description: 'Color for slotted <a> elements.' },
+			{
+				name: '--os-ui-notice-link-hover',
+				description:
+					'Color for slotted <a> on hover / focus, and the focus ring. Must differ from --os-ui-notice-link or the link reads as inert.',
+			},
 		],
 		example: html`
 			<os-notice tone="warning" notice-id="docs/example">

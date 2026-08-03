@@ -4,18 +4,18 @@
  *
  * Two companion helpers live here:
  *
- *   - {@see open_station_component()} prints a `<os-*>` tag with
+ *   - {@see openstation_component()} prints a `<os-*>` tag with
  *     safely-escaped attributes (plus its style-array
  *     serializers). The intent is explicit (we're rendering a kit
  *     component, not arbitrary HTML) and the escape discipline is
  *     automatic.
  *
- *   - {@see open_station_enqueue_script()} wraps
+ *   - {@see openstation_enqueue_script()} wraps
  *     `wp_enqueue_script()` with the `openstation` + `wp-hooks`
  *     dependencies pre-wired, so shell-extending scripts always
  *     load after `wp.os.*` and `wp.hooks` are available.
  *
- * {@see open_station_register_window()} moved to
+ * {@see openstation_register_window()} moved to
  * `includes/registries/native-windows.php`.
  *
  * @package OpenStation
@@ -27,7 +27,7 @@ defined( 'ABSPATH' ) || exit;
  * Output a `<os-*>` component with safely escaped attributes.
  *
  * ```php
- * open_station_component( 'os-button', array(
+ * openstation_component( 'os-button', array(
  *     'variant'    => 'primary',
  *     'data-op'    => 'add',
  *     'aria-label' => __( 'Add', 'my-plugin' ),
@@ -54,7 +54,7 @@ defined( 'ABSPATH' ) || exit;
  * `'padding' => 16` produces `padding: 16px`.
  *
  * ```php
- * open_station_component( 'os-stack', array(
+ * openstation_component( 'os-stack', array(
  *     'gap'   => 12,
  *     'style' => array(
  *         'padding'          => 0,
@@ -68,7 +68,7 @@ defined( 'ABSPATH' ) || exit;
  * Plain string form (for one-line overrides) keeps working:
  *
  * ```php
- * open_station_component( 'os-stack', array(
+ * openstation_component( 'os-stack', array(
  *     'style' => 'padding: 0; margin-top: 16px',
  * ), $children );
  * ```
@@ -82,7 +82,7 @@ defined( 'ABSPATH' ) || exit;
  *                                       associative array (see above).
  * @param string                $content Inner HTML. Pass pre-escaped.
  */
-function open_station_component( $tag, $attrs = array(), $content = '' ) {
+function openstation_component( $tag, $attrs = array(), $content = '' ) {
 	$tag = strtolower( (string) $tag );
 	if ( ! preg_match( '/^os-[a-z][a-z0-9-]*$/', $tag ) ) {
 		// Fail loud in debug so a typo surfaces immediately; silently
@@ -93,7 +93,7 @@ function open_station_component( $tag, $attrs = array(), $content = '' ) {
 				__FUNCTION__,
 				sprintf(
 					/* translators: %s: the attempted tag name. */
-					esc_html__( 'open_station_component() only accepts tags with the os- prefix; got "%s".', 'desktop-mode' ),
+					esc_html__( 'openstation_component() only accepts tags with the os- prefix; got "%s".', 'desktop-mode' ),
 					esc_html( $tag )
 				),
 				'0.5.0'
@@ -117,7 +117,7 @@ function open_station_component( $tag, $attrs = array(), $content = '' ) {
 		// string values fall through to the generic attribute path
 		// below so `'style' => 'padding:0'` keeps working.
 		if ( 'style' === strtolower( $key ) && is_array( $value ) ) {
-			$serialized = open_station_serialize_style_array( $value );
+			$serialized = openstation_serialize_style_array( $value );
 			if ( '' === $serialized ) {
 				continue;
 			}
@@ -177,7 +177,7 @@ function open_station_component( $tag, $attrs = array(), $content = '' ) {
  * one place so PHP `'padding' => 16` and JS `padding: 16` make
  * the same visual decision.
  */
-const OPEN_STATION_LENGTH_CSS_PROPERTIES = array(
+const OPENSTATION_LENGTH_CSS_PROPERTIES = array(
 	'width', 'height',
 	'min-width', 'min-height', 'max-width', 'max-height',
 	'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
@@ -215,7 +215,7 @@ const OPEN_STATION_LENGTH_CSS_PROPERTIES = array(
  * @return string CSS declaration list, or empty string when no
  *                valid declarations were produced.
  */
-function open_station_serialize_style_array( $styles ) {
+function openstation_serialize_style_array( $styles ) {
 	if ( ! is_array( $styles ) ) {
 		return '';
 	}
@@ -228,7 +228,7 @@ function open_station_serialize_style_array( $styles ) {
 		if ( false === $value || null === $value ) {
 			continue;
 		}
-		$serialized = open_station_format_css_value( $prop, $value );
+		$serialized = openstation_format_css_value( $prop, $value );
 		if ( '' === $serialized ) {
 			continue;
 		}
@@ -255,7 +255,7 @@ function open_station_serialize_style_array( $styles ) {
  * @return string CSS value, or empty string when $value is
  *                not serializable.
  */
-function open_station_format_css_value( $property, $value ) {
+function openstation_format_css_value( $property, $value ) {
 	if ( is_bool( $value ) || null === $value ) {
 		return '';
 	}
@@ -267,7 +267,7 @@ function open_station_format_css_value( $property, $value ) {
 		if ( '0' === $text ) {
 			return '0';
 		}
-		if ( in_array( $property, OPEN_STATION_LENGTH_CSS_PROPERTIES, true ) ) {
+		if ( in_array( $property, OPENSTATION_LENGTH_CSS_PROPERTIES, true ) ) {
 			return $text . 'px';
 		}
 	}
@@ -331,7 +331,7 @@ function open_station_format_css_value( $property, $value ) {
  *
  * ```php
  * add_action( 'admin_enqueue_scripts', function () {
- *     open_station_enqueue_script(
+ *     openstation_enqueue_script(
  *         'my-plugin',
  *         plugins_url( 'my-plugin.js', __FILE__ ),
  *         array(),           // extra deps on top of the desktop defaults
@@ -346,13 +346,13 @@ function open_station_format_css_value( $property, $value ) {
  * @param string[]        $extra_deps Additional dependency handles. `openstation`
  *                                   and `wp-hooks` are always prepended.
  * @param string|bool|null $version  Version string, or `false` for none.
- *                                   Defaults to `OPEN_STATION_VERSION` so plugin authors
+ *                                   Defaults to `OPENSTATION_VERSION` so plugin authors
  *                                   don't have to busy-track cache busting.
  * @param bool            $in_footer Whether to enqueue in the footer. Defaults
  *                                   to `true` — the shell is always in head.
  * @return void
  */
-function open_station_enqueue_script( $handle, $src, $extra_deps = array(), $version = null, $in_footer = true ) {
+function openstation_enqueue_script( $handle, $src, $extra_deps = array(), $version = null, $in_footer = true ) {
 	$deps = array_merge(
 		array( 'openstation', 'wp-hooks' ),
 		is_array( $extra_deps ) ? $extra_deps : array()
@@ -362,7 +362,7 @@ function open_station_enqueue_script( $handle, $src, $extra_deps = array(), $ver
 		$handle,
 		$src,
 		$deps,
-		null === $version ? OPEN_STATION_VERSION : $version,
+		null === $version ? OPENSTATION_VERSION : $version,
 		$in_footer
 	);
 }

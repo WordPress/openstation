@@ -23,7 +23,7 @@
  *   - Only `GET` collection, `GET` item, and `DELETE` item (trash, for
  *     recycle-bin parity) are registered. No create, no update — a
  *     write schema the type's author never vetted is a footgun.
- *   - `open_station_my_wordpress_post_type_rest_enabled` lets a site or
+ *   - `openstation_my_wordpress_post_type_rest_enabled` lets a site or
  *     the owning plugin veto the bridge per type.
  *
  * @package OpenStation
@@ -35,7 +35,7 @@ defined( 'ABSPATH' ) || exit;
  * Read-and-trash REST controller for a post type that is not exposed
  * on `wp/v2`.
  */
-class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Controller {
+class OpenStation_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Controller {
 
 	/**
 	 * Constructor.
@@ -49,7 +49,7 @@ class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	public function __construct( $post_type ) {
 		parent::__construct( $post_type );
 
-		$this->namespace = OPEN_STATION_MY_WORDPRESS_POST_TYPE_NAMESPACE;
+		$this->namespace = OPENSTATION_MY_WORDPRESS_POST_TYPE_NAMESPACE;
 		$this->rest_base = 'post-type/' . $post_type;
 	}
 
@@ -127,7 +127,7 @@ class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 * @return true|WP_Error
 	 */
 	public function get_items_permissions_check( $request ) {
-		$denied = $this->open_station_require_edit_capability();
+		$denied = $this->openstation_require_edit_capability();
 		if ( is_wp_error( $denied ) ) {
 			return $denied;
 		}
@@ -141,7 +141,7 @@ class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 * @return true|WP_Error
 	 */
 	public function get_item_permissions_check( $request ) {
-		$denied = $this->open_station_require_edit_capability();
+		$denied = $this->openstation_require_edit_capability();
 		if ( is_wp_error( $denied ) ) {
 			return $denied;
 		}
@@ -155,7 +155,7 @@ class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 * @return true|WP_Error
 	 */
 	public function delete_item_permissions_check( $request ) {
-		$denied = $this->open_station_require_edit_capability();
+		$denied = $this->openstation_require_edit_capability();
 		if ( is_wp_error( $denied ) ) {
 			return $denied;
 		}
@@ -220,11 +220,11 @@ class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 	 *
 	 * @return true|WP_Error
 	 */
-	protected function open_station_require_edit_capability() {
+	protected function openstation_require_edit_capability() {
 		$post_type = get_post_type_object( $this->post_type );
 		if ( ! $post_type instanceof WP_Post_Type || empty( $post_type->cap->edit_posts ) ) {
 			return new WP_Error(
-				'open_station_rest_unknown_post_type',
+				'openstation_rest_unknown_post_type',
 				__( 'Sorry, that content type is not available.', 'desktop-mode' ),
 				array( 'status' => 404 )
 			);
@@ -232,7 +232,7 @@ class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
 
 		if ( ! current_user_can( $post_type->cap->edit_posts ) ) {
 			return new WP_Error(
-				'open_station_rest_forbidden',
+				'openstation_rest_forbidden',
 				__( 'Sorry, you are not allowed to browse this content type.', 'desktop-mode' ),
 				array( 'status' => rest_authorization_required_code() )
 			);
@@ -250,20 +250,20 @@ class Open_Station_My_WordPress_Post_Type_Controller extends WP_REST_Posts_Contr
  *
  * @return void
  */
-function open_station_my_wordpress_register_post_type_routes() {
-	if ( ! open_station_my_wordpress_user_can_use() ) {
+function openstation_my_wordpress_register_post_type_routes() {
+	if ( ! openstation_my_wordpress_user_can_use() ) {
 		return;
 	}
 
-	foreach ( open_station_my_wordpress_eligible_post_types() as $name => $post_type ) {
+	foreach ( openstation_my_wordpress_eligible_post_types() as $name => $post_type ) {
 		if ( ! empty( $post_type->show_in_rest ) ) {
 			continue;
 		}
-		if ( ! open_station_my_wordpress_post_type_is_bridged( $name ) ) {
+		if ( ! openstation_my_wordpress_post_type_is_bridged( $name ) ) {
 			continue;
 		}
-		$controller = new Open_Station_My_WordPress_Post_Type_Controller( $name );
+		$controller = new OpenStation_My_WordPress_Post_Type_Controller( $name );
 		$controller->register_routes();
 	}
 }
-add_action( 'rest_api_init', 'open_station_my_wordpress_register_post_type_routes' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_post_type_routes' );

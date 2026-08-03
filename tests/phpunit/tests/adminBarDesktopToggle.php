@@ -46,9 +46,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 	public function tear_down() {
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
-		remove_all_filters( 'open_station_shell_config' );
-		remove_all_filters( 'open_station_arrange_menu_items' );
-		unset( $_GET['open_station_chromeless'] );
+		remove_all_filters( 'openstation_shell_config' );
+		remove_all_filters( 'openstation_arrange_menu_items' );
+		unset( $_GET['openstation_chromeless'] );
 		parent::tear_down();
 	}
 
@@ -57,12 +57,12 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 */
 	private function build_admin_bar() {
 		$admin_bar = new WP_Admin_Bar();
-		open_station_admin_bar_toggle( $admin_bar );
+		openstation_admin_bar_toggle( $admin_bar );
 		return $admin_bar;
 	}
 
 	/**
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_toggle_is_added_for_admin_in_admin() {
 		wp_set_current_user( self::$admin_id );
@@ -74,7 +74,7 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_toggle_is_not_added_for_logged_out_user() {
 		wp_set_current_user( 0 );
@@ -87,7 +87,7 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * the admin bar is used by logged-in users too, but the OpenStation
 	 * toggle is admin-only.
 	 *
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_toggle_is_not_added_on_front_end() {
 		wp_set_current_user( self::$admin_id );
@@ -97,9 +97,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
-	public function test_toggle_title_switches_when_open_station_is_active() {
+	public function test_toggle_title_switches_when_openstation_is_active() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 		$bar  = $this->build_admin_bar();
@@ -110,9 +110,9 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
-	public function test_toggle_title_advertises_open_station_when_inactive() {
+	public function test_toggle_title_advertises_openstation_when_inactive() {
 		wp_set_current_user( self::$admin_id );
 		$bar  = $this->build_admin_bar();
 		$node = $bar->get_node( 'os-toggle' );
@@ -126,7 +126,7 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * so it runs before the secondary groups render. Registration happens
 	 * inside WP_Admin_Bar::add_menus(), so we need to build the bar first.
 	 *
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_toggle_is_registered_on_admin_bar_menu_action() {
 		wp_set_current_user( self::$admin_id );
@@ -135,17 +135,17 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 		$this->assertSame(
 			190,
-			has_action( 'admin_bar_menu', 'open_station_admin_bar_toggle' )
+			has_action( 'admin_bar_menu', 'openstation_admin_bar_toggle' )
 		);
 	}
 
 	/**
-	 * @covers ::open_station_enqueue_toggle_assets
+	 * @covers ::openstation_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_are_added_to_admin_bar_style() {
 		wp_set_current_user( self::$admin_id );
 
-		open_station_enqueue_toggle_assets();
+		openstation_enqueue_toggle_assets();
 
 		$after  = wp_styles()->get_data( 'admin-bar', 'after' );
 		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
@@ -158,12 +158,12 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * on the `os-admin-bar` handle, so we assert the nonce that
 	 * lands in that script's `data` matches wp_create_nonce( 'save-openstation' ).
 	 *
-	 * @covers ::open_station_enqueue_toggle_assets
+	 * @covers ::openstation_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_nonce_is_baked_into_inline_script() {
 		wp_set_current_user( self::$admin_id );
 
-		open_station_enqueue_toggle_assets();
+		openstation_enqueue_toggle_assets();
 
 		$before = wp_scripts()->get_data( 'os-admin-bar', 'before' );
 		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
@@ -179,12 +179,12 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * test asserts the expected JSON shape lands on the os-admin-bar
 	 * handle so the contract is held end-to-end.
 	 *
-	 * @covers ::open_station_enqueue_toggle_assets
+	 * @covers ::openstation_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_config_is_json_encoded() {
 		wp_set_current_user( self::$admin_id );
 
-		open_station_enqueue_toggle_assets();
+		openstation_enqueue_toggle_assets();
 
 		$before = wp_scripts()->get_data( 'os-admin-bar', 'before' );
 		$data   = is_array( $before ) ? implode( '', $before ) : (string) $before;
@@ -201,12 +201,12 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * The function exits early for logged-out users. We verify that by
 	 * checking the toggle-specific selector is NOT in the inline CSS.
 	 *
-	 * @covers ::open_station_enqueue_toggle_assets
+	 * @covers ::openstation_enqueue_toggle_assets
 	 */
 	public function test_toggle_assets_skipped_for_logged_out_user() {
 		wp_set_current_user( 0 );
 
-		open_station_enqueue_toggle_assets();
+		openstation_enqueue_toggle_assets();
 
 		$after  = wp_styles()->get_data( 'admin-bar', 'after' );
 		$inline = is_array( $after ) ? implode( '', $after ) : (string) $after;
@@ -214,25 +214,25 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_enqueue_assets
+	 * @covers ::openstation_enqueue_assets
 	 */
-	public function test_open_station_assets_not_enqueued_when_mode_off() {
+	public function test_openstation_assets_not_enqueued_when_mode_off() {
 		wp_set_current_user( self::$admin_id );
 
-		open_station_enqueue_assets();
+		openstation_enqueue_assets();
 
 		$this->assertFalse( wp_style_is( 'openstation', 'enqueued' ) );
 		$this->assertFalse( wp_script_is( 'openstation', 'enqueued' ) );
 	}
 
 	/**
-	 * @covers ::open_station_enqueue_assets
+	 * @covers ::openstation_enqueue_assets
 	 */
-	public function test_open_station_assets_enqueued_when_mode_on() {
+	public function test_openstation_assets_enqueued_when_mode_on() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
-		open_station_enqueue_assets();
+		openstation_enqueue_assets();
 
 		$this->assertTrue( wp_style_is( 'openstation', 'enqueued' ) );
 		$this->assertTrue( wp_style_is( 'os-windows', 'enqueued' ) );
@@ -244,14 +244,14 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * Chromeless requests must get the chromeless stylesheet but NOT the
 	 * full shell assets — the shell lives in the parent frame.
 	 *
-	 * @covers ::open_station_enqueue_assets
+	 * @covers ::openstation_enqueue_assets
 	 */
 	public function test_chromeless_request_enqueues_chromeless_style_only() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
-		open_station_enqueue_assets();
+		openstation_enqueue_assets();
 
 		$this->assertTrue( wp_style_is( 'os-chromeless', 'enqueued' ) );
 		$this->assertFalse( wp_style_is( 'os-windows', 'enqueued' ) );
@@ -260,13 +260,13 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_enqueue_assets
+	 * @covers ::openstation_enqueue_assets
 	 */
-	public function test_open_station_assets_localize_shell_config() {
+	public function test_openstation_assets_localize_shell_config() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
-		open_station_enqueue_assets();
+		openstation_enqueue_assets();
 
 		$data = wp_scripts()->get_data( 'openstation', 'data' );
 		$this->assertNotEmpty( $data );
@@ -275,31 +275,31 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_enqueue_assets
+	 * @covers ::openstation_enqueue_assets
 	 */
 	public function test_shell_config_filter_can_replace_entire_config() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'open_station_shell_config',
+			'openstation_shell_config',
 			function () {
 				return array( 'currentTitle' => 'Filtered Title' );
 			}
 		);
 
-		open_station_enqueue_assets();
+		openstation_enqueue_assets();
 
 		$data = (string) wp_scripts()->get_data( 'openstation', 'data' );
 		$this->assertStringContainsString( 'Filtered Title', $data );
 	}
 
 	/**
-	 * @covers ::open_station_enqueue_assets
+	 * @covers ::openstation_enqueue_assets
 	 */
 	public function test_default_filters_wire_enqueue_callbacks_to_admin_enqueue_scripts() {
-		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'open_station_enqueue_toggle_assets' ) );
-		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'open_station_enqueue_assets' ) );
+		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'openstation_enqueue_toggle_assets' ) );
+		$this->assertNotFalse( has_action( 'admin_enqueue_scripts', 'openstation_enqueue_assets' ) );
 	}
 
 	/**
@@ -307,7 +307,7 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * mode is active. Only validates presence + parenting; each item's
 	 * click wiring lives in the inline JS under the toggle assets.
 	 *
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_arrange_menu_has_builtins_when_active() {
 		wp_set_current_user( self::$admin_id );
@@ -324,19 +324,19 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 
 	/**
 	 * Plugins add entries to the Arrange submenu via the
-	 * `open_station_arrange_menu_items` filter. Each entry becomes an
+	 * `openstation_arrange_menu_items` filter. Each entry becomes an
 	 * admin-bar node under `desktop-layout-menu` with id prefixed by
 	 * `desktop-layout-custom-` — the inline JS routes its click to
 	 * `os.arrange.custom-action` with the original slug.
 	 *
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_arrange_menu_appends_custom_items_from_filter() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'open_station_arrange_menu_items',
+			'openstation_arrange_menu_items',
 			function ( $items ) {
 				$items[] = array(
 					'id'          => 'diagonal',
@@ -360,14 +360,14 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * Entries missing `id` or `title` are silently dropped — plugins
 	 * can't accidentally create an unrouteable menu item.
 	 *
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_arrange_menu_drops_invalid_custom_items() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'open_station_arrange_menu_items',
+			'openstation_arrange_menu_items',
 			function ( $items ) {
 				$items[] = array( 'title' => 'No ID' );
 				$items[] = array( 'id' => 'no-title' );
@@ -387,14 +387,14 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	/**
 	 * `position` sorts custom items; ties preserve registration order.
 	 *
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_arrange_menu_sorts_custom_items_by_position() {
 		wp_set_current_user( self::$admin_id );
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
 
 		add_filter(
-			'open_station_arrange_menu_items',
+			'openstation_arrange_menu_items',
 			function ( $items ) {
 				$items[] = array( 'id' => 'late',  'title' => 'Late',  'position' => 50 );
 				$items[] = array( 'id' => 'early', 'title' => 'Early', 'position' => 5 );
@@ -430,14 +430,14 @@ class Tests_OpenStation_AdminBarDesktopToggle extends WP_UnitTestCase {
 	 * i.e., the user is viewing the desktop shell. On classic admin
 	 * the filter is never invoked so plugins don't waste cycles.
 	 *
-	 * @covers ::open_station_admin_bar_toggle
+	 * @covers ::openstation_admin_bar_toggle
 	 */
 	public function test_arrange_menu_filter_not_invoked_in_classic_admin() {
 		wp_set_current_user( self::$admin_id );
 		// Default: desktop meta off → classic admin.
 		$invocations = 0;
 		add_filter(
-			'open_station_arrange_menu_items',
+			'openstation_arrange_menu_items',
 			function ( $items ) use ( &$invocations ) {
 				$invocations++;
 				return $items;

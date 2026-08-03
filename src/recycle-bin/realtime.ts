@@ -16,7 +16,7 @@
  *
  *   2. **Catch-all — Heartbeat.**
  *      We hook `heartbeat-send` to attach
- *      `open_station_recycle_bin_seen_ts` on every outgoing tick (more
+ *      `openstation_recycle_bin_seen_ts` on every outgoing tick (more
  *      reliable than `enqueue()`, which the queue clears post-
  *      send) and `heartbeat-tick` to read the response. Covers
  *      AJAX trash actions, REST `DELETE`, other tabs, WP-CLI.
@@ -30,7 +30,7 @@
 const EVENT_NAME = 'os-recycle-bin-changed';
 // Heartbeat sends the data object as `_POST['data'][key]`. The
 // key IS the field name our `heartbeat_received` filter reads.
-const HEARTBEAT_FIELD = 'open_station_recycle_bin_seen_ts';
+const HEARTBEAT_FIELD = 'openstation_recycle_bin_seen_ts';
 const POSTMESSAGE_TYPE = 'os-recycle-bin-changed';
 
 type DetailKind = 'restore' | 'purge' | 'empty' | 'external';
@@ -86,7 +86,7 @@ function dispatchChanged( source: ChangedDetail[ 'source' ], ts?: number ): void
 
 	const hooks = window.wp?.hooks;
 	if ( hooks && typeof hooks.doAction === 'function' ) {
-		hooks.doAction( 'open_station.recycleBin.changed', detail );
+		hooks.doAction( 'openstation.recycleBin.changed', detail );
 	}
 }
 
@@ -155,9 +155,9 @@ export function start(): void {
 
 	state.heartbeatTickHandler = ( ...args: unknown[] ): void => {
 		const response = args[ 1 ] as
-			| { open_station_recycle_bin?: { changed?: boolean; ts?: number } }
+			| { openstation_recycle_bin?: { changed?: boolean; ts?: number } }
 			| undefined;
-		const block = response?.open_station_recycle_bin;
+		const block = response?.openstation_recycle_bin;
 		if ( ! block ) {
 			return;
 		}

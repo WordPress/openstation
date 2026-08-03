@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the games registry: registration validation, score
- * column sanitization, the `open_station_games` filter, and the
+ * column sanitization, the `openstation_games` filter, and the
  * `serverGames` payload.
  *
  * @package WordPress
@@ -24,15 +24,15 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		remove_all_filters( 'open_station_games' );
+		remove_all_filters( 'openstation_games' );
 		foreach ( array( 'test-game', 'other-game', 'filter-game' ) as $id ) {
-			open_station_unregister_game( $id );
+			openstation_unregister_game( $id );
 		}
 		parent::tear_down();
 	}
 
 	private function register_test_game( $id = 'test-game', $overrides = array() ) {
-		return open_station_register_game(
+		return openstation_register_game(
 			$id,
 			wp_parse_args(
 				$overrides,
@@ -48,50 +48,50 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_register_game
+	 * @covers ::openstation_register_game
 	 */
 	public function test_register_requires_title() {
-		$result = open_station_register_game( 'test-game', array( 'script' => 'x' ) );
+		$result = openstation_register_game( 'test-game', array( 'script' => 'x' ) );
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_missing_title', $result->get_error_code() );
+		$this->assertSame( 'openstation_missing_title', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_register_game
+	 * @covers ::openstation_register_game
 	 */
 	public function test_register_requires_script() {
-		$result = open_station_register_game( 'test-game', array( 'title' => 'X' ) );
+		$result = openstation_register_game( 'test-game', array( 'title' => 'X' ) );
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_missing_script', $result->get_error_code() );
+		$this->assertSame( 'openstation_missing_script', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_register_game
+	 * @covers ::openstation_register_game
 	 */
 	public function test_register_rejects_script_tag_in_icon_svg() {
 		$result = $this->register_test_game( 'test-game', array(
 			'icon_svg' => '<svg><script>alert(1)</script></svg>',
 		) );
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_invalid_icon_svg', $result->get_error_code() );
+		$this->assertSame( 'openstation_invalid_icon_svg', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_register_game
+	 * @covers ::openstation_register_game
 	 */
 	public function test_register_converts_icon_svg_to_data_uri() {
 		$this->assertTrue( $this->register_test_game( 'test-game', array(
 			'icon_svg' => '<svg xmlns="http://www.w3.org/2000/svg"></svg>',
 		) ) );
-		$entry = open_station_games_registry( 'test-game' );
+		$entry = openstation_games_registry( 'test-game' );
 		$this->assertStringStartsWith( 'data:image/svg+xml;base64,', $entry['icon'] );
 	}
 
 	/**
-	 * @covers ::open_station_games_sanitize_score_columns
+	 * @covers ::openstation_games_sanitize_score_columns
 	 */
 	public function test_score_columns_are_sanitized() {
-		$columns = open_station_games_sanitize_score_columns( array(
+		$columns = openstation_games_sanitize_score_columns( array(
 			array( 'key' => 'score', 'label' => 'Score', 'type' => 'number' ),
 			array( 'key' => 'Time!', 'type' => 'bogus' ),
 			array( 'label' => 'No key' ),
@@ -107,12 +107,12 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_register_game
+	 * @covers ::openstation_register_game
 	 */
 	public function test_register_fires_action() {
 		$seen = null;
 		add_action(
-			'open_station_game_registered',
+			'openstation_game_registered',
 			static function ( $id, $entry ) use ( &$seen ) {
 				$seen = array( $id, $entry );
 			},
@@ -126,43 +126,43 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_games_is_registered
+	 * @covers ::openstation_games_is_registered
 	 */
 	public function test_is_registered_sees_registry_and_filter_entries() {
-		$this->assertFalse( open_station_games_is_registered( 'test-game' ) );
+		$this->assertFalse( openstation_games_is_registered( 'test-game' ) );
 		$this->register_test_game();
-		$this->assertTrue( open_station_games_is_registered( 'test-game' ) );
+		$this->assertTrue( openstation_games_is_registered( 'test-game' ) );
 
 		add_filter(
-			'open_station_games',
+			'openstation_games',
 			static function ( $games ) {
 				$games[] = array( 'id' => 'filter-game', 'title' => 'Filtered' );
 				return $games;
 			}
 		);
-		$this->assertTrue( open_station_games_is_registered( 'filter-game' ) );
-		$this->assertFalse( open_station_games_is_registered( 'unknown-game' ) );
+		$this->assertTrue( openstation_games_is_registered( 'filter-game' ) );
+		$this->assertFalse( openstation_games_is_registered( 'unknown-game' ) );
 	}
 
 	/**
-	 * @covers ::open_station_unregister_game
+	 * @covers ::openstation_unregister_game
 	 */
 	public function test_unregister_removes_entry() {
 		$this->register_test_game();
-		$this->assertTrue( open_station_unregister_game( 'test-game' ) );
-		$this->assertFalse( open_station_games_is_registered( 'test-game' ) );
-		$this->assertFalse( open_station_unregister_game( 'test-game' ) );
+		$this->assertTrue( openstation_unregister_game( 'test-game' ) );
+		$this->assertFalse( openstation_games_is_registered( 'test-game' ) );
+		$this->assertFalse( openstation_unregister_game( 'test-game' ) );
 	}
 
 	/**
-	 * @covers ::open_station_build_desktop_games_payload
+	 * @covers ::openstation_build_desktop_games_payload
 	 */
 	public function test_payload_shape() {
 		$this->register_test_game( 'test-game', array(
 			'description' => 'A test game.',
 			'config'      => array( 'wordsUrl' => 'https://example.test/words.txt' ),
 		) );
-		$payload = open_station_build_desktop_games_payload();
+		$payload = openstation_build_desktop_games_payload();
 		$entry   = null;
 		foreach ( $payload as $row ) {
 			if ( 'test-game' === $row['id'] ) {
@@ -179,11 +179,11 @@ class Tests_OpenStation_GamesRegistry extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_build_menu_payload
+	 * @covers ::openstation_build_menu_payload
 	 */
 	public function test_menu_payload_carries_server_games_key() {
 		$this->register_test_game();
-		$payload = open_station_build_menu_payload();
+		$payload = openstation_build_menu_payload();
 		$this->assertArrayHasKey( 'serverGames', $payload );
 		$ids = wp_list_pluck( $payload['serverGames'], 'id' );
 		$this->assertContains( 'test-game', $ids );

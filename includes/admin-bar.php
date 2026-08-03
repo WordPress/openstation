@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @param WP_Admin_Bar $wp_admin_bar The WP_Admin_Bar instance.
  */
-function open_station_admin_bar_toggle( $wp_admin_bar ) {
+function openstation_admin_bar_toggle( $wp_admin_bar ) {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
@@ -33,7 +33,7 @@ function open_station_admin_bar_toggle( $wp_admin_bar ) {
 	// click would disable OpenStation entirely (redirecting to
 	// classic admin) instead of taking them back into the shell.
 	// The second click would then re-enable it — a two-click trap.
-	$is_active = open_station_is_enabled() && ! open_station_is_classic_request();
+	$is_active = openstation_is_enabled() && ! openstation_is_classic_request();
 	$label     = $is_active
 		? __( 'Switch to Classic Admin', 'desktop-mode' )
 		: __( 'Switch to OpenStation', 'desktop-mode' );
@@ -173,7 +173,7 @@ function open_station_admin_bar_toggle( $wp_admin_bar ) {
 		 *
 		 * @param array $items Existing custom items (default empty).
 		 */
-		$custom = apply_filters( 'open_station_arrange_menu_items', array() );
+		$custom = apply_filters( 'openstation_arrange_menu_items', array() );
 		if ( is_array( $custom ) ) {
 			// Stable sort by `position` (default 10 — after built-ins),
 			// preserving registration order within a tie.
@@ -275,7 +275,7 @@ function open_station_admin_bar_toggle( $wp_admin_bar ) {
 		);
 	}
 }
-add_action( 'admin_bar_menu', 'open_station_admin_bar_toggle', 190 );
+add_action( 'admin_bar_menu', 'openstation_admin_bar_toggle', 190 );
 
 /**
  * Enqueues the CSS and JS for the OpenStation toggle.
@@ -286,7 +286,7 @@ add_action( 'admin_bar_menu', 'open_station_admin_bar_toggle', 190 );
  * `os-admin-bar` with `admin-bar` as a dependency; its config is
  * emitted as an inline JSON literal `before` the script.
  */
-function open_station_enqueue_toggle_assets() {
+function openstation_enqueue_toggle_assets() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
@@ -661,16 +661,16 @@ function open_station_enqueue_toggle_assets() {
 	// raw into the script body) so special characters, quotes, and
 	// unexpected shapes can't break the parser or be exploited.
 	// `active` must match the visual state shown on the toggle above —
-	// i.e. "currently viewing OpenStation." Using `open_station_is_enabled()`
+	// i.e. "currently viewing OpenStation." Using `openstation_is_enabled()`
 	// alone would misclassify a classic-override request (meta = '1',
 	// URL carrying `desktop_mode_classic=1`) as active, causing the
 	// click handler to send `enabled=0` when the user actually wants
 	// to return to the shell.
 	wp_register_script(
 		'os-admin-bar',
-		OPEN_STATION_URL . 'assets/js/admin-bar.js',
+		OPENSTATION_URL . 'assets/js/admin-bar.js',
 		array( 'admin-bar' ),
-		OPEN_STATION_VERSION,
+		OPENSTATION_VERSION,
 		true
 	);
 	// Emit the config as a JSON literal via wp_add_inline_script (not
@@ -682,9 +682,9 @@ function open_station_enqueue_toggle_assets() {
 		'var openStationAdminBar = ' . wp_json_encode(
 			array(
 				'nonce'      => wp_create_nonce( 'save-openstation' ),
-				'active'     => open_station_is_enabled() && ! open_station_is_classic_request(),
+				'active'     => openstation_is_enabled() && ! openstation_is_classic_request(),
 				'classicUrl' => esc_url_raw( admin_url() ),
-				'portalUrl'  => esc_url_raw( open_station_portal_url() ),
+				'portalUrl'  => esc_url_raw( openstation_portal_url() ),
 				'ajaxUrl'    => esc_url_raw( admin_url( 'admin-ajax.php' ) ),
 				'i18n'       => array(
 					'enterFullscreen' => __( 'Fullscreen', 'desktop-mode' ),
@@ -775,5 +775,5 @@ function open_station_enqueue_toggle_assets() {
 	);
 	wp_enqueue_script( 'os-admin-bar' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_toggle_assets' );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_toggle_assets' );
 

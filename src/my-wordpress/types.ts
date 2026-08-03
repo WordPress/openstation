@@ -92,7 +92,7 @@ export interface MyWordPressEntity {
 /**
  * Root-level folder grouping sections by the plugin or theme that
  * registered them. Shipped from PHP via
- * `open_station_my_wordpress_post_type_groups`; the bundle falls back
+ * `openstation_my_wordpress_post_type_groups`; the bundle falls back
  * to deriving groups from the entity list when absent.
  *
  * @public
@@ -109,9 +109,9 @@ export interface MyWordPressConfig {
 	restNonce: string;
 	/**
 	 * The site's own name, used as the window title and the
-	 * breadcrumb root. Sourced from `open_station_site_title()`
+	 * breadcrumb root. Sourced from `openstation_site_title()`
 	 * server-side, so it already honours the
-	 * `open_station_site_title` filter and is entity-decoded.
+	 * `openstation_site_title` filter and is entity-decoded.
 	 */
 	siteName?: string;
 	editPostUrlBase: string;
@@ -130,12 +130,12 @@ export interface MyWordPressConfig {
 	/**
 	 * Per-page count for the Media grid. Media tiles are denser than
 	 * post tiles, so the default (`48`) is higher than the post
-	 * default. Filterable server-side via `open_station_my_wordpress_window_args`.
+	 * default. Filterable server-side via `openstation_my_wordpress_window_args`.
 	 */
 	mediaPerPage?: number;
 	/**
 	 * Server-declared preview-action descriptors collected via
-	 * `open_station_my_wordpress_preview_actions`. Already capability-
+	 * `openstation_my_wordpress_preview_actions`. Already capability-
 	 * gated — never present here unless the current user can run
 	 * the action.
 	 */
@@ -144,7 +144,7 @@ export interface MyWordPressConfig {
 
 /**
  * Server-declared descriptor for a right-pane action button.
- * Plugins push these via `open_station_my_wordpress_preview_actions`
+ * Plugins push these via `openstation_my_wordpress_preview_actions`
  * (PHP) and complete the JS handler via the
  * `os.my-wordpress.preview-actions` filter.
  *
@@ -222,7 +222,7 @@ export interface EntityListItem {
 	status?: string;
 	featured_media?: number;
 	link?: string;
-	open_station_lock?: EntityLock | null;
+	openstation_lock?: EntityLock | null;
 	_embedded?: {
 		'wp:featuredmedia'?: Array< {
 			id: number;
@@ -256,16 +256,16 @@ export interface EntityDetail {
 	categories?: number[];
 	tags?: number[];
 	comment_status?: string;
-	open_station_contributors?: ContributorRef[];
+	openstation_contributors?: ContributorRef[];
 	/**
 	 * Authoritative list of attachment ids referenced by this post —
 	 * featured image + every attachment found in `post_content`
 	 * (class scan + raw `<img src>` URL resolution). Computed
-	 * server-side by the `open_station_attached_media` REST field;
+	 * server-side by the `openstation_attached_media` REST field;
 	 * the regex-based `extractContentMediaIds` is a fallback for
 	 * older API responses that don't carry this.
 	 */
-	open_station_attached_media?: number[];
+	openstation_attached_media?: number[];
 	_links?: Record< string, Array< { href: string; count?: number } > >;
 	_embedded?: EntityListItem[ '_embedded' ] & {
 		author?: Array< {
@@ -295,7 +295,7 @@ export interface ListResult {
 
 /**
  * Compact user row returned by `/wp/v2/users` plus the
- * `open_station_summary` REST field — enough to paint a rich
+ * `openstation_summary` REST field — enough to paint a rich
  * tile without an extra round-trip per row.
  */
 export interface UserListItem {
@@ -305,7 +305,7 @@ export interface UserListItem {
 	description?: string;
 	link?: string;
 	avatar_urls?: Record< string, string >;
-	open_station_summary?: {
+	openstation_summary?: {
 		postCount: number;
 		roleLabels: string[];
 		registered: string;
@@ -395,7 +395,7 @@ export type SubRelation =
 	| 'revisions';
 
 /**
- * Compact user shape returned by the `open_station_contributors`
+ * Compact user shape returned by the `openstation_contributors`
  * REST field. Enough to paint a tile + tooltip without an extra
  * `/wp/v2/users/<id>` round-trip per row.
  */

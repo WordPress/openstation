@@ -34,16 +34,16 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function open_station_user_edit_window_register_rest_routes() {
+function openstation_user_edit_window_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/users/(?P<id>\d+)/insights',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_user_edit_window_rest_insights',
+			'callback'            => 'openstation_user_edit_window_rest_insights',
 			'permission_callback' => static function ( $req ) {
 				$id = (int) $req->get_param( 'id' );
-				return open_station_user_edit_window_can_edit(
+				return openstation_user_edit_window_can_edit(
 					(int) get_current_user_id(),
 					$id
 				);
@@ -60,7 +60,7 @@ function open_station_user_edit_window_register_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_user_edit_window_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_user_edit_window_register_rest_routes' );
 
 /**
  * Register the personal-options user-meta keys with `show_in_rest`
@@ -71,7 +71,7 @@ add_action( 'rest_api_init', 'open_station_user_edit_window_register_rest_routes
  * classic profile.php save) but the REST controller ignores
  * `meta.rich_editing` etc. on update.
  */
-function open_station_user_edit_window_register_meta() {
+function openstation_user_edit_window_register_meta() {
 	$keys = array(
 		'rich_editing'        => 'string',
 		'syntax_highlighting' => 'string',
@@ -101,23 +101,23 @@ function open_station_user_edit_window_register_meta() {
 		);
 	}
 }
-add_action( 'init', 'open_station_user_edit_window_register_meta' );
+add_action( 'init', 'openstation_user_edit_window_register_meta' );
 
 /**
  * `POST /users/<id>/destroy-other-sessions` — log out everywhere
  * else (current device kept). Mirrors the WP-core
  * `destroy-sessions` AJAX action.
  */
-function open_station_user_edit_window_destroy_sessions_route() {
+function openstation_user_edit_window_destroy_sessions_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/users/(?P<id>\d+)/destroy-sessions',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => 'open_station_user_edit_window_rest_destroy_sessions',
+			'callback'            => 'openstation_user_edit_window_rest_destroy_sessions',
 			'permission_callback' => static function ( $req ) {
 				$id = (int) $req->get_param( 'id' );
-				return open_station_user_edit_window_can_edit(
+				return openstation_user_edit_window_can_edit(
 					(int) get_current_user_id(),
 					$id
 				);
@@ -129,14 +129,14 @@ function open_station_user_edit_window_destroy_sessions_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_user_edit_window_destroy_sessions_route' );
+add_action( 'rest_api_init', 'openstation_user_edit_window_destroy_sessions_route' );
 
-function open_station_user_edit_window_rest_destroy_sessions( $req ) {
+function openstation_user_edit_window_rest_destroy_sessions( $req ) {
 	$id   = (int) $req->get_param( 'id' );
 	$scope = (string) $req->get_param( 'scope' );
 	if ( ! class_exists( 'WP_Session_Tokens' ) ) {
 		return new WP_Error(
-			'open_station_users_no_sessions',
+			'openstation_users_no_sessions',
 			__( 'Session manager unavailable.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
@@ -163,16 +163,16 @@ function open_station_user_edit_window_rest_destroy_sessions( $req ) {
  * Thin wrappers over `WP_Application_Passwords` so the form has a
  * single REST surface to talk to.
  */
-function open_station_user_edit_window_app_passwords_routes() {
+function openstation_user_edit_window_app_passwords_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/users/(?P<id>\d+)/application-passwords',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'open_station_user_edit_window_rest_app_pw_list',
+				'callback'            => 'openstation_user_edit_window_rest_app_pw_list',
 				'permission_callback' => static function ( $req ) {
-					return open_station_user_edit_window_can_edit(
+					return openstation_user_edit_window_can_edit(
 						(int) get_current_user_id(),
 						(int) $req->get_param( 'id' )
 					);
@@ -180,9 +180,9 @@ function open_station_user_edit_window_app_passwords_routes() {
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'open_station_user_edit_window_rest_app_pw_create',
+				'callback'            => 'openstation_user_edit_window_rest_app_pw_create',
 				'permission_callback' => static function ( $req ) {
-					return open_station_user_edit_window_can_edit(
+					return openstation_user_edit_window_can_edit(
 						(int) get_current_user_id(),
 						(int) $req->get_param( 'id' )
 					);
@@ -198,9 +198,9 @@ function open_station_user_edit_window_app_passwords_routes() {
 		'/users/(?P<id>\d+)/application-passwords/(?P<uuid>[a-f0-9-]+)',
 		array(
 			'methods'             => WP_REST_Server::DELETABLE,
-			'callback'            => 'open_station_user_edit_window_rest_app_pw_revoke',
+			'callback'            => 'openstation_user_edit_window_rest_app_pw_revoke',
 			'permission_callback' => static function ( $req ) {
-				return open_station_user_edit_window_can_edit(
+				return openstation_user_edit_window_can_edit(
 					(int) get_current_user_id(),
 					(int) $req->get_param( 'id' )
 				);
@@ -208,7 +208,7 @@ function open_station_user_edit_window_app_passwords_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_user_edit_window_app_passwords_routes' );
+add_action( 'rest_api_init', 'openstation_user_edit_window_app_passwords_routes' );
 
 /**
  * Enforce core's application-password availability policy for a
@@ -222,14 +222,14 @@ add_action( 'rest_api_init', 'open_station_user_edit_window_app_passwords_routes
  * @param int $user_id Target user id.
  * @return WP_Error|null Error when unavailable, null when allowed.
  */
-function open_station_user_edit_window_app_pw_unavailable( $user_id ) {
+function openstation_user_edit_window_app_pw_unavailable( $user_id ) {
 	if (
 		! function_exists( 'wp_is_application_passwords_available' )
 		|| ! wp_is_application_passwords_available()
 		|| ! wp_is_application_passwords_available_for_user( (int) $user_id )
 	) {
 		return new WP_Error(
-			'open_station_users_app_pw_unavailable',
+			'openstation_users_app_pw_unavailable',
 			__( 'Application passwords are not available for this user.', 'desktop-mode' ),
 			array( 'status' => 501 )
 		);
@@ -237,12 +237,12 @@ function open_station_user_edit_window_app_pw_unavailable( $user_id ) {
 	return null;
 }
 
-function open_station_user_edit_window_rest_app_pw_list( $req ) {
+function openstation_user_edit_window_rest_app_pw_list( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return rest_ensure_response( array( 'items' => array() ) );
 	}
 	$id = (int) $req->get_param( 'id' );
-	$unavailable = open_station_user_edit_window_app_pw_unavailable( $id );
+	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
 	}
@@ -250,23 +250,23 @@ function open_station_user_edit_window_rest_app_pw_list( $req ) {
 	return rest_ensure_response( array( 'items' => $apps ) );
 }
 
-function open_station_user_edit_window_rest_app_pw_create( $req ) {
+function openstation_user_edit_window_rest_app_pw_create( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return new WP_Error(
-			'open_station_users_app_pw_unavailable',
+			'openstation_users_app_pw_unavailable',
 			__( 'Application passwords are not available on this site.', 'desktop-mode' ),
 			array( 'status' => 501 )
 		);
 	}
 	$id   = (int) $req->get_param( 'id' );
-	$unavailable = open_station_user_edit_window_app_pw_unavailable( $id );
+	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
 	}
 	$name = sanitize_text_field( (string) $req->get_param( 'name' ) );
 	if ( '' === $name ) {
 		return new WP_Error(
-			'open_station_users_app_pw_name_required',
+			'openstation_users_app_pw_name_required',
 			__( 'Application password name is required.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -286,16 +286,16 @@ function open_station_user_edit_window_rest_app_pw_create( $req ) {
 	);
 }
 
-function open_station_user_edit_window_rest_app_pw_revoke( $req ) {
+function openstation_user_edit_window_rest_app_pw_revoke( $req ) {
 	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
 		return new WP_Error(
-			'open_station_users_app_pw_unavailable',
+			'openstation_users_app_pw_unavailable',
 			__( 'Application passwords are not available on this site.', 'desktop-mode' ),
 			array( 'status' => 501 )
 		);
 	}
 	$id   = (int) $req->get_param( 'id' );
-	$unavailable = open_station_user_edit_window_app_pw_unavailable( $id );
+	$unavailable = openstation_user_edit_window_app_pw_unavailable( $id );
 	if ( is_wp_error( $unavailable ) ) {
 		return $unavailable;
 	}
@@ -314,12 +314,12 @@ function open_station_user_edit_window_rest_app_pw_revoke( $req ) {
  * @param WP_REST_Request $req
  * @return WP_REST_Response|WP_Error
  */
-function open_station_user_edit_window_rest_insights( $req ) {
+function openstation_user_edit_window_rest_insights( $req ) {
 	$id   = (int) $req->get_param( 'id' );
 	$user = $id > 0 ? get_userdata( $id ) : null;
 	if ( ! $user instanceof WP_User ) {
 		return new WP_Error(
-			'open_station_users_not_found',
+			'openstation_users_not_found',
 			__( 'User not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -335,7 +335,7 @@ function open_station_user_edit_window_rest_insights( $req ) {
 		}
 	}
 	if ( null === $payload ) {
-		$payload = open_station_user_edit_window_compute_insights( $user );
+		$payload = openstation_user_edit_window_compute_insights( $user );
 	}
 
 	// Self-view override — the viewer is by definition logged in
@@ -353,16 +353,16 @@ function open_station_user_edit_window_rest_insights( $req ) {
 		$now = time();
 		$stored = (int) get_user_meta(
 			$id,
-			defined( 'OPEN_STATION_LAST_LOGIN_META_KEY' )
-				? OPEN_STATION_LAST_LOGIN_META_KEY
+			defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
+				? OPENSTATION_LAST_LOGIN_META_KEY
 				: '_desktop_mode_last_login_at',
 			true
 		);
 		if ( $stored <= 0 ) {
 			update_user_meta(
 				$id,
-				defined( 'OPEN_STATION_LAST_LOGIN_META_KEY' )
-					? OPEN_STATION_LAST_LOGIN_META_KEY
+				defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
+					? OPENSTATION_LAST_LOGIN_META_KEY
 					: '_desktop_mode_last_login_at',
 				$now
 			);
@@ -395,7 +395,7 @@ function open_station_user_edit_window_rest_insights( $req ) {
 	 * @param array   $payload Insights payload.
 	 * @param WP_User $user    Target user.
 	 */
-	$payload = (array) apply_filters( 'open_station_user_edit_window_insights', $payload, $user );
+	$payload = (array) apply_filters( 'openstation_user_edit_window_insights', $payload, $user );
 
 	set_transient( $cache_key, $payload, MINUTE_IN_SECONDS );
 
@@ -410,7 +410,7 @@ function open_station_user_edit_window_rest_insights( $req ) {
  * @param WP_User $user
  * @return array
  */
-function open_station_user_edit_window_compute_insights( WP_User $user ) {
+function openstation_user_edit_window_compute_insights( WP_User $user ) {
 	$id = (int) $user->ID;
 
 	// ── Profile completeness — count which core fields are non-empty.
@@ -658,8 +658,8 @@ function open_station_user_edit_window_compute_insights( WP_User $user ) {
 		: null;
 	$last_login_ts = (int) get_user_meta(
 		$id,
-		defined( 'OPEN_STATION_LAST_LOGIN_META_KEY' )
-			? OPEN_STATION_LAST_LOGIN_META_KEY
+		defined( 'OPENSTATION_LAST_LOGIN_META_KEY' )
+			? OPENSTATION_LAST_LOGIN_META_KEY
 			: '_desktop_mode_last_login_at',
 		true
 	);

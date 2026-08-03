@@ -33,18 +33,18 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 		parent::set_up();
 		// Other suites unregister every code theme in tear_down, and
 		// `init` has already fired for this process — re-assert it.
-		open_station_register_builtin_desktop_themes();
+		openstation_register_builtin_desktop_themes();
 	}
 
 	public function tear_down() {
-		delete_option( OPEN_STATION_DESKTOP_THEMES_OPTION );
-		remove_all_filters( 'open_station_legacy_theme_manifest_path' );
+		delete_option( OPENSTATION_DESKTOP_THEMES_OPTION );
+		remove_all_filters( 'openstation_legacy_theme_manifest_path' );
 		parent::tear_down();
 	}
 
 	/** The raw manifest, straight off disk. */
 	private function manifest() {
-		$path = OPEN_STATION_DIR . 'assets/desktop-themes/legacy/theme.json';
+		$path = OPENSTATION_DIR . 'assets/desktop-themes/legacy/theme.json';
 		$this->assertFileExists( $path, 'The Legacy theme manifest ships with the plugin.' );
 		$manifest = wp_json_file_decode( $path, array( 'associative' => true ) );
 		$this->assertIsArray( $manifest, 'theme.json is valid JSON.' );
@@ -52,14 +52,14 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_register_builtin_desktop_themes
+	 * @covers ::openstation_register_builtin_desktop_themes
 	 */
 	public function test_legacy_is_registered_as_a_code_theme() {
-		$entry = open_station_desktop_theme_registry( self::SLUG );
+		$entry = openstation_desktop_theme_registry( self::SLUG );
 
 		$this->assertIsArray( $entry );
 		$this->assertSame( self::SLUG, $entry['slug'] );
-		$this->assertSame( 'OpenStation (Legacy)', $entry['manifest']['name'] );
+		$this->assertSame( 'Desktop Mode (Legacy)', $entry['manifest']['name'] );
 		$this->assertSame( 'desktop-mode/legacy', $entry['manifest']['id'] );
 		$this->assertNotSame( '', (string) $entry['cssText'], 'A code theme carries its compiled CSS inline.' );
 	}
@@ -70,9 +70,9 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 * itself, so it also has to survive the asset resolver.
 	 */
 	public function test_legacy_ships_preview_artwork() {
-		$this->assertFileExists( OPEN_STATION_DIR . 'assets/desktop-themes/legacy/preview.svg' );
+		$this->assertFileExists( OPENSTATION_DIR . 'assets/desktop-themes/legacy/preview.svg' );
 
-		$entry = open_station_desktop_theme_registry( self::SLUG );
+		$entry = openstation_desktop_theme_registry( self::SLUG );
 		$this->assertStringEndsWith(
 			'assets/desktop-themes/legacy/preview.svg',
 			(string) $entry['manifest']['preview'],
@@ -86,25 +86,25 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 * which parses with DOMDocument and therefore rejects, among
 	 * other things, a stray `--` inside an XML comment.
 	 *
-	 * @covers ::open_station_desktop_theme_sanitize_svg
+	 * @covers ::openstation_desktop_theme_sanitize_svg
 	 */
 	public function test_preview_artwork_survives_the_svg_sanitizer() {
 		$copy = get_temp_dir() . 'legacy-preview-' . wp_generate_password( 8, false ) . '.svg';
-		copy( OPEN_STATION_DIR . 'assets/desktop-themes/legacy/preview.svg', $copy );
+		copy( OPENSTATION_DIR . 'assets/desktop-themes/legacy/preview.svg', $copy );
 
-		$result = open_station_desktop_theme_sanitize_svg( $copy );
+		$result = openstation_desktop_theme_sanitize_svg( $copy );
 		$after  = file_get_contents( $copy );
 		unlink( $copy );
 
 		$this->assertTrue( $result );
-		$this->assertStringContainsString( 'OpenStation (Legacy)', $after, 'The label survives sanitization.' );
+		$this->assertStringContainsString( 'Desktop Mode (Legacy)', $after, 'The label survives sanitization.' );
 	}
 
 	/**
-	 * @covers ::open_station_build_desktop_themes_payload
+	 * @covers ::openstation_build_desktop_themes_payload
 	 */
 	public function test_legacy_reaches_the_shell_payload() {
-		$payload = open_station_build_desktop_themes_payload();
+		$payload = openstation_build_desktop_themes_payload();
 		$found   = null;
 		foreach ( $payload as $entry ) {
 			if ( self::SLUG === $entry['slug'] ) {
@@ -121,15 +121,15 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	/**
 	 * The whole point of the theme: it cannot be removed.
 	 *
-	 * @covers ::open_station_desktop_theme_delete
+	 * @covers ::openstation_desktop_theme_delete
 	 */
 	public function test_legacy_cannot_be_deleted() {
-		$deleted = open_station_desktop_theme_delete( self::SLUG );
+		$deleted = openstation_desktop_theme_delete( self::SLUG );
 
 		$this->assertWPError( $deleted );
-		$this->assertSame( 'open_station_desktop_theme_not_found', $deleted->get_error_code() );
+		$this->assertSame( 'openstation_desktop_theme_not_found', $deleted->get_error_code() );
 		$this->assertIsArray(
-			open_station_desktop_theme_registry( self::SLUG ),
+			openstation_desktop_theme_registry( self::SLUG ),
 			'A failed delete leaves the registration untouched.'
 		);
 	}
@@ -141,11 +141,11 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 * the built-in value — so nothing but this count would ever tell
 	 * us that a generated value stopped satisfying the grammar.
 	 *
-	 * @covers ::open_station_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_no_token_is_dropped_by_the_sanitizer() {
 		$raw   = $this->manifest();
-		$entry = open_station_desktop_theme_registry( self::SLUG );
+		$entry = openstation_desktop_theme_registry( self::SLUG );
 
 		$kept    = array_keys( $entry['manifest']['tokens'] );
 		$dropped = array_diff( array_keys( $raw['tokens'] ), $kept );
@@ -196,10 +196,10 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_compile_css
+	 * @covers ::openstation_desktop_theme_compile_css
 	 */
 	public function test_compiled_css_declares_every_token() {
-		$entry = open_station_desktop_theme_registry( self::SLUG );
+		$entry = openstation_desktop_theme_registry( self::SLUG );
 		$css   = (string) $entry['cssText'];
 
 		$this->assertStringContainsString( 'os-desktop-theme-' . self::SLUG, $css );
@@ -257,10 +257,10 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	 * Without it, wearing Legacy would restore the whole pre-brand
 	 * palette and leave Pulse on every focus ring, tab underline and
 	 * sort arrow — the one thing the theme exists to undo. It is also
-	 * what puts the "Apply OpenStation (Legacy)'s recommended layout
+	 * what puts the "Apply Desktop Mode (Legacy)'s recommended layout
 	 * and effects" button on the card.
 	 *
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_legacy_recommends_the_wordpress_blue_accent() {
 		$raw = $this->manifest();
@@ -269,7 +269,7 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 
 		// Survives the sanitizer's allow-list, which is the part that
 		// would silently drop it if `accent` left the schema.
-		$entry = open_station_desktop_theme_registry( self::SLUG );
+		$entry = openstation_desktop_theme_registry( self::SLUG );
 		$this->assertSame(
 			'wp-blue',
 			$entry['manifest']['recommendedOsSettings']['accent'],
@@ -278,10 +278,10 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_recommended_os_settings_schema
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
 	 */
 	public function test_accent_is_a_registry_slug_in_the_schema() {
-		$schema = open_station_desktop_theme_recommended_os_settings_schema();
+		$schema = openstation_desktop_theme_recommended_os_settings_schema();
 
 		$this->assertArrayHasKey( 'accent', $schema );
 		$this->assertTrue(
@@ -319,13 +319,13 @@ class Tests_OpenStation_DesktopThemesLegacy extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_legacy_theme_manifest_path
+	 * @covers ::openstation_legacy_theme_manifest_path
 	 */
 	public function test_manifest_path_is_filterable() {
-		add_filter( 'open_station_legacy_theme_manifest_path', static function () {
+		add_filter( 'openstation_legacy_theme_manifest_path', static function () {
 			return '/nonexistent/theme.json';
 		} );
 
-		$this->assertSame( '/nonexistent/theme.json', open_station_legacy_theme_manifest_path() );
+		$this->assertSame( '/nonexistent/theme.json', openstation_legacy_theme_manifest_path() );
 	}
 }

@@ -14,7 +14,7 @@
  * It ships as data, in `assets/desktop-themes/legacy/theme.json` —
  * the same `theme.json` an uploaded ZIP carries, registered through
  * the same public API a plugin would use
- * ({@see open_station_register_desktop_theme()}) and put through the
+ * ({@see openstation_register_desktop_theme()}) and put through the
  * same sanitizer. `bin/package-legacy-theme.sh` zips that directory
  * into the distributable a user could hand to someone else.
  *
@@ -32,9 +32,9 @@
  *
  * Because it is code-registered rather than uploaded, it is always
  * present and cannot be deleted: the delete route only ever touches
- * the uploaded index ({@see open_station_desktop_theme_delete()}). A
+ * the uploaded index ({@see openstation_desktop_theme_delete()}). A
  * site that genuinely does not want it calls
- * `open_station_unregister_desktop_theme( 'desktop-mode/legacy' )` on
+ * `openstation_unregister_desktop_theme( 'desktop-mode/legacy' )` on
  * `init` at a priority above 5.
  *
  * ## What Legacy deliberately does NOT declare
@@ -58,14 +58,14 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Manifest id of the built-in Legacy theme. */
-const OPEN_STATION_LEGACY_THEME_ID = 'desktop-mode/legacy';
+const OPENSTATION_LEGACY_THEME_ID = 'desktop-mode/legacy';
 
 /**
  * Absolute path of the Legacy theme's `theme.json`.
  *
  * @return string
  */
-function open_station_legacy_theme_manifest_path() {
+function openstation_legacy_theme_manifest_path() {
 	/**
 	 * Filters the path the built-in Legacy theme's manifest is read
 	 * from. A site that has forked the token set can point this at
@@ -74,8 +74,8 @@ function open_station_legacy_theme_manifest_path() {
 	 * @param string $path Absolute path to a `theme.json`.
 	 */
 	return (string) apply_filters(
-		'open_station_legacy_theme_manifest_path',
-		OPEN_STATION_DIR . 'assets/desktop-themes/legacy/theme.json'
+		'openstation_legacy_theme_manifest_path',
+		OPENSTATION_DIR . 'assets/desktop-themes/legacy/theme.json'
 	);
 }
 
@@ -90,8 +90,8 @@ function open_station_legacy_theme_manifest_path() {
  *                              empty array when the file is missing
  *                              or unreadable.
  */
-function open_station_legacy_theme_tokens() {
-	$manifest = open_station_legacy_theme_manifest();
+function openstation_legacy_theme_tokens() {
+	$manifest = openstation_legacy_theme_manifest();
 	return isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] )
 		? $manifest['tokens']
 		: array();
@@ -107,14 +107,14 @@ function open_station_legacy_theme_tokens() {
  * @return array Decoded manifest, or an empty array when the file is
  *               missing or unreadable.
  */
-function open_station_legacy_theme_manifest() {
+function openstation_legacy_theme_manifest() {
 	static $manifest = null;
 	if ( null !== $manifest ) {
 		return $manifest;
 	}
 
 	$manifest = array();
-	$path     = open_station_legacy_theme_manifest_path();
+	$path     = openstation_legacy_theme_manifest_path();
 	if ( ! is_readable( $path ) ) {
 		return $manifest;
 	}
@@ -132,7 +132,7 @@ function open_station_legacy_theme_manifest() {
  * Priority 5 on `init`, the same slot the built-in wallpapers use, so
  * the theme is in the registry before the shell config is built and
  * before any third-party plugin reacting to
- * `open_station_desktop_theme_registered` runs.
+ * `openstation_desktop_theme_registered` runs.
  *
  * The name and description are duplicated between here and the
  * manifest on purpose: PHP's copy is translatable, the manifest's is
@@ -141,9 +141,9 @@ function open_station_legacy_theme_manifest() {
  *
  * @return void
  */
-function open_station_register_builtin_desktop_themes() {
-	$manifest = open_station_legacy_theme_manifest();
-	$tokens   = open_station_legacy_theme_tokens();
+function openstation_register_builtin_desktop_themes() {
+	$manifest = openstation_legacy_theme_manifest();
+	$tokens   = openstation_legacy_theme_tokens();
 	if ( empty( $tokens ) ) {
 		return;
 	}
@@ -160,17 +160,17 @@ function open_station_register_builtin_desktop_themes() {
 		? $manifest['recommendedOsSettings']
 		: array();
 
-	open_station_register_desktop_theme(
-		OPEN_STATION_LEGACY_THEME_ID,
+	openstation_register_desktop_theme(
+		OPENSTATION_LEGACY_THEME_ID,
 		array(
-			'name'                  => __( 'OpenStation (Legacy)', 'desktop-mode' ),
+			'name'                  => __( 'Desktop Mode (Legacy)', 'desktop-mode' ),
 			'version'               => '1.0.0',
 			'author'                => 'OpenStation',
-			'description'           => __( 'The look OpenStation had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.', 'desktop-mode' ),
+			'description'           => __( 'The look Desktop Mode had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.', 'desktop-mode' ),
 			// A code theme's assets are URLs it already serves. The
 			// artwork is the theme previewing itself: desk, dock and
 			// one window, painted in the tokens below.
-			'preview'               => OPEN_STATION_URL . 'assets/desktop-themes/legacy/preview.svg',
+			'preview'               => OPENSTATION_URL . 'assets/desktop-themes/legacy/preview.svg',
 			'tokens'                => $tokens,
 			'recommendedOsSettings' => $recommended,
 		)
@@ -183,6 +183,6 @@ function open_station_register_builtin_desktop_themes() {
  * sanitizing + compiling 377 tokens for a request that will never
  * render the shell is pure waste.
  */
-if ( open_station_request_needs_admin_modules() ) {
-	add_action( 'init', 'open_station_register_builtin_desktop_themes', 5 );
+if ( openstation_request_needs_admin_modules() ) {
+	add_action( 'init', 'openstation_register_builtin_desktop_themes', 5 );
 }

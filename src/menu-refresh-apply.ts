@@ -261,7 +261,7 @@ export function createApplyPayload(
 		// Native-window sync — server registry is the source of
 		// truth for plugin-owned native windows. Tiles added
 		// server-side (plugin activated via
-		// `open_station_register_window`) appear; tiles whose plugin
+		// `openstation_register_window`) appear; tiles whose plugin
 		// deactivated disappear. All without a shell reload.
 		if ( Array.isArray( nativeWindows ) ) {
 			const prevNativeWindows = config.nativeWindows;
@@ -279,7 +279,7 @@ export function createApplyPayload(
 
 		// Widget-registry sync — same lifecycle story for the
 		// right-column widget layer. Plugins declared via
-		// `open_station_register_widget()` show up in the picker
+		// `openstation_register_widget()` show up in the picker
 		// without a reload; deactivated plugin widgets disappear.
 		if ( Array.isArray( serverWidgets ) ) {
 			void syncServerWidgets(

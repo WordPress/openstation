@@ -3,7 +3,7 @@
  * OpenStation — `shortcut` file type.
  *
  * Wraps a plugin shortcut registered via
- * `open_station_register_icon()` so it lives on the same grid
+ * `openstation_register_icon()` so it lives on the same grid
  * as folders, posts, and the rest. Reference shape: the
  * registered icon id.
  *
@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `shortcut` desktop file type.
  */
-class Open_Station_Shortcut_File extends Open_Station_File {
+class OpenStation_Shortcut_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'shortcut';
@@ -49,7 +49,7 @@ class Open_Station_Shortcut_File extends Open_Station_File {
 
 	public function can_read( int $user_id ): bool {
 		// Shortcut visibility = registration visibility. The
-		// `open_station_register_icon` capability gate already
+		// `openstation_register_icon` capability gate already
 		// filters per user at registration time; if the entry is
 		// in the registry for this request, it's visible.
 		return null !== $this->entry();
@@ -75,10 +75,10 @@ class Open_Station_Shortcut_File extends Open_Station_File {
 		if ( '' === $id ) {
 			return null;
 		}
-		if ( ! function_exists( 'open_station_desktop_icon_registry' ) ) {
+		if ( ! function_exists( 'openstation_desktop_icon_registry' ) ) {
 			return null;
 		}
-		$entry = open_station_desktop_icon_registry( $id );
+		$entry = openstation_desktop_icon_registry( $id );
 		return is_array( $entry ) ? $entry : null;
 	}
 }

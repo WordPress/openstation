@@ -17,7 +17,7 @@ This doc covers Layer 1 only.
 
 ## Recipe 1 — A stylesheet-only theme (no JS)
 
-Designers can ship a theme with PHP alone. Register the theme with `open_station_register_window_theme()` and the shell applies the tokens to every window without further plumbing.
+Designers can ship a theme with PHP alone. Register the theme with `openstation_register_window_theme()` and the shell applies the tokens to every window without further plumbing.
 
 **my-theme.php**
 
@@ -27,7 +27,7 @@ Designers can ship a theme with PHP alone. Register the theme with `open_station
 defined( 'ABSPATH' ) || exit;
 
 add_action( 'init', function () {
-    open_station_register_window_theme( array(
+    openstation_register_window_theme( array(
         'id'       => 'my-theme/midnight',
         'label'    => __( 'Midnight', 'my-theme' ),
         'tokens'   => array(
@@ -71,7 +71,7 @@ add_action( 'admin_enqueue_scripts', function () {
     );
     wp_enqueue_script( 'gutenberg-neon-theme' );
 } );
-open_station_register_window_theme_script( 'gutenberg-neon-theme' );
+openstation_register_window_theme_script( 'gutenberg-neon-theme' );
 ```
 
 **theme.js**
@@ -154,8 +154,8 @@ The override is also written into the window's `config.appearance.theme` so subs
 
 | Hook | Type | Signature | Purpose |
 |------|------|-----------|---------|
-| `open_station_window_theme_script_registered` | action | `( string $handle )` | Fires after `open_station_register_window_theme_script()` succeeds. |
-| `open_station_window_theme_registered` | action | `( string $id, array $entry )` | Fires after `open_station_register_window_theme()` stores metadata. |
+| `openstation_window_theme_script_registered` | action | `( string $handle )` | Fires after `openstation_register_window_theme_script()` succeeds. |
+| `openstation_window_theme_registered` | action | `( string $id, array $entry )` | Fires after `openstation_register_window_theme()` stores metadata. |
 
 ### JavaScript
 
@@ -180,7 +180,7 @@ A non-CSS-variable key (one that doesn't start with `--`) is rejected at registr
 
 When the plugin's WordPress script handle leaves the next live-refresh payload (deactivation), the chrome server-sync tears down the plugin's themes:
 
-- Themes registered via PHP metadata (`open_station_register_window_theme()`) are dropped automatically — their handle ↔ id mapping is captured in the previous payload snapshot.
+- Themes registered via PHP metadata (`openstation_register_window_theme()`) are dropped automatically — their handle ↔ id mapping is captured in the previous payload snapshot.
 - Themes registered from JS with `owner: '<script-handle>'` are also dropped automatically.
 - Themes registered from JS without `owner` survive until the next page reload (graceful backwards-compat).
 

@@ -10,7 +10,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The `comment` desktop file type.
  */
-class Open_Station_Comment_File extends Open_Station_File {
+class OpenStation_Comment_File extends OpenStation_File {
 
 	public static function type(): string {
 		return 'comment';

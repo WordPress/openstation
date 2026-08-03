@@ -9,7 +9,7 @@
  *      served via `parse_request` like the portal URL, no rewrite-rule
  *      registration. Site name, theme color, and icons assembled from
  *      the WordPress Site Icon (when set) with a wp-logo fallback. The
- *      `open_station_pwa_manifest` filter lets plugins mutate any
+ *      `openstation_pwa_manifest` filter lets plugins mutate any
  *      field before encoding.
  *
  *   2. Service worker at `/openstation/sw.js`, served with the
@@ -38,12 +38,12 @@ defined( 'ABSPATH' ) || exit;
  * Kept as a constant so the JS-side script localisation and the
  * `parse_request` matcher cannot drift apart.
  */
-const OPEN_STATION_PWA_MANIFEST_FRAGMENT = 'manifest.webmanifest';
+const OPENSTATION_PWA_MANIFEST_FRAGMENT = 'manifest.webmanifest';
 
 /**
  * URL fragment for the service worker.
  */
-const OPEN_STATION_PWA_SW_FRAGMENT = 'sw.js';
+const OPENSTATION_PWA_SW_FRAGMENT = 'sw.js';
 
 /**
  * User-meta key — JSON blob persisting per-user PWA UI state.
@@ -51,15 +51,15 @@ const OPEN_STATION_PWA_SW_FRAGMENT = 'sw.js';
  * Today: `installHintDismissed` (bool), `notificationsEnabled` (bool).
  * Future: `pushSubscription` (object) when phase 4 lands.
  */
-const OPEN_STATION_PWA_USER_META = 'desktop_mode_pwa_state';
+const OPENSTATION_PWA_USER_META = 'desktop_mode_pwa_state';
 
 /**
  * Builds the absolute manifest URL.
  *
  * @return string
  */
-function open_station_pwa_manifest_url() {
-	return open_station_portal_url() . OPEN_STATION_PWA_MANIFEST_FRAGMENT;
+function openstation_pwa_manifest_url() {
+	return openstation_portal_url() . OPENSTATION_PWA_MANIFEST_FRAGMENT;
 }
 
 /**
@@ -67,8 +67,8 @@ function open_station_pwa_manifest_url() {
  *
  * @return string
  */
-function open_station_pwa_sw_url() {
-	return open_station_portal_url() . OPEN_STATION_PWA_SW_FRAGMENT;
+function openstation_pwa_sw_url() {
+	return openstation_portal_url() . OPENSTATION_PWA_SW_FRAGMENT;
 }
 
 /**
@@ -86,7 +86,7 @@ function open_station_pwa_sw_url() {
  *
  * @return bool
  */
-function open_station_pwa_force_replace_sw() {
+function openstation_pwa_force_replace_sw() {
 	/**
 	 * Filters whether openstation replaces an existing root-scope SW.
 	 *
@@ -96,19 +96,19 @@ function open_station_pwa_force_replace_sw() {
 	 *
 	 * @param bool $force_replace Defaults to `false` (yield to existing SWs).
 	 */
-	return (bool) apply_filters( 'open_station_pwa_force_replace_sw', false );
+	return (bool) apply_filters( 'openstation_pwa_force_replace_sw', false );
 }
 
 /**
  * Detects which PWA endpoint the current request is targeting, if any.
  *
- * Mirrors `open_station_is_portal_request()`'s strategy: read the
+ * Mirrors `openstation_is_portal_request()`'s strategy: read the
  * unparsed REQUEST_URI rather than relying on rewrite-rule resolution.
  *
  * @return string Empty string when not a PWA endpoint, otherwise one
  *                of `'manifest'` | `'sw'`.
  */
-function open_station_pwa_endpoint_kind() {
+function openstation_pwa_endpoint_kind() {
 	$uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
 	if ( ! is_string( $uri ) || '' === $uri ) {
 		return '';
@@ -119,11 +119,11 @@ function open_station_pwa_endpoint_kind() {
 	}
 	$home_path = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
 	$home_path = is_string( $home_path ) ? rtrim( $home_path, '/' ) : '';
-	$portal    = $home_path . '/' . trim( OPEN_STATION_PORTAL_PATH, '/' ) . '/';
-	if ( $path === $portal . OPEN_STATION_PWA_MANIFEST_FRAGMENT ) {
+	$portal    = $home_path . '/' . trim( OPENSTATION_PORTAL_PATH, '/' ) . '/';
+	if ( $path === $portal . OPENSTATION_PWA_MANIFEST_FRAGMENT ) {
 		return 'manifest';
 	}
-	if ( $path === $portal . OPEN_STATION_PWA_SW_FRAGMENT ) {
+	if ( $path === $portal . OPENSTATION_PWA_SW_FRAGMENT ) {
 		return 'sw';
 	}
 	return '';
@@ -144,32 +144,32 @@ function open_station_pwa_endpoint_kind() {
  *
  * @param WP $wp Current WordPress environment instance (unused).
  */
-function open_station_pwa_handle_request( $wp ) {
+function openstation_pwa_handle_request( $wp ) {
 	unset( $wp );
 
-	$kind = open_station_pwa_endpoint_kind();
+	$kind = openstation_pwa_endpoint_kind();
 	if ( '' === $kind ) {
 		return;
 	}
 
 	if ( 'manifest' === $kind ) {
-		open_station_pwa_serve_manifest();
+		openstation_pwa_serve_manifest();
 		exit;
 	}
 
 	if ( 'sw' === $kind ) {
-		open_station_pwa_serve_service_worker();
+		openstation_pwa_serve_service_worker();
 		exit;
 	}
 }
-add_action( 'parse_request', 'open_station_pwa_handle_request' );
+add_action( 'parse_request', 'openstation_pwa_handle_request' );
 
 /**
- * Builds the manifest array, applies the `open_station_pwa_manifest`
+ * Builds the manifest array, applies the `openstation_pwa_manifest`
  * filter, encodes as JSON and prints it.
  */
-function open_station_pwa_serve_manifest() {
-	$manifest = open_station_pwa_build_manifest();
+function openstation_pwa_serve_manifest() {
+	$manifest = openstation_pwa_build_manifest();
 
 	/**
 	 * Filters the web-app manifest payload before encoding.
@@ -182,7 +182,7 @@ function open_station_pwa_serve_manifest() {
 	 *
 	 * @param array $manifest Manifest associative array.
 	 */
-	$manifest = apply_filters( 'open_station_pwa_manifest', $manifest );
+	$manifest = apply_filters( 'openstation_pwa_manifest', $manifest );
 
 	if ( ! is_array( $manifest ) ) {
 		status_header( 500 );
@@ -201,7 +201,7 @@ function open_station_pwa_serve_manifest() {
  *
  * @return array
  */
-function open_station_pwa_build_manifest() {
+function openstation_pwa_build_manifest() {
 	$site_name = get_bloginfo( 'name' );
 	if ( '' === $site_name ) {
 		$site_name = 'WordPress';
@@ -240,7 +240,7 @@ function open_station_pwa_build_manifest() {
 		$scope = '/wp-admin/';
 	}
 
-	$manifest_url = open_station_pwa_manifest_url();
+	$manifest_url = openstation_pwa_manifest_url();
 
 	return array(
 		'name'                 => $site_name,
@@ -252,7 +252,7 @@ function open_station_pwa_build_manifest() {
 		),
 		'start_url'            => $start_url,
 		'scope'                => $scope,
-		'id'                   => open_station_portal_url(),
+		'id'                   => openstation_portal_url(),
 		'display'              => 'standalone',
 		'display_override'     => array( 'standalone', 'minimal-ui' ),
 		'orientation'          => 'any',
@@ -262,7 +262,7 @@ function open_station_pwa_build_manifest() {
 		'background_color'     => '#1d2327',
 		'lang'                 => get_bloginfo( 'language' ),
 		'dir'                  => is_rtl() ? 'rtl' : 'ltr',
-		'icons'                => open_station_pwa_default_icons(),
+		'icons'                => openstation_pwa_default_icons(),
 		// Self-reference under `related_applications` so
 		// `navigator.getInstalledRelatedApps()` (Chrome / Edge) returns
 		// a hit when this PWA is installed in the current profile.
@@ -277,7 +277,7 @@ function open_station_pwa_build_manifest() {
 			array(
 				'platform' => 'webapp',
 				'url'      => $manifest_url,
-				'id'       => open_station_portal_url(),
+				'id'       => openstation_portal_url(),
 			),
 		),
 		'prefer_related_applications' => false,
@@ -300,11 +300,11 @@ function open_station_pwa_build_manifest() {
  * Purpose is `'any'` rather than `'any maskable'` — the brand icon
  * has rounded corners + transparent padding that Android's adaptive
  * mask would crop into. Plugins shipping a full-bleed maskable
- * variant should replace the array via `open_station_pwa_manifest`.
+ * variant should replace the array via `openstation_pwa_manifest`.
  *
  * @return array<int, array<string, string>>
  */
-function open_station_pwa_default_icons() {
+function openstation_pwa_default_icons() {
 	$icons = array();
 
 	$site_icon_id = (int) get_option( 'site_icon' );
@@ -329,7 +329,7 @@ function open_station_pwa_default_icons() {
 	if ( empty( $icons ) ) {
 		foreach ( array( 128, 192, 256, 512 ) as $size ) {
 			$icons[] = array(
-				'src'     => OPEN_STATION_URL . "assets/pwa/icon-{$size}.png",
+				'src'     => OPENSTATION_URL . "assets/pwa/icon-{$size}.png",
 				'sizes'   => "{$size}x{$size}",
 				'type'    => 'image/png',
 				'purpose' => 'any',
@@ -361,9 +361,9 @@ function open_station_pwa_default_icons() {
  * concrete pointer; 503 (vs. 404) tells the browser the SW genuinely
  * isn't available right now and it should retry later.
  */
-function open_station_pwa_serve_service_worker() {
-	$suffix = open_station_asset_suffix();
-	$path   = OPEN_STATION_DIR . 'assets/js/sw' . $suffix . '.js';
+function openstation_pwa_serve_service_worker() {
+	$suffix = openstation_asset_suffix();
+	$path   = OPENSTATION_DIR . 'assets/js/sw' . $suffix . '.js';
 
 	if ( ! file_exists( $path ) ) {
 		// Guard against hosts that disable error_log() via the
@@ -424,20 +424,20 @@ function open_station_pwa_serve_service_worker() {
  * than via `wp_localize_script`'s inline script tag) is what the
  * spec requires.
  */
-function open_station_pwa_render_head_tags() {
+function openstation_pwa_render_head_tags() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
-	if ( open_station_is_chromeless_request() ) {
+	if ( openstation_is_chromeless_request() ) {
 		return;
 	}
-	if ( ! open_station_is_enabled() || open_station_is_classic_request() ) {
+	if ( ! openstation_is_enabled() || openstation_is_classic_request() ) {
 		return;
 	}
 
 	printf(
 		'<link rel="manifest" href="%s">' . "\n",
-		esc_url( open_station_pwa_manifest_url() )
+		esc_url( openstation_pwa_manifest_url() )
 	);
 	echo '<meta name="theme-color" content="#1d2327">' . "\n";
 	// `mobile-web-app-capable` is the cross-browser standard;
@@ -454,7 +454,7 @@ function open_station_pwa_render_head_tags() {
 		esc_attr( get_bloginfo( 'name' ) )
 	);
 }
-add_action( 'admin_head', 'open_station_pwa_render_head_tags', 1 );
+add_action( 'admin_head', 'openstation_pwa_render_head_tags', 1 );
 
 /**
  * Reads the per-user PWA UI state.
@@ -462,11 +462,11 @@ add_action( 'admin_head', 'open_station_pwa_render_head_tags', 1 );
  * @param int $user_id Defaults to current user.
  * @return array{installHintDismissed: bool, notificationsEnabled: bool}
  */
-function open_station_pwa_get_user_state( $user_id = 0 ) {
+function openstation_pwa_get_user_state( $user_id = 0 ) {
 	if ( 0 === $user_id ) {
 		$user_id = get_current_user_id();
 	}
-	$raw = get_user_meta( $user_id, OPEN_STATION_PWA_USER_META, true );
+	$raw = get_user_meta( $user_id, OPENSTATION_PWA_USER_META, true );
 	if ( ! is_array( $raw ) ) {
 		$raw = array();
 	}
@@ -483,32 +483,32 @@ function open_station_pwa_get_user_state( $user_id = 0 ) {
  * @param array $patch   Partial state to merge.
  * @param int   $user_id Defaults to current user.
  */
-function open_station_pwa_update_user_state( array $patch, $user_id = 0 ) {
+function openstation_pwa_update_user_state( array $patch, $user_id = 0 ) {
 	if ( 0 === $user_id ) {
 		$user_id = get_current_user_id();
 	}
-	$current = open_station_pwa_get_user_state( $user_id );
+	$current = openstation_pwa_get_user_state( $user_id );
 	$next    = array_merge( $current, $patch );
-	update_user_meta( $user_id, OPEN_STATION_PWA_USER_META, $next );
+	update_user_meta( $user_id, OPENSTATION_PWA_USER_META, $next );
 }
 
 /**
  * Registers the `/desktop-mode/v1/pwa-state` REST routes.
  */
-function open_station_pwa_register_rest_routes() {
+function openstation_pwa_register_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/pwa-state',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'open_station_pwa_rest_get_state',
-				'permission_callback' => 'open_station_pwa_rest_permission',
+				'callback'            => 'openstation_pwa_rest_get_state',
+				'permission_callback' => 'openstation_pwa_rest_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'open_station_pwa_rest_post_state',
-				'permission_callback' => 'open_station_pwa_rest_permission',
+				'callback'            => 'openstation_pwa_rest_post_state',
+				'permission_callback' => 'openstation_pwa_rest_permission',
 				'args'                => array(
 					'installHintDismissed' => array(
 						'type'     => 'boolean',
@@ -527,24 +527,24 @@ function open_station_pwa_register_rest_routes() {
 	// lands. The state route is intentionally orthogonal so the v1
 	// surface stays stable when push arrives.
 }
-add_action( 'rest_api_init', 'open_station_pwa_register_rest_routes' );
+add_action( 'rest_api_init', 'openstation_pwa_register_rest_routes' );
 
 /**
  * REST permission gate — same shape as the session routes: logged in
  * with OpenStation enabled. See
- * {@see open_station_rest_require_enabled()}.
+ * {@see openstation_rest_require_enabled()}.
  *
  * @return true|WP_Error
  */
-function open_station_pwa_rest_permission() {
-	return open_station_rest_require_enabled();
+function openstation_pwa_rest_permission() {
+	return openstation_rest_require_enabled();
 }
 
 /**
  * GET handler — returns the current user's PWA state.
  */
-function open_station_pwa_rest_get_state() {
-	return rest_ensure_response( open_station_pwa_get_user_state() );
+function openstation_pwa_rest_get_state() {
+	return rest_ensure_response( openstation_pwa_get_user_state() );
 }
 
 /**
@@ -552,7 +552,7 @@ function open_station_pwa_rest_get_state() {
  *
  * @param WP_REST_Request $request REST request.
  */
-function open_station_pwa_rest_post_state( $request ) {
+function openstation_pwa_rest_post_state( $request ) {
 	$patch = array();
 	if ( null !== $request->get_param( 'installHintDismissed' ) ) {
 		$patch['installHintDismissed'] = (bool) $request->get_param( 'installHintDismissed' );
@@ -561,7 +561,7 @@ function open_station_pwa_rest_post_state( $request ) {
 		$patch['notificationsEnabled'] = (bool) $request->get_param( 'notificationsEnabled' );
 	}
 	if ( ! empty( $patch ) ) {
-		open_station_pwa_update_user_state( $patch );
+		openstation_pwa_update_user_state( $patch );
 	}
-	return rest_ensure_response( open_station_pwa_get_user_state() );
+	return rest_ensure_response( openstation_pwa_get_user_state() );
 }

@@ -49,7 +49,7 @@ declare global {
 	}
 }
 
-/** Mount selectors — kept in lockstep with `open_station_code_editor_render_template()`. */
+/** Mount selectors — kept in lockstep with `openstation_code_editor_render_template()`. */
 export const ROOT_SELECTOR = '[data-osc-editor-root]';
 export const MONACO_MOUNT_SELECTOR = '[data-osc-editor-monaco]';
 export const LOADING_CLASS = 'osc-editor--loading';
@@ -137,7 +137,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 	if ( ! root || ! monacoSlot ) {
 		// eslint-disable-next-line no-console
 		console.error(
-			'[os-code-editor] Template mount nodes missing; ensure open_station_code_editor_render_template ran.',
+			'[os-code-editor] Template mount nodes missing; ensure openstation_code_editor_render_template ran.',
 		);
 		return;
 	}
@@ -221,7 +221,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 
 	// Resolve the desktop Window once — used to update the window's
 	// chrome title with the active file's name + dirty marker. Lookup
-	// is by id (matches the `open_station_register_window( 'osc-editor' )`
+	// is by id (matches the `openstation_register_window( 'wpdc-editor' )`
 	// registration). Falls back to a no-op if the global API isn't
 	// available (e.g. tests that mount the editor in isolation).
 	const setWindowTitle = ( title: string ): void => {
@@ -237,7 +237,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 					};
 				};
 			}
-		).wp?.os?.windowManager?.getById( 'osc-editor' );
+		).wp?.os?.windowManager?.getById( 'wpdc-editor' );
 		win?.setTitle?.( title );
 	};
 
@@ -501,7 +501,7 @@ async function renderEditor( body: HTMLElement ): Promise< void > {
 			}
 			if (
 				err instanceof RestError &&
-				err.code === 'open_station_code_editor_conflict'
+				err.code === 'openstation_code_editor_conflict'
 			) {
 				const data = ( err.data ?? null ) as ConflictData | null;
 				if ( ! data ) {
@@ -637,6 +637,6 @@ const registry =
 		string,
 		RenderCallback | undefined
 	>;
-registry[ 'osc-editor' ] = ( body: HTMLElement ) => {
+registry[ 'wpdc-editor' ] = ( body: HTMLElement ) => {
 	void renderEditor( body );
 };

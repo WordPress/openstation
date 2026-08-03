@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string `'.min'` or `''`.
  */
-function open_station_asset_suffix() {
+function openstation_asset_suffix() {
 	static $suffix = null;
 	if ( null !== $suffix ) {
 		return $suffix;
@@ -31,7 +31,7 @@ function open_station_asset_suffix() {
 		$suffix = '.min';
 		return $suffix;
 	}
-	$suffix = file_exists( OPEN_STATION_DIR . 'assets/js/desktop.js' ) ? '' : '.min';
+	$suffix = file_exists( OPENSTATION_DIR . 'assets/js/desktop.js' ) ? '' : '.min';
 	return $suffix;
 }
 
@@ -42,7 +42,7 @@ function open_station_asset_suffix() {
  *
  * 1. The user's `desktop_mode_mode` user-meta is `'1'` (the per-user
  *    opt-in toggle the admin-bar button writes via the AJAX endpoint).
- * 2. The `open_station_mode_enabled` filter returns truthy for that user.
+ * 2. The `openstation_mode_enabled` filter returns truthy for that user.
  *
  * Centralising the filter check here means render-time gates (chromeless
  * detection, payload generation, REST permission callbacks) can rely on
@@ -55,7 +55,7 @@ function open_station_asset_suffix() {
  *                     current user.
  * @return bool True if the user has OpenStation active.
  */
-function open_station_is_enabled( $user_id = 0 ) {
+function openstation_is_enabled( $user_id = 0 ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		if ( ! is_user_logged_in() ) {
@@ -71,7 +71,7 @@ function open_station_is_enabled( $user_id = 0 ) {
 	/**
 	 * Filters whether OpenStation is available for this user.
 	 *
-	 * See `docs/hooks-reference.md` (`open_station_mode_enabled`) for the
+	 * See `docs/hooks-reference.md` (`openstation_mode_enabled`) for the
 	 * full contract. Returning `false` here makes the helper return
 	 * `false` for the user even when their meta is set, which propagates
 	 * to every render-time gate that consults the helper.
@@ -79,7 +79,7 @@ function open_station_is_enabled( $user_id = 0 ) {
 	 * @param bool $enabled Whether OpenStation is enabled. Default true.
 	 * @param int  $user_id The user ID being checked.
 	 */
-	return (bool) apply_filters( 'open_station_mode_enabled', true, $user_id );
+	return (bool) apply_filters( 'openstation_mode_enabled', true, $user_id );
 }
 
 /**
@@ -93,19 +93,19 @@ function open_station_is_enabled( $user_id = 0 ) {
  * `current_user_can( 'read' )` alone is too loose: every authenticated
  * role — Subscriber included — carries `read`, so the old gate let any
  * logged-in user touch these routes without ever enabling OpenStation.
- * We gate on {@see open_station_is_enabled()} instead (the same opt-in +
- * `open_station_mode_enabled` filter the shell itself uses) and return
+ * We gate on {@see openstation_is_enabled()} instead (the same opt-in +
+ * `openstation_mode_enabled` filter the shell itself uses) and return
  * the conventional 401/403 split so REST clients can tell "log in" from
  * "not allowed".
  *
- * This is the canonical gate; `open_station_presence_rest_permission()`
+ * This is the canonical gate; `openstation_presence_rest_permission()`
  * pioneered the shape and now delegates here.
  *
  * @return true|WP_Error True when allowed; a `rest_forbidden` WP_Error
  *                       (401 when logged out, 403 when OpenStation is
  *                       not enabled for the account) otherwise.
  */
-function open_station_rest_require_enabled() {
+function openstation_rest_require_enabled() {
 	if ( ! is_user_logged_in() ) {
 		return new WP_Error(
 			'rest_forbidden',
@@ -114,7 +114,7 @@ function open_station_rest_require_enabled() {
 		);
 	}
 
-	if ( ! open_station_is_enabled() ) {
+	if ( ! openstation_is_enabled() ) {
 		return new WP_Error(
 			'rest_forbidden',
 			__( 'OpenStation is not enabled for your account.', 'desktop-mode' ),
@@ -129,13 +129,13 @@ function open_station_rest_require_enabled() {
 // flag-preservation filter pair were moved to
 // `includes/core/routing.php`. The functions and the
 // add_filter / add_action hookings live there now; this file
-// remains the home of `open_station_is_enabled()` (called from the
+// remains the home of `openstation_is_enabled()` (called from the
 // routing helpers at hook-fire time, after every include has
 // loaded), which is why `desktop-mode.php` can safely require
 // routing.php BEFORE helpers.php.
 
 /**
- * `open_station_is_chromeless_request()` and `open_station_is_classic_request()`
+ * `openstation_is_chromeless_request()` and `openstation_is_classic_request()`
  * were moved to `includes/core/routing.php` — see that
  * file for the canonical definitions. The function names didn't
  * change; PHP looks them up by name at call time, so every
@@ -151,7 +151,7 @@ function open_station_rest_require_enabled() {
  * without forking the TS build.
  *
  * ```php
- * add_filter( 'open_station_default_wallpaper', function () {
+ * add_filter( 'openstation_default_wallpaper', function () {
  *     return 'my-plugin/brand';
  * } );
  * ```
@@ -163,13 +163,13 @@ function open_station_rest_require_enabled() {
  * @return string Wallpaper id. Empty string if the filter returns
  *                an invalid value.
  */
-function open_station_get_default_wallpaper() {
+function openstation_get_default_wallpaper() {
 	/**
 	 * Filters the wallpaper id loaded on first boot / new user.
 	 *
 	 * @param string $id Default wallpaper slug.
 	 */
-	$id = apply_filters( 'open_station_default_wallpaper', 'galaxy' );
+	$id = apply_filters( 'openstation_default_wallpaper', 'galaxy' );
 	if ( ! is_string( $id ) ) {
 		return '';
 	}
@@ -193,7 +193,7 @@ function open_station_get_default_wallpaper() {
  * @return string Decoded site title. Falls back to `WordPress` when
  *                the site has no name set.
  */
-function open_station_site_title() {
+function openstation_site_title() {
 	$title = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
 	$title = trim( $title );
 
@@ -212,7 +212,7 @@ function open_station_site_title() {
 	 *
 	 * @param string $title Decoded site title, never empty.
 	 */
-	$filtered = apply_filters( 'open_station_site_title', $title );
+	$filtered = apply_filters( 'openstation_site_title', $title );
 
 	return is_string( $filtered ) && '' !== trim( $filtered ) ? $filtered : $title;
 }
@@ -221,16 +221,16 @@ function open_station_site_title() {
  * Build a `WP_Error` for a openstation registration failure.
  *
  * Centralises the error-code vocabulary used by every
- * `open_station_register_*()` function so plugin authors see a
+ * `openstation_register_*()` function so plugin authors see a
  * consistent contract. The canonical error-code list lives in
  * `docs/hooks-reference.md`.
  *
- * @param string $code    Short error slug (e.g. `open_station_missing_title`).
+ * @param string $code    Short error slug (e.g. `openstation_missing_title`).
  * @param string $message Human-readable message. Should be translated.
  * @param array  $data    Optional extra context attached to the error.
  * @return WP_Error
  */
-function open_station_registration_error( $code, $message, $data = array() ) {
+function openstation_registration_error( $code, $message, $data = array() ) {
 	return new WP_Error(
 		(string) $code,
 		(string) $message,
@@ -238,9 +238,9 @@ function open_station_registration_error( $code, $message, $data = array() ) {
 	);
 }
 
-// `open_station_url_is_same_admin()`,
-// `open_station_resolve_admin_target()` and
-// `open_station_admin_target_allowlist()` were moved to
+// `openstation_url_is_same_admin()`,
+// `openstation_resolve_admin_target()` and
+// `openstation_admin_target_allowlist()` were moved to
 // `includes/core/routing.php` — see that file for the
 // canonical definitions. Function names didn't change; PHP's
 // runtime resolution finds them across the module split.
@@ -251,5 +251,5 @@ function open_station_registration_error( $code, $message, $data = array() ) {
 // `includes/core/payload.php`. Function names didn't
 // change; existing callers find them via PHP's runtime function
 // resolution. desktop-mode.php loads payload.php right after
-// helpers.php so the foundational helpers (open_station_is_enabled
+// helpers.php so the foundational helpers (openstation_is_enabled
 // etc.) are present when payload functions are invoked.

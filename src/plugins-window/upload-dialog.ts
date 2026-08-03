@@ -3,7 +3,7 @@
  *
  * Opens a `<os-confirm-dialog>` styled with a custom slot
  * containing a file picker + drop zone. Submits to our
- * `wp_ajax_open_station_plugins_upload` action via `uploadPluginZip`.
+ * `wp_ajax_openstation_plugins_upload` action via `uploadPluginZip`.
  *
  * Public surface: `openUploadDialog( hostBody, prefilledFile? )`. The
  * window-level drop-zone overlay (in `browse-view.ts`) calls this with

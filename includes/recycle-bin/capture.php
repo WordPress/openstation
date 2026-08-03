@@ -12,11 +12,11 @@
  * enable trash for media, define `MEDIA_TRASH` as `true` in
  * `wp-config.php`; the Recycle Bin window will surface trashed
  * attachments automatically because `attachment` is in the default
- * `open_station_recycle_bin_capture_post_types` list.
+ * `openstation_recycle_bin_capture_post_types` list.
  *
- *   - `open_station_recycle_bin_capture_post_types` controls which post
+ *   - `openstation_recycle_bin_capture_post_types` controls which post
  *     types we listen for in the first place.
- *   - The `open_station_recycle_bin_item_captured` action fires after a
+ *   - The `openstation_recycle_bin_item_captured` action fires after a
  *     successful capture so plugins can mirror the event (audit log,
  *     external storage, etc.).
  *
@@ -43,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string[]
  */
-function open_station_recycle_bin_capture_post_types() {
+function openstation_recycle_bin_capture_post_types() {
 	$types = array( 'post', 'page', 'attachment' );
 
 	$custom = get_post_types(
@@ -66,7 +66,7 @@ function open_station_recycle_bin_capture_post_types() {
 	 *
 	 * @param string[] $types Post types whose deletions the recycle bin tracks.
 	 */
-	$types = apply_filters( 'open_station_recycle_bin_capture_post_types', $types );
+	$types = apply_filters( 'openstation_recycle_bin_capture_post_types', $types );
 
 	return array_values( array_unique( array_filter( array_map( 'strval', (array) $types ) ) ) );
 }
@@ -81,28 +81,28 @@ function open_station_recycle_bin_capture_post_types() {
  *
  * @param int $post_id Post being trashed.
  */
-function open_station_recycle_bin_on_trash_post( $post_id ) {
+function openstation_recycle_bin_on_trash_post( $post_id ) {
 	$post = get_post( $post_id );
 	if ( ! $post ) {
 		return;
 	}
-	if ( ! in_array( $post->post_type, open_station_recycle_bin_capture_post_types(), true ) ) {
+	if ( ! in_array( $post->post_type, openstation_recycle_bin_capture_post_types(), true ) ) {
 		return;
 	}
-	open_station_recycle_bin_record_capture( $post_id );
+	openstation_recycle_bin_record_capture( $post_id );
 }
 
 /**
  * Persist who-deleted-what-when metadata for a single item.
  *
- * Stored under `_open_station_trash_*` postmeta on the trashed post itself —
+ * Stored under `_openstation_trash_*` postmeta on the trashed post itself —
  * survives un-trash naturally because we only consult it while in the
  * bin, and gets cleaned up by core when the post is permanently
  * deleted via the standard postmeta cascade.
  *
  * @param int $post_id Post id being captured.
  */
-function open_station_recycle_bin_record_capture( $post_id ) {
+function openstation_recycle_bin_record_capture( $post_id ) {
 	$user_id = get_current_user_id();
 	$now_gmt = current_time( 'mysql', true );
 
@@ -119,14 +119,14 @@ function open_station_recycle_bin_record_capture( $post_id ) {
 	 * @param int    $user_id User id who triggered the capture.
 	 * @param string $now_gmt MySQL-format GMT timestamp.
 	 */
-	do_action( 'open_station_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
+	do_action( 'openstation_recycle_bin_item_captured', $post_id, $user_id, $now_gmt );
 }
 
-add_action( 'wp_trash_post', 'open_station_recycle_bin_on_trash_post', 10, 1 );
+add_action( 'wp_trash_post', 'openstation_recycle_bin_on_trash_post', 10, 1 );
 
 /**
  * Capture deleted-by metadata for comments — symmetric to
- * `open_station_recycle_bin_record_capture` but writing to `commentmeta`
+ * `openstation_recycle_bin_record_capture` but writing to `commentmeta`
  * instead of `postmeta`. Comments use `wp_set_comment_status('trash')`
  * which fires `trashed_comment`; we don't need to short-circuit
  * anything (core already routes to a real trash status), just
@@ -134,7 +134,7 @@ add_action( 'wp_trash_post', 'open_station_recycle_bin_on_trash_post', 10, 1 );
  *
  * @param int $comment_id Comment about to be trashed.
  */
-function open_station_recycle_bin_on_trash_comment( $comment_id ) {
+function openstation_recycle_bin_on_trash_comment( $comment_id ) {
 	$comment_id = (int) $comment_id;
 	$user_id    = get_current_user_id();
 	$now_gmt    = current_time( 'mysql', true );
@@ -149,6 +149,6 @@ function open_station_recycle_bin_on_trash_comment( $comment_id ) {
 	 * @param int    $user_id    User id who triggered the capture.
 	 * @param string $now_gmt    MySQL-format GMT timestamp.
 	 */
-	do_action( 'open_station_recycle_bin_comment_captured', $comment_id, $user_id, $now_gmt );
+	do_action( 'openstation_recycle_bin_comment_captured', $comment_id, $user_id, $now_gmt );
 }
-add_action( 'trashed_comment', 'open_station_recycle_bin_on_trash_comment', 10, 1 );
+add_action( 'trashed_comment', 'openstation_recycle_bin_on_trash_comment', 10, 1 );

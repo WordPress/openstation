@@ -336,7 +336,7 @@ wp.os.dock?.setBadge( 'edit.php', 3 );
 
 Same lifecycle as commands and settings tabs. Register the script
 handle server-side via
-`open_station_register_dock_rail_renderer_script()`; the shell
+`openstation_register_dock_rail_renderer_script()`; the shell
 loads the script over the chromeless bridge on activation, the JS
 calls `registerDockRailRenderer()`, and OS Settings → Dock style
 surfaces the new option immediately — no F5.
@@ -361,7 +361,7 @@ add_action( 'admin_enqueue_scripts', function () {
 
 // Opt this script into the live-refresh payload so it loads
 // the moment the plugin activates (and unloads on deactivation).
-open_station_register_dock_rail_renderer_script( 'my-rail-renderer' );
+openstation_register_dock_rail_renderer_script( 'my-rail-renderer' );
 ```
 
 ```js

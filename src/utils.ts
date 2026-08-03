@@ -11,7 +11,7 @@
  * on post.php — different posts must resolve to different windows so
  * opening a second post from the Posts list doesn't just refocus the
  * first. Everything else — pagination, nonces, action-feedback flags,
- * our internal open_station_chromeless marker — is considered transient
+ * our internal openstation_chromeless marker — is considered transient
  * and stripped, so a direct-URL land and a dock click resolve to the
  * same window ID.
  */
@@ -93,7 +93,7 @@ function slugify( path: string ): string {
  *
  * The ID is the admin filename plus any query params that distinguish
  * one admin page from another (see IDENTITY_PARAMS). Transient params —
- * open_station_chromeless, _wpnonce, paged, message — are discarded so the same
+ * openstation_chromeless, _wpnonce, paged, message — are discarded so the same
  * logical page always maps to the same window, whether reached via
  * direct URL or via the dock.
  *
@@ -222,7 +222,7 @@ export function pageIdentityKey( url: string ): string {
 export function urlMatchKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
-		parsed.searchParams.delete( 'open_station_chromeless' );
+		parsed.searchParams.delete( 'openstation_chromeless' );
 		parsed.searchParams.delete( 'desktop_mode_portal' );
 		return parsed.pathname.replace( /\/+$/, '' ) + '?' + parsed.searchParams.toString();
 	} catch {
@@ -251,7 +251,7 @@ export function urlMatchKey( url: string ): string {
 export function urlReuseKey( url: string ): string {
 	try {
 		const parsed = new URL( url, window.location.origin );
-		parsed.searchParams.delete( 'open_station_chromeless' );
+		parsed.searchParams.delete( 'openstation_chromeless' );
 		parsed.searchParams.delete( 'desktop_mode_portal' );
 		parsed.searchParams.delete( '_wp_http_referer' );
 		parsed.searchParams.sort();

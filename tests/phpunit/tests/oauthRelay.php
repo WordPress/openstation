@@ -34,25 +34,25 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	}
 
 	public function tear_down() {
-		open_station_unregister_oauth_relay( 'tumblrlike' );
-		open_station_unregister_oauth_relay( 'denied' );
+		openstation_unregister_oauth_relay( 'tumblrlike' );
+		openstation_unregister_oauth_relay( 'denied' );
 		remove_all_filters( 'pre_http_request' );
-		// `open_station_oauth_render_callback_html` adds a self-
+		// `openstation_oauth_render_callback_html` adds a self-
 		// removing `rest_pre_serve_request` filter — but tests that
 		// build a response without dispatching it through the REST
 		// server leave the closure attached. Wipe to keep tests
 		// hermetic.
 		remove_all_filters( 'rest_pre_serve_request' );
-		remove_all_actions( 'open_station_oauth_relay_registered' );
-		remove_all_actions( 'open_station_oauth_relay_connected' );
+		remove_all_actions( 'openstation_oauth_relay_registered' );
+		remove_all_actions( 'openstation_oauth_relay_connected' );
 		parent::tear_down();
 	}
 
 	/**
-	 * @covers ::open_station_register_oauth_relay
+	 * @covers ::openstation_register_oauth_relay
 	 */
 	public function test_registration_succeeds_with_valid_args() {
-		$result = open_station_register_oauth_relay( 'tumblrlike', array(
+		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -62,16 +62,16 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		) );
 
 		$this->assertTrue( $result );
-		$entry = open_station_oauth_relay_registry( 'tumblrlike' );
+		$entry = openstation_oauth_relay_registry( 'tumblrlike' );
 		$this->assertIsArray( $entry );
 		$this->assertSame( 'tumblrlike', $entry['service'] );
 	}
 
 	/**
-	 * @covers ::open_station_register_oauth_relay
+	 * @covers ::openstation_register_oauth_relay
 	 */
 	public function test_registration_rejects_missing_authorize_url() {
-		$result = open_station_register_oauth_relay( 'tumblrlike', array(
+		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
 			'client_secret' => 'csecret',
@@ -79,14 +79,14 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_oauth_missing_authorize_url', $result->get_error_code() );
+		$this->assertSame( 'openstation_oauth_missing_authorize_url', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_register_oauth_relay
+	 * @covers ::openstation_register_oauth_relay
 	 */
 	public function test_registration_rejects_non_callable_on_success() {
-		$result = open_station_register_oauth_relay( 'tumblrlike', array(
+		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -95,14 +95,14 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_oauth_missing_on_success', $result->get_error_code() );
+		$this->assertSame( 'openstation_oauth_missing_on_success', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_register_oauth_relay
+	 * @covers ::openstation_register_oauth_relay
 	 */
 	public function test_registration_rejects_javascript_url() {
-		$result = open_station_register_oauth_relay( 'tumblrlike', array(
+		$result = openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'javascript:alert(1)',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -111,40 +111,40 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		) );
 
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_oauth_invalid_url', $result->get_error_code() );
+		$this->assertSame( 'openstation_oauth_invalid_url', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_oauth_issue_state
-	 * @covers ::open_station_oauth_consume_state
+	 * @covers ::openstation_oauth_issue_state
+	 * @covers ::openstation_oauth_consume_state
 	 */
 	public function test_state_round_trip_is_single_use() {
-		$state = open_station_oauth_issue_state( self::$admin_id, 'tumblrlike' );
+		$state = openstation_oauth_issue_state( self::$admin_id, 'tumblrlike' );
 		$this->assertNotEmpty( $state );
 
-		$first = open_station_oauth_consume_state( $state );
+		$first = openstation_oauth_consume_state( $state );
 		$this->assertIsArray( $first );
 		$this->assertSame( self::$admin_id, $first['user_id'] );
 		$this->assertSame( 'tumblrlike', $first['service'] );
 
 		// Replay must miss — the transient was deleted.
-		$second = open_station_oauth_consume_state( $state );
+		$second = openstation_oauth_consume_state( $state );
 		$this->assertNull( $second );
 	}
 
 	/**
-	 * @covers ::open_station_oauth_consume_state
+	 * @covers ::openstation_oauth_consume_state
 	 */
 	public function test_consume_returns_null_for_unknown_state() {
-		$this->assertNull( open_station_oauth_consume_state( 'never-issued' ) );
-		$this->assertNull( open_station_oauth_consume_state( '' ) );
+		$this->assertNull( openstation_oauth_consume_state( 'never-issued' ) );
+		$this->assertNull( openstation_oauth_consume_state( '' ) );
 	}
 
 	/**
-	 * @covers ::open_station_rest_oauth_start
+	 * @covers ::openstation_rest_oauth_start
 	 */
 	public function test_rest_start_returns_authorize_url_with_state() {
-		open_station_register_oauth_relay( 'tumblrlike', array(
+		openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -155,7 +155,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/oauth/start' );
 		$request->set_body_params( array( 'service' => 'tumblrlike' ) );
-		$response = open_station_rest_oauth_start( $request );
+		$response = openstation_rest_oauth_start( $request );
 
 		$this->assertInstanceOf( 'WP_REST_Response', $response );
 		$data = $response->get_data();
@@ -174,25 +174,25 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_rest_oauth_start
+	 * @covers ::openstation_rest_oauth_start
 	 */
 	public function test_rest_start_404s_for_unknown_service() {
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/oauth/start' );
 		$request->set_body_params( array( 'service' => 'never-registered' ) );
-		$response = open_station_rest_oauth_start( $request );
+		$response = openstation_rest_oauth_start( $request );
 
 		$this->assertWPError( $response );
-		$this->assertSame( 'open_station_oauth_unknown_service', $response->get_error_code() );
+		$this->assertSame( 'openstation_oauth_unknown_service', $response->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_rest_oauth_start
+	 * @covers ::openstation_rest_oauth_start
 	 */
 	public function test_rest_start_capability_gate_denies_subscriber() {
 		$subscriber = self::factory()->user->create( array( 'role' => 'subscriber' ) );
 		wp_set_current_user( $subscriber );
 
-		open_station_register_oauth_relay( 'denied', array(
+		openstation_register_oauth_relay( 'denied', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -203,19 +203,19 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 
 		$request = new WP_REST_Request( 'POST', '/desktop-mode/v1/oauth/start' );
 		$request->set_body_params( array( 'service' => 'denied' ) );
-		$response = open_station_rest_oauth_start( $request );
+		$response = openstation_rest_oauth_start( $request );
 
 		$this->assertWPError( $response );
-		$this->assertSame( 'open_station_oauth_capability_denied', $response->get_error_code() );
+		$this->assertSame( 'openstation_oauth_capability_denied', $response->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_rest_oauth_callback
+	 * @covers ::openstation_rest_oauth_callback
 	 */
 	public function test_rest_callback_invalid_state_yields_html_with_invalid_state_payload() {
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
 		$request->set_query_params( array( 'state' => 'never-issued', 'code' => 'abc' ) );
-		$response = open_station_rest_oauth_callback( $request );
+		$response = openstation_rest_oauth_callback( $request );
 
 		$this->assertInstanceOf( 'WP_REST_Response', $response );
 		$body = (string) $response->get_data();
@@ -224,7 +224,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_rest_oauth_callback
+	 * @covers ::openstation_rest_oauth_callback
 	 */
 	public function test_rest_callback_success_invokes_on_success_and_fires_action() {
 		$received_user = null;
@@ -232,7 +232,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 		$received_service = null;
 		$action_calls = array();
 
-		open_station_register_oauth_relay( 'tumblrlike', array(
+		openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -244,12 +244,12 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 			},
 		) );
 
-		add_action( 'open_station_oauth_relay_connected', static function ( $service, $user_id ) use ( &$action_calls ) {
+		add_action( 'openstation_oauth_relay_connected', static function ( $service, $user_id ) use ( &$action_calls ) {
 			$action_calls[] = compact( 'service', 'user_id' );
 		}, 10, 2 );
 
 		// Issue a state ourselves, then exercise the callback.
-		$state = open_station_oauth_issue_state( self::$admin_id, 'tumblrlike' );
+		$state = openstation_oauth_issue_state( self::$admin_id, 'tumblrlike' );
 
 		add_filter( 'pre_http_request', static function ( $preempt, $args, $url ) {
 			if ( false !== strpos( $url, 'api.example.com/oauth/token' ) ) {
@@ -270,7 +270,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
 		$request->set_query_params( array( 'state' => $state, 'code' => 'auth-code' ) );
-		$response = open_station_rest_oauth_callback( $request );
+		$response = openstation_rest_oauth_callback( $request );
 
 		$this->assertInstanceOf( 'WP_REST_Response', $response );
 		$body = (string) $response->get_data();
@@ -286,11 +286,11 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_rest_oauth_callback
+	 * @covers ::openstation_rest_oauth_callback
 	 */
 	public function test_rest_callback_token_exchange_failure_does_not_fire_on_success() {
 		$success_count = 0;
-		open_station_register_oauth_relay( 'tumblrlike', array(
+		openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -300,7 +300,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 			},
 		) );
 
-		$state = open_station_oauth_issue_state( self::$admin_id, 'tumblrlike' );
+		$state = openstation_oauth_issue_state( self::$admin_id, 'tumblrlike' );
 
 		add_filter( 'pre_http_request', static function () {
 			return array(
@@ -314,7 +314,7 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
 		$request->set_query_params( array( 'state' => $state, 'code' => 'auth-code' ) );
-		$response = open_station_rest_oauth_callback( $request );
+		$response = openstation_rest_oauth_callback( $request );
 
 		$body = (string) $response->get_data();
 		$this->assertStringContainsString( 'token_exchange_failed', $body );
@@ -337,10 +337,10 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	 *
 	 * If the filter ever regresses to data-as-JSON, this test fails.
 	 *
-	 * @covers ::open_station_oauth_render_callback_html
+	 * @covers ::openstation_oauth_render_callback_html
 	 */
 	public function test_render_callback_html_echoes_raw_html_not_json_encoded() {
-		$response = open_station_oauth_render_callback_html( array(
+		$response = openstation_oauth_render_callback_html( array(
 			'ok'      => true,
 			'service' => 'tumblrlike',
 		) );
@@ -390,10 +390,10 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	 * against a misconfigured filter clobbering every REST response
 	 * on the site.
 	 *
-	 * @covers ::open_station_oauth_render_callback_html
+	 * @covers ::openstation_oauth_render_callback_html
 	 */
 	public function test_render_callback_html_filter_is_route_scoped() {
-		open_station_oauth_render_callback_html( array(
+		openstation_oauth_render_callback_html( array(
 			'ok'      => true,
 			'service' => 'tumblrlike',
 		) );
@@ -421,10 +421,10 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	 * right shape: fire twice, assert only the first fire echoes
 	 * our payload.
 	 *
-	 * @covers ::open_station_oauth_render_callback_html
+	 * @covers ::openstation_oauth_render_callback_html
 	 */
 	public function test_render_callback_html_filter_self_removes_after_firing() {
-		open_station_oauth_render_callback_html( array( 'ok' => true, 'service' => 'a' ) );
+		openstation_oauth_render_callback_html( array( 'ok' => true, 'service' => 'a' ) );
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
 		$server  = rest_get_server();
 
@@ -452,10 +452,10 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_rest_oauth_callback
+	 * @covers ::openstation_rest_oauth_callback
 	 */
 	public function test_rest_callback_handles_authorize_denied_query_param() {
-		open_station_register_oauth_relay( 'tumblrlike', array(
+		openstation_register_oauth_relay( 'tumblrlike', array(
 			'authorize_url' => 'https://example.com/oauth/authorize',
 			'token_url'     => 'https://api.example.com/oauth/token',
 			'client_id'     => 'cid',
@@ -463,14 +463,14 @@ class Tests_OpenStation_OAuthRelay extends WP_UnitTestCase {
 			'on_success'    => static function () {},
 		) );
 
-		$state = open_station_oauth_issue_state( self::$admin_id, 'tumblrlike' );
+		$state = openstation_oauth_issue_state( self::$admin_id, 'tumblrlike' );
 
 		$request = new WP_REST_Request( 'GET', '/desktop-mode/v1/oauth/callback' );
 		$request->set_query_params( array(
 			'state' => $state,
 			'error' => 'access_denied',
 		) );
-		$response = open_station_rest_oauth_callback( $request );
+		$response = openstation_rest_oauth_callback( $request );
 
 		$body = (string) $response->get_data();
 		$this->assertStringContainsString( 'authorize_denied', $body );

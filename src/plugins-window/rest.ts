@@ -9,8 +9,8 @@
  *   - Install by slug:        `admin-ajax.php?action=install-plugin`
  *                             (Core's wp.updates handler — we just
  *                             call it from JS, no PHP of our own).
- *   - Upload .zip:            our `wp_ajax_open_station_plugins_upload`.
- *   - Browse / Info / Reviews: our `wp_ajax_open_station_plugins_*`.
+ *   - Upload .zip:            our `wp_ajax_openstation_plugins_upload`.
+ *   - Browse / Info / Reviews: our `wp_ajax_openstation_plugins_*`.
  *
  * Every call goes through `trackedFetch` so the window's title-bar
  * activity indicator picks it up.
@@ -37,7 +37,7 @@ declare global {
 }
 
 /**
- * Subset of the `open_station_register_window( 'desktop-mode-plugins',
+ * Subset of the `openstation_register_window( 'desktop-mode-plugins',
  * […, 'config' => […] ] )` blob this bundle reads. Re-declared here
  * so the REST module isn't entangled with `index.ts`.
  */
@@ -104,7 +104,7 @@ export function getConfig(): PluginsWindowConfig {
 	if ( ! cfg ) {
 		throw new Error(
 			`[${ WINDOW_ID }] config blob is missing — was the window opened ` +
-				'without registration? See the matching `open_station_register_window()` ' +
+				'without registration? See the matching `openstation_register_window()` ' +
 				'call in `includes/plugins-window/window.php`.',
 		);
 	}
@@ -312,7 +312,7 @@ export async function fetchInstalledPlugins( opts: {
 	const cfg = getConfig();
 	const params = new URLSearchParams( { context: 'view', per_page: '100' } );
 	if ( opts.force ) {
-		params.set( 'open_station_force_refresh', '1' );
+		params.set( 'openstation_force_refresh', '1' );
 	}
 	const url = joinRestUrl( cfg.restRoot, `wp/v2/plugins?${ params.toString() }` );
 	return restRequest< InstalledPlugin[] >( url, { method: 'GET' } );
@@ -425,7 +425,7 @@ export async function updateInstalledPlugin(
 	// firing, otherwise `Plugin_Upgrader::bulk_upgrade()` falls through
 	// to the "already at latest version" branch (the transient lookup
 	// misses on the stripped key). Mirrors the same fix we apply
-	// server-side in `open_station_plugins_window_row_plugin_file()`.
+	// server-side in `openstation_plugins_window_row_plugin_file()`.
 	const pluginFile = plugin.plugin.endsWith( '.php' )
 		? plugin.plugin
 		: plugin.plugin + '.php';
@@ -434,7 +434,7 @@ export async function updateInstalledPlugin(
 		{
 			plugin: pluginFile,
 			slug:
-				plugin.open_station_update_available?.slug ||
+				plugin.openstation_update_available?.slug ||
 				plugin.textdomain ||
 				plugin.plugin.split( '/' )[ 0 ],
 		},
@@ -498,7 +498,7 @@ export async function browsePlugins( args: {
 	plugins: WpOrgBrowsePlugin[];
 	info: Record< string, unknown >;
 } > {
-	return ajaxRequest( 'open_station_plugins_browse', {
+	return ajaxRequest( 'openstation_plugins_browse', {
 		browse: args.browse,
 		search: args.search,
 		tag: args.tag,
@@ -509,7 +509,7 @@ export async function browsePlugins( args: {
 
 /** Fetch the full `plugin_information` payload for a slug. */
 export async function fetchPluginInfo( slug: string ): Promise< WpOrgPluginInfo > {
-	return ajaxRequest< WpOrgPluginInfo >( 'open_station_plugins_info', { slug } );
+	return ajaxRequest< WpOrgPluginInfo >( 'openstation_plugins_info', { slug } );
 }
 
 /**
@@ -531,14 +531,14 @@ export async function fetchFeaturedPlugins(): Promise< {
 	plugins: FeaturedPlugin[];
 	info: { curated?: number; discovered?: number; results?: number };
 } > {
-	return ajaxRequest( 'open_station_plugins_featured' );
+	return ajaxRequest( 'openstation_plugins_featured' );
 }
 
 /** Fetch (cached) recent reviews for a slug — falls back to histogram on parse failure. */
 export async function fetchPluginReviews(
 	slug: string,
 ): Promise< PluginReviewsResponse > {
-	return ajaxRequest< PluginReviewsResponse >( 'open_station_plugins_reviews', { slug } );
+	return ajaxRequest< PluginReviewsResponse >( 'openstation_plugins_reviews', { slug } );
 }
 
 // ─── Install / Upload ─────────────────────────────────────────────────
@@ -571,7 +571,7 @@ export interface UploadPluginResult {
 }
 
 /**
- * Upload + install a .zip via our `wp_ajax_open_station_plugins_upload`
+ * Upload + install a .zip via our `wp_ajax_openstation_plugins_upload`
  * action. Pass `overwrite: true` to instruct the upgrader to replace
  * an existing plugin directory — used by the dialog's confirm flow
  * after the server has returned a `folder_exists` 409.
@@ -585,7 +585,7 @@ export async function uploadPluginZip(
 	if ( options.overwrite ) {
 		data.set( 'overwrite', '1' );
 	}
-	return ajaxUpload( 'open_station_plugins_upload', data );
+	return ajaxUpload( 'openstation_plugins_upload', data );
 }
 
 // ─── Live-refresh helper ──────────────────────────────────────────────

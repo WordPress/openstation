@@ -345,7 +345,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 			id: 'themes-php',
 			currentUrl:
 				window.location.origin +
-				'/wp-admin/nav-menus.php?open_station_chromeless=1',
+				'/wp-admin/nav-menus.php?openstation_chromeless=1',
 		} );
 
 		const target =
@@ -470,7 +470,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 
 		const target =
 			window.location.origin +
-			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&open_station_chromeless=1';
+			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&openstation_chromeless=1';
 		postToWindow( win, {
 			type: 'os-iframe-admin-link',
 			url: target,
@@ -618,7 +618,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const { win } = mockAdminWindow( { id: 'edit-php' } );
 		( win.config as unknown as { url: string } ).url =
-			window.location.origin + '/wp-admin/edit.php?open_station_chromeless=1';
+			window.location.origin + '/wp-admin/edit.php?openstation_chromeless=1';
 
 		// Cross-page URL with a nonce but an action name OUTSIDE
 		// the destructive whitelist — represents a plugin's custom
@@ -634,7 +634,7 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		expect( openWindow ).toHaveBeenCalledTimes( 1 );
 		const openedUrl = String( openWindow.mock.calls[ 0 ][ 0 ].url );
 		const parsed = new URL( openedUrl );
-		// The `open_station_chromeless` flag is stripped from the
+		// The `openstation_chromeless` flag is stripped from the
 		// referer hint — `wp_get_referer()` consumers pass the
 		// result downstream into further redirects, and a
 		// chromeless-flagged referer would loop the flag into URLs
@@ -656,11 +656,11 @@ describe( 'iframe-bridge: os-iframe-admin-link', () => {
 		const { openWindow } = bindFakeDispatcher();
 		const { win, assignSpy } = mockAdminWindow( { id: 'edit-php' } );
 		( win.config as unknown as { url: string } ).url =
-			window.location.origin + '/wp-admin/edit.php?open_station_chromeless=1';
+			window.location.origin + '/wp-admin/edit.php?openstation_chromeless=1';
 
 		const target =
 			window.location.origin +
-			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&open_station_chromeless=1';
+			'/wp-admin/post.php?post=42&action=trash&_wpnonce=abc&openstation_chromeless=1';
 		postToWindow( win, {
 			type: 'os-iframe-admin-link',
 			url: target,

@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
  * @param string $available Available version.
  * @return bool
  */
-function open_station_is_major_update( $installed, $available ) {
+function openstation_is_major_update( $installed, $available ) {
 	$branch = static function ( $v ) {
 		$p = explode( '.', (string) $v );
 		return ( isset( $p[0] ) ? $p[0] : '0' ) . '.' . ( isset( $p[1] ) ? $p[1] : '0' );
@@ -31,7 +31,7 @@ function open_station_is_major_update( $installed, $available ) {
  * @param string $version Version string.
  * @return string
  */
-function open_station_release_branch( $version ) {
+function openstation_release_branch( $version ) {
 	$p = explode( '.', (string) $version );
 	return ( isset( $p[0] ) ? $p[0] : '0' ) . '.' . ( isset( $p[1] ) ? $p[1] : '0' );
 }
@@ -46,7 +46,7 @@ function open_station_release_branch( $version ) {
  *
  * @return array{version:string,available:string,branch:string,url:string,crossing:bool}|null
  */
-function open_station_get_core_update() {
+function openstation_get_core_update() {
 	if ( ! current_user_can( 'update_core' ) ) {
 		return null;
 	}
@@ -74,12 +74,12 @@ function open_station_get_core_update() {
 	 *
 	 * @param bool $show Default true.
 	 */
-	if ( ! apply_filters( 'open_station_show_core_update_notice', true ) ) {
+	if ( ! apply_filters( 'openstation_show_core_update_notice', true ) ) {
 		return null;
 	}
 
-	$branch   = open_station_release_branch( $available );
-	$crossing = open_station_is_major_update( get_bloginfo( 'version' ), $available );
+	$branch   = openstation_release_branch( $available );
+	$crossing = openstation_is_major_update( get_bloginfo( 'version' ), $available );
 
 	return array(
 		'version'   => $crossing ? $branch : $available,

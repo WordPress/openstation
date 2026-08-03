@@ -9,7 +9,7 @@
  *
  * Data source: WordPress REST API  /wp/v2/comments  (logged-in).
  * Refresh: every 60 seconds via setInterval.
- * Requires: OpenStation 0.18.0+ (open_station_register_widget).
+ * Requires: OpenStation 0.18.0+ (openstation_register_widget).
  *
  * @package OpenStation
  */
@@ -19,53 +19,53 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the JS + CSS assets.
  */
-function open_station_register_comments_widget_assets() {
-	$suffix  = open_station_asset_suffix();
-	$version = defined( 'OPEN_STATION_VERSION' ) ? OPEN_STATION_VERSION : '0';
+function openstation_register_comments_widget_assets() {
+	$suffix  = openstation_asset_suffix();
+	$version = defined( 'OPENSTATION_VERSION' ) ? OPENSTATION_VERSION : '0';
 
-	$js_path  = OPEN_STATION_DIR . 'assets/js/widget-recent-comments' . $suffix . '.js';
-	$css_path = OPEN_STATION_DIR . 'assets/js/widget-recent-comments' . $suffix . '.css';
+	$js_path  = OPENSTATION_DIR . 'assets/js/widget-recent-comments' . $suffix . '.js';
+	$css_path = OPENSTATION_DIR . 'assets/js/widget-recent-comments' . $suffix . '.css';
 
 	wp_register_style(
 		'os-comments-widget',
-		OPEN_STATION_URL . 'assets/js/widget-recent-comments' . $suffix . '.css',
+		OPENSTATION_URL . 'assets/js/widget-recent-comments' . $suffix . '.css',
 		array(),
 		file_exists( $css_path ) ? (string) filemtime( $css_path ) : $version
 	);
 
 	wp_register_script(
 		'os-comments-widget',
-		OPEN_STATION_URL . 'assets/js/widget-recent-comments' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/widget-recent-comments' . $suffix . '.js',
 		array( 'wp-api-fetch' ),
 		file_exists( $js_path ) ? (string) filemtime( $js_path ) : $version,
 		true
 	);
 }
-add_action( 'init', 'open_station_register_comments_widget_assets', 5 );
+add_action( 'init', 'openstation_register_comments_widget_assets', 5 );
 
 /**
  * Eagerly enqueue the CSS on shell pages so there is no flash of
  * unstyled content while the lazy JS bundle loads.
  */
-function open_station_enqueue_comments_widget_styles() {
-	if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
+function openstation_enqueue_comments_widget_styles() {
+	if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
 		return;
 	}
-	if ( function_exists( 'open_station_is_chromeless_request' ) && open_station_is_chromeless_request() ) {
+	if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
 		return;
 	}
 	wp_enqueue_style( 'os-comments-widget' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_comments_widget_styles', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_comments_widget_styles', 20 );
 
 /**
  * Register the widget definition.
  */
-function open_station_register_comments_widget() {
-	if ( ! function_exists( 'open_station_register_widget' ) ) {
+function openstation_register_comments_widget() {
+	if ( ! function_exists( 'openstation_register_widget' ) ) {
 		return;
 	}
-	open_station_register_widget(
+	openstation_register_widget(
 		'desktop-mode/recent-comments',
 		array(
 			'label'          => __( 'Recent Comments', 'desktop-mode' ),
@@ -81,4 +81,4 @@ function open_station_register_comments_widget() {
 		)
 	);
 }
-add_action( 'init', 'open_station_register_comments_widget', 6 );
+add_action( 'init', 'openstation_register_comments_widget', 6 );

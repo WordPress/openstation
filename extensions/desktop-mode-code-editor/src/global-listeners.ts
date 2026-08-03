@@ -3,7 +3,7 @@
  *
  * Two global handlers that run on every openstation page load
  * (the editor's bundle is enqueued eagerly by
- * `open_station_enqueue_native_window_scripts`), regardless of whether
+ * `openstation_enqueue_native_window_scripts`), regardless of whether
  * the editor window is currently open:
  *
  *   - **Cmd/Ctrl + Shift + E** keyboard shortcut → open / focus
@@ -13,7 +13,7 @@
  *     Documented for plugin authors so a "View source" link in a
  *     plugin's iframe can deep-link into the editor.
  *
- * Both handlers go through `wp.os.openWindow( 'osc-editor' )`
+ * Both handlers go through `wp.os.openWindow( 'wpdc-editor' )`
  * → the canonical native-window opener that pre-clones the
  * editor's template into the body. Same code path as the dock
  * click; no surprises on first paint.
@@ -52,12 +52,12 @@ export function openEditorWindow(): boolean {
 	if ( ! desktop ) {
 		return false;
 	}
-	const existing = desktop.windowManager.getById( 'osc-editor' );
+	const existing = desktop.windowManager.getById( 'wpdc-editor' );
 	if ( existing ) {
 		existing.focus?.();
 		return true;
 	}
-	return desktop.openWindow( 'osc-editor' );
+	return desktop.openWindow( 'wpdc-editor' );
 }
 
 /**
@@ -128,7 +128,7 @@ function installPostMessageListener(): void {
 		// → the in-editor handler is already subscribed and will
 		// catch this same event itself.
 		const desktop = getDesktop();
-		const existing = desktop?.windowManager.getById( 'osc-editor' );
+		const existing = desktop?.windowManager.getById( 'wpdc-editor' );
 		if ( ! existing ) {
 			openEditorAtPath( event.data.path, event.data.line ?? 1 );
 		}

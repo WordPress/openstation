@@ -3,7 +3,7 @@
  *
  * Same shape as `src/window-chrome/themes/server-sync.ts` and the
  * rest of the server-sync family. Plugins opt in server-side via
- * `open_station_register_window_control_script()`; this module loads
+ * `openstation_register_window_control_script()`; this module loads
  * each opted-in script on activation and tears down owner-tagged
  * controls on deactivation.
  *

@@ -19,14 +19,14 @@
 defined( 'ABSPATH' ) || exit;
 
 /** Option flag: defaults were seeded (or deliberately skipped). */
-const OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION = 'desktop_mode_agents_defaults_seeded';
+const OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION = 'desktop_mode_agents_defaults_seeded';
 
 /**
  * The default agent roster.
  *
  * @return array<int, array<string, mixed>>
  */
-function open_station_agents_default_definitions() {
+function openstation_agents_default_definitions() {
 	return array(
 		array(
 			'name'         => 'tl;dr',
@@ -346,19 +346,19 @@ DM_AGENT_ALT_INSTRUCTIONS,
  *
  * @return void
  */
-function open_station_agents_seed_defaults() {
-	if ( get_option( OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION ) ) {
+function openstation_agents_seed_defaults() {
+	if ( get_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION ) ) {
 		return;
 	}
 
-	$existing = open_station_agent_get_agents();
+	$existing = openstation_agent_get_agents();
 	if ( ! empty( $existing ) ) {
-		update_option( OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
+		update_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
 		return;
 	}
 
-	foreach ( open_station_agents_default_definitions() as $definition ) {
-		$user = open_station_agent_create(
+	foreach ( openstation_agents_default_definitions() as $definition ) {
+		$user = openstation_agent_create(
 			array(
 				'name'         => $definition['name'],
 				'role'         => $definition['role'],
@@ -372,10 +372,10 @@ function open_station_agents_seed_defaults() {
 			error_log( '[openstation] Default agent "' . $definition['name'] . '" failed to seed: ' . $user->get_error_message() );
 			continue;
 		}
-		open_station_agent_update( $user->ID, array( 'triggers' => $definition['triggers'] ) );
+		openstation_agent_update( $user->ID, array( 'triggers' => $definition['triggers'] ) );
 	}
 
-	update_option( OPEN_STATION_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
+	update_option( OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION, '1', false );
 }
 /**
  * Hook wrapper — seed only on wp-admin requests by a user who could
@@ -384,10 +384,10 @@ function open_station_agents_seed_defaults() {
  *
  * @return void
  */
-function open_station_agents_maybe_seed_defaults() {
+function openstation_agents_maybe_seed_defaults() {
 	if ( ! is_admin() || ! current_user_can( 'edit_users' ) ) {
 		return;
 	}
-	open_station_agents_seed_defaults();
+	openstation_agents_seed_defaults();
 }
-add_action( 'admin_init', 'open_station_agents_maybe_seed_defaults' );
+add_action( 'admin_init', 'openstation_agents_maybe_seed_defaults' );

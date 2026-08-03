@@ -5,7 +5,7 @@
  * public surface a plugin would use (`registerTitleBarButton`). The
  * button appears only on windows whose content identity carries a
  * `previewUrl` — built server-side by
- * `open_station_window_preview_url()` in `includes/window-links.php`
+ * `openstation_window_preview_url()` in `includes/window-links.php`
  * for post/page/CPT edit screens of viewable post types, and
  * travelling with the `os-content-identity` bridge payload.
  *
@@ -26,7 +26,7 @@
  * After the initial placement the module never re-snaps either window
  * — the user is free to rearrange, the pairing survives.
  *
- * Developer surface: the `open_station_window_preview_url` PHP filter
+ * Developer surface: the `openstation_window_preview_url` PHP filter
  * rewrites/suppresses the URL; `HOOKS.EDITOR_PREVIEW_WINDOW_CONFIG`
  * filters the companion's `WindowConfig`;
  * `HOOKS.EDITOR_PREVIEW_OPENED` / `EDITOR_PREVIEW_CLOSED` (and the

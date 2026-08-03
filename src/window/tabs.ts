@@ -77,7 +77,7 @@ function findPageOwnerTab(
 		let contradicted = false;
 		for ( const [ key, value ] of parsed.searchParams ) {
 			if (
-				key === 'open_station_chromeless' ||
+				key === 'openstation_chromeless' ||
 				key === 'desktop_mode_portal'
 			) {
 				continue;

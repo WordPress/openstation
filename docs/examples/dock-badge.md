@@ -9,7 +9,7 @@ Adds a new "Pending Orders" icon to the dock, with a live badge showing the curr
  */
 defined( 'ABSPATH' ) || exit;
 
-add_filter( 'open_station_dock_items', function ( $items ) {
+add_filter( 'openstation_dock_items', function ( $items ) {
     $pending = (int) get_option( 'my_pending_order_count', 0 );
 
     $items[] = array(
@@ -120,5 +120,5 @@ tile), see
 
 - [`window-request-attention.md`](./window-request-attention.md) — pulse / shake / bounce a tile
 - [`../event-driven-framework.md`](../event-driven-framework.md) — the mental model
-- [Hooks Reference — `open_station_dock_items`](../hooks-reference.md#open_station_dock_items--stable)
-- [Hooks Reference — `open_station_dock_item`](../hooks-reference.md#open_station_dock_item--stable)
+- [Hooks Reference — `openstation_dock_items`](../hooks-reference.md#openstation_dock_items--stable)
+- [Hooks Reference — `openstation_dock_item`](../hooks-reference.md#openstation_dock_item--stable)

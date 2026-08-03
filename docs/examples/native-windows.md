@@ -6,8 +6,8 @@ Native windows are windows whose content renders directly in the parent DOM inst
 
 ## Where to start
 
-- **[Register a desktop icon (Jorvy)](./register-icon.md)** — the canonical end-to-end example: PHP `open_station_register_window()` + `open_station_register_icon()` + a JS render callback. Read this first.
-- **[Native window with tabs](./native-window-with-tabs.md)** — multi-pane windows via `open_station_register_window_tab()`, including the auto-swap rendering pattern other plugins can extend.
+- **[Register a desktop icon (Jorvy)](./register-icon.md)** — the canonical end-to-end example: PHP `openstation_register_window()` + `openstation_register_icon()` + a JS render callback. Read this first.
+- **[Native window with tabs](./native-window-with-tabs.md)** — multi-pane windows via `openstation_register_window_tab()`, including the auto-swap rendering pattern other plugins can extend.
 - **[Native window with bundle-bound config](./window-with-config.md)** — the recommended way to ship REST URLs / nonces / session-bound data to your bundle so it lands on both eager and lazy load paths.
 - **[Layout primitives](./layout-primitives.md)** — `<os-stack>` / `<os-section>` / `<os-row>` / etc. Compose these inside your template callback.
 

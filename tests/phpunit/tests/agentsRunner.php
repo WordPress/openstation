@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the agents runner — network-free via the
- * `open_station_agent_runner_generate` pre-filter, following the
+ * `openstation_agent_runner_generate` pre-filter, following the
  * pure-function style of the AI Copilot suites.
  *
  * @package WordPress
@@ -24,7 +24,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	private function create_agent( array $overrides = array() ) {
-		$user = open_station_agent_create(
+		$user = openstation_agent_create(
 			array_merge(
 				array(
 					'name'         => 'Runner Agent',
@@ -39,11 +39,11 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	private function stub_generate( callable $turns ) {
-		add_filter( 'open_station_agent_runner_generate', $turns, 10, 5 );
+		add_filter( 'openstation_agent_runner_generate', $turns, 10, 5 );
 	}
 
 	/**
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_invoke_returns_text_answer() {
 		$agent = $this->create_agent();
@@ -57,7 +57,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'Do the thing.' );
+		$result = openstation_agent_invoke( $agent->ID, 'Do the thing.' );
 		$this->assertNotWPError( $result );
 		$this->assertSame( 'All done.', $result['text'] );
 		$this->assertSame( array(), $result['toolCalls'] );
@@ -68,7 +68,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * The tool loop runs with the current user switched to the agent,
 	 * and the previous user is restored afterwards.
 	 *
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_invoke_switches_identity_and_restores() {
 		$agent    = $this->create_agent();
@@ -84,14 +84,14 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		open_station_agent_invoke( $agent->ID, 'hello' );
+		openstation_agent_invoke( $agent->ID, 'hello' );
 
 		$this->assertSame( array( (int) $agent->ID ), $seen_ids );
 		$this->assertSame( self::$admin_id, get_current_user_id() );
 	}
 
 	/**
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_invoke_fires_completed_action_with_context() {
 		$agent = $this->create_agent();
@@ -107,7 +107,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 
 		$captured = null;
 		add_action(
-			'open_station_agent_completed',
+			'openstation_agent_completed',
 			static function ( $agent_id, $message, $result, $context ) use ( &$captured ) {
 				$captured = array( $agent_id, $message, $result, $context );
 			},
@@ -115,7 +115,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			4
 		);
 
-		open_station_agent_invoke( $agent->ID, 'chain me', array( 'source' => 'chat' ) );
+		openstation_agent_invoke( $agent->ID, 'chain me', array( 'source' => 'chat' ) );
 
 		$this->assertNotNull( $captured );
 		$this->assertSame( (int) $agent->ID, $captured[0] );
@@ -128,7 +128,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * A function call outside the allowlist map is answered with an
 	 * error result, not executed.
 	 *
-	 * @covers ::open_station_agent_runner_loop
+	 * @covers ::openstation_agent_runner_loop
 	 */
 	public function test_unknown_tool_yields_error_result() {
 		$agent = $this->create_agent();
@@ -157,7 +157,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'go' );
+		$result = openstation_agent_invoke( $agent->ID, 'go' );
 		$this->assertNotWPError( $result );
 		$this->assertSame( 2, $result['turns'] );
 		$this->assertCount( 1, $result['toolCalls'] );
@@ -169,8 +169,8 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * An allowlisted ability is executed as the agent and its output
 	 * lands in the trace. Requires the Abilities API.
 	 *
-	 * @covers ::open_station_agent_runner_dispatch_tool
-	 * @covers ::open_station_agent_runner_build_tools
+	 * @covers ::openstation_agent_runner_dispatch_tool
+	 * @covers ::openstation_agent_runner_build_tools
 	 */
 	public function test_allowlisted_ability_dispatches() {
 		if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( 'desktop-mode/get-post' ) ) {
@@ -212,7 +212,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'read it' );
+		$result = openstation_agent_invoke( $agent->ID, 'read it' );
 		$this->assertNotWPError( $result );
 		$this->assertCount( 1, $result['toolCalls'] );
 		$call = $result['toolCalls'][0];
@@ -228,18 +228,18 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * request otherwise ("input_schema does not support oneOf, allOf,
 	 * or anyOf at the top level").
 	 *
-	 * @covers ::open_station_agent_runner_build_tools
+	 * @covers ::openstation_agent_runner_build_tools
 	 */
 	public function test_build_tools_normalizes_schemas() {
 		if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( 'desktop-mode/get-post' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );
 		}
 
-		list( $tools ) = open_station_agent_runner_build_tools( array( 'desktop-mode/get-post' ) );
+		list( $tools ) = openstation_agent_runner_build_tools( array( 'desktop-mode/get-post' ) );
 
 		$this->assertCount( 1, $tools );
 		$this->assertSame(
-			open_station_ai_normalize_tool_schema(
+			openstation_ai_normalize_tool_schema(
 				wp_get_ability( 'desktop-mode/get-post' )->get_input_schema()
 			),
 			$tools[0]['parameters']
@@ -256,10 +256,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * provider signature requirements (Gemini `thought_signature`,
 	 * Anthropic thinking signatures).
 	 *
-	 * @covers ::open_station_agent_runner_compose_prompt
+	 * @covers ::openstation_agent_runner_compose_prompt
 	 */
 	public function test_compose_prompt_flattens_history() {
-		$bare = open_station_agent_runner_compose_prompt(
+		$bare = openstation_agent_runner_compose_prompt(
 			array(
 				array(
 					'type' => 'user_text',
@@ -269,7 +269,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		);
 		$this->assertSame( 'Audit post 7.', $bare );
 
-		$with_tools = open_station_agent_runner_compose_prompt(
+		$with_tools = openstation_agent_runner_compose_prompt(
 			array(
 				array(
 					'type' => 'user_text',
@@ -303,7 +303,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * The second generate turn sees the executed call (with args) in
 	 * the neutral history the transcript is built from.
 	 *
-	 * @covers ::open_station_agent_runner_loop
+	 * @covers ::openstation_agent_runner_loop
 	 */
 	public function test_tool_results_rows_carry_args() {
 		$agent     = $this->create_agent();
@@ -334,7 +334,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		open_station_agent_invoke( $agent->ID, 'go' );
+		openstation_agent_invoke( $agent->ID, 'go' );
 
 		$this->assertCount( 2, $histories );
 		$second = $histories[1];
@@ -354,10 +354,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * reported bug where an approval wrote to a different post than the
 	 * one proposed.
 	 *
-	 * @covers ::open_station_agent_runner_compose_prompt
+	 * @covers ::openstation_agent_runner_compose_prompt
 	 */
 	public function test_prior_turns_precede_the_new_message() {
-		$prompt = open_station_agent_runner_compose_prompt(
+		$prompt = openstation_agent_runner_compose_prompt(
 			array(
 				array(
 					'type' => 'prior',
@@ -387,10 +387,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agent_runner_sanitize_history
+	 * @covers ::openstation_agent_runner_sanitize_history
 	 */
 	public function test_history_sanitizer_filters_and_caps() {
-		$clean = open_station_agent_runner_sanitize_history(
+		$clean = openstation_agent_runner_sanitize_history(
 			array(
 				array(
 					'role' => 'user',
@@ -409,44 +409,44 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		);
 		$this->assertSame( array( array( 'role' => 'user', 'text' => 'hello' ) ), $clean );
 
-		$long = open_station_agent_runner_sanitize_history(
+		$long = openstation_agent_runner_sanitize_history(
 			array(
 				array(
 					'role' => 'user',
-					'text' => str_repeat( 'x', OPEN_STATION_AGENT_HISTORY_TEXT_CAP + 500 ),
+					'text' => str_repeat( 'x', OPENSTATION_AGENT_HISTORY_TEXT_CAP + 500 ),
 				),
 			)
 		);
 		$this->assertSame(
-			OPEN_STATION_AGENT_HISTORY_TEXT_CAP,
+			OPENSTATION_AGENT_HISTORY_TEXT_CAP,
 			mb_strlen( $long[0]['text'] )
 		);
 
 		$many = array();
-		for ( $i = 0; $i < OPEN_STATION_AGENT_HISTORY_TURN_CAP + 5; $i++ ) {
+		for ( $i = 0; $i < OPENSTATION_AGENT_HISTORY_TURN_CAP + 5; $i++ ) {
 			$many[] = array(
 				'role' => 'user',
 				'text' => 'turn ' . $i,
 			);
 		}
-		$capped = open_station_agent_runner_sanitize_history( $many );
-		$this->assertCount( OPEN_STATION_AGENT_HISTORY_TURN_CAP, $capped );
+		$capped = openstation_agent_runner_sanitize_history( $many );
+		$this->assertCount( OPENSTATION_AGENT_HISTORY_TURN_CAP, $capped );
 		// The most RECENT turns survive — the oldest roll off.
-		$this->assertSame( 'turn ' . ( OPEN_STATION_AGENT_HISTORY_TURN_CAP + 4 ), end( $capped )['text'] );
+		$this->assertSame( 'turn ' . ( OPENSTATION_AGENT_HISTORY_TURN_CAP + 4 ), end( $capped )['text'] );
 	}
 
 	/**
 	 * History supplied through the invocation context reaches the
 	 * generate call.
 	 *
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_invoke_replays_context_history() {
 		$agent   = $this->create_agent();
 		$prompts = array();
 		$this->stub_generate(
 			static function ( $ignored, $history ) use ( &$prompts ) {
-				$prompts[] = open_station_agent_runner_compose_prompt( $history );
+				$prompts[] = openstation_agent_runner_compose_prompt( $history );
 				return array(
 					'text'           => 'ok',
 					'function_calls' => array(),
@@ -455,7 +455,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		open_station_agent_invoke(
+		openstation_agent_invoke(
 			$agent->ID,
 			'Yes, please',
 			array(
@@ -478,11 +478,11 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agent_runner_check_rate_limit
+	 * @covers ::openstation_agent_runner_check_rate_limit
 	 */
 	public function test_rate_limit_blocks_after_cap() {
 		$agent = $this->create_agent();
-		open_station_agent_update( $agent->ID, array( 'rateLimit' => 1 ) );
+		openstation_agent_update( $agent->ID, array( 'rateLimit' => 1 ) );
 		$this->stub_generate(
 			static function () {
 				return array(
@@ -493,16 +493,16 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$first = open_station_agent_invoke( $agent->ID, 'one' );
+		$first = openstation_agent_invoke( $agent->ID, 'one' );
 		$this->assertNotWPError( $first );
 
-		$second = open_station_agent_invoke( $agent->ID, 'two' );
+		$second = openstation_agent_invoke( $agent->ID, 'two' );
 		$this->assertWPError( $second );
-		$this->assertSame( 'open_station_agent_rate_limited', $second->get_error_code() );
+		$this->assertSame( 'openstation_agent_rate_limited', $second->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_invoke_validates_agent_and_message() {
 		$this->stub_generate(
@@ -515,36 +515,36 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$not_agent = open_station_agent_invoke( self::$admin_id, 'hi' );
+		$not_agent = openstation_agent_invoke( self::$admin_id, 'hi' );
 		$this->assertWPError( $not_agent );
-		$this->assertSame( 'open_station_agent_not_found', $not_agent->get_error_code() );
+		$this->assertSame( 'openstation_agent_not_found', $not_agent->get_error_code() );
 
 		$agent = $this->create_agent();
-		$empty = open_station_agent_invoke( $agent->ID, '   ' );
+		$empty = openstation_agent_invoke( $agent->ID, '   ' );
 		$this->assertWPError( $empty );
-		$this->assertSame( 'open_station_agent_empty_message', $empty->get_error_code() );
+		$this->assertSame( 'openstation_agent_empty_message', $empty->get_error_code() );
 	}
 
 	/**
 	 * Without the pre-filter and without the AI Client, the runner
 	 * reports unavailability instead of fataling.
 	 *
-	 * @covers ::open_station_agent_runner_available
+	 * @covers ::openstation_agent_runner_available
 	 */
 	public function test_unavailable_without_client_or_stub() {
-		if ( function_exists( 'open_station_ai_is_available' ) && open_station_ai_is_available() ) {
+		if ( function_exists( 'openstation_ai_is_available' ) && openstation_ai_is_available() ) {
 			$this->markTestSkipped( 'AI Client available on this environment.' );
 		}
 		$agent  = $this->create_agent();
-		$result = open_station_agent_invoke( $agent->ID, 'hi' );
+		$result = openstation_agent_invoke( $agent->ID, 'hi' );
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_agent_ai_unavailable', $result->get_error_code() );
+		$this->assertSame( 'openstation_agent_ai_unavailable', $result->get_error_code() );
 	}
 
 	/**
 	 * The runner gives up at the turn cap instead of looping forever.
 	 *
-	 * @covers ::open_station_agent_runner_loop
+	 * @covers ::openstation_agent_runner_loop
 	 */
 	public function test_turn_cap_stops_runaway_loop() {
 		$agent = $this->create_agent();
@@ -566,19 +566,19 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'loop' );
+		$result = openstation_agent_invoke( $agent->ID, 'loop' );
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_agent_runner_max_turns', $result->get_error_code() );
+		$this->assertSame( 'openstation_agent_runner_max_turns', $result->get_error_code() );
 		// Cap turns + the forced tool-less attempt (which here still
 		// "called a tool", so the error is preserved).
-		$this->assertSame( OPEN_STATION_AGENT_RUNNER_MAX_TURNS + 1, $calls );
+		$this->assertSame( OPENSTATION_AGENT_RUNNER_MAX_TURNS + 1, $calls );
 	}
 
 	/**
 	 * When the cap is hit, one forced TOOL-LESS generate turns the
 	 * transcript into a best-effort final answer instead of an error.
 	 *
-	 * @covers ::open_station_agent_runner_loop
+	 * @covers ::openstation_agent_runner_loop
 	 */
 	public function test_turn_cap_forces_a_final_toolless_answer() {
 		$agent = $this->create_agent();
@@ -587,7 +587,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->stub_generate(
 			static function ( $ignored, $history, $tool_defs ) use ( &$calls, &$forced_tools ) {
 				++$calls;
-				if ( $calls <= OPEN_STATION_AGENT_RUNNER_MAX_TURNS ) {
+				if ( $calls <= OPENSTATION_AGENT_RUNNER_MAX_TURNS ) {
 					return array(
 						'text'           => null,
 						'function_calls' => array(
@@ -609,15 +609,15 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'loop' );
+		$result = openstation_agent_invoke( $agent->ID, 'loop' );
 		$this->assertNotWPError( $result );
 		$this->assertSame( 'Best effort from what I gathered.', $result['text'] );
-		$this->assertSame( OPEN_STATION_AGENT_RUNNER_MAX_TURNS + 1, $result['turns'] );
+		$this->assertSame( OPENSTATION_AGENT_RUNNER_MAX_TURNS + 1, $result['turns'] );
 		$this->assertSame( array(), $forced_tools, 'The forced final turn must advertise no tools.' );
 	}
 
 	/**
-	 * @covers ::open_station_agent_runner_log_invocation
+	 * @covers ::openstation_agent_runner_log_invocation
 	 */
 	public function test_invocations_are_logged() {
 		$agent = $this->create_agent();
@@ -631,9 +631,9 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		open_station_agent_invoke( $agent->ID, 'log me' );
+		openstation_agent_invoke( $agent->ID, 'log me' );
 
-		$log = open_station_agent_runner_get_log( $agent->ID );
+		$log = openstation_agent_runner_get_log( $agent->ID );
 		$this->assertCount( 1, $log );
 		$this->assertSame( 'done', $log[0]['status'] );
 		$this->assertSame( 'log me', $log[0]['message'] );
@@ -641,12 +641,12 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agent_parse_answer
-	 * @covers ::open_station_agent_sanitize_call_to_actions
+	 * @covers ::openstation_agent_parse_answer
+	 * @covers ::openstation_agent_sanitize_call_to_actions
 	 */
 	public function test_parse_answer_is_lenient() {
 		// Plain text degrades to today's behavior.
-		$plain = open_station_agent_parse_answer( 'Just words.' );
+		$plain = openstation_agent_parse_answer( 'Just words.' );
 		$this->assertSame( 'Just words.', $plain['text'] );
 		$this->assertSame( array(), $plain['callToActions'] );
 
@@ -673,7 +673,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 				),
 			)
 		);
-		$parsed = open_station_agent_parse_answer( $json );
+		$parsed = openstation_agent_parse_answer( $json );
 		$this->assertSame( 'Apply the TL;DR to post 188?', $parsed['text'] );
 		$this->assertCount( 2, $parsed['callToActions'] );
 		$this->assertSame( 'approve', $parsed['callToActions'][0]['id'] );
@@ -682,34 +682,34 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		$this->assertSame( 'secondary', $parsed['callToActions'][1]['style'] );
 
 		// A ```json fence around the object is tolerated.
-		$fenced = open_station_agent_parse_answer( "```json\n" . $json . "\n```" );
+		$fenced = openstation_agent_parse_answer( "```json\n" . $json . "\n```" );
 		$this->assertSame( 'Apply the TL;DR to post 188?', $fenced['text'] );
 		$this->assertCount( 2, $fenced['callToActions'] );
 	}
 
 	/**
-	 * @covers ::open_station_agent_sanitize_call_to_actions
+	 * @covers ::openstation_agent_sanitize_call_to_actions
 	 */
 	public function test_call_to_actions_caps() {
 		$many = array();
-		for ( $i = 0; $i < OPEN_STATION_AGENT_CTA_CAP + 3; $i++ ) {
+		for ( $i = 0; $i < OPENSTATION_AGENT_CTA_CAP + 3; $i++ ) {
 			$many[] = array(
 				'id'    => "a{$i}",
-				'label' => str_repeat( 'L', OPEN_STATION_AGENT_CTA_LABEL_CAP + 20 ),
-				'reply' => str_repeat( 'R', OPEN_STATION_AGENT_CTA_REPLY_CAP + 20 ),
+				'label' => str_repeat( 'L', OPENSTATION_AGENT_CTA_LABEL_CAP + 20 ),
+				'reply' => str_repeat( 'R', OPENSTATION_AGENT_CTA_REPLY_CAP + 20 ),
 			);
 		}
-		$clean = open_station_agent_sanitize_call_to_actions( $many );
-		$this->assertCount( OPEN_STATION_AGENT_CTA_CAP, $clean );
-		$this->assertSame( OPEN_STATION_AGENT_CTA_LABEL_CAP, mb_strlen( $clean[0]['label'] ) );
-		$this->assertSame( OPEN_STATION_AGENT_CTA_REPLY_CAP, mb_strlen( $clean[0]['reply'] ) );
+		$clean = openstation_agent_sanitize_call_to_actions( $many );
+		$this->assertCount( OPENSTATION_AGENT_CTA_CAP, $clean );
+		$this->assertSame( OPENSTATION_AGENT_CTA_LABEL_CAP, mb_strlen( $clean[0]['label'] ) );
+		$this->assertSame( OPENSTATION_AGENT_CTA_REPLY_CAP, mb_strlen( $clean[0]['reply'] ) );
 	}
 
 	/**
 	 * A structured final answer surfaces as text + callToActions on the
 	 * invoke result.
 	 *
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_invoke_returns_call_to_actions() {
 		$agent = $this->create_agent();
@@ -735,7 +735,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'Propose the update.' );
+		$result = openstation_agent_invoke( $agent->ID, 'Propose the update.' );
 		$this->assertNotWPError( $result );
 		$this->assertSame( 'Approve the update?', $result['text'] );
 		$this->assertCount( 1, $result['callToActions'] );
@@ -751,17 +751,17 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * The WordPress default of 5s aborts a generation over a long post
 	 * mid-flight, surfacing as an opaque network error.
 	 *
-	 * @covers ::open_station_agent_with_http_timeout
+	 * @covers ::openstation_agent_with_http_timeout
 	 */
 	public function test_http_timeout_is_raised_for_the_provider_request() {
 		$seen = null;
-		open_station_agent_with_http_timeout(
+		openstation_agent_with_http_timeout(
 			static function () use ( &$seen ) {
 				$seen = apply_filters( 'http_request_timeout', 5, 'https://api.anthropic.com/v1/messages' );
 			}
 		);
 
-		$this->assertSame( OPEN_STATION_AGENT_HTTP_TIMEOUT, $seen );
+		$this->assertSame( OPENSTATION_AGENT_HTTP_TIMEOUT, $seen );
 	}
 
 	/**
@@ -771,17 +771,17 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * `wp_ai_client_default_request_timeout` filter too, or long
 	 * generations die at 30s ("timed out after 30007 milliseconds").
 	 *
-	 * @covers ::open_station_agent_with_http_timeout
+	 * @covers ::openstation_agent_with_http_timeout
 	 */
 	public function test_ai_client_request_timeout_is_raised_too() {
 		$seen = null;
-		open_station_agent_with_http_timeout(
+		openstation_agent_with_http_timeout(
 			static function () use ( &$seen ) {
 				$seen = apply_filters( 'wp_ai_client_default_request_timeout', 30.0 );
 			}
 		);
 
-		$this->assertSame( (float) OPEN_STATION_AGENT_HTTP_TIMEOUT, $seen );
+		$this->assertSame( (float) OPENSTATION_AGENT_HTTP_TIMEOUT, $seen );
 		// Released afterwards, like the generic filter.
 		$this->assertSame( 30.0, apply_filters( 'wp_ai_client_default_request_timeout', 30.0 ) );
 	}
@@ -790,10 +790,10 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * Released afterwards — an agent run must not widen the timeout for
 	 * unrelated requests later in the same page load.
 	 *
-	 * @covers ::open_station_agent_with_http_timeout
+	 * @covers ::openstation_agent_with_http_timeout
 	 */
 	public function test_http_timeout_is_released_after_the_call() {
-		open_station_agent_with_http_timeout( static function () {} );
+		openstation_agent_with_http_timeout( static function () {} );
 
 		$this->assertSame( 5, apply_filters( 'http_request_timeout', 5, 'https://example.com/' ) );
 	}
@@ -802,11 +802,11 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * Released even when the provider call throws, or one failure would
 	 * leak the raised timeout for the rest of the request.
 	 *
-	 * @covers ::open_station_agent_with_http_timeout
+	 * @covers ::openstation_agent_with_http_timeout
 	 */
 	public function test_http_timeout_is_released_when_the_callback_throws() {
 		try {
-			open_station_agent_with_http_timeout(
+			openstation_agent_with_http_timeout(
 				static function () {
 					throw new RuntimeException( 'provider exploded' );
 				}
@@ -823,13 +823,13 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * Only ever raises: a site that already allows longer keeps its own
 	 * value.
 	 *
-	 * @covers ::open_station_agent_with_http_timeout
+	 * @covers ::openstation_agent_with_http_timeout
 	 */
 	public function test_http_timeout_never_lowers_a_larger_site_value() {
-		$larger = OPEN_STATION_AGENT_HTTP_TIMEOUT + 120;
+		$larger = OPENSTATION_AGENT_HTTP_TIMEOUT + 120;
 		$seen   = null;
 
-		open_station_agent_with_http_timeout(
+		openstation_agent_with_http_timeout(
 			static function () use ( &$seen, $larger ) {
 				$seen = apply_filters( 'http_request_timeout', $larger, 'https://api.anthropic.com/v1/messages' );
 			}
@@ -841,29 +841,29 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	/**
 	 * The filter is the opt-out: 0 leaves the site's timeout untouched.
 	 *
-	 * @covers ::open_station_agent_with_http_timeout
+	 * @covers ::openstation_agent_with_http_timeout
 	 */
 	public function test_http_timeout_filter_can_disable_the_override() {
-		add_filter( 'open_station_agent_http_timeout', '__return_zero' );
+		add_filter( 'openstation_agent_http_timeout', '__return_zero' );
 
 		$seen = null;
-		open_station_agent_with_http_timeout(
+		openstation_agent_with_http_timeout(
 			static function () use ( &$seen ) {
 				$seen = apply_filters( 'http_request_timeout', 5, 'https://api.anthropic.com/v1/messages' );
 			}
 		);
 
-		remove_filter( 'open_station_agent_http_timeout', '__return_zero' );
+		remove_filter( 'openstation_agent_http_timeout', '__return_zero' );
 		$this->assertSame( 5, $seen );
 	}
 
 	/**
 	 * The override wraps the AI Client call only, so it never widens the
-	 * timeout for the rest of a run: the `open_station_agent_runner_generate`
+	 * timeout for the rest of a run: the `openstation_agent_runner_generate`
 	 * pre-filter short-circuits ahead of the wrapper and sees the site's
 	 * normal value, as does every tool dispatched between turns.
 	 *
-	 * @covers ::open_station_agent_runner_generate
+	 * @covers ::openstation_agent_runner_generate
 	 */
 	public function test_override_is_scoped_to_the_ai_client_call() {
 		$agent  = $this->create_agent();
@@ -880,14 +880,14 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'go' );
+		$result = openstation_agent_invoke( $agent->ID, 'go' );
 
 		$this->assertNotWPError( $result );
 		$this->assertSame( 5, $during );
 	}
 
 	/**
-	 * @covers ::open_station_agent_generate_error_is_transient
+	 * @covers ::openstation_agent_generate_error_is_transient
 	 */
 	public function test_transient_error_detection() {
 		$transient = array(
@@ -898,7 +898,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		);
 		foreach ( $transient as $message ) {
 			$this->assertTrue(
-				open_station_agent_generate_error_is_transient( new WP_Error( 'e', $message ) ),
+				openstation_agent_generate_error_is_transient( new WP_Error( 'e', $message ) ),
 				"Should be transient: {$message}"
 			);
 		}
@@ -910,7 +910,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 		);
 		foreach ( $permanent as $message ) {
 			$this->assertFalse(
-				open_station_agent_generate_error_is_transient( new WP_Error( 'e', $message ) ),
+				openstation_agent_generate_error_is_transient( new WP_Error( 'e', $message ) ),
 				"Should be permanent: {$message}"
 			);
 		}
@@ -920,7 +920,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * A transient generate failure is retried once — the flap the user
 	 * recovered from by typing "Can you try again?" heals silently.
 	 *
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_transient_generate_failure_is_retried_once() {
 		$agent = $this->create_agent();
@@ -930,7 +930,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 				$calls++;
 				if ( 1 === $calls ) {
 					return new WP_Error(
-						'open_station_ai_error',
+						'openstation_ai_error',
 						'Unexpected Anthropic API response: Missing the "content" key.'
 					);
 				}
@@ -942,7 +942,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'Say hi.' );
+		$result = openstation_agent_invoke( $agent->ID, 'Say hi.' );
 		$this->assertNotWPError( $result );
 		$this->assertSame( 'Recovered.', $result['text'] );
 		$this->assertSame( 2, $calls );
@@ -952,7 +952,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * Deterministic rejections are NOT retried — a schema the provider
 	 * rejects would fail identically and only add latency and spend.
 	 *
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_permanent_generate_failure_is_not_retried() {
 		$agent = $this->create_agent();
@@ -961,13 +961,13 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			static function () use ( &$calls ) {
 				$calls++;
 				return new WP_Error(
-					'open_station_ai_error',
+					'openstation_ai_error',
 					"Bad Request (400) - Invalid schema for response_format 'response_schema'."
 				);
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'Say hi.' );
+		$result = openstation_agent_invoke( $agent->ID, 'Say hi.' );
 		$this->assertWPError( $result );
 		$this->assertSame( 1, $calls );
 	}
@@ -977,22 +977,22 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * cryptic missing-content parse error) is translated into an
 	 * actionable message once the retry doesn't help.
 	 *
-	 * @covers ::open_station_agent_humanize_generate_error
+	 * @covers ::openstation_agent_humanize_generate_error
 	 */
 	public function test_refusal_is_translated_for_the_user() {
 		$agent = $this->create_agent();
 		$this->stub_generate(
 			static function () {
 				return new WP_Error(
-					'open_station_ai_error',
+					'openstation_ai_error',
 					'Unexpected Anthropic API response: Missing the "content" key.'
 				);
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'Translate this.' );
+		$result = openstation_agent_invoke( $agent->ID, 'Translate this.' );
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_agent_provider_refusal', $result->get_error_code() );
+		$this->assertSame( 'openstation_agent_provider_refusal', $result->get_error_code() );
 		$this->assertStringContainsString( 'safety system', $result->get_error_message() );
 		// The provider's original message survives for debugging.
 		$this->assertStringContainsString( 'Missing the "content" key', $result->get_error_data()['detail'] );
@@ -1002,7 +1002,7 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 	 * A flap that persists through the retry still surfaces as an error
 	 * — exactly one retry, never a loop.
 	 *
-	 * @covers ::open_station_agent_invoke
+	 * @covers ::openstation_agent_invoke
 	 */
 	public function test_persistent_transient_failure_surfaces_after_one_retry() {
 		$agent = $this->create_agent();
@@ -1011,13 +1011,13 @@ class Tests_OpenStation_AgentsRunner extends WP_UnitTestCase {
 			static function () use ( &$calls ) {
 				$calls++;
 				return new WP_Error(
-					'open_station_ai_error',
+					'openstation_ai_error',
 					'Gateway Timeout (504) - upstream timed out'
 				);
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'Say hi.' );
+		$result = openstation_agent_invoke( $agent->ID, 'Say hi.' );
 		$this->assertWPError( $result );
 		$this->assertSame( 2, $calls );
 	}

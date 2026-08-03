@@ -10,7 +10,7 @@
  *
  * Every game receives the asset's URL as the framework-injected
  * `wordsUrl` key on its launch-context `config` (see
- * `open_station_games_words_url()`); the word list is identical for
+ * `openstation_games_words_url()`); the word list is identical for
  * every player, which is what lets seeded games generate the same
  * puzzle worldwide.
  *

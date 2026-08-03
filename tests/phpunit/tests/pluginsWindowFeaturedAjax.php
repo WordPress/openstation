@@ -35,8 +35,8 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 
 	public function tear_down() {
 		delete_transient( 'dm_pwfeatured_v1' );
-		remove_all_filters( 'open_station_plugins_featured_slugs' );
-		remove_all_filters( 'open_station_plugins_featured_response' );
+		remove_all_filters( 'openstation_plugins_featured_slugs' );
+		remove_all_filters( 'openstation_plugins_featured_response' );
 		remove_all_filters( 'plugins_api' );
 		parent::tear_down();
 	}
@@ -50,10 +50,10 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * author of the plugin omitted the `Requires Plugins` header, so
 	 * without this seed users would never discover it from the tab.
 	 *
-	 * @covers ::open_station_plugins_window_featured_slugs
+	 * @covers ::openstation_plugins_window_featured_slugs
 	 */
 	public function test_curated_slugs_contains_default_seed() {
-		$slugs = open_station_plugins_window_featured_slugs();
+		$slugs = openstation_plugins_window_featured_slugs();
 		$this->assertContains(
 			'odd-outlandish-desktop-decorator',
 			$slugs,
@@ -62,20 +62,20 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	}
 
 	/**
-	 * `open_station_plugins_featured_slugs` must be filterable so
+	 * `openstation_plugins_featured_slugs` must be filterable so
 	 * downstream plugins can append their own recommendations.
 	 *
-	 * @covers ::open_station_plugins_window_featured_slugs
+	 * @covers ::openstation_plugins_window_featured_slugs
 	 */
 	public function test_curated_slugs_filter_can_append() {
 		add_filter(
-			'open_station_plugins_featured_slugs',
+			'openstation_plugins_featured_slugs',
 			static function ( $slugs ) {
 				$slugs[] = 'my-companion-plugin';
 				return $slugs;
 			}
 		);
-		$slugs = open_station_plugins_window_featured_slugs();
+		$slugs = openstation_plugins_window_featured_slugs();
 		$this->assertContains( 'my-companion-plugin', $slugs );
 	}
 
@@ -84,11 +84,11 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * mustn't leak into the AJAX payload (and the slug must be safe to
 	 * concatenate into a wp.org URL).
 	 *
-	 * @covers ::open_station_plugins_window_featured_slugs
+	 * @covers ::openstation_plugins_window_featured_slugs
 	 */
 	public function test_curated_slugs_filter_output_is_sanitized_and_deduped() {
 		add_filter(
-			'open_station_plugins_featured_slugs',
+			'openstation_plugins_featured_slugs',
 			static function () {
 				return array(
 					'odd-outlandish-desktop-decorator',
@@ -99,7 +99,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 				);
 			}
 		);
-		$slugs = open_station_plugins_window_featured_slugs();
+		$slugs = openstation_plugins_window_featured_slugs();
 		$this->assertSame(
 			array( 'odd-outlandish-desktop-decorator', 'badslugwithspaces', 'fine-plugin' ),
 			array_values( $slugs )
@@ -119,7 +119,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 			$_POST['_ajax_nonce'] = wp_create_nonce( 'desktop-mode-plugins' );
 		}
 		try {
-			$this->_handleAjax( 'open_station_plugins_featured' );
+			$this->_handleAjax( 'openstation_plugins_featured' );
 		} catch ( WPAjaxDieContinueException $e ) {
 			// Expected — wp_send_json_* throws this in tests.
 		} catch ( WPAjaxDieStopException $e ) {
@@ -132,13 +132,13 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * Subscribers (no `install_plugins`) must be rejected — the AJAX
 	 * guard re-validates the cap server-side.
 	 *
-	 * @covers ::open_station_plugins_window_ajax_featured
+	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_subscriber_rejected_with_403() {
 		wp_set_current_user( $this->subscriber_id );
 		$response = $this->dispatch_featured();
 		$this->assertFalse( $response['success'] );
-		$this->assertSame( 'open_station_plugins_forbidden', $response['data']['code'] );
+		$this->assertSame( 'openstation_plugins_forbidden', $response['data']['code'] );
 	}
 
 	/**
@@ -146,13 +146,13 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * security guidance both expect every admin-ajax handler to refuse
 	 * unauthenticated callers.
 	 *
-	 * @covers ::open_station_plugins_window_ajax_featured
+	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_missing_nonce_rejected() {
 		wp_set_current_user( $this->admin_id );
 		$response = $this->dispatch_featured( false );
 		$this->assertFalse( $response['success'] );
-		$this->assertSame( 'open_station_plugins_bad_nonce', $response['data']['code'] );
+		$this->assertSame( 'openstation_plugins_bad_nonce', $response['data']['code'] );
 	}
 
 	/**
@@ -160,7 +160,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * `featured: true`, and the discovery feed's row that declares
 	 * `requires_plugins => [desktop-mode]` is appended.
 	 *
-	 * @covers ::open_station_plugins_window_ajax_featured
+	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_admin_receives_curated_plus_discovered_payload() {
 		wp_set_current_user( $this->admin_id );
@@ -202,7 +202,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * happens to return a curated entry too, we must not emit it twice
 	 * (and the curated `featured: true` flag wins).
 	 *
-	 * @covers ::open_station_plugins_window_ajax_featured
+	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_discovery_dedupes_against_curated() {
 		wp_set_current_user( $this->admin_id );
@@ -233,7 +233,7 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	 * `plugins_api` on every tab open. Important because each call is
 	 * an outbound wp.org HTTPS round-trip when uncached.
 	 *
-	 * @covers ::open_station_plugins_window_ajax_featured
+	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_response_is_cached_for_subsequent_calls() {
 		wp_set_current_user( $this->admin_id );
@@ -258,18 +258,18 @@ class Tests_OpenStation_PluginsWindowFeaturedAjax extends WP_Ajax_UnitTestCase {
 	}
 
 	/**
-	 * `open_station_plugins_featured_response` filter must run before
+	 * `openstation_plugins_featured_response` filter must run before
 	 * the payload is cached + sent. Lets host plugins inject premium
 	 * rows or enforce a cap.
 	 *
-	 * @covers ::open_station_plugins_window_ajax_featured
+	 * @covers ::openstation_plugins_window_ajax_featured
 	 */
 	public function test_response_filter_can_inject_extra_rows() {
 		wp_set_current_user( $this->admin_id );
 		$this->mock_plugins_api();
 
 		add_filter(
-			'open_station_plugins_featured_response',
+			'openstation_plugins_featured_response',
 			static function ( $payload ) {
 				$payload['plugins'][] = array(
 					'slug'     => 'private-premium-companion',

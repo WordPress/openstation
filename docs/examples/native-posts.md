@@ -49,7 +49,7 @@ Returning `false` from `enabled` (or returning `false` from `matches`) lets the 
 
 ```js
 wp.hooks.addFilter(
-    'open_station.postsWindow.columns',
+    'openstation.postsWindow.columns',
     'myplugin/word-count-column',
     ( cols ) => [
         ...cols,
@@ -78,7 +78,7 @@ Walks all three legs of the extensibility surface — server-side data, REST pro
 
 ```php
 add_action( 'rest_api_init', function () {
-    register_rest_field( 'post', 'open_station_comment_count', array(
+    register_rest_field( 'post', 'openstation_comment_count', array(
         'get_callback'    => static function ( $post ) {
             return (int) get_post_field( 'comment_count', $post['id'] );
         },
@@ -97,8 +97,8 @@ add_action( 'rest_api_init', function () {
 The Posts window sends a tight `_fields` projection on every request to keep the payload small. Append our field so it lands in the response:
 
 ```php
-add_filter( 'open_station_posts_window_query_args', function ( $args ) {
-    $args['_fields'] .= ',open_station_comment_count';
+add_filter( 'openstation_posts_window_query_args', function ( $args ) {
+    $args['_fields'] .= ',openstation_comment_count';
     return $args;
 } );
 ```
@@ -107,19 +107,19 @@ add_filter( 'open_station_posts_window_query_args', function ( $args ) {
 
 ```js
 wp.hooks.addFilter(
-    'open_station.postsWindow.columns',
+    'openstation.postsWindow.columns',
     'myplugin/comments-column',
     ( cols ) => [
         ...cols,
         {
-            key: 'open_station_comment_count',
+            key: 'openstation_comment_count',
             label: 'Comments',
             sortable: false,
             width: '110px',
             align: 'end',
             render: ( _v, row ) => {
                 const span = document.createElement( 'span' );
-                const n = row.open_station_comment_count ?? 0;
+                const n = row.openstation_comment_count ?? 0;
                 span.textContent = String( n );
                 if ( n > 0 ) {
                     span.style.fontWeight = '600';
@@ -135,11 +135,11 @@ That's it. The column appears in every Posts window load and never makes a secon
 
 ## Add a bulk action
 
-The default bulk action is "Move to trash". Plugins extend the registry via the `open_station.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
+The default bulk action is "Move to trash". Plugins extend the registry via the `openstation.postsWindow.bulkActions` filter — every entry shows up in the bulk bar when one or more rows are selected. The `run()` callback receives the selected row ids and a `PostsWindowContext` (`{ body, table, refresh, getSelectedIds, getSelectedRows, getCurrentParams }`):
 
 ```js
 wp.hooks.addFilter(
-    'open_station.postsWindow.bulkActions',
+    'openstation.postsWindow.bulkActions',
     'myplugin/bulk-duplicate',
     ( actions ) => [
         ...actions,
@@ -173,7 +173,7 @@ To remove the default trash action (read-only views, audit-style mirrors), filte
 
 ```js
 wp.hooks.addFilter(
-    'open_station.postsWindow.bulkActions',
+    'openstation.postsWindow.bulkActions',
     'myplugin/no-trash',
     ( actions ) => actions.filter( ( a ) => a.id !== 'trash' ),
 );
@@ -185,7 +185,7 @@ The segmented control above the table is built from the (filterable) status list
 
 ```js
 wp.hooks.addFilter(
-    'open_station.postsWindow.statusSegments',
+    'openstation.postsWindow.statusSegments',
     'myplugin/awaiting-review',
     ( segs ) => [
         ...segs,
@@ -202,7 +202,7 @@ The trailing slot sits before the built-in **Refresh** + **Add New** buttons:
 
 ```js
 wp.hooks.addFilter(
-    'open_station.postsWindow.toolbarTrailing',
+    'openstation.postsWindow.toolbarTrailing',
     'myplugin/export-button',
     ( elements, ctx ) => {
         const btn = document.createElement( 'os-button' );
@@ -226,7 +226,7 @@ Two actions on the hook bus, both with matching CustomEvents on `document`:
 ```js
 // Fired AFTER the first paint with a populated table.
 wp.hooks.addAction(
-    'open_station.postsWindow.opened',
+    'openstation.postsWindow.opened',
     'myplugin/track-open',
     ( ctx ) => {
         analytics.track( 'posts-window-opened', {
@@ -238,7 +238,7 @@ wp.hooks.addAction(
 // Fired after every successful refresh (initial + every search /
 // sort / pagination change).
 wp.hooks.addAction(
-    'open_station.postsWindow.dataLoaded',
+    'openstation.postsWindow.dataLoaded',
     'myplugin/track-page',
     ( payload ) => {
         analytics.track( 'posts-window-page', {
@@ -258,30 +258,30 @@ The `opened` action's `ctx` is the same `PostsWindowContext` passed to bulk-acti
 ## Restrict who sees the window
 
 ```php
-add_filter( 'open_station_posts_window_user_can_register', function ( $can, $user_id ) {
+add_filter( 'openstation_posts_window_user_can_register', function ( $can, $user_id ) {
     return $can && user_can( $user_id, 'edit_others_posts' );
 }, 10, 2 );
 ```
 
 The default gate is `edit_posts`. Returning `false` here skips the window registration entirely — `openById()` reports `false`, the remap registry walks on, and the classic chromeless `edit.php` iframe remains the destination.
 
-Don't reach for `open_station_posts_window_user_can_use` here: that filter is the *combined* informational check (capability AND the opt-in toggle) for callers that need the combined answer — it has no routing effect. Registration gates on `user_can_register`; the runtime dock-click swap gates on the JS-side `nativePostsEnabled` settings snapshot.
+Don't reach for `openstation_posts_window_user_can_use` here: that filter is the *combined* informational check (capability AND the opt-in toggle) for callers that need the combined answer — it has no routing effect. Registration gates on `user_can_register`; the runtime dock-click swap gates on the JS-side `nativePostsEnabled` settings snapshot.
 
 ## Point the window at a CPT
 
 ```php
-add_filter( 'open_station_posts_window_query_args', function ( $args ) {
+add_filter( 'openstation_posts_window_query_args', function ( $args ) {
     $args['post_type'] = 'product';
     return $args;
 } );
 ```
 
-The bundle threads `post_type` straight through to `/wp/v2/posts` (or, if your CPT registers its own REST base, swap `postsUrl` via `open_station_posts_window_args`). v1 ships with `post`; v1.1 will add a CPT picker in the toolbar.
+The bundle threads `post_type` straight through to `/wp/v2/posts` (or, if your CPT registers its own REST base, swap `postsUrl` via `openstation_posts_window_args`). v1 ships with `post`; v1.1 will add a CPT picker in the toolbar.
 
 ## Add a custom REST query param
 
 ```php
-add_filter( 'open_station_posts_window_query_args', function ( $args ) {
+add_filter( 'openstation_posts_window_query_args', function ( $args ) {
     $args['meta_key']   = 'featured';
     $args['meta_value'] = '1';
     return $args;
@@ -308,14 +308,14 @@ The recycle bin window is already a subscriber — that's how trashing 12 posts 
 ## Hooks reference (Experimental, 0.8.0)
 
 PHP:
-- `open_station_posts_window_user_can_register( $can, $user_id )` — the registration gate. Default: `edit_posts`. Returning `false` skips registration entirely, so every click falls through to the chromeless `edit.php` iframe.
-- `open_station_posts_window_user_can_use( $can, $user_id )` — the combined informational check: capability AND the user has turned the opt-in toggle on. No routing effect; for callers that need the combined answer (analytics, an arrange-menu entry).
-- `open_station_posts_window_args( $args )` — args passed to `open_station_register_window()` (title, icon, dimensions, config blob).
-- `open_station_posts_window_template_html( $html )` — the rendered template HTML before `wp_kses`.
-- `open_station_posts_window_query_args( $args )` — outbound REST query params (`_fields`, `_embed`, `post_type`).
+- `openstation_posts_window_user_can_register( $can, $user_id )` — the registration gate. Default: `edit_posts`. Returning `false` skips registration entirely, so every click falls through to the chromeless `edit.php` iframe.
+- `openstation_posts_window_user_can_use( $can, $user_id )` — the combined informational check: capability AND the user has turned the opt-in toggle on. No routing effect; for callers that need the combined answer (analytics, an arrange-menu entry).
+- `openstation_posts_window_args( $args )` — args passed to `openstation_register_window()` (title, icon, dimensions, config blob).
+- `openstation_posts_window_template_html( $html )` — the rendered template HTML before `wp_kses`.
+- `openstation_posts_window_query_args( $args )` — outbound REST query params (`_fields`, `_embed`, `post_type`).
 
 JavaScript:
-- `open_station.postsWindow.columns` (filter) — column descriptors before `table.columns =` is set.
+- `openstation.postsWindow.columns` (filter) — column descriptors before `table.columns =` is set.
 
 CustomEvents / broadcasts:
 - `os.post.changed` — broadcast on bulk trash; `{ source: 'posts-window', action: 'trashed', ids }`.

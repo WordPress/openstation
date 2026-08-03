@@ -5,11 +5,11 @@
  * Adds enrichment fields to Core's `/wp/v2/plugins` REST resource so
  * the JS bundle can render rich rows in one round-trip:
  *
- *   - open_station_update_available — `{ available, new_version }`
- *   - open_station_can_manage       — `{ activate, deactivate, delete }`
- *   - open_station_icon_url         — local-folder icon, falling back to wp.org
- *   - open_station_size_kb          — disk size of plugin folder
- *   - open_station_auto_update      — `{ enabled, forced, supported }`
+ *   - openstation_update_available — `{ available, new_version }`
+ *   - openstation_can_manage       — `{ activate, deactivate, delete }`
+ *   - openstation_icon_url         — local-folder icon, falling back to wp.org
+ *   - openstation_size_kb          — disk size of plugin folder
+ *   - openstation_auto_update      — `{ enabled, forced, supported }`
  *
  * Plugin Check posture: every callback below uses ONLY functions
  * available in `wp-includes/` (current_user_can, get_site_transient,
@@ -25,12 +25,12 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the five enrichment fields on the `plugin` REST resource.
  */
-function open_station_plugins_window_register_rest_fields() {
+function openstation_plugins_window_register_rest_fields() {
 	register_rest_field(
 		'plugin',
-		'open_station_update_available',
+		'openstation_update_available',
 		array(
-			'get_callback' => 'open_station_plugins_window_field_update_available',
+			'get_callback' => 'openstation_plugins_window_field_update_available',
 			'schema'       => array(
 				'description' => __( 'Whether an update is available for this plugin (and the available version).', 'desktop-mode' ),
 				'type'        => 'object',
@@ -42,9 +42,9 @@ function open_station_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'open_station_can_manage',
+		'openstation_can_manage',
 		array(
-			'get_callback' => 'open_station_plugins_window_field_can_manage',
+			'get_callback' => 'openstation_plugins_window_field_can_manage',
 			'schema'       => array(
 				'description' => __( 'Per-plugin capability flags for the requester (activate / deactivate / delete).', 'desktop-mode' ),
 				'type'        => 'object',
@@ -56,9 +56,9 @@ function open_station_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'open_station_icon_url',
+		'openstation_icon_url',
 		array(
-			'get_callback' => 'open_station_plugins_window_field_icon_url',
+			'get_callback' => 'openstation_plugins_window_field_icon_url',
 			'schema'       => array(
 				'description' => __( 'Best-effort card icon URL. Prefers a local file in the plugin folder, falling back to the wp.org SVN URL; null when neither resolves.', 'desktop-mode' ),
 				'type'        => array( 'string', 'null' ),
@@ -70,9 +70,9 @@ function open_station_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'open_station_size_kb',
+		'openstation_size_kb',
 		array(
-			'get_callback' => 'open_station_plugins_window_field_size_kb',
+			'get_callback' => 'openstation_plugins_window_field_size_kb',
 			'schema'       => array(
 				'description' => __( 'Approximate disk footprint of the plugin folder, in kilobytes (cached 6h).', 'desktop-mode' ),
 				'type'        => array( 'integer', 'null' ),
@@ -84,9 +84,9 @@ function open_station_plugins_window_register_rest_fields() {
 
 	register_rest_field(
 		'plugin',
-		'open_station_auto_update',
+		'openstation_auto_update',
 		array(
-			'get_callback' => 'open_station_plugins_window_field_auto_update',
+			'get_callback' => 'openstation_plugins_window_field_auto_update',
 			'schema'       => array(
 				'description' => __( 'Auto-update state for this plugin (enabled / forced / supported), mirroring Core\'s plugins.php column.', 'desktop-mode' ),
 				'type'        => 'object',
@@ -96,7 +96,7 @@ function open_station_plugins_window_register_rest_fields() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_plugins_window_register_rest_fields' );
+add_action( 'rest_api_init', 'openstation_plugins_window_register_rest_fields' );
 
 /**
  * Resolve the plugin file path (relative to `WP_PLUGIN_DIR`, ending in
@@ -118,7 +118,7 @@ add_action( 'rest_api_init', 'open_station_plugins_window_register_rest_fields' 
  * @return string Plugin file (e.g. `"elementor/elementor.php"`), or `''`
  *                when the row has no `plugin` field.
  */
-function open_station_plugins_window_row_plugin_file( $row ) {
+function openstation_plugins_window_row_plugin_file( $row ) {
 	$file = isset( $row['plugin'] ) ? (string) $row['plugin'] : '';
 	if ( '' === $file ) {
 		return '';
@@ -150,7 +150,7 @@ function open_station_plugins_window_row_plugin_file( $row ) {
  * @param bool $force When true, delete the transient and force a fresh
  *                    wp.org check regardless of the 12h throttle.
  */
-function open_station_plugins_window_maybe_refresh_update_transient( $force = false ) {
+function openstation_plugins_window_maybe_refresh_update_transient( $force = false ) {
 	/**
 	 * Short-circuit the lazy refresh of the `update_plugins` transient.
 	 *
@@ -164,7 +164,7 @@ function open_station_plugins_window_maybe_refresh_update_transient( $force = fa
 	 * @param bool $refresh Whether to call `wp_update_plugins()`.
 	 * @param bool $force   Whether the caller asked to bypass the throttle.
 	 */
-	if ( ! apply_filters( 'open_station_plugins_window_refresh_updates', true, $force ) ) {
+	if ( ! apply_filters( 'openstation_plugins_window_refresh_updates', true, $force ) ) {
 		return;
 	}
 
@@ -212,7 +212,7 @@ function open_station_plugins_window_maybe_refresh_update_transient( $force = fa
 
 /**
  * Detect whether the current REST request asked for an explicit
- * `update_plugins` refresh via `?open_station_force_refresh=1`.
+ * `update_plugins` refresh via `?openstation_force_refresh=1`.
  *
  * The flag is set by the in-window Refresh button (see
  * `fetchInstalledPlugins({ force: true })` in `src/plugins-window/rest.ts`)
@@ -224,24 +224,24 @@ function open_station_plugins_window_maybe_refresh_update_transient( $force = fa
  *
  * @return bool True when the request asked for a force-refresh.
  */
-function open_station_plugins_window_force_refresh_requested() {
+function openstation_plugins_window_force_refresh_requested() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only hint flag; REST auth is enforced separately.
-	if ( ! isset( $_GET['open_station_force_refresh'] ) ) {
+	if ( ! isset( $_GET['openstation_force_refresh'] ) ) {
 		return false;
 	}
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only hint flag; REST auth is enforced separately.
-	$value = sanitize_text_field( wp_unslash( (string) $_GET['open_station_force_refresh'] ) );
+	$value = sanitize_text_field( wp_unslash( (string) $_GET['openstation_force_refresh'] ) );
 	return '1' === $value || 'true' === $value;
 }
 
 /**
- * `open_station_update_available` callback.
+ * `openstation_update_available` callback.
  *
  * @param array $row Core REST plugin row.
  * @return array{available:bool,new_version:string|null,package:string,slug:string}
  */
-function open_station_plugins_window_field_update_available( $row ) {
-	$plugin_file = open_station_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_update_available( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	if ( '' === $plugin_file ) {
 		return array(
 			'available'   => false,
@@ -255,15 +255,15 @@ function open_station_plugins_window_field_update_available( $row ) {
 	// otherwise REST callers see a stale/empty snapshot relative to
 	// the classic Plugins screen and the dock update badge. Static
 	// guard keeps the transient read off the hot per-row path. When
-	// the request carries `?open_station_force_refresh=1` we always
+	// the request carries `?openstation_force_refresh=1` we always
 	// take the slow path so the in-window Refresh button can actually
 	// pull a fresh wp.org snapshot (the original throttle made it a
 	// no-op within 12h of the last check — see GH#202).
 	static $primed = false;
 	if ( ! $primed ) {
 		$primed = true;
-		open_station_plugins_window_maybe_refresh_update_transient(
-			open_station_plugins_window_force_refresh_requested()
+		openstation_plugins_window_maybe_refresh_update_transient(
+			openstation_plugins_window_force_refresh_requested()
 		);
 	}
 
@@ -339,7 +339,7 @@ function open_station_plugins_window_field_update_available( $row ) {
  *
  * @return int Number of installed plugins with a pending update.
  */
-function open_station_plugins_window_count_visible_updates() {
+function openstation_plugins_window_count_visible_updates() {
 	$updates = get_site_transient( 'update_plugins' );
 	if ( ! is_object( $updates ) || empty( $updates->response ) || ! is_array( $updates->response ) ) {
 		return 0;
@@ -364,7 +364,7 @@ function open_station_plugins_window_count_visible_updates() {
 }
 
 /**
- * `open_station_can_manage` callback.
+ * `openstation_can_manage` callback.
  *
  * Per-row cap surface so the JS UI can hide actions the viewer can't
  * perform without re-deriving caps client-side. Server still
@@ -373,7 +373,7 @@ function open_station_plugins_window_count_visible_updates() {
  * @param array $row Core REST plugin row.
  * @return array{activate:bool,deactivate:bool,delete:bool}
  */
-function open_station_plugins_window_field_can_manage( $row ) {
+function openstation_plugins_window_field_can_manage( $row ) {
 	$status = isset( $row['status'] ) ? (string) $row['status'] : '';
 
 	$can_activate = current_user_can( 'activate_plugins' );
@@ -392,7 +392,7 @@ function open_station_plugins_window_field_can_manage( $row ) {
 }
 
 /**
- * `open_station_icon_url` callback.
+ * `openstation_icon_url` callback.
  *
  * Resolves a card icon URL for an installed plugin row, in priority:
  *
@@ -419,8 +419,8 @@ function open_station_plugins_window_field_can_manage( $row ) {
  * @param array $row Core REST plugin row.
  * @return string|null
  */
-function open_station_plugins_window_field_icon_url( $row ) {
-	$plugin_file = open_station_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_icon_url( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	$folder      = '' !== $plugin_file ? dirname( $plugin_file ) : '';
 	$slug        = ( '' !== $folder && '.' !== $folder ) ? $folder : '';
 
@@ -435,7 +435,7 @@ function open_station_plugins_window_field_icon_url( $row ) {
 		return null;
 	}
 
-	$default = open_station_plugins_window_local_icon_url( $plugin_file );
+	$default = openstation_plugins_window_local_icon_url( $plugin_file );
 	if ( null === $default ) {
 		$default = 'https://ps.w.org/' . $slug . '/assets/icon.svg';
 	}
@@ -462,7 +462,7 @@ function open_station_plugins_window_field_icon_url( $row ) {
 	 * @param array       $row  Core REST plugin row.
 	 */
 	return apply_filters(
-		'open_station_plugins_window_icon_url',
+		'openstation_plugins_window_icon_url',
 		$default,
 		$slug,
 		$row
@@ -490,13 +490,13 @@ function open_station_plugins_window_field_icon_url( $row ) {
  * install/update/delete.
  *
  * The candidate list is filterable via
- * `open_station_plugins_window_local_icon_candidates` so a host can
+ * `openstation_plugins_window_local_icon_candidates` so a host can
  * support a custom convention (e.g. an `icon@2x.svg` shape).
  *
  * @param string $plugin_file Plugin file (e.g. `"akismet/akismet.php"`).
  * @return string|null URL of the first local icon found, or null.
  */
-function open_station_plugins_window_local_icon_url( $plugin_file ) {
+function openstation_plugins_window_local_icon_url( $plugin_file ) {
 	if ( '' === $plugin_file ) {
 		return null;
 	}
@@ -515,7 +515,7 @@ function open_station_plugins_window_local_icon_url( $plugin_file ) {
 	 * @param string   $folder     Plugin folder name (e.g. `"akismet"`).
 	 */
 	$candidates = apply_filters(
-		'open_station_plugins_window_local_icon_candidates',
+		'openstation_plugins_window_local_icon_candidates',
 		array(
 			'assets/icon.svg',
 			'assets/icon-256x256.png',
@@ -542,15 +542,15 @@ function open_station_plugins_window_local_icon_url( $plugin_file ) {
 }
 
 /**
- * `open_station_size_kb` callback. Caches per-plugin for 6 hours so
+ * `openstation_size_kb` callback. Caches per-plugin for 6 hours so
  * a 50-row table doesn't `glob`+`filesize` 50 directories on every
  * fetch. Returns `null` when the folder can't be read.
  *
  * @param array $row Core REST plugin row.
  * @return int|null Size in kilobytes, or null on failure.
  */
-function open_station_plugins_window_field_size_kb( $row ) {
-	$plugin_file = open_station_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_size_kb( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	if ( '' === $plugin_file ) {
 		return null;
 	}
@@ -575,7 +575,7 @@ function open_station_plugins_window_field_size_kb( $row ) {
 		return $cached;
 	}
 
-	$kb = open_station_plugins_window_compute_dir_size_kb( $root );
+	$kb = openstation_plugins_window_compute_dir_size_kb( $root );
 	set_transient( $cache_key, $kb, 6 * HOUR_IN_SECONDS );
 	return $kb;
 }
@@ -592,7 +592,7 @@ function open_station_plugins_window_field_size_kb( $row ) {
  * @param string $dir Absolute filesystem path.
  * @return int Kilobytes (rounded).
  */
-function open_station_plugins_window_compute_dir_size_kb( $dir ) {
+function openstation_plugins_window_compute_dir_size_kb( $dir ) {
 	if ( ! is_dir( $dir ) ) {
 		return 0;
 	}
@@ -635,7 +635,7 @@ function open_station_plugins_window_compute_dir_size_kb( $dir ) {
 }
 
 /**
- * `open_station_auto_update` callback.
+ * `openstation_auto_update` callback.
  *
  * Mirrors the per-row state Core derives in
  * `WP_Plugins_List_Table::prepare_items()` for its "Automatic Updates"
@@ -655,13 +655,13 @@ function open_station_plugins_window_compute_dir_size_kb( $dir ) {
  *
  * NOT included here (lives on the window config instead): the global
  * `wp_is_auto_update_enabled_for_type( 'plugin' )` flag, which depends
- * on admin-only includes — see `open_station_plugins_window_auto_updates_enabled()`.
+ * on admin-only includes — see `openstation_plugins_window_auto_updates_enabled()`.
  *
  * @param array $row Core REST plugin row.
  * @return array{enabled:bool,forced:bool|null,supported:bool}
  */
-function open_station_plugins_window_field_auto_update( $row ) {
-	$plugin_file = open_station_plugins_window_row_plugin_file( $row );
+function openstation_plugins_window_field_auto_update( $row ) {
+	$plugin_file = openstation_plugins_window_row_plugin_file( $row );
 	if ( '' === $plugin_file ) {
 		return array(
 			'enabled'   => false,

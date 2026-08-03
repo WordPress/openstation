@@ -1580,7 +1580,7 @@ export class AiAssistant implements AiAssistantApi {
 		// the server error code, not the wording, so the affordance survives
 		// copy tweaks; the regex spans whatever sits between the two anchors
 		// (arrow, spacing) and falls back to a trailing link if absent.
-		if ( code === 'open_station_ai_disabled' ) {
+		if ( code === 'openstation_ai_disabled' ) {
 			const escaped = this._esc( message );
 			const linkify = ( text: string ) =>
 				`<button type="button" class="os-ai__settings-link">${ text }</button>`;

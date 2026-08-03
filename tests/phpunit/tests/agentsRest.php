@@ -36,7 +36,7 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	}
 
 	private function create_agent_via_rest( array $overrides = array() ) {
-		$response = open_station_agents_rest_create(
+		$response = openstation_agents_rest_create(
 			$this->request(
 				'POST',
 				'/agents',
@@ -59,7 +59,7 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	/**
 	 * Routes are registered under the plugin namespace.
 	 *
-	 * @covers ::open_station_agents_register_rest_routes
+	 * @covers ::openstation_agents_register_rest_routes
 	 */
 	public function test_routes_registered() {
 		$routes = rest_get_server()->get_routes();
@@ -73,39 +73,39 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_read_permission
-	 * @covers ::open_station_agents_rest_write_permission
-	 * @covers ::open_station_agents_rest_invoke_permission
+	 * @covers ::openstation_agents_rest_read_permission
+	 * @covers ::openstation_agents_rest_write_permission
+	 * @covers ::openstation_agents_rest_invoke_permission
 	 */
 	public function test_permission_matrix() {
 		// Admin: everything.
-		$this->assertTrue( open_station_agents_rest_read_permission() );
-		$this->assertTrue( open_station_agents_rest_write_permission() );
-		$this->assertTrue( open_station_agents_rest_invoke_permission() );
+		$this->assertTrue( openstation_agents_rest_read_permission() );
+		$this->assertTrue( openstation_agents_rest_write_permission() );
+		$this->assertTrue( openstation_agents_rest_invoke_permission() );
 
 		// Editor: read + invoke, no manage (no `edit_users`).
 		wp_set_current_user( self::$editor_id );
-		$this->assertTrue( open_station_agents_rest_read_permission() );
-		$this->assertTrue( open_station_agents_rest_invoke_permission() );
-		$write = open_station_agents_rest_write_permission();
+		$this->assertTrue( openstation_agents_rest_read_permission() );
+		$this->assertTrue( openstation_agents_rest_invoke_permission() );
+		$write = openstation_agents_rest_write_permission();
 		$this->assertWPError( $write );
 		$this->assertSame( 403, $write->get_error_data()['status'] );
 
 		// Subscriber: nothing.
 		wp_set_current_user( self::$subscriber_id );
-		$this->assertWPError( open_station_agents_rest_read_permission() );
-		$this->assertWPError( open_station_agents_rest_invoke_permission() );
+		$this->assertWPError( openstation_agents_rest_read_permission() );
+		$this->assertWPError( openstation_agents_rest_invoke_permission() );
 
 		// Logged out: nothing, with 401.
 		wp_set_current_user( 0 );
-		$read = open_station_agents_rest_read_permission();
+		$read = openstation_agents_rest_read_permission();
 		$this->assertWPError( $read );
 		$this->assertSame( 401, $read->get_error_data()['status'] );
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_create
-	 * @covers ::open_station_agents_rest_shape_user
+	 * @covers ::openstation_agents_rest_create
+	 * @covers ::openstation_agents_rest_shape_user
 	 */
 	public function test_create_returns_canonical_shape() {
 		$shape = $this->create_agent_via_rest();
@@ -120,14 +120,14 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertSame( '', $shape['model'] );
 		$this->assertSame( 0, $shape['rateLimit'] );
 		$this->assertNotEmpty( $shape['avatarUrl'] );
-		$this->assertTrue( open_station_agent_is_agent( $shape['id'] ) );
+		$this->assertTrue( openstation_agent_is_agent( $shape['id'] ) );
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_create
+	 * @covers ::openstation_agents_rest_create
 	 */
 	public function test_create_rejects_disallowed_role() {
-		$result = open_station_agents_rest_create(
+		$result = openstation_agents_rest_create(
 			$this->request(
 				'POST',
 				'/agents',
@@ -138,17 +138,17 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 			)
 		);
 		$this->assertWPError( $result );
-		$this->assertSame( 'open_station_agent_invalid_role', $result->get_error_code() );
+		$this->assertSame( 'openstation_agent_invalid_role', $result->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_list
-	 * @covers ::open_station_agents_rest_get
+	 * @covers ::openstation_agents_rest_list
+	 * @covers ::openstation_agents_rest_get
 	 */
 	public function test_list_and_get() {
 		$shape = $this->create_agent_via_rest();
 
-		$response = open_station_agents_rest_list();
+		$response = openstation_agents_rest_list();
 		$list     = $response->get_data();
 		$this->assertCount( 1, $list );
 		$this->assertSame( $shape['id'], $list[0]['id'] );
@@ -158,27 +158,27 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$headers = $response->get_headers();
 		$this->assertSame( '1', (string) $headers['X-WP-Total'] );
 
-		$get = open_station_agents_rest_get(
+		$get = openstation_agents_rest_get(
 			$this->request( 'GET', "/agents/{$shape['id']}", array( 'id' => $shape['id'] ) )
 		);
 		$this->assertNotWPError( $get );
 		$this->assertSame( 'Rest Agent', $get->get_data()['name'] );
 
-		$missing = open_station_agents_rest_get(
+		$missing = openstation_agents_rest_get(
 			$this->request( 'GET', '/agents/999999', array( 'id' => 999999 ) )
 		);
 		$this->assertWPError( $missing );
 		$this->assertSame( 404, $missing->get_error_data()['status'] );
 
 		// A plain human user id is not an agent.
-		$human = open_station_agents_rest_get(
+		$human = openstation_agents_rest_get(
 			$this->request( 'GET', '/agents/' . self::$editor_id, array( 'id' => self::$editor_id ) )
 		);
 		$this->assertWPError( $human );
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_patch
+	 * @covers ::openstation_agents_rest_patch
 	 */
 	public function test_patch_updates_fields() {
 		$shape = $this->create_agent_via_rest();
@@ -201,7 +201,7 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 			)
 		);
 
-		$response = open_station_agents_rest_patch( $req );
+		$response = openstation_agents_rest_patch( $req );
 		$this->assertNotWPError( $response );
 		$data = $response->get_data();
 		$this->assertSame( 'Updated prompt.', $data['instructions'] );
@@ -212,12 +212,12 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_delete
+	 * @covers ::openstation_agents_rest_delete
 	 */
 	public function test_delete_removes_agent() {
 		$shape = $this->create_agent_via_rest();
 
-		$response = open_station_agents_rest_delete(
+		$response = openstation_agents_rest_delete(
 			$this->request( 'DELETE', "/agents/{$shape['id']}", array( 'id' => $shape['id'] ) )
 		);
 		$this->assertNotWPError( $response );
@@ -226,13 +226,13 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_invoke
+	 * @covers ::openstation_agents_rest_invoke
 	 */
 	public function test_invoke_round_trip() {
 		$shape = $this->create_agent_via_rest();
 
 		add_filter(
-			'open_station_agent_runner_generate',
+			'openstation_agent_runner_generate',
 			static function () {
 				return array(
 					'text'           => 'invoked!',
@@ -242,7 +242,7 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 			}
 		);
 
-		$response = open_station_agents_rest_invoke(
+		$response = openstation_agents_rest_invoke(
 			$this->request(
 				'POST',
 				"/agents/{$shape['id']}/invoke",
@@ -259,13 +259,13 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	/**
 	 * Runner errors surface with their status (e.g. rate limit 429).
 	 *
-	 * @covers ::open_station_agents_rest_invoke
+	 * @covers ::openstation_agents_rest_invoke
 	 */
 	public function test_invoke_propagates_runner_errors() {
 		$shape = $this->create_agent_via_rest();
-		open_station_agent_update( $shape['id'], array( 'rateLimit' => 1 ) );
+		openstation_agent_update( $shape['id'], array( 'rateLimit' => 1 ) );
 		add_filter(
-			'open_station_agent_runner_generate',
+			'openstation_agent_runner_generate',
 			static function () {
 				return array(
 					'text'           => 'ok',
@@ -279,21 +279,21 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 			'id'      => $shape['id'],
 			'message' => 'again',
 		);
-		open_station_agents_rest_invoke( $this->request( 'POST', "/agents/{$shape['id']}/invoke", $args ) );
-		$second = open_station_agents_rest_invoke( $this->request( 'POST', "/agents/{$shape['id']}/invoke", $args ) );
+		openstation_agents_rest_invoke( $this->request( 'POST', "/agents/{$shape['id']}/invoke", $args ) );
+		$second = openstation_agents_rest_invoke( $this->request( 'POST', "/agents/{$shape['id']}/invoke", $args ) );
 
 		$this->assertWPError( $second );
-		$this->assertSame( 'open_station_agent_rate_limited', $second->get_error_code() );
+		$this->assertSame( 'openstation_agent_rate_limited', $second->get_error_code() );
 		$this->assertSame( 429, $second->get_error_data()['status'] );
 	}
 
 	/**
-	 * @covers ::open_station_agents_rest_trigger_kinds
-	 * @covers ::open_station_agents_rest_hooks_catalogue
-	 * @covers ::open_station_agents_rest_roles
+	 * @covers ::openstation_agents_rest_trigger_kinds
+	 * @covers ::openstation_agents_rest_hooks_catalogue
+	 * @covers ::openstation_agents_rest_roles
 	 */
 	public function test_catalogues() {
-		$kinds = open_station_agents_rest_trigger_kinds()->get_data();
+		$kinds = openstation_agents_rest_trigger_kinds()->get_data();
 		$slugs = wp_list_pluck( $kinds, 'slug' );
 		$this->assertContains( 'chat', $slugs );
 		$this->assertContains( 'send-to', $slugs );
@@ -313,10 +313,10 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 		$this->assertFalse( $wired['endpoint'] );
 		$this->assertFalse( $wired['agent'] );
 
-		$hooks = open_station_agents_rest_hooks_catalogue()->get_data();
+		$hooks = openstation_agents_rest_hooks_catalogue()->get_data();
 		$this->assertContains( 'save_post', wp_list_pluck( $hooks, 'hook' ) );
 
-		$roles = open_station_agents_rest_roles()->get_data();
+		$roles = openstation_agents_rest_roles()->get_data();
 		$this->assertContains( 'author', wp_list_pluck( $roles, 'slug' ) );
 		$this->assertNotContains( 'subscriber', wp_list_pluck( $roles, 'slug' ) );
 	}
@@ -325,14 +325,14 @@ class Tests_OpenStation_AgentsRest extends WP_UnitTestCase {
 	 * The abilities catalogue projects the readonly annotation.
 	 * Requires the Abilities API.
 	 *
-	 * @covers ::open_station_agents_abilities_catalogue
+	 * @covers ::openstation_agents_abilities_catalogue
 	 */
 	public function test_abilities_catalogue_readonly_badges() {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			$this->markTestSkipped( 'Abilities API not available (requires WordPress 7.0+).' );
 		}
 
-		$catalogue = open_station_agents_rest_abilities_catalogue()->get_data();
+		$catalogue = openstation_agents_rest_abilities_catalogue()->get_data();
 		$by_slug   = array();
 		foreach ( $catalogue as $row ) {
 			$by_slug[ $row['slug'] ] = $row;

@@ -43,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
  * Iterates `wp_desktop_mode_file_placements` for rows with the
  * matching `file_type` + `file_ref` whose `trashed_at_ms` is
  * unset, and stamps the trash columns. Each affected placement
- * fires `open_station_files_after_cascade_trash_placement` so
+ * fires `openstation_files_after_cascade_trash_placement` so
  * plugins (and the live UI refresh path) can react.
  *
  * Idempotent: re-running with an already-trashed entity is a
@@ -58,18 +58,18 @@ defined( 'ABSPATH' ) || exit;
  * @param string     $file_type File-type slug — `'post'`,
  *                              `'attachment'`, `'user'`, plugin-
  *                              defined. Must match
- *                              {@see Open_Station_File::type()}.
+ *                              {@see OpenStation_File::type()}.
  * @param string|int $file_ref  Entity ref (post id, user id, …).
  * @return int Number of placements soft-trashed.
  */
-function open_station_files_cascade_trash_placements_for_entity( $file_type, $file_ref ) {
+function openstation_files_cascade_trash_placements_for_entity( $file_type, $file_ref ) {
 	global $wpdb;
 	$file_type = (string) $file_type;
 	$file_ref  = (string) $file_ref;
 	if ( '' === $file_type || '' === $file_ref ) {
 		return 0;
 	}
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 
 	// SELECT the affected rows up front so we can fire a per-row
 	// action without a second roundtrip. Restrict to live (not yet
@@ -92,12 +92,12 @@ function open_station_files_cascade_trash_placements_for_entity( $file_type, $fi
 		return 0;
 	}
 
-	$now     = open_station_files_now_ms();
+	$now     = openstation_files_now_ms();
 	$trashed = 0;
 	foreach ( $rows as $row ) {
 		$placement_id = (int) $row['id'];
 		$owner_id     = (int) $row['owner_id'];
-		$ancestry     = open_station_files_capture_ancestry( (int) $row['parent_id'] );
+		$ancestry     = openstation_files_capture_ancestry( (int) $row['parent_id'] );
 		// `trashed_meta` carries the ancestry (so a restore knows
 		// where to put the tile back) plus a cascade marker so the
 		// recycle-bin UI can distinguish entity-cascade rows from
@@ -140,7 +140,7 @@ function open_station_files_cascade_trash_placements_for_entity( $file_type, $fi
 		 * @param string|int $file_ref     Source entity ref.
 		 */
 		do_action(
-			'open_station_files_after_cascade_trash_placement',
+			'openstation_files_after_cascade_trash_placement',
 			$placement_id,
 			$owner_id,
 			$file_type,
@@ -163,7 +163,7 @@ function open_station_files_cascade_trash_placements_for_entity( $file_type, $fi
  *
  * @param int $post_id Post id.
  */
-function open_station_files_cascade_on_post_trash( $post_id ) {
+function openstation_files_cascade_on_post_trash( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return;
@@ -179,17 +179,17 @@ function open_station_files_cascade_on_post_trash( $post_id ) {
 	// is non-zero) also fires `wp_trash_post` — we cover it by
 	// dispatching to the attachment cascade below.
 	if ( 'attachment' === $post->post_type ) {
-		open_station_files_cascade_trash_placements_for_entity(
+		openstation_files_cascade_trash_placements_for_entity(
 			'attachment',
 			(string) $post_id
 		);
 		return;
 	}
-	open_station_files_cascade_trash_placements_for_entity( 'post', (string) $post_id );
+	openstation_files_cascade_trash_placements_for_entity( 'post', (string) $post_id );
 }
 
-add_action( 'wp_trash_post', 'open_station_files_cascade_on_post_trash', 10, 1 );
-add_action( 'before_delete_post', 'open_station_files_cascade_on_post_trash', 10, 1 );
+add_action( 'wp_trash_post', 'openstation_files_cascade_on_post_trash', 10, 1 );
+add_action( 'before_delete_post', 'openstation_files_cascade_on_post_trash', 10, 1 );
 
 /**
  * Force-delete path for attachments — Core's `wp_delete_attachment()`
@@ -198,18 +198,18 @@ add_action( 'before_delete_post', 'open_station_files_cascade_on_post_trash', 10
  *
  * @param int $attachment_id Attachment id.
  */
-function open_station_files_cascade_on_attachment_delete( $attachment_id ) {
+function openstation_files_cascade_on_attachment_delete( $attachment_id ) {
 	$attachment_id = (int) $attachment_id;
 	if ( $attachment_id <= 0 ) {
 		return;
 	}
-	open_station_files_cascade_trash_placements_for_entity(
+	openstation_files_cascade_trash_placements_for_entity(
 		'attachment',
 		(string) $attachment_id
 	);
 }
 
-add_action( 'delete_attachment', 'open_station_files_cascade_on_attachment_delete', 10, 1 );
+add_action( 'delete_attachment', 'openstation_files_cascade_on_attachment_delete', 10, 1 );
 
 /**
  * User account removed — cascade-trash every shortcut whose
@@ -220,15 +220,15 @@ add_action( 'delete_attachment', 'open_station_files_cascade_on_attachment_delet
  *
  * @param int $user_id Deleted user id.
  */
-function open_station_files_cascade_on_user_delete( $user_id ) {
+function openstation_files_cascade_on_user_delete( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return;
 	}
-	open_station_files_cascade_trash_placements_for_entity(
+	openstation_files_cascade_trash_placements_for_entity(
 		'user',
 		(string) $user_id
 	);
 }
 
-add_action( 'deleted_user', 'open_station_files_cascade_on_user_delete', 10, 1 );
+add_action( 'deleted_user', 'openstation_files_cascade_on_user_delete', 10, 1 );

@@ -302,7 +302,7 @@ export function syncShortcutsWithVisibility(
 		}
 
 		// 2. Reconcile server-registered shortcuts (icons registered via
-		//    `open_station_register_icon()`) with the user's visibility:
+		//    `openstation_register_icon()`) with the user's visibility:
 		//
 		//    - 'dock' / 'hidden' → remove the placement from the files
 		//      store so the wallpaper stops painting the tile. Cache

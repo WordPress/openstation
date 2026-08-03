@@ -1,7 +1,7 @@
 /**
  * OpenStation — Files-on-the-desktop typed contracts.
  *
- * The serialized shape produced by `Open_Station_File::serialize()`
+ * The serialized shape produced by `OpenStation_File::serialize()`
  * on the PHP side. JS subclasses receive an instance of this shape
  * in their constructor and adapt it to whatever the UI needs.
  *

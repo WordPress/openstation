@@ -45,10 +45,10 @@ add_action( 'init', 'myplugin_register_hello_widget_assets', 5 );
 
 // Eagerly enqueue the CSS on OpenStation shell pages only.
 function myplugin_enqueue_hello_widget_styles() {
-    if ( function_exists( 'open_station_is_enabled' ) && ! open_station_is_enabled() ) {
+    if ( function_exists( 'openstation_is_enabled' ) && ! openstation_is_enabled() ) {
         return;
     }
-    if ( function_exists( 'open_station_is_chromeless_request' ) && open_station_is_chromeless_request() ) {
+    if ( function_exists( 'openstation_is_chromeless_request' ) && openstation_is_chromeless_request() ) {
         return;
     }
     wp_enqueue_style( 'myplugin-hello-widget' );
@@ -57,10 +57,10 @@ add_action( 'admin_enqueue_scripts', 'myplugin_enqueue_hello_widget_styles', 20 
 
 // Announce the widget to OpenStation so it appears in the picker.
 function myplugin_register_hello_widget() {
-    if ( ! function_exists( 'open_station_register_widget' ) ) {
+    if ( ! function_exists( 'openstation_register_widget' ) ) {
         return;
     }
-    open_station_register_widget( 'myplugin/hello', array(
+    openstation_register_widget( 'myplugin/hello', array(
         'label'          => __( 'Hello Widget', 'myplugin' ),
         'description'    => __( 'A simple greeting.', 'myplugin' ),
         'icon'           => 'dashicons-smiley',
@@ -82,7 +82,7 @@ add_action( 'init', 'myplugin_register_hello_widget', 6 );
 import './styles.css';
 import type { WidgetContext, WidgetTeardown } from '../../widgets/types';
 
-// Must match the id passed to open_station_register_widget() in PHP exactly.
+// Must match the id passed to openstation_register_widget() in PHP exactly.
 // Do not rename this after users have the widget enabled — it is the
 // localStorage key for their preference and renaming it resets everyone.
 const WIDGET_ID = 'myplugin/hello';
@@ -120,7 +120,7 @@ Add a Vite target in `vite.config.js` inside the `TARGETS` object:
 Add a build script in `package.json`:
 
 ```json
-"build:widget-hello": "OPEN_STATION_TARGET=widget-hello vite build --mode development && OPEN_STATION_TARGET=widget-hello vite build --mode production"
+"build:widget-hello": "OPENSTATION_TARGET=widget-hello vite build --mode development && OPENSTATION_TARGET=widget-hello vite build --mode production"
 ```
 
 Then build:
@@ -315,7 +315,7 @@ const mount = async ( container: HTMLElement, _ctx: WidgetContext ) => {
 
 ## Size constraints reference
 
-All sizes are pixels, passed to `open_station_register_widget()`:
+All sizes are pixels, passed to `openstation_register_widget()`:
 
 | Arg | Effect |
 |---|---|
@@ -334,6 +334,6 @@ and edge handles; column-docked widgets get a bottom-edge handle only.
 
 ## See also
 
-- [Hooks reference — `open_station_register_widget()`](../hooks-reference.md) — full argument reference, error codes, and lifecycle actions.
+- [Hooks reference — `openstation_register_widget()`](../hooks-reference.md) — full argument reference, error codes, and lifecycle actions.
 - [JavaScript reference — `wp.os.registerWidget()`](../javascript-reference.md) — the client-side equivalent.
 - [Starter widget source](../../src/plugins/starter-widget/index.ts) — a heavily commented skeleton covering every pattern above in a single working widget. It only appears in the add-widget picker when the current user has "Enable developer mode" turned on (OS Settings → Features) — regular users don't see it.

@@ -22,7 +22,7 @@ export interface RestStickyGuideline {
 	content?: RestTextField;
 	excerpt?: RestTextField;
 	modified?: string;
-	open_station_modified_ms?: number;
+	openstation_modified_ms?: number;
 	link?: string;
 	wp_guideline_type?: number[];
 }

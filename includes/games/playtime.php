@@ -15,7 +15,7 @@
  * Trust model matches scores (arcade honesty): increments are
  * client-asserted, the server clamps each flush to a filterable cap
  * so a hostile client can't mint years of play in one request, and
- * the `open_station_game_playtime_pre_record` filter is the hook for
+ * the `openstation_game_playtime_pre_record` filter is the hook for
  * stricter policies.
  *
  * @package OpenStation
@@ -26,25 +26,25 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The user-meta key holding the per-game play-time map.
  */
-define( 'OPEN_STATION_GAMES_PLAYTIME_META', 'desktop_mode_game_playtime' );
+define( 'OPENSTATION_GAMES_PLAYTIME_META', 'desktop_mode_game_playtime' );
 
 /**
  * The user-meta key holding the per-game DAILY play-time map:
  * `game id => array( 'YYYY-MM-DD' => seconds )`. Backs the
  * Steam-style "last two weeks" figure; days are bucketed in the
  * site's timezone and pruned past a rolling window (see
- * `open_station_games_playtime_history_days`). The lifetime totals
- * in {@see OPEN_STATION_GAMES_PLAYTIME_META} are authoritative and
+ * `openstation_games_playtime_history_days`). The lifetime totals
+ * in {@see OPENSTATION_GAMES_PLAYTIME_META} are authoritative and
  * never pruned.
  */
-define( 'OPEN_STATION_GAMES_PLAYTIME_DAYS_META', 'desktop_mode_game_playtime_days' );
+define( 'OPENSTATION_GAMES_PLAYTIME_DAYS_META', 'desktop_mode_game_playtime_days' );
 
 /**
  * Today's daily-bucket key (`YYYY-MM-DD`, site timezone).
  *
  * @return string
  */
-function open_station_games_playtime_today_key() {
+function openstation_games_playtime_today_key() {
 	return current_datetime()->format( 'Y-m-d' );
 }
 
@@ -56,8 +56,8 @@ function open_station_games_playtime_today_key() {
  * @return int|array<string,int> Seconds for one game, or the whole
  *                               `game id => seconds` map.
  */
-function open_station_games_get_playtime( $user_id, $game = '' ) {
-	$map = get_user_meta( (int) $user_id, OPEN_STATION_GAMES_PLAYTIME_META, true );
+function openstation_games_get_playtime( $user_id, $game = '' ) {
+	$map = get_user_meta( (int) $user_id, OPENSTATION_GAMES_PLAYTIME_META, true );
 	if ( ! is_array( $map ) ) {
 		$map = array();
 	}
@@ -84,8 +84,8 @@ function open_station_games_get_playtime( $user_id, $game = '' ) {
  * @return array Day buckets (`'YYYY-MM-DD' => seconds`) for one game,
  *               or the whole `game id => buckets` map.
  */
-function open_station_games_get_playtime_daily( $user_id, $game = '' ) {
-	$map = get_user_meta( (int) $user_id, OPEN_STATION_GAMES_PLAYTIME_DAYS_META, true );
+function openstation_games_get_playtime_daily( $user_id, $game = '' ) {
+	$map = get_user_meta( (int) $user_id, OPENSTATION_GAMES_PLAYTIME_DAYS_META, true );
 	if ( ! is_array( $map ) ) {
 		$map = array();
 	}
@@ -117,31 +117,31 @@ function open_station_games_get_playtime_daily( $user_id, $game = '' ) {
  * @param string $game    Registered game id.
  * @param int    $user_id Player.
  * @param int    $seconds Seconds to add. Clamped to
- *                        `[1, open_station_games_playtime_max_increment]`.
+ *                        `[1, openstation_games_playtime_max_increment]`.
  * @return int|WP_Error The new total for the game on success.
  */
-function open_station_games_add_playtime( $game, $user_id, $seconds ) {
+function openstation_games_add_playtime( $game, $user_id, $seconds ) {
 	$game    = sanitize_key( (string) $game );
 	$user_id = (int) $user_id;
 	$seconds = (int) $seconds;
 
-	if ( ! open_station_games_is_registered( $game ) ) {
+	if ( ! openstation_games_is_registered( $game ) ) {
 		return new WP_Error(
-			'open_station_unknown_game',
+			'openstation_unknown_game',
 			__( 'Unknown game.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
 	}
 	if ( $user_id <= 0 ) {
 		return new WP_Error(
-			'open_station_invalid_user',
+			'openstation_invalid_user',
 			__( 'A valid user is required to record play time.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( $seconds < 1 ) {
 		return new WP_Error(
-			'open_station_invalid_playtime',
+			'openstation_invalid_playtime',
 			__( 'Play time must be a positive number of seconds.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -157,7 +157,7 @@ function open_station_games_add_playtime( $game, $user_id, $seconds ) {
 	 * @param string $game        Game id.
 	 * @param int    $user_id     Player.
 	 */
-	$max     = max( 1, (int) apply_filters( 'open_station_games_playtime_max_increment', 900, $game, $user_id ) );
+	$max     = max( 1, (int) apply_filters( 'openstation_games_playtime_max_increment', 900, $game, $user_id ) );
 	$seconds = min( $seconds, $max );
 
 	/**
@@ -170,19 +170,19 @@ function open_station_games_add_playtime( $game, $user_id, $seconds ) {
 	 * @param int           $user_id Player.
 	 * @param int           $seconds Clamped increment.
 	 */
-	$pre = apply_filters( 'open_station_game_playtime_pre_record', null, $game, $user_id, $seconds );
+	$pre = apply_filters( 'openstation_game_playtime_pre_record', null, $game, $user_id, $seconds );
 	if ( is_wp_error( $pre ) ) {
 		return $pre;
 	}
 
-	$map          = open_station_games_get_playtime( $user_id );
+	$map          = openstation_games_get_playtime( $user_id );
 	$map[ $game ] = ( isset( $map[ $game ] ) ? $map[ $game ] : 0 ) + $seconds;
-	update_user_meta( $user_id, OPEN_STATION_GAMES_PLAYTIME_META, $map );
+	update_user_meta( $user_id, OPENSTATION_GAMES_PLAYTIME_META, $map );
 
 	// Daily bucket (site timezone) for the recent-activity figure,
 	// pruned to a rolling window so the meta row stays bounded. The
 	// lifetime total above is the source of truth and never shrinks.
-	$today = open_station_games_playtime_today_key();
+	$today = openstation_games_playtime_today_key();
 
 	/**
 	 * Filter how many days of daily play-time buckets are retained.
@@ -190,10 +190,10 @@ function open_station_games_add_playtime( $game, $user_id, $seconds ) {
 	 *
 	 * @param int $days Default 30.
 	 */
-	$window = max( 1, (int) apply_filters( 'open_station_games_playtime_history_days', 30 ) );
+	$window = max( 1, (int) apply_filters( 'openstation_games_playtime_history_days', 30 ) );
 	$cutoff = current_datetime()->modify( '-' . ( $window - 1 ) . ' days' )->format( 'Y-m-d' );
 
-	$daily = open_station_games_get_playtime_daily( $user_id );
+	$daily = openstation_games_get_playtime_daily( $user_id );
 	$days  = isset( $daily[ $game ] ) ? $daily[ $game ] : array();
 
 	$days[ $today ] = ( isset( $days[ $today ] ) ? $days[ $today ] : 0 ) + $seconds;
@@ -204,7 +204,7 @@ function open_station_games_add_playtime( $game, $user_id, $seconds ) {
 		}
 	}
 	$daily[ $game ] = $days;
-	update_user_meta( $user_id, OPEN_STATION_GAMES_PLAYTIME_DAYS_META, $daily );
+	update_user_meta( $user_id, OPENSTATION_GAMES_PLAYTIME_DAYS_META, $daily );
 
 	/**
 	 * Fires after a play-time increment is recorded.
@@ -214,7 +214,7 @@ function open_station_games_add_playtime( $game, $user_id, $seconds ) {
 	 * @param int    $seconds The recorded increment.
 	 * @param int    $total   The user's new total for the game.
 	 */
-	do_action( 'open_station_game_playtime_recorded', $game, $user_id, $seconds, $map[ $game ] );
+	do_action( 'openstation_game_playtime_recorded', $game, $user_id, $seconds, $map[ $game ] );
 
 	return $map[ $game ];
 }

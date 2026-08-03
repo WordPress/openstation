@@ -171,7 +171,7 @@ function buildHero( row: InstalledPlugin, _slug: string ): HTMLElement {
 	// without the visual shouting.
 	const iconTile = document.createElement( 'div' );
 	iconTile.className = 'os-plugins__detail-hero-icon';
-	const iconUrl = row.open_station_icon_url;
+	const iconUrl = row.openstation_icon_url;
 	if ( iconUrl ) {
 		const img = document.createElement( 'img' );
 		img.alt = '';
@@ -216,7 +216,7 @@ function buildHero( row: InstalledPlugin, _slug: string ): HTMLElement {
 		: __( 'Inactive', 'desktop-mode' );
 	titleRow.appendChild( statusBadge );
 
-	const update = row.open_station_update_available;
+	const update = row.openstation_update_available;
 	if ( update?.available && update.new_version ) {
 		const upd = document.createElement( 'os-badge' );
 		upd.setAttribute( 'tone', 'warning' );
@@ -451,12 +451,12 @@ function renderDetails( row: InstalledPlugin ): HTMLElement {
 	if ( row.version ) {
 		pushFactCard( grid, 'tag', __( 'Version', 'desktop-mode' ), row.version );
 	}
-	if ( row.open_station_size_kb !== null && row.open_station_size_kb !== undefined ) {
+	if ( row.openstation_size_kb !== null && row.openstation_size_kb !== undefined ) {
 		pushFactCard(
 			grid,
 			'database',
 			__( 'Size on disk', 'desktop-mode' ),
-			formatSize( row.open_station_size_kb ),
+			formatSize( row.openstation_size_kb ),
 		);
 	}
 	if ( row.requires_wp ) {
@@ -1199,12 +1199,12 @@ function sanitizeLinks( wrap: HTMLElement ): void {
 }
 
 function deriveSlug( row: InstalledPlugin ): string {
-	if ( ! row.open_station_icon_url ) {
+	if ( ! row.openstation_icon_url ) {
 		return '';
 	}
 	// `update_plugins` transient carries the canonical wp.org slug
 	// when the plugin has a pending update — prefer it.
-	const fromUpdate = row.open_station_update_available?.slug;
+	const fromUpdate = row.openstation_update_available?.slug;
 	if ( fromUpdate ) {
 		return fromUpdate;
 	}

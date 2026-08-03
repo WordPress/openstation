@@ -18,7 +18,7 @@
  *     `wp-auth-check` (attached server-side by core on every tick)
  *     flips to `false`. Core's own `wp-auth-check.js` shows the
  *     login modal in the parent shell; chromeless iframes have
- *     theirs suppressed (`open_station_chromeless_suppress_auth_check()`)
+ *     theirs suppressed (`openstation_chromeless_suppress_auth_check()`)
  *     so the desktop shows exactly ONE prompt.
  *   - **Detect recovery** — the same field flips back to `true`,
  *     or a chromeless iframe's bridge posts
@@ -52,7 +52,7 @@
 import { heartbeat } from '../heartbeat';
 import { doAction, HOOKS } from '../hooks';
 
-/** Matches `OPEN_STATION_AUTH_FIELD` in `includes/nonce-refresh.php`. */
+/** Matches `OPENSTATION_AUTH_FIELD` in `includes/nonce-refresh.php`. */
 const AUTH_FIELD = 'desktop_mode_auth';
 
 /**
@@ -382,7 +382,7 @@ export function bootAuthRecovery( opts: AuthRecoveryOpts = {} ): void {
 	// A tick bounced off a stale `heartbeat-nonce` (first tick after
 	// a re-login, or plain 24 h nonce expiry). The response already
 	// healed heartbeat's own nonce AND carried `desktop_mode_nonces`
-	// (see `open_station_nonce_refresh_on_expired()`).
+	// (see `openstation_nonce_refresh_on_expired()`).
 	//
 	// Only core's LOGGED-IN heartbeat handler ever sends this field —
 	// a logged-out request routes to `wp_ajax_nopriv_heartbeat`,

@@ -489,7 +489,7 @@ function openMioStylePanelImmediate(): void {
 				// unblurred halo is a hard-edged disc of colour behind the
 				// ring, which is not a look anyone was choosing on purpose
 				// — it is what the glow looks like before it is finished.
-				// The key survives for the `open_station_mio_config`
+				// The key survives for the `openstation_mio_config`
 				// filter, which is where a site that needs to drop the
 				// filter pass for performance can still do it.
 			] ),

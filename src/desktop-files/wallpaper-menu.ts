@@ -7,7 +7,7 @@
  * New URL / Sort by / Show desktop / OS Settings" affordance.
  *
  * Plugins extend the menu via the `os.wallpaper-context-menu`
- * filter (JS) or the `open_station_wallpaper_context_menu_items`
+ * filter (JS) or the `openstation_wallpaper_context_menu_items`
  * filter (PHP, carried in the shell payload as
  * `serverWallpaperMenuItems`). Both lists are merged at click time.
  */

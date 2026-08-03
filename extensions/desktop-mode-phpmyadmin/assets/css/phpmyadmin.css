@@ -6,7 +6,7 @@
  * state shows when the bundle is missing or config didn't localize.
  */
 
-.osc-phpmyadmin {
+.wpdc-phpmyadmin {
 	display: flex;
 	flex-direction: column;
 	width: 100%;

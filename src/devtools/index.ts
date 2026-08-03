@@ -29,7 +29,7 @@
  *   - **Generic debug bus** —
  *     `debug.publish( sessionId, channel, payload )` and
  *     `debug.subscribe( sessionId, channel, cb )` are sugar over the
- *     server-side `open_station_debug_publish()` / REST poll loop.
+ *     server-side `openstation_debug_publish()` / REST poll loop.
  *     A SQL inspector flips on `SAVEQUERIES`, captures `$wpdb->queries`,
  *     publishes via the PHP API; the inspector window subscribes here.
  *
@@ -38,7 +38,7 @@
  * `observe` flag. The iframe-side bridges (the inline chromeless
  * bridge in `includes/render.php` and `iframe-bridge-standalone.ts`)
  * apply it to every captured request — see the
- * `OPEN_STATION_INSTRUMENT` glue below.
+ * `OPENSTATION_INSTRUMENT` glue below.
  */
 
 import { addAction, removeAction, HOOKS } from '../hooks';
@@ -90,7 +90,7 @@ export interface ReloadWithDebugSessionOptions {
 	/**
 	 * The header name contributed alongside. Plugins that publish to
 	 * the debug bus from REST / AJAX endpoints read this header via
-	 * {@link open_station_debug_session_for_request}; it defaults to
+	 * {@link openstation_debug_session_for_request}; it defaults to
 	 * `X-WP-Debug-Session` (the canonical one).
 	 */
 	headerName?: string;
@@ -168,7 +168,7 @@ export interface DebugBusApi {
 	/**
 	 * Publish locally — fires for any local subscriber on the same
 	 * (sessionId, channel). Server-side publishes go through PHP
-	 * `open_station_debug_publish()`; the shell polls and replays them
+	 * `openstation_debug_publish()`; the shell polls and replays them
 	 * through the same dispatch path so subscribers don't need to know
 	 * the source.
 	 */
@@ -457,7 +457,7 @@ function pollOnce( sessionId: string, restUrl: string, restNonce: string ): void
 	// Plus: stamp every active subscription channel as `channels[]=…`
 	// so the server-side drain has the full list to walk. Without
 	// this, the drain returns `{ events: [] }` on every poll unless a
-	// `open_station_debug_channels` filter contributor exists — silent
+	// `openstation_debug_channels` filter contributor exists — silent
 	// failure that looks like "publishes never arrive".
 	const u = new URL( restUrl + 'desktop-mode/v1/debug', window.location.origin );
 	u.searchParams.set( 'sessionId', sessionId );

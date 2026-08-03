@@ -44,7 +44,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array|null Identity array, or `null` when none applies.
  */
-function open_station_build_content_identity() {
+function openstation_build_content_identity() {
 	$identity = null;
 	$screen   = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
 	$pagenow  = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
@@ -99,12 +99,12 @@ function open_station_build_content_identity() {
 				// referenced object is open, the shell draws a directed
 				// tie toward it (mutual links collapse into one
 				// bidirectional arrow).
-				$links = open_station_window_links_extract_references( $post );
+				$links = openstation_window_links_extract_references( $post );
 				if ( ! empty( $links ) ) {
 					$identity['links'] = $links;
 				}
 
-				$preview_url = open_station_window_preview_url( $post );
+				$preview_url = openstation_window_preview_url( $post );
 				if ( '' !== $preview_url ) {
 					$identity['previewUrl'] = $preview_url;
 				}
@@ -192,14 +192,14 @@ function open_station_build_content_identity() {
 	 * @param array|null     $identity Identity array, or `null` for none.
 	 * @param WP_Screen|null $screen   The current screen, when available.
 	 */
-	$identity = apply_filters( 'open_station_window_content_identity', $identity, $screen );
+	$identity = apply_filters( 'openstation_window_content_identity', $identity, $screen );
 
 	// Related-entity navigation targets — what the title bar's
 	// "Related" button lists. Runs AFTER the identity filter so
 	// plugin-injected identities for custom screens get the related
 	// filter too, and only for a resolved identity: no identity, no
 	// related menu.
-	return open_station_window_related_attach(
+	return openstation_window_related_attach(
 		$identity,
 		isset( $related_source_post ) && $related_source_post instanceof WP_Post ? $related_source_post : null,
 		$screen
@@ -227,7 +227,7 @@ function open_station_build_content_identity() {
  *                preview (non-viewable type, attachment, insufficient
  *                capability) or a filter suppressed it.
  */
-function open_station_window_preview_url( $post ) {
+function openstation_window_preview_url( $post ) {
 	$preview_url = '';
 
 	if (
@@ -262,7 +262,7 @@ function open_station_window_preview_url( $post ) {
 	 * @param string  $preview_url Preview URL, `''` when none applies.
 	 * @param WP_Post $post        The post being edited.
 	 */
-	return (string) apply_filters( 'open_station_window_preview_url', $preview_url, $post );
+	return (string) apply_filters( 'openstation_window_preview_url', $preview_url, $post );
 }
 
 /**
@@ -280,7 +280,7 @@ function open_station_window_preview_url( $post ) {
  * @return array|null The identity with `related` attached (or the
  *                    input untouched when it was `null`).
  */
-function open_station_window_related_attach( $identity, $post, $screen ) {
+function openstation_window_related_attach( $identity, $post, $screen ) {
 	if ( ! is_array( $identity ) ) {
 		return $identity;
 	}
@@ -298,7 +298,7 @@ function open_station_window_related_attach( $identity, $post, $screen ) {
 		sanitize_key( $post->post_type ) === $identity['type'] &&
 		(int) $post->ID === (int) $identity['id']
 	) {
-		$related = open_station_window_related_entities_for_post( $post );
+		$related = openstation_window_related_entities_for_post( $post );
 	}
 	if ( isset( $identity['related'] ) && is_array( $identity['related'] ) ) {
 		// An identity filter may ship related items with its own
@@ -341,8 +341,8 @@ function open_station_window_related_attach( $identity, $post, $screen ) {
 	 * @param array          $identity The resolved content identity.
 	 * @param WP_Screen|null $screen   The current screen, when available.
 	 */
-	$related = apply_filters( 'open_station_window_related_entities', $related, $identity, $screen );
-	$related = open_station_window_related_entities_sanitize( $related );
+	$related = apply_filters( 'openstation_window_related_entities', $related, $identity, $screen );
+	$related = openstation_window_related_entities_sanitize( $related );
 	// The related pass is the single authority over the key — an
 	// identity filter smuggling its own `related` would bypass the
 	// sanitizer above.
@@ -377,7 +377,7 @@ function open_station_window_related_attach( $identity, $post, $screen ) {
  * @param WP_Post $post Source post.
  * @return array[] Reference entries, possibly empty.
  */
-function open_station_window_links_extract_references( $post ) {
+function openstation_window_links_extract_references( $post ) {
 	$links = array();
 	$seen  = array();
 	$push  = static function ( $type, $id, $rel = '' ) use ( &$links, &$seen ) {
@@ -401,8 +401,8 @@ function open_station_window_links_extract_references( $post ) {
 
 	// 1. Internal hyperlinks → posts. Guarded: the content-graph
 	// extractor lives in a separate include.
-	if ( function_exists( 'open_station_content_graph_extract_internal_links' ) ) {
-		$ids = open_station_content_graph_extract_internal_links( (string) $post->post_content );
+	if ( function_exists( 'openstation_content_graph_extract_internal_links' ) ) {
+		$ids = openstation_content_graph_extract_internal_links( (string) $post->post_content );
 		foreach ( array_slice( $ids, 0, 32 ) as $target_id ) {
 			$target_id = (int) $target_id;
 			if ( $target_id === (int) $post->ID ) {
@@ -477,12 +477,12 @@ function open_station_window_links_extract_references( $post ) {
  *
  * Built-ins deliberately cover `post` and `page` only; other post
  * types (and non-post screens) join via the
- * `open_station_window_related_entities` filter.
+ * `openstation_window_related_entities` filter.
  *
  * @param WP_Post $post Source post.
  * @return array[] Related-entity items, possibly empty.
  */
-function open_station_window_related_entities_for_post( $post ) {
+function openstation_window_related_entities_for_post( $post ) {
 	if ( ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
 		return array();
 	}
@@ -592,8 +592,8 @@ function open_station_window_related_entities_for_post( $post ) {
 	// on this site. Guarded: the extractor lives in the content-graph
 	// include. Capped tighter than the reference extractor (10) to
 	// stay inside the overall 64-item engine budget.
-	if ( function_exists( 'open_station_content_graph_extract_internal_links' ) ) {
-		$link_ids = open_station_content_graph_extract_internal_links( (string) $post->post_content );
+	if ( function_exists( 'openstation_content_graph_extract_internal_links' ) ) {
+		$link_ids = openstation_content_graph_extract_internal_links( (string) $post->post_content );
 		$count    = 0;
 		foreach ( $link_ids as $target_id ) {
 			if ( $count >= 10 ) {
@@ -630,7 +630,7 @@ function open_station_window_related_entities_for_post( $post ) {
 /**
  * Drop malformed related-entity items and whitelist their fields.
  *
- * Runs on the `open_station_window_related_entities` filter output
+ * Runs on the `openstation_window_related_entities` filter output
  * before the payload is announced: a plugin returning one bad entry
  * must not invalidate the whole identity client-side (the JS engine
  * validates the ref as a unit and would discard everything).
@@ -640,7 +640,7 @@ function open_station_window_related_entities_for_post( $post ) {
  * @param mixed $related Filter output.
  * @return array[] Well-formed items, reindexed.
  */
-function open_station_window_related_entities_sanitize( $related ) {
+function openstation_window_related_entities_sanitize( $related ) {
 	if ( ! is_array( $related ) ) {
 		return array();
 	}
@@ -692,19 +692,19 @@ function open_station_window_related_entities_sanitize( $related ) {
  * stale the moment the user adds a category or an image) and
  * re-announces the fresh identity to the parent shell.
  *
- * Both public filters (`open_station_window_content_identity`,
- * `open_station_window_related_entities`) run here exactly as they
+ * Both public filters (`openstation_window_content_identity`,
+ * `openstation_window_related_entities`) run here exactly as they
  * do at page render, with `$screen = null` — there is no WP_Screen
  * in REST context.
  */
-function open_station_register_content_identity_route() {
+function openstation_register_content_identity_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/content-identity',
 		array(
 			'methods'             => 'GET',
-			'callback'            => 'open_station_rest_content_identity',
-			'permission_callback' => 'open_station_rest_content_identity_permission',
+			'callback'            => 'openstation_rest_content_identity',
+			'permission_callback' => 'openstation_rest_content_identity_permission',
 			'args'                => array(
 				'post' => array(
 					'description' => __( 'Post ID to recompute the content identity for.', 'desktop-mode' ),
@@ -716,7 +716,7 @@ function open_station_register_content_identity_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_content_identity_route' );
+add_action( 'rest_api_init', 'openstation_register_content_identity_route' );
 
 /**
  * Permission: OpenStation enabled AND the caller can edit the post —
@@ -726,8 +726,8 @@ add_action( 'rest_api_init', 'open_station_register_content_identity_route' );
  * @param WP_REST_Request $request REST request.
  * @return true|WP_Error
  */
-function open_station_rest_content_identity_permission( $request ) {
-	$enabled = open_station_rest_require_enabled();
+function openstation_rest_content_identity_permission( $request ) {
+	$enabled = openstation_rest_require_enabled();
 	if ( true !== $enabled ) {
 		return $enabled;
 	}
@@ -748,11 +748,11 @@ function open_station_rest_content_identity_permission( $request ) {
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response|WP_Error
  */
-function open_station_rest_content_identity( $request ) {
+function openstation_rest_content_identity( $request ) {
 	$post = get_post( (int) $request['post'] );
 	if ( ! $post instanceof WP_Post || 'attachment' === $post->post_type ) {
 		return new WP_Error(
-			'open_station_no_identity',
+			'openstation_no_identity',
 			__( 'No content identity for this object.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -763,19 +763,19 @@ function open_station_rest_content_identity( $request ) {
 		'id'    => (int) $post->ID,
 		'label' => get_the_title( $post ),
 	);
-	$links    = open_station_window_links_extract_references( $post );
+	$links    = openstation_window_links_extract_references( $post );
 	if ( ! empty( $links ) ) {
 		$identity['links'] = $links;
 	}
 
-	$preview_url = open_station_window_preview_url( $post );
+	$preview_url = openstation_window_preview_url( $post );
 	if ( '' !== $preview_url ) {
 		$identity['previewUrl'] = $preview_url;
 	}
 
 	/** This filter is documented in includes/window-links.php */
-	$identity = apply_filters( 'open_station_window_content_identity', $identity, null );
-	$identity = open_station_window_related_attach( $identity, $post, null );
+	$identity = apply_filters( 'openstation_window_content_identity', $identity, null );
+	$identity = openstation_window_related_attach( $identity, $post, null );
 
 	return rest_ensure_response( array( 'identity' => $identity ) );
 }
@@ -810,7 +810,7 @@ function open_station_rest_content_identity( $request ) {
  *     );
  *     wp_enqueue_script( 'my-plugin-link-renderer' );
  * } );
- * open_station_register_window_link_renderer_script( 'my-plugin-link-renderer' );
+ * openstation_register_window_link_renderer_script( 'my-plugin-link-renderer' );
  * ```
  *
  * For live unregistration on deactivation, the plugin's JS should set
@@ -821,23 +821,23 @@ function open_station_rest_content_identity( $request ) {
  * @param string $handle WP-registered script handle.
  * @return true|WP_Error `true` on success; `WP_Error` on validation failure.
  */
-function open_station_register_window_link_renderer_script( $handle ) {
+function openstation_register_window_link_renderer_script( $handle ) {
 	$handle = (string) $handle;
 	if ( '' === $handle ) {
-		return open_station_registration_error(
-			'open_station_missing_handle',
+		return openstation_registration_error(
+			'openstation_missing_handle',
 			__( 'Window-link renderer script registration requires a non-empty script handle.', 'desktop-mode' )
 		);
 	}
 
-	open_station_window_link_renderer_script_registry( $handle, true );
+	openstation_window_link_renderer_script_registry( $handle, true );
 
 	/**
 	 * Fires after a window-link renderer script handle is registered.
 	 *
 	 * @param string $handle The registered script handle.
 	 */
-	do_action( 'open_station_window_link_renderer_script_registered', $handle );
+	do_action( 'openstation_window_link_renderer_script_registered', $handle );
 
 	return true;
 }
@@ -851,7 +851,7 @@ function open_station_register_window_link_renderer_script( $handle ) {
  * @param bool|null $value  Pass `true` to register; `null` to read only.
  * @return array|bool When called with no args returns the full store.
  */
-function open_station_window_link_renderer_script_registry( $handle = '', $value = null ) {
+function openstation_window_link_renderer_script_registry( $handle = '', $value = null ) {
 	static $store = array();
 
 	if ( '__flush__' === (string) $handle ) {
@@ -869,10 +869,10 @@ function open_station_window_link_renderer_script_registry( $handle = '', $value
 
 /**
  * Test-only: clear the registry between PHPUnit cases. See
- * {@see open_station_flush_script_handle_registries()}.
+ * {@see openstation_flush_script_handle_registries()}.
  */
-function open_station_flush_window_link_renderer_script_registry() {
-	open_station_window_link_renderer_script_registry( '__flush__' );
+function openstation_flush_window_link_renderer_script_registry() {
+	openstation_window_link_renderer_script_registry( '__flush__' );
 }
 
 /**
@@ -881,8 +881,8 @@ function open_station_flush_window_link_renderer_script_registry() {
  *
  * @return array[] List of `{ handle, scriptUrl, … }` entries.
  */
-function open_station_build_window_link_renderer_scripts_payload() {
-	$registry = open_station_window_link_renderer_script_registry();
+function openstation_build_window_link_renderer_scripts_payload() {
+	$registry = openstation_window_link_renderer_script_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -893,13 +893,13 @@ function open_station_build_window_link_renderer_scripts_payload() {
 		if ( ! $active || isset( $seen[ $handle ] ) ) {
 			continue;
 		}
-		$payload = open_station_resolve_script_payload( $handle );
+		$payload = openstation_resolve_script_payload( $handle );
 		if ( '' === $payload['url'] ) {
 			// Loud diagnostic — visible under WP_DEBUG. Deduped by
-			// `open_station_warn_unresolvable_script_handle` so the
+			// `openstation_warn_unresolvable_script_handle` so the
 			// notice fires once per handle per request.
-			open_station_warn_unresolvable_script_handle(
-				'open_station_register_window_link_renderer_script',
+			openstation_warn_unresolvable_script_handle(
+				'openstation_register_window_link_renderer_script',
 				'Window-link renderer',
 				(string) $handle
 			);

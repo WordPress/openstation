@@ -19,16 +19,16 @@
  *      fetch / XHR / sendBeacon (the chromeless inline bridge merges
  *      contributed headers into outgoing requests).
  *   4. Server-side capture hooks read the header via
- *      {@see open_station_debug_session_for_request()}, run their
+ *      {@see openstation_debug_session_for_request()}, run their
  *      capture (SAVEQUERIES, output buffering, etc.), and publish via
- *      {@see open_station_debug_publish()}.
+ *      {@see openstation_debug_publish()}.
  *   5. Inspector subscribes via
  *      `wp.os.devtools.debug.subscribe( sessionId, channel, cb )`.
  *      The shell polls `GET /desktop-mode/v1/debug` every second and
  *      replays new events to subscribers.
  *
  * Storage: a per-session ring buffer in a transient. Bounded by
- * {@see OPEN_STATION_DEBUG_RING_SIZE} so a misconfigured capture
+ * {@see OPENSTATION_DEBUG_RING_SIZE} so a misconfigured capture
  * loop can't fill the database. TTL is 1 hour — long enough for an
  * inspector session to span a few page loads, short enough that
  * abandoned sessions don't squat indefinitely.
@@ -51,7 +51,7 @@ defined( 'ABSPATH' ) || exit;
  * higher and a single transient row starts to push the row-size
  * sanity threshold for typical wp_options storage.
  */
-const OPEN_STATION_DEBUG_RING_SIZE = 500;
+const OPENSTATION_DEBUG_RING_SIZE = 500;
 
 /**
  * Transient TTL for a session ring buffer, in seconds.
@@ -59,7 +59,7 @@ const OPEN_STATION_DEBUG_RING_SIZE = 500;
  * One hour. Inspector windows that stay open longer than that should
  * heartbeat by republishing — at which point the TTL extends.
  */
-const OPEN_STATION_DEBUG_SESSION_TTL = 3600;
+const OPENSTATION_DEBUG_SESSION_TTL = 3600;
 
 /**
  * Build the transient key for a (session, channel) pair.
@@ -68,8 +68,8 @@ const OPEN_STATION_DEBUG_SESSION_TTL = 3600;
  * @param string $channel    Channel name (`'query'`, `'log'`, …).
  * @return string Transient key safe for `set_transient`.
  */
-function open_station_debug_transient_key( $session_id, $channel ) {
-	return 'open_station_dbg_' . md5( (string) $session_id . '|' . (string) $channel );
+function openstation_debug_transient_key( $session_id, $channel ) {
+	return 'openstation_dbg_' . md5( (string) $session_id . '|' . (string) $channel );
 }
 
 /**
@@ -87,7 +87,7 @@ function open_station_debug_transient_key( $session_id, $channel ) {
  *
  * @return string Session id, or '' when absent / invalid.
  */
-function open_station_debug_session_for_request() {
+function openstation_debug_session_for_request() {
 	$raw = '';
 	if ( isset( $_SERVER['HTTP_X_WP_DEBUG_SESSION'] ) ) {
 		$raw = sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_WP_DEBUG_SESSION'] ) );
@@ -110,7 +110,7 @@ function open_station_debug_session_for_request() {
  *
  * The newest event is appended to the ring buffer; once the cap is
  * reached, the oldest events are dropped FIFO. Fires the
- * `open_station_debug_publish` action so observability widgets can
+ * `openstation_debug_publish` action so observability widgets can
  * tail the stream synchronously without going through the REST poll.
  *
  * @param string $session_id Session id from the client.
@@ -122,13 +122,13 @@ function open_station_debug_session_for_request() {
  *              false only when `$session_id` or `$channel` is empty.
  *              `set_transient()` failures are not detected.
  */
-function open_station_debug_publish( $session_id, $channel, $payload ) {
+function openstation_debug_publish( $session_id, $channel, $payload ) {
 	$session_id = (string) $session_id;
 	$channel    = (string) $channel;
 	if ( '' === $session_id || '' === $channel ) {
 		return false;
 	}
-	$key      = open_station_debug_transient_key( $session_id, $channel );
+	$key      = openstation_debug_transient_key( $session_id, $channel );
 	$existing = get_transient( $key );
 	if ( ! is_array( $existing ) ) {
 		$existing = array(
@@ -145,14 +145,14 @@ function open_station_debug_publish( $session_id, $channel, $payload ) {
 		'channel' => $channel,
 		'payload' => $payload,
 	);
-	$max = (int) apply_filters( 'open_station_debug_ring_size', OPEN_STATION_DEBUG_RING_SIZE );
+	$max = (int) apply_filters( 'openstation_debug_ring_size', OPENSTATION_DEBUG_RING_SIZE );
 	if ( $max < 1 ) {
-		$max = OPEN_STATION_DEBUG_RING_SIZE;
+		$max = OPENSTATION_DEBUG_RING_SIZE;
 	}
 	if ( count( $existing['events'] ) > $max ) {
 		$existing['events'] = array_slice( $existing['events'], -$max );
 	}
-	set_transient( $key, $existing, OPEN_STATION_DEBUG_SESSION_TTL );
+	set_transient( $key, $existing, OPENSTATION_DEBUG_SESSION_TTL );
 
 	/**
 	 * Fires after a debug event is appended to the ring buffer.
@@ -165,7 +165,7 @@ function open_station_debug_publish( $session_id, $channel, $payload ) {
 	 * @param string $channel    Channel name.
 	 * @param mixed  $payload    Published payload.
 	 */
-	do_action( 'open_station_debug_publish', $session_id, $channel, $payload );
+	do_action( 'openstation_debug_publish', $session_id, $channel, $payload );
 	return true;
 }
 
@@ -182,7 +182,7 @@ function open_station_debug_publish( $session_id, $channel, $payload ) {
  * @param string|null $channel    Optional channel filter.
  * @return array
  */
-function open_station_debug_drain( $session_id, $since = 0, $channel = null ) {
+function openstation_debug_drain( $session_id, $since = 0, $channel = null ) {
 	$session_id = (string) $session_id;
 	if ( '' === $session_id ) {
 		return array( 'events' => array(), 'cursor' => (int) $since );
@@ -196,9 +196,9 @@ function open_station_debug_drain( $session_id, $since = 0, $channel = null ) {
 		// this session. We don't keep an index of channels per session
 		// (would double-write on every publish); instead we let the
 		// caller pass a list, OR fan out via the
-		// `open_station_debug_channels` filter for plugins that know
+		// `openstation_debug_channels` filter for plugins that know
 		// their full set up-front.
-		$declared = apply_filters( 'open_station_debug_channels', array(), $session_id );
+		$declared = apply_filters( 'openstation_debug_channels', array(), $session_id );
 		if ( is_array( $declared ) ) {
 			foreach ( $declared as $ch ) {
 				if ( is_string( $ch ) && '' !== $ch ) {
@@ -211,7 +211,7 @@ function open_station_debug_drain( $session_id, $since = 0, $channel = null ) {
 	$cursor = (int) $since;
 	$out    = array();
 	foreach ( $channels as $ch ) {
-		$key  = open_station_debug_transient_key( $session_id, $ch );
+		$key  = openstation_debug_transient_key( $session_id, $ch );
 		$data = get_transient( $key );
 		if ( ! is_array( $data ) || empty( $data['events'] ) ) {
 			continue;
@@ -247,13 +247,13 @@ function open_station_debug_drain( $session_id, $since = 0, $channel = null ) {
  *
  * Returns events newer than `since` for the given session id.
  * Supports both `channel=foo` (single) and `channels[]=foo&channels[]=bar`
- * (list); falls back to the `open_station_debug_channels` filter
+ * (list); falls back to the `openstation_debug_channels` filter
  * when no channel param is supplied.
  *
  * @param WP_REST_Request $request REST request.
  * @return WP_REST_Response
  */
-function open_station_rest_debug_drain( WP_REST_Request $request ) {
+function openstation_rest_debug_drain( WP_REST_Request $request ) {
 	$session_id = (string) $request->get_param( 'sessionId' );
 	$since      = (int) $request->get_param( 'since' );
 	$channel    = $request->get_param( 'channel' );
@@ -264,7 +264,7 @@ function open_station_rest_debug_drain( WP_REST_Request $request ) {
 		$cursor    = $since;
 		$all_events = array();
 		foreach ( $channels as $ch ) {
-			$result = open_station_debug_drain( $session_id, $since, (string) $ch );
+			$result = openstation_debug_drain( $session_id, $since, (string) $ch );
 			foreach ( $result['events'] as $ev ) {
 				$all_events[] = $ev;
 			}
@@ -286,7 +286,7 @@ function open_station_rest_debug_drain( WP_REST_Request $request ) {
 		);
 	}
 
-	$result = open_station_debug_drain(
+	$result = openstation_debug_drain(
 		$session_id,
 		$since,
 		is_string( $channel ) ? $channel : null
@@ -300,32 +300,32 @@ function open_station_rest_debug_drain( WP_REST_Request $request ) {
  * Logged-in admins only — debug data exposes internal request shapes
  * that should never leak to lower-privileged users. Plugins that need
  * to relax this for a specific session can hook the
- * `open_station_debug_rest_permission` filter (filters TRUE/FALSE).
+ * `openstation_debug_rest_permission` filter (filters TRUE/FALSE).
  *
  * @return bool
  */
-function open_station_rest_debug_permission() {
+function openstation_rest_debug_permission() {
 	$allowed = is_user_logged_in() && current_user_can( 'manage_options' );
 	/**
 	 * Filter the permission decision for the debug REST endpoint.
 	 *
 	 * @param bool $allowed Default: caller is a logged-in admin.
 	 */
-	return (bool) apply_filters( 'open_station_debug_rest_permission', $allowed );
+	return (bool) apply_filters( 'openstation_debug_rest_permission', $allowed );
 }
 
 /**
  * Register the debug REST routes.
  */
-function open_station_register_debug_rest_routes() {
+function openstation_register_debug_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/debug',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'open_station_rest_debug_drain',
-				'permission_callback' => 'open_station_rest_debug_permission',
+				'callback'            => 'openstation_rest_debug_drain',
+				'permission_callback' => 'openstation_rest_debug_permission',
 				'args'                => array(
 					'sessionId' => array(
 						'required' => true,
@@ -347,4 +347,4 @@ function open_station_register_debug_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_debug_rest_routes' );
+add_action( 'rest_api_init', 'openstation_register_debug_rest_routes' );

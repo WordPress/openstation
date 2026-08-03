@@ -7,29 +7,29 @@
  *
  * @group openstation
  *
- * @covers ::open_station_menu_item_url
- * @covers ::open_station_is_admin_file_slug
+ * @covers ::openstation_menu_item_url
+ * @covers ::openstation_is_admin_file_slug
  */
 class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 
 	public function test_passes_through_absolute_http_url() {
 		$url = 'http://example.com/foo';
-		$this->assertSame( esc_url_raw( $url ), open_station_menu_item_url( $url ) );
+		$this->assertSame( esc_url_raw( $url ), openstation_menu_item_url( $url ) );
 	}
 
 	public function test_passes_through_absolute_https_url() {
 		$url = 'https://example.com/foo?bar=baz';
-		$this->assertSame( esc_url_raw( $url ), open_station_menu_item_url( $url ) );
+		$this->assertSame( esc_url_raw( $url ), openstation_menu_item_url( $url ) );
 	}
 
 	public function test_routes_php_slug_to_admin_url() {
-		$this->assertSame( esc_url_raw( admin_url( 'edit.php' ) ), open_station_menu_item_url( 'edit.php' ) );
+		$this->assertSame( esc_url_raw( admin_url( 'edit.php' ) ), openstation_menu_item_url( 'edit.php' ) );
 	}
 
 	public function test_preserves_query_string_on_php_slugs() {
 		$this->assertSame(
 			esc_url_raw( admin_url( 'edit.php?post_type=page' ) ),
-			open_station_menu_item_url( 'edit.php?post_type=page' )
+			openstation_menu_item_url( 'edit.php?post_type=page' )
 		);
 	}
 
@@ -40,14 +40,14 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 	public function test_routes_plugin_page_slug_through_admin_php() {
 		$this->assertSame(
 			esc_url_raw( admin_url( 'admin.php?page=my-plugin' ) ),
-			open_station_menu_item_url( 'my-plugin' )
+			openstation_menu_item_url( 'my-plugin' )
 		);
 	}
 
 	public function test_url_encodes_plugin_page_slug() {
 		$this->assertSame(
 			esc_url_raw( admin_url( 'admin.php?page=' . rawurlencode( 'plugin with spaces' ) ) ),
-			open_station_menu_item_url( 'plugin with spaces' )
+			openstation_menu_item_url( 'plugin with spaces' )
 		);
 	}
 
@@ -56,12 +56,12 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 	 * can't escape the wp-admin directory via the generated URL.
 	 */
 	public function test_strips_path_traversal_sequences() {
-		$result = open_station_menu_item_url( '../../etc/passwd' );
+		$result = openstation_menu_item_url( '../../etc/passwd' );
 		$this->assertStringNotContainsString( '..', $result );
 	}
 
 	public function test_strips_path_traversal_in_php_slug() {
-		$result = open_station_menu_item_url( '../edit.php' );
+		$result = openstation_menu_item_url( '../edit.php' );
 		$this->assertStringNotContainsString( '..', $result );
 		$this->assertStringContainsString( 'edit.php', $result );
 	}
@@ -80,7 +80,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 	 * once, and reassemble with `&` as a real separator.
 	 */
 	public function test_routes_slug_with_embedded_query_params() {
-		$result = open_station_menu_item_url( 'wc-admin&path=/customers' );
+		$result = openstation_menu_item_url( 'wc-admin&path=/customers' );
 		$this->assertStringContainsString( 'page=wc-admin', $result );
 		$this->assertStringNotContainsString( 'page=wc-admin%26', $result );
 		$this->assertStringNotContainsString( '%3D', $result );
@@ -92,7 +92,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 	}
 
 	public function test_routes_slug_with_multiple_embedded_query_params() {
-		$result = open_station_menu_item_url( 'wc-admin&path=/analytics/orders&period=year' );
+		$result = openstation_menu_item_url( 'wc-admin&path=/analytics/orders&period=year' );
 		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
 		$this->assertSame( 'wc-admin', $args['page'] );
 		$this->assertSame( '/analytics/orders', $args['path'] );
@@ -121,7 +121,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 
 		$this->assertSame(
 			esc_url_raw( admin_url( 'tools.php?page=scheduler' ) ),
-			open_station_menu_item_url( 'scheduler' )
+			openstation_menu_item_url( 'scheduler' )
 		);
 
 		unset( $_parent_pages['scheduler'] );
@@ -131,7 +131,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 		global $_parent_pages;
 		$_parent_pages['scheduler'] = 'tools.php';
 
-		$result = open_station_menu_item_url( 'scheduler&status=past-due' );
+		$result = openstation_menu_item_url( 'scheduler&status=past-due' );
 
 		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
 		$this->assertSame( 'scheduler', $args['page'] );
@@ -155,7 +155,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 
 		$this->assertSame(
 			esc_url_raw( admin_url( 'admin.php?page=wc-admin' ) ),
-			open_station_menu_item_url( 'wc-admin' )
+			openstation_menu_item_url( 'wc-admin' )
 		);
 
 		unset( $_parent_pages['woocommerce'], $_parent_pages['wc-admin'] );
@@ -173,7 +173,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 
 		$this->assertSame(
 			esc_url_raw( admin_url( 'admin.php?page=my-top-level' ) ),
-			open_station_menu_item_url( 'my-top-level' )
+			openstation_menu_item_url( 'my-top-level' )
 		);
 
 		unset( $_parent_pages['my-top-level'] );
@@ -190,14 +190,14 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 		// No `$_parent_pages` entry — no fixture set up.
 		$this->assertSame(
 			esc_url_raw( admin_url( 'admin.php?page=unhooked' ) ),
-			open_station_menu_item_url( 'unhooked' )
+			openstation_menu_item_url( 'unhooked' )
 		);
 	}
 
 	public function test_embedded_query_param_with_only_key() {
 		// Trailing `&` with no value — must not crash, must still
 		// produce a valid `?page=…` URL.
-		$result = open_station_menu_item_url( 'wc-admin&' );
+		$result = openstation_menu_item_url( 'wc-admin&' );
 		parse_str( wp_parse_url( html_entity_decode( $result ), PHP_URL_QUERY ), $args );
 		$this->assertSame( 'wc-admin', $args['page'] );
 	}
@@ -215,7 +215,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 		global $_parent_pages;
 		$_parent_pages['wp-sweep/admin.php'] = 'tools.php';
 
-		$result = open_station_menu_item_url( 'wp-sweep/admin.php' );
+		$result = openstation_menu_item_url( 'wp-sweep/admin.php' );
 
 		$this->assertStringContainsString( 'tools.php', $result );
 		$this->assertStringNotContainsString( admin_url( 'wp-sweep/admin.php' ), $result );
@@ -233,7 +233,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 	public function test_unregistered_file_path_slug_still_routes_as_direct_file() {
 		$this->assertSame(
 			esc_url_raw( admin_url( 'network/sites.php' ) ),
-			open_station_menu_item_url( 'network/sites.php' )
+			openstation_menu_item_url( 'network/sites.php' )
 		);
 	}
 
@@ -254,7 +254,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 
 		$this->assertSame(
 			esc_url_raw( admin_url( 'edit.php?post_type=acf-field-group' ) ),
-			open_station_menu_item_url( 'edit.php?post_type=acf-field-group' )
+			openstation_menu_item_url( 'edit.php?post_type=acf-field-group' )
 		);
 
 		unset( $_parent_pages['edit.php?post_type=acf-field-group'] );
@@ -273,7 +273,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 
 		$this->assertSame(
 			esc_url_raw( admin_url( 'edit.php?post_type=acf-post-type' ) ),
-			open_station_menu_item_url( 'edit.php?post_type=acf-post-type' )
+			openstation_menu_item_url( 'edit.php?post_type=acf-post-type' )
 		);
 
 		unset(
@@ -292,7 +292,7 @@ class Tests_OpenStation_MenuItemUrl extends WP_UnitTestCase {
 		global $_parent_pages;
 		$_parent_pages['wp-sweep/admin.php?tab=cleanup'] = 'tools.php';
 
-		$result = open_station_menu_item_url( 'wp-sweep/admin.php?tab=cleanup' );
+		$result = openstation_menu_item_url( 'wp-sweep/admin.php?tab=cleanup' );
 
 		$this->assertStringContainsString( 'tools.php', $result );
 

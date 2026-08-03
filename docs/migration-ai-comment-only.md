@@ -39,16 +39,16 @@ longer fire and have been removed**:
 
 | Hook | Type | Was |
 |---|---|---|
-| `open_station_ai_supported_post_types` | filter | Stable |
-| `open_station_ai_supported_taxonomies` | filter | Stable |
-| `open_station_ai_supported_types` | filter | Stable |
-| `open_station_ai_schema_content` | filter | Experimental |
-| `open_station_ai_post_prompt` | filter | Stable |
-| `open_station_ai_term_prompt` | filter | Stable |
-| `open_station_ai_post_analyzed` | action | Stable |
-| `open_station_ai_term_analyzed` | action | Stable |
+| `openstation_ai_supported_post_types` | filter | Stable |
+| `openstation_ai_supported_taxonomies` | filter | Stable |
+| `openstation_ai_supported_types` | filter | Stable |
+| `openstation_ai_schema_content` | filter | Experimental |
+| `openstation_ai_post_prompt` | filter | Stable |
+| `openstation_ai_term_prompt` | filter | Stable |
+| `openstation_ai_post_analyzed` | action | Stable |
+| `openstation_ai_term_analyzed` | action | Stable |
 
-If you depended on `open_station_ai_post_analyzed` / `_term_analyzed` to
+If you depended on `openstation_ai_post_analyzed` / `_term_analyzed` to
 mirror data into your own index, hook the WordPress core `save_post` /
 `edited_term` events directly instead.
 
@@ -56,12 +56,12 @@ mirror data into your own index, hook the WordPress core `save_post` /
 
 The comment path is unchanged and remains the only auto-analysis:
 
-- `open_station_ai_comment_prompt` (filter, Stable)
-- `open_station_ai_schema_comment` (filter, Experimental)
-- `open_station_ai_comment_analyzed` (action, Stable) — result still
+- `openstation_ai_comment_prompt` (filter, Stable)
+- `openstation_ai_schema_comment` (filter, Experimental)
+- `openstation_ai_comment_analyzed` (action, Stable) — result still
   carries `topic`, `ai_summary`, `harmful`, `spam`.
 
-The comments-window spam score (`open_station_comments_window_spam_score`)
+The comments-window spam score (`openstation_comments_window_spam_score`)
 continues to read the `spam` / `harmful` verdict from comment meta.
 
 ### Changed: assistant search is now keyword-based

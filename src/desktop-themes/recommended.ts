@@ -1,6 +1,6 @@
 /**
  * Recommended OS settings — the shell-side mirror of PHP's
- * `open_station_desktop_theme_recommended_os_settings_schema()`.
+ * `openstation_desktop_theme_recommended_os_settings_schema()`.
  *
  * Two responsibilities, and they are deliberately separate:
  *
@@ -16,7 +16,7 @@
  *
  * Keep the enums equal to `DOCK_SIZES` / `DESKTOP_LAYOUTS` /
  * `WINDOW_RADII` / `ADMIN_BAR_MODES` in `src/settings/constants.ts`
- * and to the `OPEN_STATION_OS_SETTINGS_*` constants in
+ * and to the `OPENSTATION_OS_SETTINGS_*` constants in
  * `includes/os-settings.php`.
  * They are duplicated rather than imported because this module is a
  * leaf of the always-on shell bundle and must not pull the settings
@@ -48,7 +48,7 @@ const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal', 'accent' ] as const;
 /**
  * Numeric fields, with the range the sanitizer clamps into. Mirrors
  * the `int` grammar in
- * `open_station_desktop_theme_recommended_os_settings_schema()`.
+ * `openstation_desktop_theme_recommended_os_settings_schema()`.
  *
  * Values are clamped rather than dropped: a theme asking for a reveal
  * slower than the shell will play is expressing "slow", and the honest

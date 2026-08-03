@@ -9,7 +9,7 @@
  * The bundle URL is taken from the shell config
  * (`config.aboutSceneBundleUrl`), built server-side so the
  * `SCRIPT_DEBUG` choice between `.js` and `.min.js` and the
- * `?ver=OPEN_STATION_VERSION` cache-buster stay in PHP.
+ * `?ver=OPENSTATION_VERSION` cache-buster stay in PHP.
  */
 
 import type { AboutScene, SceneOptions } from './about-scene';

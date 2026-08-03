@@ -31,31 +31,31 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
 ## Current State
 
 - **Per-user opt-in**
-  Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/openstation/` portal URL auto-enables OpenStation for first-time visitors (gated by `open_station_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`open_station_admin_redirect_to_portal`).
+  Admin-bar toggle sets the `desktop_mode_mode` user meta. A dedicated `/openstation/` portal URL auto-enables OpenStation for first-time visitors (gated by `openstation_portal_auto_enable`) and the `admin_init` redirect sends opted-in users from `/wp-admin/` to the portal (`openstation_admin_redirect_to_portal`).
 
 - **Desktop shell**
-  Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OS Settings — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `open_station_mode_init`, `open_station_shell_before` / `_after`, and the `open_station_shell_config` filter are the main extension points.
+  Fixed-viewport desktop that overlays `/wp-admin`: wallpaper area, unified dock (placement picked in OS Settings — left / right / bottom, default bottom), right-column widget layer, and full windowing system. `openstation_mode_init`, `openstation_shell_before` / `_after`, and the `openstation_shell_config` filter are the main extension points.
 
 - **Window system — iframe + native**
-  Iframe windows load admin pages with `?open_station_chromeless=1` (chromeless mode). Native windows render directly in the parent DOM via `open_station_register_window()` / `wp.os.registerWindow()` — multi-tab native windows are supported through `open_station_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
+  Iframe windows load admin pages with `?openstation_chromeless=1` (chromeless mode). Native windows render directly in the parent DOM via `openstation_register_window()` / `wp.os.registerWindow()` — multi-tab native windows are supported through `openstation_register_window_tab()`. Both types share drag, resize, minimize, maximize, close, fullscreen, and detach-to-new-tab.
 
 - **Dock**
-  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is the user's OS Settings preference. Core menus are ordered before plugin menus; per-item hiding via `open_station_dock_placement` (`'hidden'`). Per-item multi-window support via `open_station_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
+  One unified rail hosting every admin menu — core and plugin alike — plus shell-level system tiles. Placement (left / right / bottom) is the user's OS Settings preference. Core menus are ordered before plugin menus; per-item hiding via `openstation_dock_placement` (`'hidden'`). Per-item multi-window support via `openstation_dock_item_multi`. Letter-badge icon fallback for plugins without icon art.
 
 - **Virtual desktops (“Spaces”)**
   Multiple desktops per user, each with its own window set. Overview grid (zoom-out view) surfaces the Spaces switcher, thumbnails, and create/close controls.
 
 - **Arrange & snap**
-  Admin-bar Arrange menu: Cascade, Tile, Overview, Snap to grid. Plugins contribute custom entries via `open_station_arrange_menu_items` and react to clicks via `os.arrange.custom-action`. Tile grid dimensions and snap cell size are both filterable.
+  Admin-bar Arrange menu: Cascade, Tile, Overview, Snap to grid. Plugins contribute custom entries via `openstation_arrange_menu_items` and react to clicks via `os.arrange.custom-action`. Tile grid dimensions and snap cell size are both filterable.
 
 - **Wallpaper registry**
-  Server- and client-side registration (`open_station_register_wallpaper()` / `wp.os.registerWallpaper()`). CSS presets + canvas (WebGL/2D) wallpapers with collision-aware surface data (`wp.os.getWallpaperSurfaces()`) for snow/rain/physics effects. In-panel `renderEditor` callback for custom controls, shared vendor-module loader (`pixijs` pre-registered).
+  Server- and client-side registration (`openstation_register_wallpaper()` / `wp.os.registerWallpaper()`). CSS presets + canvas (WebGL/2D) wallpapers with collision-aware surface data (`wp.os.getWallpaperSurfaces()`) for snow/rain/physics effects. In-panel `renderEditor` callback for custom controls, shared vendor-module loader (`pixijs` pre-registered).
 
 - **Widgets**
-  Right-column floating cards, optionally draggable / resizable outside the column. `open_station_register_widget()` / `wp.os.registerWidget()`. Built-in clock. User placement persists per-user in `localStorage`.
+  Right-column floating cards, optionally draggable / resizable outside the column. `openstation_register_widget()` / `wp.os.registerWidget()`. Built-in clock. User placement persists per-user in `localStorage`.
 
 - **Desktop icons**
-  Wallpaper-layer shortcuts via `open_station_register_icon()` — targets a registered native window or an admin URL.
+  Wallpaper-layer shortcuts via `openstation_register_icon()` — targets a registered native window or an admin URL.
 
 - **AI Assistant + slash commands**
   Cmd+K palette backed by an OpenAI agentic loop whose `search_posts` / `search_pages` / `search_comments` tools run WordPress's native keyword search. Admin-configured API key + model picker. The only automatic AI analysis is comment spam scoring (on comment save), which feeds the comments-window spam score; posts, pages, and terms are not analyzed. `wp.os.registerCommand()` adds slash commands with autocomplete (`suggest()`), confirm dialogs (`ctx.confirm()`), and full lifecycle hooks (`before-run` / `after-run` / `error`). Built-in `/open [window]` is extensible via `os.open-command.items`.
@@ -67,7 +67,7 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Media-library attachments drag across iframe boundaries via coordinated postMessage. Site-wide toggle through the Extended Options REST endpoint.
 
 - **Toast notifications**
-  Shell-level toasts rendered via the `<os-toast>` component. Plugins register their own tone/icon via the `open_station_toast_types` filter. Iframe pages raise a toast through the `os-notification` bridge message — it survives the iframe's own lifecycle.
+  Shell-level toasts rendered via the `<os-toast>` component. Plugins register their own tone/icon via the `openstation_toast_types` filter. Iframe pages raise a toast through the `os-notification` bridge message — it survives the iframe's own lifecycle.
 
 - **OS Settings**
   Native-window settings panel: wallpaper picker (with HD-only media filter), accent color swatches + custom gradient editor, dock size slider, AI platform config, and per-user default-on-startup window. Persisted via `/desktop-mode/v1/os-settings`.
@@ -79,13 +79,13 @@ Zero Core patches. Every feature is wired through public WordPress hooks.
   Typed messages for title changes, navigation (same-origin validated), focus, color-scheme sync, screen-meta panels (Screen Options / Help), external-link capture, iframe-ready handshake, and observability (`iframe-error`, `iframe-network`).
 
 - **UI component library**
-  ~25 `<os-*>` web components (`os-button`, `os-menu`, `os-panel`, `os-range-field`, `os-swatch`, `os-toast`, `os-tabs`, …) available to plugin authors — rendered server-side via `open_station_component()` or imported in TS.
+  ~25 `<os-*>` web components (`os-button`, `os-menu`, `os-panel`, `os-range-field`, `os-swatch`, `os-toast`, `os-tabs`, …) available to plugin authors — rendered server-side via `openstation_component()` or imported in TS.
 
 - **i18n**
   Full gettext coverage across PHP and TypeScript; Spanish translation shipped. Strings go through `wp.i18n` (`__`, `_x`, `_n`, `sprintf`) directly — no shell-specific re-export.
 
 - **Component registration API**
-  Stable `open_station_register_*` functions for windows, widgets, wallpapers, icons, and window tabs. All return `true` / `WP_Error` with documented error codes.
+  Stable `openstation_register_*` functions for windows, widgets, wallpapers, icons, and window tabs. All return `true` / `WP_Error` with documented error codes.
 
 - **Public hook API**
   Comprehensive PHP and JS hook surface — dock items, placement, multi-window, native-window lifecycle, widget lifecycle, wallpaper lifecycle + surfaces, window lifecycle, iframe observability, arrange actions, virtual-desktop transitions, palette registration, command lifecycle, batch close, AI prompt + model + post-type filters, accents, toast types, default wallpaper. See [`docs/hooks-reference.md`](./docs/hooks-reference.md) and [`docs/javascript-reference.md`](./docs/javascript-reference.md).
@@ -125,7 +125,7 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   ├── wallpapers/  the four brand desks: galaxy (default), space,
 │   │          holomesh, pulsemesh
 │   ├── desktop-themes/legacy/
-│   │          the built-in "OpenStation (Legacy)" theme — a frozen snapshot of
+│   │          the built-in "Desktop Mode (Legacy)" theme — a frozen snapshot of
 │   │          every token at its pre-brand value; never regenerated.
 │   │          Zip it with npm run package:legacy-theme
 │   └── js/   Vite bundles (gitignored; regenerate with npm run build) — only

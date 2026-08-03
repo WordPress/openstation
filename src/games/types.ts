@@ -66,7 +66,7 @@ export interface GameLaunchContext {
 	windowId: string;
 	/** The window body — the game owns this subtree until teardown. */
 	container: HTMLElement;
-	/** The server-declared config blob (`open_station_register_game()`'s `config`). */
+	/** The server-declared config blob (`openstation_register_game()`'s `config`). */
 	config: Record< string, unknown >;
 	/** Set when the run is an accepted challenge; absent for free play. */
 	challenge?: GameChallengeContext;
@@ -162,7 +162,7 @@ export interface GameScoreRow {
 
 /**
  * A shaped challenge row as returned by the challenges REST routes
- * and the `open_station_games` Heartbeat channel.
+ * and the `openstation_games` Heartbeat channel.
  *
  * @public
  */

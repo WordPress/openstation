@@ -282,7 +282,7 @@ function openItemVisibilityMenuImmediate(
 	// When the tile is owned by an active, deactivatable plugin, surface
 	// a danger action at the bottom. `pluginFile` is `null` for core
 	// menus, mu-plugins, drop-ins, and OpenStation itself — see
-	// `open_station_resolve_menu_plugin_file()`.
+	// `openstation_resolve_menu_plugin_file()`.
 	if ( opts.pluginFile ) {
 		const pluginFile = opts.pluginFile;
 		// Prefer the owning plugin's display name so a sub-page tile

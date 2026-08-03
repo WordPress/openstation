@@ -10,7 +10,7 @@
  * Challenge actions, its scoreboard, and its challenges below.
  *
  * Both registrations are filterable via
- * `open_station_games_window_args` / `open_station_games_icon_args`,
+ * `openstation_games_window_args` / `openstation_games_icon_args`,
  * mirroring the Recycle Bin.
  *
  * @package OpenStation
@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string Raw `<svg>` markup.
  */
-function open_station_games_icon_svg() {
+function openstation_games_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
 		. '<path fill="#6c5ce7" d="M18 16h28a16 16 0 0 1 16 16v10a10 10 0 0 1-18.3 5.6L39.9 42H24.1l-3.8 5.6A10 10 0 0 1 2 42V32a16 16 0 0 1 16-16z"/>'
 		. '<rect x="12" y="28" width="14" height="5" rx="2.5" fill="#ffffff"/>'
@@ -39,7 +39,7 @@ function open_station_games_icon_svg() {
  *
  * @return bool
  */
-function open_station_games_user_can_use() {
+function openstation_games_user_can_use() {
 	$can = is_user_logged_in() && current_user_can( 'read' );
 
 	/**
@@ -48,7 +48,7 @@ function open_station_games_user_can_use() {
 	 *
 	 * @param bool $can Default: logged-in + `read` capability.
 	 */
-	return (bool) apply_filters( 'open_station_games_user_can_use', $can );
+	return (bool) apply_filters( 'openstation_games_user_can_use', $can );
 }
 
 /**
@@ -58,7 +58,7 @@ function open_station_games_user_can_use() {
  * render callback relies on — keep them intact (or rename via the
  * filter) when customizing the layout.
  */
-function open_station_games_render_template() {
+function openstation_games_render_template() {
 	ob_start();
 	?>
 	<div class="desktop-mode-games" data-os-games-root>
@@ -78,8 +78,8 @@ function open_station_games_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_games_template_html', $html );
-	echo wp_kses( $filtered, open_station_native_window_allowed_html() );
+	$filtered = (string) apply_filters( 'openstation_games_template_html', $html );
+	echo wp_kses( $filtered, openstation_native_window_allowed_html() );
 }
 
 /**
@@ -88,17 +88,17 @@ function open_station_games_render_template() {
  * Priority 20, after the native-window registry bootstraps — same
  * timing as the Recycle Bin.
  */
-function open_station_games_register_window() {
-	if ( ! open_station_games_user_can_use() ) {
+function openstation_games_register_window() {
+	if ( ! openstation_games_user_can_use() ) {
 		return;
 	}
 
-	$icon_uri = 'data:image/svg+xml;base64,' . base64_encode( open_station_games_icon_svg() );
+	$icon_uri = 'data:image/svg+xml;base64,' . base64_encode( openstation_games_icon_svg() );
 
 	$window_args = array(
 		'title'      => __( 'Games', 'desktop-mode' ),
 		'icon'       => $icon_uri,
-		'template'   => 'open_station_games_render_template',
+		'template'   => 'openstation_games_render_template',
 		'script'     => 'desktop-mode-games',
 		'width'      => 900,
 		'height'     => 600,
@@ -110,11 +110,11 @@ function open_station_games_register_window() {
 	/**
 	 * Filter the args used to register the Games native window.
 	 *
-	 * @param array $window_args Args passed to `open_station_register_window()`.
+	 * @param array $window_args Args passed to `openstation_register_window()`.
 	 */
-	$window_args = (array) apply_filters( 'open_station_games_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_games_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-games', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-games', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] Games window registration failed: ' . $registered->get_error_message() );
@@ -123,7 +123,7 @@ function open_station_games_register_window() {
 
 	$icon_args = array(
 		'title'    => __( 'Games', 'desktop-mode' ),
-		'icon_svg' => open_station_games_icon_svg(),
+		'icon_svg' => openstation_games_icon_svg(),
 		'window'   => 'desktop-mode-games',
 		'position' => 85,
 	);
@@ -131,13 +131,13 @@ function open_station_games_register_window() {
 	/**
 	 * Filter the args used to register the Games desktop icon.
 	 *
-	 * @param array $icon_args Args passed to `open_station_register_icon()`.
+	 * @param array $icon_args Args passed to `openstation_register_icon()`.
 	 */
-	$icon_args = (array) apply_filters( 'open_station_games_icon_args', $icon_args );
+	$icon_args = (array) apply_filters( 'openstation_games_icon_args', $icon_args );
 
-	open_station_register_icon( 'desktop-mode-games', $icon_args );
+	openstation_register_icon( 'desktop-mode-games', $icon_args );
 }
-add_action( 'init', 'open_station_games_register_window', 20 );
+add_action( 'init', 'openstation_games_register_window', 20 );
 
 /**
  * Localize REST endpoints for the JS bundle.
@@ -145,8 +145,8 @@ add_action( 'init', 'open_station_games_register_window', 20 );
  * The bundle reads its config off `window.openStationGamesConfig`
  * and never hardcodes URLs.
  */
-function open_station_games_localize_config() {
-	if ( ! open_station_games_user_can_use() ) {
+function openstation_games_localize_config() {
+	if ( ! openstation_games_user_can_use() ) {
 		return;
 	}
 
@@ -163,4 +163,4 @@ function open_station_games_localize_config() {
 
 	wp_enqueue_style( 'desktop-mode-games' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_games_localize_config', 30 );
+add_action( 'admin_enqueue_scripts', 'openstation_games_localize_config', 30 );

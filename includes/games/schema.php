@@ -24,15 +24,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OPEN_STATION_GAMES_SCHEMA_VERSION', '1' );
-define( 'OPEN_STATION_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' );
+define( 'OPENSTATION_GAMES_SCHEMA_VERSION', '1' );
+define( 'OPENSTATION_GAMES_SCHEMA_OPTION', 'desktop_mode_games_schema_version' );
 
 /**
  * Returns the per-table names with the active prefix applied.
  *
  * @return array{ scores: string, challenges: string }
  */
-function open_station_games_table_names() {
+function openstation_games_table_names() {
 	global $wpdb;
 	return array(
 		'scores'     => $wpdb->prefix . 'desktop_mode_game_scores',
@@ -46,12 +46,12 @@ function open_station_games_table_names() {
  * version-option mismatch) so a manual file-copy install still ends
  * up with the tables.
  */
-function open_station_games_install_schema() {
+function openstation_games_install_schema() {
 	global $wpdb;
 
 	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
-	$tables          = open_station_games_table_names();
+	$tables          = openstation_games_table_names();
 	$charset_collate = $wpdb->get_charset_collate();
 
 	$scores_sql = "CREATE TABLE {$tables['scores']} (
@@ -95,17 +95,17 @@ function open_station_games_install_schema() {
 	// documented failure modes (see the files schema for the full
 	// rationale) — verify both tables physically exist and CREATE them
 	// explicitly when not.
-	open_station_games_ensure_table( $tables['scores'], $scores_sql );
-	open_station_games_ensure_table( $tables['challenges'], $challenges_sql );
+	openstation_games_ensure_table( $tables['scores'], $scores_sql );
+	openstation_games_ensure_table( $tables['challenges'], $challenges_sql );
 
-	update_option( OPEN_STATION_GAMES_SCHEMA_OPTION, OPEN_STATION_GAMES_SCHEMA_VERSION );
+	update_option( OPENSTATION_GAMES_SCHEMA_OPTION, OPENSTATION_GAMES_SCHEMA_VERSION );
 
 	/**
 	 * Fires after the games schema is installed / migrated.
 	 *
 	 * @param string $version The version that was installed.
 	 */
-	do_action( 'open_station_games_schema_installed', OPEN_STATION_GAMES_SCHEMA_VERSION );
+	do_action( 'openstation_games_schema_installed', OPENSTATION_GAMES_SCHEMA_VERSION );
 }
 
 /**
@@ -119,7 +119,7 @@ function open_station_games_install_schema() {
  * @param string $table Fully-prefixed table name.
  * @param string $sql   The dbDelta CREATE TABLE statement for it.
  */
-function open_station_games_ensure_table( $table, $sql ) {
+function openstation_games_ensure_table( $table, $sql ) {
 	global $wpdb;
 
 	$exists = (int) $wpdb->get_var(
@@ -144,20 +144,20 @@ function open_station_games_ensure_table( $table, $sql ) {
  * the constant. Idempotent: `dbDelta` itself is a no-op when the
  * tables already match.
  */
-function open_station_games_maybe_install_schema() {
-	$installed = get_option( OPEN_STATION_GAMES_SCHEMA_OPTION, '' );
-	if ( $installed === OPEN_STATION_GAMES_SCHEMA_VERSION ) {
+function openstation_games_maybe_install_schema() {
+	$installed = get_option( OPENSTATION_GAMES_SCHEMA_OPTION, '' );
+	if ( $installed === OPENSTATION_GAMES_SCHEMA_VERSION ) {
 		return;
 	}
-	open_station_games_install_schema();
+	openstation_games_install_schema();
 }
-add_action( 'admin_init', 'open_station_games_maybe_install_schema' );
+add_action( 'admin_init', 'openstation_games_maybe_install_schema' );
 // REST + Heartbeat requests never fire `admin_init` — without these a
 // session hitting the scores endpoint before any admin page load
 // would query missing tables.
-add_action( 'rest_api_init', 'open_station_games_maybe_install_schema' );
-add_action( 'init', 'open_station_games_maybe_install_schema', 1 );
-register_activation_hook( OPEN_STATION_FILE, 'open_station_games_install_schema' );
+add_action( 'rest_api_init', 'openstation_games_maybe_install_schema' );
+add_action( 'init', 'openstation_games_maybe_install_schema', 1 );
+register_activation_hook( OPENSTATION_FILE, 'openstation_games_install_schema' );
 
 /**
  * Current epoch-ms timestamp. Centralized so the store and the
@@ -165,6 +165,6 @@ register_activation_hook( OPEN_STATION_FILE, 'open_station_games_install_schema'
  *
  * @return int
  */
-function open_station_games_now_ms() {
+function openstation_games_now_ms() {
 	return (int) round( microtime( true ) * 1000 );
 }

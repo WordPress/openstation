@@ -26,7 +26,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return array[]
  */
-function open_station_build_wallpaper_menu_items() {
+function openstation_build_wallpaper_menu_items() {
 	$items = array();
 
 	/**
@@ -37,7 +37,7 @@ function open_station_build_wallpaper_menu_items() {
 	 *
 	 * @param array[] $items Items list.
 	 */
-	$items = (array) apply_filters( 'open_station_wallpaper_context_menu_items', $items );
+	$items = (array) apply_filters( 'openstation_wallpaper_context_menu_items', $items );
 
 	$out = array();
 	foreach ( $items as $entry ) {

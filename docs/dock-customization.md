@@ -83,7 +83,7 @@ add_action( 'admin_enqueue_scripts', function () {
 } );
 
 // Live-syncs the script on plugin activate / deactivate.
-open_station_register_dock_rail_renderer_script( 'aurora-dock' );
+openstation_register_dock_rail_renderer_script( 'aurora-dock' );
 ```
 
 ```js
@@ -128,7 +128,7 @@ WordPress plugins already know from commands and OS Settings tabs:
 
 | Registry | PHP helper |
 |---|---|
-| Dock rail renderer | `open_station_register_dock_rail_renderer_script( $handle )` |
+| Dock rail renderer | `openstation_register_dock_rail_renderer_script( $handle )` |
 | Decoration hooks | None needed — plugins call `wp.hooks.addFilter()` from any boot path; the hook bus is global. |
 
 ```php
@@ -143,7 +143,7 @@ add_action( 'admin_enqueue_scripts', function () {
     );
     wp_enqueue_script( 'my-plugin-rail' );
 } );
-open_station_register_dock_rail_renderer_script( 'my-plugin-rail' );
+openstation_register_dock_rail_renderer_script( 'my-plugin-rail' );
 ```
 
 ```js

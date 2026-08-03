@@ -27,27 +27,27 @@ defined( 'ABSPATH' ) || exit;
  * @param string $classes Space-separated CSS class string.
  * @return string
  */
-function open_station_admin_body_classes( $classes ) {
-	if ( open_station_is_chromeless_request() ) {
+function openstation_admin_body_classes( $classes ) {
+	if ( openstation_is_chromeless_request() ) {
 		return ltrim( $classes . ' os-chromeless' );
 	}
 
 	// Per-request classic override: don't tag the body as desktop-active so
 	// the classic chrome isn't hidden by CSS for this one tab.
-	if ( open_station_is_classic_request() ) {
+	if ( openstation_is_classic_request() ) {
 		return $classes;
 	}
 
-	if ( open_station_is_enabled() ) {
+	if ( openstation_is_enabled() ) {
 		return ltrim(
 			$classes . ' os-active os-admin-bar-'
-				. open_station_get_admin_bar_mode()
+				. openstation_get_admin_bar_mode()
 		);
 	}
 
 	return $classes;
 }
-add_filter( 'admin_body_class', 'open_station_admin_body_classes' );
+add_filter( 'admin_body_class', 'openstation_admin_body_classes' );
 
 /**
  * Resolves the current user's admin-bar presentation mode.
@@ -60,8 +60,8 @@ add_filter( 'admin_body_class', 'open_station_admin_body_classes' );
  *
  * @return string One of `static`, `dynamic`, `hidden`.
  */
-function open_station_get_admin_bar_mode() {
-	$settings = open_station_get_os_settings( get_current_user_id() );
+function openstation_get_admin_bar_mode() {
+	$settings = openstation_get_os_settings( get_current_user_id() );
 	$mode     = isset( $settings['adminBarMode'] ) ? (string) $settings['adminBarMode'] : 'static';
 
 	/**
@@ -73,14 +73,14 @@ function open_station_get_admin_bar_mode() {
 	 *
 	 * @param string $mode One of `static`, `dynamic`, `hidden`.
 	 */
-	$mode = apply_filters( 'open_station_admin_bar_mode', $mode );
+	$mode = apply_filters( 'openstation_admin_bar_mode', $mode );
 
 	// Fails closed, and deliberately without a `(string)` cast: a
 	// filter returning an array would make that cast emit an
 	// "Array to string conversion" warning on the way to failing
 	// anyway. `static` is the safe landing — it is the only mode
 	// that can't hide the user's way out of the shell.
-	return is_string( $mode ) && in_array( $mode, OPEN_STATION_OS_SETTINGS_ADMIN_BAR_MODES, true )
+	return is_string( $mode ) && in_array( $mode, OPENSTATION_OS_SETTINGS_ADMIN_BAR_MODES, true )
 		? $mode
 		: 'static';
 }

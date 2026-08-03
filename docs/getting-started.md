@@ -21,19 +21,19 @@ Activate it in WP Admin → Plugins.
 The plugin exposes a single helper your code should use:
 
 ```php
-if ( function_exists( 'open_station_is_enabled' ) && open_station_is_enabled() ) {
+if ( function_exists( 'openstation_is_enabled' ) && openstation_is_enabled() ) {
     // The current user has OpenStation on. Adapt behavior if needed.
 }
 ```
 
-`open_station_is_enabled()` returns `true` only when the active user has the `desktop_mode_mode` user meta set to `'1'`. If the plugin is inactive, the function does not exist — always guard with `function_exists()`.
+`openstation_is_enabled()` returns `true` only when the active user has the `desktop_mode_mode` user meta set to `'1'`. If the plugin is inactive, the function does not exist — always guard with `function_exists()`.
 
 ## 3. Add a dock item
 
-The dock is built from the admin `$menu` global by default. To surface a purely virtual entry (one that isn't in the admin menu), filter `open_station_dock_items`:
+The dock is built from the admin `$menu` global by default. To surface a purely virtual entry (one that isn't in the admin menu), filter `openstation_dock_items`:
 
 ```php
-add_filter( 'open_station_dock_items', function ( $items ) {
+add_filter( 'openstation_dock_items', function ( $items ) {
     $items[] = array(
         'id'       => 'my-extension-panel',
         'title'    => 'My Panel',
@@ -98,7 +98,7 @@ document.addEventListener( 'os-window-opened', function ( e ) {
 Enqueue this file only in OpenStation:
 
 ```php
-add_action( 'open_station_mode_init', function () {
+add_action( 'openstation_mode_init', function () {
     wp_enqueue_script(
         'my-extension-shell',
         plugin_dir_url( __FILE__ ) . 'shell.js',
@@ -109,14 +109,14 @@ add_action( 'open_station_mode_init', function () {
 } );
 ```
 
-`open_station_mode_init` fires inside the parent shell render — perfect for enqueueing shell-level code.
+`openstation_mode_init` fires inside the parent shell render — perfect for enqueueing shell-level code.
 
 ## 6. Gate by role
 
 Block OpenStation for a specific user class:
 
 ```php
-add_filter( 'open_station_mode_enabled', function ( $enabled, $user_id ) {
+add_filter( 'openstation_mode_enabled', function ( $enabled, $user_id ) {
     // Contributors stay in classic admin.
     if ( user_can( $user_id, 'contributor' ) ) {
         return false;

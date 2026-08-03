@@ -24,9 +24,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string The dictionary URL.
  */
-function open_station_games_words_url() {
-	$words_file = OPEN_STATION_DIR . 'assets/games/words.txt';
-	$words_url  = OPEN_STATION_URL . 'assets/games/words.txt';
+function openstation_games_words_url() {
+	$words_file = OPENSTATION_DIR . 'assets/games/words.txt';
+	$words_url  = OPENSTATION_URL . 'assets/games/words.txt';
 	if ( file_exists( $words_file ) ) {
 		$words_url = add_query_arg( 'ver', (string) filemtime( $words_file ), $words_url );
 	}
@@ -40,7 +40,7 @@ function open_station_games_words_url() {
 	 *
 	 * @param string $words_url The dictionary URL (with `ver` cache-bust).
 	 */
-	return (string) apply_filters( 'open_station_games_words_url', $words_url );
+	return (string) apply_filters( 'openstation_games_words_url', $words_url );
 }
 
 /**
@@ -51,8 +51,8 @@ function open_station_games_words_url() {
  *
  * @return array Framework config keys.
  */
-function open_station_games_framework_config() {
+function openstation_games_framework_config() {
 	return array(
-		'wordsUrl' => esc_url_raw( open_station_games_words_url() ),
+		'wordsUrl' => esc_url_raw( openstation_games_words_url() ),
 	);
 }

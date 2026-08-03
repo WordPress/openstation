@@ -4,16 +4,16 @@
  *
  * The largest of the five components.php registries — owns:
  *
- *   - `open_station_register_window()` — plugin-author API
- *   - `open_station_native_window_registry()` — internal store
- *   - `open_station_native_window_allowed_html()` — wp_kses
+ *   - `openstation_register_window()` — plugin-author API
+ *   - `openstation_native_window_registry()` — internal store
+ *   - `openstation_native_window_allowed_html()` — wp_kses
  *     allowlist for `<template>` payloads
- *   - `open_station_build_native_window_template_html()` —
+ *   - `openstation_build_native_window_template_html()` —
  *     wraps the registered template callback in tabs markup
  *     when the window has multiple registered tabs
- *   - `open_station_enqueue_native_window_scripts()` — enqueue
+ *   - `openstation_enqueue_native_window_scripts()` — enqueue
  *     hook that ships every registered window's script handle
- *   - `open_station_render_native_window_templates()` — renders
+ *   - `openstation_render_native_window_templates()` — renders
  *     the `<template>` elements the shell clones
  *
  * Extracted from `components.php` during the architecture-0.8.1
@@ -94,7 +94,7 @@ defined( 'ABSPATH' ) || exit;
  *                                  opens the window programmatically).
  *     @type string[] $capabilities User capabilities that gate the
  *                                  registration. ANY miss returns
- *                                  `WP_Error open_station_capability_denied`.
+ *                                  `WP_Error openstation_capability_denied`.
  *     @type bool|string $autofocus Passed verbatim to
  *                                  `NativeWindowDef.autofocus`.
  *     @type string   $main_tab_label Label for the "main" tab that
@@ -102,7 +102,7 @@ defined( 'ABSPATH' ) || exit;
  *                                  `template` output. Only rendered
  *                                  when at least one additional
  *                                  tab is registered via
- *                                  {@see open_station_register_window_tab()}.
+ *                                  {@see openstation_register_window_tab()}.
  *                                  Defaults to the window's `title`.
  *     @type int      $main_tab_padding Padding (in px) applied to the
  *                                  auto-generated tab-wrap around
@@ -111,7 +111,7 @@ defined( 'ABSPATH' ) || exit;
  *                                  registered. Default 16. Pass 0
  *                                  for edge-to-edge content.
  *                                  Filterable at runtime via
- *                                  `open_station_native_window_tab_wrap_padding`.
+ *                                  `openstation_native_window_tab_wrap_padding`.
  *     @type array    $config       Arbitrary serializable data to ship
  *                                  to the bundle alongside the script
  *                                  tag. Read in JS via
@@ -133,11 +133,11 @@ defined( 'ABSPATH' ) || exit;
  *                       required arg is missing/invalid or a
  *                       declared capability is unmet.
  */
-function open_station_register_window( $id, $args = array() ) {
+function openstation_register_window( $id, $args = array() ) {
 	$id = sanitize_key( (string) $id );
 	if ( '' === $id ) {
-		return open_station_registration_error(
-			'open_station_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Native window id is required and must be a valid slug.', 'desktop-mode' )
 		);
 	}
@@ -170,8 +170,8 @@ function open_station_register_window( $id, $args = array() ) {
 	// Capability gate — ALL listed caps must match. Fail closed.
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return open_station_registration_error(
-				'open_station_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this native window.', 'desktop-mode' ),
@@ -184,15 +184,15 @@ function open_station_register_window( $id, $args = array() ) {
 
 	// Required fields.
 	if ( '' === (string) $args['title'] ) {
-		return open_station_registration_error(
-			'open_station_missing_title',
+		return openstation_registration_error(
+			'openstation_missing_title',
 			__( 'Native window registration requires a non-empty `title`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
 	}
 	if ( ! is_callable( $args['template'] ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_template',
+		return openstation_registration_error(
+			'openstation_invalid_template',
 			__( 'Native window registration requires a callable `template` that echoes the template body.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -216,16 +216,16 @@ function open_station_register_window( $id, $args = array() ) {
 		'placement'        => $placement,
 		'autofocus'        => $args['autofocus'],
 		'main_tab_label'   => (string) $args['main_tab_label'],
-		// Stored as-is (string or int). `open_station_build_native_window_template_html`
+		// Stored as-is (string or int). `openstation_build_native_window_template_html`
 		// coerces to int and falls back to 16 when absent.
 		'main_tab_padding' => $args['main_tab_padding'],
 		// Bundle-bound config delivered through the same path as
 		// `wp_localize_script` `extra['data']` — see the `config` doc
-		// in this function's `$args` block and `open_station_resolve_script_payload()`
+		// in this function's `$args` block and `openstation_resolve_script_payload()`
 		// for how it lands on the wire.
 		'config'           => is_array( $args['config'] ) ? $args['config'] : array(),
 	);
-	open_station_native_window_registry( $id, $entry );
+	openstation_native_window_registry( $id, $entry );
 
 	/**
 	 * Fires after a native desktop window is successfully registered.
@@ -233,7 +233,7 @@ function open_station_register_window( $id, $args = array() ) {
 	 * Lets plugins react to registrations made by other plugins —
 	 * e.g. a widget that auto-opens when a given window registers,
 	 * or analytics tracking of which windows the current install
-	 * exposes. Does NOT fire when `open_station_register_window()`
+	 * exposes. Does NOT fire when `openstation_register_window()`
 	 * returns a `WP_Error`.
 	 *
 	 * @param string $id    The window id.
@@ -241,14 +241,14 @@ function open_station_register_window( $id, $args = array() ) {
 	 *                      icon, template callback, script handle,
 	 *                      size defaults, placement, autofocus).
 	 */
-	do_action( 'open_station_native_window_registered', $id, $entry );
+	do_action( 'openstation_native_window_registered', $id, $entry );
 
 	return true;
 }
 
 /**
  * Internal module-level registry for native windows registered
- * via {@see open_station_register_window()}. Passing a second
+ * via {@see openstation_register_window()}. Passing a second
  * argument stores the entry; passing only the id returns the
  * stored value (or null). Kept small and side-effect-free so
  * tests can introspect.
@@ -260,7 +260,7 @@ function open_station_register_window( $id, $args = array() ) {
  * @return array|null Either the stored entry or the full registry
  *                    (when id is empty).
  */
-function open_station_native_window_registry( $id = '', $entry = null ) {
+function openstation_native_window_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -284,11 +284,11 @@ function open_station_native_window_registry( $id = '', $entry = null ) {
  * `<os-*>` web components, and dashicon spans, plus permissive
  * `data-*`, `aria-*`, and component-specific attributes. Plugins
  * registering their own native windows can extend the list via the
- * `open_station_native_window_allowed_html` filter below.
+ * `openstation_native_window_allowed_html` filter below.
  *
  * @return array<string,array<string,bool>>
  */
-function open_station_native_window_allowed_html() {
+function openstation_native_window_allowed_html() {
 	$base = wp_kses_allowed_html( 'post' );
 
 	$global_attrs = array(
@@ -497,7 +497,7 @@ function open_station_native_window_allowed_html() {
 	 *
 	 * @param array $allowed wp_kses-shaped allowlist.
 	 */
-	return (array) apply_filters( 'open_station_native_window_allowed_html', $allowed );
+	return (array) apply_filters( 'openstation_native_window_allowed_html', $allowed );
 }
 
 /**
@@ -518,14 +518,14 @@ function open_station_native_window_allowed_html() {
  * permissive attrs, and runs kses with the extended list.
  *
  * Every callsite in the framework that previously did the
- * `wp_kses( $html, open_station_native_window_allowed_html() )`
+ * `wp_kses( $html, openstation_native_window_allowed_html() )`
  * dance can call this instead and get tag-discovery for free.
  *
  * @param string $html Template HTML to sanitize.
  * @return string Sanitized HTML.
  */
-function open_station_kses_native_window_template( $html ) {
-	$allowed = open_station_native_window_allowed_html();
+function openstation_kses_native_window_template( $html ) {
+	$allowed = openstation_native_window_allowed_html();
 
 	if ( preg_match_all( '/<(os-[a-z][a-z0-9-]*)\b/i', (string) $html, $matches ) ) {
 		$unique = array_unique( array_map( 'strtolower', $matches[1] ) );
@@ -545,9 +545,9 @@ function open_station_kses_native_window_template( $html ) {
 /**
  * Render a native window's template HTML to a string, wrapping
  * with tabs when the window has at least one additional tab
- * registered. Shared by `open_station_render_native_window_templates()`
+ * registered. Shared by `openstation_render_native_window_templates()`
  * (which emits the live `<template>` element) and
- * `open_station_build_native_windows_payload()` (which captures the same
+ * `openstation_build_native_windows_payload()` (which captures the same
  * string for the shell config so mid-session activation can inject
  * the template without a reload).
  *
@@ -558,12 +558,12 @@ function open_station_kses_native_window_template( $html ) {
  * @param array $entry Window registry entry.
  * @return string Template body HTML (no outer `<template>` tag).
  */
-function open_station_build_native_window_template_html( $entry ) {
+function openstation_build_native_window_template_html( $entry ) {
 	if ( ! is_array( $entry ) || ! is_callable( $entry['template'] ) ) {
 		return '';
 	}
 
-	$tabs = open_station_get_native_window_tabs( $entry['id'] );
+	$tabs = openstation_get_native_window_tabs( $entry['id'] );
 	$has_extras = count( $tabs ) > 1;
 
 	// Fast path — single-pane window, no wrapping.
@@ -580,10 +580,10 @@ function open_station_build_native_window_template_html( $entry ) {
 	// `os-tab-change` event bubbled by <os-tabs>.
 	//
 	// The wrap's padding is plugin-controllable two ways:
-	//   1. `main_tab_padding` arg on `open_station_register_window` —
+	//   1. `main_tab_padding` arg on `openstation_register_window` —
 	//      a per-window override. `0` opts into edge-to-edge
 	//      content.
-	//   2. `open_station_native_window_tab_wrap_padding` filter for
+	//   2. `openstation_native_window_tab_wrap_padding` filter for
 	//      late-bound overrides (e.g. a theme that wants every
 	//      tabbed window to adopt a narrower inset).
 	// Default stays 16px so existing plugins don't shift.
@@ -605,7 +605,7 @@ function open_station_build_native_window_template_html( $entry ) {
 	 * @param string $window_id The native window id.
 	 */
 	$padding = (int) apply_filters(
-		'open_station_native_window_tab_wrap_padding',
+		'openstation_native_window_tab_wrap_padding',
 		$default_padding,
 		(string) $entry['id']
 	);
@@ -617,7 +617,7 @@ function open_station_build_native_window_template_html( $entry ) {
 		'<os-stack gap="12" padding="%d">',
 		$padding
 	);
-	$buffer .= '<os-tabs value="' . esc_attr( OPEN_STATION_NATIVE_WINDOW_MAIN_TAB ) . '">';
+	$buffer .= '<os-tabs value="' . esc_attr( OPENSTATION_NATIVE_WINDOW_MAIN_TAB ) . '">';
 	foreach ( $tabs as $tab ) {
 		$buffer .= sprintf(
 			'<os-tab value="%s">%s</os-tab>',
@@ -638,7 +638,7 @@ function open_station_build_native_window_template_html( $entry ) {
 		if ( ! is_callable( $tab['template'] ) ) {
 			continue;
 		}
-		$is_active = OPEN_STATION_NATIVE_WINDOW_MAIN_TAB === $tab['value'];
+		$is_active = OPENSTATION_NATIVE_WINDOW_MAIN_TAB === $tab['value'];
 		$buffer   .= sprintf(
 			'<os-tabpanel for="%s"%s>',
 			esc_attr( $tab['value'] ),
@@ -660,11 +660,11 @@ function open_station_build_native_window_template_html( $entry ) {
  * shell enqueue so ordering (shell → plugin scripts) is
  * deterministic.
  */
-function open_station_enqueue_native_window_scripts() {
-	if ( ! open_station_is_enabled() || open_station_is_chromeless_request() || open_station_is_classic_request() ) {
+function openstation_enqueue_native_window_scripts() {
+	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
 		return;
 	}
-	$registry = open_station_native_window_registry();
+	$registry = openstation_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return;
 	}
@@ -673,7 +673,7 @@ function open_station_enqueue_native_window_scripts() {
 		// its own script handle so a tab's JS module stays scoped to
 		// that tab. Main tab uses the window's own `script`; it's
 		// enqueued below alongside the localize call.
-		$tabs = open_station_get_native_window_tabs( $entry['id'] );
+		$tabs = openstation_get_native_window_tabs( $entry['id'] );
 		foreach ( $tabs as $tab ) {
 			if ( $tab['is_main'] || empty( $tab['script'] ) ) {
 				continue;
@@ -716,7 +716,7 @@ function open_station_enqueue_native_window_scripts() {
 		// Bundle-bound `config`. Ships through
 		// `wp_add_inline_script` `'before'` so it lands on the eager
 		// path the same way `wp_localize_script` does, AND through
-		// the lazy-load payload (see `open_station_resolve_script_payload`)
+		// the lazy-load payload (see `openstation_resolve_script_payload`)
 		// so the same data is available even when the script is
 		// dynamically injected mid-session. The bundle reads it via
 		// `wp.os.getWindowConfig( id )` or directly at
@@ -734,7 +734,7 @@ function open_station_enqueue_native_window_scripts() {
 		}
 	}
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_native_window_scripts', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_native_window_scripts', 20 );
 
 /**
  * Emit a `<template>` tag for every registered native window on
@@ -742,11 +742,11 @@ add_action( 'admin_enqueue_scripts', 'open_station_enqueue_native_window_scripts
  * these via `document.getElementById( `os-native-window-${id}` )`
  * and clones them into each opened window's body.
  */
-function open_station_render_native_window_templates() {
-	if ( ! open_station_is_enabled() || open_station_is_chromeless_request() || open_station_is_classic_request() ) {
+function openstation_render_native_window_templates() {
+	if ( ! openstation_is_enabled() || openstation_is_chromeless_request() || openstation_is_classic_request() ) {
 		return;
 	}
-	$registry = open_station_native_window_registry();
+	$registry = openstation_native_window_registry();
 	if ( ! is_array( $registry ) ) {
 		return;
 	}
@@ -754,7 +754,7 @@ function open_station_render_native_window_templates() {
 		if ( ! is_callable( $entry['template'] ) ) {
 			continue;
 		}
-		$html = open_station_build_native_window_template_html( $entry );
+		$html = openstation_build_native_window_template_html( $entry );
 		if ( '' === $html ) {
 			continue;
 		}
@@ -762,12 +762,12 @@ function open_station_render_native_window_templates() {
 			'<template id="os-native-window-%s">',
 			esc_attr( $entry['id'] )
 		);
-		// `open_station_kses_native_window_template()` auto-extends
+		// `openstation_kses_native_window_template()` auto-extends
 		// the allowlist with any `<os-*>` tag the template carries
 		// — so plugin authors never have to remember to register
 		// their custom component tags in the kses list.
-		echo open_station_kses_native_window_template( $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+		echo openstation_kses_native_window_template( $html ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 		echo '</template>';
 	}
 }
-add_action( 'admin_footer', 'open_station_render_native_window_templates', 20 );
+add_action( 'admin_footer', 'openstation_render_native_window_templates', 20 );

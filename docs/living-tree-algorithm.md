@@ -382,8 +382,8 @@ list. The client turns the snapshot into hormones and never sees
 individual rows.
 
 Permission defaults to `current_user_can( 'read' )`, filterable via
-`open_station_living_tree_user_can_use`. The response is cached in a transient
-(`open_station_living_tree_*`, TTL 6h, keyed by a content signature;
+`openstation_living_tree_user_can_use`. The response is cached in a transient
+(`openstation_living_tree_*`, TTL 6h, keyed by a content signature;
 invalidated on `save_post` / `deleted_post` / `comment_post`).
 
 ---
@@ -429,8 +429,8 @@ invalidated on `save_post` / `deleted_post` / `comment_post`).
   to read, so PHP serves a healthy 0.7 default — the planned future
   source is aggregating the per-post scores SEO plugins keep in
   post-meta. Both pass through their
-  `open_station_living_tree_seo_health` /
-  `open_station_living_tree_performance` filters so monitoring / SEO
+  `openstation_living_tree_seo_health` /
+  `openstation_living_tree_performance` filters so monitoring / SEO
   plugins can feed real telemetry in.
 - **Time-of-day sky.** The backdrop tracks the viewer's LOCAL clock
   through a 24-hour cycle (`src/plugins/living-tree-wallpaper/sky.ts`):

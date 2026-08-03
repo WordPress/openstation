@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return string Raw `<svg>` markup.
  */
-function open_station_inkfall_icon_svg() {
+function openstation_inkfall_icon_svg() {
 	return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
 		. '<rect x="8" y="6" width="48" height="52" rx="6" fill="#f7f3e8"/>'
 		. '<line x1="8" y1="20" x2="56" y2="20" stroke="#bcd4e6" stroke-width="2"/>'
@@ -36,15 +36,15 @@ function open_station_inkfall_icon_svg() {
  *
  * Priority 20 — alongside the Games window registration.
  */
-function open_station_inkfall_register() {
-	if ( ! function_exists( 'open_station_games_user_can_use' ) || ! open_station_games_user_can_use() ) {
+function openstation_inkfall_register() {
+	if ( ! function_exists( 'openstation_games_user_can_use' ) || ! openstation_games_user_can_use() ) {
 		return;
 	}
 
-	open_station_register_game( 'inkfall', array(
+	openstation_register_game( 'inkfall', array(
 		'title'         => __( 'Inkfall', 'desktop-mode' ),
 		'description'   => __( 'Words fall down a notebook page — type them before they reach the bottom. Finishing a word sends up a musical note that tears it into scattering letters.', 'desktop-mode' ),
-		'icon_svg'      => open_station_inkfall_icon_svg(),
+		'icon_svg'      => openstation_inkfall_icon_svg(),
 		'script'        => 'os-game-inkfall',
 		'score_columns' => array(
 			array( 'key' => 'score',    'label' => __( 'Score', 'desktop-mode' ),      'type' => 'number' ),
@@ -59,17 +59,17 @@ function open_station_inkfall_register() {
 		// `wordsUrl` config key (see includes/games/config.php).
 	) );
 }
-add_action( 'init', 'open_station_inkfall_register', 20 );
+add_action( 'init', 'openstation_inkfall_register', 20 );
 
 /**
  * Enqueue the Inkfall window styles. The game's script is lazily
  * loaded by the framework on first launch, but its CSS is tiny and
  * must already be present when the window opens.
  */
-function open_station_inkfall_enqueue_styles() {
-	if ( ! function_exists( 'open_station_games_user_can_use' ) || ! open_station_games_user_can_use() ) {
+function openstation_inkfall_enqueue_styles() {
+	if ( ! function_exists( 'openstation_games_user_can_use' ) || ! openstation_games_user_can_use() ) {
 		return;
 	}
 	wp_enqueue_style( 'os-game-inkfall' );
 }
-add_action( 'admin_enqueue_scripts', 'open_station_inkfall_enqueue_styles', 30 );
+add_action( 'admin_enqueue_scripts', 'openstation_inkfall_enqueue_styles', 30 );

@@ -243,12 +243,12 @@ const PER_PAGE = '[data-os-posts-per-page]';
 const TOOLBAR_TRAILING_EXTRAS = '[data-os-posts-toolbar-extras]';
 const BULK_ACTIONS_HOST = '[data-os-posts-bulk-actions]';
 
-const HOOK_FILTER_COLUMNS = 'open_station.postsWindow.columns';
-const HOOK_FILTER_STATUS_SEGMENTS = 'open_station.postsWindow.statusSegments';
-const HOOK_FILTER_BULK_ACTIONS = 'open_station.postsWindow.bulkActions';
-const HOOK_FILTER_TOOLBAR_TRAILING = 'open_station.postsWindow.toolbarTrailing';
-const HOOK_ACTION_OPENED = 'open_station.postsWindow.opened';
-const HOOK_ACTION_DATA_LOADED = 'open_station.postsWindow.dataLoaded';
+const HOOK_FILTER_COLUMNS = 'openstation.postsWindow.columns';
+const HOOK_FILTER_STATUS_SEGMENTS = 'openstation.postsWindow.statusSegments';
+const HOOK_FILTER_BULK_ACTIONS = 'openstation.postsWindow.bulkActions';
+const HOOK_FILTER_TOOLBAR_TRAILING = 'openstation.postsWindow.toolbarTrailing';
+const HOOK_ACTION_OPENED = 'openstation.postsWindow.opened';
+const HOOK_ACTION_DATA_LOADED = 'openstation.postsWindow.dataLoaded';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -394,7 +394,7 @@ function memoCell(
  * Title is the always-visible sticky column — toggling it would leave
  * users with no row identity. Every other column key is togglable, both
  * built-ins (`author`, `categories`, `tags`, `date`) and any plugin-
- * added columns picked up by the `open_station.postsWindow.columns`
+ * added columns picked up by the `openstation.postsWindow.columns`
  * filter.
  */
 const REQUIRED_COLUMN_KEYS = new Set< string >( [ 'title' ] );
@@ -441,7 +441,7 @@ const EMPTY_FILTER_DATA: ColumnFilterData = { authors: [], tags: [] };
 
 /**
  * Build the full, unfiltered column descriptor list — passes through
- * the `open_station.postsWindow.columns` filter but does NOT apply
+ * the `openstation.postsWindow.columns` filter but does NOT apply
  * the user's hidden-columns preference. Used by the kebab "Show
  * columns" menu so every column (visible AND hidden) shows up as a
  * toggle.
@@ -464,7 +464,7 @@ function buildAllColumns(
 /**
  * Build the column descriptors. Filterable through the `wp.hooks` bus
  * — plugins can append/replace columns on
- * `open_station.postsWindow.columns`. Applies the user's hidden-column
+ * `openstation.postsWindow.columns`. Applies the user's hidden-column
  * preference so the table only paints the columns they want to see.
  */
 function buildColumns(
@@ -492,7 +492,7 @@ function _buildBaseColumns(
 ): OsTableColumn< PostListItem >[] {
 	// `mode` lets us swap the taxonomy columns out for hierarchical
 	// pages without the column hook bus knowing the difference.
-	// Plugins that filter `open_station.postsWindow.columns` see the
+	// Plugins that filter `openstation.postsWindow.columns` see the
 	// already-mode-appropriate base list and append/replace from there.
 	let mode: 'posts' | 'pages' = 'posts';
 	try {
@@ -564,8 +564,8 @@ function _buildBaseColumns(
 			label: __( 'Comments' ),
 			width: '110px',
 			sortValue: ( row ) =>
-				typeof row.open_station_comment_count === 'number'
-					? row.open_station_comment_count
+				typeof row.openstation_comment_count === 'number'
+					? row.openstation_comment_count
 					: 0,
 			render: ( _v, row ) =>
 				memoCell( cache, row.id, 'comments', () =>
@@ -754,7 +754,7 @@ function buildSlugCell( row: PostListItem ): HTMLElement {
 }
 
 /**
- * Build the Comments cell — surfaces `open_station_comment_count`
+ * Build the Comments cell — surfaces `openstation_comment_count`
  * from the REST field with a small icon. Top-asked parity feature
  * with the classic Pages list. Renders "—" when the field is
  * absent (e.g. a plugin-restricted query).
@@ -770,8 +770,8 @@ function buildCommentsCell( row: PostListItem ): HTMLElement {
 	} as Partial< CSSStyleDeclaration > );
 
 	const count =
-		typeof row.open_station_comment_count === 'number'
-			? row.open_station_comment_count
+		typeof row.openstation_comment_count === 'number'
+			? row.openstation_comment_count
 			: null;
 
 	if ( count === null ) {
@@ -1053,7 +1053,7 @@ function mountKebabColumnToggles(
 
 /**
  * Default status segments — the segmented control above the table.
- * Plugins customize via `open_station.postsWindow.statusSegments`.
+ * Plugins customize via `openstation.postsWindow.statusSegments`.
  */
 function defaultStatusSegments(): StatusSegment[] {
 	return [
@@ -1069,7 +1069,7 @@ function defaultStatusSegments(): StatusSegment[] {
 /**
  * Default bulk actions — the buttons rendered in the bulk bar when
  * one or more rows are selected. Plugins extend via
- * `open_station.postsWindow.bulkActions`. The shipped action is
+ * `openstation.postsWindow.bulkActions`. The shipped action is
  * "Move to trash"; remove it (return an empty array, or filter it
  * out by id) for read-only views.
  */
@@ -1215,11 +1215,11 @@ function buildTitleCell( row: PostListItem, client: PostsWindowClient ): HTMLEle
 	titleRow.appendChild( link );
 
 	// Lock badge — another user is editing this row right now. Read
-	// the `open_station_lock` REST field surfaced by My WordPress'
+	// the `openstation_lock` REST field surfaced by My WordPress'
 	// `lock.php`. Same affordance the My WordPress folder window
 	// uses, scoped to the table-row context (smaller, alongside the
 	// status badge instead of overlaying the icon).
-	const lock = row.open_station_lock ?? null;
+	const lock = row.openstation_lock ?? null;
 	if ( lock ) {
 		const lockBadge = document.createElement( 'span' );
 		lockBadge.style.cssText = [

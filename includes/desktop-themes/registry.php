@@ -8,7 +8,7 @@
  *     live in `uploads/desktop-mode-themes/<slug>/` and the compiled
  *     stylesheet is a real file, so the payload ships a `cssUrl`.
  *   - **Code-registered** — a plugin calls
- *     `open_station_register_desktop_theme()` with asset URLs it
+ *     `openstation_register_desktop_theme()` with asset URLs it
  *     already publishes. There is no file to link, so the payload
  *     ships the compiled stylesheet as `cssText` and `cssUrl` is
  *     empty. PHP prints it via `wp_add_inline_style()` at boot; the
@@ -36,7 +36,7 @@ defined( 'ABSPATH' ) || exit;
  *                      `null` to read.
  * @return array|null
  */
-function open_station_desktop_theme_registry( $slug = '', $entry = null ) {
+function openstation_desktop_theme_registry( $slug = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $slug ) {
@@ -60,7 +60,7 @@ function open_station_desktop_theme_registry( $slug = '', $entry = null ) {
  * so there is nothing for us to host.
  *
  * ```php
- * open_station_register_desktop_theme( 'my-plugin/neon', array(
+ * openstation_register_desktop_theme( 'my-plugin/neon', array(
  *     'name'     => __( 'Neon', 'my-plugin' ),
  *     'version'  => '1.0.0',
  *     'preview'  => plugins_url( 'theme/preview.png', __FILE__ ),
@@ -120,7 +120,7 @@ function open_station_desktop_theme_registry( $slug = '', $entry = null ) {
  * }
  * @return true|WP_Error
  */
-function open_station_register_desktop_theme( $id, $args = array() ) {
+function openstation_register_desktop_theme( $id, $args = array() ) {
 	$args = wp_parse_args(
 		is_array( $args ) ? $args : array(),
 		array(
@@ -139,7 +139,7 @@ function open_station_register_desktop_theme( $id, $args = array() ) {
 		)
 	);
 
-	$manifest = open_station_sanitize_desktop_theme_manifest(
+	$manifest = openstation_sanitize_desktop_theme_manifest(
 		array(
 			// Code registrations declare v2 unconditionally: the array
 			// they hand over always HAS the recommendation key, empty
@@ -159,10 +159,10 @@ function open_station_register_desktop_theme( $id, $args = array() ) {
 			'wallpapers'            => $args['wallpapers'],
 			'recommendedOsSettings' => $args['recommendedOsSettings'],
 		),
-		open_station_desktop_theme_url_asset_resolver()
+		openstation_desktop_theme_url_asset_resolver()
 	);
 	if ( is_wp_error( $manifest ) ) {
-		return open_station_registration_error(
+		return openstation_registration_error(
 			$manifest->get_error_code(),
 			$manifest->get_error_message(),
 			array( 'id' => (string) $id )
@@ -175,9 +175,9 @@ function open_station_register_desktop_theme( $id, $args = array() ) {
 		'manifest' => $manifest,
 		// Code themes carry absolute asset URLs already, so the
 		// compiler needs no base to join against.
-		'cssText'  => open_station_desktop_theme_compile_css( $manifest, $slug, '' ),
+		'cssText'  => openstation_desktop_theme_compile_css( $manifest, $slug, '' ),
 	);
-	open_station_desktop_theme_registry( $slug, $entry );
+	openstation_desktop_theme_registry( $slug, $entry );
 
 	/**
 	 * Fires after a desktop theme is registered from code.
@@ -187,7 +187,7 @@ function open_station_register_desktop_theme( $id, $args = array() ) {
 	 * @param string $slug  Theme slug.
 	 * @param array  $entry Stored registry entry.
 	 */
-	do_action( 'open_station_desktop_theme_registered', $slug, $entry );
+	do_action( 'openstation_desktop_theme_registered', $slug, $entry );
 
 	return true;
 }
@@ -196,17 +196,17 @@ function open_station_register_desktop_theme( $id, $args = array() ) {
  * Remove a code-registered desktop theme.
  *
  * Has no effect on uploaded themes — those are removed with
- * {@see open_station_desktop_theme_delete()}.
+ * {@see openstation_desktop_theme_delete()}.
  *
  * @param string $id Theme id or slug.
  * @return void
  */
-function open_station_unregister_desktop_theme( $id ) {
-	$slug = open_station_desktop_theme_slug_from_id( $id );
+function openstation_unregister_desktop_theme( $id ) {
+	$slug = openstation_desktop_theme_slug_from_id( $id );
 	if ( '' === $slug ) {
 		return;
 	}
-	open_station_desktop_theme_registry( $slug, '__unset__' );
+	openstation_desktop_theme_registry( $slug, '__unset__' );
 }
 
 /**
@@ -219,7 +219,7 @@ function open_station_unregister_desktop_theme( $id ) {
  * @param string $source `'upload'` or `'code'`.
  * @return array|null
  */
-function open_station_shape_desktop_theme_payload_entry( $entry, $source ) {
+function openstation_shape_desktop_theme_payload_entry( $entry, $source ) {
 	if ( ! is_array( $entry ) || empty( $entry['manifest'] ) || ! is_array( $entry['manifest'] ) ) {
 		return null;
 	}
@@ -230,7 +230,7 @@ function open_station_shape_desktop_theme_payload_entry( $entry, $source ) {
 	}
 
 	$is_upload    = 'upload' === $source;
-	$base_url     = $is_upload ? open_station_desktop_themes_url( $slug ) : '';
+	$base_url     = $is_upload ? openstation_desktop_themes_url( $slug ) : '';
 	$installed_at = isset( $entry['installedAt'] ) ? (int) $entry['installedAt'] : 0;
 	// Every generated asset URL carries the install timestamp so a
 	// re-upload (which reuses the same paths by design) cannot be
@@ -258,7 +258,7 @@ function open_station_shape_desktop_theme_payload_entry( $entry, $source ) {
 			if ( 'dashicon' === $icon['type'] ) {
 				$icons[ $slot ] = (string) $icon['name'];
 			} else {
-				$url = open_station_desktop_theme_asset_url( $icon['path'], $base_url, $asset_version );
+				$url = openstation_desktop_theme_asset_url( $icon['path'], $base_url, $asset_version );
 				if ( '' === $url ) {
 					continue;
 				}
@@ -287,7 +287,7 @@ function open_station_shape_desktop_theme_payload_entry( $entry, $source ) {
 
 	$preview_url = '';
 	if ( ! empty( $manifest['preview'] ) ) {
-		$preview_url = open_station_desktop_theme_asset_url( $manifest['preview'], $base_url, $asset_version );
+		$preview_url = openstation_desktop_theme_asset_url( $manifest['preview'], $base_url, $asset_version );
 	}
 
 	$css_url      = '';
@@ -296,7 +296,7 @@ function open_station_shape_desktop_theme_payload_entry( $entry, $source ) {
 		$css_url = add_query_arg(
 			'ver',
 			(string) $installed_at,
-			open_station_desktop_themes_url( $slug ) . '/theme.css'
+			openstation_desktop_themes_url( $slug ) . '/theme.css'
 		);
 	} else {
 		$css_text = isset( $entry['cssText'] ) ? (string) $entry['cssText'] : '';
@@ -307,7 +307,7 @@ function open_station_shape_desktop_theme_payload_entry( $entry, $source ) {
 	// value core dropped, a key a plugin stopped offering), and the
 	// shell must never be handed a value the current build no longer
 	// understands.
-	$recommended = open_station_sanitize_desktop_theme_recommended_os_settings(
+	$recommended = openstation_sanitize_desktop_theme_recommended_os_settings(
 		isset( $manifest['recommendedOsSettings'] ) ? $manifest['recommendedOsSettings'] : null
 	);
 
@@ -346,17 +346,17 @@ function open_station_shape_desktop_theme_payload_entry( $entry, $source ) {
  *
  * @return array[]
  */
-function open_station_build_desktop_themes_payload() {
+function openstation_build_desktop_themes_payload() {
 	$entries = array();
 
-	foreach ( open_station_desktop_theme_registry() as $slug => $entry ) {
-		$shaped = open_station_shape_desktop_theme_payload_entry( $entry, 'code' );
+	foreach ( openstation_desktop_theme_registry() as $slug => $entry ) {
+		$shaped = openstation_shape_desktop_theme_payload_entry( $entry, 'code' );
 		if ( $shaped ) {
 			$entries[ $slug ] = $shaped;
 		}
 	}
-	foreach ( open_station_desktop_themes_index() as $slug => $entry ) {
-		$shaped = open_station_shape_desktop_theme_payload_entry( $entry, 'upload' );
+	foreach ( openstation_desktop_themes_index() as $slug => $entry ) {
+		$shaped = openstation_shape_desktop_theme_payload_entry( $entry, 'upload' );
 		if ( $shaped ) {
 			$entries[ $slug ] = $shaped;
 		}
@@ -371,7 +371,7 @@ function open_station_build_desktop_themes_payload() {
 	 *
 	 * @param array[] $entries Map of slug => payload entry.
 	 */
-	$entries = apply_filters( 'desktop_mode_desktop_themes', $entries );
+	$entries = apply_filters( 'openstation_desktop_themes', $entries );
 	if ( ! is_array( $entries ) ) {
 		return array();
 	}
@@ -389,5 +389,5 @@ function open_station_build_desktop_themes_payload() {
 		return strcasecmp( (string) $a['name'], (string) $b['name'] );
 	} );
 
-	return array_slice( $out, 0, open_station_desktop_themes_payload_cap() );
+	return array_slice( $out, 0, openstation_desktop_themes_payload_cap() );
 }

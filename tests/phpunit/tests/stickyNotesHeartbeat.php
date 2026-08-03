@@ -28,8 +28,8 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_compute_heartbeat_delta
-	 * @covers ::open_station_sticky_notes_shape_guideline
+	 * @covers ::openstation_sticky_notes_compute_heartbeat_delta
+	 * @covers ::openstation_sticky_notes_shape_guideline
 	 */
 	public function test_delta_returns_changed_private_sticky_guidelines() {
 		$sticky_id = $this->create_guideline(
@@ -46,7 +46,7 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 			)
 		);
 
-		$delta = open_station_sticky_notes_compute_heartbeat_delta(
+		$delta = openstation_sticky_notes_compute_heartbeat_delta(
 			$this->sticky_term_id,
 			array(),
 			0,
@@ -58,13 +58,13 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 		$this->assertSame( 'Remember', $delta['notes'][0]['title']['raw'] );
 		$this->assertSame( 'Do the thing', $delta['notes'][0]['content']['raw'] );
 		$this->assertContains( $this->sticky_term_id, $delta['notes'][0]['wp_guideline_type'] );
-		$this->assertGreaterThan( 0, $delta['notes'][0]['open_station_modified_ms'] );
+		$this->assertGreaterThan( 0, $delta['notes'][0]['openstation_modified_ms'] );
 		$this->assertSame( array(), $delta['removed'] );
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_compute_heartbeat_delta
-	 * @covers ::open_station_sticky_notes_alive_known_ids
+	 * @covers ::openstation_sticky_notes_compute_heartbeat_delta
+	 * @covers ::openstation_sticky_notes_alive_known_ids
 	 */
 	public function test_delta_reports_known_ids_that_are_no_longer_stickies_as_removed() {
 		$sticky_id = $this->create_guideline(
@@ -80,7 +80,7 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 			)
 		);
 
-		$delta = open_station_sticky_notes_compute_heartbeat_delta(
+		$delta = openstation_sticky_notes_compute_heartbeat_delta(
 			$this->sticky_term_id,
 			array( $sticky_id, $plain_id, 999999 ),
 			0,
@@ -93,7 +93,7 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_heartbeat_received
+	 * @covers ::openstation_sticky_notes_heartbeat_received
 	 */
 	public function test_heartbeat_handler_uses_subscription_payload() {
 		$sticky_id = $this->create_guideline(
@@ -103,10 +103,10 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 			)
 		);
 
-		$response = open_station_sticky_notes_heartbeat_received(
+		$response = openstation_sticky_notes_heartbeat_received(
 			array( 'other' => 'untouched' ),
 			array(
-				'open_station_sticky_notes_subscribe' => array(
+				'openstation_sticky_notes_subscribe' => array(
 					'stickyTermId' => $this->sticky_term_id,
 					'knownIds'     => array(),
 					'version'      => 0,
@@ -115,62 +115,62 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'untouched', $response['other'] );
-		$this->assertArrayHasKey( 'open_station_sticky_notes', $response );
-		$this->assertSame( $sticky_id, $response['open_station_sticky_notes']['notes'][0]['id'] );
+		$this->assertArrayHasKey( 'openstation_sticky_notes', $response );
+		$this->assertSame( $sticky_id, $response['openstation_sticky_notes']['notes'][0]['id'] );
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_heartbeat_received
+	 * @covers ::openstation_sticky_notes_heartbeat_received
 	 */
 	public function test_filter_is_registered_on_heartbeat_received() {
 		$this->assertNotFalse(
 			has_filter(
 				'heartbeat_received',
-				'open_station_sticky_notes_heartbeat_received'
+				'openstation_sticky_notes_heartbeat_received'
 			),
 			'Sticky notes should hook the shared Heartbeat response.'
 		);
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_is_available
+	 * @covers ::openstation_sticky_notes_is_available
 	 */
 	public function test_is_available_when_guidelines_surface_is_registered() {
-		$this->assertTrue( open_station_sticky_notes_is_available() );
+		$this->assertTrue( openstation_sticky_notes_is_available() );
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_is_available
+	 * @covers ::openstation_sticky_notes_is_available
 	 */
 	public function test_is_not_available_without_the_guidelines_taxonomy() {
-		unregister_taxonomy( OPEN_STATION_STICKY_NOTES_TAXONOMY );
+		unregister_taxonomy( OPENSTATION_STICKY_NOTES_TAXONOMY );
 
-		$this->assertFalse( open_station_sticky_notes_is_available() );
+		$this->assertFalse( openstation_sticky_notes_is_available() );
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_is_available
+	 * @covers ::openstation_sticky_notes_is_available
 	 */
 	public function test_availability_can_be_forced_off_by_filter() {
-		add_filter( 'open_station_sticky_notes_available', '__return_false' );
+		add_filter( 'openstation_sticky_notes_available', '__return_false' );
 
 		$this->assertFalse(
-			open_station_sticky_notes_is_available(),
-			'The open_station_sticky_notes_available filter should be able to force the surface off.'
+			openstation_sticky_notes_is_available(),
+			'The openstation_sticky_notes_available filter should be able to force the surface off.'
 		);
 	}
 
 	/**
-	 * @covers ::open_station_sticky_notes_heartbeat_received
-	 * @covers ::open_station_sticky_notes_is_available
+	 * @covers ::openstation_sticky_notes_heartbeat_received
+	 * @covers ::openstation_sticky_notes_is_available
 	 */
 	public function test_heartbeat_skips_delta_when_surface_is_unavailable() {
-		unregister_taxonomy( OPEN_STATION_STICKY_NOTES_TAXONOMY );
+		unregister_taxonomy( OPENSTATION_STICKY_NOTES_TAXONOMY );
 
-		$response = open_station_sticky_notes_heartbeat_received(
+		$response = openstation_sticky_notes_heartbeat_received(
 			array( 'other' => 'untouched' ),
 			array(
-				'open_station_sticky_notes_subscribe' => array(
+				'openstation_sticky_notes_subscribe' => array(
 					'stickyTermId' => 123,
 					'knownIds'     => array(),
 					'version'      => 0,
@@ -180,16 +180,16 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 
 		$this->assertSame( 'untouched', $response['other'] );
 		$this->assertArrayNotHasKey(
-			'open_station_sticky_notes',
+			'openstation_sticky_notes',
 			$response,
 			'No sticky delta should be computed when the Guidelines surface is absent.'
 		);
 	}
 
 	protected function register_guidelines_surface() {
-		if ( ! post_type_exists( OPEN_STATION_STICKY_NOTES_POST_TYPE ) ) {
+		if ( ! post_type_exists( OPENSTATION_STICKY_NOTES_POST_TYPE ) ) {
 			register_post_type(
-				OPEN_STATION_STICKY_NOTES_POST_TYPE,
+				OPENSTATION_STICKY_NOTES_POST_TYPE,
 				array(
 					'public'       => false,
 					'show_in_rest' => true,
@@ -197,10 +197,10 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 				)
 			);
 		}
-		if ( ! taxonomy_exists( OPEN_STATION_STICKY_NOTES_TAXONOMY ) ) {
+		if ( ! taxonomy_exists( OPENSTATION_STICKY_NOTES_TAXONOMY ) ) {
 			register_taxonomy(
-				OPEN_STATION_STICKY_NOTES_TAXONOMY,
-				OPEN_STATION_STICKY_NOTES_POST_TYPE,
+				OPENSTATION_STICKY_NOTES_TAXONOMY,
+				OPENSTATION_STICKY_NOTES_POST_TYPE,
 				array(
 					'hierarchical' => true,
 					'show_in_rest' => true,
@@ -210,13 +210,13 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 	}
 
 	protected function ensure_term( $slug, $name ) {
-		$existing = get_term_by( 'slug', $slug, OPEN_STATION_STICKY_NOTES_TAXONOMY );
+		$existing = get_term_by( 'slug', $slug, OPENSTATION_STICKY_NOTES_TAXONOMY );
 		if ( $existing ) {
 			return (int) $existing->term_id;
 		}
 		$term = wp_insert_term(
 			$name,
-			OPEN_STATION_STICKY_NOTES_TAXONOMY,
+			OPENSTATION_STICKY_NOTES_TAXONOMY,
 			array( 'slug' => $slug )
 		);
 		return (int) $term['term_id'];
@@ -225,7 +225,7 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 	protected function create_guideline( $args = array() ) {
 		$post_id = self::factory()->post->create(
 			array(
-				'post_type'    => OPEN_STATION_STICKY_NOTES_POST_TYPE,
+				'post_type'    => OPENSTATION_STICKY_NOTES_POST_TYPE,
 				'post_status'  => 'private',
 				'post_title'   => isset( $args['post_title'] ) ? $args['post_title'] : 'Guideline',
 				'post_content' => isset( $args['post_content'] ) ? $args['post_content'] : '',
@@ -235,7 +235,7 @@ class Tests_OpenStation_StickyNotesHeartbeat extends WP_UnitTestCase {
 			wp_set_object_terms(
 				$post_id,
 				array_map( 'intval', (array) $args['terms'] ),
-				OPEN_STATION_STICKY_NOTES_TAXONOMY
+				OPENSTATION_STICKY_NOTES_TAXONOMY
 			);
 		}
 		return (int) $post_id;

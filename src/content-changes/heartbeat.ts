@@ -56,12 +56,12 @@ let seenTs: number | null = null;
  * @internal
  */
 export function bootContentChangesHeartbeat(): void {
-	heartbeat.contribute( 'open_station_content_changes_seen_ts', () =>
+	heartbeat.contribute( 'openstation_content_changes_seen_ts', () =>
 		seenTs === null ? 0 : seenTs,
 	);
 
 	heartbeat.subscribe< ContentChangesBlock >(
-		'open_station_content_changes',
+		'openstation_content_changes',
 		( block ) => {
 			if ( ! block || typeof block.ts !== 'number' ) {
 				return;

@@ -163,12 +163,12 @@ var openStationCodeEditor = function(exports) {
     if (!desktop) {
       return false;
     }
-    const existing = desktop.windowManager.getById("osc-editor");
+    const existing = desktop.windowManager.getById("wpdc-editor");
     if (existing) {
       existing.focus?.();
       return true;
     }
-    return desktop.openWindow("osc-editor");
+    return desktop.openWindow("wpdc-editor");
   }
   function openEditorAtPath(path, line = 1) {
     openEditorWindow();
@@ -194,7 +194,7 @@ var openStationCodeEditor = function(exports) {
         return;
       }
       const desktop = getDesktop();
-      const existing = desktop?.windowManager.getById("osc-editor");
+      const existing = desktop?.windowManager.getById("wpdc-editor");
       if (!existing) {
         openEditorAtPath(event.data.path, event.data.line ?? 1);
       }
@@ -1652,7 +1652,7 @@ var openStationCodeEditor = function(exports) {
     const monacoSlot = body.querySelector(MONACO_MOUNT_SELECTOR);
     if (!root || !monacoSlot) {
       console.error(
-        "[os-code-editor] Template mount nodes missing; ensure osc_render_editor_template ran."
+        "[os-code-editor] Template mount nodes missing; ensure openstation_code_editor_render_template ran."
       );
       return;
     }
@@ -1722,7 +1722,7 @@ var openStationCodeEditor = function(exports) {
     const openControllers = /* @__PURE__ */ new Map();
     let saveController = null;
     const setWindowTitle = (title) => {
-      const win = window.wp?.os?.windowManager?.getById("osc-editor");
+      const win = window.wp?.os?.windowManager?.getById("wpdc-editor");
       win?.setTitle?.(title);
     };
     const baseTitle = "Code";
@@ -1915,7 +1915,7 @@ var openStationCodeEditor = function(exports) {
         if (err.name === "AbortError") {
           return;
         }
-        if (err instanceof RestError && err.code === "osc_conflict") {
+        if (err instanceof RestError && err.code === "openstation_code_editor_conflict") {
           const data = err.data ?? null;
           if (!data) {
             setStatus(
@@ -2013,7 +2013,7 @@ var openStationCodeEditor = function(exports) {
   }
   installEditorGlobalListeners();
   const registry = window.openStationNativeWindows ?? (window.openStationNativeWindows = {});
-  registry["osc-editor"] = (body) => {
+  registry["wpdc-editor"] = (body) => {
     void renderEditor(body);
   };
   exports.ERROR_CLASS = ERROR_CLASS;

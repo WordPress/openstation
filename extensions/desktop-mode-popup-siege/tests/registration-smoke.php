@@ -151,7 +151,7 @@ function wp_register_script( $handle, $src, $dependencies, $version, $footer ) {
  * @param string $id Game id.
  * @param array  $args Registration arguments.
  */
-function open_station_register_game( $id, $args ) {
+function openstation_register_game( $id, $args ) {
 	global $popup_siege_registered;
 	$popup_siege_registered[ $id ] = $args;
 }
@@ -176,8 +176,8 @@ popup_siege_test_assert(
 	'Popup Siege must register on init at priority 20.'
 );
 popup_siege_test_assert(
-	isset( $popup_siege_filters['open_station_game_score_pre_save'][0] ) &&
-		5 === $popup_siege_filters['open_station_game_score_pre_save'][0][2],
+	isset( $popup_siege_filters['openstation_game_score_pre_save'][0] ) &&
+		5 === $popup_siege_filters['openstation_game_score_pre_save'][0][2],
 	'Popup Siege must inspect all five score filter arguments.'
 );
 

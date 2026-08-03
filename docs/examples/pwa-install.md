@@ -86,10 +86,10 @@ the listener above still fires before the framework's handler runs.
 
 Default icons come from the WordPress Site Icon when set, falling back
 to the plugin's bundled logo. Override completely via
-`open_station_pwa_manifest`:
+`openstation_pwa_manifest`:
 
 ```php
-add_filter( 'open_station_pwa_manifest', static function ( array $manifest ) {
+add_filter( 'openstation_pwa_manifest', static function ( array $manifest ) {
     $manifest['name']        = 'Acme Console';
     $manifest['short_name']  = 'Acme';
     $manifest['theme_color'] = '#7e22ce';

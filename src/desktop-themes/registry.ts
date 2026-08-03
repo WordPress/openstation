@@ -22,7 +22,7 @@ const MAX_ICON_SLOTS = 128;
  * Whether a payload icon value is something we're willing to paint.
  *
  * PHP already validated these, but the shell must not assume the
- * payload is trustworthy: a filter (`desktop_mode_desktop_themes`)
+ * payload is trustworthy: a filter (`openstation_desktop_themes`)
  * runs after sanitization and can put anything in.
  */
 function isPaintableIcon( value: unknown ): value is string {

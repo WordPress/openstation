@@ -1,12 +1,12 @@
 <?php
 /**
- * OpenStation — `link` file type.
+ * OpenStation — `bookmark` file type.
  *
- * A "web link" tile — double-click opens the stored URL in a new
- * browser tab via `window.open( url, '_blank', 'noopener,noreferrer' )`.
- * The URL itself is the entity reference; an optional human-friendly
- * name lives on the placement row's `meta.name` so two tiles
- * pointing at the same URL can carry different labels.
+ * Reference is the URL itself (validated against `esc_url_raw`).
+ * Title falls back to the host when the user hasn't set one — the
+ * UI promotes a separate `title` field stored alongside the
+ * placement in the placement row's `meta` column (Phase 2), but
+ * the base shape works without it.
  *
  * @package OpenStation
  */
@@ -14,12 +14,12 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * The `link` desktop file type.
+ * The `bookmark` desktop file type.
  */
-class Open_Station_Link_File extends Open_Station_File {
+class OpenStation_Bookmark_File extends OpenStation_File {
 
 	public static function type(): string {
-		return 'link';
+		return 'bookmark';
 	}
 
 	public function exists(): bool {
@@ -29,7 +29,7 @@ class Open_Station_Link_File extends Open_Station_File {
 	public function title(): string {
 		$url = $this->url();
 		if ( '' === $url ) {
-			return __( '(missing link)', 'desktop-mode' );
+			return __( '(missing bookmark)', 'desktop-mode' );
 		}
 		$host = wp_parse_url( $url, PHP_URL_HOST );
 		return is_string( $host ) && '' !== $host ? $host : $url;
@@ -40,8 +40,8 @@ class Open_Station_Link_File extends Open_Station_File {
 	}
 
 	public function serialize(): array {
-		$shape        = parent::serialize();
-		$shape['url'] = $this->url();
+		$shape         = parent::serialize();
+		$shape['url']  = $this->url();
 		return $shape;
 	}
 

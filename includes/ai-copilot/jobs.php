@@ -30,14 +30,14 @@ defined( 'ABSPATH' ) || exit;
  * @param int $comment_id The comment ID.
  * @param int $user_id    The user to attribute the request to.
  */
-function open_station_ai_job_analyze_comment( $comment_id, $user_id ) {
+function openstation_ai_job_analyze_comment( $comment_id, $user_id ) {
 	$comment_id = (int) $comment_id;
 	$user_id    = (int) $user_id;
 
 	// No usable text-generation provider is configured in Connectors — nothing
 	// to do. The scheduler already checks this, but the job runs async so we
 	// re-check to avoid emitting failed requests if the provider was removed.
-	if ( ! open_station_ai_provider_configured() ) {
+	if ( ! openstation_ai_provider_configured() ) {
 		return;
 	}
 
@@ -46,7 +46,7 @@ function open_station_ai_job_analyze_comment( $comment_id, $user_id ) {
 		return;
 	}
 
-	$result = open_station_ai_analyze_comment_now( $comment, $user_id );
+	$result = openstation_ai_analyze_comment_now( $comment, $user_id );
 
 	if ( is_wp_error( $result ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -54,7 +54,7 @@ function open_station_ai_job_analyze_comment( $comment_id, $user_id ) {
 		return;
 	}
 
-	open_station_ai_save_meta( 'comment', $comment_id, $result );
+	openstation_ai_save_meta( 'comment', $comment_id, $result );
 
 	/**
 	 * Fires after a comment has been successfully analyzed by the AI copilot.
@@ -67,14 +67,14 @@ function open_station_ai_job_analyze_comment( $comment_id, $user_id ) {
 	 * @param array      $result     The structured analysis result.
 	 * @param WP_Comment $comment    The comment object.
 	 */
-	do_action( 'open_station_ai_comment_analyzed', $comment_id, $result, $comment );
+	do_action( 'openstation_ai_comment_analyzed', $comment_id, $result, $comment );
 }
-add_action( 'desktop_mode_ai_analyze_comment', 'open_station_ai_job_analyze_comment', 10, 2 );
+add_action( 'desktop_mode_ai_analyze_comment', 'openstation_ai_job_analyze_comment', 10, 2 );
 
 /**
  * Runs the structured comment analysis through the AI Client.
  *
- * Converts the chat-style prompt from {@see open_station_ai_messages_for_comment()}
+ * Converts the chat-style prompt from {@see openstation_ai_messages_for_comment()}
  * into a system instruction + user prompt, requests JSON constrained to the
  * comment schema, and decodes the result.
  *
@@ -85,9 +85,9 @@ add_action( 'desktop_mode_ai_analyze_comment', 'open_station_ai_job_analyze_comm
  *                            stability and future attribution.
  * @return array|WP_Error Structured `{ topic, ai_summary, harmful, spam }` or an error.
  */
-function open_station_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
-	$messages = open_station_ai_messages_for_comment( $comment );
-	$schema   = open_station_ai_schema_comment();
+function openstation_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
+	$messages = openstation_ai_messages_for_comment( $comment );
+	$schema   = openstation_ai_schema_comment();
 
 	$system = '';
 	$prompt = '';
@@ -106,14 +106,14 @@ function open_station_ai_analyze_comment_now( WP_Comment $comment, $user_id ) {
 	}
 	// Provider + model are chosen by the Core AI Client; OpenStation pins neither.
 
-	$json = $builder->as_json_response( open_station_ai_normalize_response_schema( $schema ) )->generate_text();
+	$json = $builder->as_json_response( openstation_ai_normalize_response_schema( $schema ) )->generate_text();
 	if ( is_wp_error( $json ) ) {
 		return $json;
 	}
 
 	$result = json_decode( (string) $json, true );
 	if ( ! is_array( $result ) ) {
-		return new WP_Error( 'open_station_ai_bad_json', 'The AI response was not valid JSON.' );
+		return new WP_Error( 'openstation_ai_bad_json', 'The AI response was not valid JSON.' );
 	}
 
 	return $result;

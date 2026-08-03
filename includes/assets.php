@@ -21,8 +21,8 @@ defined( 'ABSPATH' ) || exit;
  * @param string $fallback Version to use when the file is missing.
  * @return string Version string.
  */
-function open_station_css_subtree_version( $relative, $fallback ) {
-	$root = OPEN_STATION_DIR . $relative;
+function openstation_css_subtree_version( $relative, $fallback ) {
+	$root = OPENSTATION_DIR . $relative;
 	if ( ! file_exists( $root ) ) {
 		return (string) $fallback;
 	}
@@ -51,12 +51,12 @@ function open_station_css_subtree_version( $relative, $fallback ) {
 /**
  * Registers the OpenStation CSS and JS handles.
  */
-function open_station_register_assets() {
-	$version = OPEN_STATION_VERSION;
-	$suffix  = open_station_asset_suffix();
+function openstation_register_assets() {
+	$version = OPENSTATION_VERSION;
+	$suffix  = openstation_asset_suffix();
 
 	// `filemtime`-stamped version for built bundles. The plugin-wide
-	// `OPEN_STATION_VERSION` is bumped per release, but the bundles
+	// `OPENSTATION_VERSION` is bumped per release, but the bundles
 	// iterate faster — without a per-file mtime stamp, two clients
 	// loading the same `?ver=…` URL can be served different bytes
 	// (whichever build was on disk at upload time). Stamping with the
@@ -65,7 +65,7 @@ function open_station_register_assets() {
 	// network tab. Falls back to `$version` when the file is missing
 	// (test envs that import this file before the build runs).
 	$built_version = static function ( $relative ) use ( $version ) {
-		$path = OPEN_STATION_DIR . $relative;
+		$path = OPENSTATION_DIR . $relative;
 		return file_exists( $path ) ? (string) filemtime( $path ) : $version;
 	};
 
@@ -80,20 +80,20 @@ function open_station_register_assets() {
 	// surfaces update and others don't.
 	wp_register_style(
 		'os-variables',
-		OPEN_STATION_URL . 'assets/css/variables.css',
+		OPENSTATION_URL . 'assets/css/variables.css',
 		array(),
 		$built_version( 'assets/css/variables.css' )
 	);
 	// `filemtime`-stamped so the `<link rel="stylesheet">` URL matches the
 	// `<link rel="preload" as="style">` hint emitted by
-	// `open_station_print_preload_hints()` (which stamps with filemtime).
+	// `openstation_print_preload_hints()` (which stamps with filemtime).
 	// Registering this with the plain `$version` instead produced two
 	// different `?ver=` query strings for the same file, so the browser
 	// never matched the preload to the stylesheet and logged "preloaded
 	// but not used within a few seconds from the window's load event".
 	wp_register_style(
 		'openstation',
-		OPEN_STATION_URL . 'assets/css/desktop.css',
+		OPENSTATION_URL . 'assets/css/desktop.css',
 		array( 'os-variables' ),
 		$built_version( 'assets/css/desktop.css' )
 	);
@@ -105,7 +105,7 @@ function open_station_register_assets() {
 	 * cache bug: an `@import` URL carries no `?ver=`, so a changed
 	 * sub-sheet had no URL for the browser to invalidate. Stamping the
 	 * PARENT with the subtree's max mtime (which is what
-	 * `open_station_css_subtree_version()` was for) made the browser
+	 * `openstation_css_subtree_version()` was for) made the browser
 	 * re-fetch `windows.css` and then request each sub-sheet at an
 	 * unchanged URL — free to be served from its heuristic cache. The
 	 * result was edits not landing until a hard refresh, and rules
@@ -139,7 +139,7 @@ function open_station_register_assets() {
 	foreach ( $window_sheets as $handle => $relative ) {
 		wp_register_style(
 			$handle,
-			OPEN_STATION_URL . $relative,
+			OPENSTATION_URL . $relative,
 			$previous,
 			$built_version( $relative )
 		);
@@ -151,11 +151,11 @@ function open_station_register_assets() {
 	// sheet — the behaviour callers had when they were `@import`s.
 	wp_register_style(
 		'os-windows',
-		OPEN_STATION_URL . 'assets/css/windows.css',
+		OPENSTATION_URL . 'assets/css/windows.css',
 		$previous,
 		$built_version( 'assets/css/windows.css' )
 	);
-	// These two load DEFERRED (see `open_station_defer_non_critical_styles()`):
+	// These two load DEFERRED (see `openstation_defer_non_critical_styles()`):
 	// the UI they style — the OS Settings panel and the window
 	// overview — is lazy-loaded JS that can never be on screen at
 	// first paint, so ~47 KB of CSS has no business blocking render.
@@ -163,25 +163,25 @@ function open_station_register_assets() {
 	// preserving the cascade position they had as `@import`s.
 	wp_register_style(
 		'os-window-overview',
-		OPEN_STATION_URL . 'assets/css/window-overview.css',
+		OPENSTATION_URL . 'assets/css/window-overview.css',
 		array( 'os-windows' ),
 		$built_version( 'assets/css/window-overview.css' )
 	);
 	wp_register_style(
 		'os-settings',
-		OPEN_STATION_URL . 'assets/css/os-settings.css',
+		OPENSTATION_URL . 'assets/css/os-settings.css',
 		array( 'os-windows' ),
 		$built_version( 'assets/css/os-settings.css' )
 	);
 	wp_register_style(
 		'os-dock',
-		OPEN_STATION_URL . 'assets/css/dock.css',
+		OPENSTATION_URL . 'assets/css/dock.css',
 		array( 'os-variables', 'dashicons' ),
 		$built_version( 'assets/css/dock.css' )
 	);
 	wp_register_style(
 		'os-dock-peek',
-		OPEN_STATION_URL . 'assets/css/dock-peek.css',
+		OPENSTATION_URL . 'assets/css/dock-peek.css',
 		array( 'os-dock' ),
 		$built_version( 'assets/css/dock-peek.css' )
 	);
@@ -193,7 +193,7 @@ function open_station_register_assets() {
 	// release cycle.
 	wp_register_style(
 		'os-chromeless',
-		OPEN_STATION_URL . 'assets/css/chromeless.css',
+		OPENSTATION_URL . 'assets/css/chromeless.css',
 		array( 'openstation' ),
 		$built_version( 'assets/css/chromeless.css' )
 	);
@@ -205,14 +205,14 @@ function open_station_register_assets() {
 	// yesterday's CSS even after a hard reload.
 	wp_register_style(
 		'desktop-mode-ai-assistant',
-		OPEN_STATION_URL . 'assets/css/ai-assistant.css',
+		OPENSTATION_URL . 'assets/css/ai-assistant.css',
 		array( 'os-variables' ),
 		$built_version( 'assets/css/ai-assistant.css' )
 	);
 
 	wp_register_style(
 		'desktop-mode-bug-report',
-		OPEN_STATION_URL . 'assets/css/bug-report.css',
+		OPENSTATION_URL . 'assets/css/bug-report.css',
 		array( 'os-variables' ),
 		$built_version( 'assets/css/bug-report.css' )
 	);
@@ -220,10 +220,10 @@ function open_station_register_assets() {
 	// `filemtime` instead of the plugin-wide `$version` for the
 	// recycle-bin CSS — this file iterates faster than the bundle
 	// and we never want a stale CSS cache to mask a real fix.
-	$recycle_bin_css = OPEN_STATION_DIR . 'assets/css/recycle-bin.css';
+	$recycle_bin_css = OPENSTATION_DIR . 'assets/css/recycle-bin.css';
 	wp_register_style(
 		'desktop-mode-recycle-bin',
-		OPEN_STATION_URL . 'assets/css/recycle-bin.css',
+		OPENSTATION_URL . 'assets/css/recycle-bin.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $recycle_bin_css ) ? (string) filemtime( $recycle_bin_css ) : $version
 	);
@@ -231,29 +231,29 @@ function open_station_register_assets() {
 	// `filemtime` for the native Posts window CSS — same rationale as
 	// the recycle-bin CSS: bundle iterates faster than the plugin
 	// version and stale caches are worse than the cost of a 304.
-	$posts_window_css = OPEN_STATION_DIR . 'assets/css/posts-window.css';
+	$posts_window_css = OPENSTATION_DIR . 'assets/css/posts-window.css';
 	wp_register_style(
 		'os-posts-window',
-		OPEN_STATION_URL . 'assets/css/posts-window.css',
+		OPENSTATION_URL . 'assets/css/posts-window.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $posts_window_css ) ? (string) filemtime( $posts_window_css ) : $version
 	);
 
 	// Native Plugins window CSS — same `filemtime`-cache-bust posture
 	// as the Posts/Recycle Bin styles.
-	$plugins_window_css = OPEN_STATION_DIR . 'assets/css/plugins-window.css';
+	$plugins_window_css = OPENSTATION_DIR . 'assets/css/plugins-window.css';
 	wp_register_style(
 		'os-plugins-window',
-		OPEN_STATION_URL . 'assets/css/plugins-window.css',
+		OPENSTATION_URL . 'assets/css/plugins-window.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $plugins_window_css ) ? (string) filemtime( $plugins_window_css ) : $version
 	);
 
 	// Native Comments window CSS — same `filemtime` posture.
-	$comments_window_css = OPEN_STATION_DIR . 'assets/css/comments-window.css';
+	$comments_window_css = OPENSTATION_DIR . 'assets/css/comments-window.css';
 	wp_register_style(
 		'os-comments-window',
-		OPEN_STATION_URL . 'assets/css/comments-window.css',
+		OPENSTATION_URL . 'assets/css/comments-window.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $comments_window_css ) ? (string) filemtime( $comments_window_css ) : $version
 	);
@@ -262,10 +262,10 @@ function open_station_register_assets() {
 	// same reason as the recycle-bin / posts-window CSS: this file
 	// iterates faster than the plugin version, and a stale cache
 	// would mask a real fix.
-	$desktop_files_css = OPEN_STATION_DIR . 'assets/css/desktop-files.css';
+	$desktop_files_css = OPENSTATION_DIR . 'assets/css/desktop-files.css';
 	wp_register_style(
 		'os-files',
-		OPEN_STATION_URL . 'assets/css/desktop-files.css',
+		OPENSTATION_URL . 'assets/css/desktop-files.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $desktop_files_css ) ? (string) filemtime( $desktop_files_css ) : $version
 	);
@@ -273,24 +273,24 @@ function open_station_register_assets() {
 	// Games hub window (launcher grid, scoreboard, challenges) +
 	// per-game styles. Same `filemtime` cache-bust posture as the
 	// other fast-iterating feature stylesheets.
-	$games_css = OPEN_STATION_DIR . 'assets/css/games.css';
+	$games_css = OPENSTATION_DIR . 'assets/css/games.css';
 	wp_register_style(
 		'desktop-mode-games',
-		OPEN_STATION_URL . 'assets/css/games.css',
+		OPENSTATION_URL . 'assets/css/games.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $games_css ) ? (string) filemtime( $games_css ) : $version
 	);
-	$game_inkfall_css = OPEN_STATION_DIR . 'assets/css/game-inkfall.css';
+	$game_inkfall_css = OPENSTATION_DIR . 'assets/css/game-inkfall.css';
 	wp_register_style(
 		'os-game-inkfall',
-		OPEN_STATION_URL . 'assets/css/game-inkfall.css',
+		OPENSTATION_URL . 'assets/css/game-inkfall.css',
 		array( 'os-variables' ),
 		file_exists( $game_inkfall_css ) ? (string) filemtime( $game_inkfall_css ) : $version
 	);
-	$game_alphabet_soup_css = OPEN_STATION_DIR . 'assets/css/game-alphabet-soup.css';
+	$game_alphabet_soup_css = OPENSTATION_DIR . 'assets/css/game-alphabet-soup.css';
 	wp_register_style(
 		'os-game-alphabet-soup',
-		OPEN_STATION_URL . 'assets/css/game-alphabet-soup.css',
+		OPENSTATION_URL . 'assets/css/game-alphabet-soup.css',
 		array( 'os-variables' ),
 		file_exists( $game_alphabet_soup_css ) ? (string) filemtime( $game_alphabet_soup_css ) : $version
 	);
@@ -298,10 +298,10 @@ function open_station_register_assets() {
 	// Pinned-notes layer styles (paper, pushpin, pastel tokens, pin
 	// animations). Same `filemtime` cache-bust posture as the other
 	// fast-iterating feature stylesheets above.
-	$notes_css = OPEN_STATION_DIR . 'assets/css/notes.css';
+	$notes_css = OPENSTATION_DIR . 'assets/css/notes.css';
 	wp_register_style(
 		'os-notes',
-		OPEN_STATION_URL . 'assets/css/notes.css',
+		OPENSTATION_URL . 'assets/css/notes.css',
 		array( 'os-variables', 'dashicons' ),
 		file_exists( $notes_css ) ? (string) filemtime( $notes_css ) : $version
 	);
@@ -317,7 +317,7 @@ function open_station_register_assets() {
 	// explicitly to guarantee load order.
 	wp_register_script(
 		'openstation',
-		OPEN_STATION_URL . 'assets/js/desktop' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/desktop' . $suffix . '.js',
 		// `heartbeat` + `jquery` — the recycle-bin badge module
 		// (loaded as part of this bundle) opts into the WordPress
 		// Heartbeat API so the count tile / desktop-icon badge
@@ -348,7 +348,7 @@ function open_station_register_assets() {
 	// own iframe pages just enqueue this handle.
 	wp_register_script(
 		'os-iframe-bridge',
-		OPEN_STATION_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/iframe-bridge' . $suffix . '.js',
 		array(),
 		$built_version( 'assets/js/iframe-bridge' . $suffix . '.js' ),
 		true
@@ -365,7 +365,7 @@ function open_station_register_assets() {
 	// handler.
 	wp_register_script(
 		'os-gutenberg-drop-receiver',
-		OPEN_STATION_URL . 'assets/js/gutenberg-drop-receiver' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/gutenberg-drop-receiver' . $suffix . '.js',
 		array( 'wp-blocks', 'wp-data' ),
 		$built_version( 'assets/js/gutenberg-drop-receiver' . $suffix . '.js' ),
 		true
@@ -375,10 +375,10 @@ function open_station_register_assets() {
 	// native window. Lazy-loaded by the native-window sync the first
 	// time the bin opens; registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-recycle-bin']`.
-	$recycle_bin_js = OPEN_STATION_DIR . 'assets/js/recycle-bin' . $suffix . '.js';
+	$recycle_bin_js = OPENSTATION_DIR . 'assets/js/recycle-bin' . $suffix . '.js';
 	wp_register_script(
 		'desktop-mode-recycle-bin',
-		OPEN_STATION_URL . 'assets/js/recycle-bin' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/recycle-bin' . $suffix . '.js',
 		// `heartbeat` + `jquery` — the bin opts in to the WordPress
 		// Heartbeat API while its window is open as the catch-all
 		// real-time channel for deletes that don't render an admin
@@ -391,7 +391,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'desktop-mode-recycle-bin',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `desktop-mode-games` — bundle for the Games hub native window
@@ -401,10 +401,10 @@ function open_station_register_assets() {
 	// `window.openStationNativeWindows['desktop-mode-games']`.
 	// `heartbeat` + `jquery` — the challenges client rides the
 	// WordPress Heartbeat bus for live delivery.
-	$games_js = OPEN_STATION_DIR . 'assets/js/games' . $suffix . '.js';
+	$games_js = OPENSTATION_DIR . 'assets/js/games' . $suffix . '.js';
 	wp_register_script(
 		'desktop-mode-games',
-		OPEN_STATION_URL . 'assets/js/games' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/games' . $suffix . '.js',
 		array( 'wp-i18n', 'heartbeat', 'jquery' ),
 		file_exists( $games_js ) ? (string) filemtime( $games_js ) : $version,
 		true
@@ -412,16 +412,16 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'desktop-mode-games',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `os-game-inkfall` — the Inkfall game bundle. Loaded
 	// lazily by the games framework on first launch; publishes the
 	// game def on `window.openStationGames.inkfall`.
-	$game_inkfall_js = OPEN_STATION_DIR . 'assets/js/game-inkfall' . $suffix . '.js';
+	$game_inkfall_js = OPENSTATION_DIR . 'assets/js/game-inkfall' . $suffix . '.js';
 	wp_register_script(
 		'os-game-inkfall',
-		OPEN_STATION_URL . 'assets/js/game-inkfall' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/game-inkfall' . $suffix . '.js',
 		array( 'wp-i18n' ),
 		file_exists( $game_inkfall_js ) ? (string) filemtime( $game_inkfall_js ) : $version,
 		true
@@ -429,17 +429,17 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'os-game-inkfall',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `os-game-alphabet-soup` — the Alphabet Soup game
 	// bundle. Loaded lazily by the games framework on first launch;
 	// publishes the game def on
 	// `window.openStationGames['alphabet-soup']`.
-	$game_alphabet_soup_js = OPEN_STATION_DIR . 'assets/js/game-alphabet-soup' . $suffix . '.js';
+	$game_alphabet_soup_js = OPENSTATION_DIR . 'assets/js/game-alphabet-soup' . $suffix . '.js';
 	wp_register_script(
 		'os-game-alphabet-soup',
-		OPEN_STATION_URL . 'assets/js/game-alphabet-soup' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/game-alphabet-soup' . $suffix . '.js',
 		array( 'wp-i18n' ),
 		file_exists( $game_alphabet_soup_js ) ? (string) filemtime( $game_alphabet_soup_js ) : $version,
 		true
@@ -447,7 +447,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'os-game-alphabet-soup',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `os-posts-window` — small bundle for the native Posts
@@ -455,10 +455,10 @@ function open_station_register_assets() {
 	// window opens (via the dock-click swap when the user opts in);
 	// registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-posts']`.
-	$posts_window_js = OPEN_STATION_DIR . 'assets/js/posts-window' . $suffix . '.js';
+	$posts_window_js = OPENSTATION_DIR . 'assets/js/posts-window' . $suffix . '.js';
 	wp_register_script(
 		'os-posts-window',
-		OPEN_STATION_URL . 'assets/js/posts-window' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/posts-window' . $suffix . '.js',
 		array( 'wp-i18n' ),
 		file_exists( $posts_window_js ) ? (string) filemtime( $posts_window_js ) : $version,
 		true
@@ -466,7 +466,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'os-posts-window',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `os-plugins-window` — small bundle for the native
@@ -474,10 +474,10 @@ function open_station_register_assets() {
 	// time the window opens (via the dock-click swap when the user
 	// opts in); registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-plugins']`.
-	$plugins_window_js = OPEN_STATION_DIR . 'assets/js/plugins-window' . $suffix . '.js';
+	$plugins_window_js = OPENSTATION_DIR . 'assets/js/plugins-window' . $suffix . '.js';
 	wp_register_script(
 		'os-plugins-window',
-		OPEN_STATION_URL . 'assets/js/plugins-window' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/plugins-window' . $suffix . '.js',
 		array( 'wp-i18n' ),
 		file_exists( $plugins_window_js ) ? (string) filemtime( $plugins_window_js ) : $version,
 		true
@@ -485,7 +485,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'os-plugins-window',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `os-comments-window` — small bundle for the native
@@ -493,10 +493,10 @@ function open_station_register_assets() {
 	// time the window opens (via the dock-click swap when the user
 	// opts in); registers a render callback on
 	// `window.openStationNativeWindows['desktop-mode-comments']`.
-	$comments_window_js = OPEN_STATION_DIR . 'assets/js/comments-window' . $suffix . '.js';
+	$comments_window_js = OPENSTATION_DIR . 'assets/js/comments-window' . $suffix . '.js';
 	wp_register_script(
 		'os-comments-window',
-		OPEN_STATION_URL . 'assets/js/comments-window' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/comments-window' . $suffix . '.js',
 		array( 'wp-i18n' ),
 		file_exists( $comments_window_js ) ? (string) filemtime( $comments_window_js ) : $version,
 		true
@@ -504,7 +504,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'os-comments-window',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `os-animated-logo-wallpaper` — built-in PixiJS canvas
@@ -514,10 +514,10 @@ function open_station_register_assets() {
 	// and the picker pulls every registered canvas def in). The
 	// bundle's only side effect is publishing the `WallpaperDef` on
 	// `window.openStationWallpapers['wp-animated-logo']`.
-	$animated_logo_js = OPEN_STATION_DIR . 'assets/js/animated-logo-wallpaper' . $suffix . '.js';
+	$animated_logo_js = OPENSTATION_DIR . 'assets/js/animated-logo-wallpaper' . $suffix . '.js';
 	wp_register_script(
 		'os-animated-logo-wallpaper',
-		OPEN_STATION_URL . 'assets/js/animated-logo-wallpaper' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/animated-logo-wallpaper' . $suffix . '.js',
 		array( 'wp-hooks' ),
 		file_exists( $animated_logo_js ) ? (string) filemtime( $animated_logo_js ) : $version,
 		true
@@ -531,10 +531,10 @@ function open_station_register_assets() {
 	// picker pulls the def in). The bundle's only side effect is
 	// publishing the `WallpaperDef` on
 	// `window.openStationWallpapers['wp-snow']`.
-	$snow_js = OPEN_STATION_DIR . 'assets/js/snow-wallpaper' . $suffix . '.js';
+	$snow_js = OPENSTATION_DIR . 'assets/js/snow-wallpaper' . $suffix . '.js';
 	wp_register_script(
 		'os-snow-wallpaper',
-		OPEN_STATION_URL . 'assets/js/snow-wallpaper' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/snow-wallpaper' . $suffix . '.js',
 		array( 'wp-hooks', 'wp-i18n' ),
 		file_exists( $snow_js ) ? (string) filemtime( $snow_js ) : $version,
 		true
@@ -542,7 +542,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'os-snow-wallpaper',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// `desktop-mode-ai-assistant` — AI Copilot spotlight overlay,
@@ -550,10 +550,10 @@ function open_station_register_assets() {
 	// stub matching the public `wp.os.ai` contract; the stub
 	// `<script>`-injects this handle the first time the user opens
 	// the assistant (Cmd+K or admin-bar button).
-	$ai_assistant_js = OPEN_STATION_DIR . 'assets/js/ai-assistant' . $suffix . '.js';
+	$ai_assistant_js = OPENSTATION_DIR . 'assets/js/ai-assistant' . $suffix . '.js';
 	wp_register_script(
 		'desktop-mode-ai-assistant',
-		OPEN_STATION_URL . 'assets/js/ai-assistant' . $suffix . '.js',
+		OPENSTATION_URL . 'assets/js/ai-assistant' . $suffix . '.js',
 		array( 'wp-hooks', 'wp-i18n' ),
 		file_exists( $ai_assistant_js ) ? (string) filemtime( $ai_assistant_js ) : $version,
 		true
@@ -561,7 +561,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'desktop-mode-ai-assistant',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 
 	// Wire the translation bundle to this script handle. WP looks
@@ -572,7 +572,7 @@ function open_station_register_assets() {
 	wp_set_script_translations(
 		'openstation',
 		'desktop-mode',
-		OPEN_STATION_DIR . 'languages'
+		OPENSTATION_DIR . 'languages'
 	);
 }
-add_action( 'init', 'open_station_register_assets' );
+add_action( 'init', 'openstation_register_assets' );

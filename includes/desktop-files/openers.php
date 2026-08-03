@@ -30,7 +30,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** User-meta key holding `{ type => opener_id, … }`. */
-define( 'OPEN_STATION_FILE_ASSOCIATIONS_META', 'desktop_mode_file_associations' );
+define( 'OPENSTATION_FILE_ASSOCIATIONS_META', 'desktop_mode_file_associations' );
 
 /**
  * Internal static-store registry. Same pattern as the file-type
@@ -38,7 +38,7 @@ define( 'OPEN_STATION_FILE_ASSOCIATIONS_META', 'desktop_mode_file_associations' 
  *
  * @internal
  */
-function open_station_file_opener_registry( $id = '', $entry = null ) {
+function openstation_file_opener_registry( $id = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $id ) {
@@ -74,11 +74,11 @@ function open_station_file_opener_registry( $id = '', $entry = null ) {
  * }
  * @return true|WP_Error
  */
-function open_station_register_file_opener( $id, $args = array() ) {
+function openstation_register_file_opener( $id, $args = array() ) {
 	$id = (string) $id;
 	if ( '' === $id ) {
-		return open_station_registration_error(
-			'open_station_missing_id',
+		return openstation_registration_error(
+			'openstation_missing_id',
 			__( 'Opener id is required.', 'desktop-mode' )
 		);
 	}
@@ -95,8 +95,8 @@ function open_station_register_file_opener( $id, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return open_station_registration_error(
-				'open_station_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this opener.', 'desktop-mode' ),
@@ -108,8 +108,8 @@ function open_station_register_file_opener( $id, $args = array() ) {
 	}
 
 	if ( '' === (string) $args['label'] ) {
-		return open_station_registration_error(
-			'open_station_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Opener registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -117,8 +117,8 @@ function open_station_register_file_opener( $id, $args = array() ) {
 
 	$types = array_values( array_filter( array_map( 'strval', (array) $args['types'] ) ) );
 	if ( empty( $types ) ) {
-		return open_station_registration_error(
-			'open_station_missing_types',
+		return openstation_registration_error(
+			'openstation_missing_types',
 			__( 'Opener registration requires at least one file `type`.', 'desktop-mode' ),
 			array( 'id' => $id )
 		);
@@ -132,7 +132,7 @@ function open_station_register_file_opener( $id, $args = array() ) {
 		'sort'       => (int) $args['sort'],
 		'script'     => (string) $args['script'],
 	);
-	open_station_file_opener_registry( $id, $entry );
+	openstation_file_opener_registry( $id, $entry );
 
 	/**
 	 * Fires after a file opener is successfully registered. Does
@@ -141,7 +141,7 @@ function open_station_register_file_opener( $id, $args = array() ) {
 	 * @param string $id    Opener id.
 	 * @param array  $entry Stored registry entry.
 	 */
-	do_action( 'open_station_file_opener_registered', $id, $entry );
+	do_action( 'openstation_file_opener_registered', $id, $entry );
 
 	return true;
 }
@@ -151,8 +151,8 @@ function open_station_register_file_opener( $id, $args = array() ) {
  *
  * @return array[]
  */
-function open_station_get_file_openers() {
-	$registry = open_station_file_opener_registry();
+function openstation_get_file_openers() {
+	$registry = openstation_file_opener_registry();
 	if ( ! is_array( $registry ) || empty( $registry ) ) {
 		return array();
 	}
@@ -163,7 +163,7 @@ function open_station_get_file_openers() {
 	 *
 	 * @param array[] $registry Registered openers keyed by id.
 	 */
-	$registry = apply_filters( 'open_station_file_openers', $registry );
+	$registry = apply_filters( 'openstation_file_openers', $registry );
 	if ( ! is_array( $registry ) ) {
 		return array();
 	}
@@ -192,14 +192,14 @@ function open_station_get_file_openers() {
  * @param string $type File-type slug.
  * @return array[]
  */
-function open_station_get_file_openers_for_type( $type ) {
+function openstation_get_file_openers_for_type( $type ) {
 	$type = (string) $type;
 	if ( '' === $type ) {
 		return array();
 	}
 	return array_values(
 		array_filter(
-			open_station_get_file_openers(),
+			openstation_get_file_openers(),
 			static function ( $entry ) use ( $type ) {
 				return in_array( $type, (array) $entry['types'], true );
 			}
@@ -221,8 +221,8 @@ function open_station_get_file_openers_for_type( $type ) {
  * @param int    $user_id Viewer.
  * @return string Opener id, or empty string when nothing matches.
  */
-function open_station_resolve_file_opener_id( $type, $user_id ) {
-	$candidates = open_station_get_file_openers_for_type( $type );
+function openstation_resolve_file_opener_id( $type, $user_id ) {
+	$candidates = openstation_get_file_openers_for_type( $type );
 	if ( empty( $candidates ) ) {
 		return '';
 	}
@@ -234,7 +234,7 @@ function open_station_resolve_file_opener_id( $type, $user_id ) {
 	// 1. User override.
 	$override = '';
 	if ( $user_id > 0 ) {
-		$assoc = get_user_meta( (int) $user_id, OPEN_STATION_FILE_ASSOCIATIONS_META, true );
+		$assoc = get_user_meta( (int) $user_id, OPENSTATION_FILE_ASSOCIATIONS_META, true );
 		if ( is_array( $assoc ) && isset( $assoc[ $type ] ) ) {
 			$override = (string) $assoc[ $type ];
 		}
@@ -266,7 +266,7 @@ function open_station_resolve_file_opener_id( $type, $user_id ) {
 	 * @param string $type     File-type slug.
 	 * @param int    $user_id  Viewer.
 	 */
-	return (string) apply_filters( 'open_station_resolve_file_opener', $resolved, $type, $user_id );
+	return (string) apply_filters( 'openstation_resolve_file_opener', $resolved, $type, $user_id );
 }
 
 /**
@@ -274,8 +274,8 @@ function open_station_resolve_file_opener_id( $type, $user_id ) {
  *
  * @return array[]
  */
-function open_station_build_file_openers_payload() {
-	$entries = open_station_get_file_openers();
+function openstation_build_file_openers_payload() {
+	$entries = openstation_get_file_openers();
 	if ( empty( $entries ) ) {
 		return array();
 	}
@@ -283,7 +283,7 @@ function open_station_build_file_openers_payload() {
 	foreach ( $entries as $entry ) {
 		$handle  = isset( $entry['script'] ) ? (string) $entry['script'] : '';
 		$payload = '' !== $handle
-			? open_station_resolve_script_payload( $handle )
+			? openstation_resolve_script_payload( $handle )
 			: array(
 				'url'          => '',
 				'before'       => array(),
@@ -318,15 +318,15 @@ function open_station_build_file_openers_payload() {
  * @param int $user_id Viewer.
  * @return array<string,string>
  */
-function open_station_get_user_file_associations( $user_id ) {
+function openstation_get_user_file_associations( $user_id ) {
 	if ( $user_id <= 0 ) {
 		return array();
 	}
-	$raw = get_user_meta( (int) $user_id, OPEN_STATION_FILE_ASSOCIATIONS_META, true );
+	$raw = get_user_meta( (int) $user_id, OPENSTATION_FILE_ASSOCIATIONS_META, true );
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$openers = open_station_get_file_openers();
+	$openers = openstation_get_file_openers();
 	$known   = array();
 	foreach ( $openers as $entry ) {
 		$known[ (string) $entry['id'] ] = (array) $entry['types'];

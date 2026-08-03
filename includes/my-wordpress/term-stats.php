@@ -22,13 +22,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the route.
  */
-function open_station_my_wordpress_register_term_stats_route() {
+function openstation_my_wordpress_register_term_stats_route() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/term-stats/(?P<taxonomy>[a-zA-Z0-9_-]+)/(?P<id>\d+)',
 		array(
 			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => 'open_station_my_wordpress_term_stats_callback',
+			'callback'            => 'openstation_my_wordpress_term_stats_callback',
 			'permission_callback' => static function () {
 				return is_user_logged_in() && current_user_can( 'read' );
 			},
@@ -47,7 +47,7 @@ function open_station_my_wordpress_register_term_stats_route() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_my_wordpress_register_term_stats_route' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_term_stats_route' );
 
 /**
  * Aggregator callback. See file docblock for return shape.
@@ -55,7 +55,7 @@ add_action( 'rest_api_init', 'open_station_my_wordpress_register_term_stats_rout
  * @param WP_REST_Request $request REST request.
  * @return array|WP_Error
  */
-function open_station_my_wordpress_term_stats_callback( $request ) {
+function openstation_my_wordpress_term_stats_callback( $request ) {
 	global $wpdb;
 	$taxonomy = sanitize_key( (string) $request->get_param( 'taxonomy' ) );
 	$term_id  = (int) $request->get_param( 'id' );
@@ -63,7 +63,7 @@ function open_station_my_wordpress_term_stats_callback( $request ) {
 	$tax_obj = get_taxonomy( $taxonomy );
 	if ( ! $tax_obj ) {
 		return new WP_Error(
-			'open_station_invalid_taxonomy',
+			'openstation_invalid_taxonomy',
 			__( 'Unknown taxonomy.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -72,7 +72,7 @@ function open_station_my_wordpress_term_stats_callback( $request ) {
 	$term = get_term( $term_id, $taxonomy );
 	if ( ! $term || is_wp_error( $term ) ) {
 		return new WP_Error(
-			'open_station_term_not_found',
+			'openstation_term_not_found',
 			__( 'Term not found.', 'desktop-mode' ),
 			array( 'status' => 404 )
 		);
@@ -339,7 +339,7 @@ function open_station_my_wordpress_term_stats_callback( $request ) {
 	 * @param int    $term_id  Term id.
 	 */
 	return apply_filters(
-		'open_station_my_wordpress_term_stats',
+		'openstation_my_wordpress_term_stats',
 		$payload,
 		$taxonomy,
 		$term_id

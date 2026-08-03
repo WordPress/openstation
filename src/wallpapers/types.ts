@@ -181,7 +181,7 @@ interface WallpaperDefBase {
 	 * card under the picker grid.
 	 *
 	 * Server-registered wallpapers can pass `description` to
-	 * `open_station_register_wallpaper()` instead — the shell overlays
+	 * `openstation_register_wallpaper()` instead — the shell overlays
 	 * it onto the def if the JS side didn't set one.
 	 */
 	description?: string;

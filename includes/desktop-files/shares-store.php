@@ -37,20 +37,20 @@ defined( 'ABSPATH' ) || exit;
  *   - The client suppresses every share UI surface.
  *
  * Plugins can short-circuit via the
- * `open_station_files_sharing_enabled_for` filter (e.g. force-off
+ * `openstation_files_sharing_enabled_for` filter (e.g. force-off
  * on a multisite subsite, gate by capability, etc.).
  *
  * @param int $user_id Viewer id. `0` is treated as disabled.
  * @return bool
  */
-function open_station_files_sharing_enabled_for( $user_id ) {
+function openstation_files_sharing_enabled_for( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
 	}
 	$enabled = true;
-	if ( function_exists( 'open_station_get_os_settings' ) ) {
-		$settings = open_station_get_os_settings( $user_id );
+	if ( function_exists( 'openstation_get_os_settings' ) ) {
+		$settings = openstation_get_os_settings( $user_id );
 		$enabled  = ! empty( $settings['foldersSharingEnabled'] );
 	}
 	/**
@@ -59,18 +59,18 @@ function open_station_files_sharing_enabled_for( $user_id ) {
 	 * @param bool $enabled Default reads from OS Settings.
 	 * @param int  $user_id Viewer.
 	 */
-	return (bool) apply_filters( 'open_station_files_sharing_enabled_for', $enabled, $user_id );
+	return (bool) apply_filters( 'openstation_files_sharing_enabled_for', $enabled, $user_id );
 }
 
 /** Allowed principal-type values. */
-function open_station_files_share_principal_types() {
+function openstation_files_share_principal_types() {
 	return array( 'user', 'role' );
 }
 
 /**
  * Target types that support sharing. The shares table carries a
  * `target_type` column on every row; this filter declares which
- * values the framework will accept on `open_station_share_invite`
+ * values the framework will accept on `openstation_share_invite`
  * + friends.
  *
  * Default ships with `'folder'`. A plugin that wants to add
@@ -78,11 +78,11 @@ function open_station_files_share_principal_types() {
  * an owner resolver:
  *
  * ```php
- * add_filter( 'open_station_files_shareable_types', function ( $types ) {
+ * add_filter( 'openstation_files_shareable_types', function ( $types ) {
  *     $types[] = 'post';
  *     return $types;
  * } );
- * add_filter( 'open_station_files_share_target_owner', function ( $owner_id, $type, $ref ) {
+ * add_filter( 'openstation_files_share_target_owner', function ( $owner_id, $type, $ref ) {
  *     if ( 'post' === $type ) {
  *         return (int) get_post_field( 'post_author', (int) $ref );
  *     }
@@ -97,14 +97,14 @@ function open_station_files_share_principal_types() {
  *
  * @return string[]
  */
-function open_station_files_shareable_types() {
+function openstation_files_shareable_types() {
 	/**
 	 * Filter the list of target types that support sharing.
 	 *
 	 * @param string[] $types Default `[ 'folder', 'file' ]` ('file'
 	 *                        = stored uploads).
 	 */
-	$types = (array) apply_filters( 'open_station_files_shareable_types', array( 'folder', 'file' ) );
+	$types = (array) apply_filters( 'openstation_files_shareable_types', array( 'folder', 'file' ) );
 	return array_values( array_unique( array_filter( array_map( 'strval', $types ) ) ) );
 }
 
@@ -119,15 +119,15 @@ function open_station_files_shareable_types() {
  *                            use slugs).
  * @return int Owner user id, or 0 if unknown.
  */
-function open_station_files_share_target_owner( $target_type, $target_id ) {
+function openstation_files_share_target_owner( $target_type, $target_id ) {
 	$owner = 0;
 	if ( 'folder' === $target_type ) {
-		$folder = open_station_files_get_folder( (int) $target_id );
+		$folder = openstation_files_get_folder( (int) $target_id );
 		if ( $folder ) {
 			$owner = (int) $folder['owner_id'];
 		}
-	} elseif ( 'file' === $target_type && function_exists( 'open_station_stored_files_get' ) ) {
-		$file = open_station_stored_files_get( (int) $target_id );
+	} elseif ( 'file' === $target_type && function_exists( 'openstation_stored_files_get' ) ) {
+		$file = openstation_stored_files_get( (int) $target_id );
 		if ( $file ) {
 			$owner = (int) $file['owner_id'];
 		}
@@ -139,28 +139,28 @@ function open_station_files_share_target_owner( $target_type, $target_id ) {
 	 * @param string $target_type Target type slug.
 	 * @param string $target_id   Target id.
 	 */
-	return (int) apply_filters( 'open_station_files_share_target_owner', $owner, (string) $target_type, (string) $target_id );
+	return (int) apply_filters( 'openstation_files_share_target_owner', $owner, (string) $target_type, (string) $target_id );
 }
 
 /** Allowed capability values. */
-function open_station_files_share_capabilities() {
+function openstation_files_share_capabilities() {
 	return array( 'read', 'write' );
 }
 
 /** Allowed state values. */
-function open_station_files_share_states() {
+function openstation_files_share_states() {
 	return array( 'pending', 'accepted', 'denied' );
 }
 
 /**
  * Roles eligible to appear in the share picker. Defaults to every
  * role on the site that carries `edit_posts`. Plugins can override
- * via the `open_station_files_share_eligible_roles` filter — site
+ * via the `openstation_files_share_eligible_roles` filter — site
  * owners typically use this to whitelist a custom team role.
  *
  * @return array<int, array{ slug:string, name:string }>
  */
-function open_station_files_share_eligible_roles() {
+function openstation_files_share_eligible_roles() {
 	$out   = array();
 	$roles = wp_roles();
 	if ( $roles && is_array( $roles->roles ) ) {
@@ -179,7 +179,7 @@ function open_station_files_share_eligible_roles() {
 	 *
 	 * @param array<int, array{ slug:string, name:string }> $roles Default = roles with `edit_posts`.
 	 */
-	$out = (array) apply_filters( 'open_station_files_share_eligible_roles', $out );
+	$out = (array) apply_filters( 'openstation_files_share_eligible_roles', $out );
 	return $out;
 }
 
@@ -192,8 +192,8 @@ function open_station_files_share_eligible_roles() {
  * @param int $user_id   Viewer.
  * @return bool
  */
-function open_station_files_share_can_manage( $folder_id, $user_id ) {
-	$folder = open_station_files_get_folder( (int) $folder_id );
+function openstation_files_share_can_manage( $folder_id, $user_id ) {
+	$folder = openstation_files_get_folder( (int) $folder_id );
 	$can    = $folder && (int) $folder['owner_id'] === (int) $user_id;
 	/**
 	 * Filter who can manage a folder's share rules.
@@ -203,7 +203,7 @@ function open_station_files_share_can_manage( $folder_id, $user_id ) {
 	 * @param int        $user_id   Viewer.
 	 * @param array|null $folder    Normalized folder row (null when missing).
 	 */
-	return (bool) apply_filters( 'open_station_files_share_can_manage', $can, (int) $folder_id, (int) $user_id, $folder );
+	return (bool) apply_filters( 'openstation_files_share_can_manage', $can, (int) $folder_id, (int) $user_id, $folder );
 }
 
 /**
@@ -214,7 +214,7 @@ function open_station_files_share_can_manage( $folder_id, $user_id ) {
  * @param array $row Raw wpdb row.
  * @return array
  */
-function open_station_files_normalize_share_row( $row ) {
+function openstation_files_normalize_share_row( $row ) {
 	return array(
 		'id'             => (int) $row['id'],
 		// `target_type` defaults to 'folder' for rows that predate
@@ -243,9 +243,9 @@ function open_station_files_normalize_share_row( $row ) {
  * @param int $share_id Share id.
  * @return array|null
  */
-function open_station_files_get_share( $share_id ) {
+function openstation_files_get_share( $share_id ) {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$row    = $wpdb->get_row(
 		$wpdb->prepare( "SELECT * FROM {$tables['shares']} WHERE id = %d", (int) $share_id ),
 		ARRAY_A
@@ -253,7 +253,7 @@ function open_station_files_get_share( $share_id ) {
 	if ( ! $row ) {
 		return null;
 	}
-	return open_station_files_normalize_share_row( $row );
+	return openstation_files_normalize_share_row( $row );
 }
 
 /**
@@ -262,9 +262,9 @@ function open_station_files_get_share( $share_id ) {
  * @param int $folder_id Folder id.
  * @return array[]
  */
-function open_station_files_get_folder_shares( $folder_id ) {
+function openstation_files_get_folder_shares( $folder_id ) {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d ORDER BY invited_at_ms ASC, id ASC",
@@ -274,7 +274,7 @@ function open_station_files_get_folder_shares( $folder_id ) {
 	);
 	$out = array();
 	foreach ( (array) $rows as $row ) {
-		$out[] = open_station_files_normalize_share_row( $row );
+		$out[] = openstation_files_normalize_share_row( $row );
 	}
 	return $out;
 }
@@ -289,7 +289,7 @@ function open_station_files_get_folder_shares( $folder_id ) {
  * @param string $capability     'read' | 'write'.
  * @return int|WP_Error Share id on success.
  */
-function open_station_folder_share_invite( $folder_id, $actor_id, $principal_type, $principal_ref, $capability = 'read' ) {
+function openstation_folder_share_invite( $folder_id, $actor_id, $principal_type, $principal_ref, $capability = 'read' ) {
 	global $wpdb;
 	$folder_id      = (int) $folder_id;
 	$actor_id       = (int) $actor_id;
@@ -297,14 +297,14 @@ function open_station_folder_share_invite( $folder_id, $actor_id, $principal_typ
 	$principal_ref  = (string) $principal_ref;
 	$capability     = (string) $capability;
 
-	if ( ! in_array( $principal_type, open_station_files_share_principal_types(), true ) ) {
-		return new WP_Error( 'open_station_files_invalid_principal_type', __( 'Invalid principal type.', 'desktop-mode' ), array( 'status' => 400 ) );
+	if ( ! in_array( $principal_type, openstation_files_share_principal_types(), true ) ) {
+		return new WP_Error( 'openstation_files_invalid_principal_type', __( 'Invalid principal type.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	if ( ! in_array( $capability, open_station_files_share_capabilities(), true ) ) {
-		return new WP_Error( 'open_station_files_invalid_capability', __( 'Invalid capability.', 'desktop-mode' ), array( 'status' => 400 ) );
+	if ( ! in_array( $capability, openstation_files_share_capabilities(), true ) ) {
+		return new WP_Error( 'openstation_files_invalid_capability', __( 'Invalid capability.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	if ( ! open_station_files_share_can_manage( $folder_id, $actor_id ) ) {
-		return new WP_Error( 'open_station_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_files_share_can_manage( $folder_id, $actor_id ) ) {
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
 	// Eligibility gate. Users must have `edit_posts`; roles must
@@ -314,30 +314,30 @@ function open_station_folder_share_invite( $folder_id, $actor_id, $principal_typ
 	if ( 'user' === $principal_type ) {
 		$uid = (int) $principal_ref;
 		if ( $uid <= 0 ) {
-			return new WP_Error( 'open_station_files_invalid_user', __( 'Invalid user id.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'openstation_files_invalid_user', __( 'Invalid user id.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 		$user = get_userdata( $uid );
 		if ( ! $user ) {
-			return new WP_Error( 'open_station_files_unknown_user', __( 'Unknown user.', 'desktop-mode' ), array( 'status' => 404 ) );
+			return new WP_Error( 'openstation_files_unknown_user', __( 'Unknown user.', 'desktop-mode' ), array( 'status' => 404 ) );
 		}
-		$folder    = open_station_files_get_folder( $folder_id );
+		$folder    = openstation_files_get_folder( $folder_id );
 		$owner_id  = $folder ? (int) $folder['owner_id'] : 0;
 		if ( $uid === $owner_id ) {
-			return new WP_Error( 'open_station_files_share_owner', __( 'You cannot share with the folder owner.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'openstation_files_share_owner', __( 'You cannot share with the folder owner.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 		if ( ! user_can( $user, 'edit_posts' ) ) {
-			return new WP_Error( 'open_station_files_ineligible_principal', __( 'This user is not eligible.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'openstation_files_ineligible_principal', __( 'This user is not eligible.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 		$principal_ref = (string) $uid;
 	} else {
-		$eligible = wp_list_pluck( open_station_files_share_eligible_roles(), 'slug' );
+		$eligible = wp_list_pluck( openstation_files_share_eligible_roles(), 'slug' );
 		if ( ! in_array( $principal_ref, $eligible, true ) ) {
-			return new WP_Error( 'open_station_files_ineligible_role', __( 'This role is not eligible.', 'desktop-mode' ), array( 'status' => 400 ) );
+			return new WP_Error( 'openstation_files_ineligible_role', __( 'This role is not eligible.', 'desktop-mode' ), array( 'status' => 400 ) );
 		}
 	}
 
-	$tables = open_station_files_table_names();
-	$now    = open_station_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 
 	// Idempotent invite: a pre-existing row with state='denied'
 	// becomes 'pending' again (owner re-inviting after a no);
@@ -369,7 +369,7 @@ function open_station_folder_share_invite( $folder_id, $actor_id, $principal_typ
 			$fmt[]                = '%s';
 		}
 		$wpdb->update( $tables['shares'], $set, array( 'id' => $id ), $fmt, array( '%d' ) );
-		$row = open_station_files_get_share( $id );
+		$row = openstation_files_get_share( $id );
 	} else {
 		$ok = $wpdb->insert(
 			$tables['shares'],
@@ -386,13 +386,13 @@ function open_station_folder_share_invite( $folder_id, $actor_id, $principal_typ
 			array( '%s', '%d', '%s', '%s', '%s', '%s', '%d', '%d' )
 		);
 		if ( false === $ok ) {
-			return new WP_Error( 'open_station_files_share_insert_failed', __( 'Failed to record share.', 'desktop-mode' ), array( 'status' => 500 ) );
+			return new WP_Error( 'openstation_files_share_insert_failed', __( 'Failed to record share.', 'desktop-mode' ), array( 'status' => 500 ) );
 		}
 		$id  = (int) $wpdb->insert_id;
-		$row = open_station_files_get_share( $id );
+		$row = openstation_files_get_share( $id );
 	}
 
-	open_station_files_bump_folder_updated_at( $folder_id );
+	openstation_files_bump_folder_updated_at( $folder_id );
 
 	/**
 	 * Fires after a share is invited (or re-invited).
@@ -401,7 +401,7 @@ function open_station_folder_share_invite( $folder_id, $actor_id, $principal_typ
 	 * @param array $row      Share row.
 	 * @param int   $actor_id Acting user.
 	 */
-	do_action( 'open_station_files_share_invited', $id, $row, $actor_id );
+	do_action( 'openstation_files_share_invited', $id, $row, $actor_id );
 
 	return $id;
 }
@@ -413,25 +413,25 @@ function open_station_folder_share_invite( $folder_id, $actor_id, $principal_typ
  * @param int $actor_id Actor.
  * @return true|WP_Error
  */
-function open_station_folder_share_revoke( $share_id, $actor_id ) {
+function openstation_folder_share_revoke( $share_id, $actor_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
 	$actor_id = (int) $actor_id;
-	$row      = open_station_files_get_share( $share_id );
+	$row      = openstation_files_get_share( $share_id );
 	if ( ! $row ) {
-		return new WP_Error( 'open_station_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	if ( ! open_station_files_share_can_manage( $row['folder_id'], $actor_id ) ) {
-		return new WP_Error( 'open_station_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_files_share_can_manage( $row['folder_id'], $actor_id ) ) {
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$wpdb->delete( $tables['shares'], array( 'id' => $share_id ), array( '%d' ) );
 	// Drop any per-user decision rows attached to this share so
 	// they don't leak past the row deletion.
 	$wpdb->delete( $tables['decisions'], array( 'share_id' => $share_id ), array( '%d' ) );
 
-	open_station_files_bump_folder_updated_at( $row['folder_id'] );
+	openstation_files_bump_folder_updated_at( $row['folder_id'] );
 
 	// Scrub recipient's local view. For user-principal grants
 	// that's the single recipient; for role-principal grants we
@@ -441,7 +441,7 @@ function open_station_folder_share_revoke( $share_id, $actor_id ) {
 	if ( 'user' === $row['principal_type'] && 'accepted' === $row['state'] ) {
 		$uid = (int) $row['principal_ref'];
 		if ( $uid > 0 ) {
-			open_station_files_trash_folder_for_user( $row['folder_id'], $uid );
+			openstation_files_trash_folder_for_user( $row['folder_id'], $uid );
 		}
 	} elseif ( 'role' === $row['principal_type'] ) {
 		$decided_users = $wpdb->get_col(
@@ -451,7 +451,7 @@ function open_station_folder_share_revoke( $share_id, $actor_id ) {
 			)
 		);
 		foreach ( (array) $decided_users as $uid ) {
-			open_station_files_trash_folder_for_user( $row['folder_id'], (int) $uid );
+			openstation_files_trash_folder_for_user( $row['folder_id'], (int) $uid );
 		}
 	}
 
@@ -462,7 +462,7 @@ function open_station_folder_share_revoke( $share_id, $actor_id ) {
 	 * @param array $row      Share row (last-known state).
 	 * @param int   $actor_id Acting user.
 	 */
-	do_action( 'open_station_files_share_revoked', $share_id, $row, $actor_id );
+	do_action( 'openstation_files_share_revoked', $share_id, $row, $actor_id );
 
 	return true;
 }
@@ -475,29 +475,29 @@ function open_station_folder_share_revoke( $share_id, $actor_id ) {
  * @param string $capability New capability.
  * @return true|WP_Error
  */
-function open_station_folder_share_update_capability( $share_id, $actor_id, $capability ) {
+function openstation_folder_share_update_capability( $share_id, $actor_id, $capability ) {
 	global $wpdb;
 	$share_id   = (int) $share_id;
 	$actor_id   = (int) $actor_id;
 	$capability = (string) $capability;
 
-	if ( ! in_array( $capability, open_station_files_share_capabilities(), true ) ) {
-		return new WP_Error( 'open_station_files_invalid_capability', __( 'Invalid capability.', 'desktop-mode' ), array( 'status' => 400 ) );
+	if ( ! in_array( $capability, openstation_files_share_capabilities(), true ) ) {
+		return new WP_Error( 'openstation_files_invalid_capability', __( 'Invalid capability.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	$row = open_station_files_get_share( $share_id );
+	$row = openstation_files_get_share( $share_id );
 	if ( ! $row ) {
-		return new WP_Error( 'open_station_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	if ( ! open_station_files_share_can_manage( $row['folder_id'], $actor_id ) ) {
-		return new WP_Error( 'open_station_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_files_share_can_manage( $row['folder_id'], $actor_id ) ) {
+		return new WP_Error( 'openstation_files_forbidden', __( 'You cannot manage shares for this folder.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
 
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$wpdb->update( $tables['shares'], array( 'capability' => $capability ), array( 'id' => $share_id ), array( '%s' ), array( '%d' ) );
 
-	open_station_files_bump_folder_updated_at( $row['folder_id'] );
+	openstation_files_bump_folder_updated_at( $row['folder_id'] );
 
-	$next = open_station_files_get_share( $share_id );
+	$next = openstation_files_get_share( $share_id );
 
 	/**
 	 * Fires after a share's capability is changed.
@@ -507,7 +507,7 @@ function open_station_folder_share_update_capability( $share_id, $actor_id, $cap
 	 * @param array $prev     Row before.
 	 * @param int   $actor_id Acting user.
 	 */
-	do_action( 'open_station_files_share_capability_changed', $share_id, $next, $row, $actor_id );
+	do_action( 'openstation_files_share_capability_changed', $share_id, $next, $row, $actor_id );
 
 	return true;
 }
@@ -521,9 +521,9 @@ function open_station_folder_share_update_capability( $share_id, $actor_id, $cap
  * @param int $user_id  User.
  * @return array|null Normalized decision row or null.
  */
-function open_station_files_get_user_decision( $share_id, $user_id ) {
+function openstation_files_get_user_decision( $share_id, $user_id ) {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$row    = $wpdb->get_row(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['decisions']} WHERE share_id = %d AND user_id = %d",
@@ -553,10 +553,10 @@ function open_station_files_get_user_decision( $share_id, $user_id ) {
  * @param int    $user_id  User.
  * @param string $state    'pending' | 'accepted' | 'denied'.
  */
-function open_station_files_upsert_user_decision( $share_id, $user_id, $state ) {
+function openstation_files_upsert_user_decision( $share_id, $user_id, $state ) {
 	global $wpdb;
-	$tables = open_station_files_table_names();
-	$now    = open_station_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 	$wpdb->query(
 		$wpdb->prepare(
 			"INSERT INTO {$tables['decisions']}
@@ -582,12 +582,12 @@ function open_station_files_upsert_user_decision( $share_id, $user_id, $state ) 
  * @param int   $user_id   Viewer.
  * @return string 'pending' | 'accepted' | 'denied'
  */
-function open_station_files_share_user_state( $share_row, $user_id ) {
+function openstation_files_share_user_state( $share_row, $user_id ) {
 	if ( 'user' === $share_row['principal_type'] ) {
 		return (string) $share_row['state'];
 	}
 	if ( 'role' === $share_row['principal_type'] ) {
-		$dec = open_station_files_get_user_decision( (int) $share_row['id'], (int) $user_id );
+		$dec = openstation_files_get_user_decision( (int) $share_row['id'], (int) $user_id );
 		if ( $dec ) {
 			return (string) $dec['state'];
 		}
@@ -604,27 +604,27 @@ function open_station_files_share_user_state( $share_row, $user_id ) {
  * @param int $user_id  Acting user (must be the share's principal).
  * @return array|WP_Error Share row on success.
  */
-function open_station_folder_share_accept( $share_id, $user_id ) {
+function openstation_folder_share_accept( $share_id, $user_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
 	$user_id  = (int) $user_id;
-	$row      = open_station_files_get_share( $share_id );
+	$row      = openstation_files_get_share( $share_id );
 	if ( ! $row || 'folder' !== $row['target_type'] ) {
-		return new WP_Error( 'open_station_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	if ( ! open_station_files_share_principal_matches_user( $row, $user_id ) ) {
-		return new WP_Error( 'open_station_files_share_not_recipient', __( 'This invite is not for you.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_files_share_principal_matches_user( $row, $user_id ) ) {
+		return new WP_Error( 'openstation_files_share_not_recipient', __( 'This invite is not for you.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
-	$state = open_station_files_share_user_state( $row, $user_id );
+	$state = openstation_files_share_user_state( $row, $user_id );
 	if ( 'accepted' === $state ) {
 		return $row;
 	}
 	if ( 'denied' === $state && 'user' === $row['principal_type'] ) {
-		return new WP_Error( 'open_station_files_share_already_denied', __( 'This invite was denied.', 'desktop-mode' ), array( 'status' => 410 ) );
+		return new WP_Error( 'openstation_files_share_already_denied', __( 'This invite was denied.', 'desktop-mode' ), array( 'status' => 410 ) );
 	}
 
-	$tables = open_station_files_table_names();
-	$now    = open_station_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 
 	if ( 'user' === $row['principal_type'] ) {
 		$wpdb->update(
@@ -635,16 +635,16 @@ function open_station_folder_share_accept( $share_id, $user_id ) {
 			array( '%d' )
 		);
 	} else {
-		open_station_files_upsert_user_decision( $share_id, $user_id, 'accepted' );
+		openstation_files_upsert_user_decision( $share_id, $user_id, 'accepted' );
 	}
 
-	open_station_files_bump_folder_updated_at( $row['folder_id'] );
+	openstation_files_bump_folder_updated_at( $row['folder_id'] );
 
 	// Place the folder on the recipient's desktop root.
-	$parent_id = (int) apply_filters( 'open_station_folder_share_accept_default_parent', 0, $row['folder_id'], $user_id, $row );
-	open_station_files_place_at_next_free_slot( $user_id, $parent_id, 'folder', (string) $row['folder_id'] );
+	$parent_id = (int) apply_filters( 'openstation_folder_share_accept_default_parent', 0, $row['folder_id'], $user_id, $row );
+	openstation_files_place_at_next_free_slot( $user_id, $parent_id, 'folder', (string) $row['folder_id'] );
 
-	$next = open_station_files_get_share( $share_id );
+	$next = openstation_files_get_share( $share_id );
 
 	/**
 	 * Fires after a share is accepted by its recipient.
@@ -653,7 +653,7 @@ function open_station_folder_share_accept( $share_id, $user_id ) {
 	 * @param array $row      Updated share row.
 	 * @param int   $user_id  Acting user (recipient).
 	 */
-	do_action( 'open_station_files_share_accepted', $share_id, $next, $user_id );
+	do_action( 'openstation_files_share_accepted', $share_id, $next, $user_id );
 
 	return $next;
 }
@@ -665,24 +665,24 @@ function open_station_folder_share_accept( $share_id, $user_id ) {
  * @param int $user_id  Recipient.
  * @return array|WP_Error Share row on success.
  */
-function open_station_folder_share_deny( $share_id, $user_id ) {
+function openstation_folder_share_deny( $share_id, $user_id ) {
 	global $wpdb;
 	$share_id = (int) $share_id;
 	$user_id  = (int) $user_id;
-	$row      = open_station_files_get_share( $share_id );
+	$row      = openstation_files_get_share( $share_id );
 	if ( ! $row || 'folder' !== $row['target_type'] ) {
-		return new WP_Error( 'open_station_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_share_not_found', __( 'Share not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
-	if ( ! open_station_files_share_principal_matches_user( $row, $user_id ) ) {
-		return new WP_Error( 'open_station_files_share_not_recipient', __( 'This invite is not for you.', 'desktop-mode' ), array( 'status' => 403 ) );
+	if ( ! openstation_files_share_principal_matches_user( $row, $user_id ) ) {
+		return new WP_Error( 'openstation_files_share_not_recipient', __( 'This invite is not for you.', 'desktop-mode' ), array( 'status' => 403 ) );
 	}
-	$state = open_station_files_share_user_state( $row, $user_id );
+	$state = openstation_files_share_user_state( $row, $user_id );
 	if ( 'denied' === $state ) {
 		return $row;
 	}
 
-	$tables = open_station_files_table_names();
-	$now    = open_station_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 
 	if ( 'user' === $row['principal_type'] ) {
 		$wpdb->update(
@@ -694,20 +694,20 @@ function open_station_folder_share_deny( $share_id, $user_id ) {
 		);
 	} else {
 		// Role-principal: per-user decision keeps other role members untouched.
-		open_station_files_upsert_user_decision( $share_id, $user_id, 'denied' );
+		openstation_files_upsert_user_decision( $share_id, $user_id, 'denied' );
 	}
 
-	open_station_files_bump_folder_updated_at( $row['folder_id'] );
+	openstation_files_bump_folder_updated_at( $row['folder_id'] );
 
 	// If the recipient had previously accepted and is now denying
 	// (e.g. they hit deny on a placeholder they already opened),
 	// scrub their local placement too. Works for BOTH user- and
 	// role-principals since the trash helper is user-scoped.
 	if ( 'accepted' === $state ) {
-		open_station_files_trash_folder_for_user( $row['folder_id'], $user_id );
+		openstation_files_trash_folder_for_user( $row['folder_id'], $user_id );
 	}
 
-	$next = open_station_files_get_share( $share_id );
+	$next = openstation_files_get_share( $share_id );
 
 	/**
 	 * Fires after a share is denied.
@@ -716,7 +716,7 @@ function open_station_folder_share_deny( $share_id, $user_id ) {
 	 * @param array $row      Updated share row.
 	 * @param int   $user_id  Acting user (recipient).
 	 */
-	do_action( 'open_station_files_share_denied', $share_id, $next, $user_id );
+	do_action( 'openstation_files_share_denied', $share_id, $next, $user_id );
 
 	return $next;
 }
@@ -731,25 +731,25 @@ function open_station_folder_share_deny( $share_id, $user_id ) {
  * @param int $user_id   Recipient leaving.
  * @return true|WP_Error
  */
-function open_station_folder_share_leave( $folder_id, $user_id ) {
+function openstation_folder_share_leave( $folder_id, $user_id ) {
 	global $wpdb;
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
 	if ( $folder_id <= 0 || $user_id <= 0 ) {
-		return new WP_Error( 'open_station_files_bad_request', __( 'Invalid arguments.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'openstation_files_bad_request', __( 'Invalid arguments.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
-	$folder = open_station_files_get_folder( $folder_id );
+	$folder = openstation_files_get_folder( $folder_id );
 	if ( ! $folder ) {
-		return new WP_Error( 'open_station_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_not_found', __( 'Folder not found.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	if ( (int) $folder['owner_id'] === $user_id ) {
-		return new WP_Error( 'open_station_files_owner_cannot_leave', __( 'Owners cannot leave their own folder.', 'desktop-mode' ), array( 'status' => 400 ) );
+		return new WP_Error( 'openstation_files_owner_cannot_leave', __( 'Owners cannot leave their own folder.', 'desktop-mode' ), array( 'status' => 400 ) );
 	}
 
 	$user  = get_userdata( $user_id );
 	$roles = $user ? (array) $user->roles : array();
 
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT * FROM {$tables['shares']} WHERE target_type = 'folder' AND folder_id = %d",
@@ -759,20 +759,20 @@ function open_station_folder_share_leave( $folder_id, $user_id ) {
 	);
 	$touched = 0;
 	foreach ( (array) $rows as $raw ) {
-		$row = open_station_files_normalize_share_row( $raw );
-		if ( ! open_station_files_share_principal_matches_user( $row, $user_id ) ) {
+		$row = openstation_files_normalize_share_row( $raw );
+		if ( ! openstation_files_share_principal_matches_user( $row, $user_id ) ) {
 			continue;
 		}
 		if ( 'user' === $row['principal_type'] ) {
 			$wpdb->update(
 				$tables['shares'],
-				array( 'state' => 'denied', 'decided_at_ms' => open_station_files_now_ms() ),
+				array( 'state' => 'denied', 'decided_at_ms' => openstation_files_now_ms() ),
 				array( 'id' => $row['id'] ),
 				array( '%s', '%d' ),
 				array( '%d' )
 			);
 		} else {
-			open_station_files_upsert_user_decision( $row['id'], $user_id, 'denied' );
+			openstation_files_upsert_user_decision( $row['id'], $user_id, 'denied' );
 		}
 		$touched++;
 		/**
@@ -784,17 +784,17 @@ function open_station_folder_share_leave( $folder_id, $user_id ) {
 		 * @param array $row      Share row (last-known).
 		 * @param int   $user_id  Recipient leaving.
 		 */
-		do_action( 'open_station_files_share_left', $row['id'], $row, $user_id );
+		do_action( 'openstation_files_share_left', $row['id'], $row, $user_id );
 	}
 
 	// Scrub the recipient's view regardless of whether a share row
 	// matched (the user might have a placement from a previously
 	// revoked share that lingered).
-	open_station_files_trash_folder_for_user( $folder_id, $user_id );
-	open_station_files_bump_folder_updated_at( $folder_id );
+	openstation_files_trash_folder_for_user( $folder_id, $user_id );
+	openstation_files_bump_folder_updated_at( $folder_id );
 
 	if ( 0 === $touched ) {
-		return new WP_Error( 'open_station_files_not_member', __( 'You do not have access to this folder.', 'desktop-mode' ), array( 'status' => 404 ) );
+		return new WP_Error( 'openstation_files_not_member', __( 'You do not have access to this folder.', 'desktop-mode' ), array( 'status' => 404 ) );
 	}
 	return true;
 }
@@ -808,7 +808,7 @@ function open_station_folder_share_leave( $folder_id, $user_id ) {
  * @param int   $user_id   User to test.
  * @return bool
  */
-function open_station_files_share_principal_matches_user( $share_row, $user_id ) {
+function openstation_files_share_principal_matches_user( $share_row, $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return false;
@@ -835,14 +835,14 @@ function open_station_files_share_principal_matches_user( $share_row, $user_id )
  * @param int $user_id   Viewer.
  * @return string 'none' | 'read' | 'write'
  */
-function open_station_folder_share_user_capability( $folder_id, $user_id ) {
+function openstation_folder_share_user_capability( $folder_id, $user_id ) {
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
 	if ( $folder_id <= 0 || $user_id <= 0 ) {
 		return 'none';
 	}
 
-	$folder = open_station_files_get_folder( $folder_id );
+	$folder = openstation_files_get_folder( $folder_id );
 	if ( ! $folder ) {
 		return 'none';
 	}
@@ -853,7 +853,7 @@ function open_station_folder_share_user_capability( $folder_id, $user_id ) {
 	// Cascade — walk the folder's ancestor chain. A folder nested
 	// inside a shared folder inherits the share. The most permissive
 	// ancestor cap wins. Bail out as soon as we hit 'write'.
-	$cascade_cap = open_station_folder_share_user_capability_cascade( $folder_id, $user_id );
+	$cascade_cap = openstation_folder_share_user_capability_cascade( $folder_id, $user_id );
 	if ( 'write' === $cascade_cap ) {
 		return 'write';
 	}
@@ -867,7 +867,7 @@ function open_station_folder_share_user_capability( $folder_id, $user_id ) {
 		 * @param int    $folder_id Folder id.
 		 * @param int    $user_id   Viewer.
 		 */
-		$cap = (string) apply_filters( 'open_station_files_share_all_default_capability', 'read', $folder_id, $user_id );
+		$cap = (string) apply_filters( 'openstation_files_share_all_default_capability', 'read', $folder_id, $user_id );
 	}
 
 	$user_roles = array();
@@ -877,7 +877,7 @@ function open_station_folder_share_user_capability( $folder_id, $user_id ) {
 	}
 
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	// User-principal grants — state lives on the shares row.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
@@ -937,13 +937,13 @@ function open_station_folder_share_user_capability( $folder_id, $user_id ) {
 	 * @param int    $user_id   Viewer.
 	 * @param array  $folder    Normalized folder row.
 	 */
-	return (string) apply_filters( 'open_station_folder_share_user_capability', $cap, $folder_id, $user_id, $folder );
+	return (string) apply_filters( 'openstation_folder_share_user_capability', $cap, $folder_id, $user_id, $folder );
 }
 
 /**
  * Walk the ancestor chain of `$folder_id` and return the most
  * permissive DIRECT share cap any ancestor has for `$user_id`.
- * Used by `open_station_folder_share_user_capability` to cascade
+ * Used by `openstation_folder_share_user_capability` to cascade
  * a share grant from a parent folder into every folder nested
  * inside it.
  *
@@ -963,15 +963,15 @@ function open_station_folder_share_user_capability( $folder_id, $user_id ) {
  * @param int $user_id   Viewer.
  * @return string 'none' | 'read' | 'write'
  */
-function open_station_folder_share_user_capability_cascade( $folder_id, $user_id ) {
+function openstation_folder_share_user_capability_cascade( $folder_id, $user_id ) {
 	$user_id   = (int) $user_id;
-	$ancestors = open_station_folder_ancestors( (int) $folder_id );
+	$ancestors = openstation_folder_ancestors( (int) $folder_id );
 	if ( empty( $ancestors ) || $user_id <= 0 ) {
 		return 'none';
 	}
 
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 
 	// Coerce + dedupe to keep the IN clause small and safe to
 	// interpolate. Every value is an int by the time it lands
@@ -994,7 +994,7 @@ function open_station_folder_share_user_capability_cascade( $folder_id, $user_id
 		}
 		if ( 'all' === $f['share_mode'] ) {
 			$all_cap = (string) apply_filters(
-				'open_station_files_share_all_default_capability',
+				'openstation_files_share_all_default_capability',
 				'read',
 				(int) $f['id'],
 				$user_id
@@ -1069,24 +1069,24 @@ function open_station_folder_share_user_capability_cascade( $folder_id, $user_id
 
 /**
  * Direct (non-cascading) capability resolver. Same logic as
- * `open_station_folder_share_user_capability` minus the cascade
+ * `openstation_folder_share_user_capability` minus the cascade
  * walk — owner / share rows / role decisions only.
  *
  * Currently uncalled: the cascade resolver
- * (`open_station_folder_share_user_capability_cascade`) resolves
+ * (`openstation_folder_share_user_capability_cascade`) resolves
  * every ancestor via three batched `IN (…)` queries instead of
  * querying ancestors one at a time. Kept as a single-folder,
  * non-cascading resolver.
  *
  * @internal
  */
-function open_station_folder_share_user_capability_direct( $folder_id, $user_id ) {
+function openstation_folder_share_user_capability_direct( $folder_id, $user_id ) {
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
 	if ( $folder_id <= 0 || $user_id <= 0 ) {
 		return 'none';
 	}
-	$folder = open_station_files_get_folder( $folder_id );
+	$folder = openstation_files_get_folder( $folder_id );
 	if ( ! $folder ) {
 		return 'none';
 	}
@@ -1095,7 +1095,7 @@ function open_station_folder_share_user_capability_direct( $folder_id, $user_id 
 	}
 	$cap = 'none';
 	if ( 'all' === $folder['share_mode'] ) {
-		$cap = (string) apply_filters( 'open_station_files_share_all_default_capability', 'read', $folder_id, $user_id );
+		$cap = (string) apply_filters( 'openstation_files_share_all_default_capability', 'read', $folder_id, $user_id );
 	}
 
 	$user_roles = array();
@@ -1105,7 +1105,7 @@ function open_station_folder_share_user_capability_direct( $folder_id, $user_id 
 	}
 
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$rows   = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT id, principal_type, principal_ref, capability FROM {$tables['shares']}
@@ -1161,13 +1161,13 @@ function open_station_folder_share_user_capability_direct( $folder_id, $user_id 
  * @param int $limit     Max ancestor count (default 16).
  * @return int[]
  */
-function open_station_folder_ancestors( $folder_id, $limit = 16 ) {
+function openstation_folder_ancestors( $folder_id, $limit = 16 ) {
 	global $wpdb;
 	$folder_id = (int) $folder_id;
 	if ( $folder_id <= 0 ) {
 		return array();
 	}
-	$tables    = open_station_files_table_names();
+	$tables    = openstation_files_table_names();
 	$ancestors = array();
 	$current   = $folder_id;
 	$visited   = array();
@@ -1177,7 +1177,7 @@ function open_station_folder_ancestors( $folder_id, $limit = 16 ) {
 			break;
 		}
 		$visited[ $current ] = true;
-		$folder = open_station_files_get_folder( $current );
+		$folder = openstation_files_get_folder( $current );
 		if ( ! $folder ) {
 			break;
 		}
@@ -1218,7 +1218,7 @@ function open_station_folder_ancestors( $folder_id, $limit = 16 ) {
  * @param int $since_ms Optional. Only include rows with `invited_at_ms > since`.
  * @return array[]
  */
-function open_station_files_get_pending_shares_for_user( $user_id, $since_ms = 0 ) {
+function openstation_files_get_pending_shares_for_user( $user_id, $since_ms = 0 ) {
 	global $wpdb;
 	$user_id  = (int) $user_id;
 	$since_ms = (int) $since_ms;
@@ -1231,7 +1231,7 @@ function open_station_files_get_pending_shares_for_user( $user_id, $since_ms = 0
 	}
 	$roles = (array) $user->roles;
 
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 
 	// User-principal: state lives on the share row. Surface where
 	// state='pending' AND principal_ref matches the user.
@@ -1278,7 +1278,7 @@ function open_station_files_get_pending_shares_for_user( $user_id, $since_ms = 0
 
 	$out = array();
 	foreach ( array_merge( (array) $user_pending, (array) $role_pending ) as $row ) {
-		$out[] = open_station_files_normalize_share_row( $row );
+		$out[] = openstation_files_normalize_share_row( $row );
 	}
 	return $out;
 }
@@ -1292,12 +1292,12 @@ function open_station_files_get_pending_shares_for_user( $user_id, $since_ms = 0
  *
  * @param int $folder_id Folder id.
  */
-function open_station_files_bump_folder_updated_at( $folder_id ) {
+function openstation_files_bump_folder_updated_at( $folder_id ) {
 	global $wpdb;
-	$tables = open_station_files_table_names();
+	$tables = openstation_files_table_names();
 	$wpdb->update(
 		$tables['folders'],
-		array( 'updated_at_ms' => open_station_files_now_ms() ),
+		array( 'updated_at_ms' => openstation_files_now_ms() ),
 		array( 'id' => (int) $folder_id ),
 		array( '%d' ),
 		array( '%d' )
@@ -1313,15 +1313,15 @@ function open_station_files_bump_folder_updated_at( $folder_id ) {
  * @param int $user_id   Recipient.
  * @return int Number of placement rows trashed.
  */
-function open_station_files_trash_folder_for_user( $folder_id, $user_id ) {
+function openstation_files_trash_folder_for_user( $folder_id, $user_id ) {
 	global $wpdb;
 	$folder_id = (int) $folder_id;
 	$user_id   = (int) $user_id;
 	if ( $folder_id <= 0 || $user_id <= 0 ) {
 		return 0;
 	}
-	$tables = open_station_files_table_names();
-	$now    = open_station_files_now_ms();
+	$tables = openstation_files_table_names();
+	$now    = openstation_files_now_ms();
 
 	// The recipient's folder-shortcut placement (parent_id=0,
 	// file_type='folder', file_ref=$folder_id) + every placement
@@ -1358,7 +1358,7 @@ function open_station_files_trash_folder_for_user( $folder_id, $user_id ) {
 		// Tombstones represent permanent removal (hard delete); the
 		// heartbeat already surfaces soft-trashed rows via the
 		// `trashed_at_ms IS NOT NULL` query in
-		// `open_station_files_compute_heartbeat_delta`. Writing a
+		// `openstation_files_compute_heartbeat_delta`. Writing a
 		// tombstone on every soft-trash conflates the two states and,
 		// when the row is later restored (e.g. the recipient re-
 		// accepts the same share), the lingering tombstone keeps
@@ -1383,7 +1383,7 @@ function open_station_files_trash_folder_for_user( $folder_id, $user_id ) {
  * @param array $row     Placement row.
  * @return bool
  */
-function open_station_files_share_gate_trash( $can, $user_id, $row ) {
+function openstation_files_share_gate_trash( $can, $user_id, $row ) {
 	$parent_id = isset( $row['parent_id'] ) ? (int) $row['parent_id'] : 0;
 	$user_id   = (int) $user_id;
 
@@ -1406,7 +1406,7 @@ function open_station_files_share_gate_trash( $can, $user_id, $row ) {
 	) {
 		$folder_ref = (int) $row['file_ref'];
 		if ( $folder_ref > 0 ) {
-			$folder_row = open_station_files_get_folder( $folder_ref );
+			$folder_row = openstation_files_get_folder( $folder_ref );
 			if (
 				$folder_row &&
 				(int) $folder_row['owner_id'] !== $user_id
@@ -1419,7 +1419,7 @@ function open_station_files_share_gate_trash( $can, $user_id, $row ) {
 				// via the leave flow (which scrubs their own
 				// placement) instead of via Move to Trash (which is
 				// reserved for the owner's destructive cascade).
-				$root_cap = open_station_folder_share_user_capability( $folder_ref, $user_id );
+				$root_cap = openstation_folder_share_user_capability( $folder_ref, $user_id );
 				if ( 'none' !== $root_cap ) {
 					return false;
 				}
@@ -1433,12 +1433,12 @@ function open_station_files_share_gate_trash( $can, $user_id, $row ) {
 		// default ownership rule stands.
 		return $can;
 	}
-	$folder = open_station_files_get_folder( $parent_id );
+	$folder = openstation_files_get_folder( $parent_id );
 	if ( ! $folder ) {
 		return $can;
 	}
 	$is_owner = (int) $folder['owner_id'] === $user_id;
-	$cap      = open_station_folder_share_user_capability( $parent_id, $user_id );
+	$cap      = openstation_folder_share_user_capability( $parent_id, $user_id );
 
 	// Folder owner can always trash anything inside their folder.
 	if ( $is_owner ) {
@@ -1450,7 +1450,7 @@ function open_station_files_share_gate_trash( $can, $user_id, $row ) {
 	// can't trash anything (even their own placement in this folder).
 	return 'write' === $cap;
 }
-add_filter( 'open_station_files_user_can_trash_placement', 'open_station_files_share_gate_trash', 10, 3 );
+add_filter( 'openstation_files_user_can_trash_placement', 'openstation_files_share_gate_trash', 10, 3 );
 
 /**
  * Inject share-related state into the shell config so the share
@@ -1460,11 +1460,11 @@ add_filter( 'open_station_files_user_can_trash_placement', 'open_station_files_s
  * @param array $config Shell config.
  * @return array
  */
-function open_station_files_share_inject_shell_config( $config ) {
+function openstation_files_share_inject_shell_config( $config ) {
 	if ( ! is_array( $config ) ) {
 		$config = array();
 	}
-	$config['shareEligibleRoles']  = open_station_files_share_eligible_roles();
+	$config['shareEligibleRoles']  = openstation_files_share_eligible_roles();
 	$config['filesUsersSearchUrl'] = esc_url_raw( rest_url( 'desktop-mode/v1/files/users/search' ) );
 	$config['folderSharesUrl']     = esc_url_raw( rest_url( 'desktop-mode/v1/files/folders' ) );
 	$user_id                       = (int) get_current_user_id();
@@ -1476,21 +1476,21 @@ function open_station_files_share_inject_shell_config( $config ) {
 	// on the first paint, so the accept/deny modal opens immediately
 	// on refresh instead of waiting for the first heartbeat tick to
 	// deliver them. Same kill-switch + shape as the heartbeat path —
-	// see `open_station_files_collect_heartbeat_delta()` for the
+	// see `openstation_files_collect_heartbeat_delta()` for the
 	// canonical builder.
 	$pending         = array();
-	$sharing_enabled = function_exists( 'open_station_files_sharing_enabled_for' )
-		? open_station_files_sharing_enabled_for( $user_id )
+	$sharing_enabled = function_exists( 'openstation_files_sharing_enabled_for' )
+		? openstation_files_sharing_enabled_for( $user_id )
 		: true;
 	if (
 		$user_id > 0 &&
 		$sharing_enabled &&
-		function_exists( 'open_station_files_get_pending_shares_for_user' )
+		function_exists( 'openstation_files_get_pending_shares_for_user' )
 	) {
-		$rows = open_station_files_get_pending_shares_for_user( $user_id, 0 );
+		$rows = openstation_files_get_pending_shares_for_user( $user_id, 0 );
 		foreach ( $rows as $row ) {
-			$shape  = open_station_files_shape_share( $row );
-			$folder = open_station_files_get_folder( $row['folder_id'] );
+			$shape  = openstation_files_shape_share( $row );
+			$folder = openstation_files_get_folder( $row['folder_id'] );
 			if ( $folder ) {
 				$shape['folderName']  = (string) $folder['name'];
 				$shape['ownerId']     = (int) $folder['owner_id'];
@@ -1505,7 +1505,7 @@ function open_station_files_share_inject_shell_config( $config ) {
 
 	return $config;
 }
-add_filter( 'open_station_shell_config', 'open_station_files_share_inject_shell_config', 20 );
+add_filter( 'openstation_shell_config', 'openstation_files_share_inject_shell_config', 20 );
 
 /**
  * Place an icon at the next free row-major slot in a user's view
@@ -1519,12 +1519,12 @@ add_filter( 'open_station_shell_config', 'open_station_files_share_inject_shell_
  * @param string $ref       Entity reference.
  * @return int|WP_Error Placement id or error.
  */
-function open_station_files_place_at_next_free_slot( $user_id, $parent_id, $type, $ref ) {
+function openstation_files_place_at_next_free_slot( $user_id, $parent_id, $type, $ref ) {
 	global $wpdb;
 	$user_id   = (int) $user_id;
 	$parent_id = max( 0, (int) $parent_id );
 
-	$tables   = open_station_files_table_names();
+	$tables   = openstation_files_table_names();
 	$existing = $wpdb->get_results(
 		$wpdb->prepare(
 			"SELECT x, y FROM {$tables['placements']}
@@ -1555,7 +1555,7 @@ function open_station_files_place_at_next_free_slot( $user_id, $parent_id, $type
 		}
 	}
 
-	return open_station_files_place(
+	return openstation_files_place(
 		$user_id,
 		$parent_id,
 		$type,

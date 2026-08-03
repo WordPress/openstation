@@ -22,13 +22,13 @@
  *     OS Settings → Features → Extended options. While off,
  *     `includes/games/bootstrap.php` skips every module file, so the
  *     framework consumes no resources at all (see
- *     `open_station_games_enabled()`).
+ *     `openstation_games_enabled()`).
  *   - agents: when true, the AI Agents framework loads — synthetic
  *     agent users, the `/desktop-mode/v1/agents` REST surface, the
  *     Agents section in My WordPress, and the Agent chat window.
  *     **Defaults to `false`** — agents are opt-IN. While off,
  *     `includes/agents/bootstrap.php` skips every module file (see
- *     `open_station_agents_enabled()`).
+ *     `openstation_agents_enabled()`).
  *
  * @package OpenStation
  */
@@ -36,7 +36,7 @@
 defined( 'ABSPATH' ) || exit;
 
 /** wp_options key for the extended options bundle. */
-const OPEN_STATION_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
+const OPENSTATION_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
 
 // ---------------------------------------------------------------------------
 // Get / save
@@ -47,13 +47,13 @@ const OPEN_STATION_EXTENDED_OPTIONS_KEY = 'desktop_mode_extended_options';
  *
  * @return array{ media_library_enhanced: bool, games: bool, agents: bool }
  */
-function open_station_get_extended_options() {
+function openstation_get_extended_options() {
 	$defaults = array(
 		'media_library_enhanced' => true,
 		'games'                  => false,
 		'agents'                 => false,
 	);
-	$raw = get_option( OPEN_STATION_EXTENDED_OPTIONS_KEY, array() );
+	$raw = get_option( OPENSTATION_EXTENDED_OPTIONS_KEY, array() );
 	if ( ! is_array( $raw ) ) {
 		return $defaults;
 	}
@@ -76,19 +76,19 @@ function open_station_get_extended_options() {
  * @param mixed $raw Incoming payload.
  * @return bool
  */
-function open_station_save_extended_options( $raw ) {
+function openstation_save_extended_options( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return false;
 	}
 	// Merge over the current values so a payload that omits a key (an
 	// older client, a partial save) can't silently reset it.
-	$clean = open_station_get_extended_options();
+	$clean = openstation_get_extended_options();
 	foreach ( $clean as $key => $current ) {
 		if ( array_key_exists( $key, $raw ) ) {
 			$clean[ $key ] = ! empty( $raw[ $key ] );
 		}
 	}
-	return update_option( OPEN_STATION_EXTENDED_OPTIONS_KEY, $clean, false );
+	return update_option( OPENSTATION_EXTENDED_OPTIONS_KEY, $clean, false );
 }
 
 // ---------------------------------------------------------------------------
@@ -98,20 +98,20 @@ function open_station_save_extended_options( $raw ) {
 /**
  * Registers the extended options REST route.
  */
-function open_station_register_extended_options_rest_routes() {
+function openstation_register_extended_options_rest_routes() {
 	register_rest_route(
 		'desktop-mode/v1',
 		'/extended-options',
 		array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => 'open_station_rest_get_extended_options',
-				'permission_callback' => 'open_station_rest_extended_options_permission',
+				'callback'            => 'openstation_rest_get_extended_options',
+				'permission_callback' => 'openstation_rest_extended_options_permission',
 			),
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => 'open_station_rest_save_extended_options',
-				'permission_callback' => 'open_station_rest_extended_options_permission',
+				'callback'            => 'openstation_rest_save_extended_options',
+				'permission_callback' => 'openstation_rest_extended_options_permission',
 				'args'                => array(
 					'options' => array(
 						'required' => true,
@@ -122,17 +122,17 @@ function open_station_register_extended_options_rest_routes() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_register_extended_options_rest_routes' );
+add_action( 'rest_api_init', 'openstation_register_extended_options_rest_routes' );
 
 /**
  * Permission: admins only.
  *
  * @return bool|WP_Error
  */
-function open_station_rest_extended_options_permission() {
+function openstation_rest_extended_options_permission() {
 	if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
 		return new WP_Error(
-			'open_station_extended_forbidden',
+			'openstation_extended_forbidden',
 			'Only administrators can manage extended options.',
 			array( 'status' => 403 )
 		);
@@ -145,8 +145,8 @@ function open_station_rest_extended_options_permission() {
  *
  * @return WP_REST_Response
  */
-function open_station_rest_get_extended_options() {
-	return rest_ensure_response( open_station_get_extended_options() );
+function openstation_rest_get_extended_options() {
+	return rest_ensure_response( openstation_get_extended_options() );
 }
 
 /**
@@ -155,10 +155,10 @@ function open_station_rest_get_extended_options() {
  * @param WP_REST_Request $request
  * @return WP_REST_Response
  */
-function open_station_rest_save_extended_options( WP_REST_Request $request ) {
+function openstation_rest_save_extended_options( WP_REST_Request $request ) {
 	$payload = $request->get_param( 'options' );
-	open_station_save_extended_options( $payload );
-	return rest_ensure_response( open_station_get_extended_options() );
+	openstation_save_extended_options( $payload );
+	return rest_ensure_response( openstation_get_extended_options() );
 }
 
 // ---------------------------------------------------------------------------
@@ -171,22 +171,22 @@ function open_station_rest_save_extended_options( WP_REST_Request $request ) {
  * loaded (it checks at runtime), so there's no harm in enqueuing
  * globally in the admin.
  */
-function open_station_enqueue_media_library_enhancement() {
+function openstation_enqueue_media_library_enhancement() {
 	if ( ! is_admin() || ! is_user_logged_in() ) {
 		return;
 	}
 
-	$options = open_station_get_extended_options();
+	$options = openstation_get_extended_options();
 	if ( empty( $options['media_library_enhanced'] ) ) {
 		return;
 	}
 
 	wp_enqueue_script(
 		'os-media-library-enhanced',
-		OPEN_STATION_URL . 'assets/js/media-library-enhanced.js',
+		OPENSTATION_URL . 'assets/js/media-library-enhanced.js',
 		array(),
-		OPEN_STATION_VERSION,
+		OPENSTATION_VERSION,
 		true
 	);
 }
-add_action( 'admin_enqueue_scripts', 'open_station_enqueue_media_library_enhancement', 20 );
+add_action( 'admin_enqueue_scripts', 'openstation_enqueue_media_library_enhancement', 20 );

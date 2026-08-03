@@ -3,8 +3,8 @@
  *
  * Mirrors `src/commands/server-sync.ts` for the settings-tab registry.
  * Plugins opt in server-side with
- * `open_station_register_settings_tab_script()` (and optionally
- * `open_station_register_settings_tab()`); this module receives the
+ * `openstation_register_settings_tab_script()` (and optionally
+ * `openstation_register_settings_tab()`); this module receives the
  * current list of registered script URLs on every live refresh and:
  *
  *   - Injects each new `scriptUrl` into the shell page via
@@ -19,7 +19,7 @@
  *          `registerSettingsTab({ …, owner: 'my-script-handle' })`.
  *       2. The id↔handle mapping captured from the *previous*
  *          `serverSettingsTabs` payload. Plugins that declare
- *          metadata via `open_station_register_settings_tab()` with a
+ *          metadata via `openstation_register_settings_tab()` with a
  *          `script` arg get this for free — no JS change required.
  *
  *     Plugins using neither mechanism keep their tabs until the next

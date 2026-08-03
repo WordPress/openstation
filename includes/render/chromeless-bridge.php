@@ -4,14 +4,14 @@
  *
  * Two cooperative pieces emitted into chromeless admin pages:
  *
- *   - `open_station_chromeless_offset_neutralizer_script()` —
+ *   - `openstation_chromeless_offset_neutralizer_script()` —
  *     runs on `admin_head @ 1` and rewrites positioned-element
  *     `top` values that match common admin-bar offsets (32px /
  *     46px) to 0 inside chromeless iframes. Catches plugins that
  *     hardcode the admin-bar height instead of using the WP CSS
  *     custom property.
  *
- *   - `open_station_chromeless_bridge_script()` — runs on
+ *   - `openstation_chromeless_bridge_script()` — runs on
  *     `admin_footer` and emits the chromeless ↔ shell bridge
  *     script that handles screen-meta detection, command-palette
  *     harvesting, plugin-changed payloads, etc. The biggest
@@ -71,8 +71,8 @@ defined( 'ABSPATH' ) || exit;
  * already ships MO, so the fallback only fires on extreme
  * outliers — but it's free insurance.
  */
-function open_station_chromeless_offset_neutralizer_script() {
-	if ( ! open_station_is_chromeless_request() ) {
+function openstation_chromeless_offset_neutralizer_script() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 
@@ -88,7 +88,7 @@ function open_station_chromeless_offset_neutralizer_script() {
 	 * @param string[] $values Default `[ '32px', '46px' ]`.
 	 */
 	$top_values = apply_filters(
-		'open_station_chromeless_admin_bar_top_values',
+		'openstation_chromeless_admin_bar_top_values',
 		array( '32px', '46px' )
 	);
 
@@ -157,10 +157,10 @@ function open_station_chromeless_offset_neutralizer_script() {
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_head', 'open_station_chromeless_offset_neutralizer_script', 1 );
+add_action( 'admin_head', 'openstation_chromeless_offset_neutralizer_script', 1 );
 
 /**
- * Short-circuit `admin.php?open_station_menu_refresh=1` requests with
+ * Short-circuit `admin.php?openstation_menu_refresh=1` requests with
  * a tiny inline-script response that postMessages the current menu
  * payload to the parent shell.
  *
@@ -190,12 +190,12 @@ add_action( 'admin_head', 'open_station_chromeless_offset_neutralizer_script', 1
  * default gear icon on a live refresh until the next full page load
  * — strictly better than today's "dock doesn't update at all."
  */
-function open_station_emit_menu_refresh_probe() {
+function openstation_emit_menu_refresh_probe() {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest; capability-gated by chromeless gate below.
-	if ( empty( $_GET['open_station_menu_refresh'] ) ) {
+	if ( empty( $_GET['openstation_menu_refresh'] ) ) {
 		return;
 	}
-	if ( ! open_station_is_chromeless_request() ) {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 	// Only short-circuit the bare `admin.php` probe — for any real
@@ -206,7 +206,7 @@ function open_station_emit_menu_refresh_probe() {
 		return;
 	}
 
-	$payload = open_station_build_menu_payload();
+	$payload = openstation_build_menu_payload();
 	$encoded = wp_json_encode( $payload );
 	if ( false === $encoded ) {
 		return;
@@ -226,7 +226,7 @@ function open_station_emit_menu_refresh_probe() {
 	echo '</body></html>';
 	exit;
 }
-add_action( 'admin_init', 'open_station_emit_menu_refresh_probe', 99 );
+add_action( 'admin_init', 'openstation_emit_menu_refresh_probe', 99 );
 
 /**
  * Outputs the chromeless screen-meta bridge script.
@@ -236,8 +236,8 @@ add_action( 'admin_init', 'open_station_emit_menu_refresh_probe', 99 );
  * via postMessage. The parent shell uses this to render matching
  * buttons in the window title bar.
  */
-function open_station_chromeless_bridge_script() {
-	if ( ! open_station_is_chromeless_request() ) {
+function openstation_chromeless_bridge_script() {
+	if ( ! openstation_is_chromeless_request() ) {
 		return;
 	}
 
@@ -246,7 +246,7 @@ function open_station_chromeless_bridge_script() {
 	 *
 	 * @param string $hook_suffix The current admin page hook suffix.
 	 */
-	do_action( 'open_station_chromeless_after', isset( $GLOBALS['hook_suffix'] ) ? $GLOBALS['hook_suffix'] : '' );
+	do_action( 'openstation_chromeless_after', isset( $GLOBALS['hook_suffix'] ) ? $GLOBALS['hook_suffix'] : '' );
 
 	// Menu payload — built from the LIVE $menu / $submenu globals
 	// populated by real admin-context bootstrapping. We capture it here
@@ -262,7 +262,7 @@ function open_station_chromeless_bridge_script() {
 	//
 	// Narrowed to the set of pages whose completion commonly mutates
 	// the admin menu (activation / deactivation / install / theme
-	// switch), plus the explicit `open_station_menu_refresh=1` signal
+	// switch), plus the explicit `openstation_menu_refresh=1` signal
 	// the shell sets when `wp.os.refreshMenu()` spawns a hidden
 	// iframe to harvest a fresh payload from real admin context.
 	// Navigating to edit.php or similar doesn't change the menu so we
@@ -271,7 +271,7 @@ function open_station_chromeless_bridge_script() {
 	// safe, just wasteful.
 	$menu_payload_json = 'null';
 	$pagenow           = isset( $GLOBALS['pagenow'] ) ? (string) $GLOBALS['pagenow'] : '';
-	$is_refresh_probe  = ! empty( $_GET['open_station_menu_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest, capability-gated by the host admin page.
+	$is_refresh_probe  = ! empty( $_GET['openstation_menu_refresh'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only payload harvest, capability-gated by the host admin page.
 	if (
 		$is_refresh_probe
 		|| in_array(
@@ -280,7 +280,7 @@ function open_station_chromeless_bridge_script() {
 			true
 		)
 	) {
-		$encoded = wp_json_encode( open_station_build_menu_payload() );
+		$encoded = wp_json_encode( openstation_build_menu_payload() );
 		if ( false !== $encoded ) {
 			$menu_payload_json = $encoded;
 		}
@@ -292,7 +292,7 @@ function open_station_chromeless_bridge_script() {
 	// emitted (including `null`) so navigating an iframe from an
 	// identified page to an unidentified one clears the stale identity
 	// in the parent's relations engine.
-	$content_identity_json = wp_json_encode( open_station_build_content_identity() );
+	$content_identity_json = wp_json_encode( openstation_build_content_identity() );
 	if ( false === $content_identity_json ) {
 		$content_identity_json = 'null';
 	}
@@ -312,8 +312,8 @@ function open_station_chromeless_bridge_script() {
 	if ( ! window.parent || window.parent === window ) {
 		try {
 			var here = new URL( window.location.href );
-			if ( here.searchParams.has( 'open_station_chromeless' ) ) {
-				here.searchParams.delete( 'open_station_chromeless' );
+			if ( here.searchParams.has( 'openstation_chromeless' ) ) {
+				here.searchParams.delete( 'openstation_chromeless' );
 				here.searchParams.delete( 'desktop_mode_portal' );
 				window.location.replace( here.toString() );
 			}
@@ -345,7 +345,7 @@ function open_station_chromeless_bridge_script() {
 		window.parent.postMessage(
 			{
 				type: 'os-content-identity',
-				identity: /*__OPEN_STATION_CONTENT_IDENTITY__*/
+				identity: /*__OPENSTATION_CONTENT_IDENTITY__*/
 			},
 			window.location.origin
 		);
@@ -982,8 +982,8 @@ function open_station_chromeless_bridge_script() {
 	 *                           plugin + upload-plugin actions).
 	 *   - themes.php          — theme switch (rare but can add menus).
 	 */
-	var __OPEN_STATION_MENU_PAYLOAD__ = /*__OPEN_STATION_MENU_PAYLOAD__*/;
-	var __OPEN_STATION_MENU_SIG__ = /*__OPEN_STATION_MENU_SIG__*/;
+	var __OPENSTATION_MENU_PAYLOAD__ = /*__OPENSTATION_MENU_PAYLOAD__*/;
+	var __OPENSTATION_MENU_SIG__ = /*__OPENSTATION_MENU_SIG__*/;
 	/*
 	 * Icon harvest from the iframe's authoritative #adminmenu.
 	 *
@@ -1003,8 +1003,8 @@ function open_station_chromeless_bridge_script() {
 	 */
 	try {
 		if (
-			__OPEN_STATION_MENU_PAYLOAD__
-			&& Array.isArray( __OPEN_STATION_MENU_PAYLOAD__.dockItems )
+			__OPENSTATION_MENU_PAYLOAD__
+			&& Array.isArray( __OPENSTATION_MENU_PAYLOAD__.dockItems )
 		) {
 			var __wpdAdminMenu = document.getElementById( 'adminmenu' );
 			if ( __wpdAdminMenu ) {
@@ -1059,7 +1059,7 @@ function open_station_chromeless_bridge_script() {
 					} catch ( __wpdE2 ) { /* getComputedStyle may throw on detached nodes */ }
 				}
 
-				var __wpdItems = __OPEN_STATION_MENU_PAYLOAD__.dockItems;
+				var __wpdItems = __OPENSTATION_MENU_PAYLOAD__.dockItems;
 				for ( var __wpdDi = 0; __wpdDi < __wpdItems.length; __wpdDi++ ) {
 					var __wpdItem = __wpdItems[ __wpdDi ];
 					if ( ! __wpdItem || __wpdItem.icon !== 'dashicons-admin-generic' ) { continue; }
@@ -1093,15 +1093,15 @@ function open_station_chromeless_bridge_script() {
 	 */
 	try {
 		var __wpdShell = window.top || window.parent;
-		if ( __OPEN_STATION_MENU_PAYLOAD__ ) {
+		if ( __OPENSTATION_MENU_PAYLOAD__ ) {
 			__wpdShell.postMessage(
 				{
 					type: 'os-plugins-changed',
-					payload: __OPEN_STATION_MENU_PAYLOAD__
+					payload: __OPENSTATION_MENU_PAYLOAD__
 				},
 				window.location.origin
 			);
-		} else if ( __OPEN_STATION_MENU_SIG__ ) {
+		} else if ( __OPENSTATION_MENU_SIG__ ) {
 			/*
 			 * No full payload on this page — but we still ship the cheap
 			 * menu signature so the shell can notice a menu change that
@@ -1113,7 +1113,7 @@ function open_station_chromeless_bridge_script() {
 			__wpdShell.postMessage(
 				{
 					type: 'os-menu-signature',
-					sig: __OPEN_STATION_MENU_SIG__
+					sig: __OPENSTATION_MENU_SIG__
 				},
 				window.location.origin
 			);
@@ -1129,7 +1129,7 @@ function open_station_chromeless_bridge_script() {
 	 * Link & form interceptor.
 	 *
 	 * Every same-origin wp-admin <a> href and <form> action gets the
-	 * `open_station_chromeless=1` flag appended so navigation inside the iframe stays
+	 * `openstation_chromeless=1` flag appended so navigation inside the iframe stays
 	 * chromeless. Without this, a stray link to /wp-admin/edit.php (see
 	 * Gutenberg's fullscreen close button, help-tab links, "Return to
 	 * posts" affordances, etc.) re-renders the full classic admin inside
@@ -1143,7 +1143,7 @@ function open_station_chromeless_bridge_script() {
 	 *   - in-page anchors (#)
 	 *   - mailto:, tel:, javascript: schemes
 	 *   - cross-origin URLs
-	 *   - URLs that already carry open_station_chromeless=
+	 *   - URLs that already carry openstation_chromeless=
 	 */
 	function rewriteAdminUrl( href, base ) {
 		if ( ! href || href.charAt( 0 ) === '#' ) {
@@ -1164,10 +1164,10 @@ function open_station_chromeless_bridge_script() {
 		if ( url.pathname.indexOf( '/wp-admin/' ) === -1 ) {
 			return null;
 		}
-		if ( url.searchParams.has( 'open_station_chromeless' ) ) {
+		if ( url.searchParams.has( 'openstation_chromeless' ) ) {
 			return null;
 		}
-		url.searchParams.set( 'open_station_chromeless', '1' );
+		url.searchParams.set( 'openstation_chromeless', '1' );
 		return url.toString();
 	}
 
@@ -1231,7 +1231,7 @@ function open_station_chromeless_bridge_script() {
 		/*
 		 * Activity-footprint launcher. A "View activity footprint" row
 		 * action (added to the Users list table by
-		 * `open_station_user_footprint_row_action`) carries the target
+		 * `openstation_user_footprint_row_action`) carries the target
 		 * user id in `data-os-footprint`. The iframe has no
 		 * shell API of its own, so we escalate the click to the parent
 		 * shell, which opens the My WordPress window on that user's
@@ -2518,7 +2518,7 @@ function open_station_chromeless_bridge_script() {
 	 * per-type code. Non-`edit.php` list screens (e.g. WooCommerce's
 	 * HPOS `admin.php?page=wc-orders`) are covered by declarative
 	 * extra rules, filterable server-side via
-	 * `open_station_soft_reload_rules`.
+	 * `openstation_soft_reload_rules`.
 	 *
 	 * The fetch carries a custom header so a later phase can serve a
 	 * minimal partial response if we want to optimise; for now WP
@@ -2529,21 +2529,21 @@ function open_station_chromeless_bridge_script() {
 	 * a swap (e.g. inline-edit double-binding), that page's plugin
 	 * should listen for `os-soft-reloaded` and rebind.
 	 * ----------------------------------------------------------------- */
-	var OPEN_STATION_SOFT_RELOAD_EXTRAS = /*__OPEN_STATION_SOFT_RELOAD_EXTRAS__*/;
+	var OPENSTATION_SOFT_RELOAD_EXTRAS = /*__OPENSTATION_SOFT_RELOAD_EXTRAS__*/;
 
-	function _open_stationEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
+	function _openstationEndsWith( s, suffix ) { return s.lastIndexOf( suffix ) === s.length - suffix.length; }
 
-	function _open_stationListType() {
-		if ( _open_stationEndsWith( location.pathname, '/wp-admin/edit.php' ) ) {
+	function _openstationListType() {
+		if ( _openstationEndsWith( location.pathname, '/wp-admin/edit.php' ) ) {
 			return new URLSearchParams( location.search ).get( 'post_type' ) || 'post';
 		}
-		if ( _open_stationEndsWith( location.pathname, '/wp-admin/upload.php' ) ) {
+		if ( _openstationEndsWith( location.pathname, '/wp-admin/upload.php' ) ) {
 			return 'attachment';
 		}
-		if ( _open_stationEndsWith( location.pathname, '/wp-admin/edit-comments.php' ) ) {
+		if ( _openstationEndsWith( location.pathname, '/wp-admin/edit-comments.php' ) ) {
 			return 'comment';
 		}
-		if ( _open_stationEndsWith( location.pathname, '/wp-admin/plugins.php' ) ) {
+		if ( _openstationEndsWith( location.pathname, '/wp-admin/plugins.php' ) ) {
 			return 'plugin';
 		}
 		// plugin-install.php is intentionally not a soft-reload target.
@@ -2554,11 +2554,11 @@ function open_station_chromeless_bridge_script() {
 		return null;
 	}
 
-	function _open_stationMatchesExtraRule( rule ) {
+	function _openstationMatchesExtraRule( rule ) {
 		if ( ! rule || ! rule.path ) {
 			return false;
 		}
-		if ( ! _open_stationEndsWith( location.pathname, '/wp-admin/' + rule.path ) ) {
+		if ( ! _openstationEndsWith( location.pathname, '/wp-admin/' + rule.path ) ) {
 			return false;
 		}
 		var params = new URLSearchParams( location.search );
@@ -2582,29 +2582,29 @@ function open_station_chromeless_bridge_script() {
 		return true;
 	}
 
-	function _open_stationSoftReloadTopicMatches( topic ) {
+	function _openstationSoftReloadTopicMatches( topic ) {
 		var m = /^openstation\.(.+)\.changed$/.exec( topic );
-		if ( m && m[ 1 ] === _open_stationListType() ) {
+		if ( m && m[ 1 ] === _openstationListType() ) {
 			return true;
 		}
-		for ( var i = 0; i < OPEN_STATION_SOFT_RELOAD_EXTRAS.length; i++ ) {
-			var rule = OPEN_STATION_SOFT_RELOAD_EXTRAS[ i ];
-			if ( rule && rule.topic === topic && _open_stationMatchesExtraRule( rule ) ) {
+		for ( var i = 0; i < OPENSTATION_SOFT_RELOAD_EXTRAS.length; i++ ) {
+			var rule = OPENSTATION_SOFT_RELOAD_EXTRAS[ i ];
+			if ( rule && rule.topic === topic && _openstationMatchesExtraRule( rule ) ) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	var _open_stationSoftReloadInFlight = false;
-	var _open_stationSoftReloadQueued = false;
+	var _openstationSoftReloadInFlight = false;
+	var _openstationSoftReloadQueued = false;
 
-	function _open_stationSoftReload() {
-		if ( _open_stationSoftReloadInFlight ) {
-			_open_stationSoftReloadQueued = true;
+	function _openstationSoftReload() {
+		if ( _openstationSoftReloadInFlight ) {
+			_openstationSoftReloadQueued = true;
 			return;
 		}
-		_open_stationSoftReloadInFlight = true;
+		_openstationSoftReloadInFlight = true;
 		fetch( location.href, {
 			credentials: 'same-origin',
 			cache: 'no-cache',
@@ -2639,10 +2639,10 @@ function open_station_chromeless_bridge_script() {
 				window.console.warn( '[openstation] soft-reload skipped:', err );
 			}
 		} ).then( function () {
-			_open_stationSoftReloadInFlight = false;
-			if ( _open_stationSoftReloadQueued ) {
-				_open_stationSoftReloadQueued = false;
-				_open_stationSoftReload();
+			_openstationSoftReloadInFlight = false;
+			if ( _openstationSoftReloadQueued ) {
+				_openstationSoftReloadQueued = false;
+				_openstationSoftReload();
 			}
 		} );
 	}
@@ -2651,8 +2651,8 @@ function open_station_chromeless_bridge_script() {
 		var detail = e.detail || {};
 		var topic = detail.topic;
 		if ( ! topic ) return;
-		if ( _open_stationSoftReloadTopicMatches( topic ) ) {
-			_open_stationSoftReload();
+		if ( _openstationSoftReloadTopicMatches( topic ) ) {
+			_openstationSoftReload();
 		}
 	} );
 
@@ -3155,7 +3155,7 @@ function open_station_chromeless_bridge_script() {
 	 *
 	 * When the user's session expires while a chromeless window is
 	 * open, this iframe does NOT show core's `wp-auth-check` login
-	 * modal — `open_station_chromeless_suppress_auth_check()` keeps
+	 * modal — `openstation_chromeless_suppress_auth_check()` keeps
 	 * the modal assets out of chromeless requests so the parent
 	 * shell owns the single prompt for the whole desktop. Detection
 	 * still works without the modal JS: core attaches the
@@ -3274,7 +3274,7 @@ function open_station_chromeless_bridge_script() {
 			// `wp-plugin-install-success` fires after an AJAX install on
 			// plugin-install.php with no page navigation. The PHP
 			// `upgrader_process_complete` hook records the change correctly,
-			// but `open_station_content_changes_emit_footer` only runs on
+			// but `openstation_content_changes_emit_footer` only runs on
 			// chromeless page requests — admin-ajax.php is not in the
 			// chromeless allowlist, so there's no in-band emit from that
 			// request. The Heartbeat buffer will eventually deliver it, but
@@ -3353,7 +3353,7 @@ JS;
 	// there's no point recomputing it when one is being sent. GH#325.
 	$menu_sig_json = 'null';
 	if ( 'null' === $menu_payload_json ) {
-		$menu_sig = open_station_menu_signature();
+		$menu_sig = openstation_menu_signature();
 		if ( '' !== $menu_sig ) {
 			$encoded_sig = wp_json_encode( $menu_sig );
 			if ( false !== $encoded_sig ) {
@@ -3392,13 +3392,13 @@ JS;
 	 *
 	 * Lets a plugin whose list screen lives on a custom admin URL
 	 * participate in cross-window refresh: pair a rule here with
-	 * `open_station_content_changes_record()` calls (or your own
+	 * `openstation_content_changes_record()` calls (or your own
 	 * `os.<type>.changed` broadcasts) on the publish side.
 	 *
 	 * @param array $soft_reload_rules Rule arrays with keys `topic`,
 	 *                                 `path`, `query`, `queryAbsent`.
 	 */
-	$soft_reload_rules = (array) apply_filters( 'open_station_soft_reload_rules', $soft_reload_rules );
+	$soft_reload_rules = (array) apply_filters( 'openstation_soft_reload_rules', $soft_reload_rules );
 	$soft_reload_json  = wp_json_encode( array_values( $soft_reload_rules ) );
 	if ( ! $soft_reload_json ) {
 		$soft_reload_json = '[]';
@@ -3409,11 +3409,11 @@ JS;
 	// for an additional escape pass. When the page isn't on our
 	// menu-altering allowlist the placeholder resolves to `null` and
 	// the bridge skips the postMessage.
-	$js = str_replace( '/*__OPEN_STATION_MENU_PAYLOAD__*/', $menu_payload_json, $js );
-	$js = str_replace( '/*__OPEN_STATION_MENU_SIG__*/', $menu_sig_json, $js );
-	$js = str_replace( '/*__OPEN_STATION_CONTENT_IDENTITY__*/', $content_identity_json, $js );
-	$js = str_replace( '/*__OPEN_STATION_SOFT_RELOAD_EXTRAS__*/', $soft_reload_json, $js );
+	$js = str_replace( '/*__OPENSTATION_MENU_PAYLOAD__*/', $menu_payload_json, $js );
+	$js = str_replace( '/*__OPENSTATION_MENU_SIG__*/', $menu_sig_json, $js );
+	$js = str_replace( '/*__OPENSTATION_CONTENT_IDENTITY__*/', $content_identity_json, $js );
+	$js = str_replace( '/*__OPENSTATION_SOFT_RELOAD_EXTRAS__*/', $soft_reload_json, $js );
 
 	wp_print_inline_script_tag( $js );
 }
-add_action( 'admin_footer', 'open_station_chromeless_bridge_script' );
+add_action( 'admin_footer', 'openstation_chromeless_bridge_script' );

@@ -5,7 +5,7 @@
  * highest priority last:
  *
  *   1. {@link MIO_DEFAULTS} — the reference design.
- *   2. PHP — `open_station_mio_config` filter, shipped in the
+ *   2. PHP — `openstation_mio_config` filter, shipped in the
  *      shell config as `openStationConfig.mio`.
  *   3. JS — the `os.mio.config` filter, applied by the
  *      controller right before mount.

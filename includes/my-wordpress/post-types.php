@@ -18,9 +18,9 @@
  *
  * Filterable surface:
  *
- *   - `open_station_my_wordpress_post_types`
- *   - `open_station_my_wordpress_post_type_entity`
- *   - `open_station_my_wordpress_post_type_rest_enabled`
+ *   - `openstation_my_wordpress_post_types`
+ *   - `openstation_my_wordpress_post_type_entity`
+ *   - `openstation_my_wordpress_post_type_rest_enabled`
  *
  * @package OpenStation
  */
@@ -32,14 +32,14 @@ defined( 'ABSPATH' ) || exit;
  * under. Kept as a helper so the entity builder and the controller
  * cannot drift apart.
  */
-const OPEN_STATION_MY_WORDPRESS_POST_TYPE_NAMESPACE = 'desktop-mode/v1';
+const OPENSTATION_MY_WORDPRESS_POST_TYPE_NAMESPACE = 'desktop-mode/v1';
 
 /**
  * Post types eligible to appear as sections in the site window.
  *
  * @return WP_Post_Type[] Keyed by post type name.
  */
-function open_station_my_wordpress_eligible_post_types() {
+function openstation_my_wordpress_eligible_post_types() {
 	$types = array();
 
 	foreach ( get_post_types( array(), 'objects' ) as $name => $post_type ) {
@@ -59,7 +59,7 @@ function open_station_my_wordpress_eligible_post_types() {
 		}
 		// A type that is neither REST-exposed nor bridgeable has no
 		// endpoint to browse — don't render a folder that can't open.
-		if ( empty( $post_type->show_in_rest ) && ! open_station_my_wordpress_post_type_is_bridged( $name ) ) {
+		if ( empty( $post_type->show_in_rest ) && ! openstation_my_wordpress_post_type_is_bridged( $name ) ) {
 			continue;
 		}
 		$types[ $name ] = $post_type;
@@ -78,7 +78,7 @@ function open_station_my_wordpress_eligible_post_types() {
 	 *
 	 * @param string[] $slugs Eligible post type slugs.
 	 */
-	$slugs = apply_filters( 'open_station_my_wordpress_post_types', array_keys( $types ) );
+	$slugs = apply_filters( 'openstation_my_wordpress_post_types', array_keys( $types ) );
 
 	$out = array();
 	foreach ( (array) $slugs as $slug ) {
@@ -109,7 +109,7 @@ function open_station_my_wordpress_eligible_post_types() {
  * @param string $post_type Post type slug.
  * @return bool
  */
-function open_station_my_wordpress_post_type_is_bridged( $post_type ) {
+function openstation_my_wordpress_post_type_is_bridged( $post_type ) {
 	$object = get_post_type_object( (string) $post_type );
 	if ( ! $object instanceof WP_Post_Type ) {
 		return false;
@@ -136,7 +136,7 @@ function open_station_my_wordpress_post_type_is_bridged( $post_type ) {
 	 * @param bool   $enabled   Whether the bridge is allowed.
 	 * @param string $post_type Post type slug.
 	 */
-	return (bool) apply_filters( 'open_station_my_wordpress_post_type_rest_enabled', $enabled, (string) $post_type );
+	return (bool) apply_filters( 'openstation_my_wordpress_post_type_rest_enabled', $enabled, (string) $post_type );
 }
 
 /**
@@ -145,9 +145,9 @@ function open_station_my_wordpress_post_type_is_bridged( $post_type ) {
  * @param WP_Post_Type $post_type Post type object.
  * @return string REST path (e.g. `wp/v2/product`).
  */
-function open_station_my_wordpress_post_type_rest_path( $post_type ) {
+function openstation_my_wordpress_post_type_rest_path( $post_type ) {
 	if ( empty( $post_type->show_in_rest ) ) {
-		return OPEN_STATION_MY_WORDPRESS_POST_TYPE_NAMESPACE . '/post-type/' . $post_type->name;
+		return OPENSTATION_MY_WORDPRESS_POST_TYPE_NAMESPACE . '/post-type/' . $post_type->name;
 	}
 	$namespace = ! empty( $post_type->rest_namespace ) ? $post_type->rest_namespace : 'wp/v2';
 	$base      = ! empty( $post_type->rest_base ) ? $post_type->rest_base : $post_type->name;
@@ -162,7 +162,7 @@ function open_station_my_wordpress_post_type_rest_path( $post_type ) {
  * @param WP_Post_Type $post_type Post type object.
  * @return string Icon reference.
  */
-function open_station_my_wordpress_post_type_icon( $post_type ) {
+function openstation_my_wordpress_post_type_icon( $post_type ) {
 	$icon = isset( $post_type->menu_icon ) ? (string) $post_type->menu_icon : '';
 	// `'none'` is the documented way to opt out of a menu icon and
 	// style it in CSS instead; treat it as absent.
@@ -174,8 +174,8 @@ function open_station_my_wordpress_post_type_icon( $post_type ) {
 
 /**
  * Post types that should carry OpenStation's own REST fields
- * (`open_station_lock`, `open_station_contributors`,
- * `open_station_attached_media`).
+ * (`openstation_lock`, `openstation_contributors`,
+ * `openstation_attached_media`).
  *
  * That is every public REST-exposed type — the historical set — plus
  * the types this module bridges, so a bridged section shows lock
@@ -186,7 +186,7 @@ function open_station_my_wordpress_post_type_icon( $post_type ) {
  *
  * @return string[] Post type slugs.
  */
-function open_station_my_wordpress_rest_field_post_types() {
+function openstation_my_wordpress_rest_field_post_types() {
 	$types = get_post_types(
 		array(
 			'show_in_rest' => true,
@@ -195,7 +195,7 @@ function open_station_my_wordpress_rest_field_post_types() {
 		'names'
 	);
 
-	foreach ( open_station_my_wordpress_eligible_post_types() as $name => $post_type ) {
+	foreach ( openstation_my_wordpress_eligible_post_types() as $name => $post_type ) {
 		if ( empty( $post_type->show_in_rest ) ) {
 			$types[ $name ] = $name;
 		}
@@ -210,9 +210,9 @@ function open_station_my_wordpress_rest_field_post_types() {
  * @param WP_Post_Type $post_type Post type object.
  * @return array Entity descriptor.
  */
-function open_station_my_wordpress_post_type_entity( $post_type ) {
-	$group = function_exists( 'open_station_my_wordpress_post_type_group' )
-		? open_station_my_wordpress_post_type_group( $post_type->name )
+function openstation_my_wordpress_post_type_entity( $post_type ) {
+	$group = function_exists( 'openstation_my_wordpress_post_type_group' )
+		? openstation_my_wordpress_post_type_group( $post_type->name )
 		: null;
 
 	$label = isset( $post_type->labels->name ) && '' !== $post_type->labels->name
@@ -222,8 +222,8 @@ function open_station_my_wordpress_post_type_entity( $post_type ) {
 	$entity = array(
 		'id'         => 'cpt-' . $post_type->name,
 		'label'      => $label,
-		'icon'       => open_station_my_wordpress_post_type_icon( $post_type ),
-		'restPath'   => open_station_my_wordpress_post_type_rest_path( $post_type ),
+		'icon'       => openstation_my_wordpress_post_type_icon( $post_type ),
+		'restPath'   => openstation_my_wordpress_post_type_rest_path( $post_type ),
 		'kind'       => 'post',
 		'post_type'  => (string) $post_type->name,
 		'thumbnails' => post_type_supports( $post_type->name, 'thumbnail' ),
@@ -236,7 +236,7 @@ function open_station_my_wordpress_post_type_entity( $post_type ) {
 	/**
 	 * Filter the entity descriptor built for a single post type.
 	 *
-	 * Same contract as an entry in `open_station_my_wordpress_entities`
+	 * Same contract as an entry in `openstation_my_wordpress_entities`
 	 * — see that filter for the field list.
 	 *
 	 * **Status: Experimental**
@@ -244,7 +244,7 @@ function open_station_my_wordpress_post_type_entity( $post_type ) {
 	 * @param array        $entity    Entity descriptor.
 	 * @param WP_Post_Type $post_type Post type object.
 	 */
-	return (array) apply_filters( 'open_station_my_wordpress_post_type_entity', $entity, $post_type );
+	return (array) apply_filters( 'openstation_my_wordpress_post_type_entity', $entity, $post_type );
 }
 
 /**
@@ -254,7 +254,7 @@ function open_station_my_wordpress_post_type_entity( $post_type ) {
  * @param array[] $entities Existing entity descriptors.
  * @return array[] Entity descriptors with CPT sections appended.
  */
-function open_station_my_wordpress_append_post_type_entities( $entities ) {
+function openstation_my_wordpress_append_post_type_entities( $entities ) {
 	if ( ! is_array( $entities ) ) {
 		return $entities;
 	}
@@ -266,13 +266,13 @@ function open_station_my_wordpress_append_post_type_entities( $entities ) {
 		}
 	}
 
-	foreach ( open_station_my_wordpress_eligible_post_types() as $name => $post_type ) {
+	foreach ( openstation_my_wordpress_eligible_post_types() as $name => $post_type ) {
 		if ( isset( $existing[ $name ] ) ) {
 			continue;
 		}
-		$entities[] = open_station_my_wordpress_post_type_entity( $post_type );
+		$entities[] = openstation_my_wordpress_post_type_entity( $post_type );
 	}
 
 	return $entities;
 }
-add_filter( 'open_station_my_wordpress_entities', 'open_station_my_wordpress_append_post_type_entities' );
+add_filter( 'openstation_my_wordpress_entities', 'openstation_my_wordpress_append_post_type_entities' );

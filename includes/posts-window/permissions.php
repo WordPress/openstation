@@ -38,7 +38,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function open_station_posts_window_user_can_register( $user_id = null ) {
+function openstation_posts_window_user_can_register( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
 	$can = $user_id > 0 && user_can( $user_id, 'edit_posts' );
@@ -56,7 +56,7 @@ function open_station_posts_window_user_can_register( $user_id = null ) {
 	 * @param int  $user_id User being checked.
 	 */
 	return (bool) apply_filters(
-		'open_station_posts_window_user_can_register',
+		'openstation_posts_window_user_can_register',
 		$can,
 		$user_id
 	);
@@ -66,20 +66,20 @@ function open_station_posts_window_user_can_register( $user_id = null ) {
  * Whether the user has opted into the native Posts experience.
  * Cap-and-opt-in check — kept for any caller that needs the combined
  * answer (e.g. analytics, an arrange-menu entry). Boot registration
- * uses {@see open_station_posts_window_user_can_register()} instead;
+ * uses {@see openstation_posts_window_user_can_register()} instead;
  * runtime dock-click swap uses the JS-side snapshot.
  *
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function open_station_posts_window_user_can_use( $user_id = null ) {
+function openstation_posts_window_user_can_use( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 
-	$cap_ok = open_station_posts_window_user_can_register( $user_id );
+	$cap_ok = openstation_posts_window_user_can_register( $user_id );
 
 	$opt_in = false;
-	if ( $cap_ok && function_exists( 'open_station_get_os_settings' ) ) {
-		$settings = open_station_get_os_settings( $user_id );
+	if ( $cap_ok && function_exists( 'openstation_get_os_settings' ) ) {
+		$settings = openstation_get_os_settings( $user_id );
 		$opt_in   = ! empty( $settings['nativePostsEnabled'] );
 	}
 
@@ -97,5 +97,5 @@ function open_station_posts_window_user_can_use( $user_id = null ) {
 	 * @param bool $can     Default gate result.
 	 * @param int  $user_id User being checked.
 	 */
-	return (bool) apply_filters( 'open_station_posts_window_user_can_use', $can, $user_id );
+	return (bool) apply_filters( 'openstation_posts_window_user_can_use', $can, $user_id );
 }

@@ -9,7 +9,7 @@
 
 /**
  * A row from Core's `/wp/v2/plugins` list, with our REST-field
- * decorators (`open_station_*`) attached.
+ * decorators (`openstation_*`) attached.
  *
  * Fields with question marks are optional in older Core versions or
  * may be absent under a `_fields` whitelist; the JS guards every
@@ -59,7 +59,7 @@ export interface InstalledPlugin {
 	 *            informational; the `update-plugin` AJAX action derives
 	 *            the slug from `plugin` itself.
 	 */
-	open_station_update_available?: {
+	openstation_update_available?: {
 		available: boolean;
 		new_version: string | null;
 		package: string;
@@ -69,15 +69,15 @@ export interface InstalledPlugin {
 	 * Per-row capability flags so the JS doesn't re-derive caps. The
 	 * server still re-validates every mutation; this is purely UX.
 	 */
-	open_station_can_manage?: {
+	openstation_can_manage?: {
 		activate: boolean;
 		deactivate: boolean;
 		delete: boolean;
 	};
 	/** wp.org icon URL derived from the slug; null when the plugin isn't on the .org repo. */
-	open_station_icon_url?: string | null;
+	openstation_icon_url?: string | null;
 	/** Disk size of the plugin folder in kilobytes (null when unreadable). */
-	open_station_size_kb?: number | null;
+	openstation_size_kb?: number | null;
 	/**
 	 * Auto-update state for this plugin, mirroring Core's
 	 * "Automatic Updates" column on `plugins.php`.
@@ -95,7 +95,7 @@ export interface InstalledPlugin {
 	 *                 wp.org land in neither bucket — Core hides the
 	 *                 toggle entirely for those rows.
 	 */
-	open_station_auto_update?: {
+	openstation_auto_update?: {
 		enabled: boolean;
 		forced: boolean | null;
 		supported: boolean;
@@ -166,7 +166,7 @@ export interface PluginReview {
 	url: string;
 }
 
-/** Response shape for our `wp_ajax_open_station_plugins_reviews` action. */
+/** Response shape for our `wp_ajax_openstation_plugins_reviews` action. */
 export interface PluginReviewsResponse {
 	items: PluginReview[];
 	parsed: boolean;

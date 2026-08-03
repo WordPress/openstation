@@ -297,7 +297,7 @@ export class OsSettings implements SettingsCtx {
 		seedWallpaperSettings( this.state.wallpaperSettings );
 
 		// Wallpaper — look up in the registry. Fall back to the
-		// server-declared default id (via `open_station_default_wallpaper`)
+		// server-declared default id (via `openstation_default_wallpaper`)
 		// if the saved wallpaper was registered by a plugin that's no
 		// longer loaded, then to the TS compile-time default as a last
 		// resort.

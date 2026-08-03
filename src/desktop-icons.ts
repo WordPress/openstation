@@ -2,7 +2,7 @@
  * OpenStation — Wallpaper shortcut icons.
  *
  * Renders the list of `config.desktopIcons` entries (registered
- * server-side via `open_station_register_icon()`) as clickable
+ * server-side via `openstation_register_icon()`) as clickable
  * tiles on the desktop wallpaper. Clicking an icon opens the
  * referenced native window (via the injected `openWindow` callback)
  * or opens the URL as an iframe window / new tab.
@@ -135,7 +135,7 @@ function _safeBadge( count: number ): number {
  *
  * @public
  *
- * @param iconId Id passed to `open_station_register_icon()`.
+ * @param iconId Id passed to `openstation_register_icon()`.
  * @param count  Non-negative integer. `>99` renders as `99+`.
  *               `0` removes the badge.
  */

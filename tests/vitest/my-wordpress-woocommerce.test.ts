@@ -5,7 +5,7 @@
  * it rides on: band resolution from the server-shipped config, the
  * stock ribbon and its survival across a tile repaint, and the panel's
  * behaviour when the summary payload is missing or malformed — which a
- * plugin filtering `open_station_my_wordpress_woo_summary` can cause.
+ * plugin filtering `openstation_my_wordpress_woo_summary` can cause.
  */
 import {
 	afterAll,
@@ -50,7 +50,7 @@ function setConfig( extra: Record< string, unknown > = {} ): void {
 
 /** A product list row carrying the server-decided band + stock facts. */
 function productRow( facts: Record< string, unknown > ) {
-	return { id: 7, open_station_woo: facts };
+	return { id: 7, openstation_woo: facts };
 }
 
 function stubSummary( body: unknown, status = 200 ): void {
@@ -308,7 +308,7 @@ describe( 'my-wordpress — WooCommerce integration', () => {
 		} );
 
 		test( 'a malformed payload shows the error row, not a stuck skeleton', async () => {
-			// `open_station_my_wordpress_woo_summary` is a documented
+			// `openstation_my_wordpress_woo_summary` is a documented
 			// filter over this payload, so a plugin can drop the very
 			// fields the row builders read. That used to throw inside
 			// the render callback and leave the panel on placeholders

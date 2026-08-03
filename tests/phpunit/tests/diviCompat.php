@@ -15,7 +15,7 @@
  *
  * @group openstation
  *
- * @covers ::open_station_compat_divi_fix_gutenberg_deps
+ * @covers ::openstation_compat_divi_fix_gutenberg_deps
  */
 class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
@@ -23,7 +23,7 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
 	public function tear_down() {
 		wp_deregister_script( 'et-builder-gutenberg' );
-		unset( $_GET['open_station_chromeless'], $_GET['app_window'] );
+		unset( $_GET['openstation_chromeless'], $_GET['app_window'] );
 		if ( $this->chromeless_user_id > 0 ) {
 			delete_user_meta( $this->chromeless_user_id, 'desktop_mode_mode' );
 			$this->chromeless_user_id = 0;
@@ -33,11 +33,11 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
 	/**
 	 * Helper: simulate a chromeless request by priming the query
-	 * arg + user meta that `open_station_is_chromeless_request()`
+	 * arg + user meta that `openstation_is_chromeless_request()`
 	 * checks. `tear_down()` resets the state.
 	 */
 	private function force_chromeless() {
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 		$this->chromeless_user_id        = self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $this->chromeless_user_id );
 		update_user_meta( $this->chromeless_user_id, 'desktop_mode_mode', '1' );
@@ -158,7 +158,7 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 	 */
 	private function capture_vb_signal_output() {
 		ob_start();
-		open_station_compat_divi_vb_iframe_signal();
+		openstation_compat_divi_vb_iframe_signal();
 		return ob_get_clean();
 	}
 
@@ -203,7 +203,7 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 	 * enabled. The shim only matters when our shell is what
 	 * `window.top` points at.
 	 */
-	public function test_vb_iframe_signal_skips_when_open_station_disabled() {
+	public function test_vb_iframe_signal_skips_when_openstation_disabled() {
 		wp_set_current_user( 0 );
 
 		$out = $this->capture_vb_signal_output();
@@ -295,13 +295,13 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 
 	private function capture_iframe_patch_output() {
 		ob_start();
-		open_station_compat_divi_eject_iframe_patch();
+		openstation_compat_divi_eject_iframe_patch();
 		return ob_get_clean();
 	}
 
 	private function capture_parent_listener_output() {
 		ob_start();
-		open_station_compat_divi_eject_parent_listener();
+		openstation_compat_divi_eject_parent_listener();
 		return ob_get_clean();
 	}
 
@@ -381,8 +381,8 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'dismissable: true', $out );
 		// URL transform: strip chromeless flag, add classic flag.
 		// Without this, top-level navigation hits the iframe URL's
-		// `open_station_chromeless=1` and renders headless again.
-		$this->assertStringContainsString( "searchParams.delete( 'open_station_chromeless' )", $out );
+		// `openstation_chromeless=1` and renders headless again.
+		$this->assertStringContainsString( "searchParams.delete( 'openstation_chromeless' )", $out );
 		$this->assertStringContainsString( "searchParams.set( 'desktop_mode_classic', '1' )", $out );
 	}
 
@@ -402,7 +402,7 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 	/**
 	 * Visitors without OpenStation enabled get nothing.
 	 */
-	public function test_parent_listener_skips_when_open_station_disabled() {
+	public function test_parent_listener_skips_when_openstation_disabled() {
 		wp_set_current_user( 0 );
 		$this->activate_divi_theme();
 
@@ -429,13 +429,13 @@ class Tests_OpenStation_DiviCompat extends WP_UnitTestCase {
 	 */
 	public function test_is_active_true_for_divi_theme() {
 		$this->activate_divi_theme();
-		$this->assertTrue( open_station_compat_divi_is_active() );
+		$this->assertTrue( openstation_compat_divi_is_active() );
 	}
 
 	/**
 	 * Divi-active detector: arbitrary other theme.
 	 */
 	public function test_is_active_false_for_other_theme() {
-		$this->assertFalse( open_station_compat_divi_is_active() );
+		$this->assertFalse( openstation_compat_divi_is_active() );
 	}
 }

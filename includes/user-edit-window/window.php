@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Echoes the User Edit window's template body.
  */
-function open_station_user_edit_window_render_template() {
+function openstation_user_edit_window_render_template() {
 	ob_start();
 	?>
 	<div class="os-user-edit-window" data-os-user-edit-window-root>
@@ -47,10 +47,10 @@ function open_station_user_edit_window_render_template() {
 	 *
 	 * @param string $html Default template HTML.
 	 */
-	$filtered = (string) apply_filters( 'open_station_user_edit_window_template_html', $html );
+	$filtered = (string) apply_filters( 'openstation_user_edit_window_template_html', $html );
 
-	if ( function_exists( 'open_station_kses_native_window_template' ) ) {
-		echo open_station_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
+	if ( function_exists( 'openstation_kses_native_window_template' ) ) {
+		echo openstation_kses_native_window_template( $filtered ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper kses-escapes.
 	} else {
 		echo wp_kses( $filtered, wp_kses_allowed_html( 'post' ) );
 	}
@@ -65,7 +65,7 @@ function open_station_user_edit_window_render_template() {
  *
  * @return array<string,array{name:string,colors:array<int,string>,icon_colors?:array<string,string>}>
  */
-function open_station_user_edit_window_color_schemes() {
+function openstation_user_edit_window_color_schemes() {
 	$out = array();
 	// Always pull in `wp-admin/includes/admin.php` if needed so the
 	// admin colour scheme registry is available — the user-edit
@@ -119,8 +119,8 @@ function open_station_user_edit_window_color_schemes() {
 /**
  * Register the User Edit native window on `init`.
  */
-function open_station_user_edit_window_register_window() {
-	if ( ! open_station_user_edit_window_user_can_register() ) {
+function openstation_user_edit_window_register_window() {
+	if ( ! openstation_user_edit_window_user_can_register() ) {
 		return;
 	}
 	$viewer_id = (int) get_current_user_id();
@@ -128,7 +128,7 @@ function open_station_user_edit_window_register_window() {
 	$window_args = array(
 		'title'      => __( 'Edit user', 'desktop-mode' ),
 		'icon'       => 'dashicons-admin-users',
-		'template'   => 'open_station_user_edit_window_render_template',
+		'template'   => 'openstation_user_edit_window_render_template',
 		// Reuses the Posts bundle. The render callback for
 		// `desktop-mode-user-edit` lives in `index.ts` and dispatches
 		// to `user-edit-render`'s mount points — same code the Users
@@ -159,26 +159,26 @@ function open_station_user_edit_window_register_window() {
 			// loop for viewers with `promote_users` but a narrowed
 			// `editable_roles` filter (e.g. site managers who can't
 			// promote anyone to administrator).
-			'assignableRoles'  => function_exists( 'open_station_users_window_role_label_map' )
-				? open_station_users_window_role_label_map( $viewer_id )
+			'assignableRoles'  => function_exists( 'openstation_users_window_role_label_map' )
+				? openstation_users_window_role_label_map( $viewer_id )
 				: array(),
-			'allRoles'         => function_exists( 'open_station_users_window_all_roles_map' )
-				? open_station_users_window_all_roles_map()
+			'allRoles'         => function_exists( 'openstation_users_window_all_roles_map' )
+				? openstation_users_window_all_roles_map()
 				: array(),
-			'locales'          => function_exists( 'open_station_users_window_locales_map' )
-				? open_station_users_window_locales_map()
+			'locales'          => function_exists( 'openstation_users_window_locales_map' )
+				? openstation_users_window_locales_map()
 				: array( '' => __( 'Site default', 'desktop-mode' ) ),
 			'contactMethods'   => (array) apply_filters( 'user_contactmethods', array(), null ),
-			'colorSchemes'     => open_station_user_edit_window_color_schemes(),
+			'colorSchemes'     => openstation_user_edit_window_color_schemes(),
 		),
 	);
 
-	$window_args = (array) apply_filters( 'open_station_user_edit_window_args', $window_args );
+	$window_args = (array) apply_filters( 'openstation_user_edit_window_args', $window_args );
 
-	$registered = open_station_register_window( 'desktop-mode-user-edit', $window_args );
+	$registered = openstation_register_window( 'desktop-mode-user-edit', $window_args );
 	if ( is_wp_error( $registered ) ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[openstation] User Edit window registration failed: ' . $registered->get_error_message() );
 	}
 }
-add_action( 'init', 'open_station_user_edit_window_register_window', 25 );
+add_action( 'init', 'openstation_user_edit_window_register_window', 25 );

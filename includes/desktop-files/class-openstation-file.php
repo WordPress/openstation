@@ -1,6 +1,6 @@
 <?php
 /**
- * OpenStation — `Open_Station_File` abstract base class.
+ * OpenStation — `OpenStation_File` abstract base class.
  *
  * Every "file" that a user can place on the OpenStation wallpaper
  * (a post, a user, an attachment, a term, a comment, a folder, a
@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  * {@see ::can_read()}, or {@see ::serialize()} when the defaults
  * don't fit.
  */
-abstract class Open_Station_File {
+abstract class OpenStation_File {
 
 	/**
 	 * Opaque reference identifying the underlying entity.
@@ -144,8 +144,8 @@ abstract class Open_Station_File {
 		 * custom render hints without subclassing.
 		 *
 		 * @param array             $shape The serialized file shape.
-		 * @param Open_Station_File $file  The file being serialized.
+		 * @param OpenStation_File $file  The file being serialized.
 		 */
-		return apply_filters( 'open_station_file_serialize', $shape, $this );
+		return apply_filters( 'openstation_file_serialize', $shape, $this );
 	}
 }

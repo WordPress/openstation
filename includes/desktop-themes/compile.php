@@ -17,7 +17,7 @@
  * matching `^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$` (so double-quoting it
  * is airtight) and a file path that already passed the font-extension
  * allowlist and a containment check. Everything else is a closed
- * enum. See `open_station_sanitize_desktop_theme_fonts()`.
+ * enum. See `openstation_sanitize_desktop_theme_fonts()`.
  *
  * `@font-face` is deliberately NOT scoped to the theme's selector —
  * at-rules cannot be nested inside one, and there is nothing to
@@ -27,7 +27,7 @@
  * ## Textures are table-driven
  *
  * The slot => custom-property mapping lives in
- * {@see open_station_desktop_theme_texture_slots()}, not here. This
+ * {@see openstation_desktop_theme_texture_slots()}, not here. This
  * file knows how to turn `image` and `border-image` descriptors into
  * declarations; it does not know that `TITLEBAR` exists. That is what
  * lets a plugin texture a surface the framework has never heard of.
@@ -53,7 +53,7 @@
  * specificity tie is broken by source order, so the compiled theme
  * sheet MUST print after `variables.css`. That is enforced by
  * registering the style handle with `os-variables` as a
- * dependency (see `open_station_enqueue_desktop_theme_style()`);
+ * dependency (see `openstation_enqueue_desktop_theme_style()`);
  * do not remove that dependency, and do not "simplify" the selector
  * to a single class — it would lose the tie.
  *
@@ -93,7 +93,7 @@ defined( 'ABSPATH' ) || exit;
  *                         `installedAt`). Omit to skip versioning.
  * @return string Absolute URL, or `''` when unusable.
  */
-function open_station_desktop_theme_asset_url( $ref, $base_url, $version = '' ) {
+function openstation_desktop_theme_asset_url( $ref, $base_url, $version = '' ) {
 	$ref = (string) $ref;
 	if ( '' === $ref ) {
 		return '';
@@ -119,7 +119,7 @@ function open_station_desktop_theme_asset_url( $ref, $base_url, $version = '' ) 
  * @param string $url Absolute URL.
  * @return string
  */
-function open_station_desktop_theme_css_url( $url ) {
+function openstation_desktop_theme_css_url( $url ) {
 	return 'url("' . $url . '")';
 }
 
@@ -134,20 +134,20 @@ function open_station_desktop_theme_css_url( $url ) {
  * order is semantic.
  *
  * @param array  $manifest Sanitized manifest from
- *                         {@see open_station_sanitize_desktop_theme_manifest()}.
+ *                         {@see openstation_sanitize_desktop_theme_manifest()}.
  * @param string $slug     Storage slug.
  * @param string $base_url Theme base URL (no trailing slash). May be
  *                         empty for code themes whose assets are
  *                         absolute URLs.
  * @param string $version  Cache-buster appended to generated asset
  *                         URLs — see
- *                         {@see open_station_desktop_theme_asset_url()}.
+ *                         {@see openstation_desktop_theme_asset_url()}.
  *                         The stylesheet itself is versioned by the
  *                         enqueue, but the textures it references are
  *                         not, and a re-upload must invalidate both.
  * @return string Stylesheet text. `''` when the theme sets nothing.
  */
-function open_station_desktop_theme_compile_css( $manifest, $slug, $base_url = '', $version = '' ) {
+function openstation_desktop_theme_compile_css( $manifest, $slug, $base_url = '', $version = '' ) {
 	$slug = sanitize_key( (string) $slug );
 	if ( '' === $slug || ! is_array( $manifest ) ) {
 		return '';
@@ -170,7 +170,7 @@ function open_station_desktop_theme_compile_css( $manifest, $slug, $base_url = '
 		: array();
 	ksort( $textures );
 
-	$slots = open_station_desktop_theme_texture_slots();
+	$slots = openstation_desktop_theme_texture_slots();
 	// Slots that share one size token (the four window corners).
 	// First declared wins; `ksort` above makes "first" deterministic.
 	$size_groups = array();
@@ -186,11 +186,11 @@ function open_station_desktop_theme_compile_css( $manifest, $slug, $base_url = '
 			// write. Nothing to emit — see the filter docblock.
 			continue;
 		}
-		$url = open_station_desktop_theme_asset_url( $entry['path'], $base_url, $version );
+		$url = openstation_desktop_theme_asset_url( $entry['path'], $base_url, $version );
 		if ( '' === $url ) {
 			continue;
 		}
-		$css_url = open_station_desktop_theme_css_url( $url );
+		$css_url = openstation_desktop_theme_css_url( $url );
 		$type    = isset( $definition['type'] ) ? (string) $definition['type'] : 'image';
 
 		if ( 'border-image' === $type ) {
@@ -233,7 +233,7 @@ function open_station_desktop_theme_compile_css( $manifest, $slug, $base_url = '
 		$declarations[] = "\t{$property}: {$value};";
 	}
 
-	$font_faces = open_station_desktop_theme_compile_font_faces( $manifest, $base_url, $version );
+	$font_faces = openstation_desktop_theme_compile_font_faces( $manifest, $base_url, $version );
 
 	if ( empty( $declarations ) ) {
 		return '' === $font_faces
@@ -277,7 +277,7 @@ function open_station_desktop_theme_compile_css( $manifest, $slug, $base_url = '
  * @return string Stylesheet fragment, or `''` when there are no
  *                usable faces.
  */
-function open_station_desktop_theme_compile_font_faces( $manifest, $base_url = '', $version = '' ) {
+function openstation_desktop_theme_compile_font_faces( $manifest, $base_url = '', $version = '' ) {
 	$fonts = isset( $manifest['fonts'] ) && is_array( $manifest['fonts'] )
 		? $manifest['fonts']
 		: array();
@@ -296,11 +296,11 @@ function open_station_desktop_theme_compile_font_faces( $manifest, $base_url = '
 			if ( ! is_array( $source ) || empty( $source['path'] ) || empty( $source['format'] ) ) {
 				continue;
 			}
-			$url = open_station_desktop_theme_asset_url( $source['path'], $base_url, $version );
+			$url = openstation_desktop_theme_asset_url( $source['path'], $base_url, $version );
 			if ( '' === $url ) {
 				continue;
 			}
-			$sources[] = open_station_desktop_theme_css_url( $url )
+			$sources[] = openstation_desktop_theme_css_url( $url )
 				. ' format("' . $source['format'] . '")';
 		}
 		if ( empty( $sources ) ) {

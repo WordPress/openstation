@@ -15,15 +15,15 @@ The Copilot is available only on sites where the Connectors API, the Abilities A
 
 | Removed | Replacement |
 |---|---|
-| `open_station_register_ai_provider()` / `open_station_unregister_ai_provider()` | Configure providers in **Settings → Connectors**. Provider plugins register with the Core AI Client / Connectors. |
-| `open_station_ai_register_providers` action, `open_station_ai_active_provider` / `open_station_ai_model` filters, `open_station_ai_provider_registered` action | — (no per-plugin provider registry) |
+| `openstation_register_ai_provider()` / `openstation_unregister_ai_provider()` | Configure providers in **Settings → Connectors**. Provider plugins register with the Core AI Client / Connectors. |
+| `openstation_ai_register_providers` action, `openstation_ai_active_provider` / `openstation_ai_model` filters, `openstation_ai_provider_registered` action | — (no per-plugin provider registry) |
 | The provider callable contract (`make_turn_input` / `agentic_call` / `structured_request`) and the `$api_key` argument | The Copilot builds `wp_ai_client_prompt()` internally. |
 | Platform key option `desktop_mode_ai_platform` + `desktop-mode/v1/ai/platform-settings` REST route | Keys are stored + validated by Core in Settings → Connectors. |
-| `open_station_ai_get_api_key()`, `open_station_ai_resolve_key_for_provider()`, `open_station_ai_get_platform_settings()`, `open_station_ai_get_providers*()` | New capability helpers: `open_station_ai_is_available()`, `open_station_ai_provider_configured()` (baseline text generation) and `open_station_ai_assistant_provider_configured()` (text generation + function calling). |
+| `openstation_ai_get_api_key()`, `openstation_ai_resolve_key_for_provider()`, `openstation_ai_get_platform_settings()`, `openstation_ai_get_providers*()` | New capability helpers: `openstation_ai_is_available()`, `openstation_ai_provider_configured()` (baseline text generation) and `openstation_ai_assistant_provider_configured()` (text generation + function calling). |
 
-**Preserved:** the `/ai/search` loop's extensibility surface — `open_station_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,tools,tool_result,answer,request}` filters and the `open_station_ai_{search_started,tool_called,search_completed,search_error}` observability actions.
+**Preserved:** the `/ai/search` loop's extensibility surface — `openstation_ai_{system_prompt,system_prompt_appendix,system_prompt_replace_capability,tools,tool_result,answer,request}` filters and the `openstation_ai_{search_started,tool_called,search_completed,search_error}` observability actions.
 
-**Tools → Abilities (0.9.4):** the built-in Copilot tools are now [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/) (category `openstation`, listed at `GET /wp-abilities/v1/abilities`) and generation runs through the AI Client. `open_station_register_ai_tool()` and the `open_station_ai_tool_registered` action were **removed**. To give the assistant a server-dispatched tool, register a **read-only** ability with `wp_register_ability()` on `wp_abilities_api_init` — it's picked up automatically (see [`examples/ai-ask.md`](examples/ai-ask.md)). `open_station_ai_search_completed` now also carries `usage` + `model`.
+**Tools → Abilities (0.9.4):** the built-in Copilot tools are now [WordPress Abilities](https://developer.wordpress.org/apis/abilities-api/) (category `openstation`, listed at `GET /wp-abilities/v1/abilities`) and generation runs through the AI Client. `openstation_register_ai_tool()` and the `openstation_ai_tool_registered` action were **removed**. To give the assistant a server-dispatched tool, register a **read-only** ability with `wp_register_ability()` on `wp_abilities_api_init` — it's picked up automatically (see [`examples/ai-ask.md`](examples/ai-ask.md)). `openstation_ai_search_completed` now also carries `usage` + `model`.
 
 ## Removed — JavaScript
 
@@ -39,4 +39,4 @@ On upgrade, a one-time migration deletes the `desktop_mode_ai_platform` option a
 
 - **Site owners:** add a provider in **Settings → Connectors**. Until then the assistant opens with a setup prompt and comment scoring stays inert.
 - **Plugin authors** who registered a custom provider: register it with the Core AI Client / Connectors instead.
-- **Plugin authors** who registered a server-dispatched tool via `open_station_register_ai_tool()`: that function was removed. Register a **read-only** ability with `wp_register_ability()` on `wp_abilities_api_init` (with `input_schema`, `permission_callback`, `execute_callback`, and `meta.annotations.readonly = true`) — the assistant picks it up automatically. See [`examples/ai-ask.md`](examples/ai-ask.md).
+- **Plugin authors** who registered a server-dispatched tool via `openstation_register_ai_tool()`: that function was removed. Register a **read-only** ability with `wp_register_ability()` on `wp_abilities_api_init` (with `input_schema`, `permission_callback`, `execute_callback`, and `meta.annotations.readonly = true`) — the assistant picks it up automatically. See [`examples/ai-ask.md`](examples/ai-ask.md).

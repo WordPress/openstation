@@ -61,7 +61,7 @@ import type {
  * to deliver into an iframe (anything outside attachment/post/user).
  *
  * The placement's `file` shape carries everything we need because
- * the PHP `Open_Station_*_File::serialize()` methods surface `link`
+ * the PHP `OpenStation_*_File::serialize()` methods surface `link`
  * / `sourceUrl` / `alt` / `mime` / `postType` on every list
  * response.
  */
@@ -1209,7 +1209,7 @@ function fingerprint( list: readonly RestPlacementShape[] ): string {
 /**
  * Whether a placement is pinned (anchored, non-draggable). The flag
  * is carried through the file payload from
- * `open_station_register_icon( …, [ 'pinned' => true ] )`.
+ * `openstation_register_icon( …, [ 'pinned' => true ] )`.
  */
 function isPinned( placement: RestPlacementShape ): boolean {
 	return Boolean( placement.file.pinned );
@@ -1296,7 +1296,7 @@ function shouldRejectTileDrops( placement: RestPlacementShape ): boolean {
  *
  * `grid.ts`'s `buildOccupiedSet` only consults each placement's
  * stored `(x, y)`, but the repaint deliberately IGNORES those for
- * pinned tiles (`open_station_register_icon( …, [ 'pinned' => true ] )`),
+ * pinned tiles (`openstation_register_icon( …, [ 'pinned' => true ] )`),
  * anchoring them to column 0, rows 0..N-1 in the order they appear.
  * So a tile pinned at the top of the column has stored coords that
  * could be anywhere — and the plain occupied set would miss it
@@ -1354,7 +1354,7 @@ function buildVisualOccupiedSet(
  * root (`<= 0`) — that case is always safe.
  *
  * Authoritative gate lives server-side in
- * `open_station_files_would_create_folder_cycle()`; this is a
+ * `openstation_files_would_create_folder_cycle()`; this is a
  * client-side preflight so the `accept` callbacks can reject the
  * drop up-front (no REST round-trip, no 409 in the console, visible
  * snap-back at the drop site).
@@ -1898,8 +1898,8 @@ function attachTileDrag(
 					// placement's file shape so a wallpaper-placed
 					// shortcut can be dropped into an open Gutenberg
 					// iframe and inserted as the matching block. The
-					// PHP serialize() methods (`Open_Station_Post_File`,
-					// `Open_Station_User_File`, `Open_Station_Attachment_File`)
+					// PHP serialize() methods (`OpenStation_Post_File`,
+					// `OpenStation_User_File`, `OpenStation_Attachment_File`)
 					// surface the URL fields this needs.
 					bridgePayload: buildBridgePayloadFromPlacement( livePlacement ),
 				} satisfies DesktopFileDragData,
@@ -2123,7 +2123,7 @@ function attachContextMenu(
 			//
 			//   2. Plugin-registered icons (file type `'shortcut'`) —
 			//      Content Graph, Recycle Bin, My WordPress, and any
-			//      icon registered via `open_station_register_icon()`.
+			//      icon registered via `openstation_register_icon()`.
 			//      These are framework/plugin shortcuts, not user
 			//      data, and shouldn't be deletable from the wallpaper.
 			//      The user can hide them here and restore via OS

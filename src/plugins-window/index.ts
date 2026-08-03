@@ -4,7 +4,7 @@
  * Lazy-loaded by the native-window sync the first time the
  * `desktop-mode-plugins` window opens. Wires the two-tab shell
  * (Installed / Browse) and the detail flyout against the template
- * echoed by `open_station_plugins_window_render_template()`.
+ * echoed by `openstation_plugins_window_render_template()`.
  *
  * Web-component registrations: the main `desktop.min.js` ships only
  * the `<os-*>` tags it constructs itself. This bundle leaf-imports

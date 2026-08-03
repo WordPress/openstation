@@ -103,7 +103,7 @@ export interface AskOptions {
 	 *
 	 * Server-side, `mode: 'replace'` is gated on a capability that
 	 * defaults to `manage_options` and is filterable via
-	 * `open_station_ai_system_prompt_replace_capability`. Non-admin
+	 * `openstation_ai_system_prompt_replace_capability`. Non-admin
 	 * callers sending `replace` get a silent downgrade to `append`.
 	 */
 	systemPrompt?:

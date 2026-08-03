@@ -25,7 +25,7 @@
  * They used to be `@import url( … )`ed from this file, and that was a
  * standing cache bug. An `@import` URL carries no `?ver=`, so when a
  * sub-sheet changed there was no URL anywhere for the browser to
- * notice. `open_station_css_subtree_version()` stamped THIS file with
+ * notice. `openstation_css_subtree_version()` stamped THIS file with
  * the max mtime of the whole subtree, which made the browser re-fetch
  * and re-parse `windows.css` — and then request the sub-sheet at a
  * completely unchanged URL, free to serve it from its heuristic
@@ -44,7 +44,7 @@
  *
  * The last two sit AFTER this file and load **deferred** (the
  * `media="print"` + onload swap driven by
- * `open_station_deferred_styles`): the UI they style is lazy-loaded
+ * `openstation_deferred_styles`): the UI they style is lazy-loaded
  * JS that can never be on screen at first paint, so ~47 KB of CSS has
  * no business blocking render.
  *

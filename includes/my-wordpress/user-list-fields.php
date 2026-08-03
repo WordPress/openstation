@@ -10,10 +10,10 @@
  *
  * Fields:
  *
- *   - `open_station_summary.postCount`   int     count of non-trash posts authored
- *   - `open_station_summary.roleLabels`  array   translated role labels (gated on `list_users` OR self)
- *   - `open_station_summary.registered`  string  ISO-8601 registered date (gated on `list_users` OR self)
- *   - `open_station_summary.lastActive`  string  ISO-8601 of latest published post, or '' when unknown
+ *   - `openstation_summary.postCount`   int     count of non-trash posts authored
+ *   - `openstation_summary.roleLabels`  array   translated role labels (gated on `list_users` OR self)
+ *   - `openstation_summary.registered`  string  ISO-8601 registered date (gated on `list_users` OR self)
+ *   - `openstation_summary.lastActive`  string  ISO-8601 of latest published post, or '' when unknown
  *
  * Each field is independently capability-gated so a viewer without
  * `list_users` still sees `postCount` (public counts) and a public
@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int $user_id User id.
  * @return array{postCount:int,roleLabels:array<int,string>,registered:string,lastActive:string}
  */
-function open_station_my_wordpress_user_summary_payload( $user_id ) {
+function openstation_my_wordpress_user_summary_payload( $user_id ) {
 	$user_id = (int) $user_id;
 	if ( $user_id <= 0 ) {
 		return array(
@@ -105,14 +105,14 @@ function open_station_my_wordpress_user_summary_payload( $user_id ) {
  * read-only (no `update_callback`); `get_callback` receives the
  * user response array, from which we read `id`.
  */
-function open_station_my_wordpress_register_user_summary_field() {
+function openstation_my_wordpress_register_user_summary_field() {
 	register_rest_field(
 		'user',
-		'open_station_summary',
+		'openstation_summary',
 		array(
 			'get_callback' => static function ( $user ) {
 				$id = isset( $user['id'] ) ? (int) $user['id'] : 0;
-				return open_station_my_wordpress_user_summary_payload( $id );
+				return openstation_my_wordpress_user_summary_payload( $id );
 			},
 			'schema'       => array(
 				'description' => __( 'Compact user summary for the site folder window.', 'desktop-mode' ),
@@ -142,4 +142,4 @@ function open_station_my_wordpress_register_user_summary_field() {
 		)
 	);
 }
-add_action( 'rest_api_init', 'open_station_my_wordpress_register_user_summary_field' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_user_summary_field' );

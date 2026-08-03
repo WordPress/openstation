@@ -22,10 +22,10 @@
 class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCase {
 
 	public function tear_down() {
-		foreach ( array_keys( open_station_desktop_theme_registry() ) as $slug ) {
-			open_station_unregister_desktop_theme( $slug );
+		foreach ( array_keys( openstation_desktop_theme_registry() ) as $slug ) {
+			openstation_unregister_desktop_theme( $slug );
 		}
-		remove_all_filters( 'open_station_desktop_theme_recommended_os_settings_schema' );
+		remove_all_filters( 'openstation_desktop_theme_recommended_os_settings_schema' );
 		parent::tear_down();
 	}
 
@@ -37,7 +37,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	}
 
 	private function sanitize_manifest( $raw ) {
-		return open_station_sanitize_desktop_theme_manifest(
+		return openstation_sanitize_desktop_theme_manifest(
 			$raw,
 			$this->permissive_resolver()
 		);
@@ -63,29 +63,29 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * settings sanitizer's own constants, or a theme could recommend
 	 * a value the settings layer would then reject.
 	 *
-	 * @covers ::open_station_desktop_theme_recommended_os_settings_schema
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
 	 */
 	public function test_schema_mirrors_the_os_settings_enums() {
-		$schema = open_station_desktop_theme_recommended_os_settings_schema();
+		$schema = openstation_desktop_theme_recommended_os_settings_schema();
 
 		$this->assertSame(
-			OPEN_STATION_OS_SETTINGS_DOCK_SIZES,
+			OPENSTATION_OS_SETTINGS_DOCK_SIZES,
 			$schema['dockSize']['enum']
 		);
 		$this->assertSame(
-			OPEN_STATION_OS_SETTINGS_DESKTOP_LAYOUTS,
+			OPENSTATION_OS_SETTINGS_DESKTOP_LAYOUTS,
 			$schema['desktopLayout']['enum']
 		);
 		$this->assertSame(
-			OPEN_STATION_OS_SETTINGS_WINDOW_RADII,
+			OPENSTATION_OS_SETTINGS_WINDOW_RADII,
 			$schema['windowRadius']['enum']
 		);
 		$this->assertTrue( $schema['dockRailRenderer']['slug'] );
 		$this->assertTrue( $schema['windowReveal']['slug'] );
 		$this->assertSame(
 			array(
-				'min' => OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MIN,
-				'max' => OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MAX,
+				'min' => OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN,
+				'max' => OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX,
 			),
 			$schema['windowRevealDuration']['int']
 		);
@@ -95,11 +95,11 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * The `int` grammar is filterable like the other two, and a
 	 * malformed range drops rather than reaching the sanitizer.
 	 *
-	 * @covers ::open_station_desktop_theme_recommended_os_settings_schema
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
 	 */
 	public function test_int_rules_are_filterable_and_validated() {
 		add_filter(
-			'open_station_desktop_theme_recommended_os_settings_schema',
+			'openstation_desktop_theme_recommended_os_settings_schema',
 			static function ( $schema ) {
 				$schema['acmeDelay']    = array( 'int' => array( 'min' => 0, 'max' => 500 ) );
 				$schema['acmeNoRange']  = array( 'int' => true );
@@ -108,7 +108,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 			}
 		);
 
-		$schema = open_station_desktop_theme_recommended_os_settings_schema();
+		$schema = openstation_desktop_theme_recommended_os_settings_schema();
 		$this->assertSame(
 			array( 'min' => 0, 'max' => 500 ),
 			$schema['acmeDelay']['int']
@@ -118,11 +118,11 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	}
 
 	/**
-	 * @covers ::open_station_desktop_theme_recommended_os_settings_schema
+	 * @covers ::openstation_desktop_theme_recommended_os_settings_schema
 	 */
 	public function test_schema_is_filterable_and_malformed_entries_drop() {
 		add_filter(
-			'open_station_desktop_theme_recommended_os_settings_schema',
+			'openstation_desktop_theme_recommended_os_settings_schema',
 			static function ( $schema ) {
 				$schema['acmeDensity'] = array( 'enum' => array( 'cosy', 'roomy' ) );
 				$schema['acmeBroken']  = array( 'enum' => 'not-a-list' );
@@ -131,7 +131,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 			}
 		);
 
-		$schema = open_station_desktop_theme_recommended_os_settings_schema();
+		$schema = openstation_desktop_theme_recommended_os_settings_schema();
 		$this->assertSame( array( 'cosy', 'roomy' ), $schema['acmeDensity']['enum'] );
 		$this->assertArrayNotHasKey( 'acmeBroken', $schema );
 		$this->assertArrayNotHasKey( 'acmeAlsoBad', $schema );
@@ -142,10 +142,10 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_every_core_key_round_trips() {
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
 				'dockSize'             => 'large',
 				'desktopLayout'        => 'unified',
@@ -175,31 +175,31 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * expressing a direction, and the nearest playable value is the
 	 * honest reading of it.
 	 *
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_int_recommendations_clamp_rather_than_drop() {
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'windowRevealDuration' => 999999 )
 		);
 		$this->assertSame(
-			OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MAX,
+			OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MAX,
 			$clean['windowRevealDuration']
 		);
 
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'windowRevealDuration' => 1 )
 		);
 		$this->assertSame(
-			OPEN_STATION_OS_SETTINGS_REVEAL_DURATION_MIN,
+			OPENSTATION_OS_SETTINGS_REVEAL_DURATION_MIN,
 			$clean['windowRevealDuration']
 		);
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_non_numeric_int_recommendation_drops() {
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
 				'windowRevealDuration' => 'quick',
 				'windowReveal'         => 'iris',
@@ -209,10 +209,10 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_out_of_enum_values_drop_and_the_rest_survive() {
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
 				'dockSize'      => 'enormous',
 				'desktopLayout' => 'spatial',
@@ -228,10 +228,10 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * presentation — feature switches, capability-adjacent flags, or
 	 * anything else on the OS settings object.
 	 *
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_keys_outside_the_schema_are_dropped() {
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array(
 				'dockSize'              => 'compact',
 				'nativePluginsEnabled'  => 'true',
@@ -249,35 +249,35 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * the JS registry knows which renderers exist, and the shell drops
 	 * the key at apply time when nothing answers to the id.
 	 *
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_dock_rail_renderer_is_sanitized_as_a_slug() {
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'dockRailRenderer' => 'Orbit Rail!' )
 		);
 		$this->assertSame( array( 'dockRailRenderer' => 'orbitrail' ), $clean );
 
-		$empty = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$empty = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'dockRailRenderer' => '!!!' )
 		);
 		$this->assertSame( array(), $empty );
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_non_string_and_non_array_input_yields_an_empty_set() {
 		$this->assertSame(
 			array(),
-			open_station_sanitize_desktop_theme_recommended_os_settings( 'large' )
+			openstation_sanitize_desktop_theme_recommended_os_settings( 'large' )
 		);
 		$this->assertSame(
 			array(),
-			open_station_sanitize_desktop_theme_recommended_os_settings( null )
+			openstation_sanitize_desktop_theme_recommended_os_settings( null )
 		);
 		$this->assertSame(
 			array(),
-			open_station_sanitize_desktop_theme_recommended_os_settings(
+			openstation_sanitize_desktop_theme_recommended_os_settings(
 				array(
 					'dockSize'      => array( 'large' ),
 					'desktopLayout' => 5,
@@ -288,10 +288,10 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_desktop_theme_recommended_os_settings
+	 * @covers ::openstation_sanitize_desktop_theme_recommended_os_settings
 	 */
 	public function test_whitespace_is_trimmed_before_matching() {
-		$clean = open_station_sanitize_desktop_theme_recommended_os_settings(
+		$clean = openstation_sanitize_desktop_theme_recommended_os_settings(
 			array( 'dockSize' => "  large\n" )
 		);
 		$this->assertSame( array( 'dockSize' => 'large' ), $clean );
@@ -302,7 +302,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::open_station_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_manifest_carries_the_sanitized_block() {
 		$manifest = $this->manifest_with(
@@ -328,7 +328,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * key exists and is empty, which is the same "recommends nothing"
 	 * state every pre-existing theme is in.
 	 *
-	 * @covers ::open_station_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_manifest_without_the_block_recommends_nothing() {
 		$manifest = $this->sanitize_manifest(
@@ -350,7 +350,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * would contradict the drop-and-continue contract the rest of the
 	 * sanitizer follows.
 	 *
-	 * @covers ::open_station_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_version_one_manifest_may_still_recommend() {
 		$manifest = $this->manifest_with( array( 'dockSize' => 'compact' ), 1 );
@@ -363,7 +363,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	}
 
 	/**
-	 * @covers ::open_station_sanitize_desktop_theme_manifest
+	 * @covers ::openstation_sanitize_desktop_theme_manifest
 	 */
 	public function test_a_garbage_block_does_not_fail_the_upload() {
 		$manifest = $this->manifest_with( 'dockSize=large' );
@@ -378,11 +378,11 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	// ------------------------------------------------------------------
 
 	/**
-	 * @covers ::open_station_register_desktop_theme
+	 * @covers ::openstation_register_desktop_theme
 	 */
 	public function test_code_registration_accepts_recommendations() {
 		$this->assertTrue(
-			open_station_register_desktop_theme(
+			openstation_register_desktop_theme(
 				'acme/neon',
 				array(
 					'name'                  => 'Neon',
@@ -394,7 +394,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 			)
 		);
 
-		$entry = open_station_desktop_theme_registry( 'acme-neon' );
+		$entry = openstation_desktop_theme_registry( 'acme-neon' );
 		$this->assertSame(
 			array(
 				'dockSize'      => 'large',
@@ -405,22 +405,22 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	}
 
 	/**
-	 * @covers ::open_station_register_desktop_theme
+	 * @covers ::openstation_register_desktop_theme
 	 */
 	public function test_code_registration_without_recommendations_still_works() {
 		$this->assertTrue(
-			open_station_register_desktop_theme( 'acme/plain', array( 'name' => 'Plain' ) )
+			openstation_register_desktop_theme( 'acme/plain', array( 'name' => 'Plain' ) )
 		);
 
-		$entry = open_station_desktop_theme_registry( 'acme-plain' );
+		$entry = openstation_desktop_theme_registry( 'acme-plain' );
 		$this->assertSame( array(), $entry['manifest']['recommendedOsSettings'] );
 	}
 
 	/**
-	 * @covers ::open_station_shape_desktop_theme_payload_entry
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
 	 */
 	public function test_payload_exposes_the_recommendations() {
-		open_station_register_desktop_theme(
+		openstation_register_desktop_theme(
 			'acme/neon',
 			array(
 				'name'                  => 'Neon',
@@ -428,7 +428,7 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 			)
 		);
 
-		$payload = open_station_build_desktop_themes_payload();
+		$payload = openstation_build_desktop_themes_payload();
 		$this->assertCount( 1, $payload );
 		$this->assertSame(
 			array( 'windowRadius' => 'round' ),
@@ -441,10 +441,10 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * shaper re-sanitizes on the way out so the shell is never handed
 	 * a value this build no longer understands.
 	 *
-	 * @covers ::open_station_shape_desktop_theme_payload_entry
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
 	 */
 	public function test_payload_resanitizes_a_stale_stored_block() {
-		$shaped = open_station_shape_desktop_theme_payload_entry(
+		$shaped = openstation_shape_desktop_theme_payload_entry(
 			array(
 				'slug'     => 'acme-neon',
 				'manifest' => array(
@@ -472,10 +472,10 @@ class Tests_OpenStation_DesktopThemesRecommendedOsSettings extends WP_UnitTestCa
 	 * theme installed before this feature existed — shapes to an
 	 * empty set rather than a missing key.
 	 *
-	 * @covers ::open_station_shape_desktop_theme_payload_entry
+	 * @covers ::openstation_shape_desktop_theme_payload_entry
 	 */
 	public function test_payload_key_is_always_present() {
-		$shaped = open_station_shape_desktop_theme_payload_entry(
+		$shaped = openstation_shape_desktop_theme_payload_entry(
 			array(
 				'slug'     => 'acme-legacy',
 				'manifest' => array(

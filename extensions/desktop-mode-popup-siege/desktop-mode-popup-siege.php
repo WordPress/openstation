@@ -26,4 +26,4 @@ require_once POPUP_SIEGE_DIR . 'includes/registration.php';
 require_once POPUP_SIEGE_DIR . 'includes/score-validation.php';
 
 add_action( 'init', 'popup_siege_register_game', 20 );
-add_filter( 'open_station_game_score_pre_save', 'popup_siege_validate_score', 10, 5 );
+add_filter( 'openstation_game_score_pre_save', 'popup_siege_validate_score', 10, 5 );

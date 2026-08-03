@@ -43,7 +43,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	 * All three agent abilities register under the openstation
 	 * category with truthful readonly annotations.
 	 *
-	 * @covers ::open_station_agents_register_abilities
+	 * @covers ::openstation_agents_register_abilities
 	 */
 	public function test_registration_and_annotations() {
 		$expectations = array(
@@ -64,7 +64,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agents_ability_get_media
+	 * @covers ::openstation_agents_ability_get_media
 	 */
 	public function test_get_media_returns_details_for_author() {
 		wp_set_current_user( self::$author_id );
@@ -87,7 +87,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	 * `upload_files` is the gate — a subscriber-role caller (or agent)
 	 * is refused by the ability's own permission callback.
 	 *
-	 * @covers ::open_station_agents_ability_get_media_can
+	 * @covers ::openstation_agents_ability_get_media_can
 	 */
 	public function test_get_media_denied_without_upload_files() {
 		wp_set_current_user( self::$subscriber_id );
@@ -100,7 +100,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agents_ability_get_media
+	 * @covers ::openstation_agents_ability_get_media
 	 */
 	public function test_get_media_unknown_id_errors() {
 		wp_set_current_user( self::$author_id );
@@ -110,14 +110,14 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $out );
-		$this->assertSame( 'open_station_agent_media_not_found', $out->get_error_code() );
+		$this->assertSame( 'openstation_agent_media_not_found', $out->get_error_code() );
 	}
 
 	/**
 	 * A non-attachment post id is refused — the ability reads media,
 	 * not arbitrary posts.
 	 *
-	 * @covers ::open_station_agents_ability_get_media
+	 * @covers ::openstation_agents_ability_get_media
 	 */
 	public function test_get_media_rejects_non_attachment() {
 		wp_set_current_user( self::$author_id );
@@ -127,11 +127,11 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		);
 
 		$this->assertWPError( $out );
-		$this->assertSame( 'open_station_agent_media_not_found', $out->get_error_code() );
+		$this->assertSame( 'openstation_agent_media_not_found', $out->get_error_code() );
 	}
 
 	/**
-	 * @covers ::open_station_agents_ability_update_media
+	 * @covers ::openstation_agents_ability_update_media
 	 */
 	public function test_update_media_writes_alt_and_title() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
@@ -158,7 +158,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	 * wp-admin does — an author-role caller who doesn't own it is
 	 * refused.
 	 *
-	 * @covers ::open_station_agents_ability_update_media_can
+	 * @covers ::openstation_agents_ability_update_media_can
 	 */
 	public function test_update_media_denied_without_edit_capability() {
 		wp_set_current_user( self::$author_id );
@@ -173,7 +173,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_agents_ability_create_post
+	 * @covers ::openstation_agents_ability_create_post
 	 */
 	public function test_create_post_is_always_a_draft_by_the_caller() {
 		wp_set_current_user( self::$author_id );
@@ -198,7 +198,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	/**
 	 * Page creation gates on `edit_pages`, which authors lack.
 	 *
-	 * @covers ::open_station_agents_ability_create_post_can
+	 * @covers ::openstation_agents_ability_create_post_can
 	 */
 	public function test_create_page_denied_for_authors() {
 		wp_set_current_user( self::$author_id );
@@ -217,11 +217,11 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 	 * An agent whose allowlist includes get-media can read media
 	 * through the runner when its role carries `upload_files`.
 	 *
-	 * @covers ::open_station_agent_runner_dispatch_tool
+	 * @covers ::openstation_agent_runner_dispatch_tool
 	 */
 	public function test_agent_can_dispatch_get_media() {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
-		$agent = open_station_agent_create(
+		$agent = openstation_agent_create(
 			array(
 				'name'      => 'Media Reader',
 				'role'      => 'author',
@@ -233,7 +233,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 		$attachment_id = self::$attachment_id;
 		$turn          = 0;
 		add_filter(
-			'open_station_agent_runner_generate',
+			'openstation_agent_runner_generate',
 			static function () use ( &$turn, $attachment_id ) {
 				++$turn;
 				if ( 1 === $turn ) {
@@ -257,7 +257,7 @@ class Tests_OpenStation_AgentsAbilities extends WP_UnitTestCase {
 			}
 		);
 
-		$result = open_station_agent_invoke( $agent->ID, 'Describe the image.' );
+		$result = openstation_agent_invoke( $agent->ID, 'Describe the image.' );
 
 		$this->assertNotWPError( $result );
 		$this->assertCount( 1, $result['toolCalls'] );

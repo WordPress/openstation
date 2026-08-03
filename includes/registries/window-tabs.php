@@ -24,10 +24,10 @@ defined( 'ABSPATH' ) || exit;
  * window's `main_tab_label` (falling back to the window `title`).
  *
  * Plugins cannot register an additional tab with this value —
- * {@see open_station_register_window_tab()} returns
- * `open_station_reserved_tab_value` when they try.
+ * {@see openstation_register_window_tab()} returns
+ * `openstation_reserved_tab_value` when they try.
  */
-const OPEN_STATION_NATIVE_WINDOW_MAIN_TAB = 'main';
+const OPENSTATION_NATIVE_WINDOW_MAIN_TAB = 'main';
 
 /**
  * Register an additional tab on an existing native window.
@@ -40,7 +40,7 @@ const OPEN_STATION_NATIVE_WINDOW_MAIN_TAB = 'main';
  * plugin can attach a tab to someone else's window.
  *
  * Registering even a single tab turns on the auto-wrap path in
- * `open_station_build_native_window_template_html()`: the shell wraps the
+ * `openstation_build_native_window_template_html()`: the shell wraps the
  * window body in `<os-stack>` + `<os-tabs>` + `<os-tabpanel>`
  * elements automatically. Plugin authors no longer hand-write that
  * markup — the shell provides it and `<os-tabpanel>` auto-swap
@@ -48,20 +48,20 @@ const OPEN_STATION_NATIVE_WINDOW_MAIN_TAB = 'main';
  *
  * ```php
  * // Plugin that owns the window declares its own tabs:
- * open_station_register_window( 'jorvy', array(
+ * openstation_register_window( 'jorvy', array(
  *     'title'          => 'Jorvy',
  *     'main_tab_label' => 'Quotes',
  *     'template'       => function () { echo '<p class="quote"></p>'; },
  *     'script'         => 'jorvy-main',
  * ) );
- * open_station_register_window_tab( 'jorvy', array(
+ * openstation_register_window_tab( 'jorvy', array(
  *     'value'    => 'about',
  *     'label'    => 'About',
  *     'template' => function () { echo '<p>Marvel quotes, rotated every 10s.</p>'; },
  * ) );
  *
  * // A companion plugin attaches a tab to someone else's window:
- * open_station_register_window_tab( 'jorvy', array(
+ * openstation_register_window_tab( 'jorvy', array(
  *     'value'    => 'stats',
  *     'label'    => 'Stats',
  *     'template' => 'jorvy_stats_pane',
@@ -90,15 +90,15 @@ const OPEN_STATION_NATIVE_WINDOW_MAIN_TAB = 'main';
  *                                  Default 100.
  *     @type string[] $capabilities Gate: ALL caps must match. Any
  *                                  missed cap returns
- *                                  `WP_Error open_station_capability_denied`.
+ *                                  `WP_Error openstation_capability_denied`.
  * }
  * @return true|WP_Error `true` on success; `WP_Error` otherwise.
  */
-function open_station_register_window_tab( $window_id, $args = array() ) {
+function openstation_register_window_tab( $window_id, $args = array() ) {
 	$window_id = sanitize_key( (string) $window_id );
 	if ( '' === $window_id ) {
-		return open_station_registration_error(
-			'open_station_missing_window_id',
+		return openstation_registration_error(
+			'openstation_missing_window_id',
 			__( 'Window id is required when registering a tab.', 'desktop-mode' )
 		);
 	}
@@ -115,8 +115,8 @@ function open_station_register_window_tab( $window_id, $args = array() ) {
 
 	foreach ( (array) $args['capabilities'] as $cap ) {
 		if ( ! current_user_can( (string) $cap ) ) {
-			return open_station_registration_error(
-				'open_station_capability_denied',
+			return openstation_registration_error(
+				'openstation_capability_denied',
 				sprintf(
 					/* translators: %s: capability slug. */
 					__( 'Current user lacks the %s capability required to register this window tab.', 'desktop-mode' ),
@@ -136,15 +136,15 @@ function open_station_register_window_tab( $window_id, $args = array() ) {
 	// which tolerates the slash.
 	$value_raw = strtolower( trim( (string) $args['value'] ) );
 	if ( '' === $value_raw ) {
-		return open_station_registration_error(
-			'open_station_missing_tab_value',
+		return openstation_registration_error(
+			'openstation_missing_tab_value',
 			__( 'Window tab registration requires a non-empty `value`.', 'desktop-mode' ),
 			array( 'window_id' => $window_id )
 		);
 	}
 	if ( ! preg_match( '/^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/', $value_raw ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_tab_value',
+		return openstation_registration_error(
+			'openstation_invalid_tab_value',
 			sprintf(
 				/* translators: %s: the invalid value. */
 				__( 'Window tab `value` "%s" must match /^[a-z0-9_-]+(\/[a-z0-9_-]+)?$/ — lowercase alphanum + hyphen/underscore, with at most one `vendor/sub-id` slash.', 'desktop-mode' ),
@@ -154,27 +154,27 @@ function open_station_register_window_tab( $window_id, $args = array() ) {
 		);
 	}
 	$value = $value_raw;
-	if ( OPEN_STATION_NATIVE_WINDOW_MAIN_TAB === $value ) {
-		return open_station_registration_error(
-			'open_station_reserved_tab_value',
+	if ( OPENSTATION_NATIVE_WINDOW_MAIN_TAB === $value ) {
+		return openstation_registration_error(
+			'openstation_reserved_tab_value',
 			sprintf(
 				/* translators: %s: the reserved value. */
 				__( 'The tab value "%s" is reserved for the window\'s own template tab.', 'desktop-mode' ),
-				OPEN_STATION_NATIVE_WINDOW_MAIN_TAB
+				OPENSTATION_NATIVE_WINDOW_MAIN_TAB
 			),
 			array( 'window_id' => $window_id, 'value' => $value )
 		);
 	}
 	if ( '' === (string) $args['label'] ) {
-		return open_station_registration_error(
-			'open_station_missing_label',
+		return openstation_registration_error(
+			'openstation_missing_label',
 			__( 'Window tab registration requires a non-empty `label`.', 'desktop-mode' ),
 			array( 'window_id' => $window_id )
 		);
 	}
 	if ( ! is_callable( $args['template'] ) ) {
-		return open_station_registration_error(
-			'open_station_invalid_template',
+		return openstation_registration_error(
+			'openstation_invalid_template',
 			__( 'Window tab registration requires a callable `template` that echoes the pane body.', 'desktop-mode' ),
 			array( 'window_id' => $window_id )
 		);
@@ -187,19 +187,19 @@ function open_station_register_window_tab( $window_id, $args = array() ) {
 		'script'   => (string) $args['script'],
 		'position' => (int) $args['position'],
 	);
-	open_station_desktop_window_tab_registry( $window_id, $value, $entry );
+	openstation_desktop_window_tab_registry( $window_id, $value, $entry );
 
 	/**
 	 * Fires after a native window tab is successfully registered.
 	 *
-	 * Does NOT fire when `open_station_register_window_tab()` returns
+	 * Does NOT fire when `openstation_register_window_tab()` returns
 	 * a `WP_Error`.
 	 *
 	 * @param string $window_id The window this tab belongs to.
 	 * @param string $value     The tab value.
 	 * @param array  $entry     The stored registry entry.
 	 */
-	do_action( 'open_station_window_tab_registered', $window_id, $value, $entry );
+	do_action( 'openstation_window_tab_registered', $window_id, $value, $entry );
 
 	return true;
 }
@@ -218,7 +218,7 @@ function open_station_register_window_tab( $window_id, $args = array() ) {
  * @param array|null $entry     Entry to store, or null to just read.
  * @return array|null
  */
-function open_station_desktop_window_tab_registry( $window_id = '', $value = '', $entry = null ) {
+function openstation_desktop_window_tab_registry( $window_id = '', $value = '', $entry = null ) {
 	static $store = array();
 
 	if ( '' === (string) $window_id ) {
@@ -246,20 +246,20 @@ function open_station_desktop_window_tab_registry( $window_id = '', $value = '',
  *
  * Shape per entry: `{ value, label, template, script, is_main, position }`.
  *
- * Filterable via `open_station_window_tabs` so a late-loading plugin
+ * Filterable via `openstation_window_tabs` so a late-loading plugin
  * can reorder, hide, or relabel tabs another plugin registered —
- * mirrors the `open_station_wallpapers` filter discipline.
+ * mirrors the `openstation_wallpapers` filter discipline.
  *
  * @param string $window_id Window id.
  * @return array[]
  */
-function open_station_get_native_window_tabs( $window_id ) {
-	$window = open_station_native_window_registry( (string) $window_id );
+function openstation_get_native_window_tabs( $window_id ) {
+	$window = openstation_native_window_registry( (string) $window_id );
 	if ( ! is_array( $window ) ) {
 		return array();
 	}
 
-	$extras = open_station_desktop_window_tab_registry( $window_id );
+	$extras = openstation_desktop_window_tab_registry( $window_id );
 	if ( ! is_array( $extras ) ) {
 		$extras = array();
 	}
@@ -271,7 +271,7 @@ function open_station_get_native_window_tabs( $window_id ) {
 		: (string) $window['title'];
 	$tabs = array(
 		array(
-			'value'    => OPEN_STATION_NATIVE_WINDOW_MAIN_TAB,
+			'value'    => OPENSTATION_NATIVE_WINDOW_MAIN_TAB,
 			'label'    => $main_label,
 			'template' => $window['template'],
 			'script'   => '',
@@ -313,6 +313,6 @@ function open_station_get_native_window_tabs( $window_id ) {
 	 * @param array[] $tabs      Ordered tab descriptors.
 	 * @param string  $window_id Window id.
 	 */
-	$filtered = apply_filters( 'open_station_window_tabs', $tabs, $window_id );
+	$filtered = apply_filters( 'openstation_window_tabs', $tabs, $window_id );
 	return is_array( $filtered ) ? $filtered : $tabs;
 }

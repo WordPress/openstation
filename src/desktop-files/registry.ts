@@ -1,7 +1,7 @@
 /**
  * OpenStation — File-type registry (JS side).
  *
- * Mirrors the PHP {@link open_station_register_file_type} surface:
+ * Mirrors the PHP {@link openstation_register_file_type} surface:
  * maps a type slug to the {@link DesktopFile} subclass that
  * adapts shapes for that type, plus user-facing metadata (label,
  * sort order). Plugins use {@link registerType} to add their own

@@ -42,7 +42,7 @@ Built and maintained by [Automattic](https://automattic.com), the company behind
 
 = Built to be extended =
 
-Every significant behavior is hookable. Register windows, dock items, wallpapers, widgets, desktop icons, commands, settings tabs, and AI tools from your own plugin — stable `open_station_register_*` PHP APIs, a typed JavaScript API, and copy-paste examples in the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
+Every significant behavior is hookable. Register windows, dock items, wallpapers, widgets, desktop icons, commands, settings tabs, and AI tools from your own plugin — stable `openstation_register_*` PHP APIs, a typed JavaScript API, and copy-paste examples in the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
 
 = External services =
 
@@ -205,7 +205,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 
 = 0.9.5 =
 * AI Copilot now uses WordPress 7.0 providers: configure a provider once in Settings → Connectors and the assistant uses it — no more per-plugin keys
-* AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`open_station_register_ai_tool()` was removed)
+* AI Copilot tools are now WordPress Abilities, so the assistant works across any configured provider; plugin authors add their own tools with the Abilities API (`openstation_register_ai_tool()` was removed)
 * Removed the OS Settings → AI tab; the per-user "AI assistant" toggle now lives in OS Settings → Features next to "Score new comments with AI"
 * Requires WordPress 7.0 for the AI assistant only; on older WordPress the assistant is hidden and the rest of OpenStation is unaffected
 * Stored AI keys are deleted from the database on upgrade
@@ -367,17 +367,17 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 
 = 0.5.1 =
 * Code editor and framework improvements.
-* Enhanced AI provider integration: third-party providers may register through `open_station_register_ai_provider()`.
+* Enhanced AI provider integration: third-party providers may register through `openstation_register_ai_provider()`.
 * Title-bar button registry with icon painting for plugin authors.
-* OS Settings tabs are now extensible via `open_station_register_settings_tab_script()` / `open_station_register_settings_tab()`.
-* AI Copilot extensibility: server-side tool registry (`open_station_register_ai_tool()`) and client-side `wp.os.ai.ask()` programmatic entry point.
+* OS Settings tabs are now extensible via `openstation_register_settings_tab_script()` / `openstation_register_settings_tab()`.
+* AI Copilot extensibility: server-side tool registry (`openstation_register_ai_tool()`) and client-side `wp.os.ai.ask()` programmatic entry point.
 * UI component kit expansion (~25 `<os-*>` web components).
 * Backtick hotkey to cycle window focus.
 * Unified command palettes via the palette registry.
 * OS Settings Help tab.
 
 = 0.5.0 =
-* Command registration APIs (`open_station_register_command_script()` / `open_station_register_command()`) with live install/activate refresh.
+* Command registration APIs (`openstation_register_command_script()` / `openstation_register_command()`) with live install/activate refresh.
 * Media-library enhancement enabled by default, with opt-out.
 * Dock CSS selectors updated; overflow handling improved.
 

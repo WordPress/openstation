@@ -18,7 +18,7 @@ without forking `includes/widgets/widget-drafts.php`.
 defined( 'ABSPATH' ) || exit;
 
 add_filter(
-    'open_station_drafts_ai_instructions',
+    'openstation_drafts_ai_instructions',
     function ( $instructions, $post ) {
         return $instructions . "\n\n" . implode(
             "\n",
@@ -41,7 +41,7 @@ a long draft is never cut mid-character. Return `0` to send all of it.
 
 ```php
 add_filter(
-    'open_station_drafts_ai_content_limit',
+    'openstation_drafts_ai_content_limit',
     function ( $limit, $post ) {
         // Long-form review posts need the whole thing to be judged fairly.
         return has_category( 'reviews', $post ) ? 0 : $limit;
@@ -53,12 +53,12 @@ add_filter(
 
 ## Post-process the suggestions
 
-`open_station_drafts_ai_suggestions` runs last, after tag-stripping and
+`openstation_drafts_ai_suggestions` runs last, after tag-stripping and
 truncation — drop, reorder or append entries without re-sanitizing.
 
 ```php
 add_filter(
-    'open_station_drafts_ai_suggestions',
+    'openstation_drafts_ai_suggestions',
     function ( $suggestions, $post ) {
         // Never offer a tag that isn't already on the site.
         $suggestions['tags'] = array_values(
@@ -84,7 +84,7 @@ request was a no-op — for example an unknown category the user lacked
 
 ```php
 add_action(
-    'open_station_drafts_suggestion_applied',
+    'openstation_drafts_suggestion_applied',
     function ( $post_id, $applied, $post ) {
         if ( empty( $applied ) ) {
             return;
@@ -111,7 +111,7 @@ plugins that also consume `/desktop-mode/v1/draft-suggestions` directly.
 
 ```php
 add_filter(
-    'open_station_drafts_ai_schema',
+    'openstation_drafts_ai_schema',
     function ( $schema, $post ) {
         $schema['properties']['reading_time'] = array(
             'type'        => 'string',
@@ -133,7 +133,7 @@ Nothing here bypasses the route's gates, and neither should your code:
   text-generation provider. An unauthorized caller always gets `403`, so
   the response can't be used to probe whether the site has AI set up.
 - With no provider, an authorized caller gets `503
-  open_station_ai_unavailable` and the 💡 button never renders —
+  openstation_ai_unavailable` and the 💡 button never renders —
   the widget degrades to exactly its pre-AI behavior.
 - `/draft-apply` requires `edit_post` and nothing else; accepting a
   suggestion is a plain edit that keeps working if AI is switched off

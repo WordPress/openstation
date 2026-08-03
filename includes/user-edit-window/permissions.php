@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int|null $user_id Optional. Defaults to `get_current_user_id()`.
  * @return bool
  */
-function open_station_user_edit_window_user_can_register( $user_id = null ) {
+function openstation_user_edit_window_user_can_register( $user_id = null ) {
 	$user_id = null === $user_id ? get_current_user_id() : (int) $user_id;
 	$can     = $user_id > 0;
 
@@ -36,7 +36,7 @@ function open_station_user_edit_window_user_can_register( $user_id = null ) {
 	 * @param int  $user_id User being checked.
 	 */
 	return (bool) apply_filters(
-		'open_station_user_edit_window_user_can_register',
+		'openstation_user_edit_window_user_can_register',
 		$can,
 		$user_id
 	);
@@ -51,7 +51,7 @@ function open_station_user_edit_window_user_can_register( $user_id = null ) {
  * @param int $target_id
  * @return bool
  */
-function open_station_user_edit_window_can_edit( $viewer_id, $target_id ) {
+function openstation_user_edit_window_can_edit( $viewer_id, $target_id ) {
 	$viewer_id = (int) $viewer_id;
 	$target_id = (int) $target_id;
 	if ( $viewer_id <= 0 || $target_id <= 0 ) {

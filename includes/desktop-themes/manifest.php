@@ -8,7 +8,7 @@
  *
  *   - ZIP uploads pass a resolver that validates a path INSIDE the
  *     staging directory and hands back the theme-relative path.
- *   - Code registrations (`open_station_register_desktop_theme()`)
+ *   - Code registrations (`openstation_register_desktop_theme()`)
  *     pass a resolver that validates an absolute http(s) URL.
  *
  * Both resolvers take the same two arguments —
@@ -73,7 +73,7 @@ defined( 'ABSPATH' ) || exit;
  * @param mixed $value Candidate value.
  * @return bool
  */
-function open_station_desktop_theme_is_safe_css_value( $value ) {
+function openstation_desktop_theme_is_safe_css_value( $value ) {
 	if ( ! is_string( $value ) ) {
 		return false;
 	}
@@ -119,7 +119,7 @@ function open_station_desktop_theme_is_safe_css_value( $value ) {
  * @param mixed $raw Raw `tokens` value.
  * @return array<string,string>
  */
-function open_station_sanitize_desktop_theme_tokens( $raw ) {
+function openstation_sanitize_desktop_theme_tokens( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
@@ -157,7 +157,7 @@ function open_station_sanitize_desktop_theme_tokens( $raw ) {
 		) {
 			continue;
 		}
-		if ( ! open_station_desktop_theme_is_safe_css_value( $value ) ) {
+		if ( ! openstation_desktop_theme_is_safe_css_value( $value ) ) {
 			continue;
 		}
 		$out[ $key ] = trim( (string) $value );
@@ -182,7 +182,7 @@ function open_station_sanitize_desktop_theme_tokens( $raw ) {
  * @param mixed $value Candidate.
  * @return bool
  */
-function open_station_desktop_theme_is_color_value( $value ) {
+function openstation_desktop_theme_is_color_value( $value ) {
 	if ( ! is_string( $value ) ) {
 		return false;
 	}
@@ -192,7 +192,7 @@ function open_station_desktop_theme_is_color_value( $value ) {
 	}
 	// The general grammar is still the floor — it is what bans `;`,
 	// `{`, `@`, quotes, comments and `var()`.
-	if ( ! open_station_desktop_theme_is_safe_css_value( $value ) ) {
+	if ( ! openstation_desktop_theme_is_safe_css_value( $value ) ) {
 		return false;
 	}
 	if ( 0 === strcasecmp( 'currentcolor', $value ) ) {
@@ -239,11 +239,11 @@ function open_station_desktop_theme_is_color_value( $value ) {
  *                                 own. `''` for none.
  * @return array<string,array>
  */
-function open_station_sanitize_desktop_theme_icons( $raw, $asset_resolver, $default_color = '' ) {
+function openstation_sanitize_desktop_theme_icons( $raw, $asset_resolver, $default_color = '' ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$allowed = array_flip( array_map( 'strval', open_station_desktop_theme_icon_slots() ) );
+	$allowed = array_flip( array_map( 'strval', openstation_desktop_theme_icon_slots() ) );
 	$out     = array();
 	$count   = 0;
 	foreach ( $raw as $slot => $descriptor ) {
@@ -281,8 +281,8 @@ function open_station_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defa
 			$candidate = trim( $descriptor['color'] );
 			if ( 0 === strcasecmp( 'none', $candidate ) ) {
 				$color = 'none';
-			} elseif ( open_station_desktop_theme_is_color_value( $candidate ) ) {
-				$color = open_station_desktop_theme_normalize_color( $candidate );
+			} elseif ( openstation_desktop_theme_is_color_value( $candidate ) ) {
+				$color = openstation_desktop_theme_normalize_color( $candidate );
 			}
 		}
 		if ( '' === $color ) {
@@ -341,7 +341,7 @@ function open_station_sanitize_desktop_theme_icons( $raw, $asset_resolver, $defa
  * @param string $value Validated colour.
  * @return string
  */
-function open_station_desktop_theme_normalize_color( $value ) {
+function openstation_desktop_theme_normalize_color( $value ) {
 	$value = trim( preg_replace( '/\s+/', ' ', (string) $value ) );
 	return 0 === strcasecmp( 'currentcolor', $value ) ? 'currentColor' : $value;
 }
@@ -357,7 +357,7 @@ function open_station_desktop_theme_normalize_color( $value ) {
  * @param string $value Candidate.
  * @return bool
  */
-function open_station_desktop_theme_is_size_value( $value ) {
+function openstation_desktop_theme_is_size_value( $value ) {
 	$value = strtolower( trim( (string) $value ) );
 	if ( in_array( $value, array( 'auto', 'cover', 'contain' ), true ) ) {
 		return true;
@@ -395,7 +395,7 @@ function open_station_desktop_theme_is_size_value( $value ) {
  * @param string $value Candidate.
  * @return bool
  */
-function open_station_desktop_theme_is_position_value( $value ) {
+function openstation_desktop_theme_is_position_value( $value ) {
 	$value = strtolower( trim( (string) $value ) );
 	if ( '' === $value || strlen( $value ) > 64 ) {
 		return false;
@@ -432,11 +432,11 @@ function open_station_desktop_theme_is_position_value( $value ) {
  * @param callable $asset_resolver `fn( string $path ): string|false`.
  * @return array<string,array>
  */
-function open_station_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$slots  = open_station_desktop_theme_texture_slots();
+	$slots  = openstation_desktop_theme_texture_slots();
 	$out    = array();
 	$repeat = array( 'repeat', 'repeat-x', 'repeat-y', 'no-repeat', 'space', 'round' );
 
@@ -514,13 +514,13 @@ function open_station_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
 			}
 			if ( isset( $descriptor['size'] ) && is_string( $descriptor['size'] ) ) {
 				$value = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['size'] ) ) );
-				if ( open_station_desktop_theme_is_size_value( $value ) ) {
+				if ( openstation_desktop_theme_is_size_value( $value ) ) {
 					$entry['size'] = $value;
 				}
 			}
 			if ( isset( $descriptor['position'] ) && is_string( $descriptor['position'] ) ) {
 				$value = strtolower( trim( preg_replace( '/\s+/', ' ', $descriptor['position'] ) ) );
-				if ( open_station_desktop_theme_is_position_value( $value ) ) {
+				if ( openstation_desktop_theme_is_position_value( $value ) ) {
 					$entry['position'] = $value;
 				}
 			}
@@ -544,7 +544,7 @@ function open_station_sanitize_desktop_theme_textures( $raw, $asset_resolver ) {
  * @param string $ref Resolved reference.
  * @return string Format keyword, or `''` when unrecognised.
  */
-function open_station_desktop_theme_font_format( $ref ) {
+function openstation_desktop_theme_font_format( $ref ) {
 	$ref  = (string) $ref;
 	$path = $ref;
 	if ( preg_match( '~^https?://~i', $ref ) ) {
@@ -590,11 +590,11 @@ function open_station_desktop_theme_font_format( $ref ) {
  * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
  * @return array<int,array>
  */
-function open_station_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$caps = open_station_desktop_theme_font_caps();
+	$caps = openstation_desktop_theme_font_caps();
 	$out  = array();
 
 	foreach ( $raw as $face ) {
@@ -639,7 +639,7 @@ function open_station_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
 			if ( ! is_string( $ref ) || '' === $ref ) {
 				continue;
 			}
-			$format = open_station_desktop_theme_font_format( $ref );
+			$format = openstation_desktop_theme_font_format( $ref );
 			if ( '' === $format ) {
 				continue;
 			}
@@ -771,7 +771,7 @@ function open_station_sanitize_desktop_theme_fonts( $raw, $asset_resolver ) {
  * @param callable $asset_resolver `fn( string $path, string $kind ): string|false`.
  * @return array[] List of sanitized descriptors.
  */
-function open_station_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver ) {
 	if ( is_string( $raw ) ) {
 		$raw = array( array( 'path' => $raw ) );
 	} elseif ( is_array( $raw ) && isset( $raw['path'] ) ) {
@@ -787,7 +787,7 @@ function open_station_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 	 *
 	 * @param int $max Default 12.
 	 */
-	$max  = max( 1, (int) apply_filters( 'open_station_desktop_theme_max_wallpapers', 12 ) );
+	$max  = max( 1, (int) apply_filters( 'openstation_desktop_theme_max_wallpapers', 12 ) );
 	$out  = array();
 	$seen = array();
 
@@ -846,13 +846,13 @@ function open_station_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
 		}
 		if ( isset( $entry['size'] ) && is_string( $entry['size'] ) ) {
 			$value = strtolower( trim( preg_replace( '/\s+/', ' ', $entry['size'] ) ) );
-			if ( open_station_desktop_theme_is_size_value( $value ) ) {
+			if ( openstation_desktop_theme_is_size_value( $value ) ) {
 				$item['size'] = $value;
 			}
 		}
 		if ( isset( $entry['position'] ) && is_string( $entry['position'] ) ) {
 			$value = strtolower( trim( preg_replace( '/\s+/', ' ', $entry['position'] ) ) );
-			if ( open_station_desktop_theme_is_position_value( $value ) ) {
+			if ( openstation_desktop_theme_is_position_value( $value ) ) {
 				$item['position'] = $value;
 			}
 		}
@@ -887,7 +887,7 @@ function open_station_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
  * "Recommended OS settings" for the full contract.
  *
  * Every key is checked against
- * {@see open_station_desktop_theme_recommended_os_settings_schema()},
+ * {@see openstation_desktop_theme_recommended_os_settings_schema()},
  * and the same drop-and-continue posture as the rest of the manifest
  * applies: an unknown key or an out-of-enum value disappears and the
  * remaining recommendations survive.
@@ -897,11 +897,11 @@ function open_station_sanitize_desktop_theme_wallpapers( $raw, $asset_resolver )
  * @param mixed $raw Raw `recommendedOsSettings` value.
  * @return array<string,string|int>
  */
-function open_station_sanitize_desktop_theme_recommended_os_settings( $raw ) {
+function openstation_sanitize_desktop_theme_recommended_os_settings( $raw ) {
 	if ( ! is_array( $raw ) ) {
 		return array();
 	}
-	$schema = open_station_desktop_theme_recommended_os_settings_schema();
+	$schema = openstation_desktop_theme_recommended_os_settings_schema();
 	$out    = array();
 	foreach ( $schema as $key => $rule ) {
 		if ( ! isset( $raw[ $key ] ) ) {
@@ -958,17 +958,17 @@ function open_station_sanitize_desktop_theme_recommended_os_settings( $raw ) {
  * @return array|WP_Error Sanitized manifest, or `WP_Error` when a
  *                        structural field is missing/invalid.
  */
-function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
+function openstation_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	if ( ! is_array( $raw ) ) {
 		return new WP_Error(
-			'open_station_desktop_theme_invalid_manifest',
+			'openstation_desktop_theme_invalid_manifest',
 			__( 'The theme manifest is not a JSON object.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
 	if ( ! is_callable( $asset_resolver ) ) {
 		return new WP_Error(
-			'open_station_desktop_theme_invalid_resolver',
+			'openstation_desktop_theme_invalid_resolver',
 			__( 'No asset resolver was provided for this manifest.', 'desktop-mode' ),
 			array( 'status' => 500 )
 		);
@@ -988,7 +988,7 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	$version       = is_numeric( $version_field ) ? (int) $version_field : 0;
 	if ( ! in_array( $version, array( 1, 2 ), true ) ) {
 		return new WP_Error(
-			'open_station_desktop_theme_bad_version',
+			'openstation_desktop_theme_bad_version',
 			__( 'Unsupported theme manifest version. Expected "manifestVersion": 1 or 2.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -997,15 +997,15 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	$id = isset( $raw['id'] ) && is_string( $raw['id'] ) ? trim( $raw['id'] ) : '';
 	if ( '' === $id || strlen( $id ) > 64 || ! preg_match( '~^[a-z0-9_-]+(/[a-z0-9_-]+)?$~', $id ) ) {
 		return new WP_Error(
-			'open_station_desktop_theme_bad_id',
+			'openstation_desktop_theme_bad_id',
 			__( 'The theme id must look like "neon-glass" or "vendor/neon-glass" (lowercase, max 64 characters).', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
 	}
-	$slug = open_station_desktop_theme_slug_from_id( $id );
+	$slug = openstation_desktop_theme_slug_from_id( $id );
 	if ( '' === $slug ) {
 		return new WP_Error(
-			'open_station_desktop_theme_bad_id',
+			'openstation_desktop_theme_bad_id',
 			__( 'The theme id does not reduce to a usable slug.', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -1014,7 +1014,7 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	$name = isset( $raw['name'] ) && is_string( $raw['name'] ) ? sanitize_text_field( $raw['name'] ) : '';
 	if ( '' === $name ) {
 		return new WP_Error(
-			'open_station_desktop_theme_missing_name',
+			'openstation_desktop_theme_missing_name',
 			__( 'The theme manifest requires a non-empty "name".', 'desktop-mode' ),
 			array( 'status' => 400 )
 		);
@@ -1034,8 +1034,8 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	// its own `color`, so a monochrome iconset is one line rather than
 	// twenty-odd repetitions.
 	$icon_color = '';
-	if ( isset( $raw['iconColor'] ) && open_station_desktop_theme_is_color_value( $raw['iconColor'] ) ) {
-		$icon_color = open_station_desktop_theme_normalize_color( $raw['iconColor'] );
+	if ( isset( $raw['iconColor'] ) && openstation_desktop_theme_is_color_value( $raw['iconColor'] ) ) {
+		$icon_color = openstation_desktop_theme_normalize_color( $raw['iconColor'] );
 	}
 
 	$manifest = array(
@@ -1053,26 +1053,26 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 			? mb_substr( sanitize_textarea_field( $raw['description'] ), 0, 500 )
 			: '',
 		'preview'               => $preview,
-		'tokens'                => open_station_sanitize_desktop_theme_tokens(
+		'tokens'                => openstation_sanitize_desktop_theme_tokens(
 			isset( $raw['tokens'] ) ? $raw['tokens'] : null
 		),
 		'iconColor'             => $icon_color,
-		'icons'                 => open_station_sanitize_desktop_theme_icons(
+		'icons'                 => openstation_sanitize_desktop_theme_icons(
 			isset( $raw['icons'] ) ? $raw['icons'] : null,
 			$asset_resolver,
 			$icon_color
 		),
-		'textures'              => open_station_sanitize_desktop_theme_textures(
+		'textures'              => openstation_sanitize_desktop_theme_textures(
 			isset( $raw['textures'] ) ? $raw['textures'] : null,
 			$asset_resolver
 		),
-		'fonts'                 => open_station_sanitize_desktop_theme_fonts(
+		'fonts'                 => openstation_sanitize_desktop_theme_fonts(
 			isset( $raw['fonts'] ) ? $raw['fonts'] : null,
 			$asset_resolver
 		),
 		// `wallpaper` and `wallpapers` are both accepted — authors
 		// guess either — and merge into one list.
-		'wallpapers'            => open_station_sanitize_desktop_theme_wallpapers(
+		'wallpapers'            => openstation_sanitize_desktop_theme_wallpapers(
 			isset( $raw['wallpapers'] ) ? $raw['wallpapers'] : (
 				isset( $raw['wallpaper'] ) ? $raw['wallpaper'] : null
 			),
@@ -1080,7 +1080,7 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 		),
 		// Presentation preferences the theme would like the user to
 		// wear. Applied once, on first activation — never on load.
-		'recommendedOsSettings' => open_station_sanitize_desktop_theme_recommended_os_settings(
+		'recommendedOsSettings' => openstation_sanitize_desktop_theme_recommended_os_settings(
 			isset( $raw['recommendedOsSettings'] ) ? $raw['recommendedOsSettings'] : null
 		),
 	);
@@ -1097,7 +1097,7 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
 	 * @param array  $raw      The manifest as the author wrote it.
 	 * @param string $slug     Storage slug derived from `id`.
 	 */
-	$manifest = (array) apply_filters( 'open_station_desktop_theme_manifest', $manifest, $raw, $slug );
+	$manifest = (array) apply_filters( 'openstation_desktop_theme_manifest', $manifest, $raw, $slug );
 
 	return $manifest;
 }
@@ -1114,7 +1114,7 @@ function open_station_sanitize_desktop_theme_manifest( $raw, $asset_resolver ) {
  * @param string $staging_dir Absolute path of the extracted ZIP.
  * @return callable `fn( string $path, string $kind = 'image' ): string|false`
  */
-function open_station_desktop_theme_staging_asset_resolver( $staging_dir ) {
+function openstation_desktop_theme_staging_asset_resolver( $staging_dir ) {
 	$base = realpath( $staging_dir );
 	return static function ( $path, $kind = 'image' ) use ( $base ) {
 		if ( false === $base || ! is_string( $path ) ) {
@@ -1136,7 +1136,7 @@ function open_station_desktop_theme_staging_asset_resolver( $staging_dir ) {
 			}
 		}
 		$ext = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
-		if ( ! in_array( $ext, open_station_desktop_theme_asset_extensions( $kind ), true ) ) {
+		if ( ! in_array( $ext, openstation_desktop_theme_asset_extensions( $kind ), true ) ) {
 			return false;
 		}
 		$full = realpath( $base . '/' . $path );
@@ -1156,7 +1156,7 @@ function open_station_desktop_theme_staging_asset_resolver( $staging_dir ) {
  *
  * @return callable `fn( string $url, string $kind = 'image' ): string|false`
  */
-function open_station_desktop_theme_url_asset_resolver() {
+function openstation_desktop_theme_url_asset_resolver() {
 	return static function ( $url, $kind = 'image' ) {
 		if ( ! is_string( $url ) ) {
 			return false;
@@ -1178,7 +1178,7 @@ function open_station_desktop_theme_url_asset_resolver() {
 		}
 		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
 		$ext  = strtolower( (string) pathinfo( $path, PATHINFO_EXTENSION ) );
-		if ( ! in_array( $ext, open_station_desktop_theme_asset_extensions( $kind ), true ) ) {
+		if ( ! in_array( $ext, openstation_desktop_theme_asset_extensions( $kind ), true ) ) {
 			return false;
 		}
 		return $url;

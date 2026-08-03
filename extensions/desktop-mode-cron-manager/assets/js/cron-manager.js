@@ -672,7 +672,7 @@ var openStationCronManager = function(exports) {
     return escapeHtml(value);
   }
   const registry = window.openStationNativeWindows ?? (window.openStationNativeWindows = {});
-  registry["osm-cron-manager"] = (body) => {
+  registry["wpdm-cron-manager"] = (body) => {
     renderCronManager(body);
   };
   exports.renderCronManager = renderCronManager;

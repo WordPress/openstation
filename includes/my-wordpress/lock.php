@@ -15,7 +15,7 @@
  * `edit_post` so users who can't edit the post never see who else is
  * editing it.
  *
- * The field name is `open_station_lock`; shape:
+ * The field name is `openstation_lock`; shape:
  *
  *   - `null` — not locked, OR the requester lacks edit caps.
  *   - `{ userId, userName, userAvatarUrl, time }` — locked by another
@@ -37,7 +37,7 @@ defined( 'ABSPATH' ) || exit;
  * @param int $post_id Post id.
  * @return array{userId:int,userName:string,userAvatarUrl:string,time:string}|null
  */
-function open_station_my_wordpress_post_lock_payload( $post_id ) {
+function openstation_my_wordpress_post_lock_payload( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return null;
@@ -92,7 +92,7 @@ function open_station_my_wordpress_post_lock_payload( $post_id ) {
  *      recently; the only signal on installs with revisions
  *      disabled.
  *   4. Anything plugins return from the
- *      `open_station_my_wordpress_post_contributors` filter, which
+ *      `openstation_my_wordpress_post_contributors` filter, which
  *      receives the post id + the running user-id list. Filter
  *      contract is plain int[] for ergonomics; we expand each id
  *      into the structured shape afterwards.
@@ -108,7 +108,7 @@ function open_station_my_wordpress_post_lock_payload( $post_id ) {
  * @param int $post_id Post id.
  * @return array<int,array{userId:int,userName:string,userAvatarUrl:string}>
  */
-function open_station_my_wordpress_post_contributors_payload( $post_id ) {
+function openstation_my_wordpress_post_contributors_payload( $post_id ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 ) {
 		return array();
@@ -188,7 +188,7 @@ function open_station_my_wordpress_post_contributors_payload( $post_id ) {
 	 *
 	 * ```php
 	 * // ACF user-list field "post_contributors":
-	 * add_filter( 'open_station_my_wordpress_post_contributors',
+	 * add_filter( 'openstation_my_wordpress_post_contributors',
 	 *     function ( $ids, $post_id ) {
 	 *         $extra = (array) get_field( 'post_contributors', $post_id );
 	 *         foreach ( $extra as $u ) {
@@ -206,7 +206,7 @@ function open_station_my_wordpress_post_contributors_payload( $post_id ) {
 	 *                       (from Co-Authors Plus, etc.).
 	 * @param int   $post_id Post id.
 	 */
-	$ids = (array) apply_filters( 'open_station_my_wordpress_post_contributors', $ids, $post_id );
+	$ids = (array) apply_filters( 'openstation_my_wordpress_post_contributors', $ids, $post_id );
 
 	// De-duplicate, drop the primary author so the Contributors
 	// sub-folder only carries *additional* people, drop empty/0,
@@ -246,21 +246,21 @@ function open_station_my_wordpress_post_contributors_payload( $post_id ) {
  * come along for free.
  *
  * Two fields:
- *   - `open_station_lock`         — active edit-lock holder.
- *   - `open_station_contributors` — additional contributor users
+ *   - `openstation_lock`         — active edit-lock holder.
+ *   - `openstation_contributors` — additional contributor users
  *                                   beyond the primary author.
  */
-function open_station_my_wordpress_register_lock_field() {
-	$types = open_station_my_wordpress_rest_field_post_types();
+function openstation_my_wordpress_register_lock_field() {
+	$types = openstation_my_wordpress_rest_field_post_types();
 
 	foreach ( $types as $type ) {
 		register_rest_field(
 			$type,
-			'open_station_lock',
+			'openstation_lock',
 			array(
 				'get_callback' => static function ( $post ) {
 					$post_id = isset( $post['id'] ) ? (int) $post['id'] : 0;
-					return open_station_my_wordpress_post_lock_payload( $post_id );
+					return openstation_my_wordpress_post_lock_payload( $post_id );
 				},
 				'schema'       => array(
 					'description' => __( 'Active edit-lock holder, or null when the post is not locked.', 'desktop-mode' ),
@@ -279,14 +279,14 @@ function open_station_my_wordpress_register_lock_field() {
 
 		register_rest_field(
 			$type,
-			'open_station_contributors',
+			'openstation_contributors',
 			array(
 				'get_callback' => static function ( $post ) {
 					$post_id = isset( $post['id'] ) ? (int) $post['id'] : 0;
-					return open_station_my_wordpress_post_contributors_payload( $post_id );
+					return openstation_my_wordpress_post_contributors_payload( $post_id );
 				},
 				'schema'       => array(
-					'description' => __( 'Additional contributor users beyond the primary author. Sourced from Co-Authors Plus when present, revision authors, the `_edit_last` meta, plus anything plugins return via `open_station_my_wordpress_post_contributors`. Empty for requesters who cannot edit the post.', 'desktop-mode' ),
+					'description' => __( 'Additional contributor users beyond the primary author. Sourced from Co-Authors Plus when present, revision authors, the `_edit_last` meta, plus anything plugins return via `openstation_my_wordpress_post_contributors`. Empty for requesters who cannot edit the post.', 'desktop-mode' ),
 					'type'        => 'array',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
@@ -303,4 +303,4 @@ function open_station_my_wordpress_register_lock_field() {
 		);
 	}
 }
-add_action( 'rest_api_init', 'open_station_my_wordpress_register_lock_field' );
+add_action( 'rest_api_init', 'openstation_my_wordpress_register_lock_field' );

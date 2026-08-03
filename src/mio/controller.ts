@@ -105,7 +105,7 @@ export interface MioControllerOptions {
 	shell: HTMLElement;
 	/** URL of the lazy Mio bundle, from the shell config. */
 	bundleUrl: string;
-	/** Server-side config (`open_station_mio_config` filter output). */
+	/** Server-side config (`openstation_mio_config` filter output). */
 	serverConfig?: unknown;
 	/** Whether the user's saved preference has Mio on. */
 	enabled: boolean;
@@ -220,7 +220,7 @@ export class MioController {
 	 * The user's own look, as set from "Make it yours".
 	 *
 	 * A personal preference about a decorative thing, so it stays well
-	 * clear of the `open_station_mio_config` filter — it is applied
+	 * clear of the `openstation_mio_config` filter — it is applied
 	 * *after* it, in {@link resolveConfig}, and a site changing its
 	 * shipped Mio never fights a user who has expressed an opinion.
 	 */

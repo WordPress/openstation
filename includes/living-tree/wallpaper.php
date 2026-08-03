@@ -3,7 +3,7 @@
  * OpenStation — Living Tree: wallpaper registration.
  *
  * Registers the `wp-living-tree` canvas wallpaper through the same public
- * API third-party canvas wallpapers use (`open_station_register_wallpaper()`).
+ * API third-party canvas wallpapers use (`openstation_register_wallpaper()`).
  * The `script` is the handle registered in `assets.php`; the shell's
  * wallpaper sync injects its URL when the def is needed. Mirrors the
  * animated-logo registration in `includes/wallpapers.php`.
@@ -19,8 +19,8 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Register the Living Tree canvas wallpaper.
  */
-function open_station_living_tree_register_wallpaper() {
-	open_station_register_wallpaper( 'wp-living-tree', array(
+function openstation_living_tree_register_wallpaper() {
+	openstation_register_wallpaper( 'wp-living-tree', array(
 		'label'       => __( 'Living Tree', 'desktop-mode' ),
 		'preview'     => 'linear-gradient(180deg, #24304a 0%, #6b4a63 70%, #b5744f 100%)',
 		'type'        => 'canvas',
@@ -31,4 +31,4 @@ function open_station_living_tree_register_wallpaper() {
 		),
 	) );
 }
-add_action( 'init', 'open_station_living_tree_register_wallpaper', 6 );
+add_action( 'init', 'openstation_living_tree_register_wallpaper', 6 );

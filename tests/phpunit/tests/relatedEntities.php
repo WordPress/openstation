@@ -1,8 +1,8 @@
 <?php
 /**
  * Tests for the related-entities server surface —
- * `open_station_window_related_entities_for_post()`, the
- * `open_station_window_related_entities` filter, and the `related`
+ * `openstation_window_related_entities_for_post()`, the
+ * `openstation_window_related_entities` filter, and the `related`
  * key the content-identity builder attaches for the title bar's
  * "Related" menu.
  *
@@ -26,8 +26,8 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 
 	public function tear_down() {
 		unset( $_GET['p'], $GLOBALS['pagenow'], $GLOBALS['post'] );
-		remove_all_filters( 'open_station_window_content_identity' );
-		remove_all_filters( 'open_station_window_related_entities' );
+		remove_all_filters( 'openstation_window_content_identity' );
+		remove_all_filters( 'openstation_window_related_entities' );
 		parent::tear_down();
 	}
 
@@ -62,13 +62,13 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_comments_item_carries_count_and_filtered_url() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create_many( 3, array( 'comment_post_ID' => $post_id ) );
 
-		$related  = open_station_window_related_entities_for_post( get_post( $post_id ) );
+		$related  = openstation_window_related_entities_for_post( get_post( $post_id ) );
 		$comments = $this->items_in_group( $related, 'comments' );
 
 		$this->assertCount( 1, $comments );
@@ -82,7 +82,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * comments count, and the badge matches the approved + pending
 	 * total the opened screen lists — not the approved-only cache.
 	 *
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_comments_item_counts_pending_comments() {
 		$post_id = self::factory()->post->create();
@@ -95,7 +95,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		);
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
 
-		$related  = open_station_window_related_entities_for_post( get_post( $post_id ) );
+		$related  = openstation_window_related_entities_for_post( get_post( $post_id ) );
 		$comments = $this->items_in_group( $related, 'comments' );
 
 		$this->assertCount( 1, $comments, 'All-pending or mixed comments must still surface the item.' );
@@ -105,32 +105,32 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	/**
 	 * An empty filtered comments list is a dead end — no item at zero.
 	 *
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_no_comments_item_when_post_has_no_comments() {
 		$post_id = self::factory()->post->create();
 
-		$related = open_station_window_related_entities_for_post( get_post( $post_id ) );
+		$related = openstation_window_related_entities_for_post( get_post( $post_id ) );
 
 		$this->assertSame( array(), $this->items_in_group( $related, 'comments' ) );
 	}
 
 	/**
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_no_comments_item_when_post_type_support_is_removed() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create_many( 2, array( 'comment_post_ID' => $post_id ) );
 
 		remove_post_type_support( 'post', 'comments' );
-		$related = open_station_window_related_entities_for_post( get_post( $post_id ) );
+		$related = openstation_window_related_entities_for_post( get_post( $post_id ) );
 		add_post_type_support( 'post', 'comments' );
 
 		$this->assertSame( array(), $this->items_in_group( $related, 'comments' ) );
 	}
 
 	/**
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_assigned_terms_yield_per_taxonomy_groups_with_term_edit_urls() {
 		$cat_id  = self::factory()->category->create( array( 'name' => 'Consoles' ) );
@@ -139,7 +139,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		wp_set_post_categories( $post_id, array( $cat_id ) );
 		wp_set_post_tags( $post_id, array( 'retro' ) );
 
-		$related = open_station_window_related_entities_for_post( get_post( $post_id ) );
+		$related = openstation_window_related_entities_for_post( get_post( $post_id ) );
 
 		$cats = $this->items_in_group( $related, 'terms/category' );
 		$this->assertCount( 1, $cats );
@@ -161,7 +161,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * the same attachment arrives through more than one source — each
 	 * deep-linking the Media Library grid detail modal.
 	 *
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_media_items_cover_featured_attached_and_embedded_deduped() {
 		$post_id     = self::factory()->post->create();
@@ -188,7 +188,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			)
 		);
 
-		$related = open_station_window_related_entities_for_post( get_post( $post_id ) );
+		$related = openstation_window_related_entities_for_post( get_post( $post_id ) );
 		$media   = $this->items_in_group( $related, 'media' );
 
 		$this->assertCount( 2, $media );
@@ -205,7 +205,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * "Linked posts" group, opening the target's editor. Self-links
 	 * and external hrefs are skipped.
 	 *
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_internal_links_yield_linked_posts_items() {
 		$target_id = self::factory()->post->create( array( 'post_title' => 'Target Post' ) );
@@ -219,7 +219,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			)
 		);
 
-		$related = open_station_window_related_entities_for_post( get_post( $source_id ) );
+		$related = openstation_window_related_entities_for_post( get_post( $source_id ) );
 		$links   = $this->items_in_group( $related, 'links' );
 
 		$this->assertCount( 1, $links, 'Only the resolvable non-self internal link may surface.' );
@@ -232,28 +232,28 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	/**
 	 * Built-ins are posts/pages only — CPTs join via the filter.
 	 *
-	 * @covers ::open_station_window_related_entities_for_post
+	 * @covers ::openstation_window_related_entities_for_post
 	 */
 	public function test_custom_post_types_get_no_builtin_items() {
 		register_post_type( 'acme_order', array( 'public' => true ) );
 		$order_id = self::factory()->post->create( array( 'post_type' => 'acme_order' ) );
 		self::factory()->comment->create( array( 'comment_post_ID' => $order_id ) );
 
-		$related = open_station_window_related_entities_for_post( get_post( $order_id ) );
+		$related = openstation_window_related_entities_for_post( get_post( $order_id ) );
 		unregister_post_type( 'acme_order' );
 
 		$this->assertSame( array(), $related );
 	}
 
 	/**
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_identity_carries_related_for_a_post_edit_screen() {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create( array( 'comment_post_ID' => $post_id ) );
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
-		$identity = open_station_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertArrayHasKey( 'related', $identity );
 		$this->assertNotEmpty( $this->items_in_group( $identity['related'], 'comments' ) );
@@ -263,20 +263,20 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * A page with no comments, terms, or media yields no `related` key
 	 * at all — the shell hides the button on an empty list.
 	 *
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_identity_omits_related_when_nothing_applies() {
 		$page_id = self::factory()->post->create( array( 'post_type' => 'page' ) );
 		$this->fake_post_edit_screen( get_post( $page_id ) );
 
-		$identity = open_station_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'page', $identity['type'] );
 		$this->assertArrayNotHasKey( 'related', $identity );
 	}
 
 	/**
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_related_filter_receives_related_identity_and_screen() {
 		$post_id = self::factory()->post->create();
@@ -285,7 +285,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 
 		$captured = array();
 		add_filter(
-			'open_station_window_related_entities',
+			'openstation_window_related_entities',
 			function ( $related, $identity, $screen ) use ( &$captured ) {
 				$captured = array( $related, $identity, $screen );
 				return $related;
@@ -294,7 +294,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			3
 		);
 
-		open_station_build_content_identity();
+		openstation_build_content_identity();
 
 		$this->assertNotEmpty( $captured[0], 'Built-in items must reach the filter.' );
 		$this->assertSame( 'post', $captured[1]['type'] );
@@ -302,7 +302,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_related_filter_can_add_and_remove_items() {
 		$post_id = self::factory()->post->create();
@@ -310,7 +310,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
 		add_filter(
-			'open_station_window_related_entities',
+			'openstation_window_related_entities',
 			static function () {
 				return array(
 					array(
@@ -323,7 +323,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			}
 		);
 
-		$identity = open_station_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertCount( 1, $identity['related'] );
 		$this->assertSame( 'acme/report', $identity['related'][0]['id'] );
@@ -333,13 +333,13 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * The related filter runs AFTER the identity filter, so an identity
 	 * a plugin injects for its own screen still gets related items.
 	 *
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_related_filter_applies_to_plugin_injected_identities() {
 		set_current_screen( 'dashboard' );
 
 		add_filter(
-			'open_station_window_content_identity',
+			'openstation_window_content_identity',
 			static function () {
 				return array(
 					'type' => 'acme/order',
@@ -348,7 +348,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			}
 		);
 		add_filter(
-			'open_station_window_related_entities',
+			'openstation_window_related_entities',
 			function ( $related, $identity ) {
 				$this->assertSame( 'acme/order', $identity['type'] );
 				return array(
@@ -364,7 +364,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			2
 		);
 
-		$identity = open_station_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'acme/customer-12', $identity['related'][0]['id'] );
 	}
@@ -375,7 +375,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * post's comments/terms/media tag along — that would leak labels
 	 * and deep links the filter deliberately removed.
 	 *
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_rewritten_identity_suppresses_builtin_related_items() {
 		$post_id = self::factory()->post->create();
@@ -383,7 +383,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
 		add_filter(
-			'open_station_window_content_identity',
+			'openstation_window_content_identity',
 			static function () {
 				return array(
 					'type' => 'acme/gated',
@@ -392,7 +392,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 			}
 		);
 
-		$identity = open_station_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertSame( 'acme/gated', $identity['type'] );
 		$this->assertArrayNotHasKey( 'related', $identity );
@@ -401,7 +401,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	/**
 	 * A label-only rewrite keeps the same object — built-ins stay.
 	 *
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_same_object_identity_rewrite_keeps_builtin_related_items() {
 		$post_id = self::factory()->post->create();
@@ -409,14 +409,14 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
 		add_filter(
-			'open_station_window_content_identity',
+			'openstation_window_content_identity',
 			static function ( $identity ) {
 				$identity['label'] = 'Renamed';
 				return $identity;
 			}
 		);
 
-		$identity = open_station_build_content_identity();
+		$identity = openstation_build_content_identity();
 
 		$this->assertNotEmpty( $this->items_in_group( $identity['related'], 'comments' ) );
 	}
@@ -424,21 +424,21 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	/**
 	 * No identity, no related pass — the filter must not run at all.
 	 *
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_related_filter_is_not_applied_without_an_identity() {
 		set_current_screen( 'dashboard' );
 
 		$called = false;
 		add_filter(
-			'open_station_window_related_entities',
+			'openstation_window_related_entities',
 			static function ( $related ) use ( &$called ) {
 				$called = true;
 				return $related;
 			}
 		);
 
-		$this->assertNull( open_station_build_content_identity() );
+		$this->assertNull( openstation_build_content_identity() );
 		$this->assertFalse( $called );
 	}
 
@@ -447,7 +447,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * — announces a per-post identity rooted at the post, so the two
 	 * windows tie together on the desktop.
 	 *
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_filtered_comments_list_roots_at_the_post() {
 		$post_id = self::factory()->post->create( array( 'post_title' => 'Discussed' ) );
@@ -456,7 +456,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 		$_GET['p']          = (string) $post_id;
 		set_current_screen( 'edit-comments' );
 
-		$identity = open_station_build_content_identity();
+		$identity = openstation_build_content_identity();
 		unset( $_GET['p'] );
 
 		$this->assertSame( 'comments', $identity['type'] );
@@ -472,23 +472,23 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_build_content_identity
+	 * @covers ::openstation_build_content_identity
 	 */
 	public function test_unfiltered_comments_list_yields_null() {
 		$GLOBALS['pagenow'] = 'edit-comments.php';
 		set_current_screen( 'edit-comments' );
 
-		$this->assertNull( open_station_build_content_identity() );
+		$this->assertNull( openstation_build_content_identity() );
 	}
 
 	/**
 	 * One malformed filter entry must not invalidate the whole identity
 	 * client-side — the sanitizer drops it and whitelists fields.
 	 *
-	 * @covers ::open_station_window_related_entities_sanitize
+	 * @covers ::openstation_window_related_entities_sanitize
 	 */
 	public function test_sanitizer_drops_malformed_items_and_whitelists_fields() {
-		$sanitized = open_station_window_related_entities_sanitize(
+		$sanitized = openstation_window_related_entities_sanitize(
 			array(
 				array(
 					'id'    => 'good',
@@ -547,11 +547,11 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_window_related_entities_sanitize
+	 * @covers ::openstation_window_related_entities_sanitize
 	 */
 	public function test_sanitizer_returns_empty_array_for_non_arrays() {
-		$this->assertSame( array(), open_station_window_related_entities_sanitize( null ) );
-		$this->assertSame( array(), open_station_window_related_entities_sanitize( 'nope' ) );
+		$this->assertSame( array(), openstation_window_related_entities_sanitize( null ) );
+		$this->assertSame( array(), openstation_window_related_entities_sanitize( 'nope' ) );
 	}
 
 	// ────────────────────────────────────────────────────────────────
@@ -561,7 +561,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	// ────────────────────────────────────────────────────────────────
 
 	/**
-	 * @covers ::open_station_rest_content_identity
+	 * @covers ::openstation_rest_content_identity
 	 */
 	public function test_rest_content_identity_returns_fresh_identity_with_related() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -585,7 +585,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * Both public filters run on the REST recompute too — with a null
 	 * screen, exactly as documented.
 	 *
-	 * @covers ::open_station_rest_content_identity
+	 * @covers ::openstation_rest_content_identity
 	 */
 	public function test_rest_content_identity_applies_both_filters_with_null_screen() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -593,7 +593,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 
 		$screens = array();
 		add_filter(
-			'open_station_window_related_entities',
+			'openstation_window_related_entities',
 			static function ( $related, $identity, $screen ) use ( &$screens ) {
 				$screens[] = $screen;
 				$related[] = array(
@@ -619,7 +619,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_rest_content_identity_permission
+	 * @covers ::openstation_rest_content_identity_permission
 	 */
 	public function test_rest_content_identity_requires_auth_and_edit_cap() {
 		$post_id = self::factory()->post->create();
@@ -638,7 +638,7 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	}
 
 	/**
-	 * @covers ::open_station_rest_content_identity
+	 * @covers ::openstation_rest_content_identity
 	 */
 	public function test_rest_content_identity_rejects_attachments_and_missing_posts() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
@@ -664,20 +664,20 @@ class Tests_OpenStation_RelatedEntities extends WP_UnitTestCase {
 	 * The chromeless bridge ships the editor save-watcher that refetches
 	 * the identity from the REST route after every real save.
 	 *
-	 * @covers ::open_station_chromeless_bridge_script
+	 * @covers ::openstation_chromeless_bridge_script
 	 */
 	public function test_bridge_script_contains_the_save_watcher() {
 		update_user_meta( self::$admin_id, 'desktop_mode_mode', '1' );
-		$_GET['open_station_chromeless'] = '1';
+		$_GET['openstation_chromeless'] = '1';
 
 		$post_id = self::factory()->post->create();
 		$this->fake_post_edit_screen( get_post( $post_id ) );
 
 		ob_start();
-		open_station_chromeless_bridge_script();
+		openstation_chromeless_bridge_script();
 		$output = ob_get_clean();
 
-		unset( $_GET['open_station_chromeless'] );
+		unset( $_GET['openstation_chromeless'] );
 		delete_user_meta( self::$admin_id, 'desktop_mode_mode' );
 
 		$this->assertStringContainsString( 'desktop-mode/v1/content-identity', $output );

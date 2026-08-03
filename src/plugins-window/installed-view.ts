@@ -330,12 +330,12 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 				render: ( _value, row ) => renderAuthorCell( row ),
 			},
 			{
-				key: 'open_station_size_kb',
+				key: 'openstation_size_kb',
 				label: __( 'Size', 'desktop-mode' ),
 				align: 'end',
 				sortable: true,
-				sortValue: ( row: InstalledPlugin ) => row.open_station_size_kb ?? 0,
-				render: ( _value, row ) => formatSize( row.open_station_size_kb ?? null ),
+				sortValue: ( row: InstalledPlugin ) => row.openstation_size_kb ?? 0,
+				render: ( _value, row ) => formatSize( row.openstation_size_kb ?? null ),
 			},
 		];
 		// "Automatic Updates" column — only shown when the global
@@ -348,7 +348,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 				label: __( 'Automatic Updates', 'desktop-mode' ),
 				sortable: true,
 				sortValue: ( row: InstalledPlugin ) =>
-					row.open_station_auto_update?.enabled ? 1 : 0,
+					row.openstation_auto_update?.enabled ? 1 : 0,
 				render: ( _value, row ) => renderAutoUpdateCell( row ),
 			} );
 		}
@@ -376,7 +376,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			'border-radius:6px;overflow:hidden;display:flex;align-items:center;' +
 			'justify-content:center;background:rgba(0,0,0,0.04);box-sizing:border-box;';
 
-		const url = row.open_station_icon_url;
+		const url = row.openstation_icon_url;
 		if ( url ) {
 			const img = document.createElement( 'img' );
 			img.alt = '';
@@ -456,7 +456,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		const v = document.createElement( 'span' );
 		v.textContent = row.version ?? '—';
 		wrap.appendChild( v );
-		const update = row.open_station_update_available;
+		const update = row.openstation_update_available;
 		if ( update?.available && update.new_version ) {
 			const badge = document.createElement( 'span' );
 			badge.style.cssText =
@@ -501,7 +501,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		wrap.style.cssText =
 			'display:inline-flex;align-items:center;gap:6px;white-space:nowrap;';
 
-		const meta = row.open_station_auto_update;
+		const meta = row.openstation_auto_update;
 		const forced = meta?.forced ?? null;
 
 		if ( forced !== null ) {
@@ -578,7 +578,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		// these buttons.
 		wrap.setAttribute( 'data-noclick', '' );
 
-		const can = row.open_station_can_manage ?? {
+		const can = row.openstation_can_manage ?? {
 			activate: row.status === 'inactive',
 			deactivate: row.status === 'active' || row.status === 'active-network',
 			delete: row.status === 'inactive',
@@ -589,7 +589,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		// (Core's same check) and the presence of a `package` URL on the
 		// transient entry; when `available && ! package` we surface the
 		// disabled "Auto-update unavailable" hint Core renders.
-		const update = row.open_station_update_available;
+		const update = row.openstation_update_available;
 		if ( getConfig().caps.update && update?.available ) {
 			if ( update.package ) {
 				const updating = state.updating.has( row.plugin );
@@ -682,8 +682,8 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		if ( cfg.caps.update ) {
 			const updatable = selected.filter(
 				( r ) =>
-					!! r.open_station_update_available?.available &&
-					!! r.open_station_update_available.package,
+					!! r.openstation_update_available?.available &&
+					!! r.openstation_update_available.package,
 			);
 			if ( updatable.length > 0 ) {
 				const btn = button(
@@ -786,7 +786,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			return;
 		}
 		const count = state.rows.filter(
-			( r ) => !! r.open_station_update_available?.available,
+			( r ) => !! r.openstation_update_available?.available,
 		).length;
 		if ( count > 0 ) {
 			updateCountBadge.textContent = String( count );
@@ -810,7 +810,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 					return false;
 				}
 			} else if ( status === 'update' ) {
-				if ( ! row.open_station_update_available?.available ) {
+				if ( ! row.openstation_update_available?.available ) {
 					return false;
 				}
 			}
@@ -986,11 +986,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			mergeRow( {
 				...row,
 				version: result.newVersion,
-				open_station_update_available: {
+				openstation_update_available: {
 					available: false,
 					new_version: null,
 					package: '',
-					slug: row.open_station_update_available?.slug ?? '',
+					slug: row.openstation_update_available?.slug ?? '',
 				},
 			} as InstalledPlugin );
 			toast(
@@ -1043,11 +1043,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			if ( isUpToDate ) {
 				mergeRow( {
 					...row,
-					open_station_update_available: {
+					openstation_update_available: {
 						available: false,
 						new_version: null,
 						package: '',
-						slug: row.open_station_update_available?.slug ?? '',
+						slug: row.openstation_update_available?.slug ?? '',
 					},
 				} as InstalledPlugin );
 				toast(
@@ -1104,7 +1104,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 		if ( state.autoUpdating.has( row.plugin ) ) {
 			return; // already in flight
 		}
-		const meta = row.open_station_auto_update;
+		const meta = row.openstation_auto_update;
 		if ( ! meta || meta.forced !== null || ! meta.supported ) {
 			// Forced or unsupported rows shouldn't surface a toggle — guard
 			// in case a stale click slips through during a state transition.
@@ -1119,7 +1119,7 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 			await toggleAutoUpdate( row, nextState );
 			mergeRow( {
 				...row,
-				open_station_auto_update: {
+				openstation_auto_update: {
 					...meta,
 					enabled: ! wasEnabled,
 				},
@@ -1212,11 +1212,11 @@ export function mountInstalledView( host: HTMLElement ): () => void {
 						mergeRow( {
 							...row,
 							version: result.newVersion,
-							open_station_update_available: {
+							openstation_update_available: {
 								available: false,
 								new_version: null,
 								package: '',
-								slug: row.open_station_update_available?.slug ?? '',
+								slug: row.openstation_update_available?.slug ?? '',
 							},
 						} as InstalledPlugin );
 					} finally {

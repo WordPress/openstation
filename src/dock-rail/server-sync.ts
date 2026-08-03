@@ -3,7 +3,7 @@
  *
  * Mirrors `src/commands/server-sync.ts` for the rail-renderer
  * registry. Plugins opt in server-side with
- * `open_station_register_dock_rail_renderer_script( $handle )`; this
+ * `openstation_register_dock_rail_renderer_script( $handle )`; this
  * module receives the list of registered script URLs on every live
  * refresh (plugins.php bridge or boot from `config`) and:
  *

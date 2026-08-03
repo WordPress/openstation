@@ -37,7 +37,7 @@ export interface RestPlacementShape {
 	accessGated?: boolean;
 	/**
 	 * Server's "can this viewer trash this placement?" answer. Set
-	 * from `open_station_files_user_can_trash_placement` at shape
+	 * from `openstation_files_user_can_trash_placement` at shape
 	 * time so the client can suppress trash affordances upfront —
 	 * hiding the "Move to recycle bin" tile-menu entry AND making
 	 * the trash drop target reject the drag — instead of letting
@@ -46,7 +46,7 @@ export interface RestPlacementShape {
 	 *
 	 * Always `true` for placements the viewer owns; falsy for
 	 * placements inside a shared folder where the viewer lacks
-	 * write capability, plus anything a `open_station_files_user_can_trash_placement`
+	 * write capability, plus anything a `openstation_files_user_can_trash_placement`
 	 * filter customisation has vetoed.
 	 */
 	canTrash?: boolean;
@@ -67,7 +67,7 @@ export interface RestFolderShape {
 	 * `shared` is viewer-agnostic, but `recipientCount` is
 	 * owner-scoped: the server returns the real count only when
 	 * the viewer can manage the folder's shares (per
-	 * `open_station_files_share_can_manage`) and `0` for every
+	 * `openstation_files_share_can_manage`) and `0` for every
 	 * other viewer, keeping the wire shape stable.
 	 */
 	shareSummary?: { shared: boolean; recipientCount: number };
@@ -274,8 +274,8 @@ export function deletePlacement( id: number ): Promise< { deleted: true } > {
  * Restore a soft-trashed placement (or folder) via the
  * recycle-bin REST endpoint. The `type` field routes to the
  * correct trash module on the server side
- * (`open_station_files_restore_placement` /
- * `open_station_files_restore_folder`).
+ * (`openstation_files_restore_placement` /
+ * `openstation_files_restore_folder`).
  */
 export async function restoreTrashedItem(
 	id: number,

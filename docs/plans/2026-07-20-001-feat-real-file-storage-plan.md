@@ -59,8 +59,8 @@ Four scoping decisions were confirmed interactively during planning: flat disk l
 
 ### Relevant Code and Patterns
 
-- `includes/desktop-files/class-open-station-file.php`, `registry.php`, `built-in-types.php`, `types/`: the file-type contract the new `upload` type plugs into.
-- `includes/desktop-files/schema.php` (`OPEN_STATION_FILES_SCHEMA_VERSION`, ensure-helpers; note the deliberate non-dbDelta comment for the shares tables), `store.php` (placement CRUD, tombstones, write gates), `shares-store.php` (grants, `target_type` column, capability resolver), `sharing.php` (visibility), `heartbeat.php` (delta protocol, priority 5), `rest.php` (routes, `If-Match` 409 pattern, 404-when-disabled share-route pattern).
+- `includes/desktop-files/class-openstation-file.php`, `registry.php`, `built-in-types.php`, `types/`: the file-type contract the new `upload` type plugs into.
+- `includes/desktop-files/schema.php` (`OPENSTATION_FILES_SCHEMA_VERSION`, ensure-helpers; note the deliberate non-dbDelta comment for the shares tables), `store.php` (placement CRUD, tombstones, write gates), `shares-store.php` (grants, `target_type` column, capability resolver), `sharing.php` (visibility), `heartbeat.php` (delta protocol, priority 5), `rest.php` (routes, `If-Match` 409 pattern, 404-when-disabled share-route pattern).
 - `src/os-file-drop/` (manager, dialog, upload via XHR + progress, HUD, `os.drop.*` hooks): the direct precedent for upload UX; today its only sink is `wp/v2/media` and it has no directory-tree handling.
 - `src/desktop-files/` (layer, grid, tile-spec, tile-menu, drag-payloads, rest, store, shares-store, share-settings-modal, share-menu-items): tile rendering, context menus, drag, share UI to extend.
 - `src/drag/manager.ts` + `drop-target-registry.ts`: in-shell drag; OS-file drops are separate (window-level listeners in os-file-drop).
@@ -102,7 +102,7 @@ Decisions 1-4 were confirmed interactively by the user during planning; the rest
 2. **Owner-locked items sharing model (confirmed).** Uploaded trees are ordinary desktop folders; folder sharing keeps its read/write tiers, but upload placements are owner-locked at the store level: nobody but the stored-file owner may move/rename/trash them, even write-collaborators. Direct single-file shares reuse the shares table with `target_type='file'`, capability hard-forced to `read`.
 3. **Drop destination dialog, Desktop default (confirmed).** The existing OS-file-drop confirm dialog gains a destination selector: Desktop storage (new default for wallpaper/folder-window drops) vs Media Library (previous behavior, one click away). Folder drops force Desktop storage (Media Library has no tree concept).
 4. **`upload_files` capability gate, filterable (confirmed).** Matches the existing drop-config gate and WP norms; sites that want subscriber storage loosen via filter.
-5. **New `upload` file type** via `open_station_register_file_type()`; ref = row id in a new `wp_desktop_mode_stored_files` table (`owner_id`, `display_name`, `disk_name`, `size_bytes`, `mime`, timestamps). Schema version bump + ensure-helper per existing conventions.
+5. **New `upload` file type** via `openstation_register_file_type()`; ref = row id in a new `wp_desktop_mode_stored_files` table (`owner_id`, `display_name`, `disk_name`, `size_bytes`, `mime`, timestamps). Schema version bump + ensure-helper per existing conventions.
 6. **Upload intake:** `POST /desktop-mode/v1/files/uploads`, one file per request (per-file retry and progress; no mega-multipart), multipart via `$request->get_file_params()`, then `wp_handle_upload()` with `test_form => false` and a temporary `upload_dir` filter (added and removed around the single call). Validation: `wp_check_filetype_and_ext()` + per-user allowed MIMEs plus a hard executable/config denylist (`php*`, `phtml`, `phar`, `pht`, `cgi`, `pl`, `asp*`, `jsp`, `shtml`, `.htaccess`, `.user.ini`, `web.config`). Folder trees: each request carries `relativePath`; the server resolves segments to folder rows mkdir-p-style, deduped by (parent, name), so parallel uploads cannot race client-side folder creation.
 7. **Storage protection, defense in depth:** `.htaccess` with both Apache 2.2/2.4 syntaxes + empty `index.php` + documented nginx `deny all` snippet (WooCommerce posture) + non-guessable extensionless names + downloads only through the authenticated endpoint. Uploaded SVG/HTML never render from our origin: always `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`.
 8. **Downloads:** GET routes with cookie auth + `_wpnonce` in query (officially supported; URLs minted at click time, never persisted; the route shape reserves a future `token` param for signed links). Byte serving via the `rest_pre_serve_request` short-circuit; chunked streaming with drained output buffers; exact `Content-Length`; `Accept-Ranges: none`; 404 (not 403) for files the viewer should not know exist.
@@ -128,7 +128,7 @@ Additional resolutions: drop-destination default (decision 3), upload capability
 
 ### Deferred to Implementation
 
-- Exact new hook/filter/error-code names (documented in U9 as they land; follow `open_station_files_*` naming).
+- Exact new hook/filter/error-code names (documented in U9 as they land; follow `openstation_files_*` naming).
 - Zip compression level per entry (STORE for already-compressed formats is a candidate micro-optimization).
 - ZipArchive close/reopen batching threshold for very large trees (fd limits); pick empirically.
 - Upload queue concurrency (3-5) and HUD granularity; tune against the existing progress HUD.
@@ -203,7 +203,7 @@ Dependency-ordered. Phase A = personal storage (shippable alone), Phase B = shar
 **Dependencies:** U1
 
 **Files:**
-- Create: `includes/desktop-files/types/class-open-station-upload-file.php`
+- Create: `includes/desktop-files/types/class-openstation-upload-file.php`
 - Modify: `includes/desktop-files/built-in-types.php`, `src/desktop-files/built-in-types.ts`
 - Test: extend `tests/phpunit/tests/desktopFilesStore.php` coverage or the stored-files suite; `tests/vitest/desktop-files-upload-tile.test.ts`
 
@@ -211,7 +211,7 @@ Dependency-ordered. Phase A = personal storage (shippable alone), Phase B = shar
 - Ref = stored-files row id. `can_read` delegates to one resolver: owner, or accepted `target_type='file'` share, or read+ capability on a folder containing a placement of it.
 - `serialize()` adds size, mime, and a kind slug (mime category) the JS type maps to an icon; default opener is a js-kind Download handler (wired in U6).
 
-**Patterns to follow:** `class-open-station-folder-file.php` (capability delegation), JS type registration in `built-in-types.ts`.
+**Patterns to follow:** `class-openstation-folder-file.php` (capability delegation), JS type registration in `built-in-types.ts`.
 
 **Test scenarios:**
 - Happy path: owner serialize shape carries size/mime/kind; tile renders with the mime-category icon and display name.
@@ -359,7 +359,7 @@ Dependency-ordered. Phase A = personal storage (shippable alone), Phase B = shar
 
 **Approach:** User-principal invites only (v1); capability forced `read` server-side (write-capability invite attempts get 400); routes mirror the folder-share surface including the 404-when-disabled masking; accept plants a placement at the recipient's desktop root via the existing default-parent filter; leave/revoke/purge cascade scrubs recipient placements with tombstones; heartbeat pending invites enriched with file name/owner/avatar; share modal renders without the capability segmented control; tile menu gains Share/Manage/Leave for uploads.
 
-**Patterns to follow:** the entire folder-share store/REST/heartbeat/modal chain; `open_station_files_shareable_types` seam documented in `docs/folder-sharing.md`.
+**Patterns to follow:** the entire folder-share store/REST/heartbeat/modal chain; `openstation_files_shareable_types` seam documented in `docs/folder-sharing.md`.
 
 **Test scenarios:**
 - Happy path: invite, heartbeat delivers pending, accept creates the recipient's root placement, recipient download returns 200.

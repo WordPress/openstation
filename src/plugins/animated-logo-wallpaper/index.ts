@@ -3,7 +3,7 @@
  *
  * The first built-in canvas wallpaper. This plugin ships
  * as its own Vite-built bundle (`assets/js/animated-logo-wallpaper[.min].js`)
- * that is only loaded when the matching `open_station_register_wallpaper`
+ * that is only loaded when the matching `openstation_register_wallpaper`
  * server registration tells the shell to inject the script handle —
  * i.e. only for users who have selected this wallpaper, or who open
  * OS Settings → Wallpaper and the picker pulls the def in.
@@ -12,7 +12,7 @@
  * `window.openStationWallpapers[<id>]` after the script loads, so the
  * bundle's only side effect is writing that global. No reliance on
  * `wp.os.registerWallpaper` from inside the bundle — the def is
- * registered via the WordPress `open_station_register_wallpaper()`
+ * registered via the WordPress `openstation_register_wallpaper()`
  * server API in `includes/wallpapers.php`.
  */
 
