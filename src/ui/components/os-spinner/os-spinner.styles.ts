@@ -22,7 +22,19 @@ export const styles = css`
 			--os-ui-spinner-color,
 			var( --wp-admin-theme-color, #21759b )
 		);
-		--_accent: var( --os-ui-spinner-accent, var( --os-ui-accent, #fff ) );
+		/*
+		 * Falls back to the ON-ACCENT foreground, not to the accent.
+		 * The mark is drawn OVER the disc, and the disc resolves to
+		 * --wp-admin-theme-color; the palette sets that and --os-ui-accent
+		 * to the same Pulse, so pointing both aliases at an accent
+		 * painted the W in the disc's own colour and the spinner became
+		 * a plain filled circle. The pre-brand literals (#21759b disc,
+		 * #fff mark) had hidden that they were ever the same idea.
+		 */
+		--_accent: var(
+			--os-ui-spinner-accent,
+			var( --os-ui-fg-on-accent, #fff )
+		);
 		--_size: var( --os-ui-spinner-size, 48px );
 		width: var( --_size );
 		height: var( --_size );
