@@ -171,6 +171,10 @@ function toggle(
 ): HTMLElement {
 	const el = document.createElement( 'os-checkbox' );
 	el.setAttribute( 'label', label );
+	// `block`, because every other control in this panel is a
+	// block-level row. A shrink-to-fit checkbox between two sliders
+	// stops short of the panel edge for no reason the user can see.
+	el.setAttribute( 'block', '' );
 	if ( checked ) {
 		el.setAttribute( 'checked', '' );
 	}
@@ -479,19 +483,31 @@ function openMioStylePanelImmediate(): void {
 						key: 'glow',
 						label: __( 'Glow' ),
 						min: 0,
-						max: 3,
-						step: 0.05,
+						max: 20,
+						// Coarser than the other sliders because the
+						// range is twenty times longer. At `0.05` a drag
+						// from end to end would be four hundred steps of
+						// a change nobody can see.
+						step: 0.1,
 					},
 					current,
 					set,
 				),
-				// No "soften the glow" toggle. `glowBlur` stays on: the
-				// unblurred halo is a hard-edged disc of colour behind the
-				// ring, which is not a look anyone was choosing on purpose
-				// — it is what the glow looks like before it is finished.
-				// The key survives for the `openstation_mio_config`
-				// filter, which is where a site that needs to drop the
-				// filter pass for performance can still do it.
+				// No "soften the glow" toggle. `glowBlur` stays on.
+				//
+				// It was briefly a checkbox, on the reasoning that a
+				// crisp halo is a different look and a cheaper render.
+				// That reasoning belonged to a halo drawn as one flat
+				// band, where the blur was decoration. It is not one
+				// any more: each glow pass is a ramp of concentric
+				// shells, and a flat shell against a flat shell is a
+				// hard edge — unblurred, the ramp shows as the handful
+				// of contour rings it is built from. Off is not the
+				// crisp version of this glow, it is the unfinished one.
+				//
+				// The key survives for `openstation_mio_config`, which
+				// is where a site that needs the two filter passes back
+				// for performance can still drop them.
 			] ),
 			section( __( 'Gradient' ), [
 				slider(

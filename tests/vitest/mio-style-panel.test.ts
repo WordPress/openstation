@@ -209,11 +209,14 @@ describe( 'Mio style panel', () => {
 		// added to the config can't quietly stay unreachable.
 		//
 		// Two deliberate omissions:
-		//   - `radius` is a size, not a look.
-		//   - `glowBlur` stays on. The unblurred halo is a hard-edged
-		//     disc of colour behind the ring — not a look anyone chooses
-		//     on purpose. A site that needs the filter pass gone can
-		//     still drop it through `openstation_mio_config`.
+		//   - `radius` is a size, not a look. How big the companion is
+		//     on the desk is a layout decision.
+		//   - `glowBlur` stays on. Each glow pass is a ramp of
+		//     concentric shells, and unblurred that ramp shows as the
+		//     contour rings it is built from — not the crisp version of
+		//     the glow, the unfinished one. A site that needs the
+		//     filter passes gone can still drop them through
+		//     `openstation_mio_config`.
 		const OMITTED = [ 'radius', 'glowBlur' ];
 		const state = stubApi();
 		const { openMioStylePanel } = await load();
@@ -236,6 +239,47 @@ describe( 'Mio style panel', () => {
 			( k ) => ! OMITTED.includes( k ),
 		);
 		expect( [ ...expected ].sort() ).toEqual( [ ...reachable ].sort() );
+	} );
+
+	test( 'every checkbox is laid out as a full-width row', async () => {
+		// `<os-checkbox>` is shrink-to-fit by default, which is right for
+		// a table cell and wrong here: every other control in the panel
+		// is a block-level row, so a bare checkbox stops short of the
+		// panel edge for no reason the user can see.
+		const { openMioStylePanel } = await load();
+		openMioStylePanel();
+
+		const boxes = Array.from(
+			panel()!.querySelectorAll( 'os-checkbox' ),
+		);
+		expect( boxes.length ).toBeGreaterThan( 0 );
+		for ( const box of boxes ) {
+			expect( box.hasAttribute( 'block' ) ).toBe( true );
+		}
+	} );
+
+	test( 'no control can switch the glow blur off', async () => {
+		// Unblurred, each glow pass shows as the concentric shells its
+		// falloff ramp is built from. That is not a look a user would
+		// choose on purpose, so the panel does not offer it — and a
+		// stray control that wrote the key would be shipping it by
+		// accident. `openstation_mio_config` is the way out, for sites
+		// that want the two filter passes back.
+		const state = stubApi();
+		const { openMioStylePanel } = await load();
+		openMioStylePanel();
+
+		for ( const el of controls() ) {
+			el.dispatchEvent(
+				new CustomEvent( 'os-checkbox-change', {
+					detail: { checked: false },
+				} ),
+			);
+		}
+		expect(
+			state.writes.some( ( w ) => 'glowBlur' in w ),
+		).toBe( false );
+		expect( state.config.appearance.glowBlur ).toBe( true );
 	} );
 
 	test( 'every look-physics key has a control too', async () => {

@@ -58,6 +58,12 @@ export class OsCheckbox extends Component {
 				type: 'boolean attribute',
 				description: 'Disables the native input.',
 			},
+			{
+				name: 'block',
+				type: 'boolean attribute',
+				description:
+					'Lays the host out as a full-width row instead of shrink-to-fit, so the box lines up with block-level controls (sliders, selects) stacked around it. The hit area stays the box plus its label.',
+			},
 		],
 		events: [
 			{

@@ -25,6 +25,33 @@ export const styles = css`
 		opacity: 0.55;
 	}
 
+	/* Opt-in full-width row.
+	 *
+	 * The default host is shrink-to-fit, which is right for a table
+	 * cell or a box sitting beside its own <label for>. It is wrong
+	 * in a stack of settings controls: <os-range-field> is a
+	 * block-level flex row, so a checkbox between two sliders stops
+	 * short of the panel edge and two checkboxes in a row land side
+	 * by side instead of stacking.
+	 *
+	 * Only the host box goes full width. The inner <label> stays
+	 * shrink-to-fit, so the hit area is still exactly the box plus
+	 * its text — a row that toggles when clicked near the panel
+	 * margin is a different complaint, and a worse one. The pointer
+	 * cursor moves with the hit area for the same reason. */
+	:host( [ block ] ) {
+		display: flex;
+		cursor: default;
+	}
+
+	:host( [ block ] ) label {
+		cursor: pointer;
+	}
+
+	:host( [ block ][ disabled ] ) label {
+		cursor: not-allowed;
+	}
+
 	label {
 		display: inline-flex;
 		align-items: center;

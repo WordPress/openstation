@@ -33,7 +33,7 @@ import {
 	type Obstacle,
 } from './environment';
 import { createPointerTracker, type PointerTracker } from './pointer';
-import { drawMio, type MioLayers } from './render';
+import { drawMio, glowBlurStrength, type MioLayers } from './render';
 import {
 	closeMioMenu,
 	closeMioStylePanel,
@@ -975,6 +975,10 @@ function buildLayers(
 	const core: Graphics = new pixi.Graphics();
 	const eyes: Graphics = new pixi.Graphics();
 
+	// These three hold only while the layer is unfiltered — `halo` and
+	// `sheen` both take a blur, and a filter cancels the container's
+	// blend mode outright. The filters restate it themselves; see
+	// {@link GLOW_BLEND} for why that is not optional.
 	halo.blendMode = 'add';
 	bloom.blendMode = 'add';
 	// Additive over the black fill: the sheen can only ever *lift* the
@@ -996,10 +1000,42 @@ function buildLayers(
 }
 
 /**
- * Attach (or remove) the blur on the widest glow pass.
+ * Blend mode every filter in this module has to be told about.
+ *
+ * **A filter silently cancels its layer's blend mode.** `halo` and
+ * `sheen` both set `blendMode = 'add'` on the Graphics, and that holds
+ * right up until a filter is attached. From then on Pixi renders the
+ * layer to a texture and composites that texture with
+ * `filter._state.blendMode` — see `FilterSystem.applyFilter`, which
+ * draws with `state: filter._state` and never consults the container.
+ * `Filter.defaultOptions.blendMode` is `'normal'`, so the layer's own
+ * `'add'` is dropped on the floor the moment the blur goes on.
+ *
+ * That is not a subtle difference for a glow. Additive over a dark
+ * desk is light spilling onto the wallpaper; the same band under
+ * normal alpha is a flat translucent slab of colour with a visible
+ * boundary — a sticker, not a light source. It also makes the filter
+ * region's own edge legible, which is where the straight-sided
+ * rectangles came from.
+ *
+ * `BlurFilter` forwards unknown options to `Filter` and its `apply()`
+ * assigns `this.blendMode` to the *final* pass (the intermediate one
+ * is forced to `'normal'`, which is correct), so passing it here is
+ * all that is needed.
+ */
+const GLOW_BLEND = 'add';
+
+/**
+ * Attach (or remove) the blur on the two glow passes.
+ *
+ * Both, not just the halo: each is drawn as a ramp of concentric
+ * shells, and a flat shell against a flat shell is a hard edge. Left
+ * crisp, the bloom draws its handful of contour rings inside the
+ * halo's smooth wash. The tube stays sharp either way — that is
+ * `core`, which is never filtered.
  *
  * Guarded: a trimmed Pixi build without `BlurFilter` still renders a
- * perfectly good Mio, just with a crisper halo.
+ * perfectly good Mio, just with a crisper glow.
  */
 function applyGlow(
 	pixi: typeof import( 'pixi.js' ),
@@ -1009,17 +1045,30 @@ function applyGlow(
 	const want = config.appearance.glowBlur && config.appearance.glow > 0;
 	if ( ! want || typeof pixi.BlurFilter !== 'function' ) {
 		layers.halo.filters = [];
+		layers.bloom.filters = [];
 		return;
 	}
-	try {
-		layers.halo.filters = [
-			new pixi.BlurFilter( {
-				strength: Math.max( 2, config.appearance.outlineWidth * 2 ),
-				quality: 2,
-			} ),
-		];
-	} catch {
-		layers.halo.filters = [];
+	const strength = glowBlurStrength(
+		config.appearance.radius,
+		config.appearance.glow,
+	);
+	for ( const [ layer, blur ] of [
+		[ layers.halo, strength.halo ],
+		[ layers.bloom, strength.bloom ],
+	] as const ) {
+		try {
+			layer.filters = [
+				new pixi.BlurFilter( {
+					strength: blur,
+					quality: 2,
+					// Without this the pass stops being additive. See
+					// {@link GLOW_BLEND}.
+					blendMode: GLOW_BLEND,
+				} ),
+			];
+		} catch {
+			layer.filters = [];
+		}
 	}
 }
 
@@ -1058,6 +1107,11 @@ function applySheenBlur(
 					Math.max( 3, config.appearance.radius * 0.12 ),
 				),
 				quality: 2,
+				// Same trap as the halo, and the same fix. The sheen is
+				// only ever meant to *lift* the black interior toward
+				// colour; under normal alpha it washes it out instead.
+				// See {@link GLOW_BLEND}.
+				blendMode: GLOW_BLEND,
 			} ),
 		];
 	} catch {

@@ -83,11 +83,18 @@ export const MIO_DEFAULTS: MioConfig = {
 		// The artwork strokes its ring at 13 units on a body of roughly
 		// 240 — 5.4%, which at this radius is 3px.
 		outlineWidth: 3,
-		// The artwork's own glow is a pair of soft radial washes at 34%
-		// opacity, not a neon bloom hugging the ring. At `3` the halo
-		// and bloom passes were adding light the reference simply does
-		// not have; `1` is the width those passes were designed around.
-		glow: 1,
+		// Reach of the light, as a multiple of Mio's own radius (see
+		// `GLOW_REACH` in `render.ts`): `10` carries the wash about one
+		// and a half radii past the outline.
+		//
+		// Deliberately generous. `mio.svg` is a flat piece of artwork
+		// on white and its own glow is a pair of soft washes at 34%;
+		// the shell puts Mio on a dark desk, where the glow is the
+		// thing that makes her read as lit rather than drawn. The
+		// slider runs to `20` from here.
+		//
+		// Must match `openstation_mio_config()` in `includes/mio.php`.
+		glow: 10,
 		glowBlur: true,
 		eyeColor: 0xffffff,
 		eyeScale: 0.3,
@@ -161,7 +168,14 @@ const LIMITS = {
 	lightness: [ 0.15, 1 ],
 	iridescence: [ 0, 2 ],
 	outlineWidth: [ 0.5, 24 ],
-	glow: [ 0, 3 ],
+	// Reach is a multiple of Mio's radius now, not of the outline
+	// width, so the ceiling had to move: the old `3` used to mean
+	// "three times a stroke that could itself be 24 px", and on its own
+	// it barely clears the ring. At `20` the halo carries a little over
+	// three radii past the outline, which is as much light as a desk
+	// companion should be throwing before it starts lighting the
+	// wallpaper more than itself.
+	glow: [ 0, 20 ],
 	eyeScale: [ 0.05, 0.6 ],
 	points: [ 12, 128 ],
 	shapeLobes: [ 0, 8 ],

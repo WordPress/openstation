@@ -36,6 +36,8 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
   - [The ribbon](#the-ribbon)
   - [Bands, not strokes](#bands-not-strokes)
   - [Every edge is a curve](#every-edge-is-a-curve)
+  - [A glow is a dilated silhouette, not a fat outline](#a-glow-is-a-dilated-silhouette-not-a-fat-outline)
+    - […and it has to fall off](#and-it-has-to-fall-off)
   - [A gradient that loops](#a-gradient-that-loops)
   - [The hologram](#the-hologram)
   - [The interior sheen](#the-interior-sheen)
@@ -283,7 +285,12 @@ Right-click is bound to the **handle**, the only part of the layer that takes po
 
 The **Corners** slider appears only for `Polygon` (`custom`), the one preset that reads `shapeLobes`. A control that does nothing for ten of the eleven shapes teaches people to ignore it.
 
-**There is no "soften the glow" toggle.** `glowBlur` stays on. The unblurred halo is a hard-edged disc of colour behind the ring — not a look anyone was choosing on purpose, just what the glow looks like before it is finished. The key survives in the config for `openstation_mio_config`, which is where a site that needs the filter pass gone for performance can still drop it.
+**The `Glow` slider only moves the glow.** Reach used to be a multiple of `outlineWidth`, so the two sliders multiplied: thickening the ring inflated the wash eightfold on its way from `0.5` to `24`, and there was no way to ask for a fat ring with a tight glow or a hairline with a wide one. It is a multiple of Mio's own *radius* now, and a function of `glow` alone. The range moved with the meaning — `0–20`, shipping at `10`.
+
+**There is no "soften the glow" toggle.** `glowBlur` stays on. It was briefly a checkbox, on the reasoning that a crisp halo is a different look and a cheaper render — reasoning that belonged to a halo drawn as one flat band, where the blur was decoration. It is not one any more: each glow pass is a [ramp of concentric shells](#and-it-has-to-fall-off), and a flat shell against a flat shell is a hard edge, so unblurred the ramp shows as the handful of contour rings it is built from. Off is not the crisp version of this glow, it is the unfinished one. The key survives in the config for `openstation_mio_config`, which is where a site that needs the two filter passes back for performance can still drop them.
+
+> **A Pixi filter cancels its container's blend mode.** `halo` and `sheen` are both `blendMode = 'add'`, and both take a blur. Pixi renders a filtered layer to a texture and composites that texture with `filter._state.blendMode` — `FilterSystem.applyFilter` draws with `state: filter._state` and never consults the container — and `Filter.defaultOptions.blendMode` is `'normal'`. A `BlurFilter` constructed without the option therefore drops the layer's additive blending on the floor, which turns light spilling onto the wallpaper into a flat translucent slab with a legible boundary, and makes the filter region's own rectangular edge visible. Both filters restate `blendMode: 'add'` for that reason; `tests/vitest/mio-glow-blend.test.ts` counts the construction sites so a third one cannot be added without it.
+
 
 **Every readout is fixed to two decimals and a fixed width.** The numbers sit on the same row as their tracks, so a readout that grows with its contents shoves the slider sideways *under the thumb the user is dragging*. `<os-range-field>` sizes the box from the range's own bounds rather than from the value it happens to be showing (see its `decimals` prop), which fixes the shift for every slider in the shell, not just Mio's.
 
@@ -433,8 +440,8 @@ This is a general facility, not Mio-private one: any shell-side feature that nee
 
 Four passes over one resampled outline, back to front:
 
-1. **halo** — very wide, very faint, additive, optionally blurred. Light spilling onto the wallpaper.
-2. **bloom** — medium width, additive. The bright fringe hugging the tube.
+1. **halo** — very wide, very faint, additive, optionally blurred. Light spilling onto the wallpaper. A [dilated silhouette ramped to nothing](#a-glow-is-a-dilated-silhouette-not-a-fat-outline), not a wide ring.
+2. **bloom** — medium width, additive, optionally blurred. The bright fringe hugging the tube; the same dilation and the same ramp, shorter and brighter.
 3. **body** — the black fill. Drawn *after* the glow passes on purpose: it masks their inner halves, which is what makes the inside read as black rather than muddy purple.
 4. **sheen** — concentric shells of faint additive colour over that fill. The [interior sheen](#the-interior-sheen).
 5. **core** — a thin near-white band. The over-exposed centre of the tube.
@@ -479,6 +486,60 @@ Two shapes need care:
 An odd stride has no halfway sample to curve through and falls back to flat quads.
 
 Because the body fill masks the inner half of the glow anyway, the two glow bands are built almost entirely *outward* from the centreline — half the geometry, and no risk of their inner edges crossing where the outline is concave. A sliver of inward reach remains so the body fill overlaps them rather than meeting them exactly, which would leave a hairline of wallpaper along the seam.
+
+### A glow is a dilated silhouette, not a fat outline
+
+**This one is load-bearing. Read it before touching how any pass places its boundary.**
+
+`fillBand` puts a boundary down by offsetting each ribbon sample along its own outward normal. That is exact for a thin band and catastrophic for a wide one: a normal offset stays simple only while it is inside the **local radius of curvature**, and past that the points on the inside of a bend cross over each other. The cell between two crossed points is emitted as a **bowtie**, which fills as two long thin triangles meeting at the crossing.
+
+Measured on the shipped `star` at its default radius, that begins at **7 px**. Every silhouette with a concavity has some bend tighter than the glow passes reach:
+
+| | reach at the old `outlineWidth` 14, `glow` 3 | cells folded |
+|---|---|---|
+| `core` | 7 px | 6% |
+| `bloom` | 59 px | 25% |
+| `halo` | 126 px | 25% |
+
+A quarter of the halo inside-out is not a subtly wrong glow. It is a hard-edged blob with spikes radiating out of every notch — and **blur does not repair it**, because blurring an inverted cell just gives a soft spike.
+
+So the two glow passes use `fillGlow`, whose boundaries are the outline **scaled about the body centre** rather than offset along its normals. Scaling is a similarity transform: it cannot reorder the points, so the dilated curve is simple at *any* factor and there is no reach at which it folds. Cells still share their edges exactly, so the anti-beading invariant holds, and the per-sample colour ramp is untouched.
+
+It is also the more faithful shape. A normal offset gives every part of the outline the same reach; a dilation gives the parts that stick out more reach than the parts that tuck in, which is what light spilling off a shape actually does.
+
+**Reach is a multiple of Mio's own radius, not a pixel count** — and specifically not a multiple of `outlineWidth`, which is what it used to be. That made the two sliders multiply, so there was no way to ask for a fat ring with a tight glow. It also makes the pass scale-free: a 16 px Mio and a 220 px one wear the same glow in proportion to themselves.
+
+The radius it scales against is the **measured** mean each frame, not `appearance.radius`, so a body mid-squash gets a halo sized to the shape it currently is rather than one breathing out of step with it. Only `bleed` stays in pixels, because it is not a glow measurement: it exists so the body fill overlaps this pass's inner edge instead of meeting it exactly, and how much overlap that takes is a fact about the ring's thickness.
+
+#### …and it has to fall off
+
+Fixing the shape is not enough on its own. One band at one alpha is a **slab**: flat right across its whole width, and then a cliff at the outer boundary. However wide it gets, that reads as a coloured shape sitting *behind* Mio rather than as light coming *off* her — and blur does not rescue it either, because a blur of strength `s` softens the cliff over `s` pixels and leaves the other two hundred flat.
+
+So both glow passes are drawn as **concentric shells**, each fainter than the last — the same device the [interior sheen](#the-interior-sheen) uses, marching outward instead of in. The alpha is taken at each shell's midpoint on a **squared** falloff:
+
+```
+alpha(i) = peak × (1 − (i + ½)/n)²
+```
+
+Squaring rather than ramping linearly is what makes it read as light. A linear ramp spreads the brightness evenly across the whole reach, and the silhouette stays legible right out to the edge — which is the one thing a glow must not do. Squared puts most of the light in the first third and trails the rest away to nothing, so the wash arrives at its outer boundary already at nothing and there is no edge to see.
+
+On a default 56 px Mio:
+
+| | reach | shells | alpha ramp |
+|---|---|---|---|
+| `halo` at the shipped `glow: 10` | 90 px | 6 | 0.169 → 0.001 |
+| `halo` at `glow: 20` | 179 px | 10 | 0.180 → 0.001 |
+| `bloom` at `glow: 20` | 84 px | 5 | 0.324 → 0.004 |
+
+Shell count scales with reach (roughly a step every 14 px) and is capped per pass — 10 for the halo, 5 for the bloom, which is drawn at full colour resolution and costs six times a halo shell apiece. A tight fringe genuinely does not need a ramp; two steps across four pixels is already smoother than the display can show.
+
+**Every shell is drawn, including the last one or two down in the thousandths.** Skipping them saves a dozen cells and costs the one thing the reach has to be, which is honest — a wash that stops at nine tenths of what it was asked for no longer scales with the body, because how many shells got dropped depends on how many there were.
+
+**Both passes are blurred.** A flat shell against a flat shell is a hard edge, the same thing that caps how bright the sheen can get before its banding shows; left crisp, the bloom draws its handful of concentric contour rings inside the halo's smooth wash. The tube itself stays sharp regardless — that is `core`, which is never filtered. Strength is twice the shell spacing, derived from each pass's own reach rather than from `outlineWidth`: tying it to the ring gave the widest halo the same few pixels of softening as the narrowest, which at 216 px is no softening at all.
+
+`core` keeps the normal offset: a tube has to be an even width and a dilation's is not. At `outlineWidth` above ~14 on a star it folds a little; widening it further is the one place this trade is still visible.
+
+`tests/vitest/mio-glow-geometry.test.ts` measures both halves directly, across every `outlineWidth`/`glow` pair the panel's sliders can produce. For the shape, it walks each boundary and asks whether consecutive points still run the same way round as the outline they came from; it also pins the *premise*, that a normal offset folds on the shipped star, so the guard cannot quietly start measuring nothing. For the falloff, it draws a real pass into a recording stand-in for `Graphics` and asserts the alphas fall monotonically, that the faintest shell is a small fraction of the peak, and that each shell's inner boundary is bit-identical to its neighbour's outer one — the anti-seam invariant, now applied between steps as well as between cells.
 
 ### A gradient that loops
 
@@ -573,9 +634,9 @@ add_filter( 'openstation_mio_config', function ( $config ) {
 | `saturation` | `1` | 0–1 | Ring saturation. |
 | `lightness` | `0.66` | 0.15–1 | Ring lightness at its brightest point. |
 | `iridescence` | `0` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` — the official Mio has neither. Above `1` is deliberately over-driven. |
-| `outlineWidth` | `3` | 0.5–24 | Crisp core band width; the glow passes scale off it. A thin core inside a wide glow is the whole look. |
-| `glow` | `1` | 0–3 | Bloom spread multiplier. `0` disables the halo passes. The artwork's own glow is a pair of soft radial washes, not a neon bloom — `1` is the width the passes were designed around. |
-| `glowBlur` | `true` | bool | Run a `BlurFilter` over the halo. Softer, one filter pass per frame. |
+| `outlineWidth` | `3` | 0.5–24 | Crisp core band width. Independent of the glow — a thin core inside a wide glow is the whole look, and it used to be unreachable because the glow scaled off this. |
+| `glow` | `10` | 0–20 | How far the light carries past the outline, as a multiple of Mio's own radius ÷ 6ish. `0` disables both glow passes. See [the falloff](#and-it-has-to-fall-off). |
+| `glowBlur` | `true` | bool | Run a `BlurFilter` over both glow passes. No UI switches it off — the shells are what the ramp is built from and unblurred they read as contour rings. Here for sites that need the two filter passes back. |
 | `eyeColor` | `#ffffff` | colour | Eye fill. |
 | `eyeScale` | `0.3` | 0.05–0.6 | Eye height as a fraction of `radius`. |
 
@@ -652,7 +713,7 @@ One thing is browser-local, in `localStorage`: the resting position (`os-mio-pos
 wp.os.ready( () => {
 	// A bigger, calmer Mio for a kiosk screen.
 	wp.os.mio.setConfig( {
-		appearance: { radius: 90, glow: 1.6 },
+		appearance: { radius: 90, glow: 14 },
 		physics: { magnetStrength: 1400, floatAmplitude: 20 },
 	} );
 	void wp.os.mio.enable();
@@ -715,7 +776,7 @@ The preference is watched live, so toggling it at the OS level takes effect with
 - **Nothing downloads until Mio is switched on.** The always-on cost is the controller.
 - The ticker stops on `visibilitychange`, and resumes with a drained accumulator so a tab that was hidden for a minute doesn't come back with a catch-up avalanche.
 - Surfaces are re-measured at 20 Hz, not per frame.
-- Per frame: six `Graphics.clear()` calls and roughly 150 curved cells — 72 each for the bloom and the core, which carry the gradient at full ribbon resolution, plus a dozen for the halo and forty across the sheen's five shells, both of which are blurred past the point where anything finer survives. Then a blur pass over the halo and one over the sheen. The body is a single filled path of `points` curve segments.
+- Per frame at the shipped `glow: 10`: six `Graphics.clear()` calls and roughly 400 curved cells — 72 for the core and 216 across the bloom's three shells, both at full ribbon resolution because they carry the gradient; 72 across the halo's six, and forty across the sheen's five, all of them coarse because a blur is about to dissolve anything finer. Then a blur pass over each of the halo, the bloom and the sheen. The body is a single filled path of `points` curve segments. At the top of the `glow` slider the two glow passes reach 480 cells between them.
 - Ribbon resolution is fixed at 144 samples rather than scaled off `points`, so raising the rim resolution costs simulation time but not render time.
 - The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OS Settings previews).
 

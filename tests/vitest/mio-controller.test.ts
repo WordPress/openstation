@@ -208,7 +208,7 @@ describe( 'MioController', () => {
 			},
 		} );
 		const { appearance, physics } = controller.api().getConfig();
-		expect( appearance.glow ).toBe( 3 );
+		expect( appearance.glow ).toBe( 20 );
 		expect( appearance.saturation ).toBe( 0 );
 		// An unknown preset falls back rather than throwing.
 		expect( physics.shapePreset ).toBe( MIO_DEFAULTS.physics.shapePreset );

@@ -309,7 +309,7 @@ describe( 'sanitizeMioConfig', () => {
 			physics: { points: 100000, magnetStrength: -50, idleWobble: 9 },
 		} );
 		expect( out.appearance.radius ).toBe( 16 );
-		expect( out.appearance.glow ).toBe( 3 );
+		expect( out.appearance.glow ).toBe( 20 );
 		expect( out.physics.points ).toBe( 128 );
 		expect( out.physics.magnetStrength ).toBe( 0 );
 		expect( out.physics.idleWobble ).toBe( 0.4 );

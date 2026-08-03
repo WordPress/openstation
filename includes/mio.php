@@ -82,9 +82,22 @@ function openstation_mio_config() {
 			// turns both back on for a whole site.
 			'iridescence'  => 0,
 			'outlineWidth' => 3,
-			// The artwork's glow is a pair of soft radial washes at 34%
-			// opacity, not a neon bloom hugging the ring.
-			'glow'         => 1,
+			// Reach of the light, as a multiple of Mio's own radius:
+			// `10` carries the wash about one and a half radii past the
+			// outline. Deliberately generous — Mio sits on a dark desk
+			// and the glow is the thing that makes her read as lit
+			// rather than drawn. The slider runs to `20`.
+			//
+			// Must match `MIO_DEFAULTS` in `src/mio/config.ts`; this is
+			// the value the shell renders before a user has a look of
+			// their own, and the two disagreeing means Mio changes
+			// appearance the first time anything is saved.
+			'glow'         => 10,
+			// No UI switches this off. Each glow pass is a ramp of
+			// concentric shells, and unblurred that ramp shows as the
+			// contour rings it is built from. It is here so a site that
+			// needs the two filter passes back for performance can drop
+			// them.
 			'glowBlur'     => true,
 			'eyeColor'     => '#ffffff',
 			'eyeScale'     => 0.3,

@@ -83,7 +83,12 @@ export function randomMioLook( random: () => number = Math.random ): MioLook {
 			saturation: round( between( 0.68, 1 ), 0.01 ),
 			lightness: round( between( 0.52, 0.78 ), 0.01 ),
 			outlineWidth: round( between( 2, 7 ), 0.5 ),
-			glow: round( between( 0.6, 2.2 ), 0.05 ),
+			// Bracketing the shipped `10`, roughly two thirds of a
+			// radius to two and a half. Below that the ring reads as
+			// drawn rather than lit; above it the wash starts competing
+			// with the wallpaper, and a randomizer that can hand you
+			// one of those is a randomizer people stop pressing.
+			glow: round( between( 4, 16 ), 0.1 ),
 			// Two thirds of the time this is the flat artwork ring; the
 			// rest of the time it is the hologram, at a strength that
 			// still leaves the hues recognisable.

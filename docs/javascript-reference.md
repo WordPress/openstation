@@ -1654,7 +1654,7 @@ The first `enable()` lazy-loads `assets/js/mio[.min].js` and PixiJS — nothing 
 wp.os.ready( () => {
     // A bigger, calmer Mio for a kiosk screen.
     wp.os.mio.setConfig( {
-        appearance: { radius: 90, glow: 1.6 },
+        appearance: { radius: 90, glow: 14 },
         physics: { magnetStrength: 1400, floatAmplitude: 20 },
     } );
     void wp.os.mio.enable();
