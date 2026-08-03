@@ -122,8 +122,9 @@ export class OsTagInput extends Component {
 			{
 				name: 'add-label',
 				type: 'string',
-				description: 'Label of the "+" trigger button.',
-				default: '+ Add',
+				description:
+					'Label of the trigger button. The button draws its own plus icon, so this is text only — passing "+ Add" puts two pluses on screen.',
+				default: 'Add',
 			},
 			{
 				name: 'creatable',
@@ -351,9 +352,20 @@ export class OsTagInput extends Component {
 				! readonly );
 		const creatable =
 			( this as unknown as { creatable: string | null } ).creatable !== null;
+		/*
+		 * "Add", not "+ Add". The button already renders an SVG plus
+		 * beside this text, so a literal one in the label put two of
+		 * them on screen — it read as "++ Add".
+		 *
+		 * The icon is the one to keep: it is `aria-hidden`, so the
+		 * accessible name is exactly this string, and a screen reader
+		 * announcing "plus Add" was the same duplication in the other
+		 * modality. A caller who wants a glyph in the text can still
+		 * pass one through `add-label`.
+		 */
 		const addLabel =
 			( this as unknown as { 'add-label': string | null } )[ 'add-label' ] ||
-			'+ Add';
+			'Add';
 		const placeholder =
 			( this as unknown as { placeholder: string | null } ).placeholder ||
 			'Add a tag…';

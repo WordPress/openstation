@@ -67,6 +67,41 @@ export class OsModal extends Component {
 					'The dialog box itself, inside the scrim. Reach for it when a consumer needs the scrim and the box to behave differently — e.g. a live-preview panel that makes the scrim transparent and click-through (`pointer-events: none` on the host) while keeping the box interactive (`::part(dialog) { pointer-events: auto }`).',
 			},
 		],
+		/*
+		 * Hidden until `[open]`, so a bare mount renders nothing at
+		 * all. The trigger is the example.
+		 */
+		example: html`
+			<os-button data-demo="open">Open a modal</os-button>
+			<os-modal size="md" title="Window settings">
+				<p style="margin:0 0 12px">
+					A modal traps focus, closes on Escape or a backdrop click,
+					and returns focus to whatever opened it.
+				</p>
+				<os-cluster gap="8">
+					<os-button variant="primary" data-demo="close">Done</os-button>
+					<os-button data-demo="close">Cancel</os-button>
+				</os-cluster>
+			</os-modal>
+		`,
+		exampleInit: ( root: HTMLElement ) => {
+			const modal = root.querySelector( 'os-modal' );
+			if ( ! modal ) {
+				return;
+			}
+			const open = root.querySelector< HTMLElement >( '[data-demo="open"]' );
+			if ( open ) {
+				// Assignment rather than addEventListener: the help
+				// panel re-runs this on every keystroke in its filter
+				// box, and adding would stack a listener per repaint.
+				open.onclick = () => modal.setAttribute( 'open', '' );
+			}
+			for ( const btn of Array.from(
+				root.querySelectorAll< HTMLElement >( '[data-demo="close"]' ),
+			) ) {
+				btn.onclick = () => modal.removeAttribute( 'open' );
+			}
+		},
 	} as const;
 
 	private _prevFocus: HTMLElement | null = null;

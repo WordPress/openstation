@@ -57,6 +57,22 @@ export class OsTab extends Component {
 				detail: '{ value: string | null }',
 			},
 		],
+		/*
+		 * A tab is a borderless button until a strip gives it the
+		 * underline and the selected state, so the example is the
+		 * strip — with panels, since a tab that switches nothing
+		 * demonstrates half a component.
+		 */
+		example: html`
+			<os-tabs value="one" label="Demo tabs">
+				<os-tab value="one">One</os-tab>
+				<os-tab value="two">Two</os-tab>
+				<os-tab value="three">Three</os-tab>
+			</os-tabs>
+			<os-tabpanel for="one">The first panel.</os-tabpanel>
+			<os-tabpanel for="two">The second panel.</os-tabpanel>
+			<os-tabpanel for="three">The third panel.</os-tabpanel>
+		`,
 	} as const;
 
 	protected render() {
@@ -235,6 +251,25 @@ export class OsTabPanel extends Component {
 		slots: [
 			{ name: '(default)', description: 'Panel body content.' },
 		],
+		/*
+		 * A panel is `hidden` unless its sibling strip is on its
+		 * `for` value, so a lone panel renders nothing — which is what
+		 * this help pane showed before. It needs the strip to be a
+		 * demonstration of anything at all.
+		 */
+		example: html`
+			<os-tabs value="two" label="Demo tabs">
+				<os-tab value="one">One</os-tab>
+				<os-tab value="two">Two</os-tab>
+			</os-tabs>
+			<os-tabpanel for="one">
+				Hidden — the strip is on "two".
+			</os-tabpanel>
+			<os-tabpanel for="two">
+				Visible, because this panel's <code>for</code> matches the
+				strip's <code>value</code>.
+			</os-tabpanel>
+		`,
 	} as const;
 	// Shadow DOM — the render target for this component is its
 	// own shadow root, which holds a single `<slot>` that projects

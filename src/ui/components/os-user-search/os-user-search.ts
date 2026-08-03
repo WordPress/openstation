@@ -57,6 +57,19 @@ export class OsUserSearch extends Component {
 		events: [
 			{ name: 'os-user-pick', description: 'Emitted on pick. Detail: `{ user: SearchUser }`.' },
 		],
+		/*
+		 * Just the closed input. The dropdown only exists after a
+		 * debounced REST round-trip, and firing user searches from a
+		 * documentation pane on every keystroke is not something a
+		 * help screen should do on the reader's behalf — so the
+		 * example shows the resting state and the prose says what
+		 * happens next.
+		 */
+		example: html`
+			<os-user-search
+				placeholder="Search users to share with…"
+			></os-user-search>
+		`,
 	} as const;
 
 	private _timer: ReturnType< typeof setTimeout > | null = null;

@@ -96,16 +96,25 @@ export class OsCrumbChain extends Component {
 					'{ index: number; id?: number | string; segment: OsCrumbSegment; segments: OsCrumbSegment[]; dragEvent: DragEvent }',
 			},
 		],
-		example: html`
-			<os-crumb-chain id="example-chain" removable></os-crumb-chain>
-			<script>
-				document.getElementById( 'example-chain' ).segments = [
-					{ id: 1, name: 'Tech', color: '#2271b1' },
-					{ id: 2, name: 'Web Dev', color: '#3a8ed4' },
-					{ id: 3, name: 'Frontend', color: '#5cb0ff' },
+		/*
+		 * The chain takes its data through the `segments` PROPERTY,
+		 * so there is no markup that can fill it — hence the
+		 * `exampleInit` hook rather than a `<script>` in the template.
+		 * A script here would never have run: the template is compiled
+		 * through `innerHTML`, which flags parsed scripts as already
+		 * started, and the cloning steps copy that flag.
+		 */
+		example: html`<os-crumb-chain removable></os-crumb-chain>`,
+		exampleInit: ( root: HTMLElement ) => {
+			const chain = root.querySelector( 'os-crumb-chain' );
+			if ( chain ) {
+				( chain as OsCrumbChain ).segments = [
+					{ id: 1, name: 'Tech', color: '#4b3eff' },
+					{ id: 2, name: 'Web Dev', color: '#a580ff' },
+					{ id: 3, name: 'Frontend', color: '#f252fc' },
 				];
-			</script>
-		`,
+			}
+		},
 	} as const;
 
 	private _segments: OsCrumbSegment[] = [];

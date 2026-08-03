@@ -306,9 +306,30 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 			{ name: '--os-ui-table-max-height' },
 			{ name: '--os-ui-table-skeleton-color' },
 		],
-		example: html`
-			<os-table id="sample-table" sticky-header striped hover></os-table>
-		`,
+		/*
+		 * `data` and `columns` are properties, not attributes, so the
+		 * markup alone renders an empty frame — which is what this
+		 * example was before `exampleInit` existed.
+		 */
+		example: html`<os-table striped hover></os-table>`,
+		exampleInit: ( root: HTMLElement ) => {
+			const table = root.querySelector( 'os-table' );
+			if ( ! table ) {
+				return;
+			}
+			const t = table as OsTable< Record< string, unknown > >;
+			t.columns = [
+				{ key: 'name', label: 'Name' },
+				{ key: 'kind', label: 'Kind', filter: 'select' },
+				{ key: 'size', label: 'Size', align: 'end' },
+			];
+			t.data = [
+				{ name: 'wp-config.php', kind: 'PHP', size: '4 KB' },
+				{ name: 'style.css', kind: 'CSS', size: '61 KB' },
+				{ name: 'header.php', kind: 'PHP', size: '3 KB' },
+				{ name: 'screenshot.png', kind: 'Image', size: '210 KB' },
+			];
+		},
 	} as const;
 
 	private _data: T[] = [];

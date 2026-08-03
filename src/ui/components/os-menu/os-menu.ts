@@ -96,6 +96,22 @@ export class OsMenuItem extends Component {
 				detail: '{ value: string | null }',
 			},
 		],
+		/*
+		 * An item has no shape outside a menu — it takes its padding,
+		 * width and surface from the parent — so the example is the
+		 * parent in miniature, showing each modifier the item has.
+		 */
+		example: html`
+			<os-menu>
+				<os-menu-item value="plain">Plain item</os-menu-item>
+				<os-menu-item value="icon" icon="dashicons-external">
+					With an icon
+				</os-menu-item>
+				<os-menu-item value="startup" role="menuitemcheckbox" checked>
+					Checked (menuitemcheckbox)
+				</os-menu-item>
+			</os-menu>
+		`,
 	} as const;
 
 	connectedCallback(): void {

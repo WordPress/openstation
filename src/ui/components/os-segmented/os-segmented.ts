@@ -40,6 +40,19 @@ export class OsSegment extends Component {
 				detail: '{ value: string }',
 			},
 		],
+		/*
+		 * A segment on its own is a transparent button with no pill
+		 * around it and no thumb under it — the lit surface belongs to
+		 * the GROUP, which owns one and slides it. So the example is
+		 * the group.
+		 */
+		example: html`
+			<os-segmented value="md" label="Dock size">
+				<os-segment value="sm">Small</os-segment>
+				<os-segment value="md">Medium</os-segment>
+				<os-segment value="lg">Large</os-segment>
+			</os-segmented>
+		`,
 	} as const;
 
 	protected render() {

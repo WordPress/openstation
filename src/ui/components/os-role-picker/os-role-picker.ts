@@ -49,6 +49,20 @@ export class OsRolePicker extends Component {
 				description: 'Emitted on every click. Detail: `{ slug, selected }`.',
 			},
 		],
+		/*
+		 * `roles` is passed here explicitly rather than left to the
+		 * global config: a site whose `shareEligibleRoles` is empty —
+		 * or a docs pane loaded before that config lands — would
+		 * otherwise render an empty row and look broken. The attribute
+		 * override is a documented prop, so the example is also
+		 * demonstrating it.
+		 */
+		example: html`
+			<os-role-picker
+				selected="editor,author"
+				roles='[{"slug":"administrator","name":"Administrator"},{"slug":"editor","name":"Editor"},{"slug":"author","name":"Author"},{"slug":"contributor","name":"Contributor"},{"slug":"subscriber","name":"Subscriber"}]'
+			></os-role-picker>
+		`,
 	} as const;
 
 	private _selectedSet(): Set< string > {

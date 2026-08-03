@@ -67,6 +67,37 @@ export class OsContextMenu extends Component {
 				description: 'Bubbled from a non-disabled, non-heading option on activation. Detail: `{ id, value }`.',
 			},
 		],
+		/*
+		 * Shown open and pinned back into normal flow.
+		 *
+		 * In use the menu is `position: fixed` and placed at the
+		 * pointer, which in a documentation pane means it would either
+		 * be invisible (closed) or floating over the settings window
+		 * at coordinates nothing set (open). The inline
+		 * `position: relative` beats the `:host` rule and puts it in
+		 * the page where it can actually be looked at — the one thing
+		 * the example is for.
+		 */
+		example: html`
+			<os-context-menu open style="position: relative; z-index: 0">
+				<os-context-menu-option heading>Window</os-context-menu-option>
+				<os-context-menu-option value="open" icon="dashicons-external">
+					Open in a new window
+				</os-context-menu-option>
+				<os-context-menu-option value="rename" icon="dashicons-edit">
+					Rename…
+				</os-context-menu-option>
+				<os-context-menu-option value="more" icon="dashicons-portfolio" has-children>
+					Move to
+				</os-context-menu-option>
+				<os-context-menu-option value="locked" icon="dashicons-lock" disabled>
+					Permissions
+				</os-context-menu-option>
+				<os-context-menu-option value="trash" icon="dashicons-trash" danger>
+					Move to Recycle Bin
+				</os-context-menu-option>
+			</os-context-menu>
+		`,
 	} as const;
 
 	protected render() {
@@ -147,6 +178,31 @@ export class OsContextMenuOption extends Component {
 				description: 'Bubbled on click / Enter for non-heading non-disabled options. Detail: `{ id, value }`.',
 			},
 		],
+		/*
+		 * An option only has a shape inside a menu — on its own it is
+		 * an unpadded row on the panel background. So the example is
+		 * the parent in miniature, showing every modifier this
+		 * component actually has.
+		 */
+		example: html`
+			<os-context-menu open style="position: relative; z-index: 0">
+				<os-context-menu-option heading>Every variant</os-context-menu-option>
+				<os-context-menu-option value="plain">Plain</os-context-menu-option>
+				<os-context-menu-option value="icon" icon="dashicons-admin-page">
+					With an icon
+				</os-context-menu-option>
+				<os-context-menu-option value="checked" checked>
+					Checked
+				</os-context-menu-option>
+				<os-context-menu-option value="children" has-children>
+					With a submenu
+				</os-context-menu-option>
+				<os-context-menu-option value="off" disabled>Disabled</os-context-menu-option>
+				<os-context-menu-option value="del" danger icon="dashicons-trash">
+					Danger
+				</os-context-menu-option>
+			</os-context-menu>
+		`,
 	} as const;
 
 	connectedCallback() {

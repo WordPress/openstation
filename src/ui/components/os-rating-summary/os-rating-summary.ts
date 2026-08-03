@@ -59,9 +59,25 @@ export class OsRatingSummary extends Component {
 			{ name: '--os-ui-rating-fg', description: 'Primary text color.' },
 			{ name: '--os-ui-rating-fg-muted', description: 'Secondary text color.' },
 		],
-		example: html`
-			<os-rating-summary rating="92"></os-rating-summary>
-		`,
+		/*
+		 * `rating` is an attribute but the per-star bars come from the
+		 * `ratings` PROPERTY, so the attribute-only example drew the
+		 * stars above five empty tracks — the half of this component
+		 * that is actually interesting.
+		 */
+		example: html`<os-rating-summary rating="92" total="184"></os-rating-summary>`,
+		exampleInit: ( root: HTMLElement ) => {
+			const summary = root.querySelector( 'os-rating-summary' );
+			if ( summary ) {
+				( summary as OsRatingSummary ).ratings = {
+					5: 132,
+					4: 34,
+					3: 11,
+					2: 4,
+					1: 3,
+				};
+			}
+		},
 	} as const;
 
 	private _ratings: OsRatingBuckets = {};
