@@ -10,6 +10,10 @@
  *
  * Hosted by the Games hub's detail panel (Steam-library style):
  * one instance per selected game, torn down on re-selection.
+ *
+ * Refreshes itself when `desktop-mode/game-score-recorded` names
+ * the mounted game, so a run finishing in the game's own window
+ * repaints the board here without a re-selection or an F5.
  */
 
 // Side-effect imports — register the `<os-*>` components this module
@@ -20,6 +24,7 @@ import '../ui/components/os-relative-time/os-relative-time';
 import '../ui/components/os-table/os-table';
 
 import { __ } from '../i18n';
+import { activity } from '../activity';
 import { fetchScores } from './rest';
 import { openChallengeDialog } from './challenge-dialog';
 import type { OsTable, OsTableColumn } from '../ui/components/os-table/os-table';
@@ -211,9 +216,25 @@ export function renderScoreboard(
 		}
 	};
 
+	// Games play in their own window, so a run finishing is invisible
+	// here without the bus. Reload the page the viewer is looking at
+	// rather than jumping back to page 1. A new score lands at the
+	// top, but yanking them off page 3 to show it is worse than
+	// leaving them where they were.
+	const unsubscribe = activity.subscribe(
+		'desktop-mode/game-score-recorded',
+		( payload ) => {
+			if ( disposed || payload?.game !== game.id ) {
+				return;
+			}
+			void load( page );
+		},
+	);
+
 	void load( 1 );
 
 	return () => {
 		disposed = true;
+		unsubscribe();
 	};
 }

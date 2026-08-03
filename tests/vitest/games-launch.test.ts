@@ -28,6 +28,7 @@ interface FakeDesktop {
 		getActiveDesktopId?: ReturnType< typeof vi.fn >;
 		switchDesktop?: ReturnType< typeof vi.fn >;
 	};
+	activity: { publish: ReturnType< typeof vi.fn > };
 	fetch: ReturnType< typeof vi.fn >;
 	config: { restUrl: string; restNonce: string };
 }
@@ -75,6 +76,7 @@ describe( 'games/launch.ts', () => {
 			wallpaper: { suspend: vi.fn(), resume: vi.fn() },
 			loadVendorScript: vi.fn().mockResolvedValue( undefined ),
 			windowManager: { getById: vi.fn().mockReturnValue( undefined ) },
+			activity: { publish: vi.fn() },
 			fetch: vi.fn().mockResolvedValue(
 				new Response( JSON.stringify( { id: 1 } ), { status: 200 } ),
 			),
@@ -286,5 +288,94 @@ describe( 'games/launch.ts', () => {
 
 		const [ url ] = fake.fetch.mock.calls[ 0 ] as [ string ];
 		expect( url ).toContain( 'desktop-mode/v1/games/challenges/7/complete' );
+	} );
+
+	test( 'a recorded score announces on the activity bus', async () => {
+		const { registry, launch } = await loadModules();
+		registerGame( registry );
+
+		await launch.launchGame( 'test-game' );
+		await capturedCtx!.submitScore( { score: 42, meta: { wpm: 61 } } );
+
+		expect( fake.activity.publish ).toHaveBeenCalledWith(
+			'desktop-mode/game-score-recorded',
+			{
+				game: 'test-game',
+				score: 42,
+				meta: { wpm: 61 },
+				windowId: 'os-game-test-game',
+				challengeId: undefined,
+			},
+		);
+	} );
+
+	test( 'the announcement waits for the REST write to resolve', async () => {
+		const { registry, launch } = await loadModules();
+		registerGame( registry );
+		let settle: ( () => void ) | undefined;
+		fake.fetch.mockImplementation(
+			() =>
+				new Promise< Response >( ( resolve ) => {
+					settle = () =>
+						resolve(
+							new Response( JSON.stringify( { id: 1 } ), {
+								status: 200,
+							} ),
+						);
+				} ),
+		);
+
+		await launch.launchGame( 'test-game' );
+		const pending = capturedCtx!.submitScore( { score: 42 } );
+		// Subscribers refetch on this event; publishing before the
+		// write lands would have them read the pre-score leaderboard.
+		expect( fake.activity.publish ).not.toHaveBeenCalled();
+
+		settle!();
+		await pending;
+		expect( fake.activity.publish ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	test( 'a failed submit announces nothing', async () => {
+		const { registry, launch } = await loadModules();
+		registerGame( registry );
+		fake.fetch.mockResolvedValue(
+			new Response( JSON.stringify( { message: 'nope' } ), {
+				status: 500,
+			} ),
+		);
+
+		await launch.launchGame( 'test-game' );
+		await expect(
+			capturedCtx!.submitScore( { score: 42 } ),
+		).rejects.toThrow( 'nope' );
+
+		expect( fake.activity.publish ).not.toHaveBeenCalled();
+	} );
+
+	test( 'challenge completion announces with the challenge id', async () => {
+		const { registry, launch } = await loadModules();
+		registerGame( registry );
+		fake.fetch.mockResolvedValue(
+			new Response(
+				JSON.stringify( { challenge: { id: 7, game: 'test-game' } } ),
+				{ status: 200 },
+			),
+		);
+
+		await launch.launchGame( 'test-game', {
+			challenge: {
+				id: 7,
+				scoreToBeat: 100,
+				scoreMeta: {},
+				challengerName: 'A',
+			},
+		} );
+		await capturedCtx!.submitScore( { score: 120 } );
+
+		expect( fake.activity.publish ).toHaveBeenCalledWith(
+			'desktop-mode/game-score-recorded',
+			expect.objectContaining( { game: 'test-game', challengeId: 7 } ),
+		);
 	} );
 } );

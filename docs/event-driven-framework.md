@@ -244,6 +244,11 @@ const safe = wp.os.activity.filter(
 Channels follow the convention `<plugin>/<event>`. The runtime
 routes them through `os.activity.<channel>` on the hook
 bus, so devtools can list activity traffic as a discrete group.
+Hook names can't contain a slash (`@wordpress/hooks` rejects the
+registration), so the channel separator becomes a period there:
+`my-plugin/thing-happened` lands on
+`desktop-mode.activity.my-plugin.thing-happened`. Only relevant if
+you register through raw `wp.hooks` instead of the API below.
 Type the payload by augmenting `ActivityChannelMap` in your own
 `.d.ts`:
 
@@ -269,6 +274,7 @@ mirrors here so plugins can subscribe through one unified API:
 | `desktop-mode/open-requested` | No | Every `wp.os.openWindow()`, BEFORE deciding `opened` vs `reopened`. Carries `source`. |
 | `desktop-mode/presence-changed` | No | Every presence transition (mirror of the `os-presence-changed` CustomEvent). |
 | `desktop-mode/presence-snapshot-applied` | No | After every presence batch — `{ applied, transitions }`. |
+| `desktop-mode/game-score-recorded` | No | After a game's `submitScore()` write resolves (free play and challenge completion both). Games play in their own window, so this is how a leaderboard in another window learns it went stale. Payload carries `challengeId` on the completion path. |
 
 **Activity ↔ broadcast mirror.** `wp.os.broadcast(topic, payload)`
 publishes both onto the broadcast bus (cross-iframe, cross-tab)

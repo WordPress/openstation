@@ -3,7 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { activity } from '../../src/activity';
-import { addFilter, removeFilter } from '../../src/hooks';
+import { addFilter, doAction, removeFilter } from '../../src/hooks';
 import { installHooksStub, clearHooksStub } from './helpers/hooks-stub';
 
 describe( 'wp.os.activity', () => {
@@ -52,9 +52,11 @@ describe( 'wp.os.activity', () => {
 		expect( b ).not.toHaveBeenCalled();
 	} );
 
+	// A plugin reaching the bus through raw `wp.hooks` has to spell
+	// the hook name the way the channel maps onto it.
 	test( 'filter mutates the value through registered filters', () => {
 		addFilter(
-			'os.activity.plugin-x/redact',
+			'os.activity.plugin-x.redact',
 			'plugin-x-test',
 			( v: unknown ) => {
 				return ( v as string ).replace( /secret/g, '***' );
@@ -65,7 +67,21 @@ describe( 'wp.os.activity', () => {
 			'this is a secret',
 		);
 		expect( out ).toBe( 'this is a ***' );
-		removeFilter( 'os.activity.plugin-x/redact', 'plugin-x-test' );
+		removeFilter( 'os.activity.plugin-x.redact', 'plugin-x-test' );
+	} );
+
+	test( 'a channel maps onto a hook name @wordpress/hooks accepts', () => {
+		// The regression that made every `subscribe()` a silent no-op
+		// in a browser: `addAction` bails on an invalid name, and
+		// `doAction` still "succeeds" against zero handlers.
+		const cb = vi.fn();
+		activity.subscribe( 'desktop-mode/game-score-recorded', cb );
+		// Reaching the same channel by its raw hook name proves the
+		// mapping, not just that publish/subscribe agree with itself.
+		doAction( 'os.activity.desktop-mode.game-score-recorded', {
+			game: 'inkfall',
+		} );
+		expect( cb ).toHaveBeenCalledWith( { game: 'inkfall' } );
 	} );
 
 	test( 'filter falls through when no filters registered', () => {

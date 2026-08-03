@@ -72,7 +72,7 @@ that one was shown:
 
 ```js
 wp.hooks.addFilter(
-    'os.activity.desktop-mode/notification-requested',
+    'os.activity.desktop-mode.notification-requested',
     'my-plugin/dnd',
     ( intent ) => {
         if ( isDoNotDisturbActive() ) {
@@ -94,7 +94,8 @@ wp.os.activity.subscribe(
 
 Note the asymmetry: filter *registration* goes through
 `wp.hooks.addFilter` on the `os.activity.<channel>` hook
-name. `wp.os.activity.filter( channel, value )` is the
+name, writing the channel's separator as a period.
+`wp.os.activity.filter( channel, value )` is the
 publisher-side *apply* call — it runs the registered filters against
 `value` and returns the result; passing it a callback registers
 nothing.

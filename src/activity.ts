@@ -189,6 +189,25 @@ export interface ActivityChannelMap {
 		applied: number;
 		transitions: number;
 	};
+	/**
+	 * Framework: a game run landed on the leaderboard. Fires after
+	 * the REST write resolves, so a subscriber that refetches sees
+	 * the new row. Games run in their own window
+	 * (`os-game-<id>`); this is how the Games hub, a
+	 * different window and possibly a different bundle, learns that
+	 * its scoreboard went stale.
+	 *
+	 * Both submission paths publish: free play and challenge
+	 * completion (completing a challenge writes a leaderboard row
+	 * too). `challengeId` is set only on the latter.
+	 */
+	'desktop-mode/game-score-recorded': {
+		game: string;
+		score: number;
+		meta: Record< string, string | number >;
+		windowId: string;
+		challengeId?: number;
+	};
 	// Plugin channels go here. The catch-all index signature lets
 	// third-party plugins fall through without explicit type
 	// augmentation; declare specific channels in your own .d.ts
@@ -198,8 +217,13 @@ export interface ActivityChannelMap {
 
 const HOOK_PREFIX = 'os.activity.';
 
+/**
+ * Channel slug → hook name. Characters outside the charset
+ * `@wordpress/hooks` accepts in a hook name collapse to a period,
+ * the separator the prefix already uses.
+ */
 function hookName< K extends keyof ActivityChannelMap >( channel: K ): string {
-	return `${ HOOK_PREFIX }${ String( channel ) }`;
+	return HOOK_PREFIX + String( channel ).replace( /[^a-zA-Z0-9_.-]/g, '.' );
 }
 
 /**

@@ -18,15 +18,20 @@
  *      stops — on EVERY close path: normal close, crash inside
  *      render, failed script load.
  *
+ * A finished run also publishes `desktop-mode/game-score-recorded`
+ * on the activity bus so the Games hub's scoreboard (a different
+ * window) can refresh itself.
+ *
  * Uses the `wp.os` public surface (registerWindow, wallpaper,
- * onWindow, loadVendorScript) rather than direct imports so the
- * behavior is identical whether this module is compiled into the
- * main bundle or the games bundle.
+ * onWindow, loadVendorScript, activity) rather than direct imports
+ * so the behavior is identical whether this module is compiled into
+ * the main bundle or the games bundle.
  */
 
 import * as registry from './registry';
 import { startPlaytimeTracker } from './playtime';
 import type { PlaytimeTracker } from './playtime';
+import { ingestChallenges } from './challenges-store';
 import { completeChallenge, submitScore } from './rest';
 import type {
 	GameChallengeContext,
@@ -75,6 +80,9 @@ interface DesktopGlobal {
 		getByBaseId?: ( baseId: string ) => GameWindowLike | undefined;
 		getActiveDesktopId?: () => string;
 		switchDesktop?: ( id: string ) => void;
+	};
+	activity?: {
+		publish: ( channel: string, payload?: unknown ) => void;
 	};
 }
 
@@ -234,14 +242,39 @@ export async function launchGame(
 		restored: () => tracker?.resume(),
 	} );
 
+	// The run finished in THIS window; the Games hub is a different
+	// window (and may be a different bundle) holding a leaderboard
+	// that just went stale. Announce on the activity bus rather than
+	// reaching into the hub. The framework is the transport, the hub
+	// owns what it does about it.
+	const announce = (
+		result: GameScoreSubmission,
+		challengeId?: number,
+	): void => {
+		desktop.activity?.publish( 'desktop-mode/game-score-recorded', {
+			game: id,
+			score: result.score,
+			meta: result.meta ?? {},
+			windowId,
+			challengeId,
+		} );
+	};
+
 	const submit = ( result: GameScoreSubmission ): Promise< void > => {
 		if ( opts.challenge ) {
-			return completeChallenge( opts.challenge.id, result, {
+			const challengeId = opts.challenge.id;
+			return completeChallenge( challengeId, result, {
 				windowId,
-			} ).then( () => undefined );
+			} ).then( ( { challenge } ) => {
+				// The completion response is the authoritative updated
+				// row, so feed the shared store now rather than
+				// waiting for the next Heartbeat delta to carry it.
+				ingestChallenges( [ challenge ] );
+				announce( result, challengeId );
+			} );
 		}
-		return submitScore( id, result, { windowId } ).then(
-			() => undefined,
+		return submitScore( id, result, { windowId } ).then( () =>
+			announce( result ),
 		);
 	};
 

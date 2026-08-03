@@ -1473,7 +1473,7 @@ wp.os.onWindow(
 Cross-plugin activity bus. The transport layer for "thing X happened in plugin A; plugin B might care." Built on top of `wp.hooks` with three benefits over raw `doAction`/`addAction`:
 
 1. **A documented naming convention** (`<plugin>/<event>`).
-2. **A predictable hook prefix** (`os.activity.<channel>`) so devtools can list activity traffic as a discrete group.
+2. **A predictable hook prefix** (`os.activity.<channel>`) so devtools can list activity traffic as a discrete group. The channel's separator becomes a period on the hook bus: `my-plugin/thing-happened` is registered as `os.activity.my-plugin.thing-happened`. This only matters if you reach the bus through raw `wp.hooks`; `publish`/`subscribe`/`filter` take the channel slug and handle the mapping.
 3. **Type-safe payloads** via the `ActivityChannelMap` interface (extend in your own `.d.ts`).
 
 ```typescript
@@ -1505,6 +1505,7 @@ interface ActivityApi {
 | `desktop-mode/open-requested` | Fire-and-forget — `wp.os.openWindow()` publishes here BEFORE deciding `opened` vs `reopened`. | `{ windowId, source }` | No. |
 | `desktop-mode/presence-changed` | Per-transition mirror of the `os-presence-changed` CustomEvent. | `{ userId, oldStatus, newStatus, lastSeenMs, lastActiveMs }` | No. |
 | `desktop-mode/presence-snapshot-applied` | Batch-level — fires after every presence snapshot OR `applyPresenceBatch()`. | `{ applied: number, transitions: number }` | No. |
+| `desktop-mode/game-score-recorded` | Fire-and-forget. Fires after a game's `submitScore()` write resolves, on both the free-play and challenge-completion paths. | `{ game, score, meta, windowId, challengeId? }` | No. |
 
 **Plugin channels** — pick a `<plugin>/<event>` slug and publish. Augment `ActivityChannelMap` for compile-time payload checking:
 
@@ -1703,6 +1704,8 @@ window.openStationGames[ 'my-plugin-puzzle' ] = {
 ```
 
 `render` receives a `GameLaunchContext`: `container` (the window body), `config` (the PHP-registered blob), `challenge` (set when the run is an accepted score-to-beat challenge: `{ id, scoreToBeat, scoreMeta, challengerName }`), `submitScore( { score, meta } )` (routes to the leaderboard, or to the challenge-completion endpoint in challenge mode), and `close()`. The framework suspends the wallpaper for the window's lifetime and opens the window as `os-game-<id>` (no dock tile).
+
+**Score announcements.** Once a `submitScore()` write resolves, the launcher publishes `desktop-mode/game-score-recorded` on the activity bus with `{ game, score, meta, windowId, challengeId? }` (both paths publish; `challengeId` only on challenge completion). Games play in their own window, so this is how leaderboards elsewhere in the shell find out they went stale: the hub's scoreboard subscribes and reloads the page the viewer is on. Subscribe to it if your plugin paints anything derived from scores. A failed write publishes nothing.
 
 **Framework config keys**. For server-registered games, the payload merges framework-level keys underneath the game's own `config` (the game's keys win): **`config.wordsUrl`** is the URL of the shared ~20k-word dictionary asset (`assets/games/words.txt`) — identical for every player, so seeded games (Alphabet Soup's date-seeded daily puzzle) generate the same grid worldwide. Parse it with the framework loader (`src/games/dictionary.ts` — `loadDictionary( url )` → `{ size, pick( minLen, maxLen, rng ) }`); the PHP-side URL + filter is `openstation_games_words_url` in [hooks-reference.md](./hooks-reference.md).
 
