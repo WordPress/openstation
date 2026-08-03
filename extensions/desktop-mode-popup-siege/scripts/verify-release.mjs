@@ -8,10 +8,17 @@ const scriptsDir = path.dirname( fileURLToPath( import.meta.url ) );
 const pluginRoot = path.resolve( scriptsDir, '..' );
 
 const pinnedFiles = Object.freeze( {
+	// Re-pinned for the OpenStation rebrand: the adapter reads the shell
+	// API off `wp.os` and publishes its def on `window.openStationGames`,
+	// both of which the framework renamed. The versioned gameplay layers
+	// and the assembled runtime are untouched.
 	'games/popup-breaker/assets/openstation-adapter.js':
-		'12cca60751e7eb72cfb1bad4fac6ebdf2f15e2ff5f562f9509ba00aaf2189e1c',
+		'c2c5abf1b962fd4b84646a6517507cc89692453cb25db2a8a24dff0117e1ad70',
+	// Re-pinned for the OpenStation rebrand: the assembled runtime picks
+	// up `sdk/openstation-game-kit-0.1.0.js`, which loads shared PixiJS
+	// through `wp.os.loadModules`. The gameplay layers are untouched.
 	'games/popup-breaker/assets/popup-siege-runtime-0.7.0.js':
-		'661d27e019841d35af457f3bbacf4f7d85c1d426b2f8b4d19d4a9d2f6511808e',
+		'7b7b32359b97a0aab16e3dd53913e6b0a9170d79bac73e10563bdcbc061a51bf',
 	'standalone/popup-breaker.css':
 		'44d9fad7c1543c3ccc3e2ea9f1a439a94e63951c8ba5a2321eaef1431fcbffe7',
 	'games/popup-breaker/assets/images/popup-siege-side-console-0.5.1-source.png':
