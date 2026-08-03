@@ -45,7 +45,8 @@ const DESKTOP_MODE_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
  *         slug: string, edit_url: string,
  *         author_id: int, contributor_ids: int[],
  *         year: int, year_month: string,
- *         category_ids: int[], tag_ids: int[]
+ *         category_ids: int[], tag_ids: int[],
+ *         comment_count: int, word_count: int, modified_ts: int
  *     }>,
  *     edges: array<int, array{ from: int, to: int }>,
  *     groups: array{
@@ -148,6 +149,27 @@ function desktop_mode_content_graph_build( array $types ) {
 			);
 		}
 
+		// Word count for the Galaxy view's brightness encoding. Strip
+		// shortcodes + tags first so a 200-word post drowning in HTML
+		// markup doesn't read as a 2000-word post. `str_word_count` is
+		// locale-aware enough for our needs (we only use it as a relative
+		// brightness signal, not for editorial display).
+		$plain      = wp_strip_all_tags( strip_shortcodes( (string) $row->post_content ), true );
+		$word_count = $plain === '' ? 0 : (int) str_word_count( $plain );
+		// Modified-time as unix ts (GMT). The Galaxy view's "Recent" tab
+		// filters on `now - 30 days`; comparing seconds is faster + safer
+		// across the wire than parsing a date string client-side.
+		// Never-updated drafts carry a zero-date `post_modified_gmt`
+		// (WordPress only stamps the GMT columns on update), so fall
+		// back to the local `post_date` — for a fresh draft the two
+		// describe the same instant. Without this, brand-new drafts
+		// never twinkle and never qualify for the "Recent" tab.
+		$modified_gmt = isset( $row->post_modified_gmt ) ? (string) $row->post_modified_gmt : '';
+		if ( '' === $modified_gmt || '0000-00-00 00:00:00' === $modified_gmt ) {
+			$modified_gmt = (string) get_gmt_from_date( (string) $row->post_date );
+		}
+		$modified_ts = (int) mysql2date( 'U', $modified_gmt . ' UTC', false );
+
 		$node = array(
 			'id'              => $id,
 			'type'            => (string) $row->post_type,
@@ -161,6 +183,9 @@ function desktop_mode_content_graph_build( array $types ) {
 			'year_month'      => $year_month,
 			'category_ids'    => $post_cats,
 			'tag_ids'         => $post_tags,
+			'comment_count'   => (int) ( isset( $row->comment_count ) ? $row->comment_count : 0 ),
+			'word_count'      => $word_count,
+			'modified_ts'     => $modified_ts,
 		);
 		$nodes[]            = $node;
 		$nodes_by_id[ $id ] = true;
@@ -264,11 +289,12 @@ function desktop_mode_content_graph_normalize_types( array $types ) {
  * only included when the user holds that type's `read_private_posts`
  * capability; for the remaining types the user still sees their OWN
  * private posts (mirroring core's `WP_Query` status semantics for
- * logged-in users).
+ * logged-in users). Logged-in users additionally see their OWN drafts
+ * (the Galaxy view's "Drafts" tab); other users' drafts never surface.
  *
- * The `key` element encodes the resulting privilege tier (and, when
- * the own-author clause is active, the user id) so cached payloads
- * are never served across privilege levels.
+ * The `key` element encodes the resulting privilege tier (and, for
+ * logged-in users, the user id) so cached payloads are never served
+ * across privilege levels or between users.
  *
  * @param string[] $types Already normalized.
  * @return array{ where: string, values: array, key: string }
@@ -302,6 +328,16 @@ function desktop_mode_content_graph_visibility_sql( array $types ) {
 		$status_clauses[] = "( post_status = 'private' AND post_author = %d )";
 		$values[]         = $user_id;
 		$key_parts[]      = 'own=' . $user_id;
+	}
+
+	if ( $user_id > 0 ) {
+		// The Galaxy view's "Drafts" tab surfaces the viewer's own
+		// drafts; other users' unpublished work stays invisible. The
+		// key part buckets cached payloads per user so one editor's
+		// drafts never bleed into another's view.
+		$status_clauses[] = "( post_status = 'draft' AND post_author = %d )";
+		$values[]         = $user_id;
+		$key_parts[]      = 'drafts=' . $user_id;
 	}
 
 	$where = "post_type IN ( {$placeholders} ) AND ( " . implode( ' OR ', $status_clauses ) . ' )';
@@ -348,8 +384,9 @@ function desktop_mode_content_graph_cache_key( array $types ) {
  * `get_post()` calls.
  *
  * Rows are scoped to what the current user can read: published posts,
- * plus private posts only where the user holds the type's
- * `read_private_posts` capability (or authored the post). See
+ * private posts only where the user holds the type's
+ * `read_private_posts` capability (or authored the post), plus the
+ * user's own drafts. See
  * `desktop_mode_content_graph_visibility_sql()`.
  *
  * @param string[] $types Already normalized.
@@ -361,7 +398,7 @@ function desktop_mode_content_graph_fetch_rows( array $types ) {
 	// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date
+			"SELECT ID, post_type, post_status, post_title, post_name, post_content, post_author, post_date, post_modified_gmt, comment_count
 			 FROM {$wpdb->posts}
 			 WHERE {$visibility['where']}
 			 ORDER BY post_date DESC",

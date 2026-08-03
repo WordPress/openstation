@@ -17,12 +17,18 @@
 
 import { __, sprintf } from '../i18n';
 import { fetchGraph, fetchPostDetail, fetchPostTypes, getConfig } from './rest';
-import { renderToolbar } from './toolbar';
+import { renderToolbar, type ContentGraphView } from './toolbar';
 import { renderPanel } from './panel';
 import { GraphScene } from './scene';
+import { GalaxyScene } from './galaxy-scene';
 import type { SatelliteRef } from './satellites';
 import type { DesktopApiLike } from './pixi-types';
-import type { GraphNode, GroupFacet } from './types';
+import type {
+	GalaxyTab,
+	GraphNode,
+	GraphPayload,
+	GroupFacet,
+} from './types';
 
 // The framework's actual signature is wider (`() => void | (() => void) |
 // Promise<…>`) but every feature bundle re-declares it as a narrow
@@ -42,6 +48,12 @@ const WINDOW_ID = 'desktop-mode-content-graph';
 
 interface ActiveState {
 	abort: () => void;
+}
+
+interface ActiveScene {
+	view: ContentGraphView;
+	graph: GraphScene | null;
+	galaxy: GalaxyScene | null;
 }
 
 async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
@@ -71,9 +83,10 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		?.desktop ?? {};
 
 	let activeTypes: string[] = cfg.postTypes.map( ( t ) => t.slug );
-	let scene: GraphScene | null = null;
 	let detailRequestId = 0;
 	let aborted = false;
+	let currentPayload: GraphPayload | null = null;
+	let currentGrouping: GroupFacet | null = null;
 
 	const showLoading = ( show: boolean ): void => {
 		if ( ! loading ) {
@@ -85,13 +98,14 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 	const panel = renderPanel( panelHost, cfg, {
 		onClose: () => {
 			panel.hide();
-			scene?.clearFocus();
+			activeScene.graph?.clearFocus();
+			activeScene.galaxy?.clearFocus();
 		},
 		// Mirror the panel's visible view onto the satellite layer so
 		// the bubble matching the dossier picks up its selected state
 		// (and clears when the user navigates back to the post view).
 		onViewChange: ( key ) => {
-			scene?.setSatelliteSelectedKey( key );
+			activeScene.graph?.setSatelliteSelectedKey( key );
 		},
 	} );
 
@@ -119,7 +133,8 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 	};
 
 	const focusNode = ( node: GraphNode ): void => {
-		scene?.focusNode( node.id );
+		activeScene.graph?.focusNode( node.id );
+		activeScene.galaxy?.focusNode( node.id );
 		panel.setLoading( node.id, node.title );
 		const myId = ++detailRequestId;
 		void ( async () => {
@@ -129,7 +144,8 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 					return;
 				}
 				panel.setDetail( detail );
-				scene?.setFocusedDetail( detail );
+				activeScene.graph?.setFocusedDetail( detail );
+				activeScene.galaxy?.setFocusedDetail( detail );
 			} catch ( err ) {
 				if ( aborted || myId !== detailRequestId ) {
 					return;
@@ -147,27 +163,196 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		} )();
 	};
 
+	const closeFocus = (): void => {
+		// Bump the request id so any in-flight detail fetch's late
+		// resolution doesn't re-open the panel after we close it.
+		detailRequestId++;
+		panel.hide();
+		activeScene.graph?.clearFocus();
+		activeScene.galaxy?.clearFocus();
+	};
+
+	const initialView: ContentGraphView =
+		cfg.lastView === 'galaxy' ? 'galaxy' : 'graph';
+
+	const activeScene: ActiveScene = {
+		view: initialView,
+		graph: null,
+		galaxy: null,
+	};
+
 	const buildToolbarCallbacks = () => ( {
 		onTypesChange: ( types: string[] ) => {
 			activeTypes = types;
 			void loadGraph();
 		},
-		onFitToView: () => scene?.fitToView(),
+		onFitToView: () => {
+			activeScene.graph?.fitToView();
+			activeScene.galaxy?.fitToView();
+		},
 		onSearchSelect: ( node: GraphNode ) => focusNode( node ),
 		onGroupChange: ( facet: GroupFacet | null ) => {
 			// Session-local: no persistence. The selector resets to None
 			// on every window open by virtue of the toolbar being
 			// constructed fresh each render.
-			scene?.setGrouping( facet );
+			currentGrouping = facet;
+			activeScene.graph?.setGrouping( facet );
+			activeScene.galaxy?.setGrouping( facet );
 		},
-		getNodes: () => scene?.getNodes() ?? [],
+		getNodes: () =>
+			activeScene.graph?.getNodes() ??
+			activeScene.galaxy?.getNodes() ??
+			[],
+		onViewChange: ( next: ContentGraphView ) => {
+			void swapView( next );
+		},
+		onGalaxyTabChange: ( tab: GalaxyTab ) => {
+			activeScene.galaxy?.setTab( tab );
+		},
+		onMinCommentsChange: ( min: number ) => {
+			activeScene.galaxy?.setMinComments( min );
+		},
+		onZoomChange: ( zoom: number ) => {
+			activeScene.galaxy?.setZoom( zoom );
+		},
 	} );
 
 	let toolbar = renderToolbar(
 		toolbarHost,
+		cfg,
 		cfg.postTypes,
 		buildToolbarCallbacks(),
 	);
+
+	// Guards the async mount pipeline. `scene.mount()` awaits module
+	// loading + `app.init()`, so a rapid Graph⇄Galaxy⇄Graph toggle (or
+	// a window close) can land while a mount is still in flight. Each
+	// mount takes a generation ticket; if a newer mount (or `abort()`)
+	// supersedes it before it resolves, the stale scene destroys itself
+	// instead of being assigned — otherwise two live Pixi Applications
+	// coexist with stacked canvases, or a leaked scene ticks forever
+	// after the window closed.
+	let mountGeneration = 0;
+
+	const swapView = async ( next: ContentGraphView ): Promise< void > => {
+		if ( next === activeScene.view ) {
+			return;
+		}
+		// Tear down the outgoing scene BEFORE constructing the incoming
+		// one so the two Pixi Applications never coexist (the v8 batched
+		// renderer's destroy race documented in `categories-mindmap.ts`
+		// and `tags-cloud.ts`).
+		if ( activeScene.graph ) {
+			activeScene.graph.destroy();
+			activeScene.graph = null;
+		}
+		if ( activeScene.galaxy ) {
+			activeScene.galaxy.destroy();
+			activeScene.galaxy = null;
+		}
+		stageHost.classList.remove( 'is-galaxy' );
+		activeScene.view = next;
+		let mounted: boolean;
+		try {
+			mounted = await mountActiveScene();
+		} catch ( err ) {
+			stageHost.textContent = __( 'Could not initialise the graph renderer.' );
+			// eslint-disable-next-line no-console
+			console.warn( '[content-graph] scene swap failed', err );
+			return;
+		}
+		if ( ! mounted ) {
+			// Superseded by a newer swap (or the window closed) while
+			// mounting — the winning call restores its own state.
+			return;
+		}
+		// Restore data + grouping into the new scene. Read through
+		// `getScene()` so TS doesn't carry the `null`-narrowing from
+		// the inline assignments above through the await — the
+		// freshly-mounted scene replaced one of the slots.
+		if ( currentPayload ) {
+			const fresh = getScene();
+			fresh.graph?.setData( currentPayload );
+			fresh.galaxy?.setData( currentPayload );
+			if ( currentGrouping ) {
+				fresh.graph?.setGrouping( currentGrouping );
+				fresh.galaxy?.setGrouping( currentGrouping );
+			}
+			fresh.graph?.fitToView();
+			fresh.galaxy?.fitToView();
+		}
+	};
+
+	const getScene = (): ActiveScene => activeScene;
+
+	/**
+	 * Mount the scene matching `activeScene.view`. Resolves `true` when
+	 * the scene was assigned, `false` when the mount lost its generation
+	 * race (a newer mount started, or the window aborted) — in that case
+	 * the freshly-built scene is destroyed here and nothing is assigned.
+	 */
+	const mountActiveScene = async (): Promise< boolean > => {
+		const generation = ++mountGeneration;
+		const isStale = (): boolean =>
+			aborted || generation !== mountGeneration;
+		if ( activeScene.view === 'galaxy' ) {
+			const scene = new GalaxyScene( stageHost, {
+				onNodeClick: ( node ) => {
+					if ( activeScene.galaxy?.getFocusedId() === node.id ) {
+						closeFocus();
+						return;
+					}
+					focusNode( node );
+				},
+				onBackgroundClick: closeFocus,
+				onVisibleCountChange: ( visible, total ) => {
+					toolbar.setVisibleCount( visible, total );
+				},
+			} );
+			await scene.mount( desktopApi );
+			if ( isStale() ) {
+				scene.destroy();
+				return false;
+			}
+			activeScene.galaxy = scene;
+			return true;
+		}
+		const scene = new GraphScene(
+			stageHost,
+			{
+				onNodeClick: ( node ) => {
+					// Click on the already-focused node = toggle off. Lets
+					// the user dismiss the focus with the same gesture
+					// they used to open it, instead of having to find the
+					// panel's close button or click empty canvas.
+					if ( activeScene.graph?.getFocusedId() === node.id ) {
+						closeFocus();
+						return;
+					}
+					focusNode( node );
+				},
+				onBackgroundClick: closeFocus,
+			},
+			handleSatelliteClick,
+			cfg.postTypes,
+		);
+		await scene.mount( desktopApi );
+		if ( isStale() ) {
+			scene.destroy();
+			return false;
+		}
+		activeScene.graph = scene;
+		return true;
+	};
+
+	try {
+		await mountActiveScene();
+	} catch ( err ) {
+		stageHost.textContent = __( 'Could not initialise the graph renderer.' );
+		// eslint-disable-next-line no-console
+		console.warn( '[content-graph] scene mount failed', err );
+		return { abort: () => {} };
+	}
 
 	const loadGraph = async (): Promise< void > => {
 		if ( aborted ) {
@@ -180,7 +365,9 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			if ( aborted ) {
 				return;
 			}
-			scene?.setData( payload );
+			currentPayload = payload;
+			activeScene.graph?.setData( payload );
+			activeScene.galaxy?.setData( payload );
 			toolbar.setStatus(
 				sprintf(
 					/* translators: 1: number of nodes (posts/pages) in the graph. 2: number of links between them. */
@@ -189,9 +376,15 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 					payload.stats.edges,
 				),
 			);
-			scene?.fitToView();
-			scene?.clearFocus();
+			activeScene.graph?.fitToView();
+			activeScene.galaxy?.fitToView();
+			activeScene.graph?.clearFocus();
+			activeScene.galaxy?.clearFocus();
 			panel.hide();
+			if ( currentGrouping ) {
+				activeScene.graph?.setGrouping( currentGrouping );
+				activeScene.galaxy?.setGrouping( currentGrouping );
+			}
 		} catch ( err ) {
 			if ( aborted ) {
 				return;
@@ -204,43 +397,6 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		}
 	};
 
-	const closeFocus = (): void => {
-		// Bump the request id so any in-flight detail fetch's late
-		// resolution doesn't re-open the panel after we close it.
-		detailRequestId++;
-		panel.hide();
-		scene?.clearFocus();
-	};
-
-	scene = new GraphScene(
-		stageHost,
-		{
-			onNodeClick: ( node ) => {
-				// Click on the already-focused node = toggle off. Lets
-				// the user dismiss the focus with the same gesture
-				// they used to open it, instead of having to find the
-				// panel's close button or click empty canvas.
-				if ( scene?.getFocusedId() === node.id ) {
-					closeFocus();
-					return;
-				}
-				focusNode( node );
-			},
-			onBackgroundClick: closeFocus,
-		},
-		handleSatelliteClick,
-		cfg.postTypes,
-	);
-
-	try {
-		await scene.mount( desktopApi );
-	} catch ( err ) {
-		stageHost.textContent = __( 'Could not initialise the graph renderer.' );
-		// eslint-disable-next-line no-console
-		console.warn( '[content-graph] scene mount failed', err );
-		return { abort: () => {} };
-	}
-
 	// First-load: refresh post-type counts so chips reflect live state,
 	// then load the graph itself.
 	try {
@@ -249,7 +405,12 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 		// target the new DOM. Without this the original handle silently
 		// writes to a removed element.
 		toolbar.destroy();
-		toolbar = renderToolbar( toolbarHost, refreshed, buildToolbarCallbacks() );
+		toolbar = renderToolbar(
+			toolbarHost,
+			cfg,
+			refreshed,
+			buildToolbarCallbacks(),
+		);
 	} catch {
 		// Non-fatal — keep the chips that came from the window config.
 	}
@@ -261,8 +422,10 @@ async function renderContentGraph( body: HTMLElement ): Promise< ActiveState > {
 			aborted = true;
 			toolbar.destroy();
 			panel.destroy();
-			scene?.destroy();
-			scene = null;
+			activeScene.graph?.destroy();
+			activeScene.graph = null;
+			activeScene.galaxy?.destroy();
+			activeScene.galaxy = null;
 		},
 	};
 }

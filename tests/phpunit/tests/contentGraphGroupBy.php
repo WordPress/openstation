@@ -301,6 +301,106 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 		);
 	}
 
+	public function test_galaxy_payload_fields_populated() {
+		$post_id = self::factory()->post->create(
+			array(
+				'post_author'  => self::$author_a_id,
+				'post_status'  => 'publish',
+				'post_type'    => 'post',
+				'post_content' => 'one two three four five six seven eight nine ten',
+				'post_date'    => '2024-03-15 10:00:00',
+			)
+		);
+		// Add a comment so comment_count is exercised. Approved so
+		// `wp_update_comment_count_now` increments the post column.
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $post_id,
+				'comment_approved' => '1',
+			)
+		);
+
+		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$node    = $this->find_node( $payload, $post_id );
+
+		$this->assertArrayHasKey( 'comment_count', $node );
+		$this->assertSame( 1, (int) $node['comment_count'] );
+		$this->assertArrayHasKey( 'word_count', $node );
+		$this->assertGreaterThanOrEqual( 10, (int) $node['word_count'] );
+		$this->assertArrayHasKey( 'modified_ts', $node );
+		$this->assertGreaterThan( 0, (int) $node['modified_ts'] );
+	}
+
+	public function test_drafts_scoped_to_current_user() {
+		$own_draft   = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_a_id,
+				'post_status' => 'draft',
+				'post_type'   => 'post',
+			)
+		);
+		$other_draft = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_b_id,
+				'post_status' => 'draft',
+				'post_type'   => 'post',
+			)
+		);
+
+		wp_set_current_user( self::$author_a_id );
+		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+
+		$this->assertTrue(
+			$this->has_node( $payload, $own_draft ),
+			'The current user\'s own draft must be in the payload.'
+		);
+		$this->assertFalse(
+			$this->has_node( $payload, $other_draft ),
+			'Another user\'s draft must never surface in the payload.'
+		);
+	}
+
+	public function test_cache_key_buckets_by_user() {
+		wp_set_current_user( self::$author_a_id );
+		$key_a = desktop_mode_content_graph_cache_key( array( 'post' ) );
+		wp_set_current_user( self::$author_b_id );
+		$key_b = desktop_mode_content_graph_cache_key( array( 'post' ) );
+
+		$this->assertNotSame(
+			$key_a,
+			$key_b,
+			'Cache keys must differ per user so one user\'s drafts never serve from another\'s cached payload.'
+		);
+	}
+
+	public function test_fresh_draft_gets_nonzero_modified_ts() {
+		wp_set_current_user( self::$author_a_id );
+		$draft_id = self::factory()->post->create(
+			array(
+				'post_author' => self::$author_a_id,
+				'post_status' => 'draft',
+				'post_type'   => 'post',
+			)
+		);
+		// Precondition: WordPress leaves the GMT modified column as a
+		// zero-date on a never-updated draft — the exact case the
+		// `post_date` fallback in the builder exists for.
+		$this->assertSame(
+			'0000-00-00 00:00:00',
+			get_post( $draft_id )->post_modified_gmt,
+			'Expected a fresh draft to carry a zero-date post_modified_gmt.'
+		);
+
+		$payload = desktop_mode_content_graph_build( array( 'post' ) );
+		$node    = $this->find_node( $payload, $draft_id );
+
+		$this->assertGreaterThan(
+			0,
+			(int) $node['modified_ts'],
+			'Fresh drafts must fall back to post_date so the Recent tab and twinkle layer see them.'
+		);
+	}
+
 	public function test_post_types_normalizes_legacy_filtered_descriptors() {
 		$filter_callback = function( $types ) {
 			// Use a slug that is NOT in the default list — the built-in
@@ -345,5 +445,19 @@ class Tests_DesktopMode_ContentGraphGroupBy extends WP_UnitTestCase {
 			}
 		}
 		$this->fail( "No node for post {$post_id} in payload." );
+	}
+
+	/**
+	 * @param array $payload
+	 * @param int   $post_id
+	 * @return bool
+	 */
+	protected function has_node( $payload, $post_id ) {
+		foreach ( $payload['nodes'] as $node ) {
+			if ( (int) $node['id'] === (int) $post_id ) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

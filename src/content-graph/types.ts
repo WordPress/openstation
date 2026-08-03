@@ -51,6 +51,23 @@ export interface GraphNodePayload {
 	year_month: string;
 	category_ids: number[];
 	tag_ids: number[];
+	/**
+	 * Approved comment count on the post. Used by the Galaxy view's
+	 * brightness encoding (`comments + word-count` normalized to 0..1).
+	 */
+	comment_count: number;
+	/**
+	 * Plain-text word count of `post_content` (stripped of shortcodes
+	 * + HTML on the server). Also used for the Galaxy brightness
+	 * encoding.
+	 */
+	word_count: number;
+	/**
+	 * Modified time as a unix timestamp (UTC seconds). Used by the
+	 * Galaxy view's "Recent" tab (`now - 30 days`) and the twinkle
+	 * layer (recently-edited posts sparkle).
+	 */
+	modified_ts: number;
 }
 
 export interface GraphEdgePayload {
@@ -295,7 +312,27 @@ export interface ContentGraphConfig {
 	 */
 	siteName?: string;
 	postTypes: PostTypeDescriptor[];
+	/**
+	 * The view mode the user last chose — `'graph'` or `'galaxy'`.
+	 * Read from `desktop_mode_content_graph_view` user meta. The
+	 * toolbar mounts the matching scene on first render and writes
+	 * back to user meta when the user toggles the segmented control.
+	 */
+	lastView?: 'graph' | 'galaxy';
+	/**
+	 * Numeric user id, for `POST /wp/v2/users/<id>` persistence calls.
+	 * `0` when no user is logged in (the window's `user_can_use` gate
+	 * prevents this in practice, but the field is typed defensively).
+	 */
+	currentUserId?: number;
 }
+
+/**
+ * Tab filter for the Galaxy view. `all` shows every loaded node,
+ * `drafts` filters to `status === 'draft'`, `recent` filters to
+ * posts modified within the last 30 days.
+ */
+export type GalaxyTab = 'all' | 'drafts' | 'recent';
 
 /**
  * Live in-memory node — the REST payload plus simulation state.

@@ -6060,6 +6060,18 @@ maps to `media`, pages are detected via `bridgePayload.postType`) and
 
 ---
 
+## User meta keys
+
+Per-user preferences the framework persists over REST. These are part
+of the JS contract because the shell reads/writes them from bundles:
+
+| Meta key | Values | Written via | Status |
+|---|---|---|---|
+| `desktop_mode_content_graph_view` | `'graph'` \| `'galaxy'` (default `'graph'`) | `POST /wp/v2/users/<id>` with `{ meta: { … } }` when the Content Graph view toggle flips; read server-side into the window config (`lastView`). Registered with `show_in_rest`; writes require `edit_posts`. | Internal *(since 0.9.2)* |
+| `dockRailRenderer` | any `sanitize_key()`-clean renderer id | `/wp-json/desktop-mode/v1/os-settings` (see [`registerDockRailRenderer`](#registerdockrailrenderer-def---stable-since-0180)) | Stable *(since 0.18.0)* |
+
+---
+
 ## See also
 
 - [Hooks Reference](./hooks-reference.md) — the PHP side of the API.

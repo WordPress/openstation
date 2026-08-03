@@ -208,6 +208,16 @@ function desktop_mode_content_graph_register_window() {
 			// which hands off to the site folder window.
 			'siteName'       => desktop_mode_site_title(),
 			'postTypes'      => desktop_mode_content_graph_post_types(),
+			// Last-chosen view mode persisted via user meta. Read here so
+			// the bundle can mount the right scene without an extra round
+			// trip on every window open; saved client-side via REST when
+			// the user toggles the segmented control.
+			'lastView'       => (string) get_user_meta(
+				get_current_user_id(),
+				'desktop_mode_content_graph_view',
+				true
+			) ?: 'graph',
+			'currentUserId'  => (int) get_current_user_id(),
 		),
 	);
 
@@ -255,3 +265,30 @@ function desktop_mode_content_graph_enqueue_styles() {
 	wp_enqueue_style( 'desktop-mode-content-graph' );
 }
 add_action( 'admin_enqueue_scripts', 'desktop_mode_content_graph_enqueue_styles', 30 );
+
+/**
+ * Register the per-user view preference (`'graph'` or `'galaxy'`).
+ * Exposed over REST so the JS toolbar can `POST /wp/v2/users/me` to
+ * persist the user's last choice across sessions and devices.
+ */
+function desktop_mode_content_graph_register_view_meta() {
+	register_meta(
+		'user',
+		'desktop_mode_content_graph_view',
+		array(
+			'type'              => 'string',
+			'single'            => true,
+			'default'           => 'graph',
+			'show_in_rest'      => true,
+			'sanitize_callback' => static function ( $value ) {
+				return in_array( (string) $value, array( 'graph', 'galaxy' ), true )
+					? (string) $value
+					: 'graph';
+			},
+			'auth_callback'     => static function () {
+				return current_user_can( 'edit_posts' );
+			},
+		)
+	);
+}
+add_action( 'init', 'desktop_mode_content_graph_register_view_meta' );

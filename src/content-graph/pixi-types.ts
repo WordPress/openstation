@@ -100,6 +100,7 @@ export interface PixiApp {
 		resize( w: number, h: number ): void;
 		width: number;
 		height: number;
+		resolution: number;
 		render( container?: unknown ): void;
 	};
 	init( opts: unknown ): Promise< void >;
@@ -113,11 +114,24 @@ export interface PixiApp {
 	destroy( rendererOpts?: { removeView?: boolean }, opts?: unknown ): void;
 }
 
+export interface PixiTexture {
+	destroy( opts?: unknown ): void;
+}
+
+export interface PixiSprite extends PixiContainer {
+	anchor: { set( v: number ): void; x?: number; y?: number };
+	tint: number;
+	blendMode: string;
+	texture: PixiTexture;
+}
+
 export interface PixiNamespace {
 	Application: new () => PixiApp;
 	Container: new () => PixiContainer;
 	Graphics: new () => PixiGraphics;
 	Text: new ( opts: PixiTextOpts ) => PixiText;
+	Sprite: new ( texture: PixiTexture ) => PixiSprite;
+	Texture: { from( source: HTMLCanvasElement | HTMLImageElement ): PixiTexture };
 	Rectangle: new ( x: number, y: number, w: number, h: number ) => unknown;
 	Circle: new ( x: number, y: number, r: number ) => unknown;
 }
