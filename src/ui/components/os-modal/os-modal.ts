@@ -36,8 +36,7 @@ export class OsModal extends Component {
 		title: 'Modal overlay',
 		summary:
 			'Overlay container with title, body, and footer slots. Handles ESC, click-outside, focus trap. Use for rich modal flows that go beyond a yes/no confirm. The dialog surface is dark and re-points the shared surface tokens (--os-ui-fg/-muted/-border/-window-bg, --os-ui-button-bg-hover) so os-* controls slotted into it resolve readable dark-surface colors automatically.',
-		status: 'experimental',
-		since: '0.8.5',
+		status: 'stable',
 		props: [
 			{ name: 'open', type: 'boolean attribute', description: 'Mounts the dialog visible.' },
 			{ name: 'title', type: 'string', description: 'Heading shown at the top of the dialog.' },

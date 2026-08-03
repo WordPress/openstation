@@ -29,8 +29,7 @@ export class OsRolePicker extends Component {
 		title: 'Role picker',
 		summary:
 			'Chip multi-select for WordPress roles. Reads eligible roles from openStationConfig.shareEligibleRoles; emits os-role-toggle { slug, selected } on every change.',
-		status: 'experimental',
-		since: '0.8.5',
+		status: 'stable',
 		props: [
 			{
 				name: 'selected',

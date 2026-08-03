@@ -69,7 +69,6 @@ export class OsButton extends Component {
 		summary:
 			'Thin wrapper around <button> with consistent variant styling and a slot for the label.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'variant',

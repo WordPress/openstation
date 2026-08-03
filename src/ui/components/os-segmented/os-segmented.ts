@@ -22,7 +22,6 @@ export class OsSegment extends Component {
 		summary:
 			'Single pill inside a <os-segmented> group. Value identifies it for selection; aria-checked is mirrored by the parent.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'value',
@@ -85,7 +84,6 @@ export class OsSegmented extends Component {
 		summary:
 			'iOS-style segmented radio group. Pill-shaped bar of equal-width <os-segment> children where exactly one is active.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'value',

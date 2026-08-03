@@ -59,7 +59,6 @@ export class OsNumberField extends Component {
 		summary:
 			'Labelled numeric input. Wraps <os-text-field> semantics but forces type="number" and emits already-parsed numbers, clamping to min/max on commit.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{ name: 'label', type: 'string', description: 'Visible label above the input.' },
 			{ name: 'value', type: 'number (string)', description: 'Current numeric value; two-way reflected.' },

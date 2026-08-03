@@ -33,8 +33,7 @@ export class OsRatingSummary extends Component {
 		title: 'Rating summary',
 		summary:
 			'Two-pane rating distribution: big average + 5-star cluster + total count on the left, one animated bar per star bucket on the right. Mirrors the WordPress.org plugin reviews summary.',
-		status: 'experimental',
-		since: '0.8.5',
+		status: 'stable',
 		props: [
 			{
 				name: 'rating',

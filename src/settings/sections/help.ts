@@ -392,7 +392,6 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 function renderDetail( entry: ComponentEntry ) {
 	const help = entry.help;
 	const status = help?.status ?? 'stable';
-	const since = help?.since;
 
 	return html`
 		<header class="os-settings__help-head">
@@ -407,11 +406,6 @@ function renderDetail( entry: ComponentEntry ) {
 				) }
 				>${ statusLabel( status ) }</span
 			>
-			${ since
-				? html`<span class="os-settings__help-since"
-						>${ __( 'Since' ) } ${ since }</span
-					>`
-				: html`` }
 		</header>
 
 		${ help?.summary

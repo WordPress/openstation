@@ -41,8 +41,7 @@ export class OsProgressBar extends Component {
 		title: 'Progress bar',
 		summary:
 			'Linear progress indicator. Determinate mode shows `value/max` as a fill width; indeterminate mode sweeps across the track. Supports tone tinting, an optional inline label + percent header, and full CSS-variable theming.',
-		status: 'experimental',
-		since: '0.31.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'value',

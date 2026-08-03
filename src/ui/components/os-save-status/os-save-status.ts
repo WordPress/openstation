@@ -96,8 +96,7 @@ export class OsSaveStatus extends Component {
 		title: 'Save status',
 		summary:
 			'Tiny status indicator for "is this change saved yet?" affordances. Three layouts (dot / icon / pill), five phases, optional auto-listen to a save-lifecycle CustomEvent so every input in the panel inherits feedback for free.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'phase',

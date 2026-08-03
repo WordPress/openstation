@@ -827,11 +827,6 @@
 	color: var( --os-ui-info-fg, #123fb3 );
 }
 
-.os-settings__help-since {
-	font-size: 11px;
-	color: var( --os-ui-fg-muted, #646970 );
-}
-
 .os-settings__help-summary {
 	margin: 0 0 16px;
 	color: var( --os-ui-fg, #1d2327 );

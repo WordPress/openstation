@@ -110,8 +110,7 @@ export class OsLog< T = unknown > extends Component {
 		title: 'Log (virtualized)',
 		summary:
 			'Append-only streaming list for high-rate output (SQL queries, network calls, log lines). Virtualises so thousands of rows render without layout cost; pins to the bottom while the viewport sits there, releases when the user scrolls up.',
-		status: 'experimental',
-		since: '0.6.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'row-height',

@@ -39,7 +39,6 @@ export class OsTab extends Component {
 		summary:
 			'Single tab inside a <os-tabs> strip. Carries its identifier via `value`; aria-selected + tabindex are mirrored by the parent.',
 		status: 'stable',
-		since: '0.7.0',
 		props: [
 			{
 				name: 'value',
@@ -101,7 +100,6 @@ export class OsTabs extends Component {
 		summary:
 			'Underline-accent tab strip. Pair with sibling <os-tabpanel for="…"> elements and the strip auto-toggles their hidden attribute on selection.',
 		status: 'stable',
-		since: '0.7.0',
 		props: [
 			{
 				name: 'value',
@@ -240,7 +238,6 @@ export class OsTabPanel extends Component {
 		summary:
 			'Auto-managed panel paired with a sibling <os-tabs>. Declares which tab it belongs to via `for="<tab-value>"`; the parent strip toggles `hidden` whenever the active tab changes. role="tabpanel" and tabindex="0" are set automatically.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'for',

@@ -104,8 +104,7 @@ export class OsTile extends Component {
 		title: 'Tile',
 		summary:
 			'Canonical file/entity tile. Used across the wallpaper, folder windows, every My WordPress section, and plugin surfaces. Renders the standard `.os-file-tile` chrome + optional status ribbon and wires the shared drag-out helper.',
-		status: 'experimental',
-		since: '0.8.6',
+		status: 'stable',
 		props: [
 			{ name: 'type', type: 'string' },
 			{ name: 'ref', type: 'string' },

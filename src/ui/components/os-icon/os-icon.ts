@@ -39,7 +39,6 @@ export class OsIcon extends Component {
 		summary:
 			'Dashicon wrapper that inherits theme colour + sizing from its context. Accepts either the dashicon suffix ("calculator") or the full class ("dashicons-calculator"). Marked aria-hidden; wrap in a button/link with its own label for accessible use.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'name',

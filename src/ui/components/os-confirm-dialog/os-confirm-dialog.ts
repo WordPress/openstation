@@ -50,8 +50,7 @@ export class OsConfirmDialog extends Component {
 		title: 'Confirm dialog',
 		summary:
 			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper.',
-		status: 'experimental',
-		since: '0.9.0',
+		status: 'stable',
 		props: [
 			{ name: 'open', type: 'boolean attribute', description: 'Mounts the dialog visible.' },
 			{ name: 'title', type: 'string', description: 'Heading shown at the top.' },

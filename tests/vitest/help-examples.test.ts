@@ -136,6 +136,32 @@ describe( 'help examples', () => {
 		},
 	);
 
+	test.each( files )( '%s carries no version stamp', ( name, src ) => {
+		// `AGENTS.md`: no version-history annotations in docs or
+		// comments. A `since:` in a help descriptor is exactly that,
+		// rendered into the UI — and it ages badly in the one place a
+		// plugin author reads to learn what a component does NOW. Git
+		// is the changelog; a change big enough that "since when?"
+		// matters is a breaking one and wants a migration note.
+		expect(
+			src.includes( 'since:' ),
+			`${ name } declares \`since\` in its help descriptor.`,
+		).toBe( false );
+	} );
+
+	test.each( files )( '%s does not claim to be experimental', ( name, src ) => {
+		// The kit shipped; every component in it is stable. A badge
+		// that says "experimental" on a component three other windows
+		// already depend on is not a caveat, it is stale metadata —
+		// and it tells plugin authors not to rely on something they
+		// safely can. `OsHelpStatus` still accepts the value, for a
+		// component that genuinely is one.
+		expect(
+			src.includes( "status: 'experimental'" ),
+			`${ name } is marked experimental.`,
+		).toBe( false );
+	} );
+
 	test( 'exampleInit wires listeners by assignment, never by accumulation', () => {
 		// The help panel repaints on every keystroke in its filter box
 		// and re-runs exampleInit against the same nodes. addEventListener

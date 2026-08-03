@@ -53,8 +53,7 @@ export class OsChip extends Component {
 		title: 'Chip',
 		summary:
 			'Labelled pill primitive with optional leading icon and trailing dismiss button. Tones mirror <os-badge>; pair with <os-tag-input> for full add/remove ergonomics.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'label',

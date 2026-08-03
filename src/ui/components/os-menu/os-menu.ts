@@ -30,7 +30,6 @@ export class OsMenu extends Component {
 		summary:
 			'Popover menu used in window title bars and other overflow triggers. Presentation-only: the consumer owns open/close state via the `hidden` attribute and any outside-click dismissal.',
 		status: 'stable',
-		since: '0.9.0',
 		slots: [
 			{ name: '(default)', description: '<os-menu-item> children.' },
 		],
@@ -68,7 +67,6 @@ export class OsMenuItem extends Component {
 		summary:
 			'Single row inside a <os-menu>. Supports three looks: plain label, left-aligned dashicon (icon="dashicons-…"), or a checkbox indicator (role="menuitemcheckbox" + checked).',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'icon',

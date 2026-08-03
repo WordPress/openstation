@@ -241,8 +241,7 @@ export class OsTable< T extends Record< string, unknown > = Record< string, unkn
 		title: 'Table',
 		summary:
 			'Data-driven table. Assign `columns` + `data` and you get a styled table with optional per-column filters, click-to-sort, multi-row selection, sticky columns/header, sub-tables, custom cell renderers, loading skeleton, and a slottable empty state.',
-		status: 'experimental',
-		since: '0.6.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'sticky-columns',

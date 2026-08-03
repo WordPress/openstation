@@ -35,8 +35,7 @@ export class OsCode extends Component {
 		title: 'Code',
 		summary:
 			'Inline monospace code badge — safe for URLs, flag names, and any string that would otherwise steal keypresses if rendered as <os-key>. Set `block` for a multi-line snippet box. Set `copy` for a built-in copy-to-clipboard affordance.',
-		status: 'experimental',
-		since: '0.5.1',
+		status: 'stable',
 		props: [
 			{
 				name: 'block',

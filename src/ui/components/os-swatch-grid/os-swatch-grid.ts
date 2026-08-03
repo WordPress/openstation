@@ -16,7 +16,6 @@ export class OsSwatchGrid extends Component {
 		summary:
 			'Flex grid container for <os-swatch> children. Emits radiogroup semantics so screen readers announce the tiles as a unit.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'label',

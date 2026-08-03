@@ -68,7 +68,6 @@ export class OsCard extends Component {
 		summary:
 			'Generic hover-aware container. Becomes click-emitting + focusable when `interactive`. Slots for header / default body / footer have built-in layout rhythm so consumers don\'t need bespoke wrapper components.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'interactive',

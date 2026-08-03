@@ -59,8 +59,7 @@ export class OsCrumbChain extends Component {
 		title: 'Crumb chain',
 		summary:
 			'Chevron-interlocking breadcrumb. Segments slot together like puzzle pieces, with each segment in its own color so the eye reads root → leaf as a single merged path. Reusable for any parent → child → grandchild relationship.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'removable',

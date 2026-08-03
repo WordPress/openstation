@@ -32,7 +32,6 @@ export class OsCluster extends Component {
 		summary:
 			'Horizontal flex layout with a gap + wrap. The sibling of <os-stack> — use it for rows of controls (button groups, toolbars). Children wrap gracefully when the container narrows.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

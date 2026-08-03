@@ -100,8 +100,7 @@ export class OsCategoryPicker extends Component {
 		title: 'Category picker',
 		summary:
 			'Hierarchical multi-select for taxonomy terms. Compact chip row + tree popover with search, collapsible branches, indent guides, keyboard navigation. Aligns with WordPress core: any subset selectable, "Uncategorized" rendered as a muted dashed sentinel when the value is empty.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'placeholder',

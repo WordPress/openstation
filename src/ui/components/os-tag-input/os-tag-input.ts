@@ -105,8 +105,7 @@ export class OsTagInput extends Component {
 		title: 'Tag input',
 		summary:
 			'Multi-tag picker with autocomplete and free-form creation. Purely presentational — emits os-tag-suggest / os-tag-add / os-tag-remove and lets the consumer drive REST + optimistic UI.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'label',

@@ -36,7 +36,6 @@ export class OsPanel extends Component {
 		summary:
 			'Padded, flex-column container matching the default inset and rhythm of a native-window body. Opt-in for the OS-Settings-style padded layout.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

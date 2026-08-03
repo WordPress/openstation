@@ -49,8 +49,7 @@ export class OsContextMenu extends Component {
 		title: 'Context menu',
 		summary:
 			'Floating popup menu primitive. Pair with <os-context-menu-option> children. Toggle via the `open` boolean attribute. Listen for `os-context-menu-pick` to handle activation.',
-		status: 'experimental',
-		since: '0.9.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'open',
@@ -130,8 +129,7 @@ export class OsContextMenuOption extends Component {
 		title: 'Context menu option',
 		summary:
 			'Single row inside <os-context-menu>. Use `icon` for a leading dashicon, `danger` for destructive items, `heading` for a non-interactive section header, `has-children` to render a trailing chevron.',
-		status: 'experimental',
-		since: '0.9.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'value',

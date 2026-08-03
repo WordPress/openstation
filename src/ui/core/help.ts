@@ -60,10 +60,18 @@ export interface OsHelp {
 	title?: string;
 	/** One-paragraph summary. Keep short; examples carry the nuance. */
 	summary?: string;
-	/** Stability label. Defaults to `'stable'` when omitted. */
+	/**
+	 * Stability label. Defaults to `'stable'` when omitted.
+	 *
+	 * There is deliberately no `since` alongside this. A version
+	 * stamp is a version-history annotation, which `AGENTS.md` bans
+	 * in docs and comments for the same reason it does not belong
+	 * here: git is the changelog, and a descriptor's job is to say
+	 * what the component does now. When a change matters enough that
+	 * "since when?" is a real question for plugin authors, it is a
+	 * breaking change and wants a `docs/migration-*.md` note.
+	 */
 	status?: OsHelpStatus;
-	/** Semver the component first shipped in (e.g. `'0.9.0'`). */
-	since?: string;
 	props?: readonly OsHelpProp[];
 	slots?: readonly OsHelpSlot[];
 	parts?: readonly OsHelpPart[];

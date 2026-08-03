@@ -38,7 +38,6 @@ export class OsStack extends Component {
 		summary:
 			'Vertical flex layout with a gap — the "stack" primitive every design system eventually invents. Use it instead of hand-rolling display:flex; flex-direction:column.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',

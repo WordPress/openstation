@@ -45,7 +45,6 @@ export class OsOption extends Component {
 		summary:
 			'Opaque data carrier for <os-select>. Carries its identifier in `value` and its visible label in textContent. Not rendered directly — the parent reads these and builds a native <select>.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'value',
@@ -102,7 +101,6 @@ export class OsSelect extends Component {
 		summary:
 			'Dropdown picker that wraps a native <select>. Mirrors the <os-segmented> contract (set value, listen for os-pick) so callers can swap tag names when a list outgrows a pill bar.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'value',

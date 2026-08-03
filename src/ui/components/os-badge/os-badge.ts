@@ -34,8 +34,7 @@ export class OsBadge extends Component {
 		title: 'Badge',
 		summary:
 			'Status pill with a colored leading dot and a label slot. Use for window-attached states, count chips, version markers, and any other small status surface where a leading tone-coded dot communicates meaning at a glance.',
-		status: 'experimental',
-		since: '0.6.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'tone',

@@ -84,7 +84,6 @@ export class OsRangeField extends Component {
 		summary:
 			'Label + range slider + live numeric readout. Emits os-range-change with an already-parsed number.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'label',

@@ -45,7 +45,6 @@ export class OsAvatar extends Component {
 		summary:
 			'Image-or-initials user tile with an optional presence dot. Falls back to a deterministic-hue letter tile when src is empty. Set user-id to auto-subscribe the dot to os-presence-changed.',
 		status: 'stable',
-		since: '0.6.0',
 		props: [
 			{ name: 'src', type: 'string', description: 'Image URL. Falls back to initials when empty or load fails.' },
 			{ name: 'alt', type: 'string', description: 'Alt text for the image. Defaults to `name` when omitted.' },

@@ -39,8 +39,7 @@ export class OsUserSearch extends Component {
 		title: 'User autocomplete',
 		summary:
 			'Debounced autocomplete over /desktop-mode/v1/files/users/search. Emits os-user-pick { user } when a row is chosen. Dropdown anchors as position: fixed so it escapes overflow:auto ancestors.',
-		status: 'experimental',
-		since: '0.8.5',
+		status: 'stable',
 		props: [
 			{ name: 'placeholder', type: 'string', description: 'Input placeholder text.' },
 			{

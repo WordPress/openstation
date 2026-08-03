@@ -24,7 +24,6 @@ export class OsSection extends Component {
 		summary:
 			'Titled panel with heading + description + a body slot. The canonical OS Settings section wrapper.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'heading',
