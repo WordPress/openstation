@@ -48,6 +48,7 @@ The search box above the list filters on the flattened descriptor, not just the 
 | `<os-range-field>` | `OsRangeField` | `os-range-field/os-range-field.ts` | Slider with live numeric readout. |
 | `<os-checkbox>` | `OsCheckbox` | `os-checkbox/os-checkbox.ts` | Standalone checkbox. |
 | `<os-checkbox-label>` | `OsCheckboxLabel` | `os-checkbox-label/os-checkbox-label.ts` | Checkbox + inline label pair. |
+| `<os-switch>` | `OsSwitch` | `os-switch/os-switch.ts` | On/off switch for settings that apply immediately. Tap, drag or keyboard. |
 | `<os-select>` / `<os-option>` | `OsSelect`, `OsOption` | `os-select/os-select.ts` | Native select with custom chrome. |
 | `<os-multiselect>` | `OsMultiselect` | `os-multiselect/os-multiselect.ts` | Multi-select with chips. |
 | `<os-segmented>` / `<os-segment>` | `OsSegmented`, `OsSegment` | `os-segmented/os-segmented.ts` | Segmented control (radio group as buttons). |
@@ -116,6 +117,66 @@ The search box above the list filters on the flattened descriptor, not just the 
 | --- | --- | --- | --- |
 | `<os-swatch>` | `OsSwatch` | `os-swatch/os-swatch.ts` | Single color swatch button. |
 | `<os-swatch-grid>` | `OsSwatchGrid` | `os-swatch-grid/os-swatch-grid.ts` | Grid of color swatches with selection. |
+
+## The holographic layer
+
+The kit wears the [OpenStation brand](https://nuriapenya.github.io/open-station-brand/), and the brand ships five mesh gradients with one instruction attached: *"meshes reserved for hero surfaces."* `src/ui/holo.ts` is how a control gets to be one without every component reinventing what holographic means.
+
+**It is a moment, not a skin.** A control paints the mesh when it is on, selected, primary or filled — the one instant it speaks for the brand — and wears ordinary Obsidian the rest of the time. A panel where every surface is iridescent has no identity moments left to spend.
+
+Three treatments, in ascending loudness:
+
+| Fragment | What it does | Who gets it |
+| --- | --- | --- |
+| `holoEdge` | An iridescent hairline, invisible at rest, lit on hover and focus. | `<os-button>` (all variants but `link`/`danger`), and the *selected* state of `<os-chip>`, `<os-card>`, `<os-swatch>`. |
+| `holoSheen` | A ~10%-alpha film of the mesh's hues over the existing surface, faded in under the pointer. | `<os-button>`, `<os-key>`, unselected `<os-segment>`. |
+| `holoFill` | The mesh itself, at full strength, with Void ink on top. | The on state of `<os-switch>`, checked `<os-checkbox>` / `<os-checkbox-label>` / `<os-menu-item>`, the selected `<os-segment>`, the elapsed track of `<os-range-field>`, the fill of `<os-progress-bar>`, the `<os-step>` chip, and `<os-button variant="holo">`. |
+
+Two shared fragments carry the states that are not decorative:
+
+- **`holoField`** — one hover, one focus ring, one transition duration and one placeholder colour for every text-like control (`<os-text-field>`, `<os-textarea>`, `<os-number-field>`, `<os-select>`, and any component that renders a bare `input` / `select` / `textarea` in its shadow root). Its selectors wrap their type exclusions in `:where()` so a component's own `aria-invalid` ring still outranks it — an invalid field focuses in red, not in Pulse.
+- **`holoCheck`** — the checkbox and radio paint, shared by `<os-checkbox>`, `<os-checkbox-label>` and `<os-table>`'s selection column. It replaced `accent-color`, which takes a *colour* where the checked state here is a *gradient*.
+
+### Tokens
+
+Declared in `assets/css/variables.css`, on `body.os-active` (never `:root` — the file also loads inside every iframe window). Every component reads them through a private `--_holo-*` alias, so a desktop theme can re-point any of them and the whole kit changes together.
+
+| Token | Meaning |
+| --- | --- |
+| `--os-mesh-holo` / `-pulse` / `-auro` / `-star` / `-mio` | The brand's five meshes, transcribed stop-for-stop from the SVGs into CSS gradient stacks. |
+| `--os-ui-holo-fill` | What an "on" surface paints. Holomesh by default. |
+| `--os-ui-holo-ink` | Glyphs and text on that fill. Void — every mesh in the brand is a light surface. |
+| `--os-ui-holo-sheen` | The hover film. |
+| `--os-ui-holo-edge` / `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
+| `--os-ui-holo-glow` / `--os-ui-holo-glow-strong` | The Pulse bloom around a lit surface. |
+| `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-focus-ring` | The **target** ring: buttons, switches, checkboxes, swatches. Built to survive landing on a bright mesh. |
+| `--os-ui-focus-ring-field` | The **field** ring: quieter, tightens the input's own border. A form of twelve inputs should not look alarmed. |
+| `--os-ui-holo-transition` | One duration for every holographic transition, so a panel moves as one surface. |
+
+Every fragment honours `prefers-reduced-motion` by stopping the tilt — never by removing the fill. A control that lost its mesh under reduced motion would lose its *state*, not just its animation.
+
+### Using it in your own component
+
+```ts
+import { css } from '../../core';
+import { holoTokens, holoEdge, holoFill } from '../../holo';
+
+export const styles = css`
+	${ holoTokens }
+	${ holoEdge }
+	${ holoFill }
+
+	button:focus-visible { box-shadow: var( --_holo-focus ); }
+`;
+```
+
+`holoTokens` declares the aliases the others read — include it once per component. Import `holo` instead for the whole vocabulary.
+
+Two rules the guards enforce (`tests/vitest/holo-layer.test.ts`, `tests/vitest/component-token-reachability.test.ts`):
+
+1. **Never declare a `--os-ui-*` name on a bare `:host`.** A property declared on the host beats anything it would inherit, so it kills the palette's *and* every theme's declaration of that name. Read the public token into a private `--_alias` instead.
+2. **Comments inside a `` css`` `` template cannot contain backticks.** The template is a JS template literal; a backtick in a CSS comment terminates it and the file stops parsing.
 
 ## Importing the classes (for TypeScript)
 

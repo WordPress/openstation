@@ -7,6 +7,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 - [Hard rules](#hard-rules)
   - [Never hand-edit JS in `assets/js/`](#never-hand-edit-js-in-assetsjs)
   - [The palette lives in `variables.css`](#the-palette-lives-in-variablescss--one-declaration-one-owner)
+  - [The holographic layer lives in `src/ui/holo.ts`](#the-holographic-layer-lives-in-srcuiholots)
   - [Never declare a themeable token on a component's `:host`](#never-declare-a-themeable-token-on-a-components-host)
   - [The Legacy theme manifest is frozen data](#the-legacy-theme-manifest-is-frozen-data-not-build-output)
   - [`desktop_mode_*` values are frozen](#desktop_mode_-values-are-frozen--the-namevalue-mismatch-is-deliberate)
@@ -65,6 +66,25 @@ Three rules follow from that, and all have tests:
 2. **Every consuming rule keeps reading `var( --token, <literal> )`**, and that literal stays the pre-brand WordPress-admin value. It is the floor if the stylesheet fails to load, and it is what the Legacy snapshot collected. Never "tidy" a fallback away.
 
 **The failure mode to watch for after a palette change** is a chain that now means something else: a fill resolving to a 10%-alpha wash, or a base and its hover state — declared in two different rules, distinguished only by their fallback literals — collapsing onto the same value once the shared token is declared. `<os-button>`'s ghost/secondary hover did exactly that. When a surface stops reacting to the pointer, check whether both states resolve through the same palette token, and declare the second one.
+
+### The holographic layer lives in `src/ui/holo.ts`
+
+**"Holographic" is a moment, not a skin, and there is exactly one module that decides what it means.**
+
+The brand ships five mesh gradients with one instruction attached — *"meshes reserved for hero surfaces"* — and `src/ui/holo.ts` is how a control gets to be one. It exports six `css` fragments (`holoTokens`, `holoFill`, `holoSheen`, `holoEdge`, `holoField`, `holoCheck`, `holoDrift`, plus the `holo` barrel) that components interpolate into their own styles. The meshes themselves are transcribed stop-for-stop from the brand SVGs into `--os-mesh-*` in `variables.css`; they are gradient stacks rather than `url()`s because `background-position` can slide a gradient, and that slide *is* the effect.
+
+Three rules, all with tests:
+
+1. **A control paints the mesh when it is on, selected, primary or filled — and wears Obsidian the rest of the time.** A panel where every surface is iridescent has no identity moments left to spend. `<os-button variant="holo">` exists precisely so the loud version is hard to reach for by accident; `primary` deliberately did *not* become the mesh, because it is three-to-a-row in OS Settings and a mesh three-to-a-row is wallpaper.
+2. **`holoTokens` is a prerequisite for every other fragment** — it declares the private `--_holo-*` aliases they read. Include it once per component. Never declare a `--os-ui-*` name on the bare `:host` (see the next rule).
+3. **Reduced motion stops the tilt, never the fill.** A control that lost its mesh under `prefers-reduced-motion` would lose its *state*, not just its animation.
+
+Two things that will bite you:
+
+- **Comments inside a `` css`` `` template cannot contain backticks.** It is a JS template literal; a backtick in a CSS comment terminates it and the file stops parsing with a bare "expected a semicolon". Write `--_drag` and `::before` unquoted in those comments.
+- **`holoField` uses bare `input` / `select` / `textarea` selectors** — safe inside a shadow root, and one careless `:not()` away from outranking every component's own `aria-invalid` ring. The type exclusions are wrapped in `:where()` to hold the selector at (0,1,1). Don't unwrap them.
+
+`tests/vitest/holo-layer.test.ts` pins the mesh transcriptions against the brand's hexes, the alias privacy, and the `:where()` specificity. Public surface: [`docs/components-reference.md`](docs/components-reference.md#the-holographic-layer) and the token table in [`docs/desktop-themes.md`](docs/desktop-themes.md).
 
 ### Never declare a themeable token on a component's `:host`
 

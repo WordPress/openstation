@@ -1,4 +1,5 @@
 import { css } from '../../core';
+import { holoTokens, holoField } from '../../holo';
 
 /**
  * Styles for the labelled text / number field shared between
@@ -6,9 +7,20 @@ import { css } from '../../core';
  * matches `<os-color-field>` / `<os-range-field>` — a stacked
  * label on top, the input beneath, muted label color, accent focus
  * ring.
+ *
+ * The hover, focus, placeholder and selection states come from
+ * `holoField` in `src/ui/holo.ts`, shared with every other text-like
+ * control so the whole form family reacts identically. This file
+ * keeps only what is this component's own shape — padding, radius,
+ * the suffix slot, the reveal button and the password mask — plus the
+ * `aria-invalid` rings, which deliberately outweigh the shared focus
+ * rule so an invalid field focuses in red.
  */
 
 export const textFieldStyles = css`
+	${ holoTokens }
+	${ holoField }
+
 	/*
 	 * Host is block-level flex so the field fills its parent cell
 	 * (grid row col=N, flex container, plain block container). An
@@ -54,7 +66,6 @@ export const textFieldStyles = css`
 		font: inherit;
 		font-size: 13px;
 		color: var( --os-ui-fg, #1d2327 );
-		transition: border-color 0.12s ease, box-shadow 0.12s ease;
 	}
 
 	/* Suffix slot for units / currency badges — rendered when the
@@ -96,11 +107,15 @@ export const textFieldStyles = css`
 		transition: color 0.12s ease;
 	}
 	.os-text-field__reveal:hover {
-		color: var( --wp-admin-theme-color, #2271b1 );
+		color: var( --os-ui-accent, #2271b1 );
 	}
 	.os-text-field__reveal:focus-visible {
-		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-		outline-offset: -2px;
+		outline: none;
+		color: var( --os-ui-accent, #2271b1 );
+		/* Inset, because the button sits flush inside the field's own
+		   border — a ring outside it would trace the field, not the
+		   button, and read as the wrong thing having focus. */
+		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
 		border-radius: 0 6px 6px 0;
 	}
 	.os-text-field__reveal:disabled {
@@ -131,25 +146,26 @@ export const textFieldStyles = css`
 		}
 	}
 
-	input:hover {
-		border-color: var( --os-ui-fg-muted, #8c8f94 );
-	}
-	input:focus-visible {
-		outline: none;
-		border-color: var( --wp-admin-theme-color, #2271b1 );
-		box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
-	}
 	input:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
 		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.03 ) );
 	}
 
-	input[ aria-invalid='true' ] {
+	/*
+	 * Invalid outranks the shared focus ring — see the note on
+	 * :where() in holoField. An invalid field focuses in red, because
+	 * the ring is the only thing on screen saying so at that moment.
+	 */
+	input[ aria-invalid='true' ],
+	input[ aria-invalid='true' ]:hover:not( :disabled ) {
 		border-color: var( --os-ui-danger, #d63638 );
 	}
+	input[ aria-invalid='true' ]:focus,
 	input[ aria-invalid='true' ]:focus-visible {
-		box-shadow: 0 0 0 1px var( --os-ui-danger, #d63638 );
+		border-color: var( --os-ui-danger, #d63638 );
+		box-shadow: 0 0 0 1px var( --os-ui-danger, #d63638 ),
+			0 0 0 4px rgba( 214, 54, 56, 0.18 );
 	}
 
 	/* Hide the native spinner on number inputs — the suffix slot and

@@ -16,6 +16,26 @@
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-range-field.styles';
 
+/**
+ * Where the lit half of the track ends, as a percentage string.
+ *
+ * The track paints the mesh under an opaque wedge and this is the
+ * boundary between them — see the styles docblock. Clamped, because a
+ * caller is free to set `value` outside `min`/`max` and a negative
+ * gradient stop would drop the whole background layer rather than
+ * degrade.
+ */
+function fillPercent( value: string, min: string, max: string ): string {
+	const v = Number.parseFloat( value );
+	const lo = Number.parseFloat( min );
+	const hi = Number.parseFloat( max );
+	if ( ! Number.isFinite( v ) || ! Number.isFinite( lo ) || ! Number.isFinite( hi ) || hi === lo ) {
+		return '0%';
+	}
+	const fraction = ( v - lo ) / ( hi - lo );
+	return `${ Math.min( 100, Math.max( 0, fraction * 100 ) ).toFixed( 2 ) }%`;
+}
+
 /** Decimal places implied by a step, when the caller hasn't said. */
 function decimalsForStep( step: string ): number {
 	const dot = step.indexOf( '.' );
@@ -156,6 +176,7 @@ export class OsRangeField extends Component {
 				min=${ min }
 				max=${ max }
 				step=${ step }
+				style="--_fill: ${ fillPercent( value, min, max ) }"
 				.value=${ value }
 				@input=${ ( e: Event ) => this._onInput( e ) }
 			/>
@@ -165,6 +186,19 @@ export class OsRangeField extends Component {
 				>${ readout }${ suffix }</span
 			>
 		`;
+	}
+
+	connectedCallback(): void {
+		super.connectedCallback();
+		// The unlit wedge is a linear-gradient, and a gradient angle is
+		// physical. RTL therefore needs the wedge to run the other way,
+		// and the angle is the only thing that has to know: the stops,
+		// the mesh and --_fill stay exactly as they are. Read once on
+		// connect — a document that changes direction mid-session is not
+		// a case worth a MutationObserver per slider.
+		if ( getComputedStyle( this ).direction === 'rtl' ) {
+			this.style.setProperty( '--_range-angle', '270deg' );
+		}
 	}
 
 	private _onInput( e: Event ): void {

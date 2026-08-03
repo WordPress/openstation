@@ -193,6 +193,7 @@ export class OsKey extends Component {
 		return html`
 			<button
 				part="button"
+				class="os-holo-sheen"
 				type="button"
 				?disabled=${ disabled }
 				@click=${ ( e: MouseEvent ) => this.handleClick( e ) }

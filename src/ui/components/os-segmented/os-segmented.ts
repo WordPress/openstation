@@ -45,7 +45,11 @@ export class OsSegment extends Component {
 	protected render() {
 		this.setAttribute( 'role', 'radio' );
 		return html`
-			<button type="button" @click=${ () => this._onPick() }>
+			<button
+				type="button"
+				class="os-holo-sheen"
+				@click=${ () => this._onPick() }
+			>
 				<slot></slot>
 			</button>
 		`;

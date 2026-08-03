@@ -4,6 +4,11 @@
  *
  * Variants (Stable, will not be renamed within a major release):
  *
+ *   - `holo`      — the hero CTA. Filled with the brand's Holomesh,
+ *                   Void ink on top, and a Pulse glow; the fill tilts
+ *                   under the pointer the way a foil card does. The
+ *                   brand reserves meshes for hero surfaces, so this
+ *                   is at most one per surface — often none.
  *   - `primary`   — accent-colored, attention-grabbing action. One
  *                   per surface.
  *   - `secondary` — neutral filled control. Quiet action in a row
@@ -12,6 +17,12 @@
  *   - `danger`    — destructive action. Red outline → red fill on hover.
  *   - `ghost`     — default. Transparent background, 1 px border.
  *   - `link`      — underline only, no chrome.
+ *
+ * Every variant except `link` and `danger` also carries the kit's
+ * holographic hairline and hover film — invisible at rest, lit under
+ * the pointer and on focus. `danger` keeps its red border all the way
+ * through the hover, because that border is the only warning the user
+ * gets and an iridescent one says the wrong thing.
  *
  * `fill-cell` boolean attribute makes the host fill its parent
  * cell (flex / grid item), growing width AND the inner button
@@ -42,6 +53,7 @@ import { styles } from './os-button.styles';
  * plugin-side TS can narrow.
  */
 export type OsButtonVariant =
+	| 'holo'
 	| 'primary'
 	| 'secondary'
 	| 'ghost'
@@ -61,10 +73,10 @@ export class OsButton extends Component {
 		props: [
 			{
 				name: 'variant',
-				type: "'primary' | 'secondary' | 'ghost' | 'danger' | 'link'",
+				type: "'holo' | 'primary' | 'secondary' | 'ghost' | 'danger' | 'link'",
 				default: 'ghost',
 				description:
-					'Visual weight of the button. Use primary for the single attention-grabbing action per surface.',
+					'Visual weight of the button. Use primary for the single attention-grabbing action per surface, and holo — the Holomesh fill — only for a hero call to action.',
 			},
 			{
 				name: 'disabled',
@@ -108,6 +120,7 @@ export class OsButton extends Component {
 		],
 		example: html`
 			<os-cluster gap="8">
+				<os-button variant="holo">Holo</os-button>
 				<os-button variant="primary">Primary</os-button>
 				<os-button variant="secondary">Secondary</os-button>
 				<os-button variant="ghost">Ghost</os-button>
@@ -126,6 +139,7 @@ export class OsButton extends Component {
 		return html`
 			<button
 				part="button"
+				class="os-holo-edge os-holo-sheen"
 				type=${ type }
 				?disabled=${ disabled || busy }
 				aria-busy=${ busy ? 'true' : 'false' }

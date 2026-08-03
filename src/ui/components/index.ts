@@ -23,6 +23,7 @@ export { OsTextField } from './os-text-field/os-text-field';
 export { OsNumberField } from './os-number-field/os-number-field';
 export { OsCheckbox } from './os-checkbox/os-checkbox';
 export { OsCheckboxLabel } from './os-checkbox-label/os-checkbox-label';
+export { OsSwitch } from './os-switch/os-switch';
 export { OsToast, OsToastContainer } from './os-toast/os-toast';
 export { OsTabs, OsTab, OsTabPanel } from './os-tabs/os-tabs';
 export { OsWindowButton } from './os-window-button/os-window-button';

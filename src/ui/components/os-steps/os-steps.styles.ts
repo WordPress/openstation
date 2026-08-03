@@ -48,10 +48,19 @@ export const stepStyles = css`
 		width: var( --os-ui-step-chip-size, 28px );
 		height: var( --os-ui-step-chip-size, 28px );
 		border-radius: 50%;
+		/*
+		 * The step number sits on a bright fill, which is exactly the
+		 * shape an identity moment takes: small, round, one per row.
+		 * The mesh arrives through --os-ui-step-chip-bg from the
+		 * palette rather than from here, so this literal stays the
+		 * pre-brand blue Legacy collected.
+		 */
 		background: var(
 			--os-ui-step-chip-bg,
 			var( --wp-admin-theme-color, #2271b1 )
 		);
+		background-size: 200% 200%;
+		background-position: 30% 40%;
 		color: var( --os-ui-step-chip-fg, var( --os-ui-fg-on-accent, #fff ) );
 		font-size: var( --os-ui-step-chip-font-size, 13px );
 		font-weight: 600;
