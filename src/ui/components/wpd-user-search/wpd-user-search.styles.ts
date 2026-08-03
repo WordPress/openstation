@@ -35,8 +35,10 @@ export const userSearchStyles = css`
 		box-shadow: 0 12px 32px rgba( 0, 0, 0, 0.5 );
 	}
 
+	/* Dark popover surface — the lifted red, same reasoning as the
+	   danger option in wpd-context-menu. */
 	.empty.error {
-		color: #ff8080;
+		color: var( --wpd-danger-hover, #ff8080 );
 	}
 
 	.item {

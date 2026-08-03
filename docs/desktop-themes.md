@@ -378,6 +378,17 @@ them as `var( --wpd-x, <its own literal> )`, which is why an unthemed
 shell looks exactly as it always did and why one theme value retints
 a whole family at once.
 
+That includes the ones inside a component's shadow DOM. A component
+declaring `--wpd-table-bg` on its own `:host` would make the name
+unreachable — a declaration on the element beats anything the element
+*inherits*, and your theme declares on an ancestor — so components read
+their public tokens into private aliases instead. The one exception is
+`<wpd-modal>`, whose dialog surface is dark whatever the admin colour
+scheme says: it re-points `--wpd-fg`, `--wpd-fg-muted`, `--wpd-border`
+and `--desktop-mode-window-bg` inside the dialog, and gives you
+`--wpd-modal-text`, `--wpd-modal-text-muted`, `--wpd-modal-border` and
+`--wpd-modal-field-bg` to set them by.
+
 The palette is not limited to window bodies: the shell's own
 body-mounted overlays — toasts, confirm dialogs, context menus, and
 the **command palette / Site Assistant** (⌘K) — read it too, because

@@ -28,7 +28,16 @@ export const toastStyles = css`
 		min-width: 280px;
 		max-width: 420px;
 		padding: 10px 14px;
-		background: #1d2327;
+		/* Longhand on purpose: the texture slot below owns
+		   background-image, and the shorthand would reset it.
+
+		   A toast is a dark chip whatever the admin colour scheme
+		   says, which is the same constraint the dialog surface has —
+		   so it chains through --wpd-modal-bg rather than through
+		   --wpd-surface, which a light theme sets to white and would
+		   pair with the light --wpd-fg-on-accent text below.
+		   --wpd-toast-bg stays as the per-instance hook. */
+		background-color: var( --wpd-toast-bg, var( --wpd-modal-bg, #1d2327 ) );
 		/* Desktop-theme texture slot: unset resolves to none. */
 		background-image: var( --wpd-toast-bg-image, none );
 		background-repeat: var( --wpd-toast-bg-image-repeat, repeat );

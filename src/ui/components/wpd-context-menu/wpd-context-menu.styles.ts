@@ -65,12 +65,15 @@ export const optionStyles = css`
 		cursor: not-allowed;
 	}
 
+	/* The menu surface is always dark, so danger takes the LIFTED red
+	   (--wpd-danger-hover) rather than --wpd-danger — the base red is
+	   tuned to carry on a light surface and goes muddy here. */
 	:host( [ danger ] ) {
-		color: #ff8a8a;
+		color: var( --wpd-danger-hover, #ff8a8a );
 	}
 
 	:host( [ danger ]:hover ) {
-		background: rgba( 255, 90, 90, 0.18 );
+		background: var( --wpd-badge-danger-bg, rgba( 255, 90, 90, 0.18 ) );
 	}
 
 	:host( [ heading ] ) {

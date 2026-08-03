@@ -360,8 +360,25 @@ body.desktop-mode-active {
 	 * inherits.
 	 */
 
-	/* Dialogs, menus and flyouts. */
+	/*
+	 * Dialogs, menus and flyouts.
+	 *
+	 * The five `--wpd-modal-*` names below are the escape hatch
+	 * `<wpd-modal>` needs. Its dialog surface is dark whatever the
+	 * admin colour scheme says, so it re-points `--wpd-fg`,
+	 * `--wpd-fg-muted`, `--wpd-border`, `--desktop-mode-window-bg` and
+	 * `--wpd-button-bg-hover` on its own `:host` — and a declaration
+	 * on the host outranks anything the host inherits, which is how
+	 * the palette used to stop at the dialog's edge. It reads these
+	 * instead, so the station owns the dialog again and the literals
+	 * behind them stay as the no-stylesheet floor.
+	 */
 	--wpd-modal-bg: #1a1721;
+	--wpd-modal-text: #fffbff;
+	--wpd-modal-text-muted: #b3afb5;
+	--wpd-modal-border: #4d4a52;
+	--wpd-modal-field-bg: #33303a;
+	--wpd-modal-button-bg-hover: rgba(255, 251, 255, 0.14);
 	--wpd-confirm-dialog-bg: #1a1721;
 	--wpd-context-menu-bg: #1a1721;
 	--wpd-context-menu-separator-color: rgba(255, 251, 255, 0.1);
@@ -446,6 +463,14 @@ body.desktop-mode-active {
 	--wpd-rating-star: #f8f2b6;
 	--wpd-rating-fill: linear-gradient(90deg, #f8f2b6 0%, #fffbff 100%);
 	--wpd-avatar-dot-ring: #1a1721;
+	/* The avatar's hover halo. It was a fixed indigo — a hue no
+	   palette in the station names — so it lit itself in a colour
+	   nothing around it used. Pulse. */
+	--wpd-avatar-halo: #f252fc;
+	/* Search-match highlight inside a label. A WASH, not a fill: the
+	   text keeps its own colour, so the wash has to stay light enough
+	   for Starlight to carry over it. */
+	--wpd-search-highlight-bg: rgba(248, 242, 182, 0.3);
 	--wpd-color-accent: #f252fc;
 	/*
 	 * The content graph's cluster hue is NOT retinted. Graph node
@@ -453,7 +478,15 @@ body.desktop-mode-active {
 	 * them under "what stays fixed" — and moving this one to Nebula put
 	 * white cluster labels on a pale lilac chip at 1.9:1. It keeps its
 	 * own colour, and the label keeps carrying on it.
+	 *
+	 * The graph's toolbar is chrome, though, and it does follow. The
+	 * count pill on an ACTIVE filter chip is a 70%-white fill, and it
+	 * was carrying `--wpd-accent-strong` numerals — Nebula on white,
+	 * ~1.7:1. It is one more bright fill naming its own dark text, the
+	 * same escape hatch `--wpd-ribbon-fg` and `--wpd-step-chip-fg`
+	 * take, and for the same reason.
 	 */
+	--wpd-cg-chip-count-fg-active: #0c0b0f;
 
 	/*
 	 * ---- Typography --------------------------------------------

@@ -495,7 +495,7 @@ export const styles = css`
 	}
 	.wpd-cat__delete:hover,
 	.wpd-cat__delete:focus-visible {
-		background: rgba( 214, 54, 56, 0.12 );
+		background: var( --wpd-badge-danger-bg, rgba( 214, 54, 56, 0.12 ) );
 	}
 	.wpd-cat__delete svg {
 		display: block;
@@ -503,9 +503,11 @@ export const styles = css`
 		height: 10px;
 	}
 
-	/* Search-match highlight inside labels. */
+	/* Search-match highlight inside labels. A wash rather than a fill,
+	   so the label keeps its own colour and stays readable on either
+	   a light or a dark surface. */
 	.wpd-cat__match {
-		background: rgba( 252, 211, 77, 0.45 );
+		background: var( --wpd-search-highlight-bg, rgba( 252, 211, 77, 0.45 ) );
 		border-radius: 2px;
 		padding: 0 1px;
 	}

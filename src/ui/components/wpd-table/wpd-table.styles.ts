@@ -33,6 +33,24 @@ import { css } from '../../core';
  *   - 20  sticky-header non-sticky thead cells (above body sticky)
  *   - 30  sticky-column thead cells (above sticky-header non-sticky)
  *   - 40  the corner cell (sticky-header AND sticky-column)
+ *
+ * ## Why the defaults are `--_aliases`
+ *
+ * A custom property declared on `:host` matches the host element, so
+ * it outranks anything that element would otherwise INHERIT. The
+ * palette (`body.desktop-mode-active`) and every desktop theme
+ * (`body.desktop-mode-desktop-theme-<slug>`) declare on an ancestor,
+ * so `--wpd-table-bg: …` on `:host` did not set a default — it made
+ * the public token unreachable from either. The Legacy snapshot
+ * carries all nine of these names and not one of them reached a
+ * table.
+ *
+ * Reading the public token INTO a private alias inverts it: with no
+ * declaration on the host to find, the `var()` resolves the inherited
+ * value — theme first, palette next, the pre-brand literal last.
+ * Per-instance overrides (`wpd-table { --wpd-table-bg: … }` in the
+ * document tree) always worked and still do; this is what fixes the
+ * ancestor case. Same pattern as `<wpd-rating-summary>`.
  */
 export const styles = css`
 	:host {
@@ -41,32 +59,46 @@ export const styles = css`
 		   the hard fallback so a missing theme variable can never
 		   produce a transparent table. Consumers override
 		   --wpd-table-bg directly to opt out of the surface chain. */
-		--wpd-table-bg: var( --wpd-surface, #fff );
-		--wpd-table-border: var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
+		--_bg: var( --wpd-table-bg, var( --wpd-surface, #fff ) );
+		--_border: var(
+			--wpd-table-border,
+			var( --wpd-border, rgba( 0, 0, 0, 0.08 ) )
+		);
 		/* Column dividers when [bordered] is set. Defaults darker
 		 * than --wpd-table-border because row separators read fine
 		 * at low contrast (the eye scans top-to-bottom and the gap
 		 * between rows is enough), but column separators need to
 		 * actively SAY "this column ends here" to the user. Override
 		 * to match --wpd-table-border for the original ghosted look. */
-		--wpd-table-column-border: var( --wpd-border-strong, rgba( 0, 0, 0, 0.14 ) );
-		--wpd-table-header-bg: var( --wpd-surface-elevated, #f6f7f7 );
+		--_column-border: var(
+			--wpd-table-column-border,
+			var( --wpd-border-strong, rgba( 0, 0, 0, 0.14 ) )
+		);
+		--_header-bg: var(
+			--wpd-table-header-bg,
+			var( --wpd-surface-elevated, #f6f7f7 )
+		);
 		/* Translucent overlays — these are LAYERED, never replaced
 		   into a base background. Keep them rgba so they compose
 		   across stripe + hover combinations.
 
-		   The hover wash chains through --wpd-hover so it follows the
-		   palette's direction: a black wash lightens nothing on a dark
-		   surface, and a declaration on :host outranks anything the
-		   shell root inherits in, so the chain is the only way a theme
-		   can reach it. The literal is unchanged, so an unthemed table
-		   hovers exactly as it always did. */
-		--wpd-table-row-hover: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
-		--wpd-table-stripe: rgba( 0, 0, 0, 0.03 );
-		--wpd-table-cell-padding: 8px 12px;
-		--wpd-table-font-size: 13px;
-		--wpd-table-max-height: none;
-		font-size: var( --wpd-table-font-size );
+		   Both chain through a palette token after the public one, so
+		   they follow the palette's direction even unthemed: a black
+		   wash lightens nothing on a dark surface. The literals are
+		   unchanged, so an unthemed table stripes and hovers exactly
+		   as it always did. */
+		--_row-hover: var(
+			--wpd-table-row-hover,
+			var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) )
+		);
+		--_stripe: var(
+			--wpd-table-stripe,
+			var( --wpd-surface-subtle, rgba( 0, 0, 0, 0.03 ) )
+		);
+		--_cell-padding: var( --wpd-table-cell-padding, 8px 12px );
+		--_font-size: var( --wpd-table-font-size, 13px );
+		--_max-height: var( --wpd-table-max-height, none );
+		font-size: var( --_font-size );
 		color: inherit;
 	}
 	:host( [ hidden ] ) {
@@ -76,17 +108,17 @@ export const styles = css`
 	.scroll {
 		position: relative;
 		overflow: auto;
-		max-height: var( --wpd-table-max-height );
-		border: 1px solid var( --wpd-table-border );
+		max-height: var( --_max-height );
+		border: 1px solid var( --_border );
 		border-radius: 4px;
-		background: var( --wpd-table-bg );
+		background: var( --_bg );
 	}
 
 	table {
 		width: 100%;
 		border-collapse: separate;
 		border-spacing: 0;
-		background: var( --wpd-table-bg );
+		background: var( --_bg );
 	}
 
 	/* ---------------------------------------------------------------
@@ -96,21 +128,21 @@ export const styles = css`
 	thead th {
 		text-align: start;
 		font-weight: 600;
-		background-color: var( --wpd-table-header-bg );
+		background-color: var( --_header-bg );
 		/* Desktop-theme texture slot: unset resolves to none. */
 		background-image: var( --wpd-table-header-bg-image, none );
 		background-repeat: var( --wpd-table-header-bg-image-repeat, repeat );
 		background-size: var( --wpd-table-header-bg-image-size, auto );
 		background-position: var( --wpd-table-header-bg-image-position, center );
-		padding: var( --wpd-table-cell-padding );
-		border-bottom: 1px solid var( --wpd-table-border );
+		padding: var( --_cell-padding );
+		border-bottom: 1px solid var( --_border );
 		white-space: nowrap;
 	}
 
 	tbody td {
-		padding: var( --wpd-table-cell-padding );
-		border-bottom: 1px solid var( --wpd-table-border );
-		background-color: var( --wpd-table-bg );
+		padding: var( --_cell-padding );
+		border-bottom: 1px solid var( --_border );
+		background-color: var( --_bg );
 		vertical-align: middle;
 	}
 
@@ -123,15 +155,15 @@ export const styles = css`
 	   trick paints a flat translucent fill on top of background-color. */
 	:host( [ striped ] ) tbody tr:nth-child( odd ) td {
 		background-image: linear-gradient(
-			var( --wpd-table-stripe ),
-			var( --wpd-table-stripe )
+			var( --_stripe ),
+			var( --_stripe )
 		);
 	}
 
 	:host( [ hover ] ) tbody tr:hover td {
 		background-image: linear-gradient(
-			var( --wpd-table-row-hover ),
-			var( --wpd-table-row-hover )
+			var( --_row-hover ),
+			var( --_row-hover )
 		);
 	}
 
@@ -143,15 +175,19 @@ export const styles = css`
 		td {
 		background-image:
 			linear-gradient(
-				var( --wpd-table-row-hover ),
-				var( --wpd-table-row-hover )
+				var( --_row-hover ),
+				var( --_row-hover )
 			),
 			linear-gradient(
-				var( --wpd-table-stripe ),
-				var( --wpd-table-stripe )
+				var( --_stripe ),
+				var( --_stripe )
 			);
 	}
 
+	/* Keeps declaring the PUBLIC tokens, not the aliases: the aliases
+	   read them off the host, so compact still overrides the default,
+	   and a consumer rule in the document tree still outranks compact
+	   the way it always did. Only the base defaults moved. */
 	:host( [ compact ] ) {
 		--wpd-table-cell-padding: 4px 8px;
 		--wpd-table-font-size: 12px;
@@ -159,7 +195,7 @@ export const styles = css`
 
 	:host( [ bordered ] ) thead th,
 	:host( [ bordered ] ) tbody td {
-		border-inline-end: 1px solid var( --wpd-table-column-border );
+		border-inline-end: 1px solid var( --_column-border );
 	}
 	:host( [ bordered ] ) thead th:last-child,
 	:host( [ bordered ] ) tbody td:last-child {
@@ -184,10 +220,10 @@ export const styles = css`
 	   targets .is-sticky and accidentally clears background-color,
 	   this acts as a backstop. */
 	tbody td.is-sticky {
-		background-color: var( --wpd-table-bg );
+		background-color: var( --_bg );
 	}
 	thead th.is-sticky {
-		background-color: var( --wpd-table-header-bg );
+		background-color: var( --_header-bg );
 		/* Desktop-theme texture slot: unset resolves to none. */
 		background-image: var( --wpd-table-header-bg-image, none );
 		background-repeat: var( --wpd-table-header-bg-image-repeat, repeat );
@@ -226,7 +262,7 @@ export const styles = css`
 	td.is-sticky-edge {
 		border-inline-end: var(
 			--wpd-table-sticky-edge,
-			2px solid var( --wpd-table-border )
+			2px solid var( --_border )
 		);
 	}
 
@@ -241,13 +277,13 @@ export const styles = css`
 	/* Filter row inputs. */
 	.filter-row th {
 		padding: 4px 8px;
-		background-color: var( --wpd-table-header-bg );
+		background-color: var( --_header-bg );
 		/* Desktop-theme texture slot: unset resolves to none. */
 		background-image: var( --wpd-table-header-bg-image, none );
 		background-repeat: var( --wpd-table-header-bg-image-repeat, repeat );
 		background-size: var( --wpd-table-header-bg-image-size, auto );
 		background-position: var( --wpd-table-header-bg-image-position, center );
-		border-bottom: 1px solid var( --wpd-table-border );
+		border-bottom: 1px solid var( --_border );
 		font-weight: 400;
 	}
 	.filter-input,
@@ -258,8 +294,8 @@ export const styles = css`
 		padding: 4px 6px;
 		font: inherit;
 		color: inherit;
-		background-color: var( --wpd-table-bg );
-		border: 1px solid var( --wpd-table-border );
+		background-color: var( --_bg );
+		border: 1px solid var( --_border );
 		border-radius: 3px;
 	}
 	.filter-input:focus,
@@ -307,12 +343,12 @@ export const styles = css`
 	   row above don't bleed visually into the inset stripe. */
 	tr.subtable td {
 		padding: 0;
-		background-color: var( --wpd-table-bg );
+		background-color: var( --_bg );
 		background-image: linear-gradient(
-			var( --wpd-table-stripe ),
-			var( --wpd-table-stripe )
+			var( --_stripe ),
+			var( --_stripe )
 		);
-		border-bottom: 1px solid var( --wpd-table-border );
+		border-bottom: 1px solid var( --_border );
 	}
 	tr.subtable .subtable-inner {
 		padding: 8px 12px 8px 32px;
@@ -333,8 +369,8 @@ export const styles = css`
 	}
 	thead th.is-sortable:hover {
 		background-image: linear-gradient(
-			var( --wpd-table-row-hover ),
-			var( --wpd-table-row-hover )
+			var( --_row-hover ),
+			var( --_row-hover )
 		);
 	}
 	thead th.is-sortable:focus-visible {
@@ -371,7 +407,7 @@ export const styles = css`
 		background-color: color-mix(
 			in srgb,
 			var( --wp-admin-theme-color, #2271b1 ) 10%,
-			var( --wpd-table-bg )
+			var( --_bg )
 		);
 		background-image: none;
 	}
@@ -379,13 +415,13 @@ export const styles = css`
 		background-color: color-mix(
 			in srgb,
 			var( --wp-admin-theme-color, #2271b1 ) 16%,
-			var( --wpd-table-bg )
+			var( --_bg )
 		);
 	}
 
 	/* Loading skeleton. */
 	tbody tr.skeleton td {
-		padding: var( --wpd-table-cell-padding );
+		padding: var( --_cell-padding );
 	}
 	.skeleton-bar {
 		display: block;

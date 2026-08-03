@@ -44,13 +44,15 @@
  *
  * Two colors are driven by CSS custom properties — set them via the
  * `color` / `accent` attributes (string shortcuts) or via CSS
- * directly. The accent (the W mark inside the disc) defaults to
- * white but is fully configurable so a dark-on-light mark works the
- * same way as the canonical white-on-blue.
+ * directly. The accent (the W mark inside the disc) follows the
+ * station's accent and falls back to white, and is fully configurable
+ * so a dark-on-light mark works the same way as the canonical
+ * white-on-blue.
  *
  *   - `--wpd-spinner-color` — disc + ring + dot color. Default:
  *     `var( --wp-admin-theme-color, #21759b )`.
- *   - `--wpd-spinner-accent` — W-mark color. Default: `#fff`.
+ *   - `--wpd-spinner-accent` — W-mark color. Default:
+ *     `var( --wpd-accent, #fff )`.
  *   - `--wpd-spinner-size` — host width/height. Default: `48px`.
  *     The shorthand `size` attribute writes a px value here.
  *
@@ -292,7 +294,10 @@ export class WpdSpinner extends Component {
 		],
 		cssProps: [
 			{ name: '--wpd-spinner-color', default: 'var(--wp-admin-theme-color, #21759b)' },
-			{ name: '--wpd-spinner-accent', default: '#fff' },
+			{
+				name: '--wpd-spinner-accent',
+				default: 'var(--wpd-accent, #fff)',
+			},
 			{ name: '--wpd-spinner-size', default: '48px' },
 		],
 		example: html`<wpd-spinner preset="comet" size="80"></wpd-spinner>`,

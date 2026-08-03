@@ -97,7 +97,7 @@ export const wpdFormStyles = css`
 		margin: 0 0 14px;
 		padding: 10px 12px;
 		border-radius: 6px;
-		background: rgba( 179, 45, 46, 0.10 );
+		background: var( --wpd-notice-error-bg, rgba( 179, 45, 46, 0.10 ) );
 		color: var( --wpd-danger-hover, #b32d2e );
 		font-size: 13px;
 		line-height: 1.4;

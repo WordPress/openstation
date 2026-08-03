@@ -18,27 +18,40 @@ export const modalStyles = css`
 
 		/* The dialog surface is dark regardless of the admin color
 		   scheme, but the shared surface tokens the component kit
-		   reads (labels, value readouts, control borders) default to
-		   light-admin values — near-black text and gray hairlines
-		   that vanish on this background. Re-point them here so both
-		   shadow internals AND slotted light-DOM content (custom
-		   properties cross the slot boundary) resolve readable
-		   dark-surface colors. Anything can still override per
-		   instance — these carry normal cascade specificity. */
-		--wpd-fg: #f0f0f1;
-		--wpd-fg-muted: #bbc1c7;
-		--wpd-fg-muted: #a7aaad;
-		--wpd-fg-muted: #a7aaad;
-		--wpd-border: rgba( 255, 255, 255, 0.25 );
-		/* Input / popover surface. The :root default is #fff (windows
-		   are light), which here rendered white fields with the light
-		   --wpd-fg above — near-invisible values. Solid, not
-		   translucent: wpd-menu / wpd-multiselect popovers read this
-		   token too and must stay opaque over slotted content. */
-		--desktop-mode-window-bg: #2c3338;
+		   reads (labels, value readouts, control borders) used to
+		   default to light-admin values — near-black text and gray
+		   hairlines that vanish on this background. So they were
+		   re-pointed here, to literals.
+
+		   That is the wrong layer to fix it at. A --wpd-fg on :host
+		   matches the host element, which outranks anything the host
+		   would INHERIT — and the palette and every desktop theme
+		   declare on an ancestor. The block did not set a
+		   default; it made five palette tokens unreachable inside
+		   every dialog in the OS, and slotted light-DOM content
+		   inherited the literals straight back out of the shadow
+		   tree. A station in Pulse and Obsidian rendered its dialogs
+		   in WordPress grey-blue and could not be told otherwise.
+
+		   Each now reads the palette FIRST and keeps its old literal
+		   as the fallback, so a dark dialog is still readable if the
+		   stylesheet never loads — which is the case the literals
+		   were guarding all along. */
+		--wpd-fg: var( --wpd-modal-text, #f0f0f1 );
+		--wpd-fg-muted: var( --wpd-modal-text-muted, #a7aaad );
+		--wpd-border: var( --wpd-modal-border, rgba( 255, 255, 255, 0.25 ) );
+		/* Input / popover surface. The unthemed default is #fff
+		   (windows are light), which here rendered white fields with
+		   the light --wpd-fg above — near-invisible values. Solid,
+		   not translucent: wpd-menu / wpd-multiselect popovers read
+		   this token too and must stay opaque over slotted content. */
+		--desktop-mode-window-bg: var( --wpd-modal-field-bg, #2c3338 );
 		/* Ghost/secondary button hover washes — the light-surface
 		   defaults are black-on-black here. */
-		--wpd-button-bg-hover: rgba( 255, 255, 255, 0.08 );
+		--wpd-button-bg-hover: var(
+			--wpd-modal-button-bg-hover,
+			rgba( 255, 255, 255, 0.08 )
+		);
 	}
 
 	:host( [ open ] ) {

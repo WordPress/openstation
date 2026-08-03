@@ -1,20 +1,35 @@
 import { css } from '../../core';
 
+/**
+ * The base defaults read the public tokens INTO private aliases rather
+ * than declaring them. A custom property declared on `:host` matches
+ * the host element, which outranks anything the host would inherit —
+ * and the palette and every desktop theme declare on an ancestor. So
+ * `--wpd-spinner-accent: #fff` here did not set a default: it pinned
+ * the mark white and made the token the comment below advertises
+ * ("configurable via `--wpd-spinner-accent`") unreachable from a
+ * theme. Legacy carries all three names and none of them landed.
+ *
+ * The `color` / `accent` / `size` attributes still win — they reflect
+ * onto INLINE custom properties on the host, which the `var()` lookups
+ * find first — and so does `[preset='inline']`, which keeps declaring
+ * the public token so an inline style still outranks it.
+ */
 export const styles = css`
 	:host {
 		display: inline-block;
-		--wpd-spinner-color: var(
-			--wp-admin-theme-color,
-			#21759b
+		--_color: var(
+			--wpd-spinner-color,
+			var( --wp-admin-theme-color, #21759b )
 		);
-		--wpd-spinner-accent: #fff;
-		--wpd-spinner-size: 48px;
-		width: var( --wpd-spinner-size );
-		height: var( --wpd-spinner-size );
+		--_accent: var( --wpd-spinner-accent, var( --wpd-accent, #fff ) );
+		--_size: var( --wpd-spinner-size, 48px );
+		width: var( --_size );
+		height: var( --_size );
 		/* SVG inner elements use currentColor for the primary fill /
 		   stroke; inheriting the host's text color makes a single
 		   variable drive every ring. */
-		color: var( --wpd-spinner-color );
+		color: var( --_color );
 		vertical-align: middle;
 		line-height: 0;
 	}
@@ -44,7 +59,7 @@ export const styles = css`
 	   configurable via the host's --wpd-spinner-accent (or the
 	   shorthand "accent" attribute). */
 	.root svg .mark {
-		fill: var( --wpd-spinner-accent, var( --wpd-accent, #fff ) );
+		fill: var( --_accent );
 	}
 
 	@keyframes wpd-spinner-spin {

@@ -149,7 +149,7 @@ export const textFieldStyles = css`
 		border-color: var( --wpd-danger, #d63638 );
 	}
 	input[ aria-invalid='true' ]:focus-visible {
-		box-shadow: 0 0 0 1px #d63638;
+		box-shadow: 0 0 0 1px var( --wpd-danger, #d63638 );
 	}
 
 	/* Hide the native spinner on number inputs — the suffix slot and

@@ -60,7 +60,7 @@ export const textareaStyles = css`
 		border-color: var( --wpd-danger, #d63638 );
 	}
 	textarea[ aria-invalid='true' ]:focus-visible {
-		box-shadow: 0 0 0 1px #d63638;
+		box-shadow: 0 0 0 1px var( --wpd-danger, #d63638 );
 	}
 
 	/* Auto-grow mode: hide native resize affordance — we manage rows. */

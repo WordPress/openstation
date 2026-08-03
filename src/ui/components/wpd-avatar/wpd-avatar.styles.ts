@@ -115,10 +115,20 @@ export const avatarStyles = css`
 		position: absolute;
 		inset: calc( var( --wpd-avatar-hover ) * -3px );
 		border-radius: 50%;
+		/* The halo hue was a fixed indigo, which is a colour no palette
+		   in the station names — an avatar lit itself in a hue nothing
+		   around it used. It follows --wpd-avatar-halo now, and
+		   color-mix carries the hover-driven alpha so the token can
+		   stay a plain colour. */
 		background: radial-gradient(
 			circle at var( --wpd-avatar-glare-x ) var( --wpd-avatar-glare-y ),
-			rgba( 99, 102, 241, calc( 0.35 * var( --wpd-avatar-hover ) ) ) 0%,
-			rgba( 99, 102, 241, 0 ) 70%
+			color-mix(
+				in srgb,
+				var( --wpd-avatar-halo, rgb( 99, 102, 241 ) )
+					calc( 35% * var( --wpd-avatar-hover ) ),
+				transparent
+			) 0%,
+			transparent 70%
 		);
 		filter: blur( 4px );
 		pointer-events: none;

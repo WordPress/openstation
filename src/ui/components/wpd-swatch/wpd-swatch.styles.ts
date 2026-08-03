@@ -56,7 +56,10 @@ export const styles = css`
 		border-radius: 10px;
 		border: 2px solid transparent;
 		cursor: pointer;
-		background-color: #eee;
+		/* The tile's base, visible wherever the swatch image is
+		   transparent or still loading. A fixed light grey punched a
+		   hole in a dark station, so it follows the surface ramp. */
+		background-color: var( --wpd-surface-sunken, #eee );
 		background-size: cover;
 		background-position: center;
 		transition: transform 0.15s ease, border-color 0.15s ease,

@@ -22,7 +22,7 @@ export const styles = css`
 	/* Detach (lift + soft accent wash) */
 	:host( [ variant='detach' ] ) button:hover {
 		color: var( --wp-admin-theme-color, #2271b1 );
-		background: rgba( 34, 113, 177, 0.12 );
+		background: var( --wpd-accent-soft, rgba( 34, 113, 177, 0.12 ) );
 		transform: translateY( -1px );
 	}
 	:host( [ variant='detach' ] ) button:focus-visible {
@@ -37,7 +37,7 @@ export const styles = css`
 	:host( [ variant='close' ] ) button:focus-visible {
 		color: var( --wpd-fg-on-accent, #fff );
 		background: var( --wpd-danger, #d63638 );
-		outline: 2px solid rgba( 214, 54, 56, 0.6 );
+		outline: 2px solid var( --wpd-danger-hover, rgba( 214, 54, 56, 0.6 ) );
 		outline-offset: 1px;
 	}
 	svg {

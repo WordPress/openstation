@@ -81,8 +81,20 @@
 	border-radius: 999px;
 }
 
+/*
+ * The count pill on an ACTIVE chip is a bright fill, and the chip's
+ * own text colour is `--wpd-accent-strong` — a light tint, by design,
+ * because the chip body around it is a dark accent wash. The two meet
+ * on this pill and cancel out (Nebula on 70% white is ~1.7:1).
+ *
+ * So the pill names its own text, exactly the way `--wpd-ribbon-fg`
+ * and `--wpd-step-chip-fg` do for the other bright fills in the kit.
+ * Unset it inherits the chip's colour, which is what a light theme
+ * wants — there the chip text is already dark.
+ */
 .desktop-mode-content-graph__chip.is-active .desktop-mode-content-graph__chip-count {
 	background: rgba( 255, 255, 255, 0.7 );
+	color: var( --wpd-cg-chip-count-fg-active, inherit );
 }
 
 .desktop-mode-content-graph__search {
