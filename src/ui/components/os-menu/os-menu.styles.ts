@@ -1,14 +1,26 @@
 import { css } from '../../core';
+import { holoTokens, holoEnter } from '../../holo';
 
 /**
  * Menu / menu-item share a frame (padding, font, radius) but each
  * controls its own shadow root. Two exported stylesheets;
  * co-located so the visual language stays in one file.
+ *
+ * The menu arrives rather than appears: `holoEnter` scales it from 96%
+ * on the spring curve. The origin is the top inline-start corner
+ * rather than the centre, because a menu is anchored — growing from
+ * the middle makes it look like it came from nowhere, growing from the
+ * corner makes it look like it came from the thing that opened it.
  */
 
 export const menuStyles = css`
+	${ holoTokens }
+	${ holoEnter }
+
 	:host {
 		display: block;
+		animation: os-holo-enter var( --_holo-t ) var( --_holo-spring );
+		transform-origin: top left;
 		min-width: 220px;
 		padding: 4px;
 		background: var( --os-window-bg, #fff );
@@ -22,6 +34,16 @@ export const menuStyles = css`
 		border-radius: 8px;
 		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
 			0 2px 6px rgba( 0, 0, 0, 0.08 );
+	}
+
+	:host( :dir( rtl ) ) {
+		transform-origin: top right;
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		:host {
+			animation: none;
+		}
 	}
 	:host( [ hidden ] ) {
 		display: none;

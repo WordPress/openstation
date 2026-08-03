@@ -1,8 +1,24 @@
 import { css } from '../../core';
-import { holoTokens } from '../../holo';
+import { holoTokens, holoGlint } from '../../holo';
 
 export const styles = css`
 	${ holoTokens }
+	${ holoGlint }
+
+	/*
+	 * The specular pass, on interactive cards only. A card is the
+	 * largest surface in the kit that responds to a pointer, so it is
+	 * where a highlight travelling across has the most room to read —
+	 * and it is the clearest "this is clickable" the card can give
+	 * without changing its own colour.
+	 *
+	 * Suppressed on a read-only card, which would otherwise catch the
+	 * light while advertising a click it does not take.
+	 */
+	:host( :not( [ interactive ] ) ) .os-holo-glint,
+	:host( [ disabled ] ) .os-holo-glint {
+		display: none;
+	}
 
 	:host {
 		display: flex;

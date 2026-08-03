@@ -79,12 +79,15 @@ Three rules, all with tests:
 2. **`holoTokens` is a prerequisite for every other fragment** — it declares the private `--_holo-*` aliases they read. Include it once per component. Never declare a `--os-ui-*` name on the bare `:host` (see the next rule).
 3. **Reduced motion stops the tilt, never the fill.** A control that lost its mesh under `prefers-reduced-motion` would lose its *state*, not just its animation.
 
-Two things that will bite you:
+Three things that will bite you:
 
-- **Comments inside a `` css`` `` template cannot contain backticks.** It is a JS template literal; a backtick in a CSS comment terminates it and the file stops parsing with a bare "expected a semicolon". Write `--_drag` and `::before` unquoted in those comments.
+- **Comments inside a `` css`` `` template cannot contain backticks.** It is a JS template literal; a backtick in a CSS comment terminates it and the file stops parsing with a bare "expected a semicolon" pointing at prose. Write `--_drag` and `::before` unquoted in those comments. `tests/vitest/css-template-hygiene.test.ts` is the guard, and its message says what to do — it exists because this mistake is easy, frequent, and completely opaque the first few times.
 - **`holoField` uses bare `input` / `select` / `textarea` selectors** — safe inside a shadow root, and one careless `:not()` away from outranking every component's own `aria-invalid` ring. The type exclusions are wrapped in `:where()` to hold the selector at (0,1,1). Don't unwrap them.
+- **The pseudo-element budget is spent.** `holoSheen` owns `::before` and `holoEdge` owns `::after`; a control wearing both has none left. That is why `holoGlint` and `holoRing` are element-based (`<span class="os-holo-glint">`) and driven from the parent's state through the **child** combinator — `:active` matches every ancestor of the pressed element, so `:active .os-holo-ring` fires every ring on the page. New motion fragments should follow the same shape rather than competing for a pseudo.
 
-`tests/vitest/holo-layer.test.ts` pins the mesh transcriptions against the brand's hexes, the alias privacy, and the `:where()` specificity. Public surface: [`docs/components-reference.md`](docs/components-reference.md#the-holographic-layer) and the token table in [`docs/desktop-themes.md`](docs/desktop-themes.md).
+**How loud the station is** is one token: `--os-ui-accent-dim`, Pulse one step back. Every ambient use of the accent — glows, washes, focus blooms — resolves through it, so "tone it down" is one edit rather than an audit. `--os-ui-accent` itself stays `#f252fc`; that one is the brand's, not ours, and `brand-palette.test.ts` pins it. The focus **ring** deliberately does not dim — only the bloom behind it does.
+
+`tests/vitest/holo-layer.test.ts` pins the mesh transcriptions against the brand's hexes, the alias privacy, the `:where()` specificity, the dim routing, and reduced-motion coverage on every fragment. Public surface: [`docs/components-reference.md`](docs/components-reference.md#the-holographic-layer) and the token tables in [`docs/desktop-themes.md`](docs/desktop-themes.md).
 
 ### Never declare a themeable token on a component's `:host`
 

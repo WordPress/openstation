@@ -286,6 +286,48 @@ describe( '<os-switch>', () => {
 		);
 	} );
 
+	test( 'the track has no border, so the pill cannot change size with state', () => {
+		// The bug this replaced: a 1px border plus the default
+		// border-box background clip meant the off state drew a grey
+		// ring OVER the fill's outer edge while the on state
+		// (border-color: transparent) let the mesh through it. The
+		// visible pill grew a pixel on each side as it turned on, and
+		// the switch looked like it resized when it changed state.
+		//
+		// The off edge is an inset shadow instead: no layout, so both
+		// states occupy exactly the same box.
+		expect( styles.cssText ).toMatch( /button\s*{[^}]*border:\s*0;/ );
+		expect( styles.cssText ).toMatch(
+			/button\s*{[^}]*box-shadow:\s*inset 0 0 0 1px var\( --_holo-track-edge \)/,
+		);
+		expect( styles.cssText ).not.toContain( 'border-color: transparent' );
+	} );
+
+	test( 'both states carry a boundary, and neither is a bare fill', () => {
+		// WCAG 1.4.11 wants 3:1 on the boundary of a control. Off gets
+		// the Pewter inset edge; on swaps it for the glow, which is a
+		// box-shadow too — so the swap moves nothing.
+		expect( styles.cssText ).toMatch(
+			/:host\(\s*\[\s*checked\s*\]\s*\)\s*button\s*{[^}]*box-shadow:\s*var\(\s*--_holo-glow\s*\)/,
+		);
+		// Focused-and-off keeps BOTH: the ring says where the keyboard
+		// is, the edge still says where the control is.
+		expect( styles.cssText ).toMatch(
+			/button:focus-visible\s*{[^}]*var\( --_holo-focus \),\s*inset 0 0 0 1px var\( --_holo-track-edge \)/,
+		);
+	} );
+
+	test( 'the knob has a hairline strong enough to survive the lit mesh', () => {
+		// Starlight on Holomesh's white glow (#fffdff) is 1.01:1 — the
+		// knob is not dim there, it is absent. The ring is what carries
+		// it: Void at 55% composites to ~#7d7c7f over that glow, which
+		// holds the knob at 3.5:1. The previous 0.12 alpha did nothing.
+		expect( styles.cssText ).toMatch(
+			/0 0 0 1px var\( --os-ui-switch-knob-edge, rgba\( 12, 11, 15, 0\.55 \) \)/,
+		);
+		expect( styles.cssText ).not.toContain( '0 0 0 0.5px' );
+	} );
+
 	test( 'the palette reaches the component — no themed token is pinned on :host', () => {
 		// The kit-wide rule, asserted here too because this component
 		// declares an unusually large private block and the temptation to

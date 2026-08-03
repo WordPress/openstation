@@ -6,6 +6,7 @@
  * transition) side-by-side.
  */
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 export const containerStyles = css`
 	:host {
@@ -21,6 +22,8 @@ export const containerStyles = css`
 `;
 
 export const toastStyles = css`
+	${ holoTokens }
+
 	:host {
 		display: flex;
 		align-items: center;
@@ -52,17 +55,32 @@ export const toastStyles = css`
 		font-size: 13px;
 		line-height: 1.4;
 		opacity: 0;
-		transform: translateY( -8px );
-		transition: opacity 0.18s ease, transform 0.18s ease;
+		/*
+		 * Arrives from above and slightly small, on the spring — a
+		 * toast drops in from the edge it is docked to, and the scale
+		 * is what stops eight stacked toasts reading as one list
+		 * scrolling.
+		 */
+		transform: translateY( -10px ) scale( 0.97 );
+		transition: opacity var( --_holo-t-fast ) linear,
+			transform var( --_holo-t ) var( --_holo-spring );
 		pointer-events: auto;
 	}
 	:host( [ state='in' ] ) {
 		opacity: 1;
-		transform: translateY( 0 );
+		transform: translateY( 0 ) scale( 1 );
 	}
+	/*
+	 * Leaving is not arriving in reverse. It exits sideways, toward
+	 * the edge it is docked to, and on the plain ease rather than the
+	 * spring: an overshoot on the way out reads as the toast being
+	 * yanked back before it goes.
+	 */
 	:host( [ state='out' ] ) {
 		opacity: 0;
-		transform: translateY( -8px );
+		transform: translateX( 16px ) scale( 0.97 );
+		transition: opacity var( --_holo-t-fast ) linear,
+			transform var( --_holo-t ) var( --_holo-ease );
 	}
 	.os-toast__label {
 		flex: 1;

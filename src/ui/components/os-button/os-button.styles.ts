@@ -24,6 +24,17 @@
  * in OS Settings — and a mesh three to a row is wallpaper. It gets the
  * edge and the sheen like everything else.
  *
+ * ## And two motions
+ *
+ * The **glint** crosses the face once on hover; the **press ring**
+ * expands and fades on `:active`. Both are element-based (a `<span>`
+ * each in the template) rather than pseudo-elements, because the sheen
+ * and the edge have already spent this button's `::before` and
+ * `::after` — see the pseudo-element budget note in `src/ui/holo.ts`.
+ *
+ * `link` gets neither: it has no surface for a highlight to cross and
+ * no box for a ring to leave.
+ *
  * The fill is written out rather than borrowed from the `.os-holo-fill`
  * utility class because `--os-ui-button-bg-image` is a desktop-theme
  * texture slot on the base rule: a utility class setting
@@ -31,12 +42,21 @@
  * button, not just the holographic one.
  */
 import { css } from '../../core';
-import { holoTokens, holoSheen, holoEdge, holoDrift } from '../../holo';
+import {
+	holoTokens,
+	holoSheen,
+	holoEdge,
+	holoGlint,
+	holoRing,
+	holoDrift,
+} from '../../holo';
 
 export const styles = css`
 	${ holoTokens }
 	${ holoSheen }
 	${ holoEdge }
+	${ holoGlint }
+	${ holoRing }
 	${ holoDrift }
 
 	:host {
@@ -104,11 +124,12 @@ export const styles = css`
 		outline: none;
 		box-shadow: var( --_holo-focus );
 	}
-	/* The iridescent hairline and the hover film are suppressed while
-	   the button is unavailable — a disabled control that lights up
-	   under the pointer is advertising an action it will not take. */
+	/* Every lit layer is suppressed while the button is unavailable —
+	   a disabled control that lights up under the pointer is
+	   advertising an action it will not take. */
 	button:disabled::before,
-	button:disabled::after {
+	button:disabled::after,
+	button:disabled .os-holo-glint {
 		opacity: 0 !important;
 	}
 	/* Primary */
@@ -201,9 +222,12 @@ export const styles = css`
 		padding: 0;
 		text-decoration: underline;
 	}
-	/* No chrome means nothing to put an edge or a film on. */
+	/* No chrome means nothing to put an edge, a film, a highlight or a
+	   ring on — a link is text, and text does not catch the light. */
 	:host( [ variant='link' ] ) button::before,
-	:host( [ variant='link' ] ) button::after {
+	:host( [ variant='link' ] ) button::after,
+	:host( [ variant='link' ] ) .os-holo-glint,
+	:host( [ variant='link' ] ) .os-holo-ring {
 		display: none;
 	}
 	:host( [ variant='link' ] ) button:active:not( :disabled ) {

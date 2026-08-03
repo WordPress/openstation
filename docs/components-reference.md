@@ -132,6 +132,19 @@ Three treatments, in ascending loudness:
 | `holoSheen` | A ~10%-alpha film of the mesh's hues over the existing surface, faded in under the pointer. | `<os-button>`, `<os-key>`, unselected `<os-segment>`. |
 | `holoFill` | The mesh itself, at full strength, with Void ink on top. | The on state of `<os-switch>`, checked `<os-checkbox>` / `<os-checkbox-label>` / `<os-menu-item>`, the selected `<os-segment>`, the elapsed track of `<os-range-field>`, the fill of `<os-progress-bar>`, the `<os-step>` chip, and `<os-button variant="holo">`. |
 
+…and four motions, which are what make the surfaces read as foil rather than as paint:
+
+| Fragment | What it does | Who gets it |
+| --- | --- | --- |
+| `holoGlint` | A specular band crosses the surface once on hover. The single most "holographic" thing in the kit. | `<os-button>`, `<os-key>`, interactive `<os-card>`. |
+| `holoRing` | A ring expands out of the control and fades on `:active`, so a press reads as received before its result paints. | `<os-button>`, `<os-key>`. |
+| `holoShimmer` | The mesh travelling, for waits of unknown length. | Indeterminate `<os-progress-bar>`. |
+| `holoEnter` | Scale-and-fade arrival on the spring. | `<os-menu>`, `<os-context-menu>`, `<os-modal>`, `<os-confirm-dialog>`. |
+
+Plus the motions that belong to one component and stayed there: the `<os-segmented>` thumb that slides between segments, the `<os-tabs>` underline that grows from the centre, the `<os-switch>` knob's spring-and-squash, the `<os-checkbox>` tick landing with an overshoot, `<os-toast>` arriving from above and leaving sideways, and the `<os-avatar>` presence ring — which pulses **only** on `online`, so "who is here" survives being read by someone who cannot separate the three dot colours.
+
+**The pseudo-element budget.** An element has two, and this module wants four effects. `holoSheen` takes `::before` and `holoEdge` takes `::after` — that is the whole budget for a control wearing both, as `<os-button>` does. So `holoGlint` and `holoRing` are **element-based**: the component stamps a `<span class="os-holo-glint">` / `<span class="os-holo-ring">` and the fragment styles it. Both are driven from the parent's state via the **child** combinator (`:active > .os-holo-ring`), which is load-bearing: `:active` matches an activated element *and every ancestor of it*, so a descendant selector would fire every ring on the page.
+
 Two shared fragments carry the states that are not decorative:
 
 - **`holoField`** — one hover, one focus ring, one transition duration and one placeholder colour for every text-like control (`<os-text-field>`, `<os-textarea>`, `<os-number-field>`, `<os-select>`, and any component that renders a bare `input` / `select` / `textarea` in its shadow root). Its selectors wrap their type exclusions in `:where()` so a component's own `aria-invalid` ring still outranks it — an invalid field focuses in red, not in Pulse.
@@ -150,9 +163,23 @@ Declared in `assets/css/variables.css`, on `body.os-active` (never `:root` — t
 | `--os-ui-holo-edge` / `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow` / `--os-ui-holo-glow-strong` | The Pulse bloom around a lit surface. |
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-accent-dim` | Pulse one step back (same hue, S and L pulled down together). **The single knob for how loud the station is** — every ambient use of the accent resolves through it. |
 | `--os-ui-focus-ring` | The **target** ring: buttons, switches, checkboxes, swatches. Built to survive landing on a bright mesh. |
 | `--os-ui-focus-ring-field` | The **field** ring: quieter, tightens the input's own border. A form of twelve inputs should not look alarmed. |
-| `--os-ui-holo-transition` | One duration for every holographic transition, so a panel moves as one surface. |
+| `--os-ui-motion-fast` / `--os-ui-holo-transition` / `--os-ui-motion-slow` / `--os-ui-motion-ambient` | The duration scale: a state flip, the default tilt, something crossing a distance, an ambient loop. |
+| `--os-ui-ease-spring` / `--os-ui-ease-out` / `--os-ui-ease-loop` | The three curves. `spring` overshoots ~9% and is wrong for anything that changes *size*. |
+
+### Turning the station up or down
+
+`--os-ui-accent` is Pulse `#f252fc` and stays there — it is what the brand guidelines name, and `brand-palette.test.ts` pins it. Pulse is also not a contrast problem: it carries 6.2:1 against Obsidian.
+
+What makes a panel read as loud is the *ambient* use — a bloom behind a focused control, an 18% wash under a selected row, a fill wider than a chip. Those all resolve through `--os-ui-accent-dim`, so:
+
+```css
+body.os-active { --os-ui-accent-dim: #b02ab8; }  /* quieter still */
+```
+
+is the whole edit. The focus **ring** deliberately does not follow it — only the bloom behind the ring does. A focus indicator is the last place to trade legibility for calm.
 
 Every fragment honours `prefers-reduced-motion` by stopping the tilt — never by removing the fill. A control that lost its mesh under reduced motion would lose its *state*, not just its animation.
 

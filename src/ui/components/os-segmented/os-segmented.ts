@@ -109,6 +109,9 @@ export class OsSegmented extends Component {
 		`,
 	} as const;
 
+	/** Re-measures the thumb when the group is resized by its container. */
+	private _resizeObserver: ResizeObserver | null = null;
+
 	connectedCallback(): void {
 		super.connectedCallback();
 		// Delegated pick handler — children bubble
@@ -121,6 +124,66 @@ export class OsSegmented extends Component {
 			( this as unknown as { value: string } ).value = detail.value;
 			this.emit( 'os-pick', { value: detail.value } );
 		} );
+		// The segments are content-sized, so the pill has to be
+		// re-measured whenever the group's box changes — a window
+		// resize, a panel column reflowing, a font finally arriving.
+		// Guarded because jsdom has no ResizeObserver.
+		if ( typeof ResizeObserver !== 'undefined' ) {
+			this._resizeObserver = new ResizeObserver( () => this._placeThumb() );
+			this._resizeObserver.observe( this );
+		}
+	}
+
+	disconnectedCallback(): void {
+		this._resizeObserver?.disconnect();
+		this._resizeObserver = null;
+	}
+
+	/**
+	 * Put the thumb under the selected segment.
+	 *
+	 * Measured with `getBoundingClientRect()` rather than `offsetLeft`:
+	 * the segments are light-DOM children whose `offsetParent` is this
+	 * host, and `offsetLeft` is quoted from the offset parent's BORDER
+	 * box while an absolutely-positioned element in the shadow root is
+	 * placed against its PADDING box. With a border on the group those
+	 * two differ, and the pill would sit a border-width off — visible
+	 * on exactly the themes that add one.
+	 *
+	 * A zero-width measurement means the group has not been laid out
+	 * yet (display:none, a collapsed panel, a tab that has never been
+	 * opened). Leaving the thumb hidden is right in every one of those
+	 * cases; the ResizeObserver brings it back the moment there is a
+	 * box to measure.
+	 */
+	private _placeThumb(): void {
+		const thumb = this.shadowRoot?.querySelector(
+			'.os-segmented__thumb',
+		) as HTMLElement | null;
+		if ( ! thumb ) {
+			return;
+		}
+		const current = ( this as unknown as { value: string | null } ).value;
+		const selected = Array.from(
+			this.querySelectorAll( ':scope > os-segment' ),
+		).find( ( el ) => el.getAttribute( 'value' ) === current );
+		const box = selected?.getBoundingClientRect();
+		if ( ! box || box.width === 0 ) {
+			this.removeAttribute( 'data-thumb' );
+			return;
+		}
+		const host = this.getBoundingClientRect();
+		this.style.setProperty( '--_thumb-x', `${ box.left - host.left }px` );
+		this.style.setProperty( '--_thumb-w', `${ box.width }px` );
+		this.setAttribute( 'data-thumb', '' );
+		// One frame later than the first placement, so the pill does
+		// not animate in from the origin on page load. See the note on
+		// the two flags in the stylesheet.
+		if ( ! this.hasAttribute( 'data-thumb-ready' ) ) {
+			requestAnimationFrame( () =>
+				this.setAttribute( 'data-thumb-ready', '' ),
+			);
+		}
 	}
 
 	/**
@@ -185,8 +248,12 @@ export class OsSegmented extends Component {
 					v === current ? 'true' : 'false',
 				);
 			}
+			this._placeThumb();
 		} );
-		return html`<slot></slot>`;
+		// The thumb before the slot, so it paints under the labels
+		// without either side needing a z-index.
+		return html`<span class="os-segmented__thumb" aria-hidden="true"></span
+			><slot></slot>`;
 	}
 }
 defineComponent( 'os-segmented', OsSegmented );

@@ -18,7 +18,13 @@
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-badge.styles';
 
-export type OsBadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+export type OsBadgeTone =
+	| 'success'
+	| 'warning'
+	| 'danger'
+	| 'info'
+	| 'neutral'
+	| 'accent';
 
 export class OsBadge extends Component {
 	static props = [ 'tone', 'noDot' ] as const;
@@ -33,9 +39,9 @@ export class OsBadge extends Component {
 		props: [
 			{
 				name: 'tone',
-				type: '"success" | "warning" | "danger" | "info" | "neutral"',
+				type: '"success" | "warning" | "danger" | "info" | "neutral" | "accent"',
 				description:
-					'Color tone applied to the dot + pill background. Default is "neutral".',
+					'Color tone applied to the dot + pill background. Default is "neutral". "accent" is the odd one out and is not a status: it fills the pill with the brand mesh and drops the dot, for the badge that means "this is the one" rather than "this is the state".',
 			},
 			{
 				name: 'no-dot',

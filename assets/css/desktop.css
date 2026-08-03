@@ -21,6 +21,41 @@ body.os-active {
 }
 
 /*
+ * Text selection.
+ *
+ * The shell had no ::selection rule at all, so every selection in it
+ * was the browser default — a colour chosen for a white page, landing
+ * on a near-black one. In Chrome that is a dark translucent blue over
+ * Obsidian, which is roughly 1.3:1 against the surface and leaves the
+ * selected text at a contrast the UA never checked, because the UA
+ * assumed a light background. Dragging across a paragraph produced no
+ * visible change at all on some displays.
+ *
+ * Both halves are set on purpose. `background` alone is the common
+ * half-fix: the UA then keeps its own selected-text colour, which is
+ * frequently forced to black and lands on this violet at ~2:1.
+ *
+ * Scoped to the shell document. `variables.css` is a dependency of
+ * `chromeless.css` and so loads inside every iframe window, but this
+ * file does not — a wp-admin page in a window keeps the selection
+ * colour it has outside one, which is the same promise the palette
+ * makes about everything else.
+ *
+ * `::-moz-selection` is a separate rule rather than a second selector
+ * on this one: an unrecognised pseudo-element invalidates the entire
+ * selector list, so pairing them would leave Chrome unstyled too.
+ */
+body.os-active ::selection {
+	background: var( --os-ui-selection-bg, rgba( 159, 152, 255, 0.6 ) );
+	color: var( --os-ui-selection-fg, #fffbff );
+}
+
+body.os-active ::-moz-selection {
+	background: var( --os-ui-selection-bg, rgba( 159, 152, 255, 0.6 ) );
+	color: var( --os-ui-selection-fg, #fffbff );
+}
+
+/*
  * Cursor policy — default arrow everywhere in OpenStation.
  *
  * Per user preference (since 0.20.0): no hand/pointer/grab/grabbing/

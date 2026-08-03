@@ -330,10 +330,69 @@ body.os-active {
 	--os-ui-hover: rgba(255, 251, 255, 0.06);
 	--os-ui-scrim: rgba(12, 11, 15, 0.72);
 
+	/*
+	 * ---- Text selection ------------------------------------------
+	 *
+	 * Lagoon, the brand's violet-blue, at 60%. It is the one primary
+	 * colour in the guidelines the shell had no job for, and this is
+	 * the right job: violet-blue is what every OS has trained people
+	 * to read as "selected", so it needs no learning.
+	 *
+	 * The alpha is where the accessibility is, and it is squeezed from
+	 * both ends. A selection has to satisfy two constraints at once:
+	 *
+	 *   1. the selected TEXT stays readable on it — Starlight over
+	 *      Lagoon@60% is 5.1:1 on Obsidian, 5.5:1 on Void; and
+	 *   2. the highlight is distinguishable from the unselected
+	 *      background — 3.4:1 and 3.5:1 respectively.
+	 *
+	 * Raising the alpha helps (2) and hurts (1); lowering it does the
+	 * reverse. 60% is the middle of the band where both clear their
+	 * bar on both surfaces. An accent wash cannot do this at all: the
+	 * Pulse family only separates from the background above 75%, by
+	 * which point it is a fill rather than a highlight.
+	 *
+	 * The text colour is Starlight — the colour body text already is.
+	 * A selection that also RECOLOURS the text destroys every
+	 * distinction the text was carrying: syntax highlighting, a red
+	 * error, a muted timestamp. Highlighting is not restyling.
+	 */
+	--os-ui-selection-bg: rgba(159, 152, 255, 0.6);
+	--os-ui-selection-fg: #fffbff;
+
 	/* Accent — the identity moment. */
 	--os-ui-accent: #f252fc;
 	--os-ui-accent-strong: #ec9bff;
-	--os-ui-accent-soft: rgba(242, 82, 252, 0.18);
+	--os-ui-accent-soft: color-mix(in srgb, var(--os-ui-accent-dim) 14%, transparent);
+	/*
+	 * Pulse, one step back — and the single knob for how loud the
+	 * station is.
+	 *
+	 * Pulse is not a contrast problem: #f252fc carries 6.2:1 against
+	 * Obsidian, better than most accents in a dark UI manage. What it
+	 * is, is SATURATED — HSL 296, 97, 65 — and the places that hurt
+	 * are the ones where it is spread rather than stated: a bloom
+	 * behind a focused control, a 18% wash under a selected row, a
+	 * fill wider than a chip. Ten of those on one panel and the whole
+	 * surface hums.
+	 *
+	 * So the fix is not to move Pulse. It is to spend it where it is
+	 * a statement and to spend THIS where it is atmosphere: the same
+	 * hue with saturation and lightness pulled down together (S 77,
+	 * L 53), which is what keeps it recognisably Pulse rather than a
+	 * different purple. 4.6:1 on Obsidian, and Starlight over it goes
+	 * from 2.8:1 to 3.8:1 — so the wash also stopped eating text.
+	 *
+	 * Everything ambient below resolves through it: the glows, the
+	 * soft wash, the focus bloom. Turning the station up or down is
+	 * one edit here.
+	 *
+	 * `--os-ui-accent` itself stays #f252fc. That one is the brand's,
+	 * not ours — it is what the guidelines name and what
+	 * `brand-palette.test.ts` pins, and moving it is a brand decision
+	 * rather than a UI one.
+	 */
+	--os-ui-accent-dim: #d92ee3;
 
 	/*
 	 * ---- The meshes ---------------------------------------------
@@ -470,22 +529,55 @@ body.os-active {
 	 * The bloom around a holographic surface. Pulse, because on a Void
 	 * desk the glow is what separates "lit" from "light-coloured".
 	 */
-	--os-ui-holo-glow: 0 0 0 1px rgba(242, 82, 252, 0.28), 0 2px 10px rgba(242, 82, 252, 0.22);
-	--os-ui-holo-glow-strong: 0 0 0 1px rgba(242, 82, 252, 0.42), 0 4px 18px rgba(242, 82, 252, 0.38),
+	--os-ui-holo-glow: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 20%, transparent),
+		0 2px 10px color-mix(in srgb, var(--os-ui-accent-dim) 15%, transparent);
+	--os-ui-holo-glow-strong: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent),
+		0 4px 18px color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
 		0 1px 3px rgba(12, 11, 15, 0.6);
 	/*
-	 * The unlit half. Switch tracks, empty progress, an unselected
-	 * segment: a sunken Void well inside the Obsidian surface, so the
-	 * lit half has something to be lit AGAINST.
+	 * The unlit half — switch tracks, empty progress, the unchecked
+	 * checkbox.
+	 *
+	 * This was a sunken Void well, and it was a mistake that measured
+	 * badly: `rgba(12, 11, 15, 0.55)` composites to #121017 on an
+	 * Obsidian panel, which is **1.07:1** against that panel. An off
+	 * switch was, to a very good approximation, not drawn. WCAG 1.4.11
+	 * asks for 3:1 on the boundary of a control, and this was not in
+	 * the same postcode.
+	 *
+	 * So the well is LIFTED rather than sunk: a Starlight wash, which
+	 * also means it tracks whatever surface a theme puts behind it
+	 * instead of pinning a grey that only works on Obsidian. Every
+	 * dark OS does the same thing with its switches for the same
+	 * reason — on a dark UI the visible thing is the lighter one.
+	 *
+	 * The fill alone still only reaches ~1.6:1, which is a *look*
+	 * rather than a boundary. The 3:1 comes from the edge below, and
+	 * the two together are what make an off switch findable.
 	 */
-	--os-ui-holo-track: rgba(12, 11, 15, 0.55);
+	--os-ui-holo-track: rgba(255, 251, 255, 0.16);
+	/*
+	 * The unlit half's boundary. Pewter, and not a rounder-looking
+	 * neighbour, because Pewter is the first step on the Shade ramp
+	 * that reaches 3.00:1 against Obsidian — Silver manages 2.03 and
+	 * Astro 1.37. This is the declaration that makes an off control
+	 * satisfy WCAG 1.4.11.
+	 */
+	--os-ui-holo-track-edge: #66636b;
 	/*
 	 * Focus. One ring for the whole kit — Pulse, offset, over a soft
-	 * Nebula halo, so it reads on Obsidian, on a mesh, and on the
-	 * near-white of a legacy theme alike.
+	 * halo, so it reads on Obsidian, on a mesh, and on the near-white
+	 * of a legacy theme alike.
+	 *
+	 * Note which layer dims and which does not. The RING is full Pulse
+	 * and stays there: it is the only thing on screen saying where the
+	 * keyboard is, and a focus indicator is the last place to trade
+	 * legibility for calm. Only the bloom behind it comes down, from
+	 * 45% to 30%, and onto the dim — which is the layer that was
+	 * making a focused control look like it was on fire.
 	 */
 	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9), 0 0 0 4px #f252fc,
-		0 0 12px 2px rgba(242, 82, 252, 0.45);
+		0 0 12px 2px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent);
 	/*
 	 * …and one for FIELDS, which is a different problem. A text input
 	 * already has a border to thicken and it sits in a column of other
@@ -495,13 +587,46 @@ body.os-active {
 	 * outside it: unmistakable, and quiet enough to live in a stack of
 	 * twelve.
 	 */
-	--os-ui-focus-ring-field: 0 0 0 1px #f252fc, 0 0 0 4px rgba(242, 82, 252, 0.18);
+	--os-ui-focus-ring-field: 0 0 0 1px #f252fc,
+		0 0 0 4px color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent);
+
 	/*
-	 * How long the foil takes to tilt. One duration for every
-	 * holographic transition in the kit, so a panel full of controls
-	 * moves as one surface rather than as thirty independent ones.
+	 * ---- Motion --------------------------------------------------
+	 *
+	 * Four durations and three curves, and every animated thing in the
+	 * kit picks from them. Not for tidiness: a panel where the switch
+	 * settles in 220ms, the segmented thumb in 300 and the tab
+	 * underline in 150 does not read as three well-tuned controls, it
+	 * reads as one surface that cannot keep time.
+	 *
+	 * The scale is roughly logarithmic because perceived duration is:
+	 * 90 and 140 are distinguishable, 220 and 240 are not.
+	 */
+	/* A state flip with no travel — a colour, an opacity, a tick. */
+	--os-ui-motion-fast: 140ms;
+	/*
+	 * How long the foil takes to tilt, and the kit's default. One
+	 * duration for every holographic transition, so a panel full of
+	 * controls moves as one surface rather than as thirty independent
+	 * ones.
 	 */
 	--os-ui-holo-transition: 220ms;
+	/* Something crossing a distance: a thumb, a drawer, a card. */
+	--os-ui-motion-slow: 340ms;
+	/* An ambient loop — a shimmer, a drift. Long enough to ignore. */
+	--os-ui-motion-ambient: 12s;
+
+	/*
+	 * The curves. `spring` overshoots ~9% and settles; it is what makes
+	 * a knob feel thrown rather than moved, and it is wrong for
+	 * anything that changes size (an overshooting width reads as a
+	 * glitch, not as weight).
+	 */
+	--os-ui-ease-spring: cubic-bezier(0.32, 1.5, 0.55, 1);
+	/* Decelerating. The default for anything arriving. */
+	--os-ui-ease-out: cubic-bezier(0.22, 0.9, 0.28, 1);
+	/* Symmetric, for a loop that has to come back where it started. */
+	--os-ui-ease-loop: cubic-bezier(0.45, 0, 0.55, 1);
 
 	/*
 	 * Status. Derived, not quoted — see the header note. Info takes
@@ -603,6 +728,14 @@ body.os-active {
 	 * agree, which is usually the sign a palette is holding together.
 	 */
 	--os-ui-step-chip-bg: var(--os-mesh-holo);
+
+	/*
+	 * The default ribbon. One per tile, small, angled, and already
+	 * paired with Void ink above — which is what a mesh needs anyway.
+	 * The status ribbons below keep their flat colours: a ribbon that
+	 * says "deprecated" should say it in warning yellow, not in brand.
+	 */
+	--os-ui-ribbon-bg: var(--os-mesh-holo);
 
 	--os-ui-ribbon-info: #c2f1f1;
 	--os-ui-ribbon-warning: #f8f2b6;

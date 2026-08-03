@@ -429,9 +429,23 @@ brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
 | `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
 | `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
 | `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-accent-dim` | The accent, one step back. Every *ambient* use of it — glows, washes, focus blooms — resolves through this, so it is the single knob for how loud a theme reads. |
 | `--os-ui-focus-ring` | Focus on a *target*: buttons, switches, checkboxes, swatches. |
 | `--os-ui-focus-ring-field` | Focus on a *field*: quieter, tightens the input's own border. |
 | `--os-ui-holo-transition` | Duration for every holographic transition in the kit. |
+
+And the motion scale, which is worth setting as a group or not at all — a theme that changes one duration gets a panel where the controls disagree about how fast they are:
+
+| Token | Role |
+|---|---|
+| `--os-ui-motion-fast` | A state flip with no travel: a colour, an opacity, a tick. |
+| `--os-ui-motion-slow` | Something crossing a distance: a thumb, a drawer, a card. |
+| `--os-ui-motion-ambient` | An ambient loop — a shimmer, a drift. |
+| `--os-ui-ease-spring` | Overshoots and settles. Wrong for anything that changes *size*. |
+| `--os-ui-ease-out` | Decelerating. The default for anything arriving. |
+| `--os-ui-ease-loop` | Symmetric, for a loop that returns where it started. |
+
+Setting all three durations to `1ms` is a supported way to build a still theme; every fragment in the kit already does exactly that under `prefers-reduced-motion`.
 
 Setting `--os-ui-holo-fill` alone retints every one of those surfaces
 at once, which is the shortest route to a theme that does not look

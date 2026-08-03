@@ -201,6 +201,8 @@ export class OsKey extends Component {
 				${ label !== null && label !== undefined && label !== ''
 		? label
 		: html`<slot></slot>` }
+				<span class="os-holo-glint" aria-hidden="true"></span>
+				<span class="os-holo-ring" aria-hidden="true"></span>
 			</button>
 		`;
 	}

@@ -80,7 +80,7 @@ export const styles = css`
 		background-size: auto, 260% 260%;
 		background-position: center, 30% 50%;
 		background-repeat: no-repeat;
-		box-shadow: inset 0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+		box-shadow: inset 0 0 0 1px var( --_holo-track-edge );
 	}
 
 	input[ type='range' ]::-moz-range-track {
@@ -95,7 +95,7 @@ export const styles = css`
 		background-size: auto, 260% 260%;
 		background-position: center, 30% 50%;
 		background-repeat: no-repeat;
-		box-shadow: inset 0 0 0 1px var( --os-ui-border, rgba( 0, 0, 0, 0.12 ) );
+		box-shadow: inset 0 0 0 1px var( --_holo-track-edge );
 	}
 
 	/* The thumb. Starlight, so it grips against both the lit and the

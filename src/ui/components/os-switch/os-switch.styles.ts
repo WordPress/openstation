@@ -117,31 +117,50 @@ export const styles = css`
 	 * template, which is the pairing screen readers announce as
 	 * "on/off" rather than as "pressed".
 	 */
+	/*
+	 * The track.
+	 *
+	 * NO BORDER, and that is a fix rather than a style. With a 1px
+	 * border and the default border-box background clip, the fill
+	 * paints UNDER the border: the off state showed a grey ring over
+	 * the fill's outer edge, and the on state (border-color:
+	 * transparent) let the mesh through it. The pill's visible outline
+	 * therefore moved outward by a pixel on each side as it turned on,
+	 * and the control looked like it changed size when it changed
+	 * state.
+	 *
+	 * The off-state edge is an INSET shadow instead. It occupies no
+	 * layout, so the box is byte-identical in both states, and it can
+	 * be swapped for the glow when lit without anything moving.
+	 */
 	button {
 		appearance: none;
 		flex: 0 0 auto;
 		position: relative;
-		box-sizing: content-box;
+		box-sizing: border-box;
 		width: var( --_w );
 		height: var( --_h );
 		padding: 0;
 		margin: 0;
-		border: 1px solid var( --os-ui-border, #c3c4c7 );
+		border: 0;
 		border-radius: 999px;
 		background-color: var( --_holo-track );
 		background-image: none;
+		/*
+		 * The boundary WCAG 1.4.11 asks for. The fill alone is a
+		 * ~1.6:1 wash — enough to shape the control, not enough to
+		 * prove it is there; --_holo-track-edge is Pewter, the first
+		 * step on the Shade ramp that reaches 3:1 on Obsidian.
+		 */
+		box-shadow: inset 0 0 0 1px var( --_holo-track-edge );
 		cursor: inherit;
 		outline: none;
 		transition: background-color var( --_holo-t ) ease,
-			border-color var( --_holo-t ) ease, box-shadow var( --_holo-t ) ease;
+			box-shadow var( --_holo-t ) ease;
 	}
 
 	button:disabled {
 		cursor: not-allowed;
-	}
-
-	button:focus-visible {
-		box-shadow: var( --_holo-focus );
 	}
 
 	/*
@@ -150,13 +169,24 @@ export const styles = css`
 	 *
 	 * The .os-holo-fill class (from src/ui/holo.ts) brings the mesh, the
 	 * oversized background so it has room to slide, and the tilt on
-	 * hover. The border goes transparent because a 1 px Astro line
-	 * around a bright mesh reads as a seam, and the glow replaces it
-	 * as the thing that separates the track from the surface.
+	 * hover. The inset edge is dropped — a grey line around a bright
+	 * mesh reads as a seam — and the glow takes over as the thing
+	 * separating the track from the surface. Both are box-shadows, so
+	 * the swap moves nothing.
 	 */
 	:host( [ checked ] ) button {
-		border-color: transparent;
 		box-shadow: var( --_holo-glow );
+	}
+
+	/*
+	 * Focused and OFF keeps the inset edge alongside the focus ring:
+	 * the ring says where the keyboard is, the edge still says where
+	 * the control is, and losing the second while gaining the first is
+	 * a trade nothing asked for.
+	 */
+	button:focus-visible {
+		box-shadow: var( --_holo-focus ),
+			inset 0 0 0 1px var( --_holo-track-edge );
 	}
 
 	:host( [ checked ] ) button:focus-visible {
@@ -192,7 +222,22 @@ export const styles = css`
 			0 2px 10px rgba( 147, 240, 198, 0.25 );
 	}
 
-	/* The knob. */
+	/*
+	 * The knob.
+	 *
+	 * Starlight, and the hairline around it is what makes that
+	 * survivable. Against the lit track it has almost nothing to
+	 * contrast with — Holomesh's white glow is #fffdff, so a Starlight
+	 * knob sitting on that part of the mesh measures **1.01:1** and is
+	 * simply gone. The old ring, Void at 12%, was nowhere near enough
+	 * to rescue it.
+	 *
+	 * At 55% the ring composites to ~#7d7c7f over that glow, which
+	 * carries the knob at 3.5:1 there and 6.9:1 over the mesh's
+	 * darkest stop — so the knob has an outline everywhere the mesh
+	 * can go, and the same ring is what separates it from the unlit
+	 * track too. One declaration, both states.
+	 */
 	.os-switch__knob {
 		position: absolute;
 		top: var( --_pad );
@@ -202,9 +247,9 @@ export const styles = css`
 		border-radius: 999px;
 		background: var( --os-ui-switch-knob, #fffbff );
 		box-shadow: 0 1px 2px rgba( 12, 11, 15, 0.45 ),
-			0 0 0 0.5px rgba( 12, 11, 15, 0.12 );
+			0 0 0 1px var( --os-ui-switch-knob-edge, rgba( 12, 11, 15, 0.55 ) );
 		pointer-events: none;
-		transition: transform var( --_holo-t ) cubic-bezier( 0.32, 1.5, 0.55, 1 ),
+		transition: transform var( --_holo-t ) var( --_holo-spring ),
 			width var( --_holo-t ) ease;
 	}
 

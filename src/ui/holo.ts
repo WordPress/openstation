@@ -14,7 +14,7 @@
  * where every surface is iridescent has no identity moments left to
  * spend, which is the failure mode this module is shaped to avoid.
  *
- * Three treatments, in ascending loudness:
+ * Three surface treatments, in ascending loudness:
  *
  * 1. **Edge** ({@link holoEdge}) — an iridescent hairline around an
  *    otherwise ordinary control. Costs nothing at rest, lights up on
@@ -24,6 +24,22 @@
  *    something that is not yet lit.
  * 3. **Fill** ({@link holoFill}) — the mesh itself, at full strength,
  *    with Void ink on top. Reserved for the on/selected/primary state.
+ *
+ * …and four motions, which are what make the surfaces read as foil
+ * rather than as paint:
+ *
+ * - **Glint** ({@link holoGlint}) — a specular band crossing once on
+ *   hover. The single most "holographic" thing here.
+ * - **Ring** ({@link holoRing}) — a press response that expands and
+ *   fades, so a click reads as received before its result paints.
+ * - **Shimmer** ({@link holoShimmer}) — the mesh travelling, for waits
+ *   of unknown length.
+ * - **Enter** ({@link holoEnter}) — scale-and-fade arrival for menus,
+ *   toasts and dialogs.
+ *
+ * Every one of them stops under `prefers-reduced-motion`, and the
+ * timings all come from `--os-ui-motion-*` / `--os-ui-ease-*` so a
+ * panel of controls moves as one surface.
  *
  * ## Why the mesh is a gradient stack and not an SVG
  *
@@ -129,7 +145,15 @@ export const holoTokens = css`
 			0 0 0 1px rgba( 242, 82, 252, 0.42 ), 0 4px 18px rgba( 242, 82, 252, 0.38 ),
 				0 1px 3px rgba( 12, 11, 15, 0.6 )
 		);
-		--_holo-track: var( --os-ui-holo-track, rgba( 12, 11, 15, 0.55 ) );
+		--_holo-track: var( --os-ui-holo-track, rgba( 255, 251, 255, 0.16 ) );
+		--_holo-track-edge: var( --os-ui-holo-track-edge, #8c8f94 );
+		/*
+		 * The press ring's colour. The DIM Pulse, not Pulse: this one
+		 * expands to ten pixels past the control and is on screen for
+		 * a third of a second, which is exactly the "spread rather
+		 * than stated" case the dim exists for.
+		 */
+		--_holo-ring-color: var( --os-ui-accent-dim, #2271b1 );
 		/*
 		 * One focus ring for the whole kit. Three layers, and each
 		 * earns its place: a Void spacer so the ring never touches the
@@ -154,6 +178,15 @@ export const holoTokens = css`
 			0 0 0 1px #f252fc, 0 0 0 4px rgba( 242, 82, 252, 0.18 )
 		);
 		--_holo-t: var( --os-ui-holo-transition, 220ms );
+		--_holo-t-fast: var( --os-ui-motion-fast, 140ms );
+		--_holo-t-slow: var( --os-ui-motion-slow, 340ms );
+		--_holo-t-ambient: var( --os-ui-motion-ambient, 12s );
+		--_holo-spring: var(
+			--os-ui-ease-spring,
+			cubic-bezier( 0.32, 1.5, 0.55, 1 )
+		);
+		--_holo-ease: var( --os-ui-ease-out, cubic-bezier( 0.22, 0.9, 0.28, 1 ) );
+		--_holo-loop: var( --os-ui-ease-loop, cubic-bezier( 0.45, 0, 0.55, 1 ) );
 	}
 `;
 
@@ -322,6 +355,257 @@ export const holoEdge = css`
 `;
 
 /**
+ * ## A note on the pseudo-element budget
+ *
+ * An element has exactly two of these to spend, and this module wants
+ * four effects. {@link holoSheen} takes `::before` and {@link holoEdge}
+ * takes `::after`, which is already the whole budget for a control
+ * wearing both — as `<os-button>` does.
+ *
+ * So the two motion fragments below are **element-based** instead: the
+ * component stamps a `<span>` and the fragment styles it. That costs
+ * one node and buys free composition — a button can carry the film,
+ * the hairline, the glint and the press ring at once, and no future
+ * fragment has to negotiate for a pseudo that is already taken.
+ *
+ * Both are driven from the PARENT's state via the child combinator
+ * (`:active > .os-holo-ring`). The combinator is load-bearing: `:active`
+ * matches an activated element *and every ancestor of it*, so
+ * `:active .os-holo-ring` would fire every ring on the page the moment
+ * anything inside the panel was pressed.
+ */
+
+/**
+ * `.os-holo-glint` — the specular pass.
+ *
+ * A narrow band of light that crosses the surface once, on hover. This
+ * is the gesture people mean by "holographic" far more than any static
+ * gradient is: real foil does not glow, it *catches* — a highlight
+ * travels across it as the angle changes, and is gone.
+ *
+ * Deliberately once-per-hover rather than looping. A loop is a progress
+ * indicator; this is a response. The difference is whether the surface
+ * is telling you something is happening or acknowledging that you
+ * arrived.
+ *
+ * Stamp it as a child of the control:
+ *
+ * ```html
+ * <button class="os-holo-edge"><span class="os-holo-glint"></span>…</button>
+ * ```
+ */
+export const holoGlint = css`
+	.os-holo-glint {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		/* Clips the band to the control's shape. On the span rather
+		   than the control, so the control keeps its own overflow. */
+		overflow: hidden;
+		pointer-events: none;
+	}
+
+	.os-holo-glint::before {
+		content: '';
+		position: absolute;
+		/*
+		 * Oversized and rotated, so the band is a plain rectangle that
+		 * happens to cross the box diagonally. Translating a clipped
+		 * rectangle is a composited move; animating gradient stops
+		 * would repaint every frame.
+		 */
+		top: -60%;
+		bottom: -60%;
+		width: 45%;
+		inset-inline-start: -60%;
+		background: linear-gradient(
+			90deg,
+			transparent 0%,
+			rgba( 255, 251, 255, 0.14 ) 45%,
+			rgba( 255, 251, 255, 0.22 ) 50%,
+			rgba( 255, 251, 255, 0.14 ) 55%,
+			transparent 100%
+		);
+		transform: rotate( 18deg ) translateX( 0 );
+		opacity: 0;
+	}
+
+	/*
+	 * Two forms, because the glint is stamped in two places.
+	 *
+	 * Inside a control (a button, a key) it is a child of that
+	 * element, and the "hover >" form reaches it. Directly in a
+	 * component's shadow root (a card, a tile) its parent is the
+	 * shadow ROOT, which no selector matches — that form finds nothing
+	 * there. The :host( :hover ) > form is the one that does, and the
+	 * two are mutually exclusive in practice, so both can always be
+	 * present.
+	 */
+	:hover > .os-holo-glint::before,
+	:focus-visible > .os-holo-glint::before,
+	:host( :hover ) > .os-holo-glint::before,
+	:host( :focus-visible ) > .os-holo-glint::before {
+		animation: os-holo-glint var( --_holo-t-slow ) var( --_holo-ease );
+	}
+
+	@keyframes os-holo-glint {
+		0% {
+			opacity: 0;
+			transform: rotate( 18deg ) translateX( 0 );
+		}
+
+		15% {
+			opacity: 1;
+		}
+
+		85% {
+			opacity: 1;
+		}
+
+		100% {
+			opacity: 0;
+			/*
+			 * Far enough that the band has cleared a very wide box.
+			 * Viewport units rather than a percentage of the element:
+			 * a percentage translate on a 45%-wide band means one thing
+			 * on a 40px chip and another on a 900px row, and the chip's
+			 * glint would finish before it was visible.
+			 */
+			transform: rotate( 18deg ) translateX( 240vw );
+		}
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		:hover > .os-holo-glint::before,
+		:focus-visible > .os-holo-glint::before,
+		:host( :hover ) > .os-holo-glint::before,
+		:host( :focus-visible ) > .os-holo-glint::before {
+			animation: none;
+		}
+	}
+`;
+
+/**
+ * `.os-holo-ring` — the press response.
+ *
+ * A ring that expands out of the control and fades, on `:active`.
+ * Centred rather than pointer-anchored: anchoring needs a JS listener
+ * on every control, and at the ~40px targets in this kit nobody can
+ * see where it started anyway.
+ *
+ * The point is latency, not decoration. A press that only changes
+ * colour reads as either instant or broken; a press that *moves* reads
+ * as received, which is worth the ~100ms before whatever it triggered
+ * actually paints.
+ */
+export const holoRing = css`
+	.os-holo-ring {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow: 0 0 0 0 var( --_holo-ring-color );
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	/* Both forms, for the same reason as the glint above. */
+	:active:not( :disabled ) > .os-holo-ring,
+	:host( :active:not( [ disabled ] ) ) > .os-holo-ring {
+		animation: os-holo-ring var( --_holo-t-slow ) var( --_holo-ease );
+	}
+
+	@keyframes os-holo-ring {
+		0% {
+			opacity: 0.45;
+			box-shadow: 0 0 0 0 var( --_holo-ring-color );
+		}
+
+		100% {
+			opacity: 0;
+			box-shadow: 0 0 0 10px transparent;
+		}
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		:active:not( :disabled ) > .os-holo-ring,
+		:host( :active:not( [ disabled ] ) ) > .os-holo-ring {
+			animation: none;
+		}
+	}
+`;
+
+/**
+ * `.os-holo-shimmer` — the loading pass.
+ *
+ * The mesh, oversized and travelling, for anything whose duration is
+ * unknown: an indeterminate progress bar, a skeleton row, a table
+ * still fetching. It replaces the usual grey-bar-sliding-right-forever,
+ * and it earns the swap by carrying information the grey bar does not
+ * — the station's own colour, so "waiting" looks like part of the
+ * product rather than like a gap in it.
+ *
+ * `--os-ui-motion-ambient` slow by default. Fast shimmer reads as
+ * urgency, and the thing about an indeterminate wait is that nobody
+ * knows whether it is urgent.
+ */
+export const holoShimmer = css`
+	.os-holo-shimmer {
+		background-image: var( --_holo-fill );
+		background-size: 300% 300%;
+		background-repeat: no-repeat;
+		animation: os-holo-shimmer 2.4s var( --_holo-loop ) infinite;
+	}
+
+	@keyframes os-holo-shimmer {
+		0% {
+			background-position: 0% 50%;
+		}
+
+		100% {
+			background-position: 100% 50%;
+		}
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		.os-holo-shimmer {
+			animation: none;
+			background-position: 30% 50%;
+		}
+	}
+`;
+
+/**
+ * `.os-holo-enter` — the arrival.
+ *
+ * Scale-and-fade from 96%, for anything that appears rather than
+ * changes: a menu, a flyout, a toast, a dialog. Short and on the
+ * spring curve, so it lands rather than drifts.
+ *
+ * `transform-origin` is left to the consumer — an anchored popover
+ * should grow from its anchor, and only the component positioning it
+ * knows where that is. The default is `center`, which is right for a
+ * dialog and wrong for a flyout.
+ */
+export const holoEnter = css`
+	.os-holo-enter {
+		animation: os-holo-enter var( --_holo-t ) var( --_holo-spring );
+	}
+
+	@keyframes os-holo-enter {
+		from {
+			opacity: 0;
+			transform: scale( 0.96 );
+		}
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		.os-holo-enter {
+			animation: none;
+		}
+	}
+`;
+
+/**
  * Field chrome — the interaction layer every text-like control shares.
  *
  * Bare element selectors, which would be reckless in a global
@@ -391,14 +675,23 @@ export const holoField = css`
 	}
 
 	/*
-	 * Selection inside a field. Left to the browser it is the OS blue,
-	 * which is the one colour on the station that belongs to nothing
-	 * on it.
+	 * Selection inside a field.
+	 *
+	 * A shadow root does not inherit the document's ::selection rule,
+	 * so the shell-wide one in desktop.css cannot reach in here — this
+	 * has to be restated, and it reads the same two tokens so the two
+	 * cannot drift.
+	 *
+	 * It used to read --os-ui-accent-soft, which is a 14% wash meant
+	 * for a hover tint. As a selection it was ~1.2:1 against the field
+	 * behind it: technically present, effectively invisible. Both
+	 * halves are set, because leaving the text colour to the UA is how
+	 * a selection ends up as black-on-violet.
 	 */
 	input::selection,
 	textarea::selection {
-		background: var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.2 ) );
-		color: var( --os-ui-fg, #1d2327 );
+		background: var( --os-ui-selection-bg, rgba( 159, 152, 255, 0.6 ) );
+		color: var( --os-ui-selection-fg, #fffbff );
 	}
 
 	@media ( prefers-reduced-motion: reduce ) {
@@ -449,7 +742,14 @@ export const holoCheck = css`
 		height: 16px;
 		margin: 0;
 		padding: 0;
-		border: 1px solid var( --os-ui-border-strong, #8c8f94 );
+		/*
+		 * The unchecked box's boundary carries the whole control: an
+		 * empty checkbox IS its outline. --_holo-track-edge rather
+		 * than --os-ui-border-strong because the latter is Silver, at
+		 * 2.03:1 against Obsidian — under the 3:1 WCAG 1.4.11 asks of
+		 * a control boundary, and visibly so on a dark panel.
+		 */
+		border: 1px solid var( --_holo-track-edge );
 		border-radius: 4px;
 		background-color: var( --_holo-track );
 		background-image: none;
@@ -590,7 +890,7 @@ export const holoDrift = css`
 	}
 
 	.os-holo-alive {
-		animation: os-holo-drift 12s ease-in-out infinite;
+		animation: os-holo-drift var( --_holo-t-ambient ) var( --_holo-loop ) infinite;
 	}
 
 	@media ( prefers-reduced-motion: reduce ) {
@@ -614,6 +914,10 @@ export const holo = css`
 	${ holoFill }
 	${ holoSheen }
 	${ holoEdge }
+	${ holoGlint }
+	${ holoRing }
+	${ holoShimmer }
+	${ holoEnter }
 	${ holoField }
 	${ holoCheck }
 	${ holoDrift }

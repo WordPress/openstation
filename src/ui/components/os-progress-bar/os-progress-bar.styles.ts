@@ -1,4 +1,5 @@
 import { css } from '../../core';
+import { holoTokens, holoShimmer } from '../../holo';
 
 /**
  * Why every default is a `--_alias` and not a `--os-ui-progress-*`
@@ -20,6 +21,9 @@ import { css } from '../../core';
  * less blocked layer. (Mirrors `<os-rating-summary>`.)
  */
 export const styles = css`
+	${ holoTokens }
+	${ holoShimmer }
+
 	:host {
 		display: block;
 		--_track-bg: var(
@@ -99,11 +103,40 @@ export const styles = css`
 		--os-ui-progress-fill: var( --os-ui-danger, #d63638 );
 	}
 
-	/* Indeterminate — sweeping bar across the track. */
+	/*
+	 * Indeterminate — the full track, with the mesh travelling through
+	 * it.
+	 *
+	 * The old shape was a 33% block sliding left to right forever, and
+	 * it has one real problem: a block moving in one direction looks
+	 * like it is measuring something. It is not. An indeterminate bar
+	 * knows nothing about how far along the work is, and the honest
+	 * picture of that is a surface that is *alive* without advancing —
+	 * which is exactly what the shimmer is.
+	 *
+	 * The block is still there for a tone modifier, though: a flat
+	 * --os-ui-progress-fill (success / warning / danger, or any
+	 * caller's colour) has no mesh to travel, so it keeps sliding. See
+	 * the rule below.
+	 */
 	:host( [ indeterminate ] ) .fill {
-		width: 33%;
-		animation: os-progress-sweep 1.1s linear infinite;
+		width: 100%;
 		transition: none;
+		background-image: var( --_fill );
+		background-size: 300% 300%;
+		background-repeat: no-repeat;
+		animation: os-holo-shimmer 2.4s var( --_holo-loop ) infinite;
+	}
+
+	/*
+	 * A tone means a flat colour, and a flat colour cannot shimmer —
+	 * it would sit there at 100% looking like a finished job. Those
+	 * fall back to the travelling block.
+	 */
+	:host( [ indeterminate ][ tone ] ) .fill {
+		width: 33%;
+		background-image: none;
+		animation: os-progress-sweep 1.1s linear infinite;
 	}
 
 	@keyframes os-progress-sweep {
@@ -119,7 +152,8 @@ export const styles = css`
 		.fill {
 			transition: none;
 		}
-		:host( [ indeterminate ] ) .fill {
+		:host( [ indeterminate ] ) .fill,
+		:host( [ indeterminate ][ tone ] ) .fill {
 			animation: none;
 			width: 100%;
 			opacity: 0.6;

@@ -1,6 +1,9 @@
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 export const dialogStyles = css`
+	${ holoTokens }
+
 	:host {
 		display: none;
 		position: fixed;
@@ -17,8 +20,41 @@ export const dialogStyles = css`
 		z-index: 10000;
 	}
 
+	/*
+	 * Same arrival as <os-modal>: the scrim fades, the dialog lands on
+	 * the spring. Duplicated rather than shared because the two
+	 * components have separate shadow roots and separate keyframe
+	 * scopes — an @keyframes in one is invisible to the other, so the
+	 * only way to share it would be a fragment in src/ui/holo.ts, and
+	 * a two-line animation used twice does not earn one.
+	 */
 	:host( [ open ] ) {
 		display: flex;
+		animation: os-confirm-scrim var( --_holo-t ) var( --_holo-ease );
+	}
+
+	:host( [ open ] ) .dialog {
+		animation: os-confirm-dialog var( --_holo-t ) var( --_holo-spring );
+	}
+
+	@keyframes os-confirm-scrim {
+		from {
+			opacity: 0;
+		}
+	}
+
+	@keyframes os-confirm-dialog {
+		from {
+			opacity: 0;
+			transform: scale( 0.96 ) translateY( 8px );
+		}
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		:host( [ open ] ),
+		:host( [ open ] ) .dialog {
+			animation: none;
+		}
 	}
 
 	.dialog {

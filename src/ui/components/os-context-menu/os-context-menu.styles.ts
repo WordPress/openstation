@@ -5,8 +5,12 @@
  * pixels — just the markup.
  */
 import { css } from '../../core';
+import { holoTokens, holoEnter } from '../../holo';
 
 export const menuStyles = css`
+	${ holoTokens }
+	${ holoEnter }
+
 	:host {
 		display: none;
 		position: fixed;
@@ -32,8 +36,31 @@ export const menuStyles = css`
 		z-index: 9999;
 	}
 
+	/*
+	 * The menu grows from the pointer. Its top inline-start corner is
+	 * placed at the click, so that corner is the one thing on screen
+	 * the user is already looking at — scaling from the centre would
+	 * have it expand back over the spot they just clicked.
+	 *
+	 * The animation hangs off [open] rather than off :host, because
+	 * this component toggles display rather than mounting: a keyframe
+	 * on the base rule would only ever run once, the first time the
+	 * element was painted.
+	 */
 	:host( [ open ] ) {
 		display: block;
+		animation: os-holo-enter var( --_holo-t-fast ) var( --_holo-ease );
+		transform-origin: top left;
+	}
+
+	:host( [ open ]:dir( rtl ) ) {
+		transform-origin: top right;
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		:host( [ open ] ) {
+			animation: none;
+		}
 	}
 `;
 
