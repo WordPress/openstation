@@ -92,22 +92,39 @@ function desktop_mode_legacy_theme_manifest_path() {
  *                              or unreadable.
  */
 function desktop_mode_legacy_theme_tokens() {
-	static $tokens = null;
-	if ( null !== $tokens ) {
-		return $tokens;
+	$manifest = desktop_mode_legacy_theme_manifest();
+	return isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] )
+		? $manifest['tokens']
+		: array();
+}
+
+/**
+ * Read the Legacy theme's manifest off disk.
+ *
+ * Statically cached: the manifest is data that cannot change inside a
+ * request, and the file is read at most once even if something calls
+ * the registration twice.
+ *
+ * @return array Decoded manifest, or an empty array when the file is
+ *               missing or unreadable.
+ */
+function desktop_mode_legacy_theme_manifest() {
+	static $manifest = null;
+	if ( null !== $manifest ) {
+		return $manifest;
 	}
 
-	$tokens = array();
-	$path   = desktop_mode_legacy_theme_manifest_path();
+	$manifest = array();
+	$path     = desktop_mode_legacy_theme_manifest_path();
 	if ( ! is_readable( $path ) ) {
-		return $tokens;
+		return $manifest;
 	}
 
-	$manifest = wp_json_file_decode( $path, array( 'associative' => true ) );
-	if ( is_array( $manifest ) && isset( $manifest['tokens'] ) && is_array( $manifest['tokens'] ) ) {
-		$tokens = $manifest['tokens'];
+	$decoded = wp_json_file_decode( $path, array( 'associative' => true ) );
+	if ( is_array( $decoded ) ) {
+		$manifest = $decoded;
 	}
-	return $tokens;
+	return $manifest;
 }
 
 /**
@@ -126,23 +143,37 @@ function desktop_mode_legacy_theme_tokens() {
  * @return void
  */
 function desktop_mode_register_builtin_desktop_themes() {
-	$tokens = desktop_mode_legacy_theme_tokens();
+	$manifest = desktop_mode_legacy_theme_manifest();
+	$tokens   = desktop_mode_legacy_theme_tokens();
 	if ( empty( $tokens ) ) {
 		return;
 	}
 
+	/*
+	 * The one thing Legacy recommends: the WordPress blue accent it was
+	 * drawn against. The accent is a user setting the station's palette
+	 * cannot reach — it is written as an inline style — so without this
+	 * the old chrome would come back wearing Pulse focus rings, and the
+	 * "Apply recommended layout and effects" button in OS Settings →
+	 * Themes would have nothing to offer.
+	 */
+	$recommended = isset( $manifest['recommendedOsSettings'] ) && is_array( $manifest['recommendedOsSettings'] )
+		? $manifest['recommendedOsSettings']
+		: array();
+
 	desktop_mode_register_desktop_theme(
 		DESKTOP_MODE_LEGACY_THEME_ID,
 		array(
-			'name'        => __( 'Desktop Mode (Legacy)', 'desktop-mode' ),
-			'version'     => '1.0.0',
-			'author'      => 'Desktop Mode',
-			'description' => __( "Desktop Mode's own defaults, written down. Every design token the shell and the component kit read, at the value they resolve to with no theme active. Nothing to look at — a starting point to fork.", 'desktop-mode' ),
+			'name'                  => __( 'Desktop Mode (Legacy)', 'desktop-mode' ),
+			'version'               => '1.0.0',
+			'author'                => 'Desktop Mode',
+			'description'           => __( 'The look Desktop Mode had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.', 'desktop-mode' ),
 			// A code theme's assets are URLs it already serves. The
 			// artwork is the theme previewing itself: desk, dock and
 			// one window, painted in the tokens below.
-			'preview'     => DESKTOP_MODE_URL . 'assets/desktop-themes/legacy/preview.svg',
-			'tokens'      => $tokens,
+			'preview'               => DESKTOP_MODE_URL . 'assets/desktop-themes/legacy/preview.svg',
+			'tokens'                => $tokens,
+			'recommendedOsSettings' => $recommended,
 		)
 	);
 }

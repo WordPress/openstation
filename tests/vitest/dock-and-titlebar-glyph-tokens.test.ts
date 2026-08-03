@@ -231,7 +231,7 @@ describe( 'focused title-bar control tokens', () => {
 	);
 } );
 
-describe( 'no default drift', () => {
+describe( 'one palette owns them', () => {
 	const TOKENS = [
 		'--desktop-mode-dock-icon-color',
 		'--desktop-mode-dock-icon-color-hover',
@@ -244,11 +244,15 @@ describe( 'no default drift', () => {
 		'--desktop-mode-titlebar-btn-focused-outline',
 	];
 
-	test( 'none of the tokens is declared in any shell stylesheet', () => {
-		// A declaration is `--name:`; a read is `var( --name,`. Only
-		// the former would pin a value and defeat the fallbacks above.
-		const sheets = readdirSync( CSS_DIR ).filter( ( f ) =>
-			f.endsWith( '.css' )
+	test( 'only variables.css declares them', () => {
+		// A declaration is `--name:`; a read is `var( --name,`. The
+		// brand palette declares these once, in variables.css; a
+		// second declaration in a consuming sheet would pin that one
+		// surface and put it out of reach of the palette and of every
+		// desktop theme (including Legacy, the way back to the
+		// pre-brand look).
+		const sheets = readdirSync( CSS_DIR ).filter(
+			( f ) => f.endsWith( '.css' ) && f !== 'variables.css'
 		);
 
 		for ( const sheet of sheets ) {
@@ -260,6 +264,17 @@ describe( 'no default drift', () => {
 					`${ sheet } declares ${ token }`
 				).toBe( false );
 			}
+		}
+	} );
+
+	test( 'variables.css declares every one of them', () => {
+		const css = readCss( 'variables.css' );
+
+		for ( const token of TOKENS ) {
+			expect(
+				new RegExp( `\\n\\t${ token }:` ).test( css ),
+				`${ token } is not declared in the palette`
+			).toBe( true );
 		}
 	} );
 

@@ -9,9 +9,14 @@
  * @since 0.1.0
  */
 
-/* Solid backdrop behind the shell. */
+/*
+ * Solid backdrop behind the shell. Reads the backstop token rather
+ * than a literal so it moves with the desk: this is the colour a
+ * dropped frame shows, and it has to be the same one the shell paints
+ * or the seam is visible at exactly the wrong moment.
+ */
 body.desktop-mode-active {
-	background: #1d2327;
+	background: var( --desktop-mode-backstop, #1d2327 );
 	overflow: hidden;
 }
 

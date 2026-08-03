@@ -83,15 +83,22 @@ this feature can be open to site admins at all.
 ## The Legacy theme — start here
 
 Desktop Mode ships one theme of its own, called **Desktop Mode
-(Legacy)**, and it is the fastest way to write your first one.
+(Legacy)**, and it is both the way back to the old look and the
+fastest way to write your first theme.
 
-Legacy is the shell's own defaults *written down*: every design token
-the chrome and the `<wpd-*>` component kit read, at the value it
-resolved to with no theme active. Roughly 380 declarations, in one
-file, sorted. Wearing it changes almost nothing — that is the point.
-Its job is to save you the archaeology of finding out that
-`--wpd-fg-muted` is `#50575e`, that the dock glyph sits at 70% white,
-and that the unfocused close button is `rgba( 0, 0, 0, 0.45 )`.
+Legacy is the shell's pre-brand defaults *written down*: every design
+token the chrome and the `<wpd-*>` component kit read, at the value it
+resolved to before [the OpenStation
+palette](https://nuriapenya.github.io/open-station-brand/) landed in
+`assets/css/variables.css`. Roughly 380 declarations, in one file,
+sorted — the WordPress-admin greys and blues, complete.
+
+Two audiences, one file. If you liked the old look, pick it and you
+have it back. If you are writing a theme, it saves you the archaeology
+of finding out that `--wpd-fg-muted` used to be `#50575e`, that the
+dock glyph sits at 70% white, and that the unfocused close button is
+`rgba( 0, 0, 0, 0.45 )` — and it is a complete worked example of every
+token the system exposes.
 
 **To write a theme, fork it.** The manifest lives at
 `assets/desktop-themes/legacy/theme.json` inside the plugin, and
@@ -155,16 +162,21 @@ than reproduce it:
 If you want one of them, name it in your own theme — Legacy leaving
 it undeclared is a statement about *defaults*, not a restriction.
 
-### One honest caveat
+### Two honest caveats
 
-Legacy is a *canonical* snapshot, not a byte-for-byte one. A handful
-of palette names were read with slightly different literals at
-different sites as the codebase grew — `--wpd-hover` at 4% in one
-stylesheet and 6% in another, `--wpd-surface-elevated` as `#f6f7f7`
-here and `#fff` there. Legacy picks one value per name, which is what
-naming a palette *means*; wearing it unifies those few near-duplicates
-rather than reproducing each of them. Nothing moves, nothing changes
-contrast, and everything that was one colour stays that colour.
+**It is a canonical snapshot, not a byte-for-byte one.** A handful of
+palette names were read with slightly different literals at different
+sites as the codebase grew — `--wpd-hover` at 4% in one stylesheet and
+6% in another, `--wpd-surface-elevated` as `#f6f7f7` here and `#fff`
+there. Legacy picks one value per name, which is what naming a palette
+*means*; wearing it unifies those few near-duplicates rather than
+reproducing each of them. Nothing moves and nothing changes contrast.
+
+**It does not take back your accent.** The accent colour is a user
+setting (OS Settings → Appearance), written as an inline style that
+outranks every stylesheet, so it is yours rather than any theme's.
+Legacy leaves it alone deliberately — pick `WordPress Blue` there if
+you want the old accent back with the old palette.
 
 ---
 
@@ -294,6 +306,22 @@ Optional, and **individually droppable** — see
 A map of CSS custom property => value. Three namespaces are accepted;
 anything else is dropped, so a theme can never reach a property the
 shell didn't mean to expose.
+
+> **Where the defaults live.** `assets/css/variables.css` declares the
+> shell's own palette — the [OpenStation
+> brand](https://nuriapenya.github.io/open-station-brand/) — scoped to
+> `body.desktop-mode-active`. A theme's compiled selector matches the
+> same element and prints after it, so **every token below is yours to
+> take** whether or not the shell already has an opinion about it.
+> Behind both, every rule in the tree still reads its token as
+> `var( --token, <literal> )`, and those literals are the pre-brand
+> WordPress-admin values — which is what
+> [Legacy](#the-legacy-theme--start-here) collects.
+>
+> That scope is also why **an admin page inside an iframe window looks
+> exactly as it does outside one**: chromeless documents carry
+> `body.desktop-mode-chromeless`, match none of it, and render on the
+> literals. See [Non-goals](#non-goals).
 
 | Namespace | What it restyles |
 |---|---|
@@ -836,13 +864,29 @@ still apply.
 | `dockRailRenderer` | A registered dock rail renderer id. Core ships `default`; plugins register their own. |
 | `windowReveal` | A registered window-reveal id — the transition that uncovers a window's content once it loads. Core ships twelve (`sweep`, `rise`, `diagonal`, `iris`, `diamond`, `curtain`, `shutter`, `blinds`, `slats`, `mosaic`, `radar`, `obturator`); `none` is always valid and means no transition. |
 | `windowRevealDuration` | How long reveals run, in whole ms. Clamped to 80–4000. Omit it to leave the user's speed alone — recommending `0` is not a way to say "default". |
+| `accent` | A registered accent-swatch id (OS Settings → Appearance). Core ships `pulse`, `nebula`, `wp-blue`, `indigo`, `teal`, `emerald`, `amber`, `rose`; sites extend the list through `desktop_mode_accent_colors`. |
 
-`dockRailRenderer` and `windowReveal` are the two fields validated in
+**`accent` is the one recommendation a theme cannot express any other
+way, and most themes want it.** The accent is a user setting written as
+an inline style on the shell document, which outranks every stylesheet
+— so a manifest can restyle the entire OS through `tokens` and still
+leave WordPress blue on every focus ring, tab underline, sort arrow and
+selection wash. Declaring `--wp-admin-theme-color` in `tokens` does not
+help: it is dropped, because the accent belongs to the user rather than
+to the theme. Recommending it is how a palette says "and this hue with
+it", once, on first activation.
+
+The built-in **Desktop Mode (Legacy)** theme is the worked example —
+its whole recommendation block is `{ "accent": "wp-blue" }`, which is
+what makes the pre-brand chrome come back complete.
+
+`dockRailRenderer`, `windowReveal` and `accent` are the fields validated in
 two places: PHP checks the charset, and the shell checks — at apply
 time — that something is actually registered under that id. Recommend
-a renderer or reveal a site doesn't have and the key is skipped; the
-rest of your recommendations still apply. (`windowReveal: "none"` is
-exempt: it is the "no reveal" sentinel rather than a registration.)
+a renderer, reveal or swatch a site doesn't have and the key is
+skipped; the rest of your recommendations still apply.
+(`windowReveal: "none"` is exempt: it is the "no reveal" sentinel
+rather than a registration.)
 
 `windowRevealDuration` is the one **numeric** recommendation, and it is
 **clamped rather than dropped** — a theme asking for something slower
@@ -1344,6 +1388,14 @@ including users who cannot upload. The library is site-wide;
 activation is per-user, stored as `desktopTheme` in the
 `desktop_mode_os_settings` user meta.
 
+The first card in the grid is **OpenStation** — the shell's own look,
+stored as the empty string. It is not a theme in the registry (its
+palette is `assets/css/variables.css`, not a manifest), but the picker
+treats it as a peer of everything beside it: it carries the same
+"Apply …'s recommended layout and effects" button, and what it
+recommends is the accent its palette was drawn against (Pulse) and the
+layout it was drawn for (`classic`).
+
 The switch is live: no reload. The stylesheet swaps, the shell
 attribute and body class flip, and every themed icon repaints. On a
 fresh page load PHP stamps the attribute, prints the body class, and
@@ -1456,6 +1508,15 @@ for a complete plugin.
 - **Inside iframe windows.** A theme styles the shell and native
   windows. The `wp-admin` page inside an iframe is a separate
   document that the theme stylesheet does not reach.
+
+  This is a guarantee, not just a limitation. The shell's own palette
+  is scoped to `body.desktop-mode-active` precisely so it cannot leak
+  in either: `variables.css` is a dependency of `chromeless.css` and
+  therefore loads inside every iframe, and a palette on `:root` would
+  repaint WordPress's own UI in there — `--wp-admin-theme-color` alone
+  would move Core's primary buttons, links and focus rings on every
+  admin screen. **Admin pages render in their own colours, in or out
+  of a window.**
 - **Uninstall cleanup.** The plugin has no `uninstall.php`; the
   `desktop_mode_desktop_themes` option and the uploads directory
   survive plugin deletion today.

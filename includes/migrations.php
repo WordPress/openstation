@@ -32,8 +32,14 @@ defined( 'ABSPATH' ) || exit;
  *   WordPress 7.0 Connectors. Deletes the platform key option and strips the
  *   per-user `apiKey` / `apiKeys` / `provider` / `transport` fields from the
  *   stored OS settings so no provider secret lingers in the database.
+ * - 4: the OpenStation brand. Moves anyone still sitting on the PRE-brand
+ *   defaults — accent `wp-blue`, wallpaper `dark` — onto the new ones,
+ *   Pulse and Galaxy. Without it the rebrand only reaches fresh accounts:
+ *   the stored snapshot is authoritative over the shipped default, so an
+ *   existing desk keeps a blue accent on every focus ring, tab underline
+ *   and sort arrow.
  */
-const DESKTOP_MODE_MIGRATION_VERSION = 3;
+const DESKTOP_MODE_MIGRATION_VERSION = 4;
 
 /** Option storing the highest migration version that has run. autoload=no. */
 const DESKTOP_MODE_MIGRATION_OPTION = 'desktop_mode_migration_version';
@@ -77,6 +83,83 @@ function desktop_mode_run_pending_migrations( $from ) {
 
 	if ( $from < 3 ) {
 		desktop_mode_migrate_delete_ai_keys();
+	}
+
+	if ( $from < 4 ) {
+		desktop_mode_migrate_brand_defaults();
+	}
+}
+
+/**
+ * Migration 4 — move the pre-brand defaults onto the OpenStation ones.
+ *
+ * The stored OS-settings snapshot outranks the shipped default, so
+ * changing `desktop_mode_default_os_settings()` reaches new accounts and
+ * nobody else. Every existing desk would keep `wp-blue` on its focus
+ * rings, tab underlines, sort arrows and selection washes, and keep the
+ * graphite `dark` desk under the station's chrome — a half-applied
+ * rebrand, which reads as a bug rather than as a choice.
+ *
+ * **Only values still equal to the OLD default are touched.** A user who
+ * picked Indigo, or the Snow wallpaper, expressed a preference and keeps
+ * it. The one unavoidable cost is the user who deliberately chose
+ * WordPress Blue — indistinguishable from never having chosen at all,
+ * because it WAS the default — and for them it is one click in
+ * OS Settings → Appearance to set it back.
+ *
+ * Users with no stored settings are skipped entirely: they read the new
+ * defaults already.
+ *
+ * @return void
+ */
+function desktop_mode_migrate_brand_defaults() {
+	/**
+	 * Filters the pre-brand => brand value map the rebrand migration
+	 * applies, keyed by OS-settings field. Return an empty array to skip
+	 * the migration entirely and leave every stored preference alone.
+	 *
+	 * @param array $map Map of setting key => array( 'from' => old, 'to' => new ).
+	 */
+	$map = (array) apply_filters(
+		'desktop_mode_brand_migration_map',
+		array(
+			'accent'    => array( 'from' => 'wp-blue', 'to' => 'pulse' ),
+			'wallpaper' => array( 'from' => 'dark', 'to' => 'galaxy' ),
+		)
+	);
+	if ( empty( $map ) ) {
+		return;
+	}
+
+	$user_ids = get_users(
+		array(
+			'fields'       => 'ID',
+			'meta_key'     => DESKTOP_MODE_OS_SETTINGS_META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-time migration; the key is indexed in usermeta and the scan is guarded to run once.
+			'meta_compare' => 'EXISTS',
+		)
+	);
+
+	foreach ( $user_ids as $user_id ) {
+		$raw = get_user_meta( (int) $user_id, DESKTOP_MODE_OS_SETTINGS_META_KEY, true );
+		if ( ! is_array( $raw ) ) {
+			continue;
+		}
+
+		$changed = false;
+		foreach ( $map as $key => $move ) {
+			if ( ! isset( $move['from'], $move['to'] ) ) {
+				continue;
+			}
+			// An absent key already resolves to the new default.
+			if ( isset( $raw[ $key ] ) && $move['from'] === $raw[ $key ] ) {
+				$raw[ $key ] = $move['to'];
+				$changed     = true;
+			}
+		}
+
+		if ( $changed ) {
+			desktop_mode_save_os_settings( (int) $user_id, $raw );
+		}
 	}
 }
 

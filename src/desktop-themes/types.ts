@@ -62,6 +62,20 @@ export interface RecommendedOsSettings {
 	 * alone.
 	 */
 	windowRevealDuration?: number;
+	/**
+	 * Accent swatch id (OS Settings → Appearance). Same runtime-
+	 * validity story as {@link dockRailRenderer}: the list is
+	 * filterable in PHP, so the apply pass drops the key when the site
+	 * offers no swatch under that id.
+	 *
+	 * This is the one recommendation a theme cannot express any other
+	 * way. The accent is written as an inline style on the shell
+	 * document, which outranks every stylesheet — so a palette can
+	 * restyle the entire OS and still find WordPress blue on every
+	 * focus ring and tab underline. Recommending it is how a theme
+	 * says "and this hue with it".
+	 */
+	accent?: string;
 }
 
 /**

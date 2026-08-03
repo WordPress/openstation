@@ -1,23 +1,130 @@
 /**
  * Desktop Mode — CSS Custom Properties.
  *
- * All design tokens for the desktop shell. Per-scheme blocks below
- * retune the accent + titlebar colors to match the user's WordPress
- * admin color scheme — the shell root gets a `data-desktop-mode-scheme`
- * attribute in PHP so the right block wins before first paint.
+ * All design tokens for the desktop shell, carrying the OpenStation
+ * brand: https://nuriapenya.github.io/open-station-brand/
  *
- * Palette source: wp-admin/css/colors/<scheme>/colors.scss in Core.
- * We read the `base` color as the focused title bar background (same
- * visual weight as the admin sidebar the user is used to) and the
- * `highlight` color as `--wp-admin-theme-color`, which Core publishes
- * as the accent — buttons, tabs, focus rings.
+ * ## The palette
  *
- * @since 6.9.0
+ *   Pulse      #f252fc  neon identity accent
+ *   Nebula     #ec9bff  soft identity accent
+ *   Sirius     #c2f1f1  aqua contrast accent
+ *   Starlight  #fffbff  lightest — primary text on the station
+ *   Void       #0c0b0f  darkest — the base everything sits on
+ *   Obsidian   #1a1721  surfaces: window bodies, cards, rows
+ *
+ *   Shade ramp, Void to Starlight, for text hierarchy and lines:
+ *   Astro #33303a · Silver #4d4a52 · Pewter #66636b ·
+ *   Osmium #99969c · Ash #b3afb5 · Cloud #ccc8ce · Mist #e6e2e6
+ *
+ * The brand's own composition rule, followed here literally: "Void as
+ * the base, Obsidian for surfaces, Pulse and Nebula for identity
+ * moments, Sirius and Starlight for contrast, the Shade palette for
+ * text hierarchy and lines, meshes reserved for hero surfaces."
+ *
+ * ## Why these are declared at all
+ *
+ * Every rule in the tree reads its token as
+ * `var( --token, <literal> )`, and those literals are the look the
+ * shell had before the brand: WordPress-admin greys and blues. They
+ * are still there, still correct, and still what renders if this file
+ * fails to load. Declaring the tokens here is what puts the station on
+ * top of them — one declaration retints every surface that reads it.
+ *
+ * The way back is a theme, not an edit: **Desktop Mode (Legacy)**
+ * (`assets/desktop-themes/legacy/theme.json`) is a frozen snapshot of
+ * those pre-brand literals, and picking it in OS Settings → Themes
+ * restores the old look wholesale. A desktop theme's compiled selector
+ * weighs (0,2,0) against this file's `:root` (0,1,0) and loads after
+ * it, so any theme — Legacy or a third party's — outranks everything
+ * below.
+ *
+ * ## Semantic colours
+ *
+ * The brand defines no status palette, so danger / success / warning /
+ * info are derived rather than quoted: the hues the shell already used,
+ * lifted until they carry on a Void-to-Obsidian background, and where
+ * the brand does have a colour that means the right thing it is used
+ * instead — Sirius for info, and Holomesh's mint and warm for success
+ * and warning.
  */
 
-:root {
-	/* Desktop area */
-	--desktop-mode-bg: linear-gradient(135deg, #1d2327 0%, #2c3338 50%, #1d2327 100%);
+/*
+ * ---- Typefaces -------------------------------------------------
+ *
+ * Geist and Geist Mono, the brand faces, self-hosted from
+ * `assets/fonts/` under the SIL Open Font License 1.1 (the licence
+ * text ships beside them in `OFL.txt`). Both are VARIABLE fonts: one
+ * file covers 100–900, which is why a whole typographic scale costs
+ * ~70 kB per family rather than one file per weight.
+ *
+ * `font-display: swap` paints fallback text immediately and swaps when
+ * the face arrives — on admin chrome that is almost always right,
+ * where `block` would hide every dock label until the download lands.
+ *
+ * The `url()`s are relative to THIS stylesheet, which is what keeps
+ * them correct however the plugin directory is renamed or wherever it
+ * is symlinked from.
+ */
+@font-face {
+	font-family: 'Geist';
+	src: url('../fonts/Geist-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Geist Mono';
+	src: url('../fonts/GeistMono-Variable.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+/*
+ * ---- Scope: the shell document, and nothing else -----------------
+ *
+ * `body.desktop-mode-active` rather than `:root`, and that is
+ * load-bearing rather than tidy.
+ *
+ * This stylesheet is a dependency of `chromeless.css`, so it also
+ * loads INSIDE every iframe window — a real `wp-admin` document. A
+ * palette on `:root` would reach that document and repaint WordPress's
+ * own UI: `--wp-admin-theme-color` alone would turn Core's primary
+ * buttons, links and focus rings across every admin screen, with
+ * white button text landing on a colour it was never contrast-tested
+ * against.
+ *
+ * Iframe documents carry `body.desktop-mode-chromeless` instead, so
+ * they match nothing here and every rule in the tree falls back to the
+ * literal it was always written with — the WordPress-admin values.
+ * **An admin page inside a window looks exactly as it does outside
+ * one.** That is deliberate: the station is the chrome around the
+ * page, not a reskin of the page.
+ *
+ * Specificity: (0,1,1). A desktop theme compiles to
+ * `body.desktop-mode-desktop-theme-<slug>`, also (0,1,1) on the same
+ * element, and its stylesheet declares `desktop-mode-variables` as a
+ * dependency — so it always prints after this file and wins the tie.
+ * Do not remove that dependency; see the note in
+ * `desktop_mode_enqueue_desktop_theme_style()`.
+ */
+body.desktop-mode-active {
+	/*
+	 * ---- Desk --------------------------------------------------
+	 *
+	 * `Space`, the brand's quiet deep-space backdrop: a linear
+	 * gradient from near-black through to a faint violet horizon.
+	 *
+	 * Note this is the desk's CSS default, not usually what you see:
+	 * the wallpaper layer writes the ACTIVE wallpaper into this same
+	 * property as an inline style, and the shipped default is the
+	 * `Galaxy` artwork (`includes/wallpapers.php`). This value is what
+	 * paints before that runs, and for anyone whose wallpaper is
+	 * unavailable.
+	 */
+	--desktop-mode-bg: linear-gradient(160deg, #010101 0%, #111114 58%, #1e1d23 100%);
 	/*
 	 * Flat colour painted on the shell itself, behind every other
 	 * layer including the wallpaper.
@@ -27,37 +134,43 @@
 	 * single frame — a canvas wallpaper's context being disturbed, the
 	 * compositor re-rasterising after a large GPU layer goes away —
 	 * shows it. This is the floor that makes that impossible: the worst
-	 * a dropped frame can now look like is the desk's own colour.
+	 * a dropped frame can now look like is Void.
 	 *
 	 * Deliberately a solid rather than `--desktop-mode-bg`: it is never
 	 * seen when things are working, so it should cost one flat fill,
 	 * not a second gradient rasterisation on every shell repaint.
 	 */
-	--desktop-mode-backstop: #1d2327;
+	--desktop-mode-backstop: #0c0b0f;
 	--desktop-mode-area-inset: 0;
 
-	/* Window chrome */
-	--desktop-mode-window-bg: #fff;
-	--desktop-mode-window-border: rgba(0, 0, 0, 0.12);
+	/* Window chrome — Obsidian body inside a Starlight hairline. */
+	--desktop-mode-window-bg: #1a1721;
+	--desktop-mode-window-border: rgba(255, 251, 255, 0.12);
 	--desktop-mode-window-radius: 8px;
-	--desktop-mode-window-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+	/*
+	 * Shadows stay black and go deeper than they were: on a Void desk
+	 * a soft grey shadow is invisible, and depth is the only thing
+	 * separating a window from the sky behind it.
+	 */
+	--desktop-mode-window-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+	--desktop-mode-window-shadow-focused: 0 12px 48px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.35);
 	/*
 	 * Fill of the surface a window's content is revealed from once it
 	 * finishes loading (OS Settings → Effects → "Window reveal").
 	 *
-	 * White: the surface has to be opaque or there is nothing to reveal
-	 * FROM — the content would simply be visible the whole time and the
-	 * clip animation would paint nothing. A theme retints it with any
-	 * paint value (`var( --desktop-mode-window-bg )` to follow the
-	 * window, a brand colour, a gradient, an image), and `transparent`
-	 * is a legitimate value meaning "no covering surface" — the shell
-	 * skips the layer rather than animating something invisible.
+	 * Obsidian, so a window uncovers from its own colour rather than
+	 * flashing white on a dark desk. The surface has to be opaque or
+	 * there is nothing to reveal FROM — the content would simply be
+	 * visible the whole time and the clip animation would paint
+	 * nothing. `transparent` is a legitimate value meaning "no
+	 * covering surface"; the shell then skips the layer rather than
+	 * animating something invisible.
 	 *
 	 * A reveal may override this for itself when the paint IS the
 	 * reveal; `obturator` (Camera shutter) is the one built-in that
 	 * does, because near-black blades are what make it a shutter.
 	 */
-	--desktop-mode-window-reveal-surface: #fff;
+	--desktop-mode-window-reveal-surface: #1a1721;
 	/*
 	 * Fill of the reveal's leading edge — the band that travels with
 	 * the clip boundary and draws each reveal's shape (six lines on
@@ -72,87 +185,309 @@
 	 * skips the layer altogether, so the default costs nothing.
 	 */
 	--desktop-mode-window-reveal-edge: transparent;
-	--desktop-mode-window-shadow-focused: 0 12px 48px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
 
-	/* Title bar — focused bg/color resolve via the scheme overrides below. */
-	--desktop-mode-titlebar-bg: #f0f0f1;
-	--desktop-mode-titlebar-bg-focused: var(--wp-admin-theme-color, #2271b1);
-	--desktop-mode-titlebar-color: #50575e;
-	--desktop-mode-titlebar-color-focused: #fff;
+	/*
+	 * ---- Title bar ---------------------------------------------
+	 *
+	 * Astro when focused, Obsidian when not: the focused window's
+	 * chrome lifts one step up the Shade ramp while its unfocused
+	 * neighbours sit flush with their own bodies. That is the entire
+	 * focus signal, and it costs no colour — which matters, because
+	 * the accent is spoken for.
+	 */
+	--desktop-mode-titlebar-bg: #1a1721;
+	--desktop-mode-titlebar-bg-focused: #33303a;
+	--desktop-mode-titlebar-color: #99969c;
+	--desktop-mode-titlebar-color-focused: #fffbff;
 	--desktop-mode-titlebar-height: 40px;
+	/* Hairline between page chrome and window chrome. */
+	--desktop-mode-titlebar-divider: rgba(255, 251, 255, 0.12);
+	--desktop-mode-titlebar-divider-unfocused: rgba(255, 251, 255, 0.06);
 
-	/* Admin accent. Each scheme block below retunes this; the fallback
-	 * matches the legacy hardcoded value so nothing regresses if the
-	 * root has no data-desktop-mode-scheme attribute (e.g. tests). */
-	--wp-admin-theme-color: #2271b1;
+	/*
+	 * Title-bar control glyphs — minimise / maximise / close, the ⋯
+	 * menu trigger, and the screen-meta cluster — in each of the two
+	 * title-bar states.
+	 *
+	 * Both halves are named explicitly. The unfocused half would
+	 * otherwise derive itself from `--desktop-mode-titlebar-color` by
+	 * a `color-mix()` that only runs while a desktop theme is active,
+	 * and the focused half cannot derive at all: its glyphs sit on
+	 * `-bg-focused`, and CSS has no contrast-safe function of a
+	 * background colour.
+	 *
+	 * Close-button red is deliberately not in either set — it is
+	 * semantic signal, not chrome, and both states resolve it through
+	 * `--wpd-danger`.
+	 */
+	--desktop-mode-titlebar-btn-color: rgba(255, 251, 255, 0.55);
+	--desktop-mode-titlebar-btn-color-hover: #fffbff;
+	--desktop-mode-titlebar-btn-bg-hover: rgba(255, 251, 255, 0.1);
+	--desktop-mode-titlebar-btn-bg-active: rgba(255, 251, 255, 0.16);
+	--desktop-mode-titlebar-btn-focused-color: rgba(255, 251, 255, 0.72);
+	--desktop-mode-titlebar-btn-focused-color-hover: #fffbff;
+	--desktop-mode-titlebar-btn-focused-bg-hover: rgba(255, 251, 255, 0.14);
+	--desktop-mode-titlebar-btn-focused-bg-active: rgba(255, 251, 255, 0.2);
+	--desktop-mode-titlebar-btn-focused-outline: #f252fc;
+
+	/*
+	 * The control cluster and each button face stay TRANSPARENT, so a
+	 * themed title-bar texture runs edge to edge underneath them and
+	 * the glyphs float on the artwork. A plate behind the controls is
+	 * a choice a theme makes, not a default the framework imposes.
+	 * The knobs for building one:
+	 *
+	 *   Cluster   --desktop-mode-titlebar-controls-bg
+	 *             --desktop-mode-titlebar-controls-image (+ -repeat,
+	 *               -size, -position)
+	 *             --desktop-mode-titlebar-controls-radius
+	 *             --desktop-mode-titlebar-controls-padding (inline)
+	 *             --desktop-mode-titlebar-controls-gap
+	 *   Screen-meta cluster
+	 *             --desktop-mode-titlebar-meta-bg / -image / -radius
+	 *               (radius falls through to the controls radius)
+	 *   Each face --wpd-btn-bg / --wpd-btn-bg-image / --wpd-btn-radius
+	 */
+
+	/*
+	 * Admin accent. Pulse, the brand's identity colour, and the value
+	 * behind the `pulse` swatch that OS Settings → Appearance ships as
+	 * its default (`includes/accents.php`). The accent picker writes
+	 * the user's choice into this same property as an inline style, so
+	 * this is the pre-JS value and the floor under every scheme block
+	 * below.
+	 */
+	--wp-admin-theme-color: #f252fc;
 
 	/* Resize handle — larger hit area than visual glyph; corners
 	   are transparent until hover so they don't compete with the
 	   window's own drop shadow.  */
 	--desktop-mode-resize-size: 20px;
-	--desktop-mode-resize-color: rgba(0, 0, 0, 0.15);
+	--desktop-mode-resize-color: rgba(255, 251, 255, 0.18);
 
 	/*
-	 * ---- The `--wpd-*` UI palette -----------------------------
+	 * ---- The `--wpd-*` UI palette ------------------------------
 	 *
-	 * The single vocabulary for every surface, text tone, border,
-	 * and status colour inside window BODIES — the `<wpd-*>`
-	 * component kit AND the feature stylesheets both read these.
-	 * Setting one value retints everything that uses it.
+	 * The single vocabulary for every surface, text tone, border, and
+	 * status colour inside window BODIES — the `<wpd-*>` component kit
+	 * AND the feature stylesheets both read these. Setting one value
+	 * retints everything that uses it, which is what makes a
+	 * whole-OS repaint eleven declarations rather than a thousand.
 	 *
-	 *   Surfaces   --wpd-surface           cards, panels, table rows
-	 *              --wpd-surface-elevated  headers, raised strips
-	 *              --wpd-surface-sunken    wells, recessed areas
-	 *   Text       --wpd-fg                body text
-	 *              --wpd-fg-muted          secondary / metadata
-	 *              --wpd-fg-faint          disabled
-	 *              --wpd-fg-on-accent      text on a filled surface
-	 *   Lines      --wpd-border            hairlines
-	 *              --wpd-border-strong     emphasized dividers
-	 *   Interaction
-	 *              --wpd-hover             row / tile hover wash
-	 *              --wpd-scrim             modal + overlay backdrop
-	 *   Accent     --wpd-accent            primary action
-	 *              --wpd-accent-strong     its hover / active state
-	 *   Status     --wpd-danger  --wpd-danger-hover
-	 *              --wpd-warning-fg  --wpd-warning-bg  --wpd-warning-border
-	 *              --wpd-info-fg     --wpd-info-bg
-	 *              --wpd-success-fg
+	 * It reaches further than window bodies: the shell's own
+	 * body-mounted overlays — toasts, confirm dialogs, context menus,
+	 * and the command palette — read it too.
 	 *
-	 * ## Why none of them are declared here
+	 * Roughly 190 component-local tokens (`--wpd-card-bg`,
+	 * `--wpd-table-header-bg`, …) fall through to these, e.g.
 	 *
-	 * They are deliberately left UNSET. Every consuming site reads
-	 * its token as `var( --wpd-x, <the literal that was always
-	 * there> )`, so with no desktop theme active the computed value
-	 * is exactly what it was before this palette existed — the
-	 * default look cannot drift, and there is no flag day.
+	 *     background: var( --wpd-card-bg, var( --wpd-surface, #fff ) );
 	 *
-	 * Declaring defaults here would be actively wrong: the same
-	 * token legitimately carries different fallbacks at different
-	 * sites (`--wpd-border` is `#dcdcde` in the settings panel and
-	 * `rgba( 0, 0, 0, 0.08 )` inside `<wpd-table>`), tuned to each
-	 * surface. One `:root` value would flatten all of them and
-	 * silently restyle the default UI.
-	 *
-	 * A desktop theme sets whichever of these it wants in its
-	 * `theme.json` `tokens` block; the compiled stylesheet declares
-	 * them on the shell root + body, and every fallback in the tree
-	 * is overridden at once. See docs/desktop-themes.md.
-	 *
-	 * @since 0.9.7
+	 * so the ones named further down are only those whose own literal
+	 * does NOT chain through the palette and would otherwise stay a
+	 * light-mode value on a dark station.
 	 */
+
+	/* Surfaces — Obsidian on Void, one step up the ramp for elevated. */
+	--wpd-surface: #1a1721;
+	--wpd-surface-elevated: #33303a;
+	--wpd-surface-sunken: #0c0b0f;
+	--wpd-surface-raised: rgba(255, 251, 255, 0.06);
+	--wpd-surface-subtle: rgba(255, 251, 255, 0.03);
+	--wpd-bg: #1a1721;
+	--wpd-bg-subtle: rgba(255, 251, 255, 0.03);
+
+	/* Text — Starlight down through the Shade ramp. */
+	--wpd-fg: #fffbff;
+	--wpd-fg-muted: #b3afb5;
+	--wpd-fg-faint: #66636b;
+	--wpd-text-muted: rgba(255, 251, 255, 0.6);
+	/*
+	 * Text on a filled surface — and the name undersells it. Around
+	 * forty rules read this token, and only about half of them sit on
+	 * the accent: the rest are white-on-dark chips that never had a
+	 * name of their own — the toast, the drag hint, the widget picker,
+	 * the file-tile lock, the overview labels, every scrim-backed
+	 * caption in OS Settings.
+	 *
+	 * So it is Starlight. Void reads better ON Pulse (5.9:1 against
+	 * 2.9:1) and was the first choice here, but it turned all of those
+	 * chips into black text on a near-black wash. One token cannot be
+	 * both, and the dark-chip half is both larger and the half that
+	 * fails catastrophically rather than merely weakly.
+	 *
+	 * The surfaces that really are a bright fill — ribbons and step
+	 * chips — name their own dark text below, which is the escape
+	 * hatch this token leaves open.
+	 */
+	--wpd-fg-on-accent: #fffbff;
+
+	/* Lines. */
+	--wpd-border: #33303a;
+	--wpd-border-strong: #4d4a52;
+
+	/* Interaction — light washes, since the surface underneath is dark. */
+	--wpd-hover: rgba(255, 251, 255, 0.06);
+	--wpd-scrim: rgba(12, 11, 15, 0.72);
+
+	/* Accent — the identity moment. */
+	--wpd-accent: #f252fc;
+	--wpd-accent-strong: #ec9bff;
+	--wpd-accent-soft: rgba(242, 82, 252, 0.18);
+
+	/*
+	 * Status. Derived, not quoted — see the header note. Info takes
+	 * Sirius and success takes Holomesh's mint because the brand
+	 * already has a colour that means those things; danger and warning
+	 * are the shell's own hues lifted until they carry on Obsidian.
+	 */
+	--wpd-danger: #ff5a5a;
+	--wpd-danger-hover: #ff8a8a;
+	--wpd-success-fg: #93f0c6;
+	--wpd-warning-fg: #f8f2b6;
+	--wpd-warning: #f8f2b6;
+	--wpd-warning-bg: rgba(248, 242, 182, 0.1);
+	--wpd-warning-border: rgba(248, 242, 182, 0.24);
+	--wpd-info-fg: #c2f1f1;
+	--wpd-info-bg: rgba(194, 241, 241, 0.1);
+
+	/*
+	 * ---- Component tokens the palette cannot reach --------------
+	 *
+	 * Each of these is read with a literal of its own rather than a
+	 * `var( --wpd-<palette> )` chain, so the palette above does not
+	 * carry to it. Everything else in the kit is left alone and
+	 * inherits.
+	 */
+
+	/* Dialogs, menus and flyouts. */
+	--wpd-modal-bg: #1a1721;
+	--wpd-confirm-dialog-bg: #1a1721;
+	--wpd-context-menu-bg: #1a1721;
+	--wpd-context-menu-separator-color: rgba(255, 251, 255, 0.1);
+	--wpd-flyout-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+	--wpd-card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.45);
+	--wpd-ribbon-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+
+	/* Tables. */
+	--wpd-table-bg: #1a1721;
+	--wpd-table-header-bg: #33303a;
+	--wpd-table-border: rgba(255, 251, 255, 0.1);
+	--wpd-table-column-border: rgba(255, 251, 255, 0.16);
+	--wpd-table-row-hover: rgba(255, 251, 255, 0.06);
+	--wpd-table-stripe: rgba(255, 251, 255, 0.03);
+	--wpd-table-sticky-edge: 2px solid rgba(255, 251, 255, 0.14);
+
+	/* Notices and badges — tinted washes of their own status colour. */
+	--wpd-notice-error-bg: rgba(255, 90, 90, 0.12);
+	--wpd-notice-error-border: rgba(255, 90, 90, 0.28);
+	--wpd-notice-success-bg: rgba(147, 240, 198, 0.12);
+	--wpd-notice-success-border: rgba(147, 240, 198, 0.28);
+	--wpd-notice-warning-bg: rgba(248, 242, 182, 0.12);
+	--wpd-notice-warning-border: rgba(248, 242, 182, 0.28);
+	--wpd-notice-info-bg: rgba(194, 241, 241, 0.12);
+	--wpd-notice-info-border: rgba(194, 241, 241, 0.28);
+	--wpd-notice-neutral-bg: rgba(255, 251, 255, 0.06);
+	--wpd-notice-neutral-border: rgba(255, 251, 255, 0.14);
+	--wpd-badge-danger-bg: rgba(255, 90, 90, 0.16);
+	--wpd-badge-success-bg: rgba(147, 240, 198, 0.16);
+	--wpd-badge-warning-bg: rgba(248, 242, 182, 0.16);
+	--wpd-badge-info-bg: rgba(194, 241, 241, 0.16);
+	--wpd-badge-neutral-bg: rgba(255, 251, 255, 0.08);
+
+	/*
+	 * Fills that must stay fills. Each of these paints a solid shape —
+	 * a ribbon, a chip, a focused input's edge — and each was reading
+	 * a token the palette turned into a 10%-alpha wash or into the
+	 * body colour itself. A ribbon the same colour as the card behind
+	 * it is not a subtle ribbon, it is a missing one.
+	 */
+	/*
+	 * Text on the bright status fills. These are the surfaces the
+	 * `--wpd-fg-on-accent` note points at: a ribbon filled with Pulse,
+	 * Sirius or Holomesh mint is a LIGHT surface, and Starlight on it
+	 * disappears.
+	 */
+	--wpd-ribbon-fg: #0c0b0f;
+	--wpd-step-chip-fg: #0c0b0f;
+
+	--wpd-ribbon-info: #c2f1f1;
+	--wpd-ribbon-warning: #f8f2b6;
+	--wpd-ribbon-neutral: #4d4a52;
+	--wpd-crumb-bg: #33303a;
+	--wpd-tag-input-input-border: #f252fc;
+
+	/*
+	 * Pairs that have to stay distinguishable. Hover and pressed, or
+	 * base and shimmer, both resolve through `--wpd-hover` — one wash
+	 * for two states reads as a dead control, so the second step of
+	 * each pair is named.
+	 */
+	--wpd-btn-bg-active: rgba(255, 251, 255, 0.12);
+	/*
+	 * `<wpd-button>` ghost + secondary. Their resting wash and their
+	 * hover wash BOTH fall through to `--wpd-hover` — in two different
+	 * rules, with two different literals behind them (6% and 10%), so
+	 * declaring the palette collapsed them onto one value and the
+	 * buttons stopped reacting to the pointer entirely. Primary is
+	 * unaffected: it hovers with `filter: brightness()` over its
+	 * accent fill rather than through this token.
+	 */
+	--wpd-button-bg-hover: rgba(255, 251, 255, 0.14);
+	--wpd-key-bg-hover: rgba(255, 251, 255, 0.1);
+	--wpd-key-bg-pressed: rgba(255, 251, 255, 0.16);
+	--wpd-table-skeleton-highlight: rgba(255, 251, 255, 0.14);
+
+	/* Code, logs, progress, ratings, avatars. */
+	--wpd-code-border: 1px solid rgba(255, 251, 255, 0.1);
+	--wpd-log-border: 1px solid rgba(255, 251, 255, 0.08);
+	--wpd-log-row-border: 1px solid rgba(255, 251, 255, 0.06);
+	--wpd-progress-track-bg: rgba(255, 251, 255, 0.1);
+	--wpd-rating-star: #f8f2b6;
+	--wpd-rating-fill: linear-gradient(90deg, #f8f2b6 0%, #fffbff 100%);
+	--wpd-avatar-dot-ring: #1a1721;
+	--wpd-color-accent: #f252fc;
+	/*
+	 * The content graph's cluster hue is NOT retinted. Graph node
+	 * colours are composed artwork that encodes meaning — the docs list
+	 * them under "what stays fixed" — and moving this one to Nebula put
+	 * white cluster labels on a pale lilac chip at 1.9:1. It keeps its
+	 * own colour, and the label keeps carrying on it.
+	 */
+
+	/*
+	 * ---- Typography --------------------------------------------
+	 *
+	 * Geist for everything human — headlines, UI copy, body text — and
+	 * Geist Mono for the instrument voice: labels, metadata, statuses,
+	 * code. Both faces are declared above; a stack without them still
+	 * reads correctly, which is why every entry ends in a generic
+	 * family.
+	 *
+	 * The chrome / body split is the one real decision here, and it is
+	 * the one real desktop environments make. Here both sides run
+	 * Geist: the station is one surface, and the title bar is not a
+	 * different product from the window under it.
+	 *
+	 * Note that iframe windows render a real wp-admin document in a
+	 * separate browsing context that this stylesheet does not reach —
+	 * these tokens style the shell and native windows.
+	 */
+	--desktop-mode-font: 'Geist', system-ui, sans-serif;
+	--desktop-mode-titlebar-font: 'Geist', system-ui, sans-serif;
+	--wpd-font: 'Geist', system-ui, sans-serif;
+	--wpd-font-mono: 'Geist Mono', ui-monospace, monospace;
 
 	/*
 	 * ---- Desktop-theme texture family -------------------------
 	 *
-	 * These are DELIBERATELY not declared here. Every rule that
-	 * consumes one reads it as `var( --name, <initial> )`, so an
-	 * unset variable resolves to the CSS initial value and costs
-	 * exactly nothing. Declaring them with `none` up here would be
-	 * equivalent but would imply they are part of the default
-	 * palette — they are not. They exist only while an uploaded or
-	 * code-registered desktop theme is active, and only the
-	 * compiled theme stylesheet ever sets them.
+	 * These are DELIBERATELY not declared. Every rule that consumes
+	 * one reads it as `var( --name, <initial> )`, so an unset variable
+	 * resolves to the CSS initial value and costs exactly nothing.
+	 * Declaring them with `none` up here would be equivalent but would
+	 * imply they are part of the default palette — they are not. They
+	 * exist only while an uploaded or code-registered desktop theme is
+	 * active, and only the compiled theme stylesheet ever sets them.
 	 *
 	 *   TITLEBAR          --desktop-mode-titlebar-image
 	 *                     --desktop-mode-titlebar-image-repeat
@@ -204,121 +539,17 @@
 	 * icons, widgets), and the `<wpd-*>` component stylesheets under
 	 * `src/ui/components/` for the last seven.
 	 * Authoring reference: docs/desktop-themes.md.
-	 *
-	 * @since 0.9.7
-	 */
-
-	/*
-	 * ---- Title-bar control cluster ----------------------------
-	 *
-	 * Also undeclared, and for a load-bearing reason: the cluster and
-	 * the control faces are TRANSPARENT by default, so a themed
-	 * title-bar texture runs edge to edge underneath them and the
-	 * buttons float on the artwork. A plate behind the controls is a
-	 * choice a theme makes, not a default the framework imposes.
-	 *
-	 *   Cluster   --desktop-mode-titlebar-controls-bg
-	 *             --desktop-mode-titlebar-controls-image (+ -repeat,
-	 *               -size, -position)
-	 *             --desktop-mode-titlebar-controls-radius
-	 *             --desktop-mode-titlebar-controls-padding (inline)
-	 *             --desktop-mode-titlebar-controls-gap
-	 *   Screen-meta cluster
-	 *             --desktop-mode-titlebar-meta-bg / -image / -radius
-	 *               (radius falls through to the controls radius)
-	 *   Each face --wpd-btn-bg          resting colour
-	 *             --wpd-btn-bg-image    (+ -repeat, -size, -position)
-	 *             --wpd-btn-radius
-	 *   Dividers  --desktop-mode-titlebar-divider
-	 *             --desktop-mode-titlebar-divider-unfocused
-	 *
-	 * Consumers: window-chrome.css and the `<wpd-window-button>`
-	 * shadow stylesheet.
-	 *
-	 * @since 0.9.8
-	 */
-
-	/*
-	 * ---- Title-bar control glyphs -----------------------------
-	 *
-	 * The colour of the buttons themselves — minimise / maximise /
-	 * close, the ⋯ menu trigger, and the screen-meta cluster — in
-	 * each of the two title-bar states.
-	 *
-	 *   Focused    --desktop-mode-titlebar-btn-focused-color
-	 *              --desktop-mode-titlebar-btn-focused-color-hover
-	 *              --desktop-mode-titlebar-btn-focused-bg-hover
-	 *              --desktop-mode-titlebar-btn-focused-bg-active
-	 *              --desktop-mode-titlebar-btn-focused-outline
-	 *   Unfocused  --desktop-mode-titlebar-btn-color
-	 *              --desktop-mode-titlebar-btn-color-hover
-	 *              --desktop-mode-titlebar-btn-bg-hover
-	 *              --desktop-mode-titlebar-btn-bg-active
-	 *
-	 * Undeclared, like everything above: each rule reads
-	 * `var( --name, <the literal it always had> )`.
-	 *
-	 * The unfocused half additionally DERIVES from
-	 * `--desktop-mode-titlebar-color` under an active desktop theme,
-	 * so most themes never need to name it. The focused half cannot
-	 * do the same — its glyphs sit on `-bg-focused`, a fill a theme
-	 * may set to anything from near-black to a pastel, and there is
-	 * no contrast-safe function of a background colour in CSS. So it
-	 * stays explicit: white at 70% until a theme says otherwise.
-	 *
-	 * Why these need names at all: the declarations land on the
-	 * WINDOW element (`.desktop-mode-window--focused`), which outranks
-	 * a `--wpd-btn-*` set at the shell root, and those names are
-	 * shared with buttons outside the title bar. A theme had no way to
-	 * recolour a focused control without also moving sticky-note and
-	 * desk chrome.
-	 *
-	 * Consumers: window-chrome.css (control cluster, ⋯ trigger,
-	 * screen-meta buttons).
-	 */
-
-	/*
-	 * ---- Typography ------------------------------------------
-	 *
-	 * Also deliberately UNDECLARED, for the same reason as the
-	 * `--wpd-*` palette: every consuming rule reads
-	 * `font-family: var( --name, <the literal that was always
-	 * there> )`, so an unset token computes to exactly what it
-	 * always did. A desktop theme sets them (and may ship the
-	 * `@font-face` rules to back them) and the whole shell changes
-	 * typeface at once.
-	 *
-	 *   --desktop-mode-font           shell chrome: dock labels,
-	 *                                 desktop icons, widgets
-	 *   --desktop-mode-titlebar-font  window title bars; falls back
-	 *                                 to --desktop-mode-font
-	 *   --wpd-font                    window BODIES + the `<wpd-*>`
-	 *                                 component kit
-	 *   --wpd-font-mono               code, hashes, file sizes,
-	 *                                 log output
-	 *
-	 * The split matters: a theme can put a display face on the
-	 * chrome while window content stays on a readable text face,
-	 * which is what real desktop environments do.
-	 *
-	 * Note that iframe windows render a real wp-admin document in a
-	 * separate browsing context that the theme stylesheet does not
-	 * reach — these tokens style the shell and native windows.
-	 *
-	 * @since 0.9.8
 	 */
 
 	/*
 	 * ---- Badges ----------------------------------------------
 	 *
-	 * Undeclared, and DERIVED rather than fixed. Every badge sizes
-	 * itself off the icon it decorates — the dock badge off
+	 * Sizes stay undeclared and DERIVED: every badge sizes itself off
+	 * the icon it decorates — the dock badge off
 	 * `--desktop-mode-dock-icon-size`, the wallpaper badges off
 	 * `--desktop-mode-icon-image-size` — so a user who picks a large
 	 * dock, or a theme that scales its icons, doesn't end up with a
-	 * speck stuck to an oversized tile. At the default sizes the
-	 * derivations resolve to the exact values these rules used to
-	 * hardcode.
+	 * speck stuck to an oversized tile.
 	 *
 	 *   Dock          --desktop-mode-dock-badge-size (overrides the
 	 *                   whole derivation; font + padding follow it)
@@ -332,76 +563,69 @@
 	 *                   icon-badge token, so "badges are 22px" reaches
 	 *                   the bin too.
 	 *
-	 * @since 0.9.8
+	 * The count badges keep their red, and keep it as a LITERAL: a
+	 * badge is a status, not an identity moment, and Pulse next to a
+	 * Pulse-accented dock tile would read as decoration rather than as
+	 * "three things need you". Naming the gradient here also keeps it
+	 * a gradient — both stops used to resolve through `--wpd-danger`,
+	 * which the palette moved, flattening the badge to one flat red
+	 * and turning its white numerals Void. The bin's neutral badge has
+	 * no such constraint and follows the station.
 	 */
+	--desktop-mode-dock-badge-bg: linear-gradient(180deg, #ff5a5a 0%, #d63638 100%);
+	--desktop-mode-dock-badge-fg: #fffbff;
+	--desktop-mode-icon-badge-bg: linear-gradient(180deg, #ff5a5a 0%, #d63638 100%);
+	--desktop-mode-icon-badge-fg: #fffbff;
+	--desktop-mode-recycle-badge-bg: rgba(26, 23, 33, 0.85);
+	--desktop-mode-recycle-badge-fg: rgba(255, 251, 255, 0.96);
+	--desktop-mode-dock-recycle-badge-bg: rgba(26, 23, 33, 0.85);
+	--desktop-mode-dock-recycle-badge-fg: rgba(255, 251, 255, 0.92);
 
 	/*
 	 * ---- Tooltips ---------------------------------------------
 	 *
-	 * Undeclared, like the palette above — every tooltip reads
-	 * `var( --desktop-mode-tooltip-bg, <the chain it always had> )`,
-	 * so an unthemed shell renders exactly as before.
+	 * Two tokens own every tooltip in the shell — the dock tile
+	 * tooltip, the content-graph satellite tooltip, and the My
+	 * WordPress entity hover card.
 	 *
-	 *   --desktop-mode-tooltip-bg   the chip / card surface
-	 *   --desktop-mode-tooltip-fg   its primary text
-	 *
-	 * They exist because tooltips used to borrow their two colours
-	 * from unrelated families — `--wpd-scrim` (an overlay BACKDROP)
-	 * or `--wpd-surface-elevated` for the surface, `--wpd-fg-on-accent`
-	 * for the text. Those pairings hold for the default look and come
-	 * apart under a custom theme: a theme that sets `--wpd-scrim` to a
-	 * translucent wash for its modals turns every tooltip translucent
-	 * with it, and a light theme that sets `--wpd-surface-elevated`
-	 * light while `--wpd-fg-on-accent` stays white renders white text
-	 * on a white tooltip. A theme could not fix either without
-	 * breaking the modal backdrop or the text on its accent buttons,
-	 * because it had no name for "tooltip" to aim at. Now it does.
-	 *
-	 * Consumers: dock.css (dock tile tooltip), content-graph.css
-	 * (satellite tooltip), my-wordpress.css (entity hover card).
+	 * They are worth naming rather than leaving derived. Without them
+	 * tooltips borrow their colours from unrelated families —
+	 * `--wpd-scrim` (an overlay BACKDROP) or `--wpd-surface-elevated`
+	 * for the surface, `--wpd-fg-on-accent` for the text — and those
+	 * pairings come apart the moment the palette moves. On this
+	 * palette `--wpd-fg-on-accent` is Void, which would have rendered
+	 * near-black text on a near-black chip.
 	 *
 	 * Secondary text inside the richer tooltips — the hover card's
-	 * excerpt — still follows `--wpd-fg-muted`; these two tokens
-	 * cover the surface and the primary text on it.
+	 * excerpt — still follows `--wpd-fg-muted`.
 	 */
+	--desktop-mode-tooltip-bg: #33303a;
+	--desktop-mode-tooltip-fg: #fffbff;
 
 	/*
-	 * ---- Dock glyphs ------------------------------------------
+	 * ---- Dock --------------------------------------------------
 	 *
-	 * `--desktop-mode-dock-bg` below is declared, so a theme can and
-	 * does repaint the strip. What it paints ON the strip was, until
-	 * these tokens, fixed white — the glyph, its hover brightening,
-	 * the hover wash behind the tile, and the focus ring. Set the
-	 * dock to anything pale and every tile went blank.
+	 * Void glass over the desk, with a Starlight hairline. The tile
+	 * hover wash and the focus ring are the dock's identity moment:
+	 * Pulse, at the two alphas that read as "warm" and "here".
 	 *
-	 *   --desktop-mode-dock-icon-color        glyph at rest
-	 *   --desktop-mode-dock-icon-color-hover  glyph on hover / peek
-	 *   --desktop-mode-dock-item-bg-hover     wash behind the tile
-	 *   --desktop-mode-dock-item-outline      keyboard focus ring
-	 *
-	 * Undeclared, like the palette: each site reads
-	 * `var( --name, <the literal it always had> )`. System tiles
-	 * (OS Settings, recycle bin, …) read the same `-icon-color` with
-	 * their own slightly brighter literal behind it, so unthemed they
-	 * keep their notch of extra prominence and themed they follow the
-	 * single colour the theme named.
-	 *
-	 * Named a *colour*, not a fill, on purpose: every image glyph in
-	 * the dock is painted as a mask filled with this colour — a
-	 * theme's own iconset via `"iconColor": "currentColor"`, and
-	 * plugin / CPT artwork via `currentColor` on the tile. So one
-	 * token drives dashicons, theme art, plugin art, and the hover
-	 * transition between them. The `__item-svg` fallback (a URL the
-	 * mask can't take) still force-whitens; see the note in dock.css.
+	 * `--desktop-mode-dock-icon-color` is a COLOUR, not a fill, and
+	 * that is load-bearing: every image glyph in the dock is painted
+	 * as a mask filled with this colour — a theme's own iconset via
+	 * `"iconColor": "currentColor"`, and plugin / CPT artwork via
+	 * `currentColor` on the tile. One token drives dashicons, theme
+	 * art, plugin art, and the hover transition between them.
 	 *
 	 * Consumers: dock.css, dock-peek.css (which re-states the hover
 	 * rule and so must read the same two tokens).
 	 */
-
-	/* Dock */
 	--desktop-mode-dock-width: 56px;
 	--desktop-mode-dock-icon-size: 20px;
-	--desktop-mode-dock-bg: rgba(0, 0, 0, 0.4);
+	--desktop-mode-dock-bg: rgba(12, 11, 15, 0.72);
+	--desktop-mode-dock-icon-color: rgba(255, 251, 255, 0.72);
+	--desktop-mode-dock-icon-color-hover: #fffbff;
+	--desktop-mode-dock-item-bg-hover: rgba(242, 82, 252, 0.18);
+	--desktop-mode-dock-item-outline: #f252fc;
 	/*
 	 * Hairline between the dock and the desktop. Reaches the side
 	 * placements (as a single inline-edge border) AND the floating
@@ -411,24 +635,70 @@
 	 * The bottom pill's own chrome is separately overridable, because
 	 * it is deliberately a different piece of glass — a warmer tint, a
 	 * brighter top edge, an inset highlight, a drop shadow. Each falls
-	 * back to the shared value above it:
-	 *
-	 *   --desktop-mode-dock-floating-bg
-	 *   --desktop-mode-dock-floating-border      (→ dock-border)
-	 *   --desktop-mode-dock-floating-border-top  (→ floating-border)
-	 *   --desktop-mode-dock-floating-highlight
-	 *   --desktop-mode-dock-floating-shadow
-	 *
-	 * @since 0.9.8 the floating pill honours these at all; it used to
-	 *              hardcode every one of them.
+	 * back to the shared value above it.
 	 */
-	--desktop-mode-dock-border: rgba(255, 255, 255, 0.08);
+	--desktop-mode-dock-border: rgba(255, 251, 255, 0.1);
+	--desktop-mode-dock-floating-bg: rgba(12, 11, 15, 0.62);
+	--desktop-mode-dock-floating-border: rgba(255, 251, 255, 0.12);
+	--desktop-mode-dock-floating-border-top: rgba(255, 251, 255, 0.18);
+	--desktop-mode-dock-floating-highlight: rgba(255, 251, 255, 0.1);
+	--desktop-mode-dock-floating-shadow: rgba(0, 0, 0, 0.55);
+
+	/*
+	 * ---- Shell surfaces ----------------------------------------
+	 *
+	 * The panels, tab strips and washes that belong to the shell
+	 * rather than to the component kit. Same Obsidian-on-Void
+	 * composition; the selection wash is Pulse.
+	 */
+	--desktop-mode-accent: #f252fc;
+	--desktop-mode-link: #ec9bff;
+	--desktop-mode-danger: #ff5a5a;
+	--desktop-mode-border: rgba(255, 251, 255, 0.1);
+	--desktop-mode-hover: rgba(255, 251, 255, 0.06);
+	--desktop-mode-selected: rgba(242, 82, 252, 0.18);
+	--desktop-mode-fg-muted: rgba(255, 251, 255, 0.7);
+	/*
+	 * Shell text. Undeclared before the brand and it had to be: it read
+	 * light on the desk (tile labels over the wallpaper) and dark
+	 * inside a window, and one value broke one of the two. The station
+	 * settles the argument — every surface it owns is dark now, so
+	 * Starlight is right in both places.
+	 */
+	--desktop-mode-fg: #fffbff;
+	/*
+	 * "…on light" is a name from before the station, and it is now a
+	 * misnomer worth keeping: every surface that reads it — the folder
+	 * window, its preview pane, the upload HUD — was a light card and
+	 * is Obsidian today. The token means "text on the surfaces this one
+	 * names", and those surfaces are dark, so the text is Starlight.
+	 * Renaming it is a public-API change for the sake of tidiness; the
+	 * comment is cheaper and the behaviour is what matters.
+	 */
+	--desktop-mode-fg-on-light: #fffbff;
+	--desktop-mode-panel-bg: #1a1721;
+	--desktop-mode-panel-header-bg: rgba(255, 251, 255, 0.04);
+	--desktop-mode-folder-window-bg: #1a1721;
+	--desktop-mode-my-wordpress-bg: #1a1721;
+	--desktop-mode-my-wordpress-fg: #fffbff;
+	--desktop-mode-my-wordpress-surface: rgba(255, 251, 255, 0.06);
+	--desktop-mode-ai-panel-bg: rgba(26, 23, 33, 0.97);
+	--desktop-mode-tabs-bg: #33303a;
+	--desktop-mode-tabs-color: #b3afb5;
+	--desktop-mode-media-tile-bg: rgba(255, 251, 255, 0.05);
+	--desktop-mode-media-visual-bg: rgba(255, 251, 255, 0.04);
+	--desktop-mode-skeleton-low: rgba(255, 251, 255, 0.05);
+	--desktop-mode-skeleton-high: rgba(255, 251, 255, 0.13);
+	--desktop-mode-drop-preview-bg: rgba(242, 82, 252, 0.1);
+	--desktop-mode-drop-preview-border: rgba(242, 82, 252, 0.55);
 
 	/*
 	 * File tiles — anywhere a `.desktop-mode-file-tile` (or sibling
-	 * canvas tile) renders. The defaults below match the wallpaper
-	 * (dark gradient → white text + soft white hover). Light-on-dark
-	 * surfaces override these in their own scope, e.g.:
+	 * canvas tile) renders. The defaults match the desk: Starlight
+	 * labels over a dark sky, with a Pulse selection wash.
+	 *
+	 * Surfaces that are light in their own right override these in
+	 * their own scope, e.g.:
 	 *
 	 *   .desktop-mode-folder-window {
 	 *       --desktop-mode-tile-fg: #1d2327;
@@ -437,30 +707,27 @@
 	 *
 	 * Plugin authors can override any of these in their own theme
 	 * to retint tiles globally without touching the rules below.
-	 *
-	 * @since 0.8.0
 	 */
-	--desktop-mode-tile-fg: var(--desktop-mode-fg, #fff);
-	--desktop-mode-tile-fg-muted: rgba(255, 255, 255, 0.7);
-	--desktop-mode-tile-hover-bg: rgba(255, 255, 255, 0.12);
-	--desktop-mode-tile-focus-ring: var(--wp-admin-theme-color, #2271b1);
-	--desktop-mode-tile-shortcut-bg: rgba(0, 0, 0, 0.65);
-	--desktop-mode-tile-shortcut-fg: #fff;
-	--desktop-mode-tile-shortcut-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+	--desktop-mode-tile-fg: var(--desktop-mode-fg, #fffbff);
+	--desktop-mode-tile-fg-muted: rgba(255, 251, 255, 0.7);
+	--desktop-mode-tile-hover-bg: rgba(255, 251, 255, 0.12);
+	--desktop-mode-tile-selected-bg: rgba(242, 82, 252, 0.24);
+	--desktop-mode-tile-focus-ring: var(--wp-admin-theme-color, #f252fc);
+	--desktop-mode-tile-shortcut-bg: rgba(12, 11, 15, 0.7);
+	--desktop-mode-tile-shortcut-fg: #fffbff;
+	--desktop-mode-tile-shortcut-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 
 	/*
-	 * Label rendering tokens. Defaults match the dark wallpaper:
-	 * a soft drop-shadow boosts legibility against the gradient,
+	 * Label rendering tokens. The desk is dark at every wallpaper, so
+	 * a soft drop-shadow boosts legibility against the artwork,
 	 * regular weight, default antialiasing.
 	 *
 	 * Light-context surfaces (folder windows, My WordPress, any
 	 * future window with a light body) rebind these in their own
 	 * scope so tile labels render with the same crispness as the
 	 * surrounding chrome — no per-surface duplicate rules.
-	 *
-	 * @since 0.8.0
 	 */
-	--desktop-mode-tile-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+	--desktop-mode-tile-label-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 	--desktop-mode-tile-label-weight: 400;
 	--desktop-mode-tile-label-smoothing: auto;
 	--desktop-mode-tile-label-color: var(--desktop-mode-tile-fg);
@@ -511,120 +778,70 @@
 	 * marker fills black (the written rgba() fallback declaration is
 	 * already gone from the cascade by then). Overridable per scheme
 	 * or by plugins/themes without touching the renderer.
-	 *
-	 * @since 0.9.4
 	 */
-	--desktop-mode-window-link-color: var(--wp-admin-theme-color, #2271b1);
-	--desktop-mode-window-link-color-active: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-window-link-color: var(--wp-admin-theme-color, #f252fc);
+	--desktop-mode-window-link-color-active: var(--wp-admin-theme-color, #f252fc);
 	--desktop-mode-window-link-width: 1.5px;
-	--desktop-mode-window-link-accent: var(--wp-admin-theme-color, #2271b1);
+	--desktop-mode-window-link-accent: var(--wp-admin-theme-color, #f252fc);
 	/*
 	 * Halo behind related windows (`.desktop-mode-window--linked`).
-	 * A literal rgba of the default admin blue rather than a
-	 * color-mix() of the accent — same no-color-mix rationale as
-	 * above: if this token failed to resolve, the whole box-shadow
-	 * declaration (elevation shadow included) would go invalid.
-	 * Schemes/plugins that retint the accent should override this too.
+	 * A literal rgba of Pulse rather than a color-mix() of the accent —
+	 * same no-color-mix rationale as above: if this token failed to
+	 * resolve, the whole box-shadow declaration (elevation shadow
+	 * included) would go invalid. Schemes/plugins that retint the
+	 * accent should override this too.
 	 */
-	--desktop-mode-window-link-glow: rgba(34, 113, 177, 0.45);
+	--desktop-mode-window-link-glow: rgba(242, 82, 252, 0.45);
 }
 
 /*
- * Per-scheme overrides. Scoped to `.desktop-mode-shell[data-desktop-mode-scheme]`
- * so the variables only affect the shell subtree — we don't want to touch
- * Gutenberg or other nested contexts that also read `--wp-admin-theme-color`.
+ * ---- Iframe windows keep a light body -----------------------------
  *
- * Setting the vars on the shell root means any descendant (title bar,
- * dock chip, tab underlines, focus rings) that references them inherits
- * the right hue without further plumbing.
+ * A window hosting a real `wp-admin` page is not a station surface — it
+ * is a frame around someone else's document, and that document is
+ * light. The reveal surface is what covers such a window while it
+ * loads, so a dark one wiping back to a white page is a flash in the
+ * wrong direction.
  *
- * Title bar bg deliberately differs from the WP admin bar (which uses
- * each scheme's "base" color) — when the two sit edge-to-edge the
- * shared hue reads as one slab. We mix base with white (dark schemes)
- * or black (light schemes) ~15–20% so the titlebar feels related but
- * clearly distinct.
+ * The window's own background is deliberately NOT overridden here, and
+ * that was learned the hard way: `chromeless.css` paints the iframe's
+ * canvas, so nothing of the window shows through the page anyway —
+ * while the tab strip above it carries a 16px `mask-image` fade at
+ * each end (the "scroll for more tabs" affordance). A mask makes the
+ * element's own background transparent, so a white window behind a
+ * dark strip turned that invisible cosmetic into a white gradient
+ * bleeding into the chrome. The strip needs the station's colour
+ * behind it; the page needs its own; those are two different surfaces
+ * and only one of them belongs to the window element.
+ *
+ * Native windows — the ones the station draws itself — are excluded
+ * and keep the Obsidian reveal from the palette above.
  */
+.desktop-mode-window:not( .desktop-mode-window--native ) {
+	--desktop-mode-window-reveal-surface: #fff;
+}
 
 /*
- * The focused titlebar colors below are the pre-computed sRGB result
- * of each scheme's base color mixed with white (dark schemes) or
- * black (light schemes). We used to write these as
- * `color-mix(in srgb, …)` calls, but `color-mix()` only shipped in
- * Chrome 111 — on older Chromium-based browsers the whole declaration
- * is invalid-at-computed-value-time and the titlebar falls back to
- * the unfocused light surface, which hides the white control glyphs.
- * Since the mix inputs are all static there is no behavioral loss
- * from inlining the resulting hex value.
+ * ---- The WordPress admin colour scheme no longer tints the shell ----
+ *
+ * There used to be nine blocks here, one per admin colour scheme, each
+ * setting `--wp-admin-theme-color` on
+ * `.desktop-mode-shell[data-desktop-mode-scheme="…"]`. They are gone,
+ * and their removal is a bug fix as much as a rebrand.
+ *
+ * OS Settings → Appearance writes the user's chosen accent as an inline
+ * style on `<html>` — deliberately, so it also reaches the WordPress
+ * admin bar, which is a SIBLING of `#desktop-mode-shell`. But those
+ * blocks matched the shell root, a descendant of `<html>`, and for
+ * custom properties the nearest ancestor with a value wins no matter
+ * what the specificity of the rule that set it was. So inside the shell
+ * the scheme always beat the picker: choosing Rose, or Pulse, changed
+ * the admin bar and nothing else. Every focus ring, tab underline, sort
+ * arrow and selection wash kept the colour of the admin scheme.
+ *
+ * With the accent picker defaulting to Pulse there is nothing left for
+ * these blocks to express: the station has one identity colour, and a
+ * user who wants their admin scheme's hue picks it in the same panel.
+ * The `data-desktop-mode-scheme` attribute is still stamped on the
+ * shell root for plugins and themes that key off it.
  */
-
-/* Fresh — default WP blue. */
-.desktop-mode-shell[data-desktop-mode-scheme="fresh"] {
-	--wp-admin-theme-color: #2271b1;
-	/* color-mix(in srgb, #1d2327 80%, #fff 20%) */
-	--desktop-mode-titlebar-bg-focused: #4a4f52;
-	--desktop-mode-titlebar-color-focused: #fff;
-}
-
-/* Light — pale sidebar, teal accent. */
-.desktop-mode-shell[data-desktop-mode-scheme="light"] {
-	--wp-admin-theme-color: #04a4cc;
-	/* color-mix(in srgb, #e5e5e5 85%, #000 15%) */
-	--desktop-mode-titlebar-bg-focused: #c3c3c3;
-	--desktop-mode-titlebar-color-focused: #333;
-}
-
-/* Modern — vivid indigo accent, near-black sidebar. */
-.desktop-mode-shell[data-desktop-mode-scheme="modern"] {
-	--wp-admin-theme-color: #3858e9;
-	/* color-mix(in srgb, #1e1e1e 78%, #fff 22%) */
-	--desktop-mode-titlebar-bg-focused: #505050;
-	--desktop-mode-titlebar-color-focused: #f3f1f1;
-}
-
-/* Blue. */
-.desktop-mode-shell[data-desktop-mode-scheme="blue"] {
-	--wp-admin-theme-color: #096484;
-	/* color-mix(in srgb, #096484 82%, #fff 18%) */
-	--desktop-mode-titlebar-bg-focused: #35809a;
-	--desktop-mode-titlebar-color-focused: #e5f8ff;
-}
-
-/* Coffee. */
-.desktop-mode-shell[data-desktop-mode-scheme="coffee"] {
-	--wp-admin-theme-color: #c7a589;
-	/* color-mix(in srgb, #46403c 80%, #fff 20%) */
-	--desktop-mode-titlebar-bg-focused: #6b6663;
-	--desktop-mode-titlebar-color-focused: #ece6f6;
-}
-
-/* Ectoplasm. */
-.desktop-mode-shell[data-desktop-mode-scheme="ectoplasm"] {
-	--wp-admin-theme-color: #a3b745;
-	/* color-mix(in srgb, #413256 80%, #fff 20%) */
-	--desktop-mode-titlebar-bg-focused: #675b78;
-	--desktop-mode-titlebar-color-focused: #ece6f6;
-}
-
-/* Midnight. */
-.desktop-mode-shell[data-desktop-mode-scheme="midnight"] {
-	--wp-admin-theme-color: #e14d43;
-	/* color-mix(in srgb, #25282b 80%, #fff 20%) */
-	--desktop-mode-titlebar-bg-focused: #515355;
-	--desktop-mode-titlebar-color-focused: #f1f2f3;
-}
-
-/* Ocean. */
-.desktop-mode-shell[data-desktop-mode-scheme="ocean"] {
-	--wp-admin-theme-color: #9ebaa0;
-	/* color-mix(in srgb, #627c83 80%, #fff 20%) */
-	--desktop-mode-titlebar-bg-focused: #81969c;
-	--desktop-mode-titlebar-color-focused: #f2fcff;
-}
-
-/* Sunrise. */
-.desktop-mode-shell[data-desktop-mode-scheme="sunrise"] {
-	--wp-admin-theme-color: #dd823b;
-	/* color-mix(in srgb, #b43c38 80%, #fff 20%) */
-	--desktop-mode-titlebar-bg-focused: #c36360;
-	--desktop-mode-titlebar-color-focused: #f3f1f1;
-}

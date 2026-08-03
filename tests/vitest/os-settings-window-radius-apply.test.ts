@@ -5,9 +5,9 @@
  * standing between it and them is CSS precedence. A desktop theme can
  * declare `--desktop-mode-window-radius` in its tokens, and the
  * compiled stylesheet writes it on a selector matching the shell root
- * — an ANCESTOR of every window. A `:root` write only reaches windows
- * by inheritance, so the theme would win and the preset would silently
- * do nothing.
+ * — an ANCESTOR of every window. The document-level write only reaches
+ * windows by inheritance, so the theme would win and the preset would
+ * silently do nothing.
  *
  * Hence the inline write on the shell element: inline outranks any
  * selector, so the user's pick is authoritative. These tests are the
@@ -43,6 +43,7 @@ beforeEach( () => {
 		.desktopModeConfig;
 	document.body.innerHTML = '';
 	document.documentElement.removeAttribute( 'style' );
+	document.body.removeAttribute( 'style' );
 
 	const shell = document.createElement( 'div' );
 	shell.id = 'desktop-mode-shell';
@@ -65,7 +66,7 @@ describe( 'apply() — window radius', () => {
 		settings.apply();
 
 		expect(
-			document.documentElement.style.getPropertyValue( RADIUS_VAR ),
+			document.body.style.getPropertyValue( RADIUS_VAR ),
 		).toBe( expected );
 		// The one that actually beats a desktop theme's token.
 		expect( shellEl().style.getPropertyValue( RADIUS_VAR ) ).toBe(

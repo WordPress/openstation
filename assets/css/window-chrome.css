@@ -606,15 +606,22 @@
 		rgba(0, 0, 0, 0.1)
 	);
 }
+/*
+ * Screen Options / Help on an UNFOCUSED title bar. These read the same
+ * two tokens as the window controls beside them rather than their own
+ * literals — a black glyph is invisible on a dark title bar, and these
+ * buttons sit in the same strip as controls that were already themable.
+ * The literals are unchanged, so an unthemed bar looks as it always did.
+ */
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn {
-	color: rgba(0, 0, 0, 0.3);
+	color: var( --desktop-mode-titlebar-btn-color, rgba(0, 0, 0, 0.3) );
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn:hover {
-	color: rgba(0, 0, 0, 0.6);
+	color: var( --desktop-mode-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
 	background: var( --wpd-hover, rgba(0, 0, 0, 0.08) );
 }
 .desktop-mode-window:not(.desktop-mode-window--focused) .desktop-mode-window__meta-btn--active {
-	color: rgba(0, 0, 0, 0.6);
+	color: var( --desktop-mode-titlebar-btn-color-hover, rgba(0, 0, 0, 0.6) );
 	background: rgba(0, 0, 0, 0.12);
 }
 

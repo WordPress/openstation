@@ -33,6 +33,38 @@ import type { OsSettingsState } from './types';
 /** How many theme slugs the ledger remembers. Mirrors the PHP cap. */
 const LEDGER_CAP = 64;
 
+/**
+ * The "no theme" card's id — the shell's own look, which OS Settings
+ * shows as **OpenStation**.
+ *
+ * @public
+ */
+export const SYSTEM_DEFAULT_THEME = '';
+
+/** Ledger key for the system default, which has no theme slug. */
+const SYSTEM_DEFAULT_LEDGER_KEY = 'system-default';
+
+/**
+ * What the shell's own look recommends.
+ *
+ * It is a theme in every way that matters to this module — a palette
+ * with an arrangement it was designed against — but it has no manifest
+ * to declare that in, because it IS the default and lives in
+ * `assets/css/variables.css`. So its recommendations are spelled out
+ * here: the accent it was drawn against, and the layout it was drawn
+ * for.
+ *
+ * The accent has to be a recommendation rather than part of the
+ * palette because it is a user setting written as an inline style,
+ * which no stylesheet can reach. Without this, picking OpenStation
+ * after wearing Legacy would leave WordPress blue on every focus ring
+ * and tab underline of a magenta-accented station.
+ */
+const SYSTEM_DEFAULT_RECOMMENDATIONS: RecommendedOsSettings = {
+	accent: 'pulse',
+	desktopLayout: 'classic',
+};
+
 /** Options for {@link applyThemeRecommendations}. */
 export interface ApplyThemeRecommendationsOptions {
 	/**
@@ -60,20 +92,24 @@ export function applyThemeRecommendations(
 	themeId: string,
 	opts: ApplyThemeRecommendationsOptions = {},
 ): RecommendedOsSettings {
-	const theme = getDesktopTheme( themeId );
-	if ( ! theme ) {
+	// The system default is not in the registry — it has no manifest —
+	// but it recommends the accent its palette was drawn against, and
+	// the ledger has to remember that it already offered it.
+	const isSystem = themeId === SYSTEM_DEFAULT_THEME;
+	const theme = isSystem ? null : getDesktopTheme( themeId );
+	if ( ! isSystem && ! theme ) {
 		return {};
 	}
+	const ledgerKey = isSystem ? SYSTEM_DEFAULT_LEDGER_KEY : theme!.slug;
 
-	const alreadySeeded = state.appliedThemeRecommendations.includes(
-		theme.slug,
-	);
+	const alreadySeeded =
+		state.appliedThemeRecommendations.includes( ledgerKey );
 	if ( alreadySeeded && ! opts.force ) {
 		return {};
 	}
 
 	const recommended = resolveRecommendedOsSettings(
-		theme.recommendedOsSettings,
+		isSystem ? SYSTEM_DEFAULT_RECOMMENDATIONS : theme!.recommendedOsSettings,
 	);
 	const keys = Object.keys( recommended );
 	if ( keys.length === 0 ) {
@@ -112,7 +148,7 @@ export function applyThemeRecommendations(
 	if ( ! alreadySeeded ) {
 		state.appliedThemeRecommendations = [
 			...state.appliedThemeRecommendations,
-			theme.slug,
+			ledgerKey,
 		].slice( -LEDGER_CAP );
 	}
 
@@ -129,6 +165,13 @@ export function applyThemeRecommendations(
  * @param themeId Theme slug or id.
  */
 export function hasApplicableThemeRecommendations( themeId: string ): boolean {
+	if ( themeId === SYSTEM_DEFAULT_THEME ) {
+		return (
+			Object.keys(
+				resolveRecommendedOsSettings( SYSTEM_DEFAULT_RECOMMENDATIONS ),
+			).length > 0
+		);
+	}
 	const theme = getDesktopTheme( themeId );
 	if ( ! theme ) {
 		return false;

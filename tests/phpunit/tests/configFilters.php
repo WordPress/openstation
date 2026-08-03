@@ -205,7 +205,10 @@ class Tests_DesktopMode_ConfigFilters extends WP_UnitTestCase {
 	 * @covers ::desktop_mode_get_default_wallpaper
 	 */
 	public function test_default_wallpaper_builtin_value() {
-		$this->assertSame( 'dark', desktop_mode_get_default_wallpaper() );
+		// Galaxy, the brand's hero surface: a Void sky with Nebula
+		// glows and a Starlight starfield. Registered in
+		// `desktop_mode_register_builtin_wallpapers()`.
+		$this->assertSame( 'galaxy', desktop_mode_get_default_wallpaper() );
 	}
 
 	/**

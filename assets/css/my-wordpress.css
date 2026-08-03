@@ -2138,7 +2138,9 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	width: 32px;
 	height: 32px;
 	border-radius: 50%;
-	background: #fff;
+	/* Placeholder behind the avatar image while it loads — follows the
+	   palette so it isn't a white disc on a dark station. */
+	background: var( --wpd-surface-elevated, #fff );
 	flex: none;
 }
 
@@ -2184,7 +2186,9 @@ wpd-tile[ status='future' ] .desktop-mode-file-tile__icon {
 	width: 48px;
 	height: 48px;
 	border-radius: 50%;
-	background: #fff;
+	/* Placeholder behind the avatar image while it loads — follows the
+	   palette so it isn't a white disc on a dark station. */
+	background: var( --wpd-surface-elevated, #fff );
 	flex: none;
 }
 

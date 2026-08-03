@@ -462,6 +462,22 @@ function desktop_mode_desktop_theme_recommended_os_settings_schema() {
 		'adminBarMode'         => array( 'enum' => DESKTOP_MODE_OS_SETTINGS_ADMIN_BAR_MODES ),
 		'dockRailRenderer'     => array( 'slug' => true ),
 		'windowReveal'         => array( 'slug' => true ),
+
+		/*
+		 * The accent swatch id. A registry lookup rather than an enum
+		 * because the list is filterable
+		 * (`desktop_mode_accent_colors`), so the shell resolves the id
+		 * against whatever swatches the site actually offers and skips
+		 * the key when nothing answers to it.
+		 *
+		 * It earns its place here for the same reason the rest do: a
+		 * theme's palette and the accent are one composition, and a
+		 * dark station wearing the WordPress blue it was never drawn
+		 * against is the most visible way that composition comes
+		 * apart. Still a recommendation — applied once, and the user's
+		 * pick afterwards is theirs.
+		 */
+		'accent'               => array( 'slug' => true ),
 		'windowRevealDuration' => array(
 			'int' => array(
 				'min' => DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MIN,

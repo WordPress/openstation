@@ -35,7 +35,7 @@ export const CUSTOM_GRADIENT_ID = 'custom-gradient';
 export const CUSTOM_IMAGE_ID = 'custom-image';
 
 /** Default fallback id when a registered wallpaper isn't available. */
-export const DEFAULT_WALLPAPER_ID = 'dark';
+export const DEFAULT_WALLPAPER_ID = 'galaxy';
 
 /**
  * Built-in accent swatches applied to `--wp-admin-theme-color`.
@@ -47,6 +47,8 @@ export const DEFAULT_WALLPAPER_ID = 'dark';
  * not fork this constant.
  */
 export const DEFAULT_ACCENTS: readonly AccentColor[] = [
+	{ id: 'pulse', label: 'Pulse', value: '#f252fc' },
+	{ id: 'nebula', label: 'Nebula', value: '#ec9bff' },
 	{ id: 'wp-blue', label: 'WordPress Blue', value: '#2271b1' },
 	{ id: 'indigo', label: 'Indigo', value: '#3858e9' },
 	{ id: 'teal', label: 'Teal', value: '#04a4cc' },
@@ -183,7 +185,7 @@ export const DESKTOP_LAYOUTS = [
 
 export const DEFAULTS: OsSettingsState = {
 	wallpaper: DEFAULT_WALLPAPER_ID,
-	accent: 'wp-blue',
+	accent: 'pulse',
 	dockSize: 'default',
 	windowRadius: 'default',
 	adminBarMode: 'static',

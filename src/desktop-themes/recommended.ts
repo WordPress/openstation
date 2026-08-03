@@ -25,6 +25,13 @@
 
 import { get as getDockRailRenderer } from '../dock-rail/registry';
 import { hasWindowReveal, WINDOW_REVEAL_NONE } from '../reveals/registry';
+// The one import from the settings module, and a deliberate exception
+// to the note above: `constants.ts` is itself a leaf — everything it
+// imports is type-only — so this pulls in the accent list and nothing
+// else. Duplicating the swatch ids here would defeat the point, since
+// the list is filterable and the whole check is "does the site still
+// offer this one?".
+import { getAccents } from '../settings/constants';
 import type { RecommendedOsSettings } from './types';
 
 /** Closed enums, keyed by the OS-settings field they belong to. */
@@ -36,7 +43,7 @@ const ENUMS: Record< string, readonly string[] > = {
 };
 
 /** Fields whose validity is a runtime registry lookup, not an enum. */
-const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal' ] as const;
+const SLUG_FIELDS = [ 'dockRailRenderer', 'windowReveal', 'accent' ] as const;
 
 /**
  * Numeric fields, with the range the sanitizer clamps into. Mirrors
@@ -142,6 +149,14 @@ export function resolveRecommendedOsSettings(
 		! hasWindowReveal( clean.windowReveal )
 	) {
 		delete clean.windowReveal;
+	}
+	// The accent list is filterable in PHP, so a swatch id only means
+	// something if the site still offers it.
+	if (
+		typeof clean.accent === 'string' &&
+		! getAccents().some( ( a ) => a.id === clean.accent )
+	) {
+		delete clean.accent;
 	}
 	return clean;
 }

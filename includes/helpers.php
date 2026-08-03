@@ -158,7 +158,7 @@ function desktop_mode_rest_require_enabled() {
  *
  * The returned string is passed through `sanitize_key()` so a filter
  * that returns an invalid slug degrades to the empty string (and the
- * shell falls back to its hard-coded `'dark'` preset).
+ * shell falls back to its hard-coded default preset).
  *
  * @return string Wallpaper id. Empty string if the filter returns
  *                an invalid value.
@@ -169,7 +169,7 @@ function desktop_mode_get_default_wallpaper() {
 	 *
 	 * @param string $id Default wallpaper slug.
 	 */
-	$id = apply_filters( 'desktop_mode_default_wallpaper', 'dark' );
+	$id = apply_filters( 'desktop_mode_default_wallpaper', 'galaxy' );
 	if ( ! is_string( $id ) ) {
 		return '';
 	}

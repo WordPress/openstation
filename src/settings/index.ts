@@ -318,13 +318,23 @@ export class OsSettings implements SettingsCtx {
 			WINDOW_RADII.find( ( r ) => r.id === this.state.windowRadius ) ??
 			WINDOW_RADII[ 1 ];
 
-		// Set on <html> rather than the shell so the cascade reaches
+		// Set on <body> rather than the shell so the cascade reaches
 		// siblings of #desktop-mode-shell — specifically the WordPress
 		// admin bar, which needs --desktop-mode-dock-width to size its
 		// leftmost (W-logo) slot in visual alignment with the dock
 		// below it. Shell-scoped variables cascade to shell children
-		// only; :root-scoped variables cascade everywhere.
-		const root = document.documentElement;
+		// only; everything the shell page renders is inside <body>.
+		//
+		// <body> specifically, not <html>, and that is load-bearing:
+		// the brand palette declares `--wp-admin-theme-color` on
+		// `body.desktop-mode-active` (see `variables.css`, which is
+		// scoped there so it cannot leak into iframe documents). A
+		// custom property inherits from the NEAREST ancestor that has
+		// one, regardless of the specificity behind it — so a value
+		// written on <html> would lose to that rule for everything
+		// inside the body, and the accent picker would appear to do
+		// nothing. On the same element, an inline style always wins.
+		const root = document.body;
 		root.style.setProperty( '--wp-admin-theme-color', accent.value );
 		root.style.setProperty( '--desktop-mode-dock-width', `${ dockSize.width }px` );
 		root.style.setProperty( '--desktop-mode-dock-icon-size', `${ dockSize.icon }px` );

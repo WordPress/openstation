@@ -26,6 +26,60 @@ defined( 'ABSPATH' ) || exit;
  * plus the Animated WordPress Logo canvas wallpaper.
  */
 function desktop_mode_register_builtin_wallpapers() {
+	/*
+	 * The four brand surfaces, straight from the OpenStation brand
+	 * guidelines. Registered as `css` wallpapers pointing at the
+	 * vector artwork the plugin ships: an SVG scales to any desk at
+	 * any DPI for a few kilobytes, which no raster wallpaper can do.
+	 *
+	 * `cover` on a 3:2 artboard, `center` so the composition's focal
+	 * point survives a crop on either axis, `fixed` so the desk does
+	 * not shift under a window drag.
+	 *
+	 * Galaxy is the default desk — see the `wallpaper` default in
+	 * `desktop_mode_os_settings_defaults()`.
+	 */
+	$brand = array(
+		array(
+			'id'          => 'galaxy',
+			'label'       => __( 'Galaxy', 'desktop-mode' ),
+			'file'        => 'galaxy.svg',
+			'description' => __( 'The station seen from outside: a Void sky with soft Nebula glows and a Starlight starfield drifting through it.', 'desktop-mode' ),
+		),
+		array(
+			'id'          => 'space',
+			'label'       => __( 'Space', 'desktop-mode' ),
+			'file'        => 'space.svg',
+			'description' => __( 'Deep space, quietly. One long gradient from near-black to a faint violet horizon — the calmest desk in the set, and the one that asks least of your eyes.', 'desktop-mode' ),
+		),
+		array(
+			'id'          => 'holomesh',
+			'label'       => __( 'Holomesh', 'desktop-mode' ),
+			'file'        => 'holomesh.svg',
+			'description' => __( 'The holographic mesh: lavender, pink, cyan and mint pooling into each other like light through a prism.', 'desktop-mode' ),
+		),
+		array(
+			'id'          => 'pulsemesh',
+			'label'       => __( 'Pulsemesh', 'desktop-mode' ),
+			'file'        => 'pulsemesh.svg',
+			'description' => __( 'The pulsar mesh: magenta and violet burning through a white core, the brightest surface the brand has.', 'desktop-mode' ),
+		),
+	);
+
+	foreach ( $brand as $wallpaper ) {
+		$css = 'url( ' . DESKTOP_MODE_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat fixed';
+		desktop_mode_register_wallpaper( $wallpaper['id'], array(
+			'label'       => $wallpaper['label'],
+			'type'        => 'css',
+			// The swatch is the same artwork, sized to the chip rather
+			// than the desk: `cover` on a 40px square would crop to a
+			// meaningless corner of the composition.
+			'preview'     => 'url( ' . DESKTOP_MODE_URL . 'assets/wallpapers/' . $wallpaper['file'] . ' ) center center / cover no-repeat',
+			'value'       => $css,
+			'description' => $wallpaper['description'],
+		) );
+	}
+
 	$presets = array(
 		array(
 			'id'          => 'dark',

@@ -5945,12 +5945,19 @@ Applies a theme's `recommendedOsSettings` and persists them. Defaults
 to the active theme. Returns the keys actually written — `{}` when the
 theme is unknown or recommends nothing this shell can apply (a
 `dockRailRenderer` naming a renderer no plugin registered resolves to
-nothing).
+nothing, and so does an `accent` naming a swatch the site does not
+offer).
 
 ```js
 const applied = wp.desktop.desktopThemes.applyRecommendedOsSettings();
 // → { dockSize: 'large', desktopLayout: 'unified' }
 ```
+
+The empty string — the **OpenStation** card, meaning "no theme" — is a
+valid argument and recommends the accent the shell's own palette was
+drawn against. It is the only recommendation set that lives in the
+shell rather than in a manifest, because the default look has no
+manifest.
 
 **The shell already does this once**, the first time a user activates a
 theme that ships recommendations; that is the entire automatic path,

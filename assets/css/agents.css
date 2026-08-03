@@ -218,8 +218,11 @@
 
 .dm-agent-chat__msg--error {
 	align-self: flex-start;
-	background: rgba( 214, 54, 56, 0.12 );
-	color: #8a1f21;
+	/* Tokenized so the wash and its ink move together: a dark-red
+	   literal on a translucent red wash reads fine over a white bubble
+	   list and vanishes over a dark one. Literals unchanged. */
+	background: var( --wpd-notice-error-bg, rgba( 214, 54, 56, 0.12 ) );
+	color: var( --wpd-danger, #8a1f21 );
 }
 
 .dm-agent-chat__msg-text {

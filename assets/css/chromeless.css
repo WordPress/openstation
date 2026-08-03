@@ -31,6 +31,31 @@
 	display: none !important;
 }
 
+/* ---------------------------------------------------------------
+ * The iframe paints its own canvas.
+ *
+ * An admin page leaves whole regions unpainted — the gutter around
+ * `#wpbody-content`, the strip behind `.subsubsub` and `.tablenav`,
+ * everything below short content. In a normal admin tab the browser
+ * canvas is white underneath, so nobody notices. Inside an iframe the
+ * canvas is TRANSPARENT, and what shows through is the window element
+ * behind it — `--desktop-mode-window-bg`.
+ *
+ * That was invisible while the window body was white and became a
+ * black band the moment the station's palette made it Obsidian. It is
+ * a real coupling either way: the look of a wp-admin page must not
+ * depend on the colour of the frame around it.
+ *
+ * So the chromeless document paints itself, in the colour the browser
+ * canvas would have been. Deliberately a literal and deliberately NOT
+ * a token: nothing about the shell's palette — or any desktop theme —
+ * should reach a real admin page. **An admin page in a window renders
+ * exactly as it does outside one.**
+ * --------------------------------------------------------------- */
+body.desktop-mode-chromeless {
+	background: #fff;
+}
+
 /*
  * _wp_admin_html_begin() adds the `wp-toolbar` class to <html> whenever
  * is_admin_bar_showing() is true — which, in admin, is unconditional.

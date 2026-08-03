@@ -3,10 +3,10 @@
  * The archaeology tool that produced the built-in "Legacy" desktop
  * theme's manifest. It is NOT part of any build.
  *
- *     node bin/build-legacy-theme-manifest.mjs            # report drift
- *     node bin/build-legacy-theme-manifest.mjs --write    # overwrite (don't)
+ *     node bin/build-legacy-theme-manifest.mjs                  # report drift
+ *     node bin/build-legacy-theme-manifest.mjs --out <path>     # mint a new snapshot
  *
- * ## Legacy is frozen, on purpose
+ * ## Legacy is frozen, and this script cannot unfreeze it
  *
  * `assets/desktop-themes/legacy/theme.json` is a **snapshot**, not a
  * generated artifact that tracks the code. Whoever picks Legacy is
@@ -16,11 +16,16 @@
  * it: not the build, not CI, not a hook. Change a default tomorrow
  * and Legacy goes on saying what it says today.
  *
- * So this script exists for provenance and for one job: minting a
- * NEW snapshot theme, under a new id, when the defaults have drifted
- * far enough that a second one is worth having. Running it with
- * `--write` re-points Legacy at today's defaults, which is almost
- * certainly not what you want; run it bare to see what has moved.
+ * That is enforced here rather than merely asked for: there is no
+ * flag that writes to the Legacy manifest, and pointing `--out` at it
+ * is refused. A bare run reports how far today's defaults have drifted
+ * from the snapshot and writes nothing.
+ *
+ * **A snapshot taken today captures the OpenStation palette**, not the
+ * pre-brand one — `variables.css` declares the brand now, and this
+ * script reads what is there. That is correct for minting a *new*
+ * theme and catastrophic for Legacy, which is the other half of why
+ * the path is refused.
  *
  * ## Where the numbers came from
  *
@@ -50,12 +55,27 @@
  * `--wpd-context-menu-fg-muted` at the white it actually renders
  * instead of the dark `--wpd-fg-muted` the chain names first.
  *
+ * ## Accent-derived tokens are captured, not dropped
+ *
+ * The focused title bar, the window-link splines, the selection ring
+ * and a dozen component tokens all resolve through
+ * `--wp-admin-theme-color`. The manifest grammar has no `var()`, so
+ * they can only be captured as the literal behind that chain — WP
+ * blue — which pins them for every admin colour scheme.
+ *
+ * That is the right trade for THIS theme and only this one: Legacy
+ * exists to reproduce a look people remember, and what they remember
+ * is a blue title bar. A theme that wanted to keep following the
+ * user's scheme would simply omit these names.
+ *
+ * `--wp-admin-theme-color` itself stays out — it is the user's accent
+ * setting, written as an inline style, and no theme should take it.
+ *
  * ## What is deliberately excluded
  *
- * Anything that resolves through `--wp-admin-theme-color` (it tracks
- * the user's admin colour scheme), texture-slot properties (written
- * by the manifest's `textures` block), derived badge sizes, and the
- * hand-listed context-dependent names in SKIP below. See
+ * Texture-slot properties (written by the manifest's `textures`
+ * block), derived badge sizes, and the hand-listed context-dependent
+ * names in SKIP below. See
  * `docs/desktop-themes.md#the-legacy-theme--start-here`.
  */
 
@@ -64,9 +84,33 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve( path.dirname( fileURLToPath( import.meta.url ) ), '..' );
-const OUT = path.join( ROOT, 'assets/desktop-themes/legacy/theme.json' );
-/** Writing is opt-in: the default run reports drift and touches nothing. */
-const WRITE = process.argv.includes( '--write' );
+/** The frozen snapshot. Compared against, never written to. */
+const LEGACY = path.join( ROOT, 'assets/desktop-themes/legacy/theme.json' );
+
+/**
+ * `--out <path>` mints a NEW snapshot there. A bare run reports drift
+ * and writes nothing, and no invocation may target the Legacy
+ * manifest — see the header.
+ */
+const OUT = ( () => {
+	const at = process.argv.indexOf( '--out' );
+	if ( at === -1 ) return null;
+	const given = process.argv[ at + 1 ];
+	if ( ! given ) {
+		console.error( '--out needs a path to write the new snapshot to.' );
+		process.exit( 1 );
+	}
+	const resolved = path.resolve( process.cwd(), given );
+	if ( resolved === LEGACY ) {
+		console.error(
+			'Refusing to write the Legacy manifest: it is a frozen snapshot of the\n' +
+			'pre-brand look, and a snapshot taken today would capture the OpenStation\n' +
+			'palette instead. Mint a new theme under a new id.'
+		);
+		process.exit( 1 );
+	}
+	return resolved;
+} )();
 
 /** A fallback needs this share of a token's read sites to be "the" default. */
 const MAJORITY = 0.55;
@@ -214,7 +258,11 @@ const files = [ ...walk( path.join( ROOT, 'assets/css' ) ), ...walk( path.join( 
 const declared = new Map();
 {
 	const text = fs.readFileSync( path.join( ROOT, 'assets/css/variables.css' ), 'utf8' );
-	const block = text.slice( text.indexOf( ':root {' ), text.indexOf( '\n}\n' ) );
+	// The `:root` block, from its own brace to its own close — NOT to
+	// the first `}` in the file, which since the brand landed belongs
+	// to an `@font-face` rule several lines above it.
+	const start = text.indexOf( ':root {' );
+	const block = text.slice( start, text.indexOf( '\n}\n', start ) );
 	for ( const m of block.matchAll( /^\t(--[a-z0-9-]+):\s*([^;]+);/gm ) ) {
 		declared.set( m[ 1 ], m[ 2 ].replace( /\s+/g, ' ' ).trim() );
 	}
@@ -445,7 +493,6 @@ for ( const name of names ) {
 	const r = resolve( name );
 	if ( ! r ) { drop( 'never read with a default' ); continue; }
 	if ( ! r.ok ) { drop( r.ambiguous ? `no dominant default (${ r.ambiguous })` : 'unresolvable chain' ); continue; }
-	if ( r.schemeDerived ) { drop( 'follows --wp-admin-theme-color' ); continue; }
 
 	const value = normalize( r.value );
 	const bad = grammarProblem( value );
@@ -463,29 +510,30 @@ const manifest = {
 	version: '1.0.0',
 	author: 'Desktop Mode',
 	description:
-		"Desktop Mode's own defaults, written down. Every design token the shell and the component kit read, at the value they resolve to with no theme active. Nothing to look at — a starting point to fork.",
+		"The look Desktop Mode had before the OpenStation brand: every design token at the value it resolved to then. Wear it to put the old palette back, or fork it as the starting point for a theme of your own.",
 	preview: 'preview.svg',
 	tokens,
 };
 
 const json = JSON.stringify( manifest, null, '\t' ) + '\n';
-const current = fs.existsSync( OUT ) ? fs.readFileSync( OUT, 'utf8' ) : '';
-const rel = path.relative( ROOT, OUT );
 
-if ( ! WRITE ) {
+if ( ! OUT ) {
+	// Drift report: today's resolved defaults against the frozen
+	// snapshot. Since the brand landed these differ by design — the
+	// value is in seeing WHICH tokens moved, which is how you catch a
+	// fill that now resolves to a 10%-alpha wash.
 	const now = JSON.parse( json ).tokens;
-	const then = current ? ( JSON.parse( current ).tokens || {} ) : {};
+	const then = JSON.parse( fs.readFileSync( LEGACY, 'utf8' ) ).tokens || {};
 	const moved = Object.keys( now ).filter( ( k ) => k in then && then[ k ] !== now[ k ] );
 	const added = Object.keys( now ).filter( ( k ) => ! ( k in then ) );
 	const gone = Object.keys( then ).filter( ( k ) => ! ( k in now ) );
 
 	if ( ! moved.length && ! added.length && ! gone.length ) {
-		console.log( `Today's defaults still match the snapshot (${ Object.keys( now ).length } tokens).` );
+		console.log( `Today's defaults match the Legacy snapshot exactly (${ Object.keys( now ).length } tokens).` );
 	} else {
-		console.log( `The shell's defaults have moved since the snapshot was taken.` );
-		console.log( `${ rel } is FROZEN and should stay that way — anyone wearing` );
-		console.log( `Legacy asked for the old look. Mint a new snapshot theme under a new id` );
-		console.log( `instead of rewriting this one.\n` );
+		console.log( "Today's defaults vs the frozen Legacy snapshot — expected to differ," );
+		console.log( 'since the OpenStation palette is what `variables.css` now declares.' );
+		console.log( 'Nothing here is written anywhere; read it as an audit of the rebrand.\n' );
 		for ( const k of moved ) console.log( `  changed  ${ k }: ${ then[ k ] } -> ${ now[ k ] }` );
 		for ( const k of added ) console.log( `  new      ${ k }: ${ now[ k ] }` );
 		for ( const k of gone ) console.log( `  dropped  ${ k }: ${ then[ k ] }` );
@@ -495,7 +543,9 @@ if ( ! WRITE ) {
 
 fs.mkdirSync( path.dirname( OUT ), { recursive: true } );
 fs.writeFileSync( OUT, json );
-console.log( `Rewrote ${ rel } with ${ Object.keys( tokens ).length } tokens.` );
+console.log( `Wrote a new snapshot to ${ path.relative( ROOT, OUT ) } with ${ Object.keys( tokens ).length } tokens.` );
+console.log( 'Give it its own `id` and `name` before shipping it — the ids in this file' );
+console.log( "are Legacy's, and an id collision would shadow the frozen theme." );
 console.log( `Left undeclared: ${ skipped.length }. Run with DEBUG=1 to list them.` );
 if ( process.env.DEBUG ) {
 	for ( const line of skipped ) console.log( '  ' + line );

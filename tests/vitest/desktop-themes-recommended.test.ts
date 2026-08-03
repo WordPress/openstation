@@ -19,6 +19,7 @@ import { normalizeEntry, setDesktopThemes } from '../../src/desktop-themes/regis
 import {
 	applyThemeRecommendations,
 	hasApplicableThemeRecommendations,
+	SYSTEM_DEFAULT_THEME,
 } from '../../src/settings/theme-recommendations';
 import { structuredDefaults } from '../../src/settings/state';
 import {
@@ -150,6 +151,10 @@ describe( 'sanitizeRecommendedOsSettings', () => {
 			'adminBarMode',
 			'dockRailRenderer',
 			'windowReveal',
+			// The accent is a slug field for the same reason the two
+			// above it are: the swatch list is filterable in PHP, so
+			// validity is a runtime lookup rather than an enum.
+			'accent',
 			'windowRevealDuration',
 		] );
 	} );
@@ -409,5 +414,64 @@ describe( 'hasApplicableThemeRecommendations', () => {
 	test( 'false for an unknown theme', () => {
 		seedLibrary( { dockSize: 'large' } );
 		expect( hasApplicableThemeRecommendations( 'not-installed' ) ).toBe( false );
+	} );
+
+	test( 'true for the system default, which recommends its own accent', () => {
+		// The "no theme" card is a palette like any other and gets the
+		// same "Apply …'s recommended layout and effects" button. It
+		// has no manifest to declare that in, so its recommendation is
+		// spelled out in `theme-recommendations.ts`.
+		expect( hasApplicableThemeRecommendations( SYSTEM_DEFAULT_THEME ) ).toBe(
+			true,
+		);
+	} );
+} );
+
+describe( 'the system default recommends the brand accent', () => {
+	test( 'seeds Pulse and the classic layout, under its own ledger key', () => {
+		const state = structuredDefaults();
+		state.accent = 'wp-blue';
+		state.desktopLayout = 'spatial';
+
+		expect(
+			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME ),
+		).toEqual( { accent: 'pulse', desktopLayout: 'classic' } );
+		expect( state.accent ).toBe( 'pulse' );
+		expect( state.desktopLayout ).toBe( 'classic' );
+		// Not the empty string: the ledger is a list of theme slugs and
+		// `''` would read as "no theme" rather than as an entry.
+		expect( state.appliedThemeRecommendations ).toEqual( [
+			'system-default',
+		] );
+	} );
+
+	test( 'does not re-seed once offered, unless forced by the button', () => {
+		const state = structuredDefaults();
+		applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME );
+		state.accent = 'emerald';
+
+		expect(
+			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME ),
+		).toEqual( {} );
+		expect( state.accent ).toBe( 'emerald' );
+
+		expect(
+			applyThemeRecommendations( state, SYSTEM_DEFAULT_THEME, {
+				force: true,
+			} ),
+		).toEqual( { accent: 'pulse', desktopLayout: 'classic' } );
+		expect( state.accent ).toBe( 'pulse' );
+	} );
+
+	test( 'an accent the site no longer offers is dropped, not written', () => {
+		// The swatch list is filterable in PHP, so validity is a runtime
+		// lookup — an unresolvable id would otherwise sit in user meta
+		// looking like a deliberate choice.
+		expect(
+			resolveRecommendedOsSettings( { accent: 'not-a-swatch' } ),
+		).toEqual( {} );
+		expect( resolveRecommendedOsSettings( { accent: 'pulse' } ) ).toEqual( {
+			accent: 'pulse',
+		} );
 	} );
 } );

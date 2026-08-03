@@ -6,6 +6,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 
 - [Hard rules](#hard-rules)
   - [Never hand-edit JS in `assets/js/`](#never-hand-edit-js-in-assetsjs)
+  - [The palette lives in `variables.css`](#the-palette-lives-in-variablescss--one-declaration-one-owner)
   - [Never regenerate the Legacy theme manifest](#never-regenerate-the-legacy-theme-manifest)
   - [Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wpdesktopfetch-or-trackedfetch-never-raw-fetch)
   - [Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wpdesktopconfirm-or-wpdconfirm-never-windowconfirmalertprompt)
@@ -49,6 +50,19 @@ Process for any JS change:
 If you ever find yourself reaching for `assets/js/*.js` directly, stop and write the TS instead. Hand-edited JS is overwritten by the next `npm run build` and produces no TS-checked types, a silent class of bug.
 
 **Lint scope:** `npm run lint` runs on `src/**/*.ts` only. Test files under `tests/vitest/` aren't in the lint config (typescript-eslint project doesn't include them); rely on `npm run typecheck` + `npm run test:js` to catch issues there.
+
+### The palette lives in `variables.css` — one declaration, one owner
+
+The shell wears the [OpenStation brand](https://nuriapenya.github.io/open-station-brand/), and it wears it as **token declarations in `assets/css/variables.css` and nowhere else**. Void as the base, Obsidian for surfaces, Pulse and Nebula for identity moments, Sirius and Starlight for contrast, the Shade ramp for text hierarchy and lines.
+
+**The palette is scoped to `body.desktop-mode-active`, never `:root`.** `variables.css` is a dependency of `chromeless.css`, so it also loads inside every iframe window — a real `wp-admin` document. On `:root` the palette would repaint WordPress's own UI in there, and `--wp-admin-theme-color` alone would move Core's primary buttons, links and focus rings across every admin screen. Iframe documents carry `desktop-mode-chromeless`, match nothing, and render on the fallback literals. **An admin page in a window looks exactly as it does outside one — that is a promise, and `tests/vitest/brand-palette.test.ts` holds you to it.**
+
+Three rules follow from that, and all have tests:
+
+1. **Restyling means changing a token's value in `variables.css`**, not adding a rule in a feature stylesheet. A colour declared next to the thing it paints is out of reach of the palette *and* of every desktop theme — including Legacy, the way back to the pre-brand look.
+2. **Every consuming rule keeps reading `var( --token, <literal> )`**, and that literal stays the pre-brand WordPress-admin value. It is the floor if the stylesheet fails to load, and it is what `bin/build-legacy-theme-manifest.mjs` reads. Never "tidy" a fallback away.
+
+When a surface looks wrong after a palette change, the fix is almost always that some token resolves through a chain that now means something else — a fill reading a 10%-alpha wash, or hover and pressed collapsing onto the same value. `node bin/build-legacy-theme-manifest.mjs` (run bare) prints every token whose resolved value has moved since the Legacy snapshot, which is the fastest way to find those.
 
 ### Never regenerate the Legacy theme manifest
 

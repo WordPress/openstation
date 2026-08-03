@@ -56,8 +56,8 @@ const DESKTOP_MODE_OS_SETTINGS_REVEAL_DURATION_MAX = 4000;
  */
 function desktop_mode_default_os_settings() {
 	return array(
-		'wallpaper'                   => 'dark',
-		'accent'                      => 'wp-blue',
+		'wallpaper'                   => 'galaxy',
+		'accent'                      => 'pulse',
 		'dockSize'                    => 'default',
 		'windowRadius'                => 'default',
 		// How the WordPress admin bar presents above the shell.

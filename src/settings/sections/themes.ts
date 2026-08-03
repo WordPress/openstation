@@ -38,6 +38,17 @@ import type { SettingsCtx } from '../types';
 const SYSTEM_DEFAULT = '';
 
 /**
+ * What the "no theme" card is called.
+ *
+ * Not a translated string: it is the name of the shell's own look, the
+ * same way "Desktop Mode (Legacy)" is the name of the theme beside it,
+ * and a product name does not get translated. It reads as a peer of
+ * the themes in the grid because that is exactly what it is — one
+ * palette among several, and the one the plugin ships wearing.
+ */
+const SYSTEM_DEFAULT_NAME = 'OpenStation';
+
+/**
  * Initials shown on a theme card that ships no preview image.
  * Same idea as the letter-badge icon fallback: something
  * recognisable and stable beats an empty rectangle.
@@ -96,8 +107,8 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 	 * moving IS the feedback; a notice on top of a visible change is
 	 * noise.
 	 */
-	const applyRecommended = ( theme: DesktopThemeEntry ): void => {
-		const applied = applyThemeRecommendations( ctx.state, theme.slug, {
+	const applyRecommended = ( themeSlug: string ): void => {
+		const applied = applyThemeRecommendations( ctx.state, themeSlug, {
 			force: true,
 		} );
 		if ( Object.keys( applied ).length === 0 ) {
@@ -258,7 +269,7 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 					aria-hidden="true"
 				></span>
 				<span class="desktop-mode-os-settings__theme-name"
-					>${ __( 'System default' ) }</span
+					>${ SYSTEM_DEFAULT_NAME }</span
 				>
 				<span class="desktop-mode-os-settings__theme-meta"
 					>${ __( 'The look Desktop Mode ships with' ) }</span
@@ -310,21 +321,34 @@ export function buildThemesSection( ctx: SettingsCtx ): HTMLElement {
 	 * naming a dock rail renderer no plugin registered resolves to
 	 * nothing, and an unusable button is worse than no button.
 	 */
+	/**
+	 * The row is not only for installed themes: the system default is
+	 * a palette with an arrangement of its own — the accent it was
+	 * drawn against — and it needs the same way back after the user
+	 * has moved things around. Its recommendations live in
+	 * `theme-recommendations.ts` rather than in a manifest, because it
+	 * has no manifest; everything downstream treats it identically.
+	 */
 	const recommendationRow = ( themes: DesktopThemeEntry[] ) => {
-		const active = themes.find(
-			( theme ) => theme.slug === ctx.state.desktopTheme,
-		);
-		if ( ! active || ! hasApplicableThemeRecommendations( active.slug ) ) {
+		const activeSlug = ctx.state.desktopTheme;
+		if ( ! hasApplicableThemeRecommendations( activeSlug ) ) {
+			return '';
+		}
+		const name =
+			activeSlug === SYSTEM_DEFAULT
+				? SYSTEM_DEFAULT_NAME
+				: themes.find( ( theme ) => theme.slug === activeSlug )?.name;
+		if ( name === undefined ) {
 			return '';
 		}
 		return html`<div class="desktop-mode-os-settings__theme-recommendation">
 			<wpd-button
 				variant="secondary"
-				@click=${ () => applyRecommended( active ) }
+				@click=${ () => applyRecommended( activeSlug ) }
 				>${ sprintf(
 			/* translators: %s: theme name. */
 			__( 'Apply %s’s recommended layout and effects' ),
-			active.name,
+			name,
 		) }</wpd-button
 			>
 		</div>`;

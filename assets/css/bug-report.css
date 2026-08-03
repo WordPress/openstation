@@ -35,8 +35,10 @@
 	padding: 8px 10px;
 	border: 1px solid var( --wpd-danger, #d63638 );
 	border-radius: 4px;
-	background: #fcf0f1;
-	color: var( --wpd-danger-hover, #b32d2e );
+	/* Same pairing rule as every other status wash: the surface follows
+	   the palette so its ink stays legible on it. */
+	background: var( --wpd-notice-error-bg, #fcf0f1 );
+	color: var( --wpd-danger, #b32d2e );
 	font-size: 12px;
 }
 

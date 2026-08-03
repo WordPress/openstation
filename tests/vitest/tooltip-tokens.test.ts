@@ -14,8 +14,10 @@
  *
  *   1. Every tooltip surface reads the dedicated token FIRST, with
  *      its old chain as the fallback.
- *   2. Neither token is declared anywhere, so an unthemed shell
- *      resolves to exactly the literals it always did.
+ *   2. The tokens are declared in exactly ONE place — `variables.css`,
+ *      where the brand palette lives. A second declaration in a
+ *      feature stylesheet would pin the tooltip for that one surface
+ *      and put it out of reach of the palette and of every theme.
  *
  * These are asserted against the stylesheet text because the rules
  * live in plain CSS with no module to import — jsdom does not resolve
@@ -95,14 +97,11 @@ describe( 'tooltip tokens', () => {
 		}
 	);
 
-	test( 'neither token is declared, so the default look cannot drift', () => {
-		// A declaration is `--name:`; a read is `var( --name,`. Only
-		// the former would pin a value and defeat the fallback chains
-		// asserted above.
-		for ( const file of [
-			'variables.css',
-			...TOOLTIPS.map( ( t ) => t.file ),
-		] ) {
+	test( 'only variables.css declares them, so one palette owns the look', () => {
+		// A declaration is `--name:`; a read is `var( --name,`. A
+		// declaration in a consuming sheet would pin that one tooltip
+		// and defeat both the palette and every desktop theme.
+		for ( const file of TOOLTIPS.map( ( t ) => t.file ) ) {
 			const css = readCss( file );
 
 			expect(
@@ -110,6 +109,10 @@ describe( 'tooltip tokens', () => {
 				`${ file } declares a tooltip token`
 			).toBe( false );
 		}
+
+		const vars = readCss( 'variables.css' );
+		expect( vars ).toMatch( /--desktop-mode-tooltip-bg:\s*#33303a/ );
+		expect( vars ).toMatch( /--desktop-mode-tooltip-fg:\s*#fffbff/ );
 	} );
 
 	test( 'variables.css documents both tokens', () => {

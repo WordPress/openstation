@@ -53,8 +53,15 @@ export const styles = css`
 		--wpd-table-header-bg: var( --wpd-surface-elevated, #f6f7f7 );
 		/* Translucent overlays — these are LAYERED, never replaced
 		   into a base background. Keep them rgba so they compose
-		   across stripe + hover combinations. */
-		--wpd-table-row-hover: rgba( 0, 0, 0, 0.04 );
+		   across stripe + hover combinations.
+
+		   The hover wash chains through --wpd-hover so it follows the
+		   palette's direction: a black wash lightens nothing on a dark
+		   surface, and a declaration on :host outranks anything the
+		   shell root inherits in, so the chain is the only way a theme
+		   can reach it. The literal is unchanged, so an unthemed table
+		   hovers exactly as it always did. */
+		--wpd-table-row-hover: var( --wpd-hover, rgba( 0, 0, 0, 0.04 ) );
 		--wpd-table-stripe: rgba( 0, 0, 0, 0.03 );
 		--wpd-table-cell-padding: 8px 12px;
 		--wpd-table-font-size: 13px;

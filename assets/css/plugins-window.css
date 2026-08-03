@@ -289,8 +289,8 @@
 
 .desktop-mode-plugins__update-badge {
 	font-size: 0.78em;
-	background: rgba( 250, 175, 0, 0.18 );
-	color: rgb( 145, 95, 0 );
+	background: var( --wpd-notice-warning-bg, rgba( 250, 175, 0, 0.18 ) );
+	color: var( --wpd-warning-fg, rgb( 145, 95, 0 ) );
 	padding: 1px 7px;
 	border-radius: 999px;
 	font-weight: 600;
@@ -549,9 +549,12 @@
 	width: 32px;
 	height: 32px;
 	padding: 0;
-	border: 1px solid rgba( 0, 0, 0, 0.08 );
+	/* Glass close button. Tokenized so it follows the palette: a white
+	   disc on a dark flyout is the one control you cannot miss, in the
+	   wrong sense. Literals unchanged for the unthemed look. */
+	border: 1px solid var( --wpd-border, rgba( 0, 0, 0, 0.08 ) );
 	border-radius: 50%;
-	background: rgba( 255, 255, 255, 0.78 );
+	background: var( --wpd-surface, rgba( 255, 255, 255, 0.78 ) );
 	-webkit-backdrop-filter: blur( 12px ) saturate( 160% );
 	backdrop-filter: blur( 12px ) saturate( 160% );
 	box-shadow:
@@ -571,9 +574,9 @@
 }
 
 .desktop-mode-plugins__flyout-close:hover {
-	background: rgba( 255, 255, 255, 0.96 );
+	background: var( --wpd-surface-elevated, rgba( 255, 255, 255, 0.96 ) );
 	transform: scale( 1.06 );
-	border-color: rgba( 0, 0, 0, 0.16 );
+	border-color: var( --wpd-border-strong, rgba( 0, 0, 0, 0.16 ) );
 	box-shadow:
 		0 4px 10px rgba( 0, 0, 0, 0.14 ),
 		0 0 0 1px rgba( 255, 255, 255, 0.5 ) inset;

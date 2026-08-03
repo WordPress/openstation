@@ -11,10 +11,12 @@
  *     stylesheets, so a value that does not satisfy the token grammar
  *     would vanish during sanitization with no error anywhere. The
  *     count assertion below is what turns that into a red test.
- *   - **Nothing scheme-derived is declared.** A hex for the admin
- *     accent (or anything that resolves through it) would pin every
- *     WordPress colour scheme to Fresh blue for anyone wearing the
- *     theme.
+ *   - **The accent-derived chrome IS declared.** The focused title
+ *     bar and its relatives resolve through `--wp-admin-theme-color`,
+ *     which the manifest grammar cannot express — so they have to be
+ *     captured as the literal behind that chain, WordPress blue.
+ *     Leave them out and Legacy silently keeps the station's grey
+ *     title bar, which is the one thing everybody notices.
  *
  * @package WordPress
  * @subpackage UnitTests
@@ -153,7 +155,7 @@ class Tests_DesktopMode_DesktopThemesLegacy extends WP_UnitTestCase {
 			array_values( $dropped ),
 			'Every declared token satisfies the value grammar: ' . implode( ', ', $dropped )
 		);
-		$this->assertGreaterThan( 300, count( $kept ), 'The manifest covers the token surface.' );
+		$this->assertGreaterThan( 380, count( $kept ), 'The manifest covers the token surface.' );
 	}
 
 	/**
@@ -171,7 +173,7 @@ class Tests_DesktopMode_DesktopThemesLegacy extends WP_UnitTestCase {
 		$tokens = $this->manifest()['tokens'];
 		$why    = 'Legacy is a frozen snapshot — mint a new theme instead of moving it.';
 
-		$this->assertCount( 377, $tokens, $why );
+		$this->assertCount( 392, $tokens, $why );
 		foreach ( array(
 			'--desktop-mode-bg'             => 'linear-gradient( 135deg, #1d2327 0%, #2c3338 50%, #1d2327 100% )',
 			'--desktop-mode-titlebar-bg'    => '#f0f0f1',
@@ -183,6 +185,12 @@ class Tests_DesktopMode_DesktopThemesLegacy extends WP_UnitTestCase {
 			'--wpd-border'                  => '#dcdcde',
 			'--wpd-accent'                  => '#2271b1',
 			'--wpd-danger'                  => '#d63638',
+			// The one everybody recognises. It resolved through
+			// `--wp-admin-theme-color`, which the manifest grammar has
+			// no way to express, so the snapshot names the literal —
+			// otherwise Legacy silently keeps the station's grey.
+			'--desktop-mode-titlebar-bg-focused'    => '#2271b1',
+			'--desktop-mode-titlebar-color-focused' => '#fff',
 		) as $name => $value ) {
 			$this->assertSame( $value, $tokens[ $name ], $name . ': ' . $why );
 		}
@@ -202,24 +210,85 @@ class Tests_DesktopMode_DesktopThemesLegacy extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Nothing that tracks the user's WordPress admin colour scheme may
-	 * be frozen into a literal.
+	 * The chrome that used to follow the admin colour scheme is
+	 * captured as WordPress blue.
+	 *
+	 * `var()` is not in the manifest's value grammar, so a theme
+	 * cannot say "whatever the accent is". For Legacy that trade is
+	 * the right one — it exists to reproduce a look people remember,
+	 * and what they remember is a blue title bar.
 	 */
-	public function test_scheme_derived_tokens_are_not_declared() {
+	public function test_accent_derived_chrome_is_wordpress_blue() {
 		$tokens = $this->manifest()['tokens'];
 
 		foreach ( array(
-			'--wp-admin-theme-color',
 			'--desktop-mode-titlebar-bg-focused',
-			'--desktop-mode-window-link-color',
 			'--desktop-mode-tile-focus-ring',
+			'--desktop-mode-window-link-color',
+			'--desktop-mode-window-link-color-active',
+			'--desktop-mode-window-link-accent',
+			'--wpd-card-border-selected',
+			'--wpd-notice-link',
+			'--wpd-progress-fill',
+			'--wpd-ribbon-bg',
+			'--wpd-save-status-bg',
+			'--wpd-spinner-color',
+			'--wpd-step-chip-bg',
 		) as $name ) {
-			$this->assertArrayNotHasKey(
-				$name,
-				$tokens,
-				$name . ' follows the admin colour scheme and must stay undeclared.'
-			);
+			$this->assertSame( '#2271b1', $tokens[ $name ], $name . ' is WordPress blue' );
 		}
+	}
+
+	/**
+	 * The accent is not a TOKEN — OS Settings writes it as an inline
+	 * style that no stylesheet can reach, so a theme cannot declare it
+	 * and have it stick.
+	 */
+	public function test_the_accent_is_not_declared_as_a_token() {
+		$this->assertArrayNotHasKey(
+			'--wp-admin-theme-color',
+			$this->manifest()['tokens']
+		);
+	}
+
+	/**
+	 * …it is a RECOMMENDATION instead, which is the one channel that
+	 * can move a user setting.
+	 *
+	 * Without it, wearing Legacy would restore the whole pre-brand
+	 * palette and leave Pulse on every focus ring, tab underline and
+	 * sort arrow — the one thing the theme exists to undo. It is also
+	 * what puts the "Apply Desktop Mode (Legacy)'s recommended layout
+	 * and effects" button on the card.
+	 *
+	 * @covers ::desktop_mode_sanitize_desktop_theme_recommended_os_settings
+	 */
+	public function test_legacy_recommends_the_wordpress_blue_accent() {
+		$raw = $this->manifest();
+		$this->assertSame( 2, $raw['manifestVersion'], 'v2 declares a recommendation block.' );
+		$this->assertSame( 'wp-blue', $raw['recommendedOsSettings']['accent'] );
+
+		// Survives the sanitizer's allow-list, which is the part that
+		// would silently drop it if `accent` left the schema.
+		$entry = desktop_mode_desktop_theme_registry( self::SLUG );
+		$this->assertSame(
+			'wp-blue',
+			$entry['manifest']['recommendedOsSettings']['accent'],
+			'`accent` is in the recommended-OS-settings schema.'
+		);
+	}
+
+	/**
+	 * @covers ::desktop_mode_desktop_theme_recommended_os_settings_schema
+	 */
+	public function test_accent_is_a_registry_slug_in_the_schema() {
+		$schema = desktop_mode_desktop_theme_recommended_os_settings_schema();
+
+		$this->assertArrayHasKey( 'accent', $schema );
+		$this->assertTrue(
+			! empty( $schema['accent']['slug'] ),
+			'Accent ids resolve against the filterable swatch list, not a fixed enum.'
+		);
 	}
 
 	/**

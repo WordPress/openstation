@@ -119,9 +119,14 @@ See [`docs/architecture.md`](./docs/architecture.md) for how the pieces fit toge
 │   └── ai-copilot/              # AI assistant (OpenAI client, analysis, search, jobs)
 ├── assets/                # hand-authored CSS + JS build output
 │   ├── css/  desktop.css, windows.css, dock.css, chromeless.css, variables.css
+│   │          variables.css carries the OpenStation palette — every design
+│   │          token the shell and the <wpd-*> kit read, declared once
+│   ├── fonts/    Geist + Geist Mono (variable, SIL OFL 1.1)
+│   ├── wallpapers/  the four brand desks: galaxy (default), space,
+│   │          holomesh, pulsemesh
 │   ├── desktop-themes/legacy/
 │   │          the built-in "Desktop Mode (Legacy)" theme — a frozen snapshot of
-│   │          every design token at its default value; never regenerated.
+│   │          every token at its pre-brand value; never regenerated.
 │   │          Zip it with npm run package:legacy-theme
 │   └── js/   Vite bundles (gitignored; regenerate with npm run build) — only
 │             admin-bar.js and media-library-enhanced.js are hand-written and tracked
