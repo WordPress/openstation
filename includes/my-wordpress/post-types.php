@@ -31,6 +31,12 @@ defined( 'ABSPATH' ) || exit;
  * REST namespace the bridge controller registers non-REST post types
  * under. Kept as a helper so the entity builder and the controller
  * cannot drift apart.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_MY_WORDPRESS_POST_TYPE_NAMESPACE = 'desktop-mode/v1';
 

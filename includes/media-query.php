@@ -24,11 +24,34 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** Numeric post-meta keys stamped on every image attachment. */
+/**
+ * Numeric post-meta keys stamped on every image attachment.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_META_WIDTH  = '_desktop_mode_width';
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_META_HEIGHT = '_desktop_mode_height';
 
-/** Option key flipped to `1` once every image has been backfilled. */
+/**
+ * Option key flipped to `1` once every image has been backfilled.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_BACKFILL_DONE_OPTION = 'desktop_mode_media_dims_backfilled';
 
 /** How many legacy attachments to backfill per filtered REST request. */

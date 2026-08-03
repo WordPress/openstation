@@ -42,6 +42,12 @@ defined( 'ABSPATH' ) || exit;
  *
  * Lives here rather than in store.php because `openstation_agent_is_agent()`
  * must resolve even when the agents module itself is not loaded.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_AGENT_USER_MARKER_META = '_desktop_mode_agent';
 

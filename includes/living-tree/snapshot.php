@@ -23,8 +23,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Transient key the built snapshot is cached under.
  *
- * Keeps its pre-rebrand spelling so live caches stay addressable. Not
- * to be confused with the `openstation_living_tree_snapshot` filter,
+ * The VALUE keeps its pre-rebrand spelling on purpose, so live caches
+ * stay addressable. The mismatch between this constant's name and its
+ * value is deliberate — it is NOT a half-finished rename.
+ *
+ * Not to be confused with the `openstation_living_tree_snapshot` filter,
  * which once shared this string and is now deliberately decoupled.
  */
 const OPENSTATION_LIVING_TREE_CACHE_KEY = 'desktop_mode_living_tree_snapshot';

@@ -27,7 +27,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** Post type holding one conversation per post. */
+/**
+ * Post type holding one conversation per post.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_AGENT_CHAT_POST_TYPE = 'desktop_mode_chat';
 
 /** Newest conversations kept per user — creating past the cap prunes the oldest. */

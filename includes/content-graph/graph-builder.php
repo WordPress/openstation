@@ -30,6 +30,13 @@ defined( 'ABSPATH' ) || exit;
 // previous schema (e.g. missing per-node `contributor_ids`) and
 // surface as runtime errors on the client. Each bump is a one-time
 // cache miss for every site that updates the plugin.
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_CONTENT_GRAPH_TRANSIENT_PREFIX = 'desktop_mode_cg3_';
 const OPENSTATION_CONTENT_GRAPH_TRANSIENT_TTL    = 6 * HOUR_IN_SECONDS;
 

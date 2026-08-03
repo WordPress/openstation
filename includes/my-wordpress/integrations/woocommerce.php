@@ -558,6 +558,12 @@ function openstation_my_wordpress_woo_product_plan() {
  * Query parameter the site window's list requests carry so the band
  * ordering filters can scope themselves. Declared on the section
  * descriptor as `listQuery`, sent by `fetchEntityList()`.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_WOO_BANDED_PARAM = 'desktop_mode_bands';
 

@@ -24,6 +24,12 @@ defined( 'ABSPATH' ) || exit;
  * The user meta key carrying the last successful login's UTC unix
  * timestamp. Public surface — exposed so other plugins can read /
  * sort by it.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 const OPENSTATION_LAST_LOGIN_META_KEY = '_desktop_mode_last_login_at';
 

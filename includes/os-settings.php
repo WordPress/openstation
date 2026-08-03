@@ -14,7 +14,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** User meta key for OS Settings. */
+/**
+ * User meta key for OS Settings.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_OS_SETTINGS_META_KEY = 'desktop_mode_os_settings';
 
 /** Valid dock-size IDs — mirrors the TS `DOCK_SIZES` constant. */

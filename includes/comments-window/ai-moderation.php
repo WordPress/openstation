@@ -37,7 +37,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** Site option storing the on/off state. */
+/**
+ * Site option storing the on/off state.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_COMMENTS_AI_OPTION = 'desktop_mode_comments_ai_moderation';
 
 /**

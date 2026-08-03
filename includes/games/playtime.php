@@ -25,6 +25,12 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * The user-meta key holding the per-game play-time map.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 define( 'OPENSTATION_GAMES_PLAYTIME_META', 'desktop_mode_game_playtime' );
 
@@ -36,6 +42,12 @@ define( 'OPENSTATION_GAMES_PLAYTIME_META', 'desktop_mode_game_playtime' );
  * `openstation_games_playtime_history_days`). The lifetime totals
  * in {@see OPENSTATION_GAMES_PLAYTIME_META} are authoritative and
  * never pruned.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
  */
 define( 'OPENSTATION_GAMES_PLAYTIME_DAYS_META', 'desktop_mode_game_playtime_days' );
 

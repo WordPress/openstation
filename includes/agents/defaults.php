@@ -18,7 +18,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** Option flag: defaults were seeded (or deliberately skipped). */
+/**
+ * Option flag: defaults were seeded (or deliberately skipped).
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_AGENTS_DEFAULTS_SEEDED_OPTION = 'desktop_mode_agents_defaults_seeded';
 
 /**

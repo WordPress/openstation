@@ -38,6 +38,11 @@ defined( 'ABSPATH' ) || exit;
  * computation — nothing is created; see
  * {@see openstation_stored_files_ensure_dir()}.
  *
+ * The `desktop-mode-files` segment is the pre-rebrand spelling and is
+ * frozen: users' uploaded bytes already live there. Renaming it points
+ * the plugin at an empty directory while every stored file stays on
+ * disk, unreachable. The mismatch with the function name is deliberate.
+ *
  * @param int $user_id Optional. Owner whose subdirectory to return.
  * @return string
  */

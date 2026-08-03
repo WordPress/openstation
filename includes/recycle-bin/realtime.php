@@ -38,6 +38,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_RECYCLE_BIN_CHANGE_OPTION = '_desktop_mode_recycle_bin_change_ts';
 
 /**

@@ -33,9 +33,13 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Site option holding the installed-theme index. Autoload: no.
  *
- * Keeps its pre-rebrand spelling because rows are already stored under
- * it. Not to be confused with the `openstation_desktop_themes` filter,
- * which once shared this string and is now deliberately decoupled.
+ * The VALUE keeps its pre-rebrand spelling on purpose: rows are already
+ * stored under it on live installs, so renaming it would orphan every
+ * one. The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ *
+ * Not to be confused with the `openstation_desktop_themes` filter, which
+ * once shared this string and is now deliberately decoupled.
  */
 const OPENSTATION_DESKTOP_THEMES_OPTION = 'desktop_mode_desktop_themes';
 
@@ -43,6 +47,12 @@ const OPENSTATION_DESKTOP_THEMES_OPTION = 'desktop_mode_desktop_themes';
  * Absolute path of the desktop-themes base dir (no trailing slash),
  * or of one theme's dir when `$slug` is given. Pure path math —
  * nothing is created; see {@see openstation_desktop_themes_ensure_dir()}.
+ *
+ * The `desktop-mode-themes` segment is the pre-rebrand spelling and is
+ * frozen: admin-uploaded theme ZIPs already unpack there. Renaming it
+ * points the plugin at an empty directory and every installed theme
+ * vanishes from the picker. The mismatch with the function name is
+ * deliberate.
  *
  * @param string $slug Optional. Theme slug.
  * @return string

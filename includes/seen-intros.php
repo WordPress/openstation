@@ -25,7 +25,15 @@
 
 defined( 'ABSPATH' ) || exit;
 
-/** User meta key — see file header for shape. */
+/**
+ * User meta key — see file header for shape.
+ *
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 const OPENSTATION_SEEN_INTROS_META_KEY = 'desktop_mode_seen_intros';
 
 /** Hard cap so a malicious client cannot grow the list unbounded. */

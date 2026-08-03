@@ -40,10 +40,23 @@
 defined( 'ABSPATH' ) || exit;
 
 define( 'OPENSTATION_FILES_SCHEMA_VERSION', '13' );
+/**
+ * The VALUE keeps its pre-rebrand spelling on purpose: it is a
+ * persisted or externally-visible identifier, so renaming it would
+ * orphan data already written by live installs (or break a live
+ * URL). The mismatch between this constant's name and its value is
+ * deliberate — it is NOT a half-finished rename.
+ */
 define( 'OPENSTATION_FILES_SCHEMA_OPTION', 'desktop_mode_files_schema_version' );
 
 /**
  * Returns the per-table names with the active prefix applied.
+ *
+ * The `desktop_mode_` segment is the pre-rebrand spelling and is frozen:
+ * these are real tables holding real rows on live installs. Renaming
+ * them silently creates a second, empty set and every desktop icon,
+ * folder and uploaded file disappears. The mismatch against the
+ * `openstation_*` function name is deliberate.
  *
  * @return array{ placements: string, folders: string, tombstones: string, shares: string, decisions: string }
  */

@@ -9,6 +9,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
   - [The palette lives in `variables.css`](#the-palette-lives-in-variablescss--one-declaration-one-owner)
   - [Never declare a themeable token on a component's `:host`](#never-declare-a-themeable-token-on-a-components-host)
   - [The Legacy theme manifest is frozen data](#the-legacy-theme-manifest-is-frozen-data-not-build-output)
+  - [`desktop_mode_*` values are frozen](#desktop_mode_-values-are-frozen--the-namevalue-mismatch-is-deliberate)
   - [Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wposfetch-or-trackedfetch-never-raw-fetch)
   - [Use `wp.os.confirm` (or `osConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wposconfirm-or-osconfirm-never-windowconfirmalertprompt)
   - [Use `os-*` components, not raw HTML controls](#use-os--components-not-raw-html-controls)
@@ -100,6 +101,30 @@ Two things this does **not** apply to:
 **Changing a default does NOT mean updating Legacy.** Someone wearing it asked for the old look and is entitled to keep it; a manifest that tracked the code would silently turn the theme back into a no-op every release. Nothing generates it — not the build, not CI, not a script — and nothing should. There is deliberately no tool that can rewrite it.
 
 `Tests_OpenStation_DesktopThemesLegacy` is the guard: it pins the token count and a set of canonical values, and fails if any value stops satisfying the manifest's value grammar — otherwise a silent drop, since a rejected token just falls back to the built-in look. If you find yourself editing the JSON, that test failing is the question "is this really what Legacy should say forever?" being asked out loud.
+
+### `desktop_mode_*` values are frozen — the name/value mismatch is deliberate
+
+The plugin is **OpenStation**; its code is prefixed `openstation_` / `OPENSTATION_`. But a set of *values* still read `desktop_mode_*` or `desktop-mode`, and they are frozen:
+
+| Kind | Examples |
+|---|---|
+| Options, user/post meta, transients | `desktop_mode_os_settings`, `_desktop_mode_presence`, `desktop_mode_cg3_` |
+| Custom tables | `{$wpdb->prefix}desktop_mode_file_placements` + 7 siblings |
+| Upload directories | `uploads/desktop-mode-files`, `uploads/desktop-mode-themes` |
+| Cron hooks | `desktop_mode_files_daily_prune`, `desktop_mode_ai_analyze_comment` |
+| Post types, REST namespaces | `desktop_mode_chat`, `desktop-mode/v1` |
+| Query vars | `desktop_mode_portal`, `desktop_mode_classic` |
+| Native-window / desktop-icon / file-opener ids | `desktop-mode-recycle-bin`, `wpdc-editor` |
+| Web-storage keys | `desktop-mode-widgets-geometry`, `desktop-mode/files` |
+| The wp.org slug, `desktop-mode.php`, the text domain | see [Workflow](#workflow) |
+
+So `const OPENSTATION_PORTAL_FLAG = 'desktop_mode_portal';` is **correct**. It looks like a half-finished rename and it is not: these strings are already written into live databases, live filesystems and live URLs. Renaming one doesn't migrate anything — it silently points the code at somewhere empty, and the user's desktop icons, uploaded files, saved session or installed themes disappear while the data sits untouched under the old name.
+
+Every such constant carries a docblock saying so. **If you are about to "finish" one of these renames, that docblock is the answer: don't.** A genuine rename needs a migration in `includes/migrations.php`, not a find-and-replace.
+
+Note the tests cannot catch this class of mistake: PHPUnit builds fresh tables and fresh options every run, so a renamed table or option is invisible to it and only shows up as data loss on a real install.
+
+The counterpart rule: a *filter or action* name that happens to match a stored key is **not** frozen — decouple it. `openstation_desktop_themes` (the filter) and `desktop_mode_desktop_themes` (the option) deliberately no longer share a string.
 
 ### Use `wp.os.fetch` (or `trackedFetch`), never raw `fetch()`
 
