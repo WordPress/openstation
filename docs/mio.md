@@ -366,6 +366,24 @@ The look merges **last**, after server config and the JS filter. Everything befo
 
 Every frame (throttled to 20 Hz) Mio asks the shell for the live collision set via `wp.os.getWallpaperSurfaces()` — the same surfaces the snow wallpaper piles on — and converts them into its own coordinate space. Window rects, widget cards, the dock edge, and the shell floor all become solid obstacles the rim collides with.
 
+### The desk is sampled, but it moves continuously
+
+Measuring is throttled; *presenting* is not. A dozen `getBoundingClientRect()` reads is not a per-frame cost, but a window drag writes the window's `left` / `top` on every `pointermove` — so a sample taken at 20 Hz is up to three frames stale, and then advances by a whole interval of pointer travel at once. Contact resolution is a positional push, so that entire delta lands in one step: Mio resting against a window edge hops, holds for three frames, hops again as the window is dragged past it.
+
+`obstacle-track.ts` fixes that without touching the sample rate, by treating measurements as **keyframes** rather than as the truth right now. It holds the previous sample alongside the current one and hands the solver a rect lerped between the two, so a 20 Hz measurement drives a 60 Hz push. Sizes interpolate too, which makes a resizing window sweep against Mio instead of stepping.
+
+The lerp spans the **throttle**, not the measured gap between the last two samples, and that distinction is what makes the hand-off seamless. The gap is irregular by construction — the ticker decides which frame `readSurfaces()` runs on, so a 50 ms throttle fires at 50 ms and at 66.7 ms in whatever order the frames fall. Spread over the previous gap, the interpolation is left unfinished whenever a short gap follows a long one, and the next keyframe pair starts from the position the last one was still travelling toward: a jump, the smaller cousin of the one being removed. Spread over the throttle, it is guaranteed to have arrived before the next sample can land, because the throttle is a floor on the gap. The worst case degrades to a hold of a frame or two at the end of an interval.
+
+The cost is one sample interval of latency — Mio is pushed by where the window was 50 ms ago. That is invisible on a decorative blob, and it is what makes interpolation preferable to extrapolation, which buys the latency back but overshoots and snaps back every time a drag stops.
+
+Three cases are deliberately **not** interpolated, because none of them are motion:
+
+- **An obstacle with no previous keyframe** — a window that just opened, or the very first sample. It is solid where it is; sliding it in from nowhere would read as a window materialising mid-desk and then sweeping across it.
+- **A gap longer than 250 ms between samples** — the tab was in the background. The two samples are before-and-after, not two moments of one movement.
+- **Anything following a layer resize.** A new layer origin re-bases every obstacle coordinate at once, so the track drops its history rather than lerp the whole desk across the rebase.
+
+A still desk — the overwhelmingly common case — costs nothing: the two keyframes are geometrically identical, so the track short-circuits and hands back the measured array itself.
+
 ### Windows are magnets, not ground
 
 There is **no global "down"**. A window attracts Mio toward the closest point on its edge from whatever direction Mio is in, so it can just as happily stick to the underside of a window as sit on top of one. Strength smoothsteps in from `0` at `physics.magnetRange` to `1` on contact, and the idle float fades out as it takes hold, so a stuck Mio sits still rather than vibrating against the surface.
@@ -803,7 +821,7 @@ The preference is watched live, so toggling it at the OS level takes effect with
 
 - **Nothing downloads until Mio is switched on.** The always-on cost is the controller.
 - The ticker stops on `visibilitychange`, and resumes with a drained accumulator so a tab that was hidden for a minute doesn't come back with a catch-up avalanche.
-- Surfaces are re-measured at 20 Hz, not per frame.
+- Surfaces are re-measured at 20 Hz, not per frame — and interpolated between measurements so the collision set still moves at frame rate. A still desk skips the interpolation entirely.
 - Per frame at the shipped `glow: 10`: six `Graphics.clear()` calls and roughly 400 curved cells — 72 for the core and 216 across the bloom's three shells, both at full ribbon resolution because they carry the gradient; 72 across the halo's six, and forty across the sheen's five, all of them coarse because a blur is about to dissolve anything finer. Then a blur pass over each of the halo, the bloom and the sheen. The body is a single filled path of `points` curve segments. At the top of the `glow` slider the two glow passes reach 480 cells between them.
 - Ribbon resolution is fixed at 144 samples rather than scaled off `points`, so raising the rim resolution costs simulation time but not render time.
 - The Pixi application is destroyed with `destroy( { removeView: true }, { children: true, texture: true } )`. **Never `destroy( true )`** — that runs Pixi's `releaseGlobalResources()` and corrupts every other live Application on the page (the active wallpaper, the content graph, OS Settings previews).

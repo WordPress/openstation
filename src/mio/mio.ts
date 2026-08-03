@@ -32,6 +32,7 @@ import {
 	magnetPull,
 	type Obstacle,
 } from './environment';
+import { createObstacleTrack } from './obstacle-track';
 import { createPointerTracker, type PointerTracker } from './pointer';
 import { drawMio, glowBlurStrength, type MioLayers } from './render';
 import {
@@ -364,7 +365,8 @@ export async function mountMio(
 	// State.
 	// ------------------------------------------------------------------
 	const pointer: PointerTracker = createPointerTracker();
-	let obstacles: Obstacle[] = [];
+	const desk = createObstacleTrack( SURFACE_REFRESH_MS );
+	let obstacles: readonly Obstacle[] = [];
 	let lastSurfaceRead = 0;
 	let animating = true;
 	let destroyed = false;
@@ -448,16 +450,29 @@ export async function mountMio(
 		tilt = { x: ( x / len ) * strength, y: ( y / len ) * strength };
 	};
 
+	/**
+	 * Bring the desk up to date for this frame.
+	 *
+	 * Measuring is throttled — a dozen `getBoundingClientRect()` reads
+	 * is not a per-frame cost — but *presenting* is not. Each
+	 * measurement goes into the track as a keyframe, and every frame
+	 * asks the track where the desk is now, so a window dragged at
+	 * pointer rate pushes Mio continuously instead of in one lurch per
+	 * throttle interval. See `obstacle-track.ts`.
+	 */
 	const readSurfaces = ( nowMs: number ): void => {
-		if ( nowMs - lastSurfaceRead < SURFACE_REFRESH_MS ) {
-			return;
+		if ( nowMs - lastSurfaceRead >= SURFACE_REFRESH_MS ) {
+			lastSurfaceRead = nowMs;
+			origin = originOf();
+			const surfaces = window.wp?.os?.getWallpaperSurfaces?.();
+			desk.sample(
+				Array.isArray( surfaces )
+					? collectObstacles( surfaces, origin, size() )
+					: [],
+				nowMs,
+			);
 		}
-		lastSurfaceRead = nowMs;
-		origin = originOf();
-		const surfaces = window.wp?.os?.getWallpaperSurfaces?.();
-		obstacles = Array.isArray( surfaces )
-			? collectObstacles( surfaces, origin, size() )
-			: [];
+		obstacles = desk.at( nowMs );
 	};
 
 	const toLayer = ( p: { x: number; y: number } ): { x: number; y: number } => ( {
@@ -798,6 +813,11 @@ export async function mountMio(
 		const { width, height } = size();
 		app.renderer.resize( width, height );
 		origin = originOf();
+		// Every obstacle coordinate is layer-local, so a new origin
+		// re-bases the lot at once. That is a discontinuity, not motion:
+		// drop the interpolation history rather than lerp the whole desk
+		// across the rebase.
+		desk.reset();
 		// Pull Mio back inside a shrunken shell.
 		const r = body.radius;
 		const x = clamp( body.core.x, r, Math.max( r, width - r ) );
