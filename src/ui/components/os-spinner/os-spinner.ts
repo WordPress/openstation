@@ -224,8 +224,7 @@ export class OsSpinner extends Component {
 		title: 'Spinner',
 		summary:
 			'Animated WordPress-mark loading indicator with five curated presets and full per-attribute overrides. The `inline` preset swaps the mark for a bare arc sized for text-adjacent use. CSS variables drive disc + accent colors and size; reduced-motion preferences are respected.',
-		status: 'experimental',
-		since: '0.6.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'preset',

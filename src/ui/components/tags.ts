@@ -26,6 +26,7 @@ export const OS_COMPONENT_TAGS = [
 	'os-number-field',
 	'os-checkbox',
 	'os-checkbox-label',
+	'os-switch',
 	'os-toast',
 	'os-toast-container',
 	'os-tabs',

@@ -38,6 +38,7 @@ Off by default. Users switch it on from its **dock tile**, and can hide the tile
   - [Every edge is a curve](#every-edge-is-a-curve)
   - [A glow is a dilated silhouette, not a fat outline](#a-glow-is-a-dilated-silhouette-not-a-fat-outline)
     - […and it has to fall off](#and-it-has-to-fall-off)
+  - [Mio wears the brand](#mio-wears-the-brand)
   - [A gradient that loops](#a-gradient-that-loops)
   - [The hologram](#the-hologram)
   - [The interior sheen](#the-interior-sheen)
@@ -541,6 +542,33 @@ Shell count scales with reach (roughly a step every 14 px) and is capped per pas
 
 `tests/vitest/mio-glow-geometry.test.ts` measures both halves directly, across every `outlineWidth`/`glow` pair the panel's sliders can produce. For the shape, it walks each boundary and asks whether consecutive points still run the same way round as the outline they came from; it also pins the *premise*, that a normal offset folds on the shipped star, so the guard cannot quietly start measuring nothing. For the falloff, it draws a real pass into a recording stand-in for `Graphics` and asserts the alphas fall monotonically, that the faintest shell is a small fraction of the peak, and that each shell's inner boundary is bit-identical to its neighbour's outer one — the anti-seam invariant, now applied between steps as well as between cells.
 
+### Mio wears the brand
+
+Mio is the mascot, so its default look is not a taste decision that happens to live in a config file. It is the same contract [`variables.css` has with the palette](../AGENTS.md#the-palette-lives-in-variablescss--one-declaration-one-owner), expressed in HSL because the ring is generated rather than declared.
+
+The source of truth is **Miomesh**, Mio's own gradient in the [OpenStation brand guidelines](https://nuriapenya.github.io/open-station-brand/) — `assets/miomesh.svg`, and the `mioGrad` the mascot on that page is stroked with:
+
+```xml
+<linearGradient id="mioGrad" x1="0%" y1="10%" x2="90%" y2="100%">
+  <stop offset="0%"   stop-color="#f252fc"/>   <!-- Pulse    hue 296.5 -->
+  <stop offset="48%"  stop-color="#aa67ff"/>   <!--          hue 266.4 -->
+  <stop offset="71%"  stop-color="#a580ff"/>   <!--          hue 257.5 -->
+  <stop offset="100%" stop-color="#4b3eff"/>   <!--          hue 244.0 -->
+</linearGradient>
+```
+
+Two numbers reproduce four stops, because the brand's own ramp is near-linear in hue: `hueStart` `296.5` and `hueSpan` `−52.5` put the middle pair within ~5° of where Miomesh has them.
+
+**Pulse belongs on the upper-left shoulder.** `mioGrad` runs `(0%,10%) → (90%,100%)`, so its first stop sits upper-left and its last lower-right. `hueAngle` is where `hueStart` is pinned, in degrees clockwise from 3 o'clock — so `225`.
+
+**`lightness` is the ring's brightest point, not its average.** `chromaRing` rides a cosine hump from `0.72×` to `1×` over it, so the value that makes the lit side reach Miomesh's brightest stop (`#A580FF`, `0.751`) is `0.75`.
+
+And the two flat colours are named palette colours, not the obvious approximations: the eyes are **Starlight** `#fffbff`, which is what the brand's mascot fills its two eye pills with, and the body is **Void** `#0c0b0f`. The brand's Mio is `fill="none"` — a stroked outline over the Void page — which the shell cannot copy, because Mio floats over whatever wallpaper the user picked and a transparent body would show it through. So it is filled with the colour that background is. Neither `#000000` nor `#ffffff` is in the palette.
+
+> **This drifted once, and the way it drifted is the reason it now has a test.** The endpoints were `#EF42E8 → #5E8BFF`, neither of them a brand colour: the ring overshot Pulse by 6° into a hotter magenta and ran 21° past `#4B3EFF` into a blue nothing in the palette reaches. Every colour *inside* Miomesh was still present, so anything that asked "is there magenta and blue in it" passed the whole time. `hueAngle` had Pulse on the lower right, so the gradient ran backwards. `lightness` was being read as an average, so the ring rendered `0.475`–`0.661` against Miomesh's `0.622`–`0.751` — all of it darker than the darkest stop of the gradient it was reproducing.
+>
+> `tests/vitest/mio-brand-fidelity.test.ts` asserts the *rendered* ring rather than the config values, because `hueStart` / `hueSpan` / `hueAngle` are inputs to a raised-cosine mirror and it is what comes out that has to match: both endpoints, no overshoot past either, every stop present somewhere, Pulse at 225° and blue at 45°, peak lightness, full saturation, and the two flat colours.
+
 ### A gradient that loops
 
 A hue ramp of `hueStart + hueSpan · t` does not meet itself. It ends a whole span from where it began, so the ring carries a hard colour seam at the wrap — magenta butted straight against blue.
@@ -562,7 +590,7 @@ A raised cosine meets itself in value *and* rate: the sweep eases to a stop at e
 
 The cost is symmetry: the ring mirrors about the ramp's axis. For a two-colour sweep that reads as deliberate rather than as a fault, which is why the artwork can get away with being still.
 
-Mirroring pins the two extremes to the ends of the sweep, so **`hueAngle`** exists to aim them — without it they would always sit at 3 and 9 o'clock, and the official gradient runs on a shallow diagonal.
+Mirroring pins the two extremes to the ends of the sweep, so **`hueAngle`** exists to aim them — without it they would always sit at 3 and 9 o'clock, and [Miomesh runs on a diagonal](#mio-wears-the-brand).
 
 ### The hologram
 
@@ -594,7 +622,7 @@ The sheen's rake is the ring's turned a quarter turn, and its hue ramp runs at a
 
 ### The face
 
-Eyes are white pills that inherit a fraction of the body's squash, offset toward the pointer with a saturating response (clamped inside the face), and blink on a randomised 2.6–7 s schedule.
+Eyes are [Starlight](#mio-wears-the-brand) pills that inherit a fraction of the body's squash, offset toward the pointer with a saturating response (clamped inside the face), and blink on a randomised 2.6–7 s schedule.
 
 ---
 
@@ -623,21 +651,21 @@ add_filter( 'openstation_mio_config', function ( $config ) {
 | Key | Default | Range | Meaning |
 |---|---|---|---|
 | `radius` | `56` | 16–220 | Rest radius in CSS pixels. |
-| `bodyColor` | `#000000` | colour | Body fill. |
+| `bodyColor` | `#0c0b0f` | colour | Body fill. **Void** — see [Mio wears the brand](#mio-wears-the-brand). |
 | `bodyAlpha` | `1` | 0–1 | Body fill opacity. |
-| `hueStart` | `302` | −720–720 | Hue in degrees where the ramp starts. |
-| `hueSpan` | `-79` | −360–360 | Degrees of hue the ramp traverses. The shipped pair is the official artwork's magenta → violet → blue. |
+| `hueStart` | `296.5` | −720–720 | Hue in degrees where the ramp starts. **Pulse**, `#F252FC`. |
+| `hueSpan` | `-52.5` | −360–360 | Degrees of hue the ramp traverses. The shipped pair is [Miomesh](#mio-wears-the-brand) end to end — Pulse → `#4B3EFF`. |
 | `hueLoop` | `true` | bool | Walk the span out and back so the ring [meets itself](#a-gradient-that-loops). `false` is a straight ramp, which leaves a seam at the wrap unless `hueDrift` keeps it moving. |
-| `hueAngle` | `23` | −360–360 | Where the ramp starts around the ring, degrees clockwise from 3 o'clock. With `hueLoop` on this is the only way to aim the two extremes. |
+| `hueAngle` | `225` | −360–360 | Where the ramp starts around the ring, degrees clockwise from 3 o'clock. With `hueLoop` on this is the only way to aim the two extremes. `225` puts Pulse on the upper-left shoulder, where `mioGrad` starts. |
 | `hueDrift` | `0` | −180–180 | Rewrites the hues, degrees per second — Mio cycles through colours that are not its own. `0`, and the official Mio should keep it there. |
 | `hueSpin` | `0` | −180–180 | Turns the gradient around the ring, degrees per second. Keeps the palette exactly; the most a default Mio should ever animate. |
-| `saturation` | `1` | 0–1 | Ring saturation. |
-| `lightness` | `0.66` | 0.15–1 | Ring lightness at its brightest point. |
+| `saturation` | `1` | 0–1 | Ring saturation. Miomesh runs `0.966`–`1`; Pulse is the only stop under full. |
+| `lightness` | `0.75` | 0.15–1 | Ring lightness at its **brightest** point — `chromaRing` rides a cosine hump from `0.72×` to `1×` over it. Miomesh's brightest stop, `#A580FF`, is `0.751`. |
 | `iridescence` | `0` | 0–2 | Strength of the [holographic response](#the-hologram) and of the [interior sheen](#the-interior-sheen). `0` — the official Mio has neither. Above `1` is deliberately over-driven. |
 | `outlineWidth` | `3` | 0.5–24 | Crisp core band width. Independent of the glow — a thin core inside a wide glow is the whole look, and it used to be unreachable because the glow scaled off this. |
 | `glow` | `10` | 0–20 | How far the light carries past the outline, as a multiple of Mio's own radius ÷ 6ish. `0` disables both glow passes. See [the falloff](#and-it-has-to-fall-off). |
 | `glowBlur` | `true` | bool | Run a `BlurFilter` over both glow passes. No UI switches it off — the shells are what the ramp is built from and unblurred they read as contour rings. Here for sites that need the two filter passes back. |
-| `eyeColor` | `#ffffff` | colour | Eye fill. |
+| `eyeColor` | `#fffbff` | colour | Eye fill. **Starlight** — see [Mio wears the brand](#mio-wears-the-brand). |
 | `eyeScale` | `0.3` | 0.05–0.6 | Eye height as a fraction of `radius`. |
 
 **`physics`**

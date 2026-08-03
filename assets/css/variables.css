@@ -330,10 +330,303 @@ body.os-active {
 	--os-ui-hover: rgba(255, 251, 255, 0.06);
 	--os-ui-scrim: rgba(12, 11, 15, 0.72);
 
+	/*
+	 * ---- Text selection ------------------------------------------
+	 *
+	 * Lagoon, the brand's violet-blue, at 60%. It is the one primary
+	 * colour in the guidelines the shell had no job for, and this is
+	 * the right job: violet-blue is what every OS has trained people
+	 * to read as "selected", so it needs no learning.
+	 *
+	 * The alpha is where the accessibility is, and it is squeezed from
+	 * both ends. A selection has to satisfy two constraints at once:
+	 *
+	 *   1. the selected TEXT stays readable on it — Starlight over
+	 *      Lagoon@60% is 5.1:1 on Obsidian, 5.5:1 on Void; and
+	 *   2. the highlight is distinguishable from the unselected
+	 *      background — 3.4:1 and 3.5:1 respectively.
+	 *
+	 * Raising the alpha helps (2) and hurts (1); lowering it does the
+	 * reverse. 60% is the middle of the band where both clear their
+	 * bar on both surfaces. An accent wash cannot do this at all: the
+	 * Pulse family only separates from the background above 75%, by
+	 * which point it is a fill rather than a highlight.
+	 *
+	 * The text colour is Starlight — the colour body text already is.
+	 * A selection that also RECOLOURS the text destroys every
+	 * distinction the text was carrying: syntax highlighting, a red
+	 * error, a muted timestamp. Highlighting is not restyling.
+	 */
+	--os-ui-selection-bg: rgba(159, 152, 255, 0.6);
+	--os-ui-selection-fg: #fffbff;
+
 	/* Accent — the identity moment. */
 	--os-ui-accent: #f252fc;
 	--os-ui-accent-strong: #ec9bff;
-	--os-ui-accent-soft: rgba(242, 82, 252, 0.18);
+	--os-ui-accent-soft: color-mix(in srgb, var(--os-ui-accent-dim) 14%, transparent);
+	/*
+	 * Pulse, one step back — and the single knob for how loud the
+	 * station is.
+	 *
+	 * Pulse is not a contrast problem: #f252fc carries 6.2:1 against
+	 * Obsidian, better than most accents in a dark UI manage. What it
+	 * is, is SATURATED — HSL 296, 97, 65 — and the places that hurt
+	 * are the ones where it is spread rather than stated: a bloom
+	 * behind a focused control, a 18% wash under a selected row, a
+	 * fill wider than a chip. Ten of those on one panel and the whole
+	 * surface hums.
+	 *
+	 * So the fix is not to move Pulse. It is to spend it where it is
+	 * a statement and to spend THIS where it is atmosphere: the same
+	 * hue with saturation and lightness pulled down together (S 77,
+	 * L 53), which is what keeps it recognisably Pulse rather than a
+	 * different purple. 4.6:1 on Obsidian, and Starlight over it goes
+	 * from 2.8:1 to 3.8:1 — so the wash also stopped eating text.
+	 *
+	 * Everything ambient below resolves through it: the glows, the
+	 * soft wash, the focus bloom. Turning the station up or down is
+	 * one edit here.
+	 *
+	 * `--os-ui-accent` itself stays #f252fc. That one is the brand's,
+	 * not ours — it is what the guidelines name and what
+	 * `brand-palette.test.ts` pins, and moving it is a brand decision
+	 * rather than a UI one.
+	 */
+	--os-ui-accent-dim: #d92ee3;
+
+	/*
+	 * ---- The meshes ---------------------------------------------
+	 *
+	 * The brand ships five mesh gradients as SVG artwork. These are
+	 * those same meshes transcribed into CSS: the base linear plus
+	 * every radial glow, at the offsets, radii, colours and alphas
+	 * the vector files declare, converted from the 1440×960 artboard
+	 * into percentages so they scale to any box.
+	 *
+	 * Transcribed rather than referenced on purpose. A `url()` to an
+	 * SVG cannot be animated, cannot be tinted, costs a request, and
+	 * cannot resize its glows independently of the box — a mesh
+	 * painted on a 40 px switch track would be one flat corner of the
+	 * artwork. As gradient stacks they rasterise at whatever size the
+	 * control happens to be, and `background-position` can slide them,
+	 * which is the entire holographic effect: a foil that shifts as
+	 * you tilt it.
+	 *
+	 * Layer order is inverted from the SVG. In SVG the last `<rect>`
+	 * paints on top; in a CSS `background-image` list the FIRST layer
+	 * is on top. So each mesh below reads bottom-glow-first and ends
+	 * with its base linear.
+	 *
+	 * The brand's own rule — "meshes reserved for hero surfaces" — is
+	 * why none of these is a surface colour. They are what the shell
+	 * paints at an identity moment: a switch that is on, the primary
+	 * action in a dialog, the filled part of a progress bar. See the
+	 * `--os-ui-holo-*` block below for the tokens components actually
+	 * read.
+	 */
+
+	/*
+	 * Holomesh. Lavender base under eight glows — white, cyan, pink,
+	 * warm, mint, white, pink, blue. The default holographic fill.
+	 */
+	--os-mesh-holo:
+		radial-gradient(ellipse 21.7% 39.6% at 96.5% 13.5%, rgba(159, 214, 255, 0.6) 0%, rgba(159, 214, 255, 0) 100%),
+		radial-gradient(ellipse 26.3% 57.2% at 83.3% 56.2%, rgba(243, 181, 236, 0.75) 0%, rgba(243, 181, 236, 0) 100%),
+		radial-gradient(ellipse 18.2% 47.3% at 73.6% 64.5%, rgba(255, 253, 255, 0.7) 0%, rgba(255, 253, 255, 0) 100%),
+		radial-gradient(ellipse 18.4% 34.1% at 29.8% 83.4%, rgba(147, 240, 198, 0.8) 0%, rgba(147, 240, 198, 0) 100%),
+		radial-gradient(ellipse 17.4% 35.7% at 23% 67.7%, rgba(248, 242, 182, 0.85) 0%, rgba(248, 242, 182, 0) 100%),
+		radial-gradient(ellipse 23.3% 45.9% at 45.2% 45.8%, rgba(245, 159, 232, 1) 0%, rgba(245, 168, 234, 0.55) 55%, rgba(245, 168, 234, 0) 100%),
+		radial-gradient(ellipse 29.9% 53.6% at 53.5% 7.3%, rgba(125, 239, 245, 0.9) 0%, rgba(142, 233, 247, 0.45) 60%, rgba(142, 233, 247, 0) 100%),
+		radial-gradient(ellipse 26.9% 70.7% at 29.8% 44.8%, rgba(255, 253, 255, 0.95) 0%, rgba(255, 253, 255, 0.5) 55%, rgba(255, 253, 255, 0) 100%),
+		linear-gradient(124deg, #afa2e8 0%, #b7abea 55%, #c3b8ef 100%);
+
+	/*
+	 * Pulsemesh. The loud one — a blue-to-violet base torn open by
+	 * magenta. Reserved for the moments Holomesh would undersell.
+	 */
+	--os-mesh-pulse:
+		radial-gradient(ellipse 39.1% 48.6% at 92% 94.5%, rgba(255, 253, 255, 0.95) 0%, rgba(255, 240, 252, 0.55) 50%, rgba(255, 240, 252, 0) 100%),
+		radial-gradient(ellipse 33.3% 50% at 61.1% 62.5%, rgba(251, 134, 236, 0.85) 0%, rgba(251, 134, 236, 0) 100%),
+		radial-gradient(ellipse 36.1% 54.2% at 10.4% 39.6%, rgba(250, 61, 248, 1) 0%, rgba(250, 61, 248, 0) 100%),
+		radial-gradient(ellipse 87.3% 104.8% at 10.6% 100%, rgba(240, 75, 245, 1) 0%, rgba(240, 75, 245, 0.75) 43%, rgba(240, 75, 245, 0) 100%),
+		radial-gradient(ellipse 36.1% 45.8% at 92.4% 12.5%, rgba(125, 239, 245, 0.95) 0%, rgba(125, 239, 245, 0) 100%),
+		radial-gradient(ellipse 43.1% 54.2% at 81.3% 34.4%, rgba(108, 143, 245, 0.6) 0%, rgba(108, 143, 245, 0) 100%),
+		linear-gradient(236deg, #8d9bf3 0%, #c878f0 100%);
+
+	/* Auromesh. Lavender through mint into cyan — the calm mesh. */
+	--os-mesh-auro: linear-gradient(80deg, #d1c6f8 9.5%, #cefada 50%, #b8ffff 90.5%);
+
+	/* Starmesh. A Starlight glow falling away into Cloud. */
+	--os-mesh-star:
+		radial-gradient(ellipse 72.7% 72.7% at 50% 12.5%, #fffbff 0%, #fffbff 67.8%, #ccc8ce 100%);
+
+	/* Miomesh. The mascot's own sweep. Mio's, and used sparingly. */
+	--os-mesh-mio: linear-gradient(90deg, #f252fc 7%, #aa67ff 48.3%, #a580ff 70.7%, #4b3eff 93%);
+
+	/*
+	 * ---- Holographic controls -----------------------------------
+	 *
+	 * What a control reads when it wants to be holographic. Every
+	 * `<os-*>` resolves these through a private `--_holo-*` alias (see
+	 * `src/ui/holo.ts`), so a desktop theme can re-point any of them
+	 * and every control in the kit changes together.
+	 *
+	 * The holographic state is a MOMENT, not a skin. A control paints
+	 * `--os-ui-holo-fill` when it is on, selected, primary or filled —
+	 * the one instant it is speaking for the brand — and wears
+	 * ordinary Obsidian the rest of the time. That is the difference
+	 * between a station and a novelty; a panel where every control is
+	 * iridescent has no identity moments left to spend.
+	 */
+
+	/* The fill itself. Holomesh, so the mesh is the default look. */
+	--os-ui-holo-fill: var(--os-mesh-holo);
+	/*
+	 * Glyphs and text ON that fill. Void, not Starlight — every mesh
+	 * in the brand is a LIGHT surface (its darkest stop, Holomesh's
+	 * #afa2e8, still sits at 62% luminance), so Starlight on it is a
+	 * white-on-lilac 1.4:1 that looks fine in a mock and is unreadable
+	 * on a screen. Void carries at 8.6:1 against the same stop.
+	 */
+	--os-ui-holo-ink: #0c0b0f;
+	/*
+	 * The hover film. A control that is NOT in its holographic state
+	 * still hints at one under the pointer: a low-alpha sweep of the
+	 * mesh's own hues, laid over whatever the surface already is.
+	 *
+	 * Alphas are deliberately in the 6–12% range. This lands on
+	 * Obsidian, where anything stronger stops reading as a sheen and
+	 * starts reading as a second, wrongly-coloured surface.
+	 */
+	--os-ui-holo-sheen: linear-gradient(
+		124deg,
+		rgba(159, 214, 255, 0.1) 0%,
+		rgba(236, 155, 255, 0.12) 34%,
+		rgba(242, 82, 252, 0.1) 58%,
+		rgba(147, 240, 198, 0.09) 100%
+	);
+	/*
+	 * The iridescent hairline. Painted as a gradient on a padding-box
+	 * mask rather than a `border-color`, because a border cannot hold
+	 * a gradient and `border-image` loses the corner radius.
+	 */
+	--os-ui-holo-edge: linear-gradient(
+		124deg,
+		rgba(154, 242, 255, 0.7) 0%,
+		rgba(236, 155, 255, 0.85) 38%,
+		rgba(242, 82, 252, 0.7) 62%,
+		rgba(159, 152, 255, 0.6) 100%
+	);
+	/* Resting edge — the same hairline, quieted, for an idle control. */
+	--os-ui-holo-edge-quiet: linear-gradient(
+		124deg,
+		rgba(154, 242, 255, 0.22) 0%,
+		rgba(236, 155, 255, 0.28) 38%,
+		rgba(242, 82, 252, 0.22) 62%,
+		rgba(159, 152, 255, 0.2) 100%
+	);
+	/*
+	 * The bloom around a holographic surface. Pulse, because on a Void
+	 * desk the glow is what separates "lit" from "light-coloured".
+	 */
+	--os-ui-holo-glow: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 20%, transparent),
+		0 2px 10px color-mix(in srgb, var(--os-ui-accent-dim) 15%, transparent);
+	--os-ui-holo-glow-strong: 0 0 0 1px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent),
+		0 4px 18px color-mix(in srgb, var(--os-ui-accent-dim) 26%, transparent),
+		0 1px 3px rgba(12, 11, 15, 0.6);
+	/*
+	 * The unlit half — switch tracks, empty progress, the unchecked
+	 * checkbox.
+	 *
+	 * This was a sunken Void well, and it was a mistake that measured
+	 * badly: `rgba(12, 11, 15, 0.55)` composites to #121017 on an
+	 * Obsidian panel, which is **1.07:1** against that panel. An off
+	 * switch was, to a very good approximation, not drawn. WCAG 1.4.11
+	 * asks for 3:1 on the boundary of a control, and this was not in
+	 * the same postcode.
+	 *
+	 * So the well is LIFTED rather than sunk: a Starlight wash, which
+	 * also means it tracks whatever surface a theme puts behind it
+	 * instead of pinning a grey that only works on Obsidian. Every
+	 * dark OS does the same thing with its switches for the same
+	 * reason — on a dark UI the visible thing is the lighter one.
+	 *
+	 * The fill alone still only reaches ~1.6:1, which is a *look*
+	 * rather than a boundary. The 3:1 comes from the edge below, and
+	 * the two together are what make an off switch findable.
+	 */
+	--os-ui-holo-track: rgba(255, 251, 255, 0.16);
+	/*
+	 * The unlit half's boundary. Pewter, and not a rounder-looking
+	 * neighbour, because Pewter is the first step on the Shade ramp
+	 * that reaches 3.00:1 against Obsidian — Silver manages 2.03 and
+	 * Astro 1.37. This is the declaration that makes an off control
+	 * satisfy WCAG 1.4.11.
+	 */
+	--os-ui-holo-track-edge: #66636b;
+	/*
+	 * Focus. One ring for the whole kit — Pulse, offset, over a soft
+	 * halo, so it reads on Obsidian, on a mesh, and on the near-white
+	 * of a legacy theme alike.
+	 *
+	 * Note which layer dims and which does not. The RING is full Pulse
+	 * and stays there: it is the only thing on screen saying where the
+	 * keyboard is, and a focus indicator is the last place to trade
+	 * legibility for calm. Only the bloom behind it comes down, from
+	 * 45% to 30%, and onto the dim — which is the layer that was
+	 * making a focused control look like it was on fire.
+	 */
+	--os-ui-focus-ring: 0 0 0 2px rgba(12, 11, 15, 0.9), 0 0 0 4px #f252fc,
+		0 0 12px 2px color-mix(in srgb, var(--os-ui-accent-dim) 30%, transparent);
+	/*
+	 * …and one for FIELDS, which is a different problem. A text input
+	 * already has a border to thicken and it sits in a column of other
+	 * inputs, so the ring above — designed to survive landing on a
+	 * bright mesh — reads as an alarm on a settings form. This one
+	 * tightens the field's own edge to Pulse and puts a soft halo
+	 * outside it: unmistakable, and quiet enough to live in a stack of
+	 * twelve.
+	 */
+	--os-ui-focus-ring-field: 0 0 0 1px #f252fc,
+		0 0 0 4px color-mix(in srgb, var(--os-ui-accent-dim) 16%, transparent);
+
+	/*
+	 * ---- Motion --------------------------------------------------
+	 *
+	 * Four durations and three curves, and every animated thing in the
+	 * kit picks from them. Not for tidiness: a panel where the switch
+	 * settles in 220ms, the segmented thumb in 300 and the tab
+	 * underline in 150 does not read as three well-tuned controls, it
+	 * reads as one surface that cannot keep time.
+	 *
+	 * The scale is roughly logarithmic because perceived duration is:
+	 * 90 and 140 are distinguishable, 220 and 240 are not.
+	 */
+	/* A state flip with no travel — a colour, an opacity, a tick. */
+	--os-ui-motion-fast: 140ms;
+	/*
+	 * How long the foil takes to tilt, and the kit's default. One
+	 * duration for every holographic transition, so a panel full of
+	 * controls moves as one surface rather than as thirty independent
+	 * ones.
+	 */
+	--os-ui-holo-transition: 220ms;
+	/* Something crossing a distance: a thumb, a drawer, a card. */
+	--os-ui-motion-slow: 340ms;
+	/* An ambient loop — a shimmer, a drift. Long enough to ignore. */
+	--os-ui-motion-ambient: 12s;
+
+	/*
+	 * The curves. `spring` overshoots ~9% and settles; it is what makes
+	 * a knob feel thrown rather than moved, and it is wrong for
+	 * anything that changes size (an overshooting width reads as a
+	 * glitch, not as weight).
+	 */
+	--os-ui-ease-spring: cubic-bezier(0.32, 1.5, 0.55, 1);
+	/* Decelerating. The default for anything arriving. */
+	--os-ui-ease-out: cubic-bezier(0.22, 0.9, 0.28, 1);
+	/* Symmetric, for a loop that has to come back where it started. */
+	--os-ui-ease-loop: cubic-bezier(0.45, 0, 0.55, 1);
 
 	/*
 	 * Status. Derived, not quoted — see the header note. Info takes
@@ -427,6 +720,22 @@ body.os-active {
 	 */
 	--os-ui-ribbon-fg: #0c0b0f;
 	--os-ui-step-chip-fg: #0c0b0f;
+	/*
+	 * The step chip is the right size and shape for the mesh: a small
+	 * round fill, one per row, already carrying dark text. Its
+	 * `--os-ui-step-chip-fg` above is Void, which is what the mesh
+	 * needs anyway — the two decisions were made independently and
+	 * agree, which is usually the sign a palette is holding together.
+	 */
+	--os-ui-step-chip-bg: var(--os-mesh-holo);
+
+	/*
+	 * The default ribbon. One per tile, small, angled, and already
+	 * paired with Void ink above — which is what a mesh needs anyway.
+	 * The status ribbons below keep their flat colours: a ribbon that
+	 * says "deprecated" should say it in warning yellow, not in brand.
+	 */
+	--os-ui-ribbon-bg: var(--os-mesh-holo);
 
 	--os-ui-ribbon-info: #c2f1f1;
 	--os-ui-ribbon-warning: #f8f2b6;
@@ -460,6 +769,21 @@ body.os-active {
 	--os-ui-log-border: 1px solid rgba(255, 251, 255, 0.08);
 	--os-ui-log-row-border: 1px solid rgba(255, 251, 255, 0.06);
 	--os-ui-progress-track-bg: rgba(255, 251, 255, 0.1);
+	/*
+	 * The filled part of a progress bar is the one surface in the kit
+	 * that is *already* a hero: bounded, watched, and the only thing
+	 * moving on screen. So it takes Holomesh, and the bar stretches
+	 * the mesh as it grows — the hue travelling from lavender toward
+	 * cyan IS the progress, which a flat accent could only report.
+	 *
+	 * Retinted here rather than in `<os-progress-bar>` because the
+	 * component's own literal has to stay the pre-brand WordPress blue
+	 * (it is the no-stylesheet floor, and it is what Legacy collected).
+	 * The tone modifiers — success, warning, danger — still declare
+	 * flat colours and still win: a failing job should read as red, not
+	 * as brand.
+	 */
+	--os-ui-progress-fill: var(--os-mesh-holo);
 	--os-ui-rating-star: #f8f2b6;
 	--os-ui-rating-fill: linear-gradient(90deg, #f8f2b6 0%, #fffbff 100%);
 	--os-ui-avatar-dot-ring: #1a1721;

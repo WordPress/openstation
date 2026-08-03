@@ -33,8 +33,7 @@ export class OsRatingSummary extends Component {
 		title: 'Rating summary',
 		summary:
 			'Two-pane rating distribution: big average + 5-star cluster + total count on the left, one animated bar per star bucket on the right. Mirrors the WordPress.org plugin reviews summary.',
-		status: 'experimental',
-		since: '0.8.5',
+		status: 'stable',
 		props: [
 			{
 				name: 'rating',
@@ -59,9 +58,25 @@ export class OsRatingSummary extends Component {
 			{ name: '--os-ui-rating-fg', description: 'Primary text color.' },
 			{ name: '--os-ui-rating-fg-muted', description: 'Secondary text color.' },
 		],
-		example: html`
-			<os-rating-summary rating="92"></os-rating-summary>
-		`,
+		/*
+		 * `rating` is an attribute but the per-star bars come from the
+		 * `ratings` PROPERTY, so the attribute-only example drew the
+		 * stars above five empty tracks — the half of this component
+		 * that is actually interesting.
+		 */
+		example: html`<os-rating-summary rating="92" total="184"></os-rating-summary>`,
+		exampleInit: ( root: HTMLElement ) => {
+			const summary = root.querySelector( 'os-rating-summary' );
+			if ( summary ) {
+				( summary as OsRatingSummary ).ratings = {
+					5: 132,
+					4: 34,
+					3: 11,
+					2: 4,
+					1: 3,
+				};
+			}
+		},
 	} as const;
 
 	private _ratings: OsRatingBuckets = {};

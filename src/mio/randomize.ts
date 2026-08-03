@@ -27,6 +27,7 @@
  *     silently switched it back on would be overriding them.
  */
 
+import { MIO_DEFAULTS } from './config';
 import type { MioLook, MioShapePreset } from './types';
 
 /**
@@ -93,11 +94,16 @@ export function randomMioLook( random: () => number = Math.random ): MioLook {
 			// rest of the time it is the hologram, at a strength that
 			// still leaves the hues recognisable.
 			iridescence: chance( 0.34 ) ? round( between( 0.45, 1.25 ), 0.05 ) : 0,
-			// The body stays black far more often than not — it is what
+			// The body stays Void far more often than not — it is what
 			// the ring is legible against.
-			bodyColor: chance( 0.25 ) ? randomInk( random ) : 0x000000,
+			bodyColor: chance( 0.25 )
+				? randomInk( random )
+				: MIO_DEFAULTS.appearance.bodyColor,
 			bodyAlpha: chance( 0.2 ) ? round( between( 0.78, 1 ), 0.01 ) : 1,
-			eyeColor: 0xffffff,
+			// Starlight. The eyes are the one thing the randomizer
+			// never touches, so they may as well be the brand's white
+			// rather than a second opinion about it.
+			eyeColor: MIO_DEFAULTS.appearance.eyeColor,
 			eyeScale: round( between( 0.2, 0.42 ), 0.01 ),
 		},
 		physics: {

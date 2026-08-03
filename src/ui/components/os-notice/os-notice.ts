@@ -53,8 +53,7 @@ export class OsNotice extends Component {
 		title: 'Notice',
 		summary:
 			'Full-width banner placed inside a window (typically the after-titlebar slot). Tone-coded background + accent stripe, optional close button, optional dashicons leading glyph. Slotted content is HTML — links and basic formatting are supported.',
-		status: 'experimental',
-		since: '0.8.6',
+		status: 'stable',
 		props: [
 			{
 				name: 'tone',

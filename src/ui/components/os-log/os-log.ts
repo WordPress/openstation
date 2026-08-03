@@ -110,8 +110,7 @@ export class OsLog< T = unknown > extends Component {
 		title: 'Log (virtualized)',
 		summary:
 			'Append-only streaming list for high-rate output (SQL queries, network calls, log lines). Virtualises so thousands of rows render without layout cost; pins to the bottom while the viewport sits there, releases when the user scrolls up.',
-		status: 'experimental',
-		since: '0.6.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'row-height',
@@ -157,9 +156,29 @@ export class OsLog< T = unknown > extends Component {
 			{ name: '--os-ui-log-row-border', default: '1px solid rgba(0,0,0,0.04)' },
 			{ name: '--os-ui-log-min-height', default: '120px' },
 		],
+		/*
+		 * `entries` is a property, so the markup alone renders the
+		 * empty-state. Height comes from the caller — the log is a
+		 * scroll container and has no intrinsic one.
+		 */
 		example: html`
-			<os-log id="sample-log" row-height="22" max-rows="500"></os-log>
+			<div style="height:160px">
+				<os-log row-height="22" max-rows="500"></os-log>
+			</div>
 		`,
+		exampleInit: ( root: HTMLElement ) => {
+			const log = root.querySelector( 'os-log' );
+			if ( log ) {
+				( log as OsLog< string > ).entries = [
+					'[12:04:01] GET /wp-admin/index.php → 200 (48ms)',
+					'[12:04:01] SELECT * FROM wp_options WHERE autoload = 1',
+					'[12:04:02] GET /wp-json/desktop-mode/v1/session → 200 (12ms)',
+					'[12:04:02] SELECT * FROM wp_posts ORDER BY post_date DESC LIMIT 5',
+					'[12:04:03] POST /wp-admin/admin-ajax.php → 200 (31ms)',
+					'[12:04:04] GET /wp-json/desktop-mode/v1/files → 200 (19ms)',
+				];
+			}
+		},
 	} as const;
 
 	private _entries: T[] = [];

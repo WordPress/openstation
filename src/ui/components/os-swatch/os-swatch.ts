@@ -19,7 +19,6 @@ export class OsSwatch extends Component {
 		summary:
 			'Selectable color/wallpaper tile. Renders as an aria-pressed button with a background driven by the preview attribute.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'value',

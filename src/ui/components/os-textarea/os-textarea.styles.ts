@@ -1,11 +1,17 @@
 import { css } from '../../core';
+import { holoTokens, holoField } from '../../holo';
 
 /**
  * Styles for `<os-textarea>` — multi-line text input. Visually
  * matches `<os-text-field>` (same border, padding, focus ring) so
- * forms can mix the two without a seam.
+ * forms can mix the two without a seam — and now literally so: both
+ * take their hover, focus, placeholder and selection states from the
+ * shared `holoField` fragment rather than each declaring its own.
  */
 export const textareaStyles = css`
+	${ holoTokens }
+	${ holoField }
+
 	:host {
 		display: flex;
 		flex-direction: column;
@@ -39,28 +45,24 @@ export const textareaStyles = css`
 		line-height: 1.45;
 		color: var( --os-ui-fg, #1d2327 );
 		resize: vertical;
-		transition: border-color 0.12s ease, box-shadow 0.12s ease;
 	}
 
-	textarea:hover {
-		border-color: var( --os-ui-fg-muted, #8c8f94 );
-	}
-	textarea:focus-visible {
-		outline: none;
-		border-color: var( --wp-admin-theme-color, #2271b1 );
-		box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
-	}
 	textarea:disabled {
 		opacity: 0.55;
 		cursor: not-allowed;
 		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.03 ) );
 	}
 
-	textarea[ aria-invalid='true' ] {
+	/* Outranks the shared focus ring — see the :where() note in holoField. */
+	textarea[ aria-invalid='true' ],
+	textarea[ aria-invalid='true' ]:hover:not( :disabled ) {
 		border-color: var( --os-ui-danger, #d63638 );
 	}
+	textarea[ aria-invalid='true' ]:focus,
 	textarea[ aria-invalid='true' ]:focus-visible {
-		box-shadow: 0 0 0 1px var( --os-ui-danger, #d63638 );
+		border-color: var( --os-ui-danger, #d63638 );
+		box-shadow: 0 0 0 1px var( --os-ui-danger, #d63638 ),
+			0 0 0 4px rgba( 214, 54, 56, 0.18 );
 	}
 
 	/* Auto-grow mode: hide native resize affordance — we manage rows. */

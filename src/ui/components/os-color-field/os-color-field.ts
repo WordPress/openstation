@@ -21,7 +21,6 @@ export class OsColorField extends Component {
 		summary:
 			'Label + native color input. Reflects the value attribute both ways and emits os-color-change live on every edit (no debounce — callers debounce upstream).',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'label',

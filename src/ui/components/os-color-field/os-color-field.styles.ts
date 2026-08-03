@@ -1,6 +1,9 @@
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 export const styles = css`
+	${ holoTokens }
+
 	:host {
 		display: inline-flex;
 		align-items: center;
@@ -21,6 +24,21 @@ export const styles = css`
 		border-radius: 6px;
 		background: transparent;
 		cursor: pointer;
+		transition: border-color var( --_holo-t ) ease,
+			box-shadow var( --_holo-t ) ease;
+	}
+	input[ type='color' ]:hover {
+		border-color: var( --os-ui-border-strong, #8c8f94 );
+	}
+	/*
+	 * The target ring, not the field one. A colour swatch is a small
+	 * filled tile that could be any colour at all — including Pulse
+	 * itself — so it needs the ring that carries a Void spacer and a
+	 * bloom rather than the one that merely tints its own border.
+	 */
+	input[ type='color' ]:focus-visible {
+		outline: none;
+		box-shadow: var( --_holo-focus );
 	}
 	/*
 	 * Block variant: the host fills its parent, the input stretches

@@ -68,7 +68,6 @@ export class OsCard extends Component {
 		summary:
 			'Generic hover-aware container. Becomes click-emitting + focusable when `interactive`. Slots for header / default body / footer have built-in layout rhythm so consumers don\'t need bespoke wrapper components.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'interactive',
@@ -171,7 +170,11 @@ export class OsCard extends Component {
 		// `connectedCallback` runs once on first mount; this picks up
 		// `interactive`/`disabled` flips after that.
 		this._syncRoles();
-		return html`<slot name="header"></slot><slot></slot><slot name="footer"></slot>`;
+		// The glint is stamped unconditionally and gated in CSS to
+		// [interactive]: a read-only digest tile that caught the light
+		// on hover would be advertising a click it does not take.
+		return html`<span class="os-holo-glint" aria-hidden="true"></span
+			><slot name="header"></slot><slot></slot><slot name="footer"></slot>`;
 	}
 
 	private _syncRoles(): void {

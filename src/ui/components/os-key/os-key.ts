@@ -76,7 +76,6 @@ export class OsKey extends Component {
 		summary:
 			'Semantic key cap — a press-sensitive tile that fires os-key on click AND when the matching event.key/event.code is pressed anywhere on the document. Use for calculators, on-screen keyboards, synths, and keybinding demos.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'key',
@@ -193,6 +192,7 @@ export class OsKey extends Component {
 		return html`
 			<button
 				part="button"
+				class="os-holo-sheen"
 				type="button"
 				?disabled=${ disabled }
 				@click=${ ( e: MouseEvent ) => this.handleClick( e ) }
@@ -200,6 +200,8 @@ export class OsKey extends Component {
 				${ label !== null && label !== undefined && label !== ''
 		? label
 		: html`<slot></slot>` }
+				<span class="os-holo-glint" aria-hidden="true"></span>
+				<span class="os-holo-ring" aria-hidden="true"></span>
 			</button>
 		`;
 	}

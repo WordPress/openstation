@@ -50,8 +50,7 @@ export class OsRibbon extends Component {
 		title: 'Ribbon',
 		summary:
 			'45° corner ribbon. Wraps the top-end (default), top-start, bottom-end, or bottom-start corner of its positioned parent. The host owns clipping + rotation; consumers only set position-relative on the parent and drop a label inside.',
-		status: 'experimental',
-		since: '0.8.6',
+		status: 'stable',
 		props: [
 			{
 				name: 'placement',

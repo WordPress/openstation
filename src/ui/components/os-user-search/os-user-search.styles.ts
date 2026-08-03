@@ -18,8 +18,12 @@ export const userSearchStyles = css`
 		box-sizing: border-box;
 	}
 	.input:focus {
-		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-		outline-offset: -1px;
+		outline: none;
+		border-color: var( --os-ui-accent, #2271b1 );
+		box-shadow: var(
+			--os-ui-focus-ring-field,
+			0 0 0 1px #2271b1, 0 0 0 4px rgba( 34, 113, 177, 0.18 )
+		);
 	}
 
 	.dropdown {

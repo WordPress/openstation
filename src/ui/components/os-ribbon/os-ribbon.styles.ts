@@ -47,10 +47,22 @@ export const styles = css`
 		letter-spacing: var( --os-ui-ribbon-tracking, 0.06em );
 		text-transform: uppercase;
 		color: var( --os-ui-ribbon-fg, var( --os-ui-fg-on-accent, #fff ) );
+		/*
+		 * The default ribbon fill arrives through --os-ui-ribbon-bg,
+		 * which the palette points at Holomesh. A ribbon is a good
+		 * home for it: one per tile, small, angled, and already
+		 * carrying Void text (--os-ui-ribbon-fg) because a bright fill
+		 * needs dark ink whether it is a mesh or not.
+		 *
+		 * The literal stays the pre-brand blue — it is the
+		 * no-stylesheet floor, and it is what Legacy collected.
+		 */
 		background: var(
 			--os-ui-ribbon-bg,
 			var( --wp-admin-theme-color, #2271b1 )
 		);
+		background-size: 260% 260%;
+		background-position: 30% 40%;
 		box-shadow: var(
 			--os-ui-ribbon-shadow,
 			0 2px 4px rgba( 0, 0, 0, 0.2 )

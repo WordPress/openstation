@@ -45,7 +45,6 @@ export class OsOption extends Component {
 		summary:
 			'Opaque data carrier for <os-select>. Carries its identifier in `value` and its visible label in textContent. Not rendered directly — the parent reads these and builds a native <select>.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'value',
@@ -61,6 +60,21 @@ export class OsOption extends Component {
 		slots: [
 			{ name: '(default)', description: 'Label text read from textContent.' },
 		],
+		/*
+		 * This component paints nothing — `:host { display: none }`,
+		 * by design. So the example shows the only thing there is to
+		 * see: what the parent builds out of it. A blank Example
+		 * section here would look like a bug rather than like the
+		 * deliberate choice it is.
+		 */
+		example: html`
+			<os-select value="md" label="Dock size (built from os-option children)">
+				<os-option value="sm">Small</os-option>
+				<os-option value="md">Medium</os-option>
+				<os-option value="lg">Large</os-option>
+				<os-option value="xl" disabled>Extra large (disabled)</os-option>
+			</os-select>
+		`,
 	} as const;
 
 	protected render() {
@@ -87,7 +101,6 @@ export class OsSelect extends Component {
 		summary:
 			'Dropdown picker that wraps a native <select>. Mirrors the <os-segmented> contract (set value, listen for os-pick) so callers can swap tag names when a list outgrows a pill bar.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'value',

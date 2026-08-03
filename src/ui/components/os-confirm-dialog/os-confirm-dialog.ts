@@ -50,8 +50,7 @@ export class OsConfirmDialog extends Component {
 		title: 'Confirm dialog',
 		summary:
 			'Modal Yes/No replacement for window.confirm(). Two consumption paths: declarative element with `open` + `os-confirm` event, or the imperative Promise-returning `osConfirm()` helper.',
-		status: 'experimental',
-		since: '0.9.0',
+		status: 'stable',
 		props: [
 			{ name: 'open', type: 'boolean attribute', description: 'Mounts the dialog visible.' },
 			{ name: 'title', type: 'string', description: 'Heading shown at the top.' },
@@ -72,6 +71,67 @@ export class OsConfirmDialog extends Component {
 				description: 'Fires on cancel (Cancel button, Escape, backdrop click). Detail: `{ confirmed: false }`.',
 			},
 		],
+		/*
+		 * A dialog is `display: none` until `[open]`, so mounting one
+		 * on its own shows nothing — which is exactly what this
+		 * component's help pane did before. The trigger IS the
+		 * example: a dialog you cannot open demonstrates nothing.
+		 *
+		 * Wiring lives in `exampleInit` rather than in an `@click` in
+		 * the template so the lookup is scoped to the example's own
+		 * container. `onclick =` assignment rather than
+		 * `addEventListener` because the panel re-runs this on every
+		 * keystroke in the filter box, and assignment replaces where
+		 * adding would stack.
+		 */
+		example: html`
+			<os-cluster gap="8">
+				<os-button data-demo="ask">Ask me something</os-button>
+				<os-button data-demo="danger" variant="danger">
+					…and a destructive one
+				</os-button>
+			</os-cluster>
+			<os-confirm-dialog
+				title="Close this window?"
+				message="Any unsaved changes will be lost."
+				confirm-label="Close"
+			></os-confirm-dialog>
+		`,
+		exampleInit: ( root: HTMLElement ) => {
+			const dialog = root.querySelector( 'os-confirm-dialog' );
+			if ( ! dialog ) {
+				return;
+			}
+			const ask = root.querySelector< HTMLElement >( '[data-demo="ask"]' );
+			const danger = root.querySelector< HTMLElement >(
+				'[data-demo="danger"]',
+			);
+			// Assignment, not addEventListener: see the note above.
+			if ( ask ) {
+				ask.onclick = () => {
+					dialog.removeAttribute( 'danger' );
+					dialog.setAttribute( 'title', 'Close this window?' );
+					dialog.setAttribute(
+						'message',
+						'Any unsaved changes will be lost.',
+					);
+					dialog.setAttribute( 'confirm-label', 'Close' );
+					dialog.setAttribute( 'open', '' );
+				};
+			}
+			if ( danger ) {
+				danger.onclick = () => {
+					dialog.setAttribute( 'danger', '' );
+					dialog.setAttribute( 'title', 'Empty the recycle bin?' );
+					dialog.setAttribute(
+						'message',
+						'47 items will be deleted permanently. This cannot be undone.',
+					);
+					dialog.setAttribute( 'confirm-label', 'Delete forever' );
+					dialog.setAttribute( 'open', '' );
+				};
+			}
+		},
 	} as const;
 
 	connectedCallback() {

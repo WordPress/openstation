@@ -15,7 +15,6 @@ export class OsCheckboxLabel extends Component {
 		summary:
 			'Opinionated label-row variant of <os-checkbox>: label text + checkbox in a single aligned row. Use when you want the shipped layout without any layout work.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'label',

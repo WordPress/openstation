@@ -104,8 +104,7 @@ export class OsForm extends Component {
 		title: 'Form',
 		summary:
 			'Container-query-driven responsive form. Auto-collects named fields, validates required, exposes setError / setFieldInvalid / setBusy / reset, fires os-form-submit with the collected values map.',
-		status: 'experimental',
-		since: '0.8.1',
+		status: 'stable',
 		props: [
 			{
 				name: 'submit-label',

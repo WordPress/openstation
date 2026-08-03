@@ -1,6 +1,9 @@
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 export const styles = css`
+	${ holoTokens }
+
 	:host {
 		display: inline-flex;
 	}
@@ -26,19 +29,28 @@ export const styles = css`
 		transform: translateY( -1px );
 	}
 	:host( [ variant='detach' ] ) button:focus-visible {
-		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-		outline-offset: 1px;
+		outline: none;
+		color: var( --os-ui-accent, #2271b1 );
+		background: var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.12 ) );
+		box-shadow: var( --_holo-focus );
 	}
 	/* Close (red destructive wash) */
 	:host( [ variant='close' ] ) button:hover {
 		color: var( --os-ui-fg-on-accent, #fff );
 		background: var( --os-ui-danger, #d63638 );
 	}
+	/*
+	 * Close keeps a RED ring rather than the kit's Pulse one. The
+	 * shared ring says "this has focus"; on the one control that
+	 * destroys something, the ring should also say what it destroys.
+	 */
 	:host( [ variant='close' ] ) button:focus-visible {
 		color: var( --os-ui-fg-on-accent, #fff );
 		background: var( --os-ui-danger, #d63638 );
-		outline: 2px solid var( --os-ui-danger-hover, rgba( 214, 54, 56, 0.6 ) );
-		outline-offset: 1px;
+		outline: none;
+		box-shadow: 0 0 0 2px rgba( 12, 11, 15, 0.9 ),
+			0 0 0 4px var( --os-ui-danger, #d63638 ),
+			0 0 12px 2px rgba( 214, 54, 56, 0.45 );
 	}
 	svg {
 		display: block;

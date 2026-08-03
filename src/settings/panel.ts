@@ -132,7 +132,18 @@ export function renderOsSettingsPanel(
 		ctx.tabRegistryUnsubscribe = null;
 	}
 
-	body.classList.add( 'desktop-mode-os-settings' );
+	// The hook every rule in `os-settings.css` hangs off. It is a CSS
+	// class, not one of the frozen `desktop_mode_*` stored values — the
+	// stylesheet was renamed to `.os-settings` in the rebrand and this
+	// line was not, which left all 153 of its rules matching nothing.
+	//
+	// The About tab is where that showed: its canvas gets its height
+	// from a `flex: 1; min-height: 0` chain whose first two links are
+	// scoped under `.os-settings`, so the stage host measured zero, and
+	// `waitForSize()` — which has no timeout, by design, because a
+	// hidden tabpanel legitimately takes a while — waited for a box
+	// that was never coming. The scene never mounted and never errored.
+	body.classList.add( 'os-settings' );
 
 	const onReset = (): void => {
 		// Preserve the uploaded image so the user doesn't lose

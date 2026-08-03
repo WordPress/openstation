@@ -7,8 +7,11 @@
  * the global default.
  */
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 export const styles = css`
+	${ holoTokens }
+
 	:host {
 		display: inline-flex;
 		max-width: 100%;
@@ -115,7 +118,7 @@ export const styles = css`
 		outline: none;
 	}
 	.os-chip__dismiss:focus-visible {
-		box-shadow: 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
+		box-shadow: var( --_holo-focus );
 	}
 	.os-chip__dismiss[ disabled ] {
 		opacity: 0.35;
@@ -137,5 +140,41 @@ export const styles = css`
 	:host( [ size='compact' ] ) .os-chip {
 		padding: var( --os-ui-chip-padding, 1px 6px );
 		font-size: var( --os-ui-chip-font-size, 11px );
+	}
+
+	/*
+	 * The holographic hairline, and ONLY on a selected chip.
+	 *
+	 * Chips arrive in rows of eight and twelve — a tag column, a
+	 * filter bar, a category picker — so the treatment here has to be
+	 * the one that costs nothing when repeated. An edge on the one
+	 * chip the user has chosen reads instantly in a row of otherwise
+	 * flat pills; an edge on all of them reads as noise.
+	 *
+	 * Drawn on a mask-composited ::after rather than a border, because
+	 * border-color takes a colour and this is a gradient. Same
+	 * technique as .os-holo-edge; written out here because the chip's
+	 * frame belongs to .os-chip, an inner element rather than the
+	 * host, and the shared class hangs its ring on whatever carries
+	 * the class.
+	 */
+	:host( [ selected ] ) .os-chip {
+		position: relative;
+		background: var( --os-ui-chip-bg, var( --os-ui-accent-soft, rgba( 34, 113, 177, 0.14 ) ) );
+		color: var( --os-ui-chip-fg, var( --os-ui-fg, #1d2327 ) );
+	}
+	:host( [ selected ] ) .os-chip::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		padding: 1px;
+		background-image: var( --_holo-edge );
+		pointer-events: none;
+		-webkit-mask: linear-gradient( #000 0 0 ) content-box,
+			linear-gradient( #000 0 0 );
+		-webkit-mask-composite: xor;
+		mask: linear-gradient( #000 0 0 ) content-box, linear-gradient( #000 0 0 );
+		mask-composite: exclude;
 	}
 `;

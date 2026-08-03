@@ -62,8 +62,11 @@ export const multiselectStyles = css`
 
 	.os-multiselect__trigger:focus-visible {
 		outline: none;
-		border-color: var( --wp-admin-theme-color, #2271b1 );
-		box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
+		border-color: var( --os-ui-accent, #2271b1 );
+		box-shadow: var(
+			--os-ui-focus-ring-field,
+			0 0 0 1px #2271b1, 0 0 0 4px rgba( 34, 113, 177, 0.18 )
+		);
 	}
 
 	.os-multiselect__trigger:disabled {

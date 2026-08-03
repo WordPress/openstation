@@ -25,7 +25,6 @@ export class OsToastContainer extends Component {
 		summary:
 			'Singleton stack beneath <body> that hosts transient <os-toast> notifications in the top-right. Created lazily by showToast(); authors rarely place one themselves.',
 		status: 'stable',
-		since: '0.9.0',
 		slots: [
 			{ name: '(default)', description: '<os-toast> children, stacked vertically.' },
 		],
@@ -60,7 +59,6 @@ export class OsToast extends Component {
 		summary:
 			'Single transient notification. Message is slotted; fade-in / fade-out is CSS-driven by flipping the state attribute between "in" and "out". Usually created via the showToast() helper rather than authored by hand.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'action',

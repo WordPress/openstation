@@ -7,6 +7,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 - [Hard rules](#hard-rules)
   - [Never hand-edit JS in `assets/js/`](#never-hand-edit-js-in-assetsjs)
   - [The palette lives in `variables.css`](#the-palette-lives-in-variablescss--one-declaration-one-owner)
+  - [The holographic layer lives in `src/ui/holo.ts`](#the-holographic-layer-lives-in-srcuiholots)
   - [Never declare a themeable token on a component's `:host`](#never-declare-a-themeable-token-on-a-components-host)
   - [The Legacy theme manifest is frozen data](#the-legacy-theme-manifest-is-frozen-data-not-build-output)
   - [`desktop_mode_*` values are frozen](#desktop_mode_-values-are-frozen--the-namevalue-mismatch-is-deliberate)
@@ -65,6 +66,28 @@ Three rules follow from that, and all have tests:
 2. **Every consuming rule keeps reading `var( --token, <literal> )`**, and that literal stays the pre-brand WordPress-admin value. It is the floor if the stylesheet fails to load, and it is what the Legacy snapshot collected. Never "tidy" a fallback away.
 
 **The failure mode to watch for after a palette change** is a chain that now means something else: a fill resolving to a 10%-alpha wash, or a base and its hover state — declared in two different rules, distinguished only by their fallback literals — collapsing onto the same value once the shared token is declared. `<os-button>`'s ghost/secondary hover did exactly that. When a surface stops reacting to the pointer, check whether both states resolve through the same palette token, and declare the second one.
+
+### The holographic layer lives in `src/ui/holo.ts`
+
+**"Holographic" is a moment, not a skin, and there is exactly one module that decides what it means.**
+
+The brand ships five mesh gradients with one instruction attached — *"meshes reserved for hero surfaces"* — and `src/ui/holo.ts` is how a control gets to be one. It exports six `css` fragments (`holoTokens`, `holoFill`, `holoSheen`, `holoEdge`, `holoField`, `holoCheck`, `holoDrift`, plus the `holo` barrel) that components interpolate into their own styles. The meshes themselves are transcribed stop-for-stop from the brand SVGs into `--os-mesh-*` in `variables.css`; they are gradient stacks rather than `url()`s because `background-position` can slide a gradient, and that slide *is* the effect.
+
+Three rules, all with tests:
+
+1. **A control paints the mesh when it is on, selected, primary or filled — and wears Obsidian the rest of the time.** A panel where every surface is iridescent has no identity moments left to spend. `<os-button variant="holo">` exists precisely so the loud version is hard to reach for by accident; `primary` deliberately did *not* become the mesh, because it is three-to-a-row in OS Settings and a mesh three-to-a-row is wallpaper.
+2. **`holoTokens` is a prerequisite for every other fragment** — it declares the private `--_holo-*` aliases they read. Include it once per component. Never declare a `--os-ui-*` name on the bare `:host` (see the next rule).
+3. **Reduced motion stops the tilt, never the fill.** A control that lost its mesh under `prefers-reduced-motion` would lose its *state*, not just its animation.
+
+Three things that will bite you:
+
+- **Comments inside a `` css`` `` template cannot contain backticks.** It is a JS template literal; a backtick in a CSS comment terminates it and the file stops parsing with a bare "expected a semicolon" pointing at prose. Write `--_drag` and `::before` unquoted in those comments. `tests/vitest/css-template-hygiene.test.ts` is the guard, and its message says what to do — it exists because this mistake is easy, frequent, and completely opaque the first few times.
+- **`holoField` uses bare `input` / `select` / `textarea` selectors** — safe inside a shadow root, and one careless `:not()` away from outranking every component's own `aria-invalid` ring. The type exclusions are wrapped in `:where()` to hold the selector at (0,1,1). Don't unwrap them.
+- **The pseudo-element budget is spent.** `holoSheen` owns `::before` and `holoEdge` owns `::after`; a control wearing both has none left. That is why `holoGlint` and `holoRing` are element-based (`<span class="os-holo-glint">`) and driven from the parent's state through the **child** combinator — `:active` matches every ancestor of the pressed element, so `:active .os-holo-ring` fires every ring on the page. New motion fragments should follow the same shape rather than competing for a pseudo.
+
+**How loud the station is** is one token: `--os-ui-accent-dim`, Pulse one step back. Every ambient use of the accent — glows, washes, focus blooms — resolves through it, so "tone it down" is one edit rather than an audit. `--os-ui-accent` itself stays `#f252fc`; that one is the brand's, not ours, and `brand-palette.test.ts` pins it. The focus **ring** deliberately does not dim — only the bloom behind it does.
+
+`tests/vitest/holo-layer.test.ts` pins the mesh transcriptions against the brand's hexes, the alias privacy, the `:where()` specificity, the dim routing, and reduced-motion coverage on every fragment. Public surface: [`docs/components-reference.md`](docs/components-reference.md#the-holographic-layer) and the token tables in [`docs/desktop-themes.md`](docs/desktop-themes.md).
 
 ### Never declare a themeable token on a component's `:host`
 
@@ -345,7 +368,7 @@ The full index lives in [`docs/README.md`](docs/README.md). Quick reference:
 | `docs/plugin-compat-layer.md` | A chromeless-CSS shim, offset neutralizer, or dock-builder adaptation for a third-party plugin shape is added/changed. |
 | `docs/dock-customization.md` | Dock rendering, ordering, or decoration hooks change. |
 | `docs/desktop-themes.md` | The desktop-theme manifest format, icon/texture slot lists, value grammar, or fallback semantics change. **Slot names must stay equal on both sides** (`openstation_desktop_theme_icon_slots()` ↔ `src/desktop-themes/slots.ts`). |
-| `docs/mio.md` | Mio's simulation, appearance/physics config keys, layer stacking, or `wp.os.mio` surface changes. **The four soft-body failure modes documented there (no core particle; edge-normal pressure; one rest shape shared by every spring family; angular-order constraint against folding) are load-bearing — read before touching `src/mio/soft-body.ts`. So is "a glow is a dilated silhouette, not a fat outline" — read before touching how any pass in `src/mio/render.ts` places a boundary or picks an alpha; a normal offset folds inside-out past the local radius of curvature (7 px on the shipped `star`), and a single flat-alpha band is a slab with a cliff however wide you make it.** |
+| `docs/mio.md` | Mio's simulation, appearance/physics config keys, layer stacking, or `wp.os.mio` surface changes. **Mio's default colours are the brand contract, not taste** — they are derived from Miomesh in the brand guidelines and pinned by `tests/vitest/mio-brand-fidelity.test.ts`; read "Mio wears the brand" before retuning a hue, a lightness or either flat colour. **The four soft-body failure modes documented there (no core particle; edge-normal pressure; one rest shape shared by every spring family; angular-order constraint against folding) are load-bearing — read before touching `src/mio/soft-body.ts`. So is "a glow is a dilated silhouette, not a fat outline" — read before touching how any pass in `src/mio/render.ts` places a boundary or picks an alpha; a normal offset folds inside-out past the local radius of curvature (7 px on the shipped `star`), and a single flat-alpha band is a slab with a cliff however wide you make it.** |
 | `docs/files-on-desktop.md` | Desktop file/folder behavior, tile metadata, or placement changes. |
 | `docs/folder-sharing.md` | Folder-sharing API, ACL model, or REST routes change. |
 | `docs/migration-*.md` | A breaking change ships, write a migration note here in the same PR. |

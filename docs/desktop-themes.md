@@ -413,6 +413,63 @@ A dark theme's minimum viable body palette:
 }
 ```
 
+### The holographic tokens
+
+The kit has one more family, and it is the one that decides how a
+control looks at the moment it is *on*. A switch that is on, a checked
+checkbox, the selected segment, the filled part of a progress bar and
+the step-number chip all paint `--os-ui-holo-fill` — by default the
+brand's Holomesh, transcribed into CSS in `--os-mesh-holo`.
+
+| Token | Role |
+|---|---|
+| `--os-ui-holo-fill` | What an on / selected / filled surface paints. |
+| `--os-ui-holo-ink` | Glyphs and text on that fill. |
+| `--os-ui-holo-sheen` | The hover film over a surface that is *not* lit. |
+| `--os-ui-holo-edge`, `--os-ui-holo-edge-quiet` | The iridescent hairline, lit and at rest. |
+| `--os-ui-holo-glow`, `--os-ui-holo-glow-strong` | The bloom around a lit surface. |
+| `--os-ui-holo-track` | The unlit half — switch tracks, empty progress. |
+| `--os-ui-accent-dim` | The accent, one step back. Every *ambient* use of it — glows, washes, focus blooms — resolves through this, so it is the single knob for how loud a theme reads. |
+| `--os-ui-focus-ring` | Focus on a *target*: buttons, switches, checkboxes, swatches. |
+| `--os-ui-focus-ring-field` | Focus on a *field*: quieter, tightens the input's own border. |
+| `--os-ui-holo-transition` | Duration for every holographic transition in the kit. |
+
+And the motion scale, which is worth setting as a group or not at all — a theme that changes one duration gets a panel where the controls disagree about how fast they are:
+
+| Token | Role |
+|---|---|
+| `--os-ui-motion-fast` | A state flip with no travel: a colour, an opacity, a tick. |
+| `--os-ui-motion-slow` | Something crossing a distance: a thumb, a drawer, a card. |
+| `--os-ui-motion-ambient` | An ambient loop — a shimmer, a drift. |
+| `--os-ui-ease-spring` | Overshoots and settles. Wrong for anything that changes *size*. |
+| `--os-ui-ease-out` | Decelerating. The default for anything arriving. |
+| `--os-ui-ease-loop` | Symmetric, for a loop that returns where it started. |
+
+Setting all three durations to `1ms` is a supported way to build a still theme; every fragment in the kit already does exactly that under `prefers-reduced-motion`.
+
+Setting `--os-ui-holo-fill` alone retints every one of those surfaces
+at once, which is the shortest route to a theme that does not look
+like OpenStation. A flat colour works:
+
+```json
+"tokens": {
+  "--os-ui-holo-fill": "#7c5cff",
+  "--os-ui-holo-ink":  "#ffffff"
+}
+```
+
+**Change the ink when you change the fill.** The default ink is Void,
+because every mesh in the brand is a *light* surface — a dark fill with
+the default ink is near-black on near-black, and it looks fine in a
+screenshot of the off state.
+
+The five meshes themselves (`--os-mesh-holo`, `--os-mesh-pulse`,
+`--os-mesh-auro`, `--os-mesh-star`, `--os-mesh-mio`) are also settable,
+and are the right lever when you want your own gradient everywhere the
+brand's would have gone. `--os-mesh-mio` belongs to the mascot; retint
+it and Mio changes with the rest of the station, which may or may not
+be what you meant.
+
 ### Shell tokens
 
 `--os-*` names must match `^--os-[a-z0-9-]+$`.

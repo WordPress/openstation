@@ -137,7 +137,6 @@ export class OsWindowButton extends Component {
 		summary:
 			'Chrome button used in native-window title bars. Built-in icons cover the standard controls (minimize, maximize, fullscreen, detach, close, menu). Focused/unfocused coloring is driven by --os-ui-btn-* CSS custom properties the window shell owns.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'icon',

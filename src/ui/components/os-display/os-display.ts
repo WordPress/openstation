@@ -44,7 +44,6 @@ export class OsDisplay extends Component {
 		summary:
 			'Single-line numeric/text readout — right-aligned, tabular-nums, auto-ellipsized. The readout every calculator, stopwatch, ticker, counter, or meter reinvents. Host is aria-live="polite" so screen readers announce value changes without yanking focus.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'value',

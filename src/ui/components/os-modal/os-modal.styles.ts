@@ -1,6 +1,9 @@
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 export const modalStyles = css`
+	${ holoTokens }
+
 	:host {
 		display: none;
 		position: fixed;
@@ -54,8 +57,49 @@ export const modalStyles = css`
 		);
 	}
 
+	/*
+	 * Two animations, because a dialog is two things.
+	 *
+	 * The SCRIM fades. It is a state change over the whole viewport
+	 * and anything else would draw the eye to the background at the
+	 * exact moment the foreground is asking for attention.
+	 *
+	 * The DIALOG scales in from 96% on the spring, and lands slightly
+	 * faster than the scrim finishes — so the surface arrives on top
+	 * of a backdrop that is already there, which is the order the eye
+	 * expects from a physical object.
+	 *
+	 * Both hang off [open] rather than the base rule: this component
+	 * toggles display rather than mounting, so a keyframe on :host
+	 * would only ever run the first time.
+	 */
 	:host( [ open ] ) {
 		display: flex;
+		animation: os-modal-scrim var( --_holo-t ) var( --_holo-ease );
+	}
+
+	:host( [ open ] ) .dialog {
+		animation: os-modal-dialog var( --_holo-t ) var( --_holo-spring );
+	}
+
+	@keyframes os-modal-scrim {
+		from {
+			opacity: 0;
+		}
+	}
+
+	@keyframes os-modal-dialog {
+		from {
+			opacity: 0;
+			transform: scale( 0.96 ) translateY( 8px );
+		}
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		:host( [ open ] ),
+		:host( [ open ] ) .dialog {
+			animation: none;
+		}
 	}
 
 	.dialog {

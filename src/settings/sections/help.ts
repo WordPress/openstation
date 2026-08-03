@@ -105,6 +105,50 @@ function matchesQuery( entry: ComponentEntry, query: string ): boolean {
 }
 
 /**
+ * Run the active component's `exampleInit` against its own container.
+ *
+ * Half the kit takes its data through a JS property rather than an
+ * attribute — `segments`, `data`, `columns`, `entries`, `ratings` —
+ * and those cannot be populated from markup at all. Their examples
+ * rendered as empty shells until this hook existed.
+ *
+ * `customElements.upgrade()` first, and it is not optional. On the
+ * FIRST paint this section is still detached — `buildHelpSection()`
+ * returns `el` for the caller to append — so the custom elements the
+ * renderer just created have not upgraded yet. Assigning `.segments`
+ * to an un-upgraded element defines an OWN property, which then
+ * permanently shadows the class accessor the upgrade installs on the
+ * prototype: the setter never runs, and the component sits there
+ * empty holding data it cannot see. Upgrading first makes the
+ * accessor exist before anything is written through it.
+ */
+function runExampleInit(
+	root: HTMLElement,
+	active: ComponentEntry | undefined,
+): void {
+	const init = active?.help?.exampleInit;
+	const host = root.querySelector< HTMLElement >(
+		'.os-settings__help-example',
+	);
+	if ( ! init || ! host ) {
+		return;
+	}
+	customElements.upgrade( host );
+	try {
+		init( host );
+	} catch ( err ) {
+		// An example is documentation. A broken one is worth a console
+		// line, and is never worth taking the Components tab down with
+		// it — the props, events and CSS tables below are still fine.
+		// eslint-disable-next-line no-console
+		console.error(
+			`[openstation] <${ active?.tag }> exampleInit threw:`,
+			err,
+		);
+	}
+}
+
+/**
  * Module-level guard so the "intentional demo" console banner is
  * logged exactly once per page lifetime, no matter how many times
  * the Components tab is opened or repainted.
@@ -154,6 +198,21 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 
 	let activeTag = entries[ 0 ]?.tag ?? '';
 	let query = '';
+	/**
+	 * Which component the detail pane last painted.
+	 *
+	 * The pane is its own scroll container, and `render()` diffs — so
+	 * the same `<div>` survives every repaint and keeps its
+	 * `scrollTop`. Picking a component while scrolled down through a
+	 * long one (`<os-table>` has five sections) left the new one
+	 * opened halfway down, which reads as a component with nothing at
+	 * the top rather than as a scroll position.
+	 *
+	 * Compared rather than reset unconditionally, because typing in
+	 * the filter box repaints too and yanking the pane to the top on
+	 * every keystroke is its own bug.
+	 */
+	let paintedTag = '';
 
 	const paint = (): void => {
 		if ( ctx.state.developerModeEnabled ) {
@@ -287,6 +346,16 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 			`,
 			el,
 		);
+
+		const detail = el.querySelector< HTMLElement >(
+			'.os-settings__help-detail',
+		);
+		if ( detail && ( active?.tag ?? '' ) !== paintedTag ) {
+			detail.scrollTop = 0;
+		}
+		paintedTag = active?.tag ?? '';
+
+		runExampleInit( el, active );
 	};
 
 	paint();
@@ -323,7 +392,6 @@ export function buildHelpSection( ctx: SettingsCtx ): HTMLElement {
 function renderDetail( entry: ComponentEntry ) {
 	const help = entry.help;
 	const status = help?.status ?? 'stable';
-	const since = help?.since;
 
 	return html`
 		<header class="os-settings__help-head">
@@ -338,11 +406,6 @@ function renderDetail( entry: ComponentEntry ) {
 				) }
 				>${ statusLabel( status ) }</span
 			>
-			${ since
-				? html`<span class="os-settings__help-since"
-						>${ __( 'Since' ) } ${ since }</span
-					>`
-				: html`` }
 		</header>
 
 		${ help?.summary

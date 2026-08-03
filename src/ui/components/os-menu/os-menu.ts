@@ -30,7 +30,6 @@ export class OsMenu extends Component {
 		summary:
 			'Popover menu used in window title bars and other overflow triggers. Presentation-only: the consumer owns open/close state via the `hidden` attribute and any outside-click dismissal.',
 		status: 'stable',
-		since: '0.9.0',
 		slots: [
 			{ name: '(default)', description: '<os-menu-item> children.' },
 		],
@@ -68,7 +67,6 @@ export class OsMenuItem extends Component {
 		summary:
 			'Single row inside a <os-menu>. Supports three looks: plain label, left-aligned dashicon (icon="dashicons-…"), or a checkbox indicator (role="menuitemcheckbox" + checked).',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'icon',
@@ -96,6 +94,22 @@ export class OsMenuItem extends Component {
 				detail: '{ value: string | null }',
 			},
 		],
+		/*
+		 * An item has no shape outside a menu — it takes its padding,
+		 * width and surface from the parent — so the example is the
+		 * parent in miniature, showing each modifier the item has.
+		 */
+		example: html`
+			<os-menu>
+				<os-menu-item value="plain">Plain item</os-menu-item>
+				<os-menu-item value="icon" icon="dashicons-external">
+					With an icon
+				</os-menu-item>
+				<os-menu-item value="startup" role="menuitemcheckbox" checked>
+					Checked (menuitemcheckbox)
+				</os-menu-item>
+			</os-menu>
+		`,
 	} as const;
 
 	connectedCallback(): void {

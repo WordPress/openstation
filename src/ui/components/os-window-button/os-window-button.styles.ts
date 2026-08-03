@@ -43,7 +43,22 @@ export const styles = css`
 		background-position: var( --os-ui-btn-bg-image-position, center );
 		color: var( --os-ui-btn-color, currentColor );
 		cursor: pointer;
-		transition: background-color 0.15s ease, color 0.15s ease;
+		transition: background-color 0.15s ease, color 0.15s ease,
+			transform 80ms ease;
+	}
+	/*
+	 * A title-bar control gets a squash rather than the kit's press
+	 * ring. The ring expands ten pixels past the button, and these sit
+	 * three abreast at the very edge of the window — the bloom would
+	 * spill onto its neighbours and off the title bar entirely.
+	 */
+	button:active {
+		transform: scale( 0.9 );
+	}
+	@media ( prefers-reduced-motion: reduce ) {
+		button:active {
+			transform: none;
+		}
 	}
 	button:hover {
 		color: var( --os-ui-btn-color-hover, currentColor );

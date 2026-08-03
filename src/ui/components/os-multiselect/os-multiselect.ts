@@ -53,8 +53,7 @@ export class OsMultiselect extends Component {
 		title: 'Multi-select',
 		summary:
 			'Multi-select dropdown picker that mirrors <os-select> ergonomically. Trigger button shows a one-line summary; clicking opens a checkbox popover. value is a comma-joined id list so it round-trips through plain string attributes.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'value',

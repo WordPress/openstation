@@ -36,7 +36,6 @@ export class OsGrid extends Component {
 		summary:
 			'Neutral CSS grid container. The 2-D twin of <os-stack>/<os-cluster>. No role is emitted — callers wrap in role="grid"/"radiogroup" if warranted.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'columns',

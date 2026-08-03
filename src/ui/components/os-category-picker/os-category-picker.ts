@@ -100,8 +100,7 @@ export class OsCategoryPicker extends Component {
 		title: 'Category picker',
 		summary:
 			'Hierarchical multi-select for taxonomy terms. Compact chip row + tree popover with search, collapsible branches, indent guides, keyboard navigation. Aligns with WordPress core: any subset selectable, "Uncategorized" rendered as a muted dashed sentinel when the value is empty.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'placeholder',
@@ -177,9 +176,30 @@ export class OsCategoryPicker extends Component {
 				detail: '{ id: number; name: string }',
 			},
 		],
+		/*
+		 * `items` is a property — the tree cannot be expressed in
+		 * markup — so without this hook the picker rendered as a
+		 * search box above nothing.
+		 */
 		example: html`
 			<os-category-picker placeholder="Search categories…"></os-category-picker>
 		`,
+		exampleInit: ( root: HTMLElement ) => {
+			const picker = root.querySelector( 'os-category-picker' );
+			if ( ! picker ) {
+				return;
+			}
+			const p = picker as OsCategoryPicker;
+			p.items = [
+				{ id: 1, name: 'Uncategorised', parent: 0 },
+				{ id: 2, name: 'Tech', parent: 0 },
+				{ id: 3, name: 'Web Dev', parent: 2 },
+				{ id: 4, name: 'Frontend', parent: 3 },
+				{ id: 5, name: 'Backend', parent: 3 },
+				{ id: 6, name: 'Announcements', parent: 0 },
+			];
+			p.value = [ 4 ];
+		},
 	} as const;
 
 	private _items: OsCategoryItem[] = [];

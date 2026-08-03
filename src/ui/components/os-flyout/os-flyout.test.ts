@@ -349,7 +349,7 @@ describe( 'os-flyout', () => {
 	test( 'static help block carries the documented surface', async () => {
 		const { OsFlyout } = await load();
 		expect( OsFlyout.help?.title ).toBe( 'Flyout' );
-		expect( OsFlyout.help?.status ).toBe( 'experimental' );
+		expect( OsFlyout.help?.status ).toBe( 'stable' );
 		const propNames = ( OsFlyout.help?.props ?? [] ).map( ( p ) => p.name );
 		expect( propNames ).toEqual(
 			expect.arrayContaining( [ 'open', 'placement', 'scope' ] ),

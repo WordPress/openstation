@@ -65,7 +65,10 @@ export const styles = css`
 	.os-tag-input__add:focus-visible {
 		outline: none;
 		border-style: solid;
-		box-shadow: 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
+		box-shadow: var(
+			--os-ui-focus-ring,
+			0 0 0 2px rgba( 12, 11, 15, 0.9 ), 0 0 0 4px #2271b1
+		);
 	}
 	.os-tag-input__add:disabled {
 		opacity: 0.5;
@@ -99,12 +102,11 @@ export const styles = css`
 	}
 	.os-tag-input__input:focus {
 		outline: none;
-		box-shadow: 0 0 0 2px
-			color-mix(
-				in srgb,
-				var( --wp-admin-theme-color, #2271b1 ) 30%,
-				transparent
-			);
+		border-color: var( --os-ui-accent, #2271b1 );
+		box-shadow: var(
+			--os-ui-focus-ring-field,
+			0 0 0 1px #2271b1, 0 0 0 4px rgba( 34, 113, 177, 0.18 )
+		);
 	}
 
 	/* Popover — pinned to the editor, full width by default. Z-index

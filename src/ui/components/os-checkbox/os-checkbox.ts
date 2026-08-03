@@ -36,7 +36,6 @@ export class OsCheckbox extends Component {
 		summary:
 			'Standalone checkbox primitive. Paints the native control with the admin accent colour and optionally renders an inline label. Use when you need full control over label placement.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'checked',

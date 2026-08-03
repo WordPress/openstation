@@ -34,8 +34,7 @@ export class OsSteps extends Component {
 		title: 'Steps',
 		summary:
 			'Ordered/numbered-steps container. Children are <os-step> elements; numbers are assigned via a CSS counter so insertions renumber automatically. Use for onboarding, setup flows, migration guides.',
-		status: 'experimental',
-		since: '0.5.1',
+		status: 'stable',
 		slots: [
 			{
 				name: '(default)',
@@ -72,8 +71,7 @@ export class OsStep extends Component {
 		title: 'Step',
 		summary:
 			'A single numbered step inside <os-steps>. Renders an auto-numbered chip and an optional bold title above the slotted body.',
-		status: 'experimental',
-		since: '0.5.1',
+		status: 'stable',
 		props: [
 			{
 				name: 'title',

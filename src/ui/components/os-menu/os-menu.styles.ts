@@ -1,14 +1,26 @@
 import { css } from '../../core';
+import { holoTokens, holoEnter } from '../../holo';
 
 /**
  * Menu / menu-item share a frame (padding, font, radius) but each
  * controls its own shadow root. Two exported stylesheets;
  * co-located so the visual language stays in one file.
+ *
+ * The menu arrives rather than appears: `holoEnter` scales it from 96%
+ * on the spring curve. The origin is the top inline-start corner
+ * rather than the centre, because a menu is anchored — growing from
+ * the middle makes it look like it came from nowhere, growing from the
+ * corner makes it look like it came from the thing that opened it.
  */
 
 export const menuStyles = css`
+	${ holoTokens }
+	${ holoEnter }
+
 	:host {
 		display: block;
+		animation: os-holo-enter var( --_holo-t ) var( --_holo-spring );
+		transform-origin: top left;
 		min-width: 220px;
 		padding: 4px;
 		background: var( --os-window-bg, #fff );
@@ -22,6 +34,16 @@ export const menuStyles = css`
 		border-radius: 8px;
 		box-shadow: 0 8px 24px rgba( 0, 0, 0, 0.18 ),
 			0 2px 6px rgba( 0, 0, 0, 0.08 );
+	}
+
+	:host( :dir( rtl ) ) {
+		transform-origin: top right;
+	}
+
+	@media ( prefers-reduced-motion: reduce ) {
+		:host {
+			animation: none;
+		}
 	}
 	:host( [ hidden ] ) {
 		display: none;
@@ -56,9 +78,16 @@ export const menuItemStyles = css`
 		color: var( --os-ui-fg, #000 );
 		outline: none;
 	}
+	/*
+	 * Inset, not the kit's outer ring. A menu item is flush against
+	 * the popover's padding edge, so an outward ring is clipped on one
+	 * side and reads as a broken box; an inset ring traces the item
+	 * itself and is the only one that survives at the top and bottom
+	 * of the list.
+	 */
 	button:focus-visible {
-		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-		outline-offset: -2px;
+		outline: none;
+		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
 	}
 	.os-menu-item__icon {
 		flex-shrink: 0;
@@ -94,9 +123,26 @@ export const menuItemStyles = css`
 	.os-menu-item__check[ hidden ] {
 		display: none;
 	}
+	/*
+	 * A checked menu item's box is the same identity moment as a
+	 * checked <os-checkbox>, and now wears the same mesh — through
+	 * --os-ui-holo-fill, so the two cannot drift apart. The tick
+	 * turns Void with it: every mesh in the brand is a light surface
+	 * and the white tick that used to sit here would vanish.
+	 */
 	:host( [ checked ] ) .os-menu-item__check {
-		background: var( --wp-admin-theme-color, #2271b1 );
-		border-color: var( --wp-admin-theme-color, #2271b1 );
+		background-color: transparent;
+		background-image: var(
+			--os-ui-holo-fill,
+			linear-gradient( 124deg, #afa2e8 0%, #f5a8ea 46%, #8ee9f7 100% )
+		);
+		background-size: 200% 200%;
+		background-position: 25% 30%;
+		border-color: transparent;
+		box-shadow: var(
+			--os-ui-holo-glow,
+			0 0 0 1px rgba( 242, 82, 252, 0.28 ), 0 2px 10px rgba( 242, 82, 252, 0.22 )
+		);
 	}
 	:host( [ checked ] ) .os-menu-item__check::after {
 		content: '';
@@ -105,7 +151,7 @@ export const menuItemStyles = css`
 		left: 4px;
 		width: 4px;
 		height: 8px;
-		border: solid var( --os-ui-fg-on-accent, #fff );
+		border: solid var( --os-ui-holo-ink, #0c0b0f );
 		border-width: 0 2px 2px 0;
 		transform: rotate( 45deg );
 	}

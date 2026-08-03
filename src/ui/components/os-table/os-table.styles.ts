@@ -1,4 +1,5 @@
 import { css } from '../../core';
+import { holoTokens, holoCheck } from '../../holo';
 
 /**
  * Styles for `<os-table>`.
@@ -53,6 +54,9 @@ import { css } from '../../core';
  * ancestor case. Same pattern as `<os-rating-summary>`.
  */
 export const styles = css`
+	${ holoTokens }
+	${ holoCheck }
+
 	:host {
 		display: block;
 		/* --os-ui-surface is the host theme's surface color; #fff is
@@ -300,8 +304,9 @@ export const styles = css`
 	}
 	.filter-input:focus,
 	.filter-select:focus {
-		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-		outline-offset: -1px;
+		outline: none;
+		border-color: var( --os-ui-accent, #2271b1 );
+		box-shadow: var( --_holo-focus-field );
 	}
 
 	/* Expander column. */
@@ -373,9 +378,11 @@ export const styles = css`
 			var( --_row-hover )
 		);
 	}
+	/* Inset — a header cell is flush with the table edge, so an
+	   outward ring would be clipped on the first and last column. */
 	thead th.is-sortable:focus-visible {
-		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-		outline-offset: -2px;
+		outline: none;
+		box-shadow: inset 0 0 0 2px var( --os-ui-accent, #2271b1 );
 	}
 	.sort-indicator {
 		font-size: 10px;
@@ -417,6 +424,34 @@ export const styles = css`
 			var( --wp-admin-theme-color, #2271b1 ) 16%,
 			var( --_bg )
 		);
+	}
+
+	/*
+	 * The selected row's leading-edge marker.
+	 *
+	 * A 10%-alpha wash is the correct selection tint and a weak
+	 * signal: in a table of forty rows it is easy to lose, and for
+	 * anyone who cannot separate those two greys it is not there at
+	 * all. The marker states the same thing a second way — a 3 px
+	 * accent bar down the leading edge of the first cell.
+	 *
+	 * An inset box-shadow rather than a background layer, because the
+	 * cell backgrounds are already carrying the stripe and the hover
+	 * overlay (see the sticky-cell rule at the top of this file) and
+	 * a third layer would have to win an argument with both. An inset
+	 * shadow paints above every one of them and costs no layout, which
+	 * a border-inline-start would.
+	 *
+	 * box-shadow offsets are physical, so RTL takes the :dir() rule
+	 * below. Where :dir() is unsupported the marker stays on the left
+	 * in an RTL table — cosmetically wrong, still legible, and not
+	 * worth a per-table direction probe in JS.
+	 */
+	tbody tr.is-selected td:first-child {
+		box-shadow: inset 3px 0 0 0 var( --os-ui-accent, #2271b1 );
+	}
+	tbody:dir( rtl ) tr.is-selected td:first-child {
+		box-shadow: inset -3px 0 0 0 var( --os-ui-accent, #2271b1 );
 	}
 
 	/* Loading skeleton. */

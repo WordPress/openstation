@@ -18,7 +18,13 @@
 import { Component, defineComponent, html } from '../../core';
 import { styles } from './os-badge.styles';
 
-export type OsBadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+export type OsBadgeTone =
+	| 'success'
+	| 'warning'
+	| 'danger'
+	| 'info'
+	| 'neutral'
+	| 'accent';
 
 export class OsBadge extends Component {
 	static props = [ 'tone', 'noDot' ] as const;
@@ -28,14 +34,13 @@ export class OsBadge extends Component {
 		title: 'Badge',
 		summary:
 			'Status pill with a colored leading dot and a label slot. Use for window-attached states, count chips, version markers, and any other small status surface where a leading tone-coded dot communicates meaning at a glance.',
-		status: 'experimental',
-		since: '0.6.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'tone',
-				type: '"success" | "warning" | "danger" | "info" | "neutral"',
+				type: '"success" | "warning" | "danger" | "info" | "neutral" | "accent"',
 				description:
-					'Color tone applied to the dot + pill background. Default is "neutral".',
+					'Color tone applied to the dot + pill background. Default is "neutral". "accent" is the odd one out and is not a status: it fills the pill with the brand mesh and drops the dot, for the badge that means "this is the one" rather than "this is the state".',
 			},
 			{
 				name: 'no-dot',

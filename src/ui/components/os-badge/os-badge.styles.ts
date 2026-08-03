@@ -7,8 +7,11 @@
  * the surrounding pill background is independently themable.
  */
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 export const styles = css`
+	${ holoTokens }
+
 	:host {
 		display: inline-flex;
 		align-items: center;
@@ -60,6 +63,35 @@ export const styles = css`
 	:host( [ tone="neutral" ] ) {
 		--os-ui-badge-color: var( --os-ui-badge-neutral, var( --os-ui-fg-muted, #57606a ) );
 		--os-ui-badge-bg: var( --os-ui-badge-neutral-bg, rgba( 87, 96, 106, 0.12 ) );
+	}
+
+	/*
+	 * The sixth tone, and the only one that is not a status: "accent"
+	 * is the badge saying "this is the one", and it takes the mesh.
+	 *
+	 * A badge is a good place for it — small, one per row, already a
+	 * filled pill — and it stays deliberately OUT of the five status
+	 * tones above, because a badge that means "failing" has to say so
+	 * in red. Brand is not a status.
+	 *
+	 * Longhands: --_holo-fill is a nine-layer list and a trailing
+	 * position in the background shorthand would bind to the last
+	 * layer only.
+	 */
+	:host( [ tone="accent" ] ) {
+		--os-ui-badge-color: var( --os-ui-badge-accent, var( --_holo-ink ) );
+		background-color: transparent;
+		background-image: var( --os-ui-badge-accent-bg, var( --_holo-fill ) );
+		background-size: 220% 220%;
+		background-position: 22% 28%;
+		background-repeat: no-repeat;
+		box-shadow: var( --_holo-glow );
+		font-weight: 600;
+	}
+
+	/* The dot would be a Void hole punched in a bright pill. */
+	:host( [ tone="accent" ] ) .dot {
+		display: none;
 	}
 
 	/*

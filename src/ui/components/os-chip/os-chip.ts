@@ -45,6 +45,7 @@ export class OsChip extends Component {
 		'dismissible',
 		'disabled',
 		'pending',
+		'selected',
 	] as const;
 	static styles = [ styles ];
 
@@ -52,8 +53,7 @@ export class OsChip extends Component {
 		title: 'Chip',
 		summary:
 			'Labelled pill primitive with optional leading icon and trailing dismiss button. Tones mirror <os-badge>; pair with <os-tag-input> for full add/remove ergonomics.',
-		status: 'experimental',
-		since: '0.8.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'label',
@@ -91,6 +91,12 @@ export class OsChip extends Component {
 				type: 'boolean attribute',
 				description:
 					'Renders a subtle pulse animation while a REST mutation is in flight. Auto-applied by <os-tag-input>; safe to set by hand.',
+			},
+			{
+				name: 'selected',
+				type: 'boolean attribute',
+				description:
+					'Marks the chip as chosen: an accent wash plus the kit’s iridescent hairline. Deliberately the only state that gets the hairline — chips arrive in rows of a dozen, and an edge on all of them is noise.',
 			},
 		],
 		slots: [

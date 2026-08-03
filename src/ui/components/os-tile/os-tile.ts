@@ -104,8 +104,7 @@ export class OsTile extends Component {
 		title: 'Tile',
 		summary:
 			'Canonical file/entity tile. Used across the wallpaper, folder windows, every My WordPress section, and plugin surfaces. Renders the standard `.os-file-tile` chrome + optional status ribbon and wires the shared drag-out helper.',
-		status: 'experimental',
-		since: '0.8.6',
+		status: 'stable',
 		props: [
 			{ name: 'type', type: 'string' },
 			{ name: 'ref', type: 'string' },
@@ -121,6 +120,63 @@ export class OsTile extends Component {
 			{ name: 'drag-title', type: 'string' },
 			{ name: 'drag-icon', type: 'string' },
 		],
+		/*
+		 * The tile is the one LIGHT-DOM component in the kit
+		 * (`static shadow = false`), so its chrome comes from
+		 * `assets/css/desktop-files.css` rather than from a shadow
+		 * stylesheet — which means it only looks like a tile where
+		 * that file is loaded. It is, in the shell.
+		 *
+		 * Shown on a dark strip because tiles live on the wallpaper,
+		 * and their label is Starlight with a text shadow — on the
+		 * settings panel's own light surface the labels would be
+		 * white-on-white and the example would look empty.
+		 */
+		example: html`
+			<div
+				style="display:flex;gap:18px;flex-wrap:wrap;padding:16px;border-radius:8px;background:var( --os-ui-surface-sunken, #101018 );"
+			>
+				<os-tile
+					type="post"
+					ref="1"
+					label="Hello world"
+					icon="dashicons-admin-post"
+					kind="entry"
+					status="publish"
+				></os-tile>
+				<os-tile
+					type="post"
+					ref="2"
+					label="A draft"
+					icon="dashicons-admin-post"
+					kind="entry"
+					status="draft"
+				></os-tile>
+				<os-tile
+					type="folder"
+					ref="3"
+					label="Screenshots"
+					icon="dashicons-portfolio"
+					kind="folder"
+				></os-tile>
+				<os-tile
+					type="post"
+					ref="4"
+					label="Selected"
+					icon="dashicons-media-document"
+					kind="entry"
+					selected
+				></os-tile>
+				<os-tile
+					type="post"
+					ref="5"
+					label="Locked"
+					icon="dashicons-lock"
+					kind="entry"
+					access-gated
+				></os-tile>
+			</div>
+		`,
 	} as const;
 
 	private _pointerdownHandler: ( ( e: PointerEvent ) => void ) | null = null;

@@ -174,8 +174,54 @@ export const avatarStyles = css`
 		z-index: 2;
 	}
 
+	/*
+	 * Online breathes; the other two do not, and that asymmetry is the
+	 * point.
+	 *
+	 * Three flat dots differing only in hue put the whole burden of
+	 * "who is here right now" on colour discrimination — which is
+	 * exactly the channel a red/green-blind user does not have. A slow
+	 * ring expanding out of the live one carries the same fact through
+	 * motion instead, and it is the only state that gets it, so
+	 * "moving" reads unambiguously as "online".
+	 *
+	 * Six seconds, so it is a pulse rather than a blink: at this rate
+	 * a sidebar of twenty avatars reads as a room with people in it,
+	 * not as twenty notifications.
+	 */
 	.os-avatar__dot--online {
 		background: var( --os-ui-success-fg, #00a32a );
+	}
+
+	.os-avatar__dot--online::after {
+		content: '';
+		position: absolute;
+		inset: -2px;
+		border-radius: 50%;
+		border: 1px solid var( --os-ui-success-fg, #00a32a );
+		animation: os-avatar-presence 6s
+			var( --os-ui-ease-out, cubic-bezier( 0.22, 0.9, 0.28, 1 ) ) infinite;
+		pointer-events: none;
+	}
+
+	@keyframes os-avatar-presence {
+		0% {
+			opacity: 0.6;
+			transform: scale( 1 );
+		}
+
+		/* The whole expansion happens in the first fifth of the cycle;
+		   the rest is the rest. A pulse that eased continuously would
+		   read as a loading spinner. */
+		20% {
+			opacity: 0;
+			transform: scale( 2.2 );
+		}
+
+		100% {
+			opacity: 0;
+			transform: scale( 2.2 );
+		}
 	}
 	.os-avatar__dot--inactive {
 		background: var( --os-ui-warning-fg, #dba617 );
@@ -189,6 +235,17 @@ export const avatarStyles = css`
 	 * box-shadow is gentle enough to keep; only the heavy motion
 	 * channels get muted. */
 	@media ( prefers-reduced-motion: reduce ) {
+		/*
+		 * The presence ring stops but stays: at rest it is a static
+		 * halo around the live dot, so the second, non-colour channel
+		 * for "online" survives the preference. Removing it would trade
+		 * a motion complaint for a contrast one.
+		 */
+		.os-avatar__dot--online::after {
+			animation: none;
+			opacity: 0.6;
+		}
+
 		.os-avatar__tile {
 			transform: none;
 			transition: box-shadow 200ms;

@@ -61,7 +61,6 @@ export class OsTextField extends Component {
 		summary:
 			'Labelled text input primitive. Two-way reflects `value`, emits os-input-change per keystroke, os-input-commit on blur/change, and os-submit on Enter. Optional password reveal toggle.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{ name: 'label', type: 'string', description: 'Visible label above the input.' },
 			{ name: 'value', type: 'string', description: 'Current input value; reflected two-way.' },

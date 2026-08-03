@@ -1,4 +1,5 @@
 import { css } from '../../core';
+import { holoTokens } from '../../holo';
 
 /**
  * Two size variants:
@@ -16,6 +17,8 @@ import { css } from '../../core';
  * the outer shape changes.
  */
 export const styles = css`
+	${ holoTokens }
+
 	:host {
 		display: block;
 		width: 100%;
@@ -71,9 +74,38 @@ export const styles = css`
 	button:hover {
 		transform: scale( 1.04 );
 	}
+	button:focus-visible {
+		outline: none;
+		box-shadow: var( --_holo-focus );
+	}
+	/*
+	 * Chosen. The ring is the mesh rather than a flat accent, drawn
+	 * on a ::before frame because box-shadow and border-color both
+	 * take colours and this one is a gradient.
+	 *
+	 * inset: -4px puts the ring OUTSIDE the tile, which matters for
+	 * a wallpaper swatch: the artwork is the content, and a ring
+	 * drawn on top of it would crop the thing the user is choosing.
+	 */
 	button[ aria-pressed='true' ] {
-		border-color: var( --wp-admin-theme-color, #2271b1 );
-		box-shadow: 0 0 0 2px var( --wp-admin-theme-color, #2271b1 );
+		border-color: transparent;
+	}
+	button[ aria-pressed='true' ]::before {
+		content: '';
+		position: absolute;
+		inset: -4px;
+		border-radius: inherit;
+		padding: 2px;
+		background-image: var( --_holo-edge );
+		pointer-events: none;
+		-webkit-mask: linear-gradient( #000 0 0 ) content-box,
+			linear-gradient( #000 0 0 );
+		-webkit-mask-composite: xor;
+		mask: linear-gradient( #000 0 0 ) content-box, linear-gradient( #000 0 0 );
+		mask-composite: exclude;
+	}
+	:host( [ size='small' ] ) button[ aria-pressed='true' ]::before {
+		border-radius: 50%;
 	}
 	/*
 	 * Wallpaper variant uses a softer lift to pair with the

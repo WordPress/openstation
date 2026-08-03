@@ -1,16 +1,23 @@
 import { css } from '../../core';
+import { holoTokens, holoCheck } from '../../holo';
 
 /**
  * Styles for the standalone checkbox. Paired-label counterpart lives
  * in `<os-checkbox-label>`; this component paints just the box so
  * callers can place labels above/beside/after freely.
  *
- * The native checkbox is styled via `accent-color` so it picks up the
- * active admin theme color. Size is fixed at 16 px to match the
- * WordPress admin's prevailing checkbox metrics.
+ * The box itself comes from `holoCheck` in `src/ui/holo.ts`, shared
+ * with `<os-checkbox-label>` so the tick is the same tick in both. It
+ * replaced `accent-color`, which is the right answer for a native
+ * checkbox and the wrong one here: `accent-color` takes a colour, and
+ * checked in this kit is the Holomesh. Size stays 16 px, the
+ * WordPress admin's prevailing checkbox metric.
  */
 
 export const styles = css`
+	${ holoTokens }
+	${ holoCheck }
+
 	:host {
 		display: inline-flex;
 		align-items: center;
@@ -57,21 +64,6 @@ export const styles = css`
 		align-items: center;
 		gap: 6px;
 		cursor: inherit;
-	}
-
-	input[ type='checkbox' ] {
-		appearance: auto;
-		-webkit-appearance: auto;
-		accent-color: var( --wp-admin-theme-color, #2271b1 );
-		width: 16px;
-		height: 16px;
-		margin: 0;
-		cursor: inherit;
-	}
-
-	input[ type='checkbox' ]:focus-visible {
-		outline: 2px solid var( --wp-admin-theme-color, #2271b1 );
-		outline-offset: 2px;
 	}
 
 	.os-checkbox__label {

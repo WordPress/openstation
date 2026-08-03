@@ -38,7 +38,6 @@ export class OsEmptyState extends Component {
 		summary:
 			'Centered placeholder for "nothing here yet" UI: icon + heading + description + optional CTA. A canonical shape so empty states look consistent across the shell.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'icon',

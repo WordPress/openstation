@@ -60,10 +60,18 @@ export interface OsHelp {
 	title?: string;
 	/** One-paragraph summary. Keep short; examples carry the nuance. */
 	summary?: string;
-	/** Stability label. Defaults to `'stable'` when omitted. */
+	/**
+	 * Stability label. Defaults to `'stable'` when omitted.
+	 *
+	 * There is deliberately no `since` alongside this. A version
+	 * stamp is a version-history annotation, which `AGENTS.md` bans
+	 * in docs and comments for the same reason it does not belong
+	 * here: git is the changelog, and a descriptor's job is to say
+	 * what the component does now. When a change matters enough that
+	 * "since when?" is a real question for plugin authors, it is a
+	 * breaking change and wants a `docs/migration-*.md` note.
+	 */
 	status?: OsHelpStatus;
-	/** Semver the component first shipped in (e.g. `'0.9.0'`). */
-	since?: string;
 	props?: readonly OsHelpProp[];
 	slots?: readonly OsHelpSlot[];
 	parts?: readonly OsHelpPart[];
@@ -73,6 +81,44 @@ export interface OsHelp {
 	 * Live example rendered inside the Help panel. Must be a plain
 	 * `html\`\`` template — the panel renders it into an isolated
 	 * container so the example can exercise the real component.
+	 *
+	 * **A `<script>` tag in here will never run.** The template is
+	 * compiled by assigning to a `<template>`'s `innerHTML`, and the
+	 * HTML fragment-parsing algorithm sets a script's *already
+	 * started* flag; the cloning steps then copy that flag to every
+	 * clone. The script is inert in the template and inert in the
+	 * rendered output. Use {@link OsHelp.exampleInit} instead.
 	 */
 	example?: TemplateResult;
+	/**
+	 * Imperative setup for the example, run after it is rendered.
+	 *
+	 * Half the kit takes its data through a JS **property** rather
+	 * than an attribute — `segments`, `data`, `columns`, `entries`,
+	 * `items`, `ratings`. Those components cannot be populated from
+	 * markup at all, so their examples rendered as an empty shell:
+	 * a table with no rows, a log with no lines, a breadcrumb with no
+	 * crumbs. This is the hook that fills them in.
+	 *
+	 * `root` is the example's own container, so a lookup is scoped to
+	 * this example rather than to the document — the panel renders one
+	 * example at a time, but a `document.getElementById()` in a shared
+	 * settings window is a collision waiting for the second one.
+	 *
+	 * ```ts
+	 * example: html`<os-crumb-chain removable></os-crumb-chain>`,
+	 * exampleInit: ( root ) => {
+	 *   const chain = root.querySelector( 'os-crumb-chain' );
+	 *   if ( chain ) {
+	 *     ( chain as OsCrumbChain ).segments = [ … ];
+	 *   }
+	 * },
+	 * ```
+	 *
+	 * Must be **idempotent**: the panel repaints on every keystroke in
+	 * the filter box, and re-runs this each time against the same
+	 * nodes. Assigning properties is naturally safe; appending
+	 * children or adding listeners is not.
+	 */
+	exampleInit?: ( root: HTMLElement ) => void;
 }

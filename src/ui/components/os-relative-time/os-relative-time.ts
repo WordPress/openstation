@@ -220,8 +220,7 @@ export class OsRelativeTime extends Component {
 		title: 'Relative time',
 		summary:
 			'Auto-ticking relative timestamp. Renders "5 minutes ago" / "yesterday" / "in 3 hours" via Intl.RelativeTimeFormat and updates itself every 30s while connected. Useful for any list cell that should age live (recycle bin, notifications, activity log) without forcing the surrounding view to repaint. Set `compact` for dense lists ("5m", "3h", "2d").',
-		status: 'experimental',
-		since: '0.6.0',
+		status: 'stable',
 		props: [
 			{
 				name: 'datetime',

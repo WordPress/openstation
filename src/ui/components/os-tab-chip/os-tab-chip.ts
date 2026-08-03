@@ -24,7 +24,6 @@ export class OsTabChip extends Component {
 		summary:
 			'Small action button dropped inside an external sub-tab. `detach` lifts with an accent wash on hover; `close` uses a red destructive wash. Click bubbles as a native click — consumers read `variant` if they need to distinguish.',
 		status: 'stable',
-		since: '0.9.0',
 		props: [
 			{
 				name: 'variant',

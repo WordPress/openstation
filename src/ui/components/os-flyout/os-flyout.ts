@@ -93,8 +93,7 @@ export class OsFlyout extends Component {
 		title: 'Flyout',
 		summary:
 			'Window-scoped sliding card. Lives `position: absolute` inside a window body, slides in from the configured edge with margins on every side, captures the previously-focused element as the trigger for restore-on-close, traps focus while open, and dismisses on Escape / pointerdown-outside / `[data-flyout-close]` click / imperative `open`-removal — all firing one `os-flyout-dismiss` event with a `reason` discriminator.',
-		status: 'experimental',
-		since: '0.8.2',
+		status: 'stable',
 		props: [
 			{
 				name: 'open',

@@ -1,4 +1,5 @@
 import { css } from '../../core';
+import { holoTokens, holoField } from '../../holo';
 
 /**
  * Styles for the dropdown picker. Two stylesheets in one file —
@@ -15,6 +16,9 @@ import { css } from '../../core';
  */
 
 export const selectStyles = css`
+	${ holoTokens }
+	${ holoField }
+
 	/*
 	 * Host is block-level flex so the component fills its parent
 	 * cell (grid row col=N, flex container, plain block container).
@@ -63,18 +67,15 @@ export const selectStyles = css`
 		font-size: 13px;
 		color: var( --os-ui-fg, #1d2327 );
 		cursor: pointer;
-		transition: background-color 0.12s ease, border-color 0.12s ease,
-			box-shadow 0.12s ease;
 	}
 
-	select:hover {
+	/*
+	 * The background half of the hover. holoField owns the border half
+	 * for every field in the kit; a select is the one that also lifts
+	 * its fill, because it has no visible border at rest to move.
+	 */
+	select:hover:not( :disabled ) {
 		background: var( --os-ui-hover, rgba( 0, 0, 0, 0.08 ) );
-	}
-
-	select:focus-visible {
-		outline: none;
-		border-color: var( --wp-admin-theme-color, #2271b1 );
-		box-shadow: 0 0 0 1px var( --wp-admin-theme-color, #2271b1 );
 	}
 
 	select:disabled {
@@ -99,9 +100,15 @@ export const selectStyles = css`
 
 	/* Slight chevron tint on hover + focus — matches the select's
 	 * own border transition so the two feel like one affordance. */
-	select:hover ~ .os-select__chevron,
-	select:focus-visible ~ .os-select__chevron {
+	select:hover ~ .os-select__chevron {
 		color: var( --os-ui-fg, #1d2327 );
+	}
+
+	/* On focus it goes all the way to the accent, so the caret agrees
+	   with the ring instead of staying grey inside a lit field. */
+	select:focus ~ .os-select__chevron,
+	select:focus-visible ~ .os-select__chevron {
+		color: var( --os-ui-accent, #2271b1 );
 	}
 `;
 

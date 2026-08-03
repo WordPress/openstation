@@ -46,7 +46,6 @@ export class OsBody extends Component {
 		summary:
 			'Top-level native-window body wrapper. Fills the parent, stacks children in a flex column, and optionally owns the scrollable region so overflowing content scrolls inside the body rather than the window frame.',
 		status: 'stable',
-		since: '0.5.0',
 		props: [
 			{
 				name: 'gap',
