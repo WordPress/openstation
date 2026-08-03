@@ -37,7 +37,7 @@ function desktop_mode_register_builtin_wallpapers() {
 	 * not shift under a window drag.
 	 *
 	 * Galaxy is the default desk — see the `wallpaper` default in
-	 * `desktop_mode_os_settings_defaults()`.
+	 * `desktop_mode_default_os_settings()`.
 	 */
 	$brand = array(
 		array(

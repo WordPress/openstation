@@ -102,9 +102,11 @@ describe( 'listPlaceableItems', () => {
 		).toBe( 'hidden' );
 	} );
 
-	test( 'a system tile does not displace a real item with the same id', () => {
+	test( 'an id shared with a system tile yields one row, the tile’s', () => {
 		// System tiles are listed first, so the guard has to be the
-		// `seen` set rather than registration order.
+		// `seen` set rather than registration order: whichever source
+		// claims the id first keeps it, and the other is skipped rather
+		// than appended as a duplicate row.
 		const rows = listPlaceableItems(
 			[ dockItem( { id: 'shared', title: 'From the dock' } ) ],
 			[],

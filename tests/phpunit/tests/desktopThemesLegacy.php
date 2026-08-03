@@ -162,12 +162,11 @@ class Tests_DesktopMode_DesktopThemesLegacy extends WP_UnitTestCase {
 	 * The snapshot does not move.
 	 *
 	 * Legacy exists so that someone who picks it keeps the look they
-	 * know while the shell's own defaults move on. Regenerating it
+	 * know while the shell's own defaults move on. Re-collecting it
 	 * from today's stylesheets would take that away one release at a
 	 * time — so a change here should fail loudly and be answered with
 	 * a NEW snapshot theme under a new id, never with a rewrite of
-	 * this one. See the header of
-	 * `bin/build-legacy-theme-manifest.mjs`.
+	 * this one.
 	 */
 	public function test_the_snapshot_is_frozen() {
 		$tokens = $this->manifest()['tokens'];

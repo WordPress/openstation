@@ -7,7 +7,7 @@ The imperative rules for working in this repo, plus the contributor-only gotchas
 - [Hard rules](#hard-rules)
   - [Never hand-edit JS in `assets/js/`](#never-hand-edit-js-in-assetsjs)
   - [The palette lives in `variables.css`](#the-palette-lives-in-variablescss--one-declaration-one-owner)
-  - [Never regenerate the Legacy theme manifest](#never-regenerate-the-legacy-theme-manifest)
+  - [The Legacy theme manifest is frozen data](#the-legacy-theme-manifest-is-frozen-data-not-build-output)
   - [Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`](#use-wpdesktopfetch-or-trackedfetch-never-raw-fetch)
   - [Use `wp.desktop.confirm` (or `wpdConfirm`), never `window.confirm`/`alert`/`prompt`](#use-wpdesktopconfirm-or-wpdconfirm-never-windowconfirmalertprompt)
   - [Use `wpd-*` components, not raw HTML controls](#use-wpd--components-not-raw-html-controls)
@@ -60,19 +60,17 @@ The shell wears the [OpenStation brand](https://nuriapenya.github.io/open-statio
 Three rules follow from that, and all have tests:
 
 1. **Restyling means changing a token's value in `variables.css`**, not adding a rule in a feature stylesheet. A colour declared next to the thing it paints is out of reach of the palette *and* of every desktop theme — including Legacy, the way back to the pre-brand look.
-2. **Every consuming rule keeps reading `var( --token, <literal> )`**, and that literal stays the pre-brand WordPress-admin value. It is the floor if the stylesheet fails to load, and it is what `bin/build-legacy-theme-manifest.mjs` reads. Never "tidy" a fallback away.
+2. **Every consuming rule keeps reading `var( --token, <literal> )`**, and that literal stays the pre-brand WordPress-admin value. It is the floor if the stylesheet fails to load, and it is what the Legacy snapshot collected. Never "tidy" a fallback away.
 
-When a surface looks wrong after a palette change, the fix is almost always that some token resolves through a chain that now means something else — a fill reading a 10%-alpha wash, or hover and pressed collapsing onto the same value. `node bin/build-legacy-theme-manifest.mjs` (run bare) prints every token whose resolved value has moved since the Legacy snapshot, which is the fastest way to find those.
+**The failure mode to watch for after a palette change** is a chain that now means something else: a fill resolving to a 10%-alpha wash, or a base and its hover state — declared in two different rules, distinguished only by their fallback literals — collapsing onto the same value once the shared token is declared. `<wpd-button>`'s ghost/secondary hover did exactly that. When a surface stops reacting to the pointer, check whether both states resolve through the same palette token, and declare the second one.
 
-### Never regenerate the Legacy theme manifest
+### The Legacy theme manifest is frozen data, not build output
 
-`assets/desktop-themes/legacy/theme.json` is a **frozen snapshot**. It is the built-in [Legacy desktop theme](docs/desktop-themes.md#the-legacy-theme--start-here): every design token at the value it resolved to with no theme active, at the moment the snapshot was taken.
+`assets/desktop-themes/legacy/theme.json` is a **frozen snapshot**: the built-in [Legacy desktop theme](docs/desktop-themes.md#the-legacy-theme--start-here), every design token at the value it resolved to before the brand. It was collected from the stylesheets once, by hand, and it is a plain data file from here on.
 
-**Changing a default does NOT mean updating Legacy.** Someone wearing it asked for the old look and is entitled to keep it; a manifest that tracked the code would silently turn the theme back into a no-op every release. Nothing regenerates it — not the build, not CI, not a hook — and nothing should.
+**Changing a default does NOT mean updating Legacy.** Someone wearing it asked for the old look and is entitled to keep it; a manifest that tracked the code would silently turn the theme back into a no-op every release. Nothing generates it — not the build, not CI, not a script — and nothing should. There is deliberately no tool that can rewrite it.
 
-`bin/build-legacy-theme-manifest.mjs` is the archaeology tool that produced it, kept for provenance. Run it bare to see how far today's defaults have drifted from the snapshot; it writes nothing without `--write`, and `--write` is for minting a **new** snapshot theme under a **new** id, not for rewriting this one.
-
-Two things do belong in the JSON's neighbourhood: `Tests_DesktopMode_DesktopThemesLegacy` fails if a value stops satisfying the manifest's value grammar (otherwise a silent drop), and the judgement calls behind the snapshot — which literal won when a name was read with several, what stays undeclared because it follows the admin colour scheme — are documented in the `SKIP` / `HAND_PICK` / `PALETTE` tables at the top of the script.
+`Tests_DesktopMode_DesktopThemesLegacy` is the guard: it pins the token count and a set of canonical values, and fails if any value stops satisfying the manifest's value grammar — otherwise a silent drop, since a rejected token just falls back to the built-in look. If you find yourself editing the JSON, that test failing is the question "is this really what Legacy should say forever?" being asked out loud.
 
 ### Use `wp.desktop.fetch` (or `trackedFetch`), never raw `fetch()`
 

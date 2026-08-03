@@ -20,16 +20,15 @@
  *
  * ## It is frozen
  *
- * The manifest is a snapshot and stays one. Nothing recompiles it
- * from the stylesheets — not this file, not the build, not CI. When
- * the shell's own defaults move on, Legacy goes on declaring what it
- * declares today, which is the whole reason someone would wear it:
- * they asked for the old look and they keep it. Drifting it with the
- * code would quietly turn the theme into a no-op again.
- * `bin/build-legacy-theme-manifest.mjs` (run bare) reports how far
- * today's defaults have moved from the snapshot; minting a second
- * snapshot means a NEW theme under a new id, never a rewrite of this
- * one.
+ * The manifest is a snapshot and stays one. It was collected from the
+ * stylesheets once and is plain data from here on — nothing
+ * regenerates it, not this file, not the build, not CI, and there is
+ * deliberately no tool that could. When the shell's own defaults move
+ * on, Legacy goes on declaring what it declares today, which is the
+ * whole reason someone would wear it: they asked for the old look and
+ * they keep it. Drifting it with the code would quietly turn the theme
+ * into a no-op again. A second snapshot, if one is ever wanted, is a
+ * NEW theme under a new id — never a rewrite of this one.
  *
  * Because it is code-registered rather than uploaded, it is always
  * present and cannot be deleted: the delete route only ever touches

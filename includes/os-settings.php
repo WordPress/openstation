@@ -173,7 +173,7 @@ function desktop_mode_default_os_settings() {
 		// the wallpaper, settles onto nearby windows, and watches the
 		// pointer. Off by default; toggled from the wallpaper context
 		// menu. Per-user. See `docs/mio.md`.
-		'mioEnabled'               => false,
+		'mioEnabled'                  => false,
 		// The user's own Mio, as built in "Make it yours": partial
 		// appearance + silhouette overrides, both empty until they
 		// touch a control. Stored per user rather than per browser
@@ -760,7 +760,7 @@ function desktop_mode_sanitize_os_settings( $raw ) {
 		'nativePluginsEnabled'        => $native_plugins_enabled,
 		'nativeCommentsEnabled'       => $native_comments_enabled,
 		'showDesktopOnWallpaperClick' => $show_desktop_on_wallpaper_click,
-		'mioEnabled'               => $mio_enabled,
+		'mioEnabled'                  => $mio_enabled,
 		'mioStyle'                    => $mio_style,
 		'showPostStatusRibbons'       => $show_post_status_ribbons,
 		'developerModeEnabled'        => $developer_mode_enabled,
