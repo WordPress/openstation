@@ -15,7 +15,7 @@ Implement OpenStation Agents: durable, addressable workers that live on the site
 
 ## Problem Frame
 
-PR #240 ([WordPress/desktop-mode#240](https://github.com/WordPress/desktop-mode/pull/240), branch `origin/my-agents`) shipped a UX mock plus an architecture manifesto, and the branch actually carries a near-complete implementation (~12k lines: identity, behaviour, bindings, abilities bridge, runner, REST, My WordPress UI, run window, send-to dispatcher, six PHPUnit suites, three vitest suites). Two reasons we cannot merge or rebase it as-is:
+PR #240 ([WordPress/openstation#240](https://github.com/WordPress/openstation/pull/240), branch `origin/my-agents`) shipped a UX mock plus an architecture manifesto, and the branch actually carries a near-complete implementation (~12k lines: identity, behaviour, bindings, abilities bridge, runner, REST, My WordPress UI, run window, send-to dispatcher, six PHPUnit suites, three vitest suites). Two reasons we cannot merge or rebase it as-is:
 
 1. **Storage direction changed.** The PR stores agent behaviour in the `wp_guideline` CPT (the Dolly / Push MD / Guidelines-experiment shape) to get ecosystem portability. Product direction is now: agent data lives as user meta on the agent's user row. This also removes the branch's hardest dependency, the Gutenberg Guidelines experiment soft-gate (`gutenberg-gate.php`, the 412 "storage unavailable" path, the `read_guidelines` capability shims), because user meta always exists.
 2. **The branch is on a stale base.** It forked at 0.8.8, before the 0.9.4 AI migration. Trunk (0.9.7) removed `openstation_register_ai_tool()` and `openstation_register_ai_provider()`; tools are now the WP Abilities API (`wp_register_ability` / `wp_get_abilities`) and the LLM is reached through WP 7.0 Core Connectors + AI Client (`wp_ai_client_prompt()` via `includes/ai-copilot/client.php`). The branch's runner calls `openstation_ai_openai_responses_call()`, which no longer exists.
@@ -313,7 +313,7 @@ Each phase is a separate branch + PR, feature flag stays off by default througho
 
 ## Sources & References
 
-- PR #240 body (objectives, three-layer model, five triggers, abilities-as-tools, security posture, build order): https://github.com/WordPress/desktop-mode/pull/240
+- PR #240 body (objectives, three-layer model, five triggers, abilities-as-tools, security posture, build order): https://github.com/WordPress/openstation/pull/240
 - Branch `origin/my-agents` (commits `6b598c80`, `c3e3b1a5`, `13f830f5`): prior implementation used as reference, fork point 0.8.8.
 - Trunk AI substrate: `includes/ai-copilot/{client,settings,abilities,search}.php`, `docs/migration-ai-connectors.md` (removal of provider registry + tool registry in 0.9.4).
 - Extension seams: `includes/registries/native-windows.php`, `includes/my-wordpress/window.php`, `src/my-wordpress/kind-registry.ts`, `src/drag/`, `includes/extended-options.php`, `includes/games/bootstrap.php` (flag pattern), `includes/ai-copilot/{jobs,hooks}.php` (async pattern).

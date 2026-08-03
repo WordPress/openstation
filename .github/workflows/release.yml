@@ -61,11 +61,11 @@ jobs:
             --title "$tag" \
             --generate-notes \
             "${flags[@]}" \
-            desktop-mode.zip
+            openstation.zip
 
       - name: Unpack zip for wp.org deploy
         if: ${{ !contains(github.ref_name, '-') }}
-        run: unzip -q desktop-mode.zip -d build/
+        run: unzip -q openstation.zip -d build/
 
       - name: Deploy to WordPress.org
         if: ${{ !contains(github.ref_name, '-') }}

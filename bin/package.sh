@@ -20,8 +20,10 @@
 
 set -euo pipefail
 
+# The install directory remains `desktop-mode` for WordPress.org upgrade and
+# dependent-plugin compatibility. Only the public release artifact is renamed.
 prefix="desktop-mode"
-out="${1:-$prefix.zip}"
+out="${1:-openstation.zip}"
 root=$(pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT

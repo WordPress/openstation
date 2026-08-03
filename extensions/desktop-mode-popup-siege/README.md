@@ -1,7 +1,7 @@
 # OpenStation — Popup Siege
 
 Popup Siege is a standalone companion plugin for
-[OpenStation](https://github.com/WordPress/desktop-mode). It adds a
+[OpenStation](https://github.com/WordPress/openstation). It adds a
 90-second Breakout-style rescue game to the Games hub, including the unified
 leaderboard, play-time tracking, and score-to-beat challenges supplied by
 OpenStation.

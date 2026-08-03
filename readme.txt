@@ -42,7 +42,7 @@ Built and maintained by [Automattic](https://automattic.com), the company behind
 
 = Built to be extended =
 
-Every significant behavior is hookable. Register windows, dock items, wallpapers, widgets, desktop icons, commands, settings tabs, and AI tools from your own plugin — stable `openstation_register_*` PHP APIs, a typed JavaScript API, and copy-paste examples in the [developer docs on GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs).
+Every significant behavior is hookable. Register windows, dock items, wallpapers, widgets, desktop icons, commands, settings tabs, and AI tools from your own plugin — stable `openstation_register_*` PHP APIs, a typed JavaScript API, and copy-paste examples in the [developer docs on GitHub](https://github.com/WordPress/openstation/tree/trunk/docs).
 
 = External services =
 
@@ -90,7 +90,7 @@ Click the desktop icon in the admin bar a second time to flip the toggle off. Th
 
 = Where is the developer documentation? =
 
-In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/desktop-mode/tree/trunk/docs). The hook reference, JavaScript reference, bridge protocol, and copy-paste examples all live there.
+In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/openstation/tree/trunk/docs). The hook reference, JavaScript reference, bridge protocol, and copy-paste examples all live there.
 
 == Screenshots ==
 
@@ -104,7 +104,7 @@ In `docs/` inside the plugin, and on [GitHub](https://github.com/WordPress/deskt
 
 == Credits ==
 
-OpenStation is brought to you by [Automattic](https://automattic.com). The plugin is open source under GPLv2-or-later; contributions are welcome on [GitHub](https://github.com/WordPress/desktop-mode).
+OpenStation is brought to you by [Automattic](https://automattic.com). The plugin is open source under GPLv2-or-later; contributions are welcome on [GitHub](https://github.com/WordPress/openstation).
 
 = Third-party libraries =
 
@@ -381,7 +381,7 @@ The **Inkfall** game's word list (`assets/games/inkfall/words.txt`) is generated
 * Media-library enhancement enabled by default, with opt-out.
 * Dock CSS selectors updated; overflow handling improved.
 
-See the [GitHub releases page](https://github.com/WordPress/desktop-mode/releases) for the full history.
+See the [GitHub releases page](https://github.com/WordPress/openstation/releases) for the full history.
 
 == Upgrade Notice ==
 

@@ -148,7 +148,7 @@ jobs:
         run: npm run package
 
       - name: Unzip release into build dir
-        run: unzip -q desktop-mode.zip -d plugin-check-build
+        run: unzip -q openstation.zip -d plugin-check-build
 
       - name: Package Popup Siege extension
         run: |

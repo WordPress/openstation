@@ -6444,7 +6444,7 @@ msgstr "Escritorio %d"
 
 #. Plugin URI of the plugin
 #: desktop-mode.php
-msgid "https://github.com/WordPress/desktop-mode"
+msgid "https://github.com/WordPress/openstation"
 msgstr ""
 
 #. Description of the plugin

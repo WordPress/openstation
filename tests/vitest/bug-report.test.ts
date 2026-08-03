@@ -20,14 +20,14 @@ afterEach( () => {
 } );
 
 describe( 'buildGithubIssueUrl', () => {
-	test( 'targets WordPress/desktop-mode/issues/new', () => {
+	test( 'targets WordPress/openstation/issues/new', () => {
 		const url = buildGithubIssueUrl( {
 			type: 'bug',
 			title: 'Something is broken',
 			description: 'I expected X, got Y.',
 			steps: '',
 		} );
-		expect( url.startsWith( 'https://github.com/WordPress/desktop-mode/issues/new?' ) ).toBe(
+		expect( url.startsWith( 'https://github.com/WordPress/openstation/issues/new?' ) ).toBe(
 			true,
 		);
 	} );

@@ -5,6 +5,12 @@
     "php": "8.3",
     "wp": "latest"
   },
+  "features": {
+    "networking": true
+  },
+  "siteOptions": {
+    "blogname": "OpenStation"
+  },
   "steps": [
     {
       "step": "login",
@@ -15,37 +21,10 @@
       "step": "installPlugin",
       "pluginData": {
         "resource": "url",
-        "url": "https://github.com/WordPress/desktop-mode/releases/latest/download/desktop-mode.zip"
+        "url": "https://github.com/WordPress/openstation/releases/latest/download/openstation.zip"
       },
       "options": {
         "activate": true
-      }
-    },
-    {
-      "step": "installPlugin",
-      "pluginData": {
-        "resource": "git:directory",
-        "url": "https://github.com/WordPress/desktop-mode",
-        "ref": "trunk",
-        "refType": "branch",
-        "path": "extensions/desktop-mode-popup-siege"
-      },
-      "options": {
-        "activate": true,
-        "targetFolderName": "desktop-mode-popup-siege"
-      }
-    },
-    {
-      "step": "runPHP",
-      "code": "<?php\nrequire_once '/wordpress/wp-load.php';\n$options = get_option( 'desktop_mode_extended_options', array() );\n$options = is_array( $options ) ? $options : array();\n$options['games'] = true;\nupdate_option( 'desktop_mode_extended_options', $options, false );\nupdate_option( 'blogname', 'WP OpenStation — Popup Siege Demo' );"
-    },
-    {
-      "step": "writeFile",
-      "path": "/wordpress/wp-content/mu-plugins/popup-siege-demo.php",
-      "data": {
-        "resource": "literal",
-        "name": "popup-siege-demo.php",
-        "contents": "<?php\n/** Automatically stage Popup Siege on the disposable Playground demo. */\nadd_action(\n\t'admin_enqueue_scripts',\n\tstatic function () {\n\t\tif ( ! function_exists( 'openstation_is_enabled' ) || ! openstation_is_enabled() ) {\n\t\t\treturn;\n\t\t}\n\t\twp_add_inline_script(\n\t\t\t'openstation',\n\t\t\t'window.wp.os.ready(function(){var games=window.wp.os.games;if(games&&typeof games.launch===\"function\"){Promise.resolve(games.launch(\"popup-siege\")).catch(function(){window.wp.os.openWindow(\"desktop-mode-games\",{source:\"popup-siege-demo\"});});}else{window.wp.os.openWindow(\"desktop-mode-games\",{source:\"popup-siege-demo\"});}});',\n\t\t\t'after'\n\t\t);\n\t},\n\t100\n);"
       }
     }
   ]

@@ -23,8 +23,7 @@ export const BUG_REPORT_WINDOW_ID = 'desktop-mode-bug-report';
 
 /** GitHub repo the issue is filed against. */
 const REPO_OWNER = 'WordPress';
-// The GitHub repository slug, which stays on the pre-rebrand name.
-const REPO_NAME = 'desktop-mode';
+const REPO_NAME = 'openstation';
 
 /**
  * Conservative cap on the body length passed via `?body=…`. GitHub

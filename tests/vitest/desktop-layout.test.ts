@@ -654,7 +654,7 @@ describe( 'desktop-layout dispatcher', () => {
 		).toBeNull();
 	} );
 
-	// Regression tests for https://github.com/WordPress/desktop-mode/issues/405 —
+	// Regression tests for https://github.com/WordPress/openstation/issues/405 —
 	// native windows registered with `placement: 'dock'` (Games) land on
 	// the rails as system tiles, which used to bypass the Apps & Icons
 	// `itemVisibility` overrides entirely: hiding the item removed the
